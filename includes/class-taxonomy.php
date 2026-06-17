@@ -7,8 +7,6 @@
 
 namespace Newspack_Rolling_Coverage;
 
-use Newspack_Rolling_Coverage\Post_Type;
-
 defined( 'ABSPATH' ) || exit;
 
 /**
