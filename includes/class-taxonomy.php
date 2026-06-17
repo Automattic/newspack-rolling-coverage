@@ -5,9 +5,9 @@
  * @package Newspack_Rolling_Coverage
  */
 
-namespace Newspack_Rolling_Coverage\Core;
+namespace Newspack_Rolling_Coverage;
 
-use Newspack_Rolling_Coverage\Core\Post_Type;
+use Newspack_Rolling_Coverage\Post_Type;
 
 defined( 'ABSPATH' ) || exit;
 

@@ -5,9 +5,9 @@
  * @package Newspack_Rolling_Coverage
  */
 
-namespace Newspack_Rolling_Coverage\Core;
+namespace Newspack_Rolling_Coverage;
 
-use Newspack_Rolling_Coverage\Core\Taxonomy;
+use Newspack_Rolling_Coverage\Taxonomy;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Post_Type {
 
-	const CPT_SLUG  = 'rolling_coverage_ent';
+	const CPT_SLUG  = 'rolling_coverage_ent'; // allows 20 characters max i.e. current length.
 	const REST_BASE = 'rolling-coverage-entries';
 
 	/**
