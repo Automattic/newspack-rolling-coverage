@@ -17,6 +17,9 @@ class Post_Type {
 	const CPT_SLUG  = 'rolling_cov_entry'; // allows 20 characters max hence the disparity.
 	const REST_BASE = 'rolling-coverage-entries';
 
+	// Stores the term ID for the new entry being created, keyed in user meta.
+	const NEW_ENTRY_TERM_META_KEY = 'rolling_coverage_new_entry_term';
+
 	/**
 	 * Initialize hooks.
 	 */
