@@ -24,6 +24,9 @@ if ( ! defined( 'NEWSPACK_ROLLING_COVERAGE_PLUGIN_FILE' ) ) {
 	define( 'NEWSPACK_ROLLING_COVERAGE_PLUGIN_FILE', __FILE__ );
 }
 
+define( 'NEWSPACK_ROLLING_COVERAGE_VERSION', '0.1.0' );
+define( 'NEWSPACK_ROLLING_COVERAGE_URL', plugin_dir_url( __FILE__ ) );
+
 require_once __DIR__ . '/vendor/autoload.php';
 
 Newspack_Rolling_Coverage\Initializer::init();

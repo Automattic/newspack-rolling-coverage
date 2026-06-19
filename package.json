@@ -18,8 +18,9 @@
 		"build": "npm run clean && newspack-scripts wp-scripts build",
 		"start": "npm ci && npm run watch",
 		"watch": "npm run clean && newspack-scripts wp-scripts start",
+		"typecheck": "tsc --noEmit",
 		"test": "echo 'No JS unit tests in this repository.'",
-		"lint": "npm run lint:scss && npm run lint:js",
+		"lint": "npm run lint:scss && npm run lint:js && npm run lint:php && npm run typecheck",
 		"lint:js": "newspack-scripts wp-scripts lint-js '**/{src,includes}/**/*.{js,jsx,ts,tsx}'",
 		"lint:js:staged": "newspack-scripts wp-scripts lint-js --ext .js,.jsx,.ts,.tsx",
 		"fix:js": "newspack-scripts wp-scripts lint-js --fix '**/{src,includes}/**/*.{js,jsx,ts,tsx}'",
@@ -42,6 +43,14 @@
 		"*.php": "npm run lint:php:staged"
 	},
 	"devDependencies": {
-		"newspack-scripts": "^5.8.0"
+		"newspack-scripts": "^5.9.8",
+		"@wordpress/api-fetch": "^7.48.1",
+		"@wordpress/components": "^35.0.1",
+		"@wordpress/core-data": "^7.48.1",
+		"@wordpress/data": "^10.48.1",
+		"@wordpress/dataviews": "^16.0.1",
+		"@wordpress/element": "^8.0.1",
+		"@wordpress/i18n": "^6.21.1",
+		"@wordpress/icons": "^14.0.1"
 	}
 }
