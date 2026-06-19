@@ -1,0 +1,6 @@
+@use "../variables" as *;
+
+.newspack-rolling-coverage-error {
+	color: $nrc-color-error;
+	margin-top: $nrc-spacing-lg;
+}
