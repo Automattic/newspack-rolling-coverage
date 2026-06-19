@@ -42,13 +42,21 @@ class Initializer {
 	 * Runs on plugin activation.
 	 */
 	public static function activation_hook() {
+
+		/**
+		 * Action to hook into when Rolling Coverage plugin is activated.
+		 */
 		do_action( 'rolling_coverage_activation' );
 	}
 
 	/**
-	 * Runs on plugin deactivation to clean up redundant rewrite rules.
+	 * Runs on plugin deactivation.
 	 */
 	public static function deactivation_hook() {
+	
+		/**
+		 * Action to hook into when Rolling Coverage plugin is deactivated.
+		 */
 		do_action( 'rolling_coverage_deactivation' );
 	}
 }
