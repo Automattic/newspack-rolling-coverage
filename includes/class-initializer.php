@@ -31,16 +31,17 @@ class Initializer {
 	private static function includes() {
 		Post_Type::init();
 		Taxonomy::init();
+
+		// Admin interface (only load in admin context).
+		if ( is_admin() ) {
+			Admin::init();
+		}
 	}
 
 	/**
 	 * Runs on plugin activation.
 	 */
 	public static function activation_hook() {
-
-		/**
-		 * Fires
-		 */
 		do_action( 'rolling_coverage_activation' );
 	}
 
@@ -48,10 +49,6 @@ class Initializer {
 	 * Runs on plugin deactivation to clean up redundant rewrite rules.
 	 */
 	public static function deactivation_hook() {
-	
-		/**
-		 * Fires when Rolling Coverage plugin is deactivated
-		 */
 		do_action( 'rolling_coverage_deactivation' );
 	}
 }
