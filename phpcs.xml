@@ -16,7 +16,6 @@
 		<exclude name="Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed" />
 		<exclude name="Universal.NamingConventions.NoReservedKeywordParameterNames" />
 		<exclude name="Generic.CodeAnalysis.UnusedFunctionParameter.Found" />
-		<exclude name="WordPress.DB.SlowDBQuery.slow_db_query_tax_query"  />
 	</rule>
 
 	<rule ref="PHPCompatibilityWP"/>

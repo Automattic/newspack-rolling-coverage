@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Post_Type {
 
-	const CPT_SLUG  = 'rolling_coverage_ent'; // allows 20 characters max i.e. current length.
+	const CPT_SLUG  = 'rolling_cov_entry'; // allows 20 characters max i.e. current length.
 	const REST_BASE = 'rolling-coverage-entries';
 
 	/**
@@ -22,7 +22,6 @@ class Post_Type {
 	 */
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register' ] );
-		add_action( 'pre_delete_term', [ __CLASS__, 'delete_term_entries' ], 10, 2 );
 	}
 
 	/**
@@ -64,36 +63,5 @@ class Post_Type {
 				'delete_with_user'    => false,
 			]
 		);
-	}
-
-	/**
-	 * When a term is deleted, cascade-delete all entries assigned to it.
-	 *
-	 * @param int    $term_id   The term ID.
-	 * @param string $taxonomy  The taxonomy slug.
-	 */
-	public static function delete_term_entries( $term_id, $taxonomy ) {
-		if ( Taxonomy::TAXONOMY_SLUG !== $taxonomy ) {
-			return;
-		}
-
-		$entry_ids = get_posts(
-			[
-				'post_type'      => self::CPT_SLUG,
-				'posts_per_page' => -1,
-				'fields'         => 'ids',
-				'tax_query'      => [
-					[
-						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
-						'field'    => 'term_id',
-						'terms'    => $term_id,
-					],
-				],
-			]
-		);
-
-		foreach ( $entry_ids as $entry_id ) {
-			wp_delete_post( $entry_id, true );
-		}
 	}
 }
