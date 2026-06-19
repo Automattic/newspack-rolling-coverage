@@ -1,5 +1,5 @@
 /**
- * External dependencies
+ * WordPress dependencies
  */
 import { useEntityRecords } from '@wordpress/core-data';
 
