@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Post_Type {
 
-	const CPT_SLUG  = 'rolling_cov_entry'; // allows 20 characters max i.e. current length.
+	const CPT_SLUG  = 'rolling_cov_entry'; // allows 20 characters max hence the disparity.
 	const REST_BASE = 'rolling-coverage-entries';
 
 	/**
