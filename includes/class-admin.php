@@ -97,8 +97,12 @@ class Admin {
 	private static function get_script_data(): array {
 		return array(
 			'restBase'     => array(
-				'liveblogs' => esc_url_raw( rest_url( 'wp/v2/rolling-coverage' ) ),
-				'entries'   => esc_url_raw( rest_url( 'wp/v2/rolling-coverage-entries' ) ),
+				'liveblogs' => Taxonomy::REST_BASE,
+				'entries'   => Post_Type::REST_BASE,
+			),
+			'restBaseUrls' => array(
+				'liveblogs' => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
+				'entries'   => esc_url_raw( rest_url( 'wp/v2/' . Post_Type::REST_BASE ) ),
 			),
 			'nonce'        => wp_create_nonce( 'wp_rest' ),
 			'capabilities' => array(
@@ -108,12 +112,14 @@ class Admin {
 			),
 			'adminUrls'    => array(
 				'editEntry' => admin_url( 'post.php?action=edit' ),
-				'newEntry'  => admin_url( 'post-new.php?post_type=rolling_coverage_ent' ),
-				'editTerm'  => admin_url( 'term.php?taxonomy=rolling_coverage' ),
+				'newEntry'  => admin_url( 'post-new.php?post_type=' . Post_Type::CPT_SLUG ),
+				'editTerm'  => admin_url( 'term.php?taxonomy=' . Taxonomy::TAXONOMY_SLUG ),
 			),
 			'postType'     => Post_Type::CPT_SLUG,
 			'taxonomy'     => Taxonomy::TAXONOMY_SLUG,
-			'statusKey'    => Taxonomy::STATUS_META_KEY,
+			'taxMeta'      => array(
+				'statusKey' => Taxonomy::STATUS_META_KEY,
+			),
 		);
 	}
 }

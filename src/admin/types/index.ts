@@ -9,6 +9,10 @@ interface AdminConfig {
 		liveblogs: string;
 		entries: string;
 	};
+	restBaseUrls: {
+		liveblogs: string;
+		entries: string;
+	};
 	nonce: string;
 	capabilities: {
 		canEditPosts: boolean;
@@ -22,7 +26,9 @@ interface AdminConfig {
 	};
 	postType: string;
 	taxonomy: string;
-	statusKey: string;
+	taxMeta: {
+		statusKey: string;
+	};
 }
 
 interface Liveblog {
@@ -36,6 +42,7 @@ interface Liveblog {
 		rolling_coverage_status?: 'active' | 'paused' | 'archived';
 		created_at?: string;
 		modified_at?: string;
+		[ key: string ]: unknown;
 	};
 }
 

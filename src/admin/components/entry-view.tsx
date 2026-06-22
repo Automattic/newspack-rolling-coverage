@@ -26,7 +26,8 @@ import type { EntryListViewProps } from '../types';
  */
 function EntryView( { liveblog }: EntryListViewProps ) {
 	const config = useAdminContext();
-	const isArchived = liveblog.meta?.rolling_coverage_status === 'archived';
+	const isArchived =
+		liveblog.meta?.[ config.taxMeta.statusKey ] === 'archived';
 	const [ refreshKey, setRefreshKey ] = useState( 0 );
 	const [ view, setView ] = useState< View >( defaultEntryView );
 

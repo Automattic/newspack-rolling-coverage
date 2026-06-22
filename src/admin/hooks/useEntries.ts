@@ -7,6 +7,7 @@ import { useEntityRecords } from '@wordpress/core-data';
  * Internal dependencies
  */
 import type { Entry, UseEntriesOptions } from '../types';
+import { useAdminContext } from './useAdminContext';
 
 /**
  * Fetches entries for a given liveblog via the WordPress core-data layer
@@ -31,6 +32,8 @@ function useEntries( options: UseEntriesOptions ) {
 		refreshKey,
 	} = options;
 
+	const config = useAdminContext();
+
 	const query: Record< string, unknown > = {
 		per_page: perPage,
 		page,
@@ -38,7 +41,9 @@ function useEntries( options: UseEntriesOptions ) {
 		order,
 		status: status || 'publish,draft,pending,future,private',
 		context: 'edit',
-		'rolling-coverage': liveblogId ? String( liveblogId ) : undefined,
+		[ config.restBase.liveblogs ]: liveblogId
+			? String( liveblogId )
+			: undefined,
 		_fields:
 			'id,title,date,modified,author,status,meta,categories,tags,_links,_embedded',
 		_embed: 'author,wp:term',
@@ -50,7 +55,7 @@ function useEntries( options: UseEntriesOptions ) {
 	}
 
 	const { records, isResolving, hasResolved, totalItems, totalPages } =
-		useEntityRecords< Entry >( 'postType', 'rolling_coverage_ent', query );
+		useEntityRecords< Entry >( 'postType', config.postType, query );
 
 	const error = hasResolved && ! records ? 'Failed to load entries.' : null;
 

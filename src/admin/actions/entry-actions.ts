@@ -37,7 +37,7 @@ function getEntryActions(
 			},
 		},
 		createDeleteAction(
-			deleteEntry,
+			( id: number ) => deleteEntry( config.restBaseUrls.entries, id ),
 			{
 				singular: __(
 					'Are you sure you want to delete this entry?',

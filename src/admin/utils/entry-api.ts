@@ -12,18 +12,22 @@ import type { ApiResult } from '../types';
 /**
  * Permanently deletes an entry via the REST API.
  *
- * @param {number} id - The entry post ID.
+ * @param {string} restBaseEntries - Full REST URL for the entries collection (from config.restBaseUrls.entries).
+ * @param {number} id              - The entry post ID.
  * @return {Promise<ApiResult>} Result indicating success or failure.
  */
-async function deleteEntry( id: number ): Promise< ApiResult > {
+async function deleteEntry(
+	restBaseEntries: string,
+	id: number
+): Promise< ApiResult > {
 	try {
 		await apiFetch( {
-			path: `/wp/v2/rolling-coverage-entries/${ id }?force=true`,
+			url: `${ restBaseEntries }/${ id }?force=true`, //force=true deletes the entry permanently.
 			method: 'DELETE',
 		} );
 		return { success: true };
 	} catch ( error ) {
-		return { success: false, error: handleApiError( error ) };
+		return { success: false, error: handleApiError( error as Error ) };
 	}
 }
 

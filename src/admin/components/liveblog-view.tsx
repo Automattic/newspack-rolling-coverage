@@ -15,7 +15,8 @@ import { useLiveblogs } from '../hooks/useLiveblogs';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { LiveblogModal } from './liveblog-modal';
 import { getLiveblogActions } from '../actions/liveblog-actions';
-import { liveblogFields, defaultLiveblogView } from '../fields/liveblogs';
+import { getLiveblogFields, defaultLiveblogView } from '../fields/liveblogs';
+import { useAdminContext } from '../hooks/useAdminContext';
 import type { Liveblog, LiveblogListViewProps } from '../types';
 
 /**
@@ -25,6 +26,11 @@ import type { Liveblog, LiveblogListViewProps } from '../types';
  * @param {LiveblogListViewProps} props Component props.
  */
 function LiveblogView( { onNavigateToEntries }: LiveblogListViewProps ) {
+	const config = useAdminContext();
+	const fields = useMemo(
+		() => getLiveblogFields( config.taxMeta.statusKey ),
+		[ config.taxMeta.statusKey ]
+	);
 	const [ view, setView ] = useState< View >( defaultLiveblogView );
 	const [ editingLiveblog, setEditingLiveblog ] = useState< Liveblog | null >(
 		null
@@ -42,8 +48,8 @@ function LiveblogView( { onNavigateToEntries }: LiveblogListViewProps ) {
 	} );
 
 	const { data: filteredData, paginationInfo } = useMemo( () => {
-		return filterSortAndPaginate( records ?? [], view, liveblogFields );
-	}, [ records, view ] );
+		return filterSortAndPaginate( records ?? [], view, fields );
+	}, [ records, view, fields ] );
 
 	const handleOpenCreate = useCallback( () => {
 		setEditingLiveblog( null );
@@ -67,11 +73,12 @@ function LiveblogView( { onNavigateToEntries }: LiveblogListViewProps ) {
 	const actions = useMemo(
 		() =>
 			getLiveblogActions(
+				config,
 				onNavigateToEntries,
 				handleOpenEdit,
 				handleSaved
 			),
-		[ onNavigateToEntries, handleOpenEdit, handleSaved ]
+		[ config, onNavigateToEntries, handleOpenEdit, handleSaved ]
 	);
 
 	return (
@@ -81,7 +88,7 @@ function LiveblogView( { onNavigateToEntries }: LiveblogListViewProps ) {
 			) }
 			<DataViewsWrapper
 				data={ filteredData }
-				fields={ liveblogFields }
+				fields={ fields }
 				view={ view }
 				onChangeView={ setView }
 				actions={ actions }

@@ -12,69 +12,76 @@ import { truncate, safeFormatUTCDate } from '../utils/fields';
 /**
  * Field definitions for the liveblog DataViews table.
  * Configures columns: term ID, name, entry count, status, created date, modified date.
+ *
+ * @param {string} statusKey Meta key for the liveblog status (from AdminConfig).
+ * @return {Field< Liveblog >[]} Field definitions for the liveblog table.
  */
-const liveblogFields: Field< Liveblog >[] = [
-	{
-		id: 'term_id',
-		type: 'text',
-		label: __( 'Term ID', 'newspack-rolling-coverage' ),
-		enableSorting: true,
-		getValue: ( { item } ) => String( item.id ),
-	},
-	{
-		id: 'name',
-		type: 'text',
-		label: __( 'Name', 'newspack-rolling-coverage' ),
-		enableSorting: true,
-		enableGlobalSearch: true,
-		getValue: ( { item } ) => truncate( item.name, 20 ),
-	},
-	{
-		id: 'count',
-		type: 'text',
-		label: __( 'Entries', 'newspack-rolling-coverage' ),
-		enableSorting: true,
-		getValue: ( { item } ) => String( item.count ?? 0 ),
-	},
-	{
-		id: 'status',
-		type: 'text',
-		label: __( 'Status', 'newspack-rolling-coverage' ),
-		getValue: ( { item } ) =>
-			item.meta?.rolling_coverage_status || 'active',
-		elements: [
-			{
-				value: 'active',
-				label: __( 'Active', 'newspack-rolling-coverage' ),
-			},
-			{
-				value: 'paused',
-				label: __( 'Paused', 'newspack-rolling-coverage' ),
-			},
-			{
-				value: 'archived',
-				label: __( 'Archived', 'newspack-rolling-coverage' ),
-			},
-		],
-		filterBy: {
-			operators: [ 'is', 'isNot' ],
+function getLiveblogFields( statusKey: string ): Field< Liveblog >[] {
+	return [
+		{
+			id: 'term_id',
+			type: 'text',
+			label: __( 'Term ID', 'newspack-rolling-coverage' ),
+			enableSorting: true,
+			getValue: ( { item } ) => String( item.id ),
 		},
-	},
-	{
-		id: 'created_at',
-		type: 'datetime',
-		label: __( 'Created', 'newspack-rolling-coverage' ),
-		enableSorting: true,
-		getValue: ( { item } ) => safeFormatUTCDate( item.meta?.created_at ),
-	},
-	{
-		id: 'modified_at',
-		type: 'datetime',
-		label: __( 'Modified', 'newspack-rolling-coverage' ),
-		enableSorting: true,
-		getValue: ( { item } ) => safeFormatUTCDate( item.meta?.modified_at ),
-	},
-];
+		{
+			id: 'name',
+			type: 'text',
+			label: __( 'Name', 'newspack-rolling-coverage' ),
+			enableSorting: true,
+			enableGlobalSearch: true,
+			getValue: ( { item } ) => truncate( item.name, 20 ),
+		},
+		{
+			id: 'count',
+			type: 'text',
+			label: __( 'Entries', 'newspack-rolling-coverage' ),
+			enableSorting: true,
+			getValue: ( { item } ) => String( item.count ?? 0 ),
+		},
+		{
+			id: 'status',
+			type: 'text',
+			label: __( 'Status', 'newspack-rolling-coverage' ),
+			getValue: ( { item } ) =>
+				( item.meta?.[ statusKey ] as string ) || 'active',
+			elements: [
+				{
+					value: 'active',
+					label: __( 'Active', 'newspack-rolling-coverage' ),
+				},
+				{
+					value: 'paused',
+					label: __( 'Paused', 'newspack-rolling-coverage' ),
+				},
+				{
+					value: 'archived',
+					label: __( 'Archived', 'newspack-rolling-coverage' ),
+				},
+			],
+			filterBy: {
+				operators: [ 'is', 'isNot' ],
+			},
+		},
+		{
+			id: 'created_at',
+			type: 'datetime',
+			label: __( 'Created', 'newspack-rolling-coverage' ),
+			enableSorting: true,
+			getValue: ( { item } ) =>
+				safeFormatUTCDate( item.meta?.created_at ),
+		},
+		{
+			id: 'modified_at',
+			type: 'datetime',
+			label: __( 'Modified', 'newspack-rolling-coverage' ),
+			enableSorting: true,
+			getValue: ( { item } ) =>
+				safeFormatUTCDate( item.meta?.modified_at ),
+		},
+	];
+}
 
 /**
  * Default view state for the liveblog list: table layout, sorted by name ascending,
@@ -92,4 +99,4 @@ const defaultLiveblogView: ViewState = {
 	layout: {},
 };
 
-export { liveblogFields, defaultLiveblogView };
+export { getLiveblogFields, defaultLiveblogView };
