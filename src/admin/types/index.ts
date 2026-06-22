@@ -13,6 +13,10 @@ interface AdminConfig {
 		coverages: string;
 		entries: string;
 	};
+	restBaseUrls: {
+		liveblogs: string;
+		entries: string;
+	};
 	nonce: string;
 	capabilities: {
 		canEditPosts: boolean;

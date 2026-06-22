@@ -8,11 +8,12 @@ import { __ } from '@wordpress/i18n';
  */
 import { deleteLiveblog } from '../utils/liveblog-api';
 import { createDeleteAction } from '../utils/actions';
-import type { Liveblog, Action } from '../types';
+import type { Liveblog, Action, AdminConfig } from '../types';
 
 /**
  * Returns DataViews action definitions for liveblog rows.
  *
+ * @param {AdminConfig}                  config              The admin config providing REST URLs and other server-provided settings.
  * @param {(liveblog: Liveblog) => void} onNavigateToEntries Callback to navigate to the entry list.
  * @param {(liveblog: Liveblog) => void} onEdit              Callback to open the edit modal.
  * @param {() => void}                   onActionPerformed   Callback invoked after a successful delete to refresh data.
@@ -20,6 +21,7 @@ import type { Liveblog, Action } from '../types';
  * @return {Action<Liveblog>[]} Array of DataViews actions for liveblogs.
  */
 function getLiveblogActions(
+	config: AdminConfig,
 	onNavigateToEntries: ( liveblog: Liveblog ) => void,
 	onEdit: ( liveblog: Liveblog ) => void,
 	onActionPerformed?: () => void
@@ -45,7 +47,8 @@ function getLiveblogActions(
 			},
 		},
 		createDeleteAction(
-			deleteLiveblog,
+			( id: number ) =>
+				deleteLiveblog( config.restBaseUrls.liveblogs, id ),
 			{
 				singular: __(
 					'Are you sure you want to delete this liveblog? This will also delete all entries.',

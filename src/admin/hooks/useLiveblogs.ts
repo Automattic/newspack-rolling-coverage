@@ -7,6 +7,7 @@ import { useEntityRecords } from '@wordpress/core-data';
  * Internal dependencies
  */
 import type { Liveblog, UseLiveblogsOptions } from '../types';
+import { useAdminContext } from './useAdminContext';
 
 /**
  * Fetches liveblog terms via the WordPress core-data layer (useEntityRecords).
@@ -43,8 +44,10 @@ function useLiveblogs( options: UseLiveblogsOptions = {} ) {
 		query.search = search;
 	}
 
+	const config = useAdminContext();
+
 	const { records, isResolving, hasResolved, totalItems, totalPages } =
-		useEntityRecords( 'taxonomy', 'rolling_coverage', query );
+		useEntityRecords( 'taxonomy', config.taxonomy, query );
 
 	const error = hasResolved && ! records ? 'Failed to load liveblogs.' : null;
 

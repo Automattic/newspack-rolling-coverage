@@ -10,7 +10,8 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies
  */
 import { saveLiveblog } from '../utils/liveblog-api';
-import type { LiveblogModalProps, LiveblogFormData } from '../types';
+import { useAdminContext } from '../hooks/useAdminContext';
+import type { LiveblogModalProps, Liveblog, LiveblogFormData } from '../types';
 
 const liveblogFields = [
 	{
@@ -60,15 +61,15 @@ const liveblogForm = {
  * @param {LiveblogModalProps} props Component props.
  */
 function LiveblogModal( { liveblog, onClose, onSaved }: LiveblogModalProps ) {
+	const { restBaseUrls, taxMeta } = useAdminContext();
 	const isEditing = liveblog !== null;
 	const [ data, setData ] = useState( {
 		name: liveblog?.name || '',
 		description: liveblog?.description || '',
 		status:
-			( liveblog?.meta?.rolling_coverage_status as
-				| 'active'
-				| 'paused'
-				| 'archived' ) || 'active',
+			( liveblog?.meta?.[
+				taxMeta.statusKey
+			] as Liveblog[ 'meta' ][ 'rolling_coverage_status' ] ) || 'active',
 	} );
 	const [ isSaving, setIsSaving ] = useState( false );
 	const [ error, setError ] = useState< string | null >( null );
@@ -79,8 +80,11 @@ function LiveblogModal( { liveblog, onClose, onSaved }: LiveblogModalProps ) {
 			setData( {
 				name: liveblog.name,
 				description: liveblog.description,
-				status: ( liveblog.meta?.rolling_coverage_status ||
-					'active' ) as 'active' | 'paused' | 'archived',
+				status:
+					( liveblog.meta?.[
+						taxMeta.statusKey
+					] as Liveblog[ 'meta' ][ 'rolling_coverage_status' ] ) ||
+					'active',
 			} );
 		} else {
 			setData( {
@@ -90,7 +94,7 @@ function LiveblogModal( { liveblog, onClose, onSaved }: LiveblogModalProps ) {
 			} );
 		}
 		setError( null );
-	}, [ liveblog ] );
+	}, [ liveblog, taxMeta.statusKey ] );
 
 	const handleChange = useCallback(
 		( edits: Partial< LiveblogFormData > ) => {
@@ -105,6 +109,8 @@ function LiveblogModal( { liveblog, onClose, onSaved }: LiveblogModalProps ) {
 		setError( null );
 
 		const result = await saveLiveblog(
+			restBaseUrls.liveblogs,
+			taxMeta.statusKey,
 			{
 				name: data.name,
 				description: data.description,
