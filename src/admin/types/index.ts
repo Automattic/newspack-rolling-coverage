@@ -1,7 +1,11 @@
 /**
- * External dependencies
+ * WordPress dependencies
  */
 import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
+
+/**
+ * External dependencies
+ */
 import type { JSX } from 'react';
 
 interface AdminConfig {
@@ -12,10 +16,7 @@ interface AdminConfig {
 	restBaseUrls: {
 		coverages: string;
 		entries: string;
-	};
-	restBaseUrls: {
-		liveblogs: string;
-		entries: string;
+		breakout: string;
 	};
 	nonce: string;
 	capabilities: {
@@ -58,6 +59,8 @@ interface Coverage {
 	};
 }
 
+type PostStatus = 'publish' | 'draft' | 'pending' | 'future' | 'private';
+
 interface Entry {
 	id: number;
 	date: string;
@@ -65,7 +68,7 @@ interface Entry {
 	modified: string;
 	modified_gmt: string;
 	slug: string;
-	status: 'publish' | 'draft' | 'pending' | 'private';
+	status: PostStatus;
 	type: string;
 	link: string;
 	title: {
@@ -77,7 +80,12 @@ interface Entry {
 		raw?: string;
 	};
 	author: number;
-	meta: Record< string, unknown >;
+	meta: {
+		rolling_coverage_breakout_post_id?: number;
+		rolling_coverage_breakout_read_more_text?: string;
+		[ key: string ]: unknown;
+	};
+	rolling_coverage_breakout_status?: PostStatus | null;
 	_embedded?: {
 		author?: Array< {
 			id: number;
@@ -134,6 +142,19 @@ interface CoverageFormData {
 	status: 'active' | 'paused' | 'archived';
 }
 
+interface ConfirmModalContentProps {
+	message: string;
+	confirmLabel?: string;
+	cancelLabel?: string;
+	isDestructive?: boolean;
+	onConfirm: () => Promise< void >;
+	onClose: () => void;
+}
+
+interface ConfirmModalProps extends ConfirmModalContentProps {
+	title: string;
+}
+
 interface UseCoveragesOptions {
 	perPage?: number;
 	page?: number;
@@ -158,9 +179,30 @@ interface SaveCoverageData {
 	status: string;
 }
 
+interface BreakoutModalProps {
+	entry: Entry;
+	onClose: () => void;
+	onSaved: () => void;
+}
+
+interface BreakoutFormData {
+	rolling_coverage_breakout_read_more_text: string;
+}
+
+interface CreateBreakoutResponse {
+	breakoutPostId: number;
+	editLink: string;
+	status: string;
+}
+
+interface CreateBreakoutResult extends ApiResult {
+	data?: CreateBreakoutResponse;
+}
+
 interface ChipLinkProps {
 	href: string;
 	label: string;
+	variant?: string;
 }
 
 interface TermChipsProps {
@@ -173,6 +215,7 @@ export type {
 	ContextExports,
 	Coverage,
 	Entry,
+	PostStatus,
 	ViewState,
 	View,
 	Field,
@@ -183,6 +226,12 @@ export type {
 	CoverageModalProps,
 	CoverageFormData,
 	UseCoveragesOptions,
+	BreakoutModalProps,
+	BreakoutFormData,
+	CreateBreakoutResponse,
+	CreateBreakoutResult,
+	ConfirmModalProps,
+	ConfirmModalContentProps,
 	UseEntriesOptions,
 	SaveCoverageData,
 	ChipLinkProps,
