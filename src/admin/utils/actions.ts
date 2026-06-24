@@ -2,12 +2,13 @@
  * WordPress dependencies
  */
 import { createElement } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
 import { ConfirmModalContent } from '../shared/confirm-modal';
+import { notifySuccess, notifyError } from './notices';
 import type { Action, ApiResult } from '../types';
 
 /**
@@ -50,11 +51,39 @@ function createDeleteAction< T extends { id: number } >(
 				items.map( ( item ) => deleteFn( item.id ) )
 			);
 
-			const failures = results.filter(
-				( r ): r is PromiseRejectedResult => r.status === 'rejected'
-			);
-			if ( failures.length === 0 ) {
+			const failureCount = results.filter( ( result ) => {
+				if ( result.status === 'rejected' ) {
+					return true;
+				}
+				return ! result.value.success;
+			} ).length;
+
+			if ( failureCount === 0 ) {
+				notifySuccess(
+					sprintf(
+						// translators: %d is the number of items deleted.
+						_n(
+							'%d item deleted.',
+							'%d items deleted.',
+							items.length,
+							'newspack-rolling-coverage'
+						),
+						items.length
+					)
+				);
 				onActionPerformed?.();
+			} else {
+				notifyError(
+					sprintf(
+						// translators: 1: number of items that failed to delete, 2: total number of items selected.
+						__(
+							'%1$d of %2$d items failed to delete.',
+							'newspack-rolling-coverage'
+						),
+						failureCount,
+						items.length
+					)
+				);
 			}
 			closeModal?.();
 		};
