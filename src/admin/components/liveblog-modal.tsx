@@ -10,6 +10,7 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies
  */
 import { saveLiveblog } from '../utils/liveblog-api';
+import { notifySuccess } from '../utils/notices';
 import { useAdminContext } from '../hooks/useAdminContext';
 import type { LiveblogModalProps, Liveblog, LiveblogFormData } from '../types';
 
@@ -120,6 +121,11 @@ function LiveblogModal( { liveblog, onClose, onSaved }: LiveblogModalProps ) {
 		);
 
 		if ( result.success ) {
+			notifySuccess(
+				isEditing
+					? __( 'Liveblog updated.', 'newspack-rolling-coverage' )
+					: __( 'Liveblog created.', 'newspack-rolling-coverage' )
+			);
 			onSaved();
 			onClose();
 		} else {
