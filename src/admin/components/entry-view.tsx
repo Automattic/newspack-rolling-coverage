@@ -18,8 +18,8 @@ import { createEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { getEntryActions } from '../actions/entry-actions';
-import { entryFields, defaultEntryView } from '../fields/entries';
 import { ContextExports } from '../types';
+import { getEntryFields, defaultEntryView } from '../fields/entries';
 
 /**
  * Renders the entry list DataViews for a single coverage, with client-side
@@ -85,9 +85,11 @@ function EntryView() {
 		order: view.sort?.direction,
 	} );
 
+	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
+
 	const { data: filteredData, paginationInfo } = useMemo( () => {
 		return filterSortAndPaginate( records ?? [], view, entryFields );
-	}, [ records, view ] );
+	}, [ records, view, entryFields ] );
 
 	const handleNewEntry = useCallback( async () => {
 		if ( ! isValidCoverageId || numericCoverageId === null ) {
