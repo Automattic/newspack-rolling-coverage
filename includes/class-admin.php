@@ -14,7 +14,8 @@ defined( 'ABSPATH' ) || exit;
  */
 class Admin {
 
-	const MENU_SLUG = 'rolling-coverage';
+	const MENU_SLUG            = 'rolling-coverage';
+	const CONNECTION_MENU_SLUG = 'rolling-coverage-connection';
 
 	/**
 	 * Initialize hooks.
@@ -37,6 +38,24 @@ class Admin {
 			'dashicons-megaphone',
 			30
 		);
+
+		add_submenu_page(
+			self::MENU_SLUG,
+			__( 'Views', 'newspack-rolling-coverage' ),
+			__( 'Views', 'newspack-rolling-coverage' ),
+			'edit_posts',
+			self::MENU_SLUG,
+			array( __CLASS__, 'render_page' )
+		);
+
+		add_submenu_page(
+			self::MENU_SLUG,
+			__( 'Connection', 'newspack-rolling-coverage' ),
+			__( 'Connection', 'newspack-rolling-coverage' ),
+			'manage_options',
+			self::CONNECTION_MENU_SLUG,
+			array( __CLASS__, 'render_page' )
+		);
 	}
 
 	/**
@@ -45,7 +64,7 @@ class Admin {
 	public static function render_page(): void {
 		printf(
 			'<div id="%s"></div>',
-			esc_attr( 'newspack-rolling-coverage-admin' )
+			esc_attr( 'newspack-rolling-coverage-root' )
 		);
 	}
 
@@ -55,12 +74,17 @@ class Admin {
 	 * @param string $hook_suffix Current admin page hook.
 	 */
 	public static function enqueue_assets( string $hook_suffix ): void {
-		if ( 'toplevel_page_' . self::MENU_SLUG !== $hook_suffix ) {
+		$valid_hooks = array(
+			'toplevel_page_' . self::MENU_SLUG,
+			'rolling-coverage_page_' . self::CONNECTION_MENU_SLUG,
+		);
+
+		if ( ! in_array( $hook_suffix, $valid_hooks, true ) ) {
 			return;
 		}
 
 		$asset_file = NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/admin.asset.php';
-		
+
 		if ( ! file_exists( $asset_file ) ) {
 			return;
 		}
@@ -85,40 +109,56 @@ class Admin {
 		wp_localize_script(
 			'newspack-rolling-coverage-admin',
 			'newspackRollingCoverageAdmin',
-			self::get_script_data()
+			self::get_script_data( $hook_suffix )
 		);
 	}
 
 	/**
 	 * Get localized script data - configuration constants only.
 	 *
+	 * @param string $hook_suffix Current admin page hook.
 	 * @return array<string, mixed> Script data array.
 	 */
-	private static function get_script_data(): array {
+	private static function get_script_data( string $hook_suffix = '' ): array {
+		// Extensible multi-page react entry point setup.
+		$page_hook_map = [
+			'toplevel_page_' . self::MENU_SLUG => 'admin',
+			'rolling-coverage_page_' . self::CONNECTION_MENU_SLUG => 'connection',
+		];
+
 		return array(
-			'restBase'     => array(
+			'page'              => $page_hook_map[ $hook_suffix ] ?? 'admin',
+			'restBase'          => array(
 				'liveblogs' => Taxonomy::REST_BASE,
 				'entries'   => Post_Type::REST_BASE,
+				'slack'     => Slack::REST_NAMESPACE,
 			),
-			'restBaseUrls' => array(
+			'restBaseUrls'      => array(
 				'liveblogs' => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
 				'entries'   => esc_url_raw( rest_url( 'wp/v2/' . Post_Type::REST_BASE ) ),
+				'slack'     => esc_url_raw( rest_url( Slack::REST_NAMESPACE . '/' ) ),
 			),
-			'nonce'        => wp_create_nonce( 'wp_rest' ),
-			'capabilities' => array(
+			'nonce'             => wp_create_nonce( 'wp_rest' ),
+			'capabilities'      => array(
 				'canEditPosts'   => current_user_can( 'edit_posts' ),
 				'canDeletePosts' => current_user_can( 'delete_posts' ),
 				'canManageTerms' => current_user_can( 'manage_categories' ),
 			),
-			'adminUrls'    => array(
+			'adminUrls'         => array(
 				'editEntry' => admin_url( 'post.php?action=edit' ),
 				'newEntry'  => admin_url( 'post-new.php?post_type=' . Post_Type::CPT_SLUG ),
-				'editTerm'  => admin_url( 'term.php?taxonomy=' . Taxonomy::TAXONOMY_SLUG ),
+				'editUser'  => admin_url( 'user-edit.php' ),
 			),
-			'postType'     => Post_Type::CPT_SLUG,
-			'taxonomy'     => Taxonomy::TAXONOMY_SLUG,
-			'taxMeta'      => array(
+			'postType'          => Post_Type::CPT_SLUG,
+			'taxonomy'          => Taxonomy::TAXONOMY_SLUG,
+			'taxMeta'           => array(
 				'statusKey' => Taxonomy::STATUS_META_KEY,
+			),
+			'slack'             => array(
+				'isConfigured' => Slack_Config::is_configured(),
+			),
+			'availableAdapters' => array(
+				'slack' => __( 'Slack', 'newspack-rolling-coverage' ),
 			),
 		);
 	}

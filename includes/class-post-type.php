@@ -20,6 +20,18 @@ class Post_Type {
 	// Stores the term ID for the new entry being created, keyed in user meta.
 	const NEW_ENTRY_TERM_META_KEY = 'rolling_coverage_new_entry_term';
 
+	// Slack integration post-meta keys.
+	const META_ENTRY_SOURCE      = 'rolling_coverage_entry_source';
+	const META_SLACK_TS          = 'rolling_coverage_slack_ts';
+	const META_SLACK_USER_ID     = 'rolling_coverage_slack_user_id';
+	const META_SLACK_AUTHOR_NAME = 'rolling_coverage_slack_author_name';
+	const META_SLACK_CHANNEL_ID  = 'rolling_coverage_slack_channel_id';
+	const META_SLACK_THREAD_TS   = 'rolling_coverage_slack_thread_ts';
+
+	// Generic chat-source post-meta key: the canonical dedup key for any chat-source adapter
+	// Used by Entry_Ingestion_Service::ingest()'s transient mutex and meta_query dedup.
+	const META_SOURCE_REF = 'rolling_coverage_source_ref';
+
 	/**
 	 * Initialize hooks.
 	 */
@@ -69,6 +81,59 @@ class Post_Type {
 				'delete_with_user'    => false,
 			]
 		);
+
+		// Post-meta for any chat-source adapter (Slack now, others in future).
+		$source_meta = [
+			// Entry origin — 'slack' for Slack-ingested entries vs 'wordpress' for admin-created; drives the Source column icon in DataViews.
+			self::META_ENTRY_SOURCE      => [
+				'type'         => 'string',
+				'single'       => true,
+				'show_in_rest' => true,
+				'default'      => 'wordpress',
+			],
+			// Original Slack message timestamp; used to deduplicate entries on Slack webhook retries.
+			self::META_SLACK_TS          => [
+				'type'         => 'string',
+				'single'       => true,
+				'show_in_rest' => true,
+			],
+			// Slack user ID of the message author; provenance only (the WP post author is always the bot user).
+			self::META_SLACK_USER_ID     => [
+				'type'         => 'string',
+				'single'       => true,
+				'show_in_rest' => true,
+			],
+			// Display name of the Slack message author; shown via the author-display filter as "Slack: {name}".
+			self::META_SLACK_AUTHOR_NAME => [
+				'type'         => 'string',
+				'single'       => true,
+				'show_in_rest' => true,
+			],
+			// Slack channel ID the entry was ingested from; links an entry back to its source channel.
+			self::META_SLACK_CHANNEL_ID  => [
+				'type'         => 'string',
+				'single'       => true,
+				'show_in_rest' => true,
+			],
+			// Thread timestamp when the message was a threaded reply.
+			self::META_SLACK_THREAD_TS   => [
+				'type'         => 'string',
+				'single'       => true,
+				'show_in_rest' => true,
+			],
+
+			// Generic source-ref: the platform-agnostic canonical dedup key written with unique=true
+			// by Entry_Ingestion_Service::ingest() — REST-exposed for REST-side filter/dedup queries.
+			self::META_SOURCE_REF        => [
+				'type'         => 'string',
+				'single'       => true,
+				'show_in_rest' => true,
+			],
+		];
+
+		foreach ( $source_meta as $meta_key => $meta_args ) {
+			register_post_meta( self::CPT_SLUG, $meta_key, $meta_args );
+		}
 	}
 
 	/**

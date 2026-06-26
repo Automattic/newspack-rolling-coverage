@@ -21,6 +21,16 @@ class Taxonomy {
 	// Related constants.
 	const STATUS_META_KEY = 'rolling_coverage_status';
 
+	// Slack integration term-meta keys.
+	const META_SLACK_CHANNEL_ID   = 'rolling_coverage_slack_channel_id';
+	const META_SLACK_CHANNEL_NAME = 'rolling_coverage_slack_channel_name';
+
+	// Generic chat-source term-meta keys: link each term to a single chat source.
+	// META_SOURCE     : the platform slug (e.g. 'slack', 'beeper', 'whatsapp', 'telegram').
+	// META_SOURCE_REF : the platform-native conversation id.
+	const META_SOURCE     = 'rolling_coverage_source';
+	const META_SOURCE_REF = 'rolling_coverage_source_ref';
+
 	/**
 	 * Initialize hooks.
 	 */
@@ -57,41 +67,73 @@ class Taxonomy {
 			]
 		);
 
-		// Tracks the status of the blogs (active, paused, archived).
-		register_term_meta(
-			self::TAXONOMY_SLUG,
-			self::STATUS_META_KEY,
-			[
+		$term_meta = [
+			// Liveblog status — 'active', 'paused', or 'archived' (terminal); controls frontend polling vs static archive.
+			self::STATUS_META_KEY         => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => 'active',
-			]
-		);
-
-		// Created date stored as ISO 8601 string.
-		register_term_meta(
-			self::TAXONOMY_SLUG,
-			'created_at',
-			[
+			],
+			// ISO 8601 timestamp the liveblog term was first created (set once via the created_ hook).
+			'created_at'                  => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => '',
-			]
-		);
-
-		// Modified date stored as ISO 8601 string.
-		register_term_meta(
-			self::TAXONOMY_SLUG,
-			'modified_at',
-			[
+			],
+			// ISO 8601 timestamp of the last edit (updated via the edited_ hook).
+			'modified_at'                 => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => '',
-			]
-		);
+			],
+			// Slack channel ID linked to this liveblog term; the channel→liveblog forward link. manage_options-gated via auth_callback.
+			self::META_SLACK_CHANNEL_ID   => [
+				'show_in_rest'  => true,
+				'single'        => true,
+				'type'          => 'string',
+				'default'       => '',
+				'auth_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+			],
+			// Slack channel display name cached alongside the ID for the DataViews Slack column; manage_options-gated via auth_callback.
+			self::META_SLACK_CHANNEL_NAME => [
+				'show_in_rest'  => true,
+				'single'        => true,
+				'type'          => 'string',
+				'default'       => '',
+				'auth_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+			],
+			// Generic source platform slug (e.g. 'slack', 'beeper', 'whatsapp', 'telegram'); manage_options-gated via auth_callback.
+			self::META_SOURCE             => [
+				'show_in_rest'  => true,
+				'single'        => true,
+				'type'          => 'string',
+				'default'       => '',
+				'auth_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+			],
+			// Generic source conversation id (Slack channel id, Beeper chat id, WhatsApp phone_jid, Telegram chat id); manage_options-gated via auth_callback.
+			self::META_SOURCE_REF         => [
+				'show_in_rest'  => true,
+				'single'        => true,
+				'type'          => 'string',
+				'default'       => '',
+				'auth_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+			],
+		];
+
+		foreach ( $term_meta as $meta_key => $meta_args ) {
+			register_term_meta( self::TAXONOMY_SLUG, $meta_key, $meta_args );
+		}
 	}
 
 	/**
@@ -124,8 +166,8 @@ class Taxonomy {
 	 * This plugin's admin UI shows entries of all statuses (draft, pending,
 	 * private, etc.) so the count should reflect that.
 	 *
-	 * @param string[]    $post_statuses List of post statuses to include in the count.
-	 * @param WP_Taxonomy $taxonomy      Current taxonomy object.
+	 * @param string[]     $post_statuses List of post statuses to include in the count.
+	 * @param \WP_Taxonomy $taxonomy      Current taxonomy object.
 	 * @return string[] Filtered list of post statuses.
 	 */
 	public static function count_all_visible_statuses( $post_statuses, $taxonomy ) {
