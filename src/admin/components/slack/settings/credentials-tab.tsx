@@ -127,7 +127,7 @@ function CredentialsTab( {
 							</strong>{ ' ' }
 							{ workspaceInfo?.bot_user_id ? (
 								<a
-									href={ `${ editUserUrl }&user_id=${ workspaceInfo.bot_user_id }` }
+									href={ `${ editUserUrl }?user_id=${ workspaceInfo.bot_user_id }` }
 									target="_blank"
 									rel="noopener noreferrer"
 								>
