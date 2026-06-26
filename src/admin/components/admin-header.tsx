@@ -1,5 +1,5 @@
 /**
- * WordPress dependencies
+ * External dependencies
  */
 import { Button } from '@wordpress/components';
 import { chevronLeft, Icon, megaphone } from '@wordpress/icons';
@@ -8,13 +8,7 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import type { Liveblog } from '../types';
-
-interface AdminHeaderProps {
-	view: 'liveblogs' | 'entries';
-	selectedLiveblog: Liveblog | null;
-	onNavigateBack: () => void;
-}
+import type { AdminHeaderProps } from '../types';
 
 /**
  * Top bar showing the plugin title and a back button when viewing entries.

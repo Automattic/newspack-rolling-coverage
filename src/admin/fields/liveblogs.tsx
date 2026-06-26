@@ -1,13 +1,18 @@
 /**
- * External dependencies.
+ * External dependencies
  */
 import { __ } from '@wordpress/i18n';
 
 /**
- * Internal dependencies.
+ * Internal dependencies
  */
+import { SlackIcon } from '../shared/icons/slack-icon';
+import {
+	truncate,
+	safeFormatUTCDate,
+	getSlackChannelLabel,
+} from '../utils/fields';
 import type { Field, ViewState, Liveblog } from '../types';
-import { truncate, safeFormatUTCDate } from '../utils/fields';
 
 /**
  * Field definitions for the liveblog DataViews table.
@@ -45,7 +50,7 @@ function getLiveblogFields( statusKey: string ): Field< Liveblog >[] {
 			type: 'text',
 			label: __( 'Status', 'newspack-rolling-coverage' ),
 			getValue: ( { item } ) =>
-				( item.meta?.[ statusKey ] as string ) || 'active',
+				String( item.meta?.[ statusKey ] ?? '' ) || 'active',
 			elements: [
 				{
 					value: 'active',
@@ -62,6 +67,27 @@ function getLiveblogFields( statusKey: string ): Field< Liveblog >[] {
 			],
 			filterBy: {
 				operators: [ 'is', 'isNot' ],
+			},
+		},
+		{
+			id: 'slack_channel',
+			type: 'text',
+			label: __( 'Slack', 'newspack-rolling-coverage' ),
+			getValue: ( { item } ) => getSlackChannelLabel( item ) || '—',
+			render: ( { item } ) => {
+				// A liveblog is considered connected when either the channel
+				// name or the channel ID meta is present; fall back to the ID
+				// when the channel name could not be resolved on connect.
+				const label = getSlackChannelLabel( item );
+				if ( ! label ) {
+					return <span>—</span>;
+				}
+				return (
+					<span className="newspack-rolling-coverage-slack-chip">
+						<SlackIcon size={ 14 } />
+						<span>{ label }</span>
+					</span>
+				);
 			},
 		},
 		{
@@ -94,7 +120,7 @@ const defaultLiveblogView: ViewState = {
 	sort: { field: 'name', direction: 'asc' },
 	search: '',
 	filters: [],
-	fields: [ 'count', 'status', 'created_at', 'modified_at' ],
+	fields: [ 'count', 'status', 'slack_channel', 'created_at', 'modified_at' ],
 	titleField: 'name',
 	layout: {},
 };

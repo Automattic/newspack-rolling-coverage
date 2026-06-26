@@ -16,6 +16,7 @@ import type { Liveblog, Action, AdminConfig } from '../types';
  * @param {AdminConfig}                  config              The admin config providing REST URLs and other server-provided settings.
  * @param {(liveblog: Liveblog) => void} onNavigateToEntries Callback to navigate to the entry list.
  * @param {(liveblog: Liveblog) => void} onEdit              Callback to open the edit modal.
+ * @param {(liveblog: Liveblog) => void} onSlackConnect      Callback to open the Slack connection modal.
  * @param {() => void}                   onActionPerformed   Callback invoked after a successful delete to refresh data.
  *
  * @return {Action<Liveblog>[]} Array of DataViews actions for liveblogs.
@@ -24,6 +25,7 @@ function getLiveblogActions(
 	config: AdminConfig,
 	onNavigateToEntries: ( liveblog: Liveblog ) => void,
 	onEdit: ( liveblog: Liveblog ) => void,
+	onSlackConnect: ( liveblog: Liveblog ) => void,
 	onActionPerformed?: () => void
 ): Action< Liveblog >[] {
 	return [
@@ -46,6 +48,19 @@ function getLiveblogActions(
 				}
 			},
 		},
+		...( config.slack.isConfigured
+			? [
+					{
+						id: 'connect-slack',
+						label: __( 'Connection', 'newspack-rolling-coverage' ),
+						callback: ( items: Liveblog[] ) => {
+							if ( items.length === 1 ) {
+								onSlackConnect( items[ 0 ] );
+							}
+						},
+					},
+			  ]
+			: [] ),
 		createDeleteAction(
 			( id: number ) =>
 				deleteLiveblog( config.restBaseUrls.liveblogs, id ),

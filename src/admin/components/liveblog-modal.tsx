@@ -1,5 +1,5 @@
 /**
- * WordPress dependencies
+ * External dependencies
  */
 import { useState, useCallback, useEffect } from '@wordpress/element';
 import { Modal, Button } from '@wordpress/components';

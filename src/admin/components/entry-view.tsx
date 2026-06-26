@@ -1,5 +1,5 @@
 /**
- * WordPress dependencies
+ * External dependencies
  */
 import { useMemo, useState, useCallback } from '@wordpress/element';
 import { Button } from '@wordpress/components';

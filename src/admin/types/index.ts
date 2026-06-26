@@ -1,17 +1,21 @@
 /**
  * External dependencies
  */
-import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
 import type { JSX } from 'react';
+import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
 
 interface AdminConfig {
+	page: 'admin' | 'connection';
+	availableAdapters?: Record< string, string >;
 	restBase: {
 		liveblogs: string;
 		entries: string;
+		slack: string;
 	};
 	restBaseUrls: {
 		liveblogs: string;
 		entries: string;
+		slack: string;
 	};
 	nonce: string;
 	capabilities: {
@@ -22,12 +26,15 @@ interface AdminConfig {
 	adminUrls: {
 		editEntry: string;
 		newEntry: string;
-		editTerm: string;
+		editUser: string;
 	};
 	postType: string;
 	taxonomy: string;
 	taxMeta: {
 		statusKey: string;
+	};
+	slack: {
+		isConfigured: boolean;
 	};
 }
 
@@ -42,6 +49,8 @@ interface Liveblog {
 		rolling_coverage_status?: 'active' | 'paused' | 'archived';
 		created_at?: string;
 		modified_at?: string;
+		rolling_coverage_slack_channel_id?: string;
+		rolling_coverage_slack_channel_name?: string;
 		[ key: string ]: unknown;
 	};
 }
@@ -94,9 +103,48 @@ interface PaginationInfo {
 	totalPages: number;
 }
 
+interface ChannelMapping {
+	channel_id: string;
+	channel_name: string;
+	term_id: number;
+	term_name: string;
+	autopublish: boolean;
+	last_sync_ts: string;
+}
+
 interface ApiResult {
 	success: boolean;
 	error?: string;
+	message?: string;
+}
+
+interface SlackConnectResult {
+	success: boolean;
+	error?: string;
+	channel_id?: string;
+	channel_name?: string;
+}
+
+interface SlackVerifyResult {
+	success: boolean;
+	team?: string;
+	error?: string;
+}
+
+interface SlackChannelsResult {
+	success: boolean;
+	channels: ChannelMapping[];
+	error?: string;
+}
+
+interface SettingsNotice {
+	type: 'success' | 'error' | 'info';
+	message: string;
+}
+
+interface AdminTab {
+	name: string;
+	title: string;
 }
 
 interface DataViewsWrapperProps< T > {
@@ -186,6 +234,124 @@ interface TermChipsProps {
 	terms: Array< { link: string; name: string } >;
 }
 
+interface AdminHeaderProps {
+	view: 'liveblogs' | 'entries';
+	selectedLiveblog: Liveblog | null;
+	onNavigateBack: () => void;
+}
+
+interface SlackConnectionModalProps {
+	liveblog: Liveblog | null;
+	onClose: () => void;
+	onSaved: () => void;
+}
+
+interface SlackErrorProps {
+	message?: string | null;
+}
+
+interface ConnectedChannelViewProps {
+	channelName: string;
+	channelId: string;
+	autopublish: boolean;
+	onAutopublishChange: ( value: boolean ) => void;
+	isUpdatingAutopublish: boolean;
+	error?: string | null;
+}
+
+interface ConnectChannelFormProps {
+	channel: string;
+	onChannelChange: ( value: string ) => void;
+	autopublish: boolean;
+	onAutopublishChange: ( value: boolean ) => void;
+	isConnecting: boolean;
+	error?: string | null;
+}
+
+interface ConnectionModalFooterProps {
+	mode: 'connected' | 'connect';
+	isConnecting: boolean;
+	isDisconnecting: boolean;
+	canConnect: boolean;
+	onClose: () => void;
+	onConnect: () => void;
+	onDisconnect: () => void;
+}
+
+interface ChannelsTableProps {
+	channels: ChannelMapping[];
+	disconnectingChannelId: string | null;
+	updatingAutopublishChannelId: string | null;
+	onUnlink: ( channelId: string ) => void;
+	onAutopublishChange: ( channelId: string, autopublish: boolean ) => void;
+}
+
+interface SlackSettingsInfo {
+	connected: boolean;
+	workspace_name: string;
+	workspace_id: string;
+	ignore_prefix: string;
+	bot_user_id: number;
+	slack_bot_user_id?: string;
+	masked_token: string;
+}
+
+interface CredentialsTabProps {
+	isConfigured: boolean;
+	botToken: string;
+	setBotToken: ( v: string ) => void;
+	signingSecret: string;
+	setSigningSecret: ( v: string ) => void;
+	isVerifying: boolean;
+	isDisconnecting: boolean;
+	workspaceInfo: SlackSettingsInfo | null;
+	editUserUrl: string;
+	onVerify: () => void;
+	onDisconnect: () => void;
+}
+
+interface IngestionSettingsTabProps {
+	isConfigured: boolean;
+	ignorePrefix: string;
+	setIgnorePrefix: ( v: string ) => void;
+	isSavingSettings: boolean;
+	onSaveSettings: () => void;
+}
+
+interface ChannelsTabProps {
+	isConfigured: boolean;
+	channels: ChannelMapping[];
+	disconnectingChannelId: string | null;
+	updatingAutopublishChannelId: string | null;
+	onUnlink: ( channelId: string ) => void;
+	onAutopublishChange: ( channelId: string, autopublish: boolean ) => void;
+}
+
+interface SetupGuideTabProps {
+	manifestJson: string;
+}
+
+interface IncomingMessage {
+	source: string;
+	/** Platform-native message id (Slack `ts`, Telegram `message_id`, WhatsApp `wamid`). */
+	source_ref: string;
+	conversation_ref: string;
+	author_external_id: string | null;
+	author_display_name: string | null;
+	content_html: string;
+	thread_ref: string | null;
+	external_timestamp: string;
+	raw_payload: unknown;
+}
+
+interface SettingField {
+	key: string;
+	label: string;
+	type: 'text' | 'password' | 'boolean';
+	secret?: boolean;
+	help?: string;
+}
+
 export type {
 	AdminConfig,
 	Liveblog,
@@ -197,6 +363,7 @@ export type {
 	Action,
 	PaginationInfo,
 	ApiResult,
+	ChannelMapping,
 	DataViewsWrapperProps,
 	LiveblogListViewProps,
 	EntryListViewProps,
@@ -209,4 +376,23 @@ export type {
 	SaveLiveblogData,
 	ChipLinkProps,
 	TermChipsProps,
+	AdminHeaderProps,
+	SlackConnectionModalProps,
+	SlackErrorProps,
+	ConnectedChannelViewProps,
+	ConnectChannelFormProps,
+	ConnectionModalFooterProps,
+	ChannelsTableProps,
+	CredentialsTabProps,
+	ChannelsTabProps,
+	SetupGuideTabProps,
+	IngestionSettingsTabProps,
+	SlackSettingsInfo,
+	IncomingMessage,
+	SettingField,
+	SlackConnectResult,
+	SlackVerifyResult,
+	SlackChannelsResult,
+	SettingsNotice,
+	AdminTab,
 };

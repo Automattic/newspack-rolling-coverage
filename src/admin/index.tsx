@@ -1,5 +1,5 @@
 /**
- * WordPress dependencies
+ * External dependencies
  */
 import { createRoot } from '@wordpress/element';
 
@@ -9,7 +9,7 @@ import { createRoot } from '@wordpress/element';
 import App from './app';
 import './styles/admin.scss';
 
-const container = document.getElementById( 'newspack-rolling-coverage-admin' );
+const container = document.getElementById( 'newspack-rolling-coverage-root' );
 
 if ( container ) {
 	createRoot( container ).render( <App /> );

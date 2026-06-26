@@ -1,5 +1,5 @@
 /**
- * WordPress dependencies
+ * External dependencies
  */
 import { useState, useCallback, useMemo } from '@wordpress/element';
 import { Button } from '@wordpress/components';
@@ -14,6 +14,7 @@ import type { View } from '@wordpress/dataviews';
 import { useLiveblogs } from '../hooks/useLiveblogs';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { LiveblogModal } from './liveblog-modal';
+import { SlackConnectionModal } from './slack-connection-modal';
 import { getLiveblogActions } from '../actions/liveblog-actions';
 import { getLiveblogFields, defaultLiveblogView } from '../fields/liveblogs';
 import { useAdminContext } from '../hooks/useAdminContext';
@@ -37,6 +38,10 @@ function LiveblogView( { onNavigateToEntries }: LiveblogListViewProps ) {
 	);
 	const [ isModalOpen, setIsModalOpen ] = useState( false );
 	const [ refreshKey, setRefreshKey ] = useState( 0 );
+	const [ isSlackModalOpen, setIsSlackModalOpen ] = useState( false );
+	const [ slackLiveblog, setSlackLiveblog ] = useState< Liveblog | null >(
+		null
+	);
 
 	const { records, isResolving, error } = useLiveblogs( {
 		perPage: -1,
@@ -70,15 +75,32 @@ function LiveblogView( { onNavigateToEntries }: LiveblogListViewProps ) {
 		setRefreshKey( ( k ) => k + 1 );
 	}, [] );
 
+	const handleOpenSlackConnect = useCallback( ( liveblog: Liveblog ) => {
+		setSlackLiveblog( liveblog );
+		setIsSlackModalOpen( true );
+	}, [] );
+
+	const handleCloseSlackModal = useCallback( () => {
+		setIsSlackModalOpen( false );
+		setSlackLiveblog( null );
+	}, [] );
+
 	const actions = useMemo(
 		() =>
 			getLiveblogActions(
 				config,
 				onNavigateToEntries,
 				handleOpenEdit,
+				handleOpenSlackConnect,
 				handleSaved
 			),
-		[ config, onNavigateToEntries, handleOpenEdit, handleSaved ]
+		[
+			config,
+			onNavigateToEntries,
+			handleOpenEdit,
+			handleOpenSlackConnect,
+			handleSaved,
+		]
 	);
 
 	return (
@@ -112,6 +134,13 @@ function LiveblogView( { onNavigateToEntries }: LiveblogListViewProps ) {
 				<LiveblogModal
 					liveblog={ editingLiveblog }
 					onClose={ handleCloseModal }
+					onSaved={ handleSaved }
+				/>
+			) }
+			{ isSlackModalOpen && (
+				<SlackConnectionModal
+					liveblog={ slackLiveblog }
+					onClose={ handleCloseSlackModal }
 					onSaved={ handleSaved }
 				/>
 			) }
