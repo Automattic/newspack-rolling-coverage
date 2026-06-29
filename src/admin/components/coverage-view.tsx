@@ -1,6 +1,7 @@
 /**
- * WordPress dependencies
+ * External dependencies
  */
+import { useNavigate } from 'react-router';
 import { useState, useCallback, useMemo } from '@wordpress/element';
 import { Button } from '@wordpress/components';
 import { plus } from '@wordpress/icons';
@@ -11,39 +12,36 @@ import type { View } from '@wordpress/dataviews';
 /**
  * Internal dependencies
  */
-import { useLiveblogs } from '../hooks/useLiveblogs';
+import { useCoverages } from '../hooks/useCoverages';
 import { DataViewsWrapper } from './data-views-wrapper';
-import { LiveblogModal } from './liveblog-modal';
-import { getLiveblogActions } from '../actions/liveblog-actions';
-import { getLiveblogFields, defaultLiveblogView } from '../fields/liveblogs';
+import { CoverageModal } from './coverage-modal';
+import { getCoverageActions } from '../actions/coverage-actions';
+import { getCoverageFields, defaultCoverageView } from '../fields/coverages';
 import { useAdminContext } from '../hooks/useAdminContext';
-import type { Liveblog, LiveblogListViewProps } from '../types';
+import type { Coverage } from '../types';
 
 /**
- * Renders the liveblog list DataViews with create/edit modal and row actions.
- * Clicking a row navigates to its entries.
- *
- * @param {LiveblogListViewProps} props Component props.
+ * Renders the coverage list DataViews with create/edit modal and row actions.
+ * Clicking a row navigates to its entries via the hash router.
  */
-function LiveblogView( { onNavigateToEntries }: LiveblogListViewProps ) {
+function CoverageView() {
 	const config = useAdminContext();
+	const navigate = useNavigate();
 	const fields = useMemo(
-		() => getLiveblogFields( config.taxMeta.statusKey ),
+		() => getCoverageFields( config.taxMeta.statusKey ),
 		[ config.taxMeta.statusKey ]
 	);
-	const [ view, setView ] = useState< View >( defaultLiveblogView );
-	const [ editingLiveblog, setEditingLiveblog ] = useState< Liveblog | null >(
+	const [ view, setView ] = useState< View >( defaultCoverageView );
+	const [ editingCoverage, setEditingCoverage ] = useState< Coverage | null >(
 		null
 	);
 	const [ isModalOpen, setIsModalOpen ] = useState( false );
 	const [ refreshKey, setRefreshKey ] = useState( 0 );
 
-	const { records, isResolving, error } = useLiveblogs( {
-		perPage: -1,
+	const { records, isResolving, error } = useCoverages( {
+		perPage: 100,
 		page: 1,
 		search: view.search,
-		orderBy: view.sort?.field,
-		order: view.sort?.direction,
 		refreshKey,
 	} );
 
@@ -52,33 +50,34 @@ function LiveblogView( { onNavigateToEntries }: LiveblogListViewProps ) {
 	}, [ records, view, fields ] );
 
 	const handleOpenCreate = useCallback( () => {
-		setEditingLiveblog( null );
+		setEditingCoverage( null );
 		setIsModalOpen( true );
 	}, [] );
 
-	const handleOpenEdit = useCallback( ( liveblog: Liveblog ) => {
-		setEditingLiveblog( liveblog );
+	const handleOpenEdit = useCallback( ( coverage: Coverage ) => {
+		setEditingCoverage( coverage );
 		setIsModalOpen( true );
 	}, [] );
 
 	const handleCloseModal = useCallback( () => {
 		setIsModalOpen( false );
-		setEditingLiveblog( null );
+		setEditingCoverage( null );
 	}, [] );
 
 	const handleSaved = useCallback( () => {
 		setRefreshKey( ( k ) => k + 1 );
 	}, [] );
 
+	const handleNavigateToEntries = useCallback(
+		( coverage: Coverage ) => {
+			navigate( `/coverages/${ coverage.id }` );
+		},
+		[ navigate ]
+	);
+
 	const actions = useMemo(
-		() =>
-			getLiveblogActions(
-				config,
-				onNavigateToEntries,
-				handleOpenEdit,
-				handleSaved
-			),
-		[ config, onNavigateToEntries, handleOpenEdit, handleSaved ]
+		() => getCoverageActions( handleNavigateToEntries, handleOpenEdit ),
+		[ handleNavigateToEntries, handleOpenEdit ]
 	);
 
 	return (
@@ -95,7 +94,7 @@ function LiveblogView( { onNavigateToEntries }: LiveblogListViewProps ) {
 				paginationInfo={ paginationInfo }
 				isLoading={ isResolving }
 				onClickItem={ ( item ) =>
-					onNavigateToEntries( item as Liveblog )
+					handleNavigateToEntries( item as Coverage )
 				}
 				header={
 					<Button
@@ -103,14 +102,14 @@ function LiveblogView( { onNavigateToEntries }: LiveblogListViewProps ) {
 						icon={ plus }
 						onClick={ handleOpenCreate }
 					>
-						{ __( 'New Liveblog', 'newspack-rolling-coverage' ) }
+						{ __( 'New Coverage', 'newspack-rolling-coverage' ) }
 					</Button>
 				}
 			/>
 
 			{ isModalOpen && (
-				<LiveblogModal
-					liveblog={ editingLiveblog }
+				<CoverageModal
+					coverage={ editingCoverage }
 					onClose={ handleCloseModal }
 					onSaved={ handleSaved }
 				/>
@@ -119,4 +118,4 @@ function LiveblogView( { onNavigateToEntries }: LiveblogListViewProps ) {
 	);
 }
 
-export default LiveblogView;
+export default CoverageView;

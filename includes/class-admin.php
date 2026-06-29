@@ -97,17 +97,16 @@ class Admin {
 	private static function get_script_data(): array {
 		return array(
 			'restBase'     => array(
-				'liveblogs' => Taxonomy::REST_BASE,
+				'coverages' => Taxonomy::REST_BASE,
 				'entries'   => Post_Type::REST_BASE,
 			),
 			'restBaseUrls' => array(
-				'liveblogs' => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
+				'coverages' => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
 				'entries'   => esc_url_raw( rest_url( 'wp/v2/' . Post_Type::REST_BASE ) ),
 			),
 			'nonce'        => wp_create_nonce( 'wp_rest' ),
 			'capabilities' => array(
 				'canEditPosts'   => current_user_can( 'edit_posts' ),
-				'canDeletePosts' => current_user_can( 'delete_posts' ),
 				'canManageTerms' => current_user_can( 'manage_categories' ),
 			),
 			'adminUrls'    => array(

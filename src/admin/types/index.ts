@@ -6,17 +6,16 @@ import type { JSX } from 'react';
 
 interface AdminConfig {
 	restBase: {
-		liveblogs: string;
+		coverages: string;
 		entries: string;
 	};
 	restBaseUrls: {
-		liveblogs: string;
+		coverages: string;
 		entries: string;
 	};
 	nonce: string;
 	capabilities: {
 		canEditPosts: boolean;
-		canDeletePosts: boolean;
 		canManageTerms: boolean;
 	};
 	adminUrls: {
@@ -31,7 +30,7 @@ interface AdminConfig {
 	};
 }
 
-interface Liveblog {
+interface Coverage {
 	id: number;
 	name: string;
 	slug: string;
@@ -85,8 +84,6 @@ interface Entry {
 	_links?: Record< string, Array< { href: string } > >;
 }
 
-type ViewType = 'liveblogs' | 'entries';
-
 type ViewState = ViewTable;
 
 interface PaginationInfo {
@@ -112,56 +109,27 @@ interface DataViewsWrapperProps< T > {
 	defaultLayouts?: Record< string, unknown >;
 }
 
-interface LiveblogListViewProps {
-	onNavigateToEntries: ( liveblog: Liveblog ) => void;
-}
-
-interface EntryListViewProps {
-	liveblog: Liveblog;
-}
-
-interface LiveblogModalProps {
-	liveblog: Liveblog | null;
+interface CoverageModalProps {
+	coverage: Coverage | null;
 	onClose: () => void;
 	onSaved: () => void;
 }
 
-interface LiveblogFormData {
+interface CoverageFormData {
 	name: string;
 	description: string;
 	status: 'active' | 'paused' | 'archived';
 }
 
-interface ConfirmModalProps {
-	title: string;
-	message: string;
-	confirmLabel?: string;
-	cancelLabel?: string;
-	isDestructive?: boolean;
-	onConfirm: () => Promise< void >;
-	onClose: () => void;
-}
-
-interface ConfirmModalContentProps {
-	message: string;
-	confirmLabel?: string;
-	cancelLabel?: string;
-	isDestructive?: boolean;
-	onConfirm: () => Promise< void >;
-	onClose: () => void;
-}
-
-interface UseLiveblogsOptions {
+interface UseCoveragesOptions {
 	perPage?: number;
 	page?: number;
 	search?: string;
-	orderBy?: string;
-	order?: 'asc' | 'desc';
 	refreshKey?: number;
 }
 
 interface UseEntriesOptions {
-	liveblogId: number | null;
+	coverageId: number | null;
 	perPage?: number;
 	page?: number;
 	search?: string;
@@ -171,7 +139,7 @@ interface UseEntriesOptions {
 	refreshKey?: number;
 }
 
-interface SaveLiveblogData {
+interface SaveCoverageData {
 	name: string;
 	description: string;
 	status: string;
@@ -188,9 +156,8 @@ interface TermChipsProps {
 
 export type {
 	AdminConfig,
-	Liveblog,
+	Coverage,
 	Entry,
-	ViewType,
 	ViewState,
 	View,
 	Field,
@@ -198,15 +165,11 @@ export type {
 	PaginationInfo,
 	ApiResult,
 	DataViewsWrapperProps,
-	LiveblogListViewProps,
-	EntryListViewProps,
-	LiveblogModalProps,
-	LiveblogFormData,
-	ConfirmModalProps,
-	ConfirmModalContentProps,
-	UseLiveblogsOptions,
+	CoverageModalProps,
+	CoverageFormData,
+	UseCoveragesOptions,
 	UseEntriesOptions,
-	SaveLiveblogData,
+	SaveCoverageData,
 	ChipLinkProps,
 	TermChipsProps,
 };

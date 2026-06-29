@@ -1,5 +1,5 @@
 /**
- * WordPress dependencies
+ * External dependencies
  */
 import { useState, useCallback, useEffect } from '@wordpress/element';
 import { Modal, Button } from '@wordpress/components';
@@ -9,16 +9,16 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import { saveLiveblog } from '../utils/liveblog-api';
+import { saveCoverage } from '../utils/coverage-api';
 import { useAdminContext } from '../hooks/useAdminContext';
-import type { LiveblogModalProps, Liveblog, LiveblogFormData } from '../types';
+import type { CoverageModalProps, Coverage, CoverageFormData } from '../types';
 
-const liveblogFields = [
+const coverageFields = [
 	{
 		id: 'name',
 		type: 'text' as const,
 		label: __( 'Name', 'newspack-rolling-coverage' ),
-		placeholder: __( 'Enter liveblog name…', 'newspack-rolling-coverage' ),
+		placeholder: __( 'Enter coverage name…', 'newspack-rolling-coverage' ),
 		required: true,
 	},
 	{
@@ -48,42 +48,42 @@ const liveblogFields = [
 	},
 ];
 
-const liveblogForm = {
+const coverageForm = {
 	type: 'regular' as const,
 	fields: [ { id: 'name' }, { id: 'description' }, { id: 'status' } ],
 };
 
 /**
- * Modal form for creating or editing a liveblog term, using DataForm for
- * field rendering. Detects edit vs. create mode based on whether `liveblog`
+ * Modal form for creating or editing a coverage term, using DataForm for
+ * field rendering. Detects edit vs. create mode based on whether `coverage`
  * is provided.
  *
- * @param {LiveblogModalProps} props Component props.
+ * @param {CoverageModalProps} props Component props.
  */
-function LiveblogModal( { liveblog, onClose, onSaved }: LiveblogModalProps ) {
+function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 	const { restBaseUrls, taxMeta } = useAdminContext();
-	const isEditing = liveblog !== null;
+	const isEditing = coverage !== null;
 	const [ data, setData ] = useState( {
-		name: liveblog?.name || '',
-		description: liveblog?.description || '',
+		name: coverage?.name || '',
+		description: coverage?.description || '',
 		status:
-			( liveblog?.meta?.[
+			( coverage?.meta?.[
 				taxMeta.statusKey
-			] as Liveblog[ 'meta' ][ 'rolling_coverage_status' ] ) || 'active',
+			] as Coverage[ 'meta' ][ 'rolling_coverage_status' ] ) || 'active',
 	} );
 	const [ isSaving, setIsSaving ] = useState( false );
 	const [ error, setError ] = useState< string | null >( null );
 	const isValid = data.name.trim().length > 0;
 
 	useEffect( () => {
-		if ( liveblog ) {
+		if ( coverage ) {
 			setData( {
-				name: liveblog.name,
-				description: liveblog.description,
+				name: coverage.name,
+				description: coverage.description,
 				status:
-					( liveblog.meta?.[
+					( coverage.meta?.[
 						taxMeta.statusKey
-					] as Liveblog[ 'meta' ][ 'rolling_coverage_status' ] ) ||
+					] as Coverage[ 'meta' ][ 'rolling_coverage_status' ] ) ||
 					'active',
 			} );
 		} else {
@@ -94,10 +94,10 @@ function LiveblogModal( { liveblog, onClose, onSaved }: LiveblogModalProps ) {
 			} );
 		}
 		setError( null );
-	}, [ liveblog, taxMeta.statusKey ] );
+	}, [ coverage, taxMeta.statusKey ] );
 
 	const handleChange = useCallback(
-		( edits: Partial< LiveblogFormData > ) => {
+		( edits: Partial< CoverageFormData > ) => {
 			setData( ( prev ) => ( { ...prev, ...edits } ) );
 			setError( null );
 		},
@@ -108,15 +108,15 @@ function LiveblogModal( { liveblog, onClose, onSaved }: LiveblogModalProps ) {
 		setIsSaving( true );
 		setError( null );
 
-		const result = await saveLiveblog(
-			restBaseUrls.liveblogs,
+		const result = await saveCoverage(
+			restBaseUrls.coverages,
 			taxMeta.statusKey,
 			{
 				name: data.name,
 				description: data.description,
 				status: data.status,
 			},
-			isEditing && liveblog ? liveblog.id : undefined
+			isEditing && coverage ? coverage.id : undefined
 		);
 
 		if ( result.success ) {
@@ -125,7 +125,7 @@ function LiveblogModal( { liveblog, onClose, onSaved }: LiveblogModalProps ) {
 		} else {
 			setError(
 				result.error ||
-					__( 'Failed to save liveblog', 'newspack-rolling-coverage' )
+					__( 'Failed to save coverage', 'newspack-rolling-coverage' )
 			);
 		}
 
@@ -136,16 +136,16 @@ function LiveblogModal( { liveblog, onClose, onSaved }: LiveblogModalProps ) {
 		<Modal
 			title={
 				isEditing
-					? __( 'Edit Liveblog', 'newspack-rolling-coverage' )
-					: __( 'New Liveblog', 'newspack-rolling-coverage' )
+					? __( 'Edit Coverage', 'newspack-rolling-coverage' )
+					: __( 'New Coverage', 'newspack-rolling-coverage' )
 			}
 			onRequestClose={ onClose }
 			size="medium"
 		>
 			<DataForm
 				data={ data }
-				fields={ liveblogFields }
-				form={ liveblogForm }
+				fields={ coverageFields }
+				form={ coverageForm }
 				onChange={ handleChange }
 			/>
 			{ error && (
@@ -174,4 +174,4 @@ function LiveblogModal( { liveblog, onClose, onSaved }: LiveblogModalProps ) {
 	);
 }
 
-export { LiveblogModal };
+export { CoverageModal };

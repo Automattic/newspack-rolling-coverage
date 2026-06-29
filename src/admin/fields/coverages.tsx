@@ -6,30 +6,28 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies.
  */
-import type { Field, ViewState, Liveblog } from '../types';
+import type { Field, ViewState, Coverage } from '../types';
 import { truncate, safeFormatUTCDate } from '../utils/fields';
 
 /**
- * Field definitions for the liveblog DataViews table.
+ * Field definitions for the coverage DataViews table.
  * Configures columns: term ID, name, entry count, status, created date, modified date.
  *
- * @param {string} statusKey Meta key for the liveblog status (from AdminConfig).
- * @return {Field< Liveblog >[]} Field definitions for the liveblog table.
+ * @param {string} statusKey Meta key for the coverage status (from AdminConfig).
+ * @return {Field< Coverage >[]} Field definitions for the coverage table.
  */
-function getLiveblogFields( statusKey: string ): Field< Liveblog >[] {
+function getCoverageFields( statusKey: string ): Field< Coverage >[] {
 	return [
 		{
 			id: 'term_id',
 			type: 'text',
 			label: __( 'Term ID', 'newspack-rolling-coverage' ),
-			enableSorting: true,
 			getValue: ( { item } ) => String( item.id ),
 		},
 		{
 			id: 'name',
 			type: 'text',
 			label: __( 'Name', 'newspack-rolling-coverage' ),
-			enableSorting: true,
 			enableGlobalSearch: true,
 			getValue: ( { item } ) => truncate( item.name, 20 ),
 		},
@@ -37,7 +35,6 @@ function getLiveblogFields( statusKey: string ): Field< Liveblog >[] {
 			id: 'count',
 			type: 'text',
 			label: __( 'Entries', 'newspack-rolling-coverage' ),
-			enableSorting: true,
 			getValue: ( { item } ) => String( item.count ?? 0 ),
 		},
 		{
@@ -68,7 +65,6 @@ function getLiveblogFields( statusKey: string ): Field< Liveblog >[] {
 			id: 'created_at',
 			type: 'datetime',
 			label: __( 'Created', 'newspack-rolling-coverage' ),
-			enableSorting: true,
 			getValue: ( { item } ) =>
 				safeFormatUTCDate( item.meta?.created_at ),
 		},
@@ -76,7 +72,6 @@ function getLiveblogFields( statusKey: string ): Field< Liveblog >[] {
 			id: 'modified_at',
 			type: 'datetime',
 			label: __( 'Modified', 'newspack-rolling-coverage' ),
-			enableSorting: true,
 			getValue: ( { item } ) =>
 				safeFormatUTCDate( item.meta?.modified_at ),
 		},
@@ -84,14 +79,13 @@ function getLiveblogFields( statusKey: string ): Field< Liveblog >[] {
 }
 
 /**
- * Default view state for the liveblog list: table layout, sorted by name ascending,
+ * Default view state for the coverage list: table layout, unsorted,
  * showing count, status, created_at, and modified_at columns.
  */
-const defaultLiveblogView: ViewState = {
+const defaultCoverageView: ViewState = {
 	type: 'table',
 	perPage: 20,
 	page: 1,
-	sort: { field: 'name', direction: 'asc' },
 	search: '',
 	filters: [],
 	fields: [ 'count', 'status', 'created_at', 'modified_at' ],
@@ -99,4 +93,4 @@ const defaultLiveblogView: ViewState = {
 	layout: {},
 };
 
-export { getLiveblogFields, defaultLiveblogView };
+export { getCoverageFields, defaultCoverageView };
