@@ -7,7 +7,7 @@ import apiFetch from '@wordpress/api-fetch';
  * Internal dependencies
  */
 import { handleApiError } from './api-error';
-import type { ApiResult, SaveCoverageData } from '../types';
+import type { ApiResult, Coverage, SaveCoverageData } from '../types';
 
 /**
  * Updates the rolling_coverage_status meta of a coverage term.
@@ -69,4 +69,27 @@ async function saveCoverage(
 	}
 }
 
-export { updateCoverageStatus, saveCoverage };
+/**
+ * Fetches a single coverage term by ID via the REST API. Used as a fallback
+ * when the coverage is not already present in context state (e.g. on a
+ * direct deep-link to the entries view).
+ *
+ * @param {string} restBaseCoverages - Full REST URL for the coverages collection (from config.restBaseUrls.coverages).
+ * @param {number} id                - The coverage term ID.
+ * @return {Promise<Coverage | null>} The coverage term, or null on failure.
+ */
+async function getCoverage(
+	restBaseCoverages: string,
+	id: number
+): Promise< Coverage | null > {
+	try {
+		return await apiFetch< Coverage >( {
+			url: `${ restBaseCoverages }/${ id }`,
+			method: 'GET',
+		} );
+	} catch ( error ) {
+		return null;
+	}
+}
+
+export { updateCoverageStatus, saveCoverage, getCoverage };

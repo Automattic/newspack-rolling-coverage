@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { useOutletContext, useParams } from 'react-router';
-import { useMemo, useState, useCallback } from '@wordpress/element';
+import { useEffect, useMemo, useState, useCallback } from '@wordpress/element';
 import { Button } from '@wordpress/components';
 import { plus } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
@@ -15,10 +15,11 @@ import type { View } from '@wordpress/dataviews';
 import { useEntries } from '../hooks/useEntries';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { createEntry } from '../utils/entries-api';
+import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { getEntryActions } from '../actions/entry-actions';
 import { entryFields, defaultEntryView } from '../fields/entries';
-import type { Coverage } from '../types';
+import { ContextExports } from '../types';
 
 /**
  * Renders the entry list DataViews for a single coverage, with client-side
@@ -33,7 +34,8 @@ import type { Coverage } from '../types';
 function EntryView() {
 	const config = useAdminContext();
 	const { coverageId } = useParams< { coverageId?: string } >();
-	const selectedCoverage = useOutletContext< Coverage | null >();
+	const [ context, setContext ] = useOutletContext< ContextExports >();
+	const { selectedCoverage } = context;
 
 	const numericCoverageId = coverageId ? Number( coverageId ) : null;
 	const isValidCoverageId =
@@ -44,6 +46,35 @@ function EntryView() {
 	const [ view, setView ] = useState< View >( defaultEntryView );
 	const [ isCreatingEntry, setIsCreatingEntry ] = useState( false );
 	const [ createError, setCreateError ] = useState< string | null >( null );
+
+	useEffect( () => {
+		if ( ! isValidCoverageId || selectedCoverage ) {
+			return;
+		}
+		// Prevents updating context if the component is unmounted.
+		let cancelled = false;
+		getCoverage(
+			config.restBaseUrls.coverages,
+			numericCoverageId as number
+		).then( ( coverage ) => {
+			if ( cancelled || ! coverage ) {
+				return;
+			}
+			setContext( ( prev ) => ( {
+				...prev,
+				selectedCoverage: coverage,
+			} ) );
+		} );
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		isValidCoverageId,
+		selectedCoverage,
+		numericCoverageId,
+		config.restBaseUrls.coverages,
+		setContext,
+	] );
 
 	const { records, isResolving, error } = useEntries( {
 		coverageId: isValidCoverageId ? numericCoverageId : null,

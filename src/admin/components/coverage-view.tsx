@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useNavigate } from 'react-router';
+import { useNavigate, useOutletContext } from 'react-router';
 import { useState, useCallback, useMemo } from '@wordpress/element';
 import { Button } from '@wordpress/components';
 import { plus } from '@wordpress/icons';
@@ -18,7 +18,7 @@ import { CoverageModal } from './coverage-modal';
 import { getCoverageActions } from '../actions/coverage-actions';
 import { getCoverageFields, defaultCoverageView } from '../fields/coverages';
 import { useAdminContext } from '../hooks/useAdminContext';
-import type { Coverage } from '../types';
+import type { Context, ContextExports, Coverage } from '../types';
 
 /**
  * Renders the coverage list DataViews with create/edit modal and row actions.
@@ -27,6 +27,7 @@ import type { Coverage } from '../types';
 function CoverageView() {
 	const config = useAdminContext();
 	const navigate = useNavigate();
+	const [ , setContext ] = useOutletContext< ContextExports >();
 	const fields = useMemo(
 		() => getCoverageFields( config.taxMeta.statusKey ),
 		[ config.taxMeta.statusKey ]
@@ -70,6 +71,10 @@ function CoverageView() {
 
 	const handleNavigateToEntries = useCallback(
 		( coverage: Coverage ) => {
+			setContext( ( prev: Context ) => ( {
+				...prev,
+				selectedCoverage: coverage,
+			} ) );
 			navigate( `/coverages/${ coverage.id }` );
 		},
 		[ navigate ]

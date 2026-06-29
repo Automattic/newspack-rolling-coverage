@@ -1,15 +1,14 @@
 /**
  * External dependencies
  */
-import { Outlet, useParams } from 'react-router';
-import { useMemo } from '@wordpress/element';
+import { Outlet } from 'react-router';
+import { useState } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
 import AdminHeader from './admin-header';
-import { useCoverages } from '../hooks/useCoverages';
-import type { Coverage } from '../types';
+import type { Context } from '../types';
 
 /**
  * Layout route that renders the admin header and the matched child view
@@ -17,28 +16,14 @@ import type { Coverage } from '../types';
  * display the selected coverage's name when a coverageId param is present.
  */
 function AdminLayout() {
-	const params = useParams< { coverageId?: string } >();
-
-	const { records } = useCoverages( {
-		perPage: 100,
-		page: 1,
+	const [ context, setContext ] = useState< Context >( {
+		selectedCoverage: null,
 	} );
-
-	const selectedCoverage: Coverage | null = useMemo( () => {
-		if ( ! params.coverageId ) {
-			return null;
-		}
-		return (
-			( records ?? [] ).find(
-				( coverage ) => String( coverage.id ) === params.coverageId
-			) ?? null
-		);
-	}, [ params.coverageId, records ] );
 
 	return (
 		<div className="newspack-rolling-coverage-admin">
-			<AdminHeader selectedCoverage={ selectedCoverage } />
-			<Outlet context={ selectedCoverage } />
+			<AdminHeader selectedCoverage={ context?.selectedCoverage } />
+			<Outlet context={ [ context, setContext ] } />
 		</div>
 	);
 }

@@ -30,6 +30,15 @@ interface AdminConfig {
 	};
 }
 
+interface Context {
+	selectedCoverage: Coverage | null;
+}
+
+type ContextExports = [
+	context: Context,
+	setContext: React.Dispatch< React.SetStateAction< Context > >,
+];
+
 interface Coverage {
 	id: number;
 	name: string;
@@ -156,6 +165,8 @@ interface TermChipsProps {
 
 export type {
 	AdminConfig,
+	Context,
+	ContextExports,
 	Coverage,
 	Entry,
 	ViewState,
