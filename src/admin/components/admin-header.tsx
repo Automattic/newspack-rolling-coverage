@@ -2,10 +2,6 @@
  * External dependencies
  */
 import { useLocation, useNavigate } from 'react-router';
-
-/**
- * WordPress dependencies
- */
 import { Button } from '@wordpress/components';
 import { chevronLeft, chevronRight, Icon, megaphone } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';

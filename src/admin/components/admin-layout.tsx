@@ -2,10 +2,6 @@
  * External dependencies
  */
 import { Outlet, useParams } from 'react-router';
-
-/**
- * WordPress dependencies
- */
 import { useMemo } from '@wordpress/element';
 
 /**

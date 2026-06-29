@@ -2,10 +2,6 @@
  * External dependencies
  */
 import { useOutletContext, useParams } from 'react-router';
-
-/**
- * WordPress dependencies
- */
 import { useMemo, useState, useCallback } from '@wordpress/element';
 import { Button } from '@wordpress/components';
 import { plus } from '@wordpress/icons';
