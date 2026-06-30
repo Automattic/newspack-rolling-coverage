@@ -53,6 +53,8 @@
 		"@wordpress/icons": "^15.0.0",
 		"newspack-scripts": "^5.9.8",
 		"react-router": "^7.18.0",
+		"@wordpress/block-editor": "^15.21.1",
+		"@wordpress/blocks": "^15.21.1",
 		"@wordpress/notices": "^5.48.1"
 	}
 }
