@@ -49,6 +49,7 @@ import type {
 const NEUTRAL_ENTRY_CONTEXT: EntryContext = {
 	postId: 0,
 	postType: '',
+	queryId: 0,
 };
 
 /**
@@ -63,8 +64,9 @@ function generateInstanceId(): string {
 }
 
 /**
- * The per-entry template canvas: an editable InnerBlocks area showing what
- * every entry will look like once rendered.
+ * The per-entry template canvas. Blocks can be added, moved, or removed,
+ * but contextual blocks such as post-title and post-content render their
+ * content read-only.
  */
 function EntryTemplatePreview() {
 	const innerBlocksProps = useInnerBlocksProps(

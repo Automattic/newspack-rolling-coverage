@@ -118,6 +118,7 @@ async function fetchEntryPreviewContexts(
 		return entries.map( ( entry ) => ( {
 			postId: entry.id,
 			postType: entry.type,
+			queryId: 0,
 		} ) );
 	} catch ( error ) {
 		return [];

@@ -55,6 +55,7 @@ interface BlockConfig {
 interface EntryContext {
 	postId: number;
 	postType: string;
+	queryId: number;
 }
 
 /**
