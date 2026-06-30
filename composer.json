@@ -13,8 +13,7 @@
 	},
 	"autoload": {
 		"classmap": [
-			"./includes",
-			"./src/blocks"
+			"./includes"
 		]
 	},
 	"config": {
