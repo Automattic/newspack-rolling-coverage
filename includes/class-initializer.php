@@ -32,6 +32,7 @@ class Initializer {
 		Post_Type::init();
 		Taxonomy::init();
 		Breakout::init();
+		Breakout_Post_Link_Block::init();
 
 		// Admin interface (only load in admin context).
 		if ( is_admin() ) {
