@@ -82,19 +82,40 @@ function EntryTemplatePreview() {
 }
 
 /**
- * A read-only rendering of the per-entry template's current blocks, shown
- * for every real entry beyond the first.
+ * A rendering of the per-entry template's current blocks for one real
+ * entry. Clicking it makes that entry the active one, swapping in the
+ * editable template canvas in its place.
  *
- * @param {Object}   props        Component props.
- * @param {Object[]} props.blocks The current per-entry template blocks.
+ * @param {Object}   props          Component props.
+ * @param {Object[]} props.blocks   The current per-entry template blocks.
+ * @param {boolean}  props.isHidden Whether this entry is the active one
+ *                                  (and so already shown by the canvas).
+ * @param {Function} props.onSelect Called when this entry is clicked.
  */
-function EntryBlockPreview( { blocks }: { blocks: TemplateBlocks } ) {
+function EntryBlockPreview( {
+	blocks,
+	isHidden,
+	onSelect,
+}: {
+	blocks: TemplateBlocks;
+	isHidden: boolean;
+	onSelect: () => void;
+} ) {
 	const blockPreviewProps = useBlockPreview( {
 		blocks,
 		props: { className: 'newspack-rolling-coverage-entry wp-block-post' },
 	} );
 
-	return <div { ...blockPreviewProps } />;
+	return (
+		<div
+			{ ...blockPreviewProps }
+			tabIndex={ 0 }
+			role="button"
+			onClick={ onSelect }
+			onKeyPress={ onSelect }
+			style={ { display: isHidden ? 'none' : undefined } }
+		/>
+	);
 }
 
 const MemoizedEntryBlockPreview = memo( EntryBlockPreview );
@@ -125,6 +146,7 @@ export default function Edit( {
 	const [ entryContexts, setEntryContexts ] = useState< EntryContext[] >(
 		[]
 	);
+	const [ activeEntryId, setActiveEntryId ] = useState< number >();
 
 	// Read live from the store so preview copies stay in sync as the
 	// template above is edited.
@@ -357,20 +379,32 @@ export default function Edit( {
 									<EntryTemplatePreview />
 								</BlockContextProvider>
 							) : (
-								entryContexts.map( ( context, index ) => (
-									<BlockContextProvider
-										key={ context.postId }
-										value={ context }
-									>
-										{ index === 0 ? (
-											<EntryTemplatePreview />
-										) : (
+								entryContexts.map( ( context ) => {
+									const isActive =
+										context.postId ===
+										( activeEntryId ??
+											entryContexts[ 0 ]?.postId );
+
+									return (
+										<BlockContextProvider
+											key={ context.postId }
+											value={ context }
+										>
+											{ isActive ? (
+												<EntryTemplatePreview />
+											) : null }
 											<MemoizedEntryBlockPreview
 												blocks={ templateBlocks }
+												isHidden={ isActive }
+												onSelect={ () =>
+													setActiveEntryId(
+														context.postId
+													)
+												}
 											/>
-										) }
-									</BlockContextProvider>
-								) )
+										</BlockContextProvider>
+									);
+								} )
 							) }
 						</div>
 					</>
