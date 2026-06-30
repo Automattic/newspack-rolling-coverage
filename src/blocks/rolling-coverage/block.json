@@ -1,0 +1,59 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "newspack-rolling-coverage/rolling-coverage",
+	"title": "Rolling Coverage",
+	"category": "widgets",
+	"description": "Displays the live entries of a rolling coverage liveblog, with polling for new entries and infinite scroll for older ones.",
+	"textdomain": "newspack-rolling-coverage",
+	"attributes": {
+		"liveblogId": {
+			"type": "number",
+			"default": 0
+		},
+		"pollInterval": {
+			"type": "number",
+			"default": 10
+		},
+		"entriesPerPage": {
+			"type": "number",
+			"default": 20
+		},
+		"instanceId": {
+			"type": "string",
+			"default": ""
+		}
+	},
+	"supports": {
+		"html": false,
+		"align": true,
+		"anchor": true,
+		"color": {
+			"text": true,
+			"background": true,
+			"link": true,
+			"__experimentalDefaultControls": {
+				"text": true,
+				"background": true
+			}
+		},
+		"typography": {
+			"fontSize": true,
+			"lineHeight": true,
+			"__experimentalDefaultControls": {
+				"fontSize": true
+			}
+		},
+		"spacing": {
+			"margin": true,
+			"padding": true,
+			"__experimentalDefaultControls": {
+				"padding": true
+			}
+		}
+	},
+	"editorScript": "file:./index.js",
+	"editorStyle": "file:./index.css",
+	"viewScript": "file:./view.js",
+	"style": "file:./view.css"
+}
