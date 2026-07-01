@@ -103,6 +103,7 @@ function initBlock( root: HTMLElement ): void {
 
 		const fragment = document.createDocumentFragment();
 		entries.forEach( ( entry ) => {
+			entry.classList.add( 'newspack-rolling-coverage-entry--entering' );
 			fragment.appendChild( entry );
 		} );
 		entriesList.insertBefore( fragment, entriesList.firstChild );
@@ -154,10 +155,23 @@ function initBlock( root: HTMLElement ): void {
 			const entries = takePendingEntries();
 			newEntriesButton.hidden = true;
 
-			root.scrollIntoView( { behavior: 'smooth', block: 'start' } );
+			window.scrollTo( {
+				top: root.getBoundingClientRect().top + window.scrollY - 24,
+				behavior: 'smooth',
+			} );
 
-			// Insert after the scroll settles, so the new entries don't shift layout mid-animation.
-			setTimeout( () => insertNewEntries( entries ), 500 );
+			// Insert once scrolling settles. The timeout is a fallback for when the target is already in view and scrollend never fires.
+			let inserted = false;
+			const doInsert = () => {
+				if ( inserted ) {
+					return;
+				}
+				inserted = true;
+				insertNewEntries( entries );
+			};
+
+			window.addEventListener( 'scrollend', doInsert, { once: true } );
+			setTimeout( doInsert, 600 );
 		} );
 	}
 
