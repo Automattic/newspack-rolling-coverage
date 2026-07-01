@@ -102,10 +102,7 @@ function initBlock( root: HTMLElement ): void {
 			?.remove();
 
 		const fragment = document.createDocumentFragment();
-		entries.forEach( ( entry ) => {
-			entry.classList.add( 'newspack-rolling-coverage-entry--entering' );
-			fragment.appendChild( entry );
-		} );
+		entries.forEach( ( entry ) => fragment.appendChild( entry ) );
 		entriesList.insertBefore( fragment, entriesList.firstChild );
 	}
 
@@ -155,23 +152,15 @@ function initBlock( root: HTMLElement ): void {
 			const entries = takePendingEntries();
 			newEntriesButton.hidden = true;
 
+			const targetY =
+				root.getBoundingClientRect().top + window.scrollY - 24;
+
+			insertNewEntries( entries );
+
 			window.scrollTo( {
-				top: root.getBoundingClientRect().top + window.scrollY - 24,
+				top: targetY,
 				behavior: 'smooth',
 			} );
-
-			// Insert once scrolling settles. The timeout is a fallback for when the target is already in view and scrollend never fires.
-			let inserted = false;
-			const doInsert = () => {
-				if ( inserted ) {
-					return;
-				}
-				inserted = true;
-				insertNewEntries( entries );
-			};
-
-			window.addEventListener( 'scrollend', doInsert, { once: true } );
-			setTimeout( doInsert, 600 );
 		} );
 	}
 
