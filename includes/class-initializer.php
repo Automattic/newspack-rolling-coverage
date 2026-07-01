@@ -31,6 +31,11 @@ class Initializer {
 	private static function includes() {
 		Post_Type::init();
 		Taxonomy::init();
+
+		// Admin interface (only load in admin context).
+		if ( is_admin() ) {
+			Admin::init();
+		}
 	}
 
 	/**

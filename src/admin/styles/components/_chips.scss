@@ -1,0 +1,30 @@
+@use "../variables" as *;
+
+.newspack-rolling-coverage-term-chips {
+	display: inline-flex;
+	align-items: center;
+	gap: $nrc-spacing-sm;
+}
+
+.newspack-rolling-coverage-chip-link {
+	display: inline-block;
+	padding: $nrc-spacing-xs $nrc-spacing-md;
+	margin: $nrc-spacing-xs;
+	border-radius: 3px;
+	background: $nrc-color-chip-bg;
+	color: $nrc-color-chip-text;
+	text-decoration: none;
+	font-size: $nrc-font-sm;
+	line-height: 20px;
+
+	&:hover {
+		background: $nrc-color-chip-bg-hover;
+	}
+}
+
+.newspack-rolling-coverage-term-chips__remaining {
+	font-size: $nrc-font-sm;
+	line-height: 24px;
+	margin-left: $nrc-spacing-md;
+	color: $nrc-color-chip-remaining;
+}

@@ -1,0 +1,13 @@
+@use "../variables" as *;
+
+.newspack-rolling-coverage-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: $nrc-spacing-xl 0 0 20px;
+}
+
+.newspack-rolling-coverage-header__subtitle {
+	font-size: 1.5rem;
+	font-weight: 600;
+}

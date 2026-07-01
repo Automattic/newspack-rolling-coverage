@@ -1,0 +1,8 @@
+@use "../variables" as *;
+
+.newspack-rolling-coverage-modal-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: $nrc-spacing-md;
+	margin-top: $nrc-spacing-lg + $nrc-spacing-md;
+}

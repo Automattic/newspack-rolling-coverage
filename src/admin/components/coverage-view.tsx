@@ -1,0 +1,126 @@
+/**
+ * External dependencies
+ */
+import { useNavigate, useOutletContext } from 'react-router';
+import { useState, useCallback, useMemo } from '@wordpress/element';
+import { Button } from '@wordpress/components';
+import { plus } from '@wordpress/icons';
+import { __ } from '@wordpress/i18n';
+import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
+import type { View } from '@wordpress/dataviews';
+
+/**
+ * Internal dependencies
+ */
+import { useCoverages } from '../hooks/useCoverages';
+import { DataViewsWrapper } from './data-views-wrapper';
+import { CoverageModal } from './coverage-modal';
+import { getCoverageActions } from '../actions/coverage-actions';
+import { getCoverageFields, defaultCoverageView } from '../fields/coverages';
+import { useAdminContext } from '../hooks/useAdminContext';
+import type { Context, ContextExports, Coverage } from '../types';
+
+/**
+ * Renders the coverage list DataViews with create/edit modal and row actions.
+ * Clicking a row navigates to its entries via the hash router.
+ */
+function CoverageView() {
+	const config = useAdminContext();
+	const navigate = useNavigate();
+	const [ , setContext ] = useOutletContext< ContextExports >();
+	const fields = useMemo(
+		() => getCoverageFields( config.taxMeta.statusKey ),
+		[ config.taxMeta.statusKey ]
+	);
+	const [ view, setView ] = useState< View >( defaultCoverageView );
+	const [ editingCoverage, setEditingCoverage ] = useState< Coverage | null >(
+		null
+	);
+	const [ isModalOpen, setIsModalOpen ] = useState( false );
+	const [ refreshKey, setRefreshKey ] = useState( 0 );
+
+	const { records, isResolving, error } = useCoverages( {
+		perPage: 100,
+		page: 1,
+		search: view.search,
+		refreshKey,
+	} );
+
+	const { data: filteredData, paginationInfo } = useMemo( () => {
+		return filterSortAndPaginate( records ?? [], view, fields );
+	}, [ records, view, fields ] );
+
+	const handleOpenCreate = useCallback( () => {
+		setEditingCoverage( null );
+		setIsModalOpen( true );
+	}, [] );
+
+	const handleOpenEdit = useCallback( ( coverage: Coverage ) => {
+		setEditingCoverage( coverage );
+		setIsModalOpen( true );
+	}, [] );
+
+	const handleCloseModal = useCallback( () => {
+		setIsModalOpen( false );
+		setEditingCoverage( null );
+	}, [] );
+
+	const handleSaved = useCallback( () => {
+		setRefreshKey( ( k ) => k + 1 );
+	}, [] );
+
+	const handleNavigateToEntries = useCallback(
+		( coverage: Coverage ) => {
+			setContext( ( prev: Context ) => ( {
+				...prev,
+				selectedCoverage: coverage,
+			} ) );
+			navigate( `/coverages/${ coverage.id }` );
+		},
+		[ navigate ]
+	);
+
+	const actions = useMemo(
+		() => getCoverageActions( handleNavigateToEntries, handleOpenEdit ),
+		[ handleNavigateToEntries, handleOpenEdit ]
+	);
+
+	return (
+		<>
+			{ error && (
+				<div className="newspack-rolling-coverage-error">{ error }</div>
+			) }
+			<DataViewsWrapper
+				data={ filteredData }
+				fields={ fields }
+				view={ view }
+				onChangeView={ setView }
+				actions={ actions }
+				paginationInfo={ paginationInfo }
+				isLoading={ isResolving }
+				onClickItem={ ( item ) =>
+					handleNavigateToEntries( item as Coverage )
+				}
+				header={
+					<Button
+						variant="primary"
+						icon={ plus }
+						onClick={ handleOpenCreate }
+					>
+						{ __( 'New Coverage', 'newspack-rolling-coverage' ) }
+					</Button>
+				}
+			/>
+
+			{ isModalOpen && (
+				<CoverageModal
+					coverage={ editingCoverage }
+					onClose={ handleCloseModal }
+					onSaved={ handleSaved }
+				/>
+			) }
+		</>
+	);
+}
+
+export default CoverageView;
