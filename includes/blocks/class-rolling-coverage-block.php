@@ -38,6 +38,9 @@ class Rolling_Coverage_Block {
 	// Option name prefix for persisted entry templates: rc_tpl_{coverage_id}_{hash}.
 	const TEMPLATE_OPTION_PREFIX = 'rc_tpl_';
 
+	// Term meta key storing the liveblog's latest entry modified timestamp.
+	const LAST_MODIFIED_META_KEY = 'rolling_coverage_last_modified';
+
 	/**
 	 * Entry currently being rendered by render_entry(), read by
 	 * filter_block_context() while its render_block_context filter is active.
@@ -53,6 +56,32 @@ class Rolling_Coverage_Block {
 		add_action( 'init', [ __CLASS__, 'register_block' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
+		add_action( 'save_post_' . Post_Type::CPT_SLUG, [ __CLASS__, 'update_liveblog_last_modified' ], 10, 2 );
+	}
+
+	/**
+	 * Updates the liveblog's last-modified term meta when a published entry is
+	 * saved, so the polling endpoint can skip WP_Query when nothing has changed.
+	 *
+	 * @param int     $post_id Entry post ID.
+	 * @param WP_Post $post    Entry post object.
+	 */
+	public static function update_liveblog_last_modified( int $post_id, WP_Post $post ): void {
+		if ( 'publish' !== $post->post_status ) {
+			return;
+		}
+
+		$term_ids = wp_get_post_terms( $post_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
+
+		if ( is_wp_error( $term_ids ) || empty( $term_ids ) ) {
+			return;
+		}
+
+		$modified = get_post_datetime( $post, 'modified', 'gmt' )->format( DATE_ATOM );
+
+		foreach ( $term_ids as $term_id ) {
+			update_term_meta( (int) $term_id, self::LAST_MODIFIED_META_KEY, $modified );
+		}
 	}
 
 	/**
@@ -136,7 +165,7 @@ class Rolling_Coverage_Block {
 		}
 		wp_reset_postdata();
 
-		$newest_iso = ! empty( $query->posts ) ? self::post_date_iso( $query->posts[0] ) : gmdate( 'c' );
+		$newest_modified_iso = self::latest_modified_iso( $query->posts );
 		$oldest_iso = ! empty( $query->posts ) ? self::post_date_iso( $query->posts[ count( $query->posts ) - 1 ] ) : '';
 		$has_more   = count( $query->posts ) === $entries_per_page;
 
@@ -162,7 +191,7 @@ class Rolling_Coverage_Block {
 				'data-coverage-id'      => $coverage_id,
 				'data-poll-interval'    => $poll_interval,
 				'data-entries-per-page' => $entries_per_page,
-				'data-since'            => $newest_iso,
+				'data-since'            => $newest_modified_iso,
 				'data-before'           => $oldest_iso,
 				'data-has-more'         => $has_more ? '1' : '0',
 				'data-status'           => $status,
@@ -172,7 +201,7 @@ class Rolling_Coverage_Block {
 		);
 
 		return sprintf(
-			'<div %1$s>%2$s<div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
+			'<div %1$s>%2$s<button type="button" class="%3$s-new-entries" hidden></button><div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
 			$wrapper_attributes,
 			$notice,
 			self::MARKUP_PREFIX,
@@ -373,6 +402,37 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * ISO 8601 (GMT) last-modified string for a post.
+	 *
+	 * @param WP_Post $post Post object.
+	 * @return string ISO 8601 date string.
+	 */
+	private static function post_modified_iso( WP_Post $post ) {
+		return get_post_datetime( $post, 'modified', 'gmt' )->format( DATE_ATOM );
+	}
+
+	/**
+	 * The latest modified-date cursor among a set of entries, defaulting to
+	 * the current time when there are none.
+	 *
+	 * @param WP_Post[] $posts Entry post objects.
+	 * @return string ISO 8601 date string.
+	 */
+	private static function latest_modified_iso( array $posts ) {
+		$latest = '';
+
+		foreach ( $posts as $post ) {
+			$modified = self::post_modified_iso( $post );
+
+			if ( '' === $latest || $modified > $latest ) {
+				$latest = $modified;
+			}
+		}
+
+		return '' === $latest ? gmdate( 'c' ) : $latest;
+	}
+
+	/**
 	 * Register the dedicated REST route used for both polling (since) and
 	 * pagination (before), plus the lightweight editor-only preview route
 	 * (see get_entries_preview()).
@@ -510,8 +570,11 @@ class Rolling_Coverage_Block {
 	/**
 	 * REST callback: returns pre-rendered HTML for either direction.
 	 *
-	 * - `since` (forward/polling): entries newer than the given date, ASC order, capped at POLL_CAP.
-	 * - `before` (backward/pagination): entries older than the given date, DESC order, capped at the request's per_page (entriesPerPage).
+	 * - `since` (forward/polling): entries modified after the given cursor —
+	 *   covering newly published entries and edits to entries already on the
+	 *   page — ASC order, capped at POLL_CAP.
+	 * - `before` (backward/pagination): entries published before the given
+	 *   date, DESC order, capped at the request's per_page (entriesPerPage).
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
@@ -556,19 +619,31 @@ class Rolling_Coverage_Block {
 
 		$template = self::load_entry_template( $term_id, $template_key );
 
-		// Forward/polling branch: entries newer than $since, oldest first.
+		// Forward/polling branch: entries modified after $since, oldest first.
 		if ( $since ) {
+			// Skip WP_Query entirely when the liveblog has not changed since the cursor.
+			$last_modified = get_term_meta( $term_id, self::LAST_MODIFIED_META_KEY, true );
+			if ( $last_modified && $last_modified <= $since ) {
+				return new WP_REST_Response(
+					[
+						'html'  => '',
+						'since' => $since,
+						'count' => 0,
+					]
+				);
+			}
+
 			$args = array_merge(
 				$base_args,
 				[
 					'date_query'     => [
 						[
-							'column'    => 'post_date_gmt',
+							'column'    => 'post_modified_gmt',
 							'after'     => $since,
 							'inclusive' => false,
 						],
 					],
-					'orderby'        => 'date',
+					'orderby'        => 'modified',
 					'order'          => 'ASC',
 					'posts_per_page' => self::POLL_CAP,
 				]
@@ -583,7 +658,7 @@ class Rolling_Coverage_Block {
 			wp_reset_postdata();
 
 			$next_since = ! empty( $query->posts )
-				? self::post_date_iso( $query->posts[ count( $query->posts ) - 1 ] )
+				? self::post_modified_iso( $query->posts[ count( $query->posts ) - 1 ] )
 				: $since;
 
 			return new WP_REST_Response(
