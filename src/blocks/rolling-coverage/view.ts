@@ -7,22 +7,9 @@ import { _n, sprintf } from '@wordpress/i18n';
  * Internal dependencies
  */
 import './style.scss';
-import type { PollResponse, PageResponse } from './types';
+import type { PollEntry, PollResponse, PageResponse } from './types';
 
 const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
-
-/**
- * Parses a poll or pagination response's concatenated entry markup into
- * individual entry elements.
- *
- * @param {string} html Concatenated entry markup.
- * @return {HTMLElement[]} The entries, in the order they appear in `html`.
- */
-function parseEntries( html: string ): HTMLElement[] {
-	const template = document.createElement( 'template' );
-	template.innerHTML = html;
-	return Array.from( template.content.children ) as HTMLElement[];
-}
 
 /**
  * Sets up polling and infinite scroll for a single block instance.
@@ -54,7 +41,7 @@ function initBlock( root: HTMLElement ): void {
 
 	const status = root.dataset.status || 'active';
 
-	let since = root.dataset.since || '';
+	let cursor = root.dataset.cursor || '';
 	let before = root.dataset.before || '';
 	let hasMore = root.dataset.hasMore === '1';
 	let isLoadingMore = false;
@@ -113,7 +100,7 @@ function initBlock( root: HTMLElement ): void {
 	 * @param {HTMLElement[]} newEntries Newly published entries.
 	 */
 	function queueNewEntries( newEntries: HTMLElement[] ): void {
-		pendingNewEntries.push( ...newEntries );
+		pendingNewEntries.unshift( ...newEntries );
 
 		if ( ! newEntriesButton ) {
 			return;
@@ -205,26 +192,28 @@ function initBlock( root: HTMLElement ): void {
 	 * the top if the reader is at the top of the page, or queued behind the
 	 * "X new posts" button if they have scrolled down.
 	 *
-	 * @param {string} html Concatenated entry markup from the poll response.
+	 * @param {PollEntry[]} entries Entries from the poll response.
 	 */
-	function applyPollResponse( html: string ): void {
+	function applyPollResponse( entries: PollEntry[] ): void {
 		const newEntries: HTMLElement[] = [];
 
-		parseEntries( html ).forEach( ( entry ) => {
-			const entryId = entry.dataset.entryId;
+		entries.forEach( ( entry ) => {
+			const template = document.createElement( 'template' );
+			template.innerHTML = entry.html;
+			const entryEl = template.content.firstElementChild as HTMLElement;
 
-			if ( ! entryId ) {
+			if ( ! entryEl ) {
 				return;
 			}
 
 			const existing = entriesList.querySelector(
-				`[data-entry-id="${ entryId }"]`
+				`[data-entry-id="${ entry.id }"]`
 			);
 
 			if ( existing ) {
-				existing.replaceWith( entry );
+				existing.replaceWith( entryEl );
 			} else {
-				newEntries.push( entry );
+				newEntries.push( entryEl );
 			}
 		} );
 
@@ -240,25 +229,26 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Polls for entries modified since `since` — new or edited — and applies
-	 * them.
+	 * Polls for entries modified at or after the cursor — new or edited — and
+	 * applies them.
 	 */
 	async function poll(): Promise< void > {
-		if ( ! since ) {
+		if ( ! cursor ) {
 			return;
 		}
 
 		try {
-			const url = `${ restUrl }?since=${ encodeURIComponent(
-				since
+			const url = `${ restUrl }?cursor=${ encodeURIComponent(
+				cursor
 			) }&template_key=${ encodeURIComponent( templateKey ) }`;
+
 			const response = await fetch( url );
 			if ( response.ok ) {
 				const data: PollResponse = await response.json();
-				if ( data.count > 0 ) {
-					applyPollResponse( data.html );
+				if ( data.entries.length > 0 ) {
+					applyPollResponse( data.entries );
 				}
-				since = data.since || since;
+				cursor = data.cursor || cursor;
 			}
 		} catch ( error ) {
 			// Network hiccups shouldn't break the page; the next poll interval retries.
@@ -303,15 +293,14 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	// Only start polling if the coverage is active at page load.
-	if ( since && status === 'active' ) {
+	if ( cursor && status === 'active' ) {
 		schedulePoll();
-	}
 
 	// Resume polling when the user returns to the tab; cancel when they leave.
 	document.addEventListener( 'visibilitychange', () => {
 		if ( document.hidden ) {
 			cancelPoll();
-		} else if ( since && status === 'active' ) {
+		} else if ( cursor && status === 'active' ) {
 			poll();
 		}
 	} );

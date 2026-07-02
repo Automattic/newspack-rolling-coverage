@@ -10,6 +10,7 @@ namespace Newspack_Rolling_Coverage;
 
 use WP_Block;
 use WP_Block_Type;
+use WP_Block_Type_Registry;
 use WP_Error;
 use WP_Post;
 use WP_Query;
@@ -122,6 +123,14 @@ class Rolling_Coverage_Block {
 	 * @return string Rendered HTML.
 	 */
 	public static function render_block( $attributes, $content, WP_Block $block ) {
+		// Preload so polled entries are styled even if no breakout buttons appeared on initial render.
+		$breakout_block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/breakout-post-link' );
+		if ( $breakout_block_type ) {
+			foreach ( $breakout_block_type->style_handles as $style_handle ) {
+				wp_enqueue_style( $style_handle );
+			}
+		}
+
 		$coverage_id = (int) ( $attributes['coverageId'] ?? 0 );
 
 		if ( ! $coverage_id || ! term_exists( $coverage_id, Taxonomy::TAXONOMY_SLUG ) ) {
@@ -165,7 +174,7 @@ class Rolling_Coverage_Block {
 		}
 		wp_reset_postdata();
 
-		$newest_modified_iso = self::latest_modified_iso( $query->posts );
+		$cursor     = self::latest_cursor( $query->posts );
 		$oldest_iso = ! empty( $query->posts ) ? self::post_date_iso( $query->posts[ count( $query->posts ) - 1 ] ) : '';
 		$has_more   = count( $query->posts ) === $entries_per_page;
 
@@ -191,7 +200,7 @@ class Rolling_Coverage_Block {
 				'data-coverage-id'      => $coverage_id,
 				'data-poll-interval'    => $poll_interval,
 				'data-entries-per-page' => $entries_per_page,
-				'data-since'            => $newest_modified_iso,
+				'data-cursor'           => $cursor,
 				'data-before'           => $oldest_iso,
 				'data-has-more'         => $has_more ? '1' : '0',
 				'data-status'           => $status,
@@ -412,24 +421,29 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The latest modified-date cursor among a set of entries, defaulting to
-	 * the current time when there are none.
+	 * Poll cursor for a set of entries: "{id}:{modified_iso}".
+	 * Falls back to "0:{current_time}" when there are none.
 	 *
 	 * @param WP_Post[] $posts Entry post objects.
-	 * @return string ISO 8601 date string.
+	 * @return string Cursor in "{id}:{modified_iso}" format.
 	 */
-	private static function latest_modified_iso( array $posts ) {
-		$latest = '';
+	private static function latest_cursor( array $posts ): string {
+		$latest_post     = null;
+		$latest_modified = '';
 
 		foreach ( $posts as $post ) {
 			$modified = self::post_modified_iso( $post );
-
-			if ( '' === $latest || $modified > $latest ) {
-				$latest = $modified;
+			if ( '' === $latest_modified || $modified > $latest_modified ) {
+				$latest_modified = $modified;
+				$latest_post     = $post;
 			}
 		}
 
-		return '' === $latest ? gmdate( 'c' ) : $latest;
+		if ( null === $latest_post ) {
+			return '0:' . gmdate( 'c' );
+		}
+
+		return $latest_post->ID . ':' . $latest_modified;
 	}
 
 	/**
@@ -454,7 +468,7 @@ class Rolling_Coverage_Block {
 						'required' => true,
 						'type'     => 'string',
 					],
-					'since'        => [
+					'cursor'         => [
 						'type' => 'string',
 					],
 					'before'       => [
@@ -570,9 +584,8 @@ class Rolling_Coverage_Block {
 	/**
 	 * REST callback: returns pre-rendered HTML for either direction.
 	 *
-	 * - `since` (forward/polling): entries modified after the given cursor —
-	 *   covering newly published entries and edits to entries already on the
-	 *   page — ASC order, capped at POLL_CAP.
+	 * - `cursor` (forward/polling): entries modified at or after the cursor
+	 *   timestamp — covering new entries and edits — ASC order, capped at POLL_CAP.
 	 * - `before` (backward/pagination): entries published before the given
 	 *   date, DESC order, capped at the request's per_page (entriesPerPage).
 	 *
@@ -583,9 +596,11 @@ class Rolling_Coverage_Block {
 		$params       = $request->get_params();
 		$term_id      = (int) ( $params['term_id'] ?? 0 );
 		$template_key = (string) ( $params['template_key'] ?? '' );
-		$since        = $params['since'] ?? '';
-		$before       = $params['before'] ?? '';
-		$per_page     = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
+		$source_post_id = (int) ( $params['source_post_id'] ?? 0 );
+		$instance_id    = (string) ( $params['instance_id'] ?? '' );
+		$cursor         = $params['cursor'] ?? '';
+		$before         = $params['before'] ?? '';
+		$per_page       = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), 100 );
 
 		if ( ! term_exists( $term_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			return new WP_Error(
@@ -595,10 +610,10 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		if ( ! $since && ! $before ) {
+		if ( ! $cursor && ! $before ) {
 			return new WP_Error(
 				'rolling_coverage_missing_cursor',
-				__( 'Either since or before must be provided.', 'newspack-rolling-coverage' ),
+				__( 'Either cursor or before must be provided.', 'newspack-rolling-coverage' ),
 				[ 'status' => 400 ]
 			);
 		}
@@ -619,17 +634,20 @@ class Rolling_Coverage_Block {
 
 		$template = self::load_entry_template( $term_id, $template_key );
 
-		// Forward/polling branch: entries modified after $since, oldest first.
-		if ( $since ) {
+		// Forward/polling branch: entries modified at or after the cursor, newest first.
+		if ( $cursor ) {
+			$cursor_parts    = explode( ':', $cursor, 2 );
+			$cursor_id       = (int) ( $cursor_parts[0] ?? 0 );
+			$cursor_modified = $cursor_parts[1] ?? '';
+
 			// Skip WP_Query entirely when the liveblog has not changed since the cursor.
 			$last_modified = get_term_meta( $term_id, self::LAST_MODIFIED_META_KEY, true );
-			if ( $last_modified && $last_modified <= $since ) {
+			if ( $last_modified && $last_modified <= $cursor_modified ) {
 				return new WP_REST_Response(
 					[
-						'html'  => '',
-						'since' => $since,
-						'count' => 0,
-					]
+						'entries' => [],
+						'cursor'  => $cursor,
+					] 
 				);
 			}
 
@@ -639,34 +657,39 @@ class Rolling_Coverage_Block {
 					'date_query'     => [
 						[
 							'column'    => 'post_modified_gmt',
-							'after'     => $since,
-							'inclusive' => false,
+							'after'     => $cursor_modified,
+							'inclusive' => true,
 						],
 					],
 					'orderby'        => 'modified',
-					'order'          => 'ASC',
+					'order'          => 'DESC',
 					'posts_per_page' => self::POLL_CAP,
 				]
 			);
 
-			$query = new WP_Query( $args );
+			$query      = new WP_Query( $args );
+			$entries    = [];
+			$new_cursor = $cursor;
 
-			$html = '';
 			foreach ( $query->posts as $entry ) {
-				$html .= self::render_entry( $entry, $template );
-			}
-			wp_reset_postdata();
+				if ( $entry->ID === $cursor_id ) {
+					continue;
+				}
 
-			$next_since = ! empty( $query->posts )
-				? self::post_modified_iso( $query->posts[ count( $query->posts ) - 1 ] )
-				: $since;
+				if ( empty( $entries ) ) {
+					$new_cursor = $entry->ID . ':' . self::post_modified_iso( $entry );
+				}
+				$entries[] = [
+					'id'   => $entry->ID,
+					'html' => self::render_entry( $entry, $template ),
+				];
+			}
 
 			return new WP_REST_Response(
 				[
-					'html'  => $html,
-					'since' => $next_since,
-					'count' => count( $query->posts ),
-				]
+					'entries' => $entries,
+					'cursor'  => $new_cursor,
+				] 
 			);
 		}
 
