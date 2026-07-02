@@ -71,9 +71,9 @@ class Rolling_Coverage_Block {
 				$handle,
 				'newspackRollingCoverageBlock',
 				[
-					'liveblogsRestBase'      => '/wp/v2/' . Taxonomy::REST_BASE,
+					'liveblogsRestBase'      => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
 					'statusMetaKey'          => Taxonomy::STATUS_META_KEY,
-					'entriesPreviewRestBase' => '/' . NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/liveblogs',
+					'entriesPreviewRestBase' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/liveblogs' ) ),
 				]
 			);
 		}
@@ -131,9 +131,11 @@ class Rolling_Coverage_Block {
 		foreach ( $query->posts as $entry ) {
 			$entries_html .= self::render_entry( $entry, $template );
 		}
+		wp_reset_postdata();
 
 		$newest_iso = ! empty( $query->posts ) ? self::post_date_iso( $query->posts[0] ) : gmdate( 'c' );
 		$oldest_iso = ! empty( $query->posts ) ? self::post_date_iso( $query->posts[ count( $query->posts ) - 1 ] ) : '';
+		$has_more   = count( $query->posts ) === $entries_per_page;
 
 		$notice = '';
 		if ( 'paused' === $status ) {
@@ -159,6 +161,7 @@ class Rolling_Coverage_Block {
 				'data-entries-per-page' => $entries_per_page,
 				'data-since'            => $newest_iso,
 				'data-before'           => $oldest_iso,
+				'data-has-more'         => $has_more ? '1' : '0',
 				'data-status'           => $status,
 				'data-source-post-id'   => $source_post_id,
 				'data-instance-id'      => $instance_id,
@@ -573,6 +576,7 @@ class Rolling_Coverage_Block {
 			foreach ( $query->posts as $entry ) {
 				$html .= self::render_entry( $entry, $template );
 			}
+			wp_reset_postdata();
 
 			$next_since = ! empty( $query->posts )
 				? self::post_date_iso( $query->posts[ count( $query->posts ) - 1 ] )
@@ -609,6 +613,7 @@ class Rolling_Coverage_Block {
 		foreach ( $query->posts as $entry ) {
 			$html .= self::render_entry( $entry, $template );
 		}
+		wp_reset_postdata();
 
 		$next_before = ! empty( $query->posts )
 			? self::post_date_iso( $query->posts[ count( $query->posts ) - 1 ] )

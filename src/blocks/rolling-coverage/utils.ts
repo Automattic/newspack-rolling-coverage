@@ -25,7 +25,7 @@ import {
  */
 async function searchLiveblogs( search: string ): Promise< LiveblogOption[] > {
 	const terms = await apiFetch< Array< Record< string, unknown > > >( {
-		path: `${ LIVEBLOGS_REST_BASE }?per_page=50&search=${ encodeURIComponent(
+		url: `${ LIVEBLOGS_REST_BASE }?per_page=50&search=${ encodeURIComponent(
 			search
 		) }`,
 	} );
@@ -53,7 +53,7 @@ async function fetchLiveblog( id: number ): Promise< LiveblogOption | null > {
 
 	try {
 		const term = await apiFetch< Record< string, unknown > >( {
-			path: `${ LIVEBLOGS_REST_BASE }/${ id }`,
+			url: `${ LIVEBLOGS_REST_BASE }/${ id }`,
 		} );
 
 		return {
@@ -82,7 +82,7 @@ async function updateLiveblogStatus(
 ): Promise< boolean > {
 	try {
 		await apiFetch( {
-			path: `${ LIVEBLOGS_REST_BASE }/${ id }`,
+			url: `${ LIVEBLOGS_REST_BASE }/${ id }`,
 			method: 'POST',
 			data: { meta: { [ STATUS_META_KEY ]: status } },
 		} );
@@ -111,7 +111,7 @@ async function fetchEntryPreviewContexts(
 	try {
 		const entries = await apiFetch< Array< { id: number; type: string } > >(
 			{
-				path: `${ ENTRIES_PREVIEW_REST_BASE }/${ liveblogId }/entries-preview?per_page=${ perPage }`,
+				url: `${ ENTRIES_PREVIEW_REST_BASE }/${ liveblogId }/entries-preview?per_page=${ perPage }`,
 			}
 		);
 

@@ -29,10 +29,30 @@ function initBlock( root: HTMLElement ): void {
 		'.newspack-rolling-coverage-sentinel'
 	);
 
+	const status = root.dataset.status || 'active';
+
 	let since = root.dataset.since || '';
 	let before = root.dataset.before || '';
-	let hasMore = before !== '';
+	let hasMore = root.dataset.hasMore === '1';
 	let isLoadingMore = false;
+	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
+
+	/**
+	 * Schedules the next poll.
+	 */
+	function schedulePoll(): void {
+		pollTimeoutId = setTimeout( poll, pollInterval * 1000 );
+	}
+
+	/**
+	 * Cancels any pending poll timeout.
+	 */
+	function cancelPoll(): void {
+		if ( pollTimeoutId !== null ) {
+			clearTimeout( pollTimeoutId );
+			pollTimeoutId = null;
+		}
+	}
 
 	/**
 	 * Polls for entries newer than `since` and prepends them.
@@ -61,7 +81,7 @@ function initBlock( root: HTMLElement ): void {
 			console.error( error ); // eslint-disable-line no-console
 		}
 
-		setTimeout( poll, pollInterval * 1000 );
+		schedulePoll();
 	}
 
 	/**
@@ -98,9 +118,22 @@ function initBlock( root: HTMLElement ): void {
 		}
 	}
 
-	if ( since ) {
-		setTimeout( poll, pollInterval * 1000 );
+	// Only start polling if the liveblog is active at page load.
+	if ( since && status === 'active' ) {
+		schedulePoll();
 	}
+
+	// Resume polling when the user returns to the tab; cancel when they leave.
+	document.addEventListener( 'visibilitychange', () => {
+		if ( document.hidden ) {
+			cancelPoll();
+		} else if ( since && status === 'active' ) {
+			poll();
+		}
+	} );
+
+	// Cancel any pending poll on page unload.
+	window.addEventListener( 'pagehide', cancelPoll );
 
 	if ( sentinel && hasMore ) {
 		const observer = new IntersectionObserver( ( entries ) => {
