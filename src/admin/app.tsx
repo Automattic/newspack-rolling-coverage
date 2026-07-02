@@ -6,7 +6,6 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router';
 /**
  * WordPress dependencies
  */
-import { createPortal } from '@wordpress/element';
 import { useSelect, useDispatch } from '@wordpress/data';
 import { store as noticesStore } from '@wordpress/notices';
 import { SnackbarList } from '@wordpress/components';
@@ -54,14 +53,12 @@ function App() {
 					</Route>
 				</Routes>
 			</HashRouter>
-			{ createPortal(
-				<SnackbarList
-					notices={ notices }
-					className="newspack-rolling-coverage-snackbar-list"
-					onRemove={ removeNotice }
-				/>,
-				document.body
-			) }
+
+			<SnackbarList
+				notices={ notices }
+				className="newspack-rolling-coverage-snackbar-list"
+				onRemove={ removeNotice }
+			/>
 		</>
 	);
 }
