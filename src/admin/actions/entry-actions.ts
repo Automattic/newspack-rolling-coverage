@@ -31,7 +31,10 @@ function hasBreakout( entry: Entry ): boolean {
  *
  * @return {Action<Entry>[]} Array of DataViews actions for entries.
  */
-function getEntryActions( config: AdminConfig ): Action< Entry >[] {
+function getEntryActions(
+	config: AdminConfig,
+	onActionPerformed?: () => void
+): Action< Entry >[] {
 	return [
 		{
 			id: 'edit',
@@ -91,7 +94,7 @@ function getEntryActions( config: AdminConfig ): Action< Entry >[] {
 						onActionPerformed?.();
 					},
 				} ),
-		}
+		},
 	];
 }
 
