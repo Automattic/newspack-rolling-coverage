@@ -29,6 +29,9 @@ class Rolling_Coverage_Block {
 	// Max number of entries returned per poll response.
 	const POLL_CAP = 50;
 
+	// Max number of entries returned per page.
+	const PER_PAGE_MAX = 100;
+
 	// CSS class/ID prefix for the block's front-end markup.
 	const MARKUP_PREFIX = 'newspack-rolling-coverage';
 
@@ -96,7 +99,7 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		$entries_per_page = min( max( 1, (int) ( $attributes['entriesPerPage'] ?? 20 ) ), 100 );
+		$entries_per_page = min( max( 1, (int) ( $attributes['entriesPerPage'] ?? 20 ) ), self::PER_PAGE_MAX );
 		$poll_interval    = max( 1, (int) ( $attributes['pollInterval'] ?? 10 ) );
 		$status           = get_term_meta( $liveblog_id, Taxonomy::STATUS_META_KEY, true );
 		$status           = $status ? $status : 'active';
@@ -445,7 +448,7 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		$per_page = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), 100 );
+		$per_page = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
 
 		$query = new WP_Query(
 			[
@@ -512,7 +515,7 @@ class Rolling_Coverage_Block {
 		$instance_id    = (string) ( $params['instance_id'] ?? '' );
 		$since          = $params['since'] ?? '';
 		$before         = $params['before'] ?? '';
-		$per_page       = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), 100 );
+		$per_page       = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
 
 		if ( ! term_exists( $term_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			return new WP_Error(
