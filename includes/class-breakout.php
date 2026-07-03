@@ -57,7 +57,12 @@ class Breakout {
 			Post_Type::CPT_SLUG,
 			self::ENTRY_BREAKOUT_POST_ID_META,
 			[
-				'show_in_rest'  => true,
+				'show_in_rest'  => [
+					'schema' => [
+						'type'    => 'integer',
+						'context' => [ 'edit' ],
+					],
+				],
 				'single'        => true,
 				'type'          => 'integer',
 				'default'       => 0,
@@ -69,10 +74,11 @@ class Breakout {
 			Post_Type::CPT_SLUG,
 			self::ENTRY_READ_MORE_TEXT_META,
 			[
-				'show_in_rest' => true,
-				'single'       => true,
-				'type'         => 'string',
-				'default'      => '',
+				'show_in_rest'      => true,
+				'single'            => true,
+				'type'              => 'string',
+				'default'           => '',
+				'sanitize_callback' => 'sanitize_text_field',
 			]
 		);
 	}
@@ -90,7 +96,7 @@ class Breakout {
 				'get_callback' => [ __CLASS__, 'get_breakout_status_field' ],
 				'schema'       => [
 					'type'    => [ 'string', 'null' ],
-					'context' => [ 'view', 'edit' ],
+					'context' => [ 'edit' ],
 				],
 			]
 		);
