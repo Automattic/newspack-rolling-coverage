@@ -53,17 +53,6 @@ const NEUTRAL_ENTRY_CONTEXT: EntryContext = {
 };
 
 /**
- * Generates a unique ID for one block instance.
- *
- * @return {string} A new unique instance ID.
- */
-function generateInstanceId(): string {
-	return `${ Date.now().toString( 36 ) }-${ Math.random()
-		.toString( 36 )
-		.slice( 2 ) }`;
-}
-
-/**
  * The per-entry template canvas. Blocks can be added, moved, or removed,
  * but contextual blocks such as post-title and post-content render their
  * content read-only.
@@ -131,7 +120,7 @@ export default function Edit( {
 	attributes,
 	setAttributes,
 }: EditProps ) {
-	const { liveblogId, pollInterval, entriesPerPage, instanceId } = attributes;
+	const { liveblogId, pollInterval, entriesPerPage } = attributes;
 	const blockProps = useBlockProps();
 
 	const [ search, setSearch ] = useState( '' );
@@ -159,13 +148,6 @@ export default function Edit( {
 			 ).getBlocks( clientId ),
 		[ clientId ]
 	);
-
-	// Set a persisted instance ID once, so the front-end can identify this block instance across renders.
-	useEffect( () => {
-		if ( ! instanceId ) {
-			setAttributes( { instanceId: generateInstanceId() } );
-		}
-	}, [ instanceId, setAttributes ] );
 
 	// One-shot fetch (not the front-end's polling/pagination) — the editor
 	// only needs a representative snapshot to preview the template against.

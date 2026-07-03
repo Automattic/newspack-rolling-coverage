@@ -18,7 +18,6 @@ interface RollingCoverageAttributes {
 	liveblogId: number;
 	pollInterval: number;
 	entriesPerPage: number;
-	instanceId: string;
 	[ key: string ]: unknown;
 }
 

@@ -23,8 +23,7 @@ function initBlock( root: HTMLElement ): void {
 
 	const pollInterval = parseInt( root.dataset.pollInterval || '10', 10 );
 	const entriesPerPage = parseInt( root.dataset.entriesPerPage || '20', 10 );
-	const sourcePostId = root.dataset.sourcePostId || '0';
-	const instanceId = root.dataset.instanceId || '';
+	const templateKey = root.dataset.templateKey || '';
 	const sentinel = root.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-sentinel'
 	);
@@ -65,9 +64,7 @@ function initBlock( root: HTMLElement ): void {
 		try {
 			const url = `${ restUrl }?since=${ encodeURIComponent(
 				since
-			) }&source_post_id=${ sourcePostId }&instance_id=${ encodeURIComponent(
-				instanceId
-			) }`;
+			) }&template_key=${ encodeURIComponent( templateKey ) }`;
 			const response = await fetch( url );
 			if ( response.ok ) {
 				const data: PollResponse = await response.json();
@@ -96,8 +93,8 @@ function initBlock( root: HTMLElement ): void {
 		try {
 			const url = `${ restUrl }?before=${ encodeURIComponent(
 				before
-			) }&per_page=${ entriesPerPage }&source_post_id=${ sourcePostId }&instance_id=${ encodeURIComponent(
-				instanceId
+			) }&per_page=${ entriesPerPage }&template_key=${ encodeURIComponent(
+				templateKey
 			) }`;
 			const response = await fetch( url );
 			if ( response.ok ) {

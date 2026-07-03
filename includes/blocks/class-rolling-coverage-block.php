@@ -35,6 +35,9 @@ class Rolling_Coverage_Block {
 	// CSS class/ID prefix for the block's front-end markup.
 	const MARKUP_PREFIX = 'newspack-rolling-coverage';
 
+	// Option name prefix for persisted entry templates: rc_tpl_{liveblog_id}_{hash}.
+	const TEMPLATE_OPTION_PREFIX = 'rc_tpl_';
+
 	/**
 	 * Entry currently being rendered by render_entry(), read by
 	 * filter_block_context() while its render_block_context filter is active.
@@ -49,6 +52,7 @@ class Rolling_Coverage_Block {
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register_block' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
+		add_action( 'delete_term', [ __CLASS__, 'delete_liveblog_template_options' ], 10, 3 );
 	}
 
 	/**
@@ -103,8 +107,6 @@ class Rolling_Coverage_Block {
 		$poll_interval    = max( 1, (int) ( $attributes['pollInterval'] ?? 10 ) );
 		$status           = get_term_meta( $liveblog_id, Taxonomy::STATUS_META_KEY, true );
 		$status           = $status ? $status : 'active';
-		$instance_id      = (string) ( $attributes['instanceId'] ?? '' );
-		$source_post_id   = (int) get_the_ID();
 
 		$query = new WP_Query(
 			[
@@ -125,7 +127,8 @@ class Rolling_Coverage_Block {
 			]
 		);
 
-		$template = self::get_entry_template( $block );
+		$template     = self::get_entry_template( $block );
+		$template_key = self::persist_entry_template( $liveblog_id, $template );
 
 		$entries_html = '';
 		foreach ( $query->posts as $entry ) {
@@ -163,8 +166,7 @@ class Rolling_Coverage_Block {
 				'data-before'           => $oldest_iso,
 				'data-has-more'         => $has_more ? '1' : '0',
 				'data-status'           => $status,
-				'data-source-post-id'   => $source_post_id,
-				'data-instance-id'      => $instance_id,
+				'data-template-key'     => $template_key,
 				'data-rest-url'         => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/liveblogs/' . $liveblog_id . '/entries' ) ),
 			]
 		);
@@ -237,55 +239,62 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Looks up the exact per-entry template for one rendered block instance,
-	 * used by the poll/pagination REST endpoint: re-parses the instance's
-	 * originating post and returns that specific block's saved template,
-	 * falling back to default_entry_template() if it can't be found.
+	 * Stores the entry template in the options table and returns its hash key.
 	 *
-	 * @param int    $post_id     ID of the post that rendered this block instance.
-	 * @param string $instance_id The block instance's persisted instanceId attribute.
-	 * @return array[] Array of parsed-block-shaped arrays.
+	 * @param int   $liveblog_id Liveblog term ID.
+	 * @param array $template    Per-entry inner-block template.
+	 * @return string Hash key   identifying this template.
 	 */
-	private static function find_entry_template_for_instance( $post_id, $instance_id ) {
-		$post = get_post( $post_id );
+	private static function persist_entry_template( int $liveblog_id, array $template ): string {
+		$hash       = substr( md5( wp_json_encode( $template ) ), 0, 12 );
+		$option_key = self::TEMPLATE_OPTION_PREFIX . $liveblog_id . '_' . $hash;
 
-		if ( ! $post || ! $instance_id ) {
-			return self::default_entry_template();
+		if ( false === get_option( $option_key ) ) {
+			update_option( $option_key, $template, false );
 		}
 
-		$found = self::find_block_by_instance_id( parse_blocks( $post->post_content ), $instance_id );
-
-		return empty( $found ) ? self::default_entry_template() : $found;
+		return $hash;
 	}
 
 	/**
-	 * Recursively searches a parsed-block tree for the rolling-coverage
-	 * block with the given instanceId attribute.
+	 * Loads a persisted entry template by liveblog ID and hash key, falling
+	 * back to the default template if the option is missing.
 	 *
-	 * @param array[] $blocks      Parsed blocks, as returned by parse_blocks().
-	 * @param string  $instance_id The instanceId attribute to match.
-	 * @return array[]|null The matching block's innerBlocks (possibly empty),
-	 *                       or null if no block with this instanceId exists.
+	 * @param int    $liveblog_id  Liveblog term ID.
+	 * @param string $template_key Hash returned by persist_entry_template().
+	 * @return array[] Per-entry   inner-block template.
 	 */
-	private static function find_block_by_instance_id( array $blocks, $instance_id ) {
-		foreach ( $blocks as $candidate ) {
-			if (
-				'newspack-rolling-coverage/rolling-coverage' === $candidate['blockName']
-				&& ( $candidate['attrs']['instanceId'] ?? '' ) === $instance_id
-			) {
-				return $candidate['innerBlocks'];
-			}
-
-			if ( ! empty( $candidate['innerBlocks'] ) ) {
-				$found = self::find_block_by_instance_id( $candidate['innerBlocks'], $instance_id );
-
-				if ( null !== $found ) {
-					return $found;
-				}
-			}
+	private static function load_entry_template( int $liveblog_id, string $template_key ): array {
+		if ( ! $template_key ) {
+			return self::default_entry_template();
 		}
 
-		return null;
+		$option_key = self::TEMPLATE_OPTION_PREFIX . $liveblog_id . '_' . $template_key;
+		$template   = get_option( $option_key );
+
+		return is_array( $template ) ? $template : self::default_entry_template();
+	}
+
+	/**
+	 * Deletes all persisted entry-template options for a liveblog when it is deleted.
+	 *
+	 * @param int    $term_id  Term ID of the deleted liveblog.
+	 * @param int    $tt_id    Term taxonomy ID (unused).
+	 * @param string $taxonomy Taxonomy slug.
+	 */
+	public static function delete_liveblog_template_options( int $term_id, int $tt_id, string $taxonomy ): void {
+		if ( Taxonomy::TAXONOMY_SLUG !== $taxonomy ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$wpdb->query( // phpcs:ignore 
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
+				$wpdb->esc_like( self::TEMPLATE_OPTION_PREFIX . $term_id . '_' ) . '%'
+			)
+		);
 	}
 
 	/**
@@ -377,25 +386,21 @@ class Rolling_Coverage_Block {
 				'callback'            => [ __CLASS__, 'get_entries' ],
 				'permission_callback' => '__return_true',
 				'args'                => [
-					'term_id'        => [
+					'term_id'      => [
 						'required'          => true,
 						'validate_callback' => [ __CLASS__, 'validate_term_id' ],
 					],
-					'source_post_id' => [
-						'required' => true,
-						'type'     => 'integer',
-					],
-					'instance_id'    => [
+					'template_key' => [
 						'required' => true,
 						'type'     => 'string',
 					],
-					'since'          => [
+					'since'        => [
 						'type' => 'string',
 					],
-					'before'         => [
+					'before'       => [
 						'type' => 'string',
 					],
-					'per_page'       => [
+					'per_page'     => [
 						'type' => 'integer',
 					],
 				],
@@ -512,13 +517,12 @@ class Rolling_Coverage_Block {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public static function get_entries( WP_REST_Request $request ) {
-		$params         = $request->get_params();
-		$term_id        = (int) ( $params['term_id'] ?? 0 );
-		$source_post_id = (int) ( $params['source_post_id'] ?? 0 );
-		$instance_id    = (string) ( $params['instance_id'] ?? '' );
-		$since          = $params['since'] ?? '';
-		$before         = $params['before'] ?? '';
-		$per_page       = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
+		$params       = $request->get_params();
+		$term_id      = (int) ( $params['term_id'] ?? 0 );
+		$template_key = (string) ( $params['template_key'] ?? '' );
+		$since        = $params['since'] ?? '';
+		$before       = $params['before'] ?? '';
+		$per_page     = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
 
 		if ( ! term_exists( $term_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			return new WP_Error(
@@ -550,7 +554,7 @@ class Rolling_Coverage_Block {
 			'ignore_sticky_posts' => true,
 		];
 
-		$template = self::find_entry_template_for_instance( $source_post_id, $instance_id );
+		$template = self::load_entry_template( $term_id, $template_key );
 
 		// Forward/polling branch: entries newer than $since, oldest first.
 		if ( $since ) {

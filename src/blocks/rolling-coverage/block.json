@@ -18,10 +18,6 @@
 		"entriesPerPage": {
 			"type": "number",
 			"default": 20
-		},
-		"instanceId": {
-			"type": "string",
-			"default": ""
 		}
 	},
 	"supports": {
