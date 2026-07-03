@@ -64,4 +64,48 @@ async function saveBreakoutSettings(
 	}
 }
 
-export { createBreakout, saveBreakoutSettings };
+/**
+ * Restores a trashed breakout post to draft status.
+ *
+ * @param {number} breakoutPostId - The breakout post ID to restore.
+ * @return {Promise<ApiResult>} Result indicating success or failure.
+ */
+async function restoreBreakout( breakoutPostId: number ): Promise< ApiResult > {
+	try {
+		await apiFetch( {
+			path: `/wp/v2/posts/${ breakoutPostId }`,
+			method: 'POST',
+			data: { status: 'draft' },
+		} );
+		return { success: true };
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
+/**
+ * Permanently deletes a breakout post, bypassing the trash.
+ *
+ * @param {number} breakoutPostId - The breakout post ID to permanently delete.
+ * @return {Promise<ApiResult>} Result indicating success or failure.
+ */
+async function deleteBreakoutPermanently(
+	breakoutPostId: number
+): Promise< ApiResult > {
+	try {
+		await apiFetch( {
+			path: `/wp/v2/posts/${ breakoutPostId }?force=true`,
+			method: 'DELETE',
+		} );
+		return { success: true };
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
+export {
+	createBreakout,
+	saveBreakoutSettings,
+	restoreBreakout,
+	deleteBreakoutPermanently,
+};

@@ -7,20 +7,36 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import { createBreakout } from '../utils/breakout-api';
+import {
+	createBreakout,
+	restoreBreakout,
+	deleteBreakoutPermanently,
+} from '../utils/breakout-api';
 import { notifySuccess, notifyError } from '../utils/notices';
 import { BreakoutModal } from '../components/breakout-modal';
 import type { Entry, Action, AdminConfig } from '../types';
 
 /**
- * An entry "has a breakout" once it has a status for one - a null/undefined
- * rolling_coverage_breakout_status means no breakout post currently exists.
+ * Returns true when the entry has an active (non-trashed) breakout post.
  *
  * @param {Entry} entry The entry to check.
- * @return {boolean} Whether the entry already has a breakout post.
+ * @return {boolean} Whether the entry has an active breakout post.
  */
 function hasBreakout( entry: Entry ): boolean {
-	return Boolean( entry.rolling_coverage_breakout_status );
+	return (
+		Boolean( entry.rolling_coverage_breakout_status ) &&
+		entry.rolling_coverage_breakout_status !== 'trash'
+	);
+}
+
+/**
+ * Returns true when the entry has a breakout post that is in the trash.
+ *
+ * @param {Entry} entry The entry to check.
+ * @return {boolean} Whether the entry has a trashed breakout post.
+ */
+function hasTrashedBreakout( entry: Entry ): boolean {
+	return entry.rolling_coverage_breakout_status === 'trash';
 }
 
 /**
@@ -52,7 +68,8 @@ function getEntryActions(
 		{
 			id: 'create-breakout',
 			label: __( 'Breakout', 'newspack-rolling-coverage' ),
-			isEligible: ( entry: Entry ) => ! hasBreakout( entry ),
+			isEligible: ( entry: Entry ) =>
+				! hasBreakout( entry ) && ! hasTrashedBreakout( entry ),
 			callback: async ( items: Entry[] ) => {
 				if ( items.length !== 1 ) {
 					return;
@@ -75,6 +92,80 @@ function getEntryActions(
 						result.error ||
 							__(
 								'Failed to create breakout post',
+								'newspack-rolling-coverage'
+							)
+					);
+				}
+			},
+		},
+		{
+			id: 'restore-breakout',
+			label: __( 'Restore Breakout Post', 'newspack-rolling-coverage' ),
+			isEligible: ( entry: Entry ) => hasTrashedBreakout( entry ),
+			callback: async ( items: Entry[] ) => {
+				if ( items.length !== 1 ) {
+					return;
+				}
+
+				const breakoutPostId =
+					items[ 0 ].meta?.rolling_coverage_breakout_post_id;
+				if ( ! breakoutPostId ) {
+					return;
+				}
+
+				const result = await restoreBreakout( breakoutPostId );
+				if ( result.success ) {
+					notifySuccess(
+						__(
+							'Breakout post restored.',
+							'newspack-rolling-coverage'
+						)
+					);
+					onActionPerformed?.();
+				} else {
+					notifyError(
+						result.error ||
+							__(
+								'Failed to restore breakout post.',
+								'newspack-rolling-coverage'
+							)
+					);
+				}
+			},
+		},
+		{
+			id: 'delete-breakout',
+			label: __(
+				'Permanently Delete Breakout Post',
+				'newspack-rolling-coverage'
+			),
+			isEligible: ( entry: Entry ) => hasTrashedBreakout( entry ),
+			callback: async ( items: Entry[] ) => {
+				if ( items.length !== 1 ) {
+					return;
+				}
+
+				const breakoutPostId =
+					items[ 0 ].meta?.rolling_coverage_breakout_post_id;
+				if ( ! breakoutPostId ) {
+					return;
+				}
+
+				const result =
+					await deleteBreakoutPermanently( breakoutPostId );
+				if ( result.success ) {
+					notifySuccess(
+						__(
+							'Breakout post permanently deleted.',
+							'newspack-rolling-coverage'
+						)
+					);
+					onActionPerformed?.();
+				} else {
+					notifyError(
+						result.error ||
+							__(
+								'Failed to permanently delete breakout post.',
 								'newspack-rolling-coverage'
 							)
 					);

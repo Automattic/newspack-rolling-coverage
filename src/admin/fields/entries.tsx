@@ -17,6 +17,7 @@ const POST_STATUS_LABELS: Record< string, string > = {
 	pending: __( 'Pending', 'newspack-rolling-coverage' ),
 	future: __( 'Scheduled', 'newspack-rolling-coverage' ),
 	private: __( 'Private', 'newspack-rolling-coverage' ),
+	trash: __( 'Trashed', 'newspack-rolling-coverage' ),
 };
 
 const STATUS_ELEMENTS = Object.entries( POST_STATUS_LABELS ).map(

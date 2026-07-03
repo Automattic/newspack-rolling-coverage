@@ -59,7 +59,13 @@ interface Coverage {
 	};
 }
 
-type PostStatus = 'publish' | 'draft' | 'pending' | 'future' | 'private';
+type PostStatus =
+	| 'publish'
+	| 'draft'
+	| 'pending'
+	| 'future'
+	| 'private'
+	| 'trash';
 
 interface Entry {
 	id: number;
