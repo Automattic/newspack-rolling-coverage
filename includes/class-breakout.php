@@ -33,7 +33,7 @@ class Breakout {
 	// Stores the source entry ID on the breakout post (reverse link).
 	const BREAKOUT_SOURCE_ENTRY_META = 'rolling_coverage_source_entry_id';
 
-	// Computed (non-meta) REST field exposing the breakout post's live status.
+	// Cached breakout post status stored on the source entry; also used as the REST field name.
 	const BREAKOUT_STATUS_FIELD = 'rolling_coverage_breakout_status';
 
 	// Namespace for the custom REST route.
@@ -47,6 +47,7 @@ class Breakout {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_rest_field' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'before_delete_post', [ __CLASS__, 'cleanup_on_breakout_delete' ] );
+		add_action( 'transition_post_status', [ __CLASS__, 'sync_breakout_status_to_entry' ], 10, 3 );
 	}
 
 	/**
@@ -84,9 +85,7 @@ class Breakout {
 	}
 
 	/**
-	 * Expose the breakout post's live status as a computed REST field on
-	 * the entry, so the admin DataViews column always reflects the current
-	 * status without a separate request.
+	 * Expose the cached breakout post status as a REST field on the entry.
 	 */
 	public static function register_rest_field() {
 		register_rest_field(
@@ -103,15 +102,32 @@ class Breakout {
 	}
 
 	/**
-	 * REST field callback returning the breakout post's live status.
+	 * REST field callback returning the cached breakout post status.
 	 *
 	 * @param array $object Entry REST object data.
 	 * @return string|null Breakout post status, or null if none exists.
 	 */
-	public static function get_breakout_status_field( array $object ) {
-		$breakout_id = self::get_existing_breakout_id( (int) $object['id'] );
+	public static function get_breakout_status_field( array $object ): ?string {
+		$status = get_post_meta( (int) $object['id'], self::BREAKOUT_STATUS_FIELD, true );
+		return $status ? $status : null;
+	}
 
-		return $breakout_id ? get_post_status( $breakout_id ) : null;
+	/**
+	 * Update the cached breakout status on the source entry whenever the
+	 * breakout post's status changes.
+	 *
+	 * @param string  $new_status New post status.
+	 * @param string  $old_status Previous post status.
+	 * @param WP_Post $post       Post object.
+	 */
+	public static function sync_breakout_status_to_entry( string $new_status, string $old_status, WP_Post $post ): void {
+		$entry_id = (int) get_post_meta( $post->ID, self::BREAKOUT_SOURCE_ENTRY_META, true );
+
+		if ( ! $entry_id ) {
+			return;
+		}
+
+		update_post_meta( $entry_id, self::BREAKOUT_STATUS_FIELD, $new_status );
 	}
 
 	/**
@@ -221,14 +237,17 @@ class Breakout {
 			set_post_thumbnail( $new_post_id, $thumbnail_id );
 		}
 
+		$breakout_status = get_post_status( $new_post_id );
+
 		update_post_meta( $entry_id, self::ENTRY_BREAKOUT_POST_ID_META, $new_post_id );
 		update_post_meta( $new_post_id, self::BREAKOUT_SOURCE_ENTRY_META, $entry_id );
+		update_post_meta( $entry_id, self::BREAKOUT_STATUS_FIELD, $breakout_status );
 
 		return new WP_REST_Response(
 			[
 				'breakoutPostId' => $new_post_id,
 				'editLink'       => get_edit_post_link( $new_post_id, 'raw' ),
-				'status'         => get_post_status( $new_post_id ),
+				'status'         => $breakout_status,
 			],
 			201
 		);
@@ -252,6 +271,7 @@ class Breakout {
 		if ( ! get_post( $breakout_id ) ) {
 			delete_post_meta( $entry_id, self::ENTRY_BREAKOUT_POST_ID_META );
 			delete_post_meta( $entry_id, self::ENTRY_READ_MORE_TEXT_META );
+			delete_post_meta( $entry_id, self::BREAKOUT_STATUS_FIELD );
 			return 0;
 		}
 
@@ -273,6 +293,7 @@ class Breakout {
 		if ( $entry_id ) {
 			delete_post_meta( $entry_id, self::ENTRY_BREAKOUT_POST_ID_META );
 			delete_post_meta( $entry_id, self::ENTRY_READ_MORE_TEXT_META );
+			delete_post_meta( $entry_id, self::BREAKOUT_STATUS_FIELD );
 		}
 	}
 }
