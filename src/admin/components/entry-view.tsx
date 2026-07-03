@@ -46,6 +46,11 @@ function EntryView() {
 	const [ view, setView ] = useState< View >( defaultEntryView );
 	const [ isCreatingEntry, setIsCreatingEntry ] = useState( false );
 	const [ createError, setCreateError ] = useState< string | null >( null );
+	const [ refreshKey, setRefreshKey ] = useState( 0 );
+
+	const handleActionPerformed = useCallback( () => {
+		setRefreshKey( ( key ) => key + 1 );
+	}, [] );
 
 	useEffect( () => {
 		if ( ! isValidCoverageId || selectedCoverage ) {
@@ -83,6 +88,7 @@ function EntryView() {
 		search: view.search,
 		orderBy: view.sort?.field,
 		order: view.sort?.direction,
+		refreshKey,
 	} );
 
 	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
@@ -117,7 +123,10 @@ function EntryView() {
 		}
 	}, [ config, isValidCoverageId, numericCoverageId ] );
 
-	const actions = useMemo( () => getEntryActions( config ), [ config ] );
+	const actions = useMemo(
+		() => getEntryActions( config, handleActionPerformed ),
+		[ config, handleActionPerformed ]
+	);
 
 	return (
 		<>
