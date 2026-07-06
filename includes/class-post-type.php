@@ -60,7 +60,7 @@ class Post_Type {
 					'not_found'     => __( 'No entries found.', 'newspack-rolling-coverage' ),
 					'all_items'     => __( 'All Entries', 'newspack-rolling-coverage' ),
 				],
-				'description'         => __( 'Individual entries within a Rolling Coverage liveblog.', 'newspack-rolling-coverage' ),
+				'description'         => __( 'Individual entries within a Rolling Coverage.', 'newspack-rolling-coverage' ),
 				'public'              => false,
 				'publicly_queryable'  => true,
 				'exclude_from_search' => false,

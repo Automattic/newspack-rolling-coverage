@@ -84,7 +84,7 @@ class Admin {
 		}
 
 		$asset_file = NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/admin.asset.php';
-
+		
 		if ( ! file_exists( $asset_file ) ) {
 			return;
 		}
@@ -122,31 +122,31 @@ class Admin {
 	private static function get_script_data( string $hook_suffix = '' ): array {
 		// Extensible multi-page react entry point setup.
 		$page_hook_map = [
-			'toplevel_page_' . self::MENU_SLUG => 'admin',
-			'rolling-coverage_page_' . self::CONNECTION_MENU_SLUG => 'connection',
+			'toplevel_page_' . self::MENU_SLUG => '/coverages',
+			'rolling-coverage_page_' . self::CONNECTION_MENU_SLUG => '/connection',
 		];
 
 		return array(
-			'page'              => $page_hook_map[ $hook_suffix ] ?? 'admin',
+			'page'              => $page_hook_map[ $hook_suffix ] ?? '/coverages',
 			'restBase'          => array(
-				'liveblogs' => Taxonomy::REST_BASE,
+				'coverages' => Taxonomy::REST_BASE,
 				'entries'   => Post_Type::REST_BASE,
 				'slack'     => Slack::REST_NAMESPACE,
 			),
 			'restBaseUrls'      => array(
-				'liveblogs' => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
+				'coverages' => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
 				'entries'   => esc_url_raw( rest_url( 'wp/v2/' . Post_Type::REST_BASE ) ),
 				'slack'     => esc_url_raw( rest_url( Slack::REST_NAMESPACE . '/' ) ),
 			),
 			'nonce'             => wp_create_nonce( 'wp_rest' ),
 			'capabilities'      => array(
 				'canEditPosts'   => current_user_can( 'edit_posts' ),
-				'canDeletePosts' => current_user_can( 'delete_posts' ),
 				'canManageTerms' => current_user_can( 'manage_categories' ),
 			),
 			'adminUrls'         => array(
 				'editEntry' => admin_url( 'post.php?action=edit' ),
 				'newEntry'  => admin_url( 'post-new.php?post_type=' . Post_Type::CPT_SLUG ),
+				'editTerm'  => admin_url( 'term.php?taxonomy=' . Taxonomy::TAXONOMY_SLUG ),
 				'editUser'  => admin_url( 'user-edit.php' ),
 			),
 			'postType'          => Post_Type::CPT_SLUG,

@@ -10,19 +10,19 @@ import type { Entry, UseEntriesOptions } from '../types';
 import { useAdminContext } from './useAdminContext';
 
 /**
- * Fetches entries for a given liveblog via the WordPress core-data layer
- * (useEntityRecords), mirroring the pattern used by useLiveblogs.
+ * Fetches entries for a given coverage via the WordPress core-data layer
+ * (useEntityRecords), mirroring the pattern used by useCoverages.
  *
  * Passes context=edit to retrieve all statuses, the rolling-coverage taxonomy
- * filter to scope results to a single liveblog, and _embed for author/term data.
+ * filter to scope results to a single coverage, and _embed for author/term data.
  *
- * @param {UseEntriesOptions} options Query options including liveblogId, pagination, and filtering.
+ * @param {UseEntriesOptions} options Query options including coverageId, pagination, and filtering.
  *
  * @return {{ records: Entry[] | null, isResolving: boolean, hasResolved: boolean, error: string | null, totalItems: number, totalPages: number }} Entry data and request state.
  */
 function useEntries( options: UseEntriesOptions ) {
 	const {
-		liveblogId,
+		coverageId,
 		perPage = 100,
 		page = 1,
 		search = '',
@@ -41,8 +41,8 @@ function useEntries( options: UseEntriesOptions ) {
 		order,
 		status: status || 'publish,draft,pending,future,private',
 		context: 'edit',
-		[ config.restBase.liveblogs ]: liveblogId
-			? String( liveblogId )
+		[ config.restBase.coverages ]: coverageId
+			? String( coverageId )
 			: undefined,
 		_fields:
 			'id,title,date,modified,author,status,meta,categories,tags,_links,_embedded',

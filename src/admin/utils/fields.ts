@@ -5,7 +5,7 @@
 /**
  * Internal dependencies
  */
-import type { Entry, Liveblog } from '../types';
+import type { Entry, Coverage } from '../types';
 
 /** Machine value for entries sourced from Slack. */
 const SOURCE_SLACK = 'slack';
@@ -123,14 +123,14 @@ function getEntrySource( item: Entry ): string {
 }
 
 /**
- * Returns the display label for a liveblog's connected Slack channel, preferring
+ * Returns the display label for a coverage term's connected Slack channel, preferring
  * the resolved channel name and falling back to the raw channel ID. Returns an
- * empty string when the liveblog is not connected to a Slack channel.
+ * empty string when the coverage term is not connected to a Slack channel.
  *
- * @param {Liveblog} item The liveblog term whose Slack channel meta to read.
+ * @param {Coverage} item The coverage term whose Slack channel meta to read.
  * @return {string} Channel name, channel ID, or '' if not connected.
  */
-function getSlackChannelLabel( item: Liveblog ): string {
+function getSlackChannelLabel( item: Coverage ): string {
 	const name = String( item.meta?.rolling_coverage_slack_channel_name ?? '' );
 	const channelId = String(
 		item.meta?.rolling_coverage_slack_channel_id ?? ''
