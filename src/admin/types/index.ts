@@ -28,6 +28,7 @@ interface AdminConfig {
 	taxMeta: {
 		statusKey: string;
 	};
+	blockEditorSettings: Record< string, unknown >;
 }
 
 interface Context {
@@ -163,6 +164,25 @@ interface TermChipsProps {
 	terms: Array< { link: string; name: string } >;
 }
 
+interface QuickEditModalProps {
+	entryId: number;
+	onClose: () => void;
+	onSaved: () => void;
+}
+
+interface QuickEditSaveBarProps {
+	onClose: () => void;
+	onSaved: () => void;
+}
+
+interface EntityRecord {
+	id: number;
+	type: string;
+	title?: { raw?: string };
+	content?: { raw?: string };
+	status?: string;
+}
+
 export type {
 	AdminConfig,
 	Context,
@@ -183,4 +203,7 @@ export type {
 	SaveCoverageData,
 	ChipLinkProps,
 	TermChipsProps,
+	QuickEditModalProps,
+	QuickEditSaveBarProps,
+	EntityRecord,
 };

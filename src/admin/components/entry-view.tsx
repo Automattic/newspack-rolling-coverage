@@ -17,9 +17,10 @@ import { useAdminContext } from '../hooks/useAdminContext';
 import { createEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
+import { QuickEditModal } from './quick-edit-modal';
 import { getEntryActions } from '../actions/entry-actions';
 import { entryFields, defaultEntryView } from '../fields/entries';
-import { ContextExports } from '../types';
+import type { ContextExports, Entry } from '../types';
 
 /**
  * Renders the entry list DataViews for a single coverage, with client-side
@@ -46,6 +47,10 @@ function EntryView() {
 	const [ view, setView ] = useState< View >( defaultEntryView );
 	const [ isCreatingEntry, setIsCreatingEntry ] = useState( false );
 	const [ createError, setCreateError ] = useState< string | null >( null );
+	const [ quickEditEntry, setQuickEditEntry ] = useState< Entry | null >(
+		null
+	);
+	const [ refreshKey, setRefreshKey ] = useState( 0 );
 
 	useEffect( () => {
 		if ( ! isValidCoverageId || selectedCoverage ) {
@@ -83,7 +88,20 @@ function EntryView() {
 		search: view.search,
 		orderBy: view.sort?.field,
 		order: view.sort?.direction,
+		refreshKey,
 	} );
+
+	const handleQuickEdit = useCallback( ( entry: Entry ) => {
+		setQuickEditEntry( entry );
+	}, [] );
+
+	const handleQuickEditSaved = useCallback( () => {
+		setRefreshKey( ( prev ) => prev + 1 );
+	}, [] );
+
+	const handleQuickEditClose = useCallback( () => {
+		setQuickEditEntry( null );
+	}, [] );
 
 	const { data: filteredData, paginationInfo } = useMemo( () => {
 		return filterSortAndPaginate( records ?? [], view, entryFields );
@@ -115,7 +133,10 @@ function EntryView() {
 		}
 	}, [ config, isValidCoverageId, numericCoverageId ] );
 
-	const actions = useMemo( () => getEntryActions( config ), [ config ] );
+	const actions = useMemo(
+		() => getEntryActions( config, handleQuickEdit ),
+		[ config, handleQuickEdit ]
+	);
 
 	return (
 		<>
@@ -149,6 +170,13 @@ function EntryView() {
 					) : undefined
 				}
 			/>
+			{ quickEditEntry && (
+				<QuickEditModal
+					entryId={ quickEditEntry.id }
+					onClose={ handleQuickEditClose }
+					onSaved={ handleQuickEditSaved }
+				/>
+			) }
 		</>
 	);
 }
