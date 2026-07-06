@@ -52,7 +52,7 @@ class Post_Type {
 				'show_in_nav_menus'   => false,
 				'query_var'           => true,
 				'rest_base'           => self::REST_BASE,
-				'supports'            => [ 'title', 'editor', 'author', 'revisions', 'custom-fields' ],
+				'supports'            => [ 'title', 'editor', 'author', 'revisions', 'custom-fields', 'thumbnail' ],
 				'taxonomies'          => [
 					Taxonomy::TAXONOMY_SLUG,
 					'category',
