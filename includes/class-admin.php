@@ -22,6 +22,28 @@ class Admin {
 	public static function init(): void {
 		add_action( 'admin_menu', array( __CLASS__, 'add_menu_page' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
+		add_filter(
+			'should_load_block_editor_scripts_and_styles',
+			array( __CLASS__, 'filter_should_load_block_editor_scripts' )
+		);
+	}
+
+	/**
+	 * Mark our admin page as a block editor screen so that
+	 * wp_enqueue_registered_block_scripts_and_styles() enqueues
+	 * editor scripts for all registered blocks.
+	 *
+	 * @param bool $is_block_editor Whether the current screen is a block editor.
+	 * @return bool
+	 */
+	public static function filter_should_load_block_editor_scripts( $is_block_editor ) {
+		$screen = get_current_screen();
+
+		if ( $screen && 'toplevel_page_' . self::MENU_SLUG === $screen->id ) {
+			return true;
+		}
+
+		return $is_block_editor;
 	}
 
 	/**
@@ -60,7 +82,7 @@ class Admin {
 		}
 
 		$asset_file = NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/admin.asset.php';
-		
+
 		if ( ! file_exists( $asset_file ) ) {
 			return;
 		}
@@ -82,6 +104,42 @@ class Admin {
 			$asset['version']
 		);
 
+		wp_enqueue_script( 'wp-edit-post' );
+		wp_enqueue_style( 'wp-edit-post' );
+
+		// Load editor scripts for all registered blocks for third-party blocks.
+		wp_enqueue_registered_block_scripts_and_styles();
+
+		// Bootstrap server-side block definitions into the JS block store.
+		wp_add_inline_script(
+			'wp-blocks',
+			'wp.blocks.unstable__bootstrapServerSideBlockDefinitions('
+			. wp_json_encode( get_block_editor_server_block_settings() )
+			. ');'
+		);
+
+		// Prevent newspack-plugin's editor UI scripts from loading in our
+		// custom EditorProvider context, where they cause a forwardRef crash.
+		remove_action(
+			'enqueue_block_editor_assets',
+			[ 'Newspack\Blocks', 'enqueue_block_editor_assets' ]
+		);
+
+		do_action( 'enqueue_block_editor_assets' );
+
+		// Re-add newspack-plugin's editor UI scripts.
+		add_action(
+			'enqueue_block_editor_assets',
+			[ 'Newspack\Blocks', 'enqueue_block_editor_assets' ]
+		);
+
+		// Media library for Image/Gallery blocks.
+		wp_enqueue_media();
+
+		// Classic editor (TinyMCE) for the Freeform/Classic block.
+		wp_enqueue_editor();
+		wp_tinymce_inline_scripts();
+
 		wp_localize_script(
 			'newspack-rolling-coverage-admin',
 			'newspackRollingCoverageAdmin',
@@ -95,30 +153,36 @@ class Admin {
 	 * @return array<string, mixed> Script data array.
 	 */
 	private static function get_script_data(): array {
+		$block_editor_settings = get_block_editor_settings(
+			array(),
+			new \WP_Block_Editor_Context()
+		);
+
 		return array(
-			'restBase'     => array(
+			'restBase'            => array(
 				'coverages' => Taxonomy::REST_BASE,
 				'entries'   => Post_Type::REST_BASE,
 			),
-			'restBaseUrls' => array(
+			'restBaseUrls'        => array(
 				'coverages' => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
 				'entries'   => esc_url_raw( rest_url( 'wp/v2/' . Post_Type::REST_BASE ) ),
 			),
-			'nonce'        => wp_create_nonce( 'wp_rest' ),
-			'capabilities' => array(
+			'nonce'               => wp_create_nonce( 'wp_rest' ),
+			'capabilities'        => array(
 				'canEditPosts'   => current_user_can( 'edit_posts' ),
 				'canManageTerms' => current_user_can( 'manage_categories' ),
 			),
-			'adminUrls'    => array(
+			'adminUrls'           => array(
 				'editEntry' => admin_url( 'post.php?action=edit' ),
 				'newEntry'  => admin_url( 'post-new.php?post_type=' . Post_Type::CPT_SLUG ),
 				'editTerm'  => admin_url( 'term.php?taxonomy=' . Taxonomy::TAXONOMY_SLUG ),
 			),
-			'postType'     => Post_Type::CPT_SLUG,
-			'taxonomy'     => Taxonomy::TAXONOMY_SLUG,
-			'taxMeta'      => array(
+			'postType'            => Post_Type::CPT_SLUG,
+			'taxonomy'            => Taxonomy::TAXONOMY_SLUG,
+			'taxMeta'             => array(
 				'statusKey' => Taxonomy::STATUS_META_KEY,
 			),
+			'blockEditorSettings' => $block_editor_settings,
 		);
 	}
 }
