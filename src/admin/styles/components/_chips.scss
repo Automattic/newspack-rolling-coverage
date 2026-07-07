@@ -1,3 +1,4 @@
+@use "sass:map";
 @use "../variables" as *;
 
 .newspack-rolling-coverage-term-chips {
@@ -5,6 +6,40 @@
 	align-items: center;
 	gap: $nrc-spacing-sm;
 }
+
+// Status-colored variants, used for the breakout post status column.
+$nrc-status-colors: (
+	publish: (
+		bg: $nrc-color-status-publish-bg,
+		bg-hover: $nrc-color-status-publish-bg-hover,
+		text: $nrc-color-status-publish-text,
+	),
+	draft: (
+		bg: $nrc-color-status-draft-bg,
+		bg-hover: $nrc-color-status-draft-bg-hover,
+		text: $nrc-color-status-draft-text,
+	),
+	pending: (
+		bg: $nrc-color-status-pending-bg,
+		bg-hover: $nrc-color-status-pending-bg-hover,
+		text: $nrc-color-status-pending-text,
+	),
+	future: (
+		bg: $nrc-color-status-future-bg,
+		bg-hover: $nrc-color-status-future-bg-hover,
+		text: $nrc-color-status-future-text,
+	),
+	private: (
+		bg: $nrc-color-status-private-bg,
+		bg-hover: $nrc-color-status-private-bg-hover,
+		text: $nrc-color-status-private-text,
+	),
+	trash: (
+		bg: $nrc-color-status-trash-bg,
+		bg-hover: $nrc-color-status-trash-bg-hover,
+		text: $nrc-color-status-trash-text,
+	),
+);
 
 .newspack-rolling-coverage-chip-link {
 	display: inline-block;
@@ -19,6 +54,17 @@
 
 	&:hover {
 		background: $nrc-color-chip-bg-hover;
+	}
+
+	@each $status, $colors in $nrc-status-colors {
+		&.is-status-#{ $status } {
+			background: map.get($colors, bg);
+			color: map.get($colors, text);
+
+			&:hover {
+				background: map.get($colors, bg-hover);
+			}
+		}
 	}
 }
 

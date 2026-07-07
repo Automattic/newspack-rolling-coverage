@@ -1,5 +1,5 @@
 /**
- * External dependencies
+ * WordPress dependencies
  */
 import { useEntityRecords } from '@wordpress/core-data';
 
@@ -45,7 +45,7 @@ function useEntries( options: UseEntriesOptions ) {
 			? String( coverageId )
 			: undefined,
 		_fields:
-			'id,title,date,modified,author,status,meta,categories,tags,_links,_embedded',
+			'id,title,date,modified,author,status,meta,categories,tags,_links,_embedded,rolling_coverage_breakout_status',
 		_embed: 'author,wp:term',
 		_ts: refreshKey,
 	};

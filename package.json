@@ -44,6 +44,7 @@
 	},
 	"devDependencies": {
 		"newspack-scripts": "^5.9.8",
+		"react-router": "^7.18.0",
 		"@wordpress/api-fetch": "^7.48.1",
 		"@wordpress/components": "^35.0.1",
 		"@wordpress/core-data": "^7.48.1",
@@ -52,6 +53,6 @@
 		"@wordpress/element": "^8.0.1",
 		"@wordpress/i18n": "^6.21.1",
 		"@wordpress/icons": "^14.0.1",
-		"react-router": "^7.18.0"
+		"@wordpress/notices": "^5.48.1"
 	}
 }

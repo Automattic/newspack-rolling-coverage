@@ -8,13 +8,15 @@ import type { ChipLinkProps } from '../types';
  *
  * @param {ChipLinkProps} props Component props.
  */
-function ChipLink( { href, label }: ChipLinkProps ) {
+function ChipLink( { href, label, variant }: ChipLinkProps ) {
+	const statusModifier = variant ? `is-status-${ variant }` : '';
+
 	return (
 		<a
 			href={ href }
 			target="_blank"
 			rel="noopener noreferrer"
-			className="newspack-rolling-coverage-chip-link"
+			className={ `newspack-rolling-coverage-chip-link ${ statusModifier }` }
 		>
 			{ label }
 		</a>

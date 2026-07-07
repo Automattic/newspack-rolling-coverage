@@ -32,6 +32,7 @@ class Initializer {
 		Post_Type::init();
 		Taxonomy::init();
 		Slack::init();
+		Breakout::init();
 
 		// Admin interface (only load in admin context).
 		if ( is_admin() ) {

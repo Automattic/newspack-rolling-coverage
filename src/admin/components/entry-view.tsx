@@ -18,8 +18,8 @@ import { createEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { getEntryActions } from '../actions/entry-actions';
-import { entryFields, defaultEntryView } from '../fields/entries';
 import { ContextExports } from '../types';
+import { getEntryFields, defaultEntryView } from '../fields/entries';
 
 /**
  * Renders the entry list DataViews for a single coverage, with client-side
@@ -46,6 +46,11 @@ function EntryView() {
 	const [ view, setView ] = useState< View >( defaultEntryView );
 	const [ isCreatingEntry, setIsCreatingEntry ] = useState( false );
 	const [ createError, setCreateError ] = useState< string | null >( null );
+	const [ refreshKey, setRefreshKey ] = useState( 0 );
+
+	const handleActionPerformed = useCallback( () => {
+		setRefreshKey( ( key ) => key + 1 );
+	}, [] );
 
 	useEffect( () => {
 		if ( ! isValidCoverageId || selectedCoverage ) {
@@ -83,11 +88,14 @@ function EntryView() {
 		search: view.search,
 		orderBy: view.sort?.field,
 		order: view.sort?.direction,
+		refreshKey,
 	} );
+
+	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
 
 	const { data: filteredData, paginationInfo } = useMemo( () => {
 		return filterSortAndPaginate( records ?? [], view, entryFields );
-	}, [ records, view ] );
+	}, [ records, view, entryFields ] );
 
 	const handleNewEntry = useCallback( async () => {
 		if ( ! isValidCoverageId || numericCoverageId === null ) {
@@ -115,7 +123,10 @@ function EntryView() {
 		}
 	}, [ config, isValidCoverageId, numericCoverageId ] );
 
-	const actions = useMemo( () => getEntryActions( config ), [ config ] );
+	const actions = useMemo(
+		() => getEntryActions( config, handleActionPerformed ),
+		[ config, handleActionPerformed ]
+	);
 
 	return (
 		<>
