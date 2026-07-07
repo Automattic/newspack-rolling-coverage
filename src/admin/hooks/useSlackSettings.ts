@@ -163,7 +163,7 @@ function useSlackSettings() {
 				// eslint-disable-next-line no-alert
 				! confirm(
 					__(
-						'Unlink this channel from its liveblog? Ingestion from this channel will stop.',
+						'Unlink this channel from its coverage? Ingestion from this channel will stop.',
 						'newspack-rolling-coverage'
 					)
 				)

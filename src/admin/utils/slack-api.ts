@@ -17,10 +17,10 @@ import type {
 } from '../types';
 
 /**
- * Connects a liveblog term to a Slack channel.
+ * Connects a coverage term to a Slack channel.
  *
  * @param {string}  namespace   REST namespace string from config.restBase.slack.
- * @param {number}  termId      The liveblog term ID.
+ * @param {number}  termId      The coverage term ID.
  * @param {string}  channel     Channel name or ID (e.g. '#general' or 'C12345678').
  * @param {boolean} autopublish Whether to auto-publish ingested entries.
  * @return {Promise<SlackConnectResult>} Result indicating success or failure.
@@ -60,10 +60,10 @@ async function connectSlackChannel(
 }
 
 /**
- * Disconnects a liveblog term from its Slack channel.
+ * Disconnects a coverage term from its Slack channel.
  *
  * @param {string} namespace REST namespace string from config.restBase.slack.
- * @param {number} termId    The liveblog term ID.
+ * @param {number} termId    The coverage term ID.
  * @return {Promise<ApiResult>} Result indicating success or failure.
  */
 async function disconnectSlackChannel(
@@ -218,7 +218,7 @@ async function saveSlackSettings(
 }
 
 /**
- * Lists all linked Slack channels with their liveblog term mappings.
+ * Lists all linked Slack channels with their coverage term mappings.
  *
  * @param {string} namespace REST namespace string from config.restBase.slack.
  * @return {Promise<SlackChannelsResult>} Result with the channel map on success.
@@ -242,7 +242,7 @@ async function listSlackChannels(
 }
 
 /**
- * Unlinks a Slack channel from its liveblog term.
+ * Unlinks a Slack channel from its coverage term.
  *
  * @param {string} namespace REST namespace string from config.restBase.slack.
  * @param {string} channelId Slack channel ID.

@@ -30,12 +30,12 @@ function buildSlackManifest( restUrl: string ): string {
 					{
 						command: '/rolling-coverage-connect',
 						url: `${ restUrl }slack/commands`,
-						description: 'Connect this channel to a liveblog',
+						description: 'Connect this channel to a coverage',
 					},
 					{
 						command: '/rolling-coverage-unlink',
 						url: `${ restUrl }slack/commands`,
-						description: 'Unlink this channel from its liveblog',
+						description: 'Unlink this channel from its coverage',
 					},
 					{
 						command: '/rolling-coverage-status',

@@ -7,7 +7,7 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import type { Liveblog } from '../types';
+import type { Coverage } from '../types';
 import { useAdminContext } from './useAdminContext';
 import {
 	connectSlackChannel,
@@ -17,31 +17,31 @@ import {
 } from '../utils/slack-api';
 
 /**
- * Manages Slack channel connection state and operations for a liveblog term.
+ * Manages Slack channel connection state and operations for a coverage term.
  *
- * Derives the current channel ID and name from the liveblog meta, fetches the
+ * Derives the current channel ID and name from the coverage meta, fetches the
  * stored autopublish setting when connected, and exposes async handlers for
  * connecting, disconnecting, and toggling autopublish. Callers are notified
  * of successful mutations via the `onSaved` callback and may close the modal
  * via the `onClose` callback.
  *
- * @param {Liveblog | null} liveblog The liveblog term to manage, or null.
+ * @param {Coverage | null} coverage The coverage term to manage, or null.
  * @param {() => void}      onSaved  Called after a successful connect/disconnect.
  * @param {() => void}      onClose  Called after a successful connect/disconnect to close the modal.
  *
  * @return {Object} Connection state, derived channel info, and async handlers.
  */
 function useSlackConnection(
-	liveblog: Liveblog | null,
+	coverage: Coverage | null,
 	onSaved: () => void,
 	onClose: () => void
 ) {
 	const { restBase } = useAdminContext();
 	const channelId = String(
-		liveblog?.meta?.rolling_coverage_slack_channel_id ?? ''
+		coverage?.meta?.rolling_coverage_slack_channel_id ?? ''
 	);
 	const channelName = String(
-		liveblog?.meta?.rolling_coverage_slack_channel_name ?? ''
+		coverage?.meta?.rolling_coverage_slack_channel_name ?? ''
 	);
 
 	const [ channel, setChannel ] = useState( '' );
@@ -115,7 +115,7 @@ function useSlackConnection(
 	);
 
 	const handleConnect = useCallback( async () => {
-		if ( ! liveblog || ! channel.trim() ) {
+		if ( ! coverage || ! channel.trim() ) {
 			return;
 		}
 
@@ -124,7 +124,7 @@ function useSlackConnection(
 
 		const result = await connectSlackChannel(
 			restBase.slack,
-			liveblog.id,
+			coverage.id,
 			channel.trim(),
 			autopublish
 		);
@@ -145,10 +145,10 @@ function useSlackConnection(
 		}
 
 		setIsConnecting( false );
-	}, [ liveblog, channel, autopublish, restBase.slack, onSaved, onClose ] );
+	}, [ coverage, channel, autopublish, restBase.slack, onSaved, onClose ] );
 
 	const handleDisconnect = useCallback( async () => {
-		if ( ! liveblog ) {
+		if ( ! coverage ) {
 			return;
 		}
 
@@ -157,7 +157,7 @@ function useSlackConnection(
 
 		const result = await disconnectSlackChannel(
 			restBase.slack,
-			liveblog.id
+			coverage.id
 		);
 
 		if ( result.success ) {
@@ -171,7 +171,7 @@ function useSlackConnection(
 		}
 
 		setIsDisconnecting( false );
-	}, [ liveblog, restBase.slack, onSaved, onClose ] );
+	}, [ coverage, restBase.slack, onSaved, onClose ] );
 
 	return {
 		channelId,

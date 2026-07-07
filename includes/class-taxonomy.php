@@ -68,14 +68,14 @@ class Taxonomy {
 		);
 
 		$term_meta = [
-			// Liveblog status — 'active', 'paused', or 'archived' (terminal); controls frontend polling vs static archive.
+			// Coverage status — 'active', 'paused', or 'archived' (terminal); controls frontend polling vs static archive.
 			self::STATUS_META_KEY         => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => 'active',
 			],
-			// ISO 8601 timestamp the liveblog term was first created (set once via the created_ hook).
+			// ISO 8601 timestamp the coverage term was first created (set once via the created_ hook).
 			'created_at'                  => [
 				'show_in_rest' => true,
 				'single'       => true,
@@ -89,7 +89,7 @@ class Taxonomy {
 				'type'         => 'string',
 				'default'      => '',
 			],
-			// Slack channel ID linked to this liveblog term; the channel→liveblog forward link. manage_options-gated via auth_callback.
+			// Slack channel ID linked to this coverage term; the channel→coverage forward link. manage_options-gated via auth_callback.
 			self::META_SLACK_CHANNEL_ID   => [
 				'show_in_rest'  => true,
 				'single'        => true,

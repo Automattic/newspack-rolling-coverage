@@ -15,7 +15,7 @@ import type { ConnectedChannelViewProps } from '../../../types';
 import { SlackError } from './slack-error';
 
 /**
- * Renders the body of the Slack connection modal when the liveblog is
+ * Renders the body of the Slack connection modal when the coverage is
  * already connected to a channel: the channel name and Slack ID, a muted
  * description, the inline auto-publish toggle, and any error notice.
  *

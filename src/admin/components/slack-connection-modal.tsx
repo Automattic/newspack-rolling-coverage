@@ -18,7 +18,7 @@ import { ConnectChannelForm } from './slack/connection-modal/connect-channel-for
 import { ConnectionModalFooter } from './slack/connection-modal/connection-modal-footer';
 
 /**
- * Modal for connecting or disconnecting a liveblog term to a Slack channel.
+ * Modal for connecting or disconnecting a coverage term to a Slack channel.
  * Detects connected vs. disconnected mode based on the term's slack channel
  * meta. In connected mode, fetches the current autopublish setting from the
  * channel map and lets the admin toggle it inline.
@@ -26,7 +26,7 @@ import { ConnectionModalFooter } from './slack/connection-modal/connection-modal
  * @param {SlackConnectionModalProps} props Component props.
  */
 function SlackConnectionModal( {
-	liveblog,
+	coverage,
 	onClose,
 	onSaved,
 }: SlackConnectionModalProps ) {
@@ -44,7 +44,7 @@ function SlackConnectionModal( {
 		handleConnect,
 		handleDisconnect,
 		handleAutopublishChange,
-	} = useSlackConnection( liveblog, onSaved, onClose );
+	} = useSlackConnection( coverage, onSaved, onClose );
 
 	const mode = channelId ? 'connected' : 'connect';
 	const canConnect = channel.trim() !== '';

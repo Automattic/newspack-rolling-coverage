@@ -77,15 +77,15 @@ class Slack_Webhook_Controller {
 	 */
 	protected static function get_error_message( string $code ): string {
 		$messages = [
-			// Connect (liveblog ↔ channel) errors.
+			// Connect (coverage ↔ channel) errors.
 			'channel_not_found'      => __( 'Channel not found. Make sure the bot is invited to the channel, or use the channel ID (e.g., C12345678) instead of the name.', 'newspack-rolling-coverage' ),
 			'bot_not_in_channel'     => __( 'The bot is not a member of this channel. Please invite the bot first using /invite @Rolling Coverage in Slack.', 'newspack-rolling-coverage' ),
-			'channel_already_linked' => __( 'This channel is already linked to another liveblog.', 'newspack-rolling-coverage' ),
-			'term_already_connected' => __( 'This liveblog is already connected to another channel.', 'newspack-rolling-coverage' ),
-			'invalid_term'           => __( 'This liveblog could not be found. Please refresh the page and try again.', 'newspack-rolling-coverage' ),
+			'channel_already_linked' => __( 'This channel is already linked to another coverage.', 'newspack-rolling-coverage' ),
+			'term_already_connected' => __( 'This coverage is already connected to another channel.', 'newspack-rolling-coverage' ),
+			'invalid_term'           => __( 'This coverage could not be found. Please refresh the page and try again.', 'newspack-rolling-coverage' ),
 			'invalid_channel'        => __( 'That channel could not be used. Try a channel ID like C12345678 or a channel name like #general.', 'newspack-rolling-coverage' ),
-			'term_select_required'   => __( 'Please select a liveblog.', 'newspack-rolling-coverage' ),
-			'term_not_found'         => __( 'Selected liveblog no longer exists.', 'newspack-rolling-coverage' ),
+			'term_select_required'   => __( 'Please select a coverage.', 'newspack-rolling-coverage' ),
+			'term_not_found'         => __( 'Selected coverage no longer exists.', 'newspack-rolling-coverage' ),
 			// Credentials errors.
 			'missing_credentials'    => __( 'A bot token and signing secret are both required.', 'newspack-rolling-coverage' ),
 			'invalid_token'          => __( 'The bot token is invalid. It must start with xoxb-.', 'newspack-rolling-coverage' ),
@@ -510,7 +510,7 @@ class Slack_Webhook_Controller {
 		foreach ( $map as $channel_id => $data ) {
 			$entry = array_merge( [ 'channel_id' => $channel_id ], $data );
 
-			// Resolve the linked liveblog term name from the batched lookup.
+			// Resolve the linked coverage term name from the batched lookup.
 			$term_id           = (int) ( $data['term_id'] ?? 0 );
 			$entry['term_name'] = ( $term_id > 0 && isset( $term_names[ $term_id ] ) )
 				? $term_names[ $term_id ]
@@ -790,7 +790,7 @@ class Slack_Webhook_Controller {
 			$channel_settings = Slack_Config::get_channel_settings( $channel_id );
 
 			if ( null === $channel_settings ) {
-				error_log( 'Slack ingestion: channel ' . $channel_id . ' is not linked to a liveblog term, skipping. Link it via the Connection modal or /rolling-coverage-connect.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( 'Slack ingestion: channel ' . $channel_id . ' is not linked to a coverage term, skipping. Link it via the Connection modal or /rolling-coverage-connect.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
@@ -921,7 +921,7 @@ class Slack_Webhook_Controller {
 				'block_id' => 'term_select_block',
 				'label'    => [
 					'type' => 'plain_text',
-					'text' => __( 'Select a Rolling Coverage liveblog', 'newspack-rolling-coverage' ),
+					'text' => __( 'Select a Rolling Coverage', 'newspack-rolling-coverage' ),
 				],
 				'element'  => [
 					'type'             => 'external_select',
@@ -973,7 +973,7 @@ class Slack_Webhook_Controller {
 		$term_id = Slack_Config::find_linked_term_id( $channel_id );
 
 		if ( null === $term_id ) {
-			return $this->ephemeral( __( 'This channel is not connected to any liveblog.', 'newspack-rolling-coverage' ) );
+			return $this->ephemeral( __( 'This channel is not connected to any coverage.', 'newspack-rolling-coverage' ) );
 		}
 
 		$term_name = $this->get_term_name( $term_id );
@@ -983,7 +983,7 @@ class Slack_Webhook_Controller {
 		return $this->ephemeral(
 			'' !== $term_name
 				? sprintf(
-					/* translators: 1: liveblog name */
+					/* translators: 1: coverage name */
 					__( 'Disconnected from "%1$s".', 'newspack-rolling-coverage' ),
 					$term_name
 				)
@@ -1001,7 +1001,7 @@ class Slack_Webhook_Controller {
 		$settings = Slack_Config::get_channel_settings( $channel_id );
 
 		if ( null === $settings ) {
-			return $this->ephemeral( __( 'This channel is not connected to any liveblog.', 'newspack-rolling-coverage' ) );
+			return $this->ephemeral( __( 'This channel is not connected to any coverage.', 'newspack-rolling-coverage' ) );
 		}
 
 		$term_id     = (int) ( $settings['term_id'] ?? 0 );
@@ -1158,7 +1158,7 @@ class Slack_Webhook_Controller {
 		$channel_name = $this->api_client->get_channel_name( $channel_id );
 
 		// link_channel_to_term posts the connection announcement to the channel
-		// (with the liveblog name + auto-publish state), so no separate
+		// (with the coverage name + auto-publish state), so no separate
 		// chat.postMessage is needed here.
 		$this->link_channel_to_term( $term_id, $channel_id, $channel_name, false );
 
@@ -1173,11 +1173,11 @@ class Slack_Webhook_Controller {
 	 */
 	private function handle_term_suggestion( array $payload ): \WP_REST_Response {
 		// Secondary defense-in-depth (signature verifier is the primary trust
-		// boundary): only reveal liveblog term names to callers whose team_id
+		// boundary): only reveal coverage term names to callers whose team_id
 		// matches the workspace bound to this Slack app. An empty/missing
 		// payload team, or a mismatch, returns an empty option list so an
 		// attacker from a different workspace (or probing blindly) cannot
-		// enumerate liveblog terms via this endpoint.
+		// enumerate coverage terms via this endpoint.
 		$payload_team = (string) ( $payload['team']['id'] ?? $payload['user']['team_id'] ?? '' );
 		$stored_team  = (string) ( Slack_Config::get_settings()['workspace_id'] ?? '' );
 
@@ -1232,10 +1232,10 @@ class Slack_Webhook_Controller {
 	}
 
 	/**
-	 * Resolve a rolling coverage liveblog term's name from its ID.
+	 * Resolve a rolling coverage term's name from its ID.
 	 *
 	 * Used by the connect/disconnect channel announcements and the unlink slash
-	 * command so the messages reference the linked liveblog by name (mirroring
+	 * command so the messages reference the linked coverage by name (mirroring
 	 * the /rolling-coverage-status output).
 	 *
 	 * @param int $term_id Term ID.
@@ -1292,14 +1292,14 @@ class Slack_Webhook_Controller {
 		update_term_meta( $term_id, Taxonomy::META_SOURCE_REF, $channel_id );
 
 		/**
-		 * Fires after a Slack channel is linked to a rolling coverage liveblog term.
+		 * Fires after a Slack channel is linked to a rolling coverage term.
 		 *
 		 * @param string $channel_id The Slack channel ID.
 		 * @param int    $term_id    The linked rolling coverage term ID.
 		 */
 		do_action( 'rolling_coverage_slack_channel_linked', $channel_id, $term_id );
 
-		// Announce the connection in the channel, referencing the linked liveblog
+		// Announce the connection in the channel, referencing the linked coverage
 		// by name and the auto-publish state (mirrors /rolling-coverage-status).
 		$term_name   = $this->get_term_name( $term_id );
 		$status_text = $autopublish
@@ -1310,8 +1310,8 @@ class Slack_Webhook_Controller {
 			$channel_id,
 			'' !== $term_name
 				? sprintf(
-					/* translators: 1: liveblog name, 2: auto-publish status */
-					__( '✅ This channel is now connected to the "%1$s" liveblog. %2$s.', 'newspack-rolling-coverage' ),
+					/* translators: 1: coverage name, 2: auto-publish status */
+					__( '✅ This channel is now connected to the "%1$s" coverage. %2$s.', 'newspack-rolling-coverage' ),
 					$term_name,
 					$status_text
 				)
@@ -1330,7 +1330,7 @@ class Slack_Webhook_Controller {
 	 * @return void
 	 */
 	private function unlink_channel_from_term( string $channel_id, int $term_id ): void {
-		// Resolve the liveblog name before removing the linkage so the
+		// Resolve the coverage name before removing the linkage so the
 		// disconnection announcement can still reference it.
 		$term_name = $this->get_term_name( $term_id );
 
@@ -1344,20 +1344,20 @@ class Slack_Webhook_Controller {
 		delete_term_meta( $term_id, Taxonomy::META_SOURCE_REF );
 
 		/**
-		 * Fires after a Slack channel is unlinked from its rolling coverage liveblog term.
+		 * Fires after a Slack channel is unlinked from its rolling coverage term.
 		 *
 		 * @param string $channel_id The Slack channel ID that was unlinked.
 		 */
 		do_action( 'rolling_coverage_slack_channel_unlinked', $channel_id );
 
-		// Announce the disconnection in the channel, referencing the liveblog it
+		// Announce the disconnection in the channel, referencing the coverage it
 		// was linked to.
 		$this->api_client->post_message(
 			$channel_id,
 			'' !== $term_name
 				? sprintf(
-					/* translators: 1: liveblog name */
-					__( '🔌 This channel is no longer connected to the "%1$s" liveblog.', 'newspack-rolling-coverage' ),
+					/* translators: 1: coverage name */
+					__( '🔌 This channel is no longer connected to the "%1$s" coverage.', 'newspack-rolling-coverage' ),
 					$term_name
 				)
 				: __( '🔌 This channel is no longer connected to rolling coverage.', 'newspack-rolling-coverage' )

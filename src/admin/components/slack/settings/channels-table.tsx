@@ -12,7 +12,7 @@ import { safeFormatSlackTimestamp } from '../../../utils/fields';
 
 /**
  * Renders the channels mapping table: one row per linked Slack channel with
- * the channel name/id, the mapped liveblog term name (hyperlinked to the
+ * the channel name/id, the mapped coverage term name (hyperlinked to the
  * term edit screen, or "(deleted)" when the term no longer exists), an inline
  * auto-publish toggle, the last sync timestamp (or "Never"), and a per-row
  * Disconnect button. The Disconnect button is busy and disabled for the row
