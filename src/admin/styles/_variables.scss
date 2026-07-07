@@ -7,6 +7,31 @@ $nrc-color-chip-bg-hover: #e0e0e0;
 $nrc-color-chip-text: #1e1e1e;
 $nrc-color-chip-remaining: #757575;
 
+// Breakout status chip colors.
+$nrc-color-status-publish-bg: #edfaef;
+$nrc-color-status-publish-bg-hover: #d5f2da;
+$nrc-color-status-publish-text: #00a32a;
+
+$nrc-color-status-draft-bg: #f0f0f0;
+$nrc-color-status-draft-bg-hover: #e0e0e0;
+$nrc-color-status-draft-text: #646970;
+
+$nrc-color-status-pending-bg: #fcf0d3;
+$nrc-color-status-pending-bg-hover: #f8e3a8;
+$nrc-color-status-pending-text: #996800;
+
+$nrc-color-status-future-bg: #e5f1f8;
+$nrc-color-status-future-bg-hover: #cbe4f1;
+$nrc-color-status-future-text: #2271b1;
+
+$nrc-color-status-private-bg: #f3e9f3;
+$nrc-color-status-private-bg-hover: #e6d3e6;
+$nrc-color-status-private-text: #8c4b8c;
+
+$nrc-color-status-trash-bg: #fcedee;
+$nrc-color-status-trash-bg-hover: #fad9dc;
+$nrc-color-status-trash-text: $nrc-color-error;
+
 // Spacing
 $nrc-spacing-xs: 2px;
 $nrc-spacing-sm: 3px;

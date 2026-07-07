@@ -4,6 +4,13 @@
 import { HashRouter, Routes, Route, Navigate } from 'react-router';
 
 /**
+ * WordPress dependencies
+ */
+import { useSelect, useDispatch } from '@wordpress/data';
+import { store as noticesStore } from '@wordpress/notices';
+import { SnackbarList } from '@wordpress/components';
+
+/**
  * Internal dependencies
  */
 import AdminLayout from './components/admin-layout';
@@ -19,26 +26,40 @@ import EntryView from './components/entry-view';
  *   /coverages/{id}              — rolling coverage entries
  */
 function App() {
+	const notices = useSelect(
+		( select ) => select( noticesStore ).getNotices(),
+		[]
+	);
+	const { removeNotice } = useDispatch( noticesStore );
+
 	return (
-		<HashRouter>
-			<Routes>
-				<Route element={ <AdminLayout /> }>
-					<Route
-						index
-						element={ <Navigate to="/coverages" replace /> }
-					/>
-					<Route path="/coverages" element={ <CoverageView /> } />
-					<Route
-						path="/coverages/:coverageId"
-						element={ <EntryView /> }
-					/>
-					<Route
-						path="*"
-						element={ <Navigate to="/coverages" replace /> }
-					/>
-				</Route>
-			</Routes>
-		</HashRouter>
+		<>
+			<HashRouter>
+				<Routes>
+					<Route element={ <AdminLayout /> }>
+						<Route
+							index
+							element={ <Navigate to="/coverages" replace /> }
+						/>
+						<Route path="/coverages" element={ <CoverageView /> } />
+						<Route
+							path="/coverages/:coverageId"
+							element={ <EntryView /> }
+						/>
+						<Route
+							path="*"
+							element={ <Navigate to="/coverages" replace /> }
+						/>
+					</Route>
+				</Routes>
+			</HashRouter>
+
+			<SnackbarList
+				notices={ notices }
+				className="newspack-rolling-coverage-snackbar-list"
+				onRemove={ removeNotice }
+			/>
+		</>
 	);
 }
 

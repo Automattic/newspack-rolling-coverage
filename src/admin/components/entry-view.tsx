@@ -19,8 +19,8 @@ import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
 import { getEntryActions } from '../actions/entry-actions';
-import { entryFields, defaultEntryView } from '../fields/entries';
 import type { ContextExports, Entry } from '../types';
+import { getEntryFields, defaultEntryView } from '../fields/entries';
 
 /**
  * Renders the entry list DataViews for a single coverage, with client-side
@@ -51,6 +51,10 @@ function EntryView() {
 		null
 	);
 	const [ refreshKey, setRefreshKey ] = useState( 0 );
+
+	const handleActionPerformed = useCallback( () => {
+		setRefreshKey( ( key ) => key + 1 );
+	}, [] );
 
 	useEffect( () => {
 		if ( ! isValidCoverageId || selectedCoverage ) {
@@ -103,9 +107,11 @@ function EntryView() {
 		setQuickEditEntry( null );
 	}, [] );
 
+	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
+
 	const { data: filteredData, paginationInfo } = useMemo( () => {
 		return filterSortAndPaginate( records ?? [], view, entryFields );
-	}, [ records, view ] );
+	}, [ records, view, entryFields ] );
 
 	const handleNewEntry = useCallback( async () => {
 		if ( ! isValidCoverageId || numericCoverageId === null ) {
@@ -134,8 +140,8 @@ function EntryView() {
 	}, [ config, isValidCoverageId, numericCoverageId ] );
 
 	const actions = useMemo(
-		() => getEntryActions( config, handleQuickEdit ),
-		[ config, handleQuickEdit ]
+		() => getEntryActions( config, handleQuickEdit, handleActionPerformed ),
+		[ config, handleQuickEdit, handleActionPerformed ]
 	);
 
 	return (
