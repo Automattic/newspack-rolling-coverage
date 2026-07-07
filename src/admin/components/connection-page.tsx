@@ -26,7 +26,7 @@ function ConnectionPage() {
 	const slugs = useMemo( () => Object.keys( adapters ), [ adapters ] );
 	const urlSlug = getAdapterFromUrl();
 	const initialSlug =
-		urlSlug && slugs.includes( urlSlug ) ? urlSlug : slugs[ 0 ] ?? 'slack';
+		urlSlug && slugs.includes( urlSlug ) ? urlSlug : slugs[ 0 ];
 
 	const [ activeSlug, setActiveSlug ] = useState< string >( initialSlug );
 

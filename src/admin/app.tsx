@@ -45,7 +45,10 @@ function App() {
 							element={ <Navigate to={ config.page } replace /> }
 						/>
 						<Route path="/coverages" element={ <CoverageView /> } />
-						<Route path="/connection" element={ <ConnectionPage /> } />
+						<Route
+							path="/connection"
+							element={ <ConnectionPage /> }
+						/>
 						<Route
 							path="/coverages/:coverageId"
 							element={ <EntryView /> }

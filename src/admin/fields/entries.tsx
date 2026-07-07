@@ -228,10 +228,10 @@ const defaultEntryView: ViewState = {
 		'author',
 		'status',
 		'source',
+		'breakout',
 		'categories',
 		'tags',
 		'modified',
-		'breakout',
 	],
 	titleField: 'title',
 };
