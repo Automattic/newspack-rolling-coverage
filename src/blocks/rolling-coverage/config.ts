@@ -19,9 +19,9 @@ if ( ! config ) {
 }
 
 const {
-	liveblogsRestBase: LIVEBLOGS_REST_BASE,
+	coveragesRestBase: COVERAGES_REST_BASE,
 	statusMetaKey: STATUS_META_KEY,
 	entriesPreviewRestBase: ENTRIES_PREVIEW_REST_BASE,
 } = config;
 
-export { LIVEBLOGS_REST_BASE, STATUS_META_KEY, ENTRIES_PREVIEW_REST_BASE };
+export { COVERAGES_REST_BASE, STATUS_META_KEY, ENTRIES_PREVIEW_REST_BASE };

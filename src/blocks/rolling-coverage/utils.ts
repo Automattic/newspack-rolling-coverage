@@ -10,22 +10,22 @@ import apiFetch from '@wordpress/api-fetch';
 /**
  * Internal dependencies
  */
-import type { LiveblogOption, EntryContext } from './types';
+import type { CoverageOption, EntryContext } from './types';
 import {
-	LIVEBLOGS_REST_BASE,
+	COVERAGES_REST_BASE,
 	STATUS_META_KEY,
 	ENTRIES_PREVIEW_REST_BASE,
 } from './config';
 
 /**
- * Searches liveblog terms by name.
+ * Searches coverage terms by name.
  *
  * @param {string} search Search string.
- * @return {Promise<LiveblogOption[]>} Matching liveblogs.
+ * @return {Promise<CoverageOption[]>} Matching coverages.
  */
-async function searchLiveblogs( search: string ): Promise< LiveblogOption[] > {
+async function searchCoverages( search: string ): Promise< CoverageOption[] > {
 	const terms = await apiFetch< Array< Record< string, unknown > > >( {
-		url: `${ LIVEBLOGS_REST_BASE }?per_page=50&search=${ encodeURIComponent(
+		url: `${ COVERAGES_REST_BASE }?per_page=50&search=${ encodeURIComponent(
 			search
 		) }`,
 	} );
@@ -41,19 +41,19 @@ async function searchLiveblogs( search: string ): Promise< LiveblogOption[] > {
 }
 
 /**
- * Fetches a single liveblog term by ID.
+ * Fetches a single coverage term by ID.
  *
- * @param {number} id Liveblog term ID.
- * @return {Promise<LiveblogOption|null>} The liveblog, or null if not found.
+ * @param {number} id Coverage term ID.
+ * @return {Promise<CoverageOption|null>} The coverage, or null if not found.
  */
-async function fetchLiveblog( id: number ): Promise< LiveblogOption | null > {
+async function getCoverage( id: number ): Promise< CoverageOption | null > {
 	if ( ! id ) {
 		return null;
 	}
 
 	try {
 		const term = await apiFetch< Record< string, unknown > >( {
-			url: `${ LIVEBLOGS_REST_BASE }/${ id }`,
+			url: `${ COVERAGES_REST_BASE }/${ id }`,
 		} );
 
 		return {
@@ -70,19 +70,19 @@ async function fetchLiveblog( id: number ): Promise< LiveblogOption | null > {
 }
 
 /**
- * Updates a liveblog term's status.
+ * Updates a coverage term's status.
  *
- * @param {number} id     Liveblog term ID.
+ * @param {number} id     Coverage term ID.
  * @param {string} status New status value.
  * @return {Promise<boolean>} Whether the update succeeded.
  */
-async function updateLiveblogStatus(
+async function updateCoverageStatus(
 	id: number,
 	status: string
 ): Promise< boolean > {
 	try {
 		await apiFetch( {
-			url: `${ LIVEBLOGS_REST_BASE }/${ id }`,
+			url: `${ COVERAGES_REST_BASE }/${ id }`,
 			method: 'POST',
 			data: { meta: { [ STATUS_META_KEY ]: status } },
 		} );
@@ -93,25 +93,25 @@ async function updateLiveblogStatus(
 }
 
 /**
- * Fetches the IDs of a liveblog's current published entries, newest first,
+ * Fetches the IDs of a coverage's current published entries, newest first,
  * for the editor's per-entry template preview.
  *
- * @param {number} liveblogId Liveblog term ID.
+ * @param {number} coverageId Coverage term ID.
  * @param {number} perPage    Maximum number of entries to fetch.
  * @return {Promise<EntryContext[]>} Up to `perPage` entries, newest first.
  */
 async function fetchEntryPreviewContexts(
-	liveblogId: number,
+	coverageId: number,
 	perPage: number
 ): Promise< EntryContext[] > {
-	if ( ! liveblogId ) {
+	if ( ! coverageId ) {
 		return [];
 	}
 
 	try {
 		const entries = await apiFetch< Array< { id: number; type: string } > >(
 			{
-				url: `${ ENTRIES_PREVIEW_REST_BASE }/${ liveblogId }/entries-preview?per_page=${ perPage }`,
+				url: `${ ENTRIES_PREVIEW_REST_BASE }/${ coverageId }/entries-preview?per_page=${ perPage }`,
 			}
 		);
 
@@ -126,8 +126,8 @@ async function fetchEntryPreviewContexts(
 }
 
 export {
-	searchLiveblogs,
-	fetchLiveblog,
-	updateLiveblogStatus,
+	searchCoverages,
+	getCoverage,
+	updateCoverageStatus,
 	fetchEntryPreviewContexts,
 };

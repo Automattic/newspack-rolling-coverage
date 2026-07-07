@@ -115,7 +115,7 @@ function initBlock( root: HTMLElement ): void {
 		}
 	}
 
-	// Only start polling if the liveblog is active at page load.
+	// Only start polling if the coverage is active at page load.
 	if ( since && status === 'active' ) {
 		schedulePoll();
 	}

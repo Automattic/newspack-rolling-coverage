@@ -3,9 +3,9 @@
  */
 
 /**
- * A liveblog term, as shown in the editor's liveblog combobox.
+ * A coverage term, as shown in the editor's coverage combobox.
  */
-interface LiveblogOption {
+interface CoverageOption {
 	value: string;
 	label: string;
 	status: 'active' | 'paused' | 'archived' | string;
@@ -15,7 +15,7 @@ interface LiveblogOption {
  * Attributes saved on the Rolling Coverage block.
  */
 interface RollingCoverageAttributes {
-	liveblogId: number;
+	coverageId: number;
 	pollInterval: number;
 	entriesPerPage: number;
 	[ key: string ]: unknown;
@@ -42,7 +42,7 @@ interface EditProps {
  * Config localised by wp_localize_script in Rolling_Coverage_Block::register_block().
  */
 interface BlockConfig {
-	liveblogsRestBase: string;
+	coveragesRestBase: string;
 	statusMetaKey: string;
 	entriesPreviewRestBase: string;
 }
@@ -89,7 +89,7 @@ type TemplateItem = [ string, Record< string, unknown >?, TemplateItem[]? ];
 type TemplateBlocks = object[];
 
 export type {
-	LiveblogOption,
+	CoverageOption,
 	RollingCoverageAttributes,
 	ApplyNotice,
 	EditProps,

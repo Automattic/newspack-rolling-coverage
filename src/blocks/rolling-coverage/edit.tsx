@@ -28,14 +28,14 @@ import { megaphone } from '@wordpress/icons';
  * Internal dependencies
  */
 import {
-	searchLiveblogs,
-	fetchLiveblog,
-	updateLiveblogStatus,
+	searchCoverages,
+	getCoverage,
+	updateCoverageStatus,
 	fetchEntryPreviewContexts,
 } from './utils';
 import { DEFAULT_TEMPLATE, ALLOWED_BLOCKS } from './template';
 import type {
-	LiveblogOption,
+	CoverageOption,
 	ApplyNotice,
 	EditProps,
 	EntryContext,
@@ -43,7 +43,7 @@ import type {
 } from './types';
 
 /**
- * Neutral block context used when a liveblog has no published entries yet,
+ * Neutral block context used when a coverage has no published entries yet,
  * so the template can still be edited against something.
  */
 const NEUTRAL_ENTRY_CONTEXT: EntryContext = {
@@ -120,13 +120,13 @@ export default function Edit( {
 	attributes,
 	setAttributes,
 }: EditProps ) {
-	const { liveblogId, pollInterval, entriesPerPage } = attributes;
+	const { coverageId, pollInterval, entriesPerPage } = attributes;
 	const blockProps = useBlockProps();
 
 	const [ search, setSearch ] = useState( '' );
-	const [ options, setOptions ] = useState< LiveblogOption[] >( [] );
-	const [ currentLiveblog, setCurrentLiveblog ] =
-		useState< LiveblogOption | null >( null );
+	const [ options, setOptions ] = useState< CoverageOption[] >( [] );
+	const [ currentCoverage, setCurrentCoverage ] =
+		useState< CoverageOption | null >( null );
 	const [ pendingStatus, setPendingStatus ] = useState< string >( 'active' );
 	const [ isApplying, setIsApplying ] = useState( false );
 	const [ applyNotice, setApplyNotice ] = useState< ApplyNotice | null >(
@@ -153,11 +153,11 @@ export default function Edit( {
 	// only needs a representative snapshot to preview the template against.
 	useEffect( () => {
 		let cancelled = false;
-		if ( ! liveblogId ) {
+		if ( ! coverageId ) {
 			setEntryContexts( [] );
 			return;
 		}
-		fetchEntryPreviewContexts( liveblogId, entriesPerPage ).then(
+		fetchEntryPreviewContexts( coverageId, entriesPerPage ).then(
 			( contexts ) => {
 				if ( ! cancelled ) {
 					setEntryContexts( contexts );
@@ -167,12 +167,12 @@ export default function Edit( {
 		return () => {
 			cancelled = true;
 		};
-	}, [ liveblogId, entriesPerPage ] );
+	}, [ coverageId, entriesPerPage ] );
 
 	// Populate the combobox as the user searches.
 	useEffect( () => {
 		let cancelled = false;
-		searchLiveblogs( search ).then( ( results ) => {
+		searchCoverages( search ).then( ( results ) => {
 			if ( ! cancelled ) {
 				setOptions( results );
 			}
@@ -182,71 +182,71 @@ export default function Edit( {
 		};
 	}, [ search ] );
 
-	// Load the currently connected liveblog's status whenever the selection changes.
+	// Load the currently connected coverage's status whenever the selection changes.
 	useEffect( () => {
 		let cancelled = false;
 		setApplyNotice( null );
-		fetchLiveblog( liveblogId ).then( ( liveblog ) => {
+		getCoverage( coverageId ).then( ( coverage ) => {
 			if ( cancelled ) {
 				return;
 			}
-			setCurrentLiveblog( liveblog );
-			setPendingStatus( liveblog?.status || 'active' );
+			setCurrentCoverage( coverage );
+			setPendingStatus( coverage?.status || 'active' );
 		} );
 		return () => {
 			cancelled = true;
 		};
-	}, [ liveblogId ] );
+	}, [ coverageId ] );
 
 	const handleApply = useCallback( async () => {
-		if ( ! liveblogId ) {
+		if ( ! coverageId ) {
 			return;
 		}
 		setIsApplying( true );
 		setApplyNotice( null );
-		const success = await updateLiveblogStatus( liveblogId, pendingStatus );
+		const success = await updateCoverageStatus( coverageId, pendingStatus );
 		setIsApplying( false );
 		setApplyNotice(
 			success
 				? {
 						type: 'success',
 						message: __(
-							'Liveblog status updated.',
+							'Coverage status updated.',
 							'newspack-rolling-coverage'
 						),
 				  }
 				: {
 						type: 'error',
 						message: __(
-							'Could not update the liveblog status.',
+							'Could not update the coverage status.',
 							'newspack-rolling-coverage'
 						),
 				  }
 		);
 		if ( success ) {
-			setCurrentLiveblog( ( prev ) =>
+			setCurrentCoverage( ( prev ) =>
 				prev ? { ...prev, status: pendingStatus } : prev
 			);
 		}
-	}, [ liveblogId, pendingStatus ] );
+	}, [ coverageId, pendingStatus ] );
 
-	const statusUnchanged = currentLiveblog?.status === pendingStatus;
+	const statusUnchanged = currentCoverage?.status === pendingStatus;
 
-	// Combobox for selecting the connected liveblog.
-	const liveblogCombobox = (
+	// Combobox for selecting the connected coverage.
+	const coverageCombobox = (
 		<ComboboxControl
 			__next40pxDefaultSize
-			label={ __( 'Liveblog', 'newspack-rolling-coverage' ) }
+			label={ __( 'Coverage', 'newspack-rolling-coverage' ) }
 			hideLabelFromVision
-			value={ liveblogId ? String( liveblogId ) : '' }
+			value={ coverageId ? String( coverageId ) : '' }
 			options={ options }
 			placeholder={ __(
-				'Search for a liveblog…',
+				'Search for a coverage…',
 				'newspack-rolling-coverage'
 			) }
 			onChange={ ( value ) =>
 				setAttributes( {
-					liveblogId: value ? parseInt( value, 10 ) : 0,
+					coverageId: value ? parseInt( value, 10 ) : 0,
 				} )
 			}
 			onFilterValueChange={ setSearch }
@@ -257,11 +257,11 @@ export default function Edit( {
 		<>
 			<InspectorControls>
 				<PanelBody
-					title={ __( 'Liveblog', 'newspack-rolling-coverage' ) }
+					title={ __( 'Coverage', 'newspack-rolling-coverage' ) }
 				>
-					{ liveblogCombobox }
+					{ coverageCombobox }
 
-					{ liveblogId ? (
+					{ coverageId ? (
 						<div className="newspack-rolling-coverage-status-control">
 							<SelectControl
 								__next40pxDefaultSize
@@ -273,7 +273,7 @@ export default function Edit( {
 								options={ STATUS_OPTIONS }
 								onChange={ setPendingStatus }
 								help={ __(
-									'Writes back to the liveblog itself — changes here affect every block connected to it.',
+									'Writes back to the coverage itself — changes here affect every block connected to it.',
 									'newspack-rolling-coverage'
 								) }
 							/>
@@ -343,12 +343,12 @@ export default function Edit( {
 			</InspectorControls>
 
 			<div { ...blockProps }>
-				{ liveblogId ? (
+				{ coverageId ? (
 					<>
 						{ entryContexts.length === 0 && (
 							<Notice status="info" isDismissible={ false }>
 								{ __(
-									'No published entries yet — showing the template only. Add entries to this liveblog to preview real content here.',
+									'No published entries yet — showing the template only. Add entries to this coverage to preview real content here.',
 									'newspack-rolling-coverage'
 								) }
 							</Notice>
@@ -398,12 +398,12 @@ export default function Edit( {
 							'newspack-rolling-coverage'
 						) }
 						instructions={ __(
-							'Select a liveblog to display its entries.',
+							'Select a coverage to display its entries.',
 							'newspack-rolling-coverage'
 						) }
 						isColumnLayout
 					>
-						{ liveblogCombobox }
+						{ coverageCombobox }
 					</Placeholder>
 				) }
 			</div>

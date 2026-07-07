@@ -35,7 +35,7 @@ class Rolling_Coverage_Block {
 	// CSS class/ID prefix for the block's front-end markup.
 	const MARKUP_PREFIX = 'newspack-rolling-coverage';
 
-	// Option name prefix for persisted entry templates: rc_tpl_{liveblog_id}_{hash}.
+	// Option name prefix for persisted entry templates: rc_tpl_{coverage_id}_{hash}.
 	const TEMPLATE_OPTION_PREFIX = 'rc_tpl_';
 
 	/**
@@ -52,7 +52,7 @@ class Rolling_Coverage_Block {
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register_block' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
-		add_action( 'delete_term', [ __CLASS__, 'delete_liveblog_template_options' ], 10, 3 );
+		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
 	}
 
 	/**
@@ -75,9 +75,9 @@ class Rolling_Coverage_Block {
 				$handle,
 				'newspackRollingCoverageBlock',
 				[
-					'liveblogsRestBase'      => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
+					'coveragesRestBase'      => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
 					'statusMetaKey'          => Taxonomy::STATUS_META_KEY,
-					'entriesPreviewRestBase' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/liveblogs' ) ),
+					'entriesPreviewRestBase' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 				]
 			);
 		}
@@ -93,19 +93,19 @@ class Rolling_Coverage_Block {
 	 * @return string Rendered HTML.
 	 */
 	public static function render_block( $attributes, $content, WP_Block $block ) {
-		$liveblog_id = (int) ( $attributes['liveblogId'] ?? 0 );
+		$coverage_id = (int) ( $attributes['coverageId'] ?? 0 );
 
-		if ( ! $liveblog_id || ! term_exists( $liveblog_id, Taxonomy::TAXONOMY_SLUG ) ) {
+		if ( ! $coverage_id || ! term_exists( $coverage_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			return sprintf(
 				'<p %s>%s</p>',
 				get_block_wrapper_attributes(),
-				esc_html__( 'Select a liveblog to display its entries.', 'newspack-rolling-coverage' )
+				esc_html__( 'Select a coverage to display its entries.', 'newspack-rolling-coverage' )
 			);
 		}
 
 		$entries_per_page = min( max( 1, (int) ( $attributes['entriesPerPage'] ?? 20 ) ), self::PER_PAGE_MAX );
 		$poll_interval    = max( 1, (int) ( $attributes['pollInterval'] ?? 10 ) );
-		$status           = get_term_meta( $liveblog_id, Taxonomy::STATUS_META_KEY, true );
+		$status           = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
 		$status           = $status ? $status : 'active';
 
 		$query = new WP_Query(
@@ -116,7 +116,7 @@ class Rolling_Coverage_Block {
 					[
 						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
 						'field'    => 'term_id',
-						'terms'    => $liveblog_id,
+						'terms'    => $coverage_id,
 					],
 				],
 				'orderby'             => 'date',
@@ -128,7 +128,7 @@ class Rolling_Coverage_Block {
 		);
 
 		$template     = self::get_entry_template( $block );
-		$template_key = self::persist_entry_template( $liveblog_id, $template );
+		$template_key = self::persist_entry_template( $coverage_id, $template );
 
 		$entries_html = '';
 		foreach ( $query->posts as $entry ) {
@@ -145,7 +145,7 @@ class Rolling_Coverage_Block {
 			$notice = sprintf(
 				'<p class="%1$s-notice %1$s-notice--paused">%2$s</p>',
 				self::MARKUP_PREFIX,
-				esc_html__( 'This liveblog is currently paused. New updates will appear once it resumes.', 'newspack-rolling-coverage' )
+				esc_html__( 'This coverage is currently paused. New updates will appear once it resumes.', 'newspack-rolling-coverage' )
 			);
 		}
 
@@ -159,7 +159,7 @@ class Rolling_Coverage_Block {
 
 		$wrapper_attributes = get_block_wrapper_attributes(
 			[
-				'data-liveblog-id'      => $liveblog_id,
+				'data-coverage-id'      => $coverage_id,
 				'data-poll-interval'    => $poll_interval,
 				'data-entries-per-page' => $entries_per_page,
 				'data-since'            => $newest_iso,
@@ -167,7 +167,7 @@ class Rolling_Coverage_Block {
 				'data-has-more'         => $has_more ? '1' : '0',
 				'data-status'           => $status,
 				'data-template-key'     => $template_key,
-				'data-rest-url'         => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/liveblogs/' . $liveblog_id . '/entries' ) ),
+				'data-rest-url'         => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages/' . $coverage_id . '/entries' ) ),
 			]
 		);
 
@@ -241,13 +241,13 @@ class Rolling_Coverage_Block {
 	/**
 	 * Stores the entry template in the options table and returns its hash key.
 	 *
-	 * @param int   $liveblog_id Liveblog term ID.
+	 * @param int   $coverage_id Coverage term ID.
 	 * @param array $template    Per-entry inner-block template.
 	 * @return string Hash key   identifying this template.
 	 */
-	private static function persist_entry_template( int $liveblog_id, array $template ): string {
+	private static function persist_entry_template( int $coverage_id, array $template ): string {
 		$hash       = substr( md5( wp_json_encode( $template ) ), 0, 12 );
-		$option_key = self::TEMPLATE_OPTION_PREFIX . $liveblog_id . '_' . $hash;
+		$option_key = self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $hash;
 
 		if ( false === get_option( $option_key ) ) {
 			update_option( $option_key, $template, false );
@@ -257,32 +257,32 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Loads a persisted entry template by liveblog ID and hash key, falling
+	 * Loads a persisted entry template by coverage ID and hash key, falling
 	 * back to the default template if the option is missing.
 	 *
-	 * @param int    $liveblog_id  Liveblog term ID.
+	 * @param int    $coverage_id  Coverage term ID.
 	 * @param string $template_key Hash returned by persist_entry_template().
 	 * @return array[] Per-entry   inner-block template.
 	 */
-	private static function load_entry_template( int $liveblog_id, string $template_key ): array {
+	private static function load_entry_template( int $coverage_id, string $template_key ): array {
 		if ( ! $template_key ) {
 			return self::default_entry_template();
 		}
 
-		$option_key = self::TEMPLATE_OPTION_PREFIX . $liveblog_id . '_' . $template_key;
+		$option_key = self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $template_key;
 		$template   = get_option( $option_key );
 
 		return is_array( $template ) ? $template : self::default_entry_template();
 	}
 
 	/**
-	 * Deletes all persisted entry-template options for a liveblog when it is deleted.
+	 * Deletes all persisted entry-template options for a coverage when it is deleted.
 	 *
-	 * @param int    $term_id  Term ID of the deleted liveblog.
+	 * @param int    $term_id  Term ID of the deleted coverage.
 	 * @param int    $tt_id    Term taxonomy ID (unused).
 	 * @param string $taxonomy Taxonomy slug.
 	 */
-	public static function delete_liveblog_template_options( int $term_id, int $tt_id, string $taxonomy ): void {
+	public static function delete_coverage_template_options( int $term_id, int $tt_id, string $taxonomy ): void {
 		if ( Taxonomy::TAXONOMY_SLUG !== $taxonomy ) {
 			return;
 		}
@@ -380,7 +380,7 @@ class Rolling_Coverage_Block {
 	public static function register_routes() {
 		register_rest_route(
 			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
-			'/liveblogs/(?P<term_id>\d+)/entries',
+			'/coverages/(?P<term_id>\d+)/entries',
 			[
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => [ __CLASS__, 'get_entries' ],
@@ -409,7 +409,7 @@ class Rolling_Coverage_Block {
 
 		register_rest_route(
 			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
-			'/liveblogs/(?P<term_id>\d+)/entries-preview',
+			'/coverages/(?P<term_id>\d+)/entries-preview',
 			[
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => [ __CLASS__, 'get_entries_preview' ],
@@ -438,7 +438,7 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * REST callback: returns the IDs (and post type) of up to `per_page` of a
-	 * liveblog's current published entries, newest first, for the block
+	 * coverage's current published entries, newest first, for the block
 	 * editor's per-entry template preview.
 	 *
 	 * @param WP_REST_Request $request Request object.
@@ -450,8 +450,8 @@ class Rolling_Coverage_Block {
 
 		if ( ! term_exists( $term_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			return new WP_Error(
-				'rolling_coverage_liveblog_not_found',
-				__( 'Liveblog not found.', 'newspack-rolling-coverage' ),
+				'rolling_coverage_coverage_not_found',
+				__( 'Coverage not found.', 'newspack-rolling-coverage' ),
 				[ 'status' => 404 ]
 			);
 		}
@@ -526,8 +526,8 @@ class Rolling_Coverage_Block {
 
 		if ( ! term_exists( $term_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			return new WP_Error(
-				'rolling_coverage_liveblog_not_found',
-				__( 'Liveblog not found.', 'newspack-rolling-coverage' ),
+				'rolling_coverage_coverage_not_found',
+				__( 'Coverage not found.', 'newspack-rolling-coverage' ),
 				[ 'status' => 404 ]
 			);
 		}

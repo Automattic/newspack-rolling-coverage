@@ -4,10 +4,10 @@
 	"name": "newspack-rolling-coverage/rolling-coverage",
 	"title": "Rolling Coverage",
 	"category": "widgets",
-	"description": "Displays the live entries of a rolling coverage liveblog, with polling for new entries and infinite scroll for older ones.",
+	"description": "Displays the live entries of a rolling coverage, with polling for new entries and infinite scroll for older ones.",
 	"textdomain": "newspack-rolling-coverage",
 	"attributes": {
-		"liveblogId": {
+		"coverageId": {
 			"type": "number",
 			"default": 0
 		},
