@@ -3,16 +3,7 @@ declare module '*.scss' {
 	export default content;
 }
 
-declare module '@wordpress/block-editor' {
-	import type { ComponentType } from 'react';
-
-	export const BlockCanvas: ComponentType< {
-		height?: string | number;
-		styles?: unknown[];
-	} >;
-
-	export const BlockInspector: ComponentType;
-}
+declare module '@wordpress/block-editor';
 
 declare module '@wordpress/block-library' {
 	export function registerCoreBlocks(): void;

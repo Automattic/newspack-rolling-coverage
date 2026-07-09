@@ -1,0 +1,14 @@
+.newspack-rolling-coverage-status-control {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 16px;
+
+	> button {
+		align-self: flex-start;
+	}
+
+	.components-base-control {
+		margin-bottom: 0;
+	}
+}
