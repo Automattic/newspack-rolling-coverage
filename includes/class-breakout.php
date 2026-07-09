@@ -36,9 +36,6 @@ class Breakout {
 	// Cached breakout post status stored on the source entry; also used as the REST field name.
 	const BREAKOUT_STATUS_FIELD = 'rolling_coverage_breakout_status';
 
-	// Namespace for the custom REST route.
-	const REST_NAMESPACE = 'rolling-coverage/v1';
-
 	/**
 	 * Initialize hooks.
 	 */
@@ -135,7 +132,7 @@ class Breakout {
 	 */
 	public static function register_routes() {
 		register_rest_route(
-			self::REST_NAMESPACE,
+			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
 			'/entries/(?P<entry_id>\d+)/breakout',
 			[
 				'methods'             => WP_REST_Server::CREATABLE,

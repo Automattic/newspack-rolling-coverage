@@ -103,7 +103,7 @@ class Admin {
 			'restBaseUrls' => array(
 				'coverages' => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
 				'entries'   => esc_url_raw( rest_url( 'wp/v2/' . Post_Type::REST_BASE ) ),
-				'breakout'  => esc_url_raw( rest_url( Breakout::REST_NAMESPACE . '/entries' ) ),
+				'breakout'  => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/entries' ) ),
 			),
 			'nonce'        => wp_create_nonce( 'wp_rest' ),
 			'capabilities' => array(
