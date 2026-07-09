@@ -107,7 +107,7 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		newEntriesButton.textContent = sprintf(
-			/* translators: %d: number of new liveblog entries waiting to be shown. */
+			/* translators: %d: number of new coverage entries waiting to be shown. */
 			_n(
 				'%d new post',
 				'%d new posts',
@@ -295,6 +295,7 @@ function initBlock( root: HTMLElement ): void {
 	// Only start polling if the coverage is active at page load.
 	if ( cursor && status === 'active' ) {
 		schedulePoll();
+	}
 
 	// Resume polling when the user returns to the tab; cancel when they leave.
 	document.addEventListener( 'visibilitychange', () => {

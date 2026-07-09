@@ -39,7 +39,7 @@ class Rolling_Coverage_Block {
 	// Option name prefix for persisted entry templates: rc_tpl_{coverage_id}_{hash}.
 	const TEMPLATE_OPTION_PREFIX = 'rc_tpl_';
 
-	// Term meta key storing the liveblog's latest entry modified timestamp.
+	// Term meta key storing the coverage's latest entry modified timestamp.
 	const LAST_MODIFIED_META_KEY = 'rolling_coverage_last_modified';
 
 	/**
@@ -57,17 +57,17 @@ class Rolling_Coverage_Block {
 		add_action( 'init', [ __CLASS__, 'register_block' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
-		add_action( 'save_post_' . Post_Type::CPT_SLUG, [ __CLASS__, 'update_liveblog_last_modified' ], 10, 2 );
+		add_action( 'save_post_' . Post_Type::CPT_SLUG, [ __CLASS__, 'update_coverage_last_modified' ], 10, 2 );
 	}
 
 	/**
-	 * Updates the liveblog's last-modified term meta when a published entry is
+	 * Updates the coverage's last-modified term meta when a published entry is
 	 * saved, so the polling endpoint can skip WP_Query when nothing has changed.
 	 *
 	 * @param int     $post_id Entry post ID.
 	 * @param WP_Post $post    Entry post object.
 	 */
-	public static function update_liveblog_last_modified( int $post_id, WP_Post $post ): void {
+	public static function update_coverage_last_modified( int $post_id, WP_Post $post ): void {
 		if ( 'publish' !== $post->post_status ) {
 			return;
 		}
@@ -447,7 +447,7 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Register the dedicated REST route used for both polling (since) and
+	 * Register the dedicated REST route used for both polling (cursor) and
 	 * pagination (before), plus the lightweight editor-only preview route
 	 * (see get_entries_preview()).
 	 */
@@ -468,7 +468,7 @@ class Rolling_Coverage_Block {
 						'required' => true,
 						'type'     => 'string',
 					],
-					'cursor'         => [
+					'cursor'       => [
 						'type' => 'string',
 					],
 					'before'       => [
@@ -596,11 +596,9 @@ class Rolling_Coverage_Block {
 		$params       = $request->get_params();
 		$term_id      = (int) ( $params['term_id'] ?? 0 );
 		$template_key = (string) ( $params['template_key'] ?? '' );
-		$source_post_id = (int) ( $params['source_post_id'] ?? 0 );
-		$instance_id    = (string) ( $params['instance_id'] ?? '' );
-		$cursor         = $params['cursor'] ?? '';
-		$before         = $params['before'] ?? '';
-		$per_page       = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), 100 );
+		$cursor       = $params['cursor'] ?? '';
+		$before       = $params['before'] ?? '';
+		$per_page     = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
 
 		if ( ! term_exists( $term_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			return new WP_Error(
@@ -640,14 +638,14 @@ class Rolling_Coverage_Block {
 			$cursor_id       = (int) ( $cursor_parts[0] ?? 0 );
 			$cursor_modified = $cursor_parts[1] ?? '';
 
-			// Skip WP_Query entirely when the liveblog has not changed since the cursor.
+			// Skip WP_Query entirely when the coverage has not changed since the cursor.
 			$last_modified = get_term_meta( $term_id, self::LAST_MODIFIED_META_KEY, true );
 			if ( $last_modified && $last_modified <= $cursor_modified ) {
 				return new WP_REST_Response(
 					[
 						'entries' => [],
 						'cursor'  => $cursor,
-					] 
+					]
 				);
 			}
 
@@ -679,17 +677,19 @@ class Rolling_Coverage_Block {
 				if ( empty( $entries ) ) {
 					$new_cursor = $entry->ID . ':' . self::post_modified_iso( $entry );
 				}
+
 				$entries[] = [
 					'id'   => $entry->ID,
 					'html' => self::render_entry( $entry, $template ),
 				];
 			}
+			wp_reset_postdata();
 
 			return new WP_REST_Response(
 				[
 					'entries' => $entries,
 					'cursor'  => $new_cursor,
-				] 
+				]
 			);
 		}
 
