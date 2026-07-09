@@ -670,12 +670,14 @@ class Rolling_Coverage_Block {
 			$new_cursor = $cursor;
 
 			foreach ( $query->posts as $entry ) {
-				if ( $entry->ID === $cursor_id ) {
+				$entry_modified = self::post_modified_iso( $entry );
+
+				if ( $entry->ID === $cursor_id && $entry_modified === $cursor_modified ) {
 					continue;
 				}
 
 				if ( empty( $entries ) ) {
-					$new_cursor = $entry->ID . ':' . self::post_modified_iso( $entry );
+					$new_cursor = $entry->ID . ':' . $entry_modified;
 				}
 
 				$entries[] = [
