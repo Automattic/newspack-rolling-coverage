@@ -63,6 +63,7 @@ interface EntryContext {
 interface PollEntry {
 	id: number;
 	html: string;
+	type: 'insert' | 'update';
 }
 
 /**

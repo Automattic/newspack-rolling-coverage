@@ -187,10 +187,11 @@ function initBlock( root: HTMLElement ): void {
 	);
 
 	/**
-	 * Applies a poll response to the entry list. Edits to existing entries are
-	 * replaced in place immediately. Newly published entries are inserted at
-	 * the top if the reader is at the top of the page, or queued behind the
-	 * "X new posts" button if they have scrolled down.
+	 * Applies a poll response to the entry list.
+	 *
+	 * Replaces edited entries immediately, ignoring edits to entries not yet
+	 * in view. Inserts or queues newly published entries based on the
+	 * reader's scroll position.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 */
@@ -198,6 +199,14 @@ function initBlock( root: HTMLElement ): void {
 		const newEntries: HTMLElement[] = [];
 
 		entries.forEach( ( entry ) => {
+			const existing = entriesList.querySelector(
+				`[data-entry-id="${ entry.id }"]`
+			);
+
+			if ( entry.type === 'update' && ! existing ) {
+				return;
+			}
+
 			const template = document.createElement( 'template' );
 			template.innerHTML = entry.html;
 			const entryEl = template.content.firstElementChild as HTMLElement;
@@ -205,10 +214,6 @@ function initBlock( root: HTMLElement ): void {
 			if ( ! entryEl ) {
 				return;
 			}
-
-			const existing = entriesList.querySelector(
-				`[data-entry-id="${ entry.id }"]`
-			);
 
 			if ( existing ) {
 				existing.replaceWith( entryEl );

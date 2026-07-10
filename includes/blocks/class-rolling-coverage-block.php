@@ -680,9 +680,12 @@ class Rolling_Coverage_Block {
 					$new_cursor = $entry->ID . ':' . $entry_modified;
 				}
 
+				$is_new_entry = self::post_date_iso( $entry ) > $cursor_modified;
+
 				$entries[] = [
 					'id'   => $entry->ID,
 					'html' => self::render_entry( $entry, $template ),
+					'type' => $is_new_entry ? 'insert' : 'update',
 				];
 			}
 			wp_reset_postdata();
