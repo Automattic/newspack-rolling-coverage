@@ -119,6 +119,10 @@ class Breakout {
 	 * @param WP_Post $post       Post object.
 	 */
 	public static function sync_breakout_status_to_entry( string $new_status, string $old_status, WP_Post $post ): void {
+		if ( 'post' !== $post->post_type ) {
+			return;
+		}
+
 		$entry_id = (int) get_post_meta( $post->ID, self::BREAKOUT_SOURCE_ENTRY_META, true );
 
 		if ( ! $entry_id ) {
@@ -286,7 +290,7 @@ class Breakout {
 	 * @param WP_Post $post       Post object.
 	 */
 	public static function on_breakout_post_status_change( string $new_status, string $old_status, WP_Post $post ): void {
-		if ( 'publish' !== $new_status || 'publish' === $old_status ) {
+		if ( 'post' !== $post->post_type || 'publish' !== $new_status || 'publish' === $old_status ) {
 			return;
 		}
 
@@ -296,13 +300,7 @@ class Breakout {
 			return;
 		}
 
-		wp_update_post(
-			[
-				'ID'                => $entry_id,
-				'post_modified'     => current_time( 'mysql' ),
-				'post_modified_gmt' => current_time( 'mysql', true ),
-			]
-		);
+		wp_update_post( [ 'ID' => $entry_id ] );
 	}
 
 	/**
