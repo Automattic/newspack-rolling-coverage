@@ -18,6 +18,8 @@ interface RollingCoverageAttributes {
 	coverageId: number;
 	pollInterval: number;
 	entriesPerPage: number;
+	enableAds: boolean;
+	adsInterval: number;
 	[ key: string ]: unknown;
 }
 
@@ -47,6 +49,8 @@ interface BlockConfig {
 	entriesPreviewRestBase: string;
 	aiEndpoint: string;
 	aiAvailable: boolean;
+	newspackAdsAvailable: boolean;
+	newspackAdsPlacementEnabled: boolean;
 }
 
 /**
