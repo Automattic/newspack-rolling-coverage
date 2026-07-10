@@ -595,7 +595,8 @@ class Rolling_Coverage_Block {
 	 * REST callback: returns pre-rendered HTML for either direction.
 	 *
 	 * - `cursor` (forward/polling): entries modified at or after the cursor
-	 *   timestamp — covering new entries and edits — DESC order, capped at POLL_CAP.
+	 *   timestamp, including new entries and edits. If the result exceeds
+	 *   POLL_CAP, the response is flagged `overflow` so the client can reload.
 	 * - `before` (backward/pagination): entries published before the given
 	 *   date, DESC order, capped at the request's per_page (entriesPerPage).
 	 *
@@ -653,8 +654,9 @@ class Rolling_Coverage_Block {
 			if ( $last_modified && $last_modified < $cursor_modified ) {
 				return new WP_REST_Response(
 					[
-						'entries' => [],
-						'cursor'  => $cursor,
+						'entries'  => [],
+						'cursor'   => $cursor,
+						'overflow' => false,
 					]
 				);
 			}
@@ -671,11 +673,23 @@ class Rolling_Coverage_Block {
 					],
 					'orderby'        => 'modified',
 					'order'          => 'DESC',
-					'posts_per_page' => self::POLL_CAP,
+					'posts_per_page' => self::POLL_CAP + 1, // Request one extra post to detect poll overflow.
 				]
 			);
 
-			$query      = new WP_Query( $args );
+			$query = new WP_Query( $args );
+
+			// Signal the client to refresh when the poll result reaches the cap.
+			if ( count( $query->posts ) > self::POLL_CAP ) {
+				return new WP_REST_Response(
+					[
+						'entries'  => [],
+						'cursor'   => $cursor,
+						'overflow' => true,
+					]
+				);
+			}
+
 			$entries    = [];
 			$new_cursor = $cursor;
 
@@ -702,8 +716,9 @@ class Rolling_Coverage_Block {
 
 			return new WP_REST_Response(
 				[
-					'entries' => $entries,
-					'cursor'  => $new_cursor,
+					'entries'  => $entries,
+					'cursor'   => $new_cursor,
+					'overflow' => false,
 				]
 			);
 		}

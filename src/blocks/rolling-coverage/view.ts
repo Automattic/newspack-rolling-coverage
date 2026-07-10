@@ -264,8 +264,12 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Polls for entries modified at or after the cursor — new or edited — and
-	 * applies them.
+	 * Polls for entries modified at or after the cursor.
+	 *
+	 * Applies returned entries or reloads the page when the response overflows
+	 * the poll limit.
+	 *
+	 * @return {Promise<void>} Resolves when the poll response has been handled.
 	 */
 	async function poll(): Promise< void > {
 		if ( ! cursor ) {
@@ -280,6 +284,12 @@ function initBlock( root: HTMLElement ): void {
 			const response = await fetch( url );
 			if ( response.ok ) {
 				const data: PollResponse = await response.json();
+
+				if ( data.overflow ) {
+					window.location.reload();
+					return;
+				}
+
 				if ( data.entries.length > 0 ) {
 					applyPollResponse( data.entries );
 				}

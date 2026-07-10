@@ -72,6 +72,7 @@ interface PollEntry {
 interface PollResponse {
 	entries: PollEntry[];
 	cursor: string;
+	overflow: boolean;
 }
 
 /**
