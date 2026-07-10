@@ -25,7 +25,11 @@ import type { QuickEditModalProps, EntityRecord } from '../types';
  */
 function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 	const config = useAdminContext();
-	const { record, isResolving } = useEntityRecord( 'postType', config.postType, entryId );
+	const { record, isResolving } = useEntityRecord(
+		'postType',
+		config.postType,
+		entryId
+	);
 	const typedRecord = record as EntityRecord | null;
 	const [ isSidebarOpen, setIsSidebarOpen ] = useState( true );
 
@@ -44,7 +48,10 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 
 	if ( isResolving || ! typedRecord ) {
 		return (
-			<Modal title={ __( 'Quick Edit', 'newspack-rolling-coverage' ) } onRequestClose={ onClose }>
+			<Modal
+				title={ __( 'Quick Edit', 'newspack-rolling-coverage' ) }
+				onRequestClose={ onClose }
+			>
 				<Spinner />
 			</Modal>
 		);
@@ -64,7 +71,10 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 					<div className="newspack-rolling-coverage-quick-edit-main">
 						<PostTitle />
 						<div className="newspack-rolling-coverage-quick-edit-canvas">
-							<BlockCanvas height="100%" styles={ settings.styles as unknown[] } />
+							<BlockCanvas
+								height="100%"
+								styles={ settings.styles as unknown[] }
+							/>
 						</div>
 					</div>
 					{ isSidebarOpen && (
@@ -77,9 +87,17 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 					<Button
 						icon={ isRTL() ? drawerRight : drawerLeft }
 						label={
-							isSidebarOpen ? __( 'Hide sidebar', 'newspack-rolling-coverage' ) : __( 'Show sidebar', 'newspack-rolling-coverage' )
+							isSidebarOpen
+								? __(
+										'Hide sidebar',
+										'newspack-rolling-coverage'
+								  )
+								: __(
+										'Show sidebar',
+										'newspack-rolling-coverage'
+								  )
 						}
-						onClick={ () => setIsSidebarOpen( prev => ! prev ) }
+						onClick={ () => setIsSidebarOpen( ( prev ) => ! prev ) }
 						variant="tertiary"
 					/>
 					<QuickEditSaveBar onClose={ onClose } onSaved={ onSaved } />
