@@ -78,7 +78,13 @@ class Rolling_Coverage_Block {
 			return;
 		}
 
-		$modified = get_post_datetime( $post, 'modified', 'gmt' )->format( DATE_ATOM );
+		$modified_datetime = get_post_datetime( $post, 'modified', 'gmt' );
+
+		if ( ! $modified_datetime ) {
+			return;
+		}
+
+		$modified = $modified_datetime->format( DATE_ATOM );
 
 		foreach ( $term_ids as $term_id ) {
 			update_term_meta( (int) $term_id, self::LAST_MODIFIED_META_KEY, $modified );
@@ -407,7 +413,9 @@ class Rolling_Coverage_Block {
 	 * @return string ISO 8601 date string.
 	 */
 	private static function post_date_iso( WP_Post $post ) {
-		return get_post_datetime( $post, 'date', 'gmt' )->format( DATE_ATOM );
+		$datetime = get_post_datetime( $post, 'date', 'gmt' );
+
+		return $datetime ? $datetime->format( DATE_ATOM ) : '';
 	}
 
 	/**
@@ -417,7 +425,9 @@ class Rolling_Coverage_Block {
 	 * @return string ISO 8601 date string.
 	 */
 	private static function post_modified_iso( WP_Post $post ) {
-		return get_post_datetime( $post, 'modified', 'gmt' )->format( DATE_ATOM );
+		$datetime = get_post_datetime( $post, 'modified', 'gmt' );
+
+		return $datetime ? $datetime->format( DATE_ATOM ) : '';
 	}
 
 	/**
@@ -585,7 +595,7 @@ class Rolling_Coverage_Block {
 	 * REST callback: returns pre-rendered HTML for either direction.
 	 *
 	 * - `cursor` (forward/polling): entries modified at or after the cursor
-	 *   timestamp — covering new entries and edits — ASC order, capped at POLL_CAP.
+	 *   timestamp — covering new entries and edits — DESC order, capped at POLL_CAP.
 	 * - `before` (backward/pagination): entries published before the given
 	 *   date, DESC order, capped at the request's per_page (entriesPerPage).
 	 *
@@ -640,7 +650,7 @@ class Rolling_Coverage_Block {
 
 			// Skip WP_Query entirely when the coverage has not changed since the cursor.
 			$last_modified = get_term_meta( $term_id, self::LAST_MODIFIED_META_KEY, true );
-			if ( $last_modified && $last_modified <= $cursor_modified ) {
+			if ( $last_modified && $last_modified < $cursor_modified ) {
 				return new WP_REST_Response(
 					[
 						'entries' => [],
