@@ -216,7 +216,7 @@ class Rolling_Coverage_Block {
 		);
 
 		return sprintf(
-			'<div %1$s>%2$s<button type="button" class="%3$s-new-entries" hidden></button><div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
+			'<div %1$s>%2$s<div class="%3$s-status" role="status" aria-live="polite"></div><button type="button" class="%3$s-new-entries" hidden></button><div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
 			$wrapper_attributes,
 			$notice,
 			self::MARKUP_PREFIX,

@@ -38,6 +38,9 @@ function initBlock( root: HTMLElement ): void {
 	const newEntriesButton = root.querySelector< HTMLButtonElement >(
 		'.newspack-rolling-coverage-new-entries'
 	);
+	const statusEl = root.querySelector< HTMLElement >(
+		'.newspack-rolling-coverage-status'
+	);
 
 	const status = root.dataset.status || 'active';
 
@@ -74,6 +77,17 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Announces a message to screen readers via the status live region.
+	 *
+	 * @param {string} message Message to announce.
+	 */
+	function announce( message: string ): void {
+		if ( statusEl ) {
+			statusEl.textContent = message;
+		}
+	}
+
+	/**
 	 * Inserts entries at the top of the entries list, removing the "no
 	 * entries yet" placeholder if it's still present.
 	 *
@@ -91,6 +105,19 @@ function initBlock( root: HTMLElement ): void {
 		const fragment = document.createDocumentFragment();
 		entries.forEach( ( entry ) => fragment.appendChild( entry ) );
 		entriesList.insertBefore( fragment, entriesList.firstChild );
+
+		announce(
+			sprintf(
+				/* translators: %d: number of new coverage entries just added. */
+				_n(
+					'%d new post added',
+					'%d new posts added',
+					entries.length,
+					'newspack-rolling-coverage'
+				),
+				entries.length
+			)
+		);
 	}
 
 	/**
@@ -106,7 +133,7 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		newEntriesButton.textContent = sprintf(
+		const label = sprintf(
 			/* translators: %d: number of new coverage entries waiting to be shown. */
 			_n(
 				'%d new post',
@@ -116,7 +143,10 @@ function initBlock( root: HTMLElement ): void {
 			),
 			pendingNewEntries.length
 		);
+
+		newEntriesButton.textContent = label;
 		newEntriesButton.hidden = false;
+		announce( label );
 	}
 
 	/**
