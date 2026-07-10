@@ -70,6 +70,8 @@ interface PollEntry {
 	id: number;
 	html: string;
 	type: 'insert' | 'update';
+	adHtml: string | null;
+	adSlot: AdSlot | null;
 }
 
 /**
@@ -79,6 +81,27 @@ interface PollResponse {
 	entries: PollEntry[];
 	cursor: string;
 	overflow: boolean;
+	polledCount: number;
+}
+
+/**
+ * A single GPT ad slot: container ID, ad unit path, sizes, targeting, and
+ * the bounds/fixed-height data needed to size it against its real container.
+ */
+interface AdSlot {
+	containerId: string;
+	path: string;
+	sizes: number[][];
+	fluid: boolean;
+	targeting: Record< string, string | string[] >;
+	sizeMap: Record< string, number[][] >;
+	boundsSelectors: string[];
+	boundsBleed: number;
+	fixedHeight: {
+		active: boolean;
+		useMaxHeight: boolean;
+		maxHeight: number;
+	};
 }
 
 /**
@@ -89,7 +112,18 @@ interface PageResponse {
 	before: string | null;
 	hasMore: boolean;
 	count: number;
+	adSlots: AdSlot[];
 }
+
+/**
+ * A new entry paired with the ad slot that follows it, if any, and the
+ * already-parsed element for that ad's wrapper markup.
+ */
+type PendingEntry = {
+	el: HTMLElement;
+	adSlot: AdSlot | null;
+	adEl: HTMLElement | null;
+};
 
 /**
  * Shape of a single InnerBlocks template tuple: [ blockName, attributes,
@@ -112,7 +146,9 @@ export type {
 	EntryContext,
 	PollEntry,
 	PollResponse,
+	AdSlot,
 	PageResponse,
+	PendingEntry,
 	TemplateItem,
 	TemplateBlocks,
 };
