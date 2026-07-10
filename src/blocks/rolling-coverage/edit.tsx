@@ -496,7 +496,7 @@ export default function Edit( {
 								isDismissible={ false }
 							>
 								{ __(
-									'Enable and configure the Rolling Coverage: Feed placement in Newspack Ads to show ads.',
+									'Enable and configure the Rolling Coverage: Entry placement in Newspack Ads to show ads.',
 									'newspack-rolling-coverage'
 								) }
 							</Notice>
