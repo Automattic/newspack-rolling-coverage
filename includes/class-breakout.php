@@ -45,6 +45,7 @@ class Breakout {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'before_delete_post', [ __CLASS__, 'cleanup_on_breakout_delete' ] );
 		add_action( 'transition_post_status', [ __CLASS__, 'sync_breakout_status_to_entry' ], 10, 3 );
+		add_action( 'transition_post_status', [ __CLASS__, 'on_breakout_post_status_change' ], 10, 3 );
 	}
 
 	/**
@@ -118,6 +119,10 @@ class Breakout {
 	 * @param WP_Post $post       Post object.
 	 */
 	public static function sync_breakout_status_to_entry( string $new_status, string $old_status, WP_Post $post ): void {
+		if ( 'post' !== $post->post_type ) {
+			return;
+		}
+
 		$entry_id = (int) get_post_meta( $post->ID, self::BREAKOUT_SOURCE_ENTRY_META, true );
 
 		if ( ! $entry_id ) {
@@ -273,6 +278,29 @@ class Breakout {
 		}
 
 		return $breakout_id;
+	}
+
+	/**
+	 * Touches the source entry when its breakout post transitions to published,
+	 * so the polling endpoint re-renders the entry (now with the breakout button
+	 * visible) and delivers it to active readers on the next poll cycle.
+	 *
+	 * @param string  $new_status Incoming post status.
+	 * @param string  $old_status Previous post status.
+	 * @param WP_Post $post       Post object.
+	 */
+	public static function on_breakout_post_status_change( string $new_status, string $old_status, WP_Post $post ): void {
+		if ( 'post' !== $post->post_type || 'publish' !== $new_status || 'publish' === $old_status ) {
+			return;
+		}
+
+		$entry_id = (int) get_post_meta( $post->ID, self::BREAKOUT_SOURCE_ENTRY_META, true );
+
+		if ( ! $entry_id ) {
+			return;
+		}
+
+		wp_update_post( [ 'ID' => $entry_id ] );
 	}
 
 	/**

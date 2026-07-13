@@ -58,12 +58,21 @@ interface EntryContext {
 }
 
 /**
- * REST response containing newly-published entries.
+ * A single entry in a poll response.
+ */
+interface PollEntry {
+	id: number;
+	html: string;
+	type: 'insert' | 'update';
+}
+
+/**
+ * REST response containing newly-published or edited entries.
  */
 interface PollResponse {
-	html: string;
-	since: string;
-	count: number;
+	entries: PollEntry[];
+	cursor: string;
+	overflow: boolean;
 }
 
 /**
@@ -95,6 +104,7 @@ export type {
 	EditProps,
 	BlockConfig,
 	EntryContext,
+	PollEntry,
 	PollResponse,
 	PageResponse,
 	TemplateItem,
