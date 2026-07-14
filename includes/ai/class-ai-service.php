@@ -29,15 +29,6 @@ class AI_Service {
 	const DEFAULT_MAX_TAKEAWAYS = 5;
 
 	/**
-	 * Cached positive availability result. Only true is cached;
-	 * false is re-checked on each call since AI provider config
-	 * may be loaded later in the request lifecycle.
-	 *
-	 * @var bool
-	 */
-	private static $is_available = false;
-
-	/**
 	 * Default generation options applied to every call.
 	 *
 	 * @var array
@@ -56,17 +47,9 @@ class AI_Service {
 	 * Whether the AI Client is available with a text-generation provider.
 	 * Safe on WP < 7.0.
 	 *
-	 * Only caches a positive result — a negative result is re-checked
-	 * on each call, since AI provider configuration may be loaded later
-	 * in the request lifecycle.
-	 *
 	 * @return bool
 	 */
 	public static function is_available(): bool {
-		if ( self::$is_available ) {
-			return true;
-		}
-
 		if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
 			return false;
 		}
@@ -75,12 +58,12 @@ class AI_Service {
 			return false;
 		}
 
-		if ( true === wp_ai_client_prompt()->is_supported_for_text_generation() ) {
-			self::$is_available = true;
-			return true;
+		// Respect the AI plugin's global features toggle if present.
+		if ( false === (bool) get_option( 'wpai_features_enabled', false ) ) {
+			return false;
 		}
 
-		return false;
+		return true === wp_ai_client_prompt()->is_supported_for_text_generation();
 	}
 
 	/**
