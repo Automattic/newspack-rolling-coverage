@@ -12,6 +12,7 @@ import {
 	restoreBreakout,
 	deleteBreakoutPermanently,
 } from '../utils/breakout-api';
+import { togglePinEntry } from '../utils/entries-api';
 import { notifySuccess, notifyError } from '../utils/notices';
 import { BreakoutModal } from '../components/breakout-modal';
 import type { Entry, Action, AdminConfig } from '../types';
@@ -113,7 +114,10 @@ function getEntryActions(
 					return;
 				}
 
-				const result = await restoreBreakout( breakoutPostId );
+				const result = await restoreBreakout(
+					config.restBaseUrls.posts,
+					breakoutPostId
+				);
 				if ( result.success ) {
 					notifySuccess(
 						__(
@@ -151,8 +155,10 @@ function getEntryActions(
 					return;
 				}
 
-				const result =
-					await deleteBreakoutPermanently( breakoutPostId );
+				const result = await deleteBreakoutPermanently(
+					config.restBaseUrls.posts,
+					breakoutPostId
+				);
 				if ( result.success ) {
 					notifySuccess(
 						__(
@@ -185,6 +191,64 @@ function getEntryActions(
 						onActionPerformed?.();
 					},
 				} ),
+		},
+		{
+			id: 'pin',
+			label: __( 'Pin', 'newspack-rolling-coverage' ),
+			isEligible: ( entry: Entry ) => ! entry.pinned,
+			callback: async ( items: Entry[] ) => {
+				if ( items.length !== 1 ) {
+					return;
+				}
+
+				const result = await togglePinEntry(
+					config.restBaseUrls.restNamespace,
+					items[ 0 ].id
+				);
+				if ( result.success ) {
+					notifySuccess(
+						__( 'Entry pinned.', 'newspack-rolling-coverage' )
+					);
+					onActionPerformed?.();
+				} else {
+					notifyError(
+						result.error ||
+							__(
+								'Failed to pin entry.',
+								'newspack-rolling-coverage'
+							)
+					);
+				}
+			},
+		},
+		{
+			id: 'unpin',
+			label: __( 'Unpin', 'newspack-rolling-coverage' ),
+			isEligible: ( entry: Entry ) => Boolean( entry.pinned ),
+			callback: async ( items: Entry[] ) => {
+				if ( items.length !== 1 ) {
+					return;
+				}
+
+				const result = await togglePinEntry(
+					config.restBaseUrls.restNamespace,
+					items[ 0 ].id
+				);
+				if ( result.success ) {
+					notifySuccess(
+						__( 'Entry unpinned.', 'newspack-rolling-coverage' )
+					);
+					onActionPerformed?.();
+				} else {
+					notifyError(
+						result.error ||
+							__(
+								'Failed to unpin entry.',
+								'newspack-rolling-coverage'
+							)
+					);
+				}
+			},
 		},
 	];
 }

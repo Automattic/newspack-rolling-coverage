@@ -16,6 +16,8 @@ import { SnackbarList } from '@wordpress/components';
 import AdminLayout from './components/admin-layout';
 import CoverageView from './components/coverage-view';
 import EntryView from './components/entry-view';
+import AIPage from './components/ai-page';
+import { useAdminContext } from './hooks/useAdminContext';
 
 /**
  * Root admin component. Uses react-router's HashRouter so navigation state
@@ -24,8 +26,10 @@ import EntryView from './components/entry-view';
  * the SPA tracks its own route in the hash. Routes:
  *   /coverages                   — coverage list (auto-redirected from root)
  *   /coverages/{id}              — rolling coverage entries
+ *   /ai                          — AI prompt settings
  */
 function App() {
+	const config = useAdminContext();
 	const notices = useSelect(
 		( select ) => select( noticesStore ).getNotices(),
 		[]
@@ -39,13 +43,14 @@ function App() {
 					<Route element={ <AdminLayout /> }>
 						<Route
 							index
-							element={ <Navigate to="/coverages" replace /> }
+							element={ <Navigate to={ config.page } replace /> }
 						/>
 						<Route path="/coverages" element={ <CoverageView /> } />
 						<Route
 							path="/coverages/:coverageId"
 							element={ <EntryView /> }
 						/>
+						<Route path="/ai" element={ <AIPage /> } />
 						<Route
 							path="*"
 							element={ <Navigate to="/coverages" replace /> }

@@ -18,6 +18,18 @@
 		"entriesPerPage": {
 			"type": "number",
 			"default": 20
+		},
+		"aiSystemPrompt": {
+			"type": "string",
+			"default": ""
+		},
+		"aiKeyTakeawaysPrompt": {
+			"type": "string",
+			"default": ""
+		},
+		"aiGeneratedOutput": {
+			"type": "string",
+			"default": ""
 		}
 	},
 	"supports": {

@@ -12,3 +12,27 @@
 		margin-bottom: 0;
 	}
 }
+
+.newspack-rolling-coverage-ai-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-top: 16px;
+
+	.components-base-control {
+		margin-bottom: 0;
+	}
+
+	> button {
+		align-self: flex-start;
+	}
+
+	.components-notice__content {
+		word-break: break-word;
+		overflow-wrap: anywhere;
+	}
+}
+
+.newspack-rolling-coverage-ai-output textarea {
+	background: #f7f7f7;
+}

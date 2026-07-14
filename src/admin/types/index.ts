@@ -1,14 +1,15 @@
 /**
- * WordPress dependencies
- */
-import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
-
-/**
  * External dependencies
  */
 import type { JSX } from 'react';
 
+/**
+ * WordPress dependencies
+ */
+import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
+
 interface AdminConfig {
+	page: string;
 	restBase: {
 		coverages: string;
 		entries: string;
@@ -17,11 +18,15 @@ interface AdminConfig {
 		coverages: string;
 		entries: string;
 		breakout: string;
+		restNamespace: string;
+		aiSettings: string;
+		posts: string;
 	};
 	nonce: string;
 	capabilities: {
 		canEditPosts: boolean;
 		canManageTerms: boolean;
+		canManageOptions: boolean;
 	};
 	adminUrls: {
 		editEntry: string;
@@ -33,6 +38,9 @@ interface AdminConfig {
 	taxMeta: {
 		statusKey: string;
 	};
+	aiSettings: AiSettings;
+	aiDefaultSettings: AiSettings;
+	aiAvailable: boolean;
 }
 
 interface Context {
@@ -91,6 +99,7 @@ interface Entry {
 		rolling_coverage_breakout_read_more_text?: string;
 		[ key: string ]: unknown;
 	};
+	pinned?: boolean;
 	rolling_coverage_breakout_status?: PostStatus | null;
 	_embedded?: {
 		author?: Array< {
@@ -215,6 +224,11 @@ interface TermChipsProps {
 	terms: Array< { link: string; name: string } >;
 }
 
+interface AiSettings {
+	system_prompt: string;
+	key_takeaways_prompt: string;
+}
+
 export type {
 	AdminConfig,
 	Context,
@@ -242,4 +256,5 @@ export type {
 	SaveCoverageData,
 	ChipLinkProps,
 	TermChipsProps,
+	AiSettings,
 };

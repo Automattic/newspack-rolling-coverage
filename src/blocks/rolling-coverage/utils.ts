@@ -15,6 +15,7 @@ import {
 	COVERAGES_REST_BASE,
 	STATUS_META_KEY,
 	ENTRIES_PREVIEW_REST_BASE,
+	AI_ENDPOINT,
 } from './config';
 
 /**
@@ -125,9 +126,40 @@ async function fetchEntryPreviewContexts(
 	}
 }
 
+/**
+ * Generates key takeaways for a coverage via the AI REST endpoint.
+ *
+ * @param {number} coverageId      Coverage term ID.
+ * @param {string} systemPrompt    System prompt for the AI.
+ * @param {string} takeawaysPrompt Key takeaways prompt (with {max_takeaways} placeholder).
+ * @return {Promise<{success: boolean, result?: string, error?: string}>} Result with generated text or error.
+ */
+async function generateKeyTakeaways(
+	coverageId: number,
+	systemPrompt: string,
+	takeawaysPrompt: string
+): Promise< { success: boolean; result?: string; error?: string } > {
+	try {
+		const response = await apiFetch< { result: string } >( {
+			url: `${ AI_ENDPOINT }/${ coverageId }/generate-key-takeaways`,
+			method: 'POST',
+			data: {
+				system_prompt: systemPrompt,
+				key_takeaways_prompt: takeawaysPrompt,
+			},
+		} );
+		return { success: true, result: response.result };
+	} catch ( error ) {
+		const message =
+			( error as { message?: string } )?.message ?? 'Unknown error';
+		return { success: false, error: message };
+	}
+}
+
 export {
 	searchCoverages,
 	getCoverage,
 	updateCoverageStatus,
 	fetchEntryPreviewContexts,
+	generateKeyTakeaways,
 };
