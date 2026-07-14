@@ -124,7 +124,7 @@ function AIPage() {
 				<div className="newspack-rolling-coverage-error">{ error }</div>
 			) }
 			{ ! config.aiAvailable && (
-				<div className="newspack-rolling-coverage-error">
+				<div className="newspack-rolling-coverage-ai-settings__notice">
 					{ __(
 						'AI features are not available on this site. Settings can still be configured but will not take effect until an AI provider is configured.',
 						'newspack-rolling-coverage'
