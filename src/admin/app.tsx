@@ -16,6 +16,7 @@ import { SnackbarList } from '@wordpress/components';
 import AdminLayout from './components/admin-layout';
 import CoverageView from './components/coverage-view';
 import EntryView from './components/entry-view';
+import TrashedEntriesView from './components/trashed-entries-view';
 
 /**
  * Root admin component. Uses react-router's HashRouter so navigation state
@@ -24,6 +25,7 @@ import EntryView from './components/entry-view';
  * the SPA tracks its own route in the hash. Routes:
  *   /coverages                   — coverage list (auto-redirected from root)
  *   /coverages/{id}              — rolling coverage entries
+ *   /trashed-entries             — all trashed entries (including orphaned)
  */
 function App() {
 	const notices = useSelect(
@@ -45,6 +47,10 @@ function App() {
 						<Route
 							path="/coverages/:coverageId"
 							element={ <EntryView /> }
+						/>
+						<Route
+							path="/trashed-entries"
+							element={ <TrashedEntriesView /> }
 						/>
 						<Route
 							path="*"

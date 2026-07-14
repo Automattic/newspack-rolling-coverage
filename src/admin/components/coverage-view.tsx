@@ -4,7 +4,7 @@
 import { useNavigate, useOutletContext } from 'react-router';
 import { useState, useCallback, useMemo } from '@wordpress/element';
 import { Button } from '@wordpress/components';
-import { plus } from '@wordpress/icons';
+import { plus, trash } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
 import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
 import type { View } from '@wordpress/dataviews';
@@ -81,8 +81,14 @@ function CoverageView() {
 	);
 
 	const actions = useMemo(
-		() => getCoverageActions( handleNavigateToEntries, handleOpenEdit ),
-		[ handleNavigateToEntries, handleOpenEdit ]
+		() =>
+			getCoverageActions(
+				config,
+				handleSaved,
+				handleNavigateToEntries,
+				handleOpenEdit
+			),
+		[ config, handleSaved, handleNavigateToEntries, handleOpenEdit ]
 	);
 
 	return (
@@ -102,13 +108,29 @@ function CoverageView() {
 					handleNavigateToEntries( item as Coverage )
 				}
 				header={
-					<Button
-						variant="primary"
-						icon={ plus }
-						onClick={ handleOpenCreate }
-					>
-						{ __( 'New Coverage', 'newspack-rolling-coverage' ) }
-					</Button>
+					<>
+						<Button
+							variant="secondary"
+							icon={ trash }
+							isDestructive
+							onClick={ () => navigate( '/trashed-entries' ) }
+						>
+							{ __(
+								'Trashed Entries',
+								'newspack-rolling-coverage'
+							) }
+						</Button>
+						<Button
+							variant="primary"
+							icon={ plus }
+							onClick={ handleOpenCreate }
+						>
+							{ __(
+								'New Coverage',
+								'newspack-rolling-coverage'
+							) }
+						</Button>
+					</>
 				}
 			/>
 

@@ -12,6 +12,50 @@ import type { PollEntry, PollResponse, PageResponse } from './types';
 const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 
 /**
+ * Strips <script> tags and on* event handler attributes from an HTML
+ * string as a defense-in-depth measure against XSS. The HTML is
+ * already sanitized server-side by WordPress's block rendering pipeline
+ * (including KSES), but this prevents execution if a compromised or
+ * unfiltered-html account injected inline scripts.
+ *
+ * @param {string} html Raw HTML from the REST API.
+ * @return {string} Sanitized HTML safe for DOM insertion.
+ */
+function sanitizeHtml( html: string ): string {
+	const doc = new DOMParser().parseFromString( html, 'text/html' );
+
+	// Remove all <script> elements.
+	doc.querySelectorAll( 'script' ).forEach( ( el ) => el.remove() );
+
+	// Remove all on* event handler attributes.
+	doc.querySelectorAll( '*' ).forEach( ( el ) => {
+		Array.from( el.attributes ).forEach( ( attr ) => {
+			if ( attr.name.startsWith( 'on' ) ) {
+				el.removeAttribute( attr.name );
+			}
+		} );
+	} );
+
+	return doc.body.innerHTML;
+}
+
+/**
+ * Validates that a value is a finite positive integer, safe for use
+ * in CSS selectors and DOM operations.
+ *
+ * @param {unknown} value Value to validate.
+ * @return {boolean} True if the value is a safe positive integer.
+ */
+function isSafeEntryId( value: unknown ): boolean {
+	return (
+		typeof value === 'number' &&
+		Number.isFinite( value ) &&
+		value > 0 &&
+		Number.isInteger( value )
+	);
+}
+
+/**
  * Sets up polling and infinite scroll for a single block instance.
  *
  * @param {HTMLElement} root The block's outer wrapper element.
@@ -160,8 +204,20 @@ function initBlock( root: HTMLElement ): void {
 		return entries;
 	}
 
+	const cleanupFns: Array< () => void > = [];
+
+	/**
+	 * Removes all event listeners, observers, and pending timeouts.
+	 * Called on pagehide to prevent memory leaks.
+	 */
+	function cleanup(): void {
+		cancelPoll();
+		cleanupFns.forEach( ( fn ) => fn() );
+		cleanupFns.length = 0;
+	}
+
 	if ( newEntriesButton ) {
-		newEntriesButton.addEventListener( 'click', () => {
+		const onNewEntriesClick = () => {
 			if ( pendingNewEntries.length === 0 ) {
 				return;
 			}
@@ -178,7 +234,11 @@ function initBlock( root: HTMLElement ): void {
 				top: targetY,
 				behavior: 'smooth',
 			} );
-		} );
+		};
+		newEntriesButton.addEventListener( 'click', onNewEntriesClick );
+		cleanupFns.push( () =>
+			newEntriesButton!.removeEventListener( 'click', onNewEntriesClick )
+		);
 	}
 
 	/**
@@ -203,18 +263,16 @@ function initBlock( root: HTMLElement ): void {
 		insertNewEntries( entries );
 	}
 
-	window.addEventListener(
-		'scroll',
-		() => {
-			if ( scrollCheckScheduled ) {
-				return;
-			}
+	const onScroll = () => {
+		if ( scrollCheckScheduled ) {
+			return;
+		}
 
-			scrollCheckScheduled = true;
-			requestAnimationFrame( checkIfScrolledBackToTop );
-		},
-		{ passive: true }
-	);
+		scrollCheckScheduled = true;
+		requestAnimationFrame( checkIfScrolledBackToTop );
+	};
+	window.addEventListener( 'scroll', onScroll, { passive: true } );
+	cleanupFns.push( () => window.removeEventListener( 'scroll', onScroll ) );
 
 	/**
 	 * Applies a poll response to the entry list.
@@ -229,6 +287,10 @@ function initBlock( root: HTMLElement ): void {
 		const newEntries: HTMLElement[] = [];
 
 		entries.forEach( ( entry ) => {
+			if ( ! isSafeEntryId( entry.id ) ) {
+				return;
+			}
+
 			const existing = entriesList.querySelector(
 				`[data-entry-id="${ entry.id }"]`
 			);
@@ -238,7 +300,7 @@ function initBlock( root: HTMLElement ): void {
 			}
 
 			const template = document.createElement( 'template' );
-			template.innerHTML = entry.html;
+			template.innerHTML = sanitizeHtml( entry.html );
 			const entryEl = template.content.firstElementChild as HTMLElement;
 
 			if ( ! entryEl ) {
@@ -322,7 +384,10 @@ function initBlock( root: HTMLElement ): void {
 			if ( response.ok ) {
 				const data: PageResponse = await response.json();
 				if ( data.count > 0 ) {
-					entriesList.insertAdjacentHTML( 'beforeend', data.html );
+					entriesList.insertAdjacentHTML(
+						'beforeend',
+						sanitizeHtml( data.html )
+					);
 				}
 				hasMore = data.hasMore;
 				before = data.before || '';
@@ -343,16 +408,21 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	// Resume polling when the user returns to the tab; cancel when they leave.
-	document.addEventListener( 'visibilitychange', () => {
+	const onVisibilityChange = () => {
 		if ( document.hidden ) {
 			cancelPoll();
 		} else if ( cursor && status === 'active' ) {
 			poll();
 		}
-	} );
+	};
+	document.addEventListener( 'visibilitychange', onVisibilityChange );
+	cleanupFns.push( () =>
+		document.removeEventListener( 'visibilitychange', onVisibilityChange )
+	);
 
-	// Cancel any pending poll on page unload.
-	window.addEventListener( 'pagehide', cancelPoll );
+	// Clean up all listeners, observers, and pending timeouts on page unload.
+	window.addEventListener( 'pagehide', cleanup, { once: true } );
+	cleanupFns.push( () => window.removeEventListener( 'pagehide', cleanup ) );
 
 	if ( sentinel && hasMore ) {
 		const observer = new IntersectionObserver( ( entries ) => {
@@ -367,6 +437,7 @@ function initBlock( root: HTMLElement ): void {
 			} );
 		} );
 		observer.observe( sentinel );
+		cleanupFns.push( () => observer.disconnect() );
 	}
 }
 

@@ -92,4 +92,101 @@ async function getCoverage(
 	}
 }
 
-export { updateCoverageStatus, saveCoverage, getCoverage };
+/**
+ * Soft-deletes a coverage by setting its status to 'trash' and trashing
+ * all its non-trashed entries.
+ *
+ * @param {string} restNamespace - REST namespace URL (from config.restBaseUrls.restNamespace).
+ * @param {number} id            - The coverage term ID.
+ * @return {Promise<ApiResult>} Result indicating success or failure.
+ */
+async function trashCoverage(
+	restNamespace: string,
+	id: number
+): Promise< ApiResult > {
+	try {
+		await apiFetch( {
+			url: `${ restNamespace }coverages/${ id }/trash`,
+			method: 'POST',
+		} );
+		return { success: true };
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
+/**
+ * Restores a coverage from trash, setting its status back to 'active'.
+ * Entries remain trashed and must be restored individually.
+ *
+ * @param {string} restNamespace - REST namespace URL.
+ * @param {number} id            - The coverage term ID.
+ * @return {Promise<ApiResult>} Result indicating success or failure.
+ */
+async function restoreCoverage(
+	restNamespace: string,
+	id: number
+): Promise< ApiResult > {
+	try {
+		await apiFetch( {
+			url: `${ restNamespace }coverages/${ id }/restore`,
+			method: 'POST',
+		} );
+		return { success: true };
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
+/**
+ * Permanently deletes a coverage term. Entries remain in trash
+ * with their post-meta context intact.
+ *
+ * @param {string} restNamespace - REST namespace URL.
+ * @param {number} id            - The coverage term ID.
+ * @return {Promise<ApiResult>} Result indicating success or failure.
+ */
+async function deleteCoverage(
+	restNamespace: string,
+	id: number
+): Promise< ApiResult > {
+	try {
+		await apiFetch( {
+			url: `${ restNamespace }coverages/${ id }`,
+			method: 'DELETE',
+		} );
+		return { success: true };
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
+/**
+ * Runs a bulk operation against a list of coverage IDs, collecting per-item
+ * results. Used by both the RenderModal `onConfirm` and the action `callback`
+ * so the two code paths stay in lock-step.
+ *
+ * @param {Coverage[]}                         items     The selected coverage rows.
+ * @param {(id: number) => Promise<ApiResult>} operation Single-item API call.
+ * @return {Promise<{ failed: ApiResult[], succeeded: boolean }>} Aggregated outcome.
+ */
+async function runCoverageBulk(
+	items: Coverage[],
+	operation: ( id: number ) => Promise< ApiResult >
+): Promise< { failed: ApiResult[]; succeeded: boolean } > {
+	const results = await Promise.all(
+		items.map( ( coverage ) => operation( coverage.id ) )
+	);
+	const failed = results.filter( ( r ) => ! r.success );
+	return { failed, succeeded: failed.length === 0 };
+}
+
+export {
+	updateCoverageStatus,
+	saveCoverage,
+	getCoverage,
+	trashCoverage,
+	restoreCoverage,
+	deleteCoverage,
+	runCoverageBulk,
+};

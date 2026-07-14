@@ -43,6 +43,9 @@ function EntryView() {
 
 	const isArchived =
 		selectedCoverage?.meta?.[ config.taxMeta.statusKey ] === 'archived';
+	const isTrashed =
+		selectedCoverage?.meta?.[ config.taxMeta.statusKey ] === 'trash';
+	const disableNewEntry = ! selectedCoverage || isArchived || isTrashed;
 	const [ view, setView ] = useState< View >( defaultEntryView );
 	const [ isCreatingEntry, setIsCreatingEntry ] = useState( false );
 	const [ createError, setCreateError ] = useState< string | null >( null );
@@ -147,7 +150,7 @@ function EntryView() {
 				paginationInfo={ paginationInfo }
 				isLoading={ isResolving }
 				header={
-					selectedCoverage && ! isArchived ? (
+					selectedCoverage && ! disableNewEntry ? (
 						<Button
 							variant="primary"
 							icon={ plus }

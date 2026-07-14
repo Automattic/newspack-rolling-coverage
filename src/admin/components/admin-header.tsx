@@ -23,10 +23,15 @@ function AdminHeader( { selectedCoverage }: AdminHeaderProps ) {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const isCoverageView = location.pathname.startsWith( '/coverages/' );
+	const isTrashedEntriesView = location.pathname === '/trashed-entries';
+
+	const showBackButton = isCoverageView || isTrashedEntriesView;
+	const showCoverageSubtitle = isCoverageView && selectedCoverage;
+	const showTrashedSubtitle = isTrashedEntriesView;
 
 	return (
 		<div className="newspack-rolling-coverage-header">
-			{ isCoverageView && selectedCoverage && (
+			{ showBackButton && (
 				<Button
 					className="newspack-rolling-coverage-header__nav"
 					variant="tertiary"
@@ -38,7 +43,15 @@ function AdminHeader( { selectedCoverage }: AdminHeaderProps ) {
 			<h1 className="newspack-rolling-coverage-header__title">
 				{ __( 'Rolling Coverage', 'newspack-rolling-coverage' ) }
 			</h1>
-			{ isCoverageView && selectedCoverage && (
+			{ showTrashedSubtitle && (
+				<>
+					<Icon icon={ chevronRight } size={ 24 } />
+					<span className="newspack-rolling-coverage-header__subtitle">
+						{ __( 'Trashed Entries', 'newspack-rolling-coverage' ) }
+					</span>
+				</>
+			) }
+			{ showCoverageSubtitle && (
 				<>
 					<Icon icon={ chevronRight } size={ 24 } />
 					<span className="newspack-rolling-coverage-header__subtitle">

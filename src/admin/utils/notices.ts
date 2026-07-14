@@ -29,4 +29,17 @@ function notifyError( message: string ) {
 	} );
 }
 
-export { notifySuccess, notifyError };
+/**
+ * Returns the singular or plural translated message depending on the item count.
+ * Centralises the `count > 1 ? plural : singular` pattern used by bulk actions.
+ *
+ * @param {number} count    Number of items the message refers to.
+ * @param {string} singular Translated singular message.
+ * @param {string} plural   Translated plural message.
+ * @return {string} The appropriate message for the count.
+ */
+function pluralize( count: number, singular: string, plural: string ): string {
+	return count > 1 ? plural : singular;
+}
+
+export { notifySuccess, notifyError, pluralize };
