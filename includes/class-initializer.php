@@ -34,6 +34,9 @@ class Initializer {
 		Breakout::init();
 		Rolling_Coverage_Block::init();
 		Breakout_Post_Link_Block::init();
+		AI_Service::init();
+		AI_Settings::init();
+		Abilities::init();
 
 		// Admin interface (only load in admin context).
 		if ( is_admin() ) {

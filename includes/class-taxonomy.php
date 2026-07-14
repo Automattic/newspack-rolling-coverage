@@ -21,6 +21,15 @@ class Taxonomy {
 	// Related constants.
 	const STATUS_META_KEY = 'rolling_coverage_status';
 
+	// Status values.
+	const STATUS_ACTIVE   = 'active';
+	const STATUS_PAUSED   = 'paused';
+	const STATUS_ARCHIVED = 'archived';
+
+	// Term meta keys for created/modified timestamps.
+	const CREATED_AT_META_KEY  = 'created_at';
+	const MODIFIED_AT_META_KEY = 'modified_at';
+
 	/**
 	 * Initialize hooks.
 	 */
@@ -65,14 +74,14 @@ class Taxonomy {
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
-				'default'      => 'active',
+				'default'      => self::STATUS_ACTIVE,
 			]
 		);
 
 		// Created date stored as ISO 8601 string.
 		register_term_meta(
 			self::TAXONOMY_SLUG,
-			'created_at',
+			self::CREATED_AT_META_KEY,
 			[
 				'show_in_rest' => true,
 				'single'       => true,
@@ -84,7 +93,7 @@ class Taxonomy {
 		// Modified date stored as ISO 8601 string.
 		register_term_meta(
 			self::TAXONOMY_SLUG,
-			'modified_at',
+			self::MODIFIED_AT_META_KEY,
 			[
 				'show_in_rest' => true,
 				'single'       => true,
@@ -100,11 +109,11 @@ class Taxonomy {
 	 * @param int $term_id Term ID.
 	 */
 	public static function set_term_created_date( $term_id ) {
-		$created = get_term_meta( $term_id, 'created_at', true );
+		$created = get_term_meta( $term_id, self::CREATED_AT_META_KEY, true );
 		if ( empty( $created ) ) {
 			$now = gmdate( 'c' );
-			update_term_meta( $term_id, 'created_at', $now );
-			update_term_meta( $term_id, 'modified_at', $now );
+			update_term_meta( $term_id, self::CREATED_AT_META_KEY, $now );
+			update_term_meta( $term_id, self::MODIFIED_AT_META_KEY, $now );
 		}
 	}
 
@@ -114,7 +123,7 @@ class Taxonomy {
 	 * @param int $term_id Term ID.
 	 */
 	public static function update_term_modified_date( $term_id ) {
-		update_term_meta( $term_id, 'modified_at', gmdate( 'c' ) );
+		update_term_meta( $term_id, self::MODIFIED_AT_META_KEY, gmdate( 'c' ) );
 	}
 
 	/**
