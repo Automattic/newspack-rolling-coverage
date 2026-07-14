@@ -34,8 +34,9 @@ import { getEntryFields, defaultEntryView } from '../fields/entries';
 function EntryView() {
 	const config = useAdminContext();
 	const { coverageId } = useParams< { coverageId?: string } >();
-	const [ context, setContext ] = useOutletContext< ContextExports >();
-	const { selectedCoverage } = context;
+	const [ context, setContext, refresh ] =
+		useOutletContext< ContextExports >();
+	const { selectedCoverage, refreshKey } = context;
 
 	const numericCoverageId = coverageId ? Number( coverageId ) : null;
 	const isValidCoverageId =
@@ -49,11 +50,10 @@ function EntryView() {
 	const [ view, setView ] = useState< View >( defaultEntryView );
 	const [ isCreatingEntry, setIsCreatingEntry ] = useState( false );
 	const [ createError, setCreateError ] = useState< string | null >( null );
-	const [ refreshKey, setRefreshKey ] = useState( 0 );
 
 	const handleActionPerformed = useCallback( () => {
-		setRefreshKey( ( key ) => key + 1 );
-	}, [] );
+		refresh();
+	}, [ refresh ] );
 
 	useEffect( () => {
 		if ( ! isValidCoverageId || selectedCoverage ) {

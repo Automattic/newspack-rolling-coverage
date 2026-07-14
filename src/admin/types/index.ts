@@ -38,11 +38,13 @@ interface AdminConfig {
 
 interface Context {
 	selectedCoverage: Coverage | null;
+	refreshKey: number;
 }
 
 type ContextExports = [
 	context: Context,
 	setContext: React.Dispatch< React.SetStateAction< Context > >,
+	refresh: () => void,
 ];
 
 interface Coverage {

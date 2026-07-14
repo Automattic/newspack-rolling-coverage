@@ -27,7 +27,9 @@ import type { Context, ContextExports, Coverage } from '../types';
 function CoverageView() {
 	const config = useAdminContext();
 	const navigate = useNavigate();
-	const [ , setContext ] = useOutletContext< ContextExports >();
+	const [ context, setContext, refresh ] =
+		useOutletContext< ContextExports >();
+	const { refreshKey } = context;
 	const fields = useMemo(
 		() => getCoverageFields( config.taxMeta.statusKey ),
 		[ config.taxMeta.statusKey ]
@@ -37,7 +39,6 @@ function CoverageView() {
 		null
 	);
 	const [ isModalOpen, setIsModalOpen ] = useState( false );
-	const [ refreshKey, setRefreshKey ] = useState( 0 );
 
 	const { records, isResolving, error } = useCoverages( {
 		perPage: 100,
@@ -66,8 +67,8 @@ function CoverageView() {
 	}, [] );
 
 	const handleSaved = useCallback( () => {
-		setRefreshKey( ( k ) => k + 1 );
-	}, [] );
+		refresh();
+	}, [ refresh ] );
 
 	const handleNavigateToEntries = useCallback(
 		( coverage: Coverage ) => {
@@ -77,7 +78,7 @@ function CoverageView() {
 			} ) );
 			navigate( `/coverages/${ coverage.id }` );
 		},
-		[ navigate ]
+		[ navigate, setContext ]
 	);
 
 	const actions = useMemo(

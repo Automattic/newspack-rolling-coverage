@@ -2,6 +2,7 @@
  * External dependencies
  */
 import { useMemo, useState, useCallback } from '@wordpress/element';
+import { useOutletContext } from 'react-router';
 import { __ } from '@wordpress/i18n';
 import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
 import type { View } from '@wordpress/dataviews';
@@ -14,6 +15,7 @@ import { useAdminContext } from '../hooks/useAdminContext';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { getEntryActions } from '../actions/entry-actions';
 import { getEntryFields, defaultEntryView } from '../fields/entries';
+import { ContextExports } from '../types';
 
 /**
  * Renders all trashed entries across all coverages (including orphaned
@@ -22,12 +24,13 @@ import { getEntryFields, defaultEntryView } from '../fields/entries';
  */
 function TrashedEntriesView() {
 	const config = useAdminContext();
+	const [ context, , refresh ] = useOutletContext< ContextExports >();
+	const { refreshKey } = context;
 	const [ view, setView ] = useState< View >( defaultEntryView );
-	const [ refreshKey, setRefreshKey ] = useState( 0 );
 
 	const handleActionPerformed = useCallback( () => {
-		setRefreshKey( ( key ) => key + 1 );
-	}, [] );
+		refresh();
+	}, [ refresh ] );
 
 	const { records, isResolving, error } = useEntries( {
 		coverageId: null,

@@ -213,6 +213,7 @@ function getEntryActions(
 								)
 							);
 							notify?.( items );
+							onActionPerformed?.();
 						} else {
 							notifyError(
 								failed[ 0 ].error ||
@@ -373,6 +374,7 @@ function getEntryActions(
 								)
 							);
 							notify?.( items );
+							onActionPerformed?.();
 						} else {
 							notifyError(
 								failed[ 0 ].error ||
