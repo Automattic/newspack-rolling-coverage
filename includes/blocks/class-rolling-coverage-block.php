@@ -10,6 +10,7 @@ namespace Newspack_Rolling_Coverage;
 
 use WP_Block;
 use WP_Block_Type;
+use WP_Block_Type_Registry;
 use WP_Error;
 use WP_Post;
 use WP_Query;
@@ -38,6 +39,9 @@ class Rolling_Coverage_Block {
 	// Option name prefix for persisted entry templates: rc_tpl_{coverage_id}_{hash}.
 	const TEMPLATE_OPTION_PREFIX = 'rc_tpl_';
 
+	// Term meta key storing the coverage's latest entry modified timestamp.
+	const LAST_MODIFIED_META_KEY = 'rolling_coverage_last_modified';
+
 	/**
 	 * Entry currently being rendered by render_entry(), read by
 	 * filter_block_context() while its render_block_context filter is active.
@@ -53,6 +57,38 @@ class Rolling_Coverage_Block {
 		add_action( 'init', [ __CLASS__, 'register_block' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
+		add_action( 'save_post_' . Post_Type::CPT_SLUG, [ __CLASS__, 'update_coverage_last_modified' ], 10, 2 );
+	}
+
+	/**
+	 * Updates the coverage's last-modified term meta when a published entry is
+	 * saved, so the polling endpoint can skip WP_Query when nothing has changed.
+	 *
+	 * @param int     $post_id Entry post ID.
+	 * @param WP_Post $post    Entry post object.
+	 */
+	public static function update_coverage_last_modified( int $post_id, WP_Post $post ): void {
+		if ( 'publish' !== $post->post_status ) {
+			return;
+		}
+
+		$term_ids = wp_get_post_terms( $post_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
+
+		if ( is_wp_error( $term_ids ) || empty( $term_ids ) ) {
+			return;
+		}
+
+		$modified_datetime = get_post_datetime( $post, 'modified', 'gmt' );
+
+		if ( ! $modified_datetime ) {
+			return;
+		}
+
+		$modified = $modified_datetime->format( DATE_ATOM );
+
+		foreach ( $term_ids as $term_id ) {
+			update_term_meta( (int) $term_id, self::LAST_MODIFIED_META_KEY, $modified );
+		}
 	}
 
 	/**
@@ -93,6 +129,14 @@ class Rolling_Coverage_Block {
 	 * @return string Rendered HTML.
 	 */
 	public static function render_block( $attributes, $content, WP_Block $block ) {
+		// Preload so polled entries are styled even if no breakout buttons appeared on initial render.
+		$breakout_block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/breakout-post-link' );
+		if ( $breakout_block_type ) {
+			foreach ( $breakout_block_type->style_handles as $style_handle ) {
+				wp_enqueue_style( $style_handle );
+			}
+		}
+
 		$coverage_id = (int) ( $attributes['coverageId'] ?? 0 );
 
 		if ( ! $coverage_id || ! term_exists( $coverage_id, Taxonomy::TAXONOMY_SLUG ) ) {
@@ -136,7 +180,7 @@ class Rolling_Coverage_Block {
 		}
 		wp_reset_postdata();
 
-		$newest_iso = ! empty( $query->posts ) ? self::post_date_iso( $query->posts[0] ) : gmdate( 'c' );
+		$cursor     = self::latest_cursor( $query->posts );
 		$oldest_iso = ! empty( $query->posts ) ? self::post_date_iso( $query->posts[ count( $query->posts ) - 1 ] ) : '';
 		$has_more   = count( $query->posts ) === $entries_per_page;
 
@@ -162,7 +206,7 @@ class Rolling_Coverage_Block {
 				'data-coverage-id'      => $coverage_id,
 				'data-poll-interval'    => $poll_interval,
 				'data-entries-per-page' => $entries_per_page,
-				'data-since'            => $newest_iso,
+				'data-cursor'           => $cursor,
 				'data-before'           => $oldest_iso,
 				'data-has-more'         => $has_more ? '1' : '0',
 				'data-status'           => $status,
@@ -172,7 +216,7 @@ class Rolling_Coverage_Block {
 		);
 
 		return sprintf(
-			'<div %1$s>%2$s<div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
+			'<div %1$s>%2$s<div class="%3$s-status" role="status" aria-live="polite"></div><button type="button" class="%3$s-new-entries" hidden></button><div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
 			$wrapper_attributes,
 			$notice,
 			self::MARKUP_PREFIX,
@@ -369,11 +413,51 @@ class Rolling_Coverage_Block {
 	 * @return string ISO 8601 date string.
 	 */
 	private static function post_date_iso( WP_Post $post ) {
-		return get_post_datetime( $post, 'date', 'gmt' )->format( DATE_ATOM );
+		$datetime = get_post_datetime( $post, 'date', 'gmt' );
+
+		return $datetime ? $datetime->format( DATE_ATOM ) : '';
 	}
 
 	/**
-	 * Register the dedicated REST route used for both polling (since) and
+	 * ISO 8601 (GMT) last-modified string for a post.
+	 *
+	 * @param WP_Post $post Post object.
+	 * @return string ISO 8601 date string.
+	 */
+	private static function post_modified_iso( WP_Post $post ) {
+		$datetime = get_post_datetime( $post, 'modified', 'gmt' );
+
+		return $datetime ? $datetime->format( DATE_ATOM ) : '';
+	}
+
+	/**
+	 * Poll cursor for a set of entries: "{id}:{modified_iso}".
+	 * Falls back to "0:{current_time}" when there are none.
+	 *
+	 * @param WP_Post[] $posts Entry post objects.
+	 * @return string Cursor in "{id}:{modified_iso}" format.
+	 */
+	private static function latest_cursor( array $posts ): string {
+		$latest_post     = null;
+		$latest_modified = '';
+
+		foreach ( $posts as $post ) {
+			$modified = self::post_modified_iso( $post );
+			if ( '' === $latest_modified || $modified > $latest_modified ) {
+				$latest_modified = $modified;
+				$latest_post     = $post;
+			}
+		}
+
+		if ( null === $latest_post ) {
+			return '0:' . gmdate( 'c' );
+		}
+
+		return $latest_post->ID . ':' . $latest_modified;
+	}
+
+	/**
+	 * Register the dedicated REST route used for both polling (cursor) and
 	 * pagination (before), plus the lightweight editor-only preview route
 	 * (see get_entries_preview()).
 	 */
@@ -394,7 +478,7 @@ class Rolling_Coverage_Block {
 						'required' => true,
 						'type'     => 'string',
 					],
-					'since'        => [
+					'cursor'       => [
 						'type' => 'string',
 					],
 					'before'       => [
@@ -510,8 +594,11 @@ class Rolling_Coverage_Block {
 	/**
 	 * REST callback: returns pre-rendered HTML for either direction.
 	 *
-	 * - `since` (forward/polling): entries newer than the given date, ASC order, capped at POLL_CAP.
-	 * - `before` (backward/pagination): entries older than the given date, DESC order, capped at the request's per_page (entriesPerPage).
+	 * - `cursor` (forward/polling): entries modified at or after the cursor
+	 *   timestamp, including new entries and edits. If the result exceeds
+	 *   POLL_CAP, the response is flagged `overflow` so the client can reload.
+	 * - `before` (backward/pagination): entries published before the given
+	 *   date, DESC order, capped at the request's per_page (entriesPerPage).
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
@@ -520,7 +607,7 @@ class Rolling_Coverage_Block {
 		$params       = $request->get_params();
 		$term_id      = (int) ( $params['term_id'] ?? 0 );
 		$template_key = (string) ( $params['template_key'] ?? '' );
-		$since        = $params['since'] ?? '';
+		$cursor       = $params['cursor'] ?? '';
 		$before       = $params['before'] ?? '';
 		$per_page     = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
 
@@ -532,10 +619,10 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		if ( ! $since && ! $before ) {
+		if ( ! $cursor && ! $before ) {
 			return new WP_Error(
 				'rolling_coverage_missing_cursor',
-				__( 'Either since or before must be provided.', 'newspack-rolling-coverage' ),
+				__( 'Either cursor or before must be provided.', 'newspack-rolling-coverage' ),
 				[ 'status' => 400 ]
 			);
 		}
@@ -556,41 +643,82 @@ class Rolling_Coverage_Block {
 
 		$template = self::load_entry_template( $term_id, $template_key );
 
-		// Forward/polling branch: entries newer than $since, oldest first.
-		if ( $since ) {
+		// Forward/polling branch: entries modified at or after the cursor, newest first.
+		if ( $cursor ) {
+			$cursor_parts    = explode( ':', $cursor, 2 );
+			$cursor_id       = (int) ( $cursor_parts[0] ?? 0 );
+			$cursor_modified = $cursor_parts[1] ?? '';
+
+			// Skip WP_Query entirely when the coverage has not changed since the cursor.
+			$last_modified = get_term_meta( $term_id, self::LAST_MODIFIED_META_KEY, true );
+			if ( $last_modified && $last_modified < $cursor_modified ) {
+				return new WP_REST_Response(
+					[
+						'entries'  => [],
+						'cursor'   => $cursor,
+						'overflow' => false,
+					]
+				);
+			}
+
 			$args = array_merge(
 				$base_args,
 				[
 					'date_query'     => [
 						[
-							'column'    => 'post_date_gmt',
-							'after'     => $since,
-							'inclusive' => false,
+							'column'    => 'post_modified_gmt',
+							'after'     => $cursor_modified,
+							'inclusive' => true,
 						],
 					],
-					'orderby'        => 'date',
-					'order'          => 'ASC',
-					'posts_per_page' => self::POLL_CAP,
+					'orderby'        => 'modified',
+					'order'          => 'DESC',
+					'posts_per_page' => self::POLL_CAP + 1, // Request one extra post to detect poll overflow.
 				]
 			);
 
 			$query = new WP_Query( $args );
 
-			$html = '';
+			// Signal the client to refresh when the poll result reaches the cap.
+			if ( count( $query->posts ) > self::POLL_CAP ) {
+				return new WP_REST_Response(
+					[
+						'entries'  => [],
+						'cursor'   => $cursor,
+						'overflow' => true,
+					]
+				);
+			}
+
+			$entries    = [];
+			$new_cursor = $cursor;
+
 			foreach ( $query->posts as $entry ) {
-				$html .= self::render_entry( $entry, $template );
+				$entry_modified = self::post_modified_iso( $entry );
+
+				if ( $entry->ID === $cursor_id && $entry_modified === $cursor_modified ) {
+					continue;
+				}
+
+				if ( empty( $entries ) ) {
+					$new_cursor = $entry->ID . ':' . $entry_modified;
+				}
+
+				$is_new_entry = self::post_date_iso( $entry ) > $cursor_modified;
+
+				$entries[] = [
+					'id'   => $entry->ID,
+					'html' => self::render_entry( $entry, $template ),
+					'type' => $is_new_entry ? 'insert' : 'update',
+				];
 			}
 			wp_reset_postdata();
 
-			$next_since = ! empty( $query->posts )
-				? self::post_date_iso( $query->posts[ count( $query->posts ) - 1 ] )
-				: $since;
-
 			return new WP_REST_Response(
 				[
-					'html'  => $html,
-					'since' => $next_since,
-					'count' => count( $query->posts ),
+					'entries'  => $entries,
+					'cursor'   => $new_cursor,
+					'overflow' => false,
 				]
 			);
 		}
