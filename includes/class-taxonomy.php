@@ -54,7 +54,7 @@ class Taxonomy {
 					'singular_name' => __( 'Rolling Coverage', 'newspack-rolling-coverage' ),
 				],
 				'public'             => true,
-				'publicly_queryable' => true,
+				'publicly_queryable' => false,
 				'show_ui'            => false,
 				'show_in_menu'       => false,
 				'show_in_nav_menus'  => false,

@@ -14,3 +14,5 @@ declare global {
 		newspackRollingCoverageAdmin?: AdminConfig;
 	}
 }
+
+declare module '@wordpress/block-editor';

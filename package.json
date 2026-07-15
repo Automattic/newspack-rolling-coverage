@@ -53,6 +53,8 @@
 		"@wordpress/element": "^8.0.1",
 		"@wordpress/i18n": "^6.21.1",
 		"@wordpress/icons": "^14.0.1",
+		"@wordpress/block-editor": "^15.21.1",
+		"@wordpress/blocks": "^15.21.1",
 		"@wordpress/notices": "^5.48.1"
 	}
 }

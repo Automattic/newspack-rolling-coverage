@@ -33,6 +33,8 @@ class Initializer {
 		Taxonomy::init();
 		Slack::init();
 		Breakout::init();
+		Rolling_Coverage_Block::init();
+		Breakout_Post_Link_Block::init();
 
 		// Admin interface (only load in admin context).
 		if ( is_admin() ) {
