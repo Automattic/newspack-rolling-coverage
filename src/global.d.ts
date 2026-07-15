@@ -4,7 +4,7 @@ declare module '*.scss' {
 }
 
 declare module '@wordpress/block-editor' {
-	import type { ComponentType } from 'react';
+	import type { ComponentType, Ref } from 'react';
 
 	export const BlockCanvas: ComponentType< {
 		height?: string | number;
@@ -12,6 +12,36 @@ declare module '@wordpress/block-editor' {
 	} >;
 
 	export const BlockInspector: ComponentType;
+
+	export const InnerBlocks: {
+		Content: ComponentType;
+		Button: ComponentType;
+		[ key: string ]: unknown;
+	};
+
+	export function useBlockProps(
+		props?: Record< string, unknown >
+	): Record< string, unknown >;
+
+	export function useInnerBlocksProps(
+		props?: Record< string, unknown >,
+		config?: Record< string, unknown >
+	): Record< string, unknown >;
+
+	export const InspectorControls: ComponentType< {
+		children?: React.ReactNode;
+	} >;
+
+	export const BlockContextProvider: ComponentType< {
+		value: unknown;
+		children?: React.ReactNode;
+	} >;
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	export const __experimentalUseBlockPreview: any;
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	export const store: any;
 }
 
 declare module '@wordpress/block-library' {
