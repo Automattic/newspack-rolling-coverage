@@ -112,3 +112,13 @@
 body.toplevel_page_rolling-coverage.modal-open .components-popover__content {
 	opacity: 1;
 }
+
+// Editor snackbar notices: position above the toolbar.
+.newspack-rolling-coverage-quick-edit .components-editor-notices__snackbar {
+	bottom: $nrc-spacing-xl;
+	left: 50%;
+	position: absolute;
+	transform: translateX(-50%);
+	width: auto;
+	z-index: 100000;
+}

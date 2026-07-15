@@ -235,6 +235,24 @@ interface EntityRecord {
 	status?: string;
 }
 
+/** Selectors from the editor store, typed for the sub-registry. */
+type EditorSelectors = {
+	__unstableIsEditorReady?: () => boolean;
+	isSavingPost: () => boolean;
+	didPostSaveRequestFail: () => boolean;
+	getCurrentPostType: () => string;
+	getCurrentPostId: () => number;
+};
+
+/** Selectors from the core-data store. */
+type CoreSelectors = {
+	getLastEntitySaveError: (
+		kind: string,
+		name: string,
+		recordId: number
+	) => { message?: string } | undefined;
+};
+
 export type {
 	AdminConfig,
 	Context,
@@ -265,4 +283,6 @@ export type {
 	QuickEditModalProps,
 	QuickEditSaveBarProps,
 	EntityRecord,
+	EditorSelectors,
+	CoreSelectors,
 };

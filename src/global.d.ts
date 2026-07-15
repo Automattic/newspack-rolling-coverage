@@ -3,7 +3,16 @@ declare module '*.scss' {
 	export default content;
 }
 
-declare module '@wordpress/block-editor';
+declare module '@wordpress/block-editor' {
+	import type { ComponentType } from 'react';
+
+	export const BlockCanvas: ComponentType< {
+		height?: string | number;
+		styles?: unknown[];
+	} >;
+
+	export const BlockInspector: ComponentType;
+}
 
 declare module '@wordpress/block-library' {
 	export function registerCoreBlocks(): void;
@@ -22,4 +31,6 @@ declare module '@wordpress/editor' {
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	export const store: any;
+
+	export const EditorSnackbars: ComponentType;
 }
