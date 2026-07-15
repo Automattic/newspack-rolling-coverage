@@ -1,0 +1,124 @@
+@use "../variables" as *;
+
+.newspack-rolling-coverage-quick-edit.components-modal__frame {
+	height: 80vh;
+}
+
+.newspack-rolling-coverage-quick-edit-overlay .components-modal__children-container {
+	width: 100%;
+	height: 90%;
+}
+
+.newspack-rolling-coverage-quick-edit-layout {
+	display: flex;
+	height: 100%;
+	box-shadow: 0 0 0 1px $nrc-color-border;
+}
+
+.newspack-rolling-coverage-quick-edit-main {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+// PostTitle renders an <h1.editor-post-title__input>.
+.newspack-rolling-coverage-quick-edit-main .editor-post-title__input {
+	display: block;
+	width: 100%;
+	font-size: 1.6rem;
+	font-weight: 700;
+	line-height: 1.3;
+	padding: $nrc-spacing-md $nrc-spacing-xl;
+	margin: $nrc-spacing-lg 0 0 0;
+	background: $nrc-color-background;
+	min-height: 52px;
+	outline: none;
+	transition:
+		border-color 0.15s ease-in-out,
+		box-shadow 0.15s ease-in-out;
+
+	&:empty::before {
+		content: attr(data-placeholder);
+		color: $nrc-color-chip-remaining;
+	}
+}
+
+.newspack-rolling-coverage-quick-edit-canvas {
+	flex: 1;
+	min-height: 300px;
+	padding: 0 $nrc-spacing-lg $nrc-spacing-xl;
+	overflow: auto;
+
+	iframe {
+		width: 100%;
+		height: 100%;
+		min-height: 300px;
+		border: none;
+	}
+}
+
+.newspack-rolling-coverage-quick-edit-sidebar {
+	width: 300px;
+	flex-shrink: 0;
+	overflow-y: auto;
+	box-shadow: -1px 0 0 0 $nrc-color-border;
+
+	.block-editor-block-inspector {
+		width: 100%;
+	}
+}
+
+.newspack-rolling-coverage-quick-edit-toolbar {
+	display: flex;
+	align-items: center;
+	gap: $nrc-spacing-md;
+	margin-top: $nrc-spacing-lg;
+}
+
+.newspack-rolling-coverage-quick-edit-toolbar .newspack-rolling-coverage-modal-footer {
+	flex: 1;
+	justify-content: flex-end;
+}
+
+// Make the inserter popover wider so blocks are visible properly.
+.block-editor-inserter__quick-inserter {
+	width: 480px;
+	max-width: 480px;
+}
+
+// Higher-specificity overrides scoped to the plugin's admin page.
+.toplevel_page_rolling-coverage .components-popover__fallback-container {
+	position: relative;
+
+	.block-editor-inserter__quick-inserter-expand {
+		display: none;
+	}
+}
+
+.toplevel_page_rolling-coverage .block-editor-block-types-list__list-item {
+	padding: 40px $nrc-spacing-xl;
+}
+
+.toplevel_page_rolling-coverage .newspack-rolling-coverage-quick-edit-toolbar {
+	margin-top: $nrc-spacing-xl;
+
+	.newspack-rolling-coverage-modal-footer {
+		margin-top: 0;
+	}
+}
+
+// Fix popover interaction with Newspack Popups styles.
+body.toplevel_page_rolling-coverage.modal-open .components-popover__content {
+	opacity: 1;
+}
+
+// Editor snackbar notices: position above the toolbar.
+.newspack-rolling-coverage-quick-edit .components-editor-notices__snackbar {
+	bottom: $nrc-spacing-xl;
+	left: 50%;
+	position: absolute;
+	transform: translateX(-50%);
+	width: auto;
+	z-index: 100000;
+}

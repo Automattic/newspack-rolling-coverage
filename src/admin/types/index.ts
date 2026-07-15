@@ -33,6 +33,7 @@ interface AdminConfig {
 	taxMeta: {
 		statusKey: string;
 	};
+	blockEditorSettings: Record< string, unknown >;
 }
 
 interface Context {
@@ -215,6 +216,43 @@ interface TermChipsProps {
 	terms: Array< { link: string; name: string } >;
 }
 
+interface QuickEditModalProps {
+	entryId: number;
+	onClose: () => void;
+	onSaved: () => void;
+}
+
+interface QuickEditSaveBarProps {
+	onClose: () => void;
+	onSaved: () => void;
+}
+
+interface EntityRecord {
+	id: number;
+	type: string;
+	title?: { raw?: string };
+	content?: { raw?: string };
+	status?: string;
+}
+
+/** Selectors from the editor store, typed for the sub-registry. */
+type EditorSelectors = {
+	__unstableIsEditorReady?: () => boolean;
+	isSavingPost: () => boolean;
+	didPostSaveRequestFail: () => boolean;
+	getCurrentPostType: () => string;
+	getCurrentPostId: () => number;
+};
+
+/** Selectors from the core-data store. */
+type CoreSelectors = {
+	getLastEntitySaveError: (
+		kind: string,
+		name: string,
+		recordId: number
+	) => { message?: string } | undefined;
+};
+
 export type {
 	AdminConfig,
 	Context,
@@ -242,4 +280,9 @@ export type {
 	SaveCoverageData,
 	ChipLinkProps,
 	TermChipsProps,
+	QuickEditModalProps,
+	QuickEditSaveBarProps,
+	EntityRecord,
+	EditorSelectors,
+	CoreSelectors,
 };
