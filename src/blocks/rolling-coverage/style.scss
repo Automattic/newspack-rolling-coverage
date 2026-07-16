@@ -12,6 +12,10 @@
 		&--paused {
 			border-left-color: #b32d2e;
 		}
+
+		&--archived {
+			border-left-color: #757575;
+		}
 	}
 
 	.newspack-rolling-coverage-status {
