@@ -324,7 +324,13 @@ class Rolling_Coverage_Block {
 
 		$notice = '';
 
-		if ( 'paused' === $status ) {
+		if ( 'archived' === $status ) {
+			$notice = sprintf(
+				'<p class="%1$s-notice %1$s-notice--archived">%2$s</p>',
+				self::MARKUP_PREFIX,
+				esc_html__( 'This coverage has ended and is preserved as an archive.', 'newspack-rolling-coverage' )
+			);
+		} elseif ( 'paused' === $status ) {
 			$notice = sprintf(
 				'<p class="%1$s-notice %1$s-notice--paused">%2$s</p>',
 				self::MARKUP_PREFIX,

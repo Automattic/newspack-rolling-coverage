@@ -146,8 +146,15 @@ function EntryView() {
 	}, [ config, isValidCoverageId, numericCoverageId ] );
 
 	const actions = useMemo(
-		() => getEntryActions( config, handleQuickEdit, handleActionPerformed ),
-		[ config, handleQuickEdit, handleActionPerformed ]
+		() =>
+			isArchived
+				? []
+				: getEntryActions(
+						config,
+						handleQuickEdit,
+						handleActionPerformed
+				  ),
+		[ isArchived, config, handleQuickEdit, handleActionPerformed ]
 	);
 
 	return (
