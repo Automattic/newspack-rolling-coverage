@@ -34,6 +34,7 @@ class Initializer {
 		Slack::init();
 		Breakout::init();
 		Social_Sharing::init();
+		Archive_Mode::init();
 		Rolling_Coverage_Block::init();
 		Breakout_Post_Link_Block::init();
 		Share_Block::init();

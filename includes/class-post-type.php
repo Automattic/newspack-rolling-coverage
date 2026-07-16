@@ -789,6 +789,13 @@ class Post_Type {
 			);
 		}
 
+		if ( Archive_Mode::is_entry_locked( $entry_id ) ) {
+			return Archive_Mode::archived_error();
+		}
+
+		$previous_status = get_post_meta( $entry_id, self::META_PREVIOUS_STATUS, true );
+		$previous_status = $previous_status ? $previous_status : 'publish';
+
 		$coverage_id      = 0;
 		$coverage_created = false;
 
