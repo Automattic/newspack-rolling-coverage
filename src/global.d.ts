@@ -20,6 +20,16 @@ declare global {
 // files. Only the exports used by this project are declared. The tsconfig.json
 // `paths` entry redirects the import to this file.
 declare module '@wordpress/block-editor' {
+	import type { ComponentType, ReactNode, JSX } from 'react';
+
+	export const BlockCanvas: ComponentType< {
+		height?: string | number;
+		styles?: unknown[];
+		children?: ReactNode;
+	} >;
+
+	export const BlockInspector: ComponentType;
+
 	export function useBlockProps(
 		props?: Record< string, unknown >
 	): Record< string, unknown >;
@@ -49,4 +59,10 @@ declare module '@wordpress/block-editor' {
 	export const InnerBlocks: {
 		Content: () => JSX.Element;
 	};
+}
+
+// Type declarations for @wordpress/block-library, which does not ship .d.ts
+// files.
+declare module '@wordpress/block-library' {
+	export function registerCoreBlocks(): void;
 }

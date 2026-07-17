@@ -15,7 +15,8 @@
 		"allowJs": true,
 		"checkJs": false,
 		"paths": {
-			"@wordpress/block-editor": [ "./src/global.d.ts" ]
+			"@wordpress/block-editor": [ "./src/global.d.ts" ],
+			"@wordpress/block-library": [ "./src/global.d.ts" ]
 		}
 	},
 	"include": [ "src/**/*.ts", "src/**/*.tsx" ]

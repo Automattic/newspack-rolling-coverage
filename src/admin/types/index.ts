@@ -41,6 +41,7 @@ interface AdminConfig {
 	slack: {
 		isConfigured: boolean;
 	};
+	blockEditorSettings: Record< string, unknown >;
 }
 
 interface Context {
@@ -273,6 +274,11 @@ interface SlackConnectionModalProps {
 	onClose: () => void;
 	onSaved: () => void;
 }
+interface QuickEditModalProps {
+	entryId: number;
+	onClose: () => void;
+	onSaved: () => void;
+}
 
 interface SlackErrorProps {
 	message?: string | null;
@@ -390,6 +396,36 @@ interface SettingField {
 	secret?: boolean;
 	help?: string;
 }
+interface QuickEditSaveBarProps {
+	onClose: () => void;
+	onSaved: () => void;
+}
+
+interface EntityRecord {
+	id: number;
+	type: string;
+	title?: { raw?: string };
+	content?: { raw?: string };
+	status?: string;
+}
+
+/** Selectors from the editor store, typed for the sub-registry. */
+type EditorSelectors = {
+	__unstableIsEditorReady?: () => boolean;
+	isSavingPost: () => boolean;
+	didPostSaveRequestFail: () => boolean;
+	getCurrentPostType: () => string;
+	getCurrentPostId: () => number;
+};
+
+/** Selectors from the core-data store. */
+type CoreSelectors = {
+	getLastEntitySaveError: (
+		kind: string,
+		name: string,
+		recordId: number
+	) => { message?: string } | undefined;
+};
 
 export type {
 	AdminConfig,
@@ -439,4 +475,9 @@ export type {
 	SlackChannelsResult,
 	SettingsNotice,
 	AdminTab,
+	QuickEditModalProps,
+	QuickEditSaveBarProps,
+	EntityRecord,
+	EditorSelectors,
+	CoreSelectors,
 };

@@ -7,6 +7,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router';
  * WordPress dependencies
  */
 import { useSelect, useDispatch } from '@wordpress/data';
+import { useEffect, useState } from '@wordpress/element';
 import { store as noticesStore } from '@wordpress/notices';
 import { SnackbarList } from '@wordpress/components';
 
@@ -37,6 +38,23 @@ function App() {
 		[]
 	);
 	const { removeNotice } = useDispatch( noticesStore );
+
+	const [ isModalOpen, setIsModalOpen ] = useState(
+		() =>
+			typeof document !== 'undefined' &&
+			document.body.classList.contains( 'modal-open' )
+	);
+
+	useEffect( () => {
+		const observer = new MutationObserver( () => {
+			setIsModalOpen( document.body.classList.contains( 'modal-open' ) );
+		} );
+		observer.observe( document.body, {
+			attributes: true,
+			attributeFilter: [ 'class' ],
+		} );
+		return () => observer.disconnect();
+	}, [] );
 
 	return (
 		<>
@@ -78,11 +96,13 @@ function App() {
 				</Routes>
 			</HashRouter>
 
-			<SnackbarList
-				notices={ notices }
-				className="newspack-rolling-coverage-snackbar-list"
-				onRemove={ removeNotice }
-			/>
+			{ ! isModalOpen && (
+				<SnackbarList
+					notices={ notices }
+					className="newspack-rolling-coverage-snackbar-list"
+					onRemove={ removeNotice }
+				/>
+			) }
 		</>
 	);
 }
