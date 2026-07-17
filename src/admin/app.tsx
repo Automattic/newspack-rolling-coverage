@@ -17,6 +17,7 @@ import AdminLayout from './components/admin-layout';
 import CoverageView from './components/coverage-view';
 import EntryView from './components/entry-view';
 import ConnectionPage from './components/connection-page';
+import SlackSettingsPage from './components/slack-settings-page';
 import { useAdminContext } from './hooks/useAdminContext';
 
 /**
@@ -26,6 +27,8 @@ import { useAdminContext } from './hooks/useAdminContext';
  * the SPA tracks its own route in the hash. Routes:
  *   /coverages                   — coverage list (auto-redirected from root)
  *   /coverages/{id}              — rolling coverage entries
+ *   /connection                  — connection page (adapter dispatch)
+ *   /connection/{tab}            — adapter-specific settings tab
  */
 function App() {
 	const config = useAdminContext();
@@ -48,7 +51,21 @@ function App() {
 						<Route
 							path="/connection"
 							element={ <ConnectionPage /> }
-						/>
+						>
+							<Route
+								index
+								element={
+									<Navigate
+										to="/connection/credentials"
+										replace
+									/>
+								}
+							/>
+							<Route
+								path=":tab"
+								element={ <SlackSettingsPage /> }
+							/>
+						</Route>
 						<Route
 							path="/coverages/:coverageId"
 							element={ <EntryView /> }

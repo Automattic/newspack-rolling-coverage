@@ -3,6 +3,7 @@
  */
 import { useState, useEffect, useMemo } from '@wordpress/element';
 import { TabPanel } from '@wordpress/components';
+import { Outlet } from 'react-router';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -10,14 +11,13 @@ import { __ } from '@wordpress/i18n';
  */
 import { useAdminContext } from '../hooks/useAdminContext';
 import { getAdapterFromUrl, setAdapterInUrl } from '../utils/adapter-url';
-import SlackSettingsPage from './slack-settings-page';
 
 /**
- * Top-level Connection admin page shell. Renders a TabPanel of registered
- * chat-source adapters and dispatches the body to an adapter-specific
- * component. When a new adapter ships, the only change is adding a case to
- * `renderAdapterBody()` and (separately) registering the adapter in
- * `config.availableAdapters`.
+ * Top-level Connection admin page shell. When multiple chat-source adapters
+ * are registered, renders a TabPanel for adapter selection with the active
+ * adapter's nested route rendered via <Outlet />. When only one adapter
+ * exists (the common case today), the TabPanel is skipped entirely and the
+ * nested route renders directly.
  */
 function ConnectionPage() {
 	const config = useAdminContext();
@@ -34,23 +34,6 @@ function ConnectionPage() {
 		setAdapterInUrl( activeSlug );
 	}, [ activeSlug ] );
 
-	// Adapter dispatch table. Extend this when a new adapter ships.
-	const renderAdapterBody = ( slug: string ) => {
-		switch ( slug ) {
-			case 'slack':
-				return <SlackSettingsPage />;
-			default:
-				return (
-					<p>
-						{ __(
-							'No settings UI is registered for this adapter yet.',
-							'newspack-rolling-coverage'
-						) }
-					</p>
-				);
-		}
-	};
-
 	if ( slugs.length === 0 ) {
 		return (
 			<p>
@@ -62,19 +45,28 @@ function ConnectionPage() {
 		);
 	}
 
+	// Single adapter — no tab chrome needed, just render the nested route.
+	if ( slugs.length <= 1 ) {
+		return <Outlet />;
+	}
+
+	// Multiple adapters — render a TabPanel for adapter selection.
 	const tabs = slugs.map( ( slug ) => ( {
 		name: slug,
 		title: adapters[ slug ],
 	} ) );
 
 	return (
-		<TabPanel
-			tabs={ tabs }
-			initialTabName={ initialSlug }
-			onSelect={ ( tabName: string ) => setActiveSlug( tabName ) }
-		>
-			{ ( tab ) => renderAdapterBody( tab.name ) }
-		</TabPanel>
+		<>
+			<TabPanel
+				tabs={ tabs }
+				initialTabName={ initialSlug }
+				onSelect={ ( tabName: string ) => setActiveSlug( tabName ) }
+			>
+				{ () => null }
+			</TabPanel>
+			<Outlet />
+		</>
 	);
 }
 

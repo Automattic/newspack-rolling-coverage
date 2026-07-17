@@ -10,7 +10,6 @@ import { __ } from '@wordpress/i18n';
 import type {
 	ChannelMapping,
 	SettingsNotice,
-	AdminTab,
 	SlackSettingsInfo,
 } from '../types';
 import { useAdminContext } from './useAdminContext';
@@ -324,25 +323,6 @@ function useSlackSettings() {
 		[ restUrl ]
 	);
 
-	const tabs: AdminTab[] = [
-		{
-			name: 'credentials',
-			title: __( 'Credentials', 'newspack-rolling-coverage' ),
-		},
-		{
-			name: 'channels',
-			title: __( 'Channel Mappings', 'newspack-rolling-coverage' ),
-		},
-		{
-			name: 'settings',
-			title: __( 'Settings', 'newspack-rolling-coverage' ),
-		},
-		{
-			name: 'setup',
-			title: __( 'Setup Guide', 'newspack-rolling-coverage' ),
-		},
-	];
-
 	return {
 		// State
 		botToken,
@@ -362,7 +342,6 @@ function useSlackSettings() {
 		clearNotice,
 		// Computed
 		manifestJson,
-		tabs,
 		editUserUrl,
 		// Derived
 		isConfigured: slack.isConfigured,

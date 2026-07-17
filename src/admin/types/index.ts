@@ -314,6 +314,15 @@ interface ChannelsTableProps {
 	onAutopublishChange: ( channelId: string, autopublish: boolean ) => void;
 }
 
+interface SlackBotUserInfo {
+	id: number;
+	login: string;
+	display_name: string;
+	email: string;
+	roles: string[];
+	edit_url: string;
+}
+
 interface SlackSettingsInfo {
 	connected: boolean;
 	workspace_name: string;
@@ -322,6 +331,7 @@ interface SlackSettingsInfo {
 	bot_user_id: number;
 	slack_bot_user_id?: string;
 	masked_token: string;
+	bot_user?: SlackBotUserInfo;
 }
 
 interface CredentialsTabProps {
@@ -333,7 +343,6 @@ interface CredentialsTabProps {
 	isVerifying: boolean;
 	isDisconnecting: boolean;
 	workspaceInfo: SlackSettingsInfo | null;
-	editUserUrl: string;
 	onVerify: () => void;
 	onDisconnect: () => void;
 }
@@ -344,6 +353,8 @@ interface IngestionSettingsTabProps {
 	setIgnorePrefix: ( v: string ) => void;
 	isSavingSettings: boolean;
 	onSaveSettings: () => void;
+	workspaceInfo: SlackSettingsInfo | null;
+	editUserUrl: string;
 }
 
 interface ChannelsTabProps {
@@ -420,6 +431,7 @@ export type {
 	SetupGuideTabProps,
 	IngestionSettingsTabProps,
 	SlackSettingsInfo,
+	SlackBotUserInfo,
 	IncomingMessage,
 	SettingField,
 	SlackConnectResult,

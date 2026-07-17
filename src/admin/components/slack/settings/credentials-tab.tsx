@@ -24,10 +24,10 @@ import { SlackIcon } from '../../../shared/icons/slack-icon';
 /**
  * Renders the Credentials tab. When Slack is already configured, shows the
  * "Connection Status" card with the connected workspace's identity details
- * (workspace name/ID, masked bot token, Slack bot user ID, and the WordPress
- * bot user — linked to its edit screen) and a Disconnect action. When not yet
- * configured, shows the "Connect to Slack" card with Bot User OAuth Token and
- * Signing Secret password fields and the Verify & Connect action.
+ * (workspace name/ID, masked bot token, Slack bot user ID) and a Disconnect
+ * action. When not yet configured, shows the "Connect to Slack" card with Bot
+ * User OAuth Token and Signing Secret password fields and the Verify &
+ * Connect action.
  *
  * @param {Object}                   props                  - Component props.
  * @param {boolean}                  props.isConfigured     - Whether Slack is currently connected.
@@ -38,7 +38,6 @@ import { SlackIcon } from '../../../shared/icons/slack-icon';
  * @param {boolean}                  props.isVerifying      - Whether the verify/connect request is in flight.
  * @param {boolean}                  props.isDisconnecting  - Whether the disconnect request is in flight.
  * @param {SlackSettingsInfo | null} props.workspaceInfo    - Fetched workspace settings, or null.
- * @param {string}                   props.editUserUrl      - Base admin URL for editing a WordPress user.
  * @param {() => void}               props.onVerify         - Verify & Connect handler.
  * @param {() => void}               props.onDisconnect     - Disconnect handler.
  */
@@ -51,7 +50,6 @@ function CredentialsTab( {
 	isVerifying,
 	isDisconnecting,
 	workspaceInfo,
-	editUserUrl,
 	onVerify,
 	onDisconnect,
 }: CredentialsTabProps ) {
@@ -117,25 +115,6 @@ function CredentialsTab( {
 							<code>
 								{ workspaceInfo?.slack_bot_user_id || '—' }
 							</code>
-						</div>
-						<div>
-							<strong>
-								{ __(
-									'WordPress bot user:',
-									'newspack-rolling-coverage'
-								) }
-							</strong>{ ' ' }
-							{ workspaceInfo?.bot_user_id ? (
-								<a
-									href={ `${ editUserUrl }?user_id=${ workspaceInfo.bot_user_id }` }
-									target="_blank"
-									rel="noopener noreferrer"
-								>
-									{ `#${ workspaceInfo.bot_user_id }` }
-								</a>
-							) : (
-								<span>—</span>
-							) }
 						</div>
 					</VStack>
 				</CardBody>
