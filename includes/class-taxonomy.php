@@ -32,6 +32,17 @@ class Taxonomy {
 	const META_SOURCE_REF = 'rolling_coverage_source_ref';
 
 	/**
+	 * Term meta keys that are sensitive and should only be exposed in the edit
+	 * context (authenticated requests with manage_options capability).
+	 */
+	const RESTRICTED_META = [
+		self::META_SLACK_CHANNEL_ID,
+		self::META_SLACK_CHANNEL_NAME,
+		self::META_SOURCE,
+		self::META_SOURCE_REF,
+	];
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -178,17 +189,6 @@ class Taxonomy {
 
 		return [ 'publish', 'draft', 'pending', 'future', 'private' ];
 	}
-
-	/**
-	 * Term meta keys that are sensitive and should only be exposed in the edit
-	 * context (authenticated requests with manage_options capability).
-	 */
-	const RESTRICTED_META = [
-		self::META_SLACK_CHANNEL_ID,
-		self::META_SLACK_CHANNEL_NAME,
-		self::META_SOURCE,
-		self::META_SOURCE_REF,
-	];
 
 	/**
 	 * Strip sensitive Slack channel and source term meta from the REST
