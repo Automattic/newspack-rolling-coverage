@@ -41,8 +41,8 @@ class Admin {
 
 		add_submenu_page(
 			self::MENU_SLUG,
-			__( 'Views', 'newspack-rolling-coverage' ),
-			__( 'Views', 'newspack-rolling-coverage' ),
+			__( 'All Rolling Coverages', 'newspack-rolling-coverage' ),
+			__( 'All Rolling Coverages', 'newspack-rolling-coverage' ),
 			'edit_posts',
 			self::MENU_SLUG,
 			array( __CLASS__, 'render_page' )
@@ -50,8 +50,8 @@ class Admin {
 
 		add_submenu_page(
 			self::MENU_SLUG,
-			__( 'Connection', 'newspack-rolling-coverage' ),
-			__( 'Connection', 'newspack-rolling-coverage' ),
+			__( 'Slack Connection', 'newspack-rolling-coverage' ),
+			__( 'Slack Connection', 'newspack-rolling-coverage' ),
 			'manage_options',
 			self::CONNECTION_MENU_SLUG,
 			array( __CLASS__, 'render_page' )

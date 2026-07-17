@@ -17,6 +17,12 @@ class Slack_API_Client {
 	const API_BASE_URL = 'https://slack.com/api/';
 	const TIMEOUT      = 3;
 
+	/**
+	 * Short timeout for API calls made from within the Slack webhook handler,
+	 * where the total response must stay under Slack's 3-second webhook limit.
+	 */
+	const WEBHOOK_TIMEOUT = 1;
+
 	const TRANSIENT_USER_CACHE = 'rolling_coverage_slack_user_';
 
 	/**
@@ -50,9 +56,10 @@ class Slack_API_Client {
 	 * Get user info from Slack, with a 5-minute transient cache.
 	 *
 	 * @param string $user_id Slack user ID.
+	 * @param int    $timeout Optional request timeout in seconds. Defaults to self::TIMEOUT.
 	 * @return array|\WP_Error User profile array or \WP_Error.
 	 */
-	public function get_user_info( string $user_id ): array|\WP_Error {
+	public function get_user_info( string $user_id, int $timeout = self::TIMEOUT ): array|\WP_Error {
 		$cache_key = self::TRANSIENT_USER_CACHE . $user_id;
 		$cached    = get_transient( $cache_key );
 
@@ -60,7 +67,7 @@ class Slack_API_Client {
 			return $cached;
 		}
 
-		$result = $this->request( 'users.info', [ 'user' => $user_id ], 'GET' );
+		$result = $this->request( 'users.info', [ 'user' => $user_id ], 'GET', $timeout );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
@@ -252,9 +259,10 @@ class Slack_API_Client {
 	 * @param string $endpoint Slack API endpoint (e.g. 'chat.postMessage').
 	 * @param array  $args     Query/body parameters.
 	 * @param string $method   HTTP method ('GET' or 'POST').
+	 * @param int    $timeout  Optional request timeout in seconds. Defaults to self::TIMEOUT.
 	 * @return array|\WP_Error Response body array or \WP_Error.
 	 */
-	private function request( string $endpoint, array $args = [], string $method = 'GET' ): array|\WP_Error {
+	private function request( string $endpoint, array $args = [], string $method = 'GET', int $timeout = self::TIMEOUT ): array|\WP_Error {
 		$token = Slack_Config::get_bot_token();
 
 		if ( '' === $token ) {
@@ -270,23 +278,23 @@ class Slack_API_Client {
 
 		if ( 'POST' === $method ) {
 			$headers['Content-Type'] = 'application/json';
-			
+
 			$response = wp_safe_remote_post(
 				$url,
 				[
 					'headers' => $headers,
 					'body'    => wp_json_encode( $args ),
-					'timeout' => self::TIMEOUT,
+					'timeout' => $timeout,
 				]
 			);
 		} else {
-			$url = add_query_arg( $args, $url );
+			$url = add_query_arg( array_map( 'rawurlencode', $args ), $url );
 			
 			$response = wp_safe_remote_get(
 				$url,
 				[
 					'headers' => $headers,
-					'timeout' => self::TIMEOUT,
+					'timeout' => $timeout,
 				]
 			);
 		}

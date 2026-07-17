@@ -15,14 +15,11 @@ defined( 'ABSPATH' ) || exit;
 class Entry_Ingestion_Service {
 
 	/**
-	 * Transient mutex key prefix. Final key is `prefix . md5( source . ':' . source_ref )`.
+	 * Mutex option key prefix. Final key is `prefix . md5( source . ':' . source_ref )`.
 	 *
 	 * @var string
 	 */
 	const MUTEX_PREFIX = 'rolling_coverage_source_ingest_';
-
-	// Mutex lifetime, in seconds.
-	const MUTEX_TTL = 60;
 
 	// Title truncation length.
 	const TITLE_LENGTH = 50;
@@ -46,66 +43,73 @@ class Entry_Ingestion_Service {
 	) {
 		$lock_key = self::MUTEX_PREFIX . md5( $payload->source . ':' . $payload->source_ref );
 
-		if ( ! set_transient( $lock_key, 1, self::MUTEX_TTL ) ) {
+		// add_option() is atomic — it does an INSERT and returns false if the
+		// option already exists, making it safe from TOCTOU races unlike
+		// set_transient() which always overwrites and returns true.
+		if ( ! add_option( $lock_key, time(), '', false ) ) {
 			// Another request is already processing this pair; skip silently.
 			return 0;
 		}
 
-		if ( self::entry_exists( $payload->source_ref, $term_id ) ) {
-			return 0;
-		}
-
-		if ( '' === $payload->content_html ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( 'Source ingestion: empty content, skipping.' );
-			return 0;
-		}
-
-		if ( $bot_user_id <= 0 ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( 'Source ingestion: bot user unavailable, skipping entry.' );
-			return 0;
-		}
-
-		$postarr = [
-			'post_type'    => Post_Type::CPT_SLUG,
-			'post_title'   => self::truncate( wp_strip_all_tags( $payload->content_html ), self::TITLE_LENGTH ),
-			'post_content' => $payload->content_html,
-			'post_author'  => $bot_user_id,
-			'post_status'  => $auto_publish ? 'publish' : 'draft',
-		];
-
 		try {
-			$post_id = wp_insert_post( $postarr, true );
-		} catch ( \Throwable $e ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( 'Source ingestion: wp_insert_post exception: ' . $e->getMessage() );
-			return new \WP_Error( 'rolling_coverage_insert_exception', $e->getMessage() );
-		}
-
-		if ( is_wp_error( $post_id ) ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( 'Source ingestion: wp_insert_post error: ' . $post_id->get_error_message() );
-			return $post_id;
-		}
-
-		$post_id = (int) $post_id;
-
-		wp_set_object_terms( $post_id, [ $term_id ], Taxonomy::TAXONOMY_SLUG );
-
-		// Canonical dedup key — must not duplicate, hence the unique flag.
-		add_post_meta( $post_id, Post_Type::META_SOURCE_REF, $payload->source_ref, true );
-		add_post_meta( $post_id, Post_Type::META_ENTRY_SOURCE, $payload->source );
-
-		foreach ( $provenance_meta as $meta_key => $meta_value ) {
-			if ( ! is_string( $meta_key ) || '' === $meta_key ) {
-				continue;
+			if ( self::entry_exists( $payload->source_ref, $term_id ) ) {
+				return 0;
 			}
 
-			add_post_meta( $post_id, $meta_key, $meta_value );
-		}
+			if ( '' === $payload->content_html ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( 'Source ingestion: empty content, skipping.' );
+				return 0;
+			}
 
-		return $post_id;
+			if ( $bot_user_id <= 0 ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( 'Source ingestion: bot user unavailable, skipping entry.' );
+				return 0;
+			}
+
+			$postarr = [
+				'post_type'    => Post_Type::CPT_SLUG,
+				'post_title'   => self::truncate( $payload->content_plain, self::TITLE_LENGTH ),
+				'post_content' => $payload->content_html,
+				'post_author'  => $bot_user_id,
+				'post_status'  => $auto_publish ? 'publish' : 'draft',
+			];
+
+			try {
+				$post_id = wp_insert_post( $postarr, true );
+			} catch ( \Throwable $e ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( 'Source ingestion: wp_insert_post exception: ' . $e->getMessage() );
+				return new \WP_Error( 'rolling_coverage_insert_exception', $e->getMessage() );
+			}
+
+			if ( is_wp_error( $post_id ) ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( 'Source ingestion: wp_insert_post error: ' . $post_id->get_error_message() );
+				return $post_id;
+			}
+
+			$post_id = (int) $post_id;
+
+			wp_set_object_terms( $post_id, [ $term_id ], Taxonomy::TAXONOMY_SLUG );
+
+			// Canonical dedup key — must not duplicate, hence the unique flag.
+			add_post_meta( $post_id, Post_Type::META_SOURCE_REF, $payload->source_ref, true );
+			add_post_meta( $post_id, Post_Type::META_ENTRY_SOURCE, $payload->source );
+
+			foreach ( $provenance_meta as $meta_key => $meta_value ) {
+				if ( ! is_string( $meta_key ) || '' === $meta_key ) {
+					continue;
+				}
+
+				add_post_meta( $post_id, $meta_key, $meta_value );
+			}
+
+			return $post_id;
+		} finally {
+			delete_option( $lock_key );
+		}
 	}
 
 	/**

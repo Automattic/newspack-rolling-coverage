@@ -28,14 +28,28 @@ class Post_Type {
 	const META_SLACK_THREAD_TS   = 'rolling_coverage_slack_thread_ts';
 
 	// Generic chat-source post-meta key: the canonical dedup key for any chat-source adapter
-	// Used by Entry_Ingestion_Service::ingest()'s transient mutex and meta_query dedup.
+	// Used by Entry_Ingestion_Service::ingest()'s add_option mutex and meta_query dedup.
 	const META_SOURCE_REF = 'rolling_coverage_source_ref';
+
+	/**
+	 * Meta keys that are sensitive and should only be exposed in the edit
+	 * context (authenticated requests with edit_posts capability).
+	 */
+	const RESTRICTED_META = [
+		self::META_SLACK_TS,
+		self::META_SLACK_USER_ID,
+		self::META_SLACK_AUTHOR_NAME,
+		self::META_SLACK_CHANNEL_ID,
+		self::META_SLACK_THREAD_TS,
+		self::META_SOURCE_REF,
+	];
 
 	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register' ] );
+		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 	}
 
 	/**
@@ -129,5 +143,39 @@ class Post_Type {
 		foreach ( $source_meta as $meta_key => $meta_args ) {
 			register_post_meta( self::CPT_SLUG, $meta_key, $meta_args );
 		}
+	}
+
+	/**
+	 * Strip sensitive Slack/source meta from the REST response for requests
+	 * that are not in the edit context. The edit context is only available to
+	 * authenticated users with edit_posts capability, so unauthenticated
+	 * requests (view context) will have these meta keys removed.
+	 *
+	 * META_ENTRY_SOURCE is left exposed because it is non-sensitive (a
+	 * simple source identifier) and may be used by the frontend.
+	 *
+	 * @param \WP_REST_Response $response The REST response object.
+	 * @param \WP_Post          $post     Post object.
+	 * @param \WP_REST_Request  $request  Full details about the request.
+	 * @return \WP_REST_Response Filtered response.
+	 */
+	public static function filter_rest_response( \WP_REST_Response $response, \WP_Post $post, \WP_REST_Request $request ): \WP_REST_Response {
+		$context = $request->get_param( 'context' );
+
+		if ( 'edit' === $context ) {
+			return $response;
+		}
+
+		$data = $response->get_data();
+
+		if ( isset( $data['meta'] ) && is_array( $data['meta'] ) ) {
+			foreach ( self::RESTRICTED_META as $meta_key ) {
+				unset( $data['meta'][ $meta_key ] );
+			}
+		}
+
+		$response->set_data( $data );
+
+		return $response;
 	}
 }

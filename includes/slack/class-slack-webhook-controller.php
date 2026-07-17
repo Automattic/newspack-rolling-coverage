@@ -31,37 +31,17 @@ class Slack_Webhook_Controller {
 	private $signature_verifier;
 
 	/**
-	 * Author resolver.
-	 *
-	 * @var Slack_Author_Resolver
-	 */
-	private $author_resolver;
-
-	/**
-	 * Content processor.
-	 *
-	 * @var Slack_Content_Processor
-	 */
-	private $content_processor;
-
-	/**
 	 * Constructor.
 	 *
 	 * @param Slack_API_Client         $api_client         API client.
 	 * @param Slack_Signature_Verifier $signature_verifier Signature verifier.
-	 * @param Slack_Author_Resolver    $author_resolver    Author resolver.
-	 * @param Slack_Content_Processor  $content_processor  Content processor.
 	 */
 	public function __construct(
 		Slack_API_Client $api_client,
-		Slack_Signature_Verifier $signature_verifier,
-		Slack_Author_Resolver $author_resolver,
-		Slack_Content_Processor $content_processor
+		Slack_Signature_Verifier $signature_verifier
 	) {
 		$this->api_client         = $api_client;
 		$this->signature_verifier = $signature_verifier;
-		$this->author_resolver    = $author_resolver;
-		$this->content_processor  = $content_processor;
 	}
 
 	/**
@@ -445,6 +425,23 @@ class Slack_Webhook_Controller {
 		$settings = Slack_Config::get_settings();
 		$settings['masked_token'] = Slack_Config::get_masked_bot_token();
 
+		$bot_user_id = (int) ( $settings['bot_user_id'] ?? 0 );
+
+		if ( $bot_user_id > 0 ) {
+			$user = get_user_by( 'id', $bot_user_id );
+
+			if ( $user ) {
+				$settings['bot_user'] = [
+					'id'           => (int) $user->ID,
+					'login'        => (string) $user->user_login,
+					'display_name' => (string) $user->display_name,
+					'email'        => (string) $user->user_email,
+					'roles'        => (array) $user->roles,
+					'edit_url'     => (string) admin_url( 'user-edit.php?user_id=' . $user->ID ),
+				];
+			}
+		}
+
 		return new \WP_REST_Response( $settings, 200 );
 	}
 
@@ -584,7 +581,7 @@ class Slack_Webhook_Controller {
 		if ( is_wp_error( $info ) ) {
 			return self::rest_error( 'channel_not_found' );
 		}
-		
+
 		if ( '' === $channel_name ) {
 			$channel_name = (string) ( $info['channel']['name'] ?? '' );
 		}
@@ -775,15 +772,13 @@ class Slack_Webhook_Controller {
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
-			// 2. Slack-specific config lookups.
+			// 2. Slack-specific config lookups (synchronous — fast, no outbound calls).
 			$channel_id = (string) ( $event['channel'] ?? '' );
 			$ts         = (string) ( $event['ts'] ?? '' );
 			$user_id    = (string) ( $event['user'] ?? '' );
-			$text       = (string) ( $event['text'] ?? '' );
-			$thread_ts  = (string) ( $event['thread_ts'] ?? '' );
 
 			if ( '' === $channel_id || '' === $ts || '' === $user_id ) {
-				error_log( 'Slack ingestion: missing channel/ts/user, skipping.' ); // phpcs:ignore
+				error_log( 'Slack ingestion: missing channel/ts/user, skipping.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
@@ -801,59 +796,19 @@ class Slack_Webhook_Controller {
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
-			// 3. Slack-specific content + author resolution (adapters own these).
-			$user_info   = $this->api_client->get_user_info( $user_id );
-			$author_name = ( is_wp_error( $user_info ) || empty( $user_info ) )
-				? 'User ' . $user_id
-				: (string) ( $user_info['profile']['display_name'] ?? $user_info['profile']['real_name'] ?? $user_info['name'] ?? 'User ' . $user_id );
-			$content      = $this->content_processor->process( $text );
-			$auto_publish = Slack_Config::is_autopublish_enabled( $channel_id );
-			$bot_user_id  = Slack_Author_Resolver::get_slack_bot_user_id();
-
-			// 4. Build the normalized payload.
-			$payload = new \Newspack_Rolling_Coverage\Source_Event_Payload(
-				source: 'slack',
-				source_ref: $ts,
-				conversation_ref: $channel_id,
-				author_external_id: $user_id,
-				author_display_name: $author_name,
-				content_html: $content,
-				thread_ref: '' !== $thread_ts ? $thread_ts : null,
-				external_timestamp: (string) ( is_numeric( $ts ) ? gmdate( 'c', (int) ( (float) $ts ) ) : '' ),
-				raw_payload: $event
+			// 3. Process this message inline. The 1s API timeout for the
+			// outbound users.info call keeps the total webhook response well
+			// under Slack's 3-second limit.
+			self::process_ingest_payload(
+				[
+					'event'        => $event,
+					'term_id'      => $term_id,
+					'channel_id'   => $channel_id,
+					'ts'           => $ts,
+					'user_id'      => $user_id,
+					'auto_publish' => Slack_Config::is_autopublish_enabled( $channel_id ),
+				]
 			);
-
-			// 5. Slack-specific provenance meta (the adapter writes its own keys alongside the generic ones).
-			$provenance_meta = [
-				Post_Type::META_SLACK_TS          => $ts,
-				Post_Type::META_SLACK_CHANNEL_ID  => $channel_id,
-				Post_Type::META_SLACK_USER_ID     => $user_id,
-				Post_Type::META_SLACK_THREAD_TS   => $thread_ts,
-				Post_Type::META_SLACK_AUTHOR_NAME => $author_name,
-			];
-
-			// 6. Call the generic ingestion service.
-			$post_id = \Newspack_Rolling_Coverage\Entry_Ingestion_Service::ingest(
-				$payload,
-				$term_id,
-				$auto_publish,
-				$bot_user_id,
-				$provenance_meta
-			);
-
-			if ( is_wp_error( $post_id ) || $post_id <= 0 ) {
-				if ( is_wp_error( $post_id ) ) {
-					error_log( 'Slack ingestion: entry creation failed — ' . $post_id->get_error_code() . ': ' . $post_id->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				} else {
-					error_log( 'Slack ingestion: entry not created for ts ' . $ts . ' (skipped by ingest service: duplicate, empty content, or bot user unavailable). Check preceding log entries for the reason.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				}
-				return new \WP_REST_Response( [ 'ok' => true ], 200 );
-			}
-
-			// 7. Adapter-specific side effects: last_sync_ts update.
-			Slack_Config::update_channel( $channel_id, [ 'last_sync_ts' => $ts ] );
-
-			error_log( 'Slack ingestion: created entry #' . (int) $post_id . ' for channel ' . $channel_id . ' (term ' . $term_id . ', status ' . ( $auto_publish ? 'publish' : 'draft' ) . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 			return new \WP_REST_Response( [ 'ok' => true ], 200 );
 		}
@@ -891,6 +846,18 @@ class Slack_Webhook_Controller {
 		$channel_id   = (string) ( $params['channel_id'] ?? '' );
 		$channel_name = (string) ( $params['channel_name'] ?? '' );
 		$trigger_id   = (string) ( $params['trigger_id'] ?? '' );
+
+		// Secondary defense-in-depth (signature verifier is the primary trust
+		// boundary): confirm the command's team matches the workspace bound to
+		// this Slack app on first connect. A signed payload from a different
+		// workspace must not be able to unlink or inspect channel-term linkages
+		// even if signing material leaked.
+		$payload_team = (string) ( $params['team_id'] ?? '' );
+		$stored_team  = (string) ( Slack_Config::get_settings()['workspace_id'] ?? '' );
+
+		if ( '' !== $stored_team && '' !== $payload_team && $payload_team !== $stored_team ) {
+			return $this->ephemeral( __( 'This command is not available for your workspace.', 'newspack-rolling-coverage' ) );
+		}
 
 		switch ( $command ) {
 			case '/rolling-coverage-connect':
@@ -1036,7 +1003,7 @@ class Slack_Webhook_Controller {
 		wp_parse_str( $raw_body, $params );
 
 		$payload_str = (string) ( $params['payload'] ?? '' );
-		$payload     = json_decode( wp_unslash( $payload_str ), true );
+		$payload     = json_decode( $payload_str, true );
 
 		if ( ! is_array( $payload ) ) {
 			return new \WP_REST_Response( [ 'ok' => true ], 200 );
@@ -1362,5 +1329,95 @@ class Slack_Webhook_Controller {
 				)
 				: __( '🔌 This channel is no longer connected to rolling coverage.', 'newspack-rolling-coverage' )
 		);
+	}
+
+	/**
+	 * Core ingestion pipeline. Performs author resolution (with a 1s API
+	 * timeout to stay under Slack's 3s webhook limit), content processing,
+	 * and DB writes.
+	 *
+	 * @param array $payload Pre-validated payload with event + resolved IDs.
+	 * @return void
+	 */
+	protected static function process_ingest_payload( array $payload ): void {
+		$event        = $payload['event'] ?? [];
+		$term_id      = (int) ( $payload['term_id'] ?? 0 );
+		$channel_id   = (string) ( $payload['channel_id'] ?? '' );
+		$ts           = (string) ( $payload['ts'] ?? '' );
+		$user_id      = (string) ( $payload['user_id'] ?? '' );
+		$auto_publish = (bool) ( $payload['auto_publish'] ?? false );
+
+		if ( $term_id <= 0 || '' === $channel_id || '' === $ts || '' === $user_id ) {
+			error_log( 'Slack ingestion: invalid payload, skipping.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return;
+		}
+
+		$text      = (string) ( $event['text'] ?? '' );
+		$thread_ts = (string) ( $event['thread_ts'] ?? '' );
+
+		// Fresh instances — this runs in the webhook request without the
+		// controller's injected dependencies.
+		$api_client        = new Slack_API_Client();
+		$content_processor = new Slack_Content_Processor();
+
+		// 1. Author resolution via outbound Slack API call. Use the short
+		// webhook timeout (1s) to stay under Slack's 3s webhook limit.
+		$user_info   = $api_client->get_user_info( $user_id, Slack_API_Client::WEBHOOK_TIMEOUT );
+		$author_name = ( is_wp_error( $user_info ) || empty( $user_info ) )
+			? 'User ' . $user_id
+			: (string) ( $user_info['profile']['display_name'] ?? $user_info['profile']['real_name'] ?? $user_info['name'] ?? 'User ' . $user_id );
+
+		// 2. Content processing.
+		$content       = $content_processor->process( $text );
+		$content_plain = $content_processor->to_plain_text_sanitized( $text );
+
+		// 3. Bot user resolution.
+		$bot_user_id = Slack_Author_Resolver::get_slack_bot_user_id();
+
+		// 4. Build the normalized payload.
+		$source_payload = new Source_Event_Payload(
+			source: 'slack',
+			source_ref: $ts,
+			conversation_ref: $channel_id,
+			author_external_id: $user_id,
+			author_display_name: $author_name,
+			content_html: $content,
+			content_plain: $content_plain,
+			thread_ref: '' !== $thread_ts ? $thread_ts : null,
+			external_timestamp: (string) ( is_numeric( $ts ) ? gmdate( 'c', (int) ( (float) $ts ) ) : '' ),
+			raw_payload: $event
+		);
+
+		// 5. Slack-specific provenance meta.
+		$provenance_meta = [
+			Post_Type::META_SLACK_TS          => $ts,
+			Post_Type::META_SLACK_CHANNEL_ID  => $channel_id,
+			Post_Type::META_SLACK_USER_ID     => $user_id,
+			Post_Type::META_SLACK_THREAD_TS   => $thread_ts,
+			Post_Type::META_SLACK_AUTHOR_NAME => $author_name,
+		];
+
+		// 6. Call the generic ingestion service.
+		$post_id = Entry_Ingestion_Service::ingest(
+			$source_payload,
+			$term_id,
+			$auto_publish,
+			$bot_user_id,
+			$provenance_meta
+		);
+
+		if ( is_wp_error( $post_id ) || $post_id <= 0 ) {
+			if ( is_wp_error( $post_id ) ) {
+				error_log( 'Slack ingestion: entry creation failed — ' . $post_id->get_error_code() . ': ' . $post_id->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			} else {
+				error_log( 'Slack ingestion: entry not created for ts ' . $ts . ' (skipped by ingest service: duplicate, empty content, or bot user unavailable). Check preceding log entries for the reason.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			}
+			return;
+		}
+
+		// 7. Adapter-specific side effects: last_sync_ts update.
+		Slack_Config::update_channel( $channel_id, [ 'last_sync_ts' => $ts ] );
+
+		error_log( 'Slack ingestion: created entry #' . (int) $post_id . ' for channel ' . $channel_id . ' (term ' . $term_id . ', status ' . ( $auto_publish ? 'publish' : 'draft' ) . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 }

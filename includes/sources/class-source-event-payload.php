@@ -23,6 +23,7 @@ class Source_Event_Payload {
 	 * @param string|null $author_external_id   Platform-native author id.
 	 * @param string|null $author_display_name  Resolved display name.
 	 * @param string      $content_html         Sanitized HTML body.
+	 * @param string      $content_plain        Un-escaped plain text (for title derivation).
 	 * @param string|null $thread_ref           Platform-native thread id.
 	 * @param string      $external_timestamp   ISO 8601 timestamp.
 	 * @param array       $raw_payload          Original platform-native payload.
@@ -34,6 +35,7 @@ class Source_Event_Payload {
 		public ?string $author_external_id,
 		public ?string $author_display_name,
 		public string $content_html,
+		public string $content_plain,
 		public ?string $thread_ref,
 		public string $external_timestamp,
 		public array $raw_payload,

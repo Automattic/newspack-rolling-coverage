@@ -333,6 +333,12 @@ class Slack_Config {
 			if ( $term_id > 0 ) {
 				delete_term_meta( $term_id, self::TERM_META_CHANNEL_ID );
 				delete_term_meta( $term_id, self::TERM_META_CHANNEL_NAME );
+
+				// Mirror the generic source term-meta cleanup from
+				// unlink_channel_to_term() so a full disconnect leaves no
+				// orphaned source linkage behind.
+				delete_term_meta( $term_id, Taxonomy::META_SOURCE );
+				delete_term_meta( $term_id, Taxonomy::META_SOURCE_REF );
 			}
 
 			/** This action is documented in includes/slack/class-slack-webhook-controller.php. */

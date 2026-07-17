@@ -39,6 +39,7 @@ class Taxonomy {
 		add_action( 'created_' . self::TAXONOMY_SLUG, [ __CLASS__, 'set_term_created_date' ] );
 		add_action( 'edited_' . self::TAXONOMY_SLUG, [ __CLASS__, 'update_term_modified_date' ] );
 		add_filter( 'update_post_term_count_statuses', [ __CLASS__, 'count_all_visible_statuses' ], 10, 2 );
+		add_filter( 'rest_prepare_' . self::TAXONOMY_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 	}
 
 	/**
@@ -176,5 +177,47 @@ class Taxonomy {
 		}
 
 		return [ 'publish', 'draft', 'pending', 'future', 'private' ];
+	}
+
+	/**
+	 * Term meta keys that are sensitive and should only be exposed in the edit
+	 * context (authenticated requests with manage_options capability).
+	 */
+	const RESTRICTED_META = [
+		self::META_SLACK_CHANNEL_ID,
+		self::META_SLACK_CHANNEL_NAME,
+		self::META_SOURCE,
+		self::META_SOURCE_REF,
+	];
+
+	/**
+	 * Strip sensitive Slack channel and source term meta from the REST
+	 * response for requests that are not in the edit context. The
+	 * auth_callback on these meta keys only restricts writes, so read access
+	 * must be blocked separately here.
+	 *
+	 * @param \WP_REST_Response $response The REST response object.
+	 * @param \WP_Term          $item     Term object.
+	 * @param \WP_REST_Request  $request  Full details about the request.
+	 * @return \WP_REST_Response Filtered response.
+	 */
+	public static function filter_rest_response( \WP_REST_Response $response, \WP_Term $item, \WP_REST_Request $request ): \WP_REST_Response {
+		$context = $request->get_param( 'context' );
+
+		if ( 'edit' === $context ) {
+			return $response;
+		}
+
+		$data = $response->get_data();
+
+		if ( isset( $data['meta'] ) && is_array( $data['meta'] ) ) {
+			foreach ( self::RESTRICTED_META as $meta_key ) {
+				unset( $data['meta'][ $meta_key ] );
+			}
+		}
+
+		$response->set_data( $data );
+
+		return $response;
 	}
 }

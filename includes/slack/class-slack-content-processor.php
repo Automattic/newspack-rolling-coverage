@@ -28,6 +28,22 @@ class Slack_Content_Processor {
 	}
 
 	/**
+	 * Convert Slack text to un-escaped plain text (for title derivation).
+	 *
+	 * This is the un-escaped counterpart to process(): it returns the plain
+	 * text after Slack markup resolution and tag stripping, but BEFORE
+	 * esc_html() is applied in wrap_in_gutenberg_block(). The ingestion
+	 * service uses this for post_title so entities like AT&T are not
+	 * double-encoded as AT&amp;T.
+	 *
+	 * @param string $text Raw Slack message text.
+	 * @return string Un-escaped plain text (tags stripped, no HTML encoding).
+	 */
+	public function to_plain_text_sanitized( string $text ): string {
+		return (string) wp_strip_all_tags( $this->to_plain_text( $text ) );
+	}
+
+	/**
 	 * Convert Slack-specific markup to plain text.
 	 *
 	 * @param string $text Raw Slack text.

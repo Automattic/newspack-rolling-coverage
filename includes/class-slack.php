@@ -64,16 +64,10 @@ class Slack {
 		$signature_verifier = new Slack_Signature_Verifier( Slack_Config::get_signing_secret() );
 		// Outbound Slack API calls: auth.test, conversations.info, users.info, chat.postMessage.
 		$api_client = new Slack_API_Client();
-		// Maps Slack authors to display names + resolves the bot WP user.
-		$author_resolver = new Slack_Author_Resolver();
-		// Converts Slack mrkdwn/markdown to entry HTML.
-		$content_processor = new Slack_Content_Processor();
 
 		self::$webhook_controller = new Slack_Webhook_Controller(
 			$api_client,
-			$signature_verifier,
-			$author_resolver,
-			$content_processor
+			$signature_verifier
 		);
 
 		return self::$webhook_controller;
