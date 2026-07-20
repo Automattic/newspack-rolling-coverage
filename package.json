@@ -32,7 +32,7 @@
 		"lint:scss:staged": "newspack-scripts wp-scripts lint-style --customSyntax postcss-scss",
 		"format:scss": "newspack-scripts wp-scripts lint-style '**/{src,includes}/**/*.scss' --customSyntax postcss-scss --fix",
 		"release": "npm run build && npm run semantic-release",
-		"release:archive": "rm -rf release && mkdir -p release && rsync -r . ./release/newspack-rolling-coverage --exclude-from='./.distignore' && cd release && zip -r newspack-rolling-coverage.zip newspack-rolling-coverage"
+		"release:archive": "npm run build && composer dump-autoload && rm -rf release && mkdir -p release && rsync -r . ./release/newspack-rolling-coverage --exclude-from='./.distignore' --exclude='release' && cd release && zip -r newspack-rolling-coverage.zip newspack-rolling-coverage"
 	},
 	"browserslist": [
 		"extends @wordpress/browserslist-config"
@@ -42,21 +42,24 @@
 		"*.scss": "npm run lint:scss:staged",
 		"*.php": "npm run lint:php:staged"
 	},
+	"overrides": {
+		"@ariakit/react-components": "0.3.1"
+	},
 	"devDependencies": {
-		"@wordpress/api-fetch": "^7.49.0",
-		"@wordpress/block-editor": "^15.22.0",
-		"@wordpress/block-library": "^10.0.0",
-		"@wordpress/components": "^36.0.0",
-		"@wordpress/core-data": "^7.49.0",
-		"@wordpress/data": "^10.49.0",
-		"@wordpress/dataviews": "^17.0.0",
-		"@wordpress/editor": "^14.49.0",
-		"@wordpress/element": "^8.1.0",
-		"@wordpress/i18n": "^6.22.0",
-		"@wordpress/icons": "^15.0.0",
 		"newspack-scripts": "^5.9.8",
 		"react-router": "^7.18.0",
-		"@wordpress/blocks": "^15.21.1",
-		"@wordpress/notices": "^5.48.1"
+		"@wordpress/api-fetch": "^7.51.0",
+		"@wordpress/components": "^37.0.0",
+		"@wordpress/core-data": "^7.51.0",
+		"@wordpress/data": "^10.51.0",
+		"@wordpress/dataviews": "^17.2.0",
+		"@wordpress/element": "^8.3.0",
+		"@wordpress/i18n": "^6.24.0",
+		"@wordpress/icons": "^15.2.0",
+		"@wordpress/block-editor": "^16.0.0",
+		"@wordpress/blocks": "^15.24.0",
+		"@wordpress/notices": "^5.51.0",
+		"@wordpress/block-library": "^10.0.0",
+		"@wordpress/editor": "^14.49.0"
 	}
 }

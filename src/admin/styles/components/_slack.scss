@@ -1,0 +1,119 @@
+@use "../variables" as *;
+
+.newspack-rolling-coverage-slack-settings {
+	max-width: 1054px;
+	margin: 0 auto;
+	padding: 24px;
+}
+
+.newspack-rolling-coverage-slack-settings__card {
+	margin-bottom: 32px;
+}
+
+.newspack-rolling-coverage-slack-settings__channels-table {
+	width: 100%;
+	border-collapse: collapse;
+
+	th {
+		text-align: left;
+		padding: 12px 16px;
+		font-weight: 600;
+		color: $nrc-color-muted-text;
+		border-bottom: 1px solid $nrc-color-border;
+	}
+
+	td {
+		padding: 12px 16px;
+		border-bottom: 1px solid $nrc-color-border-subtle;
+	}
+
+	tr:last-child td {
+		border-bottom: none;
+	}
+
+	code {
+		background: $nrc-color-surface-subtle;
+		padding: 2px 6px;
+		border-radius: 2px;
+		font-size: 12px;
+	}
+}
+
+.newspack-rolling-coverage-slack-settings__manifest {
+	width: 100%;
+	font-family: monospace;
+	font-size: 13px;
+	line-height: 1.5;
+	border: 1px solid $nrc-color-border;
+	border-radius: 2px;
+	padding: 16px;
+	background: $nrc-color-surface-muted;
+}
+
+.newspack-rolling-coverage-slack-status-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 12px;
+	border-radius: 3px;
+	background: $nrc-color-success-bg;
+	color: $nrc-color-success;
+	font-size: 13px;
+	font-weight: 500;
+}
+
+.newspack-rolling-coverage-slack-settings__section {
+	margin-top: 8px;
+}
+
+.newspack-rolling-coverage-slack-settings__section-title {
+	margin: 0 0 12px;
+	font-size: 13px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: $nrc-color-muted-text;
+}
+
+.newspack-rolling-coverage-slack-settings__help-text {
+	margin: 4px 0 0;
+	font-size: 13px;
+	color: $nrc-color-muted-text;
+}
+
+.newspack-rolling-coverage-slack-settings__divider {
+	width: 100%;
+	height: 1px;
+	border: none;
+	border-top: 1px solid $nrc-color-border-subtle;
+	margin: 0;
+}
+
+.newspack-rolling-coverage-slack-settings__tabs {
+	display: flex;
+	gap: 0;
+	border-bottom: 1px solid $nrc-color-border;
+	margin-bottom: 24px;
+}
+
+.newspack-rolling-coverage-slack-settings__tab {
+	border: none;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
+	background: none !important;
+	padding: 12px 16px;
+	font-size: 13px;
+	font-weight: 500;
+	color: $nrc-color-muted-text;
+	cursor: pointer;
+	transition: color 0.1s ease, border-color 0.1s ease;
+
+	&:hover {
+		color: $nrc-color-chip-text;
+	}
+
+	&.is-active {
+		color: $nrc-color-chip-text;
+		border-bottom-color: $nrc-color-chip-text;
+	}
+}

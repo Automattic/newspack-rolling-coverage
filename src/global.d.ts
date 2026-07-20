@@ -1,23 +1,34 @@
+/**
+ * Internal dependencies
+ */
+import type { AdminConfig } from './types';
+import type { ComponentType, ReactNode, JSX } from 'react';
+
 declare module '*.scss' {
 	const content: Record< string, string >;
 	export default content;
 }
 
+// Augment Window with the config object injected by wp_localize_script.
+declare global {
+	interface Window {
+		newspackRollingCoverageAdmin?: AdminConfig;
+	}
+}
+
+// Type declarations for @wordpress/block-editor, which does not ship .d.ts
+// files. Only the exports used by this project are declared. The tsconfig.json
+// `paths` entry redirects the import to this file.
 declare module '@wordpress/block-editor' {
-	import type { ComponentType, Ref } from 'react';
+	import type { ComponentType, ReactNode, JSX } from 'react';
 
 	export const BlockCanvas: ComponentType< {
 		height?: string | number;
 		styles?: unknown[];
+		children?: ReactNode;
 	} >;
 
 	export const BlockInspector: ComponentType;
-
-	export const InnerBlocks: {
-		Content: ComponentType;
-		Button: ComponentType;
-		[ key: string ]: unknown;
-	};
 
 	export function useBlockProps(
 		props?: Record< string, unknown >
@@ -25,42 +36,33 @@ declare module '@wordpress/block-editor' {
 
 	export function useInnerBlocksProps(
 		props?: Record< string, unknown >,
-		config?: Record< string, unknown >
+		options?: Record< string, unknown >
 	): Record< string, unknown >;
 
 	export const InspectorControls: ComponentType< {
-		children?: React.ReactNode;
+		children?: ReactNode;
 	} >;
 
-	export const BlockContextProvider: ComponentType< {
-		value: unknown;
-		children?: React.ReactNode;
-	} >;
+	export function BlockContextProvider(
+		props: Record< string, unknown >
+	): JSX.Element;
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	export const __experimentalUseBlockPreview: any;
+	export const __experimentalUseBlockPreview: (
+		props: Record< string, unknown >
+	) => Record< string, unknown >;
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	export const store: any;
+	export const store: {
+		name: string;
+		[ key: string ]: unknown;
+	};
+
+	export const InnerBlocks: {
+		Content: () => JSX.Element;
+	};
 }
 
+// Type declarations for @wordpress/block-library, which does not ship .d.ts
+// files.
 declare module '@wordpress/block-library' {
 	export function registerCoreBlocks(): void;
-}
-
-declare module '@wordpress/editor' {
-	import type { ComponentType } from 'react';
-
-	export const EditorProvider: ComponentType< {
-		post?: object;
-		settings?: Record< string, unknown >;
-		children?: React.ReactNode;
-	} >;
-
-	export const PostTitle: ComponentType;
-
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	export const store: any;
-
-	export const EditorSnackbars: ComponentType;
 }
