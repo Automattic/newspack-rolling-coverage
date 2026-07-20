@@ -21,6 +21,17 @@ class Entry_Ingestion_Service {
 	 */
 	const MUTEX_PREFIX = 'rolling_coverage_source_ingest_';
 
+	/**
+	 * Mutex lifetime in seconds. If a process is hard-killed (OOM, execution
+	 * timeout) mid-insert, the `finally` block won't run and the lock option
+	 * stays forever. This TTL allows stale locks to be reclaimed: when
+	 * add_option() fails, we check the stored timestamp and break the lock
+	 * if it's older than this.
+	 *
+	 * @var int
+	 */
+	const MUTEX_TTL = 60;
+
 	// Title truncation length.
 	const TITLE_LENGTH = 50;
 
@@ -43,12 +54,18 @@ class Entry_Ingestion_Service {
 	) {
 		$lock_key = self::MUTEX_PREFIX . md5( $payload->source . ':' . $payload->source_ref );
 
-		// add_option() is atomic — it does an INSERT and returns false if the
-		// option already exists, making it safe from TOCTOU races unlike
-		// set_transient() which always overwrites and returns true.
+		// TOCTOU race condition : Lock already exists.
 		if ( ! add_option( $lock_key, time(), '', false ) ) {
-			// Another request is already processing this pair; skip silently.
-			return 0;
+			// Lock exists — check if it's stale (the process was hard-killed).
+			$lock_time = (int) get_option( $lock_key, 0 );
+
+			// Lock is fresh — another request is actively processing; skip.
+			if ( $lock_time > 0 && ( time() - $lock_time ) < self::MUTEX_TTL ) {
+				return 0;
+			}
+
+			// Lock is stale — reclaim it by updating the timestamp and proceed.
+			update_option( $lock_key, time(), false );
 		}
 
 		try {
