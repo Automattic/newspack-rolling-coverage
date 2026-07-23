@@ -8,6 +8,8 @@
 
 namespace Newspack_Rolling_Coverage;
 
+use Google\Site_Kit\Modules\Analytics_4;
+use Google\Site_Kit\Modules\Analytics_4\Settings as Site_Kit_Analytics_4_Settings;
 use WP_Block;
 use WP_Block_Type;
 use WP_Block_Type_Registry;
@@ -138,6 +140,38 @@ class Rolling_Coverage_Block {
 				]
 			);
 		}
+
+		$should_track_reader_events = ! current_user_can( 'edit_posts' );
+
+		foreach ( $block_type->view_script_handles as $handle ) {
+			wp_localize_script(
+				$handle,
+				'newspackRollingCoverageAnalytics',
+				[
+					'readerTrackingEnabled' => $should_track_reader_events,
+					'siteKitGa4Enabled'     => $should_track_reader_events && self::is_site_kit_ga4_tracking_ready(),
+				]
+			);
+		}
+	}
+
+	/**
+	 * Checks whether Site Kit's GA4 module is ready to receive frontend events.
+	 *
+	 * @return bool Whether GA4 tracking via Site Kit is ready for this request.
+	 */
+	private static function is_site_kit_ga4_tracking_ready(): bool {
+		if ( ! class_exists( Analytics_4::class ) || ! class_exists( Site_Kit_Analytics_4_Settings::class ) ) {
+			return false;
+		}
+
+		$settings = get_option( Site_Kit_Analytics_4_Settings::OPTION, [] );
+
+		if ( ! is_array( $settings ) ) {
+			return false;
+		}
+
+		return ! empty( $settings['useSnippet'] ) && ! empty( $settings['measurementID'] );
 	}
 
 	/**

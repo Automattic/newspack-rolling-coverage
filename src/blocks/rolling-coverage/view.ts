@@ -7,6 +7,7 @@ import { _n, sprintf } from '@wordpress/i18n';
  * Internal dependencies
  */
 import './style.scss';
+import { trackEvent, EVENTS } from './analytics';
 import type {
 	AdSlot,
 	PendingEntry,
@@ -106,6 +107,8 @@ function initBlock( root: HTMLElement ): void {
 
 	const status = root.dataset.status || 'active';
 
+	const coverageId = root.dataset.coverageId || '0';
+
 	let cursor = root.dataset.cursor || '';
 	let before = root.dataset.before || '';
 	let hasMore = root.dataset.hasMore === '1';
@@ -115,6 +118,10 @@ function initBlock( root: HTMLElement ): void {
 	let polledCount = 0;
 	let backlogOffset = entriesPerPage;
 
+	// Tracks forward-poll health so a sustained outage reports one error per
+	// episode (healthy->failing transition) instead of one per failed interval.
+	let isForwardPollHealthy = true;
+
 	/**
 	 * Schedules the next poll.
 	 *
@@ -122,6 +129,19 @@ function initBlock( root: HTMLElement ): void {
 	 */
 	function schedulePoll(): void {
 		pollTimeoutId = setTimeout( poll, pollInterval * 1000 );
+	}
+
+	/**
+	 * Tracks a failed entry request.
+	 *
+	 * @param {'poll' | 'load_more'} errorType Which request failed.
+	 * @return {void}
+	 */
+	function trackPollError( errorType: 'poll' | 'load_more' ): void {
+		trackEvent( EVENTS.POLL_ERROR, {
+			coverage_id: coverageId,
+			error_type: errorType,
+		} );
 	}
 
 	/**
@@ -285,6 +305,12 @@ function initBlock( root: HTMLElement ): void {
 
 			insertNewEntries( entries );
 
+			trackEvent( EVENTS.NEW_ENTRIES_REVEALED, {
+				coverage_id: coverageId,
+				trigger: 'button',
+				entry_count: entries.length,
+			} );
+
 			window.scrollTo( {
 				top: targetY,
 				behavior: 'smooth',
@@ -317,6 +343,12 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		insertNewEntries( entries );
+
+		trackEvent( EVENTS.NEW_ENTRIES_REVEALED, {
+			coverage_id: coverageId,
+			trigger: 'auto',
+			entry_count: entries.length,
+		} );
 	}
 
 	const onScroll = () => {
@@ -587,8 +619,17 @@ function initBlock( root: HTMLElement ): void {
 				}
 				cursor = data.cursor || cursor;
 				polledCount = data.polledCount ?? polledCount;
+				isForwardPollHealthy = true;
+			} else if ( isForwardPollHealthy ) {
+				trackPollError( 'poll' );
+				isForwardPollHealthy = false;
 			}
 		} catch ( error ) {
+			if ( isForwardPollHealthy ) {
+				trackPollError( 'poll' );
+				isForwardPollHealthy = false;
+			}
+
 			// Network hiccups shouldn't break the page; the next poll interval retries.
 			console.error( error ); // eslint-disable-line no-console
 		}
@@ -630,8 +671,12 @@ function initBlock( root: HTMLElement ): void {
 				before = data.before || '';
 			} else {
 				hasMore = false;
+
+				trackPollError( 'load_more' );
 			}
 		} catch ( error ) {
+			trackPollError( 'load_more' );
+
 			// Leave hasMore as-is; retried if the sentinel intersects again.
 			console.error( error ); // eslint-disable-line no-console
 		} finally {
