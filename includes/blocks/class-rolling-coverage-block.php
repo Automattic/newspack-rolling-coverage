@@ -305,7 +305,7 @@ class Rolling_Coverage_Block {
 
 		// Only render the CTA if the entry belongs to this block's coverage.
 		$coverage_id = (int) ( $block->parsed_block['attrs']['coverageId'] ?? 0 );
-		if ( $coverage_id && ! has_term( $entry->ID, Taxonomy::TAXONOMY_SLUG, $coverage_id ) ) {
+		if ( $coverage_id && ! has_term( $coverage_id, Taxonomy::TAXONOMY_SLUG, $entry ) ) {
 			return '';
 		}
 
