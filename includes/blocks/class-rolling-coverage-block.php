@@ -43,12 +43,14 @@ class Rolling_Coverage_Block {
 	const LAST_MODIFIED_META_KEY = 'rolling_coverage_last_modified';
 
 	/**
-	 * Entry currently being rendered by render_entry(), read by
-	 * filter_block_context() while its render_block_context filter is active.
+	 * The host page's post ID, captured at the start of render_block()
+	 * before the global $post is swapped to individual entries. Used by
+	 * Social_Sharing::get_entry_share_url() to build the share URL with
+	 * an rc_source pointing back to this page.
 	 *
-	 * @var WP_Post|null
+	 * @var int
 	 */
-	private static $context_entry = null;
+	private static $host_post_id = 0;
 
 	/**
 	 * Initialize hooks.
@@ -129,17 +131,55 @@ class Rolling_Coverage_Block {
 	 * @return string Rendered HTML.
 	 */
 	public static function render_block( $attributes, $content, WP_Block $block ) {
+		// Capture the host page's post ID before any entry rendering
+		// swaps the global $post. Used by the share-link block to build
+		// share URLs pointing back to this page. Save the previous
+		// value so nested rolling-coverage renders restore it on exit.
+		$previous_post_id   = self::$host_post_id;
+		self::$host_post_id = (int) get_the_ID();
+
 		// Preload so polled entries are styled even if no breakout buttons appeared on initial render.
 		$breakout_block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/breakout-post-link' );
+
 		if ( $breakout_block_type ) {
 			foreach ( $breakout_block_type->style_handles as $style_handle ) {
 				wp_enqueue_style( $style_handle );
 			}
 		}
 
+		// Preload the share block styles and view script for the same reason.
+		$share_link_block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/share' );
+
+		if ( $share_link_block_type ) {
+			foreach ( $share_link_block_type->style_handles as $style_handle ) {
+				wp_enqueue_style( $style_handle );
+			}
+
+			foreach ( $share_link_block_type->view_script_handles as $script_handle ) {
+				wp_enqueue_script( $script_handle );
+			}
+		}
+
+		// Preload the deep-link CTA styles and view script. The CTA is
+		// rendered via render_block() inside this callback, so WordPress
+		// doesn't auto-enqueue its assets — we must do it manually.
+		$cta_block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/deep-link-cta' );
+
+		if ( $cta_block_type ) {
+			foreach ( $cta_block_type->style_handles as $style_handle ) {
+				wp_enqueue_style( $style_handle );
+			}
+
+			foreach ( $cta_block_type->view_script_handles as $script_handle ) {
+				wp_enqueue_script( $script_handle );
+			}
+		}
+
 		$coverage_id = (int) ( $attributes['coverageId'] ?? 0 );
 
 		if ( ! $coverage_id || ! term_exists( $coverage_id, Taxonomy::TAXONOMY_SLUG ) ) {
+			self::$host_post_id = $previous_post_id;
+
 			return sprintf(
 				'<p %s>%s</p>',
 				get_block_wrapper_attributes(),
@@ -175,9 +215,11 @@ class Rolling_Coverage_Block {
 		$template_key = self::persist_entry_template( $coverage_id, $template );
 
 		$entries_html = '';
+
 		foreach ( $query->posts as $entry ) {
 			$entries_html .= self::render_entry( $entry, $template );
 		}
+
 		wp_reset_postdata();
 
 		$cursor     = self::latest_cursor( $query->posts );
@@ -185,6 +227,7 @@ class Rolling_Coverage_Block {
 		$has_more   = count( $query->posts ) === $entries_per_page;
 
 		$notice = '';
+
 		if ( 'paused' === $status ) {
 			$notice = sprintf(
 				'<p class="%1$s-notice %1$s-notice--paused">%2$s</p>',
@@ -201,6 +244,10 @@ class Rolling_Coverage_Block {
 			);
 		}
 
+		// Deep-link CTA: SSR-populated when the deep-link query var
+		// points to an entry not in the initial SSR set; empty otherwise.
+		$cta_html = self::maybe_render_deep_link_cta( $query->posts, $block );
+
 		$wrapper_attributes = get_block_wrapper_attributes(
 			[
 				'data-coverage-id'      => $coverage_id,
@@ -211,16 +258,100 @@ class Rolling_Coverage_Block {
 				'data-has-more'         => $has_more ? '1' : '0',
 				'data-status'           => $status,
 				'data-template-key'     => $template_key,
+				'data-host-post-id'     => (int) self::$host_post_id,
 				'data-rest-url'         => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages/' . $coverage_id . '/entries' ) ),
 			]
 		);
 
-		return sprintf(
-			'<div %1$s>%2$s<div class="%3$s-status" role="status" aria-live="polite"></div><button type="button" class="%3$s-new-entries" hidden></button><div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
-			$wrapper_attributes,
-			$notice,
-			self::MARKUP_PREFIX,
-			$entries_html
+		try {
+			return sprintf(
+				'<div %1$s>%2$s%5$s<div class="%3$s-status" role="status" aria-live="polite"></div><button type="button" class="%3$s-new-entries" hidden></button><div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
+				$wrapper_attributes,
+				$notice,
+				self::MARKUP_PREFIX,
+				$entries_html,
+				$cta_html
+			);
+		} finally {
+			self::$host_post_id = $previous_post_id;
+		}
+	}
+
+	/**
+	 * Renders the deep-link CTA when the deep-link query var points to
+	 * an entry not in the initial SSR set; returns empty string otherwise.
+	 *
+	 * The query var `rolling-coverage-entry` powers OG tags and CTA SSR;
+	 * the hash fragment powers smooth scroll. When the deep-linked entry
+	 * is already in the initial SSR set, no CTA is needed — the browser
+	 * scrolls to it via the #hash.
+	 *
+	 * @param WP_Post[] $entries Entries rendered in the initial SSR set.
+	 * @param WP_Block  $block   The parent rolling-coverage block instance.
+	 * @return string CTA HTML, or empty string.
+	 */
+	private static function maybe_render_deep_link_cta( array $entries, WP_Block $block ): string {
+		$raw = trim( (string) get_query_var( Social_Sharing::ENTRY_QUERY_VAR ) );
+
+		if ( '' === $raw ) {
+			return '';
+		}
+
+		$entry = Social_Sharing::resolve_entry_by_slug( $raw );
+
+		if ( ! $entry instanceof WP_Post ) {
+			return '';
+		}
+
+		// Only render the CTA if the entry belongs to this block's coverage.
+		$coverage_id = (int) ( $block->parsed_block['attrs']['coverageId'] ?? 0 );
+		if ( $coverage_id && ! has_term( $entry->ID, Taxonomy::TAXONOMY_SLUG, $coverage_id ) ) {
+			return '';
+		}
+
+		// If the entry is in the initial SSR set, no CTA needed — browser scrolls.
+		$page_slugs = array_map(
+			static function ( $e ) {
+				return $e->post_name;
+			},
+			$entries
+		);
+
+		if ( in_array( $entry->post_name, $page_slugs, true ) ) {
+			return '';
+		}
+
+		$entry_title = get_the_title( $entry );
+
+		// Read the CTA block's saved attributes and inner blocks from the parent block.
+		$cta_attrs = [
+			'entryId'    => $entry->ID,
+			'entryTitle' => $entry_title,
+		];
+
+		$cta_inner_blocks = [];
+
+		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner ) {
+			if ( 'newspack-rolling-coverage/deep-link-cta' === ( $inner['blockName'] ?? '' ) ) {
+				if ( ! empty( $inner['attrs']['ctaText'] ) ) {
+					$cta_attrs['ctaText'] = $inner['attrs']['ctaText'];
+				}
+				if ( ! empty( $inner['attrs']['buttonText'] ) ) {
+					$cta_attrs['buttonText'] = $inner['attrs']['buttonText'];
+				}
+				$cta_inner_blocks = $inner['innerBlocks'] ?? [];
+				break;
+			}
+		}
+
+		return render_block(
+			[
+				'blockName'    => 'newspack-rolling-coverage/deep-link-cta',
+				'attrs'        => $cta_attrs,
+				'innerBlocks'  => $cta_inner_blocks,
+				'innerHTML'    => '',
+				'innerContent' => array_fill( 0, count( $cta_inner_blocks ), null ),
+			]
 		);
 	}
 
@@ -237,7 +368,15 @@ class Rolling_Coverage_Block {
 		$inner_blocks = $block->parsed_block['innerBlocks'] ?? [];
 
 		if ( ! empty( $inner_blocks ) ) {
-			return $inner_blocks;
+			// Filter out the deep-link CTA — it renders once at the top, not per-entry.
+			return array_values(
+				array_filter(
+					$inner_blocks,
+					static function ( $b ) {
+						return 'newspack-rolling-coverage/deep-link-cta' !== ( $b['blockName'] ?? '' );
+					}
+				)
+			);
 		}
 
 		return self::default_entry_template();
@@ -279,6 +418,13 @@ class Rolling_Coverage_Block {
 				'innerHTML'    => '',
 				'innerContent' => [],
 			],
+			[
+				'blockName'    => 'newspack-rolling-coverage/share',
+				'attrs'        => [],
+				'innerBlocks'  => [],
+				'innerHTML'    => '',
+				'innerContent' => [],
+			],
 		];
 	}
 
@@ -296,6 +442,18 @@ class Rolling_Coverage_Block {
 		if ( false === get_option( $option_key ) ) {
 			update_option( $option_key, $template, false );
 		}
+
+		// Prune older template option rows for this coverage so the
+		// options table doesn't grow unbounded across template edits.
+		$current_template_meta_key = 'rolling_coverage_template_hash';
+		$previous_hash             = get_term_meta( $coverage_id, $current_template_meta_key, true );
+
+		if ( $previous_hash && $previous_hash !== $hash ) {
+			$old_option_key = self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $previous_hash;
+			delete_option( $old_option_key );
+		}
+
+		update_term_meta( $coverage_id, $current_template_meta_key, $hash );
 
 		return $hash;
 	}
@@ -333,7 +491,7 @@ class Rolling_Coverage_Block {
 
 		global $wpdb;
 
-		$wpdb->query( // phpcs:ignore 
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->prepare(
 				"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
 				$wpdb->esc_like( self::TEMPLATE_OPTION_PREFIX . $term_id . '_' ) . '%'
@@ -360,31 +518,32 @@ class Rolling_Coverage_Block {
 		$post          = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		setup_postdata( $entry );
 
-		self::$context_entry = $entry;
-		add_filter( 'render_block_context', [ __CLASS__, 'filter_block_context' ], 1 );
-
-		$entry_content = ( new WP_Block(
-			[
-				'blockName'    => null,
-				'attrs'        => [],
-				'innerBlocks'  => $template,
-				'innerHTML'    => '',
-				'innerContent' => array_fill( 0, count( $template ), null ),
-			]
-		) )->render( [ 'dynamic' => false ] );
-
-		remove_filter( 'render_block_context', [ __CLASS__, 'filter_block_context' ], 1 );
-		self::$context_entry = null;
-
-		$post = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		try {
+			$entry_content = ( new WP_Block(
+				[
+					'blockName'    => null,
+					'attrs'        => [],
+					'innerBlocks'  => $template,
+					'innerHTML'    => '',
+					'innerContent' => array_fill( 0, count( $template ), null ),
+				],
+				[
+					'postId'   => $entry->ID,
+					'postType' => $entry->post_type,
+				]
+			) )->render( [ 'dynamic' => false ] );
+		} finally {
+			$post = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			setup_postdata( $previous_post );
+		}
 
 		$post_classes = implode( ' ', get_post_class( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post' ], $entry ) );
 
 		$html = sprintf(
-			'<article id="%1$s-entry-%2$d" class="%3$s" data-entry-id="%2$d">%4$s</article>',
-			self::MARKUP_PREFIX,
-			$entry->ID,
+			'<article id="%1$s" class="%2$s" data-entry-id="%3$d">%4$s</article>',
+			esc_attr( $entry->post_name ),
 			esc_attr( $post_classes ),
+			$entry->ID,
 			$entry_content
 		);
 
@@ -392,18 +551,13 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Adds the current entry's postId/postType to a block's render context.
+	 * Returns the host page's post ID, captured at the start of
+	 * render_block() before entry rendering swaps the global $post.
 	 *
-	 * @param array $context Block render context.
-	 * @return array Filtered block render context.
+	 * @return int Host page post ID, or 0 if not in a render context.
 	 */
-	public static function filter_block_context( $context ) {
-		if ( self::$context_entry ) {
-			$context['postId']   = self::$context_entry->ID;
-			$context['postType'] = self::$context_entry->post_type;
-		}
-
-		return $context;
+	public static function get_host_post_id(): int {
+		return self::$host_post_id;
 	}
 
 	/**
@@ -485,6 +639,9 @@ class Rolling_Coverage_Block {
 						'type' => 'string',
 					],
 					'per_page'     => [
+						'type' => 'integer',
+					],
+					'host_post_id' => [
 						'type' => 'integer',
 					],
 				],
@@ -611,6 +768,15 @@ class Rolling_Coverage_Block {
 		$before       = $params['before'] ?? '';
 		$per_page     = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
 
+		// Set the host post ID so share-link blocks rendered during this REST request can build correct share URLs.
+		$raw_post_id = (int) ( $params['host_post_id'] ?? 0 );
+
+		if ( $raw_post_id && get_post( $raw_post_id ) ) {
+			self::$host_post_id = $raw_post_id;
+		} else {
+			self::$host_post_id = 0;
+		}
+
 		if ( ! term_exists( $term_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			return new WP_Error(
 				'rolling_coverage_coverage_not_found',
@@ -651,7 +817,8 @@ class Rolling_Coverage_Block {
 
 			// Skip WP_Query entirely when the coverage has not changed since the cursor.
 			$last_modified = get_term_meta( $term_id, self::LAST_MODIFIED_META_KEY, true );
-			if ( $last_modified && $last_modified < $cursor_modified ) {
+
+			if ( $last_modified && $last_modified <= $cursor_modified ) {
 				return new WP_REST_Response(
 					[
 						'entries'  => [],
@@ -742,9 +909,11 @@ class Rolling_Coverage_Block {
 		$query = new WP_Query( $args );
 
 		$html = '';
+
 		foreach ( $query->posts as $entry ) {
 			$html .= self::render_entry( $entry, $template );
 		}
+
 		wp_reset_postdata();
 
 		$next_before = ! empty( $query->posts )
