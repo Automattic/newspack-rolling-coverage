@@ -12,11 +12,26 @@ import type { PollEntry, PollResponse, PageResponse } from './types';
 const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 
 /**
+ * cssEscape polyfill for older browsers.
+ */
+const cssEscape = ( str: string ): string => {
+	if ( typeof CSS !== 'undefined' && CSS.escape ) {
+		return CSS.escape( str );
+	}
+	return str.replace( /([!"#$%&'()*+,./:;<=>?@[\]^`{|}~])/g, '\\$1' );
+};
+
+/**
  * Sets up polling and infinite scroll for a single block instance.
  *
  * @param {HTMLElement} root The block's outer wrapper element.
  */
 function initBlock( root: HTMLElement ): void {
+	if ( root.dataset.rcInitialized === '1' ) {
+		return;
+	}
+	root.dataset.rcInitialized = '1';
+
 	const restUrl = root.dataset.restUrl;
 	const entriesListEl = root.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-entries'
@@ -26,12 +41,14 @@ function initBlock( root: HTMLElement ): void {
 		return;
 	}
 
-	// Narrowed to a non-nullable binding.
+	// Narrowed to non-nullable bindings.
 	const entriesList: HTMLElement = entriesListEl;
+	const restBaseUrl: string = restUrl;
 
 	const pollInterval = parseInt( root.dataset.pollInterval || '10', 10 );
 	const entriesPerPage = parseInt( root.dataset.entriesPerPage || '20', 10 );
 	const templateKey = root.dataset.templateKey || '';
+	const hostPostId = root.dataset.hostPostId || '0';
 	const sentinel = root.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-sentinel'
 	);
@@ -277,11 +294,12 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		try {
-			const url = `${ restUrl }?cursor=${ encodeURIComponent(
-				cursor
-			) }&template_key=${ encodeURIComponent( templateKey ) }`;
+			const url = new URL( restBaseUrl );
+			url.searchParams.set( 'cursor', cursor );
+			url.searchParams.set( 'template_key', templateKey );
+			url.searchParams.set( 'host_post_id', hostPostId );
 
-			const response = await fetch( url );
+			const response = await fetch( url.toString() );
 			if ( response.ok ) {
 				const data: PollResponse = await response.json();
 
@@ -313,12 +331,13 @@ function initBlock( root: HTMLElement ): void {
 		isLoadingMore = true;
 
 		try {
-			const url = `${ restUrl }?before=${ encodeURIComponent(
-				before
-			) }&per_page=${ entriesPerPage }&template_key=${ encodeURIComponent(
-				templateKey
-			) }`;
-			const response = await fetch( url );
+			const url = new URL( restBaseUrl );
+			url.searchParams.set( 'before', before );
+			url.searchParams.set( 'per_page', String( entriesPerPage ) );
+			url.searchParams.set( 'template_key', templateKey );
+			url.searchParams.set( 'host_post_id', hostPostId );
+
+			const response = await fetch( url.toString() );
 			if ( response.ok ) {
 				const data: PageResponse = await response.json();
 				if ( data.count > 0 ) {
@@ -368,6 +387,53 @@ function initBlock( root: HTMLElement ): void {
 		} );
 		observer.observe( sentinel );
 	}
+
+	// Deep-link detection: if the URL carries the rolling-coverage-entry
+	// query var and the entry is not in the initial SSR set, un-hide the
+	// deep-link CTA (rendered hidden by the parent block's SSR).
+	/**
+	 * Detects a deep-link request via the `rolling-coverage-entry` query
+	 * var and, if the entry is not in the initial SSR set, un-hides the
+	 * deep-link CTA (which was SSR'd with entry data by PHP). The hash
+	 * fragment is only for smooth scroll.
+	 *
+	 * If the entry IS in the DOM, the browser's native #anchor scroll
+	 * handles navigation — no CTA needed.
+	 */
+	function handleDeepLink(): void {
+		const params = new URLSearchParams( window.location.search );
+		const entrySlug = params.get( 'rolling-coverage-entry' );
+
+		if ( ! entrySlug ) {
+			return;
+		}
+
+		// If the entry is in ANY block's entries list on the page, the
+		// browser scrolls to it via #hash — no CTA needed.
+		const allEntryLists = document.querySelectorAll< HTMLElement >(
+			BLOCK_SELECTOR + ' .newspack-rolling-coverage-entries'
+		);
+		for ( const list of allEntryLists ) {
+			if ( list.querySelector( `#${ cssEscape( entrySlug ) }` ) ) {
+				return;
+			}
+		}
+
+		// Entry not in DOM — un-hide the CTA (SSR'd with entry data by PHP).
+		const cta = root.querySelector< HTMLElement >(
+			'.newspack-rolling-coverage-cta'
+		);
+		if ( cta ) {
+			cta.hidden = false;
+		}
+	}
+
+	handleDeepLink();
+
+	const onHashChange = () => {
+		handleDeepLink();
+	};
+	window.addEventListener( 'hashchange', onHashChange, { once: true } );
 }
 
 document.querySelectorAll< HTMLElement >( BLOCK_SELECTOR ).forEach( initBlock );

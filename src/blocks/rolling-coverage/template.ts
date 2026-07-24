@@ -7,7 +7,7 @@ import type { TemplateItem } from './types';
  * Default per-entry template: title, date, content, and a "Read more" link
  * locked against removal and reordering in the editor UI.
  */
-const DEFAULT_TEMPLATE: TemplateItem[] = [
+const ENTRY_TEMPLATE: TemplateItem[] = [
 	[ 'core/post-title', { level: 3 } ],
 	[ 'core/post-date' ],
 	[ 'core/post-content' ],
@@ -15,12 +15,16 @@ const DEFAULT_TEMPLATE: TemplateItem[] = [
 		'newspack-rolling-coverage/breakout-post-link',
 		{ lock: { remove: true, move: false } },
 	],
+	[
+		'newspack-rolling-coverage/share',
+		{ lock: { remove: true, move: false } },
+	],
 ];
 
 /**
  * Block types allowed inside the per-entry template.
  */
-const ALLOWED_BLOCKS = [
+const ENTRY_ALLOWED_BLOCKS = [
 	'core/post-title',
 	'core/post-date',
 	'core/post-content',
@@ -32,6 +36,7 @@ const ALLOWED_BLOCKS = [
 	'core/heading',
 	'core/paragraph',
 	'newspack-rolling-coverage/breakout-post-link',
+	'newspack-rolling-coverage/share',
 ];
 
-export { DEFAULT_TEMPLATE, ALLOWED_BLOCKS };
+export { ENTRY_TEMPLATE, ENTRY_ALLOWED_BLOCKS };

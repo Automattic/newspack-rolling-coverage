@@ -1,0 +1,92 @@
+.newspack-rolling-coverage-cta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.75em;
+	padding: 0.75em 1em;
+	margin-bottom: 1em;
+	border-left: 4px solid var(--wp--preset--color--contrast, #000);
+	background: var(--wp--preset--color--base-2, #f6f7f7);
+	font-size: 0.9em;
+
+	&[hidden] {
+		display: none;
+	}
+
+	&__text {
+		margin: 0;
+		flex: 1 1 60%;
+
+		strong {
+			font-weight: 600;
+		}
+	}
+
+	&__button {
+		flex: 0 0 auto;
+	}
+
+	&__preview {
+		width: 100%;
+		margin-bottom: 0.75em;
+		padding: 1em;
+		border: 1px dashed var(--wp--preset--color--contrast-2, #ccc);
+		border-radius: 4px;
+		background: var(--wp--preset--color--base, #fff);
+		font-size: 0.9em;
+	}
+
+	&__preview-label {
+		margin: 0 0 0.5em;
+		font-size: 0.8em;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--wp--preset--color--contrast-2, #757575);
+	}
+}
+
+// Fallback styling for themes with no `styles.elements.button` defined.
+:where(.newspack-rolling-coverage-cta__button) {
+	padding: calc(0.667em + 2px) calc(1.333em + 2px);
+	border-radius: 9999px;
+}
+
+// Modal (native <dialog>) styles — uses theme CSS variables so the
+// modal inherits the active theme's colors, typography, and spacing.
+.newspack-rolling-coverage-cta-modal {
+	max-width: min(720px, 90vw);
+	max-height: 85vh;
+	padding: 0;
+	border: 1px solid var(--wp--preset--color--contrast-2, rgba(0, 0, 0, 0.1));
+	border-radius: var(--wp--custom--border-radius, 8px);
+	overflow: auto;
+	background: var(--wp--preset--color--base, #fff);
+	color: var(--wp--preset--color--contrast, #000);
+
+	&::backdrop {
+		background: var(--wp--custom--overlay-background, rgba(0, 0, 0, 0.5));
+	}
+
+	&__body {
+		padding: 1rem 1.5rem;
+	}
+
+	&__header {
+		display: flex;
+		align-items: center;
+		gap: 0.75em;
+		padding: 1em 1.25em;
+		border-bottom: 1px solid var(--wp--preset--color--contrast-2, rgba(0, 0, 0, 0.05));
+		position: sticky;
+		top: 0;
+		background: var(--wp--preset--color--base, #fff);
+	}
+
+	&__back {
+		flex: 0 0 auto;
+		padding: 0.4em 0.8em;
+		line-height: 1;
+		cursor: pointer;
+	}
+}
