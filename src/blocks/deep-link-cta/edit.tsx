@@ -27,7 +27,7 @@ const MODAL_TEMPLATE = [
  */
 const NEUTRAL_MODAL_CONTEXT = {
 	postId: 0,
-	postType: '',
+	postType: 'rolling_cov_entry',
 };
 
 /**
