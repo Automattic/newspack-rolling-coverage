@@ -9,11 +9,7 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import type { Coverage } from '../types';
-
-interface AdminHeaderProps {
-	selectedCoverage: Coverage | null;
-}
+import type { AdminHeaderProps } from '../types';
 
 /**
  * Top bar showing the plugin title and a back button when viewing entries.

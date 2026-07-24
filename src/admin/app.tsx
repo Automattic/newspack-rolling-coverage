@@ -17,6 +17,9 @@ import { SnackbarList } from '@wordpress/components';
 import AdminLayout from './components/admin-layout';
 import CoverageView from './components/coverage-view';
 import EntryView from './components/entry-view';
+import ConnectionPage from './components/connection-page';
+import SlackSettingsPage from './components/slack-settings-page';
+import { useAdminContext } from './hooks/useAdminContext';
 
 /**
  * Root admin component. Uses react-router's HashRouter so navigation state
@@ -25,8 +28,11 @@ import EntryView from './components/entry-view';
  * the SPA tracks its own route in the hash. Routes:
  *   /coverages                   — coverage list (auto-redirected from root)
  *   /coverages/{id}              — rolling coverage entries
+ *   /connection                  — connection page (adapter dispatch)
+ *   /connection/{tab}            — adapter-specific settings tab
  */
 function App() {
+	const config = useAdminContext();
 	const notices = useSelect(
 		( select ) => select( noticesStore ).getNotices(),
 		[]
@@ -57,9 +63,27 @@ function App() {
 					<Route element={ <AdminLayout /> }>
 						<Route
 							index
-							element={ <Navigate to="/coverages" replace /> }
+							element={ <Navigate to={ config.page } replace /> }
 						/>
 						<Route path="/coverages" element={ <CoverageView /> } />
+						<Route
+							path="/connection"
+							element={ <ConnectionPage /> }
+						>
+							<Route
+								index
+								element={
+									<Navigate
+										to="/connection/credentials"
+										replace
+									/>
+								}
+							/>
+							<Route
+								path=":tab"
+								element={ <SlackSettingsPage /> }
+							/>
+						</Route>
 						<Route
 							path="/coverages/:coverageId"
 							element={ <EntryView /> }

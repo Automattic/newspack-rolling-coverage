@@ -14,7 +14,8 @@ defined( 'ABSPATH' ) || exit;
  */
 class Admin {
 
-	const MENU_SLUG = 'rolling-coverage';
+	const MENU_SLUG            = 'rolling-coverage';
+	const CONNECTION_MENU_SLUG = 'rolling-coverage-connection';
 
 	/**
 	 * Initialize hooks.
@@ -59,6 +60,24 @@ class Admin {
 			'dashicons-megaphone',
 			30
 		);
+
+		add_submenu_page(
+			self::MENU_SLUG,
+			__( 'All Rolling Coverages', 'newspack-rolling-coverage' ),
+			__( 'All Rolling Coverages', 'newspack-rolling-coverage' ),
+			'edit_posts',
+			self::MENU_SLUG,
+			array( __CLASS__, 'render_page' )
+		);
+
+		add_submenu_page(
+			self::MENU_SLUG,
+			__( 'Slack Connection', 'newspack-rolling-coverage' ),
+			__( 'Slack Connection', 'newspack-rolling-coverage' ),
+			'manage_options',
+			self::CONNECTION_MENU_SLUG,
+			array( __CLASS__, 'render_page' )
+		);
 	}
 
 	/**
@@ -67,7 +86,7 @@ class Admin {
 	public static function render_page(): void {
 		printf(
 			'<div id="%s"></div>',
-			esc_attr( 'newspack-rolling-coverage-admin' )
+			esc_attr( 'newspack-rolling-coverage-root' )
 		);
 	}
 
@@ -77,7 +96,12 @@ class Admin {
 	 * @param string $hook_suffix Current admin page hook.
 	 */
 	public static function enqueue_assets( string $hook_suffix ): void {
-		if ( 'toplevel_page_' . self::MENU_SLUG !== $hook_suffix ) {
+		$valid_hooks = array(
+			'toplevel_page_' . self::MENU_SLUG,
+			'rolling-coverage_page_' . self::CONNECTION_MENU_SLUG,
+		);
+
+		if ( ! in_array( $hook_suffix, $valid_hooks, true ) ) {
 			return;
 		}
 
@@ -143,29 +167,39 @@ class Admin {
 		wp_localize_script(
 			'newspack-rolling-coverage-admin',
 			'newspackRollingCoverageAdmin',
-			self::get_script_data()
+			self::get_script_data( $hook_suffix )
 		);
 	}
 
 	/**
 	 * Get localized script data - configuration constants only.
 	 *
+	 * @param string $hook_suffix Current admin page hook.
 	 * @return array<string, mixed> Script data array.
 	 */
-	private static function get_script_data(): array {
+	private static function get_script_data( string $hook_suffix = '' ): array {
+		// Extensible multi-page react entry point setup.
+		$page_hook_map = [
+			'toplevel_page_' . self::MENU_SLUG => '/coverages',
+			'rolling-coverage_page_' . self::CONNECTION_MENU_SLUG => '/connection',
+		];
+
 		$block_editor_settings = get_block_editor_settings(
 			array(),
 			new \WP_Block_Editor_Context()
 		);
-
+			
 		return array(
+			'page'                => $page_hook_map[ $hook_suffix ] ?? '/coverages',
 			'restBase'            => array(
 				'coverages' => Taxonomy::REST_BASE,
 				'entries'   => Post_Type::REST_BASE,
+				'slack'     => Slack::REST_NAMESPACE,
 			),
 			'restBaseUrls'        => array(
 				'coverages' => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
 				'entries'   => esc_url_raw( rest_url( 'wp/v2/' . Post_Type::REST_BASE ) ),
+				'slack'     => esc_url_raw( rest_url( Slack::REST_NAMESPACE . '/' ) ),
 				'breakout'  => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/entries' ) ),
 			),
 			'nonce'               => wp_create_nonce( 'wp_rest' ),
@@ -177,11 +211,18 @@ class Admin {
 				'editEntry' => admin_url( 'post.php?action=edit' ),
 				'newEntry'  => admin_url( 'post-new.php?post_type=' . Post_Type::CPT_SLUG ),
 				'editTerm'  => admin_url( 'term.php?taxonomy=' . Taxonomy::TAXONOMY_SLUG ),
+				'editUser'  => admin_url( 'user-edit.php' ),
 			),
 			'postType'            => Post_Type::CPT_SLUG,
 			'taxonomy'            => Taxonomy::TAXONOMY_SLUG,
 			'taxMeta'             => array(
 				'statusKey' => Taxonomy::STATUS_META_KEY,
+			),
+			'slack'               => array(
+				'isConfigured' => Slack_Config::is_configured(),
+			),
+			'availableAdapters'   => array(
+				'slack' => __( 'Slack', 'newspack-rolling-coverage' ),
 			),
 			'blockEditorSettings' => $block_editor_settings,
 		);

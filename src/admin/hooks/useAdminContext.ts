@@ -1,14 +1,7 @@
 /**
- * External dependencies
+ * Internal dependencies
  */
 import type { AdminConfig } from '../types';
-
-// Augment Window with the config object injected by wp_localize_script.
-declare global {
-	interface Window {
-		newspackRollingCoverageAdmin?: AdminConfig;
-	}
-}
 
 /**
  * Provides the server-side admin config localised by wp_localize_script.

@@ -6,8 +6,13 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies.
  */
+import { SlackIcon } from '../shared/icons/slack-icon';
+import {
+	truncate,
+	safeFormatUTCDate,
+	getSlackChannelLabel,
+} from '../utils/fields';
 import type { Field, ViewState, Coverage } from '../types';
-import { truncate, safeFormatUTCDate } from '../utils/fields';
 
 /**
  * Field definitions for the coverage DataViews table.
@@ -22,12 +27,14 @@ function getCoverageFields( statusKey: string ): Field< Coverage >[] {
 			id: 'term_id',
 			type: 'text',
 			label: __( 'Term ID', 'newspack-rolling-coverage' ),
+			enableSorting: true,
 			getValue: ( { item } ) => String( item.id ),
 		},
 		{
 			id: 'name',
 			type: 'text',
 			label: __( 'Name', 'newspack-rolling-coverage' ),
+			enableSorting: true,
 			enableGlobalSearch: true,
 			getValue: ( { item } ) => truncate( item.name, 20 ),
 		},
@@ -35,6 +42,7 @@ function getCoverageFields( statusKey: string ): Field< Coverage >[] {
 			id: 'count',
 			type: 'text',
 			label: __( 'Entries', 'newspack-rolling-coverage' ),
+			enableSorting: true,
 			getValue: ( { item } ) => String( item.count ?? 0 ),
 		},
 		{
@@ -42,7 +50,7 @@ function getCoverageFields( statusKey: string ): Field< Coverage >[] {
 			type: 'text',
 			label: __( 'Status', 'newspack-rolling-coverage' ),
 			getValue: ( { item } ) =>
-				( item.meta?.[ statusKey ] as string ) || 'active',
+				String( item.meta?.[ statusKey ] ?? '' ) || 'active',
 			elements: [
 				{
 					value: 'active',
@@ -62,9 +70,28 @@ function getCoverageFields( statusKey: string ): Field< Coverage >[] {
 			},
 		},
 		{
+			id: 'slack_channel',
+			type: 'text',
+			label: __( 'Slack', 'newspack-rolling-coverage' ),
+			getValue: ( { item } ) => getSlackChannelLabel( item ) || '—',
+			render: ( { item } ) => {
+				const label = getSlackChannelLabel( item );
+				if ( ! label ) {
+					return <span>—</span>;
+				}
+				return (
+					<span className="newspack-rolling-coverage-slack-chip">
+						<SlackIcon size={ 14 } />
+						<span>{ label }</span>
+					</span>
+				);
+			},
+		},
+		{
 			id: 'created_at',
 			type: 'datetime',
 			label: __( 'Created', 'newspack-rolling-coverage' ),
+			enableSorting: true,
 			getValue: ( { item } ) =>
 				safeFormatUTCDate( item.meta?.created_at ),
 		},
@@ -72,6 +99,7 @@ function getCoverageFields( statusKey: string ): Field< Coverage >[] {
 			id: 'modified_at',
 			type: 'datetime',
 			label: __( 'Modified', 'newspack-rolling-coverage' ),
+			enableSorting: true,
 			getValue: ( { item } ) =>
 				safeFormatUTCDate( item.meta?.modified_at ),
 		},
@@ -86,9 +114,10 @@ const defaultCoverageView: ViewState = {
 	type: 'table',
 	perPage: 20,
 	page: 1,
+	sort: { field: 'name', direction: 'asc' },
 	search: '',
 	filters: [],
-	fields: [ 'count', 'status', 'created_at', 'modified_at' ],
+	fields: [ 'count', 'status', 'slack_channel', 'created_at', 'modified_at' ],
 	titleField: 'name',
 	layout: {},
 };
