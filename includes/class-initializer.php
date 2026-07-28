@@ -44,6 +44,7 @@ class Initializer {
 		Abilities::init();
 		Schema::init();
 		Coverage_Follow_Block::init();
+		Push_Notifications::init();
 
 		// Admin interface (only load in admin context).
 		if ( is_admin() ) {
