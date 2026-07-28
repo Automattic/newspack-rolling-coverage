@@ -24,6 +24,7 @@ class Taxonomy {
 	 * Valid values: 'active', 'paused', 'archived', 'trash'.
 	 */
 	const STATUS_META_KEY = 'rolling_coverage_status';
+	const CANONICAL_URL_META_KEY = 'rolling_coverage_canonical_url';
 
 	// Status values.
 	const STATUS_ACTIVE   = 'active';
@@ -108,6 +109,14 @@ class Taxonomy {
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => self::STATUS_ACTIVE,
+			],
+			// Canonical URL to build push-notification links from; empty until set.
+			self::CANONICAL_URL_META_KEY  => [
+				'show_in_rest'      => true,
+				'single'            => true,
+				'type'              => 'string',
+				'default'           => '',
+				'sanitize_callback' => 'esc_url_raw',
 			],
 			// ISO 8601 timestamp the coverage term was first created (set once via the created_ hook).
 			self::CREATED_AT_META_KEY                      => [
