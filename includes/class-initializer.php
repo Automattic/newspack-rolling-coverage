@@ -43,6 +43,7 @@ class Initializer {
 		AI_Settings::init();
 		Abilities::init();
 		Schema::init();
+		Coverage_Follow_Block::init();
 
 		// Admin interface (only load in admin context).
 		if ( is_admin() ) {
