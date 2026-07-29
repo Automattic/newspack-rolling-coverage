@@ -103,7 +103,17 @@ class Ads {
 			return self::empty_result();
 		}
 
-		$unique_id = self::PLACEMENT_KEY . '-' . wp_generate_uuid4();
+		$unique_id      = self::PLACEMENT_KEY . '-' . wp_generate_uuid4();
+		$placement_data = array_merge( $placement_data, [ 'id' => $unique_id ] );
+
+		/**
+		 * Fires before an ad is injected into a placement.
+		 *
+		 * @param string $placement_key  The placement key.
+		 * @param string $hook_key       The placement hook key.
+		 * @param array  $placement_data The placement data.
+		 */
+		do_action( 'newspack_ads_before_placement_ad', self::PLACEMENT_KEY, '', $placement_data );
 
 		ob_start();
 		Providers::render_placement_ad_code(
@@ -111,9 +121,18 @@ class Ads {
 			$provider_id,
 			self::PLACEMENT_KEY,
 			'',
-			array_merge( $placement_data, [ 'id' => $unique_id ] )
+			$placement_data
 		);
 		$ad_code = ob_get_clean();
+
+		/**
+		 * Fires after an ad is injected into a placement.
+		 *
+		 * @param string $placement_key  The placement key.
+		 * @param string $hook_key       The placement hook key.
+		 * @param array  $placement_data The placement data.
+		 */
+		do_action( 'newspack_ads_after_placement_ad', self::PLACEMENT_KEY, '', $placement_data );
 
 		if ( ! $ad_code ) {
 			return self::empty_result();
