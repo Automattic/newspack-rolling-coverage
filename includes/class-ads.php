@@ -84,6 +84,10 @@ class Ads {
 	/**
 	 * Renders one instance of the rolling coverage feed placement.
 	 *
+	 * Delegates the ad code itself to Providers::render_placement_ad_code(),
+	 * which dispatches to whichever provider (GAM, Broadstreet) is assigned
+	 * and checks that provider is active before rendering anything.
+	 *
 	 * @return array{html: string, slots: array[]} Ad HTML and its slot data.
 	 */
 	public static function render_placement() {
@@ -99,39 +103,19 @@ class Ads {
 			return self::empty_result();
 		}
 
-		if ( 'gam' === $provider_id ) {
-			return self::render_gam_placement( $ad_unit_id );
-		}
-
-		if ( 'broadstreet' === $provider_id ) {
-			return self::render_broadstreet_placement( $ad_unit_id );
-		}
-
-		return self::empty_result();
-	}
-
-	/**
-	 * Renders the placement's GAM ad unit.
-	 *
-	 * @param string $ad_unit_id GAM ad unit ID.
-	 * @return array{html: string, slots: array[]} Ad HTML and its slot data.
-	 */
-	private static function render_gam_placement( string $ad_unit_id ) {
-		if ( ! class_exists( GAM_Model::class ) ) {
-			return self::empty_result();
-		}
-
 		$unique_id = self::PLACEMENT_KEY . '-' . wp_generate_uuid4();
 
-		$ad_unit = GAM_Model::get_ad_unit_for_display(
+		ob_start();
+		Providers::render_placement_ad_code(
 			$ad_unit_id,
-			[
-				'unique_id' => $unique_id,
-				'placement' => self::PLACEMENT_KEY,
-			]
+			$provider_id,
+			self::PLACEMENT_KEY,
+			'',
+			array_merge( $placement_data, [ 'id' => $unique_id ] )
 		);
+		$ad_code = ob_get_clean();
 
-		if ( is_wp_error( $ad_unit ) || empty( $ad_unit['ad_code'] ) ) {
+		if ( ! $ad_code ) {
 			return self::empty_result();
 		}
 
@@ -143,47 +127,16 @@ class Ads {
 		$html = sprintf(
 			'<div class="%s">%s</div>',
 			esc_attr( implode( ' ', $classnames ) ),
-			$ad_unit['ad_code']
-		);
-
-		return [
-			'html'  => $html,
-			'slots' => self::build_slots_response( [ $unique_id ] ),
-		];
-	}
-
-	/**
-	 * Renders the placement's Broadstreet zone.
-	 *
-	 * @param string $ad_unit_id Broadstreet zone ID.
-	 * @return array{html: string, slots: array[]} Ad HTML; slots is always empty.
-	 */
-	private static function render_broadstreet_placement( string $ad_unit_id ) {
-		if ( ! class_exists( Providers::class ) ) {
-			return self::empty_result();
-		}
-
-		$provider = Providers::get_provider( 'broadstreet' );
-
-		if ( ! $provider || ! $provider->is_active() ) {
-			return self::empty_result();
-		}
-
-		$ad_code = $provider->get_ad_code( $ad_unit_id, self::PLACEMENT_KEY );
-
-		if ( ! $ad_code ) {
-			return self::empty_result();
-		}
-
-		$html = sprintf(
-			'<div class="%s">%s</div>',
-			esc_attr( implode( ' ', [ 'newspack_global_ad', self::PLACEMENT_KEY ] ) ),
 			$ad_code
 		);
 
+		$slots = class_exists( GAM_Model::class ) && isset( GAM_Model::$slots[ $unique_id ] )
+			? self::build_slots_response( [ $unique_id ] )
+			: [];
+
 		return [
 			'html'  => $html,
-			'slots' => [],
+			'slots' => $slots,
 		];
 	}
 
