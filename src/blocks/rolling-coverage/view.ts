@@ -470,7 +470,10 @@ function initBlock( root: HTMLElement ): void {
 				window.googletag.display( adSlot.containerId );
 
 				// Refresh the slot explicitly when initial load is disabled.
-				if ( adSlot.disableInitialLoad ) {
+				if (
+					window.googletag.getConfig( 'disableInitialLoad' )
+						.disableInitialLoad
+				) {
 					window.googletag.pubads().refresh( [ slot ] );
 				}
 			} );
