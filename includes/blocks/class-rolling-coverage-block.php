@@ -27,6 +27,9 @@ defined( 'ABSPATH' ) || exit;
  */
 class Rolling_Coverage_Block {
 
+	// The block's registered name.
+	const BLOCK_NAME = 'newspack-rolling-coverage/rolling-coverage';
+
 	// Max number of entries returned per poll response.
 	const POLL_CAP = 50;
 
@@ -114,7 +117,7 @@ class Rolling_Coverage_Block {
 			return;
 		}
 
-		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/rolling-coverage' );
+		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( self::BLOCK_NAME );
 
 		if ( ! $block_type instanceof WP_Block_Type ) {
 			return;
