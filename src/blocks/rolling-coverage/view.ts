@@ -441,9 +441,8 @@ function initBlock( root: HTMLElement ): void {
 				: adSlot.sizeMap;
 
 			window.googletag.cmd.push( function () {
-				const sizes = adSlot.fluid
-					? ( [ ...adSlot.sizes, 'fluid' ] as unknown[] )
-					: adSlot.sizes;
+				const baseSizes = adSlot.fluid ? [ 'fluid' ] : [];
+				const sizes = [ ...adSlot.sizes, ...baseSizes ];
 
 				const slot = window.googletag
 					.defineSlot( adSlot.path, sizes, adSlot.containerId )
@@ -462,13 +461,18 @@ function initBlock( root: HTMLElement ): void {
 				Object.keys( sizeMap ).forEach( ( viewportWidth ) => {
 					mapping.addSize(
 						[ parseInt( viewportWidth, 10 ), 0 ],
-						sizeMap[ viewportWidth ]
+						[ ...baseSizes, ...sizeMap[ viewportWidth ] ]
 					);
 				} );
-				mapping.addSize( [ 0, 0 ], [] );
+				mapping.addSize( [ 0, 0 ], baseSizes );
 				slot.defineSizeMapping( mapping.build() );
 
 				window.googletag.display( adSlot.containerId );
+
+				// Refresh the slot explicitly when initial load is disabled.
+				if ( adSlot.disableInitialLoad ) {
+					window.googletag.pubads().refresh( [ slot ] );
+				}
 			} );
 		} );
 	}

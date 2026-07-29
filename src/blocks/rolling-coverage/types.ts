@@ -102,6 +102,7 @@ interface AdSlot {
 		useMaxHeight: boolean;
 		maxHeight: number;
 	};
+	disableInitialLoad: boolean;
 }
 
 /**

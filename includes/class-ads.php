@@ -244,6 +244,9 @@ class Ads {
 
 		$fixed_height = Settings::get_settings( 'fixed_height' );
 
+		// Whether GPT's automatic initial ad request is disabled.
+		$disable_initial_load = (bool) apply_filters( 'newspack_ads_disable_gtag_initial_load', false );
+
 		$slots = [];
 
 		foreach ( $slot_keys as $unique_id ) {
@@ -263,24 +266,25 @@ class Ads {
 			$sizes = $ad_unit['sizes'] ?? [];
 
 			$slots[] = [
-				'containerId'     => 'div-gpt-ad-' . $unique_id . '-0',
-				'path'            => '/' . implode( '/', $path_parts ),
-				'sizes'           => $sizes,
-				'fluid'           => ! empty( $ad_unit['fluid'] ),
-				'targeting'       => GAM_Model::get_ad_targeting( $ad_unit ),
-				'sizeMap'         => GAM_Model::get_ad_unit_size_map( $ad_unit ),
-				'boundsSelectors' => apply_filters(
+				'containerId'        => 'div-gpt-ad-' . $unique_id . '-0',
+				'path'               => '/' . implode( '/', $path_parts ),
+				'sizes'              => $sizes,
+				'fluid'              => ! empty( $ad_unit['fluid'] ),
+				'targeting'          => GAM_Model::get_ad_targeting( $ad_unit ),
+				'sizeMap'            => GAM_Model::get_ad_unit_size_map( $ad_unit ),
+				'boundsSelectors'    => apply_filters(
 					'newspack_ads_gam_bounds_selectors',
 					[ '.wp-block-column', '.entry-content', '.sidebar', '.widget-area' ],
 					$ad_unit,
 					$sizes
 				),
-				'boundsBleed'     => (int) apply_filters( 'newspack_ads_gam_bounds_bleed', 40, $ad_unit, $sizes ),
-				'fixedHeight'     => [
+				'boundsBleed'        => (int) apply_filters( 'newspack_ads_gam_bounds_bleed', 40, $ad_unit, $sizes ),
+				'fixedHeight'        => [
 					'active'       => ! empty( $fixed_height['active'] ),
 					'useMaxHeight' => ! empty( $fixed_height['use_max_height'] ),
 					'maxHeight'    => (int) ( $fixed_height['max_height'] ?? 100 ),
 				],
+				'disableInitialLoad' => $disable_initial_load,
 			];
 		}
 
