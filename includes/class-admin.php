@@ -197,10 +197,11 @@ class Admin {
 				'slack'     => Slack::REST_NAMESPACE,
 			),
 			'restBaseUrls'        => array(
-				'coverages' => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
-				'entries'   => esc_url_raw( rest_url( 'wp/v2/' . Post_Type::REST_BASE ) ),
-				'slack'     => esc_url_raw( rest_url( Slack::REST_NAMESPACE . '/' ) ),
-				'breakout'  => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/entries' ) ),
+				'coverages'   => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
+				'entries'     => esc_url_raw( rest_url( 'wp/v2/' . Post_Type::REST_BASE ) ),
+				'slack'       => esc_url_raw( rest_url( Slack::REST_NAMESPACE . '/' ) ),
+				'breakout'    => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/entries' ) ),
+				'entriesView' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 			),
 			'nonce'               => wp_create_nonce( 'wp_rest' ),
 			'capabilities'        => array(
