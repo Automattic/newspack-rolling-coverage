@@ -57,7 +57,6 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			id: 'id',
 			type: 'text',
 			label: __( 'Post ID', 'newspack-rolling-coverage' ),
-			enableSorting: true,
 			getValue: ( { item } ) => String( item.id ),
 		},
 		{
@@ -65,7 +64,6 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			type: 'text',
 			label: __( 'Title', 'newspack-rolling-coverage' ),
 			enableHiding: false,
-			enableSorting: true,
 			enableGlobalSearch: true,
 			getValue: ( { item } ) =>
 				truncate(
@@ -91,7 +89,6 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			id: 'author',
 			type: 'text',
 			label: __( 'Author', 'newspack-rolling-coverage' ),
-			enableSorting: true,
 			enableGlobalSearch: true,
 			getValue: ( { item } ) => {
 				const author = item._embedded?.author?.[ 0 ];

@@ -1,71 +1,216 @@
 /**
- * WordPress dependencies
+ * External dependencies
  */
-import { useEntityRecords } from '@wordpress/core-data';
+import apiFetch from '@wordpress/api-fetch';
+import { useEffect, useRef, useState } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
-import type { Entry, UseEntriesOptions } from '../types';
+import type {
+	EntryPageResponse,
+	EntryViewRow,
+	SyncNotice,
+	UseEntriesOptions,
+	UseEntriesResult,
+} from '../types';
 import { useAdminContext } from './useAdminContext';
+import { handleApiError } from '../utils/api-error';
+import { buildPageUrl, pollSync, SYNC_INTERVAL_MS } from '../utils/entries-api';
 
 /**
- * Fetches entries for a given coverage via the WordPress core-data layer
- * (useEntityRecords), mirroring the pattern used by useCoverages.
+ * Fetches entries for a given coverage via the custom entries-view REST
+ * endpoint, with server-side pagination and a 10-second real-time sync poll.
  *
- * Passes context=edit to retrieve all statuses, the rolling-coverage taxonomy
- * filter to scope results to a single coverage, and _embed for author/term data.
+ * Page mode fetches a full page whenever coverageId, page, search, sort, or
+ * refreshKey changes, and stores the response cursor for subsequent sync
+ * polls. Sync mode polls every 10 seconds using the latest cursor, merging
+ * changed rows (upsert by id) and removing trashed IDs, and exposes a
+ * syncNotices array describing the last sync cycle for the consumer to
+ * render as snackbars.
  *
- * @param {UseEntriesOptions} options Query options including coverageId, pagination, and filtering.
+ * Polling pauses when the tab is hidden and resumes (with an immediate
+ * poll) when visible. The interval and listeners are cancelled on unmount
+ * and on pagehide.
  *
- * @return {{ records: Entry[] | null, isResolving: boolean, hasResolved: boolean, error: string | null, totalItems: number, totalPages: number }} Entry data and request state.
+ * @param {UseEntriesOptions} options Query options including coverageId, pagination, search, sort, and refreshKey.
+ *
+ * @return {UseEntriesResult} Entry rows, request state, pagination totals, sync notices, and error.
  */
-function useEntries( options: UseEntriesOptions ) {
+function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 	const {
 		coverageId,
+		page,
 		perPage = 100,
-		page = 1,
 		search = '',
 		orderBy = 'date',
 		order = 'desc',
-		status,
 		refreshKey,
 	} = options;
 
 	const config = useAdminContext();
+	const baseUrl = config.restBaseUrls.entriesView;
 
-	const query: Record< string, unknown > = {
-		per_page: perPage,
+	const [ rows, setRows ] = useState< EntryViewRow[] | null >( null );
+	const [ isResolving, setIsResolving ] = useState( false );
+	const [ hasResolved, setHasResolved ] = useState( false );
+	const [ totalItems, setTotalItems ] = useState( 0 );
+	const [ totalPages, setTotalPages ] = useState( 0 );
+	const [ syncNotices, setSyncNotices ] = useState< SyncNotice[] >( [] );
+	const [ error, setError ] = useState< string | null >( null );
+
+	const cursorRef = useRef< string | null >( null );
+	const rowsRef = useRef< EntryViewRow[] | null >( null );
+	const coverageIdRef = useRef< number | null >( coverageId );
+	const pageRef = useRef< number >( page );
+	const isMountedRef = useRef( true );
+
+	useEffect( () => {
+		coverageIdRef.current = coverageId;
+	}, [ coverageId ] );
+
+	useEffect( () => {
+		pageRef.current = page;
+	}, [ page ] );
+
+	useEffect( () => {
+		isMountedRef.current = true;
+		return () => {
+			isMountedRef.current = false;
+		};
+	}, [] );
+
+	// Page fetch: loads a full page on coverageId/page/search/sort/refreshKey change.
+	useEffect( () => {
+		if ( coverageId === null ) {
+			setRows( null );
+			rowsRef.current = null;
+			setIsResolving( false );
+			setHasResolved( false );
+			setError( null );
+			setTotalItems( 0 );
+			setTotalPages( 0 );
+			cursorRef.current = null;
+			setSyncNotices( [] );
+			return;
+		}
+
+		let cancelled = false;
+
+		setIsResolving( true );
+		setError( null );
+
+		const url = buildPageUrl(
+			baseUrl,
+			coverageId,
+			page,
+			perPage,
+			orderBy,
+			order,
+			search
+		);
+
+		apiFetch< EntryPageResponse >( { url, method: 'GET' } )
+			.then( ( response ) => {
+				if ( cancelled || ! isMountedRef.current ) {
+					return;
+				}
+				setRows( response.entries );
+				rowsRef.current = response.entries;
+				setTotalItems( response.totalItems );
+				setTotalPages( response.totalPages );
+				cursorRef.current = response.cursor;
+				setHasResolved( true );
+				setError( null );
+				setSyncNotices( [] );
+			} )
+			.catch( ( err ) => {
+				if ( cancelled || ! isMountedRef.current ) {
+					return;
+				}
+				setError( handleApiError( err as Error ) );
+			} )
+			.finally( () => {
+				if ( cancelled || ! isMountedRef.current ) {
+					return;
+				}
+				setIsResolving( false );
+			} );
+
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		coverageId,
 		page,
-		orderby: orderBy,
+		perPage,
+		search,
+		orderBy,
 		order,
-		status: status || 'publish,draft,pending,future,private',
-		context: 'edit',
-		[ config.restBase.coverages ]: coverageId
-			? String( coverageId )
-			: undefined,
-		_fields:
-			'id,title,date,modified,author,status,meta,categories,tags,_links,_embedded,rolling_coverage_breakout_status',
-		_embed: 'author,wp:term',
-		_ts: refreshKey,
-	};
+		refreshKey,
+		baseUrl,
+	] );
 
-	if ( search ) {
-		query.search = search;
-	}
+	// Sync poll: 10s interval, pauses when hidden, resumes on visible.
+	useEffect( () => {
+		if ( coverageId === null ) {
+			return;
+		}
 
-	const { records, isResolving, hasResolved, totalItems, totalPages } =
-		useEntityRecords< Entry >( 'postType', config.postType, query );
+		const ctx = {
+			baseUrl,
+			perPage,
+			cursorRef,
+			coverageIdRef,
+			rowsRef,
+			pageRef,
+			isMountedRef,
+			setRows,
+			setSyncNotices,
+		};
 
-	const error = hasResolved && ! records ? 'Failed to load entries.' : null;
+		let intervalId = window.setInterval(
+			() => void pollSync( ctx ),
+			SYNC_INTERVAL_MS
+		);
+
+		const onVisibilityChange = () => {
+			if ( document.hidden ) {
+				window.clearInterval( intervalId );
+			} else {
+				void pollSync( ctx );
+				intervalId = window.setInterval(
+					() => void pollSync( ctx ),
+					SYNC_INTERVAL_MS
+				);
+			}
+		};
+
+		const onPageHide = () => {
+			window.clearInterval( intervalId );
+		};
+
+		document.addEventListener( 'visibilitychange', onVisibilityChange );
+		window.addEventListener( 'pagehide', onPageHide );
+
+		return () => {
+			window.clearInterval( intervalId );
+			document.removeEventListener(
+				'visibilitychange',
+				onVisibilityChange
+			);
+			window.removeEventListener( 'pagehide', onPageHide );
+		};
+	}, [ coverageId, perPage, baseUrl ] );
 
 	return {
-		records: records ?? null,
+		rows,
 		isResolving,
 		hasResolved,
+		totalItems,
+		totalPages,
+		syncNotices,
 		error,
-		totalItems: totalItems ?? 0,
-		totalPages: totalPages ?? 0,
 	};
 }
 

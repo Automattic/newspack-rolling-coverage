@@ -2,11 +2,18 @@
  * External dependencies
  */
 import { useOutletContext, useParams } from 'react-router';
-import { useEffect, useMemo, useState, useCallback } from '@wordpress/element';
+import {
+	useEffect,
+	useMemo,
+	useState,
+	useCallback,
+	useRef,
+} from '@wordpress/element';
 import { Button } from '@wordpress/components';
 import { plus } from '@wordpress/icons';
-import { __ } from '@wordpress/i18n';
-import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
+import { __, sprintf } from '@wordpress/i18n';
+import { useDispatch } from '@wordpress/data';
+import { store as noticesStore } from '@wordpress/notices';
 import type { View } from '@wordpress/dataviews';
 
 /**
@@ -14,17 +21,27 @@ import type { View } from '@wordpress/dataviews';
  */
 import { useEntries } from '../hooks/useEntries';
 import { useAdminContext } from '../hooks/useAdminContext';
-import { createEntry } from '../utils/entries-api';
+import { createEntry, toEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
 import { getEntryActions } from '../actions/entry-actions';
-import type { ContextExports, Entry } from '../types';
+import { getEntryNoticeMessage } from '../utils/notices';
+import { applyEntryFilters } from '../utils/fields';
+import type { ContextExports, Entry, SyncNotice } from '../types';
 import { getEntryFields, defaultEntryView } from '../fields/entries';
 
 /**
- * Renders the entry list DataViews for a single coverage, with client-side
- * filtering/sorting and a "New Entry" button (hidden when archived).
+ * Threshold at which individual sync notices collapse into a single grouped
+ * snackbar. Matches the spec §4.3 "group >5 changes into one notice" rule.
+ */
+const GROUP_NOTICE_THRESHOLD = 5;
+
+/**
+ * Renders the entry list DataViews for a single coverage, backed by the
+ * custom entries-view endpoint with server-side pagination/sorting/search
+ * and a 10-second real-time sync poll. `source` and `status` filters are
+ * applied client-side; sync deltas surface as snackbar notices.
  *
  * The coverage is resolved from the route's :coverageId param and the
  * selected coverage passed via <Outlet context> by AdminLayout.
@@ -37,6 +54,7 @@ function EntryView() {
 	const { coverageId } = useParams< { coverageId?: string } >();
 	const [ context, setContext ] = useOutletContext< ContextExports >();
 	const { selectedCoverage } = context;
+	const { createInfoNotice } = useDispatch( noticesStore );
 
 	const numericCoverageId = coverageId ? Number( coverageId ) : null;
 	const isValidCoverageId =
@@ -85,15 +103,16 @@ function EntryView() {
 		setContext,
 	] );
 
-	const { records, isResolving, error } = useEntries( {
-		coverageId: isValidCoverageId ? numericCoverageId : null,
-		perPage: 100,
-		page: 1,
-		search: view.search,
-		orderBy: view.sort?.field,
-		order: view.sort?.direction,
-		refreshKey,
-	} );
+	const { rows, isResolving, error, totalItems, totalPages, syncNotices } =
+		useEntries( {
+			coverageId: isValidCoverageId ? numericCoverageId : null,
+			page: view.page ?? 1,
+			perPage: view.perPage,
+			search: view.search,
+			orderBy: view.sort?.field,
+			order: view.sort?.direction,
+			refreshKey,
+		} );
 
 	const handleQuickEdit = useCallback( ( entry: Entry ) => {
 		setQuickEditEntry( entry );
@@ -110,8 +129,18 @@ function EntryView() {
 	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
 
 	const { data: filteredData, paginationInfo } = useMemo( () => {
-		return filterSortAndPaginate( records ?? [], view, entryFields );
-	}, [ records, view, entryFields ] );
+		const mapped = ( rows ?? [] ).map( toEntry );
+		const filters = ( view.filters ?? [] ) as Array< {
+			field: string;
+			operator: string;
+			value: string | string[];
+		} >;
+
+		return {
+			data: applyEntryFilters( mapped, filters ),
+			paginationInfo: { totalItems, totalPages },
+		};
+	}, [ rows, view.filters, totalItems, totalPages ] );
 
 	const handleNewEntry = useCallback( async () => {
 		if ( ! isValidCoverageId || numericCoverageId === null ) {
@@ -143,6 +172,50 @@ function EntryView() {
 		() => getEntryActions( config, handleQuickEdit, handleActionPerformed ),
 		[ config, handleQuickEdit, handleActionPerformed ]
 	);
+
+	// Render sync notices as snackbars. A sync cycle with more than
+	// GROUP_NOTICE_THRESHOLD total changes collapses into a single grouped
+	// notice. The `syncNotices` array is replaced each cycle by the hook with
+	// only the latest delta, so this effect fires once per cycle.
+	const prevNoticesRef = useRef< SyncNotice[] | null >( null );
+
+	useEffect( () => {
+		if ( prevNoticesRef.current === syncNotices ) {
+			return;
+		}
+		prevNoticesRef.current = syncNotices;
+
+		if ( ! syncNotices || syncNotices.length === 0 ) {
+			return;
+		}
+
+		const totalCount = syncNotices.reduce( ( sum, n ) => sum + n.count, 0 );
+
+		if ( totalCount > GROUP_NOTICE_THRESHOLD ) {
+			createInfoNotice(
+				sprintf(
+					/* translators: %d: number of updates. */
+					__(
+						'%d updates in the last 10s',
+						'newspack-rolling-coverage'
+					),
+					totalCount
+				),
+				{ type: 'snackbar' }
+			);
+			return;
+		}
+
+		// 5 or fewer: one snackbar per individual entry.
+		for ( const notice of syncNotices ) {
+			for ( const entry of notice.entries ) {
+				const message = getEntryNoticeMessage( notice.type, entry );
+				if ( message ) {
+					createInfoNotice( message, { type: 'snackbar' } );
+				}
+			}
+		}
+	}, [ syncNotices, createInfoNotice ] );
 
 	return (
 		<>

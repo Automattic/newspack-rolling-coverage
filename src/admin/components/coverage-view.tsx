@@ -6,7 +6,6 @@ import { useState, useCallback, useMemo } from '@wordpress/element';
 import { Button } from '@wordpress/components';
 import { plus } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
-import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
 import type { View } from '@wordpress/dataviews';
 
 /**
@@ -45,16 +44,18 @@ function CoverageView() {
 		null
 	);
 
-	const { records, isResolving, error } = useCoverages( {
-		perPage: 100,
-		page: 1,
-		search: view.search,
-		refreshKey,
-	} );
+	const { records, isResolving, error, totalItems, totalPages } =
+		useCoverages( {
+			perPage: view.perPage,
+			page: view.page ?? 1,
+			search: view.search,
+			refreshKey,
+		} );
 
-	const { data: filteredData, paginationInfo } = useMemo( () => {
-		return filterSortAndPaginate( records ?? [], view, fields );
-	}, [ records, view, fields ] );
+	const paginationInfo = useMemo(
+		() => ( { totalItems, totalPages } ),
+		[ totalItems, totalPages ]
+	);
 
 	const handleOpenCreate = useCallback( () => {
 		setEditingCoverage( null );
@@ -118,7 +119,7 @@ function CoverageView() {
 				<div className="newspack-rolling-coverage-error">{ error }</div>
 			) }
 			<DataViewsWrapper
-				data={ filteredData }
+				data={ records ?? [] }
 				fields={ fields }
 				view={ view }
 				onChangeView={ setView }

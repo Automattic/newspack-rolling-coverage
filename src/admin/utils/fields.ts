@@ -138,6 +138,55 @@ function getSlackChannelLabel( item: Coverage ): string {
 	return name || channelId;
 }
 
+/**
+ * Applies client-side `source` and `status` filters from a DataViews view
+ * state to an array of entries. Returns the filtered array.
+ *
+ * @param {Entry[]} entries The entries to filter.
+ * @param {Array}   filters The DataViews view.filters array.
+ * @return {Entry[]} The filtered entries.
+ */
+function applyEntryFilters(
+	entries: Entry[],
+	filters: Array< {
+		field: string;
+		operator: string;
+		value: string | string[];
+	} >
+): Entry[] {
+	const sourceFilter = filters.find( ( f ) => f.field === 'source' );
+	const statusFilter = filters.find( ( f ) => f.field === 'status' );
+
+	const matchesFilter = (
+		itemValue: string,
+		filter: typeof sourceFilter
+	): boolean => {
+		if ( ! filter ) {
+			return true;
+		}
+		const values = Array.isArray( filter.value )
+			? filter.value
+			: [ filter.value ];
+		const isIn = values.includes( itemValue );
+		return filter.operator === 'isNot' ? ! isIn : isIn;
+	};
+
+	return entries.filter( ( item ) => {
+		const sourceOk = sourceFilter
+			? matchesFilter(
+					String(
+						item.meta?.rolling_coverage_entry_source ?? 'wordpress'
+					),
+					sourceFilter
+			  )
+			: true;
+		const statusOk = statusFilter
+			? matchesFilter( item.status, statusFilter )
+			: true;
+		return sourceOk && statusOk;
+	} );
+}
+
 export {
 	truncate,
 	safeFormatUTCDate,
@@ -147,4 +196,5 @@ export {
 	getSlackChannelLabel,
 	SOURCE_SLACK,
 	SOURCE_WORDPRESS,
+	applyEntryFilters,
 };
