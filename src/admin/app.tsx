@@ -7,6 +7,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router';
  * WordPress dependencies
  */
 import { useSelect, useDispatch } from '@wordpress/data';
+import { useEffect, useState } from '@wordpress/element';
 import { store as noticesStore } from '@wordpress/notices';
 import { SnackbarList } from '@wordpress/components';
 
@@ -17,6 +18,8 @@ import AdminLayout from './components/admin-layout';
 import CoverageView from './components/coverage-view';
 import EntryView from './components/entry-view';
 import AIPage from './components/ai-page';
+import ConnectionPage from './components/connection-page';
+import SlackSettingsPage from './components/slack-settings-page';
 import { useAdminContext } from './hooks/useAdminContext';
 
 /**
@@ -27,6 +30,8 @@ import { useAdminContext } from './hooks/useAdminContext';
  *   /coverages                   — coverage list (auto-redirected from root)
  *   /coverages/{id}              — rolling coverage entries
  *   /ai                          — AI prompt settings
+ *   /connection                  — connection page (adapter dispatch)
+ *   /connection/{tab}            — adapter-specific settings tab
  */
 function App() {
 	const config = useAdminContext();
@@ -35,6 +40,23 @@ function App() {
 		[]
 	);
 	const { removeNotice } = useDispatch( noticesStore );
+
+	const [ isModalOpen, setIsModalOpen ] = useState(
+		() =>
+			typeof document !== 'undefined' &&
+			document.body.classList.contains( 'modal-open' )
+	);
+
+	useEffect( () => {
+		const observer = new MutationObserver( () => {
+			setIsModalOpen( document.body.classList.contains( 'modal-open' ) );
+		} );
+		observer.observe( document.body, {
+			attributes: true,
+			attributeFilter: [ 'class' ],
+		} );
+		return () => observer.disconnect();
+	}, [] );
 
 	return (
 		<>
@@ -46,6 +68,24 @@ function App() {
 							element={ <Navigate to={ config.page } replace /> }
 						/>
 						<Route path="/coverages" element={ <CoverageView /> } />
+						<Route
+							path="/connection"
+							element={ <ConnectionPage /> }
+						>
+							<Route
+								index
+								element={
+									<Navigate
+										to="/connection/credentials"
+										replace
+									/>
+								}
+							/>
+							<Route
+								path=":tab"
+								element={ <SlackSettingsPage /> }
+							/>
+						</Route>
 						<Route
 							path="/coverages/:coverageId"
 							element={ <EntryView /> }
@@ -59,11 +99,13 @@ function App() {
 				</Routes>
 			</HashRouter>
 
-			<SnackbarList
-				notices={ notices }
-				className="newspack-rolling-coverage-snackbar-list"
-				onRemove={ removeNotice }
-			/>
+			{ ! isModalOpen && (
+				<SnackbarList
+					notices={ notices }
+					className="newspack-rolling-coverage-snackbar-list"
+					onRemove={ removeNotice }
+				/>
+			) }
 		</>
 	);
 }

@@ -30,6 +30,27 @@ class Taxonomy {
 	const CREATED_AT_META_KEY  = 'created_at';
 	const MODIFIED_AT_META_KEY = 'modified_at';
 
+	// Slack integration term-meta keys.
+	const META_SLACK_CHANNEL_ID   = 'rolling_coverage_slack_channel_id';
+	const META_SLACK_CHANNEL_NAME = 'rolling_coverage_slack_channel_name';
+
+	// Generic chat-source term-meta keys: link each term to a single chat source.
+	// META_SOURCE     : the platform slug (e.g. 'slack', 'beeper', 'whatsapp', 'telegram').
+	// META_SOURCE_REF : the platform-native conversation id.
+	const META_SOURCE     = 'rolling_coverage_source';
+	const META_SOURCE_REF = 'rolling_coverage_source_ref';
+
+	/**
+	 * Term meta keys that are sensitive and should only be exposed in the edit
+	 * context (authenticated requests with manage_options capability).
+	 */
+	const RESTRICTED_META = [
+		self::META_SLACK_CHANNEL_ID,
+		self::META_SLACK_CHANNEL_NAME,
+		self::META_SOURCE,
+		self::META_SOURCE_REF,
+	];
+
 	/**
 	 * Initialize hooks.
 	 */
@@ -38,6 +59,7 @@ class Taxonomy {
 		add_action( 'created_' . self::TAXONOMY_SLUG, [ __CLASS__, 'set_term_created_date' ] );
 		add_action( 'edited_' . self::TAXONOMY_SLUG, [ __CLASS__, 'update_term_modified_date' ] );
 		add_filter( 'update_post_term_count_statuses', [ __CLASS__, 'count_all_visible_statuses' ], 10, 2 );
+		add_filter( 'rest_prepare_' . self::TAXONOMY_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 	}
 
 	/**
@@ -66,41 +88,73 @@ class Taxonomy {
 			]
 		);
 
-		// Tracks the status of the blogs (active, paused, archived).
-		register_term_meta(
-			self::TAXONOMY_SLUG,
-			self::STATUS_META_KEY,
-			[
+		$term_meta = [
+			// Coverage status — 'active', 'paused', or 'archived' (terminal); controls frontend polling vs static archive.
+			self::STATUS_META_KEY         => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => self::STATUS_ACTIVE,
-			]
-		);
-
-		// Created date stored as ISO 8601 string.
-		register_term_meta(
-			self::TAXONOMY_SLUG,
-			self::CREATED_AT_META_KEY,
-			[
+			],
+			// ISO 8601 timestamp the coverage term was first created (set once via the created_ hook).
+			self::CREATED_AT_META_KEY     => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => '',
-			]
-		);
-
-		// Modified date stored as ISO 8601 string.
-		register_term_meta(
-			self::TAXONOMY_SLUG,
-			self::MODIFIED_AT_META_KEY,
-			[
+			],
+			// ISO 8601 timestamp of the last edit (updated via the edited_ hook).
+			self::MODIFIED_AT_META_KEY    => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => '',
-			]
-		);
+			],
+			// Slack channel ID linked to this coverage term; the channel→coverage forward link. manage_options-gated via auth_callback.
+			self::META_SLACK_CHANNEL_ID   => [
+				'show_in_rest'  => true,
+				'single'        => true,
+				'type'          => 'string',
+				'default'       => '',
+				'auth_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+			],
+			// Slack channel display name cached alongside the ID for the DataViews Slack column; manage_options-gated via auth_callback.
+			self::META_SLACK_CHANNEL_NAME => [
+				'show_in_rest'  => true,
+				'single'        => true,
+				'type'          => 'string',
+				'default'       => '',
+				'auth_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+			],
+			// Generic source platform slug (e.g. 'slack', 'beeper', 'whatsapp', 'telegram'); manage_options-gated via auth_callback.
+			self::META_SOURCE             => [
+				'show_in_rest'  => true,
+				'single'        => true,
+				'type'          => 'string',
+				'default'       => '',
+				'auth_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+			],
+			// Generic source conversation id (Slack channel id, Beeper chat id, WhatsApp phone_jid, Telegram chat id); manage_options-gated via auth_callback.
+			self::META_SOURCE_REF         => [
+				'show_in_rest'  => true,
+				'single'        => true,
+				'type'          => 'string',
+				'default'       => '',
+				'auth_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+			],
+		];
+
+		foreach ( $term_meta as $meta_key => $meta_args ) {
+			register_term_meta( self::TAXONOMY_SLUG, $meta_key, $meta_args );
+		}
 	}
 
 	/**
@@ -133,8 +187,8 @@ class Taxonomy {
 	 * This plugin's admin UI shows entries of all statuses (draft, pending,
 	 * private, etc.) so the count should reflect that.
 	 *
-	 * @param string[]    $post_statuses List of post statuses to include in the count.
-	 * @param WP_Taxonomy $taxonomy      Current taxonomy object.
+	 * @param string[]     $post_statuses List of post statuses to include in the count.
+	 * @param \WP_Taxonomy $taxonomy      Current taxonomy object.
 	 * @return string[] Filtered list of post statuses.
 	 */
 	public static function count_all_visible_statuses( $post_statuses, $taxonomy ) {
@@ -143,5 +197,36 @@ class Taxonomy {
 		}
 
 		return [ 'publish', 'draft', 'pending', 'future', 'private' ];
+	}
+
+	/**
+	 * Strip sensitive Slack channel and source term meta from the REST
+	 * response for requests that are not in the edit context. The
+	 * auth_callback on these meta keys only restricts writes, so read access
+	 * must be blocked separately here.
+	 *
+	 * @param \WP_REST_Response $response The REST response object.
+	 * @param \WP_Term          $item     Term object.
+	 * @param \WP_REST_Request  $request  Full details about the request.
+	 * @return \WP_REST_Response Filtered response.
+	 */
+	public static function filter_rest_response( \WP_REST_Response $response, \WP_Term $item, \WP_REST_Request $request ): \WP_REST_Response {
+		$context = $request->get_param( 'context' );
+
+		if ( 'edit' === $context ) {
+			return $response;
+		}
+
+		$data = $response->get_data();
+
+		if ( isset( $data['meta'] ) && is_array( $data['meta'] ) ) {
+			foreach ( self::RESTRICTED_META as $meta_key ) {
+				unset( $data['meta'][ $meta_key ] );
+			}
+		}
+
+		$response->set_data( $data );
+
+		return $response;
 	}
 }

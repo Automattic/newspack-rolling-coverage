@@ -1,16 +1,24 @@
 /**
- * WordPress dependencies.
+ * External dependencies
  */
 import { __ } from '@wordpress/i18n';
-import { Icon, pin } from '@wordpress/icons';
+import { Icon, pin, wordpress as WordPressIconRaw } from '@wordpress/icons';
 
 /**
- * Internal dependencies.
+ * Internal dependencies
  */
 import type { Field, ViewState, Entry, AdminConfig } from '../types';
-import { truncate, safeFormatUTCDate, getEmbeddedTerms } from '../utils/fields';
 import { ChipLink } from '../shared/chip-link';
+import { SlackIcon } from '../shared/icons/slack-icon';
 import { TermChips } from '../shared/term-chips';
+import {
+	truncate,
+	safeFormatUTCDate,
+	getEmbeddedTerms,
+	getEntrySource,
+	SOURCE_SLACK,
+	SOURCE_WORDPRESS,
+} from '../utils/fields';
 
 const POST_STATUS_LABELS: Record< string, string > = {
 	publish: __( 'Published', 'newspack-rolling-coverage' ),
@@ -118,6 +126,39 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			},
 		},
 		{
+			id: 'source',
+			type: 'text',
+			label: __( 'Source', 'newspack-rolling-coverage' ),
+			getValue: ( { item } ) => getEntrySource( item ),
+			render: ( { item } ) => {
+				if ( getEntrySource( item ) === SOURCE_SLACK ) {
+					return (
+						<span title="Slack" aria-label="Slack">
+							<SlackIcon size={ 16 } />
+						</span>
+					);
+				}
+				return (
+					<span title="WordPress" aria-label="WordPress">
+						<Icon icon={ WordPressIconRaw } size={ 16 } />
+					</span>
+				);
+			},
+			elements: [
+				{
+					value: SOURCE_SLACK,
+					label: __( 'Slack', 'newspack-rolling-coverage' ),
+				},
+				{
+					value: SOURCE_WORDPRESS,
+					label: __( 'WordPress', 'newspack-rolling-coverage' ),
+				},
+			],
+			filterBy: {
+				operators: [ 'is', 'isNot' ],
+			},
+		},
+		{
 			id: 'status',
 			type: 'text',
 			label: __( 'Status', 'newspack-rolling-coverage' ),
@@ -205,10 +246,11 @@ const defaultEntryView: ViewState = {
 	fields: [
 		'author',
 		'status',
+		'source',
+		'breakout',
 		'categories',
 		'tags',
 		'modified',
-		'breakout',
 	],
 	titleField: 'title',
 };

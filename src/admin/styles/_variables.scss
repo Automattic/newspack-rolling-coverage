@@ -1,9 +1,18 @@
 // Colors
 $nrc-color-background: #fff;
 $nrc-color-error: #d63638;
-$nrc-color-chip-bg: #f0f0f0;
+$nrc-color-muted-text: #757575;      // secondary text — table headers, overflow counts
+$nrc-color-border: #ddd;             // strong separators and input borders
+$nrc-color-border-subtle: #f0f0f0;   // light row separators
+$nrc-color-surface-subtle: #f0f0f0;  // inline <code> background
+$nrc-color-surface-muted: #f7f7f7;   // read-only surface (manifest textarea)
+$nrc-color-success: #008a20;         // connected status text
+$nrc-color-success-bg: #edfaef;      // connected status background
+
+// Chip-specific tokens (hover + text have no semantic equivalent).
 $nrc-color-chip-bg-hover: #e0e0e0;
 $nrc-color-chip-text: #1e1e1e;
+$nrc-color-chip-bg: #f0f0f0;
 $nrc-color-chip-remaining: #757575;
 
 // Breakout status chip colors.

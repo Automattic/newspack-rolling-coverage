@@ -2,6 +2,7 @@ node_modules/
 vendor/
 dist/
 release/
+.phpunit.result.cache
 *.sql
 *.tar.gz
 *.zip

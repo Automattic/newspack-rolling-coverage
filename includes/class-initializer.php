@@ -31,6 +31,7 @@ class Initializer {
 	private static function includes() {
 		Post_Type::init();
 		Taxonomy::init();
+		Slack::init();
 		Breakout::init();
 		Rolling_Coverage_Block::init();
 		Breakout_Post_Link_Block::init();
@@ -59,7 +60,7 @@ class Initializer {
 	 * Runs on plugin deactivation.
 	 */
 	public static function deactivation_hook() {
-	
+
 		/**
 		 * Action to hook into when Rolling Coverage plugin is deactivated.
 		 */

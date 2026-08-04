@@ -43,20 +43,34 @@ function hasTrashedBreakout( entry: Entry ): boolean {
 /**
  * Returns DataViews action definitions for entry rows.
  *
- * @param {AdminConfig} config            Admin config containing edit URLs.
- * @param {() => void}  onActionPerformed Callback invoked after a successful create, or setting save, to refresh data.
+ * Includes "Edit" (opens the classic editor in a new tab) and "Quick Edit"
+ * (opens the block editor in a modal on the current page).
+ *
+ * @param {AdminConfig}            config            Admin config containing edit URLs.
+ * @param {(entry: Entry) => void} onQuickEdit       Handler for the Quick Edit action.
+ * @param {() => void}             onActionPerformed Callback invoked after a successful create, or setting save, to refresh data.
  *
  * @return {Action<Entry>[]} Array of DataViews actions for entries.
  */
 function getEntryActions(
 	config: AdminConfig,
+	onQuickEdit: ( entry: Entry ) => void,
 	onActionPerformed?: () => void
 ): Action< Entry >[] {
 	return [
 		{
+			id: 'quick-edit',
+			label: __( 'Quick Edit', 'newspack-rolling-coverage' ),
+			isPrimary: true,
+			callback: ( items: Entry[] ) => {
+				if ( items.length === 1 ) {
+					onQuickEdit( items[ 0 ] );
+				}
+			},
+		},
+		{
 			id: 'edit',
 			label: __( 'Edit', 'newspack-rolling-coverage' ),
-			isPrimary: true,
 			callback: ( items: Entry[] ) => {
 				if ( items.length === 1 ) {
 					window.open(

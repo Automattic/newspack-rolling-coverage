@@ -10,13 +10,16 @@ import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
 
 interface AdminConfig {
 	page: string;
+	availableAdapters?: Record< string, string >;
 	restBase: {
 		coverages: string;
 		entries: string;
+		slack: string;
 	};
 	restBaseUrls: {
 		coverages: string;
 		entries: string;
+		slack: string;
 		breakout: string;
 		restNamespace: string;
 		aiSettings: string;
@@ -31,6 +34,7 @@ interface AdminConfig {
 	adminUrls: {
 		editEntry: string;
 		newEntry: string;
+		editUser: string;
 		editTerm: string;
 	};
 	postType: string;
@@ -41,6 +45,10 @@ interface AdminConfig {
 	aiSettings: AiSettings;
 	aiDefaultSettings: AiSettings;
 	aiAvailable: boolean;
+	slack: {
+		isConfigured: boolean;
+	};
+	blockEditorSettings: Record< string, unknown >;
 }
 
 interface Context {
@@ -63,6 +71,8 @@ interface Coverage {
 		rolling_coverage_status?: 'active' | 'paused' | 'archived';
 		created_at?: string;
 		modified_at?: string;
+		rolling_coverage_slack_channel_id?: string;
+		rolling_coverage_slack_channel_name?: string;
 		[ key: string ]: unknown;
 	};
 }
@@ -127,9 +137,48 @@ interface PaginationInfo {
 	totalPages: number;
 }
 
+interface ChannelMapping {
+	channel_id: string;
+	channel_name: string;
+	term_id: number;
+	term_name: string;
+	autopublish: boolean;
+	last_sync_ts: string;
+}
+
 interface ApiResult {
 	success: boolean;
 	error?: string;
+	message?: string;
+}
+
+interface SlackConnectResult {
+	success: boolean;
+	error?: string;
+	channel_id?: string;
+	channel_name?: string;
+}
+
+interface SlackVerifyResult {
+	success: boolean;
+	team?: string;
+	error?: string;
+}
+
+interface SlackChannelsResult {
+	success: boolean;
+	channels: ChannelMapping[];
+	error?: string;
+}
+
+interface SettingsNotice {
+	type: 'success' | 'error' | 'info';
+	message: string;
+}
+
+interface AdminTab {
+	name: string;
+	title: string;
 }
 
 interface DataViewsWrapperProps< T > {
@@ -229,6 +278,168 @@ interface AiSettings {
 	key_takeaways_prompt: string;
 }
 
+interface AdminHeaderProps {
+	selectedCoverage: Coverage | null;
+}
+
+interface SlackConnectionModalProps {
+	coverage: Coverage | null;
+	onClose: () => void;
+	onSaved: () => void;
+}
+interface QuickEditModalProps {
+	entryId: number;
+	onClose: () => void;
+	onSaved: () => void;
+}
+
+interface SlackErrorProps {
+	message?: string | null;
+}
+
+interface ConnectedChannelViewProps {
+	channelName: string;
+	channelId: string;
+	autopublish: boolean;
+	onAutopublishChange: ( value: boolean ) => void;
+	isUpdatingAutopublish: boolean;
+	error?: string | null;
+}
+
+interface ConnectChannelFormProps {
+	channel: string;
+	onChannelChange: ( value: string ) => void;
+	autopublish: boolean;
+	onAutopublishChange: ( value: boolean ) => void;
+	isConnecting: boolean;
+	error?: string | null;
+}
+
+interface ConnectionModalFooterProps {
+	mode: 'connected' | 'connect';
+	isConnecting: boolean;
+	isDisconnecting: boolean;
+	canConnect: boolean;
+	onClose: () => void;
+	onConnect: () => void;
+	onDisconnect: () => void;
+}
+
+interface ChannelsTableProps {
+	channels: ChannelMapping[];
+	disconnectingChannelId: string | null;
+	updatingAutopublishChannelId: string | null;
+	onUnlink: ( channelId: string ) => void;
+	onAutopublishChange: ( channelId: string, autopublish: boolean ) => void;
+}
+
+interface SlackBotUserInfo {
+	id: number;
+	login: string;
+	display_name: string;
+	email: string;
+	roles: string[];
+	edit_url: string;
+}
+
+interface SlackSettingsInfo {
+	connected: boolean;
+	workspace_name: string;
+	workspace_id: string;
+	ignore_prefix: string;
+	bot_user_id: number;
+	slack_bot_user_id?: string;
+	masked_token: string;
+	bot_user?: SlackBotUserInfo;
+}
+
+interface CredentialsTabProps {
+	isConfigured: boolean;
+	botToken: string;
+	setBotToken: ( v: string ) => void;
+	signingSecret: string;
+	setSigningSecret: ( v: string ) => void;
+	isVerifying: boolean;
+	isDisconnecting: boolean;
+	workspaceInfo: SlackSettingsInfo | null;
+	onVerify: () => void;
+	onDisconnect: () => void;
+}
+
+interface IngestionSettingsTabProps {
+	isConfigured: boolean;
+	ignorePrefix: string;
+	setIgnorePrefix: ( v: string ) => void;
+	isSavingSettings: boolean;
+	onSaveSettings: () => void;
+	workspaceInfo: SlackSettingsInfo | null;
+	editUserUrl: string;
+}
+
+interface ChannelsTabProps {
+	isConfigured: boolean;
+	channels: ChannelMapping[];
+	disconnectingChannelId: string | null;
+	updatingAutopublishChannelId: string | null;
+	onUnlink: ( channelId: string ) => void;
+	onAutopublishChange: ( channelId: string, autopublish: boolean ) => void;
+}
+
+interface SetupGuideTabProps {
+	manifestJson: string;
+}
+
+interface IncomingMessage {
+	source: string;
+	/** Platform-native message id (Slack `ts`, Telegram `message_id`, WhatsApp `wamid`). */
+	source_ref: string;
+	conversation_ref: string;
+	author_external_id: string | null;
+	author_display_name: string | null;
+	content_html: string;
+	thread_ref: string | null;
+	external_timestamp: string;
+	raw_payload: unknown;
+}
+
+interface SettingField {
+	key: string;
+	label: string;
+	type: 'text' | 'password' | 'boolean';
+	secret?: boolean;
+	help?: string;
+}
+interface QuickEditSaveBarProps {
+	onClose: () => void;
+	onSaved: () => void;
+}
+
+interface EntityRecord {
+	id: number;
+	type: string;
+	title?: { raw?: string };
+	content?: { raw?: string };
+	status?: string;
+}
+
+/** Selectors from the editor store, typed for the sub-registry. */
+type EditorSelectors = {
+	__unstableIsEditorReady?: () => boolean;
+	isSavingPost: () => boolean;
+	didPostSaveRequestFail: () => boolean;
+	getCurrentPostType: () => string;
+	getCurrentPostId: () => number;
+};
+
+/** Selectors from the core-data store. */
+type CoreSelectors = {
+	getLastEntitySaveError: (
+		kind: string,
+		name: string,
+		recordId: number
+	) => { message?: string } | undefined;
+};
+
 export type {
 	AdminConfig,
 	Context,
@@ -242,6 +453,7 @@ export type {
 	Action,
 	PaginationInfo,
 	ApiResult,
+	ChannelMapping,
 	DataViewsWrapperProps,
 	CoverageModalProps,
 	CoverageFormData,
@@ -257,4 +469,29 @@ export type {
 	ChipLinkProps,
 	TermChipsProps,
 	AiSettings,
+	AdminHeaderProps,
+	SlackConnectionModalProps,
+	SlackErrorProps,
+	ConnectedChannelViewProps,
+	ConnectChannelFormProps,
+	ConnectionModalFooterProps,
+	ChannelsTableProps,
+	CredentialsTabProps,
+	ChannelsTabProps,
+	SetupGuideTabProps,
+	IngestionSettingsTabProps,
+	SlackSettingsInfo,
+	SlackBotUserInfo,
+	IncomingMessage,
+	SettingField,
+	SlackConnectResult,
+	SlackVerifyResult,
+	SlackChannelsResult,
+	SettingsNotice,
+	AdminTab,
+	QuickEditModalProps,
+	QuickEditSaveBarProps,
+	EntityRecord,
+	EditorSelectors,
+	CoreSelectors,
 };
