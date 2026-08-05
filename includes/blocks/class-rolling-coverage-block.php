@@ -111,6 +111,10 @@ class Rolling_Coverage_Block {
 	 * AI_Service::is_available() sees a fully initialized AI client.
 	 */
 	public static function localize_block_config() {
+		if ( ! wp_should_load_block_editor_scripts_and_styles() ) {
+			return;
+		}
+
 		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/rolling-coverage' );
 
 		if ( ! $block_type instanceof WP_Block_Type ) {
@@ -127,7 +131,6 @@ class Rolling_Coverage_Block {
 					'entriesPreviewRestBase' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 					'aiEndpoint'             => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 					'aiAvailable'            => AI_Service::is_available(),
-					'aiDefaultSettings'      => AI_Settings::get_defaults(),
 				]
 			);
 		}

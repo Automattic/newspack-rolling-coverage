@@ -18,9 +18,6 @@ interface RollingCoverageAttributes {
 	coverageId: number;
 	pollInterval: number;
 	entriesPerPage: number;
-	aiSystemPrompt: string;
-	aiKeyTakeawaysPrompt: string;
-	aiGeneratedOutput: string;
 	[ key: string ]: unknown;
 }
 
@@ -50,10 +47,6 @@ interface BlockConfig {
 	entriesPreviewRestBase: string;
 	aiEndpoint: string;
 	aiAvailable: boolean;
-	aiDefaultSettings: {
-		system_prompt: string;
-		key_takeaways_prompt: string;
-	};
 }
 
 /**

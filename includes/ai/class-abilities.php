@@ -110,7 +110,7 @@ class Abilities {
 				'meta'                => [
 					'show_in_rest' => true,
 					'annotations'  => [
-						'readonly'    => true,
+						'readonly'    => false,
 						'destructive' => false,
 					],
 				],
@@ -133,7 +133,8 @@ class Abilities {
 		if ( empty( $input['coverage_id'] ) ) {
 			return new WP_Error(
 				'rolling_coverage_missing_coverage_id',
-				__( 'A coverage_id is required.', 'newspack-rolling-coverage' )
+				__( 'A coverage_id is required.', 'newspack-rolling-coverage' ),
+				[ 'status' => 400 ]
 			);
 		}
 

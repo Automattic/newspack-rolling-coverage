@@ -20,3 +20,15 @@
 	font-size: 13px;
 	line-height: 1.6;
 }
+
+.newspack-rolling-coverage-ai-settings__field--over-limit {
+
+	.components-base-control__field textarea {
+		border-color: $nrc-color-error;
+	}
+
+	.components-base-control__help {
+		color: $nrc-color-error;
+		font-weight: 600;
+	}
+}

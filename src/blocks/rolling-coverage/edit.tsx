@@ -42,7 +42,7 @@ import {
 	generateKeyTakeaways,
 } from './utils';
 import { DEFAULT_TEMPLATE, ALLOWED_BLOCKS } from './template';
-import { AI_AVAILABLE, AI_DEFAULT_SETTINGS } from './config';
+import { AI_AVAILABLE } from './config';
 import type {
 	CoverageOption,
 	ApplyNotice,
@@ -129,14 +129,7 @@ export default function Edit( {
 	attributes,
 	setAttributes,
 }: EditProps ) {
-	const {
-		coverageId,
-		pollInterval,
-		entriesPerPage,
-		aiSystemPrompt,
-		aiKeyTakeawaysPrompt,
-		aiGeneratedOutput,
-	} = attributes;
+	const { coverageId, pollInterval, entriesPerPage } = attributes;
 	const blockProps = useBlockProps();
 
 	const [ search, setSearch ] = useState( '' );
@@ -154,26 +147,9 @@ export default function Edit( {
 	const [ activeEntryId, setActiveEntryId ] = useState< number >();
 	const [ isGenerating, setIsGenerating ] = useState( false );
 	const [ aiNotice, setAiNotice ] = useState< ApplyNotice | null >( null );
+	const [ generatedOutput, setGeneratedOutput ] = useState( '' );
 	const [ copied, setCopied ] = useState( false );
 	const copyTimer = useRef< ReturnType< typeof setTimeout > | null >( null );
-
-	// Pre-fill AI prompt attributes from global defaults on first load.
-	useEffect( () => {
-		if ( ! aiSystemPrompt && AI_DEFAULT_SETTINGS.system_prompt ) {
-			setAttributes( {
-				aiSystemPrompt: AI_DEFAULT_SETTINGS.system_prompt,
-			} );
-		}
-		if (
-			! aiKeyTakeawaysPrompt &&
-			AI_DEFAULT_SETTINGS.key_takeaways_prompt
-		) {
-			setAttributes( {
-				aiKeyTakeawaysPrompt: AI_DEFAULT_SETTINGS.key_takeaways_prompt,
-			} );
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [] );
 
 	// Clear copy timer on unmount.
 	useEffect(
@@ -287,16 +263,12 @@ export default function Edit( {
 		setIsGenerating( true );
 		setAiNotice( null );
 
-		const result = await generateKeyTakeaways(
-			coverageId,
-			aiSystemPrompt,
-			aiKeyTakeawaysPrompt
-		);
+		const result = await generateKeyTakeaways( coverageId );
 
 		setIsGenerating( false );
 
 		if ( result.success && result.result ) {
-			setAttributes( { aiGeneratedOutput: result.result } );
+			setGeneratedOutput( result.result );
 			setAiNotice( {
 				type: 'success',
 				message: __(
@@ -315,14 +287,14 @@ export default function Edit( {
 					),
 			} );
 		}
-	}, [ coverageId, aiSystemPrompt, aiKeyTakeawaysPrompt, setAttributes ] );
+	}, [ coverageId ] );
 
 	const handleCopy = useCallback( async () => {
-		if ( ! aiGeneratedOutput ) {
+		if ( ! generatedOutput ) {
 			return;
 		}
 		try {
-			await navigator.clipboard.writeText( aiGeneratedOutput );
+			await navigator.clipboard.writeText( generatedOutput );
 			setCopied( true );
 			if ( copyTimer.current ) {
 				clearTimeout( copyTimer.current );
@@ -331,7 +303,7 @@ export default function Edit( {
 		} catch {
 			setCopied( false );
 		}
-	}, [ aiGeneratedOutput ] );
+	}, [ generatedOutput ] );
 
 	// Combobox for selecting the connected coverage.
 	const coverageCombobox = (
@@ -442,19 +414,11 @@ export default function Edit( {
 					/>
 				</PanelBody>
 
-				{ coverageId ? (
+				{ coverageId && AI_AVAILABLE ? (
 					<PanelBody
 						title={ __( 'AI', 'newspack-rolling-coverage' ) }
 						initialOpen={ false }
 					>
-						{ ! AI_AVAILABLE && (
-							<Notice status="warning" isDismissible={ false }>
-								{ __(
-									'AI features are not available on this site.',
-									'newspack-rolling-coverage'
-								) }
-							</Notice>
-						) }
 						{ aiNotice && (
 							<Notice
 								status={ aiNotice.type }
@@ -464,62 +428,31 @@ export default function Edit( {
 							</Notice>
 						) }
 						<div className="newspack-rolling-coverage-ai-panel">
-							<TextareaControl
-								label={ __(
-									'System Prompt',
+							<p className="newspack-rolling-coverage-ai-panel__help">
+								{ __(
+									"Generate a summary of key takeaways from this coverage's entries. Prompts are configured by site administrators on the AI settings page.",
 									'newspack-rolling-coverage'
 								) }
-								help={ __(
-									'Sets the AI assistant persona and behaviour.',
-									'newspack-rolling-coverage'
-								) }
-								value={ aiSystemPrompt }
-								onChange={ ( value: string ) =>
-									setAttributes( { aiSystemPrompt: value } )
-								}
-								rows={ 4 }
-							/>
-							<TextareaControl
-								label={ __(
-									'Key Takeaways Prompt',
-									'newspack-rolling-coverage'
-								) }
-								help={ __(
-									'Use {max_takeaways} as a placeholder for the maximum number of takeaways.',
-									'newspack-rolling-coverage'
-								) }
-								value={ aiKeyTakeawaysPrompt }
-								onChange={ ( value: string ) =>
-									setAttributes( {
-										aiKeyTakeawaysPrompt: value,
-									} )
-								}
-								rows={ 4 }
-							/>
+							</p>
 							<Button
 								variant="primary"
 								onClick={ handleGenerate }
 								isBusy={ isGenerating }
-								disabled={
-									isGenerating ||
-									! AI_AVAILABLE ||
-									! aiSystemPrompt ||
-									! aiKeyTakeawaysPrompt
-								}
+								disabled={ isGenerating }
 							>
 								{ __(
 									'Generate Key Takeaways',
 									'newspack-rolling-coverage'
 								) }
 							</Button>
-							{ aiGeneratedOutput && (
+							{ generatedOutput && (
 								<>
 									<TextareaControl
 										label={ __(
 											'Generated Output',
 											'newspack-rolling-coverage'
 										) }
-										value={ aiGeneratedOutput }
+										value={ generatedOutput }
 										onChange={ () => {} }
 										rows={ 8 }
 										readOnly

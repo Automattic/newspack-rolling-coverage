@@ -29,7 +29,7 @@ interface AdminConfig {
 	capabilities: {
 		canEditPosts: boolean;
 		canManageTerms: boolean;
-		canManageOptions: boolean;
+		canManageAiSettings: boolean;
 	};
 	adminUrls: {
 		editEntry: string;
@@ -45,6 +45,7 @@ interface AdminConfig {
 	aiSettings: AiSettings;
 	aiDefaultSettings: AiSettings;
 	aiAvailable: boolean;
+	aiMaxPromptLength: number;
 	slack: {
 		isConfigured: boolean;
 	};

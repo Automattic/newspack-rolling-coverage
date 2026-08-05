@@ -24,7 +24,6 @@ const {
 	entriesPreviewRestBase: ENTRIES_PREVIEW_REST_BASE,
 	aiEndpoint: AI_ENDPOINT,
 	aiAvailable: AI_AVAILABLE,
-	aiDefaultSettings: AI_DEFAULT_SETTINGS,
 } = config;
 
 export {
@@ -33,5 +32,4 @@ export {
 	ENTRIES_PREVIEW_REST_BASE,
 	AI_ENDPOINT,
 	AI_AVAILABLE,
-	AI_DEFAULT_SETTINGS,
 };

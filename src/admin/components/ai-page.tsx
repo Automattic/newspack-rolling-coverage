@@ -10,12 +10,13 @@ import {
 	CardBody,
 	CardFooter,
 	TabPanel,
+	Notice,
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalVStack as VStack,
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalHStack as HStack,
 } from '@wordpress/components';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -118,6 +119,15 @@ function AIPage() {
 		},
 	];
 
+	const canEdit = config.capabilities.canManageAiSettings;
+	const aiEnabled = config.aiAvailable && canEdit;
+	const maxLen = config.aiMaxPromptLength ?? 2000;
+	const systemPromptLen = settings.system_prompt.length;
+	const takeawaysPromptLen = settings.key_takeaways_prompt.length;
+	const systemPromptOver = systemPromptLen > maxLen;
+	const takeawaysPromptOver = takeawaysPromptLen > maxLen;
+	const hasOverLimit = systemPromptOver || takeawaysPromptOver;
+
 	return (
 		<div className="newspack-rolling-coverage-ai-settings">
 			{ error && (
@@ -126,10 +136,18 @@ function AIPage() {
 			{ ! config.aiAvailable && (
 				<div className="newspack-rolling-coverage-ai-settings__notice">
 					{ __(
-						'AI features are not available on this site. Settings can still be configured but will not take effect until an AI provider is configured.',
+						'AI features are not available on this site. An administrator must enable the AI plugin and configure a provider before these prompts take effect.',
 						'newspack-rolling-coverage'
 					) }
 				</div>
+			) }
+			{ hasOverLimit && aiEnabled && (
+				<Notice status="error" isDismissible={ false }>
+					{ __(
+						'One or more prompts exceed the maximum length. Shorten the text to stay within the limit.',
+						'newspack-rolling-coverage'
+					) }
+				</Notice>
 			) }
 			<TabPanel tabs={ tabs } initialTabName="key-takeaways">
 				{ () => (
@@ -154,25 +172,42 @@ function AIPage() {
 										'System Prompt',
 										'newspack-rolling-coverage'
 									) }
-									help={ __(
-										'Sets the AI assistant persona and behaviour for key takeaways generation.',
-										'newspack-rolling-coverage'
+									help={ sprintf(
+										/* translators: 1: character count, 2: max character count */
+										__(
+											'Sets the AI assistant persona for key takeaways generation. Keep this short — it defines the editor role and summary style. (%1$d / %2$d characters)',
+											'newspack-rolling-coverage'
+										),
+										systemPromptLen,
+										maxLen
 									) }
 									value={ settings.system_prompt }
 									onChange={ ( value ) =>
 										handleChange( 'system_prompt', value )
 									}
 									rows={ 6 }
-									disabled={ isLoading || isSaving }
+									disabled={
+										isLoading || isSaving || ! aiEnabled
+									}
+									className={
+										systemPromptOver
+											? 'newspack-rolling-coverage-ai-settings__field--over-limit'
+											: undefined
+									}
 								/>
 								<TextareaControl
 									label={ __(
 										'Key Takeaways Prompt',
 										'newspack-rolling-coverage'
 									) }
-									help={ __(
-										'The instruction sent to the AI along with coverage entries. Use {max_takeaways} as a placeholder for the maximum number of takeaways.',
-										'newspack-rolling-coverage'
+									help={ sprintf(
+										/* translators: 1: character count, 2: max character count */
+										__(
+											'The instruction sent to the AI along with coverage entries. Use {max_takeaways} as a placeholder for the maximum number of takeaways. Keep this short — the model already has the liveblog context. (%1$d / %2$d characters)',
+											'newspack-rolling-coverage'
+										),
+										takeawaysPromptLen,
+										maxLen
 									) }
 									value={ settings.key_takeaways_prompt }
 									onChange={ ( value ) =>
@@ -182,7 +217,14 @@ function AIPage() {
 										)
 									}
 									rows={ 6 }
-									disabled={ isLoading || isSaving }
+									disabled={
+										isLoading || isSaving || ! aiEnabled
+									}
+									className={
+										takeawaysPromptOver
+											? 'newspack-rolling-coverage-ai-settings__field--over-limit'
+											: undefined
+									}
 								/>
 							</VStack>
 						</CardBody>
@@ -191,7 +233,9 @@ function AIPage() {
 								<Button
 									variant="secondary"
 									onClick={ handleReset }
-									disabled={ isSaving || isLoading }
+									disabled={
+										isSaving || isLoading || ! aiEnabled
+									}
 								>
 									{ __(
 										'Reset to Defaults',
@@ -202,7 +246,12 @@ function AIPage() {
 									variant="primary"
 									onClick={ handleSave }
 									isBusy={ isSaving }
-									disabled={ isSaving || isLoading }
+									disabled={
+										isSaving ||
+										isLoading ||
+										! aiEnabled ||
+										hasOverLimit
+									}
 								>
 									{ __(
 										'Save Settings',

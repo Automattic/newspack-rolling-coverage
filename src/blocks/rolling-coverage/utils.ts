@@ -129,29 +129,27 @@ async function fetchEntryPreviewContexts(
 /**
  * Generates key takeaways for a coverage via the AI REST endpoint.
  *
- * @param {number} coverageId      Coverage term ID.
- * @param {string} systemPrompt    System prompt for the AI.
- * @param {string} takeawaysPrompt Key takeaways prompt (with {max_takeaways} placeholder).
+ * Prompts are read from the server-side AI_Settings (manage_options);
+ * the client does not send or override them.
+ *
+ * @param {number} coverageId Coverage term ID.
  * @return {Promise<{success: boolean, result?: string, error?: string}>} Result with generated text or error.
  */
 async function generateKeyTakeaways(
-	coverageId: number,
-	systemPrompt: string,
-	takeawaysPrompt: string
+	coverageId: number
 ): Promise< { success: boolean; result?: string; error?: string } > {
 	try {
 		const response = await apiFetch< { result: string } >( {
 			url: `${ AI_ENDPOINT }/${ coverageId }/generate-key-takeaways`,
 			method: 'POST',
-			data: {
-				system_prompt: systemPrompt,
-				key_takeaways_prompt: takeawaysPrompt,
-			},
 		} );
 		return { success: true, result: response.result };
 	} catch ( error ) {
-		const message =
-			( error as { message?: string } )?.message ?? 'Unknown error';
+		const err = error as {
+			message?: string;
+			data?: { message?: string };
+		};
+		const message = err?.message ?? err?.data?.message ?? 'Unknown error';
 		return { success: false, error: message };
 	}
 }

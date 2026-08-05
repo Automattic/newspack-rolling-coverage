@@ -209,26 +209,16 @@ class Post_Type {
 				'callback'            => [ __CLASS__, 'handle_generate_key_takeaways' ],
 				'permission_callback' => [ __CLASS__, 'can_generate_key_takeaways' ],
 				'args'                => [
-					'coverage_id'          => [
+					'coverage_id'   => [
 						'required'          => true,
 						'validate_callback' => [ __CLASS__, 'validate_numeric_id' ],
 					],
-					'max_takeaways'        => [
+					'max_takeaways' => [
 						'type'              => 'integer',
 						'default'           => 5,
 						'minimum'           => 1,
 						'maximum'           => 10,
 						'sanitize_callback' => 'absint',
-					],
-					'system_prompt'        => [
-						'type'              => 'string',
-						'required'          => false,
-						'sanitize_callback' => 'sanitize_textarea_field',
-					],
-					'key_takeaways_prompt' => [
-						'type'              => 'string',
-						'required'          => false,
-						'sanitize_callback' => 'sanitize_textarea_field',
 					],
 				],
 			]
@@ -355,7 +345,9 @@ class Post_Type {
 		global $wpdb;
 		$ids_list = implode( ',', $pinned_ids );
 
-		return "CASE WHEN {$wpdb->posts}.ID IN ({$ids_list}) THEN 0 ELSE 1 END, FIELD({$wpdb->posts}.ID, {$ids_list}), " . $orderby;
+		$pinned_order = "CASE WHEN {$wpdb->posts}.ID IN ({$ids_list}) THEN 0 ELSE 1 END, FIELD({$wpdb->posts}.ID, {$ids_list})";
+
+		return '' === $orderby ? $pinned_order : $pinned_order . ', ' . $orderby;
 	}
 
 	/**
@@ -393,10 +385,6 @@ class Post_Type {
 	/**
 	 * POST handler — generates key takeaways from coverage entries.
 	 *
-	 * Delegates to AI_Service::generate_key_takeaways(). When the request
-	 * includes system_prompt or key_takeaways_prompt, those override the
-	 * global AI settings defaults for this call only.
-	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
 	 */
@@ -404,14 +392,9 @@ class Post_Type {
 		$coverage_id   = (int) $request->get_param( 'coverage_id' );
 		$max_takeaways = (int) $request->get_param( 'max_takeaways' );
 
-		$custom_system_prompt        = $request->get_param( 'system_prompt' );
-		$custom_key_takeaways_prompt = $request->get_param( 'key_takeaways_prompt' );
-
 		$result = AI_Service::generate_key_takeaways(
 			$coverage_id,
-			$max_takeaways,
-			$custom_system_prompt,
-			$custom_key_takeaways_prompt
+			$max_takeaways
 		);
 
 		if ( is_wp_error( $result ) ) {
