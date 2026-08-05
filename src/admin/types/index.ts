@@ -41,6 +41,7 @@ interface AdminConfig {
 	taxonomy: string;
 	taxMeta: {
 		statusKey: string;
+		adsDisabledKey: string;
 	};
 	aiSettings: AiSettings;
 	aiDefaultSettings: AiSettings;
@@ -72,6 +73,7 @@ interface Coverage {
 	count: number;
 	meta: {
 		rolling_coverage_status?: 'active' | 'paused' | 'archived' | 'trash';
+		rolling_coverage_ads_disabled?: boolean;
 		created_at?: string;
 		modified_at?: string;
 		rolling_coverage_slack_channel_id?: string;
@@ -207,6 +209,7 @@ interface CoverageFormData {
 	name: string;
 	description: string;
 	status: 'active' | 'paused' | 'archived';
+	adsDisabled: boolean;
 }
 
 interface BulkRestoreEntryResult {
@@ -254,6 +257,7 @@ interface SaveCoverageData {
 	name: string;
 	description: string;
 	status: string;
+	adsDisabled: boolean;
 }
 
 interface BreakoutModalProps {

@@ -46,11 +46,25 @@ const coverageFields = [
 			},
 		],
 	},
+	{
+		id: 'adsDisabled',
+		type: 'boolean' as const,
+		label: __( 'Disable ads', 'newspack-rolling-coverage' ),
+		description: __(
+			'Disable ads for this coverage, useful for emergency or other sensitive news coverage.',
+			'newspack-rolling-coverage'
+		),
+	},
 ];
 
 const coverageForm = {
 	type: 'regular' as const,
-	fields: [ { id: 'name' }, { id: 'description' }, { id: 'status' } ],
+	fields: [
+		{ id: 'name' },
+		{ id: 'description' },
+		{ id: 'status' },
+		{ id: 'adsDisabled' },
+	],
 };
 
 /**
@@ -70,6 +84,7 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 			( coverage?.meta?.[
 				taxMeta.statusKey
 			] as Coverage[ 'meta' ][ 'rolling_coverage_status' ] ) || 'active',
+		adsDisabled: Boolean( coverage?.meta?.[ taxMeta.adsDisabledKey ] ),
 	} );
 	const [ isSaving, setIsSaving ] = useState( false );
 	const [ error, setError ] = useState< string | null >( null );
@@ -85,16 +100,20 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 						taxMeta.statusKey
 					] as Coverage[ 'meta' ][ 'rolling_coverage_status' ] ) ||
 					'active',
+				adsDisabled: Boolean(
+					coverage.meta?.[ taxMeta.adsDisabledKey ]
+				),
 			} );
 		} else {
 			setData( {
 				name: '',
 				description: '',
 				status: 'active',
+				adsDisabled: false,
 			} );
 		}
 		setError( null );
-	}, [ coverage, taxMeta.statusKey ] );
+	}, [ coverage, taxMeta.statusKey, taxMeta.adsDisabledKey ] );
 
 	const handleChange = useCallback(
 		( edits: Partial< CoverageFormData > ) => {
@@ -111,10 +130,12 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 		const result = await saveCoverage(
 			restBaseUrls.coverages,
 			taxMeta.statusKey,
+			taxMeta.adsDisabledKey,
 			{
 				name: data.name,
 				description: data.description,
 				status: data.status,
+				adsDisabled: data.adsDisabled,
 			},
 			isEditing && coverage ? coverage.id : undefined
 		);
