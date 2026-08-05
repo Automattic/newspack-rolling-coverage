@@ -24,6 +24,9 @@ class Taxonomy {
 	 * Valid values: 'active', 'paused', 'archived', 'trash'.
 	 */
 	const STATUS_META_KEY = 'rolling_coverage_status';
+	
+	// Term meta key for disabling ads on a coverage term.
+	const ADS_DISABLED_META_KEY = 'rolling_coverage_ads_disabled';
 
 	// Status values.
 	const STATUS_ACTIVE   = 'active';
@@ -151,6 +154,16 @@ class Taxonomy {
 				'single'        => true,
 				'type'          => 'string',
 				'default'       => '',
+				'auth_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+			],
+			// Boolean flag to disable ads on the coverage page; manage_options-gated via auth_callback.
+			self::ADS_DISABLED_META_KEY   => [
+				'show_in_rest'  => true,
+				'single'        => true,
+				'type'          => 'boolean',
+				'default'       => false,
 				'auth_callback' => function () {
 					return current_user_can( 'manage_options' );
 				},
