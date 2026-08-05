@@ -14,6 +14,7 @@ import type { CoverageOption, EntryContext } from './types';
 import {
 	COVERAGES_REST_BASE,
 	STATUS_META_KEY,
+	ADS_DISABLED_META_KEY,
 	ENTRIES_PREVIEW_REST_BASE,
 	AI_ENDPOINT,
 } from './config';
@@ -39,6 +40,11 @@ async function searchCoverages( search: string ): Promise< CoverageOption[] > {
 				( ( term.meta as Record< string, unknown > )?.[
 					STATUS_META_KEY
 				] as string ) || 'active',
+			adsDisabled: Boolean(
+				( term.meta as Record< string, unknown > )?.[
+					ADS_DISABLED_META_KEY
+				]
+			),
 		} ) )
 		.filter( ( term ) => term.status !== 'trash' );
 }
@@ -66,6 +72,11 @@ async function getCoverage( id: number ): Promise< CoverageOption | null > {
 				( ( term.meta as Record< string, unknown > )?.[
 					STATUS_META_KEY
 				] as string ) || 'active',
+			adsDisabled: Boolean(
+				( term.meta as Record< string, unknown > )?.[
+					ADS_DISABLED_META_KEY
+				]
+			),
 		};
 	} catch ( error ) {
 		return null;

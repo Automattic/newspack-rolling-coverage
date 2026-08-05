@@ -9,6 +9,7 @@ interface CoverageOption {
 	value: string;
 	label: string;
 	status: 'active' | 'paused' | 'archived' | string;
+	adsDisabled: boolean;
 }
 
 /**
@@ -46,6 +47,7 @@ interface EditProps {
 interface BlockConfig {
 	coveragesRestBase: string;
 	statusMetaKey: string;
+	adsDisabledMetaKey: string;
 	entriesPreviewRestBase: string;
 	aiEndpoint: string;
 	aiAvailable: boolean;
