@@ -36,7 +36,6 @@ import type { AiSettings as AiSettingsType } from '../types';
 function AIPage() {
 	const config = useAdminContext();
 	const [ settings, setSettings ] = useState< AiSettingsType >( {
-		system_prompt: config.aiSettings?.system_prompt ?? '',
 		key_takeaways_prompt: config.aiSettings?.key_takeaways_prompt ?? '',
 	} );
 	const [ isSaving, setIsSaving ] = useState( false );
@@ -122,11 +121,9 @@ function AIPage() {
 	const canEdit = config.capabilities.canManageAiSettings;
 	const aiEnabled = config.aiAvailable && canEdit;
 	const maxLen = config.aiMaxPromptLength ?? 2000;
-	const systemPromptLen = settings.system_prompt.length;
 	const takeawaysPromptLen = settings.key_takeaways_prompt.length;
-	const systemPromptOver = systemPromptLen > maxLen;
 	const takeawaysPromptOver = takeawaysPromptLen > maxLen;
-	const hasOverLimit = systemPromptOver || takeawaysPromptOver;
+	const hasOverLimit = takeawaysPromptOver;
 
 	return (
 		<div className="newspack-rolling-coverage-ai-settings">
@@ -167,34 +164,6 @@ function AIPage() {
 						</CardHeader>
 						<CardBody>
 							<VStack spacing={ 4 }>
-								<TextareaControl
-									label={ __(
-										'System Prompt',
-										'newspack-rolling-coverage'
-									) }
-									help={ sprintf(
-										/* translators: 1: character count, 2: max character count */
-										__(
-											'Sets the AI assistant persona for key takeaways generation. Keep this short — it defines the editor role and summary style. (%1$d / %2$d characters)',
-											'newspack-rolling-coverage'
-										),
-										systemPromptLen,
-										maxLen
-									) }
-									value={ settings.system_prompt }
-									onChange={ ( value ) =>
-										handleChange( 'system_prompt', value )
-									}
-									rows={ 6 }
-									disabled={
-										isLoading || isSaving || ! aiEnabled
-									}
-									className={
-										systemPromptOver
-											? 'newspack-rolling-coverage-ai-settings__field--over-limit'
-											: undefined
-									}
-								/>
 								<TextareaControl
 									label={ __(
 										'Key Takeaways Prompt',

@@ -275,7 +275,6 @@ interface TermChipsProps {
 }
 
 interface AiSettings {
-	system_prompt: string;
 	key_takeaways_prompt: string;
 }
 

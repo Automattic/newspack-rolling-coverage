@@ -31,6 +31,9 @@ class AI_Service {
 	// Maximum length (characters) for a prompt saved via AI_Settings.
 	const MAX_PROMPT_LENGTH = 2000;
 
+	// Hardcoded system instruction for key takeaways generation.
+	const SYSTEM_INSTRUCTION = 'You are a news editor summarizing live coverage. Extract concise key takeaways from the provided entries. Focus on facts and the most important developments, ordered by significance.';
+
 	// Transient key for caching is_available() result.
 	const AVAILABILITY_TRANSIENT = 'rolling_coverage_ai_available';
 
@@ -246,10 +249,9 @@ class AI_Service {
 			return $entries_content;
 		}
 
-		$system_prompt        = AI_Settings::get( 'system_prompt' );
 		$key_takeaways_prompt = AI_Settings::get( 'key_takeaways_prompt' );
 
-		if ( empty( $key_takeaways_prompt ) || empty( $system_prompt ) ) {
+		if ( empty( $key_takeaways_prompt ) ) {
 			return new WP_Error(
 				'rolling_coverage_ai_prompts_not_configured',
 				__( 'AI prompts are not configured. Configure them in the AI settings page.', 'newspack-rolling-coverage' ),
@@ -266,7 +268,7 @@ class AI_Service {
 		return self::generate_text(
 			$prompt,
 			[
-				'system_instruction' => $system_prompt,
+				'system_instruction' => self::SYSTEM_INSTRUCTION,
 				'temperature'        => 0.2,
 			]
 		);
