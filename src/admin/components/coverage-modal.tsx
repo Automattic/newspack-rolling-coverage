@@ -54,6 +54,7 @@ const coverageFields = [
 			'Disable ads for this coverage, useful for emergency or other sensitive news coverage.',
 			'newspack-rolling-coverage'
 		),
+		Edit: 'toggle' as const,
 	},
 ];
 
