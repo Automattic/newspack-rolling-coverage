@@ -306,7 +306,7 @@ class Slack_Webhook_Controller {
 		$result = $this->signature_verifier->verify( $raw_body, $signature, $timestamp ? (int) $timestamp : null );
 
 		if ( ! $result['valid'] ) {
-			error_log( 'Slack ingestion: signature verification failed (' . (string) ( $result['reason'] ?? 'unknown' ) . ') — webhook rejected with 401, no entry will be created.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			Slack_Monitor::log( 'error', 'Signature verification failed', [ 'reason' => (string) ( $result['reason'] ?? 'unknown' ) ] );
 
 			return new \WP_Error(
 				'slack_invalid_signature',
@@ -314,6 +314,8 @@ class Slack_Webhook_Controller {
 				[ 'status' => 401 ]
 			);
 		}
+
+		Slack_Monitor::log( 'info', 'Signature verification passed' );
 
 		return true;
 	}
@@ -325,6 +327,7 @@ class Slack_Webhook_Controller {
 	 * @return \WP_REST_Response Response.
 	 */
 	public function verify_credentials( \WP_REST_Request $request ): \WP_REST_Response {
+		Slack_Monitor::log( 'info', 'Credential verification requested' );
 		$bot_token      = sanitize_text_field( (string) $request->get_param( 'bot_token' ) );
 		$signing_secret = sanitize_text_field( (string) $request->get_param( 'signing_secret' ) );
 
@@ -394,6 +397,8 @@ class Slack_Webhook_Controller {
 			]
 		);
 
+		Slack_Monitor::log( 'success', 'Credentials verified', [ 'workspace' => (string) ( $test['team'] ?? '' ) ] );
+
 		return new \WP_REST_Response(
 			[
 				'ok'   => true,
@@ -411,6 +416,7 @@ class Slack_Webhook_Controller {
 	 * @return \WP_REST_Response Response.
 	 */
 	public function disconnect( \WP_REST_Request $request ): \WP_REST_Response {
+		Slack_Monitor::log( 'info', 'Slack integration disconnected' );
 		Slack_Config::clear_all();
 		return new \WP_REST_Response( [ 'ok' => true ], 200 );
 	}
@@ -455,8 +461,11 @@ class Slack_Webhook_Controller {
 		$ignore_prefix = sanitize_text_field( (string) $request->get_param( 'ignore_prefix' ) );
 
 		if ( ! Slack_Config::set_ignore_prefix( $ignore_prefix ) ) {
+			Slack_Monitor::log( 'warning', 'Invalid ignore prefix rejected', [ 'prefix' => $ignore_prefix ] );
 			return self::rest_error( 'invalid_prefix' );
 		}
+
+		Slack_Monitor::log( 'info', 'Settings saved', [ 'ignore_prefix' => $ignore_prefix ] );
 
 		return new \WP_REST_Response(
 			[
@@ -545,6 +554,7 @@ class Slack_Webhook_Controller {
 	 * @return \WP_REST_Response Response.
 	 */
 	public function connect_channel( \WP_REST_Request $request ): \WP_REST_Response {
+		Slack_Monitor::log( 'info', 'Admin channel connect requested' );
 		$term_id     = (int) $request->get_param( 'term_id' );
 		$channel     = sanitize_text_field( (string) $request->get_param( 'channel' ) );
 		$autopublish = (bool) $request->get_param( 'autopublish' );
@@ -748,7 +758,7 @@ class Slack_Webhook_Controller {
 
 		$type = (string) ( $payload['type'] ?? '' );
 
-		error_log( 'Slack ingestion: webhook received, type=' . $type . '.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		Slack_Monitor::log( 'info', "Webhook event received: {$type}" );
 
 		if ( 'url_verification' === $type ) {
 			return new \WP_REST_Response(
@@ -768,7 +778,7 @@ class Slack_Webhook_Controller {
 		if ( 'message' === $event_type ) {
 			// 1. Filter — Slack-specific rules from Slack_Ingestion_Service.
 			if ( Slack_Ingestion_Service::should_filter_message( $event ) ) {
-				error_log( 'Slack ingestion: message filtered (bot message, edit/delete, join/leave, or starts with ignore prefix), skipping.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				Slack_Monitor::log( 'info', 'Message filtered (bot/edit/delete/join-leave/ignore prefix)', [ 'channel' => $event['channel'] ?? '' ] );
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
@@ -778,27 +788,36 @@ class Slack_Webhook_Controller {
 			$user_id    = (string) ( $event['user'] ?? '' );
 
 			if ( '' === $channel_id || '' === $ts || '' === $user_id ) {
-				error_log( 'Slack ingestion: missing channel/ts/user, skipping.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				Slack_Monitor::log( 'warning', 'Missing channel/ts/user in message event' );
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
 			$channel_settings = Slack_Config::get_channel_settings( $channel_id );
 
 			if ( null === $channel_settings ) {
-				error_log( 'Slack ingestion: channel ' . $channel_id . ' is not linked to a coverage term, skipping. Link it via the Connection modal or /rolling-coverage-connect.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				Slack_Monitor::log( 'info', 'Channel not linked to a coverage, skipping', [ 'channel' => $channel_id ] );
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
 			$term_id = (int) ( $channel_settings['term_id'] ?? 0 );
 
 			if ( $term_id <= 0 ) {
-				error_log( 'Slack ingestion: channel ' . $channel_id . ' mapping has no term_id, skipping.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				Slack_Monitor::log( 'warning', 'Channel mapping has no term_id', [ 'channel' => $channel_id ] );
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
 			// 3. Process this message inline. The 1s API timeout for the
 			// outbound users.info call keeps the total webhook response well
 			// under Slack's 3-second limit.
+			Slack_Monitor::log(
+				'info',
+				'Dispatching message to ingestion pipeline',
+				[
+					'channel' => $channel_id,
+					'ts'      => $ts,
+				] 
+			);
+
 			self::process_ingest_payload(
 				[
 					'event'        => $event,
@@ -856,8 +875,18 @@ class Slack_Webhook_Controller {
 		$stored_team  = (string) ( Slack_Config::get_settings()['workspace_id'] ?? '' );
 
 		if ( '' !== $stored_team && '' !== $payload_team && $payload_team !== $stored_team ) {
+			Slack_Monitor::log(
+				'warning',
+				'Slash command rejected: team_id mismatch',
+				[
+					'payload_team' => $payload_team,
+					'stored_team'  => $stored_team,
+				] 
+			);
 			return $this->ephemeral( __( 'This command is not available for your workspace.', 'newspack-rolling-coverage' ) );
 		}
+
+		Slack_Monitor::log( 'info', "Slash command received: {$command}", [ 'channel' => $channel_id ] );
 
 		switch ( $command ) {
 			case '/rolling-coverage-connect':
@@ -1010,6 +1039,8 @@ class Slack_Webhook_Controller {
 		}
 
 		$type = (string) ( $payload['type'] ?? '' );
+
+		Slack_Monitor::log( 'info', "Interaction received: {$type}" );
 
 		if ( 'view_submission' === $type ) {
 			return $this->handle_view_submission( $payload );
@@ -1348,7 +1379,7 @@ class Slack_Webhook_Controller {
 		$auto_publish = (bool) ( $payload['auto_publish'] ?? false );
 
 		if ( $term_id <= 0 || '' === $channel_id || '' === $ts || '' === $user_id ) {
-			error_log( 'Slack ingestion: invalid payload, skipping.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			Slack_Monitor::log( 'warning', 'Ingestion: invalid payload' );
 			return;
 		}
 
@@ -1408,9 +1439,16 @@ class Slack_Webhook_Controller {
 
 		if ( is_wp_error( $post_id ) || $post_id <= 0 ) {
 			if ( is_wp_error( $post_id ) ) {
-				error_log( 'Slack ingestion: entry creation failed — ' . $post_id->get_error_code() . ': ' . $post_id->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				Slack_Monitor::log(
+					'error',
+					'Ingestion: entry creation failed',
+					[
+						'error'   => $post_id->get_error_code(),
+						'message' => $post_id->get_error_message(),
+					] 
+				);
 			} else {
-				error_log( 'Slack ingestion: entry not created for ts ' . $ts . ' (skipped by ingest service: duplicate, empty content, or bot user unavailable). Check preceding log entries for the reason.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				Slack_Monitor::log( 'info', 'Ingestion: entry not created (duplicate, empty content, or bot user unavailable)', [ 'ts' => $ts ] );
 			}
 			return;
 		}
@@ -1418,6 +1456,14 @@ class Slack_Webhook_Controller {
 		// 7. Adapter-specific side effects: last_sync_ts update.
 		Slack_Config::update_channel( $channel_id, [ 'last_sync_ts' => $ts ] );
 
-		error_log( 'Slack ingestion: created entry #' . (int) $post_id . ' for channel ' . $channel_id . ' (term ' . $term_id . ', status ' . ( $auto_publish ? 'publish' : 'draft' ) . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		Slack_Monitor::log(
+			'success',
+			'Ingestion: entry created',
+			[
+				'post_id' => (int) $post_id,
+				'channel' => $channel_id,
+				'status'  => $auto_publish ? 'publish' : 'draft',
+			] 
+		);
 	}
 }

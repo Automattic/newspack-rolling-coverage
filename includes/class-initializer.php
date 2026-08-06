@@ -58,6 +58,9 @@ class Initializer {
 	 */
 	public static function deactivation_hook() {
 
+		// Clean up the Slack monitor log file and viewer count transient.
+		Slack_Monitor::cleanup();
+
 		/**
 		 * Action to hook into when Rolling Coverage plugin is deactivated.
 		 */
