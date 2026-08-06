@@ -14,6 +14,7 @@ import { CredentialsTab } from './slack/settings/credentials-tab';
 import { ChannelsTab } from './slack/settings/channels-tab';
 import { IngestionSettingsTab } from './slack/settings/ingestion-settings-tab';
 import { SetupGuideTab } from './slack/settings/setup-guide-tab';
+import { MonitorTab } from './slack/settings/monitor-tab';
 
 const TABS: AdminTab[] = [
 	{
@@ -25,6 +26,7 @@ const TABS: AdminTab[] = [
 		title: __( 'Channel Mappings', 'newspack-rolling-coverage' ),
 	},
 	{ name: 'settings', title: __( 'Settings', 'newspack-rolling-coverage' ) },
+	{ name: 'monitor', title: __( 'Monitor', 'newspack-rolling-coverage' ) },
 	{ name: 'setup', title: __( 'Setup Guide', 'newspack-rolling-coverage' ) },
 ];
 
@@ -116,6 +118,8 @@ function SlackSettingsPage() {
 				);
 			case 'setup':
 				return <SetupGuideTab manifestJson={ manifestJson } />;
+			case 'monitor':
+				return <MonitorTab />;
 			default:
 				return null;
 		}

@@ -265,6 +265,19 @@ interface TermChipsProps {
 	terms: Array< { link: string; name: string } >;
 }
 
+interface SlackMonitorLogEntry {
+	timestamp: string;
+	level: string;
+	message: string;
+	context: Record< string, unknown >;
+}
+
+interface SlackMonitorLogsResult extends ApiResult {
+	lines?: SlackMonitorLogEntry[];
+	offset?: number;
+	active?: boolean;
+}
+
 interface AdminHeaderProps {
 	selectedCoverage: Coverage | null;
 }
@@ -473,6 +486,8 @@ export type {
 	SlackConnectResult,
 	SlackVerifyResult,
 	SlackChannelsResult,
+	SlackMonitorLogEntry,
+	SlackMonitorLogsResult,
 	SettingsNotice,
 	AdminTab,
 	QuickEditModalProps,

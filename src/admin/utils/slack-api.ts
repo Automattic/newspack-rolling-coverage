@@ -12,6 +12,8 @@ import type {
 	ChannelMapping,
 	SlackChannelsResult,
 	SlackConnectResult,
+	SlackMonitorLogEntry,
+	SlackMonitorLogsResult,
 	SlackSettingsInfo,
 	SlackVerifyResult,
 } from '../types';
@@ -286,6 +288,126 @@ async function getSlackSettings( namespace: string ): Promise< {
 	}
 }
 
+/**
+ * Start the Slack monitor (create the log file).
+ *
+ * @param {string} namespace REST namespace.
+ * @return {Promise<ApiResult>} Result.
+ */
+async function startSlackMonitor( namespace: string ): Promise< ApiResult > {
+	try {
+		await apiFetch( {
+			path: `${ namespace }/slack/monitor/start`,
+			method: 'POST',
+		} );
+		return { success: true };
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
+/**
+ * Stop the Slack monitor (delete the log file).
+ *
+ * This function must reliably deliver a "stop" request to the server
+ * even when the browser tab is being closed or navigated away from.
+ * Standard fetch/XHR requests are cancelled by the browser during
+ * page unload, so two alternative transports are used:
+ *
+ * 1. Image beacon (primary): Setting `new Image().src = url` triggers
+ *    a GET request that the browser treats as a background resource
+ *    load. Unlike XHR/fetch, image loads are not cancelled when the
+ *    page is torn down — the browser completes the request even after
+ *    the document is destroyed.
+ *
+ *    Authentication: image beacons cannot set custom HTTP headers
+ *    (like X-WP-Nonce), so the WP REST nonce is passed as a `_wpnonce`
+ *    query parameter. WordPress REST API natively validates `_wpnonce`
+ *    from the query string for cookie-authenticated requests.
+ *
+ * 2. fetch with keepalive (fallback): If the Image constructor throws
+ *    (extremely rare — would only happen if the browser blocks Image
+ *    entirely), we fall back to `fetch(url, { keepalive: true })`. The
+ *    `keepalive` flag tells the browser to complete the request even
+ *    after the page unloads, similar to sendBeacon but with the full
+ *    fetch API available.
+ *
+ * @param {string} namespace REST namespace (from config.restBase.slack).
+ * @param {string} nonce     WP REST nonce (from config.nonce, generated
+ *                           server-side via wp_create_nonce('wp_rest')).
+ */
+async function stopSlackMonitor(
+	namespace: string,
+	nonce?: string
+): Promise< ApiResult > {
+	const stopUrl = `${
+		window.location.origin
+	}/wp-json/${ namespace }/slack/monitor/stop?_wpnonce=${ encodeURIComponent(
+		nonce ?? ''
+	) }`;
+
+	// Primary: image beacon (GET) — survives page unload reliably.
+	try {
+		const img = new Image();
+		img.src = stopUrl;
+		return { success: true };
+	} catch {
+		// Fallback: fetch with keepalive — modern alternative.
+		try {
+			await fetch( stopUrl, {
+				method: 'GET',
+				keepalive: true,
+			} );
+			return { success: true };
+		} catch ( error ) {
+			return { success: false, error: handleApiError( error as Error ) };
+		}
+	}
+}
+
+/**
+ * Fetch Slack monitor log entries since a byte offset.
+ *
+ * @param {string} namespace REST namespace.
+ * @param {number} offset    Byte offset to read from.
+ *
+ * @return {Promise<SlackMonitorLogsResult>} Log entries and new offset.
+ */
+async function getSlackMonitorLogs(
+	namespace: string,
+	offset: number
+): Promise< SlackMonitorLogsResult > {
+	try {
+		const result = ( await apiFetch( {
+			path: `${ namespace }/slack/monitor/logs?offset=${ offset }`,
+		} ) ) as {
+			lines: SlackMonitorLogEntry[];
+			offset: number;
+			active: boolean;
+		};
+		return {
+			success: true,
+			lines: result.lines,
+			offset: result.offset,
+			active: result.active,
+		};
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
+/**
+ * Format a context object as a readable "key: value" string.
+ *
+ * @param {Record<string, unknown>} ctx Context object from a log entry.
+ * @return {string} Formatted string, e.g. "channel: C123, post_id: 42".
+ */
+function formatContext( ctx: Record< string, unknown > ): string {
+	return Object.entries( ctx )
+		.map( ( [ k, v ] ) => `${ k }: ${ String( v ) }` )
+		.join( ', ' );
+}
+
 export {
 	connectSlackChannel,
 	disconnectSlackChannel,
@@ -297,4 +419,8 @@ export {
 	saveSlackSettings,
 	listSlackChannels,
 	unlinkSlackChannel,
+	startSlackMonitor,
+	stopSlackMonitor,
+	getSlackMonitorLogs,
+	formatContext,
 };
