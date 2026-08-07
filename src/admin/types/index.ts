@@ -93,7 +93,8 @@ type PostStatus =
 	| 'pending'
 	| 'future'
 	| 'private'
-	| 'trash';
+	| 'trash'
+	| 'archived';
 
 interface Entry {
 	id: number;

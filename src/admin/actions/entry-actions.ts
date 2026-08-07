@@ -16,8 +16,10 @@ import {
 	bulkRestoreEntries,
 	hasBreakout,
 	hasTrashedBreakout,
+	isEntryArchived,
 	runEntryBulk,
 	togglePinEntry,
+	runArchiveBulk,
 } from '../utils/entries-api';
 import { notifySuccess, notifyError, pluralize } from '../utils/notices';
 import { BreakoutModal } from '../components/breakout-modal';
@@ -55,6 +57,7 @@ function getEntryActions(
 		{
 			id: 'edit',
 			label: __( 'Edit', 'newspack-rolling-coverage' ),
+			isEligible: ( entry: Entry ) => ! isEntryArchived( entry ),
 			callback: ( items: Entry[] ) => {
 				if ( items.length === 1 ) {
 					window.open(
@@ -69,7 +72,9 @@ function getEntryActions(
 			id: 'create-breakout',
 			label: __( 'Breakout', 'newspack-rolling-coverage' ),
 			isEligible: ( entry: Entry ) =>
-				! hasBreakout( entry ) && ! hasTrashedBreakout( entry ),
+				! isEntryArchived( entry ) &&
+				! hasBreakout( entry ) &&
+				! hasTrashedBreakout( entry ),
 			callback: async ( items: Entry[] ) => {
 				if ( items.length !== 1 ) {
 					return;
@@ -101,7 +106,8 @@ function getEntryActions(
 		{
 			id: 'restore-breakout',
 			label: __( 'Restore Breakout Post', 'newspack-rolling-coverage' ),
-			isEligible: ( entry: Entry ) => hasTrashedBreakout( entry ),
+			isEligible: ( entry: Entry ) =>
+				! isEntryArchived( entry ) && hasTrashedBreakout( entry ),
 			callback: async ( items: Entry[] ) => {
 				if ( items.length !== 1 ) {
 					return;
@@ -142,7 +148,8 @@ function getEntryActions(
 				'Permanently Delete Breakout Post',
 				'newspack-rolling-coverage'
 			),
-			isEligible: ( entry: Entry ) => hasTrashedBreakout( entry ),
+			isEligible: ( entry: Entry ) =>
+				! isEntryArchived( entry ) && hasTrashedBreakout( entry ),
 			callback: async ( items: Entry[] ) => {
 				if ( items.length !== 1 ) {
 					return;
@@ -180,7 +187,8 @@ function getEntryActions(
 		{
 			id: 'breakout-setting',
 			label: __( 'Breakout Setting', 'newspack-rolling-coverage' ),
-			isEligible: ( entry: Entry ) => hasBreakout( entry ),
+			isEligible: ( entry: Entry ) =>
+				! isEntryArchived( entry ) && hasBreakout( entry ),
 			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
 				createElement( BreakoutModal, {
 					entry: items[ 0 ],
@@ -192,10 +200,87 @@ function getEntryActions(
 				} ),
 		},
 		{
+			id: 'archive-entry',
+			label: __( 'Archive', 'newspack-rolling-coverage' ),
+			supportsBulk: true,
+			isEligible: ( entry: Entry ) => entry.status === 'publish', // Only published entries can be archived.
+			callback: async ( items: Entry[] ) => {
+				const { failed, succeeded } = await runArchiveBulk(
+					config.restBaseUrls.restNamespace,
+					items,
+					true
+				);
+
+				if ( succeeded ) {
+					notifySuccess(
+						pluralize(
+							items.length,
+							__(
+								'Entry archived.',
+								'newspack-rolling-coverage'
+							),
+							__(
+								'Entries archived.',
+								'newspack-rolling-coverage'
+							)
+						)
+					);
+					onActionPerformed?.();
+				} else {
+					notifyError(
+						failed[ 0 ].error ||
+							__(
+								'Failed to archive entry.',
+								'newspack-rolling-coverage'
+							)
+					);
+				}
+			},
+		},
+		{
+			id: 'unarchive-entry',
+			label: __( 'Unarchive', 'newspack-rolling-coverage' ),
+			supportsBulk: true,
+			isEligible: ( entry: Entry ) => isEntryArchived( entry ),
+			callback: async ( items: Entry[] ) => {
+				const { failed, succeeded } = await runArchiveBulk(
+					config.restBaseUrls.restNamespace,
+					items,
+					false
+				);
+
+				if ( succeeded ) {
+					notifySuccess(
+						pluralize(
+							items.length,
+							__(
+								'Entry unarchived.',
+								'newspack-rolling-coverage'
+							),
+							__(
+								'Entries unarchived.',
+								'newspack-rolling-coverage'
+							)
+						)
+					);
+					onActionPerformed?.();
+				} else {
+					notifyError(
+						failed[ 0 ].error ||
+							__(
+								'Failed to unarchive entry.',
+								'newspack-rolling-coverage'
+							)
+					);
+				}
+			},
+		},
+		{
 			id: 'trash-entry',
 			label: __( 'Trash', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
-			isEligible: ( entry: Entry ) => entry.status !== 'trash',
+			isEligible: ( entry: Entry ) =>
+				entry.status !== 'trash' && ! isEntryArchived( entry ),
 			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
 				createElement( ConfirmModal, {
 					message: pluralize(

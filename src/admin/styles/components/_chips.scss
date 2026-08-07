@@ -7,6 +7,13 @@
 	gap: $nrc-spacing-sm;
 }
 
+.newspack-rolling-coverage-status-archived {
+	display: inline-flex;
+	align-items: center;
+	gap: $nrc-spacing-sm;
+	color: $nrc-color-chip-remaining;
+}
+
 // Status-colored variants, used for the breakout post status column.
 $nrc-status-colors: (
 	publish: (

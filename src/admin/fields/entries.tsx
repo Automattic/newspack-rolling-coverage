@@ -1,12 +1,19 @@
 /**
  * External dependencies
  */
+import { Tooltip } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { Icon, pin, wordpress as WordPressIconRaw } from '@wordpress/icons';
+import {
+	Icon,
+	pin,
+	info,
+	wordpress as WordPressIconRaw,
+} from '@wordpress/icons';
 
 /**
  * Internal dependencies
  */
+import { isEntryArchived } from '../utils/entries-api';
 import type { Field, ViewState, Entry, AdminConfig } from '../types';
 import { ChipLink } from '../shared/chip-link';
 import { SlackIcon } from '../shared/icons/slack-icon';
@@ -159,6 +166,27 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			elements: STATUS_ELEMENTS,
 			filterBy: {
 				operators: [ 'is', 'isNot' ],
+			},
+			render: ( { item } ) => {
+				const label = getStatusLabel( item.status );
+
+				if ( ! isEntryArchived( item ) ) {
+					return <span>{ label }</span>;
+				}
+
+				return (
+					<Tooltip
+						text={ __(
+							"This entry is archived, so it can't be edited, trashed, or given a new breakout post. Unarchive it to make changes.",
+							'newspack-rolling-coverage'
+						) }
+					>
+						<span className="newspack-rolling-coverage-status-archived">
+							{ label }
+							<Icon icon={ info } size={ 18 } />
+						</span>
+					</Tooltip>
+				);
 			},
 		},
 		{

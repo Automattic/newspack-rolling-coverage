@@ -24,6 +24,7 @@ const POST_STATUS_LABELS: Record< string, string > = {
 	future: __( 'Scheduled', 'newspack-rolling-coverage' ),
 	private: __( 'Private', 'newspack-rolling-coverage' ),
 	trash: __( 'Trashed', 'newspack-rolling-coverage' ),
+	archived: __( 'Archived', 'newspack-rolling-coverage' ),
 };
 
 /**
