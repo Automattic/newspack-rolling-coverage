@@ -130,6 +130,16 @@ function hasTrashedBreakout( entry: Entry ): boolean {
 }
 
 /**
+ * Returns true when the entry is individually archived.
+ *
+ * @param {Entry} entry The entry to check.
+ * @return {boolean} Whether the entry is archived.
+ */
+function isEntryArchived( entry: Entry ): boolean {
+	return entry.status === 'archived';
+}
+
+/**
  * Sends a DELETE request for a single entry, returning a normalised
  * ApiResult. When `force` is truthy the entry is permanently deleted;
  * otherwise it is moved to the trash.
@@ -181,12 +191,64 @@ async function runEntryBulk(
 	return { failed, succeeded: failed.length === 0 };
 }
 
+/**
+ * Archives or unarchives a single entry via the dedicated Archive Mode
+ * REST route.
+ *
+ * @param {string}  restNamespace - REST namespace URL.
+ * @param {number}  entryId       - Entry post ID.
+ * @param {boolean} archived      - Whether to archive (true) or unarchive (false).
+ * @return {Promise<ApiResult>} Result indicating success or failure.
+ */
+async function setEntryArchived(
+	restNamespace: string,
+	entryId: number,
+	archived: boolean
+): Promise< ApiResult > {
+	try {
+		await apiFetch( {
+			url: `${ restNamespace }entries/${ entryId }/archive`,
+			method: 'POST',
+			data: { archived },
+		} );
+		return { success: true };
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
+/**
+ * Runs a bulk archive or unarchive against the supplied entries,
+ * aggregating per-item results.
+ *
+ * @param {string}  restNamespace - REST namespace URL.
+ * @param {Entry[]} items         - The selected entry rows.
+ * @param {boolean} archived      - Whether to archive (true) or unarchive (false).
+ * @return {Promise<{ failed: ApiResult[], succeeded: boolean }>} Aggregated outcome.
+ */
+async function runArchiveBulk(
+	restNamespace: string,
+	items: Entry[],
+	archived: boolean
+): Promise< { failed: ApiResult[]; succeeded: boolean } > {
+	const results = await Promise.all(
+		items.map( ( entry ) =>
+			setEntryArchived( restNamespace, entry.id, archived )
+		)
+	);
+	const failed = results.filter( ( r ) => ! r.success );
+	return { failed, succeeded: failed.length === 0 };
+}
+
 export {
 	createEntry,
 	togglePinEntry,
 	bulkRestoreEntries,
 	hasBreakout,
 	hasTrashedBreakout,
+	isEntryArchived,
 	deleteEntry,
 	runEntryBulk,
+	setEntryArchived,
+	runArchiveBulk,
 };

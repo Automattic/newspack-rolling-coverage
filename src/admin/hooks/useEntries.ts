@@ -39,7 +39,7 @@ function useEntries( options: UseEntriesOptions ) {
 		page,
 		orderby: orderBy,
 		order,
-		status: status || 'publish,draft,pending,future,private,trash',
+		status: status || 'publish,draft,pending,future,private,trash,archived',
 		context: 'edit',
 		[ config.restBase.coverages ]: coverageId
 			? String( coverageId )

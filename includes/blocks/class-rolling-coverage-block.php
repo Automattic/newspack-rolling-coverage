@@ -285,7 +285,7 @@ class Rolling_Coverage_Block {
 		$query = new WP_Query(
 			[
 				'post_type'           => Post_Type::CPT_SLUG,
-				'post_status'         => 'publish',
+				'post_status'         => [ 'publish', Archive_Mode::ENTRY_ARCHIVED_STATUS ],
 				'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
 						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
@@ -324,7 +324,7 @@ class Rolling_Coverage_Block {
 
 		$notice = '';
 
-		if ( 'archived' === $status ) {
+		if ( Taxonomy::STATUS_ARCHIVED === $status ) {
 			$notice = sprintf(
 				'<p class="%1$s-notice %1$s-notice--archived">%2$s</p>',
 				self::MARKUP_PREFIX,
@@ -914,7 +914,7 @@ class Rolling_Coverage_Block {
 		$query = new WP_Query(
 			[
 				'post_type'           => Post_Type::CPT_SLUG,
-				'post_status'         => 'publish',
+				'post_status'         => [ 'publish', Archive_Mode::ENTRY_ARCHIVED_STATUS ],
 				'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
 						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
@@ -1018,7 +1018,7 @@ class Rolling_Coverage_Block {
 
 		$base_args = [
 			'post_type'           => Post_Type::CPT_SLUG,
-			'post_status'         => 'publish',
+			'post_status'         => [ 'publish', Archive_Mode::ENTRY_ARCHIVED_STATUS ],
 			'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 				[
 					'taxonomy' => Taxonomy::TAXONOMY_SLUG,
