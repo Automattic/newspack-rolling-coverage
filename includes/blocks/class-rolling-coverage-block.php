@@ -55,6 +55,7 @@ class Rolling_Coverage_Block {
 	 */
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register_block' ] );
+		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'localize_block_config' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
 		add_action( 'save_post_' . Post_Type::CPT_SLUG, [ __CLASS__, 'update_coverage_last_modified' ], 10, 2 );
@@ -92,15 +93,29 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Registers the block type and localizes its editor script.
+	 * Registers the block type.
 	 */
 	public static function register_block() {
-		$block_type = register_block_type(
+		register_block_type(
 			NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/blocks/rolling-coverage',
 			[
 				'render_callback' => [ __CLASS__, 'render_block' ],
 			]
 		);
+	}
+
+	/**
+	 * Localizes the block editor script with config data.
+	 *
+	 * Runs on enqueue_block_editor_assets (after init) so that
+	 * AI_Service::is_available() sees a fully initialized AI client.
+	 */
+	public static function localize_block_config() {
+		if ( ! wp_should_load_block_editor_scripts_and_styles() ) {
+			return;
+		}
+
+		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/rolling-coverage' );
 
 		if ( ! $block_type instanceof WP_Block_Type ) {
 			return;
@@ -114,6 +129,8 @@ class Rolling_Coverage_Block {
 					'coveragesRestBase'      => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
 					'statusMetaKey'          => Taxonomy::STATUS_META_KEY,
 					'entriesPreviewRestBase' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
+					'aiEndpoint'             => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
+					'aiAvailable'            => AI_Service::is_available(),
 				]
 			);
 		}
@@ -676,6 +693,8 @@ class Rolling_Coverage_Block {
 					'posts_per_page' => self::POLL_CAP + 1, // Request one extra post to detect poll overflow.
 				]
 			);
+
+			$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
 
 			$query = new WP_Query( $args );
 

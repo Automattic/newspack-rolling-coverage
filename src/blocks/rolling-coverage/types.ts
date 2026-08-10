@@ -45,6 +45,8 @@ interface BlockConfig {
 	coveragesRestBase: string;
 	statusMetaKey: string;
 	entriesPreviewRestBase: string;
+	aiEndpoint: string;
+	aiAvailable: boolean;
 }
 
 /**

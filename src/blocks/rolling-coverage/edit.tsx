@@ -18,11 +18,18 @@ import {
 	Button,
 	Notice,
 	Placeholder,
+	TextareaControl,
 } from '@wordpress/components';
-import { useState, useEffect, useCallback, memo } from '@wordpress/element';
+import {
+	useState,
+	useEffect,
+	useCallback,
+	memo,
+	useRef,
+} from '@wordpress/element';
 import { useSelect } from '@wordpress/data';
 import { __ } from '@wordpress/i18n';
-import { megaphone } from '@wordpress/icons';
+import { megaphone, copy as copyIcon, check } from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -32,8 +39,10 @@ import {
 	getCoverage,
 	updateCoverageStatus,
 	fetchEntryPreviewContexts,
+	generateKeyTakeaways,
 } from './utils';
 import { DEFAULT_TEMPLATE, ALLOWED_BLOCKS } from './template';
+import { AI_AVAILABLE } from './config';
 import type {
 	CoverageOption,
 	ApplyNotice,
@@ -136,6 +145,21 @@ export default function Edit( {
 		[]
 	);
 	const [ activeEntryId, setActiveEntryId ] = useState< number >();
+	const [ isGenerating, setIsGenerating ] = useState( false );
+	const [ aiNotice, setAiNotice ] = useState< ApplyNotice | null >( null );
+	const [ generatedOutput, setGeneratedOutput ] = useState( '' );
+	const [ copied, setCopied ] = useState( false );
+	const copyTimer = useRef< ReturnType< typeof setTimeout > | null >( null );
+
+	// Clear copy timer on unmount.
+	useEffect(
+		() => () => {
+			if ( copyTimer.current ) {
+				clearTimeout( copyTimer.current );
+			}
+		},
+		[]
+	);
 
 	// Read live from the store so preview copies stay in sync as the
 	// template above is edited.
@@ -231,6 +255,55 @@ export default function Edit( {
 	}, [ coverageId, pendingStatus ] );
 
 	const statusUnchanged = currentCoverage?.status === pendingStatus;
+
+	const handleGenerate = useCallback( async () => {
+		if ( ! coverageId ) {
+			return;
+		}
+		setIsGenerating( true );
+		setAiNotice( null );
+
+		const result = await generateKeyTakeaways( coverageId );
+
+		setIsGenerating( false );
+
+		if ( result.success && result.result ) {
+			setGeneratedOutput( result.result );
+			setAiNotice( {
+				type: 'success',
+				message: __(
+					'Key takeaways generated.',
+					'newspack-rolling-coverage'
+				),
+			} );
+		} else {
+			setAiNotice( {
+				type: 'error',
+				message:
+					result.error ||
+					__(
+						'Failed to generate key takeaways.',
+						'newspack-rolling-coverage'
+					),
+			} );
+		}
+	}, [ coverageId ] );
+
+	const handleCopy = useCallback( async () => {
+		if ( ! generatedOutput ) {
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText( generatedOutput );
+			setCopied( true );
+			if ( copyTimer.current ) {
+				clearTimeout( copyTimer.current );
+			}
+			copyTimer.current = setTimeout( () => setCopied( false ), 2000 );
+		} catch {
+			setCopied( false );
+		}
+	}, [ generatedOutput ] );
 
 	// Combobox for selecting the connected coverage.
 	const coverageCombobox = (
@@ -340,6 +413,71 @@ export default function Edit( {
 						}
 					/>
 				</PanelBody>
+
+				{ coverageId && AI_AVAILABLE ? (
+					<PanelBody
+						title={ __( 'AI', 'newspack-rolling-coverage' ) }
+						initialOpen={ false }
+					>
+						{ aiNotice && (
+							<Notice
+								status={ aiNotice.type }
+								onRemove={ () => setAiNotice( null ) }
+							>
+								{ aiNotice.message }
+							</Notice>
+						) }
+						<div className="newspack-rolling-coverage-ai-panel">
+							<p className="newspack-rolling-coverage-ai-panel__help">
+								{ __(
+									"Generate a summary of key takeaways from this coverage's entries. Prompts are configured by site administrators on the AI settings page.",
+									'newspack-rolling-coverage'
+								) }
+							</p>
+							<Button
+								variant="primary"
+								onClick={ handleGenerate }
+								isBusy={ isGenerating }
+								disabled={ isGenerating }
+							>
+								{ __(
+									'Generate Key Takeaways',
+									'newspack-rolling-coverage'
+								) }
+							</Button>
+							{ generatedOutput && (
+								<>
+									<TextareaControl
+										label={ __(
+											'Generated Output',
+											'newspack-rolling-coverage'
+										) }
+										value={ generatedOutput }
+										onChange={ () => {} }
+										rows={ 8 }
+										readOnly
+										className="newspack-rolling-coverage-ai-output"
+									/>
+									<Button
+										variant="secondary"
+										icon={ copied ? check : copyIcon }
+										onClick={ handleCopy }
+									>
+										{ copied
+											? __(
+													'Copied!',
+													'newspack-rolling-coverage'
+											  )
+											: __(
+													'Copy',
+													'newspack-rolling-coverage'
+											  ) }
+									</Button>
+								</>
+							) }
+						</div>
+					</PanelBody>
+				) : null }
 			</InspectorControls>
 
 			<div { ...blockProps }>
