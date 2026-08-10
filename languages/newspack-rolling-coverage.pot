@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-10T17:54:35+00:00\n"
+"POT-Creation-Date: 2026-08-10T20:14:28+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -84,8 +84,8 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:237
-#: includes/blocks/class-rolling-coverage-block.php:555
-#: includes/blocks/class-rolling-coverage-block.php:634
+#: includes/blocks/class-rolling-coverage-block.php:595
+#: includes/blocks/class-rolling-coverage-block.php:674
 msgid "Coverage not found."
 msgstr ""
 
@@ -107,20 +107,20 @@ msgstr ""
 msgid "Read more"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:163
+#: includes/blocks/class-rolling-coverage-block.php:167
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Select a coverage to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:209
+#: includes/blocks/class-rolling-coverage-block.php:221
 msgid "This coverage is currently paused. New updates will appear once it resumes."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:217
+#: includes/blocks/class-rolling-coverage-block.php:229
 msgid "No entries yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:642
+#: includes/blocks/class-rolling-coverage-block.php:682
 msgid "Either cursor or before must be provided."
 msgstr ""
 
@@ -144,6 +144,14 @@ msgstr ""
 #: includes/class-admin.php:240
 #: dist/admin.js:194
 msgid "Slack"
+msgstr ""
+
+#: includes/class-ads.php:57
+msgid "Rolling Coverage: Entry"
+msgstr ""
+
+#: includes/class-ads.php:58
+msgid "Appears at the configured interval in the rolling coverage feed."
 msgstr ""
 
 #: includes/class-breakout.php:195
@@ -1025,6 +1033,30 @@ msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Copy"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Ads"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Enable and configure the Rolling Coverage: Entry placement in Newspack Ads to show ads."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Enable ads"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Shows ads at a regular interval in the feed."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Ads interval"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Show an ad after every N entries. Maximum 3 ads for the initial feed and load more; no cap for new entries."
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
