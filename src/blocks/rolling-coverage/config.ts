@@ -3,10 +3,12 @@
  */
 import type { BlockConfig } from './types';
 
-// Augment Window with the config object injected by wp_localize_script.
+// Augment Window with globals injected by wp_localize_script and external ad scripts.
 declare global {
 	interface Window {
 		newspackRollingCoverageBlock?: BlockConfig;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		googletag?: any;
 	}
 }
 
@@ -24,6 +26,8 @@ const {
 	entriesPreviewRestBase: ENTRIES_PREVIEW_REST_BASE,
 	aiEndpoint: AI_ENDPOINT,
 	aiAvailable: AI_AVAILABLE,
+	newspackAdsAvailable: NEWSPACK_ADS_AVAILABLE,
+	newspackAdsPlacementEnabled: NEWSPACK_ADS_PLACEMENT_ENABLED,
 } = config;
 
 export {
@@ -32,4 +36,6 @@ export {
 	ENTRIES_PREVIEW_REST_BASE,
 	AI_ENDPOINT,
 	AI_AVAILABLE,
+	NEWSPACK_ADS_AVAILABLE,
+	NEWSPACK_ADS_PLACEMENT_ENABLED,
 };

@@ -15,6 +15,7 @@ import {
 	ComboboxControl,
 	TextControl,
 	SelectControl,
+	ToggleControl,
 	Button,
 	Notice,
 	Placeholder,
@@ -42,7 +43,11 @@ import {
 	generateKeyTakeaways,
 } from './utils';
 import { DEFAULT_TEMPLATE, ALLOWED_BLOCKS } from './template';
-import { AI_AVAILABLE } from './config';
+import {
+	AI_AVAILABLE,
+	NEWSPACK_ADS_AVAILABLE,
+	NEWSPACK_ADS_PLACEMENT_ENABLED,
+} from './config';
 import type {
 	CoverageOption,
 	ApplyNotice,
@@ -129,7 +134,8 @@ export default function Edit( {
 	attributes,
 	setAttributes,
 }: EditProps ) {
-	const { coverageId, pollInterval, entriesPerPage } = attributes;
+	const { coverageId, pollInterval, entriesPerPage, enableAds, adsInterval } =
+		attributes;
 	const blockProps = useBlockProps();
 
 	const [ search, setSearch ] = useState( '' );
@@ -478,6 +484,62 @@ export default function Edit( {
 						</div>
 					</PanelBody>
 				) : null }
+
+				{ NEWSPACK_ADS_AVAILABLE && (
+					<PanelBody
+						title={ __( 'Ads', 'newspack-rolling-coverage' ) }
+					>
+						{ ! NEWSPACK_ADS_PLACEMENT_ENABLED && (
+							<Notice
+								className="newspack-rolling-coverage-ads-notice"
+								status="warning"
+								isDismissible={ false }
+							>
+								{ __(
+									'Enable and configure the Rolling Coverage: Entry placement in Newspack Ads to show ads.',
+									'newspack-rolling-coverage'
+								) }
+							</Notice>
+						) }
+						<ToggleControl
+							label={ __(
+								'Enable ads',
+								'newspack-rolling-coverage'
+							) }
+							help={ __(
+								'Shows ads at a regular interval in the feed.',
+								'newspack-rolling-coverage'
+							) }
+							checked={ enableAds }
+							onChange={ ( value: boolean ) =>
+								setAttributes( { enableAds: value } )
+							}
+						/>
+						{ enableAds && (
+							<TextControl
+								__next40pxDefaultSize
+								type="number"
+								label={ __(
+									'Ads interval',
+									'newspack-rolling-coverage'
+								) }
+								help={ __(
+									'Show an ad after every N entries. Maximum 3 ads for the initial feed and load more; no cap for new entries.',
+									'newspack-rolling-coverage'
+								) }
+								value={ String( adsInterval ) }
+								min={ 1 }
+								onChange={ ( value: string ) =>
+									setAttributes( {
+										adsInterval: value
+											? parseInt( value, 10 )
+											: 4,
+									} )
+								}
+							/>
+						) }
+					</PanelBody>
+				) }
 			</InspectorControls>
 
 			<div { ...blockProps }>
