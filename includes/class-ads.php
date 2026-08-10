@@ -106,6 +106,8 @@ class Ads {
 		$unique_id      = self::PLACEMENT_KEY . '-' . wp_generate_uuid4();
 		$placement_data = array_merge( $placement_data, [ 'id' => $unique_id ] );
 
+		ob_start();
+
 		/**
 		 * Fires before an ad is injected into a placement.
 		 *
@@ -115,7 +117,6 @@ class Ads {
 		 */
 		do_action( 'newspack_ads_before_placement_ad', self::PLACEMENT_KEY, '', $placement_data );
 
-		ob_start();
 		Providers::render_placement_ad_code(
 			$ad_unit_id,
 			$provider_id,
@@ -123,7 +124,6 @@ class Ads {
 			'',
 			$placement_data
 		);
-		$ad_code = ob_get_clean();
 
 		/**
 		 * Fires after an ad is injected into a placement.
@@ -133,6 +133,8 @@ class Ads {
 		 * @param array  $placement_data The placement data.
 		 */
 		do_action( 'newspack_ads_after_placement_ad', self::PLACEMENT_KEY, '', $placement_data );
+
+		$ad_code = ob_get_clean();
 
 		if ( ! $ad_code ) {
 			return self::empty_result();
