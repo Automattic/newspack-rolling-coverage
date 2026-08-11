@@ -1,0 +1,34 @@
+@use "../variables" as *;
+
+.newspack-rolling-coverage-ai-settings {
+	max-width: 1054px;
+	margin: 0 auto;
+	padding: 24px;
+}
+
+.newspack-rolling-coverage-ai-settings__card {
+	margin-bottom: 32px;
+}
+
+.newspack-rolling-coverage-ai-settings__notice {
+	border: 1px solid $nrc-color-error;
+	border-radius: 2px;
+	background: #fcf0f0;
+	color: $nrc-color-error;
+	padding: $nrc-spacing-lg $nrc-spacing-xl;
+	margin-bottom: $nrc-spacing-lg;
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.newspack-rolling-coverage-ai-settings__field--over-limit {
+
+	.components-base-control__field textarea {
+		border-color: $nrc-color-error;
+	}
+
+	.components-base-control__help {
+		color: $nrc-color-error;
+		font-weight: 600;
+	}
+}

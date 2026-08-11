@@ -7,7 +7,13 @@ import { _n, sprintf } from '@wordpress/i18n';
  * Internal dependencies
  */
 import './style.scss';
-import type { PollEntry, PollResponse, PageResponse } from './types';
+import type {
+	AdSlot,
+	PendingEntry,
+	PollEntry,
+	PollResponse,
+	PageResponse,
+} from './types';
 
 const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 
@@ -22,9 +28,22 @@ const cssEscape = ( str: string ): string => {
 };
 
 /**
+ * Parses an HTML string into a detached element.
+ *
+ * @param {string} html HTML markup for a single element.
+ * @return {HTMLElement | null} The parsed element, or null if parsing produced none.
+ */
+function parseElement( html: string ): HTMLElement | null {
+	const template = document.createElement( 'template' );
+	template.innerHTML = html;
+	return template.content.firstElementChild as HTMLElement | null;
+}
+
+/**
  * Sets up polling and infinite scroll for a single block instance.
  *
  * @param {HTMLElement} root The block's outer wrapper element.
+ * @return {void}
  */
 function initBlock( root: HTMLElement ): void {
 	if ( root.dataset.rcInitialized === '1' ) {
@@ -41,7 +60,6 @@ function initBlock( root: HTMLElement ): void {
 		return;
 	}
 
-	// Narrowed to non-nullable bindings.
 	const entriesList: HTMLElement = entriesListEl;
 	const restBaseUrl: string = restUrl;
 
@@ -66,10 +84,14 @@ function initBlock( root: HTMLElement ): void {
 	let hasMore = root.dataset.hasMore === '1';
 	let isLoadingMore = false;
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
-	let pendingNewEntries: HTMLElement[] = [];
+	let pendingNewEntries: PendingEntry[] = [];
+	let polledCount = 0;
+	let backlogOffset = entriesPerPage;
 
 	/**
 	 * Schedules the next poll.
+	 *
+	 * @return {void}
 	 */
 	function schedulePoll(): void {
 		pollTimeoutId = setTimeout( poll, pollInterval * 1000 );
@@ -77,6 +99,8 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Cancels any pending poll timeout.
+	 *
+	 * @return {void}
 	 */
 	function cancelPoll(): void {
 		if ( pollTimeoutId !== null ) {
@@ -86,7 +110,9 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Whether the reader has scrolled past the top of the entry list.
+	 * Checks whether the reader has scrolled past the top of the entry list.
+	 *
+	 * @return {boolean} True if the reader has scrolled past the first entry.
 	 */
 	function isScrolledPastTop(): boolean {
 		const firstEntry = entriesList.firstElementChild;
@@ -108,9 +134,13 @@ function initBlock( root: HTMLElement ): void {
 	 * Inserts entries at the top of the entries list, removing the "no
 	 * entries yet" placeholder if it's still present.
 	 *
-	 * @param {HTMLElement[]} entries Entries to insert, in poll-response order.
+	 * Removes the "no entries yet" placeholder and displays any associated ad
+	 * slots.
+	 *
+	 * @param {PendingEntry[]} entries Entries to insert, newest first.
+	 * @return {void}
 	 */
-	function insertNewEntries( entries: HTMLElement[] ): void {
+	function insertNewEntries( entries: PendingEntry[] ): void {
 		if ( entries.length === 0 ) {
 			return;
 		}
@@ -120,7 +150,18 @@ function initBlock( root: HTMLElement ): void {
 			?.remove();
 
 		const fragment = document.createDocumentFragment();
-		entries.forEach( ( entry ) => fragment.appendChild( entry ) );
+		const adSlotsToDisplay: AdSlot[] = [];
+
+		entries.forEach( ( { el, adSlot, adEl } ) => {
+			fragment.appendChild( el );
+			if ( adEl ) {
+				fragment.appendChild( adEl );
+				if ( adSlot ) {
+					adSlotsToDisplay.push( adSlot );
+				}
+			}
+		} );
+
 		entriesList.insertBefore( fragment, entriesList.firstChild );
 
 		announce(
@@ -135,15 +176,21 @@ function initBlock( root: HTMLElement ): void {
 				entries.length
 			)
 		);
+
+		if ( adSlotsToDisplay.length > 0 ) {
+			displayAdSlots( adSlotsToDisplay );
+		}
 	}
 
 	/**
-	 * Adds entries to the pending queue and updates the "X new posts" button
-	 * label and visibility.
+	 * Adds entries to the pending queue.
 	 *
-	 * @param {HTMLElement[]} newEntries Newly published entries.
+	 * Updates the "X new posts" button label and visibility.
+	 *
+	 * @param {PendingEntry[]} newEntries Newly published entries.
+	 * @return {void}
 	 */
-	function queueNewEntries( newEntries: HTMLElement[] ): void {
+	function queueNewEntries( newEntries: PendingEntry[] ): void {
 		pendingNewEntries.unshift( ...newEntries );
 
 		if ( ! newEntriesButton ) {
@@ -167,11 +214,11 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Returns the pending entries and clears the queue.
+	 * Gets the pending entries and clears the queue.
 	 *
-	 * @return {HTMLElement[]} The entries that were pending.
+	 * @return {PendingEntry[]} The entries that were pending.
 	 */
-	function takePendingEntries(): HTMLElement[] {
+	function takePendingEntries(): PendingEntry[] {
 		const entries = pendingNewEntries;
 		pendingNewEntries = [];
 		return entries;
@@ -198,12 +245,13 @@ function initBlock( root: HTMLElement ): void {
 		} );
 	}
 
-	/**
-	 * Reveals pending entries the moment the reader scrolls back up to the
-	 * top entry on their own.
-	 */
 	let scrollCheckScheduled = false;
 
+	/**
+	 * Reveals pending entries when the reader scrolls back to the top entry.
+	 *
+	 * @return {void}
+	 */
 	function checkIfScrolledBackToTop(): void {
 		scrollCheckScheduled = false;
 
@@ -241,9 +289,10 @@ function initBlock( root: HTMLElement ): void {
 	 * reader's scroll position.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
+	 * @return {void}
 	 */
 	function applyPollResponse( entries: PollEntry[] ): void {
-		const newEntries: HTMLElement[] = [];
+		const newEntries: PendingEntry[] = [];
 
 		entries.forEach( ( entry ) => {
 			const existing = entriesList.querySelector(
@@ -254,9 +303,7 @@ function initBlock( root: HTMLElement ): void {
 				return;
 			}
 
-			const template = document.createElement( 'template' );
-			template.innerHTML = entry.html;
-			const entryEl = template.content.firstElementChild as HTMLElement;
+			const entryEl = parseElement( entry.html );
 
 			if ( ! entryEl ) {
 				return;
@@ -264,9 +311,12 @@ function initBlock( root: HTMLElement ): void {
 
 			if ( existing ) {
 				existing.replaceWith( entryEl );
-			} else {
-				newEntries.push( entryEl );
+				return;
 			}
+
+			const adEl = entry.adHtml ? parseElement( entry.adHtml ) : null;
+
+			newEntries.push( { el: entryEl, adSlot: entry.adSlot, adEl } );
 		} );
 
 		if ( newEntries.length === 0 ) {
@@ -281,10 +331,178 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Polls for entries modified at or after the cursor.
+	 * Checks whether an element is in or past the viewport.
 	 *
-	 * Applies returned entries or reloads the page when the response overflows
-	 * the poll limit.
+	 * An element is treated as in or past the viewport when it is not further
+	 * down or right of the visible area.
+	 *
+	 * @param {HTMLElement} element Element to check.
+	 * @return {boolean} True if the element is in or past the viewport.
+	 */
+	function isInOrPastViewport( element: HTMLElement ): boolean {
+		const bounding = element.getBoundingClientRect();
+		return (
+			bounding.right <=
+				( window.innerWidth || document.documentElement.clientWidth ) &&
+			bounding.bottom <=
+				( window.innerHeight || document.documentElement.clientHeight )
+		);
+	}
+
+	/**
+	 * Finds the width of the nearest bounds container.
+	 *
+	 * Looks for an ancestor matching one of the given bounds selectors so a
+	 * slot's available width can be measured against its real container instead
+	 * of the full viewport.
+	 *
+	 * @param {HTMLElement} container       The ad slot's container element.
+	 * @param {string[]}    boundsSelectors Selectors to search for a bounds container.
+	 * @return {number} The bounds container's offset width, or 0 if none matched.
+	 */
+	function findBoundsWidth(
+		container: HTMLElement,
+		boundsSelectors: string[]
+	): number {
+		for ( const selector of boundsSelectors ) {
+			const candidates =
+				document.querySelectorAll< HTMLElement >( selector );
+			for ( const candidate of candidates ) {
+				if ( candidate.contains( container ) ) {
+					return candidate.offsetWidth;
+				}
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * Measures an ad slot against its rendered container.
+	 *
+	 * Filters the size map to widths that fit and reserves height when fixed
+	 * height ads are enabled.
+	 *
+	 * @param {AdSlot}      adSlot    Ad slot definition.
+	 * @param {HTMLElement} container The slot's container element, already in the DOM.
+	 * @return {Record<string, number[][]>} The size map filtered to widths that fit.
+	 */
+	function measureAdSlot(
+		adSlot: AdSlot,
+		container: HTMLElement
+	): Record< string, number[][] > {
+		const boundsWidth = findBoundsWidth(
+			container,
+			adSlot.boundsSelectors
+		);
+		const sizeMap = { ...adSlot.sizeMap };
+
+		const containerWidth = container.parentElement?.offsetWidth ?? 0;
+		const availableWidth = boundsWidth
+			? Math.max( boundsWidth, containerWidth ) + adSlot.boundsBleed
+			: window.innerWidth;
+
+		if ( boundsWidth > 0 ) {
+			Object.keys( sizeMap ).forEach( ( viewportWidth ) => {
+				if ( parseInt( viewportWidth, 10 ) > availableWidth ) {
+					delete sizeMap[ viewportWidth ];
+				}
+			} );
+		}
+
+		if (
+			adSlot.fixedHeight.active &&
+			container.parentElement &&
+			isInOrPastViewport( container )
+		) {
+			let height = 0;
+			Object.keys( sizeMap ).forEach( ( viewportWidth ) => {
+				if ( parseInt( viewportWidth, 10 ) < availableWidth ) {
+					sizeMap[ viewportWidth ].forEach( ( size ) => {
+						height = Math.max( height, size[ 1 ] );
+					} );
+				}
+			} );
+
+			let prop: 'height' | 'minHeight' = 'height';
+			if (
+				adSlot.fixedHeight.useMaxHeight &&
+				adSlot.fixedHeight.maxHeight < height
+			) {
+				height = adSlot.fixedHeight.maxHeight;
+				prop = 'minHeight';
+			}
+
+			container.parentElement.style[ prop ] = `${ height }px`;
+		}
+
+		return sizeMap;
+	}
+
+	/**
+	 * Defines and displays GPT ad slots.
+	 *
+	 * The container divs must already exist in the DOM before this is called.
+	 *
+	 * @param {AdSlot[]} adSlots Ad slot definitions to display.
+	 * @return {void}
+	 */
+	function displayAdSlots( adSlots: AdSlot[] ): void {
+		if ( ! window.googletag || adSlots.length === 0 ) {
+			return;
+		}
+
+		adSlots.forEach( ( adSlot ) => {
+			const container = document.getElementById( adSlot.containerId );
+			const sizeMap = container
+				? measureAdSlot( adSlot, container )
+				: adSlot.sizeMap;
+
+			window.googletag.cmd.push( function () {
+				const baseSizes = adSlot.fluid ? [ 'fluid' ] : [];
+				const sizes = [ ...adSlot.sizes, ...baseSizes ];
+
+				const slot = window.googletag
+					.defineSlot( adSlot.path, sizes, adSlot.containerId )
+					?.addService( window.googletag.pubads() );
+
+				if ( ! slot ) {
+					return;
+				}
+
+				Object.keys( adSlot.targeting ).forEach( ( key ) => {
+					slot.setTargeting( key, adSlot.targeting[ key ] );
+				} );
+
+				const mapping = window.googletag.sizeMapping();
+
+				Object.keys( sizeMap ).forEach( ( viewportWidth ) => {
+					mapping.addSize(
+						[ parseInt( viewportWidth, 10 ), 0 ],
+						[ ...baseSizes, ...sizeMap[ viewportWidth ] ]
+					);
+				} );
+				mapping.addSize( [ 0, 0 ], baseSizes );
+				slot.defineSizeMapping( mapping.build() );
+
+				window.googletag.display( adSlot.containerId );
+
+				// Refresh the slot explicitly when initial load is disabled.
+				if (
+					window.googletag.getConfig( 'disableInitialLoad' )
+						.disableInitialLoad
+				) {
+					window.googletag.pubads().refresh( [ slot ] );
+				}
+			} );
+		} );
+	}
+
+	/**
+	 * Polls for new and edited entries.
+	 *
+	 * Fetches entries modified at or after the cursor and applies them. Also
+	 * passes the running ad counter so the server can continue the interval
+	 * across poll batches.
 	 *
 	 * @return {Promise<void>} Resolves when the poll response has been handled.
 	 */
@@ -298,6 +516,7 @@ function initBlock( root: HTMLElement ): void {
 			url.searchParams.set( 'cursor', cursor );
 			url.searchParams.set( 'template_key', templateKey );
 			url.searchParams.set( 'host_post_id', hostPostId );
+			url.searchParams.set( 'polled_count', polledCount.toString() );
 
 			const response = await fetch( url.toString() );
 			if ( response.ok ) {
@@ -312,6 +531,7 @@ function initBlock( root: HTMLElement ): void {
 					applyPollResponse( data.entries );
 				}
 				cursor = data.cursor || cursor;
+				polledCount = data.polledCount ?? polledCount;
 			}
 		} catch ( error ) {
 			// Network hiccups shouldn't break the page; the next poll interval retries.
@@ -322,7 +542,12 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Loads the next page of older entries and appends them.
+	 * Loads and appends the next page of older entries.
+	 *
+	 * Sends the backlog position so ad placement stays stable across load-more
+	 * pages.
+	 *
+	 * @return {Promise<void>} Resolves when the next page has been handled.
 	 */
 	async function loadMore(): Promise< void > {
 		if ( isLoadingMore || ! hasMore || ! before ) {
@@ -342,6 +567,10 @@ function initBlock( root: HTMLElement ): void {
 				const data: PageResponse = await response.json();
 				if ( data.count > 0 ) {
 					entriesList.insertAdjacentHTML( 'beforeend', data.html );
+					backlogOffset += data.count;
+				}
+				if ( data.adSlots && data.adSlots.length > 0 ) {
+					displayAdSlots( data.adSlots );
 				}
 				hasMore = data.hasMore;
 				before = data.before || '';
@@ -356,12 +585,10 @@ function initBlock( root: HTMLElement ): void {
 		}
 	}
 
-	// Only start polling if the coverage is active at page load.
 	if ( cursor && status === 'active' ) {
 		schedulePoll();
 	}
 
-	// Resume polling when the user returns to the tab; cancel when they leave.
 	document.addEventListener( 'visibilitychange', () => {
 		if ( document.hidden ) {
 			cancelPoll();
@@ -370,7 +597,6 @@ function initBlock( root: HTMLElement ): void {
 		}
 	} );
 
-	// Cancel any pending poll on page unload.
 	window.addEventListener( 'pagehide', cancelPoll );
 
 	if ( sentinel && hasMore ) {

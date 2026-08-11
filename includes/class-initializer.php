@@ -38,6 +38,10 @@ class Initializer {
 		Breakout_Post_Link_Block::init();
 		Share_Block::init();
 		Deep_Link_CTA_Block::init();
+		Ads::init();
+		AI_Service::init();
+		AI_Settings::init();
+		Abilities::init();
 
 		// Admin interface (only load in admin context).
 		if ( is_admin() ) {
