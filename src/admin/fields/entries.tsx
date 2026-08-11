@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { __ } from '@wordpress/i18n';
-import { Icon, wordpress as WordPressIconRaw } from '@wordpress/icons';
+import { Icon, pin, wordpress as WordPressIconRaw } from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -71,6 +71,26 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 						__( '(no title)', 'newspack-rolling-coverage' ),
 					20
 				),
+			render: ( { item } ) => {
+				const title =
+					item.title?.rendered ||
+					__( '(no title)', 'newspack-rolling-coverage' );
+				if ( item.pinned ) {
+					return (
+						<span
+							style={ {
+								display: 'inline-flex',
+								alignItems: 'center',
+								gap: 4,
+							} }
+						>
+							<Icon icon={ pin } size={ 14 } />
+							{ truncate( title, 20 ) }
+						</span>
+					);
+				}
+				return truncate( title, 20 );
+			},
 		},
 		{
 			id: 'date',
@@ -218,7 +238,6 @@ const defaultEntryView: ViewState = {
 	type: 'table',
 	perPage: 20,
 	page: 1,
-	sort: { field: 'date', direction: 'desc' },
 	search: '',
 	filters: [],
 	fields: [

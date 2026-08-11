@@ -1,15 +1,15 @@
 /**
- * WordPress dependencies
- */
-import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
-
-/**
  * External dependencies
  */
 import type { JSX, MutableRefObject, Dispatch, SetStateAction } from 'react';
 
+/**
+ * WordPress dependencies
+ */
+import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
+
 interface AdminConfig {
-	page: '/coverages' | '/connection';
+	page: string;
 	availableAdapters?: Record< string, string >;
 	restBase: {
 		coverages: string;
@@ -22,11 +22,15 @@ interface AdminConfig {
 		slack: string;
 		breakout: string;
 		entriesView: string;
+		restNamespace: string;
+		aiSettings: string;
+		posts: string;
 	};
 	nonce: string;
 	capabilities: {
 		canEditPosts: boolean;
 		canManageTerms: boolean;
+		canManageAiSettings: boolean;
 	};
 	adminUrls: {
 		editEntry: string;
@@ -39,6 +43,10 @@ interface AdminConfig {
 	taxMeta: {
 		statusKey: string;
 	};
+	aiSettings: AiSettings;
+	aiDefaultSettings: AiSettings;
+	aiAvailable: boolean;
+	aiMaxPromptLength: number;
 	slack: {
 		isConfigured: boolean;
 	};
@@ -103,6 +111,7 @@ interface Entry {
 		rolling_coverage_breakout_read_more_text?: string;
 		[ key: string ]: unknown;
 	};
+	pinned?: boolean;
 	rolling_coverage_breakout_status?: PostStatus | null;
 	_embedded?: {
 		author?: Array< {
@@ -143,6 +152,10 @@ interface ApiResult {
 	success: boolean;
 	error?: string;
 	message?: string;
+}
+
+interface TogglePinResult extends ApiResult {
+	pinned?: boolean;
 }
 
 interface CreateEntryResult extends ApiResult {
@@ -277,6 +290,10 @@ interface ChipLinkProps {
 
 interface TermChipsProps {
 	terms: Array< { link: string; name: string } >;
+}
+
+interface AiSettings {
+	key_takeaways_prompt: string;
 }
 
 interface AdminHeaderProps {
@@ -531,6 +548,7 @@ export type {
 	SaveCoverageData,
 	ChipLinkProps,
 	TermChipsProps,
+	AiSettings,
 	AdminHeaderProps,
 	SlackConnectionModalProps,
 	SlackErrorProps,
@@ -559,4 +577,5 @@ export type {
 	EntityRecord,
 	EditorSelectors,
 	CoreSelectors,
+	TogglePinResult,
 };

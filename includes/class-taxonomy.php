@@ -21,6 +21,15 @@ class Taxonomy {
 	// Related constants.
 	const STATUS_META_KEY = 'rolling_coverage_status';
 
+	// Status values.
+	const STATUS_ACTIVE   = 'active';
+	const STATUS_PAUSED   = 'paused';
+	const STATUS_ARCHIVED = 'archived';
+
+	// Term meta keys for created/modified timestamps.
+	const CREATED_AT_META_KEY  = 'created_at';
+	const MODIFIED_AT_META_KEY = 'modified_at';
+
 	// Slack integration term-meta keys.
 	const META_SLACK_CHANNEL_ID   = 'rolling_coverage_slack_channel_id';
 	const META_SLACK_CHANNEL_NAME = 'rolling_coverage_slack_channel_name';
@@ -85,17 +94,17 @@ class Taxonomy {
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
-				'default'      => 'active',
+				'default'      => self::STATUS_ACTIVE,
 			],
 			// ISO 8601 timestamp the coverage term was first created (set once via the created_ hook).
-			'created_at'                  => [
+			self::CREATED_AT_META_KEY     => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => '',
 			],
 			// ISO 8601 timestamp of the last edit (updated via the edited_ hook).
-			'modified_at'                 => [
+			self::MODIFIED_AT_META_KEY    => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
@@ -154,11 +163,11 @@ class Taxonomy {
 	 * @param int $term_id Term ID.
 	 */
 	public static function set_term_created_date( $term_id ) {
-		$created = get_term_meta( $term_id, 'created_at', true );
+		$created = get_term_meta( $term_id, self::CREATED_AT_META_KEY, true );
 		if ( empty( $created ) ) {
 			$now = gmdate( 'c' );
-			update_term_meta( $term_id, 'created_at', $now );
-			update_term_meta( $term_id, 'modified_at', $now );
+			update_term_meta( $term_id, self::CREATED_AT_META_KEY, $now );
+			update_term_meta( $term_id, self::MODIFIED_AT_META_KEY, $now );
 		}
 	}
 
@@ -168,7 +177,7 @@ class Taxonomy {
 	 * @param int $term_id Term ID.
 	 */
 	public static function update_term_modified_date( $term_id ) {
-		update_term_meta( $term_id, 'modified_at', gmdate( 'c' ) );
+		update_term_meta( $term_id, self::MODIFIED_AT_META_KEY, gmdate( 'c' ) );
 	}
 
 	/**

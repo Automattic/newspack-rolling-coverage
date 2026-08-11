@@ -1,5 +1,5 @@
 /**
- * External dependencies
+ * WordPress dependencies
  */
 import apiFetch from '@wordpress/api-fetch';
 
@@ -15,6 +15,7 @@ import type {
 	SyncNotice,
 	SyncNoticeEntry,
 	SyncPollContext,
+	TogglePinResult,
 } from '../types';
 
 const SYNC_INTERVAL_MS = 30000;
@@ -328,6 +329,29 @@ async function pollSync( ctx: SyncPollContext ): Promise< void > {
 	}
 }
 
+/**
+ * Toggles the pinned status of an entry.
+ *
+ * @param {string} restNamespace - REST namespace URL (from config.restBaseUrls.restNamespace).
+ * @param {number} entryId       - The entry ID to toggle.
+ * @return {Promise<TogglePinResult>} Result indicating success (with new pinned state) or failure.
+ */
+async function togglePinEntry(
+	restNamespace: string,
+	entryId: number
+): Promise< TogglePinResult > {
+	try {
+		const response = await apiFetch< { pinned: boolean } >( {
+			url: `${ restNamespace }entries/${ entryId }/pin`,
+			method: 'POST',
+		} );
+
+		return { success: true, pinned: response.pinned };
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
 export {
 	createEntry,
 	toEntry,
@@ -336,5 +360,6 @@ export {
 	buildSyncNotices,
 	mergeSyncDelta,
 	pollSync,
+	togglePinEntry,
 	SYNC_INTERVAL_MS,
 };
