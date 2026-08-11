@@ -133,6 +133,14 @@ class Schema {
 			return null;
 		}
 
+		$last_modified = get_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true );
+		$cache_key     = 'nrc_' . $coverage_id . '_' . md5( $post->ID . '|' . $entries_per_page . '|' . $last_modified );
+
+		$cached_metadata = get_transient( $cache_key );
+		if ( false !== $cached_metadata ) {
+			return $cached_metadata;
+		}
+
 		$status = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
 
 		$permalink = get_permalink( $post );
@@ -157,7 +165,6 @@ class Schema {
 
 		// dateModified must reflect entry activity, which is tracked by the block's
 		// LAST_MODIFIED_META_KEY term meta (updated on every entry save).
-		$last_modified = get_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true );
 		if ( ! empty( $last_modified ) ) {
 			$metadata['dateModified'] = $last_modified;
 		} else {
@@ -187,7 +194,11 @@ class Schema {
 		 * @param int     $coverage_id Coverage term id.
 		 * @param WP_Post $post        Host post the block is embedded in.
 		 */
-		return apply_filters( 'newspack_rolling_coverage_schema_metadata', $metadata, $coverage_id, $post );
+		$metadata = apply_filters( 'newspack_rolling_coverage_schema_metadata', $metadata, $coverage_id, $post );
+
+		set_transient( $cache_key, $metadata, WEEK_IN_SECONDS );
+
+		return $metadata;
 	}
 
 	/**
