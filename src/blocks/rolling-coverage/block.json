@@ -18,6 +18,14 @@
 		"entriesPerPage": {
 			"type": "number",
 			"default": 20
+		},
+		"enableAds": {
+			"type": "boolean",
+			"default": true
+		},
+		"adsInterval": {
+			"type": "number",
+			"default": 4
 		}
 	},
 	"supports": {

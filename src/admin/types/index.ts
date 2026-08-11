@@ -1,15 +1,15 @@
 /**
- * WordPress dependencies
- */
-import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
-
-/**
  * External dependencies
  */
 import type { JSX } from 'react';
 
+/**
+ * WordPress dependencies
+ */
+import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
+
 interface AdminConfig {
-	page: '/coverages' | '/connection';
+	page: string;
 	availableAdapters?: Record< string, string >;
 	restBase: {
 		coverages: string;
@@ -21,11 +21,15 @@ interface AdminConfig {
 		entries: string;
 		slack: string;
 		breakout: string;
+		restNamespace: string;
+		aiSettings: string;
+		posts: string;
 	};
 	nonce: string;
 	capabilities: {
 		canEditPosts: boolean;
 		canManageTerms: boolean;
+		canManageAiSettings: boolean;
 	};
 	adminUrls: {
 		editEntry: string;
@@ -38,6 +42,10 @@ interface AdminConfig {
 	taxMeta: {
 		statusKey: string;
 	};
+	aiSettings: AiSettings;
+	aiDefaultSettings: AiSettings;
+	aiAvailable: boolean;
+	aiMaxPromptLength: number;
 	slack: {
 		isConfigured: boolean;
 	};
@@ -102,6 +110,7 @@ interface Entry {
 		rolling_coverage_breakout_read_more_text?: string;
 		[ key: string ]: unknown;
 	};
+	pinned?: boolean;
 	rolling_coverage_breakout_status?: PostStatus | null;
 	_embedded?: {
 		author?: Array< {
@@ -276,6 +285,10 @@ interface SlackMonitorLogsResult extends ApiResult {
 	lines?: SlackMonitorLogEntry[];
 	offset?: number;
 	active?: boolean;
+}
+
+interface AiSettings {
+	key_takeaways_prompt: string;
 }
 
 interface AdminHeaderProps {
@@ -468,6 +481,7 @@ export type {
 	SaveCoverageData,
 	ChipLinkProps,
 	TermChipsProps,
+	AiSettings,
 	AdminHeaderProps,
 	SlackConnectionModalProps,
 	SlackErrorProps,

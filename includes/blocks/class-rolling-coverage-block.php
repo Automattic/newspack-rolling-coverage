@@ -27,6 +27,9 @@ defined( 'ABSPATH' ) || exit;
  */
 class Rolling_Coverage_Block {
 
+	// The block's registered name.
+	const BLOCK_NAME = 'newspack-rolling-coverage/rolling-coverage';
+
 	// Max number of entries returned per poll response.
 	const POLL_CAP = 50;
 
@@ -55,14 +58,14 @@ class Rolling_Coverage_Block {
 	 */
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register_block' ] );
+		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'localize_block_config' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
 		add_action( 'save_post_' . Post_Type::CPT_SLUG, [ __CLASS__, 'update_coverage_last_modified' ], 10, 2 );
 	}
 
 	/**
-	 * Updates the coverage's last-modified term meta when a published entry is
-	 * saved, so the polling endpoint can skip WP_Query when nothing has changed.
+	 * Updates the coverage's last-modified term meta when a published entry is saved.
 	 *
 	 * @param int     $post_id Entry post ID.
 	 * @param WP_Post $post    Entry post object.
@@ -92,15 +95,29 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Registers the block type and localizes its editor script.
+	 * Registers the block type.
 	 */
 	public static function register_block() {
-		$block_type = register_block_type(
+		register_block_type(
 			NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/blocks/rolling-coverage',
 			[
 				'render_callback' => [ __CLASS__, 'render_block' ],
 			]
 		);
+	}
+
+	/**
+	 * Localizes the block editor script with config data.
+	 *
+	 * Runs on enqueue_block_editor_assets (after init) so that
+	 * AI_Service::is_available() sees a fully initialized AI client.
+	 */
+	public static function localize_block_config() {
+		if ( ! wp_should_load_block_editor_scripts_and_styles() ) {
+			return;
+		}
+
+		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( self::BLOCK_NAME );
 
 		if ( ! $block_type instanceof WP_Block_Type ) {
 			return;
@@ -111,9 +128,13 @@ class Rolling_Coverage_Block {
 				$handle,
 				'newspackRollingCoverageBlock',
 				[
-					'coveragesRestBase'      => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
-					'statusMetaKey'          => Taxonomy::STATUS_META_KEY,
-					'entriesPreviewRestBase' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
+					'coveragesRestBase'           => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
+					'statusMetaKey'               => Taxonomy::STATUS_META_KEY,
+					'entriesPreviewRestBase'      => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
+					'aiEndpoint'                  => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
+					'aiAvailable'                 => AI_Service::is_available(),
+					'newspackAdsAvailable'        => Ads::is_available(),
+					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
 				]
 			);
 		}
@@ -149,6 +170,8 @@ class Rolling_Coverage_Block {
 
 		$entries_per_page = min( max( 1, (int) ( $attributes['entriesPerPage'] ?? 20 ) ), self::PER_PAGE_MAX );
 		$poll_interval    = max( 1, (int) ( $attributes['pollInterval'] ?? 10 ) );
+		$ads_enabled      = ! empty( $attributes['enableAds'] );
+		$ads_interval     = max( 1, (int) ( $attributes['adsInterval'] ?? 4 ) );
 		$status           = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
 		$status           = $status ? $status : 'active';
 
@@ -172,11 +195,17 @@ class Rolling_Coverage_Block {
 		);
 
 		$template     = self::get_entry_template( $block );
-		$template_key = self::persist_entry_template( $coverage_id, $template );
+		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled, $ads_interval );
 
 		$entries_html = '';
+		$entry_index  = 0;
 		foreach ( $query->posts as $entry ) {
+			$entry_index++;
 			$entries_html .= self::render_entry( $entry, $template );
+
+			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
+				$entries_html .= Ads::render_placement()['html'];
+			}
 		}
 		wp_reset_postdata();
 
@@ -283,40 +312,60 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Stores the entry template in the options table and returns its hash key.
+	 * Stores the entry template plus the block's ad settings in the options
+	 * table and returns a hash key identifying that exact combination.
 	 *
-	 * @param int   $coverage_id Coverage term ID.
-	 * @param array $template    Per-entry inner-block template.
-	 * @return string Hash key   identifying this template.
+	 * @param int   $coverage_id  Coverage term ID.
+	 * @param array $template     Per-entry inner-block template.
+	 * @param bool  $ads_enabled  Whether ads are enabled on this block instance.
+	 * @param int   $ads_interval Show an ad after every N entries.
+	 * @return string Hash key identifying this config.
 	 */
-	private static function persist_entry_template( int $coverage_id, array $template ): string {
-		$hash       = substr( md5( wp_json_encode( $template ) ), 0, 12 );
+	private static function persist_block_config( int $coverage_id, array $template, bool $ads_enabled, int $ads_interval ): string {
+		$config = [
+			'template'    => $template,
+			'adsEnabled'  => $ads_enabled,
+			'adsInterval' => $ads_interval,
+		];
+
+		$hash       = substr( md5( wp_json_encode( $config ) ), 0, 12 );
 		$option_key = self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $hash;
 
 		if ( false === get_option( $option_key ) ) {
-			update_option( $option_key, $template, false );
+			update_option( $option_key, $config, false );
 		}
 
 		return $hash;
 	}
 
 	/**
-	 * Loads a persisted entry template by coverage ID and hash key, falling
-	 * back to the default template if the option is missing.
+	 * Loads a persisted block config (entry template + ad settings) by
+	 * coverage ID and hash key, falling back to defaults if the option is
+	 * missing.
 	 *
 	 * @param int    $coverage_id  Coverage term ID.
-	 * @param string $template_key Hash returned by persist_entry_template().
-	 * @return array[] Per-entry   inner-block template.
+	 * @param string $template_key Hash returned by persist_block_config().
+	 * @return array{template: array[], adsEnabled: bool, adsInterval: int}
 	 */
-	private static function load_entry_template( int $coverage_id, string $template_key ): array {
+	private static function load_block_config( int $coverage_id, string $template_key ): array {
+		$defaults = [
+			'template'    => self::default_entry_template(),
+			'adsEnabled'  => true,
+			'adsInterval' => 4,
+		];
+
 		if ( ! $template_key ) {
-			return self::default_entry_template();
+			return $defaults;
 		}
 
 		$option_key = self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $template_key;
-		$template   = get_option( $option_key );
+		$config     = get_option( $option_key );
 
-		return is_array( $template ) ? $template : self::default_entry_template();
+		if ( ! is_array( $config ) || ! isset( $config['template'] ) ) {
+			return $defaults;
+		}
+
+		return wp_parse_args( $config, $defaults );
 	}
 
 	/**
@@ -487,6 +536,14 @@ class Rolling_Coverage_Block {
 					'per_page'     => [
 						'type' => 'integer',
 					],
+					'entry_offset' => [
+						'type'    => 'integer',
+						'default' => 0,
+					],
+					'polled_count' => [
+						'type'    => 'integer',
+						'default' => 0,
+					],
 				],
 			]
 		);
@@ -641,7 +698,10 @@ class Rolling_Coverage_Block {
 			'ignore_sticky_posts' => true,
 		];
 
-		$template = self::load_entry_template( $term_id, $template_key );
+		$config       = self::load_block_config( $term_id, $template_key );
+		$template     = $config['template'];
+		$ads_enabled  = (bool) $config['adsEnabled'];
+		$ads_interval = max( 1, (int) $config['adsInterval'] );
 
 		// Forward/polling branch: entries modified at or after the cursor, newest first.
 		if ( $cursor ) {
@@ -654,9 +714,10 @@ class Rolling_Coverage_Block {
 			if ( $last_modified && $last_modified < $cursor_modified ) {
 				return new WP_REST_Response(
 					[
-						'entries'  => [],
-						'cursor'   => $cursor,
-						'overflow' => false,
+						'entries'     => [],
+						'cursor'      => $cursor,
+						'overflow'    => false,
+						'polledCount' => max( 0, (int) ( $params['polled_count'] ?? 0 ) ),
 					]
 				);
 			}
@@ -677,6 +738,8 @@ class Rolling_Coverage_Block {
 				]
 			);
 
+			$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
+
 			$query = new WP_Query( $args );
 
 			// Signal the client to refresh when the poll result reaches the cap.
@@ -692,6 +755,8 @@ class Rolling_Coverage_Block {
 
 			$entries    = [];
 			$new_cursor = $cursor;
+			$polled_count = max( 0, (int) ( $params['polled_count'] ?? 0 ) );
+			$new_entry_count = 0;
 
 			foreach ( $query->posts as $entry ) {
 				$entry_modified = self::post_modified_iso( $entry );
@@ -704,21 +769,39 @@ class Rolling_Coverage_Block {
 					$new_cursor = $entry->ID . ':' . $entry_modified;
 				}
 
+				// Counts only if published after the poll cursor.
 				$is_new_entry = self::post_date_iso( $entry ) > $cursor_modified;
+				$ad_slot      = null;
+				$ad_html      = null;
+
+				if ( $is_new_entry ) {
+					++$new_entry_count;
+
+					if ( $ads_enabled && 0 === ( $polled_count + $new_entry_count ) % $ads_interval ) {
+						$placement = Ads::render_placement();
+						if ( $placement['html'] ) {
+							$ad_html = $placement['html'];
+							$ad_slot = $placement['slots'][0] ?? null;
+						}
+					}
+				}
 
 				$entries[] = [
-					'id'   => $entry->ID,
-					'html' => self::render_entry( $entry, $template ),
-					'type' => $is_new_entry ? 'insert' : 'update',
+					'id'     => $entry->ID,
+					'html'   => self::render_entry( $entry, $template ),
+					'type'   => $is_new_entry ? 'insert' : 'update',
+					'adHtml' => $ad_html,
+					'adSlot' => $ad_slot,
 				];
 			}
 			wp_reset_postdata();
 
 			return new WP_REST_Response(
 				[
-					'entries'  => $entries,
-					'cursor'   => $new_cursor,
-					'overflow' => false,
+					'entries'     => $entries,
+					'cursor'      => $new_cursor,
+					'overflow'    => false,
+					'polledCount' => ( $polled_count + $new_entry_count ) % $ads_interval,
 				]
 			);
 		}
@@ -739,11 +822,24 @@ class Rolling_Coverage_Block {
 			]
 		);
 
+		$entry_offset = max( 0, (int) ( $params['entry_offset'] ?? 0 ) );
+
 		$query = new WP_Query( $args );
 
-		$html = '';
+		$html        = '';
+		$ad_slots    = [];
+		$entry_index = 0;
+
 		foreach ( $query->posts as $entry ) {
+			$entry_index++;
 			$html .= self::render_entry( $entry, $template );
+
+			$position = $entry_offset + $entry_index;
+			if ( $ads_enabled && Ads::is_capped_ad_position( $position, $ads_interval ) ) {
+				$placement = Ads::render_placement();
+				$html     .= $placement['html'];
+				$ad_slots  = array_merge( $ad_slots, $placement['slots'] );
+			}
 		}
 		wp_reset_postdata();
 
@@ -757,6 +853,7 @@ class Rolling_Coverage_Block {
 				'before'  => $next_before,
 				'hasMore' => count( $query->posts ) === $per_page,
 				'count'   => count( $query->posts ),
+				'adSlots' => $ad_slots,
 			]
 		);
 	}
