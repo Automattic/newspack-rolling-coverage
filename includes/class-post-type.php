@@ -795,7 +795,7 @@ class Post_Type {
 			if ( ! $recovery_slug || ! $original_name ) {
 				return new \WP_Error(
 					'rolling_coverage_no_recovery_context',
-					__( 'This entry has no coverage context to restore to. Please assign it to a coverage before restoring.', 'newspack-rolling-coverage' ),
+					__( 'This entry has no coverage context to restore to.', 'newspack-rolling-coverage' ),
 					[ 'status' => 400 ]
 				);
 			}
