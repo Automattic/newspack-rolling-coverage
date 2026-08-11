@@ -1,15 +1,24 @@
 /**
- * WordPress dependencies.
+ * External dependencies
  */
 import { __ } from '@wordpress/i18n';
+import { Icon, pin, wordpress as WordPressIconRaw } from '@wordpress/icons';
 
 /**
- * Internal dependencies.
+ * Internal dependencies
  */
 import type { Field, ViewState, Entry, AdminConfig } from '../types';
-import { truncate, safeFormatUTCDate, getEmbeddedTerms } from '../utils/fields';
 import { ChipLink } from '../shared/chip-link';
+import { SlackIcon } from '../shared/icons/slack-icon';
 import { TermChips } from '../shared/term-chips';
+import {
+	truncate,
+	safeFormatUTCDate,
+	getEmbeddedTerms,
+	getEntrySource,
+	SOURCE_SLACK,
+	SOURCE_WORDPRESS,
+} from '../utils/fields';
 
 const POST_STATUS_LABELS: Record< string, string > = {
 	publish: __( 'Published', 'newspack-rolling-coverage' ),
@@ -64,6 +73,26 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 						__( '(no title)', 'newspack-rolling-coverage' ),
 					20
 				),
+			render: ( { item } ) => {
+				const title =
+					item.title?.rendered ||
+					__( '(no title)', 'newspack-rolling-coverage' );
+				if ( item.pinned ) {
+					return (
+						<span
+							style={ {
+								display: 'inline-flex',
+								alignItems: 'center',
+								gap: 4,
+							} }
+						>
+							<Icon icon={ pin } size={ 14 } />
+							{ truncate( title, 20 ) }
+						</span>
+					);
+				}
+				return truncate( title, 20 );
+			},
 		},
 		{
 			id: 'date',
@@ -94,6 +123,39 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 					return <span>—</span>;
 				}
 				return <ChipLink href={ author.link } label={ author.name } />;
+			},
+		},
+		{
+			id: 'source',
+			type: 'text',
+			label: __( 'Source', 'newspack-rolling-coverage' ),
+			getValue: ( { item } ) => getEntrySource( item ),
+			render: ( { item } ) => {
+				if ( getEntrySource( item ) === SOURCE_SLACK ) {
+					return (
+						<span title="Slack" aria-label="Slack">
+							<SlackIcon size={ 16 } />
+						</span>
+					);
+				}
+				return (
+					<span title="WordPress" aria-label="WordPress">
+						<Icon icon={ WordPressIconRaw } size={ 16 } />
+					</span>
+				);
+			},
+			elements: [
+				{
+					value: SOURCE_SLACK,
+					label: __( 'Slack', 'newspack-rolling-coverage' ),
+				},
+				{
+					value: SOURCE_WORDPRESS,
+					label: __( 'WordPress', 'newspack-rolling-coverage' ),
+				},
+			],
+			filterBy: {
+				operators: [ 'is', 'isNot' ],
 			},
 		},
 		{
@@ -179,16 +241,16 @@ const defaultEntryView: ViewState = {
 	type: 'table',
 	perPage: 20,
 	page: 1,
-	sort: { field: 'date', direction: 'desc' },
 	search: '',
 	filters: [],
 	fields: [
 		'author',
 		'status',
+		'source',
+		'breakout',
 		'categories',
 		'tags',
 		'modified',
-		'breakout',
 	],
 	titleField: 'title',
 };

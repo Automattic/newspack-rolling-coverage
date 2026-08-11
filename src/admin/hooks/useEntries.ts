@@ -45,7 +45,7 @@ function useEntries( options: UseEntriesOptions ) {
 			? String( coverageId )
 			: undefined,
 		_fields:
-			'id,title,date,modified,author,status,meta,categories,tags,_links,_embedded,rolling_coverage_breakout_status',
+			'id,title,date,modified,author,status,pinned,meta,categories,tags,_links,_embedded,rolling_coverage_breakout_status',
 		_embed: 'author,wp:term',
 		_ts: refreshKey,
 	};

@@ -67,13 +67,17 @@ async function saveBreakoutSettings(
 /**
  * Restores a trashed breakout post to draft status.
  *
+ * @param {string} postsRestUrl   - Full REST URL for the posts collection (from config.restBaseUrls.posts).
  * @param {number} breakoutPostId - The breakout post ID to restore.
  * @return {Promise<ApiResult>} Result indicating success or failure.
  */
-async function restoreBreakout( breakoutPostId: number ): Promise< ApiResult > {
+async function restoreBreakout(
+	postsRestUrl: string,
+	breakoutPostId: number
+): Promise< ApiResult > {
 	try {
 		await apiFetch( {
-			path: `/wp/v2/posts/${ breakoutPostId }`,
+			url: `${ postsRestUrl }/${ breakoutPostId }`,
 			method: 'POST',
 			data: { status: 'draft' },
 		} );
@@ -86,15 +90,17 @@ async function restoreBreakout( breakoutPostId: number ): Promise< ApiResult > {
 /**
  * Permanently deletes a breakout post, bypassing the trash.
  *
+ * @param {string} postsRestUrl   - Full REST URL for the posts collection (from config.restBaseUrls.posts).
  * @param {number} breakoutPostId - The breakout post ID to permanently delete.
  * @return {Promise<ApiResult>} Result indicating success or failure.
  */
 async function deleteBreakoutPermanently(
+	postsRestUrl: string,
 	breakoutPostId: number
 ): Promise< ApiResult > {
 	try {
 		await apiFetch( {
-			path: `/wp/v2/posts/${ breakoutPostId }?force=true`,
+			url: `${ postsRestUrl }/${ breakoutPostId }?force=true`,
 			method: 'DELETE',
 		} );
 		return { success: true };

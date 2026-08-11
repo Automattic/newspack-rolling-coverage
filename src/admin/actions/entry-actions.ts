@@ -17,6 +17,7 @@ import {
 	hasBreakout,
 	hasTrashedBreakout,
 	runEntryBulk,
+	togglePinEntry,
 } from '../utils/entries-api';
 import { notifySuccess, notifyError, pluralize } from '../utils/notices';
 import { BreakoutModal } from '../components/breakout-modal';
@@ -26,20 +27,34 @@ import type { Entry, Action, AdminConfig } from '../types';
 /**
  * Returns DataViews action definitions for entry rows.
  *
- * @param {AdminConfig} config            Admin config containing edit URLs.
- * @param {() => void}  onActionPerformed Callback invoked after a successful create, or setting save, to refresh data.
+ * Includes "Edit" (opens the classic editor in a new tab) and "Quick Edit"
+ * (opens the block editor in a modal on the current page).
+ *
+ * @param {AdminConfig}            config            Admin config containing edit URLs.
+ * @param {(entry: Entry) => void} onQuickEdit       Handler for the Quick Edit action.
+ * @param {() => void}             onActionPerformed Callback invoked after a successful create, or setting save, to refresh data.
  *
  * @return {Action<Entry>[]} Array of DataViews actions for entries.
  */
 function getEntryActions(
 	config: AdminConfig,
+	onQuickEdit: ( entry: Entry ) => void,
 	onActionPerformed?: () => void
 ): Action< Entry >[] {
 	return [
 		{
+			id: 'quick-edit',
+			label: __( 'Quick Edit', 'newspack-rolling-coverage' ),
+			isPrimary: true,
+			callback: ( items: Entry[] ) => {
+				if ( items.length === 1 ) {
+					onQuickEdit( items[ 0 ] );
+				}
+			},
+		},
+		{
 			id: 'edit',
 			label: __( 'Edit', 'newspack-rolling-coverage' ),
-			isPrimary: true,
 			callback: ( items: Entry[] ) => {
 				if ( items.length === 1 ) {
 					window.open(
@@ -98,7 +113,10 @@ function getEntryActions(
 					return;
 				}
 
-				const result = await restoreBreakout( breakoutPostId );
+				const result = await restoreBreakout(
+					config.restBaseUrls.posts,
+					breakoutPostId
+				);
 				if ( result.success ) {
 					notifySuccess(
 						__(
@@ -136,8 +154,10 @@ function getEntryActions(
 					return;
 				}
 
-				const result =
-					await deleteBreakoutPermanently( breakoutPostId );
+				const result = await deleteBreakoutPermanently(
+					config.restBaseUrls.posts,
+					breakoutPostId
+				);
 				if ( result.success ) {
 					notifySuccess(
 						__(
@@ -250,6 +270,35 @@ function getEntryActions(
 						failed[ 0 ].error ||
 							__(
 								'Failed to trash entry.',
+								'newspack-rolling-coverage'
+							)
+					);
+				}
+			},
+		},
+		{
+			id: 'pin',
+			label: __( 'Pin', 'newspack-rolling-coverage' ),
+			isEligible: ( entry: Entry ) => ! entry.pinned,
+			callback: async ( items: Entry[] ) => {
+				if ( items.length !== 1 ) {
+					return;
+				}
+
+				const result = await togglePinEntry(
+					config.restBaseUrls.restNamespace,
+					items[ 0 ].id
+				);
+				if ( result.success ) {
+					notifySuccess(
+						__( 'Entry pinned.', 'newspack-rolling-coverage' )
+					);
+					onActionPerformed?.();
+				} else {
+					notifyError(
+						result.error ||
+							__(
+								'Failed to pin entry.',
 								'newspack-rolling-coverage'
 							)
 					);
@@ -414,6 +463,35 @@ function getEntryActions(
 						failed[ 0 ].error ||
 							__(
 								'Failed to delete entry.',
+								'newspack-rolling-coverage'
+							)
+					);
+				}
+			},
+		},
+		{
+			id: 'unpin',
+			label: __( 'Unpin', 'newspack-rolling-coverage' ),
+			isEligible: ( entry: Entry ) => Boolean( entry.pinned ),
+			callback: async ( items: Entry[] ) => {
+				if ( items.length !== 1 ) {
+					return;
+				}
+
+				const result = await togglePinEntry(
+					config.restBaseUrls.restNamespace,
+					items[ 0 ].id
+				);
+				if ( result.success ) {
+					notifySuccess(
+						__( 'Entry unpinned.', 'newspack-rolling-coverage' )
+					);
+					onActionPerformed?.();
+				} else {
+					notifyError(
+						result.error ||
+							__(
+								'Failed to unpin entry.',
 								'newspack-rolling-coverage'
 							)
 					);

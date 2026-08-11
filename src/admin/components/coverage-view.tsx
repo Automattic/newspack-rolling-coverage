@@ -15,14 +15,16 @@ import type { View } from '@wordpress/dataviews';
 import { useCoverages } from '../hooks/useCoverages';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { CoverageModal } from './coverage-modal';
+import { SlackConnectionModal } from './slack-connection-modal';
 import { getCoverageActions } from '../actions/coverage-actions';
 import { getCoverageFields, defaultCoverageView } from '../fields/coverages';
 import { useAdminContext } from '../hooks/useAdminContext';
 import type { Context, ContextExports, Coverage } from '../types';
 
 /**
- * Renders the coverage list DataViews with create/edit modal and row actions.
- * Clicking a row navigates to its entries via the hash router.
+ * Renders the coverage list DataViews with create/edit modal, Slack connection
+ * modal, and row actions. Clicking a row navigates to its entries via the hash
+ * router.
  */
 function CoverageView() {
 	const config = useAdminContext();
@@ -39,6 +41,10 @@ function CoverageView() {
 		null
 	);
 	const [ isModalOpen, setIsModalOpen ] = useState( false );
+	const [ isSlackModalOpen, setIsSlackModalOpen ] = useState( false );
+	const [ slackCoverage, setSlackCoverage ] = useState< Coverage | null >(
+		null
+	);
 
 	const { records, isResolving, error } = useCoverages( {
 		perPage: 100,
@@ -70,6 +76,16 @@ function CoverageView() {
 		refresh();
 	}, [ refresh ] );
 
+	const handleOpenSlackConnect = useCallback( ( coverage: Coverage ) => {
+		setSlackCoverage( coverage );
+		setIsSlackModalOpen( true );
+	}, [] );
+
+	const handleCloseSlackModal = useCallback( () => {
+		setIsSlackModalOpen( false );
+		setSlackCoverage( null );
+	}, [] );
+
 	const handleNavigateToEntries = useCallback(
 		( coverage: Coverage ) => {
 			setContext( ( prev: Context ) => ( {
@@ -87,9 +103,16 @@ function CoverageView() {
 				config,
 				handleSaved,
 				handleNavigateToEntries,
-				handleOpenEdit
+				handleOpenEdit,
+				handleOpenSlackConnect
 			),
-		[ config, handleSaved, handleNavigateToEntries, handleOpenEdit ]
+		[
+			config,
+			handleSaved,
+			handleNavigateToEntries,
+			handleOpenEdit,
+			handleOpenSlackConnect,
+		]
 	);
 
 	return (
@@ -139,6 +162,13 @@ function CoverageView() {
 				<CoverageModal
 					coverage={ editingCoverage }
 					onClose={ handleCloseModal }
+					onSaved={ handleSaved }
+				/>
+			) }
+			{ isSlackModalOpen && (
+				<SlackConnectionModal
+					coverage={ slackCoverage }
+					onClose={ handleCloseSlackModal }
 					onSaved={ handleSaved }
 				/>
 			) }

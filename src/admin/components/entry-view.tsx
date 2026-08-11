@@ -17,8 +17,9 @@ import { useAdminContext } from '../hooks/useAdminContext';
 import { createEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
+import { QuickEditModal } from './quick-edit-modal';
 import { getEntryActions } from '../actions/entry-actions';
-import { ContextExports } from '../types';
+import type { ContextExports, Entry } from '../types';
 import { getEntryFields, defaultEntryView } from '../fields/entries';
 
 /**
@@ -36,7 +37,7 @@ function EntryView() {
 	const { coverageId } = useParams< { coverageId?: string } >();
 	const [ context, setContext, refresh ] =
 		useOutletContext< ContextExports >();
-	const { selectedCoverage, refreshKey } = context;
+	const { selectedCoverage } = context;
 
 	const numericCoverageId = coverageId ? Number( coverageId ) : null;
 	const isValidCoverageId =
@@ -50,6 +51,10 @@ function EntryView() {
 	const [ view, setView ] = useState< View >( defaultEntryView );
 	const [ isCreatingEntry, setIsCreatingEntry ] = useState( false );
 	const [ createError, setCreateError ] = useState< string | null >( null );
+	const [ quickEditEntry, setQuickEditEntry ] = useState< Entry | null >(
+		null
+	);
+	const [ refreshKey, setRefreshKey ] = useState( 0 );
 
 	const handleActionPerformed = useCallback( () => {
 		refresh();
@@ -94,6 +99,18 @@ function EntryView() {
 		refreshKey,
 	} );
 
+	const handleQuickEdit = useCallback( ( entry: Entry ) => {
+		setQuickEditEntry( entry );
+	}, [] );
+
+	const handleQuickEditSaved = useCallback( () => {
+		setRefreshKey( ( prev ) => prev + 1 );
+	}, [] );
+
+	const handleQuickEditClose = useCallback( () => {
+		setQuickEditEntry( null );
+	}, [] );
+
 	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
 
 	const { data: filteredData, paginationInfo } = useMemo( () => {
@@ -127,8 +144,8 @@ function EntryView() {
 	}, [ config, isValidCoverageId, numericCoverageId ] );
 
 	const actions = useMemo(
-		() => getEntryActions( config, handleActionPerformed ),
-		[ config, handleActionPerformed ]
+		() => getEntryActions( config, handleQuickEdit, handleActionPerformed ),
+		[ config, handleQuickEdit, handleActionPerformed ]
 	);
 
 	return (
@@ -163,6 +180,13 @@ function EntryView() {
 					) : undefined
 				}
 			/>
+			{ quickEditEntry && (
+				<QuickEditModal
+					entryId={ quickEditEntry.id }
+					onClose={ handleQuickEditClose }
+					onSaved={ handleQuickEditSaved }
+				/>
+			) }
 		</>
 	);
 }

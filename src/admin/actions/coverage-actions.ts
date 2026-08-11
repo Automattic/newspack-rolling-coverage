@@ -24,6 +24,7 @@ import { ConfirmModal } from '../components/confirm-modal';
  * @param {() => void}                   onActionPerformed   Callback to refresh data after an action.
  * @param {(coverage: Coverage) => void} onNavigateToEntries Callback to navigate to the entry list.
  * @param {(coverage: Coverage) => void} onEdit              Callback to open the edit modal.
+ * @param {(coverage: Coverage) => void} onSlackConnect      Callback to open the Slack connection modal.
  *
  * @return {Action<Coverage>[]} Array of DataViews actions for coverages.
  */
@@ -31,7 +32,8 @@ function getCoverageActions(
 	config: AdminConfig,
 	onActionPerformed: () => void,
 	onNavigateToEntries: ( coverage: Coverage ) => void,
-	onEdit: ( coverage: Coverage ) => void
+	onEdit: ( coverage: Coverage ) => void,
+	onSlackConnect: ( coverage: Coverage ) => void
 ): Action< Coverage >[] {
 	const restNamespace = config.restBaseUrls.restNamespace;
 
@@ -272,6 +274,19 @@ function getCoverageActions(
 				}
 			},
 		},
+		...( config.slack.isConfigured
+			? [
+					{
+						id: 'connect-slack',
+						label: __( 'Connection', 'newspack-rolling-coverage' ),
+						callback: ( items: Coverage[] ) => {
+							if ( items.length === 1 ) {
+								onSlackConnect( items[ 0 ] );
+							}
+						},
+					},
+			  ]
+			: [] ),
 	];
 }
 
