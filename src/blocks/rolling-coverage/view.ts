@@ -86,6 +86,7 @@ function initBlock( root: HTMLElement ): void {
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
 	let polledCount = 0;
+	let backlogOffset = entriesPerPage;
 
 	/**
 	 * Schedules the next poll.
@@ -560,12 +561,14 @@ function initBlock( root: HTMLElement ): void {
 			url.searchParams.set( 'per_page', String( entriesPerPage ) );
 			url.searchParams.set( 'template_key', templateKey );
 			url.searchParams.set( 'host_post_id', hostPostId );
+			url.searchParams.set( 'entry_offset', backlogOffset.toString() );
 
 			const response = await fetch( url.toString() );
 			if ( response.ok ) {
 				const data: PageResponse = await response.json();
 				if ( data.count > 0 ) {
 					entriesList.insertAdjacentHTML( 'beforeend', data.html );
+					backlogOffset += data.count;
 				}
 				if ( data.adSlots && data.adSlots.length > 0 ) {
 					displayAdSlots( data.adSlots );
