@@ -10,6 +10,7 @@ namespace Newspack_Rolling_Coverage;
 
 use WP_Post;
 use WP_Query;
+use WP_Term;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -126,7 +127,9 @@ class Schema {
 	 * @return array|null Metadata array, or null when the coverage should not emit schema.
 	 */
 	private static function build_metadata( WP_Post $post, int $coverage_id, int $entries_per_page ): ?array {
-		if ( ! term_exists( $coverage_id, Taxonomy::TAXONOMY_SLUG ) ) {
+		$term = get_term( $coverage_id, Taxonomy::TAXONOMY_SLUG );
+
+		if ( ! $term instanceof WP_Term ) {
 			return null;
 		}
 
@@ -134,8 +137,8 @@ class Schema {
 
 		$permalink = get_permalink( $post );
 
-		$coverage_name = get_term_field( 'name', $coverage_id, Taxonomy::TAXONOMY_SLUG );
-		$headline      = ( is_wp_error( $coverage_name ) || '' === trim( (string) $coverage_name ) )
+		$coverage_name = $term->name;
+		$headline      = '' === trim( $coverage_name )
 			? get_the_title( $post )
 			: $coverage_name;
 
@@ -200,6 +203,7 @@ class Schema {
 			[
 				'post_type'           => Post_Type::CPT_SLUG,
 				'post_status'         => 'publish',
+				'has_password'        => false,
 				'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
 						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
@@ -243,6 +247,14 @@ class Schema {
 		$article_body = html_entity_decode( $article_body, ENT_QUOTES, 'UTF-8' );
 		$article_body = preg_replace( '/\s+/', ' ', $article_body );
 		$article_body = trim( $article_body );
+
+		/**
+		 * Filters an entry's article body before it's used in LiveBlogPosting schema.
+		 *
+		 * @param string  $article_body Cleaned article body.
+		 * @param WP_Post $entry        Entry post object.
+		 */
+		$article_body = apply_filters( 'newspack_rolling_coverage_schema_article_body', $article_body, $entry );
 
 		if ( '' === $article_body ) {
 			return null;
