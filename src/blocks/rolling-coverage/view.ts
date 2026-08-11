@@ -86,7 +86,6 @@ function initBlock( root: HTMLElement ): void {
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
 	let polledCount = 0;
-	let backlogOffset = entriesPerPage;
 
 	/**
 	 * Schedules the next poll.
@@ -567,7 +566,6 @@ function initBlock( root: HTMLElement ): void {
 				const data: PageResponse = await response.json();
 				if ( data.count > 0 ) {
 					entriesList.insertAdjacentHTML( 'beforeend', data.html );
-					backlogOffset += data.count;
 				}
 				if ( data.adSlots && data.adSlots.length > 0 ) {
 					displayAdSlots( data.adSlots );
