@@ -50,7 +50,12 @@ function TrashedEntriesView() {
 	}, [ records, view, entryFields ] );
 
 	const actions = useMemo(
-		() => getEntryActions( config, handleActionPerformed ),
+		() =>
+			getEntryActions( config, () => {}, handleActionPerformed ).filter(
+				( action ) =>
+					action.id === 'restore-entry' ||
+					action.id === 'delete-entry'
+			),
 		[ config, handleActionPerformed ]
 	);
 

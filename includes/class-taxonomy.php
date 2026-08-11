@@ -298,8 +298,9 @@ class Taxonomy {
 	}
 
 	/**
-	 * Soft-delete a coverage: set status to 'trash' and trash all
-	 * its non-trashed entries, storing recovery context in post-meta.
+	 * Soft-delete a coverage: set status to 'trash'. Entries are left
+	 * as-is and access is restricted on the frontend via the coverage
+	 * status check in the block SSR and the entries REST endpoint.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response|\WP_Error
@@ -312,44 +313,12 @@ class Taxonomy {
 			return $term;
 		}
 
-		// Trash all non-trashed entries assigned to this coverage.
-		$entries = get_posts(
-			[
-				'post_type'      => Post_Type::CPT_SLUG,
-				'post_status'    => [ 'publish', 'draft', 'pending', 'future', 'private' ],
-				'posts_per_page' => -1,
-				'no_found_rows'  => true,
-				'tax_query'      => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-					[
-						'taxonomy' => self::TAXONOMY_SLUG,
-						'field'    => 'term_id',
-						'terms'    => $coverage_id,
-					],
-				],
-			]
-		);
-
-		foreach ( $entries as $entry ) {
-			// Store the entry's previous status if not already set (first trash).
-			// The coverage context (ID/name/slug) is already synced by the
-			// save_post hook in Post_Type::sync_coverage_context_meta().
-			Post_Type::store_previous_status_on_trash( $entry->ID );
-
-			wp_update_post(
-				[
-					'ID'          => $entry->ID,
-					'post_status' => 'trash',
-				]
-			);
-		}
-
-		// Set coverage status to trash.
+		// Set coverage status to trash. Entries are not modified.
 		update_term_meta( $coverage_id, self::STATUS_META_KEY, 'trash' );
 
 		return new \WP_REST_Response(
 			[
-				'trashed'         => true,
-				'entries_trashed' => count( $entries ),
+				'trashed' => true,
 			],
 			200
 		);

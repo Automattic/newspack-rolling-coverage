@@ -89,7 +89,6 @@ class Post_Type {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'sync_coverage_context_meta' ] );
 		add_action( 'wp_trash_post', [ __CLASS__, 'store_previous_status_on_trash' ] );
-		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_pinned_rest_field' ] );
 		add_filter( 'posts_orderby', [ __CLASS__, 'orderby_pinned_first' ], 10, 2 );
 		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
@@ -789,57 +788,61 @@ class Post_Type {
 			} elseif ( $original_name ) {
 				$recovery_slug = sanitize_title( $original_name ) . '-recovery';
 			} else {
-				// No recovery context available — restore without a coverage.
 				$recovery_slug = '';
 			}
 
-			if ( $recovery_slug && $original_name ) {
-				$recovery_name = $original_name . ' - recovery';
+			// No recovery context available - retain the entry in trash and return an error.
+			if ( ! $recovery_slug || ! $original_name ) {
+				return new \WP_Error(
+					'rolling_coverage_no_recovery_context',
+					__( 'This entry has no coverage context to restore to. Please assign it to a coverage before restoring.', 'newspack-rolling-coverage' ),
+					[ 'status' => 400 ]
+				);
+			}
 
-				// Check the in-memory cache first (bulk dedup).
-				if ( isset( $recovery_cache[ $recovery_slug ] ) ) {
-					$coverage_id = $recovery_cache[ $recovery_slug ];
+			$recovery_name = $original_name . ' - recovery';
+
+			// Check the in-memory cache first (bulk dedup).
+			if ( isset( $recovery_cache[ $recovery_slug ] ) ) {
+				$coverage_id = $recovery_cache[ $recovery_slug ];
+			} else {
+				// Check if a recovery term already exists in the database.
+				$existing = get_term_by( 'slug', $recovery_slug, Taxonomy::TAXONOMY_SLUG );
+
+				if ( $existing ) {
+					$coverage_id = (int) $existing->term_id;
 				} else {
-					// Check if a recovery term already exists in the database.
-					$existing = get_term_by( 'slug', $recovery_slug, Taxonomy::TAXONOMY_SLUG );
+					$insert_result = wp_insert_term(
+						$recovery_name,
+						Taxonomy::TAXONOMY_SLUG,
+						[ 'slug' => $recovery_slug ]
+					);
 
-					if ( $existing ) {
-						$coverage_id = (int) $existing->term_id;
-					} else {
+					if ( is_wp_error( $insert_result ) ) {
+						// Slug conflict — try again without a custom slug.
 						$insert_result = wp_insert_term(
 							$recovery_name,
-							Taxonomy::TAXONOMY_SLUG,
-							[ 'slug' => $recovery_slug ]
+							Taxonomy::TAXONOMY_SLUG
 						);
 
 						if ( is_wp_error( $insert_result ) ) {
-							// Slug conflict — try again without a custom slug.
-							$insert_result = wp_insert_term(
-								$recovery_name,
-								Taxonomy::TAXONOMY_SLUG
-							);
-
-							if ( is_wp_error( $insert_result ) ) {
-								return $insert_result;
-							}
+							return $insert_result;
 						}
-
-						$coverage_id      = (int) $insert_result['term_id'];
-						$coverage_created = true;
 					}
 
-					// Cache for subsequent entries in the same bulk request.
-					$recovery_cache[ $recovery_slug ] = $coverage_id;
+					$coverage_id      = (int) $insert_result['term_id'];
+					$coverage_created = true;
 				}
 
-				if ( $coverage_id ) {
-					// Assign entry to the coverage term.
-					wp_set_post_terms( $entry_id, [ $coverage_id ], Taxonomy::TAXONOMY_SLUG );
-
-					// Update post-meta with new coverage ID.
-					update_post_meta( $entry_id, self::META_ORIGINAL_COVERAGE_ID, $coverage_id );
-				}
+				// Cache for subsequent entries in the same bulk request.
+				$recovery_cache[ $recovery_slug ] = $coverage_id;
 			}
+
+			// Assign entry to the coverage term.
+			wp_set_post_terms( $entry_id, [ $coverage_id ], Taxonomy::TAXONOMY_SLUG );
+
+			// Update post-meta with new coverage ID.
+			update_post_meta( $entry_id, self::META_ORIGINAL_COVERAGE_ID, $coverage_id );
 		}
 
 		// Restore the entry to its previous status.

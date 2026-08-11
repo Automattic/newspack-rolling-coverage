@@ -70,11 +70,11 @@ function getCoverageActions(
 					message: pluralize(
 						items.length,
 						__(
-							'Are you sure you want to trash this coverage? All its entries will also be moved to trash.',
+							'Are you sure you want to trash this coverage? Its entries will be hidden from the frontend until the coverage is restored.',
 							'newspack-rolling-coverage'
 						),
 						__(
-							'Are you sure you want to trash these coverages? All their entries will also be moved to trash.',
+							'Are you sure you want to trash these coverages? Their entries will be hidden from the frontend until the coverages are restored.',
 							'newspack-rolling-coverage'
 						)
 					),
@@ -195,11 +195,11 @@ function getCoverageActions(
 					message: pluralize(
 						items.length,
 						__(
-							'Are you sure you want to permanently delete this coverage? This cannot be undone. Entries will remain in trash.',
+							'Are you sure you want to permanently delete this coverage? This cannot be undone. Entries will remain but will no longer be associated with a coverage.',
 							'newspack-rolling-coverage'
 						),
 						__(
-							'Are you sure you want to permanently delete these coverages? This cannot be undone. Entries will remain in trash.',
+							'Are you sure you want to permanently delete these coverages? This cannot be undone. Entries will remain but will no longer be associated with a coverage.',
 							'newspack-rolling-coverage'
 						)
 					),

@@ -37,7 +37,7 @@ function EntryView() {
 	const { coverageId } = useParams< { coverageId?: string } >();
 	const [ context, setContext, refresh ] =
 		useOutletContext< ContextExports >();
-	const { selectedCoverage } = context;
+	const { selectedCoverage, refreshKey } = context;
 
 	const numericCoverageId = coverageId ? Number( coverageId ) : null;
 	const isValidCoverageId =
@@ -54,9 +54,10 @@ function EntryView() {
 	const [ quickEditEntry, setQuickEditEntry ] = useState< Entry | null >(
 		null
 	);
-	const [ refreshKey, setRefreshKey ] = useState( 0 );
+	const [ localRefreshKey, setLocalRefreshKey ] = useState( 0 );
 
 	const handleActionPerformed = useCallback( () => {
+		setLocalRefreshKey( ( prev ) => prev + 1 );
 		refresh();
 	}, [ refresh ] );
 
@@ -96,7 +97,7 @@ function EntryView() {
 		search: view.search,
 		orderBy: view.sort?.field,
 		order: view.sort?.direction,
-		refreshKey,
+		refreshKey: refreshKey + localRefreshKey,
 	} );
 
 	const handleQuickEdit = useCallback( ( entry: Entry ) => {
@@ -104,8 +105,9 @@ function EntryView() {
 	}, [] );
 
 	const handleQuickEditSaved = useCallback( () => {
-		setRefreshKey( ( prev ) => prev + 1 );
-	}, [] );
+		setLocalRefreshKey( ( prev ) => prev + 1 );
+		refresh();
+	}, [ refresh ] );
 
 	const handleQuickEditClose = useCallback( () => {
 		setQuickEditEntry( null );
