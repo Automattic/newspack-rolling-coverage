@@ -360,8 +360,8 @@ class Taxonomy {
 	}
 
 	/**
-	 * Permanently delete a coverage term. Entries remain in trash
-	 * with their post-meta context intact.
+	 * Permanently delete a coverage term and schedule async cleanup
+	 * of its orphaned entries via WP Cron.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response|\WP_Error
@@ -386,6 +386,11 @@ class Taxonomy {
 				__( 'Coverage could not be deleted.', 'newspack-rolling-coverage' ),
 				[ 'status' => 500 ]
 			);
+		}
+
+		// Schedule async cleanup of orphaned entries.
+		if ( ! wp_next_scheduled( Post_Type::CLEANUP_CRON_HOOK ) ) {
+			wp_schedule_single_event( time() + 60, Post_Type::CLEANUP_CRON_HOOK );
 		}
 
 		return new \WP_REST_Response(

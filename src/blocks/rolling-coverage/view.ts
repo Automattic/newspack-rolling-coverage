@@ -253,10 +253,18 @@ function initBlock( root: HTMLElement ): void {
 
 	const cleanupFns: Array< () => void > = [];
 
-	/**
-	 * Removes all event listeners, observers, and pending timeouts.
-	 * Called on pagehide to prevent memory leaks.
-	 */
+	// Registers a listener and queues its removal for cleanup.
+	function on< K extends keyof WindowEventMap >(
+		target: Window,
+		type: K,
+		handler: ( event: WindowEventMap[ K ] ) => void,
+		options?: AddEventListenerOptions
+	): void {
+		target.addEventListener( type, handler, options );
+		cleanupFns.push( () => target.removeEventListener( type, handler ) );
+	}
+
+	// Removes all event listeners, observers, and pending timeouts.
 	function cleanup(): void {
 		cancelPoll();
 		cleanupFns.forEach( ( fn ) => fn() );
@@ -648,9 +656,24 @@ function initBlock( root: HTMLElement ): void {
 		document.removeEventListener( 'visibilitychange', onVisibilityChange )
 	);
 
-	// Clean up all listeners, observers, and pending timeouts on page unload.
-	window.addEventListener( 'pagehide', cleanup, { once: true } );
-	cleanupFns.push( () => window.removeEventListener( 'pagehide', cleanup ) );
+	// Clean up on unload, but not when the page enters the back/forward cache.
+	on(
+		window,
+		'pagehide',
+		( event ) => {
+			if ( ! event.persisted ) {
+				cleanup();
+			}
+		},
+		{ once: true }
+	);
+
+	// Resume polling after a BFCache restore.
+	on( window, 'pageshow', ( event ) => {
+		if ( event.persisted && cursor && status === 'active' ) {
+			schedulePoll();
+		}
+	} );
 
 	if ( sentinel && hasMore ) {
 		const observer = new IntersectionObserver( ( entries ) => {

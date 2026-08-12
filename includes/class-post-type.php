@@ -47,6 +47,12 @@ class Post_Type {
 	// Used by Entry_Ingestion_Service::ingest()'s add_option mutex and meta_query dedup.
 	const META_SOURCE_REF = 'rolling_coverage_source_ref';
 
+	// Cron hook for orphaned entry cleanup after coverage deletion.
+	const CLEANUP_CRON_HOOK = 'rolling_coverage_cleanup_orphaned_entries';
+
+	// Max entries to delete per cron batch.
+	const CLEANUP_BATCH_SIZE = 50;
+
 	/**
 	 * Meta keys that are sensitive and should only be exposed in the edit
 	 * context (authenticated requests with edit_posts capability).
@@ -76,22 +82,18 @@ class Post_Type {
 	const META_ORIGINAL_COVERAGE_SLUG = 'rolling_coverage_original_coverage_slug';
 
 	/**
-	 * Post-meta key storing the entry's post status before trashing.
-	 */
-	const META_PREVIOUS_STATUS = 'rolling_coverage_previous_status';
-
-	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register' ] );
 		add_action( 'init', [ __CLASS__, 'register_meta' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
-		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'sync_coverage_context_meta' ] );
-		add_action( 'wp_trash_post', [ __CLASS__, 'store_previous_status_on_trash' ] );
+		add_action( 'set_object_terms', [ __CLASS__, 'sync_coverage_context_meta' ], 10, 6 );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_pinned_rest_field' ] );
 		add_filter( 'posts_orderby', [ __CLASS__, 'orderby_pinned_first' ], 10, 2 );
 		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
+		add_filter( 'rest_' . self::CPT_SLUG . '_query', [ __CLASS__, 'filter_rest_query' ], 10, 2 );
+		add_action( self::CLEANUP_CRON_HOOK, [ __CLASS__, 'cleanup_orphaned_entries' ] );
 	}
 
 	/**
@@ -219,6 +221,55 @@ class Post_Type {
 		$response->set_data( $data );
 
 		return $response;
+	}
+
+	/**
+	 * Filter the WP_Query args for the entries REST endpoint so that
+	 * entries from trashed or permanently deleted coverages are not
+	 * exposed in non-edit (public) context.
+	 *
+	 * Uses a tax_query that only matches entries assigned to non-trashed
+	 * coverage terms. This also excludes orphaned entries (no coverage
+	 * term) since the operator is IN.
+	 *
+	 * Edit context (admin) is not filtered so trashed entries remain
+	 * visible in the Trashed Entries view.
+	 *
+	 * @param array            $args    Query arguments.
+	 * @param \WP_REST_Request $request Full details about the request.
+	 * @return array Filtered query arguments.
+	 */
+	public static function filter_rest_query( array $args, \WP_REST_Request $request ): array {
+		if ( 'edit' === $request->get_param( 'context' ) ) {
+			return $args;
+		}
+
+		// Get all non-trashed coverage term IDs in a single query.
+		$active_term_ids = get_terms(
+			[
+				'taxonomy'   => Taxonomy::TAXONOMY_SLUG,
+				'fields'     => 'ids',
+				'hide_empty' => false,
+				'meta_query' => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					[
+						'key'     => Taxonomy::STATUS_META_KEY,
+						'value'   => 'trash',
+						'compare' => 'NOT LIKE',
+					],
+				],
+			]
+		);
+
+		$args['tax_query'] = [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+			[
+				'taxonomy' => Taxonomy::TAXONOMY_SLUG,
+				'field'    => 'term_id',
+				'terms'    => is_array( $active_term_ids ) && ! empty( $active_term_ids ) ? $active_term_ids : [ 0 ],
+				'operator' => 'IN',
+			],
+		];
+
+		return $args;
 	}
 
 	/**
@@ -492,7 +543,6 @@ class Post_Type {
 			self::META_ORIGINAL_COVERAGE_ID   => 'integer',
 			self::META_ORIGINAL_COVERAGE_NAME => 'string',
 			self::META_ORIGINAL_COVERAGE_SLUG => 'string',
-			self::META_PREVIOUS_STATUS        => 'string',
 		];
 
 		foreach ( $meta_keys as $key => $type ) {
@@ -511,16 +561,27 @@ class Post_Type {
 
 	/**
 	 * Populate the recovery context meta with the entry's coverage term
-	 * on first save. Does not overwrite existing meta — once set, the
-	 * original coverage identity is preserved even if the entry is later
-	 * reassigned to a recovery term. This ensures the entry can be
-	 * recovered to a term based on the original coverage name/slug even
-	 * if a recovery term is subsequently deleted.
+	 * when terms are assigned. Fires on the set_object_terms hook, which
+	 * runs after the term relationship has been written to the database,
+	 * guaranteeing the terms are available.
 	 *
-	 * @param int $post_id Post ID being saved.
+	 * Does not overwrite existing meta — once set, the original coverage
+	 * identity is preserved even if the entry is later reassigned to a
+	 * recovery term.
+	 *
+	 * @param int    $object_id  Post ID.
+	 * @param array  $terms      Term IDs being assigned.
+	 * @param array  $tt_ids     Term taxonomy IDs being assigned.
+	 * @param string $taxonomy   Taxonomy slug.
+	 * @param bool   $append     Whether terms are being appended.
+	 * @param array  $old_tt_ids Old term taxonomy IDs.
 	 */
-	public static function sync_coverage_context_meta( int $post_id ): void {
-		$post = get_post( $post_id );
+	public static function sync_coverage_context_meta( int $object_id, array $terms, array $tt_ids, string $taxonomy, bool $append, array $old_tt_ids ): void {
+		if ( Taxonomy::TAXONOMY_SLUG !== $taxonomy ) {
+			return;
+		}
+
+		$post = get_post( $object_id );
 
 		if ( ! $post || self::CPT_SLUG !== $post->post_type ) {
 			return;
@@ -532,44 +593,23 @@ class Post_Type {
 		}
 
 		// Only populate on first save — don't overwrite existing context.
-		if ( get_post_meta( $post_id, self::META_ORIGINAL_COVERAGE_SLUG, true ) ) {
+		if ( get_post_meta( $object_id, self::META_ORIGINAL_COVERAGE_SLUG, true ) ) {
 			return;
 		}
 
-		$terms = wp_get_post_terms( $post_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'all' ] );
-
-		if ( is_wp_error( $terms ) || empty( $terms ) ) {
+		if ( empty( $terms ) ) {
 			return;
 		}
 
-		$term = $terms[0];
+		$term = get_term( $terms[0], Taxonomy::TAXONOMY_SLUG );
 
-		update_post_meta( $post_id, self::META_ORIGINAL_COVERAGE_ID, $term->term_id );
-		update_post_meta( $post_id, self::META_ORIGINAL_COVERAGE_NAME, $term->name );
-		update_post_meta( $post_id, self::META_ORIGINAL_COVERAGE_SLUG, $term->slug );
-	}
-
-	/**
-	 * Store the entry's previous post status in post-meta when it is
-	 * trashed, so the entry can be restored to its original status.
-	 *
-	 * The coverage context (ID/name/slug) is already kept in sync by
-	 * sync_coverage_context_meta(), so only the status needs to be
-	 * stored at trash time.
-	 *
-	 * @param int $post_id Post ID being trashed.
-	 */
-	public static function store_previous_status_on_trash( int $post_id ): void {
-		$post = get_post( $post_id );
-
-		if ( ! $post || self::CPT_SLUG !== $post->post_type ) {
+		if ( ! $term || is_wp_error( $term ) ) {
 			return;
 		}
 
-		// Only store if not already set (first trash).
-		if ( ! get_post_meta( $post_id, self::META_PREVIOUS_STATUS, true ) ) {
-			update_post_meta( $post_id, self::META_PREVIOUS_STATUS, $post->post_status );
-		}
+		update_post_meta( $object_id, self::META_ORIGINAL_COVERAGE_ID, $term->term_id );
+		update_post_meta( $object_id, self::META_ORIGINAL_COVERAGE_NAME, $term->name );
+		update_post_meta( $object_id, self::META_ORIGINAL_COVERAGE_SLUG, $term->slug );
 	}
 
 	/**
@@ -746,7 +786,8 @@ class Post_Type {
 			);
 		}
 
-		$previous_status = get_post_meta( $entry_id, self::META_PREVIOUS_STATUS, true );
+		// Use core's _wp_trash_meta_status (written by wp_trash_post) to restore the entry to its original status. Fall back to 'publish'.
+		$previous_status = get_post_meta( $entry_id, '_wp_trash_meta_status', true );
 		$previous_status = $previous_status ? $previous_status : 'publish';
 
 		$coverage_id      = 0;
@@ -862,11 +903,7 @@ class Post_Type {
 			);
 		}
 
-		// Only clean up the previous status — keep the original coverage
-		// name/slug meta so the entry can be recovered again if the
-		// (recovery) coverage term is later permanently deleted.
-		delete_post_meta( $entry_id, self::META_PREVIOUS_STATUS );
-
+		// Core's _wp_trash_meta_status is cleaned up by wp_untrash_post, so no manual cleanup is needed.
 		$coverage_status = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
 
 		return [
@@ -876,5 +913,66 @@ class Post_Type {
 			'coverageCreated' => $coverage_created,
 			'entryStatus'     => $previous_status,
 		];
+	}
+
+	/**
+	 * Cron handler: delete orphaned entries in batches.
+	 *
+	 * An orphaned entry is one that has no coverage term assigned but
+	 * has META_ORIGINAL_COVERAGE_ID set — meaning its coverage was
+	 * permanently deleted. Uses fields=ids and a fixed batch size to
+	 * avoid memory or timeout issues. Reschedules itself if more
+	 * orphaned entries remain.
+	 */
+	public static function cleanup_orphaned_entries(): void {
+		$all_term_ids = get_terms(
+			[
+				'taxonomy'   => Taxonomy::TAXONOMY_SLUG,
+				'fields'     => 'ids',
+				'hide_empty' => false,
+				'number'     => 0,
+			]
+		);
+
+		if ( is_wp_error( $all_term_ids ) ) {
+			$all_term_ids = [];
+		}
+
+		$query = new WP_Query(
+			[
+				'post_type'      => self::CPT_SLUG,
+				'post_status'    => 'any', // excludes trash by default.
+				'posts_per_page' => self::CLEANUP_BATCH_SIZE,
+				'fields'         => 'ids',
+				'no_found_rows'  => false,
+				'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					[
+						'key'     => self::META_ORIGINAL_COVERAGE_ID,
+						'compare' => 'EXISTS',
+					],
+				],
+				'tax_query'      => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+					[
+						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
+						'field'    => 'term_id',
+						'terms'    => $all_term_ids,
+						'operator' => 'NOT IN',
+					],
+				],
+			]
+		);
+
+		if ( empty( $query->posts ) ) {
+			return;
+		}
+
+		foreach ( $query->posts as $entry_id ) {
+			wp_delete_post( (int) $entry_id, true );
+		}
+
+		// Reschedule if more orphaned entries remain.
+		if ( $query->found_posts > count( $query->posts ) ) {
+			wp_schedule_single_event( time() + 60, self::CLEANUP_CRON_HOOK );
+		}
 	}
 }
