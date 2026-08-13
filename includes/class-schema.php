@@ -133,6 +133,12 @@ class Schema {
 			return null;
 		}
 
+		$status = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
+
+		if ( 'trash' === $status ) {
+			return null;
+		}
+
 		$last_modified = get_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true );
 		$cache_key     = 'nrc_' . $coverage_id . '_' . md5( $post->ID . '|' . $entries_per_page . '|' . $last_modified );
 
@@ -140,8 +146,6 @@ class Schema {
 		if ( false !== $cached_metadata ) {
 			return $cached_metadata;
 		}
-
-		$status = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
 
 		$permalink = get_permalink( $post );
 

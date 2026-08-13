@@ -64,21 +64,27 @@ class Rolling_Coverage_Block {
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'localize_frontend_config' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
-		add_action( 'save_post_' . Post_Type::CPT_SLUG, [ __CLASS__, 'update_coverage_last_modified' ], 10, 2 );
+		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 10, 3 );
 	}
 
 	/**
-	 * Updates the coverage's last-modified term meta when a published entry is saved.
+	 * Updates the coverage's last-modified term meta when an entry's status
+	 * changes to or from 'publish', and on saves while already published.
 	 *
-	 * @param int     $post_id Entry post ID.
-	 * @param WP_Post $post    Entry post object.
+	 * @param string  $new_status New post status.
+	 * @param string  $old_status Previous post status.
+	 * @param WP_Post $post       Entry post object.
 	 */
-	public static function update_coverage_last_modified( int $post_id, WP_Post $post ): void {
-		if ( 'publish' !== $post->post_status ) {
+	public static function update_coverage_last_modified( string $new_status, string $old_status, WP_Post $post ): void {
+		if ( Post_Type::CPT_SLUG !== $post->post_type ) {
 			return;
 		}
 
-		$term_ids = wp_get_post_terms( $post_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
+		if ( 'publish' !== $new_status && 'publish' !== $old_status ) {
+			return;
+		}
+
+		$term_ids = wp_get_post_terms( $post->ID, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
 
 		if ( is_wp_error( $term_ids ) || empty( $term_ids ) ) {
 			return;
