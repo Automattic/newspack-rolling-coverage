@@ -4,7 +4,7 @@
 import { useNavigate, useOutletContext } from 'react-router';
 import { useState, useCallback, useMemo } from '@wordpress/element';
 import { Button } from '@wordpress/components';
-import { plus } from '@wordpress/icons';
+import { plus, trash } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
 import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
 import type { View } from '@wordpress/dataviews';
@@ -29,7 +29,9 @@ import type { Context, ContextExports, Coverage } from '../types';
 function CoverageView() {
 	const config = useAdminContext();
 	const navigate = useNavigate();
-	const [ , setContext ] = useOutletContext< ContextExports >();
+	const [ context, setContext, refresh ] =
+		useOutletContext< ContextExports >();
+	const { refreshKey } = context;
 	const fields = useMemo(
 		() => getCoverageFields( config.taxMeta.statusKey ),
 		[ config.taxMeta.statusKey ]
@@ -39,7 +41,6 @@ function CoverageView() {
 		null
 	);
 	const [ isModalOpen, setIsModalOpen ] = useState( false );
-	const [ refreshKey, setRefreshKey ] = useState( 0 );
 	const [ isSlackModalOpen, setIsSlackModalOpen ] = useState( false );
 	const [ slackCoverage, setSlackCoverage ] = useState< Coverage | null >(
 		null
@@ -72,8 +73,8 @@ function CoverageView() {
 	}, [] );
 
 	const handleSaved = useCallback( () => {
-		setRefreshKey( ( k ) => k + 1 );
-	}, [] );
+		refresh();
+	}, [ refresh ] );
 
 	const handleOpenSlackConnect = useCallback( ( coverage: Coverage ) => {
 		setSlackCoverage( coverage );
@@ -93,19 +94,21 @@ function CoverageView() {
 			} ) );
 			navigate( `/coverages/${ coverage.id }` );
 		},
-		[ navigate ]
+		[ navigate, setContext ]
 	);
 
 	const actions = useMemo(
 		() =>
 			getCoverageActions(
 				config,
+				handleSaved,
 				handleNavigateToEntries,
 				handleOpenEdit,
 				handleOpenSlackConnect
 			),
 		[
 			config,
+			handleSaved,
 			handleNavigateToEntries,
 			handleOpenEdit,
 			handleOpenSlackConnect,
@@ -129,13 +132,29 @@ function CoverageView() {
 					handleNavigateToEntries( item as Coverage )
 				}
 				header={
-					<Button
-						variant="primary"
-						icon={ plus }
-						onClick={ handleOpenCreate }
-					>
-						{ __( 'New Coverage', 'newspack-rolling-coverage' ) }
-					</Button>
+					<>
+						<Button
+							variant="secondary"
+							icon={ trash }
+							isDestructive
+							onClick={ () => navigate( '/trashed-entries' ) }
+						>
+							{ __(
+								'Trashed Entries',
+								'newspack-rolling-coverage'
+							) }
+						</Button>
+						<Button
+							variant="primary"
+							icon={ plus }
+							onClick={ handleOpenCreate }
+						>
+							{ __(
+								'New Coverage',
+								'newspack-rolling-coverage'
+							) }
+						</Button>
+					</>
 				}
 			/>
 

@@ -64,6 +64,10 @@ function getCoverageFields( statusKey: string ): Field< Coverage >[] {
 					value: 'archived',
 					label: __( 'Archived', 'newspack-rolling-coverage' ),
 				},
+				{
+					value: 'trash',
+					label: __( 'Trash', 'newspack-rolling-coverage' ),
+				},
 			],
 			filterBy: {
 				operators: [ 'is', 'isNot' ],

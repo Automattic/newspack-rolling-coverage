@@ -10,15 +10,19 @@ namespace Newspack_Rolling_Coverage;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Handles registration of the rolling_coverage taxonomy and its termmeta.
+ * Handles registration of the rolling_coverage taxonomy, its termmeta,
+ * and REST endpoints for coverage trash/restore/delete operations.
  */
 class Taxonomy {
 
-	// Config constants.
 	const TAXONOMY_SLUG   = 'rolling_coverage';
 	const REST_BASE       = 'rolling-coverage';
 
-	// Related constants.
+	/**
+	 * Meta key for the coverage status.
+	 *
+	 * Valid values: 'active', 'paused', 'archived', 'trash'.
+	 */
 	const STATUS_META_KEY = 'rolling_coverage_status';
 
 	// Status values.
@@ -56,6 +60,7 @@ class Taxonomy {
 	 */
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register' ] );
+		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'created_' . self::TAXONOMY_SLUG, [ __CLASS__, 'set_term_created_date' ] );
 		add_action( 'edited_' . self::TAXONOMY_SLUG, [ __CLASS__, 'update_term_modified_date' ] );
 		add_filter( 'update_post_term_count_statuses', [ __CLASS__, 'count_all_visible_statuses' ], 10, 2 );
@@ -158,6 +163,98 @@ class Taxonomy {
 	}
 
 	/**
+	 * Register REST routes for coverage trash/restore/delete operations.
+	 */
+	public static function register_routes() {
+		register_rest_route(
+			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
+			'/coverages/(?P<coverage_id>\d+)/trash',
+			[
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => [ __CLASS__, 'handle_trash_coverage' ],
+				'permission_callback' => [ __CLASS__, 'can_manage_coverage' ],
+				'args'                => [
+					'coverage_id' => [
+						'required'          => true,
+						'validate_callback' => [ __CLASS__, 'validate_coverage_id' ],
+					],
+				],
+			]
+		);
+
+		register_rest_route(
+			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
+			'/coverages/(?P<coverage_id>\d+)/restore',
+			[
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => [ __CLASS__, 'handle_restore_coverage' ],
+				'permission_callback' => [ __CLASS__, 'can_manage_coverage' ],
+				'args'                => [
+					'coverage_id' => [
+						'required'          => true,
+						'validate_callback' => [ __CLASS__, 'validate_coverage_id' ],
+					],
+				],
+			]
+		);
+
+		register_rest_route(
+			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
+			'/coverages/(?P<coverage_id>\d+)',
+			[
+				'methods'             => \WP_REST_Server::DELETABLE,
+				'callback'            => [ __CLASS__, 'handle_delete_coverage' ],
+				'permission_callback' => [ __CLASS__, 'can_manage_coverage' ],
+				'args'                => [
+					'coverage_id' => [
+						'required'          => true,
+						'validate_callback' => [ __CLASS__, 'validate_coverage_id' ],
+					],
+				],
+			]
+		);
+	}
+
+	/**
+	 * Permission check for coverage operations: requires manage_categories.
+	 *
+	 * @return bool
+	 */
+	public static function can_manage_coverage(): bool {
+		return current_user_can( 'manage_categories' );
+	}
+
+	/**
+	 * Validate that the coverage_id route parameter is a positive integer.
+	 *
+	 * @param mixed $value Parameter value.
+	 * @return bool
+	 */
+	public static function validate_coverage_id( $value ): bool {
+		return absint( $value ) > 0;
+	}
+
+	/**
+	 * Get a coverage term by ID, returning a WP_Error if not found.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return \WP_Term|\WP_Error Term object on success, error on not found.
+	 */
+	private static function get_coverage_term( int $coverage_id ): \WP_Term|\WP_Error {
+		$term = get_term( $coverage_id, self::TAXONOMY_SLUG );
+
+		if ( ! $term || is_wp_error( $term ) ) {
+			return new \WP_Error(
+				'rolling_coverage_coverage_not_found',
+				__( 'Coverage not found.', 'newspack-rolling-coverage' ),
+				[ 'status' => 404 ]
+			);
+		}
+
+		return $term;
+	}
+
+	/**
 	 * Set created_at when a term is first created.
 	 *
 	 * @param int $term_id Term ID.
@@ -185,9 +282,10 @@ class Taxonomy {
 	 *
 	 * WordPress core's _update_post_term_count() only counts published posts.
 	 * This plugin's admin UI shows entries of all statuses (draft, pending,
-	 * private, etc.) so the count should reflect that.
+	 * private, etc.) so the count should reflect that. Trashed entries are
+	 * excluded so the count reflects only visible entries.
 	 *
-	 * @param string[]     $post_statuses List of post statuses to include in the count.
+	 * @param string[]     $post_statuses List of post statuses to include in the count (excludes 'trash').
 	 * @param \WP_Taxonomy $taxonomy      Current taxonomy object.
 	 * @return string[] Filtered list of post statuses.
 	 */
@@ -197,6 +295,110 @@ class Taxonomy {
 		}
 
 		return [ 'publish', 'draft', 'pending', 'future', 'private' ];
+	}
+
+	/**
+	 * Soft-delete a coverage: set status to 'trash'. Entries are left
+	 * as-is and access is restricted on the frontend via the coverage
+	 * status check in the block SSR and the entries REST endpoint.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_trash_coverage( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$coverage_id = (int) $request->get_param( 'coverage_id' );
+		$term        = self::get_coverage_term( $coverage_id );
+
+		if ( is_wp_error( $term ) ) {
+			return $term;
+		}
+
+		// Set coverage status to trash. Entries are not modified.
+		update_term_meta( $coverage_id, self::STATUS_META_KEY, 'trash' );
+
+		return new \WP_REST_Response(
+			[
+				'trashed' => true,
+			],
+			200
+		);
+	}
+
+	/**
+	 * Restore a coverage from trash: set status to 'active'.
+	 * Entries remain trashed — each must be recovered individually.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_restore_coverage( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$coverage_id = (int) $request->get_param( 'coverage_id' );
+		$term        = self::get_coverage_term( $coverage_id );
+
+		if ( is_wp_error( $term ) ) {
+			return $term;
+		}
+
+		$current_status = get_term_meta( $coverage_id, self::STATUS_META_KEY, true );
+
+		if ( 'trash' !== $current_status ) {
+			return new \WP_Error(
+				'rolling_coverage_coverage_not_trashed',
+				__( 'Coverage is not in trash.', 'newspack-rolling-coverage' ),
+				[ 'status' => 400 ]
+			);
+		}
+
+		update_term_meta( $coverage_id, self::STATUS_META_KEY, 'active' );
+
+		return new \WP_REST_Response(
+			[
+				'restored' => true,
+			],
+			200
+		);
+	}
+
+	/**
+	 * Permanently delete a coverage term and schedule async cleanup
+	 * of its orphaned entries via WP Cron.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_delete_coverage( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$coverage_id = (int) $request->get_param( 'coverage_id' );
+		$term        = self::get_coverage_term( $coverage_id );
+
+		if ( is_wp_error( $term ) ) {
+			return $term;
+		}
+
+		$result = wp_delete_term( $coverage_id, self::TAXONOMY_SLUG );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		if ( false === $result ) {
+			return new \WP_Error(
+				'rolling_coverage_coverage_not_deleted',
+				__( 'Coverage could not be deleted.', 'newspack-rolling-coverage' ),
+				[ 'status' => 500 ]
+			);
+		}
+
+		// Schedule async cleanup of orphaned entries.
+		if ( ! wp_next_scheduled( Post_Type::CLEANUP_CRON_HOOK ) ) {
+			wp_schedule_single_event( time() + 60, Post_Type::CLEANUP_CRON_HOOK );
+		}
+
+		return new \WP_REST_Response(
+			[
+				'deleted' => true,
+			],
+			200
+		);
 	}
 
 	/**

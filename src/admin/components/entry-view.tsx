@@ -35,8 +35,9 @@ import { getEntryFields, defaultEntryView } from '../fields/entries';
 function EntryView() {
 	const config = useAdminContext();
 	const { coverageId } = useParams< { coverageId?: string } >();
-	const [ context, setContext ] = useOutletContext< ContextExports >();
-	const { selectedCoverage } = context;
+	const [ context, setContext, refresh ] =
+		useOutletContext< ContextExports >();
+	const { selectedCoverage, refreshKey } = context;
 
 	const numericCoverageId = coverageId ? Number( coverageId ) : null;
 	const isValidCoverageId =
@@ -44,17 +45,21 @@ function EntryView() {
 
 	const isArchived =
 		selectedCoverage?.meta?.[ config.taxMeta.statusKey ] === 'archived';
+	const isTrashed =
+		selectedCoverage?.meta?.[ config.taxMeta.statusKey ] === 'trash';
+	const disableNewEntry = ! selectedCoverage || isArchived || isTrashed;
 	const [ view, setView ] = useState< View >( defaultEntryView );
 	const [ isCreatingEntry, setIsCreatingEntry ] = useState( false );
 	const [ createError, setCreateError ] = useState< string | null >( null );
 	const [ quickEditEntry, setQuickEditEntry ] = useState< Entry | null >(
 		null
 	);
-	const [ refreshKey, setRefreshKey ] = useState( 0 );
+	const [ localRefreshKey, setLocalRefreshKey ] = useState( 0 );
 
 	const handleActionPerformed = useCallback( () => {
-		setRefreshKey( ( key ) => key + 1 );
-	}, [] );
+		setLocalRefreshKey( ( prev ) => prev + 1 );
+		refresh();
+	}, [ refresh ] );
 
 	useEffect( () => {
 		if ( ! isValidCoverageId || selectedCoverage ) {
@@ -92,7 +97,7 @@ function EntryView() {
 		search: view.search,
 		orderBy: view.sort?.field,
 		order: view.sort?.direction,
-		refreshKey,
+		refreshKey: refreshKey + localRefreshKey,
 	} );
 
 	const handleQuickEdit = useCallback( ( entry: Entry ) => {
@@ -100,8 +105,9 @@ function EntryView() {
 	}, [] );
 
 	const handleQuickEditSaved = useCallback( () => {
-		setRefreshKey( ( prev ) => prev + 1 );
-	}, [] );
+		setLocalRefreshKey( ( prev ) => prev + 1 );
+		refresh();
+	}, [ refresh ] );
 
 	const handleQuickEditClose = useCallback( () => {
 		setQuickEditEntry( null );
@@ -163,7 +169,7 @@ function EntryView() {
 				paginationInfo={ paginationInfo }
 				isLoading={ isResolving }
 				header={
-					selectedCoverage && ! isArchived ? (
+					selectedCoverage && ! disableNewEntry ? (
 						<Button
 							variant="primary"
 							icon={ plus }

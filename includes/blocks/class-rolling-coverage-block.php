@@ -175,6 +175,15 @@ class Rolling_Coverage_Block {
 		$status           = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
 		$status           = $status ? $status : 'active';
 
+		// A trashed coverage is effectively invisible on the frontend.
+		if ( 'trash' === $status ) {
+			return sprintf(
+				'<p %s>%s</p>',
+				get_block_wrapper_attributes(),
+				esc_html__( 'This coverage is no longer available.', 'newspack-rolling-coverage' )
+			);
+		}
+
 		$query = new WP_Query(
 			[
 				'post_type'           => Post_Type::CPT_SLUG,
@@ -669,6 +678,17 @@ class Rolling_Coverage_Block {
 		$per_page     = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
 
 		if ( ! term_exists( $term_id, Taxonomy::TAXONOMY_SLUG ) ) {
+			return new WP_Error(
+				'rolling_coverage_coverage_not_found',
+				__( 'Coverage not found.', 'newspack-rolling-coverage' ),
+				[ 'status' => 404 ]
+			);
+		}
+
+		// Do not serve entries for a trashed coverage.
+		$coverage_status = get_term_meta( $term_id, Taxonomy::STATUS_META_KEY, true );
+
+		if ( 'trash' === $coverage_status ) {
 			return new WP_Error(
 				'rolling_coverage_coverage_not_found',
 				__( 'Coverage not found.', 'newspack-rolling-coverage' ),

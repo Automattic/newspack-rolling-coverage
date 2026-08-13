@@ -62,6 +62,15 @@ class Initializer {
 	 */
 	public static function deactivation_hook() {
 
+		// Clear any pending orphaned entry cleanup cron events.
+		$timestamp = wp_next_scheduled( Post_Type::CLEANUP_CRON_HOOK );
+
+		if ( $timestamp ) {
+			wp_unschedule_event( $timestamp, Post_Type::CLEANUP_CRON_HOOK );
+		}
+
+		wp_clear_scheduled_hook( Post_Type::CLEANUP_CRON_HOOK );
+
 		/**
 		 * Action to hook into when Rolling Coverage plugin is deactivated.
 		 */

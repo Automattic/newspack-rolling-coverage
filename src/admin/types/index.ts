@@ -54,11 +54,13 @@ interface AdminConfig {
 
 interface Context {
 	selectedCoverage: Coverage | null;
+	refreshKey: number;
 }
 
 type ContextExports = [
 	context: Context,
 	setContext: React.Dispatch< React.SetStateAction< Context > >,
+	refresh: () => void,
 ];
 
 interface Coverage {
@@ -69,7 +71,7 @@ interface Coverage {
 	description: string;
 	count: number;
 	meta: {
-		rolling_coverage_status?: 'active' | 'paused' | 'archived';
+		rolling_coverage_status?: 'active' | 'paused' | 'archived' | 'trash';
 		created_at?: string;
 		modified_at?: string;
 		rolling_coverage_slack_channel_id?: string;
@@ -207,6 +209,20 @@ interface CoverageFormData {
 	status: 'active' | 'paused' | 'archived';
 }
 
+interface BulkRestoreEntryResult {
+	entryId: number;
+	restored: boolean;
+	coverageId?: number;
+	coverageStatus?: string;
+	coverageCreated?: boolean;
+	entryStatus?: string;
+	error?: string;
+}
+
+interface BulkRestoreResult extends ApiResult {
+	results?: BulkRestoreEntryResult[];
+}
+
 interface ConfirmModalContentProps {
 	message: string;
 	confirmLabel?: string;
@@ -214,10 +230,6 @@ interface ConfirmModalContentProps {
 	isDestructive?: boolean;
 	onConfirm: () => Promise< void >;
 	onClose: () => void;
-}
-
-interface ConfirmModalProps extends ConfirmModalContentProps {
-	title: string;
 }
 
 interface UseCoveragesOptions {
@@ -462,12 +474,13 @@ export type {
 	BreakoutFormData,
 	CreateBreakoutResponse,
 	CreateBreakoutResult,
-	ConfirmModalProps,
 	ConfirmModalContentProps,
 	UseEntriesOptions,
 	SaveCoverageData,
 	ChipLinkProps,
 	TermChipsProps,
+	BulkRestoreEntryResult,
+	BulkRestoreResult,
 	AiSettings,
 	AdminHeaderProps,
 	SlackConnectionModalProps,
