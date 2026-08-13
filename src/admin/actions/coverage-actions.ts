@@ -195,11 +195,11 @@ function getCoverageActions(
 					message: pluralize(
 						items.length,
 						__(
-							'Are you sure you want to permanently delete this coverage? This cannot be undone. Entries will remain but will no longer be associated with a coverage.',
+							'Are you sure you want to permanently delete this coverage? This cannot be undone. Associated entries (excluding trashed entries) will be purged',
 							'newspack-rolling-coverage'
 						),
 						__(
-							'Are you sure you want to permanently delete these coverages? This cannot be undone. Entries will remain but will no longer be associated with a coverage.',
+							'Are you sure you want to permanently delete these coverages? This cannot be undone. Associated entries (excluding trashed entries) will be purged',
 							'newspack-rolling-coverage'
 						)
 					),

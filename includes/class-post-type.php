@@ -786,10 +786,6 @@ class Post_Type {
 			);
 		}
 
-		// Use core's _wp_trash_meta_status (written by wp_trash_post) to restore the entry to its original status. Fall back to 'publish'.
-		$previous_status = get_post_meta( $entry_id, '_wp_trash_meta_status', true );
-		$previous_status = $previous_status ? $previous_status : 'publish';
-
 		$coverage_id      = 0;
 		$coverage_created = false;
 
@@ -832,7 +828,7 @@ class Post_Type {
 				$recovery_slug = '';
 			}
 
-			// No recovery context available - retain the entry in trash and return an error.
+			// No recovery context available — keep the entry in trash.
 			if ( ! $recovery_slug || ! $original_name ) {
 				return new \WP_Error(
 					'rolling_coverage_no_recovery_context',
@@ -886,22 +882,20 @@ class Post_Type {
 			update_post_meta( $entry_id, self::META_ORIGINAL_COVERAGE_ID, $coverage_id );
 		}
 
-		// Restore the entry to its previous status.
-		$updated = wp_update_post(
-			[
-				'ID'          => $entry_id,
-				'post_status' => $previous_status,
-			],
-			true
-		);
+		// Use core's wp_untrash_post to properly clean up _wp_trash_meta_status and restore to the original status.
+		add_filter( 'wp_untrash_post_status', 'wp_untrash_post_set_previous_status', 10, 3 );
+		$untrashed = wp_untrash_post( $entry_id );
+		remove_filter( 'wp_untrash_post_status', 'wp_untrash_post_set_previous_status', 10 );
 
-		if ( is_wp_error( $updated ) || 0 === $updated ) {
+		if ( ! $untrashed ) {
 			return new \WP_Error(
 				'rolling_coverage_restore_failed',
 				__( 'Failed to restore entry.', 'newspack-rolling-coverage' ),
 				[ 'status' => 500 ]
 			);
 		}
+
+		$previous_status = get_post_status( $entry_id );
 
 		// Core's _wp_trash_meta_status is cleaned up by wp_untrash_post, so no manual cleanup is needed.
 		$coverage_status = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
