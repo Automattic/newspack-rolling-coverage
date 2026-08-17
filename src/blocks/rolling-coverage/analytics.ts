@@ -31,7 +31,7 @@ function isConfigEnabled( value: string | undefined ): boolean {
  */
 function canTrackReaderEvents(): boolean {
 	return isConfigEnabled(
-		window.newspackRollingCoverageAnalytics?.readerTrackingEnabled
+		window.newspackRollingCoverageFrontend?.readerTrackingEnabled
 	);
 }
 
@@ -45,7 +45,7 @@ function canTrackReaderEvents(): boolean {
 function trackGa4( name: string, params: EventParams ): void {
 	if (
 		! isConfigEnabled(
-			window.newspackRollingCoverageAnalytics?.siteKitGa4Enabled
+			window.newspackRollingCoverageFrontend?.siteKitGa4Enabled
 		) ||
 		typeof window.gtag !== 'function'
 	) {

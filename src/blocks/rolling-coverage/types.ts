@@ -59,10 +59,10 @@ interface BlockConfig {
 }
 
 /**
- * Analytics config localised by wp_localize_script in
- * Rolling_Coverage_Block::register_block().
+ * Frontend config localised by wp_localize_script in
+ * Rolling_Coverage_Block::localize_frontend_config().
  */
-interface AnalyticsConfig {
+interface FrontendConfig {
 	readerTrackingEnabled: string;
 	siteKitGa4Enabled: string;
 }
@@ -168,7 +168,7 @@ export type {
 	ApplyNotice,
 	EditProps,
 	BlockConfig,
-	AnalyticsConfig,
+	FrontendConfig,
 	EventParams,
 	EventName,
 	EntryContext,

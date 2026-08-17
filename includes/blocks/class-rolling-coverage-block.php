@@ -61,6 +61,7 @@ class Rolling_Coverage_Block {
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register_block' ] );
 		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'localize_block_config' ] );
+		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'localize_frontend_config' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
 		add_action( 'save_post_' . Post_Type::CPT_SLUG, [ __CLASS__, 'update_coverage_last_modified' ], 10, 2 );
@@ -140,13 +141,27 @@ class Rolling_Coverage_Block {
 				]
 			);
 		}
+	}
+
+	/**
+	 * Localizes the block's view script with config data.
+	 *
+	 * Runs on wp_enqueue_scripts so the config reaches the frontend, where
+	 * the view script actually runs.
+	 */
+	public static function localize_frontend_config() {
+		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( self::BLOCK_NAME );
+
+		if ( ! $block_type instanceof WP_Block_Type ) {
+			return;
+		}
 
 		$should_track_reader_events = ! current_user_can( 'edit_posts' );
 
 		foreach ( $block_type->view_script_handles as $handle ) {
 			wp_localize_script(
 				$handle,
-				'newspackRollingCoverageAnalytics',
+				'newspackRollingCoverageFrontend',
 				[
 					'readerTrackingEnabled' => $should_track_reader_events,
 					'siteKitGa4Enabled'     => $should_track_reader_events && self::is_site_kit_ga4_tracking_ready(),

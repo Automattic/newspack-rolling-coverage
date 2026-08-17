@@ -1,13 +1,13 @@
 /**
  * Internal dependencies
  */
-import type { AnalyticsConfig, BlockConfig } from './types';
+import type { FrontendConfig, BlockConfig } from './types';
 
 // Augment Window with globals injected by wp_localize_script and external scripts.
 declare global {
 	interface Window {
 		newspackRollingCoverageBlock?: BlockConfig;
-		newspackRollingCoverageAnalytics?: AnalyticsConfig;
+		newspackRollingCoverageFrontend?: FrontendConfig;
 		dataLayer?: Record< string, unknown >[];
 		gtag?: ( ...args: unknown[] ) => void;
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
