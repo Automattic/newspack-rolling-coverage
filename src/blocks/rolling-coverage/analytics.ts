@@ -7,7 +7,7 @@ import type { EventName, EventParams } from './types';
  * Analytics event names emitted by the rolling coverage frontend.
  */
 export const EVENTS = {
-	NEW_ENTRIES_REVEALED: 'coverage_new_entries_revealed',
+	ENTRY_SEEN: 'coverage_entry_seen',
 	POLL_ERROR: 'coverage_poll_error',
 } as const;
 

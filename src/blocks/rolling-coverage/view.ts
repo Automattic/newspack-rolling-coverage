@@ -63,15 +63,25 @@ function isSafeEntryId( value: unknown ): boolean {
 }
 
 /**
+ * Parses an HTML string into a detached document fragment.
+ *
+ * @param {string} html HTML markup, possibly containing multiple elements.
+ * @return {DocumentFragment} The parsed fragment.
+ */
+function parseFragment( html: string ): DocumentFragment {
+	const template = document.createElement( 'template' );
+	template.innerHTML = html;
+	return template.content;
+}
+
+/**
  * Parses an HTML string into a detached element.
  *
  * @param {string} html HTML markup for a single element.
  * @return {HTMLElement | null} The parsed element, or null if parsing produced none.
  */
 function parseElement( html: string ): HTMLElement | null {
-	const template = document.createElement( 'template' );
-	template.innerHTML = html;
-	return template.content.firstElementChild as HTMLElement | null;
+	return parseFragment( html ).firstElementChild as HTMLElement | null;
 }
 
 /**
@@ -121,6 +131,68 @@ function initBlock( root: HTMLElement ): void {
 	// Tracks forward-poll health so a sustained outage reports one error per
 	// episode (healthy->failing transition) instead of one per failed interval.
 	let isForwardPollHealthy = true;
+
+	// Entry IDs already reported as seen. Guards against re-firing
+	// coverage_entry_seen when a polled edit replaces an already-seen entry's element.
+	const seenEntryIds = new Set< string >();
+
+	// Observes entry elements for viewport visibility, reporting each as seen
+	// the moment any part of it enters the viewport.
+	const entrySeenObserver: IntersectionObserver | null =
+		typeof IntersectionObserver === 'undefined'
+			? null
+			: new IntersectionObserver( ( observerEntries ) => {
+					observerEntries.forEach( ( observerEntry ) => {
+						if ( ! observerEntry.isIntersecting ) {
+							return;
+						}
+
+						const target = observerEntry.target as HTMLElement;
+						unobserveEntry( target );
+
+						const entryId = target.dataset.entryId;
+
+						if ( ! entryId || seenEntryIds.has( entryId ) ) {
+							return;
+						}
+
+						seenEntryIds.add( entryId );
+
+						trackEvent( EVENTS.ENTRY_SEEN, {
+							coverage_id: coverageId,
+							entry_id: entryId,
+							arrival: target.dataset.arrival || 'initial',
+						} );
+					} );
+			  } );
+
+	/**
+	 * Starts observing an entry element for viewport visibility, unless it's
+	 * already been reported as seen.
+	 *
+	 * @param {HTMLElement} el Entry element, carrying data-entry-id and data-arrival.
+	 * @return {void}
+	 */
+	function observeEntry( el: HTMLElement ): void {
+		const entryId = el.dataset.entryId;
+
+		if ( ! entrySeenObserver || ! entryId || seenEntryIds.has( entryId ) ) {
+			return;
+		}
+
+		entrySeenObserver.observe( el );
+	}
+
+	/**
+	 * Stops observing an entry element for viewport visibility, e.g. before
+	 * it's replaced by a polled edit.
+	 *
+	 * @param {HTMLElement} el Entry element to stop observing.
+	 * @return {void}
+	 */
+	function unobserveEntry( el: HTMLElement ): void {
+		entrySeenObserver?.unobserve( el );
+	}
 
 	/**
 	 * Schedules the next poll.
@@ -181,8 +253,8 @@ function initBlock( root: HTMLElement ): void {
 	 * Inserts entries at the top of the entries list, removing the "no
 	 * entries yet" placeholder if it's still present.
 	 *
-	 * Removes the "no entries yet" placeholder and displays any associated ad
-	 * slots.
+	 * Removes the "no entries yet" placeholder, starts observing each entry
+	 * for coverage_entry_seen, and displays any associated ad slots.
 	 *
 	 * @param {PendingEntry[]} entries Entries to insert, newest first.
 	 * @return {void}
@@ -201,6 +273,7 @@ function initBlock( root: HTMLElement ): void {
 
 		entries.forEach( ( { el, adSlot, adEl } ) => {
 			fragment.appendChild( el );
+			observeEntry( el );
 			if ( adEl ) {
 				fragment.appendChild( adEl );
 				if ( adSlot ) {
@@ -305,12 +378,6 @@ function initBlock( root: HTMLElement ): void {
 
 			insertNewEntries( entries );
 
-			trackEvent( EVENTS.NEW_ENTRIES_REVEALED, {
-				coverage_id: coverageId,
-				trigger: 'button',
-				entry_count: entries.length,
-			} );
-
 			window.scrollTo( {
 				top: targetY,
 				behavior: 'smooth',
@@ -343,12 +410,6 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		insertNewEntries( entries );
-
-		trackEvent( EVENTS.NEW_ENTRIES_REVEALED, {
-			coverage_id: coverageId,
-			trigger: 'auto',
-			entry_count: entries.length,
-		} );
 	}
 
 	const onScroll = () => {
@@ -380,7 +441,7 @@ function initBlock( root: HTMLElement ): void {
 				return;
 			}
 
-			const existing = entriesList.querySelector(
+			const existing = entriesList.querySelector< HTMLElement >(
 				`[data-entry-id="${ entry.id }"]`
 			);
 
@@ -397,7 +458,13 @@ function initBlock( root: HTMLElement ): void {
 			}
 
 			if ( existing ) {
+				// Preserve the entry's original arrival across the replace;
+				// observeEntry() is a no-op if it was already reported as seen.
+				unobserveEntry( existing );
+				entryEl.dataset.arrival = existing.dataset.arrival;
 				existing.replaceWith( entryEl );
+				observeEntry( entryEl );
+
 				return;
 			}
 
@@ -661,7 +728,18 @@ function initBlock( root: HTMLElement ): void {
 			if ( response.ok ) {
 				const data: PageResponse = await response.json();
 				if ( data.count > 0 ) {
-					entriesList.insertAdjacentHTML( 'beforeend', data.html );
+					const fragment = parseFragment( data.html );
+
+					Array.from( fragment.children ).forEach( ( child ) => {
+						if (
+							child instanceof HTMLElement &&
+							child.dataset.entryId
+						) {
+							observeEntry( child );
+						}
+					} );
+
+					entriesList.appendChild( fragment );
 					backlogOffset += data.count;
 				}
 				if ( data.adSlots && data.adSlots.length > 0 ) {
@@ -683,6 +761,10 @@ function initBlock( root: HTMLElement ): void {
 			isLoadingMore = false;
 		}
 	}
+
+	entriesList
+		.querySelectorAll< HTMLElement >( '[data-entry-id]' )
+		.forEach( observeEntry );
 
 	if ( cursor && status === 'active' ) {
 		schedulePoll();
