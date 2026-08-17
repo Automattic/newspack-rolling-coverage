@@ -8,6 +8,8 @@
 
 namespace Newspack_Rolling_Coverage;
 
+use Google\Site_Kit\Modules\Analytics_4;
+use Google\Site_Kit\Modules\Analytics_4\Settings as Site_Kit_Analytics_4_Settings;
 use WP_Block;
 use WP_Block_Type;
 use WP_Block_Type_Registry;
@@ -59,6 +61,7 @@ class Rolling_Coverage_Block {
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register_block' ] );
 		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'localize_block_config' ] );
+		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'localize_frontend_config' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
 		add_action( 'save_post_' . Post_Type::CPT_SLUG, [ __CLASS__, 'update_coverage_last_modified' ], 10, 2 );
@@ -141,6 +144,52 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Localizes the block's view script with config data.
+	 *
+	 * Runs on wp_enqueue_scripts so the config reaches the frontend, where
+	 * the view script actually runs.
+	 */
+	public static function localize_frontend_config() {
+		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( self::BLOCK_NAME );
+
+		if ( ! $block_type instanceof WP_Block_Type ) {
+			return;
+		}
+
+		$should_track_reader_events = ! current_user_can( 'edit_posts' );
+
+		foreach ( $block_type->view_script_handles as $handle ) {
+			wp_localize_script(
+				$handle,
+				'newspackRollingCoverageFrontend',
+				[
+					'readerTrackingEnabled' => $should_track_reader_events,
+					'siteKitGa4Enabled'     => $should_track_reader_events && self::is_site_kit_ga4_tracking_ready(),
+				]
+			);
+		}
+	}
+
+	/**
+	 * Checks whether Site Kit's GA4 module is ready to receive frontend events.
+	 *
+	 * @return bool Whether GA4 tracking via Site Kit is ready for this request.
+	 */
+	private static function is_site_kit_ga4_tracking_ready(): bool {
+		if ( ! class_exists( Analytics_4::class ) || ! class_exists( Site_Kit_Analytics_4_Settings::class ) ) {
+			return false;
+		}
+
+		$settings = get_option( Site_Kit_Analytics_4_Settings::OPTION, [] );
+
+		if ( ! is_array( $settings ) ) {
+			return false;
+		}
+
+		return ! empty( $settings['useSnippet'] ) && ! empty( $settings['measurementID'] );
+	}
+
+	/**
 	 * SSR render callback for the block.
 	 *
 	 * @param array    $attributes Block attributes.
@@ -210,7 +259,7 @@ class Rolling_Coverage_Block {
 		$entry_index  = 0;
 		foreach ( $query->posts as $entry ) {
 			$entry_index++;
-			$entries_html .= self::render_entry( $entry, $template );
+			$entries_html .= self::render_entry( $entry, $template, 'initial' );
 
 			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
 				$entries_html .= Ads::render_placement()['html'];
@@ -409,9 +458,12 @@ class Rolling_Coverage_Block {
 	 * @param WP_Post $entry    Entry post object.
 	 * @param array[] $template Per-entry inner-block template, as returned
 	 *                          by get_entry_template().
+	 * @param string  $arrival  How the entry first reaches the client:
+	 *                          'initial', 'poll', or 'load_more'. Stamped as
+	 *                          data-arrival for frontend entry-seen tracking.
 	 * @return string Rendered HTML for the entry.
 	 */
-	public static function render_entry( WP_Post $entry, array $template ) {
+	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial' ) {
 		global $post;
 
 		$previous_post = $post;
@@ -439,11 +491,12 @@ class Rolling_Coverage_Block {
 		$post_classes = implode( ' ', get_post_class( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post' ], $entry ) );
 
 		$html = sprintf(
-			'<article id="%1$s-entry-%2$d" class="%3$s" data-entry-id="%2$d">%4$s</article>',
+			'<article id="%1$s-entry-%2$d" class="%3$s" data-entry-id="%2$d" data-arrival="%5$s">%4$s</article>',
 			self::MARKUP_PREFIX,
 			$entry->ID,
 			esc_attr( $post_classes ),
-			$entry_content
+			$entry_content,
+			esc_attr( $arrival )
 		);
 
 		return $html;
@@ -806,9 +859,11 @@ class Rolling_Coverage_Block {
 					}
 				}
 
+				// For updates to entries already on the client, data-arrival is left
+				// blank: the client preserves the original value across the replace.
 				$entries[] = [
 					'id'     => $entry->ID,
-					'html'   => self::render_entry( $entry, $template ),
+					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '' ),
 					'type'   => $is_new_entry ? 'insert' : 'update',
 					'adHtml' => $ad_html,
 					'adSlot' => $ad_slot,
@@ -852,7 +907,7 @@ class Rolling_Coverage_Block {
 
 		foreach ( $query->posts as $entry ) {
 			$entry_index++;
-			$html .= self::render_entry( $entry, $template );
+			$html .= self::render_entry( $entry, $template, 'load_more' );
 
 			$position = $entry_offset + $entry_index;
 			if ( $ads_enabled && Ads::is_capped_ad_position( $position, $ads_interval ) ) {
