@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-17T18:16:01+00:00\n"
+"POT-Creation-Date: 2026-08-18T19:15:16+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -37,8 +37,8 @@ msgstr ""
 #: includes/ai/class-abilities.php:60
 #: includes/class-admin.php:49
 #: includes/class-admin.php:50
-#: includes/class-taxonomy.php:79
-#: includes/class-taxonomy.php:80
+#: includes/class-taxonomy.php:87
+#: includes/class-taxonomy.php:88
 #: dist/admin.js:1
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Rolling Coverage"
@@ -84,10 +84,10 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:237
-#: includes/blocks/class-rolling-coverage-block.php:657
-#: includes/blocks/class-rolling-coverage-block.php:736
-#: includes/blocks/class-rolling-coverage-block.php:747
-#: includes/class-taxonomy.php:249
+#: includes/blocks/class-rolling-coverage-block.php:663
+#: includes/blocks/class-rolling-coverage-block.php:742
+#: includes/blocks/class-rolling-coverage-block.php:753
+#: includes/class-taxonomy.php:272
 msgid "Coverage not found."
 msgstr ""
 
@@ -109,24 +109,24 @@ msgstr ""
 msgid "Read more"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:216
+#: includes/blocks/class-rolling-coverage-block.php:222
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Select a coverage to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:232
+#: includes/blocks/class-rolling-coverage-block.php:238
 msgid "This coverage is no longer available."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:279
+#: includes/blocks/class-rolling-coverage-block.php:285
 msgid "This coverage is currently paused. New updates will appear once it resumes."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:287
+#: includes/blocks/class-rolling-coverage-block.php:293
 msgid "No entries yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:755
+#: includes/blocks/class-rolling-coverage-block.php:761
 msgid "Either cursor or before must be provided."
 msgstr ""
 
@@ -147,7 +147,7 @@ msgstr ""
 msgid "AI"
 msgstr ""
 
-#: includes/class-admin.php:240
+#: includes/class-admin.php:241
 #: dist/admin.js:194
 msgid "Slack"
 msgstr ""
@@ -232,11 +232,11 @@ msgstr ""
 msgid "Failed to restore entry."
 msgstr ""
 
-#: includes/class-taxonomy.php:347
+#: includes/class-taxonomy.php:397
 msgid "Coverage is not in trash."
 msgstr ""
 
-#: includes/class-taxonomy.php:386
+#: includes/class-taxonomy.php:436
 msgid "Coverage could not be deleted."
 msgstr ""
 
@@ -445,6 +445,14 @@ msgstr ""
 
 #: dist/admin.js:194
 msgid "Enter coverage name…"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Used as the headline in LiveBlogPosting structured data when this coverage is shown on a page or post. Choose a reader-facing title rather than an internal label."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Learn more"
 msgstr ""
 
 #: dist/admin.js:194
