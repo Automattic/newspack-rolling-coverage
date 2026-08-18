@@ -34,6 +34,12 @@ class Taxonomy {
 	const CREATED_AT_META_KEY  = 'created_at';
 	const MODIFIED_AT_META_KEY = 'modified_at';
 
+	/**
+	 * ISO 8601 snapshot of LAST_MODIFIED_META_KEY, taken when the coverage is
+	 * archived. Used for schema.org's coverageEndTime.
+	 */
+	const END_TIME_META_KEY = 'rolling_coverage_end_time';
+
 	// Slack integration term-meta keys.
 	const META_SLACK_CHANNEL_ID   = 'rolling_coverage_slack_channel_id';
 	const META_SLACK_CHANNEL_NAME = 'rolling_coverage_slack_channel_name';
@@ -63,6 +69,8 @@ class Taxonomy {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'created_' . self::TAXONOMY_SLUG, [ __CLASS__, 'set_term_created_date' ] );
 		add_action( 'edited_' . self::TAXONOMY_SLUG, [ __CLASS__, 'update_term_modified_date' ] );
+		add_action( 'added_term_meta', [ __CLASS__, 'maybe_snapshot_end_time' ], 10, 4 );
+		add_action( 'updated_term_meta', [ __CLASS__, 'maybe_snapshot_end_time' ], 10, 4 );
 		add_filter( 'update_post_term_count_statuses', [ __CLASS__, 'count_all_visible_statuses' ], 10, 2 );
 		add_filter( 'rest_prepare_' . self::TAXONOMY_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 	}
@@ -95,28 +103,43 @@ class Taxonomy {
 
 		$term_meta = [
 			// Coverage status — 'active', 'paused', or 'archived' (terminal); controls frontend polling vs static archive.
-			self::STATUS_META_KEY         => [
+			self::STATUS_META_KEY                          => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => self::STATUS_ACTIVE,
 			],
 			// ISO 8601 timestamp the coverage term was first created (set once via the created_ hook).
-			self::CREATED_AT_META_KEY     => [
+			self::CREATED_AT_META_KEY                      => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => '',
 			],
 			// ISO 8601 timestamp of the last edit (updated via the edited_ hook).
-			self::MODIFIED_AT_META_KEY    => [
+			self::MODIFIED_AT_META_KEY                     => [
+				'show_in_rest' => true,
+				'single'       => true,
+				'type'         => 'string',
+				'default'      => '',
+			],
+			// ISO 8601 snapshot of the coverage's last-modified time, taken when
+			// archived. See maybe_snapshot_end_time().
+			self::END_TIME_META_KEY                        => [
+				'show_in_rest' => true,
+				'single'       => true,
+				'type'         => 'string',
+				'default'      => '',
+			],
+			// ISO 8601 timestamp of the coverage's latest entry activity.
+			Rolling_Coverage_Block::LAST_MODIFIED_META_KEY => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => '',
 			],
 			// Slack channel ID linked to this coverage term; the channel→coverage forward link. manage_options-gated via auth_callback.
-			self::META_SLACK_CHANNEL_ID   => [
+			self::META_SLACK_CHANNEL_ID                    => [
 				'show_in_rest'  => true,
 				'single'        => true,
 				'type'          => 'string',
@@ -126,7 +149,7 @@ class Taxonomy {
 				},
 			],
 			// Slack channel display name cached alongside the ID for the DataViews Slack column; manage_options-gated via auth_callback.
-			self::META_SLACK_CHANNEL_NAME => [
+			self::META_SLACK_CHANNEL_NAME                  => [
 				'show_in_rest'  => true,
 				'single'        => true,
 				'type'          => 'string',
@@ -136,7 +159,7 @@ class Taxonomy {
 				},
 			],
 			// Generic source platform slug (e.g. 'slack', 'beeper', 'whatsapp', 'telegram'); manage_options-gated via auth_callback.
-			self::META_SOURCE             => [
+			self::META_SOURCE                              => [
 				'show_in_rest'  => true,
 				'single'        => true,
 				'type'          => 'string',
@@ -146,7 +169,7 @@ class Taxonomy {
 				},
 			],
 			// Generic source conversation id (Slack channel id, Beeper chat id, WhatsApp phone_jid, Telegram chat id); manage_options-gated via auth_callback.
-			self::META_SOURCE_REF         => [
+			self::META_SOURCE_REF                          => [
 				'show_in_rest'  => true,
 				'single'        => true,
 				'type'          => 'string',
@@ -275,6 +298,33 @@ class Taxonomy {
 	 */
 	public static function update_term_modified_date( $term_id ) {
 		update_term_meta( $term_id, self::MODIFIED_AT_META_KEY, gmdate( 'c' ) );
+	}
+
+	/**
+	 * Snapshots the coverage's last-modified time into END_TIME_META_KEY when
+	 * its status is set to 'archived'.
+	 *
+	 * Hooked to both added_term_meta and updated_term_meta to catch the status
+	 * write regardless of call site. Re-archiving overwrites the previous
+	 * snapshot, so the value stays accurate across un-archive/re-archive cycles.
+	 *
+	 * @param int    $meta_id    Meta row id (unused).
+	 * @param int    $term_id    Term id the meta belongs to.
+	 * @param string $meta_key   Meta key being written.
+	 * @param mixed  $meta_value Meta value being written.
+	 */
+	public static function maybe_snapshot_end_time( $meta_id, $term_id, $meta_key, $meta_value ) {
+		if ( self::STATUS_META_KEY !== $meta_key || self::STATUS_ARCHIVED !== $meta_value ) {
+			return;
+		}
+
+		$term = get_term( $term_id );
+		if ( ! $term instanceof \WP_Term || self::TAXONOMY_SLUG !== $term->taxonomy ) {
+			return;
+		}
+
+		$last_modified = get_term_meta( $term_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true );
+		update_term_meta( $term_id, self::END_TIME_META_KEY, $last_modified );
 	}
 
 	/**

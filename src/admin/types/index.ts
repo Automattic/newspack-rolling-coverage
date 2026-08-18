@@ -41,6 +41,7 @@ interface AdminConfig {
 	taxonomy: string;
 	taxMeta: {
 		statusKey: string;
+		lastModifiedKey: string;
 	};
 	aiSettings: AiSettings;
 	aiDefaultSettings: AiSettings;
@@ -74,6 +75,7 @@ interface Coverage {
 		rolling_coverage_status?: 'active' | 'paused' | 'archived' | 'trash';
 		created_at?: string;
 		modified_at?: string;
+		rolling_coverage_last_modified?: string;
 		rolling_coverage_slack_channel_id?: string;
 		rolling_coverage_slack_channel_name?: string;
 		[ key: string ]: unknown;

@@ -39,6 +39,7 @@ class Initializer {
 		AI_Service::init();
 		AI_Settings::init();
 		Abilities::init();
+		Schema::init();
 
 		// Admin interface (only load in admin context).
 		if ( is_admin() ) {
