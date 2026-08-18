@@ -140,7 +140,8 @@ class Schema {
 		}
 
 		$last_modified = get_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true );
-		$cache_key     = 'nrc_' . $coverage_id . '_' . md5( $post->ID . '|' . $entries_per_page . '|' . $last_modified );
+		$end_time      = get_term_meta( $coverage_id, Taxonomy::END_TIME_META_KEY, true );
+		$cache_key     = 'nrc_' . $coverage_id . '_' . md5( $post->ID . '|' . $entries_per_page . '|' . $status . '|' . $last_modified . '|' . $end_time );
 
 		$cached_metadata = get_transient( $cache_key );
 		if ( false !== $cached_metadata ) {
@@ -185,8 +186,8 @@ class Schema {
 			$metadata['coverageStartTime'] = $created_at;
 		}
 
-		if ( 'archived' === $status && ! empty( $last_modified ) ) {
-			$metadata['coverageEndTime'] = $last_modified;
+		if ( 'archived' === $status && ! empty( $end_time ) ) {
+			$metadata['coverageEndTime'] = $end_time;
 		}
 
 		$metadata['liveBlogUpdate'] = self::build_updates( $coverage_id, $entries_per_page, $permalink );
