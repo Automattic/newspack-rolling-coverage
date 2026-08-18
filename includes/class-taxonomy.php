@@ -95,28 +95,35 @@ class Taxonomy {
 
 		$term_meta = [
 			// Coverage status — 'active', 'paused', or 'archived' (terminal); controls frontend polling vs static archive.
-			self::STATUS_META_KEY         => [
+			self::STATUS_META_KEY                          => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => self::STATUS_ACTIVE,
 			],
 			// ISO 8601 timestamp the coverage term was first created (set once via the created_ hook).
-			self::CREATED_AT_META_KEY     => [
+			self::CREATED_AT_META_KEY                      => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => '',
 			],
 			// ISO 8601 timestamp of the last edit (updated via the edited_ hook).
-			self::MODIFIED_AT_META_KEY    => [
+			self::MODIFIED_AT_META_KEY                     => [
+				'show_in_rest' => true,
+				'single'       => true,
+				'type'         => 'string',
+				'default'      => '',
+			],
+			// ISO 8601 timestamp of the coverage's latest entry activity.
+			Rolling_Coverage_Block::LAST_MODIFIED_META_KEY => [
 				'show_in_rest' => true,
 				'single'       => true,
 				'type'         => 'string',
 				'default'      => '',
 			],
 			// Slack channel ID linked to this coverage term; the channel→coverage forward link. manage_options-gated via auth_callback.
-			self::META_SLACK_CHANNEL_ID   => [
+			self::META_SLACK_CHANNEL_ID                    => [
 				'show_in_rest'  => true,
 				'single'        => true,
 				'type'          => 'string',
@@ -126,7 +133,7 @@ class Taxonomy {
 				},
 			],
 			// Slack channel display name cached alongside the ID for the DataViews Slack column; manage_options-gated via auth_callback.
-			self::META_SLACK_CHANNEL_NAME => [
+			self::META_SLACK_CHANNEL_NAME                  => [
 				'show_in_rest'  => true,
 				'single'        => true,
 				'type'          => 'string',
@@ -136,7 +143,7 @@ class Taxonomy {
 				},
 			],
 			// Generic source platform slug (e.g. 'slack', 'beeper', 'whatsapp', 'telegram'); manage_options-gated via auth_callback.
-			self::META_SOURCE             => [
+			self::META_SOURCE                              => [
 				'show_in_rest'  => true,
 				'single'        => true,
 				'type'          => 'string',
@@ -146,7 +153,7 @@ class Taxonomy {
 				},
 			],
 			// Generic source conversation id (Slack channel id, Beeper chat id, WhatsApp phone_jid, Telegram chat id); manage_options-gated via auth_callback.
-			self::META_SOURCE_REF         => [
+			self::META_SOURCE_REF                          => [
 				'show_in_rest'  => true,
 				'single'        => true,
 				'type'          => 'string',
