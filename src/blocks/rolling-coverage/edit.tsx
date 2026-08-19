@@ -26,8 +26,8 @@ import {
 	useEffect,
 	useCallback,
 	useMemo,
-	useRef,
 	memo,
+	useRef,
 } from '@wordpress/element';
 import { useSelect } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
@@ -72,17 +72,30 @@ const CTA_BLOCK_NAME = 'newspack-rolling-coverage/deep-link-cta';
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 
 /**
+ * The archived-notice block, rendered once at the top of the coverage rather
+ * than per entry.
+ */
+const COVERAGE_ARCHIVED_NOTICE_BLOCK_NAME =
+	'newspack-rolling-coverage/coverage-archived-notice';
+
+/**
  * Block names that render once at the top of the coverage (not per entry).
  * Used to split inner blocks into these vs. the per-entry template.
  */
-const RENDER_ONCE_BLOCKS = [ FOLLOW_BLOCK_NAME, CTA_BLOCK_NAME ];
+const RENDER_ONCE_BLOCKS = [
+	FOLLOW_BLOCK_NAME,
+	COVERAGE_ARCHIVED_NOTICE_BLOCK_NAME,
+	CTA_BLOCK_NAME,
+];
 
 /**
  * Default inner-blocks template for the Rolling Coverage block:
- * the follow button and deep-link CTA at the top, then the per-entry blocks.
+ * the follow button, archived notice, and deep-link CTA at the top, then
+ * the per-entry blocks.
  */
 const INNER_TEMPLATE = [
 	[ FOLLOW_BLOCK_NAME ],
+	[ COVERAGE_ARCHIVED_NOTICE_BLOCK_NAME ],
 	[ CTA_BLOCK_NAME ],
 	...ENTRY_TEMPLATE,
 ];
@@ -94,6 +107,7 @@ const ALL_ALLOWED_BLOCKS = [
 	...ENTRY_ALLOWED_BLOCKS,
 	CTA_BLOCK_NAME,
 	FOLLOW_BLOCK_NAME,
+	COVERAGE_ARCHIVED_NOTICE_BLOCK_NAME,
 ];
 
 /**
@@ -201,7 +215,8 @@ export default function Edit( {
 	);
 
 	// Read live from the store so preview copies stay in sync as the
-	// template is edited. Filter out the CTA block — only per-entry blocks.
+	// template is edited. Filter out the render-once blocks (follow,
+	// archived-notice, CTA) — only per-entry blocks.
 	const allBlocks: TemplateBlocks = useSelect(
 		( select ) =>
 			(

@@ -322,21 +322,9 @@ class Rolling_Coverage_Block {
 		$oldest_iso = ! empty( $query->posts ) ? self::post_date_iso( $query->posts[ count( $query->posts ) - 1 ] ) : '';
 		$has_more   = count( $query->posts ) === $entries_per_page;
 
-		$notice = '';
-
-		if ( Taxonomy::STATUS_ARCHIVED === $status ) {
-			$notice = sprintf(
-				'<p class="%1$s-notice %1$s-notice--archived">%2$s</p>',
-				self::MARKUP_PREFIX,
-				esc_html__( 'This coverage has ended and is preserved as an archive.', 'newspack-rolling-coverage' )
-			);
-		} elseif ( 'paused' === $status ) {
-			$notice = sprintf(
-				'<p class="%1$s-notice %1$s-notice--paused">%2$s</p>',
-				self::MARKUP_PREFIX,
-				esc_html__( 'This coverage is currently paused. New updates will appear once it resumes.', 'newspack-rolling-coverage' )
-			);
-		}
+		$coverage_archived_notice_html = Taxonomy::STATUS_ARCHIVED === $status
+			? self::render_coverage_archived_notice( $block )
+			: '';
 
 		if ( empty( $query->posts ) ) {
 			$entries_html = sprintf(
@@ -372,7 +360,7 @@ class Rolling_Coverage_Block {
 			return sprintf(
 				'<div %1$s>%6$s%2$s%5$s<div class="%3$s-status" role="status" aria-live="polite"></div><button type="button" class="%3$s-new-entries" hidden></button><div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
 				$wrapper_attributes,
-				$notice,
+				$coverage_archived_notice_html,
 				self::MARKUP_PREFIX,
 				$entries_html,
 				$cta_html,
@@ -521,6 +509,42 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Renders the coverage-archived-notice inner block once, at the top.
+	 *
+	 * @param WP_Block $block The parent rolling-coverage block instance.
+	 * @return string Rendered HTML.
+	 */
+	private static function render_coverage_archived_notice( WP_Block $block ): string {
+		$archived_notice_block_type = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Archived_Notice_Block::BLOCK_NAME );
+		if ( $archived_notice_block_type ) {
+			foreach ( $archived_notice_block_type->style_handles as $style_handle ) {
+				wp_enqueue_style( $style_handle );
+			}
+		}
+
+		$notice_attrs        = [];
+		$notice_inner_blocks = [];
+
+		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner ) {
+			if ( Coverage_Archived_Notice_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) ) {
+				$notice_attrs        = $inner['attrs'] ?? [];
+				$notice_inner_blocks = $inner['innerBlocks'] ?? [];
+				break;
+			}
+		}
+
+		return render_block(
+			[
+				'blockName'    => Coverage_Archived_Notice_Block::BLOCK_NAME,
+				'attrs'        => $notice_attrs,
+				'innerBlocks'  => $notice_inner_blocks,
+				'innerHTML'    => '',
+				'innerContent' => array_fill( 0, count( $notice_inner_blocks ), null ),
+			]
+		);
+	}
+
+	/**
 	 * Builds the per-entry inner-block template used to render every entry:
 	 * the user's saved template if the block has one, otherwise a hardcoded
 	 * fallback.
@@ -538,7 +562,11 @@ class Rolling_Coverage_Block {
 
 		// The saved inner blocks also include two blocks that render once at
 		// the top of the coverage, not per entry.
-		$singleton_blocks = [ Deep_Link_CTA_Block::BLOCK_NAME, Coverage_Follow_Block::BLOCK_NAME ];
+		$singleton_blocks = [
+			Deep_Link_CTA_Block::BLOCK_NAME,
+			Coverage_Follow_Block::BLOCK_NAME,
+			Coverage_Archived_Notice_Block::BLOCK_NAME,
+		];
 		$template         = [];
 
 		foreach ( $inner_blocks as $inner_block ) {
