@@ -184,7 +184,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				return (
 					<Tooltip
 						text={ __(
-							"This entry is archived, so it can't be edited, trashed, or given a new breakout post. Unarchive it to make changes.",
+							"This entry is archived, so it can't be pinned, trashed, or given a new breakout post. Unarchive it to allow those actions.",
 							'newspack-rolling-coverage'
 						) }
 					>

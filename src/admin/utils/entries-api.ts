@@ -10,6 +10,7 @@ import { handleApiError } from './api-error';
 import type {
 	ApiResult,
 	Entry,
+	EntryEditWarning,
 	AdminConfig,
 	BulkRestoreResult,
 	BulkRestoreEntryResult,
@@ -140,6 +141,40 @@ function isEntryArchived( entry: Entry ): boolean {
 }
 
 /**
+ * Returns true when the entry is locked by Archive Mode: individually
+ * archived, or assigned to an archived coverage.
+ *
+ * @param {Entry} entry The entry to check.
+ * @return {boolean} Whether the entry is locked.
+ */
+function isEntryLocked( entry: Entry ): boolean {
+	return isEntryArchived( entry ) || entry.coverageStatus === 'archived';
+}
+
+/**
+ * Returns why editing this entry needs confirmation, or null when
+ * unrestricted.
+ *
+ * @param {Entry} entry The entry to check.
+ * @return {EntryEditWarning} The reason, or null.
+ */
+function getEntryEditWarning( entry: Entry ): EntryEditWarning {
+	if ( isEntryArchived( entry ) ) {
+		return 'entry-archived';
+	}
+
+	if ( entry.coverageStatus === 'archived' ) {
+		return 'coverage-archived';
+	}
+
+	if ( entry.coverageStatus === 'paused' ) {
+		return 'coverage-paused';
+	}
+
+	return null;
+}
+
+/**
  * Sends a DELETE request for a single entry, returning a normalised
  * ApiResult. When `force` is truthy the entry is permanently deleted;
  * otherwise it is moved to the trash.
@@ -247,6 +282,8 @@ export {
 	hasBreakout,
 	hasTrashedBreakout,
 	isEntryArchived,
+	isEntryLocked,
+	getEntryEditWarning,
 	deleteEntry,
 	runEntryBulk,
 	setEntryArchived,

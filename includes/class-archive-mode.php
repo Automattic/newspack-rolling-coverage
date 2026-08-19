@@ -1,6 +1,6 @@
 <?php
 /**
- * Archive Mode: read-only enforcement for archived coverages and entries.
+ * Archive Mode: editorial restrictions for archived coverages and entries.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -15,10 +15,11 @@ use WP_REST_Server;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Enforces read-only behavior for archived coverages and entries.
+ * Applies Archive Mode restrictions to coverages and entries.
  *
- * Archive Mode prevents editorial actions such as editing, deleting,
- * restoring, or creating breakout posts.
+ * Locks archived entries against deletion, restoration, and breakout post
+ * creation, while preventing new entries from being added to archived
+ * coverages. Content edits remain unrestricted.
  */
 class Archive_Mode {
 
@@ -35,7 +36,6 @@ class Archive_Mode {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_filter( 'map_meta_cap', [ __CLASS__, 'restrict_archived_entry_caps' ], 10, 4 );
 		add_filter( 'rest_pre_insert_' . Post_Type::CPT_SLUG, [ __CLASS__, 'block_rest_writes' ], 10, 2 );
-		add_action( 'load-post.php', [ __CLASS__, 'block_post_edit_screen' ] );
 	}
 
 	/**
@@ -129,14 +129,14 @@ class Archive_Mode {
 	}
 
 	/**
-	 * The error returned for any write against a locked entry.
+	 * The error returned when an entry is assigned to an archived coverage.
 	 *
 	 * @return WP_Error
 	 */
 	public static function archived_error() {
 		return new WP_Error(
 			'rolling_coverage_entry_locked',
-			__( 'This entry cannot be modified while it or its coverage is archived.', 'newspack-rolling-coverage' ),
+			__( 'This entry cannot be assigned to an archived coverage.', 'newspack-rolling-coverage' ),
 			[ 'status' => 403 ]
 		);
 	}
@@ -169,24 +169,25 @@ class Archive_Mode {
 	}
 
 	/**
-	 * Blocks REST writes for locked entries and archived coverages.
+	 * Blocks REST requests from adding entries to archived coverages.
+	 *
+	 * Existing coverage assignments are ignored, allowing entries to be saved
+	 * without changing their current archived coverage.
 	 *
 	 * @param \stdClass       $prepared_post Post object about to be inserted.
 	 * @param WP_REST_Request $request       Request object.
 	 * @return \stdClass|WP_Error Prepared post, or error when archived.
 	 */
 	public static function block_rest_writes( $prepared_post, WP_REST_Request $request ) {
-		if ( ! empty( $prepared_post->ID ) && self::is_entry_locked( (int) $prepared_post->ID ) ) {
-			return self::archived_error();
-		}
-
 		$requested_coverages = wp_parse_id_list( $request[ Taxonomy::REST_BASE ] ?? [] );
 
 		if ( empty( $requested_coverages ) ) {
 			return $prepared_post;
 		}
 
-		foreach ( $requested_coverages as $coverage_id ) {
+		$new_coverages = array_diff( $requested_coverages, self::get_existing_coverage_ids( $prepared_post ) );
+
+		foreach ( $new_coverages as $coverage_id ) {
 			if ( self::is_coverage_archived( $coverage_id ) ) {
 				return self::archived_error();
 			}
@@ -196,40 +197,20 @@ class Archive_Mode {
 	}
 
 	/**
-	 * Blocks the wp-admin edit screen for locked entries.
+	 * Coverage term IDs already assigned to a post, or an empty array for a
+	 * new post or on lookup failure.
 	 *
-	 * The guard runs on screen load so archived entries cannot be modified
-	 * through classic editor form submissions.
+	 * @param \stdClass $prepared_post Post object about to be inserted.
+	 * @return int[]
 	 */
-	public static function block_post_edit_screen() {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only guard on an admin screen load.
-		$post_id = isset( $_GET['post'] ) ? absint( $_GET['post'] ) : 0;
-
-		if ( ! $post_id ) {
-			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Read-only guard before post.php handles the save.
-			$post_id = isset( $_POST['post_ID'] ) ? absint( $_POST['post_ID'] ) : 0;
+	private static function get_existing_coverage_ids( $prepared_post ): array {
+		if ( empty( $prepared_post->ID ) ) {
+			return [];
 		}
 
-		if ( ! $post_id ) {
-			return;
-		}
+		$terms = wp_get_post_terms( $prepared_post->ID, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
 
-		$post = get_post( $post_id );
-
-		if ( ! $post || Post_Type::CPT_SLUG !== $post->post_type ) {
-			return;
-		}
-
-		if ( self::is_entry_locked( $post->ID ) ) {
-			wp_die(
-				esc_html__( 'This entry cannot be modified while it or its coverage is archived.', 'newspack-rolling-coverage' ),
-				esc_html__( 'Entry archived', 'newspack-rolling-coverage' ),
-				[
-					'response'  => 403,
-					'back_link' => true,
-				]
-			);
-		}
+		return is_wp_error( $terms ) ? [] : $terms;
 	}
 
 	/**
@@ -253,6 +234,20 @@ class Archive_Mode {
 				__( 'Entry not found.', 'newspack-rolling-coverage' ),
 				[ 'status' => 404 ]
 			);
+		}
+
+		$coverage_ids = wp_get_post_terms( $entry_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
+
+		if ( ! is_wp_error( $coverage_ids ) ) {
+			foreach ( $coverage_ids as $coverage_id ) {
+				if ( self::is_coverage_archived( $coverage_id ) ) {
+					return new WP_Error(
+						'rolling_coverage_coverage_archived',
+						__( "This entry's coverage is archived; unarchive the coverage first.", 'newspack-rolling-coverage' ),
+						[ 'status' => 403 ]
+					);
+				}
+			}
 		}
 
 		$is_archived = self::ENTRY_ARCHIVED_STATUS === $post->post_status;

@@ -120,6 +120,7 @@ interface Entry {
 		[ key: string ]: unknown;
 	};
 	pinned?: boolean;
+	coverageStatus?: 'active' | 'paused' | 'archived' | 'trash' | '';
 	rolling_coverage_breakout_status?: PostStatus | null;
 	_embedded?: {
 		author?: Array< {
@@ -139,6 +140,12 @@ interface Entry {
 	};
 	_links?: Record< string, Array< { href: string } > >;
 }
+
+type EntryEditWarning =
+	| 'entry-archived'
+	| 'coverage-archived'
+	| 'coverage-paused'
+	| null;
 
 type ViewState = ViewTable;
 
@@ -481,6 +488,7 @@ export type {
 	ContextExports,
 	Coverage,
 	Entry,
+	EntryEditWarning,
 	PostStatus,
 	ViewState,
 	View,

@@ -27,6 +27,9 @@ class Post_Type {
 	// REST field name for the pinned boolean.
 	const PINNED_REST_FIELD = 'pinned';
 
+	// REST field name for the entry's coverage term's status.
+	const COVERAGE_STATUS_REST_FIELD = 'coverageStatus';
+
 	// Option key for the ordered list of pinned entry IDs. Autoloaded array of post IDs in pin order. Isolates pinned state to this CPT, avoiding pollution of the global sticky_posts option.
 	const PINNED_OPTION_KEY = 'rolling_coverage_pinned_entries';
 
@@ -90,6 +93,7 @@ class Post_Type {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'set_object_terms', [ __CLASS__, 'sync_coverage_context_meta' ], 10, 6 );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_pinned_rest_field' ] );
+		add_action( 'rest_api_init', [ __CLASS__, 'register_coverage_status_rest_field' ] );
 		add_filter( 'posts_orderby', [ __CLASS__, 'orderby_pinned_first' ], 10, 2 );
 		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 		add_filter( 'rest_' . self::CPT_SLUG . '_query', [ __CLASS__, 'filter_rest_query' ], 10, 2 );
@@ -393,6 +397,42 @@ class Post_Type {
 	}
 
 	/**
+	 * Register a computed `coverageStatus` field reflecting the status of
+	 * the entry's assigned coverage term.
+	 */
+	public static function register_coverage_status_rest_field() {
+		register_rest_field(
+			self::CPT_SLUG,
+			self::COVERAGE_STATUS_REST_FIELD,
+			[
+				'get_callback' => [ __CLASS__, 'get_coverage_status_rest_field' ],
+				'schema'       => [
+					'type'    => 'string',
+					'context' => [ 'edit', 'view' ],
+				],
+			]
+		);
+	}
+
+	/**
+	 * REST field callback returning the entry's coverage term's status.
+	 *
+	 * @param array $post Entry REST object data.
+	 * @return string Coverage status, or '' if the entry has no coverage term.
+	 */
+	public static function get_coverage_status_rest_field( array $post ): string {
+		$terms = get_the_terms( $post['id'], Taxonomy::TAXONOMY_SLUG );
+
+		if ( is_wp_error( $terms ) || empty( $terms ) ) {
+			return '';
+		}
+
+		$status = get_term_meta( $terms[0]->term_id, Taxonomy::STATUS_META_KEY, true );
+
+		return $status ? $status : Taxonomy::STATUS_ACTIVE;
+	}
+
+	/**
 	 * Whether a given entry is pinned.
 	 *
 	 * @param int $entry_id Entry post ID.
@@ -480,6 +520,11 @@ class Post_Type {
 	 */
 	public static function can_toggle_pin( WP_REST_Request $request ): bool {
 		$entry_id = (int) $request->get_param( 'entry_id' );
+
+		if ( Archive_Mode::is_entry_locked( $entry_id ) ) {
+			return false;
+		}
+
 		return current_user_can( 'edit_post', $entry_id );
 	}
 
