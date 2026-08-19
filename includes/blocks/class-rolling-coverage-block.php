@@ -41,6 +41,9 @@ class Rolling_Coverage_Block {
 	// CSS class/ID prefix for the block's front-end markup.
 	const MARKUP_PREFIX = 'newspack-rolling-coverage';
 
+	// Word count cap for an archived entry's collapsed-content summary; CSS clips it to one line regardless.
+	const ARCHIVED_ENTRY_SUMMARY_WORD_CAP = 50;
+
 	// Option name prefix for persisted entry templates: rc_tpl_{coverage_id}_{hash}.
 	const TEMPLATE_OPTION_PREFIX = 'rc_tpl_';
 
@@ -748,6 +751,11 @@ class Rolling_Coverage_Block {
 		$post          = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		setup_postdata( $entry );
 
+		$is_archived = Archive_Mode::ENTRY_ARCHIVED_STATUS === $entry->post_status;
+		if ( $is_archived ) {
+			add_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );
+		}
+
 		try {
 			$entry_content = ( new WP_Block(
 				[
@@ -763,6 +771,10 @@ class Rolling_Coverage_Block {
 				]
 			) )->render( [ 'dynamic' => false ] );
 		} finally {
+			if ( $is_archived ) {
+				remove_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );
+			}
+
 			$post = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 			setup_postdata( $previous_post );
 		}
@@ -780,6 +792,47 @@ class Rolling_Coverage_Block {
 		);
 
 		return $html;
+	}
+
+	/**
+	 * Renders the notice shown above an individually archived entry's content.
+	 *
+	 * @return string Rendered HTML.
+	 */
+	private static function render_archived_entry_notice(): string {
+		$text = apply_filters(
+			'newspack_rolling_coverage_entry_archived_notice',
+			__( 'This entry is now out of date compared to newer entries, but is preserved as it originally appeared.', 'newspack-rolling-coverage' )
+		);
+
+		return sprintf(
+			'<p class="%s-entry-archived-notice">%s</p>',
+			self::MARKUP_PREFIX,
+			wp_kses_post( $text )
+		);
+	}
+
+	/**
+	 * Prepends the archived-entry notice and collapses the content into a
+	 * `<details>` element, with a one-line summary clipped by CSS.
+	 *
+	 * @param string $block_content The block's rendered HTML.
+	 * @return string The notice plus the (possibly collapsed) content.
+	 */
+	public static function render_archived_entry_content( string $block_content ): string {
+		$plain_text = wp_strip_all_tags( $block_content );
+		$summary    = wp_trim_words( $plain_text, self::ARCHIVED_ENTRY_SUMMARY_WORD_CAP, '' );
+
+		$content = $summary === $plain_text
+			? $block_content
+			: sprintf(
+				'<details class="%1$s-archived-entry-content"><summary>%2$s</summary>%3$s</details>',
+				self::MARKUP_PREFIX,
+				$summary,
+				$block_content
+			);
+
+		return self::render_archived_entry_notice() . $content;
 	}
 
 	/**
