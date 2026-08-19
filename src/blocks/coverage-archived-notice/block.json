@@ -1,0 +1,62 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "newspack-rolling-coverage/coverage-archived-notice",
+	"title": "Coverage Archived Notice",
+	"category": "widgets",
+	"description": "Notifies readers that coverage of this event has ended.",
+	"textdomain": "newspack-rolling-coverage",
+	"parent": [ "newspack-rolling-coverage/rolling-coverage" ],
+	"attributes": {
+		"content": { "type": "string", "default": "" }
+	},
+	"supports": {
+		"inserter": false,
+		"html": false,
+		"anchor": false,
+		"reusable": false,
+		"color": {
+			"text": true,
+			"background": true,
+			"gradients": true,
+			"__experimentalDefaultControls": {
+				"background": true
+			}
+		},
+		"typography": {
+			"fontSize": true,
+			"lineHeight": true,
+			"__experimentalFontFamily": true,
+			"__experimentalFontWeight": true,
+			"__experimentalFontStyle": true,
+			"__experimentalTextTransform": true,
+			"__experimentalTextDecoration": true,
+			"__experimentalLetterSpacing": true,
+			"__experimentalDefaultControls": {
+				"fontSize": true
+			}
+		},
+		"spacing": {
+			"margin": true,
+			"padding": true,
+			"__experimentalDefaultControls": {
+				"padding": true
+			}
+		},
+		"__experimentalBorder": {
+			"color": true,
+			"radius": true,
+			"style": true,
+			"width": true,
+			"__experimentalDefaultControls": {
+				"color": true,
+				"radius": true,
+				"style": true,
+				"width": true
+			}
+		},
+		"shadow": true
+	},
+	"editorScript": "file:./index.js",
+	"style": "file:./index.css"
+}
