@@ -47,3 +47,13 @@
 .newspack-rolling-coverage-ads-notice {
 	margin-bottom: 16px;
 }
+
+// Hides each editor-state block by default; shown per the active
+// state via ENTRY_EDITED_STATES in template.ts.
+.newspack-rolling-coverage-state-block {
+	display: none;
+
+	[data-editor-state="archived"] &--archived {
+		display: block;
+	}
+}
