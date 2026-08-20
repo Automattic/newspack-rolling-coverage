@@ -40,16 +40,24 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		const originalText = button.textContent || '';
-		const originalLabel = button.getAttribute( 'aria-label' ) || '';
+		// Ignore re-clicks while the "Copied!" state is active so the label isn't snapshotted as "Copied!" and stuck on restore.
+		if ( button.dataset.copied === '1' ) {
+			return;
+		}
 
 		try {
 			await navigator.clipboard.writeText( url );
+
+			const originalText = button.textContent || '';
+			const originalLabel = button.getAttribute( 'aria-label' ) || '';
+
+			button.dataset.copied = '1';
 			button.textContent = __( 'Copied!', 'newspack-rolling-coverage' );
 			button.setAttribute(
 				'aria-label',
 				__( 'Copied!', 'newspack-rolling-coverage' )
 			);
+
 			setTimeout( () => {
 				button.textContent =
 					originalText || __( 'Share', 'newspack-rolling-coverage' );
@@ -58,10 +66,10 @@ function initBlock( root: HTMLElement ): void {
 					originalLabel ||
 						__( 'Share this entry', 'newspack-rolling-coverage' )
 				);
+				delete button.dataset.copied;
 			}, COPIED_STATE_MS );
 		} catch {
-			// Clipboard API requires a secure context (HTTPS). Fall back
-			// to a prompt so the user can copy manually on HTTP dev sites.
+			// Clipboard API requires a secure context (HTTPS). Fall back to a prompt so the user can copy manually on HTTP dev sites.
 			// eslint-disable-next-line no-alert
 			window.prompt(
 				__( 'Copy this link:', 'newspack-rolling-coverage' ),

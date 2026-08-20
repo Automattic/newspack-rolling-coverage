@@ -656,12 +656,13 @@ class Rolling_Coverage_Block {
 		$post_classes = implode( ' ', get_post_class( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post' ], $entry ) );
 
 		$html = sprintf(
-			'<article id="%1$s-entry-%2$d" class="%3$s" data-entry-id="%2$d" data-arrival="%5$s">%4$s</article>',
-			self::MARKUP_PREFIX,
+			'<article id="%1$s" class="%3$s" data-entry-id="%2$d" data-entry-slug="%6$s" data-arrival="%5$s">%4$s</article>',
+			esc_attr( 'entry-' . $entry->post_name ),
 			$entry->ID,
 			esc_attr( $post_classes ),
 			$entry_content,
-			esc_attr( $arrival )
+			esc_attr( $arrival ),
+			esc_attr( $entry->post_name )
 		);
 
 		return $html;

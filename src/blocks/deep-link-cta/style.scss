@@ -55,7 +55,7 @@
 // Modal (native <dialog>) styles — uses theme CSS variables so the
 // modal inherits the active theme's colors, typography, and spacing.
 .newspack-rolling-coverage-cta-modal {
-	max-width: min(720px, 90vw);
+	width: min(720px, 90vw);
 	max-height: 85vh;
 	padding: 0;
 	border: 1px solid var(--wp--preset--color--contrast-2, rgba(0, 0, 0, 0.1));

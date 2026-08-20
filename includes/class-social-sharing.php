@@ -63,6 +63,23 @@ class Social_Sharing {
 			return;
 		}
 
+		$entry = get_queried_object();
+
+		if ( ! $entry instanceof WP_Post ) {
+			return;
+		}
+
+		// Mirror Core's ?p=<id> guard to prevent slug enumeration of non-published posts.
+		if ( ! is_post_publicly_viewable( $entry ) ) {
+			return;
+		}
+
+		$slug = $entry->post_name;
+
+		if ( ! $slug ) {
+			return;
+		}
+
 		$source_post_id = (int) get_query_var( self::SOURCE_QUERY_VAR );
 
 		if ( ! $source_post_id ) {
@@ -75,19 +92,15 @@ class Social_Sharing {
 			return;
 		}
 
-		$entry = get_queried_object();
+		// Carry utm_* and other campaign params, dropping rc_source and the entry var we set ourselves.
+		$incoming_params = array_map( 'strval', array_filter( $_GET, 'is_scalar' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-		if ( ! $entry instanceof WP_Post || Post_Type::CPT_SLUG !== $entry->post_type ) {
-			return;
-		}
+		unset( $incoming_params[ self::SOURCE_QUERY_VAR ], $incoming_params[ self::ENTRY_QUERY_VAR ] );
 
-		$slug = $entry->post_name;
-
-		if ( ! $slug ) {
-			return;
-		}
-
-		$redirect_url = add_query_arg( self::ENTRY_QUERY_VAR, $slug, $source_url ) . '#' . $slug;
+		$redirect_url = add_query_arg(
+			array_merge( [ self::ENTRY_QUERY_VAR => $slug ], $incoming_params ),
+			$source_url
+		) . '#entry-' . $slug;
 
 		echo '<script>window.location.replace(' . wp_json_encode( $redirect_url ) . ');</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}

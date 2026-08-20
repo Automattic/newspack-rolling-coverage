@@ -859,11 +859,14 @@ function initBlock( root: HTMLElement ): void {
 
 		// If the entry is in ANY block's entries list on the page, the
 		// browser scrolls to it via #hash — no CTA needed.
+		const entry_selector = `#entry-${ cssEscape( entrySlug ) }`;
+
 		const allEntryLists = document.querySelectorAll< HTMLElement >(
 			BLOCK_SELECTOR + ' .newspack-rolling-coverage-entries'
 		);
+
 		for ( const list of allEntryLists ) {
-			if ( list.querySelector( `#${ cssEscape( entrySlug ) }` ) ) {
+			if ( list.querySelector( entry_selector ) ) {
 				return;
 			}
 		}
