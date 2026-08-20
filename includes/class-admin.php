@@ -231,7 +231,8 @@ class Admin {
 			'postType'            => Post_Type::CPT_SLUG,
 			'taxonomy'            => Taxonomy::TAXONOMY_SLUG,
 			'taxMeta'             => array(
-				'statusKey' => Taxonomy::STATUS_META_KEY,
+				'statusKey'       => Taxonomy::STATUS_META_KEY,
+				'lastModifiedKey' => Rolling_Coverage_Block::LAST_MODIFIED_META_KEY,
 			),
 			'slack'               => array(
 				'isConfigured' => Slack_Config::is_configured(),

@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { useState, useCallback, useEffect } from '@wordpress/element';
-import { Modal, Button } from '@wordpress/components';
+import { Modal, Button, ExternalLink } from '@wordpress/components';
 import { DataForm } from '@wordpress/dataviews/wp';
 import { __ } from '@wordpress/i18n';
 
@@ -19,6 +19,17 @@ const coverageFields = [
 		type: 'text' as const,
 		label: __( 'Name', 'newspack-rolling-coverage' ),
 		placeholder: __( 'Enter coverage name…', 'newspack-rolling-coverage' ),
+		description: (
+			<>
+				{ __(
+					'Used as the headline in LiveBlogPosting structured data when this coverage is shown on a page or post. Choose a reader-facing title rather than an internal label.',
+					'newspack-rolling-coverage'
+				) }{ ' ' }
+				<ExternalLink href="https://schema.org/LiveBlogPosting">
+					{ __( 'Learn more', 'newspack-rolling-coverage' ) }
+				</ExternalLink>
+			</>
+		),
 		required: true,
 	},
 	{

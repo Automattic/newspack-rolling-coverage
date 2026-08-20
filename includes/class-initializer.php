@@ -42,6 +42,7 @@ class Initializer {
 		AI_Service::init();
 		AI_Settings::init();
 		Abilities::init();
+		Schema::init();
 
 		// Admin interface (only load in admin context).
 		if ( is_admin() ) {
@@ -72,6 +73,15 @@ class Initializer {
 	public static function deactivation_hook() {
 		// Flush rewrite rules to ensure the new post type and taxonomy are removed.
 		flush_rewrite_rules(); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.flush_rewrite_rules_flush_rewrite_rules
+
+		// Clear any pending orphaned entry cleanup cron events.
+		$timestamp = wp_next_scheduled( Post_Type::CLEANUP_CRON_HOOK );
+
+		if ( $timestamp ) {
+			wp_unschedule_event( $timestamp, Post_Type::CLEANUP_CRON_HOOK );
+		}
+
+		wp_clear_scheduled_hook( Post_Type::CLEANUP_CRON_HOOK );
 
 		/**
 		 * Action to hook into when Rolling Coverage plugin is deactivated.

@@ -17,6 +17,7 @@ import { SnackbarList } from '@wordpress/components';
 import AdminLayout from './components/admin-layout';
 import CoverageView from './components/coverage-view';
 import EntryView from './components/entry-view';
+import TrashedEntriesView from './components/trashed-entries-view';
 import AIPage from './components/ai-page';
 import ConnectionPage from './components/connection-page';
 import SlackSettingsPage from './components/slack-settings-page';
@@ -29,6 +30,7 @@ import { useAdminContext } from './hooks/useAdminContext';
  * the SPA tracks its own route in the hash. Routes:
  *   /coverages                   — coverage list (auto-redirected from root)
  *   /coverages/{id}              — rolling coverage entries
+ *   /trashed-entries             — all trashed entries (including orphaned)
  *   /ai                          — AI prompt settings
  *   /connection                  — connection page (adapter dispatch)
  *   /connection/{tab}            — adapter-specific settings tab
@@ -91,6 +93,10 @@ function App() {
 							element={ <EntryView /> }
 						/>
 						<Route path="/ai" element={ <AIPage /> } />
+						<Route
+							path="/trashed-entries"
+							element={ <TrashedEntriesView /> }
+						/>
 						<Route
 							path="*"
 							element={ <Navigate to="/coverages" replace /> }

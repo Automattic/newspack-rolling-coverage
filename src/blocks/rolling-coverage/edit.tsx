@@ -217,15 +217,27 @@ export default function Edit( {
 	// Populate the combobox as the user searches.
 	useEffect( () => {
 		let cancelled = false;
+
 		searchCoverages( search ).then( ( results ) => {
-			if ( ! cancelled ) {
-				setOptions( results );
+			if ( cancelled ) {
+				return;
 			}
+
+			// Ensure the currently-selected coverage is always present in the dropdown, even if it was trashed after being selected.
+			if (
+				currentCoverage &&
+				! results.some( ( opt ) => opt.value === currentCoverage.value )
+			) {
+				results = [ currentCoverage, ...results ];
+			}
+
+			setOptions( results );
 		} );
+
 		return () => {
 			cancelled = true;
 		};
-	}, [ search ] );
+	}, [ search, currentCoverage ] );
 
 	// Load the currently connected coverage's status whenever the selection changes.
 	useEffect( () => {
@@ -560,6 +572,14 @@ export default function Edit( {
 			<div { ...blockProps }>
 				{ coverageId ? (
 					<>
+						{ currentCoverage?.status === 'trash' && (
+							<Notice status="error" isDismissible={ false }>
+								{ __(
+									'This coverage has been trashed and is no longer available. Select a different coverage or restore it from the Rolling Coverage admin.',
+									'newspack-rolling-coverage'
+								) }
+							</Notice>
+						) }
 						{ entryContexts.length === 0 && (
 							<Notice status="info" isDismissible={ false }>
 								{ __(

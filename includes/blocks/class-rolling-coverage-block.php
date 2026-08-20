@@ -8,6 +8,8 @@
 
 namespace Newspack_Rolling_Coverage;
 
+use Google\Site_Kit\Modules\Analytics_4;
+use Google\Site_Kit\Modules\Analytics_4\Settings as Site_Kit_Analytics_4_Settings;
 use WP_Block;
 use WP_Block_Type;
 use WP_Block_Type_Registry;
@@ -61,23 +63,30 @@ class Rolling_Coverage_Block {
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register_block' ] );
 		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'localize_block_config' ] );
+		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'localize_frontend_config' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
-		add_action( 'save_post_' . Post_Type::CPT_SLUG, [ __CLASS__, 'update_coverage_last_modified' ], 10, 2 );
+		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 10, 3 );
 	}
 
 	/**
-	 * Updates the coverage's last-modified term meta when a published entry is saved.
+	 * Updates the coverage's last-modified term meta when an entry's status
+	 * changes to or from 'publish', and on saves while already published.
 	 *
-	 * @param int     $post_id Entry post ID.
-	 * @param WP_Post $post    Entry post object.
+	 * @param string  $new_status New post status.
+	 * @param string  $old_status Previous post status.
+	 * @param WP_Post $post       Entry post object.
 	 */
-	public static function update_coverage_last_modified( int $post_id, WP_Post $post ): void {
-		if ( 'publish' !== $post->post_status ) {
+	public static function update_coverage_last_modified( string $new_status, string $old_status, WP_Post $post ): void {
+		if ( Post_Type::CPT_SLUG !== $post->post_type ) {
 			return;
 		}
 
-		$term_ids = wp_get_post_terms( $post_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
+		if ( 'publish' !== $new_status && 'publish' !== $old_status ) {
+			return;
+		}
+
+		$term_ids = wp_get_post_terms( $post->ID, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
 
 		if ( is_wp_error( $term_ids ) || empty( $term_ids ) ) {
 			return;
@@ -140,6 +149,52 @@ class Rolling_Coverage_Block {
 				]
 			);
 		}
+	}
+
+	/**
+	 * Localizes the block's view script with config data.
+	 *
+	 * Runs on wp_enqueue_scripts so the config reaches the frontend, where
+	 * the view script actually runs.
+	 */
+	public static function localize_frontend_config() {
+		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( self::BLOCK_NAME );
+
+		if ( ! $block_type instanceof WP_Block_Type ) {
+			return;
+		}
+
+		$should_track_reader_events = ! current_user_can( 'edit_posts' );
+
+		foreach ( $block_type->view_script_handles as $handle ) {
+			wp_localize_script(
+				$handle,
+				'newspackRollingCoverageFrontend',
+				[
+					'readerTrackingEnabled' => $should_track_reader_events,
+					'siteKitGa4Enabled'     => $should_track_reader_events && self::is_site_kit_ga4_tracking_ready(),
+				]
+			);
+		}
+	}
+
+	/**
+	 * Checks whether Site Kit's GA4 module is ready to receive frontend events.
+	 *
+	 * @return bool Whether GA4 tracking via Site Kit is ready for this request.
+	 */
+	private static function is_site_kit_ga4_tracking_ready(): bool {
+		if ( ! class_exists( Analytics_4::class ) || ! class_exists( Site_Kit_Analytics_4_Settings::class ) ) {
+			return false;
+		}
+
+		$settings = get_option( Site_Kit_Analytics_4_Settings::OPTION, [] );
+
+		if ( ! is_array( $settings ) ) {
+			return false;
+		}
+
+		return ! empty( $settings['useSnippet'] ) && ! empty( $settings['measurementID'] );
 	}
 
 	/**
@@ -215,6 +270,15 @@ class Rolling_Coverage_Block {
 		$status           = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
 		$status           = $status ? $status : 'active';
 
+		// A trashed coverage is effectively invisible on the frontend.
+		if ( 'trash' === $status ) {
+			return sprintf(
+				'<p %s>%s</p>',
+				get_block_wrapper_attributes(),
+				esc_html__( 'This coverage is no longer available.', 'newspack-rolling-coverage' )
+			);
+		}
+
 		$query = new WP_Query(
 			[
 				'post_type'           => Post_Type::CPT_SLUG,
@@ -242,7 +306,7 @@ class Rolling_Coverage_Block {
 
 		foreach ( $query->posts as $entry ) {
 			$entry_index++;
-			$entries_html .= self::render_entry( $entry, $template );
+			$entries_html .= self::render_entry( $entry, $template, 'initial' );
 
 			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
 				$entries_html .= Ads::render_placement()['html'];
@@ -558,9 +622,12 @@ class Rolling_Coverage_Block {
 	 * @param WP_Post $entry    Entry post object.
 	 * @param array[] $template Per-entry inner-block template, as returned
 	 *                          by get_entry_template().
+	 * @param string  $arrival  How the entry first reaches the client:
+	 *                          'initial', 'poll', or 'load_more'. Stamped as
+	 *                          data-arrival for frontend entry-seen tracking.
 	 * @return string Rendered HTML for the entry.
 	 */
-	public static function render_entry( WP_Post $entry, array $template ) {
+	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial' ) {
 		global $post;
 
 		$previous_post = $post;
@@ -589,11 +656,12 @@ class Rolling_Coverage_Block {
 		$post_classes = implode( ' ', get_post_class( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post' ], $entry ) );
 
 		$html = sprintf(
-			'<article id="%1$s" class="%2$s" data-entry-id="%3$d">%4$s</article>',
-			esc_attr( $entry->post_name ),
-			esc_attr( $post_classes ),
+			'<article id="%1$s-entry-%2$d" class="%3$s" data-entry-id="%2$d" data-arrival="%5$s">%4$s</article>',
+			self::MARKUP_PREFIX,
 			$entry->ID,
-			$entry_content
+			esc_attr( $post_classes ),
+			$entry_content,
+			esc_attr( $arrival )
 		);
 
 		return $html;
@@ -842,6 +910,17 @@ class Rolling_Coverage_Block {
 			);
 		}
 
+		// Do not serve entries for a trashed coverage.
+		$coverage_status = get_term_meta( $term_id, Taxonomy::STATUS_META_KEY, true );
+
+		if ( 'trash' === $coverage_status ) {
+			return new WP_Error(
+				'rolling_coverage_coverage_not_found',
+				__( 'Coverage not found.', 'newspack-rolling-coverage' ),
+				[ 'status' => 404 ]
+			);
+		}
+
 		if ( ! $cursor && ! $before ) {
 			return new WP_Error(
 				'rolling_coverage_missing_cursor',
@@ -953,9 +1032,11 @@ class Rolling_Coverage_Block {
 					}
 				}
 
+				// For updates to entries already on the client, data-arrival is left
+				// blank: the client preserves the original value across the replace.
 				$entries[] = [
 					'id'     => $entry->ID,
-					'html'   => self::render_entry( $entry, $template ),
+					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '' ),
 					'type'   => $is_new_entry ? 'insert' : 'update',
 					'adHtml' => $ad_html,
 					'adSlot' => $ad_slot,
@@ -999,7 +1080,7 @@ class Rolling_Coverage_Block {
 
 		foreach ( $query->posts as $entry ) {
 			$entry_index++;
-			$html .= self::render_entry( $entry, $template );
+			$html .= self::render_entry( $entry, $template, 'load_more' );
 
 			$position = $entry_offset + $entry_index;
 			if ( $ads_enabled && Ads::is_capped_ad_position( $position, $ads_interval ) ) {

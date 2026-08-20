@@ -32,14 +32,16 @@ async function searchCoverages( search: string ): Promise< CoverageOption[] > {
 			) }`,
 		} );
 
-		return terms.map( ( term ) => ( {
-			value: String( term.id ),
-			label: String( term.name ),
-			status:
-				( ( term.meta as Record< string, unknown > )?.[
-					STATUS_META_KEY
-				] as string ) || 'active',
-		} ) );
+		return terms
+			.map( ( term ) => ( {
+				value: String( term.id ),
+				label: String( term.name ),
+				status:
+					( ( term.meta as Record< string, unknown > )?.[
+						STATUS_META_KEY
+					] as string ) || 'active',
+			} ) )
+			.filter( ( term ) => term.status !== 'trash' );
 	} catch ( error ) {
 		return [];
 	}

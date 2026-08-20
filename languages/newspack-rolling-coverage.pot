@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-10T20:14:28+00:00\n"
+"POT-Creation-Date: 2026-08-18T19:15:16+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -37,8 +37,8 @@ msgstr ""
 #: includes/ai/class-abilities.php:60
 #: includes/class-admin.php:49
 #: includes/class-admin.php:50
-#: includes/class-taxonomy.php:74
-#: includes/class-taxonomy.php:75
+#: includes/class-taxonomy.php:87
+#: includes/class-taxonomy.php:88
 #: dist/admin.js:1
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Rolling Coverage"
@@ -84,8 +84,10 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:237
-#: includes/blocks/class-rolling-coverage-block.php:595
-#: includes/blocks/class-rolling-coverage-block.php:674
+#: includes/blocks/class-rolling-coverage-block.php:663
+#: includes/blocks/class-rolling-coverage-block.php:742
+#: includes/blocks/class-rolling-coverage-block.php:753
+#: includes/class-taxonomy.php:272
 msgid "Coverage not found."
 msgstr ""
 
@@ -107,20 +109,24 @@ msgstr ""
 msgid "Read more"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:167
+#: includes/blocks/class-rolling-coverage-block.php:222
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Select a coverage to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:221
+#: includes/blocks/class-rolling-coverage-block.php:238
+msgid "This coverage is no longer available."
+msgstr ""
+
+#: includes/blocks/class-rolling-coverage-block.php:285
 msgid "This coverage is currently paused. New updates will appear once it resumes."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:229
+#: includes/blocks/class-rolling-coverage-block.php:293
 msgid "No entries yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:682
+#: includes/blocks/class-rolling-coverage-block.php:761
 msgid "Either cursor or before must be provided."
 msgstr ""
 
@@ -141,7 +147,7 @@ msgstr ""
 msgid "AI"
 msgstr ""
 
-#: includes/class-admin.php:240
+#: includes/class-admin.php:241
 #: dist/admin.js:194
 msgid "Slack"
 msgstr ""
@@ -155,7 +161,8 @@ msgid "Appears at the configured interval in the rolling coverage feed."
 msgstr ""
 
 #: includes/class-breakout.php:195
-#: includes/class-post-type.php:420
+#: includes/class-post-type.php:518
+#: includes/class-post-type.php:776
 msgid "Entry not found."
 msgstr ""
 
@@ -163,46 +170,74 @@ msgstr ""
 msgid "This entry already has a breakout post."
 msgstr ""
 
-#: includes/class-post-type.php:81
+#: includes/class-post-type.php:107
 #: dist/admin.js:194
 msgid "Entries"
 msgstr ""
 
-#: includes/class-post-type.php:82
+#: includes/class-post-type.php:108
 msgid "Entry"
 msgstr ""
 
-#: includes/class-post-type.php:83
+#: includes/class-post-type.php:109
 msgid "Add Entry"
 msgstr ""
 
-#: includes/class-post-type.php:84
+#: includes/class-post-type.php:110
 msgid "Edit Entry"
 msgstr ""
 
-#: includes/class-post-type.php:85
+#: includes/class-post-type.php:111
 #: dist/admin.js:194
 msgid "New Entry"
 msgstr ""
 
-#: includes/class-post-type.php:86
+#: includes/class-post-type.php:112
 msgid "View Entry"
 msgstr ""
 
-#: includes/class-post-type.php:87
+#: includes/class-post-type.php:113
 msgid "Search Entries"
 msgstr ""
 
-#: includes/class-post-type.php:88
+#: includes/class-post-type.php:114
 msgid "No entries found."
 msgstr ""
 
-#: includes/class-post-type.php:89
+#: includes/class-post-type.php:115
 msgid "All Entries"
 msgstr ""
 
-#: includes/class-post-type.php:91
+#: includes/class-post-type.php:117
 msgid "Individual entries within a Rolling Coverage."
+msgstr ""
+
+#: includes/class-post-type.php:693
+msgid "No entry IDs provided."
+msgstr ""
+
+#: includes/class-post-type.php:709
+msgid "You do not have permission to restore this entry."
+msgstr ""
+
+#: includes/class-post-type.php:784
+msgid "Entry is not in trash."
+msgstr ""
+
+#: includes/class-post-type.php:835
+msgid "This entry has no coverage context to restore to."
+msgstr ""
+
+#: includes/class-post-type.php:893
+msgid "Failed to restore entry."
+msgstr ""
+
+#: includes/class-taxonomy.php:397
+msgid "Coverage is not in trash."
+msgstr ""
+
+#: includes/class-taxonomy.php:436
+msgid "Coverage could not be deleted."
 msgstr ""
 
 #: includes/slack/class-slack-api-client.php:269
@@ -398,6 +433,11 @@ msgstr ""
 msgid "🔌 This channel is no longer connected to rolling coverage."
 msgstr ""
 
+#: dist/admin.js:1
+#: dist/admin.js:194
+msgid "Trashed Entries"
+msgstr ""
+
 #. translators: %d: Number of fields that need attention
 #: dist/admin.js:194
 msgid "Name"
@@ -405,6 +445,14 @@ msgstr ""
 
 #: dist/admin.js:194
 msgid "Enter coverage name…"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Used as the headline in LiveBlogPosting structured data when this coverage is shown on a page or post. Choose a reader-facing title rather than an internal label."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Learn more"
 msgstr ""
 
 #: dist/admin.js:194
@@ -508,7 +556,15 @@ msgid "Failed to disconnect."
 msgstr ""
 
 #: dist/admin.js:194
+msgid "Confirm"
+msgstr ""
+
+#: dist/admin.js:194
 msgid "Term ID"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Trash"
 msgstr ""
 
 #: dist/admin.js:194
@@ -521,6 +577,66 @@ msgstr ""
 
 #: dist/admin.js:194
 msgid "Edit"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Are you sure you want to trash this coverage? Its entries will be hidden from the frontend until the coverage is restored."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Are you sure you want to trash these coverages? Their entries will be hidden from the frontend until the coverages are restored."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Coverage trashed."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Coverages trashed."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Failed to trash coverage."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Restore"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Coverage restored."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Coverages restored."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Failed to restore coverage."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Delete Permanently"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Are you sure you want to permanently delete this coverage? This cannot be undone. Associated entries (excluding trashed entries) will be purged"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Are you sure you want to permanently delete these coverages? This cannot be undone. Associated entries (excluding trashed entries) will be purged"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Coverage permanently deleted."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Coverages permanently deleted."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Failed to delete coverage."
 msgstr ""
 
 #: dist/admin.js:194
@@ -565,6 +681,134 @@ msgstr ""
 
 #: dist/admin.js:194
 msgid "Failed to save breakout setting"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Breakout"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Breakout post created."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Failed to create breakout post"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Restore Breakout Post"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Breakout post restored."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Failed to restore breakout post."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Permanently Delete Breakout Post"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Breakout post permanently deleted."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Failed to permanently delete breakout post."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Breakout Setting"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Are you sure you want to trash this entry?"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Are you sure you want to trash these entries?"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Entry trashed."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Entries trashed."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Failed to trash entry."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Pin"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Entry pinned."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Failed to pin entry."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Entry restored. A recovery coverage was created."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Entries restored. Recovery coverages were created where needed."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Entry restored."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Entries restored."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Failed to restore some entries."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Failed to restore entries."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Are you sure you want to permanently delete this entry? This cannot be undone."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Are you sure you want to permanently delete these entries? This cannot be undone."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Entry permanently deleted."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Entries permanently deleted."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Failed to delete entry."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Unpin"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Entry unpinned."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Failed to unpin entry."
 msgstr ""
 
 #: dist/admin.js:194
@@ -624,71 +868,11 @@ msgid "Tags"
 msgstr ""
 
 #: dist/admin.js:194
-msgid "Breakout"
-msgstr ""
-
-#: dist/admin.js:194
 msgid "Failed to create entry"
 msgstr ""
 
 #: dist/admin.js:194
-msgid "Breakout post created."
-msgstr ""
-
-#: dist/admin.js:194
-msgid "Failed to create breakout post"
-msgstr ""
-
-#: dist/admin.js:194
-msgid "Restore Breakout Post"
-msgstr ""
-
-#: dist/admin.js:194
-msgid "Breakout post restored."
-msgstr ""
-
-#: dist/admin.js:194
-msgid "Failed to restore breakout post."
-msgstr ""
-
-#: dist/admin.js:194
-msgid "Permanently Delete Breakout Post"
-msgstr ""
-
-#: dist/admin.js:194
-msgid "Breakout post permanently deleted."
-msgstr ""
-
-#: dist/admin.js:194
-msgid "Failed to permanently delete breakout post."
-msgstr ""
-
-#: dist/admin.js:194
-msgid "Breakout Setting"
-msgstr ""
-
-#: dist/admin.js:194
-msgid "Pin"
-msgstr ""
-
-#: dist/admin.js:194
-msgid "Entry pinned."
-msgstr ""
-
-#: dist/admin.js:194
-msgid "Failed to pin entry."
-msgstr ""
-
-#: dist/admin.js:194
-msgid "Unpin"
-msgstr ""
-
-#: dist/admin.js:194
-msgid "Entry unpinned."
-msgstr ""
-
-#: dist/admin.js:194
-msgid "Failed to unpin entry."
+msgid "No trashed entries found."
 msgstr ""
 
 #: dist/admin.js:194
@@ -1057,6 +1241,10 @@ msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Show an ad after every N entries. Maximum 3 ads for the initial feed and load more; no cap for new entries."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "This coverage has been trashed and is no longer available. Select a different coverage or restore it from the Rolling Coverage admin."
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
