@@ -1,7 +1,12 @@
 /**
+ * WordPress dependencies
+ */
+import { __ } from '@wordpress/i18n';
+
+/**
  * Internal dependencies
  */
-import type { TemplateItem } from './types';
+import type { TemplateItem, EntryEditedState } from './types';
 
 /**
  * Default per-entry template: title, date, content, and a "Read more" link
@@ -39,4 +44,36 @@ const ENTRY_ALLOWED_BLOCKS = [
 	'newspack-rolling-coverage/share',
 ];
 
-export { ENTRY_TEMPLATE, ENTRY_ALLOWED_BLOCKS };
+/**
+ * Builds the className a state's block needs for editor.scss to show/hide it.
+ *
+ * @param {string} stateValue The state's value (see ENTRY_EDITED_STATES).
+ * @return {string} The className for the block's template attrs.
+ */
+function stateBlockClassName( stateValue: string ): string {
+	return `newspack-rolling-coverage-state-block newspack-rolling-coverage-state-block--${ stateValue }`;
+}
+
+/**
+ * The block's editor states. "default" has no extra blocks. Extend by
+ * adding an entry here plus a matching editor.scss rule.
+ */
+const ENTRY_EDITED_STATES: EntryEditedState[] = [
+	{
+		value: 'default',
+		label: __( 'Default', 'newspack-rolling-coverage' ),
+		blocks: [],
+	},
+	{
+		value: 'archived',
+		label: __( 'Archived Coverage', 'newspack-rolling-coverage' ),
+		blocks: [
+			[
+				'newspack-rolling-coverage/coverage-archived-notice',
+				{ className: stateBlockClassName( 'archived' ) },
+			],
+		],
+	},
+];
+
+export { ENTRY_TEMPLATE, ENTRY_ALLOWED_BLOCKS, ENTRY_EDITED_STATES };
