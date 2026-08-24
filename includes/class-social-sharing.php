@@ -100,7 +100,7 @@ class Social_Sharing {
 		$redirect_url = add_query_arg(
 			array_merge( [ self::ENTRY_QUERY_VAR => $slug ], $incoming_params ),
 			$source_url
-		) . '#entry-' . $slug;
+		) . '#' . Rolling_Coverage_Block::MARKUP_PREFIX . '-entry-' . $entry->ID;
 
 		echo '<script>window.location.replace(' . wp_json_encode( $redirect_url ) . ');</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}

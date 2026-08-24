@@ -78,7 +78,7 @@
 	.newspack-rolling-coverage-entry {
 		// Offset anchor targets so fixed headers / the WP admin bar don't
 		// cover the entry when the browser scrolls to
-		// #newspack-rolling-coverage-entry-<slug>. Themes
+		// #newspack-rolling-coverage-entry-<ID>. Themes
 		// with taller fixed headers can override via this custom property.
 		scroll-margin-top: var(--newspack-rolling-coverage-scroll-offset, 80px);
 		padding-bottom: 1.5em;
