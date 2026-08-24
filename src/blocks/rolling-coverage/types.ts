@@ -13,7 +13,7 @@ import type { EVENTS } from './analytics';
 interface CoverageOption {
 	value: string;
 	label: string;
-	status: 'active' | 'paused' | 'archived' | string;
+	status: string;
 }
 
 /**
@@ -160,7 +160,7 @@ type TemplateItem = [ string, Record< string, unknown >?, TemplateItem[]? ];
  * A per-entry template's block instances, as read from the block-editor
  * store.
  */
-type TemplateBlocks = object[];
+type TemplateBlocks = { name: string; [ key: string ]: unknown }[];
 
 export type {
 	CoverageOption,

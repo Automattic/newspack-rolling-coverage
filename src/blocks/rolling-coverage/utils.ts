@@ -25,22 +25,26 @@ import {
  * @return {Promise<CoverageOption[]>} Matching coverages.
  */
 async function searchCoverages( search: string ): Promise< CoverageOption[] > {
-	const terms = await apiFetch< Array< Record< string, unknown > > >( {
-		url: `${ COVERAGES_REST_BASE }?per_page=50&search=${ encodeURIComponent(
-			search
-		) }`,
-	} );
+	try {
+		const terms = await apiFetch< Array< Record< string, unknown > > >( {
+			url: `${ COVERAGES_REST_BASE }?per_page=50&search=${ encodeURIComponent(
+				search
+			) }`,
+		} );
 
-	return terms
-		.map( ( term ) => ( {
-			value: String( term.id ),
-			label: String( term.name ),
-			status:
-				( ( term.meta as Record< string, unknown > )?.[
-					STATUS_META_KEY
-				] as string ) || 'active',
-		} ) )
-		.filter( ( term ) => term.status !== 'trash' );
+		return terms
+			.map( ( term ) => ( {
+				value: String( term.id ),
+				label: String( term.name ),
+				status:
+					( ( term.meta as Record< string, unknown > )?.[
+						STATUS_META_KEY
+					] as string ) || 'active',
+			} ) )
+			.filter( ( term ) => term.status !== 'trash' );
+	} catch ( error ) {
+		return [];
+	}
 }
 
 /**

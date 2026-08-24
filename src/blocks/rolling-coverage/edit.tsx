@@ -25,6 +25,7 @@ import {
 	useState,
 	useEffect,
 	useCallback,
+	useMemo,
 	memo,
 	useRef,
 } from '@wordpress/element';
@@ -42,7 +43,7 @@ import {
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
 } from './utils';
-import { DEFAULT_TEMPLATE, ALLOWED_BLOCKS } from './template';
+import { ENTRY_TEMPLATE, ENTRY_ALLOWED_BLOCKS } from './template';
 import {
 	AI_AVAILABLE,
 	NEWSPACK_ADS_AVAILABLE,
@@ -57,6 +58,23 @@ import type {
 } from './types';
 
 /**
+ * Block names that belong to the per-entry template (everything after the
+ * deep-link CTA). Used to split inner blocks into CTA vs. template.
+ */
+const CTA_BLOCK_NAME = 'newspack-rolling-coverage/deep-link-cta';
+
+/**
+ * Default inner-blocks template for the Rolling Coverage block:
+ * one deep-link CTA at the top, then the per-entry template blocks.
+ */
+const INNER_TEMPLATE = [ [ CTA_BLOCK_NAME ], ...ENTRY_TEMPLATE ];
+
+/**
+ * All block types allowed inside the Rolling Coverage block's inner blocks.
+ */
+const ALL_ALLOWED_BLOCKS = [ ...ENTRY_ALLOWED_BLOCKS, CTA_BLOCK_NAME ];
+
+/**
  * Neutral block context used when a coverage has no published entries yet,
  * so the template can still be edited against something.
  */
@@ -67,41 +85,19 @@ const NEUTRAL_ENTRY_CONTEXT: EntryContext = {
 };
 
 /**
- * The per-entry template canvas. Blocks can be added, moved, or removed,
- * but contextual blocks such as post-title and post-content render their
- * content read-only.
- */
-function EntryTemplatePreview() {
-	const innerBlocksProps = useInnerBlocksProps(
-		{ className: 'newspack-rolling-coverage-entry wp-block-post' },
-		{
-			templateLock: false,
-			allowedBlocks: ALLOWED_BLOCKS,
-			template: DEFAULT_TEMPLATE,
-		}
-	);
-
-	return <div { ...innerBlocksProps } />;
-}
-
-/**
  * A rendering of the per-entry template's current blocks for one real
  * entry. Clicking it makes that entry the active one, swapping in the
  * editable template canvas in its place.
  *
  * @param {Object}   props          Component props.
  * @param {Object[]} props.blocks   The current per-entry template blocks.
- * @param {boolean}  props.isHidden Whether this entry is the active one
- *                                  (and so already shown by the canvas).
  * @param {Function} props.onSelect Called when this entry is clicked.
  */
 function EntryBlockPreview( {
 	blocks,
-	isHidden,
 	onSelect,
 }: {
 	blocks: TemplateBlocks;
-	isHidden: boolean;
 	onSelect: () => void;
 } ) {
 	const blockPreviewProps = useBlockPreview( {
@@ -115,8 +111,12 @@ function EntryBlockPreview( {
 			tabIndex={ 0 }
 			role="button"
 			onClick={ onSelect }
-			onKeyPress={ onSelect }
-			style={ { display: isHidden ? 'none' : undefined } }
+			onKeyDown={ ( event ) => {
+				if ( 'Enter' === event.key || ' ' === event.key ) {
+					event.preventDefault();
+					onSelect();
+				}
+			} }
 		/>
 	);
 }
@@ -137,6 +137,14 @@ export default function Edit( {
 	const { coverageId, pollInterval, entriesPerPage, enableAds, adsInterval } =
 		attributes;
 	const blockProps = useBlockProps();
+	const innerBlocksProps = useInnerBlocksProps(
+		{ className: 'newspack-rolling-coverage-layout' },
+		{
+			template: INNER_TEMPLATE,
+			allowedBlocks: ALL_ALLOWED_BLOCKS,
+			templateLock: false,
+		}
+	);
 
 	const [ search, setSearch ] = useState( '' );
 	const [ options, setOptions ] = useState< CoverageOption[] >( [] );
@@ -168,8 +176,8 @@ export default function Edit( {
 	);
 
 	// Read live from the store so preview copies stay in sync as the
-	// template above is edited.
-	const templateBlocks: TemplateBlocks = useSelect(
+	// template is edited. Filter out the CTA block — only per-entry blocks.
+	const allBlocks: TemplateBlocks = useSelect(
 		( select ) =>
 			(
 				select( blockEditorStore ) as unknown as {
@@ -177,6 +185,13 @@ export default function Edit( {
 				}
 			 ).getBlocks( clientId ),
 		[ clientId ]
+	);
+	const templateBlocks = useMemo(
+		() =>
+			allBlocks.filter(
+				( block: { name: string } ) => block.name !== CTA_BLOCK_NAME
+			),
+		[ allBlocks ]
 	);
 
 	// One-shot fetch (not the front-end's polling/pagination) — the editor
@@ -573,14 +588,22 @@ export default function Edit( {
 								) }
 							</Notice>
 						) }
+						<BlockContextProvider
+							value={
+								entryContexts.length > 0
+									? entryContexts.find(
+											( c ) =>
+												c.postId ===
+												( activeEntryId ??
+													entryContexts[ 0 ]?.postId )
+									  ) ?? NEUTRAL_ENTRY_CONTEXT
+									: NEUTRAL_ENTRY_CONTEXT
+							}
+						>
+							<div { ...innerBlocksProps } />
+						</BlockContextProvider>
 						<div className="newspack-rolling-coverage-entries">
-							{ entryContexts.length === 0 ? (
-								<BlockContextProvider
-									value={ NEUTRAL_ENTRY_CONTEXT }
-								>
-									<EntryTemplatePreview />
-								</BlockContextProvider>
-							) : (
+							{ entryContexts.length > 0 &&
 								entryContexts.map( ( context ) => {
 									const isActive =
 										context.postId ===
@@ -592,22 +615,19 @@ export default function Edit( {
 											key={ context.postId }
 											value={ context }
 										>
-											{ isActive ? (
-												<EntryTemplatePreview />
-											) : null }
-											<MemoizedEntryBlockPreview
-												blocks={ templateBlocks }
-												isHidden={ isActive }
-												onSelect={ () =>
-													setActiveEntryId(
-														context.postId
-													)
-												}
-											/>
+											{ ! isActive && (
+												<MemoizedEntryBlockPreview
+													blocks={ templateBlocks }
+													onSelect={ () =>
+														setActiveEntryId(
+															context.postId
+														)
+													}
+												/>
+											) }
 										</BlockContextProvider>
 									);
-								} )
-							) }
+								} ) }
 						</div>
 					</>
 				) : (

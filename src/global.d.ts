@@ -39,6 +39,18 @@ declare module '@wordpress/block-editor' {
 		options?: Record< string, unknown >
 	): Record< string, unknown >;
 
+	export const RichText: ComponentType< {
+		tagName?: string;
+		className?: string;
+		value?: string;
+		onChange?: ( value: string ) => void;
+		placeholder?: string;
+		allowedFormats?: string[];
+		onClick?: ( event: React.MouseEvent ) => void;
+		type?: string;
+		[ key: string ]: unknown;
+	} >;
+
 	export const InspectorControls: ComponentType< {
 		children?: ReactNode;
 	} >;
