@@ -116,7 +116,7 @@ class Taxonomy {
 				'single'            => true,
 				'type'              => 'string',
 				'default'           => '',
-				'sanitize_callback' => 'esc_url_raw',
+				'sanitize_callback' => [ __CLASS__, 'sanitize_canonical_url' ],
 			],
 			// ISO 8601 timestamp the coverage term was first created (set once via the created_ hook).
 			self::CREATED_AT_META_KEY                      => [
@@ -192,6 +192,26 @@ class Taxonomy {
 		foreach ( $term_meta as $meta_key => $meta_args ) {
 			register_term_meta( self::TAXONOMY_SLUG, $meta_key, $meta_args );
 		}
+	}
+
+	/**
+	 * Sanitizes the canonical URL meta value, rejecting anything not on the
+	 * site's own host.
+	 *
+	 * @param mixed $value Raw meta value.
+	 * @return string Sanitized URL, or '' if empty or off-site.
+	 */
+	public static function sanitize_canonical_url( $value ): string {
+		$url = esc_url_raw( (string) $value );
+
+		if ( '' === $url ) {
+			return '';
+		}
+
+		$url_host  = wp_parse_url( $url, PHP_URL_HOST ) ?? '';
+		$site_host = wp_parse_url( home_url(), PHP_URL_HOST ) ?? '';
+
+		return strtolower( $url_host ) === strtolower( $site_host ) ? $url : '';
 	}
 
 	/**
