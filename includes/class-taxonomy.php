@@ -111,7 +111,7 @@ class Taxonomy {
 				'default'      => self::STATUS_ACTIVE,
 			],
 			// Canonical URL to build push-notification links from; empty until set.
-			self::CANONICAL_URL_META_KEY  => [
+			self::CANONICAL_URL_META_KEY                   => [
 				'show_in_rest'      => true,
 				'single'            => true,
 				'type'              => 'string',
