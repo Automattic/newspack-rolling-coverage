@@ -135,7 +135,7 @@ class Push_Notifications {
 	}
 
 	/**
-	 * Persists the checkbox's state, unchecking it on a publish save.
+	 * Persists the editor's notification intent before publish.
 	 *
 	 * @param int $post_id Entry post id.
 	 */
@@ -158,11 +158,13 @@ class Push_Notifications {
 			return;
 		}
 
-		// Uncheck if this save just published.
-		$checked = isset( $_POST[ self::NOTIFY_META_KEY ] ) && ! empty( $_POST[ self::NOTIFY_META_KEY ] );
-		$notify  = $checked && 'publish' !== get_post_status( $post_id );
+		if ( 'publish' === get_post_status( $post_id ) ) {
+			return;
+		}
 
-		update_post_meta( $post_id, self::NOTIFY_META_KEY, $notify );
+		$checked = isset( $_POST[ self::NOTIFY_META_KEY ] ) && ! empty( $_POST[ self::NOTIFY_META_KEY ] );
+
+		update_post_meta( $post_id, self::NOTIFY_META_KEY, $checked );
 	}
 
 	/**
@@ -212,14 +214,12 @@ class Push_Notifications {
 	}
 
 	/**
-	 * Sends the notification if the checkbox was checked.
+	 * Sends a notification when the entry is opted in and published.
 	 *
-	 * Only fires on a genuine publish, not a resave of an already-published
-	 * entry: add_meta_box() only renders the checkbox (and its nonce) while
-	 * the entry isn't published yet, so a resave never has it in $_POST.
+	 * Skips entries with an existing os_notification_id to avoid duplicate sends.
 	 *
 	 * @param string  $new_status New post status.
-	 * @param string  $old_status Previous post status (unused).
+	 * @param string  $old_status Previous post status.
 	 * @param WP_Post $post       Post being transitioned.
 	 */
 	public static function maybe_notify( string $new_status, string $old_status, WP_Post $post ): void {
@@ -231,17 +231,12 @@ class Push_Notifications {
 			return;
 		}
 
-		if ( ! isset( $_POST[ self::NONCE_NAME ] ) ) {
+		// OneSignal sets this meta after a successful send.
+		if ( ! empty( get_post_meta( $post->ID, 'os_notification_id', true ) ) ) {
 			return;
 		}
 
-		$nonce = sanitize_text_field( wp_unslash( $_POST[ self::NONCE_NAME ] ) );
-
-		if ( ! wp_verify_nonce( $nonce, self::NONCE_ACTION ) ) {
-			return;
-		}
-
-		if ( empty( $_POST[ self::NOTIFY_META_KEY ] ) ) {
+		if ( ! self::resolve_notify_intent( $post, $old_status ) ) {
 			return;
 		}
 
@@ -255,9 +250,57 @@ class Push_Notifications {
 			return;
 		}
 
+		$sent = false;
+
 		foreach ( $term_ids as $term_id ) {
-			self::notify_coverage_subscribers( (int) $term_id, $post );
+			if ( self::notify_coverage_subscribers( (int) $term_id, $post ) ) {
+				$sent = true;
+			}
 		}
+
+		if ( $sent ) {
+			delete_post_meta( $post->ID, self::NOTIFY_META_KEY );
+		}
+	}
+
+	/**
+	 * Resolves notification intent for this publish.
+	 *
+	 * Uses the current request when available, otherwise falls back to saved
+	 * intent for scheduled or programmatic publishes.
+	 *
+	 * @param WP_Post $post       Post being transitioned.
+	 * @param string  $old_status Previous post status.
+	 * @return bool
+	 */
+	private static function resolve_notify_intent( WP_Post $post, string $old_status ): bool {
+		if ( isset( $_POST[ self::NONCE_NAME ] ) ) {
+			$nonce = sanitize_text_field( wp_unslash( $_POST[ self::NONCE_NAME ] ) );
+
+			if ( ! wp_verify_nonce( $nonce, self::NONCE_ACTION ) ) {
+				return false;
+			}
+
+			if ( ! current_user_can( 'edit_post', $post->ID ) ) {
+				return false;
+			}
+
+			$has_intent = ! empty( $_POST[ self::NOTIFY_META_KEY ] );
+
+			if ( $has_intent ) {
+				update_post_meta( $post->ID, self::NOTIFY_META_KEY, true );
+			} else {
+				delete_post_meta( $post->ID, self::NOTIFY_META_KEY );
+			}
+
+			return $has_intent;
+		}
+
+		if ( 'publish' === $old_status ) {
+			return false;
+		}
+
+		return (bool) get_post_meta( $post->ID, self::NOTIFY_META_KEY, true );
 	}
 
 	/**

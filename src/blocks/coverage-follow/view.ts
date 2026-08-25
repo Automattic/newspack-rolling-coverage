@@ -7,6 +7,9 @@ import type { OneSignalApi } from './types';
 // Matches the button markup rendered server-side by Coverage_Follow_Block::render_block().
 const FOLLOW_BUTTON_SELECTOR = '.newspack-rolling-coverage-follow';
 
+// How long to wait for the OneSignal SDK before treating a click as failed.
+const SDK_WAIT_TIMEOUT_MS = 10000;
+
 /**
  * Updates a button's label and aria-pressed for a follow state.
  *
@@ -145,8 +148,22 @@ function initFollowButton( button: HTMLButtonElement ): void {
 			button.disabled = false;
 		};
 
+		let hasResolvedSdkWait = false;
+		const timeoutId = window.setTimeout( () => {
+			hasResolvedSdkWait = true;
+			revert( button.dataset.errorMessage || '' );
+		}, SDK_WAIT_TIMEOUT_MS );
+
 		window.OneSignalDeferred = window.OneSignalDeferred || [];
 		window.OneSignalDeferred.push( async ( OneSignal ) => {
+			// Already reverted by the timeout; ignore a late-loading SDK.
+			if ( hasResolvedSdkWait ) {
+				return;
+			}
+
+			hasResolvedSdkWait = true;
+			window.clearTimeout( timeoutId );
+
 			try {
 				if ( ! willFollow ) {
 					OneSignal.User.removeTag( tag );
