@@ -18,10 +18,14 @@ import type { Field, ViewState, Coverage } from '../types';
  * Field definitions for the coverage DataViews table.
  * Configures columns: term ID, name, entry count, status, created date, modified date.
  *
- * @param {string} statusKey Meta key for the coverage status (from AdminConfig).
+ * @param {string} statusKey       Meta key for the coverage status (from AdminConfig).
+ * @param {string} lastModifiedKey Meta key for the coverage's latest entry activity (from AdminConfig).
  * @return {Field< Coverage >[]} Field definitions for the coverage table.
  */
-function getCoverageFields( statusKey: string ): Field< Coverage >[] {
+function getCoverageFields(
+	statusKey: string,
+	lastModifiedKey: string
+): Field< Coverage >[] {
 	return [
 		{
 			id: 'term_id',
@@ -64,6 +68,10 @@ function getCoverageFields( statusKey: string ): Field< Coverage >[] {
 					value: 'archived',
 					label: __( 'Archived', 'newspack-rolling-coverage' ),
 				},
+				{
+					value: 'trash',
+					label: __( 'Trash', 'newspack-rolling-coverage' ),
+				},
 			],
 			filterBy: {
 				operators: [ 'is', 'isNot' ],
@@ -96,19 +104,21 @@ function getCoverageFields( statusKey: string ): Field< Coverage >[] {
 				safeFormatUTCDate( item.meta?.created_at ),
 		},
 		{
-			id: 'modified_at',
+			id: 'last_modified',
 			type: 'datetime',
 			label: __( 'Modified', 'newspack-rolling-coverage' ),
 			enableSorting: true,
 			getValue: ( { item } ) =>
-				safeFormatUTCDate( item.meta?.modified_at ),
+				safeFormatUTCDate(
+					item.meta?.[ lastModifiedKey ] as string | undefined
+				),
 		},
 	];
 }
 
 /**
  * Default view state for the coverage list: table layout, unsorted,
- * showing count, status, created_at, and modified_at columns.
+ * showing count, status, created_at, and last_modified columns.
  */
 const defaultCoverageView: ViewState = {
 	type: 'table',
@@ -117,7 +127,13 @@ const defaultCoverageView: ViewState = {
 	sort: { field: 'name', direction: 'asc' },
 	search: '',
 	filters: [],
-	fields: [ 'count', 'status', 'slack_channel', 'created_at', 'modified_at' ],
+	fields: [
+		'count',
+		'status',
+		'slack_channel',
+		'created_at',
+		'last_modified',
+	],
 	titleField: 'name',
 	layout: {},
 };

@@ -1,10 +1,17 @@
-.newspack-rolling-coverage-breakout-post-link {
-	display: inline-block;
-	margin-top: 0.5em;
-	margin-right: 0.5em;
+.newspack-rolling-coverage-follow {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
+	margin: 0.5em 0;
 	cursor: pointer;
 	box-sizing: border-box;
 	text-decoration: none;
+	border: none;
+	font: inherit;
+
+	&:disabled {
+		cursor: default;
+	}
 
 	&.alignleft {
 
@@ -28,7 +35,7 @@
 }
 
 // Fallback styling for themes with no `styles.elements.button` defined.
-:where(.newspack-rolling-coverage-breakout-post-link) {
+:where(.newspack-rolling-coverage-follow) {
 	padding: calc(0.667em + 2px) calc(1.333em + 2px);
 	border-radius: 9999px;
 }

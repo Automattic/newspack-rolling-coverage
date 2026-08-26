@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { useState, useCallback, useEffect } from '@wordpress/element';
-import { Modal, Button } from '@wordpress/components';
+import { Modal, Button, ExternalLink } from '@wordpress/components';
 import { DataForm } from '@wordpress/dataviews/wp';
 import { __ } from '@wordpress/i18n';
 
@@ -19,6 +19,17 @@ const coverageFields = [
 		type: 'text' as const,
 		label: __( 'Name', 'newspack-rolling-coverage' ),
 		placeholder: __( 'Enter coverage name…', 'newspack-rolling-coverage' ),
+		description: (
+			<>
+				{ __(
+					'Used as the headline in LiveBlogPosting structured data when this coverage is shown on a page or post. Choose a reader-facing title rather than an internal label.',
+					'newspack-rolling-coverage'
+				) }{ ' ' }
+				<ExternalLink href="https://schema.org/LiveBlogPosting">
+					{ __( 'Learn more', 'newspack-rolling-coverage' ) }
+				</ExternalLink>
+			</>
+		),
 		required: true,
 	},
 	{
@@ -46,11 +57,29 @@ const coverageFields = [
 			},
 		],
 	},
+	{
+		id: 'canonicalUrl',
+		type: 'text' as const,
+		label: __( 'Canonical URL', 'newspack-rolling-coverage' ),
+		placeholder: __(
+			'https://example.com/live-coverage',
+			'newspack-rolling-coverage'
+		),
+		description: __(
+			'The page readers land on when they open a notification for this coverage.',
+			'newspack-rolling-coverage'
+		),
+	},
 ];
 
 const coverageForm = {
 	type: 'regular' as const,
-	fields: [ { id: 'name' }, { id: 'description' }, { id: 'status' } ],
+	fields: [
+		{ id: 'name' },
+		{ id: 'description' },
+		{ id: 'status' },
+		{ id: 'canonicalUrl' },
+	],
 };
 
 /**
@@ -70,6 +99,8 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 			( coverage?.meta?.[
 				taxMeta.statusKey
 			] as Coverage[ 'meta' ][ 'rolling_coverage_status' ] ) || 'active',
+		canonicalUrl:
+			( coverage?.meta?.[ taxMeta.canonicalUrlKey ] as string ) || '',
 	} );
 	const [ isSaving, setIsSaving ] = useState( false );
 	const [ error, setError ] = useState< string | null >( null );
@@ -85,16 +116,20 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 						taxMeta.statusKey
 					] as Coverage[ 'meta' ][ 'rolling_coverage_status' ] ) ||
 					'active',
+				canonicalUrl:
+					( coverage.meta?.[ taxMeta.canonicalUrlKey ] as string ) ||
+					'',
 			} );
 		} else {
 			setData( {
 				name: '',
 				description: '',
 				status: 'active',
+				canonicalUrl: '',
 			} );
 		}
 		setError( null );
-	}, [ coverage, taxMeta.statusKey ] );
+	}, [ coverage, taxMeta.statusKey, taxMeta.canonicalUrlKey ] );
 
 	const handleChange = useCallback(
 		( edits: Partial< CoverageFormData > ) => {
@@ -111,10 +146,12 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 		const result = await saveCoverage(
 			restBaseUrls.coverages,
 			taxMeta.statusKey,
+			taxMeta.canonicalUrlKey,
 			{
 				name: data.name,
 				description: data.description,
 				status: data.status,
+				canonicalUrl: data.canonicalUrl,
 			},
 			isEditing && coverage ? coverage.id : undefined
 		);

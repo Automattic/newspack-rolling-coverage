@@ -3,12 +3,18 @@
  */
 
 /**
+ * Internal dependencies
+ */
+import type { EVENTS } from './analytics';
+
+/**
  * A coverage term, as shown in the editor's coverage combobox.
  */
 interface CoverageOption {
 	value: string;
 	label: string;
-	status: 'active' | 'paused' | 'archived' | string;
+	status: string;
+	canonicalUrl: string;
 }
 
 /**
@@ -46,12 +52,33 @@ interface EditProps {
 interface BlockConfig {
 	coveragesRestBase: string;
 	statusMetaKey: string;
+	canonicalUrlMetaKey: string;
 	entriesPreviewRestBase: string;
 	aiEndpoint: string;
 	aiAvailable: boolean;
 	newspackAdsAvailable: boolean;
 	newspackAdsPlacementEnabled: boolean;
 }
+
+/**
+ * Frontend config localised by wp_localize_script in
+ * Rolling_Coverage_Block::localize_frontend_config().
+ */
+interface FrontendConfig {
+	readerTrackingEnabled: string;
+	siteKitGa4Enabled: string;
+}
+
+/**
+ * Arbitrary event parameters attached to a tracked event.
+ */
+type EventParams = Record< string, unknown >;
+
+/**
+ * Analytics event names emitted by the rolling coverage frontend, derived
+ * from the EVENTS object in analytics.ts.
+ */
+type EventName = ( typeof EVENTS )[ keyof typeof EVENTS ];
 
 /**
  * Block context for a single real entry, used by the editor's per-entry
@@ -135,7 +162,7 @@ type TemplateItem = [ string, Record< string, unknown >?, TemplateItem[]? ];
  * A per-entry template's block instances, as read from the block-editor
  * store.
  */
-type TemplateBlocks = object[];
+type TemplateBlocks = { name: string; [ key: string ]: unknown }[];
 
 export type {
 	CoverageOption,
@@ -143,6 +170,9 @@ export type {
 	ApplyNotice,
 	EditProps,
 	BlockConfig,
+	FrontendConfig,
+	EventParams,
+	EventName,
 	EntryContext,
 	PollEntry,
 	PollResponse,

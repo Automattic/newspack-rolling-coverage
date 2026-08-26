@@ -32,7 +32,7 @@
 		"lint:scss:staged": "newspack-scripts wp-scripts lint-style --customSyntax postcss-scss",
 		"format:scss": "newspack-scripts wp-scripts lint-style '**/{src,includes}/**/*.scss' --customSyntax postcss-scss --fix",
 		"release": "npm run build && npm run semantic-release",
-		"release:archive": "npm run build && composer dump-autoload && rm -rf release && mkdir -p release && rsync -r . ./release/newspack-rolling-coverage --exclude-from='./.distignore' --exclude='release' && cd release && zip -r newspack-rolling-coverage.zip newspack-rolling-coverage"
+		"release:archive": "npm run build && composer install --no-dev --optimize-autoloader && rm -rf release && mkdir -p release && rsync -r . ./release/newspack-rolling-coverage --exclude-from='./.distignore' --exclude='release' && cd release && zip -r newspack-rolling-coverage.zip newspack-rolling-coverage && cd .. && composer install"
 	},
 	"browserslist": [
 		"extends @wordpress/browserslist-config"
@@ -43,7 +43,7 @@
 		"*.php": "npm run lint:php:staged"
 	},
 	"overrides": {
-		"@ariakit/react-components": "0.3.1"
+		"@ariakit/react-components": "0.4.1"
 	},
 	"devDependencies": {
 		"newspack-scripts": "^5.9.8",

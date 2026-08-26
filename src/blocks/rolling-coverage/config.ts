@@ -1,12 +1,15 @@
 /**
  * Internal dependencies
  */
-import type { BlockConfig } from './types';
+import type { FrontendConfig, BlockConfig } from './types';
 
-// Augment Window with globals injected by wp_localize_script and external ad scripts.
+// Augment Window with globals injected by wp_localize_script and external scripts.
 declare global {
 	interface Window {
 		newspackRollingCoverageBlock?: BlockConfig;
+		newspackRollingCoverageFrontend?: FrontendConfig;
+		dataLayer?: Record< string, unknown >[];
+		gtag?: ( ...args: unknown[] ) => void;
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		googletag?: any;
 	}
@@ -23,6 +26,7 @@ if ( ! config ) {
 const {
 	coveragesRestBase: COVERAGES_REST_BASE,
 	statusMetaKey: STATUS_META_KEY,
+	canonicalUrlMetaKey: CANONICAL_URL_META_KEY,
 	entriesPreviewRestBase: ENTRIES_PREVIEW_REST_BASE,
 	aiEndpoint: AI_ENDPOINT,
 	aiAvailable: AI_AVAILABLE,
@@ -38,4 +42,5 @@ export {
 	AI_AVAILABLE,
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
+	CANONICAL_URL_META_KEY,
 };

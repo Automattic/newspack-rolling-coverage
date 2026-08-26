@@ -13,7 +13,6 @@ import { SlackIcon } from '../shared/icons/slack-icon';
 import { TermChips } from '../shared/term-chips';
 import {
 	truncate,
-	safeFormatUTCDate,
 	getEmbeddedTerms,
 	getEntrySource,
 	SOURCE_SLACK,
@@ -103,7 +102,6 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			type: 'datetime',
 			label: __( 'Modified', 'newspack-rolling-coverage' ),
 			enableSorting: true,
-			getValue: ( { item } ) => safeFormatUTCDate( item.modified ),
 		},
 		{
 			id: 'author',

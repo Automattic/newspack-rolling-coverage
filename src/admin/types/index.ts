@@ -42,6 +42,8 @@ interface AdminConfig {
 	taxonomy: string;
 	taxMeta: {
 		statusKey: string;
+		lastModifiedKey: string;
+		canonicalUrlKey: string;
 	};
 	aiSettings: AiSettings;
 	aiDefaultSettings: AiSettings;
@@ -55,11 +57,13 @@ interface AdminConfig {
 
 interface Context {
 	selectedCoverage: Coverage | null;
+	refreshKey: number;
 }
 
 type ContextExports = [
 	context: Context,
 	setContext: React.Dispatch< React.SetStateAction< Context > >,
+	refresh: () => void,
 ];
 
 interface Coverage {
@@ -70,9 +74,11 @@ interface Coverage {
 	description: string;
 	count: number;
 	meta: {
-		rolling_coverage_status?: 'active' | 'paused' | 'archived';
+		rolling_coverage_status?: 'active' | 'paused' | 'archived' | 'trash';
+		rolling_coverage_canonical_url?: string;
 		created_at?: string;
 		modified_at?: string;
+		rolling_coverage_last_modified?: string;
 		rolling_coverage_slack_channel_id?: string;
 		rolling_coverage_slack_channel_name?: string;
 		[ key: string ]: unknown;
@@ -214,6 +220,21 @@ interface CoverageFormData {
 	name: string;
 	description: string;
 	status: 'active' | 'paused' | 'archived';
+	canonicalUrl: string;
+}
+
+interface BulkRestoreEntryResult {
+	entryId: number;
+	restored: boolean;
+	coverageId?: number;
+	coverageStatus?: string;
+	coverageCreated?: boolean;
+	entryStatus?: string;
+	error?: string;
+}
+
+interface BulkRestoreResult extends ApiResult {
+	results?: BulkRestoreEntryResult[];
 }
 
 interface ConfirmModalContentProps {
@@ -223,10 +244,6 @@ interface ConfirmModalContentProps {
 	isDestructive?: boolean;
 	onConfirm: () => Promise< void >;
 	onClose: () => void;
-}
-
-interface ConfirmModalProps extends ConfirmModalContentProps {
-	title: string;
 }
 
 interface UseCoveragesOptions {
@@ -260,6 +277,7 @@ interface SaveCoverageData {
 	name: string;
 	description: string;
 	status: string;
+	canonicalUrl: string;
 }
 
 interface BreakoutModalProps {
@@ -543,11 +561,12 @@ export type {
 	BreakoutFormData,
 	CreateBreakoutResponse,
 	CreateBreakoutResult,
-	ConfirmModalProps,
 	ConfirmModalContentProps,
 	SaveCoverageData,
 	ChipLinkProps,
 	TermChipsProps,
+	BulkRestoreEntryResult,
+	BulkRestoreResult,
 	AiSettings,
 	AdminHeaderProps,
 	SlackConnectionModalProps,

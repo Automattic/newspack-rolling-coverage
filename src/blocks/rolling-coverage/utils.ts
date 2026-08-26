@@ -14,6 +14,7 @@ import type { CoverageOption, EntryContext } from './types';
 import {
 	COVERAGES_REST_BASE,
 	STATUS_META_KEY,
+	CANONICAL_URL_META_KEY,
 	ENTRIES_PREVIEW_REST_BASE,
 	AI_ENDPOINT,
 } from './config';
@@ -25,20 +26,30 @@ import {
  * @return {Promise<CoverageOption[]>} Matching coverages.
  */
 async function searchCoverages( search: string ): Promise< CoverageOption[] > {
-	const terms = await apiFetch< Array< Record< string, unknown > > >( {
-		url: `${ COVERAGES_REST_BASE }?per_page=50&search=${ encodeURIComponent(
-			search
-		) }`,
-	} );
+	try {
+		const terms = await apiFetch< Array< Record< string, unknown > > >( {
+			url: `${ COVERAGES_REST_BASE }?per_page=50&search=${ encodeURIComponent(
+				search
+			) }`,
+		} );
 
-	return terms.map( ( term ) => ( {
-		value: String( term.id ),
-		label: String( term.name ),
-		status:
-			( ( term.meta as Record< string, unknown > )?.[
-				STATUS_META_KEY
-			] as string ) || 'active',
-	} ) );
+		return terms
+			.map( ( term ) => ( {
+				value: String( term.id ),
+				label: String( term.name ),
+				status:
+					( ( term.meta as Record< string, unknown > )?.[
+						STATUS_META_KEY
+					] as string ) || 'active',
+				canonicalUrl:
+					( ( term.meta as Record< string, unknown > )?.[
+						CANONICAL_URL_META_KEY
+					] as string ) || '',
+			} ) )
+			.filter( ( term ) => term.status !== 'trash' );
+	} catch ( error ) {
+		return [];
+	}
 }
 
 /**
@@ -64,6 +75,10 @@ async function getCoverage( id: number ): Promise< CoverageOption | null > {
 				( ( term.meta as Record< string, unknown > )?.[
 					STATUS_META_KEY
 				] as string ) || 'active',
+			canonicalUrl:
+				( ( term.meta as Record< string, unknown > )?.[
+					CANONICAL_URL_META_KEY
+				] as string ) || '',
 		};
 	} catch ( error ) {
 		return null;
@@ -86,6 +101,30 @@ async function updateCoverageStatus(
 			url: `${ COVERAGES_REST_BASE }/${ id }`,
 			method: 'POST',
 			data: { meta: { [ STATUS_META_KEY ]: status } },
+		} );
+		return true;
+	} catch ( error ) {
+		return false;
+	}
+}
+
+/**
+ * Updates a coverage term's canonical URL, used to build push-notification
+ * links for its entries.
+ *
+ * @param {number} id  Coverage term ID.
+ * @param {string} url New canonical URL value.
+ * @return {Promise<boolean>} Whether the update succeeded.
+ */
+async function updateCoverageCanonicalUrl(
+	id: number,
+	url: string
+): Promise< boolean > {
+	try {
+		await apiFetch( {
+			url: `${ COVERAGES_REST_BASE }/${ id }`,
+			method: 'POST',
+			data: { meta: { [ CANONICAL_URL_META_KEY ]: url } },
 		} );
 		return true;
 	} catch ( error ) {
@@ -158,6 +197,7 @@ export {
 	searchCoverages,
 	getCoverage,
 	updateCoverageStatus,
+	updateCoverageCanonicalUrl,
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
 };
