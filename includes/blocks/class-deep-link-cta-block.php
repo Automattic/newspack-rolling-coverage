@@ -24,6 +24,9 @@ defined( 'ABSPATH' ) || exit;
  */
 class Deep_Link_CTA_Block {
 
+	// Block name, as registered in block.json.
+	const BLOCK_NAME = 'newspack-rolling-coverage/deep-link-cta';
+
 	/**
 	 * Initialize hooks.
 	 */

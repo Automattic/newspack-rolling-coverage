@@ -14,6 +14,7 @@ interface CoverageOption {
 	value: string;
 	label: string;
 	status: string;
+	canonicalUrl: string;
 }
 
 /**
@@ -51,6 +52,7 @@ interface EditProps {
 interface BlockConfig {
 	coveragesRestBase: string;
 	statusMetaKey: string;
+	canonicalUrlMetaKey: string;
 	entriesPreviewRestBase: string;
 	aiEndpoint: string;
 	aiAvailable: boolean;

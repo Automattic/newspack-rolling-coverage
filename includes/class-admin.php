@@ -233,6 +233,7 @@ class Admin {
 			'taxMeta'             => array(
 				'statusKey'       => Taxonomy::STATUS_META_KEY,
 				'lastModifiedKey' => Rolling_Coverage_Block::LAST_MODIFIED_META_KEY,
+				'canonicalUrlKey' => Taxonomy::CANONICAL_URL_META_KEY,
 			),
 			'slack'               => array(
 				'isConfigured' => Slack_Config::is_configured(),

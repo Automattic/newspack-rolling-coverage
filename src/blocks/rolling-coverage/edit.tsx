@@ -26,10 +26,11 @@ import {
 	useEffect,
 	useCallback,
 	useMemo,
-	memo,
 	useRef,
+	memo,
 } from '@wordpress/element';
 import { useSelect } from '@wordpress/data';
+import { store as editorStore } from '@wordpress/editor';
 import { __ } from '@wordpress/i18n';
 import { megaphone, copy as copyIcon, check } from '@wordpress/icons';
 
@@ -40,6 +41,7 @@ import {
 	searchCoverages,
 	getCoverage,
 	updateCoverageStatus,
+	updateCoverageCanonicalUrl,
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
 } from './utils';
@@ -64,15 +66,35 @@ import type {
 const CTA_BLOCK_NAME = 'newspack-rolling-coverage/deep-link-cta';
 
 /**
- * Default inner-blocks template for the Rolling Coverage block:
- * one deep-link CTA at the top, then the per-entry template blocks.
+ * The follow button block, rendered once at the top of the coverage rather
+ * than per entry.
  */
-const INNER_TEMPLATE = [ [ CTA_BLOCK_NAME ], ...ENTRY_TEMPLATE ];
+const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
+
+/**
+ * Block names that render once at the top of the coverage (not per entry).
+ * Used to split inner blocks into these vs. the per-entry template.
+ */
+const RENDER_ONCE_BLOCKS = [ FOLLOW_BLOCK_NAME, CTA_BLOCK_NAME ];
+
+/**
+ * Default inner-blocks template for the Rolling Coverage block:
+ * the follow button and deep-link CTA at the top, then the per-entry blocks.
+ */
+const INNER_TEMPLATE = [
+	[ FOLLOW_BLOCK_NAME ],
+	[ CTA_BLOCK_NAME ],
+	...ENTRY_TEMPLATE,
+];
 
 /**
  * All block types allowed inside the Rolling Coverage block's inner blocks.
  */
-const ALL_ALLOWED_BLOCKS = [ ...ENTRY_ALLOWED_BLOCKS, CTA_BLOCK_NAME ];
+const ALL_ALLOWED_BLOCKS = [
+	...ENTRY_ALLOWED_BLOCKS,
+	CTA_BLOCK_NAME,
+	FOLLOW_BLOCK_NAME,
+];
 
 /**
  * Neutral block context used when a coverage has no published entries yet,
@@ -155,6 +177,9 @@ export default function Edit( {
 	const [ applyNotice, setApplyNotice ] = useState< ApplyNotice | null >(
 		null
 	);
+	const [ pendingCanonicalUrl, setPendingCanonicalUrl ] =
+		useState< string >( '' );
+	const [ isApplyingUrl, setIsApplyingUrl ] = useState( false );
 	const [ entryContexts, setEntryContexts ] = useState< EntryContext[] >(
 		[]
 	);
@@ -189,10 +214,39 @@ export default function Edit( {
 	const templateBlocks = useMemo(
 		() =>
 			allBlocks.filter(
-				( block: { name: string } ) => block.name !== CTA_BLOCK_NAME
+				( block: { name: string } ) =>
+					! RENDER_ONCE_BLOCKS.includes( block.name )
 			),
 		[ allBlocks ]
 	);
+
+	// Derives the current page's permalink, and whether it's still a
+	// placeholder ".../auto-draft/" URL because the post is unsaved.
+	const { currentPagePermalink, isCurrentPageUnsaved } = useSelect(
+		( select ) => {
+			const editor = select( editorStore ) as unknown as {
+				getPermalink: () => string | null;
+				isEditedPostNew: () => boolean;
+			};
+			return {
+				currentPagePermalink: editor.getPermalink(),
+				isCurrentPageUnsaved: editor.isEditedPostNew(),
+			};
+		},
+		[]
+	);
+
+	// Drives auto-applying the canonical URL on post save, below.
+	const { isSavingPost, isAutosavingPost } = useSelect( ( select ) => {
+		const editor = select( editorStore ) as unknown as {
+			isSavingPost: () => boolean;
+			isAutosavingPost: () => boolean;
+		};
+		return {
+			isSavingPost: editor.isSavingPost(),
+			isAutosavingPost: editor.isAutosavingPost(),
+		};
+	}, [] );
 
 	// One-shot fetch (not the front-end's polling/pagination) — the editor
 	// only needs a representative snapshot to preview the template against.
@@ -239,7 +293,8 @@ export default function Edit( {
 		};
 	}, [ search, currentCoverage ] );
 
-	// Load the currently connected coverage's status whenever the selection changes.
+	// Load the currently connected coverage's status and canonical URL
+	// whenever the selection changes.
 	useEffect( () => {
 		let cancelled = false;
 		setApplyNotice( null );
@@ -249,6 +304,7 @@ export default function Edit( {
 			}
 			setCurrentCoverage( coverage );
 			setPendingStatus( coverage?.status || 'active' );
+			setPendingCanonicalUrl( coverage?.canonicalUrl || '' );
 		} );
 		return () => {
 			cancelled = true;
@@ -338,6 +394,47 @@ export default function Edit( {
 		}
 	}, [ generatedOutput ] );
 
+	const handleApplyCanonicalUrl = useCallback( async () => {
+		if ( ! coverageId ) {
+			return;
+		}
+		setIsApplyingUrl( true );
+		const success = await updateCoverageCanonicalUrl(
+			coverageId,
+			pendingCanonicalUrl
+		);
+		setIsApplyingUrl( false );
+		if ( success ) {
+			setCurrentCoverage( ( prev ) =>
+				prev ? { ...prev, canonicalUrl: pendingCanonicalUrl } : prev
+			);
+		}
+	}, [ coverageId, pendingCanonicalUrl ] );
+
+	const canonicalUrlUnchanged =
+		( currentCoverage?.canonicalUrl || '' ) === pendingCanonicalUrl;
+
+	// Applies the canonical URL automatically when the post is manually saved.
+	const wasSavingPost = useRef( false );
+	useEffect( () => {
+		if (
+			isSavingPost &&
+			! isAutosavingPost &&
+			! wasSavingPost.current &&
+			coverageId &&
+			! canonicalUrlUnchanged
+		) {
+			handleApplyCanonicalUrl();
+		}
+		wasSavingPost.current = isSavingPost;
+	}, [
+		isSavingPost,
+		isAutosavingPost,
+		coverageId,
+		canonicalUrlUnchanged,
+		handleApplyCanonicalUrl,
+	] );
+
 	// Combobox for selecting the connected coverage.
 	const coverageCombobox = (
 		<ComboboxControl
@@ -402,6 +499,60 @@ export default function Edit( {
 						</div>
 					) : null }
 				</PanelBody>
+
+				{ coverageId ? (
+					<PanelBody
+						title={ __(
+							'Push Notifications',
+							'newspack-rolling-coverage'
+						) }
+					>
+						<TextControl
+							__next40pxDefaultSize
+							type="url"
+							label={ __(
+								'Canonical URL',
+								'newspack-rolling-coverage'
+							) }
+							placeholder={ __(
+								'https://example.com/live-coverage',
+								'newspack-rolling-coverage'
+							) }
+							value={ pendingCanonicalUrl }
+							onChange={ setPendingCanonicalUrl }
+							disabled={ isApplyingUrl }
+							help={ __(
+								'The page readers land on when they open a notification for this coverage. Shared across every block connected to this coverage.',
+								'newspack-rolling-coverage'
+							) }
+						/>
+						<Button
+							variant="secondary"
+							onClick={ () =>
+								setPendingCanonicalUrl(
+									currentPagePermalink || ''
+								)
+							}
+							disabled={
+								isCurrentPageUnsaved || ! currentPagePermalink
+							}
+						>
+							{ __(
+								'Use this page',
+								'newspack-rolling-coverage'
+							) }
+						</Button>
+						{ ( isCurrentPageUnsaved ||
+							! currentPagePermalink ) && (
+							<p className="components-base-control__help">
+								{ __(
+									'Save this page to get its permalink.',
+									'newspack-rolling-coverage'
+								) }
+							</p>
+						) }
+					</PanelBody>
+				) : null }
 
 				<PanelBody
 					title={ __( 'Display', 'newspack-rolling-coverage' ) }

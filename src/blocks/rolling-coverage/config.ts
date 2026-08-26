@@ -26,6 +26,7 @@ if ( ! config ) {
 const {
 	coveragesRestBase: COVERAGES_REST_BASE,
 	statusMetaKey: STATUS_META_KEY,
+	canonicalUrlMetaKey: CANONICAL_URL_META_KEY,
 	entriesPreviewRestBase: ENTRIES_PREVIEW_REST_BASE,
 	aiEndpoint: AI_ENDPOINT,
 	aiAvailable: AI_AVAILABLE,
@@ -41,4 +42,5 @@ export {
 	AI_AVAILABLE,
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
+	CANONICAL_URL_META_KEY,
 };

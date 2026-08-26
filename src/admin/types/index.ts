@@ -42,6 +42,7 @@ interface AdminConfig {
 	taxMeta: {
 		statusKey: string;
 		lastModifiedKey: string;
+		canonicalUrlKey: string;
 	};
 	aiSettings: AiSettings;
 	aiDefaultSettings: AiSettings;
@@ -73,6 +74,7 @@ interface Coverage {
 	count: number;
 	meta: {
 		rolling_coverage_status?: 'active' | 'paused' | 'archived' | 'trash';
+		rolling_coverage_canonical_url?: string;
 		created_at?: string;
 		modified_at?: string;
 		rolling_coverage_last_modified?: string;
@@ -209,6 +211,7 @@ interface CoverageFormData {
 	name: string;
 	description: string;
 	status: 'active' | 'paused' | 'archived';
+	canonicalUrl: string;
 }
 
 interface BulkRestoreEntryResult {
@@ -256,6 +259,7 @@ interface SaveCoverageData {
 	name: string;
 	description: string;
 	status: string;
+	canonicalUrl: string;
 }
 
 interface BreakoutModalProps {

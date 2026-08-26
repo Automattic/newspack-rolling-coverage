@@ -1,7 +1,7 @@
 /**
  * Internal dependencies
  */
-import type { AdminConfig } from './types';
+import type { AdminConfig } from './admin/types';
 import type { ComponentType, ReactNode, JSX } from 'react';
 
 declare module '*.scss' {

@@ -146,6 +146,7 @@ class Rolling_Coverage_Block {
 					'aiAvailable'                 => AI_Service::is_available(),
 					'newspackAdsAvailable'        => Ads::is_available(),
 					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
+					'canonicalUrlMetaKey'         => Taxonomy::CANONICAL_URL_META_KEY,
 				]
 			);
 		}
@@ -239,7 +240,7 @@ class Rolling_Coverage_Block {
 		// Preload the deep-link CTA styles and view script. The CTA is
 		// rendered via render_block() inside this callback, so WordPress
 		// doesn't auto-enqueue its assets — we must do it manually.
-		$cta_block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/deep-link-cta' );
+		$cta_block_type = WP_Block_Type_Registry::get_instance()->get_registered( Deep_Link_CTA_Block::BLOCK_NAME );
 
 		if ( $cta_block_type ) {
 			foreach ( $cta_block_type->style_handles as $style_handle ) {
@@ -341,6 +342,9 @@ class Rolling_Coverage_Block {
 		// points to an entry not in the initial SSR set; empty otherwise.
 		$cta_html = self::maybe_render_deep_link_cta( $query->posts, $block );
 
+		// Follow button: rendered once at the top of the coverage, not per entry.
+		$follow_html = self::maybe_render_follow_button( $block, $coverage_id, $status );
+
 		$wrapper_attributes = get_block_wrapper_attributes(
 			[
 				'data-coverage-id'      => $coverage_id,
@@ -358,12 +362,13 @@ class Rolling_Coverage_Block {
 
 		try {
 			return sprintf(
-				'<div %1$s>%2$s%5$s<div class="%3$s-status" role="status" aria-live="polite"></div><button type="button" class="%3$s-new-entries" hidden></button><div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
+				'<div %1$s>%6$s%2$s%5$s<div class="%3$s-status" role="status" aria-live="polite"></div><button type="button" class="%3$s-new-entries" hidden></button><div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
 				$wrapper_attributes,
 				$notice,
 				self::MARKUP_PREFIX,
 				$entries_html,
-				$cta_html
+				$cta_html,
+				$follow_html
 			);
 		} finally {
 			self::$host_post_id = $previous_post_id;
@@ -425,7 +430,7 @@ class Rolling_Coverage_Block {
 		$cta_inner_blocks = [];
 
 		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner ) {
-			if ( 'newspack-rolling-coverage/deep-link-cta' === ( $inner['blockName'] ?? '' ) ) {
+			if ( Deep_Link_CTA_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) ) {
 				if ( ! empty( $inner['attrs']['ctaText'] ) ) {
 					$cta_attrs['ctaText'] = $inner['attrs']['ctaText'];
 				}
@@ -439,11 +444,70 @@ class Rolling_Coverage_Block {
 
 		return render_block(
 			[
-				'blockName'    => 'newspack-rolling-coverage/deep-link-cta',
+				'blockName'    => Deep_Link_CTA_Block::BLOCK_NAME,
 				'attrs'        => $cta_attrs,
 				'innerBlocks'  => $cta_inner_blocks,
 				'innerHTML'    => '',
 				'innerContent' => array_fill( 0, count( $cta_inner_blocks ), null ),
+			]
+		);
+	}
+
+	/**
+	 * Renders the follow button once at the top of the coverage.
+	 *
+	 * The block is removable, so this returns an empty string if the editor
+	 * deleted it (or if the follow button shouldn't render at all).
+	 *
+	 * @param WP_Block $block       The parent rolling-coverage block instance.
+	 * @param int      $coverage_id Coverage term id.
+	 * @param string   $status      Coverage status.
+	 * @return string Follow button HTML, or an empty string.
+	 */
+	private static function maybe_render_follow_button( WP_Block $block, int $coverage_id, string $status ): string {
+		if ( ! Coverage_Follow_Block::should_render( $status ) ) {
+			return '';
+		}
+
+		$follow_block = null;
+
+		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner ) {
+			if ( Coverage_Follow_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) ) {
+				$follow_block = $inner;
+				break;
+			}
+		}
+
+		if ( null === $follow_block ) {
+			return '';
+		}
+
+		// Preload the follow button styles and view script. The button is
+		// rendered via render_block() below, so WordPress doesn't
+		// auto-enqueue its assets — we must do it manually.
+		$follow_block_type = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Follow_Block::BLOCK_NAME );
+
+		if ( $follow_block_type ) {
+			foreach ( $follow_block_type->style_handles as $style_handle ) {
+				wp_enqueue_style( $style_handle );
+			}
+
+			foreach ( $follow_block_type->view_script_handles as $script_handle ) {
+				wp_enqueue_script( $script_handle );
+			}
+		}
+
+		$attrs               = $follow_block['attrs'] ?? [];
+		$attrs['coverageId'] = $coverage_id;
+		$attrs['status']     = $status;
+
+		return render_block(
+			[
+				'blockName'    => Coverage_Follow_Block::BLOCK_NAME,
+				'attrs'        => $attrs,
+				'innerBlocks'  => [],
+				'innerHTML'    => '',
+				'innerContent' => [],
 			]
 		);
 	}
@@ -460,19 +524,22 @@ class Rolling_Coverage_Block {
 	private static function get_entry_template( WP_Block $block ) {
 		$inner_blocks = $block->parsed_block['innerBlocks'] ?? [];
 
-		if ( ! empty( $inner_blocks ) ) {
-			// Filter out the deep-link CTA — it renders once at the top, not per-entry.
-			return array_values(
-				array_filter(
-					$inner_blocks,
-					static function ( $b ) {
-						return 'newspack-rolling-coverage/deep-link-cta' !== ( $b['blockName'] ?? '' );
-					}
-				)
-			);
+		if ( empty( $inner_blocks ) ) {
+			return self::default_entry_template();
 		}
 
-		return self::default_entry_template();
+		// The saved inner blocks also include two blocks that render once at
+		// the top of the coverage, not per entry.
+		$singleton_blocks = [ Deep_Link_CTA_Block::BLOCK_NAME, Coverage_Follow_Block::BLOCK_NAME ];
+		$template         = [];
+
+		foreach ( $inner_blocks as $inner_block ) {
+			if ( ! in_array( $inner_block['blockName'] ?? '', $singleton_blocks, true ) ) {
+				$template[] = $inner_block;
+			}
+		}
+
+		return $template;
 	}
 
 	/**
