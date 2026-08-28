@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { useState, useCallback, useEffect } from '@wordpress/element';
-import { Modal, Button } from '@wordpress/components';
+import { Modal, Button, ExternalLink } from '@wordpress/components';
 import { DataForm } from '@wordpress/dataviews/wp';
 import { __ } from '@wordpress/i18n';
 
@@ -19,6 +19,17 @@ const coverageFields = [
 		type: 'text' as const,
 		label: __( 'Name', 'newspack-rolling-coverage' ),
 		placeholder: __( 'Enter coverage name…', 'newspack-rolling-coverage' ),
+		description: (
+			<>
+				{ __(
+					'Used as the headline in LiveBlogPosting structured data when this coverage is shown on a page or post. Choose a reader-facing title rather than an internal label.',
+					'newspack-rolling-coverage'
+				) }{ ' ' }
+				<ExternalLink href="https://schema.org/LiveBlogPosting">
+					{ __( 'Learn more', 'newspack-rolling-coverage' ) }
+				</ExternalLink>
+			</>
+		),
 		required: true,
 	},
 	{
@@ -47,6 +58,19 @@ const coverageFields = [
 		],
 	},
 	{
+		id: 'canonicalUrl',
+		type: 'text' as const,
+		label: __( 'Canonical URL', 'newspack-rolling-coverage' ),
+		placeholder: __(
+			'https://example.com/live-coverage',
+			'newspack-rolling-coverage'
+		),
+		description: __(
+			'The page readers land on when they open a notification for this coverage.',
+			'newspack-rolling-coverage'
+		),
+	},
+	{
 		id: 'adsDisabled',
 		type: 'boolean' as const,
 		label: __( 'Disable ads', 'newspack-rolling-coverage' ),
@@ -64,6 +88,7 @@ const coverageForm = {
 		{ id: 'name' },
 		{ id: 'description' },
 		{ id: 'status' },
+		{ id: 'canonicalUrl' },
 		{ id: 'adsDisabled' },
 	],
 };
@@ -85,6 +110,8 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 			( coverage?.meta?.[
 				taxMeta.statusKey
 			] as Coverage[ 'meta' ][ 'rolling_coverage_status' ] ) || 'active',
+		canonicalUrl:
+			( coverage?.meta?.[ taxMeta.canonicalUrlKey ] as string ) || '',
 		adsDisabled: Boolean( coverage?.meta?.[ taxMeta.adsDisabledKey ] ),
 	} );
 	const [ isSaving, setIsSaving ] = useState( false );
@@ -101,6 +128,9 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 						taxMeta.statusKey
 					] as Coverage[ 'meta' ][ 'rolling_coverage_status' ] ) ||
 					'active',
+				canonicalUrl:
+					( coverage.meta?.[ taxMeta.canonicalUrlKey ] as string ) ||
+					'',
 				adsDisabled: Boolean(
 					coverage.meta?.[ taxMeta.adsDisabledKey ]
 				),
@@ -110,11 +140,17 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 				name: '',
 				description: '',
 				status: 'active',
+				canonicalUrl: '',
 				adsDisabled: false,
 			} );
 		}
 		setError( null );
-	}, [ coverage, taxMeta.statusKey, taxMeta.adsDisabledKey ] );
+	}, [
+		coverage,
+		taxMeta.statusKey,
+		taxMeta.canonicalUrlKey,
+		taxMeta.adsDisabledKey,
+	] );
 
 	const handleChange = useCallback(
 		( edits: Partial< CoverageFormData > ) => {
@@ -131,11 +167,13 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 		const result = await saveCoverage(
 			restBaseUrls.coverages,
 			taxMeta.statusKey,
+			taxMeta.canonicalUrlKey,
 			taxMeta.adsDisabledKey,
 			{
 				name: data.name,
 				description: data.description,
 				status: data.status,
+				canonicalUrl: data.canonicalUrl,
 				adsDisabled: data.adsDisabled,
 			},
 			isEditing && coverage ? coverage.id : undefined

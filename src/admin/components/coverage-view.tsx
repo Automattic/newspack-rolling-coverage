@@ -33,8 +33,12 @@ function CoverageView() {
 		useOutletContext< ContextExports >();
 	const { refreshKey } = context;
 	const fields = useMemo(
-		() => getCoverageFields( config.taxMeta.statusKey ),
-		[ config.taxMeta.statusKey ]
+		() =>
+			getCoverageFields(
+				config.taxMeta.statusKey,
+				config.taxMeta.lastModifiedKey
+			),
+		[ config.taxMeta.statusKey, config.taxMeta.lastModifiedKey ]
 	);
 	const [ view, setView ] = useState< View >( defaultCoverageView );
 	const [ editingCoverage, setEditingCoverage ] = useState< Coverage | null >(

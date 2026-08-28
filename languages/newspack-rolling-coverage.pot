@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-13T12:40:53+00:00\n"
+"POT-Creation-Date: 2026-08-26T12:26:11+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -37,8 +37,8 @@ msgstr ""
 #: includes/ai/class-abilities.php:60
 #: includes/class-admin.php:49
 #: includes/class-admin.php:50
-#: includes/class-taxonomy.php:79
-#: includes/class-taxonomy.php:80
+#: includes/class-taxonomy.php:88
+#: includes/class-taxonomy.php:89
 #: dist/admin.js:1
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Rolling Coverage"
@@ -84,10 +84,10 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:237
-#: includes/blocks/class-rolling-coverage-block.php:604
-#: includes/blocks/class-rolling-coverage-block.php:683
-#: includes/blocks/class-rolling-coverage-block.php:694
-#: includes/class-taxonomy.php:249
+#: includes/blocks/class-rolling-coverage-block.php:888
+#: includes/blocks/class-rolling-coverage-block.php:976
+#: includes/blocks/class-rolling-coverage-block.php:987
+#: includes/class-taxonomy.php:301
 msgid "Coverage not found."
 msgstr ""
 
@@ -109,25 +109,65 @@ msgstr ""
 msgid "Read more"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:167
+#: includes/blocks/class-coverage-follow-block.php:96
+#: dist/blocks/coverage-follow/index.js:1
+msgid "Follow"
+msgstr ""
+
+#: includes/blocks/class-coverage-follow-block.php:97
+msgid "Following"
+msgstr ""
+
+#: includes/blocks/class-coverage-follow-block.php:98
+msgid "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
+msgstr ""
+
+#: includes/blocks/class-coverage-follow-block.php:99
+msgid "Something went wrong. Please try again."
+msgstr ""
+
+#. translators: 1: deep-linked entry title.
+#: includes/blocks/class-deep-link-cta-block.php:81
+#, php-format
+msgid "You linked to an older entry (%1$s)."
+msgstr ""
+
+#: includes/blocks/class-deep-link-cta-block.php:87
+#: dist/blocks/deep-link-cta/index.js:1
+msgid "View"
+msgstr ""
+
+#: includes/blocks/class-rolling-coverage-block.php:263
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Select a coverage to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:183
+#: includes/blocks/class-rolling-coverage-block.php:279
 msgid "This coverage is no longer available."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:230
+#: includes/blocks/class-rolling-coverage-block.php:329
 msgid "This coverage is currently paused. New updates will appear once it resumes."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:238
+#: includes/blocks/class-rolling-coverage-block.php:337
 msgid "No entries yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:702
+#: includes/blocks/class-rolling-coverage-block.php:995
 msgid "Either cursor or before must be provided."
+msgstr ""
+
+#: includes/blocks/class-share-block.php:67
+#: dist/blocks/share/index.js:1
+#: dist/blocks/share/view.js:1
+msgid "Share"
+msgstr ""
+
+#: includes/blocks/class-share-block.php:75
+#: dist/blocks/share/index.js:1
+#: dist/blocks/share/view.js:1
+msgid "Share this entry"
 msgstr ""
 
 #: includes/class-admin.php:60
@@ -147,7 +187,7 @@ msgstr ""
 msgid "AI"
 msgstr ""
 
-#: includes/class-admin.php:240
+#: includes/class-admin.php:242
 #: dist/admin.js:194
 msgid "Slack"
 msgstr ""
@@ -161,8 +201,8 @@ msgid "Appears at the configured interval in the rolling coverage feed."
 msgstr ""
 
 #: includes/class-breakout.php:195
-#: includes/class-post-type.php:518
-#: includes/class-post-type.php:776
+#: includes/class-post-type.php:521
+#: includes/class-post-type.php:779
 msgid "Entry not found."
 msgstr ""
 
@@ -212,31 +252,45 @@ msgstr ""
 msgid "Individual entries within a Rolling Coverage."
 msgstr ""
 
-#: includes/class-post-type.php:693
+#: includes/class-post-type.php:696
 msgid "No entry IDs provided."
 msgstr ""
 
-#: includes/class-post-type.php:709
+#: includes/class-post-type.php:712
 msgid "You do not have permission to restore this entry."
 msgstr ""
 
-#: includes/class-post-type.php:784
+#: includes/class-post-type.php:787
 msgid "Entry is not in trash."
 msgstr ""
 
-#: includes/class-post-type.php:835
+#: includes/class-post-type.php:838
 msgid "This entry has no coverage context to restore to."
 msgstr ""
 
-#: includes/class-post-type.php:893
+#: includes/class-post-type.php:896
 msgid "Failed to restore entry."
 msgstr ""
 
-#: includes/class-taxonomy.php:347
+#: includes/class-push-notifications.php:78
+#: dist/blocks/coverage-follow/index.js:1
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Push Notifications"
+msgstr ""
+
+#: includes/class-push-notifications.php:98
+msgid "This entry's coverage doesn't have a canonical URL set yet. Set one in the coverage's settings, or no notification will be sent."
+msgstr ""
+
+#: includes/class-push-notifications.php:110
+msgid "Notify subscribers when this entry publishes"
+msgstr ""
+
+#: includes/class-taxonomy.php:426
 msgid "Coverage is not in trash."
 msgstr ""
 
-#: includes/class-taxonomy.php:386
+#: includes/class-taxonomy.php:465
 msgid "Coverage could not be deleted."
 msgstr ""
 
@@ -448,6 +502,14 @@ msgid "Enter coverage name…"
 msgstr ""
 
 #: dist/admin.js:194
+msgid "Used as the headline in LiveBlogPosting structured data when this coverage is shown on a page or post. Choose a reader-facing title rather than an internal label."
+msgstr ""
+
+#: dist/admin.js:194
+msgid "Learn more"
+msgstr ""
+
+#: dist/admin.js:194
 msgid "Description"
 msgstr ""
 
@@ -473,6 +535,20 @@ msgstr ""
 #: dist/admin.js:194
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Archived"
+msgstr ""
+
+#: dist/admin.js:194
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Canonical URL"
+msgstr ""
+
+#: dist/admin.js:194
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "https://example.com/live-coverage"
+msgstr ""
+
+#: dist/admin.js:194
+msgid "The page readers land on when they open a notification for this coverage."
 msgstr ""
 
 #: dist/admin.js:194
@@ -1096,6 +1172,7 @@ msgstr ""
 
 #: dist/admin.js:196
 #: dist/blocks/rolling-coverage/index.js:1
+#: dist/blocks/share/view.js:1
 msgid "Copied!"
 msgstr ""
 
@@ -1151,6 +1228,38 @@ msgstr ""
 msgid "Failed to save settings."
 msgstr ""
 
+#: dist/blocks/coverage-follow/index.js:1
+msgid "Configure the OneSignal Push Notifications plugin (App ID and REST API Key) for this button to appear on the site."
+msgstr ""
+
+#: dist/blocks/coverage-follow/index.js:1
+msgid "The OneSignal Push Notifications plugin is on an unsupported version — update it to the latest version for this button to appear on the site."
+msgstr ""
+
+#: dist/blocks/coverage-follow/index.js:1
+msgid "Install and activate the OneSignal Push Notifications plugin for this button to appear on the site."
+msgstr ""
+
+#: dist/blocks/coverage-follow/index.js:1
+msgid "Setup guide"
+msgstr ""
+
+#: dist/blocks/deep-link-cta/index.js:1
+msgid "Modal content template:"
+msgstr ""
+
+#: dist/blocks/deep-link-cta/index.js:1
+msgid "You linked to an older entry ({{entry_title}})."
+msgstr ""
+
+#: dist/blocks/deep-link-cta/index.js:1
+msgid "Enter CTA text… Use {{entry_title}} as a placeholder for the entry title."
+msgstr ""
+
+#: dist/blocks/deep-link-cta/view.js:1
+msgid "Close and return to coverage"
+msgstr ""
+
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Coverage status updated."
 msgstr ""
@@ -1181,6 +1290,18 @@ msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Apply"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "The page readers land on when they open a notification for this coverage. Shared across every block connected to this coverage."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Use this page"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Save this page to get its permalink."
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
@@ -1259,6 +1380,10 @@ msgid_plural "%d new posts"
 msgstr[0] ""
 msgstr[1] ""
 
+#: dist/blocks/share/view.js:1
+msgid "Copy this link:"
+msgstr ""
+
 #: dist/blocks/breakout-post-link/block.json
 #: src/blocks/breakout-post-link/block.json
 msgctxt "block title"
@@ -1271,6 +1396,30 @@ msgctxt "block description"
 msgid "Displays a link to the published breakout post for this entry. Nothing is rendered until a breakout post is available."
 msgstr ""
 
+#: dist/blocks/coverage-follow/block.json
+#: src/blocks/coverage-follow/block.json
+msgctxt "block title"
+msgid "Coverage Follow Button"
+msgstr ""
+
+#: dist/blocks/coverage-follow/block.json
+#: src/blocks/coverage-follow/block.json
+msgctxt "block description"
+msgid "Lets readers follow this coverage to receive push notifications for new entries. Rendered once at the top of the coverage."
+msgstr ""
+
+#: dist/blocks/deep-link-cta/block.json
+#: src/blocks/deep-link-cta/block.json
+msgctxt "block title"
+msgid "Deep Link CTA"
+msgstr ""
+
+#: dist/blocks/deep-link-cta/block.json
+#: src/blocks/deep-link-cta/block.json
+msgctxt "block description"
+msgid "Shown when a shared link points to an entry not in the initial page."
+msgstr ""
+
 #: dist/blocks/rolling-coverage/block.json
 #: src/blocks/rolling-coverage/block.json
 msgctxt "block title"
@@ -1281,4 +1430,16 @@ msgstr ""
 #: src/blocks/rolling-coverage/block.json
 msgctxt "block description"
 msgid "Displays the live entries of a rolling coverage, with polling for new entries and infinite scroll for older ones."
+msgstr ""
+
+#: dist/blocks/share/block.json
+#: src/blocks/share/block.json
+msgctxt "block title"
+msgid "Share"
+msgstr ""
+
+#: dist/blocks/share/block.json
+#: src/blocks/share/block.json
+msgctxt "block description"
+msgid "Copy a deep link to this entry for sharing on social media."
 msgstr ""

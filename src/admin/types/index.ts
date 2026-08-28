@@ -41,6 +41,8 @@ interface AdminConfig {
 	taxonomy: string;
 	taxMeta: {
 		statusKey: string;
+		lastModifiedKey: string;
+		canonicalUrlKey: string;
 		adsDisabledKey: string;
 	};
 	aiSettings: AiSettings;
@@ -73,9 +75,11 @@ interface Coverage {
 	count: number;
 	meta: {
 		rolling_coverage_status?: 'active' | 'paused' | 'archived' | 'trash';
+		rolling_coverage_canonical_url?: string;
 		rolling_coverage_ads_disabled?: boolean;
 		created_at?: string;
 		modified_at?: string;
+		rolling_coverage_last_modified?: string;
 		rolling_coverage_slack_channel_id?: string;
 		rolling_coverage_slack_channel_name?: string;
 		[ key: string ]: unknown;
@@ -209,6 +213,7 @@ interface CoverageFormData {
 	name: string;
 	description: string;
 	status: 'active' | 'paused' | 'archived';
+	canonicalUrl: string;
 	adsDisabled: boolean;
 }
 
@@ -257,6 +262,7 @@ interface SaveCoverageData {
 	name: string;
 	description: string;
 	status: string;
+	canonicalUrl: string;
 	adsDisabled: boolean;
 }
 

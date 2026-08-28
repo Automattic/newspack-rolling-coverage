@@ -1,10 +1,13 @@
-.newspack-rolling-coverage-breakout-post-link {
-	display: inline-block;
+.newspack-rolling-coverage-share-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
 	margin-top: 0.5em;
-	margin-right: 0.5em;
 	cursor: pointer;
 	box-sizing: border-box;
 	text-decoration: none;
+	border: none;
+	font: inherit;
 
 	&.alignleft {
 
@@ -28,7 +31,7 @@
 }
 
 // Fallback styling for themes with no `styles.elements.button` defined.
-:where(.newspack-rolling-coverage-breakout-post-link) {
+:where(.newspack-rolling-coverage-share-link) {
 	padding: calc(0.667em + 2px) calc(1.333em + 2px);
 	border-radius: 9999px;
 }
