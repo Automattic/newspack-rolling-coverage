@@ -141,6 +141,7 @@ class Rolling_Coverage_Block {
 				[
 					'coveragesRestBase'           => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
 					'statusMetaKey'               => Taxonomy::STATUS_META_KEY,
+					'adsDisabledMetaKey'          => Taxonomy::ADS_DISABLED_META_KEY,
 					'entriesPreviewRestBase'      => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 					'aiEndpoint'                  => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 					'aiAvailable'                 => AI_Service::is_available(),
@@ -266,10 +267,11 @@ class Rolling_Coverage_Block {
 
 		$entries_per_page = min( max( 1, (int) ( $attributes['entriesPerPage'] ?? 20 ) ), self::PER_PAGE_MAX );
 		$poll_interval    = max( 1, (int) ( $attributes['pollInterval'] ?? 10 ) );
-		$ads_enabled      = ! empty( $attributes['enableAds'] );
 		$ads_interval     = max( 1, (int) ( $attributes['adsInterval'] ?? 4 ) );
 		$status           = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
 		$status           = $status ? $status : 'active';
+		$ads_enabled_attr = ! empty( $attributes['enableAds'] );
+		$ads_enabled      = $ads_enabled_attr && ! self::is_coverage_ads_disabled( $coverage_id );
 
 		// A trashed coverage is effectively invisible on the frontend.
 		if ( 'trash' === $status ) {
@@ -300,7 +302,7 @@ class Rolling_Coverage_Block {
 		);
 
 		$template     = self::get_entry_template( $block );
-		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled, $ads_interval );
+		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval );
 
 		$entries_html = '';
 		$entry_index  = 0;
@@ -594,7 +596,7 @@ class Rolling_Coverage_Block {
 	 *
 	 * @param int   $coverage_id  Coverage term ID.
 	 * @param array $template     Per-entry inner-block template.
-	 * @param bool  $ads_enabled  Whether ads are enabled on this block instance.
+	 * @param bool  $ads_enabled  The block's own Enable Ads toggle.
 	 * @param int   $ads_interval Show an ad after every N entries.
 	 * @return string Hash key identifying this config.
 	 */
@@ -655,6 +657,17 @@ class Rolling_Coverage_Block {
 		}
 
 		return wp_parse_args( $config, $defaults );
+	}
+
+	/**
+	 * Whether ads are disabled for a coverage, regardless of any block's own
+	 * Enable Ads toggle.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return bool Whether ads are disabled for the coverage.
+	 */
+	private static function is_coverage_ads_disabled( int $coverage_id ): bool {
+		return (bool) get_term_meta( $coverage_id, Taxonomy::ADS_DISABLED_META_KEY, true );
 	}
 
 	/**
@@ -1011,10 +1024,11 @@ class Rolling_Coverage_Block {
 			'ignore_sticky_posts' => true,
 		];
 
-		$config       = self::load_block_config( $term_id, $template_key );
-		$template     = $config['template'];
-		$ads_enabled  = (bool) $config['adsEnabled'];
-		$ads_interval = max( 1, (int) $config['adsInterval'] );
+		$config           = self::load_block_config( $term_id, $template_key );
+		$template         = $config['template'];
+		$ads_interval     = max( 1, (int) $config['adsInterval'] );
+		$ads_enabled_attr = (bool) $config['adsEnabled'];
+		$ads_enabled      = $ads_enabled_attr && ! self::is_coverage_ads_disabled( $term_id );
 
 		// Forward/polling branch: entries modified at or after the cursor, newest first.
 		if ( $cursor ) {

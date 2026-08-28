@@ -27,6 +27,7 @@ const {
 	coveragesRestBase: COVERAGES_REST_BASE,
 	statusMetaKey: STATUS_META_KEY,
 	canonicalUrlMetaKey: CANONICAL_URL_META_KEY,
+	adsDisabledMetaKey: ADS_DISABLED_META_KEY,
 	entriesPreviewRestBase: ENTRIES_PREVIEW_REST_BASE,
 	aiEndpoint: AI_ENDPOINT,
 	aiAvailable: AI_AVAILABLE,
@@ -37,6 +38,7 @@ const {
 export {
 	COVERAGES_REST_BASE,
 	STATUS_META_KEY,
+	ADS_DISABLED_META_KEY,
 	ENTRIES_PREVIEW_REST_BASE,
 	AI_ENDPOINT,
 	AI_AVAILABLE,

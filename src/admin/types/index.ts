@@ -43,6 +43,7 @@ interface AdminConfig {
 		statusKey: string;
 		lastModifiedKey: string;
 		canonicalUrlKey: string;
+		adsDisabledKey: string;
 	};
 	aiSettings: AiSettings;
 	aiDefaultSettings: AiSettings;
@@ -75,6 +76,7 @@ interface Coverage {
 	meta: {
 		rolling_coverage_status?: 'active' | 'paused' | 'archived' | 'trash';
 		rolling_coverage_canonical_url?: string;
+		rolling_coverage_ads_disabled?: boolean;
 		created_at?: string;
 		modified_at?: string;
 		rolling_coverage_last_modified?: string;
@@ -212,6 +214,7 @@ interface CoverageFormData {
 	description: string;
 	status: 'active' | 'paused' | 'archived';
 	canonicalUrl: string;
+	adsDisabled: boolean;
 }
 
 interface BulkRestoreEntryResult {
@@ -260,6 +263,7 @@ interface SaveCoverageData {
 	description: string;
 	status: string;
 	canonicalUrl: string;
+	adsDisabled: boolean;
 }
 
 interface BreakoutModalProps {

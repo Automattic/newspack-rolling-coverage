@@ -344,6 +344,7 @@ export default function Edit( {
 	}, [ coverageId, pendingStatus ] );
 
 	const statusUnchanged = currentCoverage?.status === pendingStatus;
+	const coverageAdsDisabled = currentCoverage?.adsDisabled ?? false;
 
 	const handleGenerate = useCallback( async () => {
 		if ( ! coverageId ) {
@@ -667,17 +668,30 @@ export default function Edit( {
 					<PanelBody
 						title={ __( 'Ads', 'newspack-rolling-coverage' ) }
 					>
-						{ ! NEWSPACK_ADS_PLACEMENT_ENABLED && (
+						{ coverageAdsDisabled ? (
 							<Notice
 								className="newspack-rolling-coverage-ads-notice"
 								status="warning"
 								isDismissible={ false }
 							>
 								{ __(
-									'Enable and configure the Rolling Coverage: Entry placement in Newspack Ads to show ads.',
+									'Ads are disabled for this coverage. Enable them in the coverage settings to configure ad settings here.',
 									'newspack-rolling-coverage'
 								) }
 							</Notice>
+						) : (
+							! NEWSPACK_ADS_PLACEMENT_ENABLED && (
+								<Notice
+									className="newspack-rolling-coverage-ads-notice"
+									status="warning"
+									isDismissible={ false }
+								>
+									{ __(
+										'Enable and configure the Rolling Coverage: Entry placement in Newspack Ads to show ads.',
+										'newspack-rolling-coverage'
+									) }
+								</Notice>
+							)
 						) }
 						<ToggleControl
 							label={ __(
@@ -689,11 +703,12 @@ export default function Edit( {
 								'newspack-rolling-coverage'
 							) }
 							checked={ enableAds }
+							disabled={ coverageAdsDisabled }
 							onChange={ ( value: boolean ) =>
 								setAttributes( { enableAds: value } )
 							}
 						/>
-						{ enableAds && (
+						{ enableAds && ! coverageAdsDisabled && (
 							<TextControl
 								__next40pxDefaultSize
 								type="number"

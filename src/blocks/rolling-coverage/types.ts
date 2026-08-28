@@ -15,6 +15,7 @@ interface CoverageOption {
 	label: string;
 	status: string;
 	canonicalUrl: string;
+	adsDisabled: boolean;
 }
 
 /**
@@ -53,6 +54,7 @@ interface BlockConfig {
 	coveragesRestBase: string;
 	statusMetaKey: string;
 	canonicalUrlMetaKey: string;
+	adsDisabledMetaKey: string;
 	entriesPreviewRestBase: string;
 	aiEndpoint: string;
 	aiAvailable: boolean;
