@@ -13,6 +13,7 @@ use WP_Query;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
+use DateTimeImmutable;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -625,13 +626,27 @@ class Post_Type {
 
 		/*
 		 * Strict UTC ISO-8601: `2026-08-28T12:00:00+00:00` or `...Z`.
-		 * Anchors the date, enforces a time component, and rejects
-		 * non-UTC offsets (comparisons assume UTC).
+		 * createFromFormat validates the structure and getLastErrors
+		 * catches overflow values (month 13, hour 25, Feb 30, etc.)
+		 * that createFromFormat silently rolls over. The timezone is
+		 * inspected to enforce UTC — comparisons assume UTC.
 		 */
-		return 1 === preg_match(
-			'/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|\+00:00)$/',
-			$cursor_modified
+		$dt = DateTimeImmutable::createFromFormat(
+			'Y-m-d\TH:i:sP',
+			str_replace( 'Z', '+00:00', $cursor_modified )
 		);
+
+		if ( false === $dt ) {
+			return false;
+		}
+
+		$errors = DateTimeImmutable::getLastErrors();
+
+		if ( $errors && ( $errors['warning_count'] > 0 || $errors['error_count'] > 0 ) ) {
+			return false;
+		}
+
+		return '+00:00' === $dt->getTimezone()->getName();
 	}
 
 	/**
