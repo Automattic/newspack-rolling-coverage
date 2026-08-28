@@ -67,6 +67,22 @@ function EntryView() {
 		selectedCoverage?.meta?.[ config.taxMeta.statusKey ] === 'trash';
 	const disableNewEntry = ! selectedCoverage || isArchived || isTrashed;
 	const [ view, setView ] = useState< View >( defaultEntryView );
+
+	// Reset to page 1 when filters or search change (server paginates the filtered set).
+	const handleChangeView = useCallback(
+		( newView: View ) => {
+			const filtersChanged =
+				JSON.stringify( newView.filters ?? [] ) !==
+				JSON.stringify( view.filters ?? [] );
+			const searchChanged = newView.search !== view.search;
+			if ( filtersChanged || searchChanged ) {
+				setView( { ...newView, page: 1 } );
+			} else {
+				setView( newView );
+			}
+		},
+		[ view.filters, view.search ]
+	);
 	const [ isCreatingEntry, setIsCreatingEntry ] = useState( false );
 	const [ createError, setCreateError ] = useState< string | null >( null );
 	const [ quickEditEntry, setQuickEditEntry ] = useState< Entry | null >(
@@ -106,6 +122,70 @@ function EntryView() {
 		setContext,
 	] );
 
+	// Extract all DataViews filters into server-side params.
+	const serverFilters = useMemo( () => {
+		const filters = ( view.filters ?? [] ) as Array< {
+			field: string;
+			operator: string;
+			value: string | string[];
+		} >;
+
+		const params: Record< string, string > = {};
+
+		for ( const f of filters ) {
+			const val = Array.isArray( f.value )
+				? f.value.join( ',' )
+				: f.value;
+
+			switch ( f.field ) {
+				case 'status':
+					params[
+						f.operator === 'isNot' ? 'statusExclude' : 'status'
+					] = val;
+					break;
+				case 'source':
+					params[
+						f.operator === 'isNot' ? 'sourceExclude' : 'source'
+					] = val;
+					break;
+				case 'author':
+					if ( f.operator === 'contains' ) {
+						params.author = val;
+					}
+					break;
+				case 'title':
+					if ( f.operator === 'contains' ) {
+						params.title = val;
+					}
+					break;
+				case 'id':
+					if ( f.operator === 'is' ) {
+						params.postId = val;
+					}
+					break;
+				case 'breakout':
+					params[
+						f.operator === 'isNot'
+							? 'breakoutStatusExclude'
+							: 'breakoutStatus'
+					] = val;
+					break;
+				case 'categories':
+					if ( f.operator === 'contains' ) {
+						params.categorySearch = val;
+					}
+					break;
+				case 'tags':
+					if ( f.operator === 'contains' ) {
+						params.tagSearch = val;
+					}
+					break;
+			}
+		}
+
+		return params;
+	}, [ view.filters ] );
+
 	const { rows, isResolving, error, totalItems, totalPages, syncNotices } =
 		useEntries( {
 			coverageId: isValidCoverageId ? numericCoverageId : null,
@@ -114,6 +194,7 @@ function EntryView() {
 			search: view.search,
 			orderBy: view.sort?.field,
 			order: view.sort?.direction,
+			...serverFilters,
 			refreshKey,
 		} );
 
@@ -131,7 +212,7 @@ function EntryView() {
 
 	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
 
-	const { data: filteredData, paginationInfo } = useMemo( () => {
+	const { data: mappedData, paginationInfo } = useMemo( () => {
 		const mapped = ( rows ?? [] ).map( toEntry );
 		const filters = ( view.filters ?? [] ) as Array< {
 			field: string;
@@ -139,6 +220,7 @@ function EntryView() {
 			value: string | string[];
 		} >;
 
+		// Server applies the same filters, so totals stay accurate.  Client filter guards against unfiltered sync deltas.
 		return {
 			data: applyEntryFilters( mapped, filters ),
 			paginationInfo: { totalItems, totalPages },
@@ -231,10 +313,10 @@ function EntryView() {
 				</div>
 			) }
 			<DataViewsWrapper
-				data={ filteredData }
+				data={ mappedData }
 				fields={ entryFields }
 				view={ view }
-				onChangeView={ setView }
+				onChangeView={ handleChangeView }
 				actions={ actions }
 				paginationInfo={ paginationInfo }
 				isLoading={ isResolving }

@@ -53,16 +53,15 @@ class Post_Type {
 	const PER_PAGE_MAX = 100;
 
 	/**
-	 * Statuses returned by the page-mode endpoint (excludes `trash`).
+	 * Statuses returned by the page-mode and sync-mode endpoints. Includes
+	 * `trash` so that trashed entries appear alongside other statuses.
 	 */
-	const ALLOWED_STATUSES = [ 'publish', 'draft', 'pending', 'future', 'private' ];
+	const ALLOWED_STATUSES = [ 'publish', 'draft', 'pending', 'future', 'private', 'trash' ];
 
 	/**
-	 * Statuses returned by the sync-mode endpoint. Includes `trash` so that
-	 * trashed entries appear in the `changed` set with `post_status = 'trash'`,
-	 * eliminating the need for the per-coverage removed-entries transient.
+	 * Statuses polled by the sync-mode endpoint. Mirrors ALLOWED_STATUSES.
 	 */
-	const SYNC_STATUSES = [ 'publish', 'draft', 'pending', 'future', 'private', 'trash' ];
+	const SYNC_STATUSES = self::ALLOWED_STATUSES;
 
 	const ALLOWED_ORDERBY = [ 'date', 'modified' ];
 	const ALLOWED_ORDER   = [ 'asc', 'desc' ];
@@ -112,7 +111,6 @@ class Post_Type {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_pinned_rest_field' ] );
 		add_filter( 'posts_orderby', [ __CLASS__, 'orderby_pinned_first' ], 10, 2 );
 		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
-		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'on_save_post' ], 10, 2 );
 		add_action( 'set_object_terms', [ __CLASS__, 'on_set_object_terms' ], 10, 6 );
 		add_action( 'trashed_post', [ __CLASS__, 'on_trash_post' ] );
@@ -312,42 +310,83 @@ class Post_Type {
 				'callback'            => [ __CLASS__, 'get_entries_view' ],
 				'permission_callback' => [ __CLASS__, 'check_permission' ],
 				'args'                => [
-					'term_id'  => [
+					'term_id'                 => [
 						'required'          => true,
 						'validate_callback' => [ __CLASS__, 'validate_term_id' ],
 					],
-					'page'     => [
+					'page'                    => [
 						'type'    => 'integer',
 						'default' => 1,
 						'minimum' => 1,
 					],
-					'per_page' => [
+					'per_page'                => [
 						'type'    => 'integer',
 						'default' => self::PER_PAGE_MAX,
 						'minimum' => 1,
 						'maximum' => self::PER_PAGE_MAX,
 					],
-					'orderby'  => [
+					'orderby'                 => [
 						'type'    => 'string',
 						'default' => 'date',
 						'enum'    => self::ALLOWED_ORDERBY,
 					],
-					'order'    => [
+					'order'                   => [
 						'type'    => 'string',
 						'default' => 'desc',
 						'enum'    => self::ALLOWED_ORDER,
 					],
-					'search'   => [
+					'search'                  => [
 						'type'              => 'string',
 						'default'           => '',
 						'sanitize_callback' => 'sanitize_text_field',
 					],
-					'status'   => [
+					'status'                  => [
+						// CSV validated by parse_statuses().
 						'type' => 'string',
-						'enum' => self::ALLOWED_STATUSES,
 					],
-					'since'    => [
+					'status_exclude'          => [
+						// CSV validated by parse_excluded_statuses().
+						'type' => 'string',
+					],
+					'source'                  => [
 						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'source_exclude'          => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'author'                  => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'title'                   => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'post_id'                 => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'breakout_status'         => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'breakout_status_exclude' => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'category_search'         => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'tag_search'              => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'since'                   => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
 						'validate_callback' => [ __CLASS__, 'validate_since' ],
 					],
 				],
@@ -567,7 +606,12 @@ class Post_Type {
 	}
 
 	/**
-	 * Validates the `since` cursor parameter is a parseable date string.   
+	 * Validates the `since` cursor parameter.
+	 *
+	 * Accepts "{id}:{modified_iso}" or bare ISO-8601. The ISO portion must be
+	 * a strict UTC date-time (DATE_ATOM, `Z` or `+00:00` offset) so it can be
+	 * lexicographically compared against stored UTC cursor strings. Rejects
+	 * relative times like "yesterday" and non-UTC offsets.
 	 *
 	 * @param mixed $value Parameter value.
 	 * @return bool
@@ -577,7 +621,17 @@ class Post_Type {
 			return false;
 		}
 
-		return false !== strtotime( $value );
+		$cursor_modified = self::parse_cursor_modified( $value );
+
+		/*
+		 * Strict UTC ISO-8601: `2026-08-28T12:00:00+00:00` or `...Z`.
+		 * Anchors the date, enforces a time component, and rejects
+		 * non-UTC offsets (comparisons assume UTC).
+		 */
+		return 1 === preg_match(
+			'/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|\+00:00)$/',
+			$cursor_modified
+		);
 	}
 
 	/**
@@ -666,12 +720,22 @@ class Post_Type {
 		}
 
 		$params = [
-			'page'     => max( 1, (int) ( $request->get_param( 'page' ) ?? 1 ) ),
-			'per_page' => self::clamp_per_page( (int) ( $request->get_param( 'per_page' ) ?? self::PER_PAGE_MAX ) ),
-			'orderby'  => (string) $request->get_param( 'orderby' ),
-			'order'    => (string) $request->get_param( 'order' ),
-			'search'   => is_string( $request->get_param( 'search' ) ) ? $request->get_param( 'search' ) : '',
-			'statuses' => self::parse_statuses( $request->get_param( 'status' ) ),
+			'page'                    => max( 1, (int) ( $request->get_param( 'page' ) ?? 1 ) ),
+			'per_page'                => self::clamp_per_page( (int) ( $request->get_param( 'per_page' ) ?? self::PER_PAGE_MAX ) ),
+			'orderby'                 => (string) $request->get_param( 'orderby' ),
+			'order'                   => (string) $request->get_param( 'order' ),
+			'search'                  => is_string( $request->get_param( 'search' ) ) ? $request->get_param( 'search' ) : '',
+			'statuses'                => self::parse_statuses( $request->get_param( 'status' ) ),
+			'excluded_statuses'       => self::parse_excluded_statuses( $request->get_param( 'status_exclude' ) ),
+			'source'                  => is_string( $request->get_param( 'source' ) ) ? $request->get_param( 'source' ) : '',
+			'source_exclude'          => is_string( $request->get_param( 'source_exclude' ) ) ? $request->get_param( 'source_exclude' ) : '',
+			'author'                  => is_string( $request->get_param( 'author' ) ) ? $request->get_param( 'author' ) : '',
+			'title'                   => is_string( $request->get_param( 'title' ) ) ? $request->get_param( 'title' ) : '',
+			'post_id'                 => is_string( $request->get_param( 'post_id' ) ) ? $request->get_param( 'post_id' ) : '',
+			'breakout_status'         => is_string( $request->get_param( 'breakout_status' ) ) ? $request->get_param( 'breakout_status' ) : '',
+			'breakout_status_exclude' => is_string( $request->get_param( 'breakout_status_exclude' ) ) ? $request->get_param( 'breakout_status_exclude' ) : '',
+			'category_search'         => is_string( $request->get_param( 'category_search' ) ) ? $request->get_param( 'category_search' ) : '',
+			'tag_search'              => is_string( $request->get_param( 'tag_search' ) ) ? $request->get_param( 'tag_search' ) : '',
 		];
 
 		return self::run_page_mode( $term_id, $params );
@@ -680,6 +744,9 @@ class Post_Type {
 	/**
 	 * Page mode: one paginated page of entries.
 	 *
+	 * The sync cursor is formed as "{id}:{modified_iso}" matching the
+	 * reader-facing polling strategy, so same-second entries are not lost.
+	 *
 	 * @param int   $term_id Coverage term ID.
 	 * @param array $params  Resolved parameters.
 	 * @return WP_REST_Response
@@ -687,27 +754,187 @@ class Post_Type {
 	private static function run_page_mode( $term_id, array $params ) {
 		$order_by_col = 'date' === $params['orderby'] ? 'date' : 'modified';
 
-		$query = new \WP_Query(
-			[
-				'post_type'              => self::CPT_SLUG,
-				'post_status'            => $params['statuses'],
-				'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-					[
-						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
-						'field'    => 'term_id',
-						'terms'    => $term_id,
-					],
+		$query_args = [
+			'post_type'              => self::CPT_SLUG,
+			'post_status'            => $params['statuses'],
+			'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+				[
+					'taxonomy' => Taxonomy::TAXONOMY_SLUG,
+					'field'    => 'term_id',
+					'terms'    => $term_id,
 				],
-				's'                      => $params['search'],
-				'orderby'                => $order_by_col,
-				'order'                  => strtoupper( $params['order'] ),
-				'posts_per_page'         => $params['per_page'],
-				'paged'                  => $params['page'],
-				'update_post_meta_cache' => true,
-				'update_post_term_cache' => true,
-				'no_found_rows'          => false,
-			]
-		);
+			],
+			's'                      => $params['search'],
+			'orderby'                => $order_by_col,
+			'order'                  => strtoupper( $params['order'] ),
+			'posts_per_page'         => $params['per_page'],
+			'paged'                  => $params['page'],
+			'update_post_meta_cache' => true,
+			'update_post_term_cache' => true,
+			'no_found_rows'          => false,
+		];
+
+		if ( ! empty( $params['excluded_statuses'] ) ) {
+			$params['statuses'] = array_values(
+				array_diff( $params['statuses'], $params['excluded_statuses'] )
+			);
+
+			$query_args['post_status'] = $params['statuses'];
+		}
+
+		if ( '' !== $params['source'] || '' !== $params['source_exclude'] ) {
+			$meta_query = [ 'relation' => 'AND' ];
+
+			// The meta value is the lowercase machine slug for the WP editor source.
+			$wordpress_source = 'wordpress'; // phpcs:ignore WordPress.WP.CapitalPDangit.MisspelledInText -- machine meta value, not the word "WordPress".
+
+			if ( '' !== $params['source'] ) {
+				if ( $wordpress_source === $params['source'] ) {
+					// Legacy entries with no meta default to WP source.
+					$meta_query[] = [
+						'relation' => 'OR',
+						[
+							'key'   => self::META_ENTRY_SOURCE,
+							'value' => $wordpress_source,
+						],
+						[
+							'key'     => self::META_ENTRY_SOURCE,
+							'compare' => 'NOT EXISTS',
+						],
+					];
+				} else {
+					$meta_query[] = [
+						'key'   => self::META_ENTRY_SOURCE,
+						'value' => $params['source'],
+					];
+				}
+			}
+
+			if ( '' !== $params['source_exclude'] ) {
+				if ( $wordpress_source === $params['source_exclude'] ) {
+					// Exclude entries with no meta too (same default applies).
+					$meta_query[] = [
+						'relation' => 'AND',
+						[
+							'key'     => self::META_ENTRY_SOURCE,
+							'compare' => 'EXISTS',
+						],
+						[
+							'key'     => self::META_ENTRY_SOURCE,
+							'value'   => $wordpress_source,
+							'compare' => '!=',
+						],
+					];
+				} else {
+					$meta_query[] = [
+						'key'     => self::META_ENTRY_SOURCE,
+						'value'   => $params['source_exclude'],
+						'compare' => '!=',
+					];
+				}
+			}
+
+			$query_args['meta_query'] = $meta_query; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+		}
+
+		// Author filter: display-name substring, resolved to user IDs
+		// (mirrors the DataViews "author name contains X" filter semantics).
+		if ( '' !== $params['author'] ) {
+			$author_ids = self::search_author_ids( $params['author'] );
+			// No matching authors: force an empty result set.
+			$query_args['author__in'] = ! empty( $author_ids ) ? $author_ids : [ PHP_INT_MAX ];
+		}
+
+		// Title filter: substring search on post_title.
+		if ( '' !== $params['title'] ) {
+			// WP_Query 's' searches title+content+excerpt; use a title-only filter for a targeted match.
+			add_filter( 'posts_where', [ __CLASS__, 'title_filter_where' ], 10, 2 );
+			$query_args['rolling_coverage_title_filter'] = $params['title'];
+		}
+
+		// Post ID filter: exact match on ID.
+		if ( '' !== $params['post_id'] ) {
+			$query_args['p'] = absint( $params['post_id'] );
+		}
+
+		// Breakout status filter: meta_query on breakout status meta.
+		if ( '' !== $params['breakout_status'] || '' !== $params['breakout_status_exclude'] ) {
+			$meta = isset( $query_args['meta_query'] )
+				? $query_args['meta_query']
+				: [ 'relation' => 'AND' ];
+
+			if ( '' !== $params['breakout_status'] ) {
+				if ( 'none' === $params['breakout_status'] ) {
+					$meta[] = [
+						'key'     => Breakout::BREAKOUT_STATUS_FIELD,
+						'compare' => 'NOT EXISTS',
+					];
+				} else {
+					$meta[] = [
+						'key'   => Breakout::BREAKOUT_STATUS_FIELD,
+						'value' => $params['breakout_status'],
+					];
+				}
+			}
+
+			if ( '' !== $params['breakout_status_exclude'] ) {
+				if ( 'none' === $params['breakout_status_exclude'] ) {
+					$meta[] = [
+						'key'     => Breakout::BREAKOUT_STATUS_FIELD,
+						'compare' => 'EXISTS',
+					];
+				} else {
+					$meta[] = [
+						'key'     => Breakout::BREAKOUT_STATUS_FIELD,
+						'value'   => $params['breakout_status_exclude'],
+						'compare' => '!=',
+					];
+				}
+			}
+
+			$query_args['meta_query'] = $meta; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+		}
+
+		// Category/Tag filters: resolve the DataViews name-substring filter value to matching term IDs, then add tax_query clauses.
+		$tax_clauses = [];
+
+		foreach ( [
+			'category' => $params['category_search'],
+			'post_tag' => $params['tag_search'],
+		] as $taxonomy => $search ) {
+			if ( '' === $search ) {
+				continue;
+			}
+
+			$term_ids = self::search_term_ids( $taxonomy, $search );
+
+			if ( empty( $term_ids ) ) {
+				// No matching terms: force an empty result set so the filter never silently falls back to unfiltered rows.
+				$term_ids = [ PHP_INT_MAX ];
+			}
+
+			$tax_clauses[] = [
+				'taxonomy' => $taxonomy,
+				'field'    => 'term_id',
+				'terms'    => $term_ids,
+				'operator' => 'IN',
+			];
+		}
+
+		if ( ! empty( $tax_clauses ) ) {
+			$query_args['tax_query'] = array_merge( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+				[ 'relation' => 'AND' ],
+				$query_args['tax_query'],
+				$tax_clauses
+			);
+		}
+
+		$query = new \WP_Query( $query_args );
+
+		// Clean up the title filter if it was added.
+		if ( '' !== $params['title'] ) {
+			remove_filter( 'posts_where', [ __CLASS__, 'title_filter_where' ], 10 );
+		}
 
 		$entries = [];
 
@@ -719,10 +946,8 @@ class Post_Type {
 			$entries[] = self::map_row( $post );
 		}
 
-		// The sync cursor is the server time at page fetch, not the page's
-		// max modified — otherwise sync on a deep page returns all newer
-		// entries from earlier pages as false "added" notices.
-		$cursor      = gmdate( 'c' );
+		// Cursor anchored to the coverage's latest entry, not the fetched page.
+		$cursor      = self::coverage_sync_cursor( $term_id );
 		$per_page    = $params['per_page'];
 		$total_pages = $per_page > 0 ? (int) $query->max_num_pages : 1;
 		$total_pages = max( 1, $total_pages );
@@ -739,116 +964,226 @@ class Post_Type {
 	}
 
 	/**
-	 * Sync mode: delta of entries modified strictly after `since`.
+	 * Builds a sync cursor anchored to the coverage's latest-modified entry.
+	 *
+	 * Returns "{id}:{modified_iso}". Falls back to server time when the
+	 * coverage has no entries.
+	 *
+	 * @param int $term_id Coverage term ID.
+	 * @return string Cursor in "{id}:{modified_iso}" format.
+	 */
+	private static function coverage_sync_cursor( int $term_id ): string {
+		$last_modified = (string) get_term_meta( $term_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true );
+
+		if ( '' === $last_modified ) {
+			return '0:' . gmdate( 'c' );
+		}
+
+		$latest = new \WP_Query(
+			[
+				'post_type'              => self::CPT_SLUG,
+				'post_status'            => self::SYNC_STATUSES,
+				'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+					[
+						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
+						'field'    => 'term_id',
+						'terms'    => $term_id,
+					],
+				],
+				'orderby'                => 'modified',
+				'order'                  => 'DESC',
+				'posts_per_page'         => 1,
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
+				self::SKIP_PIN_ORDER_VAR => true,
+			]
+		);
+
+		if ( empty( $latest->posts ) || ! $latest->posts[0] instanceof WP_Post ) {
+			return '0:' . gmdate( 'c' );
+		}
+
+		return $latest->posts[0]->ID . ':' . self::post_modified_iso( $latest->posts[0] );
+	}
+
+	/**
+	 * Sync mode: delta of entries modified after `since`.
+	 *
+	 * Uses WP_Query with a date_query on post_modified_gmt. On overflow
+	 * (> PER_PAGE_MAX changed entries), signals the client to reload.
 	 *
 	 * @param int    $term_id Coverage term ID.
-	 * @param string $since   ISO-8601 cursor.
+	 * @param string $since   Cursor in "{id}:{modified_iso}" or ISO-8601 format.
 	 * @return WP_REST_Response
 	 */
 	private static function run_sync_mode( $term_id, $since ) {
 		$last_modified = (string) get_term_meta( $term_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true );
 
-		// Short-circuit: skip the SQL query when the coverage's last-modified
-		// term meta has not advanced past the cursor.
-		if ( $last_modified && $last_modified <= $since ) {
+		$cursor_modified = self::parse_cursor_modified( $since );
+
+		// Short-circuit when the coverage's last-modified hasn't advanced.
+		if ( $last_modified && $last_modified <= $cursor_modified ) {
 			return new WP_REST_Response(
 				[
-					'changed' => [],
-					'cursor'  => $since,
+					'changed'  => [],
+					'cursor'   => $since,
+					'overflow' => false,
 				]
 			);
 		}
 
-		global $wpdb;
+		$cursor_parts = explode( ':', $since, 2 );
+		$cursor_id    = (int) ( $cursor_parts[0] ?? 0 );
 
-		$rows = $wpdb->get_results( self::build_sync_query( $wpdb, $term_id, $since, self::SYNC_STATUSES ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
+		$query = new \WP_Query(
+			[
+				'post_type'              => self::CPT_SLUG,
+				'post_status'            => self::SYNC_STATUSES,
+				'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+					[
+						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
+						'field'    => 'term_id',
+						'terms'    => $term_id,
+					],
+				],
+				'date_query'             => [
+					'column'    => 'post_modified_gmt',
+					'after'     => $cursor_modified,
+					'inclusive' => true,
+				],
+				'orderby'                => 'modified',
+				'order'                  => 'DESC',
+				'posts_per_page'         => self::PER_PAGE_MAX + 1,
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
+				self::SKIP_PIN_ORDER_VAR => true,
+			]
+		);
 
-		if ( count( $rows ) > self::PER_PAGE_MAX ) {
-			$rows = array_slice( $rows, 0, self::PER_PAGE_MAX );
+		// Signal the client to reload when the delta exceeds the cap.
+		if ( count( $query->posts ) > self::PER_PAGE_MAX ) {
+			return new WP_REST_Response(
+				[
+					'changed'  => [],
+					'cursor'   => $since,
+					'overflow' => true,
+				]
+			);
 		}
 
-		$post_ids = wp_list_pluck( $rows, 'ID' );
+		$posts = $query->posts;
+
+		// Prime post, postmeta, and term caches in one call.
+		$post_ids = wp_list_pluck( $posts, 'ID' );
 
 		if ( ! empty( $post_ids ) ) {
-			update_postmeta_cache( $post_ids );
-			update_object_term_cache( $post_ids, self::CPT_SLUG );
+			_prime_post_caches( $post_ids, true, true );
 		}
 
 		$changed = [];
-		$max_gmt = '';
 
-		foreach ( $rows as $row ) {
-			$post = get_post( $row->ID );
-
+		foreach ( $posts as $post ) {
 			if ( ! $post instanceof WP_Post ) {
 				continue;
 			}
 
-			$changed[] = self::map_row( $post );
+			// Skip the cursor entry so it isn't re-reported each poll. Same-second entries are still included (inclusive date query).
+			$post_modified_iso = self::post_modified_iso( $post );
 
-			if ( $row->post_modified_gmt > $max_gmt ) {
-				$max_gmt = $row->post_modified_gmt;
+			if ( $post->ID === $cursor_id && $post_modified_iso === $cursor_modified ) {
+				continue;
 			}
+
+			$row = self::map_row( $post );
+
+			// Classify server-side: 'new' if published after cursor, else 'update'.
+			$row['change_type'] = self::post_date_iso( $post ) > $cursor_modified
+				? 'new'
+				: 'update';
+
+			$changed[] = $row;
 		}
 
-		$cursor = $max_gmt ? mysql2date( 'c', $max_gmt, true ) : $since;
+		$cursor = $posts ? self::latest_sync_cursor( $posts ) : $since;
 
 		return new WP_REST_Response(
 			[
-				'changed' => $changed,
-				'cursor'  => $cursor,
+				'changed'  => $changed,
+				'cursor'   => $cursor,
+				'overflow' => false,
 			]
 		);
 	}
 
 	/**
-	 * Build the prepared SQL for sync mode.
+	 * Builds a sync cursor from an array of posts: "{id}:{modified_iso}".
 	 *
-	 * Kept as raw SQL (rather than WP_Query) because:
-	 *  - The `post_modified_gmt > %s` predicate against the ISO cursor is the
-	 *    core filter and benefits from the composite index
-	 *    `(post_type, post_status, post_modified_gmt)` added on activation.
-	 *  - We project only `(ID, post_modified_gmt)` and cap with LIMIT; no
-	 *    pagination or found-rows count is needed.
-	 *
-	 * @param \wpdb  $wpdb     WordPress database handle.
-	 * @param int    $term_id  Coverage term ID.
-	 * @param string $since    ISO-8601 cursor.
-	 * @param array  $statuses Allowed post statuses.
-	 * @return string Prepared SQL.
+	 * @param WP_Post[] $posts Entry post objects.
+	 * @return string Cursor in "{id}:{modified_iso}" format.
 	 */
-	private static function build_sync_query( $wpdb, $term_id, $since, array $statuses ) {
-		$placeholders = [];
-		$args         = [];
+	private static function latest_sync_cursor( array $posts ): string {
+		$latest_post     = null;
+		$latest_modified = '';
 
-		$args[] = Taxonomy::TAXONOMY_SLUG;
-		$args[] = $term_id;
-		$args[] = self::CPT_SLUG;
+		foreach ( $posts as $post ) {
+			$modified = self::post_modified_iso( $post );
 
-		foreach ( $statuses as $status ) {
-			$placeholders[] = '%s';
-			$args[]         = $status;
+			if ( '' === $latest_modified || $modified > $latest_modified ) {
+				$latest_modified = $modified;
+				$latest_post     = $post;
+			}
 		}
 
-		$status_in = implode( ',', $placeholders );
+		if ( null === $latest_post ) {
+			return '0:' . gmdate( 'c' );
+		}
 
-		$since_gmt = gmdate( 'Y-m-d H:i:s', strtotime( $since ) );
+		return $latest_post->ID . ':' . $latest_modified;
+	}
 
-		$sql = "SELECT p.ID, p.post_modified_gmt
-			FROM {$wpdb->posts} p
-			INNER JOIN {$wpdb->term_relationships} tr ON p.ID = tr.object_id
-			INNER JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
-			WHERE tt.taxonomy = %s AND tt.term_id = %d
-			AND p.post_type = %s
-			AND p.post_status IN ({$status_in})
-			AND p.post_modified_gmt > %s
-			ORDER BY p.post_modified_gmt DESC
-			LIMIT %d";
+	/**
+	 * Extracts the ISO-8601 modified timestamp from a sync cursor.
+	 *
+	 * Handles both "{id}:{iso}" and bare ISO-8601. Only splits when the
+	 * remainder starts with a 4-digit year (ISO time colons are preserved).
+	 *
+	 * @param string $cursor The sync cursor.
+	 * @return string ISO-8601 UTC modified timestamp.
+	 */
+	private static function parse_cursor_modified( string $cursor ): string {
+		$parts = explode( ':', $cursor, 2 );
 
-		$args[] = $since_gmt;
-		$args[] = self::PER_PAGE_MAX + 1;
+		if ( isset( $parts[1] ) && preg_match( '/^\d{4}-/', $parts[1] ) ) {
+			return $parts[1];
+		}
 
-		return $wpdb->prepare( $sql, $args ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return $cursor;
+	}
+
+	/**
+	 * ISO 8601 (GMT) last-modified string for a post.
+	 *
+	 * @param WP_Post $post Post object.
+	 * @return string ISO 8601 date string.
+	 */
+	private static function post_modified_iso( WP_Post $post ) {
+		$datetime = get_post_datetime( $post, 'modified', 'gmt' );
+
+		return $datetime ? $datetime->format( DATE_ATOM ) : '';
+	}
+
+	/**
+	 * ISO 8601 (GMT) creation date string for a post.
+	 *
+	 * @param WP_Post $post Post object.
+	 * @return string ISO 8601 date string.
+	 */
+	private static function post_date_iso( WP_Post $post ) {
+		$datetime = get_post_datetime( $post, 'date', 'gmt' );
+
+		return $datetime ? $datetime->format( DATE_ATOM ) : '';
 	}
 
 	/**
@@ -869,30 +1204,33 @@ class Post_Type {
 			'date'             => mysql2date( 'c', $post->post_date, false ),
 			'modified'         => mysql2date( 'c', $post->post_modified, false ),
 			'status'           => $post->post_status,
+			'pinned'           => self::is_pinned( $post->ID ),
 			'author'           => $author ? [
 				'id'   => $author->ID,
 				'name' => $author->display_name,
 				'link' => get_author_posts_url( $author->ID ),
 			] : null,
-			'source'           => (string) ( get_post_meta( $post->ID, self::META_ENTRY_SOURCE, true ) ?? 'wordpress' ),
-			'categories'       => self::map_terms( $post->ID, 'category' ),
-			'tags'             => self::map_terms( $post->ID, 'post_tag' ),
+			'source'           => (string) get_post_meta( $post->ID, self::META_ENTRY_SOURCE, true ),
+			'categories'       => self::map_terms( $post, 'category' ),
+			'tags'             => self::map_terms( $post, 'post_tag' ),
 			'breakout_post_id' => $breakout_id,
 			'breakout_status'  => ! empty( $breakout_status ) ? (string) $breakout_status : null,
 		];
 	}
 
 	/**
-	 * Map post terms into the {id,name,slug,link} shape.
+	 * Maps post terms into the {id,name,slug,link} shape.
 	 *
-	 * @param int    $post_id  Post ID.
-	 * @param string $taxonomy Taxonomy slug.
+	 * Uses get_the_terms() (object-cache backed). Guards false/WP_Error.
+	 *
+	 * @param WP_Post $post     Post object.
+	 * @param string  $taxonomy Taxonomy slug.
 	 * @return array
 	 */
-	private static function map_terms( $post_id, $taxonomy ) {
-		$terms = wp_get_post_terms( $post_id, $taxonomy );
+	private static function map_terms( WP_Post $post, $taxonomy ) {
+		$terms = get_the_terms( $post, $taxonomy );
 
-		if ( is_wp_error( $terms ) ) {
+		if ( false === $terms || is_wp_error( $terms ) ) {
 			return [];
 		}
 
@@ -1067,6 +1405,27 @@ class Post_Type {
 	}
 
 	/**
+	 * Posts_where filter for title substring matching.
+	 *
+	 * @param string   $where Current WHERE clause.
+	 * @param WP_Query $query The query instance.
+	 * @return string
+	 */
+	public static function title_filter_where( string $where, WP_Query $query ): string {
+		$title = $query->get( 'rolling_coverage_title_filter' );
+
+		if ( ! is_string( $title ) || '' === $title ) {
+			return $where;
+		}
+
+		global $wpdb;
+		$like = '%' . $wpdb->esc_like( $title ) . '%';
+		$where .= $wpdb->prepare( " AND {$wpdb->posts}.post_title LIKE %s", $like );
+
+		return $where;
+	}
+
+	/**
 	 * Parse and validate the CSV `status` param.
 	 *
 	 * Invalid values are dropped silently; if all invalid, fall back to
@@ -1095,6 +1454,86 @@ class Post_Type {
 		}
 
 		return $valid;
+	}
+
+	/**
+	 * Resolves a term-name substring to matching term IDs.
+	 *
+	 * The DataViews category/tag filters are free-text "contains" filters, so
+	 * the value is a name substring, not an ID. This resolves it against the
+	 * taxonomy's terms (mirroring the client-side name-contains semantics).
+	 *
+	 * @param string $taxonomy Taxonomy slug.
+	 * @param string $search   Term name substring.
+	 * @return int[] Matching term IDs.
+	 */
+	private static function search_term_ids( string $taxonomy, string $search ) {
+		$terms = get_terms(
+			[
+				'taxonomy'   => $taxonomy,
+				'search'     => $search,
+				'fields'     => 'ids',
+				'hide_empty' => false,
+				'orderby'    => 'none',
+			]
+		);
+
+		if ( is_wp_error( $terms ) || empty( $terms ) ) {
+			return [];
+		}
+
+		return array_map( 'absint', (array) $terms );
+	}
+
+	/**
+	 * Resolves an author display-name substring to matching user IDs.
+	 *
+	 * The DataViews author filter is a free-text "contains" filter over the
+	 * display name, so the value is a substring, not a nicename.
+	 *
+	 * @param string $search Author display-name substring.
+	 * @return int[] Matching user IDs.
+	 */
+	private static function search_author_ids( string $search ) {
+		$users = get_users(
+			[
+				'search'         => '*' . $search . '*',
+				'search_columns' => [ 'display_name' ],
+				'fields'         => 'ID',
+			]
+		);
+
+		if ( empty( $users ) ) {
+			return [];
+		}
+
+		return array_map( 'absint', (array) $users );
+	}
+
+	/**
+	 * Parses the CSV `status_exclude` param.
+	 *
+	 * Unlike parse_statuses, absent/empty returns an empty array
+	 * (nothing excluded).
+	 *
+	 * @param mixed $raw Raw status_exclude param.
+	 * @return string[]
+	 */
+	private static function parse_excluded_statuses( $raw ) {
+		if ( ! is_string( $raw ) || '' === $raw ) {
+			return [];
+		}
+
+		$values = array_map( 'trim', explode( ',', $raw ) );
+
+		return array_values(
+			array_filter(
+				$values,
+				static function ( $v ) {
+					return in_array( $v, self::ALLOWED_STATUSES, true );
+				}
+			)
+		);
 	}
 
 	/** 

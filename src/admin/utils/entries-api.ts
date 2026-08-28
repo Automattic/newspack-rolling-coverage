@@ -22,7 +22,7 @@ import type {
 	BulkRestoreEntryResult,
 } from '../types';
 
-const SYNC_INTERVAL_MS = 30000;
+const SYNC_INTERVAL_MS = 10000;
 
 /**
  * Creates a draft entry assigned to a coverage term, returning the new
@@ -78,6 +78,7 @@ function toEntry( row: EntryViewRow ): Entry {
 		title: { rendered: row.title },
 		content: { rendered: '' },
 		author: row.author?.id ?? 0,
+		pinned: row.pinned,
 		meta: {
 			rolling_coverage_breakout_post_id:
 				row.breakout_post_id || undefined,
@@ -100,13 +101,24 @@ function toEntry( row: EntryViewRow ): Entry {
 /**
  * Builds the page-mode REST URL with query parameters.
  *
- * @param {string} baseUrl    The entries-view base URL.
- * @param {number} coverageId The coverage term ID.
- * @param {number} page       The page number.
- * @param {number} perPage    Items per page.
- * @param {string} orderBy    Sort field.
- * @param {string} order      Sort direction.
- * @param {string} search     Optional search term.
+ * @param {string} baseUrl                 The entries-view base URL.
+ * @param {number} coverageId              The coverage term ID.
+ * @param {number} page                    The page number.
+ * @param {number} perPage                 Items per page.
+ * @param {string} orderBy                 Sort field.
+ * @param {string} order                   Sort direction.
+ * @param {string} search                  Optional search term.
+ * @param {string} [status]                Optional CSV of post statuses to include.
+ * @param {string} [statusExclude]         Optional CSV of post statuses to exclude.
+ * @param {string} [source]                Optional source slug to include.
+ * @param {string} [sourceExclude]         Optional source slug to exclude.
+ * @param {string} [author]                Optional author name to search.
+ * @param {string} [title]                 Optional title substring to search.
+ * @param {string} [postId]                Optional post ID to match.
+ * @param {string} [breakoutStatus]        Optional breakout status to include.
+ * @param {string} [breakoutStatusExclude] Optional breakout status to exclude.
+ * @param {string} [categorySearch]        Optional category name substring to match.
+ * @param {string} [tagSearch]             Optional tag name substring to match.
  * @return {string} The full REST URL.
  */
 function buildPageUrl(
@@ -116,15 +128,45 @@ function buildPageUrl(
 	perPage: number,
 	orderBy: string,
 	order: string,
-	search: string
+	search: string,
+	status?: string,
+	statusExclude?: string,
+	source?: string,
+	sourceExclude?: string,
+	author?: string,
+	title?: string,
+	postId?: string,
+	breakoutStatus?: string,
+	breakoutStatusExclude?: string,
+	categorySearch?: string,
+	tagSearch?: string
 ): string {
 	const params = new URLSearchParams();
 	params.set( 'page', String( page ) );
 	params.set( 'per_page', String( perPage ) );
 	params.set( 'orderby', orderBy );
 	params.set( 'order', order );
-	if ( search ) {
-		params.set( 'search', search );
+
+	// Optional filters: only set params for present values.
+	const optionalParams: Array< [ string, string | undefined ] > = [
+		[ 'search', search ],
+		[ 'status', status ],
+		[ 'status_exclude', statusExclude ],
+		[ 'source', source ],
+		[ 'source_exclude', sourceExclude ],
+		[ 'author', author ],
+		[ 'title', title ],
+		[ 'post_id', postId ],
+		[ 'breakout_status', breakoutStatus ],
+		[ 'breakout_status_exclude', breakoutStatusExclude ],
+		[ 'category_search', categorySearch ],
+		[ 'tag_search', tagSearch ],
+	];
+
+	for ( const [ key, value ] of optionalParams ) {
+		if ( value ) {
+			params.set( key, value );
+		}
 	}
 	return `${ baseUrl }/${ coverageId }/entries-view?${ params.toString() }`;
 }
@@ -166,37 +208,21 @@ function toNoticeEntry( row: EntryViewRow ): SyncNoticeEntry {
 }
 
 /**
- * Classifies sync delta into added/updated/removed notice groups.
+ * Classifies sync delta into added/updated notice groups.
  *
- * The server includes `trash` in the sync status filter, so trashed entries
- * arrive in `changed` with `status === 'trash'`. Those that previously existed
- * in `previousRows` are classified as "removed"; new entries are "added";
- * existing entries with a non-trash status are "updated".
+ * The server stamps each row with `change_type: 'new'|'update'`.
  *
- * @param {EntrySyncDelta} delta        The sync delta from the endpoint.
- * @param {EntryViewRow[]} previousRows The rows before this sync cycle.
+ * @param {EntrySyncDelta} delta The sync delta from the endpoint.
  * @return {SyncNotice[]} Notice groups with zero-count types omitted.
  */
-function buildSyncNotices(
-	delta: EntrySyncDelta,
-	previousRows: EntryViewRow[]
-): SyncNotice[] {
-	const previousIds = new Set( previousRows.map( ( row ) => row.id ) );
-
+function buildSyncNotices( delta: EntrySyncDelta ): SyncNotice[] {
 	const added: SyncNoticeEntry[] = [];
 	const updated: SyncNoticeEntry[] = [];
-	const removed: SyncNoticeEntry[] = [];
 	for ( const row of delta.changed ) {
-		if ( row.status === 'trash' ) {
-			if ( previousIds.has( row.id ) ) {
-				removed.push( toNoticeEntry( row ) );
-			}
-			continue;
-		}
-		if ( previousIds.has( row.id ) ) {
-			updated.push( toNoticeEntry( row ) );
-		} else {
+		if ( row.change_type === 'new' ) {
 			added.push( toNoticeEntry( row ) );
+		} else {
+			updated.push( toNoticeEntry( row ) );
 		}
 	}
 
@@ -211,23 +237,14 @@ function buildSyncNotices(
 			entries: updated,
 		} );
 	}
-	if ( removed.length > 0 ) {
-		notices.push( {
-			type: 'removed',
-			count: removed.length,
-			entries: removed,
-		} );
-	}
 	return notices;
 }
 
 /**
  * Merges a sync delta into existing rows: replaces updated entries in place,
- * drops trashed entries, and prepends new entries on page 1 only.
+ * and prepends new entries on page 1 only.
  *
- * Trashed entries arrive in `changed` with `status === 'trash'` (the server
- * includes `trash` in the sync status filter) and are removed from the row
- * set. On page > 1, new entries are dropped from the result (they belong on
+ * On page > 1, new entries are dropped from the result (they belong on
  * an earlier page under date-DESC sort) — the snackbar still informs the user.
  *
  * @param {EntryViewRow[] | null} prev  The current rows (null = not loaded).
@@ -250,20 +267,22 @@ function mergeSyncDelta(
 	}
 
 	const added: EntryViewRow[] = [];
+	let changedOnThisPage = false;
 	for ( const row of delta.changed ) {
-		if ( row.status === 'trash' ) {
-			mergedById.delete( row.id );
-			continue;
-		}
 		if ( mergedById.has( row.id ) ) {
 			mergedById.set( row.id, row );
+			changedOnThisPage = true;
 		} else {
 			added.push( row );
 		}
 	}
 
+	// On deep pages, don't mutate visible rows for changes on other pages.
 	if ( page > 1 ) {
-		return [ ...mergedById.values() ];
+		return changedOnThisPage ? [ ...mergedById.values() ] : prev;
+	}
+	if ( added.length === 0 && ! changedOnThisPage ) {
+		return prev;
 	}
 	return [ ...added, ...mergedById.values() ];
 }
@@ -314,12 +333,17 @@ async function pollSync( ctx: SyncPollContext ): Promise< void > {
 
 		cursorRef.current = delta.cursor;
 
+		// Reload the page when too many entries changed since the last poll.
+		if ( delta.overflow ) {
+			window.location.reload();
+			return;
+		}
+
 		if ( delta.changed.length === 0 ) {
 			return;
 		}
 
-		const previousRows = rowsRef.current ?? [];
-		const notices = buildSyncNotices( delta, previousRows );
+		const notices = buildSyncNotices( delta );
 
 		setRows( ( prev ) => {
 			const next = mergeSyncDelta( prev, delta, pageRef.current );

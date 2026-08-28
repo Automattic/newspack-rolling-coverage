@@ -260,6 +260,17 @@ interface UseEntriesOptions {
 	search?: string;
 	orderBy?: string;
 	order?: 'asc' | 'desc';
+	status?: string;
+	statusExclude?: string;
+	source?: string;
+	sourceExclude?: string;
+	author?: string;
+	title?: string;
+	postId?: string;
+	breakoutStatus?: string;
+	breakoutStatusExclude?: string;
+	categorySearch?: string;
+	tagSearch?: string;
 	refreshKey?: number;
 }
 
@@ -482,6 +493,7 @@ interface EntryViewRow {
 	date: string;
 	modified: string;
 	status: PostStatus;
+	pinned: boolean;
 	author: { id: number; name: string; link: string } | null;
 	source: 'wordpress' | 'slack';
 	categories: Array< {
@@ -493,6 +505,8 @@ interface EntryViewRow {
 	tags: Array< { id: number; name: string; slug: string; link: string } >;
 	breakout_post_id: number;
 	breakout_status: PostStatus | null;
+	/** Set by the sync endpoint: 'new' = inserted after cursor, 'update' = edited. Absent on page-mode rows. */
+	change_type?: 'new' | 'update';
 }
 
 interface EntryPageResponse {
@@ -506,6 +520,7 @@ interface EntryPageResponse {
 interface EntrySyncDelta {
 	changed: EntryViewRow[];
 	cursor: string;
+	overflow: boolean;
 }
 
 interface SyncNoticeEntry {

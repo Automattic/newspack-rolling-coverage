@@ -3,6 +3,11 @@
  */
 
 /**
+ * External dependencies
+ */
+import { __ } from '@wordpress/i18n';
+
+/**
  * Internal dependencies
  */
 import type { Entry, Coverage } from '../types';
@@ -11,6 +16,90 @@ import type { Entry, Coverage } from '../types';
 const SOURCE_SLACK = 'slack';
 /** Machine value for entries sourced from the WordPress editor. */
 const SOURCE_WORDPRESS = 'wordpress';
+
+const POST_STATUS_LABELS: Record< string, string > = {
+	publish: __( 'Published', 'newspack-rolling-coverage' ),
+	draft: __( 'Draft', 'newspack-rolling-coverage' ),
+	pending: __( 'Pending', 'newspack-rolling-coverage' ),
+	future: __( 'Scheduled', 'newspack-rolling-coverage' ),
+	private: __( 'Private', 'newspack-rolling-coverage' ),
+	trash: __( 'Trashed', 'newspack-rolling-coverage' ),
+};
+
+/**
+ * Returns the display label for a post status.
+ *
+ * @param {string} status Post status slug.
+ * @return {string} Translated label, or the raw status if unrecognised.
+ */
+function getStatusLabel( status: string ): string {
+	return POST_STATUS_LABELS[ status ] || status;
+}
+
+/**
+ * Filter elements for the status field. Mirrors the endpoint's
+ * ALLOWED_STATUSES, including `trash` so trashed entries can be filtered
+ * in the main entries view like any other status.
+ */
+const STATUS_ELEMENTS = Object.entries( POST_STATUS_LABELS ).map(
+	( [ value, label ] ) => ( { value, label } )
+);
+
+/**
+ * Returns the raw title string for an entry (used for filtering).
+ *
+ * @param {Entry} item Entry object.
+ * @return {string} Raw title or empty string.
+ */
+function getRawTitle( item: Entry ): string {
+	return item.title?.rendered || '';
+}
+
+/**
+ * Returns the raw author name for an entry (used for filtering).
+ *
+ * @param {Entry} item Entry object.
+ * @return {string} Author display name or empty string.
+ */
+function getRawAuthor( item: Entry ): string {
+	return item._embedded?.author?.[ 0 ]?.name || '';
+}
+
+/**
+ * Returns comma-separated category names for an entry.
+ *
+ * @param {Entry} item Entry object.
+ * @return {string} CSV of category names.
+ */
+function getCategoryNames( item: Entry ): string {
+	return getEmbeddedTerms( item )
+		.filter( ( t ) => t.taxonomy === 'category' )
+		.map( ( t ) => t.name )
+		.join( ', ' );
+}
+
+/**
+ * Returns comma-separated tag names for an entry.
+ *
+ * @param {Entry} item Entry object.
+ * @return {string} CSV of tag names.
+ */
+function getTagNames( item: Entry ): string {
+	return getEmbeddedTerms( item )
+		.filter( ( t ) => t.taxonomy === 'post_tag' )
+		.map( ( t ) => t.name )
+		.join( ', ' );
+}
+
+/**
+ * Returns the breakout status slug for an entry (used for filtering).
+ *
+ * @param {Entry} item Entry object.
+ * @return {string} Breakout status slug or 'none'.
+ */
+function getBreakoutStatus( item: Entry ): string {
+	return item.rolling_coverage_breakout_status || 'none';
+}
 
 /**
  * Truncates a string to `max` characters, appending an ellipsis if shortened.
@@ -139,8 +228,10 @@ function getSlackChannelLabel( item: Coverage ): string {
 }
 
 /**
- * Applies client-side `source` and `status` filters from a DataViews view
- * state to an array of entries. Returns the filtered array.
+ * Applies all DataViews filters (source, status, date) client-side.
+ *
+ * Mirrors the built-in operator filter handlers so date, text, and
+ * element-based filters all work identically to filterSortAndPaginate.
  *
  * @param {Entry[]} entries The entries to filter.
  * @param {Array}   filters The DataViews view.filters array.
@@ -154,37 +245,133 @@ function applyEntryFilters(
 		value: string | string[];
 	} >
 ): Entry[] {
-	const sourceFilter = filters.find( ( f ) => f.field === 'source' );
-	const statusFilter = filters.find( ( f ) => f.field === 'status' );
+	return entries.filter( ( item ) =>
+		filters.every( ( filter ) => {
+			const itemValue = getEntryFieldValue( item, filter.field );
+			return matchesOperator( itemValue, filter.operator, filter.value );
+		} )
+	);
+}
 
-	const matchesFilter = (
-		itemValue: string,
-		filter: typeof sourceFilter
-	): boolean => {
-		if ( ! filter ) {
-			return true;
-		}
-		const values = Array.isArray( filter.value )
-			? filter.value
-			: [ filter.value ];
-		const isIn = values.includes( itemValue );
-		return filter.operator === 'isNot' ? ! isIn : isIn;
-	};
+/** Reads a field's raw value from an Entry by field id. */
+function getEntryFieldValue( item: Entry, fieldId: string ): unknown {
+	switch ( fieldId ) {
+		case 'source':
+			return getEntrySource( item );
+		case 'status':
+			return item.status;
+		case 'date':
+			return item.date;
+		case 'modified':
+			return item.modified;
+		case 'title':
+			return getRawTitle( item );
+		case 'author':
+			return getRawAuthor( item );
+		case 'id':
+			return String( item.id );
+		case 'breakout':
+			return getBreakoutStatus( item );
+		case 'categories':
+			return getCategoryNames( item );
+		case 'tags':
+			return getTagNames( item );
+		default:
+			return item.meta?.[ fieldId ] ?? '';
+	}
+}
 
-	return entries.filter( ( item ) => {
-		const sourceOk = sourceFilter
-			? matchesFilter(
-					String(
-						item.meta?.rolling_coverage_entry_source ?? 'wordpress'
-					),
-					sourceFilter
+/** Evaluates a single filter operator against an item value. */
+function matchesOperator(
+	itemValue: unknown,
+	operator: string,
+	filterValue: unknown
+): boolean {
+	const itemStr = String( itemValue ?? '' );
+
+	// Text/element operators: is, isNot.
+	if ( operator === 'is' ) {
+		const values = Array.isArray( filterValue )
+			? filterValue
+			: [ filterValue ];
+		return values.includes( itemStr );
+	}
+	if ( operator === 'isNot' ) {
+		const values = Array.isArray( filterValue )
+			? filterValue
+			: [ filterValue ];
+		return ! values.includes( itemStr );
+	}
+	if ( operator === 'contains' ) {
+		return itemStr
+			.toLowerCase()
+			.includes( String( filterValue ).toLowerCase() );
+	}
+	if ( operator === 'notContains' ) {
+		return ! itemStr
+			.toLowerCase()
+			.includes( String( filterValue ).toLowerCase() );
+	}
+	if ( operator === 'startsWith' ) {
+		return itemStr
+			.toLowerCase()
+			.startsWith( String( filterValue ).toLowerCase() );
+	}
+
+	// Date operators: compare via Date timestamps.
+	const itemDate = new Date( itemStr );
+	if ( isNaN( itemDate.getTime() ) ) {
+		return true; // Can't compare invalid dates; let the item through.
+	}
+
+	const filterDateStr =
+		typeof filterValue === 'object' &&
+		filterValue !== null &&
+		'value' in filterValue
+			? getRelativeDate(
+					( filterValue as { value: number; unit: string } ).value,
+					( filterValue as { value: number; unit: string } ).unit
 			  )
-			: true;
-		const statusOk = statusFilter
-			? matchesFilter( item.status, statusFilter )
-			: true;
-		return sourceOk && statusOk;
-	} );
+			: new Date( String( filterValue ) );
+
+	if ( isNaN( filterDateStr.getTime() ) ) {
+		return true;
+	}
+
+	switch ( operator ) {
+		case 'on':
+			return itemDate.getTime() === filterDateStr.getTime();
+		case 'notOn':
+			return itemDate.getTime() !== filterDateStr.getTime();
+		case 'before':
+			return itemDate < filterDateStr;
+		case 'after':
+			return itemDate > filterDateStr;
+		case 'beforeInc':
+			return itemDate <= filterDateStr;
+		case 'afterInc':
+			return itemDate >= filterDateStr;
+		case 'inThePast':
+			return itemDate >= filterDateStr && itemDate <= new Date();
+		case 'over':
+			return itemDate < filterDateStr;
+		default:
+			return true;
+	}
+}
+
+/** Computes a relative date in the past (mirrors DataViews' getRelativeDate). */
+function getRelativeDate( value: number, unit: string ): Date {
+	const now = new Date();
+	const ms = {
+		days: 86400000,
+		weeks: 604800000,
+		months: 2592000000,
+		years: 31536000000,
+	};
+	return new Date(
+		now.getTime() - ( ms[ unit as keyof typeof ms ] ?? 0 ) * value
+	);
 }
 
 export {
@@ -194,6 +381,13 @@ export {
 	getEmbeddedTerms,
 	getEntrySource,
 	getSlackChannelLabel,
+	getStatusLabel,
+	STATUS_ELEMENTS,
+	getRawTitle,
+	getRawAuthor,
+	getCategoryNames,
+	getTagNames,
+	getBreakoutStatus,
 	SOURCE_SLACK,
 	SOURCE_WORDPRESS,
 	applyEntryFilters,

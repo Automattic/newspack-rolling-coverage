@@ -7,6 +7,7 @@ import { Button } from '@wordpress/components';
 import { plus, trash } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
 import type { View } from '@wordpress/dataviews';
+import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
 
 /**
  * Internal dependencies
@@ -40,6 +41,22 @@ function CoverageView() {
 		[ config.taxMeta.statusKey, config.taxMeta.lastModifiedKey ]
 	);
 	const [ view, setView ] = useState< View >( defaultCoverageView );
+
+	// Reset to page 1 when filters or search change.
+	const handleChangeView = useCallback(
+		( newView: View ) => {
+			const filtersChanged =
+				JSON.stringify( newView.filters ?? [] ) !==
+				JSON.stringify( view.filters ?? [] );
+			const searchChanged = newView.search !== view.search;
+			if ( filtersChanged || searchChanged ) {
+				setView( { ...newView, page: 1 } );
+			} else {
+				setView( newView );
+			}
+		},
+		[ view.filters, view.search ]
+	);
 	const [ editingCoverage, setEditingCoverage ] = useState< Coverage | null >(
 		null
 	);
@@ -49,18 +66,15 @@ function CoverageView() {
 		null
 	);
 
-	const { records, isResolving, error, totalItems, totalPages } =
-		useCoverages( {
-			perPage: view.perPage,
-			page: view.page ?? 1,
-			search: view.search,
-			refreshKey,
-		} );
+	// Fetch the full coverage list: sorting, filtering, and pagination are  applied client-side via filterSortAndPaginate
+	const { records, isResolving, error } = useCoverages( {
+		search: view.search,
+		refreshKey,
+	} );
 
-	const paginationInfo = useMemo(
-		() => ( { totalItems, totalPages } ),
-		[ totalItems, totalPages ]
-	);
+	const { data: filteredData, paginationInfo } = useMemo( () => {
+		return filterSortAndPaginate( records ?? [], view, fields );
+	}, [ records, view, fields ] );
 
 	const handleOpenCreate = useCallback( () => {
 		setEditingCoverage( null );
@@ -126,10 +140,10 @@ function CoverageView() {
 				<div className="newspack-rolling-coverage-error">{ error }</div>
 			) }
 			<DataViewsWrapper
-				data={ records ?? [] }
+				data={ filteredData }
 				fields={ fields }
 				view={ view }
-				onChangeView={ setView }
+				onChangeView={ handleChangeView }
 				actions={ actions }
 				paginationInfo={ paginationInfo }
 				isLoading={ isResolving }

@@ -4,6 +4,9 @@
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useRef, useState } from '@wordpress/element';
 
+/** Debounce delay (ms) for text-input filters (title, author, etc.). */
+const DEBOUNCE_MS = 500;
+
 /**
  * Internal dependencies
  */
@@ -45,6 +48,17 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 		search = '',
 		orderBy = 'date',
 		order = 'desc',
+		status,
+		statusExclude,
+		source,
+		sourceExclude,
+		author,
+		title,
+		postId,
+		breakoutStatus,
+		breakoutStatusExclude,
+		categorySearch,
+		tagSearch,
 		refreshKey,
 	} = options;
 
@@ -67,6 +81,9 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 
 	useEffect( () => {
 		coverageIdRef.current = coverageId;
+		// Reset the sync cursor so a poll for the new coverage never reuses
+		// the previous coverage's cursor.
+		cursorRef.current = null;
 	}, [ coverageId ] );
 
 	useEffect( () => {
@@ -80,7 +97,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 		};
 	}, [] );
 
-	// Page fetch: loads a full page on coverageId/page/search/sort/refreshKey change.
+	// Page fetch: loads a full page on coverageId/page/search/sort/filter change.
 	useEffect( () => {
 		if ( coverageId === null ) {
 			setRows( null );
@@ -97,48 +114,67 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 
 		let cancelled = false;
 
-		setIsResolving( true );
-		setError( null );
+		// Debounce so rapid filter/search changes don't fire per keystroke.
+		const timer = setTimeout( () => {
+			if ( cancelled || ! isMountedRef.current ) {
+				return;
+			}
 
-		const url = buildPageUrl(
-			baseUrl,
-			coverageId,
-			page,
-			perPage,
-			orderBy,
-			order,
-			search
-		);
+			setIsResolving( true );
+			setError( null );
 
-		apiFetch< EntryPageResponse >( { url, method: 'GET' } )
-			.then( ( response ) => {
-				if ( cancelled || ! isMountedRef.current ) {
-					return;
-				}
-				setRows( response.entries );
-				rowsRef.current = response.entries;
-				setTotalItems( response.totalItems );
-				setTotalPages( response.totalPages );
-				cursorRef.current = response.cursor;
-				setHasResolved( true );
-				setError( null );
-				setSyncNotices( [] );
-			} )
-			.catch( ( err ) => {
-				if ( cancelled || ! isMountedRef.current ) {
-					return;
-				}
-				setError( handleApiError( err as Error ) );
-			} )
-			.finally( () => {
-				if ( cancelled || ! isMountedRef.current ) {
-					return;
-				}
-				setIsResolving( false );
-			} );
+			const url = buildPageUrl(
+				baseUrl,
+				coverageId,
+				page,
+				perPage,
+				orderBy,
+				order,
+				search,
+				status,
+				statusExclude,
+				source,
+				sourceExclude,
+				author,
+				title,
+				postId,
+				breakoutStatus,
+				breakoutStatusExclude,
+				categorySearch,
+				tagSearch
+			);
+
+			apiFetch< EntryPageResponse >( { url, method: 'GET' } )
+				.then( ( response ) => {
+					if ( cancelled || ! isMountedRef.current ) {
+						return;
+					}
+					setRows( response.entries );
+					rowsRef.current = response.entries;
+					setTotalItems( response.totalItems );
+					setTotalPages( response.totalPages );
+					cursorRef.current = response.cursor;
+					setHasResolved( true );
+					setError( null );
+					setSyncNotices( [] );
+				} )
+				.catch( ( err ) => {
+					if ( cancelled || ! isMountedRef.current ) {
+						return;
+					}
+					setError( handleApiError( err as Error ) );
+				} )
+				.finally( () => {
+					if ( cancelled || ! isMountedRef.current ) {
+						return;
+					}
+					setIsResolving( false );
+				} );
+		}, DEBOUNCE_MS );
 
 		return () => {
 			cancelled = true;
+			clearTimeout( timer );
 		};
 	}, [
 		coverageId,
@@ -147,6 +183,17 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 		search,
 		orderBy,
 		order,
+		status,
+		statusExclude,
+		source,
+		sourceExclude,
+		author,
+		title,
+		postId,
+		breakoutStatus,
+		breakoutStatusExclude,
+		categorySearch,
+		tagSearch,
 		refreshKey,
 		baseUrl,
 	] );
