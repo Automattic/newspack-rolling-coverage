@@ -59,6 +59,8 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 		breakoutStatusExclude,
 		categorySearch,
 		tagSearch,
+		dateFilter,
+		modifiedFilter,
 		refreshKey,
 	} = options;
 
@@ -141,7 +143,9 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 				breakoutStatus,
 				breakoutStatusExclude,
 				categorySearch,
-				tagSearch
+				tagSearch,
+				dateFilter,
+				modifiedFilter
 			);
 
 			apiFetch< EntryPageResponse >( { url, method: 'GET' } )
@@ -194,6 +198,8 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 		breakoutStatusExclude,
 		categorySearch,
 		tagSearch,
+		dateFilter,
+		modifiedFilter,
 		refreshKey,
 		baseUrl,
 	] );

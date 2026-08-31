@@ -247,6 +247,11 @@ function applyEntryFilters(
 ): Entry[] {
 	return entries.filter( ( item ) =>
 		filters.every( ( filter ) => {
+			// Date/Modified are enforced server-side via date_query; skip
+			// here so sync deltas that fall outside the window aren't dropped.
+			if ( filter.field === 'date' || filter.field === 'modified' ) {
+				return true;
+			}
 			const itemValue = getEntryFieldValue( item, filter.field );
 			return matchesOperator( itemValue, filter.operator, filter.value );
 		} )

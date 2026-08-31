@@ -133,6 +133,17 @@ function EntryView() {
 		const params: Record< string, string > = {};
 
 		for ( const f of filters ) {
+			// Skip filters with no value yet — don't narrow the query until the
+			// user actually picks something.
+			if (
+				f.value === undefined ||
+				f.value === null ||
+				f.value === '' ||
+				( Array.isArray( f.value ) && f.value.length === 0 )
+			) {
+				continue;
+			}
+
 			const val = Array.isArray( f.value )
 				? f.value.join( ',' )
 				: f.value;
@@ -179,6 +190,18 @@ function EntryView() {
 					if ( f.operator === 'contains' ) {
 						params.tagSearch = val;
 					}
+					break;
+				case 'date':
+					params.dateFilter = JSON.stringify( {
+						operator: f.operator,
+						value: f.value,
+					} );
+					break;
+				case 'modified':
+					params.modifiedFilter = JSON.stringify( {
+						operator: f.operator,
+						value: f.value,
+					} );
 					break;
 			}
 		}

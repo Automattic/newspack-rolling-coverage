@@ -271,6 +271,8 @@ interface UseEntriesOptions {
 	breakoutStatusExclude?: string;
 	categorySearch?: string;
 	tagSearch?: string;
+	dateFilter?: string;
+	modifiedFilter?: string;
 	refreshKey?: number;
 }
 

@@ -119,6 +119,8 @@ function toEntry( row: EntryViewRow ): Entry {
  * @param {string} [breakoutStatusExclude] Optional breakout status to exclude.
  * @param {string} [categorySearch]        Optional category name substring to match.
  * @param {string} [tagSearch]             Optional tag name substring to match.
+ * @param {string} [dateFilter]            Optional JSON-encoded date column filter.
+ * @param {string} [modifiedFilter]        Optional JSON-encoded modified column filter.
  * @return {string} The full REST URL.
  */
 function buildPageUrl(
@@ -139,7 +141,9 @@ function buildPageUrl(
 	breakoutStatus?: string,
 	breakoutStatusExclude?: string,
 	categorySearch?: string,
-	tagSearch?: string
+	tagSearch?: string,
+	dateFilter?: string,
+	modifiedFilter?: string
 ): string {
 	const params = new URLSearchParams();
 	params.set( 'page', String( page ) );
@@ -161,6 +165,8 @@ function buildPageUrl(
 		[ 'breakout_status_exclude', breakoutStatusExclude ],
 		[ 'category_search', categorySearch ],
 		[ 'tag_search', tagSearch ],
+		[ 'date_filter', dateFilter ],
+		[ 'modified_filter', modifiedFilter ],
 	];
 
 	for ( const [ key, value ] of optionalParams ) {

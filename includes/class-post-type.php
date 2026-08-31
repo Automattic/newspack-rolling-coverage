@@ -385,6 +385,14 @@ class Post_Type {
 						'type'              => 'string',
 						'sanitize_callback' => 'sanitize_text_field',
 					],
+					'date_filter'             => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
+					'modified_filter'         => [
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
 					'since'                   => [
 						'type'              => 'string',
 						'sanitize_callback' => 'sanitize_text_field',
@@ -751,6 +759,8 @@ class Post_Type {
 			'breakout_status_exclude' => is_string( $request->get_param( 'breakout_status_exclude' ) ) ? $request->get_param( 'breakout_status_exclude' ) : '',
 			'category_search'         => is_string( $request->get_param( 'category_search' ) ) ? $request->get_param( 'category_search' ) : '',
 			'tag_search'              => is_string( $request->get_param( 'tag_search' ) ) ? $request->get_param( 'tag_search' ) : '',
+			'date_filter'             => is_string( $request->get_param( 'date_filter' ) ) ? $request->get_param( 'date_filter' ) : '',
+			'modified_filter'         => is_string( $request->get_param( 'modified_filter' ) ) ? $request->get_param( 'modified_filter' ) : '',
 		];
 
 		return self::run_page_mode( $term_id, $params );
@@ -841,10 +851,18 @@ class Post_Type {
 						],
 					];
 				} else {
+					// Use OR-with-NOT-EXISTS so entries with no meta row (default WP source) are kept.
 					$meta_query[] = [
-						'key'     => self::META_ENTRY_SOURCE,
-						'value'   => $params['source_exclude'],
-						'compare' => '!=',
+						'relation' => 'OR',
+						[
+							'key'     => self::META_ENTRY_SOURCE,
+							'compare' => 'NOT EXISTS',
+						],
+						[
+							'key'     => self::META_ENTRY_SOURCE,
+							'value'   => $params['source_exclude'],
+							'compare' => '!=',
+						],
 					];
 				}
 			}
@@ -942,6 +960,34 @@ class Post_Type {
 				$query_args['tax_query'],
 				$tax_clauses
 			);
+		}
+
+		// Date/Modified filters: decode the JSON filter into a date_query clause.
+		$date_clauses = [];
+
+		foreach ( [
+			'date'     => $params['date_filter'],
+			'modified' => $params['modified_filter'],
+		] as $column => $json ) {
+			if ( '' === $json ) {
+				continue;
+			}
+
+			$clause = self::build_date_query_clause( $json, $column );
+
+			// null => invalid filter; force an empty result set.
+			$date_clauses[] = null === $clause
+				? [
+					'column'   => 'post_' . $column . '_gmt',
+					'year'     => 1,
+					'monthnum' => 1,
+					'day'      => 1,
+				]
+				: $clause;
+		}
+
+		if ( ! empty( $date_clauses ) ) {
+			$query_args['date_query'] = $date_clauses; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_date_query
 		}
 
 		$query = new \WP_Query( $query_args );
@@ -1051,6 +1097,10 @@ class Post_Type {
 		$cursor_parts = explode( ':', $since, 2 );
 		$cursor_id    = (int) ( $cursor_parts[0] ?? 0 );
 
+		// Convert the ISO cursor to a GMT `Y-m-d H:i:s` string so the
+		// date_query on `post_modified_gmt` compares in UTC, not site time.
+		$after_gmt = gmdate( 'Y-m-d H:i:s', strtotime( $cursor_modified ) );
+
 		$query = new \WP_Query(
 			[
 				'post_type'              => self::CPT_SLUG,
@@ -1064,7 +1114,7 @@ class Post_Type {
 				],
 				'date_query'             => [
 					'column'    => 'post_modified_gmt',
-					'after'     => $cursor_modified,
+					'after'     => $after_gmt,
 					'inclusive' => true,
 				],
 				'orderby'                => 'modified',
@@ -1186,7 +1236,11 @@ class Post_Type {
 	private static function post_modified_iso( WP_Post $post ) {
 		$datetime = get_post_datetime( $post, 'modified', 'gmt' );
 
-		return $datetime ? $datetime->format( DATE_ATOM ) : '';
+		if ( ! $datetime ) {
+			return gmdate( 'c' ); // Zero-date fallback.
+		}
+
+		return $datetime->setTimezone( new \DateTimeZone( 'UTC' ) )->format( DATE_ATOM );
 	}
 
 	/**
@@ -1198,7 +1252,11 @@ class Post_Type {
 	private static function post_date_iso( WP_Post $post ) {
 		$datetime = get_post_datetime( $post, 'date', 'gmt' );
 
-		return $datetime ? $datetime->format( DATE_ATOM ) : '';
+		if ( ! $datetime ) {
+			return gmdate( 'c' ); // Zero-date fallback.
+		}
+
+		return $datetime->setTimezone( new \DateTimeZone( 'UTC' ) )->format( DATE_ATOM );
 	}
 
 	/**
@@ -1523,6 +1581,151 @@ class Post_Type {
 		}
 
 		return array_map( 'absint', (array) $users );
+	}
+
+	/**
+	 * Builds a WP_Date_Query clause from a JSON-encoded DataViews datetime filter.
+	 *
+	 * The client sends `{ operator, value }` where value is an ISO string for
+	 * absolute operators or `{ value, unit }` for relative operators.
+	 *
+	 * Returns null on any parse failure so the caller forces an empty result.
+	 *
+	 * @param string $json   JSON-encoded filter.
+	 * @param string $column 'date' or 'modified' (maps to post_{column}_gmt).
+	 * @return array|null WP_Date_Query clause or null on failure.
+	 */
+	private static function build_date_query_clause( string $json, string $column ) {
+		$f = json_decode( $json, true );
+
+		if ( ! is_array( $f ) || ! isset( $f['operator'] ) ) {
+			return null;
+		}
+
+		$column  = 'post_' . $column . '_gmt';
+		$op      = $f['operator'];
+		$value   = $f['value'] ?? null;
+		$clause  = [ 'column' => $column ];
+
+		// Relative operators: inThePast, over.
+		if ( 'inThePast' === $op || 'over' === $op ) {
+			if ( ! is_array( $value ) || ! isset( $value['value'], $value['unit'] ) ) {
+				return null;
+			}
+
+			$units = [
+				'days'   => DAY_IN_SECONDS,
+				'weeks'  => WEEK_IN_SECONDS,
+				'months' => MONTH_IN_SECONDS,
+				'years'  => YEAR_IN_SECONDS,
+			];
+
+			if ( ! isset( $units[ $value['unit'] ] ) ) {
+				return null;
+			}
+
+			$cutoff = gmdate( 'Y-m-d H:i:s', time() - (int) $value['value'] * $units[ $value['unit'] ] );
+
+			if ( 'inThePast' === $op ) {
+				return [
+					'column'   => $column,
+					'relation' => 'AND',
+					[
+						'column' => $column,
+						'after'  => $cutoff,
+					],
+					[
+						'column' => $column,
+						'before' => gmdate( 'Y-m-d H:i:s' ),
+					],
+				];
+			}
+
+			// over: older than N units.
+			return [
+				'column' => $column,
+				'before' => $cutoff,
+			];
+		}
+
+		// Absolute operators: on, notOn, before, after, beforeInc, afterInc.
+		if ( ! is_string( $value ) ) {
+			return null;
+		}
+
+		$ts = strtotime( $value );
+
+		if ( false === $ts ) {
+			return null;
+		}
+
+		$iso = gmdate( 'Y-m-d H:i:s', $ts );
+
+		// The user picks a calendar date in site timezone; extract Y/m/d in
+		// site time so day-boundary operators match what they see.
+		$site_y = (int) wp_date( 'Y', $ts );
+		$site_m = (int) wp_date( 'n', $ts );
+		$site_d = (int) wp_date( 'j', $ts );
+
+		// Site-local midnight boundaries, shifted to GMT for the _gmt column.
+		$offset    = (float) get_option( 'gmt_offset' ) * HOUR_IN_SECONDS;
+		$day_start = gmdate( 'Y-m-d H:i:s', gmmktime( 0, 0, 0, $site_m, $site_d, $site_y ) - $offset );
+		$day_end   = gmdate( 'Y-m-d H:i:s', gmmktime( 23, 59, 59, $site_m, $site_d, $site_y ) - $offset );
+
+		switch ( $op ) {
+			case 'on':
+				return [
+					'column'   => $column,
+					'relation' => 'AND',
+					[
+						'column'    => $column,
+						'after'     => $day_start,
+						'inclusive' => true,
+					],
+					[
+						'column'    => $column,
+						'before'    => $day_end,
+						'inclusive' => true,
+					],
+				];
+			case 'notOn':
+				return [
+					'column'   => $column,
+					'relation' => 'OR',
+					[
+						'column' => $column,
+						'before' => $day_start,
+					],
+					[
+						'column' => $column,
+						'after'  => $day_end,
+					],
+				];
+			case 'before':
+				return [
+					'column' => $column,
+					'before' => $iso,
+				];
+			case 'after':
+				return [
+					'column' => $column,
+					'after'  => $iso,
+				];
+			case 'beforeInc':
+				return [
+					'column'    => $column,
+					'before'    => $iso,
+					'inclusive' => true,
+				];
+			case 'afterInc':
+				return [
+					'column'    => $column,
+					'after'     => $iso,
+					'inclusive' => true,
+				];
+			default:
+				return null;
+		}
 	}
 
 	/**
