@@ -85,6 +85,9 @@ class Initializer {
 
 		wp_clear_scheduled_hook( Post_Type::CLEANUP_CRON_HOOK );
 
+		// Clean up the Slack monitor log file and keep-alive options.
+		Slack_Monitor::cleanup();
+
 		/**
 		 * Action to hook into when Rolling Coverage plugin is deactivated.
 		 */

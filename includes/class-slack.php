@@ -29,6 +29,7 @@ class Slack {
 	public static function init(): void {
 		self::register_hooks();
 		self::register_conditional_hooks();
+		Slack_Monitor::init();
 	}
 
 	/**
