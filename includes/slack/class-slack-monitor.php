@@ -16,9 +16,10 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Manages a temporary log file that captures Slack integration events
- * in real time. The file is created when a user opens the Monitor tab
- * and deleted when the tab is closed, so logging only happens while
- * someone is actively watching.
+ * in real time. The log endpoint's polling acts as a keep-alive
+ * signal; the log file is created on the first poll and automatically
+ * deleted once polling stops, so logging only happens while someone
+ * is actively watching.
  *
  * Uses the WordPress Filesystem API for create/delete/read operations.
  * The append-write path uses native PHP fopen+flock+fwrite because
@@ -28,18 +29,38 @@ defined( 'ABSPATH' ) || exit;
 class Slack_Monitor {
 
 	const LOG_DIR_NAME  = 'newspack-rolling-coverage';
-	const LOG_FILENAME  = 'slack.log';
 	const MAX_LOG_BYTES = 5242880; // 5 MB cap.
 
 	/**
-	 * Transient key for tracking active monitor viewer count.
+	 * PHP guard written as the first line of the log file. If the
+	 * unguessable filename ever leaks, the .php extension means every
+	 * server hands direct requests to the PHP interpreter, which
+	 * executes this guard and exits — the log contents are never
+	 * served (defense in depth on top of the random name).
 	 */
-	const VIEWER_COUNT_TRANSIENT = 'rolling_coverage_slack_monitor_viewers';
+	const PHP_GUARD = "<?php exit; ?>\n";
 
 	/**
-	 * Transient TTL for viewer count (1 hour — re-upped on each start/stop).
+	 * Option key storing the timestamp of the last logs poll. Acts as
+	 * the monitor keep-alive signal: the log file is created on the
+	 * first poll and cleaned up once the stamp is stale or missing.
 	 */
-	const VIEWER_COUNT_TTL = 3600;
+	const LAST_SEEN_OPTION = 'rolling_coverage_slack_monitor_last_seen';
+
+	/**
+	 * Option key storing the random log filename. The name is
+	 * unguessable (wp_generate_password, 32 chars alphanumeric), so
+	 * even a server that serves every file in uploads/ cannot serve a
+	 * log nobody can name — security that does not depend on nginx
+	 * rules or .htaccess being honored.
+	 */
+	const LOG_FILENAME_OPTION = 'rolling_coverage_slack_monitor_filename';
+
+	/**
+	 * How long (seconds) after the last poll before the log file is
+	 * considered abandoned and deleted by a subsequent log() call.
+	 */
+	const KEEP_ALIVE_TIMEOUT = 120; // 2 minutes.
 
 	/**
 	 * Cached log file path (resolved once from wp_upload_dir).
@@ -53,15 +74,13 @@ class Slack_Monitor {
 	 */
 	public static function init() {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
-
 		add_action( 'rolling_coverage_slack_channel_linked', [ __CLASS__, 'on_channel_linked' ], 10, 2 );
 		add_action( 'rolling_coverage_slack_channel_unlinked', [ __CLASS__, 'on_channel_unlinked' ], 10, 1 );
 		add_action( 'rolling_coverage_slack_security_event', [ __CLASS__, 'on_security_event' ], 10, 2 );
 	}
 
 	/**
-	 * Clean up the log file and viewer count transient.
-	 * Called on plugin deactivation.
+	 * Clean up the log file and keep-alive options during plugin deactivation.
 	 */
 	public static function cleanup(): void {
 		$path = self::get_log_path();
@@ -71,40 +90,14 @@ class Slack_Monitor {
 			$fs->delete( $path );
 		}
 
-		delete_transient( self::VIEWER_COUNT_TRANSIENT );
+		delete_option( self::LAST_SEEN_OPTION );
+		delete_option( self::LOG_FILENAME_OPTION );
 	}
 
 	/**
 	 * Register REST routes for the monitor.
 	 */
 	public static function register_routes() {
-		register_rest_route(
-			Slack::REST_NAMESPACE,
-			'/slack/monitor/start',
-			[
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => [ __CLASS__, 'handle_start' ],
-				'permission_callback' => [ __CLASS__, 'can_monitor' ],
-			]
-		);
-
-		register_rest_route(
-			Slack::REST_NAMESPACE,
-			'/slack/monitor/stop',
-			[
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => [ __CLASS__, 'handle_stop' ],
-				'permission_callback' => [ __CLASS__, 'can_monitor' ],
-				'args'                => [
-					'_wpnonce' => [
-						'type'              => 'string',
-						'required'          => false,
-						'sanitize_callback' => 'sanitize_text_field',
-					],
-				],
-			]
-		);
-
 		register_rest_route(
 			Slack::REST_NAMESPACE,
 			'/slack/monitor/logs',
@@ -176,9 +169,97 @@ class Slack_Monitor {
 			return null;
 		}
 
-		self::$log_path = trailingslashit( $dir ) . self::LOG_FILENAME;
+		$filename = self::get_session_filename();
+
+		if ( null === $filename ) {
+			return null;
+		}
+
+		self::$log_path = trailingslashit( $dir ) . $filename;
 
 		return self::$log_path;
+	}
+
+	/**
+	 * Resolve the random log filename, generating and persisting a
+	 * fresh one on first use so log() and the polls always agree on
+	 * the name.
+	 *
+	 * @return string|null Random filename with .php extension, or null.
+	 */
+	private static function get_session_filename(): ?string {
+		$filename = (string) get_option( self::LOG_FILENAME_OPTION, '' );
+
+		if ( '' !== $filename ) {
+			return $filename;
+		}
+
+		// Generate a fresh unguessable name.
+		$filename = wp_generate_password( 32, false, false ) . '.php';
+
+		if ( ! update_option( self::LOG_FILENAME_OPTION, $filename, false ) ) {
+			return null;
+		}
+
+		return $filename;
+	}
+
+	/**
+	 * Ensure the log directory denies web access.
+	 *
+	 * @param string $dir Absolute log directory path.
+	 * @return void
+	 */
+	private static function protect_log_dir( string $dir ): void {
+		$fs = self::get_filesystem();
+
+		if ( ! $fs ) {
+			return;
+		}
+
+		$htaccess = trailingslashit( $dir ) . '.htaccess';
+
+		if ( ! $fs->exists( $htaccess ) ) {
+			$fs->put_contents(
+				$htaccess,
+				"Require all denied\n<IfModule !mod_authz_core.c>\n\tOrder allow,deny\n\tDeny from all\n</IfModule>\n"
+			);
+		}
+
+		$index = trailingslashit( $dir ) . 'index.php';
+
+		if ( ! $fs->exists( $index ) ) {
+			$fs->put_contents( $index, "<?php\n// Silence is golden.\n" );
+		}
+	}
+
+	/**
+	 * Clean up the log file if monitoring has gone stale.
+	 *
+	 * @return void
+	 */
+	private static function cleanup_if_stale(): void {
+		$path = self::get_log_path();
+
+		if ( null === $path || ! file_exists( $path ) ) {
+			return;
+		}
+
+		$last_seen = (int) get_option( self::LAST_SEEN_OPTION, 0 );
+
+		// Only clean up once the keep-alive window has lapsed — the stamp is refreshed on every logs poll, so a live viewer keeps it fresh.
+		if ( $last_seen > 0 && ( time() - $last_seen ) < self::KEEP_ALIVE_TIMEOUT ) {
+			return;
+		}
+
+		// Zero stamp with a file present means a previous session's stale file (option expired or was cleaned): remove it too.
+		$fs = self::get_filesystem();
+
+		if ( $fs ) {
+			$fs->delete( $path );
+		}
+
+		delete_option( self::LAST_SEEN_OPTION );
 	}
 
 	/**
@@ -199,6 +280,12 @@ class Slack_Monitor {
 			$path = self::get_log_path();
 
 			if ( null === $path || ! file_exists( $path ) ) {
+				return;
+			}
+
+			self::cleanup_if_stale();
+
+			if ( ! file_exists( $path ) ) {
 				return;
 			}
 
@@ -226,6 +313,7 @@ class Slack_Monitor {
 				// Enforce size cap by truncating if the file is too large.
 				if ( fstat( $handle )['size'] > self::MAX_LOG_BYTES ) {
 					ftruncate( $handle, 0 ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.file_ops_ftruncate
+					fwrite( $handle, self::PHP_GUARD ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.file_ops_fwrite
 				}
 
 				fwrite( $handle, $entry . "\n" ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.file_ops_fwrite
@@ -241,71 +329,9 @@ class Slack_Monitor {
 	}
 
 	/**
-	 * REST: start monitoring — create the log file if this is the
-	 * first viewer. Increment the viewer count either way.
-	 *
-	 * @return WP_REST_Response
-	 */
-	public static function handle_start(): WP_REST_Response {
-		$path = self::get_log_path();
-		$fs   = self::get_filesystem();
-
-		if ( null === $path || ! $fs ) {
-			return new WP_REST_Response(
-				[
-					'success' => false,
-					'error'   => 'uploads_dir_error',
-				],
-				500
-			);
-		}
-
-		// Increment viewer count.
-		$count = (int) get_transient( self::VIEWER_COUNT_TRANSIENT );
-		++$count;
-		set_transient( self::VIEWER_COUNT_TRANSIENT, $count, self::VIEWER_COUNT_TTL );
-
-		// First viewer: create a fresh file. Subsequent viewers: keep the existing file so they see the same ongoing logs.
-		// Edge case: if the viewer count was 0 (expired transient from a previous browser crash), truncate the stale file.
-		if ( 1 === $count || ! $fs->exists( $path ) ) {
-			$fs->put_contents( $path, '', FS_CHMOD_FILE );
-			self::log( 'info', 'Monitor started.' );
-		}
-
-		return new WP_REST_Response( [ 'success' => true ], 200 );
-	}
-
-	/**
-	 * REST: stop monitoring — decrement the viewer count and delete
-	 * the log file only when the last viewer leaves.
-	 *
-	 * @return WP_REST_Response
-	 */
-	public static function handle_stop(): WP_REST_Response {
-		$path = self::get_log_path();
-		$fs   = self::get_filesystem();
-
-		// Decrement viewer count.
-		$count = (int) get_transient( self::VIEWER_COUNT_TRANSIENT );
-		$count = max( 0, $count - 1 );
-
-		if ( $count > 0 ) {
-			set_transient( self::VIEWER_COUNT_TRANSIENT, $count, self::VIEWER_COUNT_TTL );
-			return new WP_REST_Response( [ 'success' => true ], 200 );
-		}
-
-		// Last viewer — clean up.
-		delete_transient( self::VIEWER_COUNT_TRANSIENT );
-
-		if ( null !== $path && $fs && $fs->exists( $path ) ) {
-			$fs->delete( $path );
-		}
-
-		return new WP_REST_Response( [ 'success' => true ], 200 );
-	}
-
-	/**
-	 * REST: get log entries since a byte offset.
+	 * REST: get log entries since a byte offset. Each poll doubles as
+	 * the monitor keep-alive signal — it creates the log file on first
+	 * call and refreshes the last-seen stamp so log() keeps writing.
 	 *
 	 * Uses native PHP fseek + stream_get_contents to read only the
 	 * new bytes since the last poll, not the entire file.
@@ -317,12 +343,33 @@ class Slack_Monitor {
 		$path   = self::get_log_path();
 		$offset = (int) $request->get_param( 'offset' );
 
-		if ( null === $path || ! file_exists( $path ) ) {
+		if ( null === $path ) {
 			return new WP_REST_Response(
 				[
 					'lines'  => [],
 					'offset' => 0,
-					'active' => false,
+				]
+			);
+		}
+
+		// Refresh keep-alive: this poll is proof someone is watching.
+		update_option( self::LAST_SEEN_OPTION, time(), false );
+
+		// First poll of a session (or after a stale cleanup): create a fresh file with the PHP guard as its first line.
+		if ( ! file_exists( $path ) ) {
+			self::protect_log_dir( dirname( $path ) );
+
+			$fs = self::get_filesystem();
+
+			if ( $fs ) {
+				$fs->put_contents( $path, self::PHP_GUARD, FS_CHMOD_FILE );
+				self::log( 'info', 'Monitor started.' );
+			}
+
+			return new WP_REST_Response(
+				[
+					'lines'  => [],
+					'offset' => strlen( self::PHP_GUARD ),
 				]
 			);
 		}
@@ -335,7 +382,6 @@ class Slack_Monitor {
 				[
 					'lines'  => [],
 					'offset' => 0,
-					'active' => true,
 				]
 			);
 		}
@@ -346,9 +392,16 @@ class Slack_Monitor {
 		$size = fstat( $handle )['size'] ?? 0;
 		$size = (int) $size;
 
+		// Byte length of the PHP guard line.
+		$guard_length = strlen( self::PHP_GUARD );
+
+		if ( $offset < $guard_length ) {
+			$offset = $guard_length;
+		}
+
 		// If the file was truncated (size cap hit), reset offset.
 		if ( $offset > $size ) {
-			$offset = 0;
+			$offset = $guard_length;
 		}
 
 		fseek( $handle, $offset );
@@ -378,7 +431,6 @@ class Slack_Monitor {
 			[
 				'lines'  => $lines,
 				'offset' => $new_offset,
-				'active' => true,
 			]
 		);
 	}

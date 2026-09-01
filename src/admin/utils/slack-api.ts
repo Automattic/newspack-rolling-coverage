@@ -289,84 +289,12 @@ async function getSlackSettings( namespace: string ): Promise< {
 }
 
 /**
- * Start the Slack monitor (create the log file).
- *
- * @param {string} namespace REST namespace.
- * @return {Promise<ApiResult>} Result.
- */
-async function startSlackMonitor( namespace: string ): Promise< ApiResult > {
-	try {
-		await apiFetch( {
-			path: `${ namespace }/slack/monitor/start`,
-			method: 'POST',
-		} );
-		return { success: true };
-	} catch ( error ) {
-		return { success: false, error: handleApiError( error as Error ) };
-	}
-}
-
-/**
- * Stop the Slack monitor (delete the log file).
- *
- * This function must reliably deliver a "stop" request to the server
- * even when the browser tab is being closed or navigated away from.
- * Standard fetch/XHR requests are cancelled by the browser during
- * page unload, so two alternative transports are used:
- *
- * 1. Image beacon (primary): Setting `new Image().src = url` triggers
- *    a GET request that the browser treats as a background resource
- *    load. Unlike XHR/fetch, image loads are not cancelled when the
- *    page is torn down — the browser completes the request even after
- *    the document is destroyed.
- *
- *    Authentication: image beacons cannot set custom HTTP headers
- *    (like X-WP-Nonce), so the WP REST nonce is passed as a `_wpnonce`
- *    query parameter. WordPress REST API natively validates `_wpnonce`
- *    from the query string for cookie-authenticated requests.
- *
- * 2. fetch with keepalive (fallback): If the Image constructor throws
- *    (extremely rare — would only happen if the browser blocks Image
- *    entirely), we fall back to `fetch(url, { keepalive: true })`. The
- *    `keepalive` flag tells the browser to complete the request even
- *    after the page unloads, similar to sendBeacon but with the full
- *    fetch API available.
- *
- * @param {string} namespace REST namespace (from config.restBase.slack).
- * @param {string} nonce     WP REST nonce (from config.nonce, generated
- *                           server-side via wp_create_nonce('wp_rest')).
- */
-async function stopSlackMonitor(
-	namespace: string,
-	nonce?: string
-): Promise< ApiResult > {
-	const stopUrl = `${
-		window.location.origin
-	}/wp-json/${ namespace }/slack/monitor/stop?_wpnonce=${ encodeURIComponent(
-		nonce ?? ''
-	) }`;
-
-	// Primary: image beacon (GET) — survives page unload reliably.
-	try {
-		const img = new Image();
-		img.src = stopUrl;
-		return { success: true };
-	} catch {
-		// Fallback: fetch with keepalive — modern alternative.
-		try {
-			await fetch( stopUrl, {
-				method: 'GET',
-				keepalive: true,
-			} );
-			return { success: true };
-		} catch ( error ) {
-			return { success: false, error: handleApiError( error as Error ) };
-		}
-	}
-}
-
-/**
  * Fetch Slack monitor log entries since a byte offset.
+ *
+ * Each successful poll doubles as the monitor keep-alive signal
+ * on the server: the first poll creates the log file and every
+ * poll refreshes its last-seen stamp, so no explicit start/stop
+ * lifecycle is needed.
  *
  * @param {string} namespace REST namespace.
  * @param {number} offset    Byte offset to read from.
@@ -383,13 +311,11 @@ async function getSlackMonitorLogs(
 		} ) ) as {
 			lines: SlackMonitorLogEntry[];
 			offset: number;
-			active: boolean;
 		};
 		return {
 			success: true,
 			lines: result.lines,
 			offset: result.offset,
-			active: result.active,
 		};
 	} catch ( error ) {
 		return { success: false, error: handleApiError( error as Error ) };
@@ -419,8 +345,6 @@ export {
 	saveSlackSettings,
 	listSlackChannels,
 	unlinkSlackChannel,
-	startSlackMonitor,
-	stopSlackMonitor,
 	getSlackMonitorLogs,
 	formatContext,
 };

@@ -284,7 +284,6 @@ interface SlackMonitorLogEntry {
 interface SlackMonitorLogsResult extends ApiResult {
 	lines?: SlackMonitorLogEntry[];
 	offset?: number;
-	active?: boolean;
 }
 
 interface AiSettings {

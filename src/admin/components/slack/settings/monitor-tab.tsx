@@ -9,11 +9,7 @@ import { Spinner } from '@wordpress/components';
  * Internal dependencies
  */
 import { useAdminContext } from '../../../hooks/useAdminContext';
-import {
-	startSlackMonitor,
-	stopSlackMonitor,
-	getSlackMonitorLogs,
-} from '../../../utils/slack-api';
+import { getSlackMonitorLogs } from '../../../utils/slack-api';
 import { LogEntry } from './log-entry';
 import type { SlackMonitorLogEntry } from '../../../types';
 
@@ -23,23 +19,23 @@ const MAX_LOGS = 1000;
 /**
  * Real-time Slack event monitor tab.
  *
- * On mount, starts monitoring (creates the log file). Polls every 5s
- * for new log entries. On unmount, stops monitoring (deletes the log
- * file).
+ * Polls every 5s for new log entries. Each poll doubles as the
+ * server-side keep-alive signal: the log file is created on the
+ * first poll and automatically cleaned up once polling stops, so no
+ * explicit start/stop lifecycle is needed.
  */
 function MonitorTab() {
 	const config = useAdminContext();
 	const namespace = config.restBase.slack;
-	const nonce = config.nonce;
 
 	const [ logs, setLogs ] = useState< SlackMonitorLogEntry[] >( [] );
-	const [ isActive, setIsActive ] = useState( false );
 	const [ isStarting, setIsStarting ] = useState( true );
 	const [ startError, setStartError ] = useState< string | null >( null );
 	const offsetRef = useRef( 0 );
 	const containerRef = useRef< HTMLDivElement | null >( null );
 	const isAtBottomRef = useRef( true );
 	const inFlightRef = useRef( false );
+	const isFirstPollRef = useRef( true );
 
 	const scrollToBottom = useCallback( () => {
 		if ( containerRef.current && isAtBottomRef.current ) {
@@ -55,30 +51,6 @@ function MonitorTab() {
 		isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < 50;
 	}, [] );
 
-	const start = useCallback( async () => {
-		setIsStarting( true );
-		const result = await startSlackMonitor( namespace );
-
-		if ( ! result.success ) {
-			setStartError(
-				result.error ||
-					__(
-						'Failed to start monitor.',
-						'newspack-rolling-coverage'
-					)
-			);
-			setIsStarting( false );
-			return;
-		}
-
-		setIsActive( true );
-		setIsStarting( false );
-	}, [ namespace ] );
-
-	const stop = useCallback( () => {
-		stopSlackMonitor( namespace, nonce );
-	}, [ namespace, nonce ] );
-
 	const poll = useCallback( async () => {
 		if ( inFlightRef.current ) {
 			return;
@@ -92,7 +64,7 @@ function MonitorTab() {
 			);
 
 			if ( ! result.success || ! result.lines ) {
-				return;
+				throw new Error( result.error );
 			}
 
 			if ( result.lines.length > 0 ) {
@@ -107,47 +79,45 @@ function MonitorTab() {
 			if ( result.offset !== undefined ) {
 				offsetRef.current = result.offset;
 			}
+		} catch {
+			throw new Error(
+				__( 'Failed to start monitor.', 'newspack-rolling-coverage' )
+			);
 		} finally {
 			inFlightRef.current = false;
 		}
 	}, [ namespace ] );
 
-	// Start/stop monitoring lifecycle.
+	// Poll for new logs. The first poll boots the monitor; the poll
+	// cadence itself keeps it alive on the server. Only a failed
+	// first poll surfaces an error — later failures just retry on
+	// the next tick.
 	useEffect( () => {
-		let cancelled = false;
-
-		start().then( () => {
-			if ( cancelled ) {
-			}
-		} );
-
-		const handlePageHide = () => {
-			cancelled = true;
-			stop();
-		};
-
-		window.addEventListener( 'pagehide', handlePageHide );
-
-		return () => {
-			cancelled = true;
-			stop();
-			window.removeEventListener( 'pagehide', handlePageHide );
-		};
-	}, [ start, stop ] );
-
-	// Poll for new logs.
-	useEffect( () => {
-		if ( ! isActive ) {
-			return;
-		}
-
 		let cancelled = false;
 
 		const runPoll = async () => {
 			if ( cancelled ) {
 				return;
 			}
-			await poll();
+			await poll()
+				.then( () => {
+					if ( ! cancelled && isFirstPollRef.current ) {
+						isFirstPollRef.current = false;
+						setIsStarting( false );
+					}
+				} )
+				.catch( () => {
+					if ( ! cancelled && isFirstPollRef.current ) {
+						isFirstPollRef.current = false;
+						setStartError(
+							__(
+								'Failed to start monitor.',
+								'newspack-rolling-coverage'
+							)
+						);
+						setIsStarting( false );
+					}
+				} );
 		};
 
 		runPoll();
@@ -157,7 +127,7 @@ function MonitorTab() {
 			cancelled = true;
 			clearInterval( interval );
 		};
-	}, [ isActive, poll ] );
+	}, [ poll ] );
 
 	useEffect( () => {
 		scrollToBottom();
