@@ -62,7 +62,7 @@ class Initializer {
 	 */
 	public static function deactivation_hook() {
 
-		// Clean up the Slack monitor log file and viewer count transient.
+		// Clean up the Slack monitor log file and keep-alive options.
 		Slack_Monitor::cleanup();
 
 		/**

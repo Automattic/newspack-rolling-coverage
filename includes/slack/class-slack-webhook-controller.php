@@ -306,7 +306,9 @@ class Slack_Webhook_Controller {
 		$result = $this->signature_verifier->verify( $raw_body, $signature, $timestamp ? (int) $timestamp : null );
 
 		if ( ! $result['valid'] ) {
-			Slack_Monitor::log( 'error', 'Signature verification failed', [ 'reason' => (string) ( $result['reason'] ?? 'unknown' ) ] );
+			$reason = (string) ( $result['reason'] ?? 'unknown' );
+			error_log( 'Slack ingestion: signature verification failed (' . $reason . ') — webhook rejected with 401, no entry will be created.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			Slack_Monitor::log( 'error', 'Signature verification failed', [ 'reason' => $reason ] );
 
 			return new \WP_Error(
 				'slack_invalid_signature',
@@ -789,6 +791,7 @@ class Slack_Webhook_Controller {
 
 			if ( '' === $channel_id || '' === $ts || '' === $user_id ) {
 				Slack_Monitor::log( 'warning', 'Missing channel/ts/user in message event' );
+				error_log( 'Slack ingestion: missing channel/ts/user, skipping.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
@@ -803,6 +806,7 @@ class Slack_Webhook_Controller {
 
 			if ( $term_id <= 0 ) {
 				Slack_Monitor::log( 'warning', 'Channel mapping has no term_id', [ 'channel' => $channel_id ] );
+				error_log( 'Slack ingestion: channel ' . $channel_id . ' mapping has no term_id, skipping.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
@@ -1380,6 +1384,7 @@ class Slack_Webhook_Controller {
 
 		if ( $term_id <= 0 || '' === $channel_id || '' === $ts || '' === $user_id ) {
 			Slack_Monitor::log( 'warning', 'Ingestion: invalid payload' );
+			error_log( 'Slack ingestion: invalid payload, skipping.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			return;
 		}
 
@@ -1439,6 +1444,7 @@ class Slack_Webhook_Controller {
 
 		if ( is_wp_error( $post_id ) || $post_id <= 0 ) {
 			if ( is_wp_error( $post_id ) ) {
+				error_log( 'Slack ingestion: entry creation failed — ' . $post_id->get_error_code() . ': ' . $post_id->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				Slack_Monitor::log(
 					'error',
 					'Ingestion: entry creation failed',
@@ -1449,6 +1455,7 @@ class Slack_Webhook_Controller {
 				);
 			} else {
 				Slack_Monitor::log( 'info', 'Ingestion: entry not created (duplicate, empty content, or bot user unavailable)', [ 'ts' => $ts ] );
+				error_log( 'Slack ingestion: entry not created for ts ' . $ts . ' (skipped by ingest service: duplicate, empty content, or bot user unavailable). Check preceding log entries for the reason.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			}
 			return;
 		}
