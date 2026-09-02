@@ -26,8 +26,8 @@ import {
 	useEffect,
 	useCallback,
 	useMemo,
-	useRef,
 	memo,
+	useRef,
 } from '@wordpress/element';
 import { useSelect } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
@@ -45,12 +45,17 @@ import {
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
 } from './utils';
-import { ENTRY_TEMPLATE, ENTRY_ALLOWED_BLOCKS } from './template';
+import {
+	ENTRY_TEMPLATE,
+	ENTRY_ALLOWED_BLOCKS,
+	ENTRY_EDITED_STATES,
+} from './template';
 import {
 	AI_AVAILABLE,
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
 } from './config';
+import EditedStateBar from './components/edited-state-bar';
 import type {
 	CoverageOption,
 	ApplyNotice,
@@ -61,7 +66,8 @@ import type {
 
 /**
  * Block names that belong to the per-entry template (everything after the
- * deep-link CTA). Used to split inner blocks into CTA vs. template.
+ * deep-link CTA and editor-state blocks). Used to split inner blocks into
+ * render-once/state vs. per-entry template.
  */
 const CTA_BLOCK_NAME = 'newspack-rolling-coverage/deep-link-cta';
 
@@ -72,18 +78,32 @@ const CTA_BLOCK_NAME = 'newspack-rolling-coverage/deep-link-cta';
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 
 /**
+ * Every block name injected by an editor state. Used for the allowed-blocks
+ * list, and to exclude these from the per-entry preview cards below.
+ */
+const STATE_BLOCK_NAMES = ENTRY_EDITED_STATES.flatMap( ( state ) =>
+	state.blocks.map( ( [ blockName ] ) => blockName )
+);
+
+/**
  * Block names that render once at the top of the coverage (not per entry).
  * Used to split inner blocks into these vs. the per-entry template.
  */
-const RENDER_ONCE_BLOCKS = [ FOLLOW_BLOCK_NAME, CTA_BLOCK_NAME ];
+const RENDER_ONCE_BLOCKS = [
+	FOLLOW_BLOCK_NAME,
+	CTA_BLOCK_NAME,
+	...STATE_BLOCK_NAMES,
+];
 
 /**
- * Default inner-blocks template for the Rolling Coverage block:
- * the follow button and deep-link CTA at the top, then the per-entry blocks.
+ * Default inner-blocks template for the Rolling Coverage block: the follow
+ * button and deep-link CTA at the top, then every editor state's blocks,
+ * then the per-entry blocks.
  */
 const INNER_TEMPLATE = [
 	[ FOLLOW_BLOCK_NAME ],
 	[ CTA_BLOCK_NAME ],
+	...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
 	...ENTRY_TEMPLATE,
 ];
 
@@ -94,7 +114,16 @@ const ALL_ALLOWED_BLOCKS = [
 	...ENTRY_ALLOWED_BLOCKS,
 	CTA_BLOCK_NAME,
 	FOLLOW_BLOCK_NAME,
+	...STATE_BLOCK_NAMES,
 ];
+
+/**
+ * The Edited State bar's options, derived from ENTRY_EDITED_STATES.
+ */
+const EDITED_STATE_OPTIONS = ENTRY_EDITED_STATES.map( ( state ) => ( {
+	value: state.value,
+	label: state.label,
+} ) );
 
 /**
  * Neutral block context used when a coverage has no published entries yet,
@@ -153,12 +182,16 @@ const STATUS_OPTIONS = [
 
 export default function Edit( {
 	clientId,
+	isSelected,
 	attributes,
 	setAttributes,
 }: EditProps ) {
 	const { coverageId, pollInterval, entriesPerPage, enableAds, adsInterval } =
 		attributes;
-	const blockProps = useBlockProps();
+	const [ editedState, setEditedState ] = useState(
+		EDITED_STATE_OPTIONS[ 0 ].value
+	);
+	const blockProps = useBlockProps( { 'data-editor-state': editedState } );
 	const innerBlocksProps = useInnerBlocksProps(
 		{ className: 'newspack-rolling-coverage-layout' },
 		{
@@ -201,7 +234,8 @@ export default function Edit( {
 	);
 
 	// Read live from the store so preview copies stay in sync as the
-	// template is edited. Filter out the CTA block — only per-entry blocks.
+	// template is edited. Filter out the render-once blocks (follow, CTA,
+	// and editor-state blocks) — only per-entry blocks.
 	const allBlocks: TemplateBlocks = useSelect(
 		( select ) =>
 			(
@@ -738,6 +772,12 @@ export default function Edit( {
 			<div { ...blockProps }>
 				{ coverageId ? (
 					<>
+						<EditedStateBar
+							options={ EDITED_STATE_OPTIONS }
+							value={ editedState }
+							onChange={ setEditedState }
+							isVisible={ isSelected }
+						/>
 						{ currentCoverage?.status === 'trash' && (
 							<Notice status="error" isDismissible={ false }>
 								{ __(

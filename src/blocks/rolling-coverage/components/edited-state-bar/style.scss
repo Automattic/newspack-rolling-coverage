@@ -1,0 +1,41 @@
+.newspack-edited-state-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 12px;
+	padding: 7px 8px;
+	background: #fff;
+	border: 1px solid #1e1e1e;
+	border-radius: 2px;
+	font-family: system-ui, sans-serif;
+	font-size: 13px;
+	line-height: 1.4;
+
+	> span {
+		font-weight: 600;
+	}
+
+	> div {
+		display: flex;
+		gap: 4px;
+	}
+
+	button {
+		background: none !important;
+		border-radius: 2px !important;
+		box-shadow: none !important;
+		color: #1e1e1e !important;
+		height: 32px !important;
+
+		&[data-is-active="true"] {
+			background: #1e1e1e !important;
+			color: #fff !important;
+		}
+
+		&:hover:not([data-is-active="true"]) {
+			color: var(--wp-admin-theme-color) !important;
+		}
+	}
+}

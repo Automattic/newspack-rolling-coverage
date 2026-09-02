@@ -39,13 +39,13 @@ function useEntries( options: UseEntriesOptions ) {
 		page,
 		orderby: orderBy,
 		order,
-		status: status || 'publish,draft,pending,future,private,trash',
+		status: status || 'publish,draft,pending,future,private,trash,archived',
 		context: 'edit',
 		[ config.restBase.coverages ]: coverageId
 			? String( coverageId )
 			: undefined,
 		_fields:
-			'id,title,date,modified,author,status,pinned,meta,categories,tags,_links,_embedded,rolling_coverage_breakout_status',
+			'id,title,date,modified,author,status,pinned,coverageStatus,meta,categories,tags,_links,_embedded,rolling_coverage_breakout_status',
 		_embed: 'author,wp:term',
 		_ts: refreshKey,
 	};

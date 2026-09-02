@@ -41,6 +41,9 @@ class Rolling_Coverage_Block {
 	// CSS class/ID prefix for the block's front-end markup.
 	const MARKUP_PREFIX = 'newspack-rolling-coverage';
 
+	// Word count cap for an archived entry's collapsed-content summary; CSS clips it to one line regardless.
+	const ARCHIVED_ENTRY_SUMMARY_WORD_CAP = 50;
+
 	// Option name prefix for persisted entry templates: rc_tpl_{coverage_id}_{hash}.
 	const TEMPLATE_OPTION_PREFIX = 'rc_tpl_';
 
@@ -285,7 +288,7 @@ class Rolling_Coverage_Block {
 		$query = new WP_Query(
 			[
 				'post_type'           => Post_Type::CPT_SLUG,
-				'post_status'         => 'publish',
+				'post_status'         => [ 'publish', Archive_Mode::ENTRY_ARCHIVED_STATUS ],
 				'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
 						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
@@ -322,15 +325,9 @@ class Rolling_Coverage_Block {
 		$oldest_iso = ! empty( $query->posts ) ? self::post_date_iso( $query->posts[ count( $query->posts ) - 1 ] ) : '';
 		$has_more   = count( $query->posts ) === $entries_per_page;
 
-		$notice = '';
-
-		if ( 'paused' === $status ) {
-			$notice = sprintf(
-				'<p class="%1$s-notice %1$s-notice--paused">%2$s</p>',
-				self::MARKUP_PREFIX,
-				esc_html__( 'This coverage is currently paused. New updates will appear once it resumes.', 'newspack-rolling-coverage' )
-			);
-		}
+		$coverage_archived_notice_html = Taxonomy::STATUS_ARCHIVED === $status
+			? self::render_coverage_archived_notice( $block )
+			: '';
 
 		if ( empty( $query->posts ) ) {
 			$entries_html = sprintf(
@@ -366,7 +363,7 @@ class Rolling_Coverage_Block {
 			return sprintf(
 				'<div %1$s>%6$s%2$s%5$s<div class="%3$s-status" role="status" aria-live="polite"></div><button type="button" class="%3$s-new-entries" hidden></button><div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
 				$wrapper_attributes,
-				$notice,
+				$coverage_archived_notice_html,
 				self::MARKUP_PREFIX,
 				$entries_html,
 				$cta_html,
@@ -515,6 +512,42 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Renders the coverage-archived-notice inner block once, at the top.
+	 *
+	 * @param WP_Block $block The parent rolling-coverage block instance.
+	 * @return string Rendered HTML.
+	 */
+	private static function render_coverage_archived_notice( WP_Block $block ): string {
+		$archived_notice_block_type = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Archived_Notice_Block::BLOCK_NAME );
+		if ( $archived_notice_block_type ) {
+			foreach ( $archived_notice_block_type->style_handles as $style_handle ) {
+				wp_enqueue_style( $style_handle );
+			}
+		}
+
+		$notice_attrs        = [];
+		$notice_inner_blocks = [];
+
+		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner ) {
+			if ( Coverage_Archived_Notice_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) ) {
+				$notice_attrs        = $inner['attrs'] ?? [];
+				$notice_inner_blocks = $inner['innerBlocks'] ?? [];
+				break;
+			}
+		}
+
+		return render_block(
+			[
+				'blockName'    => Coverage_Archived_Notice_Block::BLOCK_NAME,
+				'attrs'        => $notice_attrs,
+				'innerBlocks'  => $notice_inner_blocks,
+				'innerHTML'    => '',
+				'innerContent' => array_fill( 0, count( $notice_inner_blocks ), null ),
+			]
+		);
+	}
+
+	/**
 	 * Builds the per-entry inner-block template used to render every entry:
 	 * the user's saved template if the block has one, otherwise a hardcoded
 	 * fallback.
@@ -532,7 +565,11 @@ class Rolling_Coverage_Block {
 
 		// The saved inner blocks also include two blocks that render once at
 		// the top of the coverage, not per entry.
-		$singleton_blocks = [ Deep_Link_CTA_Block::BLOCK_NAME, Coverage_Follow_Block::BLOCK_NAME ];
+		$singleton_blocks = [
+			Deep_Link_CTA_Block::BLOCK_NAME,
+			Coverage_Follow_Block::BLOCK_NAME,
+			Coverage_Archived_Notice_Block::BLOCK_NAME,
+		];
 		$template         = [];
 
 		foreach ( $inner_blocks as $inner_block ) {
@@ -714,6 +751,11 @@ class Rolling_Coverage_Block {
 		$post          = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		setup_postdata( $entry );
 
+		$is_archived = Archive_Mode::ENTRY_ARCHIVED_STATUS === $entry->post_status;
+		if ( $is_archived ) {
+			add_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );
+		}
+
 		try {
 			$entry_content = ( new WP_Block(
 				[
@@ -729,6 +771,10 @@ class Rolling_Coverage_Block {
 				]
 			) )->render( [ 'dynamic' => false ] );
 		} finally {
+			if ( $is_archived ) {
+				remove_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );
+			}
+
 			$post = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 			setup_postdata( $previous_post );
 		}
@@ -746,6 +792,47 @@ class Rolling_Coverage_Block {
 		);
 
 		return $html;
+	}
+
+	/**
+	 * Renders the notice shown above an individually archived entry's content.
+	 *
+	 * @return string Rendered HTML.
+	 */
+	private static function render_archived_entry_notice(): string {
+		$text = apply_filters(
+			'newspack_rolling_coverage_entry_archived_notice',
+			__( 'This entry is now out of date compared to newer entries, but is preserved as it originally appeared.', 'newspack-rolling-coverage' )
+		);
+
+		return sprintf(
+			'<p class="%s-entry-archived-notice">%s</p>',
+			self::MARKUP_PREFIX,
+			wp_kses_post( $text )
+		);
+	}
+
+	/**
+	 * Prepends the archived-entry notice and collapses the content into a
+	 * `<details>` element, with a one-line summary clipped by CSS.
+	 *
+	 * @param string $block_content The block's rendered HTML.
+	 * @return string The notice plus the (possibly collapsed) content.
+	 */
+	public static function render_archived_entry_content( string $block_content ): string {
+		$plain_text = wp_strip_all_tags( $block_content );
+		$summary    = wp_trim_words( $plain_text, self::ARCHIVED_ENTRY_SUMMARY_WORD_CAP, '' );
+
+		$content = $summary === $plain_text
+			? $block_content
+			: sprintf(
+				'<details class="%1$s-archived-entry-content"><summary>%2$s</summary>%3$s</details>',
+				self::MARKUP_PREFIX,
+				$summary,
+				$block_content
+			);
+
+		return self::render_archived_entry_notice() . $content;
 	}
 
 	/**
@@ -908,7 +995,7 @@ class Rolling_Coverage_Block {
 		$query = new WP_Query(
 			[
 				'post_type'           => Post_Type::CPT_SLUG,
-				'post_status'         => 'publish',
+				'post_status'         => [ 'publish', Archive_Mode::ENTRY_ARCHIVED_STATUS ],
 				'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
 						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
@@ -1012,7 +1099,7 @@ class Rolling_Coverage_Block {
 
 		$base_args = [
 			'post_type'           => Post_Type::CPT_SLUG,
-			'post_status'         => 'publish',
+			'post_status'         => [ 'publish', Archive_Mode::ENTRY_ARCHIVED_STATUS ],
 			'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 				[
 					'taxonomy' => Taxonomy::TAXONOMY_SLUG,

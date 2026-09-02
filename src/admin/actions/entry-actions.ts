@@ -16,13 +16,49 @@ import {
 	bulkRestoreEntries,
 	hasBreakout,
 	hasTrashedBreakout,
+	isEntryArchived,
+	isEntryLocked,
+	getEntryEditWarning,
 	runEntryBulk,
 	togglePinEntry,
+	runArchiveBulk,
 } from '../utils/entries-api';
 import { notifySuccess, notifyError, pluralize } from '../utils/notices';
 import { BreakoutModal } from '../components/breakout-modal';
 import { ConfirmModal } from '../components/confirm-modal';
 import type { Entry, Action, AdminConfig } from '../types';
+
+/**
+ * Returns the confirmation message for editing an entry that is archived
+ * or whose coverage is paused or archived.
+ *
+ * @param {Entry} entry The entry being edited.
+ * @return {string} The confirmation message.
+ */
+function getEditWarningMessage( entry: Entry ): string {
+	switch ( getEntryEditWarning( entry ) ) {
+		case 'entry-archived':
+			return __(
+				'This entry is archived, are you sure you want to edit it?',
+				'newspack-rolling-coverage'
+			);
+		case 'coverage-archived':
+			return __(
+				"This entry's coverage is archived, are you sure you want to edit it?",
+				'newspack-rolling-coverage'
+			);
+		case 'coverage-paused':
+			return __(
+				"This entry's coverage is paused, are you sure you want to edit it?",
+				'newspack-rolling-coverage'
+			);
+		default:
+			return __(
+				'Are you sure you want to edit this entry?',
+				'newspack-rolling-coverage'
+			);
+	}
+}
 
 /**
  * Returns DataViews action definitions for entry rows.
@@ -46,6 +82,7 @@ function getEntryActions(
 			id: 'quick-edit',
 			label: __( 'Quick Edit', 'newspack-rolling-coverage' ),
 			isPrimary: true,
+			isEligible: ( entry: Entry ) => ! getEntryEditWarning( entry ),
 			callback: ( items: Entry[] ) => {
 				if ( items.length === 1 ) {
 					onQuickEdit( items[ 0 ] );
@@ -53,8 +90,23 @@ function getEntryActions(
 			},
 		},
 		{
+			id: 'quick-edit-confirm',
+			label: __( 'Quick Edit', 'newspack-rolling-coverage' ),
+			isPrimary: true,
+			isEligible: ( entry: Entry ) =>
+				Boolean( getEntryEditWarning( entry ) ),
+			RenderModal: ( { items, closeModal } ) =>
+				createElement( ConfirmModal, {
+					message: getEditWarningMessage( items[ 0 ] ),
+					confirmLabel: __( 'Edit', 'newspack-rolling-coverage' ),
+					onConfirm: async () => onQuickEdit( items[ 0 ] ),
+					onClose: closeModal ?? ( () => {} ),
+				} ),
+		},
+		{
 			id: 'edit',
 			label: __( 'Edit', 'newspack-rolling-coverage' ),
+			isEligible: ( entry: Entry ) => ! getEntryEditWarning( entry ),
 			callback: ( items: Entry[] ) => {
 				if ( items.length === 1 ) {
 					window.open(
@@ -66,10 +118,31 @@ function getEntryActions(
 			},
 		},
 		{
+			id: 'edit-confirm',
+			label: __( 'Edit', 'newspack-rolling-coverage' ),
+			isEligible: ( entry: Entry ) =>
+				Boolean( getEntryEditWarning( entry ) ),
+			RenderModal: ( { items, closeModal } ) =>
+				createElement( ConfirmModal, {
+					message: getEditWarningMessage( items[ 0 ] ),
+					confirmLabel: __( 'Edit', 'newspack-rolling-coverage' ),
+					onConfirm: async () => {
+						window.open(
+							`${ config.adminUrls.editEntry }&post=${ items[ 0 ].id }`,
+							'_blank',
+							'noopener=yes'
+						);
+					},
+					onClose: closeModal ?? ( () => {} ),
+				} ),
+		},
+		{
 			id: 'create-breakout',
 			label: __( 'Breakout', 'newspack-rolling-coverage' ),
 			isEligible: ( entry: Entry ) =>
-				! hasBreakout( entry ) && ! hasTrashedBreakout( entry ),
+				! isEntryLocked( entry ) &&
+				! hasBreakout( entry ) &&
+				! hasTrashedBreakout( entry ),
 			callback: async ( items: Entry[] ) => {
 				if ( items.length !== 1 ) {
 					return;
@@ -101,7 +174,8 @@ function getEntryActions(
 		{
 			id: 'restore-breakout',
 			label: __( 'Restore Breakout Post', 'newspack-rolling-coverage' ),
-			isEligible: ( entry: Entry ) => hasTrashedBreakout( entry ),
+			isEligible: ( entry: Entry ) =>
+				! isEntryLocked( entry ) && hasTrashedBreakout( entry ),
 			callback: async ( items: Entry[] ) => {
 				if ( items.length !== 1 ) {
 					return;
@@ -142,7 +216,8 @@ function getEntryActions(
 				'Permanently Delete Breakout Post',
 				'newspack-rolling-coverage'
 			),
-			isEligible: ( entry: Entry ) => hasTrashedBreakout( entry ),
+			isEligible: ( entry: Entry ) =>
+				! isEntryLocked( entry ) && hasTrashedBreakout( entry ),
 			callback: async ( items: Entry[] ) => {
 				if ( items.length !== 1 ) {
 					return;
@@ -180,7 +255,8 @@ function getEntryActions(
 		{
 			id: 'breakout-setting',
 			label: __( 'Breakout Setting', 'newspack-rolling-coverage' ),
-			isEligible: ( entry: Entry ) => hasBreakout( entry ),
+			isEligible: ( entry: Entry ) =>
+				! isEntryLocked( entry ) && hasBreakout( entry ),
 			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
 				createElement( BreakoutModal, {
 					entry: items[ 0 ],
@@ -192,10 +268,90 @@ function getEntryActions(
 				} ),
 		},
 		{
+			id: 'archive-entry',
+			label: __( 'Archive', 'newspack-rolling-coverage' ),
+			supportsBulk: true,
+			isEligible: ( entry: Entry ) =>
+				entry.status === 'publish' &&
+				entry.coverageStatus !== 'archived',
+			callback: async ( items: Entry[] ) => {
+				const { failed, succeeded } = await runArchiveBulk(
+					config.restBaseUrls.restNamespace,
+					items,
+					true
+				);
+
+				if ( succeeded ) {
+					notifySuccess(
+						pluralize(
+							items.length,
+							__(
+								'Entry archived.',
+								'newspack-rolling-coverage'
+							),
+							__(
+								'Entries archived.',
+								'newspack-rolling-coverage'
+							)
+						)
+					);
+					onActionPerformed?.();
+				} else {
+					notifyError(
+						failed[ 0 ].error ||
+							__(
+								'Failed to archive entry.',
+								'newspack-rolling-coverage'
+							)
+					);
+				}
+			},
+		},
+		{
+			id: 'unarchive-entry',
+			label: __( 'Unarchive', 'newspack-rolling-coverage' ),
+			supportsBulk: true,
+			isEligible: ( entry: Entry ) =>
+				isEntryArchived( entry ) && entry.coverageStatus !== 'archived',
+			callback: async ( items: Entry[] ) => {
+				const { failed, succeeded } = await runArchiveBulk(
+					config.restBaseUrls.restNamespace,
+					items,
+					false
+				);
+
+				if ( succeeded ) {
+					notifySuccess(
+						pluralize(
+							items.length,
+							__(
+								'Entry unarchived.',
+								'newspack-rolling-coverage'
+							),
+							__(
+								'Entries unarchived.',
+								'newspack-rolling-coverage'
+							)
+						)
+					);
+					onActionPerformed?.();
+				} else {
+					notifyError(
+						failed[ 0 ].error ||
+							__(
+								'Failed to unarchive entry.',
+								'newspack-rolling-coverage'
+							)
+					);
+				}
+			},
+		},
+		{
 			id: 'trash-entry',
 			label: __( 'Trash', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
-			isEligible: ( entry: Entry ) => entry.status !== 'trash',
+			isEligible: ( entry: Entry ) =>
+				entry.status !== 'trash' && ! isEntryLocked( entry ),
 			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
 				createElement( ConfirmModal, {
 					message: pluralize(
@@ -279,7 +435,8 @@ function getEntryActions(
 		{
 			id: 'pin',
 			label: __( 'Pin', 'newspack-rolling-coverage' ),
-			isEligible: ( entry: Entry ) => ! entry.pinned,
+			isEligible: ( entry: Entry ) =>
+				! entry.pinned && ! isEntryLocked( entry ),
 			callback: async ( items: Entry[] ) => {
 				if ( items.length !== 1 ) {
 					return;
@@ -472,7 +629,8 @@ function getEntryActions(
 		{
 			id: 'unpin',
 			label: __( 'Unpin', 'newspack-rolling-coverage' ),
-			isEligible: ( entry: Entry ) => Boolean( entry.pinned ),
+			isEligible: ( entry: Entry ) =>
+				Boolean( entry.pinned ) && ! isEntryLocked( entry ),
 			callback: async ( items: Entry[] ) => {
 				if ( items.length !== 1 ) {
 					return;
