@@ -12,6 +12,8 @@ import type {
 	ChannelMapping,
 	SlackChannelsResult,
 	SlackConnectResult,
+	SlackMonitorLogEntry,
+	SlackMonitorLogsResult,
 	SlackSettingsInfo,
 	SlackVerifyResult,
 } from '../types';
@@ -286,6 +288,52 @@ async function getSlackSettings( namespace: string ): Promise< {
 	}
 }
 
+/**
+ * Fetch Slack monitor log entries since a byte offset.
+ *
+ * Each successful poll doubles as the monitor keep-alive signal
+ * on the server: the first poll creates the log file and every
+ * poll refreshes its last-seen stamp, so no explicit start/stop
+ * lifecycle is needed.
+ *
+ * @param {string} namespace REST namespace.
+ * @param {number} offset    Byte offset to read from.
+ *
+ * @return {Promise<SlackMonitorLogsResult>} Log entries and new offset.
+ */
+async function getSlackMonitorLogs(
+	namespace: string,
+	offset: number
+): Promise< SlackMonitorLogsResult > {
+	try {
+		const result = ( await apiFetch( {
+			path: `${ namespace }/slack/monitor/logs?offset=${ offset }`,
+		} ) ) as {
+			lines: SlackMonitorLogEntry[];
+			offset: number;
+		};
+		return {
+			success: true,
+			lines: result.lines,
+			offset: result.offset,
+		};
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
+/**
+ * Format a context object as a readable "key: value" string.
+ *
+ * @param {Record<string, unknown>} ctx Context object from a log entry.
+ * @return {string} Formatted string, e.g. "channel: C123, post_id: 42".
+ */
+function formatContext( ctx: Record< string, unknown > ): string {
+	return Object.entries( ctx )
+		.map( ( [ k, v ] ) => `${ k }: ${ String( v ) }` )
+		.join( ', ' );
+}
+
 export {
 	connectSlackChannel,
 	disconnectSlackChannel,
@@ -297,4 +345,6 @@ export {
 	saveSlackSettings,
 	listSlackChannels,
 	unlinkSlackChannel,
+	getSlackMonitorLogs,
+	formatContext,
 };

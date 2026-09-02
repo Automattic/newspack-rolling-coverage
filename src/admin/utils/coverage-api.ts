@@ -42,7 +42,8 @@ async function updateCoverageStatus(
  * @param {string}           restBaseCoverages - Full REST URL for the coverages collection (from config.restBaseUrls.coverages).
  * @param {string}           statusKey         - The meta key used to store the coverage status.
  * @param {string}           canonicalUrlKey   - The meta key used to store the coverage's canonical URL.
- * @param {SaveCoverageData} data              - The coverage name, description, status, and canonical URL.
+ * @param {string}           adsDisabledKey    - The meta key used to store whether ads are disabled.
+ * @param {SaveCoverageData} data              - The coverage name, description, status, canonical URL, and ads-disabled flag.
  * @param {number}           id                - Optional term ID for updates.
  * @return {Promise<ApiResult>} Result indicating success or failure.
  */
@@ -50,6 +51,7 @@ async function saveCoverage(
 	restBaseCoverages: string,
 	statusKey: string,
 	canonicalUrlKey: string,
+	adsDisabledKey: string,
 	data: SaveCoverageData,
 	id?: number
 ): Promise< ApiResult > {
@@ -65,6 +67,7 @@ async function saveCoverage(
 				meta: {
 					[ statusKey ]: data.status,
 					[ canonicalUrlKey ]: data.canonicalUrl,
+					[ adsDisabledKey ]: data.adsDisabled,
 				},
 			},
 		} );

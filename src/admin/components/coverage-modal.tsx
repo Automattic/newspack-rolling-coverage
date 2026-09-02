@@ -70,6 +70,16 @@ const coverageFields = [
 			'newspack-rolling-coverage'
 		),
 	},
+	{
+		id: 'adsDisabled',
+		type: 'boolean' as const,
+		label: __( 'Disable ads', 'newspack-rolling-coverage' ),
+		description: __(
+			'Disable ads for this coverage, useful for emergency or other sensitive news coverage.',
+			'newspack-rolling-coverage'
+		),
+		Edit: 'toggle' as const,
+	},
 ];
 
 const coverageForm = {
@@ -79,6 +89,7 @@ const coverageForm = {
 		{ id: 'description' },
 		{ id: 'status' },
 		{ id: 'canonicalUrl' },
+		{ id: 'adsDisabled' },
 	],
 };
 
@@ -101,6 +112,7 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 			] as Coverage[ 'meta' ][ 'rolling_coverage_status' ] ) || 'active',
 		canonicalUrl:
 			( coverage?.meta?.[ taxMeta.canonicalUrlKey ] as string ) || '',
+		adsDisabled: Boolean( coverage?.meta?.[ taxMeta.adsDisabledKey ] ),
 	} );
 	const [ isSaving, setIsSaving ] = useState( false );
 	const [ error, setError ] = useState< string | null >( null );
@@ -119,6 +131,9 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 				canonicalUrl:
 					( coverage.meta?.[ taxMeta.canonicalUrlKey ] as string ) ||
 					'',
+				adsDisabled: Boolean(
+					coverage.meta?.[ taxMeta.adsDisabledKey ]
+				),
 			} );
 		} else {
 			setData( {
@@ -126,10 +141,16 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 				description: '',
 				status: 'active',
 				canonicalUrl: '',
+				adsDisabled: false,
 			} );
 		}
 		setError( null );
-	}, [ coverage, taxMeta.statusKey, taxMeta.canonicalUrlKey ] );
+	}, [
+		coverage,
+		taxMeta.statusKey,
+		taxMeta.canonicalUrlKey,
+		taxMeta.adsDisabledKey,
+	] );
 
 	const handleChange = useCallback(
 		( edits: Partial< CoverageFormData > ) => {
@@ -147,11 +168,13 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 			restBaseUrls.coverages,
 			taxMeta.statusKey,
 			taxMeta.canonicalUrlKey,
+			taxMeta.adsDisabledKey,
 			{
 				name: data.name,
 				description: data.description,
 				status: data.status,
 				canonicalUrl: data.canonicalUrl,
+				adsDisabled: data.adsDisabled,
 			},
 			isEditing && coverage ? coverage.id : undefined
 		);
