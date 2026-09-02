@@ -182,7 +182,7 @@ function buildPageUrl(
  *
  * @param {string} baseUrl    The entries-view base URL.
  * @param {number} coverageId The coverage term ID.
- * @param {string} cursor     The since cursor (ISO-8601).
+ * @param {string} cursor     The since cursor (Y-m-d H:i:s GMT, prefixed with entry ID).
  * @param {number} perPage    The per_page limit.
  * @return {string} The full REST URL.
  */

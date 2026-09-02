@@ -113,7 +113,15 @@ function truncate( text: string, max: number ): string {
 }
 
 /**
- * Parses an ISO date string into a Date object, returning null for invalid/empty values.
+ * Parses a date string into a Date object, returning null for invalid/empty
+ * values. Handles both ISO 8601 (`2026-08-31T13:01:38+00:00`) and raw GMT
+ * (`2026-08-31 13:01:38`) formats.
+ *
+ * WordPress REST API and `gmdate('c')` produce ISO 8601 with a `T` separator
+ * and timezone offset. The plugin's `last_modified` term meta stores raw GMT
+ * (`post_modified_gmt` column value) with a space separator and no timezone.
+ * JavaScript's Date constructor parses strings without timezone info as local
+ * time, so raw GMT strings must be normalized to ISO 8601 UTC before parsing.
  *
  * @param {string | null | undefined} dateStr - The date string to parse.
  * @return {Date | null} The parsed Date, or null if invalid.
@@ -122,7 +130,17 @@ function parseDate( dateStr: string | null | undefined ): Date | null {
 	if ( ! dateStr ) {
 		return null;
 	}
-	const d = new Date( dateStr );
+
+	// ISO 8601 dates from WordPress always include the 'T' separator.
+	// Raw GMT strings (Y-m-d H:i:s) use a space and have no timezone.
+	const hasTimezoneInfo = dateStr.includes( 'T' ) || dateStr.endsWith( 'Z' );
+
+	// Normalize raw GMT strings to ISO 8601 UTC by replacing the space with 'T'
+	const iso8601 = hasTimezoneInfo
+		? dateStr
+		: dateStr.replace( ' ', 'T' ) + 'Z';
+
+	const d = new Date( iso8601 );
 	return isNaN( d.getTime() ) ? null : d;
 }
 

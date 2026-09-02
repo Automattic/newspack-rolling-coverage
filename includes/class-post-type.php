@@ -617,10 +617,11 @@ class Post_Type {
 	/**
 	 * Validates the `since` cursor parameter.
 	 *
-	 * Accepts "{id}:{modified_iso}" or bare ISO-8601. The ISO portion must be
-	 * a strict UTC date-time (DATE_ATOM, `Z` or `+00:00` offset) so it can be
-	 * lexicographically compared against stored UTC cursor strings. Rejects
-	 * relative times like "yesterday" and non-UTC offsets.
+	 * Accepts "{id}:{modified_gmt}" or bare `Y-m-d H:i:s`. The timestamp
+	 * portion is a raw GMT string (the verbatim post_modified_gmt column
+	 * value), so it can be lexicographically compared against stored UTC
+	 * cursor strings and passed directly to date_query. Rejects relative
+	 * times like "yesterday" and arbitrary strings.
 	 *
 	 * @param mixed $value Parameter value.
 	 * @return bool
@@ -633,16 +634,13 @@ class Post_Type {
 		$cursor_modified = self::parse_cursor_modified( $value );
 
 		/*
-		 * Strict UTC ISO-8601: `2026-08-28T12:00:00+00:00` or `...Z`.
+		 * Raw GMT format: `2026-08-28 12:00:00`.
 		 * createFromFormat validates the structure and getLastErrors
 		 * catches overflow values (month 13, hour 25, Feb 30, etc.)
-		 * that createFromFormat silently rolls over. The timezone is
-		 * inspected to enforce UTC — comparisons assume UTC.
+		 * that createFromFormat silently rolls over. No timezone
+		 * component exists — the format is inherently UTC.
 		 */
-		$dt = DateTimeImmutable::createFromFormat(
-			'Y-m-d\TH:i:sP',
-			str_replace( 'Z', '+00:00', $cursor_modified )
-		);
+		$dt = DateTimeImmutable::createFromFormat( 'Y-m-d H:i:s', $cursor_modified );
 
 		if ( false === $dt ) {
 			return false;
@@ -654,7 +652,7 @@ class Post_Type {
 			return false;
 		}
 
-		return '+00:00' === $dt->getTimezone()->getName();
+		return true;
 	}
 
 	/**
@@ -769,7 +767,7 @@ class Post_Type {
 	/**
 	 * Page mode: one paginated page of entries.
 	 *
-	 * The sync cursor is formed as "{id}:{modified_iso}" matching the
+	 * The sync cursor is formed as "{id}:{modified_gmt}" matching the
 	 * reader-facing polling strategy, so same-second entries are not lost.
 	 *
 	 * @param int   $term_id Coverage term ID.
@@ -917,10 +915,18 @@ class Post_Type {
 						'compare' => 'EXISTS',
 					];
 				} else {
+					// OR-with-NOT-EXISTS so entries with no meta row are kept.
 					$meta[] = [
-						'key'     => Breakout::BREAKOUT_STATUS_FIELD,
-						'value'   => $params['breakout_status_exclude'],
-						'compare' => '!=',
+						'relation' => 'OR',
+						[
+							'key'     => Breakout::BREAKOUT_STATUS_FIELD,
+							'compare' => 'NOT EXISTS',
+						],
+						[
+							'key'     => Breakout::BREAKOUT_STATUS_FIELD,
+							'value'   => $params['breakout_status_exclude'],
+							'compare' => '!=',
+						],
 					];
 				}
 			}
@@ -1027,17 +1033,17 @@ class Post_Type {
 	/**
 	 * Builds a sync cursor anchored to the coverage's latest-modified entry.
 	 *
-	 * Returns "{id}:{modified_iso}". Falls back to server time when the
+	 * Returns "{id}:{modified_gmt}". Falls back to server time when the
 	 * coverage has no entries.
 	 *
 	 * @param int $term_id Coverage term ID.
-	 * @return string Cursor in "{id}:{modified_iso}" format.
+	 * @return string Cursor in "{id}:{modified_gmt}" format.
 	 */
 	private static function coverage_sync_cursor( int $term_id ): string {
 		$last_modified = (string) get_term_meta( $term_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true );
 
 		if ( '' === $last_modified ) {
-			return '0:' . gmdate( 'c' );
+			return '0:' . gmdate( 'Y-m-d H:i:s' );
 		}
 
 		$latest = new \WP_Query(
@@ -1062,10 +1068,10 @@ class Post_Type {
 		);
 
 		if ( empty( $latest->posts ) || ! $latest->posts[0] instanceof WP_Post ) {
-			return '0:' . gmdate( 'c' );
+			return '0:' . gmdate( 'Y-m-d H:i:s' );
 		}
 
-		return $latest->posts[0]->ID . ':' . self::post_modified_iso( $latest->posts[0] );
+		return $latest->posts[0]->ID . ':' . self::post_modified_gmt( $latest->posts[0] );
 	}
 
 	/**
@@ -1075,7 +1081,7 @@ class Post_Type {
 	 * (> PER_PAGE_MAX changed entries), signals the client to reload.
 	 *
 	 * @param int    $term_id Coverage term ID.
-	 * @param string $since   Cursor in "{id}:{modified_iso}" or ISO-8601 format.
+	 * @param string $since   Cursor in "{id}:{modified_gmt}" or bare Y-m-d H:i:s format.
 	 * @return WP_REST_Response
 	 */
 	private static function run_sync_mode( $term_id, $since ) {
@@ -1097,10 +1103,8 @@ class Post_Type {
 		$cursor_parts = explode( ':', $since, 2 );
 		$cursor_id    = (int) ( $cursor_parts[0] ?? 0 );
 
-		// Convert the ISO cursor to a GMT `Y-m-d H:i:s` string so the
-		// date_query on `post_modified_gmt` compares in UTC, not site time.
-		$after_gmt = gmdate( 'Y-m-d H:i:s', strtotime( $cursor_modified ) );
-
+		// The cursor is already a raw GMT `Y-m-d H:i:s` string, so it
+		// can be passed directly to date_query without conversion.
 		$query = new \WP_Query(
 			[
 				'post_type'              => self::CPT_SLUG,
@@ -1114,7 +1118,7 @@ class Post_Type {
 				],
 				'date_query'             => [
 					'column'    => 'post_modified_gmt',
-					'after'     => $after_gmt,
+					'after'     => $cursor_modified,
 					'inclusive' => true,
 				],
 				'orderby'                => 'modified',
@@ -1155,16 +1159,16 @@ class Post_Type {
 			}
 
 			// Skip the cursor entry so it isn't re-reported each poll. Same-second entries are still included (inclusive date query).
-			$post_modified_iso = self::post_modified_iso( $post );
+			$post_modified_gmt = self::post_modified_gmt( $post );
 
-			if ( $post->ID === $cursor_id && $post_modified_iso === $cursor_modified ) {
+			if ( $post->ID === $cursor_id && $post_modified_gmt === $cursor_modified ) {
 				continue;
 			}
 
 			$row = self::map_row( $post );
 
 			// Classify server-side: 'new' if published after cursor, else 'update'.
-			$row['change_type'] = self::post_date_iso( $post ) > $cursor_modified
+			$row['change_type'] = self::post_date_gmt( $post ) > $cursor_modified
 				? 'new'
 				: 'update';
 
@@ -1183,17 +1187,17 @@ class Post_Type {
 	}
 
 	/**
-	 * Builds a sync cursor from an array of posts: "{id}:{modified_iso}".
+	 * Builds a sync cursor from an array of posts: "{id}:{modified_gmt}".
 	 *
 	 * @param WP_Post[] $posts Entry post objects.
-	 * @return string Cursor in "{id}:{modified_iso}" format.
+	 * @return string Cursor in "{id}:{modified_gmt}" format.
 	 */
 	private static function latest_sync_cursor( array $posts ): string {
 		$latest_post     = null;
 		$latest_modified = '';
 
 		foreach ( $posts as $post ) {
-			$modified = self::post_modified_iso( $post );
+			$modified = self::post_modified_gmt( $post );
 
 			if ( '' === $latest_modified || $modified > $latest_modified ) {
 				$latest_modified = $modified;
@@ -1202,20 +1206,21 @@ class Post_Type {
 		}
 
 		if ( null === $latest_post ) {
-			return '0:' . gmdate( 'c' );
+			return '0:' . gmdate( 'Y-m-d H:i:s' );
 		}
 
 		return $latest_post->ID . ':' . $latest_modified;
 	}
 
 	/**
-	 * Extracts the ISO-8601 modified timestamp from a sync cursor.
+	 * Extracts the raw GMT modified timestamp from a sync cursor.
 	 *
-	 * Handles both "{id}:{iso}" and bare ISO-8601. Only splits when the
-	 * remainder starts with a 4-digit year (ISO time colons are preserved).
+	 * Handles both "{id}:{Y-m-d H:i:s}" and bare "Y-m-d H:i:s". Only
+	 * splits when the remainder starts with a 4-digit year so the
+	 * time-portion colons are preserved.
 	 *
 	 * @param string $cursor The sync cursor.
-	 * @return string ISO-8601 UTC modified timestamp.
+	 * @return string GMT modified timestamp in Y-m-d H:i:s format.
 	 */
 	private static function parse_cursor_modified( string $cursor ): string {
 		$parts = explode( ':', $cursor, 2 );
@@ -1228,35 +1233,27 @@ class Post_Type {
 	}
 
 	/**
-	 * ISO 8601 (GMT) last-modified string for a post.
+	 * Raw GMT last-modified string for a post (Y-m-d H:i:s).
+	 *
+	 * Uses the verbatim post_modified_gmt column value, which is already
+	 * UTC, lexicographically sortable, and directly comparable by
+	 * date_query — no DateTime/ISO/timezone conversion needed.
 	 *
 	 * @param WP_Post $post Post object.
-	 * @return string ISO 8601 date string.
+	 * @return string GMT timestamp in Y-m-d H:i:s format.
 	 */
-	private static function post_modified_iso( WP_Post $post ) {
-		$datetime = get_post_datetime( $post, 'modified', 'gmt' );
-
-		if ( ! $datetime ) {
-			return gmdate( 'c' ); // Zero-date fallback.
-		}
-
-		return $datetime->setTimezone( new \DateTimeZone( 'UTC' ) )->format( DATE_ATOM );
+	private static function post_modified_gmt( WP_Post $post ): string {
+		return $post->post_modified_gmt;
 	}
 
 	/**
-	 * ISO 8601 (GMT) creation date string for a post.
+	 * Raw GMT creation date string for a post (Y-m-d H:i:s).
 	 *
 	 * @param WP_Post $post Post object.
-	 * @return string ISO 8601 date string.
+	 * @return string GMT timestamp in Y-m-d H:i:s format.
 	 */
-	private static function post_date_iso( WP_Post $post ) {
-		$datetime = get_post_datetime( $post, 'date', 'gmt' );
-
-		if ( ! $datetime ) {
-			return gmdate( 'c' ); // Zero-date fallback.
-		}
-
-		return $datetime->setTimezone( new \DateTimeZone( 'UTC' ) )->format( DATE_ATOM );
+	private static function post_date_gmt( WP_Post $post ): string {
+		return $post->post_date_gmt;
 	}
 
 	/**
@@ -1392,13 +1389,7 @@ class Post_Type {
 	 * @param WP_Post $post Entry post object.
 	 */
 	private static function touch_coverage_last_modified_from_post( WP_Post $post ): void {
-		$modified_datetime = get_post_datetime( $post, 'modified', 'gmt' );
-
-		if ( ! $modified_datetime ) {
-			return;
-		}
-
-		self::update_coverage_last_modified( $post->ID, $modified_datetime->format( DATE_ATOM ) );
+		self::update_coverage_last_modified( $post->ID, $post->post_modified_gmt );
 	}
 
 	/**
@@ -1409,7 +1400,7 @@ class Post_Type {
 	 * @param WP_Post $post Entry post object.
 	 */
 	private static function touch_coverage_last_modified_now( WP_Post $post ): void {
-		self::update_coverage_last_modified( $post->ID, gmdate( DATE_ATOM ) );
+		self::update_coverage_last_modified( $post->ID, gmdate( 'Y-m-d H:i:s' ) );
 	}
 
 	/**
@@ -1417,7 +1408,7 @@ class Post_Type {
 	 * the given entry post.
 	 *
 	 * @param int    $post_id  Entry post ID.
-	 * @param string $modified ISO-8601 timestamp to store.
+	 * @param string $modified GMT timestamp in Y-m-d H:i:s format to store.
 	 */
 	private static function update_coverage_last_modified( int $post_id, string $modified ): void {
 		$term_ids = wp_get_post_terms( $post_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
