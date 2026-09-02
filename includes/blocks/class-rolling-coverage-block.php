@@ -92,13 +92,7 @@ class Rolling_Coverage_Block {
 			return;
 		}
 
-		$modified_datetime = get_post_datetime( $post, 'modified', 'gmt' );
-
-		if ( ! $modified_datetime ) {
-			return;
-		}
-
-		$modified = $modified_datetime->format( DATE_ATOM );
+		$modified = $post->post_modified_gmt;
 
 		foreach ( $term_ids as $term_id ) {
 			update_term_meta( (int) $term_id, self::LAST_MODIFIED_META_KEY, $modified );
@@ -319,7 +313,7 @@ class Rolling_Coverage_Block {
 		wp_reset_postdata();
 
 		$cursor     = self::latest_cursor( $query->posts );
-		$oldest_iso = ! empty( $query->posts ) ? self::post_date_iso( $query->posts[ count( $query->posts ) - 1 ] ) : '';
+		$oldest_gmt = ! empty( $query->posts ) ? self::post_date_gmt( $query->posts[ count( $query->posts ) - 1 ] ) : '';
 		$has_more   = count( $query->posts ) === $entries_per_page;
 
 		$notice = '';
@@ -353,7 +347,7 @@ class Rolling_Coverage_Block {
 				'data-poll-interval'    => $poll_interval,
 				'data-entries-per-page' => $entries_per_page,
 				'data-cursor'           => $cursor,
-				'data-before'           => $oldest_iso,
+				'data-before'           => $oldest_gmt,
 				'data-has-more'         => $has_more ? '1' : '0',
 				'data-status'           => $status,
 				'data-template-key'     => $template_key,
@@ -759,42 +753,38 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * ISO 8601 (GMT) date string for a post.
+	 * Raw GMT creation date string for a post (Y-m-d H:i:s).
 	 *
 	 * @param WP_Post $post Post object.
-	 * @return string ISO 8601 date string.
+	 * @return string GMT timestamp in Y-m-d H:i:s format.
 	 */
-	private static function post_date_iso( WP_Post $post ) {
-		$datetime = get_post_datetime( $post, 'date', 'gmt' );
-
-		return $datetime ? $datetime->format( DATE_ATOM ) : '';
+	private static function post_date_gmt( WP_Post $post ): string {
+		return $post->post_date_gmt;
 	}
 
 	/**
-	 * ISO 8601 (GMT) last-modified string for a post.
+	 * Raw GMT last-modified string for a post (Y-m-d H:i:s).
 	 *
 	 * @param WP_Post $post Post object.
-	 * @return string ISO 8601 date string.
+	 * @return string GMT timestamp in Y-m-d H:i:s format.
 	 */
-	private static function post_modified_iso( WP_Post $post ) {
-		$datetime = get_post_datetime( $post, 'modified', 'gmt' );
-
-		return $datetime ? $datetime->format( DATE_ATOM ) : '';
+	private static function post_modified_gmt( WP_Post $post ): string {
+		return $post->post_modified_gmt;
 	}
 
 	/**
-	 * Poll cursor for a set of entries: "{id}:{modified_iso}".
+	 * Poll cursor for a set of entries: "{id}:{modified_gmt}".
 	 * Falls back to "0:{current_time}" when there are none.
 	 *
 	 * @param WP_Post[] $posts Entry post objects.
-	 * @return string Cursor in "{id}:{modified_iso}" format.
+	 * @return string Cursor in "{id}:{modified_gmt}" format.
 	 */
 	private static function latest_cursor( array $posts ): string {
 		$latest_post     = null;
 		$latest_modified = '';
 
 		foreach ( $posts as $post ) {
-			$modified = self::post_modified_iso( $post );
+			$modified = self::post_modified_gmt( $post );
 			if ( '' === $latest_modified || $modified > $latest_modified ) {
 				$latest_modified = $modified;
 				$latest_post     = $post;
@@ -802,7 +792,7 @@ class Rolling_Coverage_Block {
 		}
 
 		if ( null === $latest_post ) {
-			return '0:' . gmdate( 'c' );
+			return '0:' . gmdate( 'Y-m-d H:i:s' );
 		}
 
 		return $latest_post->ID . ':' . $latest_modified;
@@ -1087,7 +1077,7 @@ class Rolling_Coverage_Block {
 			$new_entry_count = 0;
 
 			foreach ( $query->posts as $entry ) {
-				$entry_modified = self::post_modified_iso( $entry );
+				$entry_modified = self::post_modified_gmt( $entry );
 
 				if ( $entry->ID === $cursor_id && $entry_modified === $cursor_modified ) {
 					continue;
@@ -1098,7 +1088,7 @@ class Rolling_Coverage_Block {
 				}
 
 				// Counts only if published after the poll cursor.
-				$is_new_entry = self::post_date_iso( $entry ) > $cursor_modified;
+				$is_new_entry = self::post_date_gmt( $entry ) > $cursor_modified;
 				$ad_slot      = null;
 				$ad_html      = null;
 
@@ -1175,7 +1165,7 @@ class Rolling_Coverage_Block {
 		wp_reset_postdata();
 
 		$next_before = ! empty( $query->posts )
-			? self::post_date_iso( $query->posts[ count( $query->posts ) - 1 ] )
+			? self::post_date_gmt( $query->posts[ count( $query->posts ) - 1 ] )
 			: null;
 
 		return new WP_REST_Response(
