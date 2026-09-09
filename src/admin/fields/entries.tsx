@@ -1,8 +1,14 @@
 /**
  * External dependencies
  */
+import { Tooltip } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { Icon, pin, wordpress as WordPressIconRaw } from '@wordpress/icons';
+import {
+	Icon,
+	pin,
+	info,
+	wordpress as WordPressIconRaw,
+} from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -19,6 +25,8 @@ import {
 	SOURCE_WORDPRESS,
 } from '../utils/fields';
 
+import { isEntryArchived } from '../utils/entries-api';
+
 const POST_STATUS_LABELS: Record< string, string > = {
 	publish: __( 'Published', 'newspack-rolling-coverage' ),
 	draft: __( 'Draft', 'newspack-rolling-coverage' ),
@@ -26,6 +34,7 @@ const POST_STATUS_LABELS: Record< string, string > = {
 	future: __( 'Scheduled', 'newspack-rolling-coverage' ),
 	private: __( 'Private', 'newspack-rolling-coverage' ),
 	trash: __( 'Trashed', 'newspack-rolling-coverage' ),
+	archived: __( 'Archived', 'newspack-rolling-coverage' ),
 };
 
 const STATUS_ELEMENTS = Object.entries( POST_STATUS_LABELS ).map(
@@ -164,6 +173,27 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			elements: STATUS_ELEMENTS,
 			filterBy: {
 				operators: [ 'is', 'isNot' ],
+			},
+			render: ( { item } ) => {
+				const label = getStatusLabel( item.status );
+
+				if ( ! isEntryArchived( item ) ) {
+					return <span>{ label }</span>;
+				}
+
+				return (
+					<Tooltip
+						text={ __(
+							"This entry is archived, so it can't be pinned, trashed, or given a new breakout post. Unarchive it to allow those actions.",
+							'newspack-rolling-coverage'
+						) }
+					>
+						<span className="newspack-rolling-coverage-status-archived">
+							{ label }
+							<Icon icon={ info } size={ 18 } />
+						</span>
+					</Tooltip>
+				);
 			},
 		},
 		{

@@ -172,6 +172,10 @@ class Breakout {
 	public static function can_create_breakout( WP_REST_Request $request ) {
 		$entry_id = (int) $request->get_param( 'entry_id' );
 
+		if ( Archive_Mode::is_entry_locked( $entry_id ) ) {
+			return false;
+		}
+
 		return current_user_can( 'edit_post', $entry_id );
 	}
 
