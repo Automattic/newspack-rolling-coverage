@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { JSX } from 'react';
+import type { JSX, MutableRefObject, Dispatch, SetStateAction } from 'react';
 
 /**
  * WordPress dependencies
@@ -21,6 +21,7 @@ interface AdminConfig {
 		entries: string;
 		slack: string;
 		breakout: string;
+		entriesView: string;
 		restNamespace: string;
 		aiSettings: string;
 		posts: string;
@@ -161,6 +162,14 @@ interface ApiResult {
 	message?: string;
 }
 
+interface TogglePinResult extends ApiResult {
+	pinned?: boolean;
+}
+
+interface CreateEntryResult extends ApiResult {
+	id?: number;
+}
+
 interface SlackConnectResult {
 	success: boolean;
 	error?: string;
@@ -249,13 +258,35 @@ interface UseCoveragesOptions {
 
 interface UseEntriesOptions {
 	coverageId: number | null;
+	page: number;
 	perPage?: number;
-	page?: number;
 	search?: string;
 	orderBy?: string;
 	order?: 'asc' | 'desc';
 	status?: string;
+	statusExclude?: string;
+	source?: string;
+	sourceExclude?: string;
+	author?: string;
+	title?: string;
+	postId?: string;
+	breakoutStatus?: string;
+	breakoutStatusExclude?: string;
+	categorySearch?: string;
+	tagSearch?: string;
+	dateFilter?: string;
+	modifiedFilter?: string;
 	refreshKey?: number;
+}
+
+interface UseEntriesResult {
+	rows: EntryViewRow[] | null;
+	isResolving: boolean;
+	hasResolved: boolean;
+	totalItems: number;
+	totalPages: number;
+	syncNotices: SyncNotice[];
+	error: string | null;
 }
 
 interface SaveCoverageData {
@@ -474,12 +505,76 @@ type CoreSelectors = {
 	) => { message?: string } | undefined;
 };
 
+interface EntryViewRow {
+	id: number;
+	title: string;
+	date: string;
+	modified: string;
+	status: PostStatus;
+	pinned: boolean;
+	author: { id: number; name: string; link: string } | null;
+	source: 'wordpress' | 'slack';
+	categories: Array< {
+		id: number;
+		name: string;
+		slug: string;
+		link: string;
+	} >;
+	tags: Array< { id: number; name: string; slug: string; link: string } >;
+	breakout_post_id: number;
+	breakout_status: PostStatus | null;
+	/** Set by the sync endpoint: 'new' = inserted after cursor, 'update' = edited. Absent on page-mode rows. */
+	change_type?: 'new' | 'update';
+}
+
+interface EntryPageResponse {
+	entries: EntryViewRow[];
+	totalItems: number;
+	totalPages: number;
+	page: number;
+	cursor: string;
+}
+
+interface EntrySyncDelta {
+	changed: EntryViewRow[];
+	cursor: string;
+	overflow: boolean;
+}
+
+interface SyncNoticeEntry {
+	id: number;
+	title: string;
+	status: PostStatus;
+	source: 'wordpress' | 'slack';
+}
+
+interface SyncNotice {
+	type: 'added' | 'updated' | 'removed';
+	count: number;
+	entries: SyncNoticeEntry[];
+}
+
+interface SyncPollContext {
+	baseUrl: string;
+	perPage: number;
+	cursorRef: MutableRefObject< string | null >;
+	coverageIdRef: MutableRefObject< number | null >;
+	rowsRef: MutableRefObject< EntryViewRow[] | null >;
+	pageRef: MutableRefObject< number >;
+	isMountedRef: MutableRefObject< boolean >;
+	setRows: Dispatch< SetStateAction< EntryViewRow[] | null > >;
+	setSyncNotices: Dispatch< SetStateAction< SyncNotice[] > >;
+}
+
 export type {
 	AdminConfig,
 	Context,
 	ContextExports,
 	Coverage,
 	Entry,
+	EntryViewRow,
+	EntryPageResponse,
+	EntrySyncDelta,
 	PostStatus,
 	ViewState,
 	View,
@@ -487,17 +582,19 @@ export type {
 	Action,
 	PaginationInfo,
 	ApiResult,
+	CreateEntryResult,
 	ChannelMapping,
 	DataViewsWrapperProps,
 	CoverageModalProps,
 	CoverageFormData,
 	UseCoveragesOptions,
+	UseEntriesOptions,
+	UseEntriesResult,
 	BreakoutModalProps,
 	BreakoutFormData,
 	CreateBreakoutResponse,
 	CreateBreakoutResult,
 	ConfirmModalContentProps,
-	UseEntriesOptions,
 	SaveCoverageData,
 	ChipLinkProps,
 	TermChipsProps,
@@ -526,9 +623,13 @@ export type {
 	SlackMonitorLogsResult,
 	SettingsNotice,
 	AdminTab,
+	SyncNotice,
+	SyncNoticeEntry,
+	SyncPollContext,
 	QuickEditModalProps,
 	QuickEditSaveBarProps,
 	EntityRecord,
 	EditorSelectors,
 	CoreSelectors,
+	TogglePinResult,
 };

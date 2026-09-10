@@ -29,10 +29,10 @@ function getCoverageFields(
 	return [
 		{
 			id: 'term_id',
-			type: 'text',
+			type: 'integer',
 			label: __( 'Term ID', 'newspack-rolling-coverage' ),
 			enableSorting: true,
-			getValue: ( { item } ) => String( item.id ),
+			getValue: ( { item } ) => item.id,
 		},
 		{
 			id: 'name',
@@ -44,10 +44,10 @@ function getCoverageFields(
 		},
 		{
 			id: 'count',
-			type: 'text',
+			type: 'integer',
 			label: __( 'Entries', 'newspack-rolling-coverage' ),
 			enableSorting: true,
-			getValue: ( { item } ) => String( item.count ?? 0 ),
+			getValue: ( { item } ) => item.count ?? 0,
 		},
 		{
 			id: 'status',

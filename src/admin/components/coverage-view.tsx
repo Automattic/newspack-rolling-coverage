@@ -6,8 +6,8 @@ import { useState, useCallback, useMemo } from '@wordpress/element';
 import { Button } from '@wordpress/components';
 import { plus, trash } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
-import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
 import type { View } from '@wordpress/dataviews';
+import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
 
 /**
  * Internal dependencies
@@ -41,6 +41,22 @@ function CoverageView() {
 		[ config.taxMeta.statusKey, config.taxMeta.lastModifiedKey ]
 	);
 	const [ view, setView ] = useState< View >( defaultCoverageView );
+
+	// Reset to page 1 when filters or search change.
+	const handleChangeView = useCallback(
+		( newView: View ) => {
+			const filtersChanged =
+				JSON.stringify( newView.filters ?? [] ) !==
+				JSON.stringify( view.filters ?? [] );
+			const searchChanged = newView.search !== view.search;
+			if ( filtersChanged || searchChanged ) {
+				setView( { ...newView, page: 1 } );
+			} else {
+				setView( newView );
+			}
+		},
+		[ view.filters, view.search ]
+	);
 	const [ editingCoverage, setEditingCoverage ] = useState< Coverage | null >(
 		null
 	);
@@ -50,9 +66,8 @@ function CoverageView() {
 		null
 	);
 
+	// Fetch the full coverage list: sorting, filtering, and pagination are  applied client-side via filterSortAndPaginate
 	const { records, isResolving, error } = useCoverages( {
-		perPage: 100,
-		page: 1,
 		search: view.search,
 		refreshKey,
 	} );
@@ -128,7 +143,7 @@ function CoverageView() {
 				data={ filteredData }
 				fields={ fields }
 				view={ view }
-				onChangeView={ setView }
+				onChangeView={ handleChangeView }
 				actions={ actions }
 				paginationInfo={ paginationInfo }
 				isLoading={ isResolving }
