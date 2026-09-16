@@ -212,6 +212,7 @@ class Admin {
 				'entries'       => esc_url_raw( rest_url( 'wp/v2/' . Post_Type::REST_BASE ) ),
 				'slack'         => esc_url_raw( rest_url( Slack::REST_NAMESPACE . '/' ) ),
 				'breakout'      => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/entries' ) ),
+				'entriesView'   => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 				'aiSettings'    => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . AI_Settings::REST_ROUTE ) ),
 				'restNamespace' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/' ) ),
 				'posts'         => esc_url_raw( rest_url( 'wp/v2/posts' ) ),

@@ -2,6 +2,17 @@
  * External dependencies
  */
 import { useEntityRecords } from '@wordpress/core-data';
+import { useState, useEffect } from '@wordpress/element';
+
+/** Debounce delay (ms) for search input. */
+const DEBOUNCE_MS = 500;
+
+/**
+ * Upper bound for the coverage list fetch. The coverage view applies
+ * sorting, filtering, and pagination client-side, so the full set must be
+ * retrieved in one request. Taxonomy terms are a bounded dataset.
+ */
+const COVERAGE_FETCH_MAX = 100;
 
 /**
  * Internal dependencies
@@ -19,7 +30,22 @@ import { useAdminContext } from './useAdminContext';
  * @return {{ records: Coverage[] | null, isResolving: boolean, hasResolved: boolean, error: string | null, totalItems: number, totalPages: number }} Coverage data and request state.
  */
 function useCoverages( options: UseCoveragesOptions = {} ) {
-	const { perPage = 100, page = 1, search = '', refreshKey } = options;
+	const {
+		perPage = COVERAGE_FETCH_MAX,
+		page = 1,
+		search = '',
+		refreshKey,
+	} = options;
+
+	// Debounce search so rapid typing doesn't fire a request per character.
+	const [ debouncedSearch, setDebouncedSearch ] = useState( search );
+	useEffect( () => {
+		const timer = setTimeout(
+			() => setDebouncedSearch( search ),
+			DEBOUNCE_MS
+		);
+		return () => clearTimeout( timer );
+	}, [ search ] );
 
 	const query: Record< string, unknown > = {
 		per_page: perPage,
@@ -29,8 +55,8 @@ function useCoverages( options: UseCoveragesOptions = {} ) {
 		_ts: refreshKey,
 	};
 
-	if ( search ) {
-		query.search = search;
+	if ( debouncedSearch ) {
+		query.search = debouncedSearch;
 	}
 
 	const config = useAdminContext();

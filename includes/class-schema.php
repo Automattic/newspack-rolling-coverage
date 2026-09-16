@@ -169,9 +169,10 @@ class Schema {
 		}
 
 		// dateModified must reflect entry activity, which is tracked by the block's
-		// LAST_MODIFIED_META_KEY term meta (updated on every entry save).
+		// LAST_MODIFIED_META_KEY term meta (updated on every entry save). The meta
+		// stores a raw GMT `Y-m-d H:i:s` string; schema.org requires ISO 8601.
 		if ( ! empty( $last_modified ) ) {
-			$metadata['dateModified'] = $last_modified;
+			$metadata['dateModified'] = gmdate( 'c', strtotime( $last_modified ) );
 		} else {
 			// No entry activity recorded yet: fall back to the host post's own
 			// modified date so the field is still present when available.
@@ -187,7 +188,7 @@ class Schema {
 		}
 
 		if ( 'archived' === $status && ! empty( $end_time ) ) {
-			$metadata['coverageEndTime'] = $end_time;
+			$metadata['coverageEndTime'] = gmdate( 'c', strtotime( $end_time ) );
 		}
 
 		$metadata['liveBlogUpdate'] = self::build_updates( $coverage_id, $entries_per_page, $permalink );

@@ -1,8 +1,10 @@
 /**
  * WordPress dependencies
  */
+import { __, sprintf } from '@wordpress/i18n';
 import { dispatch } from '@wordpress/data';
 import { store as noticesStore } from '@wordpress/notices';
+import type { SyncNotice, SyncNoticeEntry } from '../types';
 
 /**
  * Dispatches a success snackbar notice.
@@ -30,6 +32,53 @@ function notifyError( message: string ) {
 }
 
 /**
+ * Truncates a title for snackbar display, returning "(no title)" when empty.
+ *
+ * @param {string} title The entry title.
+ * @return {string} Truncated title or placeholder.
+ */
+function formatEntryTitle( title: string ): string {
+	const clean = title.trim();
+	if ( ! clean ) {
+		return __( '(no title)', 'newspack-rolling-coverage' );
+	}
+	return clean.length > 40 ? clean.slice( 0, 40 ) + '…' : clean;
+}
+
+/**
+ * Builds a snackbar message for a single entry based on the notice type.
+ *
+ * @param {'added'|'updated'|'removed'} type  The notice type.
+ * @param {SyncNoticeEntry}             entry The entry details.
+ * @return {string} The translated snackbar message.
+ */
+function getEntryNoticeMessage(
+	type: SyncNotice[ 'type' ],
+	entry: SyncNoticeEntry
+): string {
+	const title = formatEntryTitle( entry.title );
+
+	switch ( type ) {
+		case 'added':
+			return sprintf(
+				/* translators: %s: entry title. */
+				__( 'New entry: %s', 'newspack-rolling-coverage' ),
+				title
+			);
+		case 'updated':
+			return sprintf(
+				/* translators: %s: entry title. */
+				__( 'Updated: %s', 'newspack-rolling-coverage' ),
+				title
+			);
+		case 'removed':
+			return __( '1 entry removed', 'newspack-rolling-coverage' );
+		default:
+			return '';
+	}
+}
+
+/**
  * Returns the singular or plural translated message depending on the item count.
  * Centralises the `count > 1 ? plural : singular` pattern used by bulk actions.
  *
@@ -42,4 +91,10 @@ function pluralize( count: number, singular: string, plural: string ): string {
 	return count > 1 ? plural : singular;
 }
 
-export { notifySuccess, notifyError, pluralize };
+export {
+	notifySuccess,
+	notifyError,
+	pluralize,
+	formatEntryTitle,
+	getEntryNoticeMessage,
+};

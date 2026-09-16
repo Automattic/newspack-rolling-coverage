@@ -15,37 +15,29 @@ import {
 	truncate,
 	getEmbeddedTerms,
 	getEntrySource,
+	getStatusLabel,
+	STATUS_ELEMENTS,
+	getRawTitle,
+	getRawAuthor,
+	getCategoryNames,
+	getTagNames,
+	getBreakoutStatus,
 	SOURCE_SLACK,
 	SOURCE_WORDPRESS,
 } from '../utils/fields';
 
-const POST_STATUS_LABELS: Record< string, string > = {
-	publish: __( 'Published', 'newspack-rolling-coverage' ),
-	draft: __( 'Draft', 'newspack-rolling-coverage' ),
-	pending: __( 'Pending', 'newspack-rolling-coverage' ),
-	future: __( 'Scheduled', 'newspack-rolling-coverage' ),
-	private: __( 'Private', 'newspack-rolling-coverage' ),
-	trash: __( 'Trashed', 'newspack-rolling-coverage' ),
-};
-
-const STATUS_ELEMENTS = Object.entries( POST_STATUS_LABELS ).map(
-	( [ value, label ] ) => ( { value, label } )
-);
-
-/**
- * Returns the display label for a post status.
- *
- * @param {string} status Post status slug.
- * @return {string} Translated label, or the raw status if unrecognised.
- */
-function getStatusLabel( status: string ): string {
-	return POST_STATUS_LABELS[ status ] || status;
-}
+const BREAKOUT_ELEMENTS = [
+	{ value: 'publish', label: __( 'Published', 'newspack-rolling-coverage' ) },
+	{ value: 'draft', label: __( 'Draft', 'newspack-rolling-coverage' ) },
+	{ value: 'pending', label: __( 'Pending', 'newspack-rolling-coverage' ) },
+	{ value: 'future', label: __( 'Scheduled', 'newspack-rolling-coverage' ) },
+	{ value: 'private', label: __( 'Private', 'newspack-rolling-coverage' ) },
+	{ value: 'trash', label: __( 'Trashed', 'newspack-rolling-coverage' ) },
+	{ value: 'none', label: __( 'None', 'newspack-rolling-coverage' ) },
+];
 
 /**
  * Field definitions for the entry DataViews table.
- * Configures columns: ID, title, created date, modified date, author, status,
- * categories, tags, and breakout.
  *
  * @param {AdminConfig} config Admin config containing edit URLs.
  * @return {Field<Entry>[]} Field definitions for the entry DataViews table.
@@ -56,22 +48,20 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			id: 'id',
 			type: 'text',
 			label: __( 'Post ID', 'newspack-rolling-coverage' ),
-			enableSorting: true,
+			enableSorting: false,
 			getValue: ( { item } ) => String( item.id ),
+			filterBy: {
+				operators: [ 'is' ],
+			},
 		},
 		{
 			id: 'title',
 			type: 'text',
 			label: __( 'Title', 'newspack-rolling-coverage' ),
 			enableHiding: false,
-			enableSorting: true,
 			enableGlobalSearch: true,
-			getValue: ( { item } ) =>
-				truncate(
-					item.title?.rendered ||
-						__( '(no title)', 'newspack-rolling-coverage' ),
-					20
-				),
+			enableSorting: false,
+			getValue: ( { item } ) => getRawTitle( item ),
 			render: ( { item } ) => {
 				const title =
 					item.title?.rendered ||
@@ -92,6 +82,9 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				}
 				return truncate( title, 20 );
 			},
+			filterBy: {
+				operators: [ 'contains' ],
+			},
 		},
 		{
 			id: 'date',
@@ -109,12 +102,9 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			id: 'author',
 			type: 'text',
 			label: __( 'Author', 'newspack-rolling-coverage' ),
-			enableSorting: true,
 			enableGlobalSearch: true,
-			getValue: ( { item } ) => {
-				const author = item._embedded?.author?.[ 0 ];
-				return author?.name || '—';
-			},
+			enableSorting: false,
+			getValue: ( { item } ) => getRawAuthor( item ),
 			render: ( { item } ) => {
 				const author = item._embedded?.author?.[ 0 ];
 				if ( ! author ) {
@@ -122,11 +112,15 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				}
 				return <ChipLink href={ author.link } label={ author.name } />;
 			},
+			filterBy: {
+				operators: [ 'contains' ],
+			},
 		},
 		{
 			id: 'source',
 			type: 'text',
 			label: __( 'Source', 'newspack-rolling-coverage' ),
+			enableSorting: false,
 			getValue: ( { item } ) => getEntrySource( item ),
 			render: ( { item } ) => {
 				if ( getEntrySource( item ) === SOURCE_SLACK ) {
@@ -160,6 +154,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			id: 'status',
 			type: 'text',
 			label: __( 'Status', 'newspack-rolling-coverage' ),
+			enableSorting: false,
 			getValue: ( { item } ) => item.status,
 			elements: STATUS_ELEMENTS,
 			filterBy: {
@@ -171,6 +166,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			type: 'text',
 			label: __( 'Categories', 'newspack-rolling-coverage' ),
 			enableSorting: false,
+			getValue: ( { item } ) => getCategoryNames( item ),
 			render: ( { item } ) => {
 				const allTerms = getEmbeddedTerms( item );
 				return (
@@ -181,12 +177,16 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 					/>
 				);
 			},
+			filterBy: {
+				operators: [ 'contains' ],
+			},
 		},
 		{
 			id: 'tags',
 			type: 'text',
 			label: __( 'Tags', 'newspack-rolling-coverage' ),
 			enableSorting: false,
+			getValue: ( { item } ) => getTagNames( item ),
 			render: ( { item } ) => {
 				const allTerms = getEmbeddedTerms( item );
 				return (
@@ -197,16 +197,16 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 					/>
 				);
 			},
+			filterBy: {
+				operators: [ 'contains' ],
+			},
 		},
 		{
 			id: 'breakout',
 			type: 'text',
 			label: __( 'Breakout', 'newspack-rolling-coverage' ),
 			enableSorting: false,
-			getValue: ( { item } ) =>
-				item.rolling_coverage_breakout_status
-					? getStatusLabel( item.rolling_coverage_breakout_status )
-					: '—',
+			getValue: ( { item } ) => getBreakoutStatus( item ),
 			render: ( { item } ) => {
 				const breakoutPostId =
 					item.meta?.rolling_coverage_breakout_post_id;
@@ -227,13 +227,16 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 					/>
 				);
 			},
+			elements: BREAKOUT_ELEMENTS,
+			filterBy: {
+				operators: [ 'is', 'isNot' ],
+			},
 		},
 	];
 }
 
 /**
- * Default view state for the entry list: table layout, sorted by date descending,
- * showing author, status, categories, tags, modified, and breakout columns.
+ * Default view state for the entry list.
  */
 const defaultEntryView: ViewState = {
 	type: 'table',

@@ -39,8 +39,9 @@ class Taxonomy {
 	const MODIFIED_AT_META_KEY = 'modified_at';
 
 	/**
-	 * ISO 8601 snapshot of LAST_MODIFIED_META_KEY, taken when the coverage is
-	 * archived. Used for schema.org's coverageEndTime.
+	 * Raw GMT snapshot of LAST_MODIFIED_META_KEY, taken when the coverage is
+	 * archived. Used for schema.org's coverageEndTime (normalized to ISO 8601
+	 * at output time by Schema::build_metadata).
 	 */
 	const END_TIME_META_KEY = 'rolling_coverage_end_time';
 
@@ -135,7 +136,7 @@ class Taxonomy {
 				'type'         => 'string',
 				'default'      => '',
 			],
-			// ISO 8601 snapshot of the coverage's last-modified time, taken when
+			// Raw GMT snapshot of the coverage's last-modified time, taken when
 			// archived. See maybe_snapshot_end_time().
 			self::END_TIME_META_KEY                        => [
 				'show_in_rest' => true,
@@ -143,7 +144,7 @@ class Taxonomy {
 				'type'         => 'string',
 				'default'      => '',
 			],
-			// ISO 8601 timestamp of the coverage's latest entry activity.
+			// Raw GMT timestamp (Y-m-d H:i:s) of the coverage's latest entry activity.
 			Rolling_Coverage_Block::LAST_MODIFIED_META_KEY => [
 				'show_in_rest' => true,
 				'single'       => true,
