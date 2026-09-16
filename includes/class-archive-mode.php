@@ -68,7 +68,7 @@ class Archive_Mode {
 			[
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => [ __CLASS__, 'handle_set_entry_archived' ],
-				'permission_callback' => [ Post_Type::class, 'can_edit_entry' ],
+				'permission_callback' => [ __CLASS__, 'can_set_entry_archived' ],
 				'args'                => [
 					'entry_id' => [
 						'required'          => true,
@@ -81,6 +81,18 @@ class Archive_Mode {
 				],
 			]
 		);
+	}
+
+	/**
+	 * Permission check for archiving or unarchiving an entry.
+	 *
+	 * @param WP_REST_Request $request Request object.
+	 * @return bool
+	 */
+	public static function can_set_entry_archived( WP_REST_Request $request ): bool {
+		$entry_id = (int) $request->get_param( 'entry_id' );
+
+		return current_user_can( 'edit_post', $entry_id ) && current_user_can( 'publish_post', $entry_id );
 	}
 
 	/**
