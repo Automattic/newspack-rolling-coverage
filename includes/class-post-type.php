@@ -1320,6 +1320,7 @@ class Post_Type {
 			'modified'         => mysql2date( 'c', $post->post_modified, false ),
 			'status'           => $post->post_status,
 			'pinned'           => self::is_pinned( $post->ID ),
+			'archived_at'      => Archive_Mode::get_entry_archived_at( $post->ID ),
 			'author'           => $author ? [
 				'id'   => $author->ID,
 				'name' => $author->display_name,

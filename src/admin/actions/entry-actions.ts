@@ -273,6 +273,7 @@ function getEntryActions(
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				entry.status === 'publish' &&
+				! isEntryArchived( entry ) &&
 				entry.coverageStatus !== 'archived',
 			callback: async ( items: Entry[] ) => {
 				const { failed, succeeded } = await runArchiveBulk(

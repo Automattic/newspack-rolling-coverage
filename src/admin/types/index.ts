@@ -122,6 +122,7 @@ interface Entry {
 	};
 	pinned?: boolean;
 	coverageStatus?: 'active' | 'paused' | 'archived' | 'trash' | '';
+	archivedAt?: number;
 	rolling_coverage_breakout_status?: PostStatus | null;
 	_embedded?: {
 		author?: Array< {
@@ -520,6 +521,7 @@ interface EntryViewRow {
 	modified: string;
 	status: PostStatus;
 	pinned: boolean;
+	archived_at: number;
 	author: { id: number; name: string; link: string } | null;
 	source: 'wordpress' | 'slack';
 	categories: Array< {

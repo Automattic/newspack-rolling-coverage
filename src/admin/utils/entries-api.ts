@@ -80,6 +80,7 @@ function toEntry( row: EntryViewRow ): Entry {
 		content: { rendered: '' },
 		author: row.author?.id ?? 0,
 		pinned: row.pinned,
+		archivedAt: row.archived_at,
 		meta: {
 			rolling_coverage_breakout_post_id:
 				row.breakout_post_id || undefined,
@@ -444,7 +445,7 @@ function hasTrashedBreakout( entry: Entry ): boolean {
  * @return {boolean} Whether the entry is archived.
  */
 function isEntryArchived( entry: Entry ): boolean {
-	return entry.status === 'archived';
+	return !! entry.archivedAt;
 }
 
 /**

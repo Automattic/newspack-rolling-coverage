@@ -282,7 +282,7 @@ class Rolling_Coverage_Block {
 		$query = new WP_Query(
 			[
 				'post_type'           => Post_Type::CPT_SLUG,
-				'post_status'         => [ 'publish', Archive_Mode::ENTRY_ARCHIVED_STATUS ],
+				'post_status'         => 'publish',
 				'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
 						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
@@ -745,7 +745,7 @@ class Rolling_Coverage_Block {
 		$post          = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		setup_postdata( $entry );
 
-		$is_archived = Archive_Mode::ENTRY_ARCHIVED_STATUS === $entry->post_status;
+		$is_archived = Archive_Mode::is_entry_archived( $entry->ID );
 		if ( $is_archived ) {
 			add_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );
 		}
@@ -985,7 +985,7 @@ class Rolling_Coverage_Block {
 		$query = new WP_Query(
 			[
 				'post_type'           => Post_Type::CPT_SLUG,
-				'post_status'         => [ 'publish', Archive_Mode::ENTRY_ARCHIVED_STATUS ],
+				'post_status'         => 'publish',
 				'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
 						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
@@ -1089,7 +1089,7 @@ class Rolling_Coverage_Block {
 
 		$base_args = [
 			'post_type'           => Post_Type::CPT_SLUG,
-			'post_status'         => [ 'publish', Archive_Mode::ENTRY_ARCHIVED_STATUS ],
+			'post_status'         => 'publish',
 			'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 				[
 					'taxonomy' => Taxonomy::TAXONOMY_SLUG,

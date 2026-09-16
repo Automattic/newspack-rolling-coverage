@@ -24,38 +24,38 @@ defined( 'ABSPATH' ) || exit;
 class Archive_Mode {
 
 	/**
-	 * Post status for individually archived entries.
+	 * Post meta key flagging an individually archived entry. Stores the
+	 * archive timestamp; any non-empty value means the entry is archived.
 	 */
-	const ENTRY_ARCHIVED_STATUS = 'archived';
+	const ENTRY_ARCHIVED_META_KEY = '_rolling_coverage_archived_at';
 
 	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
-		add_action( 'init', [ __CLASS__, 'register_entry_status' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_filter( 'map_meta_cap', [ __CLASS__, 'restrict_archived_entry_caps' ], 10, 4 );
 		add_filter( 'rest_pre_insert_' . Post_Type::CPT_SLUG, [ __CLASS__, 'block_rest_writes' ], 10, 2 );
 	}
 
 	/**
-	 * Registers the 'archived' post status for individually archived entries.
+	 * Whether an entry is individually archived.
+	 *
+	 * @param int $entry_id Entry post ID.
+	 * @return bool
 	 */
-	public static function register_entry_status() {
-		register_post_status(
-			self::ENTRY_ARCHIVED_STATUS,
-			[
-				'label'               => _x( 'Archived', 'post status', 'newspack-rolling-coverage' ),
-				/* translators: %s: Number of archived entries. */
-				'label_count'         => _n_noop(
-					'Archived <span class="count">(%s)</span>',
-					'Archived <span class="count">(%s)</span>',
-					'newspack-rolling-coverage'
-				),
-				'public'              => true,
-				'exclude_from_search' => false,
-			]
-		);
+	public static function is_entry_archived( int $entry_id ): bool {
+		return '' !== (string) get_post_meta( $entry_id, self::ENTRY_ARCHIVED_META_KEY, true );
+	}
+
+	/**
+	 * The Unix timestamp when an entry was archived, or 0 when not archived.
+	 *
+	 * @param int $entry_id Entry post ID.
+	 * @return int
+	 */
+	public static function get_entry_archived_at( int $entry_id ): int {
+		return (int) get_post_meta( $entry_id, self::ENTRY_ARCHIVED_META_KEY, true );
 	}
 
 	/**
@@ -109,7 +109,7 @@ class Archive_Mode {
 			return false;
 		}
 
-		if ( self::ENTRY_ARCHIVED_STATUS === $post->post_status ) {
+		if ( self::is_entry_archived( $post->ID ) ) {
 			return true;
 		}
 
@@ -216,8 +216,8 @@ class Archive_Mode {
 	/**
 	 * Archives or unarchives a single entry.
 	 *
-	 * Only published entries can be archived, so unarchiving always
-	 * restores 'publish'.
+	 * Archive state lives in post meta and the entry stays published, so
+	 * feed queries and the publish transition are unaffected.
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
@@ -250,10 +250,10 @@ class Archive_Mode {
 			}
 		}
 
-		$is_archived = self::ENTRY_ARCHIVED_STATUS === $post->post_status;
+		$is_archived = self::is_entry_archived( $entry_id );
 
 		if ( $archived === $is_archived ) {
-			return new WP_REST_Response( [ 'status' => $post->post_status ], 200 );
+			return new WP_REST_Response( [ 'archived' => $is_archived ], 200 );
 		}
 
 		if ( $archived && 'publish' !== $post->post_status ) {
@@ -264,24 +264,23 @@ class Archive_Mode {
 			);
 		}
 
-		$new_status = $archived ? self::ENTRY_ARCHIVED_STATUS : 'publish';
+		if ( $archived ) {
+			update_post_meta( $entry_id, self::ENTRY_ARCHIVED_META_KEY, time() );
+		} else {
+			delete_post_meta( $entry_id, self::ENTRY_ARCHIVED_META_KEY );
+		}
 
-		$updated = wp_update_post(
-			[
-				'ID'          => $entry_id,
-				'post_status' => $new_status,
-			],
-			true
-		);
+		// Bump post_modified so live feeds re-render the entry.
+		$updated = wp_update_post( [ 'ID' => $entry_id ], true );
 
 		if ( is_wp_error( $updated ) || 0 === $updated ) {
 			return new WP_Error(
 				'rolling_coverage_archive_failed',
-				__( 'Failed to update entry status.', 'newspack-rolling-coverage' ),
+				__( 'Failed to update entry.', 'newspack-rolling-coverage' ),
 				[ 'status' => 500 ]
 			);
 		}
 
-		return new WP_REST_Response( [ 'status' => $new_status ], 200 );
+		return new WP_REST_Response( [ 'archived' => $archived ], 200 );
 	}
 }
