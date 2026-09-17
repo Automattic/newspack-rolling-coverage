@@ -1453,6 +1453,9 @@ class Slack_Webhook_Controller {
 						'message' => $post_id->get_error_message(),
 					] 
 				);
+			} elseif ( Entry_Ingestion_Service::SKIP_ARCHIVED_COVERAGE === $post_id ) {
+				Slack_Monitor::log( 'info', 'Ingestion: entry not created (coverage archived)', [ 'ts' => $ts ] );
+				error_log( 'Slack ingestion: entry not created for ts ' . $ts . ' (coverage archived).' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			} else {
 				Slack_Monitor::log( 'info', 'Ingestion: entry not created (duplicate, empty content, or bot user unavailable)', [ 'ts' => $ts ] );
 				error_log( 'Slack ingestion: entry not created for ts ' . $ts . ' (skipped by ingest service: duplicate, empty content, or bot user unavailable). Check preceding log entries for the reason.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
