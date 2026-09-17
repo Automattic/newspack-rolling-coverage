@@ -81,6 +81,7 @@ function toEntry( row: EntryViewRow ): Entry {
 		author: row.author?.id ?? 0,
 		pinned: row.pinned,
 		archivedAt: row.archived_at,
+		coverageStatus: row.coverage_status,
 		meta: {
 			rolling_coverage_breakout_post_id:
 				row.breakout_post_id || undefined,

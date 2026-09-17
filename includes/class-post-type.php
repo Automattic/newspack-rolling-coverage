@@ -1321,6 +1321,7 @@ class Post_Type {
 			'status'           => $post->post_status,
 			'pinned'           => self::is_pinned( $post->ID ),
 			'archived_at'      => Archive_Mode::get_entry_archived_at( $post->ID ),
+			'coverage_status'  => self::get_coverage_status_rest_field( [ 'id' => $post->ID ] ),
 			'author'           => $author ? [
 				'id'   => $author->ID,
 				'name' => $author->display_name,

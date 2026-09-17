@@ -522,6 +522,7 @@ interface EntryViewRow {
 	status: PostStatus;
 	pinned: boolean;
 	archived_at: number;
+	coverage_status: 'active' | 'paused' | 'archived' | 'trash' | '';
 	author: { id: number; name: string; link: string } | null;
 	source: 'wordpress' | 'slack';
 	categories: Array< {
