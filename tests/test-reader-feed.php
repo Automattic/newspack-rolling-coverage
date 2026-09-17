@@ -43,6 +43,9 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	/**
 	 * Create an entry in the test coverage at a fixed time.
 	 *
+	 * On insert WordPress copies the date into the modified columns, so the
+	 * entry's `post_modified_gmt`, which cursors are built from, is this time too.
+	 *
 	 * @param string $post_date Entry date, `Y-m-d H:i:s`. The test site runs on UTC.
 	 * @param array  $args      Post factory arguments.
 	 * @return int Entry post ID.

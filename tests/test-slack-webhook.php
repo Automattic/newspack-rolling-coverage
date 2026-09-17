@@ -326,9 +326,9 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 				[
 					'post_type'   => Post_Type::CPT_SLUG,
 					'post_status' => 'any',
-				] 
+				]
 			),
-			'No entry should be created.' 
+			'No entry should be created.'
 		);
 		$this->assertSame( [], $this->outbound_requests, 'No Slack API call should be made for a dropped message.' );
 	}
