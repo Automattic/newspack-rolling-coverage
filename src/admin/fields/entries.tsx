@@ -1,8 +1,15 @@
 /**
  * External dependencies
  */
-import { __ } from '@wordpress/i18n';
-import { Icon, pin, wordpress as WordPressIconRaw } from '@wordpress/icons';
+import { Tooltip } from '@wordpress/components';
+import { dateI18n, getSettings } from '@wordpress/date';
+import { __, sprintf } from '@wordpress/i18n';
+import {
+	Icon,
+	pin,
+	info,
+	wordpress as WordPressIconRaw,
+} from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -159,6 +166,43 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			elements: STATUS_ELEMENTS,
 			filterBy: {
 				operators: [ 'is', 'isNot' ],
+			},
+			render: ( { item } ) => {
+				const archivedAt = item.archivedAt ?? 0;
+
+				if ( ! archivedAt ) {
+					return <span>{ getStatusLabel( item.status ) }</span>;
+				}
+
+				// A non-publish status keeps its own label; only a published
+				// entry reads as "Archived". The icon flags the archive either way.
+				const label =
+					item.status === 'publish'
+						? __( 'Archived', 'newspack-rolling-coverage' )
+						: getStatusLabel( item.status );
+
+				const archivedDate = dateI18n(
+					getSettings().formats.datetime,
+					new Date( archivedAt * 1000 )
+				);
+
+				return (
+					<Tooltip
+						text={ sprintf(
+							// translators: %s: date the entry was archived.
+							__(
+								"Archived on %s. This entry can't be pinned, trashed, or given a new breakout post. Unarchive it to allow those actions.",
+								'newspack-rolling-coverage'
+							),
+							archivedDate
+						) }
+					>
+						<span className="newspack-rolling-coverage-status-archived">
+							{ label }
+							<Icon icon={ info } size={ 18 } />
+						</span>
+					</Tooltip>
+				);
 			},
 		},
 		{

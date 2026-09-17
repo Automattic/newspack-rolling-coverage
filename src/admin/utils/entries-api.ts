@@ -17,6 +17,7 @@ import type {
 	SyncPollContext,
 	TogglePinResult,
 	ApiResult,
+	EntryEditWarning,
 	AdminConfig,
 	BulkRestoreResult,
 	BulkRestoreEntryResult,
@@ -79,6 +80,8 @@ function toEntry( row: EntryViewRow ): Entry {
 		content: { rendered: '' },
 		author: row.author?.id ?? 0,
 		pinned: row.pinned,
+		archivedAt: row.archived_at,
+		coverageStatus: row.coverage_status,
 		meta: {
 			rolling_coverage_breakout_post_id:
 				row.breakout_post_id || undefined,
@@ -437,6 +440,50 @@ function hasTrashedBreakout( entry: Entry ): boolean {
 }
 
 /**
+ * Returns true when the entry is individually archived.
+ *
+ * @param {Entry} entry The entry to check.
+ * @return {boolean} Whether the entry is archived.
+ */
+function isEntryArchived( entry: Entry ): boolean {
+	return !! entry.archivedAt;
+}
+
+/**
+ * Returns true when the entry is locked by Archive Mode: individually
+ * archived, or assigned to an archived coverage.
+ *
+ * @param {Entry} entry The entry to check.
+ * @return {boolean} Whether the entry is locked.
+ */
+function isEntryLocked( entry: Entry ): boolean {
+	return isEntryArchived( entry ) || entry.coverageStatus === 'archived';
+}
+
+/**
+ * Returns why editing this entry needs confirmation, or null when
+ * unrestricted.
+ *
+ * @param {Entry} entry The entry to check.
+ * @return {EntryEditWarning} The reason, or null.
+ */
+function getEntryEditWarning( entry: Entry ): EntryEditWarning {
+	if ( isEntryArchived( entry ) ) {
+		return 'entry-archived';
+	}
+
+	if ( entry.coverageStatus === 'archived' ) {
+		return 'coverage-archived';
+	}
+
+	if ( entry.coverageStatus === 'paused' ) {
+		return 'coverage-paused';
+	}
+
+	return null;
+}
+
+/**
  * Sends a DELETE request for a single entry, returning a normalised
  * ApiResult. When `force` is truthy the entry is permanently deleted;
  * otherwise it is moved to the trash.
@@ -488,12 +535,64 @@ async function runEntryBulk(
 	return { failed, succeeded: failed.length === 0 };
 }
 
+/**
+ * Archives or unarchives a single entry via the dedicated Archive Mode
+ * REST route.
+ *
+ * @param {string}  restNamespace - REST namespace URL.
+ * @param {number}  entryId       - Entry post ID.
+ * @param {boolean} archived      - Whether to archive (true) or unarchive (false).
+ * @return {Promise<ApiResult>} Result indicating success or failure.
+ */
+async function setEntryArchived(
+	restNamespace: string,
+	entryId: number,
+	archived: boolean
+): Promise< ApiResult > {
+	try {
+		await apiFetch( {
+			url: `${ restNamespace }entries/${ entryId }/archive`,
+			method: 'POST',
+			data: { archived },
+		} );
+		return { success: true };
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
+/**
+ * Runs a bulk archive or unarchive against the supplied entries,
+ * aggregating per-item results.
+ *
+ * @param {string}  restNamespace - REST namespace URL.
+ * @param {Entry[]} items         - The selected entry rows.
+ * @param {boolean} archived      - Whether to archive (true) or unarchive (false).
+ * @return {Promise<{ failed: ApiResult[], succeeded: boolean }>} Aggregated outcome.
+ */
+async function runArchiveBulk(
+	restNamespace: string,
+	items: Entry[],
+	archived: boolean
+): Promise< { failed: ApiResult[]; succeeded: boolean } > {
+	const results = await Promise.all(
+		items.map( ( entry ) =>
+			setEntryArchived( restNamespace, entry.id, archived )
+		)
+	);
+	const failed = results.filter( ( r ) => ! r.success );
+	return { failed, succeeded: failed.length === 0 };
+}
+
 export {
 	createEntry,
 	togglePinEntry,
 	bulkRestoreEntries,
 	hasBreakout,
 	hasTrashedBreakout,
+	isEntryArchived,
+	isEntryLocked,
+	getEntryEditWarning,
 	deleteEntry,
 	runEntryBulk,
 	toEntry,
@@ -503,4 +602,6 @@ export {
 	mergeSyncDelta,
 	pollSync,
 	SYNC_INTERVAL_MS,
+	setEntryArchived,
+	runArchiveBulk,
 };

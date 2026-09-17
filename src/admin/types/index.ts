@@ -93,7 +93,8 @@ type PostStatus =
 	| 'pending'
 	| 'future'
 	| 'private'
-	| 'trash';
+	| 'trash'
+	| 'archived';
 
 interface Entry {
 	id: number;
@@ -120,6 +121,8 @@ interface Entry {
 		[ key: string ]: unknown;
 	};
 	pinned?: boolean;
+	coverageStatus?: 'active' | 'paused' | 'archived' | 'trash' | '';
+	archivedAt?: number;
 	rolling_coverage_breakout_status?: PostStatus | null;
 	_embedded?: {
 		author?: Array< {
@@ -139,6 +142,12 @@ interface Entry {
 	};
 	_links?: Record< string, Array< { href: string } > >;
 }
+
+type EntryEditWarning =
+	| 'entry-archived'
+	| 'coverage-archived'
+	| 'coverage-paused'
+	| null;
 
 type ViewState = ViewTable;
 
@@ -512,6 +521,8 @@ interface EntryViewRow {
 	modified: string;
 	status: PostStatus;
 	pinned: boolean;
+	archived_at: number;
+	coverage_status: 'active' | 'paused' | 'archived' | 'trash' | '';
 	author: { id: number; name: string; link: string } | null;
 	source: 'wordpress' | 'slack';
 	categories: Array< {
@@ -575,6 +586,7 @@ export type {
 	EntryViewRow,
 	EntryPageResponse,
 	EntrySyncDelta,
+	EntryEditWarning,
 	PostStatus,
 	ViewState,
 	View,

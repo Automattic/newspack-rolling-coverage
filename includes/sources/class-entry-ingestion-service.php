@@ -35,6 +35,9 @@ class Entry_Ingestion_Service {
 	// Title truncation length.
 	const TITLE_LENGTH = 50;
 
+	// Skip result when the target coverage is archived.
+	const SKIP_ARCHIVED_COVERAGE = -1;
+
 	/**
 	 * Ingest a normalized source event into a rolling coverage entry.
 	 *
@@ -43,7 +46,9 @@ class Entry_Ingestion_Service {
 	 * @param bool                 $auto_publish    Whether to insert as 'publish' or 'draft'.
 	 * @param int                  $bot_user_id     WP user id to assign as post_author.
 	 * @param array<string, mixed> $provenance_meta Platform-specific meta keyed by meta_key.
-	 * @return int|\WP_Error Post id on success, 0 on a clean skip, or WP_Error.
+	 * @return int|\WP_Error Post id on success, 0 on a clean skip,
+	 *                       self::SKIP_ARCHIVED_COVERAGE when the coverage is
+	 *                       archived, or WP_Error.
 	 */
 	public static function ingest(
 		Source_Event_Payload $payload,
@@ -52,6 +57,10 @@ class Entry_Ingestion_Service {
 		int $bot_user_id,
 		array $provenance_meta
 	) {
+		if ( Archive_Mode::is_coverage_archived( $term_id ) ) {
+			return self::SKIP_ARCHIVED_COVERAGE;
+		}
+
 		$lock_key = self::MUTEX_PREFIX . md5( $payload->source . ':' . $payload->source_ref );
 
 		// TOCTOU race condition : Lock already exists.
