@@ -170,9 +170,9 @@ class Rolling_Coverage_Block {
 	 *
 	 * The theme unregisters most post blocks in the editor, which leaves the
 	 * entry template unable to render. Its script reads the list from the
-	 * `updateAllowedBlocks` global, so localizing it again after the theme
-	 * does replaces the list with one that leaves these blocks out. Every
-	 * other block the theme removes stays removed.
+	 * `updateAllowedBlocks` global, so localizing that global once more, after
+	 * the theme has localized it, hands the script a list that leaves these
+	 * blocks out. Every other block the theme removes stays removed.
 	 */
 	public static function keep_template_post_blocks() {
 		if ( ! function_exists( 'newspack_fse_blocks_to_remove' ) || ! wp_script_is( self::THEME_BLOCK_REMOVAL_SCRIPT, 'enqueued' ) ) {
