@@ -50,6 +50,19 @@ class Rolling_Coverage_Block {
 	// Term meta key storing the coverage's latest entry modified timestamp.
 	const LAST_MODIFIED_META_KEY = 'rolling_coverage_last_modified';
 
+	// Handle of the Newspack Theme editor script that unregisters the post blocks.
+	const THEME_BLOCK_REMOVAL_SCRIPT = 'newspack-hide-fse-blocks';
+
+	// Post blocks the entry and deep link modal templates are built from.
+	const TEMPLATE_POST_BLOCKS = [
+		'core/post-title',
+		'core/post-date',
+		'core/post-content',
+		'core/post-excerpt',
+		'core/post-featured-image',
+		'core/post-author-name',
+	];
+
 	/**
 	 * The host page's post ID, captured at the start of render_block()
 	 * before the global $post is swapped to individual entries. Used by
@@ -66,6 +79,7 @@ class Rolling_Coverage_Block {
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register_block' ] );
 		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'localize_block_config' ] );
+		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'keep_template_post_blocks' ], 11 );
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'localize_frontend_config' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
@@ -148,6 +162,33 @@ class Rolling_Coverage_Block {
 				]
 			);
 		}
+	}
+
+	/**
+	 * Keeps the post blocks used by the block's templates registered in the
+	 * editor when the Newspack Theme is active.
+	 *
+	 * The theme unregisters most post blocks in the editor, which leaves the
+	 * entry template unable to render. Its script reads the list from the
+	 * `updateAllowedBlocks` global, so localizing that global once more, after
+	 * the theme has localized it, hands the script a list that leaves these
+	 * blocks out. Every other block the theme removes stays removed.
+	 */
+	public static function keep_template_post_blocks() {
+		if ( ! function_exists( 'newspack_fse_blocks_to_remove' ) || ! wp_script_is( self::THEME_BLOCK_REMOVAL_SCRIPT, 'enqueued' ) ) {
+			return;
+		}
+
+		$blocks_to_remove = array_diff(
+			explode( ',', newspack_fse_blocks_to_remove()['removeblocks'] ?? '' ),
+			self::TEMPLATE_POST_BLOCKS
+		);
+
+		wp_localize_script(
+			self::THEME_BLOCK_REMOVAL_SCRIPT,
+			'updateAllowedBlocks',
+			[ 'removeblocks' => implode( ',', $blocks_to_remove ) ]
+		);
 	}
 
 	/**
