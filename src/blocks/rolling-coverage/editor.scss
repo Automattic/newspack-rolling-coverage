@@ -53,7 +53,17 @@
 .newspack-rolling-coverage-state-block {
 	display: none;
 
+	// The deep-link CTA sets its own `display: flex`, so match its
+	// specificity here to keep it hidden outside the Deep Link state.
+	&.newspack-rolling-coverage-cta {
+		display: none;
+	}
+
 	[data-editor-state="archived"] &--archived {
 		display: block;
+	}
+
+	[data-editor-state="deep-link"] &--deep-link {
+		display: flex;
 	}
 }
