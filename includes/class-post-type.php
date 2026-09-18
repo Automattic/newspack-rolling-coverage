@@ -69,9 +69,30 @@ class Post_Type {
 	const ALLOWED_STATUSES = [ 'publish', 'draft', 'pending', 'future', 'private', 'trash' ];
 
 	/**
-	 * Statuses polled by the sync-mode endpoint. Mirrors ALLOWED_STATUSES.
+	 * Statuses visible to non-editors. Trash is an editorial state, so it is
+	 * excluded; everything else may be visible when the user authored it.
 	 */
-	const SYNC_STATUSES = self::ALLOWED_STATUSES;
+	const NON_EDITOR_STATUSES = [ 'publish', 'draft', 'pending', 'future', 'private' ];
+
+	/**
+	 * Statuses that make an entry visible to every logged-in user regardless
+	 * of authorship (mirrors core's public post statuses).
+	 */
+	const PUBLIC_STATUSES = [ 'publish', 'future' ];
+
+	/**
+	 * Capability required to see and act on every entry regardless of
+	 * author. WordPress maps this to Editor and above.
+	 */
+	const EDIT_ENTRIES_CAP = 'edit_others_posts';
+
+	/**
+	 * Query var flagging that a query must be scoped to the entries the
+	 * current user may see. Value is the scope: 'author' (own entries plus
+	 * others' published), 'own' (own entries only), or 'all' (no
+	 * restriction). Absent means no author restriction.
+	 */
+	const AUTHOR_SCOPE_VAR = 'rolling_coverage_author_scope';
 
 	const ALLOWED_ORDERBY = [ 'date', 'modified' ];
 	const ALLOWED_ORDER   = [ 'asc', 'desc' ];
@@ -81,6 +102,89 @@ class Post_Type {
 
 	// Max entries to delete per cron batch.
 	const CLEANUP_BATCH_SIZE = 50;
+
+	/**
+	 * Statuses the current user may see in the entries view.
+	 *
+	 * Editors and above see every status (including trash). Lower roles see
+	 * non-editor statuses; authorship scoping is applied separately via
+	 * self::entry_visibility_scope().
+	 *
+	 * @return string[]
+	 */
+	private static function visible_statuses(): array {
+		if ( current_user_can( self::EDIT_ENTRIES_CAP ) ) {
+			return self::ALLOWED_STATUSES;
+		}
+
+		return self::NON_EDITOR_STATUSES;
+	}
+
+	/**
+	 * Author-scoping level for the current user's entry queries.
+	 *
+	 * - 'all'    Editors and above: every author's entries.
+	 * - 'author' Authors: their own entries plus others' published entries.
+	 * - 'own'    Contributors and below: only their own entries.
+	 *
+	 * @return string One of 'all', 'author', 'own'.
+	 */
+	private static function entry_visibility_scope(): string {
+		if ( current_user_can( self::EDIT_ENTRIES_CAP ) ) {
+			return 'all';
+		}
+
+		return current_user_can( 'publish_posts' ) ? 'author' : 'own';
+	}
+
+	/**
+	 * Restrict a WP_Query to the current user's visible entries.
+	 *
+	 * Adds an author/status WHERE clause when the query carries
+	 * AUTHOR_SCOPE_VAR. No-op for Editors and above or unscoped queries.
+	 *
+	 * @param string   $where Current WHERE clause.
+	 * @param WP_Query $query The query instance.
+	 * @return string Filtered WHERE clause.
+	 */
+	public static function author_scope_where( string $where, WP_Query $query ): string {
+		$scope = $query->get( self::AUTHOR_SCOPE_VAR );
+
+		if ( 'own' !== $scope && 'author' !== $scope ) {
+			return $where;
+		}
+
+		global $wpdb;
+
+		$user_id = get_current_user_id();
+
+		if ( 'own' === $scope ) {
+			return $where . $wpdb->prepare( " AND {$wpdb->posts}.post_author = %d", $user_id );
+		}
+
+		// Authors additionally see others' publicly visible entries.
+		$statuses            = self::PUBLIC_STATUSES;
+		$public_placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
+		$params              = array_merge( [ $user_id ], $statuses );
+
+		$sql = " AND ({$wpdb->posts}.post_author = %d OR {$wpdb->posts}.post_status IN ({$public_placeholders}))";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- $public_placeholders is a generated list of %s placeholders, not user input; values are passed to prepare().
+		return $where . $wpdb->prepare( $sql, $params );
+	}
+
+	/**
+	 * Intersect a list of statuses with those the current user may see.
+	 *
+	 * The result may be empty (e.g. a contributor filtering by a status
+	 * they cannot access); callers must treat that as "no results".
+	 *
+	 * @param string[] $statuses Requested statuses.
+	 * @return string[] Visible subset.
+	 */
+	private static function restrict_statuses( array $statuses ): array {
+		return array_values( array_intersect( $statuses, self::visible_statuses() ) );
+	}
 
 	/**
 	 * Meta keys that are sensitive and should only be exposed in the edit
@@ -123,12 +227,14 @@ class Post_Type {
 		add_filter( 'posts_orderby', [ __CLASS__, 'orderby_pinned_first' ], 10, 2 );
 		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'on_save_post' ], 10, 2 );
-		add_filter( 'wp_insert_post_data', [ __CLASS__, 'preserve_entry_created_date' ], 10, 4 );
+		add_filter( 'wp_insert_post_data', [ __CLASS__, 'normalize_entry_gmt_dates' ], 10, 2 );
+		add_filter( 'wp_insert_post_data', [ __CLASS__, 'preserve_entry_created_date' ], 20, 4 );
 		add_action( 'transition_post_status', [ __CLASS__, 'record_entry_published_gmt' ], 10, 3 );
 		add_action( 'set_object_terms', [ __CLASS__, 'on_set_object_terms' ], 10, 6 );
 		add_action( 'trashed_post', [ __CLASS__, 'on_trash_post' ] );
 		add_action( 'before_delete_post', [ __CLASS__, 'on_delete_post' ] );
 		add_filter( 'rest_' . self::CPT_SLUG . '_query', [ __CLASS__, 'filter_rest_query' ], 10, 2 );
+		add_filter( 'posts_where', [ __CLASS__, 'author_scope_where' ], 10, 2 );
 		add_action( self::CLEANUP_CRON_HOOK, [ __CLASS__, 'cleanup_orphaned_entries' ] );
 	}
 
@@ -716,7 +822,8 @@ class Post_Type {
 			return false;
 		}
 
-		return current_user_can( 'edit_post', $entry_id );
+		// Pinning is a coverage-wide editorial act: Editors and above only.
+		return current_user_can( self::EDIT_ENTRIES_CAP );
 	}
 
 	/**
@@ -830,9 +937,29 @@ class Post_Type {
 	private static function run_page_mode( $term_id, array $params ) {
 		$order_by_col = 'date' === $params['orderby'] ? 'date' : 'modified';
 
+		// Users below Editor never see trash; authorship scoping is applied
+		// separately via AUTHOR_SCOPE_VAR so they only see their own
+		// non-public entries.
+		$params['statuses'] = self::restrict_statuses( $params['statuses'] );
+
+		// The requested statuses are entirely invisible to this user
+		// (e.g. a contributor filtering by "trash"): return an empty page.
+		if ( empty( $params['statuses'] ) ) {
+			return new WP_REST_Response(
+				[
+					'entries'    => [],
+					'totalItems' => 0,
+					'totalPages' => 1,
+					'page'       => $params['page'],
+					'cursor'     => self::coverage_sync_cursor( $term_id ),
+				]
+			);
+		}
+
 		$query_args = [
 			'post_type'              => self::CPT_SLUG,
 			'post_status'            => $params['statuses'],
+			self::AUTHOR_SCOPE_VAR   => self::entry_visibility_scope(),
 			'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 				[
 					'taxonomy' => Taxonomy::TAXONOMY_SLUG,
@@ -1102,7 +1229,8 @@ class Post_Type {
 		$latest = new \WP_Query(
 			[
 				'post_type'              => self::CPT_SLUG,
-				'post_status'            => self::SYNC_STATUSES,
+				'post_status'            => self::visible_statuses(),
+				self::AUTHOR_SCOPE_VAR   => self::entry_visibility_scope(),
 				'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
 						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
@@ -1124,7 +1252,36 @@ class Post_Type {
 			return '0:' . gmdate( 'Y-m-d H:i:s' );
 		}
 
-		return $latest->posts[0]->ID . ':' . self::post_modified_gmt( $latest->posts[0] );
+		$latest_post     = $latest->posts[0];
+		$latest_modified = self::post_modified_gmt( $latest_post );
+
+		// A legacy draft may still carry a floating (zero) GMT date, which
+		// would produce a cursor that fails validation. Fall back to a
+		// concrete timestamp for such rows.
+		if ( '' === $latest_modified || '0000-00-00 00:00:00' === $latest_modified ) {
+			$latest_modified = self::effective_modified_gmt( $latest_post );
+		}
+
+		return $latest_post->ID . ':' . $latest_modified;
+	}
+
+	/**
+	 * Resolve a post's GMT modified time, falling back to the local
+	 * `post_modified` when the GMT column is floating (zero).
+	 *
+	 * @param WP_Post $post Post object.
+	 * @return string GMT timestamp in Y-m-d H:i:s format.
+	 */
+	private static function effective_modified_gmt( WP_Post $post ): string {
+		if ( '' !== $post->post_modified_gmt && '0000-00-00 00:00:00' !== $post->post_modified_gmt ) {
+			return $post->post_modified_gmt;
+		}
+
+		if ( '' !== $post->post_modified && '0000-00-00 00:00:00' !== $post->post_modified ) {
+			return get_gmt_from_date( $post->post_modified );
+		}
+
+		return gmdate( 'Y-m-d H:i:s' );
 	}
 
 	/**
@@ -1161,7 +1318,8 @@ class Post_Type {
 		$query = new \WP_Query(
 			[
 				'post_type'              => self::CPT_SLUG,
-				'post_status'            => self::SYNC_STATUSES,
+				'post_status'            => self::visible_statuses(),
+				self::AUTHOR_SCOPE_VAR   => self::entry_visibility_scope(),
 				'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
 						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
@@ -1330,6 +1488,12 @@ class Post_Type {
 			'tags'             => self::map_terms( $post, 'post_tag' ),
 			'breakout_post_id' => $breakout_id,
 			'breakout_status'  => ! empty( $breakout_status ) ? (string) $breakout_status : null,
+			// Per-row capabilities mirror core's meta caps so the client can
+			// gate actions exactly as WordPress would (author can edit/publish
+			// own; contributor can edit own drafts but not publish/delete).
+			'can_edit'         => current_user_can( 'edit_post', $post->ID ),
+			'can_publish'      => current_user_can( 'publish_post', $post->ID ),
+			'is_own'           => get_current_user_id() === (int) $post->post_author,
 		];
 	}
 
@@ -1369,9 +1533,9 @@ class Post_Type {
 	 *
 	 * The block's `update_coverage_last_modified` handles publish-status
 	 * saves. This hook covers the remaining statuses that the admin sync
-	 * endpoint polls (via `SYNC_STATUSES`), including the restore-to-draft
-	 * case. Publish and trash are skipped to avoid duplicating the block's
-	 * writer and the trash hook respectively.
+	 * endpoint polls, including the restore-to-draft case. Publish and trash
+	 * are skipped to avoid duplicating the block's writer and the trash hook
+	 * respectively.
 	 *
 	 * @param int     $post_id Entry post ID.
 	 * @param WP_Post $post    Entry post object.
@@ -1382,6 +1546,40 @@ class Post_Type {
 		}
 
 		self::touch_coverage_last_modified_from_post( $post );
+	}
+
+	/**
+	 * Ensure rolling coverage entries never carry a floating (zero) GMT date.
+	 *
+	 * WordPress stores drafts/pending posts with `post_date_gmt` and
+	 * `post_modified_gmt` set to `0000-00-00 00:00:00`. Entries are an
+	 * event log whose dates are always meaningful, and a zero GMT value
+	 * poisons the `{id}:{modified_gmt}` sync cursor (it fails validation)
+	 * as well as poll ordering. Derive concrete GMT values from the local
+	 * dates so every stored entry has a usable timestamp.
+	 *
+	 * @param array $data    Sanitized, slashed, processed post data about to be saved.
+	 * @param array $postarr Sanitized post data as originally passed.
+	 * @return array Filtered post data.
+	 */
+	public static function normalize_entry_gmt_dates( array $data, array $postarr ): array {
+		if ( self::CPT_SLUG !== ( $data['post_type'] ?? '' ) ) {
+			return $data;
+		}
+
+		$zero = '0000-00-00 00:00:00';
+
+		if ( ( empty( $data['post_date_gmt'] ) || $zero === $data['post_date_gmt'] )
+			&& ! empty( $data['post_date'] ) && $zero !== $data['post_date'] ) {
+			$data['post_date_gmt'] = get_gmt_from_date( $data['post_date'] );
+		}
+
+		if ( ( empty( $data['post_modified_gmt'] ) || $zero === $data['post_modified_gmt'] )
+			&& ! empty( $data['post_modified'] ) && $zero !== $data['post_modified'] ) {
+			$data['post_modified_gmt'] = get_gmt_from_date( $data['post_modified'] );
+		}
+
+		return $data;
 	}
 
 	/**
@@ -1979,21 +2177,21 @@ class Post_Type {
 	/**
 	 * Permission check for entry-level operations.
 	 *
-	 * @param \WP_REST_Request $request Request object.
+	 * Mutating entry operations are restricted to Editors and above.
+	 *
 	 * @return bool
 	 */
-	public static function can_edit_entry( \WP_REST_Request $request ): bool {
-		$entry_id = (int) $request->get_param( 'entry_id' );
-		return current_user_can( 'edit_post', $entry_id );
+	public static function can_edit_entry(): bool {
+		return current_user_can( self::EDIT_ENTRIES_CAP );
 	}
 
 	/**
-	 * Permission check for bulk entry operations: requires edit_posts.
+	 * Permission check for bulk entry operations: requires Editor or above.
 	 *
 	 * @return bool
 	 */
 	public static function can_edit_posts(): bool {
-		return current_user_can( 'edit_posts' );
+		return current_user_can( self::EDIT_ENTRIES_CAP );
 	}
 
 	/**

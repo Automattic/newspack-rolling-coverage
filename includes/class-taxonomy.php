@@ -58,12 +58,25 @@ class Taxonomy {
 	/**
 	 * Term meta keys that are sensitive and should only be exposed in the edit
 	 * context (authenticated requests with manage_options capability).
+	 *
+	 * The generic source keys stay manager-only; the Slack channel ID/name
+	 * are exposed to any user who can access the plugin (see
+	 * filter_rest_response()) because they only power the read-only Slack
+	 * column and are not credentials.
 	 */
 	const RESTRICTED_META = [
-		self::META_SLACK_CHANNEL_ID,
-		self::META_SLACK_CHANNEL_NAME,
 		self::META_SOURCE,
 		self::META_SOURCE_REF,
+	];
+
+	/**
+	 * Term meta keys exposed to any logged-in user with `edit_posts` (i.e.
+	 * anyone who can open the Rolling Coverage admin page). These identify
+	 * the linked Slack channel and are not sensitive credentials.
+	 */
+	const VIEWABLE_META = [
+		self::META_SLACK_CHANNEL_ID,
+		self::META_SLACK_CHANNEL_NAME,
 	];
 
 	/**
@@ -517,6 +530,14 @@ class Taxonomy {
 		if ( isset( $data['meta'] ) && is_array( $data['meta'] ) ) {
 			foreach ( self::RESTRICTED_META as $meta_key ) {
 				unset( $data['meta'][ $meta_key ] );
+			}
+
+			// The Slack channel label powers a read-only admin column and is
+			// not sensitive, so keep it for anyone who can open the plugin.
+			if ( ! current_user_can( 'edit_posts' ) ) {
+				foreach ( self::VIEWABLE_META as $meta_key ) {
+					unset( $data['meta'][ $meta_key ] );
+				}
 			}
 		}
 

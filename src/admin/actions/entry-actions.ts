@@ -77,12 +77,25 @@ function getEntryActions(
 	onQuickEdit: ( entry: Entry ) => void,
 	onActionPerformed?: () => void
 ): Action< Entry >[] {
+	// Editors and above can act on any entry; lower roles are limited to
+	// entries WordPress grants them a meta cap for (author: own; contributor:
+	// own drafts). Row-level `can*` flags come from the endpoint.
+	const canEditRow = ( entry: Entry ) =>
+		config.capabilities.canEditEntries || Boolean( entry.canEdit );
+
+	// Only Editors and above, or an author acting on their own entry, may
+	// trash it. Contributors cannot publish, so this excludes them.
+	const canTrashRow = ( entry: Entry ) =>
+		config.capabilities.canEditEntries ||
+		( Boolean( entry.isOwn ) && Boolean( entry.canPublish ) );
+
 	return [
 		{
 			id: 'quick-edit',
 			label: __( 'Quick Edit', 'newspack-rolling-coverage' ),
 			isPrimary: true,
-			isEligible: ( entry: Entry ) => ! getEntryEditWarning( entry ),
+			isEligible: ( entry: Entry ) =>
+				canEditRow( entry ) && ! getEntryEditWarning( entry ),
 			callback: ( items: Entry[] ) => {
 				if ( items.length === 1 ) {
 					onQuickEdit( items[ 0 ] );
@@ -94,7 +107,7 @@ function getEntryActions(
 			label: __( 'Quick Edit', 'newspack-rolling-coverage' ),
 			isPrimary: true,
 			isEligible: ( entry: Entry ) =>
-				Boolean( getEntryEditWarning( entry ) ),
+				canEditRow( entry ) && Boolean( getEntryEditWarning( entry ) ),
 			RenderModal: ( { items, closeModal } ) =>
 				createElement( ConfirmModal, {
 					message: getEditWarningMessage( items[ 0 ] ),
@@ -106,7 +119,8 @@ function getEntryActions(
 		{
 			id: 'edit',
 			label: __( 'Edit', 'newspack-rolling-coverage' ),
-			isEligible: ( entry: Entry ) => ! getEntryEditWarning( entry ),
+			isEligible: ( entry: Entry ) =>
+				canEditRow( entry ) && ! getEntryEditWarning( entry ),
 			callback: ( items: Entry[] ) => {
 				if ( items.length === 1 ) {
 					window.open(
@@ -121,7 +135,7 @@ function getEntryActions(
 			id: 'edit-confirm',
 			label: __( 'Edit', 'newspack-rolling-coverage' ),
 			isEligible: ( entry: Entry ) =>
-				Boolean( getEntryEditWarning( entry ) ),
+				canEditRow( entry ) && Boolean( getEntryEditWarning( entry ) ),
 			RenderModal: ( { items, closeModal } ) =>
 				createElement( ConfirmModal, {
 					message: getEditWarningMessage( items[ 0 ] ),
@@ -140,6 +154,7 @@ function getEntryActions(
 			id: 'create-breakout',
 			label: __( 'Breakout', 'newspack-rolling-coverage' ),
 			isEligible: ( entry: Entry ) =>
+				config.capabilities.canEditEntries &&
 				! isEntryLocked( entry ) &&
 				! hasBreakout( entry ) &&
 				! hasTrashedBreakout( entry ),
@@ -175,7 +190,9 @@ function getEntryActions(
 			id: 'restore-breakout',
 			label: __( 'Restore Breakout Post', 'newspack-rolling-coverage' ),
 			isEligible: ( entry: Entry ) =>
-				! isEntryLocked( entry ) && hasTrashedBreakout( entry ),
+				config.capabilities.canEditEntries &&
+				! isEntryLocked( entry ) &&
+				hasTrashedBreakout( entry ),
 			callback: async ( items: Entry[] ) => {
 				if ( items.length !== 1 ) {
 					return;
@@ -217,7 +234,9 @@ function getEntryActions(
 				'newspack-rolling-coverage'
 			),
 			isEligible: ( entry: Entry ) =>
-				! isEntryLocked( entry ) && hasTrashedBreakout( entry ),
+				config.capabilities.canEditEntries &&
+				! isEntryLocked( entry ) &&
+				hasTrashedBreakout( entry ),
 			callback: async ( items: Entry[] ) => {
 				if ( items.length !== 1 ) {
 					return;
@@ -256,7 +275,9 @@ function getEntryActions(
 			id: 'breakout-setting',
 			label: __( 'Breakout Setting', 'newspack-rolling-coverage' ),
 			isEligible: ( entry: Entry ) =>
-				! isEntryLocked( entry ) && hasBreakout( entry ),
+				config.capabilities.canEditEntries &&
+				! isEntryLocked( entry ) &&
+				hasBreakout( entry ),
 			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
 				createElement( BreakoutModal, {
 					entry: items[ 0 ],
@@ -272,6 +293,7 @@ function getEntryActions(
 			label: __( 'Archive', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
+				config.capabilities.canEditEntries &&
 				entry.status === 'publish' &&
 				! isEntryArchived( entry ) &&
 				entry.coverageStatus !== 'archived',
@@ -313,7 +335,9 @@ function getEntryActions(
 			label: __( 'Unarchive', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
-				isEntryArchived( entry ) && entry.coverageStatus !== 'archived',
+				config.capabilities.canEditEntries &&
+				isEntryArchived( entry ) &&
+				entry.coverageStatus !== 'archived',
 			callback: async ( items: Entry[] ) => {
 				const { failed, succeeded } = await runArchiveBulk(
 					config.restBaseUrls.restNamespace,
@@ -352,7 +376,9 @@ function getEntryActions(
 			label: __( 'Trash', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
-				entry.status !== 'trash' && ! isEntryLocked( entry ),
+				entry.status !== 'trash' &&
+				! isEntryLocked( entry ) &&
+				canTrashRow( entry ),
 			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
 				createElement( ConfirmModal, {
 					message: pluralize(
@@ -437,7 +463,9 @@ function getEntryActions(
 			id: 'pin',
 			label: __( 'Pin', 'newspack-rolling-coverage' ),
 			isEligible: ( entry: Entry ) =>
-				! entry.pinned && ! isEntryLocked( entry ),
+				config.capabilities.canEditEntries &&
+				! entry.pinned &&
+				! isEntryLocked( entry ),
 			callback: async ( items: Entry[] ) => {
 				if ( items.length !== 1 ) {
 					return;
@@ -467,7 +495,8 @@ function getEntryActions(
 			id: 'restore-entry',
 			label: __( 'Restore', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
-			isEligible: ( entry: Entry ) => entry.status === 'trash',
+			isEligible: ( entry: Entry ) =>
+				config.capabilities.canEditEntries && entry.status === 'trash',
 			callback: async ( items: Entry[] ) => {
 				const entryIds = items.map( ( entry ) => entry.id );
 				const result = await bulkRestoreEntries(
@@ -540,7 +569,8 @@ function getEntryActions(
 			id: 'delete-entry',
 			label: __( 'Delete Permanently', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
-			isEligible: ( entry: Entry ) => entry.status === 'trash',
+			isEligible: ( entry: Entry ) =>
+				config.capabilities.canEditEntries && entry.status === 'trash',
 			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
 				createElement( ConfirmModal, {
 					message: pluralize(
@@ -631,7 +661,9 @@ function getEntryActions(
 			id: 'unpin',
 			label: __( 'Unpin', 'newspack-rolling-coverage' ),
 			isEligible: ( entry: Entry ) =>
-				Boolean( entry.pinned ) && ! isEntryLocked( entry ),
+				config.capabilities.canEditEntries &&
+				Boolean( entry.pinned ) &&
+				! isEntryLocked( entry ),
 			callback: async ( items: Entry[] ) => {
 				if ( items.length !== 1 ) {
 					return;

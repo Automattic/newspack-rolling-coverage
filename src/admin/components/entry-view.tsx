@@ -65,7 +65,11 @@ function EntryView() {
 		selectedCoverage?.meta?.[ config.taxMeta.statusKey ] === 'archived';
 	const isTrashed =
 		selectedCoverage?.meta?.[ config.taxMeta.statusKey ] === 'trash';
-	const disableNewEntry = ! selectedCoverage || isArchived || isTrashed;
+	// Any user who can create posts may add an entry (contributors create
+	// drafts); publishing is gated per-entry by the row capabilities.
+	const canCreateEntries = config.capabilities.canEditPosts;
+	const disableNewEntry =
+		! selectedCoverage || isArchived || isTrashed || ! canCreateEntries;
 	const [ view, setView ] = useState< View >( defaultEntryView );
 
 	// Reset to page 1 when filters or search change (server paginates the filtered set).

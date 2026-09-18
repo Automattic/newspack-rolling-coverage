@@ -163,7 +163,11 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			label: __( 'Status', 'newspack-rolling-coverage' ),
 			enableSorting: false,
 			getValue: ( { item } ) => item.status,
-			elements: STATUS_ELEMENTS,
+			// Trash is an editorial-only state; lower roles can see their own
+			// draft/pending/private entries, so those stay in the filter.
+			elements: config.capabilities.canEditEntries
+				? STATUS_ELEMENTS
+				: STATUS_ELEMENTS.filter( ( { value } ) => value !== 'trash' ),
 			filterBy: {
 				operators: [ 'is', 'isNot' ],
 			},
