@@ -3,6 +3,7 @@ vendor/
 dist/
 release/
 .phpunit.result.cache
+coverage.xml
 *.sql
 *.tar.gz
 *.zip

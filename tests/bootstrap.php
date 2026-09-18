@@ -31,3 +31,6 @@ tests_add_filter( 'muplugins_loaded', '_manually_load_plugin' );
 
 // Start up the WP testing environment.
 require $_tests_dir . '/includes/bootstrap.php';
+
+// Shared base class for the plugin's test cases.
+require_once __DIR__ . '/class-rolling-coverage-testcase.php';
