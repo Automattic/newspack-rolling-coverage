@@ -53,6 +53,12 @@ class Post_Type {
 	// Used by Entry_Ingestion_Service::ingest()'s add_option mutex and meta_query dedup.
 	const META_SOURCE_REF = 'rolling_coverage_source_ref';
 
+	// Protected post-meta key recording the GMT time an entry first reached 'publish'.
+	// Drafts keep a floating date, and the created date is preserved across the
+	// draft→publish transition (see preserve_entry_created_date()), so the creation
+	// date alone no longer identifies newly published entries for the live feed.
+	const META_PUBLISHED_GMT = '_rolling_coverage_published_gmt';
+
 	// Entries-view endpoint constants.
 	const PER_PAGE_MAX = 100;
 
@@ -117,6 +123,8 @@ class Post_Type {
 		add_filter( 'posts_orderby', [ __CLASS__, 'orderby_pinned_first' ], 10, 2 );
 		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'on_save_post' ], 10, 2 );
+		add_filter( 'wp_insert_post_data', [ __CLASS__, 'preserve_entry_created_date' ], 10, 4 );
+		add_action( 'transition_post_status', [ __CLASS__, 'record_entry_published_gmt' ], 10, 3 );
 		add_action( 'set_object_terms', [ __CLASS__, 'on_set_object_terms' ], 10, 6 );
 		add_action( 'trashed_post', [ __CLASS__, 'on_trash_post' ] );
 		add_action( 'before_delete_post', [ __CLASS__, 'on_delete_post' ] );
@@ -1212,8 +1220,8 @@ class Post_Type {
 
 			$row = self::map_row( $post );
 
-			// Classify server-side: 'new' if published after cursor, else 'update'.
-			$row['change_type'] = self::post_date_gmt( $post ) > $cursor_modified
+			// Classify server-side: 'new' if first published after cursor, else 'update'.
+			$row['change_type'] = self::get_entry_published_gmt( $post ) > $cursor_modified
 				? 'new'
 				: 'update';
 
@@ -1289,16 +1297,6 @@ class Post_Type {
 	 */
 	private static function post_modified_gmt( WP_Post $post ): string {
 		return $post->post_modified_gmt;
-	}
-
-	/**
-	 * Raw GMT creation date string for a post (Y-m-d H:i:s).
-	 *
-	 * @param WP_Post $post Post object.
-	 * @return string GMT timestamp in Y-m-d H:i:s format.
-	 */
-	private static function post_date_gmt( WP_Post $post ): string {
-		return $post->post_date_gmt;
 	}
 
 	/**
@@ -1384,6 +1382,101 @@ class Post_Type {
 		}
 
 		self::touch_coverage_last_modified_from_post( $post );
+	}
+
+	/**
+	 * Preserve a draft entry's created date across the draft→publish
+	 * transition.
+	 *
+	 * WordPress stores drafts, pending, and auto-draft posts with a floating
+	 * date (`post_date_gmt = 0000-00-00 00:00:00`). When such a post is
+	 * published, `wp_update_post()` deliberately resets `post_date` to the
+	 * current time (`wp-includes/post.php`). For rolling coverage entries the
+	 * creation date is meaningful (it reflects when the source event arrived,
+	 * e.g. a Slack message), so it must not change when an editor publishes.
+	 *
+	 * Only kicks in when the existing row has a floating date and the caller
+	 * did not explicitly request a date change (`edit_date`), so editors can
+	 * still reschedule an entry from the editor UI.
+	 *
+	 * @param array $data              Sanitized, slashed, processed post data about to be saved.
+	 * @param array $postarr           Sanitized post data as originally passed.
+	 * @param array $unsanitized_postarr Unsanitized post data as originally passed.
+	 * @param bool  $update            Whether this is an existing post being updated.
+	 * @return array Filtered post data.
+	 */
+	public static function preserve_entry_created_date( array $data, array $postarr, array $unsanitized_postarr, bool $update ): array {
+		if ( ! $update || self::CPT_SLUG !== ( $data['post_type'] ?? '' ) ) {
+			return $data;
+		}
+
+		// An explicit editor date change always wins.
+		if ( ! empty( $unsanitized_postarr['edit_date'] ) || ! empty( $postarr['edit_date'] ) ) {
+			return $data;
+		}
+
+		$existing = isset( $postarr['ID'] ) ? get_post( (int) $postarr['ID'] ) : null;
+
+		if ( ! $existing instanceof WP_Post || self::CPT_SLUG !== $existing->post_type ) {
+			return $data;
+		}
+
+		// Only floating-date (draft/pending) rows need protecting.
+		if ( '0000-00-00 00:00:00' !== $existing->post_date_gmt ) {
+			return $data;
+		}
+
+		// Still a floating status — leave core's current behavior alone.
+		if ( in_array( $data['post_status'] ?? '', [ 'draft', 'pending', 'auto-draft' ], true ) ) {
+			return $data;
+		}
+
+		$data['post_date']     = $existing->post_date;
+		$data['post_date_gmt'] = get_gmt_from_date( $existing->post_date );
+
+		return $data;
+	}
+
+	/**
+	 * Record the GMT time an entry first reaches 'publish'.
+	 *
+	 * The live feed classifies polled entries as "new" using the entry's
+	 * creation date, which is now preserved across draft→publish. Storing the
+	 * publish moment lets the feed still treat a draft published long after it
+	 * was ingested as new.
+	 *
+	 * @param string  $new_status New post status.
+	 * @param string  $old_status Previous post status.
+	 * @param WP_Post $post       Entry post object.
+	 */
+	public static function record_entry_published_gmt( string $new_status, string $old_status, WP_Post $post ): void {
+		if ( 'publish' !== $new_status || 'publish' === $old_status ) {
+			return;
+		}
+
+		if ( self::CPT_SLUG !== $post->post_type ) {
+			return;
+		}
+
+		if ( get_post_meta( $post->ID, self::META_PUBLISHED_GMT, true ) ) {
+			return;
+		}
+
+		update_post_meta( $post->ID, self::META_PUBLISHED_GMT, gmdate( 'Y-m-d H:i:s' ) );
+	}
+
+	/**
+	 * Returns the GMT time an entry was first published, falling back to the
+	 * post's created date for entries that predate the meta (or were inserted
+	 * directly as published).
+	 *
+	 * @param WP_Post $post Entry post object.
+	 * @return string GMT timestamp in Y-m-d H:i:s format.
+	 */
+	public static function get_entry_published_gmt( WP_Post $post ): string {
+		$published = (string) get_post_meta( $post->ID, self::META_PUBLISHED_GMT, true );
+
+		return $published ? $published : $post->post_date_gmt;
 	}
 
 	/**

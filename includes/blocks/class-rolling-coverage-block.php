@@ -1174,8 +1174,8 @@ class Rolling_Coverage_Block {
 					$new_cursor = $entry->ID . ':' . $entry_modified;
 				}
 
-				// Counts only if published after the poll cursor.
-				$is_new_entry = self::post_date_gmt( $entry ) > $cursor_modified;
+				// Counts only if first published after the poll cursor.
+				$is_new_entry = Post_Type::get_entry_published_gmt( $entry ) > $cursor_modified;
 				$ad_slot      = null;
 				$ad_html      = null;
 
