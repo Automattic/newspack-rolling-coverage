@@ -181,7 +181,7 @@ function initBlock( root: HTMLElement ): void {
 							arrival: target.dataset.arrival || 'initial',
 						} );
 					} );
-			  } );
+				} );
 
 	/**
 	 * Starts observing an entry element for viewport visibility, unless it's

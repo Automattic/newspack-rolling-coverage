@@ -141,7 +141,7 @@ function SetupGuideTab( { manifestJson }: SetupGuideTabProps ) {
 							: __(
 									'Copy Manifest',
 									'newspack-rolling-coverage'
-							  ) }
+								) }
 					</Button>
 				</HStack>
 			</CardFooter>

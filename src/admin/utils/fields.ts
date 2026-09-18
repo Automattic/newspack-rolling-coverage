@@ -354,7 +354,7 @@ function matchesOperator(
 			? getRelativeDate(
 					( filterValue as { value: number; unit: string } ).value,
 					( filterValue as { value: number; unit: string } ).unit
-			  )
+				)
 			: new Date( String( filterValue ) );
 
 	if ( isNaN( filterDateStr.getTime() ) ) {

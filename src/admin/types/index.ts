@@ -144,10 +144,7 @@ interface Entry {
 }
 
 type EntryEditWarning =
-	| 'entry-archived'
-	| 'coverage-archived'
-	| 'coverage-paused'
-	| null;
+	'entry-archived' | 'coverage-archived' | 'coverage-paused' | null;
 
 type ViewState = ViewTable;
 

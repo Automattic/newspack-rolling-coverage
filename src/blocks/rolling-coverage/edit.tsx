@@ -348,14 +348,14 @@ export default function Edit( {
 							'Coverage status updated.',
 							'newspack-rolling-coverage'
 						),
-				  }
+					}
 				: {
 						type: 'error',
 						message: __(
 							'Could not update the coverage status.',
 							'newspack-rolling-coverage'
 						),
-				  }
+					}
 		);
 		if ( success ) {
 			setCurrentCoverage( ( prev ) =>
@@ -673,11 +673,11 @@ export default function Edit( {
 											? __(
 													'Copied!',
 													'newspack-rolling-coverage'
-											  )
+												)
 											: __(
 													'Copy',
 													'newspack-rolling-coverage'
-											  ) }
+												) }
 									</Button>
 								</>
 							) }
@@ -784,12 +784,12 @@ export default function Edit( {
 						<BlockContextProvider
 							value={
 								entryContexts.length > 0
-									? entryContexts.find(
+									? ( entryContexts.find(
 											( c ) =>
 												c.postId ===
 												( activeEntryId ??
 													entryContexts[ 0 ]?.postId )
-									  ) ?? NEUTRAL_ENTRY_CONTEXT
+										) ?? NEUTRAL_ENTRY_CONTEXT )
 									: NEUTRAL_ENTRY_CONTEXT
 							}
 						>
