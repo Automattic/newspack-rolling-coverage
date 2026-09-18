@@ -53,8 +53,10 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	/**
 	 * Create an entry in the test coverage at a fixed time.
 	 *
-	 * On insert WordPress copies the date into the modified columns, so the
-	 * entry's `post_modified_gmt`, which cursors are built from, is this time too.
+	 * On insert WordPress copies the date into the modified columns, so a
+	 * published entry's `post_modified_gmt`, which cursors are built from, is
+	 * this time too. A draft's is the zero date: WordPress leaves the GMT date
+	 * unset until an entry is published.
 	 *
 	 * @param string $post_date Entry date, `Y-m-d H:i:s`. The test site runs on UTC.
 	 * @param array  $args      Post factory arguments.
@@ -255,10 +257,14 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	/**
 	 * A trashed entry is reported with its trash status, which is how the
 	 * list learns to remove it.
+	 *
+	 * The entry is a draft because trashing a published one also goes through
+	 * the block's publish-status hook, which would report it even without the
+	 * trash hook this covers.
 	 */
 	public function test_sync_reports_trashed_entries() {
 		$cursor_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
-		$doomed_entry_id = $this->create_entry_at( '2026-01-01 11:00:00' );
+		$doomed_entry_id = $this->create_entry_at( '2026-01-01 11:00:00', [ 'post_status' => 'draft' ] );
 		$cursor          = "{$cursor_entry_id}:2026-01-01 12:00:00";
 
 		wp_trash_post( $doomed_entry_id );

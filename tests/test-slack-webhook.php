@@ -16,8 +16,10 @@ use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
  * The webhook routes are only registered once Slack is configured at load
- * time, so these tests call the controller directly. Outbound Slack API calls
- * are answered by a `pre_http_request` filter; nothing leaves the process.
+ * time, so these tests call the controller directly, apart from the one that
+ * registers the routes itself to check each is gated. Outbound Slack API
+ * calls are answered by a `pre_http_request` filter; nothing leaves the
+ * process.
  */
 class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
@@ -39,6 +41,15 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		parent::set_up();
 		$this->outbound_requests = [];
 		add_filter( 'pre_http_request', [ $this, 'mock_slack_api' ], 10, 3 );
+	}
+
+	/**
+	 * Drop the REST server so routes a test registered do not outlive it. The
+	 * core test case restores hooks between tests, but keeps the server.
+	 */
+	public function tear_down() {
+		$GLOBALS['wp_rest_server'] = null;
+		parent::tear_down();
 	}
 
 	/**
@@ -91,10 +102,11 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	 *
 	 * @param string $body      Raw request body.
 	 * @param bool   $is_signed Whether to add valid Slack signature headers.
+	 * @param string $route     Webhook route, relative to `/slack/`.
 	 * @return WP_REST_Request
 	 */
-	private static function webhook_request( $body, $is_signed = true ) {
-		$request = new WP_REST_Request( 'POST', '/rolling-coverage/v1/slack/events' );
+	private static function webhook_request( $body, $is_signed = true, $route = 'events' ) {
+		$request = new WP_REST_Request( 'POST', '/rolling-coverage/v1/slack/' . $route );
 		$request->set_body( $body );
 
 		if ( $is_signed ) {
@@ -232,6 +244,40 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		self::configure_slack();
 
 		$this->assertTrue( self::controller()->verify_webhook_signature( self::webhook_request( self::message_event_body() ) ) );
+	}
+
+	/**
+	 * The webhook routes, relative to `/slack/`.
+	 *
+	 * @return array[]
+	 */
+	public function webhook_route_provider() {
+		return [
+			'events'       => [ 'events' ],
+			'commands'     => [ 'commands' ],
+			'interactions' => [ 'interactions' ],
+		];
+	}
+
+	/**
+	 * Every webhook route runs the signature check first, so an unsigned
+	 * request never reaches its handler.
+	 *
+	 * @dataProvider webhook_route_provider
+	 *
+	 * @param string $route Webhook route, relative to `/slack/`.
+	 */
+	public function test_webhook_routes_refuse_unsigned_requests( $route ) {
+		$this->silence_error_log();
+		self::configure_slack();
+		add_action( 'rest_api_init', [ self::controller(), 'register_webhook_routes' ] );
+
+		// The server is built once per run; rebuild it so the routes register.
+		$GLOBALS['wp_rest_server'] = null;
+
+		$unsigned_request = self::webhook_request( self::message_event_body(), false, $route );
+
+		$this->assertSame( 401, rest_get_server()->dispatch( $unsigned_request )->get_status() );
 	}
 
 	/**

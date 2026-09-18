@@ -31,10 +31,12 @@ class Test_Archive_Mode extends Rolling_Coverage_TestCase {
 	 * Build the REST request for saving an entry with the given coverages.
 	 *
 	 * @param int[] $coverage_ids Coverage term IDs sent with the save.
+	 * @param int   $entry_id     Entry to update, or 0 for a new entry.
 	 * @return WP_REST_Request
 	 */
-	private static function entry_save_request( array $coverage_ids ) {
-		$request = new WP_REST_Request( 'POST', '/wp/v2/' . Post_Type::REST_BASE );
+	private static function entry_save_request( array $coverage_ids, $entry_id = 0 ) {
+		$route   = '/wp/v2/' . Post_Type::REST_BASE . ( $entry_id ? "/{$entry_id}" : '' );
+		$request = new WP_REST_Request( 'POST', $route );
 		$request->set_param( Taxonomy::REST_BASE, $coverage_ids );
 		return $request;
 	}
@@ -96,14 +98,16 @@ class Test_Archive_Mode extends Rolling_Coverage_TestCase {
 	 * A REST save cannot move an entry into an archived coverage.
 	 */
 	public function test_rest_save_cannot_assign_an_entry_to_an_archived_coverage() {
+		self::log_in_as( 'editor' );
+		$open_coverage_id     = self::create_coverage();
 		$archived_coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
-		$prepared_post        = (object) [ 'ID' => self::create_entry( self::create_coverage() ) ];
+		$entry_id             = self::create_entry( $open_coverage_id );
 
-		$result = Archive_Mode::block_rest_writes( $prepared_post, self::entry_save_request( [ $archived_coverage_id ] ) );
+		$response = rest_get_server()->dispatch( self::entry_save_request( [ $archived_coverage_id ], $entry_id ) );
 
-		$this->assertWPError( $result, 'The save should be refused.' );
-		$this->assertSame( 'rolling_coverage_entry_locked', $result->get_error_code(), 'The refusal should use the entry-locked error.' );
-		$this->assertSame( 403, $result->get_error_data()['status'], 'The refusal should be a 403.' );
+		$this->assertSame( 'rolling_coverage_entry_locked', $response->get_data()['code'] ?? null, 'The save should be refused with the entry-locked error.' );
+		$this->assertSame( 403, $response->get_status(), 'The refusal should be a 403.' );
+		$this->assertSame( [ $open_coverage_id ], wp_get_post_terms( $entry_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] ), 'The entry should stay in its coverage.' );
 	}
 
 	/**
