@@ -43,8 +43,10 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	/**
 	 * Create an entry in the test coverage at a fixed time.
 	 *
-	 * On insert WordPress copies the date into the modified columns, so the
-	 * entry's `post_modified_gmt`, which cursors are built from, is this time too.
+	 * On insert WordPress copies the date into the modified columns, so a
+	 * published entry's `post_modified_gmt`, which cursors are built from, is
+	 * this time too. A draft's is the zero date: WordPress leaves the GMT date
+	 * unset until an entry is published.
 	 *
 	 * @param string $post_date Entry date, `Y-m-d H:i:s`. The test site runs on UTC.
 	 * @param array  $args      Post factory arguments.
@@ -89,9 +91,12 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	 * Drafts are never served, by polling or by paging.
 	 */
 	public function test_unpublished_entries_are_never_served() {
-		$published_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
 		$this->create_entry_at( '2026-01-01 12:05:00', [ 'post_status' => 'draft' ] );
 		$this->create_entry_at( '2026-01-01 12:06:00', [ 'post_status' => 'private' ] );
+
+		// Created last so the coverage's last-modified is a real date. The draft
+		// would leave the zero date, which the poll reads as "nothing changed".
+		$published_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
 
 		$poll = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_data();
 		$page = $this->get_feed( [ 'before' => '2026-01-02 00:00:00' ] )->get_data();

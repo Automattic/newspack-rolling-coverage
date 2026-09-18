@@ -30,8 +30,8 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	 * The core test case unregisters every meta key when a test ends, and the
 	 * plugin only registers its keys once, on `init`. Without this, every test
 	 * after the first would run without the meta defaults (a coverage with no
-	 * stored status would stop reading as 'active'), the canonical URL
-	 * sanitizer, and the `meta` fields in REST responses.
+	 * stored status would stop reading as 'active') and without the `meta`
+	 * fields in REST responses.
 	 */
 	public function set_up() {
 		parent::set_up();

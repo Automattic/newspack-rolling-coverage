@@ -99,8 +99,9 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A stored prefix that breaks the format rules is ignored in favor of the
-	 * default. An empty prefix in particular would match every message and
-	 * silently stop all ingestion.
+	 * default. Otherwise an empty prefix would turn skipping off and a
+	 * malformed one would stop matching the messages marked to be skipped, so
+	 * those messages would become entries.
 	 */
 	public function test_unusable_stored_skip_prefix_falls_back_to_the_default() {
 		Slack_Config::update_settings( [ 'ignore_prefix' => '' ] );

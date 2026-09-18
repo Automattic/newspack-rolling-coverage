@@ -51,6 +51,10 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 
 		$public_meta = self::list_entries_via_rest()[0]['meta'];
 
+		// Named rather than read from RESTRICTED_META, so dropping a key from
+		// that list cannot drop its check too.
+		$this->assertArrayNotHasKey( Post_Type::META_SLACK_USER_ID, $public_meta, 'The Slack user ID should be hidden from the public response.' );
+		$this->assertArrayNotHasKey( Post_Type::META_SLACK_AUTHOR_NAME, $public_meta, 'The Slack author name should be hidden from the public response.' );
 		foreach ( Post_Type::RESTRICTED_META as $restricted_key ) {
 			$this->assertArrayNotHasKey( $restricted_key, $public_meta, "{$restricted_key} should be hidden from the public response." );
 		}

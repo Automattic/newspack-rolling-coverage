@@ -208,6 +208,10 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 		$public_meta = self::get_coverage_via_rest( $coverage_id, 'view' )['meta'];
 		$edit_meta   = self::get_coverage_via_rest( $coverage_id, 'edit' )['meta'];
 
+		// Named rather than read from RESTRICTED_META, so dropping a key from
+		// that list cannot drop its check too.
+		$this->assertArrayNotHasKey( Taxonomy::META_SLACK_CHANNEL_ID, $public_meta, 'The Slack channel ID should be hidden from the public response.' );
+		$this->assertArrayNotHasKey( Taxonomy::META_SOURCE_REF, $public_meta, 'The chat source reference should be hidden from the public response.' );
 		foreach ( Taxonomy::RESTRICTED_META as $restricted_key ) {
 			$this->assertArrayNotHasKey( $restricted_key, $public_meta, "{$restricted_key} should be hidden from the public response." );
 		}
