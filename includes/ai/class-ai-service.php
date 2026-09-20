@@ -34,6 +34,9 @@ class AI_Service {
 	// Hardcoded system instruction for key takeaways generation.
 	const SYSTEM_INSTRUCTION = 'You are a news editor summarizing live coverage. Extract concise key takeaways from the provided entries. Focus on facts and the most important developments, ordered by significance.';
 
+	// Feature ID used when registering key takeaways with the AI plugin.
+	const FEATURE_ID = 'rolling-coverage-key-takeaways';
+
 	// Transient key for caching is_available() result.
 	const AVAILABILITY_TRANSIENT = 'rolling_coverage_ai_available';
 
@@ -51,24 +54,190 @@ class AI_Service {
 	];
 
 	/**
-	 * No-op to match the plugin's init() convention.
+	 * Per-request memo for the provider capability probe.
+	 *
+	 * Null until computed. Reset by clear_availability_cache().
+	 *
+	 * @var bool|null
 	 */
-	public static function init() {}
+	private static $provider_available = null;
 
 	/**
-	 * Whether the AI Client is available with a text-generation provider.
-	 * Cached in a short-TTL transient. Safe on WP < 7.0.
+	 * Initialize hooks.
+	 *
+	 * Registers key takeaways as a feature with the AI plugin so its
+	 * per-feature Provider/Model picker applies here, and invalidates the
+	 * cached provider result whenever an AI plugin setting, connector
+	 * credential, or connector plugin activation changes.
+	 */
+	public static function init() {
+		add_filter( 'wpai_default_feature_classes', [ __CLASS__, 'register_feature_class' ] );
+		add_action( 'updated_option', [ __CLASS__, 'maybe_clear_availability_cache' ] );
+		add_action( 'added_option', [ __CLASS__, 'maybe_clear_availability_cache' ] );
+		add_action( 'deleted_option', [ __CLASS__, 'maybe_clear_availability_cache' ] );
+		add_action( 'activated_plugin', [ __CLASS__, 'clear_availability_cache' ] );
+		add_action( 'deactivated_plugin', [ __CLASS__, 'clear_availability_cache' ] );
+	}
+
+	/**
+	 * Register key takeaways with the AI plugin's feature registry.
+	 *
+	 * Exposes the feature on Settings → AI so the AI plugin renders its
+	 * standard per-feature Provider/Model picker (Developer Tools). No-op when
+	 * the AI plugin is inactive.
+	 *
+	 * @param array<string, class-string> $classes Feature classes keyed by ID.
+	 * @return array<string, class-string> Filtered feature classes.
+	 */
+	public static function register_feature_class( array $classes ): array {
+		if ( class_exists( Key_Takeaways_Feature::class ) ) {
+			$classes[ self::FEATURE_ID ] = Key_Takeaways_Feature::class;
+		}
+
+		return $classes;
+	}
+
+	/**
+	 * Read the AI plugin's saved provider/model selection for key takeaways.
+	 *
+	 * @return array{provider: string, model: string} Provider and model, or
+	 */
+	private static function get_model_config(): array {
+		if ( ! function_exists( 'WordPress\AI\get_feature_developer_model_config' ) ) {
+			return [
+				'provider' => '',
+				'model'    => '',
+			];
+		}
+
+		$config = \WordPress\AI\get_feature_developer_model_config( self::FEATURE_ID );
+
+		return [
+			'provider' => (string) ( $config['provider'] ?? '' ),
+			'model'    => (string) ( $config['model'] ?? '' ),
+		];
+	}
+
+	/**
+	 * Clear the availability cache when a relevant option changes.
+	 *
+	 * Covers the AI plugin's own settings (`wpai_*`) and the connector
+	 * credential options managed by core (`connectors_ai_*`). A change to
+	 * either can flip provider availability, so the cached probe is dropped.
+	 *
+	 * @param string $option Option name that changed.
+	 */
+	public static function maybe_clear_availability_cache( $option ): void {
+		if ( ! is_string( $option ) ) {
+			return;
+		}
+
+		if ( 0 === strpos( $option, 'wpai_' ) || 0 === strpos( $option, 'connectors_ai_' ) ) {
+			self::clear_availability_cache();
+		}
+	}
+
+	/**
+	 * Whether AI key takeaways are available.
+	 *
+	 * Single source of truth. All three gates must pass:
+	 *   1. The AI plugin is active, AI is supported, and its global AI toggle
+	 *      is on.
+	 *   2. Rolling Coverage is enabled (the per-feature toggle).
+	 *   3. The Rolling Coverage ability is registered.
+	 * Then, and only then, the configured provider is probed for text
+	 * generation.
+	 *
+	 * The first three gates are cheap (autoloaded option reads and a registry
+	 * lookup) and are evaluated live on every call, so toggling them takes
+	 * effect immediately. Only the provider probe is expensive (a live
+	 * `GET /models` per configured provider), so that — and only that — is
+	 * memoized per request and cached in a short-TTL transient.
 	 *
 	 * @return bool
 	 */
 	public static function is_available(): bool {
+		if ( ! self::environment_supports_ai() || ! self::feature_enabled() ) {
+			return false;
+		}
+
+		if ( ! self::ability_registered() ) {
+			return false;
+		}
+
+		return self::provider_supports_text_generation();
+	}
+
+	/**
+	 * Whether the WordPress environment supports the AI Client.
+	 *
+	 * @return bool
+	 */
+	private static function environment_supports_ai(): bool {
+		if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
+			return false;
+		}
+
+		return function_exists( 'wp_supports_ai' ) && wp_supports_ai();
+	}
+
+	/**
+	 * Whether key takeaways are enabled in the AI plugin.
+	 *
+	 * Requires the AI plugin to be active (our Feature subclass is only
+	 * declared when its Abstract_Feature base is available) and both the
+	 * global AI toggle and the per-feature toggle to be on. Delegates to the
+	 * feature's public is_enabled() API so the `wpai_feature_{id}_enabled`
+	 * filter is honored. A fresh instance is used so the result is never
+	 * masked by Abstract_Feature's per-instance cache.
+	 *
+	 * @return bool
+	 */
+	private static function feature_enabled(): bool {
+		if ( ! class_exists( Key_Takeaways_Feature::class ) ) {
+			return false;
+		}
+
+		$feature = new Key_Takeaways_Feature();
+
+		return method_exists( $feature, 'is_enabled' ) && $feature->is_enabled();
+	}
+
+	/**
+	 * Whether the Rolling Coverage key takeaways ability is registered.
+	 *
+	 * False on WordPress versions without the Abilities API, and whenever the
+	 * ability has been unregistered.
+	 *
+	 * @return bool
+	 */
+	private static function ability_registered(): bool {
+		return function_exists( 'wp_has_ability' )
+			&& wp_has_ability( Abilities::GENERATE_KEY_TAKEAWAYS );
+	}
+
+	/**
+	 * Whether a configured provider can generate text.
+	 *
+	 * Memoized per request, then cached in a short-TTL transient. This is the
+	 * only expensive check (a live `GET /models` per configured provider).
+	 *
+	 * @return bool
+	 */
+	private static function provider_supports_text_generation(): bool {
+		if ( null !== self::$provider_available ) {
+			return self::$provider_available;
+		}
+
 		$cached = get_transient( self::AVAILABILITY_TRANSIENT );
 
 		if ( false !== $cached ) {
-			return '1' === $cached;
+			self::$provider_available = ( '1' === $cached );
+
+			return self::$provider_available;
 		}
 
-		$available = self::check_availability();
+		$available = true === wp_ai_client_prompt()->is_supported_for_text_generation();
 
 		set_transient(
 			self::AVAILABILITY_TRANSIENT,
@@ -76,35 +245,16 @@ class AI_Service {
 			self::AVAILABILITY_TTL
 		);
 
+		self::$provider_available = $available;
+
 		return $available;
 	}
 
 	/**
-	 * Fresh availability check bypassing the transient cache.
-	 *
-	 * @return bool
-	 */
-	public static function check_availability(): bool {
-		if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
-			return false;
-		}
-
-		if ( ! function_exists( 'wp_supports_ai' ) || ! wp_supports_ai() ) {
-			return false;
-		}
-
-		// Respect the AI plugin's global features toggle if present.
-		if ( false === (bool) get_option( 'wpai_features_enabled', false ) ) {
-			return false;
-		}
-
-		return true === wp_ai_client_prompt()->is_supported_for_text_generation();
-	}
-
-	/**
-	 * Clear the availability transient.
+	 * Clear the memoized and transient provider result.
 	 */
 	public static function clear_availability_cache(): void {
+		self::$provider_available = null;
 		delete_transient( self::AVAILABILITY_TRANSIENT );
 	}
 
@@ -159,11 +309,68 @@ class AI_Service {
 			$builder->using_max_tokens( (int) $merged['max_tokens'] );
 		}
 
-		if ( ! empty( $merged['model_preferences'] ) && is_array( $merged['model_preferences'] ) ) {
+		if ( ! self::apply_model_selection( $builder, $merged ) && ! empty( $merged['model_preferences'] ) && is_array( $merged['model_preferences'] ) ) {
 			$builder->using_model_preference( ...$merged['model_preferences'] );
 		}
 
 		return $builder;
+	}
+
+	/**
+	 * Apply the AI plugin's saved provider/model selection to a builder.
+	 *
+	 * Mirrors Abstract_Ability::set_provider_model_preference(): a saved
+	 * provider+model pair pins the exact model, a provider alone restricts
+	 * selection to that provider, and neither leaves the default preference
+	 * list in charge (handled by the caller). Invalid or stale selections are
+	 * ignored so generation still falls back to the default model list.
+	 *
+	 * @param WP_AI_Client_Prompt_Builder $builder Configured builder.
+	 * @param array                       $merged  Merged generation options.
+	 * @return bool Whether an explicit provider/model selection was applied.
+	 */
+	private static function apply_model_selection( WP_AI_Client_Prompt_Builder $builder, array $merged ): bool {
+		$provider = isset( $merged['provider'] ) ? (string) $merged['provider'] : '';
+		$model    = isset( $merged['model'] ) ? (string) $merged['model'] : '';
+
+		if ( '' === $provider ) {
+			return false;
+		}
+
+		$resolved = self::resolve_model( $provider, $model );
+
+		if ( $resolved ) {
+			$builder->using_model( $resolved );
+
+			return true;
+		}
+
+		// No exact model (none saved, or a stale selection): restrict to the
+		// saved provider so the default preference list picks within it.
+		$builder->using_provider( $provider );
+
+		return true;
+	}
+
+	/**
+	 * Resolve a provider/model pair to a model instance.
+	 *
+	 * @param string $provider Provider ID.
+	 * @param string $model    Model ID.
+	 * @return \WordPress\AiClient\Providers\Models\Contracts\ModelInterface|null Model instance, or null when the pair is
+	 *                                                                         incomplete, the SDK is missing, or the
+	 *                                                                         selection is stale/invalid.
+	 */
+	private static function resolve_model( string $provider, string $model ) {
+		if ( '' === $provider || '' === $model || ! class_exists( '\WordPress\AiClient\AiClient' ) ) {
+			return null;
+		}
+
+		try {
+			return \WordPress\AiClient\AiClient::defaultRegistry()->getProviderModel( $provider, $model );
+		} catch ( \Throwable ) {
+			return null;
+		}
 	}
 
 	/**
@@ -265,11 +472,15 @@ class AI_Service {
 			$key_takeaways_prompt
 		) . "\n\n" . $entries_content;
 
+		$model_config = self::get_model_config();
+
 		return self::generate_text(
 			$prompt,
 			[
 				'system_instruction' => self::SYSTEM_INSTRUCTION,
 				'temperature'        => 0.2,
+				'provider'           => $model_config['provider'],
+				'model'              => $model_config['model'],
 			]
 		);
 	}
@@ -282,13 +493,13 @@ class AI_Service {
 	 * @param int $coverage_id Coverage term ID.
 	 * @return string|WP_Error Prompt-ready text, or WP_Error if no entries found.
 	 */
-	public static function get_entries_for_prompt( int $coverage_id ) {
+	public static function get_entries_for_prompt( int $coverage_id ) { 
 		$entries = self::query_prompt_entries(
 			$coverage_id,
 			[
 				'posts_per_page' => self::MAX_PROMPT_ENTRIES,
 				'orderby'        => 'date',
-				'order'          => 'ASC',
+				'order'          => 'DESC',
 			]
 		);
 
