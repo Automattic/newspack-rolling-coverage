@@ -287,6 +287,7 @@ const defaultEntryView: ViewState = {
 	type: 'table',
 	perPage: 20,
 	page: 1,
+	sort: { field: 'date', direction: 'desc' },
 	search: '',
 	filters: [],
 	fields: [
