@@ -1270,7 +1270,7 @@ class Rolling_Coverage_Block {
 			]
 		);
 
-		// Prevents duplicate pinned entries on frontend.	
+		// Prevents duplicate pinned entries on frontend.
 		$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
 
 		$entry_offset = max( 0, (int) ( $params['entry_offset'] ?? 0 ) );
