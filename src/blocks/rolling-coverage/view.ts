@@ -749,17 +749,34 @@ function initBlock( root: HTMLElement ): void {
 				if ( data.count > 0 ) {
 					const fragment = parseFragment( data.html );
 
+					// Count how many entries were appended so the next page's offset can be correct.
+					let appended = 0;
+
+					// Defensive: never append an entry that is already in the list.
 					Array.from( fragment.children ).forEach( ( child ) => {
 						if (
-							child instanceof HTMLElement &&
-							child.dataset.entryId
+							! ( child instanceof HTMLElement ) ||
+							! child.dataset.entryId
 						) {
-							observeEntry( child );
+							return;
 						}
+
+						const existing = entriesList.querySelector(
+							`[data-entry-id="${ cssEscape(
+								child.dataset.entryId
+							) }"]`
+						);
+						if ( existing ) {
+							child.remove();
+							return;
+						}
+
+						observeEntry( child );
+						appended++;
 					} );
 
 					entriesList.appendChild( fragment );
-					backlogOffset += data.count;
+					backlogOffset += appended;
 				}
 				if ( data.adSlots && data.adSlots.length > 0 ) {
 					displayAdSlots( data.adSlots );
