@@ -37,5 +37,9 @@
 		display: inline-flex;
 		align-items: flex-start;
 		gap: $nrc-spacing-xs;
+
+		svg {
+			overflow: visible;
+		}
 	}
 }
