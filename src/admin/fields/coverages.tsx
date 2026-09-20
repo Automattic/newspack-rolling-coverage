@@ -7,11 +7,7 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies.
  */
 import { SlackIcon } from '../shared/icons/slack-icon';
-import {
-	truncate,
-	safeFormatUTCDate,
-	getSlackChannelLabel,
-} from '../utils/fields';
+import { safeFormatUTCDate, getSlackChannelLabel } from '../utils/fields';
 import type { Field, ViewState, Coverage } from '../types';
 
 /**
@@ -40,7 +36,12 @@ function getCoverageFields(
 			label: __( 'Name', 'newspack-rolling-coverage' ),
 			enableSorting: true,
 			enableGlobalSearch: true,
-			getValue: ( { item } ) => truncate( item.name, 20 ),
+			getValue: ( { item } ) => item.name,
+			render: ( { item } ) => (
+				<span className="newspack-rolling-coverage-coverage-name">
+					{ item.name }
+				</span>
+			),
 		},
 		{
 			id: 'count',

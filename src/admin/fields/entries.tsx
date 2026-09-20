@@ -19,7 +19,6 @@ import { ChipLink } from '../shared/chip-link';
 import { SlackIcon } from '../shared/icons/slack-icon';
 import { TermChips } from '../shared/term-chips';
 import {
-	truncate,
 	getEmbeddedTerms,
 	getEntrySource,
 	getStatusLabel,
@@ -75,19 +74,17 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 					__( '(no title)', 'newspack-rolling-coverage' );
 				if ( item.pinned ) {
 					return (
-						<span
-							style={ {
-								display: 'inline-flex',
-								alignItems: 'center',
-								gap: 4,
-							} }
-						>
+						<span className="newspack-rolling-coverage-entry-title newspack-rolling-coverage-entry-title--pinned">
 							<Icon icon={ pin } size={ 14 } />
-							{ truncate( title, 20 ) }
+							{ title }
 						</span>
 					);
 				}
-				return truncate( title, 20 );
+				return (
+					<span className="newspack-rolling-coverage-entry-title">
+						{ title }
+					</span>
+				);
 			},
 			filterBy: {
 				operators: [ 'contains' ],

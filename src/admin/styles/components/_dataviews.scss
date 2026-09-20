@@ -1,0 +1,41 @@
+@use "../variables" as *;
+
+// DataViews constrains the primary column to a fixed character width and
+// forces every cell onto a single line (`white-space: nowrap`), which hides
+// long titles/names even when the other columns are toggled off. Allow the
+// title/name cells to use the available width and wrap instead.
+
+.newspack-rolling-coverage-admin {
+
+	.dataviews-view-table__primary-column-content {
+		// Override the default 80ch cap so the primary column can claim the
+		// space freed up when other columns are hidden.
+		max-width: none;
+		min-width: 0;
+	}
+
+	.dataviews-view-table__cell-content-wrapper.dataviews-title-field,
+	.dataviews-title-field {
+		// Let the title wrap onto multiple lines rather than clipping it.
+		white-space: normal;
+		overflow: visible;
+		text-overflow: clip;
+		height: auto;
+	}
+
+	// Our own title/name wrappers: wrap long words and keep the pin icon
+	// aligned with the first line.
+	.newspack-rolling-coverage-entry-title,
+	.newspack-rolling-coverage-coverage-name {
+		display: block;
+		white-space: normal;
+		overflow-wrap: anywhere;
+		word-break: break-word;
+	}
+
+	.newspack-rolling-coverage-entry-title--pinned {
+		display: inline-flex;
+		align-items: flex-start;
+		gap: $nrc-spacing-xs;
+	}
+}
