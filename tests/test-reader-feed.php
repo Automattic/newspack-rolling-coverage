@@ -178,7 +178,12 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 			'normalize_entry_gmt_dates() should give the draft a concrete GMT date.'
 		);
 
-		wp_publish_post( $draft_id );
+		wp_update_post(
+			[
+				'ID'          => $draft_id,
+				'post_status' => 'publish',
+			]
+		);
 
 		$published = get_post( $draft_id );
 
@@ -189,23 +194,6 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 			Post_Type::get_entry_published_gmt( $published ),
 			'The recorded publish moment should differ from the created date.'
 		);
-	}
-
-	/**
-	 * A pre-deploy draft left floating (zero GMT date) in the database still
-	 * keeps its created date when it is published.
-	 */
-	public function test_legacy_floating_draft_keeps_its_date_when_published() {
-		$draft_id = $this->create_entry_at( '2026-01-01 12:00:00', [ 'post_status' => 'draft' ] );
-
-		global $wpdb;
-		$wpdb->update( $wpdb->posts, [ 'post_date_gmt' => '0000-00-00 00:00:00' ], [ 'ID' => $draft_id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Simulates a pre-deploy draft row.
-		clean_post_cache( $draft_id );
-
-		wp_publish_post( $draft_id );
-
-		// Only preserve_entry_created_date() rescues the legacy floating row.
-		$this->assertSame( '2026-01-01 12:00:00', get_post( $draft_id )->post_date, 'A legacy floating draft should keep its created date.' );
 	}
 
 	/**

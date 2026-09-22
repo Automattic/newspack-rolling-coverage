@@ -205,6 +205,61 @@ class Test_Entry_Restore extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Restoring an entry from a trashed coverage must not reactivate the
+	 * coverage for a user who cannot manage it; only an editor may.
+	 */
+	public function test_contributor_cannot_reactivate_a_trashed_coverage_by_restoring_an_entry() {
+		$coverage_id = self::create_coverage();
+		$contributor = self::log_in_as( 'contributor' );
+		$entry_id    = self::create_entry(
+			$coverage_id,
+			[
+				'post_author' => $contributor,
+				'post_status' => 'draft',
+			] 
+		);
+		wp_trash_post( $entry_id );
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, 'trash' );
+
+		$response = self::dispatch( 'POST', "/entries/{$entry_id}/restore" );
+
+		$this->assertSame( 403, $response->get_status(), 'A contributor should not be able to restore into a trashed coverage.' );
+		$this->assertSame( 'trash', get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ), 'The coverage should stay trashed.' );
+		$this->assertSame( 'trash', get_post_status( $entry_id ), 'The entry should stay in the trash.' );
+	}
+
+	/**
+	 * Restoring an entry whose coverage was permanently deleted would create a
+	 * recovery coverage, which is an editorial action. A contributor must be
+	 * refused and no coverage created.
+	 */
+	public function test_contributor_cannot_create_a_recovery_coverage_by_restoring_an_entry() {
+		$coverage_id = self::create_coverage(
+			'',
+			[
+				'name' => 'Deleted Coverage',
+				'slug' => 'deleted-coverage',
+			] 
+		);
+		$contributor = self::log_in_as( 'contributor' );
+		$entry_id    = self::create_entry(
+			$coverage_id,
+			[
+				'post_author' => $contributor,
+				'post_status' => 'draft',
+			]
+		);
+		wp_trash_post( $entry_id );
+		wp_delete_term( $coverage_id, Taxonomy::TAXONOMY_SLUG );
+
+		$response = self::dispatch( 'POST', "/entries/{$entry_id}/restore" );
+
+		$this->assertSame( 403, $response->get_status(), 'A contributor should not be able to restore an orphaned entry.' );
+		$this->assertSame( 'trash', get_post_status( $entry_id ), 'The entry should stay in the trash.' );
+		$this->assertFalse( get_term_by( 'slug', 'deleted-coverage-recovery', Taxonomy::TAXONOMY_SLUG ), 'No recovery coverage should be created.' );
+	}
+
+	/**
 	 * An entry remembers the first coverage it was assigned to, and keeps that
 	 * memory when it is later moved, so recovery names the original.
 	 */

@@ -88,8 +88,9 @@ class Post_Type {
 	/**
 	 * Query var flagging that a query must be scoped to the entries the
 	 * current user may see. Value is the scope: 'author' (own entries plus
-	 * others' published), 'own' (own entries only), or 'all' (no
-	 * restriction). Absent means no author restriction.
+	 * others' published), 'own' (own entries only), 'editable' (own entries
+	 * the user can `edit_post`, matching the core edit-context collection), or
+	 * 'all' (no restriction). Absent means no author restriction.
 	 */
 	const AUTHOR_SCOPE_VAR = 'rolling_coverage_author_scope';
 
@@ -120,6 +121,25 @@ class Post_Type {
 	}
 
 	/**
+	 * Author scope for the core entries collection in the `edit` context.
+	 *
+	 * Core drops entries the user cannot `edit_post` from the response body
+	 * but still counts them in `X-WP-Total`, so the query must be narrowed to
+	 * the same set. Editors see everything; users who can `edit_published_posts`
+	 * (authors) can edit all their own entries; everyone else is limited to
+	 * their own non-published entries (matching core's meta-cap rule).
+	 *
+	 * @return string One of 'all', 'own', 'editable'.
+	 */
+	private static function entry_edit_scope(): string {
+		if ( current_user_can( self::EDIT_ENTRIES_CAP ) ) {
+			return 'all';
+		}
+
+		return current_user_can( 'edit_published_posts' ) ? 'own' : 'editable';
+	}
+
+	/**
 	 * Restrict a WP_Query to the current user's visible entries.
 	 *
 	 * Adds an author/status WHERE clause when the query carries
@@ -132,7 +152,7 @@ class Post_Type {
 	public static function author_scope_where( string $where, WP_Query $query ): string {
 		$scope = $query->get( self::AUTHOR_SCOPE_VAR );
 
-		if ( 'own' !== $scope && 'author' !== $scope ) {
+		if ( ! in_array( $scope, [ 'own', 'author', 'editable' ], true ) ) {
 			return $where;
 		}
 
@@ -142,6 +162,25 @@ class Post_Type {
 
 		if ( 'own' === $scope ) {
 			return $where . $wpdb->prepare( " AND {$wpdb->posts}.post_author = %d", $user_id );
+		}
+
+		if ( 'editable' === $scope ) {
+			// Only entries the user can edit_post: own, not published or
+			// scheduled, and not trashed after being published or scheduled.
+			$sql = " AND {$wpdb->posts}.post_author = %d
+				AND {$wpdb->posts}.post_status NOT IN ('publish', 'future')
+				AND NOT (
+					{$wpdb->posts}.post_status = 'trash'
+					AND EXISTS (
+						SELECT 1 FROM {$wpdb->postmeta}
+						WHERE {$wpdb->postmeta}.post_id = {$wpdb->posts}.ID
+						AND {$wpdb->postmeta}.meta_key = '_wp_trash_meta_status'
+						AND {$wpdb->postmeta}.meta_value IN ('publish', 'future')
+					)
+				)";
+
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The only dynamic values are the user id placeholder and core table names.
+			return $where . $wpdb->prepare( $sql, $user_id );
 		}
 
 		// Authors additionally see others' publicly visible entries.
@@ -200,7 +239,6 @@ class Post_Type {
 		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'on_save_post' ], 10, 2 );
 		add_filter( 'wp_insert_post_data', [ __CLASS__, 'normalize_entry_gmt_dates' ], 10, 2 );
-		add_filter( 'wp_insert_post_data', [ __CLASS__, 'preserve_entry_created_date' ], 20, 4 );
 		add_action( 'transition_post_status', [ __CLASS__, 'record_entry_published_gmt' ], 10, 3 );
 		add_action( 'set_object_terms', [ __CLASS__, 'on_set_object_terms' ], 10, 6 );
 		add_action( 'trashed_post', [ __CLASS__, 'on_trash_post' ] );
@@ -360,7 +398,7 @@ class Post_Type {
 		if ( 'edit' === $request->get_param( 'context' ) ) {
 			// Core drops uneditable entries from the body but counts them in
 			// X-WP-Total, so core-data fails unless the query is scoped too.
-			$args[ self::AUTHOR_SCOPE_VAR ] = current_user_can( self::EDIT_ENTRIES_CAP ) ? 'all' : 'own';
+			$args[ self::AUTHOR_SCOPE_VAR ] = self::entry_edit_scope();
 
 			return $args;
 		}
@@ -1560,8 +1598,7 @@ class Post_Type {
 	 * entry's created date across publish: core only resets `post_date` to
 	 * "now" when publishing a draft whose `post_date_gmt` is still floating
 	 * (`wp_insert_post()`'s `$clear_date` branch). Once this runs, core leaves
-	 * the date alone, so `preserve_entry_created_date()` is no longer the
-	 * mechanism that keeps it; see that method for the legacy-draft backstop.
+	 * the date alone.
 	 *
 	 * @param array $data    Sanitized, slashed, processed post data about to be saved.
 	 * @param array $postarr Sanitized post data as originally passed.
@@ -1583,64 +1620,6 @@ class Post_Type {
 			&& ! empty( $data['post_modified'] ) && $zero !== $data['post_modified'] ) {
 			$data['post_modified_gmt'] = get_gmt_from_date( $data['post_modified'] );
 		}
-
-		return $data;
-	}
-
-	/**
-	 * Preserve a draft entry's created date across the draft→publish
-	 * transition.
-	 *
-	 * This is a backstop for drafts that already carry a floating date in the
-	 * database (`post_date_gmt = 0000-00-00 00:00:00`), i.e. entries created
-	 * before `normalize_entry_gmt_dates()` shipped. Core resets `post_date` to
-	 * the current time when publishing such a post (`wp-includes/post.php`),
-	 * and for rolling coverage entries the creation date is meaningful (it
-	 * reflects when the source event arrived, e.g. a Slack message).
-	 *
-	 * For entries saved after `normalize_entry_gmt_dates()` ships, the stored
-	 * `post_date_gmt` is already concrete, the zero-date check below bails, and
-	 * this filter does nothing. It can be removed once no floating-date drafts
-	 * remain.
-	 *
-	 * Only kicks in when the existing row has a floating date and the caller
-	 * did not explicitly request a date change (`edit_date`), so editors can
-	 * still reschedule an entry from the editor UI.
-	 *
-	 * @param array $data              Sanitized, slashed, processed post data about to be saved.
-	 * @param array $postarr           Sanitized post data as originally passed.
-	 * @param array $unsanitized_postarr Unsanitized post data as originally passed.
-	 * @param bool  $update            Whether this is an existing post being updated.
-	 * @return array Filtered post data.
-	 */
-	public static function preserve_entry_created_date( array $data, array $postarr, array $unsanitized_postarr, bool $update ): array {
-		if ( ! $update || self::CPT_SLUG !== ( $data['post_type'] ?? '' ) ) {
-			return $data;
-		}
-
-		// An explicit editor date change always wins.
-		if ( ! empty( $unsanitized_postarr['edit_date'] ) || ! empty( $postarr['edit_date'] ) ) {
-			return $data;
-		}
-
-		$existing = isset( $postarr['ID'] ) ? get_post( (int) $postarr['ID'] ) : null;
-
-		if ( ! $existing instanceof WP_Post || self::CPT_SLUG !== $existing->post_type ) {
-			return $data;
-		}
-
-		// Only floating-date (draft/pending) rows need protecting.
-		if ( '0000-00-00 00:00:00' !== $existing->post_date_gmt ) {
-			return $data;
-		}
-
-		// Still a floating status — leave core's current behavior alone.
-		if ( in_array( $data['post_status'] ?? '', [ 'draft', 'pending', 'auto-draft' ], true ) ) {
-			return $data;
-		}
-
-		$data['post_date']     = $existing->post_date;
-		$data['post_date_gmt'] = get_gmt_from_date( $existing->post_date );
 
 		return $data;
 	}
@@ -2310,13 +2289,30 @@ class Post_Type {
 	 * Ensure a coverage term's status meta is 'active', flipping it
 	 * back from 'trash' if it was soft-deleted.
 	 *
+	 * Reactivating a trashed coverage is an editorial action, so a user
+	 * without `manage_categories` gets a WP_Error instead.
+	 *
 	 * @param int $coverage_id Coverage term ID.
+	 * @return bool|\WP_Error True when active, WP_Error when it cannot be reactivated.
 	 */
-	private static function ensure_coverage_active( int $coverage_id ): void {
+	private static function ensure_coverage_active( int $coverage_id ): bool|\WP_Error {
 		$current_status = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
-		if ( 'trash' === $current_status ) {
-			update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, 'active' );
+
+		if ( 'trash' !== $current_status ) {
+			return true;
 		}
+
+		if ( ! current_user_can( 'manage_categories' ) ) {
+			return new \WP_Error(
+				'rolling_coverage_coverage_trashed',
+				__( 'An editor needs to restore the coverage before this entry can be restored.', 'newspack-rolling-coverage' ),
+				[ 'status' => 403 ]
+			);
+		}
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, 'active' );
+
+		return true;
 	}
 
 	/**
@@ -2367,7 +2363,11 @@ class Post_Type {
 			// Term relationship is intact — use the assigned coverage.
 			$coverage_id = (int) $terms[0]->term_id;
 
-			self::ensure_coverage_active( $coverage_id );
+			$active = self::ensure_coverage_active( $coverage_id );
+
+			if ( is_wp_error( $active ) ) {
+				return $active;
+			}
 		}
 
 		// Step 2: No term assigned — check META_ORIGINAL_COVERAGE_ID.
@@ -2378,7 +2378,11 @@ class Post_Type {
 				// Original coverage still exists — reassign the entry to it.
 				$coverage_id = $original_id;
 
-				self::ensure_coverage_active( $coverage_id );
+				$active = self::ensure_coverage_active( $coverage_id );
+
+				if ( is_wp_error( $active ) ) {
+					return $active;
+				}
 
 				wp_set_post_terms( $entry_id, [ $coverage_id ], Taxonomy::TAXONOMY_SLUG );
 			}
@@ -2386,6 +2390,16 @@ class Post_Type {
 
 		// Step 3: Coverage no longer exists — create or reuse a recovery term.
 		if ( ! $coverage_id ) {
+			// Creating or reassigning a coverage is an editorial action, so a
+			// user without `manage_categories` must not reach it.
+			if ( ! current_user_can( 'manage_categories' ) ) {
+				return new \WP_Error(
+					'rolling_coverage_coverage_deleted',
+					__( 'This entry\'s coverage was deleted. An editor needs to restore it.', 'newspack-rolling-coverage' ),
+					[ 'status' => 403 ]
+				);
+			}
+
 			$original_name = get_post_meta( $entry_id, self::META_ORIGINAL_COVERAGE_NAME, true );
 			$original_slug = get_post_meta( $entry_id, self::META_ORIGINAL_COVERAGE_SLUG, true );
 

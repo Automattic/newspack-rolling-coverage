@@ -403,6 +403,25 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The cursor is anchored to the coverage's latest entry, so it must also
+	 * respect author scoping: a contributor's cursor must not name another
+	 * user's entry, which would leak its ID and timestamp.
+	 */
+	public function test_cursor_is_author_scoped_for_contributor() {
+		self::log_in_as( 'contributor' );
+		$other_id = self::factory()->user->create( [ 'role' => 'author' ] );
+
+		$own_entry_id = $this->create_entry_at( '2026-01-01 10:00:00' );
+		// Another user's entry, modified later, so it is the coverage's latest.
+		$other_entry_id = $this->create_entry_at( '2026-06-01 00:00:00', [ 'post_author' => $other_id ] );
+
+		$cursor = $this->get_entries_view()->get_data()['cursor'];
+
+		$this->assertStringStartsWith( "{$own_entry_id}:", $cursor, "The cursor should reference the contributor's own latest entry." );
+		$this->assertStringNotContainsString( (string) $other_entry_id, $cursor, "The cursor should not leak another user's entry." );
+	}
+
+	/**
 	 * Excluding every requested status is an empty result, not the default
 	 * published statuses WP_Query falls back to when post_status is empty.
 	 */

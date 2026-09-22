@@ -249,4 +249,47 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 		$this->assertSame( [ $own_trashed ], wp_list_pluck( $body, 'id' ), "The author should only get their own trashed entry, not another user's." );
 		$this->assertSame( count( $body ), (int) $headers['X-WP-Total'], 'X-WP-Total must match the returned body so core-data does not treat it as a failed resolution.' );
 	}
+
+	/**
+	 * A contributor cannot edit their own published (or published-then-trashed)
+	 * entries, so the edit-context collection must exclude them — otherwise
+	 * core counts them in X-WP-Total while dropping them from the body and
+	 * core-data fails with "Failed to load trashed entries".
+	 */
+	public function test_edit_context_trash_total_matches_body_for_contributor() {
+		$contributor_id = self::log_in_as( 'contributor' );
+		$coverage       = self::create_coverage();
+
+		// A draft the contributor can edit, and a published entry an editor
+		// later trashed, which the contributor cannot edit.
+		$own_draft = self::create_entry(
+			$coverage,
+			[
+				'post_author' => $contributor_id,
+				'post_status' => 'draft',
+			] 
+		);
+		$published = self::create_entry(
+			$coverage,
+			[
+				'post_author' => $contributor_id,
+				'post_status' => 'publish',
+			] 
+		);
+		wp_trash_post( $own_draft );
+		wp_trash_post( $published );
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE );
+		$request->set_param( 'context', 'edit' );
+		$request->set_param( 'status', 'trash' );
+		$request->set_param( 'per_page', 100 );
+
+		$response = rest_get_server()->dispatch( $request );
+		$body     = $response->get_data();
+		$headers  = $response->get_headers();
+
+		$this->assertSame( 200, $response->get_status(), 'The collection should resolve.' );
+		$this->assertSame( [ $own_draft ], wp_list_pluck( $body, 'id' ), 'The contributor should only get the trashed entry they can edit.' );
+		$this->assertSame( count( $body ), (int) $headers['X-WP-Total'], 'X-WP-Total must match the returned body so core-data does not treat it as a failed resolution.' );
+	}
 }
