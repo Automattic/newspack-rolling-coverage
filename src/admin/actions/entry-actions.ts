@@ -496,7 +496,7 @@ function getEntryActions(
 			label: __( 'Restore', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
-				config.capabilities.canEditEntries && entry.status === 'trash',
+				canEditRow( entry ) && entry.status === 'trash',
 			callback: async ( items: Entry[] ) => {
 				const entryIds = items.map( ( entry ) => entry.id );
 				const result = await bulkRestoreEntries(

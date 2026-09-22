@@ -171,6 +171,40 @@ class Test_Entry_Restore extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The single restore endpoint checks permission per entry: an author may
+	 * restore an entry they own.
+	 */
+	public function test_author_can_restore_their_own_entry_via_single_endpoint() {
+		$coverage_id = self::create_coverage();
+		$author_id   = self::log_in_as( 'author' );
+		$entry_id    = self::create_entry( $coverage_id, [ 'post_author' => $author_id ] );
+		wp_trash_post( $entry_id );
+
+		$this->assertSame( 'trash', get_post_status( $entry_id ), 'The entry should start in the trash.' );
+
+		$response = self::dispatch( 'POST', "/entries/{$entry_id}/restore", [] );
+
+		$this->assertSame( 200, $response->get_status(), 'The author should be allowed to restore their own entry.' );
+		$this->assertNotSame( 'trash', get_post_status( $entry_id ), 'The entry should be restored.' );
+	}
+
+	/**
+	 * The single restore endpoint refuses to restore an entry the author does
+	 * not own.
+	 */
+	public function test_author_cannot_restore_another_users_entry_via_single_endpoint() {
+		$coverage_id = self::create_coverage();
+		self::log_in_as( 'author' );
+		$others_entry_id = self::create_entry( $coverage_id, [ 'post_author' => self::factory()->user->create( [ 'role' => 'editor' ] ) ] );
+		wp_trash_post( $others_entry_id );
+
+		$response = self::dispatch( 'POST', "/entries/{$others_entry_id}/restore", [] );
+
+		$this->assertSame( 403, $response->get_status(), 'The author should not be allowed to restore another user\'s entry.' );
+		$this->assertSame( 'trash', get_post_status( $others_entry_id ), "The other user's entry should stay in the trash." );
+	}
+
+	/**
 	 * An entry remembers the first coverage it was assigned to, and keeps that
 	 * memory when it is later moved, so recovery names the original.
 	 */

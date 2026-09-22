@@ -96,7 +96,7 @@ function App() {
 						<Route
 							path="/trashed-entries"
 							element={
-								config.capabilities.canEditEntries ? (
+								config.capabilities.canEditPosts ? (
 									<TrashedEntriesView />
 								) : (
 									<Navigate to="/coverages" replace />

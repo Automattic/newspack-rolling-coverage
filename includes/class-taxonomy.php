@@ -57,7 +57,10 @@ class Taxonomy {
 
 	/**
 	 * Term meta keys that are sensitive and should only be exposed in the edit
-	 * context (authenticated requests with manage_options capability).
+	 * context. Core gates the edit context on `edit_term`, which maps to
+	 * `manage_categories` for this taxonomy, so Editors and Administrators
+	 * receive these keys; read access must be blocked separately for the
+	 * `view` context (see filter_rest_response()).
 	 *
 	 * The generic source keys stay manager-only; the Slack channel ID/name
 	 * are exposed to any user who can access the plugin (see

@@ -33,6 +33,9 @@ class Post_Type {
 	// REST field name for the entry's coverage term's status.
 	const COVERAGE_STATUS_REST_FIELD = 'coverageStatus';
 
+	// REST field name for the current user's per-entry edit capability (edit context).
+	const CAN_EDIT_REST_FIELD = 'canEdit';
+
 	// Option key for the ordered list of pinned entry IDs. Autoloaded array of post IDs in pin order. Isolates pinned state to this CPT, avoiding pollution of the global sticky_posts option.
 	const PINNED_OPTION_KEY = 'rolling_coverage_pinned_entries';
 
@@ -54,9 +57,6 @@ class Post_Type {
 	const META_SOURCE_REF = 'rolling_coverage_source_ref';
 
 	// Protected post-meta key recording the GMT time an entry first reached 'publish'.
-	// Drafts keep a floating date, and the created date is preserved across the
-	// draft→publish transition (see preserve_entry_created_date()), so the creation
-	// date alone no longer identifies newly published entries for the live feed.
 	const META_PUBLISHED_GMT = '_rolling_coverage_published_gmt';
 
 	// Entries-view endpoint constants.
@@ -64,15 +64,14 @@ class Post_Type {
 
 	/**
 	 * Statuses returned by the page-mode and sync-mode endpoints. Includes
-	 * `trash` so that trashed entries appear alongside other statuses.
+	 * `trash` so trashed entries appear alongside other statuses.
+	 *
+	 * Every role may request every status. What a user actually sees is
+	 * bounded by authorship, not by role: `author_scope_where()` limits
+	 * non-editors to their own entries (plus other authors' published
+	 * entries), so one user can never see another user's trash or drafts.
 	 */
 	const ALLOWED_STATUSES = [ 'publish', 'draft', 'pending', 'future', 'private', 'trash' ];
-
-	/**
-	 * Statuses visible to non-editors. Trash is an editorial state, so it is
-	 * excluded; everything else may be visible when the user authored it.
-	 */
-	const NON_EDITOR_STATUSES = [ 'publish', 'draft', 'pending', 'future', 'private' ];
 
 	/**
 	 * Statuses that make an entry visible to every logged-in user regardless
@@ -102,23 +101,6 @@ class Post_Type {
 
 	// Max entries to delete per cron batch.
 	const CLEANUP_BATCH_SIZE = 50;
-
-	/**
-	 * Statuses the current user may see in the entries view.
-	 *
-	 * Editors and above see every status (including trash). Lower roles see
-	 * non-editor statuses; authorship scoping is applied separately via
-	 * self::entry_visibility_scope().
-	 *
-	 * @return string[]
-	 */
-	private static function visible_statuses(): array {
-		if ( current_user_can( self::EDIT_ENTRIES_CAP ) ) {
-			return self::ALLOWED_STATUSES;
-		}
-
-		return self::NON_EDITOR_STATUSES;
-	}
 
 	/**
 	 * Author-scoping level for the current user's entry queries.
@@ -174,21 +156,10 @@ class Post_Type {
 	}
 
 	/**
-	 * Intersect a list of statuses with those the current user may see.
-	 *
-	 * The result may be empty (e.g. a contributor filtering by a status
-	 * they cannot access); callers must treat that as "no results".
-	 *
-	 * @param string[] $statuses Requested statuses.
-	 * @return string[] Visible subset.
-	 */
-	private static function restrict_statuses( array $statuses ): array {
-		return array_values( array_intersect( $statuses, self::visible_statuses() ) );
-	}
-
-	/**
 	 * Meta keys that are sensitive and should only be exposed in the edit
-	 * context (authenticated requests with edit_posts capability).
+	 * context. Core gates the edit context on the `edit_post` meta cap, and
+	 * read access is blocked separately for the `view` context (see
+	 * filter_rest_response()).
 	 */
 	const RESTRICTED_META = [
 		self::META_SLACK_TS,
@@ -224,6 +195,7 @@ class Post_Type {
 		add_action( 'set_object_terms', [ __CLASS__, 'sync_coverage_context_meta' ], 10, 6 );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_pinned_rest_field' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_coverage_status_rest_field' ] );
+		add_action( 'rest_api_init', [ __CLASS__, 'register_can_edit_rest_field' ] );
 		add_filter( 'posts_orderby', [ __CLASS__, 'orderby_pinned_first' ], 10, 2 );
 		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'on_save_post' ], 10, 2 );
@@ -336,9 +308,9 @@ class Post_Type {
 
 	/**
 	 * Strip sensitive Slack/source meta from the REST response for requests
-	 * that are not in the edit context. The edit context is only available to
-	 * authenticated users with edit_posts capability, so unauthenticated
-	 * requests (view context) will have these meta keys removed.
+	 * that are not in the edit context. The edit context requires the
+	 * `edit_post` meta cap for the specific post, so requests without it
+	 * (view context) will have these meta keys removed.
 	 *
 	 * META_ENTRY_SOURCE is left exposed because it is non-sensitive (a
 	 * simple source identifier) and may be used by the frontend.
@@ -386,6 +358,10 @@ class Post_Type {
 	 */
 	public static function filter_rest_query( array $args, \WP_REST_Request $request ): array {
 		if ( 'edit' === $request->get_param( 'context' ) ) {
+			// Core drops uneditable entries from the body but counts them in
+			// X-WP-Total, so core-data fails unless the query is scoped too.
+			$args[ self::AUTHOR_SCOPE_VAR ] = current_user_can( self::EDIT_ENTRIES_CAP ) ? 'all' : 'own';
+
 			return $args;
 		}
 
@@ -679,6 +655,36 @@ class Post_Type {
 	}
 
 	/**
+	 * Register a computed per-entry edit-capability REST field (edit context
+	 * only). It mirrors the `can_edit` flag emitted by the custom entries-view
+	 * endpoint so views that read core records (e.g. the trashed-entries view)
+	 * can gate row actions identically.
+	 */
+	public static function register_can_edit_rest_field() {
+		register_rest_field(
+			self::CPT_SLUG,
+			self::CAN_EDIT_REST_FIELD,
+			[
+				'get_callback' => [ __CLASS__, 'get_can_edit_rest_field' ],
+				'schema'       => [
+					'type'    => 'boolean',
+					'context' => [ 'edit' ],
+				],
+			]
+		);
+	}
+
+	/**
+	 * REST field callback: whether the current user may edit the entry.
+	 *
+	 * @param array $post Entry REST object data.
+	 * @return bool
+	 */
+	public static function get_can_edit_rest_field( array $post ): bool {
+		return current_user_can( 'edit_post', (int) $post['id'] );
+	}
+
+	/**
 	 * Whether a given entry is pinned.
 	 *
 	 * @param int $entry_id Entry post ID.
@@ -937,13 +943,13 @@ class Post_Type {
 	private static function run_page_mode( $term_id, array $params ) {
 		$order_by_col = 'date' === $params['orderby'] ? 'date' : 'modified';
 
-		// Users below Editor never see trash; authorship scoping is applied
-		// separately via AUTHOR_SCOPE_VAR so they only see their own
-		// non-public entries.
-		$params['statuses'] = self::restrict_statuses( $params['statuses'] );
+		if ( ! empty( $params['excluded_statuses'] ) ) {
+			$params['statuses'] = array_values(
+				array_diff( $params['statuses'], $params['excluded_statuses'] )
+			);
+		}
 
-		// The requested statuses are entirely invisible to this user
-		// (e.g. a contributor filtering by "trash"): return an empty page.
+		// All statuses excluded: return empty, so WP_Query doesn't fall back to defaults.
 		if ( empty( $params['statuses'] ) ) {
 			return new WP_REST_Response(
 				[
@@ -976,14 +982,6 @@ class Post_Type {
 			'update_post_term_cache' => true,
 			'no_found_rows'          => false,
 		];
-
-		if ( ! empty( $params['excluded_statuses'] ) ) {
-			$params['statuses'] = array_values(
-				array_diff( $params['statuses'], $params['excluded_statuses'] )
-			);
-
-			$query_args['post_status'] = $params['statuses'];
-		}
 
 		if ( '' !== $params['source'] || '' !== $params['source_exclude'] ) {
 			$meta_query = [ 'relation' => 'AND' ];
@@ -1229,7 +1227,7 @@ class Post_Type {
 		$latest = new \WP_Query(
 			[
 				'post_type'              => self::CPT_SLUG,
-				'post_status'            => self::visible_statuses(),
+				'post_status'            => self::ALLOWED_STATUSES,
 				self::AUTHOR_SCOPE_VAR   => self::entry_visibility_scope(),
 				'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
@@ -1318,7 +1316,7 @@ class Post_Type {
 		$query = new \WP_Query(
 			[
 				'post_type'              => self::CPT_SLUG,
-				'post_status'            => self::visible_statuses(),
+				'post_status'            => self::ALLOWED_STATUSES,
 				self::AUTHOR_SCOPE_VAR   => self::entry_visibility_scope(),
 				'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
@@ -1558,6 +1556,13 @@ class Post_Type {
 	 * as well as poll ordering. Derive concrete GMT values from the local
 	 * dates so every stored entry has a usable timestamp.
 	 *
+	 * Storing a concrete `post_date_gmt` on drafts is also what preserves an
+	 * entry's created date across publish: core only resets `post_date` to
+	 * "now" when publishing a draft whose `post_date_gmt` is still floating
+	 * (`wp_insert_post()`'s `$clear_date` branch). Once this runs, core leaves
+	 * the date alone, so `preserve_entry_created_date()` is no longer the
+	 * mechanism that keeps it; see that method for the legacy-draft backstop.
+	 *
 	 * @param array $data    Sanitized, slashed, processed post data about to be saved.
 	 * @param array $postarr Sanitized post data as originally passed.
 	 * @return array Filtered post data.
@@ -1586,12 +1591,17 @@ class Post_Type {
 	 * Preserve a draft entry's created date across the draft→publish
 	 * transition.
 	 *
-	 * WordPress stores drafts, pending, and auto-draft posts with a floating
-	 * date (`post_date_gmt = 0000-00-00 00:00:00`). When such a post is
-	 * published, `wp_update_post()` deliberately resets `post_date` to the
-	 * current time (`wp-includes/post.php`). For rolling coverage entries the
-	 * creation date is meaningful (it reflects when the source event arrived,
-	 * e.g. a Slack message), so it must not change when an editor publishes.
+	 * This is a backstop for drafts that already carry a floating date in the
+	 * database (`post_date_gmt = 0000-00-00 00:00:00`), i.e. entries created
+	 * before `normalize_entry_gmt_dates()` shipped. Core resets `post_date` to
+	 * the current time when publishing such a post (`wp-includes/post.php`),
+	 * and for rolling coverage entries the creation date is meaningful (it
+	 * reflects when the source event arrived, e.g. a Slack message).
+	 *
+	 * For entries saved after `normalize_entry_gmt_dates()` ships, the stored
+	 * `post_date_gmt` is already concrete, the zero-date check below bails, and
+	 * this filter does nothing. It can be removed once no floating-date drafts
+	 * remain.
 	 *
 	 * Only kicks in when the existing row has a floating date and the caller
 	 * did not explicitly request a date change (`edit_date`), so editors can
@@ -1648,7 +1658,8 @@ class Post_Type {
 	 * @param WP_Post $post       Entry post object.
 	 */
 	public static function record_entry_published_gmt( string $new_status, string $old_status, WP_Post $post ): void {
-		if ( 'publish' !== $new_status || 'publish' === $old_status ) {
+		// Skip direct inserts, so they fall back to their own post_date_gmt.
+		if ( 'publish' !== $new_status || in_array( $old_status, [ 'publish', 'new' ], true ) ) {
 			return;
 		}
 
@@ -2175,23 +2186,27 @@ class Post_Type {
 	}
 
 	/**
-	 * Permission check for entry-level operations.
+	 * Permission check for single-entry operations: requires the per-entry
+	 * `edit_post` meta cap, so authors can act on their own entries while
+	 * contributors and below cannot.
 	 *
-	 * Mutating entry operations are restricted to Editors and above.
-	 *
+	 * @param \WP_REST_Request $request Request object.
 	 * @return bool
 	 */
-	public static function can_edit_entry(): bool {
-		return current_user_can( self::EDIT_ENTRIES_CAP );
+	public static function can_edit_entry( \WP_REST_Request $request ): bool {
+		$entry_id = (int) $request->get_param( 'entry_id' );
+		return current_user_can( 'edit_post', $entry_id );
 	}
 
 	/**
-	 * Permission check for bulk entry operations: requires Editor or above.
+	 * Permission check for bulk entry operations: requires `edit_posts`.
+	 * Per-entry authorization is enforced in the handler, so authors may
+	 * restore their own entries and lower roles are told which they cannot.
 	 *
 	 * @return bool
 	 */
 	public static function can_edit_posts(): bool {
-		return current_user_can( self::EDIT_ENTRIES_CAP );
+		return current_user_can( 'edit_posts' );
 	}
 
 	/**

@@ -152,7 +152,7 @@ function CoverageView() {
 				}
 				header={
 					<>
-						{ config.capabilities.canEditEntries && (
+						{ config.capabilities.canEditPosts && (
 							<Button
 								variant="secondary"
 								icon={ trash }

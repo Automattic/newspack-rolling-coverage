@@ -5,6 +5,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 
 /**
@@ -45,8 +46,9 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	 *
 	 * On insert WordPress copies the date into the modified columns, so a
 	 * published entry's `post_modified_gmt`, which cursors are built from, is
-	 * this time too. A draft's is the zero date: WordPress leaves the GMT date
-	 * unset until an entry is published.
+	 * this time too. Drafts get a concrete GMT date too: the plugin's
+	 * `normalize_entry_gmt_dates()` derives it from the local date rather than
+	 * leaving WordPress's zero date in place.
 	 *
 	 * @param string $post_date Entry date, `Y-m-d H:i:s`. The test site runs on UTC.
 	 * @param array  $args      Post factory arguments.
@@ -94,8 +96,7 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$this->create_entry_at( '2026-01-01 12:05:00', [ 'post_status' => 'draft' ] );
 		$this->create_entry_at( '2026-01-01 12:06:00', [ 'post_status' => 'private' ] );
 
-		// Created last so the coverage's last-modified is a real date. The draft
-		// would leave the zero date, which the poll reads as "nothing changed".
+		// Created last so the coverage's last-modified ends at this entry's date.
 		$published_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
 
 		$poll = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_data();
@@ -162,5 +163,71 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	 */
 	public function test_request_without_a_cursor_or_a_date_is_refused() {
 		$this->assertSame( 400, $this->get_feed( [] )->get_status() );
+	}
+
+	/**
+	 * A draft keeps the date it was created with when it is published, and is
+	 * stamped with a distinct publish moment.
+	 */
+	public function test_publishing_a_draft_keeps_the_date_it_was_created_with() {
+		$draft_id = $this->create_entry_at( '2026-01-01 12:00:00', [ 'post_status' => 'draft' ] );
+
+		$this->assertSame(
+			'2026-01-01 12:00:00',
+			get_post( $draft_id )->post_date_gmt,
+			'normalize_entry_gmt_dates() should give the draft a concrete GMT date.'
+		);
+
+		wp_publish_post( $draft_id );
+
+		$published = get_post( $draft_id );
+
+		$this->assertSame( '2026-01-01 12:00:00', $published->post_date, 'Publishing should keep the created local date.' );
+		$this->assertSame( '2026-01-01 12:00:00', $published->post_date_gmt, 'Publishing should keep the created GMT date.' );
+		$this->assertNotSame(
+			'2026-01-01 12:00:00',
+			Post_Type::get_entry_published_gmt( $published ),
+			'The recorded publish moment should differ from the created date.'
+		);
+	}
+
+	/**
+	 * A pre-deploy draft left floating (zero GMT date) in the database still
+	 * keeps its created date when it is published.
+	 */
+	public function test_legacy_floating_draft_keeps_its_date_when_published() {
+		$draft_id = $this->create_entry_at( '2026-01-01 12:00:00', [ 'post_status' => 'draft' ] );
+
+		global $wpdb;
+		$wpdb->update( $wpdb->posts, [ 'post_date_gmt' => '0000-00-00 00:00:00' ], [ 'ID' => $draft_id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Simulates a pre-deploy draft row.
+		clean_post_cache( $draft_id );
+
+		wp_publish_post( $draft_id );
+
+		// Only preserve_entry_created_date() rescues the legacy floating row.
+		$this->assertSame( '2026-01-01 12:00:00', get_post( $draft_id )->post_date, 'A legacy floating draft should keep its created date.' );
+	}
+
+	/**
+	 * A draft first published after the poll cursor is served as an insert,
+	 * even though its created date precedes the cursor.
+	 */
+	public function test_draft_published_after_the_cursor_polls_as_an_insert() {
+		$draft_id = $this->create_entry_at( '2026-01-01 12:00:00', [ 'post_status' => 'draft' ] );
+
+		// Save first so the coverage's last-modified moves past the cursor.
+		wp_update_post( [ 'ID' => $draft_id ] );
+
+		$cursor = '0:2026-01-01 12:30:00';
+
+		wp_publish_post( $draft_id );
+
+		$poll = $this->get_feed( [ 'cursor' => $cursor ] )->get_data();
+
+		$this->assertSame(
+			[ $draft_id => 'insert' ],
+			wp_list_pluck( $poll['entries'], 'type', 'id' ),
+			'A draft first published after the cursor polls as an insert; this fails if META_PUBLISHED_GMT is dropped.'
+		);
 	}
 }

@@ -18,9 +18,9 @@ import { getEntryFields, defaultEntryView } from '../fields/entries';
 import { ContextExports, Entry } from '../types';
 
 /**
- * Renders all trashed entries across all coverages (including orphaned
- * entries whose coverage term has been permanently deleted). Provides
- * restore and delete-permanently actions for each entry.
+ * Renders trashed entries across coverages (including orphaned entries
+ * whose coverage term has been permanently deleted) that the current user
+ * can edit. Provides restore and delete-permanently actions for each entry.
  */
 function TrashedEntriesView() {
 	const config = useAdminContext();
@@ -56,7 +56,7 @@ function TrashedEntriesView() {
 		order: view.sort?.direction ?? 'desc',
 		context: 'edit',
 		_fields:
-			'id,title,date,modified,author,status,pinned,meta,categories,tags,_links,_embedded,rolling_coverage_breakout_status',
+			'id,title,date,modified,author,status,pinned,meta,categories,tags,_links,_embedded,rolling_coverage_breakout_status,canEdit',
 		_embed: 'author,wp:term',
 		_ts: refreshKey,
 	};
