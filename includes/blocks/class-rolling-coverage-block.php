@@ -35,6 +35,10 @@ class Rolling_Coverage_Block {
 	// Max number of entries returned per poll response.
 	const POLL_CAP = 50;
 
+	// Seconds a poll response may be cached: enough for readers polling at the
+	// same moment to share one response, and under the block's default poll interval.
+	const POLL_MAX_AGE = 5;
+
 	// Max number of entries returned per page.
 	const PER_PAGE_MAX = 100;
 
@@ -1078,8 +1082,13 @@ class Rolling_Coverage_Block {
 	 * - `cursor` (forward/polling): entries modified at or after the cursor
 	 *   timestamp, including new entries and edits. If the result exceeds
 	 *   POLL_CAP, the response is flagged `overflow` so the client can reload.
+	 *   Sends a POLL_MAX_AGE-second Cache-Control; see poll_response().
 	 * - `before` (backward/pagination): entries published before the given
 	 *   date, DESC order, capped at the request's per_page (entriesPerPage).
+	 *   Sends no Cache-Control, so it keeps the page cache's default lifetime,
+	 *   the same as the page it extends: these older entries are no staler
+	 *   than the ones that page shows, and rendering a page of them costs
+	 *   more than answering an idle poll.
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
@@ -1158,7 +1167,7 @@ class Rolling_Coverage_Block {
 			$last_modified = get_term_meta( $term_id, self::LAST_MODIFIED_META_KEY, true );
 
 			if ( $last_modified && $last_modified <= $cursor_modified ) {
-				return new WP_REST_Response(
+				return self::poll_response(
 					[
 						'entries'     => [],
 						'cursor'      => $cursor,
@@ -1190,7 +1199,7 @@ class Rolling_Coverage_Block {
 
 			// Signal the client to refresh when the poll result reaches the cap.
 			if ( count( $query->posts ) > self::POLL_CAP ) {
-				return new WP_REST_Response(
+				return self::poll_response(
 					[
 						'entries'  => [],
 						'cursor'   => $cursor,
@@ -1244,7 +1253,7 @@ class Rolling_Coverage_Block {
 			}
 			wp_reset_postdata();
 
-			return new WP_REST_Response(
+			return self::poll_response(
 				[
 					'entries'     => $entries,
 					'cursor'      => $new_cursor,
@@ -1308,5 +1317,25 @@ class Rolling_Coverage_Block {
 				'adSlots' => $ad_slots,
 			]
 		);
+	}
+
+	/**
+	 * Builds a poll response that caches for POLL_MAX_AGE seconds.
+	 *
+	 * An idle poll's URL only changes once something new is published, so
+	 * this response's cache lifetime is how long a new entry can take to
+	 * reach open pages. Left unset, Batcache and the edge keep it for five
+	 * minutes. Batcache adopts the max-age sent here as its own lifetime, so
+	 * this one header sets both. Authenticated requests still get core's
+	 * no-cache headers, which replace it.
+	 *
+	 * @param array $data Poll response body.
+	 * @return WP_REST_Response Response with a short Cache-Control header.
+	 */
+	private static function poll_response( array $data ): WP_REST_Response {
+		$response = new WP_REST_Response( $data );
+		$response->header( 'Cache-Control', 'public, max-age=' . self::POLL_MAX_AGE );
+
+		return $response;
 	}
 }
