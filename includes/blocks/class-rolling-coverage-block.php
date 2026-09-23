@@ -1088,9 +1088,10 @@ class Rolling_Coverage_Block {
 	 * - `before` (backward/pagination): entries published before the given
 	 *   date, DESC order, capped at the request's per_page (entriesPerPage).
 	 *   Sends no Cache-Control, so it keeps the page cache's default lifetime,
-	 *   the same as the page it extends: these older entries are no staler
-	 *   than the ones that page shows, and rendering a page of them costs
-	 *   more than answering an idle poll.
+	 *   the same as the page it extends: rendering a page of entries costs
+	 *   more than answering an idle poll. A cached copy can predate an edit
+	 *   the reader's poll has already delivered, so the view script keeps
+	 *   those edits and applies them when load more brings the entry in.
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error

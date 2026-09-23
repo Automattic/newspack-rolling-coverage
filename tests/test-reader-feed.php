@@ -269,8 +269,8 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * "Load more" serves entries older than the ones already on the page, so
-	 * it sets no lifetime of its own and is cached like the page it extends.
+	 * "Load more" sets no lifetime of its own and is cached like the page it
+	 * extends: a page of entries costs more to render than an idle poll.
 	 */
 	public function test_load_more_is_cached_like_the_page_it_extends() {
 		$this->create_entry_at( '2026-01-01 10:00:00' );

@@ -155,6 +155,11 @@ function initBlock( root: HTMLElement ): void {
 	// episode (healthy->failing transition) instead of one per failed interval.
 	let isForwardPollHealthy = true;
 
+	// Edits the poll delivered for entries not yet on the page, latest HTML by
+	// entry ID. A cached load-more reply can predate them while the cursor has
+	// already moved past them, so loadMore() applies them as the entries arrive.
+	const offPageUpdates = new Map< string, string >();
+
 	// Entry IDs already reported as seen. Guards against re-firing
 	// coverage_entry_seen when a polled edit replaces an already-seen entry's element.
 	const seenEntryIds = new Set< string >();
@@ -449,9 +454,9 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Applies a poll response to the entry list.
 	 *
-	 * Replaces edited entries immediately, ignoring edits to entries not yet
-	 * in view. Inserts or queues newly published entries based on the
-	 * reader's scroll position.
+	 * Replaces edited entries immediately, and keeps edits to entries not yet
+	 * on the page for loadMore(). Inserts or queues newly published entries
+	 * based on the reader's scroll position.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
@@ -469,6 +474,7 @@ function initBlock( root: HTMLElement ): void {
 			);
 
 			if ( entry.type === 'update' && ! existing ) {
+				offPageUpdates.set( String( entry.id ), entry.html );
 				return;
 			}
 
@@ -763,6 +769,35 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Swaps an entry from a load-more reply for the edit the poll delivered
+	 * while it was off the page, if there is one, keeping the entry's arrival.
+	 *
+	 * @param {HTMLElement} el Entry element from the load-more reply.
+	 * @return {HTMLElement} The element that now stands in the reply.
+	 */
+	function applyOffPageUpdate( el: HTMLElement ): HTMLElement {
+		const entryId = el.dataset.entryId;
+		const html = entryId ? offPageUpdates.get( entryId ) : undefined;
+
+		if ( ! entryId || html === undefined ) {
+			return el;
+		}
+
+		offPageUpdates.delete( entryId );
+
+		const updatedEl = parseElement( sanitizeHtml( html ) );
+
+		if ( ! updatedEl ) {
+			return el;
+		}
+
+		updatedEl.dataset.arrival = el.dataset.arrival;
+		el.replaceWith( updatedEl );
+
+		return updatedEl;
+	}
+
+	/**
 	 * Loads and appends the next page of older entries.
 	 *
 	 * Sends the backlog position so ad placement stays stable across load-more
@@ -812,7 +847,7 @@ function initBlock( root: HTMLElement ): void {
 							return;
 						}
 
-						observeEntry( child );
+						observeEntry( applyOffPageUpdate( child ) );
 						appended++;
 					} );
 
