@@ -11,7 +11,8 @@ use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 /**
  * This route is open to anonymous readers. It polls for new and edited
  * entries from a cursor, and pages backwards for "load more". These tests
- * cover what it may serve and how the cursor moves.
+ * cover what it may serve, how the cursor moves, and how long caches may
+ * keep its responses.
  */
 class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 
@@ -217,5 +218,65 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 			wp_list_pluck( $poll['entries'], 'type', 'id' ),
 			'A draft first published after the cursor polls as an insert; this fails if META_PUBLISHED_GMT is dropped.'
 		);
+	}
+
+	/**
+	 * Entries published after the poll cursor, one count for each kind of
+	 * poll response: nothing new, new entries, and a burst over the cap.
+	 *
+	 * @return array[]
+	 */
+	public function new_entry_count_provider() {
+		return [
+			'nothing new'          => [ 0 ],
+			'a new entry'          => [ 1 ],
+			'a burst over the cap' => [ Rolling_Coverage_Block::POLL_CAP + 1 ],
+		];
+	}
+
+	/**
+	 * Shared caches may keep a poll, so readers polling at the same moment
+	 * share one request to the site, but for at most half the block's default
+	 * poll interval: stacked caches can serve a response for up to twice its
+	 * max-age, and a new entry should still reach open pages within about one
+	 * poll.
+	 *
+	 * @dataProvider new_entry_count_provider
+	 *
+	 * @param int $new_entry_count Entries published after the cursor.
+	 */
+	public function test_poll_is_shared_for_at_most_half_the_poll_interval( $new_entry_count ) {
+		$cursor_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+
+		for ( $i = 0; $i < $new_entry_count; $i++ ) {
+			$this->create_entry_at( '2026-01-01 12:05:00' );
+		}
+
+		$headers               = $this->get_feed( [ 'cursor' => "{$cursor_entry_id}:2026-01-01 12:00:00" ] )->get_headers();
+		$block_json            = wp_json_file_decode( dirname( __DIR__ ) . '/src/blocks/rolling-coverage/block.json', [ 'associative' => true ] );
+		$default_poll_interval = $block_json['attributes']['pollInterval']['default'];
+		$cache_control         = $headers['Cache-Control'] ?? '';
+
+		preg_match( '/\bmax-age=(\d+)\b/', $cache_control, $max_age_match );
+
+		$this->assertNotEmpty( $max_age_match, 'A poll should say how long it may be cached.' );
+		$this->assertDoesNotMatchRegularExpression( '/\b(private|no-store|no-cache|s-maxage)\b/i', $cache_control, 'Shared caches should keep a poll, and for no longer than its max-age.' );
+
+		$max_age = (int) $max_age_match[1];
+
+		$this->assertGreaterThan( 0, $max_age, 'Readers polling at the same moment should share a cached response.' );
+		$this->assertLessThanOrEqual( $default_poll_interval, 2 * $max_age, 'A poll served twice over by stacked caches should still expire before the next one is due.' );
+	}
+
+	/**
+	 * "Load more" sets no lifetime of its own and is cached like the page it
+	 * extends: a page of entries costs more to render than an idle poll.
+	 */
+	public function test_load_more_is_cached_like_the_page_it_extends() {
+		$this->create_entry_at( '2026-01-01 10:00:00' );
+
+		$headers = $this->get_feed( [ 'before' => '2026-01-01 12:00:00' ] )->get_headers();
+
+		$this->assertArrayNotHasKey( 'Cache-Control', $headers );
 	}
 }

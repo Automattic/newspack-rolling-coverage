@@ -18,6 +18,12 @@ import type {
 
 const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 
+// How long an overflow holds back another reload into the same cursor. The
+// reload can land on a page cache copy from before the burst, which overflows
+// again on its next poll; without the wait the reader would reload on every
+// poll until that copy expires.
+const OVERFLOW_RELOAD_RETRY_MS = 60 * 1000;
+
 /**
  * cssEscape polyfill for older browsers.
  */
@@ -148,6 +154,11 @@ function initBlock( root: HTMLElement ): void {
 	// Tracks forward-poll health so a sustained outage reports one error per
 	// episode (healthy->failing transition) instead of one per failed interval.
 	let isForwardPollHealthy = true;
+
+	// Edits the poll delivered for entries not yet on the page, latest HTML by
+	// entry ID. A cached load-more reply can predate them while the cursor has
+	// already moved past them, so loadMore() applies them as the entries arrive.
+	const offPageUpdates = new Map< string, string >();
 
 	// Entry IDs already reported as seen. Guards against re-firing
 	// coverage_entry_seen when a polled edit replaces an already-seen entry's element.
@@ -443,9 +454,9 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Applies a poll response to the entry list.
 	 *
-	 * Replaces edited entries immediately, ignoring edits to entries not yet
-	 * in view. Inserts or queues newly published entries based on the
-	 * reader's scroll position.
+	 * Replaces edited entries immediately, and keeps edits to entries not yet
+	 * on the page for loadMore(). Inserts or queues newly published entries
+	 * based on the reader's scroll position.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
@@ -463,6 +474,7 @@ function initBlock( root: HTMLElement ): void {
 			);
 
 			if ( entry.type === 'update' && ! existing ) {
+				offPageUpdates.set( String( entry.id ), entry.html );
 				return;
 			}
 
@@ -669,6 +681,41 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Decides whether an overflow reloads the page now. A reload that lands on
+	 * a page cache copy from before the burst starts from the same cursor and
+	 * overflows again, so a repeat reload for that cursor waits until
+	 * OVERFLOW_RELOAD_RETRY_MS has passed. Polling carries on meanwhile.
+	 *
+	 * @return {boolean} True if the page should reload now.
+	 */
+	function shouldReloadForOverflow(): boolean {
+		const storageKey = `newspack-rolling-coverage-overflow-reload-${ coverageId }`;
+
+		try {
+			const lastReload = JSON.parse(
+				window.sessionStorage.getItem( storageKey ) || 'null'
+			);
+
+			if (
+				lastReload?.cursor === cursor &&
+				Date.now() - lastReload.time < OVERFLOW_RELOAD_RETRY_MS
+			) {
+				return false;
+			}
+
+			window.sessionStorage.setItem(
+				storageKey,
+				JSON.stringify( { cursor, time: Date.now() } )
+			);
+		} catch {
+			// Without session storage there's no record of the last reload, so
+			// reload as before.
+		}
+
+		return true;
+	}
+
+	/**
 	 * Polls for new and edited entries.
 	 *
 	 * Fetches entries modified at or after the cursor and applies them. Also
@@ -693,7 +740,7 @@ function initBlock( root: HTMLElement ): void {
 			if ( response.ok ) {
 				const data: PollResponse = await response.json();
 
-				if ( data.overflow ) {
+				if ( data.overflow && shouldReloadForOverflow() ) {
 					window.location.reload();
 					return;
 				}
@@ -719,6 +766,35 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		schedulePoll();
+	}
+
+	/**
+	 * Swaps an entry from a load-more reply for the edit the poll delivered
+	 * while it was off the page, if there is one, keeping the entry's arrival.
+	 *
+	 * @param {HTMLElement} el Entry element from the load-more reply.
+	 * @return {HTMLElement} The element that now stands in the reply.
+	 */
+	function applyOffPageUpdate( el: HTMLElement ): HTMLElement {
+		const entryId = el.dataset.entryId;
+		const html = entryId ? offPageUpdates.get( entryId ) : undefined;
+
+		if ( ! entryId || html === undefined ) {
+			return el;
+		}
+
+		offPageUpdates.delete( entryId );
+
+		const updatedEl = parseElement( sanitizeHtml( html ) );
+
+		if ( ! updatedEl ) {
+			return el;
+		}
+
+		updatedEl.dataset.arrival = el.dataset.arrival;
+		el.replaceWith( updatedEl );
+
+		return updatedEl;
 	}
 
 	/**
@@ -771,7 +847,7 @@ function initBlock( root: HTMLElement ): void {
 							return;
 						}
 
-						observeEntry( child );
+						observeEntry( applyOffPageUpdate( child ) );
 						appended++;
 					} );
 
