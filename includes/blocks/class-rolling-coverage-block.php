@@ -36,7 +36,9 @@ class Rolling_Coverage_Block {
 	const POLL_CAP = 50;
 
 	// Seconds a poll response may be cached: enough for readers polling at the
-	// same moment to share one response, and under the block's default poll interval.
+	// same moment to share one response. At most half the block's default poll
+	// interval, because a Batcache hit sends this same max-age again, so the
+	// edge can serve a response for up to twice as long.
 	const POLL_MAX_AGE = 5;
 
 	// Max number of entries returned per page.

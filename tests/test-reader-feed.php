@@ -235,15 +235,17 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A poll may be cached, so readers polling at the same moment share one
-	 * request to the site, but for less than the block's default poll
-	 * interval, so a new entry still reaches open pages within about one poll.
+	 * Shared caches may keep a poll, so readers polling at the same moment
+	 * share one request to the site, but for at most half the block's default
+	 * poll interval: stacked caches can serve a response for up to twice its
+	 * max-age, and a new entry should still reach open pages within about one
+	 * poll.
 	 *
 	 * @dataProvider new_entry_count_provider
 	 *
 	 * @param int $new_entry_count Entries published after the cursor.
 	 */
-	public function test_poll_is_cached_for_less_than_the_poll_interval( $new_entry_count ) {
+	public function test_poll_is_shared_for_at_most_half_the_poll_interval( $new_entry_count ) {
 		$cursor_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
 
 		for ( $i = 0; $i < $new_entry_count; $i++ ) {
@@ -253,15 +255,17 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$headers               = $this->get_feed( [ 'cursor' => "{$cursor_entry_id}:2026-01-01 12:00:00" ] )->get_headers();
 		$block_json            = wp_json_file_decode( dirname( __DIR__ ) . '/src/blocks/rolling-coverage/block.json', [ 'associative' => true ] );
 		$default_poll_interval = $block_json['attributes']['pollInterval']['default'];
+		$cache_control         = $headers['Cache-Control'] ?? '';
 
-		preg_match( '/\bmax-age=(\d+)\b/', $headers['Cache-Control'] ?? '', $max_age_match );
+		preg_match( '/\bmax-age=(\d+)\b/', $cache_control, $max_age_match );
 
 		$this->assertNotEmpty( $max_age_match, 'A poll should say how long it may be cached.' );
+		$this->assertDoesNotMatchRegularExpression( '/\b(private|no-store|no-cache|s-maxage)\b/i', $cache_control, 'Shared caches should keep a poll, and for no longer than its max-age.' );
 
 		$max_age = (int) $max_age_match[1];
 
 		$this->assertGreaterThan( 0, $max_age, 'Readers polling at the same moment should share a cached response.' );
-		$this->assertLessThan( $default_poll_interval, $max_age, 'A cached poll should expire before the next one is due.' );
+		$this->assertLessThanOrEqual( $default_poll_interval, 2 * $max_age, 'A poll served twice over by stacked caches should still expire before the next one is due.' );
 	}
 
 	/**
