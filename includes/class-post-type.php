@@ -33,6 +33,9 @@ class Post_Type {
 	// REST field name for the entry's coverage term's status.
 	const COVERAGE_STATUS_REST_FIELD = 'coverageStatus';
 
+	// REST field name for the current user's per-entry edit capability (edit context).
+	const CAN_EDIT_REST_FIELD = 'canEdit';
+
 	// Option key for the ordered list of pinned entry IDs. Autoloaded array of post IDs in pin order. Isolates pinned state to this CPT, avoiding pollution of the global sticky_posts option.
 	const PINNED_OPTION_KEY = 'rolling_coverage_pinned_entries';
 
@@ -53,19 +56,43 @@ class Post_Type {
 	// Used by Entry_Ingestion_Service::ingest()'s add_option mutex and meta_query dedup.
 	const META_SOURCE_REF = 'rolling_coverage_source_ref';
 
+	// Protected post-meta key recording the GMT time an entry first reached 'publish'.
+	const META_PUBLISHED_GMT = '_rolling_coverage_published_gmt';
+
 	// Entries-view endpoint constants.
 	const PER_PAGE_MAX = 100;
 
 	/**
 	 * Statuses returned by the page-mode and sync-mode endpoints. Includes
-	 * `trash` so that trashed entries appear alongside other statuses.
+	 * `trash` so trashed entries appear alongside other statuses.
+	 *
+	 * Every role may request every status. What a user actually sees is
+	 * bounded by authorship, not by role: `author_scope_where()` limits
+	 * non-editors to their own entries (plus other authors' published
+	 * entries), so one user can never see another user's trash or drafts.
 	 */
 	const ALLOWED_STATUSES = [ 'publish', 'draft', 'pending', 'future', 'private', 'trash' ];
 
 	/**
-	 * Statuses polled by the sync-mode endpoint. Mirrors ALLOWED_STATUSES.
+	 * Statuses that make an entry visible to every logged-in user regardless
+	 * of authorship (mirrors core's public post statuses).
 	 */
-	const SYNC_STATUSES = self::ALLOWED_STATUSES;
+	const PUBLIC_STATUSES = [ 'publish', 'future' ];
+
+	/**
+	 * Capability required to see and act on every entry regardless of
+	 * author. WordPress maps this to Editor and above.
+	 */
+	const EDIT_ENTRIES_CAP = 'edit_others_posts';
+
+	/**
+	 * Query var flagging that a query must be scoped to the entries the
+	 * current user may see. Value is the scope: 'author' (own entries plus
+	 * others' published), 'own' (own entries only), 'editable' (own entries
+	 * the user can `edit_post`, matching the core edit-context collection), or
+	 * 'all' (no restriction). Absent means no author restriction.
+	 */
+	const AUTHOR_SCOPE_VAR = 'rolling_coverage_author_scope';
 
 	const ALLOWED_ORDERBY = [ 'date', 'modified' ];
 	const ALLOWED_ORDER   = [ 'asc', 'desc' ];
@@ -77,8 +104,101 @@ class Post_Type {
 	const CLEANUP_BATCH_SIZE = 50;
 
 	/**
+	 * Author-scoping level for the current user's entry queries.
+	 *
+	 * - 'all'    Editors and above: every author's entries.
+	 * - 'author' Authors: their own entries plus others' published entries.
+	 * - 'own'    Contributors and below: only their own entries.
+	 *
+	 * @return string One of 'all', 'author', 'own'.
+	 */
+	private static function entry_visibility_scope(): string {
+		if ( current_user_can( self::EDIT_ENTRIES_CAP ) ) {
+			return 'all';
+		}
+
+		return current_user_can( 'publish_posts' ) ? 'author' : 'own';
+	}
+
+	/**
+	 * Author scope for the core entries collection in the `edit` context.
+	 *
+	 * Core drops entries the user cannot `edit_post` from the response body
+	 * but still counts them in `X-WP-Total`, so the query must be narrowed to
+	 * the same set. Editors see everything; users who can `edit_published_posts`
+	 * (authors) can edit all their own entries; everyone else is limited to
+	 * their own non-published entries (matching core's meta-cap rule).
+	 *
+	 * @return string One of 'all', 'own', 'editable'.
+	 */
+	private static function entry_edit_scope(): string {
+		if ( current_user_can( self::EDIT_ENTRIES_CAP ) ) {
+			return 'all';
+		}
+
+		return current_user_can( 'edit_published_posts' ) ? 'own' : 'editable';
+	}
+
+	/**
+	 * Restrict a WP_Query to the current user's visible entries.
+	 *
+	 * Adds an author/status WHERE clause when the query carries
+	 * AUTHOR_SCOPE_VAR. No-op for Editors and above or unscoped queries.
+	 *
+	 * @param string   $where Current WHERE clause.
+	 * @param WP_Query $query The query instance.
+	 * @return string Filtered WHERE clause.
+	 */
+	public static function author_scope_where( string $where, WP_Query $query ): string {
+		$scope = $query->get( self::AUTHOR_SCOPE_VAR );
+
+		if ( ! in_array( $scope, [ 'own', 'author', 'editable' ], true ) ) {
+			return $where;
+		}
+
+		global $wpdb;
+
+		$user_id = get_current_user_id();
+
+		if ( 'own' === $scope ) {
+			return $where . $wpdb->prepare( " AND {$wpdb->posts}.post_author = %d", $user_id );
+		}
+
+		if ( 'editable' === $scope ) {
+			// Only entries the user can edit_post: own, not published or
+			// scheduled, and not trashed after being published or scheduled.
+			$sql = " AND {$wpdb->posts}.post_author = %d
+				AND {$wpdb->posts}.post_status NOT IN ('publish', 'future')
+				AND NOT (
+					{$wpdb->posts}.post_status = 'trash'
+					AND EXISTS (
+						SELECT 1 FROM {$wpdb->postmeta}
+						WHERE {$wpdb->postmeta}.post_id = {$wpdb->posts}.ID
+						AND {$wpdb->postmeta}.meta_key = '_wp_trash_meta_status'
+						AND {$wpdb->postmeta}.meta_value IN ('publish', 'future')
+					)
+				)";
+
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The only dynamic values are the user id placeholder and core table names.
+			return $where . $wpdb->prepare( $sql, $user_id );
+		}
+
+		// Authors additionally see others' publicly visible entries.
+		$statuses            = self::PUBLIC_STATUSES;
+		$public_placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
+		$params              = array_merge( [ $user_id ], $statuses );
+
+		$sql = " AND ({$wpdb->posts}.post_author = %d OR {$wpdb->posts}.post_status IN ({$public_placeholders}))";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- $public_placeholders is a generated list of %s placeholders, not user input; values are passed to prepare().
+		return $where . $wpdb->prepare( $sql, $params );
+	}
+
+	/**
 	 * Meta keys that are sensitive and should only be exposed in the edit
-	 * context (authenticated requests with edit_posts capability).
+	 * context. Core gates the edit context on the `edit_post` meta cap, and
+	 * read access is blocked separately for the `view` context (see
+	 * filter_rest_response()).
 	 */
 	const RESTRICTED_META = [
 		self::META_SLACK_TS,
@@ -114,13 +234,17 @@ class Post_Type {
 		add_action( 'set_object_terms', [ __CLASS__, 'sync_coverage_context_meta' ], 10, 6 );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_pinned_rest_field' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_coverage_status_rest_field' ] );
+		add_action( 'rest_api_init', [ __CLASS__, 'register_can_edit_rest_field' ] );
 		add_filter( 'posts_orderby', [ __CLASS__, 'orderby_pinned_first' ], 10, 2 );
 		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'on_save_post' ], 10, 2 );
+		add_filter( 'wp_insert_post_data', [ __CLASS__, 'normalize_entry_gmt_dates' ], 10, 2 );
+		add_action( 'transition_post_status', [ __CLASS__, 'record_entry_published_gmt' ], 10, 3 );
 		add_action( 'set_object_terms', [ __CLASS__, 'on_set_object_terms' ], 10, 6 );
 		add_action( 'trashed_post', [ __CLASS__, 'on_trash_post' ] );
 		add_action( 'before_delete_post', [ __CLASS__, 'on_delete_post' ] );
 		add_filter( 'rest_' . self::CPT_SLUG . '_query', [ __CLASS__, 'filter_rest_query' ], 10, 2 );
+		add_filter( 'posts_where', [ __CLASS__, 'author_scope_where' ], 10, 2 );
 		add_action( self::CLEANUP_CRON_HOOK, [ __CLASS__, 'cleanup_orphaned_entries' ] );
 	}
 
@@ -222,9 +346,9 @@ class Post_Type {
 
 	/**
 	 * Strip sensitive Slack/source meta from the REST response for requests
-	 * that are not in the edit context. The edit context is only available to
-	 * authenticated users with edit_posts capability, so unauthenticated
-	 * requests (view context) will have these meta keys removed.
+	 * that are not in the edit context. The edit context requires the
+	 * `edit_post` meta cap for the specific post, so requests without it
+	 * (view context) will have these meta keys removed.
 	 *
 	 * META_ENTRY_SOURCE is left exposed because it is non-sensitive (a
 	 * simple source identifier) and may be used by the frontend.
@@ -272,6 +396,10 @@ class Post_Type {
 	 */
 	public static function filter_rest_query( array $args, \WP_REST_Request $request ): array {
 		if ( 'edit' === $request->get_param( 'context' ) ) {
+			// Core drops uneditable entries from the body but counts them in
+			// X-WP-Total, so core-data fails unless the query is scoped too.
+			$args[ self::AUTHOR_SCOPE_VAR ] = self::entry_edit_scope();
+
 			return $args;
 		}
 
@@ -565,6 +693,36 @@ class Post_Type {
 	}
 
 	/**
+	 * Register a computed per-entry edit-capability REST field (edit context
+	 * only). It mirrors the `can_edit` flag emitted by the custom entries-view
+	 * endpoint so views that read core records (e.g. the trashed-entries view)
+	 * can gate row actions identically.
+	 */
+	public static function register_can_edit_rest_field() {
+		register_rest_field(
+			self::CPT_SLUG,
+			self::CAN_EDIT_REST_FIELD,
+			[
+				'get_callback' => [ __CLASS__, 'get_can_edit_rest_field' ],
+				'schema'       => [
+					'type'    => 'boolean',
+					'context' => [ 'edit' ],
+				],
+			]
+		);
+	}
+
+	/**
+	 * REST field callback: whether the current user may edit the entry.
+	 *
+	 * @param array $post Entry REST object data.
+	 * @return bool
+	 */
+	public static function get_can_edit_rest_field( array $post ): bool {
+		return current_user_can( 'edit_post', (int) $post['id'] );
+	}
+
+	/**
 	 * Whether a given entry is pinned.
 	 *
 	 * @param int $entry_id Entry post ID.
@@ -708,7 +866,8 @@ class Post_Type {
 			return false;
 		}
 
-		return current_user_can( 'edit_post', $entry_id );
+		// Pinning is a coverage-wide editorial act: Editors and above only.
+		return current_user_can( self::EDIT_ENTRIES_CAP );
 	}
 
 	/**
@@ -822,9 +981,29 @@ class Post_Type {
 	private static function run_page_mode( $term_id, array $params ) {
 		$order_by_col = 'date' === $params['orderby'] ? 'date' : 'modified';
 
+		if ( ! empty( $params['excluded_statuses'] ) ) {
+			$params['statuses'] = array_values(
+				array_diff( $params['statuses'], $params['excluded_statuses'] )
+			);
+		}
+
+		// All statuses excluded: return empty, so WP_Query doesn't fall back to defaults.
+		if ( empty( $params['statuses'] ) ) {
+			return new WP_REST_Response(
+				[
+					'entries'    => [],
+					'totalItems' => 0,
+					'totalPages' => 1,
+					'page'       => $params['page'],
+					'cursor'     => self::coverage_sync_cursor( $term_id ),
+				]
+			);
+		}
+
 		$query_args = [
 			'post_type'              => self::CPT_SLUG,
 			'post_status'            => $params['statuses'],
+			self::AUTHOR_SCOPE_VAR   => self::entry_visibility_scope(),
 			'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 				[
 					'taxonomy' => Taxonomy::TAXONOMY_SLUG,
@@ -841,14 +1020,6 @@ class Post_Type {
 			'update_post_term_cache' => true,
 			'no_found_rows'          => false,
 		];
-
-		if ( ! empty( $params['excluded_statuses'] ) ) {
-			$params['statuses'] = array_values(
-				array_diff( $params['statuses'], $params['excluded_statuses'] )
-			);
-
-			$query_args['post_status'] = $params['statuses'];
-		}
 
 		if ( '' !== $params['source'] || '' !== $params['source_exclude'] ) {
 			$meta_query = [ 'relation' => 'AND' ];
@@ -1094,7 +1265,8 @@ class Post_Type {
 		$latest = new \WP_Query(
 			[
 				'post_type'              => self::CPT_SLUG,
-				'post_status'            => self::SYNC_STATUSES,
+				'post_status'            => self::ALLOWED_STATUSES,
+				self::AUTHOR_SCOPE_VAR   => self::entry_visibility_scope(),
 				'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
 						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
@@ -1116,7 +1288,36 @@ class Post_Type {
 			return '0:' . gmdate( 'Y-m-d H:i:s' );
 		}
 
-		return $latest->posts[0]->ID . ':' . self::post_modified_gmt( $latest->posts[0] );
+		$latest_post     = $latest->posts[0];
+		$latest_modified = self::post_modified_gmt( $latest_post );
+
+		// A legacy draft may still carry a floating (zero) GMT date, which
+		// would produce a cursor that fails validation. Fall back to a
+		// concrete timestamp for such rows.
+		if ( '' === $latest_modified || '0000-00-00 00:00:00' === $latest_modified ) {
+			$latest_modified = self::effective_modified_gmt( $latest_post );
+		}
+
+		return $latest_post->ID . ':' . $latest_modified;
+	}
+
+	/**
+	 * Resolve a post's GMT modified time, falling back to the local
+	 * `post_modified` when the GMT column is floating (zero).
+	 *
+	 * @param WP_Post $post Post object.
+	 * @return string GMT timestamp in Y-m-d H:i:s format.
+	 */
+	private static function effective_modified_gmt( WP_Post $post ): string {
+		if ( '' !== $post->post_modified_gmt && '0000-00-00 00:00:00' !== $post->post_modified_gmt ) {
+			return $post->post_modified_gmt;
+		}
+
+		if ( '' !== $post->post_modified && '0000-00-00 00:00:00' !== $post->post_modified ) {
+			return get_gmt_from_date( $post->post_modified );
+		}
+
+		return gmdate( 'Y-m-d H:i:s' );
 	}
 
 	/**
@@ -1153,7 +1354,8 @@ class Post_Type {
 		$query = new \WP_Query(
 			[
 				'post_type'              => self::CPT_SLUG,
-				'post_status'            => self::SYNC_STATUSES,
+				'post_status'            => self::ALLOWED_STATUSES,
+				self::AUTHOR_SCOPE_VAR   => self::entry_visibility_scope(),
 				'tax_query'              => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 					[
 						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
@@ -1212,8 +1414,8 @@ class Post_Type {
 
 			$row = self::map_row( $post );
 
-			// Classify server-side: 'new' if published after cursor, else 'update'.
-			$row['change_type'] = self::post_date_gmt( $post ) > $cursor_modified
+			// Classify server-side: 'new' if first published after cursor, else 'update'.
+			$row['change_type'] = self::get_entry_published_gmt( $post ) > $cursor_modified
 				? 'new'
 				: 'update';
 
@@ -1292,16 +1494,6 @@ class Post_Type {
 	}
 
 	/**
-	 * Raw GMT creation date string for a post (Y-m-d H:i:s).
-	 *
-	 * @param WP_Post $post Post object.
-	 * @return string GMT timestamp in Y-m-d H:i:s format.
-	 */
-	private static function post_date_gmt( WP_Post $post ): string {
-		return $post->post_date_gmt;
-	}
-
-	/**
 	 * Map a WP_Post into the EntryViewRow shape.
 	 *
 	 * @param WP_Post $post Post object.
@@ -1332,6 +1524,12 @@ class Post_Type {
 			'tags'             => self::map_terms( $post, 'post_tag' ),
 			'breakout_post_id' => $breakout_id,
 			'breakout_status'  => ! empty( $breakout_status ) ? (string) $breakout_status : null,
+			// Per-row capabilities mirror core's meta caps so the client can
+			// gate actions exactly as WordPress would (author can edit/publish
+			// own; contributor can edit own drafts but not publish/delete).
+			'can_edit'         => current_user_can( 'edit_post', $post->ID ),
+			'can_publish'      => current_user_can( 'publish_post', $post->ID ),
+			'is_own'           => get_current_user_id() === (int) $post->post_author,
 		];
 	}
 
@@ -1371,9 +1569,9 @@ class Post_Type {
 	 *
 	 * The block's `update_coverage_last_modified` handles publish-status
 	 * saves. This hook covers the remaining statuses that the admin sync
-	 * endpoint polls (via `SYNC_STATUSES`), including the restore-to-draft
-	 * case. Publish and trash are skipped to avoid duplicating the block's
-	 * writer and the trash hook respectively.
+	 * endpoint polls, including the restore-to-draft case. Publish and trash
+	 * are skipped to avoid duplicating the block's writer and the trash hook
+	 * respectively.
 	 *
 	 * @param int     $post_id Entry post ID.
 	 * @param WP_Post $post    Entry post object.
@@ -1384,6 +1582,89 @@ class Post_Type {
 		}
 
 		self::touch_coverage_last_modified_from_post( $post );
+	}
+
+	/**
+	 * Ensure rolling coverage entries never carry a floating (zero) GMT date.
+	 *
+	 * WordPress stores drafts/pending posts with `post_date_gmt` and
+	 * `post_modified_gmt` set to `0000-00-00 00:00:00`. Entries are an
+	 * event log whose dates are always meaningful, and a zero GMT value
+	 * poisons the `{id}:{modified_gmt}` sync cursor (it fails validation)
+	 * as well as poll ordering. Derive concrete GMT values from the local
+	 * dates so every stored entry has a usable timestamp.
+	 *
+	 * Storing a concrete `post_date_gmt` on drafts is also what preserves an
+	 * entry's created date across publish: core only resets `post_date` to
+	 * "now" when publishing a draft whose `post_date_gmt` is still floating
+	 * (`wp_insert_post()`'s `$clear_date` branch). Once this runs, core leaves
+	 * the date alone.
+	 *
+	 * @param array $data    Sanitized, slashed, processed post data about to be saved.
+	 * @param array $postarr Sanitized post data as originally passed.
+	 * @return array Filtered post data.
+	 */
+	public static function normalize_entry_gmt_dates( array $data, array $postarr ): array {
+		if ( self::CPT_SLUG !== ( $data['post_type'] ?? '' ) ) {
+			return $data;
+		}
+
+		$zero = '0000-00-00 00:00:00';
+
+		if ( ( empty( $data['post_date_gmt'] ) || $zero === $data['post_date_gmt'] )
+			&& ! empty( $data['post_date'] ) && $zero !== $data['post_date'] ) {
+			$data['post_date_gmt'] = get_gmt_from_date( $data['post_date'] );
+		}
+
+		if ( ( empty( $data['post_modified_gmt'] ) || $zero === $data['post_modified_gmt'] )
+			&& ! empty( $data['post_modified'] ) && $zero !== $data['post_modified'] ) {
+			$data['post_modified_gmt'] = get_gmt_from_date( $data['post_modified'] );
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Record the GMT time an entry first reaches 'publish'.
+	 *
+	 * The live feed classifies polled entries as "new" using the entry's
+	 * creation date, which is now preserved across draft→publish. Storing the
+	 * publish moment lets the feed still treat a draft published long after it
+	 * was ingested as new.
+	 *
+	 * @param string  $new_status New post status.
+	 * @param string  $old_status Previous post status.
+	 * @param WP_Post $post       Entry post object.
+	 */
+	public static function record_entry_published_gmt( string $new_status, string $old_status, WP_Post $post ): void {
+		// Skip direct inserts, so they fall back to their own post_date_gmt.
+		if ( 'publish' !== $new_status || in_array( $old_status, [ 'publish', 'new' ], true ) ) {
+			return;
+		}
+
+		if ( self::CPT_SLUG !== $post->post_type ) {
+			return;
+		}
+
+		if ( get_post_meta( $post->ID, self::META_PUBLISHED_GMT, true ) ) {
+			return;
+		}
+
+		update_post_meta( $post->ID, self::META_PUBLISHED_GMT, gmdate( 'Y-m-d H:i:s' ) );
+	}
+
+	/**
+	 * Returns the GMT time an entry was first published, falling back to the
+	 * post's created date for entries that predate the meta (or were inserted
+	 * directly as published).
+	 *
+	 * @param WP_Post $post Entry post object.
+	 * @return string GMT timestamp in Y-m-d H:i:s format.
+	 */
+	public static function get_entry_published_gmt( WP_Post $post ): string {
+		$published = (string) get_post_meta( $post->ID, self::META_PUBLISHED_GMT, true );
+
+		return $published ? $published : $post->post_date_gmt;
 	}
 
 	/**
@@ -1884,7 +2165,9 @@ class Post_Type {
 	}
 
 	/**
-	 * Permission check for entry-level operations.
+	 * Permission check for single-entry operations: requires the per-entry
+	 * `edit_post` meta cap, so authors can act on their own entries while
+	 * contributors and below cannot.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return bool
@@ -1895,7 +2178,9 @@ class Post_Type {
 	}
 
 	/**
-	 * Permission check for bulk entry operations: requires edit_posts.
+	 * Permission check for bulk entry operations: requires `edit_posts`.
+	 * Per-entry authorization is enforced in the handler, so authors may
+	 * restore their own entries and lower roles are told which they cannot.
 	 *
 	 * @return bool
 	 */
@@ -2004,13 +2289,30 @@ class Post_Type {
 	 * Ensure a coverage term's status meta is 'active', flipping it
 	 * back from 'trash' if it was soft-deleted.
 	 *
+	 * Reactivating a trashed coverage is an editorial action, so a user
+	 * without `manage_categories` gets a WP_Error instead.
+	 *
 	 * @param int $coverage_id Coverage term ID.
+	 * @return bool|\WP_Error True when active, WP_Error when it cannot be reactivated.
 	 */
-	private static function ensure_coverage_active( int $coverage_id ): void {
+	private static function ensure_coverage_active( int $coverage_id ): bool|\WP_Error {
 		$current_status = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
-		if ( 'trash' === $current_status ) {
-			update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, 'active' );
+
+		if ( 'trash' !== $current_status ) {
+			return true;
 		}
+
+		if ( ! current_user_can( 'manage_categories' ) ) {
+			return new \WP_Error(
+				'rolling_coverage_coverage_trashed',
+				__( 'An editor needs to restore the coverage before this entry can be restored.', 'newspack-rolling-coverage' ),
+				[ 'status' => 403 ]
+			);
+		}
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, 'active' );
+
+		return true;
 	}
 
 	/**
@@ -2061,7 +2363,11 @@ class Post_Type {
 			// Term relationship is intact — use the assigned coverage.
 			$coverage_id = (int) $terms[0]->term_id;
 
-			self::ensure_coverage_active( $coverage_id );
+			$active = self::ensure_coverage_active( $coverage_id );
+
+			if ( is_wp_error( $active ) ) {
+				return $active;
+			}
 		}
 
 		// Step 2: No term assigned — check META_ORIGINAL_COVERAGE_ID.
@@ -2072,7 +2378,11 @@ class Post_Type {
 				// Original coverage still exists — reassign the entry to it.
 				$coverage_id = $original_id;
 
-				self::ensure_coverage_active( $coverage_id );
+				$active = self::ensure_coverage_active( $coverage_id );
+
+				if ( is_wp_error( $active ) ) {
+					return $active;
+				}
 
 				wp_set_post_terms( $entry_id, [ $coverage_id ], Taxonomy::TAXONOMY_SLUG );
 			}
@@ -2080,6 +2390,16 @@ class Post_Type {
 
 		// Step 3: Coverage no longer exists — create or reuse a recovery term.
 		if ( ! $coverage_id ) {
+			// Creating or reassigning a coverage is an editorial action, so a
+			// user without `manage_categories` must not reach it.
+			if ( ! current_user_can( 'manage_categories' ) ) {
+				return new \WP_Error(
+					'rolling_coverage_coverage_deleted',
+					__( 'This entry\'s coverage was deleted. An editor needs to restore it.', 'newspack-rolling-coverage' ),
+					[ 'status' => 403 ]
+				);
+			}
+
 			$original_name = get_post_meta( $entry_id, self::META_ORIGINAL_COVERAGE_NAME, true );
 			$original_slug = get_post_meta( $entry_id, self::META_ORIGINAL_COVERAGE_SLUG, true );
 

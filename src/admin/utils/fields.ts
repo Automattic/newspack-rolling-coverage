@@ -102,17 +102,6 @@ function getBreakoutStatus( item: Entry ): string {
 }
 
 /**
- * Truncates a string to `max` characters, appending an ellipsis if shortened.
- *
- * @param {string} text - The string to truncate.
- * @param {number} max  - Maximum character length.
- * @return {string} The truncated string.
- */
-function truncate( text: string, max: number ): string {
-	return text.length > max ? text.slice( 0, max ) + '…' : text;
-}
-
-/**
  * Parses a date string into a Date object, returning null for invalid/empty
  * values. Handles both ISO 8601 (`2026-08-31T13:01:38+00:00`) and raw GMT
  * (`2026-08-31 13:01:38`) formats.
@@ -354,7 +343,7 @@ function matchesOperator(
 			? getRelativeDate(
 					( filterValue as { value: number; unit: string } ).value,
 					( filterValue as { value: number; unit: string } ).unit
-			  )
+				)
 			: new Date( String( filterValue ) );
 
 	if ( isNaN( filterDateStr.getTime() ) ) {
@@ -398,7 +387,6 @@ function getRelativeDate( value: number, unit: string ): Date {
 }
 
 export {
-	truncate,
 	safeFormatUTCDate,
 	safeFormatSlackTimestamp,
 	getEmbeddedTerms,

@@ -74,6 +74,16 @@ const ENTRY_EDITED_STATES: EntryEditedState[] = [
 			],
 		],
 	},
+	{
+		value: 'deep-link',
+		label: __( 'Deep Link', 'newspack-rolling-coverage' ),
+		blocks: [
+			[
+				'newspack-rolling-coverage/deep-link-cta',
+				{ className: stateBlockClassName( 'deep-link' ) },
+			],
+		],
+	},
 ];
 
 export { ENTRY_TEMPLATE, ENTRY_ALLOWED_BLOCKS, ENTRY_EDITED_STATES };

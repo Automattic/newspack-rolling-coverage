@@ -200,22 +200,36 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	 * everything except edit-context responses.
 	 */
 	public function test_chat_source_linkage_is_only_exposed_in_edit_context() {
-		self::log_in_as( 'administrator' );
 		$coverage_id = self::create_coverage();
 		update_term_meta( $coverage_id, Taxonomy::META_SLACK_CHANNEL_ID, 'C0TESTCHAN' );
+		update_term_meta( $coverage_id, Taxonomy::META_SLACK_CHANNEL_NAME, 'test-channel' );
+		update_term_meta( $coverage_id, Taxonomy::META_SOURCE, 'slack' );
 		update_term_meta( $coverage_id, Taxonomy::META_SOURCE_REF, 'C0TESTCHAN' );
 
+		// Logged out, every linkage key is hidden.
+		wp_set_current_user( 0 );
 		$public_meta = self::get_coverage_via_rest( $coverage_id, 'view' )['meta'];
-		$edit_meta   = self::get_coverage_via_rest( $coverage_id, 'edit' )['meta'];
 
-		// Named rather than read from RESTRICTED_META, so dropping a key from
-		// that list cannot drop its check too.
+		// Named rather than read from RESTRICTED_META or VIEWABLE_META, so a key drop can't drop its check.
 		$this->assertArrayNotHasKey( Taxonomy::META_SLACK_CHANNEL_ID, $public_meta, 'The Slack channel ID should be hidden from the public response.' );
+		$this->assertArrayNotHasKey( Taxonomy::META_SLACK_CHANNEL_NAME, $public_meta, 'The Slack channel name should be hidden from the public response.' );
+		$this->assertArrayNotHasKey( Taxonomy::META_SOURCE, $public_meta, 'The chat source should be hidden from the public response.' );
 		$this->assertArrayNotHasKey( Taxonomy::META_SOURCE_REF, $public_meta, 'The chat source reference should be hidden from the public response.' );
-		foreach ( Taxonomy::RESTRICTED_META as $restricted_key ) {
-			$this->assertArrayNotHasKey( $restricted_key, $public_meta, "{$restricted_key} should be hidden from the public response." );
-		}
 		$this->assertArrayHasKey( Taxonomy::STATUS_META_KEY, $public_meta, 'Non-sensitive meta should stay public.' );
+
+		// Contributors pass the edit_posts gate, but source keys stay manager-only.
+		self::log_in_as( 'contributor' );
+		$contributor_meta = self::get_coverage_via_rest( $coverage_id, 'view' )['meta'];
+
+		$this->assertArrayHasKey( Taxonomy::META_SLACK_CHANNEL_ID, $contributor_meta, 'The Slack channel ID should be visible to contributors.' );
+		$this->assertArrayHasKey( Taxonomy::META_SLACK_CHANNEL_NAME, $contributor_meta, 'The Slack channel name should be visible to contributors.' );
+		$this->assertArrayNotHasKey( Taxonomy::META_SOURCE, $contributor_meta, 'The chat source should stay hidden from contributors.' );
+		$this->assertArrayNotHasKey( Taxonomy::META_SOURCE_REF, $contributor_meta, 'The chat source reference should stay hidden from contributors.' );
+
+		// The edit context still carries the linkage.
+		self::log_in_as( 'editor' );
+		$edit_meta = self::get_coverage_via_rest( $coverage_id, 'edit' )['meta'];
+
 		$this->assertSame( 'C0TESTCHAN', $edit_meta[ Taxonomy::META_SLACK_CHANNEL_ID ], 'The edit context should include the linkage.' );
 	}
 }

@@ -95,7 +95,13 @@ function App() {
 						<Route path="/ai" element={ <AIPage /> } />
 						<Route
 							path="/trashed-entries"
-							element={ <TrashedEntriesView /> }
+							element={
+								config.capabilities.canEditPosts ? (
+									<TrashedEntriesView />
+								) : (
+									<Navigate to="/coverages" replace />
+								)
+							}
 						/>
 						<Route
 							path="*"

@@ -29,7 +29,9 @@ interface AdminConfig {
 	nonce: string;
 	capabilities: {
 		canEditPosts: boolean;
+		canEditEntries: boolean;
 		canManageTerms: boolean;
+		canManageOptions: boolean;
 		canManageAiSettings: boolean;
 	};
 	adminUrls: {
@@ -123,6 +125,12 @@ interface Entry {
 	pinned?: boolean;
 	coverageStatus?: 'active' | 'paused' | 'archived' | 'trash' | '';
 	archivedAt?: number;
+	/** Whether the current user may edit this entry (core `edit_post` meta cap). */
+	canEdit?: boolean;
+	/** Whether the current user may publish this entry (core `publish_post` meta cap). */
+	canPublish?: boolean;
+	/** Whether the current user authored this entry. */
+	isOwn?: boolean;
 	rolling_coverage_breakout_status?: PostStatus | null;
 	_embedded?: {
 		author?: Array< {
@@ -144,10 +152,7 @@ interface Entry {
 }
 
 type EntryEditWarning =
-	| 'entry-archived'
-	| 'coverage-archived'
-	| 'coverage-paused'
-	| null;
+	'entry-archived' | 'coverage-archived' | 'coverage-paused' | null;
 
 type ViewState = ViewTable;
 
@@ -534,6 +539,12 @@ interface EntryViewRow {
 	tags: Array< { id: number; name: string; slug: string; link: string } >;
 	breakout_post_id: number;
 	breakout_status: PostStatus | null;
+	/** Whether the current user may edit this entry (core `edit_post` meta cap). */
+	can_edit: boolean;
+	/** Whether the current user may publish this entry (core `publish_post` meta cap). */
+	can_publish: boolean;
+	/** Whether the current user authored this entry. */
+	is_own: boolean;
 	/** Set by the sync endpoint: 'new' = inserted after cursor, 'update' = edited. Absent on page-mode rows. */
 	change_type?: 'new' | 'update';
 }

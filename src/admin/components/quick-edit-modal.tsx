@@ -147,11 +147,11 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 									? __(
 											'Hide sidebar',
 											'newspack-rolling-coverage'
-									  )
+										)
 									: __(
 											'Show sidebar',
 											'newspack-rolling-coverage'
-									  )
+										)
 							}
 							onClick={ () =>
 								setIsSidebarOpen( ( prev ) => ! prev )

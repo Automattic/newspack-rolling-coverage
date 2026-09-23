@@ -152,27 +152,31 @@ function CoverageView() {
 				}
 				header={
 					<>
-						<Button
-							variant="secondary"
-							icon={ trash }
-							isDestructive
-							onClick={ () => navigate( '/trashed-entries' ) }
-						>
-							{ __(
-								'Trashed Entries',
-								'newspack-rolling-coverage'
-							) }
-						</Button>
-						<Button
-							variant="primary"
-							icon={ plus }
-							onClick={ handleOpenCreate }
-						>
-							{ __(
-								'New Coverage',
-								'newspack-rolling-coverage'
-							) }
-						</Button>
+						{ config.capabilities.canEditPosts && (
+							<Button
+								variant="secondary"
+								icon={ trash }
+								isDestructive
+								onClick={ () => navigate( '/trashed-entries' ) }
+							>
+								{ __(
+									'Trashed Entries',
+									'newspack-rolling-coverage'
+								) }
+							</Button>
+						) }
+						{ config.capabilities.canManageTerms && (
+							<Button
+								variant="primary"
+								icon={ plus }
+								onClick={ handleOpenCreate }
+							>
+								{ __(
+									'New Coverage',
+									'newspack-rolling-coverage'
+								) }
+							</Button>
+						) }
 					</>
 				}
 			/>

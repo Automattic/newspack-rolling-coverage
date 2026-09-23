@@ -1215,8 +1215,8 @@ class Rolling_Coverage_Block {
 					$new_cursor = $entry->ID . ':' . $entry_modified;
 				}
 
-				// Counts only if published after the poll cursor.
-				$is_new_entry = self::post_date_gmt( $entry ) > $cursor_modified;
+				// Counts only if first published after the poll cursor.
+				$is_new_entry = Post_Type::get_entry_published_gmt( $entry ) > $cursor_modified;
 				$ad_slot      = null;
 				$ad_html      = null;
 
@@ -1269,6 +1269,9 @@ class Rolling_Coverage_Block {
 				'posts_per_page' => $per_page,
 			]
 		);
+
+		// Prevents duplicate pinned entries on frontend.
+		$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
 
 		$entry_offset = max( 0, (int) ( $params['entry_offset'] ?? 0 ) );
 

@@ -37,11 +37,17 @@ function getCoverageActions(
 ): Action< Coverage >[] {
 	const restNamespace = config.restBaseUrls.restNamespace;
 
+	// Coverage management requires the `manage_categories` capability
+	// (Editors and above). Lower roles get a read-only coverage list and
+	// may still navigate into the entries they can access.
+	const canManage = config.capabilities.canManageTerms;
+
 	return [
 		{
 			id: 'edit-coverage',
 			label: __( 'Edit', 'newspack-rolling-coverage' ),
 			isEligible: ( coverage: Coverage ) =>
+				canManage &&
 				coverage.meta?.[ config.taxMeta.statusKey ] !== 'trash',
 			callback: ( items: Coverage[] ) => {
 				if ( items.length === 1 ) {
@@ -64,6 +70,7 @@ function getCoverageActions(
 			label: __( 'Trash', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( coverage: Coverage ) =>
+				canManage &&
 				coverage.meta?.[ config.taxMeta.statusKey ] !== 'trash',
 			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
 				createElement( ConfirmModal, {
@@ -151,6 +158,7 @@ function getCoverageActions(
 			label: __( 'Restore', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( coverage: Coverage ) =>
+				canManage &&
 				coverage.meta?.[ config.taxMeta.statusKey ] === 'trash',
 			callback: async ( items: Coverage[] ) => {
 				const { failed, succeeded } = await runCoverageBulk(
@@ -189,6 +197,7 @@ function getCoverageActions(
 			label: __( 'Delete Permanently', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( coverage: Coverage ) =>
+				canManage &&
 				coverage.meta?.[ config.taxMeta.statusKey ] === 'trash',
 			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
 				createElement( ConfirmModal, {
@@ -279,13 +288,14 @@ function getCoverageActions(
 					{
 						id: 'connect-slack',
 						label: __( 'Connection', 'newspack-rolling-coverage' ),
+						isEligible: () => config.capabilities.canManageOptions,
 						callback: ( items: Coverage[] ) => {
 							if ( items.length === 1 ) {
 								onSlackConnect( items[ 0 ] );
 							}
 						},
 					},
-			  ]
+				]
 			: [] ),
 	];
 }

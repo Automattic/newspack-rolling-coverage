@@ -220,7 +220,9 @@ class Admin {
 			'nonce'               => wp_create_nonce( 'wp_rest' ),
 			'capabilities'        => array(
 				'canEditPosts'        => current_user_can( 'edit_posts' ),
+				'canEditEntries'      => current_user_can( Post_Type::EDIT_ENTRIES_CAP ),
 				'canManageTerms'      => current_user_can( 'manage_categories' ),
+				'canManageOptions'    => current_user_can( 'manage_options' ),
 				'canManageAiSettings' => current_user_can( 'edit_others_posts' ),
 			),
 			'adminUrls'           => array(

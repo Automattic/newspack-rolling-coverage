@@ -176,7 +176,7 @@ class Breakout {
 			return false;
 		}
 
-		return current_user_can( 'edit_post', $entry_id );
+		return current_user_can( Post_Type::EDIT_ENTRIES_CAP );
 	}
 
 	/**

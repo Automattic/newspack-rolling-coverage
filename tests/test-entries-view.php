@@ -55,8 +55,8 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	 *
 	 * On insert WordPress copies the date into the modified columns, so a
 	 * published entry's `post_modified_gmt`, which cursors are built from, is
-	 * this time too. A draft's is the zero date: WordPress leaves the GMT date
-	 * unset until an entry is published.
+	 * this time too. A draft's is a concrete GMT date derived from its local
+	 * date by normalize_entry_gmt_dates(), not the zero date.
 	 *
 	 * @param string $post_date Entry date, `Y-m-d H:i:s`. The test site runs on UTC.
 	 * @param array  $args      Post factory arguments.
@@ -303,5 +303,190 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 		$this->assertTrue( $sync['overflow'], 'The response should signal an overflow.' );
 		$this->assertSame( [], $sync['changed'], 'No partial delta should be sent.' );
 		$this->assertSame( $cursor, $sync['cursor'], 'The cursor should not move.' );
+	}
+
+	/**
+	 * Contributors cannot publish, so they only ever see their own entries.
+	 */
+	public function test_contributor_only_sees_their_own_entries() {
+		self::log_in_as( 'contributor' );
+		$other_id = self::factory()->user->create( [ 'role' => 'author' ] );
+
+		$own_draft_id     = $this->create_entry_at( '2026-01-01 10:00:00', [ 'post_status' => 'draft' ] );
+		$own_published_id = $this->create_entry_at( '2026-01-01 11:00:00' );
+		$this->create_entry_at(
+			'2026-01-01 12:00:00',
+			[
+				'post_status' => 'draft',
+				'post_author' => $other_id,
+			]
+		);
+		$this->create_entry_at( '2026-01-01 13:00:00', [ 'post_author' => $other_id ] );
+
+		$listed = $this->get_listed_entry_ids();
+
+		$this->assertEqualsCanonicalizing(
+			[ $own_published_id, $own_draft_id ],
+			$listed,
+			'A contributor should see only their own entries.'
+		);
+	}
+
+	/**
+	 * Authors can publish, so they also see other authors' published entries,
+	 * but never another author's drafts.
+	 */
+	public function test_author_sees_others_published_but_not_their_drafts() {
+		self::log_in_as( 'author' );
+		$other_id = self::factory()->user->create( [ 'role' => 'author' ] );
+
+		$own_draft_id     = $this->create_entry_at( '2026-01-01 10:00:00', [ 'post_status' => 'draft' ] );
+		$own_published_id = $this->create_entry_at( '2026-01-01 11:00:00' );
+		$this->create_entry_at(
+			'2026-01-01 12:00:00',
+			[
+				'post_status' => 'draft',
+				'post_author' => $other_id,
+			]
+		);
+		$other_published_id = $this->create_entry_at( '2026-01-01 13:00:00', [ 'post_author' => $other_id ] );
+
+		$listed = $this->get_listed_entry_ids();
+
+		$this->assertEqualsCanonicalizing(
+			[ $own_draft_id, $own_published_id, $other_published_id ],
+			$listed,
+			"An author should see their own entries and others' published entries, but not another author's draft."
+		);
+	}
+
+	/**
+	 * Sync mode applies the same author scoping as page mode.
+	 */
+	public function test_author_scope_applies_in_sync_mode() {
+		$since = '0:2026-01-01 00:00:00';
+
+		self::log_in_as( 'contributor' );
+		$other_id = self::factory()->user->create( [ 'role' => 'author' ] );
+
+		$contributor_published_id = $this->create_entry_at( '2026-01-01 11:00:00' );
+		$contributor_draft_id     = $this->create_entry_at( '2026-01-01 10:00:00', [ 'post_status' => 'draft' ] );
+		$other_published_id       = $this->create_entry_at( '2026-01-01 13:00:00', [ 'post_author' => $other_id ] );
+		$other_draft_id           = $this->create_entry_at(
+			'2026-01-01 12:00:00',
+			[
+				'post_status' => 'draft',
+				'post_author' => $other_id,
+			]
+		);
+
+		$changed = $this->get_entries_view( [ 'since' => $since ] )->get_data()['changed'];
+		$listed  = wp_list_pluck( $changed, 'id' );
+
+		$this->assertContains( $contributor_published_id, $listed, 'A contributor should receive their own published entry in sync mode.' );
+		$this->assertContains( $contributor_draft_id, $listed, 'A contributor should receive their own draft in sync mode.' );
+		$this->assertNotContains( $other_published_id, $listed, 'A contributor should not receive another user\'s published entry in sync mode.' );
+		$this->assertNotContains( $other_draft_id, $listed, 'A contributor should not receive another user\'s draft in sync mode.' );
+
+		self::log_in_as( 'author' );
+
+		$author_published_id = $this->create_entry_at( '2026-01-01 14:00:00' );
+		$author_draft_id     = $this->create_entry_at( '2026-01-01 15:00:00', [ 'post_status' => 'draft' ] );
+
+		$changed = $this->get_entries_view( [ 'since' => $since ] )->get_data()['changed'];
+		$listed  = wp_list_pluck( $changed, 'id' );
+
+		$this->assertContains( $author_published_id, $listed, 'An author should receive their own published entry in sync mode.' );
+		$this->assertContains( $author_draft_id, $listed, 'An author should receive their own draft in sync mode.' );
+		$this->assertContains( $other_published_id, $listed, 'An author should receive another author\'s published entry in sync mode.' );
+		$this->assertNotContains( $other_draft_id, $listed, 'An author should not receive another author\'s draft in sync mode.' );
+	}
+
+	/**
+	 * The cursor is anchored to the coverage's latest entry, so it must also
+	 * respect author scoping: a contributor's cursor must not name another
+	 * user's entry, which would leak its ID and timestamp.
+	 */
+	public function test_cursor_is_author_scoped_for_contributor() {
+		self::log_in_as( 'contributor' );
+		$other_id = self::factory()->user->create( [ 'role' => 'author' ] );
+
+		$own_entry_id = $this->create_entry_at( '2026-01-01 10:00:00' );
+		// Another user's entry, modified later, so it is the coverage's latest.
+		$other_entry_id = $this->create_entry_at( '2026-06-01 00:00:00', [ 'post_author' => $other_id ] );
+
+		$cursor = $this->get_entries_view()->get_data()['cursor'];
+
+		$this->assertStringStartsWith( "{$own_entry_id}:", $cursor, "The cursor should reference the contributor's own latest entry." );
+		$this->assertStringNotContainsString( (string) $other_entry_id, $cursor, "The cursor should not leak another user's entry." );
+	}
+
+	/**
+	 * Excluding every requested status is an empty result, not the default
+	 * published statuses WP_Query falls back to when post_status is empty.
+	 */
+	public function test_excluding_every_requested_status_returns_an_empty_list() {
+		$this->create_entry_at( '2026-01-01 10:00:00' );
+
+		$this->assertSame(
+			[],
+			$this->get_listed_entry_ids(
+				[
+					'status'         => 'draft',
+					'status_exclude' => 'draft',
+				]
+			),
+			'Excluding every requested status should yield nothing, not WP_Query\'s default published entries.'
+		);
+	}
+
+	/**
+	 * An author finds their own trashed entry in the entries view, so it can
+	 * be restored, but never sees another author's trashed entry.
+	 */
+	public function test_author_sees_their_own_trashed_entry_but_not_others() {
+		self::log_in_as( 'author' );
+		$other_id = self::factory()->user->create( [ 'role' => 'author' ] );
+
+		$own_trashed_id   = $this->create_entry_at( '2026-01-01 10:00:00', [ 'post_status' => 'draft' ] );
+		$other_trashed_id = $this->create_entry_at(
+			'2026-01-01 11:00:00',
+			[
+				'post_status' => 'draft',
+				'post_author' => $other_id,
+			]
+		);
+		wp_trash_post( $own_trashed_id );
+		wp_trash_post( $other_trashed_id );
+
+		$listed = $this->get_listed_entry_ids( [ 'status' => 'trash' ] );
+
+		$this->assertContains( $own_trashed_id, $listed, 'An author should see their own trashed entry.' );
+		$this->assertNotContains( $other_trashed_id, $listed, 'An author should not see another author\'s trashed entry.' );
+	}
+
+	/**
+	 * A contributor cannot publish, and trash is scoped to the user's own
+	 * entries, so a contributor only sees their own trashed draft.
+	 */
+	public function test_contributor_sees_only_their_own_trashed_entry() {
+		self::log_in_as( 'contributor' );
+		$other_id = self::factory()->user->create( [ 'role' => 'author' ] );
+
+		$own_trashed_id   = $this->create_entry_at( '2026-01-01 10:00:00', [ 'post_status' => 'draft' ] );
+		$other_trashed_id = $this->create_entry_at(
+			'2026-01-01 11:00:00',
+			[
+				'post_status' => 'draft',
+				'post_author' => $other_id,
+			]
+		);
+		wp_trash_post( $own_trashed_id );
+		wp_trash_post( $other_trashed_id );
+
+		$listed = $this->get_listed_entry_ids( [ 'status' => 'trash' ] );
+
+		$this->assertContains( $own_trashed_id, $listed, 'A contributor should see their own trashed entry.' );
+		$this->assertNotContains( $other_trashed_id, $listed, 'A contributor should not see another user\'s trashed entry.' );
 	}
 }

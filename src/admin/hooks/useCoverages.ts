@@ -47,11 +47,16 @@ function useCoverages( options: UseCoveragesOptions = {} ) {
 		return () => clearTimeout( timer );
 	}, [ search ] );
 
+	// Use the public `view` context so every role with menu access can list
+	// coverages; `edit` requires the `edit_terms` capability and 403s for
+	// authors/contributors. All list meta (status, created/modified, and the
+	// Slack channel label) is exposed in `view` for plugin users; only the
+	// generic source keys remain manager-only.
 	const query: Record< string, unknown > = {
 		per_page: perPage,
 		page,
 		_fields: 'id,name,slug,description,meta,count',
-		context: 'edit',
+		context: 'view',
 		_ts: refreshKey,
 	};
 
@@ -60,6 +65,12 @@ function useCoverages( options: UseCoveragesOptions = {} ) {
 	}
 
 	const config = useAdminContext();
+
+	// Managers need `edit` context for the Slack/source meta; everyone else
+	// uses `view` (edit requires `edit_terms` and 403s for lower roles).
+	if ( config.capabilities.canManageTerms ) {
+		query.context = 'edit';
+	}
 
 	const { records, isResolving, hasResolved, totalItems, totalPages } =
 		useEntityRecords( 'taxonomy', config.taxonomy, query );

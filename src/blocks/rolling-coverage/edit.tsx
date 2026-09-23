@@ -65,13 +65,6 @@ import type {
 } from './types';
 
 /**
- * Block names that belong to the per-entry template (everything after the
- * deep-link CTA and editor-state blocks). Used to split inner blocks into
- * render-once/state vs. per-entry template.
- */
-const CTA_BLOCK_NAME = 'newspack-rolling-coverage/deep-link-cta';
-
-/**
  * The follow button block, rendered once at the top of the coverage rather
  * than per entry.
  */
@@ -89,20 +82,15 @@ const STATE_BLOCK_NAMES = ENTRY_EDITED_STATES.flatMap( ( state ) =>
  * Block names that render once at the top of the coverage (not per entry).
  * Used to split inner blocks into these vs. the per-entry template.
  */
-const RENDER_ONCE_BLOCKS = [
-	FOLLOW_BLOCK_NAME,
-	CTA_BLOCK_NAME,
-	...STATE_BLOCK_NAMES,
-];
+const RENDER_ONCE_BLOCKS = [ FOLLOW_BLOCK_NAME, ...STATE_BLOCK_NAMES ];
 
 /**
  * Default inner-blocks template for the Rolling Coverage block: the follow
- * button and deep-link CTA at the top, then every editor state's blocks,
- * then the per-entry blocks.
+ * button at the top, then every editor state's blocks, then the per-entry
+ * blocks.
  */
 const INNER_TEMPLATE = [
 	[ FOLLOW_BLOCK_NAME ],
-	[ CTA_BLOCK_NAME ],
 	...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
 	...ENTRY_TEMPLATE,
 ];
@@ -112,7 +100,6 @@ const INNER_TEMPLATE = [
  */
 const ALL_ALLOWED_BLOCKS = [
 	...ENTRY_ALLOWED_BLOCKS,
-	CTA_BLOCK_NAME,
 	FOLLOW_BLOCK_NAME,
 	...STATE_BLOCK_NAMES,
 ];
@@ -361,14 +348,14 @@ export default function Edit( {
 							'Coverage status updated.',
 							'newspack-rolling-coverage'
 						),
-				  }
+					}
 				: {
 						type: 'error',
 						message: __(
 							'Could not update the coverage status.',
 							'newspack-rolling-coverage'
 						),
-				  }
+					}
 		);
 		if ( success ) {
 			setCurrentCoverage( ( prev ) =>
@@ -686,11 +673,11 @@ export default function Edit( {
 											? __(
 													'Copied!',
 													'newspack-rolling-coverage'
-											  )
+												)
 											: __(
 													'Copy',
 													'newspack-rolling-coverage'
-											  ) }
+												) }
 									</Button>
 								</>
 							) }
@@ -797,12 +784,12 @@ export default function Edit( {
 						<BlockContextProvider
 							value={
 								entryContexts.length > 0
-									? entryContexts.find(
+									? ( entryContexts.find(
 											( c ) =>
 												c.postId ===
 												( activeEntryId ??
 													entryContexts[ 0 ]?.postId )
-									  ) ?? NEUTRAL_ENTRY_CONTEXT
+										) ?? NEUTRAL_ENTRY_CONTEXT )
 									: NEUTRAL_ENTRY_CONTEXT
 							}
 						>
