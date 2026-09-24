@@ -129,7 +129,7 @@ A coverage can be archived when a news event concludes. Archiving makes the feed
 
 - Coverage statuses: `active`, `paused`, `archived`, `trash`.
 - Archiving a coverage records an end time, hides the follow button, and renders an archived notice.
-- Entries in an archived coverage are **locked**: they cannot be deleted, restored, pinned, broken out, or reassigned to a new (non-archived) coverage.
+- Entries in an archived coverage are **locked**: they cannot be deleted, restored, pinned, or broken out.
 - Individual entries can also be archived, which collapses long content behind a "read more" summary in the feed.
 
 ### Breakout posts
