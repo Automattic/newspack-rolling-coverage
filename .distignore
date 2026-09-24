@@ -10,6 +10,7 @@ _.config.js
 .circleci
 .DS_Store
 Thumbs.db
+.phpunit.result.cache
 composer.json
 composer.lock
 package.json
@@ -22,6 +23,9 @@ phpcs.xml
 .phpcs.xml.dist
 phpcs.xml.dist
 README.md
+CHANGELOG.md
+AGENTS.md
+CLAUDE.md
 PULL_REQUEST_TEMPLATE.md
 webpack.config.js
 *.sql
