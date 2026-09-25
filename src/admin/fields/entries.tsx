@@ -6,7 +6,7 @@ import { dateI18n, getSettings } from '@wordpress/date';
 import { __, sprintf } from '@wordpress/i18n';
 import {
 	Icon,
-	pin,
+	pinSmall,
 	info,
 	wordpress as WordPressIconRaw,
 } from '@wordpress/icons';
@@ -80,7 +80,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 						<span className="newspack-rolling-coverage-entry-title newspack-rolling-coverage-entry-title--pinned">
 							<Icon
 								className="newspack-rolling-coverage-entry-title__icon"
-								icon={ pin }
+								icon={ pinSmall }
 								size={ 24 }
 							/>
 							{ title }
