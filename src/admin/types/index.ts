@@ -16,6 +16,7 @@ import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
 
 interface AdminConfig {
 	page: string;
+	adminTitleSuffix: string;
 	availableAdapters?: Record< string, string >;
 	restBase: {
 		coverages: string;

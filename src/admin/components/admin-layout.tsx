@@ -2,7 +2,8 @@
  * External dependencies
  */
 import { Outlet, useLocation } from 'react-router';
-import { useState, useCallback, useEffect } from '@wordpress/element';
+import { useState, useCallback, useEffect, useRef } from '@wordpress/element';
+import { speak } from '@wordpress/a11y';
 import { __ } from '@wordpress/i18n';
 import { decodeEntities } from '@wordpress/html-entities';
 import Page from 'newspack-components/dist/esm/page';
@@ -11,6 +12,7 @@ import Page from 'newspack-components/dist/esm/page';
  * Internal dependencies
  */
 import { SLACK_TABS } from '../utils/slack-tabs';
+import { useAdminContext } from '../hooks/useAdminContext';
 import type { BreadcrumbItem, Context, Coverage, HeaderState } from '../types';
 
 /**
@@ -81,15 +83,6 @@ function getBreadcrumbItems(
 }
 
 /**
- * WordPress's admin title suffix (" ‹ Site — WordPress"), read once so the
- * page label in front of it can follow the route.
- */
-const ADMIN_TITLE_SUFFIX = ( () => {
-	const separator = document.title.indexOf( ' ‹ ' );
-	return separator === -1 ? '' : document.title.slice( separator );
-} )();
-
-/**
  * Layout route that renders the admin header and the matched child view
  * via <Outlet />. Holds the shared refreshKey in context so that any
  * mutation (trash, restore, delete) instantly refreshes all DataViews,
@@ -97,6 +90,8 @@ const ADMIN_TITLE_SUFFIX = ( () => {
  */
 function AdminLayout() {
 	const { pathname } = useLocation();
+	const { adminTitleSuffix } = useAdminContext();
+	const isFirstLabel = useRef( true );
 	const [ context, setContext ] = useState< Context >( {
 		selectedCoverage: null,
 		refreshKey: 0,
@@ -120,8 +115,15 @@ function AdminLayout() {
 	const currentLabel = breadcrumbItems[ breadcrumbItems.length - 1 ].label;
 
 	useEffect( () => {
-		document.title = currentLabel + ADMIN_TITLE_SUFFIX;
-	}, [ currentLabel ] );
+		document.title = currentLabel + adminTitleSuffix;
+		// Hash routes don't reload the page, so a new view has to be announced;
+		// the first label is the page the reader just loaded.
+		if ( isFirstLabel.current ) {
+			isFirstLabel.current = false;
+			return;
+		}
+		speak( currentLabel );
+	}, [ currentLabel, adminTitleSuffix ] );
 
 	return (
 		<Page

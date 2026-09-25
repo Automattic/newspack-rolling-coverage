@@ -10,6 +10,7 @@ import {
 import { ExternalLink } from '@wordpress/components';
 import { DataForm } from '@wordpress/dataviews/wp';
 import { __ } from '@wordpress/i18n';
+import { decodeEntities } from '@wordpress/html-entities';
 import { Drawer } from 'newspack-components/dist/esm/drawer';
 
 /**
@@ -135,7 +136,7 @@ function getFormData(
 	}
 ): CoverageFormData {
 	return {
-		name: coverage?.name || '',
+		name: decodeEntities( coverage?.name || '' ),
 		description: coverage?.description || '',
 		status:
 			( coverage?.meta?.[

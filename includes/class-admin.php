@@ -41,12 +41,22 @@ class Admin {
 	private static $page_hooks = [];
 
 	/**
+	 * What WordPress appends to the page title in the admin tab, e.g.
+	 * " ‹ Site — WordPress". The admin script prefixes it with the current
+	 * view's label, so the tab follows the hash route.
+	 *
+	 * @var string
+	 */
+	private static $admin_title_suffix = '';
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
 		add_action( 'admin_menu', array( __CLASS__, 'add_menu_page' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_filter( 'admin_body_class', array( __CLASS__, 'add_body_class' ) );
+		add_filter( 'admin_title', array( __CLASS__, 'capture_admin_title_suffix' ), PHP_INT_MAX, 2 );
 		add_filter( 'custom_menu_order', '__return_true' );
 		// After Newspack's own wizard ordering, which runs at 11.
 		add_filter( 'menu_order', array( __CLASS__, 'menu_order' ), 12 );
@@ -114,6 +124,21 @@ class Admin {
 		$anchor = array_search( self::MENU_ANCHOR, $menu_order, true );
 		array_splice( $menu_order, $anchor + 1, 0, self::MENU_SLUG );
 		return $menu_order;
+	}
+
+	/**
+	 * Record the admin title's suffix, which follows the screen title.
+	 *
+	 * @param string $admin_title Full admin title.
+	 * @param string $title       Screen title.
+	 * @return string Unchanged admin title.
+	 */
+	public static function capture_admin_title_suffix( $admin_title, $title ) {
+		$screen_title = wp_strip_all_tags( (string) $title );
+		if ( '' !== $screen_title && str_starts_with( (string) $admin_title, $screen_title ) ) {
+			self::$admin_title_suffix = html_entity_decode( substr( $admin_title, strlen( $screen_title ) ), ENT_QUOTES, get_bloginfo( 'charset' ) );
+		}
+		return $admin_title;
 	}
 
 	/**
@@ -253,6 +278,7 @@ class Admin {
 
 		return array(
 			'page'                => $page,
+			'adminTitleSuffix'    => self::$admin_title_suffix,
 			'restBase'            => array(
 				'coverages' => Taxonomy::REST_BASE,
 				'entries'   => Post_Type::REST_BASE,

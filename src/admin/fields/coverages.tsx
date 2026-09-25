@@ -2,6 +2,7 @@
  * External dependencies.
  */
 import { __ } from '@wordpress/i18n';
+import { decodeEntities } from '@wordpress/html-entities';
 
 /**
  * Internal dependencies.
@@ -52,10 +53,10 @@ function getCoverageFields(
 			label: __( 'Name', 'newspack-rolling-coverage' ),
 			enableSorting: true,
 			enableGlobalSearch: true,
-			getValue: ( { item } ) => item.name,
+			getValue: ( { item } ) => decodeEntities( item.name ),
 			render: ( { item } ) => (
 				<span className="newspack-rolling-coverage-coverage-name">
-					{ item.name }
+					{ decodeEntities( item.name ) }
 				</span>
 			),
 		},
