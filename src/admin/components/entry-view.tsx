@@ -23,6 +23,7 @@ import type { View } from '@wordpress/dataviews';
 import { useEntries } from '../hooks/useEntries';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { EmptyState } from 'newspack-components/dist/esm/empty-state';
+import { LoadingState } from '../shared/loading-state';
 import { useHeader } from '../hooks/useHeader';
 import { buildPageUrl, createEntry, toEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
@@ -226,17 +227,24 @@ function EntryView() {
 		return params;
 	}, [ view.filters ] );
 
-	const { rows, isResolving, error, totalItems, totalPages, syncNotices } =
-		useEntries( {
-			coverageId: isValidCoverageId ? numericCoverageId : null,
-			page: view.page ?? 1,
-			perPage: view.perPage,
-			search: view.search,
-			orderBy: view.sort?.field,
-			order: view.sort?.direction,
-			...serverFilters,
-			refreshKey,
-		} );
+	const {
+		rows,
+		isResolving,
+		hasResolved,
+		error,
+		totalItems,
+		totalPages,
+		syncNotices,
+	} = useEntries( {
+		coverageId: isValidCoverageId ? numericCoverageId : null,
+		page: view.page ?? 1,
+		perPage: view.perPage,
+		search: view.search,
+		orderBy: view.sort?.field,
+		order: view.sort?.direction,
+		...serverFilters,
+		refreshKey,
+	} );
 
 	const handleQuickEdit = useCallback( ( entry: Entry ) => {
 		setQuickEditEntry( entry );
@@ -355,9 +363,21 @@ function EntryView() {
 		trashed?.coverageId === numericCoverageId &&
 		trashed.count === 0;
 
+	const isTrashCheckPending =
+		hasNoLiveEntries && trashed?.coverageId !== numericCoverageId;
+
+	// Until the first fetch and its trash check settle, neither the table nor
+	// the empty state is known to be right. Later refetches keep the table.
+	const hasSettledOnce = useRef( false );
+	if ( hasResolved && ! isTrashCheckPending ) {
+		hasSettledOnce.current = true;
+	}
+	const isFirstLoad =
+		isValidCoverageId && ! hasSettledOnce.current && ! error;
+
 	const headerActions = useMemo(
 		() =>
-			! disableNewEntry && ! isEmpty ? (
+			! disableNewEntry && ! isFirstLoad && ! isEmpty ? (
 				<Button
 					variant="primary"
 					onClick={ handleNewEntry }
@@ -367,9 +387,18 @@ function EntryView() {
 					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
 				</Button>
 			) : null,
-		[ disableNewEntry, isEmpty, handleNewEntry, isCreatingEntry ]
+		[
+			disableNewEntry,
+			isFirstLoad,
+			isEmpty,
+			handleNewEntry,
+			isCreatingEntry,
+		]
 	);
-	useHeader( { actions: headerActions, count: totalItems } );
+	useHeader( {
+		actions: headerActions,
+		count: isFirstLoad ? undefined : totalItems,
+	} );
 
 	// Render sync notices as snackbars. A sync cycle with more than
 	// GROUP_NOTICE_THRESHOLD total changes collapses into a single grouped
@@ -425,7 +454,15 @@ function EntryView() {
 					{ createError }
 				</div>
 			) }
-			{ isEmpty ? (
+			{ isFirstLoad && (
+				<LoadingState
+					label={ __(
+						'Fetching entries…',
+						'newspack-rolling-coverage'
+					) }
+				/>
+			) }
+			{ ! isFirstLoad && isEmpty && (
 				<EmptyState.Root>
 					<EmptyState.Header
 						icon={ postContent }
@@ -454,7 +491,8 @@ function EntryView() {
 						</EmptyState.Actions>
 					) }
 				</EmptyState.Root>
-			) : (
+			) }
+			{ ! isFirstLoad && ! isEmpty && (
 				<DataViewsWrapper
 					data={ mappedData }
 					fields={ entryFields }
@@ -462,11 +500,7 @@ function EntryView() {
 					onChangeView={ handleChangeView }
 					actions={ actions }
 					paginationInfo={ paginationInfo }
-					isLoading={
-						isResolving ||
-						( hasNoLiveEntries &&
-							trashed?.coverageId !== numericCoverageId )
-					}
+					isLoading={ isResolving || isTrashCheckPending }
 				/>
 			) }
 			{ quickEditEntry && (

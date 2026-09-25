@@ -19,6 +19,7 @@ import { getCoverageActions } from '../actions/coverage-actions';
 import { getCoverageFields, defaultCoverageView } from '../fields/coverages';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { EmptyState } from 'newspack-components/dist/esm/empty-state';
+import { LoadingState } from '../shared/loading-state';
 import { activity } from 'newspack-icons';
 import { useHeader } from '../hooks/useHeader';
 import type { Context, ContextExports, Coverage } from '../types';
@@ -69,10 +70,12 @@ function CoverageView() {
 	);
 
 	// Fetch the full coverage list: sorting, filtering, and pagination are  applied client-side via filterSortAndPaginate
-	const { records, isResolving, hasResolved, error } = useCoverages( {
-		search: view.search,
-		refreshKey,
-	} );
+	const { records, isResolving, hasResolved, hasLoadedOnce, error } =
+		useCoverages( {
+			search: view.search,
+			refreshKey,
+		} );
+	const isFirstLoad = ! hasLoadedOnce;
 	const isEmpty =
 		hasResolved && ! isResolving && records?.length === 0 && ! view.search;
 
@@ -121,16 +124,21 @@ function CoverageView() {
 
 	const headerActions = useMemo(
 		() =>
-			config.capabilities.canManageTerms && ! isEmpty ? (
+			config.capabilities.canManageTerms && ! isFirstLoad && ! isEmpty ? (
 				<Button variant="primary" onClick={ handleOpenCreate }>
 					{ __( 'Add Coverage', 'newspack-rolling-coverage' ) }
 				</Button>
 			) : null,
-		[ config.capabilities.canManageTerms, isEmpty, handleOpenCreate ]
+		[
+			config.capabilities.canManageTerms,
+			isFirstLoad,
+			isEmpty,
+			handleOpenCreate,
+		]
 	);
 	useHeader( {
 		actions: headerActions,
-		count: paginationInfo.totalItems,
+		count: isFirstLoad ? undefined : paginationInfo.totalItems,
 		isEmpty,
 	} );
 
@@ -157,7 +165,15 @@ function CoverageView() {
 			{ error && (
 				<div className="newspack-rolling-coverage-error">{ error }</div>
 			) }
-			{ isEmpty ? (
+			{ isFirstLoad && (
+				<LoadingState
+					label={ __(
+						'Fetching coverages…',
+						'newspack-rolling-coverage'
+					) }
+				/>
+			) }
+			{ ! isFirstLoad && isEmpty && (
 				<EmptyState.Root>
 					<EmptyState.Header
 						icon={ activity }
@@ -184,7 +200,8 @@ function CoverageView() {
 						</EmptyState.Actions>
 					) }
 				</EmptyState.Root>
-			) : (
+			) }
+			{ ! isFirstLoad && ! isEmpty && (
 				<DataViewsWrapper
 					data={ filteredData }
 					fields={ fields }

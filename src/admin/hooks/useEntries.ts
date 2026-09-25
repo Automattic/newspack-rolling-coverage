@@ -117,6 +117,8 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 		let cancelled = false;
 
 		// Debounce so rapid filter/search changes don't fire per keystroke.
+		// The first load has nothing to debounce.
+		const delay = rowsRef.current === null ? 0 : DEBOUNCE_MS;
 		const timer = setTimeout( () => {
 			if ( cancelled || ! isMountedRef.current ) {
 				return;
@@ -174,7 +176,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 					}
 					setIsResolving( false );
 				} );
-		}, DEBOUNCE_MS );
+		}, delay );
 
 		return () => {
 			cancelled = true;
