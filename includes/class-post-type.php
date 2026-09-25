@@ -388,7 +388,7 @@ class Post_Type {
 	 * term) since the operator is IN.
 	 *
 	 * Edit context (admin) is not filtered so trashed entries remain
-	 * visible in the Trashed Entries view.
+	 * visible in the admin.
 	 *
 	 * @param array            $args    Query arguments.
 	 * @param \WP_REST_Request $request Full details about the request.
@@ -695,8 +695,8 @@ class Post_Type {
 	/**
 	 * Register a computed per-entry edit-capability REST field (edit context
 	 * only). It mirrors the `can_edit` flag emitted by the custom entries-view
-	 * endpoint so views that read core records (e.g. the trashed-entries view)
-	 * can gate row actions identically.
+	 * endpoint so views that read core records can gate row actions
+	 * identically.
 	 */
 	public static function register_can_edit_rest_field() {
 		register_rest_field(
@@ -1515,9 +1515,10 @@ class Post_Type {
 			'archived_at'      => Archive_Mode::get_entry_archived_at( $post->ID ),
 			'coverage_status'  => self::get_coverage_status_rest_field( [ 'id' => $post->ID ] ),
 			'author'           => $author ? [
-				'id'   => $author->ID,
-				'name' => $author->display_name,
-				'link' => get_author_posts_url( $author->ID ),
+				'id'          => $author->ID,
+				'name'        => $author->display_name,
+				'link'        => get_author_posts_url( $author->ID ),
+				'avatar_urls' => rest_get_avatar_urls( $author ),
 			] : null,
 			'source'           => (string) get_post_meta( $post->ID, self::META_ENTRY_SOURCE, true ),
 			'categories'       => self::map_terms( $post, 'category' ),

@@ -4,7 +4,6 @@
 import { useNavigate, useOutletContext } from 'react-router';
 import { useState, useCallback, useMemo } from '@wordpress/element';
 import { Button } from '@wordpress/components';
-import { plus, trash } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
 import type { View } from '@wordpress/dataviews';
 import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
@@ -14,15 +13,18 @@ import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
  */
 import { useCoverages } from '../hooks/useCoverages';
 import { DataViewsWrapper } from './data-views-wrapper';
-import { CoverageModal } from './coverage-modal';
+import { CoverageDrawer } from './coverage-drawer';
 import { SlackConnectionModal } from './slack-connection-modal';
 import { getCoverageActions } from '../actions/coverage-actions';
 import { getCoverageFields, defaultCoverageView } from '../fields/coverages';
 import { useAdminContext } from '../hooks/useAdminContext';
+import { EmptyState } from 'newspack-components/dist/esm/empty-state';
+import { activity } from 'newspack-icons';
+import { useHeader } from '../hooks/useHeader';
 import type { Context, ContextExports, Coverage } from '../types';
 
 /**
- * Renders the coverage list DataViews with create/edit modal, Slack connection
+ * Renders the coverage list DataViews with create/edit drawer, Slack connection
  * modal, and row actions. Clicking a row navigates to its entries via the hash
  * router.
  */
@@ -60,17 +62,22 @@ function CoverageView() {
 	const [ editingCoverage, setEditingCoverage ] = useState< Coverage | null >(
 		null
 	);
-	const [ isModalOpen, setIsModalOpen ] = useState( false );
+	const [ isDrawerOpen, setIsDrawerOpen ] = useState( false );
 	const [ isSlackModalOpen, setIsSlackModalOpen ] = useState( false );
 	const [ slackCoverage, setSlackCoverage ] = useState< Coverage | null >(
 		null
 	);
 
 	// Fetch the full coverage list: sorting, filtering, and pagination are  applied client-side via filterSortAndPaginate
-	const { records, isResolving, error } = useCoverages( {
+	const { records, isResolving, hasResolved, error } = useCoverages( {
 		search: view.search,
 		refreshKey,
 	} );
+	const isEmpty =
+		hasResolved &&
+		! isResolving &&
+		records?.length === 0 &&
+		! view.search;
 
 	const { data: filteredData, paginationInfo } = useMemo( () => {
 		return filterSortAndPaginate( records ?? [], view, fields );
@@ -78,17 +85,16 @@ function CoverageView() {
 
 	const handleOpenCreate = useCallback( () => {
 		setEditingCoverage( null );
-		setIsModalOpen( true );
+		setIsDrawerOpen( true );
 	}, [] );
 
 	const handleOpenEdit = useCallback( ( coverage: Coverage ) => {
 		setEditingCoverage( coverage );
-		setIsModalOpen( true );
+		setIsDrawerOpen( true );
 	}, [] );
 
-	const handleCloseModal = useCallback( () => {
-		setIsModalOpen( false );
-		setEditingCoverage( null );
+	const handleCloseDrawer = useCallback( () => {
+		setIsDrawerOpen( false );
 	}, [] );
 
 	const handleSaved = useCallback( () => {
@@ -116,6 +122,17 @@ function CoverageView() {
 		[ navigate, setContext ]
 	);
 
+	const headerActions = useMemo(
+		() =>
+			config.capabilities.canManageTerms && ! isEmpty ? (
+				<Button variant="primary" onClick={ handleOpenCreate }>
+					{ __( 'Add Coverage', 'newspack-rolling-coverage' ) }
+				</Button>
+			) : null,
+		[ config.capabilities.canManageTerms, isEmpty, handleOpenCreate ]
+	);
+	useHeader( { actions: headerActions, count: paginationInfo.totalItems } );
+
 	const actions = useMemo(
 		() =>
 			getCoverageActions(
@@ -139,55 +156,51 @@ function CoverageView() {
 			{ error && (
 				<div className="newspack-rolling-coverage-error">{ error }</div>
 			) }
-			<DataViewsWrapper
-				data={ filteredData }
-				fields={ fields }
-				view={ view }
-				onChangeView={ handleChangeView }
-				actions={ actions }
-				paginationInfo={ paginationInfo }
-				isLoading={ isResolving }
-				onClickItem={ ( item ) =>
-					handleNavigateToEntries( item as Coverage )
-				}
-				header={
-					<>
-						{ config.capabilities.canEditPosts && (
-							<Button
-								variant="secondary"
-								icon={ trash }
-								isDestructive
-								onClick={ () => navigate( '/trashed-entries' ) }
-							>
+			{ isEmpty ? (
+				<EmptyState.Root>
+					<EmptyState.Header
+						icon={ activity }
+						title={ __(
+							'Get started with rolling coverage',
+							'newspack-rolling-coverage'
+						) }
+						description={ __(
+							'Follow a developing story with a live stream of short, timestamped updates.',
+							'newspack-rolling-coverage'
+						) }
+					/>
+					{ config.capabilities.canManageTerms && (
+						<EmptyState.Actions>
+							<Button variant="primary" onClick={ handleOpenCreate }>
 								{ __(
-									'Trashed Entries',
+									'Add Coverage',
 									'newspack-rolling-coverage'
 								) }
 							</Button>
-						) }
-						{ config.capabilities.canManageTerms && (
-							<Button
-								variant="primary"
-								icon={ plus }
-								onClick={ handleOpenCreate }
-							>
-								{ __(
-									'New Coverage',
-									'newspack-rolling-coverage'
-								) }
-							</Button>
-						) }
-					</>
-				}
-			/>
-
-			{ isModalOpen && (
-				<CoverageModal
-					coverage={ editingCoverage }
-					onClose={ handleCloseModal }
-					onSaved={ handleSaved }
+						</EmptyState.Actions>
+					) }
+				</EmptyState.Root>
+			) : (
+				<DataViewsWrapper
+					data={ filteredData }
+					fields={ fields }
+					view={ view }
+					onChangeView={ handleChangeView }
+					actions={ actions }
+					paginationInfo={ paginationInfo }
+					isLoading={ isResolving }
+					onClickItem={ ( item ) =>
+						handleNavigateToEntries( item as Coverage )
+					}
 				/>
 			) }
+
+			<CoverageDrawer
+				isOpen={ isDrawerOpen }
+				coverage={ editingCoverage }
+				onClose={ handleCloseDrawer }
+				onSaved={ handleSaved }
+			/>
 			{ isSlackModalOpen && (
 				<SlackConnectionModal
 					coverage={ slackCoverage }

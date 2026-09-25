@@ -3,7 +3,7 @@
  */
 import { useState, useEffect, useMemo } from '@wordpress/element';
 import { TabPanel } from '@wordpress/components';
-import { Outlet } from 'react-router';
+import { Outlet, useOutletContext } from 'react-router';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -21,6 +21,7 @@ import { getAdapterFromUrl, setAdapterInUrl } from '../utils/adapter-url';
  */
 function ConnectionPage() {
 	const config = useAdminContext();
+	const outletContext = useOutletContext();
 	const adapters = config.availableAdapters ?? {};
 
 	const slugs = useMemo( () => Object.keys( adapters ), [ adapters ] );
@@ -47,7 +48,7 @@ function ConnectionPage() {
 
 	// Single adapter — no tab chrome needed, just render the nested route.
 	if ( slugs.length <= 1 ) {
-		return <Outlet />;
+		return <Outlet context={ outletContext } />;
 	}
 
 	// Multiple adapters — render a TabPanel for adapter selection.
@@ -65,7 +66,7 @@ function ConnectionPage() {
 			>
 				{ () => null }
 			</TabPanel>
-			<Outlet />
+			<Outlet context={ outletContext } />
 		</>
 	);
 }

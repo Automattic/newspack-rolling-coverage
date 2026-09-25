@@ -18,11 +18,14 @@ import type { Field, ViewState, Entry, AdminConfig } from '../types';
 import { ChipLink } from '../shared/chip-link';
 import { SlackIcon } from '../shared/icons/slack-icon';
 import { TermChips } from '../shared/term-chips';
+import { UserRow } from '../shared/user-row';
+import StatusIndicator from 'newspack-components/dist/esm/status-indicator';
 import {
 	getEmbeddedTerms,
 	getEntrySource,
 	getStatusLabel,
 	STATUS_ELEMENTS,
+	POST_STATUS_INDICATORS,
 	getRawTitle,
 	getRawAuthor,
 	getCategoryNames,
@@ -114,7 +117,12 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				if ( ! author ) {
 					return <span>—</span>;
 				}
-				return <ChipLink href={ author.link } label={ author.name } />;
+				return (
+					<UserRow
+						label={ author.name }
+						avatarUrls={ author.avatar_urls }
+					/>
+				);
 			},
 			filterBy: {
 				operators: [ 'contains' ],
@@ -169,7 +177,13 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				const archivedAt = item.archivedAt ?? 0;
 
 				if ( ! archivedAt ) {
-					return <span>{ getStatusLabel( item.status ) }</span>;
+					return (
+						<StatusIndicator
+							status={ POST_STATUS_INDICATORS[ item.status ] }
+						>
+							{ getStatusLabel( item.status ) }
+						</StatusIndicator>
+					);
 				}
 
 				// A non-publish status keeps its own label; only a published
@@ -196,7 +210,15 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 						) }
 					>
 						<span className="newspack-rolling-coverage-status-archived">
-							{ label }
+							<StatusIndicator
+								status={
+									item.status === 'publish'
+										? 'ended'
+										: POST_STATUS_INDICATORS[ item.status ]
+								}
+							>
+								{ label }
+							</StatusIndicator>
 							<Icon icon={ info } size={ 18 } />
 						</span>
 					</Tooltip>
@@ -286,7 +308,7 @@ const defaultEntryView: ViewState = {
 	page: 1,
 	sort: { field: 'date', direction: 'desc' },
 	search: '',
-	filters: [],
+	filters: [ { field: 'status', operator: 'isNot', value: 'trash' } ],
 	fields: [
 		'author',
 		'status',

@@ -1,24 +1,33 @@
 /**
  * External dependencies
  */
-import { useState, useCallback, useEffect } from '@wordpress/element';
-import { Modal, Button, ExternalLink } from '@wordpress/components';
+import {
+	useState,
+	useCallback,
+	useEffect,
+	useMemo,
+} from '@wordpress/element';
+import { ExternalLink } from '@wordpress/components';
 import { DataForm } from '@wordpress/dataviews/wp';
 import { __ } from '@wordpress/i18n';
+import { Drawer } from 'newspack-components/dist/esm/drawer';
 
 /**
  * Internal dependencies
  */
 import { saveCoverage } from '../utils/coverage-api';
 import { useAdminContext } from '../hooks/useAdminContext';
-import type { CoverageModalProps, Coverage, CoverageFormData } from '../types';
+import type {
+	CoverageDrawerProps,
+	Coverage,
+	CoverageFormData,
+} from '../types';
 
 const coverageFields = [
 	{
 		id: 'name',
 		type: 'text' as const,
 		label: __( 'Name', 'newspack-rolling-coverage' ),
-		placeholder: __( 'Enter coverage name…', 'newspack-rolling-coverage' ),
 		description: (
 			<>
 				{ __(
@@ -36,12 +45,16 @@ const coverageFields = [
 		id: 'description',
 		type: 'text' as const,
 		label: __( 'Description', 'newspack-rolling-coverage' ),
-		placeholder: __( 'Optional description…', 'newspack-rolling-coverage' ),
+		description: __(
+			'An internal note about this coverage. Readers never see it.',
+			'newspack-rolling-coverage'
+		),
 	},
 	{
 		id: 'status',
 		type: 'text' as const,
 		label: __( 'Status', 'newspack-rolling-coverage' ),
+		Edit: 'radio' as const,
 		elements: [
 			{
 				value: 'active',
@@ -72,13 +85,28 @@ const coverageFields = [
 	},
 	{
 		id: 'adsDisabled',
-		type: 'boolean' as const,
-		label: __( 'Disable ads', 'newspack-rolling-coverage' ),
+		type: 'text' as const,
+		label: __( 'Ads', 'newspack-rolling-coverage' ),
 		description: __(
 			'Disable ads for this coverage, useful for emergency or other sensitive news coverage.',
 			'newspack-rolling-coverage'
 		),
-		Edit: 'toggle' as const,
+		elements: [
+			{
+				value: 'enabled',
+				label: __( 'Enabled', 'newspack-rolling-coverage' ),
+			},
+			{
+				value: 'disabled',
+				label: __( 'Disabled', 'newspack-rolling-coverage' ),
+			},
+		],
+		getValue: ( { item }: { item: CoverageFormData } ) =>
+			item.adsDisabled ? 'disabled' : 'enabled',
+		setValue: ( { value }: { value: string } ) => ( {
+			adsDisabled: value === 'disabled',
+		} ),
+		Edit: 'toggleGroup' as const,
 	},
 ];
 
@@ -94,63 +122,67 @@ const coverageForm = {
 };
 
 /**
- * Modal form for creating or editing a coverage term, using DataForm for
- * field rendering. Detects edit vs. create mode based on whether `coverage`
- * is provided.
+ * Form values for a coverage, or the defaults for a new one.
  *
- * @param {CoverageModalProps} props Component props.
+ * @param coverage                Coverage being edited, or null when creating.
+ * @param taxMeta                 Term meta keys from the admin config.
+ * @param taxMeta.statusKey       Status meta key.
+ * @param taxMeta.canonicalUrlKey Canonical URL meta key.
+ * @param taxMeta.adsDisabledKey  Ads-disabled meta key.
  */
-function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
-	const { restBaseUrls, taxMeta } = useAdminContext();
-	const isEditing = coverage !== null;
-	const [ data, setData ] = useState( {
+function getFormData(
+	coverage: Coverage | null,
+	taxMeta: {
+		statusKey: string;
+		canonicalUrlKey: string;
+		adsDisabledKey: string;
+	}
+): CoverageFormData {
+	return {
 		name: coverage?.name || '',
 		description: coverage?.description || '',
 		status:
 			( coverage?.meta?.[
 				taxMeta.statusKey
-			] as Coverage[ 'meta' ][ 'rolling_coverage_status' ] ) || 'active',
+			] as CoverageFormData[ 'status' ] ) || 'active',
 		canonicalUrl:
 			( coverage?.meta?.[ taxMeta.canonicalUrlKey ] as string ) || '',
 		adsDisabled: Boolean( coverage?.meta?.[ taxMeta.adsDisabledKey ] ),
-	} );
+	};
+}
+
+/**
+ * Drawer form for creating or editing a coverage term, using DataForm for
+ * field rendering. Detects edit vs. create mode based on whether `coverage`
+ * is provided. Stays mounted so the drawer can play its exit animation.
+ *
+ * @param {CoverageDrawerProps} props Component props.
+ */
+function CoverageDrawer( {
+	isOpen,
+	coverage,
+	onClose,
+	onSaved,
+}: CoverageDrawerProps ) {
+	const { restBaseUrls, taxMeta } = useAdminContext();
+	const isEditing = coverage !== null;
+	const initialData = useMemo(
+		() => getFormData( coverage, taxMeta ),
+		[ coverage, taxMeta ]
+	);
+	const [ data, setData ] = useState< CoverageFormData >( initialData );
 	const [ isSaving, setIsSaving ] = useState( false );
 	const [ error, setError ] = useState< string | null >( null );
 	const isValid = data.name.trim().length > 0;
+	const isDirty =
+		JSON.stringify( data ) !== JSON.stringify( initialData );
 
 	useEffect( () => {
-		if ( coverage ) {
-			setData( {
-				name: coverage.name,
-				description: coverage.description,
-				status:
-					( coverage.meta?.[
-						taxMeta.statusKey
-					] as Coverage[ 'meta' ][ 'rolling_coverage_status' ] ) ||
-					'active',
-				canonicalUrl:
-					( coverage.meta?.[ taxMeta.canonicalUrlKey ] as string ) ||
-					'',
-				adsDisabled: Boolean(
-					coverage.meta?.[ taxMeta.adsDisabledKey ]
-				),
-			} );
-		} else {
-			setData( {
-				name: '',
-				description: '',
-				status: 'active',
-				canonicalUrl: '',
-				adsDisabled: false,
-			} );
+		if ( isOpen ) {
+			setData( initialData );
+			setError( null );
 		}
-		setError( null );
-	}, [
-		coverage,
-		taxMeta.statusKey,
-		taxMeta.canonicalUrlKey,
-		taxMeta.adsDisabledKey,
-	] );
+	}, [ isOpen, initialData ] );
 
 	const handleChange = useCallback(
 		( edits: Partial< CoverageFormData > ) => {
@@ -169,15 +201,11 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 			taxMeta.statusKey,
 			taxMeta.canonicalUrlKey,
 			taxMeta.adsDisabledKey,
-			{
-				name: data.name,
-				description: data.description,
-				status: data.status,
-				canonicalUrl: data.canonicalUrl,
-				adsDisabled: data.adsDisabled,
-			},
+			data,
 			isEditing && coverage ? coverage.id : undefined
 		);
+
+		setIsSaving( false );
 
 		if ( result.success ) {
 			onSaved();
@@ -188,50 +216,56 @@ function CoverageModal( { coverage, onClose, onSaved }: CoverageModalProps ) {
 					__( 'Failed to save coverage', 'newspack-rolling-coverage' )
 			);
 		}
-
-		setIsSaving( false );
 	};
 
+	const title = isEditing
+		? __( 'Edit Coverage', 'newspack-rolling-coverage' )
+		: __( 'Add Coverage', 'newspack-rolling-coverage' );
+
 	return (
-		<Modal
-			title={
-				isEditing
-					? __( 'Edit Coverage', 'newspack-rolling-coverage' )
-					: __( 'New Coverage', 'newspack-rolling-coverage' )
-			}
+		<Drawer.Root
+			isOpen={ isOpen }
+			isDirty={ isDirty && ! isSaving }
 			onRequestClose={ onClose }
-			size="medium"
 		>
-			<DataForm
-				data={ data }
-				fields={ coverageFields }
-				form={ coverageForm }
-				onChange={ handleChange }
-			/>
-			{ error && (
-				<div className="newspack-rolling-coverage-error">{ error }</div>
-			) }
-			<div className="newspack-rolling-coverage-modal-footer">
-				<Button
-					variant="tertiary"
-					onClick={ onClose }
+			<Drawer.Header>
+				<Drawer.Title>{ title }</Drawer.Title>
+				<Drawer.CloseIcon />
+			</Drawer.Header>
+			<Drawer.Content>
+				<DataForm
+					data={ data }
+					fields={ coverageFields }
+					form={ coverageForm }
+					onChange={ handleChange }
+				/>
+				{ error && (
+					<div className="newspack-rolling-coverage-error">
+						{ error }
+					</div>
+				) }
+			</Drawer.Content>
+			<Drawer.Footer>
+				<Drawer.Action
+					variant="secondary"
+					closes
 					disabled={ isSaving }
 				>
 					{ __( 'Cancel', 'newspack-rolling-coverage' ) }
-				</Button>
-				<Button
+				</Drawer.Action>
+				<Drawer.Action
 					variant="primary"
 					onClick={ handleSave }
 					isBusy={ isSaving }
 					disabled={ isSaving || ! isValid }
 				>
 					{ isEditing
-						? __( 'Update', 'newspack-rolling-coverage' )
-						: __( 'Create', 'newspack-rolling-coverage' ) }
-				</Button>
-			</div>
-		</Modal>
+						? __( 'Save', 'newspack-rolling-coverage' )
+						: __( 'Add', 'newspack-rolling-coverage' ) }
+				</Drawer.Action>
+			</Drawer.Footer>
+		</Drawer.Root>
 	);
 }
 
-export { CoverageModal };
+export { CoverageDrawer };

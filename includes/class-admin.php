@@ -17,6 +17,17 @@ class Admin {
 	const MENU_SLUG            = 'rolling-coverage';
 	const AI_MENU_SLUG         = 'rolling-coverage-ai';
 	const CONNECTION_MENU_SLUG = 'rolling-coverage-connection';
+	const SCREEN_BODY_CLASS    = 'newspack-rolling-coverage-admin-screen';
+
+	/**
+	 * Menu icon: the `activity` glyph from newspack-icons.
+	 */
+	const MENU_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M10.2656 4.00001C10.6062 4.0071 10.8996 4.24313 10.9795 4.57423L13.7861 16.2022L15.0254 11.5567L15.0674 11.4385C15.1876 11.1748 15.4527 11 15.75 11H19.25C19.6642 11 20 11.3358 20 11.75C20 12.1642 19.6642 12.5 19.25 12.5H16.3262L14.4746 19.4434C14.3862 19.7748 14.0842 20.004 13.7412 20C13.3981 19.9959 13.101 19.7593 13.0205 19.4258L10.1885 7.69337L8.9707 11.9561C8.87867 12.278 8.58482 12.5 8.25 12.5H4.75C4.33579 12.5 4 12.1642 4 11.75C4 11.3358 4.33579 11 4.75 11H7.68457L9.5293 4.54396L9.57324 4.42579C9.69857 4.16391 9.96776 3.99384 10.2656 4.00001Z"/></svg>';
+
+	/**
+	 * Top-level menu item this plugin's menu sits directly below.
+	 */
+	const MENU_ANCHOR = 'edit.php?post_type=newspack_nl_cpt';
 
 	/**
 	 * Hook suffixes for plugin admin pages, keyed by SPA route.
@@ -35,6 +46,10 @@ class Admin {
 	public static function init(): void {
 		add_action( 'admin_menu', array( __CLASS__, 'add_menu_page' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
+		add_filter( 'admin_body_class', array( __CLASS__, 'add_body_class' ) );
+		add_filter( 'custom_menu_order', '__return_true' );
+		// After Newspack's own wizard ordering, which runs at 11.
+		add_filter( 'menu_order', array( __CLASS__, 'menu_order' ), 12 );
 		add_filter(
 			'should_load_block_editor_scripts_and_styles',
 			array( __CLASS__, 'filter_should_load_block_editor_scripts' )
@@ -51,14 +66,14 @@ class Admin {
 			'edit_posts',
 			self::MENU_SLUG,
 			[ __CLASS__, 'render_page' ],
-			'dashicons-megaphone',
+			'data:image/svg+xml;base64,' . base64_encode( self::MENU_ICON_SVG ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 			30
 		);
 
 		add_submenu_page(
 			self::MENU_SLUG,
-			__( 'All Rolling Coverages', 'newspack-rolling-coverage' ),
-			__( 'All Rolling Coverages', 'newspack-rolling-coverage' ),
+			__( 'All Coverages', 'newspack-rolling-coverage' ),
+			__( 'All Coverages', 'newspack-rolling-coverage' ),
 			'edit_posts',
 			self::MENU_SLUG,
 			[ __CLASS__, 'render_page' ]
@@ -81,6 +96,42 @@ class Admin {
 			self::AI_MENU_SLUG,
 			[ __CLASS__, 'render_page' ]
 		);
+	}
+
+	/**
+	 * Place the menu directly below Newsletters when it is present.
+	 *
+	 * @param string[] $menu_order Ordered top-level menu slugs.
+	 * @return string[]
+	 */
+	public static function menu_order( $menu_order ) {
+		$anchor = array_search( self::MENU_ANCHOR, $menu_order, true );
+		$own    = array_search( self::MENU_SLUG, $menu_order, true );
+		if ( false === $anchor || false === $own ) {
+			return $menu_order;
+		}
+		array_splice( $menu_order, $own, 1 );
+		$anchor = array_search( self::MENU_ANCHOR, $menu_order, true );
+		array_splice( $menu_order, $anchor + 1, 0, self::MENU_SLUG );
+		return $menu_order;
+	}
+
+	/**
+	 * Flag the plugin's admin screens, and whether they run alongside
+	 * newspack-plugin, which brings the Newspack branding with it.
+	 *
+	 * @param string $classes Space-separated body classes.
+	 * @return string
+	 */
+	public static function add_body_class( $classes ) {
+		$screen = get_current_screen();
+		if ( $screen && in_array( $screen->id, self::$page_hooks, true ) ) {
+			$classes .= ' ' . self::SCREEN_BODY_CLASS;
+			if ( class_exists( '\Newspack\Newspack' ) ) {
+				$classes .= ' ' . self::SCREEN_BODY_CLASS . '--bundled';
+			}
+		}
+		return $classes;
 	}
 
 	/**

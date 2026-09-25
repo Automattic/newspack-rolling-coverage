@@ -1,14 +1,16 @@
 /**
  * External dependencies
  */
-import { useParams, useNavigate, Navigate } from 'react-router';
-import { Button, Notice } from '@wordpress/components';
-import { __ } from '@wordpress/i18n';
+import { useParams, Navigate } from 'react-router';
+import { Notice } from '@wordpress/components';
+import { useMemo } from '@wordpress/element';
+import TabbedNavigation from 'newspack-components/dist/esm/tabbed-navigation';
 
 /**
  * Internal dependencies
  */
-import type { AdminTab } from '../types';
+import { SLACK_TABS } from '../utils/slack-tabs';
+import { useHeader } from '../hooks/useHeader';
 import { useSlackSettings } from '../hooks/useSlackSettings';
 import { CredentialsTab } from './slack/settings/credentials-tab';
 import { ChannelsTab } from './slack/settings/channels-tab';
@@ -16,21 +18,7 @@ import { IngestionSettingsTab } from './slack/settings/ingestion-settings-tab';
 import { SetupGuideTab } from './slack/settings/setup-guide-tab';
 import { MonitorTab } from './slack/settings/monitor-tab';
 
-const TABS: AdminTab[] = [
-	{
-		name: 'credentials',
-		title: __( 'Credentials', 'newspack-rolling-coverage' ),
-	},
-	{
-		name: 'channels',
-		title: __( 'Channel Mappings', 'newspack-rolling-coverage' ),
-	},
-	{ name: 'settings', title: __( 'Settings', 'newspack-rolling-coverage' ) },
-	{ name: 'monitor', title: __( 'Monitor', 'newspack-rolling-coverage' ) },
-	{ name: 'setup', title: __( 'Setup Guide', 'newspack-rolling-coverage' ) },
-];
-
-const VALID_TABS = TABS.map( ( t ) => t.name );
+const VALID_TABS = SLACK_TABS.map( ( t ) => t.name );
 
 /**
  * Renders the Slack settings admin page as a nested route under
@@ -41,7 +29,20 @@ const VALID_TABS = TABS.map( ( t ) => t.name );
  */
 function SlackSettingsPage() {
 	const { tab } = useParams();
-	const navigate = useNavigate();
+
+	const tabbedNavigation = useMemo(
+		() => (
+			<TabbedNavigation
+				items={ SLACK_TABS.map( ( t ) => ( {
+					label: t.title,
+					href: `#/connection/${ t.name }`,
+					selected: t.name === tab,
+				} ) ) }
+			/>
+		),
+		[ tab ]
+	);
+	useHeader( { tabbedNavigation } );
 
 	const {
 		botToken,
@@ -132,42 +133,7 @@ function SlackSettingsPage() {
 					{ notice.message }
 				</Notice>
 			) }
-			<div
-				className="newspack-rolling-coverage-slack-settings__tabs"
-				role="tablist"
-				aria-orientation="horizontal"
-			>
-				{ TABS.map( ( t ) => {
-					const isActive = t.name === tab;
-					return (
-						<Button
-							key={ t.name }
-							id={ `newspack-rolling-coverage-tab-${ t.name }` }
-							className={ `newspack-rolling-coverage-slack-settings__tab${
-								isActive ? ' is-active' : ''
-							}` }
-							variant="tertiary"
-							role="tab"
-							aria-selected={ isActive }
-							aria-controls={ `newspack-rolling-coverage-tabpanel-${ t.name }` }
-							tabIndex={ isActive ? 0 : -1 }
-							onClick={ () =>
-								navigate( `/connection/${ t.name }` )
-							}
-						>
-							{ t.title }
-						</Button>
-					);
-				} ) }
-			</div>
-			<div
-				id={ `newspack-rolling-coverage-tabpanel-${ tab }` }
-				role="tabpanel"
-				aria-labelledby={ `newspack-rolling-coverage-tab-${ tab }` }
-				tabIndex={ 0 }
-			>
-				{ renderTabContent() }
-			</div>
+			{ renderTabContent() }
 		</div>
 	);
 }

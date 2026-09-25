@@ -10,7 +10,7 @@ import {
 	useRef,
 } from '@wordpress/element';
 import { Button } from '@wordpress/components';
-import { plus } from '@wordpress/icons';
+import { post } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
 import { useDispatch } from '@wordpress/data';
 import { store as noticesStore } from '@wordpress/notices';
@@ -21,6 +21,8 @@ import type { View } from '@wordpress/dataviews';
  */
 import { useEntries } from '../hooks/useEntries';
 import { useAdminContext } from '../hooks/useAdminContext';
+import { EmptyState } from 'newspack-components/dist/esm/empty-state';
+import { useHeader } from '../hooks/useHeader';
 import { createEntry, toEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
@@ -46,7 +48,7 @@ const GROUP_NOTICE_THRESHOLD = 5;
  * The coverage is resolved from the route's :coverageId param and the
  * selected coverage passed via <Outlet context> by AdminLayout.
  *
- * The "New Entry" button creates a draft entry via the REST API with the
+ * The "Add Entry" header action creates a draft entry via the REST API with the
  * coverage term pre-assigned, then redirects to the classic editor.
  */
 function EntryView() {
@@ -98,7 +100,10 @@ function EntryView() {
 	}, [ refresh ] );
 
 	useEffect( () => {
-		if ( ! isValidCoverageId || selectedCoverage ) {
+		if (
+			! isValidCoverageId ||
+			selectedCoverage?.id === numericCoverageId
+		) {
 			return;
 		}
 		// Prevents updating context if the component is unmounted.
@@ -285,6 +290,36 @@ function EntryView() {
 		[ config, handleQuickEdit, handleActionPerformed ]
 	);
 
+	const isEmpty =
+		rows !== null &&
+		! isResolving &&
+		totalItems === 0 &&
+		! view.search &&
+		JSON.stringify( view.filters ?? [] ) ===
+			JSON.stringify( defaultEntryView.filters );
+
+	const headerActions = useMemo(
+		() =>
+			selectedCoverage && ! disableNewEntry && ! isEmpty ? (
+				<Button
+					variant="primary"
+					onClick={ handleNewEntry }
+					isBusy={ isCreatingEntry }
+					disabled={ isCreatingEntry }
+				>
+					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
+				</Button>
+			) : null,
+		[
+			selectedCoverage,
+			disableNewEntry,
+			isEmpty,
+			handleNewEntry,
+			isCreatingEntry,
+		]
+	);
+	useHeader( { actions: headerActions, count: totalItems } );
+
 	// Render sync notices as snackbars. A sync cycle with more than
 	// GROUP_NOTICE_THRESHOLD total changes collapses into a single grouped
 	// notice. The `syncNotices` array is replaced each cycle by the hook with
@@ -339,28 +374,40 @@ function EntryView() {
 					{ createError }
 				</div>
 			) }
-			<DataViewsWrapper
-				data={ mappedData }
-				fields={ entryFields }
-				view={ view }
-				onChangeView={ handleChangeView }
-				actions={ actions }
-				paginationInfo={ paginationInfo }
-				isLoading={ isResolving }
-				header={
-					selectedCoverage && ! disableNewEntry ? (
-						<Button
-							variant="primary"
-							icon={ plus }
-							onClick={ handleNewEntry }
-							isBusy={ isCreatingEntry }
-							disabled={ isCreatingEntry }
-						>
-							{ __( 'New Entry', 'newspack-rolling-coverage' ) }
-						</Button>
-					) : undefined
-				}
-			/>
+			{ isEmpty ? (
+				<EmptyState.Root>
+					<EmptyState.Header
+						icon={ post }
+						title={ __( 'No entries yet', 'newspack-rolling-coverage' ) }
+						description={ __(
+							'Entries are the short updates readers follow in this coverage, newest first.',
+							'newspack-rolling-coverage'
+						) }
+					/>
+					{ ! disableNewEntry && (
+						<EmptyState.Actions>
+							<Button
+								variant="primary"
+								onClick={ handleNewEntry }
+								isBusy={ isCreatingEntry }
+								disabled={ isCreatingEntry }
+							>
+								{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
+							</Button>
+						</EmptyState.Actions>
+					) }
+				</EmptyState.Root>
+			) : (
+				<DataViewsWrapper
+					data={ mappedData }
+					fields={ entryFields }
+					view={ view }
+					onChangeView={ handleChangeView }
+					actions={ actions }
+					paginationInfo={ paginationInfo }
+					isLoading={ isResolving }
+				/>
+			) }
 			{ quickEditEntry && (
 				<QuickEditModal
 					entryId={ quickEditEntry.id }

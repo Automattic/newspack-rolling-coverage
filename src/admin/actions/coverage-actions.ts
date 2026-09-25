@@ -58,7 +58,6 @@ function getCoverageActions(
 		{
 			id: 'entries',
 			label: __( 'Entries', 'newspack-rolling-coverage' ),
-			isPrimary: true,
 			callback: ( items: Coverage[] ) => {
 				if ( items.length === 1 ) {
 					onNavigateToEntries( items[ 0 ] );
@@ -68,6 +67,7 @@ function getCoverageActions(
 		{
 			id: 'trash-coverage',
 			label: __( 'Trash', 'newspack-rolling-coverage' ),
+			modalHeader: __( 'Move to trash', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( coverage: Coverage ) =>
 				canManage &&
