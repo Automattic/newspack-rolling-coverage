@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-25T16:23:40+00:00\n"
+"POT-Creation-Date: 2026-09-25T18:11:28+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -534,16 +534,7 @@ msgstr ""
 #. translators: accessibility text appended to link text
 #. translators: %s: number of items in the current view.
 #: dist/admin.js:4
-msgid "Credentials"
-msgstr ""
-
-#: dist/admin.js:4
-#: dist/admin.js:217
 msgid "Channel Mappings"
-msgstr ""
-
-#: dist/admin.js:4
-msgid "Settings"
 msgstr ""
 
 #: dist/admin.js:4
@@ -551,11 +542,11 @@ msgid "Monitor"
 msgstr ""
 
 #: dist/admin.js:4
-#: dist/admin.js:217
-msgid "Setup Guide"
+msgid "Settings"
 msgstr ""
 
 #: dist/admin.js:4
+#: dist/admin.js:216
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Coverage"
 msgstr ""
@@ -652,6 +643,7 @@ msgstr ""
 
 #: dist/admin.js:209
 #: dist/admin.js:211
+#: dist/admin.js:219
 msgid "Save"
 msgstr ""
 
@@ -691,6 +683,7 @@ msgstr ""
 #: dist/admin.js:209
 #: dist/admin.js:216
 #: dist/admin.js:217
+#: dist/admin.js:219
 msgid "Disconnect"
 msgstr ""
 
@@ -699,7 +692,7 @@ msgid "Failed to load auto-publish setting."
 msgstr ""
 
 #: dist/admin.js:209
-#: dist/admin.js:217
+#: dist/admin.js:219
 msgid "Failed to update auto-publish setting."
 msgstr ""
 
@@ -708,7 +701,7 @@ msgid "Could not connect to Slack."
 msgstr ""
 
 #: dist/admin.js:209
-#: dist/admin.js:217
+#: dist/admin.js:219
 msgid "Failed to disconnect."
 msgstr ""
 
@@ -776,6 +769,10 @@ msgstr ""
 
 #: dist/admin.js:211
 msgid "Modified"
+msgstr ""
+
+#: dist/admin.js:211
+msgid "Failed to load coverages."
 msgstr ""
 
 #: dist/admin.js:211
@@ -852,6 +849,10 @@ msgstr ""
 
 #: dist/admin.js:211
 msgid "Connection"
+msgstr ""
+
+#: dist/admin.js:211
+msgid "Fetching coverages…"
 msgstr ""
 
 #: dist/admin.js:211
@@ -1124,6 +1125,10 @@ msgid "%d updates in the last 10s"
 msgstr ""
 
 #: dist/admin.js:215
+msgid "Fetching entries…"
+msgstr ""
+
+#: dist/admin.js:215
 msgid "No entries yet"
 msgstr ""
 
@@ -1178,7 +1183,6 @@ msgid "Reset to Defaults"
 msgstr ""
 
 #: dist/admin.js:216
-#: dist/admin.js:217
 msgid "Save Settings"
 msgstr ""
 
@@ -1187,18 +1191,22 @@ msgid "No chat-source adapters are configured yet."
 msgstr ""
 
 #: dist/admin.js:216
+#: dist/admin.js:218
 msgid "Bot User OAuth Token"
 msgstr ""
 
 #: dist/admin.js:216
+#: dist/admin.js:218
 msgid "Starts with xoxb-"
 msgstr ""
 
 #: dist/admin.js:216
+#: dist/admin.js:218
 msgid "Signing Secret"
 msgstr ""
 
 #: dist/admin.js:216
+#: dist/admin.js:218
 msgid "32-character hex string"
 msgstr ""
 
@@ -1213,10 +1221,30 @@ msgid "Messages starting with this prefix are ignored during ingestion."
 msgstr ""
 
 #: dist/admin.js:216
+msgid "Manifest copied to clipboard."
+msgstr ""
+
+#: dist/admin.js:216
+msgid "Could not copy the manifest."
+msgstr ""
+
+#: dist/admin.js:216
+#: dist/blocks/rolling-coverage/index.js:1
+#: dist/blocks/share/view.js:1
+msgid "Copied!"
+msgstr ""
+
+#: dist/admin.js:216
+msgid "Copy Manifest"
+msgstr ""
+
+#: dist/admin.js:216
+#: dist/admin.js:219
 msgid "Connection Status"
 msgstr ""
 
 #: dist/admin.js:216
+#: dist/admin.js:219
 msgid "Connected"
 msgstr ""
 
@@ -1237,23 +1265,15 @@ msgid "Slack bot user ID:"
 msgstr ""
 
 #: dist/admin.js:216
-msgid "Connect to Slack"
-msgstr ""
-
-#: dist/admin.js:216
-msgid "Verify & Connect"
-msgstr ""
-
-#: dist/admin.js:216
 msgid "Channel"
 msgstr ""
 
 #: dist/admin.js:216
-msgid "Connected to"
+msgid "Channel ID"
 msgstr ""
 
 #: dist/admin.js:216
-msgid "Auto-publish"
+msgid "(deleted)"
 msgstr ""
 
 #: dist/admin.js:216
@@ -1261,33 +1281,45 @@ msgid "Last Sync"
 msgstr ""
 
 #: dist/admin.js:216
-msgid "Actions"
+msgid "Never"
 msgstr ""
 
 #: dist/admin.js:216
-msgid "(deleted)"
+msgid "Auto-publish"
 msgstr ""
 
-#. translators: %s: channel name
+#: dist/admin.js:216
+msgid "On"
+msgstr ""
+
+#: dist/admin.js:216
+msgid "Off"
+msgstr ""
+
+#. translators: %s: Slack channel name.
 #: dist/admin.js:217
 #, js-format
 msgid "Auto-publish entries from %s"
 msgstr ""
 
 #: dist/admin.js:217
-msgid "Never"
+msgid "No channels linked yet"
 msgstr ""
 
 #: dist/admin.js:217
-msgid "Please connect to Slack first."
+msgid "Link a Slack channel to a coverage from the All Coverages list."
 msgstr ""
 
 #: dist/admin.js:217
-msgid "No channels are currently linked."
+msgid "Disconnect channel"
 msgstr ""
 
 #: dist/admin.js:217
-msgid "WordPress Bot User"
+msgid "Disconnect this channel from its coverage? Its messages will stop becoming entries."
+msgstr ""
+
+#: dist/admin.js:217
+msgid "Fetching channels…"
 msgstr ""
 
 #: dist/admin.js:217
@@ -1311,109 +1343,152 @@ msgid "Roles:"
 msgstr ""
 
 #: dist/admin.js:217
-msgid "This WordPress user is automatically created and assigned as the author of all entries ingested from Slack."
-msgstr ""
-
-#: dist/admin.js:217
 msgid "No WordPress bot user found."
 msgstr ""
 
 #: dist/admin.js:217
-msgid "Global Settings"
+msgid "Ingestion"
 msgstr ""
 
 #: dist/admin.js:217
-msgid "Ingestion Settings"
+msgid "Choose which Slack messages become entries."
 msgstr ""
 
 #: dist/admin.js:217
-msgid "Create a Slack app at"
+msgid "Bot User"
 msgstr ""
 
 #: dist/admin.js:217
-msgid "Paste the manifest below into the app manifest editor"
+msgid "This WordPress user is created automatically and is the author of every entry ingested from Slack."
 msgstr ""
 
 #: dist/admin.js:217
-msgid "Install the app to your workspace"
+msgid "Connect to Slack"
 msgstr ""
 
 #: dist/admin.js:217
-msgid "Copy the Bot User OAuth Token and Signing Secret"
+msgid "Turn messages in a Slack channel into rolling coverage entries."
 msgstr ""
 
 #: dist/admin.js:217
-msgid "Paste them into the Credentials tab and click Verify & Connect"
+msgid "Create a Slack app"
 msgstr ""
 
-#: dist/admin.js:217
+#. translators: <a> wraps the link to Slack's app creation page.
+#: dist/admin.js:218
+msgid "Create a new app from a manifest at <a>api.slack.com/apps</a>"
+msgstr ""
+
+#: dist/admin.js:218
+msgid "Paste the app manifest"
+msgstr ""
+
+#: dist/admin.js:218
+msgid "Copy the manifest and paste it into Slack when it asks for one."
+msgstr ""
+
+#: dist/admin.js:218
+msgid "Hide Manifest"
+msgstr ""
+
+#: dist/admin.js:218
+msgid "Show Manifest"
+msgstr ""
+
+#: dist/admin.js:218
 msgid "App Manifest"
 msgstr ""
 
-#: dist/admin.js:217
-#: dist/blocks/rolling-coverage/index.js:1
-#: dist/blocks/share/view.js:1
-msgid "Copied!"
+#: dist/admin.js:218
+msgid "Install the app"
 msgstr ""
 
-#: dist/admin.js:217
-msgid "Copy Manifest"
+#: dist/admin.js:218
+msgid "Install the new app to your Slack workspace."
 msgstr ""
 
-#: dist/admin.js:217
+#: dist/admin.js:218
+msgid "Add the app credentials"
+msgstr ""
+
+#: dist/admin.js:218
+msgid "Copy the Bot User OAuth Token from OAuth & Permissions and the Signing Secret from Basic Information, then paste them here."
+msgstr ""
+
+#: dist/admin.js:218
+msgid "Verify & Connect"
+msgstr ""
+
+#: dist/admin.js:218
 msgid "Failed to start monitor."
 msgstr ""
 
-#: dist/admin.js:217
+#: dist/admin.js:218
+msgid "Starting the monitor…"
+msgstr ""
+
+#: dist/admin.js:218
 msgid "Monitoring active"
 msgstr ""
 
-#: dist/admin.js:217
-msgid "events"
-msgstr ""
+#. translators: %d: number of monitor events.
+#: dist/admin.js:219
+#, js-format
+msgid "%d event"
+msgid_plural "%d events"
+msgstr[0] ""
+msgstr[1] ""
 
-#: dist/admin.js:217
+#: dist/admin.js:219
 msgid "No events yet. Send a Slack message or trigger a slash command to see activity here."
 msgstr ""
 
-#: dist/admin.js:217
+#: dist/admin.js:219
 msgid "Failed to load channels."
 msgstr ""
 
-#: dist/admin.js:217
+#: dist/admin.js:219
 msgid "Failed to load Slack settings."
 msgstr ""
 
-#: dist/admin.js:217
-msgid "Unlink this channel from its coverage? Ingestion from this channel will stop."
+#: dist/admin.js:219
+msgid "Channel disconnected."
 msgstr ""
 
-#: dist/admin.js:217
-msgid "Channel unlinked."
+#: dist/admin.js:219
+msgid "Failed to disconnect the channel."
 msgstr ""
 
-#: dist/admin.js:217
-msgid "Failed to unlink channel."
-msgstr ""
-
-#: dist/admin.js:217
-msgid "Connected to Slack workspace:"
-msgstr ""
-
-#: dist/admin.js:217
+#: dist/admin.js:219
 msgid "Connection failed."
 msgstr ""
 
-#: dist/admin.js:217
-msgid "Are you sure you want to disconnect Slack? All channel mappings will be removed."
-msgstr ""
-
-#: dist/admin.js:217
+#: dist/admin.js:219
 msgid "Settings saved."
 msgstr ""
 
-#: dist/admin.js:217
+#: dist/admin.js:219
 msgid "Failed to save settings."
+msgstr ""
+
+#: dist/admin.js:219
+msgid "Slack connection options"
+msgstr ""
+
+#: dist/admin.js:219
+msgid "The Slack settings could not be loaded. Reload the page to try again."
+msgstr ""
+
+#: dist/admin.js:219
+msgid "Fetching settings…"
+msgstr ""
+
+#: dist/admin.js:219
+msgid "Disconnect Slack"
+msgstr ""
+
+#: dist/admin.js:219
+msgid "Are you sure you want to disconnect Slack? All channel mappings will be removed."
 msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:1
