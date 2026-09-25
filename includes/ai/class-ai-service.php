@@ -140,17 +140,18 @@ class AI_Service {
 	/**
 	 * Whether AI key takeaways are available.
 	 *
-	 * Single source of truth. All three gates must pass:
+	 * Single source of truth. All gates must pass:
 	 *   1. The AI plugin is active, AI is supported, and its global AI toggle
 	 *      is on.
 	 *   2. Rolling Coverage is enabled (the per-feature toggle).
 	 *   3. The Rolling Coverage ability is registered.
+	 *   4. This plugin is approved for an AI connector, when the AI plugin's
+	 *      Connector Approval experiment is active.
 	 * Then, and only then, the configured provider is probed for text
 	 * generation.
 	 *
-	 * The first three gates are cheap (autoloaded option reads and a registry
-	 * lookup) and are evaluated live on every call, so toggling them takes
-	 * effect immediately. Only the provider probe is expensive (a live
+	 * The cheap gates (1-4) are evaluated live on every call, so toggling them
+	 * takes effect immediately. Only the provider probe is expensive (a live
 	 * `GET /models` per configured provider), so that — and only that — is
 	 * memoized per request and cached in a short-TTL transient.
 	 *
@@ -161,7 +162,7 @@ class AI_Service {
 			return false;
 		}
 
-		if ( ! self::ability_registered() ) {
+		if ( ! self::ability_registered() || ! self::connector_approved() ) {
 			return false;
 		}
 
@@ -214,6 +215,47 @@ class AI_Service {
 	private static function ability_registered(): bool {
 		return function_exists( 'wp_has_ability' )
 			&& wp_has_ability( Abilities::GENERATE_KEY_TAKEAWAYS );
+	}
+
+	/**
+	 * Whether this plugin is approved for the AI connector it will use.
+	 *
+	 * The AI plugin's Connector Approval experiment gates outbound AI
+	 * requests behind per-plugin, per-connector administrator approval.
+	 *
+	 * @return bool
+	 */
+	private static function connector_approved(): bool {
+		if (
+			! class_exists( '\WordPress\AI\Experiments\Connector_Approval\Connector_Approval' )
+			|| ! class_exists( '\WordPress\AI\Connector_Approval\Approvals_Store' )
+		) {
+			return true;
+		}
+
+		try {
+			$experiment = new \WordPress\AI\Experiments\Connector_Approval\Connector_Approval();
+
+			// Enforce approval only while the experiment is active.
+			if ( ! $experiment->is_enabled() ) {
+				return true;
+			}
+
+			$store    = new \WordPress\AI\Connector_Approval\Approvals_Store();
+			$basename = plugin_basename( NEWSPACK_ROLLING_COVERAGE_PLUGIN_FILE );
+			$provider = self::get_model_config()['provider'];
+
+			if ( '' !== $provider ) {
+				return $store->is_approved( $basename, $provider );
+			}
+
+			$approved = $store->get_approvals()[ $basename ] ?? [];
+
+			return is_array( $approved ) && [] !== array_filter( $approved );
+		} catch ( \Throwable $e ) {
+			// Never let a change in the AI plugin's internals break our availability check.
+			return true;
+		}
 	}
 
 	/**

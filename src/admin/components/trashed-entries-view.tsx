@@ -84,7 +84,20 @@ function TrashedEntriesView() {
 	const error =
 		hasResolved && ! records ? 'Failed to load trashed entries.' : null;
 
-	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
+	const filters = useMemo(
+		() =>
+			( view.filters ?? [] ) as Array< {
+				field: string;
+				operator: string;
+				value: string | string[];
+			} >,
+		[ view.filters ]
+	);
+
+	const entryFields = useMemo(
+		() => getEntryFields( config, filters ),
+		[ config, filters ]
+	);
 
 	const { data: filteredData, paginationInfo } = useMemo( () => {
 		return filterSortAndPaginate( records ?? [], view, entryFields );

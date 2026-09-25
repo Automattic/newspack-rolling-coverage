@@ -509,6 +509,11 @@ class Post_Type {
 						'type'              => 'string',
 						'sanitize_callback' => 'sanitize_text_field',
 					],
+					'archived'                => [
+						// '1' = only archived entries, '0' = only not-archived.
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					],
 					'category_search'         => [
 						'type'              => 'string',
 						'sanitize_callback' => 'sanitize_text_field',
@@ -959,6 +964,7 @@ class Post_Type {
 			'post_id'                 => is_string( $request->get_param( 'post_id' ) ) ? $request->get_param( 'post_id' ) : '',
 			'breakout_status'         => is_string( $request->get_param( 'breakout_status' ) ) ? $request->get_param( 'breakout_status' ) : '',
 			'breakout_status_exclude' => is_string( $request->get_param( 'breakout_status_exclude' ) ) ? $request->get_param( 'breakout_status_exclude' ) : '',
+			'archived'                => is_string( $request->get_param( 'archived' ) ) ? $request->get_param( 'archived' ) : '',
 			'category_search'         => is_string( $request->get_param( 'category_search' ) ) ? $request->get_param( 'category_search' ) : '',
 			'tag_search'              => is_string( $request->get_param( 'tag_search' ) ) ? $request->get_param( 'tag_search' ) : '',
 			'date_filter'             => is_string( $request->get_param( 'date_filter' ) ) ? $request->get_param( 'date_filter' ) : '',
@@ -1146,6 +1152,26 @@ class Post_Type {
 					];
 				}
 			}
+
+			$query_args['meta_query'] = $meta; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+		}
+
+		// Archived filter: archived entries stay published and are flagged
+		// by the presence of the archive-timestamp meta. Empty means no filter.
+		if ( '' !== $params['archived'] ) {
+			$meta = isset( $query_args['meta_query'] )
+				? $query_args['meta_query']
+				: [ 'relation' => 'AND' ];
+
+			$meta[] = '1' === $params['archived']
+				? [
+					'key'     => Archive_Mode::ENTRY_ARCHIVED_META_KEY,
+					'compare' => 'EXISTS',
+				]
+				: [
+					'key'     => Archive_Mode::ENTRY_ARCHIVED_META_KEY,
+					'compare' => 'NOT EXISTS',
+				];
 
 			$query_args['meta_query'] = $meta; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 		}

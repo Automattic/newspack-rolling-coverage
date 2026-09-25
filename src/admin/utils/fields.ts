@@ -102,40 +102,39 @@ function getBreakoutStatus( item: Entry ): string {
 }
 
 /**
- * Parses a date string into a Date object, returning null for invalid/empty
- * values. Handles both ISO 8601 (`2026-08-31T13:01:38+00:00`) and raw GMT
- * (`2026-08-31 13:01:38`) formats.
- *
- * WordPress REST API and `gmdate('c')` produce ISO 8601 with a `T` separator
- * and timezone offset. The plugin's `last_modified` term meta stores raw GMT
- * (`post_modified_gmt` column value) with a space separator and no timezone.
- * JavaScript's Date constructor parses strings without timezone info as local
- * time, so raw GMT strings must be normalized to ISO 8601 UTC before parsing.
- *
- * @param {string | null | undefined} dateStr - The date string to parse.
- * @return {Date | null} The parsed Date, or null if invalid.
+ * Machine values for the archived filter. Archived state is stored in post
+ * meta and is orthogonal to `post_status`, so it cannot be expressed through
+ * the status filter.
  */
-function parseDate( dateStr: string | null | undefined ): Date | null {
-	if ( ! dateStr ) {
-		return null;
-	}
+const ARCHIVED_VALUE = 'archived';
+const NOT_ARCHIVED_VALUE = 'not-archived';
 
-	// ISO 8601 dates from WordPress always include the 'T' separator.
-	// Raw GMT strings (Y-m-d H:i:s) use a space and have no timezone.
-	const hasTimezoneInfo = dateStr.includes( 'T' ) || dateStr.endsWith( 'Z' );
+/**
+ * Filter elements for the archived field.
+ */
+const ARCHIVED_ELEMENTS = [
+	{
+		value: ARCHIVED_VALUE,
+		label: __( 'Archived', 'newspack-rolling-coverage' ),
+	},
+	{
+		value: NOT_ARCHIVED_VALUE,
+		label: __( 'Not archived', 'newspack-rolling-coverage' ),
+	},
+];
 
-	// Normalize raw GMT strings to ISO 8601 UTC by replacing the space with 'T'
-	const iso8601 = hasTimezoneInfo
-		? dateStr
-		: dateStr.replace( ' ', 'T' ) + 'Z';
-
-	const d = new Date( iso8601 );
-	return isNaN( d.getTime() ) ? null : d;
+/**
+ * Returns whether an entry is individually archived, as a filterable value.
+ *
+ * @param {Entry} item Entry object.
+ * @return {string} 'archived' or 'not-archived'.
+ */
+function getArchivedStatus( item: Entry ): string {
+	return item.archivedAt ? ARCHIVED_VALUE : NOT_ARCHIVED_VALUE;
 }
 
 /**
- * Formats a Date as a UTC string, returning "—" when the date is null. Shared
- * by the safe-format helpers to keep the "invalid → em dash" tail in one place.
+ * Formats a Date as a UTC string, returning "—" when the date is null.
  *
  * @param {Date | null} date The date to format, or null.
  * @return {string} UTC date string or "—".
@@ -145,13 +144,23 @@ function formatUTC( date: Date | null ): string {
 }
 
 /**
- * Parses an ISO date string and returns a UTC string, or "—" if invalid.
+ * Normalizes a date string to ISO 8601 UTC for a DataViews `datetime` field.
  *
- * @param {string | null | undefined} dateStr - The date string to parse.
- * @return {string} UTC date string or "—".
+ * @param {string | null | undefined} dateStr - The raw date string.
+ * @return {string} ISO 8601 UTC string, or '' when missing/invalid.
  */
-function safeFormatUTCDate( dateStr: string | null | undefined ): string {
-	return formatUTC( parseDate( dateStr ) );
+function toISODate( dateStr: string | null | undefined ): string {
+	if ( ! dateStr ) {
+		return '';
+	}
+
+	const normalized = dateStr.includes( 'T' )
+		? dateStr
+		: dateStr.replace( ' ', 'T' ) + 'Z';
+
+	const date = new Date( normalized );
+
+	return isNaN( date.getTime() ) ? '' : date.toISOString();
 }
 
 /**
@@ -175,8 +184,8 @@ function parseSlackTimestamp( ts: string | null | undefined ): Date | null {
 }
 
 /**
- * Formats a Slack timestamp as a UTC string — the same format used by
- * safeFormatUTCDate for DataViews datetime columns — or "—" if invalid/empty.
+ * Formats a Slack timestamp as a UTC string (matching the DataViews datetime
+ * column style used elsewhere), or "—" if invalid/empty.
  *
  * @param {string | null | undefined} ts - The Slack timestamp string.
  * @return {string} UTC date string or "—".
@@ -235,6 +244,34 @@ function getSlackChannelLabel( item: Coverage ): string {
 }
 
 /**
+ * Returns the active `contains` filter value for a field, or '' when the
+ * field has no such filter. Used to keep the matching term visible when a
+ * category/tag filter is applied.
+ *
+ * @param {Array}  filters The DataViews view.filters array.
+ * @param {string} fieldId Field id to look up.
+ * @return {string} The filter substring, or ''.
+ */
+function getContainsFilterValue(
+	filters: Array< {
+		field: string;
+		operator: string;
+		value: string | string[];
+	} >,
+	fieldId: string
+): string {
+	const filter = filters.find(
+		( f ) => f.field === fieldId && f.operator === 'contains'
+	);
+
+	if ( ! filter || Array.isArray( filter.value ) ) {
+		return '';
+	}
+
+	return String( filter.value ?? '' );
+}
+
+/**
  * Applies all DataViews filters (source, status, date) client-side.
  *
  * Mirrors the built-in operator filter handlers so date, text, and
@@ -284,6 +321,8 @@ function getEntryFieldValue( item: Entry, fieldId: string ): unknown {
 			return String( item.id );
 		case 'breakout':
 			return getBreakoutStatus( item );
+		case 'archived':
+			return getArchivedStatus( item );
 		case 'categories':
 			return getCategoryNames( item );
 		case 'tags':
@@ -387,7 +426,7 @@ function getRelativeDate( value: number, unit: string ): Date {
 }
 
 export {
-	safeFormatUTCDate,
+	toISODate,
 	safeFormatSlackTimestamp,
 	getEmbeddedTerms,
 	getEntrySource,
@@ -399,7 +438,12 @@ export {
 	getCategoryNames,
 	getTagNames,
 	getBreakoutStatus,
+	getArchivedStatus,
+	ARCHIVED_ELEMENTS,
+	ARCHIVED_VALUE,
+	NOT_ARCHIVED_VALUE,
 	SOURCE_SLACK,
 	SOURCE_WORDPRESS,
 	applyEntryFilters,
+	getContainsFilterValue,
 };
