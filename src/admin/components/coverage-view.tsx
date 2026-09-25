@@ -128,7 +128,11 @@ function CoverageView() {
 			) : null,
 		[ config.capabilities.canManageTerms, isEmpty, handleOpenCreate ]
 	);
-	useHeader( { actions: headerActions, count: paginationInfo.totalItems } );
+	useHeader( {
+		actions: headerActions,
+		count: paginationInfo.totalItems,
+		isEmpty,
+	} );
 
 	const actions = useMemo(
 		() =>

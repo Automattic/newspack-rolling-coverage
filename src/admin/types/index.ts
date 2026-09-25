@@ -79,6 +79,7 @@ type ContextExports = [
 interface HeaderState {
 	actions?: ReactNode;
 	count?: number;
+	isEmpty?: boolean;
 	tabbedNavigation?: ReactNode;
 }
 

@@ -20,12 +20,14 @@ import type { BreadcrumbItem, Context, Coverage, HeaderState } from '../types';
  * @param pathname         Current router pathname.
  * @param selectedCoverage Coverage shown on a coverage route, if loaded.
  * @param count            Item count reported by the current view.
+ * @param isEmpty          Whether the view shows its empty state.
  * @return Breadcrumb items, last item being the current page.
  */
 function getBreadcrumbItems(
 	pathname: string,
 	selectedCoverage: Coverage | null,
-	count?: number
+	count?: number,
+	isEmpty?: boolean
 ): BreadcrumbItem[] {
 	const root = {
 		label: __( 'Rolling Coverage', 'newspack-rolling-coverage' ),
@@ -71,6 +73,10 @@ function getBreadcrumbItems(
 		return [ root, { label: __( 'AI', 'newspack-rolling-coverage' ) } ];
 	}
 
+	if ( isEmpty ) {
+		return [ root ];
+	}
+
 	return [ root, { label: allCoverages, count } ];
 }
 
@@ -108,7 +114,8 @@ function AdminLayout() {
 	const breadcrumbItems = getBreadcrumbItems(
 		pathname,
 		context.selectedCoverage,
-		header.count
+		header.count,
+		header.isEmpty
 	);
 	const currentLabel = breadcrumbItems[ breadcrumbItems.length - 1 ].label;
 
