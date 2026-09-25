@@ -206,7 +206,14 @@ function SlackSettingsPage() {
 				);
 			case 'settings':
 				if ( hasLoadedSettings && ! workspaceInfo ) {
-					return null;
+					return (
+						<Notice status="error" isDismissible={ false }>
+							{ __(
+								'The Slack settings could not be loaded. Reload the page to try again.',
+								'newspack-rolling-coverage'
+							) }
+						</Notice>
+					);
 				}
 				return ! hasLoadedSettings ? (
 					<LoadingState

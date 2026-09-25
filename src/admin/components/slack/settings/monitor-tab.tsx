@@ -65,9 +65,9 @@ function MonitorTab() {
 		isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < 50;
 	}, [] );
 
-	const poll = useCallback( async () => {
+	const poll = useCallback( async (): Promise< boolean > => {
 		if ( session.inFlight ) {
-			return;
+			return false;
 		}
 		session.inFlight = true;
 
@@ -98,6 +98,7 @@ function MonitorTab() {
 		} finally {
 			session.inFlight = false;
 		}
+		return true;
 	}, [ namespace ] );
 
 	// Poll for new logs. The first poll boots the monitor; the poll
@@ -113,8 +114,8 @@ function MonitorTab() {
 				return;
 			}
 			await poll()
-				.then( () => {
-					if ( cancelled ) {
+				.then( ( didPoll ) => {
+					if ( cancelled || ! didPoll ) {
 						return;
 					}
 					isFirstPollRef.current = false;
