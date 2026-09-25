@@ -74,10 +74,7 @@ function CoverageView() {
 		refreshKey,
 	} );
 	const isEmpty =
-		hasResolved &&
-		! isResolving &&
-		records?.length === 0 &&
-		! view.search;
+		hasResolved && ! isResolving && records?.length === 0 && ! view.search;
 
 	const { data: filteredData, paginationInfo } = useMemo( () => {
 		return filterSortAndPaginate( records ?? [], view, fields );
@@ -171,7 +168,10 @@ function CoverageView() {
 					/>
 					{ config.capabilities.canManageTerms && (
 						<EmptyState.Actions>
-							<Button variant="primary" onClick={ handleOpenCreate }>
+							<Button
+								variant="primary"
+								onClick={ handleOpenCreate }
+							>
 								{ __(
 									'Add Coverage',
 									'newspack-rolling-coverage'

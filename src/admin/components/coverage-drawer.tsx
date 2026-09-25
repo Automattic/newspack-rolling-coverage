@@ -1,12 +1,7 @@
 /**
  * External dependencies
  */
-import {
-	useState,
-	useCallback,
-	useEffect,
-	useMemo,
-} from '@wordpress/element';
+import { useState, useCallback, useEffect, useMemo } from '@wordpress/element';
 import { ExternalLink } from '@wordpress/components';
 import { DataForm } from '@wordpress/dataviews/wp';
 import { __ } from '@wordpress/i18n';
@@ -17,11 +12,7 @@ import { Drawer } from 'newspack-components/dist/esm/drawer';
  */
 import { saveCoverage } from '../utils/coverage-api';
 import { useAdminContext } from '../hooks/useAdminContext';
-import type {
-	CoverageDrawerProps,
-	Coverage,
-	CoverageFormData,
-} from '../types';
+import type { CoverageDrawerProps, Coverage, CoverageFormData } from '../types';
 
 const coverageFields = [
 	{
@@ -174,8 +165,7 @@ function CoverageDrawer( {
 	const [ isSaving, setIsSaving ] = useState( false );
 	const [ error, setError ] = useState< string | null >( null );
 	const isValid = data.name.trim().length > 0;
-	const isDirty =
-		JSON.stringify( data ) !== JSON.stringify( initialData );
+	const isDirty = JSON.stringify( data ) !== JSON.stringify( initialData );
 
 	useEffect( () => {
 		if ( isOpen ) {
@@ -246,11 +236,7 @@ function CoverageDrawer( {
 				) }
 			</Drawer.Content>
 			<Drawer.Footer>
-				<Drawer.Action
-					variant="secondary"
-					closes
-					disabled={ isSaving }
-				>
+				<Drawer.Action variant="secondary" closes disabled={ isSaving }>
 					{ __( 'Cancel', 'newspack-rolling-coverage' ) }
 				</Drawer.Action>
 				<Drawer.Action

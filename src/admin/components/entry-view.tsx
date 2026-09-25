@@ -378,7 +378,10 @@ function EntryView() {
 				<EmptyState.Root>
 					<EmptyState.Header
 						icon={ post }
-						title={ __( 'No entries yet', 'newspack-rolling-coverage' ) }
+						title={ __(
+							'No entries yet',
+							'newspack-rolling-coverage'
+						) }
 						description={ __(
 							'Entries are the short updates readers follow in this coverage, newest first.',
 							'newspack-rolling-coverage'
@@ -392,7 +395,10 @@ function EntryView() {
 								isBusy={ isCreatingEntry }
 								disabled={ isCreatingEntry }
 							>
-								{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
+								{ __(
+									'Add Entry',
+									'newspack-rolling-coverage'
+								) }
 							</Button>
 						</EmptyState.Actions>
 					) }

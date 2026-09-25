@@ -10,12 +10,7 @@ import Page from 'newspack-components/dist/esm/page';
  * Internal dependencies
  */
 import { SLACK_TABS } from '../utils/slack-tabs';
-import type {
-	BreadcrumbItem,
-	Context,
-	Coverage,
-	HeaderState,
-} from '../types';
+import type { BreadcrumbItem, Context, Coverage, HeaderState } from '../types';
 
 /**
  * Breadcrumb trail for the current route. The last crumb is the current
