@@ -27,7 +27,11 @@ import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
 import { getEntryActions } from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
-import { applyEntryFilters } from '../utils/fields';
+import {
+	applyEntryFilters,
+	ARCHIVED_VALUE,
+	NOT_ARCHIVED_VALUE,
+} from '../utils/fields';
 import type { ContextExports, Entry, SyncNotice } from '../types';
 import { getEntryFields, defaultEntryView } from '../fields/entries';
 
@@ -185,6 +189,14 @@ function EntryView() {
 							: 'breakoutStatus'
 					] = val;
 					break;
+				case 'archived': {
+					const wantsArchived =
+						( f.operator === 'is' && val === ARCHIVED_VALUE ) ||
+						( f.operator === 'isNot' &&
+							val === NOT_ARCHIVED_VALUE );
+					params.archived = wantsArchived ? '1' : '0';
+					break;
+				}
 				case 'categories':
 					if ( f.operator === 'contains' ) {
 						params.categorySearch = val;
@@ -237,22 +249,30 @@ function EntryView() {
 		setQuickEditEntry( null );
 	}, [] );
 
-	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
+	const filters = useMemo(
+		() =>
+			( view.filters ?? [] ) as Array< {
+				field: string;
+				operator: string;
+				value: string | string[];
+			} >,
+		[ view.filters ]
+	);
+
+	const entryFields = useMemo(
+		() => getEntryFields( config, filters ),
+		[ config, filters ]
+	);
 
 	const { data: mappedData, paginationInfo } = useMemo( () => {
 		const mapped = ( rows ?? [] ).map( toEntry );
-		const filters = ( view.filters ?? [] ) as Array< {
-			field: string;
-			operator: string;
-			value: string | string[];
-		} >;
 
 		// Server applies the same filters, so totals stay accurate.  Client filter guards against unfiltered sync deltas.
 		return {
 			data: applyEntryFilters( mapped, filters ),
 			paginationInfo: { totalItems, totalPages },
 		};
-	}, [ rows, view.filters, totalItems, totalPages ] );
+	}, [ rows, filters, totalItems, totalPages ] );
 
 	const handleNewEntry = useCallback( async () => {
 		if ( ! isValidCoverageId || numericCoverageId === null ) {

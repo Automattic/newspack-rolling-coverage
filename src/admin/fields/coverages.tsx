@@ -7,7 +7,7 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies.
  */
 import { SlackIcon } from '../shared/icons/slack-icon';
-import { safeFormatUTCDate, getSlackChannelLabel } from '../utils/fields';
+import { toISODate, getSlackChannelLabel } from '../utils/fields';
 import type { Field, ViewState, Coverage } from '../types';
 
 /**
@@ -34,6 +34,7 @@ function getCoverageFields(
 			id: 'name',
 			type: 'text',
 			label: __( 'Name', 'newspack-rolling-coverage' ),
+			enableHiding: false,
 			enableSorting: true,
 			enableGlobalSearch: true,
 			getValue: ( { item } ) => item.name,
@@ -101,8 +102,9 @@ function getCoverageFields(
 			type: 'datetime',
 			label: __( 'Created', 'newspack-rolling-coverage' ),
 			enableSorting: true,
-			getValue: ( { item } ) =>
-				safeFormatUTCDate( item.meta?.created_at ),
+			getValue: ( { item } ) => toISODate( item.meta?.created_at ),
+			render: ( { item, field } ) =>
+				field.getValueFormatted( { item, field } ) || '—',
 		},
 		{
 			id: 'last_modified',
@@ -110,9 +112,11 @@ function getCoverageFields(
 			label: __( 'Modified', 'newspack-rolling-coverage' ),
 			enableSorting: true,
 			getValue: ( { item } ) =>
-				safeFormatUTCDate(
+				toISODate(
 					item.meta?.[ lastModifiedKey ] as string | undefined
 				),
+			render: ( { item, field } ) =>
+				field.getValueFormatted( { item, field } ) || '—',
 		},
 	];
 }

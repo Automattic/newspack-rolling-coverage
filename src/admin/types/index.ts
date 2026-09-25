@@ -286,6 +286,7 @@ interface UseEntriesOptions {
 	postId?: string;
 	breakoutStatus?: string;
 	breakoutStatusExclude?: string;
+	archived?: string;
 	categorySearch?: string;
 	tagSearch?: string;
 	dateFilter?: string;
@@ -339,6 +340,8 @@ interface ChipLinkProps {
 
 interface TermChipsProps {
 	terms: Array< { link: string; name: string } >;
+	/** Active term-name filter substring; matching chips are shown first. */
+	highlightName?: string;
 }
 
 interface SlackMonitorLogEntry {

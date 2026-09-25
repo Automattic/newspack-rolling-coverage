@@ -28,6 +28,9 @@ import {
 	getCategoryNames,
 	getTagNames,
 	getBreakoutStatus,
+	getArchivedStatus,
+	ARCHIVED_ELEMENTS,
+	getContainsFilterValue,
 	SOURCE_SLACK,
 	SOURCE_WORDPRESS,
 } from '../utils/fields';
@@ -45,10 +48,22 @@ const BREAKOUT_ELEMENTS = [
 /**
  * Field definitions for the entry DataViews table.
  *
- * @param {AdminConfig} config Admin config containing edit URLs.
+ * @param {AdminConfig} config  Admin config containing edit URLs.
+ * @param {Array}       filters Active DataViews filters, used to keep a
+ *                              matching category/tag chip visible.
  * @return {Field<Entry>[]} Field definitions for the entry DataViews table.
  */
-function getEntryFields( config: AdminConfig ): Field< Entry >[] {
+function getEntryFields(
+	config: AdminConfig,
+	filters: Array< {
+		field: string;
+		operator: string;
+		value: string | string[];
+	} > = []
+): Field< Entry >[] {
+	const categoryFilter = getContainsFilterValue( filters, 'categories' );
+	const tagFilter = getContainsFilterValue( filters, 'tags' );
+
 	return [
 		{
 			id: 'id',
@@ -216,6 +231,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 						terms={ allTerms.filter(
 							( t ) => t.taxonomy === 'category'
 						) }
+						highlightName={ categoryFilter }
 					/>
 				);
 			},
@@ -236,6 +252,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 						terms={ allTerms.filter(
 							( t ) => t.taxonomy === 'post_tag'
 						) }
+						highlightName={ tagFilter }
 					/>
 				);
 			},
@@ -270,6 +287,17 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				);
 			},
 			elements: BREAKOUT_ELEMENTS,
+			filterBy: {
+				operators: [ 'is', 'isNot' ],
+			},
+		},
+		{
+			id: 'archived',
+			type: 'text',
+			label: __( 'Archived', 'newspack-rolling-coverage' ),
+			enableSorting: false,
+			getValue: ( { item } ) => getArchivedStatus( item ),
+			elements: ARCHIVED_ELEMENTS,
 			filterBy: {
 				operators: [ 'is', 'isNot' ],
 			},

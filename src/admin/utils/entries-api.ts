@@ -123,6 +123,7 @@ function toEntry( row: EntryViewRow ): Entry {
  * @param {string} [postId]                Optional post ID to match.
  * @param {string} [breakoutStatus]        Optional breakout status to include.
  * @param {string} [breakoutStatusExclude] Optional breakout status to exclude.
+ * @param {string} [archived]              Optional '1'/'0' to include only archived/not-archived entries.
  * @param {string} [categorySearch]        Optional category name substring to match.
  * @param {string} [tagSearch]             Optional tag name substring to match.
  * @param {string} [dateFilter]            Optional JSON-encoded date column filter.
@@ -146,6 +147,7 @@ function buildPageUrl(
 	postId?: string,
 	breakoutStatus?: string,
 	breakoutStatusExclude?: string,
+	archived?: string,
 	categorySearch?: string,
 	tagSearch?: string,
 	dateFilter?: string,
@@ -169,6 +171,7 @@ function buildPageUrl(
 		[ 'post_id', postId ],
 		[ 'breakout_status', breakoutStatus ],
 		[ 'breakout_status_exclude', breakoutStatusExclude ],
+		[ 'archived', archived ],
 		[ 'category_search', categorySearch ],
 		[ 'tag_search', tagSearch ],
 		[ 'date_filter', dateFilter ],

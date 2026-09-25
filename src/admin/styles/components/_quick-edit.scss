@@ -87,13 +87,12 @@
 	max-width: 480px;
 }
 
-// Higher-specificity overrides scoped to the plugin's admin page.
-.toplevel_page_rolling-coverage .components-popover__fallback-container {
-	position: relative;
+.toplevel_page_rolling-coverage .block-editor-inserter__quick-inserter-expand {
+	display: none;
+}
 
-	.block-editor-inserter__quick-inserter-expand {
-		display: none;
-	}
+body.toplevel_page_rolling-coverage.modal-open .components-popover__fallback-container {
+	position: relative;
 }
 
 .toplevel_page_rolling-coverage .block-editor-block-types-list__list-item {

@@ -5,6 +5,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Archive_Mode;
 use Newspack_Rolling_Coverage\Post_Type;
 
 /**
@@ -488,5 +489,37 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 
 		$this->assertContains( $own_trashed_id, $listed, 'A contributor should see their own trashed entry.' );
 		$this->assertNotContains( $other_trashed_id, $listed, 'A contributor should not see another user\'s trashed entry.' );
+	}
+
+	/**
+	 * The archived filter partitions entries by their archive meta, which is
+	 * orthogonal to post status: archived entries stay published.
+	 */
+	public function test_archived_filter_partitions_by_archive_flag() {
+		$archived_id     = $this->create_entry_at( '2026-01-01 10:00:00' );
+		$not_archived_id = $this->create_entry_at( '2026-01-01 11:00:00' );
+		update_post_meta( $archived_id, Archive_Mode::ENTRY_ARCHIVED_META_KEY, time() );
+
+		$this->assertSame(
+			[ $archived_id ],
+			$this->get_listed_entry_ids( [ 'archived' => '1' ] ),
+			'The archived filter should return only entries with the archive meta.'
+		);
+
+		$this->assertSame(
+			[ $not_archived_id ],
+			$this->get_listed_entry_ids( [ 'archived' => '0' ] ),
+			'The not-archived filter should return only entries without the archive meta.'
+		);
+
+		$all = $this->get_listed_entry_ids();
+		sort( $all );
+		$expected = [ $archived_id, $not_archived_id ];
+		sort( $expected );
+		$this->assertSame(
+			$expected,
+			$all,
+			'Without the filter both archived and unarchived entries are listed.'
+		);
 	}
 }
