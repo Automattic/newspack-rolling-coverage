@@ -76,7 +76,11 @@ function App() {
 								index
 								element={
 									<Navigate
-										to="/connection/credentials"
+										to={
+											config.slack.isConfigured
+												? '/connection/channels'
+												: '/connection/setup'
+										}
 										replace
 									/>
 								}

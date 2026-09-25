@@ -103,3 +103,45 @@ declare module 'newspack-icons' {
 
 	export const activity: JSX.Element;
 }
+
+declare module 'newspack-components/dist/esm/divider' {
+	import type { ComponentType, HTMLAttributes } from 'react';
+
+	const Divider: ComponentType<
+		HTMLAttributes< HTMLHRElement > & {
+			alignment?: string;
+			marginBottom?: number | string;
+			marginTop?: number | string;
+			variant?: 'default' | 'primary' | 'secondary' | 'tertiary';
+		}
+	>;
+	export default Divider;
+}
+
+declare module 'newspack-components/dist/esm/grid' {
+	import type { ComponentType, HTMLAttributes } from 'react';
+
+	const Grid: ComponentType<
+		HTMLAttributes< HTMLDivElement > & {
+			columns?: 1 | 2 | 3 | 4 | 6 | 12;
+			gutter?: 0 | 8 | 16 | 24 | 32 | 48;
+			rowGap?: 0 | 8 | 16 | 24 | 32;
+			borders?: boolean;
+			noMargin?: boolean;
+		}
+	>;
+	export default Grid;
+}
+
+declare module 'newspack-components/dist/esm/section-header' {
+	import type { ComponentType, ReactNode } from 'react';
+
+	const SectionHeader: ComponentType< {
+		title: ReactNode;
+		description?: ReactNode;
+		heading?: 1 | 2 | 3 | 4 | 5 | 6;
+		noMargin?: boolean;
+		className?: string;
+	} >;
+	export default SectionHeader;
+}

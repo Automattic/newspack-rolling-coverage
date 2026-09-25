@@ -1,0 +1,15 @@
+@use "~@wordpress/base-styles/variables" as wp-vars;
+
+.newspack-rolling-coverage-loading {
+	justify-content: center;
+	min-height: 200px;
+
+	.components-spinner {
+		margin: 0;
+	}
+
+	p {
+		font-weight: wp-vars.$font-weight-medium;
+		margin: 0;
+	}
+}

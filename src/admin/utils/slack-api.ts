@@ -201,19 +201,19 @@ async function disconnectSlack( namespace: string ): Promise< ApiResult > {
  *
  * @param {string} namespace    REST namespace string from config.restBase.slack.
  * @param {string} ignorePrefix The message ignore prefix.
- * @return {Promise<ApiResult>} Result indicating success or failure.
+ * @return {Promise<ApiResult & { ignorePrefix?: string }>} Result, with the prefix as the server stored it.
  */
 async function saveSlackSettings(
 	namespace: string,
 	ignorePrefix: string
-): Promise< ApiResult > {
+): Promise< ApiResult & { ignorePrefix?: string } > {
 	try {
-		await apiFetch( {
+		const response = await apiFetch< { ignore_prefix?: string } >( {
 			path: `${ namespace }/slack/settings`,
 			method: 'POST',
 			data: { ignore_prefix: ignorePrefix },
 		} );
-		return { success: true };
+		return { success: true, ignorePrefix: response?.ignore_prefix };
 	} catch ( error ) {
 		return { success: false, error: handleApiError( error ) };
 	}
@@ -266,8 +266,8 @@ async function unlinkSlackChannel(
 }
 
 /**
- * Fetches the merged Slack settings (workspace identity + masked bot token)
- * for the Credentials tab's connected-state display.
+ * Fetches the merged Slack settings: workspace identity, masked bot token,
+ * bot user, and ingestion settings.
  *
  * @param {string} namespace REST namespace string from config.restBase.slack.
  * @return {Promise<{ success: boolean; settings?: SlackSettingsInfo; error?: string }>} Result.

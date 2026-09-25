@@ -1,10 +1,7 @@
 /**
  * External dependencies
  */
-import {
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
-	__experimentalVStack as VStack,
-} from '@wordpress/components';
+import { Stack } from '@wordpress/ui';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -29,11 +26,8 @@ function BotUserSection( {
 } ) {
 	return (
 		<>
-			<h3 className="newspack-rolling-coverage-slack-settings__section-title">
-				{ __( 'WordPress Bot User', 'newspack-rolling-coverage' ) }
-			</h3>
 			{ botUser ? (
-				<VStack spacing={ 3 }>
+				<Stack direction="column" gap="sm">
 					<div>
 						<strong>
 							{ __( 'User ID:', 'newspack-rolling-coverage' ) }
@@ -65,13 +59,7 @@ function BotUserSection( {
 						label={ __( 'Roles:', 'newspack-rolling-coverage' ) }
 						value={ botUser.roles.join( ', ' ) }
 					/>
-					<p className="newspack-rolling-coverage-slack-settings__help-text">
-						{ __(
-							'This WordPress user is automatically created and assigned as the author of all entries ingested from Slack.',
-							'newspack-rolling-coverage'
-						) }
-					</p>
-				</VStack>
+				</Stack>
 			) : (
 				<p>
 					{ __(

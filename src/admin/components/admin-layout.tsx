@@ -64,11 +64,7 @@ function getBreadcrumbItems(
 		if ( ! tab ) {
 			return [ root, { label: slackConnection } ];
 		}
-		return [
-			root,
-			{ label: slackConnection, url: '#/connection/credentials' },
-			{ label: tab.title },
-		];
+		return [ root, { label: slackConnection }, { label: tab.title } ];
 	}
 
 	if ( pathname === '/ai' ) {

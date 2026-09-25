@@ -11,10 +11,11 @@ import { __ } from '@wordpress/i18n';
 import type { ConfirmModalContentProps } from '../types';
 
 /**
- * Reusable confirmation content for sensitive operations (trash, delete).
+ * Reusable confirmation content for sensitive operations (trash, delete,
+ * disconnect).
  *
- * Designed to be rendered inside a DataViews RenderModal, which already
- * provides the modal wrapper. Returns just the message and action buttons.
+ * Returns just the message and action buttons, so it must be rendered inside
+ * a modal: a DataViews RenderModal or a core Modal.
  *
  * @param {ConfirmModalContentProps} props Component props.
  */

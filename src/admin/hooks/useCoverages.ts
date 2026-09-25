@@ -2,7 +2,8 @@
  * External dependencies
  */
 import { useEntityRecords } from '@wordpress/core-data';
-import { useState, useEffect } from '@wordpress/element';
+import { useState, useEffect, useRef } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
 
 /** Debounce delay (ms) for search input. */
 const DEBOUNCE_MS = 500;
@@ -27,7 +28,7 @@ import { useAdminContext } from './useAdminContext';
  *
  * @param {UseCoveragesOptions} options Query options including pagination, search, and refresh.
  *
- * @return {{ records: Coverage[] | null, isResolving: boolean, hasResolved: boolean, error: string | null, totalItems: number, totalPages: number }} Coverage data and request state.
+ * @return {{ records: Coverage[] | null, isResolving: boolean, hasResolved: boolean, hasLoadedOnce: boolean, error: string | null, totalItems: number, totalPages: number }} Coverage data and request state.
  */
 function useCoverages( options: UseCoveragesOptions = {} ) {
 	const {
@@ -75,12 +76,23 @@ function useCoverages( options: UseCoveragesOptions = {} ) {
 	const { records, isResolving, hasResolved, totalItems, totalPages } =
 		useEntityRecords( 'taxonomy', config.taxonomy, query );
 
-	const error = hasResolved && ! records ? 'Failed to load coverages.' : null;
+	// hasResolved resets for every new query (search, refresh), so the first
+	// load is tracked separately to keep the table on screen after it.
+	const hasLoadedOnce = useRef( false );
+	if ( hasResolved ) {
+		hasLoadedOnce.current = true;
+	}
+
+	const error =
+		hasResolved && ! records
+			? __( 'Failed to load coverages.', 'newspack-rolling-coverage' )
+			: null;
 
 	return {
 		records: records as Coverage[] | null,
 		isResolving,
 		hasResolved,
+		hasLoadedOnce: hasLoadedOnce.current,
 		error,
 		totalItems: totalItems ?? 0,
 		totalPages: totalPages ?? 0,

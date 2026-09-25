@@ -1,5 +1,5 @@
 /**
- * Builds the Slack app manifest JSON string shown in the Setup Guide tab and
+ * Builds the Slack app manifest JSON string shown while connecting to Slack and
  * copied to the clipboard by the "Copy Manifest" button. The manifest
  * configures display information, bot user features (slash commands),
  * OAuth redirect URLs and bot scopes, and event subscription/interactivity
