@@ -374,6 +374,7 @@ function getEntryActions(
 		{
 			id: 'trash-entry',
 			label: __( 'Trash', 'newspack-rolling-coverage' ),
+			modalHeader: __( 'Move to trash', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				entry.status !== 'trash' &&

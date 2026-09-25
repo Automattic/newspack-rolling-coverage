@@ -10,9 +10,10 @@ import {
 	useRef,
 } from '@wordpress/element';
 import { Button } from '@wordpress/components';
-import { plus } from '@wordpress/icons';
+import { postContent } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
 import { useDispatch } from '@wordpress/data';
+import apiFetch from '@wordpress/api-fetch';
 import { store as noticesStore } from '@wordpress/notices';
 import type { View } from '@wordpress/dataviews';
 
@@ -21,14 +22,21 @@ import type { View } from '@wordpress/dataviews';
  */
 import { useEntries } from '../hooks/useEntries';
 import { useAdminContext } from '../hooks/useAdminContext';
-import { createEntry, toEntry } from '../utils/entries-api';
+import { EmptyState } from 'newspack-components/dist/esm/empty-state';
+import { useHeader } from '../hooks/useHeader';
+import { buildPageUrl, createEntry, toEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
 import { getEntryActions } from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
 import { applyEntryFilters } from '../utils/fields';
-import type { ContextExports, Entry, SyncNotice } from '../types';
+import type {
+	ContextExports,
+	Entry,
+	EntryPageResponse,
+	SyncNotice,
+} from '../types';
 import { getEntryFields, defaultEntryView } from '../fields/entries';
 
 /**
@@ -46,7 +54,7 @@ const GROUP_NOTICE_THRESHOLD = 5;
  * The coverage is resolved from the route's :coverageId param and the
  * selected coverage passed via <Outlet context> by AdminLayout.
  *
- * The "New Entry" button creates a draft entry via the REST API with the
+ * The "Add Entry" header action creates a draft entry via the REST API with the
  * coverage term pre-assigned, then redirects to the classic editor.
  */
 function EntryView() {
@@ -61,15 +69,17 @@ function EntryView() {
 	const isValidCoverageId =
 		numericCoverageId !== null && ! Number.isNaN( numericCoverageId );
 
+	const routeCoverage =
+		selectedCoverage?.id === numericCoverageId ? selectedCoverage : null;
 	const isArchived =
-		selectedCoverage?.meta?.[ config.taxMeta.statusKey ] === 'archived';
+		routeCoverage?.meta?.[ config.taxMeta.statusKey ] === 'archived';
 	const isTrashed =
-		selectedCoverage?.meta?.[ config.taxMeta.statusKey ] === 'trash';
+		routeCoverage?.meta?.[ config.taxMeta.statusKey ] === 'trash';
 	// Any user who can create posts may add an entry (contributors create
 	// drafts); publishing is gated per-entry by the row capabilities.
 	const canCreateEntries = config.capabilities.canEditPosts;
 	const disableNewEntry =
-		! selectedCoverage || isArchived || isTrashed || ! canCreateEntries;
+		! routeCoverage || isArchived || isTrashed || ! canCreateEntries;
 	const [ view, setView ] = useState< View >( defaultEntryView );
 
 	// Reset to page 1 when filters or search change (server paginates the filtered set).
@@ -98,7 +108,10 @@ function EntryView() {
 	}, [ refresh ] );
 
 	useEffect( () => {
-		if ( ! isValidCoverageId || selectedCoverage ) {
+		if (
+			! isValidCoverageId ||
+			selectedCoverage?.id === numericCoverageId
+		) {
 			return;
 		}
 		// Prevents updating context if the component is unmounted.
@@ -285,6 +298,79 @@ function EntryView() {
 		[ config, handleQuickEdit, handleActionPerformed ]
 	);
 
+	const hasNoLiveEntries =
+		rows !== null &&
+		! isResolving &&
+		totalItems === 0 &&
+		mappedData.length === 0 &&
+		! view.search &&
+		JSON.stringify( view.filters ?? [] ) ===
+			JSON.stringify( defaultEntryView.filters );
+
+	// The empty state replaces the table and its filters, so it must not
+	// show while trashed entries exist: that filter is their only way back.
+	const [ trashed, setTrashed ] = useState< {
+		coverageId: number;
+		count: number;
+	} | null >( null );
+
+	useEffect( () => {
+		setTrashed( null );
+		if ( ! hasNoLiveEntries || numericCoverageId === null ) {
+			return;
+		}
+		let cancelled = false;
+		apiFetch< EntryPageResponse >( {
+			url: buildPageUrl(
+				config.restBaseUrls.entriesView,
+				numericCoverageId,
+				1,
+				1,
+				'date',
+				'desc',
+				'',
+				'trash'
+			),
+			method: 'GET',
+		} )
+			.then( ( response ) => response.totalItems )
+			.catch( () => 1 )
+			.then( ( count ) => {
+				if ( ! cancelled ) {
+					setTrashed( { coverageId: numericCoverageId, count } );
+				}
+			} );
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		hasNoLiveEntries,
+		numericCoverageId,
+		refreshKey,
+		config.restBaseUrls.entriesView,
+	] );
+
+	const isEmpty =
+		hasNoLiveEntries &&
+		trashed?.coverageId === numericCoverageId &&
+		trashed.count === 0;
+
+	const headerActions = useMemo(
+		() =>
+			! disableNewEntry && ! isEmpty ? (
+				<Button
+					variant="primary"
+					onClick={ handleNewEntry }
+					isBusy={ isCreatingEntry }
+					disabled={ isCreatingEntry }
+				>
+					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
+				</Button>
+			) : null,
+		[ disableNewEntry, isEmpty, handleNewEntry, isCreatingEntry ]
+	);
+	useHeader( { actions: headerActions, count: totalItems } );
+
 	// Render sync notices as snackbars. A sync cycle with more than
 	// GROUP_NOTICE_THRESHOLD total changes collapses into a single grouped
 	// notice. The `syncNotices` array is replaced each cycle by the hook with
@@ -339,28 +425,50 @@ function EntryView() {
 					{ createError }
 				</div>
 			) }
-			<DataViewsWrapper
-				data={ mappedData }
-				fields={ entryFields }
-				view={ view }
-				onChangeView={ handleChangeView }
-				actions={ actions }
-				paginationInfo={ paginationInfo }
-				isLoading={ isResolving }
-				header={
-					selectedCoverage && ! disableNewEntry ? (
-						<Button
-							variant="primary"
-							icon={ plus }
-							onClick={ handleNewEntry }
-							isBusy={ isCreatingEntry }
-							disabled={ isCreatingEntry }
-						>
-							{ __( 'New Entry', 'newspack-rolling-coverage' ) }
-						</Button>
-					) : undefined
-				}
-			/>
+			{ isEmpty ? (
+				<EmptyState.Root>
+					<EmptyState.Header
+						icon={ postContent }
+						title={ __(
+							'No entries yet',
+							'newspack-rolling-coverage'
+						) }
+						description={ __(
+							'Entries are the short updates readers follow in this coverage, newest first.',
+							'newspack-rolling-coverage'
+						) }
+					/>
+					{ ! disableNewEntry && (
+						<EmptyState.Actions>
+							<Button
+								variant="primary"
+								onClick={ handleNewEntry }
+								isBusy={ isCreatingEntry }
+								disabled={ isCreatingEntry }
+							>
+								{ __(
+									'Add Entry',
+									'newspack-rolling-coverage'
+								) }
+							</Button>
+						</EmptyState.Actions>
+					) }
+				</EmptyState.Root>
+			) : (
+				<DataViewsWrapper
+					data={ mappedData }
+					fields={ entryFields }
+					view={ view }
+					onChangeView={ handleChangeView }
+					actions={ actions }
+					paginationInfo={ paginationInfo }
+					isLoading={
+						isResolving ||
+						( hasNoLiveEntries &&
+							trashed?.coverageId !== numericCoverageId )
+					}
+				/>
+			) }
 			{ quickEditEntry && (
 				<QuickEditModal
 					entryId={ quickEditEntry.id }

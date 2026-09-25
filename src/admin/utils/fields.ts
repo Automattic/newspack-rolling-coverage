@@ -10,7 +10,7 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import type { Entry, Coverage } from '../types';
+import type { Entry, Coverage, StatusName } from '../types';
 
 /** Machine value for entries sourced from Slack. */
 const SOURCE_SLACK = 'slack';
@@ -35,6 +35,28 @@ const POST_STATUS_LABELS: Record< string, string > = {
 function getStatusLabel( status: string ): string {
 	return POST_STATUS_LABELS[ status ] || status;
 }
+
+/**
+ * Newspack status vocabulary name for each post status.
+ */
+const POST_STATUS_INDICATORS: Record< string, StatusName > = {
+	publish: 'active',
+	draft: 'draft',
+	pending: 'pending',
+	future: 'scheduled',
+	private: 'private',
+	trash: 'trash',
+};
+
+/**
+ * Newspack status vocabulary name for each coverage status.
+ */
+const COVERAGE_STATUS_INDICATORS: Record< string, StatusName > = {
+	active: 'active',
+	paused: 'pending',
+	archived: 'ended',
+	trash: 'trash',
+};
 
 /**
  * Filter elements for the status field. Mirrors the endpoint's
@@ -394,6 +416,8 @@ export {
 	getSlackChannelLabel,
 	getStatusLabel,
 	STATUS_ELEMENTS,
+	POST_STATUS_INDICATORS,
+	COVERAGE_STATUS_INDICATORS,
 	getRawTitle,
 	getRawAuthor,
 	getCategoryNames,

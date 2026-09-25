@@ -131,12 +131,12 @@ function AIPage() {
 				<div className="newspack-rolling-coverage-error">{ error }</div>
 			) }
 			{ ! config.aiAvailable && (
-				<div className="newspack-rolling-coverage-ai-settings__notice">
+				<Notice status="warning" isDismissible={ false }>
 					{ __(
 						'AI features are not available on this site. An administrator must enable the AI plugin and configure a provider before these prompts take effect.',
 						'newspack-rolling-coverage'
 					) }
-				</div>
+				</Notice>
 			) }
 			{ hasOverLimit && aiEnabled && (
 				<Notice status="error" isDismissible={ false }>

@@ -1,7 +1,13 @@
 /**
  * External dependencies
  */
-import type { JSX, MutableRefObject, Dispatch, SetStateAction } from 'react';
+import type {
+	JSX,
+	MutableRefObject,
+	Dispatch,
+	SetStateAction,
+	ReactNode,
+} from 'react';
 
 /**
  * WordPress dependencies
@@ -10,6 +16,7 @@ import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
 
 interface AdminConfig {
 	page: string;
+	adminTitleSuffix: string;
 	availableAdapters?: Record< string, string >;
 	restBase: {
 		coverages: string;
@@ -67,7 +74,15 @@ type ContextExports = [
 	context: Context,
 	setContext: React.Dispatch< React.SetStateAction< Context > >,
 	refresh: () => void,
+	setHeader: ( header: HeaderState ) => void,
 ];
+
+interface HeaderState {
+	actions?: ReactNode;
+	count?: number;
+	isEmpty?: boolean;
+	tabbedNavigation?: ReactNode;
+}
 
 interface Coverage {
 	id: number;
@@ -136,7 +151,7 @@ interface Entry {
 		author?: Array< {
 			id: number;
 			name: string;
-			link: string;
+			avatar_urls?: Record< string, string >;
 		} >;
 		'wp:term'?: Array<
 			Array< {
@@ -226,7 +241,8 @@ interface DataViewsWrapperProps< T > {
 	defaultLayouts?: Record< string, unknown >;
 }
 
-interface CoverageModalProps {
+interface CoverageDrawerProps {
+	isOpen: boolean;
 	coverage: Coverage | null;
 	onClose: () => void;
 	onSaved: () => void;
@@ -357,8 +373,24 @@ interface AiSettings {
 	key_takeaways_prompt: string;
 }
 
-interface AdminHeaderProps {
-	selectedCoverage: Coverage | null;
+type StatusName =
+	| 'active'
+	| 'done'
+	| 'scheduled'
+	| 'draft'
+	| 'pending'
+	| 'attention'
+	| 'error'
+	| 'progress'
+	| 'cancelled'
+	| 'ended'
+	| 'private'
+	| 'trash';
+
+interface BreadcrumbItem {
+	label: string;
+	url?: string;
+	count?: number;
 }
 
 interface SlackConnectionModalProps {
@@ -528,7 +560,11 @@ interface EntryViewRow {
 	pinned: boolean;
 	archived_at: number;
 	coverage_status: 'active' | 'paused' | 'archived' | 'trash' | '';
-	author: { id: number; name: string; link: string } | null;
+	author: {
+		id: number;
+		name: string;
+		avatar_urls?: Record< string, string >;
+	} | null;
 	source: 'wordpress' | 'slack';
 	categories: Array< {
 		id: number;
@@ -608,7 +644,7 @@ export type {
 	CreateEntryResult,
 	ChannelMapping,
 	DataViewsWrapperProps,
-	CoverageModalProps,
+	CoverageDrawerProps,
 	CoverageFormData,
 	UseCoveragesOptions,
 	UseEntriesOptions,
@@ -624,7 +660,9 @@ export type {
 	BulkRestoreEntryResult,
 	BulkRestoreResult,
 	AiSettings,
-	AdminHeaderProps,
+	BreadcrumbItem,
+	HeaderState,
+	StatusName,
 	SlackConnectionModalProps,
 	SlackErrorProps,
 	ConnectedChannelViewProps,

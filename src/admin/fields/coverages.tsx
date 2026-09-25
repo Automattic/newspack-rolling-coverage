@@ -2,13 +2,30 @@
  * External dependencies.
  */
 import { __ } from '@wordpress/i18n';
+import { decodeEntities } from '@wordpress/html-entities';
 
 /**
  * Internal dependencies.
  */
+import StatusIndicator from 'newspack-components/dist/esm/status-indicator';
 import { SlackIcon } from '../shared/icons/slack-icon';
-import { safeFormatUTCDate, getSlackChannelLabel } from '../utils/fields';
+import {
+	safeFormatUTCDate,
+	getSlackChannelLabel,
+	COVERAGE_STATUS_INDICATORS,
+} from '../utils/fields';
 import type { Field, ViewState, Coverage } from '../types';
+
+const COVERAGE_STATUS_ELEMENTS = [
+	{ value: 'active', label: __( 'Active', 'newspack-rolling-coverage' ) },
+	{ value: 'paused', label: __( 'Paused', 'newspack-rolling-coverage' ) },
+	{ value: 'archived', label: __( 'Archived', 'newspack-rolling-coverage' ) },
+	{ value: 'trash', label: __( 'Trash', 'newspack-rolling-coverage' ) },
+];
+
+const COVERAGE_STATUS_LABELS: Record< string, string > = Object.fromEntries(
+	COVERAGE_STATUS_ELEMENTS.map( ( { value, label } ) => [ value, label ] )
+);
 
 /**
  * Field definitions for the coverage DataViews table.
@@ -36,10 +53,10 @@ function getCoverageFields(
 			label: __( 'Name', 'newspack-rolling-coverage' ),
 			enableSorting: true,
 			enableGlobalSearch: true,
-			getValue: ( { item } ) => item.name,
+			getValue: ( { item } ) => decodeEntities( item.name ),
 			render: ( { item } ) => (
 				<span className="newspack-rolling-coverage-coverage-name">
-					{ item.name }
+					{ decodeEntities( item.name ) }
 				</span>
 			),
 		},
@@ -56,24 +73,18 @@ function getCoverageFields(
 			label: __( 'Status', 'newspack-rolling-coverage' ),
 			getValue: ( { item } ) =>
 				String( item.meta?.[ statusKey ] ?? '' ) || 'active',
-			elements: [
-				{
-					value: 'active',
-					label: __( 'Active', 'newspack-rolling-coverage' ),
-				},
-				{
-					value: 'paused',
-					label: __( 'Paused', 'newspack-rolling-coverage' ),
-				},
-				{
-					value: 'archived',
-					label: __( 'Archived', 'newspack-rolling-coverage' ),
-				},
-				{
-					value: 'trash',
-					label: __( 'Trash', 'newspack-rolling-coverage' ),
-				},
-			],
+			elements: COVERAGE_STATUS_ELEMENTS,
+			render: ( { item } ) => {
+				const status =
+					String( item.meta?.[ statusKey ] ?? '' ) || 'active';
+				return (
+					<StatusIndicator
+						status={ COVERAGE_STATUS_INDICATORS[ status ] }
+					>
+						{ COVERAGE_STATUS_LABELS[ status ] ?? status }
+					</StatusIndicator>
+				);
+			},
 			filterBy: {
 				operators: [ 'is', 'isNot' ],
 			},
@@ -127,7 +138,7 @@ const defaultCoverageView: ViewState = {
 	page: 1,
 	sort: { field: 'name', direction: 'asc' },
 	search: '',
-	filters: [],
+	filters: [ { field: 'status', operator: 'isNot', value: 'trash' } ],
 	fields: [
 		'count',
 		'status',

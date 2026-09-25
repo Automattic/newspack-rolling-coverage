@@ -33,9 +33,6 @@ class Post_Type {
 	// REST field name for the entry's coverage term's status.
 	const COVERAGE_STATUS_REST_FIELD = 'coverageStatus';
 
-	// REST field name for the current user's per-entry edit capability (edit context).
-	const CAN_EDIT_REST_FIELD = 'canEdit';
-
 	// Option key for the ordered list of pinned entry IDs. Autoloaded array of post IDs in pin order. Isolates pinned state to this CPT, avoiding pollution of the global sticky_posts option.
 	const PINNED_OPTION_KEY = 'rolling_coverage_pinned_entries';
 
@@ -234,7 +231,6 @@ class Post_Type {
 		add_action( 'set_object_terms', [ __CLASS__, 'sync_coverage_context_meta' ], 10, 6 );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_pinned_rest_field' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_coverage_status_rest_field' ] );
-		add_action( 'rest_api_init', [ __CLASS__, 'register_can_edit_rest_field' ] );
 		add_filter( 'posts_orderby', [ __CLASS__, 'orderby_pinned_first' ], 10, 2 );
 		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'on_save_post' ], 10, 2 );
@@ -388,7 +384,7 @@ class Post_Type {
 	 * term) since the operator is IN.
 	 *
 	 * Edit context (admin) is not filtered so trashed entries remain
-	 * visible in the Trashed Entries view.
+	 * visible in the admin.
 	 *
 	 * @param array            $args    Query arguments.
 	 * @param \WP_REST_Request $request Full details about the request.
@@ -690,36 +686,6 @@ class Post_Type {
 		$status = get_term_meta( $terms[0]->term_id, Taxonomy::STATUS_META_KEY, true );
 
 		return $status ? $status : Taxonomy::STATUS_ACTIVE;
-	}
-
-	/**
-	 * Register a computed per-entry edit-capability REST field (edit context
-	 * only). It mirrors the `can_edit` flag emitted by the custom entries-view
-	 * endpoint so views that read core records (e.g. the trashed-entries view)
-	 * can gate row actions identically.
-	 */
-	public static function register_can_edit_rest_field() {
-		register_rest_field(
-			self::CPT_SLUG,
-			self::CAN_EDIT_REST_FIELD,
-			[
-				'get_callback' => [ __CLASS__, 'get_can_edit_rest_field' ],
-				'schema'       => [
-					'type'    => 'boolean',
-					'context' => [ 'edit' ],
-				],
-			]
-		);
-	}
-
-	/**
-	 * REST field callback: whether the current user may edit the entry.
-	 *
-	 * @param array $post Entry REST object data.
-	 * @return bool
-	 */
-	public static function get_can_edit_rest_field( array $post ): bool {
-		return current_user_can( 'edit_post', (int) $post['id'] );
 	}
 
 	/**
@@ -1515,9 +1481,9 @@ class Post_Type {
 			'archived_at'      => Archive_Mode::get_entry_archived_at( $post->ID ),
 			'coverage_status'  => self::get_coverage_status_rest_field( [ 'id' => $post->ID ] ),
 			'author'           => $author ? [
-				'id'   => $author->ID,
-				'name' => $author->display_name,
-				'link' => get_author_posts_url( $author->ID ),
+				'id'          => $author->ID,
+				'name'        => $author->display_name,
+				'avatar_urls' => get_option( 'show_avatars' ) ? rest_get_avatar_urls( $author ) : [],
 			] : null,
 			'source'           => (string) get_post_meta( $post->ID, self::META_ENTRY_SOURCE, true ),
 			'categories'       => self::map_terms( $post, 'category' ),

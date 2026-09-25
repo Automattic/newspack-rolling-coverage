@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import { decodeEntities } from '@wordpress/html-entities';
+
+/**
  * Internal dependencies
  */
 import { ChipLink } from './chip-link';
@@ -19,7 +24,11 @@ function TermChips( { terms }: TermChipsProps ) {
 	return (
 		<span className="newspack-rolling-coverage-term-chips">
 			{ visible.map( ( t ) => (
-				<ChipLink key={ t.link } href={ t.link } label={ t.name } />
+				<ChipLink
+					key={ t.link }
+					href={ t.link }
+					label={ decodeEntities( t.name ) }
+				/>
 			) ) }
 			{ remaining > 0 && (
 				<span className="newspack-rolling-coverage-term-chips__remaining">
