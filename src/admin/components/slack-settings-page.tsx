@@ -13,7 +13,7 @@ import {
 } from '@wordpress/components';
 import { moreVertical } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
-import { useMemo, useState } from '@wordpress/element';
+import { useCallback, useMemo, useState } from '@wordpress/element';
 import TabbedNavigation from 'newspack-components/dist/esm/tabbed-navigation';
 
 /**
@@ -86,6 +86,19 @@ function SlackSettingsPage() {
 	const [ isStatusOpen, setIsStatusOpen ] = useState( false );
 	const [ isDisconnectOpen, setIsDisconnectOpen ] = useState( false );
 
+	// The Disconnect button that opened this modal left with the drawer, so
+	// focus goes back to the menu the drawer was opened from.
+	const closeDisconnect = useCallback( () => {
+		setIsDisconnectOpen( false );
+		window.requestAnimationFrame( () =>
+			document
+				.querySelector< HTMLElement >(
+					'.newspack-rolling-coverage-connection-menu button'
+				)
+				?.focus()
+		);
+	}, [] );
+
 	const headerActions = useMemo( () => {
 		if ( ! isConfigured ) {
 			return null;
@@ -103,6 +116,7 @@ function SlackSettingsPage() {
 					</Button>
 				) }
 				<DropdownMenu
+					className="newspack-rolling-coverage-connection-menu"
 					icon={ moreVertical }
 					label={ __(
 						'Slack connection options',
@@ -191,6 +205,9 @@ function SlackSettingsPage() {
 					/>
 				);
 			case 'settings':
+				if ( hasLoadedSettings && ! workspaceInfo ) {
+					return null;
+				}
 				return ! hasLoadedSettings ? (
 					<LoadingState
 						label={ __(
@@ -243,7 +260,7 @@ function SlackSettingsPage() {
 						'Disconnect Slack',
 						'newspack-rolling-coverage'
 					) }
-					onRequestClose={ () => setIsDisconnectOpen( false ) }
+					onRequestClose={ closeDisconnect }
 				>
 					<ConfirmModal
 						message={ __(
@@ -256,7 +273,7 @@ function SlackSettingsPage() {
 						) }
 						isDestructive
 						onConfirm={ handleDisconnect }
-						onClose={ () => setIsDisconnectOpen( false ) }
+						onClose={ closeDisconnect }
 					/>
 				</Modal>
 			) }

@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useState } from '@wordpress/element';
+import { createInterpolateElement, useState } from '@wordpress/element';
 import { Button, ExternalLink, TextControl } from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
 import { __ } from '@wordpress/i18n';
@@ -60,13 +60,20 @@ function ConnectSlack( {
 							) }
 						</h3>
 						<p className="newspack-rolling-coverage-slack-setup__description">
-							{ __(
-								'Create a new app from a manifest at',
-								'newspack-rolling-coverage'
-							) }{ ' ' }
-							<ExternalLink href="https://api.slack.com/apps?new_app=1">
-								api.slack.com/apps
-							</ExternalLink>
+							{ createInterpolateElement(
+								/* translators: <a> wraps the link to Slack's app creation page. */
+								__(
+									'Create a new app from a manifest at <a>api.slack.com/apps</a>',
+									'newspack-rolling-coverage'
+								),
+								{
+									a: (
+										<ExternalLink href="https://api.slack.com/apps?new_app=1">
+											{ null }
+										</ExternalLink>
+									),
+								}
+							) }
 						</p>
 					</Stack>
 				</Stack>

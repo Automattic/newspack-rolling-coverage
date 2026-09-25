@@ -58,7 +58,9 @@ function ChannelsTab( {
 	// empty state's heading when the last channel went.
 	const handleUnlink = useCallback(
 		async ( channelId: string ) => {
-			await onUnlink( channelId );
+			if ( ! ( await onUnlink( channelId ) ) ) {
+				return;
+			}
 			window.requestAnimationFrame( () => {
 				const target =
 					containerRef.current?.querySelector< HTMLElement >(
@@ -152,7 +154,7 @@ function ChannelsTab( {
 				>
 					<ConfirmModal
 						message={ __(
-							'Unlink this channel from its coverage? Ingestion from this channel will stop.',
+							'Disconnect this channel from its coverage? Its messages will stop becoming entries.',
 							'newspack-rolling-coverage'
 						) }
 						confirmLabel={ __(
@@ -160,9 +162,11 @@ function ChannelsTab( {
 							'newspack-rolling-coverage'
 						) }
 						isDestructive
-						onConfirm={ () =>
-							handleUnlink( channelToDisconnect.channel_id )
-						}
+						onConfirm={ async () => {
+							await handleUnlink(
+								channelToDisconnect.channel_id
+							);
+						} }
 						onClose={ () => setChannelToDisconnect( null ) }
 					/>
 				</Modal>

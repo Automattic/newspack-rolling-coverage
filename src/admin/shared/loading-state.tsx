@@ -2,13 +2,8 @@
  * WordPress dependencies
  */
 import { speak } from '@wordpress/a11y';
-import {
-	Spinner,
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
-	__experimentalText as Text,
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
-	__experimentalVStack as VStack,
-} from '@wordpress/components';
+import { Spinner } from '@wordpress/components';
+import { Stack } from '@wordpress/ui';
 import { useEffect } from '@wordpress/element';
 
 /**
@@ -26,14 +21,15 @@ function LoadingState( { label }: { label: string } ) {
 	}, [ label ] );
 
 	return (
-		<VStack
+		<Stack
 			className="newspack-rolling-coverage-loading"
-			alignment="center"
-			spacing={ 3 }
+			direction="column"
+			align="center"
+			gap="md"
 		>
 			<Spinner />
-			<Text as="p">{ label }</Text>
-		</VStack>
+			<p>{ label }</p>
+		</Stack>
 	);
 }
 

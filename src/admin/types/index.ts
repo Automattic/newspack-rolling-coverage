@@ -486,7 +486,7 @@ interface IngestionSettingsTabProps {
 interface ChannelsTabProps {
 	channels: ChannelMapping[];
 	hasLoadedChannels: boolean;
-	onUnlink: ( channelId: string ) => Promise< void >;
+	onUnlink: ( channelId: string ) => Promise< boolean >;
 	onAutopublishChange: (
 		channelId: string,
 		autopublish: boolean

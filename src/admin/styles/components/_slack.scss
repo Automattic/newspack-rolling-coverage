@@ -48,6 +48,8 @@
 		border-radius: 50%;
 		background: var(--wpds-color-stroke-surface-success-strong, #008030);
 		animation: nrc-pulse 1.5s ease-in-out infinite;
+
+		@include wp-mixins.reduce-motion("animation");
 	}
 
 	&__count {

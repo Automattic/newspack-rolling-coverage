@@ -3,6 +3,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
+import { speak } from '@wordpress/a11y';
 
 /**
  * Internal dependencies
@@ -23,9 +24,10 @@ const MAX_LOGS = 1000;
  */
 const session: {
 	hasStarted: boolean;
+	inFlight: boolean;
 	logs: SlackMonitorLogEntry[];
 	offset: number;
-} = { hasStarted: false, logs: [], offset: 0 };
+} = { hasStarted: false, inFlight: false, logs: [], offset: 0 };
 
 /**
  * Real-time Slack event monitor tab.
@@ -44,10 +46,8 @@ function MonitorTab() {
 	);
 	const [ isStarting, setIsStarting ] = useState( ! session.hasStarted );
 	const [ startError, setStartError ] = useState< string | null >( null );
-	const offsetRef = useRef( session.offset );
 	const containerRef = useRef< HTMLDivElement | null >( null );
 	const isAtBottomRef = useRef( true );
-	const inFlightRef = useRef( false );
 	const isFirstPollRef = useRef( ! session.hasStarted );
 	const cancelledRef = useRef( false );
 
@@ -66,15 +66,15 @@ function MonitorTab() {
 	}, [] );
 
 	const poll = useCallback( async () => {
-		if ( inFlightRef.current ) {
+		if ( session.inFlight ) {
 			return;
 		}
-		inFlightRef.current = true;
+		session.inFlight = true;
 
 		try {
 			const result = await getSlackMonitorLogs(
 				namespace,
-				offsetRef.current
+				session.offset
 			);
 
 			if ( ! result.success || ! result.lines ) {
@@ -90,18 +90,13 @@ function MonitorTab() {
 					next.length > MAX_LOGS ? next.slice( -MAX_LOGS ) : next;
 			}
 			if ( result.offset !== undefined ) {
-				offsetRef.current = result.offset;
 				session.offset = result.offset;
 			}
 			if ( ! cancelledRef.current ) {
 				setLogs( session.logs );
 			}
-		} catch {
-			throw new Error(
-				__( 'Failed to start monitor.', 'newspack-rolling-coverage' )
-			);
 		} finally {
-			inFlightRef.current = false;
+			session.inFlight = false;
 		}
 	}, [ namespace ] );
 
@@ -130,6 +125,13 @@ function MonitorTab() {
 				.catch( () => {
 					if ( ! cancelled && isFirstPollRef.current ) {
 						isFirstPollRef.current = false;
+						speak(
+							__(
+								'Failed to start monitor.',
+								'newspack-rolling-coverage'
+							),
+							'assertive'
+						);
 						setStartError(
 							__(
 								'Failed to start monitor.',

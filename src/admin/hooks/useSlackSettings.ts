@@ -158,7 +158,7 @@ function useSlackSettings() {
 	}, [] );
 
 	const handleUnlinkChannel = useCallback(
-		async ( channelId: string ) => {
+		async ( channelId: string ): Promise< boolean > => {
 			setNotice( null );
 
 			const result = await unlinkSlackChannel( namespace, channelId );
@@ -168,21 +168,22 @@ function useSlackSettings() {
 				setNotice( {
 					type: 'success',
 					message: __(
-						'Channel unlinked.',
+						'Channel disconnected.',
 						'newspack-rolling-coverage'
 					),
 				} );
-			} else {
-				setNotice( {
-					type: 'error',
-					message:
-						result.error ||
-						__(
-							'Failed to unlink channel.',
-							'newspack-rolling-coverage'
-						),
-				} );
+				return true;
 			}
+			setNotice( {
+				type: 'error',
+				message:
+					result.error ||
+					__(
+						'Failed to disconnect the channel.',
+						'newspack-rolling-coverage'
+					),
+			} );
+			return false;
 		},
 		[ namespace, refreshChannels ]
 	);

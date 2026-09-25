@@ -87,6 +87,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 		// Reset the sync cursor so a poll for the new coverage never reuses
 		// the previous coverage's cursor.
 		cursorRef.current = null;
+		hasAttemptedRef.current = false;
 	}, [ coverageId ] );
 
 	useEffect( () => {

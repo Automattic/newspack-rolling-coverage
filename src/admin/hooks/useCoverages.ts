@@ -3,6 +3,7 @@
  */
 import { useEntityRecords } from '@wordpress/core-data';
 import { useState, useEffect, useRef } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
 
 /** Debounce delay (ms) for search input. */
 const DEBOUNCE_MS = 500;
@@ -82,7 +83,10 @@ function useCoverages( options: UseCoveragesOptions = {} ) {
 		hasLoadedOnce.current = true;
 	}
 
-	const error = hasResolved && ! records ? 'Failed to load coverages.' : null;
+	const error =
+		hasResolved && ! records
+			? __( 'Failed to load coverages.', 'newspack-rolling-coverage' )
+			: null;
 
 	return {
 		records: records as Coverage[] | null,
