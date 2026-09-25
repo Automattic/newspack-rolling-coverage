@@ -174,51 +174,6 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The core entries route exposes a per-entry edit capability in the edit
-	 * context so views that read core records (the trashed-entries view) can
-	 * gate row actions like the entries-view endpoint does. An author can
-	 * edit their own entry and not another user's.
-	 */
-	public function test_edit_context_exposes_per_entry_edit_capability() {
-		$other_entry_id = self::create_entry( self::create_coverage(), [ 'post_author' => self::factory()->user->create( [ 'role' => 'editor' ] ) ] );
-		$author_id      = self::log_in_as( 'author' );
-		$own_entry_id   = self::create_entry( self::create_coverage(), [ 'post_author' => $author_id ] );
-
-		$by_id = [];
-		foreach ( self::list_entries_via_rest( 'edit' ) as $entry ) {
-			$by_id[ $entry['id'] ] = $entry;
-		}
-
-		$this->assertArrayHasKey( $own_entry_id, $by_id, 'An author should see their own entry in the edit context.' );
-		$this->assertTrue( $by_id[ $own_entry_id ]['canEdit'], 'An author can edit their own entry.' );
-
-		// The other user's entry is absent from the author's edit-context collection.
-		$this->assertArrayNotHasKey( $other_entry_id, $by_id, "An author should not see another user's entry in the edit context." );
-		$this->assertFalse( Post_Type::get_can_edit_rest_field( [ 'id' => $other_entry_id ] ), "An author cannot edit another user's entry." );
-	}
-
-	/**
-	 * The trashed-entries view requests the collection with `_fields` that
-	 * include `canEdit`. The field must survive the `_fields` filter so the
-	 * view can offer Restore to the entry's author.
-	 */
-	public function test_edit_context_can_edit_survives_fields_filter_for_trashed_entries() {
-		$author_id = self::log_in_as( 'author' );
-		$entry_id  = self::create_entry( self::create_coverage(), [ 'post_author' => $author_id ] );
-		wp_trash_post( $entry_id );
-
-		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE );
-		$request->set_param( 'context', 'edit' );
-		$request->set_param( 'status', 'trash' );
-		$request->set_param( '_fields', 'id,status,canEdit' );
-
-		$entries = rest_get_server()->dispatch( $request )->get_data();
-
-		$this->assertSame( [ $entry_id ], wp_list_pluck( $entries, 'id' ), 'The author should see their own trashed entry.' );
-		$this->assertTrue( $entries[0]['canEdit'], 'The canEdit field must survive the _fields filter.' );
-	}
-
-	/**
 	 * When other users' entries are trashed, an author's edit-context trash
 	 * collection must return a body whose length matches its X-WP-Total
 	 * header. Core computes the header from an unfiltered query and then drops

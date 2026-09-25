@@ -22,7 +22,7 @@ class Admin {
 	/**
 	 * Menu icon: the `activity` glyph from newspack-icons.
 	 */
-	const MENU_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M10.2656 4.00001C10.6062 4.0071 10.8996 4.24313 10.9795 4.57423L13.7861 16.2022L15.0254 11.5567L15.0674 11.4385C15.1876 11.1748 15.4527 11 15.75 11H19.25C19.6642 11 20 11.3358 20 11.75C20 12.1642 19.6642 12.5 19.25 12.5H16.3262L14.4746 19.4434C14.3862 19.7748 14.0842 20.004 13.7412 20C13.3981 19.9959 13.101 19.7593 13.0205 19.4258L10.1885 7.69337L8.9707 11.9561C8.87867 12.278 8.58482 12.5 8.25 12.5H4.75C4.33579 12.5 4 12.1642 4 11.75C4 11.3358 4.33579 11 4.75 11H7.68457L9.5293 4.54396L9.57324 4.42579C9.69857 4.16391 9.96776 3.99384 10.2656 4.00001Z"/></svg>';
+	const MENU_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#a7aaad" aria-hidden="true" focusable="false"><path d="M10.2656 4.00001C10.6062 4.0071 10.8996 4.24313 10.9795 4.57423L13.7861 16.2022L15.0254 11.5567L15.0674 11.4385C15.1876 11.1748 15.4527 11 15.75 11H19.25C19.6642 11 20 11.3358 20 11.75C20 12.1642 19.6642 12.5 19.25 12.5H16.3262L14.4746 19.4434C14.3862 19.7748 14.0842 20.004 13.7412 20C13.3981 19.9959 13.101 19.7593 13.0205 19.4258L10.1885 7.69337L8.9707 11.9561C8.87867 12.278 8.58482 12.5 8.25 12.5H4.75C4.33579 12.5 4 12.1642 4 11.75C4 11.3358 4.33579 11 4.75 11H7.68457L9.5293 4.54396L9.57324 4.42579C9.69857 4.16391 9.96776 3.99384 10.2656 4.00001Z"/></svg>';
 
 	/**
 	 * Top-level menu item this plugin's menu sits directly below.
@@ -104,7 +104,7 @@ class Admin {
 	 * @param string[] $menu_order Ordered top-level menu slugs.
 	 * @return string[]
 	 */
-	public static function menu_order( $menu_order ) {
+	public static function menu_order( $menu_order ): array {
 		$anchor = array_search( self::MENU_ANCHOR, $menu_order, true );
 		$own    = array_search( self::MENU_SLUG, $menu_order, true );
 		if ( false === $anchor || false === $own ) {
@@ -123,7 +123,7 @@ class Admin {
 	 * @param string $classes Space-separated body classes.
 	 * @return string
 	 */
-	public static function add_body_class( $classes ) {
+	public static function add_body_class( string $classes ): string {
 		$screen = get_current_screen();
 		if ( $screen && in_array( $screen->id, self::$page_hooks, true ) ) {
 			$classes .= ' ' . self::SCREEN_BODY_CLASS;

@@ -78,7 +78,11 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				if ( item.pinned ) {
 					return (
 						<span className="newspack-rolling-coverage-entry-title newspack-rolling-coverage-entry-title--pinned">
-							<Icon icon={ pin } size={ 14 } />
+							<Icon
+								className="newspack-rolling-coverage-entry-title__icon"
+								icon={ pin }
+								size={ 24 }
+							/>
 							{ title }
 						</span>
 					);

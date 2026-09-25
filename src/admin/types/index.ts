@@ -149,7 +149,6 @@ interface Entry {
 		author?: Array< {
 			id: number;
 			name: string;
-			link: string;
 			avatar_urls?: Record< string, string >;
 		} >;
 		'wp:term'?: Array<
@@ -562,7 +561,6 @@ interface EntryViewRow {
 	author: {
 		id: number;
 		name: string;
-		link: string;
 		avatar_urls?: Record< string, string >;
 	} | null;
 	source: 'wordpress' | 'slack';

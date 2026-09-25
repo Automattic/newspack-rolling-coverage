@@ -10,9 +10,10 @@ import {
 	useRef,
 } from '@wordpress/element';
 import { Button } from '@wordpress/components';
-import { post } from '@wordpress/icons';
+import { postContent } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
 import { useDispatch } from '@wordpress/data';
+import apiFetch from '@wordpress/api-fetch';
 import { store as noticesStore } from '@wordpress/notices';
 import type { View } from '@wordpress/dataviews';
 
@@ -23,14 +24,19 @@ import { useEntries } from '../hooks/useEntries';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { EmptyState } from 'newspack-components/dist/esm/empty-state';
 import { useHeader } from '../hooks/useHeader';
-import { createEntry, toEntry } from '../utils/entries-api';
+import { buildPageUrl, createEntry, toEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
 import { getEntryActions } from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
 import { applyEntryFilters } from '../utils/fields';
-import type { ContextExports, Entry, SyncNotice } from '../types';
+import type {
+	ContextExports,
+	Entry,
+	EntryPageResponse,
+	SyncNotice,
+} from '../types';
 import { getEntryFields, defaultEntryView } from '../fields/entries';
 
 /**
@@ -63,15 +69,17 @@ function EntryView() {
 	const isValidCoverageId =
 		numericCoverageId !== null && ! Number.isNaN( numericCoverageId );
 
+	const routeCoverage =
+		selectedCoverage?.id === numericCoverageId ? selectedCoverage : null;
 	const isArchived =
-		selectedCoverage?.meta?.[ config.taxMeta.statusKey ] === 'archived';
+		routeCoverage?.meta?.[ config.taxMeta.statusKey ] === 'archived';
 	const isTrashed =
-		selectedCoverage?.meta?.[ config.taxMeta.statusKey ] === 'trash';
+		routeCoverage?.meta?.[ config.taxMeta.statusKey ] === 'trash';
 	// Any user who can create posts may add an entry (contributors create
 	// drafts); publishing is gated per-entry by the row capabilities.
 	const canCreateEntries = config.capabilities.canEditPosts;
 	const disableNewEntry =
-		! selectedCoverage || isArchived || isTrashed || ! canCreateEntries;
+		! routeCoverage || isArchived || isTrashed || ! canCreateEntries;
 	const [ view, setView ] = useState< View >( defaultEntryView );
 
 	// Reset to page 1 when filters or search change (server paginates the filtered set).
@@ -290,7 +298,7 @@ function EntryView() {
 		[ config, handleQuickEdit, handleActionPerformed ]
 	);
 
-	const isEmpty =
+	const hasNoLiveEntries =
 		rows !== null &&
 		! isResolving &&
 		totalItems === 0 &&
@@ -298,9 +306,57 @@ function EntryView() {
 		JSON.stringify( view.filters ?? [] ) ===
 			JSON.stringify( defaultEntryView.filters );
 
+	// The empty state replaces the table and its filters, so it must not
+	// show while trashed entries exist: that filter is their only way back.
+	const [ trashed, setTrashed ] = useState< {
+		coverageId: number;
+		count: number;
+	} | null >( null );
+
+	useEffect( () => {
+		if ( ! hasNoLiveEntries || numericCoverageId === null ) {
+			return;
+		}
+		let cancelled = false;
+		setTrashed( null );
+		apiFetch< EntryPageResponse >( {
+			url: buildPageUrl(
+				config.restBaseUrls.entriesView,
+				numericCoverageId,
+				1,
+				1,
+				'date',
+				'desc',
+				'',
+				'trash'
+			),
+			method: 'GET',
+		} )
+			.then( ( response ) => response.totalItems )
+			.catch( () => 1 )
+			.then( ( count ) => {
+				if ( ! cancelled ) {
+					setTrashed( { coverageId: numericCoverageId, count } );
+				}
+			} );
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		hasNoLiveEntries,
+		numericCoverageId,
+		refreshKey,
+		config.restBaseUrls.entriesView,
+	] );
+
+	const isEmpty =
+		hasNoLiveEntries &&
+		trashed?.coverageId === numericCoverageId &&
+		trashed.count === 0;
+
 	const headerActions = useMemo(
 		() =>
-			selectedCoverage && ! disableNewEntry && ! isEmpty ? (
+			! disableNewEntry && ! isEmpty ? (
 				<Button
 					variant="primary"
 					onClick={ handleNewEntry }
@@ -310,13 +366,7 @@ function EntryView() {
 					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
 				</Button>
 			) : null,
-		[
-			selectedCoverage,
-			disableNewEntry,
-			isEmpty,
-			handleNewEntry,
-			isCreatingEntry,
-		]
+		[ disableNewEntry, isEmpty, handleNewEntry, isCreatingEntry ]
 	);
 	useHeader( { actions: headerActions, count: totalItems } );
 
@@ -377,7 +427,7 @@ function EntryView() {
 			{ isEmpty ? (
 				<EmptyState.Root>
 					<EmptyState.Header
-						icon={ post }
+						icon={ postContent }
 						title={ __(
 							'No entries yet',
 							'newspack-rolling-coverage'

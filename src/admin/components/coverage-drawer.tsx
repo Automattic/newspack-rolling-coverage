@@ -1,7 +1,12 @@
 /**
  * External dependencies
  */
-import { useState, useCallback, useEffect, useMemo } from '@wordpress/element';
+import {
+	useState,
+	useCallback,
+	useLayoutEffect,
+	useMemo,
+} from '@wordpress/element';
 import { ExternalLink } from '@wordpress/components';
 import { DataForm } from '@wordpress/dataviews/wp';
 import { __ } from '@wordpress/i18n';
@@ -167,7 +172,7 @@ function CoverageDrawer( {
 	const isValid = data.name.trim().length > 0;
 	const isDirty = JSON.stringify( data ) !== JSON.stringify( initialData );
 
-	useEffect( () => {
+	useLayoutEffect( () => {
 		if ( isOpen ) {
 			setData( initialData );
 			setError( null );

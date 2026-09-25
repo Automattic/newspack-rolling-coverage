@@ -4,6 +4,7 @@
 import { Outlet, useLocation } from 'react-router';
 import { useState, useCallback } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
+import { decodeEntities } from '@wordpress/html-entities';
 import Page from 'newspack-components/dist/esm/page';
 
 /**
@@ -39,7 +40,12 @@ function getBreadcrumbItems(
 		return [
 			root,
 			allCoveragesLink,
-			{ label: coverage?.name ?? '', count },
+			{
+				label: coverage
+					? decodeEntities( coverage.name )
+					: __( 'Coverage', 'newspack-rolling-coverage' ),
+				count,
+			},
 		];
 	}
 
