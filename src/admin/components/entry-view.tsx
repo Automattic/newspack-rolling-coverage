@@ -302,6 +302,7 @@ function EntryView() {
 		rows !== null &&
 		! isResolving &&
 		totalItems === 0 &&
+		mappedData.length === 0 &&
 		! view.search &&
 		JSON.stringify( view.filters ?? [] ) ===
 			JSON.stringify( defaultEntryView.filters );
@@ -314,11 +315,11 @@ function EntryView() {
 	} | null >( null );
 
 	useEffect( () => {
+		setTrashed( null );
 		if ( ! hasNoLiveEntries || numericCoverageId === null ) {
 			return;
 		}
 		let cancelled = false;
-		setTrashed( null );
 		apiFetch< EntryPageResponse >( {
 			url: buildPageUrl(
 				config.restBaseUrls.entriesView,
@@ -461,7 +462,11 @@ function EntryView() {
 					onChangeView={ handleChangeView }
 					actions={ actions }
 					paginationInfo={ paginationInfo }
-					isLoading={ isResolving }
+					isLoading={
+						isResolving ||
+						( hasNoLiveEntries &&
+							trashed?.coverageId !== numericCoverageId )
+					}
 				/>
 			) }
 			{ quickEditEntry && (

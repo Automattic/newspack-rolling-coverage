@@ -43,8 +43,7 @@
 	.newspack-rolling-coverage-entry-title__icon {
 		fill: currentcolor;
 		flex-shrink: 0;
-		margin-block: calc((#{wp-vars.$grid-unit-20} + #{wp-vars.$grid-unit-05} - #{wp-vars.$icon-size}) / 2);
-		margin-inline: calc((#{wp-vars.$grid-unit-20} - #{wp-vars.$icon-size}) / 2);
+		margin: calc((#{wp-vars.$grid-unit-20} - #{wp-vars.$icon-size}) / 2);
 	}
 }
 

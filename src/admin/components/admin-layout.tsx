@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { Outlet, useLocation } from 'react-router';
-import { useState, useCallback } from '@wordpress/element';
+import { useState, useCallback, useEffect } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { decodeEntities } from '@wordpress/html-entities';
 import Page from 'newspack-components/dist/esm/page';
@@ -75,6 +75,15 @@ function getBreadcrumbItems(
 }
 
 /**
+ * WordPress's admin title suffix (" ‹ Site — WordPress"), read once so the
+ * page label in front of it can follow the route.
+ */
+const ADMIN_TITLE_SUFFIX = ( () => {
+	const separator = document.title.indexOf( ' ‹ ' );
+	return separator === -1 ? '' : document.title.slice( separator );
+} )();
+
+/**
  * Layout route that renders the admin header and the matched child view
  * via <Outlet />. Holds the shared refreshKey in context so that any
  * mutation (trash, restore, delete) instantly refreshes all DataViews,
@@ -96,14 +105,21 @@ function AdminLayout() {
 		} ) );
 	}, [] );
 
+	const breadcrumbItems = getBreadcrumbItems(
+		pathname,
+		context.selectedCoverage,
+		header.count
+	);
+	const currentLabel = breadcrumbItems[ breadcrumbItems.length - 1 ].label;
+
+	useEffect( () => {
+		document.title = currentLabel + ADMIN_TITLE_SUFFIX;
+	}, [ currentLabel ] );
+
 	return (
 		<Page
 			className="newspack-rolling-coverage-admin"
-			breadcrumbItems={ getBreadcrumbItems(
-				pathname,
-				context.selectedCoverage,
-				header.count
-			) }
+			breadcrumbItems={ breadcrumbItems }
 			actions={ header.actions }
 			tabbedNavigation={ header.tabbedNavigation }
 		>
