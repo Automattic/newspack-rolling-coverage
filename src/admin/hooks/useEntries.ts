@@ -77,6 +77,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 
 	const cursorRef = useRef< string | null >( null );
 	const rowsRef = useRef< EntryViewRow[] | null >( null );
+	const hasAttemptedRef = useRef( false );
 	const coverageIdRef = useRef< number | null >( coverageId );
 	const pageRef = useRef< number >( page );
 	const isMountedRef = useRef( true );
@@ -104,6 +105,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 		if ( coverageId === null ) {
 			setRows( null );
 			rowsRef.current = null;
+			hasAttemptedRef.current = false;
 			setIsResolving( false );
 			setHasResolved( false );
 			setError( null );
@@ -117,13 +119,14 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 		let cancelled = false;
 
 		// Debounce so rapid filter/search changes don't fire per keystroke.
-		// The first load has nothing to debounce.
-		const delay = rowsRef.current === null ? 0 : DEBOUNCE_MS;
+		// The first request for a coverage has nothing to debounce.
+		const delay = hasAttemptedRef.current ? DEBOUNCE_MS : 0;
 		const timer = setTimeout( () => {
 			if ( cancelled || ! isMountedRef.current ) {
 				return;
 			}
 
+			hasAttemptedRef.current = true;
 			setIsResolving( true );
 			setError( null );
 

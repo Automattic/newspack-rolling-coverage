@@ -87,7 +87,10 @@ function ConnectionStatusDrawer( {
 				</Stack>
 			</Drawer.Content>
 			<Drawer.Footer>
-				<CopyManifestButton manifestJson={ manifestJson } />
+				<CopyManifestButton
+					manifestJson={ manifestJson }
+					feedback="inline"
+				/>
 				<Button
 					variant="primary"
 					isDestructive

@@ -45,6 +45,7 @@ function useSlackSettings() {
 	const [ signingSecret, setSigningSecret ] = useState( '' );
 	const [ ignorePrefix, setIgnorePrefix ] = useState( '~~' );
 	const [ savedIgnorePrefix, setSavedIgnorePrefix ] = useState( '~~' );
+	const [ hasLoadedSettings, setHasLoadedSettings ] = useState( false );
 	const [ channels, setChannels ] = useState< ChannelMapping[] >( [] );
 	const [ hasLoadedChannels, setHasLoadedChannels ] = useState( false );
 	const [ isVerifying, setIsVerifying ] = useState( false );
@@ -116,8 +117,8 @@ function useSlackSettings() {
 		};
 	}, [ slack.isConfigured, namespace ] );
 
-	// Fetch the workspace identity + masked token once connected, so the
-	// Credentials tab can render the connection-status details.
+	// Fetch the workspace identity, bot user, and saved ingestion settings once
+	// connected, for the Connection Status drawer and the Settings tab.
 	useEffect( () => {
 		if ( ! slack.isConfigured ) {
 			return;
@@ -129,6 +130,7 @@ function useSlackSettings() {
 			if ( cancelled ) {
 				return;
 			}
+			setHasLoadedSettings( true );
 			if ( ! result.success || ! result.settings ) {
 				setNotice( {
 					type: 'error',
@@ -196,13 +198,6 @@ function useSlackSettings() {
 		);
 
 		if ( result.success ) {
-			setNotice( {
-				type: 'success',
-				message: `${ __(
-					'Connected to Slack workspace:',
-					'newspack-rolling-coverage'
-				) } ${ result.team || '' }`,
-			} );
 			window.location.reload();
 		} else {
 			setNotice( {
@@ -237,7 +232,9 @@ function useSlackSettings() {
 		const result = await saveSlackSettings( namespace, ignorePrefix );
 
 		if ( result.success ) {
-			setSavedIgnorePrefix( ignorePrefix );
+			const stored = result.ignorePrefix ?? ignorePrefix;
+			setIgnorePrefix( stored );
+			setSavedIgnorePrefix( stored );
 			setNotice( {
 				type: 'success',
 				message: __( 'Settings saved.', 'newspack-rolling-coverage' ),
@@ -300,6 +297,7 @@ function useSlackSettings() {
 		isSettingsDirty: ignorePrefix !== savedIgnorePrefix,
 		channels,
 		hasLoadedChannels,
+		hasLoadedSettings,
 		isVerifying,
 		isSavingSettings,
 		workspaceInfo,

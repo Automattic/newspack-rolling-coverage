@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useCallback, useMemo, useState } from '@wordpress/element';
+import { useCallback, useMemo, useRef, useState } from '@wordpress/element';
 import { Modal } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 import type { View } from '@wordpress/dataviews';
@@ -36,16 +36,44 @@ function ChannelsTab( {
 	onAutopublishChange,
 }: ChannelsTabProps ) {
 	const [ view, setView ] = useState< View >( defaultChannelView );
-	const [ updatingChannelId, setUpdatingChannelId ] = useState<
-		string | null
-	>( null );
+	const [ updatingChannelIds, setUpdatingChannelIds ] = useState<
+		Set< string >
+	>( () => new Set() );
 	const handleAutopublishChange = useCallback(
 		async ( channelId: string, autopublish: boolean ) => {
-			setUpdatingChannelId( channelId );
+			setUpdatingChannelIds( ( ids ) => new Set( ids ).add( channelId ) );
 			await onAutopublishChange( channelId, autopublish );
-			setUpdatingChannelId( null );
+			setUpdatingChannelIds( ( ids ) => {
+				const next = new Set( ids );
+				next.delete( channelId );
+				return next;
+			} );
 		},
 		[ onAutopublishChange ]
+	);
+	const containerRef = useRef< HTMLDivElement | null >( null );
+
+	// The unlinked row's Disconnect button is gone once the list refreshes, so
+	// focus has nowhere to return to; send it to the search field, or to the
+	// empty state's heading when the last channel went.
+	const handleUnlink = useCallback(
+		async ( channelId: string ) => {
+			await onUnlink( channelId );
+			window.requestAnimationFrame( () => {
+				const target =
+					containerRef.current?.querySelector< HTMLElement >(
+						'input[type="search"]'
+					) ??
+					containerRef.current?.querySelector< HTMLElement >(
+						'.newspack-empty-state__title'
+					);
+				if ( target && ! target.matches( 'input' ) ) {
+					target.setAttribute( 'tabindex', '-1' );
+				}
+				target?.focus();
+			} );
+		},
+		[ onUnlink ]
 	);
 	const handleChangeView = useCallback(
 		( next: View ) =>
@@ -61,10 +89,10 @@ function ChannelsTab( {
 		() =>
 			getChannelFields(
 				handleAutopublishChange,
-				updatingChannelId,
+				updatingChannelIds,
 				setChannelToDisconnect
 			),
-		[ handleAutopublishChange, updatingChannelId ]
+		[ handleAutopublishChange, updatingChannelIds ]
 	);
 
 	const rows = useMemo< ChannelRow[] >(
@@ -87,35 +115,33 @@ function ChannelsTab( {
 		);
 	}
 
-	if ( channels.length === 0 ) {
-		return (
-			<EmptyState.Root className="newspack-rolling-coverage-slack-empty-state">
-				<EmptyState.Header
-					icon={ <SlackIcon size={ 36 } /> }
-					title={ __(
-						'No channels linked yet',
-						'newspack-rolling-coverage'
-					) }
-					description={ __(
-						'Link a Slack channel to a coverage from the All Coverages list.',
-						'newspack-rolling-coverage'
-					) }
-				/>
-			</EmptyState.Root>
-		);
-	}
-
 	return (
-		<>
-			<DataViewsWrapper
-				data={ data }
-				fields={ fields }
-				view={ view }
-				onChangeView={ handleChangeView }
-				actions={ [] }
-				paginationInfo={ paginationInfo }
-				isLoading={ false }
-			/>
+		<div ref={ containerRef }>
+			{ channels.length === 0 ? (
+				<EmptyState.Root className="newspack-rolling-coverage-slack-empty-state">
+					<EmptyState.Header
+						icon={ <SlackIcon size={ 36 } /> }
+						title={ __(
+							'No channels linked yet',
+							'newspack-rolling-coverage'
+						) }
+						description={ __(
+							'Link a Slack channel to a coverage from the All Coverages list.',
+							'newspack-rolling-coverage'
+						) }
+					/>
+				</EmptyState.Root>
+			) : (
+				<DataViewsWrapper
+					data={ data }
+					fields={ fields }
+					view={ view }
+					onChangeView={ handleChangeView }
+					actions={ [] }
+					paginationInfo={ paginationInfo }
+					isLoading={ false }
+				/>
+			) }
 			{ channelToDisconnect && (
 				<Modal
 					title={ __(
@@ -135,13 +161,13 @@ function ChannelsTab( {
 						) }
 						isDestructive
 						onConfirm={ () =>
-							onUnlink( channelToDisconnect.channel_id )
+							handleUnlink( channelToDisconnect.channel_id )
 						}
 						onClose={ () => setChannelToDisconnect( null ) }
 					/>
 				</Modal>
 			) }
-		</>
+		</div>
 	);
 }
 

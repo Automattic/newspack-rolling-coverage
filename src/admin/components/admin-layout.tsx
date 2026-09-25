@@ -126,7 +126,6 @@ function AdminLayout() {
 			className="newspack-rolling-coverage-admin"
 			breadcrumbItems={ breadcrumbItems }
 			actions={ header.actions }
-			badges={ header.badges }
 			tabbedNavigation={ header.tabbedNavigation }
 		>
 			<div className="newspack-rolling-coverage-admin__content">

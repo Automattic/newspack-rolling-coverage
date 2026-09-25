@@ -2,7 +2,7 @@
  * WordPress dependencies
  */
 import { useState, useEffect, useRef, useCallback } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -49,6 +49,7 @@ function MonitorTab() {
 	const isAtBottomRef = useRef( true );
 	const inFlightRef = useRef( false );
 	const isFirstPollRef = useRef( ! session.hasStarted );
+	const cancelledRef = useRef( false );
 
 	const scrollToBottom = useCallback( () => {
 		if ( containerRef.current && isAtBottomRef.current ) {
@@ -80,18 +81,20 @@ function MonitorTab() {
 				throw new Error( result.error );
 			}
 
+			// The cache is written here rather than inside a state updater, so
+			// a poll that lands after the tab unmounts still keeps its lines in
+			// step with the offset it advances.
 			if ( result.lines.length > 0 ) {
-				setLogs( ( prev ) => {
-					const next = [ ...prev, ...result.lines! ];
-					session.logs =
-						next.length > MAX_LOGS ? next.slice( -MAX_LOGS ) : next;
-					return session.logs;
-				} );
+				const next = [ ...session.logs, ...result.lines ];
+				session.logs =
+					next.length > MAX_LOGS ? next.slice( -MAX_LOGS ) : next;
 			}
-
 			if ( result.offset !== undefined ) {
 				offsetRef.current = result.offset;
 				session.offset = result.offset;
+			}
+			if ( ! cancelledRef.current ) {
+				setLogs( session.logs );
 			}
 		} catch {
 			throw new Error(
@@ -104,10 +107,11 @@ function MonitorTab() {
 
 	// Poll for new logs. The first poll boots the monitor; the poll
 	// cadence itself keeps it alive on the server. Only a failed
-	// first poll surfaces an error — later failures just retry on
-	// the next tick.
+	// first poll surfaces an error, and the next successful poll
+	// clears it.
 	useEffect( () => {
 		let cancelled = false;
+		cancelledRef.current = false;
 
 		const runPoll = async () => {
 			if ( cancelled ) {
@@ -115,11 +119,13 @@ function MonitorTab() {
 			}
 			await poll()
 				.then( () => {
-					if ( ! cancelled && isFirstPollRef.current ) {
-						isFirstPollRef.current = false;
-						session.hasStarted = true;
-						setIsStarting( false );
+					if ( cancelled ) {
+						return;
 					}
+					isFirstPollRef.current = false;
+					session.hasStarted = true;
+					setStartError( null );
+					setIsStarting( false );
 				} )
 				.catch( () => {
 					if ( ! cancelled && isFirstPollRef.current ) {
@@ -140,6 +146,7 @@ function MonitorTab() {
 
 		return () => {
 			cancelled = true;
+			cancelledRef.current = true;
 			clearInterval( interval );
 		};
 	}, [ poll ] );
@@ -177,8 +184,16 @@ function MonitorTab() {
 					{ __( 'Monitoring active', 'newspack-rolling-coverage' ) }
 				</span>
 				<span className="newspack-rolling-coverage-slack-monitor__count">
-					{ logs.length }{ ' ' }
-					{ __( 'events', 'newspack-rolling-coverage' ) }
+					{ sprintf(
+						/* translators: %d: number of monitor events. */
+						_n(
+							'%d event',
+							'%d events',
+							logs.length,
+							'newspack-rolling-coverage'
+						),
+						logs.length
+					) }
 				</span>
 			</div>
 			<div

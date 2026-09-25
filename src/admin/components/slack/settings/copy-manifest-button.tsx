@@ -3,7 +3,9 @@
  */
 import { useState, useRef, useEffect } from '@wordpress/element';
 import { Button } from '@wordpress/components';
+import { speak } from '@wordpress/a11y';
 import { useDispatch } from '@wordpress/data';
+import { check } from '@wordpress/icons';
 import { store as noticesStore } from '@wordpress/notices';
 import { __ } from '@wordpress/i18n';
 
@@ -12,6 +14,9 @@ const MIN_BUSY_MS = 900;
 
 /** Shared notice id, so repeated copies replace the snackbar instead of stacking. */
 const COPY_NOTICE_ID = 'newspack-rolling-coverage-copy-manifest';
+
+/** How long the inline "Copied!" label stays up. */
+const COPIED_LABEL_MS = 2000;
 
 /**
  * Copies text through a temporary textarea, for browsers or contexts where the
@@ -41,14 +46,24 @@ function legacyCopy( text: string, trigger: HTMLElement | null ): boolean {
 }
 
 /**
- * Copies the Slack app manifest to the clipboard and confirms the result
- * with a snackbar.
+ * Copies the Slack app manifest to the clipboard and confirms the result.
  *
- * @param {Object} props              - Component props.
- * @param {string} props.manifestJson - The Slack app manifest JSON string to copy.
+ * Snackbars are hidden while a modal is open, so inside a drawer the button
+ * confirms on its own label instead.
+ *
+ * @param {Object}                props              - Component props.
+ * @param {string}                props.manifestJson - The Slack app manifest JSON string to copy.
+ * @param {'snackbar' | 'inline'} props.feedback     - How to confirm the copy.
  */
-function CopyManifestButton( { manifestJson }: { manifestJson: string } ) {
+function CopyManifestButton( {
+	manifestJson,
+	feedback = 'snackbar',
+}: {
+	manifestJson: string;
+	feedback?: 'snackbar' | 'inline';
+} ) {
 	const [ isBusy, setIsBusy ] = useState( false );
+	const [ isCopied, setIsCopied ] = useState( false );
 	const buttonRef = useRef< HTMLButtonElement | null >( null );
 	const busyTimer = useRef< ReturnType< typeof setTimeout > | null >( null );
 	const { createSuccessNotice, createErrorNotice, removeNotice } =
@@ -67,6 +82,10 @@ function CopyManifestButton( { manifestJson }: { manifestJson: string } ) {
 		if ( isBusy ) {
 			return;
 		}
+		if ( busyTimer.current ) {
+			clearTimeout( busyTimer.current );
+		}
+		setIsCopied( false );
 		setIsBusy( true );
 		const startedAt = Date.now();
 
@@ -81,6 +100,30 @@ function CopyManifestButton( { manifestJson }: { manifestJson: string } ) {
 		busyTimer.current = setTimeout(
 			() => {
 				setIsBusy( false );
+				if ( feedback === 'inline' ) {
+					if ( copied ) {
+						setIsCopied( true );
+						speak(
+							__(
+								'Manifest copied to clipboard.',
+								'newspack-rolling-coverage'
+							)
+						);
+						busyTimer.current = setTimeout(
+							() => setIsCopied( false ),
+							COPIED_LABEL_MS
+						);
+					} else {
+						speak(
+							__(
+								'Could not copy the manifest.',
+								'newspack-rolling-coverage'
+							),
+							'assertive'
+						);
+					}
+					return;
+				}
 				removeNotice( COPY_NOTICE_ID );
 				if ( copied ) {
 					createSuccessNotice(
@@ -111,8 +154,11 @@ function CopyManifestButton( { manifestJson }: { manifestJson: string } ) {
 			onClick={ handleCopy }
 			isBusy={ isBusy }
 			aria-disabled={ isBusy }
+			icon={ isCopied ? check : undefined }
 		>
-			{ __( 'Copy Manifest', 'newspack-rolling-coverage' ) }
+			{ isCopied
+				? __( 'Copied!', 'newspack-rolling-coverage' )
+				: __( 'Copy Manifest', 'newspack-rolling-coverage' ) }
 		</Button>
 	);
 }

@@ -21,7 +21,6 @@ import TabbedNavigation from 'newspack-components/dist/esm/tabbed-navigation';
  */
 import { SLACK_TABS } from '../utils/slack-tabs';
 import { useHeader } from '../hooks/useHeader';
-import { useAdminContext } from '../hooks/useAdminContext';
 import { useSlackSettings } from '../hooks/useSlackSettings';
 import { ConnectionStatusDrawer } from './slack/settings/connection-status-drawer';
 import { ConfirmModal } from './confirm-modal';
@@ -29,6 +28,7 @@ import { ChannelsTab } from './slack/settings/channels-tab';
 import { IngestionSettingsTab } from './slack/settings/ingestion-settings-tab';
 import { ConnectSlack } from './slack/settings/connect-slack';
 import { MonitorTab } from './slack/settings/monitor-tab';
+import { LoadingState } from '../shared/loading-state';
 
 const VALID_TABS = SLACK_TABS.map( ( t ) => t.name );
 
@@ -36,15 +36,14 @@ const VALID_TABS = SLACK_TABS.map( ( t ) => t.name );
 const SETUP_TAB = 'setup';
 
 /**
- * Renders the Slack settings admin page as a nested route under
- * /connection/{tab}. The active tab is driven by the :tab URL parameter,
- * making each tab directly bookmarkable and back/forward navigable. A
- * custom tab bar replaces TabPanel so tab state is always in sync with the
- * URL. All state and business logic lives in the useSlackSettings hook.
+ * Renders the Slack connection page under /connection/{tab}. A site that
+ * isn't connected gets the untabbed setup page at /connection/setup; a
+ * connected one gets the tabs, driven by the :tab URL parameter so each is
+ * bookmarkable. Connection status and Disconnect open from the header menu.
+ * Slack data and handlers come from the useSlackSettings hook.
  */
 function SlackSettingsPage() {
 	const { tab } = useParams();
-	const { isConfigured: isSlackConfigured } = useAdminContext().slack;
 	const {
 		botToken,
 		setBotToken,
@@ -55,6 +54,7 @@ function SlackSettingsPage() {
 		isSettingsDirty,
 		channels,
 		hasLoadedChannels,
+		hasLoadedSettings,
 		isVerifying,
 		isSavingSettings,
 		workspaceInfo,
@@ -72,7 +72,7 @@ function SlackSettingsPage() {
 
 	const tabbedNavigation = useMemo(
 		() =>
-			isSlackConfigured ? (
+			isConfigured ? (
 				<TabbedNavigation
 					items={ SLACK_TABS.map( ( t ) => ( {
 						label: t.title,
@@ -81,13 +81,13 @@ function SlackSettingsPage() {
 					} ) ) }
 				/>
 			) : null,
-		[ isSlackConfigured, tab ]
+		[ isConfigured, tab ]
 	);
 	const [ isStatusOpen, setIsStatusOpen ] = useState( false );
 	const [ isDisconnectOpen, setIsDisconnectOpen ] = useState( false );
 
 	const headerActions = useMemo( () => {
-		if ( ! isSlackConfigured ) {
+		if ( ! isConfigured ) {
 			return null;
 		}
 		return (
@@ -139,7 +139,7 @@ function SlackSettingsPage() {
 			</>
 		);
 	}, [
-		isSlackConfigured,
+		isConfigured,
 		tab,
 		handleSaveSettings,
 		isSavingSettings,
@@ -191,7 +191,14 @@ function SlackSettingsPage() {
 					/>
 				);
 			case 'settings':
-				return (
+				return ! hasLoadedSettings ? (
+					<LoadingState
+						label={ __(
+							'Fetching settings…',
+							'newspack-rolling-coverage'
+						) }
+					/>
+				) : (
 					<IngestionSettingsTab
 						ignorePrefix={ ignorePrefix }
 						setIgnorePrefix={ setIgnorePrefix }
