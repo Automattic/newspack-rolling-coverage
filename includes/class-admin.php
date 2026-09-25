@@ -211,6 +211,12 @@ class Admin {
 			[ 'in_footer' => true ]
 		);
 
+		wp_set_script_translations(
+			'newspack-rolling-coverage-admin',
+			'newspack-rolling-coverage',
+			NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'languages'
+		);
+
 		wp_enqueue_style(
 			'newspack-rolling-coverage-admin',
 			NEWSPACK_ROLLING_COVERAGE_URL . 'dist/admin.css',
