@@ -76,6 +76,7 @@
 		"@wordpress/i18n": "^6.28.0",
 		"@wordpress/icons": "^16.0.0",
 		"@wordpress/notices": "^5.55.0",
+		"@wordpress/ui": "^0.22.0",
 		"newspack-scripts": "^5.11.0",
 		"react-router": "^7.18.0"
 	},

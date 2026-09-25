@@ -50,3 +50,8 @@
 .newspack-rolling-coverage-admin .dataviews-view-table col.dataviews-view-table__col-first-data {
 	width: auto !important;
 }
+
+.newspack-rolling-coverage-admin .dataviews-view-table tr td:first-child:not(.dataviews-view-table__checkbox-column),
+.newspack-rolling-coverage-admin .dataviews-view-table thead th:first-child:not(.dataviews-view-table__checkbox-column) {
+	padding-left: wp-vars.$grid-unit-60;
+}

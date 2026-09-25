@@ -3,7 +3,6 @@
  */
 import { useState, useEffect, useRef, useCallback } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import { Spinner } from '@wordpress/components';
 
 /**
  * Internal dependencies
@@ -11,10 +10,22 @@ import { Spinner } from '@wordpress/components';
 import { useAdminContext } from '../../../hooks/useAdminContext';
 import { getSlackMonitorLogs } from '../../../utils/slack-api';
 import { LogEntry } from './log-entry';
+import { LoadingState } from '../../../shared/loading-state';
 import type { SlackMonitorLogEntry } from '../../../types';
 
 const POLL_INTERVAL = 5000;
 const MAX_LOGS = 1000;
+
+/**
+ * The log and read position survive the tab unmounting, so returning to
+ * Monitor shows what was already fetched and resumes from there. The server
+ * resets a stale position itself once it cleans up an idle log.
+ */
+const session: {
+	hasStarted: boolean;
+	logs: SlackMonitorLogEntry[];
+	offset: number;
+} = { hasStarted: false, logs: [], offset: 0 };
 
 /**
  * Real-time Slack event monitor tab.
@@ -28,14 +39,16 @@ function MonitorTab() {
 	const config = useAdminContext();
 	const namespace = config.restBase.slack;
 
-	const [ logs, setLogs ] = useState< SlackMonitorLogEntry[] >( [] );
-	const [ isStarting, setIsStarting ] = useState( true );
+	const [ logs, setLogs ] = useState< SlackMonitorLogEntry[] >(
+		session.logs
+	);
+	const [ isStarting, setIsStarting ] = useState( ! session.hasStarted );
 	const [ startError, setStartError ] = useState< string | null >( null );
-	const offsetRef = useRef( 0 );
+	const offsetRef = useRef( session.offset );
 	const containerRef = useRef< HTMLDivElement | null >( null );
 	const isAtBottomRef = useRef( true );
 	const inFlightRef = useRef( false );
-	const isFirstPollRef = useRef( true );
+	const isFirstPollRef = useRef( ! session.hasStarted );
 
 	const scrollToBottom = useCallback( () => {
 		if ( containerRef.current && isAtBottomRef.current ) {
@@ -70,14 +83,15 @@ function MonitorTab() {
 			if ( result.lines.length > 0 ) {
 				setLogs( ( prev ) => {
 					const next = [ ...prev, ...result.lines! ];
-					return next.length > MAX_LOGS
-						? next.slice( -MAX_LOGS )
-						: next;
+					session.logs =
+						next.length > MAX_LOGS ? next.slice( -MAX_LOGS ) : next;
+					return session.logs;
 				} );
 			}
 
 			if ( result.offset !== undefined ) {
 				offsetRef.current = result.offset;
+				session.offset = result.offset;
 			}
 		} catch {
 			throw new Error(
@@ -103,6 +117,7 @@ function MonitorTab() {
 				.then( () => {
 					if ( ! cancelled && isFirstPollRef.current ) {
 						isFirstPollRef.current = false;
+						session.hasStarted = true;
 						setIsStarting( false );
 					}
 				} )
@@ -134,7 +149,14 @@ function MonitorTab() {
 	}, [ logs, scrollToBottom ] );
 
 	if ( isStarting ) {
-		return <Spinner />;
+		return (
+			<LoadingState
+				label={ __(
+					'Starting the monitor…',
+					'newspack-rolling-coverage'
+				) }
+			/>
+		);
 	}
 
 	if ( startError ) {

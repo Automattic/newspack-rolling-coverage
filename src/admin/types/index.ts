@@ -79,6 +79,7 @@ type ContextExports = [
 
 interface HeaderState {
 	actions?: ReactNode;
+	badges?: ReactNode;
 	count?: number;
 	isEmpty?: boolean;
 	tabbedNavigation?: ReactNode;
@@ -184,6 +185,8 @@ interface ChannelMapping {
 	autopublish: boolean;
 	last_sync_ts: string;
 }
+
+type ChannelRow = ChannelMapping & { id: string };
 
 interface ApiResult {
 	success: boolean;
@@ -436,14 +439,6 @@ interface ConnectionModalFooterProps {
 	onDisconnect: () => void;
 }
 
-interface ChannelsTableProps {
-	channels: ChannelMapping[];
-	disconnectingChannelId: string | null;
-	updatingAutopublishChannelId: string | null;
-	onUnlink: ( channelId: string ) => void;
-	onAutopublishChange: ( channelId: string, autopublish: boolean ) => void;
-}
-
 interface SlackBotUserInfo {
 	id: number;
 	login: string;
@@ -464,40 +459,39 @@ interface SlackSettingsInfo {
 	bot_user?: SlackBotUserInfo;
 }
 
-interface CredentialsTabProps {
-	isConfigured: boolean;
+interface ConnectionStatusDrawerProps {
+	isOpen: boolean;
+	onClose: () => void;
+	workspaceInfo: SlackSettingsInfo | null;
+	manifestJson: string;
+	onDisconnect: () => void;
+}
+
+interface ConnectSlackProps {
+	manifestJson: string;
 	botToken: string;
 	setBotToken: ( v: string ) => void;
 	signingSecret: string;
 	setSigningSecret: ( v: string ) => void;
 	isVerifying: boolean;
-	isDisconnecting: boolean;
-	workspaceInfo: SlackSettingsInfo | null;
 	onVerify: () => void;
-	onDisconnect: () => void;
 }
 
 interface IngestionSettingsTabProps {
-	isConfigured: boolean;
 	ignorePrefix: string;
 	setIgnorePrefix: ( v: string ) => void;
-	isSavingSettings: boolean;
-	onSaveSettings: () => void;
 	workspaceInfo: SlackSettingsInfo | null;
 	editUserUrl: string;
 }
 
 interface ChannelsTabProps {
-	isConfigured: boolean;
 	channels: ChannelMapping[];
-	disconnectingChannelId: string | null;
-	updatingAutopublishChannelId: string | null;
-	onUnlink: ( channelId: string ) => void;
-	onAutopublishChange: ( channelId: string, autopublish: boolean ) => void;
-}
-
-interface SetupGuideTabProps {
-	manifestJson: string;
+	hasLoadedChannels: boolean;
+	onUnlink: ( channelId: string ) => Promise< void >;
+	onAutopublishChange: (
+		channelId: string,
+		autopublish: boolean
+	) => Promise< void >;
 }
 
 interface IncomingMessage {
@@ -668,10 +662,10 @@ export type {
 	ConnectedChannelViewProps,
 	ConnectChannelFormProps,
 	ConnectionModalFooterProps,
-	ChannelsTableProps,
-	CredentialsTabProps,
+	ConnectionStatusDrawerProps,
 	ChannelsTabProps,
-	SetupGuideTabProps,
+	ChannelRow,
+	ConnectSlackProps,
 	IngestionSettingsTabProps,
 	SlackSettingsInfo,
 	SlackBotUserInfo,

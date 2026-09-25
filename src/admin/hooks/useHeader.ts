@@ -18,12 +18,14 @@ import type { ContextExports, HeaderState } from '../types';
  *
  * @param header                  Header slots for the current view.
  * @param header.actions          Header actions.
+ * @param header.badges           Badges shown beside the breadcrumbs.
  * @param header.count            Item count shown on the current crumb.
  * @param header.tabbedNavigation A `TabbedNavigation` element.
  * @param header.isEmpty          Whether the view shows its empty state.
  */
 export function useHeader( {
 	actions,
+	badges,
 	count,
 	tabbedNavigation,
 	isEmpty,
@@ -31,8 +33,8 @@ export function useHeader( {
 	const [ , , , setHeader ] = useOutletContext< ContextExports >();
 
 	useEffect( () => {
-		setHeader( { actions, count, tabbedNavigation, isEmpty } );
-	}, [ actions, count, tabbedNavigation, isEmpty, setHeader ] );
+		setHeader( { actions, badges, count, tabbedNavigation, isEmpty } );
+	}, [ actions, badges, count, tabbedNavigation, isEmpty, setHeader ] );
 
 	useEffect( () => () => setHeader( {} ), [ setHeader ] );
 }

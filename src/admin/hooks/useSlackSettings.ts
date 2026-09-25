@@ -44,18 +44,14 @@ function useSlackSettings() {
 	const [ botToken, setBotToken ] = useState( '' );
 	const [ signingSecret, setSigningSecret ] = useState( '' );
 	const [ ignorePrefix, setIgnorePrefix ] = useState( '~~' );
+	const [ savedIgnorePrefix, setSavedIgnorePrefix ] = useState( '~~' );
 	const [ channels, setChannels ] = useState< ChannelMapping[] >( [] );
+	const [ hasLoadedChannels, setHasLoadedChannels ] = useState( false );
 	const [ isVerifying, setIsVerifying ] = useState( false );
-	const [ isDisconnecting, setIsDisconnecting ] = useState( false );
 	const [ isSavingSettings, setIsSavingSettings ] = useState( false );
-	const [ disconnectingChannelId, setDisconnectingChannelId ] = useState<
-		string | null
-	>( null );
 	const [ notice, setNotice ] = useState< SettingsNotice | null >( null );
 	const [ workspaceInfo, setWorkspaceInfo ] =
 		useState< SlackSettingsInfo | null >( null );
-	const [ updatingAutopublishChannelId, setUpdatingAutopublishChannelId ] =
-		useState< string | null >( null );
 
 	useEffect( () => {
 		// Register SlackAdapter as the first chat-source adapter.
@@ -99,6 +95,7 @@ function useSlackSettings() {
 			if ( cancelled ) {
 				return;
 			}
+			setHasLoadedChannels( true );
 			if ( ! result.success ) {
 				setNotice( {
 					type: 'error',
@@ -145,6 +142,8 @@ function useSlackSettings() {
 				return;
 			}
 			setWorkspaceInfo( result.settings );
+			setIgnorePrefix( result.settings.ignore_prefix );
+			setSavedIgnorePrefix( result.settings.ignore_prefix );
 		} );
 
 		return () => {
@@ -158,19 +157,6 @@ function useSlackSettings() {
 
 	const handleUnlinkChannel = useCallback(
 		async ( channelId: string ) => {
-			if (
-				// eslint-disable-next-line no-alert
-				! confirm(
-					__(
-						'Unlink this channel from its coverage? Ingestion from this channel will stop.',
-						'newspack-rolling-coverage'
-					)
-				)
-			) {
-				return;
-			}
-
-			setDisconnectingChannelId( channelId );
 			setNotice( null );
 
 			const result = await unlinkSlackChannel( namespace, channelId );
@@ -195,8 +181,6 @@ function useSlackSettings() {
 						),
 				} );
 			}
-
-			setDisconnectingChannelId( null );
 		},
 		[ namespace, refreshChannels ]
 	);
@@ -233,20 +217,6 @@ function useSlackSettings() {
 	}, [ namespace, botToken, signingSecret ] );
 
 	const handleDisconnect = useCallback( async () => {
-		if (
-			// eslint-disable-next-line no-alert
-			! confirm(
-				__(
-					'Are you sure you want to disconnect Slack? All channel mappings will be removed.',
-					'newspack-rolling-coverage'
-				)
-			)
-		) {
-			return;
-		}
-
-		setIsDisconnecting( true );
-
 		const result = await disconnectSlack( namespace );
 
 		if ( result.success ) {
@@ -259,8 +229,6 @@ function useSlackSettings() {
 					__( 'Failed to disconnect.', 'newspack-rolling-coverage' ),
 			} );
 		}
-
-		setIsDisconnecting( false );
 	}, [ namespace ] );
 
 	const handleSaveSettings = useCallback( async () => {
@@ -269,6 +237,7 @@ function useSlackSettings() {
 		const result = await saveSlackSettings( namespace, ignorePrefix );
 
 		if ( result.success ) {
+			setSavedIgnorePrefix( ignorePrefix );
 			setNotice( {
 				type: 'success',
 				message: __( 'Settings saved.', 'newspack-rolling-coverage' ),
@@ -290,7 +259,6 @@ function useSlackSettings() {
 
 	const handleAutopublishChange = useCallback(
 		async ( channelId: string, autopublish: boolean ) => {
-			setUpdatingAutopublishChannelId( channelId );
 			setNotice( null );
 
 			const result = await updateSlackChannelSettings(
@@ -312,8 +280,6 @@ function useSlackSettings() {
 						),
 				} );
 			}
-
-			setUpdatingAutopublishChannelId( null );
 		},
 		[ namespace, refreshChannels ]
 	);
@@ -331,12 +297,11 @@ function useSlackSettings() {
 		setSigningSecret,
 		ignorePrefix,
 		setIgnorePrefix,
+		isSettingsDirty: ignorePrefix !== savedIgnorePrefix,
 		channels,
+		hasLoadedChannels,
 		isVerifying,
-		isDisconnecting,
 		isSavingSettings,
-		disconnectingChannelId,
-		updatingAutopublishChannelId,
 		workspaceInfo,
 		notice,
 		clearNotice,

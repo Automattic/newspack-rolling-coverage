@@ -1,19 +1,12 @@
 /**
  * External dependencies
  */
-import {
-	Button,
-	TextControl,
-	Card,
-	CardHeader,
-	CardBody,
-	CardFooter,
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
-	__experimentalVStack as VStack,
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
-	__experimentalHStack as HStack,
-} from '@wordpress/components';
+import { TextControl } from '@wordpress/components';
+import { Stack } from '@wordpress/ui';
 import { __ } from '@wordpress/i18n';
+import Grid from 'newspack-components/dist/esm/grid';
+import Divider from 'newspack-components/dist/esm/divider';
+import SectionHeader from 'newspack-components/dist/esm/section-header';
 
 /**
  * Internal dependencies
@@ -25,106 +18,65 @@ import type {
 import { BotUserSection } from './bot-user-section';
 
 /**
- * Renders the Ingestion Settings tab. Holds per-workspace ingestion options
- * that don't belong on the Credentials or Channel Mappings tabs. Today this is
- * the WordPress bot user details (linked to its edit screen) and the message
- * ignore prefix. When Slack is not yet connected, shows a prompt to connect
- * first.
+ * Renders the Settings tab: the message ignore prefix and the WordPress bot
+ * user that authors ingested entries. Saving happens from the page header.
  *
- * @param {Object}                   props                  - Component props.
- * @param {boolean}                  props.isConfigured     - Whether Slack is currently connected.
- * @param {string}                   props.ignorePrefix     - The ignore-prefix setting value.
- * @param {(v: string) => void}      props.setIgnorePrefix  - Ignore prefix setter.
- * @param {boolean}                  props.isSavingSettings - Whether the save-settings request is in flight.
- * @param {() => void}               props.onSaveSettings   - Save Settings handler.
- * @param {SlackSettingsInfo | null} props.workspaceInfo    - Fetched workspace settings, or null.
- * @param {string}                   props.editUserUrl      - Base admin URL for editing a WordPress user.
+ * @param {Object}                   props                 - Component props.
+ * @param {string}                   props.ignorePrefix    - The ignore-prefix setting value.
+ * @param {(v: string) => void}      props.setIgnorePrefix - Ignore prefix setter.
+ * @param {SlackSettingsInfo | null} props.workspaceInfo   - Fetched workspace settings, or null.
+ * @param {string}                   props.editUserUrl     - Base admin URL for editing a WordPress user.
  */
 function IngestionSettingsTab( {
-	isConfigured,
 	ignorePrefix,
 	setIgnorePrefix,
-	isSavingSettings,
-	onSaveSettings,
 	workspaceInfo,
 	editUserUrl,
 }: IngestionSettingsTabProps ) {
-	if ( ! isConfigured ) {
-		return (
-			<Card className="newspack-rolling-coverage-slack-settings__card">
-				<CardHeader>
-					<HStack alignment="space-between" justify="space-between">
-						<h2>
-							{ __(
-								'Global Settings',
-								'newspack-rolling-coverage'
-							) }
-						</h2>
-					</HStack>
-				</CardHeader>
-				<CardBody>
-					<p>
-						{ __(
-							'Please connect to Slack first.',
+	return (
+		<>
+			<Grid columns={ 2 } gutter={ 32 } noMargin>
+				<SectionHeader
+					noMargin
+					heading={ 2 }
+					title={ __( 'Ingestion', 'newspack-rolling-coverage' ) }
+					description={ __(
+						'Choose which Slack messages become entries.',
+						'newspack-rolling-coverage'
+					) }
+				/>
+				<Stack direction="column" gap="xl">
+					<TextControl
+						label={ __(
+							'Ignore Prefix',
 							'newspack-rolling-coverage'
 						) }
-					</p>
-				</CardBody>
-			</Card>
-		);
-	}
-
-	return (
-		<Card className="newspack-rolling-coverage-slack-settings__card">
-			<CardHeader>
-				<HStack alignment="space-between" justify="space-between">
-					<h2>
-						{ __( 'Global Settings', 'newspack-rolling-coverage' ) }
-					</h2>
-				</HStack>
-			</CardHeader>
-			<CardBody>
-				<VStack spacing={ 4 }>
-					<BotUserSection
-						botUser={ workspaceInfo?.bot_user }
-						editUserUrl={ editUserUrl }
+						value={ ignorePrefix }
+						onChange={ setIgnorePrefix }
+						help={ __(
+							'Messages starting with this prefix are ignored during ingestion.',
+							'newspack-rolling-coverage'
+						) }
 					/>
-					<hr className="newspack-rolling-coverage-slack-settings__divider" />
-					<div className="newspack-rolling-coverage-slack-settings__section">
-						<h3 className="newspack-rolling-coverage-slack-settings__section-title">
-							{ __(
-								'Ingestion Settings',
-								'newspack-rolling-coverage'
-							) }
-						</h3>
-						<TextControl
-							label={ __(
-								'Ignore Prefix',
-								'newspack-rolling-coverage'
-							) }
-							value={ ignorePrefix }
-							onChange={ setIgnorePrefix }
-							help={ __(
-								'Messages starting with this prefix are ignored during ingestion.',
-								'newspack-rolling-coverage'
-							) }
-						/>
-					</div>
-				</VStack>
-			</CardBody>
-			<CardFooter>
-				<HStack justify="space-between">
-					<Button
-						variant="secondary"
-						onClick={ onSaveSettings }
-						isBusy={ isSavingSettings }
-						disabled={ isSavingSettings }
-					>
-						{ __( 'Save Settings', 'newspack-rolling-coverage' ) }
-					</Button>
-				</HStack>
-			</CardFooter>
-		</Card>
+				</Stack>
+			</Grid>
+			<Divider alignment="full-width" variant="tertiary" />
+			<Grid columns={ 2 } gutter={ 32 } noMargin>
+				<SectionHeader
+					noMargin
+					heading={ 2 }
+					title={ __( 'Bot User', 'newspack-rolling-coverage' ) }
+					description={ __(
+						'This WordPress user is created automatically and is the author of every entry ingested from Slack.',
+						'newspack-rolling-coverage'
+					) }
+				/>
+				<BotUserSection
+					botUser={ workspaceInfo?.bot_user }
+					editUserUrl={ editUserUrl }
+				/>
+			</Grid>
+		</>
 	);
 }
 
