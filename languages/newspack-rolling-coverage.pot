@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-25T18:34:04+00:00\n"
+"POT-Creation-Date: 2026-09-26T09:39:31+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -542,6 +542,7 @@ msgid "Monitor"
 msgstr ""
 
 #: dist/admin.js:4
+#: dist/admin.js:211
 msgid "Settings"
 msgstr ""
 
@@ -612,8 +613,7 @@ msgid "The page readers land on when they open a notification for this coverage.
 msgstr ""
 
 #: dist/admin.js:209
-#: dist/blocks/rolling-coverage/index.js:1
-msgid "Ads"
+msgid "Advertising"
 msgstr ""
 
 #: dist/admin.js:209
@@ -676,7 +676,6 @@ msgid "Enter a channel name (e.g., #general) or channel ID (e.g., C12345678). Th
 msgstr ""
 
 #: dist/admin.js:209
-#: dist/admin.js:211
 msgid "Close"
 msgstr ""
 
@@ -781,6 +780,10 @@ msgid "Edit"
 msgstr ""
 
 #: dist/admin.js:211
+msgid "Connection"
+msgstr ""
+
+#: dist/admin.js:211
 #: dist/admin.js:214
 msgid "Move to trash"
 msgstr ""
@@ -848,10 +851,6 @@ msgid "Failed to delete coverage."
 msgstr ""
 
 #: dist/admin.js:211
-msgid "Connection"
-msgstr ""
-
-#: dist/admin.js:211
 msgid "Fetching coverages…"
 msgstr ""
 
@@ -870,14 +869,6 @@ msgstr ""
 #: dist/admin.js:211
 #: dist/admin.js:214
 msgid "Quick Edit"
-msgstr ""
-
-#: dist/admin.js:211
-msgid "Hide sidebar"
-msgstr ""
-
-#: dist/admin.js:211
-msgid "Show sidebar"
 msgstr ""
 
 #: dist/admin.js:211
@@ -1031,6 +1022,30 @@ msgid "Failed to unarchive entry."
 msgstr ""
 
 #: dist/admin.js:214
+msgid "Pin"
+msgstr ""
+
+#: dist/admin.js:214
+msgid "Entry pinned."
+msgstr ""
+
+#: dist/admin.js:214
+msgid "Failed to pin entry."
+msgstr ""
+
+#: dist/admin.js:214
+msgid "Unpin"
+msgstr ""
+
+#: dist/admin.js:214
+msgid "Entry unpinned."
+msgstr ""
+
+#: dist/admin.js:214
+msgid "Failed to unpin entry."
+msgstr ""
+
+#: dist/admin.js:214
 msgid "Are you sure you want to trash this entry?"
 msgstr ""
 
@@ -1048,18 +1063,6 @@ msgstr ""
 
 #: dist/admin.js:214
 msgid "Failed to trash entry."
-msgstr ""
-
-#: dist/admin.js:214
-msgid "Pin"
-msgstr ""
-
-#: dist/admin.js:214
-msgid "Entry pinned."
-msgstr ""
-
-#: dist/admin.js:214
-msgid "Failed to pin entry."
 msgstr ""
 
 #: dist/admin.js:214
@@ -1104,18 +1107,6 @@ msgstr ""
 
 #: dist/admin.js:214
 msgid "Failed to delete entry."
-msgstr ""
-
-#: dist/admin.js:214
-msgid "Unpin"
-msgstr ""
-
-#: dist/admin.js:214
-msgid "Entry unpinned."
-msgstr ""
-
-#: dist/admin.js:214
-msgid "Failed to unpin entry."
 msgstr ""
 
 #. translators: %d: number of updates.
@@ -1605,6 +1596,10 @@ msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Copy"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Ads"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
