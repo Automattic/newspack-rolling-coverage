@@ -64,6 +64,20 @@ function getCoverageActions(
 				}
 			},
 		},
+		...( config.slack.isConfigured
+			? [
+					{
+						id: 'connect-slack',
+						label: __( 'Connection', 'newspack-rolling-coverage' ),
+						isEligible: () => config.capabilities.canManageOptions,
+						callback: ( items: Coverage[] ) => {
+							if ( items.length === 1 ) {
+								onSlackConnect( items[ 0 ] );
+							}
+						},
+					},
+				]
+			: [] ),
 		{
 			id: 'trash-coverage',
 			label: __( 'Trash', 'newspack-rolling-coverage' ),
@@ -283,20 +297,6 @@ function getCoverageActions(
 				}
 			},
 		},
-		...( config.slack.isConfigured
-			? [
-					{
-						id: 'connect-slack',
-						label: __( 'Connection', 'newspack-rolling-coverage' ),
-						isEligible: () => config.capabilities.canManageOptions,
-						callback: ( items: Coverage[] ) => {
-							if ( items.length === 1 ) {
-								onSlackConnect( items[ 0 ] );
-							}
-						},
-					},
-				]
-			: [] ),
 	];
 }
 

@@ -9,13 +9,18 @@ import {
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalConfirmDialog as ConfirmDialog,
 } from '@wordpress/components';
-import { BlockCanvas, BlockInspector } from '@wordpress/block-editor';
+import {
+	BlockCanvas,
+	BlockInspector,
+	BlockList,
+} from '@wordpress/block-editor';
 import { EditorProvider, EditorSnackbars, PostTitle } from '@wordpress/editor';
 import { useEntityRecord, store as coreStore } from '@wordpress/core-data';
 import { useDispatch } from '@wordpress/data';
 import { store as noticesStore } from '@wordpress/notices';
-import { closeSmall, drawerLeft, drawerRight } from '@wordpress/icons';
+import { drawerLeft, drawerRight } from '@wordpress/icons';
 import { __, isRTL } from '@wordpress/i18n';
+import { Stack } from '@wordpress/ui';
 
 /**
  * Internal dependencies
@@ -39,7 +44,9 @@ import type { QuickEditModalProps, EntityRecord } from '../types';
  *   whose editor store is invisible to selectors outside the provider.
  * - The built-in Modal close button is disabled (`isDismissible={ false }`)
  *   to prevent the exit animation from firing before the guard can
- *   intercept. A custom close button is provided via `headerActions`.
+ *   intercept. Cancel in the header goes through the guard instead.
+ * - `EditorProvider` wraps the Modal so the header's Save button can reach
+ *   the editor store sub-registry.
  *
  * @param {QuickEditModalProps} props Component props.
  */
@@ -95,6 +102,9 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 			<Modal
 				title={ __( 'Quick Edit', 'newspack-rolling-coverage' ) }
 				onRequestClose={ onClose }
+				className="newspack-rolling-coverage-quick-edit"
+				overlayClassName="newspack-rolling-coverage-quick-edit-overlay"
+				isFullScreen
 			>
 				<Spinner />
 			</Modal>
@@ -103,34 +113,57 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 
 	return (
 		<>
-			<Modal
-				title={ __( 'Quick Edit', 'newspack-rolling-coverage' ) }
-				onRequestClose={ handleRequestClose }
-				shouldCloseOnClickOutside={ false }
-				shouldCloseOnEsc={ false }
-				isDismissible={ false }
-				headerActions={
-					<Button
-						icon={ closeSmall }
-						label={ __( 'Close', 'newspack-rolling-coverage' ) }
-						onClick={ handleRequestClose }
-						size="compact"
-					/>
-				}
-				className="newspack-rolling-coverage-quick-edit"
-				overlayClassName="newspack-rolling-coverage-quick-edit-overlay"
-				size="large"
-			>
-				<EditorProvider post={ typedRecord } settings={ settings }>
+			<EditorProvider post={ typedRecord } settings={ settings }>
+				<Modal
+					title={ __( 'Quick Edit', 'newspack-rolling-coverage' ) }
+					onRequestClose={ handleRequestClose }
+					shouldCloseOnClickOutside={ false }
+					shouldCloseOnEsc={ false }
+					isDismissible={ false }
+					headerActions={
+						<Stack direction="row" gap="sm" align="center">
+							<Button
+								icon={ isRTL() ? drawerLeft : drawerRight }
+								label={
+									isSidebarOpen
+										? __(
+												'Hide sidebar',
+												'newspack-rolling-coverage'
+											)
+										: __(
+												'Show sidebar',
+												'newspack-rolling-coverage'
+											)
+								}
+								isPressed={ isSidebarOpen }
+								onClick={ () =>
+									setIsSidebarOpen( ( prev ) => ! prev )
+								}
+								size="compact"
+							/>
+							<QuickEditSaveBar
+								onClose={ handleRequestClose }
+								onSaved={ onSaved }
+							/>
+						</Stack>
+					}
+					className="newspack-rolling-coverage-quick-edit"
+					overlayClassName="newspack-rolling-coverage-quick-edit-overlay"
+					isFullScreen
+				>
 					<EditorSnackbars />
 					<div className="newspack-rolling-coverage-quick-edit-layout">
 						<div className="newspack-rolling-coverage-quick-edit-main">
-							<PostTitle />
 							<div className="newspack-rolling-coverage-quick-edit-canvas">
 								<BlockCanvas
 									height="100%"
 									styles={ settings.styles as unknown[] }
-								/>
+								>
+									<div className="editor-visual-editor__post-title-wrapper is-layout-constrained has-global-padding">
+										<PostTitle />
+									</div>
+									<BlockList />
+								</BlockCanvas>
 							</div>
 						</div>
 						{ isSidebarOpen && (
@@ -139,32 +172,8 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 							</aside>
 						) }
 					</div>
-					<div className="newspack-rolling-coverage-quick-edit-toolbar">
-						<Button
-							icon={ isRTL() ? drawerRight : drawerLeft }
-							label={
-								isSidebarOpen
-									? __(
-											'Hide sidebar',
-											'newspack-rolling-coverage'
-										)
-									: __(
-											'Show sidebar',
-											'newspack-rolling-coverage'
-										)
-							}
-							onClick={ () =>
-								setIsSidebarOpen( ( prev ) => ! prev )
-							}
-							variant="tertiary"
-						/>
-						<QuickEditSaveBar
-							onClose={ handleRequestClose }
-							onSaved={ onSaved }
-						/>
-					</div>
-				</EditorProvider>
-			</Modal>
+				</Modal>
+			</EditorProvider>
 			<ConfirmDialog
 				isOpen={ showCloseConfirm }
 				onConfirm={ () => {

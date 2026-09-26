@@ -3,12 +3,12 @@
  */
 import { __ } from '@wordpress/i18n';
 import { decodeEntities } from '@wordpress/html-entities';
+import { Badge } from '@wordpress/ui';
 
 /**
  * Internal dependencies.
  */
 import StatusIndicator from 'newspack-components/dist/esm/status-indicator';
-import { SlackIcon } from '../shared/icons/slack-icon';
 import {
 	safeFormatUTCDate,
 	getSlackChannelLabel,
@@ -99,12 +99,7 @@ function getCoverageFields(
 				if ( ! label ) {
 					return <span>—</span>;
 				}
-				return (
-					<span className="newspack-rolling-coverage-slack-chip">
-						<SlackIcon size={ 14 } />
-						<span>{ label }</span>
-					</span>
-				);
+				return <Badge intent="draft">{ label }</Badge>;
 			},
 		},
 		{

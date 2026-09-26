@@ -142,13 +142,13 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				if ( getEntrySource( item ) === SOURCE_SLACK ) {
 					return (
 						<span title="Slack" aria-label="Slack">
-							<SlackIcon size={ 16 } />
+							<SlackIcon size={ 24 } />
 						</span>
 					);
 				}
 				return (
 					<span title="WordPress" aria-label="WordPress">
-						<Icon icon={ WordPressIconRaw } size={ 16 } />
+						<Icon icon={ WordPressIconRaw } size={ 24 } />
 					</span>
 				);
 			},
@@ -204,6 +204,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 
 				return (
 					<Tooltip
+						className="newspack-rolling-coverage-archived-tooltip"
 						text={ sprintf(
 							// translators: %s: date the entry was archived.
 							__(
