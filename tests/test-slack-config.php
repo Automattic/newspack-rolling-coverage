@@ -143,6 +143,7 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( NEWSPACK_ROLLING_COVERAGE_URL . Slack_Config::BOT_AVATAR_PATH, get_avatar_url( $bot_user_id ) );
 		$this->assertSame( NEWSPACK_ROLLING_COVERAGE_URL . Slack_Config::BOT_AVATAR_PATH, get_avatar_url( get_userdata( $bot_user_id ) ) );
+		$this->assertSame( NEWSPACK_ROLLING_COVERAGE_URL . Slack_Config::BOT_AVATAR_PATH, get_avatar_url( self::factory()->comment->create_and_get( [ 'user_id' => $bot_user_id ] ) ) );
 		$this->assertStringNotContainsString( Slack_Config::BOT_AVATAR_PATH, get_avatar_url( $other_user_id ) );
 	}
 
