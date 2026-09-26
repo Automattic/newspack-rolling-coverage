@@ -22,7 +22,8 @@ class Slack_Config {
 	const DEFAULT_IGNORE_PREFIX = '~~';
 	const MAX_PREFIX_LENGTH     = 10;
 	const BOT_USER_LOGIN        = 'rolling_coverage_slack_bot';
-	const BOT_USER_DISPLAY_NAME = 'Slack bot';
+	const BOT_USER_DISPLAY_NAME = 'Slack Bot';
+	const BOT_AVATAR_PATH       = 'assets/slack-bot-avatar.svg';
 
 	// Term-meta keys live on Taxonomy as the single source of truth; reuse
 	// them here for convenient access from the channel map operations below.
@@ -314,6 +315,40 @@ class Slack_Config {
 		update_option( self::OPTION_BOT_USER_ID, (int) $user_id, false );
 
 		return (int) $user_id;
+	}
+
+	/**
+	 * Give the bot user the bundled avatar, so Slack entries are recognisable
+	 * wherever an author avatar shows.
+	 *
+	 * @param array $args        Avatar data arguments.
+	 * @param mixed $id_or_email User ID, email, WP_User, WP_Post or WP_Comment.
+	 * @return array Avatar data, with the bundled URL for the bot user.
+	 */
+	public static function filter_bot_avatar( $args, $id_or_email ) {
+		$bot_user_id = (int) get_option( self::OPTION_BOT_USER_ID, 0 );
+		if ( $bot_user_id <= 0 ) {
+			return $args;
+		}
+
+		if ( $id_or_email instanceof \WP_User ) {
+			$user_id = (int) $id_or_email->ID;
+		} elseif ( $id_or_email instanceof \WP_Post ) {
+			$user_id = (int) $id_or_email->post_author;
+		} elseif ( is_numeric( $id_or_email ) ) {
+			$user_id = (int) $id_or_email;
+		} else {
+			return $args;
+		}
+
+		if ( $user_id !== $bot_user_id ) {
+			return $args;
+		}
+
+		$args['url']          = NEWSPACK_ROLLING_COVERAGE_URL . self::BOT_AVATAR_PATH;
+		$args['found_avatar'] = true;
+
+		return $args;
 	}
 
 	/**

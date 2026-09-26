@@ -33,10 +33,11 @@ class Slack {
 	}
 
 	/**
-	 * Register always-on admin REST routes.
+	 * Register always-on admin REST routes and the bot user's avatar.
 	 */
 	public static function register_hooks(): void {
 		add_action( 'rest_api_init', [ self::get_webhook_controller(), 'register_admin_routes' ] );
+		add_filter( 'pre_get_avatar_data', [ Slack_Config::class, 'filter_bot_avatar' ], 10, 2 );
 	}
 
 	/**

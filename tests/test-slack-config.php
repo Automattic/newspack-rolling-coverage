@@ -135,6 +135,18 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Slack entries show the bundled bot avatar; other authors keep theirs.
+	 */
+	public function test_bot_user_gets_the_bundled_avatar() {
+		$bot_user_id   = Slack_Config::get_or_create_bot_user_id();
+		$other_user_id = self::factory()->user->create();
+
+		$this->assertSame( NEWSPACK_ROLLING_COVERAGE_URL . Slack_Config::BOT_AVATAR_PATH, get_avatar_url( $bot_user_id ) );
+		$this->assertSame( NEWSPACK_ROLLING_COVERAGE_URL . Slack_Config::BOT_AVATAR_PATH, get_avatar_url( get_userdata( $bot_user_id ) ) );
+		$this->assertStringNotContainsString( Slack_Config::BOT_AVATAR_PATH, get_avatar_url( $other_user_id ) );
+	}
+
+	/**
 	 * If the remembered bot user was deleted, a working one is resolved again
 	 * instead of handing out an id that no longer exists.
 	 */
