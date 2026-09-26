@@ -155,17 +155,10 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 					<Stack direction="row" gap="sm" align="center">
 						<Button
 							icon={ isRTL() ? drawerLeft : drawerRight }
-							label={
-								isSidebarOpen
-									? __(
-											'Hide sidebar',
-											'newspack-rolling-coverage'
-										)
-									: __(
-											'Show sidebar',
-											'newspack-rolling-coverage'
-										)
-							}
+							label={ __(
+								'Settings',
+								'newspack-rolling-coverage'
+							) }
 							isPressed={ isSidebarOpen }
 							onClick={ () =>
 								setIsSidebarOpen( ( prev ) => ! prev )
