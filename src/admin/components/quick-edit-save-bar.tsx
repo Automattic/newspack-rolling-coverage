@@ -19,7 +19,7 @@ import type {
 } from '../types';
 
 /**
- * Save bar for the Quick Edit modal.
+ * Cancel and Save buttons for the Quick Edit modal header.
  *
  * `savePost()` never rejects on failure, so the result is detected by
  * watching `isSavingPost` transition to `false` and then reading
@@ -81,11 +81,12 @@ function QuickEditSaveBar( { onClose, onSaved }: QuickEditSaveBarProps ) {
 	}, [ savePost ] );
 
 	return (
-		<div className="newspack-rolling-coverage-modal-footer">
+		<>
 			<Button
 				variant="tertiary"
 				onClick={ onClose }
 				disabled={ isSavingPost }
+				size="compact"
 			>
 				{ __( 'Cancel', 'newspack-rolling-coverage' ) }
 			</Button>
@@ -94,10 +95,11 @@ function QuickEditSaveBar( { onClose, onSaved }: QuickEditSaveBarProps ) {
 				onClick={ handleSave }
 				isBusy={ isSavingPost }
 				disabled={ isSavingPost || ! isEditorReady }
+				size="compact"
 			>
 				{ __( 'Save', 'newspack-rolling-coverage' ) }
 			</Button>
-		</div>
+		</>
 	);
 }
 

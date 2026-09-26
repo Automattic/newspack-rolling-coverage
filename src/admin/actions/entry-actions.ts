@@ -372,6 +372,70 @@ function getEntryActions(
 			},
 		},
 		{
+			id: 'pin',
+			label: __( 'Pin', 'newspack-rolling-coverage' ),
+			isEligible: ( entry: Entry ) =>
+				config.capabilities.canEditEntries &&
+				! entry.pinned &&
+				! isEntryLocked( entry ),
+			callback: async ( items: Entry[] ) => {
+				if ( items.length !== 1 ) {
+					return;
+				}
+
+				const result = await togglePinEntry(
+					config.restBaseUrls.restNamespace,
+					items[ 0 ].id
+				);
+				if ( result.success ) {
+					notifySuccess(
+						__( 'Entry pinned.', 'newspack-rolling-coverage' )
+					);
+					onActionPerformed?.();
+				} else {
+					notifyError(
+						result.error ||
+							__(
+								'Failed to pin entry.',
+								'newspack-rolling-coverage'
+							)
+					);
+				}
+			},
+		},
+		{
+			id: 'unpin',
+			label: __( 'Unpin', 'newspack-rolling-coverage' ),
+			isEligible: ( entry: Entry ) =>
+				config.capabilities.canEditEntries &&
+				Boolean( entry.pinned ) &&
+				! isEntryLocked( entry ),
+			callback: async ( items: Entry[] ) => {
+				if ( items.length !== 1 ) {
+					return;
+				}
+
+				const result = await togglePinEntry(
+					config.restBaseUrls.restNamespace,
+					items[ 0 ].id
+				);
+				if ( result.success ) {
+					notifySuccess(
+						__( 'Entry unpinned.', 'newspack-rolling-coverage' )
+					);
+					onActionPerformed?.();
+				} else {
+					notifyError(
+						result.error ||
+							__(
+								'Failed to unpin entry.',
+								'newspack-rolling-coverage'
+							)
+					);
+				}
+			},
+		},
+		{
 			id: 'trash-entry',
 			label: __( 'Trash', 'newspack-rolling-coverage' ),
 			modalHeader: __( 'Move to trash', 'newspack-rolling-coverage' ),
@@ -454,38 +518,6 @@ function getEntryActions(
 						failed[ 0 ].error ||
 							__(
 								'Failed to trash entry.',
-								'newspack-rolling-coverage'
-							)
-					);
-				}
-			},
-		},
-		{
-			id: 'pin',
-			label: __( 'Pin', 'newspack-rolling-coverage' ),
-			isEligible: ( entry: Entry ) =>
-				config.capabilities.canEditEntries &&
-				! entry.pinned &&
-				! isEntryLocked( entry ),
-			callback: async ( items: Entry[] ) => {
-				if ( items.length !== 1 ) {
-					return;
-				}
-
-				const result = await togglePinEntry(
-					config.restBaseUrls.restNamespace,
-					items[ 0 ].id
-				);
-				if ( result.success ) {
-					notifySuccess(
-						__( 'Entry pinned.', 'newspack-rolling-coverage' )
-					);
-					onActionPerformed?.();
-				} else {
-					notifyError(
-						result.error ||
-							__(
-								'Failed to pin entry.',
 								'newspack-rolling-coverage'
 							)
 					);
@@ -652,38 +684,6 @@ function getEntryActions(
 						failed[ 0 ].error ||
 							__(
 								'Failed to delete entry.',
-								'newspack-rolling-coverage'
-							)
-					);
-				}
-			},
-		},
-		{
-			id: 'unpin',
-			label: __( 'Unpin', 'newspack-rolling-coverage' ),
-			isEligible: ( entry: Entry ) =>
-				config.capabilities.canEditEntries &&
-				Boolean( entry.pinned ) &&
-				! isEntryLocked( entry ),
-			callback: async ( items: Entry[] ) => {
-				if ( items.length !== 1 ) {
-					return;
-				}
-
-				const result = await togglePinEntry(
-					config.restBaseUrls.restNamespace,
-					items[ 0 ].id
-				);
-				if ( result.success ) {
-					notifySuccess(
-						__( 'Entry unpinned.', 'newspack-rolling-coverage' )
-					);
-					onActionPerformed?.();
-				} else {
-					notifyError(
-						result.error ||
-							__(
-								'Failed to unpin entry.',
 								'newspack-rolling-coverage'
 							)
 					);

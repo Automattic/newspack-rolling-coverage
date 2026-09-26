@@ -8,11 +8,11 @@
 
 .newspack-rolling-coverage-admin {
 
-	.dataviews-view-table__primary-column-content {
+	.dataviews-view-table__primary-column-content:not(.dataviews-column-primary__media) {
 		// Override the default 80ch cap so the primary column can claim the
 		// space freed up when other columns are hidden.
 		max-width: none;
-		min-width: 0;
+		min-width: 240px;
 	}
 
 	.dataviews-view-table__cell-content-wrapper.dataviews-title-field,

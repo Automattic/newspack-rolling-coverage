@@ -1,18 +1,16 @@
 @use "../variables" as *;
 
-.newspack-rolling-coverage-quick-edit.components-modal__frame {
-	height: 80vh;
-}
-
 .newspack-rolling-coverage-quick-edit-overlay .components-modal__children-container {
+	display: flex;
 	width: 100%;
-	height: 90%;
+	min-height: 0;
 }
 
 .newspack-rolling-coverage-quick-edit-layout {
 	display: flex;
-	height: 100%;
-	box-shadow: 0 0 0 1px $nrc-color-border;
+	flex: 1;
+	min-height: 0;
+	border: 1px solid $nrc-color-border;
 }
 
 .newspack-rolling-coverage-quick-edit-main {
@@ -20,28 +18,6 @@
 	min-width: 0;
 	display: flex;
 	flex-direction: column;
-}
-
-// PostTitle renders an <h1.editor-post-title__input>.
-.newspack-rolling-coverage-quick-edit-main .editor-post-title__input {
-	display: block;
-	width: 100%;
-	font-size: 1.6rem;
-	font-weight: 700;
-	line-height: 1.3;
-	padding: $nrc-spacing-md $nrc-spacing-xl;
-	margin: $nrc-spacing-lg 0 0 0;
-	background: $nrc-color-background;
-	min-height: 52px;
-	outline: none;
-	transition:
-		border-color 0.15s ease-in-out,
-		box-shadow 0.15s ease-in-out;
-
-	&:empty::before {
-		content: attr(data-placeholder);
-		color: $nrc-color-chip-remaining;
-	}
 }
 
 .newspack-rolling-coverage-quick-edit-canvas {
@@ -69,18 +45,6 @@
 	}
 }
 
-.newspack-rolling-coverage-quick-edit-toolbar {
-	display: flex;
-	align-items: center;
-	gap: $nrc-spacing-md;
-	margin-top: $nrc-spacing-lg;
-}
-
-.newspack-rolling-coverage-quick-edit-toolbar .newspack-rolling-coverage-modal-footer {
-	flex: 1;
-	justify-content: flex-end;
-}
-
 // Make the inserter popover wider so blocks are visible properly.
 .block-editor-inserter__quick-inserter {
 	width: 480px;
@@ -100,20 +64,12 @@
 	padding: 40px $nrc-spacing-xl;
 }
 
-.toplevel_page_rolling-coverage .newspack-rolling-coverage-quick-edit-toolbar {
-	margin-top: $nrc-spacing-xl;
-
-	.newspack-rolling-coverage-modal-footer {
-		margin-top: 0;
-	}
-}
-
 // Fix popover interaction with Newspack Popups styles.
 body.toplevel_page_rolling-coverage.modal-open .components-popover__content {
 	opacity: 1;
 }
 
-// Editor snackbar notices: position above the toolbar.
+// Editor snackbar notices: position at the bottom of the modal.
 .newspack-rolling-coverage-quick-edit .components-editor-notices__snackbar {
 	bottom: $nrc-spacing-xl;
 	left: 50%;

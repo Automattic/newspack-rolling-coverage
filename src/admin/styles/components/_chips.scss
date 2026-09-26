@@ -10,8 +10,15 @@
 .newspack-rolling-coverage-status-archived {
 	display: inline-flex;
 	align-items: center;
-	gap: $nrc-spacing-sm;
 	color: $nrc-color-chip-remaining;
+}
+
+.newspack-rolling-coverage-archived-tooltip {
+	max-width: 280px;
+}
+
+.newspack-rolling-coverage-source-slack svg {
+	display: block;
 }
 
 // Status-colored variants, used for the breakout post status column.
@@ -80,16 +87,4 @@ $nrc-status-colors: (
 	line-height: 24px;
 	margin-left: $nrc-spacing-md;
 	color: $nrc-color-muted-text;
-}
-
-.newspack-rolling-coverage-slack-chip {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	padding: 2px 8px;
-	border-radius: 3px;
-	background: $nrc-color-surface-subtle;
-	color: $nrc-color-chip-text;
-	font-size: $nrc-font-sm;
-	line-height: 20px;
 }

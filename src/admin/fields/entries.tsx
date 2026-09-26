@@ -7,7 +7,6 @@ import { __, sprintf } from '@wordpress/i18n';
 import {
 	Icon,
 	pinSmall,
-	info,
 	wordpress as WordPressIconRaw,
 } from '@wordpress/icons';
 
@@ -141,14 +140,18 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			render: ( { item } ) => {
 				if ( getEntrySource( item ) === SOURCE_SLACK ) {
 					return (
-						<span title="Slack" aria-label="Slack">
-							<SlackIcon size={ 16 } />
+						<span
+							className="newspack-rolling-coverage-source-slack"
+							title="Slack"
+							aria-label="Slack"
+						>
+							<SlackIcon size={ 15 } />
 						</span>
 					);
 				}
 				return (
 					<span title="WordPress" aria-label="WordPress">
-						<Icon icon={ WordPressIconRaw } size={ 16 } />
+						<Icon icon={ WordPressIconRaw } size={ 18 } />
 					</span>
 				);
 			},
@@ -204,6 +207,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 
 				return (
 					<Tooltip
+						className="newspack-rolling-coverage-archived-tooltip"
 						text={ sprintf(
 							// translators: %s: date the entry was archived.
 							__(
@@ -223,7 +227,6 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 							>
 								{ label }
 							</StatusIndicator>
-							<Icon icon={ info } size={ 18 } />
 						</span>
 					</Tooltip>
 				);

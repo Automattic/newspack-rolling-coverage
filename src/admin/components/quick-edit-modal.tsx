@@ -9,13 +9,18 @@ import {
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalConfirmDialog as ConfirmDialog,
 } from '@wordpress/components';
-import { BlockCanvas, BlockInspector } from '@wordpress/block-editor';
+import {
+	BlockCanvas,
+	BlockInspector,
+	BlockList,
+} from '@wordpress/block-editor';
 import { EditorProvider, EditorSnackbars, PostTitle } from '@wordpress/editor';
 import { useEntityRecord, store as coreStore } from '@wordpress/core-data';
-import { useDispatch } from '@wordpress/data';
+import { RegistryProvider, useDispatch, useRegistry } from '@wordpress/data';
 import { store as noticesStore } from '@wordpress/notices';
-import { closeSmall, drawerLeft, drawerRight } from '@wordpress/icons';
+import { drawerLeft, drawerRight } from '@wordpress/icons';
 import { __, isRTL } from '@wordpress/i18n';
+import { Stack } from '@wordpress/ui';
 
 /**
  * Internal dependencies
@@ -24,6 +29,25 @@ import { useAdminContext } from '../hooks/useAdminContext';
 import { ensureEditorInitialized } from '../utils/block-registration';
 import { QuickEditSaveBar } from './quick-edit-save-bar';
 import type { QuickEditModalProps, EntityRecord } from '../types';
+
+/**
+ * Reports the registry it renders in, so UI outside `EditorProvider` can use
+ * the editor's sub-registry.
+ *
+ * @param {Object}   props            Component props.
+ * @param {Function} props.onRegistry Called with the current registry.
+ */
+function EditorRegistryBridge( {
+	onRegistry,
+}: {
+	onRegistry: ( registry: ReturnType< typeof useRegistry > ) => void;
+} ) {
+	const registry = useRegistry();
+	useEffect( () => {
+		onRegistry( registry );
+	}, [ registry, onRegistry ] );
+	return null;
+}
 
 /**
  * Renders a modal containing the WordPress post editor for quick-editing
@@ -39,7 +63,12 @@ import type { QuickEditModalProps, EntityRecord } from '../types';
  *   whose editor store is invisible to selectors outside the provider.
  * - The built-in Modal close button is disabled (`isDismissible={ false }`)
  *   to prevent the exit animation from firing before the guard can
- *   intercept. A custom close button is provided via `headerActions`.
+ *   intercept. Cancel in the header goes through the guard instead.
+ * - `EditorProvider` stays inside the Modal: its own helper modals
+ *   (keyboard shortcuts, pattern rename and duplicate, media editor) must
+ *   nest in this one, or opening them closes Quick Edit. The header's Cancel
+ *   and Save sit outside the provider, so `EditorRegistryBridge` hands them
+ *   the editor's sub-registry.
  *
  * @param {QuickEditModalProps} props Component props.
  */
@@ -53,6 +82,9 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 	const typedRecord = record as EntityRecord | null;
 	const [ isSidebarOpen, setIsSidebarOpen ] = useState( true );
 	const [ showCloseConfirm, setShowCloseConfirm ] = useState( false );
+	const [ editorRegistry, setEditorRegistry ] = useState< ReturnType<
+		typeof useRegistry
+	> | null >( null );
 
 	const { removeAllNotices } = useDispatch( noticesStore );
 	const { clearEntityRecordEdits } = useDispatch( coreStore );
@@ -90,11 +122,21 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 		[ config.blockEditorSettings ]
 	);
 
+	const layoutClassName = settings.supportsLayout
+		? ' is-layout-constrained has-global-padding'
+		: '';
+	const blockListLayout = settings.supportsLayout
+		? { type: 'constrained' }
+		: undefined;
+
 	if ( isResolving || ! typedRecord ) {
 		return (
 			<Modal
 				title={ __( 'Quick Edit', 'newspack-rolling-coverage' ) }
 				onRequestClose={ onClose }
+				className="newspack-rolling-coverage-quick-edit"
+				overlayClassName="newspack-rolling-coverage-quick-edit-overlay"
+				isFullScreen
 			>
 				<Spinner />
 			</Modal>
@@ -110,27 +152,53 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 				shouldCloseOnEsc={ false }
 				isDismissible={ false }
 				headerActions={
-					<Button
-						icon={ closeSmall }
-						label={ __( 'Close', 'newspack-rolling-coverage' ) }
-						onClick={ handleRequestClose }
-						size="compact"
-					/>
+					<Stack direction="row" gap="sm" align="center">
+						<Button
+							icon={ isRTL() ? drawerLeft : drawerRight }
+							label={ __(
+								'Settings',
+								'newspack-rolling-coverage'
+							) }
+							isPressed={ isSidebarOpen }
+							onClick={ () =>
+								setIsSidebarOpen( ( prev ) => ! prev )
+							}
+							size="compact"
+						/>
+						{ editorRegistry && (
+							<RegistryProvider value={ editorRegistry }>
+								<QuickEditSaveBar
+									onClose={ handleRequestClose }
+									onSaved={ onSaved }
+								/>
+							</RegistryProvider>
+						) }
+					</Stack>
 				}
 				className="newspack-rolling-coverage-quick-edit"
 				overlayClassName="newspack-rolling-coverage-quick-edit-overlay"
-				size="large"
+				isFullScreen
 			>
 				<EditorProvider post={ typedRecord } settings={ settings }>
+					<EditorRegistryBridge onRegistry={ setEditorRegistry } />
 					<EditorSnackbars />
 					<div className="newspack-rolling-coverage-quick-edit-layout">
 						<div className="newspack-rolling-coverage-quick-edit-main">
-							<PostTitle />
 							<div className="newspack-rolling-coverage-quick-edit-canvas">
 								<BlockCanvas
 									height="100%"
 									styles={ settings.styles as unknown[] }
-								/>
+								>
+									<div
+										className={ `editor-visual-editor__post-title-wrapper${ layoutClassName }` }
+									>
+										<PostTitle />
+									</div>
+									<BlockList
+										className={ `wp-block-post-content${ layoutClassName }` }
+										layout={ blockListLayout }
+									/>
+								</BlockCanvas>
 							</div>
 						</div>
 						{ isSidebarOpen && (
@@ -138,30 +206,6 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 								<BlockInspector />
 							</aside>
 						) }
-					</div>
-					<div className="newspack-rolling-coverage-quick-edit-toolbar">
-						<Button
-							icon={ isRTL() ? drawerRight : drawerLeft }
-							label={
-								isSidebarOpen
-									? __(
-											'Hide sidebar',
-											'newspack-rolling-coverage'
-										)
-									: __(
-											'Show sidebar',
-											'newspack-rolling-coverage'
-										)
-							}
-							onClick={ () =>
-								setIsSidebarOpen( ( prev ) => ! prev )
-							}
-							variant="tertiary"
-						/>
-						<QuickEditSaveBar
-							onClose={ handleRequestClose }
-							onSaved={ onSaved }
-						/>
 					</div>
 				</EditorProvider>
 			</Modal>

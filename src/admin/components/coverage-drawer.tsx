@@ -83,7 +83,7 @@ const coverageFields = [
 	{
 		id: 'adsDisabled',
 		type: 'text' as const,
-		label: __( 'Ads', 'newspack-rolling-coverage' ),
+		label: __( 'Advertising', 'newspack-rolling-coverage' ),
 		description: __(
 			'Disable ads for this coverage, useful for emergency or other sensitive news coverage.',
 			'newspack-rolling-coverage'
@@ -112,8 +112,8 @@ const coverageForm = {
 	fields: [
 		{ id: 'name' },
 		{ id: 'description' },
-		{ id: 'status' },
 		{ id: 'canonicalUrl' },
+		{ id: 'status' },
 		{ id: 'adsDisabled' },
 	],
 };
