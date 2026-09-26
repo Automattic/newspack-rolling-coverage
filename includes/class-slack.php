@@ -37,7 +37,8 @@ class Slack {
 	 */
 	public static function register_hooks(): void {
 		add_action( 'rest_api_init', [ self::get_webhook_controller(), 'register_admin_routes' ] );
-		add_filter( 'pre_get_avatar_data', [ Slack_Config::class, 'filter_bot_avatar' ], 10, 2 );
+		// After avatar plugins such as Simple Local Avatars, so the bundled avatar wins.
+		add_filter( 'pre_get_avatar_data', [ Slack_Config::class, 'filter_bot_avatar' ], 20, 2 );
 	}
 
 	/**

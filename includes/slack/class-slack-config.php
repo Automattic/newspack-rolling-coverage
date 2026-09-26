@@ -321,17 +321,20 @@ class Slack_Config {
 	 * Give the bot user the bundled avatar, so Slack entries are recognisable
 	 * wherever an author avatar shows. The user is matched by login rather
 	 * than the stored ID, which a disconnect deletes while the user and its
-	 * entries remain.
+	 * entries remain. Email lookups never match: WordPress drops the bot's
+	 * `@localhost` address, so the user has no email.
 	 *
 	 * @param array $args        Avatar data arguments.
 	 * @param mixed $id_or_email User ID, email, WP_User, WP_Post or WP_Comment.
 	 * @return array Avatar data, with the bundled URL for the bot user.
 	 */
-	public static function filter_bot_avatar( $args, $id_or_email ) {
+	public static function filter_bot_avatar( array $args, $id_or_email ): array {
 		if ( $id_or_email instanceof \WP_User ) {
 			$user = $id_or_email;
 		} elseif ( $id_or_email instanceof \WP_Post ) {
 			$user = get_userdata( (int) $id_or_email->post_author );
+		} elseif ( $id_or_email instanceof \WP_Comment ) {
+			$user = get_userdata( (int) $id_or_email->user_id );
 		} elseif ( is_numeric( $id_or_email ) ) {
 			$user = get_userdata( (int) $id_or_email );
 		} else {
