@@ -7,7 +7,6 @@ import { __, sprintf } from '@wordpress/i18n';
 import {
 	Icon,
 	pinSmall,
-	info,
 	wordpress as WordPressIconRaw,
 } from '@wordpress/icons';
 
@@ -228,7 +227,6 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 							>
 								{ label }
 							</StatusIndicator>
-							<Icon icon={ info } size={ 18 } />
 						</span>
 					</Tooltip>
 				);
