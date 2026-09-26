@@ -147,6 +147,17 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Disconnecting keeps the bot user and its entries, so the avatar stays.
+	 */
+	public function test_bot_avatar_survives_a_disconnect() {
+		$bot_user_id = Slack_Config::get_or_create_bot_user_id();
+
+		Slack_Config::clear_all();
+
+		$this->assertSame( NEWSPACK_ROLLING_COVERAGE_URL . Slack_Config::BOT_AVATAR_PATH, get_avatar_url( $bot_user_id ) );
+	}
+
+	/**
 	 * If the remembered bot user was deleted, a working one is resolved again
 	 * instead of handing out an id that no longer exists.
 	 */

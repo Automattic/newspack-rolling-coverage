@@ -319,29 +319,26 @@ class Slack_Config {
 
 	/**
 	 * Give the bot user the bundled avatar, so Slack entries are recognisable
-	 * wherever an author avatar shows.
+	 * wherever an author avatar shows. The user is matched by login rather
+	 * than the stored ID, which a disconnect deletes while the user and its
+	 * entries remain.
 	 *
 	 * @param array $args        Avatar data arguments.
 	 * @param mixed $id_or_email User ID, email, WP_User, WP_Post or WP_Comment.
 	 * @return array Avatar data, with the bundled URL for the bot user.
 	 */
 	public static function filter_bot_avatar( $args, $id_or_email ) {
-		$bot_user_id = (int) get_option( self::OPTION_BOT_USER_ID, 0 );
-		if ( $bot_user_id <= 0 ) {
-			return $args;
-		}
-
 		if ( $id_or_email instanceof \WP_User ) {
-			$user_id = (int) $id_or_email->ID;
+			$user = $id_or_email;
 		} elseif ( $id_or_email instanceof \WP_Post ) {
-			$user_id = (int) $id_or_email->post_author;
+			$user = get_userdata( (int) $id_or_email->post_author );
 		} elseif ( is_numeric( $id_or_email ) ) {
-			$user_id = (int) $id_or_email;
+			$user = get_userdata( (int) $id_or_email );
 		} else {
 			return $args;
 		}
 
-		if ( $user_id !== $bot_user_id ) {
+		if ( ! $user || self::BOT_USER_LOGIN !== $user->user_login ) {
 			return $args;
 		}
 
