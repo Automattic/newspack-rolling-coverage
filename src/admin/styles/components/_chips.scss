@@ -18,6 +18,10 @@
 	max-width: 280px;
 }
 
+.newspack-rolling-coverage-source-slack svg {
+	display: block;
+}
+
 // Status-colored variants, used for the breakout post status column.
 $nrc-status-colors: (
 	publish: (

@@ -30,7 +30,10 @@ declare module '@wordpress/block-editor' {
 
 	export const BlockInspector: ComponentType;
 
-	export const BlockList: ComponentType;
+	export const BlockList: ComponentType< {
+		className?: string;
+		layout?: Record< string, unknown >;
+	} >;
 
 	export function useBlockProps(
 		props?: Record< string, unknown >

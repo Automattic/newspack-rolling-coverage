@@ -141,14 +141,18 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			render: ( { item } ) => {
 				if ( getEntrySource( item ) === SOURCE_SLACK ) {
 					return (
-						<span title="Slack" aria-label="Slack">
-							<SlackIcon size={ 24 } />
+						<span
+							className="newspack-rolling-coverage-source-slack"
+							title="Slack"
+							aria-label="Slack"
+						>
+							<SlackIcon size={ 15 } />
 						</span>
 					);
 				}
 				return (
 					<span title="WordPress" aria-label="WordPress">
-						<Icon icon={ WordPressIconRaw } size={ 24 } />
+						<Icon icon={ WordPressIconRaw } size={ 18 } />
 					</span>
 				);
 			},
