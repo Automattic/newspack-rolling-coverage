@@ -31,28 +31,6 @@ import { QuickEditSaveBar } from './quick-edit-save-bar';
 import type { QuickEditModalProps, EntityRecord } from '../types';
 
 /**
- * Renders a modal containing the WordPress post editor for quick-editing
- * an entry's title and content without leaving the admin page.
- *
- * - Editor notices (success/error snackbars) are rendered inside the
- *   `EditorProvider` via `<EditorSnackbars />`.
- * - Closing is guarded when unsaved edits exist (detected via
- *   `useEntityRecord().hasEdits`, backed by core-data's
- *   `hasEditsForEntityRecord`). A `ConfirmDialog` prompts before
- *   discarding. The editor store's `isEditedPostDirty` selector is
- *   intentionally not used because `EditorProvider` runs in a sub-registry
- *   whose editor store is invisible to selectors outside the provider.
- * - The built-in Modal close button is disabled (`isDismissible={ false }`)
- *   to prevent the exit animation from firing before the guard can
- *   intercept. Cancel in the header goes through the guard instead.
- * - `EditorProvider` stays inside the Modal: its own helper modals (keyboard
- *   shortcuts, media editor) must nest in this one, or opening them closes
- *   Quick Edit. The header's Cancel and Save sit outside the provider, so
- *   `EditorRegistryBridge` hands them the editor's sub-registry.
- *
- * @param {QuickEditModalProps} props Component props.
- */
-/**
  * Reports the registry it renders in, so UI outside `EditorProvider` can use
  * the editor's sub-registry.
  *
@@ -71,6 +49,29 @@ function EditorRegistryBridge( {
 	return null;
 }
 
+/**
+ * Renders a modal containing the WordPress post editor for quick-editing
+ * an entry's title and content without leaving the admin page.
+ *
+ * - Editor notices (success/error snackbars) are rendered inside the
+ *   `EditorProvider` via `<EditorSnackbars />`.
+ * - Closing is guarded when unsaved edits exist (detected via
+ *   `useEntityRecord().hasEdits`, backed by core-data's
+ *   `hasEditsForEntityRecord`). A `ConfirmDialog` prompts before
+ *   discarding. The editor store's `isEditedPostDirty` selector is
+ *   intentionally not used because `EditorProvider` runs in a sub-registry
+ *   whose editor store is invisible to selectors outside the provider.
+ * - The built-in Modal close button is disabled (`isDismissible={ false }`)
+ *   to prevent the exit animation from firing before the guard can
+ *   intercept. Cancel in the header goes through the guard instead.
+ * - `EditorProvider` stays inside the Modal: its own helper modals
+ *   (keyboard shortcuts, pattern rename and duplicate, media editor) must
+ *   nest in this one, or opening them closes Quick Edit. The header's Cancel
+ *   and Save sit outside the provider, so `EditorRegistryBridge` hands them
+ *   the editor's sub-registry.
+ *
+ * @param {QuickEditModalProps} props Component props.
+ */
 function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 	const config = useAdminContext();
 	const { record, isResolving, hasEdits } = useEntityRecord(
