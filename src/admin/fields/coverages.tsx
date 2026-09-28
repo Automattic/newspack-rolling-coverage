@@ -93,13 +93,25 @@ function getCoverageFields(
 			id: 'slack_channel',
 			type: 'text',
 			label: __( 'Slack', 'newspack-rolling-coverage' ),
-			getValue: ( { item } ) => getSlackChannelLabel( item ) || '—',
+			getValue: ( { item } ) =>
+				String(
+					item.meta?.rolling_coverage_slack_channel_name ||
+						item.meta?.rolling_coverage_slack_channel_id ||
+						'—'
+				),
 			render: ( { item } ) => {
 				const label = getSlackChannelLabel( item );
 				if ( ! label ) {
 					return <span>—</span>;
 				}
-				return <Badge intent="draft">{ label }</Badge>;
+				return (
+					<Badge
+						intent="draft"
+						className="newspack-rolling-coverage-slack-channel"
+					>
+						{ label }
+					</Badge>
+				);
 			},
 		},
 		{

@@ -12,6 +12,7 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies
  */
 import type { ConnectedChannelViewProps } from '../../../types';
+import { formatSlackChannel } from '../../../utils/fields';
 import { SlackError } from './slack-error';
 
 /**
@@ -36,7 +37,7 @@ function ConnectedChannelView( {
 					{ __( 'Channel:', 'newspack-rolling-coverage' ) }
 				</strong>{ ' ' }
 				<span>
-					{ channelName ||
+					{ formatSlackChannel( channelName ) ||
 						__( '(unknown name)', 'newspack-rolling-coverage' ) }
 				</span>
 			</div>
