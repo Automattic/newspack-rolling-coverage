@@ -10,6 +10,35 @@ const SHARE_BUTTON_SELECTOR =
 const STATUS_SELECTOR = '.newspack-rolling-coverage-status';
 const COPIED_STATE_MS = 2000;
 
+type NewspackUI = {
+	notices?: { createNotice?: ( message: string ) => void };
+};
+
+/**
+ * Shows a Newspack UI snackbar. Newspack UI adds its snackbar to the first
+ * `.newspack-ui` element, which can be a hidden modal, so it gets its own
+ * container first.
+ *
+ * @param {Function} createNotice Newspack UI's createNotice().
+ * @param {string}   message      Message to show.
+ */
+function showSnackbar(
+	createNotice: ( message: string ) => void,
+	message: string
+): void {
+	if ( ! document.querySelector( '.newspack-ui__snackbar' ) ) {
+		const wrapper = document.createElement( 'div' );
+		const snackbar = document.createElement( 'div' );
+
+		wrapper.className = 'newspack-ui';
+		snackbar.className = 'newspack-ui__snackbar';
+		wrapper.appendChild( snackbar );
+		document.body.appendChild( wrapper );
+	}
+
+	createNotice( message );
+}
+
 /**
  * Sets up share-button click handling for a single rolling-coverage
  * block instance. Uses event delegation on the container so buttons
@@ -68,25 +97,41 @@ function initBlock( root: HTMLElement ): void {
 
 			const originalText = button.textContent || '';
 			const originalLabel = button.getAttribute( 'aria-label' ) || '';
+			// The icon-only share button keeps its icon; its label and the snackbar say it's copied.
+			const isIconOnly = !! button.querySelector( 'svg' );
+			const message = __( 'Link copied.', 'newspack-rolling-coverage' );
+			const createNotice = (
+				window as Window & { newspackUI?: NewspackUI }
+			 ).newspackUI?.notices?.createNotice;
 
 			button.dataset.copied = '1';
-			button.textContent = __( 'Copied!', 'newspack-rolling-coverage' );
+			if ( ! isIconOnly ) {
+				button.textContent = __(
+					'Copied!',
+					'newspack-rolling-coverage'
+				);
+			}
 			button.setAttribute(
 				'aria-label',
 				__( 'Copied!', 'newspack-rolling-coverage' )
 			);
 
-			const status = root.querySelector( STATUS_SELECTOR );
-			if ( status ) {
-				status.textContent = __(
-					'Link copied.',
-					'newspack-rolling-coverage'
-				);
+			// The snackbar announces itself, so the status region stays empty.
+			const status = createNotice
+				? null
+				: root.querySelector( STATUS_SELECTOR );
+			if ( createNotice ) {
+				showSnackbar( createNotice, message );
+			} else if ( status ) {
+				status.textContent = message;
 			}
 
 			setTimeout( () => {
-				button.textContent =
-					originalText || __( 'Share', 'newspack-rolling-coverage' );
+				if ( ! isIconOnly ) {
+					button.textContent =
+						originalText ||
+						__( 'Share', 'newspack-rolling-coverage' );
+				}
 				if ( originalLabel ) {
 					button.setAttribute( 'aria-label', originalLabel );
 				} else {

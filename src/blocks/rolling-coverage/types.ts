@@ -27,6 +27,7 @@ interface RollingCoverageAttributes {
 	entriesPerPage: number;
 	enableAds: boolean;
 	adsInterval: number;
+	pinnedLabel: string;
 	[ key: string ]: unknown;
 }
 
@@ -95,6 +96,7 @@ interface EntryContext {
 	postId: number;
 	postType: string;
 	queryId: number;
+	pinned?: boolean;
 }
 
 /**

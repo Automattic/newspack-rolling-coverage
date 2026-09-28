@@ -48,6 +48,14 @@
 	margin-bottom: 16px;
 }
 
+.newspack-rolling-coverage-onesignal-notice {
+	margin-bottom: 16px;
+
+	p {
+		margin: 0;
+	}
+}
+
 // Hides each editor-state block by default; shown per the active
 // state via ENTRY_EDITED_STATES in template.ts.
 .newspack-rolling-coverage-state-block {
@@ -65,5 +73,39 @@
 
 	[data-editor-state="deep-link"] &--deep-link {
 		display: flex;
+	}
+}
+
+.newspack-rolling-coverage-layout {
+	margin-bottom: 1.5em;
+	padding-bottom: 1.5em;
+}
+
+.newspack-rolling-coverage-layout > .wp-block,
+.newspack-rolling-coverage-entry > .wp-block {
+	margin-top: 0;
+	margin-bottom: 0;
+}
+
+.wp-block-newspack-rolling-coverage-rolling-coverage .use-header-font {
+	font-family: var(--newspack-theme-font-heading, inherit);
+}
+
+.newspack-rolling-coverage-share-preview.wp-block-button .wp-block-button__link {
+	align-items: center;
+	box-sizing: border-box;
+	display: flex;
+	font-size: 0;
+	height: 36px;
+	justify-content: center;
+	padding: 0;
+	width: 36px;
+
+	&::before {
+		background-color: currentcolor;
+		content: "";
+		height: 24px;
+		mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 17.389H8.444A5.194 5.194 0 1 1 8.444 7H10v1.5H8.444a3.694 3.694 0 0 0 0 7.389H10v1.5ZM14 7h1.556a5.194 5.194 0 0 1 0 10.39H14v-1.5h1.556a3.694 3.694 0 0 0 0-7.39H14V7Zm-4.5 6h5v-1.5h-5V13Z'/%3E%3C/svg%3E") center / 24px no-repeat;
+		width: 24px;
 	}
 }

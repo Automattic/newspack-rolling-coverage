@@ -59,6 +59,7 @@ import {
 	ENTRY_EDITED_STATES,
 	FOLLOW_TEMPLATE,
 	isFollowButtons,
+	withoutPinnedRow,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -196,8 +197,14 @@ export default function Edit( {
 	attributes,
 	setAttributes,
 }: EditProps ) {
-	const { coverageId, pollInterval, entriesPerPage, enableAds, adsInterval } =
-		attributes;
+	const {
+		coverageId,
+		pollInterval,
+		entriesPerPage,
+		enableAds,
+		adsInterval,
+		pinnedLabel,
+	} = attributes;
 	const [ editedState, setEditedState ] = useState(
 		EDITED_STATE_OPTIONS[ 0 ].value
 	);
@@ -263,6 +270,10 @@ export default function Edit( {
 					! isFollowButtons( block )
 			),
 		[ allBlocks ]
+	);
+	const unpinnedTemplateBlocks = useMemo(
+		() => withoutPinnedRow( templateBlocks ),
+		[ templateBlocks ]
 	);
 
 	// Disabled blocks drop out of List View and can't be selected, so only
@@ -691,6 +702,25 @@ export default function Edit( {
 							} )
 						}
 					/>
+					<TextControl
+						__next40pxDefaultSize
+						label={ __(
+							'Pinned label',
+							'newspack-rolling-coverage'
+						) }
+						help={ __(
+							'Shown on pinned entries.',
+							'newspack-rolling-coverage'
+						) }
+						placeholder={ __(
+							'Pinned',
+							'newspack-rolling-coverage'
+						) }
+						value={ pinnedLabel }
+						onChange={ ( value: string ) =>
+							setAttributes( { pinnedLabel: value } )
+						}
+					/>
 				</PanelBody>
 
 				{ coverageId && AI_AVAILABLE ? (
@@ -902,7 +932,11 @@ export default function Edit( {
 										>
 											{ ! isActive && (
 												<MemoizedEntryBlockPreview
-													blocks={ templateBlocks }
+													blocks={
+														context.pinned
+															? templateBlocks
+															: unpinnedTemplateBlocks
+													}
 													onSelect={ () =>
 														setActiveEntryId(
 															context.postId

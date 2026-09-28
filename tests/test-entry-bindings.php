@@ -7,6 +7,7 @@
 
 use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Entry_Bindings;
+use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 
@@ -58,7 +59,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$html = self::render( $entry_id );
 
 		$this->assertStringNotContainsString( 'Read more', $html, 'No breakout: no button.' );
-		$this->assertStringContainsString( '>Share</a>', $html, 'The rest of the template should still render.' );
+		$this->assertStringContainsString( 'data-rc-share', $html, 'The rest of the template should still render.' );
 
 		self::add_breakout( $entry_id, 'draft' );
 
@@ -117,6 +118,28 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		) )->render();
 
 		$this->assertStringNotContainsString( 'data-rc-relative', $html, 'A relative date outside an entry should not be marked.' );
+	}
+
+	/**
+	 * The share button shows the link icon alone and is named after the
+	 * entry it shares, or the entry's first words when it has no title.
+	 */
+	public function test_share_shows_the_icon_named_after_the_entry() {
+		$coverage_id = self::create_coverage();
+		$titled      = self::render( self::create_entry( $coverage_id, [ 'post_title' => 'Polls close at 8pm' ] ) );
+		$untitled    = self::render(
+			self::create_entry(
+				$coverage_id,
+				[
+					'post_title'   => '',
+					'post_content' => 'Turnout is running well ahead of the last election in every ward.',
+				]
+			)
+		);
+
+		$this->assertStringContainsString( 'aria-label="Share: Polls close at 8pm"', $titled, 'The name should include the title.' );
+		$this->assertMatchesRegularExpression( '#<a [^>]*data-rc-share[^>]*><svg[^>]*>.*</svg></a>#s', $titled, 'The link should hold the icon and no text.' );
+		$this->assertStringContainsString( 'aria-label="Share: Turnout is running well ahead of the last', $untitled, 'An untitled entry should be named by its first words.' );
 	}
 
 	/**
@@ -219,5 +242,72 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$button->context[ Entry_Bindings::COVERAGE_STATUS_CONTEXT ] = 'active';
 
 		$this->assertSame( Push_Notifications::follow_tag( $coverage_id ), Entry_Bindings::get_value( [ 'key' => 'followTag' ], $button ), 'An active one does.' );
+	}
+
+	/**
+	 * The pin icon and pinned label, as the editor saves them.
+	 */
+	const PINNED_ROW_MARKUP = '<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap"}} --><div class="wp-block-group">'
+		. '<!-- wp:icon {"icon":"newspack-rolling-coverage/pin-small"} /-->'
+		. '<!-- wp:paragraph {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"pinnedLabel"}}}},"fontSize":"small"} --><p class="has-small-font-size"></p><!-- /wp:paragraph -->'
+		. '</div><!-- /wp:group -->'
+		. '<!-- wp:paragraph --><p>Entry body</p><!-- /wp:paragraph -->';
+
+	/**
+	 * Only pinned entries show the pinned row, labelled with the block's
+	 * label or the default, and are marked for the theme.
+	 */
+	public function test_pinned_row_shows_only_on_pinned_entries() {
+		$coverage_id = self::create_coverage();
+		$pinned_id   = self::create_entry( $coverage_id );
+		$other_id    = self::create_entry( $coverage_id );
+		$template    = parse_blocks( self::PINNED_ROW_MARKUP );
+
+		Post_Type::pin_entry( $pinned_id );
+
+		$pinned = Rolling_Coverage_Block::render_entry( get_post( $pinned_id ), $template );
+		$other  = Rolling_Coverage_Block::render_entry( get_post( $other_id ), $template );
+
+		$this->assertStringContainsString( '>Pinned</p>', $pinned, 'A pinned entry should show the default label.' );
+		$this->assertStringContainsString( 'data-pinned', $pinned, 'A pinned entry should be marked.' );
+		$this->assertStringNotContainsString( 'wp-block-group', $other, 'An unpinned entry should have no pinned row.' );
+		$this->assertStringNotContainsString( 'data-pinned', $other, 'An unpinned entry should not be marked.' );
+		$this->assertStringContainsString( 'Entry body', $other, 'The rest of the template should still render.' );
+		$this->assertStringContainsString( '>Top story</p>', Rolling_Coverage_Block::render_entry( get_post( $pinned_id ), $template, 'initial', 'Top story' ), "The block's label should win." );
+	}
+
+	/**
+	 * A pinned label moved out of its row still shows only on pinned entries.
+	 */
+	public function test_pinned_label_outside_a_row_is_hidden_on_unpinned_entries() {
+		$template = parse_blocks( '<!-- wp:paragraph {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"pinnedLabel"}}}}} --><p>Saved text</p><!-- /wp:paragraph -->' );
+
+		$this->assertStringNotContainsString( 'Saved text', Rolling_Coverage_Block::render_entry( get_post( self::create_entry( self::create_coverage() ) ), $template ) );
+	}
+
+	/**
+	 * Entries loaded after the first render keep the block's pinned label.
+	 */
+	public function test_load_more_keeps_the_block_pinned_label() {
+		$coverage_id = self::create_coverage();
+		$entry_id    = self::create_entry( $coverage_id );
+		Post_Type::pin_entry( $entry_id );
+
+		$attributes = [
+			'coverageId'  => $coverage_id,
+			'pinnedLabel' => 'Top story',
+		];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . self::PINNED_ROW_MARKUP . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		$this->assertMatchesRegularExpression( '/data-template-key="([^"]+)"/', $html );
+		preg_match( '/data-template-key="([^"]+)"/', $html, $matches );
+
+		$request = new WP_REST_Request( 'GET' );
+		$request->set_param( 'term_id', $coverage_id );
+		$request->set_param( 'template_key', $matches[1] );
+		$request->set_param( 'before', gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ) );
+
+		$this->assertStringContainsString( '>Top story</p>', Rolling_Coverage_Block::get_entries( $request )->get_data()['html'] );
 	}
 }

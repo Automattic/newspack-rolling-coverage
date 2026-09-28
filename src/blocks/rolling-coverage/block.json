@@ -26,7 +26,14 @@
 		"adsInterval": {
 			"type": "number",
 			"default": 4
+		},
+		"pinnedLabel": {
+			"type": "string",
+			"default": ""
 		}
+	},
+	"providesContext": {
+		"newspack-rolling-coverage/pinnedLabel": "pinnedLabel"
 	},
 	"supports": {
 		"html": false,
