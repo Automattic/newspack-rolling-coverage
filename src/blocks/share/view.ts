@@ -55,8 +55,12 @@ function copyWithSelection( text: string, button: HTMLElement ): boolean {
 	textarea.style.position = 'fixed';
 	textarea.style.top = '0';
 	textarea.style.opacity = '0';
+	// Stops iOS zooming in when the field takes focus.
+	textarea.style.fontSize = '12pt';
 	document.body.appendChild( textarea );
 	textarea.select();
+	// iOS Safari ignores select() on its own.
+	textarea.setSelectionRange( 0, text.length );
 
 	let copied = false;
 	try {
