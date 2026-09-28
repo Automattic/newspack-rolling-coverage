@@ -10,12 +10,17 @@ import {
 import { __ } from '@wordpress/i18n';
 
 /**
+ * Internal dependencies
+ */
+import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
+
+/**
  * Default inner-blocks template for the modal content.
  * Defines the layout rendered inside the modal on the front end.
  */
 const MODAL_TEMPLATE = [
 	[ 'core/post-title', { level: 3 } ],
-	[ 'core/post-date' ],
+	[ 'core/post-date', POST_DATE_ATTRIBUTES ],
 	[ 'core/post-content' ],
 	[ 'core/spacer', { height: '20px' } ],
 	[ 'core/post-author-name' ],

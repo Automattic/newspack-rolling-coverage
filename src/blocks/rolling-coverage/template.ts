@@ -7,6 +7,7 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies
  */
 import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
+import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
 import type { TemplateItem, EntryEditedState } from './types';
 
 const LOCKED = { remove: true, move: false };
@@ -23,8 +24,11 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 			style: { spacing: { blockGap: '0' } },
 		},
 		[
-			[ 'core/post-date', { format: 'human-diff' } ],
-			[ 'core/post-title', { level: 3 } ],
+			[
+				'core/post-date',
+				{ ...POST_DATE_ATTRIBUTES, format: 'human-diff' },
+			],
+			[ 'core/post-title', { level: 4 } ],
 		],
 	],
 	[ 'core/post-content' ],
@@ -54,7 +58,6 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 			[
 				'core/button',
 				{
-					lock: LOCKED,
 					text: __( 'Share', 'newspack-rolling-coverage' ),
 					metadata: {
 						name: __( 'Share', 'newspack-rolling-coverage' ),

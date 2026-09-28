@@ -93,6 +93,91 @@ class Rolling_Coverage_Block {
 		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 10, 3 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
 		add_filter( 'render_block_core/post-content', [ __CLASS__, 'drop_entry_content_class' ], 10, 3 );
+		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
+		add_filter( 'render_block_data', [ __CLASS__, 'drop_fixed_entry_date' ] );
+	}
+
+	/**
+	 * Drops a fixed date from an entry's post date block so it shows the
+	 * entry's own date.
+	 *
+	 * Templates saved before the post date carried its `core/post-data`
+	 * binding have the time they were saved stored as a custom date, which
+	 * core would show on every entry.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return array
+	 */
+	public static function drop_fixed_entry_date( $parsed_block ) {
+		if (
+			! is_array( $parsed_block ) ||
+			'core/post-date' !== ( $parsed_block['blockName'] ?? '' ) ||
+			! isset( $parsed_block['attrs']['datetime'] ) ||
+			isset( $parsed_block['attrs']['metadata']['bindings']['datetime'] ) ||
+			// Entries render with the entry as the global post (render_entry(), the deep link modal).
+			Post_Type::CPT_SLUG !== get_post_type()
+		) {
+			return $parsed_block;
+		}
+
+		unset( $parsed_block['attrs']['datetime'] );
+
+		return $parsed_block;
+	}
+
+	/**
+	 * Writes an entry's flex group block spacing (e.g. the date and title
+	 * stack) onto the group on the Newspack Theme.
+	 *
+	 * Core only outputs block spacing for themes that support it through
+	 * theme.json; the classic Newspack Theme doesn't, so core falls back to
+	 * its 0.5em default and ignores the value set in the editor. Themes that
+	 * support block spacing, like the Newspack Block Theme, are left to core.
+	 *
+	 * Parameters stay untyped because this runs for every group block on the
+	 * site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string   $block_content Rendered block.
+	 * @param array    $block         Parsed block.
+	 * @param WP_Block $instance      Block instance.
+	 * @return string
+	 */
+	public static function apply_entry_block_gap( $block_content, $block, $instance ) {
+		if (
+			! is_string( $block_content ) ||
+			! $instance instanceof WP_Block ||
+			'newspack-theme' !== get_template() ||
+			// Groups don't take post context; render_entry() sets the entry as the global post.
+			Post_Type::CPT_SLUG !== get_post_type() ||
+			'flex' !== ( $block['attrs']['layout']['type'] ?? '' )
+		) {
+			return $block_content;
+		}
+
+		$gap = wp_sanitize_block_gap_value( $block['attrs']['style']['spacing']['blockGap'] ?? null );
+		$gap = is_array( $gap ) ? [ $gap['top'] ?? null, $gap['left'] ?? null ] : [ $gap ];
+		$gap = array_filter( $gap, fn( $value ) => is_scalar( $value ) && '' !== (string) $value );
+
+		if ( ! $gap ) {
+			return $block_content;
+		}
+
+		// Preset values resolve to their CSS variables, as core does.
+		$gap = array_map(
+			fn( $value ) => str_contains( (string) $value, 'var:preset|spacing|' )
+				? 'var(--wp--preset--spacing--' . _wp_to_kebab_case( substr( (string) $value, strrpos( (string) $value, '|' ) + 1 ) ) . ')'
+				: (string) $value,
+			$gap
+		);
+
+		$group = new WP_HTML_Tag_Processor( $block_content );
+
+		if ( $group->next_tag() ) {
+			$style = trim( (string) $group->get_attribute( 'style' ), " \t\n\r;" );
+			$group->set_attribute( 'style', ( $style ? $style . ';' : '' ) . 'gap:' . implode( ' ', $gap ) );
+		}
+
+		return $group->get_updated_html();
 	}
 
 	/**
@@ -726,7 +811,7 @@ class Rolling_Coverage_Block {
 					],
 					[
 						'blockName'    => 'core/post-title',
-						'attrs'        => [ 'level' => 3 ],
+						'attrs'        => [ 'level' => 4 ],
 						'innerBlocks'  => [],
 						'innerHTML'    => '',
 						'innerContent' => [],
