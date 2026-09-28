@@ -527,6 +527,15 @@ function EntryView() {
 					rel="noopener noreferrer"
 				>
 					{ __( 'View Page', 'newspack-rolling-coverage' ) }
+					<VisuallyHidden>
+						{
+							/* translators: Accessibility text. */
+							__(
+								'(opens in a new tab)',
+								'newspack-rolling-coverage'
+							)
+						}
+					</VisuallyHidden>
 				</Button>
 			) : (
 				<Button

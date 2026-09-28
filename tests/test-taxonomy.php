@@ -235,16 +235,18 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 
 	/**
 	 * The coverage exposes the newest published page embedding it, found
-	 * inside nested blocks, and nothing once that page is unpublished.
+	 * inside nested blocks, and the next one once that page is unpublished.
 	 */
 	public function test_page_url_points_to_the_newest_published_page_showing_the_coverage() {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
 		$coverage_id = self::create_coverage();
 		$other_id    = self::create_coverage();
 		$block       = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->';
 
 		$this->assertSame( '', self::get_coverage_via_rest( $coverage_id, 'view' )[ Taxonomy::PAGE_URL_REST_FIELD ], 'No page embeds the coverage yet.' );
 
-		self::factory()->post->create(
+		$older_id  = self::factory()->post->create(
 			[
 				'post_type'    => 'page',
 				'post_status'  => 'publish',
@@ -279,6 +281,46 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 			]
 		);
 
-		$this->assertNotSame( get_permalink( $newest_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'An unpublished page should drop out.' );
+		$this->assertSame( get_permalink( $older_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'Unpublishing the newest page should hand over to the next one.' );
+	}
+
+	/**
+	 * A canonical URL is where share links and notifications send readers,
+	 * so it wins over the newest embedding page.
+	 */
+	public function test_page_url_prefers_the_canonical_url() {
+		$coverage_id   = self::create_coverage();
+		$canonical_url = home_url( '/live/election-night/' );
+
+		self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->',
+			]
+		);
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, $canonical_url );
+
+		$this->assertSame( $canonical_url, Taxonomy::get_coverage_page_url( $coverage_id ) );
+	}
+
+	/**
+	 * The page lookup scans post content, so it only runs for users who can
+	 * reach the admin that shows it.
+	 */
+	public function test_page_url_is_empty_for_users_who_cannot_edit_posts() {
+		$coverage_id = self::create_coverage();
+
+		self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->',
+			]
+		);
+
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'subscriber' ] ) );
+
+		$this->assertSame( '', self::get_coverage_via_rest( $coverage_id, 'view' )[ Taxonomy::PAGE_URL_REST_FIELD ] );
 	}
 }

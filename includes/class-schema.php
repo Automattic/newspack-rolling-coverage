@@ -105,7 +105,7 @@ class Schema {
 	 * @param array[] $blocks Parsed blocks.
 	 * @return array[] Flat list of parsed blocks.
 	 */
-	private static function flatten_blocks( array $blocks ): array {
+	public static function flatten_blocks( array $blocks ): array {
 		$flat = [];
 
 		foreach ( $blocks as $block ) {
