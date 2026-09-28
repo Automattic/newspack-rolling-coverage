@@ -8,7 +8,7 @@ import { decodeEntities } from '@wordpress/html-entities';
 /**
  * Internal dependencies.
  */
-import { safeFormatSlackTimestamp } from '../utils/fields';
+import { formatSlackChannel, safeFormatSlackTimestamp } from '../utils/fields';
 import type { Field, ViewState, ChannelRow } from '../types';
 
 /**
@@ -33,6 +33,8 @@ function getChannelFields(
 			enableGlobalSearch: true,
 			enableHiding: false,
 			getValue: ( { item } ) => item.channel_name || item.channel_id,
+			render: ( { item } ) =>
+				formatSlackChannel( item.channel_name, item.channel_id ),
 		},
 		{
 			id: 'channel_id',
@@ -92,7 +94,10 @@ function getChannelFields(
 									'Auto-publish entries from %s',
 									'newspack-rolling-coverage'
 								),
-								item.channel_name || item.channel_id
+								formatSlackChannel(
+									item.channel_name,
+									item.channel_id
+								)
 							) }
 						</VisuallyHidden>
 					}
