@@ -98,7 +98,7 @@ function SlackSettingsPage() {
 			<>
 				<Button
 					variant="secondary"
-					className="newspack-rolling-coverage-connection-status-button"
+					className="newspack-rolling-coverage-status-button newspack-rolling-coverage-connection-status-button"
 					onClick={ () => setIsStatusOpen( true ) }
 				>
 					<span
