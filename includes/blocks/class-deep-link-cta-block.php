@@ -97,7 +97,7 @@ class Deep_Link_CTA_Block {
 
 		if ( $breakout_url ) {
 			return sprintf(
-				'<div %1$s hidden role="status" aria-live="polite"><p class="newspack-rolling-coverage-cta__text">%2$s</p><a href="%3$s" class="newspack-rolling-coverage-cta__button wp-element-button">%4$s</a></div>',
+				'<div %1$s hidden role="status" aria-live="polite"><p class="newspack-rolling-coverage-cta__text">%2$s</p><a href="%3$s" class="newspack-rolling-coverage-cta__button wp-element-button wp-block-button__link">%4$s</a></div>',
 				get_block_wrapper_attributes( [ 'class' => 'newspack-rolling-coverage-cta' ] ),
 				wp_kses_post( $text ),
 				esc_url( $breakout_url ),
@@ -109,7 +109,7 @@ class Deep_Link_CTA_Block {
 		$modal_html = self::render_modal_template( $block, $entry_id );
 
 		return sprintf(
-			'<div %1$s hidden role="status" aria-live="polite"><p class="newspack-rolling-coverage-cta__text">%2$s</p><button type="button" class="newspack-rolling-coverage-cta__button wp-element-button" aria-haspopup="dialog">%3$s</button><template class="newspack-rolling-coverage-cta__modal-template">%4$s</template></div>',
+			'<div %1$s hidden role="status" aria-live="polite"><p class="newspack-rolling-coverage-cta__text">%2$s</p><button type="button" class="newspack-rolling-coverage-cta__button wp-element-button wp-block-button__link" aria-haspopup="dialog">%3$s</button><template class="newspack-rolling-coverage-cta__modal-template">%4$s</template></div>',
 			get_block_wrapper_attributes( [ 'class' => 'newspack-rolling-coverage-cta' ] ),
 			wp_kses_post( $text ),
 			esc_html( $button_text ),

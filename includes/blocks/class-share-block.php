@@ -69,7 +69,7 @@ class Share_Block {
 		return sprintf(
 			'<button %1$s type="button" data-share-url="%2$s" aria-label="%3$s">%4$s</button>',
 			get_block_wrapper_attributes(
-				[ 'class' => 'newspack-rolling-coverage-share-link wp-element-button' ]
+				[ 'class' => 'newspack-rolling-coverage-share-link wp-element-button wp-block-button__link' ]
 			),
 			esc_attr( $share_url ),
 			esc_attr( __( 'Share this entry', 'newspack-rolling-coverage' ) ),

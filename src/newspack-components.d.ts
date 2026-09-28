@@ -102,6 +102,12 @@ declare module 'newspack-icons' {
 	import type { JSX } from 'react';
 
 	export const activity: JSX.Element;
+	export const newspack: JSX.Element;
+}
+
+declare module 'newspack-colors' {
+	const colors: Record< string, string >;
+	export default colors;
 }
 
 declare module 'newspack-components/dist/esm/divider' {

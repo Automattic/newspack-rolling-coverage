@@ -91,7 +91,7 @@ class Coverage_Follow_Block {
 
 		return sprintf(
 			'<button type="button" %1$s data-tag="%2$s" data-label-follow="%3$s" data-label-following="%4$s" data-blocked-message="%5$s" data-error-message="%6$s" aria-pressed="false">%3$s</button>',
-			get_block_wrapper_attributes( [ 'class' => 'newspack-rolling-coverage-follow wp-element-button' ] ),
+			get_block_wrapper_attributes( [ 'class' => 'newspack-rolling-coverage-follow wp-element-button wp-block-button__link' ] ),
 			esc_attr( Push_Notifications::follow_tag( $coverage_id ) ),
 			esc_html__( 'Follow', 'newspack-rolling-coverage' ),
 			esc_html__( 'Following', 'newspack-rolling-coverage' ),

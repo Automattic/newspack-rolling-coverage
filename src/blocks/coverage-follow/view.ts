@@ -1,7 +1,6 @@
 /**
  * Internal dependencies
  */
-import './style.scss';
 import type { OneSignalApi } from './types';
 
 // Matches the button markup rendered server-side by Coverage_Follow_Block::render_block().

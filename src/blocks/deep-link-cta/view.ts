@@ -48,7 +48,7 @@ function initBlock( root: HTMLElement ): void {
 		const back = document.createElement( 'button' );
 		back.type = 'button';
 		back.className =
-			'newspack-rolling-coverage-cta-modal__back wp-element-button';
+			'newspack-rolling-coverage-cta-modal__back wp-element-button wp-block-button__link';
 		back.textContent = '←';
 		back.setAttribute(
 			'aria-label',

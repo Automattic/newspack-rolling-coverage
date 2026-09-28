@@ -95,7 +95,7 @@ export default function Edit( {
 			<RichText
 				tagName="button"
 				type="button"
-				className="newspack-rolling-coverage-cta__button wp-element-button"
+				className="newspack-rolling-coverage-cta__button wp-element-button wp-block-button__link"
 				value={
 					attributes.buttonText ||
 					__( 'View', 'newspack-rolling-coverage' )

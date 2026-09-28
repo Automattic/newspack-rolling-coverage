@@ -260,23 +260,10 @@ class Rolling_Coverage_Block {
 		$previous_post_id   = self::$host_post_id;
 		self::$host_post_id = (int) get_the_ID();
 
-		// Preload so polled entries are styled even if no breakout buttons appeared on initial render.
-		$breakout_block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/breakout-post-link' );
-
-		if ( $breakout_block_type ) {
-			foreach ( $breakout_block_type->style_handles as $style_handle ) {
-				wp_enqueue_style( $style_handle );
-			}
-		}
-
-		// Preload the share block styles and view script for the same reason.
+		// Preload so polled entries' share buttons work even if none appeared on initial render.
 		$share_link_block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/share' );
 
 		if ( $share_link_block_type ) {
-			foreach ( $share_link_block_type->style_handles as $style_handle ) {
-				wp_enqueue_style( $style_handle );
-			}
-
 			foreach ( $share_link_block_type->view_script_handles as $script_handle ) {
 				wp_enqueue_script( $script_handle );
 			}
@@ -624,7 +611,7 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The hardcoded fallback per-entry template: title, date, content, and
-	 * the breakout post link block.
+	 * core buttons for the breakout post link and sharing.
 	 *
 	 * @return array[] Array of parsed-block-shaped arrays.
 	 */
@@ -652,19 +639,67 @@ class Rolling_Coverage_Block {
 				'innerContent' => [],
 			],
 			[
-				'blockName'    => 'newspack-rolling-coverage/breakout-post-link',
+				'blockName'    => 'core/buttons',
 				'attrs'        => [],
-				'innerBlocks'  => [],
-				'innerHTML'    => '',
-				'innerContent' => [],
+				'innerBlocks'  => [
+					self::entry_button_block(
+						__( 'Read more', 'newspack-rolling-coverage' ),
+						[
+							'url'  => [
+								'source' => Entry_Bindings::SOURCE_NAME,
+								'args'   => [ 'key' => 'breakoutUrl' ],
+							],
+							'text' => [
+								'source' => Entry_Bindings::SOURCE_NAME,
+								'args'   => [ 'key' => 'breakoutLabel' ],
+							],
+						]
+					),
+					self::entry_button_block(
+						__( 'Share', 'newspack-rolling-coverage' ),
+						[
+							'url' => [
+								'source' => Entry_Bindings::SOURCE_NAME,
+								'args'   => [ 'key' => 'shareUrl' ],
+							],
+						],
+						'newspack-rolling-coverage-share-link'
+					),
+				],
+				'innerHTML'    => '<div class="wp-block-buttons"></div>',
+				'innerContent' => [ '<div class="wp-block-buttons">', null, null, '</div>' ],
 			],
-			[
-				'blockName'    => 'newspack-rolling-coverage/share',
-				'attrs'        => [],
-				'innerBlocks'  => [],
-				'innerHTML'    => '',
-				'innerContent' => [],
-			],
+		];
+	}
+
+	/**
+	 * A parsed core/button block whose link, and optionally label, are bound
+	 * to the entry.
+	 *
+	 * @param string $text       Button label.
+	 * @param array  $bindings   Block bindings keyed by attribute.
+	 * @param string $class_name Extra class on the button wrapper.
+	 * @return array Parsed-block-shaped array.
+	 */
+	private static function entry_button_block( string $text, array $bindings, string $class_name = '' ) {
+		$attrs = [ 'metadata' => [ 'bindings' => $bindings ] ];
+
+		if ( $class_name ) {
+			$attrs['className'] = $class_name;
+		}
+
+		$html = sprintf(
+			'<div class="%1$s"><a class="wp-block-button__link wp-element-button">%2$s</a></div>',
+			esc_attr( trim( 'wp-block-button ' . $class_name ) ),
+			esc_html( $text )
+		);
+
+		return [
+			'blockName'    => 'core/button',
+			'attrs'        => $attrs,
+			'innerBlocks'  => [],
+			'innerHTML'    => $html,
+			'innerContent' => [ $html ],
 		];
 	}
 

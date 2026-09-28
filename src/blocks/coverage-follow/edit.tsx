@@ -52,7 +52,8 @@ function getUnconfiguredNoticeMessage(): string {
  */
 export default function Edit() {
 	const blockProps = useBlockProps( {
-		className: 'newspack-rolling-coverage-follow wp-element-button',
+		className:
+			'newspack-rolling-coverage-follow wp-element-button wp-block-button__link',
 		'aria-pressed': 'false',
 		type: 'button',
 	} );
@@ -67,14 +68,20 @@ export default function Edit() {
 							'newspack-rolling-coverage'
 						) }
 					>
-						<Notice status="warning" isDismissible={ false }>
-							{ getUnconfiguredNoticeMessage() }{ ' ' }
-							<ExternalLink href="https://documentation.onesignal.com/docs/en/wordpress">
-								{ __(
-									'Setup guide',
-									'newspack-rolling-coverage'
-								) }
-							</ExternalLink>
+						<Notice
+							status="warning"
+							isDismissible={ false }
+							spokenMessage={ getUnconfiguredNoticeMessage() }
+						>
+							<p>{ getUnconfiguredNoticeMessage() }</p>
+							<p>
+								<ExternalLink href="https://documentation.onesignal.com/docs/en/wordpress">
+									{ __(
+										'Setup guide',
+										'newspack-rolling-coverage'
+									) }
+								</ExternalLink>
+							</p>
 						</Notice>
 					</PanelBody>
 				</InspectorControls>

@@ -3,7 +3,7 @@
 	"apiVersion": 3,
 	"name": "newspack-rolling-coverage/coverage-follow",
 	"title": "Coverage Follow Button",
-	"category": "widgets",
+	"category": "newspack",
 	"description": "Lets readers follow this coverage to receive push notifications for new entries. Rendered once at the top of the coverage.",
 	"textdomain": "newspack-rolling-coverage",
 	"parent": [ "newspack-rolling-coverage/rolling-coverage" ],
@@ -42,6 +42,5 @@
 		}
 	},
 	"editorScript": "file:./index.js",
-	"viewScript": "file:./view.js",
-	"style": "file:./view.css"
+	"viewScript": "file:./view.js"
 }
