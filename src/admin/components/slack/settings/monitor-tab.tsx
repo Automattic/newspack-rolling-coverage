@@ -23,7 +23,11 @@ import {
 	defaultMonitorView,
 	MAX_MONITOR_EVENTS,
 } from '../../../fields/monitor';
-import type { ChannelMapping, SlackMonitorEvent } from '../../../types';
+import type {
+	ChannelMapping,
+	SlackMonitorEvent,
+	TabHeader,
+} from '../../../types';
 
 const POLL_INTERVAL = 5000;
 
@@ -59,7 +63,7 @@ function MonitorTab( {
 	onHeaderChange,
 }: {
 	channels: ChannelMapping[];
-	onHeaderChange: ( header: { count?: number; isEmpty?: boolean } ) => void;
+	onHeaderChange: ( header: TabHeader ) => void;
 } ) {
 	const config = useAdminContext();
 	const namespace = config.restBase.slack;
