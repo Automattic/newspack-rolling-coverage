@@ -103,6 +103,7 @@ class Rolling_Coverage_Block {
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
 		add_filter( 'render_block_core/post-content', [ __CLASS__, 'drop_entry_content_class' ], 10, 3 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
+		add_filter( 'render_block_core/buttons', [ __CLASS__, 'drop_empty_entry_buttons' ] );
 	}
 
 	/**
@@ -204,6 +205,33 @@ class Rolling_Coverage_Block {
 		}
 
 		return $group->get_updated_html();
+	}
+
+	/**
+	 * Drops an entry's Buttons block when none of its buttons render, e.g.
+	 * "Read more" before the breakout post is published, so the empty row
+	 * doesn't add the entry's block spacing twice.
+	 *
+	 * The parameter stays untyped because this runs for every Buttons block on
+	 * the site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string $block_content Rendered block.
+	 * @return string
+	 */
+	public static function drop_empty_entry_buttons( $block_content ) {
+		if ( ! is_string( $block_content ) || ! self::$entry_render_depth ) {
+			return $block_content;
+		}
+
+		$buttons = new WP_HTML_Tag_Processor( $block_content );
+
+		while ( $buttons->next_tag() ) {
+			if ( $buttons->has_class( 'wp-block-button' ) ) {
+				return $block_content;
+			}
+		}
+
+		return '';
 	}
 
 	/**
@@ -574,6 +602,7 @@ class Rolling_Coverage_Block {
 				'data-template-key'     => $template_key,
 				'data-host-post-id'     => (int) self::$host_post_id,
 				'data-rest-url'         => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages/' . $coverage_id . '/entries' ) ),
+				'style'                 => self::entry_gap_style( $attributes ),
 			]
 		);
 
@@ -590,6 +619,29 @@ class Rolling_Coverage_Block {
 		} finally {
 			self::$host_post_id = $previous_post_id;
 		}
+	}
+
+	/**
+	 * The space between an entry's blocks, from the block's Block spacing
+	 * setting, as a custom property the entries read (see style.scss). Set on
+	 * the block, so entries added by polling or load more pick it up too.
+	 *
+	 * @param array $attributes Block attributes.
+	 * @return string Inline CSS, or an empty string.
+	 */
+	private static function entry_gap_style( array $attributes ): string {
+		$gap = $attributes['style']['spacing']['blockGap'] ?? null;
+		$gap = is_array( $gap ) ? ( $gap['top'] ?? null ) : $gap;
+
+		if ( ! is_string( $gap ) || '' === $gap ) {
+			return '';
+		}
+
+		if ( str_starts_with( $gap, 'var:preset|spacing|' ) ) {
+			$gap = 'var(--wp--preset--spacing--' . _wp_to_kebab_case( substr( $gap, strlen( 'var:preset|spacing|' ) ) ) . ')';
+		}
+
+		return ( new \WP_Style_Engine_CSS_Declarations( [ '--newspack-rolling-coverage-entry-gap' => $gap ] ) )->get_declarations_string();
 	}
 
 	/**
@@ -839,7 +891,7 @@ class Rolling_Coverage_Block {
 						'justifyContent'    => 'space-between',
 						'verticalAlignment' => 'center',
 					],
-					'style'  => [ 'spacing' => [ 'blockGap' => '16px' ] ],
+					'style'  => [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ] ],
 				],
 				'innerBlocks'  => [
 					[
@@ -849,7 +901,7 @@ class Rolling_Coverage_Block {
 								'type'        => 'flex',
 								'orientation' => 'vertical',
 							],
-							'style'  => [ 'spacing' => [ 'blockGap' => '8px' ] ],
+							'style'  => [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|20' ] ],
 						],
 						'innerBlocks'  => [
 							self::pinned_row_block(),
@@ -975,7 +1027,7 @@ class Rolling_Coverage_Block {
 					'flexWrap'          => 'nowrap',
 					'verticalAlignment' => 'center',
 				],
-				'style'  => [ 'spacing' => [ 'blockGap' => '4px' ] ],
+				'style'  => [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|20' ] ],
 			],
 			'innerBlocks'  => [
 				[

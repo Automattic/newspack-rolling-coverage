@@ -68,6 +68,10 @@
 		// with taller fixed headers can override via this custom property.
 		scroll-margin-top: var(--newspack-rolling-coverage-scroll-offset, 80px);
 
+		> * + * {
+			margin-top: var(--newspack-rolling-coverage-entry-gap, var(--wp--preset--spacing--20));
+		}
+
 		.wp-block-post-content {
 
 			> :first-child {

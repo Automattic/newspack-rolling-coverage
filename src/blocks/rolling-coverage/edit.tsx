@@ -185,6 +185,30 @@ function EntryBlockPreview( {
 
 const MemoizedEntryBlockPreview = memo( EntryBlockPreview );
 
+/**
+ * The space between an entry's blocks as the custom property the entries
+ * read, mirroring Rolling_Coverage_Block::entry_gap_style().
+ *
+ * @param {string|Object} blockGap The Block spacing setting.
+ * @return {Object} Inline style.
+ */
+function entryGapStyle(
+	blockGap?: string | { top?: string }
+): Record< string, string > {
+	let gap = typeof blockGap === 'object' ? blockGap?.top : blockGap;
+
+	if ( ! gap ) {
+		return {};
+	}
+
+	const preset = gap.match( /^var:preset\|spacing\|(.+)$/ );
+	if ( preset ) {
+		gap = `var(--wp--preset--spacing--${ preset[ 1 ] })`;
+	}
+
+	return { '--newspack-rolling-coverage-entry-gap': gap };
+}
+
 const STATUS_OPTIONS = [
 	{ label: __( 'Active', 'newspack-rolling-coverage' ), value: 'active' },
 	{ label: __( 'Paused', 'newspack-rolling-coverage' ), value: 'paused' },
@@ -208,7 +232,10 @@ export default function Edit( {
 	const [ editedState, setEditedState ] = useState(
 		EDITED_STATE_OPTIONS[ 0 ].value
 	);
-	const blockProps = useBlockProps( { 'data-editor-state': editedState } );
+	const blockProps = useBlockProps( {
+		'data-editor-state': editedState,
+		style: entryGapStyle( attributes.style?.spacing?.blockGap ),
+	} );
 	const innerBlocksProps = useInnerBlocksProps(
 		{ className: 'newspack-rolling-coverage-layout' },
 		{

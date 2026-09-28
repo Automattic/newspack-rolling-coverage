@@ -121,6 +121,24 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An entry's Buttons block renders nothing when none of its buttons do,
+	 * and is left alone outside an entry.
+	 */
+	public function test_empty_entry_buttons_render_nothing() {
+		$read_more = '<!-- wp:buttons --><div class="wp-block-buttons">'
+			. '<!-- wp:button {"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"breakoutUrl"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button">Read more</a></div><!-- /wp:button -->'
+			. '</div><!-- /wp:buttons -->';
+		$entry_id  = self::create_entry( self::create_coverage() );
+
+		$this->assertStringNotContainsString( 'wp-block-buttons', Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( $read_more ) ), 'No breakout: no empty row.' );
+
+		self::add_breakout( $entry_id, 'publish' );
+
+		$this->assertStringContainsString( 'wp-block-buttons', Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( $read_more ) ), 'A published breakout keeps the row.' );
+		$this->assertStringContainsString( 'wp-block-buttons', render_block( parse_blocks( '<!-- wp:buttons --><div class="wp-block-buttons"></div><!-- /wp:buttons -->' )[0] ), 'An empty Buttons block outside an entry is left alone.' );
+	}
+
+	/**
 	 * The share button shows the link icon alone and is named after the
 	 * entry it shares, or the entry's first words when it has no title.
 	 */

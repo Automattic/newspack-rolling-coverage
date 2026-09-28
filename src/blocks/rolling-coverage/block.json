@@ -30,6 +30,14 @@
 		"pinnedLabel": {
 			"type": "string",
 			"default": ""
+		},
+		"style": {
+			"type": "object",
+			"default": {
+				"spacing": {
+					"blockGap": "var:preset|spacing|20"
+				}
+			}
 		}
 	},
 	"providesContext": {
@@ -58,6 +66,7 @@
 		"spacing": {
 			"margin": true,
 			"padding": true,
+			"blockGap": true,
 			"__experimentalDefaultControls": {
 				"padding": true
 			}

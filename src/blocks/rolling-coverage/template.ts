@@ -29,7 +29,7 @@ const PINNED_ROW: TemplateItem = [
 			flexWrap: 'nowrap',
 			verticalAlignment: 'center',
 		},
-		style: { spacing: { blockGap: '4px' } },
+		style: { spacing: { blockGap: 'var:preset|spacing|20' } },
 		metadata: { name: __( 'Pinned', 'newspack-rolling-coverage' ) },
 	},
 	[
@@ -112,14 +112,14 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 				justifyContent: 'space-between',
 				verticalAlignment: 'center',
 			},
-			style: { spacing: { blockGap: '16px' } },
+			style: { spacing: { blockGap: 'var:preset|spacing|30' } },
 		},
 		[
 			[
 				'core/group',
 				{
 					layout: { type: 'flex', orientation: 'vertical' },
-					style: { spacing: { blockGap: '8px' } },
+					style: { spacing: { blockGap: 'var:preset|spacing|20' } },
 				},
 				[
 					PINNED_ROW,

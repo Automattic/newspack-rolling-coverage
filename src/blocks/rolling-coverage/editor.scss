@@ -80,15 +80,23 @@
 .newspack-rolling-coverage-entry > .wp-block {
 	margin-top: 0;
 	margin-bottom: 0;
+
+	+ .wp-block {
+		margin-top: var(--newspack-rolling-coverage-entry-gap, var(--wp--preset--spacing--20));
+	}
 }
 
 .newspack-rolling-coverage-layout .wp-block-post-content {
 
-	> :first-child {
+	> :not(.wp-block) {
+		margin: 0;
+	}
+
+	> :nth-child(1 of .wp-block) {
 		margin-top: 0;
 	}
 
-	> :last-child {
+	> :nth-last-child(1 of .wp-block) {
 		margin-bottom: 0;
 	}
 }
