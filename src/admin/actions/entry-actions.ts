@@ -471,14 +471,20 @@ function getEntryActions(
 						);
 
 						if ( ! succeeded ) {
-							return {
-								error:
-									failed[ 0 ].error ||
-									__(
-										'Failed to trash entry.',
-										'newspack-rolling-coverage'
-									),
-							};
+							const error =
+								failed[ 0 ].error ||
+								__(
+									'Failed to trash entry.',
+									'newspack-rolling-coverage'
+								);
+							// Some items went through, so a retry would resend those too.
+							// Refresh the list and report the failure instead.
+							if ( failed.length < items.length ) {
+								notifyError( error );
+								onActionPerformed?.();
+								return;
+							}
+							return { error };
 						}
 
 						notifySuccess(
@@ -578,24 +584,34 @@ function getEntryActions(
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				config.capabilities.canEditEntries && entry.status === 'trash',
-			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
-				createElement( ConfirmModal, {
-					message: pluralize(
+			callback: ( items: Entry[] ) =>
+				requestConfirm( {
+					title: pluralize(
 						items.length,
 						__(
-							'Are you sure you want to permanently delete this entry? This cannot be undone.',
+							'Permanently delete this entry?',
 							'newspack-rolling-coverage'
 						),
-						__(
-							'Are you sure you want to permanently delete these entries? This cannot be undone.',
-							'newspack-rolling-coverage'
+						sprintf(
+							/* translators: %d: number of entries. */
+							_n(
+								'Permanently delete %d entry?',
+								'Permanently delete %d entries?',
+								items.length,
+								'newspack-rolling-coverage'
+							),
+							items.length
 						)
+					),
+					description: __(
+						'This cannot be undone.',
+						'newspack-rolling-coverage'
 					),
 					confirmLabel: __(
 						'Delete Permanently',
 						'newspack-rolling-coverage'
 					),
-					isDestructive: true,
+					intent: 'irreversible',
 					onConfirm: async () => {
 						const { failed, succeeded } = await runEntryBulk(
 							config,
@@ -603,66 +619,39 @@ function getEntryActions(
 							true
 						);
 
-						if ( succeeded ) {
-							notifySuccess(
-								pluralize(
-									items.length,
-									__(
-										'Entry permanently deleted.',
-										'newspack-rolling-coverage'
-									),
-									__(
-										'Entries permanently deleted.',
-										'newspack-rolling-coverage'
-									)
-								)
-							);
-							notify?.( items );
-							onActionPerformed?.();
-						} else {
-							notifyError(
+						if ( ! succeeded ) {
+							const error =
 								failed[ 0 ].error ||
-									__(
-										'Failed to delete entry.',
-										'newspack-rolling-coverage'
-									)
-							);
+								__(
+									'Failed to delete entry.',
+									'newspack-rolling-coverage'
+								);
+							// Some items went through, so a retry would resend those too.
+							// Refresh the list and report the failure instead.
+							if ( failed.length < items.length ) {
+								notifyError( error );
+								onActionPerformed?.();
+								return;
+							}
+							return { error };
 						}
-					},
-					onClose: closeModal ?? ( () => {} ),
-				} ),
-			callback: async ( items: Entry[] ) => {
-				const { failed, succeeded } = await runEntryBulk(
-					config,
-					items,
-					true
-				);
 
-				if ( succeeded ) {
-					notifySuccess(
-						pluralize(
-							items.length,
-							__(
-								'Entry permanently deleted.',
-								'newspack-rolling-coverage'
-							),
-							__(
-								'Entries permanently deleted.',
-								'newspack-rolling-coverage'
+						notifySuccess(
+							pluralize(
+								items.length,
+								__(
+									'Entry permanently deleted.',
+									'newspack-rolling-coverage'
+								),
+								__(
+									'Entries permanently deleted.',
+									'newspack-rolling-coverage'
+								)
 							)
-						)
-					);
-					onActionPerformed?.();
-				} else {
-					notifyError(
-						failed[ 0 ].error ||
-							__(
-								'Failed to delete entry.',
-								'newspack-rolling-coverage'
-							)
-					);
-				}
-			},
+						);
+						onActionPerformed?.();
+					},
+				} ),
 		},
 	];
 }
