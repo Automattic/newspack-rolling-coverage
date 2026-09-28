@@ -142,7 +142,6 @@ declare module 'newspack-components/dist/esm/section-header' {
 		heading?: 1 | 2 | 3 | 4 | 5 | 6;
 		noMargin?: boolean;
 		className?: string;
-		children?: ReactNode;
 	} >;
 	export default SectionHeader;
 }

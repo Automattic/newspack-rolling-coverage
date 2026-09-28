@@ -350,7 +350,6 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	 */
 	public function test_channel_settings_are_admin_only() {
 		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => self::create_coverage() ] );
-		add_action( 'rest_api_init', [ self::controller(), 'register_admin_routes' ] );
 		$GLOBALS['wp_rest_server'] = null;
 		$request                   = new WP_REST_Request( 'GET', '/' . Slack::REST_NAMESPACE . '/slack/channel/' . self::CHANNEL_ID );
 

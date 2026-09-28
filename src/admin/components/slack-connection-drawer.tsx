@@ -47,8 +47,16 @@ function SlackConnectionDrawer( {
 
 	const isBusy = isConnecting || isDisconnecting;
 
+	// Closing mid-request would hide its outcome, including an error, so the
+	// drawer stays open until a connect or disconnect settles.
+	const handleRequestClose = () => {
+		if ( ! isBusy ) {
+			onClose();
+		}
+	};
+
 	return (
-		<Drawer.Root isOpen={ isOpen } onRequestClose={ onClose }>
+		<Drawer.Root isOpen={ isOpen } onRequestClose={ handleRequestClose }>
 			<Drawer.Header>
 				<Drawer.Title>
 					{ __( 'Slack Connection', 'newspack-rolling-coverage' ) }
@@ -79,7 +87,9 @@ function SlackConnectionDrawer( {
 			</Drawer.Content>
 			<Drawer.Footer>
 				<Drawer.Action variant="secondary" closes disabled={ isBusy }>
-					{ __( 'Cancel', 'newspack-rolling-coverage' ) }
+					{ channelId
+						? __( 'Close', 'newspack-rolling-coverage' )
+						: __( 'Cancel', 'newspack-rolling-coverage' ) }
 				</Drawer.Action>
 				{ channelId ? (
 					<Button
