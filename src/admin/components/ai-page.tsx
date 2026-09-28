@@ -265,7 +265,7 @@ function AIPage() {
 					<TextareaControl
 						label={
 							<>
-								<VisuallyHidden>
+								<VisuallyHidden as="span">
 									{ __(
 										'Key Takeaways',
 										'newspack-rolling-coverage'
