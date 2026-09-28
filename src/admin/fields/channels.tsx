@@ -89,15 +89,12 @@ function getChannelFields(
 					label={
 						<VisuallyHidden>
 							{ sprintf(
-								/* translators: %s: Slack channel name. */
+								/* translators: %s: Slack channel name, or its ID when the name is unknown. */
 								__(
 									'Auto-publish entries from %s',
 									'newspack-rolling-coverage'
 								),
-								formatSlackChannel(
-									item.channel_name,
-									item.channel_id
-								)
+								item.channel_name || item.channel_id
 							) }
 						</VisuallyHidden>
 					}
