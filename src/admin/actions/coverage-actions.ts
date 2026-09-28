@@ -127,14 +127,20 @@ function getCoverageActions(
 						);
 
 						if ( ! succeeded ) {
-							return {
-								error:
-									failed[ 0 ].error ||
-									__(
-										'Failed to trash coverage.',
-										'newspack-rolling-coverage'
-									),
-							};
+							const error =
+								failed[ 0 ].error ||
+								__(
+									'Failed to trash coverage.',
+									'newspack-rolling-coverage'
+								);
+							// Some items went through, so a retry would resend those too.
+							// Refresh the list and report the failure instead.
+							if ( failed.length < items.length ) {
+								notifyError( error );
+								onActionPerformed();
+								return;
+							}
+							return { error };
 						}
 
 						notifySuccess(
@@ -242,14 +248,20 @@ function getCoverageActions(
 						);
 
 						if ( ! succeeded ) {
-							return {
-								error:
-									failed[ 0 ].error ||
-									__(
-										'Failed to delete coverage.',
-										'newspack-rolling-coverage'
-									),
-							};
+							const error =
+								failed[ 0 ].error ||
+								__(
+									'Failed to delete coverage.',
+									'newspack-rolling-coverage'
+								);
+							// Some items went through, so a retry would resend those too.
+							// Refresh the list and report the failure instead.
+							if ( failed.length < items.length ) {
+								notifyError( error );
+								onActionPerformed();
+								return;
+							}
+							return { error };
 						}
 
 						notifySuccess(
