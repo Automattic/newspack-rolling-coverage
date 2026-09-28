@@ -322,13 +322,19 @@ class Slack_Config {
 	 * wherever an author avatar shows. The user is matched by login rather
 	 * than the stored ID, which a disconnect deletes while the user and its
 	 * entries remain. Email lookups never match: WordPress drops the bot's
-	 * `@localhost` address, so the user has no email.
+	 * `@localhost` address, so the user has no email. An avatar an earlier
+	 * filter already supplied (for example one uploaded to the user) wins,
+	 * so publishers can replace the default.
 	 *
 	 * @param array $args        Avatar data arguments.
 	 * @param mixed $id_or_email User ID, email, WP_User, WP_Post or WP_Comment.
 	 * @return array Avatar data, with the bundled URL for the bot user.
 	 */
 	public static function filter_bot_avatar( array $args, $id_or_email ): array {
+		if ( isset( $args['url'] ) ) {
+			return $args;
+		}
+
 		if ( $id_or_email instanceof \WP_User ) {
 			$user = $id_or_email;
 		} elseif ( $id_or_email instanceof \WP_Post ) {

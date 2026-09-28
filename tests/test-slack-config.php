@@ -148,6 +148,24 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An avatar uploaded to the bot user replaces the bundled one.
+	 */
+	public function test_uploaded_avatar_replaces_the_bundled_one() {
+		$bot_user_id = Slack_Config::get_or_create_bot_user_id();
+		$uploaded    = 'https://example.com/uploaded-avatar.png';
+		add_filter(
+			'pre_get_avatar_data',
+			static function ( $args ) use ( $uploaded ) {
+				$args['url'] = $uploaded;
+				return $args;
+			},
+			10
+		);
+
+		$this->assertSame( $uploaded, get_avatar_url( $bot_user_id ) );
+	}
+
+	/**
 	 * Disconnecting keeps the bot user and its entries, so the avatar stays.
 	 */
 	public function test_bot_avatar_survives_a_disconnect() {
