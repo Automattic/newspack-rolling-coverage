@@ -103,6 +103,7 @@ class Rolling_Coverage_Block {
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
 		add_filter( 'render_block_core/post-content', [ __CLASS__, 'drop_entry_content_class' ], 10, 3 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
+		add_filter( 'render_block_core/buttons', [ __CLASS__, 'drop_empty_entry_buttons' ], 10, 1 );
 	}
 
 	/**
@@ -119,6 +120,30 @@ class Rolling_Coverage_Block {
 		} finally {
 			--self::$entry_render_depth;
 		}
+	}
+
+	/**
+	 * Whether an entry is being rendered, so the entry-only filters apply.
+	 *
+	 * @return bool
+	 */
+	public static function is_rendering_entry(): bool {
+		return self::$entry_render_depth > 0;
+	}
+
+	/**
+	 * A spacing value as CSS: a preset such as `var:preset|spacing|20`
+	 * becomes its custom property, as core writes it; anything else is kept.
+	 *
+	 * @param string $value Spacing value.
+	 * @return string
+	 */
+	private static function spacing_css_value( string $value ): string {
+		if ( ! str_starts_with( $value, 'var:preset|spacing|' ) ) {
+			return $value;
+		}
+
+		return 'var(--wp--preset--spacing--' . _wp_to_kebab_case( substr( $value, strlen( 'var:preset|spacing|' ) ) ) . ')';
 	}
 
 	/**
@@ -187,13 +212,7 @@ class Rolling_Coverage_Block {
 			return $block_content;
 		}
 
-		// Preset values resolve to their CSS variables, as core does.
-		$gap = array_map(
-			fn( $value ) => str_contains( (string) $value, 'var:preset|spacing|' )
-				? 'var(--wp--preset--spacing--' . _wp_to_kebab_case( substr( (string) $value, strrpos( (string) $value, '|' ) + 1 ) ) . ')'
-				: (string) $value,
-			$gap
-		);
+		$gap = array_map( fn( $value ) => self::spacing_css_value( (string) $value ), $gap );
 
 		$declaration = ( new \WP_Style_Engine_CSS_Declarations( [ 'gap' => implode( ' ', $gap ) ] ) )->get_declarations_string();
 		$group       = new WP_HTML_Tag_Processor( $block_content );
@@ -204,6 +223,33 @@ class Rolling_Coverage_Block {
 		}
 
 		return $group->get_updated_html();
+	}
+
+	/**
+	 * Drops an entry's Buttons block when none of its buttons render, e.g.
+	 * "Read more" before the breakout post is published, so the empty row
+	 * doesn't add the entry's block spacing twice.
+	 *
+	 * The parameter stays untyped because this runs for every Buttons block on
+	 * the site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string $block_content Rendered block.
+	 * @return string
+	 */
+	public static function drop_empty_entry_buttons( $block_content ) {
+		if ( ! is_string( $block_content ) || ! self::$entry_render_depth ) {
+			return $block_content;
+		}
+
+		$buttons = new WP_HTML_Tag_Processor( $block_content );
+
+		while ( $buttons->next_tag() ) {
+			if ( $buttons->has_class( 'wp-block-button' ) ) {
+				return $block_content;
+			}
+		}
+
+		return '';
 	}
 
 	/**
@@ -441,11 +487,11 @@ class Rolling_Coverage_Block {
 		$previous_post_id   = self::$host_post_id;
 		self::$host_post_id = (int) get_the_ID();
 
-		// Preload so polled entries' buttons are styled and share even if none appeared on initial render.
-		foreach ( [ 'core/buttons', 'core/button' ] as $button_block_name ) {
-			$button_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $button_block_name );
+		// Preload so polled entries' blocks are styled and share even if none appeared on initial render.
+		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon' ] as $entry_block_name ) {
+			$entry_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $entry_block_name );
 
-			foreach ( $button_block_type ? $button_block_type->style_handles : [] as $style_handle ) {
+			foreach ( $entry_block_type ? $entry_block_type->style_handles : [] as $style_handle ) {
 				wp_enqueue_style( $style_handle );
 			}
 		}
@@ -492,6 +538,7 @@ class Rolling_Coverage_Block {
 		$status           = $status ? $status : 'active';
 		$ads_enabled_attr = ! empty( $attributes['enableAds'] );
 		$ads_enabled      = $ads_enabled_attr && ! self::is_coverage_ads_disabled( $coverage_id );
+		$pinned_label     = trim( (string) ( $attributes['pinnedLabel'] ?? '' ) );
 
 		// A trashed coverage is effectively invisible on the frontend.
 		if ( 'trash' === $status ) {
@@ -522,14 +569,15 @@ class Rolling_Coverage_Block {
 		);
 
 		$template     = self::get_entry_template( $block );
-		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval );
+		$layout_class = self::entry_layout_class( $attributes );
+		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval, $pinned_label, $layout_class );
 
 		$entries_html = '';
 		$entry_index  = 0;
 
 		foreach ( $query->posts as $entry ) {
 			$entry_index++;
-			$entries_html .= self::render_entry( $entry, $template, 'initial' );
+			$entries_html .= self::render_entry( $entry, $template, 'initial', $pinned_label, $layout_class );
 
 			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
 				$entries_html .= Ads::render_placement()['html'];
@@ -547,6 +595,8 @@ class Rolling_Coverage_Block {
 			: '';
 
 		if ( empty( $query->posts ) ) {
+			self::store_template_layout_styles( $template );
+
 			$entries_html = sprintf(
 				'<p class="%s-entries__empty">%s</p>',
 				self::MARKUP_PREFIX,
@@ -589,6 +639,55 @@ class Rolling_Coverage_Block {
 		} finally {
 			self::$host_post_id = $previous_post_id;
 		}
+	}
+
+	/**
+	 * Stores the layout styles of the template's blocks, as rendering an
+	 * entry would. Core prints them only for blocks rendered on the page, so
+	 * without this, entries that reach a coverage that loaded empty would
+	 * arrive by polling with no layout, e.g. Share not opposite the title.
+	 *
+	 * @param array[] $blocks        Parsed template blocks.
+	 * @param array   $parent_layout The parent block's layout, as core passes
+	 *                               it to child blocks when rendering.
+	 */
+	private static function store_template_layout_styles( array $blocks, array $parent_layout = [] ): void {
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) || empty( $block['blockName'] ) ) {
+				continue;
+			}
+
+			if ( $parent_layout ) {
+				$block['parentLayout'] = $parent_layout;
+			}
+
+			// Dynamic blocks have no saved markup; core needs a tag to store their styles.
+			$markup = trim( (string) ( $block['innerHTML'] ?? '' ) );
+			wp_render_layout_support_flag( '' !== $markup ? $markup : '<div></div>', $block );
+
+			self::store_template_layout_styles( $block['innerBlocks'] ?? [], (array) ( $block['attrs']['layout'] ?? [] ) );
+		}
+	}
+
+	/**
+	 * Lays each entry out as a core flow layout spaced by the block's Block
+	 * spacing setting (`spacing-20` when unset), and returns the container
+	 * class the entries carry. Core prints the layout's styles with the
+	 * page's other block styles; the class depends only on the spacing, so
+	 * entries added by polling or load more share it.
+	 *
+	 * @param array $attributes Block attributes.
+	 * @return string Container class.
+	 */
+	private static function entry_layout_class( array $attributes ): string {
+		$gap   = wp_sanitize_block_gap_value( $attributes['style']['spacing']['blockGap'] ?? null );
+		$gap   = is_array( $gap ) ? ( $gap['top'] ?? null ) : $gap;
+		$gap   = is_string( $gap ) && '' !== $gap ? $gap : 'var:preset|spacing|20';
+		$class = self::MARKUP_PREFIX . '-entry-layout-' . substr( md5( $gap ), 0, 8 );
+
+		wp_get_layout_style( '.' . $class, [ 'type' => 'default' ], true, $gap );
+
+		return $class;
 	}
 
 	/**
@@ -819,36 +918,82 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The hardcoded fallback per-entry template: date and title stacked, content, and
-	 * core buttons for the breakout post link and sharing.
+	 * The hardcoded fallback per-entry template: the pinned row, date and
+	 * title stacked with the share button opposite, content, the breakout post
+	 * link, then a separator.
 	 *
 	 * @return array[] Array of parsed-block-shaped arrays.
 	 */
 	private static function default_entry_template() {
+		$separator_html = '<hr class="wp-block-separator has-alpha-channel-opacity is-style-wide" style="margin-top:var(--wp--preset--spacing--50);margin-bottom:var(--wp--preset--spacing--50)"/>';
+
 		return [
 			[
 				'blockName'    => 'core/group',
 				'attrs'        => [
-					'layout' => [
-						'type'        => 'flex',
-						'orientation' => 'vertical',
+					'layout'   => [
+						'type'              => 'flex',
+						'flexWrap'          => 'nowrap',
+						'justifyContent'    => 'space-between',
+						'verticalAlignment' => 'center',
 					],
-					'style'  => [ 'spacing' => [ 'blockGap' => '8px' ] ],
+					'style'    => [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ] ],
+					'metadata' => [ 'name' => __( 'Header', 'newspack-rolling-coverage' ) ],
 				],
 				'innerBlocks'  => [
 					[
-						'blockName'    => 'core/post-date',
-						'attrs'        => [ 'format' => 'human-diff' ],
-						'innerBlocks'  => [],
-						'innerHTML'    => '',
-						'innerContent' => [],
+						'blockName'    => 'core/group',
+						'attrs'        => [
+							'layout'   => [
+								'type'        => 'flex',
+								'orientation' => 'vertical',
+							],
+							'style'    => [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|20' ] ],
+							'metadata' => [ 'name' => __( 'Meta', 'newspack-rolling-coverage' ) ],
+						],
+						'innerBlocks'  => [
+							self::pinned_row_block(),
+							[
+								'blockName'    => 'core/post-date',
+								'attrs'        => [ 'format' => 'human-diff' ],
+								'innerBlocks'  => [],
+								'innerHTML'    => '',
+								'innerContent' => [],
+							],
+							[
+								'blockName'    => 'core/post-title',
+								'attrs'        => [ 'level' => 4 ],
+								'innerBlocks'  => [],
+								'innerHTML'    => '',
+								'innerContent' => [],
+							],
+						],
+						'innerHTML'    => '<div class="wp-block-group"></div>',
+						'innerContent' => [ '<div class="wp-block-group">', null, null, null, '</div>' ],
 					],
 					[
-						'blockName'    => 'core/post-title',
-						'attrs'        => [ 'level' => 4 ],
-						'innerBlocks'  => [],
-						'innerHTML'    => '',
-						'innerContent' => [],
+						'blockName'    => 'core/buttons',
+						'attrs'        => [],
+						'innerBlocks'  => [
+							self::entry_button_block(
+								__( 'Share', 'newspack-rolling-coverage' ),
+								[
+									'url' => [
+										'source' => Entry_Bindings::SOURCE_NAME,
+										'args'   => [ 'key' => 'shareUrl' ],
+									],
+								],
+								[
+									'border' => [ 'radius' => '9999px' ],
+									'color'  => [
+										'background' => 'var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f0f0f0))',
+										'text'       => 'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, currentcolor))',
+									],
+								]
+							),
+						],
+						'innerHTML'    => '<div class="wp-block-buttons"></div>',
+						'innerContent' => [ '<div class="wp-block-buttons">', null, '</div>' ],
 					],
 				],
 				'innerHTML'    => '<div class="wp-block-group"></div>',
@@ -856,14 +1001,25 @@ class Rolling_Coverage_Block {
 			],
 			[
 				'blockName'    => 'core/post-content',
-				'attrs'        => [],
+				'attrs'        => [
+					'style' => [
+						'spacing' => [
+							'padding' => [
+								'top'    => '0',
+								'right'  => '0',
+								'bottom' => '0',
+								'left'   => '0',
+							],
+						],
+					],
+				],
 				'innerBlocks'  => [],
 				'innerHTML'    => '',
 				'innerContent' => [],
 			],
 			[
 				'blockName'    => 'core/buttons',
-				'attrs'        => [],
+				'attrs'        => [ 'metadata' => [ 'name' => __( 'Read more', 'newspack-rolling-coverage' ) ] ],
 				'innerBlocks'  => [
 					self::entry_button_block(
 						__( 'Read more', 'newspack-rolling-coverage' ),
@@ -878,19 +1034,83 @@ class Rolling_Coverage_Block {
 							],
 						]
 					),
-					self::entry_button_block(
-						__( 'Share', 'newspack-rolling-coverage' ),
-						[
-							'url' => [
-								'source' => Entry_Bindings::SOURCE_NAME,
-								'args'   => [ 'key' => 'shareUrl' ],
-							],
-						]
-					),
 				],
 				'innerHTML'    => '<div class="wp-block-buttons"></div>',
-				'innerContent' => [ '<div class="wp-block-buttons">', null, null, '</div>' ],
+				'innerContent' => [ '<div class="wp-block-buttons">', null, '</div>' ],
 			],
+			[
+				'blockName'    => 'core/separator',
+				'attrs'        => [
+					'className' => 'is-style-wide',
+					'style'     => [
+						'spacing' => [
+							'margin' => [
+								'top'    => 'var:preset|spacing|50',
+								'bottom' => 'var:preset|spacing|50',
+							],
+						],
+					],
+				],
+				'innerBlocks'  => [],
+				'innerHTML'    => $separator_html,
+				'innerContent' => [ $separator_html ],
+			],
+		];
+	}
+
+	/**
+	 * A parsed row of the pin icon and the pinned label, shown only on pinned
+	 * entries.
+	 *
+	 * @return array Parsed-block-shaped array.
+	 */
+	private static function pinned_row_block(): array {
+		$label_html = '<p class="use-header-font has-small-font-size" style="font-weight:700"></p>';
+
+		return [
+			'blockName'    => 'core/group',
+			'attrs'        => [
+				'layout'   => [
+					'type'              => 'flex',
+					'flexWrap'          => 'nowrap',
+					'verticalAlignment' => 'center',
+				],
+				'style'    => [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|20' ] ],
+				'metadata' => [ 'name' => __( 'Pinned', 'newspack-rolling-coverage' ) ],
+			],
+			'innerBlocks'  => [
+				[
+					'blockName'    => 'core/icon',
+					'attrs'        => [
+						'icon'  => Block_Icons::PIN,
+						'style' => [ 'dimensions' => [ 'width' => '24px' ] ],
+					],
+					'innerBlocks'  => [],
+					'innerHTML'    => '',
+					'innerContent' => [],
+				],
+				[
+					'blockName'    => 'core/paragraph',
+					'attrs'        => [
+						'className' => 'use-header-font',
+						'fontSize'  => 'small',
+						'style'     => [ 'typography' => [ 'fontWeight' => '700' ] ],
+						'metadata'  => [
+							'bindings' => [
+								'content' => [
+									'source' => Entry_Bindings::SOURCE_NAME,
+									'args'   => [ 'key' => 'pinnedLabel' ],
+								],
+							],
+						],
+					],
+					'innerBlocks'  => [],
+					'innerHTML'    => $label_html,
+					'innerContent' => [ $label_html ],
+				],
+			],
+			'innerHTML'    => '<div class="wp-block-group"></div>',
+			'innerContent' => [ '<div class="wp-block-group">', null, null, '</div>' ],
 		];
 	}
 
@@ -900,17 +1120,48 @@ class Rolling_Coverage_Block {
 	 *
 	 * @param string $text     Button label.
 	 * @param array  $bindings Block bindings keyed by attribute.
+	 * @param array  $style    Border, color and spacing styles, as the editor saves them.
 	 * @return array Parsed-block-shaped array.
 	 */
-	private static function entry_button_block( string $text, array $bindings ): array {
+	private static function entry_button_block( string $text, array $bindings, array $style = [] ): array {
+		$link_style   = [];
+		$link_classes = [ 'wp-block-button__link' ];
+
+		if ( isset( $style['border']['radius'] ) ) {
+			$link_style[] = 'border-radius:' . $style['border']['radius'];
+		}
+
+		if ( isset( $style['color']['text'] ) ) {
+			$link_style[]   = 'color:' . $style['color']['text'];
+			$link_classes[] = 'has-text-color';
+		}
+
+		if ( isset( $style['color']['background'] ) ) {
+			$link_style[]   = 'background-color:' . $style['color']['background'];
+			$link_classes[] = 'has-background';
+		}
+
+		$link_classes[] = 'wp-element-button';
+
+		foreach ( $style['spacing']['padding'] ?? [] as $side => $value ) {
+			$link_style[] = 'padding-' . $side . ':' . $value;
+		}
+
 		$html = sprintf(
-			'<div class="wp-block-button"><a class="wp-block-button__link wp-element-button">%s</a></div>',
+			'<div class="wp-block-button"><a class="%s"%s>%s</a></div>',
+			esc_attr( implode( ' ', $link_classes ) ),
+			$link_style ? ' style="' . esc_attr( implode( ';', $link_style ) ) . '"' : '',
 			esc_html( $text )
 		);
+		$attrs = [ 'metadata' => [ 'bindings' => $bindings ] ];
+
+		if ( $style ) {
+			$attrs['style'] = $style;
+		}
 
 		return [
 			'blockName'    => 'core/button',
-			'attrs'        => [ 'metadata' => [ 'bindings' => $bindings ] ],
+			'attrs'        => $attrs,
 			'innerBlocks'  => [],
 			'innerHTML'    => $html,
 			'innerContent' => [ $html ],
@@ -918,20 +1169,25 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Stores the entry template plus the block's ad settings in the options
-	 * table and returns a hash key identifying that exact combination.
+	 * Stores the entry template plus the block's ad settings and pinned label
+	 * in the options table and returns a hash key identifying that exact
+	 * combination.
 	 *
-	 * @param int   $coverage_id  Coverage term ID.
-	 * @param array $template     Per-entry inner-block template.
-	 * @param bool  $ads_enabled  The block's own Enable Ads toggle.
-	 * @param int   $ads_interval Show an ad after every N entries.
+	 * @param int    $coverage_id  Coverage term ID.
+	 * @param array  $template     Per-entry inner-block template.
+	 * @param bool   $ads_enabled  The block's own Enable Ads toggle.
+	 * @param int    $ads_interval Show an ad after every N entries.
+	 * @param string $pinned_label The block's label for pinned entries.
+	 * @param string $layout_class The entries' layout container class.
 	 * @return string Hash key identifying this config.
 	 */
-	private static function persist_block_config( int $coverage_id, array $template, bool $ads_enabled, int $ads_interval ): string {
+	private static function persist_block_config( int $coverage_id, array $template, bool $ads_enabled, int $ads_interval, string $pinned_label = '', string $layout_class = '' ): string {
 		$config = [
 			'template'    => $template,
 			'adsEnabled'  => $ads_enabled,
 			'adsInterval' => $ads_interval,
+			'pinnedLabel' => $pinned_label,
+			'layoutClass' => $layout_class,
 		];
 
 		$hash       = substr( md5( wp_json_encode( $config ) ), 0, 12 );
@@ -963,13 +1219,15 @@ class Rolling_Coverage_Block {
 	 *
 	 * @param int    $coverage_id  Coverage term ID.
 	 * @param string $template_key Hash returned by persist_block_config().
-	 * @return array{template: array[], adsEnabled: bool, adsInterval: int}
+	 * @return array{template: array[], adsEnabled: bool, adsInterval: int, pinnedLabel: string, layoutClass: string}
 	 */
 	private static function load_block_config( int $coverage_id, string $template_key ): array {
 		$defaults = [
 			'template'    => self::default_entry_template(),
 			'adsEnabled'  => true,
 			'adsInterval' => 4,
+			'pinnedLabel' => '',
+			'layoutClass' => '',
 		];
 
 		if ( ! $template_key ) {
@@ -1032,9 +1290,13 @@ class Rolling_Coverage_Block {
 	 * @param string  $arrival  How the entry first reaches the client:
 	 *                          'initial', 'poll', or 'load_more'. Stamped as
 	 *                          data-arrival for frontend entry-seen tracking.
+	 * @param string  $pinned_label The Rolling Coverage block's label for
+	 *                              pinned entries; empty for the default.
+	 * @param string  $layout_class The entries' layout container class, from
+	 *                              entry_layout_class().
 	 * @return string Rendered HTML for the entry.
 	 */
-	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial' ) {
+	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', string $pinned_label = '', string $layout_class = '' ): string {
 		$template = self::drop_fixed_template_dates( $template );
 		global $post;
 
@@ -1060,6 +1322,7 @@ class Rolling_Coverage_Block {
 					[
 						'postId'   => $entry->ID,
 						'postType' => $entry->post_type,
+						Entry_Bindings::PINNED_LABEL_CONTEXT => $pinned_label,
 					]
 				) )->render( [ 'dynamic' => false ] )
 			);
@@ -1072,16 +1335,17 @@ class Rolling_Coverage_Block {
 			setup_postdata( $previous_post );
 		}
 
-		$post_classes = implode( ' ', get_post_class( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post' ], $entry ) );
+		$post_classes = implode( ' ', get_post_class( array_filter( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post', $layout_class ? 'is-layout-flow' : '', $layout_class ] ), $entry ) );
 
 		$html = sprintf(
-			'<article id="%1$s-entry-%2$d" class="%3$s" data-entry-id="%2$d" data-entry-slug="%6$s" data-arrival="%5$s">%4$s</article>',
+			'<article id="%1$s-entry-%2$d" class="%3$s" data-entry-id="%2$d" data-entry-slug="%6$s" data-arrival="%5$s"%7$s>%4$s</article>',
 			self::MARKUP_PREFIX,
 			$entry->ID,
 			esc_attr( $post_classes ),
 			$entry_content,
 			esc_attr( $arrival ),
-			esc_attr( $entry->post_name )
+			esc_attr( $entry->post_name ),
+			Post_Type::is_pinned( $entry->ID ) ? ' data-pinned' : ''
 		);
 
 		return $html;
@@ -1308,15 +1572,16 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Array_map() callback for get_entries_preview(): reduces a post ID to
-	 * the bare `{ id, type }` shape the editor preview needs.
+	 * the bare `{ id, type, pinned }` shape the editor preview needs.
 	 *
 	 * @param int $id Entry post ID.
-	 * @return array{id: int, type: string}
+	 * @return array{id: int, type: string, pinned: bool}
 	 */
 	private static function map_entry_preview( int $id ): array {
 		return [
-			'id'   => $id,
-			'type' => Post_Type::CPT_SLUG,
+			'id'     => $id,
+			'type'   => Post_Type::CPT_SLUG,
+			'pinned' => Post_Type::is_pinned( $id ),
 		];
 	}
 
@@ -1411,6 +1676,8 @@ class Rolling_Coverage_Block {
 		$ads_interval     = max( 1, (int) $config['adsInterval'] );
 		$ads_enabled_attr = (bool) $config['adsEnabled'];
 		$ads_enabled      = $ads_enabled_attr && ! self::is_coverage_ads_disabled( $term_id );
+		$pinned_label     = (string) $config['pinnedLabel'];
+		$layout_class     = sanitize_html_class( (string) $config['layoutClass'] );
 
 		// Forward/polling branch: entries modified at or after the cursor, newest first.
 		if ( $cursor ) {
@@ -1500,7 +1767,7 @@ class Rolling_Coverage_Block {
 				// blank: the client preserves the original value across the replace.
 				$entries[] = [
 					'id'     => $entry->ID,
-					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '' ),
+					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '', $pinned_label, $layout_class ),
 					'type'   => $is_new_entry ? 'insert' : 'update',
 					'adHtml' => $ad_html,
 					'adSlot' => $ad_slot,
@@ -1547,7 +1814,7 @@ class Rolling_Coverage_Block {
 
 		foreach ( $query->posts as $entry ) {
 			$entry_index++;
-			$html .= self::render_entry( $entry, $template, 'load_more' );
+			$html .= self::render_entry( $entry, $template, 'load_more', $pinned_label, $layout_class );
 
 			$position = $entry_offset + $entry_index;
 			if ( $ads_enabled && Ads::is_capped_ad_position( $position, $ads_interval ) ) {

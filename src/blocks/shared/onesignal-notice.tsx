@@ -39,6 +39,7 @@ function OneSignalNotice( {
 
 	return (
 		<Notice
+			className="newspack-rolling-coverage-onesignal-notice"
 			status="warning"
 			isDismissible={ false }
 			spokenMessage={ message }

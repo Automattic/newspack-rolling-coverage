@@ -59,6 +59,7 @@ import {
 	ENTRY_EDITED_STATES,
 	FOLLOW_TEMPLATE,
 	isFollowButtons,
+	withoutPinnedRow,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -184,6 +185,47 @@ function EntryBlockPreview( {
 
 const MemoizedEntryBlockPreview = memo( EntryBlockPreview );
 
+/**
+ * A preset slug as core writes it in a custom property, mirroring
+ * _wp_to_kebab_case(), e.g. "2XLarge" becomes "2-x-large".
+ *
+ * @param {string} slug Preset slug.
+ * @return {string} The kebab-case slug.
+ */
+function kebabCase( slug: string ): string {
+	return slug
+		.replace( /([a-z])([A-Z0-9])/g, '$1-$2' )
+		.replace( /([0-9])([a-zA-Z])/g, '$1-$2' )
+		.replace( /([A-Z])([A-Z][a-z])/g, '$1-$2' )
+		.replace( /[\s_]+/g, '-' )
+		.toLowerCase();
+}
+
+/**
+ * The space between an entry's blocks as the custom property the entries
+ * read in the editor, previewing the flow layout the site gives each entry
+ * (see Rolling_Coverage_Block::entry_layout_class()).
+ *
+ * @param {string|Object} blockGap The Block spacing setting.
+ * @return {Object} Inline style.
+ */
+function entryGapStyle(
+	blockGap?: string | { top?: string }
+): Record< string, string > {
+	let gap = typeof blockGap === 'object' ? blockGap?.top : blockGap;
+
+	if ( ! gap ) {
+		return {};
+	}
+
+	const preset = gap.match( /^var:preset\|spacing\|(.+)$/ );
+	if ( preset ) {
+		gap = `var(--wp--preset--spacing--${ kebabCase( preset[ 1 ] ) })`;
+	}
+
+	return { '--newspack-rolling-coverage-entry-gap': gap };
+}
+
 const STATUS_OPTIONS = [
 	{ label: __( 'Active', 'newspack-rolling-coverage' ), value: 'active' },
 	{ label: __( 'Paused', 'newspack-rolling-coverage' ), value: 'paused' },
@@ -196,12 +238,21 @@ export default function Edit( {
 	attributes,
 	setAttributes,
 }: EditProps ) {
-	const { coverageId, pollInterval, entriesPerPage, enableAds, adsInterval } =
-		attributes;
+	const {
+		coverageId,
+		pollInterval,
+		entriesPerPage,
+		enableAds,
+		adsInterval,
+		pinnedLabel,
+	} = attributes;
 	const [ editedState, setEditedState ] = useState(
 		EDITED_STATE_OPTIONS[ 0 ].value
 	);
-	const blockProps = useBlockProps( { 'data-editor-state': editedState } );
+	const blockProps = useBlockProps( {
+		'data-editor-state': editedState,
+		style: entryGapStyle( attributes.style?.spacing?.blockGap ),
+	} );
 	const innerBlocksProps = useInnerBlocksProps(
 		{ className: 'newspack-rolling-coverage-layout' },
 		{
@@ -263,6 +314,10 @@ export default function Edit( {
 					! isFollowButtons( block )
 			),
 		[ allBlocks ]
+	);
+	const unpinnedTemplateBlocks = useMemo(
+		() => withoutPinnedRow( templateBlocks ),
+		[ templateBlocks ]
 	);
 
 	// Disabled blocks drop out of List View and can't be selected, so only
@@ -691,6 +746,25 @@ export default function Edit( {
 							} )
 						}
 					/>
+					<TextControl
+						__next40pxDefaultSize
+						label={ __(
+							'Pinned label',
+							'newspack-rolling-coverage'
+						) }
+						help={ __(
+							'Shown on pinned entries.',
+							'newspack-rolling-coverage'
+						) }
+						placeholder={ __(
+							'Pinned',
+							'newspack-rolling-coverage'
+						) }
+						value={ pinnedLabel }
+						onChange={ ( value: string ) =>
+							setAttributes( { pinnedLabel: value } )
+						}
+					/>
 				</PanelBody>
 
 				{ coverageId && AI_AVAILABLE ? (
@@ -902,7 +976,11 @@ export default function Edit( {
 										>
 											{ ! isActive && (
 												<MemoizedEntryBlockPreview
-													blocks={ templateBlocks }
+													blocks={
+														context.pinned
+															? templateBlocks
+															: unpinnedTemplateBlocks
+													}
 													onSelect={ () =>
 														setActiveEntryId(
 															context.postId

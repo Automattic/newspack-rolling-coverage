@@ -884,6 +884,30 @@ class Post_Type {
 			self::pin_entry( $entry_id );
 		}
 
+		// Bump post_modified so live feeds re-render the entry with its pinned row.
+		// Pinning isn't an edit, so the stored content is kept as it is: save
+		// filters would strip HTML or block CSS the author could post but the
+		// person pinning can't.
+		$keep_stored_content = static function ( $data, $postarr, $unsanitized_postarr ) use ( $entry_id ) {
+			if ( $entry_id === (int) ( $postarr['ID'] ?? 0 ) ) {
+				foreach ( [ 'post_content', 'post_title', 'post_excerpt' ] as $field ) {
+					if ( isset( $unsanitized_postarr[ $field ] ) ) {
+						$data[ $field ] = $unsanitized_postarr[ $field ];
+					}
+				}
+			}
+
+			return $data;
+		};
+
+		add_filter( 'wp_insert_post_data', $keep_stored_content, 5, 3 );
+
+		try {
+			wp_update_post( [ 'ID' => $entry_id ] );
+		} finally {
+			remove_filter( 'wp_insert_post_data', $keep_stored_content, 5 );
+		}
+
 		return new WP_REST_Response( [ 'pinned' => ! $is_pinned ], 200 );
 	}
 
