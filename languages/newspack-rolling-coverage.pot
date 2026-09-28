@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-28T15:05:25+00:00\n"
+"POT-Creation-Date: 2026-09-28T15:50:39+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -84,9 +84,9 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:444
-#: includes/blocks/class-rolling-coverage-block.php:1093
-#: includes/blocks/class-rolling-coverage-block.php:1187
-#: includes/blocks/class-rolling-coverage-block.php:1198
+#: includes/blocks/class-rolling-coverage-block.php:1277
+#: includes/blocks/class-rolling-coverage-block.php:1371
+#: includes/blocks/class-rolling-coverage-block.php:1382
 #: includes/class-post-type.php:902
 #: includes/class-taxonomy.php:331
 msgid "Coverage not found."
@@ -113,8 +113,8 @@ msgid "Generates key takeaways from the published entries of a rolling coverage.
 msgstr ""
 
 #: includes/blocks/class-breakout-post-link-block.php:63
-#: includes/blocks/class-entry-bindings.php:77
-#: includes/blocks/class-rolling-coverage-block.php:688
+#: includes/blocks/class-entry-bindings.php:96
+#: includes/blocks/class-rolling-coverage-block.php:869
 #: dist/admin.js:215
 #: dist/blocks/breakout-post-link/index.js:1
 #: dist/blocks/rolling-coverage/index.js:1
@@ -128,18 +128,22 @@ msgstr ""
 
 #: includes/blocks/class-coverage-follow-block.php:96
 #: dist/blocks/coverage-follow/index.js:1
+#: dist/blocks/rolling-coverage/index.js:1
 msgid "Follow"
 msgstr ""
 
 #: includes/blocks/class-coverage-follow-block.php:97
+#: includes/blocks/class-entry-bindings.php:140
 msgid "Following"
 msgstr ""
 
 #: includes/blocks/class-coverage-follow-block.php:98
+#: includes/blocks/class-entry-bindings.php:141
 msgid "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 msgstr ""
 
 #: includes/blocks/class-coverage-follow-block.php:99
+#: includes/blocks/class-entry-bindings.php:142
 msgid "Something went wrong. Please try again."
 msgstr ""
 
@@ -154,24 +158,24 @@ msgstr ""
 msgid "View"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:43
+#: includes/blocks/class-entry-bindings.php:55
 msgid "Rolling Coverage Entry"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:337
+#: includes/blocks/class-rolling-coverage-block.php:484
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Select a coverage to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:354
+#: includes/blocks/class-rolling-coverage-block.php:501
 msgid "This coverage is no longer available."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:406
+#: includes/blocks/class-rolling-coverage-block.php:553
 msgid "No entries yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:701
+#: includes/blocks/class-rolling-coverage-block.php:882
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/share/index.js:1
@@ -179,11 +183,11 @@ msgstr ""
 msgid "Share"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:914
+#: includes/blocks/class-rolling-coverage-block.php:1098
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1206
+#: includes/blocks/class-rolling-coverage-block.php:1390
 msgid "Either cursor or before must be provided."
 msgstr ""
 
@@ -1674,18 +1678,22 @@ msgid "Are you sure you want to disconnect Slack? All channel mappings will be r
 msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:1
-msgid "Configure the OneSignal Push Notifications plugin (App ID and REST API Key) for this button to appear on the site."
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Configure the OneSignal Push Notifications plugin (App ID and REST API Key) for the Follow button to appear on the site."
 msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:1
-msgid "The OneSignal Push Notifications plugin is on an unsupported version — update it to the latest version for this button to appear on the site."
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "The OneSignal Push Notifications plugin is on an unsupported version. Update it to the latest version for the Follow button to appear on the site."
 msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:1
-msgid "Install and activate the OneSignal Push Notifications plugin for this button to appear on the site."
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Install and activate the OneSignal Push Notifications plugin for the Follow button to appear on the site."
 msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:1
+#: dist/blocks/rolling-coverage/index.js:1
 msgid "Setup guide"
 msgstr ""
 
