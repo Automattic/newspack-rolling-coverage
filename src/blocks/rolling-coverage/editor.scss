@@ -86,7 +86,8 @@
 	}
 }
 
-.newspack-rolling-coverage-layout .wp-block-post-content {
+.newspack-rolling-coverage-layout .wp-block-post-content,
+.newspack-rolling-coverage-entry .wp-block-post-content {
 
 	> :not(.wp-block) {
 		margin: 0;
