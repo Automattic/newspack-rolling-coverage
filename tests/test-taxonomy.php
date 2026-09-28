@@ -323,4 +323,30 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( '', self::get_coverage_via_rest( $coverage_id, 'view' )[ Taxonomy::PAGE_URL_REST_FIELD ] );
 	}
+
+	/**
+	 * Entries and revisions change constantly during live coverage, so saving
+	 * them keeps the page lookup cached; saving a page clears it.
+	 */
+	public function test_only_pages_that_can_host_the_block_clear_the_page_lookup() {
+		$group = Taxonomy::PAGE_IDS_CACHE_GROUP;
+		wp_cache_set_last_changed( $group );
+		$last_changed = wp_cache_get_last_changed( $group );
+
+		$entry_id = self::factory()->post->create( [ 'post_type' => Post_Type::CPT_SLUG ] );
+		self::factory()->post->create(
+			[
+				'post_type'   => 'revision',
+				'post_status' => 'inherit',
+				'post_parent' => $entry_id,
+			]
+		);
+
+		$this->assertSame( $last_changed, wp_cache_get_last_changed( $group ), 'Entry and revision writes should keep the lookup cached.' );
+
+		usleep( 1000 );
+		self::factory()->post->create( [ 'post_type' => 'page' ] );
+
+		$this->assertNotSame( $last_changed, wp_cache_get_last_changed( $group ), 'Saving a page should clear the lookup.' );
+	}
 }

@@ -607,18 +607,28 @@ class Taxonomy {
 
 	/**
 	 * Invalidates the coverage-to-page map when a post that could host the
-	 * block changes. Entry writes are ignored: they are frequent on a live
-	 * coverage and never host the block.
+	 * block changes. Entries, their revisions and autosaves are ignored: they
+	 * change constantly during live coverage and never host the block.
 	 *
 	 * @param int      $post_id Post ID.
 	 * @param \WP_Post $post    Post object.
 	 */
 	public static function flush_coverage_page_ids( $post_id, $post ): void {
-		if ( $post instanceof \WP_Post && Post_Type::CPT_SLUG === $post->post_type ) {
+		if ( $post instanceof \WP_Post && ! self::can_host_coverage_block( $post->post_type ) ) {
 			return;
 		}
 
 		wp_cache_set_last_changed( self::PAGE_IDS_CACHE_GROUP );
+	}
+
+	/**
+	 * Whether posts of a type can be the page that shows a coverage.
+	 *
+	 * @param string $post_type Post type name.
+	 * @return bool
+	 */
+	private static function can_host_coverage_block( string $post_type ): bool {
+		return Post_Type::CPT_SLUG !== $post_type && 'attachment' !== $post_type && is_post_type_viewable( $post_type );
 	}
 
 	/**
@@ -634,14 +644,7 @@ class Taxonomy {
 			return $cached;
 		}
 
-		$post_types = array_values(
-			array_filter(
-				get_post_types(),
-				function ( $post_type ) {
-					return Post_Type::CPT_SLUG !== $post_type && 'attachment' !== $post_type && is_post_type_viewable( $post_type );
-				}
-			)
-		);
+		$post_types = array_values( array_filter( get_post_types(), [ __CLASS__, 'can_host_coverage_block' ] ) );
 
 		$map = [];
 
