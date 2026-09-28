@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { ToggleControl, VisuallyHidden } from '@wordpress/components';
-import { Stack, Text } from '@wordpress/ui';
+import { Badge, Stack, Text } from '@wordpress/ui';
 import { __, sprintf } from '@wordpress/i18n';
 
 /**
@@ -18,8 +18,8 @@ import { SlackError } from './slack-error';
 
 /**
  * Renders the body of the Slack connection drawer when the coverage is
- * already connected to a channel: the channel name with help text, the
- * channel ID, last sync and inline auto-publish toggle in the Channels
+ * already connected to a channel: the connection status, the channel name
+ * with help text, the channel ID, last sync and inline auto-publish toggle in the Channels
  * table's order, and any error notice.
  *
  * @param {ConnectedChannelViewProps} props Component props.
@@ -35,6 +35,11 @@ function ConnectedChannelView( {
 }: ConnectedChannelViewProps ) {
 	return (
 		<Stack direction="column" gap="lg">
+			<DetailRow label={ __( 'Status', 'newspack-rolling-coverage' ) }>
+				<Badge intent="stable">
+					{ __( 'Connected', 'newspack-rolling-coverage' ) }
+				</Badge>
+			</DetailRow>
 			<DetailRow label={ __( 'Channel', 'newspack-rolling-coverage' ) }>
 				<span>
 					{ formatSlackChannel( channelName ) ||

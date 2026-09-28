@@ -433,7 +433,13 @@ function EntryView() {
 		setContext,
 	] );
 
-	const showNewEntry = ! disableNewEntry && ! isFirstLoad && ! isEmpty;
+	// Archived coverages keep a disabled Add Entry so the reason stays visible.
+	const showArchivedAddEntry =
+		isArchived && canCreateEntries && ! isFirstLoad;
+	const showNewEntry =
+		( ! disableNewEntry || showArchivedAddEntry ) &&
+		! isFirstLoad &&
+		! isEmpty;
 	const canShowSlack = canConnectSlack && routeCoverage !== null;
 	const showSlackInHeader = canShowSlack && ! isFirstLoad && ! isEmpty;
 
@@ -441,7 +447,7 @@ function EntryView() {
 		() =>
 			canShowSlack ? (
 				<Button
-					variant="secondary"
+					variant="tertiary"
 					className="newspack-rolling-coverage-status-button"
 					isBusy={ isRefreshingSlack }
 					disabled={ isRefreshingSlack }
@@ -476,29 +482,85 @@ function EntryView() {
 		[ canShowSlack, slackChannelLabel, routeCoverage, isRefreshingSlack ]
 	);
 
+	const pageUrl = routeCoverage?.pageUrl ?? '';
+	const showViewPage = ! isFirstLoad && routeCoverage !== null;
+
+	const addEntryButton = useMemo(
+		() =>
+			isArchived ? (
+				<Button
+					variant="primary"
+					disabled
+					accessibleWhenDisabled
+					showTooltip
+					tooltipPosition="bottom"
+					label={ __( 'Add Entry', 'newspack-rolling-coverage' ) }
+					describedBy={ __(
+						'This coverage is archived. Set it back to Active to add entries.',
+						'newspack-rolling-coverage'
+					) }
+				>
+					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
+				</Button>
+			) : (
+				<Button
+					variant="primary"
+					onClick={ handleNewEntry }
+					isBusy={ isCreatingEntry }
+					disabled={ isCreatingEntry }
+				>
+					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
+				</Button>
+			),
+		[ isArchived, handleNewEntry, isCreatingEntry ]
+	);
+
+	const viewPageButton = useMemo(
+		() =>
+			pageUrl ? (
+				<Button
+					variant="secondary"
+					href={ pageUrl }
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					{ __( 'View Page', 'newspack-rolling-coverage' ) }
+				</Button>
+			) : (
+				<Button
+					variant="secondary"
+					disabled
+					accessibleWhenDisabled
+					showTooltip
+					tooltipPosition="bottom"
+					label={ __( 'View Page', 'newspack-rolling-coverage' ) }
+					describedBy={ __(
+						'No published page shows this coverage yet. Add the Rolling Coverage block to a page and publish it.',
+						'newspack-rolling-coverage'
+					) }
+				>
+					{ __( 'View Page', 'newspack-rolling-coverage' ) }
+				</Button>
+			),
+		[ pageUrl ]
+	);
+
 	const headerActions = useMemo(
 		() =>
-			showNewEntry || showSlackInHeader ? (
+			showNewEntry || showSlackInHeader || showViewPage ? (
 				<>
 					{ showSlackInHeader && slackButton }
-					{ showNewEntry && (
-						<Button
-							variant="primary"
-							onClick={ handleNewEntry }
-							isBusy={ isCreatingEntry }
-							disabled={ isCreatingEntry }
-						>
-							{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
-						</Button>
-					) }
+					{ showViewPage && viewPageButton }
+					{ showNewEntry && addEntryButton }
 				</>
 			) : null,
 		[
 			showNewEntry,
 			showSlackInHeader,
+			showViewPage,
+			viewPageButton,
 			slackButton,
-			handleNewEntry,
-			isCreatingEntry,
+			addEntryButton,
 		]
 	);
 	useHeader( {
@@ -582,22 +644,13 @@ function EntryView() {
 							'newspack-rolling-coverage'
 						) }
 					/>
-					{ ( ! disableNewEntry || canShowSlack ) && (
+					{ ( ! disableNewEntry ||
+						showArchivedAddEntry ||
+						canShowSlack ) && (
 						<EmptyState.Actions>
 							{ slackButton }
-							{ ! disableNewEntry && (
-								<Button
-									variant="primary"
-									onClick={ handleNewEntry }
-									isBusy={ isCreatingEntry }
-									disabled={ isCreatingEntry }
-								>
-									{ __(
-										'Add Entry',
-										'newspack-rolling-coverage'
-									) }
-								</Button>
-							) }
+							{ ( ! disableNewEntry || showArchivedAddEntry ) &&
+								addEntryButton }
 						</EmptyState.Actions>
 					) }
 				</EmptyState.Root>

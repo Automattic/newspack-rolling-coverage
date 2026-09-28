@@ -95,6 +95,7 @@ interface Coverage {
 	taxonomy: string;
 	description: string;
 	count: number;
+	pageUrl?: string;
 	meta: {
 		rolling_coverage_status?: 'active' | 'paused' | 'archived' | 'trash';
 		rolling_coverage_canonical_url?: string;

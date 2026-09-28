@@ -26,6 +26,9 @@ class Taxonomy {
 	const STATUS_META_KEY = 'rolling_coverage_status';
 	const CANONICAL_URL_META_KEY = 'rolling_coverage_canonical_url';
 
+	// REST field holding the URL of the published page that displays the coverage.
+	const PAGE_URL_REST_FIELD = 'pageUrl';
+
 	// Term meta key for disabling ads on a coverage term.
 	const ADS_DISABLED_META_KEY = 'rolling_coverage_ads_disabled';
 
@@ -248,6 +251,19 @@ class Taxonomy {
 	 * Register REST routes for coverage trash/restore/delete operations.
 	 */
 	public static function register_routes() {
+		register_rest_field(
+			self::TAXONOMY_SLUG,
+			self::PAGE_URL_REST_FIELD,
+			[
+				'get_callback' => [ __CLASS__, 'get_page_url_rest_field' ],
+				'schema'       => [
+					'type'     => 'string',
+					'context'  => [ 'edit', 'view' ],
+					'readonly' => true,
+				],
+			]
+		);
+
 		register_rest_route(
 			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
 			'/coverages/(?P<coverage_id>\d+)/trash',
@@ -547,5 +563,108 @@ class Taxonomy {
 		$response->set_data( $data );
 
 		return $response;
+	}
+
+	/**
+	 * REST field callback returning the URL of the page that displays a coverage.
+	 *
+	 * @param array $term Coverage REST object data.
+	 * @return string Permalink, or '' when no published page embeds the coverage.
+	 */
+	public static function get_page_url_rest_field( array $term ): string {
+		return self::get_coverage_page_url( (int) $term['id'] );
+	}
+
+	/**
+	 * Returns the permalink of the most recently published post that embeds
+	 * a Rolling Coverage block showing the given coverage.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return string Permalink, or '' when no published post embeds the coverage.
+	 */
+	public static function get_coverage_page_url( int $coverage_id ): string {
+		$post_id = self::get_coverage_page_ids()[ $coverage_id ] ?? 0;
+
+		return $post_id ? (string) get_permalink( $post_id ) : '';
+	}
+
+	/**
+	 * Maps each coverage to the newest published post embedding it.
+	 *
+	 * Cached against the posts last-changed key, so publishing, editing or
+	 * unpublishing any post rebuilds the map on the next request.
+	 *
+	 * @return array<int,int> Map of coverage term ID => post ID.
+	 */
+	private static function get_coverage_page_ids(): array {
+		$cache_key = 'coverage_page_ids:' . wp_cache_get_last_changed( 'posts' );
+		$cached    = wp_cache_get( $cache_key, 'newspack-rolling-coverage' );
+
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		$post_types = array_values(
+			array_filter(
+				get_post_types( [ 'public' => true ] ),
+				function ( $post_type ) {
+					return Post_Type::CPT_SLUG !== $post_type && 'attachment' !== $post_type && is_post_type_viewable( $post_type );
+				}
+			)
+		);
+
+		$map = [];
+
+		if ( $post_types ) {
+			global $wpdb;
+
+			$post_ids = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+					"SELECT ID FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_type IN (" . implode( ',', array_fill( 0, count( $post_types ), '%s' ) ) . ') AND post_content LIKE %s ORDER BY post_date DESC, ID DESC',
+					array_merge( $post_types, [ '%' . $wpdb->esc_like( '<!-- wp:' . Schema::BLOCK_NAME . ' ' ) . '%' ] )
+				)
+			);
+
+			foreach ( $post_ids as $post_id ) {
+				$post = get_post( (int) $post_id );
+
+				if ( ! $post instanceof \WP_Post || '' !== $post->post_password ) {
+					continue;
+				}
+
+				foreach ( self::find_coverage_ids( parse_blocks( $post->post_content ) ) as $coverage_id ) {
+					if ( ! isset( $map[ $coverage_id ] ) ) {
+						$map[ $coverage_id ] = $post->ID;
+					}
+				}
+			}
+		}
+
+		wp_cache_set( $cache_key, $map, 'newspack-rolling-coverage' );
+
+		return $map;
+	}
+
+	/**
+	 * Collects the coverage IDs of every Rolling Coverage block in a parsed-block tree.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return int[] Coverage term IDs.
+	 */
+	private static function find_coverage_ids( array $blocks ): array {
+		$ids = [];
+
+		foreach ( $blocks as $block ) {
+			if ( Schema::BLOCK_NAME === ( $block['blockName'] ?? '' ) && ! empty( $block['attrs']['coverageId'] ) ) {
+				$ids[] = (int) $block['attrs']['coverageId'];
+			}
+
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$ids = array_merge( $ids, self::find_coverage_ids( $block['innerBlocks'] ) );
+			}
+		}
+
+		return $ids;
 	}
 }

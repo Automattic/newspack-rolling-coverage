@@ -232,4 +232,53 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 'C0TESTCHAN', $edit_meta[ Taxonomy::META_SLACK_CHANNEL_ID ], 'The edit context should include the linkage.' );
 	}
+
+	/**
+	 * The coverage exposes the newest published page embedding it, found
+	 * inside nested blocks, and nothing once that page is unpublished.
+	 */
+	public function test_page_url_points_to_the_newest_published_page_showing_the_coverage() {
+		$coverage_id = self::create_coverage();
+		$other_id    = self::create_coverage();
+		$block       = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->';
+
+		$this->assertSame( '', self::get_coverage_via_rest( $coverage_id, 'view' )[ Taxonomy::PAGE_URL_REST_FIELD ], 'No page embeds the coverage yet.' );
+
+		self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_date'    => '2026-01-01 10:00:00',
+				'post_content' => $block,
+			]
+		);
+		$newest_id = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_date'    => '2026-02-01 10:00:00',
+				'post_content' => '<!-- wp:group --><div class="wp-block-group">' . $block . '</div><!-- /wp:group -->',
+			]
+		);
+		self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'draft',
+				'post_date'    => '2026-03-01 10:00:00',
+				'post_content' => $block,
+			]
+		);
+
+		$this->assertSame( get_permalink( $newest_id ), self::get_coverage_via_rest( $coverage_id, 'view' )[ Taxonomy::PAGE_URL_REST_FIELD ], 'The newest published page should win over older and draft ones.' );
+		$this->assertSame( '', Taxonomy::get_coverage_page_url( $other_id ), 'A coverage no page embeds should have no URL.' );
+
+		wp_update_post(
+			[
+				'ID'          => $newest_id,
+				'post_status' => 'draft',
+			]
+		);
+
+		$this->assertNotSame( get_permalink( $newest_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'An unpublished page should drop out.' );
+	}
 }
