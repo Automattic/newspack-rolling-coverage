@@ -647,16 +647,25 @@ class Rolling_Coverage_Block {
 	 * without this, entries that reach a coverage that loaded empty would
 	 * arrive by polling with no layout, e.g. Share not opposite the title.
 	 *
-	 * @param array[] $blocks Parsed template blocks.
+	 * @param array[] $blocks        Parsed template blocks.
+	 * @param array   $parent_layout The parent block's layout, as core passes
+	 *                               it to child blocks when rendering.
 	 */
-	private static function store_template_layout_styles( array $blocks ): void {
+	private static function store_template_layout_styles( array $blocks, array $parent_layout = [] ): void {
 		foreach ( $blocks as $block ) {
 			if ( ! is_array( $block ) || empty( $block['blockName'] ) ) {
 				continue;
 			}
 
-			wp_render_layout_support_flag( (string) ( $block['innerHTML'] ?? '' ), $block );
-			self::store_template_layout_styles( $block['innerBlocks'] ?? [] );
+			if ( $parent_layout ) {
+				$block['parentLayout'] = $parent_layout;
+			}
+
+			// Dynamic blocks have no saved markup; core needs a tag to store their styles.
+			$markup = trim( (string) ( $block['innerHTML'] ?? '' ) );
+			wp_render_layout_support_flag( '' !== $markup ? $markup : '<div></div>', $block );
+
+			self::store_template_layout_styles( $block['innerBlocks'] ?? [], (array) ( $block['attrs']['layout'] ?? [] ) );
 		}
 	}
 
