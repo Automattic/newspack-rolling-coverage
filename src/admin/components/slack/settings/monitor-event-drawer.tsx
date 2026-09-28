@@ -43,6 +43,7 @@ const CONTEXT_LABELS: Record< string, string > = {
 
 const CODE_KEYS = [
 	'ts',
+	'reason',
 	'post_id',
 	'term_id',
 	'error',

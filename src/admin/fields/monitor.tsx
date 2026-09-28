@@ -186,7 +186,7 @@ const defaultMonitorView: ViewState = {
 	filters: [],
 	fields: [ 'level', 'channel', 'time' ],
 	titleField: 'message',
-	layout: {},
+	layout: { styles: { time: { align: 'start' } } },
 };
 
 export {
