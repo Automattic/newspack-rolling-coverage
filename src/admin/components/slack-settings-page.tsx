@@ -20,6 +20,7 @@ import { IngestionSettingsTab } from './slack/settings/ingestion-settings-tab';
 import { ConnectSlack } from './slack/settings/connect-slack';
 import { MonitorTab } from './slack/settings/monitor-tab';
 import { LoadingState } from '../shared/loading-state';
+import type { TabHeader } from '../types';
 
 const VALID_TABS = SLACK_TABS.map( ( t ) => t.name );
 
@@ -129,14 +130,13 @@ function SlackSettingsPage() {
 		isSavingSettings,
 		isSettingsDirty,
 	] );
-	const [ monitorHeader, setMonitorHeader ] = useState< {
-		count?: number;
-		isEmpty?: boolean;
-	} >( {} );
+	const [ channelsHeader, setChannelsHeader ] = useState< TabHeader >( {} );
+	const [ monitorHeader, setMonitorHeader ] = useState< TabHeader >( {} );
 
 	useHeader( {
 		tabbedNavigation,
 		actions: headerActions,
+		...( tab === 'channels' ? channelsHeader : {} ),
 		...( tab === 'monitor' ? monitorHeader : {} ),
 	} );
 
@@ -178,6 +178,7 @@ function SlackSettingsPage() {
 						hasLoadedChannels={ hasLoadedChannels }
 						onUnlink={ handleUnlinkChannel }
 						onAutopublishChange={ handleAutopublishChange }
+						onHeaderChange={ setChannelsHeader }
 					/>
 				);
 			case 'settings':

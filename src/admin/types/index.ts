@@ -86,6 +86,8 @@ interface HeaderState {
 	tabbedNavigation?: ReactNode;
 }
 
+type TabHeader = Pick< HeaderState, 'count' | 'isEmpty' >;
+
 interface Coverage {
 	id: number;
 	name: string;
@@ -498,6 +500,7 @@ interface ChannelsTabProps {
 		channelId: string,
 		autopublish: boolean
 	) => Promise< void >;
+	onHeaderChange: ( header: TabHeader ) => void;
 }
 
 interface IncomingMessage {
@@ -662,6 +665,7 @@ export type {
 	AiSettings,
 	BreadcrumbItem,
 	HeaderState,
+	TabHeader,
 	StatusName,
 	ConfirmRequest,
 	RequestConfirm,
