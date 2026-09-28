@@ -129,9 +129,15 @@ function SlackSettingsPage() {
 		isSavingSettings,
 		isSettingsDirty,
 	] );
+	const [ monitorHeader, setMonitorHeader ] = useState< {
+		count?: number;
+		isEmpty?: boolean;
+	} >( {} );
+
 	useHeader( {
 		tabbedNavigation,
 		actions: headerActions,
+		...( tab === 'monitor' ? monitorHeader : {} ),
 	} );
 
 	if ( ! isConfigured ) {
@@ -201,7 +207,12 @@ function SlackSettingsPage() {
 					/>
 				);
 			case 'monitor':
-				return <MonitorTab />;
+				return (
+					<MonitorTab
+						channels={ channels }
+						onHeaderChange={ setMonitorHeader }
+					/>
+				);
 			default:
 				return null;
 		}
@@ -210,7 +221,7 @@ function SlackSettingsPage() {
 	return (
 		<div
 			className={
-				tab === 'channels'
+				tab === 'channels' || tab === 'monitor'
 					? undefined
 					: 'newspack-rolling-coverage-slack-settings'
 			}
