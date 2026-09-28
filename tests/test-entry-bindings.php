@@ -93,6 +93,31 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An entry's relative date is marked so the front end keeps it current;
+	 * a date in any other format, or outside an entry, is left alone.
+	 */
+	public function test_only_relative_entry_dates_are_marked_for_refresh() {
+		$entry_id = self::create_entry( self::create_coverage() );
+		$entry    = get_post( $entry_id );
+		$relative = parse_blocks( '<!-- wp:post-date {"format":"human-diff"} /-->' );
+		$absolute = parse_blocks( '<!-- wp:post-date /-->' );
+
+		$this->assertStringContainsString( 'data-rc-relative', Rolling_Coverage_Block::render_entry( $entry, $relative ), 'A relative entry date should be marked.' );
+		$this->assertStringNotContainsString( 'data-rc-relative', Rolling_Coverage_Block::render_entry( $entry, $absolute ), 'An absolute entry date should not be marked.' );
+
+		$post_id = self::factory()->post->create();
+		$html    = ( new WP_Block(
+			$relative[0],
+			[
+				'postId'   => $post_id,
+				'postType' => 'post',
+			] 
+		) )->render();
+
+		$this->assertStringNotContainsString( 'data-rc-relative', $html, 'A relative date outside an entry should not be marked.' );
+	}
+
+	/**
 	 * Buttons not bound to an entry render untouched, anywhere on the site.
 	 */
 	public function test_other_buttons_are_left_alone() {

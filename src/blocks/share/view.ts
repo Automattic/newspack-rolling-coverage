@@ -93,6 +93,9 @@ function initBlock( root: HTMLElement ): void {
 					button.removeAttribute( 'aria-label' );
 				}
 				delete button.dataset.copied;
+				if ( status ) {
+					status.textContent = '';
+				}
 			}, COPIED_STATE_MS );
 		} catch {
 			// Clipboard API requires a secure context (HTTPS). Fall back to a prompt so the user can copy manually on HTTP dev sites.
@@ -130,7 +133,7 @@ function initBlock( root: HTMLElement ): void {
 			'a[data-rc-share]'
 		);
 
-		if ( ! button || event.key !== ' ' ) {
+		if ( ! button || event.key !== ' ' || event.repeat ) {
 			return;
 		}
 

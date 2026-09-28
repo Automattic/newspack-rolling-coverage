@@ -14,6 +14,7 @@ use WP_Block;
 use WP_Block_Type;
 use WP_Block_Type_Registry;
 use WP_Error;
+use WP_HTML_Tag_Processor;
 use WP_Post;
 use WP_Query;
 use WP_REST_Request;
@@ -90,6 +91,38 @@ class Rolling_Coverage_Block {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 10, 3 );
+		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
+	}
+
+	/**
+	 * Marks an entry's relative date ("5 mins ago") so the front-end script
+	 * keeps it current; the text is only true when the page is rendered.
+	 *
+	 * Parameters stay untyped because this runs for every post date block on
+	 * the site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string   $block_content Rendered block.
+	 * @param array    $block         Parsed block.
+	 * @param WP_Block $instance      Block instance.
+	 * @return string
+	 */
+	public static function mark_relative_entry_date( $block_content, $block, $instance ) {
+		if (
+			! is_string( $block_content ) ||
+			! $instance instanceof WP_Block ||
+			'human-diff' !== ( $block['attrs']['format'] ?? '' ) ||
+			Post_Type::CPT_SLUG !== ( $instance->context['postType'] ?? '' )
+		) {
+			return $block_content;
+		}
+
+		$time = new WP_HTML_Tag_Processor( $block_content );
+
+		if ( $time->next_tag( 'time' ) ) {
+			$time->set_attribute( 'data-rc-relative', '' );
+		}
+
+		return $time->get_updated_html();
 	}
 
 	/**
