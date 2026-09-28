@@ -77,4 +77,4 @@ function useConfirmDialog(): {
 	};
 }
 
-export { ConfirmDialog, useConfirmDialog };
+export { useConfirmDialog };
