@@ -7,6 +7,7 @@ import {
 	DropdownMenu,
 	Notice,
 	TextareaControl,
+	VisuallyHidden,
 } from '@wordpress/components';
 import { moreVertical } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
@@ -117,10 +118,11 @@ function AIPage() {
 		requestConfirm( {
 			title: __( 'Reset to defaults?', 'newspack-rolling-coverage' ),
 			description: __(
-				'The Key Takeaways prompt goes back to the default text and is saved straight away.',
+				'The Key Takeaways prompt goes back to the default text and is saved straight away. The current prompt can’t be recovered.',
 				'newspack-rolling-coverage'
 			),
 			confirmLabel: __( 'Reset', 'newspack-rolling-coverage' ),
+			intent: 'irreversible',
 			onConfirm: async () => {
 				setIsSaving( true );
 				const result = await saveAiSettings(
@@ -164,7 +166,9 @@ function AIPage() {
 	const takeawaysPromptOver = takeawaysPromptLen > maxLen;
 	const hasOverLimit = takeawaysPromptOver;
 	const isDirty = ! isSameSettings( settings, savedSettings );
-	const isAtDefaults = isSameSettings( settings, config.aiDefaultSettings );
+	const isAtDefaults =
+		isSameSettings( settings, config.aiDefaultSettings ) &&
+		isSameSettings( savedSettings, config.aiDefaultSettings );
 
 	const headerActions = useMemo(
 		() => (
@@ -240,7 +244,7 @@ function AIPage() {
 				{ hasOverLimit && aiEnabled && (
 					<Notice status="error" isDismissible={ false }>
 						{ __(
-							'One or more prompts exceed the maximum length. Shorten the text to stay within the limit.',
+							'The prompt exceeds the maximum length. Shorten the text to stay within the limit.',
 							'newspack-rolling-coverage'
 						) }
 					</Notice>
@@ -259,13 +263,24 @@ function AIPage() {
 						) }
 					/>
 					<TextareaControl
-						label={ __( 'Prompt', 'newspack-rolling-coverage' ) }
+						label={
+							<>
+								<VisuallyHidden>
+									{ __(
+										'Key Takeaways',
+										'newspack-rolling-coverage'
+									) }{ ' ' }
+								</VisuallyHidden>
+								{ __( 'Prompt', 'newspack-rolling-coverage' ) }
+							</>
+						}
 						help={ sprintf(
-							/* translators: 1: character count, 2: max character count */
+							/* translators: 1: prompt placeholder token, 2: character count, 3: max character count */
 							__(
-								'Use {max_takeaways} where the maximum number of takeaways should go. Keep it short: the AI already has the coverage entries. (%1$d / %2$d characters)',
+								'Use %1$s where the maximum number of takeaways should go. Keep it short: the AI already has the coverage entries. (%2$d / %3$d characters)',
 								'newspack-rolling-coverage'
 							),
+							'{max_takeaways}',
 							takeawaysPromptLen,
 							maxLen
 						) }
@@ -278,6 +293,7 @@ function AIPage() {
 						}
 						rows={ 6 }
 						disabled={ isLoading || isSaving || ! aiEnabled }
+						aria-invalid={ takeawaysPromptOver || undefined }
 						className={
 							takeawaysPromptOver
 								? 'newspack-rolling-coverage-ai-settings__field--over-limit'
