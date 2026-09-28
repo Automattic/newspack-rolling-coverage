@@ -103,7 +103,6 @@ class Rolling_Coverage_Block {
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
 		add_filter( 'render_block_core/post-content', [ __CLASS__, 'drop_entry_content_class' ], 10, 3 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
-		add_filter( 'render_block_data', [ __CLASS__, 'drop_fixed_entry_date' ], 10, 1 );
 	}
 
 	/**
@@ -123,30 +122,33 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Drops a fixed date from an entry's post date block so it shows the
-	 * entry's own date.
+	 * Drops fixed dates from an entry template's post date blocks so each
+	 * entry shows its own date.
 	 *
 	 * Templates saved before the post date carried its `core/post-data`
 	 * binding have the time they were saved stored as a custom date, which
-	 * core would show on every entry.
+	 * core would show on every entry. Only the template is touched, so a
+	 * custom date written in an entry's own content stays.
 	 *
-	 * @param array $parsed_block Parsed block.
-	 * @return array
+	 * @param array[] $blocks Parsed template blocks.
+	 * @return array[]
 	 */
-	public static function drop_fixed_entry_date( $parsed_block ) {
-		if (
-			! is_array( $parsed_block ) ||
-			'core/post-date' !== ( $parsed_block['blockName'] ?? '' ) ||
-			! isset( $parsed_block['attrs']['datetime'] ) ||
-			isset( $parsed_block['attrs']['metadata']['bindings']['datetime'] ) ||
-			! self::$entry_render_depth
-		) {
-			return $parsed_block;
+	public static function drop_fixed_template_dates( array $blocks ): array {
+		foreach ( $blocks as $index => $block ) {
+			if (
+				'core/post-date' === ( $block['blockName'] ?? '' ) &&
+				isset( $block['attrs']['datetime'] ) &&
+				! isset( $block['attrs']['metadata']['bindings']['datetime'] )
+			) {
+				unset( $blocks[ $index ]['attrs']['datetime'] );
+			}
+
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$blocks[ $index ]['innerBlocks'] = self::drop_fixed_template_dates( $block['innerBlocks'] );
+			}
 		}
 
-		unset( $parsed_block['attrs']['datetime'] );
-
-		return $parsed_block;
+		return $blocks;
 	}
 
 	/**
@@ -1033,6 +1035,7 @@ class Rolling_Coverage_Block {
 	 * @return string Rendered HTML for the entry.
 	 */
 	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial' ) {
+		$template = self::drop_fixed_template_dates( $template );
 		global $post;
 
 		$previous_post = $post;

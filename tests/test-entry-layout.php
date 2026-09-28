@@ -90,13 +90,18 @@ class Test_Entry_Layout extends Rolling_Coverage_TestCase {
 	 * templates created without the binding, shows the entry's own date.
 	 */
 	public function test_entry_date_ignores_a_fixed_saved_date() {
-		$entry_id = self::create_entry( self::create_coverage(), [ 'post_date' => '2026-03-14 09:30:00' ] );
-		$html     = Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( '<!-- wp:post-date {"datetime":"2001-01-01T00:00:00.000Z"} /-->' ) );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_date'    => '2026-03-14 09:30:00',
+				'post_content' => '<!-- wp:post-date {"datetime":"2020-06-01T12:00:00.000Z"} /-->',
+			]
+		);
+		$template = '<!-- wp:post-date {"datetime":"2001-01-01T00:00:00.000Z"} /--><!-- wp:post-content /-->';
+		$html     = Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( $template ) );
 
-		$this->assertStringContainsString( 'datetime="' . get_the_date( 'c', $entry_id ) . '"', $html, 'An entry should show its own date.' );
-
-		$html = render_block( parse_blocks( '<!-- wp:post-date {"datetime":"2001-01-01T00:00:00.000Z"} /-->' )[0] );
-
-		$this->assertStringContainsString( '2001-01-01', $html, 'A fixed date outside an entry should stay.' );
+		$this->assertStringContainsString( 'datetime="' . get_the_date( 'c', $entry_id ) . '"', $html, 'The template date should show the entry\'s own date.' );
+		$this->assertStringNotContainsString( '2001-01-01', $html, 'The template\'s saved date should be ignored.' );
+		$this->assertStringContainsString( '2020-06-01', $html, 'A custom date written in the entry should stay.' );
 	}
 }

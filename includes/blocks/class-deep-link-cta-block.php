@@ -142,7 +142,8 @@ class Deep_Link_CTA_Block {
 		setup_postdata( $entry );
 
 		try {
-			$html = Rolling_Coverage_Block::render_as_entry(
+			$template = Rolling_Coverage_Block::drop_fixed_template_dates( $template );
+			$html     = Rolling_Coverage_Block::render_as_entry(
 				fn() => ( new WP_Block(
 					[
 						'blockName'    => null,

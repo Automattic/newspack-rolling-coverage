@@ -205,7 +205,8 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	 */
 	public function test_follow_button_is_hidden_for_an_archived_coverage() {
 		$coverage_id = self::create_coverage( 'archived' );
-		self::configure_onesignal();
+
+		$this->assertStringNotContainsString( 'data-rc-follow', self::render_coverage_with_follow( $coverage_id ), 'The rendered coverage should have no follow button.' );
 
 		$button          = new WP_Block( parse_blocks( self::FOLLOW_MARKUP )[0]['innerBlocks'][0] );
 		$button->context = [
