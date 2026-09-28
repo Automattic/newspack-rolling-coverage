@@ -97,6 +97,7 @@ async function getSlackChannelSettings(
 ): Promise< {
 	success: boolean;
 	autopublish?: boolean;
+	lastSyncTs?: string;
 	error?: string;
 } > {
 	try {
@@ -105,11 +106,13 @@ async function getSlackChannelSettings(
 		} ) ) as {
 			ok: boolean;
 			autopublish?: boolean;
+			last_sync_ts?: string;
 		};
 
 		return {
 			success: true,
 			autopublish: result.autopublish,
+			lastSyncTs: result.last_sync_ts,
 		};
 	} catch ( error ) {
 		return { success: false, error: handleApiError( error ) };

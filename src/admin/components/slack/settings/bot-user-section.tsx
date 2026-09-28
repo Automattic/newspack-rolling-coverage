@@ -8,57 +8,51 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies
  */
 import type { SlackBotUserInfo } from '../../../types';
-import { BotUserDetail } from './bot-user-detail';
+import { DetailRow } from '../../detail-row';
 
 /**
  * Renders the bot user details section.
  *
- * @param {Object}                          props             - Component props.
- * @param {SlackBotUserInfo|null|undefined} props.botUser     - The bot user info, or null.
- * @param {string}                          props.editUserUrl - Base admin URL for editing a WordPress user.
+ * @param {Object}                          props         - Component props.
+ * @param {SlackBotUserInfo|null|undefined} props.botUser - The bot user info, or null.
  */
 function BotUserSection( {
 	botUser,
-	editUserUrl,
 }: {
 	botUser: SlackBotUserInfo | null | undefined;
-	editUserUrl: string;
 } ) {
 	return (
 		<>
 			{ botUser ? (
-				<Stack direction="column" gap="sm">
-					<div>
-						<strong>
-							{ __( 'User ID:', 'newspack-rolling-coverage' ) }
-						</strong>{ ' ' }
-						<a
-							href={ `${ editUserUrl }?user_id=${ botUser.id }` }
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							{ `#${ botUser.id }` }
-						</a>
-					</div>
-					<BotUserDetail
-						label={ __( 'Username:', 'newspack-rolling-coverage' ) }
-						value={ botUser.login }
-					/>
-					<BotUserDetail
+				<Stack direction="column" gap="xl">
+					<DetailRow
+						label={ __( 'User ID', 'newspack-rolling-coverage' ) }
+					>
+						<span>{ `#${ botUser.id }` }</span>
+					</DetailRow>
+					<DetailRow
+						label={ __( 'Username', 'newspack-rolling-coverage' ) }
+					>
+						<span>{ botUser.login || '—' }</span>
+					</DetailRow>
+					<DetailRow
 						label={ __(
-							'Display name:',
+							'Display name',
 							'newspack-rolling-coverage'
 						) }
-						value={ botUser.display_name }
-					/>
-					<BotUserDetail
-						label={ __( 'Email:', 'newspack-rolling-coverage' ) }
-						value={ botUser.email }
-					/>
-					<BotUserDetail
-						label={ __( 'Roles:', 'newspack-rolling-coverage' ) }
-						value={ botUser.roles.join( ', ' ) }
-					/>
+					>
+						<span>{ botUser.display_name || '—' }</span>
+					</DetailRow>
+					<DetailRow
+						label={ __( 'Email', 'newspack-rolling-coverage' ) }
+					>
+						<span>{ botUser.email || '—' }</span>
+					</DetailRow>
+					<DetailRow
+						label={ __( 'Roles', 'newspack-rolling-coverage' ) }
+					>
+						<span>{ botUser.roles.join( ', ' ) || '—' }</span>
+					</DetailRow>
 				</Stack>
 			) : (
 				<p>

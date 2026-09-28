@@ -2,12 +2,12 @@
  * External dependencies
  */
 import { createElement } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
-import type { Coverage, Action, AdminConfig } from '../types';
+import type { Coverage, Action, AdminConfig, RequestConfirm } from '../types';
 import {
 	trashCoverage,
 	restoreCoverage,
@@ -24,7 +24,8 @@ import { ConfirmModal } from '../components/confirm-modal';
  * @param {() => void}                   onActionPerformed   Callback to refresh data after an action.
  * @param {(coverage: Coverage) => void} onNavigateToEntries Callback to navigate to the entry list.
  * @param {(coverage: Coverage) => void} onEdit              Callback to open the edit modal.
- * @param {(coverage: Coverage) => void} onSlackConnect      Callback to open the Slack connection modal.
+ * @param {(coverage: Coverage) => void} onSlackConnect      Callback to open the Slack connection drawer.
+ * @param {RequestConfirm}               requestConfirm      Opens the view's confirmation dialog.
  *
  * @return {Action<Coverage>[]} Array of DataViews actions for coverages.
  */
@@ -33,7 +34,8 @@ function getCoverageActions(
 	onActionPerformed: () => void,
 	onNavigateToEntries: ( coverage: Coverage ) => void,
 	onEdit: ( coverage: Coverage ) => void,
-	onSlackConnect: ( coverage: Coverage ) => void
+	onSlackConnect: ( coverage: Coverage ) => void,
+	requestConfirm: RequestConfirm
 ): Action< Coverage >[] {
 	const restNamespace = config.restBaseUrls.restNamespace;
 
@@ -68,7 +70,10 @@ function getCoverageActions(
 			? [
 					{
 						id: 'connect-slack',
-						label: __( 'Connection', 'newspack-rolling-coverage' ),
+						label: __(
+							'Slack Connection',
+							'newspack-rolling-coverage'
+						),
 						isEligible: () => config.capabilities.canManageOptions,
 						callback: ( items: Coverage[] ) => {
 							if ( items.length === 1 ) {
@@ -81,91 +86,75 @@ function getCoverageActions(
 		{
 			id: 'trash-coverage',
 			label: __( 'Trash', 'newspack-rolling-coverage' ),
-			modalHeader: __( 'Move to trash', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( coverage: Coverage ) =>
 				canManage &&
 				coverage.meta?.[ config.taxMeta.statusKey ] !== 'trash',
-			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
-				createElement( ConfirmModal, {
-					message: pluralize(
+			callback: ( items: Coverage[] ) =>
+				requestConfirm( {
+					title: pluralize(
 						items.length,
 						__(
-							'Are you sure you want to trash this coverage? Its entries will be hidden from the frontend until the coverage is restored.',
+							'Trash this coverage?',
+							'newspack-rolling-coverage'
+						),
+						sprintf(
+							/* translators: %d: number of coverages. */
+							_n(
+								'Trash %d coverage?',
+								'Trash %d coverages?',
+								items.length,
+								'newspack-rolling-coverage'
+							),
+							items.length
+						)
+					),
+					description: pluralize(
+						items.length,
+						__(
+							'Its entries will be hidden from the frontend until the coverage is restored.',
 							'newspack-rolling-coverage'
 						),
 						__(
-							'Are you sure you want to trash these coverages? Their entries will be hidden from the frontend until the coverages are restored.',
+							'Their entries will be hidden from the frontend until the coverages are restored.',
 							'newspack-rolling-coverage'
 						)
 					),
 					confirmLabel: __( 'Trash', 'newspack-rolling-coverage' ),
-					isDestructive: true,
+					intent: 'irreversible',
 					onConfirm: async () => {
 						const { failed, succeeded } = await runCoverageBulk(
 							items,
 							( id ) => trashCoverage( restNamespace, id )
 						);
 
-						if ( succeeded ) {
-							notifySuccess(
-								pluralize(
-									items.length,
-									__(
-										'Coverage trashed.',
-										'newspack-rolling-coverage'
-									),
-									__(
-										'Coverages trashed.',
-										'newspack-rolling-coverage'
-									)
-								)
-							);
-							notify?.( items );
-							onActionPerformed();
-						} else {
-							notifyError(
-								failed[ 0 ].error ||
+						if ( ! succeeded ) {
+							return {
+								error:
+									failed[ 0 ].error ||
 									__(
 										'Failed to trash coverage.',
 										'newspack-rolling-coverage'
-									)
-							);
+									),
+							};
 						}
-					},
-					onClose: closeModal ?? ( () => {} ),
-				} ),
-			callback: async ( items: Coverage[] ) => {
-				const { failed, succeeded } = await runCoverageBulk(
-					items,
-					( id ) => trashCoverage( restNamespace, id )
-				);
 
-				if ( succeeded ) {
-					notifySuccess(
-						pluralize(
-							items.length,
-							__(
-								'Coverage trashed.',
-								'newspack-rolling-coverage'
-							),
-							__(
-								'Coverages trashed.',
-								'newspack-rolling-coverage'
+						notifySuccess(
+							pluralize(
+								items.length,
+								__(
+									'Coverage trashed.',
+									'newspack-rolling-coverage'
+								),
+								__(
+									'Coverages trashed.',
+									'newspack-rolling-coverage'
+								)
 							)
-						)
-					);
-					onActionPerformed();
-				} else {
-					notifyError(
-						failed[ 0 ].error ||
-							__(
-								'Failed to trash coverage.',
-								'newspack-rolling-coverage'
-							)
-					);
-				}
-			},
+						);
+						onActionPerformed();
+					},
+				} ),
 		},
 		{
 			id: 'restore-coverage',

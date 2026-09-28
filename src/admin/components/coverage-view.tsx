@@ -14,7 +14,8 @@ import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
 import { useCoverages } from '../hooks/useCoverages';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { CoverageDrawer } from './coverage-drawer';
-import { SlackConnectionModal } from './slack-connection-modal';
+import { SlackConnectionDrawer } from './slack-connection-drawer';
+import { useConfirmDialog } from './confirm-dialog';
 import { getCoverageActions } from '../actions/coverage-actions';
 import { getCoverageFields, defaultCoverageView } from '../fields/coverages';
 import { useAdminContext } from '../hooks/useAdminContext';
@@ -26,7 +27,7 @@ import type { Context, ContextExports, Coverage } from '../types';
 
 /**
  * Renders the coverage list DataViews with create/edit drawer, Slack connection
- * modal, and row actions. Clicking a row navigates to its entries via the hash
+ * drawer, and row actions. Clicking a row navigates to its entries via the hash
  * router.
  */
 function CoverageView() {
@@ -35,13 +36,31 @@ function CoverageView() {
 	const [ context, setContext, refresh ] =
 		useOutletContext< ContextExports >();
 	const { refreshKey } = context;
+	const [ isSlackDrawerOpen, setIsSlackDrawerOpen ] = useState( false );
+	const [ slackCoverage, setSlackCoverage ] = useState< Coverage | null >(
+		null
+	);
+
+	const handleOpenSlackConnect = useCallback( ( coverage: Coverage ) => {
+		setSlackCoverage( coverage );
+		setIsSlackDrawerOpen( true );
+	}, [] );
+
+	const canConnectSlack =
+		config.slack.isConfigured && config.capabilities.canManageOptions;
 	const fields = useMemo(
 		() =>
 			getCoverageFields(
 				config.taxMeta.statusKey,
-				config.taxMeta.lastModifiedKey
+				config.taxMeta.lastModifiedKey,
+				canConnectSlack ? handleOpenSlackConnect : undefined
 			),
-		[ config.taxMeta.statusKey, config.taxMeta.lastModifiedKey ]
+		[
+			config.taxMeta.statusKey,
+			config.taxMeta.lastModifiedKey,
+			canConnectSlack,
+			handleOpenSlackConnect,
+		]
 	);
 	const [ view, setView ] = useState< View >( defaultCoverageView );
 
@@ -64,10 +83,6 @@ function CoverageView() {
 		null
 	);
 	const [ isDrawerOpen, setIsDrawerOpen ] = useState( false );
-	const [ isSlackModalOpen, setIsSlackModalOpen ] = useState( false );
-	const [ slackCoverage, setSlackCoverage ] = useState< Coverage | null >(
-		null
-	);
 
 	// Fetch the full coverage list: sorting, filtering, and pagination are  applied client-side via filterSortAndPaginate
 	const { records, isResolving, hasResolved, hasLoadedOnce, error } =
@@ -101,14 +116,8 @@ function CoverageView() {
 		refresh();
 	}, [ refresh ] );
 
-	const handleOpenSlackConnect = useCallback( ( coverage: Coverage ) => {
-		setSlackCoverage( coverage );
-		setIsSlackModalOpen( true );
-	}, [] );
-
-	const handleCloseSlackModal = useCallback( () => {
-		setIsSlackModalOpen( false );
-		setSlackCoverage( null );
+	const handleCloseSlackDrawer = useCallback( () => {
+		setIsSlackDrawerOpen( false );
 	}, [] );
 
 	const handleNavigateToEntries = useCallback(
@@ -142,6 +151,7 @@ function CoverageView() {
 		isEmpty,
 	} );
 
+	const { requestConfirm, dialog: confirmDialog } = useConfirmDialog();
 	const actions = useMemo(
 		() =>
 			getCoverageActions(
@@ -149,7 +159,8 @@ function CoverageView() {
 				handleSaved,
 				handleNavigateToEntries,
 				handleOpenEdit,
-				handleOpenSlackConnect
+				handleOpenSlackConnect,
+				requestConfirm
 			),
 		[
 			config,
@@ -157,6 +168,7 @@ function CoverageView() {
 			handleNavigateToEntries,
 			handleOpenEdit,
 			handleOpenSlackConnect,
+			requestConfirm,
 		]
 	);
 
@@ -222,13 +234,13 @@ function CoverageView() {
 				onClose={ handleCloseDrawer }
 				onSaved={ handleSaved }
 			/>
-			{ isSlackModalOpen && (
-				<SlackConnectionModal
-					coverage={ slackCoverage }
-					onClose={ handleCloseSlackModal }
-					onSaved={ handleSaved }
-				/>
-			) }
+			<SlackConnectionDrawer
+				isOpen={ isSlackDrawerOpen }
+				coverage={ slackCoverage }
+				onClose={ handleCloseSlackDrawer }
+				onSaved={ handleSaved }
+			/>
+			{ confirmDialog }
 		</>
 	);
 }

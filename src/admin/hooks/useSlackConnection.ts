@@ -1,7 +1,13 @@
 /**
  * External dependencies
  */
-import { useState, useEffect, useCallback } from '@wordpress/element';
+import {
+	useState,
+	useEffect,
+	useLayoutEffect,
+	useCallback,
+	useRef,
+} from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -20,18 +26,20 @@ import {
  * Manages Slack channel connection state and operations for a coverage term.
  *
  * Derives the current channel ID and name from the coverage meta, fetches the
- * stored autopublish setting when connected, and exposes async handlers for
- * connecting, disconnecting, and toggling autopublish. Callers are notified
- * of successful mutations via the `onSaved` callback and may close the modal
- * via the `onClose` callback.
+ * stored autopublish setting and last sync each time the drawer opens connected, and exposes
+ * async handlers for connecting, disconnecting, and toggling autopublish.
+ * Callers are notified of successful mutations via the `onSaved` callback and
+ * may close the drawer via the `onClose` callback.
  *
+ * @param {boolean}         isOpen   Whether the drawer is open.
  * @param {Coverage | null} coverage The coverage term to manage, or null.
  * @param {() => void}      onSaved  Called after a successful connect/disconnect.
- * @param {() => void}      onClose  Called after a successful connect/disconnect to close the modal.
+ * @param {() => void}      onClose  Called after a successful connect/disconnect to close the drawer.
  *
  * @return {Object} Connection state, derived channel info, and async handlers.
  */
 function useSlackConnection(
+	isOpen: boolean,
 	coverage: Coverage | null,
 	onSaved: () => void,
 	onClose: () => void
@@ -46,16 +54,35 @@ function useSlackConnection(
 
 	const [ channel, setChannel ] = useState( '' );
 	const [ autopublish, setAutopublish ] = useState( false );
+	const [ lastSyncTs, setLastSyncTs ] = useState< string | null >( null );
 	const [ isConnecting, setIsConnecting ] = useState( false );
 	const [ isDisconnecting, setIsDisconnecting ] = useState( false );
 	const [ isUpdatingAutopublish, setIsUpdatingAutopublish ] =
 		useState( false );
 	const [ error, setError ] = useState< string | null >( null );
 
-	// When the modal opens in connected mode, fetch the current autopublish
-	// state from the channel map so the toggle reflects the stored value.
+	// Each opening is its own session. A request still in flight from an
+	// earlier session must not write into, or close, the drawer as it is now,
+	// which may be showing another coverage.
+	const sessionRef = useRef( 0 );
+
+	useLayoutEffect( () => {
+		if ( isOpen ) {
+			sessionRef.current++;
+			setChannel( '' );
+			setAutopublish( false );
+			setLastSyncTs( null );
+			setIsConnecting( false );
+			setIsDisconnecting( false );
+			setIsUpdatingAutopublish( false );
+			setError( null );
+		}
+	}, [ isOpen ] );
+
+	// When the drawer opens in connected mode, fetch the stored autopublish
+	// state and last sync. The toggle stays locked until they arrive.
 	useEffect( () => {
-		if ( ! channelId ) {
+		if ( ! isOpen || ! channelId ) {
 			return;
 		}
 
@@ -77,16 +104,18 @@ function useSlackConnection(
 					return;
 				}
 				setAutopublish( Boolean( result.autopublish ) );
+				setLastSyncTs( result.lastSyncTs ?? '' );
 			}
 		);
 
 		return () => {
 			cancelled = true;
 		};
-	}, [ channelId, restBase.slack ] );
+	}, [ isOpen, channelId, restBase.slack ] );
 
 	const handleAutopublishChange = useCallback(
 		async ( next: boolean ) => {
+			const session = sessionRef.current;
 			setAutopublish( next );
 			setError( null );
 			setIsUpdatingAutopublish( true );
@@ -96,6 +125,10 @@ function useSlackConnection(
 				channelId,
 				next
 			);
+
+			if ( session !== sessionRef.current ) {
+				return;
+			}
 
 			if ( ! result.success ) {
 				// Revert the toggle on failure.
@@ -119,6 +152,7 @@ function useSlackConnection(
 			return;
 		}
 
+		const session = sessionRef.current;
 		setIsConnecting( true );
 		setError( null );
 
@@ -128,6 +162,13 @@ function useSlackConnection(
 			channel.trim(),
 			autopublish
 		);
+
+		if ( session !== sessionRef.current ) {
+			if ( result.success ) {
+				onSaved();
+			}
+			return;
+		}
 
 		if ( result.success ) {
 			onSaved();
@@ -152,6 +193,7 @@ function useSlackConnection(
 			return;
 		}
 
+		const session = sessionRef.current;
 		setIsDisconnecting( true );
 		setError( null );
 
@@ -159,6 +201,13 @@ function useSlackConnection(
 			restBase.slack,
 			coverage.id
 		);
+
+		if ( session !== sessionRef.current ) {
+			if ( result.success ) {
+				onSaved();
+			}
+			return;
+		}
 
 		if ( result.success ) {
 			onSaved();
@@ -180,6 +229,7 @@ function useSlackConnection(
 		setChannel,
 		autopublish,
 		setAutopublish,
+		lastSyncTs,
 		isConnecting,
 		isDisconnecting,
 		isUpdatingAutopublish,

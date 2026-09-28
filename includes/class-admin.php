@@ -285,6 +285,7 @@ class Admin {
 		return array(
 			'page'                => $page,
 			'adminTitleSuffix'    => self::$admin_title_suffix,
+			'supportsHandoff'     => class_exists( '\Newspack\Handoff_Banner' ),
 			'restBase'            => array(
 				'coverages' => Taxonomy::REST_BASE,
 				'entries'   => Post_Type::REST_BASE,
@@ -309,6 +310,7 @@ class Admin {
 				'canManageAiSettings' => current_user_can( 'edit_others_posts' ),
 			),
 			'adminUrls'           => array(
+				'coverages' => admin_url( 'admin.php?page=' . self::MENU_SLUG ),
 				'editEntry' => admin_url( 'post.php?action=edit' ),
 				'newEntry'  => admin_url( 'post-new.php?post_type=' . Post_Type::CPT_SLUG ),
 				'editTerm'  => admin_url( 'term.php?taxonomy=' . Taxonomy::TAXONOMY_SLUG ),

@@ -13,6 +13,7 @@ import { EmptyState } from 'newspack-components/dist/esm/empty-state';
  */
 import type { ChannelsTabProps, ChannelRow } from '../../../types';
 import { DataViewsWrapper } from '../../data-views-wrapper';
+import { useAdminContext } from '../../../hooks/useAdminContext';
 import { LoadingState } from '../../../shared/loading-state';
 import { SlackIcon } from '../../../shared/icons/slack-icon';
 import {
@@ -87,14 +88,16 @@ function ChannelsTab( {
 	);
 	const [ channelToDisconnect, setChannelToDisconnect ] =
 		useState< ChannelRow | null >( null );
+	const { adminUrls } = useAdminContext();
 	const fields = useMemo(
 		() =>
 			getChannelFields(
 				handleAutopublishChange,
 				updatingChannelIds,
-				setChannelToDisconnect
+				setChannelToDisconnect,
+				adminUrls.coverages
 			),
-		[ handleAutopublishChange, updatingChannelIds ]
+		[ handleAutopublishChange, updatingChannelIds, adminUrls.coverages ]
 	);
 
 	const rows = useMemo< ChannelRow[] >(

@@ -18,6 +18,14 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 	const VALID_SIGNING_SECRET = '0123456789abcdef0123456789abcdef';
 
 	/**
+	 * Drop the Simple Local Avatars stand-in so later tests see no plugin.
+	 */
+	public function tear_down() {
+		unset( $GLOBALS['simple_local_avatars'] );
+		parent::tear_down();
+	}
+
+	/**
 	 * Values that are not a bot token.
 	 *
 	 * @return array[]
@@ -145,6 +153,57 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 		$this->assertSame( NEWSPACK_ROLLING_COVERAGE_URL . Slack_Config::BOT_AVATAR_PATH, get_avatar_url( get_userdata( $bot_user_id ) ) );
 		$this->assertSame( NEWSPACK_ROLLING_COVERAGE_URL . Slack_Config::BOT_AVATAR_PATH, get_avatar_url( self::factory()->comment->create_and_get( [ 'user_id' => $bot_user_id ] ) ) );
 		$this->assertStringNotContainsString( Slack_Config::BOT_AVATAR_PATH, get_avatar_url( $other_user_id ) );
+	}
+
+	/**
+	 * An avatar uploaded to the bot user replaces the bundled one.
+	 */
+	public function test_uploaded_avatar_replaces_the_bundled_one() {
+		$bot_user_id = Slack_Config::get_or_create_bot_user_id();
+		$uploaded    = 'https://example.com/uploaded-avatar.png';
+		self::local_avatars()->uploaded[ $bot_user_id ] = $uploaded;
+		self::supply_avatar_url( $uploaded );
+
+		$this->assertSame( $uploaded, get_avatar_url( $bot_user_id ) );
+	}
+
+	/**
+	 * A fallback avatar another plugin supplies, such as Simple Local Avatars'
+	 * default in local-only mode, does not replace the bundled one.
+	 */
+	public function test_fallback_avatar_does_not_replace_the_bundled_one() {
+		$bot_user_id = Slack_Config::get_or_create_bot_user_id();
+		self::local_avatars();
+		self::supply_avatar_url( 'https://example.com/default-avatar.png' );
+
+		$this->assertSame( NEWSPACK_ROLLING_COVERAGE_URL . Slack_Config::BOT_AVATAR_PATH, get_avatar_url( $bot_user_id ) );
+	}
+
+	/**
+	 * Load the Simple Local Avatars stand-in as the plugin's global instance.
+	 *
+	 * @return Simple_Local_Avatars
+	 */
+	private static function local_avatars() {
+		require_once __DIR__ . '/mocks/class-simple-local-avatars.php';
+		$GLOBALS['simple_local_avatars'] = new Simple_Local_Avatars();
+		return $GLOBALS['simple_local_avatars'];
+	}
+
+	/**
+	 * Stand in for an avatar plugin that fills in a URL before the bot filter.
+	 *
+	 * @param string $url Avatar URL to supply.
+	 */
+	private static function supply_avatar_url( $url ) {
+		add_filter(
+			'pre_get_avatar_data',
+			static function ( $args ) use ( $url ) {
+				$args['url'] = $url;
+				return $args;
+			},
+			10
+		);
 	}
 
 	/**
