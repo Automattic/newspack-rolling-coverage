@@ -9,7 +9,7 @@ import {
 	useCallback,
 	useRef,
 } from '@wordpress/element';
-import { Button } from '@wordpress/components';
+import { Button, VisuallyHidden } from '@wordpress/components';
 import { postContent } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
 import { useDispatch } from '@wordpress/data';
@@ -29,12 +29,14 @@ import { buildPageUrl, createEntry, toEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
+import { SlackConnectionDrawer } from './slack-connection-drawer';
 import { useConfirmDialog } from './confirm-dialog';
 import { getEntryActions } from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
-import { applyEntryFilters } from '../utils/fields';
+import { applyEntryFilters, getSlackChannelLabel } from '../utils/fields';
 import type {
 	ContextExports,
+	Coverage,
 	Entry,
 	EntryPageResponse,
 	SyncNotice,
@@ -383,22 +385,118 @@ function EntryView() {
 	const isFirstLoad =
 		isValidCoverageId && ! hasSettledOnce.current && ! error;
 
-	const headerActions = useMemo(
+	const canConnectSlack =
+		config.slack.isConfigured && config.capabilities.canManageOptions;
+	const [ isSlackDrawerOpen, setIsSlackDrawerOpen ] = useState( false );
+	const [ slackCoverage, setSlackCoverage ] = useState< Coverage | null >(
+		null
+	);
+
+	// Moving to another coverage (for example with the browser's Back button)
+	// keeps this view mounted, so a drawer left open would still show the
+	// previous coverage's channel.
+	useEffect( () => {
+		setIsSlackDrawerOpen( false );
+	}, [ numericCoverageId ] );
+	const slackChannelLabel = routeCoverage
+		? getSlackChannelLabel( routeCoverage )
+		: '';
+
+	// Connecting or disconnecting changes the coverage's channel meta, so the
+	// coverage in context is refetched to keep the Slack button current.
+	const [ isRefreshingSlack, setIsRefreshingSlack ] = useState( false );
+	const handleSlackSaved = useCallback( () => {
+		if ( ! isValidCoverageId ) {
+			return;
+		}
+		setIsRefreshingSlack( true );
+		getCoverage(
+			config.restBaseUrls.coverages,
+			numericCoverageId as number
+		)
+			.then( ( coverage ) => {
+				if ( ! coverage ) {
+					return;
+				}
+				// The admin may have moved to another coverage meanwhile.
+				setContext( ( prev ) =>
+					prev.selectedCoverage?.id === coverage.id
+						? { ...prev, selectedCoverage: coverage }
+						: prev
+				);
+			} )
+			.finally( () => setIsRefreshingSlack( false ) );
+	}, [
+		isValidCoverageId,
+		numericCoverageId,
+		config.restBaseUrls.coverages,
+		setContext,
+	] );
+
+	const showNewEntry = ! disableNewEntry && ! isFirstLoad && ! isEmpty;
+	const canShowSlack = canConnectSlack && routeCoverage !== null;
+	const showSlackInHeader = canShowSlack && ! isFirstLoad && ! isEmpty;
+
+	const slackButton = useMemo(
 		() =>
-			! disableNewEntry && ! isFirstLoad && ! isEmpty ? (
+			canShowSlack ? (
 				<Button
-					variant="primary"
-					onClick={ handleNewEntry }
-					isBusy={ isCreatingEntry }
-					disabled={ isCreatingEntry }
+					variant="secondary"
+					className="newspack-rolling-coverage-status-button"
+					isBusy={ isRefreshingSlack }
+					disabled={ isRefreshingSlack }
+					accessibleWhenDisabled
+					onClick={ () => {
+						setSlackCoverage( routeCoverage );
+						setIsSlackDrawerOpen( true );
+					} }
 				>
-					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
+					{ slackChannelLabel ? (
+						<>
+							<span
+								className="newspack-rolling-coverage-status-dot"
+								aria-hidden="true"
+							/>
+							<VisuallyHidden>
+								{
+									/* translators: Read by screen readers before the linked Slack channel's name. */
+									__(
+										'Slack channel:',
+										'newspack-rolling-coverage'
+									)
+								}{ ' ' }
+							</VisuallyHidden>
+							{ slackChannelLabel }
+						</>
+					) : (
+						__( 'Connect Slack', 'newspack-rolling-coverage' )
+					) }
 				</Button>
 			) : null,
+		[ canShowSlack, slackChannelLabel, routeCoverage, isRefreshingSlack ]
+	);
+
+	const headerActions = useMemo(
+		() =>
+			showNewEntry || showSlackInHeader ? (
+				<>
+					{ showSlackInHeader && slackButton }
+					{ showNewEntry && (
+						<Button
+							variant="primary"
+							onClick={ handleNewEntry }
+							isBusy={ isCreatingEntry }
+							disabled={ isCreatingEntry }
+						>
+							{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
+						</Button>
+					) }
+				</>
+			) : null,
 		[
-			disableNewEntry,
-			isFirstLoad,
-			isEmpty,
+			showNewEntry,
+			showSlackInHeader,
+			slackButton,
 			handleNewEntry,
 			isCreatingEntry,
 		]
@@ -484,19 +582,22 @@ function EntryView() {
 							'newspack-rolling-coverage'
 						) }
 					/>
-					{ ! disableNewEntry && (
+					{ ( ! disableNewEntry || canShowSlack ) && (
 						<EmptyState.Actions>
-							<Button
-								variant="primary"
-								onClick={ handleNewEntry }
-								isBusy={ isCreatingEntry }
-								disabled={ isCreatingEntry }
-							>
-								{ __(
-									'Add Entry',
-									'newspack-rolling-coverage'
-								) }
-							</Button>
+							{ slackButton }
+							{ ! disableNewEntry && (
+								<Button
+									variant="primary"
+									onClick={ handleNewEntry }
+									isBusy={ isCreatingEntry }
+									disabled={ isCreatingEntry }
+								>
+									{ __(
+										'Add Entry',
+										'newspack-rolling-coverage'
+									) }
+								</Button>
+							) }
 						</EmptyState.Actions>
 					) }
 				</EmptyState.Root>
@@ -517,6 +618,14 @@ function EntryView() {
 					entryId={ quickEditEntry.id }
 					onClose={ handleQuickEditClose }
 					onSaved={ handleQuickEditSaved }
+				/>
+			) }
+			{ canConnectSlack && (
+				<SlackConnectionDrawer
+					isOpen={ isSlackDrawerOpen }
+					coverage={ slackCoverage }
+					onClose={ () => setIsSlackDrawerOpen( false ) }
+					onSaved={ handleSlackSaved }
 				/>
 			) }
 			{ confirmDialog }
