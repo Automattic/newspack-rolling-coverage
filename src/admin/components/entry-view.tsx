@@ -434,8 +434,7 @@ function EntryView() {
 	] );
 
 	// Archived coverages keep a disabled Add Entry so the reason stays visible.
-	const showArchivedAddEntry =
-		isArchived && canCreateEntries && ! isFirstLoad;
+	const showArchivedAddEntry = isArchived && canCreateEntries;
 	const showNewEntry =
 		( ! disableNewEntry || showArchivedAddEntry ) &&
 		! isFirstLoad &&
@@ -483,7 +482,10 @@ function EntryView() {
 	);
 
 	const pageUrl = routeCoverage?.pageUrl ?? '';
-	const showViewPage = ! isFirstLoad && routeCoverage !== null;
+	const showViewPage =
+		! isFirstLoad &&
+		routeCoverage !== null &&
+		( pageUrl !== '' || ! isEmpty );
 
 	const addEntryButton = useMemo(
 		() =>
@@ -644,13 +646,10 @@ function EntryView() {
 							'newspack-rolling-coverage'
 						) }
 					/>
-					{ ( ! disableNewEntry ||
-						showArchivedAddEntry ||
-						canShowSlack ) && (
+					{ ( ! disableNewEntry || canShowSlack ) && (
 						<EmptyState.Actions>
 							{ slackButton }
-							{ ( ! disableNewEntry || showArchivedAddEntry ) &&
-								addEntryButton }
+							{ ! disableNewEntry && addEntryButton }
 						</EmptyState.Actions>
 					) }
 				</EmptyState.Root>
