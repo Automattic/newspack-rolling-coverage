@@ -665,9 +665,10 @@ class Slack_Webhook_Controller {
 
 		return new \WP_REST_Response(
 			[
-				'ok'          => true,
-				'channel_id'  => $channel_id,
-				'autopublish' => (bool) ( $settings['autopublish'] ?? false ),
+				'ok'           => true,
+				'channel_id'   => $channel_id,
+				'autopublish'  => (bool) ( $settings['autopublish'] ?? false ),
+				'last_sync_ts' => (string) ( $settings['last_sync_ts'] ?? '' ),
 			],
 			200
 		);

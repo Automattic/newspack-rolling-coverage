@@ -17,12 +17,14 @@ import type { Field, ViewState, ChannelRow } from '../types';
  * @param {(channelId: string, autopublish: boolean) => void} onAutopublishChange Turns auto-publish on or off for a channel.
  * @param {Set<string>}                                       updatingChannelIds  Channels whose auto-publish change is in flight.
  * @param {(channel: ChannelRow) => void}                     onDisconnect        Asks to disconnect a channel.
+ * @param {string}                                            coveragesUrl        Admin URL of the All Coverages page.
  * @return {Field< ChannelRow >[]} Field definitions for the channel table.
  */
 function getChannelFields(
 	onAutopublishChange: ( channelId: string, autopublish: boolean ) => void,
 	updatingChannelIds: Set< string >,
-	onDisconnect: ( channel: ChannelRow ) => void
+	onDisconnect: ( channel: ChannelRow ) => void,
+	coveragesUrl: string
 ): Field< ChannelRow >[] {
 	return [
 		{
@@ -54,7 +56,12 @@ function getChannelFields(
 			getValue: ( { item } ) => decodeEntities( item.term_name ),
 			render: ( { item } ) =>
 				item.term_name ? (
-					decodeEntities( item.term_name )
+					<Button
+						variant="link"
+						href={ `${ coveragesUrl }#/coverages/${ item.term_id }` }
+					>
+						{ decodeEntities( item.term_name ) }
+					</Button>
 				) : (
 					<em>{ __( '(deleted)', 'newspack-rolling-coverage' ) }</em>
 				),

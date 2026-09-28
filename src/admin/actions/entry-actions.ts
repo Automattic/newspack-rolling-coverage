@@ -2,7 +2,7 @@
  * WordPress dependencies
  */
 import { createElement } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -26,7 +26,7 @@ import {
 import { notifySuccess, notifyError, pluralize } from '../utils/notices';
 import { BreakoutModal } from '../components/breakout-modal';
 import { ConfirmModal } from '../components/confirm-modal';
-import type { Entry, Action, AdminConfig } from '../types';
+import type { Entry, Action, AdminConfig, RequestConfirm } from '../types';
 
 /**
  * Returns the confirmation message for editing an entry that is archived
@@ -68,6 +68,7 @@ function getEditWarningMessage( entry: Entry ): string {
  *
  * @param {AdminConfig}            config            Admin config containing edit URLs.
  * @param {(entry: Entry) => void} onQuickEdit       Handler for the Quick Edit action.
+ * @param {RequestConfirm}         requestConfirm    Opens the view's confirmation dialog.
  * @param {() => void}             onActionPerformed Callback invoked after a successful create, or setting save, to refresh data.
  *
  * @return {Action<Entry>[]} Array of DataViews actions for entries.
@@ -75,6 +76,7 @@ function getEditWarningMessage( entry: Entry ): string {
 function getEntryActions(
 	config: AdminConfig,
 	onQuickEdit: ( entry: Entry ) => void,
+	requestConfirm: RequestConfirm,
 	onActionPerformed?: () => void
 ): Action< Entry >[] {
 	// Editors and above can act on any entry; lower roles are limited to
@@ -438,27 +440,27 @@ function getEntryActions(
 		{
 			id: 'trash-entry',
 			label: __( 'Trash', 'newspack-rolling-coverage' ),
-			modalHeader: __( 'Move to trash', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				entry.status !== 'trash' &&
 				! isEntryLocked( entry ) &&
 				canTrashRow( entry ),
-			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
-				createElement( ConfirmModal, {
-					message: pluralize(
+			callback: ( items: Entry[], { onActionPerformed: notify } ) =>
+				requestConfirm( {
+					title: pluralize(
 						items.length,
-						__(
-							'Are you sure you want to trash this entry?',
-							'newspack-rolling-coverage'
-						),
-						__(
-							'Are you sure you want to trash these entries?',
-							'newspack-rolling-coverage'
+						__( 'Trash this entry?', 'newspack-rolling-coverage' ),
+						sprintf(
+							/* translators: %d: number of entries. */
+							__(
+								'Trash %d entries?',
+								'newspack-rolling-coverage'
+							),
+							items.length
 						)
 					),
 					confirmLabel: __( 'Trash', 'newspack-rolling-coverage' ),
-					isDestructive: true,
+					intent: 'irreversible',
 					onConfirm: async () => {
 						const { failed, succeeded } = await runEntryBulk(
 							config,
@@ -466,63 +468,34 @@ function getEntryActions(
 							false
 						);
 
-						if ( succeeded ) {
-							notifySuccess(
-								pluralize(
-									items.length,
-									__(
-										'Entry trashed.',
-										'newspack-rolling-coverage'
-									),
-									__(
-										'Entries trashed.',
-										'newspack-rolling-coverage'
-									)
-								)
-							);
-							notify?.( items );
-							onActionPerformed?.();
-						} else {
-							notifyError(
-								failed[ 0 ].error ||
+						if ( ! succeeded ) {
+							return {
+								error:
+									failed[ 0 ].error ||
 									__(
 										'Failed to trash entry.',
 										'newspack-rolling-coverage'
-									)
-							);
+									),
+							};
 						}
-					},
-					onClose: closeModal ?? ( () => {} ),
-				} ),
-			callback: async ( items: Entry[] ) => {
-				const { failed, succeeded } = await runEntryBulk(
-					config,
-					items,
-					false
-				);
 
-				if ( succeeded ) {
-					notifySuccess(
-						pluralize(
-							items.length,
-							__( 'Entry trashed.', 'newspack-rolling-coverage' ),
-							__(
-								'Entries trashed.',
-								'newspack-rolling-coverage'
+						notifySuccess(
+							pluralize(
+								items.length,
+								__(
+									'Entry trashed.',
+									'newspack-rolling-coverage'
+								),
+								__(
+									'Entries trashed.',
+									'newspack-rolling-coverage'
+								)
 							)
-						)
-					);
-					onActionPerformed?.();
-				} else {
-					notifyError(
-						failed[ 0 ].error ||
-							__(
-								'Failed to trash entry.',
-								'newspack-rolling-coverage'
-							)
-					);
-				}
-			},
+						);
+						notify?.( items );
+						onActionPerformed?.();
+					},
+				} ),
 		},
 		{
 			id: 'restore-entry',

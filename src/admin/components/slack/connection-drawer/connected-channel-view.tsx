@@ -1,0 +1,99 @@
+/**
+ * External dependencies
+ */
+import { ToggleControl, VisuallyHidden } from '@wordpress/components';
+import { Stack, Text } from '@wordpress/ui';
+import { __, sprintf } from '@wordpress/i18n';
+
+/**
+ * Internal dependencies
+ */
+import type { ConnectedChannelViewProps } from '../../../types';
+import {
+	formatSlackChannel,
+	safeFormatSlackTimestamp,
+} from '../../../utils/fields';
+import { DetailRow } from '../../detail-row';
+import { SlackError } from './slack-error';
+
+/**
+ * Renders the body of the Slack connection drawer when the coverage is
+ * already connected to a channel: the channel name with help text, the
+ * channel ID, last sync and inline auto-publish toggle in the Channels
+ * table's order, and any error notice.
+ *
+ * @param {ConnectedChannelViewProps} props Component props.
+ */
+function ConnectedChannelView( {
+	channelName,
+	channelId,
+	lastSyncTs,
+	autopublish,
+	onAutopublishChange,
+	isUpdatingAutopublish,
+	error,
+}: ConnectedChannelViewProps ) {
+	return (
+		<Stack direction="column" gap="lg">
+			<DetailRow label={ __( 'Channel', 'newspack-rolling-coverage' ) }>
+				<span>
+					{ formatSlackChannel( channelName ) ||
+						__( '(unknown name)', 'newspack-rolling-coverage' ) }
+				</span>
+				<Text
+					variant="body-sm"
+					className="newspack-rolling-coverage-detail-help"
+				>
+					{ __(
+						'New messages posted in this channel are added to this coverage as entries.',
+						'newspack-rolling-coverage'
+					) }
+				</Text>
+			</DetailRow>
+			<DetailRow
+				label={ __( 'Channel ID', 'newspack-rolling-coverage' ) }
+			>
+				<code>{ channelId }</code>
+			</DetailRow>
+			{ lastSyncTs !== null && (
+				<DetailRow
+					label={ __( 'Last Sync', 'newspack-rolling-coverage' ) }
+				>
+					<span>
+						{ lastSyncTs
+							? safeFormatSlackTimestamp( lastSyncTs )
+							: __( 'Never', 'newspack-rolling-coverage' ) }
+					</span>
+				</DetailRow>
+			) }
+			<Stack direction="column" gap="sm" align="flex-start">
+				<span
+					className="newspack-rolling-coverage-detail-label"
+					aria-hidden="true"
+				>
+					{ __( 'Auto-publish', 'newspack-rolling-coverage' ) }
+				</span>
+				<ToggleControl
+					label={
+						<VisuallyHidden>
+							{ sprintf(
+								/* translators: %s: Slack channel name, or its ID when the name is unknown. */
+								__(
+									'Auto-publish entries from %s',
+									'newspack-rolling-coverage'
+								),
+								channelName || channelId
+							) }
+						</VisuallyHidden>
+					}
+					checked={ autopublish }
+					onChange={ onAutopublishChange }
+					disabled={ isUpdatingAutopublish }
+				/>
+			</Stack>
+			<SlackError message={ error } />
+		</Stack>
+	);
+}
+
+export { ConnectedChannelView };

@@ -29,6 +29,7 @@ import { buildPageUrl, createEntry, toEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
+import { useConfirmDialog } from './confirm-dialog';
 import { getEntryActions } from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
 import { applyEntryFilters } from '../utils/fields';
@@ -301,9 +302,16 @@ function EntryView() {
 		}
 	}, [ config, isValidCoverageId, numericCoverageId ] );
 
+	const { requestConfirm, dialog: confirmDialog } = useConfirmDialog();
 	const actions = useMemo(
-		() => getEntryActions( config, handleQuickEdit, handleActionPerformed ),
-		[ config, handleQuickEdit, handleActionPerformed ]
+		() =>
+			getEntryActions(
+				config,
+				handleQuickEdit,
+				requestConfirm,
+				handleActionPerformed
+			),
+		[ config, handleQuickEdit, requestConfirm, handleActionPerformed ]
 	);
 
 	const hasNoLiveEntries =
@@ -510,6 +518,7 @@ function EntryView() {
 					onSaved={ handleQuickEditSaved }
 				/>
 			) }
+			{ confirmDialog }
 		</>
 	);
 }

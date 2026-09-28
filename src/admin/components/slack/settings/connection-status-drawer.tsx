@@ -13,6 +13,7 @@ import type {
 	ConnectionStatusDrawerProps,
 	SlackSettingsInfo,
 } from '../../../types';
+import { DetailRow } from '../../detail-row';
 import { CopyManifestButton } from './copy-manifest-button';
 
 /**
@@ -51,39 +52,35 @@ function ConnectionStatusDrawer( {
 			</Drawer.Header>
 			<Drawer.Content>
 				<Stack direction="column" gap="lg">
-					<div>
-						<strong>
-							{ __( 'Workspace:', 'newspack-rolling-coverage' ) }
-						</strong>{ ' ' }
+					<DetailRow
+						label={ __( 'Workspace', 'newspack-rolling-coverage' ) }
+					>
 						<span>
 							{ workspaceInfo?.workspace_name ||
 								__( '(unknown)', 'newspack-rolling-coverage' ) }
 						</span>
-					</div>
-					<div>
-						<strong>
-							{ __(
-								'Workspace ID:',
-								'newspack-rolling-coverage'
-							) }
-						</strong>{ ' ' }
+					</DetailRow>
+					<DetailRow
+						label={ __(
+							'Workspace ID',
+							'newspack-rolling-coverage'
+						) }
+					>
 						<code>{ workspaceInfo?.workspace_id || '—' }</code>
-					</div>
-					<div>
-						<strong>
-							{ __( 'Bot token:', 'newspack-rolling-coverage' ) }
-						</strong>{ ' ' }
+					</DetailRow>
+					<DetailRow
+						label={ __( 'Bot token', 'newspack-rolling-coverage' ) }
+					>
 						<code>{ workspaceInfo?.masked_token || '—' }</code>
-					</div>
-					<div>
-						<strong>
-							{ __(
-								'Slack bot user ID:',
-								'newspack-rolling-coverage'
-							) }
-						</strong>{ ' ' }
+					</DetailRow>
+					<DetailRow
+						label={ __(
+							'Slack bot user ID',
+							'newspack-rolling-coverage'
+						) }
+					>
 						<code>{ workspaceInfo?.slack_bot_user_id || '—' }</code>
-					</div>
+					</DetailRow>
 				</Stack>
 			</Drawer.Content>
 			<Drawer.Footer>
@@ -92,7 +89,7 @@ function ConnectionStatusDrawer( {
 					feedback="inline"
 				/>
 				<Button
-					variant="primary"
+					variant="secondary"
 					isDestructive
 					onClick={ onDisconnect }
 				>

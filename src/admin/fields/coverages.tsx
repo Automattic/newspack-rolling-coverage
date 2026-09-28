@@ -1,9 +1,9 @@
 /**
  * External dependencies.
  */
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import { decodeEntities } from '@wordpress/html-entities';
-import { Badge } from '@wordpress/ui';
+import { Button } from '@wordpress/components';
 
 /**
  * Internal dependencies.
@@ -31,13 +31,15 @@ const COVERAGE_STATUS_LABELS: Record< string, string > = Object.fromEntries(
  * Field definitions for the coverage DataViews table.
  * Configures columns: term ID, name, entry count, status, created date, modified date.
  *
- * @param {string} statusKey       Meta key for the coverage status (from AdminConfig).
- * @param {string} lastModifiedKey Meta key for the coverage's latest entry activity (from AdminConfig).
+ * @param {string}                       statusKey            Meta key for the coverage status (from AdminConfig).
+ * @param {string}                       lastModifiedKey      Meta key for the coverage's latest entry activity (from AdminConfig).
+ * @param {(coverage: Coverage) => void} [onOpenSlackConnect] Opens the Slack connection drawer from the channel name, or a Connect link when unlinked; without it the column is plain text.
  * @return {Field< Coverage >[]} Field definitions for the coverage table.
  */
 function getCoverageFields(
 	statusKey: string,
-	lastModifiedKey: string
+	lastModifiedKey: string,
+	onOpenSlackConnect?: ( coverage: Coverage ) => void
 ): Field< Coverage >[] {
 	return [
 		{
@@ -102,15 +104,42 @@ function getCoverageFields(
 			render: ( { item } ) => {
 				const label = getSlackChannelLabel( item );
 				if ( ! label ) {
-					return <span>—</span>;
+					if ( ! onOpenSlackConnect ) {
+						return <span>—</span>;
+					}
+					return (
+						<Button
+							variant="link"
+							className="newspack-rolling-coverage-slack-channel"
+							aria-label={ sprintf(
+								/* translators: %s: coverage name. */
+								__(
+									'Connect %s to a Slack channel',
+									'newspack-rolling-coverage'
+								),
+								decodeEntities( item.name )
+							) }
+							onClick={ () => onOpenSlackConnect( item ) }
+						>
+							{ __( 'Connect', 'newspack-rolling-coverage' ) }
+						</Button>
+					);
+				}
+				if ( ! onOpenSlackConnect ) {
+					return (
+						<span className="newspack-rolling-coverage-slack-channel">
+							{ label }
+						</span>
+					);
 				}
 				return (
-					<Badge
-						intent="draft"
+					<Button
+						variant="link"
 						className="newspack-rolling-coverage-slack-channel"
+						onClick={ () => onOpenSlackConnect( item ) }
 					>
 						{ label }
-					</Badge>
+					</Button>
 				);
 			},
 		},

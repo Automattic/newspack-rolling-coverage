@@ -6,3 +6,7 @@
 	gap: $nrc-spacing-md;
 	margin-top: $nrc-spacing-lg + $nrc-spacing-md;
 }
+
+.newspack-rolling-coverage-confirm-dialog {
+	max-width: var(--wpds-dimension-surface-width-md, 400px);
+}

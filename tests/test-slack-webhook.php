@@ -322,6 +322,40 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A linked channel's settings report when it last ingested a message, so
+	 * the connection drawer can show it.
+	 */
+	public function test_channel_settings_include_the_last_sync() {
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel(
+			self::CHANNEL_ID,
+			[
+				'term_id'      => $coverage_id,
+				'autopublish'  => true,
+				'last_sync_ts' => '1767225600.000100',
+			]
+		);
+		$request = new WP_REST_Request( 'GET', '/rolling-coverage/v1/slack/channel/' . self::CHANNEL_ID );
+		$request->set_param( 'id', self::CHANNEL_ID );
+
+		$data = self::controller()->get_channel_settings( $request )->get_data();
+
+		$this->assertTrue( $data['autopublish'], 'The stored autopublish setting should be returned.' );
+		$this->assertSame( '1767225600.000100', $data['last_sync_ts'], 'The last ingested message timestamp should be returned.' );
+	}
+
+	/**
+	 * A channel that has never ingested a message reports an empty last sync.
+	 */
+	public function test_channel_settings_report_no_sync_yet() {
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => self::create_coverage() ] );
+		$request = new WP_REST_Request( 'GET', '/rolling-coverage/v1/slack/channel/' . self::CHANNEL_ID );
+		$request->set_param( 'id', self::CHANNEL_ID );
+
+		$this->assertSame( '', self::controller()->get_channel_settings( $request )->get_data()['last_sync_ts'] );
+	}
+
+	/**
 	 * Autopublish is a per-channel opt-in.
 	 */
 	public function test_message_is_published_when_the_channel_autopublishes() {
