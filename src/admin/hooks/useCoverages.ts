@@ -56,7 +56,7 @@ function useCoverages( options: UseCoveragesOptions = {} ) {
 	const query: Record< string, unknown > = {
 		per_page: perPage,
 		page,
-		_fields: 'id,name,slug,description,meta,count',
+		_fields: 'id,name,slug,description,meta,count,pageUrl',
 		context: 'view',
 		_ts: refreshKey,
 	};

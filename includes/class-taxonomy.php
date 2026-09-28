@@ -26,6 +26,12 @@ class Taxonomy {
 	const STATUS_META_KEY = 'rolling_coverage_status';
 	const CANONICAL_URL_META_KEY = 'rolling_coverage_canonical_url';
 
+	// REST field holding the URL of the published page that displays the coverage.
+	const PAGE_URL_REST_FIELD = 'pageUrl';
+
+	// Cache last-changed group for the coverage-to-page map.
+	const PAGE_IDS_CACHE_GROUP = 'newspack-rolling-coverage-pages';
+
 	// Term meta key for disabling ads on a coverage term.
 	const ADS_DISABLED_META_KEY = 'rolling_coverage_ads_disabled';
 
@@ -88,6 +94,7 @@ class Taxonomy {
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
+		add_action( 'clean_post_cache', [ __CLASS__, 'flush_coverage_page_ids' ], 10, 2 );
 		add_action( 'created_' . self::TAXONOMY_SLUG, [ __CLASS__, 'set_term_created_date' ] );
 		add_action( 'edited_' . self::TAXONOMY_SLUG, [ __CLASS__, 'update_term_modified_date' ] );
 		add_action( 'added_term_meta', [ __CLASS__, 'maybe_snapshot_end_time' ], 10, 4 );
@@ -248,6 +255,19 @@ class Taxonomy {
 	 * Register REST routes for coverage trash/restore/delete operations.
 	 */
 	public static function register_routes() {
+		register_rest_field(
+			self::TAXONOMY_SLUG,
+			self::PAGE_URL_REST_FIELD,
+			[
+				'get_callback' => [ __CLASS__, 'get_page_url_rest_field' ],
+				'schema'       => [
+					'type'     => 'string',
+					'context'  => [ 'edit', 'view' ],
+					'readonly' => true,
+				],
+			]
+		);
+
 		register_rest_route(
 			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
 			'/coverages/(?P<coverage_id>\d+)/trash',
@@ -547,5 +567,111 @@ class Taxonomy {
 		$response->set_data( $data );
 
 		return $response;
+	}
+
+	/**
+	 * REST field callback returning the URL of the page that displays a coverage.
+	 *
+	 * Only editors see it, so public term requests never pay for the lookup.
+	 *
+	 * @param array $term Coverage REST object data.
+	 * @return string Page URL, or '' when there is none or the user can't edit posts.
+	 */
+	public static function get_page_url_rest_field( array $term ): string {
+		if ( ! isset( $term['id'] ) || ! current_user_can( 'edit_posts' ) ) {
+			return '';
+		}
+
+		return self::get_coverage_page_url( (int) $term['id'] );
+	}
+
+	/**
+	 * Returns the URL of the page that displays a coverage: its canonical URL
+	 * when set, since share links and notifications send readers there, else
+	 * the newest published post embedding a Rolling Coverage block for it.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return string Page URL, or '' when the coverage has no page.
+	 */
+	public static function get_coverage_page_url( int $coverage_id ): string {
+		$canonical_url = (string) get_term_meta( $coverage_id, self::CANONICAL_URL_META_KEY, true );
+
+		if ( '' !== $canonical_url ) {
+			return $canonical_url;
+		}
+
+		$post_id = self::get_coverage_page_ids()[ $coverage_id ] ?? 0;
+
+		return $post_id ? (string) get_permalink( $post_id ) : '';
+	}
+
+	/**
+	 * Invalidates the coverage-to-page map when a post that could host the
+	 * block changes. Entries, their revisions and autosaves are ignored: they
+	 * change constantly during live coverage and never host the block.
+	 *
+	 * @param int      $post_id Post ID.
+	 * @param \WP_Post $post    Post object.
+	 */
+	public static function flush_coverage_page_ids( $post_id, $post ): void {
+		if ( $post instanceof \WP_Post && ! self::can_host_coverage_block( $post->post_type ) ) {
+			return;
+		}
+
+		wp_cache_set_last_changed( self::PAGE_IDS_CACHE_GROUP );
+	}
+
+	/**
+	 * Whether posts of a type can be the page that shows a coverage.
+	 *
+	 * @param string $post_type Post type name.
+	 * @return bool
+	 */
+	private static function can_host_coverage_block( string $post_type ): bool {
+		return Post_Type::CPT_SLUG !== $post_type && 'attachment' !== $post_type && is_post_type_viewable( $post_type );
+	}
+
+	/**
+	 * Maps each coverage to the newest published post embedding it.
+	 *
+	 * @return array<int,int> Map of coverage term ID => post ID.
+	 */
+	private static function get_coverage_page_ids(): array {
+		$cache_key = 'coverage_page_ids:' . wp_cache_get_last_changed( self::PAGE_IDS_CACHE_GROUP );
+		$cached    = wp_cache_get( $cache_key, self::PAGE_IDS_CACHE_GROUP );
+
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		$post_types = array_values( array_filter( get_post_types(), [ __CLASS__, 'can_host_coverage_block' ] ) );
+
+		$map = [];
+
+		if ( $post_types ) {
+			global $wpdb;
+
+			$posts = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+					"SELECT ID, post_content FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_password = '' AND post_type IN (" . implode( ',', array_fill( 0, count( $post_types ), '%s' ) ) . ') AND post_content LIKE %s ORDER BY post_date DESC, ID DESC',
+					array_merge( $post_types, [ '%' . $wpdb->esc_like( '<!-- wp:' . Schema::BLOCK_NAME . ' ' ) . '%' ] )
+				)
+			);
+
+			foreach ( $posts as $post ) {
+				foreach ( Schema::flatten_blocks( parse_blocks( $post->post_content ) ) as $block ) {
+					$coverage_id = (int) ( $block['attrs']['coverageId'] ?? 0 );
+
+					if ( Schema::BLOCK_NAME === ( $block['blockName'] ?? '' ) && $coverage_id && ! isset( $map[ $coverage_id ] ) ) {
+						$map[ $coverage_id ] = (int) $post->ID;
+					}
+				}
+			}
+		}
+
+		wp_cache_set( $cache_key, $map, self::PAGE_IDS_CACHE_GROUP );
+
+		return $map;
 	}
 }
