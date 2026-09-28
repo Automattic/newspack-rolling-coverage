@@ -498,6 +498,7 @@ interface ChannelsTabProps {
 		channelId: string,
 		autopublish: boolean
 	) => Promise< void >;
+	onHeaderChange: ( header: { count?: number; isEmpty?: boolean } ) => void;
 }
 
 interface IncomingMessage {

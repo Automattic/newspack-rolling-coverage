@@ -129,6 +129,10 @@ function SlackSettingsPage() {
 		isSavingSettings,
 		isSettingsDirty,
 	] );
+	const [ channelsHeader, setChannelsHeader ] = useState< {
+		count?: number;
+		isEmpty?: boolean;
+	} >( {} );
 	const [ monitorHeader, setMonitorHeader ] = useState< {
 		count?: number;
 		isEmpty?: boolean;
@@ -137,6 +141,7 @@ function SlackSettingsPage() {
 	useHeader( {
 		tabbedNavigation,
 		actions: headerActions,
+		...( tab === 'channels' ? channelsHeader : {} ),
 		...( tab === 'monitor' ? monitorHeader : {} ),
 	} );
 
@@ -178,6 +183,7 @@ function SlackSettingsPage() {
 						hasLoadedChannels={ hasLoadedChannels }
 						onUnlink={ handleUnlinkChannel }
 						onAutopublishChange={ handleAutopublishChange }
+						onHeaderChange={ setChannelsHeader }
 					/>
 				);
 			case 'settings':
