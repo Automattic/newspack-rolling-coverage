@@ -55,6 +55,7 @@ interface BlockConfig {
 	coveragesRestBase: string;
 	statusMetaKey: string;
 	canonicalUrlMetaKey: string;
+	readMoreTextMetaKey: string;
 	adsDisabledMetaKey: string;
 	entriesPreviewRestBase: string;
 	aiEndpoint: string;

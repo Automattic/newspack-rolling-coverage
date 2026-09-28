@@ -8,6 +8,7 @@
 namespace Newspack_Rolling_Coverage;
 
 use WP_Block;
+use WP_HTML_Tag_Processor;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -20,17 +21,22 @@ class Entry_Bindings {
 	const SOURCE_NAME = 'newspack-rolling-coverage/entry';
 
 	/**
+	 * Attribute the share script looks for on the share link.
+	 */
+	const SHARE_ATTRIBUTE = 'data-rc-share';
+
+	/**
 	 * Initialize hooks.
 	 */
-	public static function init() {
+	public static function init(): void {
 		add_action( 'init', [ __CLASS__, 'register_source' ] );
-		add_filter( 'render_block_core/button', [ __CLASS__, 'hide_unavailable_button' ], 10, 3 );
+		add_filter( 'render_block_core/button', [ __CLASS__, 'filter_button' ], 10, 3 );
 	}
 
 	/**
 	 * Register the block bindings source.
 	 */
-	public static function register_source() {
+	public static function register_source(): void {
 		register_block_bindings_source(
 			self::SOURCE_NAME,
 			[
@@ -59,7 +65,11 @@ class Entry_Bindings {
 			case 'breakoutUrl':
 				$breakout_id = Breakout::get_existing_breakout_id( $entry_id );
 
-				return $breakout_id && 'publish' === get_post_status( $breakout_id ) ? get_permalink( $breakout_id ) : null;
+				if ( ! $breakout_id || 'publish' !== get_post_status( $breakout_id ) ) {
+					return null;
+				}
+
+				return get_permalink( $breakout_id ) ?: null; // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
 
 			case 'breakoutLabel':
 				$label = get_post_meta( $entry_id, Breakout::ENTRY_READ_MORE_TEXT_META, true );
@@ -67,9 +77,7 @@ class Entry_Bindings {
 				return $label ? $label : __( 'Read more', 'newspack-rolling-coverage' );
 
 			case 'shareUrl':
-				$share_url = Social_Sharing::get_entry_share_url( $entry_id );
-
-				return $share_url ? $share_url : null;
+				return Social_Sharing::get_entry_share_url( $entry_id ) ?: null; // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
 		}
 
 		return null;
@@ -77,20 +85,39 @@ class Entry_Bindings {
 
 	/**
 	 * Render nothing for a button whose link is bound to a value the entry
-	 * doesn't have, e.g. "Read more" before the breakout post is published.
+	 * doesn't have, e.g. "Read more" before the breakout post is published,
+	 * and mark the share link as a button for the share script.
+	 *
+	 * Parameters stay untyped because this runs for every core button on the
+	 * site, after other plugins' filters that may hand on unexpected types.
 	 *
 	 * @param string   $block_content Rendered block.
 	 * @param array    $block         Parsed block.
-	 * @param WP_Block $instance      Block instance.
+	 * @param WP_Block $instance      Block instance, with bound values applied.
 	 * @return string
 	 */
-	public static function hide_unavailable_button( $block_content, $block, $instance ) {
+	public static function filter_button( $block_content, $block, $instance ) {
 		$binding = $block['attrs']['metadata']['bindings']['url'] ?? null;
 
-		if ( ! is_array( $binding ) || self::SOURCE_NAME !== ( $binding['source'] ?? '' ) || ! $instance instanceof WP_Block ) {
+		if ( ! is_string( $block_content ) || ! $instance instanceof WP_Block || ! is_array( $binding ) || self::SOURCE_NAME !== ( $binding['source'] ?? '' ) ) {
 			return $block_content;
 		}
 
-		return null === self::get_value( $binding['args'] ?? [], $instance ) ? '' : $block_content;
+		if ( empty( $instance->attributes['url'] ) ) {
+			return '';
+		}
+
+		if ( 'shareUrl' !== ( $binding['args']['key'] ?? '' ) ) {
+			return $block_content;
+		}
+
+		$link = new WP_HTML_Tag_Processor( $block_content );
+
+		if ( $link->next_tag( 'a' ) ) {
+			$link->set_attribute( self::SHARE_ATTRIBUTE, '' );
+			$link->set_attribute( 'role', 'button' );
+		}
+
+		return $link->get_updated_html();
 	}
 }

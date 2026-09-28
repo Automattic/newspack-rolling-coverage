@@ -28,7 +28,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	 * @param int $entry_id Entry post ID.
 	 * @return string Rendered entry.
 	 */
-	private static function render( $entry_id ) {
+	private static function render( int $entry_id ): string {
 		return Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( self::BUTTONS_MARKUP ) );
 	}
 
@@ -39,7 +39,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	 * @param string $status   Breakout post status.
 	 * @return int Breakout post ID.
 	 */
-	private static function add_breakout( $entry_id, $status ) {
+	private static function add_breakout( int $entry_id, string $status ): int {
 		$breakout_id = self::factory()->post->create( [ 'post_status' => $status ] );
 		update_post_meta( $entry_id, Breakout::ENTRY_BREAKOUT_POST_ID_META, $breakout_id );
 		update_post_meta( $breakout_id, Breakout::BREAKOUT_SOURCE_ENTRY_META, $entry_id );
@@ -53,7 +53,10 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	public function test_read_more_is_hidden_until_the_breakout_is_published() {
 		$entry_id = self::create_entry( self::create_coverage() );
 
-		$this->assertStringNotContainsString( 'Read more', self::render( $entry_id ), 'No breakout: no button.' );
+		$html = self::render( $entry_id );
+
+		$this->assertStringNotContainsString( 'Read more', $html, 'No breakout: no button.' );
+		$this->assertStringContainsString( '>Share</a>', $html, 'The rest of the template should still render.' );
 
 		self::add_breakout( $entry_id, 'draft' );
 
@@ -78,11 +81,38 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The share button links to the entry.
+	 * The share button links to the entry and is marked for the share script.
 	 */
-	public function test_share_links_to_the_entry() {
+	public function test_share_links_to_the_entry_as_a_button() {
 		$entry_id = self::create_entry( self::create_coverage() );
 
-		$this->assertStringContainsString( 'href="' . esc_url( get_permalink( $entry_id ) ) . '"', self::render( $entry_id ) );
+		$this->assertMatchesRegularExpression(
+			'#<a (?=[^>]*href="' . preg_quote( esc_url( get_permalink( $entry_id ) ), '#' ) . '")(?=[^>]*data-rc-share)(?=[^>]*role="button")#',
+			self::render( $entry_id )
+		);
+	}
+
+	/**
+	 * Buttons not bound to an entry render untouched, anywhere on the site.
+	 */
+	public function test_other_buttons_are_left_alone() {
+		$markup = '<!-- wp:button --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="https://example.test/">Donate</a></div><!-- /wp:button -->';
+
+		$this->assertSame( trim( render_block( parse_blocks( $markup )[0] ) ), trim( parse_blocks( $markup )[0]['innerHTML'] ) );
+	}
+
+	/**
+	 * A coverage block with no saved inner blocks renders the same buttons
+	 * from the server's fallback template.
+	 */
+	public function test_fallback_template_renders_the_bound_buttons() {
+		$coverage_id = self::create_coverage();
+		$entry_id    = self::create_entry( $coverage_id );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+
+		$html = do_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->' );
+
+		$this->assertStringContainsString( 'href="' . esc_url( get_permalink( $breakout_id ) ) . '"', $html, '"Read more" should link to the breakout.' );
+		$this->assertStringContainsString( 'data-rc-share', $html, 'Share should be marked for the share script.' );
 	}
 }

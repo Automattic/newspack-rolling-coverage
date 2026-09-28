@@ -17,7 +17,7 @@ const LOCKED = { remove: true, move: false };
  */
 const ENTRY_TEMPLATE: TemplateItem[] = [
 	[ 'core/post-title', { level: 3 } ],
-	[ 'core/post-date' ],
+	[ 'core/post-date', { format: 'human-diff' } ],
 	[ 'core/post-content' ],
 	[
 		'core/buttons',
@@ -47,7 +47,6 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 				{
 					lock: LOCKED,
 					text: __( 'Share', 'newspack-rolling-coverage' ),
-					className: 'newspack-rolling-coverage-share-link',
 					metadata: {
 						name: __( 'Share', 'newspack-rolling-coverage' ),
 						bindings: {

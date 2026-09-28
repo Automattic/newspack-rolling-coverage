@@ -165,6 +165,7 @@ class Rolling_Coverage_Block {
 					'newspackAdsAvailable'        => Ads::is_available(),
 					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
 					'canonicalUrlMetaKey'         => Taxonomy::CANONICAL_URL_META_KEY,
+					'readMoreTextMetaKey'         => Breakout::ENTRY_READ_MORE_TEXT_META,
 				]
 			);
 		}
@@ -260,7 +261,15 @@ class Rolling_Coverage_Block {
 		$previous_post_id   = self::$host_post_id;
 		self::$host_post_id = (int) get_the_ID();
 
-		// Preload so polled entries' share buttons work even if none appeared on initial render.
+		// Preload so polled entries' buttons are styled and share even if none appeared on initial render.
+		foreach ( [ 'core/buttons', 'core/button' ] as $button_block_name ) {
+			$button_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $button_block_name );
+
+			foreach ( $button_block_type ? $button_block_type->style_handles : [] as $style_handle ) {
+				wp_enqueue_style( $style_handle );
+			}
+		}
+
 		$share_link_block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/share' );
 
 		if ( $share_link_block_type ) {
@@ -626,7 +635,7 @@ class Rolling_Coverage_Block {
 			],
 			[
 				'blockName'    => 'core/post-date',
-				'attrs'        => [],
+				'attrs'        => [ 'format' => 'human-diff' ],
 				'innerBlocks'  => [],
 				'innerHTML'    => '',
 				'innerContent' => [],
@@ -662,8 +671,7 @@ class Rolling_Coverage_Block {
 								'source' => Entry_Bindings::SOURCE_NAME,
 								'args'   => [ 'key' => 'shareUrl' ],
 							],
-						],
-						'newspack-rolling-coverage-share-link'
+						]
 					),
 				],
 				'innerHTML'    => '<div class="wp-block-buttons"></div>',
@@ -676,27 +684,19 @@ class Rolling_Coverage_Block {
 	 * A parsed core/button block whose link, and optionally label, are bound
 	 * to the entry.
 	 *
-	 * @param string $text       Button label.
-	 * @param array  $bindings   Block bindings keyed by attribute.
-	 * @param string $class_name Extra class on the button wrapper.
+	 * @param string $text     Button label.
+	 * @param array  $bindings Block bindings keyed by attribute.
 	 * @return array Parsed-block-shaped array.
 	 */
-	private static function entry_button_block( string $text, array $bindings, string $class_name = '' ) {
-		$attrs = [ 'metadata' => [ 'bindings' => $bindings ] ];
-
-		if ( $class_name ) {
-			$attrs['className'] = $class_name;
-		}
-
+	private static function entry_button_block( string $text, array $bindings ): array {
 		$html = sprintf(
-			'<div class="%1$s"><a class="wp-block-button__link wp-element-button">%2$s</a></div>',
-			esc_attr( trim( 'wp-block-button ' . $class_name ) ),
+			'<div class="wp-block-button"><a class="wp-block-button__link wp-element-button">%s</a></div>',
 			esc_html( $text )
 		);
 
 		return [
 			'blockName'    => 'core/button',
-			'attrs'        => $attrs,
+			'attrs'        => [ 'metadata' => [ 'bindings' => $bindings ] ],
 			'innerBlocks'  => [],
 			'innerHTML'    => $html,
 			'innerContent' => [ $html ],

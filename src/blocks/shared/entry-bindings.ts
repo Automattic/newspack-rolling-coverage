@@ -5,13 +5,18 @@ import { registerBlockBindingsSource } from '@wordpress/blocks';
 import { store as coreStore } from '@wordpress/core-data';
 import { __ } from '@wordpress/i18n';
 
+/**
+ * Internal dependencies
+ */
+import { READ_MORE_TEXT_META_KEY } from '../rolling-coverage/config';
+
 const ENTRY_BINDINGS_SOURCE = 'newspack-rolling-coverage/entry';
 
 type Binding = { args?: { key?: string } };
 
 /**
- * Mirrors Entry_Bindings::get_value() in the editor. Links resolve to the
- * saved value only on the front end, so the editor shows labels alone.
+ * Mirrors Entry_Bindings::get_value() in the editor. Links are resolved per
+ * entry on the server, so the editor shows labels only.
  */
 registerBlockBindingsSource( {
 	name: ENTRY_BINDINGS_SOURCE,
@@ -47,7 +52,7 @@ registerBlockBindingsSource( {
 							context.postId
 						)?.meta
 					: undefined;
-			const label = meta?.rolling_coverage_breakout_read_more_text;
+			const label = meta?.[ READ_MORE_TEXT_META_KEY ];
 
 			values[ attribute ] =
 				typeof label === 'string' && label

@@ -4,7 +4,10 @@
 import { __ } from '@wordpress/i18n';
 
 const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
-const SHARE_BUTTON_SELECTOR = '.newspack-rolling-coverage-share-link';
+// The core button link marked by Entry_Bindings, and the legacy Share block.
+const SHARE_BUTTON_SELECTOR =
+	'[data-rc-share], button.newspack-rolling-coverage-share-link';
+const STATUS_SELECTOR = '.newspack-rolling-coverage-status';
 const COPIED_STATE_MS = 2000;
 
 /**
@@ -73,14 +76,22 @@ function initBlock( root: HTMLElement ): void {
 				__( 'Copied!', 'newspack-rolling-coverage' )
 			);
 
+			const status = root.querySelector( STATUS_SELECTOR );
+			if ( status ) {
+				status.textContent = __(
+					'Link copied.',
+					'newspack-rolling-coverage'
+				);
+			}
+
 			setTimeout( () => {
 				button.textContent =
 					originalText || __( 'Share', 'newspack-rolling-coverage' );
-				button.setAttribute(
-					'aria-label',
-					originalLabel ||
-						__( 'Share this entry', 'newspack-rolling-coverage' )
-				);
+				if ( originalLabel ) {
+					button.setAttribute( 'aria-label', originalLabel );
+				} else {
+					button.removeAttribute( 'aria-label' );
+				}
 				delete button.dataset.copied;
 			}, COPIED_STATE_MS );
 		} catch {
@@ -94,14 +105,32 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	root.addEventListener( 'click', ( event ) => {
-		const match = ( event.target as HTMLElement ).closest< HTMLElement >(
+		const button = ( event.target as HTMLElement ).closest< HTMLElement >(
 			SHARE_BUTTON_SELECTOR
 		);
-		const button = match?.matches( 'a, button' )
-			? match
-			: match?.querySelector< HTMLElement >( 'a' );
 
-		if ( ! button ) {
+		// Modified clicks keep the link's own behaviour, e.g. a new tab.
+		if (
+			! button ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.shiftKey ||
+			event.altKey
+		) {
+			return;
+		}
+
+		event.preventDefault();
+		handleShareClick( button );
+	} );
+
+	// The share link has role="button", so Space activates it like one.
+	root.addEventListener( 'keydown', ( event ) => {
+		const button = ( event.target as HTMLElement ).closest< HTMLElement >(
+			'a[data-rc-share]'
+		);
+
+		if ( ! button || event.key !== ' ' ) {
 			return;
 		}
 
