@@ -37,7 +37,11 @@ class Test_Entry_Layout extends Rolling_Coverage_TestCase {
 
 		add_filter( 'template', fn() => 'newspack-theme' );
 
-		$this->assertMatchesRegularExpression( '#<div [^>]*style="[^"]*gap:0"#', self::render( self::STACK_MARKUP ) );
+		$this->assertMatchesRegularExpression( '#<div [^>]*style="[^"]*gap:0;?"#', self::render( self::STACK_MARKUP ) );
+
+		$preset = str_replace( '"blockGap":"0"', '"blockGap":"var:preset|spacing|40"', self::STACK_MARKUP );
+
+		$this->assertStringContainsString( 'gap:var(--wp--preset--spacing--40)', self::render( $preset ), 'A preset should resolve to its variable.' );
 	}
 
 	/**
@@ -63,6 +67,22 @@ class Test_Entry_Layout extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertStringContainsString( 'entry-content', $html, 'Other post content should keep it.' );
+
+		// An entry's own single page renders it as the main post, outside an entry render.
+		$entry_id = self::create_entry( self::create_coverage() );
+		$html     = Rolling_Coverage_Block::drop_entry_content_class(
+			'<div class="entry-content wp-block-post-content"></div>',
+			$block,
+			new WP_Block(
+				$block,
+				[
+					'postId'   => $entry_id,
+					'postType' => get_post_type( $entry_id ),
+				]
+			)
+		);
+
+		$this->assertStringContainsString( 'entry-content', $html, "An entry's own page should keep it." );
 	}
 
 	/**
@@ -73,6 +93,10 @@ class Test_Entry_Layout extends Rolling_Coverage_TestCase {
 		$entry_id = self::create_entry( self::create_coverage(), [ 'post_date' => '2026-03-14 09:30:00' ] );
 		$html     = Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( '<!-- wp:post-date {"datetime":"2001-01-01T00:00:00.000Z"} /-->' ) );
 
-		$this->assertStringContainsString( 'datetime="' . get_the_date( 'c', $entry_id ) . '"', $html );
+		$this->assertStringContainsString( 'datetime="' . get_the_date( 'c', $entry_id ) . '"', $html, 'An entry should show its own date.' );
+
+		$html = render_block( parse_blocks( '<!-- wp:post-date {"datetime":"2001-01-01T00:00:00.000Z"} /-->' )[0] );
+
+		$this->assertStringContainsString( '2001-01-01', $html, 'A fixed date outside an entry should stay.' );
 	}
 }

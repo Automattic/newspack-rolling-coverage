@@ -81,6 +81,15 @@ class Rolling_Coverage_Block {
 	private static $host_post_id = 0;
 
 	/**
+	 * How many entries are rendering right now (entries can nest through the
+	 * deep link modal). The entry filters below act only while it's non-zero,
+	 * so an entry's own single page is left alone.
+	 *
+	 * @var int
+	 */
+	private static $entry_render_depth = 0;
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -94,7 +103,23 @@ class Rolling_Coverage_Block {
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
 		add_filter( 'render_block_core/post-content', [ __CLASS__, 'drop_entry_content_class' ], 10, 3 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
-		add_filter( 'render_block_data', [ __CLASS__, 'drop_fixed_entry_date' ] );
+		add_filter( 'render_block_data', [ __CLASS__, 'drop_fixed_entry_date' ], 10, 1 );
+	}
+
+	/**
+	 * Renders an entry's blocks with the entry filters active.
+	 *
+	 * @param callable $render Renders the entry and returns its HTML.
+	 * @return string
+	 */
+	public static function render_as_entry( callable $render ): string {
+		++self::$entry_render_depth;
+
+		try {
+			return (string) $render();
+		} finally {
+			--self::$entry_render_depth;
+		}
 	}
 
 	/**
@@ -114,8 +139,7 @@ class Rolling_Coverage_Block {
 			'core/post-date' !== ( $parsed_block['blockName'] ?? '' ) ||
 			! isset( $parsed_block['attrs']['datetime'] ) ||
 			isset( $parsed_block['attrs']['metadata']['bindings']['datetime'] ) ||
-			// Entries render with the entry as the global post (render_entry(), the deep link modal).
-			Post_Type::CPT_SLUG !== get_post_type()
+			! self::$entry_render_depth
 		) {
 			return $parsed_block;
 		}
@@ -145,11 +169,10 @@ class Rolling_Coverage_Block {
 	public static function apply_entry_block_gap( $block_content, $block, $instance ) {
 		if (
 			! is_string( $block_content ) ||
-			! $instance instanceof WP_Block ||
+			'flex' !== ( $block['attrs']['layout']['type'] ?? '' ) ||
+			! self::$entry_render_depth ||
 			'newspack-theme' !== get_template() ||
-			// Groups don't take post context; render_entry() sets the entry as the global post.
-			Post_Type::CPT_SLUG !== get_post_type() ||
-			'flex' !== ( $block['attrs']['layout']['type'] ?? '' )
+			null !== wp_get_global_settings( [ 'spacing', 'blockGap' ] )
 		) {
 			return $block_content;
 		}
@@ -170,11 +193,12 @@ class Rolling_Coverage_Block {
 			$gap
 		);
 
-		$group = new WP_HTML_Tag_Processor( $block_content );
+		$declaration = ( new \WP_Style_Engine_CSS_Declarations( [ 'gap' => implode( ' ', $gap ) ] ) )->get_declarations_string();
+		$group       = new WP_HTML_Tag_Processor( $block_content );
 
-		if ( $group->next_tag() ) {
+		if ( $declaration && $group->next_tag() ) {
 			$style = trim( (string) $group->get_attribute( 'style' ), " \t\n\r;" );
-			$group->set_attribute( 'style', ( $style ? $style . ';' : '' ) . 'gap:' . implode( ' ', $gap ) );
+			$group->set_attribute( 'style', ( $style ? $style . ';' : '' ) . $declaration );
 		}
 
 		return $group->get_updated_html();
@@ -198,7 +222,7 @@ class Rolling_Coverage_Block {
 		if (
 			! is_string( $block_content ) ||
 			! $instance instanceof WP_Block ||
-			Post_Type::CPT_SLUG !== ( $instance->context['postType'] ?? '' )
+			! self::$entry_render_depth
 		) {
 			return $block_content;
 		}
@@ -229,7 +253,7 @@ class Rolling_Coverage_Block {
 			! is_string( $block_content ) ||
 			! $instance instanceof WP_Block ||
 			'human-diff' !== ( $block['attrs']['format'] ?? '' ) ||
-			Post_Type::CPT_SLUG !== ( $instance->context['postType'] ?? '' )
+			! self::$entry_render_depth
 		) {
 			return $block_content;
 		}
@@ -674,9 +698,9 @@ class Rolling_Coverage_Block {
 			return '';
 		}
 
-		// Preload the follow button styles and view script. The button is
-		// rendered via render_block() below, so WordPress doesn't
-		// auto-enqueue its assets — we must do it manually.
+		// Preload the follow button's view script and the legacy block's
+		// styles: the button renders inside this callback, so WordPress
+		// doesn't enqueue its assets.
 		$follow_block_type = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Follow_Block::BLOCK_NAME );
 
 		if ( $follow_block_type ) {
@@ -690,13 +714,21 @@ class Rolling_Coverage_Block {
 		}
 
 		if ( Coverage_Follow_Block::BLOCK_NAME !== $follow_block['blockName'] ) {
-			return ( new WP_Block(
-				$follow_block,
+			$add_coverage_context = fn( $context ) => array_merge(
+				(array) $context,
 				[
 					Entry_Bindings::COVERAGE_ID_CONTEXT => $coverage_id,
 					Entry_Bindings::COVERAGE_STATUS_CONTEXT => $status,
 				]
-			) )->render();
+			);
+
+			add_filter( 'render_block_context', $add_coverage_context );
+
+			try {
+				return render_block( $follow_block );
+			} finally {
+				remove_filter( 'render_block_context', $add_coverage_context );
+			}
 		}
 
 		$attrs               = $follow_block['attrs'] ?? [];
@@ -1013,19 +1045,21 @@ class Rolling_Coverage_Block {
 		}
 
 		try {
-			$entry_content = ( new WP_Block(
-				[
-					'blockName'    => null,
-					'attrs'        => [],
-					'innerBlocks'  => $template,
-					'innerHTML'    => '',
-					'innerContent' => array_fill( 0, count( $template ), null ),
-				],
-				[
-					'postId'   => $entry->ID,
-					'postType' => $entry->post_type,
-				]
-			) )->render( [ 'dynamic' => false ] );
+			$entry_content = self::render_as_entry(
+				fn() => ( new WP_Block(
+					[
+						'blockName'    => null,
+						'attrs'        => [],
+						'innerBlocks'  => $template,
+						'innerHTML'    => '',
+						'innerContent' => array_fill( 0, count( $template ), null ),
+					],
+					[
+						'postId'   => $entry->ID,
+						'postType' => $entry->post_type,
+					]
+				) )->render( [ 'dynamic' => false ] )
+			);
 		} finally {
 			if ( $is_archived ) {
 				remove_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );

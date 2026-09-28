@@ -142,19 +142,21 @@ class Deep_Link_CTA_Block {
 		setup_postdata( $entry );
 
 		try {
-			$html = ( new WP_Block(
-				[
-					'blockName'    => null,
-					'attrs'        => [],
-					'innerBlocks'  => $template,
-					'innerHTML'    => '',
-					'innerContent' => array_fill( 0, count( $template ), null ),
-				],
-				[
-					'postId'   => $entry->ID,
-					'postType' => $entry->post_type,
-				]
-			) )->render( [ 'dynamic' => false ] );
+			$html = Rolling_Coverage_Block::render_as_entry(
+				fn() => ( new WP_Block(
+					[
+						'blockName'    => null,
+						'attrs'        => [],
+						'innerBlocks'  => $template,
+						'innerHTML'    => '',
+						'innerContent' => array_fill( 0, count( $template ), null ),
+					],
+					[
+						'postId'   => $entry->ID,
+						'postType' => $entry->post_type,
+					]
+				) )->render( [ 'dynamic' => false ] )
+			);
 		} finally {
 			$post = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 			setup_postdata( $previous_post );
