@@ -2,6 +2,7 @@
  * External dependencies
  */
 import { Tooltip } from '@wordpress/components';
+import { decodeEntities } from '@wordpress/html-entities';
 
 /**
  * Internal dependencies
@@ -45,7 +46,11 @@ function TermChips( { terms, highlightName }: TermChipsProps ) {
 	return (
 		<span className="newspack-rolling-coverage-term-chips">
 			{ visible.map( ( t ) => (
-				<ChipLink key={ t.link } href={ t.link } label={ t.name } />
+				<ChipLink
+					key={ t.link }
+					href={ t.link }
+					label={ decodeEntities( t.name ) }
+				/>
 			) ) }
 			{ remaining.length > 0 && (
 				<Tooltip text={ remaining.map( ( t ) => t.name ).join( ', ' ) }>

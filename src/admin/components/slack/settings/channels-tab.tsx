@@ -1,85 +1,177 @@
 /**
  * External dependencies
  */
-import {
-	Card,
-	CardHeader,
-	CardBody,
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
-	__experimentalHStack as HStack,
-} from '@wordpress/components';
+import { useCallback, useMemo, useRef, useState } from '@wordpress/element';
+import { Modal } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
+import type { View } from '@wordpress/dataviews';
+import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
+import { EmptyState } from 'newspack-components/dist/esm/empty-state';
 
 /**
  * Internal dependencies
  */
-import type { ChannelsTabProps, ChannelMapping } from '../../../types';
-import { ChannelsTable } from './channels-table';
+import type { ChannelsTabProps, ChannelRow } from '../../../types';
+import { DataViewsWrapper } from '../../data-views-wrapper';
+import { LoadingState } from '../../../shared/loading-state';
+import { SlackIcon } from '../../../shared/icons/slack-icon';
+import {
+	getChannelFields,
+	defaultChannelView,
+	orderChannelFields,
+} from '../../../fields/channels';
+import { ConfirmModal } from '../../confirm-modal';
 
 /**
- * Renders the Channel Mappings tab. Shows a "Please connect to Slack first."
- * prompt when Slack is not configured, a "No channels are currently linked."
- * prompt when configured but empty, and the ChannelsTable when one or more
- * channels are linked.
+ * Renders the Channel Mappings tab: a DataViews list of the Slack channels
+ * linked to coverages, with an auto-publish toggle and a Disconnect button
+ * on each row.
  *
- * @param {Object}                                            props                              - Component props.
- * @param {boolean}                                           props.isConfigured                 - Whether Slack is currently connected.
- * @param {ChannelMapping[]}                                  props.channels                     - Linked channel mappings to render.
- * @param {string | null}                                     props.disconnectingChannelId       - The id of the channel currently being disconnected, or null.
- * @param {string | null}                                     props.updatingAutopublishChannelId - The id of the channel whose auto-publish toggle is in flight, or null.
- * @param {(channelId: string) => void}                       props.onUnlink                     - Handler invoked when a row's Disconnect button is clicked.
- * @param {(channelId: string, autopublish: boolean) => void} props.onAutopublishChange          - Handler invoked when a row's auto-publish toggle changes.
+ * @param {ChannelsTabProps} props Component props.
  */
 function ChannelsTab( {
-	isConfigured,
 	channels,
-	disconnectingChannelId,
-	updatingAutopublishChannelId,
+	hasLoadedChannels,
 	onUnlink,
 	onAutopublishChange,
 }: ChannelsTabProps ) {
+	const [ view, setView ] = useState< View >( defaultChannelView );
+	const [ updatingChannelIds, setUpdatingChannelIds ] = useState<
+		Set< string >
+	>( () => new Set() );
+	const handleAutopublishChange = useCallback(
+		async ( channelId: string, autopublish: boolean ) => {
+			setUpdatingChannelIds( ( ids ) => new Set( ids ).add( channelId ) );
+			await onAutopublishChange( channelId, autopublish );
+			setUpdatingChannelIds( ( ids ) => {
+				const next = new Set( ids );
+				next.delete( channelId );
+				return next;
+			} );
+		},
+		[ onAutopublishChange ]
+	);
+	const containerRef = useRef< HTMLDivElement | null >( null );
+
+	// The unlinked row's Disconnect button is gone once the list refreshes, so
+	// focus has nowhere to return to; send it to the search field, or to the
+	// empty state's heading when the last channel went.
+	const handleUnlink = useCallback(
+		async ( channelId: string ) => {
+			if ( ! ( await onUnlink( channelId ) ) ) {
+				return;
+			}
+			window.requestAnimationFrame( () => {
+				const target =
+					containerRef.current?.querySelector< HTMLElement >(
+						'input[type="search"]'
+					) ??
+					containerRef.current?.querySelector< HTMLElement >(
+						'.newspack-empty-state__title'
+					);
+				if ( target && ! target.matches( 'input' ) ) {
+					target.setAttribute( 'tabindex', '-1' );
+				}
+				target?.focus();
+			} );
+		},
+		[ onUnlink ]
+	);
+	const handleChangeView = useCallback(
+		( next: View ) =>
+			setView( {
+				...next,
+				fields: orderChannelFields( next.fields ?? [] ),
+			} ),
+		[]
+	);
+	const [ channelToDisconnect, setChannelToDisconnect ] =
+		useState< ChannelRow | null >( null );
+	const fields = useMemo(
+		() =>
+			getChannelFields(
+				handleAutopublishChange,
+				updatingChannelIds,
+				setChannelToDisconnect
+			),
+		[ handleAutopublishChange, updatingChannelIds ]
+	);
+
+	const rows = useMemo< ChannelRow[] >(
+		() => channels.map( ( ch ) => ( { ...ch, id: ch.channel_id } ) ),
+		[ channels ]
+	);
+	const { data, paginationInfo } = useMemo(
+		() => filterSortAndPaginate( rows, view, fields ),
+		[ rows, view, fields ]
+	);
+
+	if ( ! hasLoadedChannels ) {
+		return (
+			<LoadingState
+				label={ __(
+					'Fetching channels…',
+					'newspack-rolling-coverage'
+				) }
+			/>
+		);
+	}
+
 	return (
-		<Card className="newspack-rolling-coverage-slack-settings__card">
-			<CardHeader>
-				<HStack alignment="space-between" justify="space-between">
-					<h2>
-						{ __(
-							'Channel Mappings',
+		<div ref={ containerRef }>
+			{ channels.length === 0 ? (
+				<EmptyState.Root className="newspack-rolling-coverage-slack-empty-state">
+					<EmptyState.Header
+						icon={ <SlackIcon size={ 36 } /> }
+						title={ __(
+							'No channels linked yet',
 							'newspack-rolling-coverage'
 						) }
-					</h2>
-				</HStack>
-			</CardHeader>
-			<CardBody>
-				{ ! isConfigured && (
-					<p>
-						{ __(
-							'Please connect to Slack first.',
+						description={ __(
+							'Link a Slack channel to a coverage from the All Coverages list.',
 							'newspack-rolling-coverage'
 						) }
-					</p>
-				) }
-				{ isConfigured && channels.length === 0 && (
-					<p>
-						{ __(
-							'No channels are currently linked.',
-							'newspack-rolling-coverage'
-						) }
-					</p>
-				) }
-				{ isConfigured && channels.length > 0 && (
-					<ChannelsTable
-						channels={ channels }
-						disconnectingChannelId={ disconnectingChannelId }
-						updatingAutopublishChannelId={
-							updatingAutopublishChannelId
-						}
-						onUnlink={ onUnlink }
-						onAutopublishChange={ onAutopublishChange }
 					/>
-				) }
-			</CardBody>
-		</Card>
+				</EmptyState.Root>
+			) : (
+				<DataViewsWrapper
+					data={ data }
+					fields={ fields }
+					view={ view }
+					onChangeView={ handleChangeView }
+					actions={ [] }
+					paginationInfo={ paginationInfo }
+					isLoading={ false }
+				/>
+			) }
+			{ channelToDisconnect && (
+				<Modal
+					title={ __(
+						'Disconnect channel',
+						'newspack-rolling-coverage'
+					) }
+					onRequestClose={ () => setChannelToDisconnect( null ) }
+				>
+					<ConfirmModal
+						message={ __(
+							'Disconnect this channel from its coverage? Its messages will stop becoming entries.',
+							'newspack-rolling-coverage'
+						) }
+						confirmLabel={ __(
+							'Disconnect',
+							'newspack-rolling-coverage'
+						) }
+						isDestructive
+						onConfirm={ async () => {
+							await handleUnlink(
+								channelToDisconnect.channel_id
+							);
+						} }
+						onClose={ () => setChannelToDisconnect( null ) }
+					/>
+				</Modal>
+			) }
+		</div>
 	);
 }
 

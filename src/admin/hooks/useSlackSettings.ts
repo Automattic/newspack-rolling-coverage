@@ -44,18 +44,15 @@ function useSlackSettings() {
 	const [ botToken, setBotToken ] = useState( '' );
 	const [ signingSecret, setSigningSecret ] = useState( '' );
 	const [ ignorePrefix, setIgnorePrefix ] = useState( '~~' );
+	const [ savedIgnorePrefix, setSavedIgnorePrefix ] = useState( '~~' );
+	const [ hasLoadedSettings, setHasLoadedSettings ] = useState( false );
 	const [ channels, setChannels ] = useState< ChannelMapping[] >( [] );
+	const [ hasLoadedChannels, setHasLoadedChannels ] = useState( false );
 	const [ isVerifying, setIsVerifying ] = useState( false );
-	const [ isDisconnecting, setIsDisconnecting ] = useState( false );
 	const [ isSavingSettings, setIsSavingSettings ] = useState( false );
-	const [ disconnectingChannelId, setDisconnectingChannelId ] = useState<
-		string | null
-	>( null );
 	const [ notice, setNotice ] = useState< SettingsNotice | null >( null );
 	const [ workspaceInfo, setWorkspaceInfo ] =
 		useState< SlackSettingsInfo | null >( null );
-	const [ updatingAutopublishChannelId, setUpdatingAutopublishChannelId ] =
-		useState< string | null >( null );
 
 	useEffect( () => {
 		// Register SlackAdapter as the first chat-source adapter.
@@ -99,6 +96,7 @@ function useSlackSettings() {
 			if ( cancelled ) {
 				return;
 			}
+			setHasLoadedChannels( true );
 			if ( ! result.success ) {
 				setNotice( {
 					type: 'error',
@@ -119,8 +117,8 @@ function useSlackSettings() {
 		};
 	}, [ slack.isConfigured, namespace ] );
 
-	// Fetch the workspace identity + masked token once connected, so the
-	// Credentials tab can render the connection-status details.
+	// Fetch the workspace identity, bot user, and saved ingestion settings once
+	// connected, for the Connection Status drawer and the Settings tab.
 	useEffect( () => {
 		if ( ! slack.isConfigured ) {
 			return;
@@ -132,6 +130,7 @@ function useSlackSettings() {
 			if ( cancelled ) {
 				return;
 			}
+			setHasLoadedSettings( true );
 			if ( ! result.success || ! result.settings ) {
 				setNotice( {
 					type: 'error',
@@ -145,6 +144,8 @@ function useSlackSettings() {
 				return;
 			}
 			setWorkspaceInfo( result.settings );
+			setIgnorePrefix( result.settings.ignore_prefix );
+			setSavedIgnorePrefix( result.settings.ignore_prefix );
 		} );
 
 		return () => {
@@ -157,20 +158,7 @@ function useSlackSettings() {
 	}, [] );
 
 	const handleUnlinkChannel = useCallback(
-		async ( channelId: string ) => {
-			if (
-				// eslint-disable-next-line no-alert
-				! confirm(
-					__(
-						'Unlink this channel from its coverage? Ingestion from this channel will stop.',
-						'newspack-rolling-coverage'
-					)
-				)
-			) {
-				return;
-			}
-
-			setDisconnectingChannelId( channelId );
+		async ( channelId: string ): Promise< boolean > => {
 			setNotice( null );
 
 			const result = await unlinkSlackChannel( namespace, channelId );
@@ -180,23 +168,22 @@ function useSlackSettings() {
 				setNotice( {
 					type: 'success',
 					message: __(
-						'Channel unlinked.',
+						'Channel disconnected.',
 						'newspack-rolling-coverage'
 					),
 				} );
-			} else {
-				setNotice( {
-					type: 'error',
-					message:
-						result.error ||
-						__(
-							'Failed to unlink channel.',
-							'newspack-rolling-coverage'
-						),
-				} );
+				return true;
 			}
-
-			setDisconnectingChannelId( null );
+			setNotice( {
+				type: 'error',
+				message:
+					result.error ||
+					__(
+						'Failed to disconnect the channel.',
+						'newspack-rolling-coverage'
+					),
+			} );
+			return false;
 		},
 		[ namespace, refreshChannels ]
 	);
@@ -212,13 +199,6 @@ function useSlackSettings() {
 		);
 
 		if ( result.success ) {
-			setNotice( {
-				type: 'success',
-				message: `${ __(
-					'Connected to Slack workspace:',
-					'newspack-rolling-coverage'
-				) } ${ result.team || '' }`,
-			} );
 			window.location.reload();
 		} else {
 			setNotice( {
@@ -233,20 +213,6 @@ function useSlackSettings() {
 	}, [ namespace, botToken, signingSecret ] );
 
 	const handleDisconnect = useCallback( async () => {
-		if (
-			// eslint-disable-next-line no-alert
-			! confirm(
-				__(
-					'Are you sure you want to disconnect Slack? All channel mappings will be removed.',
-					'newspack-rolling-coverage'
-				)
-			)
-		) {
-			return;
-		}
-
-		setIsDisconnecting( true );
-
 		const result = await disconnectSlack( namespace );
 
 		if ( result.success ) {
@@ -259,8 +225,6 @@ function useSlackSettings() {
 					__( 'Failed to disconnect.', 'newspack-rolling-coverage' ),
 			} );
 		}
-
-		setIsDisconnecting( false );
 	}, [ namespace ] );
 
 	const handleSaveSettings = useCallback( async () => {
@@ -269,6 +233,9 @@ function useSlackSettings() {
 		const result = await saveSlackSettings( namespace, ignorePrefix );
 
 		if ( result.success ) {
+			const stored = result.ignorePrefix ?? ignorePrefix;
+			setIgnorePrefix( stored );
+			setSavedIgnorePrefix( stored );
 			setNotice( {
 				type: 'success',
 				message: __( 'Settings saved.', 'newspack-rolling-coverage' ),
@@ -290,7 +257,6 @@ function useSlackSettings() {
 
 	const handleAutopublishChange = useCallback(
 		async ( channelId: string, autopublish: boolean ) => {
-			setUpdatingAutopublishChannelId( channelId );
 			setNotice( null );
 
 			const result = await updateSlackChannelSettings(
@@ -312,8 +278,6 @@ function useSlackSettings() {
 						),
 				} );
 			}
-
-			setUpdatingAutopublishChannelId( null );
 		},
 		[ namespace, refreshChannels ]
 	);
@@ -331,12 +295,12 @@ function useSlackSettings() {
 		setSigningSecret,
 		ignorePrefix,
 		setIgnorePrefix,
+		isSettingsDirty: ignorePrefix !== savedIgnorePrefix,
 		channels,
+		hasLoadedChannels,
+		hasLoadedSettings,
 		isVerifying,
-		isDisconnecting,
 		isSavingSettings,
-		disconnectingChannelId,
-		updatingAutopublishChannelId,
 		workspaceInfo,
 		notice,
 		clearNotice,

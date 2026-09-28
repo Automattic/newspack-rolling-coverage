@@ -2,13 +2,30 @@
  * External dependencies.
  */
 import { __ } from '@wordpress/i18n';
+import { decodeEntities } from '@wordpress/html-entities';
+import { Badge } from '@wordpress/ui';
 
 /**
  * Internal dependencies.
  */
-import { SlackIcon } from '../shared/icons/slack-icon';
-import { toISODate, getSlackChannelLabel } from '../utils/fields';
+import StatusIndicator from 'newspack-components/dist/esm/status-indicator';
+import {
+	toISODate,
+	getSlackChannelLabel,
+	COVERAGE_STATUS_INDICATORS,
+} from '../utils/fields';
 import type { Field, ViewState, Coverage } from '../types';
+
+const COVERAGE_STATUS_ELEMENTS = [
+	{ value: 'active', label: __( 'Active', 'newspack-rolling-coverage' ) },
+	{ value: 'paused', label: __( 'Paused', 'newspack-rolling-coverage' ) },
+	{ value: 'archived', label: __( 'Archived', 'newspack-rolling-coverage' ) },
+	{ value: 'trash', label: __( 'Trash', 'newspack-rolling-coverage' ) },
+];
+
+const COVERAGE_STATUS_LABELS: Record< string, string > = Object.fromEntries(
+	COVERAGE_STATUS_ELEMENTS.map( ( { value, label } ) => [ value, label ] )
+);
 
 /**
  * Field definitions for the coverage DataViews table.
@@ -37,10 +54,10 @@ function getCoverageFields(
 			enableHiding: false,
 			enableSorting: true,
 			enableGlobalSearch: true,
-			getValue: ( { item } ) => item.name,
+			getValue: ( { item } ) => decodeEntities( item.name ),
 			render: ( { item } ) => (
 				<span className="newspack-rolling-coverage-coverage-name">
-					{ item.name }
+					{ decodeEntities( item.name ) }
 				</span>
 			),
 		},
@@ -57,24 +74,18 @@ function getCoverageFields(
 			label: __( 'Status', 'newspack-rolling-coverage' ),
 			getValue: ( { item } ) =>
 				String( item.meta?.[ statusKey ] ?? '' ) || 'active',
-			elements: [
-				{
-					value: 'active',
-					label: __( 'Active', 'newspack-rolling-coverage' ),
-				},
-				{
-					value: 'paused',
-					label: __( 'Paused', 'newspack-rolling-coverage' ),
-				},
-				{
-					value: 'archived',
-					label: __( 'Archived', 'newspack-rolling-coverage' ),
-				},
-				{
-					value: 'trash',
-					label: __( 'Trash', 'newspack-rolling-coverage' ),
-				},
-			],
+			elements: COVERAGE_STATUS_ELEMENTS,
+			render: ( { item } ) => {
+				const status =
+					String( item.meta?.[ statusKey ] ?? '' ) || 'active';
+				return (
+					<StatusIndicator
+						status={ COVERAGE_STATUS_INDICATORS[ status ] }
+					>
+						{ COVERAGE_STATUS_LABELS[ status ] ?? status }
+					</StatusIndicator>
+				);
+			},
 			filterBy: {
 				operators: [ 'is', 'isNot' ],
 			},
@@ -89,12 +100,7 @@ function getCoverageFields(
 				if ( ! label ) {
 					return <span>—</span>;
 				}
-				return (
-					<span className="newspack-rolling-coverage-slack-chip">
-						<SlackIcon size={ 14 } />
-						<span>{ label }</span>
-					</span>
-				);
+				return <Badge intent="draft">{ label }</Badge>;
 			},
 		},
 		{
@@ -131,7 +137,7 @@ const defaultCoverageView: ViewState = {
 	page: 1,
 	sort: { field: 'name', direction: 'asc' },
 	search: '',
-	filters: [],
+	filters: [ { field: 'status', operator: 'isNot', value: 'trash' } ],
 	fields: [
 		'count',
 		'status',

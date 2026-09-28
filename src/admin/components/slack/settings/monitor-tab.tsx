@@ -2,8 +2,8 @@
  * WordPress dependencies
  */
 import { useState, useEffect, useRef, useCallback } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
-import { Spinner } from '@wordpress/components';
+import { __, _n, sprintf } from '@wordpress/i18n';
+import { speak } from '@wordpress/a11y';
 
 /**
  * Internal dependencies
@@ -11,10 +11,23 @@ import { Spinner } from '@wordpress/components';
 import { useAdminContext } from '../../../hooks/useAdminContext';
 import { getSlackMonitorLogs } from '../../../utils/slack-api';
 import { LogEntry } from './log-entry';
+import { LoadingState } from '../../../shared/loading-state';
 import type { SlackMonitorLogEntry } from '../../../types';
 
 const POLL_INTERVAL = 5000;
 const MAX_LOGS = 1000;
+
+/**
+ * The log and read position survive the tab unmounting, so returning to
+ * Monitor shows what was already fetched and resumes from there. The server
+ * resets a stale position itself once it cleans up an idle log.
+ */
+const session: {
+	hasStarted: boolean;
+	inFlight: boolean;
+	logs: SlackMonitorLogEntry[];
+	offset: number;
+} = { hasStarted: false, inFlight: false, logs: [], offset: 0 };
 
 /**
  * Real-time Slack event monitor tab.
@@ -28,14 +41,15 @@ function MonitorTab() {
 	const config = useAdminContext();
 	const namespace = config.restBase.slack;
 
-	const [ logs, setLogs ] = useState< SlackMonitorLogEntry[] >( [] );
-	const [ isStarting, setIsStarting ] = useState( true );
+	const [ logs, setLogs ] = useState< SlackMonitorLogEntry[] >(
+		session.logs
+	);
+	const [ isStarting, setIsStarting ] = useState( ! session.hasStarted );
 	const [ startError, setStartError ] = useState< string | null >( null );
-	const offsetRef = useRef( 0 );
 	const containerRef = useRef< HTMLDivElement | null >( null );
 	const isAtBottomRef = useRef( true );
-	const inFlightRef = useRef( false );
-	const isFirstPollRef = useRef( true );
+	const isFirstPollRef = useRef( ! session.hasStarted );
+	const cancelledRef = useRef( false );
 
 	const scrollToBottom = useCallback( () => {
 		if ( containerRef.current && isAtBottomRef.current ) {
@@ -51,64 +65,74 @@ function MonitorTab() {
 		isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < 50;
 	}, [] );
 
-	const poll = useCallback( async () => {
-		if ( inFlightRef.current ) {
-			return;
+	const poll = useCallback( async (): Promise< boolean > => {
+		if ( session.inFlight ) {
+			return false;
 		}
-		inFlightRef.current = true;
+		session.inFlight = true;
 
 		try {
 			const result = await getSlackMonitorLogs(
 				namespace,
-				offsetRef.current
+				session.offset
 			);
 
 			if ( ! result.success || ! result.lines ) {
 				throw new Error( result.error );
 			}
 
+			// The cache is written here rather than inside a state updater, so
+			// a poll that lands after the tab unmounts still keeps its lines in
+			// step with the offset it advances.
 			if ( result.lines.length > 0 ) {
-				setLogs( ( prev ) => {
-					const next = [ ...prev, ...result.lines! ];
-					return next.length > MAX_LOGS
-						? next.slice( -MAX_LOGS )
-						: next;
-				} );
+				const next = [ ...session.logs, ...result.lines ];
+				session.logs =
+					next.length > MAX_LOGS ? next.slice( -MAX_LOGS ) : next;
 			}
-
 			if ( result.offset !== undefined ) {
-				offsetRef.current = result.offset;
+				session.offset = result.offset;
 			}
-		} catch {
-			throw new Error(
-				__( 'Failed to start monitor.', 'newspack-rolling-coverage' )
-			);
+			if ( ! cancelledRef.current ) {
+				setLogs( session.logs );
+			}
 		} finally {
-			inFlightRef.current = false;
+			session.inFlight = false;
 		}
+		return true;
 	}, [ namespace ] );
 
 	// Poll for new logs. The first poll boots the monitor; the poll
 	// cadence itself keeps it alive on the server. Only a failed
-	// first poll surfaces an error — later failures just retry on
-	// the next tick.
+	// first poll surfaces an error, and the next successful poll
+	// clears it.
 	useEffect( () => {
 		let cancelled = false;
+		cancelledRef.current = false;
 
 		const runPoll = async () => {
 			if ( cancelled ) {
 				return;
 			}
 			await poll()
-				.then( () => {
-					if ( ! cancelled && isFirstPollRef.current ) {
-						isFirstPollRef.current = false;
-						setIsStarting( false );
+				.then( ( didPoll ) => {
+					if ( cancelled || ! didPoll ) {
+						return;
 					}
+					isFirstPollRef.current = false;
+					session.hasStarted = true;
+					setStartError( null );
+					setIsStarting( false );
 				} )
 				.catch( () => {
 					if ( ! cancelled && isFirstPollRef.current ) {
 						isFirstPollRef.current = false;
+						speak(
+							__(
+								'Failed to start monitor.',
+								'newspack-rolling-coverage'
+							),
+							'assertive'
+						);
 						setStartError(
 							__(
 								'Failed to start monitor.',
@@ -125,6 +149,7 @@ function MonitorTab() {
 
 		return () => {
 			cancelled = true;
+			cancelledRef.current = true;
 			clearInterval( interval );
 		};
 	}, [ poll ] );
@@ -134,7 +159,14 @@ function MonitorTab() {
 	}, [ logs, scrollToBottom ] );
 
 	if ( isStarting ) {
-		return <Spinner />;
+		return (
+			<LoadingState
+				label={ __(
+					'Starting the monitor…',
+					'newspack-rolling-coverage'
+				) }
+			/>
+		);
 	}
 
 	if ( startError ) {
@@ -155,8 +187,16 @@ function MonitorTab() {
 					{ __( 'Monitoring active', 'newspack-rolling-coverage' ) }
 				</span>
 				<span className="newspack-rolling-coverage-slack-monitor__count">
-					{ logs.length }{ ' ' }
-					{ __( 'events', 'newspack-rolling-coverage' ) }
+					{ sprintf(
+						/* translators: %d: number of monitor events. */
+						_n(
+							'%d event',
+							'%d events',
+							logs.length,
+							'newspack-rolling-coverage'
+						),
+						logs.length
+					) }
 				</span>
 			</div>
 			<div

@@ -1,48 +1,49 @@
 /**
  * External dependencies
  */
-import { useParams, useNavigate, Navigate } from 'react-router';
-import { Button, Notice } from '@wordpress/components';
+import { useParams, Navigate } from 'react-router';
+import {
+	Button,
+	DropdownMenu,
+	MenuGroup,
+	MenuItem,
+	Modal,
+	Notice,
+	VisuallyHidden,
+} from '@wordpress/components';
+import { moreVertical } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
+import { useCallback, useMemo, useState } from '@wordpress/element';
+import TabbedNavigation from 'newspack-components/dist/esm/tabbed-navigation';
 
 /**
  * Internal dependencies
  */
-import type { AdminTab } from '../types';
+import { SLACK_TABS } from '../utils/slack-tabs';
+import { useHeader } from '../hooks/useHeader';
 import { useSlackSettings } from '../hooks/useSlackSettings';
-import { CredentialsTab } from './slack/settings/credentials-tab';
+import { ConnectionStatusDrawer } from './slack/settings/connection-status-drawer';
+import { ConfirmModal } from './confirm-modal';
 import { ChannelsTab } from './slack/settings/channels-tab';
 import { IngestionSettingsTab } from './slack/settings/ingestion-settings-tab';
-import { SetupGuideTab } from './slack/settings/setup-guide-tab';
+import { ConnectSlack } from './slack/settings/connect-slack';
 import { MonitorTab } from './slack/settings/monitor-tab';
+import { LoadingState } from '../shared/loading-state';
 
-const TABS: AdminTab[] = [
-	{
-		name: 'credentials',
-		title: __( 'Credentials', 'newspack-rolling-coverage' ),
-	},
-	{
-		name: 'channels',
-		title: __( 'Channel Mappings', 'newspack-rolling-coverage' ),
-	},
-	{ name: 'settings', title: __( 'Settings', 'newspack-rolling-coverage' ) },
-	{ name: 'monitor', title: __( 'Monitor', 'newspack-rolling-coverage' ) },
-	{ name: 'setup', title: __( 'Setup Guide', 'newspack-rolling-coverage' ) },
-];
+const VALID_TABS = SLACK_TABS.map( ( t ) => t.name );
 
-const VALID_TABS = TABS.map( ( t ) => t.name );
+/** Route for a site not yet connected to Slack, which has no tabs. */
+const SETUP_TAB = 'setup';
 
 /**
- * Renders the Slack settings admin page as a nested route under
- * /connection/{tab}. The active tab is driven by the :tab URL parameter,
- * making each tab directly bookmarkable and back/forward navigable. A
- * custom tab bar replaces TabPanel so tab state is always in sync with the
- * URL. All state and business logic lives in the useSlackSettings hook.
+ * Renders the Slack connection page under /connection/{tab}. A site that
+ * isn't connected gets the untabbed setup page at /connection/setup; a
+ * connected one gets the tabs, driven by the :tab URL parameter so each is
+ * bookmarkable. Connection status and Disconnect open from the header menu.
+ * Slack data and handlers come from the useSlackSettings hook.
  */
 function SlackSettingsPage() {
 	const { tab } = useParams();
-	const navigate = useNavigate();
-
 	const {
 		botToken,
 		setBotToken,
@@ -50,12 +51,12 @@ function SlackSettingsPage() {
 		setSigningSecret,
 		ignorePrefix,
 		setIgnorePrefix,
+		isSettingsDirty,
 		channels,
+		hasLoadedChannels,
+		hasLoadedSettings,
 		isVerifying,
-		isDisconnecting,
 		isSavingSettings,
-		disconnectingChannelId,
-		updatingAutopublishChannelId,
 		workspaceInfo,
 		notice,
 		clearNotice,
@@ -69,55 +70,166 @@ function SlackSettingsPage() {
 		handleSaveSettings,
 	} = useSlackSettings();
 
+	const tabbedNavigation = useMemo(
+		() =>
+			isConfigured ? (
+				<TabbedNavigation
+					items={ SLACK_TABS.map( ( t ) => ( {
+						label: t.title,
+						href: `#/connection/${ t.name }`,
+						selected: t.name === tab,
+					} ) ) }
+				/>
+			) : null,
+		[ isConfigured, tab ]
+	);
+	const [ isStatusOpen, setIsStatusOpen ] = useState( false );
+	const [ isDisconnectOpen, setIsDisconnectOpen ] = useState( false );
+
+	// The Disconnect button that opened this modal left with the drawer, so
+	// focus goes back to the menu the drawer was opened from.
+	const closeDisconnect = useCallback( () => {
+		setIsDisconnectOpen( false );
+		window.requestAnimationFrame( () =>
+			document
+				.querySelector< HTMLElement >(
+					'.newspack-rolling-coverage-connection-menu button'
+				)
+				?.focus()
+		);
+	}, [] );
+
+	const headerActions = useMemo( () => {
+		if ( ! isConfigured ) {
+			return null;
+		}
+		return (
+			<>
+				{ tab === 'settings' && (
+					<Button
+						variant="primary"
+						onClick={ handleSaveSettings }
+						isBusy={ isSavingSettings }
+						disabled={ isSavingSettings || ! isSettingsDirty }
+					>
+						{ __( 'Save', 'newspack-rolling-coverage' ) }
+					</Button>
+				) }
+				<DropdownMenu
+					className="newspack-rolling-coverage-connection-menu"
+					icon={ moreVertical }
+					label={ __(
+						'Slack connection options',
+						'newspack-rolling-coverage'
+					) }
+					popoverProps={ { placement: 'bottom-end' } }
+				>
+					{ ( { onClose } ) => (
+						<MenuGroup>
+							<MenuItem
+								suffix={
+									<span className="newspack-rolling-coverage-status-dot">
+										<VisuallyHidden>
+											{ __(
+												'Connected',
+												'newspack-rolling-coverage'
+											) }
+										</VisuallyHidden>
+									</span>
+								}
+								onClick={ () => {
+									setIsStatusOpen( true );
+									onClose();
+								} }
+							>
+								{ __(
+									'Connection Status',
+									'newspack-rolling-coverage'
+								) }
+							</MenuItem>
+						</MenuGroup>
+					) }
+				</DropdownMenu>
+			</>
+		);
+	}, [
+		isConfigured,
+		tab,
+		handleSaveSettings,
+		isSavingSettings,
+		isSettingsDirty,
+	] );
+	useHeader( {
+		tabbedNavigation,
+		actions: headerActions,
+	} );
+
+	if ( ! isConfigured ) {
+		if ( tab !== SETUP_TAB ) {
+			return <Navigate to={ `/connection/${ SETUP_TAB }` } replace />;
+		}
+		return (
+			<div className="newspack-rolling-coverage-slack-settings">
+				{ notice && (
+					<Notice status={ notice.type } onRemove={ clearNotice }>
+						{ notice.message }
+					</Notice>
+				) }
+				<ConnectSlack
+					manifestJson={ manifestJson }
+					botToken={ botToken }
+					setBotToken={ setBotToken }
+					signingSecret={ signingSecret }
+					setSigningSecret={ setSigningSecret }
+					isVerifying={ isVerifying }
+					onVerify={ handleVerify }
+				/>
+			</div>
+		);
+	}
+
 	// Guard: invalid tab param redirects to the default tab.
 	if ( ! tab || ! VALID_TABS.includes( tab ) ) {
-		return <Navigate to="/connection/credentials" replace />;
+		return <Navigate to="/connection/channels" replace />;
 	}
 
 	const renderTabContent = () => {
 		switch ( tab ) {
-			case 'credentials':
-				return (
-					<CredentialsTab
-						isConfigured={ isConfigured }
-						botToken={ botToken }
-						setBotToken={ setBotToken }
-						signingSecret={ signingSecret }
-						setSigningSecret={ setSigningSecret }
-						isVerifying={ isVerifying }
-						isDisconnecting={ isDisconnecting }
-						workspaceInfo={ workspaceInfo }
-						onVerify={ handleVerify }
-						onDisconnect={ handleDisconnect }
-					/>
-				);
 			case 'channels':
 				return (
 					<ChannelsTab
-						isConfigured={ isConfigured }
 						channels={ channels }
-						disconnectingChannelId={ disconnectingChannelId }
-						updatingAutopublishChannelId={
-							updatingAutopublishChannelId
-						}
+						hasLoadedChannels={ hasLoadedChannels }
 						onUnlink={ handleUnlinkChannel }
 						onAutopublishChange={ handleAutopublishChange }
 					/>
 				);
 			case 'settings':
-				return (
+				if ( hasLoadedSettings && ! workspaceInfo ) {
+					return (
+						<Notice status="error" isDismissible={ false }>
+							{ __(
+								'The Slack settings could not be loaded. Reload the page to try again.',
+								'newspack-rolling-coverage'
+							) }
+						</Notice>
+					);
+				}
+				return ! hasLoadedSettings ? (
+					<LoadingState
+						label={ __(
+							'Fetching settings…',
+							'newspack-rolling-coverage'
+						) }
+					/>
+				) : (
 					<IngestionSettingsTab
-						isConfigured={ isConfigured }
 						ignorePrefix={ ignorePrefix }
 						setIgnorePrefix={ setIgnorePrefix }
-						isSavingSettings={ isSavingSettings }
-						onSaveSettings={ handleSaveSettings }
 						workspaceInfo={ workspaceInfo }
 						editUserUrl={ editUserUrl }
 					/>
 				);
-			case 'setup':
-				return <SetupGuideTab manifestJson={ manifestJson } />;
 			case 'monitor':
 				return <MonitorTab />;
 			default:
@@ -126,48 +238,52 @@ function SlackSettingsPage() {
 	};
 
 	return (
-		<div className="newspack-rolling-coverage-slack-settings">
+		<div
+			className={
+				tab === 'channels'
+					? undefined
+					: 'newspack-rolling-coverage-slack-settings'
+			}
+		>
 			{ notice && (
 				<Notice status={ notice.type } onRemove={ clearNotice }>
 					{ notice.message }
 				</Notice>
 			) }
-			<div
-				className="newspack-rolling-coverage-slack-settings__tabs"
-				role="tablist"
-				aria-orientation="horizontal"
-			>
-				{ TABS.map( ( t ) => {
-					const isActive = t.name === tab;
-					return (
-						<Button
-							key={ t.name }
-							id={ `newspack-rolling-coverage-tab-${ t.name }` }
-							className={ `newspack-rolling-coverage-slack-settings__tab${
-								isActive ? ' is-active' : ''
-							}` }
-							variant="tertiary"
-							role="tab"
-							aria-selected={ isActive }
-							aria-controls={ `newspack-rolling-coverage-tabpanel-${ t.name }` }
-							tabIndex={ isActive ? 0 : -1 }
-							onClick={ () =>
-								navigate( `/connection/${ t.name }` )
-							}
-						>
-							{ t.title }
-						</Button>
-					);
-				} ) }
-			</div>
-			<div
-				id={ `newspack-rolling-coverage-tabpanel-${ tab }` }
-				role="tabpanel"
-				aria-labelledby={ `newspack-rolling-coverage-tab-${ tab }` }
-				tabIndex={ 0 }
-			>
-				{ renderTabContent() }
-			</div>
+			{ renderTabContent() }
+			<ConnectionStatusDrawer
+				isOpen={ isStatusOpen }
+				onClose={ () => setIsStatusOpen( false ) }
+				workspaceInfo={ workspaceInfo }
+				manifestJson={ manifestJson }
+				onDisconnect={ () => {
+					setIsStatusOpen( false );
+					setIsDisconnectOpen( true );
+				} }
+			/>
+			{ isDisconnectOpen && (
+				<Modal
+					title={ __(
+						'Disconnect Slack',
+						'newspack-rolling-coverage'
+					) }
+					onRequestClose={ closeDisconnect }
+				>
+					<ConfirmModal
+						message={ __(
+							'Are you sure you want to disconnect Slack? All channel mappings will be removed.',
+							'newspack-rolling-coverage'
+						) }
+						confirmLabel={ __(
+							'Disconnect',
+							'newspack-rolling-coverage'
+						) }
+						isDestructive
+						onConfirm={ handleDisconnect }
+						onClose={ closeDisconnect }
+					/>
+				</Modal>
+			) }
 		</div>
 	);
 }

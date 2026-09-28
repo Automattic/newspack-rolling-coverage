@@ -1,3 +1,4 @@
+@use "~@wordpress/base-styles/variables" as wp-vars;
 @use "../variables" as *;
 
 // DataViews constrains the primary column to a fixed character width and
@@ -7,11 +8,11 @@
 
 .newspack-rolling-coverage-admin {
 
-	.dataviews-view-table__primary-column-content {
+	.dataviews-view-table__primary-column-content:not(.dataviews-column-primary__media) {
 		// Override the default 80ch cap so the primary column can claim the
 		// space freed up when other columns are hidden.
 		max-width: none;
-		min-width: 0;
+		min-width: 240px;
 	}
 
 	.dataviews-view-table__cell-content-wrapper.dataviews-title-field,
@@ -36,10 +37,21 @@
 	.newspack-rolling-coverage-entry-title--pinned {
 		display: inline-flex;
 		align-items: flex-start;
-		gap: $nrc-spacing-xs;
-
-		svg {
-			overflow: visible;
-		}
+		gap: wp-vars.$grid-unit-10;
 	}
+
+	.newspack-rolling-coverage-entry-title__icon {
+		fill: currentcolor;
+		flex-shrink: 0;
+		margin: calc((#{wp-vars.$grid-unit-20} - #{wp-vars.$icon-size}) / 2);
+	}
+}
+
+.newspack-rolling-coverage-admin .dataviews-view-table col.dataviews-view-table__col-first-data {
+	width: auto !important;
+}
+
+.newspack-rolling-coverage-admin .dataviews-view-table tr td:first-child:not(.dataviews-view-table__checkbox-column),
+.newspack-rolling-coverage-admin .dataviews-view-table thead th:first-child:not(.dataviews-view-table__checkbox-column) {
+	padding-left: wp-vars.$grid-unit-60;
 }

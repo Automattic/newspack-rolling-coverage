@@ -1,0 +1,35 @@
+@use "~@wordpress/base-styles/colors" as wp-colors;
+@use "~@wordpress/base-styles/variables" as wp-vars;
+@use "~newspack-components/colors/colors.module" as np-colors;
+
+body.newspack-rolling-coverage-admin-screen {
+	background: wp-colors.$white;
+
+	#wpcontent,
+	#wpbody-content {
+		background: wp-colors.$white;
+	}
+
+	#wpcontent {
+		padding-left: 0;
+	}
+
+	&:not(.newspack-rolling-coverage-admin-screen--bundled) .newspack-page__header-visual {
+		display: none;
+	}
+}
+
+body.newspack-rolling-coverage-admin-screen--bundled {
+	--wp-admin-theme-color: #{np-colors.$primary-600};
+	--wp-admin-theme-color--rgb: #{np-colors.$primary-600--rgb};
+	--wp-admin-theme-color-darker-10: #{np-colors.$primary-700};
+	--wp-admin-theme-color-darker-10--rgb: #{np-colors.$primary-700--rgb};
+	--wp-admin-theme-color-darker-20: #{np-colors.$primary-800};
+	--wp-admin-theme-color-darker-20--rgb: #{np-colors.$primary-800--rgb};
+	--wp-admin-theme-color-lighter-10: #{np-colors.$primary-000};
+	--wp-admin-theme-color-lighter-10--rgb: #{np-colors.$primary-000--rgb};
+}
+
+.newspack-rolling-coverage-admin__content {
+	padding-top: wp-vars.$grid-unit-40;
+}

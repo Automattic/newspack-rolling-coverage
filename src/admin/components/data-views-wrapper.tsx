@@ -19,7 +19,7 @@ const TypedDataViews = DataViews as unknown as ComponentType<
  * Type-safe wrapper around WordPress DataViews that fills in default props
  * (getItemId, defaultLayouts, isItemClickable) so consumers don't have to.
  */
-function DataViewsWrapper< T extends { id: number } >( {
+function DataViewsWrapper< T extends { id: number | string } >( {
 	data,
 	fields,
 	view,

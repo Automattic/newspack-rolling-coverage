@@ -6,8 +6,7 @@ import { dateI18n, getSettings } from '@wordpress/date';
 import { __, sprintf } from '@wordpress/i18n';
 import {
 	Icon,
-	pin,
-	info,
+	pinSmall,
 	wordpress as WordPressIconRaw,
 } from '@wordpress/icons';
 
@@ -18,11 +17,14 @@ import type { Field, ViewState, Entry, AdminConfig } from '../types';
 import { ChipLink } from '../shared/chip-link';
 import { SlackIcon } from '../shared/icons/slack-icon';
 import { TermChips } from '../shared/term-chips';
+import { UserRow } from '../shared/user-row';
+import StatusIndicator from 'newspack-components/dist/esm/status-indicator';
 import {
 	getEmbeddedTerms,
 	getEntrySource,
 	getStatusLabel,
 	STATUS_ELEMENTS,
+	POST_STATUS_INDICATORS,
 	getRawTitle,
 	getRawAuthor,
 	getCategoryNames,
@@ -90,7 +92,11 @@ function getEntryFields(
 				if ( item.pinned ) {
 					return (
 						<span className="newspack-rolling-coverage-entry-title newspack-rolling-coverage-entry-title--pinned">
-							<Icon icon={ pin } size={ 14 } />
+							<Icon
+								className="newspack-rolling-coverage-entry-title__icon"
+								icon={ pinSmall }
+								size={ 24 }
+							/>
 							{ title }
 						</span>
 					);
@@ -129,7 +135,12 @@ function getEntryFields(
 				if ( ! author ) {
 					return <span>—</span>;
 				}
-				return <ChipLink href={ author.link } label={ author.name } />;
+				return (
+					<UserRow
+						label={ author.name }
+						avatarUrls={ author.avatar_urls }
+					/>
+				);
 			},
 			filterBy: {
 				operators: [ 'contains' ],
@@ -144,14 +155,18 @@ function getEntryFields(
 			render: ( { item } ) => {
 				if ( getEntrySource( item ) === SOURCE_SLACK ) {
 					return (
-						<span title="Slack" aria-label="Slack">
-							<SlackIcon size={ 16 } />
+						<span
+							className="newspack-rolling-coverage-source-slack"
+							title="Slack"
+							aria-label="Slack"
+						>
+							<SlackIcon size={ 15 } />
 						</span>
 					);
 				}
 				return (
 					<span title="WordPress" aria-label="WordPress">
-						<Icon icon={ WordPressIconRaw } size={ 16 } />
+						<Icon icon={ WordPressIconRaw } size={ 18 } />
 					</span>
 				);
 			},
@@ -184,7 +199,13 @@ function getEntryFields(
 				const archivedAt = item.archivedAt ?? 0;
 
 				if ( ! archivedAt ) {
-					return <span>{ getStatusLabel( item.status ) }</span>;
+					return (
+						<StatusIndicator
+							status={ POST_STATUS_INDICATORS[ item.status ] }
+						>
+							{ getStatusLabel( item.status ) }
+						</StatusIndicator>
+					);
 				}
 
 				// A non-publish status keeps its own label; only a published
@@ -201,6 +222,7 @@ function getEntryFields(
 
 				return (
 					<Tooltip
+						className="newspack-rolling-coverage-archived-tooltip"
 						text={ sprintf(
 							// translators: %s: date the entry was archived.
 							__(
@@ -211,8 +233,15 @@ function getEntryFields(
 						) }
 					>
 						<span className="newspack-rolling-coverage-status-archived">
-							{ label }
-							<Icon icon={ info } size={ 18 } />
+							<StatusIndicator
+								status={
+									item.status === 'publish'
+										? 'ended'
+										: POST_STATUS_INDICATORS[ item.status ]
+								}
+							>
+								{ label }
+							</StatusIndicator>
 						</span>
 					</Tooltip>
 				);
@@ -314,7 +343,7 @@ const defaultEntryView: ViewState = {
 	page: 1,
 	sort: { field: 'date', direction: 'desc' },
 	search: '',
-	filters: [],
+	filters: [ { field: 'status', operator: 'isNot', value: 'trash' } ],
 	fields: [
 		'author',
 		'status',
