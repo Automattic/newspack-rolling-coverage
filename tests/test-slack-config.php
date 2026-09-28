@@ -153,16 +153,37 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 	public function test_uploaded_avatar_replaces_the_bundled_one() {
 		$bot_user_id = Slack_Config::get_or_create_bot_user_id();
 		$uploaded    = 'https://example.com/uploaded-avatar.png';
+		update_user_meta( $bot_user_id, Slack_Config::LOCAL_AVATAR_META_KEY, [ 'full' => $uploaded ] );
+		self::supply_avatar_url( $uploaded );
+
+		$this->assertSame( $uploaded, get_avatar_url( $bot_user_id ) );
+	}
+
+	/**
+	 * A fallback avatar another plugin supplies, such as Simple Local Avatars'
+	 * default in local-only mode, does not replace the bundled one.
+	 */
+	public function test_fallback_avatar_does_not_replace_the_bundled_one() {
+		$bot_user_id = Slack_Config::get_or_create_bot_user_id();
+		self::supply_avatar_url( 'https://example.com/default-avatar.png' );
+
+		$this->assertSame( NEWSPACK_ROLLING_COVERAGE_URL . Slack_Config::BOT_AVATAR_PATH, get_avatar_url( $bot_user_id ) );
+	}
+
+	/**
+	 * Stand in for an avatar plugin that fills in a URL before the bot filter.
+	 *
+	 * @param string $url Avatar URL to supply.
+	 */
+	private static function supply_avatar_url( $url ) {
 		add_filter(
 			'pre_get_avatar_data',
-			static function ( $args ) use ( $uploaded ) {
-				$args['url'] = $uploaded;
+			static function ( $args ) use ( $url ) {
+				$args['url'] = $url;
 				return $args;
 			},
 			10
 		);
-
-		$this->assertSame( $uploaded, get_avatar_url( $bot_user_id ) );
 	}
 
 	/**

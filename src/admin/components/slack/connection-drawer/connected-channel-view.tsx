@@ -88,7 +88,7 @@ function ConnectedChannelView( {
 					}
 					checked={ autopublish }
 					onChange={ onAutopublishChange }
-					disabled={ isUpdatingAutopublish }
+					disabled={ isUpdatingAutopublish || lastSyncTs === null }
 				/>
 			</Stack>
 			<SlackError message={ error } />

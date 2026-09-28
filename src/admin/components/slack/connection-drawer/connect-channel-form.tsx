@@ -44,7 +44,10 @@ function ConnectChannelForm( {
 				) }
 				value={ channel }
 				onChange={ onChannelChange }
-				placeholder="#general or C12345678"
+				placeholder={ __(
+					'#general or C12345678',
+					'newspack-rolling-coverage'
+				) }
 				disabled={ isConnecting }
 			/>
 			<Stack direction="column" gap="sm" align="flex-start">

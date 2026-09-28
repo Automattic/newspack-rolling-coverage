@@ -31,6 +31,11 @@ class Slack_Config {
 	const TERM_META_CHANNEL_NAME = Taxonomy::META_SLACK_CHANNEL_NAME;
 
 	/**
+	 * User meta Simple Local Avatars stores an uploaded avatar under.
+	 */
+	const LOCAL_AVATAR_META_KEY = 'simple_local_avatar';
+
+	/**
 	 * Default settings array.
 	 *
 	 * @return array<string, mixed> Default settings.
@@ -322,19 +327,15 @@ class Slack_Config {
 	 * wherever an author avatar shows. The user is matched by login rather
 	 * than the stored ID, which a disconnect deletes while the user and its
 	 * entries remain. Email lookups never match: WordPress drops the bot's
-	 * `@localhost` address, so the user has no email. An avatar an earlier
-	 * filter already supplied (for example one uploaded to the user) wins,
-	 * so publishers can replace the default.
+	 * `@localhost` address, so the user has no email. An avatar uploaded to
+	 * the bot user with Simple Local Avatars wins, so publishers can replace
+	 * the default; that plugin's own fallback avatar does not.
 	 *
 	 * @param array $args        Avatar data arguments.
 	 * @param mixed $id_or_email User ID, email, WP_User, WP_Post or WP_Comment.
 	 * @return array Avatar data, with the bundled URL for the bot user.
 	 */
 	public static function filter_bot_avatar( array $args, $id_or_email ): array {
-		if ( isset( $args['url'] ) ) {
-			return $args;
-		}
-
 		if ( $id_or_email instanceof \WP_User ) {
 			$user = $id_or_email;
 		} elseif ( $id_or_email instanceof \WP_Post ) {
@@ -348,6 +349,10 @@ class Slack_Config {
 		}
 
 		if ( ! $user || self::BOT_USER_LOGIN !== $user->user_login ) {
+			return $args;
+		}
+
+		if ( isset( $args['url'] ) && get_user_meta( $user->ID, self::LOCAL_AVATAR_META_KEY, true ) ) {
 			return $args;
 		}
 

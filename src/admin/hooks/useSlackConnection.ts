@@ -6,6 +6,7 @@ import {
 	useEffect,
 	useLayoutEffect,
 	useCallback,
+	useRef,
 } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
@@ -60,11 +61,20 @@ function useSlackConnection(
 		useState( false );
 	const [ error, setError ] = useState< string | null >( null );
 
+	// Each opening is its own session. A request still in flight from an
+	// earlier session must not write into, or close, the drawer as it is now,
+	// which may be showing another coverage.
+	const sessionRef = useRef( 0 );
+
 	useLayoutEffect( () => {
 		if ( isOpen ) {
+			sessionRef.current++;
 			setChannel( '' );
 			setAutopublish( false );
 			setLastSyncTs( null );
+			setIsConnecting( false );
+			setIsDisconnecting( false );
+			setIsUpdatingAutopublish( false );
 			setError( null );
 		}
 	}, [ isOpen ] );
@@ -105,6 +115,7 @@ function useSlackConnection(
 
 	const handleAutopublishChange = useCallback(
 		async ( next: boolean ) => {
+			const session = sessionRef.current;
 			setAutopublish( next );
 			setError( null );
 			setIsUpdatingAutopublish( true );
@@ -114,6 +125,10 @@ function useSlackConnection(
 				channelId,
 				next
 			);
+
+			if ( session !== sessionRef.current ) {
+				return;
+			}
 
 			if ( ! result.success ) {
 				// Revert the toggle on failure.
@@ -137,6 +152,7 @@ function useSlackConnection(
 			return;
 		}
 
+		const session = sessionRef.current;
 		setIsConnecting( true );
 		setError( null );
 
@@ -146,6 +162,13 @@ function useSlackConnection(
 			channel.trim(),
 			autopublish
 		);
+
+		if ( session !== sessionRef.current ) {
+			if ( result.success ) {
+				onSaved();
+			}
+			return;
+		}
 
 		if ( result.success ) {
 			onSaved();
@@ -170,6 +193,7 @@ function useSlackConnection(
 			return;
 		}
 
+		const session = sessionRef.current;
 		setIsDisconnecting( true );
 		setError( null );
 
@@ -177,6 +201,13 @@ function useSlackConnection(
 			restBase.slack,
 			coverage.id
 		);
+
+		if ( session !== sessionRef.current ) {
+			if ( result.success ) {
+				onSaved();
+			}
+			return;
+		}
 
 		if ( result.success ) {
 			onSaved();
