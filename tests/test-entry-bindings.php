@@ -135,7 +135,11 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$entry_id    = self::create_entry( $coverage_id );
 		$breakout_id = self::add_breakout( $entry_id, 'publish' );
 
-		$html = do_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->' );
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+
+		// Called directly: the block type registers from the built assets, which the test run doesn't have.
+		$html = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
 
 		$this->assertStringContainsString( 'href="' . esc_url( get_permalink( $breakout_id ) ) . '"', $html, '"Read more" should link to the breakout.' );
 		$this->assertStringContainsString( 'data-rc-share', $html, 'Share should be marked for the share script.' );
