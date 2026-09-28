@@ -1,33 +1,45 @@
 /**
  * WordPress dependencies
  */
-import { useState, useEffect, useCallback } from '@wordpress/element';
+import { useState, useEffect, useCallback, useMemo } from '@wordpress/element';
 import {
 	Button,
-	TextareaControl,
-	Card,
-	CardHeader,
-	CardBody,
-	CardFooter,
-	TabPanel,
+	DropdownMenu,
 	Notice,
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
-	__experimentalVStack as VStack,
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
-	__experimentalHStack as HStack,
+	TextareaControl,
 } from '@wordpress/components';
+import { moreVertical } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
+import { Stack } from '@wordpress/ui';
+import Grid from 'newspack-components/dist/esm/grid';
+import SectionHeader from 'newspack-components/dist/esm/section-header';
 
 /**
  * Internal dependencies
  */
 import { useAdminContext } from '../hooks/useAdminContext';
+import { useHeader } from '../hooks/useHeader';
+import { useConfirmDialog } from './confirm-dialog';
 import { fetchAiSettings, saveAiSettings } from '../utils/ai-settings-api';
 import { notifySuccess } from '../utils/notices';
 import type { AiSettings as AiSettingsType } from '../types';
 
 /**
- * AI settings page with tabbed interface for configuring AI prompts.
+ * Whether two sets of AI settings hold the same prompts.
+ *
+ * @param a First settings.
+ * @param b Second settings.
+ * @return True when every prompt matches.
+ */
+function isSameSettings( a: AiSettingsType, b: AiSettingsType ): boolean {
+	return ( Object.keys( a ) as Array< keyof AiSettingsType > ).every(
+		( key ) => a[ key ] === b[ key ]
+	);
+}
+
+/**
+ * AI settings page for configuring AI prompts. Save and Reset to Defaults
+ * live in the page header.
  *
  * Settings are loaded from the REST API on mount and pre-populated from
  * the server-localized config as initial values. Changes are saved via
@@ -35,12 +47,17 @@ import type { AiSettings as AiSettingsType } from '../types';
  */
 function AIPage() {
 	const config = useAdminContext();
-	const [ settings, setSettings ] = useState< AiSettingsType >( {
+	const initialSettings = {
 		key_takeaways_prompt: config.aiSettings?.key_takeaways_prompt ?? '',
-	} );
+	};
+	const [ settings, setSettings ] =
+		useState< AiSettingsType >( initialSettings );
+	const [ savedSettings, setSavedSettings ] =
+		useState< AiSettingsType >( initialSettings );
 	const [ isSaving, setIsSaving ] = useState( false );
 	const [ isLoading, setIsLoading ] = useState( false );
 	const [ error, setError ] = useState< string | null >( null );
+	const { requestConfirm, dialog: confirmDialog } = useConfirmDialog();
 
 	const loadSettings = useCallback( async () => {
 		setIsLoading( true );
@@ -50,6 +67,7 @@ function AIPage() {
 
 		if ( result.success && result.data ) {
 			setSettings( result.data );
+			setSavedSettings( result.data );
 		} else {
 			setError(
 				result.error ||
@@ -78,6 +96,7 @@ function AIPage() {
 
 		if ( result.success && result.data ) {
 			setSettings( result.data );
+			setSavedSettings( result.data );
 			notifySuccess(
 				__( 'AI settings saved.', 'newspack-rolling-coverage' )
 			);
@@ -94,29 +113,49 @@ function AIPage() {
 		setIsSaving( false );
 	}, [ config.restBaseUrls.aiSettings, settings ] );
 
-	const handleChange = useCallback(
-		( field: keyof AiSettingsType, value: string ) => {
-			setSettings( ( prev ) => ( { ...prev, [ field ]: value } ) );
-		},
-		[]
-	);
-
 	const handleReset = useCallback( () => {
-		setSettings( config.aiDefaultSettings );
-		notifySuccess(
-			__(
-				'Prompts reset to defaults. Click Save Settings to persist.',
+		requestConfirm( {
+			title: __( 'Reset to defaults?', 'newspack-rolling-coverage' ),
+			description: __(
+				'The Key Takeaways prompt goes back to the default text and is saved straight away.',
 				'newspack-rolling-coverage'
-			)
-		);
-	}, [ config.aiDefaultSettings ] );
+			),
+			confirmLabel: __( 'Reset', 'newspack-rolling-coverage' ),
+			onConfirm: async () => {
+				setIsSaving( true );
+				const result = await saveAiSettings(
+					config.restBaseUrls.aiSettings,
+					config.aiDefaultSettings
+				);
+				setIsSaving( false );
 
-	const tabs = [
-		{
-			name: 'key-takeaways',
-			title: __( 'Key Takeaways', 'newspack-rolling-coverage' ),
-		},
-	];
+				if ( ! result.success || ! result.data ) {
+					return {
+						error:
+							result.error ||
+							__(
+								'Failed to reset AI settings.',
+								'newspack-rolling-coverage'
+							),
+					};
+				}
+
+				setSettings( result.data );
+				setSavedSettings( result.data );
+				setError( null );
+				notifySuccess(
+					__(
+						'Prompts reset to defaults.',
+						'newspack-rolling-coverage'
+					)
+				);
+			},
+		} );
+	}, [
+		requestConfirm,
+		config.restBaseUrls.aiSettings,
+		config.aiDefaultSettings,
+	] );
 
 	const canEdit = config.capabilities.canManageAiSettings;
 	const aiEnabled = config.aiAvailable && canEdit;
@@ -124,115 +163,131 @@ function AIPage() {
 	const takeawaysPromptLen = settings.key_takeaways_prompt.length;
 	const takeawaysPromptOver = takeawaysPromptLen > maxLen;
 	const hasOverLimit = takeawaysPromptOver;
+	const isDirty = ! isSameSettings( settings, savedSettings );
+	const isAtDefaults = isSameSettings( settings, config.aiDefaultSettings );
+
+	const headerActions = useMemo(
+		() => (
+			<>
+				<Button
+					variant="primary"
+					onClick={ handleSave }
+					isBusy={ isSaving }
+					disabled={
+						isSaving ||
+						isLoading ||
+						! aiEnabled ||
+						! isDirty ||
+						hasOverLimit
+					}
+				>
+					{ __( 'Save', 'newspack-rolling-coverage' ) }
+				</Button>
+				<DropdownMenu
+					icon={ moreVertical }
+					label={ __( 'More actions', 'newspack-rolling-coverage' ) }
+					controls={ [
+						{
+							title: __(
+								'Reset to Defaults',
+								'newspack-rolling-coverage'
+							),
+							onClick: handleReset,
+							isDisabled:
+								isSaving ||
+								isLoading ||
+								! aiEnabled ||
+								isAtDefaults,
+						},
+					] }
+				/>
+			</>
+		),
+		[
+			handleReset,
+			handleSave,
+			isSaving,
+			isLoading,
+			aiEnabled,
+			isAtDefaults,
+			isDirty,
+			hasOverLimit,
+		]
+	);
+
+	useHeader( { actions: headerActions } );
 
 	return (
-		<div className="newspack-rolling-coverage-ai-settings">
-			{ error && (
-				<div className="newspack-rolling-coverage-error">{ error }</div>
-			) }
-			{ ! config.aiAvailable && (
-				<Notice status="warning" isDismissible={ false }>
-					{ __(
-						'AI features are not available on this site. An administrator must enable the AI plugin and configure a provider before these prompts take effect.',
-						'newspack-rolling-coverage'
-					) }
-				</Notice>
-			) }
-			{ hasOverLimit && aiEnabled && (
-				<Notice status="error" isDismissible={ false }>
-					{ __(
-						'One or more prompts exceed the maximum length. Shorten the text to stay within the limit.',
-						'newspack-rolling-coverage'
-					) }
-				</Notice>
-			) }
-			<TabPanel tabs={ tabs } initialTabName="key-takeaways">
-				{ () => (
-					<Card className="newspack-rolling-coverage-ai-settings__card">
-						<CardHeader>
-							<HStack
-								alignment="space-between"
-								justify="space-between"
-							>
-								<h2>
-									{ __(
-										'Prompt Configuration',
-										'newspack-rolling-coverage'
-									) }
-								</h2>
-							</HStack>
-						</CardHeader>
-						<CardBody>
-							<VStack spacing={ 4 }>
-								<TextareaControl
-									label={ __(
-										'Key Takeaways Prompt',
-										'newspack-rolling-coverage'
-									) }
-									help={ sprintf(
-										/* translators: 1: character count, 2: max character count */
-										__(
-											'The instruction sent to the AI along with coverage entries. Use {max_takeaways} as a placeholder for the maximum number of takeaways. Keep this short — the model already has the liveblog context. (%1$d / %2$d characters)',
-											'newspack-rolling-coverage'
-										),
-										takeawaysPromptLen,
-										maxLen
-									) }
-									value={ settings.key_takeaways_prompt }
-									onChange={ ( value ) =>
-										handleChange(
-											'key_takeaways_prompt',
-											value
-										)
-									}
-									rows={ 6 }
-									disabled={
-										isLoading || isSaving || ! aiEnabled
-									}
-									className={
-										takeawaysPromptOver
-											? 'newspack-rolling-coverage-ai-settings__field--over-limit'
-											: undefined
-									}
-								/>
-							</VStack>
-						</CardBody>
-						<CardFooter>
-							<HStack justify="space-between">
-								<Button
-									variant="secondary"
-									onClick={ handleReset }
-									disabled={
-										isSaving || isLoading || ! aiEnabled
-									}
-								>
-									{ __(
-										'Reset to Defaults',
-										'newspack-rolling-coverage'
-									) }
-								</Button>
-								<Button
-									variant="primary"
-									onClick={ handleSave }
-									isBusy={ isSaving }
-									disabled={
-										isSaving ||
-										isLoading ||
-										! aiEnabled ||
-										hasOverLimit
-									}
-								>
-									{ __(
-										'Save Settings',
-										'newspack-rolling-coverage'
-									) }
-								</Button>
-							</HStack>
-						</CardFooter>
-					</Card>
+		<>
+			<Stack
+				direction="column"
+				gap="2xl"
+				className="newspack-rolling-coverage-ai-settings"
+			>
+				{ error && (
+					<Notice status="error" onRemove={ () => setError( null ) }>
+						{ error }
+					</Notice>
 				) }
-			</TabPanel>
-		</div>
+				{ ! config.aiAvailable && (
+					<Notice status="warning" isDismissible={ false }>
+						{ __(
+							'AI features are not available on this site. An administrator must enable the AI plugin and configure a provider before these prompts take effect.',
+							'newspack-rolling-coverage'
+						) }
+					</Notice>
+				) }
+				{ hasOverLimit && aiEnabled && (
+					<Notice status="error" isDismissible={ false }>
+						{ __(
+							'One or more prompts exceed the maximum length. Shorten the text to stay within the limit.',
+							'newspack-rolling-coverage'
+						) }
+					</Notice>
+				) }
+				<Grid columns={ 2 } gutter={ 32 } noMargin>
+					<SectionHeader
+						noMargin
+						heading={ 2 }
+						title={ __(
+							'Key Takeaways',
+							'newspack-rolling-coverage'
+						) }
+						description={ __(
+							'The instruction the AI follows when it sums up a coverage in a short list of key takeaways for readers.',
+							'newspack-rolling-coverage'
+						) }
+					/>
+					<TextareaControl
+						label={ __( 'Prompt', 'newspack-rolling-coverage' ) }
+						help={ sprintf(
+							/* translators: 1: character count, 2: max character count */
+							__(
+								'Use {max_takeaways} where the maximum number of takeaways should go. Keep it short: the AI already has the coverage entries. (%1$d / %2$d characters)',
+								'newspack-rolling-coverage'
+							),
+							takeawaysPromptLen,
+							maxLen
+						) }
+						value={ settings.key_takeaways_prompt }
+						onChange={ ( value ) =>
+							setSettings( ( prev ) => ( {
+								...prev,
+								key_takeaways_prompt: value,
+							} ) )
+						}
+						rows={ 6 }
+						disabled={ isLoading || isSaving || ! aiEnabled }
+						className={
+							takeawaysPromptOver
+								? 'newspack-rolling-coverage-ai-settings__field--over-limit'
+								: undefined
+						}
+					/>
+				</Grid>
+			</Stack>
+			{ confirmDialog }
+		</>
 	);
 }
 
