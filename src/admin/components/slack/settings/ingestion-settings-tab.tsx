@@ -5,7 +5,7 @@ import { Button, TextControl } from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
-import { useRef } from '@wordpress/element';
+import { useEffect, useRef } from '@wordpress/element';
 import type { MouseEvent } from 'react';
 import Grid from 'newspack-components/dist/esm/grid';
 import Divider from 'newspack-components/dist/esm/divider';
@@ -42,6 +42,18 @@ function IngestionSettingsTab( {
 	// With newspack-plugin active, a handoff gives the profile screen a
 	// banner that brings the admin back here; without it, the link is plain.
 	const isHandingOff = useRef( false );
+
+	// A page restored from the back-forward cache keeps the guard set, which
+	// would leave Edit User doing nothing.
+	useEffect( () => {
+		const reset = ( event: PageTransitionEvent ) => {
+			if ( event.persisted ) {
+				isHandingOff.current = false;
+			}
+		};
+		window.addEventListener( 'pageshow', reset );
+		return () => window.removeEventListener( 'pageshow', reset );
+	}, [] );
 	const handleEditUser = ( event: MouseEvent< HTMLAnchorElement > ) => {
 		const isModifiedClick =
 			event.metaKey ||

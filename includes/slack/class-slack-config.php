@@ -31,11 +31,6 @@ class Slack_Config {
 	const TERM_META_CHANNEL_NAME = Taxonomy::META_SLACK_CHANNEL_NAME;
 
 	/**
-	 * User meta Simple Local Avatars stores an uploaded avatar under.
-	 */
-	const LOCAL_AVATAR_META_KEY = 'simple_local_avatar';
-
-	/**
 	 * Default settings array.
 	 *
 	 * @return array<string, mixed> Default settings.
@@ -352,7 +347,7 @@ class Slack_Config {
 			return $args;
 		}
 
-		if ( isset( $args['url'] ) && get_user_meta( $user->ID, self::LOCAL_AVATAR_META_KEY, true ) ) {
+		if ( isset( $args['url'] ) && self::has_uploaded_avatar( $user->ID, (int) $args['size'] ) ) {
 			return $args;
 		}
 
@@ -360,6 +355,25 @@ class Slack_Config {
 		$args['found_avatar'] = true;
 
 		return $args;
+	}
+
+	/**
+	 * Whether Simple Local Avatars has a usable avatar uploaded for a user.
+	 * Asks the plugin rather than reading its meta, which is keyed per site
+	 * on some multisites and can outlive a deleted image.
+	 *
+	 * @param int $user_id User ID.
+	 * @param int $size    Avatar size in pixels.
+	 * @return bool True if the plugin resolves an uploaded avatar.
+	 */
+	private static function has_uploaded_avatar( int $user_id, int $size ): bool {
+		global $simple_local_avatars;
+
+		if ( ! $simple_local_avatars instanceof \Simple_Local_Avatars ) {
+			return false;
+		}
+
+		return '' !== (string) $simple_local_avatars->get_simple_local_avatar_url( $user_id, $size );
 	}
 
 	/**

@@ -18,6 +18,14 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 	const VALID_SIGNING_SECRET = '0123456789abcdef0123456789abcdef';
 
 	/**
+	 * Drop the Simple Local Avatars stand-in so later tests see no plugin.
+	 */
+	public function tear_down() {
+		unset( $GLOBALS['simple_local_avatars'] );
+		parent::tear_down();
+	}
+
+	/**
 	 * Values that are not a bot token.
 	 *
 	 * @return array[]
@@ -153,7 +161,7 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 	public function test_uploaded_avatar_replaces_the_bundled_one() {
 		$bot_user_id = Slack_Config::get_or_create_bot_user_id();
 		$uploaded    = 'https://example.com/uploaded-avatar.png';
-		update_user_meta( $bot_user_id, Slack_Config::LOCAL_AVATAR_META_KEY, [ 'full' => $uploaded ] );
+		self::local_avatars()->uploaded[ $bot_user_id ] = $uploaded;
 		self::supply_avatar_url( $uploaded );
 
 		$this->assertSame( $uploaded, get_avatar_url( $bot_user_id ) );
@@ -165,9 +173,21 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 	 */
 	public function test_fallback_avatar_does_not_replace_the_bundled_one() {
 		$bot_user_id = Slack_Config::get_or_create_bot_user_id();
+		self::local_avatars();
 		self::supply_avatar_url( 'https://example.com/default-avatar.png' );
 
 		$this->assertSame( NEWSPACK_ROLLING_COVERAGE_URL . Slack_Config::BOT_AVATAR_PATH, get_avatar_url( $bot_user_id ) );
+	}
+
+	/**
+	 * Load the Simple Local Avatars stand-in as the plugin's global instance.
+	 *
+	 * @return Simple_Local_Avatars
+	 */
+	private static function local_avatars() {
+		require_once __DIR__ . '/mocks/class-simple-local-avatars.php';
+		$GLOBALS['simple_local_avatars'] = new Simple_Local_Avatars();
+		return $GLOBALS['simple_local_avatars'];
 	}
 
 	/**
