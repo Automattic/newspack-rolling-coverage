@@ -256,7 +256,9 @@
 		inset: 0;
 		position: absolute;
 
-		@include wp-mixins.reduce-motion("animation");
+		@media (prefers-reduced-motion: reduce) {
+			animation: none;
+		}
 	}
 }
 

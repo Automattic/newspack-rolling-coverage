@@ -2,7 +2,7 @@
  * WordPress dependencies
  */
 import { createElement } from '@wordpress/element';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -445,15 +445,17 @@ function getEntryActions(
 				entry.status !== 'trash' &&
 				! isEntryLocked( entry ) &&
 				canTrashRow( entry ),
-			callback: ( items: Entry[], { onActionPerformed: notify } ) =>
+			callback: ( items: Entry[] ) =>
 				requestConfirm( {
 					title: pluralize(
 						items.length,
 						__( 'Trash this entry?', 'newspack-rolling-coverage' ),
 						sprintf(
 							/* translators: %d: number of entries. */
-							__(
+							_n(
+								'Trash %d entry?',
 								'Trash %d entries?',
+								items.length,
 								'newspack-rolling-coverage'
 							),
 							items.length
@@ -492,7 +494,6 @@ function getEntryActions(
 								)
 							)
 						);
-						notify?.( items );
 						onActionPerformed?.();
 					},
 				} ),

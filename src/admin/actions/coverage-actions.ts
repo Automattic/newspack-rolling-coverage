@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { createElement } from '@wordpress/element';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -90,7 +90,7 @@ function getCoverageActions(
 			isEligible: ( coverage: Coverage ) =>
 				canManage &&
 				coverage.meta?.[ config.taxMeta.statusKey ] !== 'trash',
-			callback: ( items: Coverage[], { onActionPerformed: notify } ) =>
+			callback: ( items: Coverage[] ) =>
 				requestConfirm( {
 					title: pluralize(
 						items.length,
@@ -100,8 +100,10 @@ function getCoverageActions(
 						),
 						sprintf(
 							/* translators: %d: number of coverages. */
-							__(
+							_n(
+								'Trash %d coverage?',
 								'Trash %d coverages?',
+								items.length,
 								'newspack-rolling-coverage'
 							),
 							items.length
@@ -150,7 +152,6 @@ function getCoverageActions(
 								)
 							)
 						);
-						notify?.( items );
 						onActionPerformed();
 					},
 				} ),

@@ -7,6 +7,7 @@
  */
 
 use Newspack_Rolling_Coverage\Post_Type;
+use Newspack_Rolling_Coverage\Slack;
 use Newspack_Rolling_Coverage\Slack_API_Client;
 use Newspack_Rolling_Coverage\Slack_Config;
 use Newspack_Rolling_Coverage\Slack_Ingestion_Service;
@@ -342,6 +343,22 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
 		$this->assertTrue( $data['autopublish'], 'The stored autopublish setting should be returned.' );
 		$this->assertSame( '1767225600.000100', $data['last_sync_ts'], 'The last ingested message timestamp should be returned.' );
+	}
+
+	/**
+	 * Channel settings, including the last sync, are for administrators only.
+	 */
+	public function test_channel_settings_are_admin_only() {
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => self::create_coverage() ] );
+		add_action( 'rest_api_init', [ self::controller(), 'register_admin_routes' ] );
+		$GLOBALS['wp_rest_server'] = null;
+		$request                   = new WP_REST_Request( 'GET', '/' . Slack::REST_NAMESPACE . '/slack/channel/' . self::CHANNEL_ID );
+
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+		$this->assertSame( 403, rest_get_server()->dispatch( $request )->get_status(), 'Editors should not read channel settings.' );
+
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		$this->assertSame( 200, rest_get_server()->dispatch( $request )->get_status(), 'Administrators should read channel settings.' );
 	}
 
 	/**

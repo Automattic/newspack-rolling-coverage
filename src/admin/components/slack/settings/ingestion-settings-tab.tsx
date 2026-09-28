@@ -5,6 +5,7 @@ import { Button, TextControl } from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
+import { useRef } from '@wordpress/element';
 import type { MouseEvent } from 'react';
 import Grid from 'newspack-components/dist/esm/grid';
 import Divider from 'newspack-components/dist/esm/divider';
@@ -40,11 +41,22 @@ function IngestionSettingsTab( {
 
 	// With newspack-plugin active, a handoff gives the profile screen a
 	// banner that brings the admin back here; without it, the link is plain.
+	const isHandingOff = useRef( false );
 	const handleEditUser = ( event: MouseEvent< HTMLAnchorElement > ) => {
-		if ( ! supportsHandoff ) {
+		const isModifiedClick =
+			event.metaKey ||
+			event.ctrlKey ||
+			event.shiftKey ||
+			event.altKey ||
+			event.button !== 0;
+		if ( ! supportsHandoff || isModifiedClick ) {
 			return;
 		}
 		event.preventDefault();
+		if ( isHandingOff.current ) {
+			return;
+		}
+		isHandingOff.current = true;
 		const destinationUrl = event.currentTarget.href;
 		apiFetch< { HandoffLink: string } >( {
 			path: '/newspack/v1/handoff',
@@ -53,11 +65,11 @@ function IngestionSettingsTab( {
 				destinationUrl,
 				handoffReturnUrl: window.location.href,
 				bannerText: __(
-					'Return to the Slack settings after editing the bot user.',
+					'Return to the Slack connection after editing the bot user.',
 					'newspack-rolling-coverage'
 				),
 				bannerButtonText: __(
-					'Back to Slack Settings',
+					'Back to Slack Connection',
 					'newspack-rolling-coverage'
 				),
 			},
