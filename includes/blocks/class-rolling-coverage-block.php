@@ -81,6 +81,15 @@ class Rolling_Coverage_Block {
 	private static $host_post_id = 0;
 
 	/**
+	 * How many entries are rendering right now (entries can nest through the
+	 * deep link modal). The entry filters below act only while it's non-zero,
+	 * so an entry's own single page is left alone.
+	 *
+	 * @var int
+	 */
+	private static $entry_render_depth = 0;
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -92,6 +101,141 @@ class Rolling_Coverage_Block {
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 10, 3 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
+		add_filter( 'render_block_core/post-content', [ __CLASS__, 'drop_entry_content_class' ], 10, 3 );
+		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
+	}
+
+	/**
+	 * Renders an entry's blocks with the entry filters active.
+	 *
+	 * @param callable $render Renders the entry and returns its HTML.
+	 * @return string
+	 */
+	public static function render_as_entry( callable $render ): string {
+		++self::$entry_render_depth;
+
+		try {
+			return (string) $render();
+		} finally {
+			--self::$entry_render_depth;
+		}
+	}
+
+	/**
+	 * Drops fixed dates from an entry template's post date blocks so each
+	 * entry shows its own date.
+	 *
+	 * Templates saved before the post date carried its `core/post-data`
+	 * binding have the time they were saved stored as a custom date, which
+	 * core would show on every entry. Only the template is touched, so a
+	 * custom date written in an entry's own content stays.
+	 *
+	 * @param array[] $blocks Parsed template blocks.
+	 * @return array[]
+	 */
+	public static function drop_fixed_template_dates( array $blocks ): array {
+		foreach ( $blocks as $index => $block ) {
+			if (
+				'core/post-date' === ( $block['blockName'] ?? '' ) &&
+				isset( $block['attrs']['datetime'] ) &&
+				! isset( $block['attrs']['metadata']['bindings']['datetime'] )
+			) {
+				unset( $blocks[ $index ]['attrs']['datetime'] );
+			}
+
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$blocks[ $index ]['innerBlocks'] = self::drop_fixed_template_dates( $block['innerBlocks'] );
+			}
+		}
+
+		return $blocks;
+	}
+
+	/**
+	 * Writes an entry's flex group block spacing (e.g. the date and title
+	 * stack) onto the group on the Newspack Theme.
+	 *
+	 * Core only outputs block spacing for themes that support it through
+	 * theme.json; the classic Newspack Theme doesn't, so core falls back to
+	 * its 0.5em default and ignores the value set in the editor. Themes that
+	 * support block spacing, like the Newspack Block Theme, are left to core.
+	 *
+	 * Parameters stay untyped because this runs for every group block on the
+	 * site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string   $block_content Rendered block.
+	 * @param array    $block         Parsed block.
+	 * @param WP_Block $instance      Block instance.
+	 * @return string
+	 */
+	public static function apply_entry_block_gap( $block_content, $block, $instance ) {
+		if (
+			! is_string( $block_content ) ||
+			'flex' !== ( $block['attrs']['layout']['type'] ?? '' ) ||
+			! self::$entry_render_depth ||
+			'newspack-theme' !== get_template() ||
+			null !== wp_get_global_settings( [ 'spacing', 'blockGap' ] )
+		) {
+			return $block_content;
+		}
+
+		$gap = wp_sanitize_block_gap_value( $block['attrs']['style']['spacing']['blockGap'] ?? null );
+		$gap = is_array( $gap ) ? [ $gap['top'] ?? null, $gap['left'] ?? null ] : [ $gap ];
+		$gap = array_filter( $gap, fn( $value ) => is_scalar( $value ) && '' !== (string) $value );
+
+		if ( ! $gap ) {
+			return $block_content;
+		}
+
+		// Preset values resolve to their CSS variables, as core does.
+		$gap = array_map(
+			fn( $value ) => str_contains( (string) $value, 'var:preset|spacing|' )
+				? 'var(--wp--preset--spacing--' . _wp_to_kebab_case( substr( (string) $value, strrpos( (string) $value, '|' ) + 1 ) ) . ')'
+				: (string) $value,
+			$gap
+		);
+
+		$declaration = ( new \WP_Style_Engine_CSS_Declarations( [ 'gap' => implode( ' ', $gap ) ] ) )->get_declarations_string();
+		$group       = new WP_HTML_Tag_Processor( $block_content );
+
+		if ( $declaration && $group->next_tag() ) {
+			$style = trim( (string) $group->get_attribute( 'style' ), " \t\n\r;" );
+			$group->set_attribute( 'style', ( $style ? $style . ';' : '' ) . $declaration );
+		}
+
+		return $group->get_updated_html();
+	}
+
+	/**
+	 * Drops the `entry-content` class core adds to an entry's post content.
+	 * Entries render inside the host page's own `.entry-content`, so themes'
+	 * rules for top-level page content would space the entry's paragraphs as
+	 * if they were the page's.
+	 *
+	 * Parameters stay untyped because this runs for every post content block on
+	 * the site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string   $block_content Rendered block.
+	 * @param array    $block         Parsed block.
+	 * @param WP_Block $instance      Block instance.
+	 * @return string
+	 */
+	public static function drop_entry_content_class( $block_content, $block, $instance ) {
+		if (
+			! is_string( $block_content ) ||
+			! $instance instanceof WP_Block ||
+			! self::$entry_render_depth
+		) {
+			return $block_content;
+		}
+
+		$content = new WP_HTML_Tag_Processor( $block_content );
+
+		if ( $content->next_tag() ) {
+			$content->remove_class( 'entry-content' );
+		}
+
+		return $content->get_updated_html();
 	}
 
 	/**
@@ -111,7 +255,7 @@ class Rolling_Coverage_Block {
 			! is_string( $block_content ) ||
 			! $instance instanceof WP_Block ||
 			'human-diff' !== ( $block['attrs']['format'] ?? '' ) ||
-			Post_Type::CPT_SLUG !== ( $instance->context['postType'] ?? '' )
+			! self::$entry_render_depth
 		) {
 			return $block_content;
 		}
@@ -199,6 +343,9 @@ class Rolling_Coverage_Block {
 					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
 					'canonicalUrlMetaKey'         => Taxonomy::CANONICAL_URL_META_KEY,
 					'readMoreTextMetaKey'         => Breakout::ENTRY_READ_MORE_TEXT_META,
+					'onesignalInstalled'          => Push_Notifications::is_onesignal_installed(),
+					'onesignalV3Active'           => Push_Notifications::is_onesignal_v3_active(),
+					'onesignalConfigured'         => Push_Notifications::is_onesignal_configured(),
 				]
 			);
 		}
@@ -525,8 +672,10 @@ class Rolling_Coverage_Block {
 	/**
 	 * Renders the follow button once at the top of the coverage.
 	 *
-	 * The block is removable, so this returns an empty string if the editor
-	 * deleted it (or if the follow button shouldn't render at all).
+	 * The button is removable, so this returns an empty string if the editor
+	 * deleted it (or if the follow button shouldn't render at all). It's a
+	 * core button bound to the coverage, or the legacy Follow block on
+	 * coverages saved before it.
 	 *
 	 * @param WP_Block $block       The parent rolling-coverage block instance.
 	 * @param int      $coverage_id Coverage term id.
@@ -541,7 +690,7 @@ class Rolling_Coverage_Block {
 		$follow_block = null;
 
 		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner ) {
-			if ( Coverage_Follow_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) ) {
+			if ( Coverage_Follow_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $inner ) ) {
 				$follow_block = $inner;
 				break;
 			}
@@ -551,9 +700,9 @@ class Rolling_Coverage_Block {
 			return '';
 		}
 
-		// Preload the follow button styles and view script. The button is
-		// rendered via render_block() below, so WordPress doesn't
-		// auto-enqueue its assets — we must do it manually.
+		// Preload the follow button's view script and the legacy block's
+		// styles: the button renders inside this callback, so WordPress
+		// doesn't enqueue its assets.
 		$follow_block_type = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Follow_Block::BLOCK_NAME );
 
 		if ( $follow_block_type ) {
@@ -563,6 +712,24 @@ class Rolling_Coverage_Block {
 
 			foreach ( $follow_block_type->view_script_handles as $script_handle ) {
 				wp_enqueue_script( $script_handle );
+			}
+		}
+
+		if ( Coverage_Follow_Block::BLOCK_NAME !== $follow_block['blockName'] ) {
+			$add_coverage_context = fn( $context ) => array_merge(
+				(array) $context,
+				[
+					Entry_Bindings::COVERAGE_ID_CONTEXT => $coverage_id,
+					Entry_Bindings::COVERAGE_STATUS_CONTEXT => $status,
+				]
+			);
+
+			add_filter( 'render_block_context', $add_coverage_context );
+
+			try {
+				return render_block( $follow_block );
+			} finally {
+				remove_filter( 'render_block_context', $add_coverage_context );
 			}
 		}
 
@@ -633,8 +800,8 @@ class Rolling_Coverage_Block {
 			return self::default_entry_template();
 		}
 
-		// The saved inner blocks also include two blocks that render once at
-		// the top of the coverage, not per entry.
+		// The saved inner blocks also include blocks that render once at the
+		// top of the coverage, not per entry.
 		$singleton_blocks = [
 			Deep_Link_CTA_Block::BLOCK_NAME,
 			Coverage_Follow_Block::BLOCK_NAME,
@@ -643,7 +810,7 @@ class Rolling_Coverage_Block {
 		$template         = [];
 
 		foreach ( $inner_blocks as $inner_block ) {
-			if ( ! in_array( $inner_block['blockName'] ?? '', $singleton_blocks, true ) ) {
+			if ( ! in_array( $inner_block['blockName'] ?? '', $singleton_blocks, true ) && ! Entry_Bindings::is_follow_buttons( $inner_block ) ) {
 				$template[] = $inner_block;
 			}
 		}
@@ -652,7 +819,7 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The hardcoded fallback per-entry template: title, date, content, and
+	 * The hardcoded fallback per-entry template: date and title stacked, content, and
 	 * core buttons for the breakout post link and sharing.
 	 *
 	 * @return array[] Array of parsed-block-shaped arrays.
@@ -660,18 +827,32 @@ class Rolling_Coverage_Block {
 	private static function default_entry_template() {
 		return [
 			[
-				'blockName'    => 'core/post-title',
-				'attrs'        => [ 'level' => 3 ],
-				'innerBlocks'  => [],
-				'innerHTML'    => '',
-				'innerContent' => [],
-			],
-			[
-				'blockName'    => 'core/post-date',
-				'attrs'        => [ 'format' => 'human-diff' ],
-				'innerBlocks'  => [],
-				'innerHTML'    => '',
-				'innerContent' => [],
+				'blockName'    => 'core/group',
+				'attrs'        => [
+					'layout' => [
+						'type'        => 'flex',
+						'orientation' => 'vertical',
+					],
+					'style'  => [ 'spacing' => [ 'blockGap' => '8px' ] ],
+				],
+				'innerBlocks'  => [
+					[
+						'blockName'    => 'core/post-date',
+						'attrs'        => [ 'format' => 'human-diff' ],
+						'innerBlocks'  => [],
+						'innerHTML'    => '',
+						'innerContent' => [],
+					],
+					[
+						'blockName'    => 'core/post-title',
+						'attrs'        => [ 'level' => 4 ],
+						'innerBlocks'  => [],
+						'innerHTML'    => '',
+						'innerContent' => [],
+					],
+				],
+				'innerHTML'    => '<div class="wp-block-group"></div>',
+				'innerContent' => [ '<div class="wp-block-group">', null, null, '</div>' ],
 			],
 			[
 				'blockName'    => 'core/post-content',
@@ -854,6 +1035,7 @@ class Rolling_Coverage_Block {
 	 * @return string Rendered HTML for the entry.
 	 */
 	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial' ) {
+		$template = self::drop_fixed_template_dates( $template );
 		global $post;
 
 		$previous_post = $post;
@@ -866,19 +1048,21 @@ class Rolling_Coverage_Block {
 		}
 
 		try {
-			$entry_content = ( new WP_Block(
-				[
-					'blockName'    => null,
-					'attrs'        => [],
-					'innerBlocks'  => $template,
-					'innerHTML'    => '',
-					'innerContent' => array_fill( 0, count( $template ), null ),
-				],
-				[
-					'postId'   => $entry->ID,
-					'postType' => $entry->post_type,
-				]
-			) )->render( [ 'dynamic' => false ] );
+			$entry_content = self::render_as_entry(
+				fn() => ( new WP_Block(
+					[
+						'blockName'    => null,
+						'attrs'        => [],
+						'innerBlocks'  => $template,
+						'innerHTML'    => '',
+						'innerContent' => array_fill( 0, count( $template ), null ),
+					],
+					[
+						'postId'   => $entry->ID,
+						'postType' => $entry->post_type,
+					]
+				) )->render( [ 'dynamic' => false ] )
+			);
 		} finally {
 			if ( $is_archived ) {
 				remove_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );

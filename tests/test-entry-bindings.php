@@ -6,6 +6,8 @@
  */
 
 use Newspack_Rolling_Coverage\Breakout;
+use Newspack_Rolling_Coverage\Entry_Bindings;
+use Newspack_Rolling_Coverage\Push_Notifications;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 
 /**
@@ -143,5 +145,79 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'href="' . esc_url( get_permalink( $breakout_id ) ) . '"', $html, '"Read more" should link to the breakout.' );
 		$this->assertStringContainsString( 'data-rc-share', $html, 'Share should be marked for the share script.' );
+	}
+
+	/**
+	 * The follow button, as the editor saves it.
+	 */
+	const FOLLOW_MARKUP = '<!-- wp:buttons --><div class="wp-block-buttons">'
+		. '<!-- wp:button {"tagName":"button","metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"followTag"}}}}} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Follow</button></div><!-- /wp:button -->'
+		. '</div><!-- /wp:buttons -->';
+
+	/**
+	 * Stand in an active, configured OneSignal.
+	 */
+	private static function configure_onesignal(): void {
+		require_once __DIR__ . '/mocks/onesignal.php';
+		update_option(
+			'OneSignalWPSetting',
+			[
+				'app_id'           => 'test-app-id',
+				'app_rest_api_key' => 'test-rest-api-key',
+			]
+		);
+	}
+
+	/**
+	 * Render a coverage block holding the follow button and the entry buttons.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return string Rendered block.
+	 */
+	private static function render_coverage_with_follow( int $coverage_id ): string {
+		self::configure_onesignal();
+
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . self::FOLLOW_MARKUP . self::BUTTONS_MARKUP . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+
+		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+	}
+
+	/**
+	 * The follow button renders once, above the entries, carrying the
+	 * coverage's notification tag for the follow script.
+	 */
+	public function test_follow_button_renders_once_with_the_coverage_tag() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::create_entry( $coverage_id );
+
+		$html = self::render_coverage_with_follow( $coverage_id );
+
+		$this->assertSame( 1, substr_count( $html, 'data-rc-follow' ), 'The follow button should render once.' );
+		$this->assertSame( 3, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button and one row per entry should render, so entries hold no follow button.' );
+		$this->assertStringContainsString( 'data-tag="' . esc_attr( Push_Notifications::follow_tag( $coverage_id ) ) . '"', $html );
+	}
+
+	/**
+	 * An archived coverage can't be followed, so the follow binding has no tag
+	 * and its button doesn't render.
+	 */
+	public function test_follow_button_is_hidden_for_an_archived_coverage() {
+		$coverage_id = self::create_coverage( 'archived' );
+
+		$this->assertStringNotContainsString( 'data-rc-follow', self::render_coverage_with_follow( $coverage_id ), 'The rendered coverage should have no follow button.' );
+
+		$button          = new WP_Block( parse_blocks( self::FOLLOW_MARKUP )[0]['innerBlocks'][0] );
+		$button->context = [
+			Entry_Bindings::COVERAGE_ID_CONTEXT     => $coverage_id,
+			Entry_Bindings::COVERAGE_STATUS_CONTEXT => 'archived',
+		];
+
+		$this->assertNull( Entry_Bindings::get_value( [ 'key' => 'followTag' ], $button ), 'An archived coverage has no follow tag.' );
+
+		$button->context[ Entry_Bindings::COVERAGE_STATUS_CONTEXT ] = 'active';
+
+		$this->assertSame( Push_Notifications::follow_tag( $coverage_id ), Entry_Bindings::get_value( [ 'key' => 'followTag' ], $button ), 'An active one does.' );
 	}
 }
