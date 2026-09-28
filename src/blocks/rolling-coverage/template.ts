@@ -21,7 +21,7 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 		'core/group',
 		{
 			layout: { type: 'flex', orientation: 'vertical' },
-			style: { spacing: { blockGap: '0' } },
+			style: { spacing: { blockGap: '8px' } },
 		},
 		[
 			[
