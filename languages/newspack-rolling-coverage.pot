@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-28T12:31:02+00:00\n"
+"POT-Creation-Date: 2026-09-28T13:22:56+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -653,6 +653,7 @@ msgstr ""
 
 #: dist/admin.js:209
 #: dist/admin.js:215
+#: dist/admin.js:222
 #: dist/admin.js:226
 msgid "Save"
 msgstr ""
@@ -1236,11 +1237,31 @@ msgid "Failed to save AI settings."
 msgstr ""
 
 #: dist/admin.js:222
-msgid "Prompts reset to defaults. Click Save Settings to persist."
+msgid "Reset to defaults?"
 msgstr ""
 
 #: dist/admin.js:222
-msgid "Key Takeaways"
+msgid "The Key Takeaways prompt goes back to the default text and is saved straight away. The current prompt can’t be recovered."
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Reset"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Failed to reset AI settings."
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Prompts reset to defaults."
+msgstr ""
+
+#: dist/admin.js:222
+msgid "More actions"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Reset to Defaults"
 msgstr ""
 
 #: dist/admin.js:222
@@ -1248,29 +1269,25 @@ msgid "AI features are not available on this site. An administrator must enable 
 msgstr ""
 
 #: dist/admin.js:222
-msgid "One or more prompts exceed the maximum length. Shorten the text to stay within the limit."
+msgid "The prompt exceeds the maximum length. Shorten the text to stay within the limit."
 msgstr ""
 
 #: dist/admin.js:222
-msgid "Prompt Configuration"
+msgid "Key Takeaways"
 msgstr ""
 
 #: dist/admin.js:222
-msgid "Key Takeaways Prompt"
+msgid "The instruction the AI follows when it sums up a coverage in a short list of key takeaways for readers."
 msgstr ""
 
-#. translators: 1: character count, 2: max character count
+#: dist/admin.js:222
+msgid "Prompt"
+msgstr ""
+
+#. translators: 1: prompt placeholder token, 2: character count, 3: max character count
 #: dist/admin.js:223
 #, js-format
-msgid "The instruction sent to the AI along with coverage entries. Use {max_takeaways} as a placeholder for the maximum number of takeaways. Keep this short — the model already has the liveblog context. (%1$d / %2$d characters)"
-msgstr ""
-
-#: dist/admin.js:223
-msgid "Reset to Defaults"
-msgstr ""
-
-#: dist/admin.js:223
-msgid "Save Settings"
+msgid "Use %1$s where the maximum number of takeaways should go. Keep it short: the AI already has the coverage entries. (%2$d / %3$d characters)"
 msgstr ""
 
 #: dist/admin.js:223
