@@ -131,6 +131,27 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Pinning marks the entry as modified, so pages already open pick up its
+	 * pinned row on their next poll.
+	 */
+	public function test_pin_route_marks_the_entry_modified() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_date'     => '2020-01-01 00:00:00',
+				'post_date_gmt' => '2020-01-01 00:00:00',
+			]
+		);
+		$before   = get_post_field( 'post_modified_gmt', $entry_id );
+
+		self::dispatch( 'POST', "/entries/{$entry_id}/pin" );
+		clean_post_cache( $entry_id );
+
+		$this->assertNotSame( $before, get_post_field( 'post_modified_gmt', $entry_id ) );
+	}
+
+	/**
 	 * Only entries can be pinned, so a regular post id is a 404 and the
 	 * pinned list stays clean.
 	 */

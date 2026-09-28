@@ -487,11 +487,11 @@ class Rolling_Coverage_Block {
 		$previous_post_id   = self::$host_post_id;
 		self::$host_post_id = (int) get_the_ID();
 
-		// Preload so polled entries' buttons are styled and share even if none appeared on initial render.
-		foreach ( [ 'core/buttons', 'core/button' ] as $button_block_name ) {
-			$button_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $button_block_name );
+		// Preload so polled entries' blocks are styled and share even if none appeared on initial render.
+		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon' ] as $entry_block_name ) {
+			$entry_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $entry_block_name );
 
-			foreach ( $button_block_type ? $button_block_type->style_handles : [] as $style_handle ) {
+			foreach ( $entry_block_type ? $entry_block_type->style_handles : [] as $style_handle ) {
 				wp_enqueue_style( $style_handle );
 			}
 		}
@@ -595,6 +595,8 @@ class Rolling_Coverage_Block {
 			: '';
 
 		if ( empty( $query->posts ) ) {
+			self::store_template_layout_styles( $template );
+
 			$entries_html = sprintf(
 				'<p class="%s-entries__empty">%s</p>',
 				self::MARKUP_PREFIX,
@@ -636,6 +638,25 @@ class Rolling_Coverage_Block {
 			);
 		} finally {
 			self::$host_post_id = $previous_post_id;
+		}
+	}
+
+	/**
+	 * Stores the layout styles of the template's blocks, as rendering an
+	 * entry would. Core prints them only for blocks rendered on the page, so
+	 * without this, entries that reach a coverage that loaded empty would
+	 * arrive by polling with no layout, e.g. Share not opposite the title.
+	 *
+	 * @param array[] $blocks Parsed template blocks.
+	 */
+	private static function store_template_layout_styles( array $blocks ): void {
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) || empty( $block['blockName'] ) ) {
+				continue;
+			}
+
+			wp_render_layout_support_flag( (string) ( $block['innerHTML'] ?? '' ), $block );
+			self::store_template_layout_styles( $block['innerBlocks'] ?? [] );
 		}
 	}
 
@@ -1266,7 +1287,7 @@ class Rolling_Coverage_Block {
 	 *                              entry_layout_class().
 	 * @return string Rendered HTML for the entry.
 	 */
-	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', string $pinned_label = '', string $layout_class = '' ) {
+	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', string $pinned_label = '', string $layout_class = '' ): string {
 		$template = self::drop_fixed_template_dates( $template );
 		global $post;
 

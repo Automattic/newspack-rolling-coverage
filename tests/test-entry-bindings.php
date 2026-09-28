@@ -362,6 +362,19 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A coverage that loads with no entries still stores its template's
+	 * layout styles, for entries that arrive later by polling.
+	 */
+	public function test_empty_coverage_stores_the_template_layout_styles() {
+		$attributes = [ 'coverageId' => self::create_coverage() ];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+
+		Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		$this->assertStringContainsString( 'justify-content:space-between', wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] ), 'The header row layout should be stored.' );
+	}
+
+	/**
 	 * Block spacing settings and the space they give.
 	 *
 	 * @return array[]
@@ -374,7 +387,8 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Entries loaded after the first render keep the block's pinned label.
+	 * Entries loaded after the first render keep the block's pinned label
+	 * and the entries' layout.
 	 */
 	public function test_load_more_keeps_the_block_pinned_label() {
 		$coverage_id = self::create_coverage();
@@ -396,6 +410,11 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$request->set_param( 'template_key', $matches[1] );
 		$request->set_param( 'before', gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ) );
 
-		$this->assertStringContainsString( '>Top story</p>', Rolling_Coverage_Block::get_entries( $request )->get_data()['html'] );
+		$more = Rolling_Coverage_Block::get_entries( $request )->get_data()['html'];
+
+		$this->assertStringContainsString( '>Top story</p>', $more, 'The pinned label should carry over.' );
+
+		preg_match( '/newspack-rolling-coverage-entry-layout-[0-9a-f]+/', $html, $layout );
+		$this->assertMatchesRegularExpression( '/class="[^"]*is-layout-flow ' . $layout[0] . '/', $more, 'The entries layout should carry over.' );
 	}
 }
