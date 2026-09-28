@@ -79,8 +79,8 @@ function useSlackConnection(
 		}
 	}, [ isOpen ] );
 
-	// When the drawer opens in connected mode, fetch the current autopublish
-	// state from the channel map so the toggle reflects the stored value.
+	// When the drawer opens in connected mode, fetch the stored autopublish
+	// state and last sync. The toggle stays locked until they arrive.
 	useEffect( () => {
 		if ( ! isOpen || ! channelId ) {
 			return;

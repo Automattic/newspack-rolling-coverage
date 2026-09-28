@@ -648,9 +648,9 @@ class Slack_Webhook_Controller {
 	/**
 	 * GET /slack/channel/(?P<id>[CG][A-Z0-9]+) — get a single channel's settings.
 	 *
-	 * Returns the channel map entry for the given channel ID, including the
-	 * current autopublish state. Used by the Slack connection modal to seed
-	 * the autopublish toggle when a channel is already linked.
+	 * Returns the channel's autopublish state and the timestamp of the last
+	 * message it ingested. The Slack connection drawer shows both when a
+	 * channel is already linked.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response Response.
