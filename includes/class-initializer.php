@@ -37,6 +37,8 @@ class Initializer {
 		Archive_Mode::init();
 		Rolling_Coverage_Block::init();
 		Breakout_Post_Link_Block::init();
+		Entry_Bindings::init();
+		Block_Category::init();
 		Coverage_Archived_Notice_Block::init();
 		Share_Block::init();
 		Deep_Link_CTA_Block::init();

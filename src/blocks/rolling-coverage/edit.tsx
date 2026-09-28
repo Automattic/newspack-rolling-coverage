@@ -14,8 +14,11 @@ import {
 	PanelBody,
 	ComboboxControl,
 	TextControl,
-	SelectControl,
-	ToggleControl,
+	RadioControl,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalToggleGroupControl as ToggleGroupControl,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
 	Button,
 	Notice,
 	Placeholder,
@@ -29,10 +32,15 @@ import {
 	memo,
 	useRef,
 } from '@wordpress/element';
-import { useSelect } from '@wordpress/data';
+import { useSelect, useDispatch } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
 import { __ } from '@wordpress/i18n';
-import { megaphone, copy as copyIcon, check } from '@wordpress/icons';
+import { copy as copyIcon, check } from '@wordpress/icons';
+
+/**
+ * External dependencies
+ */
+import { activity } from 'newspack-icons';
 
 /**
  * Internal dependencies
@@ -83,6 +91,15 @@ const STATE_BLOCK_NAMES = ENTRY_EDITED_STATES.flatMap( ( state ) =>
  * Used to split inner blocks into these vs. the per-entry template.
  */
 const RENDER_ONCE_BLOCKS = [ FOLLOW_BLOCK_NAME, ...STATE_BLOCK_NAMES ];
+
+/**
+ * The editor state each state block belongs to, keyed by block name.
+ */
+const STATE_BY_BLOCK_NAME: Record< string, string > = Object.fromEntries(
+	ENTRY_EDITED_STATES.flatMap( ( state ) =>
+		state.blocks.map( ( [ blockName ] ) => [ blockName, state.value ] )
+	)
+);
 
 /**
  * Default inner-blocks template for the Rolling Coverage block: the follow
@@ -240,6 +257,50 @@ export default function Edit( {
 			),
 		[ allBlocks ]
 	);
+
+	// Disabled blocks drop out of List View and can't be selected, so only
+	// the current editor state's blocks show there.
+	const { setBlockEditingMode, unsetBlockEditingMode } = useDispatch(
+		blockEditorStore.name
+	) as unknown as {
+		setBlockEditingMode: ( clientId: string, mode: string ) => void;
+		unsetBlockEditingMode: ( clientId: string ) => void;
+	};
+	const stateBlocksKey = allBlocks
+		.filter( ( block ) => STATE_BY_BLOCK_NAME[ block.name ] )
+		.map(
+			( block ) =>
+				`${ block.clientId }:${ STATE_BY_BLOCK_NAME[ block.name ] }`
+		)
+		.join( ',' );
+	const stateBlockIds = useMemo(
+		() =>
+			( stateBlocksKey ? stateBlocksKey.split( ',' ) : [] ).map(
+				( pair ) => {
+					const [ id, state ] = pair.split( ':' );
+					return { clientId: id, state };
+				}
+			),
+		[ stateBlocksKey ]
+	);
+	useEffect( () => {
+		stateBlockIds.forEach( ( { clientId: id, state } ) => {
+			if ( state === editedState ) {
+				unsetBlockEditingMode( id );
+			} else {
+				setBlockEditingMode( id, 'disabled' );
+			}
+		} );
+		return () =>
+			stateBlockIds.forEach( ( { clientId: id } ) =>
+				unsetBlockEditingMode( id )
+			);
+	}, [
+		stateBlockIds,
+		editedState,
+		setBlockEditingMode,
+		unsetBlockEditingMode,
+	] );
 
 	// Derives the current page's permalink, and whether it's still a
 	// placeholder ".../auto-draft/" URL because the post is unsaved.
@@ -488,13 +549,12 @@ export default function Edit( {
 
 					{ coverageId ? (
 						<div className="newspack-rolling-coverage-status-control">
-							<SelectControl
-								__next40pxDefaultSize
+							<RadioControl
 								label={ __(
 									'Status',
 									'newspack-rolling-coverage'
 								) }
-								value={ pendingStatus }
+								selected={ pendingStatus }
 								options={ STATUS_OPTIONS }
 								onChange={ setPendingStatus }
 								help={ __(
@@ -714,21 +774,40 @@ export default function Edit( {
 								</Notice>
 							)
 						) }
-						<ToggleControl
+						<ToggleGroupControl
+							__next40pxDefaultSize
+							isBlock
 							label={ __(
-								'Enable ads',
+								'Advertising',
 								'newspack-rolling-coverage'
 							) }
 							help={ __(
 								'Shows ads at a regular interval in the feed.',
 								'newspack-rolling-coverage'
 							) }
-							checked={ enableAds }
+							value={ enableAds ? 'enabled' : 'disabled' }
 							disabled={ coverageAdsDisabled }
-							onChange={ ( value: boolean ) =>
-								setAttributes( { enableAds: value } )
+							onChange={ ( value ) =>
+								setAttributes( {
+									enableAds: value === 'enabled',
+								} )
 							}
-						/>
+						>
+							<ToggleGroupControlOption
+								value="enabled"
+								label={ __(
+									'Enabled',
+									'newspack-rolling-coverage'
+								) }
+							/>
+							<ToggleGroupControlOption
+								value="disabled"
+								label={ __(
+									'Disabled',
+									'newspack-rolling-coverage'
+								) }
+							/>
+						</ToggleGroupControl>
 						{ enableAds && ! coverageAdsDisabled && (
 							<TextControl
 								__next40pxDefaultSize
@@ -825,7 +904,7 @@ export default function Edit( {
 					</>
 				) : (
 					<Placeholder
-						icon={ megaphone }
+						icon={ activity }
 						label={ __(
 							'Rolling Coverage',
 							'newspack-rolling-coverage'

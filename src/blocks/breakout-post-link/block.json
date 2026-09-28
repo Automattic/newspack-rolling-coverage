@@ -3,7 +3,7 @@
 	"apiVersion": 3,
 	"name": "newspack-rolling-coverage/breakout-post-link",
 	"title": "Breakout Post Link",
-	"category": "widgets",
+	"category": "newspack",
 	"description": "Displays a link to the published breakout post for this entry. Nothing is rendered until a breakout post is available.",
 	"textdomain": "newspack-rolling-coverage",
 	"attributes": {},
@@ -58,7 +58,5 @@
 		},
 		"shadow": true
 	},
-	"editorScript": "file:./index.js",
-	"viewScript": "file:./view.js",
-	"style": "file:./view.css"
+	"editorScript": "file:./index.js"
 }

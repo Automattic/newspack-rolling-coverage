@@ -14,6 +14,7 @@ use WP_Block;
 use WP_Block_Type;
 use WP_Block_Type_Registry;
 use WP_Error;
+use WP_HTML_Tag_Processor;
 use WP_Post;
 use WP_Query;
 use WP_REST_Request;
@@ -90,6 +91,38 @@ class Rolling_Coverage_Block {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 10, 3 );
+		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
+	}
+
+	/**
+	 * Marks an entry's relative date ("5 mins ago") so the front-end script
+	 * keeps it current; the text is only true when the page is rendered.
+	 *
+	 * Parameters stay untyped because this runs for every post date block on
+	 * the site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string   $block_content Rendered block.
+	 * @param array    $block         Parsed block.
+	 * @param WP_Block $instance      Block instance.
+	 * @return string
+	 */
+	public static function mark_relative_entry_date( $block_content, $block, $instance ) {
+		if (
+			! is_string( $block_content ) ||
+			! $instance instanceof WP_Block ||
+			'human-diff' !== ( $block['attrs']['format'] ?? '' ) ||
+			Post_Type::CPT_SLUG !== ( $instance->context['postType'] ?? '' )
+		) {
+			return $block_content;
+		}
+
+		$time = new WP_HTML_Tag_Processor( $block_content );
+
+		if ( $time->next_tag( 'time' ) ) {
+			$time->set_attribute( 'data-rc-relative', '' );
+		}
+
+		return $time->get_updated_html();
 	}
 
 	/**
@@ -165,6 +198,7 @@ class Rolling_Coverage_Block {
 					'newspackAdsAvailable'        => Ads::is_available(),
 					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
 					'canonicalUrlMetaKey'         => Taxonomy::CANONICAL_URL_META_KEY,
+					'readMoreTextMetaKey'         => Breakout::ENTRY_READ_MORE_TEXT_META,
 				]
 			);
 		}
@@ -260,23 +294,18 @@ class Rolling_Coverage_Block {
 		$previous_post_id   = self::$host_post_id;
 		self::$host_post_id = (int) get_the_ID();
 
-		// Preload so polled entries are styled even if no breakout buttons appeared on initial render.
-		$breakout_block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/breakout-post-link' );
+		// Preload so polled entries' buttons are styled and share even if none appeared on initial render.
+		foreach ( [ 'core/buttons', 'core/button' ] as $button_block_name ) {
+			$button_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $button_block_name );
 
-		if ( $breakout_block_type ) {
-			foreach ( $breakout_block_type->style_handles as $style_handle ) {
+			foreach ( $button_block_type ? $button_block_type->style_handles : [] as $style_handle ) {
 				wp_enqueue_style( $style_handle );
 			}
 		}
 
-		// Preload the share block styles and view script for the same reason.
 		$share_link_block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/share' );
 
 		if ( $share_link_block_type ) {
-			foreach ( $share_link_block_type->style_handles as $style_handle ) {
-				wp_enqueue_style( $style_handle );
-			}
-
 			foreach ( $share_link_block_type->view_script_handles as $script_handle ) {
 				wp_enqueue_script( $script_handle );
 			}
@@ -624,7 +653,7 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The hardcoded fallback per-entry template: title, date, content, and
-	 * the breakout post link block.
+	 * core buttons for the breakout post link and sharing.
 	 *
 	 * @return array[] Array of parsed-block-shaped arrays.
 	 */
@@ -639,7 +668,7 @@ class Rolling_Coverage_Block {
 			],
 			[
 				'blockName'    => 'core/post-date',
-				'attrs'        => [],
+				'attrs'        => [ 'format' => 'human-diff' ],
 				'innerBlocks'  => [],
 				'innerHTML'    => '',
 				'innerContent' => [],
@@ -652,19 +681,58 @@ class Rolling_Coverage_Block {
 				'innerContent' => [],
 			],
 			[
-				'blockName'    => 'newspack-rolling-coverage/breakout-post-link',
+				'blockName'    => 'core/buttons',
 				'attrs'        => [],
-				'innerBlocks'  => [],
-				'innerHTML'    => '',
-				'innerContent' => [],
+				'innerBlocks'  => [
+					self::entry_button_block(
+						__( 'Read more', 'newspack-rolling-coverage' ),
+						[
+							'url'  => [
+								'source' => Entry_Bindings::SOURCE_NAME,
+								'args'   => [ 'key' => 'breakoutUrl' ],
+							],
+							'text' => [
+								'source' => Entry_Bindings::SOURCE_NAME,
+								'args'   => [ 'key' => 'breakoutLabel' ],
+							],
+						]
+					),
+					self::entry_button_block(
+						__( 'Share', 'newspack-rolling-coverage' ),
+						[
+							'url' => [
+								'source' => Entry_Bindings::SOURCE_NAME,
+								'args'   => [ 'key' => 'shareUrl' ],
+							],
+						]
+					),
+				],
+				'innerHTML'    => '<div class="wp-block-buttons"></div>',
+				'innerContent' => [ '<div class="wp-block-buttons">', null, null, '</div>' ],
 			],
-			[
-				'blockName'    => 'newspack-rolling-coverage/share',
-				'attrs'        => [],
-				'innerBlocks'  => [],
-				'innerHTML'    => '',
-				'innerContent' => [],
-			],
+		];
+	}
+
+	/**
+	 * A parsed core/button block whose link, and optionally label, are bound
+	 * to the entry.
+	 *
+	 * @param string $text     Button label.
+	 * @param array  $bindings Block bindings keyed by attribute.
+	 * @return array Parsed-block-shaped array.
+	 */
+	private static function entry_button_block( string $text, array $bindings ): array {
+		$html = sprintf(
+			'<div class="wp-block-button"><a class="wp-block-button__link wp-element-button">%s</a></div>',
+			esc_html( $text )
+		);
+
+		return [
+			'blockName'    => 'core/button',
+			'attrs'        => [ 'metadata' => [ 'bindings' => $bindings ] ],
+			'innerBlocks'  => [],
+			'innerHTML'    => $html,
+			'innerContent' => [ $html ],
 		];
 	}
 

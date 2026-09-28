@@ -8,6 +8,7 @@ import { _n, sprintf } from '@wordpress/i18n';
  */
 import './style.scss';
 import { trackEvent, EVENTS } from './analytics';
+import { keepRelativeDatesCurrent } from './relative-dates';
 import type {
 	AdSlot,
 	PendingEntry,
@@ -123,6 +124,8 @@ function initBlock( root: HTMLElement ): void {
 
 	const entriesList: HTMLElement = entriesListEl;
 	const restBaseUrl: string = restUrl;
+
+	keepRelativeDatesCurrent( root, entriesList );
 
 	const pollInterval = parseInt( root.dataset.pollInterval || '10', 10 );
 	const entriesPerPage = parseInt( root.dataset.entriesPerPage || '20', 10 );

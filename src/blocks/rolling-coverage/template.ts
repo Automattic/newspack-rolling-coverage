@@ -6,23 +6,59 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
+import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
 import type { TemplateItem, EntryEditedState } from './types';
 
+const LOCKED = { remove: true, move: false };
+
 /**
- * Default per-entry template: title, date, content, and a "Read more" link
- * locked against removal and reordering in the editor UI.
+ * Default per-entry template: title, date, content, then core buttons for
+ * "Read more" and share, bound to the entry and locked against removal.
  */
 const ENTRY_TEMPLATE: TemplateItem[] = [
 	[ 'core/post-title', { level: 3 } ],
-	[ 'core/post-date' ],
+	[ 'core/post-date', { format: 'human-diff' } ],
 	[ 'core/post-content' ],
 	[
-		'newspack-rolling-coverage/breakout-post-link',
-		{ lock: { remove: true, move: false } },
-	],
-	[
-		'newspack-rolling-coverage/share',
-		{ lock: { remove: true, move: false } },
+		'core/buttons',
+		{ lock: LOCKED },
+		[
+			[
+				'core/button',
+				{
+					lock: LOCKED,
+					metadata: {
+						name: __( 'Read more', 'newspack-rolling-coverage' ),
+						bindings: {
+							url: {
+								source: ENTRY_BINDINGS_SOURCE,
+								args: { key: 'breakoutUrl' },
+							},
+							text: {
+								source: ENTRY_BINDINGS_SOURCE,
+								args: { key: 'breakoutLabel' },
+							},
+						},
+					},
+				},
+			],
+			[
+				'core/button',
+				{
+					lock: LOCKED,
+					text: __( 'Share', 'newspack-rolling-coverage' ),
+					metadata: {
+						name: __( 'Share', 'newspack-rolling-coverage' ),
+						bindings: {
+							url: {
+								source: ENTRY_BINDINGS_SOURCE,
+								args: { key: 'shareUrl' },
+							},
+						},
+					},
+				},
+			],
+		],
 	],
 ];
 
@@ -40,6 +76,8 @@ const ENTRY_ALLOWED_BLOCKS = [
 	'core/column',
 	'core/heading',
 	'core/paragraph',
+	'core/buttons',
+	'core/button',
 	'newspack-rolling-coverage/breakout-post-link',
 	'newspack-rolling-coverage/share',
 ];

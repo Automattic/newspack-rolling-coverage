@@ -8,12 +8,15 @@ import { InnerBlocks } from '@wordpress/block-editor';
 /**
  * Internal dependencies
  */
+import { getBlockCategory } from '../shared/category';
+import { blockIcon } from '../shared/icon';
 import metadata from './block.json';
 import Edit from './edit';
 
 registerBlockType( metadata.name, {
 	...metadata,
-	icon: info,
+	category: getBlockCategory(),
+	icon: blockIcon( info ),
 	edit: Edit,
 	save: () => <InnerBlocks.Content />,
 } );
