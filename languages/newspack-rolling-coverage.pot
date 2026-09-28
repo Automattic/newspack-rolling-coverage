@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-28T13:22:56+00:00\n"
+"POT-Creation-Date: 2026-09-28T15:05:25+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -84,9 +84,9 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:444
-#: includes/blocks/class-rolling-coverage-block.php:1025
-#: includes/blocks/class-rolling-coverage-block.php:1119
-#: includes/blocks/class-rolling-coverage-block.php:1130
+#: includes/blocks/class-rolling-coverage-block.php:1093
+#: includes/blocks/class-rolling-coverage-block.php:1187
+#: includes/blocks/class-rolling-coverage-block.php:1198
 #: includes/class-post-type.php:902
 #: includes/class-taxonomy.php:331
 msgid "Coverage not found."
@@ -113,8 +113,11 @@ msgid "Generates key takeaways from the published entries of a rolling coverage.
 msgstr ""
 
 #: includes/blocks/class-breakout-post-link-block.php:63
+#: includes/blocks/class-entry-bindings.php:77
+#: includes/blocks/class-rolling-coverage-block.php:688
 #: dist/admin.js:215
 #: dist/blocks/breakout-post-link/index.js:1
+#: dist/blocks/rolling-coverage/index.js:1
 msgid "Read more"
 msgstr ""
 
@@ -151,36 +154,41 @@ msgstr ""
 msgid "View"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:308
+#: includes/blocks/class-entry-bindings.php:43
+msgid "Rolling Coverage Entry"
+msgstr ""
+
+#: includes/blocks/class-rolling-coverage-block.php:337
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Select a coverage to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:325
+#: includes/blocks/class-rolling-coverage-block.php:354
 msgid "This coverage is no longer available."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:377
+#: includes/blocks/class-rolling-coverage-block.php:406
 msgid "No entries yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:846
-msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
-msgstr ""
-
-#: includes/blocks/class-rolling-coverage-block.php:1138
-msgid "Either cursor or before must be provided."
-msgstr ""
-
+#: includes/blocks/class-rolling-coverage-block.php:701
 #: includes/blocks/class-share-block.php:67
+#: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/share/index.js:1
 #: dist/blocks/share/view.js:1
 msgid "Share"
 msgstr ""
 
+#: includes/blocks/class-rolling-coverage-block.php:914
+msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
+msgstr ""
+
+#: includes/blocks/class-rolling-coverage-block.php:1206
+msgid "Either cursor or before must be provided."
+msgstr ""
+
 #: includes/blocks/class-share-block.php:75
 #: dist/blocks/share/index.js:1
-#: dist/blocks/share/view.js:1
 msgid "Share this entry"
 msgstr ""
 
@@ -622,6 +630,7 @@ msgid "The page readers land on when they open a notification for this coverage.
 msgstr ""
 
 #: dist/admin.js:209
+#: dist/blocks/rolling-coverage/index.js:1
 msgid "Advertising"
 msgstr ""
 
@@ -630,10 +639,12 @@ msgid "Disable ads for this coverage, useful for emergency or other sensitive ne
 msgstr ""
 
 #: dist/admin.js:209
+#: dist/blocks/rolling-coverage/index.js:1
 msgid "Enabled"
 msgstr ""
 
 #: dist/admin.js:209
+#: dist/blocks/rolling-coverage/index.js:1
 msgid "Disabled"
 msgstr ""
 
@@ -1791,10 +1802,6 @@ msgid "Enable and configure the Rolling Coverage: Entry placement in Newspack Ad
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
-msgid "Enable ads"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
 msgid "Shows ads at a regular interval in the feed."
 msgstr ""
 
@@ -1829,6 +1836,10 @@ msgid "%d new post"
 msgid_plural "%d new posts"
 msgstr[0] ""
 msgstr[1] ""
+
+#: dist/blocks/share/view.js:1
+msgid "Link copied."
+msgstr ""
 
 #: dist/blocks/share/view.js:1
 msgid "Copy this link:"
