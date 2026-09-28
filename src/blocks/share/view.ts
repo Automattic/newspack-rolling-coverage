@@ -40,6 +40,61 @@ function showSnackbar(
 }
 
 /**
+ * Copies text through a hidden selection, for browsers that refuse the
+ * Clipboard API, e.g. on non-HTTPS pages or without clipboard permission.
+ *
+ * @param {string}      text   Text to copy.
+ * @param {HTMLElement} button Button to return focus to.
+ * @return {boolean} Whether the text was copied.
+ */
+function copyWithSelection( text: string, button: HTMLElement ): boolean {
+	const textarea = document.createElement( 'textarea' );
+
+	textarea.value = text;
+	textarea.setAttribute( 'readonly', '' );
+	textarea.style.position = 'fixed';
+	textarea.style.top = '0';
+	textarea.style.opacity = '0';
+	// Stops iOS zooming in when the field takes focus.
+	textarea.style.fontSize = '12pt';
+	document.body.appendChild( textarea );
+	textarea.select();
+	// iOS Safari ignores select() on its own.
+	textarea.setSelectionRange( 0, text.length );
+
+	let copied = false;
+	try {
+		copied = document.execCommand( 'copy' );
+	} catch {
+		copied = false;
+	}
+
+	textarea.remove();
+	button.focus();
+
+	return copied;
+}
+
+/**
+ * Copies text to the clipboard.
+ *
+ * @param {string}      text   Text to copy.
+ * @param {HTMLElement} button Button that asked for the copy.
+ * @return {Promise<boolean>} Whether the text was copied.
+ */
+async function copyText(
+	text: string,
+	button: HTMLElement
+): Promise< boolean > {
+	try {
+		await navigator.clipboard.writeText( text );
+		return true;
+	} catch {
+		return copyWithSelection( text, button );
+	}
+}
+
+/**
  * Sets up share-button click handling for a single rolling-coverage
  * block instance. Uses event delegation on the container so buttons
  * injected by polling/pagination are handled without re-binding.
@@ -54,8 +109,7 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Handle click on a share button — opens the device's share sheet where
-	 * there is one, otherwise copies the deep-link URL to the clipboard, or
-	 * falls back to a prompt on non-secure contexts.
+	 * there is one, otherwise copies the deep-link URL to the clipboard.
 	 *
 	 * @param {HTMLElement} button The clicked share button or link.
 	 * @return {Promise<void>} Resolves when the share or copy attempt completes.
@@ -92,64 +146,62 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		try {
-			await navigator.clipboard.writeText( url );
-
-			const originalText = button.textContent || '';
-			const originalLabel = button.getAttribute( 'aria-label' ) || '';
-			// The icon-only share button keeps its icon; its label and the snackbar say it's copied.
-			const isIconOnly = !! button.querySelector( 'svg' );
-			const message = __( 'Link copied.', 'newspack-rolling-coverage' );
-			const createNotice = (
-				window as Window & { newspackUI?: NewspackUI }
-			 ).newspackUI?.notices?.createNotice;
-
-			button.dataset.copied = '1';
-			if ( ! isIconOnly ) {
-				button.textContent = __(
-					'Copied!',
-					'newspack-rolling-coverage'
-				);
-			}
-			button.setAttribute(
-				'aria-label',
-				__( 'Copied!', 'newspack-rolling-coverage' )
-			);
-
-			// The snackbar announces itself, so the status region stays empty.
-			const status = createNotice
-				? null
-				: root.querySelector( STATUS_SELECTOR );
+		const createNotice = ( window as Window & { newspackUI?: NewspackUI } )
+			.newspackUI?.notices?.createNotice;
+		// The snackbar announces itself, so the status region stays empty.
+		const status = createNotice
+			? null
+			: root.querySelector( STATUS_SELECTOR );
+		const notify = ( message: string ) => {
 			if ( createNotice ) {
 				showSnackbar( createNotice, message );
 			} else if ( status ) {
 				status.textContent = message;
 			}
+		};
 
-			setTimeout( () => {
-				if ( ! isIconOnly ) {
-					button.textContent =
-						originalText ||
-						__( 'Share', 'newspack-rolling-coverage' );
-				}
-				if ( originalLabel ) {
-					button.setAttribute( 'aria-label', originalLabel );
-				} else {
-					button.removeAttribute( 'aria-label' );
-				}
-				delete button.dataset.copied;
-				if ( status ) {
-					status.textContent = '';
-				}
-			}, COPIED_STATE_MS );
-		} catch {
-			// Clipboard API requires a secure context (HTTPS). Fall back to a prompt so the user can copy manually on HTTP dev sites.
-			// eslint-disable-next-line no-alert
-			window.prompt(
-				__( 'Copy this link:', 'newspack-rolling-coverage' ),
-				url
+		if ( ! ( await copyText( url, button ) ) ) {
+			notify(
+				__( "Couldn't copy the link.", 'newspack-rolling-coverage' )
 			);
+			if ( status ) {
+				setTimeout( () => {
+					status.textContent = '';
+				}, COPIED_STATE_MS );
+			}
+			return;
 		}
+
+		const originalText = button.textContent || '';
+		const originalLabel = button.getAttribute( 'aria-label' ) || '';
+		// The icon-only share button keeps its icon; its label and the snackbar say it's copied.
+		const isIconOnly = !! button.querySelector( 'svg' );
+
+		button.dataset.copied = '1';
+		if ( ! isIconOnly ) {
+			button.textContent = __( 'Copied!', 'newspack-rolling-coverage' );
+		}
+		button.setAttribute(
+			'aria-label',
+			__( 'Copied!', 'newspack-rolling-coverage' )
+		);
+		notify( __( 'Link copied.', 'newspack-rolling-coverage' ) );
+
+		setTimeout( () => {
+			if ( ! isIconOnly ) {
+				button.textContent =
+					originalText || __( 'Share', 'newspack-rolling-coverage' );
+			}
+			if ( originalLabel ) {
+				button.setAttribute( 'aria-label', originalLabel );
+			} else {
+				button.removeAttribute( 'aria-label' );
+			}
+			delete button.dataset.copied;
+			if ( status ) {
+				status.textContent = '';
+			}
+		}, COPIED_STATE_MS );
 	}
 
 	root.addEventListener( 'click', ( event ) => {
