@@ -125,7 +125,7 @@ function initBlock( root: HTMLElement ): void {
 	const entriesList: HTMLElement = entriesListEl;
 	const restBaseUrl: string = restUrl;
 
-	keepRelativeDatesCurrent( entriesList );
+	keepRelativeDatesCurrent( root, entriesList );
 
 	const pollInterval = parseInt( root.dataset.pollInterval || '10', 10 );
 	const entriesPerPage = parseInt( root.dataset.entriesPerPage || '20', 10 );

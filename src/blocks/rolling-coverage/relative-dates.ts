@@ -21,19 +21,35 @@ const UNITS: [ Intl.RelativeTimeFormatUnit, number ][] = [
 ];
 
 /**
- * Rewrites the relative dates inside an element from their timestamps.
+ * A formatter in the page's language, or the browser's when the page's
+ * `lang` isn't a tag Intl accepts.
  *
- * @param {Element} scope The element to update the dates in.
+ * @return {Intl.RelativeTimeFormat | null} The formatter, or null without Intl support.
  */
-function refreshRelativeDates( scope: Element ): void {
+function getFormatter(): Intl.RelativeTimeFormat | null {
 	if ( typeof Intl === 'undefined' || ! Intl.RelativeTimeFormat ) {
-		return;
+		return null;
 	}
 
-	const formatter = new Intl.RelativeTimeFormat(
-		document.documentElement.lang || undefined
-	);
+	try {
+		return new Intl.RelativeTimeFormat(
+			document.documentElement.lang || undefined
+		);
+	} catch {
+		return new Intl.RelativeTimeFormat();
+	}
+}
 
+/**
+ * Rewrites the relative dates inside an element from their timestamps.
+ *
+ * @param {Element}                 scope     The element to update the dates in.
+ * @param {Intl.RelativeTimeFormat} formatter The formatter to write them with.
+ */
+function refreshRelativeDates(
+	scope: Element,
+	formatter: Intl.RelativeTimeFormat
+): void {
 	scope
 		.querySelectorAll< HTMLTimeElement >( RELATIVE_DATE_SELECTOR )
 		.forEach( ( time ) => {
@@ -58,16 +74,26 @@ function refreshRelativeDates( scope: Element ): void {
 }
 
 /**
- * Updates the relative dates in an entries list now, every minute, and in
- * every entry added to it later by polling or loading more.
+ * Updates the relative dates in a block now and every minute, and in every
+ * entry added to its list later by polling or loading more.
  *
+ * @param {HTMLElement} root        The block's outer wrapper element.
  * @param {HTMLElement} entriesList The block's entries list.
  */
-function keepRelativeDatesCurrent( entriesList: HTMLElement ): void {
-	refreshRelativeDates( entriesList );
+function keepRelativeDatesCurrent(
+	root: HTMLElement,
+	entriesList: HTMLElement
+): void {
+	const formatter = getFormatter();
+
+	if ( ! formatter ) {
+		return;
+	}
+
+	refreshRelativeDates( root, formatter );
 
 	window.setInterval(
-		() => refreshRelativeDates( entriesList ),
+		() => refreshRelativeDates( root, formatter ),
 		REFRESH_INTERVAL_MS
 	);
 
@@ -75,7 +101,7 @@ function keepRelativeDatesCurrent( entriesList: HTMLElement ): void {
 		mutations.forEach( ( mutation ) =>
 			mutation.addedNodes.forEach( ( node ) => {
 				if ( node instanceof Element ) {
-					refreshRelativeDates( node );
+					refreshRelativeDates( node, formatter );
 				}
 			} )
 		)
