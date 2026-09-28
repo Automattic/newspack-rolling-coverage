@@ -396,7 +396,7 @@ function EntryView() {
 		: '';
 
 	// Connecting or disconnecting changes the coverage's channel meta, so the
-	// coverage in context is refetched to keep the header button current.
+	// coverage in context is refetched to keep the Slack button current.
 	const handleSlackSaved = useCallback( () => {
 		if ( ! isValidCoverageId ) {
 			return;
@@ -420,43 +420,47 @@ function EntryView() {
 	] );
 
 	const showNewEntry = ! disableNewEntry && ! isFirstLoad && ! isEmpty;
-	const showSlack = canConnectSlack && routeCoverage !== null;
+	const canShowSlack = canConnectSlack && routeCoverage !== null;
+	const showSlackInHeader = canShowSlack && ! isFirstLoad && ! isEmpty;
+
+	const slackButton = useMemo(
+		() =>
+			canShowSlack ? (
+				<Button
+					variant="secondary"
+					className="newspack-rolling-coverage-status-button"
+					onClick={ () => {
+						setSlackCoverage( routeCoverage );
+						setIsSlackDrawerOpen( true );
+					} }
+				>
+					{ slackChannelLabel ? (
+						<>
+							<span
+								className="newspack-rolling-coverage-status-dot"
+								aria-hidden="true"
+							/>
+							<VisuallyHidden>
+								{ __(
+									'Slack channel:',
+									'newspack-rolling-coverage'
+								) }{ ' ' }
+							</VisuallyHidden>
+							{ slackChannelLabel }
+						</>
+					) : (
+						__( 'Connect Slack', 'newspack-rolling-coverage' )
+					) }
+				</Button>
+			) : null,
+		[ canShowSlack, slackChannelLabel, routeCoverage ]
+	);
 
 	const headerActions = useMemo(
 		() =>
-			showNewEntry || showSlack ? (
+			showNewEntry || showSlackInHeader ? (
 				<>
-					{ showSlack && (
-						<Button
-							variant="secondary"
-							className="newspack-rolling-coverage-status-button"
-							onClick={ () => {
-								setSlackCoverage( routeCoverage );
-								setIsSlackDrawerOpen( true );
-							} }
-						>
-							{ slackChannelLabel ? (
-								<>
-									<span
-										className="newspack-rolling-coverage-status-dot"
-										aria-hidden="true"
-									/>
-									<VisuallyHidden>
-										{ __(
-											'Slack channel:',
-											'newspack-rolling-coverage'
-										) }{ ' ' }
-									</VisuallyHidden>
-									{ slackChannelLabel }
-								</>
-							) : (
-								__(
-									'Connect Slack',
-									'newspack-rolling-coverage'
-								)
-							) }
-						</Button>
-					) }
+					{ showSlackInHeader && slackButton }
 					{ showNewEntry && (
 						<Button
 							variant="primary"
@@ -471,9 +475,8 @@ function EntryView() {
 			) : null,
 		[
 			showNewEntry,
-			showSlack,
-			slackChannelLabel,
-			routeCoverage,
+			showSlackInHeader,
+			slackButton,
 			handleNewEntry,
 			isCreatingEntry,
 		]
@@ -558,19 +561,22 @@ function EntryView() {
 							'newspack-rolling-coverage'
 						) }
 					/>
-					{ ! disableNewEntry && (
+					{ ( ! disableNewEntry || canShowSlack ) && (
 						<EmptyState.Actions>
-							<Button
-								variant="primary"
-								onClick={ handleNewEntry }
-								isBusy={ isCreatingEntry }
-								disabled={ isCreatingEntry }
-							>
-								{ __(
-									'Add Entry',
-									'newspack-rolling-coverage'
-								) }
-							</Button>
+							{ slackButton }
+							{ ! disableNewEntry && (
+								<Button
+									variant="primary"
+									onClick={ handleNewEntry }
+									isBusy={ isCreatingEntry }
+									disabled={ isCreatingEntry }
+								>
+									{ __(
+										'Add Entry',
+										'newspack-rolling-coverage'
+									) }
+								</Button>
+							) }
 						</EmptyState.Actions>
 					) }
 				</EmptyState.Root>
