@@ -99,7 +99,14 @@ function getCoverageFields(
 				if ( ! label ) {
 					return <span>—</span>;
 				}
-				return <Badge intent="draft">{ label }</Badge>;
+				return (
+					<Badge
+						intent="draft"
+						className="newspack-rolling-coverage-slack-channel"
+					>
+						{ label }
+					</Badge>
+				);
 			},
 		},
 		{

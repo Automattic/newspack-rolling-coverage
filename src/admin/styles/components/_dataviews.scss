@@ -45,6 +45,10 @@
 		flex-shrink: 0;
 		margin: calc((#{wp-vars.$grid-unit-20} - #{wp-vars.$icon-size}) / 2);
 	}
+
+	.newspack-rolling-coverage-slack-channel {
+		white-space: nowrap;
+	}
 }
 
 .newspack-rolling-coverage-admin .dataviews-view-table col.dataviews-view-table__col-first-data {

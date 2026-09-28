@@ -253,7 +253,7 @@ function getSlackChannelLabel( item: Coverage ): string {
 	const channelId = String(
 		item.meta?.rolling_coverage_slack_channel_id ?? ''
 	);
-	return name || channelId;
+	return name ? `#${ name }` : channelId;
 }
 
 /**
