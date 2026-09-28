@@ -48,7 +48,7 @@ function getBreadcrumbItems(
 				label: coverage
 					? decodeEntities( coverage.name )
 					: __( 'Coverage', 'newspack-rolling-coverage' ),
-				count,
+				count: isEmpty ? undefined : count,
 			},
 		];
 	}

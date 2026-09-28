@@ -406,6 +406,7 @@ function EntryView() {
 	useHeader( {
 		actions: headerActions,
 		count: isFirstLoad ? undefined : totalItems,
+		isEmpty,
 	} );
 
 	// Render sync notices as snackbars. A sync cycle with more than
