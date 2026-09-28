@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-28T15:50:39+00:00\n"
+"POT-Creation-Date: 2026-09-28T18:20:55+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -84,10 +84,10 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:444
-#: includes/blocks/class-rolling-coverage-block.php:1277
-#: includes/blocks/class-rolling-coverage-block.php:1371
-#: includes/blocks/class-rolling-coverage-block.php:1382
-#: includes/class-post-type.php:902
+#: includes/blocks/class-rolling-coverage-block.php:1541
+#: includes/blocks/class-rolling-coverage-block.php:1636
+#: includes/blocks/class-rolling-coverage-block.php:1647
+#: includes/class-post-type.php:926
 #: includes/class-taxonomy.php:331
 msgid "Coverage not found."
 msgstr ""
@@ -112,9 +112,19 @@ msgstr ""
 msgid "Generates key takeaways from the published entries of a rolling coverage."
 msgstr ""
 
+#: includes/blocks/class-block-icons.php:43
+#: dist/admin.js:218
+msgid "Pin"
+msgstr ""
+
+#: includes/blocks/class-block-icons.php:51
+msgid "Link"
+msgstr ""
+
 #: includes/blocks/class-breakout-post-link-block.php:63
-#: includes/blocks/class-entry-bindings.php:96
-#: includes/blocks/class-rolling-coverage-block.php:869
+#: includes/blocks/class-entry-bindings.php:110
+#: includes/blocks/class-rolling-coverage-block.php:1022
+#: includes/blocks/class-rolling-coverage-block.php:1025
 #: dist/admin.js:215
 #: dist/blocks/breakout-post-link/index.js:1
 #: dist/blocks/rolling-coverage/index.js:1
@@ -133,17 +143,17 @@ msgid "Follow"
 msgstr ""
 
 #: includes/blocks/class-coverage-follow-block.php:97
-#: includes/blocks/class-entry-bindings.php:140
+#: includes/blocks/class-entry-bindings.php:167
 msgid "Following"
 msgstr ""
 
 #: includes/blocks/class-coverage-follow-block.php:98
-#: includes/blocks/class-entry-bindings.php:141
+#: includes/blocks/class-entry-bindings.php:168
 msgid "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 msgstr ""
 
 #: includes/blocks/class-coverage-follow-block.php:99
-#: includes/blocks/class-entry-bindings.php:142
+#: includes/blocks/class-entry-bindings.php:169
 msgid "Something went wrong. Please try again."
 msgstr ""
 
@@ -158,24 +168,12 @@ msgstr ""
 msgid "View"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:55
+#: includes/blocks/class-entry-bindings.php:69
 msgid "Rolling Coverage Entry"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:484
-#: dist/blocks/rolling-coverage/index.js:1
-msgid "Select a coverage to display its entries."
-msgstr ""
-
-#: includes/blocks/class-rolling-coverage-block.php:501
-msgid "This coverage is no longer available."
-msgstr ""
-
-#: includes/blocks/class-rolling-coverage-block.php:553
-msgid "No entries yet."
-msgstr ""
-
-#: includes/blocks/class-rolling-coverage-block.php:882
+#: includes/blocks/class-entry-bindings.php:200
+#: includes/blocks/class-rolling-coverage-block.php:979
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/share/index.js:1
@@ -183,11 +181,46 @@ msgstr ""
 msgid "Share"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1098
+#. translators: 1: share button text, e.g. "Share", 2: entry title or its first words.
+#: includes/blocks/class-entry-bindings.php:208
+#, php-format
+msgid "%1$s: %2$s"
+msgstr ""
+
+#: includes/blocks/class-entry-bindings.php:321
+#: includes/blocks/class-rolling-coverage-block.php:1079
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Pinned"
+msgstr ""
+
+#: includes/blocks/class-rolling-coverage-block.php:530
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Select a coverage to display its entries."
+msgstr ""
+
+#: includes/blocks/class-rolling-coverage-block.php:548
+msgid "This coverage is no longer available."
+msgstr ""
+
+#: includes/blocks/class-rolling-coverage-block.php:603
+msgid "No entries yet."
+msgstr ""
+
+#: includes/blocks/class-rolling-coverage-block.php:941
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Header"
+msgstr ""
+
+#: includes/blocks/class-rolling-coverage-block.php:952
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Meta"
+msgstr ""
+
+#: includes/blocks/class-rolling-coverage-block.php:1362
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1390
+#: includes/blocks/class-rolling-coverage-block.php:1655
 msgid "Either cursor or before must be provided."
 msgstr ""
 
@@ -238,7 +271,7 @@ msgstr ""
 #: includes/class-archive-mode.php:245
 #: includes/class-breakout.php:199
 #: includes/class-post-type.php:874
-#: includes/class-post-type.php:2305
+#: includes/class-post-type.php:2329
 msgid "Entry not found."
 msgstr ""
 
@@ -302,31 +335,31 @@ msgstr ""
 msgid "Individual entries within a Rolling Coverage."
 msgstr ""
 
-#: includes/class-post-type.php:2205
+#: includes/class-post-type.php:2229
 msgid "No entry IDs provided."
 msgstr ""
 
-#: includes/class-post-type.php:2221
+#: includes/class-post-type.php:2245
 msgid "You do not have permission to restore this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2274
+#: includes/class-post-type.php:2298
 msgid "An editor needs to restore the coverage before this entry can be restored."
 msgstr ""
 
-#: includes/class-post-type.php:2313
+#: includes/class-post-type.php:2337
 msgid "Entry is not in trash."
 msgstr ""
 
-#: includes/class-post-type.php:2364
+#: includes/class-post-type.php:2388
 msgid "This entry's coverage was deleted. An editor needs to restore it."
 msgstr ""
 
-#: includes/class-post-type.php:2386
+#: includes/class-post-type.php:2410
 msgid "This entry has no coverage context to restore to."
 msgstr ""
 
-#: includes/class-post-type.php:2444
+#: includes/class-post-type.php:2468
 msgid "Failed to restore entry."
 msgstr ""
 
@@ -1113,10 +1146,6 @@ msgid "Failed to unarchive entry."
 msgstr ""
 
 #: dist/admin.js:218
-msgid "Pin"
-msgstr ""
-
-#: dist/admin.js:218
 msgid "Entry pinned."
 msgstr ""
 
@@ -1783,6 +1812,14 @@ msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Poll interval (seconds)"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Pinned label"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Shown on pinned entries."
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
