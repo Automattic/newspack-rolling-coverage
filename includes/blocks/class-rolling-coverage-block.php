@@ -827,7 +827,7 @@ class Rolling_Coverage_Block {
 	 * @return array[] Array of parsed-block-shaped arrays.
 	 */
 	private static function default_entry_template() {
-		$separator_html = '<hr class="wp-block-separator has-alpha-channel-opacity is-style-wide" style="margin-top:0;margin-bottom:0"/>';
+		$separator_html = '<hr class="wp-block-separator has-alpha-channel-opacity is-style-wide" style="margin-top:var(--wp--preset--spacing--50);margin-bottom:var(--wp--preset--spacing--50)"/>';
 
 		return [
 			[
@@ -901,7 +901,18 @@ class Rolling_Coverage_Block {
 			],
 			[
 				'blockName'    => 'core/post-content',
-				'attrs'        => [],
+				'attrs'        => [
+					'style' => [
+						'spacing' => [
+							'padding' => [
+								'top'    => '0',
+								'right'  => '0',
+								'bottom' => '0',
+								'left'   => '0',
+							],
+						],
+					],
+				],
 				'innerBlocks'  => [],
 				'innerHTML'    => '',
 				'innerContent' => [],
@@ -934,8 +945,8 @@ class Rolling_Coverage_Block {
 					'style'     => [
 						'spacing' => [
 							'margin' => [
-								'top'    => '0',
-								'bottom' => '0',
+								'top'    => 'var:preset|spacing|50',
+								'bottom' => 'var:preset|spacing|50',
 							],
 						],
 					],

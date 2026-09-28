@@ -76,15 +76,21 @@
 	}
 }
 
-.newspack-rolling-coverage-layout {
-	margin-bottom: 1.5em;
-	padding-bottom: 1.5em;
-}
-
 .newspack-rolling-coverage-layout > .wp-block,
 .newspack-rolling-coverage-entry > .wp-block {
 	margin-top: 0;
 	margin-bottom: 0;
+}
+
+.newspack-rolling-coverage-layout .wp-block-post-content {
+
+	> :first-child {
+		margin-top: 0;
+	}
+
+	> :last-child {
+		margin-bottom: 0;
+	}
 }
 
 .wp-block-newspack-rolling-coverage-rolling-coverage .use-header-font {

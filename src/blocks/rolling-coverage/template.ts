@@ -133,7 +133,16 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 			SHARE_BUTTONS,
 		],
 	],
-	[ 'core/post-content' ],
+	[
+		'core/post-content',
+		{
+			style: {
+				spacing: {
+					padding: { top: '0', right: '0', bottom: '0', left: '0' },
+				},
+			},
+		},
+	],
 	[
 		'core/buttons',
 		{ lock: LOCKED },
@@ -163,7 +172,14 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 		'core/separator',
 		{
 			className: 'is-style-wide',
-			style: { spacing: { margin: { top: '0', bottom: '0' } } },
+			style: {
+				spacing: {
+					margin: {
+						top: 'var:preset|spacing|50',
+						bottom: 'var:preset|spacing|50',
+					},
+				},
+			},
 		},
 	],
 ];
