@@ -203,7 +203,8 @@ function kebabCase( slug: string ): string {
 
 /**
  * The space between an entry's blocks as the custom property the entries
- * read, mirroring Rolling_Coverage_Block::entry_gap_style().
+ * read in the editor, previewing the flow layout the site gives each entry
+ * (see Rolling_Coverage_Block::entry_layout_class()).
  *
  * @param {string|Object} blockGap The Block spacing setting.
  * @return {Object} Inline style.

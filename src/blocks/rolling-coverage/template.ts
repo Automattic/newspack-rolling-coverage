@@ -112,6 +112,7 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 				verticalAlignment: 'center',
 			},
 			style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+			metadata: { name: __( 'Header', 'newspack-rolling-coverage' ) },
 		},
 		[
 			[
@@ -119,6 +120,9 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 				{
 					layout: { type: 'flex', orientation: 'vertical' },
 					style: { spacing: { blockGap: 'var:preset|spacing|20' } },
+					metadata: {
+						name: __( 'Meta', 'newspack-rolling-coverage' ),
+					},
 				},
 				[
 					PINNED_ROW,
@@ -144,7 +148,10 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 	],
 	[
 		'core/buttons',
-		{ lock: LOCKED },
+		{
+			lock: LOCKED,
+			metadata: { name: __( 'Read more', 'newspack-rolling-coverage' ) },
+		},
 		[
 			[
 				'core/button',

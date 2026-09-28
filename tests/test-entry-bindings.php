@@ -331,17 +331,46 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The block's Block spacing reaches the entries as a custom property,
-	 * with presets written as their CSS variables.
+	 * Entries are core flow layouts spaced by the block's Block spacing,
+	 * with `spacing-20` when it's unset.
+	 *
+	 * @dataProvider data_block_spacing
+	 *
+	 * @param array  $style    The block's style attribute.
+	 * @param string $expected The space between an entry's blocks.
 	 */
-	public function test_block_spacing_sets_the_entry_gap() {
-		$attributes = [
-			'coverageId' => self::create_coverage(),
-			'style'      => [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ] ],
-		];
-		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+	public function test_block_spacing_lays_out_entries( array $style, string $expected ) {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
 
-		$this->assertStringContainsString( '--newspack-rolling-coverage-entry-gap:var(--wp--preset--spacing--30)', Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) ) );
+		$attributes = array_filter(
+			[
+				'coverageId' => $coverage_id,
+				'style'      => $style,
+			]
+		);
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		$this->assertMatchesRegularExpression( '/<article [^>]*class="[^"]*is-layout-flow[^"]*(newspack-rolling-coverage-entry-layout-[0-9a-f]+)/', $html );
+		preg_match( '/(newspack-rolling-coverage-entry-layout-[0-9a-f]+)/', $html, $matches );
+
+		$this->assertStringContainsString(
+			'.' . $matches[1] . ' > * + *{margin-block-start:' . $expected,
+			wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] )
+		);
+	}
+
+	/**
+	 * Block spacing settings and the space they give.
+	 *
+	 * @return array[]
+	 */
+	public function data_block_spacing(): array {
+		return [
+			'unset'  => [ [], 'var(--wp--preset--spacing--20)' ],
+			'preset' => [ [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ] ], 'var(--wp--preset--spacing--30)' ],
+		];
 	}
 
 	/**
