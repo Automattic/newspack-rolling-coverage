@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-28T11:04:37+00:00\n"
+"POT-Creation-Date: 2026-09-28T12:31:02+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -582,6 +582,8 @@ msgstr ""
 #: dist/admin.js:209
 #: dist/admin.js:212
 #: dist/admin.js:215
+#: dist/admin.js:223
+#: dist/admin.js:226
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Status"
 msgstr ""
@@ -692,6 +694,7 @@ msgstr ""
 #: dist/admin.js:209
 #: dist/admin.js:210
 #: dist/admin.js:223
+#: dist/admin.js:226
 msgid "Channel"
 msgstr ""
 
@@ -1332,6 +1335,7 @@ msgid "Connected"
 msgstr ""
 
 #: dist/admin.js:223
+#: dist/admin.js:226
 msgid "Workspace"
 msgstr ""
 
@@ -1489,27 +1493,108 @@ msgid "Verify & Connect"
 msgstr ""
 
 #: dist/admin.js:225
-msgid "Failed to start monitor."
+msgid "Error"
 msgstr ""
 
 #: dist/admin.js:225
+msgid "Warning"
+msgstr ""
+
+#: dist/admin.js:225
+msgid "Success"
+msgstr ""
+
+#: dist/admin.js:225
+msgid "Info"
+msgstr ""
+
+#. translators: Monitor event time format, see https://www.php.net/manual/datetime.format.php
+#: dist/admin.js:226
+msgid "M j, Y g:i:s a"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Message timestamp"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Entry ID"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Coverage ID"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Reason"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Error code"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Error message"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Sending workspace ID"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Connected workspace ID"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Ignore prefix"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Request timestamp"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Seconds since the request was signed"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Signature prefix"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Request body length"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Data"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Level"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Time"
+msgstr ""
+
+#: dist/admin.js:226
+msgid "The monitor could not be started. Reload the page to try again."
+msgstr ""
+
+#: dist/admin.js:226
+msgid "Event"
+msgstr ""
+
+#: dist/admin.js:226
 msgid "Starting the monitor…"
 msgstr ""
 
-#: dist/admin.js:225
-msgid "Monitoring active"
+#: dist/admin.js:226
+msgid "No events yet"
 msgstr ""
 
-#. translators: %d: number of monitor events.
 #: dist/admin.js:226
-#, js-format
-msgid "%d event"
-msgid_plural "%d events"
-msgstr[0] ""
-msgstr[1] ""
-
-#: dist/admin.js:226
-msgid "No events yet. Send a Slack message or trigger a slash command to see activity here."
+msgid "Events appear here while this page is open. Post in a linked Slack channel or run a slash command to see activity."
 msgstr ""
 
 #: dist/admin.js:226
