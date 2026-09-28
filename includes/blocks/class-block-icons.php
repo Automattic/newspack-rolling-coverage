@@ -26,17 +26,13 @@ class Block_Icons {
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
-		add_action( 'init', [ __CLASS__, 'register_icons' ] );
+		add_action( 'init', [ __CLASS__, 'register_icons' ], 10, 0 );
 	}
 
 	/**
 	 * Register the icon collection and its icons.
 	 */
 	public static function register_icons(): void {
-		if ( ! function_exists( 'wp_register_icon_collection' ) || ! function_exists( 'wp_register_icon' ) ) {
-			return;
-		}
-
 		if ( ! wp_register_icon_collection( self::COLLECTION, [ 'label' => 'Rolling Coverage' ] ) ) {
 			return;
 		}

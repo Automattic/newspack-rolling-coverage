@@ -78,7 +78,6 @@ const SHARE_BUTTONS: TemplateItem = [
 				style: {
 					border: { radius: '9999px' },
 					color: {
-						// Each theme's light grey and text colour, then a plain fallback.
 						background: SHARE_BACKGROUND,
 						text: SHARE_TEXT,
 					},
@@ -278,8 +277,34 @@ function isPinnedLabel( block: {
 }
 
 /**
- * The template without the pinned label and any group holding it, as an
- * entry that isn't pinned renders (see Entry_Bindings::filter_pinned_group()).
+ * Whether a block is the pinned row: a group holding the pinned label and
+ * nothing but icons besides, mirroring Entry_Bindings::is_pinned_row().
+ *
+ * @param {Object}   block             The block.
+ * @param {string}   block.name        Block name.
+ * @param {Object[]} block.innerBlocks Inner blocks.
+ * @return {boolean} Whether it's the pinned row.
+ */
+function isPinnedRow( block: {
+	name: string;
+	innerBlocks?: unknown;
+} ): boolean {
+	const inner = Array.isArray( block.innerBlocks )
+		? ( block.innerBlocks as { name: string }[] )
+		: [];
+
+	return (
+		block.name === 'core/group' &&
+		inner.some( isPinnedLabel ) &&
+		inner.every(
+			( child ) => isPinnedLabel( child ) || child.name === 'core/icon'
+		)
+	);
+}
+
+/**
+ * The template without the pinned row and the pinned label, as an entry
+ * that isn't pinned renders (see Entry_Bindings::filter_pinned_group()).
  *
  * @param {Object[]} blocks The template blocks.
  * @return {Object[]} The blocks an unpinned entry shows.
@@ -289,12 +314,7 @@ function withoutPinnedRow<
 >( blocks: T[] ): T[] {
 	return blocks
 		.filter(
-			( block ) =>
-				! isPinnedLabel( block ) &&
-				! (
-					block.name === 'core/group' &&
-					( ( block.innerBlocks ?? [] ) as T[] ).some( isPinnedLabel )
-				)
+			( block ) => ! isPinnedLabel( block ) && ! isPinnedRow( block )
 		)
 		.map( ( block ) =>
 			Array.isArray( block.innerBlocks ) && block.innerBlocks.length

@@ -27,7 +27,9 @@ class Entry_Bindings {
 	const SHARE_ATTRIBUTE = 'data-rc-share';
 
 	/**
-	 * The share button's box: a 36px square with the icon centred.
+	 * The share button's box: a 36px square with the icon centered. It
+	 * replaces the button's own padding and size, so the circle stays 36px
+	 * whatever the theme's button styles.
 	 */
 	const SHARE_BOX_STYLE = 'display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:36px;height:36px;padding:0';
 
@@ -181,13 +183,13 @@ class Entry_Bindings {
 	 * @return string
 	 */
 	private static function show_share_icon( string $block_content, int $entry_id ): string {
-		$icon = function_exists( 'wp_get_icon' ) ? wp_get_icon( Block_Icons::LINK ) : '';
+		$icon = wp_get_icon( Block_Icons::LINK );
 
-		if ( ! $icon || ! preg_match( '#(<a\b[^>]*>)(.*?)(</a>)#s', $block_content, $link ) ) {
+		if ( ! $icon || ! preg_match( '#(<a\b(?:[^>"\']|"[^"]*"|\'[^\']*\')*>)(.*?)(</a>)#s', $block_content, $link ) ) {
 			return $block_content;
 		}
 
-		$label = trim( wp_strip_all_tags( $link[2] ) );
+		$label = self::plain_text( $link[2] );
 		$open  = new WP_HTML_Tag_Processor( $link[1] );
 		$svg   = new WP_HTML_Tag_Processor( $icon );
 
@@ -198,7 +200,6 @@ class Entry_Bindings {
 		$label = $label ? $label : __( 'Share', 'newspack-rolling-coverage' );
 		$entry = self::entry_name( $entry_id );
 
-		// A fixed box keeps the circle 36px whatever border the theme gives outline buttons.
 		$open->set_attribute( 'style', trim( (string) $open->get_attribute( 'style' ) . ';' . self::SHARE_BOX_STYLE, ';' ) );
 		$open->set_attribute(
 			'aria-label',
@@ -225,9 +226,21 @@ class Entry_Bindings {
 			return '';
 		}
 
-		$title = trim( wp_strip_all_tags( get_the_title( $entry ) ) );
+		$title = self::plain_text( get_the_title( $entry ) );
 
-		return '' !== $title ? $title : wp_trim_words( excerpt_remove_blocks( $entry->post_content ), 8 );
+		return '' !== $title ? $title : self::plain_text( wp_trim_words( strip_shortcodes( excerpt_remove_blocks( $entry->post_content ) ), 8 ) );
+	}
+
+	/**
+	 * Text as a screen reader should hear it: no tags, and entities such as
+	 * the curly apostrophe core puts in titles decoded, since setting an
+	 * attribute encodes the text again.
+	 *
+	 * @param string $text Text that may hold HTML.
+	 * @return string
+	 */
+	private static function plain_text( string $text ): string {
+		return trim( html_entity_decode( wp_strip_all_tags( $text ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
 	}
 
 	/**
@@ -241,7 +254,7 @@ class Entry_Bindings {
 	 * @return string
 	 */
 	public static function filter_pinned_label( $block_content, $block ) {
-		if ( ! is_array( $block ) || ! self::is_pinned_label( $block ) ) {
+		if ( ! Rolling_Coverage_Block::is_rendering_entry() || ! is_array( $block ) || ! self::is_pinned_label( $block ) ) {
 			return $block_content;
 		}
 
@@ -249,8 +262,9 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Render nothing for the group holding the pinned label, e.g. the row
-	 * with the pin icon, on an entry that isn't pinned.
+	 * Render nothing for the pinned row, a group holding only the pinned label
+	 * and icons, on an entry that isn't pinned. A group holding anything else
+	 * keeps rendering; only the label inside it goes.
 	 *
 	 * Parameters stay untyped because this runs for every group on the site,
 	 * after other plugins' filters that may hand on unexpected types.
@@ -260,17 +274,42 @@ class Entry_Bindings {
 	 * @return string
 	 */
 	public static function filter_pinned_group( $block_content, $block ) {
-		if ( ! is_array( $block ) || ! is_array( $block['innerBlocks'] ?? null ) ) {
+		if ( ! Rolling_Coverage_Block::is_rendering_entry() || ! is_array( $block ) || ! self::is_pinned_row( $block ) ) {
 			return $block_content;
 		}
 
-		foreach ( $block['innerBlocks'] as $inner_block ) {
-			if ( is_array( $inner_block ) && self::is_pinned_label( $inner_block ) ) {
-				return self::is_current_entry_pinned() ? $block_content : '';
+		return self::is_current_entry_pinned() ? $block_content : '';
+	}
+
+	/**
+	 * Whether a parsed block is the pinned row: a group holding the pinned
+	 * label and nothing but icons besides.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	private static function is_pinned_row( array $parsed_block ): bool {
+		$inner_blocks = $parsed_block['innerBlocks'] ?? null;
+
+		if ( 'core/group' !== ( $parsed_block['blockName'] ?? '' ) || ! is_array( $inner_blocks ) ) {
+			return false;
+		}
+
+		$has_label = false;
+
+		foreach ( $inner_blocks as $inner_block ) {
+			if ( ! is_array( $inner_block ) ) {
+				return false;
+			}
+
+			if ( self::is_pinned_label( $inner_block ) ) {
+				$has_label = true;
+			} elseif ( 'core/icon' !== ( $inner_block['blockName'] ?? '' ) ) {
+				return false;
 			}
 		}
 
-		return $block_content;
+		return $has_label;
 	}
 
 	/**

@@ -186,6 +186,22 @@ function EntryBlockPreview( {
 const MemoizedEntryBlockPreview = memo( EntryBlockPreview );
 
 /**
+ * A preset slug as core writes it in a custom property, mirroring
+ * _wp_to_kebab_case(), e.g. "2XLarge" becomes "2-x-large".
+ *
+ * @param {string} slug Preset slug.
+ * @return {string} The kebab-case slug.
+ */
+function kebabCase( slug: string ): string {
+	return slug
+		.replace( /([a-z])([A-Z0-9])/g, '$1-$2' )
+		.replace( /([0-9])([a-zA-Z])/g, '$1-$2' )
+		.replace( /([A-Z])([A-Z][a-z])/g, '$1-$2' )
+		.replace( /[\s_]+/g, '-' )
+		.toLowerCase();
+}
+
+/**
  * The space between an entry's blocks as the custom property the entries
  * read, mirroring Rolling_Coverage_Block::entry_gap_style().
  *
@@ -203,7 +219,7 @@ function entryGapStyle(
 
 	const preset = gap.match( /^var:preset\|spacing\|(.+)$/ );
 	if ( preset ) {
-		gap = `var(--wp--preset--spacing--${ preset[ 1 ] })`;
+		gap = `var(--wp--preset--spacing--${ kebabCase( preset[ 1 ] ) })`;
 	}
 
 	return { '--newspack-rolling-coverage-entry-gap': gap };

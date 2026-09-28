@@ -103,7 +103,7 @@ class Rolling_Coverage_Block {
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
 		add_filter( 'render_block_core/post-content', [ __CLASS__, 'drop_entry_content_class' ], 10, 3 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
-		add_filter( 'render_block_core/buttons', [ __CLASS__, 'drop_empty_entry_buttons' ] );
+		add_filter( 'render_block_core/buttons', [ __CLASS__, 'drop_empty_entry_buttons' ], 10, 1 );
 	}
 
 	/**
@@ -120,6 +120,30 @@ class Rolling_Coverage_Block {
 		} finally {
 			--self::$entry_render_depth;
 		}
+	}
+
+	/**
+	 * Whether an entry is being rendered, so the entry-only filters apply.
+	 *
+	 * @return bool
+	 */
+	public static function is_rendering_entry(): bool {
+		return self::$entry_render_depth > 0;
+	}
+
+	/**
+	 * A spacing value as CSS: a preset such as `var:preset|spacing|20`
+	 * becomes its custom property, as core writes it; anything else is kept.
+	 *
+	 * @param string $value Spacing value.
+	 * @return string
+	 */
+	private static function spacing_css_value( string $value ): string {
+		if ( ! str_starts_with( $value, 'var:preset|spacing|' ) ) {
+			return $value;
+		}
+
+		return 'var(--wp--preset--spacing--' . _wp_to_kebab_case( substr( $value, strlen( 'var:preset|spacing|' ) ) ) . ')';
 	}
 
 	/**
@@ -188,13 +212,7 @@ class Rolling_Coverage_Block {
 			return $block_content;
 		}
 
-		// Preset values resolve to their CSS variables, as core does.
-		$gap = array_map(
-			fn( $value ) => str_contains( (string) $value, 'var:preset|spacing|' )
-				? 'var(--wp--preset--spacing--' . _wp_to_kebab_case( substr( (string) $value, strrpos( (string) $value, '|' ) + 1 ) ) . ')'
-				: (string) $value,
-			$gap
-		);
+		$gap = array_map( fn( $value ) => self::spacing_css_value( (string) $value ), $gap );
 
 		$declaration = ( new \WP_Style_Engine_CSS_Declarations( [ 'gap' => implode( ' ', $gap ) ] ) )->get_declarations_string();
 		$group       = new WP_HTML_Tag_Processor( $block_content );
@@ -630,18 +648,14 @@ class Rolling_Coverage_Block {
 	 * @return string Inline CSS, or an empty string.
 	 */
 	private static function entry_gap_style( array $attributes ): string {
-		$gap = $attributes['style']['spacing']['blockGap'] ?? null;
+		$gap = wp_sanitize_block_gap_value( $attributes['style']['spacing']['blockGap'] ?? null );
 		$gap = is_array( $gap ) ? ( $gap['top'] ?? null ) : $gap;
 
 		if ( ! is_string( $gap ) || '' === $gap ) {
 			return '';
 		}
 
-		if ( str_starts_with( $gap, 'var:preset|spacing|' ) ) {
-			$gap = 'var(--wp--preset--spacing--' . _wp_to_kebab_case( substr( $gap, strlen( 'var:preset|spacing|' ) ) ) . ')';
-		}
-
-		return ( new \WP_Style_Engine_CSS_Declarations( [ '--newspack-rolling-coverage-entry-gap' => $gap ] ) )->get_declarations_string();
+		return ( new \WP_Style_Engine_CSS_Declarations( [ '--newspack-rolling-coverage-entry-gap' => self::spacing_css_value( $gap ) ] ) )->get_declarations_string();
 	}
 
 	/**
@@ -1071,7 +1085,7 @@ class Rolling_Coverage_Block {
 	 *
 	 * @param string $text     Button label.
 	 * @param array  $bindings Block bindings keyed by attribute.
-	 * @param array  $style    Border, colour and spacing styles, as the editor saves them.
+	 * @param array  $style    Border, color and spacing styles, as the editor saves them.
 	 * @return array Parsed-block-shaped array.
 	 */
 	private static function entry_button_block( string $text, array $bindings, array $style = [] ): array {

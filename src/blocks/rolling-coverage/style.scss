@@ -55,6 +55,10 @@
 		display: flex;
 		flex-direction: column;
 
+		> .newspack_global_ad {
+			margin-bottom: var(--wp--preset--spacing--50);
+		}
+
 		&__empty {
 			color: var(--nrc-color-text);
 			font-style: italic;

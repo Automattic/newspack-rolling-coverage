@@ -161,6 +161,16 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The share button's name reads the title as text: the curly apostrophe
+	 * and ampersand core puts in titles are encoded once, not twice.
+	 */
+	public function test_share_name_decodes_entities_in_the_title() {
+		$html = self::render( self::create_entry( self::create_coverage(), [ 'post_title' => "Biden's plan & more" ] ) );
+
+		$this->assertStringContainsString( "aria-label=\"Share: Biden\u{2019}s plan &amp; more\"", $html );
+	}
+
+	/**
 	 * Buttons not bound to an entry render untouched, anywhere on the site.
 	 */
 	public function test_other_buttons_are_left_alone() {
@@ -301,6 +311,37 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$template = parse_blocks( '<!-- wp:paragraph {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"pinnedLabel"}}}}} --><p>Saved text</p><!-- /wp:paragraph -->' );
 
 		$this->assertStringNotContainsString( 'Saved text', Rolling_Coverage_Block::render_entry( get_post( self::create_entry( self::create_coverage() ) ), $template ) );
+	}
+
+	/**
+	 * A group holding the pinned label alongside other blocks keeps rendering
+	 * them on unpinned entries; only the label goes.
+	 */
+	public function test_group_holding_the_label_and_other_blocks_keeps_them() {
+		$template = parse_blocks(
+			'<!-- wp:group --><div class="wp-block-group">'
+			. '<!-- wp:paragraph {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"pinnedLabel"}}}}} --><p>Saved text</p><!-- /wp:paragraph -->'
+			. '<!-- wp:paragraph --><p>Entry byline</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->'
+		);
+		$html     = Rolling_Coverage_Block::render_entry( get_post( self::create_entry( self::create_coverage() ) ), $template );
+
+		$this->assertStringContainsString( 'Entry byline', $html, 'The group and its other blocks should render.' );
+		$this->assertStringNotContainsString( 'Saved text', $html, 'The label should not.' );
+	}
+
+	/**
+	 * The block's Block spacing reaches the entries as a custom property,
+	 * with presets written as their CSS variables.
+	 */
+	public function test_block_spacing_sets_the_entry_gap() {
+		$attributes = [
+			'coverageId' => self::create_coverage(),
+			'style'      => [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ] ],
+		];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+
+		$this->assertStringContainsString( '--newspack-rolling-coverage-entry-gap:var(--wp--preset--spacing--30)', Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) ) );
 	}
 
 	/**
