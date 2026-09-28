@@ -885,7 +885,15 @@ class Post_Type {
 		}
 
 		// Bump post_modified so live feeds re-render the entry with its pinned row.
-		wp_update_post( [ 'ID' => $entry_id ] );
+		// Pinning isn't an edit, so the stored content skips kses, which would
+		// strip HTML the author could post but the person pinning can't.
+		kses_remove_filters();
+
+		try {
+			wp_update_post( [ 'ID' => $entry_id ] );
+		} finally {
+			kses_init();
+		}
 
 		return new WP_REST_Response( [ 'pinned' => ! $is_pinned ], 200 );
 	}

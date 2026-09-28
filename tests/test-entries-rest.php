@@ -152,6 +152,35 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Pinning leaves the entry's content alone, even when the person pinning
+	 * can't post the HTML it holds.
+	 */
+	public function test_pin_route_keeps_html_the_pinner_cannot_post() {
+		self::log_in_as( 'administrator' );
+		kses_init();
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_content' => '<!-- wp:html --><iframe src="https://example.org/embed"></iframe><!-- /wp:html -->' ] );
+		$content  = get_post_field( 'post_content', $entry_id );
+		$deny     = function ( $caps, $cap ) {
+			return 'unfiltered_html' === $cap ? [ 'do_not_allow' ] : $caps;
+		};
+
+		self::log_in_as( 'editor' );
+		add_filter( 'map_meta_cap', $deny, 10, 2 );
+		kses_init();
+
+		try {
+			self::dispatch( 'POST', "/entries/{$entry_id}/pin" );
+		} finally {
+			remove_filter( 'map_meta_cap', $deny, 10 );
+			kses_init();
+		}
+
+		clean_post_cache( $entry_id );
+		$this->assertStringContainsString( '<iframe', $content, 'The author should be able to post the iframe.' );
+		$this->assertSame( $content, get_post_field( 'post_content', $entry_id ), 'Pinning should keep it.' );
+	}
+
+	/**
 	 * Only entries can be pinned, so a regular post id is a 404 and the
 	 * pinned list stays clean.
 	 */
