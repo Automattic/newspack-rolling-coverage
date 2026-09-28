@@ -391,27 +391,41 @@ function EntryView() {
 	const [ slackCoverage, setSlackCoverage ] = useState< Coverage | null >(
 		null
 	);
+
+	// Moving to another coverage (for example with the browser's Back button)
+	// keeps this view mounted, so a drawer left open would still show the
+	// previous coverage's channel.
+	useEffect( () => {
+		setIsSlackDrawerOpen( false );
+	}, [ numericCoverageId ] );
 	const slackChannelLabel = routeCoverage
 		? getSlackChannelLabel( routeCoverage )
 		: '';
 
 	// Connecting or disconnecting changes the coverage's channel meta, so the
 	// coverage in context is refetched to keep the Slack button current.
+	const [ isRefreshingSlack, setIsRefreshingSlack ] = useState( false );
 	const handleSlackSaved = useCallback( () => {
 		if ( ! isValidCoverageId ) {
 			return;
 		}
+		setIsRefreshingSlack( true );
 		getCoverage(
 			config.restBaseUrls.coverages,
 			numericCoverageId as number
-		).then( ( coverage ) => {
-			if ( coverage ) {
-				setContext( ( prev ) => ( {
-					...prev,
-					selectedCoverage: coverage,
-				} ) );
-			}
-		} );
+		)
+			.then( ( coverage ) => {
+				if ( ! coverage ) {
+					return;
+				}
+				// The admin may have moved to another coverage meanwhile.
+				setContext( ( prev ) =>
+					prev.selectedCoverage?.id === coverage.id
+						? { ...prev, selectedCoverage: coverage }
+						: prev
+				);
+			} )
+			.finally( () => setIsRefreshingSlack( false ) );
 	}, [
 		isValidCoverageId,
 		numericCoverageId,
@@ -429,6 +443,9 @@ function EntryView() {
 				<Button
 					variant="secondary"
 					className="newspack-rolling-coverage-status-button"
+					isBusy={ isRefreshingSlack }
+					disabled={ isRefreshingSlack }
+					accessibleWhenDisabled
 					onClick={ () => {
 						setSlackCoverage( routeCoverage );
 						setIsSlackDrawerOpen( true );
@@ -441,10 +458,13 @@ function EntryView() {
 								aria-hidden="true"
 							/>
 							<VisuallyHidden>
-								{ __(
-									'Slack channel:',
-									'newspack-rolling-coverage'
-								) }{ ' ' }
+								{
+									/* translators: Read by screen readers before the linked Slack channel's name. */
+									__(
+										'Slack channel:',
+										'newspack-rolling-coverage'
+									)
+								}{ ' ' }
 							</VisuallyHidden>
 							{ slackChannelLabel }
 						</>
@@ -453,7 +473,7 @@ function EntryView() {
 					) }
 				</Button>
 			) : null,
-		[ canShowSlack, slackChannelLabel, routeCoverage ]
+		[ canShowSlack, slackChannelLabel, routeCoverage, isRefreshingSlack ]
 	);
 
 	const headerActions = useMemo(
