@@ -1,7 +1,6 @@
 /**
  * External dependencies
  */
-import { createElement } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
 /**
@@ -15,7 +14,6 @@ import {
 	runCoverageBulk,
 } from '../utils/coverage-api';
 import { notifySuccess, notifyError, pluralize } from '../utils/notices';
-import { ConfirmModal } from '../components/confirm-modal';
 
 /**
  * Returns DataViews action definitions for coverage rows.
@@ -202,16 +200,33 @@ function getCoverageActions(
 			isEligible: ( coverage: Coverage ) =>
 				canManage &&
 				coverage.meta?.[ config.taxMeta.statusKey ] === 'trash',
-			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
-				createElement( ConfirmModal, {
-					message: pluralize(
+			callback: ( items: Coverage[] ) =>
+				requestConfirm( {
+					title: pluralize(
 						items.length,
 						__(
-							'Are you sure you want to permanently delete this coverage? This cannot be undone. Associated entries (excluding trashed entries) will be purged',
+							'Permanently delete this coverage?',
+							'newspack-rolling-coverage'
+						),
+						sprintf(
+							/* translators: %d: number of coverages. */
+							_n(
+								'Permanently delete %d coverage?',
+								'Permanently delete %d coverages?',
+								items.length,
+								'newspack-rolling-coverage'
+							),
+							items.length
+						)
+					),
+					description: pluralize(
+						items.length,
+						__(
+							'This cannot be undone. Its entries are deleted too, apart from any already in the trash.',
 							'newspack-rolling-coverage'
 						),
 						__(
-							'Are you sure you want to permanently delete these coverages? This cannot be undone. Associated entries (excluding trashed entries) will be purged',
+							'This cannot be undone. Their entries are deleted too, apart from any already in the trash.',
 							'newspack-rolling-coverage'
 						)
 					),
@@ -219,72 +234,40 @@ function getCoverageActions(
 						'Delete Permanently',
 						'newspack-rolling-coverage'
 					),
-					isDestructive: true,
+					intent: 'irreversible',
 					onConfirm: async () => {
 						const { failed, succeeded } = await runCoverageBulk(
 							items,
 							( id ) => deleteCoverage( restNamespace, id )
 						);
 
-						if ( succeeded ) {
-							notifySuccess(
-								pluralize(
-									items.length,
-									__(
-										'Coverage permanently deleted.',
-										'newspack-rolling-coverage'
-									),
-									__(
-										'Coverages permanently deleted.',
-										'newspack-rolling-coverage'
-									)
-								)
-							);
-							notify?.( items );
-							onActionPerformed();
-						} else {
-							notifyError(
-								failed[ 0 ].error ||
+						if ( ! succeeded ) {
+							return {
+								error:
+									failed[ 0 ].error ||
 									__(
 										'Failed to delete coverage.',
 										'newspack-rolling-coverage'
-									)
-							);
+									),
+							};
 						}
-					},
-					onClose: closeModal ?? ( () => {} ),
-				} ),
-			callback: async ( items: Coverage[] ) => {
-				const { failed, succeeded } = await runCoverageBulk(
-					items,
-					( id ) => deleteCoverage( restNamespace, id )
-				);
 
-				if ( succeeded ) {
-					notifySuccess(
-						pluralize(
-							items.length,
-							__(
-								'Coverage permanently deleted.',
-								'newspack-rolling-coverage'
-							),
-							__(
-								'Coverages permanently deleted.',
-								'newspack-rolling-coverage'
+						notifySuccess(
+							pluralize(
+								items.length,
+								__(
+									'Coverage permanently deleted.',
+									'newspack-rolling-coverage'
+								),
+								__(
+									'Coverages permanently deleted.',
+									'newspack-rolling-coverage'
+								)
 							)
-						)
-					);
-					onActionPerformed();
-				} else {
-					notifyError(
-						failed[ 0 ].error ||
-							__(
-								'Failed to delete coverage.',
-								'newspack-rolling-coverage'
-							)
-					);
-				}
-			},
+						);
+						onActionPerformed();
+					},
+				} ),
 		},
 	];
 }
