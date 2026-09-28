@@ -243,6 +243,7 @@ interface DataViewsWrapperProps< T > {
 	onClickItem?: ( item: T ) => void;
 	header?: JSX.Element;
 	defaultLayouts?: Record< string, unknown >;
+	config?: { perPageSizes: number[] };
 }
 
 interface CoverageDrawerProps {
@@ -367,6 +368,8 @@ interface SlackMonitorLogEntry {
 	message: string;
 	context: Record< string, unknown >;
 }
+
+type SlackMonitorEvent = SlackMonitorLogEntry & { id: number };
 
 interface SlackMonitorLogsResult extends ApiResult {
 	lines?: SlackMonitorLogEntry[];
@@ -679,6 +682,7 @@ export type {
 	SlackVerifyResult,
 	SlackChannelsResult,
 	SlackMonitorLogEntry,
+	SlackMonitorEvent,
 	SlackMonitorLogsResult,
 	SettingsNotice,
 	AdminTab,

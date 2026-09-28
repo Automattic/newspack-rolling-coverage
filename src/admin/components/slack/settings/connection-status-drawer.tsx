@@ -45,13 +45,17 @@ function ConnectionStatusDrawer( {
 				<Drawer.Title>
 					{ __( 'Connection Status', 'newspack-rolling-coverage' ) }
 				</Drawer.Title>
-				<Badge intent="stable">
-					{ __( 'Connected', 'newspack-rolling-coverage' ) }
-				</Badge>
 				<Drawer.CloseIcon />
 			</Drawer.Header>
 			<Drawer.Content>
 				<Stack direction="column" gap="lg">
+					<DetailRow
+						label={ __( 'Status', 'newspack-rolling-coverage' ) }
+					>
+						<Badge intent="stable">
+							{ __( 'Connected', 'newspack-rolling-coverage' ) }
+						</Badge>
+					</DetailRow>
 					<DetailRow
 						label={ __( 'Workspace', 'newspack-rolling-coverage' ) }
 					>
