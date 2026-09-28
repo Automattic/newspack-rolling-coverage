@@ -31,7 +31,14 @@ const CONTEXT_LABELS: Record< string, string > = {
 	stored_team: __( 'Connected workspace ID', 'newspack-rolling-coverage' ),
 	prefix: __( 'Ignore prefix', 'newspack-rolling-coverage' ),
 	ignore_prefix: __( 'Ignore prefix', 'newspack-rolling-coverage' ),
-	ip: __( 'IP address', 'newspack-rolling-coverage' ),
+	timestamp: __( 'Request timestamp', 'newspack-rolling-coverage' ),
+	timestamp_delta: __(
+		'Seconds since the request was signed',
+		'newspack-rolling-coverage'
+	),
+	signature_prefix: __( 'Signature prefix', 'newspack-rolling-coverage' ),
+	body_length: __( 'Request body length', 'newspack-rolling-coverage' ),
+	data: __( 'Data', 'newspack-rolling-coverage' ),
 };
 
 const CODE_KEYS = [
@@ -43,7 +50,8 @@ const CODE_KEYS = [
 	'stored_team',
 	'prefix',
 	'ignore_prefix',
-	'ip',
+	'timestamp',
+	'signature_prefix',
 ];
 
 const CHANNEL_KEYS = [ 'channel', 'channel_id' ];
