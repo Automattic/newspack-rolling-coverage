@@ -92,6 +92,39 @@ class Rolling_Coverage_Block {
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 10, 3 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
+		add_filter( 'render_block_core/post-content', [ __CLASS__, 'drop_entry_content_class' ], 10, 3 );
+	}
+
+	/**
+	 * Drops the `entry-content` class core adds to an entry's post content.
+	 * Entries render inside the host page's own `.entry-content`, so themes'
+	 * rules for top-level page content would space the entry's paragraphs as
+	 * if they were the page's.
+	 *
+	 * Parameters stay untyped because this runs for every post content block on
+	 * the site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string   $block_content Rendered block.
+	 * @param array    $block         Parsed block.
+	 * @param WP_Block $instance      Block instance.
+	 * @return string
+	 */
+	public static function drop_entry_content_class( $block_content, $block, $instance ) {
+		if (
+			! is_string( $block_content ) ||
+			! $instance instanceof WP_Block ||
+			Post_Type::CPT_SLUG !== ( $instance->context['postType'] ?? '' )
+		) {
+			return $block_content;
+		}
+
+		$content = new WP_HTML_Tag_Processor( $block_content );
+
+		if ( $content->next_tag() ) {
+			$content->remove_class( 'entry-content' );
+		}
+
+		return $content->get_updated_html();
 	}
 
 	/**
@@ -199,6 +232,9 @@ class Rolling_Coverage_Block {
 					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
 					'canonicalUrlMetaKey'         => Taxonomy::CANONICAL_URL_META_KEY,
 					'readMoreTextMetaKey'         => Breakout::ENTRY_READ_MORE_TEXT_META,
+					'onesignalInstalled'          => Push_Notifications::is_onesignal_installed(),
+					'onesignalV3Active'           => Push_Notifications::is_onesignal_v3_active(),
+					'onesignalConfigured'         => Push_Notifications::is_onesignal_configured(),
 				]
 			);
 		}
@@ -525,8 +561,10 @@ class Rolling_Coverage_Block {
 	/**
 	 * Renders the follow button once at the top of the coverage.
 	 *
-	 * The block is removable, so this returns an empty string if the editor
-	 * deleted it (or if the follow button shouldn't render at all).
+	 * The button is removable, so this returns an empty string if the editor
+	 * deleted it (or if the follow button shouldn't render at all). It's a
+	 * core button bound to the coverage, or the legacy Follow block on
+	 * coverages saved before it.
 	 *
 	 * @param WP_Block $block       The parent rolling-coverage block instance.
 	 * @param int      $coverage_id Coverage term id.
@@ -541,7 +579,7 @@ class Rolling_Coverage_Block {
 		$follow_block = null;
 
 		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner ) {
-			if ( Coverage_Follow_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) ) {
+			if ( Coverage_Follow_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $inner ) ) {
 				$follow_block = $inner;
 				break;
 			}
@@ -564,6 +602,16 @@ class Rolling_Coverage_Block {
 			foreach ( $follow_block_type->view_script_handles as $script_handle ) {
 				wp_enqueue_script( $script_handle );
 			}
+		}
+
+		if ( Coverage_Follow_Block::BLOCK_NAME !== $follow_block['blockName'] ) {
+			return ( new WP_Block(
+				$follow_block,
+				[
+					Entry_Bindings::COVERAGE_ID_CONTEXT => $coverage_id,
+					Entry_Bindings::COVERAGE_STATUS_CONTEXT => $status,
+				]
+			) )->render();
 		}
 
 		$attrs               = $follow_block['attrs'] ?? [];
@@ -633,8 +681,8 @@ class Rolling_Coverage_Block {
 			return self::default_entry_template();
 		}
 
-		// The saved inner blocks also include two blocks that render once at
-		// the top of the coverage, not per entry.
+		// The saved inner blocks also include blocks that render once at the
+		// top of the coverage, not per entry.
 		$singleton_blocks = [
 			Deep_Link_CTA_Block::BLOCK_NAME,
 			Coverage_Follow_Block::BLOCK_NAME,
@@ -643,7 +691,7 @@ class Rolling_Coverage_Block {
 		$template         = [];
 
 		foreach ( $inner_blocks as $inner_block ) {
-			if ( ! in_array( $inner_block['blockName'] ?? '', $singleton_blocks, true ) ) {
+			if ( ! in_array( $inner_block['blockName'] ?? '', $singleton_blocks, true ) && ! Entry_Bindings::is_follow_buttons( $inner_block ) ) {
 				$template[] = $inner_block;
 			}
 		}
@@ -652,7 +700,7 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The hardcoded fallback per-entry template: title, date, content, and
+	 * The hardcoded fallback per-entry template: date and title stacked, content, and
 	 * core buttons for the breakout post link and sharing.
 	 *
 	 * @return array[] Array of parsed-block-shaped arrays.
@@ -660,18 +708,32 @@ class Rolling_Coverage_Block {
 	private static function default_entry_template() {
 		return [
 			[
-				'blockName'    => 'core/post-title',
-				'attrs'        => [ 'level' => 3 ],
-				'innerBlocks'  => [],
-				'innerHTML'    => '',
-				'innerContent' => [],
-			],
-			[
-				'blockName'    => 'core/post-date',
-				'attrs'        => [ 'format' => 'human-diff' ],
-				'innerBlocks'  => [],
-				'innerHTML'    => '',
-				'innerContent' => [],
+				'blockName'    => 'core/group',
+				'attrs'        => [
+					'layout' => [
+						'type'        => 'flex',
+						'orientation' => 'vertical',
+					],
+					'style'  => [ 'spacing' => [ 'blockGap' => '0' ] ],
+				],
+				'innerBlocks'  => [
+					[
+						'blockName'    => 'core/post-date',
+						'attrs'        => [ 'format' => 'human-diff' ],
+						'innerBlocks'  => [],
+						'innerHTML'    => '',
+						'innerContent' => [],
+					],
+					[
+						'blockName'    => 'core/post-title',
+						'attrs'        => [ 'level' => 3 ],
+						'innerBlocks'  => [],
+						'innerHTML'    => '',
+						'innerContent' => [],
+					],
+				],
+				'innerHTML'    => '<div class="wp-block-group"></div>',
+				'innerContent' => [ '<div class="wp-block-group">', null, null, '</div>' ],
 			],
 			[
 				'blockName'    => 'core/post-content',

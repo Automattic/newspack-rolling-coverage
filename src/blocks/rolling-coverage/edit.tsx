@@ -57,12 +57,18 @@ import {
 	ENTRY_TEMPLATE,
 	ENTRY_ALLOWED_BLOCKS,
 	ENTRY_EDITED_STATES,
+	FOLLOW_TEMPLATE,
+	isFollowButtons,
 } from './template';
 import {
 	AI_AVAILABLE,
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
+	ONESIGNAL_INSTALLED,
+	ONESIGNAL_V3_ACTIVE,
+	ONESIGNAL_CONFIGURED,
 } from './config';
+import { OneSignalNotice } from '../shared/onesignal-notice';
 import EditedStateBar from './components/edited-state-bar';
 import type {
 	CoverageOption,
@@ -73,8 +79,8 @@ import type {
 } from './types';
 
 /**
- * The follow button block, rendered once at the top of the coverage rather
- * than per entry.
+ * The legacy follow button block, still rendered once at the top of
+ * coverages saved before the follow button became a core button.
  */
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 
@@ -107,7 +113,7 @@ const STATE_BY_BLOCK_NAME: Record< string, string > = Object.fromEntries(
  * blocks.
  */
 const INNER_TEMPLATE = [
-	[ FOLLOW_BLOCK_NAME ],
+	FOLLOW_TEMPLATE,
 	...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
 	...ENTRY_TEMPLATE,
 ];
@@ -252,8 +258,9 @@ export default function Edit( {
 	const templateBlocks = useMemo(
 		() =>
 			allBlocks.filter(
-				( block: { name: string } ) =>
-					! RENDER_ONCE_BLOCKS.includes( block.name )
+				( block ) =>
+					! RENDER_ONCE_BLOCKS.includes( block.name ) &&
+					! isFollowButtons( block )
 			),
 		[ allBlocks ]
 	);
@@ -589,6 +596,12 @@ export default function Edit( {
 							'newspack-rolling-coverage'
 						) }
 					>
+						{ ! ONESIGNAL_CONFIGURED && (
+							<OneSignalNotice
+								installed={ ONESIGNAL_INSTALLED }
+								v3Active={ ONESIGNAL_V3_ACTIVE }
+							/>
+						) }
 						<TextControl
 							__next40pxDefaultSize
 							type="url"
