@@ -13,7 +13,11 @@ function SlackError( { message }: SlackErrorProps ) {
 		return null;
 	}
 
-	return <div className="newspack-rolling-coverage-error">{ message }</div>;
+	return (
+		<div className="newspack-rolling-coverage-error" role="alert">
+			{ message }
+		</div>
+	);
 }
 
 export { SlackError };

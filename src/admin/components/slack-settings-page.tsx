@@ -2,16 +2,7 @@
  * External dependencies
  */
 import { useParams, Navigate } from 'react-router';
-import {
-	Button,
-	DropdownMenu,
-	MenuGroup,
-	MenuItem,
-	Modal,
-	Notice,
-	VisuallyHidden,
-} from '@wordpress/components';
-import { moreVertical } from '@wordpress/icons';
+import { Button, Modal, Notice, VisuallyHidden } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 import { useCallback, useMemo, useState } from '@wordpress/element';
 import TabbedNavigation from 'newspack-components/dist/esm/tabbed-navigation';
@@ -87,13 +78,13 @@ function SlackSettingsPage() {
 	const [ isDisconnectOpen, setIsDisconnectOpen ] = useState( false );
 
 	// The Disconnect button that opened this modal left with the drawer, so
-	// focus goes back to the menu the drawer was opened from.
+	// focus goes back to the button the drawer was opened from.
 	const closeDisconnect = useCallback( () => {
 		setIsDisconnectOpen( false );
 		window.requestAnimationFrame( () =>
 			document
 				.querySelector< HTMLElement >(
-					'.newspack-rolling-coverage-connection-menu button'
+					'.newspack-rolling-coverage-connection-status-button'
 				)
 				?.focus()
 		);
@@ -105,6 +96,20 @@ function SlackSettingsPage() {
 		}
 		return (
 			<>
+				<Button
+					variant="secondary"
+					className="newspack-rolling-coverage-status-button newspack-rolling-coverage-connection-status-button"
+					onClick={ () => setIsStatusOpen( true ) }
+				>
+					<span
+						className="newspack-rolling-coverage-status-dot"
+						aria-hidden="true"
+					/>
+					{ __( 'Connection Status', 'newspack-rolling-coverage' ) }{ ' ' }
+					<VisuallyHidden>
+						{ __( '(connected)', 'newspack-rolling-coverage' ) }
+					</VisuallyHidden>
+				</Button>
 				{ tab === 'settings' && (
 					<Button
 						variant="primary"
@@ -115,41 +120,6 @@ function SlackSettingsPage() {
 						{ __( 'Save', 'newspack-rolling-coverage' ) }
 					</Button>
 				) }
-				<DropdownMenu
-					className="newspack-rolling-coverage-connection-menu"
-					icon={ moreVertical }
-					label={ __(
-						'Slack connection options',
-						'newspack-rolling-coverage'
-					) }
-					popoverProps={ { placement: 'bottom-end' } }
-				>
-					{ ( { onClose } ) => (
-						<MenuGroup>
-							<MenuItem
-								suffix={
-									<span className="newspack-rolling-coverage-status-dot">
-										<VisuallyHidden>
-											{ __(
-												'Connected',
-												'newspack-rolling-coverage'
-											) }
-										</VisuallyHidden>
-									</span>
-								}
-								onClick={ () => {
-									setIsStatusOpen( true );
-									onClose();
-								} }
-							>
-								{ __(
-									'Connection Status',
-									'newspack-rolling-coverage'
-								) }
-							</MenuItem>
-						</MenuGroup>
-					) }
-				</DropdownMenu>
 			</>
 		);
 	}, [

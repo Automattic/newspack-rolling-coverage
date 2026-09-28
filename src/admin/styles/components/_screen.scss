@@ -1,8 +1,10 @@
 @use "~@wordpress/base-styles/colors" as wp-colors;
 @use "~@wordpress/base-styles/variables" as wp-vars;
+@use "~@wordpress/base-styles/z-index" as wp-z;
 @use "~newspack-components/colors/colors.module" as np-colors;
 
 body.newspack-rolling-coverage-admin-screen {
+	--wp-ui-dialog-z-index: #{wp-z.z-index(".components-modal__screen-overlay")};
 	background: wp-colors.$white;
 
 	#wpcontent,

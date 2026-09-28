@@ -41,7 +41,9 @@ interface AdminConfig {
 		canManageOptions: boolean;
 		canManageAiSettings: boolean;
 	};
+	supportsHandoff: boolean;
 	adminUrls: {
+		coverages: string;
 		editEntry: string;
 		newEntry: string;
 		editUser: string;
@@ -398,7 +400,18 @@ interface BreadcrumbItem {
 	count?: number;
 }
 
-interface SlackConnectionModalProps {
+interface ConfirmRequest {
+	title: string;
+	description?: string;
+	confirmLabel: string;
+	intent?: 'default' | 'irreversible';
+	onConfirm: () => Promise< void | { error?: string } >;
+}
+
+type RequestConfirm = ( request: ConfirmRequest ) => void;
+
+interface SlackConnectionDrawerProps {
+	isOpen: boolean;
 	coverage: Coverage | null;
 	onClose: () => void;
 	onSaved: () => void;
@@ -416,6 +429,7 @@ interface SlackErrorProps {
 interface ConnectedChannelViewProps {
 	channelName: string;
 	channelId: string;
+	lastSyncTs: string | null;
 	autopublish: boolean;
 	onAutopublishChange: ( value: boolean ) => void;
 	isUpdatingAutopublish: boolean;
@@ -429,16 +443,6 @@ interface ConnectChannelFormProps {
 	onAutopublishChange: ( value: boolean ) => void;
 	isConnecting: boolean;
 	error?: string | null;
-}
-
-interface ConnectionModalFooterProps {
-	mode: 'connected' | 'connect';
-	isConnecting: boolean;
-	isDisconnecting: boolean;
-	canConnect: boolean;
-	onClose: () => void;
-	onConnect: () => void;
-	onDisconnect: () => void;
 }
 
 interface SlackBotUserInfo {
@@ -659,11 +663,12 @@ export type {
 	BreadcrumbItem,
 	HeaderState,
 	StatusName,
-	SlackConnectionModalProps,
+	ConfirmRequest,
+	RequestConfirm,
+	SlackConnectionDrawerProps,
 	SlackErrorProps,
 	ConnectedChannelViewProps,
 	ConnectChannelFormProps,
-	ConnectionModalFooterProps,
 	ConnectionStatusDrawerProps,
 	ChannelsTabProps,
 	ChannelRow,

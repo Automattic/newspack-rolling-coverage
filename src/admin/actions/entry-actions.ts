@@ -2,7 +2,7 @@
  * WordPress dependencies
  */
 import { createElement } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -26,7 +26,7 @@ import {
 import { notifySuccess, notifyError, pluralize } from '../utils/notices';
 import { BreakoutModal } from '../components/breakout-modal';
 import { ConfirmModal } from '../components/confirm-modal';
-import type { Entry, Action, AdminConfig } from '../types';
+import type { Entry, Action, AdminConfig, RequestConfirm } from '../types';
 
 /**
  * Returns the confirmation message for editing an entry that is archived
@@ -68,6 +68,7 @@ function getEditWarningMessage( entry: Entry ): string {
  *
  * @param {AdminConfig}            config            Admin config containing edit URLs.
  * @param {(entry: Entry) => void} onQuickEdit       Handler for the Quick Edit action.
+ * @param {RequestConfirm}         requestConfirm    Opens the view's confirmation dialog.
  * @param {() => void}             onActionPerformed Callback invoked after a successful create, or setting save, to refresh data.
  *
  * @return {Action<Entry>[]} Array of DataViews actions for entries.
@@ -75,6 +76,7 @@ function getEditWarningMessage( entry: Entry ): string {
 function getEntryActions(
 	config: AdminConfig,
 	onQuickEdit: ( entry: Entry ) => void,
+	requestConfirm: RequestConfirm,
 	onActionPerformed?: () => void
 ): Action< Entry >[] {
 	// Editors and above can act on any entry; lower roles are limited to
@@ -438,27 +440,29 @@ function getEntryActions(
 		{
 			id: 'trash-entry',
 			label: __( 'Trash', 'newspack-rolling-coverage' ),
-			modalHeader: __( 'Move to trash', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				entry.status !== 'trash' &&
 				! isEntryLocked( entry ) &&
 				canTrashRow( entry ),
-			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
-				createElement( ConfirmModal, {
-					message: pluralize(
+			callback: ( items: Entry[] ) =>
+				requestConfirm( {
+					title: pluralize(
 						items.length,
-						__(
-							'Are you sure you want to trash this entry?',
-							'newspack-rolling-coverage'
-						),
-						__(
-							'Are you sure you want to trash these entries?',
-							'newspack-rolling-coverage'
+						__( 'Trash this entry?', 'newspack-rolling-coverage' ),
+						sprintf(
+							/* translators: %d: number of entries. */
+							_n(
+								'Trash %d entry?',
+								'Trash %d entries?',
+								items.length,
+								'newspack-rolling-coverage'
+							),
+							items.length
 						)
 					),
 					confirmLabel: __( 'Trash', 'newspack-rolling-coverage' ),
-					isDestructive: true,
+					intent: 'irreversible',
 					onConfirm: async () => {
 						const { failed, succeeded } = await runEntryBulk(
 							config,
@@ -466,63 +470,39 @@ function getEntryActions(
 							false
 						);
 
-						if ( succeeded ) {
-							notifySuccess(
-								pluralize(
-									items.length,
-									__(
-										'Entry trashed.',
-										'newspack-rolling-coverage'
-									),
-									__(
-										'Entries trashed.',
-										'newspack-rolling-coverage'
-									)
-								)
-							);
-							notify?.( items );
-							onActionPerformed?.();
-						} else {
-							notifyError(
+						if ( ! succeeded ) {
+							const error =
 								failed[ 0 ].error ||
-									__(
-										'Failed to trash entry.',
-										'newspack-rolling-coverage'
-									)
-							);
+								__(
+									'Failed to trash entry.',
+									'newspack-rolling-coverage'
+								);
+							// Some items went through, so a retry would resend those too.
+							// Refresh the list and report the failure instead.
+							if ( failed.length < items.length ) {
+								notifyError( error );
+								onActionPerformed?.();
+								return;
+							}
+							return { error };
 						}
-					},
-					onClose: closeModal ?? ( () => {} ),
-				} ),
-			callback: async ( items: Entry[] ) => {
-				const { failed, succeeded } = await runEntryBulk(
-					config,
-					items,
-					false
-				);
 
-				if ( succeeded ) {
-					notifySuccess(
-						pluralize(
-							items.length,
-							__( 'Entry trashed.', 'newspack-rolling-coverage' ),
-							__(
-								'Entries trashed.',
-								'newspack-rolling-coverage'
+						notifySuccess(
+							pluralize(
+								items.length,
+								__(
+									'Entry trashed.',
+									'newspack-rolling-coverage'
+								),
+								__(
+									'Entries trashed.',
+									'newspack-rolling-coverage'
+								)
 							)
-						)
-					);
-					onActionPerformed?.();
-				} else {
-					notifyError(
-						failed[ 0 ].error ||
-							__(
-								'Failed to trash entry.',
-								'newspack-rolling-coverage'
-							)
-					);
-				}
-			},
+						);
+						onActionPerformed?.();
+					},
+				} ),
 		},
 		{
 			id: 'restore-entry',
@@ -604,24 +584,34 @@ function getEntryActions(
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				config.capabilities.canEditEntries && entry.status === 'trash',
-			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
-				createElement( ConfirmModal, {
-					message: pluralize(
+			callback: ( items: Entry[] ) =>
+				requestConfirm( {
+					title: pluralize(
 						items.length,
 						__(
-							'Are you sure you want to permanently delete this entry? This cannot be undone.',
+							'Permanently delete this entry?',
 							'newspack-rolling-coverage'
 						),
-						__(
-							'Are you sure you want to permanently delete these entries? This cannot be undone.',
-							'newspack-rolling-coverage'
+						sprintf(
+							/* translators: %d: number of entries. */
+							_n(
+								'Permanently delete %d entry?',
+								'Permanently delete %d entries?',
+								items.length,
+								'newspack-rolling-coverage'
+							),
+							items.length
 						)
+					),
+					description: __(
+						'This cannot be undone.',
+						'newspack-rolling-coverage'
 					),
 					confirmLabel: __(
 						'Delete Permanently',
 						'newspack-rolling-coverage'
 					),
-					isDestructive: true,
+					intent: 'irreversible',
 					onConfirm: async () => {
 						const { failed, succeeded } = await runEntryBulk(
 							config,
@@ -629,66 +619,39 @@ function getEntryActions(
 							true
 						);
 
-						if ( succeeded ) {
-							notifySuccess(
-								pluralize(
-									items.length,
-									__(
-										'Entry permanently deleted.',
-										'newspack-rolling-coverage'
-									),
-									__(
-										'Entries permanently deleted.',
-										'newspack-rolling-coverage'
-									)
-								)
-							);
-							notify?.( items );
-							onActionPerformed?.();
-						} else {
-							notifyError(
+						if ( ! succeeded ) {
+							const error =
 								failed[ 0 ].error ||
-									__(
-										'Failed to delete entry.',
-										'newspack-rolling-coverage'
-									)
-							);
+								__(
+									'Failed to delete entry.',
+									'newspack-rolling-coverage'
+								);
+							// Some items went through, so a retry would resend those too.
+							// Refresh the list and report the failure instead.
+							if ( failed.length < items.length ) {
+								notifyError( error );
+								onActionPerformed?.();
+								return;
+							}
+							return { error };
 						}
-					},
-					onClose: closeModal ?? ( () => {} ),
-				} ),
-			callback: async ( items: Entry[] ) => {
-				const { failed, succeeded } = await runEntryBulk(
-					config,
-					items,
-					true
-				);
 
-				if ( succeeded ) {
-					notifySuccess(
-						pluralize(
-							items.length,
-							__(
-								'Entry permanently deleted.',
-								'newspack-rolling-coverage'
-							),
-							__(
-								'Entries permanently deleted.',
-								'newspack-rolling-coverage'
+						notifySuccess(
+							pluralize(
+								items.length,
+								__(
+									'Entry permanently deleted.',
+									'newspack-rolling-coverage'
+								),
+								__(
+									'Entries permanently deleted.',
+									'newspack-rolling-coverage'
+								)
 							)
-						)
-					);
-					onActionPerformed?.();
-				} else {
-					notifyError(
-						failed[ 0 ].error ||
-							__(
-								'Failed to delete entry.',
-								'newspack-rolling-coverage'
-							)
-					);
-				}
-			},
+						);
+						onActionPerformed?.();
+					},
+				} ),
 		},
 	];
 }

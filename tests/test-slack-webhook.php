@@ -7,6 +7,7 @@
  */
 
 use Newspack_Rolling_Coverage\Post_Type;
+use Newspack_Rolling_Coverage\Slack;
 use Newspack_Rolling_Coverage\Slack_API_Client;
 use Newspack_Rolling_Coverage\Slack_Config;
 use Newspack_Rolling_Coverage\Slack_Ingestion_Service;
@@ -319,6 +320,55 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'slack', get_post_meta( $entry->ID, Post_Type::META_ENTRY_SOURCE, true ), 'The entry should be marked as coming from Slack.' );
 		$this->assertSame( 'Riley Sample', get_post_meta( $entry->ID, Post_Type::META_SLACK_AUTHOR_NAME, true ), 'The Slack author name should be recorded.' );
 		$this->assertSame( '1767225600.000100', Slack_Config::get_channel_settings( self::CHANNEL_ID )['last_sync_ts'], 'The channel should remember the last message it ingested.' );
+	}
+
+	/**
+	 * A linked channel's settings report when it last ingested a message, so
+	 * the connection drawer can show it.
+	 */
+	public function test_channel_settings_include_the_last_sync() {
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel(
+			self::CHANNEL_ID,
+			[
+				'term_id'      => $coverage_id,
+				'autopublish'  => true,
+				'last_sync_ts' => '1767225600.000100',
+			]
+		);
+		$request = new WP_REST_Request( 'GET', '/rolling-coverage/v1/slack/channel/' . self::CHANNEL_ID );
+		$request->set_param( 'id', self::CHANNEL_ID );
+
+		$data = self::controller()->get_channel_settings( $request )->get_data();
+
+		$this->assertTrue( $data['autopublish'], 'The stored autopublish setting should be returned.' );
+		$this->assertSame( '1767225600.000100', $data['last_sync_ts'], 'The last ingested message timestamp should be returned.' );
+	}
+
+	/**
+	 * Channel settings, including the last sync, are for administrators only.
+	 */
+	public function test_channel_settings_are_admin_only() {
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => self::create_coverage() ] );
+		$GLOBALS['wp_rest_server'] = null;
+		$request                   = new WP_REST_Request( 'GET', '/' . Slack::REST_NAMESPACE . '/slack/channel/' . self::CHANNEL_ID );
+
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+		$this->assertSame( 403, rest_get_server()->dispatch( $request )->get_status(), 'Editors should not read channel settings.' );
+
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+		$this->assertSame( 200, rest_get_server()->dispatch( $request )->get_status(), 'Administrators should read channel settings.' );
+	}
+
+	/**
+	 * A channel that has never ingested a message reports an empty last sync.
+	 */
+	public function test_channel_settings_report_no_sync_yet() {
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => self::create_coverage() ] );
+		$request = new WP_REST_Request( 'GET', '/rolling-coverage/v1/slack/channel/' . self::CHANNEL_ID );
+		$request->set_param( 'id', self::CHANNEL_ID );
+
+		$this->assertSame( '', self::controller()->get_channel_settings( $request )->get_data()['last_sync_ts'] );
 	}
 
 	/**

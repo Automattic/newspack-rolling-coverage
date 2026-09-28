@@ -250,19 +250,31 @@ function getEntrySource( item: Entry ): string {
 }
 
 /**
+ * Formats a Slack channel for display: `#name` when the name is known, the raw
+ * channel ID otherwise.
+ *
+ * @param {string} name      Channel name as stored, without a leading '#'.
+ * @param {string} channelId Channel ID to fall back to.
+ * @return {string} '#name', the channel ID, or '' when both are empty.
+ */
+function formatSlackChannel( name: string, channelId = '' ): string {
+	return name ? `#${ name }` : channelId;
+}
+
+/**
  * Returns the display label for a coverage term's connected Slack channel, preferring
  * the resolved channel name and falling back to the raw channel ID. Returns an
  * empty string when the coverage term is not connected to a Slack channel.
  *
  * @param {Coverage} item The coverage term whose Slack channel meta to read.
- * @return {string} Channel name, channel ID, or '' if not connected.
+ * @return {string} '#name', channel ID, or '' if not connected.
  */
 function getSlackChannelLabel( item: Coverage ): string {
 	const name = String( item.meta?.rolling_coverage_slack_channel_name ?? '' );
 	const channelId = String(
 		item.meta?.rolling_coverage_slack_channel_id ?? ''
 	);
-	return name || channelId;
+	return formatSlackChannel( name, channelId );
 }
 
 /**
@@ -452,6 +464,7 @@ export {
 	safeFormatSlackTimestamp,
 	getEmbeddedTerms,
 	getEntrySource,
+	formatSlackChannel,
 	getSlackChannelLabel,
 	getStatusLabel,
 	STATUS_ELEMENTS,

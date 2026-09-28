@@ -322,7 +322,9 @@ class Slack_Config {
 	 * wherever an author avatar shows. The user is matched by login rather
 	 * than the stored ID, which a disconnect deletes while the user and its
 	 * entries remain. Email lookups never match: WordPress drops the bot's
-	 * `@localhost` address, so the user has no email.
+	 * `@localhost` address, so the user has no email. An avatar uploaded to
+	 * the bot user with Simple Local Avatars wins, so publishers can replace
+	 * the default; that plugin's own fallback avatar does not.
 	 *
 	 * @param array $args        Avatar data arguments.
 	 * @param mixed $id_or_email User ID, email, WP_User, WP_Post or WP_Comment.
@@ -345,10 +347,33 @@ class Slack_Config {
 			return $args;
 		}
 
+		if ( isset( $args['url'] ) && self::has_uploaded_avatar( $user->ID, (int) $args['size'] ) ) {
+			return $args;
+		}
+
 		$args['url']          = NEWSPACK_ROLLING_COVERAGE_URL . self::BOT_AVATAR_PATH;
 		$args['found_avatar'] = true;
 
 		return $args;
+	}
+
+	/**
+	 * Whether Simple Local Avatars has a usable avatar uploaded for a user.
+	 * Asks the plugin rather than reading its meta, which is keyed per site
+	 * on some multisites and can outlive a deleted image.
+	 *
+	 * @param int $user_id User ID.
+	 * @param int $size    Avatar size in pixels.
+	 * @return bool True if the plugin resolves an uploaded avatar.
+	 */
+	private static function has_uploaded_avatar( int $user_id, int $size ): bool {
+		global $simple_local_avatars;
+
+		if ( ! $simple_local_avatars instanceof \Simple_Local_Avatars ) {
+			return false;
+		}
+
+		return '' !== (string) $simple_local_avatars->get_simple_local_avatar_url( $user_id, $size );
 	}
 
 	/**
