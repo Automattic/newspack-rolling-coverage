@@ -60,6 +60,8 @@ import {
 	FOLLOW_TEMPLATE,
 	isFollowButtons,
 	withoutPinnedRow,
+	withoutBreakoutLink,
+	withLinkedTitle,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -181,6 +183,37 @@ function EntryBlockPreview( {
 }
 
 const MemoizedEntryBlockPreview = memo( EntryBlockPreview );
+
+/**
+ * Picks the template variant an entry renders with on the front end: the
+ * pinned row only when pinned; "Read more" and a linked title only with a
+ * published breakout.
+ *
+ * @param {Object}       templates                         Template variants.
+ * @param {Object}       templates.pinned                  Full template, title linked.
+ * @param {Object}       templates.unpinned                Without the pinned row, title linked.
+ * @param {Object}       templates.pinnedWithoutBreakout   Without "Read more".
+ * @param {Object}       templates.unpinnedWithoutBreakout Without either.
+ * @param {EntryContext} context                           The entry.
+ * @return {TemplateBlocks} The blocks to preview the entry with.
+ */
+function previewTemplateFor(
+	templates: {
+		pinned: TemplateBlocks;
+		unpinned: TemplateBlocks;
+		pinnedWithoutBreakout: TemplateBlocks;
+		unpinnedWithoutBreakout: TemplateBlocks;
+	},
+	context: EntryContext
+): TemplateBlocks {
+	if ( context.hasBreakout ) {
+		return context.pinned ? templates.pinned : templates.unpinned;
+	}
+
+	return context.pinned
+		? templates.pinnedWithoutBreakout
+		: templates.unpinnedWithoutBreakout;
+}
 
 /**
  * A preset slug as core writes it in a custom property, mirroring
@@ -312,10 +345,16 @@ export default function Edit( {
 			),
 		[ allBlocks ]
 	);
-	const unpinnedTemplateBlocks = useMemo(
-		() => withoutPinnedRow( templateBlocks ),
-		[ templateBlocks ]
-	);
+	const previewTemplates = useMemo( () => {
+		const unpinned = withoutPinnedRow( templateBlocks );
+
+		return {
+			pinned: withLinkedTitle( templateBlocks ),
+			unpinned: withLinkedTitle( unpinned ),
+			pinnedWithoutBreakout: withoutBreakoutLink( templateBlocks ),
+			unpinnedWithoutBreakout: withoutBreakoutLink( unpinned ),
+		};
+	}, [ templateBlocks ] );
 
 	// Disabled blocks drop out of List View and can't be selected, so only
 	// the current editor state's blocks show there.
@@ -1015,11 +1054,10 @@ export default function Edit( {
 										>
 											{ ! isActive && (
 												<MemoizedEntryBlockPreview
-													blocks={
-														context.pinned
-															? templateBlocks
-															: unpinnedTemplateBlocks
-													}
+													blocks={ previewTemplateFor(
+														previewTemplates,
+														context
+													) }
 													onSelect={ () =>
 														setActiveEntryId(
 															context.postId

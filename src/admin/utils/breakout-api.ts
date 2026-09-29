@@ -36,35 +36,6 @@ async function createBreakout(
 }
 
 /**
- * Saves the breakout "read more" text on an entry.
- *
- * @param {string} restBaseEntries - Full REST URL for the entries collection (from config.restBaseUrls.entries).
- * @param {number} entryId         - The entry post ID.
- * @param {string} readMoreText    - The configured "read more" link text.
- * @return {Promise<ApiResult>} Result indicating success or failure.
- */
-async function saveBreakoutSettings(
-	restBaseEntries: string,
-	entryId: number,
-	readMoreText: string
-): Promise< ApiResult > {
-	try {
-		await apiFetch( {
-			url: `${ restBaseEntries }/${ entryId }`,
-			method: 'POST',
-			data: {
-				meta: {
-					rolling_coverage_breakout_read_more_text: readMoreText,
-				},
-			},
-		} );
-		return { success: true };
-	} catch ( error ) {
-		return { success: false, error: handleApiError( error as Error ) };
-	}
-}
-
-/**
  * Restores a trashed breakout post to draft status.
  *
  * @param {string} postsRestUrl   - Full REST URL for the posts collection (from config.restBaseUrls.posts).
@@ -109,9 +80,4 @@ async function deleteBreakoutPermanently(
 	}
 }
 
-export {
-	createBreakout,
-	saveBreakoutSettings,
-	restoreBreakout,
-	deleteBreakoutPermanently,
-};
+export { createBreakout, restoreBreakout, deleteBreakoutPermanently };

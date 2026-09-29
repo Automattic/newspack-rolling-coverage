@@ -97,6 +97,15 @@ const SHARE_BUTTONS: TemplateItem = [
 ];
 
 /**
+ * Spaces what follows the entry's content, such as "Read more", as the theme
+ * spaces paragraphs: its block gap, or on a theme without one (the classic
+ * theme), the preset matching its paragraph margin. Set on Post Content
+ * because the classic theme redefines the block gap on Buttons.
+ */
+const CONTENT_GAP =
+	'var(--wp--style--block-gap, var(--wp--preset--spacing--40))';
+
+/**
  * Default per-entry template: the pinned row, date and title stacked with
  * the share button opposite, content, "Read more" bound to the entry and
  * locked against removal, then a separator.
@@ -142,6 +151,7 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 			style: {
 				spacing: {
 					padding: { top: '0', right: '0', bottom: '0', left: '0' },
+					margin: { bottom: CONTENT_GAP },
 				},
 			},
 		},
@@ -157,16 +167,13 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 				'core/button',
 				{
 					lock: LOCKED,
+					text: __( 'Read more', 'newspack-rolling-coverage' ),
 					metadata: {
 						name: __( 'Read more', 'newspack-rolling-coverage' ),
 						bindings: {
 							url: {
 								source: ENTRY_BINDINGS_SOURCE,
 								args: { key: 'breakoutUrl' },
-							},
-							text: {
-								source: ENTRY_BINDINGS_SOURCE,
-								args: { key: 'breakoutLabel' },
 							},
 						},
 					},
@@ -336,6 +343,102 @@ function withoutPinnedRow<
 }
 
 /**
+ * Whether a block is the "Read more" link to the entry's breakout post: a
+ * button whose link is bound to it, or the legacy Breakout Post Link block.
+ *
+ * @param {Object} block            The block.
+ * @param {string} block.name       Block name.
+ * @param {Object} block.attributes Block attributes.
+ * @return {boolean} Whether it's the breakout link.
+ */
+function isBreakoutLink( block: {
+	name: string;
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	if ( block.name === 'newspack-rolling-coverage/breakout-post-link' ) {
+		return true;
+	}
+
+	const metadata = block.attributes?.metadata as
+		| {
+				bindings?: {
+					url?: { source?: string; args?: { key?: string } };
+				};
+		  }
+		| undefined;
+	const url = metadata?.bindings?.url;
+
+	return (
+		block.name === 'core/button' &&
+		url?.source === ENTRY_BINDINGS_SOURCE &&
+		url?.args?.key === 'breakoutUrl'
+	);
+}
+
+/**
+ * The template without the "Read more" link, as an entry without a published
+ * breakout post renders. A buttons block left empty goes too, as
+ * Rolling_Coverage_Block::drop_empty_entry_buttons() does on the front end.
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks an entry without a breakout shows.
+ */
+function withoutBreakoutLink<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks.flatMap( ( block ) => {
+		if ( isBreakoutLink( block ) ) {
+			return [];
+		}
+
+		if (
+			! Array.isArray( block.innerBlocks ) ||
+			! block.innerBlocks.length
+		) {
+			return [ block ];
+		}
+
+		const innerBlocks = withoutBreakoutLink( block.innerBlocks as T[] );
+
+		if ( block.name === 'core/buttons' && ! innerBlocks.length ) {
+			return [];
+		}
+
+		return [ { ...block, innerBlocks } ];
+	} );
+}
+
+/**
+ * The template with the entry's title as a link, as an entry with a published
+ * breakout post renders (see Entry_Bindings::link_title_to_breakout()).
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks an entry with a breakout shows.
+ */
+function withLinkedTitle<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks.map( ( block ) => {
+		if ( block.name === 'core/post-title' ) {
+			return {
+				...block,
+				attributes: {
+					...( block.attributes as Record< string, unknown > ),
+					isLink: true,
+				},
+			};
+		}
+
+		return Array.isArray( block.innerBlocks ) && block.innerBlocks.length
+			? {
+					...block,
+					innerBlocks: withLinkedTitle( block.innerBlocks as T[] ),
+				}
+			: block;
+	} );
+}
+
+/**
  * Block types allowed inside the per-entry template.
  */
 const ENTRY_ALLOWED_BLOCKS = [
@@ -406,4 +509,6 @@ export {
 	FOLLOW_TEMPLATE,
 	isFollowButtons,
 	withoutPinnedRow,
+	withoutBreakoutLink,
+	withLinkedTitle,
 };

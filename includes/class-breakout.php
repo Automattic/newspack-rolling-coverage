@@ -19,16 +19,12 @@ defined( 'ABSPATH' ) || exit;
  * Handles creation, linking, and cleanup of breakout posts.
  *
  * A breakout post is a standard `post` cloned from a rolling coverage entry.
- * The entry stores a forward link to it (self::ENTRY_BREAKOUT_POST_ID_META)
- * and an optional "read more" label (self::ENTRY_READ_MORE_TEXT_META).
+ * The entry stores a forward link to it (self::ENTRY_BREAKOUT_POST_ID_META).
  */
 class Breakout {
 
 	// Stores the breakout post ID on the entry.
 	const ENTRY_BREAKOUT_POST_ID_META = 'rolling_coverage_breakout_post_id';
-
-	// Configurable "read more" text for the entry's breakout link.
-	const ENTRY_READ_MORE_TEXT_META = 'rolling_coverage_breakout_read_more_text';
 
 	// Stores the source entry ID on the breakout post (reverse link).
 	const BREAKOUT_SOURCE_ENTRY_META = 'rolling_coverage_source_entry_id';
@@ -66,18 +62,6 @@ class Breakout {
 				'type'          => 'integer',
 				'default'       => 0,
 				'auth_callback' => '__return_false', // Read-only over REST.
-			]
-		);
-
-		register_post_meta(
-			Post_Type::CPT_SLUG,
-			self::ENTRY_READ_MORE_TEXT_META,
-			[
-				'show_in_rest'      => true,
-				'single'            => true,
-				'type'              => 'string',
-				'default'           => '',
-				'sanitize_callback' => 'sanitize_text_field',
 			]
 		);
 	}
@@ -276,7 +260,6 @@ class Breakout {
 
 		if ( ! get_post( $breakout_id ) ) {
 			delete_post_meta( $entry_id, self::ENTRY_BREAKOUT_POST_ID_META );
-			delete_post_meta( $entry_id, self::ENTRY_READ_MORE_TEXT_META );
 			delete_post_meta( $entry_id, self::BREAKOUT_STATUS_FIELD );
 			return 0;
 		}
@@ -321,7 +304,6 @@ class Breakout {
 
 		if ( $entry_id ) {
 			delete_post_meta( $entry_id, self::ENTRY_BREAKOUT_POST_ID_META );
-			delete_post_meta( $entry_id, self::ENTRY_READ_MORE_TEXT_META );
 			delete_post_meta( $entry_id, self::BREAKOUT_STATUS_FIELD );
 		}
 	}
