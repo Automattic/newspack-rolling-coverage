@@ -11,8 +11,9 @@ if ( ! function_exists( 'onesignal_create_notification' ) ) {
 	 *
 	 * Mirrors what the plugin relies on: the title and content it passes in,
 	 * the `onesignal_send_notification` filter OneSignal runs over the payload
-	 * before sending, which starts out addressed to everyone, and OneSignal
-	 * sending nothing during a REST request.
+	 * before sending, which starts out addressed to everyone, OneSignal
+	 * sending nothing during a REST request, and the notification ID it saves
+	 * after a send.
 	 *
 	 * @param WP_Post $post Post the notification is about.
 	 * @param array   $args Notification title and content.
@@ -34,5 +35,7 @@ if ( ! function_exists( 'onesignal_create_notification' ) ) {
 		);
 
 		$GLOBALS['nrc_test_sent_notifications'][] = $payload;
+
+		update_post_meta( $post->ID, 'os_notification_id', 'test-notification-' . count( $GLOBALS['nrc_test_sent_notifications'] ) );
 	}
 }

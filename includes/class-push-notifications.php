@@ -42,6 +42,10 @@ class Push_Notifications {
 	// Seconds after which a send lock left behind by a killed process is ignored.
 	const SEND_LOCK_TTL = 60;
 
+	// Seconds a send scheduled by a REST publish waits, so the block editor's
+	// meta box save that follows it can change the opt-in first.
+	const REST_SEND_DELAY = 60;
+
 	/**
 	 * Click-through URL for the in-flight send, read by override_notification_fields().
 	 *
@@ -251,7 +255,7 @@ class Push_Notifications {
 		// OneSignal never sends during a REST request, which is how the block
 		// editor, the plugin's admin and Slack publish.
 		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-			self::schedule_send( $post->ID );
+			self::schedule_send( $post->ID, self::REST_SEND_DELAY );
 			return;
 		}
 
@@ -265,10 +269,14 @@ class Push_Notifications {
 	 * @param int $post_id Entry post id.
 	 */
 	public static function opt_in_ingested_entry( int $post_id ): void {
+		if ( ! self::is_onesignal_configured() ) {
+			return;
+		}
+
 		update_post_meta( $post_id, self::NOTIFY_META_KEY, true );
 
-		if ( 'publish' === get_post_status( $post_id ) && self::is_onesignal_configured() ) {
-			self::schedule_send( $post_id );
+		if ( 'publish' === get_post_status( $post_id ) ) {
+			self::schedule_send( $post_id, 0 );
 		}
 	}
 
@@ -296,13 +304,21 @@ class Push_Notifications {
 	}
 
 	/**
-	 * Schedules an entry's notification to be sent by the next cron run.
+	 * Schedules an entry's notification, and starts cron straight away when
+	 * it's due now so a live update doesn't wait for the next visit.
 	 *
 	 * @param int $post_id Entry post id.
+	 * @param int $delay   Seconds to wait before sending.
 	 */
-	private static function schedule_send( int $post_id ): void {
-		if ( ! wp_next_scheduled( self::SEND_HOOK, [ $post_id ] ) ) {
-			wp_schedule_single_event( time(), self::SEND_HOOK, [ $post_id ] );
+	private static function schedule_send( int $post_id, int $delay ): void {
+		if ( wp_next_scheduled( self::SEND_HOOK, [ $post_id ] ) ) {
+			return;
+		}
+
+		wp_schedule_single_event( time() + $delay, self::SEND_HOOK, [ $post_id ] );
+
+		if ( 0 === $delay && ! ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) ) {
+			spawn_cron();
 		}
 	}
 
@@ -320,17 +336,19 @@ class Push_Notifications {
 			return;
 		}
 
-		$lock_key = self::SEND_LOCK_PREFIX . $post->ID;
-
-		if ( ! add_option( $lock_key, time(), '', false ) ) {
-			if ( time() - (int) get_option( $lock_key, 0 ) < self::SEND_LOCK_TTL ) {
-				return;
-			}
-
-			update_option( $lock_key, time(), false );
+		if ( ! self::acquire_send_lock( $post->ID ) ) {
+			return;
 		}
 
 		try {
+			// Another request may have sent, or the editor unticked, since this
+			// request read the entry's meta.
+			wp_cache_delete( $post->ID, 'post_meta' );
+
+			if ( ! empty( get_post_meta( $post->ID, 'os_notification_id', true ) ) || ! get_post_meta( $post->ID, self::NOTIFY_META_KEY, true ) ) {
+				return;
+			}
+
 			$sent = false;
 
 			foreach ( $term_ids as $term_id ) {
@@ -343,8 +361,46 @@ class Push_Notifications {
 				delete_post_meta( $post->ID, self::NOTIFY_META_KEY );
 			}
 		} finally {
-			delete_option( $lock_key );
+			self::release_send_lock( $post->ID );
 		}
+	}
+
+	/**
+	 * Takes the entry's send lock, or a lock left behind by a request that
+	 * died. Queries the table directly: an options-cache round trip would let
+	 * two requests both take it.
+	 *
+	 * @param int $post_id Entry post id.
+	 * @return bool Whether this request holds the lock.
+	 */
+	private static function acquire_send_lock( int $post_id ): bool {
+		global $wpdb;
+
+		$key = self::SEND_LOCK_PREFIX . $post_id;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", $key, time() ) );
+
+		if ( 1 === (int) $wpdb->rows_affected ) {
+			return true;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value < %d", time(), $key, time() - self::SEND_LOCK_TTL ) );
+
+		return 1 === (int) $wpdb->rows_affected;
+	}
+
+	/**
+	 * Releases the entry's send lock.
+	 *
+	 * @param int $post_id Entry post id.
+	 */
+	private static function release_send_lock( int $post_id ): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->delete( $wpdb->options, [ 'option_name' => self::SEND_LOCK_PREFIX . $post_id ] );
 	}
 
 	/**
@@ -376,6 +432,10 @@ class Push_Notifications {
 			} else {
 				delete_post_meta( $post->ID, self::NOTIFY_META_KEY );
 			}
+
+			// The editor's choice here settles it, whatever the REST save before
+			// it scheduled.
+			wp_clear_scheduled_hook( self::SEND_HOOK, [ $post->ID ] );
 
 			return $has_intent;
 		}

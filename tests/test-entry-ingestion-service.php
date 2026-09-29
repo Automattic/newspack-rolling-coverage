@@ -224,4 +224,37 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 'Polls have closed.', get_post( $entry_id )->post_title );
 	}
+
+	/**
+	 * Other features hear about a new entry once it has its coverage and
+	 * meta, and only once for a message Slack sends twice.
+	 */
+	public function test_new_entry_is_announced_once_saved_with_its_coverage() {
+		$coverage_id = self::create_coverage();
+		$announced   = [];
+		add_action(
+			'newspack_rolling_coverage_entry_ingested',
+			static function ( $post_id ) use ( &$announced ) {
+				$announced[] = [
+					'post_id'  => $post_id,
+					'coverage' => wp_get_post_terms( $post_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] ),
+					'ref'      => get_post_meta( $post_id, Post_Type::META_SOURCE_REF, true ),
+				];
+			}
+		);
+
+		$entry_id = self::ingest( self::payload(), $coverage_id );
+		self::ingest( self::payload(), $coverage_id );
+
+		$this->assertSame(
+			[
+				[
+					'post_id'  => $entry_id,
+					'coverage' => [ $coverage_id ],
+					'ref'      => self::SOURCE_REF,
+				],
+			],
+			$announced
+		);
+	}
 }
