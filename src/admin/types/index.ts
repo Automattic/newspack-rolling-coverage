@@ -346,15 +346,6 @@ interface CreateBreakoutResult extends ApiResult {
 	data?: CreateBreakoutResponse;
 }
 
-interface ChipLinkProps {
-	href: string;
-	label: string;
-}
-
-interface TermChipsProps {
-	terms: Array< { link: string; name: string } >;
-}
-
 interface SlackMonitorLogEntry {
 	timestamp: string;
 	level: string;
@@ -415,8 +406,9 @@ interface QuickEditModalProps {
 	onSaved: () => void;
 }
 
-interface SlackErrorProps {
+interface ErrorNoticeProps {
 	message?: string | null;
+	className?: string;
 }
 
 interface ConnectedChannelViewProps {
@@ -517,6 +509,7 @@ interface SettingField {
 interface QuickEditSaveBarProps {
 	onClose: () => void;
 	onSaved: () => void;
+	children?: ReactNode;
 }
 
 interface EntityRecord {
@@ -649,8 +642,6 @@ export type {
 	CreateBreakoutResult,
 	ConfirmModalContentProps,
 	SaveCoverageData,
-	ChipLinkProps,
-	TermChipsProps,
 	BulkRestoreEntryResult,
 	BulkRestoreResult,
 	AiSettings,
@@ -661,7 +652,7 @@ export type {
 	ConfirmRequest,
 	RequestConfirm,
 	SlackConnectionDrawerProps,
-	SlackErrorProps,
+	ErrorNoticeProps,
 	ConnectedChannelViewProps,
 	ConnectChannelFormProps,
 	ConnectionStatusDrawerProps,

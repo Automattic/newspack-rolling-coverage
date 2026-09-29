@@ -4,7 +4,7 @@
 import { Tooltip } from '@wordpress/components';
 import { dateI18n, getSettings } from '@wordpress/date';
 import { __, sprintf } from '@wordpress/i18n';
-import { Link } from '@wordpress/ui';
+import { Link, Stack } from '@wordpress/ui';
 import {
 	Icon,
 	pinSmall,
@@ -16,11 +16,9 @@ import {
  */
 import type { Field, ViewState, Entry, AdminConfig } from '../types';
 import { SlackIcon } from '../shared/icons/slack-icon';
-import { TermChips } from '../shared/term-chips';
 import { UserRow } from '../shared/user-row';
 import StatusIndicator from 'newspack-components/dist/esm/status-indicator';
 import {
-	getEmbeddedTerms,
 	getEntrySource,
 	getStatusLabel,
 	STATUS_ELEMENTS,
@@ -28,6 +26,8 @@ import {
 	getRawTitle,
 	getRawAuthor,
 	getCategoryNames,
+	getTermNames,
+	summarizeTermNames,
 	getTagNames,
 	getBreakoutStatus,
 	SOURCE_SLACK,
@@ -77,21 +77,22 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 					__( '(no title)', 'newspack-rolling-coverage' );
 				if ( item.pinned ) {
 					return (
-						<span className="newspack-rolling-coverage-entry-title newspack-rolling-coverage-entry-title--pinned">
+						<Stack
+							render={ <span /> }
+							direction="row"
+							align="flex-start"
+							gap="sm"
+						>
 							<Icon
 								className="newspack-rolling-coverage-entry-title__icon"
 								icon={ pinSmall }
 								size={ 24 }
 							/>
 							{ title }
-						</span>
+						</Stack>
 					);
 				}
-				return (
-					<span className="newspack-rolling-coverage-entry-title">
-						{ title }
-					</span>
-				);
+				return title;
 			},
 			filterBy: {
 				operators: [ 'contains' ],
@@ -141,11 +142,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			render: ( { item } ) => {
 				if ( getEntrySource( item ) === SOURCE_SLACK ) {
 					return (
-						<span
-							className="newspack-rolling-coverage-source-slack"
-							title="Slack"
-							aria-label="Slack"
-						>
+						<span title="Slack" aria-label="Slack">
 							<SlackIcon size={ 15 } />
 						</span>
 					);
@@ -218,17 +215,16 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 							archivedDate
 						) }
 					>
-						<span className="newspack-rolling-coverage-status-archived">
-							<StatusIndicator
-								status={
-									item.status === 'publish'
-										? 'ended'
-										: POST_STATUS_INDICATORS[ item.status ]
-								}
-							>
-								{ label }
-							</StatusIndicator>
-						</span>
+						<StatusIndicator
+							className="newspack-rolling-coverage-status-archived"
+							status={
+								item.status === 'publish'
+									? 'ended'
+									: POST_STATUS_INDICATORS[ item.status ]
+							}
+						>
+							{ label }
+						</StatusIndicator>
 					</Tooltip>
 				);
 			},
@@ -239,16 +235,8 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			label: __( 'Categories', 'newspack-rolling-coverage' ),
 			enableSorting: false,
 			getValue: ( { item } ) => getCategoryNames( item ),
-			render: ( { item } ) => {
-				const allTerms = getEmbeddedTerms( item );
-				return (
-					<TermChips
-						terms={ allTerms.filter(
-							( t ) => t.taxonomy === 'category'
-						) }
-					/>
-				);
-			},
+			render: ( { item } ) =>
+				summarizeTermNames( getTermNames( item, 'category' ) ),
 			filterBy: {
 				operators: [ 'contains' ],
 			},
@@ -259,16 +247,8 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			label: __( 'Tags', 'newspack-rolling-coverage' ),
 			enableSorting: false,
 			getValue: ( { item } ) => getTagNames( item ),
-			render: ( { item } ) => {
-				const allTerms = getEmbeddedTerms( item );
-				return (
-					<TermChips
-						terms={ allTerms.filter(
-							( t ) => t.taxonomy === 'post_tag'
-						) }
-					/>
-				);
-			},
+			render: ( { item } ) =>
+				summarizeTermNames( getTermNames( item, 'post_tag' ) ),
 			filterBy: {
 				operators: [ 'contains' ],
 			},

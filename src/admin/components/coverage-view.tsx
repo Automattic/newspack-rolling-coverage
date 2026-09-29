@@ -11,6 +11,7 @@ import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
 /**
  * Internal dependencies
  */
+import { ErrorNotice } from '../shared/error-notice';
 import { useCoverages } from '../hooks/useCoverages';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { CoverageDrawer } from './coverage-drawer';
@@ -174,9 +175,10 @@ function CoverageView() {
 
 	return (
 		<>
-			{ error && (
-				<div className="newspack-rolling-coverage-error">{ error }</div>
-			) }
+			<ErrorNotice
+				className="newspack-rolling-coverage-view-notice"
+				message={ error }
+			/>
 			{ isFirstLoad && (
 				<LoadingState
 					label={ __(

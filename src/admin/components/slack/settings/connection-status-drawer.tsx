@@ -36,11 +36,7 @@ function ConnectionStatusDrawer( {
 	onDisconnect,
 }: ConnectionStatusDrawerProps ) {
 	return (
-		<Drawer.Root
-			className="newspack-rolling-coverage-connection-drawer"
-			isOpen={ isOpen }
-			onRequestClose={ onClose }
-		>
+		<Drawer.Root isOpen={ isOpen } onRequestClose={ onClose }>
 			<Drawer.Header>
 				<Drawer.Title>
 					{ __( 'Connection Status', 'newspack-rolling-coverage' ) }

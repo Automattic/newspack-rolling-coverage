@@ -19,7 +19,8 @@ import type {
 } from '../types';
 
 /**
- * Cancel and Save buttons for the Quick Edit modal header.
+ * Cancel and Save buttons for the Quick Edit modal header, with any
+ * children placed between them.
  *
  * `savePost()` never rejects on failure, so the result is detected by
  * watching `isSavingPost` transition to `false` and then reading
@@ -29,7 +30,11 @@ import type {
  *
  * @param {QuickEditSaveBarProps} props Component props.
  */
-function QuickEditSaveBar( { onClose, onSaved }: QuickEditSaveBarProps ) {
+function QuickEditSaveBar( {
+	onClose,
+	onSaved,
+	children,
+}: QuickEditSaveBarProps ) {
 	const { savePost } = useDispatch( editorStore );
 	const { createErrorNotice } = useDispatch( noticesStore );
 
@@ -90,6 +95,7 @@ function QuickEditSaveBar( { onClose, onSaved }: QuickEditSaveBarProps ) {
 			>
 				{ __( 'Cancel', 'newspack-rolling-coverage' ) }
 			</Button>
+			{ children }
 			<Button
 				variant="primary"
 				onClick={ handleSave }

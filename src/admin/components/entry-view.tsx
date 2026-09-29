@@ -20,6 +20,7 @@ import type { View } from '@wordpress/dataviews';
 /**
  * Internal dependencies
  */
+import { ErrorNotice } from '../shared/error-notice';
 import { useEntries } from '../hooks/useEntries';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { EmptyState } from 'newspack-components/dist/esm/empty-state';
@@ -626,14 +627,14 @@ function EntryView() {
 
 	return (
 		<>
-			{ error && (
-				<div className="newspack-rolling-coverage-error">{ error }</div>
-			) }
-			{ createError && (
-				<div className="newspack-rolling-coverage-error">
-					{ createError }
-				</div>
-			) }
+			<ErrorNotice
+				className="newspack-rolling-coverage-view-notice"
+				message={ error }
+			/>
+			<ErrorNotice
+				className="newspack-rolling-coverage-view-notice"
+				message={ createError }
+			/>
 			{ isFirstLoad && (
 				<LoadingState
 					label={ __(

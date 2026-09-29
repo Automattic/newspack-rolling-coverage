@@ -2,9 +2,7 @@
  * WordPress dependencies
  */
 import { useState, useEffect, useCallback, useMemo } from '@wordpress/element';
-import { Notice } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { speak } from '@wordpress/a11y';
 import type { View } from '@wordpress/dataviews';
 import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
 import { EmptyState } from 'newspack-components/dist/esm/empty-state';
@@ -15,6 +13,7 @@ import { EmptyState } from 'newspack-components/dist/esm/empty-state';
 import { useAdminContext } from '../../../hooks/useAdminContext';
 import { getSlackMonitorLogs } from '../../../utils/slack-api';
 import { LoadingState } from '../../../shared/loading-state';
+import { ErrorNotice } from '../../../shared/error-notice';
 import { SlackIcon } from '../../../shared/icons/slack-icon';
 import { DataViewsWrapper } from '../../data-views-wrapper';
 import { MonitorEventDrawer } from './monitor-event-drawer';
@@ -154,7 +153,6 @@ function MonitorTab( {
 							'The monitor could not be started. Reload the page to try again.',
 							'newspack-rolling-coverage'
 						);
-						speak( message, 'assertive' );
 						setStartError( message );
 						setIsStarting( false );
 					}
@@ -206,18 +204,17 @@ function MonitorTab( {
 
 	if ( startError ) {
 		return (
-			<div className="newspack-rolling-coverage-slack-settings">
-				<Notice status="error" isDismissible={ false }>
-					{ startError }
-				</Notice>
-			</div>
+			<ErrorNotice
+				className="newspack-rolling-coverage-view-notice"
+				message={ startError }
+			/>
 		);
 	}
 
 	return (
 		<>
 			{ events.length === 0 ? (
-				<EmptyState.Root className="newspack-rolling-coverage-slack-empty-state">
+				<EmptyState.Root>
 					<EmptyState.Header
 						icon={ <SlackIcon size={ 36 } /> }
 						title={ __(

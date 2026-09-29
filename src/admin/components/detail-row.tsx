@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { Stack } from '@wordpress/ui';
+import { Stack, Text } from '@wordpress/ui';
 import type { ReactNode } from 'react';
 
 /**
@@ -21,9 +21,7 @@ function DetailRow( {
 } ) {
 	return (
 		<Stack direction="column" gap="sm" align="flex-start">
-			<span className="newspack-rolling-coverage-detail-label">
-				{ label }
-			</span>
+			<Text variant="heading-sm">{ label }</Text>
 			{ children }
 		</Stack>
 	);
