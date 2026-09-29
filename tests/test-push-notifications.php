@@ -29,6 +29,7 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	public function set_up() {
 		parent::set_up();
 		$_POST = [];
+		add_filter( 'cron_request', [ $this, 'keep_cron_offline' ] );
 		$GLOBALS['nrc_test_sent_notifications'] = [];
 		update_option(
 			'OneSignalWPSetting',
@@ -37,6 +38,18 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 				'app_rest_api_key' => 'test-rest-api-key',
 			]
 		);
+	}
+
+	/**
+	 * Point the cron spawn at an address that fails straight away, so tests
+	 * make no loopback request.
+	 *
+	 * @param array $cron_request Cron request URL and arguments.
+	 * @return array
+	 */
+	public function keep_cron_offline( $cron_request ) {
+		$cron_request['url'] = 'http://0.0.0.0:1/';
+		return $cron_request;
 	}
 
 	/**
@@ -102,7 +115,7 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	 * save: a post.php request carrying the checkbox.
 	 *
 	 * @param int  $entry_id   Entry post ID.
-	 * @param bool $is_checked Whether the editor left the box ticked.
+	 * @param bool $is_checked Whether the editor left the box checked.
 	 */
 	private static function save_meta_box( $entry_id, $is_checked ) {
 		$_POST[ Push_Notifications::NONCE_NAME ] = wp_create_nonce( Push_Notifications::NONCE_ACTION );
@@ -238,7 +251,9 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		$entry_id    = self::ingest_slack_message( $coverage_id, true );
 
 		$this->assertSame( [], self::get_sent_notifications(), 'Nothing should be sent while the message is saved.' );
-		$this->assertLessThanOrEqual( time(), wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'The send should be due straight away.' );
+		$scheduled_at = wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] );
+		$this->assertIsInt( $scheduled_at, 'The send should be scheduled.' );
+		$this->assertLessThanOrEqual( time(), $scheduled_at, 'The send should be due straight away.' );
 
 		do_action( Push_Notifications::SEND_HOOK, $entry_id );
 
@@ -286,10 +301,10 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 
 	/**
 	 * In the block editor, a publish is a REST save followed by the meta box
-	 * save. When the editor leaves the box ticked, followers get one
+	 * save. When the editor leaves the box checked, followers get one
 	 * notification, not one from each.
 	 */
-	public function test_block_editor_publish_with_the_box_ticked_sends_once() {
+	public function test_block_editor_publish_with_the_box_checked_sends_once() {
 		self::log_in_as( 'editor' );
 		$entry_id = self::create_entry( self::create_coverage_with_canonical_url() );
 		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
@@ -303,10 +318,10 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * When the editor unticks the box on publish, the send the REST save
+	 * When the editor unchecks the box on publish, the send the REST save
 	 * scheduled from the earlier opt-in is cancelled.
 	 */
-	public function test_block_editor_publish_with_the_box_unticked_sends_nothing() {
+	public function test_block_editor_publish_with_the_box_unchecked_sends_nothing() {
 		self::log_in_as( 'editor' );
 		$entry_id = self::create_entry( self::create_coverage_with_canonical_url() );
 		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
@@ -358,7 +373,7 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An editor who unticks the opt-in before the scheduled send runs stops it.
+	 * An editor who unchecks the opt-in before the scheduled send runs stops it.
 	 */
 	public function test_scheduled_send_respects_an_opt_in_removed_since() {
 		$entry_id = self::ingest_slack_message( self::create_coverage_with_canonical_url(), true );

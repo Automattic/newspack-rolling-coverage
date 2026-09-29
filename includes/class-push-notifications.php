@@ -62,6 +62,13 @@ class Push_Notifications {
 	private static $pending_tag = null;
 
 	/**
+	 * Timestamps this request wrote to the send locks it holds, by entry id.
+	 *
+	 * @var array<int, int>
+	 */
+	private static $send_lock_stamps = [];
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -341,7 +348,7 @@ class Push_Notifications {
 		}
 
 		try {
-			// Another request may have sent, or the editor unticked, since this
+			// Another request may have sent, or the editor unchecked, since this
 			// request read the entry's meta.
 			wp_cache_delete( $post->ID, 'post_meta' );
 
@@ -377,22 +384,28 @@ class Push_Notifications {
 		global $wpdb;
 
 		$key = self::SEND_LOCK_PREFIX . $post_id;
+		$now = time();
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", $key, time() ) );
+		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", $key, $now ) );
 
-		if ( 1 === (int) $wpdb->rows_affected ) {
-			return true;
+		if ( 1 !== (int) $wpdb->rows_affected ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value < %d", $now, $key, $now - self::SEND_LOCK_TTL ) );
+
+			if ( 1 !== (int) $wpdb->rows_affected ) {
+				return false;
+			}
 		}
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value < %d", time(), $key, time() - self::SEND_LOCK_TTL ) );
+		self::$send_lock_stamps[ $post_id ] = $now;
 
-		return 1 === (int) $wpdb->rows_affected;
+		return true;
 	}
 
 	/**
-	 * Releases the entry's send lock.
+	 * Releases the entry's send lock, unless another request has since
+	 * reclaimed it as stale.
 	 *
 	 * @param int $post_id Entry post id.
 	 */
@@ -400,7 +413,15 @@ class Push_Notifications {
 		global $wpdb;
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$wpdb->delete( $wpdb->options, [ 'option_name' => self::SEND_LOCK_PREFIX . $post_id ] );
+		$wpdb->delete(
+			$wpdb->options,
+			[
+				'option_name'  => self::SEND_LOCK_PREFIX . $post_id,
+				'option_value' => (string) ( self::$send_lock_stamps[ $post_id ] ?? '' ),
+			]
+		);
+
+		unset( self::$send_lock_stamps[ $post_id ] );
 	}
 
 	/**
