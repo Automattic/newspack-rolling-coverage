@@ -175,7 +175,10 @@ function CoverageView() {
 
 	return (
 		<>
-			<ErrorNotice message={ error } />
+			<ErrorNotice
+				className="newspack-rolling-coverage-view-notice"
+				message={ error }
+			/>
 			{ isFirstLoad && (
 				<LoadingState
 					label={ __(

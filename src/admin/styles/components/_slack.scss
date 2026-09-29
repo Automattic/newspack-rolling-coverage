@@ -46,7 +46,7 @@
 }
 
 .newspack-rolling-coverage-status-dot {
-	background-color: var(--wpds-color-stroke-surface-success-strong, #{wp-colors.$alert-green});
+	background-color: var(--wpds-color-stroke-surface-success-strong, #008030);
 	border-radius: wp-vars.$radius-round;
 	flex-shrink: 0;
 	height: wp-vars.$grid-unit-10;

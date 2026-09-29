@@ -26,6 +26,8 @@ import {
 	getRawTitle,
 	getRawAuthor,
 	getCategoryNames,
+	getTermNames,
+	summarizeTermNames,
 	getTagNames,
 	getBreakoutStatus,
 	SOURCE_SLACK,
@@ -140,11 +142,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			render: ( { item } ) => {
 				if ( getEntrySource( item ) === SOURCE_SLACK ) {
 					return (
-						<span
-							className="newspack-rolling-coverage-source-slack"
-							title="Slack"
-							aria-label="Slack"
-						>
+						<span title="Slack" aria-label="Slack">
 							<SlackIcon size={ 15 } />
 						</span>
 					);
@@ -237,7 +235,8 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			label: __( 'Categories', 'newspack-rolling-coverage' ),
 			enableSorting: false,
 			getValue: ( { item } ) => getCategoryNames( item ),
-			render: ( { item } ) => getCategoryNames( item ) || '—',
+			render: ( { item } ) =>
+				summarizeTermNames( getTermNames( item, 'category' ) ),
 			filterBy: {
 				operators: [ 'contains' ],
 			},
@@ -248,7 +247,8 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			label: __( 'Tags', 'newspack-rolling-coverage' ),
 			enableSorting: false,
 			getValue: ( { item } ) => getTagNames( item ),
-			render: ( { item } ) => getTagNames( item ) || '—',
+			render: ( { item } ) =>
+				summarizeTermNames( getTermNames( item, 'post_tag' ) ),
 			filterBy: {
 				operators: [ 'contains' ],
 			},

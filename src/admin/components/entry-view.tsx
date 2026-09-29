@@ -627,8 +627,14 @@ function EntryView() {
 
 	return (
 		<>
-			<ErrorNotice message={ error } />
-			<ErrorNotice message={ createError } />
+			<ErrorNotice
+				className="newspack-rolling-coverage-view-notice"
+				message={ error }
+			/>
+			<ErrorNotice
+				className="newspack-rolling-coverage-view-notice"
+				message={ createError }
+			/>
 			{ isFirstLoad && (
 				<LoadingState
 					label={ __(

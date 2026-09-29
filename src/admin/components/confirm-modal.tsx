@@ -32,9 +32,12 @@ function ConfirmModal( {
 
 	const handleConfirm = async () => {
 		setIsBusy( true );
-		await onConfirm();
-		setIsBusy( false );
-		onClose();
+		try {
+			await onConfirm();
+			onClose();
+		} finally {
+			setIsBusy( false );
+		}
 	};
 
 	return (

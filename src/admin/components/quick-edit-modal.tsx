@@ -143,6 +143,16 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 		);
 	}
 
+	const sidebarToggle = (
+		<Button
+			icon={ isRTL() ? drawerLeft : drawerRight }
+			label={ __( 'Settings', 'newspack-rolling-coverage' ) }
+			isPressed={ isSidebarOpen }
+			onClick={ () => setIsSidebarOpen( ( prev ) => ! prev ) }
+			size="compact"
+		/>
+	);
+
 	return (
 		<>
 			<Modal
@@ -153,25 +163,17 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 				isDismissible={ false }
 				headerActions={
 					<Stack direction="row" gap="sm" align="center">
-						<Button
-							icon={ isRTL() ? drawerLeft : drawerRight }
-							label={ __(
-								'Settings',
-								'newspack-rolling-coverage'
-							) }
-							isPressed={ isSidebarOpen }
-							onClick={ () =>
-								setIsSidebarOpen( ( prev ) => ! prev )
-							}
-							size="compact"
-						/>
-						{ editorRegistry && (
+						{ editorRegistry ? (
 							<RegistryProvider value={ editorRegistry }>
 								<QuickEditSaveBar
 									onClose={ handleRequestClose }
 									onSaved={ onSaved }
-								/>
+								>
+									{ sidebarToggle }
+								</QuickEditSaveBar>
 							</RegistryProvider>
+						) : (
+							sidebarToggle
 						) }
 					</Stack>
 				}

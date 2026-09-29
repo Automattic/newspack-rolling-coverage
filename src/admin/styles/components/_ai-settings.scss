@@ -14,7 +14,7 @@
 	}
 
 	.components-base-control__help {
-		color: var(--wpds-color-foreground-content-error, #{wp-colors.$alert-red});
-		font-weight: wp-vars.$font-weight-medium;
+		color: var(--wpds-color-foreground-content-error-weak, #{wp-colors.$alert-red});
+		font-weight: var(--wpds-typography-font-weight-emphasis, 600);
 	}
 }

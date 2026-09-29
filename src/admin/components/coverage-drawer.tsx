@@ -11,6 +11,7 @@ import { ExternalLink } from '@wordpress/components';
 import { DataForm } from '@wordpress/dataviews/wp';
 import { __ } from '@wordpress/i18n';
 import { decodeEntities } from '@wordpress/html-entities';
+import { Stack } from '@wordpress/ui';
 import { Drawer } from 'newspack-components/dist/esm/drawer';
 
 /**
@@ -230,13 +231,15 @@ function CoverageDrawer( {
 				<Drawer.CloseIcon />
 			</Drawer.Header>
 			<Drawer.Content>
-				<DataForm
-					data={ data }
-					fields={ coverageFields }
-					form={ coverageForm }
-					onChange={ handleChange }
-				/>
-				<ErrorNotice message={ error } />
+				<Stack direction="column" gap="lg">
+					<DataForm
+						data={ data }
+						fields={ coverageFields }
+						form={ coverageForm }
+						onChange={ handleChange }
+					/>
+					<ErrorNotice message={ error } />
+				</Stack>
 			</Drawer.Content>
 			<Drawer.Footer>
 				<Drawer.Action variant="secondary" closes disabled={ isSaving }>

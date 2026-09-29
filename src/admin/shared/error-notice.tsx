@@ -13,15 +13,15 @@ import type { ErrorNoticeProps } from '../types';
  *
  * @param {ErrorNoticeProps} props Component props.
  */
-function ErrorNotice( { message }: ErrorNoticeProps ) {
+function ErrorNotice( { message, className }: ErrorNoticeProps ) {
 	if ( ! message ) {
 		return null;
 	}
 
 	return (
 		<Notice.Root
+			className={ className }
 			intent="error"
-			politeness="assertive"
 			spokenMessage={ message }
 		>
 			<Notice.Description>{ message }</Notice.Description>

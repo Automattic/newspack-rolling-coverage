@@ -408,6 +408,7 @@ interface QuickEditModalProps {
 
 interface ErrorNoticeProps {
 	message?: string | null;
+	className?: string;
 }
 
 interface ConnectedChannelViewProps {
@@ -508,6 +509,7 @@ interface SettingField {
 interface QuickEditSaveBarProps {
 	onClose: () => void;
 	onSaved: () => void;
+	children?: ReactNode;
 }
 
 interface EntityRecord {
