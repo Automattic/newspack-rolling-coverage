@@ -522,7 +522,7 @@ class AI_Service {
 			$title   = $entry->post_title ? $entry->post_title : __( '(No title)', 'newspack-rolling-coverage' );
 			$excerpt = has_excerpt( $entry )
 				? wp_strip_all_tags( $entry->post_excerpt )
-				: Post_Type::get_entry_summary( $entry, 55 );
+				: wp_strip_all_tags( Post_Type::get_entry_summary( $entry, 55 ) );
 
 			$parts[] = sprintf( "Entry %d (%s): %s\n%s", $num, $date, $title, $excerpt );
 		}

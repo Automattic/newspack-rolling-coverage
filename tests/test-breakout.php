@@ -108,14 +108,14 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 			self::create_coverage(),
 			[
 				'post_title'   => '',
-				'post_content' => '<p>Results &lt;img src=x onerror=alert(1)&gt; soon</p>',
+				'post_content' => '<p>Results &lt;img src=x onerror=alert(1)&gt; won&#039;t wait</p>',
 			]
 		);
 
 		$breakout_post = get_post( self::break_out( $entry_id )->get_data()['breakoutPostId'] );
 
 		$this->assertStringNotContainsString( '<img', $breakout_post->post_title );
-		$this->assertSame( 'Results <img src=x onerror=alert(1)> soon', html_entity_decode( $breakout_post->post_title, ENT_QUOTES ) );
+		$this->assertSame( "Results &lt;img src=x onerror=alert(1)&gt; won't wait", $breakout_post->post_title, 'Only &, < and > should be encoded, as the editor stores titles.' );
 	}
 
 	/**
