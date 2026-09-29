@@ -178,15 +178,6 @@ class Push_Notifications {
 	}
 
 	/**
-	 * Whether the OneSignal plugin is installed, on any version (v2 or v3).
-	 *
-	 * @return bool
-	 */
-	public static function is_onesignal_installed(): bool {
-		return defined( 'ONESIGNAL_PLUGIN_VERSION' );
-	}
-
-	/**
 	 * Whether OneSignal is installed and running its v3 architecture, which
 	 * this integration requires.
 	 *

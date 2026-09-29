@@ -919,12 +919,28 @@ class Post_Type {
 		}
 
 		// Bump post_modified so live feeds re-render the entry with its pinned row.
-		// Pinning isn't an edit, so the stored content is kept as it is: save
-		// filters would strip HTML or block CSS the author could post but the
-		// person pinning can't.
-		$keep_stored_content = static function ( $data, $postarr, $unsanitized_postarr ) use ( $entry_id ) {
+		self::touch_entry( $entry_id );
+
+		return new WP_REST_Response( [ 'pinned' => ! $is_pinned ], 200 );
+	}
+
+	/**
+	 * Bump an entry's modified date so live feeds re-render it. This isn't an
+	 * edit, so the stored content is kept as it is: save filters would strip
+	 * HTML or block CSS the author could post but whoever triggers the touch
+	 * (or cron) can't.
+	 *
+	 * @param int  $entry_id Entry post ID.
+	 * @param bool $wp_error Whether to return a WP_Error on failure.
+	 * @return int|WP_Error The entry ID, 0 or a WP_Error on failure.
+	 */
+	public static function touch_entry( int $entry_id, bool $wp_error = false ) {
+		$keep_stored_content = static function ( $data, $postarr, $unsanitized_postarr ) use ( $entry_id, &$keep_stored_content ) {
 			if ( $entry_id === (int) ( $postarr['ID'] ?? 0 ) ) {
-				foreach ( [ 'post_content', 'post_title', 'post_excerpt' ] as $field ) {
+				// One save only: a hook that edits the entry during the touch still goes through kses.
+				remove_filter( 'wp_insert_post_data', $keep_stored_content, 5 );
+
+				foreach ( [ 'post_content', 'post_content_filtered', 'post_title', 'post_excerpt' ] as $field ) {
 					if ( isset( $unsanitized_postarr[ $field ] ) ) {
 						$data[ $field ] = $unsanitized_postarr[ $field ];
 					}
@@ -937,12 +953,10 @@ class Post_Type {
 		add_filter( 'wp_insert_post_data', $keep_stored_content, 5, 3 );
 
 		try {
-			wp_update_post( [ 'ID' => $entry_id ] );
+			return wp_update_post( [ 'ID' => $entry_id ], $wp_error );
 		} finally {
 			remove_filter( 'wp_insert_post_data', $keep_stored_content, 5 );
 		}
-
-		return new WP_REST_Response( [ 'pinned' => ! $is_pinned ], 200 );
 	}
 
 	/**

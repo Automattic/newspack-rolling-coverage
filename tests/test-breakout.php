@@ -178,6 +178,65 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Unpublishing or deleting a published breakout touches the entry again,
+	 * so live readers lose the links to it.
+	 */
+	public function test_unpublishing_or_deleting_the_breakout_post_touches_the_entry() {
+		self::log_in_as( 'editor' );
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::break_out( $entry_id )->get_data()['breakoutPostId'];
+		wp_publish_post( $breakout_id );
+
+		self::backdate_modified( $entry_id );
+		wp_update_post(
+			[
+				'ID'          => $breakout_id,
+				'post_status' => 'draft',
+			]
+		);
+
+		$this->assertGreaterThan( '2026-01-01 12:00:00', get_post( $entry_id )->post_modified_gmt, 'Unpublishing should mark the entry as modified.' );
+
+		wp_publish_post( $breakout_id );
+		self::backdate_modified( $entry_id );
+		wp_delete_post( $breakout_id, true );
+
+		$this->assertGreaterThan( '2026-01-01 12:00:00', get_post( $entry_id )->post_modified_gmt, 'Deleting should mark the entry as modified.' );
+	}
+
+	/**
+	 * Touching the entry isn't an edit: an author without unfiltered HTML who
+	 * trashes their published breakout leaves the entry's embed in place.
+	 */
+	public function test_touching_the_entry_keeps_its_stored_content() {
+		$content  = '<!-- wp:html --><iframe src="https://example.com/embed"></iframe><!-- /wp:html -->';
+		$entry_id = self::create_entry( self::create_coverage() );
+		$GLOBALS['wpdb']->update( $GLOBALS['wpdb']->posts, [ 'post_content' => $content ], [ 'ID' => $entry_id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		clean_post_cache( $entry_id );
+		$breakout_id = self::factory()->post->create( [ 'post_status' => 'publish' ] );
+		update_post_meta( $entry_id, Breakout::ENTRY_BREAKOUT_POST_ID_META, $breakout_id );
+		update_post_meta( $breakout_id, Breakout::BREAKOUT_SOURCE_ENTRY_META, $entry_id );
+		self::log_in_as( 'author' );
+		kses_init();
+
+		wp_trash_post( $breakout_id );
+
+		$this->assertSame( $content, get_post( $entry_id )->post_content );
+	}
+
+	/**
+	 * Set an entry's modified date back, as if it was last touched long ago.
+	 *
+	 * @param int $entry_id Entry post ID.
+	 */
+	private static function backdate_modified( int $entry_id ): void {
+		global $wpdb;
+
+		$wpdb->update( $wpdb->posts, [ 'post_modified_gmt' => '2026-01-01 12:00:00' ], [ 'ID' => $entry_id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		clean_post_cache( $entry_id );
+	}
+
+	/**
 	 * A breakout would spin new work off a frozen record.
 	 */
 	public function test_locked_entry_cannot_be_broken_out() {

@@ -141,7 +141,6 @@ interface Entry {
 	author: number;
 	meta: {
 		rolling_coverage_breakout_post_id?: number;
-		rolling_coverage_breakout_read_more_text?: string;
 		[ key: string ]: unknown;
 	};
 	pinned?: boolean;
@@ -337,16 +336,6 @@ interface SaveCoverageData {
 	adsDisabled: boolean;
 }
 
-interface BreakoutModalProps {
-	entry: Entry;
-	onClose: () => void;
-	onSaved: () => void;
-}
-
-interface BreakoutFormData {
-	rolling_coverage_breakout_read_more_text: string;
-}
-
 interface CreateBreakoutResponse {
 	breakoutPostId: number;
 	editLink: string;
@@ -360,7 +349,6 @@ interface CreateBreakoutResult extends ApiResult {
 interface ChipLinkProps {
 	href: string;
 	label: string;
-	variant?: string;
 }
 
 interface TermChipsProps {
@@ -657,8 +645,6 @@ export type {
 	UseCoveragesOptions,
 	UseEntriesOptions,
 	UseEntriesResult,
-	BreakoutModalProps,
-	BreakoutFormData,
 	CreateBreakoutResponse,
 	CreateBreakoutResult,
 	ConfirmModalContentProps,

@@ -161,7 +161,13 @@ async function fetchEntryPreviewContexts(
 
 	try {
 		const entries = await apiFetch<
-			Array< { id: number; type: string; pinned?: boolean } >
+			Array< {
+				id: number;
+				type: string;
+				pinned?: boolean;
+				hasBreakout?: boolean;
+				hasTitle?: boolean;
+			} >
 		>( {
 			url: `${ ENTRIES_PREVIEW_REST_BASE }/${ coverageId }/entries-preview?per_page=${ perPage }`,
 		} );
@@ -171,6 +177,8 @@ async function fetchEntryPreviewContexts(
 			postType: entry.type,
 			queryId: 0,
 			pinned: Boolean( entry.pinned ),
+			hasBreakout: Boolean( entry.hasBreakout ),
+			hasTitle: entry.hasTitle !== false,
 		} ) );
 	} catch ( error ) {
 		return [];

@@ -21,7 +21,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	 * The entry template's buttons, as the editor saves them.
 	 */
 	const BUTTONS_MARKUP = '<!-- wp:buttons --><div class="wp-block-buttons">'
-		. '<!-- wp:button {"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"breakoutUrl"}},"text":{"source":"newspack-rolling-coverage/entry","args":{"key":"breakoutLabel"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button"></a></div><!-- /wp:button -->'
+		. '<!-- wp:button {"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"breakoutUrl"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button">Full story</a></div><!-- /wp:button -->'
 		. '<!-- wp:button {"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"shareUrl"}}}},"className":"newspack-rolling-coverage-share-link"} --><div class="wp-block-button newspack-rolling-coverage-share-link"><a class="wp-block-button__link wp-element-button">Share</a></div><!-- /wp:button -->'
 		. '</div><!-- /wp:buttons -->';
 
@@ -58,29 +58,123 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$html = self::render( $entry_id );
 
-		$this->assertStringNotContainsString( 'Read more', $html, 'No breakout: no button.' );
+		$this->assertStringNotContainsString( 'Full story', $html, 'No breakout: no button.' );
 		$this->assertStringContainsString( 'data-rc-share', $html, 'The rest of the template should still render.' );
 
 		self::add_breakout( $entry_id, 'draft' );
 
-		$this->assertStringNotContainsString( 'Read more', self::render( $entry_id ), 'A draft breakout: no button.' );
+		$this->assertStringNotContainsString( 'Full story', self::render( $entry_id ), 'A draft breakout: no button.' );
 	}
 
 	/**
-	 * A published breakout gives "Read more" its link and the entry's label.
+	 * A published breakout gives "Read more" its link, keeping the text
+	 * written in the template.
 	 */
-	public function test_read_more_links_to_the_published_breakout_with_the_entry_label() {
+	public function test_read_more_links_to_the_published_breakout_with_the_template_text() {
 		$entry_id    = self::create_entry( self::create_coverage() );
 		$breakout_id = self::add_breakout( $entry_id, 'publish' );
 
 		$html = self::render( $entry_id );
 
 		$this->assertStringContainsString( 'href="' . esc_url( get_permalink( $breakout_id ) ) . '"', $html, 'The button should link to the breakout.' );
-		$this->assertStringContainsString( '>Read more</a>', $html, 'The default label should be used.' );
+		$this->assertStringContainsString( '>Full story</a>', $html, "The template's text should be used." );
+	}
 
-		update_post_meta( $entry_id, Breakout::ENTRY_READ_MORE_TEXT_META, 'Full story' );
+	/**
+	 * The editor preview knows which entries have a published breakout, so
+	 * it shows "Read more" only on those.
+	 */
+	public function test_the_editor_preview_flags_entries_with_a_published_breakout() {
+		$coverage_id = self::create_coverage();
+		$published   = self::create_entry( $coverage_id );
+		$drafted     = self::create_entry( $coverage_id );
+		$none        = self::create_entry( $coverage_id );
+		self::add_breakout( $published, 'publish' );
+		self::add_breakout( $drafted, 'draft' );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
 
-		$this->assertStringContainsString( '>Full story</a>', self::render( $entry_id ), "The entry's own label should win." );
+		$response = rest_do_request( new WP_REST_Request( 'GET', '/' . NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages/' . $coverage_id . '/entries-preview' ) );
+		$flags    = wp_list_pluck( $response->get_data(), 'hasBreakout', 'id' );
+
+		$this->assertTrue( $flags[ $published ], 'A published breakout should be flagged.' );
+		$this->assertFalse( $flags[ $drafted ], 'A draft breakout should not be.' );
+		$this->assertFalse( $flags[ $none ], 'An entry without a breakout should not be.' );
+	}
+
+	/**
+	 * An entry's title links to its breakout post once that post is published.
+	 */
+	public function test_the_title_links_to_the_published_breakout() {
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_title' => 'Repair plan announced' ] );
+		$title    = parse_blocks( '<!-- wp:post-title {"level":4} /-->' );
+
+		$this->assertStringNotContainsString( '<a ', Rolling_Coverage_Block::render_entry( get_post( $entry_id ), $title ), 'No breakout: a plain title.' );
+
+		$breakout_id = self::add_breakout( $entry_id, 'draft' );
+
+		$this->assertStringNotContainsString( '<a ', Rolling_Coverage_Block::render_entry( get_post( $entry_id ), $title ), 'A draft breakout: a plain title.' );
+
+		wp_publish_post( $breakout_id );
+
+		$this->assertStringContainsString(
+			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Repair plan announced</a></h4>',
+			Rolling_Coverage_Block::render_entry( get_post( $entry_id ), $title ),
+			'A published breakout: the title links to it.'
+		);
+	}
+
+	/**
+	 * A title set to link to the entry links to the breakout post instead.
+	 */
+	public function test_a_linked_title_points_at_the_breakout_instead() {
+		$entry_id    = self::create_entry( self::create_coverage(), [ 'post_title' => 'Repair plan announced' ] );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+
+		$html = Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( '<!-- wp:post-title {"isLink":true} /-->' ) );
+
+		$this->assertStringContainsString( 'href="' . esc_url( get_permalink( $breakout_id ) ) . '"', $html, 'The title should link to the breakout.' );
+		$this->assertStringNotContainsString( 'href="' . esc_url( get_permalink( $entry_id ) ) . '"', $html, 'The title should no longer link to the entry.' );
+	}
+
+	/**
+	 * A title whose text holds a link of its own isn't wrapped in another,
+	 * and a title rendered as a paragraph is linked like a heading.
+	 */
+	public function test_titles_with_their_own_link_stay_as_they_are() {
+		$coverage_id = self::create_coverage();
+		$with_link   = self::create_entry( $coverage_id, [ 'post_title' => 'See <a href="https://example.com/">the map</a>' ] );
+		$paragraph   = self::create_entry( $coverage_id, [ 'post_title' => 'Repair plan announced' ] );
+		self::add_breakout( $with_link, 'publish' );
+		$breakout_id = self::add_breakout( $paragraph, 'publish' );
+
+		$html = Rolling_Coverage_Block::render_entry( get_post( $with_link ), parse_blocks( '<!-- wp:post-title /-->' ) );
+
+		$this->assertStringContainsString( 'href="https://example.com/"', $html, "The title's own link should be kept." );
+		$this->assertSame( 1, substr_count( $html, '<a ' ), 'No second link should be added.' );
+
+		$this->assertStringContainsString(
+			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Repair plan announced</a></p>',
+			Rolling_Coverage_Block::render_entry( get_post( $paragraph ), parse_blocks( '<!-- wp:post-title {"level":0} /-->' ) )
+		);
+	}
+
+	/**
+	 * A title outside an entry is left alone.
+	 */
+	public function test_titles_outside_entries_are_left_alone() {
+		$post_id = self::factory()->post->create( [ 'post_title' => 'Elsewhere' ] );
+		update_post_meta( $post_id, Breakout::ENTRY_BREAKOUT_POST_ID_META, self::factory()->post->create() );
+		$title = parse_blocks( '<!-- wp:post-title /-->' );
+
+		$html = ( new WP_Block(
+			$title[0],
+			[
+				'postId'   => $post_id,
+				'postType' => 'post',
+			]
+		) )->render();
+
+		$this->assertStringNotContainsString( '<a ', $html );
 	}
 
 	/**
@@ -114,7 +208,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 			[
 				'postId'   => $post_id,
 				'postType' => 'post',
-			] 
+			]
 		) )->render();
 
 		$this->assertStringNotContainsString( 'data-rc-relative', $html, 'A relative date outside an entry should not be marked.' );

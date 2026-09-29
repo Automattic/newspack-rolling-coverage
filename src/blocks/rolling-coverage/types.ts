@@ -57,9 +57,6 @@ interface BlockConfig {
 	coveragesRestBase: string;
 	statusMetaKey: string;
 	canonicalUrlMetaKey: string;
-	readMoreTextMetaKey: string;
-	onesignalInstalled: boolean;
-	onesignalV3Active: boolean;
 	onesignalConfigured: boolean;
 	adsDisabledMetaKey: string;
 	entriesPreviewRestBase: string;
@@ -98,6 +95,8 @@ interface EntryContext {
 	postType: string;
 	queryId: number;
 	pinned?: boolean;
+	hasBreakout?: boolean;
+	hasTitle?: boolean;
 }
 
 /**

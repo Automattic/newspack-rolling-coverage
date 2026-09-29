@@ -4,6 +4,7 @@
 import { Tooltip } from '@wordpress/components';
 import { dateI18n, getSettings } from '@wordpress/date';
 import { __, sprintf } from '@wordpress/i18n';
+import { Link } from '@wordpress/ui';
 import {
 	Icon,
 	pinSmall,
@@ -14,7 +15,6 @@ import {
  * Internal dependencies
  */
 import type { Field, ViewState, Entry, AdminConfig } from '../types';
-import { ChipLink } from '../shared/chip-link';
 import { SlackIcon } from '../shared/icons/slack-icon';
 import { TermChips } from '../shared/term-chips';
 import { UserRow } from '../shared/user-row';
@@ -288,15 +288,18 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				) {
 					return <span>—</span>;
 				}
-				const label = getStatusLabel(
-					item.rolling_coverage_breakout_status
-				);
+				const breakoutStatus = item.rolling_coverage_breakout_status;
 				return (
-					<ChipLink
-						href={ `${ config.adminUrls.editEntry }&post=${ breakoutPostId }` }
-						label={ label }
-						variant={ item.rolling_coverage_breakout_status }
-					/>
+					<StatusIndicator
+						status={ POST_STATUS_INDICATORS[ breakoutStatus ] }
+					>
+						<Link
+							href={ `${ config.adminUrls.editEntry }&post=${ breakoutPostId }` }
+							openInNewTab
+						>
+							{ getStatusLabel( breakoutStatus ) }
+						</Link>
+					</StatusIndicator>
 				);
 			},
 			elements: BREAKOUT_ELEMENTS,
