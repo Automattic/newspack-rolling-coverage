@@ -29,7 +29,6 @@ interface OneSignalApi {
 
 declare global {
 	interface Window {
-		// OneSignal Web SDK's deferred-callback queue.
 		OneSignalDeferred?: Array< ( os: OneSignalApi ) => void >;
 	}
 }

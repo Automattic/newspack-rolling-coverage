@@ -361,11 +361,15 @@ export default function Edit( {
 		unsetBlockEditingMode,
 	] );
 
-	// Without OneSignal the follow button never renders on the site, so the
-	// editor hides it too. It stays in the template for when OneSignal is set up.
+	// Hidden wherever the site never renders it: without OneSignal, or on an
+	// archived coverage. It stays in the template for when it can render.
+	const isFollowHidden =
+		! ONESIGNAL_CONFIGURED ||
+		currentCoverage?.status === 'archived' ||
+		editedState === 'archived';
 	const hiddenFollowIds = useMemo(
 		() =>
-			ONESIGNAL_CONFIGURED
+			! isFollowHidden
 				? []
 				: allBlocks
 						.filter(
@@ -374,7 +378,7 @@ export default function Edit( {
 								isFollowButtons( block )
 						)
 						.map( ( block ) => block.clientId ),
-		[ allBlocks ]
+		[ allBlocks, isFollowHidden ]
 	);
 	const hiddenFollowKey = hiddenFollowIds.join( ',' );
 	useEffect( () => {
@@ -382,6 +386,31 @@ export default function Edit( {
 		ids.forEach( ( id ) => setBlockEditingMode( id, 'disabled' ) );
 		return () => ids.forEach( ( id ) => unsetBlockEditingMode( id ) );
 	}, [ hiddenFollowKey, setBlockEditingMode, unsetBlockEditingMode ] );
+
+	// A hidden block still counts as the previous sibling for the entry gap,
+	// so the first block left showing in this editor state drops its margin.
+	const hiddenFollowCss = useMemo( () => {
+		if ( ! hiddenFollowIds.length ) {
+			return '';
+		}
+		const firstVisible = allBlocks.find(
+			( block ) =>
+				! hiddenFollowIds.includes( block.clientId ) &&
+				( ! STATE_BY_BLOCK_NAME[ block.name ] ||
+					STATE_BY_BLOCK_NAME[ block.name ] === editedState )
+		);
+		const layout =
+			'.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout >';
+		return [
+			...hiddenFollowIds.map(
+				( id ) =>
+					`${ layout } [data-block="${ id }"] { display: none; }`
+			),
+			firstVisible
+				? `${ layout } .wp-block[data-block="${ firstVisible.clientId }"] { margin-top: 0; }`
+				: '',
+		].join( '\n' );
+	}, [ hiddenFollowIds, allBlocks, editedState ] );
 
 	// Derives the current page's permalink, and whether it's still a
 	// placeholder ".../auto-draft/" URL because the post is unsaved.
@@ -629,87 +658,89 @@ export default function Edit( {
 					{ coverageCombobox }
 
 					{ coverageId ? (
-						<div className="newspack-rolling-coverage-panel-group">
-							<RadioControl
-								label={ __(
-									'Status',
-									'newspack-rolling-coverage'
-								) }
-								selected={ pendingStatus }
-								options={ STATUS_OPTIONS }
-								onChange={ setPendingStatus }
-								help={ __(
-									'Writes back to the coverage itself — changes here affect every block connected to it.',
-									'newspack-rolling-coverage'
-								) }
-							/>
-							<Button
-								variant="secondary"
-								onClick={ handleApply }
-								isBusy={ isApplying }
-								disabled={ isApplying || statusUnchanged }
-							>
-								{ __( 'Apply', 'newspack-rolling-coverage' ) }
-							</Button>
-							{ applyNotice && (
-								<Notice
-									status={ applyNotice.type }
-									isDismissible={ false }
-								>
-									{ applyNotice.message }
-								</Notice>
-							) }
-						</div>
-					) : null }
-
-					{ coverageId ? (
-						<div className="newspack-rolling-coverage-panel-group">
-							<TextControl
-								__next40pxDefaultSize
-								type="url"
-								label={ __(
-									'Canonical URL',
-									'newspack-rolling-coverage'
-								) }
-								placeholder={ __(
-									'https://example.com/live-coverage',
-									'newspack-rolling-coverage'
-								) }
-								value={ pendingCanonicalUrl }
-								onChange={ setPendingCanonicalUrl }
-								disabled={ isApplyingUrl }
-								help={ __(
-									'The page readers land on when they open a link to one of its entries. Shared across every block connected to this coverage.',
-									'newspack-rolling-coverage'
-								) }
-							/>
-							<Button
-								variant="secondary"
-								onClick={ () =>
-									setPendingCanonicalUrl(
-										currentPagePermalink || ''
-									)
-								}
-								disabled={
-									isCurrentPageUnsaved ||
-									! currentPagePermalink
-								}
-							>
-								{ __(
-									'Use this page',
-									'newspack-rolling-coverage'
-								) }
-							</Button>
-							{ ( isCurrentPageUnsaved ||
-								! currentPagePermalink ) && (
-								<p className="components-base-control__help">
-									{ __(
-										'Save this page to get its permalink.',
+						<>
+							<div className="newspack-rolling-coverage-panel-group">
+								<RadioControl
+									label={ __(
+										'Status',
 										'newspack-rolling-coverage'
 									) }
-								</p>
-							) }
-						</div>
+									selected={ pendingStatus }
+									options={ STATUS_OPTIONS }
+									onChange={ setPendingStatus }
+									help={ __(
+										'Writes back to the coverage itself — changes here affect every block connected to it.',
+										'newspack-rolling-coverage'
+									) }
+								/>
+								<Button
+									variant="secondary"
+									onClick={ handleApply }
+									isBusy={ isApplying }
+									disabled={ isApplying || statusUnchanged }
+								>
+									{ __(
+										'Apply',
+										'newspack-rolling-coverage'
+									) }
+								</Button>
+								{ applyNotice && (
+									<Notice
+										status={ applyNotice.type }
+										isDismissible={ false }
+									>
+										{ applyNotice.message }
+									</Notice>
+								) }
+							</div>
+							<div className="newspack-rolling-coverage-panel-group">
+								<TextControl
+									__next40pxDefaultSize
+									type="url"
+									label={ __(
+										'Canonical URL',
+										'newspack-rolling-coverage'
+									) }
+									placeholder={ __(
+										'https://example.com/live-coverage',
+										'newspack-rolling-coverage'
+									) }
+									value={ pendingCanonicalUrl }
+									onChange={ setPendingCanonicalUrl }
+									disabled={ isApplyingUrl }
+									help={ __(
+										"The page readers land on when they open a link to one of this coverage's entries. Shared across every block connected to this coverage.",
+										'newspack-rolling-coverage'
+									) }
+								/>
+								<Button
+									variant="secondary"
+									onClick={ () =>
+										setPendingCanonicalUrl(
+											currentPagePermalink || ''
+										)
+									}
+									disabled={
+										isCurrentPageUnsaved ||
+										! currentPagePermalink
+									}
+								>
+									{ __(
+										'Use this page',
+										'newspack-rolling-coverage'
+									) }
+								</Button>
+								{ ( isCurrentPageUnsaved ||
+									! currentPagePermalink ) && (
+									<p className="components-base-control__help">
+										{ __(
+											'Save this page to get its permalink.',
+											'newspack-rolling-coverage'
+										) }
+									</p>
+								) }
+							</div>
+						</>
 					) : null }
 				</PanelBody>
 
@@ -934,15 +965,8 @@ export default function Edit( {
 			<div { ...blockProps }>
 				{ coverageId ? (
 					<>
-						{ hiddenFollowIds.length > 0 && (
-							<style>
-								{ hiddenFollowIds
-									.map(
-										( id ) =>
-											`.newspack-rolling-coverage-layout > [data-block="${ id }"] { display: none; }`
-									)
-									.join( '\n' ) }
-							</style>
+						{ hiddenFollowCss && (
+							<style>{ hiddenFollowCss }</style>
 						) }
 						<EditedStateBar
 							options={ EDITED_STATE_OPTIONS }
