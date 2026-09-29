@@ -1144,171 +1144,172 @@ export default function Edit( {
 			) }
 
 			<div { ...blockProps }>
-				{ isCreatingLayout ? (
-					<Spinner />
-				) : coverageId || isLayoutPattern ? (
-					<>
-						{ layoutCss && <style>{ layoutCss }</style> }
-						<EditedStateBar
-							options={ EDITED_STATE_OPTIONS }
-							value={ editedState }
-							onChange={ setEditedState }
-							isVisible={ isSelected }
-						/>
-						{ isLayoutMissing && (
-							<Notice
-								status="warning"
-								isDismissible={ false }
-								actions={ [
-									{
-										label: __(
-											'Restore shared layout',
-											'newspack-rolling-coverage'
-										),
-										onClick: restoreLayout,
-										variant: 'primary',
-									},
-									{
-										label: __(
-											'Detach',
-											'newspack-rolling-coverage'
-										),
-										onClick: detach,
-									},
-								] }
-							>
-								{ __(
-									"The shared layout can't be found. This story shows the default layout until you restore it or detach it.",
-									'newspack-rolling-coverage'
-								) }
-							</Notice>
-						) }
-						{ layoutError && (
-							<Notice
-								status="error"
-								onRemove={ () => setLayoutError( null ) }
-							>
-								{ layoutError }
-							</Notice>
-						) }
-						{ ! isLayoutPattern && currentCoverage?.status === 'trash' && (
-							<Notice status="error" isDismissible={ false }>
-								{ __(
-									'This coverage has been trashed and is no longer available. Select a different coverage or restore it from the Rolling Coverage admin.',
-									'newspack-rolling-coverage'
-								) }
-							</Notice>
-						) }
-						{ ! isLayoutPattern && previewContexts.length === 0 && (
-							<Notice status="info" isDismissible={ false }>
-								{ __(
-									'No published entries yet — showing the template only. Add entries to this coverage to preview real content here.',
-									'newspack-rolling-coverage'
-								) }
-							</Notice>
-						) }
-						{ isSynced && ! hasResolvedLayout && <Spinner /> }
-						{ isSynced && hasResolvedLayout && (
-							<>
-								{ syncedRenderOnceBlocks.length > 0 && (
-									<BlockContextProvider
-										value={
-											previewContexts[ 0 ] ??
-											NEUTRAL_ENTRY_CONTEXT
-										}
-									>
-										<EntryBlockPreview
-											blocks={ syncedRenderOnceBlocks }
-										/>
-									</BlockContextProvider>
-								) }
-								<div className="newspack-rolling-coverage-entries">
-									{ previewContexts.length > 0 ? (
-										previewContexts.map( ( context ) => (
-											<BlockContextProvider
-												key={ context.postId }
-												value={ context }
-											>
-												<EntryBlockPreview
-													blocks={ blocksForEntry(
-														context
-													) }
-												/>
-											</BlockContextProvider>
-										) )
-									) : (
+				{ isCreatingLayout && <Spinner /> }
+				{ ! isCreatingLayout && (
+					coverageId || isLayoutPattern ? (
+						<>
+							{ layoutCss && <style>{ layoutCss }</style> }
+							<EditedStateBar
+								options={ EDITED_STATE_OPTIONS }
+								value={ editedState }
+								onChange={ setEditedState }
+								isVisible={ isSelected }
+							/>
+							{ isLayoutMissing && (
+								<Notice
+									status="warning"
+									isDismissible={ false }
+									actions={ [
+										{
+											label: __(
+												'Restore shared layout',
+												'newspack-rolling-coverage'
+											),
+											onClick: restoreLayout,
+											variant: 'primary',
+										},
+										{
+											label: __(
+												'Detach',
+												'newspack-rolling-coverage'
+											),
+											onClick: detach,
+										},
+									] }
+								>
+									{ __(
+										"The shared layout can't be found. This story shows the default layout until you restore it or detach it.",
+										'newspack-rolling-coverage'
+									) }
+								</Notice>
+							) }
+							{ layoutError && (
+								<Notice
+									status="error"
+									onRemove={ () => setLayoutError( null ) }
+								>
+									{ layoutError }
+								</Notice>
+							) }
+							{ ! isLayoutPattern && currentCoverage?.status === 'trash' && (
+								<Notice status="error" isDismissible={ false }>
+									{ __(
+										'This coverage has been trashed and is no longer available. Select a different coverage or restore it from the Rolling Coverage admin.',
+										'newspack-rolling-coverage'
+									) }
+								</Notice>
+							) }
+							{ ! isLayoutPattern && previewContexts.length === 0 && (
+								<Notice status="info" isDismissible={ false }>
+									{ __(
+										'No published entries yet — showing the template only. Add entries to this coverage to preview real content here.',
+										'newspack-rolling-coverage'
+									) }
+								</Notice>
+							) }
+							{ isSynced && ! hasResolvedLayout && <Spinner /> }
+							{ isSynced && hasResolvedLayout && (
+								<>
+									{ syncedRenderOnceBlocks.length > 0 && (
 										<BlockContextProvider
-											value={ NEUTRAL_ENTRY_CONTEXT }
+											value={
+												previewContexts[ 0 ] ??
+												NEUTRAL_ENTRY_CONTEXT
+											}
 										>
 											<EntryBlockPreview
-												blocks={ templateBlocks }
+												blocks={ syncedRenderOnceBlocks }
 											/>
 										</BlockContextProvider>
 									) }
-								</div>
-							</>
-						) }
-						{ ! isSynced && (
-							<>
-								<BlockContextProvider
-									value={
-										previewContexts.length > 0
-											? ( previewContexts.find(
-													( c ) =>
-														c.postId ===
-														( activeEntryId ??
-															previewContexts[ 0 ]?.postId )
-												) ?? NEUTRAL_ENTRY_CONTEXT )
-											: NEUTRAL_ENTRY_CONTEXT
-									}
-								>
-									<div { ...innerBlocksProps } />
-								</BlockContextProvider>
-								<div className="newspack-rolling-coverage-entries">
-									{ previewContexts.length > 0 &&
-										previewContexts.map( ( context ) => {
-											const isActive =
-												context.postId ===
-												( activeEntryId ??
-													previewContexts[ 0 ]?.postId );
-		
-											return (
+									<div className="newspack-rolling-coverage-entries">
+										{ previewContexts.length > 0 ? (
+											previewContexts.map( ( context ) => (
 												<BlockContextProvider
 													key={ context.postId }
 													value={ context }
 												>
-													{ ! isActive && (
-														<EntryBlockPreview
-															blocks={ blocksForEntry( context ) }
-															onSelect={ () =>
-																setActiveEntryId(
-																	context.postId
-																)
-															}
-														/>
-													) }
+													<EntryBlockPreview
+														blocks={ blocksForEntry(
+															context
+														) }
+													/>
 												</BlockContextProvider>
-											);
-										} ) }
-								</div>
-							</>
-						) }
-					</>
-				) : (
-					<Placeholder
-						icon={ activity }
-						label={ __(
-							'Rolling Coverage',
-							'newspack-rolling-coverage'
-						) }
-						instructions={ __(
-							'Select a coverage to display its entries.',
-							'newspack-rolling-coverage'
-						) }
-						isColumnLayout
-					>
-						{ coverageCombobox }
-					</Placeholder>
+											) )
+										) : (
+											<BlockContextProvider
+												value={ NEUTRAL_ENTRY_CONTEXT }
+											>
+												<EntryBlockPreview
+													blocks={ templateBlocks }
+												/>
+											</BlockContextProvider>
+										) }
+									</div>
+								</>
+							) }
+							{ ! isSynced && (
+								<>
+									<BlockContextProvider
+										value={
+											previewContexts.length > 0
+												? ( previewContexts.find(
+														( c ) =>
+															c.postId ===
+															( activeEntryId ??
+																previewContexts[ 0 ]?.postId )
+													) ?? NEUTRAL_ENTRY_CONTEXT )
+												: NEUTRAL_ENTRY_CONTEXT
+										}
+									>
+										<div { ...innerBlocksProps } />
+									</BlockContextProvider>
+									<div className="newspack-rolling-coverage-entries">
+										{ previewContexts.length > 0 &&
+											previewContexts.map( ( context ) => {
+												const isActive =
+													context.postId ===
+													( activeEntryId ??
+														previewContexts[ 0 ]?.postId );
+		
+												return (
+													<BlockContextProvider
+														key={ context.postId }
+														value={ context }
+													>
+														{ ! isActive && (
+															<EntryBlockPreview
+																blocks={ blocksForEntry( context ) }
+																onSelect={ () =>
+																	setActiveEntryId(
+																		context.postId
+																	)
+																}
+															/>
+														) }
+													</BlockContextProvider>
+												);
+											} ) }
+									</div>
+								</>
+							) }
+						</>
+					) : (
+						<Placeholder
+							icon={ activity }
+							label={ __(
+								'Rolling Coverage',
+								'newspack-rolling-coverage'
+							) }
+							instructions={ __(
+								'Select a coverage to display its entries.',
+								'newspack-rolling-coverage'
+							) }
+							isColumnLayout
+						>
+							{ coverageCombobox }
+						</Placeholder>
+					)
 				) }
 			</div>
 		</>
