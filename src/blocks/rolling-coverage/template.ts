@@ -29,7 +29,7 @@ const PINNED_ROW: TemplateItem = [
 			flexWrap: 'nowrap',
 			verticalAlignment: 'center',
 		},
-		style: { spacing: { blockGap: 'var:preset|spacing|20' } },
+		style: { spacing: { blockGap: '0' } },
 		metadata: { name: __( 'Pinned', 'newspack-rolling-coverage' ) },
 	},
 	[
@@ -110,84 +110,138 @@ const CONTENT_GAP =
 	'var(--wp--style--block-gap, var(--wp--preset--spacing--40))';
 
 /**
- * Default per-entry template: the pinned row, date and title stacked with
- * the share button opposite, content, "Read more" bound to the entry and
- * locked against removal, then a separator.
+ * Class of the group that shows a pinned entry as a card, mirroring
+ * Rolling_Coverage_Block::PINNED_CARD_CLASS.
+ */
+const PINNED_CARD_CLASS = 'newspack-rolling-coverage-pinned-card';
+const PINNED_CARD_BACKGROUND = 'var(--wp--custom--color--neutral-5, #f7f7f7)';
+const PINNED_CARD_RADIUS =
+	'var(--wp--custom--border--radius-large, var(--newspack-ui-border-radius-l, 8px))';
+
+/**
+ * Default per-entry template: the pinned card holding the pinned row, date
+ * and title stacked with the share button opposite, content and "Read more"
+ * bound to the entry and locked against removal, then a separator. Only
+ * pinned entries show the card; others show what it holds.
  */
 const ENTRY_TEMPLATE: TemplateItem[] = [
 	[
 		'core/group',
 		{
-			layout: {
-				type: 'flex',
-				flexWrap: 'nowrap',
-				justifyContent: 'space-between',
-				verticalAlignment: 'center',
+			className: PINNED_CARD_CLASS,
+			style: {
+				color: { background: PINNED_CARD_BACKGROUND },
+				spacing: {
+					padding: {
+						top: 'var:preset|spacing|50',
+						right: 'var:preset|spacing|50',
+						bottom: 'var:preset|spacing|50',
+						left: 'var:preset|spacing|50',
+					},
+					margin: { bottom: 'var:preset|spacing|50' },
+				},
+				border: { radius: PINNED_CARD_RADIUS },
 			},
-			style: { spacing: { blockGap: 'var:preset|spacing|30' } },
-			metadata: { name: __( 'Header', 'newspack-rolling-coverage' ) },
+			metadata: {
+				name: __( 'Pinned Card', 'newspack-rolling-coverage' ),
+			},
 		},
 		[
 			[
 				'core/group',
 				{
-					layout: { type: 'flex', orientation: 'vertical' },
-					style: { spacing: { blockGap: 'var:preset|spacing|20' } },
+					layout: {
+						type: 'flex',
+						flexWrap: 'nowrap',
+						justifyContent: 'space-between',
+						verticalAlignment: 'center',
+					},
+					style: { spacing: { blockGap: 'var:preset|spacing|30' } },
 					metadata: {
-						name: __( 'Meta', 'newspack-rolling-coverage' ),
+						name: __( 'Header', 'newspack-rolling-coverage' ),
 					},
 				},
 				[
-					PINNED_ROW,
 					[
-						'core/post-date',
-						{ ...POST_DATE_ATTRIBUTES, format: 'human-diff' },
-					],
-					[ 'core/post-title', { level: 4 } ],
-				],
-			],
-			SHARE_BUTTONS,
-		],
-	],
-	[
-		'core/post-content',
-		{
-			style: {
-				spacing: {
-					padding: { top: '0', right: '0', bottom: '0', left: '0' },
-					margin: { bottom: CONTENT_GAP },
-				},
-			},
-		},
-	],
-	[
-		'core/buttons',
-		{
-			lock: LOCKED,
-			metadata: { name: __( 'Read more', 'newspack-rolling-coverage' ) },
-		},
-		[
-			[
-				'core/button',
-				{
-					lock: LOCKED,
-					text: __( 'Read more', 'newspack-rolling-coverage' ),
-					style: {
-						color: {
-							background: READ_MORE_BACKGROUND,
-							text: READ_MORE_TEXT,
-						},
-					},
-					metadata: {
-						name: __( 'Read more', 'newspack-rolling-coverage' ),
-						bindings: {
-							url: {
-								source: ENTRY_BINDINGS_SOURCE,
-								args: { key: 'breakoutUrl' },
+						'core/group',
+						{
+							layout: { type: 'flex', orientation: 'vertical' },
+							style: {
+								spacing: { blockGap: 'var:preset|spacing|20' },
+							},
+							metadata: {
+								name: __( 'Meta', 'newspack-rolling-coverage' ),
 							},
 						},
+						[
+							PINNED_ROW,
+							[
+								'core/post-date',
+								{
+									...POST_DATE_ATTRIBUTES,
+									format: 'human-diff',
+								},
+							],
+							[ 'core/post-title', { level: 4 } ],
+						],
+					],
+					SHARE_BUTTONS,
+				],
+			],
+			[
+				'core/post-content',
+				{
+					style: {
+						spacing: {
+							padding: {
+								top: '0',
+								right: '0',
+								bottom: '0',
+								left: '0',
+							},
+							margin: { bottom: CONTENT_GAP },
+						},
 					},
 				},
+			],
+			[
+				'core/buttons',
+				{
+					lock: LOCKED,
+					metadata: {
+						name: __( 'Read more', 'newspack-rolling-coverage' ),
+					},
+				},
+				[
+					[
+						'core/button',
+						{
+							lock: LOCKED,
+							text: __(
+								'Read more',
+								'newspack-rolling-coverage'
+							),
+							style: {
+								color: {
+									background: READ_MORE_BACKGROUND,
+									text: READ_MORE_TEXT,
+								},
+							},
+							metadata: {
+								name: __(
+									'Read more',
+									'newspack-rolling-coverage'
+								),
+								bindings: {
+									url: {
+										source: ENTRY_BINDINGS_SOURCE,
+										args: { key: 'breakoutUrl' },
+									},
+								},
+							},
+						},
+					],
+				],
 			],
 		],
 	],
@@ -449,6 +503,123 @@ function withLinkedTitle<
 }
 
 /**
+ * Whether a block is the pinned card, mirroring
+ * Rolling_Coverage_Block::is_pinned_card().
+ *
+ * @param {Object} block            The block.
+ * @param {string} block.name       Block name.
+ * @param {Object} block.attributes Block attributes.
+ * @return {boolean} Whether it's the pinned card.
+ */
+function isPinnedCard( block: {
+	name: string;
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const className = block.attributes?.className;
+
+	return (
+		block.name === 'core/group' &&
+		typeof className === 'string' &&
+		className.split( ' ' ).includes( PINNED_CARD_CLASS )
+	);
+}
+
+/**
+ * The template with the pinned card's blocks in place of the card, as an
+ * entry that isn't pinned renders (see
+ * Rolling_Coverage_Block::shape_entry_template()).
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks an unpinned entry shows.
+ */
+function withoutPinnedCard<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks.flatMap( ( block ) => {
+		const innerBlocks = Array.isArray( block.innerBlocks )
+			? withoutPinnedCard( block.innerBlocks as T[] )
+			: [];
+
+		if ( isPinnedCard( block ) ) {
+			return innerBlocks;
+		}
+
+		return innerBlocks.length ? [ { ...block, innerBlocks } ] : [ block ];
+	} );
+}
+
+/**
+ * The template without the separator that closes it, as a pinned entry and
+ * the last entry render.
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks without the closing separator.
+ */
+function withoutClosingSeparator< T extends { name: string } >(
+	blocks: T[]
+): T[] {
+	return blocks.at( -1 )?.name === 'core/separator'
+		? blocks.slice( 0, -1 )
+		: blocks;
+}
+
+/**
+ * The template with the pinned card's last block keeping no space below
+ * it, as a pinned entry without "Read more" renders, so the card's padding
+ * is even.
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks with the card closed up.
+ */
+function withClosedPinnedCard<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks.map( ( block ) => {
+		const innerBlocks = Array.isArray( block.innerBlocks )
+			? ( block.innerBlocks as T[] )
+			: [];
+
+		if ( ! isPinnedCard( block ) ) {
+			return innerBlocks.length
+				? { ...block, innerBlocks: withClosedPinnedCard( innerBlocks ) }
+				: block;
+		}
+
+		const last = innerBlocks.at( -1 );
+
+		if ( ! last ) {
+			return block;
+		}
+
+		const attributes = ( last.attributes ?? {} ) as {
+			style?: { spacing?: { margin?: Record< string, unknown > } };
+		};
+		const { bottom, ...margin } = attributes.style?.spacing?.margin ?? {};
+
+		if ( bottom === undefined ) {
+			return block;
+		}
+
+		return {
+			...block,
+			innerBlocks: [
+				...innerBlocks.slice( 0, -1 ),
+				{
+					...last,
+					attributes: {
+						...attributes,
+						style: {
+							...attributes.style,
+							spacing: { ...attributes.style?.spacing, margin },
+						},
+					},
+				},
+			],
+		};
+	} );
+}
+
+/**
  * Block types allowed inside the per-entry template.
  */
 const ENTRY_ALLOWED_BLOCKS = [
@@ -521,4 +692,7 @@ export {
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	withLinkedTitle,
+	withoutPinnedCard,
+	withoutClosingSeparator,
+	withClosedPinnedCard,
 };

@@ -62,6 +62,9 @@ import {
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	withLinkedTitle,
+	withoutPinnedCard,
+	withoutClosingSeparator,
+	withClosedPinnedCard,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -152,24 +155,18 @@ const NEUTRAL_ENTRY_CONTEXT: EntryContext = {
  *
  * @param {Object}   props          Component props.
  * @param {Object[]} props.blocks   The current per-entry template blocks.
- * @param {boolean}  props.isPinned Whether the entry is pinned.
  * @param {Function} props.onSelect Called when this entry is clicked.
  */
 function EntryBlockPreview( {
 	blocks,
-	isPinned,
 	onSelect,
 }: {
 	blocks: TemplateBlocks;
-	isPinned: boolean;
 	onSelect: () => void;
 } ) {
 	const blockPreviewProps = useBlockPreview( {
 		blocks,
-		props: {
-			className: 'newspack-rolling-coverage-entry wp-block-post',
-			...( isPinned ? { 'data-pinned': '' } : {} ),
-		},
+		props: { className: 'newspack-rolling-coverage-entry wp-block-post' },
 	} );
 
 	return (
@@ -352,15 +349,36 @@ export default function Edit( {
 		[ allBlocks ]
 	);
 	const previewTemplates = useMemo( () => {
-		const unpinned = withoutPinnedRow( templateBlocks );
+		const pinned = withoutClosingSeparator( templateBlocks );
+		const unpinned = withoutPinnedCard(
+			withoutPinnedRow( templateBlocks )
+		);
 
 		return {
-			pinned: withLinkedTitle( templateBlocks ),
+			pinned: withLinkedTitle( pinned ),
 			unpinned: withLinkedTitle( unpinned ),
-			pinnedWithoutBreakout: withoutBreakoutLink( templateBlocks ),
+			pinnedWithoutBreakout: withClosedPinnedCard(
+				withoutBreakoutLink( pinned )
+			),
 			unpinnedWithoutBreakout: withoutBreakoutLink( unpinned ),
 		};
 	}, [ templateBlocks ] );
+
+	// The last entry drops its separator once no more entries would load
+	// (see Rolling_Coverage_Block::shape_entry_template()).
+	const lastContext =
+		entryContexts.length < entriesPerPage
+			? entryContexts.at( -1 )
+			: undefined;
+	const lastPreviewBlocks = useMemo(
+		() =>
+			lastContext
+				? withoutClosingSeparator(
+						previewTemplateFor( previewTemplates, lastContext )
+					)
+				: undefined,
+		[ previewTemplates, lastContext ]
+	);
 
 	// Disabled blocks drop out of List View and can't be selected, so only
 	// the current editor state's blocks show there.
@@ -1060,13 +1078,16 @@ export default function Edit( {
 										>
 											{ ! isActive && (
 												<MemoizedEntryBlockPreview
-													blocks={ previewTemplateFor(
-														previewTemplates,
-														context
-													) }
-													isPinned={ Boolean(
-														context.pinned
-													) }
+													blocks={
+														context ===
+															lastContext &&
+														lastPreviewBlocks
+															? lastPreviewBlocks
+															: previewTemplateFor(
+																	previewTemplates,
+																	context
+																)
+													}
 													onSelect={ () =>
 														setActiveEntryId(
 															context.postId

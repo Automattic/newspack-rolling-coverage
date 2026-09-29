@@ -314,6 +314,7 @@ function initBlock( root: HTMLElement ): void {
 		} );
 
 		entriesList.insertBefore( fragment, entriesList.firstChild );
+		dropLastSeparator();
 
 		announce(
 			sprintf(
@@ -496,6 +497,7 @@ function initBlock( root: HTMLElement ): void {
 				entryEl.dataset.arrival = existing.dataset.arrival;
 				existing.replaceWith( entryEl );
 				observeEntry( entryEl );
+				dropLastSeparator();
 
 				return;
 			}
@@ -514,6 +516,27 @@ function initBlock( root: HTMLElement ): void {
 		} else {
 			insertNewEntries( newEntries );
 		}
+	}
+
+	/**
+	 * Drops the closing separator from the last entry once no more entries
+	 * can load, as the server renders it (see
+	 * Rolling_Coverage_Block::shape_entry_template()). Entries re-rendered by
+	 * the poll, and a final page that comes back empty, don't know they're
+	 * last.
+	 */
+	function dropLastSeparator(): void {
+		if ( hasMore ) {
+			return;
+		}
+
+		const entries = entriesList.querySelectorAll< HTMLElement >(
+			':scope > [data-entry-id]'
+		);
+
+		entries[ entries.length - 1 ]
+			?.querySelector( ':scope > .wp-block-separator:last-child' )
+			?.remove();
 	}
 
 	/**
@@ -862,6 +885,7 @@ function initBlock( root: HTMLElement ): void {
 				}
 				hasMore = data.hasMore;
 				before = data.before || '';
+				dropLastSeparator();
 			} else {
 				hasMore = false;
 
