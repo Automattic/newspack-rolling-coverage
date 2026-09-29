@@ -425,12 +425,9 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	/**
 	 * Publishing during a REST request, as the block editor and the plugin's
 	 * admin do, schedules the send instead of losing it.
-	 *
-	 * @runInSeparateProcess
-	 * @preserveGlobalState disabled
 	 */
 	public function test_publishing_during_a_rest_request_schedules_the_send() {
-		define( 'REST_REQUEST', true );
+		add_filter( 'newspack_rolling_coverage_defer_notification', '__return_true' );
 		$entry_id = self::create_draft_entry( self::create_coverage_with_canonical_url(), true );
 
 		wp_publish_post( $entry_id );

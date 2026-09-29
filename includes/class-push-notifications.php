@@ -259,9 +259,16 @@ class Push_Notifications {
 			return;
 		}
 
-		// OneSignal never sends during a REST request, which is how the block
-		// editor, the plugin's admin and Slack publish.
-		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+		/**
+		 * Filters whether an entry's notification is scheduled instead of
+		 * sent during the request that published it. OneSignal never sends
+		 * during a REST request, which is how the block editor, the plugin's
+		 * admin and Slack publish.
+		 *
+		 * @param bool    $defer Whether to schedule the send.
+		 * @param WP_Post $post  Entry being published.
+		 */
+		if ( apply_filters( 'newspack_rolling_coverage_defer_notification', defined( 'REST_REQUEST' ) && REST_REQUEST, $post ) ) {
 			self::schedule_send( $post->ID, self::REST_SEND_DELAY );
 			return;
 		}
