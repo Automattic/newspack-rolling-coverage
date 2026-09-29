@@ -6,8 +6,14 @@ import {
 	useInnerBlocksProps,
 	InspectorControls,
 	BlockContextProvider,
+	BlockControls,
 	store as blockEditorStore,
 } from '@wordpress/block-editor';
+import {
+	parse,
+	cloneBlock,
+	createBlocksFromInnerBlocksTemplate,
+} from '@wordpress/blocks';
 import {
 	PanelBody,
 	ComboboxControl,
@@ -20,7 +26,9 @@ import {
 	Button,
 	Notice,
 	Placeholder,
+	Spinner,
 	TextareaControl,
+	ToolbarButton,
 } from '@wordpress/components';
 import {
 	useState,
@@ -29,7 +37,8 @@ import {
 	useMemo,
 	useRef,
 } from '@wordpress/element';
-import { useSelect, useDispatch } from '@wordpress/data';
+import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
+import { store as coreStore } from '@wordpress/core-data';
 import { store as editorStore } from '@wordpress/editor';
 import { __ } from '@wordpress/i18n';
 import { copy as copyIcon, check } from '@wordpress/icons';
@@ -49,6 +58,9 @@ import {
 	updateCoverageCanonicalUrl,
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
+	getDefaultLayoutId,
+	createDefaultLayout,
+	getLayoutEditUrl,
 } from './utils';
 import { ENTRY_EDITED_STATES, isFollowButtons } from './template';
 import {
@@ -61,7 +73,9 @@ import { useSampleEntries } from './samples';
 import EditedStateBar from './components/edited-state-bar';
 import EntryBlockPreview from './components/entry-block-preview';
 import {
+	BLOCK_NAME,
 	FOLLOW_BLOCK_NAME,
+	RENDER_ONCE_BLOCKS,
 	STATE_BY_BLOCK_NAME,
 	INNER_TEMPLATE,
 	ALL_ALLOWED_BLOCKS,
@@ -153,6 +167,7 @@ export default function Edit( {
 		enableAds,
 		adsInterval,
 		pinnedLabel,
+		layoutId,
 	} = attributes;
 	const [ editedState, setEditedState ] = useState(
 		EDITED_STATE_OPTIONS[ 0 ].value
@@ -161,10 +176,35 @@ export default function Edit( {
 		'data-editor-state': editedState,
 		style: entryGapStyle( attributes.style?.spacing?.blockGap ),
 	} );
+	const currentPostType = useSelect(
+		( select ) =>
+			(
+				select( editorStore ) as unknown as {
+					getCurrentPostType: () => string;
+				}
+			 ).getCurrentPostType(),
+		[]
+	);
+	const isLayoutPattern = ! coverageId && currentPostType === 'wp_block';
+	const innerBlockCount = useSelect(
+		( select ) =>
+			(
+				select( blockEditorStore ) as unknown as {
+					getBlockCount: ( id: string ) => number;
+				}
+			 ).getBlockCount( clientId ),
+		[ clientId ]
+	);
+	const isNewBlock = useRef(
+		! layoutId && ! innerBlockCount && ! isLayoutPattern
+	).current;
+	const [ isCreatingLayout, setIsCreatingLayout ] = useState( isNewBlock );
+	const [ layoutError, setLayoutError ] = useState< string | null >( null );
+	const isSynced = layoutId > 0;
 	const innerBlocksProps = useInnerBlocksProps(
 		{ className: 'newspack-rolling-coverage-layout' },
 		{
-			template: INNER_TEMPLATE,
+			template: isSynced || isCreatingLayout ? undefined : INNER_TEMPLATE,
 			allowedBlocks: ALL_ALLOWED_BLOCKS,
 			templateLock: false,
 		}
@@ -214,20 +254,136 @@ export default function Edit( {
 			 ).getBlocks( clientId ),
 		[ clientId ]
 	);
-	const currentPostType = useSelect(
-		( select ) =>
-			(
-				select( editorStore ) as unknown as {
-					getCurrentPostType: () => string;
-				}
-			 ).getCurrentPostType(),
+	const { replaceInnerBlocks, __unstableMarkNextChangeAsNotPersistent } =
+		useDispatch( blockEditorStore.name ) as unknown as {
+			replaceInnerBlocks: (
+				id: string,
+				blocks: unknown[],
+				updateSelection?: boolean
+			) => void;
+			__unstableMarkNextChangeAsNotPersistent: () => void;
+		};
+
+	useEffect( () => {
+		if ( ! isNewBlock ) {
+			return;
+		}
+
+		let cancelled = false;
+		const sync = ( id: number ) => {
+			__unstableMarkNextChangeAsNotPersistent();
+			setAttributes( { layoutId: id } );
+			setIsCreatingLayout( false );
+		};
+		const fallBackToLocal = () => {
+			__unstableMarkNextChangeAsNotPersistent();
+			replaceInnerBlocks(
+				clientId,
+				createBlocksFromInnerBlocksTemplate( INNER_TEMPLATE ),
+				false
+			);
+			setIsCreatingLayout( false );
+		};
+
+		if ( getDefaultLayoutId() ) {
+			sync( getDefaultLayoutId() );
+			return;
+		}
+
+		createDefaultLayout()
+			.then( ( id ) => ! cancelled && sync( id ) )
+			.catch( () => ! cancelled && fallBackToLocal() );
+
+		return () => {
+			cancelled = true;
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- Runs once, for a block inserted empty.
+	}, [] );
+
+	const { layoutRecord, hasResolvedLayout, canEditLayout } = useSelect(
+		( select ) => {
+			if ( ! isSynced ) {
+				return {
+					layoutRecord: null,
+					hasResolvedLayout: true,
+					canEditLayout: false,
+				};
+			}
+			const core = select( coreStore ) as unknown as {
+				getEntityRecord: (
+					kind: string,
+					name: string,
+					id: number,
+					query?: object
+				) =>
+					| { status?: string; content?: { raw?: string } | string }
+					| undefined;
+				hasFinishedResolution: (
+					selector: string,
+					args: unknown[]
+				) => boolean;
+				canUser: (
+					action: string,
+					resource: object
+				) => boolean | undefined;
+			};
+			const args = [
+				'postType',
+				'wp_block',
+				layoutId,
+				{ context: 'view' },
+			];
+			return {
+				layoutRecord: core.getEntityRecord(
+					'postType',
+					'wp_block',
+					layoutId,
+					{ context: 'view' }
+				),
+				hasResolvedLayout: core.hasFinishedResolution(
+					'getEntityRecord',
+					args
+				),
+				canEditLayout: Boolean(
+					core.canUser( 'update', {
+						kind: 'postType',
+						name: 'wp_block',
+						id: layoutId,
+					} )
+				),
+			};
+		},
+		[ isSynced, layoutId ]
+	);
+
+	const layoutBlocks = useMemo( () => {
+		if ( ! layoutRecord || layoutRecord.status !== 'publish' ) {
+			return null;
+		}
+		const raw =
+			typeof layoutRecord.content === 'string'
+				? layoutRecord.content
+				: layoutRecord.content?.raw;
+		const holder = parse( raw ?? '' ).find(
+			( block ) => block.name === BLOCK_NAME
+		);
+		return holder
+			? ( holder.innerBlocks as unknown as TemplateBlocks )
+			: null;
+	}, [ layoutRecord ] );
+	const isLayoutMissing = isSynced && hasResolvedLayout && ! layoutBlocks;
+	const defaultLayoutBlocks = useMemo(
+		() =>
+			createBlocksFromInnerBlocksTemplate(
+				INNER_TEMPLATE
+			) as unknown as TemplateBlocks,
 		[]
 	);
-	const isLayoutPattern = ! coverageId && currentPostType === 'wp_block';
+
 	const sampleContexts = useSampleEntries( isLayoutPattern );
 	const previewContexts = isLayoutPattern ? sampleContexts : entryContexts;
-	const { blocksForEntry } = useLayoutPreview(
-		allBlocks,
+	const { templateBlocks, blocksForEntry } = useLayoutPreview(
+		isSynced ? layoutBlocks ?? defaultLayoutBlocks : allBlocks,
 		previewContexts,
 		entriesPerPage
 	);
@@ -324,6 +480,66 @@ export default function Edit( {
 				: '',
 		].join( '\n' );
 	}, [ hiddenFollowIds, allBlocks, editedState ] );
+
+	const syncedRenderOnceBlocks = useMemo(
+		() =>
+			( layoutBlocks ?? defaultLayoutBlocks )
+				.filter(
+					( block ) =>
+						RENDER_ONCE_BLOCKS.includes( block.name ) ||
+						isFollowButtons( block )
+				)
+				.filter(
+					( block ) =>
+						! STATE_BY_BLOCK_NAME[ block.name ] ||
+						STATE_BY_BLOCK_NAME[ block.name ] === editedState
+				)
+				.filter(
+					( block ) =>
+						! isFollowHidden ||
+						( block.name !== FOLLOW_BLOCK_NAME &&
+							! isFollowButtons( block ) )
+				),
+		[ layoutBlocks, defaultLayoutBlocks, editedState, isFollowHidden ]
+	);
+
+	const registry = useRegistry();
+	const detach = useCallback( () => {
+		const source = layoutBlocks ?? defaultLayoutBlocks;
+		registry.batch( () => {
+			replaceInnerBlocks(
+				clientId,
+				source.map( ( block ) =>
+					cloneBlock(
+						block as unknown as Parameters< typeof cloneBlock >[ 0 ]
+					)
+				),
+				false
+			);
+			setAttributes( { layoutId: 0 } );
+		} );
+	}, [
+		registry,
+		layoutBlocks,
+		defaultLayoutBlocks,
+		clientId,
+		replaceInnerBlocks,
+		setAttributes,
+	] );
+
+	const restoreLayout = useCallback( () => {
+		setLayoutError( null );
+		createDefaultLayout()
+			.then( ( id ) => setAttributes( { layoutId: id } ) )
+			.catch( () =>
+				setLayoutError(
+					__(
+						'Could not restore the shared layout.',
+						'newspack-rolling-coverage'
+					)
+				)
+			);
+	}, [ setAttributes ] );
 
 	// Derives the current page's permalink, and whether it's still a
 	// placeholder ".../auto-draft/" URL because the post is unsaved.
@@ -577,6 +793,23 @@ export default function Edit( {
 		</InspectorControls>
 	) : (
 			<InspectorControls>
+				{ ! isCreatingLayout && (
+					<PanelBody
+						title={ __( 'Layout', 'newspack-rolling-coverage' ) }
+					>
+						<p>
+							{ isSynced
+								? __(
+										'Uses the shared layout. Changes to it apply to every story that uses it.',
+										'newspack-rolling-coverage'
+									)
+								: __(
+										'Uses its own layout, detached from the shared one.',
+										'newspack-rolling-coverage'
+									) }
+						</p>
+					</PanelBody>
+				) }
 				<PanelBody
 					title={ __( 'Coverage', 'newspack-rolling-coverage' ) }
 				>
@@ -892,8 +1125,28 @@ export default function Edit( {
 		<>
 			{ inspector }
 
+			{ isSynced && (
+				<BlockControls group="other">
+					{ canEditLayout && (
+						<ToolbarButton
+							{ ...{
+								href: getLayoutEditUrl( layoutId ),
+								target: '_blank',
+							} }
+						>
+							{ __( 'Edit layout', 'newspack-rolling-coverage' ) }
+						</ToolbarButton>
+					) }
+					<ToolbarButton onClick={ detach }>
+						{ __( 'Detach', 'newspack-rolling-coverage' ) }
+					</ToolbarButton>
+				</BlockControls>
+			) }
+
 			<div { ...blockProps }>
-				{ coverageId || isLayoutPattern ? (
+				{ isCreatingLayout ? (
+					<Spinner />
+				) : coverageId || isLayoutPattern ? (
 					<>
 						{ layoutCss && <style>{ layoutCss }</style> }
 						<EditedStateBar
@@ -902,6 +1155,42 @@ export default function Edit( {
 							onChange={ setEditedState }
 							isVisible={ isSelected }
 						/>
+						{ isLayoutMissing && (
+							<Notice
+								status="warning"
+								isDismissible={ false }
+								actions={ [
+									{
+										label: __(
+											'Restore shared layout',
+											'newspack-rolling-coverage'
+										),
+										onClick: restoreLayout,
+										variant: 'primary',
+									},
+									{
+										label: __(
+											'Detach',
+											'newspack-rolling-coverage'
+										),
+										onClick: detach,
+									},
+								] }
+							>
+								{ __(
+									"The shared layout can't be found. This story shows the default layout until you restore it or detach it.",
+									'newspack-rolling-coverage'
+								) }
+							</Notice>
+						) }
+						{ layoutError && (
+							<Notice
+								status="error"
+								onRemove={ () => setLayoutError( null ) }
+							>
+								{ layoutError }
+							</Notice>
+						) }
 						{ ! isLayoutPattern && currentCoverage?.status === 'trash' && (
 							<Notice status="error" isDismissible={ false }>
 								{ __(
@@ -918,47 +1207,92 @@ export default function Edit( {
 								) }
 							</Notice>
 						) }
-						<BlockContextProvider
-							value={
-								previewContexts.length > 0
-									? ( previewContexts.find(
-											( c ) =>
-												c.postId ===
-												( activeEntryId ??
-													previewContexts[ 0 ]?.postId )
-										) ?? NEUTRAL_ENTRY_CONTEXT )
-									: NEUTRAL_ENTRY_CONTEXT
-							}
-						>
-							<div { ...innerBlocksProps } />
-						</BlockContextProvider>
-						<div className="newspack-rolling-coverage-entries">
-							{ previewContexts.length > 0 &&
-								previewContexts.map( ( context ) => {
-									const isActive =
-										context.postId ===
-										( activeEntryId ??
-											previewContexts[ 0 ]?.postId );
-
-									return (
-										<BlockContextProvider
-											key={ context.postId }
-											value={ context }
-										>
-											{ ! isActive && (
+						{ isSynced && ! hasResolvedLayout && <Spinner /> }
+						{ isSynced && hasResolvedLayout && (
+							<>
+								{ syncedRenderOnceBlocks.length > 0 && (
+									<BlockContextProvider
+										value={
+											previewContexts[ 0 ] ??
+											NEUTRAL_ENTRY_CONTEXT
+										}
+									>
+										<EntryBlockPreview
+											blocks={ syncedRenderOnceBlocks }
+										/>
+									</BlockContextProvider>
+								) }
+								<div className="newspack-rolling-coverage-entries">
+									{ previewContexts.length > 0 ? (
+										previewContexts.map( ( context ) => (
+											<BlockContextProvider
+												key={ context.postId }
+												value={ context }
+											>
 												<EntryBlockPreview
-													blocks={ blocksForEntry( context ) }
-													onSelect={ () =>
-														setActiveEntryId(
-															context.postId
-														)
-													}
+													blocks={ blocksForEntry(
+														context
+													) }
 												/>
-											) }
+											</BlockContextProvider>
+										) )
+									) : (
+										<BlockContextProvider
+											value={ NEUTRAL_ENTRY_CONTEXT }
+										>
+											<EntryBlockPreview
+												blocks={ templateBlocks }
+											/>
 										</BlockContextProvider>
-									);
-								} ) }
-						</div>
+									) }
+								</div>
+							</>
+						) }
+						{ ! isSynced && (
+							<>
+								<BlockContextProvider
+									value={
+										previewContexts.length > 0
+											? ( previewContexts.find(
+													( c ) =>
+														c.postId ===
+														( activeEntryId ??
+															previewContexts[ 0 ]?.postId )
+												) ?? NEUTRAL_ENTRY_CONTEXT )
+											: NEUTRAL_ENTRY_CONTEXT
+									}
+								>
+									<div { ...innerBlocksProps } />
+								</BlockContextProvider>
+								<div className="newspack-rolling-coverage-entries">
+									{ previewContexts.length > 0 &&
+										previewContexts.map( ( context ) => {
+											const isActive =
+												context.postId ===
+												( activeEntryId ??
+													previewContexts[ 0 ]?.postId );
+		
+											return (
+												<BlockContextProvider
+													key={ context.postId }
+													value={ context }
+												>
+													{ ! isActive && (
+														<EntryBlockPreview
+															blocks={ blocksForEntry( context ) }
+															onSelect={ () =>
+																setActiveEntryId(
+																	context.postId
+																)
+															}
+														/>
+													) }
+												</BlockContextProvider>
+											);
+										} ) }
+								</div>
+							</>
+						) }
 					</>
 				) : (
 					<Placeholder

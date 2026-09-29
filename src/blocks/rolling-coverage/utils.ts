@@ -6,6 +6,12 @@
  * WordPress dependencies
  */
 import apiFetch from '@wordpress/api-fetch';
+import {
+	serialize,
+	createBlock,
+	createBlocksFromInnerBlocksTemplate,
+} from '@wordpress/blocks';
+import { addQueryArgs } from '@wordpress/url';
 
 /**
  * Internal dependencies
@@ -18,7 +24,15 @@ import {
 	ADS_DISABLED_META_KEY,
 	ENTRIES_PREVIEW_REST_BASE,
 	AI_ENDPOINT,
+	DEFAULT_LAYOUT_ID,
+	LAYOUTS_REST_BASE,
+	ADMIN_URL,
+	IS_BLOCK_THEME,
 } from './config';
+import { BLOCK_NAME, INNER_TEMPLATE } from './layout';
+
+let defaultLayoutId = Number( DEFAULT_LAYOUT_ID ) || 0;
+let pendingDefaultLayout: Promise< number > | null = null;
 
 /**
  * Searches coverage terms by name.
@@ -213,6 +227,73 @@ async function generateKeyTakeaways(
 	}
 }
 
+/**
+ * The ID of the shared layout pattern new blocks sync to, or 0 when there
+ * isn't one yet.
+ *
+ * @return {number} The default layout's pattern ID.
+ */
+function getDefaultLayoutId(): number {
+	return defaultLayoutId;
+}
+
+/**
+ * Creates the shared layout pattern from the built-in default layout, or
+ * returns the existing one if another story created it first. Concurrent
+ * calls share one request.
+ *
+ * @return {Promise<number>} The default layout's pattern ID. Rejects on failure.
+ */
+function createDefaultLayout(): Promise< number > {
+	if ( ! pendingDefaultLayout ) {
+		const content = serialize(
+			createBlock(
+				BLOCK_NAME,
+				{},
+				createBlocksFromInnerBlocksTemplate( INNER_TEMPLATE )
+			)
+		);
+		pendingDefaultLayout = apiFetch< { id: number } >( {
+			url: `${ LAYOUTS_REST_BASE }/default`,
+			method: 'POST',
+			data: { content },
+		} )
+			.then( ( response ) => {
+				if ( ! response?.id ) {
+					throw new Error( 'Missing layout ID.' );
+				}
+				defaultLayoutId = response.id;
+				return defaultLayoutId;
+			} )
+			.finally( () => {
+				pendingDefaultLayout = null;
+			} );
+	}
+
+	return pendingDefaultLayout;
+}
+
+/**
+ * The admin URL that edits a layout pattern: the Site Editor on block
+ * themes, the post editor otherwise.
+ *
+ * @param {number} layoutId The layout's pattern ID.
+ * @return {string} The edit URL.
+ */
+function getLayoutEditUrl( layoutId: number ): string {
+	if ( IS_BLOCK_THEME ) {
+		return addQueryArgs( ADMIN_URL + 'site-editor.php', {
+			p: '/wp_block/' + layoutId,
+			canvas: 'edit',
+		} );
+	}
+
+	return addQueryArgs( ADMIN_URL + 'post.php', {
+		post: layoutId,
+		action: 'edit',
+	} );
+}
+
 export {
 	searchCoverages,
 	getCoverage,
@@ -220,4 +301,7 @@ export {
 	updateCoverageCanonicalUrl,
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
+	getDefaultLayoutId,
+	createDefaultLayout,
+	getLayoutEditUrl,
 };
