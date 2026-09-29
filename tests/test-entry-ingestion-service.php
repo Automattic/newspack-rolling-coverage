@@ -34,7 +34,6 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 				'author_external_id'  => 'U0REPORTER',
 				'author_display_name' => 'Riley Sample',
 				'content_html'        => '<!-- wp:paragraph --><p>Polls have closed.</p><!-- /wp:paragraph -->',
-				'content_plain'       => 'Polls have closed.',
 				'thread_ref'          => null,
 				'external_timestamp'  => '2026-01-01T00:00:00+00:00',
 				'raw_payload'         => [],
@@ -202,26 +201,11 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Long messages get a title cut at the limit, with whitespace collapsed
-	 * first and multibyte characters counted as one.
+	 * Entries from a chat source have no title; the message is the entry.
 	 */
-	public function test_title_is_the_collapsed_message_cut_at_the_limit() {
-		$long_message    = "Résultats  définitifs:\n" . str_repeat( 'é', 60 );
-		$collapsed_start = 'Résultats définitifs: ';
-
-		$entry_id = self::ingest( self::payload( [ 'content_plain' => $long_message ] ), self::create_coverage() );
-
-		$expected_title = $collapsed_start . str_repeat( 'é', Entry_Ingestion_Service::TITLE_LENGTH - mb_strlen( $collapsed_start ) ) . '…';
-
-		$this->assertSame( $expected_title, get_post( $entry_id )->post_title );
-	}
-
-	/**
-	 * A message that fits is used as the title unchanged.
-	 */
-	public function test_short_message_is_used_as_the_title_unchanged() {
+	public function test_entry_has_no_title() {
 		$entry_id = self::ingest( self::payload(), self::create_coverage() );
 
-		$this->assertSame( 'Polls have closed.', get_post( $entry_id )->post_title );
+		$this->assertSame( '', get_post( $entry_id )->post_title );
 	}
 }

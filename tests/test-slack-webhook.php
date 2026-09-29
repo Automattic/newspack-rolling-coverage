@@ -323,6 +323,71 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A formatted message keeps its formatting in the entry, mentions show
+	 * the person's name, and the entry has no generated title.
+	 */
+	public function test_formatted_message_keeps_its_formatting() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+
+		$body = self::message_event_body(
+			[
+				'text'   => '*Polls closed.* Thanks <@U0COLLEAGUE>',
+				'blocks' => [
+					[
+						'type'     => 'rich_text',
+						'elements' => [
+							[
+								'type'     => 'rich_text_section',
+								'elements' => [
+									[
+										'type'  => 'text',
+										'text'  => 'Polls closed.',
+										'style' => [ 'bold' => true ],
+									],
+									[
+										'type' => 'text',
+										'text' => ' Thanks ',
+									],
+									[
+										'type'    => 'user',
+										'user_id' => 'U0COLLEAGUE',
+									],
+								],
+							],
+							[
+								'type'     => 'rich_text_list',
+								'style'    => 'bullet',
+								'elements' => [
+									[
+										'type'     => 'rich_text_section',
+										'elements' => [
+											[
+												'type' => 'link',
+												'url'  => 'https://example.test/results',
+												'text' => 'Results',
+											],
+										],
+									],
+								],
+							],
+						],
+					],
+				],
+			]
+		);
+
+		self::controller()->handle_event( self::webhook_request( $body ) );
+		$entries = self::get_coverage_entries( $coverage_id );
+
+		$this->assertCount( 1, $entries );
+		$this->assertStringContainsString( '<p><strong>Polls closed.</strong> Thanks @Riley Sample</p>', $entries[0]->post_content, 'Inline styles and mentions should be kept.' );
+		$this->assertStringContainsString( '<li><a href="https://example.test/results">Results</a></li>', $entries[0]->post_content, 'Lists and links should be kept.' );
+		$this->assertSame( '', $entries[0]->post_title, 'The entry should have no generated title.' );
+	}
+
+	/**
 	 * A linked channel's settings report when it last ingested a message, so
 	 * the connection drawer can show it.
 	 */
