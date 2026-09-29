@@ -68,6 +68,7 @@ import {
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
 	ONESIGNAL_CONFIGURED,
+	LAYOUT_CATEGORY_ID,
 } from './config';
 import { useSampleEntries } from './samples';
 import EditedStateBar from './components/edited-state-bar';
@@ -106,6 +107,26 @@ const NEUTRAL_ENTRY_CONTEXT: EntryContext = {
 	postType: '',
 	queryId: 0,
 };
+
+/**
+ * Resets `layoutId` on every Rolling Coverage block nested in a layout, so a
+ * synced block pasted into the layout can't preview the layout inside itself.
+ *
+ * @param {Object[]} blocks Parsed blocks.
+ * @return {Object[]} The blocks, with nested Rolling Coverage blocks detached.
+ */
+function detachNestedBlocks( blocks: TemplateBlocks ): TemplateBlocks {
+	return blocks.map( ( block ) => ( {
+		...block,
+		attributes:
+			block.name === BLOCK_NAME
+				? { ...( block.attributes as object ), layoutId: 0 }
+				: block.attributes,
+		innerBlocks: detachNestedBlocks(
+			( block.innerBlocks ?? [] ) as TemplateBlocks
+		),
+	} ) );
+}
 
 /**
  * A preset slug as core writes it in a custom property, mirroring
@@ -176,16 +197,42 @@ export default function Edit( {
 		'data-editor-state': editedState,
 		style: entryGapStyle( attributes.style?.spacing?.blockGap ),
 	} );
-	const currentPostType = useSelect(
-		( select ) =>
-			(
-				select( editorStore ) as unknown as {
-					getCurrentPostType: () => string;
-				}
-			 ).getCurrentPostType(),
-		[]
+	const { currentPostType, patternCategories } = useSelect( ( select ) => {
+		const editor = select( editorStore ) as unknown as {
+			getCurrentPostType: () => string;
+			getEditedPostAttribute: ( attribute: string ) => unknown;
+		};
+		return {
+			currentPostType: editor.getCurrentPostType(),
+			patternCategories: editor.getEditedPostAttribute(
+				'wp_pattern_category'
+			) as number[] | undefined,
+		};
+	}, [] );
+	const { isNested, isPreviewMode } = useSelect(
+		( select ) => {
+			const blockEditor = select( blockEditorStore ) as unknown as {
+				getBlockParentsByBlockName: (
+					id: string,
+					name: string
+				) => string[];
+				getSettings: () => { __unstableIsPreviewMode?: boolean };
+			};
+			return {
+				isNested:
+					blockEditor.getBlockParentsByBlockName( clientId, BLOCK_NAME )
+						.length > 0,
+				isPreviewMode: Boolean(
+					blockEditor.getSettings().__unstableIsPreviewMode
+				),
+			};
+		},
+		[ clientId ]
 	);
-	const isLayoutPattern = ! coverageId && currentPostType === 'wp_block';
+	const isLayoutPattern =
+		! coverageId &&
+		currentPostType === 'wp_block' &&
+		( patternCategories ?? [] ).includes( Number( LAYOUT_CATEGORY_ID ) );
 	const innerBlockCount = useSelect(
 		( select ) =>
 			(
@@ -195,12 +242,18 @@ export default function Edit( {
 			 ).getBlockCount( clientId ),
 		[ clientId ]
 	);
+	// A preview renders its blocks in their own store, where an ancestor
+	// can't be seen, so a preview never syncs on insert either.
 	const isNewBlock = useRef(
-		! layoutId && ! innerBlockCount && ! isLayoutPattern
+		! layoutId &&
+			! innerBlockCount &&
+			! isLayoutPattern &&
+			! isNested &&
+			! isPreviewMode
 	).current;
 	const [ isCreatingLayout, setIsCreatingLayout ] = useState( isNewBlock );
 	const [ layoutError, setLayoutError ] = useState< string | null >( null );
-	const isSynced = layoutId > 0;
+	const isSynced = layoutId > 0 && ! isNested;
 	const innerBlocksProps = useInnerBlocksProps(
 		{ className: 'newspack-rolling-coverage-layout' },
 		{
@@ -368,7 +421,9 @@ export default function Edit( {
 			( block ) => block.name === BLOCK_NAME
 		);
 		return holder
-			? ( holder.innerBlocks as unknown as TemplateBlocks )
+			? detachNestedBlocks(
+					holder.innerBlocks as unknown as TemplateBlocks
+			  )
 			: null;
 	}, [ layoutRecord ] );
 	const isLayoutMissing = isSynced && hasResolvedLayout && ! layoutBlocks;
@@ -1137,7 +1192,10 @@ export default function Edit( {
 							{ __( 'Edit layout', 'newspack-rolling-coverage' ) }
 						</ToolbarButton>
 					) }
-					<ToolbarButton onClick={ detach }>
+					<ToolbarButton
+						onClick={ detach }
+						disabled={ ! hasResolvedLayout }
+					>
 						{ __( 'Detach', 'newspack-rolling-coverage' ) }
 					</ToolbarButton>
 				</BlockControls>
@@ -1297,10 +1355,7 @@ export default function Edit( {
 					) : (
 						<Placeholder
 							icon={ activity }
-							label={ __(
-								'Rolling Coverage',
-								'newspack-rolling-coverage'
-							) }
+							label="Rolling Coverage"
 							instructions={ __(
 								'Select a coverage to display its entries.',
 								'newspack-rolling-coverage'

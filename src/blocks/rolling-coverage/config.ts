@@ -38,6 +38,8 @@ const {
 	layoutsRestBase: LAYOUTS_REST_BASE,
 	adminUrl: ADMIN_URL,
 	isBlockTheme: IS_BLOCK_THEME,
+	canEditThemeOptions: CAN_EDIT_THEME_OPTIONS,
+	layoutCategoryId: LAYOUT_CATEGORY_ID,
 	entryPostType: ENTRY_POST_TYPE,
 } = config;
 
@@ -56,5 +58,7 @@ export {
 	LAYOUTS_REST_BASE,
 	ADMIN_URL,
 	IS_BLOCK_THEME,
+	CAN_EDIT_THEME_OPTIONS,
+	LAYOUT_CATEGORY_ID,
 	ENTRY_POST_TYPE,
 };

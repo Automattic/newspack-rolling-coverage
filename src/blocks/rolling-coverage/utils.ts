@@ -28,6 +28,7 @@ import {
 	LAYOUTS_REST_BASE,
 	ADMIN_URL,
 	IS_BLOCK_THEME,
+	CAN_EDIT_THEME_OPTIONS,
 } from './config';
 import { BLOCK_NAME, INNER_TEMPLATE } from './layout';
 
@@ -275,13 +276,13 @@ function createDefaultLayout(): Promise< number > {
 
 /**
  * The admin URL that edits a layout pattern: the Site Editor on block
- * themes, the post editor otherwise.
+ * themes for users who can open it, the post editor otherwise.
  *
  * @param {number} layoutId The layout's pattern ID.
  * @return {string} The edit URL.
  */
 function getLayoutEditUrl( layoutId: number ): string {
-	if ( IS_BLOCK_THEME ) {
+	if ( IS_BLOCK_THEME && CAN_EDIT_THEME_OPTIONS ) {
 		return addQueryArgs( ADMIN_URL + 'site-editor.php', {
 			p: '/wp_block/' + layoutId,
 			canvas: 'edit',

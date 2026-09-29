@@ -143,7 +143,7 @@ function loadSampleRecords(): void {
 	core.receiveEntityRecords( 'postType', ENTRY_POST_TYPE, records );
 	records.forEach( ( record ) => {
 		core.finishResolution( 'getEntityRecord', [ 'postType', ENTRY_POST_TYPE, record.id ] );
-		core.receiveUserPermission( `update/postType/${ ENTRY_POST_TYPE }/${ record.id }`, true );
+		core.receiveUserPermission( `update/postType/${ ENTRY_POST_TYPE }/${ record.id }`, false );
 		core.finishResolution( 'canUser', [ 'update', { kind: 'postType', name: ENTRY_POST_TYPE, id: record.id } ] );
 	} );
 }
@@ -160,7 +160,7 @@ export function useSampleEntries( enabled: boolean ): EntryContext[] {
 
 	useEffect( () => {
 		if ( ! enabled ) {
-			setContexts( [] );
+			setContexts( ( previous ) => ( previous.length ? [] : previous ) );
 			return;
 		}
 

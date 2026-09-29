@@ -69,6 +69,8 @@ interface BlockConfig {
 	layoutsRestBase: string;
 	adminUrl: string;
 	isBlockTheme: boolean;
+	canEditThemeOptions: boolean;
+	layoutCategoryId: number;
 	entryPostType: string;
 }
 
