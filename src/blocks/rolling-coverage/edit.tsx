@@ -57,6 +57,7 @@ import {
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
 	ONESIGNAL_CONFIGURED,
 } from './config';
+import { useSampleEntries } from './samples';
 import EditedStateBar from './components/edited-state-bar';
 import EntryBlockPreview from './components/entry-block-preview';
 import {
@@ -213,9 +214,21 @@ export default function Edit( {
 			 ).getBlocks( clientId ),
 		[ clientId ]
 	);
+	const currentPostType = useSelect(
+		( select ) =>
+			(
+				select( editorStore ) as unknown as {
+					getCurrentPostType: () => string;
+				}
+			 ).getCurrentPostType(),
+		[]
+	);
+	const isLayoutPattern = ! coverageId && currentPostType === 'wp_block';
+	const sampleContexts = useSampleEntries( isLayoutPattern );
+	const previewContexts = isLayoutPattern ? sampleContexts : entryContexts;
 	const { blocksForEntry } = useLayoutPreview(
 		allBlocks,
-		entryContexts,
+		previewContexts,
 		entriesPerPage
 	);
 
@@ -549,8 +562,20 @@ export default function Edit( {
 		/>
 	);
 
-	return (
-		<>
+	const inspector = isLayoutPattern ? (
+		<InspectorControls>
+			<PanelBody
+				title={ __( 'Shared layout', 'newspack-rolling-coverage' ) }
+			>
+				<p>
+					{ __(
+						'Changes to this layout apply to every story that uses it. The entries are samples.',
+						'newspack-rolling-coverage'
+					) }
+				</p>
+			</PanelBody>
+		</InspectorControls>
+	) : (
 			<InspectorControls>
 				<PanelBody
 					title={ __( 'Coverage', 'newspack-rolling-coverage' ) }
@@ -861,9 +886,14 @@ export default function Edit( {
 					</PanelBody>
 				) }
 			</InspectorControls>
+	);
+
+	return (
+		<>
+			{ inspector }
 
 			<div { ...blockProps }>
-				{ coverageId ? (
+				{ coverageId || isLayoutPattern ? (
 					<>
 						{ layoutCss && <style>{ layoutCss }</style> }
 						<EditedStateBar
@@ -872,7 +902,7 @@ export default function Edit( {
 							onChange={ setEditedState }
 							isVisible={ isSelected }
 						/>
-						{ currentCoverage?.status === 'trash' && (
+						{ ! isLayoutPattern && currentCoverage?.status === 'trash' && (
 							<Notice status="error" isDismissible={ false }>
 								{ __(
 									'This coverage has been trashed and is no longer available. Select a different coverage or restore it from the Rolling Coverage admin.',
@@ -880,7 +910,7 @@ export default function Edit( {
 								) }
 							</Notice>
 						) }
-						{ entryContexts.length === 0 && (
+						{ ! isLayoutPattern && previewContexts.length === 0 && (
 							<Notice status="info" isDismissible={ false }>
 								{ __(
 									'No published entries yet — showing the template only. Add entries to this coverage to preview real content here.',
@@ -890,12 +920,12 @@ export default function Edit( {
 						) }
 						<BlockContextProvider
 							value={
-								entryContexts.length > 0
-									? ( entryContexts.find(
+								previewContexts.length > 0
+									? ( previewContexts.find(
 											( c ) =>
 												c.postId ===
 												( activeEntryId ??
-													entryContexts[ 0 ]?.postId )
+													previewContexts[ 0 ]?.postId )
 										) ?? NEUTRAL_ENTRY_CONTEXT )
 									: NEUTRAL_ENTRY_CONTEXT
 							}
@@ -903,12 +933,12 @@ export default function Edit( {
 							<div { ...innerBlocksProps } />
 						</BlockContextProvider>
 						<div className="newspack-rolling-coverage-entries">
-							{ entryContexts.length > 0 &&
-								entryContexts.map( ( context ) => {
+							{ previewContexts.length > 0 &&
+								previewContexts.map( ( context ) => {
 									const isActive =
 										context.postId ===
 										( activeEntryId ??
-											entryContexts[ 0 ]?.postId );
+											previewContexts[ 0 ]?.postId );
 
 									return (
 										<BlockContextProvider
