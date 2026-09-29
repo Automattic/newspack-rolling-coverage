@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-28T19:27:45+00:00\n"
+"POT-Creation-Date: 2026-09-29T11:10:10+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -84,9 +84,9 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:444
-#: includes/blocks/class-rolling-coverage-block.php:1541
-#: includes/blocks/class-rolling-coverage-block.php:1636
-#: includes/blocks/class-rolling-coverage-block.php:1647
+#: includes/blocks/class-rolling-coverage-block.php:1539
+#: includes/blocks/class-rolling-coverage-block.php:1634
+#: includes/blocks/class-rolling-coverage-block.php:1645
 #: includes/class-post-type.php:926
 #: includes/class-taxonomy.php:351
 msgid "Coverage not found."
@@ -123,8 +123,8 @@ msgstr ""
 
 #: includes/blocks/class-breakout-post-link-block.php:63
 #: includes/blocks/class-entry-bindings.php:110
-#: includes/blocks/class-rolling-coverage-block.php:1022
-#: includes/blocks/class-rolling-coverage-block.php:1025
+#: includes/blocks/class-rolling-coverage-block.php:1020
+#: includes/blocks/class-rolling-coverage-block.php:1023
 #: dist/admin.js:215
 #: dist/blocks/breakout-post-link/index.js:1
 #: dist/blocks/rolling-coverage/index.js:1
@@ -136,23 +136,23 @@ msgstr ""
 msgid "Coverage of this news event has concluded and this feed is now archived."
 msgstr ""
 
-#: includes/blocks/class-coverage-follow-block.php:96
+#: includes/blocks/class-coverage-follow-block.php:78
 #: dist/blocks/coverage-follow/index.js:1
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Follow"
 msgstr ""
 
-#: includes/blocks/class-coverage-follow-block.php:97
+#: includes/blocks/class-coverage-follow-block.php:79
 #: includes/blocks/class-entry-bindings.php:167
 msgid "Following"
 msgstr ""
 
-#: includes/blocks/class-coverage-follow-block.php:98
+#: includes/blocks/class-coverage-follow-block.php:80
 #: includes/blocks/class-entry-bindings.php:168
 msgid "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 msgstr ""
 
-#: includes/blocks/class-coverage-follow-block.php:99
+#: includes/blocks/class-coverage-follow-block.php:81
 #: includes/blocks/class-entry-bindings.php:169
 msgid "Something went wrong. Please try again."
 msgstr ""
@@ -173,7 +173,7 @@ msgid "Rolling Coverage Entry"
 msgstr ""
 
 #: includes/blocks/class-entry-bindings.php:200
-#: includes/blocks/class-rolling-coverage-block.php:979
+#: includes/blocks/class-rolling-coverage-block.php:977
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/share/index.js:1
@@ -188,39 +188,39 @@ msgid "%1$s: %2$s"
 msgstr ""
 
 #: includes/blocks/class-entry-bindings.php:321
-#: includes/blocks/class-rolling-coverage-block.php:1079
+#: includes/blocks/class-rolling-coverage-block.php:1077
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:530
+#: includes/blocks/class-rolling-coverage-block.php:528
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Select a coverage to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:548
+#: includes/blocks/class-rolling-coverage-block.php:546
 msgid "This coverage is no longer available."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:603
+#: includes/blocks/class-rolling-coverage-block.php:601
 msgid "No entries yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:941
+#: includes/blocks/class-rolling-coverage-block.php:939
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Header"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:952
+#: includes/blocks/class-rolling-coverage-block.php:950
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Meta"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1362
+#: includes/blocks/class-rolling-coverage-block.php:1360
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1655
+#: includes/blocks/class-rolling-coverage-block.php:1653
 msgid "Either cursor or before must be provided."
 msgstr ""
 
@@ -363,8 +363,6 @@ msgid "Failed to restore entry."
 msgstr ""
 
 #: includes/class-push-notifications.php:78
-#: dist/blocks/coverage-follow/index.js:1
-#: dist/blocks/rolling-coverage/index.js:1
 msgid "Push Notifications"
 msgstr ""
 
@@ -662,7 +660,7 @@ msgid "https://example.com/live-coverage"
 msgstr ""
 
 #: dist/admin.js:209
-msgid "The page readers land on when they open a notification for this coverage."
+msgid "The page readers land on when they open a link to one of this coverage's entries."
 msgstr ""
 
 #: dist/admin.js:209
@@ -1725,26 +1723,6 @@ msgstr ""
 msgid "Are you sure you want to disconnect Slack? All channel mappings will be removed."
 msgstr ""
 
-#: dist/blocks/coverage-follow/index.js:1
-#: dist/blocks/rolling-coverage/index.js:1
-msgid "Configure the OneSignal Push Notifications plugin (App ID and REST API Key) for the Follow button to appear on the site."
-msgstr ""
-
-#: dist/blocks/coverage-follow/index.js:1
-#: dist/blocks/rolling-coverage/index.js:1
-msgid "The OneSignal Push Notifications plugin is on an unsupported version. Update it to the latest version for the Follow button to appear on the site."
-msgstr ""
-
-#: dist/blocks/coverage-follow/index.js:1
-#: dist/blocks/rolling-coverage/index.js:1
-msgid "Install and activate the OneSignal Push Notifications plugin for the Follow button to appear on the site."
-msgstr ""
-
-#: dist/blocks/coverage-follow/index.js:1
-#: dist/blocks/rolling-coverage/index.js:1
-msgid "Setup guide"
-msgstr ""
-
 #: dist/blocks/deep-link-cta/index.js:1
 msgid "Modal content template:"
 msgstr ""
@@ -1806,7 +1784,7 @@ msgid "Apply"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
-msgid "The page readers land on when they open a notification for this coverage. Shared across every block connected to this coverage."
+msgid "The page readers land on when they open a link to one of this coverage's entries. Shared across every block connected to this coverage."
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
