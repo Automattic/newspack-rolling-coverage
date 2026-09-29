@@ -152,18 +152,24 @@ const NEUTRAL_ENTRY_CONTEXT: EntryContext = {
  *
  * @param {Object}   props          Component props.
  * @param {Object[]} props.blocks   The current per-entry template blocks.
+ * @param {boolean}  props.isPinned Whether the entry is pinned.
  * @param {Function} props.onSelect Called when this entry is clicked.
  */
 function EntryBlockPreview( {
 	blocks,
+	isPinned,
 	onSelect,
 }: {
 	blocks: TemplateBlocks;
+	isPinned: boolean;
 	onSelect: () => void;
 } ) {
 	const blockPreviewProps = useBlockPreview( {
 		blocks,
-		props: { className: 'newspack-rolling-coverage-entry wp-block-post' },
+		props: {
+			className: 'newspack-rolling-coverage-entry wp-block-post',
+			...( isPinned ? { 'data-pinned': '' } : {} ),
+		},
 	} );
 
 	return (
@@ -1057,6 +1063,9 @@ export default function Edit( {
 													blocks={ previewTemplateFor(
 														previewTemplates,
 														context
+													) }
+													isPinned={ Boolean(
+														context.pinned
 													) }
 													onSelect={ () =>
 														setActiveEntryId(

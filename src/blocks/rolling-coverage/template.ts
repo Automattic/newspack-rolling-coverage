@@ -61,6 +61,10 @@ const SHARE_BACKGROUND =
 	'var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f0f0f0))';
 const SHARE_TEXT =
 	'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, currentcolor))';
+const READ_MORE_BACKGROUND =
+	'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
+const READ_MORE_TEXT =
+	'var(--wp--preset--color--accent-contrast, var(--wp--preset--color--base, var(--newspack-theme-color-against-primary)))';
 
 /**
  * The share button: a 36px circle showing the link icon, both set by the
@@ -168,6 +172,12 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 				{
 					lock: LOCKED,
 					text: __( 'Read more', 'newspack-rolling-coverage' ),
+					style: {
+						color: {
+							background: READ_MORE_BACKGROUND,
+							text: READ_MORE_TEXT,
+						},
+					},
 					metadata: {
 						name: __( 'Read more', 'newspack-rolling-coverage' ),
 						bindings: {

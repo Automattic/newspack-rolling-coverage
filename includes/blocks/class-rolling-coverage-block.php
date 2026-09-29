@@ -1034,6 +1034,12 @@ class Rolling_Coverage_Block {
 								'source' => Entry_Bindings::SOURCE_NAME,
 								'args'   => [ 'key' => 'breakoutUrl' ],
 							],
+						],
+						[
+							'color' => [
+								'background' => 'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))',
+								'text'       => 'var(--wp--preset--color--accent-contrast, var(--wp--preset--color--base, var(--newspack-theme-color-against-primary)))',
+							],
 						]
 					),
 				],
