@@ -220,8 +220,10 @@ export default function Edit( {
 			};
 			return {
 				isNested:
-					blockEditor.getBlockParentsByBlockName( clientId, BLOCK_NAME )
-						.length > 0,
+					blockEditor.getBlockParentsByBlockName(
+						clientId,
+						BLOCK_NAME
+					).length > 0,
 				isPreviewMode: Boolean(
 					blockEditor.getSettings().__unstableIsPreviewMode
 				),
@@ -423,7 +425,7 @@ export default function Edit( {
 		return holder
 			? detachNestedBlocks(
 					holder.innerBlocks as unknown as TemplateBlocks
-			  )
+				)
 			: null;
 	}, [ layoutRecord ] );
 	const isLayoutMissing = isSynced && hasResolvedLayout && ! layoutBlocks;
@@ -438,7 +440,7 @@ export default function Edit( {
 	const sampleContexts = useSampleEntries( isLayoutPattern );
 	const previewContexts = isLayoutPattern ? sampleContexts : entryContexts;
 	const { templateBlocks, blocksForEntry } = useLayoutPreview(
-		isSynced ? layoutBlocks ?? defaultLayoutBlocks : allBlocks,
+		isSynced ? ( layoutBlocks ?? defaultLayoutBlocks ) : allBlocks,
 		previewContexts,
 		entriesPerPage
 	);
@@ -847,333 +849,314 @@ export default function Edit( {
 			</PanelBody>
 		</InspectorControls>
 	) : (
-			<InspectorControls>
-				{ ! isCreatingLayout && (
-					<PanelBody
-						title={ __( 'Layout', 'newspack-rolling-coverage' ) }
-					>
-						<p>
-							{ isSynced
-								? __(
-										'Uses the shared layout. Changes to it apply to every story that uses it.',
-										'newspack-rolling-coverage'
-									)
-								: __(
-										'Uses its own layout, detached from the shared one.',
-										'newspack-rolling-coverage'
-									) }
-						</p>
-					</PanelBody>
-				) }
+		<InspectorControls>
+			{ ! isCreatingLayout && (
 				<PanelBody
-					title={ __( 'Coverage', 'newspack-rolling-coverage' ) }
+					title={ __( 'Layout', 'newspack-rolling-coverage' ) }
 				>
-					{ coverageCombobox }
-
-					{ coverageId ? (
-						<>
-							<div className="newspack-rolling-coverage-panel-group">
-								<RadioControl
-									label={ __(
-										'Status',
-										'newspack-rolling-coverage'
-									) }
-									selected={ pendingStatus }
-									options={ STATUS_OPTIONS }
-									onChange={ setPendingStatus }
-									help={ __(
-										'Writes back to the coverage itself — changes here affect every block connected to it.',
-										'newspack-rolling-coverage'
-									) }
-								/>
-								<Button
-									variant="secondary"
-									onClick={ handleApply }
-									isBusy={ isApplying }
-									disabled={ isApplying || statusUnchanged }
-								>
-									{ __(
-										'Apply',
-										'newspack-rolling-coverage'
-									) }
-								</Button>
-								{ applyNotice && (
-									<Notice
-										status={ applyNotice.type }
-										isDismissible={ false }
-									>
-										{ applyNotice.message }
-									</Notice>
-								) }
-							</div>
-							<div className="newspack-rolling-coverage-panel-group">
-								<TextControl
-									__next40pxDefaultSize
-									type="url"
-									label={ __(
-										'Canonical URL',
-										'newspack-rolling-coverage'
-									) }
-									placeholder={ __(
-										'https://example.com/live-coverage',
-										'newspack-rolling-coverage'
-									) }
-									value={ pendingCanonicalUrl }
-									onChange={ setPendingCanonicalUrl }
-									disabled={ isApplyingUrl }
-									help={ __(
-										"The page readers land on when they open a link to one of this coverage's entries. Shared across every block connected to this coverage.",
-										'newspack-rolling-coverage'
-									) }
-								/>
-								<Button
-									variant="secondary"
-									onClick={ () =>
-										setPendingCanonicalUrl(
-											currentPagePermalink || ''
-										)
-									}
-									disabled={
-										isCurrentPageUnsaved ||
-										! currentPagePermalink
-									}
-								>
-									{ __(
-										'Use this page',
-										'newspack-rolling-coverage'
-									) }
-								</Button>
-								{ ( isCurrentPageUnsaved ||
-									! currentPagePermalink ) && (
-									<p className="components-base-control__help">
-										{ __(
-											'Save this page to get its permalink.',
-											'newspack-rolling-coverage'
-										) }
-									</p>
-								) }
-							</div>
-						</>
-					) : null }
-				</PanelBody>
-
-				<PanelBody
-					title={ __( 'Display', 'newspack-rolling-coverage' ) }
-				>
-					<TextControl
-						__next40pxDefaultSize
-						type="number"
-						label={ __(
-							'Entries per page',
-							'newspack-rolling-coverage'
-						) }
-						help={ __(
-							'Used for both the initial number of entries shown and the infinite-scroll page size.',
-							'newspack-rolling-coverage'
-						) }
-						value={ String( entriesPerPage ) }
-						min={ 1 }
-						max={ 100 }
-						onChange={ ( value: string ) =>
-							setAttributes( {
-								entriesPerPage: value
-									? parseInt( value, 10 )
-									: 20,
-							} )
-						}
-					/>
-					<TextControl
-						__next40pxDefaultSize
-						type="number"
-						label={ __(
-							'Poll interval (seconds)',
-							'newspack-rolling-coverage'
-						) }
-						value={ String( pollInterval ) }
-						min={ 1 }
-						onChange={ ( value: string ) =>
-							setAttributes( {
-								pollInterval: value
-									? parseInt( value, 10 )
-									: 10,
-							} )
-						}
-					/>
-					<TextControl
-						__next40pxDefaultSize
-						label={ __(
-							'Pinned label',
-							'newspack-rolling-coverage'
-						) }
-						help={ __(
-							'Shown on pinned entries.',
-							'newspack-rolling-coverage'
-						) }
-						placeholder={ __(
-							'Pinned',
-							'newspack-rolling-coverage'
-						) }
-						value={ pinnedLabel }
-						onChange={ ( value: string ) =>
-							setAttributes( { pinnedLabel: value } )
-						}
-					/>
-				</PanelBody>
-
-				{ coverageId && AI_AVAILABLE ? (
-					<PanelBody
-						title={ __( 'AI', 'newspack-rolling-coverage' ) }
-						initialOpen={ false }
-					>
-						{ aiNotice && (
-							<Notice
-								status={ aiNotice.type }
-								onRemove={ () => setAiNotice( null ) }
-							>
-								{ aiNotice.message }
-							</Notice>
-						) }
-						<div className="newspack-rolling-coverage-ai-panel">
-							<p className="newspack-rolling-coverage-ai-panel__help">
-								{ __(
-									"Generate a summary of key takeaways from this coverage's entries. Prompts are configured by site administrators on the AI settings page.",
+					<p>
+						{ isSynced
+							? __(
+									'Uses the shared layout. Changes to it apply to every story that uses it.',
+									'newspack-rolling-coverage'
+								)
+							: __(
+									'Uses its own layout, detached from the shared one.',
 									'newspack-rolling-coverage'
 								) }
-							</p>
+					</p>
+				</PanelBody>
+			) }
+			<PanelBody title={ __( 'Coverage', 'newspack-rolling-coverage' ) }>
+				{ coverageCombobox }
+
+				{ coverageId ? (
+					<>
+						<div className="newspack-rolling-coverage-panel-group">
+							<RadioControl
+								label={ __(
+									'Status',
+									'newspack-rolling-coverage'
+								) }
+								selected={ pendingStatus }
+								options={ STATUS_OPTIONS }
+								onChange={ setPendingStatus }
+								help={ __(
+									'Writes back to the coverage itself — changes here affect every block connected to it.',
+									'newspack-rolling-coverage'
+								) }
+							/>
 							<Button
-								variant="primary"
-								onClick={ handleGenerate }
-								isBusy={ isGenerating }
-								disabled={ isGenerating }
+								variant="secondary"
+								onClick={ handleApply }
+								isBusy={ isApplying }
+								disabled={ isApplying || statusUnchanged }
+							>
+								{ __( 'Apply', 'newspack-rolling-coverage' ) }
+							</Button>
+							{ applyNotice && (
+								<Notice
+									status={ applyNotice.type }
+									isDismissible={ false }
+								>
+									{ applyNotice.message }
+								</Notice>
+							) }
+						</div>
+						<div className="newspack-rolling-coverage-panel-group">
+							<TextControl
+								__next40pxDefaultSize
+								type="url"
+								label={ __(
+									'Canonical URL',
+									'newspack-rolling-coverage'
+								) }
+								placeholder={ __(
+									'https://example.com/live-coverage',
+									'newspack-rolling-coverage'
+								) }
+								value={ pendingCanonicalUrl }
+								onChange={ setPendingCanonicalUrl }
+								disabled={ isApplyingUrl }
+								help={ __(
+									"The page readers land on when they open a link to one of this coverage's entries. Shared across every block connected to this coverage.",
+									'newspack-rolling-coverage'
+								) }
+							/>
+							<Button
+								variant="secondary"
+								onClick={ () =>
+									setPendingCanonicalUrl(
+										currentPagePermalink || ''
+									)
+								}
+								disabled={
+									isCurrentPageUnsaved ||
+									! currentPagePermalink
+								}
 							>
 								{ __(
-									'Generate Key Takeaways',
+									'Use this page',
 									'newspack-rolling-coverage'
 								) }
 							</Button>
-							{ generatedOutput && (
-								<>
-									<TextareaControl
-										label={ __(
-											'Generated Output',
-											'newspack-rolling-coverage'
-										) }
-										value={ generatedOutput }
-										onChange={ () => {} }
-										rows={ 8 }
-										readOnly
-										className="newspack-rolling-coverage-ai-output"
-									/>
-									<Button
-										variant="secondary"
-										icon={ copied ? check : copyIcon }
-										onClick={ handleCopy }
-									>
-										{ copied
-											? __(
-													'Copied!',
-													'newspack-rolling-coverage'
-												)
-											: __(
-													'Copy',
-													'newspack-rolling-coverage'
-												) }
-									</Button>
-								</>
+							{ ( isCurrentPageUnsaved ||
+								! currentPagePermalink ) && (
+								<p className="components-base-control__help">
+									{ __(
+										'Save this page to get its permalink.',
+										'newspack-rolling-coverage'
+									) }
+								</p>
 							) }
 						</div>
-					</PanelBody>
+					</>
 				) : null }
+			</PanelBody>
 
-				{ NEWSPACK_ADS_AVAILABLE && (
-					<PanelBody
-						title={ __( 'Ads', 'newspack-rolling-coverage' ) }
-					>
-						{ coverageAdsDisabled ? (
+			<PanelBody title={ __( 'Display', 'newspack-rolling-coverage' ) }>
+				<TextControl
+					__next40pxDefaultSize
+					type="number"
+					label={ __(
+						'Entries per page',
+						'newspack-rolling-coverage'
+					) }
+					help={ __(
+						'Used for both the initial number of entries shown and the infinite-scroll page size.',
+						'newspack-rolling-coverage'
+					) }
+					value={ String( entriesPerPage ) }
+					min={ 1 }
+					max={ 100 }
+					onChange={ ( value: string ) =>
+						setAttributes( {
+							entriesPerPage: value ? parseInt( value, 10 ) : 20,
+						} )
+					}
+				/>
+				<TextControl
+					__next40pxDefaultSize
+					type="number"
+					label={ __(
+						'Poll interval (seconds)',
+						'newspack-rolling-coverage'
+					) }
+					value={ String( pollInterval ) }
+					min={ 1 }
+					onChange={ ( value: string ) =>
+						setAttributes( {
+							pollInterval: value ? parseInt( value, 10 ) : 10,
+						} )
+					}
+				/>
+				<TextControl
+					__next40pxDefaultSize
+					label={ __( 'Pinned label', 'newspack-rolling-coverage' ) }
+					help={ __(
+						'Shown on pinned entries.',
+						'newspack-rolling-coverage'
+					) }
+					placeholder={ __( 'Pinned', 'newspack-rolling-coverage' ) }
+					value={ pinnedLabel }
+					onChange={ ( value: string ) =>
+						setAttributes( { pinnedLabel: value } )
+					}
+				/>
+			</PanelBody>
+
+			{ coverageId && AI_AVAILABLE ? (
+				<PanelBody
+					title={ __( 'AI', 'newspack-rolling-coverage' ) }
+					initialOpen={ false }
+				>
+					{ aiNotice && (
+						<Notice
+							status={ aiNotice.type }
+							onRemove={ () => setAiNotice( null ) }
+						>
+							{ aiNotice.message }
+						</Notice>
+					) }
+					<div className="newspack-rolling-coverage-ai-panel">
+						<p className="newspack-rolling-coverage-ai-panel__help">
+							{ __(
+								"Generate a summary of key takeaways from this coverage's entries. Prompts are configured by site administrators on the AI settings page.",
+								'newspack-rolling-coverage'
+							) }
+						</p>
+						<Button
+							variant="primary"
+							onClick={ handleGenerate }
+							isBusy={ isGenerating }
+							disabled={ isGenerating }
+						>
+							{ __(
+								'Generate Key Takeaways',
+								'newspack-rolling-coverage'
+							) }
+						</Button>
+						{ generatedOutput && (
+							<>
+								<TextareaControl
+									label={ __(
+										'Generated Output',
+										'newspack-rolling-coverage'
+									) }
+									value={ generatedOutput }
+									onChange={ () => {} }
+									rows={ 8 }
+									readOnly
+									className="newspack-rolling-coverage-ai-output"
+								/>
+								<Button
+									variant="secondary"
+									icon={ copied ? check : copyIcon }
+									onClick={ handleCopy }
+								>
+									{ copied
+										? __(
+												'Copied!',
+												'newspack-rolling-coverage'
+											)
+										: __(
+												'Copy',
+												'newspack-rolling-coverage'
+											) }
+								</Button>
+							</>
+						) }
+					</div>
+				</PanelBody>
+			) : null }
+
+			{ NEWSPACK_ADS_AVAILABLE && (
+				<PanelBody title={ __( 'Ads', 'newspack-rolling-coverage' ) }>
+					{ coverageAdsDisabled ? (
+						<Notice
+							className="newspack-rolling-coverage-ads-notice"
+							status="warning"
+							isDismissible={ false }
+						>
+							{ __(
+								'Ads are disabled for this coverage. Enable them in the coverage settings to configure ad settings here.',
+								'newspack-rolling-coverage'
+							) }
+						</Notice>
+					) : (
+						! NEWSPACK_ADS_PLACEMENT_ENABLED && (
 							<Notice
 								className="newspack-rolling-coverage-ads-notice"
 								status="warning"
 								isDismissible={ false }
 							>
 								{ __(
-									'Ads are disabled for this coverage. Enable them in the coverage settings to configure ad settings here.',
+									'Enable and configure the Rolling Coverage: Entry placement in Newspack Ads to show ads.',
 									'newspack-rolling-coverage'
 								) }
 							</Notice>
-						) : (
-							! NEWSPACK_ADS_PLACEMENT_ENABLED && (
-								<Notice
-									className="newspack-rolling-coverage-ads-notice"
-									status="warning"
-									isDismissible={ false }
-								>
-									{ __(
-										'Enable and configure the Rolling Coverage: Entry placement in Newspack Ads to show ads.',
-										'newspack-rolling-coverage'
-									) }
-								</Notice>
-							)
+						)
+					) }
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
+						label={ __(
+							'Advertising',
+							'newspack-rolling-coverage'
 						) }
-						<ToggleGroupControl
-							__next40pxDefaultSize
-							isBlock
+						help={ __(
+							'Shows ads at a regular interval in the feed.',
+							'newspack-rolling-coverage'
+						) }
+						value={ enableAds ? 'enabled' : 'disabled' }
+						disabled={ coverageAdsDisabled }
+						onChange={ ( value ) =>
+							setAttributes( {
+								enableAds: value === 'enabled',
+							} )
+						}
+					>
+						<ToggleGroupControlOption
+							value="enabled"
 							label={ __(
-								'Advertising',
+								'Enabled',
+								'newspack-rolling-coverage'
+							) }
+						/>
+						<ToggleGroupControlOption
+							value="disabled"
+							label={ __(
+								'Disabled',
+								'newspack-rolling-coverage'
+							) }
+						/>
+					</ToggleGroupControl>
+					{ enableAds && ! coverageAdsDisabled && (
+						<TextControl
+							__next40pxDefaultSize
+							type="number"
+							label={ __(
+								'Ads interval',
 								'newspack-rolling-coverage'
 							) }
 							help={ __(
-								'Shows ads at a regular interval in the feed.',
+								'Show an ad after every N entries. Maximum 3 ads for the initial feed and load more; no cap for new entries.',
 								'newspack-rolling-coverage'
 							) }
-							value={ enableAds ? 'enabled' : 'disabled' }
-							disabled={ coverageAdsDisabled }
-							onChange={ ( value ) =>
+							value={ String( adsInterval ) }
+							min={ 1 }
+							onChange={ ( value: string ) =>
 								setAttributes( {
-									enableAds: value === 'enabled',
+									adsInterval: value
+										? parseInt( value, 10 )
+										: 4,
 								} )
 							}
-						>
-							<ToggleGroupControlOption
-								value="enabled"
-								label={ __(
-									'Enabled',
-									'newspack-rolling-coverage'
-								) }
-							/>
-							<ToggleGroupControlOption
-								value="disabled"
-								label={ __(
-									'Disabled',
-									'newspack-rolling-coverage'
-								) }
-							/>
-						</ToggleGroupControl>
-						{ enableAds && ! coverageAdsDisabled && (
-							<TextControl
-								__next40pxDefaultSize
-								type="number"
-								label={ __(
-									'Ads interval',
-									'newspack-rolling-coverage'
-								) }
-								help={ __(
-									'Show an ad after every N entries. Maximum 3 ads for the initial feed and load more; no cap for new entries.',
-									'newspack-rolling-coverage'
-								) }
-								value={ String( adsInterval ) }
-								min={ 1 }
-								onChange={ ( value: string ) =>
-									setAttributes( {
-										adsInterval: value
-											? parseInt( value, 10 )
-											: 4,
-									} )
-								}
-							/>
-						) }
-					</PanelBody>
-				) }
-			</InspectorControls>
+						/>
+					) }
+				</PanelBody>
+			) }
+		</InspectorControls>
 	);
 
 	return (
@@ -1203,8 +1186,8 @@ export default function Edit( {
 
 			<div { ...blockProps }>
 				{ isCreatingLayout && <Spinner /> }
-				{ ! isCreatingLayout && (
-					coverageId || isLayoutPattern ? (
+				{ ! isCreatingLayout &&
+					( coverageId || isLayoutPattern ? (
 						<>
 							{ layoutCss && <style>{ layoutCss }</style> }
 							<EditedStateBar
@@ -1249,22 +1232,30 @@ export default function Edit( {
 									{ layoutError }
 								</Notice>
 							) }
-							{ ! isLayoutPattern && currentCoverage?.status === 'trash' && (
-								<Notice status="error" isDismissible={ false }>
-									{ __(
-										'This coverage has been trashed and is no longer available. Select a different coverage or restore it from the Rolling Coverage admin.',
-										'newspack-rolling-coverage'
-									) }
-								</Notice>
-							) }
-							{ ! isLayoutPattern && previewContexts.length === 0 && (
-								<Notice status="info" isDismissible={ false }>
-									{ __(
-										'No published entries yet — showing the template only. Add entries to this coverage to preview real content here.',
-										'newspack-rolling-coverage'
-									) }
-								</Notice>
-							) }
+							{ ! isLayoutPattern &&
+								currentCoverage?.status === 'trash' && (
+									<Notice
+										status="error"
+										isDismissible={ false }
+									>
+										{ __(
+											'This coverage has been trashed and is no longer available. Select a different coverage or restore it from the Rolling Coverage admin.',
+											'newspack-rolling-coverage'
+										) }
+									</Notice>
+								) }
+							{ ! isLayoutPattern &&
+								previewContexts.length === 0 && (
+									<Notice
+										status="info"
+										isDismissible={ false }
+									>
+										{ __(
+											'No published entries yet — showing the template only. Add entries to this coverage to preview real content here.',
+											'newspack-rolling-coverage'
+										) }
+									</Notice>
+								) }
 							{ isSynced && ! hasResolvedLayout && <Spinner /> }
 							{ isSynced && hasResolvedLayout && (
 								<>
@@ -1276,24 +1267,28 @@ export default function Edit( {
 											}
 										>
 											<EntryBlockPreview
-												blocks={ syncedRenderOnceBlocks }
+												blocks={
+													syncedRenderOnceBlocks
+												}
 											/>
 										</BlockContextProvider>
 									) }
 									<div className="newspack-rolling-coverage-entries">
 										{ previewContexts.length > 0 ? (
-											previewContexts.map( ( context ) => (
-												<BlockContextProvider
-													key={ context.postId }
-													value={ context }
-												>
-													<EntryBlockPreview
-														blocks={ blocksForEntry(
-															context
-														) }
-													/>
-												</BlockContextProvider>
-											) )
+											previewContexts.map(
+												( context ) => (
+													<BlockContextProvider
+														key={ context.postId }
+														value={ context }
+													>
+														<EntryBlockPreview
+															blocks={ blocksForEntry(
+																context
+															) }
+														/>
+													</BlockContextProvider>
+												)
+											)
 										) : (
 											<BlockContextProvider
 												value={ NEUTRAL_ENTRY_CONTEXT }
@@ -1315,7 +1310,8 @@ export default function Edit( {
 														( c ) =>
 															c.postId ===
 															( activeEntryId ??
-																previewContexts[ 0 ]?.postId )
+																previewContexts[ 0 ]
+																	?.postId )
 													) ?? NEUTRAL_ENTRY_CONTEXT )
 												: NEUTRAL_ENTRY_CONTEXT
 										}
@@ -1324,30 +1320,37 @@ export default function Edit( {
 									</BlockContextProvider>
 									<div className="newspack-rolling-coverage-entries">
 										{ previewContexts.length > 0 &&
-											previewContexts.map( ( context ) => {
-												const isActive =
-													context.postId ===
-													( activeEntryId ??
-														previewContexts[ 0 ]?.postId );
-		
-												return (
-													<BlockContextProvider
-														key={ context.postId }
-														value={ context }
-													>
-														{ ! isActive && (
-															<EntryBlockPreview
-																blocks={ blocksForEntry( context ) }
-																onSelect={ () =>
-																	setActiveEntryId(
-																		context.postId
-																	)
-																}
-															/>
-														) }
-													</BlockContextProvider>
-												);
-											} ) }
+											previewContexts.map(
+												( context ) => {
+													const isActive =
+														context.postId ===
+														( activeEntryId ??
+															previewContexts[ 0 ]
+																?.postId );
+
+													return (
+														<BlockContextProvider
+															key={
+																context.postId
+															}
+															value={ context }
+														>
+															{ ! isActive && (
+																<EntryBlockPreview
+																	blocks={ blocksForEntry(
+																		context
+																	) }
+																	onSelect={ () =>
+																		setActiveEntryId(
+																			context.postId
+																		)
+																	}
+																/>
+															) }
+														</BlockContextProvider>
+													);
+												}
+											) }
 									</div>
 								</>
 							) }
@@ -1364,8 +1367,7 @@ export default function Edit( {
 						>
 							{ coverageCombobox }
 						</Placeholder>
-					)
-				) }
+					) ) }
 			</div>
 		</>
 	);

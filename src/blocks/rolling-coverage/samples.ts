@@ -42,8 +42,14 @@ function getSamples(): Sample[] {
 		{
 			id: -101,
 			minutesAgo: 2,
-			title: __( 'Full time: Riverbend 2, Fresno Verde 1', 'newspack-rolling-coverage' ),
-			content: __( "Two goals from Bree Kowalski and a stoppage-time save from Petra Halvorsen. The champions' first meeting with Fresno Verde since the final ended the way the final did.", 'newspack-rolling-coverage' ),
+			title: __(
+				'Full time: Riverbend 2, Fresno Verde 1',
+				'newspack-rolling-coverage'
+			),
+			content: __(
+				"Two goals from Bree Kowalski and a stoppage-time save from Petra Halvorsen. The champions' first meeting with Fresno Verde since the final ended the way the final did.",
+				'newspack-rolling-coverage'
+			),
 			pinned: true,
 			hasBreakout: true,
 		},
@@ -51,26 +57,41 @@ function getSamples(): Sample[] {
 			id: -102,
 			minutesAgo: 9,
 			title: '',
-			content: __( "Halvorsen at full stretch to push Renee Vargas's header over the bar, four minutes into stoppage time. The North Bank greets it like a third goal.", 'newspack-rolling-coverage' ),
+			content: __(
+				"Halvorsen at full stretch to push Renee Vargas's header over the bar, four minutes into stoppage time. The North Bank greets it like a third goal.",
+				'newspack-rolling-coverage'
+			),
 		},
 		{
 			id: -103,
 			minutesAgo: 40,
-			title: __( 'Kowalski again, straight off the training ground', 'newspack-rolling-coverage' ),
-			content: __( 'Sonia Aguilar drives a corner to the near post, Josie Vandermeer flicks it on, and Kowalski turns it in from inside the six-yard box. 2-0 in the 61st minute.', 'newspack-rolling-coverage' ),
+			title: __(
+				'Kowalski again, straight off the training ground',
+				'newspack-rolling-coverage'
+			),
+			content: __(
+				'Sonia Aguilar drives a corner to the near post, Josie Vandermeer flicks it on, and Kowalski turns it in from inside the six–yard box. 2–0 in the 61st minute.',
+				'newspack-rolling-coverage'
+			),
 			hasImage: true,
 		},
 		{
 			id: -104,
 			minutesAgo: 55,
 			title: __( '14,213 at DS Stadium', 'newspack-rolling-coverage' ),
-			content: __( "The women's largest crowd of the season so far. Foundry Row was full two hours before kickoff.", 'newspack-rolling-coverage' ),
+			content: __(
+				"The women's largest crowd of the season so far. Foundry Row was full two hours before kickoff.",
+				'newspack-rolling-coverage'
+			),
 		},
 		{
 			id: -105,
 			minutesAgo: 120,
 			title: __( 'Team news', 'newspack-rolling-coverage' ),
-			content: __( 'Bethany Osei rotates less than usual for the rematch. Vandermeer captains, Kowalski leads the line and Nia Fletcher plays behind her.', 'newspack-rolling-coverage' ),
+			content: __(
+				'Bethany Osei rotates less than usual for the rematch. Vandermeer captains, Kowalski leads the line and Nia Fletcher plays behind her.',
+				'newspack-rolling-coverage'
+			),
 		},
 	];
 }
@@ -88,12 +109,19 @@ function loadSampleRecords(): void {
 	isLoaded = true;
 
 	const core = dispatch( coreStore ) as unknown as {
-		receiveEntityRecords: ( kind: string, name: string, records: object[], query?: object ) => void;
+		receiveEntityRecords: (
+			kind: string,
+			name: string,
+			records: object[],
+			query?: object
+		) => void;
 		finishResolution: ( selector: string, args: unknown[] ) => void;
 		receiveUserPermission: ( key: string, isAllowed: boolean ) => void;
 	};
 
-	core.receiveEntityRecords( 'root', 'user', [ { id: AUTHOR_ID, name: 'Marisol Quinn', slug: 'marisol-quinn' } ] );
+	core.receiveEntityRecords( 'root', 'user', [
+		{ id: AUTHOR_ID, name: 'Marisol Quinn', slug: 'marisol-quinn' },
+	] );
 	core.finishResolution( 'getEntityRecord', [ 'root', 'user', AUTHOR_ID ] );
 
 	core.receiveEntityRecords(
@@ -104,7 +132,10 @@ function loadSampleRecords(): void {
 				id: IMAGE_ID,
 				type: 'attachment',
 				source_url: SAMPLE_IMAGE,
-				alt_text: __( 'Illustration of a soccer field', 'newspack-rolling-coverage' ),
+				alt_text: __(
+					'Illustration of a soccer field',
+					'newspack-rolling-coverage'
+				),
 				media_type: 'image',
 				mime_type: 'image/svg+xml',
 				media_details: { sizes: {} },
@@ -112,7 +143,12 @@ function loadSampleRecords(): void {
 		],
 		{ context: 'view' }
 	);
-	core.finishResolution( 'getEntityRecord', [ 'postType', 'attachment', IMAGE_ID, { context: 'view' } ] );
+	core.finishResolution( 'getEntityRecord', [
+		'postType',
+		'attachment',
+		IMAGE_ID,
+		{ context: 'view' },
+	] );
 
 	const now = Date.now();
 	const records = getSamples().map( ( sample ) => {
@@ -132,7 +168,11 @@ function loadSampleRecords(): void {
 				rendered: `<p>${ paragraph }</p>`,
 				protected: false,
 			},
-			excerpt: { raw: sample.content, rendered: `<p>${ paragraph }</p>`, protected: false },
+			excerpt: {
+				raw: sample.content,
+				rendered: `<p>${ paragraph }</p>`,
+				protected: false,
+			},
 			author: AUTHOR_ID,
 			featured_media: sample.hasImage ? IMAGE_ID : 0,
 			link: '#',
@@ -142,9 +182,19 @@ function loadSampleRecords(): void {
 
 	core.receiveEntityRecords( 'postType', ENTRY_POST_TYPE, records );
 	records.forEach( ( record ) => {
-		core.finishResolution( 'getEntityRecord', [ 'postType', ENTRY_POST_TYPE, record.id ] );
-		core.receiveUserPermission( `update/postType/${ ENTRY_POST_TYPE }/${ record.id }`, false );
-		core.finishResolution( 'canUser', [ 'update', { kind: 'postType', name: ENTRY_POST_TYPE, id: record.id } ] );
+		core.finishResolution( 'getEntityRecord', [
+			'postType',
+			ENTRY_POST_TYPE,
+			record.id,
+		] );
+		core.receiveUserPermission(
+			`update/postType/${ ENTRY_POST_TYPE }/${ record.id }`,
+			false
+		);
+		core.finishResolution( 'canUser', [
+			'update',
+			{ kind: 'postType', name: ENTRY_POST_TYPE, id: record.id },
+		] );
 	} );
 }
 
