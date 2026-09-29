@@ -66,6 +66,10 @@ function ConnectChannelForm( {
 							) }
 						</VisuallyHidden>
 					}
+					help={ __(
+						"Publishes messages as soon as they're posted in Slack. When off, messages are saved as drafts for an editor or administrator to publish.",
+						'newspack-rolling-coverage'
+					) }
 					checked={ autopublish }
 					onChange={ onAutopublishChange }
 					disabled={ isConnecting }
