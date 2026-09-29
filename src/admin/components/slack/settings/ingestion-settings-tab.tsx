@@ -121,7 +121,7 @@ function IngestionSettingsTab( {
 					/>
 				</Stack>
 			</Grid>
-			<Divider alignment="full-width" variant="tertiary" />
+			<Divider alignment="full-width" />
 			<Grid columns={ 2 } gutter={ 32 } noMargin>
 				<Stack direction="column" gap="xl" align="flex-start">
 					<SectionHeader
