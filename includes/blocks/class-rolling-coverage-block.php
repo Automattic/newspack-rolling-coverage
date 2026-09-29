@@ -607,6 +607,8 @@ class Rolling_Coverage_Block {
 			self::store_template_layout_styles( self::pinned_cards( $template ) );
 		}
 
+		self::store_template_layout_styles( self::title_rows( self::with_centered_title_rows( $template ) ) );
+
 		if ( empty( $query->posts ) ) {
 			self::store_template_layout_styles( $template );
 
@@ -1186,6 +1188,81 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * The template as an entry without a title renders it: a row holding the
+	 * title, such as the header with Share opposite, centres its blocks, as
+	 * the date is all that's left beside them.
+	 *
+	 * @param array[] $template Parsed template blocks.
+	 * @return array[]
+	 */
+	public static function with_centered_title_rows( array $template ): array {
+		return self::map_template_blocks(
+			$template,
+			static function ( array $block ) {
+				if ( self::is_title_row( $block ) ) {
+					$block['attrs']['layout']['verticalAlignment'] = 'center';
+				}
+
+				return [ $block ];
+			}
+		);
+	}
+
+	/**
+	 * Whether a parsed block is a row holding the post title: a horizontal
+	 * flex group with a Post Title block anywhere inside it.
+	 *
+	 * @param array $block Parsed block.
+	 * @return bool
+	 */
+	private static function is_title_row( array $block ): bool {
+		$layout = $block['attrs']['layout'] ?? [];
+
+		return 'core/group' === ( $block['blockName'] ?? '' ) &&
+			'flex' === ( $layout['type'] ?? '' ) &&
+			'vertical' !== ( $layout['orientation'] ?? '' ) &&
+			self::holds_post_title( $block['innerBlocks'] ?? [] );
+	}
+
+	/**
+	 * Whether parsed blocks hold a Post Title block.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return bool
+	 */
+	private static function holds_post_title( array $blocks ): bool {
+		foreach ( $blocks as $block ) {
+			if ( is_array( $block ) && ( 'core/post-title' === ( $block['blockName'] ?? '' ) || self::holds_post_title( $block['innerBlocks'] ?? [] ) ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * The rows holding the post title among parsed blocks, so the layout
+	 * styles of their centred form can be stored for an entry without a
+	 * title that arrives after the page loads.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return array[]
+	 */
+	private static function title_rows( array $blocks ): array {
+		$rows = [];
+
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) ) {
+				continue;
+			}
+
+			$rows = self::is_title_row( $block ) ? array_merge( $rows, [ $block ] ) : array_merge( $rows, self::title_rows( $block['innerBlocks'] ?? [] ) );
+		}
+
+		return $rows;
+	}
+
+	/**
 	 * The pinned cards among parsed blocks, so their layout styles can be
 	 * stored for a pinned entry that arrives after the page loads.
 	 *
@@ -1701,6 +1778,11 @@ class Rolling_Coverage_Block {
 			$is_last,
 			$layout_class
 		);
+
+		if ( '' === trim( $entry->post_title ) ) {
+			$template = self::with_centered_title_rows( $template );
+		}
+
 		global $post;
 
 		$previous_post = $post;
@@ -1982,10 +2064,11 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Array_map() callback for get_entries_preview(): reduces a post ID to
-	 * the bare `{ id, type, pinned, hasBreakout }` shape the editor preview needs.
+	 * the bare `{ id, type, pinned, hasBreakout, hasTitle }` shape the editor
+	 * preview needs.
 	 *
 	 * @param int $id Entry post ID.
-	 * @return array{id: int, type: string, pinned: bool, hasBreakout: bool}
+	 * @return array{id: int, type: string, pinned: bool, hasBreakout: bool, hasTitle: bool}
 	 */
 	private static function map_entry_preview( int $id ): array {
 		return [
@@ -1993,6 +2076,7 @@ class Rolling_Coverage_Block {
 			'type'        => Post_Type::CPT_SLUG,
 			'pinned'      => Post_Type::is_pinned( $id ),
 			'hasBreakout' => null !== Breakout::get_published_breakout_url( $id ),
+			'hasTitle'    => '' !== trim( (string) get_post_field( 'post_title', $id ) ),
 		];
 	}
 
