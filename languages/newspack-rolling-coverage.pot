@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-29T13:29:39+00:00\n"
+"POT-Creation-Date: 2026-09-29T15:16:41+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -84,9 +84,9 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:444
-#: includes/blocks/class-rolling-coverage-block.php:1543
-#: includes/blocks/class-rolling-coverage-block.php:1646
-#: includes/blocks/class-rolling-coverage-block.php:1657
+#: includes/blocks/class-rolling-coverage-block.php:1944
+#: includes/blocks/class-rolling-coverage-block.php:2047
+#: includes/blocks/class-rolling-coverage-block.php:2058
 #: includes/class-post-type.php:940
 #: includes/class-taxonomy.php:351
 msgid "Coverage not found."
@@ -122,8 +122,8 @@ msgid "Link"
 msgstr ""
 
 #: includes/blocks/class-breakout-post-link-block.php:66
-#: includes/blocks/class-rolling-coverage-block.php:1028
-#: includes/blocks/class-rolling-coverage-block.php:1031
+#: includes/blocks/class-rolling-coverage-block.php:1042
+#: includes/blocks/class-rolling-coverage-block.php:1045
 #: dist/blocks/breakout-post-link/index.js:1
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Read more"
@@ -171,7 +171,7 @@ msgid "Rolling Coverage Entry"
 msgstr ""
 
 #: includes/blocks/class-entry-bindings.php:232
-#: includes/blocks/class-rolling-coverage-block.php:984
+#: includes/blocks/class-rolling-coverage-block.php:998
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/share/index.js:1
@@ -186,39 +186,44 @@ msgid "%1$s: %2$s"
 msgstr ""
 
 #: includes/blocks/class-entry-bindings.php:353
-#: includes/blocks/class-rolling-coverage-block.php:1081
+#: includes/blocks/class-rolling-coverage-block.php:1474
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:535
+#: includes/blocks/class-rolling-coverage-block.php:537
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Select a coverage to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:553
+#: includes/blocks/class-rolling-coverage-block.php:555
 msgid "This coverage is no longer available."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:608
+#: includes/blocks/class-rolling-coverage-block.php:616
 msgid "No entries yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:946
+#: includes/blocks/class-rolling-coverage-block.php:960
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Header"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:957
+#: includes/blocks/class-rolling-coverage-block.php:971
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Meta"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1364
+#: includes/blocks/class-rolling-coverage-block.php:1120
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Pinned Card"
+msgstr ""
+
+#: includes/blocks/class-rolling-coverage-block.php:1765
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1665
+#: includes/blocks/class-rolling-coverage-block.php:2066
 msgid "Either cursor or before must be provided."
 msgstr ""
 
