@@ -70,7 +70,7 @@ function getSamples(): Sample[] {
 				'newspack-rolling-coverage'
 			),
 			content: __(
-				'Sonia Aguilar drives a corner to the near post, Josie Vandermeer flicks it on, and Kowalski turns it in from inside the six–yard box. 2–0 in the 61st minute.',
+				'Sonia Aguilar drives a corner to the near post, Josie Vandermeer flicks it on, and Kowalski turns it in from inside the six-yard box. 2–0 in the 61st minute.',
 				'newspack-rolling-coverage'
 			),
 			hasImage: true,

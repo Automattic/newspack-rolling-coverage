@@ -96,7 +96,7 @@ class Layout {
 	 * @param array $parsed_block Parsed block.
 	 * @return array
 	 */
-	public static function inject_layout( $parsed_block ) {
+	public static function inject_layout( array $parsed_block ): array {
 		if ( Rolling_Coverage_Block::BLOCK_NAME !== ( $parsed_block['blockName'] ?? '' ) ) {
 			return $parsed_block;
 		}
@@ -104,6 +104,10 @@ class Layout {
 		$layout_id = (int) ( $parsed_block['attrs']['layoutId'] ?? 0 );
 
 		if ( $layout_id <= 0 ) {
+			if ( ! empty( $parsed_block['innerBlocks'] ) ) {
+				$parsed_block['innerBlocks'] = self::detach_nested_blocks( $parsed_block['innerBlocks'] );
+			}
+
 			return $parsed_block;
 		}
 

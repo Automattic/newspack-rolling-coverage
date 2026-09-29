@@ -202,6 +202,30 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A synced block nested inside a detached story renders its own inner
+	 * blocks, matching the editor, which treats every nested block as detached.
+	 */
+	public function test_synced_block_nested_in_a_detached_story_renders_detached() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$layout_id = self::create_layout( self::layout_markup() );
+		$nested    = '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode(
+			[
+				'coverageId' => $coverage_id,
+				'layoutId'   => $layout_id,
+			]
+		) . ' --><!-- wp:paragraph --><p>Nested local layout</p><!-- /wp:paragraph --><!-- /wp:newspack-rolling-coverage/rolling-coverage -->';
+
+		$html = self::render_story(
+			[ 'coverageId' => $coverage_id ],
+			'<!-- wp:group --><div class="wp-block-group">' . $nested . '</div><!-- /wp:group -->'
+		);
+
+		$this->assertStringContainsString( 'Nested local layout', $html );
+		$this->assertStringNotContainsString( self::MARKER, $html );
+	}
+
+	/**
 	 * Pages still cached with the previous layout's key keep loading it, so
 	 * only the config from two layout edits ago is dropped.
 	 */

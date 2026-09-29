@@ -197,18 +197,23 @@ export default function Edit( {
 		'data-editor-state': editedState,
 		style: entryGapStyle( attributes.style?.spacing?.blockGap ),
 	} );
-	const { currentPostType, patternCategories } = useSelect( ( select ) => {
-		const editor = select( editorStore ) as unknown as {
-			getCurrentPostType: () => string;
-			getEditedPostAttribute: ( attribute: string ) => unknown;
-		};
-		return {
-			currentPostType: editor.getCurrentPostType(),
-			patternCategories: editor.getEditedPostAttribute(
-				'wp_pattern_category'
-			) as number[] | undefined,
-		};
-	}, [] );
+	const { currentPostType, currentPostId, patternCategories } = useSelect(
+		( select ) => {
+			const editor = select( editorStore ) as unknown as {
+				getCurrentPostType: () => string;
+				getCurrentPostId: () => number | string;
+				getEditedPostAttribute: ( attribute: string ) => unknown;
+			};
+			return {
+				currentPostType: editor.getCurrentPostType(),
+				currentPostId: Number( editor.getCurrentPostId() ),
+				patternCategories: editor.getEditedPostAttribute(
+					'wp_pattern_category'
+				) as number[] | undefined,
+			};
+		},
+		[]
+	);
 	const { isNested, isPreviewMode } = useSelect(
 		( select ) => {
 			const blockEditor = select( blockEditorStore ) as unknown as {
@@ -234,7 +239,10 @@ export default function Edit( {
 	const isLayoutPattern =
 		! coverageId &&
 		currentPostType === 'wp_block' &&
-		( patternCategories ?? [] ).includes( Number( LAYOUT_CATEGORY_ID ) );
+		( ( patternCategories ?? [] ).includes(
+			Number( LAYOUT_CATEGORY_ID )
+		) ||
+			( currentPostId > 0 && currentPostId === getDefaultLayoutId() ) );
 	const innerBlockCount = useSelect(
 		( select ) =>
 			(
