@@ -64,7 +64,8 @@ import {
 	withLinkedTitle,
 	withoutPinnedCard,
 	withoutClosingSeparator,
-	withClosedPinnedCard,
+	withShapedPinnedCard,
+	hasPinnedCard,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -349,16 +350,21 @@ export default function Edit( {
 		[ allBlocks ]
 	);
 	const previewTemplates = useMemo( () => {
-		const pinned = withoutClosingSeparator( templateBlocks );
+		const hasCard = hasPinnedCard( templateBlocks );
+		const pinned = hasCard
+			? withoutClosingSeparator( templateBlocks )
+			: templateBlocks;
 		const unpinned = withoutPinnedCard(
 			withoutPinnedRow( templateBlocks )
 		);
 
 		return {
+			hasCard,
 			pinned: withLinkedTitle( pinned ),
 			unpinned: withLinkedTitle( unpinned ),
-			pinnedWithoutBreakout: withClosedPinnedCard(
-				withoutBreakoutLink( pinned )
+			pinnedWithoutBreakout: withShapedPinnedCard(
+				withoutBreakoutLink( pinned ),
+				{ closeUp: true, isLastCard: false }
 			),
 			unpinnedWithoutBreakout: withoutBreakoutLink( unpinned ),
 		};
@@ -370,15 +376,20 @@ export default function Edit( {
 		entryContexts.length < entriesPerPage
 			? entryContexts.at( -1 )
 			: undefined;
-	const lastPreviewBlocks = useMemo(
-		() =>
-			lastContext
-				? withoutClosingSeparator(
-						previewTemplateFor( previewTemplates, lastContext )
-					)
-				: undefined,
-		[ previewTemplates, lastContext ]
-	);
+	const lastPreviewBlocks = useMemo( () => {
+		if ( ! lastContext ) {
+			return undefined;
+		}
+
+		const blocks = previewTemplateFor( previewTemplates, lastContext );
+
+		return lastContext.pinned && previewTemplates.hasCard
+			? withShapedPinnedCard( blocks, {
+					closeUp: false,
+					isLastCard: true,
+				} )
+			: withoutClosingSeparator( blocks );
+	}, [ previewTemplates, lastContext ] );
 
 	// Disabled blocks drop out of List View and can't be selected, so only
 	// the current editor state's blocks show there.

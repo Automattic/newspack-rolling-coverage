@@ -441,8 +441,8 @@ function isBreakoutLink( block: {
 
 /**
  * The template without the "Read more" link, as an entry without a published
- * breakout post renders. A buttons block left empty goes too, as
- * Rolling_Coverage_Block::drop_empty_entry_buttons() does on the front end.
+ * breakout post renders. A block it leaves empty goes too, as
+ * Rolling_Coverage_Block::without_breakout_link() does on the front end.
  *
  * @param {Object[]} blocks The template blocks.
  * @return {Object[]} The blocks an entry without a breakout shows.
@@ -464,7 +464,7 @@ function withoutBreakoutLink<
 
 		const innerBlocks = withoutBreakoutLink( block.innerBlocks as T[] );
 
-		if ( block.name === 'core/buttons' && ! innerBlocks.length ) {
+		if ( ! innerBlocks.length ) {
 			return [];
 		}
 
@@ -525,6 +525,28 @@ function isPinnedCard( block: {
 }
 
 /**
+ * Whether blocks hold the pinned card, mirroring
+ * Rolling_Coverage_Block::has_pinned_card().
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {boolean} Whether the pinned card is among them.
+ */
+function hasPinnedCard(
+	blocks: {
+		name: string;
+		attributes?: Record< string, unknown >;
+		innerBlocks?: unknown;
+	}[]
+): boolean {
+	return blocks.some(
+		( block ) =>
+			isPinnedCard( block ) ||
+			( Array.isArray( block.innerBlocks ) &&
+				hasPinnedCard( block.innerBlocks ) )
+	);
+}
+
+/**
  * The template with the pinned card's blocks in place of the card, as an
  * entry that isn't pinned renders (see
  * Rolling_Coverage_Block::shape_entry_template()).
@@ -536,15 +558,15 @@ function withoutPinnedCard<
 	T extends { name: string; [ key: string ]: unknown },
 >( blocks: T[] ): T[] {
 	return blocks.flatMap( ( block ) => {
-		const innerBlocks = Array.isArray( block.innerBlocks )
-			? withoutPinnedCard( block.innerBlocks as T[] )
-			: [];
-
-		if ( isPinnedCard( block ) ) {
-			return innerBlocks;
+		if ( ! Array.isArray( block.innerBlocks ) ) {
+			return [ block ];
 		}
 
-		return innerBlocks.length ? [ { ...block, innerBlocks } ] : [ block ];
+		const innerBlocks = withoutPinnedCard( block.innerBlocks as T[] );
+
+		return isPinnedCard( block )
+			? innerBlocks
+			: [ { ...block, innerBlocks } ];
 	} );
 }
 
@@ -564,58 +586,83 @@ function withoutClosingSeparator< T extends { name: string } >(
 }
 
 /**
- * The template with the pinned card's last block keeping no space below
- * it, as a pinned entry without "Read more" renders, so the card's padding
- * is even.
+ * A block without its bottom margin, mirroring
+ * Rolling_Coverage_Block::without_bottom_margin().
  *
- * @param {Object[]} blocks The template blocks.
- * @return {Object[]} The blocks with the card closed up.
+ * @param {Object} block The block.
+ * @return {Object} The block without its bottom margin.
  */
-function withClosedPinnedCard<
+function withoutBottomMargin< T extends { [ key: string ]: unknown } >(
+	block: T
+): T {
+	const attributes = ( block.attributes ?? {} ) as {
+		style?: { spacing?: { margin?: Record< string, unknown > } };
+	};
+	const { bottom, ...margin } = attributes.style?.spacing?.margin ?? {};
+
+	if ( bottom === undefined ) {
+		return block;
+	}
+
+	return {
+		...block,
+		attributes: {
+			...attributes,
+			style: {
+				...attributes.style,
+				spacing: { ...attributes.style?.spacing, margin },
+			},
+		},
+	};
+}
+
+/**
+ * The template with the pinned card changed as a pinned entry renders it:
+ * without "Read more", its last block keeps no space below it, and as the
+ * last entry, the card keeps none either.
+ *
+ * @param {Object[]} blocks             The template blocks.
+ * @param {Object}   options            How the entry renders.
+ * @param {boolean}  options.closeUp    Whether the last block drops its bottom margin.
+ * @param {boolean}  options.isLastCard Whether the card drops its own.
+ * @return {Object[]} The blocks with the card changed.
+ */
+function withShapedPinnedCard<
 	T extends { name: string; [ key: string ]: unknown },
->( blocks: T[] ): T[] {
+>(
+	blocks: T[],
+	{ closeUp, isLastCard }: { closeUp: boolean; isLastCard: boolean }
+): T[] {
 	return blocks.map( ( block ) => {
-		const innerBlocks = Array.isArray( block.innerBlocks )
-			? ( block.innerBlocks as T[] )
-			: [];
+		if ( ! Array.isArray( block.innerBlocks ) ) {
+			return block;
+		}
+
+		const innerBlocks = block.innerBlocks as T[];
 
 		if ( ! isPinnedCard( block ) ) {
-			return innerBlocks.length
-				? { ...block, innerBlocks: withClosedPinnedCard( innerBlocks ) }
-				: block;
+			return {
+				...block,
+				innerBlocks: withShapedPinnedCard( innerBlocks, {
+					closeUp,
+					isLastCard,
+				} ),
+			};
 		}
 
 		const last = innerBlocks.at( -1 );
-
-		if ( ! last ) {
-			return block;
-		}
-
-		const attributes = ( last.attributes ?? {} ) as {
-			style?: { spacing?: { margin?: Record< string, unknown > } };
-		};
-		const { bottom, ...margin } = attributes.style?.spacing?.margin ?? {};
-
-		if ( bottom === undefined ) {
-			return block;
-		}
-
-		return {
+		const card = {
 			...block,
-			innerBlocks: [
-				...innerBlocks.slice( 0, -1 ),
-				{
-					...last,
-					attributes: {
-						...attributes,
-						style: {
-							...attributes.style,
-							spacing: { ...attributes.style?.spacing, margin },
-						},
-					},
-				},
-			],
+			innerBlocks:
+				closeUp && last
+					? [
+							...innerBlocks.slice( 0, -1 ),
+							withoutBottomMargin( last ),
+						]
+					: innerBlocks,
 		};
+
+		return isLastCard ? withoutBottomMargin( card ) : card;
 	} );
 }
 
@@ -692,7 +739,8 @@ export {
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	withLinkedTitle,
+	hasPinnedCard,
 	withoutPinnedCard,
 	withoutClosingSeparator,
-	withClosedPinnedCard,
+	withShapedPinnedCard,
 };
