@@ -65,11 +65,8 @@ import {
 	AI_AVAILABLE,
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
-	ONESIGNAL_INSTALLED,
-	ONESIGNAL_V3_ACTIVE,
 	ONESIGNAL_CONFIGURED,
 } from './config';
-import { OneSignalNotice } from '../shared/onesignal-notice';
 import EditedStateBar from './components/edited-state-bar';
 import type {
 	CoverageOption,
@@ -364,6 +361,28 @@ export default function Edit( {
 		unsetBlockEditingMode,
 	] );
 
+	// Without OneSignal the follow button never renders on the site, so the
+	// editor hides it too. It stays in the template for when OneSignal is set up.
+	const hiddenFollowIds = useMemo(
+		() =>
+			ONESIGNAL_CONFIGURED
+				? []
+				: allBlocks
+						.filter(
+							( block ) =>
+								block.name === FOLLOW_BLOCK_NAME ||
+								isFollowButtons( block )
+						)
+						.map( ( block ) => block.clientId ),
+		[ allBlocks ]
+	);
+	const hiddenFollowKey = hiddenFollowIds.join( ',' );
+	useEffect( () => {
+		const ids = hiddenFollowKey ? hiddenFollowKey.split( ',' ) : [];
+		ids.forEach( ( id ) => setBlockEditingMode( id, 'disabled' ) );
+		return () => ids.forEach( ( id ) => unsetBlockEditingMode( id ) );
+	}, [ hiddenFollowKey, setBlockEditingMode, unsetBlockEditingMode ] );
+
 	// Derives the current page's permalink, and whether it's still a
 	// placeholder ".../auto-draft/" URL because the post is unsaved.
 	const { currentPagePermalink, isCurrentPageUnsaved } = useSelect(
@@ -610,7 +629,7 @@ export default function Edit( {
 					{ coverageCombobox }
 
 					{ coverageId ? (
-						<div className="newspack-rolling-coverage-status-control">
+						<div className="newspack-rolling-coverage-panel-group">
 							<RadioControl
 								label={ __(
 									'Status',
@@ -642,67 +661,57 @@ export default function Edit( {
 							) }
 						</div>
 					) : null }
-				</PanelBody>
 
-				{ coverageId ? (
-					<PanelBody
-						title={ __(
-							'Push Notifications',
-							'newspack-rolling-coverage'
-						) }
-					>
-						{ ! ONESIGNAL_CONFIGURED && (
-							<OneSignalNotice
-								installed={ ONESIGNAL_INSTALLED }
-								v3Active={ ONESIGNAL_V3_ACTIVE }
-							/>
-						) }
-						<TextControl
-							__next40pxDefaultSize
-							type="url"
-							label={ __(
-								'Canonical URL',
-								'newspack-rolling-coverage'
-							) }
-							placeholder={ __(
-								'https://example.com/live-coverage',
-								'newspack-rolling-coverage'
-							) }
-							value={ pendingCanonicalUrl }
-							onChange={ setPendingCanonicalUrl }
-							disabled={ isApplyingUrl }
-							help={ __(
-								'The page readers land on when they open a notification for this coverage. Shared across every block connected to this coverage.',
-								'newspack-rolling-coverage'
-							) }
-						/>
-						<Button
-							variant="secondary"
-							onClick={ () =>
-								setPendingCanonicalUrl(
-									currentPagePermalink || ''
-								)
-							}
-							disabled={
-								isCurrentPageUnsaved || ! currentPagePermalink
-							}
-						>
-							{ __(
-								'Use this page',
-								'newspack-rolling-coverage'
-							) }
-						</Button>
-						{ ( isCurrentPageUnsaved ||
-							! currentPagePermalink ) && (
-							<p className="components-base-control__help">
-								{ __(
-									'Save this page to get its permalink.',
+					{ coverageId ? (
+						<div className="newspack-rolling-coverage-panel-group">
+							<TextControl
+								__next40pxDefaultSize
+								type="url"
+								label={ __(
+									'Canonical URL',
 									'newspack-rolling-coverage'
 								) }
-							</p>
-						) }
-					</PanelBody>
-				) : null }
+								placeholder={ __(
+									'https://example.com/live-coverage',
+									'newspack-rolling-coverage'
+								) }
+								value={ pendingCanonicalUrl }
+								onChange={ setPendingCanonicalUrl }
+								disabled={ isApplyingUrl }
+								help={ __(
+									'The page readers land on when they open a link to one of its entries. Shared across every block connected to this coverage.',
+									'newspack-rolling-coverage'
+								) }
+							/>
+							<Button
+								variant="secondary"
+								onClick={ () =>
+									setPendingCanonicalUrl(
+										currentPagePermalink || ''
+									)
+								}
+								disabled={
+									isCurrentPageUnsaved ||
+									! currentPagePermalink
+								}
+							>
+								{ __(
+									'Use this page',
+									'newspack-rolling-coverage'
+								) }
+							</Button>
+							{ ( isCurrentPageUnsaved ||
+								! currentPagePermalink ) && (
+								<p className="components-base-control__help">
+									{ __(
+										'Save this page to get its permalink.',
+										'newspack-rolling-coverage'
+									) }
+								</p>
+							) }
+						</div>
+					) : null }
+				</PanelBody>
 
 				<PanelBody
 					title={ __( 'Display', 'newspack-rolling-coverage' ) }
@@ -925,6 +934,16 @@ export default function Edit( {
 			<div { ...blockProps }>
 				{ coverageId ? (
 					<>
+						{ hiddenFollowIds.length > 0 && (
+							<style>
+								{ hiddenFollowIds
+									.map(
+										( id ) =>
+											`.newspack-rolling-coverage-layout > [data-block="${ id }"] { display: none; }`
+									)
+									.join( '\n' ) }
+							</style>
+						) }
 						<EditedStateBar
 							options={ EDITED_STATE_OPTIONS }
 							value={ editedState }
