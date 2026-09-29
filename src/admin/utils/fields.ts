@@ -6,7 +6,7 @@
  * External dependencies
  */
 import { decodeEntities } from '@wordpress/html-entities';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -133,7 +133,15 @@ function summarizeTermNames( names: string[] ): string {
 		return '—';
 	}
 	const shown = names.slice( 0, 2 ).join( ', ' );
-	return names.length > 2 ? `${ shown } +${ names.length - 2 }` : shown;
+	if ( names.length <= 2 ) {
+		return shown;
+	}
+	return sprintf(
+		/* translators: 1: the first two term names, 2: how many more terms there are. */
+		__( '%1$s +%2$d', 'newspack-rolling-coverage' ),
+		shown,
+		names.length - 2
+	);
 }
 
 /**

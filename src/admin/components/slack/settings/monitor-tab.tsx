@@ -204,9 +204,10 @@ function MonitorTab( {
 
 	if ( startError ) {
 		return (
-			<div className="newspack-rolling-coverage-slack-settings">
-				<ErrorNotice message={ startError } />
-			</div>
+			<ErrorNotice
+				className="newspack-rolling-coverage-view-notice"
+				message={ startError }
+			/>
 		);
 	}
 
