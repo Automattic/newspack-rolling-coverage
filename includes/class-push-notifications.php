@@ -12,12 +12,13 @@ use WP_Post;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Notifies OneSignal subscribers when an entry is explicitly marked to
- * notify and then published.
+ * Notifies OneSignal subscribers when an entry is marked to notify and then
+ * published.
  *
  * Opt-in checkbox lives in a classic meta box on the entry edit screen,
  * shown only while the entry isn't published, and unchecks itself after a
- * send. Scoped to readers who followed the coverage via the Coverage
+ * send. Entries from a chat source such as Slack are opted in when they are
+ * saved. Scoped to readers who followed the coverage via the Coverage
  * Follow Button. No-ops when OneSignal isn't installed or configured.
  */
 class Push_Notifications {
@@ -31,6 +32,15 @@ class Push_Notifications {
 
 	// OneSignal tag key prefix written by the Coverage Follow Button; sends are scoped to it via follow_tag().
 	const FOLLOW_TAG_PREFIX = 'coverage_';
+
+	// Cron hook that sends an entry's notification outside the request that published it.
+	const SEND_HOOK = 'newspack_rolling_coverage_send_notification';
+
+	// Option key prefix for the per-entry lock held while a notification is sent.
+	const SEND_LOCK_PREFIX = 'rolling_coverage_notification_lock_';
+
+	// Seconds after which a send lock left behind by a killed process is ignored.
+	const SEND_LOCK_TTL = 60;
 
 	/**
 	 * Click-through URL for the in-flight send, read by override_notification_fields().
@@ -54,6 +64,8 @@ class Push_Notifications {
 		add_action( 'add_meta_boxes_' . Post_Type::CPT_SLUG, [ __CLASS__, 'add_meta_box' ] );
 		add_action( 'save_post_' . Post_Type::CPT_SLUG, [ __CLASS__, 'save_meta' ] );
 		add_action( 'transition_post_status', [ __CLASS__, 'maybe_notify' ], 10, 3 );
+		add_action( 'newspack_rolling_coverage_entry_ingested', [ __CLASS__, 'opt_in_ingested_entry' ] );
+		add_action( self::SEND_HOOK, [ __CLASS__, 'send_scheduled' ] );
 	}
 
 	/**
@@ -205,7 +217,8 @@ class Push_Notifications {
 	}
 
 	/**
-	 * Sends a notification when the entry is opted in and published.
+	 * Sends a notification when the entry is opted in and published, or
+	 * schedules it when publishing through a REST request.
 	 *
 	 * Skips entries with an existing os_notification_id to avoid duplicate sends.
 	 *
@@ -235,22 +248,102 @@ class Push_Notifications {
 			return;
 		}
 
+		// OneSignal never sends during a REST request, which is how the block
+		// editor, the plugin's admin and Slack publish.
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			self::schedule_send( $post->ID );
+			return;
+		}
+
+		self::send( $post );
+	}
+
+	/**
+	 * Opts an entry created from a chat source in to notify followers, and
+	 * schedules the send when it was published straight away.
+	 *
+	 * @param int $post_id Entry post id.
+	 */
+	public static function opt_in_ingested_entry( int $post_id ): void {
+		update_post_meta( $post_id, self::NOTIFY_META_KEY, true );
+
+		if ( 'publish' === get_post_status( $post_id ) && self::is_onesignal_configured() ) {
+			self::schedule_send( $post_id );
+		}
+	}
+
+	/**
+	 * Sends a scheduled notification if the entry still wants one.
+	 *
+	 * @param int $post_id Entry post id.
+	 */
+	public static function send_scheduled( int $post_id ): void {
+		$post = get_post( $post_id );
+
+		if ( ! $post instanceof WP_Post || Post_Type::CPT_SLUG !== $post->post_type || 'publish' !== $post->post_status ) {
+			return;
+		}
+
+		if ( ! empty( get_post_meta( $post->ID, 'os_notification_id', true ) ) ) {
+			return;
+		}
+
+		if ( ! get_post_meta( $post->ID, self::NOTIFY_META_KEY, true ) || ! self::is_onesignal_configured() ) {
+			return;
+		}
+
+		self::send( $post );
+	}
+
+	/**
+	 * Schedules an entry's notification to be sent by the next cron run.
+	 *
+	 * @param int $post_id Entry post id.
+	 */
+	private static function schedule_send( int $post_id ): void {
+		if ( ! wp_next_scheduled( self::SEND_HOOK, [ $post_id ] ) ) {
+			wp_schedule_single_event( time(), self::SEND_HOOK, [ $post_id ] );
+		}
+	}
+
+	/**
+	 * Notifies the followers of each of the entry's coverages, then spends the
+	 * opt-in. A lock keeps a scheduled send and an editor's save from both
+	 * sending when they run at the same time.
+	 *
+	 * @param WP_Post $post Entry post.
+	 */
+	private static function send( WP_Post $post ): void {
 		$term_ids = wp_get_post_terms( $post->ID, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
 
 		if ( is_wp_error( $term_ids ) || empty( $term_ids ) ) {
 			return;
 		}
 
-		$sent = false;
+		$lock_key = self::SEND_LOCK_PREFIX . $post->ID;
 
-		foreach ( $term_ids as $term_id ) {
-			if ( self::notify_coverage_subscribers( (int) $term_id, $post ) ) {
-				$sent = true;
+		if ( ! add_option( $lock_key, time(), '', false ) ) {
+			if ( time() - (int) get_option( $lock_key, 0 ) < self::SEND_LOCK_TTL ) {
+				return;
 			}
+
+			update_option( $lock_key, time(), false );
 		}
 
-		if ( $sent ) {
-			delete_post_meta( $post->ID, self::NOTIFY_META_KEY );
+		try {
+			$sent = false;
+
+			foreach ( $term_ids as $term_id ) {
+				if ( self::notify_coverage_subscribers( (int) $term_id, $post ) ) {
+					$sent = true;
+				}
+			}
+
+			if ( $sent ) {
+				delete_post_meta( $post->ID, self::NOTIFY_META_KEY );
+			}
+		} finally {
+			delete_option( $lock_key );
 		}
 	}
 
@@ -386,6 +479,8 @@ class Push_Notifications {
 		}
 
 		if ( ! empty( self::$pending_tag ) ) {
+			// A newer update from the same coverage replaces the older one in the browser.
+			$fields['web_push_topic'] = self::$pending_tag;
 			unset( $fields['included_segments'] );
 			$fields['filters'] = [
 				[

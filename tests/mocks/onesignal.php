@@ -9,14 +9,19 @@ if ( ! function_exists( 'onesignal_create_notification' ) ) {
 	/**
 	 * Record a notification instead of sending it.
 	 *
-	 * Mirrors the two things the plugin relies on: the title and content it
-	 * passes in, and the `onesignal_send_notification` filter OneSignal runs
-	 * over the payload before sending, which starts out addressed to everyone.
+	 * Mirrors what the plugin relies on: the title and content it passes in,
+	 * the `onesignal_send_notification` filter OneSignal runs over the payload
+	 * before sending, which starts out addressed to everyone, and OneSignal
+	 * sending nothing during a REST request.
 	 *
 	 * @param WP_Post $post Post the notification is about.
 	 * @param array   $args Notification title and content.
 	 */
 	function onesignal_create_notification( $post, $args = [] ) {
+		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			return;
+		}
+
 		$payload = apply_filters(
 			'onesignal_send_notification',
 			[

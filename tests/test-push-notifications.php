@@ -5,7 +5,9 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Entry_Ingestion_Service;
 use Newspack_Rolling_Coverage\Push_Notifications;
+use Newspack_Rolling_Coverage\Source_Event_Payload;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
@@ -74,6 +76,36 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Save a Slack message as an entry, the way the webhook does.
+	 *
+	 * @param int  $coverage_id  Coverage term ID.
+	 * @param bool $auto_publish Whether the channel publishes straight away.
+	 * @return int Entry post ID.
+	 */
+	private static function ingest_slack_message( $coverage_id, $auto_publish ) {
+		$payload = new Source_Event_Payload(
+			source: 'slack',
+			source_ref: '1767225600.000100',
+			conversation_ref: 'C0TESTCHAN',
+			author_external_id: 'U0REPORTER',
+			author_display_name: 'Riley Sample',
+			content_html: '<!-- wp:paragraph --><p>Polls have closed.</p><!-- /wp:paragraph -->',
+			content_plain: 'Polls have closed.',
+			thread_ref: null,
+			external_timestamp: '2026-01-01T00:00:00+00:00',
+			raw_payload: []
+		);
+
+		return Entry_Ingestion_Service::ingest(
+			$payload,
+			$coverage_id,
+			$auto_publish,
+			self::factory()->user->create( [ 'role' => 'author' ] ),
+			[]
+		);
+	}
+
+	/**
 	 * Notifications recorded by the OneSignal stand-in.
 	 *
 	 * @return array[]
@@ -110,6 +142,7 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		);
 		$this->assertSame( home_url( '/live/election-night/?rolling-coverage-entry=polls-have-closed#polls-have-closed' ), $sent_notifications[0]['url'], 'The link should open the entry inside the coverage page.' );
 		$this->assertSame( 'Polls have closed', $sent_notifications[0]['title'], 'The entry title should be the notification title.' );
+		$this->assertSame( Push_Notifications::follow_tag( $coverage_id ), $sent_notifications[0]['web_push_topic'], 'A newer update from the coverage should replace this one in the browser.' );
 	}
 
 	/**
@@ -177,5 +210,113 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		wp_publish_post( $entry_id );
 
 		$this->assertSame( [], self::get_sent_notifications() );
+	}
+
+	/**
+	 * A Slack message published straight away notifies followers from the
+	 * next cron run, since OneSignal sends nothing inside the webhook's REST
+	 * request.
+	 */
+	public function test_slack_entry_published_straight_away_notifies_followers_from_cron() {
+		$coverage_id = self::create_coverage_with_canonical_url();
+		$entry_id    = self::ingest_slack_message( $coverage_id, true );
+
+		$this->assertSame( [], self::get_sent_notifications(), 'Nothing should be sent while the message is saved.' );
+		$this->assertNotFalse( wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'The send should be scheduled.' );
+
+		do_action( Push_Notifications::SEND_HOOK, $entry_id );
+
+		$sent_notifications = self::get_sent_notifications();
+
+		$this->assertCount( 1, $sent_notifications, 'One notification should be sent.' );
+		$this->assertSame( Push_Notifications::follow_tag( $coverage_id ), $sent_notifications[0]['filters'][0]['key'], 'The notification should be addressed to followers of this coverage.' );
+		$this->assertSame( '', (string) get_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true ), 'The opt-in should be spent.' );
+
+		do_action( Push_Notifications::SEND_HOOK, $entry_id );
+
+		$this->assertCount( 1, self::get_sent_notifications(), 'A second run should not notify again.' );
+	}
+
+	/**
+	 * A Slack message saved as a draft is opted in, so followers are notified
+	 * when an editor publishes it.
+	 */
+	public function test_slack_draft_notifies_followers_when_published() {
+		$entry_id = self::ingest_slack_message( self::create_coverage_with_canonical_url(), false );
+
+		$this->assertFalse( wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'Nothing should be scheduled for a draft.' );
+		$this->assertNotEmpty( get_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true ), 'The draft should be opted in.' );
+
+		wp_publish_post( $entry_id );
+
+		$this->assertCount( 1, self::get_sent_notifications() );
+	}
+
+	/**
+	 * An editor who unticks the opt-in before the scheduled send runs stops it.
+	 */
+	public function test_scheduled_send_respects_an_opt_in_removed_since() {
+		$entry_id = self::ingest_slack_message( self::create_coverage_with_canonical_url(), true );
+		delete_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY );
+
+		do_action( Push_Notifications::SEND_HOOK, $entry_id );
+
+		$this->assertSame( [], self::get_sent_notifications() );
+	}
+
+	/**
+	 * The scheduled send leaves alone an entry OneSignal already notified about.
+	 */
+	public function test_scheduled_send_skips_an_entry_already_notified_by_onesignal() {
+		$entry_id = self::ingest_slack_message( self::create_coverage_with_canonical_url(), true );
+		update_post_meta( $entry_id, 'os_notification_id', 'test-notification-id' );
+
+		do_action( Push_Notifications::SEND_HOOK, $entry_id );
+
+		$this->assertSame( [], self::get_sent_notifications() );
+	}
+
+	/**
+	 * While another request is sending an entry's notification, a second
+	 * send for it does nothing and keeps the opt-in.
+	 */
+	public function test_send_in_progress_elsewhere_blocks_a_second_send() {
+		$entry_id = self::create_draft_entry( self::create_coverage_with_canonical_url(), true );
+		add_option( Push_Notifications::SEND_LOCK_PREFIX . $entry_id, time(), '', false );
+
+		wp_publish_post( $entry_id );
+
+		$this->assertSame( [], self::get_sent_notifications(), 'Nothing should be sent.' );
+		$this->assertNotEmpty( get_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true ), 'The opt-in should be kept.' );
+	}
+
+	/**
+	 * A lock left behind by a request that died is ignored once it's old.
+	 */
+	public function test_stale_send_lock_does_not_block_sending() {
+		$entry_id = self::create_draft_entry( self::create_coverage_with_canonical_url(), true );
+		add_option( Push_Notifications::SEND_LOCK_PREFIX . $entry_id, time() - Push_Notifications::SEND_LOCK_TTL - 1, '', false );
+
+		wp_publish_post( $entry_id );
+
+		$this->assertCount( 1, self::get_sent_notifications() );
+	}
+
+	/**
+	 * Publishing during a REST request, as the block editor and the plugin's
+	 * admin do, schedules the send instead of losing it.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_publishing_during_a_rest_request_schedules_the_send() {
+		define( 'REST_REQUEST', true );
+		$entry_id = self::create_draft_entry( self::create_coverage_with_canonical_url(), true );
+
+		wp_publish_post( $entry_id );
+
+		$this->assertSame( [], self::get_sent_notifications(), 'Nothing should be sent during the request.' );
+		$this->assertNotFalse( wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'The send should be scheduled.' );
+		$this->assertNotEmpty( get_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true ), 'The opt-in should be kept for the scheduled send.' );
 	}
 }
