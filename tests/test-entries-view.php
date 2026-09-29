@@ -224,23 +224,43 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A shortcode stored escaped in an entry does not come back live in its
-	 * summary, which is shown inside rendered content.
+	 * summary, which is shown inside rendered content, including forms that
+	 * a single strip turns back into a shortcode.
+	 *
+	 * @dataProvider escaped_shortcode_provider
+	 *
+	 * @param string $content Entry content.
 	 */
-	public function test_summary_never_carries_a_shortcode() {
+	public function test_summary_never_carries_a_shortcode( $content ) {
 		add_shortcode( 'nrc_probe', fn() => 'SHORTCODE-RAN' );
 		$entry_id = $this->create_entry_at(
 			'2026-01-01 10:00:00',
 			[
 				'post_title'   => '',
-				'post_content' => '<p>&#91;nrc_probe&#93; results soon</p>',
+				'post_content' => $content,
 			]
 		);
 
 		$rows    = array_column( $this->get_entries_view()->get_data()['entries'], null, 'id' );
 		$summary = $rows[ $entry_id ]['summary'];
+		$ran     = do_shortcode( esc_html( $summary ) );
 		remove_shortcode( 'nrc_probe' );
 
-		$this->assertSame( 'results soon', $summary );
+		$this->assertStringNotContainsString( 'SHORTCODE-RAN', $ran );
+		$this->assertStringEndsWith( 'results soon', $summary );
+	}
+
+	/**
+	 * Escaped shortcodes as Slack text stores them.
+	 *
+	 * @return array[]
+	 */
+	public function escaped_shortcode_provider() {
+		return [
+			'plain'   => [ '<p>&#91;nrc_probe&#93; results soon</p>' ],
+			'doubled' => [ '<p>&#91;&#91;nrc_probe&#93;&#93; results soon</p>' ],
+			'nested'  => [ '<p>&#91;nrc_pr&#91;nrc_probe&#93;obe&#93; results soon</p>' ],
+		];
 	}
 
 	/**

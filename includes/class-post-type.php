@@ -700,7 +700,8 @@ class Post_Type {
 	 * The result is decoded plain text, so text typed as `<b>` comes back as
 	 * `<b>`: escape it for any HTML context. Shortcodes are removed after
 	 * decoding, since Slack text stores them escaped and they would otherwise
-	 * come back live wherever the summary is shown.
+	 * come back live wherever the summary is shown. Stripping repeats until
+	 * nothing changes, because one pass turns `[[tag]]` into a live `[tag]`.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @param int     $words Number of words to keep.
@@ -711,7 +712,14 @@ class Post_Type {
 		$html = (string) preg_replace( '/<(?:br|\/?(?:p|li|ul|ol|pre|blockquote|h[1-6]|div|figure|figcaption|tr|td|th))\b[^>]*>/i', ' $0 ', $html );
 		$text = wp_trim_words( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( $html ) ), $words, '…' );
 
-		return trim( strip_shortcodes( html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ) );
+		$text = html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+
+		do {
+			$previous = $text;
+			$text     = strip_shortcodes( $text );
+		} while ( $text !== $previous );
+
+		return trim( $text );
 	}
 
 	/**
