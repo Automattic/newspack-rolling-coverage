@@ -165,7 +165,7 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 
 	/**
 	 * Touching the entry isn't an edit: an author without unfiltered HTML who
-	 * unpublishes their breakout leaves the entry's embed in place.
+	 * trashes their published breakout leaves the entry's embed in place.
 	 */
 	public function test_touching_the_entry_keeps_its_stored_content() {
 		$content  = '<!-- wp:html --><iframe src="https://example.com/embed"></iframe><!-- /wp:html -->';

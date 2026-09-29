@@ -901,9 +901,12 @@ class Post_Type {
 	 * @return int|WP_Error The entry ID, 0 or a WP_Error on failure.
 	 */
 	public static function touch_entry( int $entry_id, bool $wp_error = false ) {
-		$keep_stored_content = static function ( $data, $postarr, $unsanitized_postarr ) use ( $entry_id ) {
+		$keep_stored_content = static function ( $data, $postarr, $unsanitized_postarr ) use ( $entry_id, &$keep_stored_content ) {
 			if ( $entry_id === (int) ( $postarr['ID'] ?? 0 ) ) {
-				foreach ( [ 'post_content', 'post_title', 'post_excerpt' ] as $field ) {
+				// One save only: a hook that edits the entry during the touch still goes through kses.
+				remove_filter( 'wp_insert_post_data', $keep_stored_content, 5 );
+
+				foreach ( [ 'post_content', 'post_content_filtered', 'post_title', 'post_excerpt' ] as $field ) {
 					if ( isset( $unsanitized_postarr[ $field ] ) ) {
 						$data[ $field ] = $unsanitized_postarr[ $field ];
 					}
