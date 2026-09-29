@@ -62,6 +62,11 @@ import {
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	withLinkedTitle,
+	withoutPinnedCard,
+	withoutClosingSeparator,
+	withShapedPinnedCard,
+	hasPinnedCard,
+	isPinnedCard,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -346,15 +351,52 @@ export default function Edit( {
 		[ allBlocks ]
 	);
 	const previewTemplates = useMemo( () => {
-		const unpinned = withoutPinnedRow( templateBlocks );
+		const hasCard = hasPinnedCard( templateBlocks );
+		const pinned = hasCard
+			? withoutClosingSeparator( templateBlocks )
+			: templateBlocks;
+		const unpinned = withoutPinnedCard(
+			withoutPinnedRow( templateBlocks )
+		);
 
 		return {
-			pinned: withLinkedTitle( templateBlocks ),
+			hasCard,
+			pinned: withLinkedTitle( pinned ),
 			unpinned: withLinkedTitle( unpinned ),
-			pinnedWithoutBreakout: withoutBreakoutLink( templateBlocks ),
+			pinnedWithoutBreakout: withShapedPinnedCard(
+				withoutBreakoutLink( pinned ),
+				{ closeUp: true, isLastCard: false }
+			),
 			unpinnedWithoutBreakout: withoutBreakoutLink( unpinned ),
 		};
 	}, [ templateBlocks ] );
+
+	// The last entry drops its separator once no more entries would load
+	// (see Rolling_Coverage_Block::shape_entry_template()).
+	const lastContext =
+		entryContexts.length < entriesPerPage
+			? entryContexts.at( -1 )
+			: undefined;
+	const lastPreviewBlocks = useMemo( () => {
+		if ( ! lastContext ) {
+			return undefined;
+		}
+
+		const blocks = previewTemplateFor( previewTemplates, lastContext );
+
+		if ( ! lastContext.pinned || ! previewTemplates.hasCard ) {
+			return withoutClosingSeparator( blocks );
+		}
+
+		const closing = blocks.at( -1 );
+
+		return closing && isPinnedCard( closing )
+			? withShapedPinnedCard( blocks, {
+					closeUp: false,
+					isLastCard: true,
+				} )
+			: blocks;
+	}, [ previewTemplates, lastContext ] );
 
 	// Disabled blocks drop out of List View and can't be selected, so only
 	// the current editor state's blocks show there.
@@ -1054,10 +1096,16 @@ export default function Edit( {
 										>
 											{ ! isActive && (
 												<MemoizedEntryBlockPreview
-													blocks={ previewTemplateFor(
-														previewTemplates,
-														context
-													) }
+													blocks={
+														context ===
+															lastContext &&
+														lastPreviewBlocks
+															? lastPreviewBlocks
+															: previewTemplateFor(
+																	previewTemplates,
+																	context
+																)
+													}
 													onSelect={ () =>
 														setActiveEntryId(
 															context.postId
