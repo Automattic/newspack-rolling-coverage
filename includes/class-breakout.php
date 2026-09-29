@@ -310,7 +310,7 @@ class Breakout {
 		$entry_id = (int) get_post_meta( $breakout_id, self::BREAKOUT_SOURCE_ENTRY_META, true );
 
 		if ( $entry_id && get_post( $entry_id ) ) {
-			wp_update_post( [ 'ID' => $entry_id ] );
+			Post_Type::touch_entry( $entry_id );
 		}
 	}
 

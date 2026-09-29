@@ -1570,7 +1570,7 @@ class Rolling_Coverage_Block {
 		update_meta_cache( 'post', $query->posts );
 		_prime_post_caches(
 			array_filter( array_map( fn( $id ) => (int) get_post_meta( $id, Breakout::ENTRY_BREAKOUT_POST_ID_META, true ), $query->posts ) ),
-			false,
+			true,
 			false
 		);
 

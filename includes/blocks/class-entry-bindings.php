@@ -144,7 +144,7 @@ class Entry_Bindings {
 
 		if ( ! empty( $block['attrs']['isLink'] ) ) {
 			if ( $title->next_tag() && $title->next_tag( 'a' ) ) {
-				$title->set_attribute( 'href', esc_url( $url ) );
+				$title->set_attribute( 'href', $url );
 			}
 
 			return $title->get_updated_html();
