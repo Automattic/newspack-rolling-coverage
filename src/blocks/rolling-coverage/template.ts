@@ -154,7 +154,7 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 						type: 'flex',
 						flexWrap: 'nowrap',
 						justifyContent: 'space-between',
-						verticalAlignment: 'center',
+						verticalAlignment: 'top',
 					},
 					style: { spacing: { blockGap: 'var:preset|spacing|30' } },
 					metadata: {

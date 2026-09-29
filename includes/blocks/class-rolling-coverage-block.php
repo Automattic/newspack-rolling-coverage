@@ -954,7 +954,7 @@ class Rolling_Coverage_Block {
 						'type'              => 'flex',
 						'flexWrap'          => 'nowrap',
 						'justifyContent'    => 'space-between',
-						'verticalAlignment' => 'center',
+						'verticalAlignment' => 'top',
 					],
 					'style'    => [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ] ],
 					'metadata' => [ 'name' => __( 'Header', 'newspack-rolling-coverage' ) ],
