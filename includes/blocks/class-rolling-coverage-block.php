@@ -54,6 +54,14 @@ class Rolling_Coverage_Block {
 	// Option name prefix for persisted entry templates: rc_tpl_{coverage_id}_{hash}.
 	const TEMPLATE_OPTION_PREFIX = 'rc_tpl_';
 
+	/**
+	 * Spaces what follows an entry's content, such as "Read more", as the
+	 * theme spaces paragraphs: its block gap, or on a theme without one (the
+	 * classic theme), the preset matching its paragraph margin. Set on Post
+	 * Content because the classic theme redefines the block gap on Buttons.
+	 */
+	const CONTENT_GAP = 'var(--wp--style--block-gap, var(--wp--preset--spacing--40))';
+
 	// Term meta key storing the coverage's latest entry modified timestamp.
 	const LAST_MODIFIED_META_KEY = 'rolling_coverage_last_modified';
 
@@ -388,7 +396,6 @@ class Rolling_Coverage_Block {
 					'newspackAdsAvailable'        => Ads::is_available(),
 					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
 					'canonicalUrlMetaKey'         => Taxonomy::CANONICAL_URL_META_KEY,
-					'readMoreTextMetaKey'         => Breakout::ENTRY_READ_MORE_TEXT_META,
 					'onesignalConfigured'         => Push_Notifications::is_onesignal_configured(),
 				]
 			);
@@ -1008,6 +1015,7 @@ class Rolling_Coverage_Block {
 								'bottom' => '0',
 								'left'   => '0',
 							],
+							'margin'  => [ 'bottom' => self::CONTENT_GAP ],
 						],
 					],
 				],
@@ -1022,13 +1030,9 @@ class Rolling_Coverage_Block {
 					self::entry_button_block(
 						__( 'Read more', 'newspack-rolling-coverage' ),
 						[
-							'url'  => [
+							'url' => [
 								'source' => Entry_Bindings::SOURCE_NAME,
 								'args'   => [ 'key' => 'breakoutUrl' ],
-							],
-							'text' => [
-								'source' => Entry_Bindings::SOURCE_NAME,
-								'args'   => [ 'key' => 'breakoutLabel' ],
 							],
 						]
 					),
@@ -1563,6 +1567,13 @@ class Rolling_Coverage_Block {
 			]
 		);
 
+		update_meta_cache( 'post', $query->posts );
+		_prime_post_caches(
+			array_filter( array_map( fn( $id ) => (int) get_post_meta( $id, Breakout::ENTRY_BREAKOUT_POST_ID_META, true ), $query->posts ) ),
+			true,
+			false
+		);
+
 		$entries = array_map( [ __CLASS__, 'map_entry_preview' ], $query->posts );
 
 		return new WP_REST_Response( $entries );
@@ -1570,16 +1581,17 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Array_map() callback for get_entries_preview(): reduces a post ID to
-	 * the bare `{ id, type, pinned }` shape the editor preview needs.
+	 * the bare `{ id, type, pinned, hasBreakout }` shape the editor preview needs.
 	 *
 	 * @param int $id Entry post ID.
-	 * @return array{id: int, type: string, pinned: bool}
+	 * @return array{id: int, type: string, pinned: bool, hasBreakout: bool}
 	 */
 	private static function map_entry_preview( int $id ): array {
 		return [
-			'id'     => $id,
-			'type'   => Post_Type::CPT_SLUG,
-			'pinned' => Post_Type::is_pinned( $id ),
+			'id'          => $id,
+			'type'        => Post_Type::CPT_SLUG,
+			'pinned'      => Post_Type::is_pinned( $id ),
+			'hasBreakout' => null !== Breakout::get_published_breakout_url( $id ),
 		];
 	}
 

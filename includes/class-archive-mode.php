@@ -282,7 +282,7 @@ class Archive_Mode {
 		}
 
 		// Bump post_modified so live feeds re-render the entry.
-		$updated = wp_update_post( [ 'ID' => $entry_id ], true );
+		$updated = Post_Type::touch_entry( $entry_id, true );
 
 		if ( is_wp_error( $updated ) || 0 === $updated ) {
 			return new WP_Error(
