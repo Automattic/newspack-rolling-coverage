@@ -138,7 +138,12 @@ class Deep_Link_CTA_Block {
 
 		try {
 			$template = Rolling_Coverage_Block::drop_fixed_template_dates( $template );
-			$html     = Rolling_Coverage_Block::render_as_entry(
+
+			if ( ! Rolling_Coverage_Block::has_title( $entry ) ) {
+				$template = Rolling_Coverage_Block::with_centered_title_rows( $template );
+			}
+
+			$html = Rolling_Coverage_Block::render_as_entry(
 				fn() => ( new WP_Block(
 					[
 						'blockName'    => null,

@@ -96,6 +96,7 @@ interface EntryContext {
 	queryId: number;
 	pinned?: boolean;
 	hasBreakout?: boolean;
+	hasTitle?: boolean;
 }
 
 /**

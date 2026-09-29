@@ -154,7 +154,7 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 						type: 'flex',
 						flexWrap: 'nowrap',
 						justifyContent: 'space-between',
-						verticalAlignment: 'center',
+						verticalAlignment: 'top',
 					},
 					style: { spacing: { blockGap: 'var:preset|spacing|30' } },
 					metadata: {
@@ -676,6 +676,90 @@ function withShapedPinnedCard<
 }
 
 /**
+ * Whether blocks hold a Post Title block.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {boolean} Whether a Post Title is among them.
+ */
+function holdsPostTitle(
+	blocks: { name: string; innerBlocks?: unknown }[]
+): boolean {
+	return blocks.some(
+		( block ) =>
+			block.name === 'core/post-title' ||
+			( Array.isArray( block.innerBlocks ) &&
+				holdsPostTitle( block.innerBlocks ) )
+	);
+}
+
+/**
+ * The template as an entry without a title renders it: a row holding the
+ * title centers its blocks, mirroring
+ * Rolling_Coverage_Block::with_centered_title_rows().
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks an entry without a title shows.
+ */
+function withCenteredTitleRows<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks.map( ( block ) => {
+		if ( ! Array.isArray( block.innerBlocks ) ) {
+			return block;
+		}
+
+		const innerBlocks = withCenteredTitleRows( block.innerBlocks as T[] );
+		const attributes = ( block.attributes ?? {} ) as {
+			layout?: { type?: string; orientation?: string };
+		};
+		const isTitleRow =
+			block.name === 'core/group' &&
+			attributes.layout?.type === 'flex' &&
+			attributes.layout?.orientation !== 'vertical' &&
+			holdsPostTitle( innerBlocks );
+
+		return isTitleRow
+			? {
+					...block,
+					innerBlocks,
+					attributes: {
+						...attributes,
+						layout: {
+							...attributes.layout,
+							verticalAlignment: 'center',
+						},
+					},
+				}
+			: { ...block, innerBlocks };
+	} );
+}
+
+/**
+ * The template without its Post Title blocks, as an entry without a title
+ * renders: core's Post Title block renders nothing for it, where its editor
+ * preview would show a placeholder.
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks without Post Title.
+ */
+function withoutPostTitle<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks
+		.filter( ( block ) => block.name !== 'core/post-title' )
+		.map( ( block ) =>
+			Array.isArray( block.innerBlocks )
+				? {
+						...block,
+						innerBlocks: withoutPostTitle(
+							block.innerBlocks as T[]
+						),
+					}
+				: block
+		);
+}
+
+/**
  * Block types allowed inside the per-entry template.
  */
 const ENTRY_ALLOWED_BLOCKS = [
@@ -753,4 +837,6 @@ export {
 	withoutPinnedCard,
 	withoutClosingSeparator,
 	withShapedPinnedCard,
+	withCenteredTitleRows,
+	withoutPostTitle,
 };

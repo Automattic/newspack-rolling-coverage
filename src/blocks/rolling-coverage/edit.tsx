@@ -65,6 +65,8 @@ import {
 	withoutPinnedCard,
 	withoutClosingSeparator,
 	withShapedPinnedCard,
+	withCenteredTitleRows,
+	withoutPostTitle,
 	hasPinnedCard,
 	isPinnedCard,
 } from './template';
@@ -359,8 +361,9 @@ export default function Edit( {
 			withoutPinnedRow( templateBlocks )
 		);
 
-		return {
-			hasCard,
+		const asUntitled = ( blocks: TemplateBlocks ) =>
+			withoutPostTitle( withCenteredTitleRows( blocks ) );
+		const titled = {
 			pinned: withLinkedTitle( pinned ),
 			unpinned: withLinkedTitle( unpinned ),
 			pinnedWithoutBreakout: withShapedPinnedCard(
@@ -368,6 +371,21 @@ export default function Edit( {
 				{ closeUp: true, isLastCard: false }
 			),
 			unpinnedWithoutBreakout: withoutBreakoutLink( unpinned ),
+		};
+
+		return {
+			hasCard,
+			titled,
+			untitled: {
+				pinned: asUntitled( titled.pinned ),
+				unpinned: asUntitled( titled.unpinned ),
+				pinnedWithoutBreakout: asUntitled(
+					titled.pinnedWithoutBreakout
+				),
+				unpinnedWithoutBreakout: asUntitled(
+					titled.unpinnedWithoutBreakout
+				),
+			},
 		};
 	}, [ templateBlocks ] );
 
@@ -382,7 +400,12 @@ export default function Edit( {
 			return undefined;
 		}
 
-		const blocks = previewTemplateFor( previewTemplates, lastContext );
+		const blocks = previewTemplateFor(
+			lastContext.hasTitle === false
+				? previewTemplates.untitled
+				: previewTemplates.titled,
+			lastContext
+		);
 
 		if ( ! lastContext.pinned || ! previewTemplates.hasCard ) {
 			return withoutClosingSeparator( blocks );
@@ -1102,7 +1125,10 @@ export default function Edit( {
 														lastPreviewBlocks
 															? lastPreviewBlocks
 															: previewTemplateFor(
-																	previewTemplates,
+																	context.hasTitle ===
+																		false
+																		? previewTemplates.untitled
+																		: previewTemplates.titled,
 																	context
 																)
 													}
