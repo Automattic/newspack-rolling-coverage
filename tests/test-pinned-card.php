@@ -32,8 +32,8 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	 * Forget the theme.json data a test switched to.
 	 */
 	public function tear_down() {
-		wp_clean_theme_json_cache();
 		parent::tear_down();
+		wp_clean_theme_json_cache();
 	}
 
 	/**
