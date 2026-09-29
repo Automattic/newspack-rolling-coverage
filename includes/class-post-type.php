@@ -689,6 +689,19 @@ class Post_Type {
 	}
 
 	/**
+	 * The first words of an entry's content as plain text, to name an entry
+	 * that has no title.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return string
+	 */
+	public static function get_entry_summary( WP_Post $entry ): string {
+		$words = wp_trim_words( strip_shortcodes( excerpt_remove_blocks( $entry->post_content ) ), 8 );
+
+		return trim( html_entity_decode( wp_strip_all_tags( $words ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+	}
+
+	/**
 	 * Whether a given entry is pinned.
 	 *
 	 * @param int $entry_id Entry post ID.
@@ -1498,6 +1511,7 @@ class Post_Type {
 		return [
 			'id'               => $post->ID,
 			'title'            => $post->post_title,
+			'summary'          => '' === trim( $post->post_title ) ? self::get_entry_summary( $post ) : '',
 			'date'             => mysql2date( 'c', $post->post_date, false ),
 			'modified'         => mysql2date( 'c', $post->post_modified, false ),
 			'status'           => $post->post_status,

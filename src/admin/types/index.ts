@@ -132,6 +132,8 @@ interface Entry {
 		rendered: string;
 		raw?: string;
 	};
+	/** First words of the content when the entry has no title. */
+	summary?: string;
 	content: {
 		rendered: string;
 		raw?: string;
@@ -558,6 +560,8 @@ type CoreSelectors = {
 interface EntryViewRow {
 	id: number;
 	title: string;
+	/** First words of the content when the entry has no title, else ''. */
+	summary: string;
 	date: string;
 	modified: string;
 	status: PostStatus;

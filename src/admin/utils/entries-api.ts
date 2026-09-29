@@ -77,6 +77,7 @@ function toEntry( row: EntryViewRow ): Entry {
 		type: 'rolling_cov_entry',
 		link: '',
 		title: { rendered: row.title },
+		summary: row.summary,
 		content: { rendered: '' },
 		author: row.author?.id ?? 0,
 		pinned: row.pinned,
@@ -213,7 +214,7 @@ function buildSyncUrl(
 function toNoticeEntry( row: EntryViewRow ): SyncNoticeEntry {
 	return {
 		id: row.id,
-		title: row.title,
+		title: row.title || row.summary,
 		status: row.status,
 		source: row.source,
 	};

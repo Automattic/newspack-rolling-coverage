@@ -166,6 +166,26 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An untitled entry carries the first words of its content, so the admin
+	 * can name it; a titled entry does not need one.
+	 */
+	public function test_untitled_entries_carry_a_summary() {
+		$untitled_id = $this->create_entry_at(
+			'2026-01-01 10:00:00',
+			[
+				'post_title'   => '',
+				'post_content' => "<!-- wp:paragraph -->\n<p><strong>Polls have closed</strong> across the county &amp; counting starts at 9pm.</p>\n<!-- /wp:paragraph -->",
+			]
+		);
+		$titled_id   = $this->create_entry_at( '2026-01-01 11:00:00', [ 'post_title' => 'Recount ordered' ] );
+
+		$rows = array_column( $this->get_entries_view()->get_data()['entries'], null, 'id' );
+
+		$this->assertSame( 'Polls have closed across the county & counting…', $rows[ $untitled_id ]['summary'] );
+		$this->assertSame( '', $rows[ $titled_id ]['summary'] );
+	}
+
+	/**
 	 * The "on" date filter covers the whole calendar day in the site's
 	 * timezone, not the UTC day.
 	 */

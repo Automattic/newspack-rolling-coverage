@@ -73,6 +73,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			render: ( { item } ) => {
 				const title =
 					item.title?.rendered ||
+					item.summary ||
 					__( '(no title)', 'newspack-rolling-coverage' );
 				if ( item.pinned ) {
 					return (
