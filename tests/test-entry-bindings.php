@@ -81,18 +81,6 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A template saved while the text was still bound to the entry reads
-	 * "Read more".
-	 */
-	public function test_a_bound_read_more_label_reads_read_more() {
-		$entry_id = self::create_entry( self::create_coverage() );
-		self::add_breakout( $entry_id, 'publish' );
-		$markup = '<!-- wp:button {"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"breakoutUrl"}},"text":{"source":"newspack-rolling-coverage/entry","args":{"key":"breakoutLabel"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button"></a></div><!-- /wp:button -->';
-
-		$this->assertStringContainsString( '>Read more</a>', Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( $markup ) ) );
-	}
-
-	/**
 	 * The editor preview knows which entries have a published breakout, so
 	 * it shows "Read more" only on those.
 	 */
@@ -149,6 +137,28 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A title whose text holds a link of its own isn't wrapped in another,
+	 * and a title rendered as a paragraph is linked like a heading.
+	 */
+	public function test_titles_with_their_own_link_stay_as_they_are() {
+		$coverage_id = self::create_coverage();
+		$with_link   = self::create_entry( $coverage_id, [ 'post_title' => 'See <a href="https://example.com/">the map</a>' ] );
+		$paragraph   = self::create_entry( $coverage_id, [ 'post_title' => 'Repair plan announced' ] );
+		self::add_breakout( $with_link, 'publish' );
+		$breakout_id = self::add_breakout( $paragraph, 'publish' );
+
+		$html = Rolling_Coverage_Block::render_entry( get_post( $with_link ), parse_blocks( '<!-- wp:post-title /-->' ) );
+
+		$this->assertStringContainsString( 'href="https://example.com/"', $html, "The title's own link should be kept." );
+		$this->assertSame( 1, substr_count( $html, '<a ' ), 'No second link should be added.' );
+
+		$this->assertStringContainsString(
+			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Repair plan announced</a></p>',
+			Rolling_Coverage_Block::render_entry( get_post( $paragraph ), parse_blocks( '<!-- wp:post-title {"level":0} /-->' ) )
+		);
+	}
+
+	/**
 	 * A title outside an entry is left alone.
 	 */
 	public function test_titles_outside_entries_are_left_alone() {
@@ -161,7 +171,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 			[
 				'postId'   => $post_id,
 				'postType' => 'post',
-			] 
+			]
 		) )->render();
 
 		$this->assertStringNotContainsString( '<a ', $html );
@@ -198,7 +208,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 			[
 				'postId'   => $post_id,
 				'postType' => 'post',
-			] 
+			]
 		) )->render();
 
 		$this->assertStringNotContainsString( 'data-rc-relative', $html, 'A relative date outside an entry should not be marked.' );

@@ -97,11 +97,7 @@ class Entry_Bindings {
 
 		switch ( $source_args['key'] ?? '' ) {
 			case 'breakoutUrl':
-				return self::published_breakout_url( $entry_id );
-
-			case 'breakoutLabel':
-				// Templates saved before the button text became editable still bind it here.
-				return __( 'Read more', 'newspack-rolling-coverage' );
+				return Breakout::get_published_breakout_url( $entry_id );
 
 			case 'shareUrl':
 				return Social_Sharing::get_entry_share_url( $entry_id ) ?: null; // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
@@ -120,24 +116,9 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * The link to an entry's breakout post, once that post is published.
-	 *
-	 * @param int $entry_id Entry post ID.
-	 * @return string|null
-	 */
-	private static function published_breakout_url( int $entry_id ): ?string {
-		$breakout_id = Breakout::get_existing_breakout_id( $entry_id );
-
-		if ( ! $breakout_id || 'publish' !== get_post_status( $breakout_id ) ) {
-			return null;
-		}
-
-		return get_permalink( $breakout_id ) ?: null; // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
-	}
-
-	/**
 	 * Link an entry's title to its published breakout post. A title already
-	 * set to link to the entry points at the breakout instead.
+	 * set to link to the entry points at the breakout instead; a title whose
+	 * text holds a link of its own is left alone, as links can't nest.
 	 *
 	 * Parameters stay untyped because this runs for every post title on the
 	 * site, after other plugins' filters that may hand on unexpected types.
@@ -153,7 +134,7 @@ class Entry_Bindings {
 		}
 
 		$entry_id = (int) ( $instance->context['postId'] ?? 0 );
-		$url      = $entry_id && Post_Type::CPT_SLUG === get_post_type( $entry_id ) ? self::published_breakout_url( $entry_id ) : null;
+		$url      = $entry_id && Post_Type::CPT_SLUG === get_post_type( $entry_id ) ? Breakout::get_published_breakout_url( $entry_id ) : null;
 
 		if ( ! $url ) {
 			return $block_content;
@@ -161,13 +142,15 @@ class Entry_Bindings {
 
 		$title = new WP_HTML_Tag_Processor( $block_content );
 
-		if ( $title->next_tag( 'a' ) ) {
-			$title->set_attribute( 'href', $url );
+		if ( ! empty( $block['attrs']['isLink'] ) ) {
+			if ( $title->next_tag() && $title->next_tag( 'a' ) ) {
+				$title->set_attribute( 'href', esc_url( $url ) );
+			}
 
 			return $title->get_updated_html();
 		}
 
-		if ( ! preg_match( '#^(\s*<([a-z][a-z0-9]*)\b[^>]*>)(.*)(</\2>\s*)$#is', $block_content, $parts ) ) {
+		if ( $title->next_tag( 'a' ) || ! preg_match( '#^(\s*<([a-z][a-z0-9]*)\b[^>]*>)(.*)(</\2>\s*)$#is', $block_content, $parts ) ) {
 			return $block_content;
 		}
 

@@ -1567,6 +1567,13 @@ class Rolling_Coverage_Block {
 			]
 		);
 
+		update_meta_cache( 'post', $query->posts );
+		_prime_post_caches(
+			array_filter( array_map( fn( $id ) => (int) get_post_meta( $id, Breakout::ENTRY_BREAKOUT_POST_ID_META, true ), $query->posts ) ),
+			false,
+			false
+		);
+
 		$entries = array_map( [ __CLASS__, 'map_entry_preview' ], $query->posts );
 
 		return new WP_REST_Response( $entries );
@@ -1580,13 +1587,11 @@ class Rolling_Coverage_Block {
 	 * @return array{id: int, type: string, pinned: bool, hasBreakout: bool}
 	 */
 	private static function map_entry_preview( int $id ): array {
-		$breakout_id = Breakout::get_existing_breakout_id( $id );
-
 		return [
 			'id'          => $id,
 			'type'        => Post_Type::CPT_SLUG,
 			'pinned'      => Post_Type::is_pinned( $id ),
-			'hasBreakout' => $breakout_id && 'publish' === get_post_status( $breakout_id ),
+			'hasBreakout' => null !== Breakout::get_published_breakout_url( $id ),
 		];
 	}
 

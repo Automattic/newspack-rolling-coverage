@@ -36,10 +36,7 @@ registerBlockBindingsSource( {
 				continue;
 			}
 
-			values[ attribute ] =
-				binding.args?.key === 'breakoutLabel'
-					? __( 'Read more', 'newspack-rolling-coverage' )
-					: '';
+			values[ attribute ] = '';
 		}
 
 		return values;

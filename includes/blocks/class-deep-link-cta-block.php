@@ -88,12 +88,7 @@ class Deep_Link_CTA_Block {
 		}
 
 		// If the entry has a published breakout post, link directly to it.
-		$breakout_id  = Breakout::get_existing_breakout_id( $entry_id );
-		$breakout_url = '';
-
-		if ( $breakout_id && 'publish' === get_post_status( $breakout_id ) ) {
-			$breakout_url = get_permalink( $breakout_id );
-		}
+		$breakout_url = Breakout::get_published_breakout_url( $entry_id );
 
 		if ( $breakout_url ) {
 			return sprintf(

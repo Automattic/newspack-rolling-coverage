@@ -268,31 +268,56 @@ class Breakout {
 	}
 
 	/**
-	 * Touches the source entry when its breakout post transitions to published,
-	 * so the polling endpoint re-renders the entry (now with the breakout button
-	 * visible) and delivers it to active readers on the next poll cycle.
+	 * The link to an entry's breakout post, once that post is published.
+	 *
+	 * @param int $entry_id Entry post ID.
+	 * @return string|null
+	 */
+	public static function get_published_breakout_url( int $entry_id ): ?string {
+		$breakout_id = self::get_existing_breakout_id( $entry_id );
+
+		if ( ! $breakout_id || 'publish' !== get_post_status( $breakout_id ) ) {
+			return null;
+		}
+
+		return get_permalink( $breakout_id ) ?: null; // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
+	}
+
+	/**
+	 * Touches the source entry when its breakout post is published or stops
+	 * being published, so the polling endpoint re-renders the entry (its title
+	 * link and "Read more" come and go with the breakout) and delivers it to
+	 * active readers on the next poll cycle.
 	 *
 	 * @param string  $new_status Incoming post status.
 	 * @param string  $old_status Previous post status.
 	 * @param WP_Post $post       Post object.
 	 */
 	public static function on_breakout_post_status_change( string $new_status, string $old_status, WP_Post $post ): void {
-		if ( 'post' !== $post->post_type || 'publish' !== $new_status || 'publish' === $old_status ) {
+		if ( 'post' !== $post->post_type || ( 'publish' === $new_status ) === ( 'publish' === $old_status ) ) {
 			return;
 		}
 
-		$entry_id = (int) get_post_meta( $post->ID, self::BREAKOUT_SOURCE_ENTRY_META, true );
+		self::touch_source_entry( $post->ID );
+	}
 
-		if ( ! $entry_id ) {
-			return;
+	/**
+	 * Bump the source entry's modified date so polling readers get it again.
+	 *
+	 * @param int $breakout_id Breakout post ID.
+	 */
+	private static function touch_source_entry( int $breakout_id ): void {
+		$entry_id = (int) get_post_meta( $breakout_id, self::BREAKOUT_SOURCE_ENTRY_META, true );
+
+		if ( $entry_id && get_post( $entry_id ) ) {
+			wp_update_post( [ 'ID' => $entry_id ] );
 		}
-
-		wp_update_post( [ 'ID' => $entry_id ] );
 	}
 
 	/**
 	 * Clean up the source entry's breakout meta when its breakout post is
-	 * permanently deleted, so a new breakout can be created afterward.
+	 * permanently deleted, so a new breakout can be created afterward. A
+	 * published breakout deleted outright also refreshes the entry for readers.
 	 *
 	 * Reads the source entry from the breakout post's reverse link
 	 * (self::BREAKOUT_SOURCE_ENTRY_META).
@@ -302,9 +327,15 @@ class Breakout {
 	public static function cleanup_on_breakout_delete( int $post_id ) {
 		$entry_id = (int) get_post_meta( $post_id, self::BREAKOUT_SOURCE_ENTRY_META, true );
 
-		if ( $entry_id ) {
-			delete_post_meta( $entry_id, self::ENTRY_BREAKOUT_POST_ID_META );
-			delete_post_meta( $entry_id, self::BREAKOUT_STATUS_FIELD );
+		if ( ! $entry_id ) {
+			return;
+		}
+
+		delete_post_meta( $entry_id, self::ENTRY_BREAKOUT_POST_ID_META );
+		delete_post_meta( $entry_id, self::BREAKOUT_STATUS_FIELD );
+
+		if ( 'publish' === get_post_status( $post_id ) ) {
+			self::touch_source_entry( $post_id );
 		}
 	}
 }
