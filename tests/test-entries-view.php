@@ -217,6 +217,7 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 		return [
 			'line break'      => [ "<!-- wp:paragraph -->\n<p>Counting starts at 9pm<br>in the town hall.</p>\n<!-- /wp:paragraph -->", 'Counting starts at 9pm in the town hall.' ],
 			'list only'       => [ "<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Ward 1</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Ward 2</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->", 'Ward 1 Ward 2' ],
+			'inline tags'     => [ "<!-- wp:paragraph -->\n<p><strong>Breaking</strong>: polls closed at <a href=\"https://example.test\">the hall</a>. Un<em>believ</em>able.</p>\n<!-- /wp:paragraph -->", 'Breaking: polls closed at the hall. Unbelievable.' ],
 			'code block only' => [ "<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>Ward 1  1,204\nWard 2  980</code></pre>\n<!-- /wp:code -->", 'Ward 1 1,204 Ward 2 980' ],
 		];
 	}
@@ -242,6 +243,22 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertSame( [ $untitled_id ], $this->get_listed_entry_ids( [ 'title' => 'recount' ] ) );
+	}
+
+	/**
+	 * The title filter finds untitled entries by text that is stored
+	 * HTML-escaped, such as apostrophes in Slack messages.
+	 */
+	public function test_title_filter_matches_escaped_text_in_untitled_entries() {
+		$untitled_id = $this->create_entry_at(
+			'2026-01-01 10:00:00',
+			[
+				'post_title'   => '',
+				'post_content' => '<p>We don&#039;t expect a recount.</p>',
+			]
+		);
+
+		$this->assertSame( [ $untitled_id ], $this->get_listed_entry_ids( [ 'title' => "don't expect" ] ) );
 	}
 
 	/**

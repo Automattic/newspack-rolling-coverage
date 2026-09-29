@@ -211,7 +211,7 @@ class Breakout {
 
 		$title = $entry->post_title
 			? $entry->post_title
-			: Post_Type::get_entry_summary( $entry, 10 );
+			: esc_html( Post_Type::get_entry_summary( $entry, 10 ) );
 
 		$new_post_id = wp_insert_post(
 			wp_slash(

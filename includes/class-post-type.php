@@ -692,18 +692,22 @@ class Post_Type {
 	 * The first words of an entry's content as plain text, to name an entry
 	 * that has no title.
 	 *
-	 * Every tag counts as a word boundary, so a line break or list item never
-	 * joins two words, and every block's text counts, including lists and code
-	 * blocks, which `excerpt_remove_blocks()` would drop.
+	 * Reads the stored HTML of every block, including lists and code blocks,
+	 * which `excerpt_remove_blocks()` would drop, without rendering it:
+	 * rendering could recurse through an embedded Rolling Coverage block. Line
+	 * breaks and block-level tags count as word boundaries.
+	 *
+	 * The result is decoded plain text, so text typed as `<b>` comes back as
+	 * `<b>`: escape it for any HTML context.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @param int     $words Number of words to keep.
 	 * @return string
 	 */
 	public static function get_entry_summary( WP_Post $entry, int $words = 8 ): string {
-		$html = do_blocks( strip_shortcodes( $entry->post_content ) );
-		$text = wp_strip_all_tags( (string) preg_replace( '/<[^>]*>/', '$0 ', $html ) );
-		$text = wp_trim_words( (string) preg_replace( '/\s+/', ' ', $text ), $words, '…' );
+		$html = (string) preg_replace( '/<!--.*?-->/s', ' ', strip_shortcodes( $entry->post_content ) );
+		$html = (string) preg_replace( '/<(?:br|\/?(?:p|li|ul|ol|pre|blockquote|h[1-6]|div|figure|figcaption|tr|td|th))\b[^>]*>/i', ' $0 ', $html );
+		$text = wp_trim_words( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( $html ) ), $words, '…' );
 
 		return trim( html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
 	}
@@ -1824,7 +1828,8 @@ class Post_Type {
 		global $wpdb;
 		$like = '%' . $wpdb->esc_like( $title ) . '%';
 		// Untitled entries are listed by their first words, so match those too.
-		$where .= $wpdb->prepare( " AND ( {$wpdb->posts}.post_title LIKE %s OR ( {$wpdb->posts}.post_title = '' AND {$wpdb->posts}.post_content LIKE %s ) )", $like, $like );
+		$html_like = '%' . $wpdb->esc_like( esc_html( $title ) ) . '%';
+		$where    .= $wpdb->prepare( " AND ( {$wpdb->posts}.post_title LIKE %s OR ( {$wpdb->posts}.post_title = '' AND ( {$wpdb->posts}.post_content LIKE %s OR {$wpdb->posts}.post_content LIKE %s ) ) )", $like, $like, $html_like );
 
 		return $where;
 	}

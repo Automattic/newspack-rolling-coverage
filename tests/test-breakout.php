@@ -99,6 +99,26 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Markup typed as text in an untitled entry stays text in the breakout
+	 * title, even for editors who may save unfiltered HTML.
+	 */
+	public function test_breakout_title_never_carries_markup_from_entry_text() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_title'   => '',
+				'post_content' => '<p>Results &lt;img src=x onerror=alert(1)&gt; soon</p>',
+			]
+		);
+
+		$breakout_post = get_post( self::break_out( $entry_id )->get_data()['breakoutPostId'] );
+
+		$this->assertStringNotContainsString( '<img', $breakout_post->post_title );
+		$this->assertSame( 'Results <img src=x onerror=alert(1)> soon', html_entity_decode( $breakout_post->post_title, ENT_QUOTES ) );
+	}
+
+	/**
 	 * An entry has at most one breakout post.
 	 */
 	public function test_entry_cannot_be_broken_out_twice() {

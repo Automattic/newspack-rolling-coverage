@@ -447,6 +447,49 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Names already cached are used even when the author lookup fails, since
+	 * they cost no request.
+	 */
+	public function test_cached_mention_names_are_used_when_the_author_lookup_fails() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$this->failing_users = [ 'U0REPORTER' ];
+		set_transient( Slack_API_Client::TRANSIENT_USER_CACHE . 'U0COLLEAGUE', [ 'profile' => [ 'display_name' => 'Sam Rivera' ] ] );
+
+		$body = self::message_event_body(
+			[
+				'text'   => 'Thanks <@U0COLLEAGUE>',
+				'blocks' => [
+					[
+						'type'     => 'rich_text',
+						'elements' => [
+							[
+								'type'     => 'rich_text_section',
+								'elements' => [
+									[
+										'type' => 'text',
+										'text' => 'Thanks ',
+									],
+									[
+										'type'    => 'user',
+										'user_id' => 'U0COLLEAGUE',
+									],
+								],
+							],
+						],
+					],
+				],
+			]
+		);
+
+		self::controller()->handle_event( self::webhook_request( $body ) );
+		$entries = self::get_coverage_entries( $coverage_id );
+
+		$this->assertStringContainsString( '<p>Thanks @Sam Rivera</p>', $entries[0]->post_content );
+	}
+
+	/**
 	 * A linked channel's settings report when it last ingested a message, so
 	 * the connection drawer can show it.
 	 */

@@ -546,7 +546,7 @@ class Slack_Content_Processor {
 	 * Render mrkdwn text, for messages that arrive without rich-text blocks:
 	 * links, mentions, bold, italic, strikethrough, inline code, paragraphs
 	 * and line breaks.
-	
+	 *
 	 * Links and inline code are set aside behind private-use placeholders
 	 * while the other styles are applied, so markers inside them are left
 	 * alone and the tags always nest.
