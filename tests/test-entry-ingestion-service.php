@@ -208,4 +208,15 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( '', get_post( $entry_id )->post_title );
 	}
+
+	/**
+	 * Backslashes in a message survive saving.
+	 */
+	public function test_keeps_backslashes() {
+		$content = "<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>C:\\Results\\final.csv \\o/</code></pre>\n<!-- /wp:code -->";
+
+		$entry_id = self::ingest( self::payload( [ 'content_html' => $content ] ), self::create_coverage() );
+
+		$this->assertSame( $content, get_post( $entry_id )->post_content );
+	}
 }

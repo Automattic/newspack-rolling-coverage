@@ -735,6 +735,9 @@ class Rolling_Coverage_Block {
 		}
 
 		$entry_title = get_the_title( $entry );
+		if ( '' === trim( wp_strip_all_tags( $entry_title ) ) ) {
+			$entry_title = Post_Type::get_entry_summary( $entry );
+		}
 
 		// Read the CTA block's saved attributes and inner blocks from the parent block.
 		$cta_attrs = [

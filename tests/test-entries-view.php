@@ -186,6 +186,65 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The summary keeps words apart across line breaks and list items, and
+	 * reads lists and code blocks too.
+	 *
+	 * @dataProvider summary_content_provider
+	 *
+	 * @param string $content  Entry content.
+	 * @param string $expected Expected summary.
+	 */
+	public function test_summary_reads_every_block( $content, $expected ) {
+		$entry_id = $this->create_entry_at(
+			'2026-01-01 10:00:00',
+			[
+				'post_title'   => '',
+				'post_content' => $content,
+			]
+		);
+
+		$rows = array_column( $this->get_entries_view()->get_data()['entries'], null, 'id' );
+
+		$this->assertSame( $expected, $rows[ $entry_id ]['summary'] );
+	}
+
+	/**
+	 * Entry content and the summary it should produce.
+	 *
+	 * @return array[]
+	 */
+	public function summary_content_provider() {
+		return [
+			'line break'      => [ "<!-- wp:paragraph -->\n<p>Counting starts at 9pm<br>in the town hall.</p>\n<!-- /wp:paragraph -->", 'Counting starts at 9pm in the town hall.' ],
+			'list only'       => [ "<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Ward 1</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Ward 2</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->", 'Ward 1 Ward 2' ],
+			'code block only' => [ "<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>Ward 1  1,204\nWard 2  980</code></pre>\n<!-- /wp:code -->", 'Ward 1 1,204 Ward 2 980' ],
+		];
+	}
+
+	/**
+	 * The title filter also finds untitled entries by the words they are
+	 * listed by.
+	 */
+	public function test_title_filter_matches_untitled_entries_by_their_content() {
+		$untitled_id = $this->create_entry_at(
+			'2026-01-01 10:00:00',
+			[
+				'post_title'   => '',
+				'post_content' => 'A recount is possible.',
+			]
+		);
+		$this->create_entry_at(
+			'2026-01-01 11:00:00',
+			[
+				'post_title'   => 'Polls close',
+				'post_content' => 'A recount is possible.',
+			]
+		);
+
+		$this->assertSame( [ $untitled_id ], $this->get_listed_entry_ids( [ 'title' => 'recount' ] ) );
+	}
+
+	/**
 	 * The "on" date filter covers the whole calendar day in the site's
 	 * timezone, not the UTC day.
 	 */

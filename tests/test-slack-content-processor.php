@@ -469,4 +469,96 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( '', $processor->process( '', self::rich_text( self::section( self::text( "  \n " ) ) ) ) );
 	}
+
+	/**
+	 * Channel and user group mentions show the names Slack gives them in the
+	 * mrkdwn text, since rich text carries only their IDs.
+	 */
+	public function test_channel_and_group_mentions_use_their_names() {
+		$processor = new Slack_Content_Processor();
+
+		$content = $processor->process(
+			'Ask <#C0METRO|metro> or <!subteam^S0DESK|@photo-desk>, not <#C0GONE>',
+			self::rich_text(
+				self::section(
+					self::text( 'Ask ' ),
+					[
+						'type'       => 'channel',
+						'channel_id' => 'C0METRO',
+					],
+					self::text( ' or ' ),
+					[
+						'type'         => 'usergroup',
+						'usergroup_id' => 'S0DESK',
+					],
+					self::text( ', not ' ),
+					[
+						'type'       => 'channel',
+						'channel_id' => 'C0GONE',
+					]
+				)
+			)
+		);
+
+		$this->assertStringContainsString( '<p>Ask #metro or @photo-desk, not #C0GONE</p>', $content );
+	}
+
+	/**
+	 * Shortcodes typed in Slack stay text, in paragraphs and code blocks.
+	 */
+	public function test_shortcodes_are_not_run() {
+		$processor = new Slack_Content_Processor();
+
+		$content = $processor->process(
+			'',
+			self::rich_text(
+				self::section( self::text( 'See [gallery ids="1"]' ) ),
+				[
+					'type'     => 'rich_text_preformatted',
+					'elements' => [ self::text( '[embed]https://example.test[/embed]' ) ],
+				]
+			)
+		);
+
+		$this->assertSame( $content, do_shortcode( $content ), 'No shortcode should run.' );
+		$this->assertStringContainsString( '<p>See &#91;gallery ids=&quot;1&quot;&#93;</p>', $content );
+		$this->assertStringContainsString( 'See [gallery ids="1"]', wp_specialchars_decode( html_entity_decode( $content ) ), 'The text should read as typed.' );
+	}
+
+	/**
+	 * A protocol-relative link has no scheme to check, so it is not linked.
+	 */
+	public function test_drops_protocol_relative_links() {
+		$processor = new Slack_Content_Processor();
+
+		$content = $processor->process(
+			'',
+			self::rich_text(
+				self::section(
+					[
+						'type' => 'link',
+						'url'  => '//example.test/login',
+						'text' => 'log in',
+					]
+				)
+			)
+		);
+
+		$this->assertStringContainsString( '<p>log in</p>', $content );
+		$this->assertStringNotContainsString( '<a ', $content );
+	}
+
+	/**
+	 * In the mrkdwn fallback, markers inside inline code are left alone, and
+	 * styles never overlap code, so the tags always nest.
+	 */
+	public function test_mrkdwn_fallback_keeps_code_intact() {
+		$processor = new Slack_Content_Processor();
+
+		$content = $processor->process( 'Run `snake_case_name` then *a `b* c`' );
+
+		$this->assertStringContainsString( '<code>snake_case_name</code>', $content, 'Underscores in code should not become italics.' );
+		$this->assertStringContainsString( '<code>b* c</code>', $content, 'Code should keep its markers.' );
+		$this->assertStringNotContainsString( '<strong>', $content, 'A bold marker pair split by code should not produce bold.' );
+	}
 }

@@ -17,6 +17,15 @@ class Slack_Webhook_Controller {
 	const CHANNEL_ID_PATTERN = '[CG][A-Z0-9]+';
 
 	/**
+	 * Seconds into an ingestion after which mentioned users are no longer
+	 * looked up from the Slack API. The lookups run inside the webhook
+	 * request, which Slack retries when it takes longer than three seconds.
+	 *
+	 * @var float
+	 */
+	const MENTION_LOOKUP_BUDGET = 1.0;
+
+	/**
 	 * API client.
 	 *
 	 * @var Slack_API_Client
@@ -1396,6 +1405,7 @@ class Slack_Webhook_Controller {
 	 * @return void
 	 */
 	protected static function process_ingest_payload( array $payload ): void {
+		$started      = microtime( true );
 		$event        = $payload['event'] ?? [];
 		$term_id      = (int) ( $payload['term_id'] ?? 0 );
 		$channel_id   = (string) ( $payload['channel_id'] ?? '' );
@@ -1414,12 +1424,7 @@ class Slack_Webhook_Controller {
 
 		// Fresh instances — this runs in the webhook request without the
 		// controller's injected dependencies.
-		$api_client        = new Slack_API_Client();
-		$content_processor = new Slack_Content_Processor(
-			static function ( string $mentioned_user_id ) use ( $api_client ): string {
-				return self::slack_display_name( $api_client->get_user_info( $mentioned_user_id, Slack_API_Client::WEBHOOK_TIMEOUT ) );
-			}
-		);
+		$api_client = new Slack_API_Client();
 
 		// 1. Author resolution via outbound Slack API call. Use the short
 		// webhook timeout (1s) to stay under Slack's 3s webhook limit.
@@ -1428,6 +1433,26 @@ class Slack_Webhook_Controller {
 		if ( '' === $author_name ) {
 			$author_name = 'User ' . $user_id;
 		}
+
+		// Mentions use cached names freely, but only call the API while the
+		// request is well inside Slack's limit, and not at all when the author
+		// lookup already failed, which usually means Slack is slow or down.
+		$can_call_api      = ! is_wp_error( $user_info ) && ! empty( $user_info );
+		$content_processor = new Slack_Content_Processor(
+			static function ( string $mentioned_user_id ) use ( $api_client, $can_call_api, $started ): string {
+				$cached = $api_client->get_cached_user_info( $mentioned_user_id );
+
+				if ( null !== $cached ) {
+					return self::slack_display_name( $cached );
+				}
+
+				if ( ! $can_call_api || microtime( true ) - $started > self::MENTION_LOOKUP_BUDGET ) {
+					return '';
+				}
+
+				return self::slack_display_name( $api_client->get_user_info( $mentioned_user_id, Slack_API_Client::WEBHOOK_TIMEOUT ) );
+			}
+		);
 
 		// 2. Content processing.
 		$content = $content_processor->process( $text, is_array( $event['blocks'] ?? null ) ? $event['blocks'] : [] );

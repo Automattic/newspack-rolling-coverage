@@ -211,16 +211,18 @@ class Breakout {
 
 		$title = $entry->post_title
 			? $entry->post_title
-			: wp_trim_words( wp_strip_all_tags( $entry->post_content ), 10, '…' );
+			: Post_Type::get_entry_summary( $entry, 10 );
 
 		$new_post_id = wp_insert_post(
-			[
-				'post_type'    => 'post',
-				'post_status'  => 'draft',
-				'post_title'   => $title,
-				'post_content' => $entry->post_content,
-				'post_author'  => get_current_user_id(),
-			],
+			wp_slash(
+				[
+					'post_type'    => 'post',
+					'post_status'  => 'draft',
+					'post_title'   => $title,
+					'post_content' => $entry->post_content,
+					'post_author'  => get_current_user_id(),
+				]
+			),
 			true
 		);
 

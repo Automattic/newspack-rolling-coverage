@@ -94,7 +94,7 @@ class Entry_Ingestion_Service {
 			$postarr = [
 				'post_type'    => Post_Type::CPT_SLUG,
 				'post_title'   => '',
-				'post_content' => $payload->content_html,
+				'post_content' => wp_slash( $payload->content_html ),
 				'post_author'  => $bot_user_id,
 				'post_status'  => $auto_publish ? 'publish' : 'draft',
 			];

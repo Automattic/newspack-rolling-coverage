@@ -692,13 +692,20 @@ class Post_Type {
 	 * The first words of an entry's content as plain text, to name an entry
 	 * that has no title.
 	 *
+	 * Every tag counts as a word boundary, so a line break or list item never
+	 * joins two words, and every block's text counts, including lists and code
+	 * blocks, which `excerpt_remove_blocks()` would drop.
+	 *
 	 * @param WP_Post $entry Entry post.
+	 * @param int     $words Number of words to keep.
 	 * @return string
 	 */
-	public static function get_entry_summary( WP_Post $entry ): string {
-		$words = wp_trim_words( strip_shortcodes( excerpt_remove_blocks( $entry->post_content ) ), 8 );
+	public static function get_entry_summary( WP_Post $entry, int $words = 8 ): string {
+		$html = do_blocks( strip_shortcodes( $entry->post_content ) );
+		$text = wp_strip_all_tags( (string) preg_replace( '/<[^>]*>/', '$0 ', $html ) );
+		$text = wp_trim_words( (string) preg_replace( '/\s+/', ' ', $text ), $words, '…' );
 
-		return trim( html_entity_decode( wp_strip_all_tags( $words ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+		return trim( html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
 	}
 
 	/**
@@ -1816,7 +1823,8 @@ class Post_Type {
 
 		global $wpdb;
 		$like = '%' . $wpdb->esc_like( $title ) . '%';
-		$where .= $wpdb->prepare( " AND {$wpdb->posts}.post_title LIKE %s", $like );
+		// Untitled entries are listed by their first words, so match those too.
+		$where .= $wpdb->prepare( " AND ( {$wpdb->posts}.post_title LIKE %s OR ( {$wpdb->posts}.post_title = '' AND {$wpdb->posts}.post_content LIKE %s ) )", $like, $like );
 
 		return $where;
 	}

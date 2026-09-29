@@ -47,6 +47,21 @@ class Slack_Content_Processor {
 	private $user_names = [];
 
 	/**
+	 * Channel names from the message's mrkdwn, keyed by channel ID. Rich text
+	 * carries only the ID.
+	 *
+	 * @var array<string, string>
+	 */
+	private $channel_names = [];
+
+	/**
+	 * User group handles from the message's mrkdwn, keyed by group ID.
+	 *
+	 * @var array<string, string>
+	 */
+	private $usergroup_handles = [];
+
+	/**
 	 * Constructor.
 	 *
 	 * @param callable|null $resolve_user Receives a Slack user ID and returns
@@ -69,6 +84,9 @@ class Slack_Content_Processor {
 	 * @return string Block markup, or '' when the message has no content.
 	 */
 	public function process( string $text, array $blocks = [] ): string {
+		$this->channel_names     = $this->labels( '/<#([A-Z0-9]+)\|([^>]+)>/', $text );
+		$this->usergroup_handles = $this->labels( '/<!subteam\^([A-Z0-9]+)\|([^>]+)>/', $text );
+
 		$markup = $this->render_rich_text_blocks( $blocks );
 
 		if ( '' !== $markup ) {
@@ -110,6 +128,28 @@ class Slack_Content_Processor {
 		$text = preg_replace( '/<!(everyone|channel|here)>/', '@$1', $text );
 
 		return (string) $text;
+	}
+
+	/**
+	 * Labels Slack's mrkdwn gives an ID, as `<prefix ID|label>`.
+	 *
+	 * @param string $pattern Regex capturing the ID and the label.
+	 * @param string $text    Raw Slack message text.
+	 * @return array<string, string> Labels keyed by ID.
+	 */
+	private function labels( string $pattern, string $text ): array {
+		$labels = [];
+
+		if ( preg_match_all( $pattern, $text, $matches, PREG_SET_ORDER ) ) {
+			foreach ( $matches as $match ) {
+				$label = trim( $match[2] );
+				if ( '' !== $label ) {
+					$labels[ $match[1] ] = $label;
+				}
+			}
+		}
+
+		return $labels;
 	}
 
 	/**
@@ -314,11 +354,14 @@ class Slack_Content_Processor {
 					break;
 
 				case 'usergroup':
-					$html .= $this->styled( '@' . (string) ( $element['usergroup_id'] ?? '' ), $style );
+					$group_id = (string) ( $element['usergroup_id'] ?? '' );
+					$handle   = ltrim( $this->usergroup_handles[ $group_id ] ?? $group_id, '@' );
+					$html    .= $this->styled( '@' . $handle, $style );
 					break;
 
 				case 'channel':
-					$html .= $this->styled( '#' . (string) ( $element['channel_id'] ?? '' ), $style );
+					$channel_id = (string) ( $element['channel_id'] ?? '' );
+					$html      .= $this->styled( '#' . ( $this->channel_names[ $channel_id ] ?? $channel_id ), $style );
 					break;
 
 				case 'broadcast':
@@ -353,7 +396,7 @@ class Slack_Content_Processor {
 				continue;
 			}
 
-			$line = esc_html( $line );
+			$line = $this->escape( $line );
 
 			if ( ! empty( $style['code'] ) ) {
 				$line = '<code>' . $line . '</code>';
@@ -374,6 +417,18 @@ class Slack_Content_Processor {
 	}
 
 	/**
+	 * Escape text for the entry content. Square brackets are encoded too, so
+	 * a shortcode typed in Slack shows as text instead of running when the
+	 * entry is displayed.
+	 *
+	 * @param string $text Text.
+	 * @return string HTML.
+	 */
+	private function escape( string $text ): string {
+		return str_replace( [ '[', ']' ], [ '&#91;', '&#93;' ], esc_html( $text ) );
+	}
+
+	/**
 	 * Wrap HTML in a link, or return it bare when the URL's scheme is not
 	 * one that is safe to render.
 	 *
@@ -382,13 +437,14 @@ class Slack_Content_Processor {
 	 * @return string HTML.
 	 */
 	private function link( string $url, string $html ): string {
-		$href = esc_url( $url, self::LINK_PROTOCOLS );
+		$has_safe_scheme = (bool) preg_match( '/^(?:https?:\/\/|mailto:)/i', $url );
+		$href            = $has_safe_scheme ? esc_url( $url, self::LINK_PROTOCOLS ) : '';
 
 		if ( '' === $href || '' === $html ) {
 			return $html;
 		}
 
-		return '<a href="' . $href . '">' . $html . '</a>';
+		return '<a href="' . str_replace( [ '[', ']' ], [ '%5B', '%5D' ], $href ) . '">' . $html . '</a>';
 	}
 
 	/**
@@ -401,13 +457,16 @@ class Slack_Content_Processor {
 		$unicode = (string) ( $element['unicode'] ?? '' );
 
 		if ( preg_match( '/^[0-9a-f]{1,6}(?:-[0-9a-f]{1,6})*$/i', $unicode ) ) {
-			$characters = array_map( fn( $code_point ) => (string) mb_chr( (int) hexdec( $code_point ), 'UTF-8' ), explode( '-', $unicode ) );
-			return esc_html( implode( '', $characters ) );
+			$characters = array_map(
+				fn( $code_point ) => hexdec( $code_point ) > 0 ? (string) mb_chr( (int) hexdec( $code_point ), 'UTF-8' ) : '',
+				explode( '-', $unicode )
+			);
+			return $this->escape( implode( '', $characters ) );
 		}
 
 		$name = (string) ( $element['name'] ?? '' );
 
-		return '' === $name ? '' : esc_html( ':' . $name . ':' );
+		return '' === $name ? '' : $this->escape( ':' . $name . ':' );
 	}
 
 	/**
@@ -426,7 +485,7 @@ class Slack_Content_Processor {
 
 		$timestamp = (int) ( $element['timestamp'] ?? 0 );
 
-		return $timestamp > 0 ? (string) wp_date( get_option( 'date_format' ), $timestamp ) : '';
+		return $timestamp > 0 ? (string) wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $timestamp ) : '';
 	}
 
 	/**
@@ -487,48 +546,66 @@ class Slack_Content_Processor {
 	 * Render mrkdwn text, for messages that arrive without rich-text blocks:
 	 * links, mentions, bold, italic, strikethrough, inline code, paragraphs
 	 * and line breaks.
+	
+	 * Links and inline code are set aside behind private-use placeholders
+	 * while the other styles are applied, so markers inside them are left
+	 * alone and the tags always nest.
 	 *
 	 * @param string $text Raw Slack message text.
 	 * @return string Block markup.
 	 */
 	private function render_mrkdwn( string $text ): string {
-		$links = [];
+		$stashed = [];
 
+		$text = (string) preg_replace( '/[\x{E000}\x{E001}]/u', '', $text );
 		$text = (string) preg_replace_callback(
 			'/<((?:https?:\/\/|mailto:)[^|>]+)(?:\|([^>]*))?>/i',
-			function ( $matches ) use ( &$links ) {
+			function ( $matches ) use ( &$stashed ) {
 				$label = isset( $matches[2] ) && '' !== trim( $matches[2] )
 					? $matches[2]
 					: preg_replace( '/^mailto:/i', '', $matches[1] );
 
-				$links[] = $this->link( $matches[1], esc_html( wp_specialchars_decode( $label ) ) );
+				$stashed[] = $this->link( $matches[1], $this->escape( wp_specialchars_decode( $label ) ) );
 
-				return "\u{E000}" . ( count( $links ) - 1 ) . "\u{E001}";
+				return "\u{E000}" . ( count( $stashed ) - 1 ) . "\u{E001}";
 			},
 			$text
 		);
 
 		$text = wp_strip_all_tags( $this->to_plain_text( $text ) );
-		$html = esc_html( wp_specialchars_decode( $text ) );
+		$html = $this->escape( wp_specialchars_decode( $text ) );
+
+		$html = (string) preg_replace_callback(
+			'/(?<![\w`])`(?=\S)([^\n`]+?)(?<=\S)`(?![\w`])/u',
+			function ( $matches ) use ( &$stashed ) {
+				$stashed[] = '<code>' . $matches[1] . '</code>';
+
+				return "\u{E000}" . ( count( $stashed ) - 1 ) . "\u{E001}";
+			},
+			$html
+		);
 
 		$inline_styles = [
-			'`'  => 'code',
 			'\*' => 'strong',
 			'_'  => 'em',
 			'~'  => 's',
 		];
 
 		foreach ( $inline_styles as $marker => $tag ) {
-			$html = (string) preg_replace(
-				'/(?<![\w' . $marker . '])' . $marker . '(?=\S)([^\n]+?)(?<=\S)' . $marker . '(?![\w' . $marker . '])/u',
+			$styled = preg_replace(
+				'/(?<![\w' . $marker . '])' . $marker . '(?=\S)([^\n' . $marker . ']+?)(?<=\S)' . $marker . '(?![\w' . $marker . '])/u',
 				'<' . $tag . '>$1</' . $tag . '>',
 				$html
 			);
+
+			if ( null !== $styled ) {
+				$html = $styled;
+			}
 		}
 
 		$html = (string) preg_replace_callback(
 			"/\u{E000}(\d+)\u{E001}/u",
-			fn( $matches ) => $links[ (int) $matches[1] ] ?? '',
+			fn( $matches ) => $stashed[ (int) $matches[1] ] ?? '',
 			$html
 		);
 

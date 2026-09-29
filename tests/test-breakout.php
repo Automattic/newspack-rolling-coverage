@@ -78,6 +78,27 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A title built from content keeps words apart across line breaks, and
+	 * keeps backslashes in the copied content.
+	 */
+	public function test_breakout_title_and_content_read_as_written() {
+		self::log_in_as( 'editor' );
+		$content  = '<p>Counting starts<br>at 9pm \\o/</p>';
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_title'   => '',
+				'post_content' => wp_slash( $content ),
+			]
+		);
+
+		$breakout_post = get_post( self::break_out( $entry_id )->get_data()['breakoutPostId'] );
+
+		$this->assertSame( 'Counting starts at 9pm \\o/', $breakout_post->post_title );
+		$this->assertSame( $content, $breakout_post->post_content );
+	}
+
+	/**
 	 * An entry has at most one breakout post.
 	 */
 	public function test_entry_cannot_be_broken_out_twice() {
