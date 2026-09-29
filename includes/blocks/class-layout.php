@@ -32,7 +32,7 @@ class Layout {
 	 * Initialize hooks.
 	 */
 	public static function init() {
-		add_filter( 'render_block_data', [ __CLASS__, 'inject_layout' ] );
+		add_filter( 'render_block_data', [ __CLASS__, 'inject_layout' ], 10, 1 );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 	}
 
@@ -58,11 +58,33 @@ class Layout {
 
 		foreach ( parse_blocks( $post->post_content ) as $block ) {
 			if ( Rolling_Coverage_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) {
-				return $block['innerBlocks'] ?? [];
+				return self::detach_nested_blocks( $block['innerBlocks'] ?? [] );
 			}
 		}
 
 		return null;
+	}
+
+	/**
+	 * Drops `layoutId` from every Rolling Coverage block nested in a layout.
+	 * A synced block inside the layout would otherwise pull the layout into
+	 * itself again at every level, without end.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return array[]
+	 */
+	private static function detach_nested_blocks( array $blocks ): array {
+		foreach ( $blocks as $index => $block ) {
+			if ( Rolling_Coverage_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) {
+				unset( $blocks[ $index ]['attrs']['layoutId'] );
+			}
+
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$blocks[ $index ]['innerBlocks'] = self::detach_nested_blocks( $block['innerBlocks'] );
+			}
+		}
+
+		return $blocks;
 	}
 
 	/**
@@ -103,6 +125,17 @@ class Layout {
 		$layout_id = (int) get_option( self::DEFAULT_OPTION, 0 );
 
 		return null !== self::get_layout_blocks( $layout_id ) ? $layout_id : 0;
+	}
+
+	/**
+	 * The Rolling Coverage pattern category's term ID.
+	 *
+	 * @return int Term ID, or 0 when the category doesn't exist.
+	 */
+	public static function get_pattern_category_id(): int {
+		$term = get_term_by( 'slug', self::PATTERN_CATEGORY, self::PATTERN_TAXONOMY );
+
+		return $term ? (int) $term->term_id : 0;
 	}
 
 	/**
@@ -206,7 +239,13 @@ class Layout {
 		}
 
 		if ( is_wp_error( $term ) ) {
-			return;
+			$existing_id = (int) $term->get_error_data( 'term_exists' );
+
+			if ( ! $existing_id ) {
+				return;
+			}
+
+			$term = [ 'term_id' => $existing_id ];
 		}
 
 		wp_set_object_terms( $layout_id, [ (int) $term['term_id'] ], self::PATTERN_TAXONOMY );

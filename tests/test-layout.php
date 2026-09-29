@@ -167,6 +167,67 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A synced block nested inside the layout renders once, detached, instead
+	 * of pulling the layout into itself again.
+	 */
+	public function test_nested_synced_block_does_not_recurse() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$layout_id = self::create_layout( '' );
+		wp_update_post(
+			[
+				'ID'           => $layout_id,
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage --><!-- wp:paragraph --><p>' . self::MARKER . '</p><!-- /wp:paragraph --><!-- wp:group --><div class="wp-block-group"><!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode(
+					[
+						'coverageId' => $coverage_id,
+						'layoutId'   => $layout_id,
+					]
+				) . ' /--></div><!-- /wp:group --><!-- /wp:newspack-rolling-coverage/rolling-coverage -->',
+			]
+		);
+
+		$html = self::render_story(
+			[
+				'coverageId' => $coverage_id,
+				'layoutId'   => $layout_id,
+			]
+		);
+
+		$this->assertStringContainsString( self::MARKER, $html );
+
+		$nested = Layout::get_layout_blocks( $layout_id )[1]['innerBlocks'][0];
+		$this->assertSame( Rolling_Coverage_Block::BLOCK_NAME, $nested['blockName'] );
+		$this->assertSame( $coverage_id, $nested['attrs']['coverageId'] );
+		$this->assertArrayNotHasKey( 'layoutId', $nested['attrs'] );
+	}
+
+	/**
+	 * Pages still cached with the previous layout's key keep loading it, so
+	 * only the config from two layout edits ago is dropped.
+	 */
+	public function test_pattern_edit_keeps_the_previous_block_config() {
+		$coverage_id = self::create_coverage();
+		$persist     = new ReflectionMethod( Rolling_Coverage_Block::class, 'persist_block_config' );
+		$load        = new ReflectionMethod( Rolling_Coverage_Block::class, 'load_block_config' );
+		$persist->setAccessible( true );
+		$load->setAccessible( true );
+
+		$templates = [];
+		$keys      = [];
+		foreach ( [ 'First', 'Second', 'Third' ] as $text ) {
+			$template    = parse_blocks( '<!-- wp:paragraph --><p>' . $text . '</p><!-- /wp:paragraph -->' );
+			$templates[] = $template;
+			$keys[]      = $persist->invoke( null, $coverage_id, $template, true, 4 );
+		}
+
+		$this->assertFalse( get_option( Rolling_Coverage_Block::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $keys[0] ) );
+		$this->assertIsArray( get_option( Rolling_Coverage_Block::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $keys[1] ) );
+		$this->assertIsArray( get_option( Rolling_Coverage_Block::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $keys[2] ) );
+		$this->assertSame( $templates[1], $load->invoke( null, $coverage_id, $keys[1] )['template'] );
+		$this->assertSame( $templates[2], $load->invoke( null, $coverage_id, $keys[2] )['template'] );
+	}
+
+	/**
 	 * A layoutId pointing at nothing renders the built-in layout.
 	 */
 	public function test_missing_pattern_falls_back_to_the_default_layout() {
@@ -261,6 +322,48 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 			'two layouts'     => [ $layout . $layout ],
 			'layout and more' => [ $layout . '<!-- wp:paragraph --><p>x</p><!-- /wp:paragraph -->' ],
 		];
+	}
+
+	/**
+	 * A category already named Rolling Coverage under another slug doesn't
+	 * stop the layout getting one.
+	 */
+	public function test_create_assigns_a_category_despite_a_name_clash() {
+		self::factory()->term->create(
+			[
+				'taxonomy' => Layout::PATTERN_TAXONOMY,
+				'name'     => 'Rolling Coverage',
+				'slug'     => 'live-coverage',
+			]
+		);
+		self::log_in_as( 'editor' );
+
+		$id = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+
+		$this->assertSame( [ 'Rolling Coverage' ], wp_get_object_terms( $id, Layout::PATTERN_TAXONOMY, [ 'fields' => 'names' ] ) );
+	}
+
+	/**
+	 * When creating the category reports that it already exists, the
+	 * existing term is assigned.
+	 */
+	public function test_create_assigns_the_existing_category_when_insert_reports_it() {
+		$existing = self::factory()->term->create(
+			[
+				'taxonomy' => Layout::PATTERN_TAXONOMY,
+				'name'     => 'Rolling Coverage',
+				'slug'     => 'live-coverage',
+			]
+		);
+		add_filter(
+			'pre_insert_term',
+			static fn() => new WP_Error( 'term_exists', 'A term with the name provided already exists.', $existing )
+		);
+		self::log_in_as( 'editor' );
+
+		$id = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+
+		$this->assertSame( [ $existing ], wp_get_object_terms( $id, Layout::PATTERN_TAXONOMY, [ 'fields' => 'ids' ] ) );
 	}
 
 	/**

@@ -403,6 +403,8 @@ class Rolling_Coverage_Block {
 					'layoutsRestBase'             => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/layouts' ) ),
 					'adminUrl'                    => esc_url_raw( admin_url() ),
 					'isBlockTheme'                => wp_is_block_theme(),
+					'canEditThemeOptions'         => current_user_can( 'edit_theme_options' ),
+					'layoutCategoryId'            => Layout::get_pattern_category_id(),
 					'entryPostType'               => Post_Type::CPT_SLUG,
 				]
 			);
@@ -1693,14 +1695,20 @@ class Rolling_Coverage_Block {
 			update_option( $option_key, $config, false );
 		}
 
-		// Prune older template option rows for this coverage so the
-		// options table doesn't grow unbounded across template edits.
-		$current_template_meta_key = 'rolling_coverage_template_hash';
-		$previous_hash             = get_term_meta( $coverage_id, $current_template_meta_key, true );
+		// Keep the previous config too: pages still in the page cache poll with
+		// its key. Anything older is pruned so the options table stays bounded.
+		$current_template_meta_key  = 'rolling_coverage_template_hash';
+		$previous_template_meta_key = 'rolling_coverage_previous_template_hash';
+		$current_hash               = get_term_meta( $coverage_id, $current_template_meta_key, true );
 
-		if ( $previous_hash && $previous_hash !== $hash ) {
-			$old_option_key = self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $previous_hash;
-			delete_option( $old_option_key );
+		if ( $current_hash && $current_hash !== $hash ) {
+			$previous_hash = get_term_meta( $coverage_id, $previous_template_meta_key, true );
+
+			if ( $previous_hash && $previous_hash !== $hash ) {
+				delete_option( self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $previous_hash );
+			}
+
+			update_term_meta( $coverage_id, $previous_template_meta_key, $current_hash );
 		}
 
 		update_term_meta( $coverage_id, $current_template_meta_key, $hash );
