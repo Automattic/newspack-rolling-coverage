@@ -1131,12 +1131,13 @@ class Rolling_Coverage_Block {
 	 * as a card, and the last entry once no more can load, drop the separator
 	 * that closes the template. A pinned card with no breakout link to show
 	 * also drops the space its last block keeps for "Read more", and as the
-	 * last entry, the space below it, so the card's padding is even and
-	 * nothing trails the list.
+	 * last entry, a card that closes the template drops the space below it,
+	 * so the card's padding is even and nothing trails the list.
 	 *
 	 * @param array[] $template     Parsed template blocks.
 	 * @param bool    $is_pinned    Whether the entry is pinned.
-	 * @param bool    $has_breakout Whether the entry has a published breakout.
+	 * @param bool    $has_breakout Whether a pinned entry has a published
+	 *                              breakout; only read for pinned entries.
 	 * @param bool    $is_last      Whether the entry is the last one to load.
 	 * @param string  $layout_class The entries' layout container class, from
 	 *                              entry_layout_class(), so the card spaces
@@ -1152,9 +1153,12 @@ class Rolling_Coverage_Block {
 			}
 		}
 
+		$closing        = end( $template );
+		$is_last_closer = $is_last && is_array( $closing ) && self::is_pinned_card( $closing );
+
 		return self::map_template_blocks(
 			$template,
-			static function ( array $block ) use ( $is_pinned, $has_breakout, $is_last, $layout_class ) {
+			static function ( array $block ) use ( $is_pinned, $has_breakout, $is_last_closer, $layout_class ) {
 				if ( ! self::is_pinned_card( $block ) ) {
 					return [ $block ];
 				}
@@ -1172,7 +1176,7 @@ class Rolling_Coverage_Block {
 					}
 				}
 
-				if ( $is_last ) {
+				if ( $is_last_closer ) {
 					$block = self::without_bottom_margin( $block );
 				}
 
@@ -1219,14 +1223,21 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * A parsed block without its bottom margin, in its attributes and in its
-	 * saved markup, which static blocks render from.
+	 * A parsed block without its bottom margin. Static blocks render it from
+	 * their saved markup, and keep it in their attributes so their layout
+	 * container class, which core derives from them, stays the one whose
+	 * styles the page printed; dynamic blocks render it from their
+	 * attributes.
 	 *
 	 * @param array $block Parsed block.
 	 * @return array
 	 */
 	private static function without_bottom_margin( array $block ): array {
-		unset( $block['attrs']['style']['spacing']['margin']['bottom'] );
+		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( (string) ( $block['blockName'] ?? '' ) );
+
+		if ( ! $block_type || $block_type->is_dynamic() ) {
+			unset( $block['attrs']['style']['spacing']['margin']['bottom'] );
+		}
 
 		foreach ( [ 'innerHTML', 'innerContent' ] as $key ) {
 			$markup = 'innerHTML' === $key ? ( $block['innerHTML'] ?? null ) : ( $block['innerContent'][0] ?? null );
@@ -1241,7 +1252,12 @@ class Rolling_Coverage_Block {
 				continue;
 			}
 
-			$style        = (string) $tag->get_attribute( 'style' );
+			$style = $tag->get_attribute( 'style' );
+
+			if ( ! is_string( $style ) ) {
+				continue;
+			}
+
 			$declarations = array_filter(
 				array_map( 'trim', explode( ';', $style ) ),
 				static fn( $declaration ) => '' !== $declaration && 'margin-bottom' !== strtolower( trim( strtok( $declaration, ':' ) ) )

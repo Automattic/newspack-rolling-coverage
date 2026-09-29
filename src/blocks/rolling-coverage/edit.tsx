@@ -66,6 +66,7 @@ import {
 	withoutClosingSeparator,
 	withShapedPinnedCard,
 	hasPinnedCard,
+	isPinnedCard,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -383,12 +384,18 @@ export default function Edit( {
 
 		const blocks = previewTemplateFor( previewTemplates, lastContext );
 
-		return lastContext.pinned && previewTemplates.hasCard
+		if ( ! lastContext.pinned || ! previewTemplates.hasCard ) {
+			return withoutClosingSeparator( blocks );
+		}
+
+		const closing = blocks.at( -1 );
+
+		return closing && isPinnedCard( closing )
 			? withShapedPinnedCard( blocks, {
 					closeUp: false,
 					isLastCard: true,
 				} )
-			: withoutClosingSeparator( blocks );
+			: blocks;
 	}, [ previewTemplates, lastContext ] );
 
 	// Disabled blocks drop out of List View and can't be selected, so only

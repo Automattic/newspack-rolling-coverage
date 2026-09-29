@@ -29,6 +29,14 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 		. '<!-- wp:separator --><hr class="wp-block-separator has-alpha-channel-opacity"/><!-- /wp:separator -->';
 
 	/**
+	 * Forget the theme.json data a test switched to.
+	 */
+	public function tear_down() {
+		wp_clean_theme_json_cache();
+		parent::tear_down();
+	}
+
+	/**
 	 * Render an entry through the card template.
 	 *
 	 * @param int    $entry_id     Entry post ID.
@@ -59,6 +67,7 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	private static function use_theme_without_theme_json(): void {
 		add_filter( 'stylesheet', fn() => 'rolling-coverage-classic-test' );
 		add_filter( 'theme_file_path', fn( $path, $file ) => 'theme.json' === $file ? '/nonexistent/theme.json' : $path, 10, 2 );
+		wp_clean_theme_json_cache();
 	}
 
 	/**
@@ -163,6 +172,34 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 		$html   = self::render( self::create_pinned_entry(), false, $markup, 'entry-layout-test' );
 
 		$this->assertSame( 1, substr_count( $html, 'entry-layout-test' ), 'Only the entry should carry the layout class.' );
+	}
+
+	/**
+	 * When no pinned entry shows on the first render, the card's layout
+	 * styles are still printed, for a pinned entry that arrives later.
+	 */
+	public function test_card_layout_styles_print_without_a_pinned_entry() {
+		switch_theme( 'twentytwentyfive' );
+
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+
+		$markup     = str_replace(
+			[ '"className":"newspack-rolling-coverage-pinned-card",', '"margin":{"bottom":"30px"}}' ],
+			[ '"className":"newspack-rolling-coverage-pinned-card","layout":{"type":"flex"},', '"margin":{"bottom":"30px"},"blockGap":"10px"}' ],
+			self::TEMPLATE_MARKUP
+		);
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $markup . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+		$card       = parse_blocks( $markup )[0];
+		$card_class = wp_render_layout_support_flag( $card['innerHTML'], $card );
+
+		preg_match( '/wp-container-core-group-is-layout-[0-9a-f]+/', $card_class, $container );
+		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
+
+		Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		$this->assertStringContainsString( $container[0], wp_style_engine_get_stylesheet_from_context( 'block-supports' ) );
 	}
 
 	/**

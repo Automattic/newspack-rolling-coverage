@@ -441,15 +441,18 @@ function isBreakoutLink( block: {
 
 /**
  * The template without the "Read more" link, as an entry without a published
- * breakout post renders. A block it leaves empty goes too, as
- * Rolling_Coverage_Block::without_breakout_link() does on the front end.
+ * breakout post renders. A Buttons block it leaves empty goes too, as
+ * Rolling_Coverage_Block::drop_empty_entry_buttons() does on the front end,
+ * and inside the pinned card any block it leaves empty, as
+ * Rolling_Coverage_Block::without_breakout_link() does.
  *
- * @param {Object[]} blocks The template blocks.
+ * @param {Object[]} blocks     The template blocks.
+ * @param {boolean}  insideCard Whether the blocks are inside the pinned card.
  * @return {Object[]} The blocks an entry without a breakout shows.
  */
 function withoutBreakoutLink<
 	T extends { name: string; [ key: string ]: unknown },
->( blocks: T[] ): T[] {
+>( blocks: T[], insideCard = false ): T[] {
 	return blocks.flatMap( ( block ) => {
 		if ( isBreakoutLink( block ) ) {
 			return [];
@@ -462,9 +465,15 @@ function withoutBreakoutLink<
 			return [ block ];
 		}
 
-		const innerBlocks = withoutBreakoutLink( block.innerBlocks as T[] );
+		const innerBlocks = withoutBreakoutLink(
+			block.innerBlocks as T[],
+			insideCard || isPinnedCard( block )
+		);
 
-		if ( ! innerBlocks.length ) {
+		if (
+			! innerBlocks.length &&
+			( insideCard || block.name === 'core/buttons' )
+		) {
 			return [];
 		}
 
@@ -740,6 +749,7 @@ export {
 	withoutBreakoutLink,
 	withLinkedTitle,
 	hasPinnedCard,
+	isPinnedCard,
 	withoutPinnedCard,
 	withoutClosingSeparator,
 	withShapedPinnedCard,
