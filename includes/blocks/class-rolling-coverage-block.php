@@ -1194,7 +1194,7 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The template as an entry without a title renders it: a row holding the
-	 * title, such as the header with Share opposite, centres its blocks, as
+	 * title, such as the header with Share opposite, centers its blocks, as
 	 * the date is all that's left beside them.
 	 *
 	 * @param array[] $template Parsed template blocks.

@@ -694,7 +694,7 @@ function holdsPostTitle(
 
 /**
  * The template as an entry without a title renders it: a row holding the
- * title centres its blocks, mirroring
+ * title centers its blocks, mirroring
  * Rolling_Coverage_Block::with_centered_title_rows().
  *
  * @param {Object[]} blocks The template blocks.

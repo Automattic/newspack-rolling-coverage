@@ -8,7 +8,7 @@
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 
 /**
- * The header row lines Share up with the top of the title, or centres it
+ * The header row lines Share up with the top of the title, or centers it
  * against the date when the entry has no title.
  */
 class Test_Entry_Header extends Rolling_Coverage_TestCase {
@@ -70,15 +70,15 @@ class Test_Entry_Header extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A titled entry keeps the row's top alignment; an entry without a title
-	 * centres it, leaving the date and title stack alone.
+	 * centers it, leaving the date and title stack alone.
 	 */
-	public function test_header_centres_only_without_a_title() {
+	public function test_header_centers_only_without_a_title() {
 		$titled   = self::render_entry( 'A title' );
 		$untitled = self::render_entry( '' );
 		$styles   = wp_style_engine_get_stylesheet_from_context( 'block-supports' );
 
 		$this->assertStringContainsString( 'align-items:flex-start', self::rules_for( $styles, $this->container_class( $titled, 'is-content-justification-space-between' ) ), 'A titled entry should keep the top alignment.' );
-		$this->assertStringContainsString( 'align-items:center', self::rules_for( $styles, $this->container_class( $untitled, 'is-content-justification-space-between' ) ), 'An entry without a title should centre the row.' );
+		$this->assertStringContainsString( 'align-items:center', self::rules_for( $styles, $this->container_class( $untitled, 'is-content-justification-space-between' ) ), 'An entry without a title should center the row.' );
 		$this->assertStringNotContainsString( 'justify-content:center', self::rules_for( $styles, $this->container_class( $untitled, 'is-vertical' ) ), 'The date and title stack should keep its own alignment.' );
 	}
 
