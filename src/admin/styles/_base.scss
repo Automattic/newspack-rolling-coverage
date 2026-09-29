@@ -7,3 +7,7 @@
 body {
 	background: $nrc-color-background;
 }
+
+#newspack-rolling-coverage-root {
+	overflow-x: clip;
+}
