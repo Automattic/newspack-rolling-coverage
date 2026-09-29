@@ -3,6 +3,7 @@
  */
 import { useState } from '@wordpress/element';
 import { Button } from '@wordpress/components';
+import { Stack, Text } from '@wordpress/ui';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -37,9 +38,9 @@ function ConfirmModal( {
 	};
 
 	return (
-		<>
-			<p>{ message }</p>
-			<div className="newspack-rolling-coverage-modal-footer">
+		<Stack direction="column" gap="xl">
+			<Text render={ <p /> }>{ message }</Text>
+			<Stack direction="row" gap="sm" justify="flex-end">
 				<Button
 					variant="tertiary"
 					onClick={ onClose }
@@ -58,8 +59,8 @@ function ConfirmModal( {
 					{ confirmLabel ||
 						__( 'Confirm', 'newspack-rolling-coverage' ) }
 				</Button>
-			</div>
-		</>
+			</Stack>
+		</Stack>
 	);
 }
 

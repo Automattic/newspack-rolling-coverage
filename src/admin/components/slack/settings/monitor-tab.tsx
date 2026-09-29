@@ -217,7 +217,7 @@ function MonitorTab( {
 	return (
 		<>
 			{ events.length === 0 ? (
-				<EmptyState.Root className="newspack-rolling-coverage-slack-empty-state">
+				<EmptyState.Root>
 					<EmptyState.Header
 						icon={ <SlackIcon size={ 36 } /> }
 						title={ __(

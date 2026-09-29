@@ -16,6 +16,7 @@ import { Drawer } from 'newspack-components/dist/esm/drawer';
 /**
  * Internal dependencies
  */
+import { ErrorNotice } from '../shared/error-notice';
 import { saveCoverage } from '../utils/coverage-api';
 import { useAdminContext } from '../hooks/useAdminContext';
 import type { CoverageDrawerProps, Coverage, CoverageFormData } from '../types';
@@ -235,11 +236,7 @@ function CoverageDrawer( {
 					form={ coverageForm }
 					onChange={ handleChange }
 				/>
-				{ error && (
-					<div className="newspack-rolling-coverage-error">
-						{ error }
-					</div>
-				) }
+				<ErrorNotice message={ error } />
 			</Drawer.Content>
 			<Drawer.Footer>
 				<Drawer.Action variant="secondary" closes disabled={ isSaving }>

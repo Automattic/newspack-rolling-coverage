@@ -6,7 +6,7 @@ import {
 	ToggleControl,
 	VisuallyHidden,
 } from '@wordpress/components';
-import { Stack } from '@wordpress/ui';
+import { Stack, Text } from '@wordpress/ui';
 import { createInterpolateElement } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
@@ -14,7 +14,7 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies
  */
 import type { ConnectChannelFormProps } from '../../../types';
-import { SlackError } from './slack-error';
+import { ErrorNotice } from '../../../shared/error-notice';
 
 /**
  * Renders the body of the Slack connection drawer when no channel is yet
@@ -51,12 +51,9 @@ function ConnectChannelForm( {
 				disabled={ isConnecting }
 			/>
 			<Stack direction="column" gap="sm" align="flex-start">
-				<span
-					className="newspack-rolling-coverage-detail-label"
-					aria-hidden="true"
-				>
+				<Text variant="heading-sm" aria-hidden="true">
 					{ __( 'Auto-publish', 'newspack-rolling-coverage' ) }
-				</span>
+				</Text>
 				<ToggleControl
 					className="newspack-rolling-coverage-autopublish-toggle"
 					label={
@@ -76,7 +73,7 @@ function ConnectChannelForm( {
 					disabled={ isConnecting }
 				/>
 			</Stack>
-			<SlackError message={ error } />
+			<ErrorNotice message={ error } />
 		</Stack>
 	);
 }

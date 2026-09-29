@@ -1,13 +1,9 @@
-@use "variables" as *;
 @use "base";
-@use "components/error";
 @use "components/modal";
-@use "components/chips";
 @use "components/dataviews";
 @use "components/slack";
 @use "components/quick-edit";
 @use "components/snackbar";
 @use "components/ai-settings";
-@use "components/user-row";
 @use "components/loading";
 @use "components/screen";

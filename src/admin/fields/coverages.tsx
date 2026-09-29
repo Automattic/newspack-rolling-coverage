@@ -56,11 +56,6 @@ function getCoverageFields(
 			enableSorting: true,
 			enableGlobalSearch: true,
 			getValue: ( { item } ) => decodeEntities( item.name ),
-			render: ( { item } ) => (
-				<span className="newspack-rolling-coverage-coverage-name">
-					{ decodeEntities( item.name ) }
-				</span>
-			),
 		},
 		{
 			id: 'count',
