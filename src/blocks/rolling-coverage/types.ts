@@ -28,6 +28,7 @@ interface RollingCoverageAttributes {
 	enableAds: boolean;
 	adsInterval: number;
 	pinnedLabel: string;
+	layoutId: number;
 	style?: { spacing?: { blockGap?: string | { top?: string } } };
 	[ key: string ]: unknown;
 }
@@ -64,6 +65,11 @@ interface BlockConfig {
 	aiAvailable: boolean;
 	newspackAdsAvailable: boolean;
 	newspackAdsPlacementEnabled: boolean;
+	defaultLayoutId: number;
+	layoutsRestBase: string;
+	adminUrl: string;
+	isBlockTheme: boolean;
+	entryPostType: string;
 }
 
 /**

@@ -6,8 +6,6 @@ import {
 	useInnerBlocksProps,
 	InspectorControls,
 	BlockContextProvider,
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
-	__experimentalUseBlockPreview as useBlockPreview,
 	store as blockEditorStore,
 } from '@wordpress/block-editor';
 import {
@@ -29,7 +27,6 @@ import {
 	useEffect,
 	useCallback,
 	useMemo,
-	memo,
 	useRef,
 } from '@wordpress/element';
 import { useSelect, useDispatch } from '@wordpress/data';
@@ -53,23 +50,7 @@ import {
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
 } from './utils';
-import {
-	ENTRY_TEMPLATE,
-	ENTRY_ALLOWED_BLOCKS,
-	ENTRY_EDITED_STATES,
-	FOLLOW_TEMPLATE,
-	isFollowButtons,
-	withoutPinnedRow,
-	withoutBreakoutLink,
-	withLinkedTitle,
-	withoutPinnedCard,
-	withoutClosingSeparator,
-	withShapedPinnedCard,
-	withCenteredTitleRows,
-	withoutPostTitle,
-	hasPinnedCard,
-	isPinnedCard,
-} from './template';
+import { ENTRY_EDITED_STATES, isFollowButtons } from './template';
 import {
 	AI_AVAILABLE,
 	NEWSPACK_ADS_AVAILABLE,
@@ -77,6 +58,14 @@ import {
 	ONESIGNAL_CONFIGURED,
 } from './config';
 import EditedStateBar from './components/edited-state-bar';
+import EntryBlockPreview from './components/entry-block-preview';
+import {
+	FOLLOW_BLOCK_NAME,
+	STATE_BY_BLOCK_NAME,
+	INNER_TEMPLATE,
+	ALL_ALLOWED_BLOCKS,
+	useLayoutPreview,
+} from './layout';
 import type {
 	CoverageOption,
 	ApplyNotice,
@@ -84,55 +73,6 @@ import type {
 	EntryContext,
 	TemplateBlocks,
 } from './types';
-
-/**
- * The legacy follow button block, still rendered once at the top of
- * coverages saved before the follow button became a core button.
- */
-const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
-
-/**
- * Every block name injected by an editor state. Used for the allowed-blocks
- * list, and to exclude these from the per-entry preview cards below.
- */
-const STATE_BLOCK_NAMES = ENTRY_EDITED_STATES.flatMap( ( state ) =>
-	state.blocks.map( ( [ blockName ] ) => blockName )
-);
-
-/**
- * Block names that render once at the top of the coverage (not per entry).
- * Used to split inner blocks into these vs. the per-entry template.
- */
-const RENDER_ONCE_BLOCKS = [ FOLLOW_BLOCK_NAME, ...STATE_BLOCK_NAMES ];
-
-/**
- * The editor state each state block belongs to, keyed by block name.
- */
-const STATE_BY_BLOCK_NAME: Record< string, string > = Object.fromEntries(
-	ENTRY_EDITED_STATES.flatMap( ( state ) =>
-		state.blocks.map( ( [ blockName ] ) => [ blockName, state.value ] )
-	)
-);
-
-/**
- * Default inner-blocks template for the Rolling Coverage block: the follow
- * button at the top, then every editor state's blocks, then the per-entry
- * blocks.
- */
-const INNER_TEMPLATE = [
-	FOLLOW_TEMPLATE,
-	...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
-	...ENTRY_TEMPLATE,
-];
-
-/**
- * All block types allowed inside the Rolling Coverage block's inner blocks.
- */
-const ALL_ALLOWED_BLOCKS = [
-	...ENTRY_ALLOWED_BLOCKS,
-	FOLLOW_BLOCK_NAME,
-	...STATE_BLOCK_NAMES,
-];
 
 /**
  * The Edited State bar's options, derived from ENTRY_EDITED_STATES.
@@ -151,76 +91,6 @@ const NEUTRAL_ENTRY_CONTEXT: EntryContext = {
 	postType: '',
 	queryId: 0,
 };
-
-/**
- * A rendering of the per-entry template's current blocks for one real
- * entry. Clicking it makes that entry the active one, swapping in the
- * editable template canvas in its place.
- *
- * @param {Object}   props          Component props.
- * @param {Object[]} props.blocks   The current per-entry template blocks.
- * @param {Function} props.onSelect Called when this entry is clicked.
- */
-function EntryBlockPreview( {
-	blocks,
-	onSelect,
-}: {
-	blocks: TemplateBlocks;
-	onSelect: () => void;
-} ) {
-	const blockPreviewProps = useBlockPreview( {
-		blocks,
-		props: { className: 'newspack-rolling-coverage-entry wp-block-post' },
-	} );
-
-	return (
-		<div
-			{ ...blockPreviewProps }
-			tabIndex={ 0 }
-			role="button"
-			onClick={ onSelect }
-			onKeyDown={ ( event ) => {
-				if ( 'Enter' === event.key || ' ' === event.key ) {
-					event.preventDefault();
-					onSelect();
-				}
-			} }
-		/>
-	);
-}
-
-const MemoizedEntryBlockPreview = memo( EntryBlockPreview );
-
-/**
- * Picks the template variant an entry renders with on the front end: the
- * pinned row only when pinned; "Read more" and a linked title only with a
- * published breakout.
- *
- * @param {Object}       templates                         Template variants.
- * @param {Object}       templates.pinned                  Full template, title linked.
- * @param {Object}       templates.unpinned                Without the pinned row, title linked.
- * @param {Object}       templates.pinnedWithoutBreakout   Without "Read more".
- * @param {Object}       templates.unpinnedWithoutBreakout Without either.
- * @param {EntryContext} context                           The entry.
- * @return {TemplateBlocks} The blocks to preview the entry with.
- */
-function previewTemplateFor(
-	templates: {
-		pinned: TemplateBlocks;
-		unpinned: TemplateBlocks;
-		pinnedWithoutBreakout: TemplateBlocks;
-		unpinnedWithoutBreakout: TemplateBlocks;
-	},
-	context: EntryContext
-): TemplateBlocks {
-	if ( context.hasBreakout ) {
-		return context.pinned ? templates.pinned : templates.unpinned;
-	}
-
-	return context.pinned
-		? templates.pinnedWithoutBreakout
-		: templates.unpinnedWithoutBreakout;
-}
 
 /**
  * A preset slug as core writes it in a custom property, mirroring
@@ -343,83 +213,11 @@ export default function Edit( {
 			 ).getBlocks( clientId ),
 		[ clientId ]
 	);
-	const templateBlocks = useMemo(
-		() =>
-			allBlocks.filter(
-				( block ) =>
-					! RENDER_ONCE_BLOCKS.includes( block.name ) &&
-					! isFollowButtons( block )
-			),
-		[ allBlocks ]
+	const { blocksForEntry } = useLayoutPreview(
+		allBlocks,
+		entryContexts,
+		entriesPerPage
 	);
-	const previewTemplates = useMemo( () => {
-		const hasCard = hasPinnedCard( templateBlocks );
-		const pinned = hasCard
-			? withoutClosingSeparator( templateBlocks )
-			: templateBlocks;
-		const unpinned = withoutPinnedCard(
-			withoutPinnedRow( templateBlocks )
-		);
-
-		const asUntitled = ( blocks: TemplateBlocks ) =>
-			withoutPostTitle( withCenteredTitleRows( blocks ) );
-		const titled = {
-			pinned: withLinkedTitle( pinned ),
-			unpinned: withLinkedTitle( unpinned ),
-			pinnedWithoutBreakout: withShapedPinnedCard(
-				withoutBreakoutLink( pinned ),
-				{ closeUp: true, isLastCard: false }
-			),
-			unpinnedWithoutBreakout: withoutBreakoutLink( unpinned ),
-		};
-
-		return {
-			hasCard,
-			titled,
-			untitled: {
-				pinned: asUntitled( titled.pinned ),
-				unpinned: asUntitled( titled.unpinned ),
-				pinnedWithoutBreakout: asUntitled(
-					titled.pinnedWithoutBreakout
-				),
-				unpinnedWithoutBreakout: asUntitled(
-					titled.unpinnedWithoutBreakout
-				),
-			},
-		};
-	}, [ templateBlocks ] );
-
-	// The last entry drops its separator once no more entries would load
-	// (see Rolling_Coverage_Block::shape_entry_template()).
-	const lastContext =
-		entryContexts.length < entriesPerPage
-			? entryContexts.at( -1 )
-			: undefined;
-	const lastPreviewBlocks = useMemo( () => {
-		if ( ! lastContext ) {
-			return undefined;
-		}
-
-		const blocks = previewTemplateFor(
-			lastContext.hasTitle === false
-				? previewTemplates.untitled
-				: previewTemplates.titled,
-			lastContext
-		);
-
-		if ( ! lastContext.pinned || ! previewTemplates.hasCard ) {
-			return withoutClosingSeparator( blocks );
-		}
-
-		const closing = blocks.at( -1 );
-
-		return closing && isPinnedCard( closing )
-			? withShapedPinnedCard( blocks, {
-					closeUp: false,
-					isLastCard: true,
-				} )
-			: blocks;
-	}, [ previewTemplates, lastContext ] );
 
 	// Disabled blocks drop out of List View and can't be selected, so only
 	// the current editor state's blocks show there.
@@ -1118,20 +916,8 @@ export default function Edit( {
 											value={ context }
 										>
 											{ ! isActive && (
-												<MemoizedEntryBlockPreview
-													blocks={
-														context ===
-															lastContext &&
-														lastPreviewBlocks
-															? lastPreviewBlocks
-															: previewTemplateFor(
-																	context.hasTitle ===
-																		false
-																		? previewTemplates.untitled
-																		: previewTemplates.titled,
-																	context
-																)
-													}
+												<EntryBlockPreview
+													blocks={ blocksForEntry( context ) }
 													onSelect={ () =>
 														setActiveEntryId(
 															context.postId

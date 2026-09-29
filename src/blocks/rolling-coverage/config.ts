@@ -34,6 +34,11 @@ const {
 	aiAvailable: AI_AVAILABLE,
 	newspackAdsAvailable: NEWSPACK_ADS_AVAILABLE,
 	newspackAdsPlacementEnabled: NEWSPACK_ADS_PLACEMENT_ENABLED,
+	defaultLayoutId: DEFAULT_LAYOUT_ID,
+	layoutsRestBase: LAYOUTS_REST_BASE,
+	adminUrl: ADMIN_URL,
+	isBlockTheme: IS_BLOCK_THEME,
+	entryPostType: ENTRY_POST_TYPE,
 } = config;
 
 export {
@@ -47,4 +52,9 @@ export {
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
 	CANONICAL_URL_META_KEY,
 	ONESIGNAL_CONFIGURED,
+	DEFAULT_LAYOUT_ID,
+	LAYOUTS_REST_BASE,
+	ADMIN_URL,
+	IS_BLOCK_THEME,
+	ENTRY_POST_TYPE,
 };
