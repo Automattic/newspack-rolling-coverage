@@ -32,9 +32,6 @@ class Entry_Ingestion_Service {
 	 */
 	const MUTEX_TTL = 60;
 
-	// Title truncation length.
-	const TITLE_LENGTH = 50;
-
 	// Skip result when the target coverage is archived.
 	const SKIP_ARCHIVED_COVERAGE = -1;
 
@@ -96,8 +93,8 @@ class Entry_Ingestion_Service {
 
 			$postarr = [
 				'post_type'    => Post_Type::CPT_SLUG,
-				'post_title'   => self::truncate( $payload->content_plain, self::TITLE_LENGTH ),
-				'post_content' => $payload->content_html,
+				'post_title'   => '',
+				'post_content' => wp_slash( $payload->content_html ),
 				'post_author'  => $bot_user_id,
 				'post_status'  => $auto_publish ? 'publish' : 'draft',
 			];
@@ -169,22 +166,5 @@ class Entry_Ingestion_Service {
 		);
 
 		return ! empty( $posts );
-	}
-
-	/**
-	 * Truncate a string to a given length, appending an ellipsis.
-	 *
-	 * @param string $text   Input text.
-	 * @param int    $length Max length.
-	 * @return string Truncated title.
-	 */
-	private static function truncate( string $text, int $length ): string {
-		$clean = trim( preg_replace( '/\s+/', ' ', $text ) );
-
-		if ( mb_strlen( $clean ) <= $length ) {
-			return $clean;
-		}
-
-		return mb_substr( $clean, 0, $length ) . '…';
 	}
 }

@@ -36,11 +36,19 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	private $outbound_requests = [];
 
 	/**
+	 * Slack user IDs whose `users.info` lookup times out.
+	 *
+	 * @var string[]
+	 */
+	private $failing_users = [];
+
+	/**
 	 * Answer every outbound HTTP request with a Slack `users.info` payload.
 	 */
 	public function set_up() {
 		parent::set_up();
 		$this->outbound_requests = [];
+		$this->failing_users     = [];
 		add_filter( 'pre_http_request', [ $this, 'mock_slack_api' ], 10, 3 );
 	}
 
@@ -63,6 +71,12 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	 */
 	public function mock_slack_api( $response, $parsed_args, $url ) {
 		$this->outbound_requests[] = $url;
+
+		parse_str( (string) wp_parse_url( $url, PHP_URL_QUERY ), $query );
+
+		if ( in_array( $query['user'] ?? '', $this->failing_users, true ) ) {
+			return new WP_Error( 'http_request_failed', 'Operation timed out' );
+		}
 
 		return [
 			'response' => [
@@ -320,6 +334,159 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'slack', get_post_meta( $entry->ID, Post_Type::META_ENTRY_SOURCE, true ), 'The entry should be marked as coming from Slack.' );
 		$this->assertSame( 'Riley Sample', get_post_meta( $entry->ID, Post_Type::META_SLACK_AUTHOR_NAME, true ), 'The Slack author name should be recorded.' );
 		$this->assertSame( '1767225600.000100', Slack_Config::get_channel_settings( self::CHANNEL_ID )['last_sync_ts'], 'The channel should remember the last message it ingested.' );
+	}
+
+	/**
+	 * A formatted message keeps its formatting in the entry, mentions show
+	 * the person's name, and the entry has no generated title.
+	 */
+	public function test_formatted_message_keeps_its_formatting() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+
+		$body = self::message_event_body(
+			[
+				'text'   => '*Polls closed.* Thanks <@U0COLLEAGUE>',
+				'blocks' => [
+					[
+						'type'     => 'rich_text',
+						'elements' => [
+							[
+								'type'     => 'rich_text_section',
+								'elements' => [
+									[
+										'type'  => 'text',
+										'text'  => 'Polls closed.',
+										'style' => [ 'bold' => true ],
+									],
+									[
+										'type' => 'text',
+										'text' => ' Thanks ',
+									],
+									[
+										'type'    => 'user',
+										'user_id' => 'U0COLLEAGUE',
+									],
+								],
+							],
+							[
+								'type'     => 'rich_text_list',
+								'style'    => 'bullet',
+								'elements' => [
+									[
+										'type'     => 'rich_text_section',
+										'elements' => [
+											[
+												'type' => 'link',
+												'url'  => 'https://example.test/results',
+												'text' => 'Results',
+											],
+										],
+									],
+								],
+							],
+						],
+					],
+				],
+			]
+		);
+
+		self::controller()->handle_event( self::webhook_request( $body ) );
+		$entries = self::get_coverage_entries( $coverage_id );
+
+		$this->assertCount( 1, $entries );
+		$this->assertStringContainsString( '<p><strong>Polls closed.</strong> Thanks @Riley Sample</p>', $entries[0]->post_content, 'Inline styles and mentions should be kept.' );
+		$this->assertStringContainsString( '<li><a href="https://example.test/results">Results</a></li>', $entries[0]->post_content, 'Lists and links should be kept.' );
+		$this->assertSame( '', $entries[0]->post_title, 'The entry should have no generated title.' );
+	}
+
+	/**
+	 * When the author lookup fails, Slack is likely slow, so mentions are not
+	 * looked up and show their Slack ID rather than add more waiting to the
+	 * webhook request.
+	 */
+	public function test_mentions_are_not_looked_up_when_the_author_lookup_fails() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$this->failing_users = [ 'U0REPORTER' ];
+
+		$body = self::message_event_body(
+			[
+				'text'   => 'Thanks <@U0COLLEAGUE>',
+				'blocks' => [
+					[
+						'type'     => 'rich_text',
+						'elements' => [
+							[
+								'type'     => 'rich_text_section',
+								'elements' => [
+									[
+										'type' => 'text',
+										'text' => 'Thanks ',
+									],
+									[
+										'type'    => 'user',
+										'user_id' => 'U0COLLEAGUE',
+									],
+								],
+							],
+						],
+					],
+				],
+			]
+		);
+
+		self::controller()->handle_event( self::webhook_request( $body ) );
+		$entries = self::get_coverage_entries( $coverage_id );
+
+		$this->assertCount( 1, $entries );
+		$this->assertStringContainsString( '<p>Thanks @U0COLLEAGUE</p>', $entries[0]->post_content );
+		$this->assertCount( 1, array_filter( $this->outbound_requests, fn( $url ) => false !== strpos( $url, 'users.info' ) ), 'Only the author should be looked up.' );
+	}
+
+	/**
+	 * Names already cached are used even when the author lookup fails, since
+	 * they cost no request.
+	 */
+	public function test_cached_mention_names_are_used_when_the_author_lookup_fails() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$this->failing_users = [ 'U0REPORTER' ];
+		set_transient( Slack_API_Client::TRANSIENT_USER_CACHE . 'U0COLLEAGUE', [ 'profile' => [ 'display_name' => 'Sam Rivera' ] ] );
+
+		$body = self::message_event_body(
+			[
+				'text'   => 'Thanks <@U0COLLEAGUE>',
+				'blocks' => [
+					[
+						'type'     => 'rich_text',
+						'elements' => [
+							[
+								'type'     => 'rich_text_section',
+								'elements' => [
+									[
+										'type' => 'text',
+										'text' => 'Thanks ',
+									],
+									[
+										'type'    => 'user',
+										'user_id' => 'U0COLLEAGUE',
+									],
+								],
+							],
+						],
+					],
+				],
+			]
+		);
+
+		self::controller()->handle_event( self::webhook_request( $body ) );
+		$entries = self::get_coverage_entries( $coverage_id );
+
+		$this->assertStringContainsString( '<p>Thanks @Sam Rivera</p>', $entries[0]->post_content );
 	}
 
 	/**

@@ -260,7 +260,7 @@ class Entry_Bindings {
 
 		$title = self::plain_text( get_the_title( $entry ) );
 
-		return '' !== $title ? $title : self::plain_text( wp_trim_words( strip_shortcodes( excerpt_remove_blocks( $entry->post_content ) ), 8 ) );
+		return '' !== $title ? $title : Post_Type::get_entry_summary( $entry );
 	}
 
 	/**

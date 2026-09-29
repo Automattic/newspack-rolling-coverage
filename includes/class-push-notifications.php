@@ -363,9 +363,11 @@ class Push_Notifications {
 	 * @return string Notification body text.
 	 */
 	private static function build_notification_content( WP_Post $entry ): string {
-		$excerpt = html_entity_decode( get_the_excerpt( $entry ), ENT_QUOTES, 'UTF-8' );
+		if ( ! has_excerpt( $entry ) ) {
+			return Post_Type::get_entry_summary( $entry, 15 );
+		}
 
-		return wp_trim_words( $excerpt, 15, '…' );
+		return wp_trim_words( html_entity_decode( get_the_excerpt( $entry ), ENT_QUOTES, 'UTF-8' ), 15, '…' );
 	}
 
 	/**

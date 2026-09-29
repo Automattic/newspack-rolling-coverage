@@ -74,7 +74,7 @@ const STATUS_ELEMENTS = Object.entries( POST_STATUS_LABELS ).map(
  * @return {string} Raw title or empty string.
  */
 function getRawTitle( item: Entry ): string {
-	return item.title?.rendered || '';
+	return item.title?.rendered || item.summary || '';
 }
 
 /**
