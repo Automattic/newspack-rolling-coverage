@@ -399,6 +399,11 @@ class Rolling_Coverage_Block {
 					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
 					'canonicalUrlMetaKey'         => Taxonomy::CANONICAL_URL_META_KEY,
 					'onesignalConfigured'         => Push_Notifications::is_onesignal_configured(),
+					'defaultLayoutId'             => Layout::get_default_layout_id(),
+					'layoutsRestBase'             => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/layouts' ) ),
+					'adminUrl'                    => esc_url_raw( admin_url() ),
+					'isBlockTheme'                => wp_is_block_theme(),
+					'entryPostType'               => Post_Type::CPT_SLUG,
 				]
 			);
 		}

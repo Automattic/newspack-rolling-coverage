@@ -1,0 +1,277 @@
+<?php
+/**
+ * Tests for the shared layout Rolling Coverage blocks sync to.
+ *
+ * @package Newspack_Rolling_Coverage
+ */
+
+use Newspack_Rolling_Coverage\Layout;
+use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
+
+/**
+ * A synced block renders the pattern's inner blocks; a detached one keeps
+ * its own; anything unusable falls back to the built-in default.
+ */
+class Test_Layout extends Rolling_Coverage_TestCase {
+
+	const MARKER = 'Shared layout marker';
+
+	/**
+	 * Markup for a layout pattern holding one paragraph as its entry template.
+	 *
+	 * @param string $text Paragraph text.
+	 * @return string
+	 */
+	private static function layout_markup( string $text = self::MARKER ): string {
+		return '<!-- wp:newspack-rolling-coverage/rolling-coverage --><!-- wp:paragraph --><p>' . $text . '</p><!-- /wp:paragraph --><!-- /wp:newspack-rolling-coverage/rolling-coverage -->';
+	}
+
+	/**
+	 * Create a layout pattern.
+	 *
+	 * @param string $content Pattern content.
+	 * @param string $status  Post status.
+	 * @return int Pattern ID.
+	 */
+	private static function create_layout( string $content, string $status = 'publish' ): int {
+		return self::factory()->post->create(
+			[
+				'post_type'    => 'wp_block',
+				'post_status'  => $status,
+				'post_content' => $content,
+			]
+		);
+	}
+
+	/**
+	 * Render a story block through the render_block_data filter, as core does.
+	 *
+	 * @param array  $attributes Block attributes.
+	 * @param string $inner      Saved inner markup.
+	 * @return string
+	 */
+	private static function render_story( array $attributes, string $inner = '' ): string {
+		$markup = '' === $inner
+			? '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->'
+			: '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $inner . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->';
+		$parsed = parse_blocks( $markup )[0];
+		$block  = apply_filters( 'render_block_data', $parsed, $parsed, null );
+
+		// Called directly: the block type registers from the built assets, which the test run doesn't have.
+		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+	}
+
+	/**
+	 * A synced block renders the layout its pattern holds.
+	 */
+	public function test_synced_block_renders_the_pattern_layout() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$layout_id = self::create_layout( self::layout_markup() );
+
+		$html = self::render_story(
+			[
+				'coverageId' => $coverage_id,
+				'layoutId'   => $layout_id,
+			]
+		);
+
+		$this->assertStringContainsString( self::MARKER, $html );
+	}
+
+	/**
+	 * A block without a layoutId keeps its own inner blocks.
+	 */
+	public function test_detached_block_keeps_its_own_layout() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::create_layout( self::layout_markup() );
+
+		$html = self::render_story( [ 'coverageId' => $coverage_id ], '<!-- wp:paragraph --><p>Local layout</p><!-- /wp:paragraph -->' );
+
+		$this->assertStringContainsString( 'Local layout', $html );
+		$this->assertStringNotContainsString( self::MARKER, $html );
+	}
+
+	/**
+	 * Editing the pattern changes what synced blocks render.
+	 */
+	public function test_pattern_edits_reach_synced_blocks() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$layout_id  = self::create_layout( self::layout_markup() );
+		$attributes = [
+			'coverageId' => $coverage_id,
+			'layoutId'   => $layout_id,
+		];
+
+		self::render_story( $attributes );
+		wp_update_post(
+			[
+				'ID'           => $layout_id,
+				'post_content' => self::layout_markup( 'Edited layout' ),
+			]
+		);
+
+		$this->assertStringContainsString( 'Edited layout', self::render_story( $attributes ) );
+	}
+
+	/**
+	 * A layout that cannot be used renders the built-in layout.
+	 *
+	 * @dataProvider unusable_layouts
+	 *
+	 * @param string $content Pattern content.
+	 * @param string $status  Pattern status.
+	 */
+	public function test_unusable_pattern_falls_back_to_the_default_layout( string $content, string $status ) {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$layout_id = self::create_layout( $content, $status );
+
+		$html = self::render_story(
+			[
+				'coverageId' => $coverage_id,
+				'layoutId'   => $layout_id,
+			]
+		);
+
+		$this->assertStringNotContainsString( self::MARKER, $html );
+		$this->assertStringContainsString( 'data-rc-share', $html, 'The built-in default layout should render.' );
+	}
+
+	/**
+	 * Layouts that cannot be used.
+	 *
+	 * @return array<string,array{string,string}>
+	 */
+	public function unusable_layouts(): array {
+		return [
+			'trashed'         => [ self::layout_markup(), 'trash' ],
+			'no layout block' => [ '<!-- wp:paragraph --><p>' . self::MARKER . '</p><!-- /wp:paragraph -->', 'publish' ],
+		];
+	}
+
+	/**
+	 * Only published patterns resolve.
+	 */
+	public function test_unpublished_pattern_is_never_rendered() {
+		foreach ( [ 'draft', 'private', 'pending' ] as $status ) {
+			$layout_id = self::create_layout( self::layout_markup(), $status );
+
+			$this->assertNull( Layout::get_layout_blocks( $layout_id ), "A {$status} pattern should not resolve." );
+		}
+
+		$this->assertNull( Layout::get_layout_blocks( self::factory()->post->create( [ 'post_content' => self::layout_markup() ] ) ), 'A regular post should not resolve.' );
+		$this->assertNull( Layout::get_layout_blocks( 999999 ), 'A missing post should not resolve.' );
+	}
+
+	/**
+	 * A layoutId pointing at nothing renders the built-in layout.
+	 */
+	public function test_missing_pattern_falls_back_to_the_default_layout() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+
+		$html = self::render_story(
+			[
+				'coverageId' => $coverage_id,
+				'layoutId'   => 999999,
+			]
+		);
+
+		$this->assertStringContainsString( 'data-rc-share', $html );
+	}
+
+	/**
+	 * The first create publishes and records the default layout.
+	 */
+	public function test_create_makes_the_default_layout_once() {
+		self::log_in_as( 'editor' );
+
+		$first = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
+		$this->assertSame( 201, $first->get_status() );
+		$id = $first->get_data()['id'];
+
+		$this->assertSame( $id, (int) get_option( Layout::DEFAULT_OPTION ) );
+		$this->assertSame( 'publish', get_post_status( $id ) );
+		$this->assertSame( 'wp_block', get_post_type( $id ) );
+		$this->assertSame( [ Layout::PATTERN_CATEGORY ], wp_get_object_terms( $id, 'wp_pattern_category', [ 'fields' => 'slugs' ] ) );
+		$this->assertSame( $id, Layout::get_default_layout_id() );
+	}
+
+	/**
+	 * A second create returns the existing layout instead of adding one.
+	 */
+	public function test_create_returns_the_existing_layout() {
+		self::log_in_as( 'editor' );
+		$id           = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$count_before = (int) wp_count_posts( 'wp_block' )->publish;
+
+		$second = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup( 'Other' ) ] );
+
+		$this->assertSame( 200, $second->get_status() );
+		$this->assertSame( $id, $second->get_data()['id'] );
+		$this->assertSame( $count_before, (int) wp_count_posts( 'wp_block' )->publish );
+	}
+
+	/**
+	 * A trashed default no longer resolves, so create makes a new one.
+	 */
+	public function test_create_recreates_a_trashed_default() {
+		self::log_in_as( 'editor' );
+		$id = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		wp_trash_post( $id );
+
+		$this->assertSame( 0, Layout::get_default_layout_id() );
+
+		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
+
+		$this->assertSame( 201, $response->get_status() );
+		$this->assertNotSame( $id, $response->get_data()['id'] );
+	}
+
+	/**
+	 * Posted content must be exactly one Rolling Coverage block.
+	 *
+	 * @dataProvider invalid_layout_content
+	 *
+	 * @param string $content Posted content.
+	 */
+	public function test_create_rejects_content_that_is_not_one_layout_block( string $content ) {
+		self::log_in_as( 'editor' );
+
+		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => $content ] );
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 0, (int) get_option( Layout::DEFAULT_OPTION, 0 ) );
+	}
+
+	/**
+	 * Content that is not one layout block.
+	 *
+	 * @return array<string,array{string}>
+	 */
+	public function invalid_layout_content(): array {
+		$layout = '<!-- wp:newspack-rolling-coverage/rolling-coverage --><!-- wp:paragraph --><p>x</p><!-- /wp:paragraph --><!-- /wp:newspack-rolling-coverage/rolling-coverage -->';
+
+		return [
+			'empty'           => [ '' ],
+			'other block'     => [ '<!-- wp:paragraph --><p>x</p><!-- /wp:paragraph -->' ],
+			'two layouts'     => [ $layout . $layout ],
+			'layout and more' => [ $layout . '<!-- wp:paragraph --><p>x</p><!-- /wp:paragraph -->' ],
+		];
+	}
+
+	/**
+	 * Users who cannot publish patterns cannot create the layout.
+	 */
+	public function test_create_is_closed_to_users_who_cannot_publish_patterns() {
+		self::log_in_as( 'contributor' );
+
+		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
+
+		$this->assertContains( $response->get_status(), [ 401, 403 ] );
+		$this->assertSame( 0, (int) get_option( Layout::DEFAULT_OPTION, 0 ) );
+	}
+}
