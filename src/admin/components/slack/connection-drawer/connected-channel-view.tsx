@@ -79,6 +79,7 @@ function ConnectedChannelView( {
 					{ __( 'Auto-publish', 'newspack-rolling-coverage' ) }
 				</span>
 				<ToggleControl
+					className="newspack-rolling-coverage-autopublish-toggle"
 					label={
 						<VisuallyHidden>
 							{ sprintf(
