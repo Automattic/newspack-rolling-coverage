@@ -361,8 +361,9 @@ export default function Edit( {
 		unsetBlockEditingMode,
 	] );
 
-	// Hidden wherever the site never renders it: without OneSignal, or on an
-	// archived coverage. It stays in the template for when it can render.
+	// Hidden wherever the site never renders it: without OneSignal, or when the
+	// coverage is archived or previewed as archived. It stays in the template
+	// for when it can render.
 	const isFollowHidden =
 		! ONESIGNAL_CONFIGURED ||
 		currentCoverage?.status === 'archived' ||
@@ -389,10 +390,7 @@ export default function Edit( {
 
 	// A hidden block still counts as the previous sibling for the entry gap,
 	// so the first block left showing in this editor state drops its margin.
-	const hiddenFollowCss = useMemo( () => {
-		if ( ! hiddenFollowIds.length ) {
-			return '';
-		}
+	const layoutCss = useMemo( () => {
 		const firstVisible = allBlocks.find(
 			( block ) =>
 				! hiddenFollowIds.includes( block.clientId ) &&
@@ -965,9 +963,7 @@ export default function Edit( {
 			<div { ...blockProps }>
 				{ coverageId ? (
 					<>
-						{ hiddenFollowCss && (
-							<style>{ hiddenFollowCss }</style>
-						) }
+						{ layoutCss && <style>{ layoutCss }</style> }
 						<EditedStateBar
 							options={ EDITED_STATE_OPTIONS }
 							value={ editedState }
