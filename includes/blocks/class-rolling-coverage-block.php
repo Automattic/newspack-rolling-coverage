@@ -607,7 +607,12 @@ class Rolling_Coverage_Block {
 			self::store_template_layout_styles( self::pinned_cards( $template ) );
 		}
 
-		self::store_template_layout_styles( self::title_rows( self::with_centered_title_rows( $template ) ) );
+		$title_rows = self::title_rows( $template );
+
+		if ( $title_rows ) {
+			self::store_template_layout_styles( $title_rows );
+			self::store_template_layout_styles( self::with_centered_title_rows( $title_rows ) );
+		}
 
 		if ( empty( $query->posts ) ) {
 			self::store_template_layout_styles( $template );
@@ -1209,6 +1214,17 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Whether an entry has a title to show. Slack entries have none; the
+	 * message is the entry.
+	 *
+	 * @param WP_Post $entry Entry post object.
+	 * @return bool
+	 */
+	public static function has_title( WP_Post $entry ): bool {
+		return '' !== trim( wp_strip_all_tags( get_the_title( $entry ) ) );
+	}
+
+	/**
 	 * Whether a parsed block is a row holding the post title: a horizontal
 	 * flex group with a Post Title block anywhere inside it.
 	 *
@@ -1242,8 +1258,8 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The rows holding the post title among parsed blocks, so the layout
-	 * styles of their centred form can be stored for an entry without a
-	 * title that arrives after the page loads.
+	 * styles of both their forms can be stored for entries with and without
+	 * a title that arrive after the page loads.
 	 *
 	 * @param array[] $blocks Parsed blocks.
 	 * @return array[]
@@ -1779,7 +1795,7 @@ class Rolling_Coverage_Block {
 			$layout_class
 		);
 
-		if ( '' === trim( $entry->post_title ) ) {
+		if ( ! self::has_title( $entry ) ) {
 			$template = self::with_centered_title_rows( $template );
 		}
 
@@ -2051,6 +2067,7 @@ class Rolling_Coverage_Block {
 		);
 
 		update_meta_cache( 'post', $query->posts );
+		_prime_post_caches( $query->posts, false, false );
 		_prime_post_caches(
 			array_filter( array_map( fn( $id ) => (int) get_post_meta( $id, Breakout::ENTRY_BREAKOUT_POST_ID_META, true ), $query->posts ) ),
 			true,
@@ -2076,7 +2093,7 @@ class Rolling_Coverage_Block {
 			'type'        => Post_Type::CPT_SLUG,
 			'pinned'      => Post_Type::is_pinned( $id ),
 			'hasBreakout' => null !== Breakout::get_published_breakout_url( $id ),
-			'hasTitle'    => '' !== trim( (string) get_post_field( 'post_title', $id ) ),
+			'hasTitle'    => self::has_title( get_post( $id ) ),
 		];
 	}
 

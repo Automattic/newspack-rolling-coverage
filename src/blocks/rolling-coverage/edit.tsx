@@ -66,6 +66,7 @@ import {
 	withoutClosingSeparator,
 	withShapedPinnedCard,
 	withCenteredTitleRows,
+	withoutPostTitle,
 	hasPinnedCard,
 	isPinnedCard,
 } from './template';
@@ -360,6 +361,8 @@ export default function Edit( {
 			withoutPinnedRow( templateBlocks )
 		);
 
+		const asUntitled = ( blocks: TemplateBlocks ) =>
+			withoutPostTitle( withCenteredTitleRows( blocks ) );
 		const titled = {
 			pinned: withLinkedTitle( pinned ),
 			unpinned: withLinkedTitle( unpinned ),
@@ -374,12 +377,12 @@ export default function Edit( {
 			hasCard,
 			titled,
 			untitled: {
-				pinned: withCenteredTitleRows( titled.pinned ),
-				unpinned: withCenteredTitleRows( titled.unpinned ),
-				pinnedWithoutBreakout: withCenteredTitleRows(
+				pinned: asUntitled( titled.pinned ),
+				unpinned: asUntitled( titled.unpinned ),
+				pinnedWithoutBreakout: asUntitled(
 					titled.pinnedWithoutBreakout
 				),
-				unpinnedWithoutBreakout: withCenteredTitleRows(
+				unpinnedWithoutBreakout: asUntitled(
 					titled.unpinnedWithoutBreakout
 				),
 			},

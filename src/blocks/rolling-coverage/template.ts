@@ -735,6 +735,31 @@ function withCenteredTitleRows<
 }
 
 /**
+ * The template without its Post Title blocks, as an entry without a title
+ * renders: core's Post Title block renders nothing for it, where its editor
+ * preview would show a placeholder.
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks without Post Title.
+ */
+function withoutPostTitle<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks
+		.filter( ( block ) => block.name !== 'core/post-title' )
+		.map( ( block ) =>
+			Array.isArray( block.innerBlocks )
+				? {
+						...block,
+						innerBlocks: withoutPostTitle(
+							block.innerBlocks as T[]
+						),
+					}
+				: block
+		);
+}
+
+/**
  * Block types allowed inside the per-entry template.
  */
 const ENTRY_ALLOWED_BLOCKS = [
@@ -813,4 +838,5 @@ export {
 	withoutClosingSeparator,
 	withShapedPinnedCard,
 	withCenteredTitleRows,
+	withoutPostTitle,
 };
