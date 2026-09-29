@@ -3,15 +3,6 @@
  */
 
 /**
- * Config localised by wp_localize_script in Coverage_Follow_Block::register_block().
- */
-interface FollowEditorConfig {
-	onesignalInstalled: boolean;
-	onesignalV3Active: boolean;
-	onesignalConfigured: boolean;
-}
-
-/**
  * Minimal shape of the OneSignal Web SDK surface used by view.ts, passed
  * into each OneSignalDeferred callback.
  */
@@ -36,4 +27,10 @@ interface OneSignalApi {
 	};
 }
 
-export type { FollowEditorConfig, OneSignalApi };
+declare global {
+	interface Window {
+		OneSignalDeferred?: Array< ( os: OneSignalApi ) => void >;
+	}
+}
+
+export type { OneSignalApi };

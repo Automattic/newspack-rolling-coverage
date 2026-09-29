@@ -7,8 +7,6 @@
 
 namespace Newspack_Rolling_Coverage;
 
-use WP_Block_Type;
-
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -29,31 +27,15 @@ class Coverage_Follow_Block {
 	}
 
 	/**
-	 * Registers the block type and localizes its editor script.
+	 * Registers the block type.
 	 */
 	public static function register_block() {
-		$block_type = register_block_type(
+		register_block_type(
 			NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/blocks/coverage-follow',
 			[
 				'render_callback' => [ __CLASS__, 'render_block' ],
 			]
 		);
-
-		if ( ! $block_type instanceof WP_Block_Type ) {
-			return;
-		}
-
-		foreach ( $block_type->editor_script_handles as $handle ) {
-			wp_localize_script(
-				$handle,
-				'newspackRollingCoverageFollow',
-				[
-					'onesignalInstalled'  => Push_Notifications::is_onesignal_installed(),
-					'onesignalV3Active'   => Push_Notifications::is_onesignal_v3_active(),
-					'onesignalConfigured' => Push_Notifications::is_onesignal_configured(),
-				]
-			);
-		}
 	}
 
 	/**

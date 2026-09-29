@@ -389,8 +389,6 @@ class Rolling_Coverage_Block {
 					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
 					'canonicalUrlMetaKey'         => Taxonomy::CANONICAL_URL_META_KEY,
 					'readMoreTextMetaKey'         => Breakout::ENTRY_READ_MORE_TEXT_META,
-					'onesignalInstalled'          => Push_Notifications::is_onesignal_installed(),
-					'onesignalV3Active'           => Push_Notifications::is_onesignal_v3_active(),
 					'onesignalConfigured'         => Push_Notifications::is_onesignal_configured(),
 				]
 			);

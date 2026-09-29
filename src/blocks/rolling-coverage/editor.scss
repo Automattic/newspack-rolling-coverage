@@ -1,4 +1,4 @@
-.newspack-rolling-coverage-status-control {
+.newspack-rolling-coverage-panel-group {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
@@ -46,14 +46,6 @@
 
 .newspack-rolling-coverage-ads-notice {
 	margin-bottom: 16px;
-}
-
-.newspack-rolling-coverage-onesignal-notice {
-	margin-bottom: 16px;
-
-	p {
-		margin: 0;
-	}
 }
 
 // Hides each editor-state block by default; shown per the active

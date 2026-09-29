@@ -58,8 +58,6 @@ interface BlockConfig {
 	statusMetaKey: string;
 	canonicalUrlMetaKey: string;
 	readMoreTextMetaKey: string;
-	onesignalInstalled: boolean;
-	onesignalV3Active: boolean;
 	onesignalConfigured: boolean;
 	adsDisabledMetaKey: string;
 	entriesPreviewRestBase: string;

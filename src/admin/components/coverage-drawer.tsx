@@ -76,7 +76,7 @@ const coverageFields = [
 			'newspack-rolling-coverage'
 		),
 		description: __(
-			'The page readers land on when they open a notification for this coverage.',
+			"The page readers land on when they open a link to one of this coverage's entries.",
 			'newspack-rolling-coverage'
 		),
 	},
