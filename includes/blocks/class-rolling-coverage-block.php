@@ -89,8 +89,8 @@ class Rolling_Coverage_Block {
 	 * The host page's post ID, captured at the start of render_block()
 	 * before the global $post is swapped to individual entries. Used by
 	 * Social_Sharing::get_entry_share_url() to build the share URL with
-	 * an rc_source pointing back to this page, and to link the pill of a feed
-	 * that opens at a shared entry back to the live feed.
+	 * an rc_source pointing back to this page, and to link the "Jump to
+	 * latest" button to the live feed.
 	 *
 	 * @var int
 	 */
@@ -688,7 +688,7 @@ class Rolling_Coverage_Block {
 				self::MARKUP_PREFIX,
 				$entries_html,
 				$follow_html,
-				self::render_new_entries_control( (bool) $shared_entry )
+				self::render_new_entries_control( $block, (bool) $shared_entry )
 			);
 		} finally {
 			self::$host_post_id = $previous_post_id;
@@ -837,28 +837,112 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The control fixed above the feed. In the normal view it is a button the
-	 * view script reveals when new entries wait. When the feed opens at a
-	 * shared entry it is a link to the live feed, so it works without the
-	 * view script.
+	 * The URL of the live feed: the host post's permalink when that post is
+	 * the page being viewed, otherwise the current URL without the shared
+	 * entry, kept on this site.
 	 *
-	 * @param bool $is_shared_view Whether the feed opens at a shared entry.
+	 * @return string
+	 */
+	public static function live_feed_url(): string {
+		$is_host_page = self::$host_post_id && is_singular() && get_queried_object_id() === self::$host_post_id;
+
+		return $is_host_page ? (string) get_permalink( self::$host_post_id ) : '/' . ltrim( esc_url_raw( remove_query_arg( Social_Sharing::ENTRY_QUERY_VAR ) ), '/' );
+	}
+
+	/**
+	 * The control fixed above the feed: the layout's "Jump to latest" button,
+	 * or the default one when the layout has none. It links to the live feed,
+	 * so it works without the view script. In the normal view it is hidden
+	 * until the view script reveals it when new entries wait; when the feed
+	 * opens at a shared entry it shows.
+	 *
+	 * @param WP_Block $block          The parent rolling-coverage block instance.
+	 * @param bool     $is_shared_view Whether the feed opens at a shared entry.
 	 * @return string Control HTML.
 	 */
-	private static function render_new_entries_control( bool $is_shared_view ): string {
-		if ( ! $is_shared_view ) {
-			return sprintf( '<button type="button" class="%s-new-entries" hidden></button>', self::MARKUP_PREFIX );
+	private static function render_new_entries_control( WP_Block $block, bool $is_shared_view ): string {
+		$latest_block = self::default_latest_buttons_block();
+
+		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner ) {
+			if ( Entry_Bindings::is_latest_buttons( $inner ) ) {
+				$latest_block = $inner;
+				break;
+			}
 		}
 
-		$is_host_page = self::$host_post_id && is_singular() && get_queried_object_id() === self::$host_post_id;
-		$url          = $is_host_page ? get_permalink( self::$host_post_id ) : '/' . ltrim( esc_url_raw( remove_query_arg( Social_Sharing::ENTRY_QUERY_VAR ) ), '/' );
+		$control = new WP_HTML_Tag_Processor( render_block( $latest_block ) );
 
-		return sprintf(
-			'<a class="%1$s-new-entries button wp-element-button" href="%2$s">%3$s</a>',
-			self::MARKUP_PREFIX,
-			esc_url( $url ),
-			esc_html__( 'Jump to latest', 'newspack-rolling-coverage' )
+		if ( ! $control->next_tag() ) {
+			return '';
+		}
+
+		$control->add_class( self::MARKUP_PREFIX . '-new-entries' );
+
+		if ( ! $is_shared_view ) {
+			$control->set_attribute( 'hidden', true );
+		}
+
+		return $control->get_updated_html();
+	}
+
+	/**
+	 * The default "Jump to latest" button, as the editor saves the one in the
+	 * default layout: a parsed Buttons block holding a button in the theme's
+	 * Contrast and Base colors with its Elevation 1 shadow, its link bound to
+	 * the live feed.
+	 *
+	 * @return array Parsed-block-shaped array.
+	 */
+	private static function default_latest_buttons_block(): array {
+		$name        = __( 'Jump to latest', 'newspack-rolling-coverage' );
+		$lock        = [
+			'remove' => true,
+			'move'   => false,
+		];
+		$class       = self::MARKUP_PREFIX . '-new-entries';
+		$open        = sprintf( '<div class="%s">', esc_attr( 'wp-block-buttons ' . $class ) );
+		$button_html = sprintf(
+			'<div class="wp-block-button"><a class="wp-block-button__link has-base-color has-contrast-background-color has-text-color has-background wp-element-button" style="box-shadow:var(--wp--preset--shadow--elevation-1)">%s</a></div>',
+			esc_html( $name )
 		);
+
+		return [
+			'blockName'    => 'core/buttons',
+			'attrs'        => [
+				'lock'      => $lock,
+				'metadata'  => [ 'name' => $name ],
+				'className' => $class,
+				'layout'    => [
+					'type'           => 'flex',
+					'justifyContent' => 'center',
+				],
+			],
+			'innerBlocks'  => [
+				[
+					'blockName'    => 'core/button',
+					'attrs'        => [
+						'backgroundColor' => 'contrast',
+						'textColor'       => 'base',
+						'lock'            => $lock,
+						'metadata'        => [
+							'name'     => $name,
+							'bindings' => [
+								'url' => [
+									'source' => Entry_Bindings::SOURCE_NAME,
+									'args'   => [ 'key' => 'latestUrl' ],
+								],
+							],
+						],
+						'style'           => [ 'shadow' => 'var:preset|shadow|elevation-1' ],
+					],
+					'innerBlocks'  => [],
+					'innerHTML'    => $button_html,
+					'innerContent' => [ $button_html ],
+				],
+			],
+			'innerHTML'    => $open . '</div>',
+			'innerContent' => [ $open, null, '</div>' ],
+		];
 	}
 
 	/**
@@ -1081,7 +1165,7 @@ class Rolling_Coverage_Block {
 		$template         = [];
 
 		foreach ( $inner_blocks as $inner_block ) {
-			if ( ! in_array( $inner_block['blockName'] ?? '', $singleton_blocks, true ) && ! Entry_Bindings::is_follow_buttons( $inner_block ) ) {
+			if ( ! in_array( $inner_block['blockName'] ?? '', $singleton_blocks, true ) && ! Entry_Bindings::is_follow_buttons( $inner_block ) && ! Entry_Bindings::is_latest_buttons( $inner_block ) ) {
 				$template[] = $inner_block;
 			}
 		}

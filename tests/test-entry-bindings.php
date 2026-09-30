@@ -340,7 +340,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$html = self::render_coverage_with_follow( $coverage_id );
 
 		$this->assertSame( 1, substr_count( $html, 'data-rc-follow' ), 'The follow button should render once.' );
-		$this->assertSame( 3, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button and one row per entry should render, so entries hold no follow button.' );
+		$this->assertSame( 4, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button, the jump to latest button and one row per entry should render, so entries hold no follow button.' );
 		$this->assertStringContainsString( 'data-tag="' . esc_attr( Push_Notifications::follow_tag( $coverage_id ) ) . '"', $html );
 	}
 

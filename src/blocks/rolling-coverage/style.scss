@@ -1,3 +1,7 @@
+:where(:root) {
+	--wp--preset--shadow--elevation-1: 0 1px 10px rgba(0, 0, 0, 0.07);
+}
+
 .wp-block-newspack-rolling-coverage-rolling-coverage {
 	--nrc-color-text: var(--wp--preset--color--contrast, #000);
 
@@ -18,33 +22,9 @@
 		z-index: 100;
 		top: calc(24px + env(safe-area-inset-top, 0px));
 		left: 50%;
-		min-height: 40px;
-		padding: 0.5em var(--wp--preset--spacing--50, 1.5em);
-		border: none;
-		border-radius: 8px;
-		background: #000;
-		color: #fff;
-		font-size: 0.875em;
-		font-weight: 500;
 		white-space: nowrap;
-		cursor: pointer;
-		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 		transform: translateX(-50%);
 		animation: newspack-rolling-coverage-pop-in 0.25s ease-out;
-		display: flex;
-		align-items: center;
-		text-decoration: none;
-
-		&.button:any-link,
-		&.button:any-link:hover,
-		&.button:any-link:focus,
-		&.button:any-link:visited,
-		&.button:any-link:active {
-			background: #000;
-			color: #fff;
-			line-height: 1.2;
-			text-decoration: none;
-		}
 
 		&[hidden] {
 			display: none;
@@ -52,8 +32,20 @@
 
 		@media (max-width: 480px) {
 			max-width: calc(100vw - 32px);
-			padding: 0.5em 0.9em;
-			font-size: 0.8125em;
+		}
+
+		.wp-block-button__link.has-contrast-background-color {
+			background-color: var(--wp--preset--color--contrast, #000);
+
+			&:hover,
+			&:focus,
+			&:active {
+				background-color: var(--wp--preset--color--contrast, #000) !important;
+			}
+		}
+
+		.wp-block-button__link.has-base-color {
+			color: var(--wp--preset--color--base, #fff);
 		}
 	}
 

@@ -79,25 +79,26 @@ function refreshRelativeDates(
  *
  * @param {HTMLElement} root        The block's outer wrapper element.
  * @param {HTMLElement} entriesList The block's entries list.
+ * @return {Function} Stops the updates.
  */
 function keepRelativeDatesCurrent(
 	root: HTMLElement,
 	entriesList: HTMLElement
-): void {
+): () => void {
 	const formatter = getFormatter();
 
 	if ( ! formatter ) {
-		return;
+		return () => {};
 	}
 
 	refreshRelativeDates( root, formatter );
 
-	window.setInterval(
+	const intervalId = window.setInterval(
 		() => refreshRelativeDates( root, formatter ),
 		REFRESH_INTERVAL_MS
 	);
 
-	new MutationObserver( ( mutations ) =>
+	const observer = new MutationObserver( ( mutations ) =>
 		mutations.forEach( ( mutation ) =>
 			mutation.addedNodes.forEach( ( node ) => {
 				if ( node instanceof Element ) {
@@ -105,7 +106,13 @@ function keepRelativeDatesCurrent(
 				}
 			} )
 		)
-	).observe( entriesList, { childList: true } );
+	);
+	observer.observe( entriesList, { childList: true } );
+
+	return () => {
+		window.clearInterval( intervalId );
+		observer.disconnect();
+	};
 }
 
 export { keepRelativeDatesCurrent };

@@ -12,7 +12,9 @@ import {
 	ENTRY_ALLOWED_BLOCKS,
 	ENTRY_EDITED_STATES,
 	FOLLOW_TEMPLATE,
+	LATEST_TEMPLATE,
 	isFollowButtons,
+	isLatestButtons,
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	withLinkedTitle,
@@ -59,11 +61,12 @@ export const STATE_BY_BLOCK_NAME: Record< string, string > = Object.fromEntries(
 );
 
 /**
- * Default inner-blocks template for the Rolling Coverage block: the follow
- * button at the top, then every editor state's blocks, then the per-entry
- * blocks.
+ * Default inner-blocks template for the Rolling Coverage block: the "Jump to
+ * latest" button and the follow button at the top, then every editor state's
+ * blocks, then the per-entry blocks.
  */
 export const INNER_TEMPLATE = [
+	LATEST_TEMPLATE,
 	FOLLOW_TEMPLATE,
 	...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
 	...ENTRY_TEMPLATE,
@@ -131,7 +134,8 @@ export function useLayoutPreview(
 			allBlocks.filter(
 				( block ) =>
 					! RENDER_ONCE_BLOCKS.includes( block.name ) &&
-					! isFollowButtons( block )
+					! isFollowButtons( block ) &&
+					! isLatestButtons( block )
 			),
 		[ allBlocks ]
 	);

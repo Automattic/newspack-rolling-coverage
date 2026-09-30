@@ -1,7 +1,7 @@
 /**
  * WordPress dependencies
  */
-import { _n, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -125,7 +125,7 @@ function initBlock( root: HTMLElement ): void {
 	const entriesList: HTMLElement = entriesListEl;
 	const restBaseUrl: string = restUrl;
 
-	keepRelativeDatesCurrent( root, entriesList );
+	const stopRelativeDates = keepRelativeDatesCurrent( root, entriesList );
 
 	const pollInterval = parseInt( root.dataset.pollInterval || '10', 10 );
 	const entriesPerPage = parseInt( root.dataset.entriesPerPage || '20', 10 );
@@ -134,9 +134,13 @@ function initBlock( root: HTMLElement ): void {
 	const sentinel = root.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-sentinel'
 	);
-	const newEntriesButton = root.querySelector< HTMLElement >(
+	const newEntriesControl = root.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-new-entries'
 	);
+	const newEntriesLink =
+		newEntriesControl?.querySelector< HTMLElement >(
+			'.wp-block-button__link'
+		) ?? null;
 	const statusEl = root.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-status'
 	);
@@ -150,6 +154,8 @@ function initBlock( root: HTMLElement ): void {
 	let before = root.dataset.before || '';
 	let hasMore = root.dataset.hasMore === '1';
 	let isLoadingMore = false;
+	let isJumping = false;
+	let isDisposed = false;
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
 	let polledCount = 0;
@@ -359,7 +365,7 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Adds entries to the pending queue.
 	 *
-	 * Updates the "X new posts" button label and visibility.
+	 * Updates the "X new posts" control label and visibility.
 	 *
 	 * @param {PendingEntry[]} newEntries Newly published entries.
 	 * @return {void}
@@ -367,14 +373,14 @@ function initBlock( root: HTMLElement ): void {
 	function queueNewEntries( newEntries: PendingEntry[] ): void {
 		pendingNewEntries.unshift( ...newEntries );
 
-		if ( ! newEntriesButton ) {
+		if ( ! newEntriesControl || ! newEntriesLink ) {
 			return;
 		}
 
 		const label = newEntriesLabel( pendingNewEntries.length );
 
-		newEntriesButton.textContent = label;
-		newEntriesButton.hidden = false;
+		newEntriesLink.textContent = label;
+		newEntriesControl.hidden = false;
 		announce( label );
 	}
 
@@ -402,24 +408,225 @@ function initBlock( root: HTMLElement ): void {
 		cleanupFns.push( () => target.removeEventListener( type, handler ) );
 	}
 
-	// Removes all event listeners, observers, and pending timeouts.
+	// Removes all event listeners, observers, timers and pending requests'
+	// effects, and lets the block be initialized again.
 	function cleanup(): void {
+		isDisposed = true;
 		cancelPoll();
+		stopRelativeDates();
+		entrySeenObserver?.disconnect();
 		cleanupFns.forEach( ( fn ) => fn() );
 		cleanupFns.length = 0;
+		delete root.dataset.rcInitialized;
 	}
 
-	if ( newEntriesButton && ! isEntryView ) {
-		const onNewEntriesClick = () => {
+	/**
+	 * Where the page scrolls to show the top of the block.
+	 *
+	 * @return {number} The vertical scroll position.
+	 */
+	function blockTopY(): number {
+		return root.getBoundingClientRect().top + window.scrollY - 24;
+	}
+
+	/**
+	 * Finds this block in a fetched copy of the page: the block of the same
+	 * coverage, at the same position among that coverage's blocks.
+	 *
+	 * @param {Document} doc The fetched page.
+	 * @return {HTMLElement | null} The block, or null if the page doesn't hold it.
+	 */
+	function findBlockIn( doc: Document ): HTMLElement | null {
+		const selector = `${ BLOCK_SELECTOR }[data-coverage-id="${ cssEscape(
+			coverageId
+		) }"]`;
+		const position = Array.from(
+			document.querySelectorAll< HTMLElement >( selector )
+		).indexOf( root );
+
+		return (
+			doc.querySelectorAll< HTMLElement >( selector )[ position ] ?? null
+		);
+	}
+
+	/**
+	 * Fetches the live feed's page and returns this block from it, when the
+	 * block can replace the shared view in place. A block holding ads can't:
+	 * they need the page's own ad setup to run.
+	 *
+	 * @param {string} url The live feed's URL.
+	 * @return {Promise<HTMLElement | null>} The live block, or null to navigate instead.
+	 */
+	async function fetchLiveBlock(
+		url: string
+	): Promise< HTMLElement | null > {
+		try {
+			const response = await fetch( url );
+
+			if ( ! response.ok ) {
+				return null;
+			}
+
+			const live = findBlockIn(
+				new DOMParser().parseFromString(
+					await response.text(),
+					'text/html'
+				)
+			);
+
+			if (
+				! live ||
+				live.dataset.view === 'entry' ||
+				live.querySelector( '.newspack_global_ad' ) ||
+				! live.querySelector( '.newspack-rolling-coverage-entries' ) ||
+				! live.querySelector( '.newspack-rolling-coverage-new-entries' )
+			) {
+				return null;
+			}
+
+			return live;
+		} catch {
+			return null;
+		}
+	}
+
+	/**
+	 * Turns the shared view into the live feed: takes over the live block's
+	 * entries, cursors and control, then starts the block again on the same
+	 * element, as a freshly loaded normal view.
+	 *
+	 * @param {HTMLElement} live The live block, from the fetched page.
+	 * @param {string}      url  The live feed's URL.
+	 * @return {void}
+	 */
+	function showLiveBlock( live: HTMLElement, url: string ): void {
+		const liveEntries = live.querySelector< HTMLElement >(
+			'.newspack-rolling-coverage-entries'
+		);
+		const liveControl = live.querySelector< HTMLElement >(
+			'.newspack-rolling-coverage-new-entries'
+		);
+		const control = liveControl
+			? parseElement( liveControl.outerHTML )
+			: null;
+
+		cleanup();
+
+		entriesList.replaceChildren(
+			parseFragment( liveEntries?.innerHTML ?? '' )
+		);
+
+		if ( control ) {
+			newEntriesControl?.replaceWith( control );
+		}
+
+		( [ 'cursor', 'before', 'hasMore', 'templateKey' ] as const ).forEach(
+			( key ) => {
+				root.dataset[ key ] = live.dataset[ key ] ?? '';
+			}
+		);
+		delete root.dataset.view;
+
+		window.history.replaceState( window.history.state, '', url );
+
+		initBlock( root );
+	}
+
+	/**
+	 * Replaces the shared view with the live feed without leaving the page,
+	 * landing at the top of the block. Navigates to the live feed instead when
+	 * it can't be shown in place.
+	 *
+	 * @param {string} url The live feed's URL.
+	 * @return {Promise<void>} Resolves when the live feed shows or the page navigates.
+	 */
+	async function jumpToLatest( url: string ): Promise< void > {
+		isJumping = true;
+		newEntriesControl?.setAttribute( 'aria-busy', 'true' );
+
+		const live = await fetchLiveBlock( url );
+
+		if ( isDisposed ) {
+			return;
+		}
+
+		if ( ! live ) {
+			window.location.assign( url );
+			return;
+		}
+
+		const reducesMotion = window.matchMedia(
+			'(prefers-reduced-motion: reduce)'
+		).matches;
+		const finish = () => {
+			entriesList.setAttribute( 'tabindex', '-1' );
+			entriesList.focus( { preventScroll: true } );
+			announce(
+				__( 'Showing the latest posts.', 'newspack-rolling-coverage' )
+			);
+		};
+
+		if (
+			typeof document.startViewTransition === 'function' &&
+			! reducesMotion
+		) {
+			document.startViewTransition( () => {
+				showLiveBlock( live, url );
+				window.scrollTo( { top: blockTopY(), behavior: 'instant' } );
+				finish();
+			} );
+
+			return;
+		}
+
+		showLiveBlock( live, url );
+		window.scrollTo( {
+			top: blockTopY(),
+			behavior: reducesMotion ? 'instant' : 'smooth',
+		} );
+		finish();
+	}
+
+	if ( newEntriesControl && newEntriesLink ) {
+		const onNewEntriesClick = ( event: MouseEvent ) => {
+			// Any other click keeps the link's own behavior, e.g. a new tab.
+			if (
+				event.button !== 0 ||
+				event.metaKey ||
+				event.ctrlKey ||
+				event.shiftKey ||
+				event.altKey
+			) {
+				return;
+			}
+
+			if ( isEntryView ) {
+				const href = newEntriesLink.getAttribute( 'href' );
+				const url = href ? new URL( href, window.location.href ) : null;
+
+				if ( ! url || url.origin !== window.location.origin ) {
+					return;
+				}
+
+				event.preventDefault();
+
+				if ( ! isJumping ) {
+					jumpToLatest( url.toString() );
+				}
+
+				return;
+			}
+
+			event.preventDefault();
+
 			if ( pendingNewEntries.length === 0 ) {
 				return;
 			}
 
 			const entries = takePendingEntries();
-			newEntriesButton.hidden = true;
+			newEntriesControl.hidden = true;
 
-			const targetY =
-				root.getBoundingClientRect().top + window.scrollY - 24;
+			const targetY = blockTopY();
 
 			insertNewEntries( entries );
 
@@ -428,9 +635,9 @@ function initBlock( root: HTMLElement ): void {
 				behavior: 'smooth',
 			} );
 		};
-		newEntriesButton.addEventListener( 'click', onNewEntriesClick );
+		newEntriesLink.addEventListener( 'click', onNewEntriesClick );
 		cleanupFns.push( () =>
-			newEntriesButton!.removeEventListener( 'click', onNewEntriesClick )
+			newEntriesLink.removeEventListener( 'click', onNewEntriesClick )
 		);
 	}
 
@@ -444,14 +651,18 @@ function initBlock( root: HTMLElement ): void {
 	function checkIfScrolledBackToTop(): void {
 		scrollCheckScheduled = false;
 
-		if ( pendingNewEntries.length === 0 || isScrolledPastTop() ) {
+		if (
+			isDisposed ||
+			pendingNewEntries.length === 0 ||
+			isScrolledPastTop()
+		) {
 			return;
 		}
 
 		const entries = takePendingEntries();
 
-		if ( newEntriesButton ) {
-			newEntriesButton.hidden = true;
+		if ( newEntriesControl ) {
+			newEntriesControl.hidden = true;
 		}
 
 		insertNewEntries( entries );
@@ -550,8 +761,8 @@ function initBlock( root: HTMLElement ): void {
 
 			const label = newEntriesLabel( countedEntryIds.size );
 
-			if ( newEntriesButton ) {
-				newEntriesButton.textContent = label;
+			if ( newEntriesLink ) {
+				newEntriesLink.textContent = label;
 			}
 			announce( label );
 
@@ -818,6 +1029,11 @@ function initBlock( root: HTMLElement ): void {
 			if ( response.ok ) {
 				const data: PollResponse = await response.json();
 
+				// The block was cleaned up meanwhile, so this reply is no longer its own.
+				if ( isDisposed ) {
+					return;
+				}
+
 				if ( data.overflow && isEntryView ) {
 					// A reload lands on the same shared URL, so there is nothing to gain from one.
 					return;
@@ -848,7 +1064,9 @@ function initBlock( root: HTMLElement ): void {
 			console.error( error ); // eslint-disable-line no-console
 		}
 
-		schedulePoll();
+		if ( ! isDisposed ) {
+			schedulePoll();
+		}
 	}
 
 	/**
@@ -909,6 +1127,12 @@ function initBlock( root: HTMLElement ): void {
 			const response = await fetch( url.toString() );
 			if ( response.ok ) {
 				const data: PageResponse = await response.json();
+
+				// The block was cleaned up meanwhile, so this reply is no longer its own.
+				if ( isDisposed ) {
+					return;
+				}
+
 				if ( data.count > 0 ) {
 					const fragment = parseFragment( data.html );
 

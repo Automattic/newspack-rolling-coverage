@@ -60,6 +60,12 @@
 	}
 }
 
+.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout > .newspack-rolling-coverage-new-entries {
+	position: static;
+	transform: none;
+	animation: none;
+}
+
 .newspack-rolling-coverage-layout > .wp-block,
 .newspack-rolling-coverage-entry > .wp-block,
 .newspack-rolling-coverage-pinned-card:not(.is-layout-flex, .is-layout-grid) > .wp-block,

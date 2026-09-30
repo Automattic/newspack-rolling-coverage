@@ -15,7 +15,8 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Supplies the values core blocks in the Rolling Coverage template are
  * bound to: per entry, the breakout post's link and label, the share link and
- * the pinned label; per coverage, the follow button's notification tag.
+ * the pinned label; per coverage, the follow button's notification tag and
+ * the link to the live feed.
  */
 class Entry_Bindings {
 
@@ -87,6 +88,10 @@ class Entry_Bindings {
 			$status      = (string) ( $block->context[ self::COVERAGE_STATUS_CONTEXT ] ?? 'active' );
 
 			return $coverage_id && Coverage_Follow_Block::should_render( $status ) ? Push_Notifications::follow_tag( $coverage_id ) : null;
+		}
+
+		if ( 'latestUrl' === ( $source_args['key'] ?? '' ) ) {
+			return Rolling_Coverage_Block::live_feed_url();
 		}
 
 		$entry_id = (int) ( $block->context['postId'] ?? 0 );
@@ -388,6 +393,29 @@ class Entry_Bindings {
 	 * @return bool
 	 */
 	public static function is_follow_buttons( array $parsed_block ): bool {
+		return self::is_buttons_bound_to( $parsed_block, 'followTag' );
+	}
+
+	/**
+	 * Whether a parsed block is the Rolling Coverage "Jump to latest" button:
+	 * a core Buttons block holding a button bound to the live feed's link.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_latest_buttons( array $parsed_block ): bool {
+		return self::is_buttons_bound_to( $parsed_block, 'latestUrl' );
+	}
+
+	/**
+	 * Whether a parsed block is a core Buttons block holding a button whose
+	 * link is bound to one of this source's values.
+	 *
+	 * @param array  $parsed_block Parsed block.
+	 * @param string $key          The bound value's key.
+	 * @return bool
+	 */
+	private static function is_buttons_bound_to( array $parsed_block, string $key ): bool {
 		if ( 'core/buttons' !== ( $parsed_block['blockName'] ?? '' ) ) {
 			return false;
 		}
@@ -395,7 +423,7 @@ class Entry_Bindings {
 		foreach ( $parsed_block['innerBlocks'] ?? [] as $inner_block ) {
 			$binding = $inner_block['attrs']['metadata']['bindings']['url'] ?? [];
 
-			if ( self::SOURCE_NAME === ( $binding['source'] ?? '' ) && 'followTag' === ( $binding['args']['key'] ?? '' ) ) {
+			if ( self::SOURCE_NAME === ( $binding['source'] ?? '' ) && $key === ( $binding['args']['key'] ?? '' ) ) {
 				return true;
 			}
 		}

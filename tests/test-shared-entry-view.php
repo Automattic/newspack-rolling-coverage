@@ -5,6 +5,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Entry_Bindings;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Social_Sharing;
@@ -16,7 +17,19 @@ use Newspack_Rolling_Coverage\Taxonomy;
  */
 class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
-	const HIDDEN_BUTTON = '<button type="button" class="newspack-rolling-coverage-new-entries" hidden>';
+	const CONTROL_CLASS = 'newspack-rolling-coverage-new-entries';
+
+	/**
+	 * A customized "Jump to latest" button, as the editor saves it.
+	 */
+	const CUSTOM_LATEST_MARKUP = '<!-- wp:buttons {"className":"is-custom","layout":{"type":"flex","justifyContent":"center"}} --><div class="wp-block-buttons is-custom">'
+		. '<!-- wp:button {"backgroundColor":"accent","metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"latestUrl"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link has-accent-background-color has-background wp-element-button">Back to live</a></div><!-- /wp:button -->'
+		. '</div><!-- /wp:buttons -->';
+
+	/**
+	 * An entry's blocks, as the editor saves them.
+	 */
+	const ENTRY_MARKUP = '<!-- wp:post-title /--><!-- wp:post-content /-->';
 
 	/**
 	 * Coverage term ID.
@@ -104,15 +117,81 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	 * @return string
 	 */
 	private function render_with_shared( $slug, int $coverage_id = 0 ): string {
+		return $this->render_layout_with_shared( $slug, '', $coverage_id );
+	}
+
+	/**
+	 * Render the block holding a saved layout, with a shared entry in the query.
+	 *
+	 * @param string|array $slug        Value of the entry query var.
+	 * @param string       $layout      The block's inner blocks, as the editor saves them; the default layout when empty.
+	 * @param int          $coverage_id Coverage to render; the fixture's when 0.
+	 * @return string
+	 */
+	private function render_layout_with_shared( $slug, string $layout, int $coverage_id = 0 ): string {
 		set_query_var( Social_Sharing::ENTRY_QUERY_VAR, $slug );
 
 		$attributes = [
 			'coverageId'     => $coverage_id ? $coverage_id : $this->coverage_id,
 			'entriesPerPage' => 2,
 		];
-		$parsed     = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$name       = 'wp:newspack-rolling-coverage/rolling-coverage';
+		$parsed     = parse_blocks(
+			'' === $layout
+				? '<!-- ' . $name . ' ' . wp_json_encode( $attributes ) . ' /-->'
+				: '<!-- ' . $name . ' ' . wp_json_encode( $attributes ) . ' -->' . $layout . '<!-- /' . $name . ' -->'
+		)[0];
 
 		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $parsed ) );
+	}
+
+	/**
+	 * The control above the feed, as rendered: its wrapper and its link.
+	 *
+	 * @param string $html Rendered HTML.
+	 * @return array {
+	 *     @type int         $count   How many controls the HTML holds.
+	 *     @type string      $tag     The wrapper's tag name.
+	 *     @type string      $classes The wrapper's classes.
+	 *     @type bool        $hidden  Whether the wrapper is hidden.
+	 *     @type string      $link    The link's classes.
+	 *     @type string|null $href    The link's URL.
+	 *     @type string|null $style   The link's inline style.
+	 *     @type string      $text    The link's text.
+	 * }
+	 */
+	private function control( string $html ): array {
+		$control = [
+			'count'   => substr_count( $html, self::CONTROL_CLASS ),
+			'tag'     => '',
+			'classes' => '',
+			'hidden'  => false,
+			'link'    => '',
+			'href'    => null,
+			'style'   => null,
+			'text'    => '',
+		];
+		$tags    = new WP_HTML_Tag_Processor( $html );
+
+		if ( ! $tags->next_tag( [ 'class_name' => self::CONTROL_CLASS ] ) ) {
+			return $control;
+		}
+
+		$control['tag']     = $tags->get_tag();
+		$control['classes'] = (string) $tags->get_attribute( 'class' );
+		$control['hidden']  = null !== $tags->get_attribute( 'hidden' );
+
+		if ( $tags->next_tag( [ 'class_name' => 'wp-block-button__link' ] ) && 'A' === $tags->get_tag() ) {
+			$control['link']  = (string) $tags->get_attribute( 'class' );
+			$control['href']  = $tags->get_attribute( 'href' );
+			$control['style'] = $tags->get_attribute( 'style' );
+
+			preg_match( '#<a\b[^>]*\bwp-block-button__link\b[^>]*>([^<]*)</a>#', substr( $html, (int) strpos( $html, self::CONTROL_CLASS ) ), $match );
+
+			$control['text'] = html_entity_decode( $match[1] ?? '' );
+		}
+
+		return $control;
 	}
 
 	/**
@@ -157,7 +236,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$html = $this->render_with_shared( 'entry-5' );
 
 		$this->assertStringNotContainsString( 'data-view=', $html );
-		$this->assertStringContainsString( self::HIDDEN_BUTTON, $html );
+		$this->assertTrue( $this->control( $html )['hidden'] );
 		$this->assertSame( $this->ids( 'entry-6', 'entry-5' ), $this->entry_ids_in( $html ) );
 	}
 
@@ -170,8 +249,87 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'data-view="entry"', $html );
 		$this->assertSame( $this->ids( 'entry-3', 'entry-2' ), $this->entry_ids_in( $html ) );
 		$this->assertStringContainsString( 'data-has-more="1"', $html );
-		$this->assertStringContainsString( '<a class="newspack-rolling-coverage-new-entries button wp-element-button" href="' . esc_url( get_permalink( $this->page_id ) ) . '">Jump to latest</a>', $html );
-		$this->assertStringNotContainsString( '<button type="button" class="newspack-rolling-coverage-new-entries"', $html );
+
+		$control = $this->control( $html );
+
+		$this->assertSame( 1, $control['count'] );
+		$this->assertSame( 'DIV', $control['tag'] );
+		$this->assertContains( 'wp-block-buttons', explode( ' ', $control['classes'] ) );
+		$this->assertFalse( $control['hidden'] );
+		$this->assertSame( get_permalink( $this->page_id ), $control['href'] );
+		$this->assertSame( 'Jump to latest', $control['text'] );
+		$this->assertSame( 'wp-block-button__link has-base-color has-contrast-background-color has-text-color has-background wp-element-button', $control['link'] );
+		$this->assertSame( 'box-shadow:var(--wp--preset--shadow--elevation-1)', $control['style'] );
+	}
+
+	/**
+	 * The normal view holds the same control, hidden until new entries wait, linking to the page itself.
+	 */
+	public function test_normal_view_holds_the_same_control_hidden() {
+		$shared = $this->control( $this->render_with_shared( 'entry-3' ) );
+		$normal = $this->control( $this->render_with_shared( '' ) );
+
+		$this->assertTrue( $normal['hidden'] );
+		$this->assertSame( 1, $normal['count'] );
+		$this->assertSame( get_permalink( $this->page_id ), $normal['href'] );
+		$this->assertSame(
+			$shared,
+			array_merge( $normal, [ 'hidden' => false ] ),
+			'Both views render the one control; only its visibility differs.'
+		);
+	}
+
+	/**
+	 * A layout's own "Jump to latest" button is the control, with its text and settings, in both views.
+	 */
+	public function test_customized_latest_button_is_the_control() {
+		$layout = self::CUSTOM_LATEST_MARKUP . self::ENTRY_MARKUP;
+
+		$shared = $this->control( $this->render_layout_with_shared( 'entry-3', $layout ) );
+
+		$this->assertSame( 1, $shared['count'] );
+		$this->assertFalse( $shared['hidden'] );
+		$this->assertContains( 'is-custom', explode( ' ', $shared['classes'] ) );
+		$this->assertContains( self::CONTROL_CLASS, explode( ' ', $shared['classes'] ), 'The wrapper carries the control class even when the layout lost it.' );
+		$this->assertSame( 'Back to live', $shared['text'] );
+		$this->assertSame( 'wp-block-button__link has-accent-background-color has-background wp-element-button', $shared['link'] );
+		$this->assertNull( $shared['style'] );
+		$this->assertSame( get_permalink( $this->page_id ), $shared['href'] );
+
+		$normal = $this->control( $this->render_layout_with_shared( '', $layout ) );
+
+		$this->assertTrue( $normal['hidden'] );
+		$this->assertSame( 'Back to live', $normal['text'] );
+	}
+
+	/**
+	 * The "Jump to latest" button renders once above the feed, never inside an entry.
+	 */
+	public function test_latest_button_is_not_rendered_inside_entries() {
+		$html    = $this->render_layout_with_shared( 'entry-3', self::CUSTOM_LATEST_MARKUP . self::ENTRY_MARKUP );
+		$entries = substr( $html, (int) strpos( $html, 'class="newspack-rolling-coverage-entries"' ) );
+
+		$this->assertSame( $this->ids( 'entry-3', 'entry-2' ), $this->entry_ids_in( $entries ) );
+		$this->assertSame( 1, substr_count( $html, 'Back to live' ) );
+		$this->assertStringNotContainsString( 'Back to live', $entries );
+		$this->assertStringNotContainsString( 'wp-block-button', $entries );
+	}
+
+	/**
+	 * The "Jump to latest" buttons are told apart from every other Buttons block by their binding.
+	 */
+	public function test_latest_buttons_are_recognized_by_their_binding() {
+		$latest = parse_blocks( self::CUSTOM_LATEST_MARKUP )[0];
+		$follow = $latest;
+
+		$follow['innerBlocks'][0]['attrs']['metadata']['bindings']['url']['args']['key'] = 'followTag';
+
+		$this->assertTrue( Entry_Bindings::is_latest_buttons( $latest ) );
+		$this->assertFalse( Entry_Bindings::is_follow_buttons( $latest ) );
+		$this->assertFalse( Entry_Bindings::is_latest_buttons( $follow ) );
+		$this->assertTrue( Entry_Bindings::is_follow_buttons( $follow ) );
+		$this->assertFalse( Entry_Bindings::is_latest_buttons( $latest['innerBlocks'][0] ), 'The button alone is not the Buttons block.' );
+		$this->assertFalse( Entry_Bindings::is_latest_buttons( parse_blocks( '<!-- wp:buttons --><div class="wp-block-buttons"></div><!-- /wp:buttons -->' )[0] ) );
 	}
 
 	/**
@@ -259,7 +417,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$html = $this->render_with_shared( $shared );
 
 		$this->assertStringNotContainsString( 'data-view=', $html );
-		$this->assertStringContainsString( self::HIDDEN_BUTTON, $html );
+		$this->assertTrue( $this->control( $html )['hidden'] );
 	}
 
 	/**
@@ -412,9 +570,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	 * @return string
 	 */
 	private function pill_href( string $html ): string {
-		preg_match( '/<a class="newspack-rolling-coverage-new-entries[^"]*" href="([^"]*)"/', $html, $match );
-
-		return html_entity_decode( $match[1] ?? '' );
+		return (string) $this->control( $html )['href'];
 	}
 
 	/**
