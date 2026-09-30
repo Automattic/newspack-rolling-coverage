@@ -31,6 +31,17 @@
 		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 		transform: translateX(-50%);
 		animation: newspack-rolling-coverage-pop-in 0.25s ease-out;
+		display: flex;
+		align-items: center;
+		text-decoration: none;
+
+		&:hover,
+		&:focus,
+		&:visited,
+		&:active {
+			color: #fff;
+			text-decoration: none;
+		}
 
 		&[hidden] {
 			display: none;

@@ -134,7 +134,7 @@ function initBlock( root: HTMLElement ): void {
 	const sentinel = root.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-sentinel'
 	);
-	const newEntriesButton = root.querySelector< HTMLButtonElement >(
+	const newEntriesButton = root.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-new-entries'
 	);
 	const statusEl = root.querySelector< HTMLElement >(
@@ -142,6 +142,7 @@ function initBlock( root: HTMLElement ): void {
 	);
 
 	const status = root.dataset.status || 'active';
+	const isEntryView = root.dataset.view === 'entry';
 
 	const coverageId = root.dataset.coverageId || '0';
 
@@ -152,6 +153,7 @@ function initBlock( root: HTMLElement ): void {
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
 	let polledCount = 0;
+	let newEntryCount = 0;
 	let backlogOffset = entriesPerPage;
 
 	// Tracks forward-poll health so a sustained outage reports one error per
@@ -335,6 +337,25 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Label for the control that tells the reader new entries wait.
+	 *
+	 * @param {number} count How many new entries wait.
+	 * @return {string} The label.
+	 */
+	function newEntriesLabel( count: number ): string {
+		return sprintf(
+			/* translators: %d: number of new coverage entries waiting to be shown. */
+			_n(
+				'%d new post',
+				'%d new posts',
+				count,
+				'newspack-rolling-coverage'
+			),
+			count
+		);
+	}
+
+	/**
 	 * Adds entries to the pending queue.
 	 *
 	 * Updates the "X new posts" button label and visibility.
@@ -349,16 +370,7 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		const label = sprintf(
-			/* translators: %d: number of new coverage entries waiting to be shown. */
-			_n(
-				'%d new post',
-				'%d new posts',
-				pendingNewEntries.length,
-				'newspack-rolling-coverage'
-			),
-			pendingNewEntries.length
-		);
+		const label = newEntriesLabel( pendingNewEntries.length );
 
 		newEntriesButton.textContent = label;
 		newEntriesButton.hidden = false;
@@ -396,7 +408,7 @@ function initBlock( root: HTMLElement ): void {
 		cleanupFns.length = 0;
 	}
 
-	if ( newEntriesButton ) {
+	if ( newEntriesButton && ! isEntryView ) {
 		const onNewEntriesClick = () => {
 			if ( pendingNewEntries.length === 0 ) {
 				return;
@@ -508,6 +520,19 @@ function initBlock( root: HTMLElement ): void {
 		} );
 
 		if ( newEntries.length === 0 ) {
+			return;
+		}
+
+		if ( isEntryView ) {
+			newEntryCount += newEntries.length;
+
+			const label = newEntriesLabel( newEntryCount );
+
+			if ( newEntriesButton ) {
+				newEntriesButton.textContent = label;
+			}
+			announce( label );
+
 			return;
 		}
 
@@ -849,6 +874,10 @@ function initBlock( root: HTMLElement ): void {
 			url.searchParams.set( 'template_key', templateKey );
 			url.searchParams.set( 'host_post_id', hostPostId );
 			url.searchParams.set( 'entry_offset', backlogOffset.toString() );
+
+			if ( isEntryView ) {
+				url.searchParams.set( 'skip_pinned', '1' );
+			}
 
 			const response = await fetch( url.toString() );
 			if ( response.ok ) {
