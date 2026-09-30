@@ -75,7 +75,7 @@ class Rolling_Coverage_Block {
 	// Handle of the Newspack Theme editor script that unregisters the post blocks.
 	const THEME_BLOCK_REMOVAL_SCRIPT = 'newspack-hide-fse-blocks';
 
-	// Post blocks the entry and deep link modal templates are built from.
+	// Post blocks the entry template are built from.
 	const TEMPLATE_POST_BLOCKS = [
 		'core/post-title',
 		'core/post-date',
@@ -96,9 +96,8 @@ class Rolling_Coverage_Block {
 	private static $host_post_id = 0;
 
 	/**
-	 * How many entries are rendering right now (entries can nest through the
-	 * deep link modal). The entry filters below act only while it's non-zero,
-	 * so an entry's own single page is left alone.
+	 * How many entries are rendering right now. The entry filters below act
+	 * only while it's non-zero, so an entry's own single page is left alone.
 	 *
 	 * @var int
 	 */
@@ -536,21 +535,6 @@ class Rolling_Coverage_Block {
 			}
 		}
 
-		// Preload the deep-link CTA styles and view script. The CTA is
-		// rendered via render_block() inside this callback, so WordPress
-		// doesn't auto-enqueue its assets — we must do it manually.
-		$cta_block_type = WP_Block_Type_Registry::get_instance()->get_registered( Deep_Link_CTA_Block::BLOCK_NAME );
-
-		if ( $cta_block_type ) {
-			foreach ( $cta_block_type->style_handles as $style_handle ) {
-				wp_enqueue_style( $style_handle );
-			}
-
-			foreach ( $cta_block_type->view_script_handles as $script_handle ) {
-				wp_enqueue_script( $script_handle );
-			}
-		}
-
 		$coverage_id = (int) ( $attributes['coverageId'] ?? 0 );
 
 		if ( ! $coverage_id || ! term_exists( $coverage_id, Taxonomy::TAXONOMY_SLUG ) ) {
@@ -655,10 +639,6 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		// Deep-link CTA: SSR-populated when the deep-link query var
-		// points to an entry not in the initial SSR set; empty otherwise.
-		$cta_html = self::maybe_render_deep_link_cta( $query->posts, $block );
-
 		// Follow button: rendered once at the top of the coverage, not per entry.
 		$follow_html = self::maybe_render_follow_button( $block, $coverage_id, $status );
 
@@ -679,12 +659,11 @@ class Rolling_Coverage_Block {
 
 		try {
 			return sprintf(
-				'<div %1$s>%6$s%2$s%5$s<div class="%3$s-status" role="status" aria-live="polite"></div><button type="button" class="%3$s-new-entries" hidden></button><div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
+				'<div %1$s>%5$s%2$s<div class="%3$s-status" role="status" aria-live="polite"></div><button type="button" class="%3$s-new-entries" hidden></button><div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
 				$wrapper_attributes,
 				$coverage_archived_notice_html,
 				self::MARKUP_PREFIX,
 				$entries_html,
-				$cta_html,
 				$follow_html
 			);
 		} finally {
@@ -770,87 +749,6 @@ class Rolling_Coverage_Block {
 		}
 
 		return $class;
-	}
-
-	/**
-	 * Renders the deep-link CTA when the deep-link query var points to
-	 * an entry not in the initial SSR set; returns empty string otherwise.
-	 *
-	 * The query var `rolling-coverage-entry` powers OG tags and CTA SSR;
-	 * the hash fragment powers smooth scroll. When the deep-linked entry
-	 * is already in the initial SSR set, no CTA is needed — the browser
-	 * scrolls to it via the #hash.
-	 *
-	 * @param WP_Post[] $entries Entries rendered in the initial SSR set.
-	 * @param WP_Block  $block   The parent rolling-coverage block instance.
-	 * @return string CTA HTML, or empty string.
-	 */
-	private static function maybe_render_deep_link_cta( array $entries, WP_Block $block ): string {
-		$raw = trim( (string) get_query_var( Social_Sharing::ENTRY_QUERY_VAR ) );
-
-		if ( '' === $raw ) {
-			return '';
-		}
-
-		$entry = Social_Sharing::resolve_entry_by_slug( $raw );
-
-		if ( ! $entry instanceof WP_Post ) {
-			return '';
-		}
-
-		// Only render the CTA if the entry belongs to this block's coverage.
-		$coverage_id = (int) ( $block->parsed_block['attrs']['coverageId'] ?? 0 );
-		if ( $coverage_id && ! has_term( $coverage_id, Taxonomy::TAXONOMY_SLUG, $entry ) ) {
-			return '';
-		}
-
-		// If the entry is in the initial SSR set, no CTA needed — browser scrolls.
-		$page_slugs = array_map(
-			static function ( $e ) {
-				return $e->post_name;
-			},
-			$entries
-		);
-
-		if ( in_array( $entry->post_name, $page_slugs, true ) ) {
-			return '';
-		}
-
-		$entry_title = get_the_title( $entry );
-		if ( '' === trim( wp_strip_all_tags( $entry_title ) ) ) {
-			$entry_title = Post_Type::get_entry_summary( $entry );
-		}
-
-		// Read the CTA block's saved attributes and inner blocks from the parent block.
-		$cta_attrs = [
-			'entryId'    => $entry->ID,
-			'entryTitle' => $entry_title,
-		];
-
-		$cta_inner_blocks = [];
-
-		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner ) {
-			if ( Deep_Link_CTA_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) ) {
-				if ( ! empty( $inner['attrs']['ctaText'] ) ) {
-					$cta_attrs['ctaText'] = $inner['attrs']['ctaText'];
-				}
-				if ( ! empty( $inner['attrs']['buttonText'] ) ) {
-					$cta_attrs['buttonText'] = $inner['attrs']['buttonText'];
-				}
-				$cta_inner_blocks = $inner['innerBlocks'] ?? [];
-				break;
-			}
-		}
-
-		return render_block(
-			[
-				'blockName'    => Deep_Link_CTA_Block::BLOCK_NAME,
-				'attrs'        => $cta_attrs,
-				'innerBlocks'  => $cta_inner_blocks,
-				'innerHTML'    => '',
-				'innerContent' => array_fill( 0, count( $cta_inner_blocks ), null ),
-			]
-		);
 	}
 
 	/**
@@ -987,7 +885,6 @@ class Rolling_Coverage_Block {
 		// The saved inner blocks also include blocks that render once at the
 		// top of the coverage, not per entry.
 		$singleton_blocks = [
-			Deep_Link_CTA_Block::BLOCK_NAME,
 			Coverage_Follow_Block::BLOCK_NAME,
 			Coverage_Archived_Notice_Block::BLOCK_NAME,
 		];

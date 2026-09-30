@@ -961,57 +961,6 @@ function initBlock( root: HTMLElement ): void {
 		observer.observe( sentinel );
 		cleanupFns.push( () => observer.disconnect() );
 	}
-
-	// Deep-link detection: if the URL carries the rolling-coverage-entry
-	// query var and the entry is not in the initial SSR set, un-hide the
-	// deep-link CTA (rendered hidden by the parent block's SSR).
-	/**
-	 * Detects a deep-link request via the `rolling-coverage-entry` query
-	 * var and, if the entry is not in the initial SSR set, un-hides the
-	 * deep-link CTA (which was SSR'd with entry data by PHP). The hash
-	 * fragment is only for smooth scroll.
-	 *
-	 * If the entry IS in the DOM, the browser's native #anchor scroll
-	 * handles navigation — no CTA needed.
-	 */
-	function handleDeepLink(): void {
-		const params = new URLSearchParams( window.location.search );
-		const entrySlug = params.get( 'rolling-coverage-entry' );
-
-		if ( ! entrySlug ) {
-			return;
-		}
-
-		// If the entry is in ANY block's entries list on the page, the
-		// browser scrolls to it via #hash — no CTA needed.
-		const entry_selector = `[data-entry-slug="${ cssEscape(
-			entrySlug
-		) }"]`;
-
-		const allEntryLists = document.querySelectorAll< HTMLElement >(
-			BLOCK_SELECTOR + ' .newspack-rolling-coverage-entries'
-		);
-		for ( const list of allEntryLists ) {
-			if ( list.querySelector( entry_selector ) ) {
-				return;
-			}
-		}
-
-		// Entry not in DOM — un-hide the CTA (SSR'd with entry data by PHP).
-		const cta = root.querySelector< HTMLElement >(
-			'.newspack-rolling-coverage-cta'
-		);
-		if ( cta ) {
-			cta.hidden = false;
-		}
-	}
-
-	handleDeepLink();
-
-	const onHashChange = () => {
-		handleDeepLink();
-	};
-	window.addEventListener( 'hashchange', onHashChange, { once: true } );
 }
 
 document.querySelectorAll< HTMLElement >( BLOCK_SELECTOR ).forEach( initBlock );
