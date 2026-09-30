@@ -366,12 +366,21 @@ class Rolling_Coverage_Block {
 	public static function register_block() {
 		register_block_type(
 			NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/blocks/rolling-coverage',
-			[
-				'render_callback'   => [ __CLASS__, 'render_block' ],
-				// The layout is rendered per entry by render_block(), never as the block's own content.
-				'skip_inner_blocks' => true,
-			]
+			self::block_type_args()
 		);
+	}
+
+	/**
+	 * The block type's server-side settings.
+	 *
+	 * @return array
+	 */
+	public static function block_type_args(): array {
+		return [
+			'render_callback'   => [ __CLASS__, 'render_block' ],
+			// The layout is rendered per entry by render_block(), never as the block's own content.
+			'skip_inner_blocks' => true,
+		];
 	}
 
 	/**

@@ -346,9 +346,20 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 			return $block_content;
 		};
 
+		// The block registers from its built files, which a test run may not have.
+		$is_registered = WP_Block_Type_Registry::get_instance()->is_registered( Rolling_Coverage_Block::BLOCK_NAME );
+
+		if ( ! $is_registered ) {
+			register_block_type( Rolling_Coverage_Block::BLOCK_NAME, Rolling_Coverage_Block::block_type_args() );
+		}
+
 		add_filter( 'render_block', $count, 10, 2 );
 		$html = do_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( [ 'coverageId' => $coverage_id ] ) . ' -->' . self::markup_with_entry_group() . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' );
 		remove_filter( 'render_block', $count, 10 );
+
+		if ( ! $is_registered ) {
+			unregister_block_type( Rolling_Coverage_Block::BLOCK_NAME );
+		}
 
 		$this->assertSame( 2, substr_count( $html, 'Entry text' ), 'Each entry should show the layout.' );
 		$this->assertSame( 2, $renders, 'The layout should render for the entries alone.' );
