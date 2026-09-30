@@ -89,7 +89,8 @@ class Rolling_Coverage_Block {
 	 * The host page's post ID, captured at the start of render_block()
 	 * before the global $post is swapped to individual entries. Used by
 	 * Social_Sharing::get_entry_share_url() to build the share URL with
-	 * an rc_source pointing back to this page.
+	 * an rc_source pointing back to this page, and to link the pill of a feed
+	 * that opens at a shared entry back to the live feed.
 	 *
 	 * @var int
 	 */
@@ -592,7 +593,7 @@ class Rolling_Coverage_Block {
 						'date_query' => [
 							[
 								'column'    => 'post_date_gmt',
-								'before'    => self::post_date_gmt( $shared_entry ),
+								'before'    => self::gmt_date_bound( self::post_date_gmt( $shared_entry ) ),
 								'inclusive' => true,
 							],
 						],
@@ -748,6 +749,29 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * A GMT datetime as a date query bound. WP_Date_Query reads a datetime
+	 * string in the site timezone, which moves a GMT value that falls in the
+	 * timezone's skipped daylight-saving hour; the array form is used as is.
+	 *
+	 * @param string $gmt GMT datetime, `Y-m-d H:i:s`.
+	 * @return array|string Date query bound, or the input when it is not a full datetime.
+	 */
+	private static function gmt_date_bound( string $gmt ) {
+		if ( ! preg_match( '/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/', $gmt, $parts ) ) {
+			return $gmt;
+		}
+
+		return [
+			'year'   => (int) $parts[1],
+			'month'  => (int) $parts[2],
+			'day'    => (int) $parts[3],
+			'hour'   => (int) $parts[4],
+			'minute' => (int) $parts[5],
+			'second' => (int) $parts[6],
+		];
+	}
+
+	/**
 	 * Runs a date-ordered entries query and leaves pinned entries out of its
 	 * result. Pinned entries belong at the top of the live feed, so a feed
 	 * that starts elsewhere shows none.
@@ -798,6 +822,8 @@ class Rolling_Coverage_Block {
 					'orderby'                     => 'modified',
 					'order'                       => 'DESC',
 					'posts_per_page'              => 1,
+					'update_post_meta_cache'      => false,
+					'update_post_term_cache'      => false,
 					Post_Type::SKIP_PIN_ORDER_VAR => true,
 				]
 			)
@@ -820,12 +846,13 @@ class Rolling_Coverage_Block {
 			return sprintf( '<button type="button" class="%s-new-entries" hidden></button>', self::MARKUP_PREFIX );
 		}
 
-		$url = self::$host_post_id ? get_permalink( self::$host_post_id ) : false;
+		$is_host_page = self::$host_post_id && is_singular() && get_queried_object_id() === self::$host_post_id;
+		$url          = $is_host_page ? get_permalink( self::$host_post_id ) : '/' . ltrim( remove_query_arg( Social_Sharing::ENTRY_QUERY_VAR ), '/' );
 
 		return sprintf(
 			'<a class="%1$s-new-entries button wp-element-button" href="%2$s">%3$s</a>',
 			self::MARKUP_PREFIX,
-			esc_url( $url ? $url : remove_query_arg( Social_Sharing::ENTRY_QUERY_VAR ) ),
+			esc_url( $url ),
 			esc_html__( 'Jump to latest', 'newspack-rolling-coverage' )
 		);
 	}
@@ -2409,7 +2436,7 @@ class Rolling_Coverage_Block {
 					'date_query'     => [
 						[
 							'column'    => 'post_modified_gmt',
-							'after'     => $cursor_modified,
+							'after'     => self::gmt_date_bound( $cursor_modified ),
 							'inclusive' => true,
 						],
 					],
@@ -2495,7 +2522,7 @@ class Rolling_Coverage_Block {
 				'date_query' => [
 					[
 						'column'    => 'post_date_gmt',
-						'before'    => $before,
+						'before'    => self::gmt_date_bound( (string) $before ),
 						'inclusive' => false,
 					],
 				],

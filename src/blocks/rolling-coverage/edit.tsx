@@ -317,7 +317,7 @@ export default function Edit( {
 	);
 
 	// Read live from the store so preview copies stay in sync as the
-	// template is edited. Filter out the render-once blocks (follow, CTA,
+	// template is edited. Filter out the render-once blocks (follow
 	// and editor-state blocks) — only per-entry blocks.
 	const allBlocks: TemplateBlocks = useSelect(
 		( select ) =>

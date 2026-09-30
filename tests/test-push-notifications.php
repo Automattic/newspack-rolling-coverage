@@ -108,7 +108,7 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 			$sent_notifications[0]['filters'],
 			'The notification should be addressed to followers of this coverage.'
 		);
-		$this->assertSame( home_url( '/live/election-night/?rolling-coverage-entry=polls-have-closed#polls-have-closed' ), $sent_notifications[0]['url'], 'The link should open the entry inside the coverage page.' );
+		$this->assertSame( home_url( '/live/election-night/?rolling-coverage-entry=polls-have-closed#newspack-rolling-coverage-entry-' . $entry_id ), $sent_notifications[0]['url'], 'The link should open the entry inside the coverage page.' );
 		$this->assertSame( 'Polls have closed', $sent_notifications[0]['title'], 'The entry title should be the notification title.' );
 	}
 

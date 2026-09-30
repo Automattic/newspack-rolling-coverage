@@ -8,6 +8,7 @@
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Social_Sharing;
+use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
  * A link to an entry older than the first page opens the feed at that entry,
@@ -39,6 +40,13 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	private $entries = [];
 
 	/**
+	 * The request URI before the test.
+	 *
+	 * @var string|null
+	 */
+	private $request_uri;
+
+	/**
 	 * Build a coverage of six entries, one minute apart, and a host page.
 	 */
 	public function set_up() {
@@ -59,6 +67,16 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$this->page_id = self::factory()->post->create( [ 'post_type' => 'page' ] );
 
+		$this->request_uri = $_SERVER['REQUEST_URI'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Stored only to be restored.
+
+		$this->go_to( get_permalink( $this->page_id ) );
+		$this->use_page_as_current_post();
+	}
+
+	/**
+	 * Make the host page the current post, as it is inside the page's own content.
+	 */
+	private function use_page_as_current_post() {
 		$GLOBALS['post'] = get_post( $this->page_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Makes the host page the current post.
 		setup_postdata( $GLOBALS['post'] );
 	}
@@ -68,20 +86,28 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	 */
 	public function tear_down() {
 		set_query_var( Social_Sharing::ENTRY_QUERY_VAR, '' );
+
+		if ( null === $this->request_uri ) {
+			unset( $_SERVER['REQUEST_URI'] );
+		} else {
+			$_SERVER['REQUEST_URI'] = $this->request_uri;
+		}
+
 		parent::tear_down();
 	}
 
 	/**
 	 * Render the block with a shared entry in the query.
 	 *
-	 * @param string|array $slug Value of the entry query var.
+	 * @param string|array $slug        Value of the entry query var.
+	 * @param int          $coverage_id Coverage to render; the fixture's when 0.
 	 * @return string
 	 */
-	private function render_with_shared( $slug ): string {
+	private function render_with_shared( $slug, int $coverage_id = 0 ): string {
 		set_query_var( Social_Sharing::ENTRY_QUERY_VAR, $slug );
 
 		$attributes = [
-			'coverageId'     => $this->coverage_id,
+			'coverageId'     => $coverage_id ? $coverage_id : $this->coverage_id,
 			'entriesPerPage' => 2,
 		];
 		$parsed     = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
@@ -307,5 +333,121 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$data = self::dispatch( 'GET', $path, $params )->get_data();
 
 		$this->assertSame( $this->ids( 'entry-3', 'entry-2' ), $this->entry_ids_in( $data['html'] ) );
+	}
+
+	/**
+	 * The link back to the live feed is the current URL without the entry, when the block is not on its host post's own page.
+	 */
+	public function test_pill_link_falls_back_to_the_current_url_outside_a_singular_page() {
+		$this->go_to( home_url( '/' ) );
+		$this->use_page_as_current_post();
+
+		$_SERVER['REQUEST_URI'] = '/some-archive/?rolling-coverage-entry=entry-3&x=1';
+
+		$html = $this->render_with_shared( 'entry-3' );
+
+		$this->assertStringContainsString( 'data-view="entry"', $html );
+		$this->assertSame( '/some-archive/?x=1', $this->pill_href( $html ) );
+	}
+
+	/**
+	 * The fallback link stays on this site even when the request path starts with two slashes.
+	 */
+	public function test_pill_link_fallback_is_never_protocol_relative() {
+		$this->go_to( home_url( '/' ) );
+		$this->use_page_as_current_post();
+
+		$_SERVER['REQUEST_URI'] = '//evil.example/?rolling-coverage-entry=entry-3';
+
+		$href = $this->pill_href( $this->render_with_shared( 'entry-3' ) );
+
+		$this->assertMatchesRegularExpression( '#^/[^/]#', $href );
+	}
+
+	/**
+	 * The href of the pill link.
+	 *
+	 * @param string $html Rendered HTML.
+	 * @return string
+	 */
+	private function pill_href( string $html ): string {
+		preg_match( '/<a class="newspack-rolling-coverage-new-entries[^"]*" href="([^"]*)"/', $html, $match );
+
+		return html_entity_decode( $match[1] ?? '' );
+	}
+
+	/**
+	 * Load more with skip_pinned sent as the script sends it, the string "1", leaves pinned entries out and reports what remains.
+	 */
+	public function test_load_more_accepts_skip_pinned_as_a_string() {
+		Post_Type::pin_entry( $this->entries['entry-3'] );
+
+		$html = $this->render_with_shared( 'entry-2' );
+		$data = self::dispatch(
+			'GET',
+			'/coverages/' . $this->coverage_id . '/entries',
+			[
+				'before'       => get_post( $this->entries['entry-6'] )->post_date_gmt,
+				'per_page'     => 2,
+				'template_key' => $this->data_attribute( $html, 'template-key' ),
+				'skip_pinned'  => '1',
+			]
+		)->get_data();
+
+		$this->assertSame( $this->ids( 'entry-5', 'entry-4' ), $this->entry_ids_in( $data['html'] ) );
+		$this->assertTrue( $data['hasMore'] );
+	}
+
+	/**
+	 * An archived coverage opens at the shared entry like an active one.
+	 */
+	public function test_archived_coverage_opens_at_the_shared_entry() {
+		update_term_meta( $this->coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$html = $this->render_with_shared( 'entry-3' );
+
+		$this->assertStringContainsString( 'data-view="entry"', $html );
+		$this->assertSame( $this->ids( 'entry-3', 'entry-2' ), $this->entry_ids_in( $html ) );
+		$this->assertStringContainsString( '>Jump to latest</a>', $html );
+	}
+
+	/**
+	 * GMT bounds are compared as they are, even when they fall in the site timezone's skipped spring-forward hour.
+	 */
+	public function test_gmt_bounds_ignore_the_site_timezone() {
+		update_option( 'timezone_string', 'America/New_York' );
+
+		$coverage_id = self::create_coverage();
+		$dst         = [];
+
+		foreach ( [ '02:10:00', '02:20:00', '02:30:00', '02:40:00', '02:50:00', '03:20:00' ] as $time ) {
+			$gmt          = '2026-03-08 ' . $time;
+			$dst[ $time ] = self::create_entry(
+				$coverage_id,
+				[
+					'post_date_gmt' => $gmt,
+					'post_date'     => get_date_from_gmt( $gmt ),
+					'post_name'     => 'dst-' . $time,
+				]
+			);
+
+			$this->assertSame( $gmt, get_post( $dst[ $time ] )->post_date_gmt );
+		}
+
+		$html = $this->render_with_shared( 'dst-02:30:00', $coverage_id );
+
+		$this->assertSame( [ $dst['02:30:00'], $dst['02:20:00'] ], $this->entry_ids_in( $html ) );
+
+		$data = self::dispatch(
+			'GET',
+			'/coverages/' . $coverage_id . '/entries',
+			[
+				'before'       => '2026-03-08 02:30:00',
+				'per_page'     => 2,
+				'template_key' => $this->data_attribute( $html, 'template-key' ),
+			]
+		)->get_data();
+
+		$this->assertSame( [ $dst['02:20:00'], $dst['02:10:00'] ], $this->entry_ids_in( $data['html'] ) );
 	}
 }

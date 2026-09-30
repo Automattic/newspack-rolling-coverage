@@ -474,7 +474,9 @@ function initBlock( root: HTMLElement ): void {
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
 	 * on the page for loadMore(). Inserts or queues newly published entries
 	 * based on the reader's scroll position. When the feed opens at a shared
-	 * entry, new entries are counted on the control instead of inserted.
+	 * entry, new entries are counted on the control instead of inserted, and
+	 * an entry that has been pinned is removed, as pinned entries belong at the
+	 * top of the live feed.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
@@ -491,14 +493,28 @@ function initBlock( root: HTMLElement ): void {
 				`[data-entry-id="${ entry.id }"]`
 			);
 
+			const template = document.createElement( 'template' );
+			template.innerHTML = sanitizeHtml( entry.html );
+			const entryEl = template.content.firstElementChild as HTMLElement;
+			const isPinnedUpdate =
+				isEntryView &&
+				entry.type === 'update' &&
+				entryEl?.dataset.pinned !== undefined;
+
+			if ( isPinnedUpdate ) {
+				if ( existing ) {
+					unobserveEntry( existing );
+					existing.remove();
+					dropLastSeparator();
+				}
+
+				return;
+			}
+
 			if ( entry.type === 'update' && ! existing ) {
 				offPageUpdates.set( String( entry.id ), entry.html );
 				return;
 			}
-
-			const template = document.createElement( 'template' );
-			template.innerHTML = sanitizeHtml( entry.html );
-			const entryEl = template.content.firstElementChild as HTMLElement;
 
 			if ( ! entryEl ) {
 				return;
@@ -801,6 +817,11 @@ function initBlock( root: HTMLElement ): void {
 			const response = await fetch( url.toString() );
 			if ( response.ok ) {
 				const data: PollResponse = await response.json();
+
+				if ( data.overflow && isEntryView ) {
+					// A reload lands on the same shared URL, so there is nothing to gain from one.
+					return;
+				}
 
 				if ( data.overflow && shouldReloadForOverflow() ) {
 					window.location.reload();

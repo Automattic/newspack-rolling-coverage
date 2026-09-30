@@ -405,7 +405,7 @@ class Push_Notifications {
 	/**
 	 * Builds the notification URL from the coverage's canonical URL, using
 	 * the deep-link format the social-sharing feature understands
-	 * (`?rolling-coverage-entry={slug}#{slug}`).
+	 * (`?rolling-coverage-entry={slug}#newspack-rolling-coverage-entry-{id}`).
 	 *
 	 * @param int     $coverage_id Coverage term id.
 	 * @param WP_Post $entry       Entry post the notification is about.
@@ -418,6 +418,6 @@ class Push_Notifications {
 			return '';
 		}
 
-		return add_query_arg( Social_Sharing::ENTRY_QUERY_VAR, $entry->post_name, $canonical_url ) . '#' . $entry->post_name;
+		return add_query_arg( Social_Sharing::ENTRY_QUERY_VAR, $entry->post_name, $canonical_url ) . '#' . Rolling_Coverage_Block::MARKUP_PREFIX . '-entry-' . $entry->ID;
 	}
 }
