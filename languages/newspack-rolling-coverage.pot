@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-29T18:14:46+00:00\n"
+"POT-Creation-Date: 2026-09-30T09:58:30+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -40,7 +40,6 @@ msgstr ""
 #: includes/class-taxonomy.php:115
 #: includes/class-taxonomy.php:116
 #: dist/admin.js:4
-#: dist/blocks/rolling-coverage/index.js:1
 msgid "Rolling Coverage"
 msgstr ""
 
@@ -84,9 +83,9 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:444
-#: includes/blocks/class-rolling-coverage-block.php:2045
-#: includes/blocks/class-rolling-coverage-block.php:2151
-#: includes/blocks/class-rolling-coverage-block.php:2162
+#: includes/blocks/class-rolling-coverage-block.php:2184
+#: includes/blocks/class-rolling-coverage-block.php:2290
+#: includes/blocks/class-rolling-coverage-block.php:2301
 #: includes/class-post-type.php:974
 #: includes/class-taxonomy.php:351
 msgid "Coverage not found."
@@ -122,8 +121,8 @@ msgid "Link"
 msgstr ""
 
 #: includes/blocks/class-breakout-post-link-block.php:66
-#: includes/blocks/class-rolling-coverage-block.php:1052
-#: includes/blocks/class-rolling-coverage-block.php:1055
+#: includes/blocks/class-rolling-coverage-block.php:1144
+#: includes/blocks/class-rolling-coverage-block.php:1147
 #: dist/blocks/breakout-post-link/index.js:1
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Read more"
@@ -171,7 +170,7 @@ msgid "Rolling Coverage Entry"
 msgstr ""
 
 #: includes/blocks/class-entry-bindings.php:232
-#: includes/blocks/class-rolling-coverage-block.php:1008
+#: includes/blocks/class-rolling-coverage-block.php:1100
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/share/index.js:1
@@ -186,44 +185,62 @@ msgid "%1$s: %2$s"
 msgstr ""
 
 #: includes/blocks/class-entry-bindings.php:353
-#: includes/blocks/class-rolling-coverage-block.php:1570
+#: includes/blocks/class-rolling-coverage-block.php:1703
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:537
+#. translators: %s: Rolling Coverage, the product name.
+#: includes/blocks/class-layout.php:207
+#, php-format
+msgid "The layout must be a single %s block."
+msgstr ""
+
+#. translators: %s: Rolling Coverage, the product name.
+#: includes/blocks/class-layout.php:218
+#, php-format
+msgid "%s layout"
+msgstr ""
+
+#: includes/blocks/class-rolling-coverage-block.php:562
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Select a coverage to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:555
+#: includes/blocks/class-rolling-coverage-block.php:580
 msgid "This coverage is no longer available."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:623
+#: includes/blocks/class-rolling-coverage-block.php:654
 msgid "No entries yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:970
+#: includes/blocks/class-rolling-coverage-block.php:1078
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Header"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:981
+#: includes/blocks/class-rolling-coverage-block.php:1089
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Meta"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1130
+#: includes/blocks/class-rolling-coverage-block.php:1182
+#: includes/class-post-type.php:256
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Entry"
+msgstr ""
+
+#: includes/blocks/class-rolling-coverage-block.php:1223
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned Card"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1866
+#: includes/blocks/class-rolling-coverage-block.php:2005
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2170
+#: includes/blocks/class-rolling-coverage-block.php:2309
 msgid "Either cursor or before must be provided."
 msgstr ""
 
@@ -298,10 +315,6 @@ msgstr ""
 #: dist/admin.js:213
 #: dist/admin.js:214
 msgid "Entries"
-msgstr ""
-
-#: includes/class-post-type.php:256
-msgid "Entry"
 msgstr ""
 
 #: includes/class-post-type.php:257
@@ -1281,6 +1294,7 @@ msgid "%d updates in the last 10s"
 msgstr ""
 
 #: dist/admin.js:226
+#: dist/blocks/rolling-coverage/index.js:1
 msgid "Fetching entries…"
 msgstr ""
 
@@ -1747,15 +1761,51 @@ msgid "Default"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
-msgid "Archived Coverage"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
 msgid "Deep Link"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
-msgid "Edited State"
+msgid "Full time: Riverbend 2, Fresno Verde 1"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Two goals from Bree Kowalski and a stoppage-time save from Petra Halvorsen. The champions' first meeting with Fresno Verde since the final ended the way the final did."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Halvorsen at full stretch to push Renee Vargas's header over the bar, four minutes into stoppage time. The North Bank greets it like a third goal."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Kowalski again, straight off the training ground"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Sonia Aguilar drives a corner to the near post, Josie Vandermeer flicks it on, and Kowalski turns it in from inside the six-yard box. 2–0 in the 61st minute."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "14,213 at DS Stadium"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "The women's largest crowd of the season so far. Foundry Row was full two hours before kickoff."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Team news"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Bethany Osei rotates less than usual for the rematch. Vandermeer captains, Kowalski leads the line and Nia Fletcher plays behind her."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Illustration of a soccer field"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Could not restore the shared layout."
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
@@ -1776,6 +1826,30 @@ msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Search for a coverage…"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Shared layout"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Changes to this layout apply to every story that uses it."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Changes to this layout apply to every story that uses it. The entries are samples."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Layout"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Uses the shared layout. Changes to it apply to every story that uses it."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Uses its own layout, detached from the shared one."
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
@@ -1856,6 +1930,30 @@ msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Show an ad after every N entries. Maximum 3 ads for the initial feed and load more; no cap for new entries."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Edited State:"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Edit Layout"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Detach"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Setting up the layout…"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Restore shared layout"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "The shared layout can't be found. This story shows the default layout until you restore it or detach it."
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
