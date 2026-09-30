@@ -95,6 +95,8 @@ class Taxonomy {
 		add_action( 'init', [ __CLASS__, 'register' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'clean_post_cache', [ __CLASS__, 'flush_coverage_page_ids' ], 10, 2 );
+		add_action( 'transition_post_status', [ __CLASS__, 'touch_pages_after_status_change' ], 10, 3 );
+		add_action( 'set_object_terms', [ __CLASS__, 'touch_pages_after_term_change' ], 10, 4 );
 		add_action( 'created_' . self::TAXONOMY_SLUG, [ __CLASS__, 'set_term_created_date' ] );
 		add_action( 'edited_' . self::TAXONOMY_SLUG, [ __CLASS__, 'update_term_modified_date' ] );
 		add_action( 'added_term_meta', [ __CLASS__, 'maybe_snapshot_end_time' ], 10, 4 );
@@ -600,7 +602,7 @@ class Taxonomy {
 			return $canonical_url;
 		}
 
-		$post_id = self::get_coverage_page_ids()[ $coverage_id ] ?? 0;
+		$post_id = self::get_coverage_page_ids()[ $coverage_id ][0] ?? 0;
 
 		return $post_id ? (string) get_permalink( $post_id ) : '';
 	}
@@ -622,6 +624,101 @@ class Taxonomy {
 	}
 
 	/**
+	 * Dates the pages showing an entry's coverages to a change readers can see:
+	 * an entry published, edited while published, or taken down.
+	 *
+	 * @param string   $new_status New post status.
+	 * @param string   $old_status Previous post status.
+	 * @param \WP_Post $post       Post object.
+	 */
+	public static function touch_pages_after_status_change( string $new_status, string $old_status, $post ): void {
+		if ( ! $post instanceof \WP_Post || Post_Type::CPT_SLUG !== $post->post_type ) {
+			return;
+		}
+
+		if ( 'publish' !== $new_status && 'publish' !== $old_status ) {
+			return;
+		}
+
+		self::touch_coverage_pages( $post );
+	}
+
+	/**
+	 * Dates the pages showing a published entry's coverages when the entry is
+	 * assigned to them. Entries created through REST or Slack get their
+	 * coverage only after they're published, so the status change misses them.
+	 *
+	 * @param int    $object_id Object ID.
+	 * @param array  $terms     Term IDs or slugs assigned.
+	 * @param array  $tt_ids    Term taxonomy IDs.
+	 * @param string $taxonomy  Taxonomy slug.
+	 */
+	public static function touch_pages_after_term_change( $object_id, $terms, $tt_ids, $taxonomy ): void {
+		if ( self::TAXONOMY_SLUG !== $taxonomy ) {
+			return;
+		}
+
+		$post = get_post( $object_id );
+
+		if ( ! $post instanceof \WP_Post || Post_Type::CPT_SLUG !== $post->post_type || 'publish' !== $post->post_status ) {
+			return;
+		}
+
+		self::touch_coverage_pages( $post );
+	}
+
+	/**
+	 * Moves the modified date of every page showing the entry's coverages up to
+	 * the entry's, so the byline, the SEO plugin's dates and the sitemap all
+	 * report the page as changed. A page is never moved back in time.
+	 *
+	 * @param \WP_Post $entry Entry post object.
+	 */
+	private static function touch_coverage_pages( \WP_Post $entry ): void {
+		$modified_gmt = $entry->post_modified_gmt;
+
+		if ( '' === $modified_gmt || '0000-00-00 00:00:00' === $modified_gmt ) {
+			return;
+		}
+
+		$coverage_ids = wp_get_post_terms( $entry->ID, self::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
+
+		if ( is_wp_error( $coverage_ids ) || empty( $coverage_ids ) ) {
+			return;
+		}
+
+		$page_ids = self::get_coverage_page_ids();
+
+		global $wpdb;
+
+		foreach ( $coverage_ids as $coverage_id ) {
+			foreach ( $page_ids[ (int) $coverage_id ] ?? [] as $page_id ) {
+				$page = get_post( $page_id );
+
+				if ( ! $page instanceof \WP_Post || $page->post_modified_gmt >= $modified_gmt ) {
+					continue;
+				}
+
+				// Written directly because wp_update_post() re-saves the whole page:
+				// it would run the page's content through the current user's HTML
+				// filters, and entries are often published by Authors or by the Slack
+				// integration, who can't post unfiltered HTML. Only the post cache is
+				// cleared, not clean_post_cache(), because the page's content, and so
+				// this map, hasn't changed.
+				$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+					$wpdb->posts,
+					[
+						'post_modified'     => $entry->post_modified,
+						'post_modified_gmt' => $modified_gmt,
+					],
+					[ 'ID' => $page_id ]
+				);
+				wp_cache_delete( $page_id, 'posts' );
+			}
+		}
+	}
+
+	/**
 	 * Whether posts of a type can be the page that shows a coverage.
 	 *
 	 * @param string $post_type Post type name.
@@ -632,12 +729,12 @@ class Taxonomy {
 	}
 
 	/**
-	 * Maps each coverage to the newest published post embedding it.
+	 * Maps each coverage to the published posts embedding it, newest first.
 	 *
-	 * @return array<int,int> Map of coverage term ID => post ID.
+	 * @return array<int,int[]> Map of coverage term ID => post IDs.
 	 */
 	private static function get_coverage_page_ids(): array {
-		$cache_key = 'coverage_page_ids:' . wp_cache_get_last_changed( self::PAGE_IDS_CACHE_GROUP );
+		$cache_key = 'coverage_pages:' . wp_cache_get_last_changed( self::PAGE_IDS_CACHE_GROUP );
 		$cached    = wp_cache_get( $cache_key, self::PAGE_IDS_CACHE_GROUP );
 
 		if ( is_array( $cached ) ) {
@@ -663,8 +760,8 @@ class Taxonomy {
 				foreach ( Schema::flatten_blocks( parse_blocks( $post->post_content ) ) as $block ) {
 					$coverage_id = (int) ( $block['attrs']['coverageId'] ?? 0 );
 
-					if ( Schema::BLOCK_NAME === ( $block['blockName'] ?? '' ) && $coverage_id && ! isset( $map[ $coverage_id ] ) ) {
-						$map[ $coverage_id ] = (int) $post->ID;
+					if ( Schema::BLOCK_NAME === ( $block['blockName'] ?? '' ) && $coverage_id && ! in_array( (int) $post->ID, $map[ $coverage_id ] ?? [], true ) ) {
+						$map[ $coverage_id ][] = (int) $post->ID;
 					}
 				}
 			}
