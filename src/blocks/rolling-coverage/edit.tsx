@@ -26,9 +26,9 @@ import {
 	Button,
 	Notice,
 	Placeholder,
-	Spinner,
 	TextareaControl,
 	ToolbarButton,
+	ToolbarGroup,
 } from '@wordpress/components';
 import {
 	useState,
@@ -61,8 +61,16 @@ import {
 	getDefaultLayoutId,
 	createDefaultLayout,
 	getLayoutEditUrl,
+	PREVIEW_COVERAGE_ID,
 } from './utils';
-import { ENTRY_EDITED_STATES, isFollowButtons } from './template';
+import {
+	ENTRY_EDITED_STATES,
+	isFollowButtons,
+	isPinnedCard,
+	isRegularEntry,
+	forEntryKind,
+	breakoutBlockIds,
+} from './template';
 import {
 	AI_AVAILABLE,
 	NEWSPACK_ADS_AVAILABLE,
@@ -71,8 +79,9 @@ import {
 	LAYOUT_CATEGORY_ID,
 } from './config';
 import { useSampleEntries } from './samples';
-import EditedStateBar from './components/edited-state-bar';
 import EntryBlockPreview from './components/entry-block-preview';
+import LoadingState from './components/loading-state';
+import PinnedEntryContext from './pinned-entry-context';
 import {
 	BLOCK_NAME,
 	FOLLOW_BLOCK_NAME,
@@ -91,7 +100,7 @@ import type {
 } from './types';
 
 /**
- * The Edited State bar's options, derived from ENTRY_EDITED_STATES.
+ * The Edited State toolbar's options, derived from ENTRY_EDITED_STATES.
  */
 const EDITED_STATE_OPTIONS = ENTRY_EDITED_STATES.map( ( state ) => ( {
 	value: state.value,
@@ -177,7 +186,6 @@ const STATUS_OPTIONS = [
 
 export default function Edit( {
 	clientId,
-	isSelected,
 	attributes,
 	setAttributes,
 }: EditProps ) {
@@ -193,6 +201,7 @@ export default function Edit( {
 	const [ editedState, setEditedState ] = useState(
 		EDITED_STATE_OPTIONS[ 0 ].value
 	);
+	const editedStateLabelId = `newspack-rolling-coverage-edited-state-${ clientId }`;
 	const blockProps = useBlockProps( {
 		'data-editor-state': editedState,
 		style: entryGapStyle( attributes.style?.spacing?.blockGap ),
@@ -221,7 +230,7 @@ export default function Edit( {
 					id: string,
 					name: string
 				) => string[];
-				getSettings: () => { __unstableIsPreviewMode?: boolean };
+				getSettings: () => { isPreviewMode?: boolean };
 			};
 			return {
 				isNested:
@@ -230,7 +239,7 @@ export default function Edit( {
 						BLOCK_NAME
 					).length > 0,
 				isPreviewMode: Boolean(
-					blockEditor.getSettings().__unstableIsPreviewMode
+					blockEditor.getSettings().isPreviewMode
 				),
 			};
 		},
@@ -263,6 +272,7 @@ export default function Edit( {
 	).current;
 	const [ isCreatingLayout, setIsCreatingLayout ] = useState( isNewBlock );
 	const [ layoutError, setLayoutError ] = useState< string | null >( null );
+	const registry = useRegistry();
 	const isSynced = layoutId > 0 && ! isNested;
 	const innerBlocksProps = useInnerBlocksProps(
 		{ className: 'newspack-rolling-coverage-layout' },
@@ -288,7 +298,8 @@ export default function Edit( {
 	const [ entryContexts, setEntryContexts ] = useState< EntryContext[] >(
 		[]
 	);
-	const [ activeEntryId, setActiveEntryId ] = useState< number >();
+	const [ entriesLoadedFor, setEntriesLoadedFor ] = useState( 0 );
+	const [ coverageLoadedFor, setCoverageLoadedFor ] = useState( 0 );
 	const [ isGenerating, setIsGenerating ] = useState( false );
 	const [ aiNotice, setAiNotice ] = useState< ApplyNotice | null >( null );
 	const [ generatedOutput, setGeneratedOutput ] = useState( '' );
@@ -437,6 +448,7 @@ export default function Edit( {
 			: null;
 	}, [ layoutRecord ] );
 	const isLayoutMissing = isSynced && hasResolvedLayout && ! layoutBlocks;
+	const hasLayout = coverageId > 0 || isLayoutPattern;
 	const defaultLayoutBlocks = useMemo(
 		() =>
 			createBlocksFromInnerBlocksTemplate(
@@ -446,11 +458,27 @@ export default function Edit( {
 	);
 
 	const sampleContexts = useSampleEntries( isLayoutPattern );
-	const previewContexts = isLayoutPattern ? sampleContexts : entryContexts;
+	const entriesCoverageId =
+		coverageId || ( isLayoutPattern ? PREVIEW_COVERAGE_ID : 0 );
+	const isSettingUpLayout = isCreatingLayout && ! getDefaultLayoutId();
+	const isLoading =
+		isSettingUpLayout ||
+		( coverageId > 0 && coverageLoadedFor !== coverageId ) ||
+		( entriesCoverageId > 0 && entriesLoadedFor !== entriesCoverageId ) ||
+		( isLayoutPattern && sampleContexts.length === 0 ) ||
+		( hasLayout && isSynced && ! hasResolvedLayout );
+	const previewContexts =
+		isLayoutPattern && entryContexts.length === 0
+			? sampleContexts
+			: entryContexts;
 	const { templateBlocks, blocksForEntry } = useLayoutPreview(
 		isSynced ? ( layoutBlocks ?? defaultLayoutBlocks ) : allBlocks,
 		previewContexts,
 		entriesPerPage
+	);
+	const emptyPreviewBlocks = useMemo(
+		() => forEntryKind( templateBlocks, false ),
+		[ templateBlocks ]
 	);
 
 	// Disabled blocks drop out of List View and can't be selected, so only
@@ -504,47 +532,97 @@ export default function Edit( {
 		! ONESIGNAL_CONFIGURED ||
 		currentCoverage?.status === 'archived' ||
 		editedState === 'archived';
-	const hiddenFollowIds = useMemo(
-		() =>
-			! isFollowHidden
-				? []
-				: allBlocks
-						.filter(
-							( block ) =>
-								block.name === FOLLOW_BLOCK_NAME ||
-								isFollowButtons( block )
-						)
-						.map( ( block ) => block.clientId ),
-		[ allBlocks, isFollowHidden ]
+	// An editable layout previews the pinned card against the pinned entry
+	// and the entry group against one that isn't pinned, and leaves out the
+	// one the coverage has no entry for, and "Read more" where the entry
+	// previewed has no breakout post.
+	const hasBothKinds =
+		allBlocks.some( isPinnedCard ) && allBlocks.some( isRegularEntry );
+	const pinnedContext = hasBothKinds
+		? previewContexts.find( ( context ) => context.pinned )
+		: undefined;
+	const unpinnedContexts = previewContexts.filter(
+		( context ) => ! context.pinned
 	);
-	const hiddenFollowKey = hiddenFollowIds.join( ',' );
+	const titledContexts = unpinnedContexts.filter(
+		( context ) => context.hasTitle !== false
+	);
+	const regularContext = hasBothKinds
+		? ( titledContexts.find( ( context ) => context.hasBreakout ) ??
+			titledContexts[ 0 ] ??
+			unpinnedContexts[ 0 ] )
+		: previewContexts[ 0 ];
+	const layoutContext =
+		regularContext ?? pinnedContext ?? NEUTRAL_ENTRY_CONTEXT;
+	const isCardHidden = hasBothKinds && ! pinnedContext;
+	const isEntryHidden = hasBothKinds && ! regularContext && !! pinnedContext;
+	const hidesCardBreakout = pinnedContext
+		? ! pinnedContext.hasBreakout
+		: false;
+	const hidesEntryBreakout = regularContext
+		? ! regularContext.hasBreakout
+		: false;
+	const hiddenIds = useMemo(
+		() => [
+			...allBlocks
+				.filter(
+					( block, index ) =>
+						( isFollowHidden &&
+							( block.name === FOLLOW_BLOCK_NAME ||
+								isFollowButtons( block ) ) ) ||
+						( isCardHidden && isPinnedCard( block ) ) ||
+						( isEntryHidden &&
+							( isRegularEntry( block ) ||
+								( block.name === 'core/separator' &&
+									index === allBlocks.length - 1 ) ) )
+				)
+				.map( ( block ) => block.clientId as string ),
+			...breakoutBlockIds(
+				allBlocks.filter( ( block ) =>
+					pinnedContext && isPinnedCard( block )
+						? hidesCardBreakout
+						: hidesEntryBreakout
+				)
+			),
+		],
+		[
+			allBlocks,
+			isFollowHidden,
+			isCardHidden,
+			isEntryHidden,
+			pinnedContext,
+			hidesCardBreakout,
+			hidesEntryBreakout,
+		]
+	);
+	const hiddenKey = hiddenIds.join( ',' );
 	useEffect( () => {
-		const ids = hiddenFollowKey ? hiddenFollowKey.split( ',' ) : [];
+		const ids = hiddenKey ? hiddenKey.split( ',' ) : [];
 		ids.forEach( ( id ) => setBlockEditingMode( id, 'disabled' ) );
 		return () => ids.forEach( ( id ) => unsetBlockEditingMode( id ) );
-	}, [ hiddenFollowKey, setBlockEditingMode, unsetBlockEditingMode ] );
+	}, [ hiddenKey, setBlockEditingMode, unsetBlockEditingMode ] );
 
 	// A hidden block still counts as the previous sibling for the entry gap,
 	// so the first block left showing in this editor state drops its margin.
 	const layoutCss = useMemo( () => {
 		const firstVisible = allBlocks.find(
 			( block ) =>
-				! hiddenFollowIds.includes( block.clientId ) &&
+				! hiddenIds.includes( block.clientId as string ) &&
 				( ! STATE_BY_BLOCK_NAME[ block.name ] ||
 					STATE_BY_BLOCK_NAME[ block.name ] === editedState )
 		);
 		const layout =
-			'.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout >';
+			'.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout';
 		return [
-			...hiddenFollowIds.map(
+			...hiddenIds.map(
 				( id ) =>
 					`${ layout } [data-block="${ id }"] { display: none; }`
 			),
 			firstVisible
-				? `${ layout } .wp-block[data-block="${ firstVisible.clientId }"] { margin-top: 0; }`
+				? `${ layout } > .wp-block[data-block="${ firstVisible.clientId }"] { margin-top: 0; }`
 				: '',
 		].join( '\n' );
-	}, [ hiddenFollowIds, allBlocks, editedState ] );
+	}, [ hiddenIds, allBlocks, editedState ] );
 
 	const syncedRenderOnceBlocks = useMemo(
 		() =>
@@ -568,7 +646,6 @@ export default function Edit( {
 		[ layoutBlocks, defaultLayoutBlocks, editedState, isFollowHidden ]
 	);
 
-	const registry = useRegistry();
 	const detach = useCallback( () => {
 		const source = layoutBlocks ?? defaultLayoutBlocks;
 		registry.batch( () => {
@@ -638,21 +715,44 @@ export default function Edit( {
 	// only needs a representative snapshot to preview the template against.
 	useEffect( () => {
 		let cancelled = false;
-		if ( ! coverageId ) {
+		if ( ! entriesCoverageId ) {
 			setEntryContexts( [] );
+			setEntriesLoadedFor( 0 );
 			return;
 		}
-		fetchEntryPreviewContexts( coverageId, entriesPerPage ).then(
-			( contexts ) => {
+		const { getEntityRecord } = registry.resolveSelect(
+			coreStore
+		) as unknown as {
+			getEntityRecord: (
+				kind: string,
+				name: string,
+				id: number
+			) => Promise< unknown >;
+		};
+		fetchEntryPreviewContexts( entriesCoverageId, entriesPerPage )
+			.then( ( contexts ) =>
+				// Entries are read before the preview shows, so it doesn't
+				// fill in piece by piece.
+				Promise.all(
+					contexts.map( ( context ) =>
+						getEntityRecord(
+							'postType',
+							context.postType,
+							context.postId
+						).catch( () => undefined )
+					)
+				).then( () => contexts )
+			)
+			.then( ( contexts ) => {
 				if ( ! cancelled ) {
 					setEntryContexts( contexts );
+					setEntriesLoadedFor( entriesCoverageId );
 				}
-			}
-		);
+			} );
 		return () => {
 			cancelled = true;
 		};
-	}, [ coverageId, entriesPerPage ] );
+	}, [ entriesCoverageId, entriesPerPage, registry ] );
 
 	// Populate the combobox as the user searches.
 	useEffect( () => {
@@ -689,6 +789,7 @@ export default function Edit( {
 				return;
 			}
 			setCurrentCoverage( coverage );
+			setCoverageLoadedFor( coverageId );
 			setPendingStatus( coverage?.status || 'active' );
 			setPendingCanonicalUrl( coverage?.canonicalUrl || '' );
 		} );
@@ -849,10 +950,15 @@ export default function Edit( {
 				title={ __( 'Shared layout', 'newspack-rolling-coverage' ) }
 			>
 				<p>
-					{ __(
-						'Changes to this layout apply to every story that uses it. The entries are samples.',
-						'newspack-rolling-coverage'
-					) }
+					{ entryContexts.length > 0
+						? __(
+								'Changes to this layout apply to every story that uses it.',
+								'newspack-rolling-coverage'
+							)
+						: __(
+								'Changes to this layout apply to every story that uses it. The entries are samples.',
+								'newspack-rolling-coverage'
+							) }
 				</p>
 			</PanelBody>
 		</InspectorControls>
@@ -1171,39 +1277,75 @@ export default function Edit( {
 		<>
 			{ inspector }
 
-			{ isSynced && (
+			{ ! isLoading && hasLayout && (
+				<BlockControls>
+					<ToolbarGroup
+						className="newspack-rolling-coverage-edited-state"
+						{ ...{
+							role: 'group',
+							'aria-labelledby': editedStateLabelId,
+						} }
+					>
+						<span
+							id={ editedStateLabelId }
+							className="newspack-rolling-coverage-edited-state__label"
+						>
+							{ __(
+								'Edited State:',
+								'newspack-rolling-coverage'
+							) }
+						</span>
+						{ EDITED_STATE_OPTIONS.map( ( option ) => (
+							<ToolbarButton
+								key={ option.value }
+								isPressed={ option.value === editedState }
+								onClick={ () => setEditedState( option.value ) }
+							>
+								{ option.label }
+							</ToolbarButton>
+						) ) }
+					</ToolbarGroup>
+				</BlockControls>
+			) }
+
+			{ ! isLoading && isSynced && coverageId > 0 && (
 				<BlockControls group="other">
 					{ canEditLayout && (
 						<ToolbarButton
 							{ ...{
-								href: getLayoutEditUrl( layoutId ),
+								href: getLayoutEditUrl( layoutId, coverageId ),
 								target: '_blank',
 							} }
 						>
-							{ __( 'Edit layout', 'newspack-rolling-coverage' ) }
+							{ __( 'Edit Layout', 'newspack-rolling-coverage' ) }
 						</ToolbarButton>
 					) }
-					<ToolbarButton
-						onClick={ detach }
-						disabled={ ! hasResolvedLayout }
-					>
+					<ToolbarButton onClick={ detach }>
 						{ __( 'Detach', 'newspack-rolling-coverage' ) }
 					</ToolbarButton>
 				</BlockControls>
 			) }
 
 			<div { ...blockProps }>
-				{ isCreatingLayout && <Spinner /> }
-				{ ! isCreatingLayout &&
-					( coverageId || isLayoutPattern ? (
+				{ isLoading && (
+					<LoadingState
+						label={
+							isSettingUpLayout
+								? __(
+										'Setting up the layout…',
+										'newspack-rolling-coverage'
+									)
+								: __(
+										'Fetching entries…',
+										'newspack-rolling-coverage'
+									)
+						}
+					/>
+				) }
+				{ ! isLoading &&
+					( hasLayout ? (
 						<>
 							{ layoutCss && <style>{ layoutCss }</style> }
-							<EditedStateBar
-								options={ EDITED_STATE_OPTIONS }
-								value={ editedState }
-								onChange={ setEditedState }
-								isVisible={ isSelected }
-							/>
 							{ isLayoutMissing && (
 								<Notice
 									status="warning"
@@ -1264,8 +1406,7 @@ export default function Edit( {
 										) }
 									</Notice>
 								) }
-							{ isSynced && ! hasResolvedLayout && <Spinner /> }
-							{ isSynced && hasResolvedLayout && (
+							{ isSynced && (
 								<>
 									{ syncedRenderOnceBlocks.length > 0 && (
 										<BlockContextProvider
@@ -1302,7 +1443,9 @@ export default function Edit( {
 												value={ NEUTRAL_ENTRY_CONTEXT }
 											>
 												<EntryBlockPreview
-													blocks={ templateBlocks }
+													blocks={
+														emptyPreviewBlocks
+													}
 												/>
 											</BlockContextProvider>
 										) }
@@ -1311,54 +1454,34 @@ export default function Edit( {
 							) }
 							{ ! isSynced && (
 								<>
-									<BlockContextProvider
-										value={
-											previewContexts.length > 0
-												? ( previewContexts.find(
-														( c ) =>
-															c.postId ===
-															( activeEntryId ??
-																previewContexts[ 0 ]
-																	?.postId )
-													) ?? NEUTRAL_ENTRY_CONTEXT )
-												: NEUTRAL_ENTRY_CONTEXT
-										}
+									<PinnedEntryContext.Provider
+										value={ pinnedContext ?? null }
 									>
-										<div { ...innerBlocksProps } />
-									</BlockContextProvider>
+										<BlockContextProvider
+											value={ layoutContext }
+										>
+											<div { ...innerBlocksProps } />
+										</BlockContextProvider>
+									</PinnedEntryContext.Provider>
 									<div className="newspack-rolling-coverage-entries">
-										{ previewContexts.length > 0 &&
-											previewContexts.map(
-												( context ) => {
-													const isActive =
-														context.postId ===
-														( activeEntryId ??
-															previewContexts[ 0 ]
-																?.postId );
-
-													return (
-														<BlockContextProvider
-															key={
-																context.postId
-															}
-															value={ context }
-														>
-															{ ! isActive && (
-																<EntryBlockPreview
-																	blocks={ blocksForEntry(
-																		context
-																	) }
-																	onSelect={ () =>
-																		setActiveEntryId(
-																			context.postId
-																		)
-																	}
-																/>
-															) }
-														</BlockContextProvider>
-													);
-												}
-											) }
+										{ previewContexts
+											.filter(
+												( context ) =>
+													context !== pinnedContext &&
+													context !== regularContext
+											)
+											.map( ( context ) => (
+												<BlockContextProvider
+													key={ context.postId }
+													value={ context }
+												>
+													<EntryBlockPreview
+														blocks={ blocksForEntry(
+															context
+														) }
+													/>
+												</BlockContextProvider>
+											) ) }
 									</div>
 								</>
 							) }

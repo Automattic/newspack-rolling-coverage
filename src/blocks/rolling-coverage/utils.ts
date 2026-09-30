@@ -11,7 +11,7 @@ import {
 	createBlock,
 	createBlocksFromInnerBlocksTemplate,
 } from '@wordpress/blocks';
-import { addQueryArgs } from '@wordpress/url';
+import { addQueryArgs, getQueryArg } from '@wordpress/url';
 
 /**
  * Internal dependencies
@@ -274,24 +274,38 @@ function createDefaultLayout(): Promise< number > {
 	return pendingDefaultLayout;
 }
 
+const PREVIEW_COVERAGE_ARG = 'rolling_coverage_preview';
+
+/**
+ * The coverage the layout editor was opened from, read once on load because
+ * the Site Editor rewrites its URL as it navigates.
+ */
+const PREVIEW_COVERAGE_ID =
+	Number( getQueryArg( window.location.href, PREVIEW_COVERAGE_ARG ) ) || 0;
+
 /**
  * The admin URL that edits a layout pattern: the Site Editor on block
  * themes for users who can open it, the post editor otherwise.
  *
- * @param {number} layoutId The layout's pattern ID.
+ * @param {number} layoutId   The layout's pattern ID.
+ * @param {number} coverageId The coverage whose entries the layout previews.
  * @return {string} The edit URL.
  */
-function getLayoutEditUrl( layoutId: number ): string {
+function getLayoutEditUrl( layoutId: number, coverageId: number ): string {
+	const preview = coverageId ? { [ PREVIEW_COVERAGE_ARG ]: coverageId } : {};
+
 	if ( IS_BLOCK_THEME && CAN_EDIT_THEME_OPTIONS ) {
 		return addQueryArgs( ADMIN_URL + 'site-editor.php', {
 			p: '/wp_block/' + layoutId,
 			canvas: 'edit',
+			...preview,
 		} );
 	}
 
 	return addQueryArgs( ADMIN_URL + 'post.php', {
 		post: layoutId,
 		action: 'edit',
+		...preview,
 	} );
 }
 
@@ -305,4 +319,5 @@ export {
 	getDefaultLayoutId,
 	createDefaultLayout,
 	getLayoutEditUrl,
+	PREVIEW_COVERAGE_ID,
 };

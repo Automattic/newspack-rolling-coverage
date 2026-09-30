@@ -182,7 +182,7 @@ type TemplateItem = [ string, Record< string, unknown >?, TemplateItem[]? ];
 type TemplateBlocks = { name: string; [ key: string ]: unknown }[];
 
 /**
- * One entry in the Edited State bar: its label, and the block(s) shown when
+ * One entry in the Edited State toolbar: its label, and the block(s) shown when
  * it's the active tab.
  */
 interface EntryEditedState {

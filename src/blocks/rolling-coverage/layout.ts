@@ -23,6 +23,7 @@ import {
 	withoutPostTitle,
 	hasPinnedCard,
 	isPinnedCard,
+	forEntryKind,
 } from './template';
 import type { EntryContext, TemplateBlocks } from './types';
 
@@ -135,12 +136,13 @@ export function useLayoutPreview(
 		[ allBlocks ]
 	);
 	const previewTemplates = useMemo( () => {
-		const hasCard = hasPinnedCard( templateBlocks );
+		const pinnedBlocks = forEntryKind( templateBlocks, true );
+		const hasCard = hasPinnedCard( pinnedBlocks );
 		const pinned = hasCard
-			? withoutClosingSeparator( templateBlocks )
-			: templateBlocks;
+			? withoutClosingSeparator( pinnedBlocks )
+			: pinnedBlocks;
 		const unpinned = withoutPinnedCard(
-			withoutPinnedRow( templateBlocks )
+			withoutPinnedRow( forEntryKind( templateBlocks, false ) )
 		);
 
 		const asUntitled = ( blocks: TemplateBlocks ) =>

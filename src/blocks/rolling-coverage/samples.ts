@@ -74,6 +74,7 @@ function getSamples(): Sample[] {
 				'newspack-rolling-coverage'
 			),
 			hasImage: true,
+			hasBreakout: true,
 		},
 		{
 			id: -104,

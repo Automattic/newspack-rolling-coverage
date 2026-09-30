@@ -93,11 +93,14 @@ class Layout {
 	 * shared layout. An unusable pattern leaves no inner blocks, which renders
 	 * the built-in default layout.
 	 *
+	 * Untyped: the filter runs for every block, and another callback may
+	 * hand it something that isn't a block.
+	 *
 	 * @param array $parsed_block Parsed block.
 	 * @return array
 	 */
-	public static function inject_layout( array $parsed_block ): array {
-		if ( Rolling_Coverage_Block::BLOCK_NAME !== ( $parsed_block['blockName'] ?? '' ) ) {
+	public static function inject_layout( $parsed_block ) {
+		if ( ! is_array( $parsed_block ) || Rolling_Coverage_Block::BLOCK_NAME !== ( $parsed_block['blockName'] ?? '' ) ) {
 			return $parsed_block;
 		}
 
