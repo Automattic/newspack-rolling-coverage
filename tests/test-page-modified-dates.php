@@ -137,24 +137,4 @@ class Test_Page_Modified_Dates extends Rolling_Coverage_TestCase {
 			]
 		);
 	}
-
-	/**
-	 * Create an entry whose publish and modified dates are both `$date`.
-	 *
-	 * @param int    $coverage_id Coverage term ID.
-	 * @param string $date        GMT date.
-	 * @param string $status      Post status.
-	 * @return int Entry post ID.
-	 */
-	private function create_dated_entry( int $coverage_id, string $date, string $status = 'publish' ): int {
-		return self::create_entry(
-			$coverage_id,
-			[
-				'post_status'   => $status,
-				'post_content'  => 'Update at ' . $date,
-				'post_date'     => $date,
-				'post_date_gmt' => $date,
-			]
-		);
-	}
 }
