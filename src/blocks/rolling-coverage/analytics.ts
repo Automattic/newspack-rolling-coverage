@@ -12,7 +12,7 @@ export const EVENTS = {
 } as const;
 
 /**
- * Checks whether a localized analytics config value is enabled.
+ * Checks whether a localized config value is enabled.
  *
  * wp_localize_script() casts PHP booleans to strings, so `true` arrives
  * here as '1' (and `false` as '').
@@ -20,7 +20,7 @@ export const EVENTS = {
  * @param {string | undefined} value Localized config value.
  * @return {boolean} True when the value represents an enabled setting.
  */
-function isConfigEnabled( value: string | undefined ): boolean {
+export function isConfigEnabled( value: string | undefined ): boolean {
 	return value === '1';
 }
 
