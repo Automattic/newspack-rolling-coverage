@@ -7,7 +7,7 @@ import { _n, sprintf } from '@wordpress/i18n';
  * Internal dependencies
  */
 import './style.scss';
-import { trackEvent, EVENTS } from './analytics';
+import { trackEvent, isConfigEnabled, EVENTS } from './analytics';
 import { keepRelativeDatesCurrent } from './relative-dates';
 import type {
 	AdSlot,
@@ -31,9 +31,18 @@ const OVERFLOW_RELOAD_RETRY_MS = 60 * 1000;
 // would run PHP. Cookies would not change the reply: with no nonce, core
 // clears the cookie user before the route runs.
 //
+// Users who can edit posts send credentials anyway, so their requests skip
+// both caches. A load-more reply is otherwise cached for minutes, and a reload
+// would bring back an older entry as it was before they changed, trashed or
+// unpublished it.
+//
 // A site gated in front of the REST API refuses a request without credentials,
 // so fetchEntries() moves the page to the browser's default on a refusal.
-let entriesCredentials: RequestCredentials = 'omit';
+let entriesCredentials: RequestCredentials = isConfigEnabled(
+	window.newspackRollingCoverageFrontend?.canEditPosts
+)
+	? 'same-origin'
+	: 'omit';
 
 /**
  * cssEscape polyfill for older browsers.
