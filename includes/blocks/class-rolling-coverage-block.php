@@ -754,10 +754,14 @@ class Rolling_Coverage_Block {
 	 * timezone's skipped daylight-saving hour; the array form is used as is.
 	 *
 	 * @param string $gmt GMT datetime, `Y-m-d H:i:s`.
-	 * @return array|string Date query bound, or the input when it is not a full datetime.
+	 * @return array|string Date query bound, or the input when it is not a valid full datetime.
 	 */
 	private static function gmt_date_bound( string $gmt ) {
 		if ( ! preg_match( '/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/', $gmt, $parts ) ) {
+			return $gmt;
+		}
+
+		if ( ! wp_checkdate( (int) $parts[2], (int) $parts[3], (int) $parts[1], $gmt ) || (int) $parts[4] > 23 || (int) $parts[5] > 59 || (int) $parts[6] > 59 ) {
 			return $gmt;
 		}
 
@@ -847,7 +851,7 @@ class Rolling_Coverage_Block {
 		}
 
 		$is_host_page = self::$host_post_id && is_singular() && get_queried_object_id() === self::$host_post_id;
-		$url          = $is_host_page ? get_permalink( self::$host_post_id ) : '/' . ltrim( remove_query_arg( Social_Sharing::ENTRY_QUERY_VAR ), '/' );
+		$url          = $is_host_page ? get_permalink( self::$host_post_id ) : '/' . ltrim( esc_url_raw( remove_query_arg( Social_Sharing::ENTRY_QUERY_VAR ) ), '/' );
 
 		return sprintf(
 			'<a class="%1$s-new-entries button wp-element-button" href="%2$s">%3$s</a>',

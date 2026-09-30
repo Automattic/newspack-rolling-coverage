@@ -362,6 +362,47 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$href = $this->pill_href( $this->render_with_shared( 'entry-3' ) );
 
 		$this->assertMatchesRegularExpression( '#^/[^/]#', $href );
+
+		$_SERVER['REQUEST_URI'] = '/%0a/evil.example/?rolling-coverage-entry=entry-3';
+
+		$href = $this->pill_href( $this->render_with_shared( 'entry-3' ) );
+
+		$this->assertMatchesRegularExpression( '#^/[^/]#', $href );
+	}
+
+	/**
+	 * A load-more bound that is not a real datetime is handled like any other value, without a date query error.
+	 *
+	 * @dataProvider invalid_datetime_bounds
+	 *
+	 * @param string $before Client-supplied bound.
+	 */
+	public function test_load_more_tolerates_bounds_that_are_not_datetimes( string $before ) {
+		$html     = $this->render_with_shared( 'entry-2' );
+		$response = self::dispatch(
+			'GET',
+			'/coverages/' . $this->coverage_id . '/entries',
+			[
+				'before'       => $before,
+				'per_page'     => 2,
+				'template_key' => $this->data_attribute( $html, 'template-key' ),
+			]
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertIsString( $response->get_data()['html'] );
+	}
+
+	/**
+	 * Bounds that look like a datetime but are not one.
+	 *
+	 * @return array[]
+	 */
+	public static function invalid_datetime_bounds(): array {
+		return [
+			'month, day, and time out of range' => [ '2026-13-45 99:99:99' ],
+			'day past the end of February'      => [ '2026-02-30 10:00:00' ],
+		];
 	}
 
 	/**
@@ -380,7 +421,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	 * Load more with skip_pinned sent as the script sends it, the string "1", leaves pinned entries out and reports what remains.
 	 */
 	public function test_load_more_accepts_skip_pinned_as_a_string() {
-		Post_Type::pin_entry( $this->entries['entry-3'] );
+		Post_Type::pin_entry( $this->entries['entry-4'] );
 
 		$html = $this->render_with_shared( 'entry-2' );
 		$data = self::dispatch(
@@ -394,7 +435,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 			]
 		)->get_data();
 
-		$this->assertSame( $this->ids( 'entry-5', 'entry-4' ), $this->entry_ids_in( $data['html'] ) );
+		$this->assertSame( $this->ids( 'entry-5', 'entry-3' ), $this->entry_ids_in( $data['html'] ) );
 		$this->assertTrue( $data['hasMore'] );
 	}
 
