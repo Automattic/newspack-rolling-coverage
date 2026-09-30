@@ -933,7 +933,7 @@ class Rolling_Coverage_Block {
 	 * current URL without the shared entry, kept on this site. Anywhere else
 	 * (wp-admin, admin-ajax, cron, a REST request, a feed, WP-CLI) the
 	 * request's URL is not a page's, so it is the host post's permalink, or
-	 * the site's front page when no host post is known.
+	 * the site's home URL when no host post is known.
 	 *
 	 * @return string
 	 */
@@ -943,7 +943,7 @@ class Rolling_Coverage_Block {
 		$host_url        = self::$host_post_id ? (string) get_permalink( self::$host_post_id ) : '';
 
 		if ( ! $is_page_request ) {
-			return $host_url ? $host_url : '/';
+			return $host_url ? $host_url : home_url( '/' );
 		}
 
 		if ( $host_url && is_singular() && get_queried_object_id() === self::$host_post_id ) {

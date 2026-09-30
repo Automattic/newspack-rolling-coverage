@@ -522,6 +522,52 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * This page's stylesheet for a fetched page's, by id. Core serves a
+	 * block's stylesheet inline (`…-inline-css`) or linked (`…-css`) depending
+	 * on the page, so either form counts as the other.
+	 *
+	 * @param {string} id The fetched stylesheet's id.
+	 * @return {HTMLElement | null} This page's element, or null if it has neither form.
+	 */
+	function ownStyleFor( id: string ): HTMLElement | null {
+		const twinId = id.endsWith( '-inline-css' )
+			? id.replace( /-inline-css$/, '-css' )
+			: id.replace( /-css$/, '-inline-css' );
+
+		return (
+			document.getElementById( id ) ?? document.getElementById( twinId )
+		);
+	}
+
+	/**
+	 * The rules a fetched inline style holds and this page's copy of it
+	 * doesn't. Throws where constructable stylesheets aren't supported.
+	 *
+	 * @param {HTMLStyleElement} style The fetched style.
+	 * @param {HTMLStyleElement} own   This page's style of the same id.
+	 * @return {string[]} The missing rules, as CSS text.
+	 */
+	function missingRules(
+		style: HTMLStyleElement,
+		own: HTMLStyleElement
+	): string[] {
+		if ( style.textContent === own.textContent ) {
+			return [];
+		}
+
+		const rulesOf = ( css: string ) => {
+			const sheet = new CSSStyleSheet();
+			sheet.replaceSync( css );
+			return Array.from( sheet.cssRules, ( rule ) => rule.cssText );
+		};
+		const ownRules = new Set( rulesOf( own.textContent ?? '' ) );
+
+		return rulesOf( style.textContent ?? '' ).filter(
+			( rule ) => ! ownRules.has( rule )
+		);
+	}
+
+	/**
 	 * Adds to this page the styles a fetched page has and this one doesn't,
 	 * so blocks taken from it show styled here: core loads a block's styles
 	 * only on pages that render the block. A stylesheet this page lacks goes
@@ -529,39 +575,92 @@ function initBlock( root: HTMLElement ): void {
 	 * as a block's own styles must come before the theme's for the theme's
 	 * to apply. An inline style both pages have under one id, such as the
 	 * theme's global styles or the block supports styles, holds only the
-	 * rules of the blocks its page renders, so the fetched page's copy is
-	 * added after this page's when they differ. Waits for linked stylesheets
-	 * to load, up to STYLES_TIMEOUT_MS or until the jump is aborted.
+	 * rules of the blocks its page renders, so the rules this page's copy
+	 * lacks are added in one style element after it. Waits for linked
+	 * stylesheets to load, up to STYLES_TIMEOUT_MS or until the jump is
+	 * aborted. Throws, so the jump navigates instead, when a missing
+	 * stylesheet is deferred, disabled or guarded by a nonce, as a copy of
+	 * it would not apply.
 	 *
 	 * @param {Document}    doc    The fetched page.
 	 * @param {AbortSignal} signal Aborts the jump.
-	 * @return {Promise<void>} Resolves when the stylesheets are in place or the wait is over.
+	 * @return {Promise<void>} Resolves when the styles are in place or the wait is over.
 	 */
 	async function adoptLiveStyles(
 		doc: Document,
 		signal: AbortSignal
 	): Promise< void > {
-		const loads: Promise< void >[] = [];
 		const styles = Array.from(
 			doc.querySelectorAll< HTMLElement >(
 				'link[rel="stylesheet"][id], style[id]'
 			)
 		).filter( ( style ) => ! style.closest( 'noscript' ) );
+		const owns = styles.map( ( style ) => ownStyleFor( style.id ) );
+		// Where each fetched stylesheet sits on this page, to place the
+		// missing ones by. The block's entries are about to be replaced, so
+		// nothing inside the block is placed by.
+		const placed = owns.map( ( own ) =>
+			own && ! root.contains( own ) ? own : null
+		);
+		const extraRules = new Map< HTMLStyleElement, string[] >();
 
+		// Everything that can make the jump give up comes before any change.
 		styles.forEach( ( style, index ) => {
-			const own = document.getElementById( style.id );
+			const own = owns[ index ];
 
-			if ( own ) {
+			if ( ! own ) {
 				if (
-					own instanceof HTMLStyleElement &&
-					style instanceof HTMLStyleElement &&
-					own.textContent !== style.textContent
+					[ 'onload', 'disabled', 'nonce' ].some( ( name ) =>
+						style.hasAttribute( name )
+					)
 				) {
-					const rules = document.createElement( 'style' );
-					rules.textContent = style.textContent;
-					own.after( rules );
+					throw new Error( 'The stylesheet cannot be copied.' );
 				}
 
+				return;
+			}
+
+			if (
+				own instanceof HTMLStyleElement &&
+				style instanceof HTMLStyleElement
+			) {
+				const rules = missingRules( style, own );
+
+				if ( rules.length > 0 ) {
+					extraRules.set( own, rules );
+				}
+			}
+		} );
+
+		extraRules.forEach( ( rules, own ) => {
+			const extra = document.createElement( 'style' );
+			const media = own.getAttribute( 'media' );
+
+			extra.dataset.rcLiveFor = own.id;
+			extra.textContent = rules.join( '\n' );
+
+			if ( media ) {
+				extra.setAttribute( 'media', media );
+			}
+
+			// One per style, however many times the jump runs on this page.
+			const previous = Array.from(
+				document.querySelectorAll< HTMLElement >(
+					'style[data-rc-live-for]'
+				)
+			).find( ( element ) => element.dataset.rcLiveFor === own.id );
+
+			if ( previous ) {
+				previous.replaceWith( extra );
+			} else {
+				own.after( extra );
+			}
+		} );
+
+		const loads: Promise< void >[] = [];
+
+		styles.forEach( ( style, index ) => {
+			if ( owns[ index ] ) {
 				return;
 			}
 
@@ -590,16 +689,20 @@ function initBlock( root: HTMLElement ): void {
 				copy.textContent = style.textContent;
 			}
 
-			const next = styles
-				.slice( index + 1 )
-				.map( ( later ) => document.getElementById( later.id ) )
-				.find( Boolean );
+			// Before the next stylesheet both pages share, or else after the
+			// nearest earlier one, counting those just placed.
+			const next = placed.slice( index + 1 ).find( Boolean );
+			const earlier = placed.slice( 0, index ).reverse().find( Boolean );
 
 			if ( next ) {
 				next.before( copy );
+			} else if ( earlier ) {
+				earlier.after( copy );
 			} else {
 				document.head.append( copy );
 			}
+
+			placed[ index ] = copy;
 		} );
 
 		if ( loads.length === 0 ) {
@@ -662,45 +765,39 @@ function initBlock( root: HTMLElement ): void {
 			() => controller.abort(),
 			JUMP_TIMEOUT_MS
 		);
+		let fetched: { live: HTMLElement; url: string } | null = null;
 
 		try {
 			const response = await fetch( url, { signal: controller.signal } );
-
-			if ( ! response.ok ) {
-				return null;
-			}
-
 			const doc = new DOMParser().parseFromString(
-				await response.text(),
+				response.ok ? await response.text() : '',
 				'text/html'
 			);
 			const live = findBlockIn( doc );
 
-			if ( ! canShowInPlace( live ) ) {
-				return null;
+			if ( canShowInPlace( live ) ) {
+				await adoptLiveStyles( doc, controller.signal );
+
+				const finalUrl = new URL( response.url || url, url );
+
+				if ( ! controller.signal.aborted ) {
+					fetched = {
+						live,
+						url:
+							response.redirected &&
+							finalUrl.origin === window.location.origin
+								? finalUrl.toString()
+								: url,
+					};
+				}
 			}
-
-			await adoptLiveStyles( doc, controller.signal );
-
-			if ( controller.signal.aborted ) {
-				return null;
-			}
-
-			const finalUrl = new URL( response.url || url, url );
-
-			return {
-				live,
-				url:
-					response.redirected &&
-					finalUrl.origin === window.location.origin
-						? finalUrl.toString()
-						: url,
-			};
 		} catch {
-			return null;
-		} finally {
-			clearTimeout( timeoutId );
+			fetched = null;
 		}
+
+		clearTimeout( timeoutId );
+
+		return fetched;
 	}
 
 	/**

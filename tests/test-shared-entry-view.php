@@ -463,6 +463,16 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * With no host post and no page request, the live feed URL is the site's front page.
+	 */
+	public function test_live_feed_url_is_the_front_page_without_a_host_post_or_a_page_request() {
+		unset( $_SERVER['REQUEST_URI'] );
+
+		$this->assertSame( 0, Rolling_Coverage_Block::get_host_post_id() );
+		$this->assertSame( home_url( '/' ), Rolling_Coverage_Block::live_feed_url() );
+	}
+
+	/**
 	 * In wp-admin, where the request is not a page's, the control links to the host post.
 	 */
 	public function test_control_links_to_the_host_post_in_an_admin_request() {
@@ -486,7 +496,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A coverage block inside an entry's content holds no control: the entry's own feed has the one above it.
+	 * Documents that a coverage block inside an entry's content renders no control. Its bound button already rendered nothing at entry depth, so this held before the block returned early there.
 	 */
 	public function test_block_nested_in_an_entry_has_no_control() {
 		$html = Rolling_Coverage_Block::render_as_entry( fn() => $this->render_with_shared( '' ) );
@@ -497,7 +507,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The default Entry group carries the Pinned Card's corner radius, as the editor saves it.
+	 * The default Entry group's opening tag carries the Pinned Card's corner radius as its only inline style, with or without a closing semicolon.
 	 */
 	public function test_default_entry_group_has_the_card_radius() {
 		$radius = 'border-radius:var(--wp--custom--border--radius-large, var(--newspack-ui-border-radius-l, 8px))';
@@ -556,7 +566,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The count stops at the cap, which reads as "or more".
+	 * The count stops at the cap, one past a hundred, which reads as more than 100.
 	 */
 	public function test_newer_count_is_capped() {
 		$newer = self::factory()->post->create_many(
