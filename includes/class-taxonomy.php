@@ -675,6 +675,7 @@ class Taxonomy {
 	 * @param \WP_Post $entry Entry post object.
 	 */
 	private static function touch_coverage_pages( \WP_Post $entry ): void {
+		$modified     = $entry->post_modified;
 		$modified_gmt = $entry->post_modified_gmt;
 
 		if ( '' === $modified_gmt || '0000-00-00 00:00:00' === $modified_gmt ) {
@@ -693,27 +694,27 @@ class Taxonomy {
 
 		foreach ( $coverage_ids as $coverage_id ) {
 			foreach ( $page_ids[ (int) $coverage_id ] ?? [] as $page_id ) {
-				$page = get_post( $page_id );
-
-				if ( ! $page instanceof \WP_Post || $page->post_modified_gmt >= $modified_gmt ) {
-					continue;
-				}
-
 				// Written directly because wp_update_post() re-saves the whole page:
 				// it would run the page's content through the current user's HTML
 				// filters, and entries are often published by Authors or by the Slack
-				// integration, who can't post unfiltered HTML. Only the post cache is
-				// cleared, not clean_post_cache(), because the page's content, and so
-				// this map, hasn't changed.
-				$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-					$wpdb->posts,
-					[
-						'post_modified'     => $entry->post_modified,
-						'post_modified_gmt' => $modified_gmt,
-					],
-					[ 'ID' => $page_id ]
+				// integration, who can't post unfiltered HTML. The date check is part
+				// of the statement so two entry saves landing at once can't leave the
+				// page on the earlier one. Only the post cache is cleared, not
+				// clean_post_cache(), because the page's content, and so this map,
+				// hasn't changed.
+				$updated = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+					$wpdb->prepare(
+						"UPDATE {$wpdb->posts} SET post_modified = %s, post_modified_gmt = %s WHERE ID = %d AND post_modified_gmt < %s",
+						$modified,
+						$modified_gmt,
+						$page_id,
+						$modified_gmt
+					)
 				);
-				wp_cache_delete( $page_id, 'posts' );
+
+				if ( $updated ) {
+					wp_cache_delete( $page_id, 'posts' );
+				}
 			}
 		}
 	}
