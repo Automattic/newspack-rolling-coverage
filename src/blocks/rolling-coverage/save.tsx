@@ -3,6 +3,15 @@
  */
 import { InnerBlocks } from '@wordpress/block-editor';
 
-export default function Save() {
-	return <InnerBlocks.Content />;
+/**
+ * Internal dependencies
+ */
+import type { RollingCoverageAttributes } from './types';
+
+export default function Save( {
+	attributes,
+}: {
+	attributes: RollingCoverageAttributes;
+} ) {
+	return attributes.layoutId ? null : <InnerBlocks.Content />;
 }

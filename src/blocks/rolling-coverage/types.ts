@@ -28,6 +28,7 @@ interface RollingCoverageAttributes {
 	enableAds: boolean;
 	adsInterval: number;
 	pinnedLabel: string;
+	layoutId: number;
 	style?: { spacing?: { blockGap?: string | { top?: string } } };
 	[ key: string ]: unknown;
 }
@@ -64,6 +65,13 @@ interface BlockConfig {
 	aiAvailable: boolean;
 	newspackAdsAvailable: boolean;
 	newspackAdsPlacementEnabled: boolean;
+	defaultLayoutId: number;
+	layoutsRestBase: string;
+	adminUrl: string;
+	isBlockTheme: boolean;
+	canEditThemeOptions: boolean;
+	layoutCategoryId: number;
+	entryPostType: string;
 }
 
 /**
@@ -174,7 +182,7 @@ type TemplateItem = [ string, Record< string, unknown >?, TemplateItem[]? ];
 type TemplateBlocks = { name: string; [ key: string ]: unknown }[];
 
 /**
- * One entry in the Edited State bar: its label, and the block(s) shown when
+ * One entry in the Edited State toolbar: its label, and the block(s) shown when
  * it's the active tab.
  */
 interface EntryEditedState {

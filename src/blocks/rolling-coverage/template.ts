@@ -13,6 +13,12 @@ import type { TemplateItem, EntryEditedState } from './types';
 const LOCKED = { remove: true, move: false };
 
 /**
+ * The pinned card and the entry group stay at the layout's top level, where
+ * the template is split by kind of entry.
+ */
+const LOCKED_IN_PLACE = { remove: true, move: true };
+
+/**
  * The pin icon registered by Block_Icons::PIN.
  */
 const PIN_ICON = 'newspack-rolling-coverage/pin-small';
@@ -119,16 +125,124 @@ const PINNED_CARD_RADIUS =
 	'var(--wp--custom--border--radius-large, var(--newspack-ui-border-radius-l, 8px))';
 
 /**
- * Default per-entry template: the pinned card holding the pinned row, date
- * and title stacked with the share button opposite, content and "Read more"
- * bound to the entry and locked against removal, then a separator. Only
- * pinned entries show the card; others show what it holds.
+ * Class of the group that shows an entry that isn't pinned, mirroring
+ * Rolling_Coverage_Block::REGULAR_ENTRY_CLASS.
+ */
+const REGULAR_ENTRY_CLASS = 'newspack-rolling-coverage-regular-entry';
+
+/**
+ * What an entry shows: the date and title stacked with the share button
+ * opposite, then content and "Read more" bound to the entry and locked
+ * against removal. The pinned card's also carry the pinned row.
+ *
+ * @param {boolean} isPinned Whether the blocks are the pinned card's.
+ * @return {TemplateItem[]} The entry's blocks.
+ */
+function entryBlocks( isPinned: boolean ): TemplateItem[] {
+	const date: TemplateItem = [
+		'core/post-date',
+		{ ...POST_DATE_ATTRIBUTES, format: 'human-diff' },
+	];
+	const title: TemplateItem = [ 'core/post-title', { level: 4 } ];
+
+	return [
+		[
+			'core/group',
+			{
+				layout: {
+					type: 'flex',
+					flexWrap: 'nowrap',
+					justifyContent: 'space-between',
+					verticalAlignment: 'top',
+				},
+				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+				metadata: {
+					name: __( 'Header', 'newspack-rolling-coverage' ),
+				},
+			},
+			[
+				[
+					'core/group',
+					{
+						layout: { type: 'flex', orientation: 'vertical' },
+						style: {
+							spacing: { blockGap: 'var:preset|spacing|20' },
+						},
+						metadata: {
+							name: __( 'Meta', 'newspack-rolling-coverage' ),
+						},
+					},
+					isPinned ? [ PINNED_ROW, date, title ] : [ date, title ],
+				],
+				SHARE_BUTTONS,
+			],
+		],
+		[
+			'core/post-content',
+			{
+				style: {
+					spacing: {
+						padding: {
+							top: '0',
+							right: '0',
+							bottom: '0',
+							left: '0',
+						},
+						margin: { bottom: CONTENT_GAP },
+					},
+				},
+			},
+		],
+		[
+			'core/buttons',
+			{
+				lock: LOCKED,
+				metadata: {
+					name: __( 'Read more', 'newspack-rolling-coverage' ),
+				},
+			},
+			[
+				[
+					'core/button',
+					{
+						lock: LOCKED,
+						text: __( 'Read more', 'newspack-rolling-coverage' ),
+						style: {
+							color: {
+								background: READ_MORE_BACKGROUND,
+								text: READ_MORE_TEXT,
+							},
+						},
+						metadata: {
+							name: __(
+								'Read more',
+								'newspack-rolling-coverage'
+							),
+							bindings: {
+								url: {
+									source: ENTRY_BINDINGS_SOURCE,
+									args: { key: 'breakoutUrl' },
+								},
+							},
+						},
+					},
+				],
+			],
+		],
+	];
+}
+
+/**
+ * Default per-entry template: the pinned card, which a pinned entry shows,
+ * the entry group, which every other entry shows, then the separator that
+ * closes an entry.
  */
 const ENTRY_TEMPLATE: TemplateItem[] = [
 	[
 		'core/group',
 		{
 			className: PINNED_CARD_CLASS,
+			lock: LOCKED_IN_PLACE,
 			style: {
 				color: { background: PINNED_CARD_BACKGROUND },
 				spacing: {
@@ -146,104 +260,18 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 				name: __( 'Pinned Card', 'newspack-rolling-coverage' ),
 			},
 		},
-		[
-			[
-				'core/group',
-				{
-					layout: {
-						type: 'flex',
-						flexWrap: 'nowrap',
-						justifyContent: 'space-between',
-						verticalAlignment: 'top',
-					},
-					style: { spacing: { blockGap: 'var:preset|spacing|30' } },
-					metadata: {
-						name: __( 'Header', 'newspack-rolling-coverage' ),
-					},
-				},
-				[
-					[
-						'core/group',
-						{
-							layout: { type: 'flex', orientation: 'vertical' },
-							style: {
-								spacing: { blockGap: 'var:preset|spacing|20' },
-							},
-							metadata: {
-								name: __( 'Meta', 'newspack-rolling-coverage' ),
-							},
-						},
-						[
-							PINNED_ROW,
-							[
-								'core/post-date',
-								{
-									...POST_DATE_ATTRIBUTES,
-									format: 'human-diff',
-								},
-							],
-							[ 'core/post-title', { level: 4 } ],
-						],
-					],
-					SHARE_BUTTONS,
-				],
-			],
-			[
-				'core/post-content',
-				{
-					style: {
-						spacing: {
-							padding: {
-								top: '0',
-								right: '0',
-								bottom: '0',
-								left: '0',
-							},
-							margin: { bottom: CONTENT_GAP },
-						},
-					},
-				},
-			],
-			[
-				'core/buttons',
-				{
-					lock: LOCKED,
-					metadata: {
-						name: __( 'Read more', 'newspack-rolling-coverage' ),
-					},
-				},
-				[
-					[
-						'core/button',
-						{
-							lock: LOCKED,
-							text: __(
-								'Read more',
-								'newspack-rolling-coverage'
-							),
-							style: {
-								color: {
-									background: READ_MORE_BACKGROUND,
-									text: READ_MORE_TEXT,
-								},
-							},
-							metadata: {
-								name: __(
-									'Read more',
-									'newspack-rolling-coverage'
-								),
-								bindings: {
-									url: {
-										source: ENTRY_BINDINGS_SOURCE,
-										args: { key: 'breakoutUrl' },
-									},
-								},
-							},
-						},
-					],
-				],
-			],
-		],
+		entryBlocks( true ),
+	],
+	[
+		'core/group',
+		{
+			className: REGULAR_ENTRY_CLASS,
+			lock: LOCKED_IN_PLACE,
+			metadata: {
+				name: __( 'Entry', 'newspack-rolling-coverage' ),
+			},
+		},
+		entryBlocks( false ),
 	],
 	[
 		'core/separator',
@@ -482,6 +510,34 @@ function withoutBreakoutLink<
 }
 
 /**
+ * The "Read more" blocks an entry without a published breakout post doesn't
+ * show: each breakout link, and a Buttons block holding nothing else.
+ *
+ * @param {Object[]} blocks The blocks to look through.
+ * @return {string[]} Their client IDs.
+ */
+function breakoutBlockIds(
+	blocks: { name: string; [ key: string ]: unknown }[]
+): string[] {
+	return blocks.flatMap( ( block ) => {
+		const innerBlocks = Array.isArray( block.innerBlocks )
+			? ( block.innerBlocks as typeof blocks )
+			: [];
+		const holdsOnlyLinks =
+			block.name === 'core/buttons' &&
+			innerBlocks.length > 0 &&
+			innerBlocks.every( isBreakoutLink );
+
+		return [
+			...( isBreakoutLink( block ) || holdsOnlyLinks
+				? [ block.clientId as string ]
+				: [] ),
+			...breakoutBlockIds( innerBlocks ),
+		];
+	} );
+}
+
+/**
  * The template with the entry's title as a link, as an entry with a published
  * breakout post renders (see Entry_Bindings::link_title_to_breakout()).
  *
@@ -530,6 +586,51 @@ function isPinnedCard( block: {
 		block.name === 'core/group' &&
 		typeof className === 'string' &&
 		className.split( ' ' ).includes( PINNED_CARD_CLASS )
+	);
+}
+
+/**
+ * Whether a block is the entry group, mirroring
+ * Rolling_Coverage_Block::is_regular_entry().
+ *
+ * @param {Object} block            The block.
+ * @param {string} block.name       Block name.
+ * @param {Object} block.attributes Block attributes.
+ * @return {boolean} Whether it's the entry group.
+ */
+function isRegularEntry( block: {
+	name: string;
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const className = block.attributes?.className;
+
+	return (
+		block.name === 'core/group' &&
+		typeof className === 'string' &&
+		className.split( ' ' ).includes( REGULAR_ENTRY_CLASS )
+	);
+}
+
+/**
+ * The template for one kind of entry, where it holds both the pinned card
+ * and the entry group: a pinned entry shows the card alone, every other
+ * entry the entry group alone (see
+ * Rolling_Coverage_Block::shape_entry_template()). A template missing either
+ * is returned as it is.
+ *
+ * @param {Object[]} blocks   The template's top-level blocks.
+ * @param {boolean}  isPinned Whether the entry is pinned.
+ * @return {Object[]} The blocks that kind of entry shows.
+ */
+function forEntryKind<
+	T extends { name: string; attributes?: Record< string, unknown > },
+>( blocks: T[], isPinned: boolean ): T[] {
+	if ( ! blocks.some( isPinnedCard ) || ! blocks.some( isRegularEntry ) ) {
+		return blocks;
+	}
+
+	return blocks.filter(
+		( block ) => ! ( isPinned ? isRegularEntry : isPinnedCard )( block )
 	);
 }
 
@@ -803,7 +904,7 @@ const ENTRY_EDITED_STATES: EntryEditedState[] = [
 	},
 	{
 		value: 'archived',
-		label: __( 'Archived Coverage', 'newspack-rolling-coverage' ),
+		label: __( 'Archived', 'newspack-rolling-coverage' ),
 		blocks: [
 			[
 				'newspack-rolling-coverage/coverage-archived-notice',
@@ -831,9 +932,12 @@ export {
 	isFollowButtons,
 	withoutPinnedRow,
 	withoutBreakoutLink,
+	breakoutBlockIds,
 	withLinkedTitle,
 	hasPinnedCard,
 	isPinnedCard,
+	isRegularEntry,
+	forEntryKind,
 	withoutPinnedCard,
 	withoutClosingSeparator,
 	withShapedPinnedCard,
