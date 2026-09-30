@@ -165,7 +165,6 @@ class AI_Settings {
 		} else {
 			update_option( self::OPTION_KEY, $overrides );
 		}
-		AI_Service::clear_availability_cache();
 
 		$new_settings = self::get_all();
 		return new WP_REST_Response( $new_settings, 200 );

@@ -1,7 +1,13 @@
 /**
  * WordPress dependencies
  */
-import { useState, useEffect, useCallback, useMemo } from '@wordpress/element';
+import {
+	useState,
+	useEffect,
+	useCallback,
+	useMemo,
+	createInterpolateElement,
+} from '@wordpress/element';
 import {
 	Button,
 	DropdownMenu,
@@ -21,20 +27,44 @@ import SectionHeader from 'newspack-components/dist/esm/section-header';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { useHeader } from '../hooks/useHeader';
 import { useConfirmDialog } from './confirm-dialog';
-import { fetchAiSettings, saveAiSettings } from '../utils/ai-settings-api';
+import {
+	fetchAiSettings,
+	saveAiSettings,
+	isSameSettings,
+} from '../utils/ai-settings-api';
 import { notifySuccess } from '../utils/notices';
-import type { AiSettings as AiSettingsType } from '../types';
+import type { AiSettings as AiSettingsType, AdminConfig } from '../types';
 
 /**
- * Whether two sets of AI settings hold the same prompts.
+ * Body of the "AI features are not available" notice.
  *
- * @param a First settings.
- * @param b Second settings.
- * @return True when every prompt matches.
+ * When the only blocker is connector approval, the notice points at the
+ * Connector Approvals screen instead of asking the administrator to enable
+ * the AI plugin and configure a provider, which they have already done.
+ *
+ * @param {AdminConfig} config Admin config with the availability flags.
+ * @return Notice content.
  */
-function isSameSettings( a: AiSettingsType, b: AiSettingsType ): boolean {
-	return ( Object.keys( a ) as Array< keyof AiSettingsType > ).every(
-		( key ) => a[ key ] === b[ key ]
+function getUnavailableNotice( config: AdminConfig ) {
+	if ( config.aiNeedsApproval ) {
+		return createInterpolateElement(
+			/* translators: <a> wraps the link to the Connector Approvals screen. */
+			__(
+				'Rolling Coverage is waiting for AI connector approval. Approve it under <a>Tools → Connector Approvals</a> before these prompts take effect.',
+				'newspack-rolling-coverage'
+			),
+			{
+				a: (
+					// eslint-disable-next-line jsx-a11y/anchor-has-content -- content is supplied via createInterpolateElement.
+					<a href={ config.adminUrls.connectorApprovals } />
+				),
+			}
+		);
+	}
+
+	return __(
+		'AI features are not available on this site. An administrator must enable the AI plugin and configure a provider before these prompts take effect.',
+		'newspack-rolling-coverage'
 	);
 }
 
@@ -235,10 +265,7 @@ function AIPage() {
 				) }
 				{ ! config.aiAvailable && (
 					<Notice status="warning" isDismissible={ false }>
-						{ __(
-							'AI features are not available on this site. An administrator must enable the AI plugin and configure a provider before these prompts take effect.',
-							'newspack-rolling-coverage'
-						) }
+						{ getUnavailableNotice( config ) }
 					</Notice>
 				) }
 				{ hasOverLimit && aiEnabled && (

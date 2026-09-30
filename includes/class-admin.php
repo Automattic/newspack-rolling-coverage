@@ -310,11 +310,12 @@ class Admin {
 				'canManageAiSettings' => current_user_can( 'edit_others_posts' ),
 			),
 			'adminUrls'           => array(
-				'coverages' => admin_url( 'admin.php?page=' . self::MENU_SLUG ),
-				'editEntry' => admin_url( 'post.php?action=edit' ),
-				'newEntry'  => admin_url( 'post-new.php?post_type=' . Post_Type::CPT_SLUG ),
-				'editTerm'  => admin_url( 'term.php?taxonomy=' . Taxonomy::TAXONOMY_SLUG ),
-				'editUser'  => admin_url( 'user-edit.php' ),
+				'coverages'          => admin_url( 'admin.php?page=' . self::MENU_SLUG ),
+				'editEntry'          => admin_url( 'post.php?action=edit' ),
+				'newEntry'           => admin_url( 'post-new.php?post_type=' . Post_Type::CPT_SLUG ),
+				'editTerm'           => admin_url( 'term.php?taxonomy=' . Taxonomy::TAXONOMY_SLUG ),
+				'editUser'           => admin_url( 'user-edit.php' ),
+				'connectorApprovals' => AI_Service::get_connector_approvals_url(),
 			),
 			'postType'            => Post_Type::CPT_SLUG,
 			'taxonomy'            => Taxonomy::TAXONOMY_SLUG,
@@ -334,6 +335,7 @@ class Admin {
 			'aiSettings'          => AI_Settings::get_all(),
 			'aiDefaultSettings'   => AI_Settings::get_defaults(),
 			'aiAvailable'         => AI_Service::is_available(),
+			'aiNeedsApproval'     => AI_Service::needs_connector_approval(),
 			'aiMaxPromptLength'   => AI_Service::MAX_PROMPT_LENGTH,
 		);
 	}
