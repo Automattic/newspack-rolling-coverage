@@ -463,6 +463,59 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * In wp-admin, where the request is not a page's, the control links to the host post.
+	 */
+	public function test_control_links_to_the_host_post_in_an_admin_request() {
+		$this->go_to( home_url( '/' ) );
+		$this->use_page_as_current_post();
+
+		$_SERVER['REQUEST_URI'] = '/wp-admin/admin-ajax.php?rolling-coverage-entry=entry-3';
+
+		set_current_screen( 'dashboard' );
+
+		try {
+			$this->assertTrue( is_admin() );
+
+			$control = $this->control( $this->render_with_shared( 'entry-3' ) );
+		} finally {
+			unset( $GLOBALS['current_screen'] );
+		}
+
+		$this->assertSame( get_permalink( $this->page_id ), $control['href'] );
+		$this->assertSame( get_permalink( $this->page_id ), $control['live'] );
+	}
+
+	/**
+	 * A coverage block inside an entry's content holds no control: the entry's own feed has the one above it.
+	 */
+	public function test_block_nested_in_an_entry_has_no_control() {
+		$html = Rolling_Coverage_Block::render_as_entry( fn() => $this->render_with_shared( '' ) );
+
+		$this->assertNotEmpty( $this->entry_ids_in( $html ) );
+		$this->assertSame( 0, $this->control( $html )['count'] );
+		$this->assertSame( 1, $this->control( $this->render_with_shared( '' ) )['count'] );
+	}
+
+	/**
+	 * The default Entry group carries the Pinned Card's corner radius, as the editor saves it.
+	 */
+	public function test_default_entry_group_has_the_card_radius() {
+		$radius = 'border-radius:var(--wp--custom--border--radius-large, var(--newspack-ui-border-radius-l, 8px))';
+
+		$this->assertMatchesRegularExpression(
+			'/<div class="wp-block-group newspack-rolling-coverage-regular-entry[^"]*" style="' . preg_quote( $radius, '/' ) . ';?"/',
+			$this->render_with_shared( '' )
+		);
+	}
+
+	/**
+	 * Without an enabled ad placement the block is not flagged as showing ads.
+	 */
+	public function test_block_without_an_ad_placement_is_not_flagged() {
+		$this->assertStringNotContainsString( 'data-ads=', $this->render_with_shared( 'entry-3' ) );
+	}
+
+	/**
 	 * A feed holds no floating control.
 	 */
 	public function test_feed_render_has_no_control() {
@@ -521,7 +574,8 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$control = $this->control( $this->render_with_shared( 'entry-6' ) );
 
-		$this->assertSame( '100', $control['newer'] );
+		$this->assertSame( 101, Rolling_Coverage_Block::NEWER_COUNT_CAP );
+		$this->assertSame( '101', $control['newer'], 'One past a hundred stands for "more than 100".' );
 		$this->assertSame( '100+ newer posts', $control['text'] );
 	}
 
@@ -539,7 +593,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The label is exact below ten and a floor from there.
+	 * The label is exact up to ten; from there "N+" reads as more than N.
 	 *
 	 * @dataProvider newer_posts_labels
 	 *
@@ -560,11 +614,12 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 			[ 0, '' ],
 			[ 1, '1 newer post' ],
 			[ 9, '9 newer posts' ],
-			[ 10, '10+ newer posts' ],
-			[ 49, '10+ newer posts' ],
-			[ 50, '50+ newer posts' ],
-			[ 99, '50+ newer posts' ],
-			[ 100, '100+ newer posts' ],
+			[ 10, '10 newer posts' ],
+			[ 11, '10+ newer posts' ],
+			[ 50, '10+ newer posts' ],
+			[ 51, '50+ newer posts' ],
+			[ 100, '50+ newer posts' ],
+			[ 101, '100+ newer posts' ],
 			[ 250, '100+ newer posts' ],
 		];
 	}
@@ -598,19 +653,39 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A link naming an entry of another coverage, or an unpublished one, marks nothing.
+	 * The entry the page's link names for a coverage, as the block resolves it.
+	 *
+	 * @param string|array $slug        Value of the entry query var.
+	 * @param int          $coverage_id Coverage term ID.
+	 * @return WP_Post|null
 	 */
-	public function test_entries_outside_the_coverage_are_not_marked() {
-		self::create_entry(
-			self::create_coverage(),
+	private function linked_entry_for( $slug, int $coverage_id ): ?WP_Post {
+		set_query_var( Social_Sharing::ENTRY_QUERY_VAR, $slug );
+
+		$resolve = new ReflectionMethod( Rolling_Coverage_Block::class, 'get_linked_entry' );
+		$resolve->setAccessible( true );
+
+		return $resolve->invoke( null, $coverage_id );
+	}
+
+	/**
+	 * A link names an entry for a coverage only when the entry is published and in that coverage.
+	 */
+	public function test_entries_outside_the_coverage_are_not_linked() {
+		$other_coverage = self::create_coverage();
+		$elsewhere      = self::create_entry(
+			$other_coverage,
 			[
 				'post_date' => '2026-01-01 09:00:00',
 				'post_name' => 'elsewhere',
 			]
 		);
 
-		$this->assertSame( [], $this->linked_ids( $this->render_with_shared( 'elsewhere' ) ) );
-		$this->assertSame( [], $this->linked_ids( $this->render_with_shared( [ 'entry-5' ] ) ) );
+		$this->assertSame( $elsewhere, $this->linked_entry_for( 'elsewhere', $other_coverage )->ID, 'The entry is linked for its own coverage.' );
+		$this->assertNull( $this->linked_entry_for( 'elsewhere', $this->coverage_id ), 'An entry of another coverage.' );
+
+		$this->assertSame( $this->entries['entry-5'], $this->linked_entry_for( 'entry-5', $this->coverage_id )->ID );
+		$this->assertSame( [], $this->linked_ids( $this->render_with_shared( [ 'entry-5' ] ) ), 'A value that is not a string.' );
 
 		wp_update_post(
 			[
@@ -619,7 +694,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 			]
 		);
 
-		$this->assertSame( [], $this->linked_ids( $this->render_with_shared( 'entry-5' ) ) );
+		$this->assertNull( $this->linked_entry_for( 'entry-5', $this->coverage_id ), 'An unpublished entry.' );
 	}
 
 	/**

@@ -121,7 +121,12 @@ const CONTENT_GAP =
  */
 const PINNED_CARD_CLASS = 'newspack-rolling-coverage-pinned-card';
 const PINNED_CARD_BACKGROUND = 'var(--wp--custom--color--neutral-5, #f7f7f7)';
-const PINNED_CARD_RADIUS =
+
+/**
+ * Corner radius of the pinned card and the entry group, mirroring
+ * Rolling_Coverage_Block::ENTRY_RADIUS.
+ */
+const ENTRY_RADIUS =
 	'var(--wp--custom--border--radius-large, var(--newspack-ui-border-radius-l, 8px))';
 
 /**
@@ -254,7 +259,7 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 					},
 					margin: { bottom: 'var:preset|spacing|50' },
 				},
-				border: { radius: PINNED_CARD_RADIUS },
+				border: { radius: ENTRY_RADIUS },
 			},
 			metadata: {
 				name: __( 'Pinned Card', 'newspack-rolling-coverage' ),
@@ -267,6 +272,7 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 		{
 			className: REGULAR_ENTRY_CLASS,
 			lock: LOCKED_IN_PLACE,
+			style: { border: { radius: ENTRY_RADIUS } },
 			metadata: {
 				name: __( 'Entry', 'newspack-rolling-coverage' ),
 			},

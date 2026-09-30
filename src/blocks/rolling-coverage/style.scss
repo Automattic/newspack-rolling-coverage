@@ -1,3 +1,5 @@
+@use "~@wordpress/base-styles/mixins" as wp-mixins;
+
 :where(:root) {
 	--wp--preset--shadow--elevation-1: 0 1px 10px rgba(0, 0, 0, 0.07);
 }
@@ -77,11 +79,31 @@
 		}
 	}
 
+	.newspack-rolling-coverage-entry[data-linked] {
+		scroll-margin-top: calc(var(--newspack-rolling-coverage-scroll-offset, 80px) + var(--wp--preset--spacing--20, 0.5rem) + var(--wp--preset--spacing--30, 1rem) + 3px);
+
+		@include wp-mixins.break-medium {
+			scroll-margin-top: calc(var(--newspack-rolling-coverage-scroll-offset, 80px) + var(--wp--preset--spacing--30, 1rem) * 2 + 6px);
+		}
+	}
+
 	.newspack-rolling-coverage-entry[data-linked] > .newspack-rolling-coverage-regular-entry,
-	.newspack-rolling-coverage-entry[data-linked] > .newspack-rolling-coverage-pinned-card,
+	.newspack-rolling-coverage-entry[data-linked] > .newspack-rolling-coverage-pinned-card {
+		outline: 3px solid var(--wp--preset--color--accent, var(--newspack-theme-color-primary, currentcolor));
+		outline-offset: var(--wp--preset--spacing--20, 0.5rem);
+
+		@include wp-mixins.break-medium {
+			outline-offset: calc(var(--wp--preset--spacing--30, 1rem) + 3px);
+		}
+	}
+
 	.newspack-rolling-coverage-entry[data-linked]:not(:has(> .newspack-rolling-coverage-regular-entry, > .newspack-rolling-coverage-pinned-card)) {
 		outline: 3px solid var(--wp--preset--color--accent, var(--newspack-theme-color-primary, currentcolor));
 		outline-offset: var(--wp--preset--spacing--20, 0.5rem);
+
+		@include wp-mixins.break-medium {
+			outline-offset: calc(var(--wp--preset--spacing--30, 1rem) + 3px);
+		}
 	}
 
 	.newspack-rolling-coverage-entry-archived-notice {

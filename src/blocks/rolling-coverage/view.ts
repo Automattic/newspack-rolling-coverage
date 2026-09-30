@@ -28,9 +28,9 @@ const OVERFLOW_RELOAD_RETRY_MS = 60 * 1000;
 // How long the jump to the live feed waits for the page before it navigates instead.
 const JUMP_TIMEOUT_MS = 8000;
 
-// Core's per-page styles for block supports, such as layouts. The id is on
-// every page, but the rules are only those of the blocks that page renders.
-const BLOCK_SUPPORTS_STYLE_ID = 'core-block-supports-inline-css';
+// How long the jump waits for stylesheets the live feed needs before it shows
+// the feed without them.
+const STYLES_TIMEOUT_MS = 3000;
 
 /**
  * cssEscape polyfill for older browsers.
@@ -110,8 +110,9 @@ function parseElement( html: string ): HTMLElement | null {
 
 /**
  * The label of the control on a feed opened at a shared entry: the number of
- * newer entries, exact below ten and a floor from there, e.g. "10+ newer
- * posts". Mirrors Rolling_Coverage_Block::newer_posts_label().
+ * newer entries, exact up to ten and from there the round number it has
+ * passed, e.g. "10+ newer posts" for 11 to 50. Mirrors
+ * Rolling_Coverage_Block::newer_posts_label().
  *
  * @param {number} count How many entries are newer.
  * @return {string} The label, or an empty string when there are none.
@@ -121,9 +122,9 @@ function newerPostsLabel( count: number ): string {
 		return '';
 	}
 
-	if ( count < 10 ) {
+	if ( count <= 10 ) {
 		return sprintf(
-			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 9. */
+			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
 			_n(
 				'%d newer post',
 				'%d newer posts',
@@ -136,14 +137,14 @@ function newerPostsLabel( count: number ): string {
 
 	let floor = 10;
 
-	if ( count >= 100 ) {
+	if ( count > 100 ) {
 		floor = 100;
-	} else if ( count >= 50 ) {
+	} else if ( count > 50 ) {
 		floor = 50;
 	}
 
 	return sprintf(
-		/* translators: %d: a round number the count of newer coverage entries has reached: 10, 50 or 100. */
+		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
 		__( '%d+ newer posts', 'newspack-rolling-coverage' ),
 		floor
 	);
@@ -521,16 +522,103 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Whether a fetched page loads a stylesheet this page doesn't, so blocks
-	 * taken from it could show unstyled here.
+	 * Adds to this page the styles a fetched page has and this one doesn't,
+	 * so blocks taken from it show styled here: core loads a block's styles
+	 * only on pages that render the block. A stylesheet this page lacks goes
+	 * where the fetched page has it among the stylesheets both pages share,
+	 * as a block's own styles must come before the theme's for the theme's
+	 * to apply. An inline style both pages have under one id, such as the
+	 * theme's global styles or the block supports styles, holds only the
+	 * rules of the blocks its page renders, so the fetched page's copy is
+	 * added after this page's when they differ. Waits for linked stylesheets
+	 * to load, up to STYLES_TIMEOUT_MS or until the jump is aborted.
 	 *
-	 * @param {Document} doc The fetched page.
-	 * @return {boolean} True if this page lacks one of its stylesheets.
+	 * @param {Document}    doc    The fetched page.
+	 * @param {AbortSignal} signal Aborts the jump.
+	 * @return {Promise<void>} Resolves when the stylesheets are in place or the wait is over.
 	 */
-	function needsMissingStyles( doc: Document ): boolean {
-		return Array.from(
-			doc.querySelectorAll( 'link[rel="stylesheet"][id], style[id]' )
-		).some( ( style ) => ! document.getElementById( style.id ) );
+	async function adoptLiveStyles(
+		doc: Document,
+		signal: AbortSignal
+	): Promise< void > {
+		const loads: Promise< void >[] = [];
+		const styles = Array.from(
+			doc.querySelectorAll< HTMLElement >(
+				'link[rel="stylesheet"][id], style[id]'
+			)
+		).filter( ( style ) => ! style.closest( 'noscript' ) );
+
+		styles.forEach( ( style, index ) => {
+			const own = document.getElementById( style.id );
+
+			if ( own ) {
+				if (
+					own instanceof HTMLStyleElement &&
+					style instanceof HTMLStyleElement &&
+					own.textContent !== style.textContent
+				) {
+					const rules = document.createElement( 'style' );
+					rules.textContent = style.textContent;
+					own.after( rules );
+				}
+
+				return;
+			}
+
+			// A fresh element, so nothing but the stylesheet itself comes along.
+			const copy = document.createElement(
+				style instanceof HTMLLinkElement ? 'link' : 'style'
+			);
+			const media = style.getAttribute( 'media' );
+
+			copy.id = style.id;
+
+			if ( media ) {
+				copy.setAttribute( 'media', media );
+			}
+
+			if ( copy instanceof HTMLLinkElement ) {
+				copy.rel = 'stylesheet';
+				copy.href = style.getAttribute( 'href' ) ?? '';
+				loads.push(
+					new Promise( ( resolve ) => {
+						copy.addEventListener( 'load', () => resolve() );
+						copy.addEventListener( 'error', () => resolve() );
+					} )
+				);
+			} else {
+				copy.textContent = style.textContent;
+			}
+
+			const next = styles
+				.slice( index + 1 )
+				.map( ( later ) => document.getElementById( later.id ) )
+				.find( Boolean );
+
+			if ( next ) {
+				next.before( copy );
+			} else {
+				document.head.append( copy );
+			}
+		} );
+
+		if ( loads.length === 0 ) {
+			return;
+		}
+
+		let timeoutId: ReturnType< typeof setTimeout > | undefined;
+
+		await Promise.race( [
+			Promise.all( loads ),
+			new Promise< void >( ( resolve ) => {
+				timeoutId = setTimeout( resolve, STYLES_TIMEOUT_MS );
+				signal.addEventListener( 'abort', () => resolve(), {
+					once: true,
+				} );
+			} ),
+		] );
+
+		clearTimeout( timeoutId );
 	}
 
 	/**
@@ -588,7 +676,13 @@ function initBlock( root: HTMLElement ): void {
 			);
 			const live = findBlockIn( doc );
 
-			if ( ! canShowInPlace( live ) || needsMissingStyles( doc ) ) {
+			if ( ! canShowInPlace( live ) ) {
+				return null;
+			}
+
+			await adoptLiveStyles( doc, controller.signal );
+
+			if ( controller.signal.aborted ) {
 				return null;
 			}
 
@@ -628,25 +722,8 @@ function initBlock( root: HTMLElement ): void {
 		const control = liveControl
 			? parseElement( liveControl.outerHTML )
 			: null;
-		const supports = document.getElementById( BLOCK_SUPPORTS_STYLE_ID );
-		const liveSupports = live.ownerDocument.getElementById(
-			BLOCK_SUPPORTS_STYLE_ID
-		);
 
 		cleanup();
-
-		// The live entries' blocks may have rules this page's copy lacks.
-		// They are scoped by generated class, so adding them all changes
-		// nothing else.
-		if (
-			supports &&
-			liveSupports &&
-			supports.textContent !== liveSupports.textContent
-		) {
-			const style = document.createElement( 'style' );
-			style.textContent = liveSupports.textContent;
-			supports.after( style );
-		}
 
 		entriesList.replaceChildren(
 			parseFragment( liveEntries?.innerHTML ?? '' )
@@ -774,7 +851,7 @@ function initBlock( root: HTMLElement ): void {
 				if (
 					! url ||
 					url.origin !== window.location.origin ||
-					root.querySelector( '.newspack_global_ad' )
+					root.dataset.ads === '1'
 				) {
 					return;
 				}

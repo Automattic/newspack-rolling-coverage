@@ -45,8 +45,8 @@ class Rolling_Coverage_Block {
 	// Max number of entries returned per page.
 	const PER_PAGE_MAX = 100;
 
-	// Newer entries a feed opened at a shared entry counts up to; reaching it reads as "or more".
-	const NEWER_COUNT_CAP = 100;
+	// Newer entries a feed opened at a shared entry counts up to: one past a hundred, which reads as "more than 100".
+	const NEWER_COUNT_CAP = 101;
 
 	// CSS class/ID prefix for the block's front-end markup.
 	const MARKUP_PREFIX = 'newspack-rolling-coverage';
@@ -63,6 +63,11 @@ class Rolling_Coverage_Block {
 	 * Class of the group that shows an entry that isn't pinned.
 	 */
 	const REGULAR_ENTRY_CLASS = 'newspack-rolling-coverage-regular-entry';
+
+	/**
+	 * Corner radius of the pinned card and the entry group.
+	 */
+	const ENTRY_RADIUS = 'var(--wp--custom--border--radius-large, var(--newspack-ui-border-radius-l, 8px))';
 
 	/**
 	 * Spaces what follows an entry's content, such as "Read more", as the
@@ -682,6 +687,11 @@ class Rolling_Coverage_Block {
 			$wrapper_data['data-view'] = 'entry';
 		}
 
+		// Ads need their page's own setup, so the view script never swaps such a feed in place.
+		if ( $ads_enabled && Ads::is_placement_enabled() ) {
+			$wrapper_data['data-ads'] = '1';
+		}
+
 		$wrapper_attributes = get_block_wrapper_attributes( $wrapper_data );
 
 		try {
@@ -887,9 +897,10 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The label of the control on a feed opened at a shared entry: the number
-	 * of newer entries, exact below ten and a floor from there, e.g.
-	 * "10+ newer posts". Empty when there are none, as the control then
-	 * keeps its own text. The view script builds the same labels.
+	 * of newer entries, exact up to ten and from there the round number it
+	 * has passed, e.g. "10+ newer posts" for 11 to 50. Empty when there are
+	 * none, as the control then keeps its own text. The view script builds
+	 * the same labels.
 	 *
 	 * @param int $count How many entries are newer.
 	 * @return string
@@ -899,43 +910,47 @@ class Rolling_Coverage_Block {
 			return '';
 		}
 
-		if ( $count < 10 ) {
-			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 9. */
+		if ( $count <= 10 ) {
+			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
 			return sprintf( _n( '%d newer post', '%d newer posts', $count, 'newspack-rolling-coverage' ), $count );
 		}
 
 		$floor = 10;
 
-		if ( $count >= 100 ) {
+		if ( $count > 100 ) {
 			$floor = 100;
-		} elseif ( $count >= 50 ) {
+		} elseif ( $count > 50 ) {
 			$floor = 50;
 		}
 
-		/* translators: %d: a round number the count of newer coverage entries has reached: 10, 50 or 100. */
+		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
 		return sprintf( __( '%d+ newer posts', 'newspack-rolling-coverage' ), $floor );
 	}
 
 	/**
-	 * The URL of the live feed: the host post's permalink when that post is
-	 * the page being viewed, otherwise the current URL without the shared
-	 * entry, kept on this site. Where the request's URL is not a page's (a
-	 * REST request, a feed) or there is none (WP-CLI, cron), it is the host
-	 * post's permalink.
+	 * The URL of the live feed. On a front-end page request it is the host
+	 * post's permalink when that post is the page being viewed, otherwise the
+	 * current URL without the shared entry, kept on this site. Anywhere else
+	 * (wp-admin, admin-ajax, cron, a REST request, a feed, WP-CLI) the
+	 * request's URL is not a page's, so it is the host post's permalink, or
+	 * the site's front page when no host post is known.
 	 *
 	 * @return string
 	 */
 	public static function live_feed_url(): string {
-		$has_request_uri = ! empty( $_SERVER['REQUEST_URI'] );
-		$is_host_page    = is_singular() && get_queried_object_id() === self::$host_post_id;
-		$is_page_request = $has_request_uri && ! wp_is_serving_rest_request() && ! is_feed();
+		// remove_query_arg() reads the request URI unguarded, and the conditional tags need the main query.
+		$is_page_request = did_action( 'wp' ) && ! is_admin() && ! empty( $_SERVER['REQUEST_URI'] ) && ! wp_is_serving_rest_request() && ! is_feed();
+		$host_url        = self::$host_post_id ? (string) get_permalink( self::$host_post_id ) : '';
 
-		if ( self::$host_post_id && ( $is_host_page || ! $is_page_request ) ) {
-			return (string) get_permalink( self::$host_post_id );
+		if ( ! $is_page_request ) {
+			return $host_url ? $host_url : '/';
 		}
 
-		// remove_query_arg() reads the request URI unguarded.
-		return $has_request_uri ? '/' . ltrim( esc_url_raw( remove_query_arg( Social_Sharing::ENTRY_QUERY_VAR ) ), '/' ) : '/';
+		if ( $host_url && is_singular() && get_queried_object_id() === self::$host_post_id ) {
+			return $host_url;
+		}
+
+		return '/' . ltrim( esc_url_raw( remove_query_arg( Social_Sharing::ENTRY_QUERY_VAR ) ), '/' );
 	}
 
 	/**
@@ -946,7 +961,9 @@ class Rolling_Coverage_Block {
 	 * script, and its wrapper carries that URL for the script. In the normal
 	 * view it is hidden until the view script reveals it when new entries
 	 * wait; when the feed opens at a shared entry it shows, reading how many
-	 * entries are newer when any are. A feed has none.
+	 * entries are newer when any are. A feed has none, and neither has a
+	 * block inside an entry's content: a control fixed to the viewport
+	 * belongs to the page's own feed.
 	 *
 	 * @param WP_Block $block          The parent rolling-coverage block instance.
 	 * @param bool     $is_shared_view Whether the feed opens at a shared entry.
@@ -954,7 +971,7 @@ class Rolling_Coverage_Block {
 	 * @return string Control HTML.
 	 */
 	private static function render_new_entries_control( WP_Block $block, bool $is_shared_view, int $newer_count = 0 ): string {
-		if ( is_feed() ) {
+		if ( is_feed() || self::is_rendering_entry() ) {
 			return '';
 		}
 
@@ -1502,19 +1519,26 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * A parsed entry group: a plain group holding what an entry that isn't
-	 * pinned shows.
+	 * A parsed entry group: a group holding what an entry that isn't pinned
+	 * shows, with the pinned card's corners and nothing else of its look.
 	 *
 	 * @param array[] $inner_blocks Parsed blocks inside the group.
 	 * @return array Parsed-block-shaped array.
 	 */
 	private static function regular_entry_block( array $inner_blocks ): array {
-		$open = sprintf( '<div class="%s">', esc_attr( 'wp-block-group ' . self::REGULAR_ENTRY_CLASS ) );
+		$style  = [ 'border' => [ 'radius' => self::ENTRY_RADIUS ] ];
+		$styles = wp_style_engine_get_styles( $style );
+		$open   = sprintf(
+			'<div class="%s" style="%s">',
+			esc_attr( trim( 'wp-block-group ' . self::REGULAR_ENTRY_CLASS . ' ' . ( $styles['classnames'] ?? '' ) ) ),
+			esc_attr( $styles['css'] ?? '' )
+		);
 
 		return [
 			'blockName'    => 'core/group',
 			'attrs'        => [
 				'className' => self::REGULAR_ENTRY_CLASS,
+				'style'     => $style,
 				'metadata'  => [ 'name' => __( 'Entry', 'newspack-rolling-coverage' ) ],
 			],
 			'innerBlocks'  => $inner_blocks,
@@ -1542,7 +1566,7 @@ class Rolling_Coverage_Block {
 				],
 				'margin'  => [ 'bottom' => 'var:preset|spacing|50' ],
 			],
-			'border'  => [ 'radius' => 'var(--wp--custom--border--radius-large, var(--newspack-ui-border-radius-l, 8px))' ],
+			'border'  => [ 'radius' => self::ENTRY_RADIUS ],
 		];
 		$styles = wp_style_engine_get_styles( $style );
 		$open   = sprintf(
