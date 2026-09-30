@@ -23,10 +23,6 @@ from [Conventional Commits](https://www.conventionalcommits.org/).
 * Push notifications via OneSignal, scoped to coverage followers
 * Archive mode: coverage/entry archiving and entry locking
 
-### Bug Fixes
-
-* 
-
 ### Tests
 
 * unit tests for ingestion, archiving, REST endpoints, and feeds
