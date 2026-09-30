@@ -75,7 +75,7 @@ class Rolling_Coverage_Block {
 	// Handle of the Newspack Theme editor script that unregisters the post blocks.
 	const THEME_BLOCK_REMOVAL_SCRIPT = 'newspack-hide-fse-blocks';
 
-	// Post blocks the entry template are built from.
+	// Post blocks the entry template is built from.
 	const TEMPLATE_POST_BLOCKS = [
 		'core/post-title',
 		'core/post-date',
@@ -566,22 +566,14 @@ class Rolling_Coverage_Block {
 		}
 
 		$query = new WP_Query(
-			[
-				'post_type'           => Post_Type::CPT_SLUG,
-				'post_status'         => 'publish',
-				'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-					[
-						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
-						'field'    => 'term_id',
-						'terms'    => $coverage_id,
-					],
-				],
-				'orderby'             => 'date',
-				'order'               => 'DESC',
-				'posts_per_page'      => $entries_per_page,
-				'no_found_rows'       => true,
-				'ignore_sticky_posts' => true,
-			]
+			array_merge(
+				self::coverage_entries_args( $coverage_id ),
+				[
+					'orderby'        => 'date',
+					'order'          => 'DESC',
+					'posts_per_page' => $entries_per_page,
+				]
+			)
 		);
 
 		$template     = self::get_entry_template( $block );
@@ -594,28 +586,20 @@ class Rolling_Coverage_Block {
 
 		if ( $shared_entry ) {
 			$page = self::query_unpinned_entries(
-				[
-					'post_type'           => Post_Type::CPT_SLUG,
-					'post_status'         => 'publish',
-					'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-						[
-							'taxonomy' => Taxonomy::TAXONOMY_SLUG,
-							'field'    => 'term_id',
-							'terms'    => $coverage_id,
+				array_merge(
+					self::coverage_entries_args( $coverage_id ),
+					[
+						'date_query' => [
+							[
+								'column'    => 'post_date_gmt',
+								'before'    => self::post_date_gmt( $shared_entry ),
+								'inclusive' => true,
+							],
 						],
-					],
-					'date_query'          => [
-						[
-							'column'    => 'post_date_gmt',
-							'before'    => self::post_date_gmt( $shared_entry ),
-							'inclusive' => true,
-						],
-					],
-					'orderby'             => 'date',
-					'order'               => 'DESC',
-					'no_found_rows'       => true,
-					'ignore_sticky_posts' => true,
-				],
+						'orderby'    => 'date',
+						'order'      => 'DESC',
+					]
+				),
 				$entries_per_page
 			);
 
@@ -742,6 +726,28 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Query arguments shared by every query for a coverage's published entries.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return array WP_Query arguments.
+	 */
+	private static function coverage_entries_args( int $coverage_id ): array {
+		return [
+			'post_type'           => Post_Type::CPT_SLUG,
+			'post_status'         => 'publish',
+			'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+				[
+					'taxonomy' => Taxonomy::TAXONOMY_SLUG,
+					'field'    => 'term_id',
+					'terms'    => $coverage_id,
+				],
+			],
+			'no_found_rows'       => true,
+			'ignore_sticky_posts' => true,
+		];
+	}
+
+	/**
 	 * Runs a date-ordered entries query and leaves pinned entries out of its
 	 * result. Pinned entries belong at the top of the live feed, so a feed
 	 * that starts elsewhere shows none.
@@ -786,23 +792,15 @@ class Rolling_Coverage_Block {
 	 */
 	private static function coverage_cursor( int $coverage_id ): string {
 		$query = new WP_Query(
-			[
-				'post_type'                   => Post_Type::CPT_SLUG,
-				'post_status'                 => 'publish',
-				'tax_query'                   => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-					[
-						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
-						'field'    => 'term_id',
-						'terms'    => $coverage_id,
-					],
-				],
-				'orderby'                     => 'modified',
-				'order'                       => 'DESC',
-				'posts_per_page'              => 1,
-				'no_found_rows'               => true,
-				'ignore_sticky_posts'         => true,
-				Post_Type::SKIP_PIN_ORDER_VAR => true,
-			]
+			array_merge(
+				self::coverage_entries_args( $coverage_id ),
+				[
+					'orderby'                     => 'modified',
+					'order'                       => 'DESC',
+					'posts_per_page'              => 1,
+					Post_Type::SKIP_PIN_ORDER_VAR => true,
+				]
+			)
 		);
 
 		return self::latest_cursor( $query->posts );
@@ -825,7 +823,7 @@ class Rolling_Coverage_Block {
 		$url = self::$host_post_id ? get_permalink( self::$host_post_id ) : false;
 
 		return sprintf(
-			'<a class="%1$s-new-entries" href="%2$s">%3$s</a>',
+			'<a class="%1$s-new-entries button wp-element-button" href="%2$s">%3$s</a>',
 			self::MARKUP_PREFIX,
 			esc_url( $url ? $url : remove_query_arg( Social_Sharing::ENTRY_QUERY_VAR ) ),
 			esc_html__( 'Jump to latest', 'newspack-rolling-coverage' )
@@ -2375,19 +2373,7 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		$base_args = [
-			'post_type'           => Post_Type::CPT_SLUG,
-			'post_status'         => 'publish',
-			'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-				[
-					'taxonomy' => Taxonomy::TAXONOMY_SLUG,
-					'field'    => 'term_id',
-					'terms'    => $term_id,
-				],
-			],
-			'no_found_rows'       => true,
-			'ignore_sticky_posts' => true,
-		];
+		$base_args = self::coverage_entries_args( $term_id );
 
 		$config           = self::load_block_config( $term_id, $template_key );
 		$template         = $config['template'];

@@ -153,7 +153,6 @@ function initBlock( root: HTMLElement ): void {
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
 	let polledCount = 0;
-	let newEntryCount = 0;
 	let backlogOffset = entriesPerPage;
 
 	// Tracks forward-poll health so a sustained outage reports one error per
@@ -164,6 +163,8 @@ function initBlock( root: HTMLElement ): void {
 	// entry ID. A cached load-more reply can predate them while the cursor has
 	// already moved past them, so loadMore() applies them as the entries arrive.
 	const offPageUpdates = new Map< string, string >();
+
+	const countedEntryIds = new Set< string >();
 
 	// Entry IDs already reported as seen. Guards against re-firing
 	// coverage_entry_seen when a polled edit replaces an already-seen entry's element.
@@ -337,9 +338,9 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Label for the control that tells the reader new entries wait.
+	 * Label for the control that tells the reader new entries are waiting.
 	 *
-	 * @param {number} count How many new entries wait.
+	 * @param {number} count How many new entries are waiting.
 	 * @return {string} The label.
 	 */
 	function newEntriesLabel( count: number ): string {
@@ -472,7 +473,8 @@ function initBlock( root: HTMLElement ): void {
 	 *
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
 	 * on the page for loadMore(). Inserts or queues newly published entries
-	 * based on the reader's scroll position.
+	 * based on the reader's scroll position. When the feed opens at a shared
+	 * entry, new entries are counted on the control instead of inserted.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
@@ -524,9 +526,13 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		if ( isEntryView ) {
-			newEntryCount += newEntries.length;
+			newEntries.forEach( ( { el } ) => {
+				if ( el.dataset.entryId ) {
+					countedEntryIds.add( el.dataset.entryId );
+				}
+			} );
 
-			const label = newEntriesLabel( newEntryCount );
+			const label = newEntriesLabel( countedEntryIds.size );
 
 			if ( newEntriesButton ) {
 				newEntriesButton.textContent = label;

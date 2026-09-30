@@ -35,11 +35,14 @@
 		align-items: center;
 		text-decoration: none;
 
-		&:hover,
-		&:focus,
-		&:visited,
-		&:active {
+		&:any-link,
+		&:any-link:hover,
+		&:any-link:focus,
+		&:any-link:visited,
+		&:any-link:active {
+			background: #000;
 			color: #fff;
+			line-height: 1.2;
 			text-decoration: none;
 		}
 
@@ -54,7 +57,7 @@
 		}
 	}
 
-	body.admin-bar & .newspack-rolling-coverage-new-entries {
+	body.admin-bar & .newspack-rolling-coverage-new-entries:not([hidden]) {
 		top: calc(48px + env(safe-area-inset-top, 0px));
 
 		@media screen and (max-width: 782px) {

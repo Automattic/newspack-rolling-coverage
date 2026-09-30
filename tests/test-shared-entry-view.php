@@ -144,7 +144,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'data-view="entry"', $html );
 		$this->assertSame( $this->ids( 'entry-3', 'entry-2' ), $this->entry_ids_in( $html ) );
 		$this->assertStringContainsString( 'data-has-more="1"', $html );
-		$this->assertStringContainsString( '<a class="newspack-rolling-coverage-new-entries" href="' . esc_url( get_permalink( $this->page_id ) ) . '">Jump to latest</a>', $html );
+		$this->assertStringContainsString( '<a class="newspack-rolling-coverage-new-entries button wp-element-button" href="' . esc_url( get_permalink( $this->page_id ) ) . '">Jump to latest</a>', $html );
 		$this->assertStringNotContainsString( '<button type="button" class="newspack-rolling-coverage-new-entries"', $html );
 	}
 
@@ -220,8 +220,10 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 				$shared = 'elsewhere';
 				break;
 			case 'pinned':
-				Post_Type::pin_entry( $this->entries['entry-1'] );
-				$shared = 'entry-1';
+				foreach ( [ 'entry-1', 'entry-2', 'entry-3' ] as $slug ) {
+					Post_Type::pin_entry( $this->entries[ $slug ] );
+				}
+				$shared = 'entry-3';
 				break;
 			case 'array':
 				$shared = [ 'entry-3' ];
