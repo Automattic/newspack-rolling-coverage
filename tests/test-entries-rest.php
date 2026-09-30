@@ -6,6 +6,7 @@
  */
 
 use Newspack_Rolling_Coverage\Post_Type;
+use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
@@ -128,6 +129,60 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( [ 'pinned' => false ], $unpin_response->get_data(), 'The second call should unpin it.' );
 		$this->assertFalse( Post_Type::is_pinned( $entry_id ), 'The entry should no longer be pinned.' );
+	}
+
+	/**
+	 * Pinning marks the entry as modified, so pages already open pick up its
+	 * pinned row on their next poll.
+	 */
+	public function test_pin_route_marks_the_entry_modified() {
+		self::log_in_as( 'editor' );
+		$coverage_id = self::create_coverage();
+		$entry_id    = self::create_entry(
+			$coverage_id,
+			[
+				'post_date'     => '2020-01-01 00:00:00',
+				'post_date_gmt' => '2020-01-01 00:00:00',
+			]
+		);
+		$before      = get_post_field( 'post_modified_gmt', $entry_id );
+		update_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, $before );
+
+		self::dispatch( 'POST', "/entries/{$entry_id}/pin" );
+		clean_post_cache( $entry_id );
+
+		$this->assertNotSame( $before, get_post_field( 'post_modified_gmt', $entry_id ), 'The entry should be marked modified.' );
+		$this->assertNotSame( $before, get_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true ), 'The coverage should be too, so polls look for changes.' );
+	}
+
+	/**
+	 * Pinning leaves the entry's content alone, even when the person pinning
+	 * can't post the HTML or block CSS it holds.
+	 */
+	public function test_pin_route_keeps_html_the_pinner_cannot_post() {
+		self::log_in_as( 'administrator' );
+		kses_init();
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_content' => '<!-- wp:html --><iframe src="https://example.org/embed"></iframe><!-- /wp:html --><!-- wp:paragraph {"style":{"css":"color:red"}} --><p>Styled</p><!-- /wp:paragraph -->' ] );
+		$content  = get_post_field( 'post_content', $entry_id );
+		$deny     = function ( $caps, $cap ) {
+			return in_array( $cap, [ 'unfiltered_html', 'edit_css' ], true ) ? [ 'do_not_allow' ] : $caps;
+		};
+
+		self::log_in_as( 'editor' );
+		add_filter( 'map_meta_cap', $deny, 10, 2 );
+		kses_init();
+
+		try {
+			self::dispatch( 'POST', "/entries/{$entry_id}/pin" );
+		} finally {
+			remove_filter( 'map_meta_cap', $deny, 10 );
+			kses_init();
+		}
+
+		clean_post_cache( $entry_id );
+		$this->assertStringContainsString( '<iframe', $content, 'The author should be able to post the iframe.' );
+		$this->assertStringContainsString( '"css":"color:red"', $content, 'The author should be able to post block CSS.' );
+		$this->assertSame( $content, get_post_field( 'post_content', $entry_id ), 'Pinning should keep it.' );
 	}
 
 	/**

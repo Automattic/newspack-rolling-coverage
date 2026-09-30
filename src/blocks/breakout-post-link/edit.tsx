@@ -7,7 +7,7 @@ import { __ } from '@wordpress/i18n';
 export default function Edit() {
 	const blockProps = useBlockProps( {
 		className:
-			'newspack-rolling-coverage-breakout-post-link wp-element-button',
+			'newspack-rolling-coverage-breakout-post-link wp-element-button wp-block-button__link',
 	} );
 
 	return (

@@ -60,10 +60,9 @@ class Slack_API_Client {
 	 * @return array|\WP_Error User profile array or \WP_Error.
 	 */
 	public function get_user_info( string $user_id, int $timeout = self::TIMEOUT ): array|\WP_Error {
-		$cache_key = self::TRANSIENT_USER_CACHE . $user_id;
-		$cached    = get_transient( $cache_key );
+		$cached = $this->get_cached_user_info( $user_id );
 
-		if ( false !== $cached && is_array( $cached ) ) {
+		if ( null !== $cached ) {
 			return $cached;
 		}
 
@@ -74,9 +73,21 @@ class Slack_API_Client {
 		}
 
 		$profile = $result['user'] ?? [];
-		set_transient( $cache_key, $profile, HOUR_IN_SECONDS / 12 );
+		set_transient( self::TRANSIENT_USER_CACHE . $user_id, $profile, HOUR_IN_SECONDS / 12 );
 
 		return $profile;
+	}
+
+	/**
+	 * A user's profile from the cache, without calling the Slack API.
+	 *
+	 * @param string $user_id Slack user ID.
+	 * @return array|null User profile array, or null when it is not cached.
+	 */
+	public function get_cached_user_info( string $user_id ): ?array {
+		$cached = get_transient( self::TRANSIENT_USER_CACHE . $user_id );
+
+		return is_array( $cached ) ? $cached : null;
 	}
 
 	/**

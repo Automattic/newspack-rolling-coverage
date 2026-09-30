@@ -2,8 +2,7 @@
  * WordPress dependencies
  */
 import { speak } from '@wordpress/a11y';
-import { Spinner } from '@wordpress/components';
-import { Stack } from '@wordpress/ui';
+import { Spinner, Stack, Text } from '@wordpress/ui';
 import { useEffect } from '@wordpress/element';
 
 /**
@@ -25,10 +24,13 @@ function LoadingState( { label }: { label: string } ) {
 			className="newspack-rolling-coverage-loading"
 			direction="column"
 			align="center"
+			justify="center"
 			gap="md"
 		>
 			<Spinner />
-			<p>{ label }</p>
+			<Text variant="heading-md" render={ <p /> }>
+				{ label }
+			</Text>
 		</Stack>
 	);
 }

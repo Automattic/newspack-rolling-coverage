@@ -2,20 +2,28 @@
  * WordPress dependencies
  */
 import { registerBlockType } from '@wordpress/blocks';
-import { megaphone } from '@wordpress/icons';
+
+/**
+ * External dependencies
+ */
+import { activity } from 'newspack-icons';
 
 /**
  * Internal dependencies
  */
+import { getBlockCategory } from '../shared/category';
+import { blockIcon } from '../shared/icon';
 import metadata from './block.json';
 import Edit from './edit';
 import Save from './save';
+import './share-preview';
 import './editor.scss';
 import type { RollingCoverageAttributes } from './types';
 
 registerBlockType< RollingCoverageAttributes >( metadata.name, {
 	...metadata,
-	icon: megaphone,
+	category: getBlockCategory(),
+	icon: blockIcon( activity ),
 	edit: Edit,
 	save: Save,
 } );

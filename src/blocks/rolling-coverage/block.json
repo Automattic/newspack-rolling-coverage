@@ -3,7 +3,7 @@
 	"apiVersion": 3,
 	"name": "newspack-rolling-coverage/rolling-coverage",
 	"title": "Rolling Coverage",
-	"category": "widgets",
+	"category": "newspack",
 	"description": "Displays the live entries of a rolling coverage, with polling for new entries and infinite scroll for older ones.",
 	"textdomain": "newspack-rolling-coverage",
 	"attributes": {
@@ -26,7 +26,14 @@
 		"adsInterval": {
 			"type": "number",
 			"default": 4
+		},
+		"pinnedLabel": {
+			"type": "string",
+			"default": ""
 		}
+	},
+	"providesContext": {
+		"newspack-rolling-coverage/pinnedLabel": "pinnedLabel"
 	},
 	"supports": {
 		"html": false,
@@ -51,6 +58,7 @@
 		"spacing": {
 			"margin": true,
 			"padding": true,
+			"blockGap": true,
 			"__experimentalDefaultControls": {
 				"padding": true
 			}

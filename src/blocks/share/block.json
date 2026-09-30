@@ -3,7 +3,7 @@
 	"apiVersion": 3,
 	"name": "newspack-rolling-coverage/share",
 	"title": "Share",
-	"category": "widgets",
+	"category": "newspack",
 	"description": "Copy a deep link to this entry for sharing on social media.",
 	"textdomain": "newspack-rolling-coverage",
 	"attributes": {
@@ -44,6 +44,5 @@
 		}
 	},
 	"editorScript": "file:./index.js",
-	"viewScript": "file:./view.js",
-	"style": "file:./view.css"
+	"viewScript": "file:./view.js"
 }

@@ -167,6 +167,143 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An untitled entry carries the first words of its content, so the admin
+	 * can name it; a titled entry does not need one.
+	 */
+	public function test_untitled_entries_carry_a_summary() {
+		$untitled_id = $this->create_entry_at(
+			'2026-01-01 10:00:00',
+			[
+				'post_title'   => '',
+				'post_content' => "<!-- wp:paragraph -->\n<p><strong>Polls have closed</strong> across the county &amp; counting starts at 9pm.</p>\n<!-- /wp:paragraph -->",
+			]
+		);
+		$titled_id   = $this->create_entry_at( '2026-01-01 11:00:00', [ 'post_title' => 'Recount ordered' ] );
+
+		$rows = array_column( $this->get_entries_view()->get_data()['entries'], null, 'id' );
+
+		$this->assertSame( 'Polls have closed across the county & counting…', $rows[ $untitled_id ]['summary'] );
+		$this->assertSame( '', $rows[ $titled_id ]['summary'] );
+	}
+
+	/**
+	 * The summary keeps words apart across line breaks and list items, and
+	 * reads lists and code blocks too.
+	 *
+	 * @dataProvider summary_content_provider
+	 *
+	 * @param string $content  Entry content.
+	 * @param string $expected Expected summary.
+	 */
+	public function test_summary_reads_every_block( $content, $expected ) {
+		$entry_id = $this->create_entry_at(
+			'2026-01-01 10:00:00',
+			[
+				'post_title'   => '',
+				'post_content' => $content,
+			]
+		);
+
+		$rows = array_column( $this->get_entries_view()->get_data()['entries'], null, 'id' );
+
+		$this->assertSame( $expected, $rows[ $entry_id ]['summary'] );
+	}
+
+	/**
+	 * Entry content and the summary it should produce.
+	 *
+	 * @return array[]
+	 */
+	public function summary_content_provider() {
+		return [
+			'line break'      => [ "<!-- wp:paragraph -->\n<p>Counting starts at 9pm<br>in the town hall.</p>\n<!-- /wp:paragraph -->", 'Counting starts at 9pm in the town hall.' ],
+			'list only'       => [ "<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Ward 1</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Ward 2</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->", 'Ward 1 Ward 2' ],
+			'inline tags'     => [ "<!-- wp:paragraph -->\n<p><strong>Breaking</strong>: polls closed at <a href=\"https://example.test\">the hall</a>. Un<em>believ</em>able.</p>\n<!-- /wp:paragraph -->", 'Breaking: polls closed at the hall. Unbelievable.' ],
+			'code block only' => [ "<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>Ward 1  1,204\nWard 2  980</code></pre>\n<!-- /wp:code -->", 'Ward 1 1,204 Ward 2 980' ],
+		];
+	}
+
+	/**
+	 * A shortcode stored escaped in an entry does not come back live in its
+	 * summary, which is shown inside rendered content, including forms that
+	 * a single strip turns back into a shortcode.
+	 *
+	 * @dataProvider escaped_shortcode_provider
+	 *
+	 * @param string $content Entry content.
+	 */
+	public function test_summary_never_carries_a_shortcode( $content ) {
+		add_shortcode( 'nrc_probe', fn() => 'SHORTCODE-RAN' );
+		$entry_id = $this->create_entry_at(
+			'2026-01-01 10:00:00',
+			[
+				'post_title'   => '',
+				'post_content' => $content,
+			]
+		);
+
+		$rows    = array_column( $this->get_entries_view()->get_data()['entries'], null, 'id' );
+		$summary = $rows[ $entry_id ]['summary'];
+		$ran     = do_shortcode( esc_html( $summary ) );
+		remove_shortcode( 'nrc_probe' );
+
+		$this->assertStringNotContainsString( 'SHORTCODE-RAN', $ran );
+		$this->assertStringEndsWith( 'results soon', $summary );
+	}
+
+	/**
+	 * Escaped shortcodes as Slack text stores them.
+	 *
+	 * @return array[]
+	 */
+	public function escaped_shortcode_provider() {
+		return [
+			'plain'   => [ '<p>&#91;nrc_probe&#93; results soon</p>' ],
+			'doubled' => [ '<p>&#91;&#91;nrc_probe&#93;&#93; results soon</p>' ],
+			'nested'  => [ '<p>&#91;nrc_pr&#91;nrc_probe&#93;obe&#93; results soon</p>' ],
+		];
+	}
+
+	/**
+	 * The title filter also finds untitled entries by the words they are
+	 * listed by.
+	 */
+	public function test_title_filter_matches_untitled_entries_by_their_content() {
+		$untitled_id = $this->create_entry_at(
+			'2026-01-01 10:00:00',
+			[
+				'post_title'   => '',
+				'post_content' => 'A recount is possible.',
+			]
+		);
+		$this->create_entry_at(
+			'2026-01-01 11:00:00',
+			[
+				'post_title'   => 'Polls close',
+				'post_content' => 'A recount is possible.',
+			]
+		);
+
+		$this->assertSame( [ $untitled_id ], $this->get_listed_entry_ids( [ 'title' => 'recount' ] ) );
+	}
+
+	/**
+	 * The title filter finds untitled entries by text that is stored
+	 * HTML-escaped, such as apostrophes in Slack messages.
+	 */
+	public function test_title_filter_matches_escaped_text_in_untitled_entries() {
+		$untitled_id = $this->create_entry_at(
+			'2026-01-01 10:00:00',
+			[
+				'post_title'   => '',
+				'post_content' => '<p>We don&#039;t expect a recount.</p>',
+			]
+		);
+
+		$this->assertSame( [ $untitled_id ], $this->get_listed_entry_ids( [ 'title' => "don't expect" ] ) );
+	}
+
+	/**
 	 * The "on" date filter covers the whole calendar day in the site's
 	 * timezone, not the UTC day.
 	 */

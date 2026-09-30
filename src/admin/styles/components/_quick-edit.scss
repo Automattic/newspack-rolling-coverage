@@ -1,4 +1,6 @@
-@use "../variables" as *;
+@use "~@wordpress/base-styles/colors" as wp-colors;
+@use "~@wordpress/base-styles/variables" as wp-vars;
+@use "~@wordpress/base-styles/z-index" as wp-z;
 
 .newspack-rolling-coverage-quick-edit-overlay .components-modal__children-container {
 	display: flex;
@@ -10,7 +12,7 @@
 	display: flex;
 	flex: 1;
 	min-height: 0;
-	border: 1px solid $nrc-color-border;
+	border: wp-vars.$border-width solid wp-colors.$gray-300;
 }
 
 .newspack-rolling-coverage-quick-edit-main {
@@ -22,23 +24,15 @@
 
 .newspack-rolling-coverage-quick-edit-canvas {
 	flex: 1;
-	min-height: 300px;
-	padding: 0 $nrc-spacing-lg $nrc-spacing-xl;
+	padding: 0 wp-vars.$grid-unit-20 wp-vars.$grid-unit-20;
 	overflow: auto;
-
-	iframe {
-		width: 100%;
-		height: 100%;
-		min-height: 300px;
-		border: none;
-	}
 }
 
 .newspack-rolling-coverage-quick-edit-sidebar {
-	width: 300px;
+	width: wp-vars.$sidebar-width;
 	flex-shrink: 0;
 	overflow-y: auto;
-	box-shadow: -1px 0 0 0 $nrc-color-border;
+	box-shadow: -1 * wp-vars.$border-width 0 0 0 wp-colors.$gray-300;
 
 	.block-editor-block-inspector {
 		width: 100%;
@@ -55,25 +49,23 @@
 	display: none;
 }
 
+.toplevel_page_rolling-coverage .components-popover__fallback-container {
+	position: relative;
+}
+
 body.toplevel_page_rolling-coverage.modal-open .components-popover__fallback-container {
 	position: relative;
 }
 
-.toplevel_page_rolling-coverage .block-editor-block-types-list__list-item {
-	padding: 40px $nrc-spacing-xl;
-}
-
-// Fix popover interaction with Newspack Popups styles.
 body.toplevel_page_rolling-coverage.modal-open .components-popover__content {
 	opacity: 1;
 }
 
-// Editor snackbar notices: position at the bottom of the modal.
 .newspack-rolling-coverage-quick-edit .components-editor-notices__snackbar {
-	bottom: $nrc-spacing-xl;
+	bottom: wp-vars.$grid-unit-20;
 	left: 50%;
 	position: absolute;
 	transform: translateX(-50%);
 	width: auto;
-	z-index: 100000;
+	z-index: wp-z.z-index(".components-snackbar-list");
 }

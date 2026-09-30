@@ -1,7 +1,13 @@
 /**
  * External dependencies
  */
-import { useCallback, useMemo, useRef, useState } from '@wordpress/element';
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from '@wordpress/element';
 import { Modal } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 import type { View } from '@wordpress/dataviews';
@@ -28,13 +34,15 @@ import { ConfirmModal } from '../../confirm-modal';
  * linked to coverages, with an auto-publish toggle and a Disconnect button
  * on each row.
  *
- * @param {ChannelsTabProps} props Component props.
+ * @param {ChannelsTabProps} props                Component props.
+ * @param {Function}         props.onHeaderChange Receives the breadcrumb count and whether the empty state shows.
  */
 function ChannelsTab( {
 	channels,
 	hasLoadedChannels,
 	onUnlink,
 	onAutopublishChange,
+	onHeaderChange,
 }: ChannelsTabProps ) {
 	const [ view, setView ] = useState< View >( defaultChannelView );
 	const [ updatingChannelIds, setUpdatingChannelIds ] = useState<
@@ -109,6 +117,22 @@ function ChannelsTab( {
 		[ rows, view, fields ]
 	);
 
+	useEffect( () => {
+		onHeaderChange(
+			hasLoadedChannels
+				? {
+						count: paginationInfo.totalItems,
+						isEmpty: channels.length === 0,
+					}
+				: {}
+		);
+	}, [
+		hasLoadedChannels,
+		paginationInfo.totalItems,
+		channels.length,
+		onHeaderChange,
+	] );
+
 	if ( ! hasLoadedChannels ) {
 		return (
 			<LoadingState
@@ -123,7 +147,7 @@ function ChannelsTab( {
 	return (
 		<div ref={ containerRef }>
 			{ channels.length === 0 ? (
-				<EmptyState.Root className="newspack-rolling-coverage-slack-empty-state">
+				<EmptyState.Root>
 					<EmptyState.Header
 						icon={ <SlackIcon size={ 36 } /> }
 						title={ __(

@@ -36,22 +36,22 @@ function ConnectionStatusDrawer( {
 	onDisconnect,
 }: ConnectionStatusDrawerProps ) {
 	return (
-		<Drawer.Root
-			className="newspack-rolling-coverage-connection-drawer"
-			isOpen={ isOpen }
-			onRequestClose={ onClose }
-		>
+		<Drawer.Root isOpen={ isOpen } onRequestClose={ onClose }>
 			<Drawer.Header>
 				<Drawer.Title>
 					{ __( 'Connection Status', 'newspack-rolling-coverage' ) }
 				</Drawer.Title>
-				<Badge intent="stable">
-					{ __( 'Connected', 'newspack-rolling-coverage' ) }
-				</Badge>
 				<Drawer.CloseIcon />
 			</Drawer.Header>
 			<Drawer.Content>
 				<Stack direction="column" gap="lg">
+					<DetailRow
+						label={ __( 'Status', 'newspack-rolling-coverage' ) }
+					>
+						<Badge intent="stable">
+							{ __( 'Connected', 'newspack-rolling-coverage' ) }
+						</Badge>
+					</DetailRow>
 					<DetailRow
 						label={ __( 'Workspace', 'newspack-rolling-coverage' ) }
 					>

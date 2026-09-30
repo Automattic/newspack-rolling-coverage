@@ -1,43 +1,20 @@
+@use "~@wordpress/base-styles/colors" as wp-colors;
 @use "~@wordpress/base-styles/variables" as wp-vars;
-@use "../variables" as *;
-
-// DataViews constrains the primary column to a fixed character width and
-// forces every cell onto a single line (`white-space: nowrap`), which hides
-// long titles/names even when the other columns are toggled off. Allow the
-// title/name cells to use the available width and wrap instead.
 
 .newspack-rolling-coverage-admin {
 
 	.dataviews-view-table__primary-column-content:not(.dataviews-column-primary__media) {
-		// Override the default 80ch cap so the primary column can claim the
-		// space freed up when other columns are hidden.
 		max-width: none;
-		min-width: 240px;
+		min-width: wp-vars.$grid-unit * 30;
 	}
 
 	.dataviews-view-table__cell-content-wrapper.dataviews-title-field,
 	.dataviews-title-field {
-		// Let the title wrap onto multiple lines rather than clipping it.
 		white-space: normal;
 		overflow: visible;
+		overflow-wrap: anywhere;
 		text-overflow: clip;
 		height: auto;
-	}
-
-	// Our own title/name wrappers: wrap long words and keep the pin icon
-	// aligned with the first line.
-	.newspack-rolling-coverage-entry-title,
-	.newspack-rolling-coverage-coverage-name {
-		display: block;
-		white-space: normal;
-		overflow-wrap: anywhere;
-		word-break: break-word;
-	}
-
-	.newspack-rolling-coverage-entry-title--pinned {
-		display: inline-flex;
-		align-items: flex-start;
-		gap: wp-vars.$grid-unit-10;
 	}
 
 	.newspack-rolling-coverage-entry-title__icon {
@@ -49,13 +26,37 @@
 	.newspack-rolling-coverage-slack-channel {
 		white-space: nowrap;
 	}
+
+	.newspack-rolling-coverage-status-archived {
+		color: var(--wpds-color-foreground-content-neutral-weak, #{wp-colors.$gray-700});
+	}
+
+	.newspack-rolling-coverage-user-row__avatar {
+		height: wp-vars.$grid-unit-30;
+		width: wp-vars.$grid-unit-30;
+		flex-shrink: 0;
+
+		img {
+			border-radius: wp-vars.$radius-round;
+			display: block;
+		}
+	}
+
+	.dataviews-view-table col.dataviews-view-table__col-first-data {
+		width: auto !important;
+	}
+
+	.dataviews-view-table tr td:last-child,
+	.dataviews-view-table thead tr th:last-child {
+		padding-right: wp-vars.$grid-unit-60;
+	}
+
+	.dataviews-view-table tr td:first-child:not(.dataviews-view-table__checkbox-column),
+	.dataviews-view-table thead th:first-child:not(.dataviews-view-table__checkbox-column) {
+		padding-left: wp-vars.$grid-unit-60;
+	}
 }
 
-.newspack-rolling-coverage-admin .dataviews-view-table col.dataviews-view-table__col-first-data {
-	width: auto !important;
-}
-
-.newspack-rolling-coverage-admin .dataviews-view-table tr td:first-child:not(.dataviews-view-table__checkbox-column),
-.newspack-rolling-coverage-admin .dataviews-view-table thead th:first-child:not(.dataviews-view-table__checkbox-column) {
-	padding-left: wp-vars.$grid-unit-60;
+.newspack-rolling-coverage-archived-tooltip {
+	max-width: var(--wpds-dimension-surface-width-sm, 320px);
 }

@@ -24,7 +24,6 @@ import {
 	runArchiveBulk,
 } from '../utils/entries-api';
 import { notifySuccess, notifyError, pluralize } from '../utils/notices';
-import { BreakoutModal } from '../components/breakout-modal';
 import { ConfirmModal } from '../components/confirm-modal';
 import type { Entry, Action, AdminConfig, RequestConfirm } from '../types';
 
@@ -154,7 +153,7 @@ function getEntryActions(
 		},
 		{
 			id: 'create-breakout',
-			label: __( 'Breakout', 'newspack-rolling-coverage' ),
+			label: __( 'Create Breakout Post', 'newspack-rolling-coverage' ),
 			isEligible: ( entry: Entry ) =>
 				config.capabilities.canEditEntries &&
 				! isEntryLocked( entry ) &&
@@ -181,7 +180,7 @@ function getEntryActions(
 					notifyError(
 						result.error ||
 							__(
-								'Failed to create breakout post',
+								'Failed to create breakout post.',
 								'newspack-rolling-coverage'
 							)
 					);
@@ -272,23 +271,6 @@ function getEntryActions(
 					);
 				}
 			},
-		},
-		{
-			id: 'breakout-setting',
-			label: __( 'Breakout Setting', 'newspack-rolling-coverage' ),
-			isEligible: ( entry: Entry ) =>
-				config.capabilities.canEditEntries &&
-				! isEntryLocked( entry ) &&
-				hasBreakout( entry ),
-			RenderModal: ( { items, closeModal, onActionPerformed: notify } ) =>
-				createElement( BreakoutModal, {
-					entry: items[ 0 ],
-					onClose: closeModal ?? ( () => {} ),
-					onSaved: () => {
-						notify?.( items );
-						onActionPerformed?.();
-					},
-				} ),
 		},
 		{
 			id: 'archive-entry',

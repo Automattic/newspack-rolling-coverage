@@ -20,6 +20,7 @@ import type { View } from '@wordpress/dataviews';
 /**
  * Internal dependencies
  */
+import { ErrorNotice } from '../shared/error-notice';
 import { useEntries } from '../hooks/useEntries';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { EmptyState } from 'newspack-components/dist/esm/empty-state';
@@ -274,30 +275,22 @@ function EntryView() {
 		setQuickEditEntry( null );
 	}, [] );
 
-	const filters = useMemo(
-		() =>
-			( view.filters ?? [] ) as Array< {
-				field: string;
-				operator: string;
-				value: string | string[];
-			} >,
-		[ view.filters ]
-	);
-
-	const entryFields = useMemo(
-		() => getEntryFields( config, filters ),
-		[ config, filters ]
-	);
+	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
 
 	const { data: mappedData, paginationInfo } = useMemo( () => {
 		const mapped = ( rows ?? [] ).map( toEntry );
+		const filters = ( view.filters ?? [] ) as Array< {
+			field: string;
+			operator: string;
+			value: string | string[];
+		} >;
 
 		// Server applies the same filters, so totals stay accurate.  Client filter guards against unfiltered sync deltas.
 		return {
 			data: applyEntryFilters( mapped, filters ),
 			paginationInfo: { totalItems, totalPages },
 		};
-	}, [ rows, filters, totalItems, totalPages ] );
+	}, [ rows, view.filters, totalItems, totalPages ] );
 
 	const handleNewEntry = useCallback( async () => {
 		if ( ! isValidCoverageId || numericCoverageId === null ) {
@@ -454,7 +447,12 @@ function EntryView() {
 		setContext,
 	] );
 
-	const showNewEntry = ! disableNewEntry && ! isFirstLoad && ! isEmpty;
+	// Archived coverages keep a disabled Add Entry so the reason stays visible.
+	const showArchivedAddEntry = isArchived && canCreateEntries;
+	const showNewEntry =
+		( ! disableNewEntry || showArchivedAddEntry ) &&
+		! isFirstLoad &&
+		! isEmpty;
 	const canShowSlack = canConnectSlack && routeCoverage !== null;
 	const showSlackInHeader = canShowSlack && ! isFirstLoad && ! isEmpty;
 
@@ -462,7 +460,7 @@ function EntryView() {
 		() =>
 			canShowSlack ? (
 				<Button
-					variant="secondary"
+					variant="tertiary"
 					className="newspack-rolling-coverage-status-button"
 					isBusy={ isRefreshingSlack }
 					disabled={ isRefreshingSlack }
@@ -497,29 +495,97 @@ function EntryView() {
 		[ canShowSlack, slackChannelLabel, routeCoverage, isRefreshingSlack ]
 	);
 
+	const pageUrl = routeCoverage?.pageUrl ?? '';
+	const showViewPage =
+		! isFirstLoad &&
+		routeCoverage !== null &&
+		( pageUrl !== '' || ! isEmpty );
+
+	const addEntryButton = useMemo(
+		() =>
+			isArchived ? (
+				<Button
+					variant="primary"
+					disabled
+					accessibleWhenDisabled
+					showTooltip
+					tooltipPosition="bottom"
+					label={ __( 'Add Entry', 'newspack-rolling-coverage' ) }
+					describedBy={ __(
+						'This coverage is archived. Set it back to Active to add entries.',
+						'newspack-rolling-coverage'
+					) }
+				>
+					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
+				</Button>
+			) : (
+				<Button
+					variant="primary"
+					onClick={ handleNewEntry }
+					isBusy={ isCreatingEntry }
+					disabled={ isCreatingEntry }
+				>
+					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
+				</Button>
+			),
+		[ isArchived, handleNewEntry, isCreatingEntry ]
+	);
+
+	const viewPageButton = useMemo(
+		() =>
+			pageUrl ? (
+				<Button
+					variant="secondary"
+					href={ pageUrl }
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					{ __( 'View Page', 'newspack-rolling-coverage' ) }
+					<VisuallyHidden>
+						{
+							/* translators: Accessibility text. */
+							__(
+								'(opens in a new tab)',
+								'newspack-rolling-coverage'
+							)
+						}
+					</VisuallyHidden>
+				</Button>
+			) : (
+				<Button
+					variant="secondary"
+					disabled
+					accessibleWhenDisabled
+					showTooltip
+					tooltipPosition="bottom"
+					label={ __( 'View Page', 'newspack-rolling-coverage' ) }
+					describedBy={ __(
+						'No published page shows this coverage yet. Add the Rolling Coverage block to a page and publish it.',
+						'newspack-rolling-coverage'
+					) }
+				>
+					{ __( 'View Page', 'newspack-rolling-coverage' ) }
+				</Button>
+			),
+		[ pageUrl ]
+	);
+
 	const headerActions = useMemo(
 		() =>
-			showNewEntry || showSlackInHeader ? (
+			showNewEntry || showSlackInHeader || showViewPage ? (
 				<>
 					{ showSlackInHeader && slackButton }
-					{ showNewEntry && (
-						<Button
-							variant="primary"
-							onClick={ handleNewEntry }
-							isBusy={ isCreatingEntry }
-							disabled={ isCreatingEntry }
-						>
-							{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
-						</Button>
-					) }
+					{ showViewPage && viewPageButton }
+					{ showNewEntry && addEntryButton }
 				</>
 			) : null,
 		[
 			showNewEntry,
 			showSlackInHeader,
+			showViewPage,
+			viewPageButton,
 			slackButton,
-			handleNewEntry,
-			isCreatingEntry,
+			addEntryButton,
 		]
 	);
 	useHeader( {
@@ -574,14 +640,14 @@ function EntryView() {
 
 	return (
 		<>
-			{ error && (
-				<div className="newspack-rolling-coverage-error">{ error }</div>
-			) }
-			{ createError && (
-				<div className="newspack-rolling-coverage-error">
-					{ createError }
-				</div>
-			) }
+			<ErrorNotice
+				className="newspack-rolling-coverage-view-notice"
+				message={ error }
+			/>
+			<ErrorNotice
+				className="newspack-rolling-coverage-view-notice"
+				message={ createError }
+			/>
 			{ isFirstLoad && (
 				<LoadingState
 					label={ __(
@@ -606,19 +672,7 @@ function EntryView() {
 					{ ( ! disableNewEntry || canShowSlack ) && (
 						<EmptyState.Actions>
 							{ slackButton }
-							{ ! disableNewEntry && (
-								<Button
-									variant="primary"
-									onClick={ handleNewEntry }
-									isBusy={ isCreatingEntry }
-									disabled={ isCreatingEntry }
-								>
-									{ __(
-										'Add Entry',
-										'newspack-rolling-coverage'
-									) }
-								</Button>
-							) }
+							{ ! disableNewEntry && addEntryButton }
 						</EmptyState.Actions>
 					) }
 				</EmptyState.Root>

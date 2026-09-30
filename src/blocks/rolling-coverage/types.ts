@@ -27,6 +27,8 @@ interface RollingCoverageAttributes {
 	entriesPerPage: number;
 	enableAds: boolean;
 	adsInterval: number;
+	pinnedLabel: string;
+	style?: { spacing?: { blockGap?: string | { top?: string } } };
 	[ key: string ]: unknown;
 }
 
@@ -55,6 +57,7 @@ interface BlockConfig {
 	coveragesRestBase: string;
 	statusMetaKey: string;
 	canonicalUrlMetaKey: string;
+	onesignalConfigured: boolean;
 	adsDisabledMetaKey: string;
 	entriesPreviewRestBase: string;
 	aiEndpoint: string;
@@ -91,6 +94,9 @@ interface EntryContext {
 	postId: number;
 	postType: string;
 	queryId: number;
+	pinned?: boolean;
+	hasBreakout?: boolean;
+	hasTitle?: boolean;
 }
 
 /**

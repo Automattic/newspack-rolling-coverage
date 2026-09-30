@@ -160,16 +160,25 @@ async function fetchEntryPreviewContexts(
 	}
 
 	try {
-		const entries = await apiFetch< Array< { id: number; type: string } > >(
-			{
-				url: `${ ENTRIES_PREVIEW_REST_BASE }/${ coverageId }/entries-preview?per_page=${ perPage }`,
-			}
-		);
+		const entries = await apiFetch<
+			Array< {
+				id: number;
+				type: string;
+				pinned?: boolean;
+				hasBreakout?: boolean;
+				hasTitle?: boolean;
+			} >
+		>( {
+			url: `${ ENTRIES_PREVIEW_REST_BASE }/${ coverageId }/entries-preview?per_page=${ perPage }`,
+		} );
 
 		return entries.map( ( entry ) => ( {
 			postId: entry.id,
 			postType: entry.type,
 			queryId: 0,
+			pinned: Boolean( entry.pinned ),
+			hasBreakout: Boolean( entry.hasBreakout ),
+			hasTitle: entry.hasTitle !== false,
 		} ) );
 	} catch ( error ) {
 		return [];

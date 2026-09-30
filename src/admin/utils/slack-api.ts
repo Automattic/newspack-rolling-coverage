@@ -325,18 +325,6 @@ async function getSlackMonitorLogs(
 	}
 }
 
-/**
- * Format a context object as a readable "key: value" string.
- *
- * @param {Record<string, unknown>} ctx Context object from a log entry.
- * @return {string} Formatted string, e.g. "channel: C123, post_id: 42".
- */
-function formatContext( ctx: Record< string, unknown > ): string {
-	return Object.entries( ctx )
-		.map( ( [ k, v ] ) => `${ k }: ${ String( v ) }` )
-		.join( ', ' );
-}
-
 export {
 	connectSlackChannel,
 	disconnectSlackChannel,
@@ -349,5 +337,4 @@ export {
 	listSlackChannels,
 	unlinkSlackChannel,
 	getSlackMonitorLogs,
-	formatContext,
 };

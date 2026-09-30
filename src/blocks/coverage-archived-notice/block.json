@@ -3,7 +3,7 @@
 	"apiVersion": 3,
 	"name": "newspack-rolling-coverage/coverage-archived-notice",
 	"title": "Coverage Archived Notice",
-	"category": "widgets",
+	"category": "newspack",
 	"description": "Notifies readers that coverage of this event has ended.",
 	"textdomain": "newspack-rolling-coverage",
 	"parent": [ "newspack-rolling-coverage/rolling-coverage" ],

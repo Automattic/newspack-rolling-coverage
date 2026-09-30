@@ -3,7 +3,7 @@
 	"apiVersion": 3,
 	"name": "newspack-rolling-coverage/deep-link-cta",
 	"title": "Deep Link CTA",
-	"category": "widgets",
+	"category": "newspack",
 	"description": "Shown when a shared link points to an entry not in the initial page.",
 	"textdomain": "newspack-rolling-coverage",
 	"parent": [ "newspack-rolling-coverage/rolling-coverage" ],

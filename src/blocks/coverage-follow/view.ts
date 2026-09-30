@@ -1,11 +1,11 @@
 /**
  * Internal dependencies
  */
-import './style.scss';
 import type { OneSignalApi } from './types';
 
-// Matches the button markup rendered server-side by Coverage_Follow_Block::render_block().
-const FOLLOW_BUTTON_SELECTOR = '.newspack-rolling-coverage-follow';
+// The core button marked by Entry_Bindings, and the legacy Follow block.
+const FOLLOW_BUTTON_SELECTOR =
+	'button[data-rc-follow], button.newspack-rolling-coverage-follow';
 
 // How long to wait for the OneSignal SDK before treating a click as failed.
 const SDK_WAIT_TIMEOUT_MS = 10000;
@@ -133,6 +133,11 @@ function initFollowButton( button: HTMLButtonElement ): void {
 
 	if ( ! tag ) {
 		return;
+	}
+
+	// The core button's label is set in the editor, so it's the "Follow" text.
+	if ( ! button.dataset.labelFollow ) {
+		button.dataset.labelFollow = button.textContent?.trim() || undefined;
 	}
 
 	button.addEventListener( 'click', () => {

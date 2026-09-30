@@ -2,8 +2,13 @@
  * External dependencies
  */
 import { createInterpolateElement, useState } from '@wordpress/element';
-import { Button, ExternalLink, TextControl } from '@wordpress/components';
-import { Stack } from '@wordpress/ui';
+import {
+	Button,
+	ExternalLink,
+	TextareaControl,
+	TextControl,
+} from '@wordpress/components';
+import { Stack, Text } from '@wordpress/ui';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -33,7 +38,7 @@ function ConnectSlack( {
 	const [ isManifestShown, setIsManifestShown ] = useState( false );
 
 	return (
-		<EmptyState.Root className="newspack-rolling-coverage-slack-empty-state">
+		<EmptyState.Root>
 			<EmptyState.Header
 				icon={ <SlackIcon size={ 36 } /> }
 				title={ __( 'Connect to Slack', 'newspack-rolling-coverage' ) }
@@ -53,13 +58,14 @@ function ConnectSlack( {
 					gap="xl"
 				>
 					<Stack direction="column" gap="sm">
-						<h3>
+						{ /* eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop. */ }
+						<Text variant="heading-lg" render={ <h3 /> }>
 							{ __(
 								'Create a Slack app',
 								'newspack-rolling-coverage'
 							) }
-						</h3>
-						<p className="newspack-rolling-coverage-slack-setup__description">
+						</Text>
+						<Text render={ <p /> }>
 							{ createInterpolateElement(
 								/* translators: <a> wraps the link to Slack's app creation page. */
 								__(
@@ -74,7 +80,7 @@ function ConnectSlack( {
 									),
 								}
 							) }
-						</p>
+						</Text>
 					</Stack>
 				</Stack>
 				<Divider marginTop={ 0 } marginBottom={ 0 } />
@@ -84,18 +90,19 @@ function ConnectSlack( {
 					gap="xl"
 				>
 					<Stack direction="column" gap="sm">
-						<h3>
+						{ /* eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop. */ }
+						<Text variant="heading-lg" render={ <h3 /> }>
 							{ __(
 								'Paste the app manifest',
 								'newspack-rolling-coverage'
 							) }
-						</h3>
-						<p className="newspack-rolling-coverage-slack-setup__description">
+						</Text>
+						<Text render={ <p /> }>
 							{ __(
 								'Copy the manifest and paste it into Slack when it asks for one.',
 								'newspack-rolling-coverage'
 							) }
-						</p>
+						</Text>
 					</Stack>
 					<Stack direction="row" gap="lg" align="center">
 						<CopyManifestButton manifestJson={ manifestJson } />
@@ -118,15 +125,18 @@ function ConnectSlack( {
 						</Button>
 					</Stack>
 					{ isManifestShown && (
-						<textarea
-							className="newspack-rolling-coverage-slack-settings__manifest"
-							aria-label={ __(
+						<TextareaControl
+							__nextHasNoMarginBottom
+							className="newspack-rolling-coverage-slack-manifest"
+							label={ __(
 								'App Manifest',
 								'newspack-rolling-coverage'
 							) }
+							hideLabelFromVision
 							readOnly
 							value={ manifestJson }
 							rows={ 20 }
+							onChange={ () => {} }
 							onClick={ ( e ) =>
 								( e.target as HTMLTextAreaElement ).select()
 							}
@@ -140,18 +150,19 @@ function ConnectSlack( {
 					gap="xl"
 				>
 					<Stack direction="column" gap="sm">
-						<h3>
+						{ /* eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop. */ }
+						<Text variant="heading-lg" render={ <h3 /> }>
 							{ __(
 								'Install the app',
 								'newspack-rolling-coverage'
 							) }
-						</h3>
-						<p className="newspack-rolling-coverage-slack-setup__description">
+						</Text>
+						<Text render={ <p /> }>
 							{ __(
 								'Install the new app to your Slack workspace.',
 								'newspack-rolling-coverage'
 							) }
-						</p>
+						</Text>
 					</Stack>
 				</Stack>
 				<Divider marginTop={ 0 } marginBottom={ 0 } />
@@ -161,18 +172,19 @@ function ConnectSlack( {
 					gap="xl"
 				>
 					<Stack direction="column" gap="sm">
-						<h3>
+						{ /* eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop. */ }
+						<Text variant="heading-lg" render={ <h3 /> }>
 							{ __(
 								'Add the app credentials',
 								'newspack-rolling-coverage'
 							) }
-						</h3>
-						<p className="newspack-rolling-coverage-slack-setup__description">
+						</Text>
+						<Text render={ <p /> }>
 							{ __(
 								'Copy the Bot User OAuth Token from OAuth & Permissions and the Signing Secret from Basic Information, then paste them here.',
 								'newspack-rolling-coverage'
 							) }
-						</p>
+						</Text>
 					</Stack>
 					<Stack direction="column" gap="lg">
 						<TextControl

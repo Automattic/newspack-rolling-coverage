@@ -694,6 +694,40 @@ class Post_Type {
 	}
 
 	/**
+	 * The first words of an entry's content as plain text, to name an entry
+	 * that has no title.
+	 *
+	 * Reads the stored HTML of every block, including lists and code blocks,
+	 * which `excerpt_remove_blocks()` would drop, without rendering it:
+	 * rendering could recurse through an embedded Rolling Coverage block. Line
+	 * breaks and block-level tags count as word boundaries.
+	 *
+	 * The result is decoded plain text, so text typed as `<b>` comes back as
+	 * `<b>`: escape it for any HTML context. Shortcodes are removed after
+	 * decoding, since Slack text stores them escaped and they would otherwise
+	 * come back live wherever the summary is shown. Stripping repeats until
+	 * nothing changes, because one pass turns `[[tag]]` into a live `[tag]`.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @param int     $words Number of words to keep.
+	 * @return string
+	 */
+	public static function get_entry_summary( WP_Post $entry, int $words = 8 ): string {
+		$html = (string) preg_replace( '/<!--.*?-->/s', ' ', strip_shortcodes( $entry->post_content ) );
+		$html = (string) preg_replace( '/<(?:br|\/?(?:p|li|ul|ol|pre|blockquote|h[1-6]|div|figure|figcaption|tr|td|th))\b[^>]*>/i', ' $0 ', $html );
+		$text = wp_trim_words( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( $html ) ), $words, '…' );
+
+		$text = html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+
+		do {
+			$previous = $text;
+			$text     = strip_shortcodes( $text );
+		} while ( $text !== $previous );
+
+		return trim( $text );
+	}
+
+	/**
 	 * Whether a given entry is pinned.
 	 *
 	 * @param int $entry_id Entry post ID.
@@ -889,7 +923,45 @@ class Post_Type {
 			self::pin_entry( $entry_id );
 		}
 
+		// Bump post_modified so live feeds re-render the entry with its pinned row.
+		self::touch_entry( $entry_id );
+
 		return new WP_REST_Response( [ 'pinned' => ! $is_pinned ], 200 );
+	}
+
+	/**
+	 * Bump an entry's modified date so live feeds re-render it. This isn't an
+	 * edit, so the stored content is kept as it is: save filters would strip
+	 * HTML or block CSS the author could post but whoever triggers the touch
+	 * (or cron) can't.
+	 *
+	 * @param int  $entry_id Entry post ID.
+	 * @param bool $wp_error Whether to return a WP_Error on failure.
+	 * @return int|WP_Error The entry ID, 0 or a WP_Error on failure.
+	 */
+	public static function touch_entry( int $entry_id, bool $wp_error = false ) {
+		$keep_stored_content = static function ( $data, $postarr, $unsanitized_postarr ) use ( $entry_id, &$keep_stored_content ) {
+			if ( $entry_id === (int) ( $postarr['ID'] ?? 0 ) ) {
+				// One save only: a hook that edits the entry during the touch still goes through kses.
+				remove_filter( 'wp_insert_post_data', $keep_stored_content, 5 );
+
+				foreach ( [ 'post_content', 'post_content_filtered', 'post_title', 'post_excerpt' ] as $field ) {
+					if ( isset( $unsanitized_postarr[ $field ] ) ) {
+						$data[ $field ] = $unsanitized_postarr[ $field ];
+					}
+				}
+			}
+
+			return $data;
+		};
+
+		add_filter( 'wp_insert_post_data', $keep_stored_content, 5, 3 );
+
+		try {
+			return wp_update_post( [ 'ID' => $entry_id ], $wp_error );
+		} finally {
+			remove_filter( 'wp_insert_post_data', $keep_stored_content, 5 );
+		}
 	}
 
 	/**
@@ -1500,6 +1572,7 @@ class Post_Type {
 		return [
 			'id'               => $post->ID,
 			'title'            => $post->post_title,
+			'summary'          => '' === trim( $post->post_title ) ? self::get_entry_summary( $post ) : '',
 			'date'             => mysql2date( 'c', $post->post_date, false ),
 			'modified'         => mysql2date( 'c', $post->post_modified, false ),
 			'status'           => $post->post_status,
@@ -1804,7 +1877,9 @@ class Post_Type {
 
 		global $wpdb;
 		$like = '%' . $wpdb->esc_like( $title ) . '%';
-		$where .= $wpdb->prepare( " AND {$wpdb->posts}.post_title LIKE %s", $like );
+		// Untitled entries are listed by their first words, so match those too.
+		$html_like = '%' . $wpdb->esc_like( esc_html( $title ) ) . '%';
+		$where    .= $wpdb->prepare( " AND ( {$wpdb->posts}.post_title LIKE %s OR ( {$wpdb->posts}.post_title = '' AND ( {$wpdb->posts}.post_content LIKE %s OR {$wpdb->posts}.post_content LIKE %s ) ) )", $like, $like, $html_like );
 
 		return $where;
 	}

@@ -14,8 +14,11 @@ import {
 	PanelBody,
 	ComboboxControl,
 	TextControl,
-	SelectControl,
-	ToggleControl,
+	RadioControl,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalToggleGroupControl as ToggleGroupControl,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
 	Button,
 	Notice,
 	Placeholder,
@@ -29,10 +32,15 @@ import {
 	memo,
 	useRef,
 } from '@wordpress/element';
-import { useSelect } from '@wordpress/data';
+import { useSelect, useDispatch } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
 import { __ } from '@wordpress/i18n';
-import { megaphone, copy as copyIcon, check } from '@wordpress/icons';
+import { copy as copyIcon, check } from '@wordpress/icons';
+
+/**
+ * External dependencies
+ */
+import { activity } from 'newspack-icons';
 
 /**
  * Internal dependencies
@@ -49,11 +57,24 @@ import {
 	ENTRY_TEMPLATE,
 	ENTRY_ALLOWED_BLOCKS,
 	ENTRY_EDITED_STATES,
+	FOLLOW_TEMPLATE,
+	isFollowButtons,
+	withoutPinnedRow,
+	withoutBreakoutLink,
+	withLinkedTitle,
+	withoutPinnedCard,
+	withoutClosingSeparator,
+	withShapedPinnedCard,
+	withCenteredTitleRows,
+	withoutPostTitle,
+	hasPinnedCard,
+	isPinnedCard,
 } from './template';
 import {
 	AI_AVAILABLE,
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
+	ONESIGNAL_CONFIGURED,
 } from './config';
 import EditedStateBar from './components/edited-state-bar';
 import type {
@@ -65,8 +86,8 @@ import type {
 } from './types';
 
 /**
- * The follow button block, rendered once at the top of the coverage rather
- * than per entry.
+ * The legacy follow button block, still rendered once at the top of
+ * coverages saved before the follow button became a core button.
  */
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 
@@ -85,12 +106,21 @@ const STATE_BLOCK_NAMES = ENTRY_EDITED_STATES.flatMap( ( state ) =>
 const RENDER_ONCE_BLOCKS = [ FOLLOW_BLOCK_NAME, ...STATE_BLOCK_NAMES ];
 
 /**
+ * The editor state each state block belongs to, keyed by block name.
+ */
+const STATE_BY_BLOCK_NAME: Record< string, string > = Object.fromEntries(
+	ENTRY_EDITED_STATES.flatMap( ( state ) =>
+		state.blocks.map( ( [ blockName ] ) => [ blockName, state.value ] )
+	)
+);
+
+/**
  * Default inner-blocks template for the Rolling Coverage block: the follow
  * button at the top, then every editor state's blocks, then the per-entry
  * blocks.
  */
 const INNER_TEMPLATE = [
-	[ FOLLOW_BLOCK_NAME ],
+	FOLLOW_TEMPLATE,
 	...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
 	...ENTRY_TEMPLATE,
 ];
@@ -161,6 +191,78 @@ function EntryBlockPreview( {
 
 const MemoizedEntryBlockPreview = memo( EntryBlockPreview );
 
+/**
+ * Picks the template variant an entry renders with on the front end: the
+ * pinned row only when pinned; "Read more" and a linked title only with a
+ * published breakout.
+ *
+ * @param {Object}       templates                         Template variants.
+ * @param {Object}       templates.pinned                  Full template, title linked.
+ * @param {Object}       templates.unpinned                Without the pinned row, title linked.
+ * @param {Object}       templates.pinnedWithoutBreakout   Without "Read more".
+ * @param {Object}       templates.unpinnedWithoutBreakout Without either.
+ * @param {EntryContext} context                           The entry.
+ * @return {TemplateBlocks} The blocks to preview the entry with.
+ */
+function previewTemplateFor(
+	templates: {
+		pinned: TemplateBlocks;
+		unpinned: TemplateBlocks;
+		pinnedWithoutBreakout: TemplateBlocks;
+		unpinnedWithoutBreakout: TemplateBlocks;
+	},
+	context: EntryContext
+): TemplateBlocks {
+	if ( context.hasBreakout ) {
+		return context.pinned ? templates.pinned : templates.unpinned;
+	}
+
+	return context.pinned
+		? templates.pinnedWithoutBreakout
+		: templates.unpinnedWithoutBreakout;
+}
+
+/**
+ * A preset slug as core writes it in a custom property, mirroring
+ * _wp_to_kebab_case(), e.g. "2XLarge" becomes "2-x-large".
+ *
+ * @param {string} slug Preset slug.
+ * @return {string} The kebab-case slug.
+ */
+function kebabCase( slug: string ): string {
+	return slug
+		.replace( /([a-z])([A-Z0-9])/g, '$1-$2' )
+		.replace( /([0-9])([a-zA-Z])/g, '$1-$2' )
+		.replace( /([A-Z])([A-Z][a-z])/g, '$1-$2' )
+		.replace( /[\s_]+/g, '-' )
+		.toLowerCase();
+}
+
+/**
+ * The space between an entry's blocks as the custom property the entries
+ * read in the editor, previewing the flow layout the site gives each entry
+ * (see Rolling_Coverage_Block::entry_layout_class()).
+ *
+ * @param {string|Object} blockGap The Block spacing setting.
+ * @return {Object} Inline style.
+ */
+function entryGapStyle(
+	blockGap?: string | { top?: string }
+): Record< string, string > {
+	let gap = typeof blockGap === 'object' ? blockGap?.top : blockGap;
+
+	if ( ! gap ) {
+		return {};
+	}
+
+	const preset = gap.match( /^var:preset\|spacing\|(.+)$/ );
+	if ( preset ) {
+		gap = `var(--wp--preset--spacing--${ kebabCase( preset[ 1 ] ) })`;
+	}
+
+	return { '--newspack-rolling-coverage-entry-gap': gap };
+}
+
 const STATUS_OPTIONS = [
 	{ label: __( 'Active', 'newspack-rolling-coverage' ), value: 'active' },
 	{ label: __( 'Paused', 'newspack-rolling-coverage' ), value: 'paused' },
@@ -173,12 +275,21 @@ export default function Edit( {
 	attributes,
 	setAttributes,
 }: EditProps ) {
-	const { coverageId, pollInterval, entriesPerPage, enableAds, adsInterval } =
-		attributes;
+	const {
+		coverageId,
+		pollInterval,
+		entriesPerPage,
+		enableAds,
+		adsInterval,
+		pinnedLabel,
+	} = attributes;
 	const [ editedState, setEditedState ] = useState(
 		EDITED_STATE_OPTIONS[ 0 ].value
 	);
-	const blockProps = useBlockProps( { 'data-editor-state': editedState } );
+	const blockProps = useBlockProps( {
+		'data-editor-state': editedState,
+		style: entryGapStyle( attributes.style?.spacing?.blockGap ),
+	} );
 	const innerBlocksProps = useInnerBlocksProps(
 		{ className: 'newspack-rolling-coverage-layout' },
 		{
@@ -235,11 +346,173 @@ export default function Edit( {
 	const templateBlocks = useMemo(
 		() =>
 			allBlocks.filter(
-				( block: { name: string } ) =>
-					! RENDER_ONCE_BLOCKS.includes( block.name )
+				( block ) =>
+					! RENDER_ONCE_BLOCKS.includes( block.name ) &&
+					! isFollowButtons( block )
 			),
 		[ allBlocks ]
 	);
+	const previewTemplates = useMemo( () => {
+		const hasCard = hasPinnedCard( templateBlocks );
+		const pinned = hasCard
+			? withoutClosingSeparator( templateBlocks )
+			: templateBlocks;
+		const unpinned = withoutPinnedCard(
+			withoutPinnedRow( templateBlocks )
+		);
+
+		const asUntitled = ( blocks: TemplateBlocks ) =>
+			withoutPostTitle( withCenteredTitleRows( blocks ) );
+		const titled = {
+			pinned: withLinkedTitle( pinned ),
+			unpinned: withLinkedTitle( unpinned ),
+			pinnedWithoutBreakout: withShapedPinnedCard(
+				withoutBreakoutLink( pinned ),
+				{ closeUp: true, isLastCard: false }
+			),
+			unpinnedWithoutBreakout: withoutBreakoutLink( unpinned ),
+		};
+
+		return {
+			hasCard,
+			titled,
+			untitled: {
+				pinned: asUntitled( titled.pinned ),
+				unpinned: asUntitled( titled.unpinned ),
+				pinnedWithoutBreakout: asUntitled(
+					titled.pinnedWithoutBreakout
+				),
+				unpinnedWithoutBreakout: asUntitled(
+					titled.unpinnedWithoutBreakout
+				),
+			},
+		};
+	}, [ templateBlocks ] );
+
+	// The last entry drops its separator once no more entries would load
+	// (see Rolling_Coverage_Block::shape_entry_template()).
+	const lastContext =
+		entryContexts.length < entriesPerPage
+			? entryContexts.at( -1 )
+			: undefined;
+	const lastPreviewBlocks = useMemo( () => {
+		if ( ! lastContext ) {
+			return undefined;
+		}
+
+		const blocks = previewTemplateFor(
+			lastContext.hasTitle === false
+				? previewTemplates.untitled
+				: previewTemplates.titled,
+			lastContext
+		);
+
+		if ( ! lastContext.pinned || ! previewTemplates.hasCard ) {
+			return withoutClosingSeparator( blocks );
+		}
+
+		const closing = blocks.at( -1 );
+
+		return closing && isPinnedCard( closing )
+			? withShapedPinnedCard( blocks, {
+					closeUp: false,
+					isLastCard: true,
+				} )
+			: blocks;
+	}, [ previewTemplates, lastContext ] );
+
+	// Disabled blocks drop out of List View and can't be selected, so only
+	// the current editor state's blocks show there.
+	const { setBlockEditingMode, unsetBlockEditingMode } = useDispatch(
+		blockEditorStore.name
+	) as unknown as {
+		setBlockEditingMode: ( clientId: string, mode: string ) => void;
+		unsetBlockEditingMode: ( clientId: string ) => void;
+	};
+	const stateBlocksKey = allBlocks
+		.filter( ( block ) => STATE_BY_BLOCK_NAME[ block.name ] )
+		.map(
+			( block ) =>
+				`${ block.clientId }:${ STATE_BY_BLOCK_NAME[ block.name ] }`
+		)
+		.join( ',' );
+	const stateBlockIds = useMemo(
+		() =>
+			( stateBlocksKey ? stateBlocksKey.split( ',' ) : [] ).map(
+				( pair ) => {
+					const [ id, state ] = pair.split( ':' );
+					return { clientId: id, state };
+				}
+			),
+		[ stateBlocksKey ]
+	);
+	useEffect( () => {
+		stateBlockIds.forEach( ( { clientId: id, state } ) => {
+			if ( state === editedState ) {
+				unsetBlockEditingMode( id );
+			} else {
+				setBlockEditingMode( id, 'disabled' );
+			}
+		} );
+		return () =>
+			stateBlockIds.forEach( ( { clientId: id } ) =>
+				unsetBlockEditingMode( id )
+			);
+	}, [
+		stateBlockIds,
+		editedState,
+		setBlockEditingMode,
+		unsetBlockEditingMode,
+	] );
+
+	// Hidden wherever the site never renders it: without OneSignal, or when the
+	// coverage is archived or previewed as archived. It stays in the template
+	// for when it can render.
+	const isFollowHidden =
+		! ONESIGNAL_CONFIGURED ||
+		currentCoverage?.status === 'archived' ||
+		editedState === 'archived';
+	const hiddenFollowIds = useMemo(
+		() =>
+			! isFollowHidden
+				? []
+				: allBlocks
+						.filter(
+							( block ) =>
+								block.name === FOLLOW_BLOCK_NAME ||
+								isFollowButtons( block )
+						)
+						.map( ( block ) => block.clientId ),
+		[ allBlocks, isFollowHidden ]
+	);
+	const hiddenFollowKey = hiddenFollowIds.join( ',' );
+	useEffect( () => {
+		const ids = hiddenFollowKey ? hiddenFollowKey.split( ',' ) : [];
+		ids.forEach( ( id ) => setBlockEditingMode( id, 'disabled' ) );
+		return () => ids.forEach( ( id ) => unsetBlockEditingMode( id ) );
+	}, [ hiddenFollowKey, setBlockEditingMode, unsetBlockEditingMode ] );
+
+	// A hidden block still counts as the previous sibling for the entry gap,
+	// so the first block left showing in this editor state drops its margin.
+	const layoutCss = useMemo( () => {
+		const firstVisible = allBlocks.find(
+			( block ) =>
+				! hiddenFollowIds.includes( block.clientId ) &&
+				( ! STATE_BY_BLOCK_NAME[ block.name ] ||
+					STATE_BY_BLOCK_NAME[ block.name ] === editedState )
+		);
+		const layout =
+			'.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout >';
+		return [
+			...hiddenFollowIds.map(
+				( id ) =>
+					`${ layout } [data-block="${ id }"] { display: none; }`
+			),
+			firstVisible
+				? `${ layout } .wp-block[data-block="${ firstVisible.clientId }"] { margin-top: 0; }`
+				: '',
+		].join( '\n' );
+	}, [ hiddenFollowIds, allBlocks, editedState ] );
 
 	// Derives the current page's permalink, and whether it's still a
 	// placeholder ".../auto-draft/" URL because the post is unsaved.
@@ -487,94 +760,91 @@ export default function Edit( {
 					{ coverageCombobox }
 
 					{ coverageId ? (
-						<div className="newspack-rolling-coverage-status-control">
-							<SelectControl
-								__next40pxDefaultSize
-								label={ __(
-									'Status',
-									'newspack-rolling-coverage'
-								) }
-								value={ pendingStatus }
-								options={ STATUS_OPTIONS }
-								onChange={ setPendingStatus }
-								help={ __(
-									'Writes back to the coverage itself — changes here affect every block connected to it.',
-									'newspack-rolling-coverage'
-								) }
-							/>
-							<Button
-								variant="secondary"
-								onClick={ handleApply }
-								isBusy={ isApplying }
-								disabled={ isApplying || statusUnchanged }
-							>
-								{ __( 'Apply', 'newspack-rolling-coverage' ) }
-							</Button>
-							{ applyNotice && (
-								<Notice
-									status={ applyNotice.type }
-									isDismissible={ false }
+						<>
+							<div className="newspack-rolling-coverage-panel-group">
+								<RadioControl
+									label={ __(
+										'Status',
+										'newspack-rolling-coverage'
+									) }
+									selected={ pendingStatus }
+									options={ STATUS_OPTIONS }
+									onChange={ setPendingStatus }
+									help={ __(
+										'Writes back to the coverage itself — changes here affect every block connected to it.',
+										'newspack-rolling-coverage'
+									) }
+								/>
+								<Button
+									variant="secondary"
+									onClick={ handleApply }
+									isBusy={ isApplying }
+									disabled={ isApplying || statusUnchanged }
 								>
-									{ applyNotice.message }
-								</Notice>
-							) }
-						</div>
+									{ __(
+										'Apply',
+										'newspack-rolling-coverage'
+									) }
+								</Button>
+								{ applyNotice && (
+									<Notice
+										status={ applyNotice.type }
+										isDismissible={ false }
+									>
+										{ applyNotice.message }
+									</Notice>
+								) }
+							</div>
+							<div className="newspack-rolling-coverage-panel-group">
+								<TextControl
+									__next40pxDefaultSize
+									type="url"
+									label={ __(
+										'Canonical URL',
+										'newspack-rolling-coverage'
+									) }
+									placeholder={ __(
+										'https://example.com/live-coverage',
+										'newspack-rolling-coverage'
+									) }
+									value={ pendingCanonicalUrl }
+									onChange={ setPendingCanonicalUrl }
+									disabled={ isApplyingUrl }
+									help={ __(
+										"The page readers land on when they open a link to one of this coverage's entries. Shared across every block connected to this coverage.",
+										'newspack-rolling-coverage'
+									) }
+								/>
+								<Button
+									variant="secondary"
+									onClick={ () =>
+										setPendingCanonicalUrl(
+											currentPagePermalink || ''
+										)
+									}
+									disabled={
+										isCurrentPageUnsaved ||
+										! currentPagePermalink
+									}
+								>
+									{ __(
+										'Use this page',
+										'newspack-rolling-coverage'
+									) }
+								</Button>
+								{ ( isCurrentPageUnsaved ||
+									! currentPagePermalink ) && (
+									<p className="components-base-control__help">
+										{ __(
+											'Save this page to get its permalink.',
+											'newspack-rolling-coverage'
+										) }
+									</p>
+								) }
+							</div>
+						</>
 					) : null }
 				</PanelBody>
-
-				{ coverageId ? (
-					<PanelBody
-						title={ __(
-							'Push Notifications',
-							'newspack-rolling-coverage'
-						) }
-					>
-						<TextControl
-							__next40pxDefaultSize
-							type="url"
-							label={ __(
-								'Canonical URL',
-								'newspack-rolling-coverage'
-							) }
-							placeholder={ __(
-								'https://example.com/live-coverage',
-								'newspack-rolling-coverage'
-							) }
-							value={ pendingCanonicalUrl }
-							onChange={ setPendingCanonicalUrl }
-							disabled={ isApplyingUrl }
-							help={ __(
-								'The page readers land on when they open a notification for this coverage. Shared across every block connected to this coverage.',
-								'newspack-rolling-coverage'
-							) }
-						/>
-						<Button
-							variant="secondary"
-							onClick={ () =>
-								setPendingCanonicalUrl(
-									currentPagePermalink || ''
-								)
-							}
-							disabled={
-								isCurrentPageUnsaved || ! currentPagePermalink
-							}
-						>
-							{ __(
-								'Use this page',
-								'newspack-rolling-coverage'
-							) }
-						</Button>
-						{ ( isCurrentPageUnsaved ||
-							! currentPagePermalink ) && (
-							<p className="components-base-control__help">
-								{ __(
-									'Save this page to get its permalink.',
-									'newspack-rolling-coverage'
-								) }
-							</p>
-						) }
-					</PanelBody>
-				) : null }
 
 				<PanelBody
 					title={ __( 'Display', 'newspack-rolling-coverage' ) }
@@ -616,6 +886,25 @@ export default function Edit( {
 									? parseInt( value, 10 )
 									: 10,
 							} )
+						}
+					/>
+					<TextControl
+						__next40pxDefaultSize
+						label={ __(
+							'Pinned label',
+							'newspack-rolling-coverage'
+						) }
+						help={ __(
+							'Shown on pinned entries.',
+							'newspack-rolling-coverage'
+						) }
+						placeholder={ __(
+							'Pinned',
+							'newspack-rolling-coverage'
+						) }
+						value={ pinnedLabel }
+						onChange={ ( value: string ) =>
+							setAttributes( { pinnedLabel: value } )
 						}
 					/>
 				</PanelBody>
@@ -714,21 +1003,40 @@ export default function Edit( {
 								</Notice>
 							)
 						) }
-						<ToggleControl
+						<ToggleGroupControl
+							__next40pxDefaultSize
+							isBlock
 							label={ __(
-								'Enable ads',
+								'Advertising',
 								'newspack-rolling-coverage'
 							) }
 							help={ __(
 								'Shows ads at a regular interval in the feed.',
 								'newspack-rolling-coverage'
 							) }
-							checked={ enableAds }
+							value={ enableAds ? 'enabled' : 'disabled' }
 							disabled={ coverageAdsDisabled }
-							onChange={ ( value: boolean ) =>
-								setAttributes( { enableAds: value } )
+							onChange={ ( value ) =>
+								setAttributes( {
+									enableAds: value === 'enabled',
+								} )
 							}
-						/>
+						>
+							<ToggleGroupControlOption
+								value="enabled"
+								label={ __(
+									'Enabled',
+									'newspack-rolling-coverage'
+								) }
+							/>
+							<ToggleGroupControlOption
+								value="disabled"
+								label={ __(
+									'Disabled',
+									'newspack-rolling-coverage'
+								) }
+							/>
+						</ToggleGroupControl>
 						{ enableAds && ! coverageAdsDisabled && (
 							<TextControl
 								__next40pxDefaultSize
@@ -759,6 +1067,7 @@ export default function Edit( {
 			<div { ...blockProps }>
 				{ coverageId ? (
 					<>
+						{ layoutCss && <style>{ layoutCss }</style> }
 						<EditedStateBar
 							options={ EDITED_STATE_OPTIONS }
 							value={ editedState }
@@ -810,7 +1119,19 @@ export default function Edit( {
 										>
 											{ ! isActive && (
 												<MemoizedEntryBlockPreview
-													blocks={ templateBlocks }
+													blocks={
+														context ===
+															lastContext &&
+														lastPreviewBlocks
+															? lastPreviewBlocks
+															: previewTemplateFor(
+																	context.hasTitle ===
+																		false
+																		? previewTemplates.untitled
+																		: previewTemplates.titled,
+																	context
+																)
+													}
 													onSelect={ () =>
 														setActiveEntryId(
 															context.postId
@@ -825,7 +1146,7 @@ export default function Edit( {
 					</>
 				) : (
 					<Placeholder
-						icon={ megaphone }
+						icon={ activity }
 						label={ __(
 							'Rolling Coverage',
 							'newspack-rolling-coverage'

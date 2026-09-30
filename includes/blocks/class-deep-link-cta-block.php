@@ -88,16 +88,11 @@ class Deep_Link_CTA_Block {
 		}
 
 		// If the entry has a published breakout post, link directly to it.
-		$breakout_id  = Breakout::get_existing_breakout_id( $entry_id );
-		$breakout_url = '';
-
-		if ( $breakout_id && 'publish' === get_post_status( $breakout_id ) ) {
-			$breakout_url = get_permalink( $breakout_id );
-		}
+		$breakout_url = Breakout::get_published_breakout_url( $entry_id );
 
 		if ( $breakout_url ) {
 			return sprintf(
-				'<div %1$s hidden role="status" aria-live="polite"><p class="newspack-rolling-coverage-cta__text">%2$s</p><a href="%3$s" class="newspack-rolling-coverage-cta__button wp-element-button">%4$s</a></div>',
+				'<div %1$s hidden role="status" aria-live="polite"><p class="newspack-rolling-coverage-cta__text">%2$s</p><a href="%3$s" class="newspack-rolling-coverage-cta__button wp-element-button wp-block-button__link">%4$s</a></div>',
 				get_block_wrapper_attributes( [ 'class' => 'newspack-rolling-coverage-cta' ] ),
 				wp_kses_post( $text ),
 				esc_url( $breakout_url ),
@@ -109,7 +104,7 @@ class Deep_Link_CTA_Block {
 		$modal_html = self::render_modal_template( $block, $entry_id );
 
 		return sprintf(
-			'<div %1$s hidden role="status" aria-live="polite"><p class="newspack-rolling-coverage-cta__text">%2$s</p><button type="button" class="newspack-rolling-coverage-cta__button wp-element-button" aria-haspopup="dialog">%3$s</button><template class="newspack-rolling-coverage-cta__modal-template">%4$s</template></div>',
+			'<div %1$s hidden role="status" aria-live="polite"><p class="newspack-rolling-coverage-cta__text">%2$s</p><button type="button" class="newspack-rolling-coverage-cta__button wp-element-button wp-block-button__link" aria-haspopup="dialog">%3$s</button><template class="newspack-rolling-coverage-cta__modal-template">%4$s</template></div>',
 			get_block_wrapper_attributes( [ 'class' => 'newspack-rolling-coverage-cta' ] ),
 			wp_kses_post( $text ),
 			esc_html( $button_text ),
@@ -142,19 +137,27 @@ class Deep_Link_CTA_Block {
 		setup_postdata( $entry );
 
 		try {
-			$html = ( new WP_Block(
-				[
-					'blockName'    => null,
-					'attrs'        => [],
-					'innerBlocks'  => $template,
-					'innerHTML'    => '',
-					'innerContent' => array_fill( 0, count( $template ), null ),
-				],
-				[
-					'postId'   => $entry->ID,
-					'postType' => $entry->post_type,
-				]
-			) )->render( [ 'dynamic' => false ] );
+			$template = Rolling_Coverage_Block::drop_fixed_template_dates( $template );
+
+			if ( ! Rolling_Coverage_Block::has_title( $entry ) ) {
+				$template = Rolling_Coverage_Block::with_centered_title_rows( $template );
+			}
+
+			$html = Rolling_Coverage_Block::render_as_entry(
+				fn() => ( new WP_Block(
+					[
+						'blockName'    => null,
+						'attrs'        => [],
+						'innerBlocks'  => $template,
+						'innerHTML'    => '',
+						'innerContent' => array_fill( 0, count( $template ), null ),
+					],
+					[
+						'postId'   => $entry->ID,
+						'postType' => $entry->post_type,
+					]
+				) )->render( [ 'dynamic' => false ] )
+			);
 		} finally {
 			$post = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 			setup_postdata( $previous_post );

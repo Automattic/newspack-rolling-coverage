@@ -64,6 +64,16 @@ function getCoverageActions(
 				}
 			},
 		},
+		{
+			id: 'view-page',
+			label: __( 'View Page', 'newspack-rolling-coverage' ),
+			isEligible: ( coverage: Coverage ) => Boolean( coverage.pageUrl ),
+			callback: ( items: Coverage[] ) => {
+				if ( items.length === 1 && items[ 0 ].pageUrl ) {
+					window.open( items[ 0 ].pageUrl, '_blank', 'noopener=yes' );
+				}
+			},
+		},
 		...( config.slack.isConfigured
 			? [
 					{

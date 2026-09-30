@@ -12,7 +12,8 @@ export default function Edit( {
 	setAttributes: ( attrs: Partial< { label: string } > ) => void;
 } ) {
 	const blockProps = useBlockProps( {
-		className: 'newspack-rolling-coverage-share-link wp-element-button',
+		className:
+			'newspack-rolling-coverage-share-link wp-element-button wp-block-button__link',
 	} );
 
 	return (

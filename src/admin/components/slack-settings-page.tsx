@@ -20,6 +20,7 @@ import { IngestionSettingsTab } from './slack/settings/ingestion-settings-tab';
 import { ConnectSlack } from './slack/settings/connect-slack';
 import { MonitorTab } from './slack/settings/monitor-tab';
 import { LoadingState } from '../shared/loading-state';
+import type { TabHeader } from '../types';
 
 const VALID_TABS = SLACK_TABS.map( ( t ) => t.name );
 
@@ -97,7 +98,7 @@ function SlackSettingsPage() {
 		return (
 			<>
 				<Button
-					variant="secondary"
+					variant="tertiary"
 					className="newspack-rolling-coverage-status-button newspack-rolling-coverage-connection-status-button"
 					onClick={ () => setIsStatusOpen( true ) }
 				>
@@ -129,9 +130,14 @@ function SlackSettingsPage() {
 		isSavingSettings,
 		isSettingsDirty,
 	] );
+	const [ channelsHeader, setChannelsHeader ] = useState< TabHeader >( {} );
+	const [ monitorHeader, setMonitorHeader ] = useState< TabHeader >( {} );
+
 	useHeader( {
 		tabbedNavigation,
 		actions: headerActions,
+		...( tab === 'channels' ? channelsHeader : {} ),
+		...( tab === 'monitor' ? monitorHeader : {} ),
 	} );
 
 	if ( ! isConfigured ) {
@@ -172,6 +178,7 @@ function SlackSettingsPage() {
 						hasLoadedChannels={ hasLoadedChannels }
 						onUnlink={ handleUnlinkChannel }
 						onAutopublishChange={ handleAutopublishChange }
+						onHeaderChange={ setChannelsHeader }
 					/>
 				);
 			case 'settings':
@@ -201,7 +208,12 @@ function SlackSettingsPage() {
 					/>
 				);
 			case 'monitor':
-				return <MonitorTab />;
+				return (
+					<MonitorTab
+						channels={ channels }
+						onHeaderChange={ setMonitorHeader }
+					/>
+				);
 			default:
 				return null;
 		}
@@ -210,7 +222,7 @@ function SlackSettingsPage() {
 	return (
 		<div
 			className={
-				tab === 'channels'
+				tab === 'channels' || tab === 'monitor'
 					? undefined
 					: 'newspack-rolling-coverage-slack-settings'
 			}

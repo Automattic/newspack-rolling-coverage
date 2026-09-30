@@ -232,4 +232,121 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 'C0TESTCHAN', $edit_meta[ Taxonomy::META_SLACK_CHANNEL_ID ], 'The edit context should include the linkage.' );
 	}
+
+	/**
+	 * The coverage exposes the newest published page embedding it, found
+	 * inside nested blocks, and the next one once that page is unpublished.
+	 */
+	public function test_page_url_points_to_the_newest_published_page_showing_the_coverage() {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$coverage_id = self::create_coverage();
+		$other_id    = self::create_coverage();
+		$block       = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->';
+
+		$this->assertSame( '', self::get_coverage_via_rest( $coverage_id, 'view' )[ Taxonomy::PAGE_URL_REST_FIELD ], 'No page embeds the coverage yet.' );
+
+		$older_id  = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_date'    => '2026-01-01 10:00:00',
+				'post_content' => $block,
+			]
+		);
+		$newest_id = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_date'    => '2026-02-01 10:00:00',
+				'post_content' => '<!-- wp:group --><div class="wp-block-group">' . $block . '</div><!-- /wp:group -->',
+			]
+		);
+		self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'draft',
+				'post_date'    => '2026-03-01 10:00:00',
+				'post_content' => $block,
+			]
+		);
+
+		$this->assertSame( get_permalink( $newest_id ), self::get_coverage_via_rest( $coverage_id, 'view' )[ Taxonomy::PAGE_URL_REST_FIELD ], 'The newest published page should win over older and draft ones.' );
+		$this->assertSame( '', Taxonomy::get_coverage_page_url( $other_id ), 'A coverage no page embeds should have no URL.' );
+
+		wp_update_post(
+			[
+				'ID'          => $newest_id,
+				'post_status' => 'draft',
+			]
+		);
+
+		$this->assertSame( get_permalink( $older_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'Unpublishing the newest page should hand over to the next one.' );
+	}
+
+	/**
+	 * A canonical URL is where share links and notifications send readers,
+	 * so it wins over the newest embedding page.
+	 */
+	public function test_page_url_prefers_the_canonical_url() {
+		$coverage_id   = self::create_coverage();
+		$canonical_url = home_url( '/live/election-night/' );
+
+		self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->',
+			]
+		);
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, $canonical_url );
+
+		$this->assertSame( $canonical_url, Taxonomy::get_coverage_page_url( $coverage_id ) );
+	}
+
+	/**
+	 * The page lookup scans post content, so it only runs for users who can
+	 * reach the admin that shows it.
+	 */
+	public function test_page_url_is_empty_for_users_who_cannot_edit_posts() {
+		$coverage_id = self::create_coverage();
+
+		self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->',
+			]
+		);
+
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'subscriber' ] ) );
+
+		$this->assertSame( '', self::get_coverage_via_rest( $coverage_id, 'view' )[ Taxonomy::PAGE_URL_REST_FIELD ] );
+	}
+
+	/**
+	 * Entries and revisions change constantly during live coverage, so saving
+	 * them keeps the page lookup cached; saving a page clears it.
+	 */
+	public function test_only_pages_that_can_host_the_block_clear_the_page_lookup() {
+		$group = Taxonomy::PAGE_IDS_CACHE_GROUP;
+		wp_cache_set_last_changed( $group );
+		$last_changed = wp_cache_get_last_changed( $group );
+
+		$entry_id = self::factory()->post->create( [ 'post_type' => Post_Type::CPT_SLUG ] );
+		self::factory()->post->create(
+			[
+				'post_type'   => 'revision',
+				'post_status' => 'inherit',
+				'post_parent' => $entry_id,
+			]
+		);
+
+		$this->assertSame( $last_changed, wp_cache_get_last_changed( $group ), 'Entry and revision writes should keep the lookup cached.' );
+
+		usleep( 1000 );
+		self::factory()->post->create( [ 'post_type' => 'page' ] );
+
+		$this->assertNotSame( $last_changed, wp_cache_get_last_changed( $group ), 'Saving a page should clear the lookup.' );
+	}
 }

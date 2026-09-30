@@ -157,7 +157,14 @@ class AI_Settings {
 			$settings['key_takeaways_prompt'] = $key_takeaways_prompt;
 		}
 
-		update_option( self::OPTION_KEY, $settings );
+		// Only store prompts that differ from the default, so a site left on
+		// (or reset to) the default picks up improved defaults in later releases.
+		$overrides = array_diff_assoc( array_intersect_key( $settings, self::$defaults ), self::$defaults );
+		if ( empty( $overrides ) ) {
+			delete_option( self::OPTION_KEY );
+		} else {
+			update_option( self::OPTION_KEY, $overrides );
+		}
 		AI_Service::clear_availability_cache();
 
 		$new_settings = self::get_all();

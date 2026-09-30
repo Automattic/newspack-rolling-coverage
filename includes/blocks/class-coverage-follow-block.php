@@ -7,8 +7,6 @@
 
 namespace Newspack_Rolling_Coverage;
 
-use WP_Block_Type;
-
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -29,31 +27,15 @@ class Coverage_Follow_Block {
 	}
 
 	/**
-	 * Registers the block type and localizes its editor script.
+	 * Registers the block type.
 	 */
 	public static function register_block() {
-		$block_type = register_block_type(
+		register_block_type(
 			NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/blocks/coverage-follow',
 			[
 				'render_callback' => [ __CLASS__, 'render_block' ],
 			]
 		);
-
-		if ( ! $block_type instanceof WP_Block_Type ) {
-			return;
-		}
-
-		foreach ( $block_type->editor_script_handles as $handle ) {
-			wp_localize_script(
-				$handle,
-				'newspackRollingCoverageFollow',
-				[
-					'onesignalInstalled'  => Push_Notifications::is_onesignal_installed(),
-					'onesignalV3Active'   => Push_Notifications::is_onesignal_v3_active(),
-					'onesignalConfigured' => Push_Notifications::is_onesignal_configured(),
-				]
-			);
-		}
 	}
 
 	/**
@@ -91,7 +73,7 @@ class Coverage_Follow_Block {
 
 		return sprintf(
 			'<button type="button" %1$s data-tag="%2$s" data-label-follow="%3$s" data-label-following="%4$s" data-blocked-message="%5$s" data-error-message="%6$s" aria-pressed="false">%3$s</button>',
-			get_block_wrapper_attributes( [ 'class' => 'newspack-rolling-coverage-follow wp-element-button' ] ),
+			get_block_wrapper_attributes( [ 'class' => 'newspack-rolling-coverage-follow wp-element-button wp-block-button__link' ] ),
 			esc_attr( Push_Notifications::follow_tag( $coverage_id ) ),
 			esc_html__( 'Follow', 'newspack-rolling-coverage' ),
 			esc_html__( 'Following', 'newspack-rolling-coverage' ),

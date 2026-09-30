@@ -2,6 +2,7 @@
  * External dependencies
  */
 import { Icon, commentAuthorAvatar } from '@wordpress/icons';
+import { Stack } from '@wordpress/ui';
 
 interface UserRowProps {
 	label: string;
@@ -20,9 +21,14 @@ export function UserRow( { label, avatarUrls = {} }: UserRowProps ) {
 	const avatarUrl = avatarUrls[ 24 ] || avatarUrls[ 48 ];
 
 	return (
-		<span className="newspack-rolling-coverage-user-row">
+		<Stack render={ <span /> } direction="row" align="center" gap="sm">
 			{ avatarUrl ? (
-				<span className="newspack-rolling-coverage-user-row__avatar">
+				<Stack
+					render={ <span /> }
+					className="newspack-rolling-coverage-user-row__avatar"
+					align="center"
+					justify="center"
+				>
 					<img
 						src={ avatarUrl }
 						srcSet={
@@ -34,15 +40,11 @@ export function UserRow( { label, avatarUrls = {} }: UserRowProps ) {
 						height={ 16 }
 						alt=""
 					/>
-				</span>
+				</Stack>
 			) : (
-				<Icon
-					className="newspack-rolling-coverage-user-row__icon"
-					icon={ commentAuthorAvatar }
-					size={ 24 }
-				/>
+				<Icon icon={ commentAuthorAvatar } size={ 24 } />
 			) }
 			<span>{ label }</span>
-		</span>
+		</Stack>
 	);
 }

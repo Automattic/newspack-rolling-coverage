@@ -86,6 +86,8 @@ interface HeaderState {
 	tabbedNavigation?: ReactNode;
 }
 
+type TabHeader = Pick< HeaderState, 'count' | 'isEmpty' >;
+
 interface Coverage {
 	id: number;
 	name: string;
@@ -93,6 +95,7 @@ interface Coverage {
 	taxonomy: string;
 	description: string;
 	count: number;
+	pageUrl?: string;
 	meta: {
 		rolling_coverage_status?: 'active' | 'paused' | 'archived' | 'trash';
 		rolling_coverage_canonical_url?: string;
@@ -129,6 +132,8 @@ interface Entry {
 		rendered: string;
 		raw?: string;
 	};
+	/** First words of the content when the entry has no title. */
+	summary?: string;
 	content: {
 		rendered: string;
 		raw?: string;
@@ -136,7 +141,6 @@ interface Entry {
 	author: number;
 	meta: {
 		rolling_coverage_breakout_post_id?: number;
-		rolling_coverage_breakout_read_more_text?: string;
 		[ key: string ]: unknown;
 	};
 	pinned?: boolean;
@@ -243,6 +247,7 @@ interface DataViewsWrapperProps< T > {
 	onClickItem?: ( item: T ) => void;
 	header?: JSX.Element;
 	defaultLayouts?: Record< string, unknown >;
+	config?: { perPageSizes: number[] };
 }
 
 interface CoverageDrawerProps {
@@ -332,16 +337,6 @@ interface SaveCoverageData {
 	adsDisabled: boolean;
 }
 
-interface BreakoutModalProps {
-	entry: Entry;
-	onClose: () => void;
-	onSaved: () => void;
-}
-
-interface BreakoutFormData {
-	rolling_coverage_breakout_read_more_text: string;
-}
-
 interface CreateBreakoutResponse {
 	breakoutPostId: number;
 	editLink: string;
@@ -352,24 +347,14 @@ interface CreateBreakoutResult extends ApiResult {
 	data?: CreateBreakoutResponse;
 }
 
-interface ChipLinkProps {
-	href: string;
-	label: string;
-	variant?: string;
-}
-
-interface TermChipsProps {
-	terms: Array< { link: string; name: string } >;
-	/** Active term-name filter substring; matching chips are shown first. */
-	highlightName?: string;
-}
-
 interface SlackMonitorLogEntry {
 	timestamp: string;
 	level: string;
 	message: string;
 	context: Record< string, unknown >;
 }
+
+type SlackMonitorEvent = SlackMonitorLogEntry & { id: number };
 
 interface SlackMonitorLogsResult extends ApiResult {
 	lines?: SlackMonitorLogEntry[];
@@ -422,8 +407,9 @@ interface QuickEditModalProps {
 	onSaved: () => void;
 }
 
-interface SlackErrorProps {
+interface ErrorNoticeProps {
 	message?: string | null;
+	className?: string;
 }
 
 interface ConnectedChannelViewProps {
@@ -498,6 +484,7 @@ interface ChannelsTabProps {
 		channelId: string,
 		autopublish: boolean
 	) => Promise< void >;
+	onHeaderChange: ( header: TabHeader ) => void;
 }
 
 interface IncomingMessage {
@@ -523,6 +510,7 @@ interface SettingField {
 interface QuickEditSaveBarProps {
 	onClose: () => void;
 	onSaved: () => void;
+	children?: ReactNode;
 }
 
 interface EntityRecord {
@@ -554,6 +542,8 @@ type CoreSelectors = {
 interface EntryViewRow {
 	id: number;
 	title: string;
+	/** First words of the content when the entry has no title, else ''. */
+	summary: string;
 	date: string;
 	modified: string;
 	status: PostStatus;
@@ -649,24 +639,21 @@ export type {
 	UseCoveragesOptions,
 	UseEntriesOptions,
 	UseEntriesResult,
-	BreakoutModalProps,
-	BreakoutFormData,
 	CreateBreakoutResponse,
 	CreateBreakoutResult,
 	ConfirmModalContentProps,
 	SaveCoverageData,
-	ChipLinkProps,
-	TermChipsProps,
 	BulkRestoreEntryResult,
 	BulkRestoreResult,
 	AiSettings,
 	BreadcrumbItem,
 	HeaderState,
+	TabHeader,
 	StatusName,
 	ConfirmRequest,
 	RequestConfirm,
 	SlackConnectionDrawerProps,
-	SlackErrorProps,
+	ErrorNoticeProps,
 	ConnectedChannelViewProps,
 	ConnectChannelFormProps,
 	ConnectionStatusDrawerProps,
@@ -682,6 +669,7 @@ export type {
 	SlackVerifyResult,
 	SlackChannelsResult,
 	SlackMonitorLogEntry,
+	SlackMonitorEvent,
 	SlackMonitorLogsResult,
 	SettingsNotice,
 	AdminTab,

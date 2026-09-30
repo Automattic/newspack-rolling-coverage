@@ -30,6 +30,7 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 	onClickItem,
 	header,
 	defaultLayouts,
+	config,
 }: DataViewsWrapperProps< T > ) {
 	return (
 		<TypedDataViews
@@ -44,6 +45,7 @@ function DataViewsWrapper< T extends { id: number | string } >( {
 			isItemClickable={ onClickItem ? () => true : undefined }
 			onClickItem={ onClickItem }
 			header={ header }
+			config={ config }
 			getItemId={ ( item: T ) => String( item.id ) }
 		/>
 	);
