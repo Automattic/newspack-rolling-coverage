@@ -35,11 +35,11 @@
 		align-items: center;
 		text-decoration: none;
 
-		&:any-link,
-		&:any-link:hover,
-		&:any-link:focus,
-		&:any-link:visited,
-		&:any-link:active {
+		&.button:any-link,
+		&.button:any-link:hover,
+		&.button:any-link:focus,
+		&.button:any-link:visited,
+		&.button:any-link:active {
 			background: #000;
 			color: #fff;
 			line-height: 1.2;
