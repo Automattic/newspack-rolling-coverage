@@ -56,6 +56,35 @@ class Test_Page_Modified_Dates extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An entry scheduled through the editor keeps the modified date of its last
+	 * edit, so when it goes live the page is dated to its publish time, which is
+	 * when readers first saw it.
+	 */
+	public function test_a_scheduled_entry_going_live_dates_the_page_to_its_publish_time() {
+		$coverage_id = self::create_coverage();
+		$page_id     = $this->create_page( $coverage_id, '2026-09-01 10:00:00' );
+		$entry_id    = $this->create_dated_entry( $coverage_id, '2026-09-01 11:00:00', 'draft' );
+		$publish_at  = gmdate( 'Y-m-d H:i:s', time() + 10 * MINUTE_IN_SECONDS );
+
+		wp_update_post(
+			[
+				'ID'            => $entry_id,
+				'post_status'   => 'future',
+				'post_date'     => get_date_from_gmt( $publish_at ),
+				'post_date_gmt' => $publish_at,
+			]
+		);
+
+		$this->assertSame( 'future', get_post_status( $entry_id ) );
+		$this->assertGreaterThan( get_post( $entry_id )->post_modified_gmt, $publish_at, 'Scheduling stamps the edit time, before the publish time.' );
+		$this->assertSame( '2026-09-01 10:00:00', get_post( $page_id )->post_modified_gmt, 'Scheduling is not a change readers see.' );
+
+		wp_publish_post( $entry_id );
+
+		$this->assertSame( $publish_at, get_post( $page_id )->post_modified_gmt );
+	}
+
+	/**
 	 * Saving an entry readers can't see leaves the page alone.
 	 */
 	public function test_draft_entry_saves_leave_the_page_alone() {

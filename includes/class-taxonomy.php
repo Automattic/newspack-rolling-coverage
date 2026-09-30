@@ -678,6 +678,14 @@ class Taxonomy {
 		$modified     = $entry->post_modified;
 		$modified_gmt = $entry->post_modified_gmt;
 
+		// An entry scheduled through the editor keeps the modified date of its
+		// last edit, which is before it went live; its publish date is when
+		// readers first saw it.
+		if ( $entry->post_date_gmt > $modified_gmt ) {
+			$modified     = $entry->post_date;
+			$modified_gmt = $entry->post_date_gmt;
+		}
+
 		if ( '' === $modified_gmt || '0000-00-00 00:00:00' === $modified_gmt ) {
 			return;
 		}
