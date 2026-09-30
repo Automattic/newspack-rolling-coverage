@@ -8,6 +8,7 @@
 
 namespace Newspack_Rolling_Coverage;
 
+use DateTimeImmutable;
 use WP_Post;
 use WP_Query;
 use WP_Term;
@@ -16,20 +17,39 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Builds and prints LiveBlogPosting structured data on the front end.
+ *
+ * With Yoast SEO, the page's first coverage is merged into Yoast's Article so
+ * search engines see one article with one set of dates. Without Yoast, or on
+ * pages Yoast gives no Article, the coverage is printed as its own script.
  */
 class Schema {
 
 	const BLOCK_NAME = 'newspack-rolling-coverage/rolling-coverage';
 
 	/**
+	 * Coverage merged into Yoast's Article, by host post ID, so print_schema()
+	 * doesn't describe it a second time.
+	 *
+	 * @var array<int,int>
+	 */
+	private static $merged_coverage_ids = [];
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
 		add_action( 'wp_head', [ __CLASS__, 'print_schema' ] );
+		add_filter( 'wpseo_schema_article', [ __CLASS__, 'merge_into_yoast_article' ], 10, 2 );
+		add_filter( 'wpseo_schema_webpage', [ __CLASS__, 'align_yoast_webpage_dates' ], 10, 2 );
 	}
 
 	/**
-	 * Prints one JSON-LD script tag per Rolling Coverage block on the page.
+	 * Prints one JSON-LD script tag per Rolling Coverage block on the page,
+	 * except the coverage already merged into Yoast's Article.
+	 *
+	 * The merge happens while Yoast prints its graph (`wp_head` priority 1), so
+	 * this has to run later. Run it earlier and the merged coverage is printed
+	 * twice.
 	 */
 	public static function print_schema() {
 		if ( ! is_singular() ) {
@@ -41,19 +61,13 @@ class Schema {
 			return;
 		}
 
-		// Withhold all metadata for password-protected posts before touching any
-		// entry content, so protected bodies can't leak through the JSON-LD.
-		if ( post_password_required( $post ) ) {
-			return;
-		}
+		$merged_coverage_id = self::$merged_coverage_ids[ $post->ID ] ?? 0;
 
-		if ( ! has_block( self::BLOCK_NAME, $post ) ) {
-			return;
-		}
+		foreach ( self::get_page_coverages( $post ) as $coverage_id => $entries_per_page ) {
+			if ( $coverage_id === $merged_coverage_id ) {
+				continue;
+			}
 
-		$coverage_blocks = self::get_coverage_blocks( $post );
-
-		foreach ( $coverage_blocks as $coverage_id => $entries_per_page ) {
 			$metadata = self::build_metadata( $post, $coverage_id, $entries_per_page );
 
 			if ( empty( $metadata ) ) {
@@ -67,6 +81,116 @@ class Schema {
 				wp_json_encode( $metadata, JSON_HEX_TAG )
 			);
 		}
+	}
+
+	/**
+	 * Turns Yoast's Article into the page's live blog.
+	 *
+	 * Printed separately, the two would describe one URL as two articles that
+	 * disagree on when it last changed. Yoast's values win where both describe
+	 * the page (headline, publish date, main entity), since they match what
+	 * readers see. The live blog adds its coverage times and updates, and its
+	 * dateModified replaces Yoast's because it also counts entry changes.
+	 *
+	 * @param array|mixed $data    Yoast's Article graph piece.
+	 * @param object      $context Yoast's meta tags context.
+	 * @return array|mixed Filtered graph piece.
+	 */
+	public static function merge_into_yoast_article( $data, $context ) {
+		$post = is_object( $context ) ? ( $context->post ?? null ) : null;
+		if ( ! is_array( $data ) || ! $post instanceof WP_Post ) {
+			return $data;
+		}
+
+		$primary = self::get_primary_metadata( $post );
+		if ( null === $primary ) {
+			return $data;
+		}
+
+		$metadata = $primary['metadata'];
+
+		// Keep Yoast's type (NewsArticle, for example) and add the live blog to it.
+		$data['@type'] = array_values( array_unique( array_merge( (array) ( $data['@type'] ?? [] ), [ 'LiveBlogPosting' ] ) ) );
+
+		foreach ( $metadata as $key => $value ) {
+			if ( '@context' !== $key && ! array_key_exists( $key, $data ) ) {
+				$data[ $key ] = $value;
+			}
+		}
+
+		if ( isset( $metadata['dateModified'] ) ) {
+			$data['dateModified'] = $metadata['dateModified'];
+		}
+
+		self::$merged_coverage_ids[ $post->ID ] = $primary['coverage_id'];
+
+		return $data;
+	}
+
+	/**
+	 * Gives Yoast's WebPage the live blog's dateModified, so every date in the
+	 * page's structured data agrees on when it last changed.
+	 *
+	 * @param array|mixed $data    Yoast's WebPage graph piece.
+	 * @param object      $context Yoast's meta tags context.
+	 * @return array|mixed Filtered graph piece.
+	 */
+	public static function align_yoast_webpage_dates( $data, $context ) {
+		$post = is_object( $context ) ? ( $context->post ?? null ) : null;
+		if ( ! is_array( $data ) || ! $post instanceof WP_Post ) {
+			return $data;
+		}
+
+		$primary = self::get_primary_metadata( $post );
+		if ( null !== $primary && isset( $primary['metadata']['dateModified'] ) ) {
+			$data['dateModified'] = $primary['metadata']['dateModified'];
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Returns the first coverage on the page that has metadata to publish.
+	 *
+	 * Search engines read a page as a single live blog, so only this coverage
+	 * is merged into Yoast's Article. Any others keep their own script.
+	 *
+	 * @param WP_Post $post Host post.
+	 * @return array{coverage_id:int,metadata:array}|null The coverage and its metadata, or null when there is none.
+	 */
+	private static function get_primary_metadata( WP_Post $post ): ?array {
+		foreach ( self::get_page_coverages( $post ) as $coverage_id => $entries_per_page ) {
+			$metadata = self::build_metadata( $post, $coverage_id, $entries_per_page );
+
+			if ( ! empty( $metadata ) ) {
+				return [
+					'coverage_id' => $coverage_id,
+					'metadata'    => $metadata,
+				];
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Returns the coverages whose metadata a post may publish.
+	 *
+	 * @param WP_Post $post Host post.
+	 * @return array<int,int> Map of coverage term id => entries-per-page attribute.
+	 */
+	private static function get_page_coverages( WP_Post $post ): array {
+		// Withhold all metadata for password-protected posts before touching any
+		// entry content, so protected bodies can't leak through the JSON-LD.
+		if ( post_password_required( $post ) ) {
+			return [];
+		}
+
+		if ( ! has_block( self::BLOCK_NAME, $post ) ) {
+			return [];
+		}
+
+		return self::get_coverage_blocks( $post );
 	}
 
 	/**
@@ -141,7 +265,7 @@ class Schema {
 
 		$last_modified = get_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true );
 		$end_time      = get_term_meta( $coverage_id, Taxonomy::END_TIME_META_KEY, true );
-		$cache_key     = 'nrc_' . $coverage_id . '_' . md5( $post->ID . '|' . $entries_per_page . '|' . $status . '|' . $last_modified . '|' . $end_time );
+		$cache_key     = 'nrc_' . $coverage_id . '_' . md5( $post->ID . '|' . $post->post_modified_gmt . '|' . $entries_per_page . '|' . $status . '|' . $last_modified . '|' . $end_time );
 
 		$cached_metadata = get_transient( $cache_key );
 		if ( false !== $cached_metadata ) {
@@ -168,18 +292,9 @@ class Schema {
 			$metadata['datePublished'] = $published_datetime->format( 'c' );
 		}
 
-		// dateModified must reflect entry activity, which is tracked by the block's
-		// LAST_MODIFIED_META_KEY term meta (updated on every entry save). The meta
-		// stores a raw GMT `Y-m-d H:i:s` string; schema.org requires ISO 8601.
-		if ( ! empty( $last_modified ) ) {
-			$metadata['dateModified'] = gmdate( 'c', strtotime( $last_modified ) );
-		} else {
-			// No entry activity recorded yet: fall back to the host post's own
-			// modified date so the field is still present when available.
-			$modified_datetime = get_post_datetime( $post, 'modified', 'gmt' );
-			if ( false !== $modified_datetime ) {
-				$metadata['dateModified'] = $modified_datetime->format( 'c' );
-			}
+		$modified_datetime = self::get_date_modified( $post, $coverage_id );
+		if ( null !== $modified_datetime ) {
+			$metadata['dateModified'] = $modified_datetime->format( 'c' );
 		}
 
 		$created_at = get_term_meta( $coverage_id, 'created_at', true );
@@ -205,6 +320,50 @@ class Schema {
 		set_transient( $cache_key, $metadata, WEEK_IN_SECONDS );
 
 		return $metadata;
+	}
+
+	/**
+	 * Returns when the page last changed in a way readers can see: an edit to
+	 * the host post or to one of the coverage's published entries.
+	 *
+	 * The coverage's last-modified term meta isn't used here because draft,
+	 * pending and private entry saves move it too.
+	 *
+	 * @param WP_Post $post        Host post the block is embedded in.
+	 * @param int     $coverage_id Coverage term id.
+	 * @return DateTimeImmutable|null Latest change, or null when no date is available.
+	 */
+	private static function get_date_modified( WP_Post $post, int $coverage_id ): ?DateTimeImmutable {
+		$query = new WP_Query(
+			[
+				'post_type'                   => Post_Type::CPT_SLUG,
+				'post_status'                 => 'publish',
+				'tax_query'                   => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+					[
+						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
+						'field'    => 'term_id',
+						'terms'    => $coverage_id,
+					],
+				],
+				'orderby'                     => 'modified',
+				'order'                       => 'DESC',
+				'posts_per_page'              => 1,
+				'no_found_rows'               => true,
+				'ignore_sticky_posts'         => true,
+				'update_post_meta_cache'      => false,
+				'update_post_term_cache'      => false,
+				Post_Type::SKIP_PIN_ORDER_VAR => true,
+			]
+		);
+
+		$dates = array_filter(
+			[
+				get_post_datetime( $post, 'modified', 'gmt' ),
+				empty( $query->posts ) ? false : get_post_datetime( $query->posts[0], 'modified', 'gmt' ),
+			]
+		);
+
+		return empty( $dates ) ? null : max( $dates );
 	}
 
 	/**
