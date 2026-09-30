@@ -25,6 +25,12 @@ const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 // poll until that copy expires.
 const OVERFLOW_RELOAD_RETRY_MS = 60 * 1000;
 
+// Entries are the same for every reader, so requests for them go out without
+// cookies. A login or cart cookie makes the page cache and the CDN skip their
+// shared copy, and every poll from that reader would run PHP. The reply is
+// unchanged: without a nonce the REST API already answers as logged out.
+const ENTRIES_FETCH_OPTIONS: RequestInit = { credentials: 'omit' };
+
 /**
  * cssEscape polyfill for older browsers.
  */
@@ -767,7 +773,10 @@ function initBlock( root: HTMLElement ): void {
 			url.searchParams.set( 'host_post_id', hostPostId );
 			url.searchParams.set( 'polled_count', polledCount.toString() );
 
-			const response = await fetch( url.toString() );
+			const response = await fetch(
+				url.toString(),
+				ENTRIES_FETCH_OPTIONS
+			);
 			if ( response.ok ) {
 				const data: PollResponse = await response.json();
 
@@ -850,7 +859,10 @@ function initBlock( root: HTMLElement ): void {
 			url.searchParams.set( 'host_post_id', hostPostId );
 			url.searchParams.set( 'entry_offset', backlogOffset.toString() );
 
-			const response = await fetch( url.toString() );
+			const response = await fetch(
+				url.toString(),
+				ENTRIES_FETCH_OPTIONS
+			);
 			if ( response.ok ) {
 				const data: PageResponse = await response.json();
 				if ( data.count > 0 ) {
