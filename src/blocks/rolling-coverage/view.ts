@@ -145,7 +145,12 @@ function newerPostsLabel( count: number ): string {
 
 	return sprintf(
 		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
-		__( '%d+ newer posts', 'newspack-rolling-coverage' ),
+		_n(
+			'%d+ newer post',
+			'%d+ newer posts',
+			floor,
+			'newspack-rolling-coverage'
+		),
 		floor
 	);
 }
@@ -224,18 +229,33 @@ function initBlock( root: HTMLElement ): void {
 	const newerCount =
 		parseInt( newEntriesControl?.dataset.newerCount || '0', 10 ) || 0;
 
+	// The control's own text: the server keeps it on the link when it writes
+	// the count in its place.
+	const ownLabel =
+		newEntriesLink?.dataset.label ?? newEntriesLink?.textContent ?? '';
+
+	// Whether the poll can still tell how many entries are newer.
+	let canCount = true;
+
 	/**
 	 * Shows on the control how many entries are newer than the shared entry:
 	 * those the page was rendered with plus those the poll has counted since.
-	 * With none, the control keeps its own text.
+	 * With none, or once the poll can no longer count, the control shows its
+	 * own text.
 	 *
 	 * @return {void}
 	 */
 	function showNewerCount(): void {
-		const label = newerPostsLabel( newerCount + countedEntryIds.size );
+		if ( ! newEntriesLink ) {
+			return;
+		}
 
-		if ( label && newEntriesLink ) {
-			newEntriesLink.textContent = label;
+		const label = canCount
+			? newerPostsLabel( newerCount + countedEntryIds.size )
+			: '';
+
+		if ( label || ! canCount ) {
+			newEntriesLink.textContent = label || ownLabel;
 		}
 	}
 
@@ -626,6 +646,10 @@ function initBlock( root: HTMLElement ): void {
 			) {
 				const rules = missingRules( style, own );
 
+				if ( rules.length > 0 && style.hasAttribute( 'nonce' ) ) {
+					throw new Error( 'The style rules cannot be copied.' );
+				}
+
 				if ( rules.length > 0 ) {
 					extraRules.set( own, rules );
 				}
@@ -774,20 +798,20 @@ function initBlock( root: HTMLElement ): void {
 				'text/html'
 			);
 			const live = findBlockIn( doc );
+			const finalUrl = new URL( response.url || url, url );
 
-			if ( canShowInPlace( live ) ) {
+			// A page the request was redirected to on another site is left to
+			// the link.
+			if (
+				finalUrl.origin === window.location.origin &&
+				canShowInPlace( live )
+			) {
 				await adoptLiveStyles( doc, controller.signal );
-
-				const finalUrl = new URL( response.url || url, url );
 
 				if ( ! controller.signal.aborted ) {
 					fetched = {
 						live,
-						url:
-							response.redirected &&
-							finalUrl.origin === window.location.origin
-								? finalUrl.toString()
-								: url,
+						url: response.redirected ? finalUrl.toString() : url,
 					};
 				}
 			}
@@ -869,6 +893,9 @@ function initBlock( root: HTMLElement ): void {
 	 */
 	async function jumpToLatest( url: string ): Promise< void > {
 		setJumping( true );
+		announce(
+			__( 'Loading the latest posts…', 'newspack-rolling-coverage' )
+		);
 
 		const fetched = await fetchLiveBlock( url );
 
@@ -1112,7 +1139,7 @@ function initBlock( root: HTMLElement ): void {
 				}
 			} );
 
-			if ( countedEntryIds.size !== countedBefore ) {
+			if ( canCount && countedEntryIds.size !== countedBefore ) {
 				showNewerCount();
 				announce( newEntriesLabel( countedEntryIds.size ) );
 			}
@@ -1386,7 +1413,11 @@ function initBlock( root: HTMLElement ): void {
 				}
 
 				if ( data.overflow && isEntryView ) {
-					// A reload lands on the same shared URL, so there is nothing to gain from one.
+					// A reload lands on the same shared URL, so there is nothing
+					// to gain from one, and every later poll overflows from the
+					// same cursor: polling ends here, and with it the count.
+					canCount = false;
+					showNewerCount();
 					return;
 				}
 

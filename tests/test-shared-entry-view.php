@@ -210,6 +210,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	 *     @type string|null $live    The wrapper's live feed URL.
 	 *     @type int         $marked  How many links the HTML marks for the view script.
 	 *     @type string|null $newer   The wrapper's count of newer entries.
+	 *     @type string|null $own     The link's own text, kept when the count replaces it.
 	 * }
 	 */
 	private function control( string $html ): array {
@@ -225,6 +226,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 			'live'    => null,
 			'marked'  => substr_count( $html, Entry_Bindings::LATEST_ATTRIBUTE ),
 			'newer'   => null,
+			'own'     => null,
 		];
 		$tags    = new WP_HTML_Tag_Processor( $html );
 
@@ -246,6 +248,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 			$control['link']  = (string) $tags->get_attribute( 'class' );
 			$control['href']  = $tags->get_attribute( 'href' );
 			$control['style'] = $tags->get_attribute( 'style' );
+			$control['own']   = $tags->get_attribute( 'data-label' );
 
 			preg_match( '#<a\b[^>]*\b' . Entry_Bindings::LATEST_ATTRIBUTE . '\b[^>]*>([^<]*)</a>#', $html, $match );
 
@@ -321,6 +324,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertSame( get_permalink( $this->page_id ), $control['href'] );
 		$this->assertSame( '3', $control['newer'] );
 		$this->assertSame( '3 newer posts', $control['text'] );
+		$this->assertSame( 'Jump to latest', $control['own'], 'The link keeps its own text for the view script.' );
 		$this->assertSame( 'wp-block-button__link has-base-color has-contrast-background-color has-text-color has-background wp-element-button', $control['link'] );
 		$this->assertSame( 'box-shadow:var(--wp--preset--shadow--elevation-1)', $control['style'] );
 		$this->assertSame( get_permalink( $this->page_id ), $control['live'], 'The wrapper carries the live feed URL for the view script.' );
@@ -373,6 +377,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertSame( get_permalink( $this->page_id ), $normal['href'] );
 		$this->assertSame( 'Jump to latest', $normal['text'] );
 		$this->assertNull( $normal['newer'], 'Only the shared view counts newer entries.' );
+		$this->assertNull( $normal['own'] );
 		$this->assertSame(
 			$shared,
 			array_merge(
@@ -381,6 +386,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 					'hidden' => false,
 					'newer'  => '3',
 					'text'   => '3 newer posts',
+					'own'    => 'Jump to latest',
 				]
 			),
 			'Both views render the one control; only its visibility and the shared view\'s count differ.'
@@ -400,6 +406,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertContains( 'is-custom', explode( ' ', $shared['classes'] ) );
 		$this->assertContains( self::CONTROL_CLASS, explode( ' ', $shared['classes'] ), 'The wrapper carries the control class even when the layout lost it.' );
 		$this->assertSame( '3 newer posts', $shared['text'], 'The count replaces the button\'s own text.' );
+		$this->assertSame( 'Back to live', $shared['own'] );
 		$this->assertSame( 'wp-block-button__link has-accent-background-color has-background wp-element-button', $shared['link'] );
 		$this->assertNull( $shared['style'] );
 		$this->assertSame( get_permalink( $this->page_id ), $shared['href'] );
@@ -577,7 +584,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Documents that a coverage block inside an entry's content renders no control. Its bound button already rendered nothing at entry depth, so this held before the block returned early there.
+	 * A coverage block inside an entry's content renders no control.
 	 */
 	public function test_block_nested_in_an_entry_has_no_control() {
 		$html = Rolling_Coverage_Block::render_as_entry( fn() => $this->render_with_shared( '' ) );
@@ -681,6 +688,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( '><strong>Back</strong> to live</a>', $html );
 		$this->assertStringNotContainsString( 'newer post', $html );
 		$this->assertSame( '3', $this->control( $html )['newer'] );
+		$this->assertNull( $this->control( $html )['own'], 'The untouched label is its own text.' );
 	}
 
 	/**

@@ -783,7 +783,7 @@ class Rolling_Coverage_Block {
 	 * @param string $gmt GMT datetime, `Y-m-d H:i:s`.
 	 * @return array|string Date query bound, or the input when it is not a valid full datetime.
 	 */
-	private static function gmt_date_bound( string $gmt ) {
+	private static function gmt_date_bound( string $gmt ): array|string {
 		if ( ! preg_match( '/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/', $gmt, $parts ) ) {
 			return $gmt;
 		}
@@ -924,7 +924,7 @@ class Rolling_Coverage_Block {
 		}
 
 		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
-		return sprintf( __( '%d+ newer posts', 'newspack-rolling-coverage' ), $floor );
+		return sprintf( _n( '%d+ newer post', '%d+ newer posts', $floor, 'newspack-rolling-coverage' ), $floor );
 	}
 
 	/**
@@ -1007,10 +1007,14 @@ class Rolling_Coverage_Block {
 
 		$label = self::newer_posts_label( $newer_count );
 
+		$own_label = '' !== $label ? self::plain_latest_label( $html ) : null;
+
 		// A label holding markup is left for the view script, which reads the same count.
-		if ( '' !== $label && self::has_plain_latest_label( $html ) ) {
+		// A replaced label is kept on the link, for when the script can no longer count.
+		if ( null !== $own_label ) {
 			while ( $control->next_tag( 'a' ) ) {
 				if ( null !== $control->get_attribute( Entry_Bindings::LATEST_ATTRIBUTE ) ) {
+					$control->set_attribute( 'data-label', $own_label );
 					$control->next_token();
 					$control->set_modifiable_text( $label );
 					break;
@@ -1022,13 +1026,13 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Whether the link to the live feed in rendered HTML holds text alone, so
-	 * its label can be replaced without losing markup.
+	 * The text of the link to the live feed in rendered HTML, when the link
+	 * holds text alone, so its label can be replaced without losing markup.
 	 *
 	 * @param string $html Rendered HTML.
-	 * @return bool
+	 * @return string|null The text, or null when the link holds anything else.
 	 */
-	private static function has_plain_latest_label( string $html ): bool {
+	private static function plain_latest_label( string $html ): ?string {
 		$tags = new WP_HTML_Tag_Processor( $html );
 
 		while ( $tags->next_tag( 'a' ) ) {
@@ -1036,11 +1040,16 @@ class Rolling_Coverage_Block {
 				continue;
 			}
 
-			return $tags->next_token() && '#text' === $tags->get_token_name() &&
-				$tags->next_token() && 'A' === $tags->get_token_name() && $tags->is_tag_closer();
+			if ( ! $tags->next_token() || '#text' !== $tags->get_token_name() ) {
+				return null;
+			}
+
+			$text = $tags->get_modifiable_text();
+
+			return $tags->next_token() && 'A' === $tags->get_token_name() && $tags->is_tag_closer() ? $text : null;
 		}
 
-		return false;
+		return null;
 	}
 
 	/**
