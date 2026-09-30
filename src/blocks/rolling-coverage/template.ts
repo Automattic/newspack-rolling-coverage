@@ -328,42 +328,78 @@ const FOLLOW_TEMPLATE: TemplateItem = [
 ];
 
 /**
- * The "Jump to latest" button, rendered once above the feed: a core button
- * bound to the live feed's link, in the theme's Contrast and Base colors with
- * its Elevation 1 shadow. The site fixes it to the top of the viewport and
- * shows it when new entries wait, or when the feed opens at a shared entry
- * (see Rolling_Coverage_Block::render_new_entries_control()).
+ * The "Jump to latest" button's default colors, as palette slugs: the theme's
+ * Contrast and Base where its palette has both, as block themes do; otherwise
+ * Dark Gray and White where it has both, as the Newspack Theme does; otherwise
+ * Contrast and Base. Mirrors Rolling_Coverage_Block::latest_button_colors().
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @return {Object} The background and text color slugs.
  */
-const LATEST_TEMPLATE: TemplateItem = [
-	'core/buttons',
-	{
-		lock: LOCKED_IN_PLACE,
-		className: 'newspack-rolling-coverage-new-entries',
-		layout: { type: 'flex', justifyContent: 'center' },
-		metadata: { name: __( 'Jump to latest', 'newspack-rolling-coverage' ) },
-	},
-	[
+function latestColors( slugs: string[] ): {
+	backgroundColor: string;
+	textColor: string;
+} {
+	const hasContrastAndBase =
+		slugs.includes( 'contrast' ) && slugs.includes( 'base' );
+
+	if (
+		! hasContrastAndBase &&
+		slugs.includes( 'dark-gray' ) &&
+		slugs.includes( 'white' )
+	) {
+		return { backgroundColor: 'dark-gray', textColor: 'white' };
+	}
+
+	return { backgroundColor: 'contrast', textColor: 'base' };
+}
+
+/**
+ * The "Jump to latest" button, rendered once above the feed: a core button
+ * bound to the live feed's link, in the palette's colors (see latestColors())
+ * with the theme's Elevation 1 shadow. The site fixes it to the top of the
+ * viewport and shows it when new entries wait, or when the feed opens at a
+ * shared entry (see Rolling_Coverage_Block::render_new_entries_control()).
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @return {TemplateItem} The button's template.
+ */
+function latestTemplate( slugs: string[] ): TemplateItem {
+	return [
+		'core/buttons',
+		{
+			lock: LOCKED_IN_PLACE,
+			className: 'newspack-rolling-coverage-new-entries',
+			layout: { type: 'flex', justifyContent: 'center' },
+			metadata: {
+				name: __( 'Jump to latest', 'newspack-rolling-coverage' ),
+			},
+		},
 		[
-			'core/button',
-			{
-				lock: LOCKED_IN_PLACE,
-				text: __( 'Jump to latest', 'newspack-rolling-coverage' ),
-				backgroundColor: 'contrast',
-				textColor: 'base',
-				style: { shadow: 'var:preset|shadow|elevation-1' },
-				metadata: {
-					name: __( 'Jump to latest', 'newspack-rolling-coverage' ),
-					bindings: {
-						url: {
-							source: ENTRY_BINDINGS_SOURCE,
-							args: { key: 'latestUrl' },
+			[
+				'core/button',
+				{
+					lock: LOCKED_IN_PLACE,
+					text: __( 'Jump to latest', 'newspack-rolling-coverage' ),
+					...latestColors( slugs ),
+					style: { shadow: 'var:preset|shadow|elevation-1' },
+					metadata: {
+						name: __(
+							'Jump to latest',
+							'newspack-rolling-coverage'
+						),
+						bindings: {
+							url: {
+								source: ENTRY_BINDINGS_SOURCE,
+								args: { key: 'latestUrl' },
+							},
 						},
 					},
 				},
-			},
+			],
 		],
-	],
-];
+	];
+}
 
 type ButtonsBlock = {
 	name: string;
@@ -413,7 +449,7 @@ function isFollowButtons( block: ButtonsBlock ): boolean {
 
 /**
  * Whether a block is the "Jump to latest" button's Buttons block (see
- * LATEST_TEMPLATE), mirroring Entry_Bindings::is_latest_buttons().
+ * latestTemplate()), mirroring Entry_Bindings::is_latest_buttons().
  *
  * @param {Object}   block             The block.
  * @param {string}   block.name        Block name.
@@ -990,7 +1026,7 @@ export {
 	ENTRY_ALLOWED_BLOCKS,
 	ENTRY_EDITED_STATES,
 	FOLLOW_TEMPLATE,
-	LATEST_TEMPLATE,
+	latestTemplate,
 	isFollowButtons,
 	isLatestButtons,
 	withoutPinnedRow,

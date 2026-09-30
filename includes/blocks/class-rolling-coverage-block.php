@@ -1063,10 +1063,41 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * The default "Jump to latest" button's colors, as palette slugs: the
+	 * theme's Contrast and Base where its palette has both, as block themes
+	 * do; otherwise Dark Gray and White where it has both, as the Newspack
+	 * Theme does; otherwise Contrast and Base. The editor picks the same way
+	 * (see latestColors() in template.ts).
+	 *
+	 * @return array{background: string, text: string}
+	 */
+	private static function latest_button_colors(): array {
+		$slugs = [];
+
+		foreach ( (array) wp_get_global_settings( [ 'color', 'palette' ] ) as $palette ) {
+			$slugs = array_merge( $slugs, wp_list_pluck( (array) $palette, 'slug' ) );
+		}
+
+		$has_contrast_and_base = in_array( 'contrast', $slugs, true ) && in_array( 'base', $slugs, true );
+
+		if ( ! $has_contrast_and_base && in_array( 'dark-gray', $slugs, true ) && in_array( 'white', $slugs, true ) ) {
+			return [
+				'background' => 'dark-gray',
+				'text'       => 'white',
+			];
+		}
+
+		return [
+			'background' => 'contrast',
+			'text'       => 'base',
+		];
+	}
+
+	/**
 	 * The default "Jump to latest" button, as the editor saves the one in the
-	 * default layout: a parsed Buttons block holding a button in the theme's
-	 * Contrast and Base colors with its Elevation 1 shadow, its link bound to
-	 * the live feed.
+	 * default layout: a parsed Buttons block holding a button in the palette's
+	 * colors (see latest_button_colors()) with the theme's Elevation 1
+	 * shadow, its link bound to the live feed.
 	 *
 	 * @return array Parsed-block-shaped array.
 	 */
@@ -1077,9 +1108,11 @@ class Rolling_Coverage_Block {
 			'move'   => true,
 		];
 		$class       = self::MARKUP_PREFIX . '-new-entries';
+		$colors      = self::latest_button_colors();
 		$open        = sprintf( '<div class="%s">', esc_attr( 'wp-block-buttons ' . $class ) );
 		$button_html = sprintf(
-			'<div class="wp-block-button"><a class="wp-block-button__link has-base-color has-contrast-background-color has-text-color has-background wp-element-button" style="box-shadow:var(--wp--preset--shadow--elevation-1)">%s</a></div>',
+			'<div class="wp-block-button"><a class="%s" style="box-shadow:var(--wp--preset--shadow--elevation-1)">%s</a></div>',
+			esc_attr( sprintf( 'wp-block-button__link has-%s-color has-%s-background-color has-text-color has-background wp-element-button', $colors['text'], $colors['background'] ) ),
 			esc_html( $name )
 		);
 
@@ -1098,8 +1131,8 @@ class Rolling_Coverage_Block {
 				[
 					'blockName'    => 'core/button',
 					'attrs'        => [
-						'backgroundColor' => 'contrast',
-						'textColor'       => 'base',
+						'backgroundColor' => $colors['background'],
+						'textColor'       => $colors['text'],
 						'lock'            => $lock,
 						'metadata'        => [
 							'name'     => $name,

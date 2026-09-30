@@ -60,6 +60,13 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	private $request_uri;
 
 	/**
+	 * Slugs of the theme's color palette for the test.
+	 *
+	 * @var string[]
+	 */
+	private $palette = [ 'base', 'contrast' ];
+
+	/**
 	 * Build a coverage of six entries, one minute apart, and a host page.
 	 */
 	public function set_up() {
@@ -84,6 +91,45 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$this->go_to( get_permalink( $this->page_id ) );
 		$this->use_page_as_current_post();
+
+		add_filter( 'wp_theme_json_data_theme', [ $this, 'set_theme_palette' ] );
+		wp_clean_theme_json_cache();
+	}
+
+	/**
+	 * Give the theme the test's color palette.
+	 *
+	 * @param WP_Theme_JSON_Data $theme_json Theme data.
+	 * @return WP_Theme_JSON_Data
+	 */
+	public function set_theme_palette( $theme_json ) {
+		return $theme_json->update_with(
+			[
+				'version'  => 3,
+				'settings' => [
+					'color' => [
+						'palette' => array_map(
+							fn( $slug ) => [
+								'slug'  => $slug,
+								'name'  => $slug,
+								'color' => '#123456',
+							],
+							$this->palette
+						),
+					],
+				],
+			]
+		);
+	}
+
+	/**
+	 * Swap the theme's color palette for the rest of the test.
+	 *
+	 * @param string[] $slugs Palette slugs.
+	 */
+	private function use_palette( array $slugs ) {
+		$this->palette = $slugs;
+		wp_clean_theme_json_cache();
 	}
 
 	/**
@@ -99,6 +145,9 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	 */
 	public function tear_down() {
 		set_query_var( Social_Sharing::ENTRY_QUERY_VAR, '' );
+
+		remove_filter( 'wp_theme_json_data_theme', [ $this, 'set_theme_palette' ] );
+		wp_clean_theme_json_cache();
 
 		if ( null === $this->request_uri ) {
 			unset( $_SERVER['REQUEST_URI'] );
@@ -278,6 +327,38 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertSame( 1, $control['marked'], 'Only the link to the live feed is marked for the view script.' );
 		$this->assertContains( 'is-layout-flex', explode( ' ', $control['classes'] ) );
 		$this->assertContains( 'is-content-justification-center', explode( ' ', $control['classes'] ) );
+	}
+
+	/**
+	 * The default control takes its colors from the palette: Contrast and Base where the theme has both, else Dark Gray and White where it has both, else Contrast and Base.
+	 *
+	 * @dataProvider palettes
+	 *
+	 * @param string[] $slugs   The theme palette's slugs.
+	 * @param string   $classes The color classes the link carries.
+	 */
+	public function test_default_control_follows_the_palette( array $slugs, string $classes ) {
+		$this->use_palette( $slugs );
+
+		$this->assertSame(
+			'wp-block-button__link ' . $classes . ' has-text-color has-background wp-element-button',
+			$this->control( $this->render_with_shared( 'entry-3' ) )['link']
+		);
+	}
+
+	/**
+	 * Theme palettes and the default control's color classes.
+	 *
+	 * @return array[]
+	 */
+	public static function palettes(): array {
+		return [
+			'contrast and base'                => [ [ 'accent', 'base', 'contrast' ], 'has-base-color has-contrast-background-color' ],
+			'both pairs'                       => [ [ 'base', 'contrast', 'dark-gray', 'white' ], 'has-base-color has-contrast-background-color' ],
+			'dark gray and white only'         => [ [ 'primary', 'dark-gray', 'medium-gray', 'white' ], 'has-white-color has-dark-gray-background-color' ],
+			'contrast without base, dark gray' => [ [ 'contrast', 'dark-gray' ], 'has-white-color has-dark-gray-background-color' ],
+			'neither'                          => [ [ 'primary', 'secondary' ], 'has-base-color has-contrast-background-color' ],
+		];
 	}
 
 	/**

@@ -1,6 +1,8 @@
 /**
  * WordPress dependencies
  */
+import { store as blockEditorStore } from '@wordpress/block-editor';
+import { select } from '@wordpress/data';
 import { useCallback, useMemo } from '@wordpress/element';
 
 /**
@@ -12,7 +14,7 @@ import {
 	ENTRY_ALLOWED_BLOCKS,
 	ENTRY_EDITED_STATES,
 	FOLLOW_TEMPLATE,
-	LATEST_TEMPLATE,
+	latestTemplate,
 	isFollowButtons,
 	isLatestButtons,
 	withoutPinnedRow,
@@ -27,7 +29,7 @@ import {
 	isPinnedCard,
 	forEntryKind,
 } from './template';
-import type { EntryContext, TemplateBlocks } from './types';
+import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
 export const BLOCK_NAME = metadata.name;
 
@@ -61,16 +63,47 @@ export const STATE_BY_BLOCK_NAME: Record< string, string > = Object.fromEntries(
 );
 
 /**
- * Default inner-blocks template for the Rolling Coverage block: the "Jump to
- * latest" button and the follow button at the top, then every editor state's
- * blocks, then the per-entry blocks.
+ * The slugs of every color in the editor's palette: the theme's, core's
+ * default and the site's custom ones.
+ *
+ * @return {string[]} Color slugs.
  */
-export const INNER_TEMPLATE = [
-	LATEST_TEMPLATE,
-	FOLLOW_TEMPLATE,
-	...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
-	...ENTRY_TEMPLATE,
-];
+function paletteSlugs(): string[] {
+	const settings = (
+		select( blockEditorStore.name ) as unknown as {
+			getSettings: () => {
+				colors?: { slug: string }[];
+				__experimentalFeatures?: {
+					color?: { palette?: Record< string, { slug: string }[] > };
+				};
+			};
+		}
+	 ).getSettings();
+	const origins = Object.values(
+		settings.__experimentalFeatures?.color?.palette ?? {}
+	);
+
+	return [ ...origins.flat(), ...( settings.colors ?? [] ) ].map(
+		( color ) => color.slug
+	);
+}
+
+/**
+ * Default inner-blocks template for the Rolling Coverage block: the "Jump to
+ * latest" button, in the colors the editor's palette has for it, and the
+ * follow button at the top, then every editor state's blocks, then the
+ * per-entry blocks.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function innerTemplate(): TemplateItem[] {
+	return [
+		latestTemplate( paletteSlugs() ),
+		FOLLOW_TEMPLATE,
+		...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
+		...ENTRY_TEMPLATE,
+	];
+}
 
 /**
  * All block types allowed inside the Rolling Coverage block's inner blocks.

@@ -87,7 +87,7 @@ import {
 	FOLLOW_BLOCK_NAME,
 	RENDER_ONCE_BLOCKS,
 	STATE_BY_BLOCK_NAME,
-	INNER_TEMPLATE,
+	innerTemplate,
 	ALL_ALLOWED_BLOCKS,
 	useLayoutPreview,
 } from './layout';
@@ -274,10 +274,12 @@ export default function Edit( {
 	const [ layoutError, setLayoutError ] = useState< string | null >( null );
 	const registry = useRegistry();
 	const isSynced = layoutId > 0 && ! isNested;
+	const defaultTemplate = useMemo( innerTemplate, [] );
 	const innerBlocksProps = useInnerBlocksProps(
 		{ className: 'newspack-rolling-coverage-layout' },
 		{
-			template: isSynced || isCreatingLayout ? undefined : INNER_TEMPLATE,
+			template:
+				isSynced || isCreatingLayout ? undefined : defaultTemplate,
 			allowedBlocks: ALL_ALLOWED_BLOCKS,
 			templateLock: false,
 		}
@@ -353,7 +355,7 @@ export default function Edit( {
 			__unstableMarkNextChangeAsNotPersistent();
 			replaceInnerBlocks(
 				clientId,
-				createBlocksFromInnerBlocksTemplate( INNER_TEMPLATE ),
+				createBlocksFromInnerBlocksTemplate( defaultTemplate ),
 				false
 			);
 			setIsCreatingLayout( false );
@@ -452,9 +454,9 @@ export default function Edit( {
 	const defaultLayoutBlocks = useMemo(
 		() =>
 			createBlocksFromInnerBlocksTemplate(
-				INNER_TEMPLATE
+				defaultTemplate
 			) as unknown as TemplateBlocks,
-		[]
+		[ defaultTemplate ]
 	);
 
 	const sampleContexts = useSampleEntries( isLayoutPattern );
