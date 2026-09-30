@@ -57,6 +57,7 @@ class Entry_Bindings {
 		add_filter( 'render_block_core/button', [ __CLASS__, 'filter_button' ], 10, 3 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'filter_pinned_label' ], 10, 2 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'filter_pinned_group' ], 10, 2 );
+		add_filter( 'render_block_core/post-title', [ __CLASS__, 'link_title_to_breakout' ], 10, 3 );
 	}
 
 	/**
@@ -96,18 +97,7 @@ class Entry_Bindings {
 
 		switch ( $source_args['key'] ?? '' ) {
 			case 'breakoutUrl':
-				$breakout_id = Breakout::get_existing_breakout_id( $entry_id );
-
-				if ( ! $breakout_id || 'publish' !== get_post_status( $breakout_id ) ) {
-					return null;
-				}
-
-				return get_permalink( $breakout_id ) ?: null; // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
-
-			case 'breakoutLabel':
-				$label = get_post_meta( $entry_id, Breakout::ENTRY_READ_MORE_TEXT_META, true );
-
-				return $label ? $label : __( 'Read more', 'newspack-rolling-coverage' );
+				return Breakout::get_published_breakout_url( $entry_id );
 
 			case 'shareUrl':
 				return Social_Sharing::get_entry_share_url( $entry_id ) ?: null; // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
@@ -123,6 +113,48 @@ class Entry_Bindings {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Link an entry's title to its published breakout post. A title already
+	 * set to link to the entry points at the breakout instead; a title whose
+	 * text holds a link of its own is left alone, as links can't nest.
+	 *
+	 * Parameters stay untyped because this runs for every post title on the
+	 * site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string   $block_content Rendered title.
+	 * @param array    $block         Parsed block.
+	 * @param WP_Block $instance      Block instance.
+	 * @return string
+	 */
+	public static function link_title_to_breakout( $block_content, $block, $instance ) {
+		if ( ! is_string( $block_content ) || '' === $block_content || ! Rolling_Coverage_Block::is_rendering_entry() || ! $instance instanceof WP_Block ) {
+			return $block_content;
+		}
+
+		$entry_id = (int) ( $instance->context['postId'] ?? 0 );
+		$url      = $entry_id && Post_Type::CPT_SLUG === get_post_type( $entry_id ) ? Breakout::get_published_breakout_url( $entry_id ) : null;
+
+		if ( ! $url ) {
+			return $block_content;
+		}
+
+		$title = new WP_HTML_Tag_Processor( $block_content );
+
+		if ( ! empty( $block['attrs']['isLink'] ) ) {
+			if ( $title->next_tag() && $title->next_tag( 'a' ) ) {
+				$title->set_attribute( 'href', $url );
+			}
+
+			return $title->get_updated_html();
+		}
+
+		if ( $title->next_tag( 'a' ) || ! preg_match( '#^(\s*<([a-z][a-z0-9]*)\b[^>]*>)(.*)(</\2>\s*)$#is', $block_content, $parts ) ) {
+			return $block_content;
+		}
+
+		return $parts[1] . '<a href="' . esc_url( $url ) . '">' . $parts[3] . '</a>' . $parts[4];
 	}
 
 	/**
@@ -228,7 +260,7 @@ class Entry_Bindings {
 
 		$title = self::plain_text( get_the_title( $entry ) );
 
-		return '' !== $title ? $title : self::plain_text( wp_trim_words( strip_shortcodes( excerpt_remove_blocks( $entry->post_content ) ), 8 ) );
+		return '' !== $title ? $title : Post_Type::get_entry_summary( $entry );
 	}
 
 	/**

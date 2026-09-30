@@ -14,7 +14,7 @@ import {
 	safeFormatSlackTimestamp,
 } from '../../../utils/fields';
 import { DetailRow } from '../../detail-row';
-import { SlackError } from './slack-error';
+import { ErrorNotice } from '../../../shared/error-notice';
 
 /**
  * Renders the body of the Slack connection drawer when the coverage is
@@ -72,13 +72,11 @@ function ConnectedChannelView( {
 				</DetailRow>
 			) }
 			<Stack direction="column" gap="sm" align="flex-start">
-				<span
-					className="newspack-rolling-coverage-detail-label"
-					aria-hidden="true"
-				>
+				<Text variant="heading-sm" aria-hidden="true">
 					{ __( 'Auto-publish', 'newspack-rolling-coverage' ) }
-				</span>
+				</Text>
 				<ToggleControl
+					className="newspack-rolling-coverage-autopublish-toggle"
 					label={
 						<VisuallyHidden>
 							{ sprintf(
@@ -91,12 +89,16 @@ function ConnectedChannelView( {
 							) }
 						</VisuallyHidden>
 					}
+					help={ __(
+						"Publishes messages as soon as they're posted in Slack. When off, messages are saved as drafts for an editor or administrator to publish.",
+						'newspack-rolling-coverage'
+					) }
 					checked={ autopublish }
 					onChange={ onAutopublishChange }
 					disabled={ isUpdatingAutopublish || lastSyncTs === null }
 				/>
 			</Stack>
-			<SlackError message={ error } />
+			<ErrorNotice message={ error } />
 		</Stack>
 	);
 }

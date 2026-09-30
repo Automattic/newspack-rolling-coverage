@@ -6,6 +6,12 @@
  * WordPress dependencies
  */
 import apiFetch from '@wordpress/api-fetch';
+import {
+	serialize,
+	createBlock,
+	createBlocksFromInnerBlocksTemplate,
+} from '@wordpress/blocks';
+import { addQueryArgs, getQueryArg } from '@wordpress/url';
 
 /**
  * Internal dependencies
@@ -18,7 +24,16 @@ import {
 	ADS_DISABLED_META_KEY,
 	ENTRIES_PREVIEW_REST_BASE,
 	AI_ENDPOINT,
+	DEFAULT_LAYOUT_ID,
+	LAYOUTS_REST_BASE,
+	ADMIN_URL,
+	IS_BLOCK_THEME,
+	CAN_EDIT_THEME_OPTIONS,
 } from './config';
+import { BLOCK_NAME, INNER_TEMPLATE } from './layout';
+
+let defaultLayoutId = Number( DEFAULT_LAYOUT_ID ) || 0;
+let pendingDefaultLayout: Promise< number > | null = null;
 
 /**
  * Searches coverage terms by name.
@@ -161,7 +176,13 @@ async function fetchEntryPreviewContexts(
 
 	try {
 		const entries = await apiFetch<
-			Array< { id: number; type: string; pinned?: boolean } >
+			Array< {
+				id: number;
+				type: string;
+				pinned?: boolean;
+				hasBreakout?: boolean;
+				hasTitle?: boolean;
+			} >
 		>( {
 			url: `${ ENTRIES_PREVIEW_REST_BASE }/${ coverageId }/entries-preview?per_page=${ perPage }`,
 		} );
@@ -171,6 +192,8 @@ async function fetchEntryPreviewContexts(
 			postType: entry.type,
 			queryId: 0,
 			pinned: Boolean( entry.pinned ),
+			hasBreakout: Boolean( entry.hasBreakout ),
+			hasTitle: entry.hasTitle !== false,
 		} ) );
 	} catch ( error ) {
 		return [];
@@ -205,6 +228,87 @@ async function generateKeyTakeaways(
 	}
 }
 
+/**
+ * The ID of the shared layout pattern new blocks sync to, or 0 when there
+ * isn't one yet.
+ *
+ * @return {number} The default layout's pattern ID.
+ */
+function getDefaultLayoutId(): number {
+	return defaultLayoutId;
+}
+
+/**
+ * Creates the shared layout pattern from the built-in default layout, or
+ * returns the existing one if another story created it first. Concurrent
+ * calls share one request.
+ *
+ * @return {Promise<number>} The default layout's pattern ID. Rejects on failure.
+ */
+function createDefaultLayout(): Promise< number > {
+	if ( ! pendingDefaultLayout ) {
+		const content = serialize(
+			createBlock(
+				BLOCK_NAME,
+				{},
+				createBlocksFromInnerBlocksTemplate( INNER_TEMPLATE )
+			)
+		);
+		pendingDefaultLayout = apiFetch< { id: number } >( {
+			url: `${ LAYOUTS_REST_BASE }/default`,
+			method: 'POST',
+			data: { content },
+		} )
+			.then( ( response ) => {
+				if ( ! response?.id ) {
+					throw new Error( 'Missing layout ID.' );
+				}
+				defaultLayoutId = response.id;
+				return defaultLayoutId;
+			} )
+			.finally( () => {
+				pendingDefaultLayout = null;
+			} );
+	}
+
+	return pendingDefaultLayout;
+}
+
+const PREVIEW_COVERAGE_ARG = 'rolling_coverage_preview';
+
+/**
+ * The coverage the layout editor was opened from, read once on load because
+ * the Site Editor rewrites its URL as it navigates.
+ */
+const PREVIEW_COVERAGE_ID =
+	Number( getQueryArg( window.location.href, PREVIEW_COVERAGE_ARG ) ) || 0;
+
+/**
+ * The admin URL that edits a layout pattern: the Site Editor on block
+ * themes for users who can open it, the post editor otherwise.
+ *
+ * @param {number} layoutId   The layout's pattern ID.
+ * @param {number} coverageId The coverage whose entries the layout previews.
+ * @return {string} The edit URL.
+ */
+function getLayoutEditUrl( layoutId: number, coverageId: number ): string {
+	const preview = coverageId ? { [ PREVIEW_COVERAGE_ARG ]: coverageId } : {};
+
+	if ( IS_BLOCK_THEME && CAN_EDIT_THEME_OPTIONS ) {
+		return addQueryArgs( ADMIN_URL + 'site-editor.php', {
+			p: '/wp_block/' + layoutId,
+			canvas: 'edit',
+			...preview,
+		} );
+	}
+
+	return addQueryArgs( ADMIN_URL + 'post.php', {
+		post: layoutId,
+		action: 'edit',
+		...preview,
+	} );
+}
+
 export {
 	searchCoverages,
 	getCoverage,
@@ -212,4 +316,8 @@ export {
 	updateCoverageCanonicalUrl,
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
+	getDefaultLayoutId,
+	createDefaultLayout,
+	getLayoutEditUrl,
+	PREVIEW_COVERAGE_ID,
 };

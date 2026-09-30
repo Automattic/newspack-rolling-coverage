@@ -2,13 +2,7 @@
  * WordPress dependencies
  */
 import { registerBlockBindingsSource } from '@wordpress/blocks';
-import { store as coreStore } from '@wordpress/core-data';
 import { __ } from '@wordpress/i18n';
-
-/**
- * Internal dependencies
- */
-import { READ_MORE_TEXT_META_KEY } from '../rolling-coverage/config';
 
 const ENTRY_BINDINGS_SOURCE = 'newspack-rolling-coverage/entry';
 
@@ -22,22 +16,12 @@ type Binding = { args?: { key?: string } };
  */
 registerBlockBindingsSource( {
 	name: ENTRY_BINDINGS_SOURCE,
-	usesContext: [ 'postId', 'postType', PINNED_LABEL_CONTEXT ],
+	usesContext: [ PINNED_LABEL_CONTEXT ],
 	getValues( {
-		select,
 		context,
 		bindings,
 	}: {
-		select: ( store: typeof coreStore ) => {
-			getEditedEntityRecord: (
-				kind: string,
-				name: string,
-				key: number
-			) => { meta?: Record< string, unknown > } | undefined;
-		};
 		context: {
-			postId?: number;
-			postType?: string;
 			[ PINNED_LABEL_CONTEXT ]?: string;
 		};
 		bindings: Record< string, Binding >;
@@ -52,25 +36,7 @@ registerBlockBindingsSource( {
 				continue;
 			}
 
-			if ( binding.args?.key !== 'breakoutLabel' ) {
-				values[ attribute ] = '';
-				continue;
-			}
-
-			const meta =
-				context.postId && context.postType
-					? select( coreStore ).getEditedEntityRecord(
-							'postType',
-							context.postType,
-							context.postId
-						)?.meta
-					: undefined;
-			const label = meta?.[ READ_MORE_TEXT_META_KEY ];
-
-			values[ attribute ] =
-				typeof label === 'string' && label
-					? label
-					: __( 'Read more', 'newspack-rolling-coverage' );
+			values[ attribute ] = '';
 		}
 
 		return values;

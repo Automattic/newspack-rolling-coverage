@@ -27,7 +27,6 @@ const {
 	coveragesRestBase: COVERAGES_REST_BASE,
 	statusMetaKey: STATUS_META_KEY,
 	canonicalUrlMetaKey: CANONICAL_URL_META_KEY,
-	readMoreTextMetaKey: READ_MORE_TEXT_META_KEY,
 	onesignalConfigured: ONESIGNAL_CONFIGURED,
 	adsDisabledMetaKey: ADS_DISABLED_META_KEY,
 	entriesPreviewRestBase: ENTRIES_PREVIEW_REST_BASE,
@@ -35,6 +34,13 @@ const {
 	aiAvailable: AI_AVAILABLE,
 	newspackAdsAvailable: NEWSPACK_ADS_AVAILABLE,
 	newspackAdsPlacementEnabled: NEWSPACK_ADS_PLACEMENT_ENABLED,
+	defaultLayoutId: DEFAULT_LAYOUT_ID,
+	layoutsRestBase: LAYOUTS_REST_BASE,
+	adminUrl: ADMIN_URL,
+	isBlockTheme: IS_BLOCK_THEME,
+	canEditThemeOptions: CAN_EDIT_THEME_OPTIONS,
+	layoutCategoryId: LAYOUT_CATEGORY_ID,
+	entryPostType: ENTRY_POST_TYPE,
 } = config;
 
 export {
@@ -47,6 +53,12 @@ export {
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
 	CANONICAL_URL_META_KEY,
-	READ_MORE_TEXT_META_KEY,
 	ONESIGNAL_CONFIGURED,
+	DEFAULT_LAYOUT_ID,
+	LAYOUTS_REST_BASE,
+	ADMIN_URL,
+	IS_BLOCK_THEME,
+	CAN_EDIT_THEME_OPTIONS,
+	LAYOUT_CATEGORY_ID,
+	ENTRY_POST_TYPE,
 };

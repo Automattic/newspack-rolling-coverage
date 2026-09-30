@@ -30,6 +30,10 @@
 		"pinnedLabel": {
 			"type": "string",
 			"default": ""
+		},
+		"layoutId": {
+			"type": "number",
+			"default": 0
 		}
 	},
 	"providesContext": {

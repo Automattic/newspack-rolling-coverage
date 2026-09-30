@@ -5,6 +5,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Deep_Link_CTA_Block;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 
 /**
@@ -103,5 +104,43 @@ class Test_Entry_Layout extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'datetime="' . get_the_date( 'c', $entry_id ) . '"', $html, 'The template date should show the entry\'s own date.' );
 		$this->assertStringNotContainsString( '2001-01-01', $html, 'The template\'s saved date should be ignored.' );
 		$this->assertStringContainsString( '2020-06-01', $html, 'A custom date written in the entry should stay.' );
+	}
+
+	/**
+	 * The notice for a deep-linked older entry names an untitled entry by
+	 * its first words.
+	 */
+	public function test_deep_link_notice_names_an_untitled_entry_by_its_first_words() {
+		$coverage_id = self::create_coverage();
+		self::create_entry(
+			$coverage_id,
+			[
+				'post_title'   => '',
+				'post_name'    => 'counting-update',
+				'post_content' => "<!-- wp:paragraph -->\n<p>Counting starts at 9pm<br>in the town hall.</p>\n<!-- /wp:paragraph -->",
+			]
+		);
+		set_query_var( \Newspack_Rolling_Coverage\Social_Sharing::ENTRY_QUERY_VAR, 'counting-update' );
+
+		// The block registers from built assets, which the PHP test job does not build.
+		if ( ! WP_Block_Type_Registry::get_instance()->is_registered( Deep_Link_CTA_Block::BLOCK_NAME ) ) {
+			register_block_type( Deep_Link_CTA_Block::BLOCK_NAME, [ 'render_callback' => [ Deep_Link_CTA_Block::class, 'render_block' ] ] );
+		}
+
+		$render = new ReflectionMethod( Rolling_Coverage_Block::class, 'maybe_render_deep_link_cta' );
+		$render->setAccessible( true );
+		$html = $render->invoke(
+			null,
+			[],
+			new WP_Block(
+				[
+					'blockName'   => 'newspack-rolling-coverage/rolling-coverage',
+					'attrs'       => [ 'coverageId' => $coverage_id ],
+					'innerBlocks' => [],
+				]
+			)
+		);
+
+		$this->assertStringContainsString( '<strong>Counting starts at 9pm in the town hall.</strong>', $html );
 	}
 }

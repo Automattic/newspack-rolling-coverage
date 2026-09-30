@@ -60,6 +60,11 @@ declare module '@wordpress/block-editor' {
 		children?: ReactNode;
 	} >;
 
+	export const BlockControls: ComponentType< {
+		group?: string;
+		children?: ReactNode;
+	} >;
+
 	export function BlockContextProvider(
 		props: Record< string, unknown >
 	): JSX.Element;

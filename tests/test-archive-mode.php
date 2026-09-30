@@ -28,6 +28,36 @@ class Test_Archive_Mode extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Archiving isn't an edit: it keeps HTML and block CSS the person
+	 * archiving can't post.
+	 */
+	public function test_archiving_keeps_html_the_archiver_cannot_post() {
+		self::log_in_as( 'administrator' );
+		kses_init();
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_content' => '<!-- wp:html --><iframe src="https://example.org/embed"></iframe><!-- /wp:html -->' ] );
+		$content  = get_post_field( 'post_content', $entry_id );
+		$deny     = function ( $caps, $cap ) {
+			return in_array( $cap, [ 'unfiltered_html', 'edit_css' ], true ) ? [ 'do_not_allow' ] : $caps;
+		};
+
+		self::log_in_as( 'editor' );
+		add_filter( 'map_meta_cap', $deny, 10, 2 );
+		kses_init();
+
+		try {
+			$response = self::set_entry_archived( $entry_id, true );
+		} finally {
+			remove_filter( 'map_meta_cap', $deny, 10 );
+			kses_init();
+		}
+
+		clean_post_cache( $entry_id );
+		$this->assertSame( 200, $response->get_status(), 'The entry should be archived.' );
+		$this->assertStringContainsString( '<iframe', $content, 'The author should be able to post the iframe.' );
+		$this->assertSame( $content, get_post_field( 'post_content', $entry_id ), 'Archiving should keep it.' );
+	}
+
+	/**
 	 * Build the REST request for saving an entry with the given coverages.
 	 *
 	 * @param int[] $coverage_ids Coverage term IDs sent with the save.

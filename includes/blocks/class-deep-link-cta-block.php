@@ -88,12 +88,7 @@ class Deep_Link_CTA_Block {
 		}
 
 		// If the entry has a published breakout post, link directly to it.
-		$breakout_id  = Breakout::get_existing_breakout_id( $entry_id );
-		$breakout_url = '';
-
-		if ( $breakout_id && 'publish' === get_post_status( $breakout_id ) ) {
-			$breakout_url = get_permalink( $breakout_id );
-		}
+		$breakout_url = Breakout::get_published_breakout_url( $entry_id );
 
 		if ( $breakout_url ) {
 			return sprintf(
@@ -143,7 +138,12 @@ class Deep_Link_CTA_Block {
 
 		try {
 			$template = Rolling_Coverage_Block::drop_fixed_template_dates( $template );
-			$html     = Rolling_Coverage_Block::render_as_entry(
+
+			if ( ! Rolling_Coverage_Block::has_title( $entry ) ) {
+				$template = Rolling_Coverage_Block::with_centered_title_rows( $template );
+			}
+
+			$html = Rolling_Coverage_Block::render_as_entry(
 				fn() => ( new WP_Block(
 					[
 						'blockName'    => null,

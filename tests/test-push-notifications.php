@@ -175,6 +175,32 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An untitled entry is announced under the coverage name, with the first
+	 * words of the entry as the text, kept apart across line breaks.
+	 */
+	public function test_untitled_entry_is_announced_by_its_first_words() {
+		$coverage_id = self::create_coverage_with_canonical_url();
+		$entry_id    = self::create_entry(
+			$coverage_id,
+			[
+				'post_status'  => 'draft',
+				'post_title'   => '',
+				'post_excerpt' => '',
+				'post_content' => "<!-- wp:paragraph -->\n<p><strong>Polls have closed</strong> across the county.<br>Counting starts at 9pm in the town hall, with results expected before midnight.</p>\n<!-- /wp:paragraph -->",
+			]
+		);
+		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
+
+		wp_publish_post( $entry_id );
+
+		$sent_notifications = self::get_sent_notifications();
+
+		$this->assertCount( 1, $sent_notifications );
+		$this->assertSame( get_term( $coverage_id )->name, $sent_notifications[0]['title'], 'The coverage name should stand in for the title.' );
+		$this->assertSame( 'Polls have closed across the county. Counting starts at 9pm in the town hall, with…', $sent_notifications[0]['content'] );
+	}
+
+	/**
 	 * The opt-in is spent by the send, so publishing the entry again after a
 	 * trip back to draft does not notify readers a second time.
 	 */

@@ -132,6 +132,8 @@ interface Entry {
 		rendered: string;
 		raw?: string;
 	};
+	/** First words of the content when the entry has no title. */
+	summary?: string;
 	content: {
 		rendered: string;
 		raw?: string;
@@ -139,7 +141,6 @@ interface Entry {
 	author: number;
 	meta: {
 		rolling_coverage_breakout_post_id?: number;
-		rolling_coverage_breakout_read_more_text?: string;
 		[ key: string ]: unknown;
 	};
 	pinned?: boolean;
@@ -335,16 +336,6 @@ interface SaveCoverageData {
 	adsDisabled: boolean;
 }
 
-interface BreakoutModalProps {
-	entry: Entry;
-	onClose: () => void;
-	onSaved: () => void;
-}
-
-interface BreakoutFormData {
-	rolling_coverage_breakout_read_more_text: string;
-}
-
 interface CreateBreakoutResponse {
 	breakoutPostId: number;
 	editLink: string;
@@ -353,16 +344,6 @@ interface CreateBreakoutResponse {
 
 interface CreateBreakoutResult extends ApiResult {
 	data?: CreateBreakoutResponse;
-}
-
-interface ChipLinkProps {
-	href: string;
-	label: string;
-	variant?: string;
-}
-
-interface TermChipsProps {
-	terms: Array< { link: string; name: string } >;
 }
 
 interface SlackMonitorLogEntry {
@@ -425,8 +406,9 @@ interface QuickEditModalProps {
 	onSaved: () => void;
 }
 
-interface SlackErrorProps {
+interface ErrorNoticeProps {
 	message?: string | null;
+	className?: string;
 }
 
 interface ConnectedChannelViewProps {
@@ -527,6 +509,7 @@ interface SettingField {
 interface QuickEditSaveBarProps {
 	onClose: () => void;
 	onSaved: () => void;
+	children?: ReactNode;
 }
 
 interface EntityRecord {
@@ -558,6 +541,8 @@ type CoreSelectors = {
 interface EntryViewRow {
 	id: number;
 	title: string;
+	/** First words of the content when the entry has no title, else ''. */
+	summary: string;
 	date: string;
 	modified: string;
 	status: PostStatus;
@@ -653,14 +638,10 @@ export type {
 	UseCoveragesOptions,
 	UseEntriesOptions,
 	UseEntriesResult,
-	BreakoutModalProps,
-	BreakoutFormData,
 	CreateBreakoutResponse,
 	CreateBreakoutResult,
 	ConfirmModalContentProps,
 	SaveCoverageData,
-	ChipLinkProps,
-	TermChipsProps,
 	BulkRestoreEntryResult,
 	BulkRestoreResult,
 	AiSettings,
@@ -671,7 +652,7 @@ export type {
 	ConfirmRequest,
 	RequestConfirm,
 	SlackConnectionDrawerProps,
-	SlackErrorProps,
+	ErrorNoticeProps,
 	ConnectedChannelViewProps,
 	ConnectChannelFormProps,
 	ConnectionStatusDrawerProps,

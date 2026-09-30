@@ -5,7 +5,8 @@
 /**
  * External dependencies
  */
-import { __ } from '@wordpress/i18n';
+import { decodeEntities } from '@wordpress/html-entities';
+import { __, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -74,7 +75,7 @@ const STATUS_ELEMENTS = Object.entries( POST_STATUS_LABELS ).map(
  * @return {string} Raw title or empty string.
  */
 function getRawTitle( item: Entry ): string {
-	return item.title?.rendered || '';
+	return item.title?.rendered || item.summary || '';
 }
 
 /**
@@ -88,16 +89,26 @@ function getRawAuthor( item: Entry ): string {
 }
 
 /**
+ * Returns the decoded names of an entry's terms in one taxonomy.
+ *
+ * @param {Entry}  item     Entry object.
+ * @param {string} taxonomy Taxonomy slug.
+ * @return {string[]} Term names.
+ */
+function getTermNames( item: Entry, taxonomy: string ): string[] {
+	return getEmbeddedTerms( item )
+		.filter( ( t ) => t.taxonomy === taxonomy )
+		.map( ( t ) => decodeEntities( t.name ) );
+}
+
+/**
  * Returns comma-separated category names for an entry.
  *
  * @param {Entry} item Entry object.
  * @return {string} CSV of category names.
  */
 function getCategoryNames( item: Entry ): string {
-	return getEmbeddedTerms( item )
-		.filter( ( t ) => t.taxonomy === 'category' )
-		.map( ( t ) => t.name )
-		.join( ', ' );
+	return getTermNames( item, 'category' ).join( ', ' );
 }
 
 /**
@@ -107,10 +118,30 @@ function getCategoryNames( item: Entry ): string {
  * @return {string} CSV of tag names.
  */
 function getTagNames( item: Entry ): string {
-	return getEmbeddedTerms( item )
-		.filter( ( t ) => t.taxonomy === 'post_tag' )
-		.map( ( t ) => t.name )
-		.join( ', ' );
+	return getTermNames( item, 'post_tag' ).join( ', ' );
+}
+
+/**
+ * Shortens a term list for a table cell: the first two names, then a count
+ * of the rest.
+ *
+ * @param {string[]} names Term names.
+ * @return {string} Summary, or a dash when there are none.
+ */
+function summarizeTermNames( names: string[] ): string {
+	if ( ! names.length ) {
+		return '—';
+	}
+	const shown = names.slice( 0, 2 ).join( ', ' );
+	if ( names.length <= 2 ) {
+		return shown;
+	}
+	return sprintf(
+		/* translators: 1: the first two term names, 2: how many more terms there are. */
+		__( '%1$s +%2$d', 'newspack-rolling-coverage' ),
+		shown,
+		names.length - 2
+	);
 }
 
 /**
@@ -423,7 +454,8 @@ function getRelativeDate( value: number, unit: string ): Date {
 export {
 	safeFormatUTCDate,
 	safeFormatSlackTimestamp,
-	getEmbeddedTerms,
+	getTermNames,
+	summarizeTermNames,
 	getEntrySource,
 	formatSlackChannel,
 	getSlackChannelLabel,

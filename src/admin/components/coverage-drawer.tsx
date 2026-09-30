@@ -11,11 +11,13 @@ import { ExternalLink } from '@wordpress/components';
 import { DataForm } from '@wordpress/dataviews/wp';
 import { __ } from '@wordpress/i18n';
 import { decodeEntities } from '@wordpress/html-entities';
+import { Stack } from '@wordpress/ui';
 import { Drawer } from 'newspack-components/dist/esm/drawer';
 
 /**
  * Internal dependencies
  */
+import { ErrorNotice } from '../shared/error-notice';
 import { saveCoverage } from '../utils/coverage-api';
 import { useAdminContext } from '../hooks/useAdminContext';
 import type { CoverageDrawerProps, Coverage, CoverageFormData } from '../types';
@@ -229,17 +231,15 @@ function CoverageDrawer( {
 				<Drawer.CloseIcon />
 			</Drawer.Header>
 			<Drawer.Content>
-				<DataForm
-					data={ data }
-					fields={ coverageFields }
-					form={ coverageForm }
-					onChange={ handleChange }
-				/>
-				{ error && (
-					<div className="newspack-rolling-coverage-error">
-						{ error }
-					</div>
-				) }
+				<Stack direction="column" gap="lg">
+					<DataForm
+						data={ data }
+						fields={ coverageFields }
+						form={ coverageForm }
+						onChange={ handleChange }
+					/>
+					<ErrorNotice message={ error } />
+				</Stack>
 			</Drawer.Content>
 			<Drawer.Footer>
 				<Drawer.Action variant="secondary" closes disabled={ isSaving }>
