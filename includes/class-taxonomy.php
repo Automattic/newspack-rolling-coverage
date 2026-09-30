@@ -608,9 +608,11 @@ class Taxonomy {
 	}
 
 	/**
-	 * Invalidates the coverage-to-page map when a post that could host the
-	 * block changes. Entries, their revisions and autosaves are ignored: they
-	 * change constantly during live coverage and never host the block.
+	 * Invalidates the coverage-to-page map when a save puts the block into a
+	 * post or takes it out. Every other save keeps the map, since rebuilding it
+	 * scans the content of every published post: entries, their revisions and
+	 * autosaves, which change constantly during live coverage and never host the
+	 * block, and posts that never had it.
 	 *
 	 * @param int      $post_id Post ID.
 	 * @param \WP_Post $post    Post object.
@@ -618,6 +620,17 @@ class Taxonomy {
 	public static function flush_coverage_page_ids( $post_id, $post ): void {
 		if ( $post instanceof \WP_Post && ! self::can_host_coverage_block( $post->post_type ) ) {
 			return;
+		}
+
+		// On a save, the hook hands over the post as it was before, and the
+		// post cache is already cleared, so a fresh read returns the saved row:
+		// checking both catches the block going in as well as coming out.
+		if ( $post instanceof \WP_Post && ! has_block( Schema::BLOCK_NAME, $post ) ) {
+			$saved = get_post( $post_id );
+
+			if ( ! $saved instanceof \WP_Post || ! has_block( Schema::BLOCK_NAME, $saved ) ) {
+				return;
+			}
 		}
 
 		wp_cache_set_last_changed( self::PAGE_IDS_CACHE_GROUP );

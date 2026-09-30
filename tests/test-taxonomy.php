@@ -325,11 +325,14 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Entries and revisions change constantly during live coverage, so saving
-	 * them keeps the page lookup cached; saving a page clears it.
+	 * Only a save that puts the block into a post or takes it out can change
+	 * the page lookup, so every other save keeps it cached: entries and
+	 * revisions, which change constantly during live coverage, and posts that
+	 * never had the block.
 	 */
-	public function test_only_pages_that_can_host_the_block_clear_the_page_lookup() {
+	public function test_only_saves_that_can_change_the_page_lookup_clear_it() {
 		$group = Taxonomy::PAGE_IDS_CACHE_GROUP;
+		$block = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . self::create_coverage() . '} /-->';
 		wp_cache_set_last_changed( $group );
 		$last_changed = wp_cache_get_last_changed( $group );
 
@@ -341,12 +344,35 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 				'post_parent' => $entry_id,
 			]
 		);
+		$page_id = self::factory()->post->create( [ 'post_type' => 'page' ] );
+		wp_update_post(
+			[
+				'ID'         => $page_id,
+				'post_title' => 'Still no block',
+			]
+		);
 
-		$this->assertSame( $last_changed, wp_cache_get_last_changed( $group ), 'Entry and revision writes should keep the lookup cached.' );
+		$this->assertSame( $last_changed, wp_cache_get_last_changed( $group ), 'Entry, revision and plain page writes should keep the lookup cached.' );
 
 		usleep( 1000 );
-		self::factory()->post->create( [ 'post_type' => 'page' ] );
+		wp_update_post(
+			[
+				'ID'           => $page_id,
+				'post_content' => $block,
+			]
+		);
 
-		$this->assertNotSame( $last_changed, wp_cache_get_last_changed( $group ), 'Saving a page should clear the lookup.' );
+		$this->assertNotSame( $last_changed, wp_cache_get_last_changed( $group ), 'Adding the block to a page should clear the lookup.' );
+
+		$last_changed = wp_cache_get_last_changed( $group );
+		usleep( 1000 );
+		wp_update_post(
+			[
+				'ID'           => $page_id,
+				'post_content' => '',
+			]
+		);
+
+		$this->assertNotSame( $last_changed, wp_cache_get_last_changed( $group ), 'Removing the block from a page should clear the lookup.' );
 	}
 }
