@@ -40,6 +40,11 @@ class Entry_Bindings {
 	const FOLLOW_ATTRIBUTE = 'data-rc-follow';
 
 	/**
+	 * Attribute the view script looks for on the link to the live feed.
+	 */
+	const LATEST_ATTRIBUTE = 'data-rc-latest';
+
+	/**
 	 * Block context the Rolling Coverage block renders its follow button with.
 	 */
 	const COVERAGE_ID_CONTEXT     = 'newspack-rolling-coverage/coverageId';
@@ -91,7 +96,7 @@ class Entry_Bindings {
 		}
 
 		if ( 'latestUrl' === ( $source_args['key'] ?? '' ) ) {
-			return Rolling_Coverage_Block::live_feed_url();
+			return Rolling_Coverage_Block::is_rendering_entry() ? null : Rolling_Coverage_Block::live_feed_url();
 		}
 
 		$entry_id = (int) ( $block->context['postId'] ?? 0 );
@@ -165,7 +170,8 @@ class Entry_Bindings {
 	/**
 	 * Render nothing for a button whose link is bound to a value the entry
 	 * doesn't have, e.g. "Read more" before the breakout post is published,
-	 * and hand the share and follow buttons what their scripts need.
+	 * or "Jump to latest" inside an entry, and hand the share, follow and
+	 * "Jump to latest" buttons what their scripts need.
 	 *
 	 * Parameters stay untyped because this runs for every core button on the
 	 * site, after other plugins' filters that may hand on unexpected types.
@@ -205,6 +211,10 @@ class Entry_Bindings {
 			$button->set_attribute( 'data-blocked-message', __( 'Notifications are blocked in your browser. Allow them in your browser\'s site settings, then try again.', 'newspack-rolling-coverage' ) );
 			$button->set_attribute( 'data-error-message', __( 'Something went wrong. Please try again.', 'newspack-rolling-coverage' ) );
 			$button->set_attribute( 'aria-pressed', 'false' );
+		}
+
+		if ( 'latestUrl' === $key && $button->next_tag( 'a' ) ) {
+			$button->set_attribute( self::LATEST_ATTRIBUTE, '' );
 		}
 
 		return $button->get_updated_html();

@@ -22,6 +22,7 @@
 		z-index: 100;
 		top: calc(24px + env(safe-area-inset-top, 0px));
 		left: 50%;
+		margin: 0;
 		white-space: nowrap;
 		transform: translateX(-50%);
 		animation: newspack-rolling-coverage-pop-in 0.25s ease-out;
@@ -32,20 +33,6 @@
 
 		@media (max-width: 480px) {
 			max-width: calc(100vw - 32px);
-		}
-
-		.wp-block-button__link.has-contrast-background-color {
-			background-color: var(--wp--preset--color--contrast, #000);
-
-			&:hover,
-			&:focus,
-			&:active {
-				background-color: var(--wp--preset--color--contrast, #000) !important;
-			}
-		}
-
-		.wp-block-button__link.has-base-color {
-			color: var(--wp--preset--color--base, #fff);
 		}
 	}
 
@@ -88,6 +75,13 @@
 				margin-bottom: 0;
 			}
 		}
+	}
+
+	.newspack-rolling-coverage-entry[data-linked] > .newspack-rolling-coverage-regular-entry,
+	.newspack-rolling-coverage-entry[data-linked] > .newspack-rolling-coverage-pinned-card,
+	.newspack-rolling-coverage-entry[data-linked]:not(:has(> .newspack-rolling-coverage-regular-entry, > .newspack-rolling-coverage-pinned-card)) {
+		outline: 3px solid var(--wp--preset--color--accent, var(--newspack-theme-color-primary, currentcolor));
+		outline-offset: var(--wp--preset--spacing--20, 0.5rem);
 	}
 
 	.newspack-rolling-coverage-entry-archived-notice {

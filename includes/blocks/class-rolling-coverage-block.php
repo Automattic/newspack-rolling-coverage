@@ -45,6 +45,9 @@ class Rolling_Coverage_Block {
 	// Max number of entries returned per page.
 	const PER_PAGE_MAX = 100;
 
+	// Newer entries a feed opened at a shared entry counts up to; reaching it reads as "or more".
+	const NEWER_COUNT_CAP = 100;
+
 	// CSS class/ID prefix for the block's front-end markup.
 	const MARKUP_PREFIX = 'newspack-rolling-coverage';
 
@@ -583,7 +586,8 @@ class Rolling_Coverage_Block {
 
 		$posts        = $query->posts;
 		$has_more     = count( $posts ) === $entries_per_page;
-		$shared_entry = self::get_shared_entry( $coverage_id, $posts );
+		$linked_entry = self::get_linked_entry( $coverage_id );
+		$shared_entry = self::get_shared_entry( $linked_entry, $posts );
 
 		if ( $shared_entry ) {
 			$page = self::query_unpinned_entries(
@@ -617,7 +621,7 @@ class Rolling_Coverage_Block {
 			$entry_index++;
 			$shows_pinned  = $shows_pinned || Post_Type::is_pinned( $entry->ID );
 			$shows_regular = $shows_regular || ! Post_Type::is_pinned( $entry->ID );
-			$entries_html .= self::render_entry( $entry, $template, 'initial', $pinned_label, $layout_class, ! $has_more && count( $posts ) === $entry_index );
+			$entries_html .= self::render_entry( $entry, $template, 'initial', $pinned_label, $layout_class, ! $has_more && count( $posts ) === $entry_index, $linked_entry && $linked_entry->ID === $entry->ID );
 
 			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
 				$entries_html .= Ads::render_placement()['html'];
@@ -688,7 +692,7 @@ class Rolling_Coverage_Block {
 				self::MARKUP_PREFIX,
 				$entries_html,
 				$follow_html,
-				self::render_new_entries_control( $block, (bool) $shared_entry )
+				self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 )
 			);
 		} finally {
 			self::$host_post_id = $previous_post_id;
@@ -696,15 +700,12 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The entry a shared link points to, when the feed has to open at it:
-	 * a published, unpinned entry of this coverage that the normal first page
-	 * does not show.
+	 * The entry the page's link names: a published entry of this coverage.
 	 *
-	 * @param int       $coverage_id Coverage term ID.
-	 * @param WP_Post[] $first_page  Entries of the normal first page.
-	 * @return WP_Post|null The shared entry, or null to keep the normal view.
+	 * @param int $coverage_id Coverage term ID.
+	 * @return WP_Post|null The linked entry, or null when the link names none.
 	 */
-	private static function get_shared_entry( int $coverage_id, array $first_page ): ?WP_Post {
+	private static function get_linked_entry( int $coverage_id ): ?WP_Post {
 		$slug = get_query_var( Social_Sharing::ENTRY_QUERY_VAR );
 
 		if ( ! is_string( $slug ) || '' === trim( $slug ) ) {
@@ -713,17 +714,33 @@ class Rolling_Coverage_Block {
 
 		$entry = Social_Sharing::resolve_entry_by_slug( $slug );
 
-		if ( ! $entry instanceof WP_Post || Post_Type::is_pinned( $entry->ID ) || ! has_term( $coverage_id, Taxonomy::TAXONOMY_SLUG, $entry ) ) {
+		if ( ! $entry instanceof WP_Post || ! has_term( $coverage_id, Taxonomy::TAXONOMY_SLUG, $entry ) ) {
+			return null;
+		}
+
+		return $entry;
+	}
+
+	/**
+	 * The linked entry, when the feed has to open at it: an unpinned entry
+	 * that the normal first page does not show.
+	 *
+	 * @param WP_Post|null $linked_entry The entry the page's link names, from get_linked_entry().
+	 * @param WP_Post[]    $first_page   Entries of the normal first page.
+	 * @return WP_Post|null The shared entry, or null to keep the normal view.
+	 */
+	private static function get_shared_entry( ?WP_Post $linked_entry, array $first_page ): ?WP_Post {
+		if ( ! $linked_entry || Post_Type::is_pinned( $linked_entry->ID ) ) {
 			return null;
 		}
 
 		foreach ( $first_page as $post ) {
-			if ( $post->ID === $entry->ID ) {
+			if ( $post->ID === $linked_entry->ID ) {
 				return null;
 			}
 		}
 
-		return $entry;
+		return $linked_entry;
 	}
 
 	/**
@@ -837,52 +854,195 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * How many of a coverage's published entries are newer than the shared
+	 * entry, pinned ones included, up to NEWER_COUNT_CAP.
+	 *
+	 * @param int     $coverage_id  Coverage term ID.
+	 * @param WP_Post $shared_entry The entry the feed opens at.
+	 * @return int
+	 */
+	private static function count_newer_entries( int $coverage_id, WP_Post $shared_entry ): int {
+		$query = new WP_Query(
+			array_merge(
+				self::coverage_entries_args( $coverage_id ),
+				[
+					'date_query'                  => [
+						[
+							'column'    => 'post_date_gmt',
+							'after'     => self::gmt_date_bound( self::post_date_gmt( $shared_entry ) ),
+							'inclusive' => false,
+						],
+					],
+					'fields'                      => 'ids',
+					'posts_per_page'              => self::NEWER_COUNT_CAP,
+					'update_post_meta_cache'      => false,
+					'update_post_term_cache'      => false,
+					Post_Type::SKIP_PIN_ORDER_VAR => true,
+				]
+			)
+		);
+
+		return count( $query->posts );
+	}
+
+	/**
+	 * The label of the control on a feed opened at a shared entry: the number
+	 * of newer entries, exact below ten and a floor from there, e.g.
+	 * "10+ newer posts". Empty when there are none, as the control then
+	 * keeps its own text. The view script builds the same labels.
+	 *
+	 * @param int $count How many entries are newer.
+	 * @return string
+	 */
+	public static function newer_posts_label( int $count ): string {
+		if ( $count < 1 ) {
+			return '';
+		}
+
+		if ( $count < 10 ) {
+			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 9. */
+			return sprintf( _n( '%d newer post', '%d newer posts', $count, 'newspack-rolling-coverage' ), $count );
+		}
+
+		$floor = 10;
+
+		if ( $count >= 100 ) {
+			$floor = 100;
+		} elseif ( $count >= 50 ) {
+			$floor = 50;
+		}
+
+		/* translators: %d: a round number the count of newer coverage entries has reached: 10, 50 or 100. */
+		return sprintf( __( '%d+ newer posts', 'newspack-rolling-coverage' ), $floor );
+	}
+
+	/**
 	 * The URL of the live feed: the host post's permalink when that post is
 	 * the page being viewed, otherwise the current URL without the shared
-	 * entry, kept on this site.
+	 * entry, kept on this site. Where the request's URL is not a page's (a
+	 * REST request, a feed) or there is none (WP-CLI, cron), it is the host
+	 * post's permalink.
 	 *
 	 * @return string
 	 */
 	public static function live_feed_url(): string {
-		$is_host_page = self::$host_post_id && is_singular() && get_queried_object_id() === self::$host_post_id;
+		$has_request_uri = ! empty( $_SERVER['REQUEST_URI'] );
+		$is_host_page    = is_singular() && get_queried_object_id() === self::$host_post_id;
+		$is_page_request = $has_request_uri && ! wp_is_serving_rest_request() && ! is_feed();
 
-		return $is_host_page ? (string) get_permalink( self::$host_post_id ) : '/' . ltrim( esc_url_raw( remove_query_arg( Social_Sharing::ENTRY_QUERY_VAR ) ), '/' );
+		if ( self::$host_post_id && ( $is_host_page || ! $is_page_request ) ) {
+			return (string) get_permalink( self::$host_post_id );
+		}
+
+		// remove_query_arg() reads the request URI unguarded.
+		return $has_request_uri ? '/' . ltrim( esc_url_raw( remove_query_arg( Social_Sharing::ENTRY_QUERY_VAR ) ), '/' ) : '/';
 	}
 
 	/**
 	 * The control fixed above the feed: the layout's "Jump to latest" button,
-	 * or the default one when the layout has none. It links to the live feed,
-	 * so it works without the view script. In the normal view it is hidden
-	 * until the view script reveals it when new entries wait; when the feed
-	 * opens at a shared entry it shows.
+	 * or the default one when the layout has none, or has one that cannot
+	 * link to the live feed (its label emptied, or its element switched to a
+	 * button). It links to the live feed, so it works without the view
+	 * script, and its wrapper carries that URL for the script. In the normal
+	 * view it is hidden until the view script reveals it when new entries
+	 * wait; when the feed opens at a shared entry it shows, reading how many
+	 * entries are newer when any are. A feed has none.
 	 *
 	 * @param WP_Block $block          The parent rolling-coverage block instance.
 	 * @param bool     $is_shared_view Whether the feed opens at a shared entry.
+	 * @param int      $newer_count    How many entries are newer than the shared entry.
 	 * @return string Control HTML.
 	 */
-	private static function render_new_entries_control( WP_Block $block, bool $is_shared_view ): string {
-		$latest_block = self::default_latest_buttons_block();
+	private static function render_new_entries_control( WP_Block $block, bool $is_shared_view, int $newer_count = 0 ): string {
+		if ( is_feed() ) {
+			return '';
+		}
+
+		$html = '';
 
 		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner ) {
 			if ( Entry_Bindings::is_latest_buttons( $inner ) ) {
-				$latest_block = $inner;
+				$html = render_block( $inner );
 				break;
 			}
 		}
 
-		$control = new WP_HTML_Tag_Processor( render_block( $latest_block ) );
+		if ( ! self::has_latest_link( $html ) ) {
+			$html = render_block( self::default_latest_buttons_block() );
+		}
 
-		if ( ! $control->next_tag() ) {
+		$control = new WP_HTML_Tag_Processor( $html );
+
+		if ( ! $control->next_tag( [ 'class_name' => 'wp-block-buttons' ] ) ) {
 			return '';
 		}
 
 		$control->add_class( self::MARKUP_PREFIX . '-new-entries' );
+		$control->set_attribute( 'data-live-url', esc_url_raw( self::live_feed_url() ) );
 
 		if ( ! $is_shared_view ) {
 			$control->set_attribute( 'hidden', true );
+
+			return $control->get_updated_html();
+		}
+
+		$control->set_attribute( 'data-newer-count', (string) $newer_count );
+
+		$label = self::newer_posts_label( $newer_count );
+
+		// A label holding markup is left for the view script, which reads the same count.
+		if ( '' !== $label && self::has_plain_latest_label( $html ) ) {
+			while ( $control->next_tag( 'a' ) ) {
+				if ( null !== $control->get_attribute( Entry_Bindings::LATEST_ATTRIBUTE ) ) {
+					$control->next_token();
+					$control->set_modifiable_text( $label );
+					break;
+				}
+			}
 		}
 
 		return $control->get_updated_html();
+	}
+
+	/**
+	 * Whether the link to the live feed in rendered HTML holds text alone, so
+	 * its label can be replaced without losing markup.
+	 *
+	 * @param string $html Rendered HTML.
+	 * @return bool
+	 */
+	private static function has_plain_latest_label( string $html ): bool {
+		$tags = new WP_HTML_Tag_Processor( $html );
+
+		while ( $tags->next_tag( 'a' ) ) {
+			if ( null === $tags->get_attribute( Entry_Bindings::LATEST_ATTRIBUTE ) ) {
+				continue;
+			}
+
+			return $tags->next_token() && '#text' === $tags->get_token_name() &&
+				$tags->next_token() && 'A' === $tags->get_token_name() && $tags->is_tag_closer();
+		}
+
+		return false;
+	}
+
+	/**
+	 * Whether rendered HTML holds the link to the live feed, marked for the
+	 * view script (see Entry_Bindings::filter_button()).
+	 *
+	 * @param string $html Rendered HTML.
+	 * @return bool
+	 */
+	private static function has_latest_link( string $html ): bool {
+		$tags = new WP_HTML_Tag_Processor( $html );
+
+		while ( $tags->next_tag( 'a' ) ) {
+			if ( null !== $tags->get_attribute( Entry_Bindings::LATEST_ATTRIBUTE ) && $tags->get_attribute( 'href' ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -897,7 +1057,7 @@ class Rolling_Coverage_Block {
 		$name        = __( 'Jump to latest', 'newspack-rolling-coverage' );
 		$lock        = [
 			'remove' => true,
-			'move'   => false,
+			'move'   => true,
 		];
 		$class       = self::MARKUP_PREFIX . '-new-entries';
 		$open        = sprintf( '<div class="%s">', esc_attr( 'wp-block-buttons ' . $class ) );
@@ -1046,6 +1206,11 @@ class Rolling_Coverage_Block {
 		$follow_block = null;
 
 		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner ) {
+			// A Buttons block also holding "Jump to latest" renders as that control.
+			if ( Entry_Bindings::is_latest_buttons( $inner ) ) {
+				continue;
+			}
+
 			if ( Coverage_Follow_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $inner ) ) {
 				$follow_block = $inner;
 				break;
@@ -2096,9 +2261,10 @@ class Rolling_Coverage_Block {
 	 * @param string  $layout_class The entries' layout container class, from
 	 *                              entry_layout_class().
 	 * @param bool    $is_last      Whether no entry can load after this one.
+	 * @param bool    $is_linked    Whether the page's link names this entry.
 	 * @return string Rendered HTML for the entry.
 	 */
-	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', string $pinned_label = '', string $layout_class = '', bool $is_last = false ): string {
+	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', string $pinned_label = '', string $layout_class = '', bool $is_last = false, bool $is_linked = false ): string {
 		$is_pinned = Post_Type::is_pinned( $entry->ID );
 		$template  = self::shape_entry_template(
 			self::drop_fixed_template_dates( $template ),
@@ -2152,14 +2318,15 @@ class Rolling_Coverage_Block {
 		$post_classes = implode( ' ', get_post_class( array_filter( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post', $layout_class ? 'is-layout-flow' : '', $layout_class ] ), $entry ) );
 
 		$html = sprintf(
-			'<article id="%1$s-entry-%2$d" class="%3$s" data-entry-id="%2$d" data-entry-slug="%6$s" data-arrival="%5$s"%7$s>%4$s</article>',
+			'<article id="%1$s-entry-%2$d" class="%3$s" data-entry-id="%2$d" data-entry-slug="%6$s" data-arrival="%5$s"%7$s%8$s>%4$s</article>',
 			self::MARKUP_PREFIX,
 			$entry->ID,
 			esc_attr( $post_classes ),
 			$entry_content,
 			esc_attr( $arrival ),
 			esc_attr( $entry->post_name ),
-			$is_pinned ? ' data-pinned' : ''
+			$is_pinned ? ' data-pinned' : '',
+			$is_linked ? ' data-linked' : ''
 		);
 
 		return $html;

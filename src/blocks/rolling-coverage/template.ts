@@ -331,7 +331,7 @@ const FOLLOW_TEMPLATE: TemplateItem = [
 const LATEST_TEMPLATE: TemplateItem = [
 	'core/buttons',
 	{
-		lock: LOCKED,
+		lock: LOCKED_IN_PLACE,
 		className: 'newspack-rolling-coverage-new-entries',
 		layout: { type: 'flex', justifyContent: 'center' },
 		metadata: { name: __( 'Jump to latest', 'newspack-rolling-coverage' ) },
@@ -340,7 +340,7 @@ const LATEST_TEMPLATE: TemplateItem = [
 		[
 			'core/button',
 			{
-				lock: LOCKED,
+				lock: LOCKED_IN_PLACE,
 				text: __( 'Jump to latest', 'newspack-rolling-coverage' ),
 				backgroundColor: 'contrast',
 				textColor: 'base',

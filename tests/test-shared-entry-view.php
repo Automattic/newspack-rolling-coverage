@@ -158,6 +158,9 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	 *     @type string|null $href    The link's URL.
 	 *     @type string|null $style   The link's inline style.
 	 *     @type string      $text    The link's text.
+	 *     @type string|null $live    The wrapper's live feed URL.
+	 *     @type int         $marked  How many links the HTML marks for the view script.
+	 *     @type string|null $newer   The wrapper's count of newer entries.
 	 * }
 	 */
 	private function control( string $html ): array {
@@ -170,6 +173,9 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 			'href'    => null,
 			'style'   => null,
 			'text'    => '',
+			'live'    => null,
+			'marked'  => substr_count( $html, Entry_Bindings::LATEST_ATTRIBUTE ),
+			'newer'   => null,
 		];
 		$tags    = new WP_HTML_Tag_Processor( $html );
 
@@ -180,15 +186,22 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$control['tag']     = $tags->get_tag();
 		$control['classes'] = (string) $tags->get_attribute( 'class' );
 		$control['hidden']  = null !== $tags->get_attribute( 'hidden' );
+		$control['live']    = $tags->get_attribute( 'data-live-url' );
+		$control['newer']   = $tags->get_attribute( 'data-newer-count' );
 
-		if ( $tags->next_tag( [ 'class_name' => 'wp-block-button__link' ] ) && 'A' === $tags->get_tag() ) {
+		while ( $tags->next_tag( 'a' ) ) {
+			if ( null === $tags->get_attribute( Entry_Bindings::LATEST_ATTRIBUTE ) ) {
+				continue;
+			}
+
 			$control['link']  = (string) $tags->get_attribute( 'class' );
 			$control['href']  = $tags->get_attribute( 'href' );
 			$control['style'] = $tags->get_attribute( 'style' );
 
-			preg_match( '#<a\b[^>]*\bwp-block-button__link\b[^>]*>([^<]*)</a>#', substr( $html, (int) strpos( $html, self::CONTROL_CLASS ) ), $match );
+			preg_match( '#<a\b[^>]*\b' . Entry_Bindings::LATEST_ATTRIBUTE . '\b[^>]*>([^<]*)</a>#', $html, $match );
 
 			$control['text'] = html_entity_decode( $match[1] ?? '' );
+			break;
 		}
 
 		return $control;
@@ -257,9 +270,14 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertContains( 'wp-block-buttons', explode( ' ', $control['classes'] ) );
 		$this->assertFalse( $control['hidden'] );
 		$this->assertSame( get_permalink( $this->page_id ), $control['href'] );
-		$this->assertSame( 'Jump to latest', $control['text'] );
+		$this->assertSame( '3', $control['newer'] );
+		$this->assertSame( '3 newer posts', $control['text'] );
 		$this->assertSame( 'wp-block-button__link has-base-color has-contrast-background-color has-text-color has-background wp-element-button', $control['link'] );
 		$this->assertSame( 'box-shadow:var(--wp--preset--shadow--elevation-1)', $control['style'] );
+		$this->assertSame( get_permalink( $this->page_id ), $control['live'], 'The wrapper carries the live feed URL for the view script.' );
+		$this->assertSame( 1, $control['marked'], 'Only the link to the live feed is marked for the view script.' );
+		$this->assertContains( 'is-layout-flex', explode( ' ', $control['classes'] ) );
+		$this->assertContains( 'is-content-justification-center', explode( ' ', $control['classes'] ) );
 	}
 
 	/**
@@ -272,10 +290,19 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertTrue( $normal['hidden'] );
 		$this->assertSame( 1, $normal['count'] );
 		$this->assertSame( get_permalink( $this->page_id ), $normal['href'] );
+		$this->assertSame( 'Jump to latest', $normal['text'] );
+		$this->assertNull( $normal['newer'], 'Only the shared view counts newer entries.' );
 		$this->assertSame(
 			$shared,
-			array_merge( $normal, [ 'hidden' => false ] ),
-			'Both views render the one control; only its visibility differs.'
+			array_merge(
+				$normal,
+				[
+					'hidden' => false,
+					'newer'  => '3',
+					'text'   => '3 newer posts',
+				]
+			),
+			'Both views render the one control; only its visibility and the shared view\'s count differ.'
 		);
 	}
 
@@ -291,7 +318,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertFalse( $shared['hidden'] );
 		$this->assertContains( 'is-custom', explode( ' ', $shared['classes'] ) );
 		$this->assertContains( self::CONTROL_CLASS, explode( ' ', $shared['classes'] ), 'The wrapper carries the control class even when the layout lost it.' );
-		$this->assertSame( 'Back to live', $shared['text'] );
+		$this->assertSame( '3 newer posts', $shared['text'], 'The count replaces the button\'s own text.' );
 		$this->assertSame( 'wp-block-button__link has-accent-background-color has-background wp-element-button', $shared['link'] );
 		$this->assertNull( $shared['style'] );
 		$this->assertSame( get_permalink( $this->page_id ), $shared['href'] );
@@ -310,8 +337,8 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$entries = substr( $html, (int) strpos( $html, 'class="newspack-rolling-coverage-entries"' ) );
 
 		$this->assertSame( $this->ids( 'entry-3', 'entry-2' ), $this->entry_ids_in( $entries ) );
-		$this->assertSame( 1, substr_count( $html, 'Back to live' ) );
-		$this->assertStringNotContainsString( 'Back to live', $entries );
+		$this->assertSame( 1, substr_count( $html, 'has-accent-background-color' ) );
+		$this->assertStringNotContainsString( 'has-accent-background-color', $entries );
 		$this->assertStringNotContainsString( 'wp-block-button', $entries );
 	}
 
@@ -330,6 +357,269 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertTrue( Entry_Bindings::is_follow_buttons( $follow ) );
 		$this->assertFalse( Entry_Bindings::is_latest_buttons( $latest['innerBlocks'][0] ), 'The button alone is not the Buttons block.' );
 		$this->assertFalse( Entry_Bindings::is_latest_buttons( parse_blocks( '<!-- wp:buttons --><div class="wp-block-buttons"></div><!-- /wp:buttons -->' )[0] ) );
+	}
+
+	/**
+	 * A "Jump to latest" button pasted into the entry group renders in no entry, on the page or through the entries route.
+	 */
+	public function test_pasted_latest_button_never_renders_inside_an_entry() {
+		$layout = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. '<!-- wp:post-title /-->' . self::CUSTOM_LATEST_MARKUP
+			. '</div><!-- /wp:group -->';
+
+		$html    = $this->render_layout_with_shared( 'entry-3', $layout );
+		$entries = substr( $html, (int) strpos( $html, 'class="newspack-rolling-coverage-entries"' ) );
+
+		$this->assertSame( $this->ids( 'entry-3', 'entry-2' ), $this->entry_ids_in( $entries ) );
+		$this->assertStringNotContainsString( 'Back to live', $entries );
+		$this->assertStringNotContainsString( 'wp-block-button', $entries );
+		$this->assertStringContainsString( 'has-contrast-background-color', $this->control( $html )['link'], 'The layout has no button of its own at the top, so the default one is the control.' );
+
+		$data = self::dispatch(
+			'GET',
+			'/coverages/' . $this->coverage_id . '/entries',
+			[
+				'before'       => get_post( $this->entries['entry-2'] )->post_date_gmt,
+				'per_page'     => 2,
+				'template_key' => $this->data_attribute( $html, 'template-key' ),
+			]
+		)->get_data();
+
+		$this->assertSame( $this->ids( 'entry-1' ), $this->entry_ids_in( $data['html'] ) );
+		$this->assertStringNotContainsString( 'Back to live', $data['html'] );
+		$this->assertStringNotContainsString( 'wp-block-button', $data['html'] );
+	}
+
+	/**
+	 * A layout's button that cannot link to the live feed gives way to the default control.
+	 *
+	 * @dataProvider unusable_latest_buttons
+	 *
+	 * @param string $button The button inside the layout's Buttons block, as the editor saves it.
+	 */
+	public function test_unusable_latest_button_falls_back_to_the_default_control( string $button ) {
+		$layout = '<!-- wp:buttons {"className":"is-custom"} --><div class="wp-block-buttons is-custom">' . $button . '</div><!-- /wp:buttons -->' . self::ENTRY_MARKUP;
+
+		$this->assertSame(
+			$this->control( $this->render_with_shared( 'entry-3' ) ),
+			$this->control( $this->render_layout_with_shared( 'entry-3', $layout ) )
+		);
+		$this->assertSame(
+			$this->control( $this->render_with_shared( '' ) ),
+			$this->control( $this->render_layout_with_shared( '', $layout ) )
+		);
+	}
+
+	/**
+	 * Latest-bound buttons the site cannot render as a link to the live feed.
+	 *
+	 * @return array[]
+	 */
+	public static function unusable_latest_buttons(): array {
+		$binding = '"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"latestUrl"}}}}';
+
+		return [
+			'empty label'            => [ '<!-- wp:button {' . $binding . '} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button"></a></div><!-- /wp:button -->' ],
+			'button element, no URL' => [ '<!-- wp:button {"tagName":"button",' . $binding . '} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Back to live</button></div><!-- /wp:button -->' ],
+		];
+	}
+
+	/**
+	 * A button a publisher adds next to "Jump to latest" is left alone: only the bound link is marked for the view script.
+	 */
+	public function test_only_the_latest_link_is_marked_for_the_view_script() {
+		$layout = str_replace(
+			'<div class="wp-block-buttons is-custom">',
+			'<div class="wp-block-buttons is-custom"><!-- wp:button {"url":"https://example.com/"} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="https://example.com/">Elsewhere</a></div><!-- /wp:button -->',
+			self::CUSTOM_LATEST_MARKUP
+		) . self::ENTRY_MARKUP;
+
+		$html    = $this->render_layout_with_shared( 'entry-3', $layout );
+		$control = $this->control( $html );
+
+		$this->assertStringContainsString( '>Elsewhere</a>', $html );
+		$this->assertSame( 1, $control['marked'] );
+		$this->assertSame( '3 newer posts', $control['text'] );
+		$this->assertSame( get_permalink( $this->page_id ), $control['href'] );
+	}
+
+	/**
+	 * Without a request URI, as under WP-CLI or cron, the control links to the host post and nothing warns.
+	 */
+	public function test_control_links_to_the_host_post_without_a_request_uri() {
+		$this->go_to( home_url( '/' ) );
+		$this->use_page_as_current_post();
+
+		unset( $_SERVER['REQUEST_URI'] );
+
+		$this->assertNull( get_queried_object() );
+
+		foreach ( [ 'entry-3', '' ] as $shared ) {
+			$control = $this->control( $this->render_with_shared( $shared ) );
+
+			$this->assertSame( get_permalink( $this->page_id ), $control['href'] );
+			$this->assertSame( get_permalink( $this->page_id ), $control['live'] );
+		}
+	}
+
+	/**
+	 * A feed holds no floating control.
+	 */
+	public function test_feed_render_has_no_control() {
+		$this->go_to( get_feed_link() );
+		$this->use_page_as_current_post();
+
+		$this->assertTrue( is_feed() );
+
+		foreach ( [ 'entry-3', '' ] as $shared ) {
+			$html = $this->render_with_shared( $shared );
+
+			$this->assertSame( 0, $this->control( $html )['count'] );
+			$this->assertNotEmpty( $this->entry_ids_in( $html ) );
+		}
+	}
+
+	/**
+	 * A shared entry with exactly one newer entry counts it in the singular.
+	 */
+	public function test_single_newer_entry_is_counted_in_the_singular() {
+		Post_Type::pin_entry( $this->entries['entry-1'] );
+
+		$html    = $this->render_with_shared( 'entry-5' );
+		$control = $this->control( $html );
+
+		$this->assertStringContainsString( 'data-view="entry"', $html );
+		$this->assertSame( '1', $control['newer'] );
+		$this->assertSame( '1 newer post', $control['text'] );
+	}
+
+	/**
+	 * Pinned entries are newer posts on the live feed, so they count.
+	 */
+	public function test_pinned_newer_entries_are_counted() {
+		Post_Type::pin_entry( $this->entries['entry-4'] );
+
+		$this->assertSame( '3', $this->control( $this->render_with_shared( 'entry-3' ) )['newer'] );
+	}
+
+	/**
+	 * The count stops at the cap, which reads as "or more".
+	 */
+	public function test_newer_count_is_capped() {
+		$newer = self::factory()->post->create_many(
+			Rolling_Coverage_Block::NEWER_COUNT_CAP + 1,
+			[
+				'post_type'   => Post_Type::CPT_SLUG,
+				'post_status' => 'publish',
+				'post_date'   => '2026-01-02 10:00:00',
+			]
+		);
+
+		foreach ( $newer as $entry_id ) {
+			wp_set_object_terms( $entry_id, [ $this->coverage_id ], Taxonomy::TAXONOMY_SLUG );
+		}
+
+		$control = $this->control( $this->render_with_shared( 'entry-6' ) );
+
+		$this->assertSame( '100', $control['newer'] );
+		$this->assertSame( '100+ newer posts', $control['text'] );
+	}
+
+	/**
+	 * A label with inline formatting is left for the view script to replace.
+	 */
+	public function test_formatted_label_is_left_to_the_view_script() {
+		$layout = str_replace( '>Back to live</a>', '><strong>Back</strong> to live</a>', self::CUSTOM_LATEST_MARKUP ) . self::ENTRY_MARKUP;
+
+		$html = $this->render_layout_with_shared( 'entry-3', $layout );
+
+		$this->assertStringContainsString( '><strong>Back</strong> to live</a>', $html );
+		$this->assertStringNotContainsString( 'newer post', $html );
+		$this->assertSame( '3', $this->control( $html )['newer'] );
+	}
+
+	/**
+	 * The label is exact below ten and a floor from there.
+	 *
+	 * @dataProvider newer_posts_labels
+	 *
+	 * @param int    $count How many entries are newer.
+	 * @param string $label The label the control shows.
+	 */
+	public function test_newer_posts_label_is_bucketed( int $count, string $label ) {
+		$this->assertSame( $label, Rolling_Coverage_Block::newer_posts_label( $count ) );
+	}
+
+	/**
+	 * Counts and their labels; none means the control keeps its own text.
+	 *
+	 * @return array[]
+	 */
+	public static function newer_posts_labels(): array {
+		return [
+			[ 0, '' ],
+			[ 1, '1 newer post' ],
+			[ 9, '9 newer posts' ],
+			[ 10, '10+ newer posts' ],
+			[ 49, '10+ newer posts' ],
+			[ 50, '50+ newer posts' ],
+			[ 99, '50+ newer posts' ],
+			[ 100, '100+ newer posts' ],
+			[ 250, '100+ newer posts' ],
+		];
+	}
+
+	/**
+	 * Entry IDs the HTML marks as the linked entry.
+	 *
+	 * @param string $html Rendered HTML.
+	 * @return int[]
+	 */
+	private function linked_ids( string $html ): array {
+		preg_match_all( '/<article\b[^>]*\sdata-entry-id="(\d+)"[^>]*\sdata-linked[\s>]/', $html, $matches );
+
+		return array_map( 'intval', $matches[1] );
+	}
+
+	/**
+	 * The entry a link names is marked, in the shared view and in the normal view, pinned or not; no other entry is.
+	 */
+	public function test_linked_entry_is_marked() {
+		$this->assertSame( $this->ids( 'entry-3' ), $this->linked_ids( $this->render_with_shared( 'entry-3' ) ), 'Shared view.' );
+		$this->assertSame( $this->ids( 'entry-5' ), $this->linked_ids( $this->render_with_shared( 'entry-5' ) ), 'Normal view.' );
+		$this->assertSame( [], $this->linked_ids( $this->render_with_shared( '' ) ), 'No link.' );
+
+		Post_Type::pin_entry( $this->entries['entry-2'] );
+
+		$html = $this->render_with_shared( 'entry-2' );
+
+		$this->assertStringNotContainsString( 'data-view=', $html );
+		$this->assertSame( $this->ids( 'entry-2' ), $this->linked_ids( $html ), 'Normal view, pinned.' );
+	}
+
+	/**
+	 * A link naming an entry of another coverage, or an unpublished one, marks nothing.
+	 */
+	public function test_entries_outside_the_coverage_are_not_marked() {
+		self::create_entry(
+			self::create_coverage(),
+			[
+				'post_date' => '2026-01-01 09:00:00',
+				'post_name' => 'elsewhere',
+			]
+		);
+
+		$this->assertSame( [], $this->linked_ids( $this->render_with_shared( 'elsewhere' ) ) );
+		$this->assertSame( [], $this->linked_ids( $this->render_with_shared( [ 'entry-5' ] ) ) );
+
+		wp_update_post(
+			[
+				'ID'          => $this->entries['entry-5'],
+				'post_status' => 'draft',
+			]
+		);
+
+		$this->assertSame( [], $this->linked_ids( $this->render_with_shared( 'entry-5' ) ) );
 	}
 
 	/**
@@ -564,7 +854,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The href of the pill link.
+	 * The href of the control's link to the live feed.
 	 *
 	 * @param string $html Rendered HTML.
 	 * @return string
@@ -605,7 +895,8 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'data-view="entry"', $html );
 		$this->assertSame( $this->ids( 'entry-3', 'entry-2' ), $this->entry_ids_in( $html ) );
-		$this->assertStringContainsString( '>Jump to latest</a>', $html );
+		$this->assertFalse( $this->control( $html )['hidden'] );
+		$this->assertSame( get_permalink( $this->page_id ), $this->control( $html )['href'] );
 	}
 
 	/**

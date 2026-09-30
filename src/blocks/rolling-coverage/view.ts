@@ -25,6 +25,13 @@ const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 // poll until that copy expires.
 const OVERFLOW_RELOAD_RETRY_MS = 60 * 1000;
 
+// How long the jump to the live feed waits for the page before it navigates instead.
+const JUMP_TIMEOUT_MS = 8000;
+
+// Core's per-page styles for block supports, such as layouts. The id is on
+// every page, but the rules are only those of the blocks that page renders.
+const BLOCK_SUPPORTS_STYLE_ID = 'core-block-supports-inline-css';
+
 /**
  * cssEscape polyfill for older browsers.
  */
@@ -102,6 +109,47 @@ function parseElement( html: string ): HTMLElement | null {
 }
 
 /**
+ * The label of the control on a feed opened at a shared entry: the number of
+ * newer entries, exact below ten and a floor from there, e.g. "10+ newer
+ * posts". Mirrors Rolling_Coverage_Block::newer_posts_label().
+ *
+ * @param {number} count How many entries are newer.
+ * @return {string} The label, or an empty string when there are none.
+ */
+function newerPostsLabel( count: number ): string {
+	if ( count < 1 ) {
+		return '';
+	}
+
+	if ( count < 10 ) {
+		return sprintf(
+			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 9. */
+			_n(
+				'%d newer post',
+				'%d newer posts',
+				count,
+				'newspack-rolling-coverage'
+			),
+			count
+		);
+	}
+
+	let floor = 10;
+
+	if ( count >= 100 ) {
+		floor = 100;
+	} else if ( count >= 50 ) {
+		floor = 50;
+	}
+
+	return sprintf(
+		/* translators: %d: a round number the count of newer coverage entries has reached: 10, 50 or 100. */
+		__( '%d+ newer posts', 'newspack-rolling-coverage' ),
+		floor
+	);
+}
+
+/**
  * Sets up polling and infinite scroll for a single block instance.
  *
  * @param {HTMLElement} root The block's outer wrapper element.
@@ -138,9 +186,8 @@ function initBlock( root: HTMLElement ): void {
 		'.newspack-rolling-coverage-new-entries'
 	);
 	const newEntriesLink =
-		newEntriesControl?.querySelector< HTMLElement >(
-			'.wp-block-button__link'
-		) ?? null;
+		newEntriesControl?.querySelector< HTMLElement >( '[data-rc-latest]' ) ??
+		null;
 	const statusEl = root.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-status'
 	);
@@ -171,6 +218,29 @@ function initBlock( root: HTMLElement ): void {
 	const offPageUpdates = new Map< string, string >();
 
 	const countedEntryIds = new Set< string >();
+
+	// Entries newer than the shared entry when the server rendered the page.
+	const newerCount =
+		parseInt( newEntriesControl?.dataset.newerCount || '0', 10 ) || 0;
+
+	/**
+	 * Shows on the control how many entries are newer than the shared entry:
+	 * those the page was rendered with plus those the poll has counted since.
+	 * With none, the control keeps its own text.
+	 *
+	 * @return {void}
+	 */
+	function showNewerCount(): void {
+		const label = newerPostsLabel( newerCount + countedEntryIds.size );
+
+		if ( label && newEntriesLink ) {
+			newEntriesLink.textContent = label;
+		}
+	}
+
+	if ( isEntryView ) {
+		showNewerCount();
+	}
 
 	// Entry IDs already reported as seen. Guards against re-firing
 	// coverage_entry_seen when a polled edit replaces an already-seen entry's element.
@@ -408,8 +478,9 @@ function initBlock( root: HTMLElement ): void {
 		cleanupFns.push( () => target.removeEventListener( type, handler ) );
 	}
 
-	// Removes all event listeners, observers, timers and pending requests'
-	// effects, and lets the block be initialized again.
+	// Removes the listeners, observers and timers this run set up, and lets the
+	// block be initialized again. Requests still in flight are not aborted;
+	// their replies are dropped.
 	function cleanup(): void {
 		isDisposed = true;
 		cancelPoll();
@@ -450,50 +521,98 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Whether a fetched page loads a stylesheet this page doesn't, so blocks
+	 * taken from it could show unstyled here.
+	 *
+	 * @param {Document} doc The fetched page.
+	 * @return {boolean} True if this page lacks one of its stylesheets.
+	 */
+	function needsMissingStyles( doc: Document ): boolean {
+		return Array.from(
+			doc.querySelectorAll( 'link[rel="stylesheet"][id], style[id]' )
+		).some( ( style ) => ! document.getElementById( style.id ) );
+	}
+
+	/**
+	 * Whether a fetched block can replace the shared view in place. It can't
+	 * when it is itself a shared view, when it holds ads, which need the
+	 * page's own ad setup to run, or when its entries hold scripts or
+	 * interactive blocks, which would never start.
+	 *
+	 * @param {HTMLElement | null} live The fetched block.
+	 * @return {boolean} True if the block can be shown in place.
+	 */
+	function canShowInPlace( live: HTMLElement | null ): live is HTMLElement {
+		const liveEntries = live?.querySelector(
+			'.newspack-rolling-coverage-entries'
+		);
+
+		return (
+			!! live &&
+			!! liveEntries &&
+			live.dataset.view !== 'entry' &&
+			! live.querySelector( '.newspack_global_ad' ) &&
+			! liveEntries.querySelector( 'script, [data-wp-interactive]' ) &&
+			!! live.querySelector(
+				'.newspack-rolling-coverage-new-entries [data-rc-latest]'
+			)
+		);
+	}
+
+	/**
 	 * Fetches the live feed's page and returns this block from it, when the
-	 * block can replace the shared view in place. A block holding ads can't:
-	 * they need the page's own ad setup to run.
+	 * block can replace the shared view in place.
 	 *
 	 * @param {string} url The live feed's URL.
-	 * @return {Promise<HTMLElement | null>} The live block, or null to navigate instead.
+	 * @return {Promise<Object | null>} The live block and the URL it came from, or null to navigate instead.
 	 */
 	async function fetchLiveBlock(
 		url: string
-	): Promise< HTMLElement | null > {
+	): Promise< { live: HTMLElement; url: string } | null > {
+		const controller = new AbortController();
+		const timeoutId = setTimeout(
+			() => controller.abort(),
+			JUMP_TIMEOUT_MS
+		);
+
 		try {
-			const response = await fetch( url );
+			const response = await fetch( url, { signal: controller.signal } );
 
 			if ( ! response.ok ) {
 				return null;
 			}
 
-			const live = findBlockIn(
-				new DOMParser().parseFromString(
-					await response.text(),
-					'text/html'
-				)
+			const doc = new DOMParser().parseFromString(
+				await response.text(),
+				'text/html'
 			);
+			const live = findBlockIn( doc );
 
-			if (
-				! live ||
-				live.dataset.view === 'entry' ||
-				live.querySelector( '.newspack_global_ad' ) ||
-				! live.querySelector( '.newspack-rolling-coverage-entries' ) ||
-				! live.querySelector( '.newspack-rolling-coverage-new-entries' )
-			) {
+			if ( ! canShowInPlace( live ) || needsMissingStyles( doc ) ) {
 				return null;
 			}
 
-			return live;
+			const finalUrl = new URL( response.url || url, url );
+
+			return {
+				live,
+				url:
+					response.redirected &&
+					finalUrl.origin === window.location.origin
+						? finalUrl.toString()
+						: url,
+			};
 		} catch {
 			return null;
+		} finally {
+			clearTimeout( timeoutId );
 		}
 	}
 
 	/**
 	 * Turns the shared view into the live feed: takes over the live block's
-	 * entries, cursors and control, then starts the block again on the same
-	 * element, as a freshly loaded normal view.
+	 * entries, cursors, status and control, then starts the block again on
+	 * the same element, as a freshly loaded normal view.
 	 *
 	 * @param {HTMLElement} live The live block, from the fetched page.
 	 * @param {string}      url  The live feed's URL.
@@ -509,8 +628,25 @@ function initBlock( root: HTMLElement ): void {
 		const control = liveControl
 			? parseElement( liveControl.outerHTML )
 			: null;
+		const supports = document.getElementById( BLOCK_SUPPORTS_STYLE_ID );
+		const liveSupports = live.ownerDocument.getElementById(
+			BLOCK_SUPPORTS_STYLE_ID
+		);
 
 		cleanup();
+
+		// The live entries' blocks may have rules this page's copy lacks.
+		// They are scoped by generated class, so adding them all changes
+		// nothing else.
+		if (
+			supports &&
+			liveSupports &&
+			supports.textContent !== liveSupports.textContent
+		) {
+			const style = document.createElement( 'style' );
+			style.textContent = liveSupports.textContent;
+			supports.after( style );
+		}
 
 		entriesList.replaceChildren(
 			parseFragment( liveEntries?.innerHTML ?? '' )
@@ -520,16 +656,33 @@ function initBlock( root: HTMLElement ): void {
 			newEntriesControl?.replaceWith( control );
 		}
 
-		( [ 'cursor', 'before', 'hasMore', 'templateKey' ] as const ).forEach(
-			( key ) => {
-				root.dataset[ key ] = live.dataset[ key ] ?? '';
-			}
-		);
+		(
+			[ 'cursor', 'before', 'hasMore', 'templateKey', 'status' ] as const
+		 ).forEach( ( key ) => {
+			root.dataset[ key ] = live.dataset[ key ] ?? '';
+		} );
 		delete root.dataset.view;
 
 		window.history.replaceState( window.history.state, '', url );
 
 		initBlock( root );
+	}
+
+	/**
+	 * Marks the control busy while the jump to the live feed runs, or ready
+	 * again.
+	 *
+	 * @param {boolean} jumping Whether the jump is running.
+	 * @return {void}
+	 */
+	function setJumping( jumping: boolean ): void {
+		isJumping = jumping;
+
+		if ( jumping ) {
+			newEntriesControl?.setAttribute( 'aria-busy', 'true' );
+		} else {
+			newEntriesControl?.removeAttribute( 'aria-busy' );
+		}
 	}
 
 	/**
@@ -541,50 +694,61 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {Promise<void>} Resolves when the live feed shows or the page navigates.
 	 */
 	async function jumpToLatest( url: string ): Promise< void > {
-		isJumping = true;
-		newEntriesControl?.setAttribute( 'aria-busy', 'true' );
+		setJumping( true );
 
-		const live = await fetchLiveBlock( url );
+		const fetched = await fetchLiveBlock( url );
 
 		if ( isDisposed ) {
 			return;
 		}
 
-		if ( ! live ) {
+		// A page restored by Back must find the control ready again.
+		const navigate = () => {
+			setJumping( false );
 			window.location.assign( url );
+		};
+
+		if ( ! fetched ) {
+			navigate();
 			return;
 		}
 
 		const reducesMotion = window.matchMedia(
 			'(prefers-reduced-motion: reduce)'
 		).matches;
-		const finish = () => {
-			entriesList.setAttribute( 'tabindex', '-1' );
-			entriesList.focus( { preventScroll: true } );
-			announce(
-				__( 'Showing the latest posts.', 'newspack-rolling-coverage' )
-			);
+		// Once cleanup() has run, a failure would leave a block that does
+		// nothing, so the live feed's own page takes over.
+		const show = ( behavior: ScrollBehavior ) => {
+			try {
+				showLiveBlock( fetched.live, fetched.url );
+				window.scrollTo( { top: blockTopY(), behavior } );
+				entriesList.setAttribute( 'tabindex', '-1' );
+				entriesList.addEventListener(
+					'blur',
+					() => entriesList.removeAttribute( 'tabindex' ),
+					{ once: true }
+				);
+				entriesList.focus( { preventScroll: true } );
+				announce(
+					__(
+						'Showing the latest posts.',
+						'newspack-rolling-coverage'
+					)
+				);
+			} catch {
+				navigate();
+			}
 		};
 
 		if (
 			typeof document.startViewTransition === 'function' &&
 			! reducesMotion
 		) {
-			document.startViewTransition( () => {
-				showLiveBlock( live, url );
-				window.scrollTo( { top: blockTopY(), behavior: 'instant' } );
-				finish();
-			} );
-
+			document.startViewTransition( () => show( 'instant' ) );
 			return;
 		}
 
-		showLiveBlock( live, url );
-		window.scrollTo( {
-			top: blockTopY(),
-			behavior: reducesMotion ? 'instant' : 'smooth',
-		} );
-		finish();
+		show( reducesMotion ? 'instant' : 'smooth' );
 	}
 
 	if ( newEntriesControl && newEntriesLink ) {
@@ -601,10 +765,17 @@ function initBlock( root: HTMLElement ): void {
 			}
 
 			if ( isEntryView ) {
-				const href = newEntriesLink.getAttribute( 'href' );
-				const url = href ? new URL( href, window.location.href ) : null;
+				const liveUrl = newEntriesControl.dataset.liveUrl;
+				const url = liveUrl
+					? new URL( liveUrl, window.location.href )
+					: null;
 
-				if ( ! url || url.origin !== window.location.origin ) {
+				// Ads need the live feed's own page, so the link navigates.
+				if (
+					! url ||
+					url.origin !== window.location.origin ||
+					root.querySelector( '.newspack_global_ad' )
+				) {
 					return;
 				}
 
@@ -685,9 +856,9 @@ function initBlock( root: HTMLElement ): void {
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
 	 * on the page for loadMore(). Inserts or queues newly published entries
 	 * based on the reader's scroll position. When the feed opens at a shared
-	 * entry, new entries are counted on the control instead of inserted, and
-	 * an entry that has been pinned is removed, as pinned entries belong at the
-	 * top of the live feed.
+	 * entry, new entries are added to the control's count instead of inserted,
+	 * and an entry that has been pinned is removed, as pinned entries belong at
+	 * the top of the live feed.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
@@ -736,6 +907,12 @@ function initBlock( root: HTMLElement ): void {
 				// observeEntry() is a no-op if it was already reported as seen.
 				unobserveEntry( existing );
 				entryEl.dataset.arrival = existing.dataset.arrival;
+
+				// The poll can't know which entry the page's link names.
+				if ( existing.dataset.linked !== undefined ) {
+					entryEl.dataset.linked = '';
+				}
+
 				existing.replaceWith( entryEl );
 				observeEntry( entryEl );
 				dropLastSeparator();
@@ -753,18 +930,18 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		if ( isEntryView ) {
+			const countedBefore = countedEntryIds.size;
+
 			newEntries.forEach( ( { el } ) => {
 				if ( el.dataset.entryId ) {
 					countedEntryIds.add( el.dataset.entryId );
 				}
 			} );
 
-			const label = newEntriesLabel( countedEntryIds.size );
-
-			if ( newEntriesLink ) {
-				newEntriesLink.textContent = label;
+			if ( countedEntryIds.size !== countedBefore ) {
+				showNewerCount();
+				announce( newEntriesLabel( countedEntryIds.size ) );
 			}
-			announce( label );
 
 			return;
 		}
@@ -1219,9 +1396,16 @@ function initBlock( root: HTMLElement ): void {
 		{ once: true }
 	);
 
-	// Resume polling after a BFCache restore.
+	// Resume polling after a BFCache restore, with the control ready again if
+	// the page was left during a jump.
 	on( window, 'pageshow', ( event ) => {
-		if ( event.persisted && cursor && status === 'active' ) {
+		if ( ! event.persisted ) {
+			return;
+		}
+
+		setJumping( false );
+
+		if ( cursor && status === 'active' ) {
 			schedulePoll();
 		}
 	} );
