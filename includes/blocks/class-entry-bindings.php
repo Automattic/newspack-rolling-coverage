@@ -327,23 +327,25 @@ class Entry_Bindings {
 			return '';
 		}
 
-		$processor = new WP_HTML_Tag_Processor( $block_content );
-
-		if ( ! $processor->next_tag( 'p' ) ) {
+		if ( ! preg_match( '/<p(?=[\s>])(?:"[^"]*"|\'[^\']*\'|[^>"\'])*>/i', $block_content, $open, PREG_OFFSET_CAPTURE ) ) {
 			return $block_content;
 		}
 
-		$open_end = strpos( $block_content, '>' );
-		$close    = strrpos( $block_content, '</p>' );
+		$inner_start = $open[0][1] + strlen( $open[0][0] );
+		$close       = strrpos( $block_content, '</p>' );
 
-		if ( false === $open_end || false === $close || $close <= $open_end ) {
+		if ( false === $close || $close < $inner_start ) {
 			return $block_content;
 		}
 
-		return substr( $block_content, 0, $open_end + 1 )
-			. '<a href="' . esc_url( $url ) . '">'
-			. substr( $block_content, $open_end + 1, $close - $open_end - 1 )
-			. '</a>'
+		$inner = substr( $block_content, $inner_start, $close - $inner_start );
+
+		if ( preg_match( '/<a[\s>]/i', $inner ) ) {
+			return $block_content;
+		}
+
+		return substr( $block_content, 0, $inner_start )
+			. '<a href="' . esc_url( $url ) . '">' . $inner . '</a>'
 			. substr( $block_content, $close );
 	}
 

@@ -927,6 +927,42 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( '<time', $html );
 		$this->assertStringNotContainsString( 'data-rc-relative', $html );
-		$this->assertStringNotContainsString( '<a href=""', $html );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-read-more', $html, 'No breakout: no Read more.' );
+
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+
+		$this->assertStringContainsString( '<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Read more</a>', self::render_markup( $entry_id, $markup ) );
+	}
+
+	/**
+	 * Markup a filter put before the paragraph, or a ">" in an attribute,
+	 * doesn't move the link.
+	 */
+	public function test_read_more_link_sits_inside_the_paragraph_tag() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+		$url         = esc_url( get_permalink( $breakout_id ) );
+
+		$filter = static function ( $content, $block ) {
+			return 'core/paragraph' === $block['blockName'] ? '<span class="x">a > b</span>' . str_replace( '<p ', '<p title="a>b" ', $content ) : $content;
+		};
+		add_filter( 'render_block_core/paragraph', $filter, 5, 2 );
+		$html = self::render_markup( $entry_id, self::read_more_paragraph() );
+		remove_filter( 'render_block_core/paragraph', $filter, 5 );
+
+		$this->assertStringContainsString( '<span class="x">a > b</span><p title="a>b" class="newspack-rolling-coverage-read-more wp-block-paragraph"><a href="' . $url . '">Read more</a></p>', $html );
+	}
+
+	/**
+	 * A link already inside the paragraph is not wrapped in another.
+	 */
+	public function test_read_more_paragraph_with_its_own_link_is_left_alone() {
+		$entry_id = self::create_entry( self::create_coverage() );
+		self::add_breakout( $entry_id, 'publish' );
+
+		$html = self::render_markup( $entry_id, self::read_more_paragraph( 'newspack-rolling-coverage-read-more', '<a href="https://example.com/">Elsewhere</a>' ) );
+
+		$this->assertStringContainsString( '<a href="https://example.com/">Elsewhere</a></p>', $html );
+		$this->assertSame( 1, substr_count( $html, '<a ' ) );
 	}
 }
