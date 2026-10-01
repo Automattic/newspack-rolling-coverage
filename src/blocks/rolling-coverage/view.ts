@@ -978,9 +978,11 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Whether a fetched block can replace the shared view in place. It can't
-	 * when it is itself a shared view, when it holds ads, which need the
-	 * page's own ad setup to run, or when its entries hold scripts or
-	 * interactive blocks, which would never start.
+	 * when it is itself a shared view, when the coverage's status has changed
+	 * since this page rendered, as the Follow button and archived notice
+	 * depend on it, when it holds ads, which need the page's own ad setup to
+	 * run, or when its entries hold scripts or interactive blocks, which
+	 * would never start.
 	 *
 	 * @param {HTMLElement | null} live The fetched block.
 	 * @return {boolean} True if the block can be shown in place.
@@ -994,6 +996,7 @@ function initBlock( root: HTMLElement ): void {
 			!! live &&
 			!! liveEntries &&
 			live.dataset.view !== 'entry' &&
+			live.dataset.status === root.dataset.status &&
 			! live.querySelector( '.newspack_global_ad' ) &&
 			! liveEntries.querySelector( 'script, [data-wp-interactive]' ) &&
 			!! live.querySelector(
