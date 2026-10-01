@@ -212,7 +212,7 @@ function entryBlocks( isPinned: boolean ): TemplateItem[] {
 					'core/button',
 					{
 						lock: LOCKED,
-						text: __( 'Read more', 'newspack-rolling-coverage' ),
+						text: __( 'Read More', 'newspack-rolling-coverage' ),
 						style: {
 							color: {
 								background: READ_MORE_BACKGROUND,
@@ -221,7 +221,7 @@ function entryBlocks( isPinned: boolean ): TemplateItem[] {
 						},
 						metadata: {
 							name: __(
-								'Read more',
+								'Read More',
 								'newspack-rolling-coverage'
 							),
 							bindings: {
@@ -536,7 +536,7 @@ function latestTemplate( slugs: string[] ): TemplateItem {
 			className: 'newspack-rolling-coverage-new-entries',
 			layout: { type: 'flex', justifyContent: 'center' },
 			metadata: {
-				name: __( 'Jump to latest', 'newspack-rolling-coverage' ),
+				name: __( 'Jump to Latest', 'newspack-rolling-coverage' ),
 			},
 		},
 		[
@@ -544,12 +544,12 @@ function latestTemplate( slugs: string[] ): TemplateItem {
 				'core/button',
 				{
 					lock: LOCKED_IN_PLACE,
-					text: __( 'Jump to latest', 'newspack-rolling-coverage' ),
+					text: __( 'Jump to Latest', 'newspack-rolling-coverage' ),
 					...latestColors( slugs ),
 					style: { shadow: 'var:preset|shadow|elevation-1' },
 					metadata: {
 						name: __(
-							'Jump to latest',
+							'Jump to Latest',
 							'newspack-rolling-coverage'
 						),
 						bindings: {

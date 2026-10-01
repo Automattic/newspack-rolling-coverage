@@ -1076,7 +1076,7 @@ class Rolling_Coverage_Block {
 
 		if ( $count <= 10 ) {
 			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
-			return sprintf( _n( '%d newer post', '%d newer posts', $count, 'newspack-rolling-coverage' ), $count );
+			return sprintf( _n( '%d Newer Post', '%d Newer Posts', $count, 'newspack-rolling-coverage' ), $count );
 		}
 
 		$floor = 10;
@@ -1088,7 +1088,7 @@ class Rolling_Coverage_Block {
 		}
 
 		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
-		return sprintf( _n( '%d+ newer post', '%d+ newer posts', $floor, 'newspack-rolling-coverage' ), $floor );
+		return sprintf( _n( '%d+ Newer Post', '%d+ Newer Posts', $floor, 'newspack-rolling-coverage' ), $floor );
 	}
 
 	/**
@@ -1275,7 +1275,7 @@ class Rolling_Coverage_Block {
 	 * @return array Parsed-block-shaped array.
 	 */
 	private static function default_latest_buttons_block(): array {
-		$name        = __( 'Jump to latest', 'newspack-rolling-coverage' );
+		$name        = __( 'Jump to Latest', 'newspack-rolling-coverage' );
 		$lock        = [
 			'remove' => true,
 			'move'   => true,
@@ -1772,10 +1772,10 @@ class Rolling_Coverage_Block {
 			],
 			[
 				'blockName'    => 'core/buttons',
-				'attrs'        => [ 'metadata' => [ 'name' => __( 'Read more', 'newspack-rolling-coverage' ) ] ],
+				'attrs'        => [ 'metadata' => [ 'name' => __( 'Read More', 'newspack-rolling-coverage' ) ] ],
 				'innerBlocks'  => [
 					self::entry_button_block(
-						__( 'Read more', 'newspack-rolling-coverage' ),
+						__( 'Read More', 'newspack-rolling-coverage' ),
 						[
 							'url' => [
 								'source' => Entry_Bindings::SOURCE_NAME,

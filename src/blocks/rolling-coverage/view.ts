@@ -159,8 +159,8 @@ function newerPostsLabel( count: number ): string {
 		return sprintf(
 			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
 			_n(
-				'%d newer post',
-				'%d newer posts',
+				'%d Newer Post',
+				'%d Newer Posts',
 				count,
 				'newspack-rolling-coverage'
 			),
@@ -179,8 +179,8 @@ function newerPostsLabel( count: number ): string {
 	return sprintf(
 		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
 		_n(
-			'%d+ newer post',
-			'%d+ newer posts',
+			'%d+ Newer Post',
+			'%d+ Newer Posts',
 			floor,
 			'newspack-rolling-coverage'
 		),
@@ -606,8 +606,8 @@ function initBlock( root: HTMLElement ): void {
 		return sprintf(
 			/* translators: %d: number of new coverage entries waiting to be shown. */
 			_n(
-				'%d new post',
-				'%d new posts',
+				'%d New Post',
+				'%d New Posts',
 				count,
 				'newspack-rolling-coverage'
 			),

@@ -1050,7 +1050,7 @@ export default function Edit( {
 						variant="secondary"
 						onClick={ () => setIsPickingLayout( true ) }
 					>
-						{ __( 'Change layout', 'newspack-rolling-coverage' ) }
+						{ __( 'Change Layout', 'newspack-rolling-coverage' ) }
 					</Button>
 				) }
 			</PanelBody>
@@ -1123,7 +1123,7 @@ export default function Edit( {
 								}
 							>
 								{ __(
-									'Use this page',
+									'Use This Page',
 									'newspack-rolling-coverage'
 								) }
 							</Button>
