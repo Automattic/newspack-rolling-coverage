@@ -676,6 +676,26 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A block that turns the notice off renders none, whatever text and link it sets.
+	 */
+	public function test_archived_notice_can_be_turned_off() {
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$attributes = [
+			'coverageId'            => $coverage_id,
+			'archivedNotice'        => 'Coverage ended.',
+			'archivedNoticeLinkUrl' => 'https://example.com/story',
+		];
+
+		$this->assertStringContainsString( 'class="newspack-rolling-coverage-archived-notice"', self::render_feed_block( $attributes ), 'The notice shows by default.' );
+
+		$attributes['archivedNoticeShow'] = false;
+
+		$this->assertStringNotContainsString( 'class="newspack-rolling-coverage-archived-notice"', self::render_feed_block( $attributes ), 'The notice should be hidden.' );
+	}
+
+	/**
 	 * The notice links on after its text when the block sets a URL, labeled
 	 * with the block's link text or "Read more".
 	 */

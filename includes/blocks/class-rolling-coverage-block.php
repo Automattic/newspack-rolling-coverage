@@ -1488,16 +1488,20 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Renders the notice that opens an archived coverage's Feed: the block's text,
-	 * or the default naming the coverage when it has none. Unless the block turns
-	 * the link off, a link follows to the block's URL or, without one, to the
-	 * coverage's latest breakout post.
+	 * Renders the notice that opens an archived coverage's Feed, unless the block
+	 * turns it off: the block's text, or the default naming the coverage when it
+	 * has none. Unless the block turns the link off, a link follows to the
+	 * block's URL or, without one, to the coverage's latest breakout post.
 	 *
 	 * @param array $attributes  Block attributes.
 	 * @param int   $coverage_id Coverage term ID.
 	 * @return string Rendered HTML.
 	 */
 	private static function render_archived_notice( array $attributes, int $coverage_id ): string {
+		if ( ! (bool) ( $attributes['archivedNoticeShow'] ?? true ) ) {
+			return '';
+		}
+
 		$text      = trim( (string) ( $attributes['archivedNotice'] ?? '' ) );
 		$show_link = (bool) ( $attributes['archivedNoticeShowLink'] ?? true );
 		$url       = $show_link ? trim( (string) ( $attributes['archivedNoticeLinkUrl'] ?? '' ) ) : '';
