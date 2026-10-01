@@ -253,6 +253,22 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A card holding the "Read more" paragraph drops it without a breakout.
+	 */
+	public function test_pinned_card_drops_the_read_more_paragraph_without_a_breakout() {
+		$entry_id = self::create_pinned_entry();
+		$markup   = '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">'
+			. '<!-- wp:paragraph --><p>Card text</p><!-- /wp:paragraph -->'
+			. '<!-- wp:paragraph {"className":"newspack-rolling-coverage-read-more"} --><p class="newspack-rolling-coverage-read-more">Read more</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+
+		$html = self::render( $entry_id, false, $markup );
+
+		$this->assertStringContainsString( 'Card text', $html );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-read-more', $html );
+	}
+
+	/**
 	 * A pinned entry that is last drops the space below the card.
 	 */
 	public function test_last_pinned_card_drops_its_bottom_margin() {

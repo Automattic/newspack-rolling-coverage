@@ -56,12 +56,18 @@ class Entry_Bindings {
 	const PINNED_LABEL_CLASS = 'newspack-rolling-coverage-pinned-label';
 
 	/**
+	 * Class of the paragraph that links to the entry's breakout post.
+	 */
+	const READ_MORE_CLASS = 'newspack-rolling-coverage-read-more';
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
 		add_action( 'init', [ __CLASS__, 'register_source' ] );
 		add_filter( 'render_block_core/button', [ __CLASS__, 'filter_button' ], 10, 3 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'filter_pinned_label' ], 10, 2 );
+		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_read_more' ], 10, 2 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'filter_pinned_group' ], 10, 2 );
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'link_title_to_breakout' ], 10, 3 );
 	}
@@ -297,6 +303,63 @@ class Entry_Bindings {
 		}
 
 		return self::is_current_entry_pinned() ? $block_content : '';
+	}
+
+	/**
+	 * Link a "Read more" paragraph to the entry's published breakout post, or
+	 * render nothing when there is none.
+	 *
+	 * Parameters stay untyped because this runs for every paragraph on the
+	 * site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string $block_content Rendered block.
+	 * @param array  $block         Parsed block.
+	 * @return string
+	 */
+	public static function link_read_more( $block_content, $block ) {
+		if ( ! Rolling_Coverage_Block::is_rendering_entry() || ! is_array( $block ) || ! is_string( $block_content ) || ! self::is_read_more_paragraph( $block ) ) {
+			return $block_content;
+		}
+
+		$url = Breakout::get_published_breakout_url( (int) get_the_ID() );
+
+		if ( ! $url ) {
+			return '';
+		}
+
+		$processor = new WP_HTML_Tag_Processor( $block_content );
+
+		if ( ! $processor->next_tag( 'p' ) ) {
+			return $block_content;
+		}
+
+		$open_end = strpos( $block_content, '>' );
+		$close    = strrpos( $block_content, '</p>' );
+
+		if ( false === $open_end || false === $close || $close <= $open_end ) {
+			return $block_content;
+		}
+
+		return substr( $block_content, 0, $open_end + 1 )
+			. '<a href="' . esc_url( $url ) . '">'
+			. substr( $block_content, $open_end + 1, $close - $open_end - 1 )
+			. '</a>'
+			. substr( $block_content, $close );
+	}
+
+	/**
+	 * Whether a parsed block is the paragraph linking to the entry's breakout
+	 * post.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_read_more_paragraph( array $parsed_block ): bool {
+		$class_name = $parsed_block['attrs']['className'] ?? '';
+
+		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
+			is_string( $class_name ) &&
+			in_array( self::READ_MORE_CLASS, explode( ' ', $class_name ), true );
 	}
 
 	/**

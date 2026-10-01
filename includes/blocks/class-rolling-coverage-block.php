@@ -2225,7 +2225,8 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Whether a parsed block links to the entry's breakout post: a button
-	 * whose link is bound to it, or the Breakout Post Link block.
+	 * whose link is bound to it, the Breakout Post Link block, or the "Read more"
+	 * paragraph.
 	 *
 	 * @param array $block Parsed block.
 	 * @return bool
@@ -2233,7 +2234,7 @@ class Rolling_Coverage_Block {
 	private static function is_breakout_link( array $block ): bool {
 		$binding = $block['attrs']['metadata']['bindings']['url'] ?? [];
 
-		return 'newspack-rolling-coverage/breakout-post-link' === ( $block['blockName'] ?? '' ) || (
+		return 'newspack-rolling-coverage/breakout-post-link' === ( $block['blockName'] ?? '' ) || Entry_Bindings::is_read_more_paragraph( $block ) || (
 			'core/button' === ( $block['blockName'] ?? '' ) &&
 			is_array( $binding ) &&
 			Entry_Bindings::SOURCE_NAME === ( $binding['source'] ?? '' ) &&
