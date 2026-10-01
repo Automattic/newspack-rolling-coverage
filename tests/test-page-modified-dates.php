@@ -61,27 +61,76 @@ class Test_Page_Modified_Dates extends Rolling_Coverage_TestCase {
 	 * when readers first saw it.
 	 */
 	public function test_a_scheduled_entry_going_live_dates_the_page_to_its_publish_time() {
+		global $wpdb;
+
 		$coverage_id = self::create_coverage();
 		$page_id     = $this->create_page( $coverage_id, '2026-09-01 10:00:00' );
-		$entry_id    = $this->create_dated_entry( $coverage_id, '2026-09-01 11:00:00', 'draft' );
-		$publish_at  = gmdate( 'Y-m-d H:i:s', time() + 10 * MINUTE_IN_SECONDS );
+		$entry_id    = $this->create_dated_entry( $coverage_id, gmdate( 'Y-m-d H:i:s', time() + HOUR_IN_SECONDS ), 'future' );
+
+		$this->assertSame( 'future', get_post_status( $entry_id ) );
+		$this->assertSame( '2026-09-01 10:00:00', get_post( $page_id )->post_modified_gmt, 'Scheduling is not a change readers see.' );
+
+		// The scheduled time has come: last edited at 09:00, set to go live at 10:00.
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->posts,
+			[
+				'post_modified'     => '2026-09-02 09:00:00',
+				'post_modified_gmt' => '2026-09-02 09:00:00',
+				'post_date'         => '2026-09-02 10:00:00',
+				'post_date_gmt'     => '2026-09-02 10:00:00',
+			],
+			[ 'ID' => $entry_id ]
+		);
+		clean_post_cache( $entry_id );
+
+		wp_publish_post( $entry_id );
+
+		$this->assertSame( '2026-09-02 10:00:00', get_post( $page_id )->post_modified_gmt );
+	}
+
+	/**
+	 * Moving a live entry's date ahead still dates the page, but never ahead
+	 * of now: the page's date reaches the site's feeds, and a feed reader that
+	 * saw a future one would be told nothing changed until that time passed.
+	 *
+	 * @dataProvider data_seconds_a_live_entry_is_moved_ahead
+	 *
+	 * @param int    $seconds_ahead   How far ahead of now the entry is re-dated.
+	 * @param string $expected_status The status core leaves the entry in.
+	 */
+	public function test_moving_a_live_entry_ahead_never_dates_the_page_into_the_future( int $seconds_ahead, string $expected_status ) {
+		$coverage_id = self::create_coverage();
+		$page_id     = $this->create_page( $coverage_id, '2026-09-01 10:00:00' );
+		$entry_id    = $this->create_dated_entry( $coverage_id, '2026-09-10 10:00:00' );
+		$new_date    = gmdate( 'Y-m-d H:i:s', time() + $seconds_ahead );
 
 		wp_update_post(
 			[
 				'ID'            => $entry_id,
-				'post_status'   => 'future',
-				'post_date'     => get_date_from_gmt( $publish_at ),
-				'post_date_gmt' => $publish_at,
+				'post_date'     => get_date_from_gmt( $new_date ),
+				'post_date_gmt' => $new_date,
 			]
 		);
 
-		$this->assertSame( 'future', get_post_status( $entry_id ) );
-		$this->assertGreaterThan( get_post( $entry_id )->post_modified_gmt, $publish_at, 'Scheduling stamps the edit time, before the publish time.' );
-		$this->assertSame( '2026-09-01 10:00:00', get_post( $page_id )->post_modified_gmt, 'Scheduling is not a change readers see.' );
+		$this->assertSame( $expected_status, get_post_status( $entry_id ) );
 
-		wp_publish_post( $entry_id );
+		$page_date = get_post( $page_id )->post_modified_gmt;
 
-		$this->assertSame( $publish_at, get_post( $page_id )->post_modified_gmt );
+		$this->assertGreaterThan( '2026-09-10 10:00:00', $page_date, 'The edit should still date the page.' );
+		$this->assertLessThanOrEqual( gmdate( 'Y-m-d H:i:s' ), $page_date );
+	}
+
+	/**
+	 * Core turns a published post dated a minute or more ahead into a
+	 * scheduled one, and leaves it published below that.
+	 *
+	 * @return array[]
+	 */
+	public function data_seconds_a_live_entry_is_moved_ahead(): array {
+		return [
+			'far enough to become scheduled' => [ 10 * MINUTE_IN_SECONDS, 'future' ],
+			'close enough to stay published' => [ 30, 'publish' ],
+		];
 	}
 
 	/**

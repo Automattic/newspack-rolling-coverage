@@ -683,7 +683,8 @@ class Taxonomy {
 	/**
 	 * Moves the modified date of every page showing the entry's coverages up to
 	 * the entry's, so the byline, the SEO plugin's dates and the sitemap all
-	 * report the page as changed. A page is never moved back in time.
+	 * report the page as changed. A page is never moved back in time, nor
+	 * ahead of now.
 	 *
 	 * @param \WP_Post $entry Entry post object.
 	 */
@@ -697,6 +698,17 @@ class Taxonomy {
 		if ( $entry->post_date_gmt > $modified_gmt ) {
 			$modified     = $entry->post_date;
 			$modified_gmt = $entry->post_date_gmt;
+		}
+
+		// A publish date can also be ahead of now, when a live entry is moved
+		// to a later time. The page's modified date reaches the site's feeds as
+		// their Last-Modified, and a feed reader that saw a future one would be
+		// told nothing changed until that time passed.
+		$now_gmt = gmdate( 'Y-m-d H:i:s' );
+
+		if ( $modified_gmt > $now_gmt ) {
+			$modified     = get_date_from_gmt( $now_gmt );
+			$modified_gmt = $now_gmt;
 		}
 
 		if ( '' === $modified_gmt || '0000-00-00 00:00:00' === $modified_gmt ) {
