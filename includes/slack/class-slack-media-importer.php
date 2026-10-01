@@ -100,6 +100,12 @@ class Slack_Media_Importer {
 				continue;
 			}
 
+			// In a Slack Connect channel a file arrives without its type or URL, which only a `files.info` call returns.
+			if ( 'check_file_info' === ( $file['file_access'] ?? '' ) ) {
+				$this->log_failure( $file, new \WP_Error( 'slack_file_details_withheld', __( 'Slack sent the file without its details, as it does in Slack Connect channels. These files are not imported.', 'newspack-rolling-coverage' ) ) );
+				continue;
+			}
+
 			if ( ! in_array( $file['mimetype'] ?? '', self::MIME_TYPES, true ) ) {
 				Slack_Monitor::log( 'info', 'Ingestion: upload left out (not an image the site can show)', [ 'file' => (string) ( $file['name'] ?? '' ) ] );
 				continue;
@@ -108,16 +114,7 @@ class Slack_Media_Importer {
 			$attachment_id = $this->sideload( $file );
 
 			if ( is_wp_error( $attachment_id ) ) {
-				error_log( 'Slack ingestion: image not imported — ' . $attachment_id->get_error_code() . ': ' . $attachment_id->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				Slack_Monitor::log(
-					'warning',
-					'Ingestion: image not imported',
-					[
-						'file'    => (string) ( $file['name'] ?? '' ),
-						'error'   => $attachment_id->get_error_code(),
-						'message' => $attachment_id->get_error_message(),
-					]
-				);
+				$this->log_failure( $file, $attachment_id );
 				continue;
 			}
 
@@ -166,12 +163,33 @@ class Slack_Media_Importer {
 	}
 
 	/**
+	 * Record why an image was left out, where the newsroom and the host can
+	 * each find it.
+	 *
+	 * @param array     $file  Slack file object.
+	 * @param \WP_Error $error Reason the image was not imported.
+	 * @return void
+	 */
+	private function log_failure( array $file, \WP_Error $error ): void {
+		error_log( 'Slack ingestion: image not imported — ' . $error->get_error_code() . ': ' . $error->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		Slack_Monitor::log(
+			'warning',
+			'Ingestion: image not imported',
+			[
+				'file'    => (string) ( $file['name'] ?? $file['id'] ?? '' ),
+				'error'   => $error->get_error_code(),
+				'message' => $error->get_error_message(),
+			]
+		);
+	}
+
+	/**
 	 * Download an image and add it to the media library.
 	 *
 	 * @param array $file Slack file object.
 	 * @return int|\WP_Error Attachment ID, or \WP_Error.
 	 */
-	private function sideload( array $file ) {
+	private function sideload( array $file ): int|\WP_Error {
 		$url       = (string) ( $file['url_private'] ?? '' );
 		$remaining = $this->deadline - microtime( true );
 
