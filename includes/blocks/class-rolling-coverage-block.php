@@ -3091,8 +3091,8 @@ class Rolling_Coverage_Block {
 	 * this one header sets both. Authenticated requests still get core's
 	 * no-cache headers, which replace it.
 	 *
-	 * The lifetime stays at half the interval pages poll at, so it grows with
-	 * the site's minimum poll interval and never drops below POLL_MAX_AGE.
+	 * The lifetime grows to half the site's minimum poll interval and never
+	 * drops below POLL_MAX_AGE.
 	 *
 	 * @param array $data Poll response body.
 	 * @return WP_REST_Response Response with a short Cache-Control header.
