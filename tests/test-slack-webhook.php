@@ -27,6 +27,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	const SIGNING_SECRET = '0123456789abcdef0123456789abcdef';
 	const BOT_TOKEN      = 'xoxb-000000-test';
 	const CHANNEL_ID     = 'C0TESTCHAN';
+	const MESSAGE_TS     = '1767225600.000100';
 
 	/**
 	 * URLs of the outbound requests the code under test attempted.
@@ -43,12 +44,38 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	private $failing_users = [];
 
 	/**
-	 * Answer every outbound HTTP request with a Slack `users.info` payload.
+	 * The messages the channel's history holds, keyed by timestamp: the text,
+	 * or the message's fields when it needs more than text.
+	 *
+	 * @var array<string, string|array>
+	 */
+	private $channel_messages = [];
+
+	/**
+	 * How reading the channel's history fails: '' when it works, 'timeout'
+	 * when Slack does not answer, or the error code Slack answers with.
+	 *
+	 * @var string
+	 */
+	private $history_failure = '';
+
+	/**
+	 * Seconds Slack takes to answer when the channel's history is read.
+	 *
+	 * @var float
+	 */
+	private $history_response_seconds = 0.0;
+
+	/**
+	 * Answer every outbound HTTP request as the Slack API would.
 	 */
 	public function set_up() {
 		parent::set_up();
-		$this->outbound_requests = [];
-		$this->failing_users     = [];
+		$this->outbound_requests        = [];
+		$this->failing_users            = [];
+		$this->channel_messages         = [];
+		$this->history_failure          = '';
+		$this->history_response_seconds = 0.0;
 		add_filter( 'pre_http_request', [ $this, 'mock_slack_api' ], 10, 3 );
 	}
 
@@ -62,36 +89,75 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Stand in for the Slack API.
+	 * Stand in for the Slack API: `conversations.history` answers from the
+	 * channel's messages, and every other method with a `users.info` payload.
 	 *
 	 * @param false|array $response    Short-circuit value.
 	 * @param array       $parsed_args Request arguments.
 	 * @param string      $url         Request URL.
-	 * @return array Mocked response.
+	 * @return array|WP_Error Mocked response.
 	 */
 	public function mock_slack_api( $response, $parsed_args, $url ) {
 		$this->outbound_requests[] = $url;
 
 		parse_str( (string) wp_parse_url( $url, PHP_URL_QUERY ), $query );
 
+		if ( false !== strpos( $url, 'conversations.history' ) ) {
+			if ( 'timeout' === $this->history_failure ) {
+				return new WP_Error( 'http_request_failed', 'Operation timed out' );
+			}
+
+			if ( '' !== $this->history_failure ) {
+				return self::slack_api_response(
+					[
+						'ok'    => false,
+						'error' => $this->history_failure,
+					]
+				);
+			}
+
+			usleep( (int) ( $this->history_response_seconds * 1000000 ) );
+
+			// Like Slack, answer with the newest message up to `latest`.
+			$timestamps = array_filter( array_keys( $this->channel_messages ), fn( $ts ) => (float) $ts <= (float) ( $query['latest'] ?? 0 ) );
+			$messages   = [];
+
+			if ( ! empty( $timestamps ) ) {
+				$newest_ts  = (string) max( $timestamps );
+				$message    = $this->channel_messages[ $newest_ts ];
+				$messages[] = [ 'ts' => $newest_ts ] + ( is_array( $message ) ? $message : [ 'text' => $message ] );
+			}
+
+			return self::slack_api_response( [ 'messages' => $messages ] );
+		}
+
 		if ( in_array( $query['user'] ?? '', $this->failing_users, true ) ) {
 			return new WP_Error( 'http_request_failed', 'Operation timed out' );
 		}
 
+		return self::slack_api_response(
+			[
+				'user' => [
+					'name'    => 'rsample',
+					'profile' => [ 'display_name' => 'Riley Sample' ],
+				],
+			]
+		);
+	}
+
+	/**
+	 * Build a Slack API response, successful unless the payload says otherwise.
+	 *
+	 * @param array $payload Method-specific fields.
+	 * @return array HTTP response.
+	 */
+	private static function slack_api_response( array $payload ) {
 		return [
 			'response' => [
 				'code'    => 200,
 				'message' => 'OK',
 			],
-			'body'     => wp_json_encode(
-				[
-					'ok'   => true,
-					'user' => [
-						'name'    => 'rsample',
-						'profile' => [ 'display_name' => 'Riley Sample' ],
-					],
-				]
-			),
+			'body'     => wp_json_encode( $payload + [ 'ok' => true ] ),
 		];
 	}
 
@@ -148,12 +214,31 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 						'type'    => 'message',
 						'channel' => self::CHANNEL_ID,
 						'user'    => 'U0REPORTER',
-						'ts'      => '1767225600.000100',
+						'ts'      => self::MESSAGE_TS,
 						'text'    => 'Polls have closed across the county.',
 					],
 					$event_overrides
 				),
 			]
+		);
+	}
+
+	/**
+	 * Build the body of a reply in the thread of the default message.
+	 *
+	 * @param array $event_overrides Event fields to override.
+	 * @return string JSON body.
+	 */
+	private static function thread_reply_event_body( array $event_overrides = [] ) {
+		return self::message_event_body(
+			array_merge(
+				[
+					'ts'        => '1767225700.000200',
+					'thread_ts' => self::MESSAGE_TS,
+					'text'      => 'Is that confirmed by the clerk?',
+				],
+				$event_overrides
+			)
 		);
 	}
 
@@ -571,6 +656,171 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		self::controller()->handle_event( self::webhook_request( self::message_event_body() ) );
 
 		$this->assertCount( 1, self::get_coverage_entries( $coverage_id ) );
+	}
+
+	/**
+	 * A message with the skip prefix opts its whole thread out. The replies
+	 * under it are the newsroom's discussion, so none becomes an entry, even
+	 * in a channel that publishes its messages straight away.
+	 */
+	public function test_reply_in_the_thread_of_a_skipped_message_creates_no_entry() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel(
+			self::CHANNEL_ID,
+			[
+				'term_id'     => $coverage_id,
+				'autopublish' => true,
+			]
+		);
+		$this->channel_messages = [ self::MESSAGE_TS => '~~ not for publication' ];
+
+		$response = self::controller()->handle_event( self::webhook_request( self::thread_reply_event_body() ) );
+
+		$this->assertSame( 200, $response->get_status(), 'Slack should still get a 200.' );
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ), 'No entry should be created.' );
+	}
+
+	/**
+	 * A Slack reply's entry is a child of the entry for the message it was
+	 * posted under.
+	 */
+	public function test_reply_entry_is_a_child_of_the_entry_for_its_thread() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$this->channel_messages = [ self::MESSAGE_TS => 'Polls have closed across the county.' ];
+
+		self::controller()->handle_event( self::webhook_request( self::message_event_body() ) );
+		$message_entry_id = self::get_coverage_entries( $coverage_id )[0]->ID;
+		self::controller()->handle_event( self::webhook_request( self::thread_reply_event_body() ) );
+		$parents_by_entry = wp_list_pluck( self::get_coverage_entries( $coverage_id ), 'post_parent', 'ID' );
+
+		$this->assertCount( 2, $parents_by_entry, 'The message and its reply should each have an entry.' );
+		unset( $parents_by_entry[ $message_entry_id ] );
+		$this->assertSame( [ $message_entry_id ], array_values( $parents_by_entry ), 'The reply should be a child of the message entry.' );
+	}
+
+	/**
+	 * Reading a reply's thread counts toward the time the webhook may spend on
+	 * Slack lookups, so after a slow read the mentions are not looked up and
+	 * Slack still gets its answer in time.
+	 */
+	public function test_mentions_are_not_looked_up_after_a_slow_thread_lookup() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$this->channel_messages         = [ self::MESSAGE_TS => 'Polls have closed across the county.' ];
+		$this->history_response_seconds = Slack_Webhook_Controller::MENTION_LOOKUP_BUDGET + 0.05;
+
+		$body = self::thread_reply_event_body(
+			[
+				'text'   => 'Thanks <@U0COLLEAGUE>',
+				'blocks' => [
+					[
+						'type'     => 'rich_text',
+						'elements' => [
+							[
+								'type'     => 'rich_text_section',
+								'elements' => [
+									[
+										'type' => 'text',
+										'text' => 'Thanks ',
+									],
+									[
+										'type'    => 'user',
+										'user_id' => 'U0COLLEAGUE',
+									],
+								],
+							],
+						],
+					],
+				],
+			]
+		);
+
+		self::controller()->handle_event( self::webhook_request( $body ) );
+		$entries = self::get_coverage_entries( $coverage_id );
+
+		$this->assertCount( 1, $entries );
+		$this->assertStringContainsString( '<p>Thanks @U0COLLEAGUE</p>', $entries[0]->post_content, 'The mention should show its Slack ID.' );
+		$this->assertCount( 1, array_filter( $this->outbound_requests, fn( $url ) => false !== strpos( $url, 'users.info' ) ), 'Only the author should be looked up.' );
+	}
+
+	/**
+	 * Failures of the thread read that a later attempt can get past.
+	 *
+	 * @return array[]
+	 */
+	public function passing_history_failure_provider() {
+		return [
+			'Slack does not answer in time' => [ 'timeout' ],
+			'Slack is rate limiting'        => [ 'ratelimited' ],
+		];
+	}
+
+	/**
+	 * When the thread of a reply cannot be read for a passing reason, the
+	 * reply is neither ingested nor given up on: the webhook answers with an
+	 * error, which is what makes Slack deliver the event again.
+	 *
+	 * @dataProvider passing_history_failure_provider
+	 *
+	 * @param string $history_failure How reading the channel's history fails.
+	 */
+	public function test_reply_is_left_for_slack_to_resend_when_its_thread_read_fails( $history_failure ) {
+		$this->silence_error_log();
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$this->history_failure = $history_failure;
+
+		$response = self::controller()->handle_event( self::webhook_request( self::thread_reply_event_body() ) );
+
+		$this->assertSame( 503, $response->get_status(), 'Slack should be told the delivery failed.' );
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ), 'No entry should be created.' );
+	}
+
+	/**
+	 * What the channel's history holds once the first message of a thread has
+	 * been deleted.
+	 *
+	 * @return array[]
+	 */
+	public function deleted_thread_message_provider() {
+		return [
+			'only earlier messages are left'    => [ [ '1767225500.000050' => 'An earlier message.' ] ],
+			'a placeholder stands in its place' => [
+				[
+					self::MESSAGE_TS => [
+						'subtype' => 'tombstone',
+						'text'    => 'This message was deleted.',
+					],
+				],
+			],
+		];
+	}
+
+	/**
+	 * A reply whose thread lost its first message might belong to a skipped
+	 * message, and no later attempt can tell. It is left out for good rather
+	 * than risk publishing it.
+	 *
+	 * @dataProvider deleted_thread_message_provider
+	 *
+	 * @param array $channel_messages Messages the channel's history holds, keyed by timestamp.
+	 */
+	public function test_reply_creates_no_entry_when_the_first_message_of_its_thread_is_gone( array $channel_messages ) {
+		$this->silence_error_log();
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$this->channel_messages = $channel_messages;
+
+		$response = self::controller()->handle_event( self::webhook_request( self::thread_reply_event_body() ) );
+
+		$this->assertSame( 200, $response->get_status(), 'Slack should not be asked to resend the reply.' );
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ), 'No entry should be created.' );
 	}
 
 	/**

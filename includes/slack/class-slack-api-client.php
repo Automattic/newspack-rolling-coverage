@@ -26,6 +26,12 @@ class Slack_API_Client {
 	const TRANSIENT_USER_CACHE = 'rolling_coverage_slack_user_';
 
 	/**
+	 * Slack error codes for failures on Slack's side that a later attempt can
+	 * get past.
+	 */
+	const TEMPORARY_API_ERRORS = [ 'ratelimited', 'request_timeout', 'service_unavailable', 'internal_error', 'fatal_error' ];
+
+	/**
 	 * Post a message to a Slack channel.
 	 *
 	 * @param string     $channel_id Slack channel ID.
@@ -88,6 +94,63 @@ class Slack_API_Client {
 		$cached = get_transient( self::TRANSIENT_USER_CACHE . $user_id );
 
 		return is_array( $cached ) ? $cached : null;
+	}
+
+	/**
+	 * Get one channel message from Slack by its timestamp.
+	 *
+	 * @param string $channel_id Slack channel ID.
+	 * @param string $ts         Message timestamp.
+	 * @param int    $timeout    Optional request timeout in seconds. Defaults to self::TIMEOUT.
+	 * @return array|\WP_Error Message array, or \WP_Error when it cannot be read or no longer exists.
+	 */
+	public function get_message( string $channel_id, string $ts, int $timeout = self::TIMEOUT ): array|\WP_Error {
+		$result = $this->request(
+			'conversations.history',
+			[
+				'channel'   => $channel_id,
+				'latest'    => $ts,
+				'inclusive' => 'true',
+				'limit'     => 1,
+			],
+			'GET',
+			$timeout
+		);
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$message = $result['messages'][0] ?? null;
+
+		// Slack answers with the newest message up to the timestamp. Once the
+		// message asked for has been deleted, that is an earlier message, or
+		// a placeholder in its place when it still has replies.
+		if (
+			! is_array( $message )
+			|| (string) ( $message['ts'] ?? '' ) !== $ts
+			|| 'tombstone' === ( $message['subtype'] ?? '' )
+		) {
+			return new \WP_Error( 'slack_api_error', 'message_not_found' );
+		}
+
+		return $message;
+	}
+
+	/**
+	 * Whether a failed call may succeed when tried again: Slack gave no
+	 * usable answer, or answered that it is rate limiting or failing.
+	 *
+	 * @param \WP_Error $error Error returned by one of this client's calls.
+	 * @return bool True if a later attempt can get past the failure.
+	 */
+	public static function is_temporary_error( \WP_Error $error ): bool {
+		if ( 'slack_transport_error' === $error->get_error_code() ) {
+			return true;
+		}
+
+		return 'slack_api_error' === $error->get_error_code()
+			&& in_array( $error->get_error_message(), self::TEMPORARY_API_ERRORS, true );
 	}
 
 	/**

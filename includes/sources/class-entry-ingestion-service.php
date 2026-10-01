@@ -75,7 +75,7 @@ class Entry_Ingestion_Service {
 		}
 
 		try {
-			if ( self::entry_exists( $payload->source_ref, $term_id ) ) {
+			if ( self::find_entry_id( $payload->source_ref, $term_id ) > 0 ) {
 				return 0;
 			}
 
@@ -98,6 +98,13 @@ class Entry_Ingestion_Service {
 				'post_author'  => $bot_user_id,
 				'post_status'  => $auto_publish ? 'publish' : 'draft',
 			];
+
+			// A reply is a child of the entry for the message its thread starts
+			// from, so the two can be shown together. When that message has no
+			// entry in this coverage, the reply is a top-level entry.
+			if ( null !== $payload->thread_ref && '' !== $payload->thread_ref ) {
+				$postarr['post_parent'] = self::find_entry_id( $payload->thread_ref, $term_id );
+			}
 
 			try {
 				$post_id = wp_insert_post( $postarr, true );
@@ -144,13 +151,13 @@ class Entry_Ingestion_Service {
 	}
 
 	/**
-	 * Check whether an entry already exists for the given source_ref + term.
+	 * Find the entry for the given source_ref + term.
 	 *
 	 * @param string $source_ref Platform-native message id.
 	 * @param int    $term_id    Term id.
-	 * @return bool
+	 * @return int Entry post id, or 0 when there is none.
 	 */
-	private static function entry_exists( string $source_ref, int $term_id ): bool {
+	private static function find_entry_id( string $source_ref, int $term_id ): int {
 		$posts = get_posts(
 			[
 				'post_type'      => Post_Type::CPT_SLUG,
@@ -173,6 +180,6 @@ class Entry_Ingestion_Service {
 			]
 		);
 
-		return ! empty( $posts );
+		return (int) ( $posts[0] ?? 0 );
 	}
 }
