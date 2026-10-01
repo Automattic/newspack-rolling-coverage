@@ -10,7 +10,7 @@ import { Button } from '@wordpress/components';
  */
 import StatusIndicator from 'newspack-components/dist/esm/status-indicator';
 import {
-	safeFormatUTCDate,
+	toISODate,
 	getSlackChannelLabel,
 	COVERAGE_STATUS_INDICATORS,
 } from '../utils/fields';
@@ -53,6 +53,7 @@ function getCoverageFields(
 			id: 'name',
 			type: 'text',
 			label: __( 'Name', 'newspack-rolling-coverage' ),
+			enableHiding: false,
 			enableSorting: true,
 			enableGlobalSearch: true,
 			getValue: ( { item } ) => decodeEntities( item.name ),
@@ -143,8 +144,9 @@ function getCoverageFields(
 			type: 'datetime',
 			label: __( 'Created', 'newspack-rolling-coverage' ),
 			enableSorting: true,
-			getValue: ( { item } ) =>
-				safeFormatUTCDate( item.meta?.created_at ),
+			getValue: ( { item } ) => toISODate( item.meta?.created_at ),
+			render: ( { item, field } ) =>
+				field.getValueFormatted( { item, field } ) || '—',
 		},
 		{
 			id: 'last_modified',
@@ -152,9 +154,11 @@ function getCoverageFields(
 			label: __( 'Modified', 'newspack-rolling-coverage' ),
 			enableSorting: true,
 			getValue: ( { item } ) =>
-				safeFormatUTCDate(
+				toISODate(
 					item.meta?.[ lastModifiedKey ] as string | undefined
 				),
+			render: ( { item, field } ) =>
+				field.getValueFormatted( { item, field } ) || '—',
 		},
 	];
 }

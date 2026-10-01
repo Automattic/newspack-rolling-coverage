@@ -30,6 +30,8 @@ import {
 	summarizeTermNames,
 	getTagNames,
 	getBreakoutStatus,
+	getArchivedStatus,
+	ARCHIVED_ELEMENTS,
 	SOURCE_SLACK,
 	SOURCE_WORDPRESS,
 } from '../utils/fields';
@@ -283,6 +285,17 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 				);
 			},
 			elements: BREAKOUT_ELEMENTS,
+			filterBy: {
+				operators: [ 'is', 'isNot' ],
+			},
+		},
+		{
+			id: 'archived',
+			type: 'text',
+			label: __( 'Archived', 'newspack-rolling-coverage' ),
+			enableSorting: false,
+			getValue: ( { item } ) => getArchivedStatus( item ),
+			elements: ARCHIVED_ELEMENTS,
 			filterBy: {
 				operators: [ 'is', 'isNot' ],
 			},

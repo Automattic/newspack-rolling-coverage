@@ -37,12 +37,6 @@ class AI_Service {
 	// Feature ID used when registering key takeaways with the AI plugin.
 	const FEATURE_ID = 'rolling-coverage-key-takeaways';
 
-	// Transient key for caching is_available() result.
-	const AVAILABILITY_TRANSIENT = 'rolling_coverage_ai_available';
-
-	// Transient TTL for is_available() cache (5 minutes).
-	const AVAILABILITY_TTL = 300;
-
 	/**
 	 * Default generation options applied to every call.
 	 *
@@ -54,29 +48,13 @@ class AI_Service {
 	];
 
 	/**
-	 * Per-request memo for the provider capability probe.
-	 *
-	 * Null until computed. Reset by clear_availability_cache().
-	 *
-	 * @var bool|null
-	 */
-	private static $provider_available = null;
-
-	/**
 	 * Initialize hooks.
 	 *
 	 * Registers key takeaways as a feature with the AI plugin so its
-	 * per-feature Provider/Model picker applies here, and invalidates the
-	 * cached provider result whenever an AI plugin setting, connector
-	 * credential, or connector plugin activation changes.
+	 * per-feature Provider/Model picker applies here.
 	 */
 	public static function init() {
 		add_filter( 'wpai_default_feature_classes', [ __CLASS__, 'register_feature_class' ] );
-		add_action( 'updated_option', [ __CLASS__, 'maybe_clear_availability_cache' ] );
-		add_action( 'added_option', [ __CLASS__, 'maybe_clear_availability_cache' ] );
-		add_action( 'deleted_option', [ __CLASS__, 'maybe_clear_availability_cache' ] );
-		add_action( 'activated_plugin', [ __CLASS__, 'clear_availability_cache' ] );
-		add_action( 'deactivated_plugin', [ __CLASS__, 'clear_availability_cache' ] );
 	}
 
 	/**
@@ -119,40 +97,23 @@ class AI_Service {
 	}
 
 	/**
-	 * Clear the availability cache when a relevant option changes.
-	 *
-	 * Covers the AI plugin's own settings (`wpai_*`) and the connector
-	 * credential options managed by core (`connectors_ai_*`). A change to
-	 * either can flip provider availability, so the cached probe is dropped.
-	 *
-	 * @param string $option Option name that changed.
-	 */
-	public static function maybe_clear_availability_cache( $option ): void {
-		if ( ! is_string( $option ) ) {
-			return;
-		}
-
-		if ( 0 === strpos( $option, 'wpai_' ) || 0 === strpos( $option, 'connectors_ai_' ) ) {
-			self::clear_availability_cache();
-		}
-	}
-
-	/**
 	 * Whether AI key takeaways are available.
 	 *
-	 * Single source of truth. All three gates must pass:
+	 * Single source of truth. All gates must pass:
 	 *   1. The AI plugin is active, AI is supported, and its global AI toggle
 	 *      is on.
 	 *   2. Rolling Coverage is enabled (the per-feature toggle).
 	 *   3. The Rolling Coverage ability is registered.
-	 * Then, and only then, the configured provider is probed for text
-	 * generation.
+	 *   4. This plugin is approved for an AI connector, when the AI plugin's
+	 *      Connector Approval experiment is active.
+	 *   5. A connector has credentials configured.
 	 *
-	 * The first three gates are cheap (autoloaded option reads and a registry
-	 * lookup) and are evaluated live on every call, so toggling them takes
-	 * effect immediately. Only the provider probe is expensive (a live
-	 * `GET /models` per configured provider), so that — and only that — is
-	 * memoized per request and cached in a short-TTL transient.
+	 * Every check is request-free, so this is safe to call on any admin page
+	 * or block editor screen. It deliberately mirrors the AI plugin's own
+	 * request-free `has_ai_credentials()`: it confirms credentials are present
+	 * (env var, constant, or stored option) without probing the provider.
+	 * An invalid or unreachable provider surfaces when a generation is
+	 * actually attempted.
 	 *
 	 * @return bool
 	 */
@@ -161,11 +122,49 @@ class AI_Service {
 			return false;
 		}
 
-		if ( ! self::ability_registered() ) {
+		if ( ! self::ability_registered() || ! self::connector_approved() ) {
 			return false;
 		}
 
-		return self::provider_supports_text_generation();
+		return self::credentials_configured();
+	}
+
+	/**
+	 * Whether AI is unavailable only because this plugin isn't approved for a
+	 * connector.
+	 *
+	 * True when every other gate passes and the AI plugin's Connector Approval
+	 * experiment is active with no approval recorded. The admin UI uses this
+	 * to point at the Connector Approvals screen instead of asking the
+	 * administrator to set AI up again.
+	 *
+	 * @return bool
+	 */
+	public static function needs_connector_approval(): bool {
+		return self::environment_supports_ai()
+			&& self::feature_enabled()
+			&& self::ability_registered()
+			&& ! self::connector_approved();
+	}
+
+	/**
+	 * URL of the AI plugin's Connector Approvals screen, or the Tools menu
+	 * when the Connector Approval experiment isn't active.
+	 *
+	 * Points the admin's AI-unavailable notice at the screen where an
+	 * administrator approves this plugin for a connector.
+	 *
+	 * @return string Admin URL.
+	 */
+	public static function get_connector_approvals_url(): string {
+		if (
+			class_exists( '\WordPress\AI\Experiments\Connector_Approval\Admin_Page' )
+			&& method_exists( '\WordPress\AI\Experiments\Connector_Approval\Admin_Page', 'url' )
+		) {
+			return (string) \WordPress\AI\Experiments\Connector_Approval\Admin_Page::url();
+		}
+
+		return admin_url( 'tools.php' );
 	}
 
 	/**
@@ -217,45 +216,63 @@ class AI_Service {
 	}
 
 	/**
-	 * Whether a configured provider can generate text.
+	 * Whether this plugin is approved for the AI connector it will use.
 	 *
-	 * Memoized per request, then cached in a short-TTL transient. This is the
-	 * only expensive check (a live `GET /models` per configured provider).
+	 * The AI plugin's Connector Approval experiment gates outbound AI
+	 * requests behind per-plugin, per-connector administrator approval.
 	 *
 	 * @return bool
 	 */
-	private static function provider_supports_text_generation(): bool {
-		if ( null !== self::$provider_available ) {
-			return self::$provider_available;
+	private static function connector_approved(): bool {
+		if (
+			! class_exists( '\WordPress\AI\Experiments\Connector_Approval\Connector_Approval' )
+			|| ! class_exists( '\WordPress\AI\Connector_Approval\Approvals_Store' )
+		) {
+			return true;
 		}
 
-		$cached = get_transient( self::AVAILABILITY_TRANSIENT );
+		try {
+			$experiment = new \WordPress\AI\Experiments\Connector_Approval\Connector_Approval();
 
-		if ( false !== $cached ) {
-			self::$provider_available = ( '1' === $cached );
+			// Enforce approval only while the experiment is active.
+			if ( ! $experiment->is_enabled() ) {
+				return true;
+			}
 
-			return self::$provider_available;
+			$store    = new \WordPress\AI\Connector_Approval\Approvals_Store();
+			$basename = plugin_basename( NEWSPACK_ROLLING_COVERAGE_PLUGIN_FILE );
+			$provider = self::get_model_config()['provider'];
+
+			if ( '' !== $provider ) {
+				return $store->is_approved( $basename, $provider );
+			}
+
+			$approved = $store->get_approvals()[ $basename ] ?? [];
+
+			return is_array( $approved ) && [] !== array_filter( $approved );
+		} catch ( \Throwable $e ) {
+			// Never let a change in the AI plugin's internals break our availability check.
+			return true;
 		}
-
-		$available = true === wp_ai_client_prompt()->is_supported_for_text_generation();
-
-		set_transient(
-			self::AVAILABILITY_TRANSIENT,
-			$available ? '1' : '0',
-			self::AVAILABILITY_TTL
-		);
-
-		self::$provider_available = $available;
-
-		return $available;
 	}
 
 	/**
-	 * Clear the memoized and transient provider result.
+	 * Whether a connector has credentials configured.
+	 *
+	 * Request-free: delegates to the AI plugin's `has_ai_credentials()`, which
+	 * checks for an API key in an environment variable, a PHP constant, or a
+	 * stored option. This follows the AI plugin's own approach after it stopped
+	 * probing providers on every admin page load. Falls back to a permissive
+	 * `true` when the helper is unavailable so generation isn't blocked.
+	 *
+	 * @return bool
 	 */
-	public static function clear_availability_cache(): void {
-		self::$provider_available = null;
-		delete_transient( self::AVAILABILITY_TRANSIENT );
+	private static function credentials_configured(): bool {
+		if ( ! function_exists( 'WordPress\AI\has_ai_credentials' ) ) {
+			return true;
+		}
+
+		return \WordPress\AI\has_ai_credentials();
 	}
 
 	/**

@@ -7,10 +7,19 @@ import apiFetch from '@wordpress/api-fetch';
  * Internal dependencies
  */
 import { handleApiError } from './api-error';
-import type { AiSettings, ApiResult } from '../types';
+import type { AiSettings, AiSettingsResult } from '../types';
 
-interface AiSettingsResult extends ApiResult {
-	data?: AiSettings;
+/**
+ * Whether two sets of AI settings hold the same prompts.
+ *
+ * @param a First settings.
+ * @param b Second settings.
+ * @return True when every prompt matches.
+ */
+function isSameSettings( a: AiSettings, b: AiSettings ): boolean {
+	return ( Object.keys( a ) as Array< keyof AiSettings > ).every(
+		( key ) => a[ key ] === b[ key ]
+	);
 }
 
 /**
@@ -54,4 +63,4 @@ async function saveAiSettings(
 	}
 }
 
-export { fetchAiSettings, saveAiSettings };
+export { fetchAiSettings, saveAiSettings, isSameSettings };

@@ -39,12 +39,22 @@
 	}
 }
 
+// Make the inserter popover wider so blocks are visible properly.
+.block-editor-inserter__quick-inserter {
+	width: 480px;
+	max-width: 480px;
+}
+
+.toplevel_page_rolling-coverage .block-editor-inserter__quick-inserter-expand {
+	display: none;
+}
+
 .toplevel_page_rolling-coverage .components-popover__fallback-container {
 	position: relative;
+}
 
-	.block-editor-inserter__quick-inserter-expand {
-		display: none;
-	}
+body.toplevel_page_rolling-coverage.modal-open .components-popover__fallback-container {
+	position: relative;
 }
 
 body.toplevel_page_rolling-coverage.modal-open .components-popover__content {
