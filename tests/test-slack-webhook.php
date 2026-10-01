@@ -1095,8 +1095,8 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A sign-in page in place of the image is reported as such, since it is
-	 * what Slack serves an app that lacks the `files:read` scope.
+	 * A page in place of the image, as an app without the `files:read` scope
+	 * could get, is reported as a file Slack did not serve.
 	 */
 	public function test_sign_in_page_is_reported_as_an_unreadable_file() {
 		self::configure_slack();
