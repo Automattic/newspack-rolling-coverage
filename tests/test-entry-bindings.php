@@ -624,12 +624,17 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	public function test_archived_notice_breakout_link_follows_a_new_breakout() {
 		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
 		$first       = self::add_breakout( self::create_entry( $coverage_id ), 'publish', [ 'post_date' => '2026-02-01 10:00:00' ] );
+		$draft       = self::add_breakout( self::create_entry( $coverage_id ), 'draft', [ 'post_date' => '2026-02-02 10:00:00' ] );
 		$attributes  = [ 'coverageId' => $coverage_id ];
 
-		$this->assertStringContainsString( 'href="' . esc_url( get_permalink( $first ) ) . '"', self::render_feed_block( $attributes ), 'The first breakout should be linked.' );
+		$this->assertStringContainsString( 'href="' . esc_url( get_permalink( $first ) ) . '"', self::render_feed_block( $attributes ), 'The published breakout should be linked.' );
 
-		$draft = self::add_breakout( self::create_entry( $coverage_id ), 'draft', [ 'post_date' => '2026-02-02 10:00:00' ] );
-		wp_publish_post( $draft );
+		wp_update_post(
+			[
+				'ID'          => $draft,
+				'post_status' => 'publish',
+			]
+		);
 
 		$this->assertStringContainsString( 'href="' . esc_url( get_permalink( $draft ) ) . '"', self::render_feed_block( $attributes ), 'A breakout published later should replace the cached link.' );
 	}
