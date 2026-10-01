@@ -129,6 +129,14 @@ class Entry_Ingestion_Service {
 				add_post_meta( $post_id, $meta_key, $meta_value );
 			}
 
+			/**
+			 * Fires once an entry from a chat source is saved with its
+			 * coverage and meta.
+			 *
+			 * @param int $post_id Entry post id.
+			 */
+			do_action( 'newspack_rolling_coverage_entry_ingested', $post_id );
+
 			return $post_id;
 		} finally {
 			delete_option( $lock_key );
