@@ -221,18 +221,12 @@ class Layout {
 			);
 		}
 
-		$title = 'compact' === $slug
-			/* translators: %s: Rolling Coverage, the product name. */
-			? sprintf( __( '%s: Compact', 'newspack-rolling-coverage' ), 'Rolling Coverage' )
-			/* translators: %s: Rolling Coverage, the product name. */
-			: sprintf( __( '%s layout', 'newspack-rolling-coverage' ), 'Rolling Coverage' );
-
 		$layout_id = wp_insert_post(
 			wp_slash(
 				[
 					'post_type'    => 'wp_block',
 					'post_status'  => 'publish',
-					'post_title'   => $title,
+					'post_title'   => self::get_title( $slug ),
 					'post_content' => $content,
 				]
 			),
@@ -247,6 +241,21 @@ class Layout {
 		update_option( self::option_name( $slug ), $layout_id, false );
 
 		return new WP_REST_Response( [ 'id' => $layout_id ], 201 );
+	}
+
+	/**
+	 * The title a built-in layout's pattern is created with.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return string
+	 */
+	private static function get_title( string $slug ): string {
+		return match ( $slug ) {
+			/* translators: %s: Rolling Coverage, the product name. */
+			'compact' => sprintf( __( '%s: Compact', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
+			/* translators: %s: Rolling Coverage, the product name. */
+			default   => sprintf( __( '%s: Default', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
+		};
 	}
 
 	/**

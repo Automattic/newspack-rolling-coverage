@@ -283,6 +283,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'wp_block', get_post_type( $id ) );
 		$this->assertSame( [ Layout::PATTERN_CATEGORY ], wp_get_object_terms( $id, 'wp_pattern_category', [ 'fields' => 'slugs' ] ) );
 		$this->assertSame( $id, Layout::get_layout_id( 'default' ) );
+		$this->assertSame( 'Rolling Coverage: Default', get_the_title( $id ) );
 	}
 
 	/**
@@ -424,13 +425,14 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function test_create_returns_the_existing_compact_layout() {
 		self::log_in_as( 'editor' );
-		$id = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id           = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$count_before = (int) wp_count_posts( 'wp_block' )->publish;
 
 		$second = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup( 'Other' ) ] );
 
 		$this->assertSame( 200, $second->get_status() );
 		$this->assertSame( $id, $second->get_data()['id'] );
-		$this->assertSame( 1, (int) wp_count_posts( 'wp_block' )->publish );
+		$this->assertSame( $count_before, (int) wp_count_posts( 'wp_block' )->publish );
 	}
 
 	/**
@@ -463,7 +465,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$this->assertSame( 201, $default->get_status() );
 		$this->assertNotSame( $compact, $default->get_data()['id'] );
 		$this->assertSame( $compact, (int) get_option( 'rolling_coverage_compact_layout_id' ) );
-		$this->assertSame( 'Rolling Coverage layout', get_the_title( $default->get_data()['id'] ) );
+		$this->assertSame( 'Rolling Coverage: Default', get_the_title( $default->get_data()['id'] ) );
 	}
 
 	/**
