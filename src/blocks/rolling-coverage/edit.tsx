@@ -2,6 +2,13 @@
  * WordPress dependencies
  */
 import {
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalGetBorderClassesAndStyles as getBorderClassesAndStyles,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalGetColorClassesAndStyles as getColorClassesAndStyles,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalGetSpacingClassesAndStyles as getSpacingClassesAndStyles,
+	getTypographyClassesAndStyles,
 	useBlockProps,
 	useInnerBlocksProps,
 	InspectorControls,
@@ -166,6 +173,38 @@ function feedGapStyle( feed?: {
 	const gap = blockGapCss( attributes?.style?.spacing?.blockGap );
 
 	return gap ? { '--newspack-rolling-coverage-gap': gap } : {};
+}
+
+/**
+ * The Feed group's own classes and styles (colour, border, spacing,
+ * typography), for the container a synced layout's preview shows in place
+ * of the Feed, so it previews as the site renders it.
+ *
+ * @param {Object} feed The layout's Feed group.
+ * @return {Object} The container's className and style.
+ */
+function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
+	className: string;
+	style: Record< string, unknown >;
+} {
+	const attributes = ( feed?.attributes ?? {} ) as Record< string, unknown >;
+	const parts = [
+		getColorClassesAndStyles( attributes ),
+		getBorderClassesAndStyles( attributes ),
+		getSpacingClassesAndStyles( attributes ),
+		getTypographyClassesAndStyles( attributes ),
+	] as { className?: string; style?: Record< string, unknown > }[];
+
+	return {
+		className: [
+			'newspack-rolling-coverage-feed',
+			attributes.className,
+			...parts.map( ( part ) => part.className ),
+		]
+			.filter( Boolean )
+			.join( ' ' ),
+		style: Object.assign( {}, ...parts.map( ( part ) => part.style ) ),
+	};
 }
 
 const STATUS_OPTIONS = [
@@ -1391,7 +1430,7 @@ export default function Edit( {
 									</Notice>
 								) }
 							{ isSynced && (
-								<div className="newspack-rolling-coverage-feed">
+								<div { ...feedPreviewProps( feedGroup ) }>
 									{ syncedRenderOnceBlocks.length > 0 && (
 										<BlockContextProvider
 											value={
