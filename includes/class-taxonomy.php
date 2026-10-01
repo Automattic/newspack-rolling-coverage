@@ -610,9 +610,9 @@ class Taxonomy {
 	/**
 	 * Invalidates the coverage-to-page map when a save puts the block into a
 	 * post or takes it out. Every other save keeps the map, since rebuilding it
-	 * scans the content of every published post: entries, their revisions and
-	 * autosaves, which change constantly during live coverage and never host the
-	 * block, and posts that never had it.
+	 * scans the content of every published post. That covers entries, their
+	 * revisions and autosaves, which change constantly during live coverage and
+	 * never host the block, and posts that never had it.
 	 *
 	 * @param int      $post_id Post ID.
 	 * @param \WP_Post $post    Post object.
@@ -622,9 +622,12 @@ class Taxonomy {
 			return;
 		}
 
-		// On a save, the hook hands over the post as it was before, and the
-		// post cache is already cleared, so a fresh read returns the saved row:
-		// checking both catches the block going in as well as coming out.
+		// On an update, the hook hands over the post as it was before the save,
+		// because core read it into the post cache first, and that cache is
+		// cleared by the time this runs, so a fresh read returns the saved row:
+		// checking both catches the block going in as well as coming out. If
+		// the cached row is evicted mid-save, both reads return the saved row
+		// and a removed block goes unnoticed until the next flush.
 		if ( $post instanceof \WP_Post && ! has_block( Schema::BLOCK_NAME, $post ) ) {
 			$saved = get_post( $post_id );
 
@@ -666,7 +669,7 @@ class Taxonomy {
 	 * @param array  $tt_ids    Term taxonomy IDs.
 	 * @param string $taxonomy  Taxonomy slug.
 	 */
-	public static function touch_pages_after_term_change( $object_id, $terms, $tt_ids, $taxonomy ): void {
+	public static function touch_pages_after_term_change( int $object_id, array $terms, array $tt_ids, string $taxonomy ): void {
 		if ( self::TAXONOMY_SLUG !== $taxonomy ) {
 			return;
 		}
@@ -685,6 +688,12 @@ class Taxonomy {
 	 * the entry's, so the byline, the SEO plugin's dates and the sitemap all
 	 * report the page as changed. A page is never moved back in time, nor
 	 * ahead of now.
+	 *
+	 * The date is written without saving the page, so nothing that listens for
+	 * post saves runs: a page-cache copy keeps the old date until it expires,
+	 * and Jetpack Sync and Yoast's indexable see the new one at the page's next
+	 * real save. The new date also overtakes an editor's unsaved autosave of
+	 * the page, which WordPress then discards instead of offering to restore.
 	 *
 	 * @param \WP_Post $entry Entry post object.
 	 */
