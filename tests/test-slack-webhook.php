@@ -256,6 +256,28 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Give every image a `large` copy in its metadata, as WordPress would for
+	 * a photo wider than that size, without needing an image editor to make it.
+	 */
+	private static function pretend_images_have_a_large_copy() {
+		add_filter(
+			'wp_get_attachment_metadata',
+			static function ( $metadata ) {
+				if ( is_array( $metadata ) && ! empty( $metadata['file'] ) ) {
+					$metadata['sizes']['large'] = [
+						'file'      => pathinfo( $metadata['file'], PATHINFO_FILENAME ) . '-1024x768.' . pathinfo( $metadata['file'], PATHINFO_EXTENSION ),
+						'width'     => 1024,
+						'height'    => 768,
+						'mime-type' => 'image/png',
+					];
+				}
+
+				return $metadata;
+			}
+		);
+	}
+
+	/**
 	 * Every image in the media library.
 	 *
 	 * @return WP_Post[]
@@ -795,6 +817,22 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'src="' . wp_get_attachment_url( self::get_media()[0]->ID ) . '"', $content );
 		$this->assertStringNotContainsString( 'cdn.example.test', $content );
+	}
+
+	/**
+	 * A photo wider than the `large` size is shown from its `large` copy, also
+	 * by that copy's own URL.
+	 */
+	public function test_entry_stores_the_url_of_the_large_copy_of_a_big_image() {
+		self::pretend_images_have_a_large_copy();
+		add_filter( 'image_downsize', static fn() => [ 'https://cdn.example.test/polling-place.png?w=1024', 1024, 768, true ] );
+
+		$coverage_id = self::deliver_to_linked_channel( [ 'files' => [ self::slack_file() ] ] );
+
+		$this->assertStringContainsString(
+			'src="' . dirname( wp_get_attachment_url( self::get_media()[0]->ID ) ) . '/polling-place-1024x768.png"',
+			self::get_coverage_entries( $coverage_id )[0]->post_content
+		);
 	}
 
 	/**
