@@ -328,7 +328,10 @@ function compactRow(): TemplateItem {
 					fontSize: 'small',
 					style: {
 						typography: { fontWeight: '600' },
-						layout: { selfStretch: 'fixed', flexSize: '5rem' },
+						layout: {
+							selfStretch: 'fixedNoShrink',
+							flexSize: '5rem',
+						},
 					},
 				},
 			],
