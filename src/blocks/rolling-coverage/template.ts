@@ -1,8 +1,7 @@
 /**
  * WordPress dependencies
  */
-import { store as coreStore } from '@wordpress/core-data';
-import { select } from '@wordpress/data';
+import { getSettings } from '@wordpress/date';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -299,16 +298,7 @@ const READ_MORE_CLASS = 'newspack-rolling-coverage-read-more';
  * @return {string} A PHP date format.
  */
 function siteTimeFormat(): string {
-	const site = (
-		select( coreStore ) as unknown as {
-			getEntityRecord: (
-				kind: string,
-				name: string
-			) => { time_format?: string } | undefined;
-		}
-	 ).getEntityRecord( 'root', 'site' );
-
-	return site?.time_format || 'g:i a';
+	return getSettings().formats.time || 'g:i a';
 }
 
 /**
