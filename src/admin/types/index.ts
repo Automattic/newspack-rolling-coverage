@@ -455,6 +455,8 @@ interface SlackSettingsInfo {
 	bot_user_id: number;
 	slack_bot_user_id?: string;
 	masked_token: string;
+	/** False when the Slack app lacks the `files:read` scope that images need. */
+	can_read_files: boolean;
 	bot_user?: SlackBotUserInfo;
 }
 

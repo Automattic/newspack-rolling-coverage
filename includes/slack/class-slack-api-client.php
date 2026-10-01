@@ -26,6 +26,12 @@ class Slack_API_Client {
 	const TRANSIENT_USER_CACHE = 'rolling_coverage_slack_user_';
 
 	/**
+	 * Host Slack serves uploaded files from. File downloads carry the bot
+	 * token, so they are made to this host only.
+	 */
+	const FILES_HOST = 'files.slack.com';
+
+	/**
 	 * Post a message to a Slack channel.
 	 *
 	 * @param string     $channel_id Slack channel ID.
@@ -88,6 +94,57 @@ class Slack_API_Client {
 		$cached = get_transient( self::TRANSIENT_USER_CACHE . $user_id );
 
 		return is_array( $cached ) ? $cached : null;
+	}
+
+	/**
+	 * Download an image uploaded to Slack to a temporary file.
+	 *
+	 * Slack serves an uploaded file only to a bot token whose app has the
+	 * `files:read` scope. Without the scope it answers with its sign-in page
+	 * rather than an error, so a response that is not an image is a failure.
+	 *
+	 * @param string $url     The file's `url_private`.
+	 * @param int    $timeout Request timeout in seconds.
+	 * @return string|\WP_Error Path of the temporary file, or \WP_Error.
+	 */
+	public function download_image( string $url, int $timeout ): string|\WP_Error {
+		$token = Slack_Config::get_bot_token();
+
+		if ( '' === $token ) {
+			return new \WP_Error( 'slack_not_configured', __( 'Slack is not configured.', 'newspack-rolling-coverage' ) );
+		}
+
+		// The URL comes from the message event, and the request carries the bot token.
+		if ( 'https' !== wp_parse_url( $url, PHP_URL_SCHEME ) || self::FILES_HOST !== wp_parse_url( $url, PHP_URL_HOST ) ) {
+			return new \WP_Error( 'slack_file_url_rejected', __( 'The file is not hosted by Slack.', 'newspack-rolling-coverage' ) );
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+
+		$path     = wp_tempnam( wp_basename( (string) wp_parse_url( $url, PHP_URL_PATH ) ) );
+		$response = wp_safe_remote_get(
+			$url,
+			[
+				'headers'  => [ 'Authorization' => 'Bearer ' . $token ],
+				'timeout'  => $timeout,
+				'stream'   => true,
+				'filename' => $path,
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			wp_delete_file( $path );
+			return new \WP_Error( 'slack_transport_error', $response->get_error_message() );
+		}
+
+		$content_type = (string) wp_remote_retrieve_header( $response, 'content-type' );
+
+		if ( 200 !== wp_remote_retrieve_response_code( $response ) || 0 !== strpos( $content_type, 'image/' ) ) {
+			wp_delete_file( $path );
+			return new \WP_Error( 'slack_file_not_served', __( 'Slack did not return the image. The Slack app may be missing the files:read scope.', 'newspack-rolling-coverage' ) );
+		}
+
+		return $path;
 	}
 
 	/**
@@ -164,6 +221,38 @@ class Slack_API_Client {
 	 */
 	public function auth_test(): array|\WP_Error {
 		return $this->request( 'auth.test', [], 'GET' );
+	}
+
+	/**
+	 * Whether the Slack app may download uploaded files.
+	 *
+	 * Slack lists a token's scopes in the `x-oauth-scopes` header of every API
+	 * response. An app installed before images were imported lacks
+	 * `files:read` until the scope is added and the app is reinstalled.
+	 *
+	 * @return bool|null Null when Slack did not report the scopes.
+	 */
+	public function can_read_files(): ?bool {
+		$token = Slack_Config::get_bot_token();
+
+		if ( '' === $token ) {
+			return null;
+		}
+
+		$response = wp_safe_remote_get(
+			self::API_BASE_URL . 'auth.test',
+			[
+				'headers' => [ 'Authorization' => 'Bearer ' . $token ],
+				'timeout' => self::TIMEOUT,
+			]
+		);
+		$scopes   = is_wp_error( $response ) ? '' : (string) wp_remote_retrieve_header( $response, 'x-oauth-scopes' );
+
+		if ( '' === $scopes ) {
+			return null;
+		}
+
+		return in_array( 'files:read', array_map( 'trim', explode( ',', $scopes ) ), true );
 	}
 
 	/**

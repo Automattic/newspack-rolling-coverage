@@ -2,9 +2,20 @@
  * External dependencies
  */
 import { useParams, Navigate } from 'react-router';
-import { Button, Modal, Notice, VisuallyHidden } from '@wordpress/components';
+import {
+	Button,
+	ExternalLink,
+	Modal,
+	Notice,
+	VisuallyHidden,
+} from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
-import { useCallback, useMemo, useState } from '@wordpress/element';
+import {
+	createInterpolateElement,
+	useCallback,
+	useMemo,
+	useState,
+} from '@wordpress/element';
 import TabbedNavigation from 'newspack-components/dist/esm/tabbed-navigation';
 
 /**
@@ -230,6 +241,25 @@ function SlackSettingsPage() {
 			{ notice && (
 				<Notice status={ notice.type } onRemove={ clearNotice }>
 					{ notice.message }
+				</Notice>
+			) }
+			{ workspaceInfo?.can_read_files === false && (
+				<Notice status="warning" isDismissible={ false }>
+					{ createInterpolateElement(
+						/* translators: <a> wraps the link to the site's Slack apps, <code> wraps the name of a Slack permission. */
+						__(
+							'Images posted in Slack are left out of entries, because the Slack app is not allowed to read files. At <a>api.slack.com/apps</a>, open the app, add the <code>files:read</code> scope under OAuth & Permissions, and reinstall the app to your workspace.',
+							'newspack-rolling-coverage'
+						),
+						{
+							a: (
+								<ExternalLink href="https://api.slack.com/apps">
+									{ null }
+								</ExternalLink>
+							),
+							code: <code />,
+						}
+					) }
 				</Notice>
 			) }
 			{ renderTabContent() }

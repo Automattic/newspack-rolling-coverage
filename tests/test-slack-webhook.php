@@ -11,6 +11,7 @@ use Newspack_Rolling_Coverage\Slack;
 use Newspack_Rolling_Coverage\Slack_API_Client;
 use Newspack_Rolling_Coverage\Slack_Config;
 use Newspack_Rolling_Coverage\Slack_Ingestion_Service;
+use Newspack_Rolling_Coverage\Slack_Media_Importer;
 use Newspack_Rolling_Coverage\Slack_Signature_Verifier;
 use Newspack_Rolling_Coverage\Slack_Webhook_Controller;
 use Newspack_Rolling_Coverage\Taxonomy;
@@ -29,6 +30,11 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	const CHANNEL_ID     = 'C0TESTCHAN';
 
 	/**
+	 * A 1x1 PNG, base64-encoded: the smallest file WordPress accepts as an image.
+	 */
+	const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+
+	/**
 	 * URLs of the outbound requests the code under test attempted.
 	 *
 	 * @var string[]
@@ -43,12 +49,42 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	private $failing_users = [];
 
 	/**
-	 * Answer every outbound HTTP request with a Slack `users.info` payload.
+	 * Requests made for Slack files, as `url` and `headers` pairs.
+	 *
+	 * @var array[]
+	 */
+	private $file_requests = [];
+
+	/**
+	 * What a Slack file download answers with: a `type` and `body` pair, or a
+	 * WP_Error for a failed request.
+	 *
+	 * @var array|WP_Error
+	 */
+	private $file_response = [];
+
+	/**
+	 * Scopes Slack reports for the bot token, or null to report none, as
+	 * when Slack cannot be reached.
+	 *
+	 * @var string|null
+	 */
+	private $token_scopes = null;
+
+	/**
+	 * Answer every outbound HTTP request with a Slack `users.info` payload,
+	 * and every file download with a PNG.
 	 */
 	public function set_up() {
 		parent::set_up();
 		$this->outbound_requests = [];
 		$this->failing_users     = [];
+		$this->file_requests     = [];
+		$this->token_scopes      = null;
+		$this->file_response     = [
+			'type' => 'image/png',
+			'body' => base64_decode( self::PNG ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Test fixture.
+		];
 		add_filter( 'pre_http_request', [ $this, 'mock_slack_api' ], 10, 3 );
 	}
 
@@ -58,6 +94,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	 */
 	public function tear_down() {
 		$GLOBALS['wp_rest_server'] = null;
+		$this->remove_added_uploads();
 		parent::tear_down();
 	}
 
@@ -72,6 +109,29 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	public function mock_slack_api( $response, $parsed_args, $url ) {
 		$this->outbound_requests[] = $url;
 
+		if ( 'slack.com' !== wp_parse_url( $url, PHP_URL_HOST ) ) {
+			$this->file_requests[] = [
+				'url'     => $url,
+				'headers' => $parsed_args['headers'],
+			];
+
+			if ( is_wp_error( $this->file_response ) ) {
+				return $this->file_response;
+			}
+
+			// A streamed download is written to the file the caller named.
+			file_put_contents( $parsed_args['filename'], $this->file_response['body'] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents, WordPressVIPMinimum.Functions.RestrictedFunctions.file_ops_file_put_contents -- The path is the temporary file the code under test created.
+
+			return [
+				'headers'  => [ 'content-type' => $this->file_response['type'] ],
+				'response' => [
+					'code'    => 200,
+					'message' => 'OK',
+				],
+				'body'     => '',
+			];
+		}
+
 		parse_str( (string) wp_parse_url( $url, PHP_URL_QUERY ), $query );
 
 		if ( in_array( $query['user'] ?? '', $this->failing_users, true ) ) {
@@ -79,6 +139,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		}
 
 		return [
+			'headers'  => null === $this->token_scopes ? [] : [ 'x-oauth-scopes' => $this->token_scopes ],
 			'response' => [
 				'code'    => 200,
 				'message' => 'OK',
@@ -153,6 +214,57 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 					],
 					$event_overrides
 				),
+			]
+		);
+	}
+
+	/**
+	 * A file as Slack describes it in a message event.
+	 *
+	 * @param array $overrides File fields to override.
+	 * @return array
+	 */
+	private static function slack_file( array $overrides = [] ) {
+		return array_merge(
+			[
+				'id'          => 'F0PHOTO',
+				'name'        => 'polling-place.png',
+				'mimetype'    => 'image/png',
+				'filetype'    => 'png',
+				'size'        => 68,
+				'url_private' => 'https://files.slack.com/files-pri/T0TEAM-F0PHOTO/polling-place.png',
+			],
+			$overrides
+		);
+	}
+
+	/**
+	 * Deliver a message to a channel linked to a new coverage.
+	 *
+	 * @param array $event_overrides Event fields to override.
+	 * @return int Coverage term ID.
+	 */
+	private static function deliver_to_linked_channel( array $event_overrides ) {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+
+		self::controller()->handle_event( self::webhook_request( self::message_event_body( $event_overrides ) ) );
+
+		return $coverage_id;
+	}
+
+	/**
+	 * Every image in the media library.
+	 *
+	 * @return WP_Post[]
+	 */
+	private static function get_media() {
+		return get_posts(
+			[
+				'post_type'   => 'attachment',
+				'post_status' => 'inherit',
+				'numberposts' => -1,
 			]
 		);
 	}
@@ -594,5 +706,322 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 			'No entry should be created.'
 		);
 		$this->assertSame( [], $this->outbound_requests, 'No Slack API call should be made for a dropped message.' );
+	}
+
+	/**
+	 * An image uploaded with a message lands in the media library, owned by
+	 * the bot user and attached to the entry, and shows below the text.
+	 */
+	public function test_uploaded_image_is_added_to_the_entry() {
+		$coverage_id = self::deliver_to_linked_channel(
+			[
+				'subtype' => 'file_share',
+				'files'   => [ self::slack_file() ],
+			]
+		);
+		$entries     = self::get_coverage_entries( $coverage_id );
+		$media       = self::get_media();
+
+		$this->assertCount( 1, $entries, 'The message should create one entry.' );
+		$this->assertCount( 1, $media, 'The image should be added to the media library.' );
+
+		$entry = $entries[0];
+		$image = $media[0];
+
+		$this->assertSame( 'image/png', $image->post_mime_type, 'The image should keep its type.' );
+		$this->assertSame( $entry->ID, $image->post_parent, 'The image should be attached to the entry.' );
+		$this->assertSame( Slack_Config::get_or_create_bot_user_id(), (int) $image->post_author, 'The bot user should own the image.' );
+		$this->assertMatchesRegularExpression(
+			'#<p>Polls have closed across the county\.</p>.*<!-- wp:image \{"id":' . $image->ID . ',"sizeSlug":"large","linkDestination":"none"\} -->\s*<figure class="wp-block-image size-large"><img src="' . preg_quote( wp_get_attachment_url( $image->ID ), '#' ) . '" alt="" class="wp-image-' . $image->ID . '" ?/></figure>\s*<!-- /wp:image -->#s',
+			$entry->post_content,
+			'The image block should follow the message text.'
+		);
+		$this->assertSame(
+			[
+				[
+					'url'     => 'https://files.slack.com/files-pri/T0TEAM-F0PHOTO/polling-place.png',
+					'headers' => [ 'Authorization' => 'Bearer ' . self::BOT_TOKEN ],
+				],
+			],
+			$this->file_requests,
+			'The file should be downloaded once, as the bot.'
+		);
+	}
+
+	/**
+	 * A photo posted without a caption is an entry of its own.
+	 */
+	public function test_message_with_only_an_image_becomes_an_entry() {
+		$coverage_id = self::deliver_to_linked_channel(
+			[
+				'subtype' => 'file_share',
+				'text'    => '',
+				'files'   => [ self::slack_file() ],
+			]
+		);
+		$entries     = self::get_coverage_entries( $coverage_id );
+
+		$this->assertCount( 1, $entries, 'The image should create an entry.' );
+		$this->assertStringStartsWith( '<!-- wp:image ', $entries[0]->post_content, 'The entry should hold just the image.' );
+	}
+
+	/**
+	 * Several images keep the order they were uploaded in.
+	 */
+	public function test_several_images_keep_their_order() {
+		$coverage_id = self::deliver_to_linked_channel(
+			[
+				'files' => [
+					self::slack_file( [ 'name' => 'first.png' ] ),
+					self::slack_file( [ 'name' => 'second.png' ] ),
+				],
+			]
+		);
+
+		$this->assertMatchesRegularExpression( '#first\.png.*second\.png#s', self::get_coverage_entries( $coverage_id )[0]->post_content );
+	}
+
+	/**
+	 * The description a reporter gave the image in Slack becomes its alt text,
+	 * and cannot add markup.
+	 */
+	public function test_image_keeps_its_slack_description_as_alt_text() {
+		$coverage_id = self::deliver_to_linked_channel(
+			[ 'files' => [ self::slack_file( [ 'alt_txt' => 'Voters queue outside "Hall A" <b>' ] ) ] ]
+		);
+
+		$this->assertStringContainsString(
+			'alt="Voters queue outside &quot;Hall A&quot; &lt;b&gt;"',
+			self::get_coverage_entries( $coverage_id )[0]->post_content,
+			'The entry should carry the description, escaped.'
+		);
+		$this->assertSame(
+			'Voters queue outside "Hall A" <b>',
+			get_post_meta( self::get_media()[0]->ID, '_wp_attachment_image_alt', true ),
+			'The media library should carry the description.'
+		);
+	}
+
+	/**
+	 * Uploads that are not images Slack can be asked for.
+	 *
+	 * @return array[]
+	 */
+	public function skipped_file_provider() {
+		return [
+			'a document'                    => [
+				[
+					'name'     => 'results.pdf',
+					'mimetype' => 'application/pdf',
+				],
+			],
+			'a video'                       => [
+				[
+					'name'     => 'clip.mp4',
+					'mimetype' => 'video/mp4',
+				],
+			],
+			'an image format browsers lack' => [
+				[
+					'name'     => 'photo.heic',
+					'mimetype' => 'image/heic',
+				],
+			],
+			'a file Slack no longer has'    => [ [ 'url_private' => '' ] ],
+			'a file hosted outside Slack'   => [ [ 'url_private' => 'https://files.example.test/polling-place.png' ] ],
+			'a file not served over https'  => [ [ 'url_private' => 'http://files.slack.com/files-pri/T0TEAM-F0PHOTO/polling-place.png' ] ],
+			'a file above the upload limit' => [ [ 'size' => PHP_INT_MAX ] ],
+		];
+	}
+
+	/**
+	 * Only images are imported, and the bot token is only ever sent to Slack's
+	 * file host. The message text still becomes an entry.
+	 *
+	 * @dataProvider skipped_file_provider
+	 *
+	 * @param array $file Slack file fields.
+	 */
+	public function test_leaves_out_uploads_that_are_not_slack_images( array $file ) {
+		$this->silence_error_log();
+		$coverage_id = self::deliver_to_linked_channel( [ 'files' => [ self::slack_file( $file ) ] ] );
+		$entries     = self::get_coverage_entries( $coverage_id );
+
+		$this->assertSame( [], $this->file_requests, 'The file should not be requested.' );
+		$this->assertSame( [], self::get_media(), 'Nothing should be added to the media library.' );
+		$this->assertCount( 1, $entries, 'The message text should still become an entry.' );
+		$this->assertStringNotContainsString( 'wp:image', $entries[0]->post_content, 'The entry should have no image.' );
+	}
+
+	/**
+	 * What Slack can answer a file request with in place of the image.
+	 *
+	 * @return array[]
+	 */
+	public function failed_download_provider() {
+		return [
+			'the request fails'               => [ new WP_Error( 'http_request_failed', 'Operation timed out' ) ],
+			// Slack answers with its sign-in page when the app lacks the files:read scope.
+			'a sign-in page comes back'       => [
+				[
+					'type' => 'text/html; charset=utf-8',
+					'body' => '<html><body>Sign in to Slack</body></html>',
+				],
+			],
+			'the content is not what it says' => [
+				[
+					'type' => 'image/png',
+					'body' => '<html><body>Not a PNG</body></html>',
+				],
+			],
+		];
+	}
+
+	/**
+	 * An image that cannot be downloaded does not cost the newsroom the text
+	 * that came with it, and leaves nothing behind.
+	 *
+	 * @dataProvider failed_download_provider
+	 *
+	 * @param array|WP_Error $file_response What the file request answers with.
+	 */
+	public function test_failed_image_download_keeps_the_message_text( $file_response ) {
+		$this->silence_error_log();
+		$this->file_response = $file_response;
+
+		$coverage_id = self::deliver_to_linked_channel( [ 'files' => [ self::slack_file() ] ] );
+		$entries     = self::get_coverage_entries( $coverage_id );
+
+		$this->assertCount( 1, $entries, 'The message text should still become an entry.' );
+		$this->assertStringContainsString( '<p>Polls have closed across the county.</p>', $entries[0]->post_content, 'The text should be kept.' );
+		$this->assertStringNotContainsString( 'wp:image', $entries[0]->post_content, 'The entry should have no image.' );
+		$this->assertSame( [], self::get_media(), 'Nothing should be added to the media library.' );
+		$this->assertSame( [], glob( get_temp_dir() . 'polling-place*' ), 'The partial download should be removed.' );
+	}
+
+	/**
+	 * With no text and no image there is nothing to publish.
+	 */
+	public function test_image_only_message_is_dropped_when_its_download_fails() {
+		$this->silence_error_log();
+		$this->file_response = new WP_Error( 'http_request_failed', 'Operation timed out' );
+
+		$coverage_id = self::deliver_to_linked_channel(
+			[
+				'text'  => '',
+				'files' => [ self::slack_file() ],
+			]
+		);
+
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ) );
+	}
+
+	/**
+	 * Slack redelivers a message when the first delivery takes longer than
+	 * three seconds, which a large photo can. The redelivery must not import
+	 * the photo again.
+	 */
+	public function test_redelivered_message_does_not_import_its_image_again() {
+		$this->silence_error_log();
+		$event       = [ 'files' => [ self::slack_file() ] ];
+		$coverage_id = self::deliver_to_linked_channel( $event );
+
+		self::controller()->handle_event( self::webhook_request( self::message_event_body( $event ) ) );
+
+		$this->assertCount( 1, self::get_coverage_entries( $coverage_id ), 'There should still be one entry.' );
+		$this->assertCount( 1, $this->file_requests, 'The image should be downloaded once.' );
+		$this->assertCount( 1, self::get_media(), 'The media library should hold one copy.' );
+	}
+
+	/**
+	 * An image imported for an entry that then fails to save is not left
+	 * orphaned in the media library.
+	 */
+	public function test_image_is_removed_when_the_entry_cannot_be_saved() {
+		$this->silence_error_log();
+		add_filter(
+			'wp_insert_post_empty_content',
+			static fn( $is_empty, $postarr ) => Post_Type::CPT_SLUG === $postarr['post_type'],
+			10,
+			2
+		);
+
+		$coverage_id = self::deliver_to_linked_channel( [ 'files' => [ self::slack_file() ] ] );
+
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ), 'The entry should not be saved.' );
+		$this->assertCount( 1, $this->file_requests, 'The image should have been downloaded.' );
+		$this->assertSame( [], self::get_media(), 'The image should be removed again.' );
+	}
+
+	/**
+	 * Images still waiting when the time allowed for a message runs out are
+	 * left out, so a slow download cannot hold the webhook open indefinitely.
+	 */
+	public function test_images_are_left_out_once_the_time_allowed_runs_out() {
+		$this->silence_error_log();
+		self::configure_slack();
+		$importer = new Slack_Media_Importer( new Slack_API_Client(), self::factory()->user->create(), microtime( true ) - 1 );
+
+		$this->assertSame( '', $importer->import( [ self::slack_file() ] ), 'No image block should be rendered.' );
+		$this->assertSame( [], $this->file_requests, 'The file should not be requested.' );
+	}
+
+	/**
+	 * A sign-in page in place of the image is reported as such, since it is
+	 * what Slack serves an app that lacks the `files:read` scope.
+	 */
+	public function test_sign_in_page_is_reported_as_an_unreadable_file() {
+		self::configure_slack();
+		$this->file_response = [
+			'type' => 'text/html; charset=utf-8',
+			'body' => '<html><body>Sign in to Slack</body></html>',
+		];
+
+		$download = ( new Slack_API_Client() )->download_image( self::slack_file()['url_private'], 1 );
+
+		$this->assertWPError( $download );
+		$this->assertSame( 'slack_file_not_served', $download->get_error_code() );
+	}
+
+	/**
+	 * Scopes Slack can report for the bot token, and whether the settings
+	 * should say the app can read uploaded files.
+	 *
+	 * @return array[]
+	 */
+	public function token_scopes_provider() {
+		return [
+			'app installed before images were imported' => [ 'channels:history,chat:write,users:read', false ],
+			'app with the files:read scope'             => [ 'channels:history,files:read,chat:write', true ],
+			'scopes unknown, as when Slack is down'     => [ null, true ],
+		];
+	}
+
+	/**
+	 * The settings say when the Slack app was installed without the scope
+	 * that images need, so the admin can ask for the app to be updated. When
+	 * the scopes are unknown nothing is reported.
+	 *
+	 * @dataProvider token_scopes_provider
+	 *
+	 * @param string|null $scopes         Scopes Slack reports for the token.
+	 * @param bool        $can_read_files Whether the settings should say the app can read files.
+	 */
+	public function test_settings_say_whether_the_app_can_read_uploaded_files( $scopes, $can_read_files ) {
+		self::configure_slack();
+		$this->token_scopes = $scopes;
+
+		$settings = self::controller()->get_settings( new WP_REST_Request( 'GET', '/rolling-coverage/v1/slack/settings' ) )->get_data();
+
+		$this->assertSame( $can_read_files, $settings['can_read_files'] );
+	}
+
+	/**
+	 * A site that is not connected to Slack makes no request to it.
+	 */
+	public function test_settings_do_not_ask_slack_for_scopes_until_connected() {
+		self::controller()->get_settings( new WP_REST_Request( 'GET', '/rolling-coverage/v1/slack/settings' ) );
+
+		$this->assertSame( [], $this->outbound_requests );
 	}
 }

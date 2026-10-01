@@ -442,6 +442,9 @@ class Slack_Webhook_Controller {
 		$settings = Slack_Config::get_settings();
 		$settings['masked_token'] = Slack_Config::get_masked_bot_token();
 
+		// Only a definite "no" is reported: unknown scopes are not a problem to act on.
+		$settings['can_read_files'] = false !== $this->api_client->can_read_files();
+
 		$bot_user_id = (int) ( $settings['bot_user_id'] ?? 0 );
 
 		if ( $bot_user_id > 0 ) {
@@ -1482,16 +1485,23 @@ class Slack_Webhook_Controller {
 			Post_Type::META_SLACK_AUTHOR_NAME => $author_name,
 		];
 
-		// 6. Call the generic ingestion service.
+		// 6. Call the generic ingestion service. Uploaded images are imported
+		// from inside it, once the message is known not to be a redelivery.
+		$files          = is_array( $event['files'] ?? null ) ? $event['files'] : [];
+		$media_importer = new Slack_Media_Importer( $api_client, $bot_user_id );
+
 		$post_id = Entry_Ingestion_Service::ingest(
 			$source_payload,
 			$term_id,
 			$auto_publish,
 			$bot_user_id,
-			$provenance_meta
+			$provenance_meta,
+			static fn(): string => $media_importer->import( $files )
 		);
 
 		if ( is_wp_error( $post_id ) || $post_id <= 0 ) {
+			$media_importer->discard();
+
 			if ( is_wp_error( $post_id ) ) {
 				error_log( 'Slack ingestion: entry creation failed — ' . $post_id->get_error_code() . ': ' . $post_id->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				Slack_Monitor::log(
@@ -1512,7 +1522,8 @@ class Slack_Webhook_Controller {
 			return;
 		}
 
-		// 7. Adapter-specific side effects: last_sync_ts update.
+		// 7. Adapter-specific side effects: image attachment, last_sync_ts update.
+		$media_importer->attach_to( (int) $post_id );
 		Slack_Config::update_channel( $channel_id, [ 'last_sync_ts' => $ts ] );
 
 		Slack_Monitor::log(
