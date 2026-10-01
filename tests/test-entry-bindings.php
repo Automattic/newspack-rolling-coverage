@@ -973,13 +973,12 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The link follows the entry the paragraph renders in, not the global
-	 * post.
+	 * A global post that isn't an entry never gets a link.
 	 */
-	public function test_read_more_links_from_the_block_context_entry() {
-		$entry_id    = self::create_entry( self::create_coverage() );
-		$breakout_id = self::add_breakout( $entry_id, 'publish' );
-		$other_id    = self::factory()->post->create();
+	public function test_read_more_ignores_a_global_post_that_is_not_an_entry() {
+		$entry_id = self::create_entry( self::create_coverage() );
+		self::add_breakout( $entry_id, 'publish' );
+		$other_id = self::factory()->post->create();
 
 		$filter = static function ( $content ) use ( $other_id ) {
 			$GLOBALS['post'] = get_post( $other_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
@@ -989,7 +988,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$html = self::render_markup( $entry_id, self::read_more_paragraph() );
 		remove_filter( 'render_block_core/paragraph', $filter, 5 );
 
-		$this->assertStringContainsString( '<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Read more</a>', $html );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-read-more', $html );
 	}
 
 	/**
