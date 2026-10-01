@@ -144,7 +144,7 @@ function parseElement( html: string ): HTMLElement | null {
 /**
  * The label of the control on a feed opened at a shared entry: the number of
  * newer entries, exact up to ten and from there the round number it has
- * passed, e.g. "10+ newer posts" for 11 to 50. Mirrors
+ * passed, e.g. "10+ Newer Posts" for 11 to 50. Mirrors
  * Rolling_Coverage_Block::newer_posts_label().
  *
  * @param {number} count How many entries are newer.
@@ -618,7 +618,7 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Adds entries to the pending queue.
 	 *
-	 * Updates the "X new posts" control label and visibility.
+	 * Updates the "X New Posts" control label and visibility.
 	 *
 	 * @param {PendingEntry[]} newEntries Newly published entries.
 	 * @return {void}

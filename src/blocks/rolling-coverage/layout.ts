@@ -68,7 +68,7 @@ function paletteSlugs(): string[] {
 
 /**
  * Default inner-blocks template for the Rolling Coverage block: the Feed
- * group, holding the "Jump to latest" button, in the colors the editor's
+ * group, holding the "Jump to Latest" button, in the colors the editor's
  * palette has for it, and the follow button at the top, then the per-entry
  * blocks.
  *
@@ -144,7 +144,7 @@ export function previewTemplateFor(
 
 /**
  * The per-entry preview blocks for a layout: the layout's blocks minus the
- * follow and Jump to latest buttons, shaped per entry the way the site
+ * follow and Jump to Latest buttons, shaped per entry the way the site
  * renders each entry.
  *
  * @param {Object[]}       allBlocks      The layout's top-level blocks.

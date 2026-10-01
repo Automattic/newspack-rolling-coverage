@@ -204,7 +204,7 @@ function entryBlocks( isPinned: boolean ): TemplateItem[] {
 			{
 				lock: LOCKED,
 				metadata: {
-					name: __( 'Read more', 'newspack-rolling-coverage' ),
+					name: __( 'Read More', 'newspack-rolling-coverage' ),
 				},
 			},
 			[
@@ -492,7 +492,7 @@ const FOLLOW_TEMPLATE: TemplateItem = [
 ];
 
 /**
- * The "Jump to latest" button's default colors, as palette slugs: the theme's
+ * The "Jump to Latest" button's default colors, as palette slugs: the theme's
  * Contrast and Base where its palette has both, as block themes do; otherwise
  * Dark Gray and White where it has both, as the Newspack Theme does; otherwise
  * Contrast and Base. Mirrors Rolling_Coverage_Block::latest_button_colors().
@@ -519,7 +519,7 @@ function latestColors( slugs: string[] ): {
 }
 
 /**
- * The "Jump to latest" button, rendered once above the feed: a core button
+ * The "Jump to Latest" button, rendered once above the feed: a core button
  * bound to the live feed's link, in the palette's colors (see latestColors())
  * with the theme's Elevation 1 shadow. The site fixes it to the top of the
  * viewport and shows it when new entries wait, or when the feed opens at a
@@ -612,13 +612,13 @@ function isFollowButtons( block: ButtonsBlock ): boolean {
 }
 
 /**
- * Whether a block is the "Jump to latest" button's Buttons block (see
+ * Whether a block is the "Jump to Latest" button's Buttons block (see
  * latestTemplate()), mirroring Entry_Bindings::is_latest_buttons().
  *
  * @param {Object}   block             The block.
  * @param {string}   block.name        Block name.
  * @param {Object[]} block.innerBlocks Inner blocks.
- * @return {boolean} Whether it's the "Jump to latest" button.
+ * @return {boolean} Whether it's the "Jump to Latest" button.
  */
 function isLatestButtons( block: ButtonsBlock ): boolean {
 	return isButtonsBoundTo( block, 'latestUrl' );

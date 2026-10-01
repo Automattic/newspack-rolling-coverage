@@ -1062,7 +1062,7 @@ class Rolling_Coverage_Block {
 	/**
 	 * The label of the control on a feed opened at a shared entry: the number
 	 * of newer entries, exact up to ten and from there the round number it
-	 * has passed, e.g. "10+ newer posts" for 11 to 50. Empty when there are
+	 * has passed, e.g. "10+ Newer Posts" for 11 to 50. Empty when there are
 	 * none, as the control then keeps its own text. The view script builds
 	 * the same labels.
 	 *
@@ -1118,7 +1118,7 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The control fixed above the feed: the layout's "Jump to latest" button,
+	 * The control fixed above the feed: the layout's "Jump to Latest" button,
 	 * or the default one when the layout has none, or has one that cannot
 	 * link to the live feed (its label emptied, or its element switched to a
 	 * button). It links to the live feed, so it works without the view
@@ -1236,7 +1236,7 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The default "Jump to latest" button's colors, as palette slugs: the
+	 * The default "Jump to Latest" button's colors, as palette slugs: the
 	 * theme's Contrast and Base where its palette has both, as block themes
 	 * do; otherwise Dark Gray and White where it has both, as the Newspack
 	 * Theme does; otherwise Contrast and Base. The editor picks the same way
@@ -1267,7 +1267,7 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The default "Jump to latest" button, as the editor saves the one in the
+	 * The default "Jump to Latest" button, as the editor saves the one in the
 	 * default layout: a parsed Buttons block holding a button in the palette's
 	 * colors (see latest_button_colors()) with the theme's Elevation 1
 	 * shadow, its link bound to the live feed.
@@ -1444,7 +1444,7 @@ class Rolling_Coverage_Block {
 		$follow_block = null;
 
 		foreach ( self::layout_items( $block ) as $inner ) {
-			// A Buttons block also holding "Jump to latest" renders as that control.
+			// A Buttons block also holding "Jump to Latest" renders as that control.
 			if ( Entry_Bindings::is_latest_buttons( $inner ) ) {
 				continue;
 			}

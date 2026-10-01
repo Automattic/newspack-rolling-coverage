@@ -105,7 +105,7 @@ type PreviewBlock = {
 };
 
 /**
- * Blocks without the "Jump to latest" button, at any depth.
+ * Blocks without the "Jump to Latest" button, at any depth.
  *
  * @param {Object[]} blocks Blocks.
  * @return {Object[]} The blocks without it.
@@ -125,7 +125,7 @@ function withoutLatestButtons( blocks: PreviewBlock[] ): PreviewBlock[] {
 
 /**
  * One layout in the picker: a scaled preview of the block rendering sample
- * entries in the layout, without the "Jump to latest" button, with the
+ * entries in the layout, without the "Jump to Latest" button, with the
  * layout's title.
  *
  * @param {Object}   props            Component props.

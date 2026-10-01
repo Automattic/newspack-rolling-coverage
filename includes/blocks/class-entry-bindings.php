@@ -167,8 +167,8 @@ class Entry_Bindings {
 	/**
 	 * Render nothing for a button whose link is bound to a value the entry
 	 * doesn't have, e.g. "Read more" before the breakout post is published,
-	 * or "Jump to latest" inside an entry, and hand the share, follow and
-	 * "Jump to latest" buttons what their scripts need.
+	 * or "Jump to Latest" inside an entry, and hand the share, follow and
+	 * "Jump to Latest" buttons what their scripts need.
 	 *
 	 * Parameters stay untyped because this runs for every core button on the
 	 * site, after other plugins' filters that may hand on unexpected types.
@@ -474,7 +474,7 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Whether a parsed block is the Rolling Coverage "Jump to latest" button:
+	 * Whether a parsed block is the Rolling Coverage "Jump to Latest" button:
 	 * a core Buttons block holding a button bound to the live feed's link.
 	 *
 	 * @param array $parsed_block Parsed block.
