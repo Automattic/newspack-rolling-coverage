@@ -326,8 +326,9 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Inserts entries at the top of the entries list, removing the "no
-	 * entries yet" placeholder if it's still present.
+	 * Inserts entries above the newest unpinned entry, below any pinned
+	 * entries, removing the "no entries yet" placeholder if it's still
+	 * present.
 	 *
 	 * Removes the "no entries yet" placeholder, starts observing each entry
 	 * for coverage_entry_seen, and displays any associated ad slots.
@@ -358,7 +359,12 @@ function initBlock( root: HTMLElement ): void {
 			}
 		} );
 
-		entriesList.insertBefore( fragment, entriesList.firstChild );
+		entriesList.insertBefore(
+			fragment,
+			entriesList.querySelector(
+				':scope > [data-entry-id]:not([data-pinned])'
+			)
+		);
 		dropLastSeparator();
 
 		announce(
