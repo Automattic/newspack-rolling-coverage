@@ -1030,23 +1030,19 @@ export default function Edit( {
 		</InspectorControls>
 	) : (
 		<InspectorControls>
-			{ ! needsLayout && (
-				<PanelBody
-					title={ __( 'Layout', 'newspack-rolling-coverage' ) }
-				>
-					<p>
-						{ isSynced
-							? __(
-									'Uses the shared layout. Changes to it apply to every story that uses it.',
-									'newspack-rolling-coverage'
-								)
-							: __(
-									'Uses its own layout, detached from the shared one.',
-									'newspack-rolling-coverage'
-								) }
-					</p>
-				</PanelBody>
-			) }
+			<PanelBody title={ __( 'Layout', 'newspack-rolling-coverage' ) }>
+				<p>
+					{ isSynced
+						? __(
+								'Uses the shared layout. Changes to it apply to every story that uses it.',
+								'newspack-rolling-coverage'
+							)
+						: __(
+								'Uses its own layout, detached from the shared one.',
+								'newspack-rolling-coverage'
+							) }
+				</p>
+			</PanelBody>
 			<PanelBody title={ __( 'Coverage', 'newspack-rolling-coverage' ) }>
 				{ coverageCombobox }
 
@@ -1439,7 +1435,7 @@ export default function Edit( {
 
 	return (
 		<>
-			{ inspector }
+			{ ! needsLayout && inspector }
 
 			{ ! isLoading && canChangeLayout && (
 				<BlockControls group="other">
