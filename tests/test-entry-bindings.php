@@ -514,7 +514,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An archived coverage shows the block's notice once, above the Feed.
+	 * An archived coverage shows the block's notice once, first in the Feed.
 	 */
 	public function test_archived_notice_renders_once_above_the_feed() {
 		$coverage_id = self::create_coverage();
@@ -532,7 +532,8 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertSame( 1, substr_count( $html, '<p class="newspack-rolling-coverage-archived-notice">Coverage &lt;b&gt;ended&lt;/b&gt;</p>' ), 'The escaped notice should render once.' );
 		$notice_position = strpos( $html, 'newspack-rolling-coverage-archived-notice' );
 		$this->assertNotFalse( $notice_position, 'The notice should render.' );
-		$this->assertLessThan( strpos( $html, 'newspack-rolling-coverage-feed' ), $notice_position, 'The notice should come before the Feed.' );
+		$this->assertGreaterThan( strpos( $html, 'newspack-rolling-coverage-feed' ), $notice_position, 'The notice should sit inside the Feed.' );
+		$this->assertLessThan( strpos( $html, 'newspack-rolling-coverage-entries' ), $notice_position, 'The notice should come before the entries.' );
 		$this->assertSame( 2, substr_count( $html, 'Entry text' ), 'Each entry should still render.' );
 	}
 
@@ -600,11 +601,11 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 			'coverageId'              => $coverage_id,
 			'archivedNotice'          => 'Coverage ended.',
 			'archivedNoticeLinkUrl'   => 'https://example.com/story?a=1&b=2',
-			'archivedNoticeLinkLabel' => 'Follow the story',
+			'archivedNoticeLinkLabel' => 'Follow <em>the</em> story',
 		];
 
 		$this->assertStringContainsString(
-			'<p class="newspack-rolling-coverage-archived-notice">Coverage ended. <a class="newspack-rolling-coverage-archived-notice__link" href="https://example.com/story?a=1&#038;b=2">Follow the story</a></p>',
+			'<p class="newspack-rolling-coverage-archived-notice">Coverage ended. <a class="newspack-rolling-coverage-archived-notice__link" href="https://example.com/story?a=1&#038;b=2">Follow &lt;em&gt;the&lt;/em&gt; story</a></p>',
 			self::render_feed_block( $attributes ),
 			"The link should carry the block's text."
 		);
@@ -628,7 +629,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$attributes = [
 			'coverageId'              => $coverage_id,
 			'archivedNotice'          => 'Coverage ended.',
-			'archivedNoticeLinkLabel' => 'Follow the story',
+			'archivedNoticeLinkLabel' => 'Follow <em>the</em> story',
 		];
 
 		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage ended.</p>', self::render_feed_block( $attributes ), 'No URL: no link.' );

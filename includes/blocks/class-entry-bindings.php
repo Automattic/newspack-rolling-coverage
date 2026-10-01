@@ -357,8 +357,11 @@ class Entry_Bindings {
 	 * @return bool
 	 */
 	private static function is_pinned_label( array $parsed_block ): bool {
+		$class_name = $parsed_block['attrs']['className'] ?? '';
+
 		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
-			in_array( self::PINNED_LABEL_CLASS, explode( ' ', (string) ( $parsed_block['attrs']['className'] ?? '' ) ), true );
+			is_string( $class_name ) &&
+			in_array( self::PINNED_LABEL_CLASS, explode( ' ', $class_name ), true );
 	}
 
 	/**

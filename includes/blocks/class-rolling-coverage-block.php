@@ -666,6 +666,8 @@ class Rolling_Coverage_Block {
 
 		// A trashed coverage is effectively invisible on the frontend.
 		if ( 'trash' === $status ) {
+			self::$host_post_id = $previous_post_id;
+
 			return sprintf(
 				'<p %s>%s</p>',
 				get_block_wrapper_attributes(),
@@ -794,17 +796,17 @@ class Rolling_Coverage_Block {
 
 		try {
 			$items_html = sprintf(
-				'%3$s<div class="%1$s-status" role="status" aria-live="polite"></div>%4$s<div class="%1$s-entries">%2$s</div><div class="%1$s-sentinel" aria-hidden="true"></div>',
+				'%5$s%3$s<div class="%1$s-status" role="status" aria-live="polite"></div>%4$s<div class="%1$s-entries">%2$s</div><div class="%1$s-sentinel" aria-hidden="true"></div>',
 				self::MARKUP_PREFIX,
 				$entries_html,
 				$follow_html,
-				self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 )
+				self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
+				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes ) : ''
 			);
 
 			return sprintf(
-				'<div %s>%s%s</div>',
+				'<div %s>%s</div>',
 				$wrapper_attributes,
-				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes ) : '',
 				self::render_feed( $feed, $items_html )
 			);
 		} finally {
@@ -1479,7 +1481,7 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Renders the notice shown above an archived coverage: the block's text,
+	 * Renders the notice that opens an archived coverage's Feed: the block's text,
 	 * or the default when it has none, followed by its link when it has a URL.
 	 *
 	 * @param array $attributes Block attributes.
