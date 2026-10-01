@@ -303,8 +303,9 @@ function siteTimeFormat(): string {
 
 /**
  * The Compact time's color. Regular entries use the block theme's Contrast 3,
- * else the classic theme's Medium Gray. Pinned entries use the text color,
- * set as Contrast where the theme styles dates in a lighter one.
+ * else the classic theme's Medium Gray. Pinned entries use Contrast where
+ * the palette has it, since block themes style dates lighter, and otherwise
+ * inherit the text color.
  *
  * @param {string[]} slugs    The palette's color slugs.
  * @param {boolean}  isPinned Whether the time is the pinned card's.
