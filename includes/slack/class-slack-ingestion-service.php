@@ -49,6 +49,6 @@ class Slack_Ingestion_Service {
 	public static function has_ignore_prefix( string $text ): bool {
 		$ignore_prefix = Slack_Config::get_ignore_prefix();
 
-		return '' !== $ignore_prefix && 0 === strpos( $text, $ignore_prefix );
+		return '' !== $ignore_prefix && str_starts_with( $text, $ignore_prefix );
 	}
 }
