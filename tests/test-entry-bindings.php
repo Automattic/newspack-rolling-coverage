@@ -341,8 +341,34 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$html = self::render_coverage_with_follow( $coverage_id );
 
 		$this->assertSame( 1, substr_count( $html, 'data-rc-follow' ), 'The follow button should render once.' );
-		$this->assertSame( 3, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button and one row per entry should render, so entries hold no follow button.' );
+		$this->assertSame( 4, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button, the jump to latest button and one row per entry should render, so entries hold no follow button.' );
 		$this->assertStringContainsString( 'data-tag="' . esc_attr( Push_Notifications::follow_tag( $coverage_id ) ) . '"', $html );
+	}
+
+	/**
+	 * A Buttons block holding both a follow button and a "Jump to latest"
+	 * button is the jump control, not the follow button: it renders once.
+	 */
+	public function test_latest_button_takes_precedence_over_follow_in_one_buttons_block() {
+		self::configure_onesignal();
+
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+
+		$combined   = str_replace(
+			'</div><!-- /wp:buttons -->',
+			'<!-- wp:button {"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"latestUrl"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button">Back to live</a></div><!-- /wp:button --></div><!-- /wp:buttons -->',
+			self::FOLLOW_MARKUP
+		);
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $combined . '<!-- wp:post-title /--><!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+
+		$html = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		$this->assertSame( 1, substr_count( $html, 'Back to live' ), 'The block should render once, as the control.' );
+		$this->assertSame( 1, substr_count( $html, 'class="wp-block-buttons' ) );
+		$this->assertStringContainsString( 'newspack-rolling-coverage-new-entries', $html );
+		$this->assertStringNotContainsString( 'data-rc-follow', $html, 'Rendered as the control, its follow button has no coverage to follow.' );
 	}
 
 	/**

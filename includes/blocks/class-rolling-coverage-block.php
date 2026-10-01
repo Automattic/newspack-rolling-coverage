@@ -45,6 +45,9 @@ class Rolling_Coverage_Block {
 	// Max number of entries returned per page.
 	const PER_PAGE_MAX = 100;
 
+	// Newer entries a feed opened at a shared entry counts up to: one past a hundred, which reads as "more than 100".
+	const NEWER_COUNT_CAP = 101;
+
 	// CSS class/ID prefix for the block's front-end markup.
 	const MARKUP_PREFIX = 'newspack-rolling-coverage';
 
@@ -92,7 +95,7 @@ class Rolling_Coverage_Block {
 	// Handle of the Newspack Theme editor script that unregisters the post blocks.
 	const THEME_BLOCK_REMOVAL_SCRIPT = 'newspack-hide-fse-blocks';
 
-	// Post blocks the entry and deep link modal templates are built from.
+	// Post blocks the entry template is built from.
 	const TEMPLATE_POST_BLOCKS = [
 		'core/post-title',
 		'core/post-date',
@@ -106,16 +109,16 @@ class Rolling_Coverage_Block {
 	 * The host page's post ID, captured at the start of render_block()
 	 * before the global $post is swapped to individual entries. Used by
 	 * Social_Sharing::get_entry_share_url() to build the share URL with
-	 * an rc_source pointing back to this page.
+	 * an rc_source pointing back to this page, and to link the "Jump to
+	 * latest" button to the live feed.
 	 *
 	 * @var int
 	 */
 	private static $host_post_id = 0;
 
 	/**
-	 * How many entries are rendering right now (entries can nest through the
-	 * deep link modal). The entry filters below act only while it's non-zero,
-	 * so an entry's own single page is left alone.
+	 * How many entries are rendering right now. The entry filters below act
+	 * only while it's non-zero, so an entry's own single page is left alone.
 	 *
 	 * @var int
 	 */
@@ -641,21 +644,6 @@ class Rolling_Coverage_Block {
 			}
 		}
 
-		// Preload the deep-link CTA styles and view script. The CTA is
-		// rendered via render_block() inside this callback, so WordPress
-		// doesn't auto-enqueue its assets — we must do it manually.
-		$cta_block_type = WP_Block_Type_Registry::get_instance()->get_registered( Deep_Link_CTA_Block::BLOCK_NAME );
-
-		if ( $cta_block_type ) {
-			foreach ( $cta_block_type->style_handles as $style_handle ) {
-				wp_enqueue_style( $style_handle );
-			}
-
-			foreach ( $cta_block_type->view_script_handles as $script_handle ) {
-				wp_enqueue_script( $script_handle );
-			}
-		}
-
 		$coverage_id = (int) ( $attributes['coverageId'] ?? 0 );
 
 		if ( ! $coverage_id || ! term_exists( $coverage_id, Taxonomy::TAXONOMY_SLUG ) ) {
@@ -686,22 +674,14 @@ class Rolling_Coverage_Block {
 		}
 
 		$query = new WP_Query(
-			[
-				'post_type'           => Post_Type::CPT_SLUG,
-				'post_status'         => 'publish',
-				'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-					[
-						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
-						'field'    => 'term_id',
-						'terms'    => $coverage_id,
-					],
-				],
-				'orderby'             => 'date',
-				'order'               => 'DESC',
-				'posts_per_page'      => $entries_per_page,
-				'no_found_rows'       => true,
-				'ignore_sticky_posts' => true,
-			]
+			array_merge(
+				self::coverage_entries_args( $coverage_id ),
+				[
+					'orderby'        => 'date',
+					'order'          => 'DESC',
+					'posts_per_page' => $entries_per_page,
+				]
+			)
 		);
 
 		$template     = self::get_entry_template( $block );
@@ -709,17 +689,44 @@ class Rolling_Coverage_Block {
 
 		self::store_entry_layout_styles( $template );
 
-		$entries_html = '';
-		$entry_index  = 0;
-		$has_more     = count( $query->posts ) === $entries_per_page;
+		$posts        = $query->posts;
+		$has_more     = count( $posts ) === $entries_per_page;
+		$linked_entry = self::get_linked_entry( $coverage_id );
+		$shared_entry = self::get_shared_entry( $linked_entry, $posts );
+
+		if ( $shared_entry ) {
+			$page = self::query_unpinned_entries(
+				array_merge(
+					self::coverage_entries_args( $coverage_id ),
+					[
+						'date_query' => [
+							[
+								'column'    => 'post_date_gmt',
+								'before'    => self::gmt_date_bound( self::post_date_gmt( $shared_entry ) ),
+								'inclusive' => true,
+							],
+						],
+						'orderby'    => 'date',
+						'order'      => 'DESC',
+					]
+				),
+				$entries_per_page
+			);
+
+			$posts    = array_merge( self::query_pinned_entries( $coverage_id ), $page['posts'] );
+			$has_more = $page['has_more'];
+		}
+
+		$entries_html  = '';
+		$entry_index   = 0;
 		$shows_pinned  = false;
 		$shows_regular = false;
 
-		foreach ( $query->posts as $entry ) {
+		foreach ( $posts as $entry ) {
 			$entry_index++;
 			$shows_pinned  = $shows_pinned || Post_Type::is_pinned( $entry->ID );
 			$shows_regular = $shows_regular || ! Post_Type::is_pinned( $entry->ID );
-			$entries_html .= self::render_entry( $entry, $template, 'initial', ! $has_more && count( $query->posts ) === $entry_index );
+			$entries_html .= self::render_entry( $entry, $template, 'initial', ! $has_more && count( $posts ) === $entry_index, $linked_entry && $linked_entry->ID === $entry->ID );
 
 			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
 				$entries_html .= Ads::render_placement()['html'];
@@ -728,14 +735,14 @@ class Rolling_Coverage_Block {
 
 		wp_reset_postdata();
 
-		$cursor     = self::latest_cursor( $query->posts );
-		$oldest_gmt = ! empty( $query->posts ) ? self::post_date_gmt( $query->posts[ count( $query->posts ) - 1 ] ) : '';
+		$cursor     = $shared_entry ? self::coverage_cursor( $coverage_id ) : self::latest_cursor( $posts );
+		$oldest_gmt = ! empty( $posts ) ? self::post_date_gmt( $posts[ count( $posts ) - 1 ] ) : '';
 
-		if ( $query->posts && ! $shows_pinned ) {
+		if ( $posts && ! $shows_pinned ) {
 			self::store_template_layout_styles( self::pinned_cards( $template ) );
 		}
 
-		if ( $query->posts && ! $shows_regular ) {
+		if ( $posts && ! $shows_regular ) {
 			self::store_template_layout_styles( array_filter( $template, static fn( $block ) => is_array( $block ) && self::is_regular_entry( $block ) ) );
 		}
 
@@ -746,7 +753,7 @@ class Rolling_Coverage_Block {
 			self::store_template_layout_styles( self::with_centered_title_rows( $title_rows ) );
 		}
 
-		if ( empty( $query->posts ) ) {
+		if ( empty( $posts ) ) {
 			self::store_template_layout_styles( $template );
 
 			$entries_html = sprintf(
@@ -756,38 +763,42 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		// Deep-link CTA: SSR-populated when the deep-link query var
-		// points to an entry not in the initial SSR set; empty otherwise.
-		$cta_html = self::maybe_render_deep_link_cta( $query->posts, $block );
-
 		// Follow button: rendered once at the top of the coverage, not per entry.
 		$follow_html = self::maybe_render_follow_button( $block, $coverage_id, $status );
 
-		$feed = self::feed_group( $block );
+		$feed         = self::feed_group( $block );
+		$wrapper_data = [
+			'data-coverage-id'      => $coverage_id,
+			'data-poll-interval'    => $poll_interval,
+			'data-entries-per-page' => $entries_per_page,
+			'data-cursor'           => $cursor,
+			'data-before'           => $oldest_gmt,
+			'data-has-more'         => $has_more ? '1' : '0',
+			'data-status'           => $status,
+			'data-template-key'     => $template_key,
+			'data-host-post-id'     => (int) self::$host_post_id,
+			'data-rest-url'         => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages/' . $coverage_id . '/entries' ) ),
+			'style'                 => self::feed_gap_declaration( $feed['attrs']['style']['spacing']['blockGap'] ?? null ),
+		];
 
-		$wrapper_attributes = get_block_wrapper_attributes(
-			[
-				'data-coverage-id'      => $coverage_id,
-				'data-poll-interval'    => $poll_interval,
-				'data-entries-per-page' => $entries_per_page,
-				'data-cursor'           => $cursor,
-				'data-before'           => $oldest_gmt,
-				'data-has-more'         => $has_more ? '1' : '0',
-				'data-status'           => $status,
-				'data-template-key'     => $template_key,
-				'data-host-post-id'     => (int) self::$host_post_id,
-				'data-rest-url'         => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages/' . $coverage_id . '/entries' ) ),
-				'style'                 => self::feed_gap_declaration( $feed['attrs']['style']['spacing']['blockGap'] ?? null ),
-			]
-		);
+		if ( $shared_entry ) {
+			$wrapper_data['data-view'] = 'entry';
+		}
+
+		// Ads need their page's own setup, so the view script never swaps such a feed in place.
+		if ( $ads_enabled && Ads::is_placement_enabled() ) {
+			$wrapper_data['data-ads'] = '1';
+		}
+
+		$wrapper_attributes = get_block_wrapper_attributes( $wrapper_data );
 
 		try {
 			$items_html = sprintf(
-				'%4$s%3$s<div class="%1$s-status" role="status" aria-live="polite"></div><button type="button" class="%1$s-new-entries" hidden></button><div class="%1$s-entries">%2$s</div><div class="%1$s-sentinel" aria-hidden="true"></div>',
+				'%3$s<div class="%1$s-status" role="status" aria-live="polite"></div>%4$s<div class="%1$s-entries">%2$s</div><div class="%1$s-sentinel" aria-hidden="true"></div>',
 				self::MARKUP_PREFIX,
 				$entries_html,
-				$cta_html,
-				$follow_html
+				$follow_html,
+				self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 )
 			);
 
 			return sprintf(
@@ -799,6 +810,493 @@ class Rolling_Coverage_Block {
 		} finally {
 			self::$host_post_id = $previous_post_id;
 		}
+	}
+
+	/**
+	 * The entry the page's link names: a published entry of this coverage.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return WP_Post|null The linked entry, or null when the link names none.
+	 */
+	private static function get_linked_entry( int $coverage_id ): ?WP_Post {
+		$slug = get_query_var( Social_Sharing::ENTRY_QUERY_VAR );
+
+		if ( ! is_string( $slug ) || '' === trim( $slug ) ) {
+			return null;
+		}
+
+		$entry = Social_Sharing::resolve_entry_by_slug( $slug );
+
+		if ( ! $entry instanceof WP_Post || ! has_term( $coverage_id, Taxonomy::TAXONOMY_SLUG, $entry ) ) {
+			return null;
+		}
+
+		return $entry;
+	}
+
+	/**
+	 * The linked entry, when the feed has to open at it: an unpinned entry
+	 * that the normal first page does not show.
+	 *
+	 * @param WP_Post|null $linked_entry The entry the page's link names, from get_linked_entry().
+	 * @param WP_Post[]    $first_page   Entries of the normal first page.
+	 * @return WP_Post|null The shared entry, or null to keep the normal view.
+	 */
+	private static function get_shared_entry( ?WP_Post $linked_entry, array $first_page ): ?WP_Post {
+		if ( ! $linked_entry || Post_Type::is_pinned( $linked_entry->ID ) ) {
+			return null;
+		}
+
+		foreach ( $first_page as $post ) {
+			if ( $post->ID === $linked_entry->ID ) {
+				return null;
+			}
+		}
+
+		return $linked_entry;
+	}
+
+	/**
+	 * Query arguments shared by every query for a coverage's published entries.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return array WP_Query arguments.
+	 */
+	private static function coverage_entries_args( int $coverage_id ): array {
+		return [
+			'post_type'           => Post_Type::CPT_SLUG,
+			'post_status'         => 'publish',
+			'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+				[
+					'taxonomy' => Taxonomy::TAXONOMY_SLUG,
+					'field'    => 'term_id',
+					'terms'    => $coverage_id,
+				],
+			],
+			'no_found_rows'       => true,
+			'ignore_sticky_posts' => true,
+		];
+	}
+
+	/**
+	 * A GMT datetime as a date query bound. WP_Date_Query reads a datetime
+	 * string in the site timezone, which moves a GMT value that falls in the
+	 * timezone's skipped daylight-saving hour; the array form is used as is.
+	 *
+	 * @param string $gmt GMT datetime, `Y-m-d H:i:s`.
+	 * @return array|string Date query bound, or the input when it is not a valid full datetime.
+	 */
+	private static function gmt_date_bound( string $gmt ): array|string {
+		if ( ! preg_match( '/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/', $gmt, $parts ) ) {
+			return $gmt;
+		}
+
+		if ( ! wp_checkdate( (int) $parts[2], (int) $parts[3], (int) $parts[1], $gmt ) || (int) $parts[4] > 23 || (int) $parts[5] > 59 || (int) $parts[6] > 59 ) {
+			return $gmt;
+		}
+
+		return [
+			'year'   => (int) $parts[1],
+			'month'  => (int) $parts[2],
+			'day'    => (int) $parts[3],
+			'hour'   => (int) $parts[4],
+			'minute' => (int) $parts[5],
+			'second' => (int) $parts[6],
+		];
+	}
+
+	/**
+	 * A coverage's published pinned entries, in the order the live feed
+	 * shows them.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return WP_Post[]
+	 */
+	private static function query_pinned_entries( int $coverage_id ): array {
+		$pinned_ids = Post_Type::get_pinned_ids();
+
+		if ( empty( $pinned_ids ) ) {
+			return [];
+		}
+
+		$query = new WP_Query(
+			array_merge(
+				self::coverage_entries_args( $coverage_id ),
+				[
+					'post__in'       => $pinned_ids,
+					'orderby'        => 'date',
+					'order'          => 'DESC',
+					'posts_per_page' => count( $pinned_ids ),
+				]
+			)
+		);
+
+		return $query->posts;
+	}
+
+	/**
+	 * Runs a date-ordered entries query and leaves pinned entries out of its
+	 * result. Pinned entries sit at the top of the feed, so a page that
+	 * continues below them leaves them out.
+	 *
+	 * @param array $args     WP_Query arguments, without posts_per_page.
+	 * @param int   $per_page How many entries to return.
+	 * @return array {
+	 *     @type WP_Post[] $posts    Up to $per_page unpinned entries.
+	 *     @type bool      $has_more Whether older unpinned entries remain.
+	 * }
+	 */
+	private static function query_unpinned_entries( array $args, int $per_page ): array {
+		$pinned_ids = Post_Type::get_pinned_ids();
+		$limit      = $per_page + count( $pinned_ids ) + 1;
+
+		$args['posts_per_page']                = $limit;
+		$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
+
+		$query    = new WP_Query( $args );
+		$unpinned = array_values(
+			array_filter(
+				$query->posts,
+				static function ( $post ) use ( $pinned_ids ) {
+					return ! in_array( $post->ID, $pinned_ids, true );
+				}
+			)
+		);
+
+		return [
+			'posts'    => array_slice( $unpinned, 0, $per_page ),
+			'has_more' => count( $unpinned ) > $per_page,
+		];
+	}
+
+	/**
+	 * Poll cursor for a whole coverage: its most recently modified published
+	 * entry. A feed that starts at a shared entry polls from here, so entries
+	 * published before the page was rendered are not reported as new.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return string Cursor in "{id}:{modified_gmt}" format.
+	 */
+	private static function coverage_cursor( int $coverage_id ): string {
+		$query = new WP_Query(
+			array_merge(
+				self::coverage_entries_args( $coverage_id ),
+				[
+					'orderby'                     => 'modified',
+					'order'                       => 'DESC',
+					'posts_per_page'              => 1,
+					'update_post_meta_cache'      => false,
+					'update_post_term_cache'      => false,
+					Post_Type::SKIP_PIN_ORDER_VAR => true,
+				]
+			)
+		);
+
+		return self::latest_cursor( $query->posts );
+	}
+
+	/**
+	 * How many of a coverage's published entries are newer than the shared
+	 * entry, up to NEWER_COUNT_CAP. Pinned entries are left out, as the
+	 * shared view already shows them.
+	 *
+	 * @param int     $coverage_id  Coverage term ID.
+	 * @param WP_Post $shared_entry The entry the feed opens at.
+	 * @return int
+	 */
+	private static function count_newer_entries( int $coverage_id, WP_Post $shared_entry ): int {
+		$pinned_ids = Post_Type::get_pinned_ids();
+
+		$query = new WP_Query(
+			array_merge(
+				self::coverage_entries_args( $coverage_id ),
+				[
+					'date_query'                  => [
+						[
+							'column'    => 'post_date_gmt',
+							'after'     => self::gmt_date_bound( self::post_date_gmt( $shared_entry ) ),
+							'inclusive' => false,
+						],
+					],
+					'fields'                      => 'ids',
+					'posts_per_page'              => self::NEWER_COUNT_CAP + count( $pinned_ids ),
+					'update_post_meta_cache'      => false,
+					'update_post_term_cache'      => false,
+					Post_Type::SKIP_PIN_ORDER_VAR => true,
+				]
+			)
+		);
+
+		return min( self::NEWER_COUNT_CAP, count( array_diff( array_map( 'intval', $query->posts ), $pinned_ids ) ) );
+	}
+
+	/**
+	 * The label of the control on a feed opened at a shared entry: the number
+	 * of newer entries, exact up to ten and from there the round number it
+	 * has passed, e.g. "10+ newer posts" for 11 to 50. Empty when there are
+	 * none, as the control then keeps its own text. The view script builds
+	 * the same labels.
+	 *
+	 * @param int $count How many entries are newer.
+	 * @return string
+	 */
+	public static function newer_posts_label( int $count ): string {
+		if ( $count < 1 ) {
+			return '';
+		}
+
+		if ( $count <= 10 ) {
+			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
+			return sprintf( _n( '%d newer post', '%d newer posts', $count, 'newspack-rolling-coverage' ), $count );
+		}
+
+		$floor = 10;
+
+		if ( $count > 100 ) {
+			$floor = 100;
+		} elseif ( $count > 50 ) {
+			$floor = 50;
+		}
+
+		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
+		return sprintf( _n( '%d+ newer post', '%d+ newer posts', $floor, 'newspack-rolling-coverage' ), $floor );
+	}
+
+	/**
+	 * The URL of the live feed. On a front-end page request it is the host
+	 * post's permalink when that post is the page being viewed, otherwise the
+	 * current URL without the shared entry, kept on this site. Anywhere else
+	 * (wp-admin, admin-ajax, cron, a REST request, a feed, WP-CLI) the
+	 * request's URL is not a page's, so it is the host post's permalink, or
+	 * the site's home URL when no host post is known.
+	 *
+	 * @return string
+	 */
+	public static function live_feed_url(): string {
+		// remove_query_arg() reads the request URI unguarded, and the conditional tags need the main query.
+		$is_page_request = did_action( 'wp' ) && ! is_admin() && ! empty( $_SERVER['REQUEST_URI'] ) && ! wp_is_serving_rest_request() && ! is_feed();
+		$host_url        = self::$host_post_id ? (string) get_permalink( self::$host_post_id ) : '';
+
+		if ( ! $is_page_request ) {
+			return $host_url ? $host_url : home_url( '/' );
+		}
+
+		if ( $host_url && is_singular() && get_queried_object_id() === self::$host_post_id ) {
+			return $host_url;
+		}
+
+		return '/' . ltrim( esc_url_raw( remove_query_arg( Social_Sharing::ENTRY_QUERY_VAR ) ), '/' );
+	}
+
+	/**
+	 * The control fixed above the feed: the layout's "Jump to latest" button,
+	 * or the default one when the layout has none, or has one that cannot
+	 * link to the live feed (its label emptied, or its element switched to a
+	 * button). It links to the live feed, so it works without the view
+	 * script, and its wrapper carries that URL for the script. In the normal
+	 * view it is hidden until the view script reveals it when new entries
+	 * wait; when the feed opens at a shared entry it shows, reading how many
+	 * entries are newer when any are. A feed has none, and neither has a
+	 * block inside an entry's content: a control fixed to the viewport
+	 * belongs to the page's own feed.
+	 *
+	 * @param WP_Block $block          The parent rolling-coverage block instance.
+	 * @param bool     $is_shared_view Whether the feed opens at a shared entry.
+	 * @param int      $newer_count    How many entries are newer than the shared entry.
+	 * @return string Control HTML.
+	 */
+	private static function render_new_entries_control( WP_Block $block, bool $is_shared_view, int $newer_count = 0 ): string {
+		if ( is_feed() || self::is_rendering_entry() ) {
+			return '';
+		}
+
+		$html = '';
+
+		foreach ( self::layout_items( $block ) as $inner ) {
+			if ( Entry_Bindings::is_latest_buttons( $inner ) ) {
+				$html = render_block( $inner );
+				break;
+			}
+		}
+
+		if ( ! self::has_latest_link( $html ) ) {
+			$html = render_block( self::default_latest_buttons_block() );
+		}
+
+		$control = new WP_HTML_Tag_Processor( $html );
+
+		if ( ! $control->next_tag( [ 'class_name' => 'wp-block-buttons' ] ) ) {
+			return '';
+		}
+
+		$control->add_class( self::MARKUP_PREFIX . '-new-entries' );
+		$control->set_attribute( 'data-live-url', esc_url_raw( self::live_feed_url() ) );
+
+		if ( ! $is_shared_view ) {
+			$control->set_attribute( 'hidden', true );
+
+			return $control->get_updated_html();
+		}
+
+		$control->set_attribute( 'data-newer-count', (string) $newer_count );
+
+		$label = self::newer_posts_label( $newer_count );
+
+		$own_label = '' !== $label ? self::plain_latest_label( $html ) : null;
+
+		// A label holding markup is left for the view script, which reads the same count.
+		// A replaced label is kept on the link, for when the script can no longer count.
+		if ( null !== $own_label ) {
+			while ( $control->next_tag( 'a' ) ) {
+				if ( null !== $control->get_attribute( Entry_Bindings::LATEST_ATTRIBUTE ) ) {
+					$control->set_attribute( 'data-label', $own_label );
+					$control->next_token();
+					$control->set_modifiable_text( $label );
+					break;
+				}
+			}
+		}
+
+		return $control->get_updated_html();
+	}
+
+	/**
+	 * The text of the link to the live feed in rendered HTML, when the link
+	 * holds text alone, so its label can be replaced without losing markup.
+	 *
+	 * @param string $html Rendered HTML.
+	 * @return string|null The text, or null when the link holds anything else.
+	 */
+	private static function plain_latest_label( string $html ): ?string {
+		$tags = new WP_HTML_Tag_Processor( $html );
+
+		while ( $tags->next_tag( 'a' ) ) {
+			if ( null === $tags->get_attribute( Entry_Bindings::LATEST_ATTRIBUTE ) ) {
+				continue;
+			}
+
+			if ( ! $tags->next_token() || '#text' !== $tags->get_token_name() ) {
+				return null;
+			}
+
+			$text = $tags->get_modifiable_text();
+
+			return $tags->next_token() && 'A' === $tags->get_token_name() && $tags->is_tag_closer() ? $text : null;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Whether rendered HTML holds the link to the live feed, marked for the
+	 * view script (see Entry_Bindings::filter_button()).
+	 *
+	 * @param string $html Rendered HTML.
+	 * @return bool
+	 */
+	private static function has_latest_link( string $html ): bool {
+		$tags = new WP_HTML_Tag_Processor( $html );
+
+		while ( $tags->next_tag( 'a' ) ) {
+			if ( null !== $tags->get_attribute( Entry_Bindings::LATEST_ATTRIBUTE ) && $tags->get_attribute( 'href' ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * The default "Jump to latest" button's colors, as palette slugs: the
+	 * theme's Contrast and Base where its palette has both, as block themes
+	 * do; otherwise Dark Gray and White where it has both, as the Newspack
+	 * Theme does; otherwise Contrast and Base. The editor picks the same way
+	 * (see latestColors() in template.ts).
+	 *
+	 * @return array{background: string, text: string}
+	 */
+	private static function latest_button_colors(): array {
+		$slugs = [];
+
+		foreach ( (array) wp_get_global_settings( [ 'color', 'palette' ] ) as $palette ) {
+			$slugs = array_merge( $slugs, wp_list_pluck( (array) $palette, 'slug' ) );
+		}
+
+		$has_contrast_and_base = in_array( 'contrast', $slugs, true ) && in_array( 'base', $slugs, true );
+
+		if ( ! $has_contrast_and_base && in_array( 'dark-gray', $slugs, true ) && in_array( 'white', $slugs, true ) ) {
+			return [
+				'background' => 'dark-gray',
+				'text'       => 'white',
+			];
+		}
+
+		return [
+			'background' => 'contrast',
+			'text'       => 'base',
+		];
+	}
+
+	/**
+	 * The default "Jump to latest" button, as the editor saves the one in the
+	 * default layout: a parsed Buttons block holding a button in the palette's
+	 * colors (see latest_button_colors()) with the theme's Elevation 1
+	 * shadow, its link bound to the live feed.
+	 *
+	 * @return array Parsed-block-shaped array.
+	 */
+	private static function default_latest_buttons_block(): array {
+		$name        = __( 'Jump to latest', 'newspack-rolling-coverage' );
+		$lock        = [
+			'remove' => true,
+			'move'   => true,
+		];
+		$class       = self::MARKUP_PREFIX . '-new-entries';
+		$colors      = self::latest_button_colors();
+		$open        = sprintf( '<div class="%s">', esc_attr( 'wp-block-buttons ' . $class ) );
+		$button_html = sprintf(
+			'<div class="wp-block-button"><a class="%s" style="box-shadow:var(--wp--preset--shadow--elevation-1)">%s</a></div>',
+			esc_attr( sprintf( 'wp-block-button__link has-%s-color has-%s-background-color has-text-color has-background wp-element-button', $colors['text'], $colors['background'] ) ),
+			esc_html( $name )
+		);
+
+		return [
+			'blockName'    => 'core/buttons',
+			'attrs'        => [
+				'lock'      => $lock,
+				'metadata'  => [ 'name' => $name ],
+				'className' => $class,
+				'layout'    => [
+					'type'           => 'flex',
+					'justifyContent' => 'center',
+				],
+			],
+			'innerBlocks'  => [
+				[
+					'blockName'    => 'core/button',
+					'attrs'        => [
+						'backgroundColor' => $colors['background'],
+						'textColor'       => $colors['text'],
+						'lock'            => $lock,
+						'metadata'        => [
+							'name'     => $name,
+							'bindings' => [
+								'url' => [
+									'source' => Entry_Bindings::SOURCE_NAME,
+									'args'   => [ 'key' => 'latestUrl' ],
+								],
+							],
+						],
+						'style'           => [ 'shadow' => 'var:preset|shadow|elevation-1' ],
+					],
+					'innerBlocks'  => [],
+					'innerHTML'    => $button_html,
+					'innerContent' => [ $button_html ],
+				],
+			],
+			'innerHTML'    => $open . '</div>',
+			'innerContent' => [ $open, null, '</div>' ],
+		];
 	}
 
 	/**
@@ -897,87 +1395,6 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Renders the deep-link CTA when the deep-link query var points to
-	 * an entry not in the initial SSR set; returns empty string otherwise.
-	 *
-	 * The query var `rolling-coverage-entry` powers OG tags and CTA SSR;
-	 * the hash fragment powers smooth scroll. When the deep-linked entry
-	 * is already in the initial SSR set, no CTA is needed — the browser
-	 * scrolls to it via the #hash.
-	 *
-	 * @param WP_Post[] $entries Entries rendered in the initial SSR set.
-	 * @param WP_Block  $block   The parent rolling-coverage block instance.
-	 * @return string CTA HTML, or empty string.
-	 */
-	private static function maybe_render_deep_link_cta( array $entries, WP_Block $block ): string {
-		$raw = trim( (string) get_query_var( Social_Sharing::ENTRY_QUERY_VAR ) );
-
-		if ( '' === $raw ) {
-			return '';
-		}
-
-		$entry = Social_Sharing::resolve_entry_by_slug( $raw );
-
-		if ( ! $entry instanceof WP_Post ) {
-			return '';
-		}
-
-		// Only render the CTA if the entry belongs to this block's coverage.
-		$coverage_id = (int) ( $block->parsed_block['attrs']['coverageId'] ?? 0 );
-		if ( $coverage_id && ! has_term( $coverage_id, Taxonomy::TAXONOMY_SLUG, $entry ) ) {
-			return '';
-		}
-
-		// If the entry is in the initial SSR set, no CTA needed — browser scrolls.
-		$page_slugs = array_map(
-			static function ( $e ) {
-				return $e->post_name;
-			},
-			$entries
-		);
-
-		if ( in_array( $entry->post_name, $page_slugs, true ) ) {
-			return '';
-		}
-
-		$entry_title = get_the_title( $entry );
-		if ( '' === trim( wp_strip_all_tags( $entry_title ) ) ) {
-			$entry_title = Post_Type::get_entry_summary( $entry );
-		}
-
-		// Read the CTA block's saved attributes and inner blocks from the parent block.
-		$cta_attrs = [
-			'entryId'    => $entry->ID,
-			'entryTitle' => $entry_title,
-		];
-
-		$cta_inner_blocks = [];
-
-		foreach ( self::layout_items( $block ) as $inner ) {
-			if ( Deep_Link_CTA_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) ) {
-				if ( ! empty( $inner['attrs']['ctaText'] ) ) {
-					$cta_attrs['ctaText'] = $inner['attrs']['ctaText'];
-				}
-				if ( ! empty( $inner['attrs']['buttonText'] ) ) {
-					$cta_attrs['buttonText'] = $inner['attrs']['buttonText'];
-				}
-				$cta_inner_blocks = $inner['innerBlocks'] ?? [];
-				break;
-			}
-		}
-
-		return render_block(
-			[
-				'blockName'    => Deep_Link_CTA_Block::BLOCK_NAME,
-				'attrs'        => $cta_attrs,
-				'innerBlocks'  => $cta_inner_blocks,
-				'innerHTML'    => '',
-				'innerContent' => array_fill( 0, count( $cta_inner_blocks ), null ),
-			]
-		);
-	}
-
-	/**
 	 * Renders the follow button once at the top of the coverage.
 	 *
 	 * The button is removable, so this returns an empty string if the editor
@@ -998,6 +1415,11 @@ class Rolling_Coverage_Block {
 		$follow_block = null;
 
 		foreach ( self::layout_items( $block ) as $inner ) {
+			// A Buttons block also holding "Jump to latest" renders as that control.
+			if ( Entry_Bindings::is_latest_buttons( $inner ) ) {
+				continue;
+			}
+
 			if ( Coverage_Follow_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $inner ) ) {
 				$follow_block = $inner;
 				break;
@@ -1112,13 +1534,12 @@ class Rolling_Coverage_Block {
 		// The saved inner blocks also include blocks that render once at the
 		// top of the coverage, not per entry.
 		$singleton_blocks = [
-			Deep_Link_CTA_Block::BLOCK_NAME,
 			Coverage_Follow_Block::BLOCK_NAME,
 		];
 		$template         = [];
 
 		foreach ( $inner_blocks as $inner_block ) {
-			if ( ! in_array( $inner_block['blockName'] ?? '', $singleton_blocks, true ) && ! Entry_Bindings::is_follow_buttons( $inner_block ) ) {
+			if ( ! in_array( $inner_block['blockName'] ?? '', $singleton_blocks, true ) && ! Entry_Bindings::is_follow_buttons( $inner_block ) && ! Entry_Bindings::is_latest_buttons( $inner_block ) ) {
 				$template[] = $inner_block;
 			}
 		}
@@ -1279,8 +1700,8 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * A parsed entry group: a plain group holding what an entry that isn't
-	 * pinned shows.
+	 * A parsed entry group: a group holding what an entry that isn't pinned
+	 * shows, with the pinned card's corners and nothing else of its look.
 	 *
 	 * @param array[] $inner_blocks Parsed blocks inside the group.
 	 * @return array Parsed-block-shaped array.
@@ -1293,7 +1714,7 @@ class Rolling_Coverage_Block {
 		$styles = wp_style_engine_get_styles( $style );
 		$open   = sprintf(
 			'<div class="%s" style="%s">',
-			esc_attr( 'wp-block-group ' . self::REGULAR_ENTRY_CLASS ),
+			esc_attr( trim( 'wp-block-group ' . self::REGULAR_ENTRY_CLASS . ' ' . ( $styles['classnames'] ?? '' ) ) ),
 			esc_attr( $styles['css'] ?? '' )
 		);
 
@@ -2025,16 +2446,17 @@ class Rolling_Coverage_Block {
 	 *                       entry for the duration of this render and
 	 *                       restored to its previous value afterwards.
 	 *
-	 * @param WP_Post $entry    Entry post object.
-	 * @param array[] $template Per-entry inner-block template, as returned
-	 *                          by get_entry_template().
-	 * @param string  $arrival  How the entry first reaches the client:
-	 *                          'initial', 'poll', or 'load_more'. Stamped as
-	 *                          data-arrival for frontend entry-seen tracking.
-	 * @param bool    $is_last  Whether no entry can load after this one.
+	 * @param WP_Post $entry     Entry post object.
+	 * @param array[] $template  Per-entry inner-block template, as returned
+	 *                           by get_entry_template().
+	 * @param string  $arrival   How the entry first reaches the client:
+	 *                           'initial', 'poll', or 'load_more'. Stamped as
+	 *                           data-arrival for frontend entry-seen tracking.
+	 * @param bool    $is_last   Whether no entry can load after this one.
+	 * @param bool    $is_linked Whether the page's link names this entry.
 	 * @return string Rendered HTML for the entry.
 	 */
-	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', bool $is_last = false ): string {
+	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', bool $is_last = false, bool $is_linked = false ): string {
 		$is_pinned = Post_Type::is_pinned( $entry->ID );
 		$template  = self::shape_entry_template(
 			self::drop_fixed_template_dates( $template ),
@@ -2086,14 +2508,15 @@ class Rolling_Coverage_Block {
 		$post_classes = implode( ' ', get_post_class( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post' ], $entry ) );
 
 		$html = sprintf(
-			'<article id="%1$s-entry-%2$d" class="%3$s" data-entry-id="%2$d" data-entry-slug="%6$s" data-arrival="%5$s"%7$s>%4$s</article>',
+			'<article id="%1$s-entry-%2$d" class="%3$s" data-entry-id="%2$d" data-entry-slug="%6$s" data-arrival="%5$s"%7$s%8$s>%4$s</article>',
 			self::MARKUP_PREFIX,
 			$entry->ID,
 			esc_attr( $post_classes ),
 			$entry_content,
 			esc_attr( $arrival ),
 			esc_attr( $entry->post_name ),
-			$is_pinned ? ' data-pinned' : ''
+			$is_pinned ? ' data-pinned' : '',
+			$is_linked ? ' data-linked' : ''
 		);
 
 		return $html;
@@ -2234,6 +2657,10 @@ class Rolling_Coverage_Block {
 						'type'    => 'integer',
 						'default' => 0,
 					],
+					'skip_pinned'  => [
+						'type'    => 'boolean',
+						'default' => false,
+					],
 					'polled_count' => [
 						'type'    => 'integer',
 						'default' => 0,
@@ -2368,6 +2795,8 @@ class Rolling_Coverage_Block {
 	 *   more than answering an idle poll. A cached copy can predate an edit
 	 *   the reader's poll has already delivered, so the view script keeps
 	 *   those edits and applies them when load more brings the entry in.
+	 *   With skip_pinned, pinned entries are left out, for a feed that opens at
+	 *   a shared entry.
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
@@ -2416,19 +2845,7 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		$base_args = [
-			'post_type'           => Post_Type::CPT_SLUG,
-			'post_status'         => 'publish',
-			'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-				[
-					'taxonomy' => Taxonomy::TAXONOMY_SLUG,
-					'field'    => 'term_id',
-					'terms'    => $term_id,
-				],
-			],
-			'no_found_rows'       => true,
-			'ignore_sticky_posts' => true,
-		];
+		$base_args = self::coverage_entries_args( $term_id );
 
 		$config           = self::load_block_config( $term_id, $template_key );
 		$template         = $config['template'];
@@ -2462,7 +2879,7 @@ class Rolling_Coverage_Block {
 					'date_query'     => [
 						[
 							'column'    => 'post_modified_gmt',
-							'after'     => $cursor_modified,
+							'after'     => self::gmt_date_bound( $cursor_modified ),
 							'inclusive' => true,
 						],
 					],
@@ -2545,33 +2962,41 @@ class Rolling_Coverage_Block {
 		$args = array_merge(
 			$base_args,
 			[
-				'date_query'     => [
+				'date_query' => [
 					[
 						'column'    => 'post_date_gmt',
-						'before'    => $before,
+						'before'    => self::gmt_date_bound( (string) $before ),
 						'inclusive' => false,
 					],
 				],
-				'orderby'        => 'date',
-				'order'          => 'DESC',
-				'posts_per_page' => $per_page,
+				'orderby'    => 'date',
+				'order'      => 'DESC',
 			]
 		);
 
-		// Prevents duplicate pinned entries on frontend.
-		$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
-
 		$entry_offset = max( 0, (int) ( $params['entry_offset'] ?? 0 ) );
 
-		$query = new WP_Query( $args );
+		if ( rest_sanitize_boolean( $params['skip_pinned'] ?? false ) ) {
+			$page     = self::query_unpinned_entries( $args, $per_page );
+			$posts    = $page['posts'];
+			$has_more = $page['has_more'];
+		} else {
+			// Prevents duplicate pinned entries on frontend.
+			$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
+			$args['posts_per_page']                = $per_page;
+
+			$query    = new WP_Query( $args );
+			$posts    = $query->posts;
+			$has_more = count( $posts ) === $per_page;
+		}
 
 		$html        = '';
 		$ad_slots    = [];
 		$entry_index = 0;
 
-		foreach ( $query->posts as $entry ) {
+		foreach ( $posts as $entry ) {
 			$entry_index++;
-			$html .= self::render_entry( $entry, $template, 'load_more', count( $query->posts ) < $per_page && count( $query->posts ) === $entry_index );
+			$html .= self::render_entry( $entry, $template, 'load_more', ! $has_more && count( $posts ) === $entry_index );
 
 			$position = $entry_offset + $entry_index;
 			if ( $ads_enabled && Ads::is_capped_ad_position( $position, $ads_interval ) ) {
@@ -2583,16 +3008,16 @@ class Rolling_Coverage_Block {
 
 		wp_reset_postdata();
 
-		$next_before = ! empty( $query->posts )
-			? self::post_date_gmt( $query->posts[ count( $query->posts ) - 1 ] )
+		$next_before = ! empty( $posts )
+			? self::post_date_gmt( $posts[ count( $posts ) - 1 ] )
 			: null;
 
 		return new WP_REST_Response(
 			[
 				'html'    => $html,
 				'before'  => $next_before,
-				'hasMore' => count( $query->posts ) === $per_page,
-				'count'   => count( $query->posts ),
+				'hasMore' => $has_more,
+				'count'   => count( $posts ),
 				'adSlots' => $ad_slots,
 			]
 		);

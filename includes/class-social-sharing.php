@@ -56,8 +56,8 @@ class Social_Sharing {
 	 * Social crawlers (Facebook, Twitter, LinkedIn, etc.) do not execute
 	 * JavaScript, so they see the entry's own page with correct OG tags
 	 * rendered by the active SEO plugin. Human visitors are redirected
-	 * to the source page with the deep-link query var so the existing JS
-	 * workflow (scroll to entry or CTA modal) takes over.
+	 * to the source page with the deep-link query var, where the feed opens
+	 * at that entry.
 	 */
 	public static function inject_redirect_script(): void {
 		if ( ! is_singular( Post_Type::CPT_SLUG ) ) {
@@ -117,9 +117,7 @@ class Social_Sharing {
 	 * When the entry's coverage has a canonical URL set, the entry is not a
 	 * good place to land on its own — it lacks the surrounding coverage
 	 * context. In that case the reader is sent (302) to the canonical URL with
-	 * the entry deep-link query var and anchor so they land on the specific
-	 * entry, or see the existing deep-link CTA modal when it is not part of the
-	 * initial render.
+	 * the entry deep-link query var and anchor so the feed opens at that entry.
 	 *
 	 * When no canonical URL is set, the request is left untouched and the
 	 * single entry template renders as a fallback.
