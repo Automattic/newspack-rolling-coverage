@@ -173,6 +173,7 @@
 
 	&:disabled {
 		cursor: default;
+		opacity: 0.3;
 	}
 
 	&:focus-visible {
@@ -186,7 +187,7 @@
 	border-radius: wp-vars.$radius-medium;
 	outline: wp-vars.$border-width solid wp-colors.$gray-300;
 
-	.newspack-rolling-coverage-layout-picker__card:hover & {
+	.newspack-rolling-coverage-layout-picker__card:where(:not(:disabled)):hover & {
 		outline-color: wp-colors.$gray-600;
 	}
 

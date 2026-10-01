@@ -366,6 +366,10 @@ export default function Edit( {
 		) => void;
 	};
 
+	const { invalidateResolution } = useDispatch( coreStore ) as unknown as {
+		invalidateResolution: ( selector: string, args: unknown[] ) => void;
+	};
+
 	const { layoutRecord, hasResolvedLayout, canEditLayout } = useSelect(
 		( select ) => {
 			if ( ! isSynced ) {
@@ -629,6 +633,14 @@ export default function Edit( {
 
 			if ( choice.kind === 'pattern' ) {
 				if ( isSynced && choice.id === layoutId ) {
+					if ( isLayoutMissing ) {
+						invalidateResolution( 'getEntityRecord', [
+							'postType',
+							'wp_block',
+							layoutId,
+							{ context: 'view' },
+						] );
+					}
 					return;
 				}
 				registry.batch( () => {
@@ -659,6 +671,8 @@ export default function Edit( {
 		},
 		[
 			isSynced,
+			isLayoutMissing,
+			invalidateResolution,
 			layoutId,
 			innerBlockCount,
 			registry,

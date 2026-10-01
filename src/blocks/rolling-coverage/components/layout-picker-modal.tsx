@@ -9,7 +9,7 @@ import {
 } from '@wordpress/blocks';
 import { Modal, Spinner } from '@wordpress/components';
 import { store as coreStore } from '@wordpress/core-data';
-import { useSelect } from '@wordpress/data';
+import { useDispatch, useSelect } from '@wordpress/data';
 import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __ } from '@wordpress/i18n';
@@ -43,6 +43,21 @@ type LayoutCard = {
 const PREVIEW_ENTRIES = 3;
 const PREVIEW_VIEWPORT_WIDTH = 800;
 const NO_RECORDS: LayoutRecord[] = [];
+
+/**
+ * The query listing the published layouts in the layout pattern category.
+ *
+ * @param {number} categoryId The layout pattern category's ID.
+ * @return {Object} The query.
+ */
+function layoutsQuery( categoryId: number ) {
+	return {
+		wp_pattern_category: categoryId,
+		status: 'publish',
+		per_page: 100,
+		context: 'view',
+	};
+}
 
 /**
  * The layout block markup a pattern holds: the Rolling Coverage block's inner
@@ -166,12 +181,15 @@ export default function LayoutPickerModal( {
 	const [ pendingKey, setPendingKey ] = useState< string | null >( null );
 	const isMounted = useRef( true );
 
-	useEffect(
-		() => () => {
+	useEffect( () => {
+		isMounted.current = true;
+		return () => {
 			isMounted.current = false;
-		},
-		[]
-	);
+		};
+	}, [] );
+	const { invalidateResolution } = useDispatch( coreStore ) as unknown as {
+		invalidateResolution: ( selector: string, args: unknown[] ) => void;
+	};
 
 	const categoryId = Number( LAYOUT_CATEGORY_ID ) || 0;
 	const { records, hasResolved } = useSelect(
@@ -190,12 +208,7 @@ export default function LayoutPickerModal( {
 					args: unknown[]
 				) => boolean;
 			};
-			const query = {
-				wp_pattern_category: categoryId,
-				status: 'publish',
-				per_page: 100,
-				context: 'view',
-			};
+			const query = layoutsQuery( categoryId );
 			return {
 				records:
 					core.getEntityRecords( 'postType', 'wp_block', query ) ??
@@ -273,6 +286,13 @@ export default function LayoutPickerModal( {
 		setPendingKey( card.key );
 		createLayout( slug )
 			.then( ( id ) => {
+				if ( categoryId ) {
+					invalidateResolution( 'getEntityRecords', [
+						'postType',
+						'wp_block',
+						layoutsQuery( categoryId ),
+					] );
+				}
 				if ( isMounted.current ) {
 					onSelect( { kind: 'pattern', id } );
 				}
