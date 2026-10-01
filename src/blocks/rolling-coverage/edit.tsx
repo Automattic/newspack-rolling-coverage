@@ -264,7 +264,7 @@ export default function Edit( {
 		{ className: 'newspack-rolling-coverage-layout' },
 		{
 			template: isSynced || isCreatingLayout ? undefined : INNER_TEMPLATE,
-			allowedBlocks: [ 'core/group' ],
+			allowedBlocks: [],
 			templateLock: false,
 		}
 	);

@@ -113,15 +113,6 @@ const SHARE_BUTTONS: TemplateItem = [
 ];
 
 /**
- * Spaces what follows the entry's content, such as "Read more", as the theme
- * spaces paragraphs: its block gap, or on a theme without one (the classic
- * theme), the preset matching its paragraph margin. Set on Post Content
- * because the classic theme redefines the block gap on Buttons.
- */
-const CONTENT_GAP =
-	'var(--wp--style--block-gap, var(--wp--preset--spacing--40))';
-
-/**
  * Class of the group that shows a pinned entry as a card, mirroring
  * Rolling_Coverage_Block::PINNED_CARD_CLASS.
  */
@@ -200,7 +191,6 @@ function entryBlocks( isPinned: boolean ): TemplateItem[] {
 							bottom: '0',
 							left: '0',
 						},
-						margin: { bottom: CONTENT_GAP },
 					},
 				},
 			},
@@ -269,7 +259,7 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 				border: { radius: PINNED_CARD_RADIUS },
 			},
 			metadata: {
-				name: __( 'Pinned Card', 'newspack-rolling-coverage' ),
+				name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
 			},
 		},
 		entryBlocks( true ),
@@ -357,20 +347,15 @@ function isFollowButtons( block: {
  * The Feed group holding the layout's items: everything the coverage shows,
  * spaced by its Block spacing.
  *
- * @param {Object[]} items         The items.
- * @param {string[]} allowedBlocks Block types the Feed accepts.
+ * @param {Object[]} items The items.
  * @return {Object} The Feed group.
  */
-function feedTemplate(
-	items: TemplateItem[],
-	allowedBlocks: string[]
-): TemplateItem {
+function feedTemplate( items: TemplateItem[] ): TemplateItem {
 	return [
 		'core/group',
 		{
 			className: FEED_CLASS,
 			lock: LOCKED_IN_PLACE,
-			allowedBlocks,
 			layout: {
 				type: 'flex',
 				orientation: 'vertical',
@@ -1017,6 +1002,7 @@ export {
 	FOLLOW_TEMPLATE,
 	feedTemplate,
 	feedGroupOf,
+	isFeedGroup,
 	feedItems,
 	isFollowButtons,
 	withoutPinnedRow,

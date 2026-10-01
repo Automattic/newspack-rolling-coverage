@@ -62,14 +62,6 @@ class Rolling_Coverage_Block {
 	const REGULAR_ENTRY_CLASS = 'newspack-rolling-coverage-regular-entry';
 
 	/**
-	 * Spaces what follows an entry's content, such as "Read more", as the
-	 * theme spaces paragraphs: its block gap, or on a theme without one (the
-	 * classic theme), the preset matching its paragraph margin. Set on Post
-	 * Content because the classic theme redefines the block gap on Buttons.
-	 */
-	const CONTENT_GAP = 'var(--wp--style--block-gap, var(--wp--preset--spacing--40))';
-
-	/**
 	 * Class of the layout's Feed group, which holds everything the coverage
 	 * shows.
 	 */
@@ -1249,7 +1241,6 @@ class Rolling_Coverage_Block {
 								'bottom' => '0',
 								'left'   => '0',
 							],
-							'margin'  => [ 'bottom' => self::CONTENT_GAP ],
 						],
 					],
 				],
@@ -1339,7 +1330,7 @@ class Rolling_Coverage_Block {
 			'attrs'        => [
 				'className' => self::PINNED_CARD_CLASS,
 				'style'     => $style,
-				'metadata'  => [ 'name' => __( 'Pinned Card', 'newspack-rolling-coverage' ) ],
+				'metadata'  => [ 'name' => __( 'Pinned Entry', 'newspack-rolling-coverage' ) ],
 			],
 			'innerBlocks'  => $inner_blocks,
 			'innerHTML'    => $open . '</div>',

@@ -74,14 +74,11 @@ export const ALL_ALLOWED_BLOCKS = [
  * blocks, then the per-entry blocks.
  */
 export const INNER_TEMPLATE = [
-	feedTemplate(
-		[
-			FOLLOW_TEMPLATE,
-			...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
-			...ENTRY_TEMPLATE,
-		],
-		ALL_ALLOWED_BLOCKS
-	),
+	feedTemplate( [
+		FOLLOW_TEMPLATE,
+		...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
+		...ENTRY_TEMPLATE,
+	] ),
 ];
 
 /**

@@ -17,6 +17,7 @@ import metadata from './block.json';
 import Edit from './edit';
 import Save from './save';
 import './entry-gap-preview';
+import './feed-insertion';
 import './share-preview';
 import './editor.scss';
 import type { RollingCoverageAttributes } from './types';
