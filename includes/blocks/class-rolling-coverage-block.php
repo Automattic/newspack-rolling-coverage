@@ -40,7 +40,8 @@ class Rolling_Coverage_Block {
 	// Seconds a poll response may be cached: enough for readers polling at the
 	// same moment to share one response. At most half the block's default poll
 	// interval, because a Batcache hit sends this same max-age again, so the
-	// edge can serve a response for up to twice as long.
+	// edge can serve a response for up to twice as long. A site's minimum poll
+	// interval raises it; see get_min_poll_interval().
 	const POLL_MAX_AGE = 5;
 
 	// Max number of entries returned per page.
@@ -792,6 +793,13 @@ class Rolling_Coverage_Block {
 
 		if ( $shared_entry ) {
 			$wrapper_data['data-view'] = 'entry';
+		}
+
+		// Polls carry the minimum too; the page has it so a first poll that fails still waits.
+		$min_poll_interval = self::get_min_poll_interval();
+
+		if ( $min_poll_interval ) {
+			$wrapper_data['data-min-poll-interval'] = $min_poll_interval;
 		}
 
 		// Ads need their page's own setup, so the view script never swaps such a feed in place.
@@ -2864,7 +2872,8 @@ class Rolling_Coverage_Block {
 	 * - `cursor` (forward/polling): entries modified at or after the cursor
 	 *   timestamp, including new entries and edits. If the result exceeds
 	 *   POLL_CAP, the response is flagged `overflow` so the client can reload.
-	 *   Sends a POLL_MAX_AGE-second Cache-Control; see poll_response().
+	 *   Sends a short Cache-Control and the site's minimum poll interval; see
+	 *   poll_response().
 	 * - `before` (backward/pagination): entries published before the given
 	 *   date, DESC order, capped at the request's per_page (entriesPerPage).
 	 *   Sends no Cache-Control, so it keeps the page cache's default lifetime,
@@ -3101,7 +3110,43 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Builds a poll response that caches for POLL_MAX_AGE seconds.
+	 * The slowest pace the site lets readers' pages poll at, in seconds.
+	 *
+	 * A safety valve for a site under load. Every block polls at this
+	 * interval or its own, whichever is longer, and poll responses are cached
+	 * for longer to match. Pages that are already open learn it from their
+	 * next poll, so it takes hold, and lifts, without a reload.
+	 *
+	 * @return int Whole seconds; 0 when the site sets no minimum.
+	 */
+	public static function get_min_poll_interval(): int {
+		/**
+		 * Minimum seconds between a reader's polls for new entries, for every
+		 * Rolling Coverage block on the site. Poll responses are cached for
+		 * half this long.
+		 *
+		 * @constant NEWSPACK_ROLLING_COVERAGE_MIN_POLL_INTERVAL
+		 * @type     int
+		 * @default  No minimum; each block polls at its own interval
+		 * @status   draft
+		 *
+		 * @example define( 'NEWSPACK_ROLLING_COVERAGE_MIN_POLL_INTERVAL', 60 );
+		 */
+		$interval = defined( 'NEWSPACK_ROLLING_COVERAGE_MIN_POLL_INTERVAL' ) ? NEWSPACK_ROLLING_COVERAGE_MIN_POLL_INTERVAL : 0;
+
+		/**
+		 * Filters the minimum seconds between a reader's polls for new entries.
+		 *
+		 * @param mixed $interval Seconds. Anything but a positive number means no minimum.
+		 */
+		$interval = apply_filters( 'newspack_rolling_coverage_min_poll_interval', $interval );
+
+		return is_numeric( $interval ) ? max( 0, (int) $interval ) : 0;
+	}
+
+	/**
+	 * Builds a poll response: how long caches may keep it, and the minimum
+	 * poll interval for the pages that receive it.
 	 *
 	 * An idle poll's URL only changes once something new is published, so
 	 * this response's cache lifetime is how long a new entry can take to
@@ -3110,12 +3155,18 @@ class Rolling_Coverage_Block {
 	 * this one header sets both. Authenticated requests still get core's
 	 * no-cache headers, which replace it.
 	 *
+	 * The lifetime grows to half the site's minimum poll interval and never
+	 * drops below POLL_MAX_AGE.
+	 *
 	 * @param array $data Poll response body.
 	 * @return WP_REST_Response Response with a short Cache-Control header.
 	 */
 	private static function poll_response( array $data ): WP_REST_Response {
+		$min_poll_interval       = self::get_min_poll_interval();
+		$data['minPollInterval'] = $min_poll_interval;
+
 		$response = new WP_REST_Response( $data );
-		$response->header( 'Cache-Control', 'public, max-age=' . self::POLL_MAX_AGE );
+		$response->header( 'Cache-Control', 'public, max-age=' . max( self::POLL_MAX_AGE, intdiv( $min_poll_interval, 2 ) ) );
 
 		return $response;
 	}
