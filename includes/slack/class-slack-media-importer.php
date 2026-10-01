@@ -123,7 +123,7 @@ class Slack_Media_Importer {
 
 			$this->attachment_ids[] = $attachment_id;
 
-			$alt = trim( (string) ( $file['alt_txt'] ?? '' ) );
+			$alt = sanitize_text_field( (string) ( $file['alt_txt'] ?? '' ) );
 
 			if ( '' !== $alt ) {
 				update_post_meta( $attachment_id, '_wp_attachment_image_alt', wp_slash( $alt ) );
@@ -220,19 +220,21 @@ class Slack_Media_Importer {
 	 *
 	 * @param int    $attachment_id Attachment ID.
 	 * @param string $alt           Alternative text.
-	 * @return string Block markup, or '' when the attachment has no image.
+	 * @return string Block markup, or '' when the attachment has no file.
 	 */
 	private function image_block( int $attachment_id, string $alt ): string {
-		$image = wp_get_attachment_image_src( $attachment_id, 'large' );
+		// The URL the editor would store. `wp_get_attachment_image_src()` would give an image CDN's URL when one filters the request.
+		$large = image_get_intermediate_size( $attachment_id, 'large' );
+		$url   = $large['url'] ?? wp_get_attachment_url( $attachment_id );
 
-		if ( ! $image ) {
+		if ( ! $url ) {
 			return '';
 		}
 
 		return sprintf(
 			"<!-- wp:image {\"id\":%1\$d,\"sizeSlug\":\"large\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-large\"><img src=\"%2\$s\" alt=\"%3\$s\" class=\"wp-image-%1\$d\"/></figure>\n<!-- /wp:image -->",
 			$attachment_id,
-			esc_url( $image[0] ),
+			esc_url( $url ),
 			esc_attr( $alt )
 		);
 	}

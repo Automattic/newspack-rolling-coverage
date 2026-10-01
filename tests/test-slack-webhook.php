@@ -784,21 +784,35 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The entry stores the image's own URL, as the editor would, even when an
+	 * image CDN rewrites image URLs for the request.
+	 */
+	public function test_entry_stores_the_image_url_from_the_media_library() {
+		add_filter( 'image_downsize', static fn() => [ 'https://cdn.example.test/polling-place.png?w=1024', 1024, 768, true ] );
+
+		$coverage_id = self::deliver_to_linked_channel( [ 'files' => [ self::slack_file() ] ] );
+		$content     = self::get_coverage_entries( $coverage_id )[0]->post_content;
+
+		$this->assertStringContainsString( 'src="' . wp_get_attachment_url( self::get_media()[0]->ID ) . '"', $content );
+		$this->assertStringNotContainsString( 'cdn.example.test', $content );
+	}
+
+	/**
 	 * The description a reporter gave the image in Slack becomes its alt text,
-	 * and cannot add markup.
+	 * as plain text, in the entry and in the media library alike.
 	 */
 	public function test_image_keeps_its_slack_description_as_alt_text() {
 		$coverage_id = self::deliver_to_linked_channel(
-			[ 'files' => [ self::slack_file( [ 'alt_txt' => 'Voters queue outside "Hall A" <b>' ] ) ] ]
+			[ 'files' => [ self::slack_file( [ 'alt_txt' => ' Voters <b>queue</b> outside "Hall A" ' ] ) ] ]
 		);
 
 		$this->assertStringContainsString(
-			'alt="Voters queue outside &quot;Hall A&quot; &lt;b&gt;"',
+			'alt="Voters queue outside &quot;Hall A&quot;"',
 			self::get_coverage_entries( $coverage_id )[0]->post_content,
 			'The entry should carry the description, escaped.'
 		);
 		$this->assertSame(
-			'Voters queue outside "Hall A" <b>',
+			'Voters queue outside "Hall A"',
 			get_post_meta( self::get_media()[0]->ID, '_wp_attachment_image_alt', true ),
 			'The media library should carry the description.'
 		);
