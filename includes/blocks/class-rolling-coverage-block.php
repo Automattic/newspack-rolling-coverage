@@ -72,6 +72,12 @@ class Rolling_Coverage_Block {
 	const FEED_CLASS = 'newspack-rolling-coverage-feed';
 
 	/**
+	 * Object cache group for the coverage's latest breakout post. Keys carry
+	 * the posts and terms last-changed stamps, so they expire on their own.
+	 */
+	const BREAKOUT_CACHE_GROUP = 'newspack-rolling-coverage-breakouts';
+
+	/**
 	 * The custom property holding the space between the coverage's items:
 	 * the archived notice, Follow, each entry, the separator and ads. It
 	 * comes from the Feed group's Block spacing; its fallback, `spacing-50`,
@@ -1553,25 +1559,33 @@ class Rolling_Coverage_Block {
 			return null;
 		}
 
-		$breakout_id = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			$wpdb->prepare(
-				"SELECT breakout.ID FROM {$wpdb->term_relationships} AS tr
-				INNER JOIN {$wpdb->posts} AS entry ON entry.ID = tr.object_id
-				INNER JOIN {$wpdb->postmeta} AS link ON link.post_id = entry.ID AND link.meta_key = %s
-				INNER JOIN {$wpdb->posts} AS breakout ON breakout.ID = CAST( link.meta_value AS UNSIGNED )
-				WHERE tr.term_taxonomy_id = %d
-					AND entry.post_type = %s
-					AND entry.post_status = 'publish'
-					AND breakout.post_status = 'publish'
-				ORDER BY breakout.post_date_gmt DESC, breakout.ID DESC
-				LIMIT 1",
-				Breakout::ENTRY_BREAKOUT_POST_ID_META,
-				$term->term_taxonomy_id,
-				Post_Type::CPT_SLUG
-			)
-		);
+		$cache_key   = sprintf( 'latest_breakout:%d:%s:%s', $term->term_taxonomy_id, wp_cache_get_last_changed( 'posts' ), wp_cache_get_last_changed( 'terms' ) );
+		$breakout_id = wp_cache_get( $cache_key, self::BREAKOUT_CACHE_GROUP );
 
-		return $breakout_id ? ( get_permalink( $breakout_id ) ?: null ) : null; // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
+		if ( false === $breakout_id ) {
+			$breakout_id = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+				$wpdb->prepare(
+					"SELECT breakout.ID FROM {$wpdb->term_relationships} AS tr
+					INNER JOIN {$wpdb->posts} AS entry ON entry.ID = tr.object_id
+					INNER JOIN {$wpdb->postmeta} AS link ON link.post_id = entry.ID AND link.meta_key = %s
+					INNER JOIN {$wpdb->posts} AS breakout ON breakout.ID = CAST( link.meta_value AS UNSIGNED )
+					WHERE tr.term_taxonomy_id = %d
+						AND entry.post_type = %s
+						AND entry.post_status = 'publish'
+						AND breakout.post_type = 'post'
+						AND breakout.post_status = 'publish'
+					ORDER BY breakout.post_date_gmt DESC, breakout.ID DESC
+					LIMIT 1",
+					Breakout::ENTRY_BREAKOUT_POST_ID_META,
+					$term->term_taxonomy_id,
+					Post_Type::CPT_SLUG
+				)
+			);
+
+			wp_cache_set( $cache_key, $breakout_id, self::BREAKOUT_CACHE_GROUP );
+		}
+
+		return $breakout_id ? ( get_permalink( (int) $breakout_id ) ?: null ) : null; // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
 	}
 
 	/**
