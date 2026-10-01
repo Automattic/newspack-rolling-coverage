@@ -17,9 +17,10 @@ class Slack_Webhook_Controller {
 	const CHANNEL_ID_PATTERN = '[CG][A-Z0-9]+';
 
 	/**
-	 * Seconds into an ingestion after which mentioned users are no longer
-	 * looked up from the Slack API. The lookups run inside the webhook
+	 * Seconds into handling a message after which mentioned users are no
+	 * longer looked up from the Slack API. The lookups run inside the webhook
 	 * request, which Slack retries when it takes longer than three seconds.
+	 * Reading the thread a reply belongs to counts toward it.
 	 *
 	 * @var float
 	 */
@@ -788,6 +789,8 @@ class Slack_Webhook_Controller {
 		$event_type = (string) ( $event['type'] ?? '' );
 
 		if ( 'message' === $event_type ) {
+			$started = microtime( true );
+
 			// 1. Filter — Slack-specific rules from Slack_Ingestion_Service.
 			if ( Slack_Ingestion_Service::should_filter_message( $event ) ) {
 				Slack_Monitor::log( 'info', 'Message filtered (bot/edit/delete/join-leave/ignore prefix)', [ 'channel' => $event['channel'] ?? '' ] );
@@ -877,6 +880,7 @@ class Slack_Webhook_Controller {
 					'ts'           => $ts,
 					'user_id'      => $user_id,
 					'auto_publish' => Slack_Config::is_autopublish_enabled( $channel_id ),
+					'started'      => $started,
 				]
 			);
 
@@ -1442,7 +1446,7 @@ class Slack_Webhook_Controller {
 	 * @return void
 	 */
 	protected static function process_ingest_payload( array $payload ): void {
-		$started      = microtime( true );
+		$started      = (float) ( $payload['started'] ?? microtime( true ) );
 		$event        = $payload['event'] ?? [];
 		$term_id      = (int) ( $payload['term_id'] ?? 0 );
 		$channel_id   = (string) ( $payload['channel_id'] ?? '' );

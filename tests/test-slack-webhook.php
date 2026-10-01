@@ -58,14 +58,22 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	private $is_history_unreachable = false;
 
 	/**
+	 * Seconds Slack takes to answer when the channel's history is read.
+	 *
+	 * @var float
+	 */
+	private $history_response_seconds = 0.0;
+
+	/**
 	 * Answer every outbound HTTP request as the Slack API would.
 	 */
 	public function set_up() {
 		parent::set_up();
-		$this->outbound_requests      = [];
-		$this->failing_users          = [];
-		$this->channel_messages       = [];
-		$this->is_history_unreachable = false;
+		$this->outbound_requests        = [];
+		$this->failing_users            = [];
+		$this->channel_messages         = [];
+		$this->is_history_unreachable   = false;
+		$this->history_response_seconds = 0.0;
 		add_filter( 'pre_http_request', [ $this, 'mock_slack_api' ], 10, 3 );
 	}
 
@@ -96,6 +104,8 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 			if ( $this->is_history_unreachable ) {
 				return new WP_Error( 'http_request_failed', 'Operation timed out' );
 			}
+
+			usleep( (int) ( $this->history_response_seconds * 1000000 ) );
 
 			// Like Slack, answer with the newest message up to `latest`.
 			$timestamps = array_filter( array_keys( $this->channel_messages ), fn( $ts ) => (float) $ts <= (float) ( $query['latest'] ?? 0 ) );
@@ -207,15 +217,19 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	/**
 	 * Build the body of a reply in the thread of the default message.
 	 *
+	 * @param array $event_overrides Event fields to override.
 	 * @return string JSON body.
 	 */
-	private static function thread_reply_event_body() {
+	private static function thread_reply_event_body( array $event_overrides = [] ) {
 		return self::message_event_body(
-			[
-				'ts'        => '1767225700.000200',
-				'thread_ts' => self::MESSAGE_TS,
-				'text'      => 'Is that confirmed by the clerk?',
-			]
+			array_merge(
+				[
+					'ts'        => '1767225700.000200',
+					'thread_ts' => self::MESSAGE_TS,
+					'text'      => 'Is that confirmed by the clerk?',
+				],
+				$event_overrides
+			)
 		);
 	}
 
@@ -692,6 +706,52 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->assertCount( 2, $parents_by_entry, 'The message and its reply should each have an entry.' );
 		unset( $parents_by_entry[ $message_entry_id ] );
 		$this->assertSame( [ $message_entry_id ], array_values( $parents_by_entry ), 'The reply should be a child of the message entry.' );
+	}
+
+	/**
+	 * Reading a reply's thread counts toward the time the webhook may spend on
+	 * Slack lookups, so after a slow read the mentions are not looked up and
+	 * Slack still gets its answer in time.
+	 */
+	public function test_mentions_are_not_looked_up_after_a_slow_thread_lookup() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$this->channel_messages         = [ self::MESSAGE_TS => 'Polls have closed across the county.' ];
+		$this->history_response_seconds = Slack_Webhook_Controller::MENTION_LOOKUP_BUDGET + 0.05;
+
+		$body = self::thread_reply_event_body(
+			[
+				'text'   => 'Thanks <@U0COLLEAGUE>',
+				'blocks' => [
+					[
+						'type'     => 'rich_text',
+						'elements' => [
+							[
+								'type'     => 'rich_text_section',
+								'elements' => [
+									[
+										'type' => 'text',
+										'text' => 'Thanks ',
+									],
+									[
+										'type'    => 'user',
+										'user_id' => 'U0COLLEAGUE',
+									],
+								],
+							],
+						],
+					],
+				],
+			]
+		);
+
+		self::controller()->handle_event( self::webhook_request( $body ) );
+		$entries = self::get_coverage_entries( $coverage_id );
+
+		$this->assertCount( 1, $entries );
+		$this->assertStringContainsString( '<p>Thanks @U0COLLEAGUE</p>', $entries[0]->post_content, 'The mention should show its Slack ID.' );
+		$this->assertCount( 1, array_filter( $this->outbound_requests, fn( $url ) => false !== strpos( $url, 'users.info' ) ), 'Only the author should be looked up.' );
 	}
 
 	/**
