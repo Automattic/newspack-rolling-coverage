@@ -12,6 +12,7 @@ import {
 	ENTRY_ALLOWED_BLOCKS,
 	ENTRY_EDITED_STATES,
 	FOLLOW_TEMPLATE,
+	feedTemplate,
 	isFollowButtons,
 	withoutPinnedRow,
 	withoutBreakoutLink,
@@ -59,14 +60,16 @@ export const STATE_BY_BLOCK_NAME: Record< string, string > = Object.fromEntries(
 );
 
 /**
- * Default inner-blocks template for the Rolling Coverage block: the follow
- * button at the top, then every editor state's blocks, then the per-entry
- * blocks.
+ * Default inner-blocks template for the Rolling Coverage block: the Feed
+ * group, holding the follow button at the top, then every editor state's
+ * blocks, then the per-entry blocks.
  */
 export const INNER_TEMPLATE = [
-	FOLLOW_TEMPLATE,
-	...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
-	...ENTRY_TEMPLATE,
+	feedTemplate( [
+		FOLLOW_TEMPLATE,
+		...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
+		...ENTRY_TEMPLATE,
+	] ),
 ];
 
 /**
