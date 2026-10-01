@@ -1,5 +1,3 @@
-@use "~@wordpress/base-styles/mixins" as wp-mixins;
-
 :where(:root) {
 	--wp--preset--shadow--elevation-1: 0 1px 10px rgba(0, 0, 0, 0.07);
 }
@@ -22,7 +20,7 @@
 	.newspack-rolling-coverage-new-entries {
 		position: fixed;
 		z-index: 100;
-		top: calc(24px + env(safe-area-inset-top, 0px));
+		top: var(--newspack-rolling-coverage-control-top, calc(24px + env(safe-area-inset-top, 0px)));
 		left: 50%;
 		margin: 0;
 		white-space: nowrap;
@@ -39,10 +37,10 @@
 	}
 
 	body.admin-bar & .newspack-rolling-coverage-new-entries:not([hidden]) {
-		top: calc(48px + env(safe-area-inset-top, 0px));
+		top: var(--newspack-rolling-coverage-control-top, calc(48px + env(safe-area-inset-top, 0px)));
 
 		@media screen and (max-width: 782px) {
-			top: calc(32px + env(safe-area-inset-top, 0px));
+			top: var(--newspack-rolling-coverage-control-top, calc(32px + env(safe-area-inset-top, 0px)));
 		}
 	}
 
@@ -80,30 +78,34 @@
 	}
 
 	.newspack-rolling-coverage-entry[data-linked] {
-		scroll-margin-top: calc(var(--newspack-rolling-coverage-scroll-offset, 80px) + var(--wp--preset--spacing--20, 0.5rem) + var(--wp--preset--spacing--30, 1rem) + 3px);
-
-		@include wp-mixins.break-medium {
-			scroll-margin-top: calc(var(--newspack-rolling-coverage-scroll-offset, 80px) + var(--wp--preset--spacing--30, 1rem) * 2 + 6px);
-		}
+		--newspack-rolling-coverage-linked-margin: calc(var(--newspack-rolling-coverage-scroll-offset, 80px) + var(--wp--preset--spacing--50, 2rem) / 2 + 2px + var(--wp--preset--spacing--30, 1rem));
+		scroll-margin-top: var(--newspack-rolling-coverage-linked-margin);
 	}
 
 	.newspack-rolling-coverage-entry[data-linked] > .newspack-rolling-coverage-regular-entry,
 	.newspack-rolling-coverage-entry[data-linked] > .newspack-rolling-coverage-pinned-card {
-		outline: 3px solid var(--wp--preset--color--accent, var(--newspack-theme-color-primary, currentcolor));
-		outline-offset: var(--wp--preset--spacing--20, 0.5rem);
+		outline: 2px solid var(--wp--preset--color--accent, var(--newspack-theme-color-primary, currentcolor));
+		outline-offset: calc(var(--wp--preset--spacing--50, 2rem) / 2);
+		transition: outline-color 1s ease-out;
 
-		@include wp-mixins.break-medium {
-			outline-offset: calc(var(--wp--preset--spacing--30, 1rem) + 3px);
+		@media (prefers-reduced-motion: reduce) {
+			transition: none;
 		}
 	}
 
 	.newspack-rolling-coverage-entry[data-linked]:not(:has(> .newspack-rolling-coverage-regular-entry, > .newspack-rolling-coverage-pinned-card)) {
-		outline: 3px solid var(--wp--preset--color--accent, var(--newspack-theme-color-primary, currentcolor));
-		outline-offset: var(--wp--preset--spacing--20, 0.5rem);
+		outline: 2px solid var(--wp--preset--color--accent, var(--newspack-theme-color-primary, currentcolor));
+		outline-offset: calc(var(--wp--preset--spacing--50, 2rem) / 2);
+		transition: outline-color 1s ease-out;
 
-		@include wp-mixins.break-medium {
-			outline-offset: calc(var(--wp--preset--spacing--30, 1rem) + 3px);
+		@media (prefers-reduced-motion: reduce) {
+			transition: none;
 		}
+	}
+
+	&[data-linked-faded] .newspack-rolling-coverage-entry[data-linked],
+	&[data-linked-faded] .newspack-rolling-coverage-entry[data-linked] > * {
+		outline-color: transparent;
 	}
 
 	.newspack-rolling-coverage-entry-archived-notice {

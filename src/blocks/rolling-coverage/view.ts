@@ -32,6 +32,18 @@ const JUMP_TIMEOUT_MS = 8000;
 // the feed without them.
 const STYLES_TIMEOUT_MS = 3000;
 
+// Space between the floating control and the top of the viewport, or the
+// bars there, matching the stylesheet.
+const EDGE_GAP = 24;
+const BAR_GAP = 16;
+
+// How long the linked entry's outline stays once the reader can see it.
+const LINKED_OUTLINE_MS = 4000;
+
+// The tallest the floating control is expected to be, so an entry scrolled
+// into view lands clear of it.
+const CONTROL_HEIGHT = 56;
+
 /**
  * cssEscape polyfill for older browsers.
  */
@@ -156,6 +168,60 @@ function newerPostsLabel( count: number ): string {
 }
 
 /**
+ * How far down the viewport the fixed and sticky elements over its top centre
+ * reach, such as the admin bar and a sticky site header, so the floating
+ * control can sit below them. An element taller than half the viewport is an
+ * overlay rather than a header, and is passed over.
+ *
+ * @param {HTMLElement|null} control The floating control, which is never counted.
+ * @return {number} Distance from the top of the viewport, in pixels.
+ */
+function topBarsBottom( control: HTMLElement | null ): number {
+	const x = window.innerWidth / 2;
+	let bottom = 0;
+
+	// Bars can stack, like a sticky header held below the admin bar.
+	for ( let i = 0; i < 4; i++ ) {
+		const y = bottom + 1;
+		let next = bottom;
+
+		document.elementsFromPoint( x, y ).forEach( ( element ) => {
+			for (
+				let node: Element | null = element;
+				node && node !== document.body && ! control?.contains( node );
+				node = node.parentElement
+			) {
+				const { position } = window.getComputedStyle( node );
+
+				if ( position !== 'fixed' && position !== 'sticky' ) {
+					continue;
+				}
+
+				const rect = node.getBoundingClientRect();
+
+				if (
+					rect.top <= y &&
+					rect.bottom > next &&
+					rect.height < window.innerHeight / 2
+				) {
+					next = rect.bottom;
+				}
+
+				break;
+			}
+		} );
+
+		if ( next <= bottom ) {
+			break;
+		}
+
+		bottom = next;
+	}
+
+	return bottom;
+}
+
+/**
  * Sets up polling and infinite scroll for a single block instance.
  *
  * @param {HTMLElement} root The block's outer wrapper element.
@@ -208,6 +274,7 @@ function initBlock( root: HTMLElement ): void {
 	let hasMore = root.dataset.hasMore === '1';
 	let isLoadingMore = false;
 	let isJumping = false;
+	let barsBottom = 0;
 	let isDisposed = false;
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
@@ -474,6 +541,7 @@ function initBlock( root: HTMLElement ): void {
 
 		newEntriesLink.textContent = label;
 		newEntriesControl.hidden = false;
+		placeControl();
 		announce( label );
 	}
 
@@ -520,7 +588,96 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {number} The vertical scroll position.
 	 */
 	function blockTopY(): number {
-		return root.getBoundingClientRect().top + window.scrollY - 24;
+		const bars = topBarsBottom( newEntriesControl );
+
+		return (
+			root.getBoundingClientRect().top +
+			window.scrollY -
+			( bars > 0 ? bars + BAR_GAP : EDGE_GAP )
+		);
+	}
+
+	/**
+	 * Fades the linked entry's outline a few seconds after the reader first
+	 * sees it. The wait starts only while the page is visible, so a link
+	 * opened in a background tab still shows it.
+	 *
+	 * @return {void}
+	 */
+	function fadeLinkedOutline(): void {
+		const linked = entriesList.querySelector( '[data-linked]' );
+
+		if (
+			! linked ||
+			root.dataset.linkedFaded !== undefined ||
+			typeof IntersectionObserver === 'undefined'
+		) {
+			return;
+		}
+
+		let isInView = false;
+		let fadeTimeoutId: ReturnType< typeof setTimeout > | null = null;
+
+		const startWhenSeen = () => {
+			if (
+				fadeTimeoutId === null &&
+				isInView &&
+				document.visibilityState === 'visible'
+			) {
+				fadeTimeoutId = setTimeout( stop, LINKED_OUTLINE_MS );
+			}
+		};
+
+		const observer = new IntersectionObserver(
+			( [ entry ] ) => {
+				isInView = entry.isIntersecting;
+				startWhenSeen();
+			},
+			{ threshold: 0 }
+		);
+
+		function stop(): void {
+			root.dataset.linkedFaded = '';
+			observer.disconnect();
+			document.removeEventListener( 'visibilitychange', startWhenSeen );
+		}
+
+		observer.observe( linked );
+		document.addEventListener( 'visibilitychange', startWhenSeen );
+
+		cleanupFns.push( () => {
+			observer.disconnect();
+			document.removeEventListener( 'visibilitychange', startWhenSeen );
+
+			if ( fadeTimeoutId !== null ) {
+				clearTimeout( fadeTimeoutId );
+			}
+		} );
+	}
+
+	/**
+	 * Keeps the floating control below the bars at the top of the viewport.
+	 * Without any, the stylesheet's position applies.
+	 *
+	 * @return {void}
+	 */
+	function placeControl(): void {
+		if ( ! newEntriesControl || newEntriesControl.hidden ) {
+			return;
+		}
+
+		barsBottom = topBarsBottom( newEntriesControl );
+
+		if ( barsBottom > 0 ) {
+			newEntriesControl.style.setProperty(
+				'--newspack-rolling-coverage-control-top',
+				`${ barsBottom + BAR_GAP }px`
+			);
+		} else {
+			newEntriesControl.style.removeProperty(
+				'--newspack-rolling-coverage-control-top'
+			);
+		}
 	}
 
 	/**
@@ -1048,10 +1205,46 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		scrollCheckScheduled = true;
-		requestAnimationFrame( checkIfScrolledBackToTop );
+		requestAnimationFrame( () => {
+			checkIfScrolledBackToTop();
+			placeControl();
+		} );
 	};
 	window.addEventListener( 'scroll', onScroll, { passive: true } );
 	cleanupFns.push( () => window.removeEventListener( 'scroll', onScroll ) );
+	on( window, 'resize', onScroll );
+
+	placeControl();
+
+	// The page lands at the linked entry before the bars are measured, so it
+	// can sit under a sticky header until it is scrolled again. A theme's own
+	// offset for sticky headers leaves no room for the control, so the entry's
+	// margin is set on the element.
+	const landingBars = topBarsBottom( newEntriesControl );
+
+	if ( landingBars > 0 ) {
+		root.style.setProperty(
+			'--newspack-rolling-coverage-scroll-offset',
+			`${ landingBars + BAR_GAP + CONTROL_HEIGHT }px`
+		);
+
+		const target =
+			window.location.hash.length > 1
+				? root.querySelector(
+						`#${ cssEscape( window.location.hash.slice( 1 ) ) }`
+					)
+				: null;
+
+		if ( target instanceof HTMLElement ) {
+			target.style.scrollMarginTop =
+				target.dataset.linked === undefined
+					? 'var(--newspack-rolling-coverage-scroll-offset)'
+					: 'var(--newspack-rolling-coverage-linked-margin)';
+			target.scrollIntoView();
+		}
+	}
+
+	fadeLinkedOutline();
 
 	/**
 	 * Applies a poll response to the entry list.
