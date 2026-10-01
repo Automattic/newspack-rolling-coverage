@@ -194,11 +194,25 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 			'member joining a private one' => [ [ 'subtype' => 'group_join' ] ],
 			'member leaving a private one' => [ [ 'subtype' => 'group_leave' ] ],
 			'message with the skip prefix' => [ [ 'text' => '~~ not for publication' ] ],
+			'reply inside a thread'        => [
+				[
+					'ts'        => '1767225700.000200',
+					'thread_ts' => '1767225600.000100',
+				],
+			],
+			'reply also sent to channel'   => [
+				[
+					'subtype'   => 'thread_broadcast',
+					'ts'        => '1767225700.000200',
+					'thread_ts' => '1767225600.000100',
+				],
+			],
 		];
 	}
 
 	/**
-	 * Bot traffic, edits, membership noise and opted-out messages are skipped.
+	 * Bot traffic, edits, membership noise, thread replies and opted-out
+	 * messages are skipped.
 	 *
 	 * @dataProvider filtered_event_provider
 	 *
@@ -215,6 +229,22 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	public function test_keeps_reporter_messages() {
 		$this->assertFalse( Slack_Ingestion_Service::should_filter_message( [ 'text' => 'Polls have closed.' ] ), 'A plain message should be kept.' );
 		$this->assertFalse( Slack_Ingestion_Service::should_filter_message( [ 'text' => 'Turnout was ~~60%~~ 62%.' ] ), 'The skip prefix only counts at the start of the message.' );
+	}
+
+	/**
+	 * The message a thread hangs from is an ordinary channel message. Slack
+	 * marks it with a thread timestamp equal to its own.
+	 */
+	public function test_keeps_the_message_that_starts_a_thread() {
+		$this->assertFalse(
+			Slack_Ingestion_Service::should_filter_message(
+				[
+					'text'      => 'Polls have closed.',
+					'ts'        => '1767225600.000100',
+					'thread_ts' => '1767225600.000100',
+				]
+			)
+		);
 	}
 
 	/**
@@ -571,6 +601,42 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		self::controller()->handle_event( self::webhook_request( self::message_event_body() ) );
 
 		$this->assertCount( 1, self::get_coverage_entries( $coverage_id ) );
+	}
+
+	/**
+	 * A reply inside a thread never becomes an entry, even in a channel that
+	 * publishes its messages straight away. Only the channel's top-level
+	 * messages do.
+	 */
+	public function test_thread_reply_in_a_linked_channel_creates_no_entry() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel(
+			self::CHANNEL_ID,
+			[
+				'term_id'     => $coverage_id,
+				'autopublish' => true,
+			]
+		);
+
+		self::controller()->handle_event( self::webhook_request( self::message_event_body() ) );
+		$response = self::controller()->handle_event(
+			self::webhook_request(
+				self::message_event_body(
+					[
+						'ts'        => '1767225700.000200',
+						'thread_ts' => '1767225600.000100',
+						'text'      => 'Is that confirmed by the clerk?',
+					]
+				)
+			)
+		);
+		$entries  = self::get_coverage_entries( $coverage_id );
+
+		$this->assertSame( 200, $response->get_status(), 'Slack should still get a 200.' );
+		$this->assertCount( 1, $entries, 'Only the top-level message should become an entry.' );
+		$this->assertStringContainsString( 'Polls have closed across the county.', $entries[0]->post_content, 'The entry should be the top-level message.' );
+		$this->assertSame( '1767225600.000100', Slack_Config::get_channel_settings( self::CHANNEL_ID )['last_sync_ts'], 'The reply should not count as the last ingested message.' );
 	}
 
 	/**

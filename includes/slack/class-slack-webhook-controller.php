@@ -790,7 +790,7 @@ class Slack_Webhook_Controller {
 		if ( 'message' === $event_type ) {
 			// 1. Filter — Slack-specific rules from Slack_Ingestion_Service.
 			if ( Slack_Ingestion_Service::should_filter_message( $event ) ) {
-				Slack_Monitor::log( 'info', 'Message filtered (bot/edit/delete/join-leave/ignore prefix)', [ 'channel' => $event['channel'] ?? '' ] );
+				Slack_Monitor::log( 'info', 'Message filtered (bot/edit/delete/join-leave/thread reply/ignore prefix)', [ 'channel' => $event['channel'] ?? '' ] );
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
