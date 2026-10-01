@@ -56,12 +56,18 @@ class Entry_Bindings {
 	const PINNED_LABEL_CLASS = 'newspack-rolling-coverage-pinned-label';
 
 	/**
+	 * Class of the paragraph that links to the entry's breakout post.
+	 */
+	const READ_MORE_CLASS = 'newspack-rolling-coverage-read-more';
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
 		add_action( 'init', [ __CLASS__, 'register_source' ] );
 		add_filter( 'render_block_core/button', [ __CLASS__, 'filter_button' ], 10, 3 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'filter_pinned_label' ], 10, 2 );
+		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_read_more' ], 10, 2 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'filter_pinned_group' ], 10, 2 );
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'link_title_to_breakout' ], 10, 3 );
 	}
@@ -161,8 +167,8 @@ class Entry_Bindings {
 	/**
 	 * Render nothing for a button whose link is bound to a value the entry
 	 * doesn't have, e.g. "Read more" before the breakout post is published,
-	 * or "Jump to latest" inside an entry, and hand the share, follow and
-	 * "Jump to latest" buttons what their scripts need.
+	 * or "Jump to Latest" inside an entry, and hand the share, follow and
+	 * "Jump to Latest" buttons what their scripts need.
 	 *
 	 * Parameters stay untyped because this runs for every core button on the
 	 * site, after other plugins' filters that may hand on unexpected types.
@@ -300,6 +306,66 @@ class Entry_Bindings {
 	}
 
 	/**
+	 * Link a "Read more" paragraph to the entry's published breakout post, or
+	 * render nothing when there is none.
+	 *
+	 * Parameters stay untyped because this runs for every paragraph on the
+	 * site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string $block_content Rendered block.
+	 * @param array  $block         Parsed block.
+	 * @return string
+	 */
+	public static function link_read_more( $block_content, $block ) {
+		if ( ! Rolling_Coverage_Block::is_rendering_entry() || ! is_array( $block ) || ! is_string( $block_content ) || ! self::is_read_more_paragraph( $block ) ) {
+			return $block_content;
+		}
+
+		$entry_id = (int) get_the_ID();
+		$url      = $entry_id && Post_Type::CPT_SLUG === get_post_type( $entry_id ) ? Breakout::get_published_breakout_url( $entry_id ) : null;
+
+		if ( ! $url ) {
+			return '';
+		}
+
+		if ( ! preg_match( '/<p(?=[\s>])(?:"[^"]*"|\'[^\']*\'|[^>"\'])*>/i', $block_content, $open, PREG_OFFSET_CAPTURE ) ) {
+			return $block_content;
+		}
+
+		$inner_start = $open[0][1] + strlen( $open[0][0] );
+		$close       = stripos( $block_content, '</p>', $inner_start );
+
+		if ( false === $close ) {
+			return $block_content;
+		}
+
+		$inner = substr( $block_content, $inner_start, $close - $inner_start );
+
+		if ( preg_match( '/<a[\s>]/i', $inner ) ) {
+			return $block_content;
+		}
+
+		return substr( $block_content, 0, $inner_start )
+			. '<a href="' . esc_url( $url ) . '">' . $inner . '</a>'
+			. substr( $block_content, $close );
+	}
+
+	/**
+	 * Whether a parsed block is the paragraph linking to the entry's breakout
+	 * post.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_read_more_paragraph( array $parsed_block ): bool {
+		$class_name = $parsed_block['attrs']['className'] ?? '';
+
+		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
+			is_string( $class_name ) &&
+			in_array( self::READ_MORE_CLASS, explode( ' ', $class_name ), true );
+	}
+
+	/**
 	 * Render nothing for the pinned row, a group holding only the pinned label
 	 * and icons, on an entry that isn't pinned. A group holding anything else
 	 * keeps rendering; only the label inside it goes.
@@ -351,6 +417,26 @@ class Entry_Bindings {
 	}
 
 	/**
+	 * Whether a template shows the pinned label, at any depth.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return bool
+	 */
+	public static function has_pinned_label( array $blocks ): bool {
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) ) {
+				continue;
+			}
+
+			if ( self::is_pinned_label( $block ) || ( ! empty( $block['innerBlocks'] ) && is_array( $block['innerBlocks'] ) && self::has_pinned_label( $block['innerBlocks'] ) ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Whether a parsed block is the paragraph labeling a pinned entry.
 	 *
 	 * @param array $parsed_block Parsed block.
@@ -388,7 +474,7 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Whether a parsed block is the Rolling Coverage "Jump to latest" button:
+	 * Whether a parsed block is the Rolling Coverage "Jump to Latest" button:
 	 * a core Buttons block holding a button bound to the live feed's link.
 	 *
 	 * @param array $parsed_block Parsed block.

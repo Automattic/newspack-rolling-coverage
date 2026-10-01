@@ -186,6 +186,83 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A compact template: a pinned card and an entry group, each a row of the
+	 * time and the body, with the visible pinned label in the card or without.
+	 *
+	 * @param bool $with_label Whether the card carries the pinned label.
+	 * @return string Template markup.
+	 */
+	private static function compact_markup( bool $with_label = false ): string {
+		$label = $with_label
+			? '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-pinned-label"} --><p class="use-header-font newspack-rolling-coverage-pinned-label">Pinned</p><!-- /wp:paragraph -->'
+			: '';
+		$date  = '<!-- wp:post-date {"format":"g:i a"} /-->';
+		$body  = '<!-- wp:column --><div class="wp-block-column"><!-- wp:paragraph --><p>Body text</p><!-- /wp:paragraph --></div><!-- /wp:column -->';
+		$row   = static fn( string $time ): string => '<!-- wp:columns {"isStackedOnMobile":false} --><div class="wp-block-columns">'
+			. '<!-- wp:column {"width":"6rem"} --><div class="wp-block-column" style="flex-basis:6rem">' . $time . '</div><!-- /wp:column -->'
+			. $body
+			. '</div><!-- /wp:columns -->';
+
+		return '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">' . $label . $row( $date ) . '</div><!-- /wp:group -->'
+			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . $row( $date ) . '</div><!-- /wp:group -->';
+	}
+
+	/**
+	 * A pinned entry whose template shows no pinned label is announced to
+	 * screen readers first in the article; an unpinned one is not.
+	 */
+	public function test_pinned_entry_without_a_label_is_announced_to_screen_readers() {
+		$markup = self::compact_markup();
+		$pinned = self::render( self::create_pinned_entry(), false, $markup );
+		$other  = self::render( self::create_entry( self::create_coverage() ), false, $markup );
+
+		$this->assertMatchesRegularExpression( '/<article [^>]*><span class="newspack-rolling-coverage-pinned-status">Pinned<\/span>/', $pinned );
+		$this->assertStringContainsString( 'Body text', $pinned );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-status', $other, 'An unpinned entry should carry no announcement.' );
+		$this->assertStringContainsString( '<time', $other );
+	}
+
+	/**
+	 * A pinned entry whose template shows the pinned label keeps just that
+	 * label.
+	 */
+	public function test_pinned_entry_with_a_label_adds_no_announcement() {
+		$pinned = self::render( self::create_pinned_entry(), false, self::compact_markup( true ) );
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-label', $pinned );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-status', $pinned );
+	}
+
+	/**
+	 * A label nested in a row group inside the card still counts as the
+	 * pinned label.
+	 */
+	public function test_pinned_entry_with_a_nested_label_adds_no_announcement() {
+		$label  = '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-pinned-label"} --><p class="use-header-font newspack-rolling-coverage-pinned-label">Pinned</p><!-- /wp:paragraph -->';
+		$markup = '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">'
+			. '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group">' . $label . '<!-- wp:post-date /--></div><!-- /wp:group -->'
+			. '<!-- wp:paragraph --><p>Body text</p><!-- /wp:paragraph --></div><!-- /wp:group -->';
+		$pinned = self::render( self::create_pinned_entry(), false, $markup );
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-label', $pinned );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-status', $pinned );
+	}
+
+	/**
+	 * A compact pinned card and entry group carry no corner radius of their
+	 * own, and rendering adds none.
+	 */
+	public function test_compact_cards_render_without_a_border_radius() {
+		$markup = self::compact_markup();
+		$pinned = self::render( self::create_pinned_entry(), false, $markup );
+		$other  = self::render( self::create_entry( self::create_coverage() ), false, $markup );
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-card', $pinned );
+		$this->assertStringNotContainsString( 'border-radius', $pinned );
+		$this->assertStringNotContainsString( 'border-radius', $other );
+	}
+
+	/**
 	 * The built-in template, used when the block saves no blocks, renders the
 	 * card for a pinned entry and the entry group for the others.
 	 */
@@ -250,6 +327,22 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'Read more', $html, '"Read more" should stay.' );
 		$this->assertStringContainsString( 'margin-bottom:20px', $html, 'The content should keep its margin.' );
+	}
+
+	/**
+	 * A card holding the "Read more" paragraph drops it without a breakout.
+	 */
+	public function test_pinned_card_drops_the_read_more_paragraph_without_a_breakout() {
+		$entry_id = self::create_pinned_entry();
+		$markup   = '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">'
+			. '<!-- wp:paragraph --><p>Card text</p><!-- /wp:paragraph -->'
+			. '<!-- wp:paragraph {"className":"newspack-rolling-coverage-read-more"} --><p class="newspack-rolling-coverage-read-more">Read more</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+
+		$html = self::render( $entry_id, false, $markup );
+
+		$this->assertStringContainsString( 'Card text', $html );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-read-more', $html );
 	}
 
 	/**

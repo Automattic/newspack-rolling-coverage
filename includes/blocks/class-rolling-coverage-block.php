@@ -146,6 +146,7 @@ class Rolling_Coverage_Block {
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
 		add_filter( 'render_block_core/post-content', [ __CLASS__, 'drop_entry_content_class' ], 10, 3 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
+		add_filter( 'render_block_core/columns', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
 		add_filter( 'render_block_core/buttons', [ __CLASS__, 'drop_empty_entry_buttons' ], 10, 1 );
 	}
 
@@ -305,16 +306,20 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Writes an entry's flex group block spacing (e.g. the date and title
-	 * stack) onto the group on the Newspack Theme.
+	 * Writes an entry's flex group and columns block spacing (e.g. the date
+	 * and title stack) onto the block on the Newspack Theme.
 	 *
 	 * Core only outputs block spacing for themes that support it through
 	 * theme.json; the classic Newspack Theme doesn't, so core falls back to
 	 * its 0.5em default and ignores the value set in the editor. Themes that
 	 * support block spacing, like the Newspack Block Theme, are left to core.
 	 *
-	 * Parameters stay untyped because this runs for every group block on the
-	 * site, after other plugins' filters that may hand on unexpected types.
+	 * Columns are flex by default, so they count without a layout attribute. A
+	 * columns gap that only sets the horizontal value is written as a column
+	 * gap.
+	 *
+	 * Parameters stay untyped because this runs for every group and columns
+	 * block on the site, after other plugins' filters that may hand on unexpected types.
 	 *
 	 * @param string   $block_content Rendered block.
 	 * @param array    $block         Parsed block.
@@ -324,7 +329,8 @@ class Rolling_Coverage_Block {
 	public static function apply_entry_block_gap( $block_content, $block, $instance ) {
 		if (
 			! is_string( $block_content ) ||
-			'flex' !== ( $block['attrs']['layout']['type'] ?? '' ) ||
+			! is_array( $block ) ||
+			'flex' !== ( $block['attrs']['layout']['type'] ?? ( 'core/columns' === ( $block['blockName'] ?? '' ) ? 'flex' : '' ) ) ||
 			! self::$entry_render_depth ||
 			'newspack-theme' !== get_template() ||
 			null !== wp_get_global_settings( [ 'spacing', 'blockGap' ] )
@@ -334,15 +340,18 @@ class Rolling_Coverage_Block {
 
 		$gap = wp_sanitize_block_gap_value( $block['attrs']['style']['spacing']['blockGap'] ?? null );
 		$gap = is_array( $gap ) ? [ $gap['top'] ?? null, $gap['left'] ?? null ] : [ $gap ];
-		$gap = array_filter( $gap, fn( $value ) => is_scalar( $value ) && '' !== (string) $value );
+		$gap = array_map(
+			fn( $value ) => is_scalar( $value ) && '' !== (string) $value ? self::spacing_css_value( (string) $value ) : null,
+			$gap
+		);
 
-		if ( ! $gap ) {
+		if ( ! array_filter( $gap, 'is_string' ) ) {
 			return $block_content;
 		}
 
-		$gap = array_map( fn( $value ) => self::spacing_css_value( (string) $value ), $gap );
+		$properties = 2 === count( $gap ) && null === $gap[0] ? [ 'column-gap' => $gap[1] ] : [ 'gap' => implode( ' ', array_filter( $gap, 'is_string' ) ) ];
 
-		$declaration = ( new \WP_Style_Engine_CSS_Declarations( [ 'gap' => implode( ' ', $gap ) ] ) )->get_declarations_string();
+		$declaration = ( new \WP_Style_Engine_CSS_Declarations( $properties ) )->get_declarations_string();
 		$group       = new WP_HTML_Tag_Processor( $block_content );
 
 		if ( $declaration && $group->next_tag() ) {
@@ -528,7 +537,10 @@ class Rolling_Coverage_Block {
 					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
 					'canonicalUrlMetaKey'         => Taxonomy::CANONICAL_URL_META_KEY,
 					'onesignalConfigured'         => Push_Notifications::is_onesignal_configured(),
-					'defaultLayoutId'             => Layout::get_default_layout_id(),
+					'layoutIds'                   => array_combine(
+						Layout::BUILT_IN_SLUGS,
+						array_map( [ Layout::class, 'get_layout_id' ], Layout::BUILT_IN_SLUGS )
+					),
 					'layoutsRestBase'             => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/layouts' ) ),
 					'adminUrl'                    => esc_url_raw( admin_url() ),
 					'isBlockTheme'                => wp_is_block_theme(),
@@ -1050,7 +1062,7 @@ class Rolling_Coverage_Block {
 	/**
 	 * The label of the control on a feed opened at a shared entry: the number
 	 * of newer entries, exact up to ten and from there the round number it
-	 * has passed, e.g. "10+ newer posts" for 11 to 50. Empty when there are
+	 * has passed, e.g. "10+ Newer Posts" for 11 to 50. Empty when there are
 	 * none, as the control then keeps its own text. The view script builds
 	 * the same labels.
 	 *
@@ -1064,7 +1076,7 @@ class Rolling_Coverage_Block {
 
 		if ( $count <= 10 ) {
 			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
-			return sprintf( _n( '%d newer post', '%d newer posts', $count, 'newspack-rolling-coverage' ), $count );
+			return sprintf( _n( '%d Newer Post', '%d Newer Posts', $count, 'newspack-rolling-coverage' ), $count );
 		}
 
 		$floor = 10;
@@ -1076,7 +1088,7 @@ class Rolling_Coverage_Block {
 		}
 
 		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
-		return sprintf( _n( '%d+ newer post', '%d+ newer posts', $floor, 'newspack-rolling-coverage' ), $floor );
+		return sprintf( _n( '%d+ Newer Post', '%d+ Newer Posts', $floor, 'newspack-rolling-coverage' ), $floor );
 	}
 
 	/**
@@ -1106,7 +1118,7 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The control fixed above the feed: the layout's "Jump to latest" button,
+	 * The control fixed above the feed: the layout's "Jump to Latest" button,
 	 * or the default one when the layout has none, or has one that cannot
 	 * link to the live feed (its label emptied, or its element switched to a
 	 * button). It links to the live feed, so it works without the view
@@ -1224,7 +1236,7 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The default "Jump to latest" button's colors, as palette slugs: the
+	 * The default "Jump to Latest" button's colors, as palette slugs: the
 	 * theme's Contrast and Base where its palette has both, as block themes
 	 * do; otherwise Dark Gray and White where it has both, as the Newspack
 	 * Theme does; otherwise Contrast and Base. The editor picks the same way
@@ -1255,7 +1267,7 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The default "Jump to latest" button, as the editor saves the one in the
+	 * The default "Jump to Latest" button, as the editor saves the one in the
 	 * default layout: a parsed Buttons block holding a button in the palette's
 	 * colors (see latest_button_colors()) with the theme's Elevation 1
 	 * shadow, its link bound to the live feed.
@@ -1263,7 +1275,7 @@ class Rolling_Coverage_Block {
 	 * @return array Parsed-block-shaped array.
 	 */
 	private static function default_latest_buttons_block(): array {
-		$name        = __( 'Jump to latest', 'newspack-rolling-coverage' );
+		$name        = __( 'Jump to Latest', 'newspack-rolling-coverage' );
 		$lock        = [
 			'remove' => true,
 			'move'   => true,
@@ -1432,7 +1444,7 @@ class Rolling_Coverage_Block {
 		$follow_block = null;
 
 		foreach ( self::layout_items( $block ) as $inner ) {
-			// A Buttons block also holding "Jump to latest" renders as that control.
+			// A Buttons block also holding "Jump to Latest" renders as that control.
 			if ( Entry_Bindings::is_latest_buttons( $inner ) ) {
 				continue;
 			}
@@ -1760,10 +1772,10 @@ class Rolling_Coverage_Block {
 			],
 			[
 				'blockName'    => 'core/buttons',
-				'attrs'        => [ 'metadata' => [ 'name' => __( 'Read more', 'newspack-rolling-coverage' ) ] ],
+				'attrs'        => [ 'metadata' => [ 'name' => __( 'Read More', 'newspack-rolling-coverage' ) ] ],
 				'innerBlocks'  => [
 					self::entry_button_block(
-						__( 'Read more', 'newspack-rolling-coverage' ),
+						__( 'Read More', 'newspack-rolling-coverage' ),
 						[
 							'url' => [
 								'source' => Entry_Bindings::SOURCE_NAME,
@@ -2222,7 +2234,8 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Whether a parsed block links to the entry's breakout post: a button
-	 * whose link is bound to it, or the Breakout Post Link block.
+	 * whose link is bound to it, the Breakout Post Link block, or the "Read more"
+	 * paragraph.
 	 *
 	 * @param array $block Parsed block.
 	 * @return bool
@@ -2230,7 +2243,7 @@ class Rolling_Coverage_Block {
 	private static function is_breakout_link( array $block ): bool {
 		$binding = $block['attrs']['metadata']['bindings']['url'] ?? [];
 
-		return 'newspack-rolling-coverage/breakout-post-link' === ( $block['blockName'] ?? '' ) || (
+		return 'newspack-rolling-coverage/breakout-post-link' === ( $block['blockName'] ?? '' ) || Entry_Bindings::is_read_more_paragraph( $block ) || (
 			'core/button' === ( $block['blockName'] ?? '' ) &&
 			is_array( $binding ) &&
 			Entry_Bindings::SOURCE_NAME === ( $binding['source'] ?? '' ) &&
@@ -2588,6 +2601,10 @@ class Rolling_Coverage_Block {
 
 			$post = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 			setup_postdata( $previous_post );
+		}
+
+		if ( $is_pinned && ! Entry_Bindings::has_pinned_label( $template ) ) {
+			$entry_content = '<span class="newspack-rolling-coverage-pinned-status">' . esc_html__( 'Pinned', 'newspack-rolling-coverage' ) . '</span>' . $entry_content;
 		}
 
 		$post_classes = implode( ' ', get_post_class( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post' ], $entry ) );

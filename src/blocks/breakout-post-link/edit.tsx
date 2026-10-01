@@ -16,7 +16,7 @@ export default function Edit() {
 			href="#breakout-post-link-placeholder"
 			onClick={ ( event ) => event.preventDefault() }
 		>
-			{ __( 'Read more', 'newspack-rolling-coverage' ) }
+			{ __( 'Read More', 'newspack-rolling-coverage' ) }
 		</a>
 	);
 }

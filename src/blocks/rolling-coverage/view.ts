@@ -144,7 +144,7 @@ function parseElement( html: string ): HTMLElement | null {
 /**
  * The label of the control on a feed opened at a shared entry: the number of
  * newer entries, exact up to ten and from there the round number it has
- * passed, e.g. "10+ newer posts" for 11 to 50. Mirrors
+ * passed, e.g. "10+ Newer Posts" for 11 to 50. Mirrors
  * Rolling_Coverage_Block::newer_posts_label().
  *
  * @param {number} count How many entries are newer.
@@ -159,8 +159,8 @@ function newerPostsLabel( count: number ): string {
 		return sprintf(
 			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
 			_n(
-				'%d newer post',
-				'%d newer posts',
+				'%d Newer Post',
+				'%d Newer Posts',
 				count,
 				'newspack-rolling-coverage'
 			),
@@ -179,8 +179,8 @@ function newerPostsLabel( count: number ): string {
 	return sprintf(
 		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
 		_n(
-			'%d+ newer post',
-			'%d+ newer posts',
+			'%d+ Newer Post',
+			'%d+ Newer Posts',
 			floor,
 			'newspack-rolling-coverage'
 		),
@@ -606,8 +606,8 @@ function initBlock( root: HTMLElement ): void {
 		return sprintf(
 			/* translators: %d: number of new coverage entries waiting to be shown. */
 			_n(
-				'%d new post',
-				'%d new posts',
+				'%d New Post',
+				'%d New Posts',
 				count,
 				'newspack-rolling-coverage'
 			),
@@ -618,7 +618,7 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Adds entries to the pending queue.
 	 *
-	 * Updates the "X new posts" control label and visibility.
+	 * Updates the "X New Posts" control label and visibility.
 	 *
 	 * @param {PendingEntry[]} newEntries Newly published entries.
 	 * @return {void}

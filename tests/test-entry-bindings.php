@@ -837,4 +837,172 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$this->assertMatchesRegularExpression( '#<p class="[^"]*newspack-rolling-coverage-pinned-label[^"]*"[^>]*>Pinned</p>#', $html );
 	}
+
+	/**
+	 * Render an entry through the given template markup.
+	 *
+	 * @param int    $entry_id Entry post ID.
+	 * @param string $markup   Template markup.
+	 * @return string Rendered entry.
+	 */
+	private static function render_markup( int $entry_id, string $markup ): string {
+		return Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( $markup ) );
+	}
+
+	/**
+	 * A "Read more" paragraph, as the editor saves it.
+	 *
+	 * @param string $classes Classes on the paragraph.
+	 * @param string $text    Paragraph HTML.
+	 * @return string Block markup.
+	 */
+	private static function read_more_paragraph( string $classes = 'newspack-rolling-coverage-read-more', string $text = 'Read more' ): string {
+		return '<!-- wp:paragraph {"className":"' . $classes . '"} --><p class="' . $classes . '">' . $text . '</p><!-- /wp:paragraph -->';
+	}
+
+	/**
+	 * A "Read more" paragraph links to the published breakout.
+	 */
+	public function test_read_more_paragraph_links_to_the_breakout() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+
+		$html = self::render_markup( $entry_id, self::read_more_paragraph() );
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-read-more wp-block-paragraph"><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Read more</a></p>', $html );
+	}
+
+	/**
+	 * Without a published breakout the paragraph goes.
+	 */
+	public function test_read_more_paragraph_is_removed_without_a_breakout() {
+		$entry_id = self::create_entry( self::create_coverage() );
+
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-read-more', self::render_markup( $entry_id, self::read_more_paragraph() ) );
+
+		self::add_breakout( $entry_id, 'draft' );
+
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-read-more', self::render_markup( $entry_id, self::read_more_paragraph() ) );
+	}
+
+	/**
+	 * Other classes and inner markup survive the link.
+	 */
+	public function test_read_more_paragraph_keeps_its_markup_and_other_classes() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+
+		$html = self::render_markup( $entry_id, self::read_more_paragraph( 'foo newspack-rolling-coverage-read-more', '<strong>Read</strong> more' ) );
+
+		$this->assertStringContainsString( '<p class="foo newspack-rolling-coverage-read-more wp-block-paragraph"><a href="' . esc_url( get_permalink( $breakout_id ) ) . '"><strong>Read</strong> more</a></p>', $html );
+	}
+
+	/**
+	 * A paragraph rendered outside an entry is left alone.
+	 */
+	public function test_paragraph_outside_entries_is_untouched() {
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-read-more wp-block-paragraph">Read more</p>', do_blocks( self::read_more_paragraph() ) );
+	}
+
+	/**
+	 * A title-only entry in the Compact shape renders its time and nothing
+	 * empty.
+	 */
+	public function test_compact_entry_without_content_renders() {
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_title'   => 'Headline',
+				'post_content' => '',
+			]
+		);
+		$markup   = '<!-- wp:columns {"isStackedOnMobile":false} --><div class="wp-block-columns">'
+			. '<!-- wp:column {"width":"6rem"} --><div class="wp-block-column" style="flex-basis:6rem"><!-- wp:post-date {"format":"g:i a"} /--></div><!-- /wp:column -->'
+			. '<!-- wp:column --><div class="wp-block-column">'
+			. '<!-- wp:group {"layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} --><div class="wp-block-group">'
+			. '<!-- wp:post-content /-->'
+			. self::read_more_paragraph()
+			. '</div><!-- /wp:group -->'
+			. '</div><!-- /wp:column --></div><!-- /wp:columns -->';
+
+		$html = self::render_markup( $entry_id, $markup );
+
+		$this->assertStringContainsString( '<time', $html );
+		$this->assertStringNotContainsString( 'data-rc-relative', $html );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-read-more', $html, 'No breakout: no Read more.' );
+
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+
+		$this->assertStringContainsString( '<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Read more</a>', self::render_markup( $entry_id, $markup ) );
+	}
+
+	/**
+	 * Markup a filter put before the paragraph, or a ">" in an attribute,
+	 * doesn't move the link.
+	 */
+	public function test_read_more_link_sits_inside_the_paragraph_tag() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+		$url         = esc_url( get_permalink( $breakout_id ) );
+
+		$filter = static function ( $content, $block ) {
+			return 'core/paragraph' === $block['blockName'] ? '<span class="x">a > b</span>' . str_replace( '<p ', '<p title="a>b" ', $content ) : $content;
+		};
+		add_filter( 'render_block_core/paragraph', $filter, 5, 2 );
+		$html = self::render_markup( $entry_id, self::read_more_paragraph() );
+		remove_filter( 'render_block_core/paragraph', $filter, 5 );
+
+		$this->assertStringContainsString( '<span class="x">a > b</span><p title="a>b" class="newspack-rolling-coverage-read-more wp-block-paragraph"><a href="' . $url . '">Read more</a></p>', $html );
+	}
+
+	/**
+	 * A paragraph a filter appended after the "Read more" paragraph stays
+	 * outside the link.
+	 */
+	public function test_read_more_link_ends_at_its_own_paragraph() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+		$url         = esc_url( get_permalink( $breakout_id ) );
+
+		$filter = static function ( $content, $block ) {
+			return 'core/paragraph' === $block['blockName'] ? $content . '<p>x</p>' : $content;
+		};
+		add_filter( 'render_block_core/paragraph', $filter, 5, 2 );
+		$html = self::render_markup( $entry_id, self::read_more_paragraph() );
+		remove_filter( 'render_block_core/paragraph', $filter, 5 );
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-read-more wp-block-paragraph"><a href="' . $url . '">Read more</a></p><p>x</p>', $html );
+	}
+
+	/**
+	 * A global post that isn't an entry never gets a link.
+	 */
+	public function test_read_more_ignores_a_global_post_that_is_not_an_entry() {
+		$entry_id = self::create_entry( self::create_coverage() );
+		self::add_breakout( $entry_id, 'publish' );
+		$other_id = self::factory()->post->create();
+
+		$filter = static function ( $content ) use ( $other_id ) {
+			$GLOBALS['post'] = get_post( $other_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			return $content;
+		};
+		add_filter( 'render_block_core/paragraph', $filter, 5 );
+		$html = self::render_markup( $entry_id, self::read_more_paragraph() );
+		remove_filter( 'render_block_core/paragraph', $filter, 5 );
+
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-read-more', $html );
+	}
+
+	/**
+	 * A link already inside the paragraph is not wrapped in another.
+	 */
+	public function test_read_more_paragraph_with_its_own_link_is_left_alone() {
+		$entry_id = self::create_entry( self::create_coverage() );
+		self::add_breakout( $entry_id, 'publish' );
+
+		$html = self::render_markup( $entry_id, self::read_more_paragraph( 'newspack-rolling-coverage-read-more', '<a href="https://example.com/">Elsewhere</a>' ) );
+
+		$this->assertStringContainsString( '<a href="https://example.com/">Elsewhere</a></p>', $html );
+		$this->assertSame( 1, substr_count( $html, '<a ' ) );
+	}
 }

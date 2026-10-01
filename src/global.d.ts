@@ -69,6 +69,12 @@ declare module '@wordpress/block-editor' {
 		props: Record< string, unknown >
 	): JSX.Element;
 
+	export const BlockPreview: ComponentType< {
+		blocks: unknown[];
+		viewportWidth?: number;
+		minHeight?: number;
+	} >;
+
 	export const __experimentalUseBlockPreview: (
 		props: Record< string, unknown >
 	) => Record< string, unknown >;

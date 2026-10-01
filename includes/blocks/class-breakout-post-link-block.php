@@ -63,7 +63,7 @@ class Breakout_Post_Link_Block {
 			'<a %1$s href="%2$s">%3$s</a>',
 			get_block_wrapper_attributes( [ 'class' => 'newspack-rolling-coverage-breakout-post-link wp-element-button wp-block-button__link' ] ),
 			esc_url( get_permalink( $breakout_id ) ),
-			esc_html__( 'Read more', 'newspack-rolling-coverage' )
+			esc_html__( 'Read More', 'newspack-rolling-coverage' )
 		);
 	}
 }

@@ -11,6 +11,7 @@ import { useCallback, useMemo } from '@wordpress/element';
 import metadata from './block.json';
 import {
 	ENTRY_TEMPLATE,
+	compactEntryTemplate,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
@@ -67,7 +68,7 @@ function paletteSlugs(): string[] {
 
 /**
  * Default inner-blocks template for the Rolling Coverage block: the Feed
- * group, holding the "Jump to latest" button, in the colors the editor's
+ * group, holding the "Jump to Latest" button, in the colors the editor's
  * palette has for it, and the follow button at the top, then the per-entry
  * blocks.
  *
@@ -80,6 +81,27 @@ export function innerTemplate(): TemplateItem[] {
 			FOLLOW_TEMPLATE,
 			...ENTRY_TEMPLATE,
 		] ),
+	];
+}
+
+/**
+ * The Compact layout's inner-blocks template: the same Feed group, buttons
+ * and entry kinds as the default, with a tighter gap and a time-led entry.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function compactInnerTemplate(): TemplateItem[] {
+	const slugs = paletteSlugs();
+
+	return [
+		feedTemplate(
+			[
+				latestTemplate( slugs ),
+				FOLLOW_TEMPLATE,
+				...compactEntryTemplate( slugs ),
+			],
+			'var:preset|spacing|30'
+		),
 	];
 }
 
@@ -124,7 +146,7 @@ export function previewTemplateFor(
 
 /**
  * The per-entry preview blocks for a layout: the layout's blocks minus the
- * follow and Jump to latest buttons, shaped per entry the way the site
+ * follow and Jump to Latest buttons, shaped per entry the way the site
  * renders each entry.
  *
  * @param {Object[]}       allBlocks      The layout's top-level blocks.

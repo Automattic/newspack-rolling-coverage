@@ -45,6 +45,20 @@ class Test_Entry_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The Compact row's columns get their horizontal gap written on the
+	 * Newspack Theme, as a column gap only.
+	 */
+	public function test_entry_columns_gap_is_written_on_the_newspack_theme() {
+		$markup = '<!-- wp:columns {"isStackedOnMobile":false,"style":{"spacing":{"blockGap":{"left":"var:preset|spacing|30"}}}} --><div class="wp-block-columns"><!-- wp:column --><div class="wp-block-column"><!-- wp:post-date /--></div><!-- /wp:column --></div><!-- /wp:columns -->';
+
+		$this->assertStringNotContainsString( 'column-gap', self::render( $markup ), 'Other themes should be left to core.' );
+
+		add_filter( 'template', fn() => 'newspack-theme' );
+
+		$this->assertMatchesRegularExpression( '#<div style="[^"]*column-gap:var\(--wp--preset--spacing--30\)#', self::render( $markup ) );
+	}
+
+	/**
 	 * Entry content drops core's `entry-content` class, which themes style as
 	 * the page's own content; post content elsewhere keeps it.
 	 */

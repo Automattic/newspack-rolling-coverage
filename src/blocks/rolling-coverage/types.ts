@@ -6,6 +6,7 @@
  * Internal dependencies
  */
 import type { EVENTS } from './analytics';
+import type { BuiltInLayoutSlug } from './layouts';
 
 /**
  * A coverage term, as shown in the editor's coverage combobox.
@@ -68,7 +69,7 @@ interface BlockConfig {
 	aiAvailable: boolean;
 	newspackAdsAvailable: boolean;
 	newspackAdsPlacementEnabled: boolean;
-	defaultLayoutId: number;
+	layoutIds: Record< BuiltInLayoutSlug, number >;
 	layoutsRestBase: string;
 	adminUrl: string;
 	isBlockTheme: boolean;

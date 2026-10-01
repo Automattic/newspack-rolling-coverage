@@ -1,6 +1,7 @@
 /**
  * WordPress dependencies
  */
+import { getSettings } from '@wordpress/date';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -203,7 +204,7 @@ function entryBlocks( isPinned: boolean ): TemplateItem[] {
 			{
 				lock: LOCKED,
 				metadata: {
-					name: __( 'Read more', 'newspack-rolling-coverage' ),
+					name: __( 'Read More', 'newspack-rolling-coverage' ),
 				},
 			},
 			[
@@ -211,7 +212,7 @@ function entryBlocks( isPinned: boolean ): TemplateItem[] {
 					'core/button',
 					{
 						lock: LOCKED,
-						text: __( 'Read more', 'newspack-rolling-coverage' ),
+						text: __( 'Read More', 'newspack-rolling-coverage' ),
 						style: {
 							color: {
 								background: READ_MORE_BACKGROUND,
@@ -220,7 +221,7 @@ function entryBlocks( isPinned: boolean ): TemplateItem[] {
 						},
 						metadata: {
 							name: __(
-								'Read more',
+								'Read More',
 								'newspack-rolling-coverage'
 							),
 							bindings: {
@@ -286,6 +287,205 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 ];
 
 /**
+ * Class of the paragraph that links to the entry's breakout post, mirroring
+ * Entry_Bindings::READ_MORE_CLASS.
+ */
+const READ_MORE_CLASS = 'newspack-rolling-coverage-read-more';
+
+/**
+ * The site's time format, for the Compact layout's time column.
+ *
+ * @return {string} A PHP date format.
+ */
+function siteTimeFormat(): string {
+	return getSettings().formats.time || 'g:i a';
+}
+
+/**
+ * The Compact time's color. Regular entries use the block theme's Contrast 3,
+ * else the classic theme's Medium Gray. Pinned entries use Contrast where
+ * the palette has it, since block themes style dates lighter, and otherwise
+ * inherit the text color.
+ *
+ * @param {string[]} slugs    The palette's color slugs.
+ * @param {boolean}  isPinned Whether the time is the pinned card's.
+ * @return {Object} The time's color attributes.
+ */
+function compactTimeColor(
+	slugs: string[],
+	isPinned: boolean
+): { textColor?: string } {
+	const candidates = isPinned
+		? [ 'contrast' ]
+		: [ 'contrast-3', 'medium-gray' ];
+	const slug = candidates.find( ( candidate ) =>
+		slugs.includes( candidate )
+	);
+
+	return slug ? { textColor: slug } : {};
+}
+
+/**
+ * A compact entry's row: the time on the left, the content and a "Read more"
+ * link stacked on the right.
+ *
+ * @param {Object} timeColor             The time's color attributes.
+ * @param {string} [timeColor.textColor] The time's color slug.
+ * @return {TemplateItem} The row.
+ */
+function compactRow( timeColor: { textColor?: string } ): TemplateItem {
+	const date: TemplateItem = [
+		'core/post-date',
+		{
+			...POST_DATE_ATTRIBUTES,
+			format: siteTimeFormat(),
+			fontSize: 'medium',
+			...timeColor,
+			style: { typography: { fontWeight: '400' } },
+		},
+	];
+
+	return [
+		'core/columns',
+		{
+			isStackedOnMobile: false,
+			verticalAlignment: 'top',
+			style: {
+				spacing: {
+					blockGap: { left: 'var:preset|spacing|30' },
+					margin: { top: '0', bottom: '0' },
+				},
+			},
+			metadata: { name: __( 'Row', 'newspack-rolling-coverage' ) },
+		},
+		[
+			[
+				'core/column',
+				{
+					width: '6rem',
+					metadata: {
+						name: __( 'Time', 'newspack-rolling-coverage' ),
+					},
+				},
+				[ date ],
+			],
+			[
+				'core/column',
+				{},
+				[
+					[
+						'core/group',
+						{
+							layout: {
+								type: 'flex',
+								orientation: 'vertical',
+								justifyContent: 'stretch',
+							},
+							style: {
+								spacing: { blockGap: 'var:preset|spacing|20' },
+							},
+							metadata: {
+								name: __( 'Body', 'newspack-rolling-coverage' ),
+							},
+						},
+						[
+							[
+								'core/post-content',
+								{
+									style: {
+										spacing: {
+											padding: {
+												top: '0',
+												right: '0',
+												bottom: '0',
+												left: '0',
+											},
+										},
+									},
+								},
+							],
+							[
+								'core/paragraph',
+								{
+									className: READ_MORE_CLASS,
+									content: __(
+										'Read more',
+										'newspack-rolling-coverage'
+									),
+									lock: LOCKED,
+									metadata: {
+										name: __(
+											'Read more',
+											'newspack-rolling-coverage'
+										),
+									},
+								},
+							],
+						],
+					],
+				],
+			],
+		],
+	];
+}
+
+/**
+ * The Compact layout's per-entry template: a time column beside the entry's
+ * content, with a "Read more" paragraph linked to the breakout post.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @return {TemplateItem[]} The template.
+ */
+function compactEntryTemplate( slugs: string[] ): TemplateItem[] {
+	return [
+		[
+			'core/group',
+			{
+				className: PINNED_CARD_CLASS,
+				lock: LOCKED_IN_PLACE,
+				style: {
+					color: { background: PINNED_CARD_BACKGROUND },
+					spacing: {
+						padding: {
+							top: 'var:preset|spacing|30',
+							right: 'var:preset|spacing|30',
+							bottom: 'var:preset|spacing|30',
+							left: 'var:preset|spacing|30',
+						},
+						blockGap: DEFAULT_ENTRY_GAP,
+					},
+				},
+				metadata: {
+					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			[ compactRow( compactTimeColor( slugs, true ) ) ],
+		],
+		[
+			'core/group',
+			{
+				className: REGULAR_ENTRY_CLASS,
+				lock: LOCKED_IN_PLACE,
+				style: {
+					spacing: {
+						padding: {
+							right: 'var:preset|spacing|30',
+							left: 'var:preset|spacing|30',
+						},
+						blockGap: DEFAULT_ENTRY_GAP,
+					},
+				},
+				metadata: {
+					name: __( 'Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			[ compactRow( compactTimeColor( slugs, false ) ) ],
+		],
+		[ 'core/separator', { className: 'is-style-wide' } ],
+	];
+}
+
+/**
  * The follow button, rendered once at the top of the coverage: a core button
  * bound to the coverage's notification tag. It's a `<button>`, so the bound
  * value never shows as a link; it only carries the tag to the follow script.
@@ -318,7 +518,7 @@ const FOLLOW_TEMPLATE: TemplateItem = [
 ];
 
 /**
- * The "Jump to latest" button's default colors, as palette slugs: the theme's
+ * The "Jump to Latest" button's default colors, as palette slugs: the theme's
  * Contrast and Base where its palette has both, as block themes do; otherwise
  * Dark Gray and White where it has both, as the Newspack Theme does; otherwise
  * Contrast and Base. Mirrors Rolling_Coverage_Block::latest_button_colors().
@@ -345,7 +545,7 @@ function latestColors( slugs: string[] ): {
 }
 
 /**
- * The "Jump to latest" button, rendered once above the feed: a core button
+ * The "Jump to Latest" button, rendered once above the feed: a core button
  * bound to the live feed's link, in the palette's colors (see latestColors())
  * with the theme's Elevation 1 shadow. The site fixes it to the top of the
  * viewport and shows it when new entries wait, or when the feed opens at a
@@ -362,7 +562,7 @@ function latestTemplate( slugs: string[] ): TemplateItem {
 			className: 'newspack-rolling-coverage-new-entries',
 			layout: { type: 'flex', justifyContent: 'center' },
 			metadata: {
-				name: __( 'Jump to latest', 'newspack-rolling-coverage' ),
+				name: __( 'Jump to Latest', 'newspack-rolling-coverage' ),
 			},
 		},
 		[
@@ -370,12 +570,12 @@ function latestTemplate( slugs: string[] ): TemplateItem {
 				'core/button',
 				{
 					lock: LOCKED_IN_PLACE,
-					text: __( 'Jump to latest', 'newspack-rolling-coverage' ),
+					text: __( 'Jump to Latest', 'newspack-rolling-coverage' ),
 					...latestColors( slugs ),
 					style: { shadow: 'var:preset|shadow|elevation-1' },
 					metadata: {
 						name: __(
-							'Jump to latest',
+							'Jump to Latest',
 							'newspack-rolling-coverage'
 						),
 						bindings: {
@@ -438,13 +638,13 @@ function isFollowButtons( block: ButtonsBlock ): boolean {
 }
 
 /**
- * Whether a block is the "Jump to latest" button's Buttons block (see
+ * Whether a block is the "Jump to Latest" button's Buttons block (see
  * latestTemplate()), mirroring Entry_Bindings::is_latest_buttons().
  *
  * @param {Object}   block             The block.
  * @param {string}   block.name        Block name.
  * @param {Object[]} block.innerBlocks Inner blocks.
- * @return {boolean} Whether it's the "Jump to latest" button.
+ * @return {boolean} Whether it's the "Jump to Latest" button.
  */
 function isLatestButtons( block: ButtonsBlock ): boolean {
 	return isButtonsBoundTo( block, 'latestUrl' );
@@ -455,9 +655,13 @@ function isLatestButtons( block: ButtonsBlock ): boolean {
  * spaced by its Block spacing.
  *
  * @param {Object[]} items The items.
+ * @param {string}   gap   The space between the items, as a spacing preset.
  * @return {Object} The Feed group.
  */
-function feedTemplate( items: TemplateItem[] ): TemplateItem {
+function feedTemplate(
+	items: TemplateItem[],
+	gap = 'var:preset|spacing|50'
+): TemplateItem {
 	return [
 		'core/group',
 		{
@@ -468,7 +672,7 @@ function feedTemplate( items: TemplateItem[] ): TemplateItem {
 				orientation: 'vertical',
 				justifyContent: 'stretch',
 			},
-			style: { spacing: { blockGap: 'var:preset|spacing|50' } },
+			style: { spacing: { blockGap: gap } },
 			metadata: { name: __( 'Feed', 'newspack-rolling-coverage' ) },
 		},
 		items,
@@ -606,8 +810,31 @@ function withoutPinnedRow<
 }
 
 /**
+ * Whether a block is the paragraph that links to the entry's breakout post,
+ * mirroring Entry_Bindings::is_read_more_paragraph().
+ *
+ * @param {Object} block            The block.
+ * @param {string} block.name       Block name.
+ * @param {Object} block.attributes Block attributes.
+ * @return {boolean} Whether it's the "Read more" paragraph.
+ */
+function isReadMoreParagraph( block: {
+	name: string;
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const className = block.attributes?.className;
+
+	return (
+		block.name === 'core/paragraph' &&
+		typeof className === 'string' &&
+		className.split( ' ' ).includes( READ_MORE_CLASS )
+	);
+}
+
+/**
  * Whether a block is the "Read more" link to the entry's breakout post: a
- * button whose link is bound to it, or the legacy Breakout Post Link block.
+ * button whose link is bound to it, the "Read more" paragraph, or the legacy
+ * Breakout Post Link block.
  *
  * @param {Object} block            The block.
  * @param {string} block.name       Block name.
@@ -618,7 +845,10 @@ function isBreakoutLink( block: {
 	name: string;
 	attributes?: Record< string, unknown >;
 } ): boolean {
-	if ( block.name === 'newspack-rolling-coverage/breakout-post-link' ) {
+	if (
+		block.name === 'newspack-rolling-coverage/breakout-post-link' ||
+		isReadMoreParagraph( block )
+	) {
 		return true;
 	}
 
@@ -1055,6 +1285,7 @@ const ENTRY_ALLOWED_BLOCKS = [
 
 export {
 	ENTRY_TEMPLATE,
+	compactEntryTemplate,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
