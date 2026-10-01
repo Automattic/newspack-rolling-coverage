@@ -30,10 +30,10 @@ class Slack_Media_Importer {
 	const DOWNLOAD_TIMEOUT = 10;
 
 	/**
-	 * Seconds a message's images may take in total. The downloads run inside
-	 * the webhook request, under the ingestion lock, and must finish well
-	 * before that lock is treated as stale (Entry_Ingestion_Service::MUTEX_TTL):
-	 * past it, a delivery Slack retries would import the same images again.
+	 * Seconds after which no further image of a message starts downloading.
+	 * The import runs inside the webhook request, so this keeps a message with
+	 * many images from holding that request, and delaying its entry, for much
+	 * longer than that.
 	 *
 	 * @var int
 	 */
@@ -89,11 +89,15 @@ class Slack_Media_Importer {
 	 * An image that cannot be imported is skipped and logged, so the rest of
 	 * the message still becomes an entry.
 	 *
-	 * @param array $files The `files` of a Slack message event.
+	 * @param array         $files       The `files` of a Slack message event.
+	 * @param callable|null $on_progress Called while WordPress processes each
+	 *                                   image, which can take longer than the
+	 *                                   download.
 	 * @return string Block markup, one image block per imported image, or ''.
 	 */
-	public function import( array $files ): string {
-		$blocks = [];
+	public function import( array $files, ?callable $on_progress = null ): string {
+		$blocks      = [];
+		$on_progress = $on_progress ?? static function () {};
 
 		foreach ( $files as $file ) {
 			if ( ! is_array( $file ) ) {
@@ -111,7 +115,7 @@ class Slack_Media_Importer {
 				continue;
 			}
 
-			$attachment_id = $this->sideload( $file );
+			$attachment_id = $this->sideload( $file, $on_progress );
 
 			if ( is_wp_error( $attachment_id ) ) {
 				$this->log_failure( $file, $attachment_id );
@@ -186,10 +190,11 @@ class Slack_Media_Importer {
 	/**
 	 * Download an image and add it to the media library.
 	 *
-	 * @param array $file Slack file object.
+	 * @param array    $file        Slack file object.
+	 * @param callable $on_progress Called while WordPress processes the image.
 	 * @return int|\WP_Error Attachment ID, or \WP_Error.
 	 */
-	private function sideload( array $file ): int|\WP_Error {
+	private function sideload( array $file, callable $on_progress ): int|\WP_Error {
 		$url       = (string) ( $file['url_private'] ?? '' );
 		$remaining = $this->deadline - microtime( true );
 
@@ -215,16 +220,29 @@ class Slack_Media_Importer {
 		require_once ABSPATH . 'wp-admin/includes/media.php';
 		require_once ABSPATH . 'wp-admin/includes/image.php';
 
-		// WordPress checks the content against the file name, so what Slack served must be the image it described.
-		$attachment_id = media_handle_sideload(
-			[
-				'name'     => sanitize_file_name( (string) ( $file['name'] ?? '' ) ),
-				'tmp_name' => $path,
-			],
-			0,
-			null,
-			[ 'post_author' => $this->author_id ]
-		);
+		// WordPress saves the image's metadata after each size it makes, which marks progress while it resizes a large photo.
+		$report_progress = static function ( $metadata ) use ( $on_progress ) {
+			$on_progress();
+
+			return $metadata;
+		};
+
+		add_filter( 'wp_update_attachment_metadata', $report_progress );
+
+		try {
+			// WordPress checks the content against the file name, so what Slack served must be the image it described.
+			$attachment_id = media_handle_sideload(
+				[
+					'name'     => sanitize_file_name( (string) ( $file['name'] ?? '' ) ),
+					'tmp_name' => $path,
+				],
+				0,
+				null,
+				[ 'post_author' => $this->author_id ]
+			);
+		} finally {
+			remove_filter( 'wp_update_attachment_metadata', $report_progress );
+		}
 
 		if ( is_wp_error( $attachment_id ) ) {
 			wp_delete_file( $path );

@@ -191,6 +191,37 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Media work can outlast the lock's lifetime. It keeps the lock as it
+	 * progresses, so a redelivery arriving meanwhile still backs off.
+	 */
+	public function test_media_work_keeps_the_lock_while_it_progresses() {
+		$payload     = self::payload();
+		$coverage_id = self::create_coverage();
+		$bot_user_id = self::factory()->user->create( [ 'role' => 'author' ] );
+		$redelivery  = null;
+
+		Entry_Ingestion_Service::ingest(
+			$payload,
+			$coverage_id,
+			false,
+			$bot_user_id,
+			[],
+			static function ( callable $keep_lock ) use ( $payload, $coverage_id, $bot_user_id, &$redelivery ) {
+				// The work has been running for longer than the lock's lifetime.
+				update_option( self::lock_key( $payload ), time() - Entry_Ingestion_Service::MUTEX_TTL - 1, false );
+				$keep_lock();
+
+				$redelivery = Entry_Ingestion_Service::ingest( $payload, $coverage_id, false, $bot_user_id, [] );
+
+				return '';
+			}
+		);
+
+		$this->assertSame( Entry_Ingestion_Service::SKIP_IN_PROGRESS, $redelivery, 'The redelivery should back off.' );
+		$this->assertSame( 1, self::count_entries(), 'The message should have one entry.' );
+	}
+
+	/**
 	 * A lock left behind by a request that died is reclaimed once it is older
 	 * than the TTL, so the message is not blocked forever.
 	 */

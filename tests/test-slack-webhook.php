@@ -6,6 +6,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Entry_Ingestion_Service;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Slack;
 use Newspack_Rolling_Coverage\Slack_API_Client;
@@ -1035,6 +1036,29 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->assertCount( 1, self::get_coverage_entries( $coverage_id ), 'There should still be one entry.' );
 		$this->assertCount( 1, $this->file_requests, 'The image should be downloaded once.' );
 		$this->assertCount( 1, self::get_media(), 'The media library should hold one copy.' );
+	}
+
+	/**
+	 * An import that runs longer than the lock's lifetime keeps the lock while
+	 * WordPress processes the image, so a redelivery arriving then backs off.
+	 */
+	public function test_slow_image_import_keeps_the_message_locked() {
+		$lock_key = Entry_Ingestion_Service::MUTEX_PREFIX . md5( 'slack:1767225600.000100' );
+		$lock_age = null;
+
+		// The download takes longer than the lock's lifetime.
+		$this->during_file_request = static fn() => update_option( $lock_key, time() - Entry_Ingestion_Service::MUTEX_TTL - 1, false );
+
+		add_action(
+			'newspack_rolling_coverage_entry_ingested',
+			static function () use ( $lock_key, &$lock_age ) {
+				$lock_age = time() - (int) get_option( $lock_key );
+			}
+		);
+
+		self::deliver_to_linked_channel( [ 'files' => [ self::slack_file() ] ] );
+
+		$this->assertLessThan( Entry_Ingestion_Service::MUTEX_TTL, $lock_age, 'Processing the image should have refreshed the lock.' );
 	}
 
 	/**

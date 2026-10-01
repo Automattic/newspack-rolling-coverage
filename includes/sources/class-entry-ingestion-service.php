@@ -26,7 +26,8 @@ class Entry_Ingestion_Service {
 	 * timeout) mid-insert, the `finally` block won't run and the lock option
 	 * stays forever. This TTL allows stale locks to be reclaimed: when
 	 * add_option() fails, we check the stored timestamp and break the lock
-	 * if it's older than this.
+	 * if it's older than this. Media work refreshes the timestamp as it
+	 * progresses, so a long import keeps its lock.
 	 *
 	 * @var int
 	 */
@@ -51,6 +52,9 @@ class Entry_Ingestion_Service {
 	 *                                              called for an event that is about to
 	 *                                              become an entry, so a redelivered
 	 *                                              event does not import its media twice.
+	 *                                              It receives a callable to call as the
+	 *                                              work progresses, which keeps the
+	 *                                              event's lock from going stale.
 	 * @return int|\WP_Error Post id on success, 0 on a clean skip,
 	 *                       self::SKIP_ARCHIVED_COVERAGE when the coverage is
 	 *                       archived, self::SKIP_IN_PROGRESS when another
@@ -98,7 +102,8 @@ class Entry_Ingestion_Service {
 			$content = $payload->content_html;
 
 			if ( null !== $render_media ) {
-				$content = implode( "\n\n", array_filter( [ $content, (string) $render_media() ], 'strlen' ) );
+				$keep_lock = static fn() => update_option( $lock_key, time(), false );
+				$content   = implode( "\n\n", array_filter( [ $content, (string) $render_media( $keep_lock ) ], 'strlen' ) );
 
 				// The import can outlast another delivery of the same event that got past the lock.
 				if ( self::entry_exists( $payload->source_ref, $term_id ) ) {

@@ -1496,7 +1496,7 @@ class Slack_Webhook_Controller {
 			$auto_publish,
 			$bot_user_id,
 			$provenance_meta,
-			static fn(): string => $media_importer->import( $files )
+			static fn( callable $keep_lock ): string => $media_importer->import( $files, $keep_lock )
 		);
 
 		if ( is_wp_error( $post_id ) || $post_id <= 0 ) {
