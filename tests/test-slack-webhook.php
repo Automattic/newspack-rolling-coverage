@@ -72,6 +72,14 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	private $token_scopes = null;
 
 	/**
+	 * Runs when a Slack file is requested, to stand in for what another
+	 * request does while this one downloads.
+	 *
+	 * @var callable|null
+	 */
+	private $during_file_request = null;
+
+	/**
 	 * Answer every outbound HTTP request with a Slack `users.info` payload,
 	 * and every file download with a PNG.
 	 */
@@ -118,6 +126,10 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
 			if ( is_wp_error( $this->file_response ) ) {
 				return $this->file_response;
+			}
+
+			if ( null !== $this->during_file_request ) {
+				( $this->during_file_request )();
 			}
 
 			// A streamed download is written to the file the caller named.
@@ -1023,6 +1035,30 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->assertCount( 1, self::get_coverage_entries( $coverage_id ), 'There should still be one entry.' );
 		$this->assertCount( 1, $this->file_requests, 'The image should be downloaded once.' );
 		$this->assertCount( 1, self::get_media(), 'The media library should hold one copy.' );
+	}
+
+	/**
+	 * When another delivery of the message saves its entry while this one is
+	 * still downloading, this one stands down and takes its copy of the image
+	 * with it.
+	 */
+	public function test_image_is_removed_when_another_delivery_saved_the_entry_first() {
+		$this->silence_error_log();
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+
+		$this->during_file_request = static function () use ( $coverage_id ) {
+			$other_entry_id = self::factory()->post->create( [ 'post_type' => Post_Type::CPT_SLUG ] );
+			wp_set_object_terms( $other_entry_id, [ $coverage_id ], Taxonomy::TAXONOMY_SLUG );
+			add_post_meta( $other_entry_id, Post_Type::META_SOURCE_REF, '1767225600.000100' );
+		};
+
+		self::controller()->handle_event( self::webhook_request( self::message_event_body( [ 'files' => [ self::slack_file() ] ] ) ) );
+
+		$this->assertCount( 1, self::get_coverage_entries( $coverage_id ), 'Only the other delivery should have an entry.' );
+		$this->assertCount( 1, $this->file_requests, 'The image should have been downloaded.' );
+		$this->assertSame( [], self::get_media(), 'The image should be removed again.' );
 	}
 
 	/**
