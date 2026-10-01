@@ -91,6 +91,42 @@ class Slack_API_Client {
 	}
 
 	/**
+	 * Get one channel message from Slack by its timestamp.
+	 *
+	 * @param string $channel_id Slack channel ID.
+	 * @param string $ts         Message timestamp.
+	 * @param int    $timeout    Optional request timeout in seconds. Defaults to self::TIMEOUT.
+	 * @return array|\WP_Error Message array, or \WP_Error when it cannot be read or no longer exists.
+	 */
+	public function get_message( string $channel_id, string $ts, int $timeout = self::TIMEOUT ): array|\WP_Error {
+		$result = $this->request(
+			'conversations.history',
+			[
+				'channel'   => $channel_id,
+				'latest'    => $ts,
+				'inclusive' => 'true',
+				'limit'     => 1,
+			],
+			'GET',
+			$timeout
+		);
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$message = $result['messages'][0] ?? null;
+
+		// Slack answers with the newest message up to the timestamp, which is
+		// an earlier one when the message asked for has been deleted.
+		if ( ! is_array( $message ) || (string) ( $message['ts'] ?? '' ) !== $ts ) {
+			return new \WP_Error( 'slack_api_error', 'message_not_found' );
+		}
+
+		return $message;
+	}
+
+	/**
 	 * Get channel info from Slack.
 	 *
 	 * @param string $channel_id Slack channel ID.

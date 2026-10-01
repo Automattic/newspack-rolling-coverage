@@ -790,7 +790,7 @@ class Slack_Webhook_Controller {
 		if ( 'message' === $event_type ) {
 			// 1. Filter — Slack-specific rules from Slack_Ingestion_Service.
 			if ( Slack_Ingestion_Service::should_filter_message( $event ) ) {
-				Slack_Monitor::log( 'info', 'Message filtered (bot/edit/delete/join-leave/thread reply/ignore prefix)', [ 'channel' => $event['channel'] ?? '' ] );
+				Slack_Monitor::log( 'info', 'Message filtered (bot/edit/delete/join-leave/ignore prefix)', [ 'channel' => $event['channel'] ?? '' ] );
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
@@ -820,9 +820,46 @@ class Slack_Webhook_Controller {
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
-			// 3. Process this message inline. The 1s API timeout for the
-			// outbound users.info call keeps the total webhook response well
-			// under Slack's 3-second limit.
+			// 3. A message with the ignore prefix opts its whole thread out,
+			// so a reply under it is skipped too. The reply event does not
+			// carry the message its thread starts from, so that is read from
+			// Slack.
+			$thread_ts = (string) ( $event['thread_ts'] ?? '' );
+
+			if ( '' !== $thread_ts && $thread_ts !== $ts ) {
+				$thread_message = $this->api_client->get_message( $channel_id, $thread_ts, Slack_API_Client::WEBHOOK_TIMEOUT );
+
+				// A thread that cannot be read may be an opted-out one, and
+				// its reply would be published on an auto-publish channel.
+				if ( is_wp_error( $thread_message ) ) {
+					Slack_Monitor::log(
+						'warning',
+						'Thread reply skipped (the first message of its thread could not be read)',
+						[
+							'channel' => $channel_id,
+							'ts'      => $ts,
+							'error'   => $thread_message->get_error_message(),
+						]
+					);
+					error_log( 'Slack ingestion: thread reply ' . $ts . ' skipped, the first message of its thread could not be read (' . $thread_message->get_error_message() . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					return new \WP_REST_Response( [ 'ok' => true ], 200 );
+				}
+
+				if ( Slack_Ingestion_Service::has_ignore_prefix( (string) ( $thread_message['text'] ?? '' ) ) ) {
+					Slack_Monitor::log(
+						'info',
+						'Thread reply filtered (its thread starts with the ignore prefix)',
+						[
+							'channel' => $channel_id,
+							'ts'      => $ts,
+						]
+					);
+					return new \WP_REST_Response( [ 'ok' => true ], 200 );
+				}
+			}
+
+			// 4. Process this message inline. Outbound calls use a 1s timeout
+			// to keep the webhook response inside Slack's 3-second limit.
 			Slack_Monitor::log(
 				'info',
 				'Dispatching message to ingestion pipeline',

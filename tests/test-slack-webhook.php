@@ -27,6 +27,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	const SIGNING_SECRET = '0123456789abcdef0123456789abcdef';
 	const BOT_TOKEN      = 'xoxb-000000-test';
 	const CHANNEL_ID     = 'C0TESTCHAN';
+	const MESSAGE_TS     = '1767225600.000100';
 
 	/**
 	 * URLs of the outbound requests the code under test attempted.
@@ -43,12 +44,28 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	private $failing_users = [];
 
 	/**
-	 * Answer every outbound HTTP request with a Slack `users.info` payload.
+	 * Text of the messages the channel's history holds, keyed by timestamp.
+	 *
+	 * @var string[]
+	 */
+	private $channel_messages = [];
+
+	/**
+	 * Whether reading the channel's history times out.
+	 *
+	 * @var bool
+	 */
+	private $is_history_unreachable = false;
+
+	/**
+	 * Answer every outbound HTTP request as the Slack API would.
 	 */
 	public function set_up() {
 		parent::set_up();
-		$this->outbound_requests = [];
-		$this->failing_users     = [];
+		$this->outbound_requests      = [];
+		$this->failing_users          = [];
+		$this->channel_messages       = [];
+		$this->is_history_unreachable = false;
 		add_filter( 'pre_http_request', [ $this, 'mock_slack_api' ], 10, 3 );
 	}
 
@@ -62,36 +79,66 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Stand in for the Slack API.
+	 * Stand in for the Slack API: `conversations.history` answers from the
+	 * channel's messages, and every other method with a `users.info` payload.
 	 *
 	 * @param false|array $response    Short-circuit value.
 	 * @param array       $parsed_args Request arguments.
 	 * @param string      $url         Request URL.
-	 * @return array Mocked response.
+	 * @return array|WP_Error Mocked response.
 	 */
 	public function mock_slack_api( $response, $parsed_args, $url ) {
 		$this->outbound_requests[] = $url;
 
 		parse_str( (string) wp_parse_url( $url, PHP_URL_QUERY ), $query );
 
+		if ( false !== strpos( $url, 'conversations.history' ) ) {
+			if ( $this->is_history_unreachable ) {
+				return new WP_Error( 'http_request_failed', 'Operation timed out' );
+			}
+
+			// Like Slack, answer with the newest message up to `latest`.
+			$timestamps = array_filter( array_keys( $this->channel_messages ), fn( $ts ) => (float) $ts <= (float) ( $query['latest'] ?? 0 ) );
+			$messages   = [];
+
+			if ( ! empty( $timestamps ) ) {
+				$newest_ts  = (string) max( $timestamps );
+				$messages[] = [
+					'ts'   => $newest_ts,
+					'text' => $this->channel_messages[ $newest_ts ],
+				];
+			}
+
+			return self::slack_api_response( [ 'messages' => $messages ] );
+		}
+
 		if ( in_array( $query['user'] ?? '', $this->failing_users, true ) ) {
 			return new WP_Error( 'http_request_failed', 'Operation timed out' );
 		}
 
+		return self::slack_api_response(
+			[
+				'user' => [
+					'name'    => 'rsample',
+					'profile' => [ 'display_name' => 'Riley Sample' ],
+				],
+			]
+		);
+	}
+
+	/**
+	 * Build a successful Slack API response.
+	 *
+	 * @param array $payload Method-specific fields.
+	 * @return array HTTP response.
+	 */
+	private static function slack_api_response( array $payload ) {
 		return [
 			'response' => [
 				'code'    => 200,
 				'message' => 'OK',
 			],
-			'body'     => wp_json_encode(
-				[
-					'ok'   => true,
-					'user' => [
-						'name'    => 'rsample',
-						'profile' => [ 'display_name' => 'Riley Sample' ],
-					],
-				]
-			),
+			'body'     => wp_json_encode( [ 'ok' => true ] + $payload ),
 		];
 	}
 
@@ -148,11 +195,26 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 						'type'    => 'message',
 						'channel' => self::CHANNEL_ID,
 						'user'    => 'U0REPORTER',
-						'ts'      => '1767225600.000100',
+						'ts'      => self::MESSAGE_TS,
 						'text'    => 'Polls have closed across the county.',
 					],
 					$event_overrides
 				),
+			]
+		);
+	}
+
+	/**
+	 * Build the body of a reply in the thread of the default message.
+	 *
+	 * @return string JSON body.
+	 */
+	private static function thread_reply_event_body() {
+		return self::message_event_body(
+			[
+				'ts'        => '1767225700.000200',
+				'thread_ts' => self::MESSAGE_TS,
+				'text'      => 'Is that confirmed by the clerk?',
 			]
 		);
 	}
@@ -194,25 +256,11 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 			'member joining a private one' => [ [ 'subtype' => 'group_join' ] ],
 			'member leaving a private one' => [ [ 'subtype' => 'group_leave' ] ],
 			'message with the skip prefix' => [ [ 'text' => '~~ not for publication' ] ],
-			'reply inside a thread'        => [
-				[
-					'ts'        => '1767225700.000200',
-					'thread_ts' => '1767225600.000100',
-				],
-			],
-			'reply also sent to channel'   => [
-				[
-					'subtype'   => 'thread_broadcast',
-					'ts'        => '1767225700.000200',
-					'thread_ts' => '1767225600.000100',
-				],
-			],
 		];
 	}
 
 	/**
-	 * Bot traffic, edits, membership noise, thread replies and opted-out
-	 * messages are skipped.
+	 * Bot traffic, edits, membership noise and opted-out messages are skipped.
 	 *
 	 * @dataProvider filtered_event_provider
 	 *
@@ -229,22 +277,6 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	public function test_keeps_reporter_messages() {
 		$this->assertFalse( Slack_Ingestion_Service::should_filter_message( [ 'text' => 'Polls have closed.' ] ), 'A plain message should be kept.' );
 		$this->assertFalse( Slack_Ingestion_Service::should_filter_message( [ 'text' => 'Turnout was ~~60%~~ 62%.' ] ), 'The skip prefix only counts at the start of the message.' );
-	}
-
-	/**
-	 * The message a thread hangs from is an ordinary channel message. Slack
-	 * marks it with a thread timestamp equal to its own.
-	 */
-	public function test_keeps_the_message_that_starts_a_thread() {
-		$this->assertFalse(
-			Slack_Ingestion_Service::should_filter_message(
-				[
-					'text'      => 'Polls have closed.',
-					'ts'        => '1767225600.000100',
-					'thread_ts' => '1767225600.000100',
-				]
-			)
-		);
 	}
 
 	/**
@@ -604,11 +636,11 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A reply inside a thread never becomes an entry, even in a channel that
-	 * publishes its messages straight away. Only the channel's top-level
-	 * messages do.
+	 * A message with the skip prefix opts its whole thread out. The replies
+	 * under it are the newsroom's discussion, so none becomes an entry, even
+	 * in a channel that publishes its messages straight away.
 	 */
-	public function test_thread_reply_in_a_linked_channel_creates_no_entry() {
+	public function test_reply_in_the_thread_of_a_skipped_message_creates_no_entry() {
 		self::configure_slack();
 		$coverage_id = self::create_coverage();
 		Slack_Config::update_channel(
@@ -618,25 +650,64 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 				'autopublish' => true,
 			]
 		);
+		$this->channel_messages = [ self::MESSAGE_TS => '~~ not for publication' ];
 
-		self::controller()->handle_event( self::webhook_request( self::message_event_body() ) );
-		$response = self::controller()->handle_event(
-			self::webhook_request(
-				self::message_event_body(
-					[
-						'ts'        => '1767225700.000200',
-						'thread_ts' => '1767225600.000100',
-						'text'      => 'Is that confirmed by the clerk?',
-					]
-				)
-			)
-		);
-		$entries  = self::get_coverage_entries( $coverage_id );
+		$response = self::controller()->handle_event( self::webhook_request( self::thread_reply_event_body() ) );
 
 		$this->assertSame( 200, $response->get_status(), 'Slack should still get a 200.' );
-		$this->assertCount( 1, $entries, 'Only the top-level message should become an entry.' );
-		$this->assertStringContainsString( 'Polls have closed across the county.', $entries[0]->post_content, 'The entry should be the top-level message.' );
-		$this->assertSame( '1767225600.000100', Slack_Config::get_channel_settings( self::CHANNEL_ID )['last_sync_ts'], 'The reply should not count as the last ingested message.' );
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ), 'No entry should be created.' );
+	}
+
+	/**
+	 * A reply in the thread of an ordinary message is an entry like any other.
+	 */
+	public function test_reply_in_the_thread_of_a_kept_message_becomes_an_entry() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$this->channel_messages = [ self::MESSAGE_TS => 'Polls have closed across the county.' ];
+
+		self::controller()->handle_event( self::webhook_request( self::thread_reply_event_body() ) );
+		$entries = self::get_coverage_entries( $coverage_id );
+
+		$this->assertCount( 1, $entries, 'The reply should create an entry.' );
+		$this->assertStringContainsString( '<p>Is that confirmed by the clerk?</p>', $entries[0]->post_content, 'The reply text should be the entry content.' );
+	}
+
+	/**
+	 * The ways the first message of a thread can be unreadable: whether Slack
+	 * times out, and what the channel's history holds.
+	 *
+	 * @return array[]
+	 */
+	public function unreadable_thread_provider() {
+		return [
+			'Slack does not answer in time' => [ true, [] ],
+			'the first message was deleted' => [ false, [ '1767225500.000050' => 'An earlier message.' ] ],
+		];
+	}
+
+	/**
+	 * A reply whose thread cannot be read might belong to a skipped message,
+	 * so it is left out rather than risk publishing it.
+	 *
+	 * @dataProvider unreadable_thread_provider
+	 *
+	 * @param bool     $is_history_unreachable Whether reading the channel's history times out.
+	 * @param string[] $channel_messages       Messages the channel's history holds, keyed by timestamp.
+	 */
+	public function test_reply_creates_no_entry_when_its_thread_cannot_be_read( $is_history_unreachable, array $channel_messages ) {
+		$this->silence_error_log();
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$this->is_history_unreachable = $is_history_unreachable;
+		$this->channel_messages       = $channel_messages;
+
+		$response = self::controller()->handle_event( self::webhook_request( self::thread_reply_event_body() ) );
+
+		$this->assertSame( 200, $response->get_status(), 'Slack should still get a 200.' );
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ), 'No entry should be created.' );
 	}
 
 	/**
