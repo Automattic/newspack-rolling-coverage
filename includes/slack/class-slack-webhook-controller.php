@@ -833,19 +833,28 @@ class Slack_Webhook_Controller {
 				$thread_message = $this->api_client->get_message( $channel_id, $thread_ts, Slack_API_Client::WEBHOOK_TIMEOUT );
 
 				// A thread that cannot be read may be an opted-out one, and
-				// its reply would be published on an auto-publish channel.
+				// its reply would be published on an auto-publish channel, so
+				// the reply is not ingested. When a later attempt could read
+				// the thread, the error status makes Slack send the event
+				// again; otherwise the reply is given up on.
 				if ( is_wp_error( $thread_message ) ) {
+					$is_resend_wanted = Slack_API_Client::is_temporary_error( $thread_message );
+					$outcome          = $is_resend_wanted ? 'left for Slack to resend' : 'skipped';
+
 					Slack_Monitor::log(
 						'warning',
-						'Thread reply skipped (the first message of its thread could not be read)',
+						'Thread reply ' . $outcome . ' (the first message of its thread could not be read)',
 						[
 							'channel' => $channel_id,
 							'ts'      => $ts,
 							'error'   => $thread_message->get_error_message(),
 						]
 					);
-					error_log( 'Slack ingestion: thread reply ' . $ts . ' skipped, the first message of its thread could not be read (' . $thread_message->get_error_message() . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-					return new \WP_REST_Response( [ 'ok' => true ], 200 );
+					error_log( 'Slack ingestion: thread reply ' . $ts . ' ' . $outcome . ', the first message of its thread could not be read (' . $thread_message->get_error_message() . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+					return $is_resend_wanted
+						? new \WP_REST_Response( [ 'ok' => false ], 503 )
+						: new \WP_REST_Response( [ 'ok' => true ], 200 );
 				}
 
 				if ( Slack_Ingestion_Service::has_ignore_prefix( (string) ( $thread_message['text'] ?? '' ) ) ) {
