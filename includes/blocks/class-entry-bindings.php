@@ -417,6 +417,26 @@ class Entry_Bindings {
 	}
 
 	/**
+	 * Whether a template shows the pinned label, at any depth.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return bool
+	 */
+	public static function has_pinned_label( array $blocks ): bool {
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) ) {
+				continue;
+			}
+
+			if ( self::is_pinned_label( $block ) || ( ! empty( $block['innerBlocks'] ) && is_array( $block['innerBlocks'] ) && self::has_pinned_label( $block['innerBlocks'] ) ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Whether a parsed block is the paragraph labeling a pinned entry.
 	 *
 	 * @param array $parsed_block Parsed block.

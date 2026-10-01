@@ -186,41 +186,51 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The Compact-shaped template: the card holds one row whose time column
-	 * stacks the pinned row above the date, beside an entry group with just
-	 * the date.
+	 * A compact template: a pinned card and an entry group, each a row of the
+	 * time and the body, with the visible pinned label in the card or without.
 	 *
+	 * @param bool $with_label Whether the card carries the pinned label.
 	 * @return string Template markup.
 	 */
-	private static function compact_markup(): string {
-		$pinned_row = '<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap"}} --><div class="wp-block-group">'
-			. '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-pinned-label"} --><p class="use-header-font newspack-rolling-coverage-pinned-label">Pinned</p><!-- /wp:paragraph -->'
-			. '</div><!-- /wp:group -->';
-		$date       = '<!-- wp:post-date {"format":"g:i a"} /-->';
-		$body       = '<!-- wp:column --><div class="wp-block-column"><!-- wp:paragraph --><p>Body text</p><!-- /wp:paragraph --></div><!-- /wp:column -->';
-		$row        = static fn( string $time ): string => '<!-- wp:columns {"isStackedOnMobile":false} --><div class="wp-block-columns">'
+	private static function compact_markup( bool $with_label = false ): string {
+		$label = $with_label
+			? '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-pinned-label"} --><p class="use-header-font newspack-rolling-coverage-pinned-label">Pinned</p><!-- /wp:paragraph -->'
+			: '';
+		$date  = '<!-- wp:post-date {"format":"g:i a"} /-->';
+		$body  = '<!-- wp:column --><div class="wp-block-column"><!-- wp:paragraph --><p>Body text</p><!-- /wp:paragraph --></div><!-- /wp:column -->';
+		$row   = static fn( string $time ): string => '<!-- wp:columns {"isStackedOnMobile":false} --><div class="wp-block-columns">'
 			. '<!-- wp:column {"width":"5rem"} --><div class="wp-block-column" style="flex-basis:5rem">' . $time . '</div><!-- /wp:column -->'
 			. $body
 			. '</div><!-- /wp:columns -->';
-		$time_group = '<!-- wp:group {"layout":{"type":"flex","orientation":"vertical"},"metadata":{"name":"Time"}} --><div class="wp-block-group">' . $pinned_row . $date . '</div><!-- /wp:group -->';
 
-		return '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">' . $row( $time_group ) . '</div><!-- /wp:group -->'
+		return '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">' . $label . $row( $date ) . '</div><!-- /wp:group -->'
 			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . $row( $date ) . '</div><!-- /wp:group -->';
 	}
 
 	/**
-	 * A pinned entry shows the pinned label inside the time column; an
-	 * unpinned entry from the same template shows none.
+	 * A pinned entry whose template shows no pinned label is announced to
+	 * screen readers first in the article; an unpinned one is not.
 	 */
-	public function test_compact_pinned_label_sits_in_the_time_column() {
+	public function test_pinned_entry_without_a_label_is_announced_to_screen_readers() {
 		$markup = self::compact_markup();
 		$pinned = self::render( self::create_pinned_entry(), false, $markup );
 		$other  = self::render( self::create_entry( self::create_coverage() ), false, $markup );
 
-		$this->assertMatchesRegularExpression( '/flex-basis:5rem">.*?newspack-rolling-coverage-pinned-label.*?<time.*?Body text/s', $pinned, 'The pinned label should sit above the time in the time column, before the body.' );
+		$this->assertMatchesRegularExpression( '/<article [^>]*><span class="screen-reader-text">Pinned<\/span>/', $pinned );
 		$this->assertStringContainsString( 'Body text', $pinned );
-		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-label', $other, 'An unpinned entry should show no pinned label.' );
+		$this->assertStringNotContainsString( 'screen-reader-text', $other, 'An unpinned entry should carry no announcement.' );
 		$this->assertStringContainsString( '<time', $other );
+	}
+
+	/**
+	 * A pinned entry whose template shows the pinned label keeps just that
+	 * label.
+	 */
+	public function test_pinned_entry_with_a_label_adds_no_announcement() {
+		$pinned = self::render( self::create_pinned_entry(), false, self::compact_markup( true ) );
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-label', $pinned );
+		$this->assertStringNotContainsString( 'screen-reader-text', $pinned );
 	}
 
 	/**
