@@ -979,7 +979,7 @@ const ENTRY_EDITED_STATES: EntryEditedState[] = [
 		blocks: [
 			[
 				'newspack-rolling-coverage/coverage-archived-notice',
-				{ className: stateBlockClassName( 'archived' ) },
+				{ className: stateBlockClassName( 'archived' ), lock: LOCKED },
 			],
 		],
 	},
@@ -989,7 +989,7 @@ const ENTRY_EDITED_STATES: EntryEditedState[] = [
 		blocks: [
 			[
 				'newspack-rolling-coverage/deep-link-cta',
-				{ className: stateBlockClassName( 'deep-link' ) },
+				{ className: stateBlockClassName( 'deep-link' ), lock: LOCKED },
 			],
 		],
 	},

@@ -1345,9 +1345,9 @@ class Rolling_Coverage_Block {
 	 * keeps the card; others render its blocks without it. A pinned entry shown
 	 * as a card, and the last entry once no more can load, drop the separator
 	 * that closes the template. A pinned card with no breakout link to show
-	 * also drops the space its last block keeps for "Read more", and as the
-	 * last entry, a card that closes the template drops the space below it,
-	 * so the card's padding is even and nothing trails the list.
+	 * also drops any bottom margin set on its last block, and as the last
+	 * entry, a card that closes the template drops any set below it, so the
+	 * card's padding is even and nothing trails the list.
 	 *
 	 * @param array[] $template     Parsed template blocks.
 	 * @param bool    $is_pinned    Whether the entry is pinned.
