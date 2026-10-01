@@ -29,7 +29,6 @@ interface RollingCoverageAttributes {
 	adsInterval: number;
 	pinnedLabel: string;
 	layoutId: number;
-	style?: { spacing?: { blockGap?: string | { top?: string } } };
 	[ key: string ]: unknown;
 }
 

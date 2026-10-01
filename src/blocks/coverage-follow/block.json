@@ -6,7 +6,7 @@
 	"category": "newspack",
 	"description": "Lets readers follow this coverage to receive push notifications for new entries. Rendered once at the top of the coverage.",
 	"textdomain": "newspack-rolling-coverage",
-	"parent": [ "newspack-rolling-coverage/rolling-coverage" ],
+	"ancestor": [ "newspack-rolling-coverage/rolling-coverage" ],
 	"attributes": {
 		"coverageId": { "type": "number", "default": 0 },
 		"status": { "type": "string", "default": "active" }

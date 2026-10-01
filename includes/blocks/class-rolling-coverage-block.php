@@ -62,12 +62,29 @@ class Rolling_Coverage_Block {
 	const REGULAR_ENTRY_CLASS = 'newspack-rolling-coverage-regular-entry';
 
 	/**
-	 * Spaces what follows an entry's content, such as "Read more", as the
-	 * theme spaces paragraphs: its block gap, or on a theme without one (the
-	 * classic theme), the preset matching its paragraph margin. Set on Post
-	 * Content because the classic theme redefines the block gap on Buttons.
+	 * Class of the layout's Feed group, which holds everything the coverage
+	 * shows.
 	 */
-	const CONTENT_GAP = 'var(--wp--style--block-gap, var(--wp--preset--spacing--40))';
+	const FEED_CLASS = 'newspack-rolling-coverage-feed';
+
+	/**
+	 * The custom property holding the space between the coverage's items:
+	 * the archived notice, Follow, each entry, the separator and ads. It
+	 * comes from the Feed group's Block spacing; its fallback, `spacing-50`,
+	 * is in the block's stylesheet.
+	 */
+	const FEED_GAP_PROPERTY = '--newspack-rolling-coverage-gap';
+
+	/**
+	 * The space between the blocks of an entry group or pinned card whose
+	 * Block spacing is unset.
+	 */
+	const DEFAULT_ENTRY_GAP = 'var:preset|spacing|20';
+
+	/**
+	 * The corner radius of the entry group and the pinned card.
+	 */
+	const ENTRY_RADIUS = '0.5rem';
 
 	// Term meta key storing the coverage's latest entry modified timestamp.
 	const LAST_MODIFIED_META_KEY = 'rolling_coverage_last_modified';
@@ -159,6 +176,91 @@ class Rolling_Coverage_Block {
 		}
 
 		return 'var(--wp--preset--spacing--' . _wp_to_kebab_case( substr( $value, strlen( 'var:preset|spacing|' ) ) ) . ')';
+	}
+
+	/**
+	 * A Block spacing value as the declaration setting the space between the
+	 * coverage's items, or an empty string when it's unset or not a valid gap.
+	 *
+	 * @param mixed $block_gap Block spacing value, a string or an array with a `top` value.
+	 * @return string
+	 */
+	private static function feed_gap_declaration( $block_gap ): string {
+		$gap = wp_sanitize_block_gap_value( $block_gap );
+		$gap = is_array( $gap ) ? ( $gap['top'] ?? null ) : $gap;
+		$gap = is_string( $gap ) ? trim( explode( ';', $gap )[0] ) : '';
+
+		if ( '' === $gap ) {
+			return '';
+		}
+
+		return self::FEED_GAP_PROPERTY . ':' . self::spacing_css_value( $gap );
+	}
+
+	/**
+	 * The layout's Feed group: the group holding everything the coverage
+	 * shows, whose Block spacing sets the space between its items.
+	 *
+	 * @param WP_Block $block The Rolling Coverage block instance.
+	 * @return array|null Parsed Feed group, or null for a layout without one.
+	 */
+	private static function feed_group( WP_Block $block ): ?array {
+		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner_block ) {
+			if (
+				is_array( $inner_block ) &&
+				'core/group' === ( $inner_block['blockName'] ?? '' ) &&
+				in_array( self::FEED_CLASS, explode( ' ', (string) ( $inner_block['attrs']['className'] ?? '' ) ), true )
+			) {
+				return $inner_block;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * The layout's items: the blocks inside its Feed group, or for a layout
+	 * without one, its top-level blocks.
+	 *
+	 * @param WP_Block $block The Rolling Coverage block instance.
+	 * @return array[] Parsed blocks.
+	 */
+	private static function layout_items( WP_Block $block ): array {
+		$feed = self::feed_group( $block );
+
+		return $feed ? ( $feed['innerBlocks'] ?? [] ) : ( $block->parsed_block['innerBlocks'] ?? [] );
+	}
+
+	/**
+	 * Wraps the coverage's items in the Feed group, rendered by core so its
+	 * classes and styles apply, or in a plain container for a layout without
+	 * one.
+	 *
+	 * @param array|null $feed  Parsed Feed group.
+	 * @param string     $items The items' HTML.
+	 * @return string
+	 */
+	private static function render_feed( ?array $feed, string $items ): string {
+		$content = array_values( array_filter( $feed['innerContent'] ?? [], 'is_string' ) );
+
+		if ( count( $content ) < 2 ) {
+			return '<div class="' . esc_attr( self::FEED_CLASS ) . '">' . $items . '</div>';
+		}
+
+		$placeholder = '<!-- newspack-rolling-coverage-feed-items -->';
+		$shell       = $feed;
+
+		$shell['innerBlocks']  = [];
+		$shell['innerHTML']    = $content[0] . end( $content );
+		$shell['innerContent'] = [ $content[0], $placeholder, end( $content ) ];
+
+		$html = render_block( $shell );
+
+		if ( false === strpos( $html, $placeholder ) ) {
+			return '<div class="' . esc_attr( self::FEED_CLASS ) . '">' . $items . '</div>';
+		}
+
+		return str_replace( $placeholder, $items, $html );
 	}
 
 	/**
@@ -604,8 +706,9 @@ class Rolling_Coverage_Block {
 		);
 
 		$template     = self::get_entry_template( $block );
-		$layout_class = self::entry_layout_class( $attributes );
-		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval, $pinned_label, $layout_class );
+		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval, $pinned_label );
+
+		self::store_entry_layout_styles( $template );
 
 		$entries_html = '';
 		$entry_index  = 0;
@@ -617,7 +720,7 @@ class Rolling_Coverage_Block {
 			$entry_index++;
 			$shows_pinned  = $shows_pinned || Post_Type::is_pinned( $entry->ID );
 			$shows_regular = $shows_regular || ! Post_Type::is_pinned( $entry->ID );
-			$entries_html .= self::render_entry( $entry, $template, 'initial', $pinned_label, $layout_class, ! $has_more && count( $query->posts ) === $entry_index );
+			$entries_html .= self::render_entry( $entry, $template, 'initial', $pinned_label, ! $has_more && count( $query->posts ) === $entry_index );
 
 			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
 				$entries_html .= Ads::render_placement()['html'];
@@ -665,6 +768,8 @@ class Rolling_Coverage_Block {
 		// Follow button: rendered once at the top of the coverage, not per entry.
 		$follow_html = self::maybe_render_follow_button( $block, $coverage_id, $status );
 
+		$feed = self::feed_group( $block );
+
 		$wrapper_attributes = get_block_wrapper_attributes(
 			[
 				'data-coverage-id'      => $coverage_id,
@@ -677,19 +782,21 @@ class Rolling_Coverage_Block {
 				'data-template-key'     => $template_key,
 				'data-host-post-id'     => (int) self::$host_post_id,
 				'data-rest-url'         => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages/' . $coverage_id . '/entries' ) ),
+				'style'                 => self::feed_gap_declaration( $feed['attrs']['style']['spacing']['blockGap'] ?? null ),
 			]
 		);
 
 		try {
-			return sprintf(
-				'<div %1$s>%6$s%2$s%5$s<div class="%3$s-status" role="status" aria-live="polite"></div><button type="button" class="%3$s-new-entries" hidden></button><div class="%3$s-entries">%4$s</div><div class="%3$s-sentinel" aria-hidden="true"></div></div>',
-				$wrapper_attributes,
+			$items_html = sprintf(
+				'%5$s%1$s%4$s<div class="%2$s-status" role="status" aria-live="polite"></div><button type="button" class="%2$s-new-entries" hidden></button><div class="%2$s-entries">%3$s</div><div class="%2$s-sentinel" aria-hidden="true"></div>',
 				$coverage_archived_notice_html,
 				self::MARKUP_PREFIX,
 				$entries_html,
 				$cta_html,
 				$follow_html
 			);
+
+			return sprintf( '<div %s>%s</div>', $wrapper_attributes, self::render_feed( $feed, $items_html ) );
 		} finally {
 			self::$host_post_id = $previous_post_id;
 		}
@@ -748,21 +855,36 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Lays each entry out as a core flow layout spaced by the block's Block
-	 * spacing setting (`spacing-20` when unset), and returns the container
-	 * class the entries carry. Core prints the layout's styles with the
-	 * page's other block styles; the class depends only on the spacing, so
-	 * entries added by polling or load more share it. On a theme without
-	 * theme.json the pinned card's inner container gets the same spacing,
-	 * over the margins such themes give every block in a group.
+	 * Stores the layout styles of the template's pinned cards and entry
+	 * groups, so entries added by polling or load more are spaced even when
+	 * no entry of their kind was on the page when it loaded.
 	 *
-	 * @param array $attributes Block attributes.
+	 * @param array[] $template Parsed template blocks.
+	 */
+	private static function store_entry_layout_styles( array $template ): void {
+		foreach ( $template as $block ) {
+			if ( is_array( $block ) && ( self::is_pinned_card( $block ) || self::is_regular_entry( $block ) ) ) {
+				self::with_entry_layout( $block );
+			}
+		}
+	}
+
+	/**
+	 * Lays an entry group or pinned card out as a core flow layout spaced by
+	 * its own Block spacing setting (`spacing-20` when unset), and returns
+	 * the container class it carries. Core prints the layout's styles with
+	 * the page's other block styles; the class depends only on the spacing,
+	 * so entries added by polling or load more share it. On a theme without
+	 * theme.json the class goes on the group's inner container, over the
+	 * margins such themes give every block in a group.
+	 *
+	 * @param array $group Parsed entry group or pinned card.
 	 * @return string Container class.
 	 */
-	private static function entry_layout_class( array $attributes ): string {
-		$gap   = wp_sanitize_block_gap_value( $attributes['style']['spacing']['blockGap'] ?? null );
+	private static function entry_layout_class( array $group ): string {
+		$gap   = wp_sanitize_block_gap_value( $group['attrs']['style']['spacing']['blockGap'] ?? null );
 		$gap   = is_array( $gap ) ? ( $gap['top'] ?? null ) : $gap;
-		$gap   = is_string( $gap ) && '' !== $gap ? $gap : 'var:preset|spacing|20';
+		$gap   = is_string( $gap ) && '' !== $gap ? $gap : self::DEFAULT_ENTRY_GAP;
 		$class = self::MARKUP_PREFIX . '-entry-layout-' . substr( md5( $gap ), 0, 8 );
 
 		wp_get_layout_style( '.' . $class, [ 'type' => 'default' ], true, $gap );
@@ -832,7 +954,7 @@ class Rolling_Coverage_Block {
 
 		$cta_inner_blocks = [];
 
-		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner ) {
+		foreach ( self::layout_items( $block ) as $inner ) {
 			if ( Deep_Link_CTA_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) ) {
 				if ( ! empty( $inner['attrs']['ctaText'] ) ) {
 					$cta_attrs['ctaText'] = $inner['attrs']['ctaText'];
@@ -876,7 +998,7 @@ class Rolling_Coverage_Block {
 
 		$follow_block = null;
 
-		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner ) {
+		foreach ( self::layout_items( $block ) as $inner ) {
 			if ( Coverage_Follow_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $inner ) ) {
 				$follow_block = $inner;
 				break;
@@ -952,7 +1074,7 @@ class Rolling_Coverage_Block {
 		$notice_attrs        = [];
 		$notice_inner_blocks = [];
 
-		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner ) {
+		foreach ( self::layout_items( $block ) as $inner ) {
 			if ( Coverage_Archived_Notice_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) ) {
 				$notice_attrs        = $inner['attrs'] ?? [];
 				$notice_inner_blocks = $inner['innerBlocks'] ?? [];
@@ -981,7 +1103,7 @@ class Rolling_Coverage_Block {
 	 *                  `innerBlocks` key of a WP_Block source array.
 	 */
 	private static function get_entry_template( WP_Block $block ) {
-		$inner_blocks = $block->parsed_block['innerBlocks'] ?? [];
+		$inner_blocks = self::layout_items( $block );
 
 		if ( empty( $inner_blocks ) ) {
 			return self::default_entry_template();
@@ -1013,24 +1135,14 @@ class Rolling_Coverage_Block {
 	 * @return array[] Array of parsed-block-shaped arrays.
 	 */
 	private static function default_entry_template() {
-		$separator_html = '<hr class="wp-block-separator has-alpha-channel-opacity is-style-wide" style="margin-top:var(--wp--preset--spacing--50);margin-bottom:var(--wp--preset--spacing--50)"/>';
+		$separator_html = '<hr class="wp-block-separator has-alpha-channel-opacity is-style-wide"/>';
 
 		return [
 			self::pinned_card_block( self::default_entry_blocks( true ) ),
 			self::regular_entry_block( self::default_entry_blocks( false ) ),
 			[
 				'blockName'    => 'core/separator',
-				'attrs'        => [
-					'className' => 'is-style-wide',
-					'style'     => [
-						'spacing' => [
-							'margin' => [
-								'top'    => 'var:preset|spacing|50',
-								'bottom' => 'var:preset|spacing|50',
-							],
-						],
-					],
-				],
+				'attrs'        => [ 'className' => 'is-style-wide' ],
 				'innerBlocks'  => [],
 				'innerHTML'    => $separator_html,
 				'innerContent' => [ $separator_html ],
@@ -1134,7 +1246,6 @@ class Rolling_Coverage_Block {
 								'bottom' => '0',
 								'left'   => '0',
 							],
-							'margin'  => [ 'bottom' => self::CONTENT_GAP ],
 						],
 					],
 				],
@@ -1176,12 +1287,22 @@ class Rolling_Coverage_Block {
 	 * @return array Parsed-block-shaped array.
 	 */
 	private static function regular_entry_block( array $inner_blocks ): array {
-		$open = sprintf( '<div class="%s">', esc_attr( 'wp-block-group ' . self::REGULAR_ENTRY_CLASS ) );
+		$style  = [
+			'spacing' => [ 'blockGap' => self::DEFAULT_ENTRY_GAP ],
+			'border'  => [ 'radius' => self::ENTRY_RADIUS ],
+		];
+		$styles = wp_style_engine_get_styles( $style );
+		$open   = sprintf(
+			'<div class="%s" style="%s">',
+			esc_attr( 'wp-block-group ' . self::REGULAR_ENTRY_CLASS ),
+			esc_attr( $styles['css'] ?? '' )
+		);
 
 		return [
 			'blockName'    => 'core/group',
 			'attrs'        => [
 				'className' => self::REGULAR_ENTRY_CLASS,
+				'style'     => $style,
 				'metadata'  => [ 'name' => __( 'Entry', 'newspack-rolling-coverage' ) ],
 			],
 			'innerBlocks'  => $inner_blocks,
@@ -1201,15 +1322,15 @@ class Rolling_Coverage_Block {
 		$style  = [
 			'color'   => [ 'background' => 'var(--wp--custom--color--neutral-5, #f7f7f7)' ],
 			'spacing' => [
-				'padding' => [
+				'padding'  => [
 					'top'    => 'var:preset|spacing|50',
 					'right'  => 'var:preset|spacing|50',
 					'bottom' => 'var:preset|spacing|50',
 					'left'   => 'var:preset|spacing|50',
 				],
-				'margin'  => [ 'bottom' => 'var:preset|spacing|50' ],
+				'blockGap' => self::DEFAULT_ENTRY_GAP,
 			],
-			'border'  => [ 'radius' => 'var(--wp--custom--border--radius-large, var(--newspack-ui-border-radius-l, 8px))' ],
+			'border'  => [ 'radius' => self::ENTRY_RADIUS ],
 		];
 		$styles = wp_style_engine_get_styles( $style );
 		$open   = sprintf(
@@ -1223,7 +1344,7 @@ class Rolling_Coverage_Block {
 			'attrs'        => [
 				'className' => self::PINNED_CARD_CLASS,
 				'style'     => $style,
-				'metadata'  => [ 'name' => __( 'Pinned Card', 'newspack-rolling-coverage' ) ],
+				'metadata'  => [ 'name' => __( 'Pinned Entry', 'newspack-rolling-coverage' ) ],
 			],
 			'innerBlocks'  => $inner_blocks,
 			'innerHTML'    => $open . '</div>',
@@ -1238,21 +1359,18 @@ class Rolling_Coverage_Block {
 	 * keeps the card; others render its blocks without it. A pinned entry shown
 	 * as a card, and the last entry once no more can load, drop the separator
 	 * that closes the template. A pinned card with no breakout link to show
-	 * also drops the space its last block keeps for "Read more", and as the
-	 * last entry, a card that closes the template drops the space below it,
-	 * so the card's padding is even and nothing trails the list.
+	 * also drops any bottom margin set on its last block, and as the last
+	 * entry, a card that closes the template drops any set below it, so the
+	 * card's padding is even and nothing trails the list.
 	 *
 	 * @param array[] $template     Parsed template blocks.
 	 * @param bool    $is_pinned    Whether the entry is pinned.
 	 * @param bool    $has_breakout Whether a pinned entry has a published
 	 *                              breakout; only read for pinned entries.
 	 * @param bool    $is_last      Whether the entry is the last one to load.
-	 * @param string  $layout_class The entries' layout container class, from
-	 *                              entry_layout_class(), so the card spaces
-	 *                              its blocks as an entry does.
 	 * @return array[]
 	 */
-	public static function shape_entry_template( array $template, bool $is_pinned, bool $has_breakout, bool $is_last, string $layout_class = '' ): array {
+	public static function shape_entry_template( array $template, bool $is_pinned, bool $has_breakout, bool $is_last ): array {
 		$template = self::for_entry_kind( $template, $is_pinned );
 
 		if ( ( $is_pinned && self::has_pinned_card( $template ) ) || $is_last ) {
@@ -1268,9 +1386,9 @@ class Rolling_Coverage_Block {
 
 		return self::map_template_blocks(
 			$template,
-			static function ( array $block ) use ( $is_pinned, $has_breakout, $is_last_closer, $layout_class ) {
+			static function ( array $block ) use ( $is_pinned, $has_breakout, $is_last_closer ) {
 				if ( self::is_regular_entry( $block ) ) {
-					return [ $layout_class ? self::with_entry_layout( $block, $layout_class ) : $block ];
+					return [ self::with_entry_layout( $block ) ];
 				}
 
 				if ( ! self::is_pinned_card( $block ) ) {
@@ -1294,7 +1412,7 @@ class Rolling_Coverage_Block {
 					$block = self::without_bottom_margin( $block );
 				}
 
-				return [ $layout_class ? self::with_entry_layout( $block, $layout_class ) : $block ];
+				return [ self::with_entry_layout( $block ) ];
 			}
 		);
 	}
@@ -1480,17 +1598,17 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The pinned card or entry group spacing its blocks as an entry does, with the entries'
-	 * layout class on the element that holds them. On a theme without
-	 * theme.json that's the inner container core would otherwise add
-	 * without it (see wp_restore_group_inner_container()). A card laid out
-	 * as a row or grid keeps its own spacing.
+	 * The pinned card or entry group spacing its blocks by its own Block
+	 * spacing, with its layout class (see entry_layout_class()) on the
+	 * element that holds them. On a theme without theme.json that's the
+	 * inner container core would otherwise add without it (see
+	 * wp_restore_group_inner_container()). A group laid out as a row or grid
+	 * keeps core's spacing.
 	 *
-	 * @param array  $block        Parsed pinned card or entry group.
-	 * @param string $layout_class The entries' layout container class.
+	 * @param array $block Parsed pinned card or entry group.
 	 * @return array
 	 */
-	private static function with_entry_layout( array $block, string $layout_class ): array {
+	private static function with_entry_layout( array $block ): array {
 		if ( ! in_array( $block['attrs']['layout']['type'] ?? 'default', [ 'default', 'constrained' ], true ) ) {
 			return $block;
 		}
@@ -1502,6 +1620,8 @@ class Rolling_Coverage_Block {
 		if ( null === $first || $first === $last || ! is_string( $content[ $first ] ) || ! is_string( $content[ $last ] ) ) {
 			return $block;
 		}
+
+		$layout_class = self::entry_layout_class( $block );
 
 		if ( wp_theme_has_theme_json() ) {
 			$opening = new WP_HTML_Tag_Processor( $content[ $first ] );
@@ -1805,16 +1925,14 @@ class Rolling_Coverage_Block {
 	 * @param bool   $ads_enabled  The block's own Enable Ads toggle.
 	 * @param int    $ads_interval Show an ad after every N entries.
 	 * @param string $pinned_label The block's label for pinned entries.
-	 * @param string $layout_class The entries' layout container class.
 	 * @return string Hash key identifying this config.
 	 */
-	private static function persist_block_config( int $coverage_id, array $template, bool $ads_enabled, int $ads_interval, string $pinned_label = '', string $layout_class = '' ): string {
+	private static function persist_block_config( int $coverage_id, array $template, bool $ads_enabled, int $ads_interval, string $pinned_label = '' ): string {
 		$config = [
 			'template'    => $template,
 			'adsEnabled'  => $ads_enabled,
 			'adsInterval' => $ads_interval,
 			'pinnedLabel' => $pinned_label,
-			'layoutClass' => $layout_class,
 		];
 
 		$hash       = substr( md5( wp_json_encode( $config ) ), 0, 12 );
@@ -1852,7 +1970,7 @@ class Rolling_Coverage_Block {
 	 *
 	 * @param int    $coverage_id  Coverage term ID.
 	 * @param string $template_key Hash returned by persist_block_config().
-	 * @return array{template: array[], adsEnabled: bool, adsInterval: int, pinnedLabel: string, layoutClass: string}
+	 * @return array{template: array[], adsEnabled: bool, adsInterval: int, pinnedLabel: string}
 	 */
 	private static function load_block_config( int $coverage_id, string $template_key ): array {
 		$defaults = [
@@ -1860,7 +1978,6 @@ class Rolling_Coverage_Block {
 			'adsEnabled'  => true,
 			'adsInterval' => 4,
 			'pinnedLabel' => '',
-			'layoutClass' => '',
 		];
 
 		if ( ! $template_key ) {
@@ -1925,19 +2042,16 @@ class Rolling_Coverage_Block {
 	 *                          data-arrival for frontend entry-seen tracking.
 	 * @param string  $pinned_label The Rolling Coverage block's label for
 	 *                              pinned entries; empty for the default.
-	 * @param string  $layout_class The entries' layout container class, from
-	 *                              entry_layout_class().
 	 * @param bool    $is_last      Whether no entry can load after this one.
 	 * @return string Rendered HTML for the entry.
 	 */
-	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', string $pinned_label = '', string $layout_class = '', bool $is_last = false ): string {
+	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', string $pinned_label = '', bool $is_last = false ): string {
 		$is_pinned = Post_Type::is_pinned( $entry->ID );
 		$template  = self::shape_entry_template(
 			self::drop_fixed_template_dates( $template ),
 			$is_pinned,
 			$is_pinned && null !== Breakout::get_published_breakout_url( $entry->ID ),
-			$is_last,
-			$layout_class
+			$is_last
 		);
 
 		if ( ! self::has_title( $entry ) ) {
@@ -1981,7 +2095,7 @@ class Rolling_Coverage_Block {
 			setup_postdata( $previous_post );
 		}
 
-		$post_classes = implode( ' ', get_post_class( array_filter( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post', $layout_class ? 'is-layout-flow' : '', $layout_class ] ), $entry ) );
+		$post_classes = implode( ' ', get_post_class( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post' ], $entry ) );
 
 		$html = sprintf(
 			'<article id="%1$s-entry-%2$d" class="%3$s" data-entry-id="%2$d" data-entry-slug="%6$s" data-arrival="%5$s"%7$s>%4$s</article>',
@@ -2334,7 +2448,6 @@ class Rolling_Coverage_Block {
 		$ads_enabled_attr = (bool) $config['adsEnabled'];
 		$ads_enabled      = $ads_enabled_attr && ! self::is_coverage_ads_disabled( $term_id );
 		$pinned_label     = (string) $config['pinnedLabel'];
-		$layout_class     = sanitize_html_class( (string) $config['layoutClass'] );
 
 		// Forward/polling branch: entries modified at or after the cursor, newest first.
 		if ( $cursor ) {
@@ -2424,7 +2537,7 @@ class Rolling_Coverage_Block {
 				// blank: the client preserves the original value across the replace.
 				$entries[] = [
 					'id'     => $entry->ID,
-					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '', $pinned_label, $layout_class ),
+					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '', $pinned_label ),
 					'type'   => $is_new_entry ? 'insert' : 'update',
 					'adHtml' => $ad_html,
 					'adSlot' => $ad_slot,
@@ -2471,7 +2584,7 @@ class Rolling_Coverage_Block {
 
 		foreach ( $query->posts as $entry ) {
 			$entry_index++;
-			$html .= self::render_entry( $entry, $template, 'load_more', $pinned_label, $layout_class, count( $query->posts ) < $per_page && count( $query->posts ) === $entry_index );
+			$html .= self::render_entry( $entry, $template, 'load_more', $pinned_label, count( $query->posts ) < $per_page && count( $query->posts ) === $entry_index );
 
 			$position = $entry_offset + $entry_index;
 			if ( $ads_enabled && Ads::is_capped_ad_position( $position, $ads_interval ) ) {

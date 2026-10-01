@@ -13,10 +13,16 @@ import type { TemplateItem, EntryEditedState } from './types';
 const LOCKED = { remove: true, move: false };
 
 /**
- * The pinned card and the entry group stay at the layout's top level, where
- * the template is split by kind of entry.
+ * The Feed group stays at the layout's top level, and the pinned card and the
+ * entry group at the Feed's, where the template is split by kind of entry.
  */
 const LOCKED_IN_PLACE = { remove: true, move: true };
+
+/**
+ * Class of the layout's Feed group, mirroring
+ * Rolling_Coverage_Block::FEED_CLASS.
+ */
+const FEED_CLASS = 'newspack-rolling-coverage-feed';
 
 /**
  * The pin icon registered by Block_Icons::PIN.
@@ -107,28 +113,29 @@ const SHARE_BUTTONS: TemplateItem = [
 ];
 
 /**
- * Spaces what follows the entry's content, such as "Read more", as the theme
- * spaces paragraphs: its block gap, or on a theme without one (the classic
- * theme), the preset matching its paragraph margin. Set on Post Content
- * because the classic theme redefines the block gap on Buttons.
- */
-const CONTENT_GAP =
-	'var(--wp--style--block-gap, var(--wp--preset--spacing--40))';
-
-/**
  * Class of the group that shows a pinned entry as a card, mirroring
  * Rolling_Coverage_Block::PINNED_CARD_CLASS.
  */
 const PINNED_CARD_CLASS = 'newspack-rolling-coverage-pinned-card';
 const PINNED_CARD_BACKGROUND = 'var(--wp--custom--color--neutral-5, #f7f7f7)';
-const PINNED_CARD_RADIUS =
-	'var(--wp--custom--border--radius-large, var(--newspack-ui-border-radius-l, 8px))';
 
 /**
  * Class of the group that shows an entry that isn't pinned, mirroring
  * Rolling_Coverage_Block::REGULAR_ENTRY_CLASS.
  */
 const REGULAR_ENTRY_CLASS = 'newspack-rolling-coverage-regular-entry';
+
+/**
+ * The space between the blocks of an entry group or pinned card, mirroring
+ * Rolling_Coverage_Block::DEFAULT_ENTRY_GAP.
+ */
+const DEFAULT_ENTRY_GAP = 'var:preset|spacing|20';
+
+/**
+ * The corner radius of the entry group and the pinned card, mirroring
+ * Rolling_Coverage_Block::ENTRY_RADIUS.
+ */
+const ENTRY_RADIUS = '0.5rem';
 
 /**
  * What an entry shows: the date and title stacked with the share button
@@ -188,7 +195,6 @@ function entryBlocks( isPinned: boolean ): TemplateItem[] {
 							bottom: '0',
 							left: '0',
 						},
-						margin: { bottom: CONTENT_GAP },
 					},
 				},
 			},
@@ -252,12 +258,12 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 						bottom: 'var:preset|spacing|50',
 						left: 'var:preset|spacing|50',
 					},
-					margin: { bottom: 'var:preset|spacing|50' },
+					blockGap: DEFAULT_ENTRY_GAP,
 				},
-				border: { radius: PINNED_CARD_RADIUS },
+				border: { radius: ENTRY_RADIUS },
 			},
 			metadata: {
-				name: __( 'Pinned Card', 'newspack-rolling-coverage' ),
+				name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
 			},
 		},
 		entryBlocks( true ),
@@ -267,26 +273,17 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 		{
 			className: REGULAR_ENTRY_CLASS,
 			lock: LOCKED_IN_PLACE,
+			style: {
+				spacing: { blockGap: DEFAULT_ENTRY_GAP },
+				border: { radius: ENTRY_RADIUS },
+			},
 			metadata: {
 				name: __( 'Entry', 'newspack-rolling-coverage' ),
 			},
 		},
 		entryBlocks( false ),
 	],
-	[
-		'core/separator',
-		{
-			className: 'is-style-wide',
-			style: {
-				spacing: {
-					margin: {
-						top: 'var:preset|spacing|50',
-						bottom: 'var:preset|spacing|50',
-					},
-				},
-			},
-		},
-	],
+	[ 'core/separator', { className: 'is-style-wide' } ],
 ];
 
 /**
@@ -351,6 +348,87 @@ function isFollowButtons( block: {
 			);
 		} )
 	);
+}
+
+/**
+ * The Feed group holding the layout's items: everything the coverage shows,
+ * spaced by its Block spacing.
+ *
+ * @param {Object[]} items The items.
+ * @return {Object} The Feed group.
+ */
+function feedTemplate( items: TemplateItem[] ): TemplateItem {
+	return [
+		'core/group',
+		{
+			className: FEED_CLASS,
+			lock: LOCKED_IN_PLACE,
+			layout: {
+				type: 'flex',
+				orientation: 'vertical',
+				justifyContent: 'stretch',
+			},
+			style: { spacing: { blockGap: 'var:preset|spacing|50' } },
+			metadata: { name: __( 'Feed', 'newspack-rolling-coverage' ) },
+		},
+		items,
+	];
+}
+
+/**
+ * Whether a block is the layout's Feed group, mirroring
+ * Rolling_Coverage_Block::feed_group().
+ *
+ * @param {Object} block            The block.
+ * @param {string} block.name       Block name.
+ * @param {Object} block.attributes Block attributes.
+ * @return {boolean} Whether it's the Feed group.
+ */
+function isFeedGroup( block: {
+	name: string;
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const className = block.attributes?.className;
+
+	return (
+		block.name === 'core/group' &&
+		typeof className === 'string' &&
+		className.split( ' ' ).includes( FEED_CLASS )
+	);
+}
+
+/**
+ * The layout's Feed group, if it has one.
+ *
+ * @param {Object[]} blocks The layout's top-level blocks.
+ * @return {Object|undefined} The Feed group.
+ */
+function feedGroupOf< T extends { name: string; [ key: string ]: unknown } >(
+	blocks: T[]
+): T | undefined {
+	return blocks.find( ( block ) =>
+		isFeedGroup(
+			block as { name: string; attributes?: Record< string, unknown > }
+		)
+	);
+}
+
+/**
+ * The layout's items: the blocks inside its Feed group, or for a layout
+ * without one, its top-level blocks, mirroring
+ * Rolling_Coverage_Block::layout_items().
+ *
+ * @param {Object[]} blocks The layout's top-level blocks.
+ * @return {Object[]} The items.
+ */
+function feedItems< T extends { name: string; [ key: string ]: unknown } >(
+	blocks: T[]
+): T[] {
+	const feed = feedGroupOf( blocks );
+
+	return feed && Array.isArray( feed.innerBlocks )
+		? ( feed.innerBlocks as T[] )
+		: blocks;
 }
 
 /**
@@ -908,7 +986,7 @@ const ENTRY_EDITED_STATES: EntryEditedState[] = [
 		blocks: [
 			[
 				'newspack-rolling-coverage/coverage-archived-notice',
-				{ className: stateBlockClassName( 'archived' ) },
+				{ className: stateBlockClassName( 'archived' ), lock: LOCKED },
 			],
 		],
 	},
@@ -918,7 +996,7 @@ const ENTRY_EDITED_STATES: EntryEditedState[] = [
 		blocks: [
 			[
 				'newspack-rolling-coverage/deep-link-cta',
-				{ className: stateBlockClassName( 'deep-link' ) },
+				{ className: stateBlockClassName( 'deep-link' ), lock: LOCKED },
 			],
 		],
 	},
@@ -929,6 +1007,10 @@ export {
 	ENTRY_ALLOWED_BLOCKS,
 	ENTRY_EDITED_STATES,
 	FOLLOW_TEMPLATE,
+	feedTemplate,
+	feedGroupOf,
+	isFeedGroup,
+	feedItems,
 	isFollowButtons,
 	withoutPinnedRow,
 	withoutBreakoutLink,

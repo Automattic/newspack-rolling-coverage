@@ -1,5 +1,20 @@
+$feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
+
 .wp-block-newspack-rolling-coverage-rolling-coverage {
 	--nrc-color-text: var(--wp--preset--color--contrast, #000);
+
+	.newspack-rolling-coverage-feed {
+		display: flex;
+		flex-direction: column;
+		gap: $feed-gap;
+	}
+
+	.newspack-rolling-coverage-feed > *,
+	.newspack-rolling-coverage-entries > *,
+	.newspack-rolling-coverage-entry > * {
+		margin-top: 0;
+		margin-bottom: 0;
+	}
 
 	.newspack-rolling-coverage-status {
 		position: absolute;
@@ -54,10 +69,7 @@
 	.newspack-rolling-coverage-entries {
 		display: flex;
 		flex-direction: column;
-
-		> .newspack_global_ad {
-			margin-bottom: var(--wp--preset--spacing--50);
-		}
+		gap: $feed-gap;
 
 		&__empty {
 			color: var(--nrc-color-text);
@@ -71,6 +83,10 @@
 		// #newspack-rolling-coverage-entry-<ID>. Themes
 		// with taller fixed headers can override via this custom property.
 		scroll-margin-top: var(--newspack-rolling-coverage-scroll-offset, 80px);
+
+		> * + * {
+			margin-top: $feed-gap;
+		}
 
 		.wp-block-post-content {
 
@@ -106,6 +122,7 @@
 
 	.newspack-rolling-coverage-sentinel {
 		height: 1px;
+		margin-top: calc(-1 * #{$feed-gap});
 	}
 }
 
