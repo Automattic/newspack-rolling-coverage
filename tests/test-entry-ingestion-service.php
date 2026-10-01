@@ -129,9 +129,39 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 
 		$result = self::ingest( $payload, self::create_coverage() );
 
-		$this->assertSame( 0, $result, 'The overlapping request should be skipped.' );
+		$this->assertSame( Entry_Ingestion_Service::SKIP_IN_PROGRESS, $result, 'The overlapping request should be skipped, and told why.' );
 		$this->assertSame( 0, self::count_entries(), 'No entry should be created.' );
 		$this->assertNotFalse( get_option( self::lock_key( $payload ) ), "The other request's lock should be left in place." );
+	}
+
+	/**
+	 * Media is imported between the duplicate check and the insert, which can
+	 * take long enough for another delivery of the same message to finish. The
+	 * message still becomes one entry.
+	 */
+	public function test_message_saved_by_another_request_during_the_media_import_is_not_saved_twice() {
+		$payload     = self::payload();
+		$coverage_id = self::create_coverage();
+		$bot_user_id = self::factory()->user->create( [ 'role' => 'author' ] );
+
+		$result = Entry_Ingestion_Service::ingest(
+			$payload,
+			$coverage_id,
+			false,
+			$bot_user_id,
+			[],
+			static function () use ( $payload, $coverage_id ) {
+				// The other delivery's entry, saved while this one imports its media.
+				$other_entry_id = self::factory()->post->create( [ 'post_type' => Post_Type::CPT_SLUG ] );
+				wp_set_object_terms( $other_entry_id, [ $coverage_id ], Taxonomy::TAXONOMY_SLUG );
+				add_post_meta( $other_entry_id, Post_Type::META_SOURCE_REF, $payload->source_ref );
+
+				return '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.test/photo.jpg" alt=""/></figure><!-- /wp:image -->';
+			}
+		);
+
+		$this->assertSame( 0, $result, 'The second save should be skipped as a duplicate.' );
+		$this->assertSame( 1, self::count_entries(), 'The message should have one entry.' );
 	}
 
 	/**

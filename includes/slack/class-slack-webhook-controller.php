@@ -1512,6 +1512,9 @@ class Slack_Webhook_Controller {
 						'message' => $post_id->get_error_message(),
 					] 
 				);
+			} elseif ( Entry_Ingestion_Service::SKIP_IN_PROGRESS === $post_id ) {
+				// Expected for a message with images, which Slack redelivers while the first delivery imports them.
+				Slack_Monitor::log( 'info', 'Ingestion: entry not created (another delivery of this message is still being processed)', [ 'ts' => $ts ] );
 			} elseif ( Entry_Ingestion_Service::SKIP_ARCHIVED_COVERAGE === $post_id ) {
 				Slack_Monitor::log( 'info', 'Ingestion: entry not created (coverage archived)', [ 'ts' => $ts ] );
 				error_log( 'Slack ingestion: entry not created for ts ' . $ts . ' (coverage archived).' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log

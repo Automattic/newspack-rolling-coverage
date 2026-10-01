@@ -35,6 +35,9 @@ class Entry_Ingestion_Service {
 	// Skip result when the target coverage is archived.
 	const SKIP_ARCHIVED_COVERAGE = -1;
 
+	// Skip result when another request is still ingesting the same event.
+	const SKIP_IN_PROGRESS = -2;
+
 	/**
 	 * Ingest a normalized source event into a rolling coverage entry.
 	 *
@@ -50,7 +53,8 @@ class Entry_Ingestion_Service {
 	 *                                              event does not import its media twice.
 	 * @return int|\WP_Error Post id on success, 0 on a clean skip,
 	 *                       self::SKIP_ARCHIVED_COVERAGE when the coverage is
-	 *                       archived, or WP_Error.
+	 *                       archived, self::SKIP_IN_PROGRESS when another
+	 *                       request holds the event's lock, or WP_Error.
 	 */
 	public static function ingest(
 		Source_Event_Payload $payload,
@@ -73,7 +77,7 @@ class Entry_Ingestion_Service {
 
 			// Lock is fresh — another request is actively processing; skip.
 			if ( $lock_time > 0 && ( time() - $lock_time ) < self::MUTEX_TTL ) {
-				return 0;
+				return self::SKIP_IN_PROGRESS;
 			}
 
 			// Lock is stale — reclaim it by updating the timestamp and proceed.
@@ -95,6 +99,11 @@ class Entry_Ingestion_Service {
 
 			if ( null !== $render_media ) {
 				$content = implode( "\n\n", array_filter( [ $content, (string) $render_media() ], 'strlen' ) );
+
+				// The import can outlast another delivery of the same event that got past the lock.
+				if ( self::entry_exists( $payload->source_ref, $term_id ) ) {
+					return 0;
+				}
 			}
 
 			if ( '' === $content ) {
