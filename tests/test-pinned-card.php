@@ -216,9 +216,9 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 		$pinned = self::render( self::create_pinned_entry(), false, $markup );
 		$other  = self::render( self::create_entry( self::create_coverage() ), false, $markup );
 
-		$this->assertMatchesRegularExpression( '/<article [^>]*><span class="screen-reader-text">Pinned<\/span>/', $pinned );
+		$this->assertMatchesRegularExpression( '/<article [^>]*><span class="newspack-rolling-coverage-pinned-status">Pinned<\/span>/', $pinned );
 		$this->assertStringContainsString( 'Body text', $pinned );
-		$this->assertStringNotContainsString( 'screen-reader-text', $other, 'An unpinned entry should carry no announcement.' );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-status', $other, 'An unpinned entry should carry no announcement.' );
 		$this->assertStringContainsString( '<time', $other );
 	}
 
@@ -230,7 +230,22 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 		$pinned = self::render( self::create_pinned_entry(), false, self::compact_markup( true ) );
 
 		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-label', $pinned );
-		$this->assertStringNotContainsString( 'screen-reader-text', $pinned );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-status', $pinned );
+	}
+
+	/**
+	 * A label nested in a row group inside the card still counts as the
+	 * pinned label.
+	 */
+	public function test_pinned_entry_with_a_nested_label_adds_no_announcement() {
+		$label  = '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-pinned-label"} --><p class="use-header-font newspack-rolling-coverage-pinned-label">Pinned</p><!-- /wp:paragraph -->';
+		$markup = '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">'
+			. '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group">' . $label . '<!-- wp:post-date /--></div><!-- /wp:group -->'
+			. '<!-- wp:paragraph --><p>Body text</p><!-- /wp:paragraph --></div><!-- /wp:group -->';
+		$pinned = self::render( self::create_pinned_entry(), false, $markup );
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-label', $pinned );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-status', $pinned );
 	}
 
 	/**

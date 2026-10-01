@@ -2604,7 +2604,7 @@ class Rolling_Coverage_Block {
 		}
 
 		if ( $is_pinned && ! Entry_Bindings::has_pinned_label( $template ) ) {
-			$entry_content = '<span class="screen-reader-text">' . esc_html__( 'Pinned', 'newspack-rolling-coverage' ) . '</span>' . $entry_content;
+			$entry_content = '<span class="newspack-rolling-coverage-pinned-status">' . esc_html__( 'Pinned', 'newspack-rolling-coverage' ) . '</span>' . $entry_content;
 		}
 
 		$post_classes = implode( ' ', get_post_class( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post' ], $entry ) );
