@@ -914,7 +914,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 			[
 				'post_title'   => 'Headline',
 				'post_content' => '',
-			] 
+			]
 		);
 		$markup   = '<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap"}} --><div class="wp-block-group">'
 			. '<!-- wp:post-date {"format":"g:i a"} /-->'
