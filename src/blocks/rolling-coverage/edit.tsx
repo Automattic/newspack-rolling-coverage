@@ -2,6 +2,17 @@
  * WordPress dependencies
  */
 import {
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalGetBorderClassesAndStyles as getBorderClassesAndStyles,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalGetColorClassesAndStyles as getColorClassesAndStyles,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalGetDimensionsClassesAndStyles as getDimensionsClassesAndStyles,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalGetShadowClassesAndStyles as getShadowClassesAndStyles,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalGetSpacingClassesAndStyles as getSpacingClassesAndStyles,
+	getTypographyClassesAndStyles,
 	useBlockProps,
 	useInnerBlocksProps,
 	InspectorControls,
@@ -65,6 +76,8 @@ import {
 } from './utils';
 import {
 	ENTRY_EDITED_STATES,
+	feedGroupOf,
+	feedItems,
 	isFollowButtons,
 	isPinnedCard,
 	isRegularEntry,
@@ -82,13 +95,13 @@ import { useSampleEntries } from './samples';
 import EntryBlockPreview from './components/entry-block-preview';
 import LoadingState from './components/loading-state';
 import PinnedEntryContext from './pinned-entry-context';
+import { blockGapCss } from './spacing';
 import {
 	BLOCK_NAME,
 	FOLLOW_BLOCK_NAME,
 	RENDER_ONCE_BLOCKS,
 	STATE_BY_BLOCK_NAME,
 	innerTemplate,
-	ALL_ALLOWED_BLOCKS,
 	useLayoutPreview,
 } from './layout';
 import type {
@@ -106,6 +119,16 @@ const EDITED_STATE_OPTIONS = ENTRY_EDITED_STATES.map( ( state ) => ( {
 	value: state.value,
 	label: state.label,
 } ) );
+
+/**
+ * The Edited State that previews a coverage status.
+ *
+ * @param {string} status Coverage status.
+ * @return {string} 'archived' for an archived coverage, else the default state.
+ */
+function editedStateForStatus( status?: string ): string {
+	return status === 'archived' ? 'archived' : EDITED_STATE_OPTIONS[ 0 ].value;
+}
 
 /**
  * Neutral block context used when a coverage has no published entries yet,
@@ -138,44 +161,59 @@ function detachNestedBlocks( blocks: TemplateBlocks ): TemplateBlocks {
 }
 
 /**
- * A preset slug as core writes it in a custom property, mirroring
- * _wp_to_kebab_case(), e.g. "2XLarge" becomes "2-x-large".
+ * The space between the coverage's items, from the Feed group's Block
+ * spacing, as the custom property the block reads, as
+ * Rolling_Coverage_Block::render_block() sets it on the front end.
  *
- * @param {string} slug Preset slug.
- * @return {string} The kebab-case slug.
+ * @param {Object} feed The layout's Feed group.
+ * @return {Object} Inline style.
  */
-function kebabCase( slug: string ): string {
-	return slug
-		.replace( /([a-z])([A-Z0-9])/g, '$1-$2' )
-		.replace( /([0-9])([a-zA-Z])/g, '$1-$2' )
-		.replace( /([A-Z])([A-Z][a-z])/g, '$1-$2' )
-		.replace( /[\s_]+/g, '-' )
-		.toLowerCase();
+function feedGapStyle( feed?: {
+	[ key: string ]: unknown;
+} ): Record< string, string > {
+	const attributes = feed?.attributes as
+		| { style?: { spacing?: { blockGap?: string | { top?: string } } } }
+		| undefined;
+	const gap = blockGapCss( attributes?.style?.spacing?.blockGap );
+
+	return gap ? { '--newspack-rolling-coverage-gap': gap } : {};
 }
 
 /**
- * The space between an entry's blocks as the custom property the entries
- * read in the editor, previewing the flow layout the site gives each entry
- * (see Rolling_Coverage_Block::entry_layout_class()).
+ * The Feed group's own classes and styles (colour, border, spacing,
+ * typography), for the container a synced layout's preview shows in place
+ * of the Feed, so it previews as the site renders it.
  *
- * @param {string|Object} blockGap The Block spacing setting.
- * @return {Object} Inline style.
+ * @param {Object} feed The layout's Feed group.
+ * @return {Object} The container's className and style.
  */
-function entryGapStyle(
-	blockGap?: string | { top?: string }
-): Record< string, string > {
-	let gap = typeof blockGap === 'object' ? blockGap?.top : blockGap;
+function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
+	className: string;
+	style: Record< string, unknown >;
+} {
+	const attributes = ( feed?.attributes ?? {} ) as Record< string, unknown >;
+	const parts = [
+		getColorClassesAndStyles( attributes ),
+		getBorderClassesAndStyles( attributes ),
+		getSpacingClassesAndStyles( attributes ),
+		getTypographyClassesAndStyles( attributes ),
+		getShadowClassesAndStyles( attributes ),
+		getDimensionsClassesAndStyles( attributes ),
+	];
+	const classNames = [
+		'wp-block-group',
+		'newspack-rolling-coverage-feed',
+		attributes.className,
+		...parts.map( ( part ) => part.className ),
+	]
+		.filter( ( name ): name is string => typeof name === 'string' )
+		.flatMap( ( name ) => name.split( ' ' ) )
+		.filter( Boolean );
 
-	if ( ! gap ) {
-		return {};
-	}
-
-	const preset = gap.match( /^var:preset\|spacing\|(.+)$/ );
-	if ( preset ) {
-		gap = `var(--wp--preset--spacing--${ kebabCase( preset[ 1 ] ) })`;
-	}
-
-	return { '--newspack-rolling-coverage-entry-gap': gap };
+	return {
+		className: [ ...new Set( classNames ) ].join( ' ' ),
+		style: Object.assign( {}, ...parts.map( ( part ) => part.style ) ),
+	};
 }
 
 const STATUS_OPTIONS = [
@@ -202,10 +240,6 @@ export default function Edit( {
 		EDITED_STATE_OPTIONS[ 0 ].value
 	);
 	const editedStateLabelId = `newspack-rolling-coverage-edited-state-${ clientId }`;
-	const blockProps = useBlockProps( {
-		'data-editor-state': editedState,
-		style: entryGapStyle( attributes.style?.spacing?.blockGap ),
-	} );
 	const { currentPostType, currentPostId, patternCategories } = useSelect(
 		( select ) => {
 			const editor = select( editorStore ) as unknown as {
@@ -280,7 +314,7 @@ export default function Edit( {
 		{
 			template:
 				isSynced || isCreatingLayout ? undefined : defaultTemplate,
-			allowedBlocks: ALL_ALLOWED_BLOCKS,
+			allowedBlocks: [],
 			templateLock: false,
 		}
 	);
@@ -319,9 +353,8 @@ export default function Edit( {
 	);
 
 	// Read live from the store so preview copies stay in sync as the
-	// template is edited. Filter out the render-once blocks (follow
-	// and editor-state blocks) — only per-entry blocks.
-	const allBlocks: TemplateBlocks = useSelect(
+	// template is edited.
+	const innerBlocks: TemplateBlocks = useSelect(
 		( select ) =>
 			(
 				select( blockEditorStore ) as unknown as {
@@ -329,6 +362,10 @@ export default function Edit( {
 				}
 			 ).getBlocks( clientId ),
 		[ clientId ]
+	);
+	const allBlocks = useMemo(
+		() => feedItems( innerBlocks ),
+		[ innerBlocks ]
 	);
 	const { replaceInnerBlocks, __unstableMarkNextChangeAsNotPersistent } =
 		useDispatch( blockEditorStore.name ) as unknown as {
@@ -458,6 +495,12 @@ export default function Edit( {
 			) as unknown as TemplateBlocks,
 		[ defaultTemplate ]
 	);
+	const syncedBlocks = layoutBlocks ?? defaultLayoutBlocks;
+	const feedGroup = feedGroupOf( isSynced ? syncedBlocks : innerBlocks );
+	const blockProps = useBlockProps( {
+		'data-editor-state': editedState,
+		style: feedGapStyle( feedGroup ),
+	} );
 
 	const sampleContexts = useSampleEntries( isLayoutPattern );
 	const entriesCoverageId =
@@ -474,7 +517,7 @@ export default function Edit( {
 			? sampleContexts
 			: entryContexts;
 	const { templateBlocks, blocksForEntry } = useLayoutPreview(
-		isSynced ? ( layoutBlocks ?? defaultLayoutBlocks ) : allBlocks,
+		isSynced ? feedItems( syncedBlocks ) : allBlocks,
 		previewContexts,
 		entriesPerPage
 	);
@@ -604,31 +647,20 @@ export default function Edit( {
 		return () => ids.forEach( ( id ) => unsetBlockEditingMode( id ) );
 	}, [ hiddenKey, setBlockEditingMode, unsetBlockEditingMode ] );
 
-	// A hidden block still counts as the previous sibling for the entry gap,
-	// so the first block left showing in this editor state drops its margin.
-	const layoutCss = useMemo( () => {
-		const firstVisible = allBlocks.find(
-			( block ) =>
-				! hiddenIds.includes( block.clientId as string ) &&
-				( ! STATE_BY_BLOCK_NAME[ block.name ] ||
-					STATE_BY_BLOCK_NAME[ block.name ] === editedState )
-		);
-		const layout =
-			'.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout';
-		return [
-			...hiddenIds.map(
-				( id ) =>
-					`${ layout } [data-block="${ id }"] { display: none; }`
-			),
-			firstVisible
-				? `${ layout } > .wp-block[data-block="${ firstVisible.clientId }"] { margin-top: 0; }`
-				: '',
-		].join( '\n' );
-	}, [ hiddenIds, allBlocks, editedState ] );
+	const layoutCss = useMemo(
+		() =>
+			hiddenIds
+				.map(
+					( id ) =>
+						`.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ id }"] { display: none; }`
+				)
+				.join( '\n' ),
+		[ hiddenIds ]
+	);
 
 	const syncedRenderOnceBlocks = useMemo(
 		() =>
-			( layoutBlocks ?? defaultLayoutBlocks )
+			feedItems( syncedBlocks )
 				.filter(
 					( block ) =>
 						RENDER_ONCE_BLOCKS.includes( block.name ) ||
@@ -645,15 +677,14 @@ export default function Edit( {
 						( block.name !== FOLLOW_BLOCK_NAME &&
 							! isFollowButtons( block ) )
 				),
-		[ layoutBlocks, defaultLayoutBlocks, editedState, isFollowHidden ]
+		[ syncedBlocks, editedState, isFollowHidden ]
 	);
 
 	const detach = useCallback( () => {
-		const source = layoutBlocks ?? defaultLayoutBlocks;
 		registry.batch( () => {
 			replaceInnerBlocks(
 				clientId,
-				source.map( ( block ) =>
+				syncedBlocks.map( ( block ) =>
 					cloneBlock(
 						block as unknown as Parameters< typeof cloneBlock >[ 0 ]
 					)
@@ -664,8 +695,7 @@ export default function Edit( {
 		} );
 	}, [
 		registry,
-		layoutBlocks,
-		defaultLayoutBlocks,
+		syncedBlocks,
 		clientId,
 		replaceInnerBlocks,
 		setAttributes,
@@ -791,6 +821,7 @@ export default function Edit( {
 				return;
 			}
 			setCurrentCoverage( coverage );
+			setEditedState( editedStateForStatus( coverage?.status ) );
 			setCoverageLoadedFor( coverageId );
 			setPendingStatus( coverage?.status || 'active' );
 			setPendingCanonicalUrl( coverage?.canonicalUrl || '' );
@@ -829,6 +860,7 @@ export default function Edit( {
 			setCurrentCoverage( ( prev ) =>
 				prev ? { ...prev, status: pendingStatus } : prev
 			);
+			setEditedState( editedStateForStatus( pendingStatus ) );
 		}
 	}, [ coverageId, pendingStatus ] );
 
@@ -1409,7 +1441,7 @@ export default function Edit( {
 									</Notice>
 								) }
 							{ isSynced && (
-								<>
+								<div { ...feedPreviewProps( feedGroup ) }>
 									{ syncedRenderOnceBlocks.length > 0 && (
 										<BlockContextProvider
 											value={
@@ -1452,7 +1484,7 @@ export default function Edit( {
 											</BlockContextProvider>
 										) }
 									</div>
-								</>
+								</div>
 							) }
 							{ ! isSynced && (
 								<>

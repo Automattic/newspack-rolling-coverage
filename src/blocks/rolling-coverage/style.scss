@@ -2,8 +2,23 @@
 	--wp--preset--shadow--elevation-1: 0 1px 10px rgba(0, 0, 0, 0.07);
 }
 
+$feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
+
 .wp-block-newspack-rolling-coverage-rolling-coverage {
 	--nrc-color-text: var(--wp--preset--color--contrast, #000);
+
+	.newspack-rolling-coverage-feed {
+		display: flex;
+		flex-direction: column;
+		gap: $feed-gap;
+	}
+
+	.newspack-rolling-coverage-feed > *,
+	.newspack-rolling-coverage-entries > *,
+	.newspack-rolling-coverage-entry > * {
+		margin-top: 0;
+		margin-bottom: 0;
+	}
 
 	.newspack-rolling-coverage-status {
 		position: absolute;
@@ -47,10 +62,7 @@
 	.newspack-rolling-coverage-entries {
 		display: flex;
 		flex-direction: column;
-
-		> .newspack_global_ad {
-			margin-bottom: var(--wp--preset--spacing--50);
-		}
+		gap: $feed-gap;
 
 		&__empty {
 			color: var(--nrc-color-text);
@@ -60,6 +72,10 @@
 
 	.newspack-rolling-coverage-entry {
 		scroll-margin-top: var(--newspack-rolling-coverage-scroll-offset, 80px);
+
+		> * + * {
+			margin-top: $feed-gap;
+		}
 
 		.wp-block-post-content {
 
@@ -82,7 +98,7 @@
 	.newspack-rolling-coverage-entry[data-linked] > .newspack-rolling-coverage-pinned-card,
 	.newspack-rolling-coverage-entry[data-linked]:is(:not(:has(> .newspack-rolling-coverage-regular-entry, > .newspack-rolling-coverage-pinned-card))) {
 		outline: 2px solid var(--wp--preset--color--accent, var(--newspack-theme-color-primary, currentcolor));
-		outline-offset: calc(var(--wp--preset--spacing--50, 2rem) / 2);
+		outline-offset: calc(#{$feed-gap} / 2);
 		transition: outline-color 1s ease-out;
 
 		@media (prefers-reduced-motion: reduce) {
@@ -117,6 +133,7 @@
 
 	.newspack-rolling-coverage-sentinel {
 		height: 1px;
+		margin-top: calc(-1 * #{$feed-gap});
 	}
 }
 

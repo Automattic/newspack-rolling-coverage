@@ -14,6 +14,7 @@ import {
 	ENTRY_ALLOWED_BLOCKS,
 	ENTRY_EDITED_STATES,
 	FOLLOW_TEMPLATE,
+	feedTemplate,
 	latestTemplate,
 	isFollowButtons,
 	isLatestButtons,
@@ -89,24 +90,26 @@ function paletteSlugs(): string[] {
 }
 
 /**
- * Default inner-blocks template for the Rolling Coverage block: the "Jump to
- * latest" button, in the colors the editor's palette has for it, and the
- * follow button at the top, then every editor state's blocks, then the
- * per-entry blocks.
+ * Default inner-blocks template for the Rolling Coverage block: the Feed
+ * group, holding the "Jump to latest" button, in the colors the editor's
+ * palette has for it, and the follow button at the top, then every editor
+ * state's blocks, then the per-entry blocks.
  *
  * @return {TemplateItem[]} The template.
  */
 export function innerTemplate(): TemplateItem[] {
 	return [
-		latestTemplate( paletteSlugs() ),
-		FOLLOW_TEMPLATE,
-		...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
-		...ENTRY_TEMPLATE,
+		feedTemplate( [
+			latestTemplate( paletteSlugs() ),
+			FOLLOW_TEMPLATE,
+			...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
+			...ENTRY_TEMPLATE,
+		] ),
 	];
 }
 
 /**
- * All block types allowed inside the Rolling Coverage block's inner blocks.
+ * All block types allowed inside the Feed group.
  */
 export const ALL_ALLOWED_BLOCKS = [
 	...ENTRY_ALLOWED_BLOCKS,

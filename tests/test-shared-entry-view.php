@@ -595,10 +595,10 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The default Entry group's opening tag carries the Pinned Card's corner radius as its only inline style, with or without a closing semicolon.
+	 * The default Entry group's opening tag carries the Pinned Entry's corner radius as its only inline style, with or without a closing semicolon.
 	 */
 	public function test_default_entry_group_has_the_card_radius() {
-		$radius = 'border-radius:var(--wp--custom--border--radius-large, var(--newspack-ui-border-radius-l, 8px))';
+		$radius = 'border-radius:' . Rolling_Coverage_Block::ENTRY_RADIUS;
 
 		$this->assertMatchesRegularExpression(
 			'/<div class="wp-block-group newspack-rolling-coverage-regular-entry[^"]*" style="' . preg_quote( $radius, '/' ) . ';?"/',

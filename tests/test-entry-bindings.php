@@ -6,10 +6,12 @@
  */
 
 use Newspack_Rolling_Coverage\Breakout;
+use Newspack_Rolling_Coverage\Coverage_Archived_Notice_Block;
 use Newspack_Rolling_Coverage\Entry_Bindings;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
+use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
  * The entry template's "Read more" and share buttons are core buttons whose
@@ -451,34 +453,79 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Entries are core flow layouts spaced by the block's Block spacing,
-	 * with `spacing-20` when it's unset.
+	 * The Feed group's Block spacing sets the space between the coverage's
+	 * items on the block's wrapper; unset or invalid, the wrapper sets none
+	 * and the stylesheet's `spacing-50` applies.
 	 *
 	 * @dataProvider data_block_spacing
 	 *
-	 * @param array  $style    The block's style attribute.
-	 * @param string $expected The space between an entry's blocks.
+	 * @param array  $style    The Feed group's style attribute.
+	 * @param string $expected The wrapper's style attribute, or '' for none.
 	 */
-	public function test_block_spacing_lays_out_entries( array $style, string $expected ) {
+	public function test_feed_spacing_sets_the_space_between_items( array $style, string $expected ) {
+		$attributes = [ 'coverageId' => self::create_coverage() ];
+		$feed_attrs = [ 'className' => 'newspack-rolling-coverage-feed' ];
+
+		if ( $style ) {
+			$feed_attrs['style'] = $style;
+		}
+
+		$feed       = '<!-- wp:group ' . wp_json_encode( $feed_attrs ) . ' --><div class="wp-block-group newspack-rolling-coverage-feed">'
+			. '<!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $feed . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+		$wrapper    = new WP_HTML_Tag_Processor( $html );
+		$wrapper->next_tag();
+
+		$this->assertSame( $expected, (string) $wrapper->get_attribute( 'style' ) );
+	}
+
+	/**
+	 * Everything the coverage shows renders inside the Feed group, and the
+	 * Feed's blocks are its entry template, not the Feed itself.
+	 */
+	public function test_feed_group_holds_the_coverage() {
 		$coverage_id = self::create_coverage();
 		self::create_entry( $coverage_id );
 
-		$attributes = array_filter(
-			[
-				'coverageId' => $coverage_id,
-				'style'      => $style,
-			]
-		);
-		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$feed       = '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">'
+			. '<!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $feed . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
 		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
 
-		$this->assertMatchesRegularExpression( '/<article [^>]*class="[^"]*is-layout-flow[^"]*(newspack-rolling-coverage-entry-layout-[0-9a-f]+)/', $html );
-		preg_match( '/(newspack-rolling-coverage-entry-layout-[0-9a-f]+)/', $html, $matches );
+		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-feed' ), 'The Feed should render once.' );
+		$this->assertMatchesRegularExpression( '/newspack-rolling-coverage-feed[^>]*>.*<div class="newspack-rolling-coverage-entries"><article [^>]*>.*Entry text/s', $html, 'The entries should render inside it.' );
+	}
 
-		$this->assertStringContainsString(
-			'.' . $matches[1] . ' > * + *{margin-block-start:' . $expected,
-			wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] )
-		);
+	/**
+	 * The archived notice inside the Feed renders once, above the entries,
+	 * rather than in every entry.
+	 */
+	public function test_feed_archived_notice_renders_once_above_the_entries() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 11:00:00' ] );
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		// The block registers from its built files, which a test run may not have.
+		if ( ! WP_Block_Type_Registry::get_instance()->is_registered( Coverage_Archived_Notice_Block::BLOCK_NAME ) ) {
+			register_block_type( Coverage_Archived_Notice_Block::BLOCK_NAME, [ 'render_callback' => [ Coverage_Archived_Notice_Block::class, 'render_block' ] ] );
+		}
+
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$feed       = '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">'
+			. '<!-- wp:newspack-rolling-coverage/coverage-archived-notice {"content":"Feed notice"} /-->'
+			. '<!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $feed . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		$this->assertSame( 1, substr_count( $html, 'Feed notice' ), 'The notice should render once.' );
+		$this->assertLessThan( strpos( $html, 'newspack-rolling-coverage-entries' ), strpos( $html, 'Feed notice' ), 'The notice should come before the entries.' );
+		$this->assertSame( 2, substr_count( $html, 'Entry text' ), 'Each entry should still render.' );
 	}
 
 	/**
@@ -501,14 +548,16 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	 */
 	public function data_block_spacing(): array {
 		return [
-			'unset'  => [ [], 'var(--wp--preset--spacing--20)' ],
-			'preset' => [ [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ] ], 'var(--wp--preset--spacing--30)' ],
+			'unset'   => [ [], '' ],
+			'preset'  => [ [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ] ], '--newspack-rolling-coverage-gap:var(--wp--preset--spacing--30)' ],
+			'custom'  => [ [ 'spacing' => [ 'blockGap' => '2rem' ] ], '--newspack-rolling-coverage-gap:2rem' ],
+			'invalid' => [ [ 'spacing' => [ 'blockGap' => '1px;}body{display:none' ] ], '' ],
+			'extra'   => [ [ 'spacing' => [ 'blockGap' => '10px;position:fixed' ] ], '--newspack-rolling-coverage-gap:10px' ],
 		];
 	}
 
 	/**
-	 * Entries loaded after the first render keep the block's pinned label
-	 * and the entries' layout.
+	 * Entries loaded after the first render keep the block's pinned label.
 	 */
 	public function test_load_more_keeps_the_block_pinned_label() {
 		$coverage_id = self::create_coverage();
@@ -532,9 +581,6 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$more = Rolling_Coverage_Block::get_entries( $request )->get_data()['html'];
 
-		$this->assertStringContainsString( '>Top story</p>', $more, 'The pinned label should carry over.' );
-
-		preg_match( '/newspack-rolling-coverage-entry-layout-[0-9a-f]+/', $html, $layout );
-		$this->assertMatchesRegularExpression( '/class="[^"]*is-layout-flow ' . $layout[0] . '/', $more, 'The entries layout should carry over.' );
+		$this->assertStringContainsString( '>Top story</p>', $more );
 	}
 }
