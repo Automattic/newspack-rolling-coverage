@@ -212,8 +212,9 @@ function initBlock( root: HTMLElement ): void {
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
 	let polledCount = 0;
-	let backlogOffset =
-		entriesList.querySelectorAll( '[data-entry-id]' ).length;
+	let backlogOffset = entriesList.querySelectorAll(
+		':scope > [data-entry-id]'
+	).length;
 
 	// Tracks forward-poll health so a sustained outage reports one error per
 	// episode (healthy->failing transition) instead of one per failed interval.

@@ -654,7 +654,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The count stops at the cap, one past a hundred, which reads as more than 100.
+	 * The count stops at the cap, one past a hundred, which reads as more than 100, and a newer pinned entry does not take a place under it.
 	 */
 	public function test_newer_count_is_capped() {
 		$newer = self::factory()->post->create_many(
@@ -669,6 +669,8 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		foreach ( $newer as $entry_id ) {
 			wp_set_object_terms( $entry_id, [ $this->coverage_id ], Taxonomy::TAXONOMY_SLUG );
 		}
+
+		Post_Type::pin_entry( self::create_entry( $this->coverage_id, [ 'post_date' => '2026-01-03 10:00:00' ] ) );
 
 		$control = $this->control( $this->render_with_shared( 'entry-6' ) );
 
