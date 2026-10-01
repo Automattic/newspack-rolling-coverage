@@ -41,10 +41,11 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	 *
 	 * @param int    $entry_id Entry post ID.
 	 * @param string $status   Breakout post status.
+	 * @param array  $args     Further post factory arguments.
 	 * @return int Breakout post ID.
 	 */
-	private static function add_breakout( int $entry_id, string $status ): int {
-		$breakout_id = self::factory()->post->create( [ 'post_status' => $status ] );
+	private static function add_breakout( int $entry_id, string $status, array $args = [] ): int {
+		$breakout_id = self::factory()->post->create( array_merge( [ 'post_status' => $status ], $args ) );
 		update_post_meta( $entry_id, Breakout::ENTRY_BREAKOUT_POST_ID_META, $breakout_id );
 		update_post_meta( $breakout_id, Breakout::BREAKOUT_SOURCE_ENTRY_META, $entry_id );
 
@@ -555,11 +556,11 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An archived coverage whose block sets no notice shows the default one.
+	 * An archived coverage whose block sets no notice shows the default one,
+	 * naming the coverage.
 	 */
 	public function test_archived_notice_falls_back_to_the_default_text() {
-		$coverage_id = self::create_coverage();
-		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED, [ 'name' => 'Polls & results' ] );
 
 		$html = self::render_feed_block(
 			[
@@ -568,7 +569,70 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 			]
 		);
 
-		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage of this news event has concluded and this feed is now archived.</p>', $html );
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage of “Polls &amp; results” has concluded and this feed is now archived.</p>', $html );
+	}
+
+	/**
+	 * Without a URL or a published breakout post, the notice has no link.
+	 */
+	public function test_archived_notice_without_a_published_breakout_has_no_link() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		$entry_id    = self::create_entry( $coverage_id );
+
+		$this->assertStringNotContainsString( 'archived-notice__link', self::render_feed_block( [ 'coverageId' => $coverage_id ] ), 'No breakout: no link.' );
+
+		self::add_breakout( $entry_id, 'draft' );
+
+		$this->assertStringNotContainsString( 'archived-notice__link', self::render_feed_block( [ 'coverageId' => $coverage_id ] ), 'A draft breakout: no link.' );
+	}
+
+	/**
+	 * Without a URL, the notice links to the coverage's most recently
+	 * published breakout post, ignoring drafts and other coverages.
+	 */
+	public function test_archived_notice_links_to_the_latest_published_breakout() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		$other_id    = self::create_coverage();
+		$older_entry = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
+		$newer_entry = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		$draft_entry = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 13:00:00' ] );
+		$other_entry = self::create_entry( $other_id, [ 'post_date' => '2026-01-01 14:00:00' ] );
+
+		self::add_breakout( $older_entry, 'publish', [ 'post_date' => '2026-02-01 10:00:00' ] );
+		$newer = self::add_breakout( $newer_entry, 'publish', [ 'post_date' => '2026-02-02 10:00:00' ] );
+		self::add_breakout( $draft_entry, 'draft', [ 'post_date' => '2026-02-03 10:00:00' ] );
+		self::add_breakout( $other_entry, 'publish', [ 'post_date' => '2026-02-04 10:00:00' ] );
+
+		$html = self::render_feed_block(
+			[
+				'coverageId'     => $coverage_id,
+				'archivedNotice' => 'Coverage ended.',
+			]
+		);
+
+		$this->assertStringContainsString(
+			'<p class="newspack-rolling-coverage-archived-notice">Coverage ended. <a class="newspack-rolling-coverage-archived-notice__link" href="' . esc_url( get_permalink( $newer ) ) . '">Read more</a></p>',
+			$html,
+			'The notice should link to the latest published breakout post.'
+		);
+	}
+
+	/**
+	 * A URL set on the block wins over the coverage's breakout post.
+	 */
+	public function test_archived_notice_url_overrides_the_breakout() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		$breakout_id = self::add_breakout( self::create_entry( $coverage_id ), 'publish' );
+
+		$html = self::render_feed_block(
+			[
+				'coverageId'            => $coverage_id,
+				'archivedNoticeLinkUrl' => 'https://example.com/story',
+			]
+		);
+
+		$this->assertStringContainsString( 'href="https://example.com/story"', $html, "The block's URL should be used." );
+		$this->assertStringNotContainsString( esc_url( get_permalink( $breakout_id ) ), $html, 'The breakout post should not be linked.' );
 	}
 
 	/**
@@ -617,6 +681,31 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 			self::render_feed_block( $attributes ),
 			'Without text, the link should read "Read more".'
 		);
+	}
+
+	/**
+	 * With the link turned off, the notice has none, whether the block sets a
+	 * URL or the coverage has a published breakout post.
+	 */
+	public function test_archived_notice_link_can_be_turned_off() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		self::add_breakout( self::create_entry( $coverage_id ), 'publish' );
+
+		$attributes = [
+			'coverageId'             => $coverage_id,
+			'archivedNotice'         => 'Coverage ended.',
+			'archivedNoticeShowLink' => false,
+		];
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage ended.</p>', self::render_feed_block( $attributes ), 'No link to the breakout post.' );
+
+		$attributes['archivedNoticeLinkUrl'] = 'https://example.com/story';
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage ended.</p>', self::render_feed_block( $attributes ), "No link to the block's URL." );
+
+		$attributes['archivedNoticeShowLink'] = true;
+
+		$this->assertStringContainsString( 'href="https://example.com/story"', self::render_feed_block( $attributes ), "Turned back on, the block's URL is linked." );
 	}
 
 	/**
