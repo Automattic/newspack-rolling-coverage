@@ -90,7 +90,7 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	}
 
 	.newspack-rolling-coverage-entry[data-linked] {
-		--newspack-rolling-coverage-linked-margin: calc(var(--newspack-rolling-coverage-scroll-offset, 80px) + var(--wp--preset--spacing--50, 2rem) / 2 + 2px + var(--wp--preset--spacing--30, 1rem));
+		--newspack-rolling-coverage-linked-margin: calc(var(--newspack-rolling-coverage-scroll-offset, 80px) + #{$feed-gap} / 2 + 2px + var(--wp--preset--spacing--30, 1rem));
 		scroll-margin-top: var(--newspack-rolling-coverage-linked-margin);
 	}
 

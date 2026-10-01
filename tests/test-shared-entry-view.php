@@ -418,6 +418,32 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * In a layout whose items sit in the Feed group, the layout's "Jump to latest" button is the control, inside the Feed and never inside an entry.
+	 */
+	public function test_latest_button_in_the_feed_is_the_control() {
+		$layout = '<!-- wp:group {"className":"newspack-rolling-coverage-feed","style":{"spacing":{"blockGap":"var:preset|spacing|40"}}} --><div class="wp-block-group newspack-rolling-coverage-feed">'
+			. self::CUSTOM_LATEST_MARKUP . self::ENTRY_MARKUP
+			. '</div><!-- /wp:group -->';
+		$html   = $this->render_layout_with_shared( 'entry-3', $layout );
+		$shared = $this->control( $html );
+
+		$this->assertSame( 1, $shared['count'] );
+		$this->assertSame( 'Back to live', $shared['own'], "The layout's own button is the control." );
+		$this->assertNotNull( $shared['live'] );
+		$this->assertMatchesRegularExpression( '/newspack-rolling-coverage-feed[^>]*>.*' . self::CONTROL_CLASS . '/s', $html, 'The control renders inside the Feed.' );
+
+		preg_match_all( '/<article .*?<\/article>/s', $html, $articles );
+
+		$this->assertNotEmpty( $articles[0] );
+		$this->assertStringNotContainsString( Entry_Bindings::LATEST_ATTRIBUTE, implode( '', $articles[0] ), 'No entry holds the button.' );
+
+		$wrapper = new WP_HTML_Tag_Processor( $html );
+		$wrapper->next_tag();
+
+		$this->assertSame( '--newspack-rolling-coverage-gap:var(--wp--preset--spacing--40)', $wrapper->get_attribute( 'style' ) );
+	}
+
+	/**
 	 * The "Jump to latest" button renders once above the feed, never inside an entry.
 	 */
 	public function test_latest_button_is_not_rendered_inside_entries() {
