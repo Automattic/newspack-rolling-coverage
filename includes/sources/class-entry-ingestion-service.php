@@ -178,6 +178,8 @@ class Entry_Ingestion_Service {
 				'post_status'    => 'any',
 				'posts_per_page' => 1,
 				'fields'         => 'ids',
+				// A cached answer cannot see an entry another request saved since.
+				'cache_results'  => false,
 				'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Checks whether post is from same source e.g. slack.
 					[
 						'key'   => Post_Type::META_SOURCE_REF,

@@ -151,10 +151,36 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 			$bot_user_id,
 			[],
 			static function () use ( $payload, $coverage_id ) {
-				// The other delivery's entry, saved while this one imports its media.
-				$other_entry_id = self::factory()->post->create( [ 'post_type' => Post_Type::CPT_SLUG ] );
-				wp_set_object_terms( $other_entry_id, [ $coverage_id ], Taxonomy::TAXONOMY_SLUG );
-				add_post_meta( $other_entry_id, Post_Type::META_SOURCE_REF, $payload->source_ref );
+				global $wpdb;
+
+				// The other delivery's entry, saved while this one imports its media. Written
+				// straight to the database, as a write by another request reaches this one:
+				// without touching this request's caches.
+				// phpcs:disable WordPress.DB.DirectDatabaseQuery
+				$wpdb->insert(
+					$wpdb->posts,
+					[
+						'post_type'   => Post_Type::CPT_SLUG,
+						'post_status' => 'draft',
+					]
+				);
+				$other_entry_id = $wpdb->insert_id;
+				$wpdb->insert(
+					$wpdb->postmeta,
+					[
+						'post_id'    => $other_entry_id,
+						'meta_key'   => Post_Type::META_SOURCE_REF, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+						'meta_value' => $payload->source_ref, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+					]
+				);
+				$wpdb->insert(
+					$wpdb->term_relationships,
+					[
+						'object_id'        => $other_entry_id,
+						'term_taxonomy_id' => get_term( $coverage_id, Taxonomy::TAXONOMY_SLUG )->term_taxonomy_id,
+					]
+				);
+				// phpcs:enable WordPress.DB.DirectDatabaseQuery
 
 				return '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.test/photo.jpg" alt=""/></figure><!-- /wp:image -->';
 			}
