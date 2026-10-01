@@ -344,48 +344,53 @@ function compactRow(): TemplateItem {
 			],
 			[
 				'core/column',
-				{
-					style: {
-						spacing: {
-							blockGap: 'var:preset|spacing|20',
-						},
-					},
-					metadata: {
-						name: __( 'Body', 'newspack-rolling-coverage' ),
-					},
-				},
+				{},
 				[
 					[
-						'core/post-content',
+						'core/group',
 						{
+							layout: { type: 'flex', orientation: 'vertical' },
 							style: {
-								spacing: {
-									padding: {
-										top: '0',
-										right: '0',
-										bottom: '0',
-										left: '0',
+								spacing: { blockGap: 'var:preset|spacing|20' },
+							},
+							metadata: {
+								name: __( 'Body', 'newspack-rolling-coverage' ),
+							},
+						},
+						[
+							[
+								'core/post-content',
+								{
+									style: {
+										spacing: {
+											padding: {
+												top: '0',
+												right: '0',
+												bottom: '0',
+												left: '0',
+											},
+										},
 									},
 								},
-							},
-						},
-					],
-					[
-						'core/paragraph',
-						{
-							className: READ_MORE_CLASS,
-							content: __(
-								'Read more',
-								'newspack-rolling-coverage'
-							),
-							lock: LOCKED,
-							metadata: {
-								name: __(
-									'Read more',
-									'newspack-rolling-coverage'
-								),
-							},
-						},
+							],
+							[
+								'core/paragraph',
+								{
+									className: READ_MORE_CLASS,
+									content: __(
+										'Read more',
+										'newspack-rolling-coverage'
+									),
+									lock: LOCKED,
+									metadata: {
+										name: __(
+											'Read more',
+											'newspack-rolling-coverage'
+										),
+									},
+								},
+							],
+						],
 					],
 				],
 			],

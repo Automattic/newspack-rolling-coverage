@@ -146,6 +146,7 @@ class Rolling_Coverage_Block {
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
 		add_filter( 'render_block_core/post-content', [ __CLASS__, 'drop_entry_content_class' ], 10, 3 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
+		add_filter( 'render_block_core/columns', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
 		add_filter( 'render_block_core/buttons', [ __CLASS__, 'drop_empty_entry_buttons' ], 10, 1 );
 	}
 
@@ -305,16 +306,20 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Writes an entry's flex group block spacing (e.g. the date and title
-	 * stack) onto the group on the Newspack Theme.
+	 * Writes an entry's flex group and columns block spacing (e.g. the date
+	 * and title stack) onto the block on the Newspack Theme.
 	 *
 	 * Core only outputs block spacing for themes that support it through
 	 * theme.json; the classic Newspack Theme doesn't, so core falls back to
 	 * its 0.5em default and ignores the value set in the editor. Themes that
 	 * support block spacing, like the Newspack Block Theme, are left to core.
 	 *
-	 * Parameters stay untyped because this runs for every group block on the
-	 * site, after other plugins' filters that may hand on unexpected types.
+	 * Columns are flex by default, so they count without a layout attribute. A
+	 * columns gap that only sets the horizontal value is written as a column
+	 * gap.
+	 *
+	 * Parameters stay untyped because this runs for every group and columns
+	 * block on the site, after other plugins' filters that may hand on unexpected types.
 	 *
 	 * @param string   $block_content Rendered block.
 	 * @param array    $block         Parsed block.
@@ -324,7 +329,8 @@ class Rolling_Coverage_Block {
 	public static function apply_entry_block_gap( $block_content, $block, $instance ) {
 		if (
 			! is_string( $block_content ) ||
-			'flex' !== ( $block['attrs']['layout']['type'] ?? '' ) ||
+			! is_array( $block ) ||
+			'flex' !== ( $block['attrs']['layout']['type'] ?? ( 'core/columns' === ( $block['blockName'] ?? '' ) ? 'flex' : '' ) ) ||
 			! self::$entry_render_depth ||
 			'newspack-theme' !== get_template() ||
 			null !== wp_get_global_settings( [ 'spacing', 'blockGap' ] )
@@ -334,15 +340,18 @@ class Rolling_Coverage_Block {
 
 		$gap = wp_sanitize_block_gap_value( $block['attrs']['style']['spacing']['blockGap'] ?? null );
 		$gap = is_array( $gap ) ? [ $gap['top'] ?? null, $gap['left'] ?? null ] : [ $gap ];
-		$gap = array_filter( $gap, fn( $value ) => is_scalar( $value ) && '' !== (string) $value );
+		$gap = array_map(
+			fn( $value ) => is_scalar( $value ) && '' !== (string) $value ? self::spacing_css_value( (string) $value ) : null,
+			$gap
+		);
 
-		if ( ! $gap ) {
+		if ( ! array_filter( $gap, 'is_string' ) ) {
 			return $block_content;
 		}
 
-		$gap = array_map( fn( $value ) => self::spacing_css_value( (string) $value ), $gap );
+		$properties = 2 === count( $gap ) && null === $gap[0] ? [ 'column-gap' => $gap[1] ] : [ 'gap' => implode( ' ', array_filter( $gap, 'is_string' ) ) ];
 
-		$declaration = ( new \WP_Style_Engine_CSS_Declarations( [ 'gap' => implode( ' ', $gap ) ] ) )->get_declarations_string();
+		$declaration = ( new \WP_Style_Engine_CSS_Declarations( $properties ) )->get_declarations_string();
 		$group       = new WP_HTML_Tag_Processor( $block_content );
 
 		if ( $declaration && $group->next_tag() ) {

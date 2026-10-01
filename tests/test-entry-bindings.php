@@ -916,12 +916,14 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 				'post_content' => '',
 			]
 		);
-		$markup   = '<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap"}} --><div class="wp-block-group">'
-			. '<!-- wp:post-date {"format":"g:i a"} /-->'
+		$markup   = '<!-- wp:columns {"isStackedOnMobile":false} --><div class="wp-block-columns">'
+			. '<!-- wp:column {"width":"5rem"} --><div class="wp-block-column" style="flex-basis:5rem"><!-- wp:post-date {"format":"g:i a"} /--></div><!-- /wp:column -->'
+			. '<!-- wp:column --><div class="wp-block-column">'
 			. '<!-- wp:group {"layout":{"type":"flex","orientation":"vertical"}} --><div class="wp-block-group">'
 			. '<!-- wp:post-content /-->'
 			. self::read_more_paragraph()
-			. '</div><!-- /wp:group --></div><!-- /wp:group -->';
+			. '</div><!-- /wp:group -->'
+			. '</div><!-- /wp:column --></div><!-- /wp:columns -->';
 
 		$html = self::render_markup( $entry_id, $markup );
 
