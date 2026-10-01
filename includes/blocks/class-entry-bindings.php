@@ -8,6 +8,7 @@
 namespace Newspack_Rolling_Coverage;
 
 use WP_Block;
+use WP_Block_Type;
 use WP_HTML_Tag_Processor;
 
 defined( 'ABSPATH' ) || exit;
@@ -67,7 +68,8 @@ class Entry_Bindings {
 		add_action( 'init', [ __CLASS__, 'register_source' ] );
 		add_filter( 'render_block_core/button', [ __CLASS__, 'filter_button' ], 10, 3 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'filter_pinned_label' ], 10, 2 );
-		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_read_more' ], 10, 2 );
+		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_read_more' ], 10, 3 );
+		add_filter( 'get_block_type_uses_context', [ __CLASS__, 'paragraph_uses_post_id' ], 10, 2 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'filter_pinned_group' ], 10, 2 );
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'link_title_to_breakout' ], 10, 3 );
 	}
@@ -312,16 +314,18 @@ class Entry_Bindings {
 	 * Parameters stay untyped because this runs for every paragraph on the
 	 * site, after other plugins' filters that may hand on unexpected types.
 	 *
-	 * @param string $block_content Rendered block.
-	 * @param array  $block         Parsed block.
+	 * @param string   $block_content Rendered block.
+	 * @param array    $block         Parsed block.
+	 * @param WP_Block $instance      Block instance.
 	 * @return string
 	 */
-	public static function link_read_more( $block_content, $block ) {
-		if ( ! Rolling_Coverage_Block::is_rendering_entry() || ! is_array( $block ) || ! is_string( $block_content ) || ! self::is_read_more_paragraph( $block ) ) {
+	public static function link_read_more( $block_content, $block, $instance = null ) {
+		if ( ! Rolling_Coverage_Block::is_rendering_entry() || ! is_array( $block ) || ! is_string( $block_content ) || ! $instance instanceof WP_Block || ! self::is_read_more_paragraph( $block ) ) {
 			return $block_content;
 		}
 
-		$url = Breakout::get_published_breakout_url( (int) get_the_ID() );
+		$entry_id = (int) ( $instance->context['postId'] ?? 0 );
+		$url      = $entry_id && Post_Type::CPT_SLUG === get_post_type( $entry_id ) ? Breakout::get_published_breakout_url( $entry_id ) : null;
 
 		if ( ! $url ) {
 			return '';
@@ -332,9 +336,9 @@ class Entry_Bindings {
 		}
 
 		$inner_start = $open[0][1] + strlen( $open[0][0] );
-		$close       = strrpos( $block_content, '</p>' );
+		$close       = stripos( $block_content, '</p>', $inner_start );
 
-		if ( false === $close || $close < $inner_start ) {
+		if ( false === $close ) {
 			return $block_content;
 		}
 
@@ -347,6 +351,24 @@ class Entry_Bindings {
 		return substr( $block_content, 0, $inner_start )
 			. '<a href="' . esc_url( $url ) . '">' . $inner . '</a>'
 			. substr( $block_content, $close );
+	}
+
+	/**
+	 * Hand paragraphs the `postId` context, so a "Read more" paragraph knows
+	 * which entry it links from.
+	 *
+	 * @param string[]      $uses_context Context the block type uses.
+	 * @param WP_Block_Type $block_type   Block type.
+	 * @return string[]
+	 */
+	public static function paragraph_uses_post_id( $uses_context, $block_type ) {
+		if ( ! is_array( $uses_context ) || ! $block_type instanceof WP_Block_Type || 'core/paragraph' !== $block_type->name || in_array( 'postId', $uses_context, true ) ) {
+			return $uses_context;
+		}
+
+		$uses_context[] = 'postId';
+
+		return $uses_context;
 	}
 
 	/**

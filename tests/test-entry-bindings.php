@@ -954,6 +954,45 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A paragraph a filter appended after the "Read more" paragraph stays
+	 * outside the link.
+	 */
+	public function test_read_more_link_ends_at_its_own_paragraph() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+		$url         = esc_url( get_permalink( $breakout_id ) );
+
+		$filter = static function ( $content, $block ) {
+			return 'core/paragraph' === $block['blockName'] ? $content . '<p>x</p>' : $content;
+		};
+		add_filter( 'render_block_core/paragraph', $filter, 5, 2 );
+		$html = self::render_markup( $entry_id, self::read_more_paragraph() );
+		remove_filter( 'render_block_core/paragraph', $filter, 5 );
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-read-more wp-block-paragraph"><a href="' . $url . '">Read more</a></p><p>x</p>', $html );
+	}
+
+	/**
+	 * The link follows the entry the paragraph renders in, not the global
+	 * post.
+	 */
+	public function test_read_more_links_from_the_block_context_entry() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+		$other_id    = self::factory()->post->create();
+
+		$filter = static function ( $content ) use ( $other_id ) {
+			$GLOBALS['post'] = get_post( $other_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			return $content;
+		};
+		add_filter( 'render_block_core/paragraph', $filter, 5 );
+		$html = self::render_markup( $entry_id, self::read_more_paragraph() );
+		remove_filter( 'render_block_core/paragraph', $filter, 5 );
+
+		$this->assertStringContainsString( '<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Read more</a>', $html );
+	}
+
+	/**
 	 * A link already inside the paragraph is not wrapped in another.
 	 */
 	public function test_read_more_paragraph_with_its_own_link_is_left_alone() {
