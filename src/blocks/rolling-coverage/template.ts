@@ -309,38 +309,46 @@ function siteTimeFormat(): string {
  */
 function compactRow(): TemplateItem {
 	return [
-		'core/group',
+		'core/columns',
 		{
-			layout: {
-				type: 'flex',
-				flexWrap: 'nowrap',
-				verticalAlignment: 'top',
+			isStackedOnMobile: false,
+			verticalAlignment: 'top',
+			style: {
+				spacing: {
+					blockGap: { left: 'var:preset|spacing|30' },
+					margin: { top: '0', bottom: '0' },
+				},
 			},
-			style: { spacing: { blockGap: 'var:preset|spacing|30' } },
 			metadata: { name: __( 'Row', 'newspack-rolling-coverage' ) },
 		},
 		[
 			[
-				'core/post-date',
+				'core/column',
 				{
-					...POST_DATE_ATTRIBUTES,
-					format: siteTimeFormat(),
-					fontSize: 'small',
-					style: {
-						typography: { fontWeight: '600' },
-						layout: {
-							selfStretch: 'fixedNoShrink',
-							flexSize: '5rem',
-						},
+					width: '5rem',
+					metadata: {
+						name: __( 'Time', 'newspack-rolling-coverage' ),
 					},
 				},
+				[
+					[
+						'core/post-date',
+						{
+							...POST_DATE_ATTRIBUTES,
+							format: siteTimeFormat(),
+							fontSize: 'small',
+							style: { typography: { fontWeight: '600' } },
+						},
+					],
+				],
 			],
 			[
-				'core/group',
+				'core/column',
 				{
-					layout: { type: 'flex', orientation: 'vertical' },
 					style: {
-						spacing: { blockGap: 'var:preset|spacing|20' },
+						spacing: {
+							blockGap: 'var:preset|spacing|20',
+						},
 					},
 					metadata: {
 						name: __( 'Body', 'newspack-rolling-coverage' ),
@@ -423,7 +431,13 @@ function compactEntryTemplate(): TemplateItem[] {
 				className: REGULAR_ENTRY_CLASS,
 				lock: LOCKED_IN_PLACE,
 				style: {
-					spacing: { blockGap: DEFAULT_ENTRY_GAP },
+					spacing: {
+						padding: {
+							right: 'var:preset|spacing|30',
+							left: 'var:preset|spacing|30',
+						},
+						blockGap: DEFAULT_ENTRY_GAP,
+					},
 					border: { radius: ENTRY_RADIUS },
 				},
 				metadata: {
