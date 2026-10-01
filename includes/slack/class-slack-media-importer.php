@@ -33,7 +33,7 @@ class Slack_Media_Importer {
 	 * Seconds a message's images may take in total. The downloads run inside
 	 * the webhook request, under the ingestion lock, and must finish well
 	 * before that lock is treated as stale (Entry_Ingestion_Service::MUTEX_TTL):
-	 * past it, a delivery Slack retries would create a second entry.
+	 * past it, a delivery Slack retries would import the same images again.
 	 *
 	 * @var int
 	 */

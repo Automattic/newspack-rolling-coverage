@@ -18,8 +18,9 @@ class Slack_API_Client {
 	const TIMEOUT      = 3;
 
 	/**
-	 * Short timeout for API calls made from within the Slack webhook handler,
-	 * where the total response must stay under Slack's 3-second webhook limit.
+	 * Short timeout for the lookups a message needs before it becomes an
+	 * entry. They run inside the Slack webhook request, which Slack redelivers
+	 * after three seconds; image downloads take their own, longer timeout.
 	 */
 	const WEBHOOK_TIMEOUT = 1;
 
@@ -138,8 +139,8 @@ class Slack_API_Client {
 			return new \WP_Error( 'slack_transport_error', $response->get_error_message() );
 		}
 
-		$content_type = (string) wp_remote_retrieve_header( $response, 'content-type' );
 		$status       = (int) wp_remote_retrieve_response_code( $response );
+		$content_type = (string) wp_remote_retrieve_header( $response, 'content-type' );
 
 		if ( 200 !== $status || 0 !== strpos( $content_type, 'image/' ) ) {
 			wp_delete_file( $path );

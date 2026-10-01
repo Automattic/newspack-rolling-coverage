@@ -823,9 +823,9 @@ class Slack_Webhook_Controller {
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
-			// 3. Process this message inline. The 1s API timeout for the
-			// outbound users.info call keeps the total webhook response well
-			// under Slack's 3-second limit.
+			// 3. Process this message inline. A text message is answered well
+			// inside Slack's 3-second limit. One with images can take longer:
+			// Slack then redelivers it, and the ingestion service skips the copy.
 			Slack_Monitor::log(
 				'info',
 				'Dispatching message to ingestion pipeline',
@@ -1401,8 +1401,8 @@ class Slack_Webhook_Controller {
 
 	/**
 	 * Core ingestion pipeline. Performs author resolution (with a 1s API
-	 * timeout to stay under Slack's 3s webhook limit), content processing,
-	 * and DB writes.
+	 * timeout, so a text message stays under Slack's 3s webhook limit),
+	 * content processing, image import, and DB writes.
 	 *
 	 * @param array $payload Pre-validated payload with event + resolved IDs.
 	 * @return void
