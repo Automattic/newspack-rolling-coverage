@@ -663,10 +663,11 @@ class Rolling_Coverage_Block {
 		$status           = $status ? $status : 'active';
 		$ads_enabled_attr = ! empty( $attributes['enableAds'] );
 		$ads_enabled      = $ads_enabled_attr && ! self::is_coverage_ads_disabled( $coverage_id );
-		$pinned_label     = trim( (string) ( $attributes['pinnedLabel'] ?? '' ) );
 
 		// A trashed coverage is effectively invisible on the frontend.
 		if ( 'trash' === $status ) {
+			self::$host_post_id = $previous_post_id;
+
 			return sprintf(
 				'<p %s>%s</p>',
 				get_block_wrapper_attributes(),
@@ -686,7 +687,7 @@ class Rolling_Coverage_Block {
 		);
 
 		$template     = self::get_entry_template( $block );
-		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval, $pinned_label );
+		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval );
 
 		self::store_entry_layout_styles( $template );
 
@@ -727,7 +728,7 @@ class Rolling_Coverage_Block {
 			$entry_index++;
 			$shows_pinned  = $shows_pinned || Post_Type::is_pinned( $entry->ID );
 			$shows_regular = $shows_regular || ! Post_Type::is_pinned( $entry->ID );
-			$entries_html .= self::render_entry( $entry, $template, 'initial', $pinned_label, ! $has_more && count( $posts ) === $entry_index, $linked_entry && $linked_entry->ID === $entry->ID );
+			$entries_html .= self::render_entry( $entry, $template, 'initial', ! $has_more && count( $posts ) === $entry_index, $linked_entry && $linked_entry->ID === $entry->ID );
 
 			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
 				$entries_html .= Ads::render_placement()['html'];
@@ -738,10 +739,6 @@ class Rolling_Coverage_Block {
 
 		$cursor     = $shared_entry ? self::coverage_cursor( $coverage_id ) : self::latest_cursor( $posts );
 		$oldest_gmt = ! empty( $posts ) ? self::post_date_gmt( $posts[ count( $posts ) - 1 ] ) : '';
-
-		$coverage_archived_notice_html = Taxonomy::STATUS_ARCHIVED === $status
-			? self::render_coverage_archived_notice( $block )
-			: '';
 
 		if ( $posts && ! $shows_pinned ) {
 			self::store_template_layout_styles( self::pinned_cards( $template ) );
@@ -799,15 +796,19 @@ class Rolling_Coverage_Block {
 
 		try {
 			$items_html = sprintf(
-				'%4$s%1$s<div class="%2$s-status" role="status" aria-live="polite"></div>%5$s<div class="%2$s-entries">%3$s</div><div class="%2$s-sentinel" aria-hidden="true"></div>',
-				$coverage_archived_notice_html,
+				'%5$s%3$s<div class="%1$s-status" role="status" aria-live="polite"></div>%4$s<div class="%1$s-entries">%2$s</div><div class="%1$s-sentinel" aria-hidden="true"></div>',
 				self::MARKUP_PREFIX,
 				$entries_html,
 				$follow_html,
-				self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 )
+				self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
+				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes ) : ''
 			);
 
-			return sprintf( '<div %s>%s</div>', $wrapper_attributes, self::render_feed( $feed, $items_html ) );
+			return sprintf(
+				'<div %s>%s</div>',
+				$wrapper_attributes,
+				self::render_feed( $feed, $items_html )
+			);
 		} finally {
 			self::$host_post_id = $previous_post_id;
 		}
@@ -1480,39 +1481,40 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Renders the coverage-archived-notice inner block once, at the top.
+	 * Renders the notice that opens an archived coverage's Feed: the block's text,
+	 * or the default when it has none, followed by its link when it has a URL.
 	 *
-	 * @param WP_Block $block The parent rolling-coverage block instance.
+	 * @param array $attributes Block attributes.
 	 * @return string Rendered HTML.
 	 */
-	private static function render_coverage_archived_notice( WP_Block $block ): string {
-		$archived_notice_block_type = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Archived_Notice_Block::BLOCK_NAME );
-		if ( $archived_notice_block_type ) {
-			foreach ( $archived_notice_block_type->style_handles as $style_handle ) {
-				wp_enqueue_style( $style_handle );
-			}
-		}
+	private static function render_archived_notice( array $attributes ): string {
+		$text  = trim( (string) ( $attributes['archivedNotice'] ?? '' ) );
+		$url   = trim( (string) ( $attributes['archivedNoticeLinkUrl'] ?? '' ) );
+		$label = trim( (string) ( $attributes['archivedNoticeLinkLabel'] ?? '' ) );
+		$link  = '' !== $url ? esc_url( $url ) : '';
 
-		$notice_attrs        = [];
-		$notice_inner_blocks = [];
-
-		foreach ( self::layout_items( $block ) as $inner ) {
-			if ( Coverage_Archived_Notice_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) ) {
-				$notice_attrs        = $inner['attrs'] ?? [];
-				$notice_inner_blocks = $inner['innerBlocks'] ?? [];
-				break;
-			}
-		}
-
-		return render_block(
-			[
-				'blockName'    => Coverage_Archived_Notice_Block::BLOCK_NAME,
-				'attrs'        => $notice_attrs,
-				'innerBlocks'  => $notice_inner_blocks,
-				'innerHTML'    => '',
-				'innerContent' => array_fill( 0, count( $notice_inner_blocks ), null ),
-			]
+		return sprintf(
+			'<p class="%s-archived-notice">%s%s</p>',
+			self::MARKUP_PREFIX,
+			nl2br( esc_html( '' !== $text ? $text : self::default_archived_notice() ), false ),
+			'' !== $link
+				? sprintf(
+					' <a class="%s-archived-notice__link" href="%s">%s</a>',
+					self::MARKUP_PREFIX,
+					$link,
+					esc_html( '' !== $label ? $label : __( 'Read more', 'newspack-rolling-coverage' ) )
+				)
+				: ''
 		);
+	}
+
+	/**
+	 * The notice shown above an archived coverage when the block sets none.
+	 *
+	 * @return string
+	 */
+	private static function default_archived_notice(): string {
+		return __( 'Coverage of this news event has concluded and this feed is now archived.', 'newspack-rolling-coverage' );
 	}
 
 	/**
@@ -1535,7 +1537,6 @@ class Rolling_Coverage_Block {
 		// top of the coverage, not per entry.
 		$singleton_blocks = [
 			Coverage_Follow_Block::BLOCK_NAME,
-			Coverage_Archived_Notice_Block::BLOCK_NAME,
 		];
 		$template         = [];
 
@@ -2233,7 +2234,11 @@ class Rolling_Coverage_Block {
 	 * @return array Parsed-block-shaped array.
 	 */
 	private static function pinned_row_block(): array {
-		$label_html = '<p class="use-header-font has-small-font-size" style="font-weight:700"></p>';
+		$label_html = sprintf(
+			'<p class="use-header-font %s has-small-font-size" style="font-weight:700">%s</p>',
+			Entry_Bindings::PINNED_LABEL_CLASS,
+			esc_html__( 'Pinned', 'newspack-rolling-coverage' )
+		);
 
 		return [
 			'blockName'    => 'core/group',
@@ -2260,17 +2265,9 @@ class Rolling_Coverage_Block {
 				[
 					'blockName'    => 'core/paragraph',
 					'attrs'        => [
-						'className' => 'use-header-font',
+						'className' => 'use-header-font ' . Entry_Bindings::PINNED_LABEL_CLASS,
 						'fontSize'  => 'small',
 						'style'     => [ 'typography' => [ 'fontWeight' => '700' ] ],
-						'metadata'  => [
-							'bindings' => [
-								'content' => [
-									'source' => Entry_Bindings::SOURCE_NAME,
-									'args'   => [ 'key' => 'pinnedLabel' ],
-								],
-							],
-						],
 					],
 					'innerBlocks'  => [],
 					'innerHTML'    => $label_html,
@@ -2337,23 +2334,20 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Stores the entry template plus the block's ad settings and pinned label
-	 * in the options table and returns a hash key identifying that exact
-	 * combination.
+	 * Stores the entry template plus the block's ad settings in the options
+	 * table and returns a hash key identifying that exact combination.
 	 *
-	 * @param int    $coverage_id  Coverage term ID.
-	 * @param array  $template     Per-entry inner-block template.
-	 * @param bool   $ads_enabled  The block's own Enable Ads toggle.
-	 * @param int    $ads_interval Show an ad after every N entries.
-	 * @param string $pinned_label The block's label for pinned entries.
+	 * @param int   $coverage_id  Coverage term ID.
+	 * @param array $template     Per-entry inner-block template.
+	 * @param bool  $ads_enabled  The block's own Enable Ads toggle.
+	 * @param int   $ads_interval Show an ad after every N entries.
 	 * @return string Hash key identifying this config.
 	 */
-	private static function persist_block_config( int $coverage_id, array $template, bool $ads_enabled, int $ads_interval, string $pinned_label = '' ): string {
+	private static function persist_block_config( int $coverage_id, array $template, bool $ads_enabled, int $ads_interval ): string {
 		$config = [
 			'template'    => $template,
 			'adsEnabled'  => $ads_enabled,
 			'adsInterval' => $ads_interval,
-			'pinnedLabel' => $pinned_label,
 		];
 
 		$hash       = substr( md5( wp_json_encode( $config ) ), 0, 12 );
@@ -2391,14 +2385,13 @@ class Rolling_Coverage_Block {
 	 *
 	 * @param int    $coverage_id  Coverage term ID.
 	 * @param string $template_key Hash returned by persist_block_config().
-	 * @return array{template: array[], adsEnabled: bool, adsInterval: int, pinnedLabel: string}
+	 * @return array{template: array[], adsEnabled: bool, adsInterval: int}
 	 */
 	private static function load_block_config( int $coverage_id, string $template_key ): array {
 		$defaults = [
 			'template'    => self::default_entry_template(),
 			'adsEnabled'  => true,
 			'adsInterval' => 4,
-			'pinnedLabel' => '',
 		];
 
 		if ( ! $template_key ) {
@@ -2455,19 +2448,17 @@ class Rolling_Coverage_Block {
 	 *                       entry for the duration of this render and
 	 *                       restored to its previous value afterwards.
 	 *
-	 * @param WP_Post $entry    Entry post object.
-	 * @param array[] $template Per-entry inner-block template, as returned
-	 *                          by get_entry_template().
-	 * @param string  $arrival  How the entry first reaches the client:
-	 *                          'initial', 'poll', or 'load_more'. Stamped as
-	 *                          data-arrival for frontend entry-seen tracking.
-	 * @param string  $pinned_label The Rolling Coverage block's label for
-	 *                              pinned entries; empty for the default.
-	 * @param bool    $is_last      Whether no entry can load after this one.
-	 * @param bool    $is_linked    Whether the page's link names this entry.
+	 * @param WP_Post $entry     Entry post object.
+	 * @param array[] $template  Per-entry inner-block template, as returned
+	 *                           by get_entry_template().
+	 * @param string  $arrival   How the entry first reaches the client:
+	 *                           'initial', 'poll', or 'load_more'. Stamped as
+	 *                           data-arrival for frontend entry-seen tracking.
+	 * @param bool    $is_last   Whether no entry can load after this one.
+	 * @param bool    $is_linked Whether the page's link names this entry.
 	 * @return string Rendered HTML for the entry.
 	 */
-	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', string $pinned_label = '', bool $is_last = false, bool $is_linked = false ): string {
+	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', bool $is_last = false, bool $is_linked = false ): string {
 		$is_pinned = Post_Type::is_pinned( $entry->ID );
 		$template  = self::shape_entry_template(
 			self::drop_fixed_template_dates( $template ),
@@ -2504,7 +2495,6 @@ class Rolling_Coverage_Block {
 					[
 						'postId'   => $entry->ID,
 						'postType' => $entry->post_type,
-						Entry_Bindings::PINNED_LABEL_CONTEXT => $pinned_label,
 					]
 				) )->render( [ 'dynamic' => false ] )
 			);
@@ -2864,7 +2854,6 @@ class Rolling_Coverage_Block {
 		$ads_interval     = max( 1, (int) $config['adsInterval'] );
 		$ads_enabled_attr = (bool) $config['adsEnabled'];
 		$ads_enabled      = $ads_enabled_attr && ! self::is_coverage_ads_disabled( $term_id );
-		$pinned_label     = (string) $config['pinnedLabel'];
 
 		// Forward/polling branch: entries modified at or after the cursor, newest first.
 		if ( $cursor ) {
@@ -2954,7 +2943,7 @@ class Rolling_Coverage_Block {
 				// blank: the client preserves the original value across the replace.
 				$entries[] = [
 					'id'     => $entry->ID,
-					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '', $pinned_label ),
+					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '' ),
 					'type'   => $is_new_entry ? 'insert' : 'update',
 					'adHtml' => $ad_html,
 					'adSlot' => $ad_slot,
@@ -3009,7 +2998,7 @@ class Rolling_Coverage_Block {
 
 		foreach ( $posts as $entry ) {
 			$entry_index++;
-			$html .= self::render_entry( $entry, $template, 'load_more', $pinned_label, ! $has_more && count( $posts ) === $entry_index );
+			$html .= self::render_entry( $entry, $template, 'load_more', ! $has_more && count( $posts ) === $entry_index );
 
 			$position = $entry_offset + $entry_index;
 			if ( $ads_enabled && Ads::is_capped_ad_position( $position, $ads_interval ) ) {

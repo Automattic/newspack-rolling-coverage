@@ -50,16 +50,6 @@
 	margin-bottom: 16px;
 }
 
-// Hides each editor-state block by default; shown per the active
-// state via ENTRY_EDITED_STATES in template.ts.
-.newspack-rolling-coverage-state-block {
-	display: none;
-
-	[data-editor-state="archived"] &--archived {
-		display: block;
-	}
-}
-
 .wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed .newspack-rolling-coverage-new-entries {
 	position: static;
 	transform: none;
@@ -140,17 +130,6 @@
 		mask: url(../../../assets/icons/link.svg) center / 24px no-repeat;
 		width: 24px;
 	}
-}
-
-.newspack-rolling-coverage-edited-state__label {
-	align-self: center;
-	padding-inline: wp-vars.$grid-unit-15 wp-vars.$grid-unit-05;
-	font-weight: wp-vars.$font-weight-medium;
-	white-space: nowrap;
-}
-
-.newspack-rolling-coverage-edited-state .components-toolbar-button.components-button {
-	padding-inline: wp-vars.$grid-unit-15;
 }
 
 .newspack-rolling-coverage-loading {

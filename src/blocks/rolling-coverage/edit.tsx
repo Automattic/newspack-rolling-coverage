@@ -39,7 +39,6 @@ import {
 	Placeholder,
 	TextareaControl,
 	ToolbarButton,
-	ToolbarGroup,
 } from '@wordpress/components';
 import {
 	useState,
@@ -75,7 +74,6 @@ import {
 	PREVIEW_COVERAGE_ID,
 } from './utils';
 import {
-	ENTRY_EDITED_STATES,
 	feedGroupOf,
 	feedItems,
 	isFollowButtons,
@@ -99,8 +97,6 @@ import { blockGapCss } from './spacing';
 import {
 	BLOCK_NAME,
 	FOLLOW_BLOCK_NAME,
-	RENDER_ONCE_BLOCKS,
-	STATE_BY_BLOCK_NAME,
 	innerTemplate,
 	useLayoutPreview,
 } from './layout';
@@ -111,24 +107,6 @@ import type {
 	EntryContext,
 	TemplateBlocks,
 } from './types';
-
-/**
- * The Edited State toolbar's options, derived from ENTRY_EDITED_STATES.
- */
-const EDITED_STATE_OPTIONS = ENTRY_EDITED_STATES.map( ( state ) => ( {
-	value: state.value,
-	label: state.label,
-} ) );
-
-/**
- * The Edited State that previews a coverage status.
- *
- * @param {string} status Coverage status.
- * @return {string} 'archived' for an archived coverage, else the default state.
- */
-function editedStateForStatus( status?: string ): string {
-	return status === 'archived' ? 'archived' : EDITED_STATE_OPTIONS[ 0 ].value;
-}
 
 /**
  * Neutral block context used when a coverage has no published entries yet,
@@ -233,13 +211,11 @@ export default function Edit( {
 		entriesPerPage,
 		enableAds,
 		adsInterval,
-		pinnedLabel,
+		archivedNotice,
+		archivedNoticeLinkUrl,
+		archivedNoticeLinkLabel,
 		layoutId,
 	} = attributes;
-	const [ editedState, setEditedState ] = useState(
-		EDITED_STATE_OPTIONS[ 0 ].value
-	);
-	const editedStateLabelId = `newspack-rolling-coverage-edited-state-${ clientId }`;
 	const { currentPostType, currentPostId, patternCategories } = useSelect(
 		( select ) => {
 			const editor = select( editorStore ) as unknown as {
@@ -498,7 +474,6 @@ export default function Edit( {
 	const syncedBlocks = layoutBlocks ?? defaultLayoutBlocks;
 	const feedGroup = feedGroupOf( isSynced ? syncedBlocks : innerBlocks );
 	const blockProps = useBlockProps( {
-		'data-editor-state': editedState,
 		style: feedGapStyle( feedGroup ),
 	} );
 
@@ -526,57 +501,17 @@ export default function Edit( {
 		[ templateBlocks ]
 	);
 
-	// Disabled blocks drop out of List View and can't be selected, so only
-	// the current editor state's blocks show there.
 	const { setBlockEditingMode, unsetBlockEditingMode } = useDispatch(
 		blockEditorStore.name
 	) as unknown as {
 		setBlockEditingMode: ( clientId: string, mode: string ) => void;
 		unsetBlockEditingMode: ( clientId: string ) => void;
 	};
-	const stateBlocksKey = allBlocks
-		.filter( ( block ) => STATE_BY_BLOCK_NAME[ block.name ] )
-		.map(
-			( block ) =>
-				`${ block.clientId }:${ STATE_BY_BLOCK_NAME[ block.name ] }`
-		)
-		.join( ',' );
-	const stateBlockIds = useMemo(
-		() =>
-			( stateBlocksKey ? stateBlocksKey.split( ',' ) : [] ).map(
-				( pair ) => {
-					const [ id, state ] = pair.split( ':' );
-					return { clientId: id, state };
-				}
-			),
-		[ stateBlocksKey ]
-	);
-	useEffect( () => {
-		stateBlockIds.forEach( ( { clientId: id, state } ) => {
-			if ( state === editedState ) {
-				unsetBlockEditingMode( id );
-			} else {
-				setBlockEditingMode( id, 'disabled' );
-			}
-		} );
-		return () =>
-			stateBlockIds.forEach( ( { clientId: id } ) =>
-				unsetBlockEditingMode( id )
-			);
-	}, [
-		stateBlockIds,
-		editedState,
-		setBlockEditingMode,
-		unsetBlockEditingMode,
-	] );
 
 	// Hidden wherever the site never renders it: without OneSignal, or when the
-	// coverage is archived or previewed as archived. It stays in the template
-	// for when it can render.
+	// coverage is archived. It stays in the template for when it can render.
 	const isFollowHidden =
-		! ONESIGNAL_CONFIGURED ||
-		currentCoverage?.status === 'archived' ||
-		editedState === 'archived';
+		! ONESIGNAL_CONFIGURED || currentCoverage?.status === 'archived';
 	// An editable layout previews the pinned card against the pinned entry
 	// and the entry group against one that isn't pinned, and leaves out the
 	// one the coverage has no entry for, and "Read more" where the entry
@@ -663,13 +598,8 @@ export default function Edit( {
 			feedItems( syncedBlocks )
 				.filter(
 					( block ) =>
-						RENDER_ONCE_BLOCKS.includes( block.name ) ||
+						block.name === FOLLOW_BLOCK_NAME ||
 						isFollowButtons( block )
-				)
-				.filter(
-					( block ) =>
-						! STATE_BY_BLOCK_NAME[ block.name ] ||
-						STATE_BY_BLOCK_NAME[ block.name ] === editedState
 				)
 				.filter(
 					( block ) =>
@@ -677,7 +607,7 @@ export default function Edit( {
 						( block.name !== FOLLOW_BLOCK_NAME &&
 							! isFollowButtons( block ) )
 				),
-		[ syncedBlocks, editedState, isFollowHidden ]
+		[ syncedBlocks, isFollowHidden ]
 	);
 
 	const detach = useCallback( () => {
@@ -821,7 +751,6 @@ export default function Edit( {
 				return;
 			}
 			setCurrentCoverage( coverage );
-			setEditedState( editedStateForStatus( coverage?.status ) );
 			setCoverageLoadedFor( coverageId );
 			setPendingStatus( coverage?.status || 'active' );
 			setPendingCanonicalUrl( coverage?.canonicalUrl || '' );
@@ -860,7 +789,6 @@ export default function Edit( {
 			setCurrentCoverage( ( prev ) =>
 				prev ? { ...prev, status: pendingStatus } : prev
 			);
-			setEditedState( editedStateForStatus( pendingStatus ) );
 		}
 	}, [ coverageId, pendingStatus ] );
 
@@ -1138,17 +1066,54 @@ export default function Edit( {
 						} )
 					}
 				/>
-				<TextControl
-					__next40pxDefaultSize
-					label={ __( 'Pinned label', 'newspack-rolling-coverage' ) }
-					help={ __(
-						'Shown on pinned entries.',
+				<TextareaControl
+					label={ __(
+						'Archived notice',
 						'newspack-rolling-coverage'
 					) }
-					placeholder={ __( 'Pinned', 'newspack-rolling-coverage' ) }
-					value={ pinnedLabel }
+					help={ __(
+						'Shown above the coverage once it is archived.',
+						'newspack-rolling-coverage'
+					) }
+					placeholder={ __(
+						'Coverage of this news event has concluded and this feed is now archived.',
+						'newspack-rolling-coverage'
+					) }
+					value={ archivedNotice }
 					onChange={ ( value: string ) =>
-						setAttributes( { pinnedLabel: value } )
+						setAttributes( { archivedNotice: value } )
+					}
+				/>
+				<TextControl
+					__next40pxDefaultSize
+					type="url"
+					label={ __(
+						'Archived notice link',
+						'newspack-rolling-coverage'
+					) }
+					help={ __(
+						'Adds a link after the notice, such as to where the story continues.',
+						'newspack-rolling-coverage'
+					) }
+					placeholder="https://example.com/story"
+					value={ archivedNoticeLinkUrl }
+					onChange={ ( value: string ) =>
+						setAttributes( { archivedNoticeLinkUrl: value } )
+					}
+				/>
+				<TextControl
+					__next40pxDefaultSize
+					label={ __(
+						'Archived notice link text',
+						'newspack-rolling-coverage'
+					) }
+					placeholder={ __(
+						'Read more',
+						'newspack-rolling-coverage'
+					) }
+					value={ archivedNoticeLinkLabel }
+					onChange={ ( value: string ) =>
+						setAttributes( { archivedNoticeLinkLabel: value } )
 					}
 				/>
 			</PanelBody>
@@ -1310,37 +1275,6 @@ export default function Edit( {
 	return (
 		<>
 			{ inspector }
-
-			{ ! isLoading && hasLayout && (
-				<BlockControls>
-					<ToolbarGroup
-						className="newspack-rolling-coverage-edited-state"
-						{ ...{
-							role: 'group',
-							'aria-labelledby': editedStateLabelId,
-						} }
-					>
-						<span
-							id={ editedStateLabelId }
-							className="newspack-rolling-coverage-edited-state__label"
-						>
-							{ __(
-								'Edited State:',
-								'newspack-rolling-coverage'
-							) }
-						</span>
-						{ EDITED_STATE_OPTIONS.map( ( option ) => (
-							<ToolbarButton
-								key={ option.value }
-								isPressed={ option.value === editedState }
-								onClick={ () => setEditedState( option.value ) }
-							>
-								{ option.label }
-							</ToolbarButton>
-						) ) }
-					</ToolbarGroup>
-				</BlockControls>
-			) }
 
 			{ ! isLoading && isSynced && coverageId > 0 && (
 				<BlockControls group="other">

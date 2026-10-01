@@ -27,7 +27,15 @@
 			"type": "number",
 			"default": 4
 		},
-		"pinnedLabel": {
+		"archivedNotice": {
+			"type": "string",
+			"default": ""
+		},
+		"archivedNoticeLinkUrl": {
+			"type": "string",
+			"default": ""
+		},
+		"archivedNoticeLinkLabel": {
 			"type": "string",
 			"default": ""
 		},
@@ -35,9 +43,6 @@
 			"type": "number",
 			"default": 0
 		}
-	},
-	"providesContext": {
-		"newspack-rolling-coverage/pinnedLabel": "pinnedLabel"
 	},
 	"supports": {
 		"html": false,
