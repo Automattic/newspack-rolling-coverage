@@ -41,7 +41,6 @@ class Initializer {
 		Entry_Bindings::init();
 		Block_Category::init();
 		Block_Icons::init();
-		Coverage_Archived_Notice_Block::init();
 		Share_Block::init();
 		Deep_Link_CTA_Block::init();
 		Ads::init();

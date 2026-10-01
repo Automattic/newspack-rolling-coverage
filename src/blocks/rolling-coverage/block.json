@@ -27,6 +27,18 @@
 			"type": "number",
 			"default": 4
 		},
+		"archivedNotice": {
+			"type": "string",
+			"default": ""
+		},
+		"archivedNoticeLinkUrl": {
+			"type": "string",
+			"default": ""
+		},
+		"archivedNoticeLinkLabel": {
+			"type": "string",
+			"default": ""
+		},
 		"layoutId": {
 			"type": "number",
 			"default": 0

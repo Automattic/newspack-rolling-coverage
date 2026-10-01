@@ -121,16 +121,6 @@ const EDITED_STATE_OPTIONS = ENTRY_EDITED_STATES.map( ( state ) => ( {
 } ) );
 
 /**
- * The Edited State that previews a coverage status.
- *
- * @param {string} status Coverage status.
- * @return {string} 'archived' for an archived coverage, else the default state.
- */
-function editedStateForStatus( status?: string ): string {
-	return status === 'archived' ? 'archived' : EDITED_STATE_OPTIONS[ 0 ].value;
-}
-
-/**
  * Neutral block context used when a coverage has no published entries yet,
  * so the template can still be edited against something.
  */
@@ -233,6 +223,9 @@ export default function Edit( {
 		entriesPerPage,
 		enableAds,
 		adsInterval,
+		archivedNotice,
+		archivedNoticeLinkUrl,
+		archivedNoticeLinkLabel,
 		layoutId,
 	} = attributes;
 	const [ editedState, setEditedState ] = useState(
@@ -568,12 +561,9 @@ export default function Edit( {
 	] );
 
 	// Hidden wherever the site never renders it: without OneSignal, or when the
-	// coverage is archived or previewed as archived. It stays in the template
-	// for when it can render.
+	// coverage is archived. It stays in the template for when it can render.
 	const isFollowHidden =
-		! ONESIGNAL_CONFIGURED ||
-		currentCoverage?.status === 'archived' ||
-		editedState === 'archived';
+		! ONESIGNAL_CONFIGURED || currentCoverage?.status === 'archived';
 	// An editable layout previews the pinned card against the pinned entry
 	// and the entry group against one that isn't pinned, and leaves out the
 	// one the coverage has no entry for, and "Read more" where the entry
@@ -818,7 +808,6 @@ export default function Edit( {
 				return;
 			}
 			setCurrentCoverage( coverage );
-			setEditedState( editedStateForStatus( coverage?.status ) );
 			setCoverageLoadedFor( coverageId );
 			setPendingStatus( coverage?.status || 'active' );
 			setPendingCanonicalUrl( coverage?.canonicalUrl || '' );
@@ -857,7 +846,6 @@ export default function Edit( {
 			setCurrentCoverage( ( prev ) =>
 				prev ? { ...prev, status: pendingStatus } : prev
 			);
-			setEditedState( editedStateForStatus( pendingStatus ) );
 		}
 	}, [ coverageId, pendingStatus ] );
 
@@ -1133,6 +1121,59 @@ export default function Edit( {
 						setAttributes( {
 							pollInterval: value ? parseInt( value, 10 ) : 10,
 						} )
+					}
+				/>
+				<TextareaControl
+					label={ __(
+						'Archived notice',
+						'newspack-rolling-coverage'
+					) }
+					help={ __(
+						'Shown above the coverage once it is archived.',
+						'newspack-rolling-coverage'
+					) }
+					placeholder={ __(
+						'Coverage of this news event has concluded and this feed is now archived.',
+						'newspack-rolling-coverage'
+					) }
+					value={ archivedNotice }
+					onChange={ ( value: string ) =>
+						setAttributes( { archivedNotice: value } )
+					}
+				/>
+				<TextControl
+					__next40pxDefaultSize
+					type="url"
+					label={ __(
+						'Archived notice link',
+						'newspack-rolling-coverage'
+					) }
+					help={ __(
+						'Adds a link after the notice, such as to where the story continues.',
+						'newspack-rolling-coverage'
+					) }
+					placeholder={ __(
+						'https://example.com/story',
+						'newspack-rolling-coverage'
+					) }
+					value={ archivedNoticeLinkUrl }
+					onChange={ ( value: string ) =>
+						setAttributes( { archivedNoticeLinkUrl: value } )
+					}
+				/>
+				<TextControl
+					__next40pxDefaultSize
+					label={ __(
+						'Archived notice link text',
+						'newspack-rolling-coverage'
+					) }
+					placeholder={ __(
+						'Read more',
+						'newspack-rolling-coverage'
+					) }
+					value={ archivedNoticeLinkLabel }
+					onChange={ ( value: string ) =>
+						setAttributes( { archivedNoticeLinkLabel: value } )
 					}
 				/>
 			</PanelBody>

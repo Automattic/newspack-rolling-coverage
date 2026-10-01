@@ -6,7 +6,6 @@
  */
 
 use Newspack_Rolling_Coverage\Breakout;
-use Newspack_Rolling_Coverage\Coverage_Archived_Notice_Block;
 use Newspack_Rolling_Coverage\Entry_Bindings;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
@@ -474,31 +473,124 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The archived notice inside the Feed renders once, above the entries,
-	 * rather than in every entry.
+	 * Render a Rolling Coverage block with a Feed group holding one paragraph.
+	 *
+	 * @param array $attributes Block attributes.
+	 * @return string Rendered block.
 	 */
-	public function test_feed_archived_notice_renders_once_above_the_entries() {
+	private static function render_feed_block( array $attributes ): string {
+		$feed  = '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">'
+			. '<!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+		$block = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $feed . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+
+		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+	}
+
+	/**
+	 * An archived coverage shows the block's notice once, above the Feed.
+	 */
+	public function test_archived_notice_renders_once_above_the_feed() {
 		$coverage_id = self::create_coverage();
 		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
 		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 11:00:00' ] );
 		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
 
-		// The block registers from its built files, which a test run may not have.
-		if ( ! WP_Block_Type_Registry::get_instance()->is_registered( Coverage_Archived_Notice_Block::BLOCK_NAME ) ) {
-			register_block_type( Coverage_Archived_Notice_Block::BLOCK_NAME, [ 'render_callback' => [ Coverage_Archived_Notice_Block::class, 'render_block' ] ] );
-		}
+		$html = self::render_feed_block(
+			[
+				'coverageId'     => $coverage_id,
+				'archivedNotice' => 'Coverage <b>ended</b>',
+			]
+		);
 
-		$attributes = [ 'coverageId' => $coverage_id ];
-		$feed       = '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">'
-			. '<!-- wp:newspack-rolling-coverage/coverage-archived-notice {"content":"Feed notice"} /-->'
-			. '<!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph -->'
-			. '</div><!-- /wp:group -->';
-		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $feed . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
-		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
-
-		$this->assertSame( 1, substr_count( $html, 'Feed notice' ), 'The notice should render once.' );
-		$this->assertLessThan( strpos( $html, 'newspack-rolling-coverage-entries' ), strpos( $html, 'Feed notice' ), 'The notice should come before the entries.' );
+		$this->assertSame( 1, substr_count( $html, '<p class="newspack-rolling-coverage-archived-notice">Coverage &lt;b&gt;ended&lt;/b&gt;</p>' ), 'The escaped notice should render once.' );
+		$this->assertLessThan( strpos( $html, 'newspack-rolling-coverage-feed' ), strpos( $html, 'newspack-rolling-coverage-archived-notice' ), 'The notice should come before the Feed.' );
 		$this->assertSame( 2, substr_count( $html, 'Entry text' ), 'Each entry should still render.' );
+	}
+
+	/**
+	 * An archived coverage whose block sets no notice shows the default one.
+	 */
+	public function test_archived_notice_falls_back_to_the_default_text() {
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$html = self::render_feed_block(
+			[
+				'coverageId'     => $coverage_id,
+				'archivedNotice' => '  ',
+			]
+		);
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage of this news event has concluded and this feed is now archived.</p>', $html );
+	}
+
+	/**
+	 * A coverage that isn't archived shows no notice.
+	 */
+	public function test_archived_notice_is_hidden_until_the_coverage_is_archived() {
+		$coverage_id = self::create_coverage();
+		$attributes  = [
+			'coverageId'            => $coverage_id,
+			'archivedNotice'        => 'Coverage ended',
+			'archivedNoticeLinkUrl' => 'https://example.com/story',
+		];
+
+		$this->assertStringNotContainsString( 'archived-notice', self::render_feed_block( $attributes ), 'An active coverage has no notice.' );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
+
+		$this->assertStringNotContainsString( 'archived-notice', self::render_feed_block( $attributes ), 'Nor does a paused one.' );
+	}
+
+	/**
+	 * The notice links on after its text when the block sets a URL, labeled
+	 * with the block's link text or "Read more".
+	 */
+	public function test_archived_notice_link() {
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$attributes = [
+			'coverageId'              => $coverage_id,
+			'archivedNotice'          => 'Coverage ended.',
+			'archivedNoticeLinkUrl'   => 'https://example.com/story?a=1&b=2',
+			'archivedNoticeLinkLabel' => 'Follow the story',
+		];
+
+		$this->assertStringContainsString(
+			'<p class="newspack-rolling-coverage-archived-notice">Coverage ended. <a class="newspack-rolling-coverage-archived-notice__link" href="https://example.com/story?a=1&#038;b=2">Follow the story</a></p>',
+			self::render_feed_block( $attributes ),
+			"The link should carry the block's text."
+		);
+
+		$attributes['archivedNoticeLinkLabel'] = '';
+
+		$this->assertStringContainsString(
+			'Coverage ended. <a class="newspack-rolling-coverage-archived-notice__link" href="https://example.com/story?a=1&#038;b=2">Read more</a></p>',
+			self::render_feed_block( $attributes ),
+			'Without text, the link should read "Read more".'
+		);
+	}
+
+	/**
+	 * Without a URL, or with one esc_url() rejects, the notice has no link.
+	 */
+	public function test_archived_notice_without_a_url_has_no_link() {
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$attributes = [
+			'coverageId'              => $coverage_id,
+			'archivedNotice'          => 'Coverage ended.',
+			'archivedNoticeLinkLabel' => 'Follow the story',
+		];
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage ended.</p>', self::render_feed_block( $attributes ), 'No URL: no link.' );
+
+		$attributes['archivedNoticeLinkUrl'] = 'javascript:alert(1)';
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage ended.</p>', self::render_feed_block( $attributes ), 'A rejected URL: no link.' );
 	}
 
 	/**

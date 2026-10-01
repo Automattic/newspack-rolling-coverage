@@ -973,16 +973,6 @@ const ENTRY_EDITED_STATES: EntryEditedState[] = [
 		blocks: [],
 	},
 	{
-		value: 'archived',
-		label: __( 'Archived', 'newspack-rolling-coverage' ),
-		blocks: [
-			[
-				'newspack-rolling-coverage/coverage-archived-notice',
-				{ className: stateBlockClassName( 'archived' ), lock: LOCKED },
-			],
-		],
-	},
-	{
 		value: 'deep-link',
 		label: __( 'Deep Link', 'newspack-rolling-coverage' ),
 		blocks: [

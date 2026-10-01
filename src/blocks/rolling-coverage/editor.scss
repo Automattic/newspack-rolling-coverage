@@ -61,10 +61,6 @@
 		display: none;
 	}
 
-	[data-editor-state="archived"] &--archived {
-		display: block;
-	}
-
 	[data-editor-state="deep-link"] &--deep-link {
 		display: flex;
 	}

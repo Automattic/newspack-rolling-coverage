@@ -731,10 +731,6 @@ class Rolling_Coverage_Block {
 		$cursor     = self::latest_cursor( $query->posts );
 		$oldest_gmt = ! empty( $query->posts ) ? self::post_date_gmt( $query->posts[ count( $query->posts ) - 1 ] ) : '';
 
-		$coverage_archived_notice_html = Taxonomy::STATUS_ARCHIVED === $status
-			? self::render_coverage_archived_notice( $block )
-			: '';
-
 		if ( $query->posts && ! $shows_pinned ) {
 			self::store_template_layout_styles( self::pinned_cards( $template ) );
 		}
@@ -787,15 +783,19 @@ class Rolling_Coverage_Block {
 
 		try {
 			$items_html = sprintf(
-				'%5$s%1$s%4$s<div class="%2$s-status" role="status" aria-live="polite"></div><button type="button" class="%2$s-new-entries" hidden></button><div class="%2$s-entries">%3$s</div><div class="%2$s-sentinel" aria-hidden="true"></div>',
-				$coverage_archived_notice_html,
+				'%4$s%3$s<div class="%1$s-status" role="status" aria-live="polite"></div><button type="button" class="%1$s-new-entries" hidden></button><div class="%1$s-entries">%2$s</div><div class="%1$s-sentinel" aria-hidden="true"></div>',
 				self::MARKUP_PREFIX,
 				$entries_html,
 				$cta_html,
 				$follow_html
 			);
 
-			return sprintf( '<div %s>%s</div>', $wrapper_attributes, self::render_feed( $feed, $items_html ) );
+			return sprintf(
+				'<div %s>%s%s</div>',
+				$wrapper_attributes,
+				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes ) : '',
+				self::render_feed( $feed, $items_html )
+			);
 		} finally {
 			self::$host_post_id = $previous_post_id;
 		}
@@ -1057,39 +1057,40 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Renders the coverage-archived-notice inner block once, at the top.
+	 * Renders the notice shown above an archived coverage: the block's text,
+	 * or the default when it has none, followed by its link when it has a URL.
 	 *
-	 * @param WP_Block $block The parent rolling-coverage block instance.
+	 * @param array $attributes Block attributes.
 	 * @return string Rendered HTML.
 	 */
-	private static function render_coverage_archived_notice( WP_Block $block ): string {
-		$archived_notice_block_type = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Archived_Notice_Block::BLOCK_NAME );
-		if ( $archived_notice_block_type ) {
-			foreach ( $archived_notice_block_type->style_handles as $style_handle ) {
-				wp_enqueue_style( $style_handle );
-			}
-		}
+	private static function render_archived_notice( array $attributes ): string {
+		$text  = trim( (string) ( $attributes['archivedNotice'] ?? '' ) );
+		$url   = trim( (string) ( $attributes['archivedNoticeLinkUrl'] ?? '' ) );
+		$label = trim( (string) ( $attributes['archivedNoticeLinkLabel'] ?? '' ) );
+		$link  = '' !== $url ? esc_url( $url ) : '';
 
-		$notice_attrs        = [];
-		$notice_inner_blocks = [];
-
-		foreach ( self::layout_items( $block ) as $inner ) {
-			if ( Coverage_Archived_Notice_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) ) {
-				$notice_attrs        = $inner['attrs'] ?? [];
-				$notice_inner_blocks = $inner['innerBlocks'] ?? [];
-				break;
-			}
-		}
-
-		return render_block(
-			[
-				'blockName'    => Coverage_Archived_Notice_Block::BLOCK_NAME,
-				'attrs'        => $notice_attrs,
-				'innerBlocks'  => $notice_inner_blocks,
-				'innerHTML'    => '',
-				'innerContent' => array_fill( 0, count( $notice_inner_blocks ), null ),
-			]
+		return sprintf(
+			'<p class="%s-archived-notice">%s%s</p>',
+			self::MARKUP_PREFIX,
+			esc_html( '' !== $text ? $text : self::default_archived_notice() ),
+			'' !== $link
+				? sprintf(
+					' <a class="%s-archived-notice__link" href="%s">%s</a>',
+					self::MARKUP_PREFIX,
+					$link,
+					esc_html( '' !== $label ? $label : __( 'Read more', 'newspack-rolling-coverage' ) )
+				)
+				: ''
 		);
+	}
+
+	/**
+	 * The notice shown above an archived coverage when the block sets none.
+	 *
+	 * @return string
+	 */
+	private static function default_archived_notice(): string {
+		return __( 'Coverage of this news event has concluded and this feed is now archived.', 'newspack-rolling-coverage' );
 	}
 
 	/**
@@ -1113,7 +1114,6 @@ class Rolling_Coverage_Block {
 		$singleton_blocks = [
 			Deep_Link_CTA_Block::BLOCK_NAME,
 			Coverage_Follow_Block::BLOCK_NAME,
-			Coverage_Archived_Notice_Block::BLOCK_NAME,
 		];
 		$template         = [];
 
