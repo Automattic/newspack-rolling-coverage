@@ -71,6 +71,8 @@ import {
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
 	getLayoutEditUrl,
+	getLayoutId,
+	createLayout,
 	PREVIEW_COVERAGE_ID,
 } from './utils';
 import {
@@ -356,15 +358,64 @@ export default function Edit( {
 		() => feedItems( innerBlocks ),
 		[ innerBlocks ]
 	);
-	const { replaceInnerBlocks } = useDispatch(
-		blockEditorStore.name
-	) as unknown as {
-		replaceInnerBlocks: (
-			id: string,
-			blocks: unknown[],
-			updateSelection?: boolean
-		) => void;
-	};
+	const { replaceInnerBlocks, __unstableMarkNextChangeAsNotPersistent } =
+		useDispatch( blockEditorStore.name ) as unknown as {
+			replaceInnerBlocks: (
+				id: string,
+				blocks: unknown[],
+				updateSelection?: boolean
+			) => void;
+			__unstableMarkNextChangeAsNotPersistent: () => void;
+		};
+
+	// A story saved with a coverage but no layout predates layouts; the site
+	// renders it in the default layout, so the editor syncs it to that.
+	const needsDefaultLayout =
+		coverageId > 0 &&
+		! layoutId &&
+		! innerBlockCount &&
+		! isNested &&
+		! isLayoutPattern &&
+		! isPreviewMode;
+
+	useEffect( () => {
+		if ( ! needsDefaultLayout ) {
+			return;
+		}
+
+		let cancelled = false;
+		const sync = ( id: number ) => {
+			__unstableMarkNextChangeAsNotPersistent();
+			setAttributes( { layoutId: id } );
+		};
+		const fallBackToLocal = () => {
+			__unstableMarkNextChangeAsNotPersistent();
+			replaceInnerBlocks(
+				clientId,
+				createBlocksFromInnerBlocksTemplate( innerTemplate() ),
+				false
+			);
+		};
+
+		if ( getLayoutId( 'default' ) ) {
+			sync( getLayoutId( 'default' ) );
+			return;
+		}
+
+		createLayout( 'default' )
+			.then( ( id ) => ! cancelled && sync( id ) )
+			.catch( () => ! cancelled && fallBackToLocal() );
+
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		needsDefaultLayout,
+		clientId,
+		setAttributes,
+		replaceInnerBlocks,
+		__unstableMarkNextChangeAsNotPersistent,
+	] );
 
 	const { invalidateResolution } = useDispatch( coreStore ) as unknown as {
 		invalidateResolution: ( selector: string, args: unknown[] ) => void;
@@ -447,7 +498,8 @@ export default function Edit( {
 	const needsLayout =
 		! isLayoutPattern &&
 		! isNested &&
-		( ( ! layoutId && ! innerBlockCount ) || isLayoutMissing );
+		( ( ! coverageId && ! layoutId && ! innerBlockCount ) ||
+			isLayoutMissing );
 	const hasLayout = coverageId > 0 || showsSamples;
 	const canChangeLayout =
 		! isLayoutPattern &&
@@ -479,6 +531,7 @@ export default function Edit( {
 	const entriesCoverageId =
 		coverageId || ( isLayoutPattern ? PREVIEW_COVERAGE_ID : 0 );
 	const isLoading =
+		needsDefaultLayout ||
 		( coverageId > 0 && coverageLoadedFor !== coverageId ) ||
 		( entriesCoverageId > 0 && entriesLoadedFor !== entriesCoverageId ) ||
 		( showsSamples && sampleContexts.length === 0 ) ||
