@@ -191,8 +191,9 @@ class Rolling_Coverage_Block {
 	private static function feed_gap_declaration( $block_gap ): string {
 		$gap = wp_sanitize_block_gap_value( $block_gap );
 		$gap = is_array( $gap ) ? ( $gap['top'] ?? null ) : $gap;
+		$gap = is_string( $gap ) ? trim( explode( ';', $gap )[0] ) : '';
 
-		if ( ! is_string( $gap ) || '' === $gap ) {
+		if ( '' === $gap ) {
 			return '';
 		}
 
@@ -256,7 +257,7 @@ class Rolling_Coverage_Block {
 		$shell['innerHTML']    = $content[0] . end( $content );
 		$shell['innerContent'] = [ $content[0], $placeholder, end( $content ) ];
 
-		$html = ( new WP_Block( $shell ) )->render();
+		$html = render_block( $shell );
 
 		if ( false === strpos( $html, $placeholder ) ) {
 			return '<div class="' . esc_attr( self::FEED_CLASS ) . '">' . $items . '</div>';

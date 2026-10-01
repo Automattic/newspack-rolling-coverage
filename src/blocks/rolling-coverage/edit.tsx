@@ -91,7 +91,6 @@ import {
 	RENDER_ONCE_BLOCKS,
 	STATE_BY_BLOCK_NAME,
 	INNER_TEMPLATE,
-	ALL_ALLOWED_BLOCKS,
 	useLayoutPreview,
 } from './layout';
 import type {
@@ -265,7 +264,7 @@ export default function Edit( {
 		{ className: 'newspack-rolling-coverage-layout' },
 		{
 			template: isSynced || isCreatingLayout ? undefined : INNER_TEMPLATE,
-			allowedBlocks: ALL_ALLOWED_BLOCKS,
+			allowedBlocks: [ 'core/group' ],
 			templateLock: false,
 		}
 	);

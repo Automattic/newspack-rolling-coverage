@@ -6,7 +6,7 @@
 	"category": "newspack",
 	"description": "Notifies readers that coverage of this event has ended.",
 	"textdomain": "newspack-rolling-coverage",
-	"parent": [ "newspack-rolling-coverage/rolling-coverage" ],
+	"ancestor": [ "newspack-rolling-coverage/rolling-coverage" ],
 	"attributes": {
 		"content": { "type": "string", "default": "" }
 	},

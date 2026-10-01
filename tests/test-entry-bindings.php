@@ -6,10 +6,12 @@
  */
 
 use Newspack_Rolling_Coverage\Breakout;
+use Newspack_Rolling_Coverage\Coverage_Archived_Notice_Block;
 use Newspack_Rolling_Coverage\Entry_Bindings;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
+use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
  * The entry template's "Read more" and share buttons are core buttons whose
@@ -473,6 +475,34 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The archived notice inside the Feed renders once, above the entries,
+	 * rather than in every entry.
+	 */
+	public function test_feed_archived_notice_renders_once_above_the_entries() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 11:00:00' ] );
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		// The block registers from its built files, which a test run may not have.
+		if ( ! WP_Block_Type_Registry::get_instance()->is_registered( Coverage_Archived_Notice_Block::BLOCK_NAME ) ) {
+			register_block_type( Coverage_Archived_Notice_Block::BLOCK_NAME, [ 'render_callback' => [ Coverage_Archived_Notice_Block::class, 'render_block' ] ] );
+		}
+
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$feed       = '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">'
+			. '<!-- wp:newspack-rolling-coverage/coverage-archived-notice {"content":"Feed notice"} /-->'
+			. '<!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $feed . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		$this->assertSame( 1, substr_count( $html, 'Feed notice' ), 'The notice should render once.' );
+		$this->assertLessThan( strpos( $html, 'newspack-rolling-coverage-entries' ), strpos( $html, 'Feed notice' ), 'The notice should come before the entries.' );
+		$this->assertSame( 2, substr_count( $html, 'Entry text' ), 'Each entry should still render.' );
+	}
+
+	/**
 	 * A coverage that loads with no entries still stores its template's
 	 * layout styles, for entries that arrive later by polling.
 	 */
@@ -496,6 +526,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 			'preset'  => [ [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ] ], '--newspack-rolling-coverage-gap:var(--wp--preset--spacing--30)' ],
 			'custom'  => [ [ 'spacing' => [ 'blockGap' => '2rem' ] ], '--newspack-rolling-coverage-gap:2rem' ],
 			'invalid' => [ [ 'spacing' => [ 'blockGap' => '1px;}body{display:none' ] ], '' ],
+			'extra'   => [ [ 'spacing' => [ 'blockGap' => '10px;position:fixed' ] ], '--newspack-rolling-coverage-gap:10px' ],
 		];
 	}
 

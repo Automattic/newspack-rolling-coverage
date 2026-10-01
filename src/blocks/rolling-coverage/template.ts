@@ -357,15 +357,20 @@ function isFollowButtons( block: {
  * The Feed group holding the layout's items: everything the coverage shows,
  * spaced by its Block spacing.
  *
- * @param {Object[]} items The items.
+ * @param {Object[]} items         The items.
+ * @param {string[]} allowedBlocks Block types the Feed accepts.
  * @return {Object} The Feed group.
  */
-function feedTemplate( items: TemplateItem[] ): TemplateItem {
+function feedTemplate(
+	items: TemplateItem[],
+	allowedBlocks: string[]
+): TemplateItem {
 	return [
 		'core/group',
 		{
 			className: FEED_CLASS,
 			lock: LOCKED_IN_PLACE,
+			allowedBlocks,
 			layout: {
 				type: 'flex',
 				orientation: 'vertical',
