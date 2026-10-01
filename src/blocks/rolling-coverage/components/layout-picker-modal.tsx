@@ -19,6 +19,7 @@ import { __ } from '@wordpress/i18n';
  */
 import { BLOCK_NAME } from '../layout';
 import { getBuiltInLayouts, type BuiltInLayoutSlug } from '../layouts';
+import { isLatestButtons } from '../template';
 import { createLayout, getLayoutCategoryId, getLayoutId } from '../utils';
 import type { TemplateItem } from '../types';
 
@@ -97,9 +98,35 @@ function patternTitle( record: LayoutRecord ): string {
 	);
 }
 
+type PreviewBlock = {
+	name: string;
+	attributes?: Record< string, unknown >;
+	innerBlocks?: PreviewBlock[];
+};
+
+/**
+ * Blocks without the "Jump to latest" button, at any depth.
+ *
+ * @param {Object[]} blocks Blocks.
+ * @return {Object[]} The blocks without it.
+ */
+function withoutLatestButtons( blocks: PreviewBlock[] ): PreviewBlock[] {
+	return blocks
+		.filter( ( block ) => ! isLatestButtons( block ) )
+		.map( ( block ) =>
+			block.innerBlocks?.length
+				? {
+						...block,
+						innerBlocks: withoutLatestButtons( block.innerBlocks ),
+					}
+				: block
+		);
+}
+
 /**
  * One layout in the picker: a scaled preview of the block rendering sample
- * entries in the layout, with the layout's title.
+ * entries in the layout, without the "Jump to latest" button, with the
+ * layout's title.
  *
  * @param {Object}   props            Component props.
  * @param {Object}   props.card       The layout.
@@ -126,7 +153,9 @@ function LayoutPickerCard( {
 			createBlock(
 				BLOCK_NAME,
 				{ entriesPerPage: PREVIEW_ENTRIES },
-				card.innerBlocks() as Parameters< typeof createBlock >[ 2 ]
+				withoutLatestButtons(
+					card.innerBlocks() as PreviewBlock[]
+				) as unknown as Parameters< typeof createBlock >[ 2 ]
 			),
 		],
 		[ card ]
