@@ -275,9 +275,10 @@ class Layout {
 		}
 
 		try {
-			$existing = self::get_layout_id( $slug );
+			$existing = self::find_layout_id_uncached( $slug );
 
 			if ( $existing ) {
+				update_option( self::option_name( $slug ), $existing, false );
 				return self::layout_response( $existing, 200 );
 			}
 
@@ -326,6 +327,45 @@ class Layout {
 	}
 
 	/**
+	 * A built-in layout's pattern ID, read from the database rather than this
+	 * request's caches, which may predate another request creating it. The
+	 * option's cached copies are cleared so later reads see the database.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return int Pattern ID, or 0.
+	 */
+	private static function find_layout_id_uncached( string $slug ): int {
+		global $wpdb;
+
+		$option = self::option_name( $slug );
+
+		wp_cache_delete( $option, 'options' );
+		$notoptions = wp_cache_get( 'notoptions', 'options' );
+		if ( is_array( $notoptions ) && isset( $notoptions[ $option ] ) ) {
+			unset( $notoptions[ $option ] );
+			wp_cache_set( 'notoptions', $notoptions, 'options' );
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$from_option = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $option ) );
+
+		if ( null !== self::get_layout_blocks( $from_option ) ) {
+			return $from_option;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$tagged = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT p.ID FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID WHERE p.post_type = 'wp_block' AND p.post_status = 'publish' AND m.meta_key = %s AND m.meta_value = %s ORDER BY p.ID ASC LIMIT 1",
+				self::SLUG_META_KEY,
+				$slug
+			)
+		);
+
+		return null !== self::get_layout_blocks( $tagged ) ? $tagged : 0;
+	}
+
+	/**
 	 * The option that locks a built-in layout's creation.
 	 *
 	 * @param string $slug Built-in layout slug.
@@ -360,7 +400,12 @@ class Layout {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$locked_at = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
 
-		if ( null === $locked_at || (int) $locked_at > $now - self::LOCK_TIMEOUT ) {
+		if ( null === $locked_at ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			return (bool) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", $name, $now ) );
+		}
+
+		if ( (int) $locked_at > $now - self::LOCK_TIMEOUT ) {
 			return false;
 		}
 

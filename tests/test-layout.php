@@ -625,4 +625,58 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$this->assertSame( 0, Layout::get_layout_id( 'default' ) );
 		$this->assertFalse( self::is_locked( 'default' ) );
 	}
+
+	/**
+	 * A layout another request created after this one first looked is found
+	 * once the lock is held, even though this request's caches missed it.
+	 */
+	public function test_create_finds_a_layout_created_behind_the_cache() {
+		global $wpdb;
+
+		self::log_in_as( 'editor' );
+		$this->assertSame( 0, Layout::get_layout_id( 'compact' ) );
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->insert(
+			$wpdb->posts,
+			[
+				'post_type'         => 'wp_block',
+				'post_status'       => 'publish',
+				'post_title'        => 'Rolling Coverage: Compact',
+				'post_content'      => self::layout_markup(),
+				'post_author'       => get_current_user_id(),
+				'post_date'         => current_time( 'mysql' ),
+				'post_date_gmt'     => current_time( 'mysql', true ),
+				'post_modified'     => current_time( 'mysql' ),
+				'post_modified_gmt' => current_time( 'mysql', true ),
+			]
+		);
+		$id = (int) $wpdb->insert_id;
+		$wpdb->insert(
+			$wpdb->postmeta,
+			[
+				'post_id'    => $id,
+				'meta_key'   => Layout::SLUG_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+				'meta_value' => 'compact', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+			]
+		);
+		$wpdb->insert(
+			$wpdb->options,
+			[
+				'option_name'  => Layout::option_name( 'compact' ),
+				'option_value' => (string) $id,
+				'autoload'     => 'off',
+			]
+		);
+		$count_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'wp_block' AND post_status = 'publish'" );
+		// phpcs:enable
+
+		$response = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( $id, $response->get_data()['id'] );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$this->assertSame( $count_before, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'wp_block' AND post_status = 'publish'" ) );
+		$this->assertSame( $id, (int) get_option( Layout::option_name( 'compact' ) ) );
+	}
 }
