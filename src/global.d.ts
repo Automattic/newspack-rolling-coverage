@@ -79,6 +79,8 @@ declare module '@wordpress/block-editor' {
 
 	export const __experimentalGetBorderClassesAndStyles: ClassesAndStyles;
 	export const __experimentalGetColorClassesAndStyles: ClassesAndStyles;
+	export const __experimentalGetDimensionsClassesAndStyles: ClassesAndStyles;
+	export const __experimentalGetShadowClassesAndStyles: ClassesAndStyles;
 	export const __experimentalGetSpacingClassesAndStyles: ClassesAndStyles;
 	export const getTypographyClassesAndStyles: ClassesAndStyles;
 

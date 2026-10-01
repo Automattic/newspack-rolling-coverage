@@ -7,6 +7,10 @@ import {
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalGetColorClassesAndStyles as getColorClassesAndStyles,
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalGetDimensionsClassesAndStyles as getDimensionsClassesAndStyles,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalGetShadowClassesAndStyles as getShadowClassesAndStyles,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalGetSpacingClassesAndStyles as getSpacingClassesAndStyles,
 	getTypographyClassesAndStyles,
 	useBlockProps,
@@ -193,16 +197,21 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
 		getBorderClassesAndStyles( attributes ),
 		getSpacingClassesAndStyles( attributes ),
 		getTypographyClassesAndStyles( attributes ),
-	] as { className?: string; style?: Record< string, unknown > }[];
+		getShadowClassesAndStyles( attributes ),
+		getDimensionsClassesAndStyles( attributes ),
+	];
+	const classNames = [
+		'wp-block-group',
+		'newspack-rolling-coverage-feed',
+		attributes.className,
+		...parts.map( ( part ) => part.className ),
+	]
+		.filter( ( name ): name is string => typeof name === 'string' )
+		.flatMap( ( name ) => name.split( ' ' ) )
+		.filter( Boolean );
 
 	return {
-		className: [
-			'newspack-rolling-coverage-feed',
-			attributes.className,
-			...parts.map( ( part ) => part.className ),
-		]
-			.filter( Boolean )
-			.join( ' ' ),
+		className: [ ...new Set( classNames ) ].join( ' ' ),
 		style: Object.assign( {}, ...parts.map( ( part ) => part.style ) ),
 	};
 }
