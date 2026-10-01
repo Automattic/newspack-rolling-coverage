@@ -613,7 +613,7 @@ class Rolling_Coverage_Block {
 				$entries_per_page
 			);
 
-			$posts    = $page['posts'];
+			$posts    = array_merge( self::query_pinned_entries( $coverage_id ), $page['posts'] );
 			$has_more = $page['has_more'];
 		}
 
@@ -803,9 +803,38 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * A coverage's published pinned entries, in the order the live feed
+	 * shows them.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return WP_Post[]
+	 */
+	private static function query_pinned_entries( int $coverage_id ): array {
+		$pinned_ids = Post_Type::get_pinned_ids();
+
+		if ( empty( $pinned_ids ) ) {
+			return [];
+		}
+
+		$query = new WP_Query(
+			array_merge(
+				self::coverage_entries_args( $coverage_id ),
+				[
+					'post__in'       => $pinned_ids,
+					'orderby'        => 'date',
+					'order'          => 'DESC',
+					'posts_per_page' => count( $pinned_ids ),
+				]
+			)
+		);
+
+		return $query->posts;
+	}
+
+	/**
 	 * Runs a date-ordered entries query and leaves pinned entries out of its
-	 * result. Pinned entries belong at the top of the live feed, so a feed
-	 * that starts elsewhere shows none.
+	 * result. Pinned entries sit at the top of the feed, so a page that
+	 * continues below them leaves them out.
 	 *
 	 * @param array $args     WP_Query arguments, without posts_per_page.
 	 * @param int   $per_page How many entries to return.
@@ -865,13 +894,16 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * How many of a coverage's published entries are newer than the shared
-	 * entry, pinned ones included, up to NEWER_COUNT_CAP.
+	 * entry, up to NEWER_COUNT_CAP. Pinned entries are left out, as the
+	 * shared view already shows them.
 	 *
 	 * @param int     $coverage_id  Coverage term ID.
 	 * @param WP_Post $shared_entry The entry the feed opens at.
 	 * @return int
 	 */
 	private static function count_newer_entries( int $coverage_id, WP_Post $shared_entry ): int {
+		$pinned_ids = Post_Type::get_pinned_ids();
+
 		$query = new WP_Query(
 			array_merge(
 				self::coverage_entries_args( $coverage_id ),
@@ -884,7 +916,7 @@ class Rolling_Coverage_Block {
 						],
 					],
 					'fields'                      => 'ids',
-					'posts_per_page'              => self::NEWER_COUNT_CAP,
+					'posts_per_page'              => self::NEWER_COUNT_CAP + count( $pinned_ids ),
 					'update_post_meta_cache'      => false,
 					'update_post_term_cache'      => false,
 					Post_Type::SKIP_PIN_ORDER_VAR => true,
@@ -892,7 +924,7 @@ class Rolling_Coverage_Block {
 			)
 		);
 
-		return count( $query->posts );
+		return min( self::NEWER_COUNT_CAP, count( array_diff( array_map( 'intval', $query->posts ), $pinned_ids ) ) );
 	}
 
 	/**

@@ -13,7 +13,7 @@ use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
  * A link to an entry older than the first page opens the feed at that entry,
- * without pinned entries; anything else keeps the normal feed.
+ * below the coverage's pinned entries; anything else keeps the normal feed.
  */
 class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
@@ -645,12 +645,12 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Pinned entries are newer posts on the live feed, so they count.
+	 * Pinned entries are already on the page, so they are not counted as newer posts.
 	 */
-	public function test_pinned_newer_entries_are_counted() {
+	public function test_pinned_newer_entries_are_not_counted() {
 		Post_Type::pin_entry( $this->entries['entry-4'] );
 
-		$this->assertSame( '3', $this->control( $this->render_with_shared( 'entry-3' ) )['newer'] );
+		$this->assertSame( '2', $this->control( $this->render_with_shared( 'entry-3' ) )['newer'] );
 	}
 
 	/**
@@ -797,27 +797,52 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The shared view holds no pinned entries, and its page stays full when one sat in its date range.
+	 * A pinned entry in the shared view's date range shows once, at the top, and the page below it stays full.
 	 */
-	public function test_shared_view_leaves_pinned_entries_out() {
+	public function test_shared_view_shows_a_pinned_entry_once_at_the_top() {
 		Post_Type::pin_entry( $this->entries['entry-2'] );
 
 		$html = $this->render_with_shared( 'entry-3' );
 
-		$this->assertSame( $this->ids( 'entry-3', 'entry-1' ), $this->entry_ids_in( $html ) );
+		$this->assertSame( $this->ids( 'entry-2', 'entry-3', 'entry-1' ), $this->entry_ids_in( $html ) );
 		$this->assertStringContainsString( 'data-has-more="0"', $html );
 	}
 
 	/**
-	 * Skipped pinned entries do not hide the older entries that remain to load.
+	 * A pinned entry at the top does not hide the older entries that remain to load.
 	 */
-	public function test_shared_view_keeps_more_to_load_when_pinned_entries_are_skipped() {
+	public function test_shared_view_keeps_more_to_load_below_pinned_entries() {
 		Post_Type::pin_entry( $this->entries['entry-3'] );
 
 		$html = $this->render_with_shared( 'entry-4' );
 
-		$this->assertSame( $this->ids( 'entry-4', 'entry-2' ), $this->entry_ids_in( $html ) );
+		$this->assertSame( $this->ids( 'entry-3', 'entry-4', 'entry-2' ), $this->entry_ids_in( $html ) );
 		$this->assertStringContainsString( 'data-has-more="1"', $html );
+		$this->assertSame( get_post( $this->entries['entry-2'] )->post_date_gmt, $this->data_attribute( $html, 'before' ) );
+	}
+
+	/**
+	 * The shared view opens below the coverage's pinned entries, in the live feed's order, and leaves out entries pinned in other coverages.
+	 */
+	public function test_shared_view_shows_pinned_entries_first() {
+		$elsewhere = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_date' => '2026-01-01 11:00:00',
+				'post_name' => 'elsewhere',
+			]
+		);
+
+		Post_Type::pin_entry( $this->entries['entry-5'] );
+		Post_Type::pin_entry( $elsewhere );
+		Post_Type::pin_entry( $this->entries['entry-6'] );
+
+		$html = $this->render_with_shared( 'entry-2' );
+
+		$this->assertStringContainsString( 'data-view="entry"', $html );
+		$this->assertSame( $this->ids( 'entry-5', 'entry-6', 'entry-2', 'entry-1' ), $this->entry_ids_in( $html ) );
+		$this->assertSame( $this->ids( 'entry-5', 'entry-6' ), $this->entry_ids_in( $this->render_with_shared( '' ) ), 'The live feed.' );
+		$this->assertSame( $this->ids( 'entry-2' ), $this->linked_ids( $html ) );
 	}
 
 	/**

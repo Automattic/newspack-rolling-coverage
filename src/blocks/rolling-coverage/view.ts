@@ -212,7 +212,8 @@ function initBlock( root: HTMLElement ): void {
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
 	let polledCount = 0;
-	let backlogOffset = entriesPerPage;
+	let backlogOffset =
+		entriesList.querySelectorAll( '[data-entry-id]' ).length;
 
 	// Tracks forward-poll health so a sustained outage reports one error per
 	// episode (healthy->failing transition) instead of one per failed interval.
@@ -1057,9 +1058,7 @@ function initBlock( root: HTMLElement ): void {
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
 	 * on the page for loadMore(). Inserts or queues newly published entries
 	 * based on the reader's scroll position. When the feed opens at a shared
-	 * entry, new entries are added to the control's count instead of inserted,
-	 * and an entry that has been pinned is removed, as pinned entries belong at
-	 * the top of the live feed.
+	 * entry, new entries are added to the control's count instead of inserted.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
@@ -1079,20 +1078,6 @@ function initBlock( root: HTMLElement ): void {
 			const template = document.createElement( 'template' );
 			template.innerHTML = sanitizeHtml( entry.html );
 			const entryEl = template.content.firstElementChild as HTMLElement;
-			const isPinnedUpdate =
-				isEntryView &&
-				entry.type === 'update' &&
-				entryEl?.dataset.pinned !== undefined;
-
-			if ( isPinnedUpdate ) {
-				if ( existing ) {
-					unobserveEntry( existing );
-					existing.remove();
-					dropLastSeparator();
-				}
-
-				return;
-			}
 
 			if ( entry.type === 'update' && ! existing ) {
 				offPageUpdates.set( String( entry.id ), entry.html );
