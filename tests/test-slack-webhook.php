@@ -49,15 +49,15 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	private $failing_users = [];
 
 	/**
-	 * Requests made for Slack files, as `url` and `headers` pairs.
+	 * Requests made for Slack files: their `url`, `headers` and `redirection`.
 	 *
 	 * @var array[]
 	 */
 	private $file_requests = [];
 
 	/**
-	 * What a Slack file download answers with: a `type` and `body` pair, or a
-	 * WP_Error for a failed request.
+	 * What a Slack file download answers with: a `type` and `body`, with a
+	 * `code` when it is not 200, or a WP_Error for a failed request.
 	 *
 	 * @var array|WP_Error
 	 */
@@ -111,8 +111,9 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
 		if ( 'slack.com' !== wp_parse_url( $url, PHP_URL_HOST ) ) {
 			$this->file_requests[] = [
-				'url'     => $url,
-				'headers' => $parsed_args['headers'],
+				'url'         => $url,
+				'headers'     => $parsed_args['headers'],
+				'redirection' => $parsed_args['redirection'],
 			];
 
 			if ( is_wp_error( $this->file_response ) ) {
@@ -125,8 +126,8 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 			return [
 				'headers'  => [ 'content-type' => $this->file_response['type'] ],
 				'response' => [
-					'code'    => 200,
-					'message' => 'OK',
+					'code'    => $this->file_response['code'] ?? 200,
+					'message' => '',
 				],
 				'body'     => '',
 			];
@@ -739,12 +740,13 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->assertSame(
 			[
 				[
-					'url'     => 'https://files.slack.com/files-pri/T0TEAM-F0PHOTO/polling-place.png',
-					'headers' => [ 'Authorization' => 'Bearer ' . self::BOT_TOKEN ],
+					'url'         => 'https://files.slack.com/files-pri/T0TEAM-F0PHOTO/polling-place.png',
+					'headers'     => [ 'Authorization' => 'Bearer ' . self::BOT_TOKEN ],
+					'redirection' => 0,
 				],
 			],
 			$this->file_requests,
-			'The file should be downloaded once, as the bot.'
+			'The file should be downloaded once, as the bot, without following a redirect that would carry the token elsewhere.'
 		);
 	}
 
@@ -882,6 +884,13 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	 * that came with it, and leaves nothing behind.
 	 *
 	 * @dataProvider failed_download_provider
+			'Slack redirects the request'     => [
+				[
+					'code' => 302,
+					'type' => 'image/png',
+					'body' => base64_decode( self::PNG ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Test fixture.
+				],
+			],
 	 *
 	 * @param array|WP_Error $file_response What the file request answers with.
 	 */

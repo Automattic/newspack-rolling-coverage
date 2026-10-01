@@ -27,7 +27,7 @@ class Slack_API_Client {
 
 	/**
 	 * Host Slack serves uploaded files from. File downloads carry the bot
-	 * token, so they are made to this host only.
+	 * token, so they are made to this host only and follow no redirect.
 	 */
 	const FILES_HOST = 'files.slack.com';
 
@@ -100,8 +100,8 @@ class Slack_API_Client {
 	 * Download an image uploaded to Slack to a temporary file.
 	 *
 	 * Slack serves an uploaded file only to a bot token whose app has the
-	 * `files:read` scope. Without the scope it answers with its sign-in page
-	 * rather than an error, so a response that is not an image is a failure.
+	 * `files:read` scope. Whatever it answers a token without the scope is not
+	 * the image, so any other response, a redirect included, is a failure.
 	 *
 	 * @param string $url     The file's `url_private`.
 	 * @param int    $timeout Request timeout in seconds.
@@ -125,10 +125,11 @@ class Slack_API_Client {
 		$response = wp_safe_remote_get(
 			$url,
 			[
-				'headers'  => [ 'Authorization' => 'Bearer ' . $token ],
-				'timeout'  => $timeout,
-				'stream'   => true,
-				'filename' => $path,
+				'headers'     => [ 'Authorization' => 'Bearer ' . $token ],
+				'timeout'     => $timeout,
+				'redirection' => 0,
+				'stream'      => true,
+				'filename'    => $path,
 			]
 		);
 
@@ -138,10 +139,15 @@ class Slack_API_Client {
 		}
 
 		$content_type = (string) wp_remote_retrieve_header( $response, 'content-type' );
+		$status       = (int) wp_remote_retrieve_response_code( $response );
 
-		if ( 200 !== wp_remote_retrieve_response_code( $response ) || 0 !== strpos( $content_type, 'image/' ) ) {
+		if ( 200 !== $status || 0 !== strpos( $content_type, 'image/' ) ) {
 			wp_delete_file( $path );
-			return new \WP_Error( 'slack_file_not_served', __( 'Slack did not return the image. The Slack app may be missing the files:read scope.', 'newspack-rolling-coverage' ) );
+			return new \WP_Error(
+				'slack_file_not_served',
+				/* translators: %d: HTTP status code of Slack's response. */
+				sprintf( __( 'Slack did not return the image (HTTP %d). The Slack app may be missing the files:read scope.', 'newspack-rolling-coverage' ), $status )
+			);
 		}
 
 		return $path;
