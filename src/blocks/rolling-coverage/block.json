@@ -27,6 +27,10 @@
 			"type": "number",
 			"default": 4
 		},
+		"archivedNoticeShow": {
+			"type": "boolean",
+			"default": true
+		},
 		"archivedNotice": {
 			"type": "string",
 			"default": ""

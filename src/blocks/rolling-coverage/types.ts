@@ -27,6 +27,7 @@ interface RollingCoverageAttributes {
 	entriesPerPage: number;
 	enableAds: boolean;
 	adsInterval: number;
+	archivedNoticeShow: boolean;
 	archivedNotice: string;
 	archivedNoticeShowLink: boolean;
 	archivedNoticeLinkUrl: string;
