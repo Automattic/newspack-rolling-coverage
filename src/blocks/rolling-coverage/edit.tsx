@@ -540,11 +540,14 @@ export default function Edit( {
 				: allSampleContexts,
 		[ allSampleContexts, isSamplePreview, entriesPerPage ]
 	);
-	const entriesCoverageId =
-		coverageId || ( isLayoutPattern ? PREVIEW_COVERAGE_ID : 0 );
+	const entriesCoverageId = isChoosing
+		? 0
+		: coverageId || ( isLayoutPattern ? PREVIEW_COVERAGE_ID : 0 );
 	const isLoading =
 		needsDefaultLayout ||
-		( coverageId > 0 && coverageLoadedFor !== coverageId ) ||
+		( ! isChoosing &&
+			coverageId > 0 &&
+			coverageLoadedFor !== coverageId ) ||
 		( entriesCoverageId > 0 && entriesLoadedFor !== entriesCoverageId ) ||
 		( showsSamples && sampleContexts.length === 0 ) ||
 		( isSynced && ! hasResolvedLayout );
