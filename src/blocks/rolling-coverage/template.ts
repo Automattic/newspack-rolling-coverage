@@ -313,7 +313,7 @@ function compactRow(): TemplateItem {
 		{
 			...POST_DATE_ATTRIBUTES,
 			format: siteTimeFormat(),
-			fontSize: 'small',
+			fontSize: 'medium',
 			style: { typography: { fontWeight: '600' } },
 		},
 	];
@@ -335,7 +335,7 @@ function compactRow(): TemplateItem {
 			[
 				'core/column',
 				{
-					width: '5rem',
+					width: '6rem',
 					metadata: {
 						name: __( 'Time', 'newspack-rolling-coverage' ),
 					},

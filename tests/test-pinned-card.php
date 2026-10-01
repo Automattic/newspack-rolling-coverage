@@ -199,7 +199,7 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 		$date  = '<!-- wp:post-date {"format":"g:i a"} /-->';
 		$body  = '<!-- wp:column --><div class="wp-block-column"><!-- wp:paragraph --><p>Body text</p><!-- /wp:paragraph --></div><!-- /wp:column -->';
 		$row   = static fn( string $time ): string => '<!-- wp:columns {"isStackedOnMobile":false} --><div class="wp-block-columns">'
-			. '<!-- wp:column {"width":"5rem"} --><div class="wp-block-column" style="flex-basis:5rem">' . $time . '</div><!-- /wp:column -->'
+			. '<!-- wp:column {"width":"6rem"} --><div class="wp-block-column" style="flex-basis:6rem">' . $time . '</div><!-- /wp:column -->'
 			. $body
 			. '</div><!-- /wp:columns -->';
 
