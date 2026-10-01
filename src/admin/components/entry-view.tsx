@@ -34,7 +34,12 @@ import { SlackConnectionDrawer } from './slack-connection-drawer';
 import { useConfirmDialog } from './confirm-dialog';
 import { getEntryActions } from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
-import { applyEntryFilters, getSlackChannelLabel } from '../utils/fields';
+import {
+	applyEntryFilters,
+	ARCHIVED_VALUE,
+	getSlackChannelLabel,
+	NOT_ARCHIVED_VALUE,
+} from '../utils/fields';
 import type {
 	ContextExports,
 	Coverage,
@@ -203,6 +208,14 @@ function EntryView() {
 							: 'breakoutStatus'
 					] = val;
 					break;
+				case 'archived': {
+					const wantsArchived =
+						( f.operator === 'is' && val === ARCHIVED_VALUE ) ||
+						( f.operator === 'isNot' &&
+							val === NOT_ARCHIVED_VALUE );
+					params.archived = wantsArchived ? '1' : '0';
+					break;
+				}
 				case 'categories':
 					if ( f.operator === 'contains' ) {
 						params.categorySearch = val;

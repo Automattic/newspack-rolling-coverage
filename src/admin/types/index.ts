@@ -48,6 +48,7 @@ interface AdminConfig {
 		newEntry: string;
 		editUser: string;
 		editTerm: string;
+		connectorApprovals: string;
 	};
 	postType: string;
 	taxonomy: string;
@@ -60,6 +61,8 @@ interface AdminConfig {
 	aiSettings: AiSettings;
 	aiDefaultSettings: AiSettings;
 	aiAvailable: boolean;
+	/** True when AI is unavailable only because the plugin isn't approved for a connector. */
+	aiNeedsApproval: boolean;
 	aiMaxPromptLength: number;
 	slack: {
 		isConfigured: boolean;
@@ -311,6 +314,7 @@ interface UseEntriesOptions {
 	postId?: string;
 	breakoutStatus?: string;
 	breakoutStatusExclude?: string;
+	archived?: string;
 	categorySearch?: string;
 	tagSearch?: string;
 	dateFilter?: string;
@@ -362,6 +366,10 @@ interface SlackMonitorLogsResult extends ApiResult {
 
 interface AiSettings {
 	key_takeaways_prompt: string;
+}
+
+interface AiSettingsResult extends ApiResult {
+	data?: AiSettings;
 }
 
 type StatusName =
@@ -645,6 +653,7 @@ export type {
 	BulkRestoreEntryResult,
 	BulkRestoreResult,
 	AiSettings,
+	AiSettingsResult,
 	BreadcrumbItem,
 	HeaderState,
 	TabHeader,

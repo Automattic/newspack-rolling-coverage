@@ -81,6 +81,7 @@ interface BlockConfig {
 interface FrontendConfig {
 	readerTrackingEnabled: string;
 	siteKitGa4Enabled: string;
+	canEditPosts: string;
 }
 
 /**

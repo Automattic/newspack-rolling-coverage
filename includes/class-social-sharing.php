@@ -87,6 +87,11 @@ class Social_Sharing {
 			return;
 		}
 
+		// Prevent non-public source ID from being discoverable.
+		if ( ! is_post_publicly_viewable( $source_post_id ) ) {
+			return;
+		}
+
 		$source_url = get_permalink( $source_post_id );
 
 		if ( ! $source_url ) {

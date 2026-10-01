@@ -475,7 +475,8 @@ class Rolling_Coverage_Block {
 			return;
 		}
 
-		$should_track_reader_events = ! current_user_can( 'edit_posts' );
+		$can_edit_posts             = current_user_can( 'edit_posts' );
+		$should_track_reader_events = ! $can_edit_posts;
 
 		foreach ( $block_type->view_script_handles as $handle ) {
 			wp_localize_script(
@@ -484,6 +485,8 @@ class Rolling_Coverage_Block {
 				[
 					'readerTrackingEnabled' => $should_track_reader_events,
 					'siteKitGa4Enabled'     => $should_track_reader_events && self::is_site_kit_ga4_tracking_ready(),
+					// The view script requests entries past the caches for these users.
+					'canEditPosts'          => $can_edit_posts,
 				]
 			);
 		}
