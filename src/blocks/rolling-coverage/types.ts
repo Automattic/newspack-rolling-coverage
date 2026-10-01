@@ -126,6 +126,7 @@ interface PollResponse {
 	cursor: string;
 	overflow: boolean;
 	polledCount: number;
+	minPollInterval: number;
 }
 
 /**

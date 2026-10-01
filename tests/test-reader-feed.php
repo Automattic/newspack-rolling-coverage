@@ -279,4 +279,157 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertArrayNotHasKey( 'Cache-Control', $headers );
 	}
+
+	/**
+	 * Set the site's minimum poll interval for the rest of the test.
+	 *
+	 * @param mixed $value Value to answer the filter with.
+	 */
+	private static function set_minimum_poll_interval( $value ) {
+		add_filter(
+			'newspack_rolling_coverage_min_poll_interval',
+			function () use ( $value ) {
+				return $value;
+			}
+		);
+	}
+
+	/**
+	 * Render the block for the test coverage, as a story page would.
+	 *
+	 * @return string
+	 */
+	private function render_block() {
+		$attributes = [ 'coverageId' => $this->coverage_id ];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+
+		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+	}
+
+	/**
+	 * With no minimum set, a poll tells open pages to keep polling at the
+	 * block's own interval.
+	 */
+	public function test_poll_reports_no_minimum_interval_by_default() {
+		$poll = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_data();
+
+		$this->assertSame( 0, $poll['minPollInterval'] );
+	}
+
+	/**
+	 * Every poll carries the minimum interval, so pages that are already
+	 * open slow down without a reload, whatever the poll has to report.
+	 *
+	 * @dataProvider new_entry_count_provider
+	 *
+	 * @param int $new_entry_count Entries published after the cursor.
+	 */
+	public function test_minimum_poll_interval_reaches_open_pages_through_the_poll( $new_entry_count ) {
+		self::set_minimum_poll_interval( 60 );
+		$cursor_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+
+		for ( $i = 0; $i < $new_entry_count; $i++ ) {
+			$this->create_entry_at( '2026-01-01 12:05:00' );
+		}
+
+		$poll = $this->get_feed( [ 'cursor' => "{$cursor_entry_id}:2026-01-01 12:00:00" ] )->get_data();
+
+		$this->assertSame( 60, $poll['minPollInterval'] );
+	}
+
+	/**
+	 * A slower poll is also shared for longer: half the minimum interval,
+	 * the same share of the interval as the default lifetime.
+	 */
+	public function test_minimum_poll_interval_lengthens_the_poll_cache_to_half_of_it() {
+		self::set_minimum_poll_interval( 60 );
+
+		$headers = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_headers();
+
+		$this->assertSame( 'public, max-age=30', $headers['Cache-Control'] );
+	}
+
+	/**
+	 * A minimum too low to matter leaves the poll's default lifetime alone
+	 * rather than shortening it.
+	 */
+	public function test_low_minimum_poll_interval_does_not_shorten_the_poll_cache() {
+		self::set_minimum_poll_interval( Rolling_Coverage_Block::POLL_MAX_AGE );
+
+		$headers = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_headers();
+
+		$this->assertSame( 'public, max-age=' . Rolling_Coverage_Block::POLL_MAX_AGE, $headers['Cache-Control'] );
+	}
+
+	/**
+	 * Values a site might set the minimum to, with the whole seconds each
+	 * should count as.
+	 *
+	 * @return array[]
+	 */
+	public function minimum_poll_interval_value_provider() {
+		return [
+			'a number of seconds' => [ 60, 60 ],
+			'a numeric string'    => [ '60', 60 ],
+			'a fraction'          => [ 45.7, 45 ],
+			'zero'                => [ 0, 0 ],
+			'a negative number'   => [ -30, 0 ],
+			'a word'              => [ 'slow', 0 ],
+			'true'                => [ true, 0 ],
+			'null'                => [ null, 0 ],
+		];
+	}
+
+	/**
+	 * Only a positive number of seconds sets a minimum. Anything else is
+	 * ignored, so a mistyped value can't stop or speed up polling.
+	 *
+	 * @dataProvider minimum_poll_interval_value_provider
+	 *
+	 * @param mixed $value    Value the minimum is set to.
+	 * @param int   $expected Seconds it should count as.
+	 */
+	public function test_only_a_positive_number_sets_a_minimum_poll_interval( $value, $expected ) {
+		self::set_minimum_poll_interval( $value );
+
+		$this->assertSame( $expected, Rolling_Coverage_Block::get_min_poll_interval() );
+	}
+
+	/**
+	 * The page carries the minimum next to the block's own interval, so a
+	 * fresh page starts slow even when its first poll fails, and can go back
+	 * to its own interval once the minimum is lifted.
+	 */
+	public function test_page_carries_the_minimum_poll_interval() {
+		self::set_minimum_poll_interval( 60 );
+		$this->create_entry_at( '2026-01-01 12:00:00' );
+
+		$html = $this->render_block();
+
+		$this->assertStringContainsString( 'data-min-poll-interval="60"', $html );
+		$this->assertStringContainsString( 'data-poll-interval="10"', $html, 'The block should keep its own interval.' );
+	}
+
+	/**
+	 * With no minimum set, the page says nothing about one.
+	 */
+	public function test_page_carries_no_minimum_poll_interval_by_default() {
+		$this->create_entry_at( '2026-01-01 12:00:00' );
+
+		$this->assertStringNotContainsString( 'data-min-poll-interval', $this->render_block() );
+	}
+
+	/**
+	 * The minimum is about polling: "load more" keeps the page cache's
+	 * lifetime either way.
+	 */
+	public function test_minimum_poll_interval_leaves_load_more_alone() {
+		self::set_minimum_poll_interval( 60 );
+		$this->create_entry_at( '2026-01-01 10:00:00' );
+
+		$response = $this->get_feed( [ 'before' => '2026-01-01 12:00:00' ] );
+
+		$this->assertArrayNotHasKey( 'Cache-Control', $response->get_headers() );
+		$this->assertArrayNotHasKey( 'minPollInterval', $response->get_data() );
+	}
 }

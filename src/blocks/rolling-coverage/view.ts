@@ -346,6 +346,11 @@ function initBlock( root: HTMLElement ): void {
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
 	let polledCount = 0;
+
+	// The site's minimum poll interval, in seconds; 0 when it sets none. Each
+	// poll brings the current value, so an open page follows it both ways.
+	let minPollInterval =
+		parseInt( root.dataset.minPollInterval || '0', 10 ) || 0;
 	let backlogOffset = entriesList.querySelectorAll(
 		':scope > [data-entry-id]'
 	).length;
@@ -462,12 +467,16 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Schedules the next poll.
+	 * Schedules the next poll, at the block's interval or the site's minimum,
+	 * whichever is longer.
 	 *
 	 * @return {void}
 	 */
 	function schedulePoll(): void {
-		pollTimeoutId = setTimeout( poll, pollInterval * 1000 );
+		pollTimeoutId = setTimeout(
+			poll,
+			Math.max( pollInterval, minPollInterval ) * 1000
+		);
 	}
 
 	/**
@@ -1715,6 +1724,8 @@ function initBlock( root: HTMLElement ): void {
 				if ( isDisposed ) {
 					return;
 				}
+
+				minPollInterval = Number( data.minPollInterval ) || 0;
 
 				if ( data.overflow && isEntryView ) {
 					// A reload lands on the same shared URL, so there is nothing
