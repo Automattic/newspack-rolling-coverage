@@ -24,6 +24,8 @@ class Layout {
 
 	const BUILT_IN_SLUGS = [ 'default', 'compact' ];
 
+	const SLUG_META_KEY = '_rolling_coverage_layout';
+
 	const PATTERN_CATEGORY = 'rolling-coverage';
 
 	const PATTERN_TAXONOMY = 'wp_pattern_category';
@@ -136,13 +138,47 @@ class Layout {
 	/**
 	 * A built-in layout's pattern ID, when it still resolves.
 	 *
+	 * The option can read as missing under a persistent object cache when a
+	 * concurrent request writes back a stale `notoptions` list, so a pattern
+	 * tagged with the slug is the fallback, and repairs the option.
+	 *
 	 * @param string $slug Built-in layout slug.
 	 * @return int Pattern ID, or 0.
 	 */
 	public static function get_layout_id( string $slug ): int {
 		$layout_id = (int) get_option( self::option_name( $slug ), 0 );
 
-		return null !== self::get_layout_blocks( $layout_id ) ? $layout_id : 0;
+		if ( null !== self::get_layout_blocks( $layout_id ) ) {
+			return $layout_id;
+		}
+
+		$found = get_posts(
+			[
+				'post_type'      => 'wp_block',
+				'post_status'    => 'publish',
+				'fields'         => 'ids',
+				'posts_per_page' => 1,
+				'orderby'        => 'ID',
+				'order'          => 'ASC',
+				'no_found_rows'  => true,
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				'meta_query'     => [
+					[
+						'key'   => self::SLUG_META_KEY,
+						'value' => $slug,
+					],
+				],
+			]
+		);
+		$found = $found ? (int) $found[0] : 0;
+
+		if ( ! $found || null === self::get_layout_blocks( $found ) ) {
+			return 0;
+		}
+
+		update_option( self::option_name( $slug ), $found, false );
+
+		return $found;
 	}
 
 	/**
@@ -238,6 +274,7 @@ class Layout {
 		}
 
 		self::assign_pattern_category( $layout_id );
+		update_post_meta( $layout_id, self::SLUG_META_KEY, $slug );
 		update_option( self::option_name( $slug ), $layout_id, false );
 
 		return new WP_REST_Response( [ 'id' => $layout_id ], 201 );

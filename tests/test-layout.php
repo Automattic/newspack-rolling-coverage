@@ -497,4 +497,60 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	public function test_option_name_keeps_the_default_option() {
 		$this->assertSame( 'rolling_coverage_default_layout_id', Layout::option_name( 'default' ) );
 	}
+
+	/**
+	 * A created built-in pattern is tagged with its slug.
+	 */
+	public function test_created_layout_carries_its_slug() {
+		self::log_in_as( 'editor' );
+
+		$id = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+
+		$this->assertSame( 'compact', get_post_meta( $id, Layout::SLUG_META_KEY, true ) );
+	}
+
+	/**
+	 * A lost option doesn't hide the pattern, and is repaired.
+	 */
+	public function test_layout_is_found_by_its_slug_when_the_option_is_lost() {
+		self::log_in_as( 'editor' );
+		$id = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+
+		delete_option( Layout::option_name( 'compact' ) );
+		$this->assertSame( $id, Layout::get_layout_id( 'compact' ) );
+		$this->assertSame( $id, (int) get_option( Layout::option_name( 'compact' ) ) );
+
+		update_option( Layout::option_name( 'compact' ), 999999 );
+		$this->assertSame( $id, Layout::get_layout_id( 'compact' ) );
+		$this->assertSame( $id, (int) get_option( Layout::option_name( 'compact' ) ) );
+		$this->assertSame( 0, Layout::get_layout_id( 'default' ) );
+	}
+
+	/**
+	 * Creating after the option is lost returns the existing pattern.
+	 */
+	public function test_create_returns_the_existing_layout_when_the_option_is_lost() {
+		self::log_in_as( 'editor' );
+		$id = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		delete_option( Layout::option_name( 'compact' ) );
+		$count_before = (int) wp_count_posts( 'wp_block' )->publish;
+
+		$second = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] );
+
+		$this->assertSame( 200, $second->get_status() );
+		$this->assertSame( $id, $second->get_data()['id'] );
+		$this->assertSame( $count_before, (int) wp_count_posts( 'wp_block' )->publish );
+	}
+
+	/**
+	 * A trashed tagged pattern is not returned.
+	 */
+	public function test_trashed_tagged_layout_is_not_found_by_its_slug() {
+		self::log_in_as( 'editor' );
+		$id = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		wp_trash_post( $id );
+		delete_option( Layout::option_name( 'compact' ) );
+
+		$this->assertSame( 0, Layout::get_layout_id( 'compact' ) );
+	}
 }
