@@ -52,6 +52,7 @@ import { store as editorStore } from '@wordpress/editor';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, _x, sprintf } from '@wordpress/i18n';
 import { copy as copyIcon, check } from '@wordpress/icons';
+import { Stack } from '@wordpress/ui';
 
 /**
  * External dependencies
@@ -1007,7 +1008,7 @@ export default function Edit( {
 				{ coverageCombobox }
 
 				{ coverageId ? (
-					<div className="newspack-rolling-coverage-panel-group">
+					<>
 						<TextControl
 							__next40pxDefaultSize
 							type="url"
@@ -1027,32 +1028,35 @@ export default function Edit( {
 								'newspack-rolling-coverage'
 							) }
 						/>
-						<Button
-							variant="secondary"
-							onClick={ () =>
-								setPendingCanonicalUrl(
-									currentPagePermalink || ''
-								)
-							}
-							disabled={
-								isCurrentPageUnsaved || ! currentPagePermalink
-							}
-						>
-							{ __(
-								'Use This Page',
-								'newspack-rolling-coverage'
-							) }
-						</Button>
-						{ ( isCurrentPageUnsaved ||
-							! currentPagePermalink ) && (
-							<p className="components-base-control__help">
+						<Stack direction="column" gap="sm" align="flex-start">
+							<Button
+								variant="secondary"
+								onClick={ () =>
+									setPendingCanonicalUrl(
+										currentPagePermalink || ''
+									)
+								}
+								disabled={
+									isCurrentPageUnsaved ||
+									! currentPagePermalink
+								}
+							>
 								{ __(
-									'Save this page to get its permalink.',
+									'Use This Page',
 									'newspack-rolling-coverage'
 								) }
-							</p>
-						) }
-					</div>
+							</Button>
+							{ ( isCurrentPageUnsaved ||
+								! currentPagePermalink ) && (
+								<p className="components-base-control__help">
+									{ __(
+										'Save this page to get its permalink.',
+										'newspack-rolling-coverage'
+									) }
+								</p>
+							) }
+						</Stack>
+					</>
 				) : null }
 			</PanelBody>
 
