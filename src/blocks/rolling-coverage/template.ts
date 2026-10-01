@@ -303,11 +303,23 @@ function siteTimeFormat(): string {
 
 /**
  * A compact entry's row: the time on the left, the content and a "Read more"
- * link stacked on the right.
+ * link stacked on the right. A pinned entry's time column also holds the
+ * pinned row above the time.
  *
+ * @param {boolean} isPinned Whether the row is the pinned card's.
  * @return {TemplateItem} The row.
  */
-function compactRow(): TemplateItem {
+function compactRow( isPinned = false ): TemplateItem {
+	const date: TemplateItem = [
+		'core/post-date',
+		{
+			...POST_DATE_ATTRIBUTES,
+			format: siteTimeFormat(),
+			fontSize: 'small',
+			style: { typography: { fontWeight: '600' } },
+		},
+	];
+
 	return [
 		'core/columns',
 		{
@@ -330,17 +342,31 @@ function compactRow(): TemplateItem {
 						name: __( 'Time', 'newspack-rolling-coverage' ),
 					},
 				},
-				[
-					[
-						'core/post-date',
-						{
-							...POST_DATE_ATTRIBUTES,
-							format: siteTimeFormat(),
-							fontSize: 'small',
-							style: { typography: { fontWeight: '600' } },
-						},
-					],
-				],
+				isPinned
+					? [
+							[
+								'core/group',
+								{
+									layout: {
+										type: 'flex',
+										orientation: 'vertical',
+									},
+									style: {
+										spacing: {
+											blockGap: 'var:preset|spacing|20',
+										},
+									},
+									metadata: {
+										name: __(
+											'Time',
+											'newspack-rolling-coverage'
+										),
+									},
+								},
+								[ PINNED_ROW, date ],
+							],
+						]
+					: [ date ],
 			],
 			[
 				'core/column',
@@ -432,7 +458,7 @@ function compactEntryTemplate(): TemplateItem[] {
 					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			[ PINNED_ROW, compactRow() ],
+			[ compactRow( true ) ],
 		],
 		[
 			'core/group',

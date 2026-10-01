@@ -186,6 +186,44 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The Compact-shaped template: the card holds one row whose time column
+	 * stacks the pinned row above the date, beside an entry group with just
+	 * the date.
+	 *
+	 * @return string Template markup.
+	 */
+	private static function compact_markup(): string {
+		$pinned_row = '<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap"}} --><div class="wp-block-group">'
+			. '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-pinned-label"} --><p class="use-header-font newspack-rolling-coverage-pinned-label">Pinned</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+		$date       = '<!-- wp:post-date {"format":"g:i a"} /-->';
+		$body       = '<!-- wp:column --><div class="wp-block-column"><!-- wp:paragraph --><p>Body text</p><!-- /wp:paragraph --></div><!-- /wp:column -->';
+		$row        = static fn( string $time ): string => '<!-- wp:columns {"isStackedOnMobile":false} --><div class="wp-block-columns">'
+			. '<!-- wp:column {"width":"5rem"} --><div class="wp-block-column" style="flex-basis:5rem">' . $time . '</div><!-- /wp:column -->'
+			. $body
+			. '</div><!-- /wp:columns -->';
+		$time_group = '<!-- wp:group {"layout":{"type":"flex","orientation":"vertical"},"metadata":{"name":"Time"}} --><div class="wp-block-group">' . $pinned_row . $date . '</div><!-- /wp:group -->';
+
+		return '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">' . $row( $time_group ) . '</div><!-- /wp:group -->'
+			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . $row( $date ) . '</div><!-- /wp:group -->';
+	}
+
+	/**
+	 * A pinned entry shows the pinned label inside the time column; an
+	 * unpinned entry from the same template shows none.
+	 */
+	public function test_compact_pinned_label_sits_in_the_time_column() {
+		$markup = self::compact_markup();
+		$pinned = self::render( self::create_pinned_entry(), false, $markup );
+		$other  = self::render( self::create_entry( self::create_coverage() ), false, $markup );
+
+		$this->assertMatchesRegularExpression( '/flex-basis:5rem">.*?newspack-rolling-coverage-pinned-label.*?<time.*?Body text/s', $pinned, 'The pinned label should sit above the time in the time column, before the body.' );
+		$this->assertStringContainsString( 'Body text', $pinned );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-label', $other, 'An unpinned entry should show no pinned label.' );
+		$this->assertStringContainsString( '<time', $other );
+	}
+
+	/**
 	 * The built-in template, used when the block saves no blocks, renders the
 	 * card for a pinned entry and the entry group for the others.
 	 */
