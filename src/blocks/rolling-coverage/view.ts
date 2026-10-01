@@ -326,6 +326,22 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * The first unpinned entry in the list, where pinned entries end.
+	 *
+	 * @param {HTMLElement} [except] Entry to leave out.
+	 * @return {HTMLElement|null} The entry, or null if every entry is pinned.
+	 */
+	function firstUnpinnedEntry( except?: HTMLElement ): HTMLElement | null {
+		return (
+			Array.from(
+				entriesList.querySelectorAll< HTMLElement >(
+					':scope > [data-entry-id]:not([data-pinned])'
+				)
+			).find( ( entry ) => entry !== except ) ?? null
+		);
+	}
+
+	/**
 	 * Inserts entries above the newest unpinned entry, below any pinned
 	 * entries, removing the "no entries yet" placeholder if it's still
 	 * present.
@@ -359,12 +375,7 @@ function initBlock( root: HTMLElement ): void {
 			}
 		} );
 
-		entriesList.insertBefore(
-			fragment,
-			entriesList.querySelector(
-				':scope > [data-entry-id]:not([data-pinned])'
-			)
-		);
+		entriesList.insertBefore( fragment, firstUnpinnedEntry() );
 		dropLastSeparator();
 
 		announce(
@@ -547,6 +558,17 @@ function initBlock( root: HTMLElement ): void {
 				unobserveEntry( existing );
 				entryEl.dataset.arrival = existing.dataset.arrival;
 				existing.replaceWith( entryEl );
+
+				if (
+					existing.hasAttribute( 'data-pinned' ) !==
+					entryEl.hasAttribute( 'data-pinned' )
+				) {
+					entriesList.insertBefore(
+						entryEl,
+						firstUnpinnedEntry( entryEl )
+					);
+				}
+
 				observeEntry( entryEl );
 				dropLastSeparator();
 
