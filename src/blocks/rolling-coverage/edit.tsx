@@ -70,8 +70,6 @@ import {
 	updateCoverageCanonicalUrl,
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
-	getLayoutId,
-	createLayout,
 	getLayoutEditUrl,
 	PREVIEW_COVERAGE_ID,
 } from './utils';
@@ -94,6 +92,10 @@ import {
 import { useSampleEntries } from './samples';
 import EntryBlockPreview from './components/entry-block-preview';
 import LoadingState from './components/loading-state';
+import LayoutPickerModal, {
+	type LayoutChoice,
+} from './components/layout-picker-modal';
+import { getBuiltInLayouts, builtInLayoutSlugFor } from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
 import { blockGapCss } from './spacing';
 import {
@@ -265,8 +267,7 @@ export default function Edit( {
 		( ( patternCategories ?? [] ).includes(
 			Number( LAYOUT_CATEGORY_ID )
 		) ||
-			( currentPostId > 0 &&
-				currentPostId === getLayoutId( 'default' ) ) );
+			builtInLayoutSlugFor( currentPostId ) !== null );
 	const innerBlockCount = useSelect(
 		( select ) =>
 			(
@@ -276,25 +277,32 @@ export default function Edit( {
 			 ).getBlockCount( clientId ),
 		[ clientId ]
 	);
-	// A preview renders its blocks in their own store, where an ancestor
-	// can't be seen, so a preview never syncs on insert either.
-	const isNewBlock = useRef(
-		! layoutId &&
-			! innerBlockCount &&
-			! isLayoutPattern &&
-			! isNested &&
-			! isPreviewMode
-	).current;
-	const [ isCreatingLayout, setIsCreatingLayout ] = useState( isNewBlock );
-	const [ layoutError, setLayoutError ] = useState< string | null >( null );
+	// The layout picker previews each layout as this block with the layout
+	// as its inner blocks, rendering sample entries.
+	const isSamplePreview =
+		isPreviewMode && ! coverageId && ! layoutId && innerBlockCount > 0;
+	const showsSamples = isLayoutPattern || isSamplePreview;
+	const [ isPickingLayout, setIsPickingLayout ] = useState( false );
 	const registry = useRegistry();
 	const isSynced = layoutId > 0 && ! isNested;
 	const defaultTemplate = useMemo( innerTemplate, [] );
+	const patternTemplate = useMemo(
+		() =>
+			(
+				getBuiltInLayouts().find(
+					( layout ) =>
+						layout.slug === builtInLayoutSlugFor( currentPostId )
+				) ?? getBuiltInLayouts()[ 0 ]
+			).template(),
+		[ currentPostId ]
+	);
 	const innerBlocksProps = useInnerBlocksProps(
 		{ className: 'newspack-rolling-coverage-layout' },
 		{
 			template:
-				isSynced || isCreatingLayout ? undefined : defaultTemplate,
+				! isSynced && ( isLayoutPattern || isNested )
+					? patternTemplate
+					: undefined,
 			allowedBlocks: [],
 			templateLock: false,
 		}
@@ -348,51 +356,15 @@ export default function Edit( {
 		() => feedItems( innerBlocks ),
 		[ innerBlocks ]
 	);
-	const { replaceInnerBlocks, __unstableMarkNextChangeAsNotPersistent } =
-		useDispatch( blockEditorStore.name ) as unknown as {
-			replaceInnerBlocks: (
-				id: string,
-				blocks: unknown[],
-				updateSelection?: boolean
-			) => void;
-			__unstableMarkNextChangeAsNotPersistent: () => void;
-		};
-
-	useEffect( () => {
-		if ( ! isNewBlock ) {
-			return;
-		}
-
-		let cancelled = false;
-		const sync = ( id: number ) => {
-			__unstableMarkNextChangeAsNotPersistent();
-			setAttributes( { layoutId: id } );
-			setIsCreatingLayout( false );
-		};
-		const fallBackToLocal = () => {
-			__unstableMarkNextChangeAsNotPersistent();
-			replaceInnerBlocks(
-				clientId,
-				createBlocksFromInnerBlocksTemplate( defaultTemplate ),
-				false
-			);
-			setIsCreatingLayout( false );
-		};
-
-		if ( getLayoutId( 'default' ) ) {
-			sync( getLayoutId( 'default' ) );
-			return;
-		}
-
-		createLayout( 'default' )
-			.then( ( id ) => ! cancelled && sync( id ) )
-			.catch( () => ! cancelled && fallBackToLocal() );
-
-		return () => {
-			cancelled = true;
-		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- Runs once, for a block inserted empty.
-	}, [] );
+	const { replaceInnerBlocks } = useDispatch(
+		blockEditorStore.name
+	) as unknown as {
+		replaceInnerBlocks: (
+			id: string,
+			blocks: unknown[],
+			updateSelection?: boolean
+		) => void;
+	};
 
 	const { layoutRecord, hasResolvedLayout, canEditLayout } = useSelect(
 		( select ) => {
@@ -468,7 +440,17 @@ export default function Edit( {
 			: null;
 	}, [ layoutRecord ] );
 	const isLayoutMissing = isSynced && hasResolvedLayout && ! layoutBlocks;
-	const hasLayout = coverageId > 0 || isLayoutPattern;
+	const needsLayout =
+		! isLayoutPattern &&
+		! isNested &&
+		( ( ! layoutId && ! innerBlockCount ) || isLayoutMissing );
+	const hasLayout = coverageId > 0 || showsSamples;
+	const canChangeLayout =
+		! isLayoutPattern &&
+		! isPreviewMode &&
+		! isNested &&
+		! needsLayout &&
+		( isSynced || innerBlockCount > 0 );
 	const defaultLayoutBlocks = useMemo(
 		() =>
 			createBlocksFromInnerBlocksTemplate(
@@ -482,18 +464,23 @@ export default function Edit( {
 		style: feedGapStyle( feedGroup ),
 	} );
 
-	const sampleContexts = useSampleEntries( isLayoutPattern );
+	const allSampleContexts = useSampleEntries( showsSamples );
+	const sampleContexts = useMemo(
+		() =>
+			isSamplePreview
+				? allSampleContexts.slice( 0, entriesPerPage )
+				: allSampleContexts,
+		[ allSampleContexts, isSamplePreview, entriesPerPage ]
+	);
 	const entriesCoverageId =
 		coverageId || ( isLayoutPattern ? PREVIEW_COVERAGE_ID : 0 );
-	const isSettingUpLayout = isCreatingLayout && ! getLayoutId( 'default' );
 	const isLoading =
-		isSettingUpLayout ||
 		( coverageId > 0 && coverageLoadedFor !== coverageId ) ||
 		( entriesCoverageId > 0 && entriesLoadedFor !== entriesCoverageId ) ||
-		( isLayoutPattern && sampleContexts.length === 0 ) ||
-		( hasLayout && isSynced && ! hasResolvedLayout );
+		( showsSamples && sampleContexts.length === 0 ) ||
+		( isSynced && ! hasResolvedLayout );
 	const previewContexts =
-		isLayoutPattern && entryContexts.length === 0
+		showsSamples && entryContexts.length === 0
 			? sampleContexts
 			: entryContexts;
 	const { templateBlocks, blocksForEntry } = useLayoutPreview(
@@ -636,19 +623,50 @@ export default function Edit( {
 		setAttributes,
 	] );
 
-	const restoreLayout = useCallback( () => {
-		setLayoutError( null );
-		createLayout( 'default' )
-			.then( ( id ) => setAttributes( { layoutId: id } ) )
-			.catch( () =>
-				setLayoutError(
-					__(
-						'Could not restore the shared layout.',
-						'newspack-rolling-coverage'
-					)
-				)
+	const applyLayout = useCallback(
+		( choice: LayoutChoice ) => {
+			setIsPickingLayout( false );
+
+			if ( choice.kind === 'pattern' ) {
+				if ( isSynced && choice.id === layoutId ) {
+					return;
+				}
+				registry.batch( () => {
+					if ( ! isSynced && innerBlockCount > 0 ) {
+						replaceInnerBlocks( clientId, [], false );
+					}
+					setAttributes( { layoutId: choice.id } );
+				} );
+				return;
+			}
+
+			const layout = getBuiltInLayouts().find(
+				( item ) => item.slug === choice.slug
 			);
-	}, [ setAttributes ] );
+
+			if ( ! layout ) {
+				return;
+			}
+
+			registry.batch( () => {
+				replaceInnerBlocks(
+					clientId,
+					createBlocksFromInnerBlocksTemplate( layout.template() ),
+					false
+				);
+				setAttributes( { layoutId: 0 } );
+			} );
+		},
+		[
+			isSynced,
+			layoutId,
+			innerBlockCount,
+			registry,
+			clientId,
+			replaceInnerBlocks,
+			setAttributes,
+		]
+	);
 
 	// Derives the current page's permalink, and whether it's still a
 	// placeholder ".../auto-draft/" URL because the post is unsaved.
@@ -725,6 +743,10 @@ export default function Edit( {
 	useEffect( () => {
 		let cancelled = false;
 
+		if ( isPreviewMode ) {
+			return;
+		}
+
 		searchCoverages( search ).then( ( results ) => {
 			if ( cancelled ) {
 				return;
@@ -744,7 +766,7 @@ export default function Edit( {
 		return () => {
 			cancelled = true;
 		};
-	}, [ search, currentCoverage ] );
+	}, [ search, currentCoverage, isPreviewMode ] );
 
 	// Load the currently connected coverage's status and canonical URL
 	// whenever the selection changes.
@@ -931,7 +953,7 @@ export default function Edit( {
 		</InspectorControls>
 	) : (
 		<InspectorControls>
-			{ ! isCreatingLayout && (
+			{ ! needsLayout && (
 				<PanelBody
 					title={ __( 'Layout', 'newspack-rolling-coverage' ) }
 				>
@@ -1342,9 +1364,12 @@ export default function Edit( {
 		<>
 			{ inspector }
 
-			{ ! isLoading && isSynced && coverageId > 0 && (
+			{ ! isLoading && canChangeLayout && (
 				<BlockControls group="other">
-					{ canEditLayout && (
+					<ToolbarButton onClick={ () => setIsPickingLayout( true ) }>
+						{ __( 'Change layout', 'newspack-rolling-coverage' ) }
+					</ToolbarButton>
+					{ isSynced && coverageId > 0 && canEditLayout && (
 						<ToolbarButton
 							{ ...{
 								href: getLayoutEditUrl( layoutId, coverageId ),
@@ -1354,68 +1379,60 @@ export default function Edit( {
 							{ __( 'Edit Layout', 'newspack-rolling-coverage' ) }
 						</ToolbarButton>
 					) }
-					<ToolbarButton onClick={ detach }>
-						{ __( 'Detach', 'newspack-rolling-coverage' ) }
-					</ToolbarButton>
+					{ isSynced && coverageId > 0 && (
+						<ToolbarButton onClick={ detach }>
+							{ __( 'Detach', 'newspack-rolling-coverage' ) }
+						</ToolbarButton>
+					) }
 				</BlockControls>
 			) }
 
+			{ isPickingLayout && (
+				<LayoutPickerModal
+					currentLayoutId={ isSynced ? layoutId : 0 }
+					onSelect={ applyLayout }
+					onClose={ () => setIsPickingLayout( false ) }
+				/>
+			) }
+
 			<div { ...blockProps }>
-				{ isLoading && (
+				{ isLoading && ! isPreviewMode && (
 					<LoadingState
-						label={
-							isSettingUpLayout
-								? __(
-										'Setting up the layout…',
-										'newspack-rolling-coverage'
-									)
+						label={ __(
+							'Fetching entries…',
+							'newspack-rolling-coverage'
+						) }
+					/>
+				) }
+				{ ! isLoading && needsLayout && (
+					<Placeholder
+						icon={ activity }
+						label="Rolling Coverage"
+						instructions={
+							isPreviewMode
+								? undefined
 								: __(
-										'Fetching entries…',
+										"Choose a layout for the coverage's entries.",
 										'newspack-rolling-coverage'
 									)
 						}
-					/>
+					>
+						{ ! isPreviewMode && (
+							<Button
+								__next40pxDefaultSize
+								variant="primary"
+								onClick={ () => setIsPickingLayout( true ) }
+							>
+								{ __( 'Choose', 'newspack-rolling-coverage' ) }
+							</Button>
+						) }
+					</Placeholder>
 				) }
 				{ ! isLoading &&
+					! needsLayout &&
 					( hasLayout ? (
 						<>
 							{ layoutCss && <style>{ layoutCss }</style> }
-							{ isLayoutMissing && (
-								<Notice
-									status="warning"
-									isDismissible={ false }
-									actions={ [
-										{
-											label: __(
-												'Restore shared layout',
-												'newspack-rolling-coverage'
-											),
-											onClick: restoreLayout,
-											variant: 'primary',
-										},
-										{
-											label: __(
-												'Detach',
-												'newspack-rolling-coverage'
-											),
-											onClick: detach,
-										},
-									] }
-								>
-									{ __(
-										"The shared layout can't be found. This story shows the default layout until you restore it or detach it.",
-										'newspack-rolling-coverage'
-									) }
-								</Notice>
-							) }
-							{ layoutError && (
-								<Notice
-									status="error"
-									onRemove={ () => setLayoutError( null ) }
-								>
-									{ layoutError }
-								</Notice>
-							) }
 							{ ! isLayoutPattern &&
 								currentCoverage?.status === 'trash' && (
 									<Notice
