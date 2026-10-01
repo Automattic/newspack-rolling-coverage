@@ -374,7 +374,9 @@ export default function Edit( {
 	};
 
 	// Stories saved before layouts existed render in the default layout.
+	const hadCoverageOnLoad = useRef( coverageId > 0 ).current;
 	const needsDefaultLayout =
+		hadCoverageOnLoad &&
 		coverageId > 0 &&
 		! layoutId &&
 		! innerBlockCount &&
@@ -505,17 +507,17 @@ export default function Edit( {
 			: null;
 	}, [ layoutRecord ] );
 	const isLayoutMissing = isSynced && hasResolvedLayout && ! layoutBlocks;
-	const needsLayout =
+	const isChoosing =
 		! isLayoutPattern &&
 		! isNested &&
-		( ( ! coverageId && ! layoutId && ! innerBlockCount ) ||
-			isLayoutMissing );
+		( ( ! layoutId && ! innerBlockCount ) || isLayoutMissing );
+	const needsLayout = isChoosing && coverageId > 0 && ! needsDefaultLayout;
 	const hasLayout = coverageId > 0 || showsSamples;
 	const canChangeLayout =
 		! isLayoutPattern &&
 		! isPreviewMode &&
 		! isNested &&
-		! needsLayout &&
+		! isChoosing &&
 		( isSynced || innerBlockCount > 0 );
 	const defaultLayoutBlocks = useMemo(
 		() =>
@@ -1435,7 +1437,7 @@ export default function Edit( {
 
 	return (
 		<>
-			{ ! needsLayout && inspector }
+			{ ! isChoosing && inspector }
 
 			{ ! isLoading && canChangeLayout && (
 				<BlockControls group="other">
