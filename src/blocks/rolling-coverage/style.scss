@@ -1,3 +1,7 @@
+:where(:root) {
+	--wp--preset--shadow--elevation-1: 0 1px 10px rgba(0, 0, 0, 0.07);
+}
+
 $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 
 .wp-block-newspack-rolling-coverage-rolling-coverage {
@@ -31,19 +35,10 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	.newspack-rolling-coverage-new-entries {
 		position: fixed;
 		z-index: 100;
-		top: calc(24px + env(safe-area-inset-top, 0px));
+		top: var(--newspack-rolling-coverage-control-top, calc(24px + env(safe-area-inset-top, 0px)));
 		left: 50%;
-		min-height: 40px;
-		padding: 0.5em var(--wp--preset--spacing--50, 1.5em);
-		border: none;
-		border-radius: 8px;
-		background: #000;
-		color: #fff;
-		font-size: 0.875em;
-		font-weight: 500;
+		margin: 0;
 		white-space: nowrap;
-		cursor: pointer;
-		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 		transform: translateX(-50%);
 		animation: newspack-rolling-coverage-pop-in 0.25s ease-out;
 
@@ -53,16 +48,14 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 
 		@media (max-width: 480px) {
 			max-width: calc(100vw - 32px);
-			padding: 0.5em 0.9em;
-			font-size: 0.8125em;
 		}
 	}
 
-	body.admin-bar & .newspack-rolling-coverage-new-entries {
-		top: calc(48px + env(safe-area-inset-top, 0px));
+	body.admin-bar & .newspack-rolling-coverage-new-entries:not([hidden]) {
+		top: var(--newspack-rolling-coverage-control-top, calc(48px + env(safe-area-inset-top, 0px)));
 
 		@media screen and (max-width: 782px) {
-			top: calc(32px + env(safe-area-inset-top, 0px));
+			top: var(--newspack-rolling-coverage-control-top, calc(32px + env(safe-area-inset-top, 0px)));
 		}
 	}
 
@@ -78,10 +71,6 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	}
 
 	.newspack-rolling-coverage-entry {
-		// Offset anchor targets so fixed headers / the WP admin bar don't
-		// cover the entry when the browser scrolls to
-		// #newspack-rolling-coverage-entry-<ID>. Themes
-		// with taller fixed headers can override via this custom property.
 		scroll-margin-top: var(--newspack-rolling-coverage-scroll-offset, 80px);
 
 		> * + * {
@@ -98,6 +87,28 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 				margin-bottom: 0;
 			}
 		}
+	}
+
+	.newspack-rolling-coverage-entry[data-linked] {
+		--newspack-rolling-coverage-linked-margin: calc(var(--newspack-rolling-coverage-scroll-offset, 80px) + #{$feed-gap} / 2 + 2px + var(--wp--preset--spacing--30, 1rem));
+		scroll-margin-top: var(--newspack-rolling-coverage-linked-margin);
+	}
+
+	.newspack-rolling-coverage-entry[data-linked] > .newspack-rolling-coverage-regular-entry,
+	.newspack-rolling-coverage-entry[data-linked] > .newspack-rolling-coverage-pinned-card,
+	.newspack-rolling-coverage-entry[data-linked]:is(:not(:has(> .newspack-rolling-coverage-regular-entry, > .newspack-rolling-coverage-pinned-card))) {
+		outline: 2px solid var(--wp--preset--color--accent, var(--newspack-theme-color-primary, currentcolor));
+		outline-offset: calc(#{$feed-gap} / 2);
+		transition: outline-color 1s ease-out;
+
+		@media (prefers-reduced-motion: reduce) {
+			transition: none;
+		}
+	}
+
+	&[data-linked-faded] .newspack-rolling-coverage-entry[data-linked],
+	&[data-linked-faded] .newspack-rolling-coverage-entry[data-linked] > * {
+		outline-color: transparent;
 	}
 
 	.newspack-rolling-coverage-entry-archived-notice {

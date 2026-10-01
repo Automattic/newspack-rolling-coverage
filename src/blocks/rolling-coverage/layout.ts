@@ -1,6 +1,8 @@
 /**
  * WordPress dependencies
  */
+import { store as blockEditorStore } from '@wordpress/block-editor';
+import { select } from '@wordpress/data';
 import { useCallback, useMemo } from '@wordpress/element';
 
 /**
@@ -13,7 +15,9 @@ import {
 	ENTRY_EDITED_STATES,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
+	latestTemplate,
 	isFollowButtons,
+	isLatestButtons,
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	withLinkedTitle,
@@ -26,7 +30,7 @@ import {
 	isPinnedCard,
 	forEntryKind,
 } from './template';
-import type { EntryContext, TemplateBlocks } from './types';
+import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
 export const BLOCK_NAME = metadata.name;
 
@@ -60,25 +64,57 @@ export const STATE_BY_BLOCK_NAME: Record< string, string > = Object.fromEntries(
 );
 
 /**
+ * The slugs of every color in the editor's palette: the theme's, core's
+ * default and the site's custom ones.
+ *
+ * @return {string[]} Color slugs.
+ */
+function paletteSlugs(): string[] {
+	const settings = (
+		select( blockEditorStore.name ) as unknown as {
+			getSettings: () => {
+				colors?: { slug: string }[];
+				__experimentalFeatures?: {
+					color?: { palette?: Record< string, { slug: string }[] > };
+				};
+			};
+		}
+	 ).getSettings();
+	const origins = Object.values(
+		settings.__experimentalFeatures?.color?.palette ?? {}
+	);
+
+	return [ ...origins.flat(), ...( settings.colors ?? [] ) ].map(
+		( color ) => color.slug
+	);
+}
+
+/**
+ * Default inner-blocks template for the Rolling Coverage block: the Feed
+ * group, holding the "Jump to latest" button, in the colors the editor's
+ * palette has for it, and the follow button at the top, then every editor
+ * state's blocks, then the per-entry blocks.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function innerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate( [
+			latestTemplate( paletteSlugs() ),
+			FOLLOW_TEMPLATE,
+			...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
+			...ENTRY_TEMPLATE,
+		] ),
+	];
+}
+
+/**
  * All block types allowed inside the Feed group.
  */
 export const ALL_ALLOWED_BLOCKS = [
 	...ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_BLOCK_NAME,
 	...STATE_BLOCK_NAMES,
-];
-
-/**
- * Default inner-blocks template for the Rolling Coverage block: the Feed
- * group, holding the follow button at the top, then every editor state's
- * blocks, then the per-entry blocks.
- */
-export const INNER_TEMPLATE = [
-	feedTemplate( [
-		FOLLOW_TEMPLATE,
-		...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
-		...ENTRY_TEMPLATE,
-	] ),
 ];
 
 /**
@@ -134,7 +170,8 @@ export function useLayoutPreview(
 			allBlocks.filter(
 				( block ) =>
 					! RENDER_ONCE_BLOCKS.includes( block.name ) &&
-					! isFollowButtons( block )
+					! isFollowButtons( block ) &&
+					! isLatestButtons( block )
 			),
 		[ allBlocks ]
 	);

@@ -43,7 +43,6 @@ class Initializer {
 		Block_Icons::init();
 		Coverage_Archived_Notice_Block::init();
 		Share_Block::init();
-		Deep_Link_CTA_Block::init();
 		Ads::init();
 		AI_Service::init();
 		AI_Settings::init();

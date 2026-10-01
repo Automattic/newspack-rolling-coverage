@@ -319,18 +319,94 @@ const FOLLOW_TEMPLATE: TemplateItem = [
 ];
 
 /**
- * Whether a block is the follow button's Buttons block (see FOLLOW_TEMPLATE),
- * mirroring Entry_Bindings::is_follow_buttons().
+ * The "Jump to latest" button's default colors, as palette slugs: the theme's
+ * Contrast and Base where its palette has both, as block themes do; otherwise
+ * Dark Gray and White where it has both, as the Newspack Theme does; otherwise
+ * Contrast and Base. Mirrors Rolling_Coverage_Block::latest_button_colors().
  *
- * @param {Object}   block             The block.
- * @param {string}   block.name        Block name.
- * @param {Object[]} block.innerBlocks Inner blocks.
- * @return {boolean} Whether it's the follow button.
+ * @param {string[]} slugs The palette's color slugs.
+ * @return {Object} The background and text color slugs.
  */
-function isFollowButtons( block: {
+function latestColors( slugs: string[] ): {
+	backgroundColor: string;
+	textColor: string;
+} {
+	const hasContrastAndBase =
+		slugs.includes( 'contrast' ) && slugs.includes( 'base' );
+
+	if (
+		! hasContrastAndBase &&
+		slugs.includes( 'dark-gray' ) &&
+		slugs.includes( 'white' )
+	) {
+		return { backgroundColor: 'dark-gray', textColor: 'white' };
+	}
+
+	return { backgroundColor: 'contrast', textColor: 'base' };
+}
+
+/**
+ * The "Jump to latest" button, rendered once above the feed: a core button
+ * bound to the live feed's link, in the palette's colors (see latestColors())
+ * with the theme's Elevation 1 shadow. The site fixes it to the top of the
+ * viewport and shows it when new entries wait, or when the feed opens at a
+ * shared entry (see Rolling_Coverage_Block::render_new_entries_control()).
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @return {TemplateItem} The button's template.
+ */
+function latestTemplate( slugs: string[] ): TemplateItem {
+	return [
+		'core/buttons',
+		{
+			lock: LOCKED_IN_PLACE,
+			className: 'newspack-rolling-coverage-new-entries',
+			layout: { type: 'flex', justifyContent: 'center' },
+			metadata: {
+				name: __( 'Jump to latest', 'newspack-rolling-coverage' ),
+			},
+		},
+		[
+			[
+				'core/button',
+				{
+					lock: LOCKED_IN_PLACE,
+					text: __( 'Jump to latest', 'newspack-rolling-coverage' ),
+					...latestColors( slugs ),
+					style: { shadow: 'var:preset|shadow|elevation-1' },
+					metadata: {
+						name: __(
+							'Jump to latest',
+							'newspack-rolling-coverage'
+						),
+						bindings: {
+							url: {
+								source: ENTRY_BINDINGS_SOURCE,
+								args: { key: 'latestUrl' },
+							},
+						},
+					},
+				},
+			],
+		],
+	];
+}
+
+type ButtonsBlock = {
 	name: string;
 	innerBlocks?: { attributes?: Record< string, unknown > }[];
-} ): boolean {
+};
+
+/**
+ * Whether a block is a Buttons block holding a button whose link is bound to
+ * one of the entry bindings source's values, mirroring
+ * Entry_Bindings::is_buttons_bound_to().
+ *
+ * @param {Object} block The block.
+ * @param {string} key   The bound value's key.
+ * @return {boolean} Whether it holds a button bound to the value.
+ */
+function isButtonsBoundTo( block: ButtonsBlock, key: string ): boolean {
 	return (
 		block.name === 'core/buttons' &&
 		( block.innerBlocks ?? [] ).some( ( inner ) => {
@@ -343,11 +419,36 @@ function isFollowButtons( block: {
 				| undefined;
 			const url = metadata?.bindings?.url;
 			return (
-				url?.source === ENTRY_BINDINGS_SOURCE &&
-				url?.args?.key === 'followTag'
+				url?.source === ENTRY_BINDINGS_SOURCE && url?.args?.key === key
 			);
 		} )
 	);
+}
+
+/**
+ * Whether a block is the follow button's Buttons block (see FOLLOW_TEMPLATE),
+ * mirroring Entry_Bindings::is_follow_buttons().
+ *
+ * @param {Object}   block             The block.
+ * @param {string}   block.name        Block name.
+ * @param {Object[]} block.innerBlocks Inner blocks.
+ * @return {boolean} Whether it's the follow button.
+ */
+function isFollowButtons( block: ButtonsBlock ): boolean {
+	return isButtonsBoundTo( block, 'followTag' );
+}
+
+/**
+ * Whether a block is the "Jump to latest" button's Buttons block (see
+ * latestTemplate()), mirroring Entry_Bindings::is_latest_buttons().
+ *
+ * @param {Object}   block             The block.
+ * @param {string}   block.name        Block name.
+ * @param {Object[]} block.innerBlocks Inner blocks.
+ * @return {boolean} Whether it's the "Jump to latest" button.
+ */
+function isLatestButtons( block: ButtonsBlock ): boolean {
+	return isButtonsBoundTo( block, 'latestUrl' );
 }
 
 /**
@@ -990,16 +1091,6 @@ const ENTRY_EDITED_STATES: EntryEditedState[] = [
 			],
 		],
 	},
-	{
-		value: 'deep-link',
-		label: __( 'Deep Link', 'newspack-rolling-coverage' ),
-		blocks: [
-			[
-				'newspack-rolling-coverage/deep-link-cta',
-				{ className: stateBlockClassName( 'deep-link' ), lock: LOCKED },
-			],
-		],
-	},
 ];
 
 export {
@@ -1011,7 +1102,9 @@ export {
 	feedGroupOf,
 	isFeedGroup,
 	feedItems,
+	latestTemplate,
 	isFollowButtons,
+	isLatestButtons,
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	breakoutBlockIds,

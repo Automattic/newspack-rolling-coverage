@@ -30,7 +30,7 @@ import {
 	IS_BLOCK_THEME,
 	CAN_EDIT_THEME_OPTIONS,
 } from './config';
-import { BLOCK_NAME, INNER_TEMPLATE } from './layout';
+import { BLOCK_NAME, innerTemplate } from './layout';
 
 let defaultLayoutId = Number( DEFAULT_LAYOUT_ID ) || 0;
 let pendingDefaultLayout: Promise< number > | null = null;
@@ -251,7 +251,7 @@ function createDefaultLayout(): Promise< number > {
 			createBlock(
 				BLOCK_NAME,
 				{},
-				createBlocksFromInnerBlocksTemplate( INNER_TEMPLATE )
+				createBlocksFromInnerBlocksTemplate( innerTemplate() )
 			)
 		);
 		pendingDefaultLayout = apiFetch< { id: number } >( {
