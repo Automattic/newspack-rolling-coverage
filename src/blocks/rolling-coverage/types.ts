@@ -38,7 +38,7 @@ interface RollingCoverageAttributes {
 }
 
 /**
- * Result of the editor's "Apply" status action, shown as a Notice.
+ * Result of an editor action, shown as a Notice.
  */
 interface ApplyNotice {
 	type: 'success' | 'error';

@@ -1110,7 +1110,7 @@ export default function Edit( {
 						'newspack-rolling-coverage'
 					) }
 					help={ __(
-						"Tells readers the coverage has ended. Shown at the top of the feed once it's archived.",
+						"Tells readers the coverage has ended. Shown at the top of the feed once it's archived in All Coverages.",
 						'newspack-rolling-coverage'
 					) }
 					value={ archivedNoticeShow ? 'show' : 'hide' }
