@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Layout {
 
-	const DEFAULT_OPTION = 'rolling_coverage_default_layout_id';
+	const BUILT_IN_SLUGS = [ 'default', 'compact' ];
 
 	const PATTERN_CATEGORY = 'rolling-coverage';
 
@@ -124,12 +124,23 @@ class Layout {
 	}
 
 	/**
-	 * The default layout's ID, when it still resolves.
+	 * The option that stores a built-in layout's pattern ID.
 	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return string
+	 */
+	public static function option_name( string $slug ): string {
+		return "rolling_coverage_{$slug}_layout_id";
+	}
+
+	/**
+	 * A built-in layout's pattern ID, when it still resolves.
+	 *
+	 * @param string $slug Built-in layout slug.
 	 * @return int Pattern ID, or 0.
 	 */
-	public static function get_default_layout_id(): int {
-		$layout_id = (int) get_option( self::DEFAULT_OPTION, 0 );
+	public static function get_layout_id( string $slug ): int {
+		$layout_id = (int) get_option( self::option_name( $slug ), 0 );
 
 		return null !== self::get_layout_blocks( $layout_id ) ? $layout_id : 0;
 	}
@@ -146,15 +157,15 @@ class Layout {
 	}
 
 	/**
-	 * Registers the route the editor creates the default layout through.
+	 * Registers the route the editor creates the built-in layouts through.
 	 */
 	public static function register_routes() {
 		register_rest_route(
 			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
-			'/layouts/default',
+			'/layouts/(?P<slug>' . implode( '|', self::BUILT_IN_SLUGS ) . ')',
 			[
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => [ __CLASS__, 'create_default_layout' ],
+				'callback'            => [ __CLASS__, 'create_layout' ],
 				'permission_callback' => [ __CLASS__, 'can_create_layout' ],
 				'args'                => [
 					'content' => [
@@ -178,15 +189,16 @@ class Layout {
 	}
 
 	/**
-	 * REST callback: returns the default layout, creating it from the posted
+	 * REST callback: returns a built-in layout, creating it from the posted
 	 * markup when none resolves. The editor supplies the markup because its
 	 * template is the one core validates the pattern's blocks against.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response|WP_Error
 	 */
-	public static function create_default_layout( WP_REST_Request $request ) {
-		$existing = self::get_default_layout_id();
+	public static function create_layout( WP_REST_Request $request ) {
+		$slug     = (string) $request['slug'];
+		$existing = self::get_layout_id( $slug );
 
 		if ( $existing ) {
 			return new WP_REST_Response( [ 'id' => $existing ], 200 );
@@ -209,13 +221,18 @@ class Layout {
 			);
 		}
 
+		$title = 'compact' === $slug
+			/* translators: %s: Rolling Coverage, the product name. */
+			? sprintf( __( '%s: Compact', 'newspack-rolling-coverage' ), 'Rolling Coverage' )
+			/* translators: %s: Rolling Coverage, the product name. */
+			: sprintf( __( '%s layout', 'newspack-rolling-coverage' ), 'Rolling Coverage' );
+
 		$layout_id = wp_insert_post(
 			wp_slash(
 				[
 					'post_type'    => 'wp_block',
 					'post_status'  => 'publish',
-					/* translators: %s: Rolling Coverage, the product name. */
-					'post_title'   => sprintf( __( '%s layout', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
+					'post_title'   => $title,
 					'post_content' => $content,
 				]
 			),
@@ -227,7 +244,7 @@ class Layout {
 		}
 
 		self::assign_pattern_category( $layout_id );
-		update_option( self::DEFAULT_OPTION, $layout_id, false );
+		update_option( self::option_name( $slug ), $layout_id, false );
 
 		return new WP_REST_Response( [ 'id' => $layout_id ], 201 );
 	}

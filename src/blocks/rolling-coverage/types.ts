@@ -68,7 +68,7 @@ interface BlockConfig {
 	aiAvailable: boolean;
 	newspackAdsAvailable: boolean;
 	newspackAdsPlacementEnabled: boolean;
-	defaultLayoutId: number;
+	layoutIds: { default: number; compact: number };
 	layoutsRestBase: string;
 	adminUrl: string;
 	isBlockTheme: boolean;

@@ -24,7 +24,7 @@ import {
 	ADS_DISABLED_META_KEY,
 	ENTRIES_PREVIEW_REST_BASE,
 	AI_ENDPOINT,
-	DEFAULT_LAYOUT_ID,
+	LAYOUT_IDS,
 	LAYOUTS_REST_BASE,
 	ADMIN_URL,
 	IS_BLOCK_THEME,
@@ -32,7 +32,7 @@ import {
 } from './config';
 import { BLOCK_NAME, innerTemplate } from './layout';
 
-let defaultLayoutId = Number( DEFAULT_LAYOUT_ID ) || 0;
+let defaultLayoutId = Number( LAYOUT_IDS.default ) || 0;
 let pendingDefaultLayout: Promise< number > | null = null;
 
 /**
