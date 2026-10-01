@@ -553,4 +553,74 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 0, Layout::get_layout_id( 'compact' ) );
 	}
+
+	/**
+	 * Whether a built-in layout's creation lock is in the database.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return bool
+	 */
+	private static function is_locked( string $slug ): bool {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return null !== $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", Layout::lock_name( $slug ) ) );
+	}
+
+	/**
+	 * A create while another holds the lock is refused without inserting.
+	 */
+	public function test_create_is_refused_while_another_holds_the_lock() {
+		self::log_in_as( 'editor' );
+		add_option( Layout::lock_name( 'compact' ), time(), '', false );
+		$count_before = (int) wp_count_posts( 'wp_block' )->publish;
+
+		$response = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] );
+
+		$this->assertSame( 409, $response->get_status() );
+		$this->assertSame( $count_before, (int) wp_count_posts( 'wp_block' )->publish );
+		$this->assertSame( 0, (int) get_option( Layout::option_name( 'compact' ), 0 ) );
+		$this->assertTrue( self::is_locked( 'compact' ), 'The other request keeps its lock.' );
+	}
+
+	/**
+	 * An abandoned lock doesn't block creation.
+	 */
+	public function test_create_takes_over_a_stale_lock() {
+		self::log_in_as( 'editor' );
+		add_option( Layout::lock_name( 'compact' ), time() - Layout::LOCK_TIMEOUT - 1, '', false );
+
+		$response = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] );
+
+		$this->assertSame( 201, $response->get_status() );
+		$this->assertFalse( self::is_locked( 'compact' ) );
+	}
+
+	/**
+	 * The lock is released after a successful create.
+	 */
+	public function test_create_releases_the_lock_after_success() {
+		self::log_in_as( 'editor' );
+
+		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
+
+		$this->assertSame( 201, $response->get_status() );
+		$this->assertFalse( self::is_locked( 'default' ) );
+	}
+
+	/**
+	 * The lock is released when the insert fails.
+	 */
+	public function test_create_releases_the_lock_after_failure() {
+		self::log_in_as( 'editor' );
+		add_filter( 'wp_insert_post_empty_content', '__return_true' );
+
+		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
+
+		remove_filter( 'wp_insert_post_empty_content', '__return_true' );
+
+		$this->assertTrue( $response->is_error() );
+		$this->assertSame( 0, Layout::get_layout_id( 'default' ) );
+		$this->assertFalse( self::is_locked( 'default' ) );
+	}
 }

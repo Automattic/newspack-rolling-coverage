@@ -31,6 +31,11 @@ class Layout {
 	const PATTERN_TAXONOMY = 'wp_pattern_category';
 
 	/**
+	 * Seconds after which a creation lock counts as abandoned.
+	 */
+	const LOCK_TIMEOUT = 30;
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -204,6 +209,10 @@ class Layout {
 				'callback'            => [ __CLASS__, 'create_layout' ],
 				'permission_callback' => [ __CLASS__, 'can_create_layout' ],
 				'args'                => [
+					'slug'    => [
+						'type' => 'string',
+						'enum' => self::BUILT_IN_SLUGS,
+					],
 					'content' => [
 						'required' => true,
 						'type'     => 'string',
@@ -257,27 +266,88 @@ class Layout {
 			);
 		}
 
-		$layout_id = wp_insert_post(
-			wp_slash(
-				[
-					'post_type'    => 'wp_block',
-					'post_status'  => 'publish',
-					'post_title'   => self::get_title( $slug ),
-					'post_content' => $content,
-				]
-			),
-			true
-		);
-
-		if ( is_wp_error( $layout_id ) ) {
-			return $layout_id;
+		if ( ! self::acquire_lock( $slug ) ) {
+			return new WP_Error(
+				'rolling_coverage_layout_locked',
+				__( 'This layout is being created. Try again in a moment.', 'newspack-rolling-coverage' ),
+				[ 'status' => 409 ]
+			);
 		}
 
-		self::assign_pattern_category( $layout_id );
-		update_post_meta( $layout_id, self::SLUG_META_KEY, $slug );
-		update_option( self::option_name( $slug ), $layout_id, false );
+		try {
+			$existing = self::get_layout_id( $slug );
 
-		return new WP_REST_Response( [ 'id' => $layout_id ], 201 );
+			if ( $existing ) {
+				return new WP_REST_Response( [ 'id' => $existing ], 200 );
+			}
+
+			$layout_id = wp_insert_post(
+				wp_slash(
+					[
+						'post_type'    => 'wp_block',
+						'post_status'  => 'publish',
+						'post_title'   => self::get_title( $slug ),
+						'post_content' => $content,
+					]
+				),
+				true
+			);
+
+			if ( is_wp_error( $layout_id ) ) {
+				return $layout_id;
+			}
+
+			self::assign_pattern_category( $layout_id );
+			update_post_meta( $layout_id, self::SLUG_META_KEY, $slug );
+			update_option( self::option_name( $slug ), $layout_id, false );
+
+			return new WP_REST_Response( [ 'id' => $layout_id ], 201 );
+		} finally {
+			delete_option( self::lock_name( $slug ) );
+		}
+	}
+
+	/**
+	 * The option that locks a built-in layout's creation.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return string
+	 */
+	public static function lock_name( string $slug ): string {
+		return "rolling_coverage_{$slug}_layout_lock";
+	}
+
+	/**
+	 * Takes the lock on a built-in layout's creation, so two first-time
+	 * requests can't both insert a pattern. The insert and the stale-lock
+	 * takeover each go straight to the database, as `add_option()` overwrites
+	 * an existing row and the object cache can hide one.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return bool Whether the lock is now held.
+	 */
+	private static function acquire_lock( string $slug ): bool {
+		global $wpdb;
+
+		$name = self::lock_name( $slug );
+		$now  = time();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$inserted = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", $name, $now ) );
+
+		if ( $inserted ) {
+			return true;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$locked_at = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+
+		if ( null === $locked_at || (int) $locked_at > $now - self::LOCK_TIMEOUT ) {
+			return false;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return (bool) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", $now, $name, $locked_at ) );
 	}
 
 	/**
