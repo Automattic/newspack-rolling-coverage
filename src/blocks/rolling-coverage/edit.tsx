@@ -52,7 +52,7 @@ import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as editorStore } from '@wordpress/editor';
 import { decodeEntities } from '@wordpress/html-entities';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _x, sprintf } from '@wordpress/i18n';
 import { copy as copyIcon, check } from '@wordpress/icons';
 
 /**
@@ -1073,7 +1073,11 @@ export default function Edit( {
 			</PanelBody>
 
 			<PanelBody
-				title={ __( 'Archived', 'newspack-rolling-coverage' ) }
+				title={ _x(
+					'Archived',
+					'settings panel title',
+					'newspack-rolling-coverage'
+				) }
 				initialOpen={ false }
 			>
 				<ToggleControl
@@ -1082,7 +1086,7 @@ export default function Edit( {
 						'newspack-rolling-coverage'
 					) }
 					help={ __(
-						"Tells readers the coverage has ended, at the top of the feed once it's archived.",
+						"Tells readers the coverage has ended. Shown at the top of the feed once it's archived.",
 						'newspack-rolling-coverage'
 					) }
 					checked={ archivedNoticeShow }

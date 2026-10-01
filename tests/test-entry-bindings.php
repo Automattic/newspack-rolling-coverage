@@ -688,11 +688,11 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 			'archivedNoticeLinkUrl' => 'https://example.com/story',
 		];
 
-		$this->assertStringContainsString( 'archived-notice', self::render_feed_block( $attributes ), 'The notice shows by default.' );
+		$this->assertStringContainsString( 'class="newspack-rolling-coverage-archived-notice"', self::render_feed_block( $attributes ), 'The notice shows by default.' );
 
 		$attributes['archivedNoticeShow'] = false;
 
-		$this->assertStringNotContainsString( 'archived-notice', self::render_feed_block( $attributes ), 'The notice should be hidden.' );
+		$this->assertStringNotContainsString( 'class="newspack-rolling-coverage-archived-notice"', self::render_feed_block( $attributes ), 'The notice should be hidden.' );
 	}
 
 	/**
