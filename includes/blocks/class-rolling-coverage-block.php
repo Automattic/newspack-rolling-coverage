@@ -81,6 +81,11 @@ class Rolling_Coverage_Block {
 	 */
 	const DEFAULT_ENTRY_GAP = 'var:preset|spacing|20';
 
+	/**
+	 * The corner radius of the entry group and the pinned card.
+	 */
+	const ENTRY_RADIUS = '0.5rem';
+
 	// Term meta key storing the coverage's latest entry modified timestamp.
 	const LAST_MODIFIED_META_KEY = 'rolling_coverage_last_modified';
 
@@ -1282,13 +1287,22 @@ class Rolling_Coverage_Block {
 	 * @return array Parsed-block-shaped array.
 	 */
 	private static function regular_entry_block( array $inner_blocks ): array {
-		$open = sprintf( '<div class="%s">', esc_attr( 'wp-block-group ' . self::REGULAR_ENTRY_CLASS ) );
+		$style  = [
+			'spacing' => [ 'blockGap' => self::DEFAULT_ENTRY_GAP ],
+			'border'  => [ 'radius' => self::ENTRY_RADIUS ],
+		];
+		$styles = wp_style_engine_get_styles( $style );
+		$open   = sprintf(
+			'<div class="%s" style="%s">',
+			esc_attr( 'wp-block-group ' . self::REGULAR_ENTRY_CLASS ),
+			esc_attr( $styles['css'] ?? '' )
+		);
 
 		return [
 			'blockName'    => 'core/group',
 			'attrs'        => [
 				'className' => self::REGULAR_ENTRY_CLASS,
-				'style'     => [ 'spacing' => [ 'blockGap' => self::DEFAULT_ENTRY_GAP ] ],
+				'style'     => $style,
 				'metadata'  => [ 'name' => __( 'Entry', 'newspack-rolling-coverage' ) ],
 			],
 			'innerBlocks'  => $inner_blocks,
@@ -1316,7 +1330,7 @@ class Rolling_Coverage_Block {
 				],
 				'blockGap' => self::DEFAULT_ENTRY_GAP,
 			],
-			'border'  => [ 'radius' => 'var(--wp--custom--border--radius-large, var(--newspack-ui-border-radius-l, 8px))' ],
+			'border'  => [ 'radius' => self::ENTRY_RADIUS ],
 		];
 		$styles = wp_style_engine_get_styles( $style );
 		$open   = sprintf(

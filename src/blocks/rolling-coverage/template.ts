@@ -118,8 +118,6 @@ const SHARE_BUTTONS: TemplateItem = [
  */
 const PINNED_CARD_CLASS = 'newspack-rolling-coverage-pinned-card';
 const PINNED_CARD_BACKGROUND = 'var(--wp--custom--color--neutral-5, #f7f7f7)';
-const PINNED_CARD_RADIUS =
-	'var(--wp--custom--border--radius-large, var(--newspack-ui-border-radius-l, 8px))';
 
 /**
  * Class of the group that shows an entry that isn't pinned, mirroring
@@ -132,6 +130,12 @@ const REGULAR_ENTRY_CLASS = 'newspack-rolling-coverage-regular-entry';
  * Rolling_Coverage_Block::DEFAULT_ENTRY_GAP.
  */
 const DEFAULT_ENTRY_GAP = 'var:preset|spacing|20';
+
+/**
+ * The corner radius of the entry group and the pinned card, mirroring
+ * Rolling_Coverage_Block::ENTRY_RADIUS.
+ */
+const ENTRY_RADIUS = '0.5rem';
 
 /**
  * What an entry shows: the date and title stacked with the share button
@@ -256,7 +260,7 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 					},
 					blockGap: DEFAULT_ENTRY_GAP,
 				},
-				border: { radius: PINNED_CARD_RADIUS },
+				border: { radius: ENTRY_RADIUS },
 			},
 			metadata: {
 				name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
@@ -269,7 +273,10 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 		{
 			className: REGULAR_ENTRY_CLASS,
 			lock: LOCKED_IN_PLACE,
-			style: { spacing: { blockGap: DEFAULT_ENTRY_GAP } },
+			style: {
+				spacing: { blockGap: DEFAULT_ENTRY_GAP },
+				border: { radius: ENTRY_RADIUS },
+			},
 			metadata: {
 				name: __( 'Entry', 'newspack-rolling-coverage' ),
 			},
