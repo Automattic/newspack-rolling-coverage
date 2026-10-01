@@ -349,7 +349,11 @@ function compactRow(): TemplateItem {
 					[
 						'core/group',
 						{
-							layout: { type: 'flex', orientation: 'vertical' },
+							layout: {
+								type: 'flex',
+								orientation: 'vertical',
+								justifyContent: 'stretch',
+							},
 							style: {
 								spacing: { blockGap: 'var:preset|spacing|20' },
 							},

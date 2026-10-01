@@ -919,7 +919,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$markup   = '<!-- wp:columns {"isStackedOnMobile":false} --><div class="wp-block-columns">'
 			. '<!-- wp:column {"width":"5rem"} --><div class="wp-block-column" style="flex-basis:5rem"><!-- wp:post-date {"format":"g:i a"} /--></div><!-- /wp:column -->'
 			. '<!-- wp:column --><div class="wp-block-column">'
-			. '<!-- wp:group {"layout":{"type":"flex","orientation":"vertical"}} --><div class="wp-block-group">'
+			. '<!-- wp:group {"layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} --><div class="wp-block-group">'
 			. '<!-- wp:post-content /-->'
 			. self::read_more_paragraph()
 			. '</div><!-- /wp:group -->'
