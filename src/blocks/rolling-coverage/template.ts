@@ -1,6 +1,8 @@
 /**
  * WordPress dependencies
  */
+import { store as coreStore } from '@wordpress/core-data';
+import { select } from '@wordpress/data';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -286,6 +288,162 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 ];
 
 /**
+ * Class of the paragraph that links to the entry's breakout post, mirroring
+ * Entry_Bindings::READ_MORE_CLASS.
+ */
+const READ_MORE_CLASS = 'newspack-rolling-coverage-read-more';
+
+/**
+ * The site's time format, for the Compact layout's time column.
+ *
+ * @return {string} A PHP date format.
+ */
+function siteTimeFormat(): string {
+	const site = (
+		select( coreStore ) as unknown as {
+			getEntityRecord: (
+				kind: string,
+				name: string
+			) => { time_format?: string } | undefined;
+		}
+	 ).getEntityRecord( 'root', 'site' );
+
+	return site?.time_format || 'g:i a';
+}
+
+/**
+ * A compact entry's row: the time on the left, the content and a "Read more"
+ * link stacked on the right.
+ *
+ * @return {TemplateItem} The row.
+ */
+function compactRow(): TemplateItem {
+	return [
+		'core/group',
+		{
+			layout: {
+				type: 'flex',
+				flexWrap: 'nowrap',
+				verticalAlignment: 'top',
+			},
+			style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+			metadata: { name: __( 'Row', 'newspack-rolling-coverage' ) },
+		},
+		[
+			[
+				'core/post-date',
+				{
+					...POST_DATE_ATTRIBUTES,
+					format: siteTimeFormat(),
+					fontSize: 'small',
+					style: {
+						typography: { fontWeight: '600' },
+						layout: { selfStretch: 'fixed', flexSize: '5rem' },
+					},
+				},
+			],
+			[
+				'core/group',
+				{
+					layout: { type: 'flex', orientation: 'vertical' },
+					style: {
+						spacing: { blockGap: 'var:preset|spacing|20' },
+					},
+					metadata: {
+						name: __( 'Body', 'newspack-rolling-coverage' ),
+					},
+				},
+				[
+					[
+						'core/post-content',
+						{
+							style: {
+								spacing: {
+									padding: {
+										top: '0',
+										right: '0',
+										bottom: '0',
+										left: '0',
+									},
+								},
+							},
+						},
+					],
+					[
+						'core/paragraph',
+						{
+							className: READ_MORE_CLASS,
+							content: __(
+								'Read more',
+								'newspack-rolling-coverage'
+							),
+							lock: LOCKED,
+							metadata: {
+								name: __(
+									'Read more',
+									'newspack-rolling-coverage'
+								),
+							},
+						},
+					],
+				],
+			],
+		],
+	];
+}
+
+/**
+ * The Compact layout's per-entry template: a time column beside the entry's
+ * content, with a "Read more" paragraph linked to the breakout post.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+function compactEntryTemplate(): TemplateItem[] {
+	return [
+		[
+			'core/group',
+			{
+				className: PINNED_CARD_CLASS,
+				lock: LOCKED_IN_PLACE,
+				style: {
+					color: { background: PINNED_CARD_BACKGROUND },
+					spacing: {
+						padding: {
+							top: 'var:preset|spacing|30',
+							right: 'var:preset|spacing|30',
+							bottom: 'var:preset|spacing|30',
+							left: 'var:preset|spacing|30',
+						},
+						blockGap: DEFAULT_ENTRY_GAP,
+					},
+					border: { radius: ENTRY_RADIUS },
+				},
+				metadata: {
+					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			[ PINNED_ROW, compactRow() ],
+		],
+		[
+			'core/group',
+			{
+				className: REGULAR_ENTRY_CLASS,
+				lock: LOCKED_IN_PLACE,
+				style: {
+					spacing: { blockGap: DEFAULT_ENTRY_GAP },
+					border: { radius: ENTRY_RADIUS },
+				},
+				metadata: {
+					name: __( 'Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			[ compactRow() ],
+		],
+		[ 'core/separator', { className: 'is-style-wide' } ],
+	];
+}
+
+/**
  * The follow button, rendered once at the top of the coverage: a core button
  * bound to the coverage's notification tag. It's a `<button>`, so the bound
  * value never shows as a link; it only carries the tag to the follow script.
@@ -455,9 +613,13 @@ function isLatestButtons( block: ButtonsBlock ): boolean {
  * spaced by its Block spacing.
  *
  * @param {Object[]} items The items.
+ * @param {string}   gap   The space between the items, as a spacing preset.
  * @return {Object} The Feed group.
  */
-function feedTemplate( items: TemplateItem[] ): TemplateItem {
+function feedTemplate(
+	items: TemplateItem[],
+	gap = 'var:preset|spacing|50'
+): TemplateItem {
 	return [
 		'core/group',
 		{
@@ -468,7 +630,7 @@ function feedTemplate( items: TemplateItem[] ): TemplateItem {
 				orientation: 'vertical',
 				justifyContent: 'stretch',
 			},
-			style: { spacing: { blockGap: 'var:preset|spacing|50' } },
+			style: { spacing: { blockGap: gap } },
 			metadata: { name: __( 'Feed', 'newspack-rolling-coverage' ) },
 		},
 		items,
@@ -606,8 +768,31 @@ function withoutPinnedRow<
 }
 
 /**
+ * Whether a block is the paragraph that links to the entry's breakout post,
+ * mirroring Entry_Bindings::is_read_more_paragraph().
+ *
+ * @param {Object} block            The block.
+ * @param {string} block.name       Block name.
+ * @param {Object} block.attributes Block attributes.
+ * @return {boolean} Whether it's the "Read more" paragraph.
+ */
+function isReadMoreParagraph( block: {
+	name: string;
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const className = block.attributes?.className;
+
+	return (
+		block.name === 'core/paragraph' &&
+		typeof className === 'string' &&
+		className.split( ' ' ).includes( READ_MORE_CLASS )
+	);
+}
+
+/**
  * Whether a block is the "Read more" link to the entry's breakout post: a
- * button whose link is bound to it, or the legacy Breakout Post Link block.
+ * button whose link is bound to it, the "Read more" paragraph, or the legacy
+ * Breakout Post Link block.
  *
  * @param {Object} block            The block.
  * @param {string} block.name       Block name.
@@ -618,7 +803,10 @@ function isBreakoutLink( block: {
 	name: string;
 	attributes?: Record< string, unknown >;
 } ): boolean {
-	if ( block.name === 'newspack-rolling-coverage/breakout-post-link' ) {
+	if (
+		block.name === 'newspack-rolling-coverage/breakout-post-link' ||
+		isReadMoreParagraph( block )
+	) {
 		return true;
 	}
 
@@ -1055,6 +1243,9 @@ const ENTRY_ALLOWED_BLOCKS = [
 
 export {
 	ENTRY_TEMPLATE,
+	READ_MORE_CLASS,
+	compactEntryTemplate,
+	isReadMoreParagraph,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_TEMPLATE,
 	feedTemplate,

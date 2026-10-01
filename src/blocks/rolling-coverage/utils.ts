@@ -30,10 +30,16 @@ import {
 	IS_BLOCK_THEME,
 	CAN_EDIT_THEME_OPTIONS,
 } from './config';
-import { BLOCK_NAME, innerTemplate } from './layout';
+import { BLOCK_NAME, innerTemplate, compactInnerTemplate } from './layout';
+import type { BuiltInLayoutSlug } from './layouts';
 
-let defaultLayoutId = Number( LAYOUT_IDS.default ) || 0;
-let pendingDefaultLayout: Promise< number > | null = null;
+const layoutIds: Record< BuiltInLayoutSlug, number > = {
+	default: Number( LAYOUT_IDS.default ) || 0,
+	compact: Number( LAYOUT_IDS.compact ) || 0,
+};
+const pendingLayouts: Partial<
+	Record< BuiltInLayoutSlug, Promise< number > >
+> = {};
 
 /**
  * Searches coverage terms by name.
@@ -229,49 +235,57 @@ async function generateKeyTakeaways(
 }
 
 /**
- * The ID of the shared layout pattern new blocks sync to, or 0 when there
- * isn't one yet.
+ * The ID of a built-in layout's shared pattern, or 0 when there isn't one yet.
  *
- * @return {number} The default layout's pattern ID.
+ * @param {BuiltInLayoutSlug} slug The built-in layout's slug.
+ * @return {number} The layout's pattern ID.
  */
-function getDefaultLayoutId(): number {
-	return defaultLayoutId;
+function getLayoutId( slug: BuiltInLayoutSlug ): number {
+	return layoutIds[ slug ];
 }
 
 /**
- * Creates the shared layout pattern from the built-in default layout, or
- * returns the existing one if another story created it first. Concurrent
- * calls share one request.
+ * Creates a built-in layout's shared pattern, or returns the existing one if
+ * another story created it first. Concurrent calls for a layout share one
+ * request.
  *
- * @return {Promise<number>} The default layout's pattern ID. Rejects on failure.
+ * @param {BuiltInLayoutSlug} slug The built-in layout's slug.
+ * @return {Promise<number>} The layout's pattern ID. Rejects on failure.
  */
-function createDefaultLayout(): Promise< number > {
-	if ( ! pendingDefaultLayout ) {
-		const content = serialize(
-			createBlock(
-				BLOCK_NAME,
-				{},
-				createBlocksFromInnerBlocksTemplate( innerTemplate() )
-			)
-		);
-		pendingDefaultLayout = apiFetch< { id: number } >( {
-			url: `${ LAYOUTS_REST_BASE }/default`,
-			method: 'POST',
-			data: { content },
-		} )
-			.then( ( response ) => {
-				if ( ! response?.id ) {
-					throw new Error( 'Missing layout ID.' );
-				}
-				defaultLayoutId = response.id;
-				return defaultLayoutId;
-			} )
-			.finally( () => {
-				pendingDefaultLayout = null;
-			} );
+function createLayout( slug: BuiltInLayoutSlug ): Promise< number > {
+	const pending = pendingLayouts[ slug ];
+
+	if ( pending ) {
+		return pending;
 	}
 
-	return pendingDefaultLayout;
+	const template = slug === 'compact' ? compactInnerTemplate : innerTemplate;
+	const content = serialize(
+		createBlock(
+			BLOCK_NAME,
+			{},
+			createBlocksFromInnerBlocksTemplate( template() )
+		)
+	);
+	const request = apiFetch< { id: number } >( {
+		url: `${ LAYOUTS_REST_BASE }/${ slug }`,
+		method: 'POST',
+		data: { content },
+	} )
+		.then( ( response ) => {
+			if ( ! response?.id ) {
+				throw new Error( 'Missing layout ID.' );
+			}
+			layoutIds[ slug ] = response.id;
+			return response.id;
+		} )
+		.finally( () => {
+			delete pendingLayouts[ slug ];
+		} );
+
+	pendingLayouts[ slug ] = request;
+
+	return request;
 }
 
 const PREVIEW_COVERAGE_ARG = 'rolling_coverage_preview';
@@ -316,8 +330,8 @@ export {
 	updateCoverageCanonicalUrl,
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
-	getDefaultLayoutId,
-	createDefaultLayout,
+	getLayoutId,
+	createLayout,
 	getLayoutEditUrl,
 	PREVIEW_COVERAGE_ID,
 };

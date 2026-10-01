@@ -11,6 +11,7 @@ import { useCallback, useMemo } from '@wordpress/element';
 import metadata from './block.json';
 import {
 	ENTRY_TEMPLATE,
+	compactEntryTemplate,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
@@ -80,6 +81,25 @@ export function innerTemplate(): TemplateItem[] {
 			FOLLOW_TEMPLATE,
 			...ENTRY_TEMPLATE,
 		] ),
+	];
+}
+
+/**
+ * The Compact layout's inner-blocks template: the same Feed group, buttons
+ * and entry kinds as the default, with a tighter gap and a time-led entry.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function compactInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			[
+				latestTemplate( paletteSlugs() ),
+				FOLLOW_TEMPLATE,
+				...compactEntryTemplate(),
+			],
+			'var:preset|spacing|30'
+		),
 	];
 }
 

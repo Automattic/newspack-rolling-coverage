@@ -70,8 +70,8 @@ import {
 	updateCoverageCanonicalUrl,
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
-	getDefaultLayoutId,
-	createDefaultLayout,
+	getLayoutId,
+	createLayout,
 	getLayoutEditUrl,
 	PREVIEW_COVERAGE_ID,
 } from './utils';
@@ -265,7 +265,8 @@ export default function Edit( {
 		( ( patternCategories ?? [] ).includes(
 			Number( LAYOUT_CATEGORY_ID )
 		) ||
-			( currentPostId > 0 && currentPostId === getDefaultLayoutId() ) );
+			( currentPostId > 0 &&
+				currentPostId === getLayoutId( 'default' ) ) );
 	const innerBlockCount = useSelect(
 		( select ) =>
 			(
@@ -378,12 +379,12 @@ export default function Edit( {
 			setIsCreatingLayout( false );
 		};
 
-		if ( getDefaultLayoutId() ) {
-			sync( getDefaultLayoutId() );
+		if ( getLayoutId( 'default' ) ) {
+			sync( getLayoutId( 'default' ) );
 			return;
 		}
 
-		createDefaultLayout()
+		createLayout( 'default' )
 			.then( ( id ) => ! cancelled && sync( id ) )
 			.catch( () => ! cancelled && fallBackToLocal() );
 
@@ -484,7 +485,7 @@ export default function Edit( {
 	const sampleContexts = useSampleEntries( isLayoutPattern );
 	const entriesCoverageId =
 		coverageId || ( isLayoutPattern ? PREVIEW_COVERAGE_ID : 0 );
-	const isSettingUpLayout = isCreatingLayout && ! getDefaultLayoutId();
+	const isSettingUpLayout = isCreatingLayout && ! getLayoutId( 'default' );
 	const isLoading =
 		isSettingUpLayout ||
 		( coverageId > 0 && coverageLoadedFor !== coverageId ) ||
@@ -637,7 +638,7 @@ export default function Edit( {
 
 	const restoreLayout = useCallback( () => {
 		setLayoutError( null );
-		createDefaultLayout()
+		createLayout( 'default' )
 			.then( ( id ) => setAttributes( { layoutId: id } ) )
 			.catch( () =>
 				setLayoutError(
