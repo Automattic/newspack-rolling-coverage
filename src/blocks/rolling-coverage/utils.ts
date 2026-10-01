@@ -120,29 +120,6 @@ async function getCoverage( id: number ): Promise< CoverageOption | null > {
 }
 
 /**
- * Updates a coverage term's status.
- *
- * @param {number} id     Coverage term ID.
- * @param {string} status New status value.
- * @return {Promise<boolean>} Whether the update succeeded.
- */
-async function updateCoverageStatus(
-	id: number,
-	status: string
-): Promise< boolean > {
-	try {
-		await apiFetch( {
-			url: `${ COVERAGES_REST_BASE }/${ id }`,
-			method: 'POST',
-			data: { meta: { [ STATUS_META_KEY ]: status } },
-		} );
-		return true;
-	} catch ( error ) {
-		return false;
-	}
-}
-
-/**
  * Updates a coverage term's canonical URL, used to build push-notification
  * links for its entries.
  *
@@ -342,7 +319,6 @@ function getLayoutEditUrl( layoutId: number, coverageId: number ): string {
 export {
 	searchCoverages,
 	getCoverage,
-	updateCoverageStatus,
 	updateCoverageCanonicalUrl,
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
