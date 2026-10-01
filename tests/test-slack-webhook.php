@@ -877,11 +877,18 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	public function failed_download_provider() {
 		return [
 			'the request fails'               => [ new WP_Error( 'http_request_failed', 'Operation timed out' ) ],
-			// Slack answers with its sign-in page when the app lacks the files:read scope.
+			// A page in place of the image, as an app without the files:read scope could get.
 			'a sign-in page comes back'       => [
 				[
 					'type' => 'text/html; charset=utf-8',
 					'body' => '<html><body>Sign in to Slack</body></html>',
+				],
+			],
+			'Slack redirects the request'     => [
+				[
+					'code' => 302,
+					'type' => 'image/png',
+					'body' => base64_decode( self::PNG ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Test fixture.
 				],
 			],
 			'the content is not what it says' => [
@@ -898,13 +905,6 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	 * that came with it, and leaves nothing behind.
 	 *
 	 * @dataProvider failed_download_provider
-			'Slack redirects the request'     => [
-				[
-					'code' => 302,
-					'type' => 'image/png',
-					'body' => base64_decode( self::PNG ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Test fixture.
-				],
-			],
 	 *
 	 * @param array|WP_Error $file_response What the file request answers with.
 	 */
