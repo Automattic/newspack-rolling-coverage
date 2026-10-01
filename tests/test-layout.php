@@ -284,6 +284,8 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$this->assertSame( [ Layout::PATTERN_CATEGORY ], wp_get_object_terms( $id, 'wp_pattern_category', [ 'fields' => 'slugs' ] ) );
 		$this->assertSame( $id, Layout::get_layout_id( 'default' ) );
 		$this->assertSame( 'Rolling Coverage: Default', get_the_title( $id ) );
+		$this->assertSame( Layout::get_pattern_category_id(), $first->get_data()['categoryId'] );
+		$this->assertGreaterThan( 0, $first->get_data()['categoryId'] );
 	}
 
 	/**

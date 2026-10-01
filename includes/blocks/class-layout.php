@@ -246,7 +246,7 @@ class Layout {
 		$existing = self::get_layout_id( $slug );
 
 		if ( $existing ) {
-			return new WP_REST_Response( [ 'id' => $existing ], 200 );
+			return self::layout_response( $existing, 200 );
 		}
 
 		$content = (string) $request->get_param( 'content' );
@@ -278,7 +278,7 @@ class Layout {
 			$existing = self::get_layout_id( $slug );
 
 			if ( $existing ) {
-				return new WP_REST_Response( [ 'id' => $existing ], 200 );
+				return self::layout_response( $existing, 200 );
 			}
 
 			$layout_id = wp_insert_post(
@@ -301,10 +301,28 @@ class Layout {
 			update_post_meta( $layout_id, self::SLUG_META_KEY, $slug );
 			update_option( self::option_name( $slug ), $layout_id, false );
 
-			return new WP_REST_Response( [ 'id' => $layout_id ], 201 );
+			return self::layout_response( $layout_id, 201 );
 		} finally {
 			delete_option( self::lock_name( $slug ) );
 		}
+	}
+
+	/**
+	 * A built-in layout's ID, with the pattern category's ID so the editor
+	 * can list the layouts once the first one has created the category.
+	 *
+	 * @param int $layout_id Pattern ID.
+	 * @param int $status    HTTP status.
+	 * @return WP_REST_Response
+	 */
+	private static function layout_response( int $layout_id, int $status ): WP_REST_Response {
+		return new WP_REST_Response(
+			[
+				'id'         => $layout_id,
+				'categoryId' => self::get_pattern_category_id(),
+			],
+			$status
+		);
 	}
 
 	/**

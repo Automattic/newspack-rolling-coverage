@@ -72,6 +72,7 @@ import {
 	generateKeyTakeaways,
 	getLayoutEditUrl,
 	getLayoutId,
+	getLayoutCategoryId,
 	createLayout,
 	PREVIEW_COVERAGE_ID,
 } from './utils';
@@ -89,7 +90,6 @@ import {
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
 	ONESIGNAL_CONFIGURED,
-	LAYOUT_CATEGORY_ID,
 } from './config';
 import { useSampleEntries } from './samples';
 import EntryBlockPreview from './components/entry-block-preview';
@@ -267,9 +267,7 @@ export default function Edit( {
 	const isLayoutPattern =
 		! coverageId &&
 		currentPostType === 'wp_block' &&
-		( ( patternCategories ?? [] ).includes(
-			Number( LAYOUT_CATEGORY_ID )
-		) ||
+		( ( patternCategories ?? [] ).includes( getLayoutCategoryId() ) ||
 			builtInLayoutSlugFor( currentPostId ) !== null );
 	const innerBlockCount = useSelect(
 		( select ) =>
@@ -410,11 +408,11 @@ export default function Edit( {
 
 		createLayout( 'default' )
 			.then( ( id ) => {
-				if ( Number( LAYOUT_CATEGORY_ID ) ) {
+				if ( getLayoutCategoryId() ) {
 					invalidateResolution( 'getEntityRecords', [
 						'postType',
 						'wp_block',
-						layoutsQuery( Number( LAYOUT_CATEGORY_ID ) ),
+						layoutsQuery( getLayoutCategoryId() ),
 					] );
 				}
 				return ! cancelled && sync( id );

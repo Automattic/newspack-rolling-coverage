@@ -29,6 +29,7 @@ import {
 	ADMIN_URL,
 	IS_BLOCK_THEME,
 	CAN_EDIT_THEME_OPTIONS,
+	LAYOUT_CATEGORY_ID,
 } from './config';
 import { BLOCK_NAME, innerTemplate, compactInnerTemplate } from './layout';
 import type { BuiltInLayoutSlug } from './layouts';
@@ -37,6 +38,7 @@ const layoutIds: Record< BuiltInLayoutSlug, number > = {
 	default: Number( LAYOUT_IDS.default ) || 0,
 	compact: Number( LAYOUT_IDS.compact ) || 0,
 };
+let layoutCategoryId = Number( LAYOUT_CATEGORY_ID ) || 0;
 const pendingLayouts: Partial<
 	Record< BuiltInLayoutSlug, Promise< number > >
 > = {};
@@ -245,6 +247,15 @@ function getLayoutId( slug: BuiltInLayoutSlug ): number {
 }
 
 /**
+ * The layout pattern category's ID, or 0 until a built-in layout creates it.
+ *
+ * @return {number} The category's term ID.
+ */
+function getLayoutCategoryId(): number {
+	return layoutCategoryId;
+}
+
+/**
  * Creates a built-in layout's shared pattern, or returns the existing one if
  * another story created it first. Concurrent calls for a layout share one
  * request.
@@ -267,7 +278,7 @@ function createLayout( slug: BuiltInLayoutSlug ): Promise< number > {
 			createBlocksFromInnerBlocksTemplate( template() )
 		)
 	);
-	const request = apiFetch< { id: number } >( {
+	const request = apiFetch< { id: number; categoryId?: number } >( {
 		url: `${ LAYOUTS_REST_BASE }/${ slug }`,
 		method: 'POST',
 		data: { content },
@@ -277,6 +288,8 @@ function createLayout( slug: BuiltInLayoutSlug ): Promise< number > {
 				throw new Error( 'Missing layout ID.' );
 			}
 			layoutIds[ slug ] = response.id;
+			layoutCategoryId =
+				Number( response.categoryId ) || layoutCategoryId;
 			return response.id;
 		} )
 		.finally( () => {
@@ -331,6 +344,7 @@ export {
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
 	getLayoutId,
+	getLayoutCategoryId,
 	createLayout,
 	getLayoutEditUrl,
 	PREVIEW_COVERAGE_ID,

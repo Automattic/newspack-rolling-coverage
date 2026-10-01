@@ -17,10 +17,9 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import { LAYOUT_CATEGORY_ID } from '../config';
 import { BLOCK_NAME } from '../layout';
 import { getBuiltInLayouts, type BuiltInLayoutSlug } from '../layouts';
-import { createLayout, getLayoutId } from '../utils';
+import { createLayout, getLayoutCategoryId, getLayoutId } from '../utils';
 
 export type LayoutChoice =
 	| { kind: 'pattern'; id: number }
@@ -191,7 +190,7 @@ export default function LayoutPickerModal( {
 		invalidateResolution: ( selector: string, args: unknown[] ) => void;
 	};
 
-	const categoryId = Number( LAYOUT_CATEGORY_ID ) || 0;
+	const categoryId = getLayoutCategoryId();
 	const { records, hasResolved } = useSelect(
 		( select ) => {
 			if ( ! categoryId ) {
@@ -234,7 +233,7 @@ export default function LayoutPickerModal( {
 			return {
 				key: layout.slug,
 				title: layout.title,
-				patternId: record ? id : 0,
+				patternId: id,
 				slug: layout.slug,
 				innerBlocks:
 					fromPattern ??
@@ -286,11 +285,11 @@ export default function LayoutPickerModal( {
 		setPendingKey( card.key );
 		createLayout( slug )
 			.then( ( id ) => {
-				if ( categoryId ) {
+				if ( getLayoutCategoryId() ) {
 					invalidateResolution( 'getEntityRecords', [
 						'postType',
 						'wp_block',
-						layoutsQuery( categoryId ),
+						layoutsQuery( getLayoutCategoryId() ),
 					] );
 				}
 				if ( isMounted.current ) {
