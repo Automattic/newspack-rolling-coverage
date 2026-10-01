@@ -39,7 +39,6 @@ import {
 	Placeholder,
 	TextareaControl,
 	ToolbarButton,
-	ToolbarGroup,
 } from '@wordpress/components';
 import {
 	useState,
@@ -75,7 +74,6 @@ import {
 	PREVIEW_COVERAGE_ID,
 } from './utils';
 import {
-	ENTRY_EDITED_STATES,
 	feedGroupOf,
 	feedItems,
 	isFollowButtons,
@@ -99,8 +97,6 @@ import { blockGapCss } from './spacing';
 import {
 	BLOCK_NAME,
 	FOLLOW_BLOCK_NAME,
-	RENDER_ONCE_BLOCKS,
-	STATE_BY_BLOCK_NAME,
 	innerTemplate,
 	useLayoutPreview,
 } from './layout';
@@ -111,14 +107,6 @@ import type {
 	EntryContext,
 	TemplateBlocks,
 } from './types';
-
-/**
- * The Edited State toolbar's options, derived from ENTRY_EDITED_STATES.
- */
-const EDITED_STATE_OPTIONS = ENTRY_EDITED_STATES.map( ( state ) => ( {
-	value: state.value,
-	label: state.label,
-} ) );
 
 /**
  * Neutral block context used when a coverage has no published entries yet,
@@ -228,10 +216,6 @@ export default function Edit( {
 		archivedNoticeLinkLabel,
 		layoutId,
 	} = attributes;
-	const [ editedState, setEditedState ] = useState(
-		EDITED_STATE_OPTIONS[ 0 ].value
-	);
-	const editedStateLabelId = `newspack-rolling-coverage-edited-state-${ clientId }`;
 	const { currentPostType, currentPostId, patternCategories } = useSelect(
 		( select ) => {
 			const editor = select( editorStore ) as unknown as {
@@ -490,7 +474,6 @@ export default function Edit( {
 	const syncedBlocks = layoutBlocks ?? defaultLayoutBlocks;
 	const feedGroup = feedGroupOf( isSynced ? syncedBlocks : innerBlocks );
 	const blockProps = useBlockProps( {
-		'data-editor-state': editedState,
 		style: feedGapStyle( feedGroup ),
 	} );
 
@@ -518,49 +501,12 @@ export default function Edit( {
 		[ templateBlocks ]
 	);
 
-	// Disabled blocks drop out of List View and can't be selected, so only
-	// the current editor state's blocks show there.
 	const { setBlockEditingMode, unsetBlockEditingMode } = useDispatch(
 		blockEditorStore.name
 	) as unknown as {
 		setBlockEditingMode: ( clientId: string, mode: string ) => void;
 		unsetBlockEditingMode: ( clientId: string ) => void;
 	};
-	const stateBlocksKey = allBlocks
-		.filter( ( block ) => STATE_BY_BLOCK_NAME[ block.name ] )
-		.map(
-			( block ) =>
-				`${ block.clientId }:${ STATE_BY_BLOCK_NAME[ block.name ] }`
-		)
-		.join( ',' );
-	const stateBlockIds = useMemo(
-		() =>
-			( stateBlocksKey ? stateBlocksKey.split( ',' ) : [] ).map(
-				( pair ) => {
-					const [ id, state ] = pair.split( ':' );
-					return { clientId: id, state };
-				}
-			),
-		[ stateBlocksKey ]
-	);
-	useEffect( () => {
-		stateBlockIds.forEach( ( { clientId: id, state } ) => {
-			if ( state === editedState ) {
-				unsetBlockEditingMode( id );
-			} else {
-				setBlockEditingMode( id, 'disabled' );
-			}
-		} );
-		return () =>
-			stateBlockIds.forEach( ( { clientId: id } ) =>
-				unsetBlockEditingMode( id )
-			);
-	}, [
-		stateBlockIds,
-		editedState,
-		setBlockEditingMode,
-		unsetBlockEditingMode,
-	] );
 
 	// Hidden wherever the site never renders it: without OneSignal, or when the
 	// coverage is archived. It stays in the template for when it can render.
@@ -652,13 +598,8 @@ export default function Edit( {
 			feedItems( syncedBlocks )
 				.filter(
 					( block ) =>
-						RENDER_ONCE_BLOCKS.includes( block.name ) ||
+						block.name === FOLLOW_BLOCK_NAME ||
 						isFollowButtons( block )
-				)
-				.filter(
-					( block ) =>
-						! STATE_BY_BLOCK_NAME[ block.name ] ||
-						STATE_BY_BLOCK_NAME[ block.name ] === editedState
 				)
 				.filter(
 					( block ) =>
@@ -666,7 +607,7 @@ export default function Edit( {
 						( block.name !== FOLLOW_BLOCK_NAME &&
 							! isFollowButtons( block ) )
 				),
-		[ syncedBlocks, editedState, isFollowHidden ]
+		[ syncedBlocks, isFollowHidden ]
 	);
 
 	const detach = useCallback( () => {
@@ -1334,37 +1275,6 @@ export default function Edit( {
 	return (
 		<>
 			{ inspector }
-
-			{ ! isLoading && hasLayout && (
-				<BlockControls>
-					<ToolbarGroup
-						className="newspack-rolling-coverage-edited-state"
-						{ ...{
-							role: 'group',
-							'aria-labelledby': editedStateLabelId,
-						} }
-					>
-						<span
-							id={ editedStateLabelId }
-							className="newspack-rolling-coverage-edited-state__label"
-						>
-							{ __(
-								'Edited State:',
-								'newspack-rolling-coverage'
-							) }
-						</span>
-						{ EDITED_STATE_OPTIONS.map( ( option ) => (
-							<ToolbarButton
-								key={ option.value }
-								isPressed={ option.value === editedState }
-								onClick={ () => setEditedState( option.value ) }
-							>
-								{ option.label }
-							</ToolbarButton>
-						) ) }
-					</ToolbarGroup>
-				</BlockControls>
-			) }
 
 			{ ! isLoading && isSynced && coverageId > 0 && (
 				<BlockControls group="other">

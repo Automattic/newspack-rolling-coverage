@@ -183,16 +183,6 @@ type TemplateItem = [ string, Record< string, unknown >?, TemplateItem[]? ];
  */
 type TemplateBlocks = { name: string; [ key: string ]: unknown }[];
 
-/**
- * One entry in the Edited State toolbar: its label, and the block(s) shown when
- * it's the active tab.
- */
-interface EntryEditedState {
-	value: string;
-	label: string;
-	blocks: TemplateItem[];
-}
-
 export type {
 	CoverageOption,
 	RollingCoverageAttributes,
@@ -210,5 +200,4 @@ export type {
 	PendingEntry,
 	TemplateItem,
 	TemplateBlocks,
-	EntryEditedState,
 };

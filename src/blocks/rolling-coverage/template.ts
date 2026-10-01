@@ -8,7 +8,7 @@ import { __ } from '@wordpress/i18n';
  */
 import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
-import type { TemplateItem, EntryEditedState } from './types';
+import type { TemplateItem } from './types';
 
 const LOCKED = { remove: true, move: false };
 
@@ -1053,22 +1053,9 @@ const ENTRY_ALLOWED_BLOCKS = [
 	'newspack-rolling-coverage/share',
 ];
 
-/**
- * The block's editor states. "default" has no extra blocks. Extend by
- * adding an entry here plus a matching editor.scss rule.
- */
-const ENTRY_EDITED_STATES: EntryEditedState[] = [
-	{
-		value: 'default',
-		label: __( 'Default', 'newspack-rolling-coverage' ),
-		blocks: [],
-	},
-];
-
 export {
 	ENTRY_TEMPLATE,
 	ENTRY_ALLOWED_BLOCKS,
-	ENTRY_EDITED_STATES,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
 	feedGroupOf,

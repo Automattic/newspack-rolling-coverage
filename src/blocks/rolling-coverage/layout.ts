@@ -12,7 +12,6 @@ import metadata from './block.json';
 import {
 	ENTRY_TEMPLATE,
 	ENTRY_ALLOWED_BLOCKS,
-	ENTRY_EDITED_STATES,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
 	latestTemplate,
@@ -39,29 +38,6 @@ export const BLOCK_NAME = metadata.name;
  * coverages saved before the follow button became a core button.
  */
 export const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
-
-/**
- * Every block name injected by an editor state. Used for the allowed-blocks
- * list, and to exclude these from the per-entry preview cards below.
- */
-export const STATE_BLOCK_NAMES = ENTRY_EDITED_STATES.flatMap( ( state ) =>
-	state.blocks.map( ( [ blockName ] ) => blockName )
-);
-
-/**
- * Block names that render once at the top of the coverage (not per entry).
- * Used to split inner blocks into these vs. the per-entry template.
- */
-export const RENDER_ONCE_BLOCKS = [ FOLLOW_BLOCK_NAME, ...STATE_BLOCK_NAMES ];
-
-/**
- * The editor state each state block belongs to, keyed by block name.
- */
-export const STATE_BY_BLOCK_NAME: Record< string, string > = Object.fromEntries(
-	ENTRY_EDITED_STATES.flatMap( ( state ) =>
-		state.blocks.map( ( [ blockName ] ) => [ blockName, state.value ] )
-	)
-);
 
 /**
  * The slugs of every color in the editor's palette: the theme's, core's
@@ -92,8 +68,8 @@ function paletteSlugs(): string[] {
 /**
  * Default inner-blocks template for the Rolling Coverage block: the Feed
  * group, holding the "Jump to latest" button, in the colors the editor's
- * palette has for it, and the follow button at the top, then every editor
- * state's blocks, then the per-entry blocks.
+ * palette has for it, and the follow button at the top, then the per-entry
+ * blocks.
  *
  * @return {TemplateItem[]} The template.
  */
@@ -102,7 +78,6 @@ export function innerTemplate(): TemplateItem[] {
 		feedTemplate( [
 			latestTemplate( paletteSlugs() ),
 			FOLLOW_TEMPLATE,
-			...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
 			...ENTRY_TEMPLATE,
 		] ),
 	];
@@ -114,7 +89,6 @@ export function innerTemplate(): TemplateItem[] {
 export const ALL_ALLOWED_BLOCKS = [
 	...ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_BLOCK_NAME,
-	...STATE_BLOCK_NAMES,
 ];
 
 /**
@@ -150,7 +124,8 @@ export function previewTemplateFor(
 
 /**
  * The per-entry preview blocks for a layout: the layout's blocks minus the
- * render-once ones, shaped per entry the way the site renders each entry.
+ * follow and Jump to latest buttons, shaped per entry the way the site
+ * renders each entry.
  *
  * @param {Object[]}       allBlocks      The layout's top-level blocks.
  * @param {EntryContext[]} entryContexts  The entries being previewed.
@@ -169,7 +144,7 @@ export function useLayoutPreview(
 		() =>
 			allBlocks.filter(
 				( block ) =>
-					! RENDER_ONCE_BLOCKS.includes( block.name ) &&
+					block.name !== FOLLOW_BLOCK_NAME &&
 					! isFollowButtons( block ) &&
 					! isLatestButtons( block )
 			),
