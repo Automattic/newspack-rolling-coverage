@@ -201,6 +201,48 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A reply's entry is a child of the entry for the message its thread
+	 * starts from, so the two can be shown together.
+	 */
+	public function test_reply_is_filed_under_the_entry_its_thread_starts_from() {
+		$coverage_id = self::create_coverage();
+
+		$first_entry_id = self::ingest( self::payload(), $coverage_id );
+		$reply_entry_id = self::ingest(
+			self::payload(
+				[
+					'source_ref' => '1767225700.000200',
+					'thread_ref' => self::SOURCE_REF,
+				]
+			),
+			$coverage_id
+		);
+
+		$this->assertSame( $first_entry_id, get_post( $reply_entry_id )->post_parent, 'The reply should be a child of the first entry.' );
+		$this->assertSame( 0, get_post( $first_entry_id )->post_parent, 'The first entry should stay top-level.' );
+	}
+
+	/**
+	 * A reply whose thread has no entry in its coverage is a top-level entry.
+	 * The same message id in another coverage is a different message.
+	 */
+	public function test_reply_is_top_level_when_its_thread_has_no_entry_in_the_coverage() {
+		self::ingest( self::payload(), self::create_coverage() );
+
+		$reply_entry_id = self::ingest(
+			self::payload(
+				[
+					'source_ref' => '1767225700.000200',
+					'thread_ref' => self::SOURCE_REF,
+				]
+			),
+			self::create_coverage()
+		);
+
+		$this->assertSame( 0, get_post( $reply_entry_id )->post_parent );
+	}
+
+	/**
 	 * Entries from a chat source have no title; the message is the entry.
 	 */
 	public function test_entry_has_no_title() {

@@ -675,6 +675,26 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A Slack reply's entry is a child of the entry for the message it was
+	 * posted under.
+	 */
+	public function test_reply_entry_is_a_child_of_the_entry_for_its_thread() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$this->channel_messages = [ self::MESSAGE_TS => 'Polls have closed across the county.' ];
+
+		self::controller()->handle_event( self::webhook_request( self::message_event_body() ) );
+		$message_entry_id = self::get_coverage_entries( $coverage_id )[0]->ID;
+		self::controller()->handle_event( self::webhook_request( self::thread_reply_event_body() ) );
+		$parents_by_entry = wp_list_pluck( self::get_coverage_entries( $coverage_id ), 'post_parent', 'ID' );
+
+		$this->assertCount( 2, $parents_by_entry, 'The message and its reply should each have an entry.' );
+		unset( $parents_by_entry[ $message_entry_id ] );
+		$this->assertSame( [ $message_entry_id ], array_values( $parents_by_entry ), 'The reply should be a child of the message entry.' );
+	}
+
+	/**
 	 * The ways the first message of a thread can be unreadable: whether Slack
 	 * times out, and what the channel's history holds.
 	 *

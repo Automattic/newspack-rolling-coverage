@@ -23,7 +23,7 @@ class Source_Event_Payload {
 	 * @param string|null $author_external_id   Platform-native author id.
 	 * @param string|null $author_display_name  Resolved display name.
 	 * @param string      $content_html         Sanitized HTML body.
-	 * @param string|null $thread_ref           Platform-native thread id.
+	 * @param string|null $thread_ref           Platform-native thread id: the `source_ref` of the message the thread starts from.
 	 * @param string      $external_timestamp   ISO 8601 timestamp.
 	 * @param array       $raw_payload          Original platform-native payload.
 	 */
