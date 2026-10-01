@@ -836,6 +836,37 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * WordPress resizes a GIF to a single frame, so a GIF is shown from the
+	 * file that was uploaded and keeps its animation.
+	 */
+	public function test_gif_is_shown_from_its_original_file() {
+		self::pretend_images_have_a_large_copy();
+		$this->file_response = [
+			'type' => 'image/gif',
+			'body' => base64_decode( 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Test fixture: a 1x1 GIF.
+		];
+
+		$coverage_id = self::deliver_to_linked_channel(
+			[
+				'files' => [
+					self::slack_file(
+						[
+							'name'     => 'count.gif',
+							'mimetype' => 'image/gif',
+						]
+					),
+				],
+			]
+		);
+		$image       = self::get_media()[0];
+		$content     = self::get_coverage_entries( $coverage_id )[0]->post_content;
+
+		$this->assertStringContainsString( 'src="' . wp_get_attachment_url( $image->ID ) . '"', $content, 'The image should come from the uploaded file.' );
+		$this->assertStringContainsString( '{"id":' . $image->ID . ',"sizeSlug":"full","linkDestination":"none"}', $content, 'The block should say it shows the full size.' );
+		$this->assertStringContainsString( 'class="wp-block-image size-full"', $content, 'The figure should be styled as full size.' );
+	}
+
+	/**
 	 * The description a reporter gave the image in Slack becomes its alt text,
 	 * as plain text, in the entry and in the media library alike.
 	 */

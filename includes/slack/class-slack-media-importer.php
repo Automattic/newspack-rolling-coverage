@@ -241,19 +241,23 @@ class Slack_Media_Importer {
 	 * @return string Block markup, or '' when the attachment has no file.
 	 */
 	private function image_block( int $attachment_id, string $alt ): string {
+		// WordPress resizes a GIF to a single frame, so an animated one is only shown whole from the uploaded file.
+		$size = 'image/gif' === get_post_mime_type( $attachment_id ) ? 'full' : 'large';
+
 		// The URL the editor would store. `wp_get_attachment_image_src()` would give an image CDN's URL when one filters the request.
-		$large = image_get_intermediate_size( $attachment_id, 'large' );
-		$url   = $large['url'] ?? wp_get_attachment_url( $attachment_id );
+		$copy = 'full' === $size ? false : image_get_intermediate_size( $attachment_id, $size );
+		$url  = $copy['url'] ?? wp_get_attachment_url( $attachment_id );
 
 		if ( ! $url ) {
 			return '';
 		}
 
 		return sprintf(
-			"<!-- wp:image {\"id\":%1\$d,\"sizeSlug\":\"large\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-large\"><img src=\"%2\$s\" alt=\"%3\$s\" class=\"wp-image-%1\$d\"/></figure>\n<!-- /wp:image -->",
+			"<!-- wp:image {\"id\":%1\$d,\"sizeSlug\":\"%4\$s\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-%4\$s\"><img src=\"%2\$s\" alt=\"%3\$s\" class=\"wp-image-%1\$d\"/></figure>\n<!-- /wp:image -->",
 			$attachment_id,
 			esc_url( $url ),
-			esc_attr( $alt )
+			esc_attr( $alt ),
+			$size
 		);
 	}
 }
