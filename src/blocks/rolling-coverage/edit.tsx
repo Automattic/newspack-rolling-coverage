@@ -96,6 +96,7 @@ import EntryBlockPreview from './components/entry-block-preview';
 import LoadingState from './components/loading-state';
 import LayoutPickerModal, {
 	type LayoutChoice,
+	layoutsQuery,
 } from './components/layout-picker-modal';
 import { getBuiltInLayouts, builtInLayoutSlugFor } from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
@@ -368,8 +369,11 @@ export default function Edit( {
 			__unstableMarkNextChangeAsNotPersistent: () => void;
 		};
 
-	// A story saved with a coverage but no layout predates layouts; the site
-	// renders it in the default layout, so the editor syncs it to that.
+	const { invalidateResolution } = useDispatch( coreStore ) as unknown as {
+		invalidateResolution: ( selector: string, args: unknown[] ) => void;
+	};
+
+	// Stories saved before layouts existed render in the default layout.
 	const needsDefaultLayout =
 		coverageId > 0 &&
 		! layoutId &&
@@ -403,7 +407,16 @@ export default function Edit( {
 		}
 
 		createLayout( 'default' )
-			.then( ( id ) => ! cancelled && sync( id ) )
+			.then( ( id ) => {
+				if ( Number( LAYOUT_CATEGORY_ID ) ) {
+					invalidateResolution( 'getEntityRecords', [
+						'postType',
+						'wp_block',
+						layoutsQuery( Number( LAYOUT_CATEGORY_ID ) ),
+					] );
+				}
+				return ! cancelled && sync( id );
+			} )
 			.catch( () => ! cancelled && fallBackToLocal() );
 
 		return () => {
@@ -415,11 +428,8 @@ export default function Edit( {
 		setAttributes,
 		replaceInnerBlocks,
 		__unstableMarkNextChangeAsNotPersistent,
+		invalidateResolution,
 	] );
-
-	const { invalidateResolution } = useDispatch( coreStore ) as unknown as {
-		invalidateResolution: ( selector: string, args: unknown[] ) => void;
-	};
 
 	const { layoutRecord, hasResolvedLayout, canEditLayout } = useSelect(
 		( select ) => {

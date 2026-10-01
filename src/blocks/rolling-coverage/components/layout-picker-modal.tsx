@@ -50,7 +50,7 @@ const NO_RECORDS: LayoutRecord[] = [];
  * @param {number} categoryId The layout pattern category's ID.
  * @return {Object} The query.
  */
-function layoutsQuery( categoryId: number ) {
+export function layoutsQuery( categoryId: number ) {
 	return {
 		wp_pattern_category: categoryId,
 		status: 'publish',
