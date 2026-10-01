@@ -608,11 +608,14 @@ class Taxonomy {
 	}
 
 	/**
-	 * Invalidates the coverage-to-page map when a save puts the block into a
-	 * post or takes it out. Every other save keeps the map, since rebuilding it
-	 * scans the content of every published post. That covers entries, their
-	 * revisions and autosaves, which change constantly during live coverage and
-	 * never host the block, and posts that never had it.
+	 * Invalidates the coverage-to-page map when a post of a type that can host
+	 * the block is saved with the block in it, before or after the save. That
+	 * catches the block going in, coming out or changing in place, and a
+	 * hosting page changing status. Every other save keeps the map, because
+	 * rebuilding it scans the content of every published post of those types:
+	 * saves of posts without the block, and of entries, revisions and
+	 * autosaves, which change constantly during live coverage and never host
+	 * it.
 	 *
 	 * @param int      $post_id Post ID.
 	 * @param \WP_Post $post    Post object.

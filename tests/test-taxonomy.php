@@ -325,10 +325,10 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Only a save that puts the block into a post or takes it out can change
-	 * the page lookup, so every other save keeps it cached: entries and
-	 * revisions, which change constantly during live coverage, and posts that
-	 * never had the block.
+	 * Only a save of a post with the block in it, before or after the save, can
+	 * change the page lookup, so every other save keeps it cached: entries and
+	 * revisions, which change constantly during live coverage, and posts
+	 * without the block.
 	 */
 	public function test_only_saves_that_can_change_the_page_lookup_clear_it() {
 		$group = Taxonomy::PAGE_IDS_CACHE_GROUP;
