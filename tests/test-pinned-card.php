@@ -45,7 +45,7 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	 * @return string Rendered entry.
 	 */
 	private static function render( int $entry_id, bool $is_last = false, string $markup = self::TEMPLATE_MARKUP ): string {
-		return Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( $markup ), 'initial', '', $is_last );
+		return Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( $markup ), 'initial', $is_last );
 	}
 
 	/**

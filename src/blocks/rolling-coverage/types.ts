@@ -27,7 +27,6 @@ interface RollingCoverageAttributes {
 	entriesPerPage: number;
 	enableAds: boolean;
 	adsInterval: number;
-	pinnedLabel: string;
 	layoutId: number;
 	[ key: string ]: unknown;
 }

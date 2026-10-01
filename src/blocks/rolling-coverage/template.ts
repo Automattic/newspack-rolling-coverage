@@ -30,6 +30,12 @@ const FEED_CLASS = 'newspack-rolling-coverage-feed';
 const PIN_ICON = 'newspack-rolling-coverage/pin-small';
 
 /**
+ * Class of the paragraph that labels a pinned entry, mirroring
+ * Entry_Bindings::PINNED_LABEL_CLASS.
+ */
+const PINNED_LABEL_CLASS = 'newspack-rolling-coverage-pinned-label';
+
+/**
  * The pin icon and the pinned label in a row, shown only on pinned entries
  * (see Entry_Bindings::filter_pinned_group()).
  */
@@ -53,17 +59,10 @@ const PINNED_ROW: TemplateItem = [
 			'core/paragraph',
 			{
 				// The Newspack Theme's class for its heading font, which it also gives the date.
-				className: 'use-header-font',
+				className: `use-header-font ${ PINNED_LABEL_CLASS }`,
+				content: __( 'Pinned', 'newspack-rolling-coverage' ),
 				fontSize: 'small',
 				style: { typography: { fontWeight: '700' } },
-				metadata: {
-					bindings: {
-						content: {
-							source: ENTRY_BINDINGS_SOURCE,
-							args: { key: 'pinnedLabel' },
-						},
-					},
-				},
 			},
 		],
 	],
@@ -432,7 +431,7 @@ function feedItems< T extends { name: string; [ key: string ]: unknown } >(
 }
 
 /**
- * Whether a block is a paragraph bound to the pinned label, mirroring
+ * Whether a block is the paragraph labeling a pinned entry, mirroring
  * Entry_Bindings::is_pinned_label().
  *
  * @param {Object} block            The block.
@@ -444,19 +443,12 @@ function isPinnedLabel( block: {
 	name: string;
 	attributes?: Record< string, unknown >;
 } ): boolean {
-	const metadata = block.attributes?.metadata as
-		| {
-				bindings?: {
-					content?: { source?: string; args?: { key?: string } };
-				};
-		  }
-		| undefined;
-	const content = metadata?.bindings?.content;
+	const className = block.attributes?.className;
 
 	return (
 		block.name === 'core/paragraph' &&
-		content?.source === ENTRY_BINDINGS_SOURCE &&
-		content?.args?.key === 'pinnedLabel'
+		typeof className === 'string' &&
+		className.split( ' ' ).includes( PINNED_LABEL_CLASS )
 	);
 }
 

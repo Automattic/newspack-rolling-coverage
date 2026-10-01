@@ -233,7 +233,6 @@ export default function Edit( {
 		entriesPerPage,
 		enableAds,
 		adsInterval,
-		pinnedLabel,
 		layoutId,
 	} = attributes;
 	const [ editedState, setEditedState ] = useState(
@@ -1134,19 +1133,6 @@ export default function Edit( {
 						setAttributes( {
 							pollInterval: value ? parseInt( value, 10 ) : 10,
 						} )
-					}
-				/>
-				<TextControl
-					__next40pxDefaultSize
-					label={ __( 'Pinned label', 'newspack-rolling-coverage' ) }
-					help={ __(
-						'Shown on pinned entries.',
-						'newspack-rolling-coverage'
-					) }
-					placeholder={ __( 'Pinned', 'newspack-rolling-coverage' ) }
-					value={ pinnedLabel }
-					onChange={ ( value: string ) =>
-						setAttributes( { pinnedLabel: value } )
 					}
 				/>
 			</PanelBody>

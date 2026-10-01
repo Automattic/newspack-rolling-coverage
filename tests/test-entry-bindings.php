@@ -373,13 +373,13 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	 */
 	const PINNED_ROW_MARKUP = '<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap"}} --><div class="wp-block-group">'
 		. '<!-- wp:icon {"icon":"newspack-rolling-coverage/pin-small"} /-->'
-		. '<!-- wp:paragraph {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"pinnedLabel"}}}},"fontSize":"small"} --><p class="has-small-font-size"></p><!-- /wp:paragraph -->'
+		. '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-pinned-label","fontSize":"small"} --><p class="use-header-font newspack-rolling-coverage-pinned-label has-small-font-size">Top story</p><!-- /wp:paragraph -->'
 		. '</div><!-- /wp:group -->'
 		. '<!-- wp:paragraph --><p>Entry body</p><!-- /wp:paragraph -->';
 
 	/**
-	 * Only pinned entries show the pinned row, labelled with the block's
-	 * label or the default, and are marked for the theme.
+	 * Only pinned entries show the pinned row, labeled with the layout's
+	 * text, and are marked for the theme.
 	 */
 	public function test_pinned_row_shows_only_on_pinned_entries() {
 		$coverage_id = self::create_coverage();
@@ -392,19 +392,18 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$pinned = Rolling_Coverage_Block::render_entry( get_post( $pinned_id ), $template );
 		$other  = Rolling_Coverage_Block::render_entry( get_post( $other_id ), $template );
 
-		$this->assertStringContainsString( '>Pinned</p>', $pinned, 'A pinned entry should show the default label.' );
+		$this->assertStringContainsString( '>Top story</p>', $pinned, "A pinned entry should show the layout's label." );
 		$this->assertStringContainsString( 'data-pinned', $pinned, 'A pinned entry should be marked.' );
 		$this->assertStringNotContainsString( 'wp-block-group', $other, 'An unpinned entry should have no pinned row.' );
 		$this->assertStringNotContainsString( 'data-pinned', $other, 'An unpinned entry should not be marked.' );
 		$this->assertStringContainsString( 'Entry body', $other, 'The rest of the template should still render.' );
-		$this->assertStringContainsString( '>Top story</p>', Rolling_Coverage_Block::render_entry( get_post( $pinned_id ), $template, 'initial', 'Top story' ), "The block's label should win." );
 	}
 
 	/**
 	 * A pinned label moved out of its row still shows only on pinned entries.
 	 */
 	public function test_pinned_label_outside_a_row_is_hidden_on_unpinned_entries() {
-		$template = parse_blocks( '<!-- wp:paragraph {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"pinnedLabel"}}}}} --><p>Saved text</p><!-- /wp:paragraph -->' );
+		$template = parse_blocks( '<!-- wp:paragraph {"className":"newspack-rolling-coverage-pinned-label"} --><p class="newspack-rolling-coverage-pinned-label">Saved text</p><!-- /wp:paragraph -->' );
 
 		$this->assertStringNotContainsString( 'Saved text', Rolling_Coverage_Block::render_entry( get_post( self::create_entry( self::create_coverage() ) ), $template ) );
 	}
@@ -416,7 +415,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	public function test_group_holding_the_label_and_other_blocks_keeps_them() {
 		$template = parse_blocks(
 			'<!-- wp:group --><div class="wp-block-group">'
-			. '<!-- wp:paragraph {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"pinnedLabel"}}}}} --><p>Saved text</p><!-- /wp:paragraph -->'
+			. '<!-- wp:paragraph {"className":"newspack-rolling-coverage-pinned-label"} --><p class="newspack-rolling-coverage-pinned-label">Saved text</p><!-- /wp:paragraph -->'
 			. '<!-- wp:paragraph --><p>Entry byline</p><!-- /wp:paragraph -->'
 			. '</div><!-- /wp:group -->'
 		);
@@ -531,17 +530,14 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Entries loaded after the first render keep the block's pinned label.
+	 * Entries loaded after the first render keep the layout's pinned label.
 	 */
-	public function test_load_more_keeps_the_block_pinned_label() {
+	public function test_load_more_keeps_the_layout_pinned_label() {
 		$coverage_id = self::create_coverage();
 		$entry_id    = self::create_entry( $coverage_id );
 		Post_Type::pin_entry( $entry_id );
 
-		$attributes = [
-			'coverageId'  => $coverage_id,
-			'pinnedLabel' => 'Top story',
-		];
+		$attributes = [ 'coverageId' => $coverage_id ];
 		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . self::PINNED_ROW_MARKUP . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
 		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
 
@@ -556,5 +552,20 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$more = Rolling_Coverage_Block::get_entries( $request )->get_data()['html'];
 
 		$this->assertStringContainsString( '>Top story</p>', $more );
+	}
+
+	/**
+	 * The built-in layout labels pinned entries "Pinned".
+	 */
+	public function test_default_layout_labels_pinned_entries() {
+		$coverage_id = self::create_coverage();
+		$entry_id    = self::create_entry( $coverage_id );
+		Post_Type::pin_entry( $entry_id );
+
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		$this->assertMatchesRegularExpression( '#<p class="[^"]*newspack-rolling-coverage-pinned-label[^"]*"[^>]*>Pinned</p>#', $html );
 	}
 }

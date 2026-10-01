@@ -14,8 +14,8 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Supplies the values core blocks in the Rolling Coverage template are
- * bound to: per entry, the breakout post's link and label, the share link and
- * the pinned label; per coverage, the follow button's notification tag.
+ * bound to: per entry, the breakout post's link and the share link; per
+ * coverage, the follow button's notification tag.
  */
 class Entry_Bindings {
 
@@ -45,9 +45,9 @@ class Entry_Bindings {
 	const COVERAGE_STATUS_CONTEXT = 'newspack-rolling-coverage/coverageStatus';
 
 	/**
-	 * Block context carrying the Rolling Coverage block's label for pinned entries.
+	 * Class of the paragraph that labels a pinned entry.
 	 */
-	const PINNED_LABEL_CONTEXT = 'newspack-rolling-coverage/pinnedLabel';
+	const PINNED_LABEL_CLASS = 'newspack-rolling-coverage-pinned-label';
 
 	/**
 	 * Initialize hooks.
@@ -69,7 +69,7 @@ class Entry_Bindings {
 			[
 				'label'              => __( 'Rolling Coverage Entry', 'newspack-rolling-coverage' ),
 				'get_value_callback' => [ __CLASS__, 'get_value' ],
-				'uses_context'       => [ 'postId', 'postType', self::COVERAGE_ID_CONTEXT, self::COVERAGE_STATUS_CONTEXT, self::PINNED_LABEL_CONTEXT ],
+				'uses_context'       => [ 'postId', 'postType', self::COVERAGE_ID_CONTEXT, self::COVERAGE_STATUS_CONTEXT ],
 			]
 		);
 	}
@@ -101,15 +101,6 @@ class Entry_Bindings {
 
 			case 'shareUrl':
 				return Social_Sharing::get_entry_share_url( $entry_id ) ?: null; // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
-
-			case 'pinnedLabel':
-				if ( ! Post_Type::is_pinned( $entry_id ) ) {
-					return null;
-				}
-
-				$label = trim( (string) ( $block->context[ self::PINNED_LABEL_CONTEXT ] ?? '' ) );
-
-				return $label ? $label : self::default_pinned_label();
 		}
 
 		return null;
@@ -345,27 +336,14 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * The label pinned entries show when the Rolling Coverage block has none.
-	 *
-	 * @return string
-	 */
-	public static function default_pinned_label(): string {
-		return __( 'Pinned', 'newspack-rolling-coverage' );
-	}
-
-	/**
-	 * Whether a parsed block is a paragraph bound to the pinned label.
+	 * Whether a parsed block is the paragraph labeling a pinned entry.
 	 *
 	 * @param array $parsed_block Parsed block.
 	 * @return bool
 	 */
 	private static function is_pinned_label( array $parsed_block ): bool {
-		$binding = $parsed_block['attrs']['metadata']['bindings']['content'] ?? [];
-
 		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
-			is_array( $binding ) &&
-			self::SOURCE_NAME === ( $binding['source'] ?? '' ) &&
-			'pinnedLabel' === ( $binding['args']['key'] ?? '' );
+			in_array( self::PINNED_LABEL_CLASS, explode( ' ', (string) ( $parsed_block['attrs']['className'] ?? '' ) ), true );
 	}
 
 	/**

@@ -27,17 +27,10 @@
 			"type": "number",
 			"default": 4
 		},
-		"pinnedLabel": {
-			"type": "string",
-			"default": ""
-		},
 		"layoutId": {
 			"type": "number",
 			"default": 0
 		}
-	},
-	"providesContext": {
-		"newspack-rolling-coverage/pinnedLabel": "pinnedLabel"
 	},
 	"supports": {
 		"html": false,
