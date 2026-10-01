@@ -6,6 +6,7 @@
  * Internal dependencies
  */
 import type { EVENTS } from './analytics';
+import type { BuiltInLayoutSlug } from './layouts';
 
 /**
  * A coverage term, as shown in the editor's coverage combobox.
@@ -27,13 +28,17 @@ interface RollingCoverageAttributes {
 	entriesPerPage: number;
 	enableAds: boolean;
 	adsInterval: number;
-	pinnedLabel: string;
+	archivedNoticeShow: boolean;
+	archivedNotice: string;
+	archivedNoticeShowLink: boolean;
+	archivedNoticeLinkUrl: string;
+	archivedNoticeLinkLabel: string;
 	layoutId: number;
 	[ key: string ]: unknown;
 }
 
 /**
- * Result of the editor's "Apply" status action, shown as a Notice.
+ * Result of an editor action, shown as a Notice.
  */
 interface ApplyNotice {
 	type: 'success' | 'error';
@@ -64,7 +69,7 @@ interface BlockConfig {
 	aiAvailable: boolean;
 	newspackAdsAvailable: boolean;
 	newspackAdsPlacementEnabled: boolean;
-	defaultLayoutId: number;
+	layoutIds: Record< BuiltInLayoutSlug, number >;
 	layoutsRestBase: string;
 	adminUrl: string;
 	isBlockTheme: boolean;
@@ -126,6 +131,7 @@ interface PollResponse {
 	cursor: string;
 	overflow: boolean;
 	polledCount: number;
+	minPollInterval: number;
 }
 
 /**
@@ -181,16 +187,6 @@ type TemplateItem = [ string, Record< string, unknown >?, TemplateItem[]? ];
  */
 type TemplateBlocks = { name: string; [ key: string ]: unknown }[];
 
-/**
- * One entry in the Edited State toolbar: its label, and the block(s) shown when
- * it's the active tab.
- */
-interface EntryEditedState {
-	value: string;
-	label: string;
-	blocks: TemplateItem[];
-}
-
 export type {
 	CoverageOption,
 	RollingCoverageAttributes,
@@ -208,5 +204,4 @@ export type {
 	PendingEntry,
 	TemplateItem,
 	TemplateBlocks,
-	EntryEditedState,
 };

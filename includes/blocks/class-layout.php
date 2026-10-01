@@ -22,11 +22,18 @@ defined( 'ABSPATH' ) || exit;
  */
 class Layout {
 
-	const DEFAULT_OPTION = 'rolling_coverage_default_layout_id';
+	const BUILT_IN_SLUGS = [ 'default', 'compact' ];
+
+	const SLUG_META_KEY = '_rolling_coverage_layout';
 
 	const PATTERN_CATEGORY = 'rolling-coverage';
 
 	const PATTERN_TAXONOMY = 'wp_pattern_category';
+
+	/**
+	 * Seconds after which a creation lock counts as abandoned.
+	 */
+	const LOCK_TIMEOUT = 30;
 
 	/**
 	 * Initialize hooks.
@@ -124,14 +131,59 @@ class Layout {
 	}
 
 	/**
-	 * The default layout's ID, when it still resolves.
+	 * The option that stores a built-in layout's pattern ID.
 	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return string
+	 */
+	public static function option_name( string $slug ): string {
+		return "rolling_coverage_{$slug}_layout_id";
+	}
+
+	/**
+	 * A built-in layout's pattern ID, when it still resolves.
+	 *
+	 * The option can read as missing under a persistent object cache when a
+	 * concurrent request writes back a stale `notoptions` list, so a pattern
+	 * tagged with the slug is the fallback, and repairs the option.
+	 *
+	 * @param string $slug Built-in layout slug.
 	 * @return int Pattern ID, or 0.
 	 */
-	public static function get_default_layout_id(): int {
-		$layout_id = (int) get_option( self::DEFAULT_OPTION, 0 );
+	public static function get_layout_id( string $slug ): int {
+		$layout_id = (int) get_option( self::option_name( $slug ), 0 );
 
-		return null !== self::get_layout_blocks( $layout_id ) ? $layout_id : 0;
+		if ( null !== self::get_layout_blocks( $layout_id ) ) {
+			return $layout_id;
+		}
+
+		$found = get_posts(
+			[
+				'post_type'      => 'wp_block',
+				'post_status'    => 'publish',
+				'fields'         => 'ids',
+				'posts_per_page' => 1,
+				'orderby'        => 'ID',
+				'order'          => 'ASC',
+				'no_found_rows'  => true,
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				'meta_query'     => [
+					[
+						'key'   => self::SLUG_META_KEY,
+						'value' => $slug,
+					],
+				],
+			]
+		);
+		$found = $found ? (int) $found[0] : 0;
+
+		if ( ! $found || null === self::get_layout_blocks( $found ) ) {
+			return 0;
+		}
+
+		update_option( self::option_name( $slug ), $found, false );
+
+		return $found;
 	}
 
 	/**
@@ -146,17 +198,21 @@ class Layout {
 	}
 
 	/**
-	 * Registers the route the editor creates the default layout through.
+	 * Registers the route the editor creates the built-in layouts through.
 	 */
 	public static function register_routes() {
 		register_rest_route(
 			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
-			'/layouts/default',
+			'/layouts/(?P<slug>' . implode( '|', self::BUILT_IN_SLUGS ) . ')',
 			[
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => [ __CLASS__, 'create_default_layout' ],
+				'callback'            => [ __CLASS__, 'create_layout' ],
 				'permission_callback' => [ __CLASS__, 'can_create_layout' ],
 				'args'                => [
+					'slug'    => [
+						'type' => 'string',
+						'enum' => self::BUILT_IN_SLUGS,
+					],
 					'content' => [
 						'required' => true,
 						'type'     => 'string',
@@ -178,18 +234,19 @@ class Layout {
 	}
 
 	/**
-	 * REST callback: returns the default layout, creating it from the posted
+	 * REST callback: returns a built-in layout, creating it from the posted
 	 * markup when none resolves. The editor supplies the markup because its
 	 * template is the one core validates the pattern's blocks against.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response|WP_Error
 	 */
-	public static function create_default_layout( WP_REST_Request $request ) {
-		$existing = self::get_default_layout_id();
+	public static function create_layout( WP_REST_Request $request ) {
+		$slug     = (string) $request['slug'];
+		$existing = self::get_layout_id( $slug );
 
 		if ( $existing ) {
-			return new WP_REST_Response( [ 'id' => $existing ], 200 );
+			return self::layout_response( $existing, 200 );
 		}
 
 		$content = (string) $request->get_param( 'content' );
@@ -209,27 +266,166 @@ class Layout {
 			);
 		}
 
-		$layout_id = wp_insert_post(
-			wp_slash(
-				[
-					'post_type'    => 'wp_block',
-					'post_status'  => 'publish',
-					/* translators: %s: Rolling Coverage, the product name. */
-					'post_title'   => sprintf( __( '%s layout', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
-					'post_content' => $content,
-				]
-			),
-			true
-		);
-
-		if ( is_wp_error( $layout_id ) ) {
-			return $layout_id;
+		if ( ! self::acquire_lock( $slug ) ) {
+			return new WP_Error(
+				'rolling_coverage_layout_locked',
+				__( 'This layout is being created. Try again in a moment.', 'newspack-rolling-coverage' ),
+				[ 'status' => 409 ]
+			);
 		}
 
-		self::assign_pattern_category( $layout_id );
-		update_option( self::DEFAULT_OPTION, $layout_id, false );
+		try {
+			$existing = self::find_layout_id_uncached( $slug );
 
-		return new WP_REST_Response( [ 'id' => $layout_id ], 201 );
+			if ( $existing ) {
+				update_option( self::option_name( $slug ), $existing, false );
+				return self::layout_response( $existing, 200 );
+			}
+
+			$layout_id = wp_insert_post(
+				wp_slash(
+					[
+						'post_type'    => 'wp_block',
+						'post_status'  => 'publish',
+						'post_title'   => self::get_title( $slug ),
+						'post_content' => $content,
+					]
+				),
+				true
+			);
+
+			if ( is_wp_error( $layout_id ) ) {
+				return $layout_id;
+			}
+
+			self::assign_pattern_category( $layout_id );
+			update_post_meta( $layout_id, self::SLUG_META_KEY, $slug );
+			update_option( self::option_name( $slug ), $layout_id, false );
+
+			return self::layout_response( $layout_id, 201 );
+		} finally {
+			delete_option( self::lock_name( $slug ) );
+		}
+	}
+
+	/**
+	 * A built-in layout's ID, with the pattern category's ID so the editor
+	 * can list the layouts once the first one has created the category.
+	 *
+	 * @param int $layout_id Pattern ID.
+	 * @param int $status    HTTP status.
+	 * @return WP_REST_Response
+	 */
+	private static function layout_response( int $layout_id, int $status ): WP_REST_Response {
+		return new WP_REST_Response(
+			[
+				'id'         => $layout_id,
+				'categoryId' => self::get_pattern_category_id(),
+			],
+			$status
+		);
+	}
+
+	/**
+	 * A built-in layout's pattern ID, read from the database rather than this
+	 * request's caches, which may predate another request creating it. The
+	 * option's cached copies are cleared so later reads see the database.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return int Pattern ID, or 0.
+	 */
+	private static function find_layout_id_uncached( string $slug ): int {
+		global $wpdb;
+
+		$option = self::option_name( $slug );
+
+		wp_cache_delete( $option, 'options' );
+		$notoptions = wp_cache_get( 'notoptions', 'options' );
+		if ( is_array( $notoptions ) && isset( $notoptions[ $option ] ) ) {
+			unset( $notoptions[ $option ] );
+			wp_cache_set( 'notoptions', $notoptions, 'options' );
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$from_option = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $option ) );
+
+		if ( null !== self::get_layout_blocks( $from_option ) ) {
+			return $from_option;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$tagged = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT p.ID FROM {$wpdb->posts} p INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID WHERE p.post_type = 'wp_block' AND p.post_status = 'publish' AND m.meta_key = %s AND m.meta_value = %s ORDER BY p.ID ASC LIMIT 1",
+				self::SLUG_META_KEY,
+				$slug
+			)
+		);
+
+		return null !== self::get_layout_blocks( $tagged ) ? $tagged : 0;
+	}
+
+	/**
+	 * The option that locks a built-in layout's creation.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return string
+	 */
+	public static function lock_name( string $slug ): string {
+		return "rolling_coverage_{$slug}_layout_lock";
+	}
+
+	/**
+	 * Takes the lock on a built-in layout's creation, so two first-time
+	 * requests can't both insert a pattern. The insert and the stale-lock
+	 * takeover each go straight to the database, as `add_option()` overwrites
+	 * an existing row and the object cache can hide one.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return bool Whether the lock is now held.
+	 */
+	private static function acquire_lock( string $slug ): bool {
+		global $wpdb;
+
+		$name = self::lock_name( $slug );
+		$now  = time();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$inserted = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", $name, $now ) );
+
+		if ( $inserted ) {
+			return true;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$locked_at = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+
+		if ( null === $locked_at ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			return (bool) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", $name, $now ) );
+		}
+
+		if ( (int) $locked_at > $now - self::LOCK_TIMEOUT ) {
+			return false;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return (bool) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", $now, $name, $locked_at ) );
+	}
+
+	/**
+	 * The title a built-in layout's pattern is created with.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return string
+	 */
+	private static function get_title( string $slug ): string {
+		return match ( $slug ) {
+			/* translators: %s: Rolling Coverage, the product name. */
+			'compact' => sprintf( __( '%s: Compact', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
+			/* translators: %s: Rolling Coverage, the product name. */
+			default   => sprintf( __( '%s: Default', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
+		};
 	}
 
 	/**

@@ -144,7 +144,7 @@ function parseElement( html: string ): HTMLElement | null {
 /**
  * The label of the control on a feed opened at a shared entry: the number of
  * newer entries, exact up to ten and from there the round number it has
- * passed, e.g. "10+ newer posts" for 11 to 50. Mirrors
+ * passed, e.g. "10+ Newer Posts" for 11 to 50. Mirrors
  * Rolling_Coverage_Block::newer_posts_label().
  *
  * @param {number} count How many entries are newer.
@@ -159,8 +159,8 @@ function newerPostsLabel( count: number ): string {
 		return sprintf(
 			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
 			_n(
-				'%d newer post',
-				'%d newer posts',
+				'%d Newer Post',
+				'%d Newer Posts',
 				count,
 				'newspack-rolling-coverage'
 			),
@@ -179,8 +179,8 @@ function newerPostsLabel( count: number ): string {
 	return sprintf(
 		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
 		_n(
-			'%d+ newer post',
-			'%d+ newer posts',
+			'%d+ Newer Post',
+			'%d+ Newer Posts',
 			floor,
 			'newspack-rolling-coverage'
 		),
@@ -346,6 +346,11 @@ function initBlock( root: HTMLElement ): void {
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
 	let polledCount = 0;
+
+	// The site's minimum poll interval, in seconds; 0 when it sets none. Each
+	// poll brings the current value, so an open page follows it both ways.
+	let minPollInterval =
+		parseInt( root.dataset.minPollInterval || '0', 10 ) || 0;
 	let backlogOffset = entriesList.querySelectorAll(
 		':scope > [data-entry-id]'
 	).length;
@@ -462,12 +467,16 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Schedules the next poll.
+	 * Schedules the next poll, at the block's interval or the site's minimum,
+	 * whichever is longer.
 	 *
 	 * @return {void}
 	 */
 	function schedulePoll(): void {
-		pollTimeoutId = setTimeout( poll, pollInterval * 1000 );
+		pollTimeoutId = setTimeout(
+			poll,
+			Math.max( pollInterval, minPollInterval ) * 1000
+		);
 	}
 
 	/**
@@ -597,8 +606,8 @@ function initBlock( root: HTMLElement ): void {
 		return sprintf(
 			/* translators: %d: number of new coverage entries waiting to be shown. */
 			_n(
-				'%d new post',
-				'%d new posts',
+				'%d New Post',
+				'%d New Posts',
 				count,
 				'newspack-rolling-coverage'
 			),
@@ -609,7 +618,7 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Adds entries to the pending queue.
 	 *
-	 * Updates the "X new posts" control label and visibility.
+	 * Updates the "X New Posts" control label and visibility.
 	 *
 	 * @param {PendingEntry[]} newEntries Newly published entries.
 	 * @return {void}
@@ -1715,6 +1724,8 @@ function initBlock( root: HTMLElement ): void {
 				if ( isDisposed ) {
 					return;
 				}
+
+				minPollInterval = Number( data.minPollInterval ) || 0;
 
 				if ( data.overflow && isEntryView ) {
 					// A reload lands on the same shared URL, so there is nothing

@@ -27,7 +27,23 @@
 			"type": "number",
 			"default": 4
 		},
-		"pinnedLabel": {
+		"archivedNoticeShow": {
+			"type": "boolean",
+			"default": true
+		},
+		"archivedNotice": {
+			"type": "string",
+			"default": ""
+		},
+		"archivedNoticeShowLink": {
+			"type": "boolean",
+			"default": true
+		},
+		"archivedNoticeLinkUrl": {
+			"type": "string",
+			"default": ""
+		},
+		"archivedNoticeLinkLabel": {
 			"type": "string",
 			"default": ""
 		},
@@ -35,9 +51,6 @@
 			"type": "number",
 			"default": 0
 		}
-	},
-	"providesContext": {
-		"newspack-rolling-coverage/pinnedLabel": "pinnedLabel"
 	},
 	"supports": {
 		"html": false,

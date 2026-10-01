@@ -6,14 +6,14 @@ import { addFilter } from '@wordpress/hooks';
 /**
  * Internal dependencies
  */
-import { ALL_ALLOWED_BLOCKS, RENDER_ONCE_BLOCKS } from './layout';
+import { ALL_ALLOWED_BLOCKS, FOLLOW_BLOCK_NAME } from './layout';
 import { isFeedGroup } from './template';
 
 /**
- * Limits the Feed group to the layout's block types, and keeps the blocks
- * that render once at the top of the coverage directly in the Feed, where
- * Rolling_Coverage_Block::layout_items() reads them. Anywhere deeper, the
- * site would render them in every entry.
+ * Limits the Feed group to the layout's block types, and keeps the legacy
+ * follow button, which renders once at the top of the coverage, directly in
+ * the Feed, where Rolling_Coverage_Block::layout_items() reads it. Anywhere
+ * deeper, the site would render it in every entry.
  *
  * @param {boolean} canInsert          Whether the block can be inserted so far.
  * @param {Object}  blockType          The block type being inserted.
@@ -43,7 +43,7 @@ function canInsertIntoFeed(
 		return ALL_ALLOWED_BLOCKS.includes( blockType.name );
 	}
 
-	return ! RENDER_ONCE_BLOCKS.includes( blockType.name );
+	return blockType.name !== FOLLOW_BLOCK_NAME;
 }
 
 addFilter(

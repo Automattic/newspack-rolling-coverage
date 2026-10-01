@@ -76,7 +76,7 @@ class SlackAdapter extends ChatSourceAdapter {
 				label: __( 'Ignore Prefix', 'newspack-rolling-coverage' ),
 				type: 'text',
 				help: __(
-					'Messages starting with this prefix are ignored during ingestion.',
+					'Messages starting with this prefix are ignored during ingestion, and so are the replies in their threads.',
 					'newspack-rolling-coverage'
 				),
 			},

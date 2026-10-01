@@ -1,19 +1,5 @@
+@use "~@wordpress/base-styles/colors" as wp-colors;
 @use "~@wordpress/base-styles/variables" as wp-vars;
-
-.newspack-rolling-coverage-panel-group {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	margin-top: 16px;
-
-	> button {
-		align-self: flex-start;
-	}
-
-	.components-base-control {
-		margin-bottom: 0;
-	}
-}
 
 .newspack-rolling-coverage-ai-panel {
 	display: flex;
@@ -48,16 +34,6 @@
 
 .newspack-rolling-coverage-ads-notice {
 	margin-bottom: 16px;
-}
-
-// Hides each editor-state block by default; shown per the active
-// state via ENTRY_EDITED_STATES in template.ts.
-.newspack-rolling-coverage-state-block {
-	display: none;
-
-	[data-editor-state="archived"] &--archived {
-		display: block;
-	}
 }
 
 .wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed .newspack-rolling-coverage-new-entries {
@@ -142,17 +118,6 @@
 	}
 }
 
-.newspack-rolling-coverage-edited-state__label {
-	align-self: center;
-	padding-inline: wp-vars.$grid-unit-15 wp-vars.$grid-unit-05;
-	font-weight: wp-vars.$font-weight-medium;
-	white-space: nowrap;
-}
-
-.newspack-rolling-coverage-edited-state .components-toolbar-button.components-button {
-	padding-inline: wp-vars.$grid-unit-15;
-}
-
 .newspack-rolling-coverage-loading {
 	display: flex;
 	flex-direction: column;
@@ -168,4 +133,60 @@
 		font-weight: wp-vars.$font-weight-medium;
 		line-height: wp-vars.$font-line-height-small;
 	}
+}
+
+.newspack-rolling-coverage-layout-picker {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, #{wp-vars.$grid-unit-80 * 4}), 1fr));
+	gap: wp-vars.$grid-unit-30;
+	align-items: start;
+}
+
+.newspack-rolling-coverage-layout-picker__card {
+	display: flex;
+	flex-direction: column;
+	gap: wp-vars.$grid-unit-10;
+	width: 100%;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+
+	&:disabled {
+		cursor: default;
+		opacity: 0.3;
+	}
+
+	&:focus-visible {
+		outline: none;
+	}
+}
+
+.newspack-rolling-coverage-layout-picker__preview {
+	display: block;
+	overflow: hidden;
+	border-radius: wp-vars.$radius-medium;
+	outline: wp-vars.$border-width solid wp-colors.$gray-300;
+
+	.newspack-rolling-coverage-layout-picker__card:where(:not(:disabled)):hover & {
+		outline-color: wp-colors.$gray-600;
+	}
+
+	.newspack-rolling-coverage-layout-picker__card[aria-pressed="true"] & {
+		outline: var(--wp-admin-border-width-focus) solid wp-colors.$gray-900;
+	}
+
+	.newspack-rolling-coverage-layout-picker__card:focus-visible & {
+		outline: var(--wp-admin-border-width-focus) solid var(--wp-admin-theme-color);
+	}
+}
+
+.newspack-rolling-coverage-layout-picker__title {
+	display: flex;
+	align-items: center;
+	gap: wp-vars.$grid-unit-10;
 }

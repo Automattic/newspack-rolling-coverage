@@ -219,7 +219,7 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 				} }
 				onCancel={ () => setShowCloseConfirm( false ) }
 				confirmButtonText={ __(
-					'Discard changes',
+					'Discard Changes',
 					'newspack-rolling-coverage'
 				) }
 			>

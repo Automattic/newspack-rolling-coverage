@@ -37,12 +37,18 @@ class Slack_Ingestion_Service {
 			return true;
 		}
 
+		return self::has_ignore_prefix( $text );
+	}
+
+	/**
+	 * Whether a message opts out of ingestion by starting with the ignore prefix.
+	 *
+	 * @param string $text Message text.
+	 * @return bool True if the text starts with the ignore prefix.
+	 */
+	public static function has_ignore_prefix( string $text ): bool {
 		$ignore_prefix = Slack_Config::get_ignore_prefix();
 
-		if ( '' !== $ignore_prefix && 0 === strpos( $text, $ignore_prefix ) ) {
-			return true;
-		}
-
-		return false;
+		return '' !== $ignore_prefix && str_starts_with( $text, $ignore_prefix );
 	}
 }
