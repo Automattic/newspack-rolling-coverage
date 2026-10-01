@@ -1236,9 +1236,7 @@ const ENTRY_ALLOWED_BLOCKS = [
 
 export {
 	ENTRY_TEMPLATE,
-	READ_MORE_CLASS,
 	compactEntryTemplate,
-	isReadMoreParagraph,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_TEMPLATE,
 	feedTemplate,

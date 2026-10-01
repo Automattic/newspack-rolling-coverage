@@ -16,7 +16,7 @@ import { addQueryArgs, getQueryArg } from '@wordpress/url';
 /**
  * Internal dependencies
  */
-import type { CoverageOption, EntryContext } from './types';
+import type { CoverageOption, EntryContext, TemplateItem } from './types';
 import {
 	COVERAGES_REST_BASE,
 	STATUS_META_KEY,
@@ -31,7 +31,7 @@ import {
 	CAN_EDIT_THEME_OPTIONS,
 	LAYOUT_CATEGORY_ID,
 } from './config';
-import { BLOCK_NAME, innerTemplate, compactInnerTemplate } from './layout';
+import { BLOCK_NAME } from './layout';
 import type { BuiltInLayoutSlug } from './layouts';
 
 const layoutIds: Record< BuiltInLayoutSlug, number > = {
@@ -260,17 +260,20 @@ function getLayoutCategoryId(): number {
  * another story created it first. Concurrent calls for a layout share one
  * request.
  *
- * @param {BuiltInLayoutSlug} slug The built-in layout's slug.
+ * @param {BuiltInLayoutSlug} slug     The built-in layout's slug.
+ * @param {Function}          template Returns the layout's inner blocks template.
  * @return {Promise<number>} The layout's pattern ID. Rejects on failure.
  */
-function createLayout( slug: BuiltInLayoutSlug ): Promise< number > {
+function createLayout(
+	slug: BuiltInLayoutSlug,
+	template: () => TemplateItem[]
+): Promise< number > {
 	const pending = pendingLayouts[ slug ];
 
 	if ( pending ) {
 		return pending;
 	}
 
-	const template = slug === 'compact' ? compactInnerTemplate : innerTemplate;
 	const content = serialize(
 		createBlock(
 			BLOCK_NAME,

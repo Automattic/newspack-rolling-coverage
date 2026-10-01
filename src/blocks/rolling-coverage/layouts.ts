@@ -1,7 +1,7 @@
 /**
  * WordPress dependencies
  */
-import { __ } from '@wordpress/i18n';
+import { _x } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -27,12 +27,12 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 	return [
 		{
 			slug: 'default',
-			title: __( 'Default', 'newspack-rolling-coverage' ),
+			title: _x( 'Default', 'layout name', 'newspack-rolling-coverage' ),
 			template: innerTemplate,
 		},
 		{
 			slug: 'compact',
-			title: __( 'Compact', 'newspack-rolling-coverage' ),
+			title: _x( 'Compact', 'layout name', 'newspack-rolling-coverage' ),
 			template: compactInnerTemplate,
 		},
 	];

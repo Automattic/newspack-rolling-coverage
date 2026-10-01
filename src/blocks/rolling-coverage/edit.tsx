@@ -406,7 +406,7 @@ export default function Edit( {
 			return;
 		}
 
-		createLayout( 'default' )
+		createLayout( 'default', innerTemplate )
 			.then( ( id ) => {
 				if ( getLayoutCategoryId() ) {
 					invalidateResolution( 'getEntityRecords', [

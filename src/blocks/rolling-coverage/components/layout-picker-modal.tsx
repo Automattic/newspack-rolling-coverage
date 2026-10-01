@@ -20,6 +20,7 @@ import { __ } from '@wordpress/i18n';
 import { BLOCK_NAME } from '../layout';
 import { getBuiltInLayouts, type BuiltInLayoutSlug } from '../layouts';
 import { createLayout, getLayoutCategoryId, getLayoutId } from '../utils';
+import type { TemplateItem } from '../types';
 
 export type LayoutChoice =
 	| { kind: 'pattern'; id: number }
@@ -36,6 +37,7 @@ type LayoutCard = {
 	title: string;
 	patternId: number;
 	slug?: BuiltInLayoutSlug;
+	template?: () => TemplateItem[];
 	innerBlocks: () => unknown[];
 };
 
@@ -235,6 +237,7 @@ export default function LayoutPickerModal( {
 				title: layout.title,
 				patternId: id,
 				slug: layout.slug,
+				template: layout.template,
 				innerBlocks:
 					fromPattern ??
 					( () =>
@@ -276,14 +279,14 @@ export default function LayoutPickerModal( {
 			return;
 		}
 
-		const slug = card.slug;
+		const { slug, template } = card;
 
-		if ( ! slug ) {
+		if ( ! slug || ! template ) {
 			return;
 		}
 
 		setPendingKey( card.key );
-		createLayout( slug )
+		createLayout( slug, template )
 			.then( ( id ) => {
 				if ( getLayoutCategoryId() ) {
 					invalidateResolution( 'getEntityRecords', [
