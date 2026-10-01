@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-01T22:04:15+00:00\n"
+"POT-Creation-Date: 2026-10-01T22:20:56+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -435,199 +435,199 @@ msgstr ""
 msgid "Coverage could not be deleted."
 msgstr ""
 
-#: includes/slack/class-slack-api-client.php:280
-#: includes/slack/class-slack-webhook-controller.php:306
+#: includes/slack/class-slack-api-client.php:343
+#: includes/slack/class-slack-webhook-controller.php:307
 msgid "Slack is not configured."
 msgstr ""
 
-#: includes/slack/class-slack-api-client.php:321
+#: includes/slack/class-slack-api-client.php:384
 msgid "Invalid JSON response from Slack."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:70
+#: includes/slack/class-slack-webhook-controller.php:71
 msgid "Channel not found. Make sure the bot is invited to the channel, or use the channel ID (e.g., C12345678) instead of the name."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:71
+#: includes/slack/class-slack-webhook-controller.php:72
 msgid "The bot is not a member of this channel. Please invite the bot first using /invite @Rolling Coverage in Slack."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:72
+#: includes/slack/class-slack-webhook-controller.php:73
 msgid "This channel is already linked to another coverage."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:73
+#: includes/slack/class-slack-webhook-controller.php:74
 msgid "This coverage is already connected to another channel."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:74
+#: includes/slack/class-slack-webhook-controller.php:75
 msgid "This coverage could not be found. Please refresh the page and try again."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:75
+#: includes/slack/class-slack-webhook-controller.php:76
 msgid "That channel could not be used. Try a channel ID like C12345678 or a channel name like #general."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:76
+#: includes/slack/class-slack-webhook-controller.php:77
 msgid "Please select a coverage."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:77
+#: includes/slack/class-slack-webhook-controller.php:78
 msgid "Selected coverage no longer exists."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:79
+#: includes/slack/class-slack-webhook-controller.php:80
 msgid "A bot token and signing secret are both required."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:80
+#: includes/slack/class-slack-webhook-controller.php:81
 msgid "The bot token is invalid. It must start with xoxb-."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:81
+#: includes/slack/class-slack-webhook-controller.php:82
 msgid "The signing secret is invalid. It must be a 32-character hex string."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:83
+#: includes/slack/class-slack-webhook-controller.php:84
 msgid "The bot token was rejected by Slack. Check that it starts with xoxb- and is still valid."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:84
+#: includes/slack/class-slack-webhook-controller.php:85
 msgid "The bot token has been revoked. Generate a new one in your Slack app settings."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:85
+#: includes/slack/class-slack-webhook-controller.php:86
 msgid "No valid token was provided to Slack."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:86
+#: includes/slack/class-slack-webhook-controller.php:87
 msgid "The Slack workspace account is inactive."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:88
+#: includes/slack/class-slack-webhook-controller.php:89
 msgid "The ignore prefix must be 1-10 printable characters."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:90
+#: includes/slack/class-slack-webhook-controller.php:91
 msgid "Slack integration is not configured. Please set up the bot token in Slack settings."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:91
+#: includes/slack/class-slack-webhook-controller.php:92
 msgid "Could not reach Slack. Please try again."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:324
+#: includes/slack/class-slack-webhook-controller.php:325
 msgid "Invalid Slack signature."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:709
+#: includes/slack/class-slack-webhook-controller.php:710
 msgid "🔔 Auto-publish is now enabled for this channel — new entries publish immediately."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:710
+#: includes/slack/class-slack-webhook-controller.php:711
 msgid "🔕 Auto-publish is now disabled for this channel — new entries are saved as drafts."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:858
+#: includes/slack/class-slack-webhook-controller.php:908
 msgid "👋 I'm now connected and will ingest messages for rolling coverage."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:900
+#: includes/slack/class-slack-webhook-controller.php:950
 msgid "This command is not available for your workspace."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:913
+#: includes/slack/class-slack-webhook-controller.php:963
 msgid "Unknown command."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:934
+#: includes/slack/class-slack-webhook-controller.php:984
 msgid "Select a Rolling Coverage"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:942
+#: includes/slack/class-slack-webhook-controller.php:992
 msgid "Type to search..."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:954
+#: includes/slack/class-slack-webhook-controller.php:1004
 msgid "Connect Channel"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:958
+#: includes/slack/class-slack-webhook-controller.php:1008
 #: dist/admin.js:211
 #: dist/admin.js:214
 msgid "Connect"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:962
+#: includes/slack/class-slack-webhook-controller.php:1012
 #: dist/admin.js:209
 #: dist/admin.js:211
 #: dist/admin.js:216
 msgid "Cancel"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:970
+#: includes/slack/class-slack-webhook-controller.php:1020
 msgid "Failed to open the connect modal. Please try again."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:986
-#: includes/slack/class-slack-webhook-controller.php:1014
+#: includes/slack/class-slack-webhook-controller.php:1036
+#: includes/slack/class-slack-webhook-controller.php:1064
 msgid "This channel is not connected to any coverage."
 msgstr ""
 
 #. translators: 1: coverage name
-#: includes/slack/class-slack-webhook-controller.php:997
+#: includes/slack/class-slack-webhook-controller.php:1047
 #, php-format
 msgid "Disconnected from \"%1$s\"."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1000
+#: includes/slack/class-slack-webhook-controller.php:1050
 msgid "Channel unlinked successfully."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1019
+#: includes/slack/class-slack-webhook-controller.php:1069
 #: dist/admin.js:228
 msgid "(unknown)"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1023
+#: includes/slack/class-slack-webhook-controller.php:1073
 msgid "autopublish enabled"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1024
+#: includes/slack/class-slack-webhook-controller.php:1074
 msgid "autopublish disabled"
 msgstr ""
 
 #. translators: 1: term name, 2: autopublish status
-#: includes/slack/class-slack-webhook-controller.php:1029
+#: includes/slack/class-slack-webhook-controller.php:1079
 #, php-format
 msgid "Connected to \"%1$s\" — %2$s."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1318
+#: includes/slack/class-slack-webhook-controller.php:1368
 msgid "auto-publish is enabled"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1319
+#: includes/slack/class-slack-webhook-controller.php:1369
 msgid "auto-publish is disabled"
 msgstr ""
 
 #. translators: 1: coverage name, 2: auto-publish status
-#: includes/slack/class-slack-webhook-controller.php:1326
+#: includes/slack/class-slack-webhook-controller.php:1376
 #, php-format
 msgid "✅ This channel is now connected to the \"%1$s\" coverage. %2$s."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1330
+#: includes/slack/class-slack-webhook-controller.php:1380
 msgid "✅ This channel is now connected to rolling coverage."
 msgstr ""
 
 #. translators: 1: coverage name
-#: includes/slack/class-slack-webhook-controller.php:1372
+#: includes/slack/class-slack-webhook-controller.php:1422
 #, php-format
 msgid "🔌 This channel is no longer connected to the \"%1$s\" coverage."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1375
+#: includes/slack/class-slack-webhook-controller.php:1425
 msgid "🔌 This channel is no longer connected to rolling coverage."
 msgstr ""
 
@@ -1448,7 +1448,7 @@ msgstr ""
 
 #: dist/admin.js:228
 #: dist/admin.js:229
-msgid "Messages starting with this prefix are ignored during ingestion."
+msgid "Messages starting with this prefix are ignored during ingestion, and so are the replies in their threads."
 msgstr ""
 
 #: dist/admin.js:228
