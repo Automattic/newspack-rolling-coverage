@@ -288,6 +288,16 @@ export default function Edit( {
 	const [ currentCoverage, setCurrentCoverage ] =
 		useState< CoverageOption | null >( null );
 	const [ pendingStatus, setPendingStatus ] = useState< string >( 'active' );
+	const coverageStatus = currentCoverage?.status;
+	useEffect( () => {
+		if ( coverageStatus ) {
+			setEditedState(
+				coverageStatus === 'archived'
+					? 'archived'
+					: EDITED_STATE_OPTIONS[ 0 ].value
+			);
+		}
+	}, [ coverageStatus ] );
 	const [ isApplying, setIsApplying ] = useState( false );
 	const [ applyNotice, setApplyNotice ] = useState< ApplyNotice | null >(
 		null
