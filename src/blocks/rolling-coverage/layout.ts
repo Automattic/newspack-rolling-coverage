@@ -91,12 +91,14 @@ export function innerTemplate(): TemplateItem[] {
  * @return {TemplateItem[]} The template.
  */
 export function compactInnerTemplate(): TemplateItem[] {
+	const slugs = paletteSlugs();
+
 	return [
 		feedTemplate(
 			[
-				latestTemplate( paletteSlugs() ),
+				latestTemplate( slugs ),
 				FOLLOW_TEMPLATE,
-				...compactEntryTemplate(),
+				...compactEntryTemplate( slugs ),
 			],
 			'var:preset|spacing|30'
 		),

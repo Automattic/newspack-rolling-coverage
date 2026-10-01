@@ -302,19 +302,45 @@ function siteTimeFormat(): string {
 }
 
 /**
+ * The Compact time's color. Regular entries use the block theme's Contrast 3,
+ * else the classic theme's Medium Gray. Pinned entries use the text color,
+ * set as Contrast where the theme styles dates in a lighter one.
+ *
+ * @param {string[]} slugs    The palette's color slugs.
+ * @param {boolean}  isPinned Whether the time is the pinned card's.
+ * @return {Object} The time's color attributes.
+ */
+function compactTimeColor(
+	slugs: string[],
+	isPinned: boolean
+): { textColor?: string } {
+	const candidates = isPinned
+		? [ 'contrast' ]
+		: [ 'contrast-3', 'medium-gray' ];
+	const slug = candidates.find( ( candidate ) =>
+		slugs.includes( candidate )
+	);
+
+	return slug ? { textColor: slug } : {};
+}
+
+/**
  * A compact entry's row: the time on the left, the content and a "Read more"
  * link stacked on the right.
  *
+ * @param {Object} timeColor             The time's color attributes.
+ * @param {string} [timeColor.textColor] The time's color slug.
  * @return {TemplateItem} The row.
  */
-function compactRow(): TemplateItem {
+function compactRow( timeColor: { textColor?: string } ): TemplateItem {
 	const date: TemplateItem = [
 		'core/post-date',
 		{
 			...POST_DATE_ATTRIBUTES,
 			format: siteTimeFormat(),
 			fontSize: 'medium',
-			style: { typography: { fontWeight: '600' } },
+			...timeColor,
+			style: { typography: { fontWeight: '400' } },
 		},
 	];
 
@@ -406,9 +432,10 @@ function compactRow(): TemplateItem {
  * The Compact layout's per-entry template: a time column beside the entry's
  * content, with a "Read more" paragraph linked to the breakout post.
  *
+ * @param {string[]} slugs The palette's color slugs.
  * @return {TemplateItem[]} The template.
  */
-function compactEntryTemplate(): TemplateItem[] {
+function compactEntryTemplate( slugs: string[] ): TemplateItem[] {
 	return [
 		[
 			'core/group',
@@ -431,7 +458,7 @@ function compactEntryTemplate(): TemplateItem[] {
 					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			[ compactRow() ],
+			[ compactRow( compactTimeColor( slugs, true ) ) ],
 		],
 		[
 			'core/group',
@@ -451,7 +478,7 @@ function compactEntryTemplate(): TemplateItem[] {
 					name: __( 'Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			[ compactRow() ],
+			[ compactRow( compactTimeColor( slugs, false ) ) ],
 		],
 		[ 'core/separator', { className: 'is-style-wide' } ],
 	];
