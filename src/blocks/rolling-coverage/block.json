@@ -31,6 +31,10 @@
 			"type": "string",
 			"default": ""
 		},
+		"archivedNoticeShowLink": {
+			"type": "boolean",
+			"default": true
+		},
 		"archivedNoticeLinkUrl": {
 			"type": "string",
 			"default": ""

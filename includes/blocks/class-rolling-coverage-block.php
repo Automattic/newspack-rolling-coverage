@@ -20,6 +20,7 @@ use WP_Query;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
+use WP_Term;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -69,6 +70,12 @@ class Rolling_Coverage_Block {
 	 * shows.
 	 */
 	const FEED_CLASS = 'newspack-rolling-coverage-feed';
+
+	/**
+	 * Object cache group for the coverage's latest breakout post. Keys carry
+	 * the posts and terms last-changed stamps, so they expire on their own.
+	 */
+	const BREAKOUT_CACHE_GROUP = 'newspack-rolling-coverage-breakouts';
 
 	/**
 	 * The custom property holding the space between the coverage's items:
@@ -801,7 +808,7 @@ class Rolling_Coverage_Block {
 				$entries_html,
 				$follow_html,
 				self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
-				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes ) : ''
+				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : ''
 			);
 
 			return sprintf(
@@ -1482,21 +1489,30 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Renders the notice that opens an archived coverage's Feed: the block's text,
-	 * or the default when it has none, followed by its link when it has a URL.
+	 * or the default naming the coverage when it has none. Unless the block turns
+	 * the link off, a link follows to the block's URL or, without one, to the
+	 * coverage's latest breakout post.
 	 *
-	 * @param array $attributes Block attributes.
+	 * @param array $attributes  Block attributes.
+	 * @param int   $coverage_id Coverage term ID.
 	 * @return string Rendered HTML.
 	 */
-	private static function render_archived_notice( array $attributes ): string {
-		$text  = trim( (string) ( $attributes['archivedNotice'] ?? '' ) );
-		$url   = trim( (string) ( $attributes['archivedNoticeLinkUrl'] ?? '' ) );
-		$label = trim( (string) ( $attributes['archivedNoticeLinkLabel'] ?? '' ) );
-		$link  = '' !== $url ? esc_url( $url ) : '';
+	private static function render_archived_notice( array $attributes, int $coverage_id ): string {
+		$text      = trim( (string) ( $attributes['archivedNotice'] ?? '' ) );
+		$show_link = (bool) ( $attributes['archivedNoticeShowLink'] ?? true );
+		$url       = $show_link ? trim( (string) ( $attributes['archivedNoticeLinkUrl'] ?? '' ) ) : '';
+		$label     = trim( (string) ( $attributes['archivedNoticeLinkLabel'] ?? '' ) );
+
+		if ( $show_link && '' === $url ) {
+			$url = (string) self::latest_breakout_url( $coverage_id );
+		}
+
+		$link = '' !== $url ? esc_url( $url ) : '';
 
 		return sprintf(
 			'<p class="%s-archived-notice">%s%s</p>',
 			self::MARKUP_PREFIX,
-			nl2br( esc_html( '' !== $text ? $text : self::default_archived_notice() ), false ),
+			nl2br( esc_html( '' !== $text ? $text : self::default_archived_notice( $coverage_id ) ), false ),
 			'' !== $link
 				? sprintf(
 					' <a class="%s-archived-notice__link" href="%s">%s</a>',
@@ -1509,12 +1525,67 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The notice shown above an archived coverage when the block sets none.
+	 * The notice shown above an archived coverage when the block sets none,
+	 * naming the coverage.
 	 *
+	 * @param int $coverage_id Coverage term ID.
 	 * @return string
 	 */
-	private static function default_archived_notice(): string {
-		return __( 'Coverage of this news event has concluded and this feed is now archived.', 'newspack-rolling-coverage' );
+	private static function default_archived_notice( int $coverage_id ): string {
+		$term = get_term( $coverage_id, Taxonomy::TAXONOMY_SLUG );
+		$name = $term instanceof WP_Term ? trim( $term->name ) : '';
+
+		if ( '' === $name ) {
+			return __( 'Coverage of this news event has concluded and this feed is now archived.', 'newspack-rolling-coverage' );
+		}
+
+		/* translators: %s: Coverage name. */
+		return sprintf( __( 'Coverage of “%s” has concluded and this feed is now archived.', 'newspack-rolling-coverage' ), $name );
+	}
+
+	/**
+	 * The link to the most recently published breakout post among the
+	 * coverage's published entries, by the breakout post's own date.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return string|null
+	 */
+	private static function latest_breakout_url( int $coverage_id ): ?string {
+		global $wpdb;
+
+		$term = get_term( $coverage_id, Taxonomy::TAXONOMY_SLUG );
+
+		if ( ! $term instanceof WP_Term ) {
+			return null;
+		}
+
+		$cache_key   = sprintf( 'latest_breakout:%d:%s:%s', $term->term_taxonomy_id, wp_cache_get_last_changed( 'posts' ), wp_cache_get_last_changed( 'terms' ) );
+		$breakout_id = wp_cache_get( $cache_key, self::BREAKOUT_CACHE_GROUP );
+
+		if ( false === $breakout_id ) {
+			$breakout_id = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+				$wpdb->prepare(
+					"SELECT breakout.ID FROM {$wpdb->term_relationships} AS tr
+					INNER JOIN {$wpdb->posts} AS entry ON entry.ID = tr.object_id
+					INNER JOIN {$wpdb->postmeta} AS link ON link.post_id = entry.ID AND link.meta_key = %s
+					INNER JOIN {$wpdb->posts} AS breakout ON breakout.ID = CAST( link.meta_value AS UNSIGNED )
+					WHERE tr.term_taxonomy_id = %d
+						AND entry.post_type = %s
+						AND entry.post_status = 'publish'
+						AND breakout.post_type = 'post'
+						AND breakout.post_status = 'publish'
+					ORDER BY breakout.post_date_gmt DESC, breakout.ID DESC
+					LIMIT 1",
+					Breakout::ENTRY_BREAKOUT_POST_ID_META,
+					$term->term_taxonomy_id,
+					Post_Type::CPT_SLUG
+				)
+			);
+
+			wp_cache_set( $cache_key, $breakout_id, self::BREAKOUT_CACHE_GROUP );
+		}
+
+		return $breakout_id ? ( get_permalink( (int) $breakout_id ) ?: null ) : null; // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
 	}
 
 	/**

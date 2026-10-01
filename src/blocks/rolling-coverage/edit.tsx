@@ -38,6 +38,7 @@ import {
 	Notice,
 	Placeholder,
 	TextareaControl,
+	ToggleControl,
 	ToolbarButton,
 } from '@wordpress/components';
 import {
@@ -50,7 +51,8 @@ import {
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as editorStore } from '@wordpress/editor';
-import { __ } from '@wordpress/i18n';
+import { decodeEntities } from '@wordpress/html-entities';
+import { __, sprintf } from '@wordpress/i18n';
 import { copy as copyIcon, check } from '@wordpress/icons';
 
 /**
@@ -212,6 +214,7 @@ export default function Edit( {
 		enableAds,
 		adsInterval,
 		archivedNotice,
+		archivedNoticeShowLink,
 		archivedNoticeLinkUrl,
 		archivedNoticeLinkLabel,
 		layoutId,
@@ -1075,47 +1078,76 @@ export default function Edit( {
 						'Shown above the coverage once it is archived.',
 						'newspack-rolling-coverage'
 					) }
-					placeholder={ __(
-						'Coverage of this news event has concluded and this feed is now archived.',
-						'newspack-rolling-coverage'
-					) }
+					placeholder={
+						currentCoverage?.label
+							? sprintf(
+									/* translators: %s: Coverage name. */
+									__(
+										'Coverage of “%s” has concluded and this feed is now archived.',
+										'newspack-rolling-coverage'
+									),
+									decodeEntities( currentCoverage.label )
+								)
+							: __(
+									'Coverage of this news event has concluded and this feed is now archived.',
+									'newspack-rolling-coverage'
+								)
+					}
 					value={ archivedNotice }
 					onChange={ ( value: string ) =>
 						setAttributes( { archivedNotice: value } )
 					}
 				/>
-				<TextControl
-					__next40pxDefaultSize
-					type="url"
+				<ToggleControl
 					label={ __(
-						'Archived notice link',
+						'Add a link to the archived notice',
 						'newspack-rolling-coverage'
 					) }
-					help={ __(
-						'Adds a link after the notice, such as to where the story continues.',
-						'newspack-rolling-coverage'
-					) }
-					placeholder="https://example.com/story"
-					value={ archivedNoticeLinkUrl }
-					onChange={ ( value: string ) =>
-						setAttributes( { archivedNoticeLinkUrl: value } )
+					checked={ archivedNoticeShowLink }
+					onChange={ ( value: boolean ) =>
+						setAttributes( { archivedNoticeShowLink: value } )
 					}
 				/>
-				<TextControl
-					__next40pxDefaultSize
-					label={ __(
-						'Archived notice link text',
-						'newspack-rolling-coverage'
-					) }
-					placeholder={ __(
-						'Read more',
-						'newspack-rolling-coverage'
-					) }
-					value={ archivedNoticeLinkLabel }
-					onChange={ ( value: string ) =>
-						setAttributes( { archivedNoticeLinkLabel: value } )
-					}
-				/>
+				{ archivedNoticeShowLink && (
+					<>
+						<TextControl
+							__next40pxDefaultSize
+							type="url"
+							label={ __(
+								'Archived notice link',
+								'newspack-rolling-coverage'
+							) }
+							help={ __(
+								"When empty, links to the coverage's latest breakout post, if there is one.",
+								'newspack-rolling-coverage'
+							) }
+							placeholder="https://example.com/story"
+							value={ archivedNoticeLinkUrl }
+							onChange={ ( value: string ) =>
+								setAttributes( {
+									archivedNoticeLinkUrl: value,
+								} )
+							}
+						/>
+						<TextControl
+							__next40pxDefaultSize
+							label={ __(
+								'Archived notice link text',
+								'newspack-rolling-coverage'
+							) }
+							placeholder={ __(
+								'Read more',
+								'newspack-rolling-coverage'
+							) }
+							value={ archivedNoticeLinkLabel }
+							onChange={ ( value: string ) =>
+								setAttributes( {
+									archivedNoticeLinkLabel: value,
+								} )
+							}
+						/>
+					</>
+				) }
 			</PanelBody>
 
 			{ coverageId && AI_AVAILABLE ? (
