@@ -249,6 +249,20 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A compact pinned card and entry group carry no corner radius of their
+	 * own, and rendering adds none.
+	 */
+	public function test_compact_cards_render_without_a_border_radius() {
+		$markup = self::compact_markup();
+		$pinned = self::render( self::create_pinned_entry(), false, $markup );
+		$other  = self::render( self::create_entry( self::create_coverage() ), false, $markup );
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-card', $pinned );
+		$this->assertStringNotContainsString( 'border-radius', $pinned );
+		$this->assertStringNotContainsString( 'border-radius', $other );
+	}
+
+	/**
 	 * The built-in template, used when the block saves no blocks, renders the
 	 * card for a pinned entry and the entry group for the others.
 	 */

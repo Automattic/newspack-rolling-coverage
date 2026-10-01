@@ -426,7 +426,6 @@ function compactEntryTemplate(): TemplateItem[] {
 						},
 						blockGap: DEFAULT_ENTRY_GAP,
 					},
-					border: { radius: ENTRY_RADIUS },
 				},
 				metadata: {
 					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
@@ -447,7 +446,6 @@ function compactEntryTemplate(): TemplateItem[] {
 						},
 						blockGap: DEFAULT_ENTRY_GAP,
 					},
-					border: { radius: ENTRY_RADIUS },
 				},
 				metadata: {
 					name: __( 'Entry', 'newspack-rolling-coverage' ),
