@@ -1,21 +1,6 @@
 @use "~@wordpress/base-styles/colors" as wp-colors;
 @use "~@wordpress/base-styles/variables" as wp-vars;
 
-.newspack-rolling-coverage-panel-group {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	margin-top: 16px;
-
-	> button {
-		align-self: flex-start;
-	}
-
-	.components-base-control {
-		margin-bottom: 0;
-	}
-}
-
 .newspack-rolling-coverage-ai-panel {
 	display: flex;
 	flex-direction: column;

@@ -29,7 +29,6 @@ import {
 	PanelBody,
 	ComboboxControl,
 	TextControl,
-	RadioControl,
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalToggleGroupControl as ToggleGroupControl,
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
@@ -38,7 +37,6 @@ import {
 	Notice,
 	Placeholder,
 	TextareaControl,
-	ToggleControl,
 	ToolbarButton,
 } from '@wordpress/components';
 import {
@@ -54,6 +52,7 @@ import { store as editorStore } from '@wordpress/editor';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, _x, sprintf } from '@wordpress/i18n';
 import { copy as copyIcon, check } from '@wordpress/icons';
+import { Stack } from '@wordpress/ui';
 
 /**
  * External dependencies
@@ -66,7 +65,6 @@ import { activity } from 'newspack-icons';
 import {
 	searchCoverages,
 	getCoverage,
-	updateCoverageStatus,
 	updateCoverageCanonicalUrl,
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
@@ -201,12 +199,6 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
 	};
 }
 
-const STATUS_OPTIONS = [
-	{ label: __( 'Active', 'newspack-rolling-coverage' ), value: 'active' },
-	{ label: __( 'Paused', 'newspack-rolling-coverage' ), value: 'paused' },
-	{ label: __( 'Archived', 'newspack-rolling-coverage' ), value: 'archived' },
-];
-
 export default function Edit( {
 	clientId,
 	attributes,
@@ -313,11 +305,6 @@ export default function Edit( {
 	const [ options, setOptions ] = useState< CoverageOption[] >( [] );
 	const [ currentCoverage, setCurrentCoverage ] =
 		useState< CoverageOption | null >( null );
-	const [ pendingStatus, setPendingStatus ] = useState< string >( 'active' );
-	const [ isApplying, setIsApplying ] = useState( false );
-	const [ applyNotice, setApplyNotice ] = useState< ApplyNotice | null >(
-		null
-	);
 	const [ pendingCanonicalUrl, setPendingCanonicalUrl ] =
 		useState< string >( '' );
 	const [ isApplyingUrl, setIsApplyingUrl ] = useState( false );
@@ -848,18 +835,14 @@ export default function Edit( {
 		};
 	}, [ search, currentCoverage, isPreviewMode ] );
 
-	// Load the currently connected coverage's status and canonical URL
-	// whenever the selection changes.
 	useEffect( () => {
 		let cancelled = false;
-		setApplyNotice( null );
 		getCoverage( coverageId ).then( ( coverage ) => {
 			if ( cancelled ) {
 				return;
 			}
 			setCurrentCoverage( coverage );
 			setCoverageLoadedFor( coverageId );
-			setPendingStatus( coverage?.status || 'active' );
 			setPendingCanonicalUrl( coverage?.canonicalUrl || '' );
 		} );
 		return () => {
@@ -867,39 +850,6 @@ export default function Edit( {
 		};
 	}, [ coverageId ] );
 
-	const handleApply = useCallback( async () => {
-		if ( ! coverageId ) {
-			return;
-		}
-		setIsApplying( true );
-		setApplyNotice( null );
-		const success = await updateCoverageStatus( coverageId, pendingStatus );
-		setIsApplying( false );
-		setApplyNotice(
-			success
-				? {
-						type: 'success',
-						message: __(
-							'Coverage status updated.',
-							'newspack-rolling-coverage'
-						),
-					}
-				: {
-						type: 'error',
-						message: __(
-							'Could not update the coverage status.',
-							'newspack-rolling-coverage'
-						),
-					}
-		);
-		if ( success ) {
-			setCurrentCoverage( ( prev ) =>
-				prev ? { ...prev, status: pendingStatus } : prev
-			);
-		}
-	}, [ coverageId, pendingStatus ] );
-
-	const statusUnchanged = currentCoverage?.status === pendingStatus;
 	const coverageAdsDisabled = currentCoverage?.adsDisabled ?? false;
 
 	const handleGenerate = useCallback( async () => {
@@ -1059,57 +1009,26 @@ export default function Edit( {
 
 				{ coverageId ? (
 					<>
-						<div className="newspack-rolling-coverage-panel-group">
-							<RadioControl
-								label={ __(
-									'Status',
-									'newspack-rolling-coverage'
-								) }
-								selected={ pendingStatus }
-								options={ STATUS_OPTIONS }
-								onChange={ setPendingStatus }
-								help={ __(
-									'Writes back to the coverage itself — changes here affect every block connected to it.',
-									'newspack-rolling-coverage'
-								) }
-							/>
-							<Button
-								variant="secondary"
-								onClick={ handleApply }
-								isBusy={ isApplying }
-								disabled={ isApplying || statusUnchanged }
-							>
-								{ __( 'Apply', 'newspack-rolling-coverage' ) }
-							</Button>
-							{ applyNotice && (
-								<Notice
-									status={ applyNotice.type }
-									isDismissible={ false }
-								>
-									{ applyNotice.message }
-								</Notice>
+						<TextControl
+							__next40pxDefaultSize
+							type="url"
+							label={ __(
+								'Canonical URL',
+								'newspack-rolling-coverage'
 							) }
-						</div>
-						<div className="newspack-rolling-coverage-panel-group">
-							<TextControl
-								__next40pxDefaultSize
-								type="url"
-								label={ __(
-									'Canonical URL',
-									'newspack-rolling-coverage'
-								) }
-								placeholder={ __(
-									'https://example.com/live-coverage',
-									'newspack-rolling-coverage'
-								) }
-								value={ pendingCanonicalUrl }
-								onChange={ setPendingCanonicalUrl }
-								disabled={ isApplyingUrl }
-								help={ __(
-									"The page readers land on when they open a link to one of this coverage's entries. Shared across every block connected to this coverage.",
-									'newspack-rolling-coverage'
-								) }
-							/>
+							placeholder={ __(
+								'https://example.com/live-coverage',
+								'newspack-rolling-coverage'
+							) }
+							value={ pendingCanonicalUrl }
+							onChange={ setPendingCanonicalUrl }
+							disabled={ isApplyingUrl }
+							help={ __(
+								"The page readers land on when they open a link to one of this coverage's entries. Shared across every block connected to this coverage.",
+								'newspack-rolling-coverage'
+							) }
+						/>
+						<Stack direction="column" gap="sm" align="flex-start">
 							<Button
 								variant="secondary"
 								onClick={ () =>
@@ -1136,7 +1055,7 @@ export default function Edit( {
 									) }
 								</p>
 							) }
-						</div>
+						</Stack>
 					</>
 				) : null }
 			</PanelBody>
@@ -1187,20 +1106,33 @@ export default function Edit( {
 				) }
 				initialOpen={ false }
 			>
-				<ToggleControl
+				<ToggleGroupControl
+					__next40pxDefaultSize
+					isBlock
 					label={ __(
-						'Show archived notice',
+						'Archived notice',
 						'newspack-rolling-coverage'
 					) }
 					help={ __(
-						"Tells readers the coverage has ended. Shown at the top of the feed once it's archived.",
+						"Tells readers the coverage has ended. Shown at the top of the feed once it's archived in All Coverages.",
 						'newspack-rolling-coverage'
 					) }
-					checked={ archivedNoticeShow }
-					onChange={ ( value: boolean ) =>
-						setAttributes( { archivedNoticeShow: value } )
+					value={ archivedNoticeShow ? 'show' : 'hide' }
+					onChange={ ( value ) =>
+						setAttributes( {
+							archivedNoticeShow: value === 'show',
+						} )
 					}
-				/>
+				>
+					<ToggleGroupControlOption
+						value="show"
+						label={ __( 'Show', 'newspack-rolling-coverage' ) }
+					/>
+					<ToggleGroupControlOption
+						value="hide"
+						label={ __( 'Hide', 'newspack-rolling-coverage' ) }
+					/>
+				</ToggleGroupControl>
 				{ archivedNoticeShow && (
 					<>
 						<TextareaControl
@@ -1230,29 +1162,43 @@ export default function Edit( {
 								setAttributes( { archivedNotice: value } )
 							}
 						/>
-						<ToggleControl
-							label={ __(
-								'Add a link',
-								'newspack-rolling-coverage'
-							) }
+						<ToggleGroupControl
+							__next40pxDefaultSize
+							isBlock
+							label={ __( 'Link', 'newspack-rolling-coverage' ) }
 							help={ __(
 								'Points readers to where the story continues.',
 								'newspack-rolling-coverage'
 							) }
-							checked={ archivedNoticeShowLink }
-							onChange={ ( value: boolean ) =>
+							value={ archivedNoticeShowLink ? 'show' : 'hide' }
+							onChange={ ( value ) =>
 								setAttributes( {
-									archivedNoticeShowLink: value,
+									archivedNoticeShowLink: value === 'show',
 								} )
 							}
-						/>
+						>
+							<ToggleGroupControlOption
+								value="show"
+								label={ __(
+									'Show',
+									'newspack-rolling-coverage'
+								) }
+							/>
+							<ToggleGroupControlOption
+								value="hide"
+								label={ __(
+									'Hide',
+									'newspack-rolling-coverage'
+								) }
+							/>
+						</ToggleGroupControl>
 						{ archivedNoticeShowLink && (
 							<>
 								<TextControl
 									__next40pxDefaultSize
 									type="url"
 									label={ __(
-										'Link',
+										'URL',
 										'newspack-rolling-coverage'
 									) }
 									help={ __(
