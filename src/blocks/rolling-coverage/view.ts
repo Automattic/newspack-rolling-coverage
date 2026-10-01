@@ -32,9 +32,11 @@ const JUMP_TIMEOUT_MS = 8000;
 // the feed without them.
 const STYLES_TIMEOUT_MS = 3000;
 
-// Space between the floating control and the top of the viewport, or the
-// bars there, matching the stylesheet.
+// Space left above the block when the page scrolls to it, matching the
+// control's gap in the stylesheet.
 const EDGE_GAP = 24;
+
+// Space between the bars at the top of the viewport and what sits below them.
 const BAR_GAP = 16;
 
 // How long the linked entry's outline stays once the reader can see it.
@@ -178,6 +180,7 @@ function newerPostsLabel( count: number ): string {
  */
 function topBarsBottom( control: HTMLElement | null ): number {
 	const x = window.innerWidth / 2;
+	const checked = new Set< Element >();
 	let bottom = 0;
 
 	// Bars can stack, like a sticky header held below the admin bar.
@@ -186,20 +189,35 @@ function topBarsBottom( control: HTMLElement | null ): number {
 		let next = bottom;
 
 		document.elementsFromPoint( x, y ).forEach( ( element ) => {
+			let below: Element | null = null;
+
 			for (
 				let node: Element | null = element;
-				node && node !== document.body && ! control?.contains( node );
+				node &&
+				node !== document.body &&
+				! control?.contains( node ) &&
+				! checked.has( node );
 				node = node.parentElement
 			) {
+				checked.add( node );
+
 				const { position } = window.getComputedStyle( node );
 
 				if ( position !== 'fixed' && position !== 'sticky' ) {
+					below = node;
 					continue;
 				}
 
-				const rect = node.getBoundingClientRect();
+				// A full-screen layer can hold a bar, like a prompt pinned to
+				// the top without an overlay; the box inside it is the bar.
+				const bar =
+					node.getBoundingClientRect().height < window.innerHeight / 2
+						? node
+						: below;
+				const rect = bar?.getBoundingClientRect();
 
 				if (
+					rect &&
 					rect.top <= y &&
 					rect.bottom > next &&
 					rect.height < window.innerHeight / 2
@@ -274,7 +292,7 @@ function initBlock( root: HTMLElement ): void {
 	let hasMore = root.dataset.hasMore === '1';
 	let isLoadingMore = false;
 	let isJumping = false;
-	let barsBottom = 0;
+	let linkedObserver: IntersectionObserver | null = null;
 	let isDisposed = false;
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
@@ -629,16 +647,18 @@ function initBlock( root: HTMLElement ): void {
 		};
 
 		const observer = new IntersectionObserver(
-			( [ entry ] ) => {
-				isInView = entry.isIntersecting;
+			( entries ) => {
+				isInView = entries.some( ( entry ) => entry.isIntersecting );
 				startWhenSeen();
 			},
 			{ threshold: 0 }
 		);
+		linkedObserver = observer;
 
 		function stop(): void {
 			root.dataset.linkedFaded = '';
 			observer.disconnect();
+			linkedObserver = null;
 			document.removeEventListener( 'visibilitychange', startWhenSeen );
 		}
 
@@ -666,7 +686,7 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		barsBottom = topBarsBottom( newEntriesControl );
+		const barsBottom = topBarsBottom( newEntriesControl );
 
 		if ( barsBottom > 0 ) {
 			newEntriesControl.style.setProperty(
@@ -1216,10 +1236,10 @@ function initBlock( root: HTMLElement ): void {
 
 	placeControl();
 
-	// The page lands at the linked entry before the bars are measured, so it
-	// can sit under a sticky header until it is scrolled again. A theme's own
-	// offset for sticky headers leaves no room for the control, so the entry's
-	// margin is set on the element.
+	// The browser lands on the hash target before the bars can be measured,
+	// and a theme's offset for its sticky header leaves no room for the
+	// control, so the margin is set on the target itself. Only a target still
+	// where that landing put it is moved, never a page the reader has scrolled.
 	const landingBars = topBarsBottom( newEntriesControl );
 
 	if ( landingBars > 0 ) {
@@ -1228,19 +1248,35 @@ function initBlock( root: HTMLElement ): void {
 			`${ landingBars + BAR_GAP + CONTROL_HEIGHT }px`
 		);
 
-		const target =
-			window.location.hash.length > 1
-				? root.querySelector(
-						`#${ cssEscape( window.location.hash.slice( 1 ) ) }`
-					)
-				: null;
+		let id = window.location.hash.slice( 1 );
+
+		try {
+			id = decodeURIComponent( id );
+		} catch {
+			// A malformed escape is matched as written.
+		}
+
+		const target = id
+			? root.querySelector( `#${ cssEscape( id ) }` )
+			: null;
 
 		if ( target instanceof HTMLElement ) {
+			const isAtLanding =
+				Math.abs(
+					target.getBoundingClientRect().top -
+						parseFloat(
+							window.getComputedStyle( target ).scrollMarginTop
+						)
+				) < 2;
+
 			target.style.scrollMarginTop =
 				target.dataset.linked === undefined
 					? 'var(--newspack-rolling-coverage-scroll-offset)'
 					: 'var(--newspack-rolling-coverage-linked-margin)';
-			target.scrollIntoView();
+
+			if ( isAtLanding ) {
+				target.scrollIntoView( { behavior: 'instant' } );
+			}
 		}
 	}
 
@@ -1291,6 +1327,8 @@ function initBlock( root: HTMLElement ): void {
 				// The poll can't know which entry the page's link names.
 				if ( existing.dataset.linked !== undefined ) {
 					entryEl.dataset.linked = '';
+					linkedObserver?.unobserve( existing );
+					linkedObserver?.observe( entryEl );
 				}
 
 				existing.replaceWith( entryEl );
