@@ -80,7 +80,7 @@
 
 	.newspack-rolling-coverage-entry[data-linked] > .newspack-rolling-coverage-regular-entry,
 	.newspack-rolling-coverage-entry[data-linked] > .newspack-rolling-coverage-pinned-card,
-	.newspack-rolling-coverage-entry[data-linked]:not(:has(> .newspack-rolling-coverage-regular-entry, > .newspack-rolling-coverage-pinned-card)) {
+	.newspack-rolling-coverage-entry[data-linked]:is(:not(:has(> .newspack-rolling-coverage-regular-entry, > .newspack-rolling-coverage-pinned-card))) {
 		outline: 2px solid var(--wp--preset--color--accent, var(--newspack-theme-color-primary, currentcolor));
 		outline-offset: calc(var(--wp--preset--spacing--50, 2rem) / 2);
 		transition: outline-color 1s ease-out;

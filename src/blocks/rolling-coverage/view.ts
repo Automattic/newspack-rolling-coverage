@@ -218,6 +218,10 @@ function topBarsBottom( control: HTMLElement | null ): number {
 
 				if (
 					rect &&
+					bar?.checkVisibility?.( {
+						opacityProperty: true,
+						visibilityProperty: true,
+					} ) !== false &&
 					rect.top <= y &&
 					rect.bottom > next &&
 					rect.height < window.innerHeight / 2
@@ -1243,11 +1247,6 @@ function initBlock( root: HTMLElement ): void {
 	const landingBars = topBarsBottom( newEntriesControl );
 
 	if ( landingBars > 0 ) {
-		root.style.setProperty(
-			'--newspack-rolling-coverage-scroll-offset',
-			`${ landingBars + BAR_GAP + CONTROL_HEIGHT }px`
-		);
-
 		let id = window.location.hash.slice( 1 );
 
 		try {
@@ -1259,16 +1258,28 @@ function initBlock( root: HTMLElement ): void {
 		const target = id
 			? root.querySelector( `#${ cssEscape( id ) }` )
 			: null;
+		// Core pads the root's scroll area by the admin bar's height.
+		const scrollPadding =
+			parseFloat(
+				window.getComputedStyle( document.documentElement )
+					.scrollPaddingTop
+			) || 0;
+		const isAtLanding =
+			target instanceof HTMLElement &&
+			Math.abs(
+				target.getBoundingClientRect().top -
+					scrollPadding -
+					parseFloat(
+						window.getComputedStyle( target ).scrollMarginTop
+					)
+			) < 2;
+
+		root.style.setProperty(
+			'--newspack-rolling-coverage-scroll-offset',
+			`${ landingBars - scrollPadding + BAR_GAP + CONTROL_HEIGHT }px`
+		);
 
 		if ( target instanceof HTMLElement ) {
-			const isAtLanding =
-				Math.abs(
-					target.getBoundingClientRect().top -
-						parseFloat(
-							window.getComputedStyle( target ).scrollMarginTop
-						)
-				) < 2;
-
 			target.style.scrollMarginTop =
 				target.dataset.linked === undefined
 					? 'var(--newspack-rolling-coverage-scroll-offset)'
