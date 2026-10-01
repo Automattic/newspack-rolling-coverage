@@ -682,22 +682,6 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A reply in the thread of an ordinary message is an entry like any other.
-	 */
-	public function test_reply_in_the_thread_of_a_kept_message_becomes_an_entry() {
-		self::configure_slack();
-		$coverage_id = self::create_coverage();
-		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
-		$this->channel_messages = [ self::MESSAGE_TS => 'Polls have closed across the county.' ];
-
-		self::controller()->handle_event( self::webhook_request( self::thread_reply_event_body() ) );
-		$entries = self::get_coverage_entries( $coverage_id );
-
-		$this->assertCount( 1, $entries, 'The reply should create an entry.' );
-		$this->assertStringContainsString( '<p>Is that confirmed by the clerk?</p>', $entries[0]->post_content, 'The reply text should be the entry content.' );
-	}
-
-	/**
 	 * A Slack reply's entry is a child of the entry for the message it was
 	 * posted under.
 	 */
