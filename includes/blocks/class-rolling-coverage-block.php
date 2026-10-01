@@ -1072,7 +1072,7 @@ class Rolling_Coverage_Block {
 		return sprintf(
 			'<p class="%s-archived-notice">%s%s</p>',
 			self::MARKUP_PREFIX,
-			esc_html( '' !== $text ? $text : self::default_archived_notice() ),
+			nl2br( esc_html( '' !== $text ? $text : self::default_archived_notice() ), false ),
 			'' !== $link
 				? sprintf(
 					' <a class="%s-archived-notice__link" href="%s">%s</a>',

@@ -504,8 +504,27 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertSame( 1, substr_count( $html, '<p class="newspack-rolling-coverage-archived-notice">Coverage &lt;b&gt;ended&lt;/b&gt;</p>' ), 'The escaped notice should render once.' );
-		$this->assertLessThan( strpos( $html, 'newspack-rolling-coverage-feed' ), strpos( $html, 'newspack-rolling-coverage-archived-notice' ), 'The notice should come before the Feed.' );
+		$notice_position = strpos( $html, 'newspack-rolling-coverage-archived-notice' );
+		$this->assertNotFalse( $notice_position, 'The notice should render.' );
+		$this->assertLessThan( strpos( $html, 'newspack-rolling-coverage-feed' ), $notice_position, 'The notice should come before the Feed.' );
 		$this->assertSame( 2, substr_count( $html, 'Entry text' ), 'Each entry should still render.' );
+	}
+
+	/**
+	 * Line breaks typed in the notice carry through to the front end.
+	 */
+	public function test_archived_notice_keeps_line_breaks() {
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$html = self::render_feed_block(
+			[
+				'coverageId'     => $coverage_id,
+				'archivedNotice' => "Coverage ended.\nThanks for following.",
+			]
+		);
+
+		$this->assertStringContainsString( "<p class=\"newspack-rolling-coverage-archived-notice\">Coverage ended.<br>\nThanks for following.</p>", $html );
 	}
 
 	/**

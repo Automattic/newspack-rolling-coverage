@@ -1152,10 +1152,7 @@ export default function Edit( {
 						'Adds a link after the notice, such as to where the story continues.',
 						'newspack-rolling-coverage'
 					) }
-					placeholder={ __(
-						'https://example.com/story',
-						'newspack-rolling-coverage'
-					) }
+					placeholder="https://example.com/story"
 					value={ archivedNoticeLinkUrl }
 					onChange={ ( value: string ) =>
 						setAttributes( { archivedNoticeLinkUrl: value } )
