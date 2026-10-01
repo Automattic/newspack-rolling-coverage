@@ -1045,6 +1045,14 @@ export default function Edit( {
 								'newspack-rolling-coverage'
 							) }
 				</p>
+				{ canChangeLayout && (
+					<Button
+						variant="secondary"
+						onClick={ () => setIsPickingLayout( true ) }
+					>
+						{ __( 'Change layout', 'newspack-rolling-coverage' ) }
+					</Button>
+				) }
 			</PanelBody>
 			<PanelBody title={ __( 'Coverage', 'newspack-rolling-coverage' ) }>
 				{ coverageCombobox }
@@ -1440,12 +1448,9 @@ export default function Edit( {
 		<>
 			{ ! isChoosing && inspector }
 
-			{ ! isLoading && canChangeLayout && (
+			{ ! isLoading && isSynced && coverageId > 0 && (
 				<BlockControls group="other">
-					<ToolbarButton onClick={ () => setIsPickingLayout( true ) }>
-						{ __( 'Change layout', 'newspack-rolling-coverage' ) }
-					</ToolbarButton>
-					{ isSynced && coverageId > 0 && canEditLayout && (
+					{ canEditLayout && (
 						<ToolbarButton
 							{ ...{
 								href: getLayoutEditUrl( layoutId, coverageId ),
@@ -1455,11 +1460,9 @@ export default function Edit( {
 							{ __( 'Edit Layout', 'newspack-rolling-coverage' ) }
 						</ToolbarButton>
 					) }
-					{ isSynced && coverageId > 0 && (
-						<ToolbarButton onClick={ detach }>
-							{ __( 'Detach', 'newspack-rolling-coverage' ) }
-						</ToolbarButton>
-					) }
+					<ToolbarButton onClick={ detach }>
+						{ __( 'Detach', 'newspack-rolling-coverage' ) }
+					</ToolbarButton>
 				</BlockControls>
 			) }
 
