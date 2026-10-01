@@ -108,6 +108,16 @@ const EDITED_STATE_OPTIONS = ENTRY_EDITED_STATES.map( ( state ) => ( {
 } ) );
 
 /**
+ * The Edited State that previews a coverage status.
+ *
+ * @param {string} status Coverage status.
+ * @return {string} 'archived' for an archived coverage, else the default state.
+ */
+function editedStateForStatus( status?: string ): string {
+	return status === 'archived' ? 'archived' : EDITED_STATE_OPTIONS[ 0 ].value;
+}
+
+/**
  * Neutral block context used when a coverage has no published entries yet,
  * so the template can still be edited against something.
  */
@@ -288,16 +298,6 @@ export default function Edit( {
 	const [ currentCoverage, setCurrentCoverage ] =
 		useState< CoverageOption | null >( null );
 	const [ pendingStatus, setPendingStatus ] = useState< string >( 'active' );
-	const coverageStatus = currentCoverage?.status;
-	useEffect( () => {
-		if ( coverageStatus ) {
-			setEditedState(
-				coverageStatus === 'archived'
-					? 'archived'
-					: EDITED_STATE_OPTIONS[ 0 ].value
-			);
-		}
-	}, [ coverageStatus ] );
 	const [ isApplying, setIsApplying ] = useState( false );
 	const [ applyNotice, setApplyNotice ] = useState< ApplyNotice | null >(
 		null
@@ -799,6 +799,7 @@ export default function Edit( {
 				return;
 			}
 			setCurrentCoverage( coverage );
+			setEditedState( editedStateForStatus( coverage?.status ) );
 			setCoverageLoadedFor( coverageId );
 			setPendingStatus( coverage?.status || 'active' );
 			setPendingCanonicalUrl( coverage?.canonicalUrl || '' );
@@ -837,6 +838,7 @@ export default function Edit( {
 			setCurrentCoverage( ( prev ) =>
 				prev ? { ...prev, status: pendingStatus } : prev
 			);
+			setEditedState( editedStateForStatus( pendingStatus ) );
 		}
 	}, [ coverageId, pendingStatus ] );
 
