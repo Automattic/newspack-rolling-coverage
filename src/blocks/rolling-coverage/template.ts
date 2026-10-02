@@ -1771,6 +1771,8 @@ function feedTemplate(
 		type: 'flex',
 		orientation: 'vertical',
 		justifyContent: 'stretch',
+		// A wrapping column sizes each item's height at its fit-content width, so text that wraps narrower leaves space below it.
+		flexWrap: 'nowrap',
 	}
 ): TemplateItem {
 	return [
