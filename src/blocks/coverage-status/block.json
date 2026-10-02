@@ -1,0 +1,46 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "newspack-rolling-coverage/coverage-status",
+	"title": "Coverage Status",
+	"category": "newspack",
+	"description": "Shows whether the Rolling Coverage on this page is live, paused or ended.",
+	"textdomain": "newspack-rolling-coverage",
+	"usesContext": [ "postId" ],
+	"attributes": {
+		"coverageId": {
+			"type": "number",
+			"default": 0
+		},
+		"showLastUpdated": {
+			"type": "boolean",
+			"default": false
+		},
+		"labels": {
+			"type": "object",
+			"default": {}
+		}
+	},
+	"supports": {
+		"html": false,
+		"color": {
+			"text": true,
+			"background": false,
+			"link": false,
+			"__experimentalDefaultControls": {
+				"text": true
+			}
+		},
+		"typography": {
+			"fontSize": true,
+			"__experimentalDefaultControls": {
+				"fontSize": true
+			}
+		},
+		"spacing": {
+			"margin": true
+		}
+	},
+	"editorScript": "file:./index.js",
+	"viewScript": "file:./view.js"
+}
