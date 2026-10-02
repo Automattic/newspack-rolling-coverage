@@ -13,13 +13,13 @@ use WP_Query;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Keeps the date of each coverage's newest published entry in term meta, so
+ * Keeps the time each coverage's newest entry was published in term meta, so
  * the Coverage Status block and polls can say when the coverage was last
  * updated without querying entries.
  */
 class Newest_Entry {
 
-	// GMT `Y-m-d H:i:s` of the newest published entry, or '' when there is none.
+	// GMT `Y-m-d H:i:s` of when the newest entry was published, or '' when there is none.
 	const META_KEY = 'rolling_coverage_newest_entry';
 
 	/**
@@ -40,13 +40,17 @@ class Newest_Entry {
 	}
 
 	/**
-	 * The newest published entry's date, filled in on first read for
+	 * When the newest entry was published, filled in on first read for
 	 * coverages from before it was kept.
 	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return string GMT `Y-m-d H:i:s`, or '' when the coverage has no published entries.
 	 */
 	public static function get( int $coverage_id ): string {
+		if ( ! term_exists( $coverage_id, Taxonomy::TAXONOMY_SLUG ) ) {
+			return '';
+		}
+
 		if ( ! metadata_exists( 'term', $coverage_id, self::META_KEY ) ) {
 			return self::refresh( $coverage_id );
 		}
@@ -55,7 +59,7 @@ class Newest_Entry {
 	}
 
 	/**
-	 * The newest published entry's date as ISO 8601, for the page and polls.
+	 * When the newest entry was published, as ISO 8601, for the page and polls.
 	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return string|null ISO 8601 date, or null when there are no published entries.
@@ -68,34 +72,67 @@ class Newest_Entry {
 	}
 
 	/**
-	 * Looks up and stores the coverage's newest published entry date.
+	 * Looks up and stores when the coverage's newest entry was published,
+	 * which is the recorded publish time, or the post date for entries
+	 * without one.
 	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return string GMT `Y-m-d H:i:s`, or ''.
 	 */
 	public static function refresh( int $coverage_id ): string {
-		$query = new WP_Query(
-			[
-				'post_type'                   => Post_Type::CPT_SLUG,
-				'post_status'                 => 'publish',
-				'tax_query'                   => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-					[
-						'taxonomy'         => Taxonomy::TAXONOMY_SLUG,
-						'field'            => 'term_id',
-						'terms'            => $coverage_id,
-						'include_children' => false,
-					],
+		$base = [
+			'post_type'                   => Post_Type::CPT_SLUG,
+			'post_status'                 => 'publish',
+			'tax_query'                   => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+				[
+					'taxonomy'         => Taxonomy::TAXONOMY_SLUG,
+					'field'            => 'term_id',
+					'terms'            => $coverage_id,
+					'include_children' => false,
 				],
-				'orderby'                     => 'date',
-				'order'                       => 'DESC',
-				'posts_per_page'              => 1,
-				'no_found_rows'               => true,
-				'ignore_sticky_posts'         => true,
-				Post_Type::SKIP_PIN_ORDER_VAR => true,
-			]
+			],
+			'order'                       => 'DESC',
+			'posts_per_page'              => 1,
+			'no_found_rows'               => true,
+			'ignore_sticky_posts'         => true,
+			Post_Type::SKIP_PIN_ORDER_VAR => true,
+		];
+
+		$without_meta = new WP_Query(
+			array_merge(
+				$base,
+				[
+					'orderby'    => 'date',
+					'meta_query' => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+						[
+							'key'     => Post_Type::META_PUBLISHED_GMT,
+							'compare' => 'NOT EXISTS',
+						],
+					],
+				]
+			)
+		);
+		$with_meta    = new WP_Query(
+			array_merge(
+				$base,
+				[
+					'orderby'  => 'meta_value',
+					'meta_key' => Post_Type::META_PUBLISHED_GMT, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+				]
+			)
 		);
 
-		$newest = $query->posts ? (string) $query->posts[0]->post_date_gmt : '';
+		$candidates = [ '' ];
+
+		if ( $without_meta->posts ) {
+			$candidates[] = (string) $without_meta->posts[0]->post_date_gmt;
+		}
+
+		if ( $with_meta->posts ) {
+			$candidates[] = (string) get_post_meta( $with_meta->posts[0]->ID, Post_Type::META_PUBLISHED_GMT, true );
+		}
+
+		$newest = max( $candidates );
 
 		update_term_meta( $coverage_id, self::META_KEY, $newest );
 

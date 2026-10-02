@@ -108,7 +108,7 @@ class Test_Newest_Entry extends Rolling_Coverage_TestCase {
 		wp_set_object_terms( $moved_id, [ $to_id ], Taxonomy::TAXONOMY_SLUG );
 
 		$this->assertSame( '2026-01-01 10:00:00', Newest_Entry::get( $from_id ), 'The old coverage falls back.' );
-		$this->assertSame( '2026-01-01 12:00:00', Newest_Entry::get( $to_id ), 'The new coverage gains it.' );
+		$this->assertSame( '2026-01-01 12:00:00', get_term_meta( $to_id, Newest_Entry::META_KEY, true ), 'The new coverage gains it.' );
 	}
 
 	/**
@@ -131,5 +131,63 @@ class Test_Newest_Entry extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( '2026-01-01 12:00:00', Newest_Entry::get( $coverage_id ) );
 		$this->assertTrue( metadata_exists( 'term', $coverage_id, Newest_Entry::META_KEY ), 'The value should be stored for next time.' );
+	}
+
+	/**
+	 * The date is when an entry went out, not when its draft was created.
+	 */
+	public function test_publishing_a_draft_uses_the_publish_moment() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		$draft_id = self::create_entry(
+			$coverage_id,
+			[
+				'post_date'   => '2026-01-02 09:00:00',
+				'post_status' => 'draft',
+			]
+		);
+
+		wp_update_post(
+			[
+				'ID'          => $draft_id,
+				'post_status' => 'publish',
+			]
+		);
+
+		$stored = get_term_meta( $coverage_id, Newest_Entry::META_KEY, true );
+		$this->assertEqualsWithDelta( time(), strtotime( $stored . ' UTC' ), 5, 'The publish moment should be stored.' );
+		$this->assertNotSame( '2026-01-02 09:00:00', $stored );
+	}
+
+	/**
+	 * A scheduled entry becomes the newest when it goes out.
+	 */
+	public function test_publishing_a_scheduled_entry_makes_it_newest() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		$scheduled_id = self::create_entry(
+			$coverage_id,
+			[
+				'post_date'   => gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ),
+				'post_status' => 'future',
+			]
+		);
+		$this->assertSame( '2026-01-01 10:00:00', Newest_Entry::get( $coverage_id ) );
+
+		wp_publish_post( $scheduled_id );
+
+		$stored = get_term_meta( $coverage_id, Newest_Entry::META_KEY, true );
+		$this->assertNotSame( '2026-01-01 10:00:00', $stored );
+		$this->assertEqualsWithDelta( time(), strtotime( $stored . ' UTC' ), 5 );
+	}
+
+	/**
+	 * Reading an unknown coverage must not leave orphan term meta behind.
+	 */
+	public function test_unknown_coverage_has_none_and_stores_nothing() {
+		$unknown_id = 999999;
+
+		$this->assertSame( '', Newest_Entry::get( $unknown_id ) );
+		$this->assertFalse( metadata_exists( 'term', $unknown_id, Newest_Entry::META_KEY ) );
 	}
 }
