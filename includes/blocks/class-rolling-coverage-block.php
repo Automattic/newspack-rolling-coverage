@@ -2523,11 +2523,22 @@ class Rolling_Coverage_Block {
 
 		// Pages still in the page cache poll with an older config's key, and
 		// one coverage can show several layouts at once. Only the most recent
-		// configs are kept so the options table stays bounded.
+		// configs are kept so the options table stays bounded. The list is
+		// written only when its membership changes or the next config to drop
+		// is rendered again, since every term meta write flushes the site's
+		// term query caches.
 		$meta_key = 'rolling_coverage_template_hashes';
 		$hashes   = get_term_meta( $coverage_id, $meta_key, true );
-		$hashes   = array_values( array_diff( is_array( $hashes ) ? $hashes : [], [ $hash ] ) );
-		$hashes[] = $hash;
+		$hashes   = is_array( $hashes ) ? array_values( $hashes ) : [];
+
+		if ( ! in_array( $hash, $hashes, true ) ) {
+			$hashes[] = $hash;
+		} elseif ( count( $hashes ) >= self::CONFIGS_KEPT && $hashes[0] === $hash ) {
+			array_shift( $hashes );
+			$hashes[] = $hash;
+		} else {
+			return $hash;
+		}
 
 		foreach ( array_splice( $hashes, 0, max( 0, count( $hashes ) - self::CONFIGS_KEPT ) ) as $old_hash ) {
 			delete_option( self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $old_hash );

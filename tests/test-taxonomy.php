@@ -289,8 +289,6 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	 * while one that also embeds an uncapped block still can be.
 	 */
 	public function test_page_url_skips_posts_that_only_embed_a_capped_block() {
-		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
-
 		$coverage_id = self::create_coverage();
 		$full        = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->';
 		$capped      = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . ',"latestOnly":true} /-->';

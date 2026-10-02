@@ -226,8 +226,8 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Pages still cached with the previous layout's key keep loading it, so
-	 * only the config from two layout edits ago is dropped.
+	 * Pages still cached with an earlier layout's key keep loading it: only
+	 * the oldest config beyond Rolling_Coverage_Block::CONFIGS_KEPT is dropped.
 	 */
 	public function test_pattern_edit_keeps_the_recent_block_configs() {
 		$coverage_id = self::create_coverage();
@@ -252,10 +252,10 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Re-rendering an older config makes it the most recent instead of
-	 * storing it twice, so it outlives the ones rendered after it.
+	 * Re-rendering the config that is next to be dropped makes it the most
+	 * recent instead of storing it twice, so it outlives the next new config.
 	 */
-	public function test_rerendering_a_stored_config_moves_it_to_most_recent() {
+	public function test_rerendering_the_next_config_to_drop_keeps_it() {
 		$coverage_id = self::create_coverage();
 		$persist     = new ReflectionMethod( Rolling_Coverage_Block::class, 'persist_block_config' );
 		$persist->setAccessible( true );
@@ -274,8 +274,44 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Rendering configs that are already stored writes no term meta, so
+	 * steady-state front-end renders do not flush the site's term caches.
+	 */
+	public function test_rendering_stored_configs_writes_no_term_meta() {
+		$coverage_id = self::create_coverage();
+		$persist     = new ReflectionMethod( Rolling_Coverage_Block::class, 'persist_block_config' );
+		$persist->setAccessible( true );
+
+		$templates = [];
+		for ( $i = 0; $i < Rolling_Coverage_Block::CONFIGS_KEPT - 1; $i++ ) {
+			$templates[] = parse_blocks( '<!-- wp:paragraph --><p>Config ' . $i . '</p><!-- /wp:paragraph -->' );
+			$persist->invoke( null, $coverage_id, $templates[ $i ], true, 4 );
+		}
+
+		$writes  = 0;
+		$counter = function () use ( &$writes ) {
+			$writes++;
+		};
+		$before  = get_term_meta( $coverage_id, 'rolling_coverage_template_hashes', true );
+		foreach ( [ 'added_term_meta', 'updated_term_meta' ] as $hook ) {
+			add_action( $hook, $counter );
+		}
+
+		foreach ( [ 0, 3, 1, 2, 0, 1 ] as $i ) {
+			$persist->invoke( null, $coverage_id, $templates[ $i ], true, 4 );
+		}
+
+		foreach ( [ 'added_term_meta', 'updated_term_meta' ] as $hook ) {
+			remove_action( $hook, $counter );
+		}
+
+		$this->assertSame( 0, $writes );
+		$this->assertSame( $before, get_term_meta( $coverage_id, 'rolling_coverage_template_hashes', true ) );
+	}
+
+	/**
 	 * Three layouts on one coverage (for example a page, a sidebar and a
-	 * footer) all keep loading from the page cache's poll keys.
+	 * footer) keep loading while unrelated layout edits churn the list.
 	 */
 	public function test_three_layouts_on_one_coverage_all_load() {
 		$coverage_id = self::create_coverage();
@@ -291,8 +327,12 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 			$templates[] = $template;
 			$keys[]      = $persist->invoke( null, $coverage_id, $template, false, 4 );
 		}
-		foreach ( [ 0, 1, 2, 0, 1, 2 ] as $i ) {
-			$persist->invoke( null, $coverage_id, $templates[ $i ], false, 4 );
+
+		for ( $edit = 0; $edit < 6; $edit++ ) {
+			$persist->invoke( null, $coverage_id, parse_blocks( '<!-- wp:paragraph --><p>Edit ' . $edit . '</p><!-- /wp:paragraph -->' ), false, 4 );
+			foreach ( $templates as $template ) {
+				$persist->invoke( null, $coverage_id, $template, false, 4 );
+			}
 		}
 
 		foreach ( $keys as $i => $key ) {
