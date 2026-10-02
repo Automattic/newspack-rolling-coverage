@@ -352,6 +352,15 @@ export default function Edit( {
 		currentPostType === 'wp_block' &&
 		( ( patternCategories ?? [] ).includes( getLayoutCategoryId() ) ||
 			builtInLayoutSlugFor( currentPostId ) !== null );
+	// A built-in layout's pattern previews the cap the layout sets when picked.
+	const patternLatest = isLayoutPattern
+		? getBuiltInLayouts().find(
+				( layout ) =>
+					layout.slug === builtInLayoutSlugFor( currentPostId )
+			)?.latest
+		: undefined;
+	const isCapped = patternLatest ? true : !! latestOnly;
+	const cappedCount = patternLatest ?? latestCount;
 	const innerBlockCount = useSelect(
 		( select ) =>
 			(
@@ -613,9 +622,9 @@ export default function Edit( {
 
 	const allSampleContexts = useSampleEntries( showsSamples );
 	const sampleContexts = useMemo( () => {
-		if ( latestOnly ) {
+		if ( isCapped ) {
 			return allSampleContexts
-				.slice( 0, latestCount )
+				.slice( 0, cappedCount )
 				.map( ( context ) => ( { ...context, pinned: false } ) );
 		}
 		return isSamplePreview
@@ -625,8 +634,8 @@ export default function Edit( {
 		allSampleContexts,
 		isSamplePreview,
 		entriesPerPage,
-		latestOnly,
-		latestCount,
+		isCapped,
+		cappedCount,
 	] );
 	const entriesCoverageId = isChoosing
 		? 0
@@ -648,7 +657,7 @@ export default function Edit( {
 			isSynced ? feedItems( syncedBlocks ) : allBlocks,
 			previewContexts,
 			entriesPerPage,
-			!! latestOnly
+			isCapped
 		);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
@@ -666,7 +675,7 @@ export default function Edit( {
 	// coverage is archived. It stays in the template for when it can render.
 	const isFollowHidden =
 		! ONESIGNAL_CONFIGURED || currentCoverage?.status === 'archived';
-	const isAllUpdatesHidden = ! latestOnly || allUpdatesLink === false;
+	const isAllUpdatesHidden = ! isCapped || allUpdatesLink === false;
 	// An editable layout previews the pinned card against the pinned entry
 	// and the entry group against one that isn't pinned, and leaves out the
 	// one the coverage has no entry for, and "Read more" where the entry
@@ -902,8 +911,8 @@ export default function Edit( {
 		};
 		fetchEntryPreviewContexts(
 			entriesCoverageId,
-			latestOnly ? latestCount : entriesPerPage,
-			!! latestOnly
+			isCapped ? cappedCount : entriesPerPage,
+			isCapped
 		)
 			.then( ( contexts ) =>
 				// Entries are read before the preview shows, so it doesn't
@@ -927,13 +936,7 @@ export default function Edit( {
 		return () => {
 			cancelled = true;
 		};
-	}, [
-		entriesCoverageId,
-		entriesPerPage,
-		latestOnly,
-		latestCount,
-		registry,
-	] );
+	}, [ entriesCoverageId, entriesPerPage, isCapped, cappedCount, registry ] );
 
 	// Populate the combobox as the user searches.
 	useEffect( () => {

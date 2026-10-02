@@ -18,7 +18,11 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies
  */
 import { BLOCK_NAME } from '../layout';
-import { getBuiltInLayouts, type BuiltInLayoutSlug } from '../layouts';
+import {
+	getBuiltInLayouts,
+	layoutCapAttributes,
+	type BuiltInLayoutSlug,
+} from '../layouts';
 import { withoutLatestButtons } from '../template';
 import { createLayout, getLayoutCategoryId, getLayoutId } from '../utils';
 import type { TemplateItem } from '../types';
@@ -98,6 +102,26 @@ function patternTitle( record: LayoutRecord ): string {
 	);
 }
 
+/**
+ * The cap a built-in layout's card previews, as the layout sets it when
+ * picked; other layouts show every entry.
+ *
+ * @param {string} slug The built-in layout's slug, if the card is one.
+ * @return {Object} The cap attributes.
+ */
+function previewCap( slug?: BuiltInLayoutSlug ): {
+	latestOnly?: boolean;
+	latestCount?: number;
+} {
+	if ( ! slug ) {
+		return {};
+	}
+
+	const { latestOnly, latestCount } = layoutCapAttributes( slug );
+
+	return latestOnly ? { latestOnly, latestCount } : {};
+}
+
 type PreviewBlock = {
 	name: string;
 	attributes?: Record< string, unknown >;
@@ -133,7 +157,7 @@ function LayoutPickerCard( {
 		() => [
 			createBlock(
 				BLOCK_NAME,
-				{ entriesPerPage: PREVIEW_ENTRIES },
+				{ entriesPerPage: PREVIEW_ENTRIES, ...previewCap( card.slug ) },
 				withoutLatestButtons(
 					card.innerBlocks() as PreviewBlock[]
 				) as unknown as Parameters< typeof createBlock >[ 2 ]
