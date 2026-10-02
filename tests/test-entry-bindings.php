@@ -1583,6 +1583,41 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Looking up the coverage page scans post content, so a capped feed whose
+	 * layout has no "See all updates" paragraph, or holds it only inside the
+	 * entries, never runs it.
+	 */
+	public function test_all_updates_lookup_runs_only_for_a_layout_with_the_link() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::factory()->post->create(
+			[
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( [ 'coverageId' => $coverage_id ] ) . ' /-->',
+			]
+		);
+		$scans = 0;
+		$count = static function ( $query ) use ( &$scans ) {
+			if ( str_contains( $query, 'post_content LIKE' ) ) {
+				++$scans;
+			}
+			return $query;
+		};
+		add_filter( 'query', $count );
+
+		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . self::ALL_UPDATES_MARKUP . '</div><!-- /wp:group -->';
+		self::render_capped_coverage( $coverage_id, [], self::BUTTONS_MARKUP );
+		self::render_capped_coverage( $coverage_id, [], $entry_group );
+		$without = $scans;
+		$html    = self::render_capped_coverage( $coverage_id );
+		remove_filter( 'query', $count );
+
+		$this->assertSame( 0, $without );
+		$this->assertSame( 1, $scans );
+		$this->assertStringContainsString( 'See all updates', $html );
+	}
+
+	/**
 	 * The block's toggle turns the link off.
 	 */
 	public function test_all_updates_is_hidden_when_the_toggle_is_off() {

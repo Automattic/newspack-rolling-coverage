@@ -1012,7 +1012,9 @@ class Rolling_Coverage_Block {
 		}
 
 		$wrapper_attributes = get_block_wrapper_attributes( $wrapper_data );
-		$all_updates_url    = $is_capped && false !== ( $attributes['allUpdatesLink'] ?? true ) ? Taxonomy::get_coverage_page_url( $coverage_id ) : '';
+		$all_updates_url    = $is_capped && false !== ( $attributes['allUpdatesLink'] ?? true ) && self::holds_block( array_merge( $layout_parts['header'], $layout_parts['footer'] ), [ Entry_Bindings::class, 'is_all_updates_paragraph' ] )
+			? Taxonomy::get_coverage_page_url( $coverage_id )
+			: '';
 
 		if ( self::is_coverage_page( $all_updates_url ) ) {
 			$all_updates_url = '';
@@ -1706,15 +1708,22 @@ class Rolling_Coverage_Block {
 	 * @return bool
 	 */
 	private static function holds_follow_button( array $blocks ): bool {
+		return self::holds_block(
+			$blocks,
+			static fn( array $block ) => Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $block )
+		);
+	}
+
+	/**
+	 * Whether blocks hold a block matching a test, at any depth.
+	 *
+	 * @param array[]  $blocks   Parsed blocks.
+	 * @param callable $is_match Tests a parsed block.
+	 * @return bool
+	 */
+	private static function holds_block( array $blocks, callable $is_match ): bool {
 		foreach ( $blocks as $block ) {
-			if (
-				is_array( $block ) &&
-				(
-					Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ||
-					Entry_Bindings::is_follow_buttons( $block ) ||
-					self::holds_follow_button( $block['innerBlocks'] ?? [] )
-				)
-			) {
+			if ( is_array( $block ) && ( $is_match( $block ) || self::holds_block( $block['innerBlocks'] ?? [], $is_match ) ) ) {
 				return true;
 			}
 		}

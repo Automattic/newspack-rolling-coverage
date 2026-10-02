@@ -94,7 +94,9 @@ class Taxonomy {
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
-		add_action( 'clean_post_cache', [ __CLASS__, 'flush_coverage_page_ids' ], 10, 2 );
+		add_action( 'post_updated', [ __CLASS__, 'flush_coverage_page_ids_on_update' ], 10, 3 );
+		add_action( 'transition_post_status', [ __CLASS__, 'flush_coverage_page_ids_on_status_change' ], 10, 3 );
+		add_action( 'deleted_post', [ __CLASS__, 'flush_coverage_page_ids_on_delete' ], 10, 2 );
 		add_action( 'created_' . self::TAXONOMY_SLUG, [ __CLASS__, 'set_term_created_date' ] );
 		add_action( 'edited_' . self::TAXONOMY_SLUG, [ __CLASS__, 'update_term_modified_date' ] );
 		add_action( 'added_term_meta', [ __CLASS__, 'maybe_snapshot_end_time' ], 10, 4 );
@@ -606,19 +608,70 @@ class Taxonomy {
 	}
 
 	/**
-	 * Invalidates the coverage-to-page map when a post that could host the
-	 * block changes. Entries, their revisions and autosaves are ignored: they
-	 * change constantly during live coverage and never host the block.
+	 * Invalidates the coverage-to-page map when a published post showing the
+	 * block changes, or a post stops showing it. Other writes, such as
+	 * comment counts, entries and drafts, leave the map as it was.
+	 *
+	 * @param int      $post_id     Post ID.
+	 * @param \WP_Post $post_after  Post after the update.
+	 * @param \WP_Post $post_before Post before the update.
+	 */
+	public static function flush_coverage_page_ids_on_update( $post_id, $post_after, $post_before ): void {
+		if ( self::shows_coverage_block( $post_after ) || self::shows_coverage_block( $post_before ) ) {
+			wp_cache_set_last_changed( self::PAGE_IDS_CACHE_GROUP );
+		}
+	}
+
+	/**
+	 * Invalidates the coverage-to-page map when a post holding the block is
+	 * published or unpublished, including a scheduled post going live, which
+	 * changes its status without an update.
+	 *
+	 * @param string   $new_status New post status.
+	 * @param string   $old_status Old post status.
+	 * @param \WP_Post $post       Post object.
+	 */
+	public static function flush_coverage_page_ids_on_status_change( $new_status, $old_status, $post ): void {
+		if ( $new_status !== $old_status && in_array( 'publish', [ $new_status, $old_status ], true ) && self::holds_coverage_block( $post ) ) {
+			wp_cache_set_last_changed( self::PAGE_IDS_CACHE_GROUP );
+		}
+	}
+
+	/**
+	 * Invalidates the coverage-to-page map when a published post showing the
+	 * block is deleted without going through the trash.
 	 *
 	 * @param int      $post_id Post ID.
 	 * @param \WP_Post $post    Post object.
 	 */
-	public static function flush_coverage_page_ids( $post_id, $post ): void {
-		if ( $post instanceof \WP_Post && ! self::can_host_coverage_block( $post->post_type ) ) {
-			return;
+	public static function flush_coverage_page_ids_on_delete( $post_id, $post = null ): void {
+		if ( self::shows_coverage_block( $post ) ) {
+			wp_cache_set_last_changed( self::PAGE_IDS_CACHE_GROUP );
 		}
+	}
 
-		wp_cache_set_last_changed( self::PAGE_IDS_CACHE_GROUP );
+	/**
+	 * Whether a post can be the coverage page and its content holds a Rolling
+	 * Coverage block.
+	 *
+	 * @param mixed $post Post object.
+	 * @return bool
+	 */
+	private static function holds_coverage_block( $post ): bool {
+		return $post instanceof \WP_Post &&
+			self::can_host_coverage_block( $post->post_type ) &&
+			str_contains( $post->post_content, '<!-- wp:' . Schema::BLOCK_NAME . ' ' );
+	}
+
+	/**
+	 * Whether a post is published and holds a Rolling Coverage block, so the
+	 * coverage-to-page map may list it.
+	 *
+	 * @param mixed $post Post object.
+	 * @return bool
+	 */
+	private static function shows_coverage_block( $post ): bool {
+		return $post instanceof \WP_Post && 'publish' === $post->post_status && self::holds_coverage_block( $post );
 	}
 
 	/**
