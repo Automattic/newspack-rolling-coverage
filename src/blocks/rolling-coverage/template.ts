@@ -451,7 +451,7 @@ function streamEntryTemplate(
 				style: {
 					spacing: {
 						padding: CARD_PADDING,
-						blockGap: 'var:preset|spacing|30',
+						blockGap: 'var:preset|spacing|20',
 					},
 					border: {
 						color: CONTRAST,
@@ -471,7 +471,7 @@ function streamEntryTemplate(
 			{
 				className: REGULAR_ENTRY_CLASS,
 				lock: LOCKED_IN_PLACE,
-				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+				style: { spacing: { blockGap: 'var:preset|spacing|20' } },
 				metadata: {
 					name: __( 'Entry', 'newspack-rolling-coverage' ),
 				},
