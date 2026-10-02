@@ -378,20 +378,24 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	 * @return bool
 	 */
 	private static function clears_page_lookup( callable $action ): bool {
+		Taxonomy::rebuild_coverage_page_ids();
 		update_option( Taxonomy::PAGE_IDS_OPTION, [ 1 => 1 ], false );
 
 		$action();
+		Taxonomy::rebuild_coverage_page_ids();
 
-		return false === get_option( Taxonomy::PAGE_IDS_OPTION );
+		return [ 1 => 1 ] !== get_option( Taxonomy::PAGE_IDS_OPTION );
 	}
 
 	/**
-	 * Capped feeds look the page up on every front-end render, so the map is
-	 * stored rather than cached, and the request that changed it rebuilds it
-	 * before readers need it.
+	 * Capped feeds look the page up on every front-end render, so readers keep
+	 * the stored map while a change is saved, and the request that made the
+	 * change, which is sure to see it, stores the new one when it ends.
 	 */
 	public function test_a_change_rebuilds_the_stored_page_lookup_once_the_request_ends() {
 		$coverage_id = self::create_coverage();
+		Taxonomy::rebuild_coverage_page_ids();
+		update_option( Taxonomy::PAGE_IDS_OPTION, [], false );
 		remove_all_actions( 'shutdown' );
 
 		$page_id = self::factory()->post->create(
@@ -402,11 +406,19 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 			]
 		);
 
-		$this->assertFalse( get_option( Taxonomy::PAGE_IDS_OPTION ) );
+		$this->assertSame( [], get_option( Taxonomy::PAGE_IDS_OPTION ), 'Readers keep the stored map until the request ends.' );
+		$this->assertSame( get_permalink( $page_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'The request that made the change sees it straight away.' );
 
+		update_option( Taxonomy::PAGE_IDS_OPTION, [], false );
+		wp_update_post(
+			[
+				'ID'         => $page_id,
+				'post_title' => 'Renamed',
+			]
+		);
 		do_action( 'shutdown' );
 
-		$this->assertSame( [ $coverage_id => $page_id ], get_option( Taxonomy::PAGE_IDS_OPTION ) );
+		$this->assertSame( [ $coverage_id => $page_id ], get_option( Taxonomy::PAGE_IDS_OPTION ), 'The end of the request overwrites whatever a reader stored.' );
 	}
 
 	/**

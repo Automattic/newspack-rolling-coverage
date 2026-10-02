@@ -89,6 +89,14 @@ class Taxonomy {
 	];
 
 	/**
+	 * Whether this request changed the coverage-to-page map since it last
+	 * stored it.
+	 *
+	 * @var bool
+	 */
+	private static $page_ids_stale = false;
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -651,12 +659,13 @@ class Taxonomy {
 	}
 
 	/**
-	 * Drops the coverage-to-page map and rebuilds it once the request ends, so
-	 * readers don't each rebuild it after an edit, and a request changing
-	 * several posts rebuilds it only once.
+	 * Marks the coverage-to-page map out of date for this request, and has the
+	 * request rebuild the stored one once it ends. Readers keep the stored map
+	 * until then, so they never rebuild it themselves, and the request that
+	 * made the change, which is sure to see it, writes last.
 	 */
 	private static function flush_coverage_page_ids(): void {
-		delete_option( self::PAGE_IDS_OPTION );
+		self::$page_ids_stale = true;
 
 		if ( ! has_action( 'shutdown', [ __CLASS__, 'rebuild_coverage_page_ids' ] ) ) {
 			add_action( 'shutdown', [ __CLASS__, 'rebuild_coverage_page_ids' ] );
@@ -664,10 +673,13 @@ class Taxonomy {
 	}
 
 	/**
-	 * Rebuilds the coverage-to-page map unless a reader already has.
+	 * Rebuilds the stored coverage-to-page map if this request changed it
+	 * since it last read it.
 	 */
 	public static function rebuild_coverage_page_ids(): void {
-		self::get_coverage_page_ids();
+		if ( self::$page_ids_stale ) {
+			self::get_coverage_page_ids();
+		}
 	}
 
 	/**
@@ -724,7 +736,7 @@ class Taxonomy {
 	 * @return array<int,int> Map of coverage term ID => post ID.
 	 */
 	private static function get_coverage_page_ids(): array {
-		$stored = get_option( self::PAGE_IDS_OPTION );
+		$stored = self::$page_ids_stale ? false : get_option( self::PAGE_IDS_OPTION );
 
 		if ( is_array( $stored ) ) {
 			return $stored;
@@ -757,6 +769,7 @@ class Taxonomy {
 		}
 
 		update_option( self::PAGE_IDS_OPTION, $map, false );
+		self::$page_ids_stale = false;
 
 		return $map;
 	}
