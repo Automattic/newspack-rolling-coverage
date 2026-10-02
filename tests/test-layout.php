@@ -283,7 +283,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'wp_block', get_post_type( $id ) );
 		$this->assertSame( [ Layout::PATTERN_CATEGORY ], wp_get_object_terms( $id, 'wp_pattern_category', [ 'fields' => 'slugs' ] ) );
 		$this->assertSame( $id, Layout::get_layout_id( 'default' ) );
-		$this->assertSame( 'Rolling Coverage: Classic', get_the_title( $id ) );
+		$this->assertSame( 'Rolling Coverage: Bulletin', get_the_title( $id ) );
 		$this->assertSame( Layout::get_pattern_category_id(), $first->get_data()['categoryId'] );
 		$this->assertGreaterThan( 0, $first->get_data()['categoryId'] );
 	}
@@ -406,47 +406,47 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The first compact create publishes and records it under its own option.
+	 * The first stream create publishes and records it under its own option.
 	 */
-	public function test_create_makes_the_compact_layout_once() {
+	public function test_create_makes_the_stream_layout_once() {
 		self::log_in_as( 'editor' );
 
-		$response = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
 		$this->assertSame( 201, $response->get_status() );
 		$id = $response->get_data()['id'];
 
-		$this->assertSame( $id, (int) get_option( 'rolling_coverage_compact_layout_id' ) );
+		$this->assertSame( $id, (int) get_option( 'rolling_coverage_stream_layout_id' ) );
 		$this->assertSame( 'publish', get_post_status( $id ) );
-		$this->assertSame( 'Rolling Coverage: Compact', get_the_title( $id ) );
+		$this->assertSame( 'Rolling Coverage: Stream', get_the_title( $id ) );
 		$this->assertSame( [ Layout::PATTERN_CATEGORY ], wp_get_object_terms( $id, 'wp_pattern_category', [ 'fields' => 'slugs' ] ) );
-		$this->assertSame( $id, Layout::get_layout_id( 'compact' ) );
+		$this->assertSame( $id, Layout::get_layout_id( 'stream' ) );
 	}
 
 	/**
-	 * The first cards create publishes and records it under its own option.
+	 * The first rail create publishes and records it under its own option.
 	 */
-	public function test_create_makes_the_cards_layout_once() {
+	public function test_create_makes_the_rail_layout_once() {
 		self::log_in_as( 'editor' );
 
-		$response = self::dispatch( 'POST', '/layouts/cards', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/rail', [ 'content' => self::layout_markup() ] );
 		$this->assertSame( 201, $response->get_status() );
 		$id = $response->get_data()['id'];
 
-		$this->assertSame( $id, (int) get_option( 'rolling_coverage_cards_layout_id' ) );
-		$this->assertSame( 'Rolling Coverage: Cards', get_the_title( $id ) );
-		$this->assertSame( $id, Layout::get_layout_id( 'cards' ) );
-		$this->assertSame( 200, self::dispatch( 'POST', '/layouts/cards', [ 'content' => self::layout_markup( 'Other' ) ] )->get_status() );
+		$this->assertSame( $id, (int) get_option( 'rolling_coverage_rail_layout_id' ) );
+		$this->assertSame( 'Rolling Coverage: Rail', get_the_title( $id ) );
+		$this->assertSame( $id, Layout::get_layout_id( 'rail' ) );
+		$this->assertSame( 200, self::dispatch( 'POST', '/layouts/rail', [ 'content' => self::layout_markup( 'Other' ) ] )->get_status() );
 	}
 
 	/**
-	 * A second compact create returns the existing pattern.
+	 * A second stream create returns the existing pattern.
 	 */
-	public function test_create_returns_the_existing_compact_layout() {
+	public function test_create_returns_the_existing_stream_layout() {
 		self::log_in_as( 'editor' );
-		$id           = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id           = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
 		$count_before = (int) wp_count_posts( 'wp_block' )->publish;
 
-		$second = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup( 'Other' ) ] );
+		$second = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup( 'Other' ) ] );
 
 		$this->assertSame( 200, $second->get_status() );
 		$this->assertSame( $id, $second->get_data()['id'] );
@@ -454,36 +454,36 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A trashed compact layout no longer resolves, so create makes a new one.
+	 * A trashed stream layout no longer resolves, so create makes a new one.
 	 */
-	public function test_create_recreates_a_trashed_compact_layout() {
+	public function test_create_recreates_a_trashed_stream_layout() {
 		self::log_in_as( 'editor' );
-		$id = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
 		wp_trash_post( $id );
 
-		$this->assertSame( 0, Layout::get_layout_id( 'compact' ) );
+		$this->assertSame( 0, Layout::get_layout_id( 'stream' ) );
 
-		$response = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
 
 		$this->assertSame( 201, $response->get_status() );
 		$this->assertNotSame( $id, $response->get_data()['id'] );
-		$this->assertSame( $response->get_data()['id'], (int) get_option( 'rolling_coverage_compact_layout_id' ) );
+		$this->assertSame( $response->get_data()['id'], (int) get_option( 'rolling_coverage_stream_layout_id' ) );
 	}
 
 	/**
 	 * Each built-in layout keeps its own option.
 	 */
-	public function test_compact_and_default_layouts_are_independent() {
+	public function test_stream_and_default_layouts_are_independent() {
 		self::log_in_as( 'editor' );
 
-		$compact = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$stream = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
 		$this->assertSame( 0, (int) get_option( Layout::option_name( 'default' ), 0 ) );
 
 		$default = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
 		$this->assertSame( 201, $default->get_status() );
-		$this->assertNotSame( $compact, $default->get_data()['id'] );
-		$this->assertSame( $compact, (int) get_option( 'rolling_coverage_compact_layout_id' ) );
-		$this->assertSame( 'Rolling Coverage: Classic', get_the_title( $default->get_data()['id'] ) );
+		$this->assertNotSame( $stream, $default->get_data()['id'] );
+		$this->assertSame( $stream, (int) get_option( 'rolling_coverage_stream_layout_id' ) );
+		$this->assertSame( 'Rolling Coverage: Bulletin', get_the_title( $default->get_data()['id'] ) );
 	}
 
 	/**
@@ -498,15 +498,15 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Users who cannot publish patterns cannot create the compact layout.
+	 * Users who cannot publish patterns cannot create the stream layout.
 	 */
-	public function test_create_compact_is_closed_to_users_who_cannot_publish_patterns() {
+	public function test_create_stream_is_closed_to_users_who_cannot_publish_patterns() {
 		self::log_in_as( 'contributor' );
 
-		$response = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
 
 		$this->assertContains( $response->get_status(), [ 401, 403 ] );
-		$this->assertSame( 0, (int) get_option( 'rolling_coverage_compact_layout_id', 0 ) );
+		$this->assertSame( 0, (int) get_option( 'rolling_coverage_stream_layout_id', 0 ) );
 	}
 
 	/**
@@ -522,9 +522,9 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	public function test_created_layout_carries_its_slug() {
 		self::log_in_as( 'editor' );
 
-		$id = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
 
-		$this->assertSame( 'compact', get_post_meta( $id, Layout::SLUG_META_KEY, true ) );
+		$this->assertSame( 'stream', get_post_meta( $id, Layout::SLUG_META_KEY, true ) );
 	}
 
 	/**
@@ -532,15 +532,15 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function test_layout_is_found_by_its_slug_when_the_option_is_lost() {
 		self::log_in_as( 'editor' );
-		$id = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
 
-		delete_option( Layout::option_name( 'compact' ) );
-		$this->assertSame( $id, Layout::get_layout_id( 'compact' ) );
-		$this->assertSame( $id, (int) get_option( Layout::option_name( 'compact' ) ) );
+		delete_option( Layout::option_name( 'stream' ) );
+		$this->assertSame( $id, Layout::get_layout_id( 'stream' ) );
+		$this->assertSame( $id, (int) get_option( Layout::option_name( 'stream' ) ) );
 
-		update_option( Layout::option_name( 'compact' ), 999999 );
-		$this->assertSame( $id, Layout::get_layout_id( 'compact' ) );
-		$this->assertSame( $id, (int) get_option( Layout::option_name( 'compact' ) ) );
+		update_option( Layout::option_name( 'stream' ), 999999 );
+		$this->assertSame( $id, Layout::get_layout_id( 'stream' ) );
+		$this->assertSame( $id, (int) get_option( Layout::option_name( 'stream' ) ) );
 		$this->assertSame( 0, Layout::get_layout_id( 'default' ) );
 	}
 
@@ -549,11 +549,11 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function test_create_returns_the_existing_layout_when_the_option_is_lost() {
 		self::log_in_as( 'editor' );
-		$id = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] )->get_data()['id'];
-		delete_option( Layout::option_name( 'compact' ) );
+		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		delete_option( Layout::option_name( 'stream' ) );
 		$count_before = (int) wp_count_posts( 'wp_block' )->publish;
 
-		$second = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] );
+		$second = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
 
 		$this->assertSame( 200, $second->get_status() );
 		$this->assertSame( $id, $second->get_data()['id'] );
@@ -565,11 +565,11 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function test_trashed_tagged_layout_is_not_found_by_its_slug() {
 		self::log_in_as( 'editor' );
-		$id = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
 		wp_trash_post( $id );
-		delete_option( Layout::option_name( 'compact' ) );
+		delete_option( Layout::option_name( 'stream' ) );
 
-		$this->assertSame( 0, Layout::get_layout_id( 'compact' ) );
+		$this->assertSame( 0, Layout::get_layout_id( 'stream' ) );
 	}
 
 	/**
@@ -590,15 +590,15 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function test_create_is_refused_while_another_holds_the_lock() {
 		self::log_in_as( 'editor' );
-		add_option( Layout::lock_name( 'compact' ), time(), '', false );
+		add_option( Layout::lock_name( 'stream' ), time(), '', false );
 		$count_before = (int) wp_count_posts( 'wp_block' )->publish;
 
-		$response = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
 
 		$this->assertSame( 409, $response->get_status() );
 		$this->assertSame( $count_before, (int) wp_count_posts( 'wp_block' )->publish );
-		$this->assertSame( 0, (int) get_option( Layout::option_name( 'compact' ), 0 ) );
-		$this->assertTrue( self::is_locked( 'compact' ), 'The other request keeps its lock.' );
+		$this->assertSame( 0, (int) get_option( Layout::option_name( 'stream' ), 0 ) );
+		$this->assertTrue( self::is_locked( 'stream' ), 'The other request keeps its lock.' );
 	}
 
 	/**
@@ -606,12 +606,12 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function test_create_takes_over_a_stale_lock() {
 		self::log_in_as( 'editor' );
-		add_option( Layout::lock_name( 'compact' ), time() - Layout::LOCK_TIMEOUT - 1, '', false );
+		add_option( Layout::lock_name( 'stream' ), time() - Layout::LOCK_TIMEOUT - 1, '', false );
 
-		$response = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
 
 		$this->assertSame( 201, $response->get_status() );
-		$this->assertFalse( self::is_locked( 'compact' ) );
+		$this->assertFalse( self::is_locked( 'stream' ) );
 	}
 
 	/**
@@ -650,7 +650,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		global $wpdb;
 
 		self::log_in_as( 'editor' );
-		$this->assertSame( 0, Layout::get_layout_id( 'compact' ) );
+		$this->assertSame( 0, Layout::get_layout_id( 'stream' ) );
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->insert(
@@ -658,7 +658,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 			[
 				'post_type'         => 'wp_block',
 				'post_status'       => 'publish',
-				'post_title'        => 'Rolling Coverage: Compact',
+				'post_title'        => 'Rolling Coverage: Stream',
 				'post_content'      => self::layout_markup(),
 				'post_author'       => get_current_user_id(),
 				'post_date'         => current_time( 'mysql' ),
@@ -673,13 +673,13 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 			[
 				'post_id'    => $id,
 				'meta_key'   => Layout::SLUG_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
-				'meta_value' => 'compact', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+				'meta_value' => 'stream', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 			]
 		);
 		$wpdb->insert(
 			$wpdb->options,
 			[
-				'option_name'  => Layout::option_name( 'compact' ),
+				'option_name'  => Layout::option_name( 'stream' ),
 				'option_value' => (string) $id,
 				'autoload'     => 'off',
 			]
@@ -687,12 +687,12 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$count_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'wp_block' AND post_status = 'publish'" );
 		// phpcs:enable
 
-		$response = self::dispatch( 'POST', '/layouts/compact', [ 'content' => self::layout_markup() ] );
+		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertSame( $id, $response->get_data()['id'] );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$this->assertSame( $count_before, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'wp_block' AND post_status = 'publish'" ) );
-		$this->assertSame( $id, (int) get_option( Layout::option_name( 'compact' ) ) );
+		$this->assertSame( $id, (int) get_option( Layout::option_name( 'stream' ) ) );
 	}
 }

@@ -867,7 +867,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
 
-		$this->assertStringContainsString( 'justify-content:space-between', wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] ), 'The header row layout should be stored.' );
+		$this->assertStringContainsString( '{align-items:center;}', wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] ), 'The meta row layout should be stored.' );
 	}
 
 	/**
@@ -992,10 +992,10 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A title-only entry in the Compact shape renders its time and nothing
+	 * A title-only entry in a time-column shape renders its time and nothing
 	 * empty.
 	 */
-	public function test_compact_entry_without_content_renders() {
+	public function test_time_column_entry_without_content_renders() {
 		$entry_id = self::create_entry(
 			self::create_coverage(),
 			[

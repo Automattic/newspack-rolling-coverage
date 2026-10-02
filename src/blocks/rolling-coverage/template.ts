@@ -70,55 +70,11 @@ const PINNED_ROW: TemplateItem = [
 	],
 ];
 
-const SHARE_BACKGROUND =
-	'var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f0f0f0))';
-const SHARE_TEXT =
-	'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, currentcolor))';
-const READ_MORE_BACKGROUND =
-	'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
-const READ_MORE_TEXT =
-	'var(--wp--preset--color--accent-contrast, var(--wp--preset--color--base, var(--newspack-theme-color-against-primary)))';
-
-/**
- * The share button: a 36px circle showing the link icon, both set by the
- * server (see Entry_Bindings::show_share_icon()). Its text and the entry's title
- * make the link's accessible name.
- */
-const SHARE_BUTTONS: TemplateItem = [
-	'core/buttons',
-	{ metadata: { name: __( 'Share', 'newspack-rolling-coverage' ) } },
-	[
-		[
-			'core/button',
-			{
-				text: __( 'Share', 'newspack-rolling-coverage' ),
-				style: {
-					border: { radius: '9999px' },
-					color: {
-						background: SHARE_BACKGROUND,
-						text: SHARE_TEXT,
-					},
-				},
-				metadata: {
-					name: __( 'Share', 'newspack-rolling-coverage' ),
-					bindings: {
-						url: {
-							source: ENTRY_BINDINGS_SOURCE,
-							args: { key: 'shareUrl' },
-						},
-					},
-				},
-			},
-		],
-	],
-];
-
 /**
  * Class of the group that shows a pinned entry as a card, mirroring
  * Rolling_Coverage_Block::PINNED_CARD_CLASS.
  */
 const PINNED_CARD_CLASS = 'newspack-rolling-coverage-pinned-card';
-const PINNED_CARD_BACKGROUND = 'var(--wp--custom--color--neutral-5, #f7f7f7)';
 
 /**
  * Class of the group that shows an entry that isn't pinned, mirroring
@@ -133,7 +89,38 @@ const REGULAR_ENTRY_CLASS = 'newspack-rolling-coverage-regular-entry';
 const DEFAULT_ENTRY_GAP = 'var:preset|spacing|20';
 
 /**
- * The corner radius of the Cards layout's cards.
+ * Class of the paragraph that links to the entry's breakout post, mirroring
+ * Entry_Bindings::READ_MORE_CLASS.
+ */
+const READ_MORE_CLASS = 'newspack-rolling-coverage-read-more';
+
+/**
+ * Class of the paragraph that links to the entry's share URL, mirroring
+ * Entry_Bindings::SHARE_CLASS.
+ */
+const SHARE_CLASS = 'newspack-rolling-coverage-share';
+
+const ACCENT =
+	'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
+const ACCENT_CONTRAST =
+	'var(--wp--preset--color--accent-contrast, var(--wp--preset--color--base, var(--newspack-theme-color-against-primary)))';
+const CONTRAST =
+	'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, #111))';
+const BORDER_COLOR =
+	'var(--wp--preset--color--base-3, var(--newspack-theme-color-border, #ddd))';
+const PINNED_BACKGROUND = 'var(--wp--custom--color--neutral-5, #f7f7f7)';
+
+/**
+ * Title sizes as custom values rather than presets: the Newspack Theme's
+ * Large preset is 36px, where the Newspack Block Theme's is 1.5rem.
+ */
+const BULLETIN_TITLE_SIZE = 'clamp(1.5rem, 1.25rem + 1vw, 1.875rem)';
+const BULLETIN_PINNED_TITLE_SIZE = 'clamp(1.75rem, 1.35rem + 1.6vw, 2.375rem)';
+const STREAM_CONTENT_SIZE = '1.125rem';
+const STREAM_PINNED_CONTENT_SIZE = '1.25rem';
+
+/**
+ * The corner radius of the Stream layout's pinned card.
  */
 const CARD_RADIUS = '0.5rem';
 
@@ -144,150 +131,12 @@ const CARD_PADDING = {
 	left: 'var:preset|spacing|50',
 };
 
-/**
- * What an entry shows: the date and title stacked with the share button
- * opposite, then content and "Read more" bound to the entry and locked
- * against removal. The pinned card's also carry the pinned row.
- *
- * @param {boolean} isPinned Whether the blocks are the pinned card's.
- * @return {TemplateItem[]} The entry's blocks.
- */
-function entryBlocks( isPinned: boolean ): TemplateItem[] {
-	const date: TemplateItem = [
-		'core/post-date',
-		{ ...POST_DATE_ATTRIBUTES, format: 'human-diff' },
-	];
-	const title: TemplateItem = [ 'core/post-title', { level: 4 } ];
-
-	return [
-		[
-			'core/group',
-			{
-				layout: {
-					type: 'flex',
-					flexWrap: 'nowrap',
-					justifyContent: 'space-between',
-					verticalAlignment: 'top',
-				},
-				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
-				metadata: {
-					name: __( 'Header', 'newspack-rolling-coverage' ),
-				},
-			},
-			[
-				[
-					'core/group',
-					{
-						layout: { type: 'flex', orientation: 'vertical' },
-						style: {
-							spacing: { blockGap: 'var:preset|spacing|20' },
-						},
-						metadata: {
-							name: __( 'Meta', 'newspack-rolling-coverage' ),
-						},
-					},
-					isPinned ? [ PINNED_ROW, date, title ] : [ date, title ],
-				],
-				SHARE_BUTTONS,
-			],
-		],
-		[
-			'core/post-content',
-			{
-				style: {
-					spacing: {
-						padding: {
-							top: '0',
-							right: '0',
-							bottom: '0',
-							left: '0',
-						},
-					},
-				},
-			},
-		],
-		[
-			'core/buttons',
-			{
-				lock: LOCKED,
-				metadata: {
-					name: __( 'Read More', 'newspack-rolling-coverage' ),
-				},
-			},
-			[
-				[
-					'core/button',
-					{
-						lock: LOCKED,
-						text: __( 'Read More', 'newspack-rolling-coverage' ),
-						style: {
-							color: {
-								background: READ_MORE_BACKGROUND,
-								text: READ_MORE_TEXT,
-							},
-						},
-						metadata: {
-							name: __(
-								'Read More',
-								'newspack-rolling-coverage'
-							),
-							bindings: {
-								url: {
-									source: ENTRY_BINDINGS_SOURCE,
-									args: { key: 'breakoutUrl' },
-								},
-							},
-						},
-					},
-				],
-			],
-		],
-	];
-}
-
-/**
- * Default per-entry template: the pinned card, which a pinned entry shows,
- * the entry group, which every other entry shows, then the separator that
- * closes an entry.
- */
-const ENTRY_TEMPLATE: TemplateItem[] = [
-	[
-		'core/group',
-		{
-			className: PINNED_CARD_CLASS,
-			lock: LOCKED_IN_PLACE,
-			style: {
-				color: { background: PINNED_CARD_BACKGROUND },
-				spacing: { padding: CARD_PADDING, blockGap: DEFAULT_ENTRY_GAP },
-			},
-			metadata: {
-				name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
-			},
-		},
-		entryBlocks( true ),
-	],
-	[
-		'core/group',
-		{
-			className: REGULAR_ENTRY_CLASS,
-			lock: LOCKED_IN_PLACE,
-			style: {
-				spacing: { blockGap: DEFAULT_ENTRY_GAP },
-			},
-			metadata: {
-				name: __( 'Entry', 'newspack-rolling-coverage' ),
-			},
-		},
-		entryBlocks( false ),
-	],
-	[ 'core/separator', { className: 'is-style-wide' } ],
-];
-
-/**
- * Class of the paragraph that links to the entry's breakout post, mirroring
- * Entry_Bindings::READ_MORE_CLASS.
- */
-const READ_MORE_CLASS = 'newspack-rolling-coverage-read-more';
+const NO_PADDING = {
+	top: '0',
+	right: '0',
+	bottom: '0',
+	left: '0',
+};
 
 /**
  * Paragraph content holding a placeholder link, so the editor shows the text
@@ -302,7 +151,7 @@ function placeholderLink( text: string ): string {
 }
 
 /**
- * The site's time format, for the Compact layout's time column.
+ * The site's time format, for layouts that show the time an entry was posted.
  *
  * @return {string} A PHP date format.
  */
@@ -311,23 +160,14 @@ function siteTimeFormat(): string {
 }
 
 /**
- * The Compact time's color. Regular entries use the block theme's Contrast 3,
- * else the classic theme's Medium Gray. Pinned entries use Contrast where
- * the palette has it, since block themes style dates lighter, and otherwise
- * inherit the text color.
+ * The muted date color: the block theme's Contrast 3, else the classic
+ * theme's Medium Gray, else the theme's own date color.
  *
- * @param {string[]} slugs    The palette's color slugs.
- * @param {boolean}  isPinned Whether the time is the pinned card's.
- * @return {Object} The time's color attributes.
+ * @param {string[]} slugs The palette's color slugs.
+ * @return {Object} The date's color attributes.
  */
-function compactTimeColor(
-	slugs: string[],
-	isPinned: boolean
-): { textColor?: string } {
-	const candidates = isPinned
-		? [ 'contrast' ]
-		: [ 'contrast-3', 'medium-gray' ];
-	const slug = candidates.find( ( candidate ) =>
+function mutedDateColor( slugs: string[] ): { textColor?: string } {
+	const slug = [ 'contrast-3', 'medium-gray' ].find( ( candidate ) =>
 		slugs.includes( candidate )
 	);
 
@@ -335,33 +175,348 @@ function compactTimeColor(
 }
 
 /**
- * A compact entry's row: the time on the left, the content and a "Read more"
- * link stacked on the right.
+ * The entry's content, without the padding core gives Post Content.
  *
- * @param {Object} timeColor             The time's color attributes.
- * @param {string} [timeColor.textColor] The time's color slug.
+ * @param {Object} [typography]        Typography settings.
+ * @param {string} typography.fontSize The content's font size.
+ * @return {TemplateItem} The Post Content block.
+ */
+function postContent( typography?: { fontSize: string } ): TemplateItem {
+	return [
+		'core/post-content',
+		{
+			style: {
+				spacing: { padding: NO_PADDING },
+				...( typography ? { typography } : {} ),
+			},
+		},
+	];
+}
+
+/**
+ * The "Read more" link to the entry's breakout post, locked against removal.
+ *
+ * @param {Object} attributes Extra paragraph attributes.
+ * @return {TemplateItem} The paragraph.
+ */
+function readMoreLink(
+	attributes: Record< string, unknown > = {}
+): TemplateItem {
+	return [
+		'core/paragraph',
+		{
+			className: `use-header-font ${ READ_MORE_CLASS }`,
+			content: placeholderLink(
+				__( 'Read more', 'newspack-rolling-coverage' )
+			),
+			fontSize: 'small',
+			lock: LOCKED,
+			metadata: {
+				name: __( 'Read more', 'newspack-rolling-coverage' ),
+			},
+			...attributes,
+		},
+	];
+}
+
+/**
+ * The "Share" link to the entry's share URL.
+ *
+ * @return {TemplateItem} The paragraph.
+ */
+function shareLink(): TemplateItem {
+	return [
+		'core/paragraph',
+		{
+			className: `use-header-font ${ SHARE_CLASS }`,
+			content: placeholderLink(
+				__( 'Share', 'newspack-rolling-coverage' )
+			),
+			fontSize: 'small',
+			metadata: { name: __( 'Share', 'newspack-rolling-coverage' ) },
+		},
+	];
+}
+
+/**
+ * A row of links, wrapping on narrow screens.
+ *
+ * @param {TemplateItem[]} links The links.
  * @return {TemplateItem} The row.
  */
-function compactRow( timeColor: { textColor?: string } ): TemplateItem {
-	const date: TemplateItem = [
-		'core/post-date',
+function linksRow( links: TemplateItem[] ): TemplateItem {
+	return [
+		'core/group',
 		{
-			...POST_DATE_ATTRIBUTES,
-			format: siteTimeFormat(),
-			fontSize: 'medium',
-			...timeColor,
-			style: { typography: { fontWeight: '400' } },
+			layout: { type: 'flex', verticalAlignment: 'center' },
+			style: { spacing: { blockGap: 'var:preset|spacing|40' } },
+			metadata: { name: __( 'Links', 'newspack-rolling-coverage' ) },
 		},
+		links,
+	];
+}
+
+/**
+ * What a Bulletin entry shows: a row with the time and "Share", or on the
+ * pinned card the pinned row and the relative date, then a large title, the
+ * content and "Read more".
+ *
+ * @param {boolean} isPinned Whether the blocks are the pinned card's.
+ * @return {TemplateItem[]} The entry's blocks.
+ */
+function bulletinEntryBlocks( isPinned: boolean ): TemplateItem[] {
+	const meta: TemplateItem[] = isPinned
+		? [
+				PINNED_ROW,
+				[
+					'core/post-date',
+					{
+						...POST_DATE_ATTRIBUTES,
+						format: 'human-diff',
+						fontSize: 'small',
+						style: { color: { text: ACCENT_CONTRAST } },
+					},
+				],
+			]
+		: [
+				[
+					'core/post-date',
+					{
+						...POST_DATE_ATTRIBUTES,
+						format: siteTimeFormat(),
+						fontSize: 'small',
+					},
+				],
+				shareLink(),
+			];
+
+	return [
+		[
+			'core/group',
+			{
+				layout: {
+					type: 'flex',
+					flexWrap: 'wrap',
+					verticalAlignment: 'center',
+				},
+				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+				metadata: { name: __( 'Meta', 'newspack-rolling-coverage' ) },
+			},
+			meta,
+		],
+		[
+			'core/post-title',
+			{
+				level: 3,
+				style: {
+					typography: {
+						fontSize: isPinned
+							? BULLETIN_PINNED_TITLE_SIZE
+							: BULLETIN_TITLE_SIZE,
+						lineHeight: '1.15',
+					},
+				},
+			},
+		],
+		postContent(),
+		readMoreLink(),
+	];
+}
+
+/**
+ * The Bulletin layout's per-entry template, the default: a headline-led
+ * entry closed by a separator. The pinned card is set in the accent color,
+ * with its text, links and headings in the accent's contrast color.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+function bulletinEntryTemplate(): TemplateItem[] {
+	return [
+		[
+			'core/group',
+			{
+				className: PINNED_CARD_CLASS,
+				lock: LOCKED_IN_PLACE,
+				style: {
+					color: { background: ACCENT, text: ACCENT_CONTRAST },
+					elements: {
+						link: { color: { text: ACCENT_CONTRAST } },
+						heading: { color: { text: ACCENT_CONTRAST } },
+					},
+					spacing: {
+						padding: CARD_PADDING,
+						blockGap: 'var:preset|spacing|30',
+					},
+				},
+				metadata: {
+					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			bulletinEntryBlocks( true ),
+		],
+		[
+			'core/group',
+			{
+				className: REGULAR_ENTRY_CLASS,
+				lock: LOCKED_IN_PLACE,
+				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+				metadata: {
+					name: __( 'Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			bulletinEntryBlocks( false ),
+		],
+		[ 'core/separator', { className: 'is-style-wide' } ],
+	];
+}
+
+/**
+ * What a Stream entry shows: no title, the content set larger, then a row
+ * with the relative date, "Read more" and "Share". The pinned card's also
+ * carry the pinned row.
+ *
+ * @param {string[]} slugs    The palette's color slugs.
+ * @param {boolean}  isPinned Whether the blocks are the pinned card's.
+ * @return {TemplateItem[]} The entry's blocks.
+ */
+function streamEntryBlocks(
+	slugs: string[],
+	isPinned: boolean
+): TemplateItem[] {
+	const blocks: TemplateItem[] = [
+		postContent( {
+			fontSize: isPinned
+				? STREAM_PINNED_CONTENT_SIZE
+				: STREAM_CONTENT_SIZE,
+		} ),
+		[
+			'core/group',
+			{
+				layout: {
+					type: 'flex',
+					flexWrap: 'wrap',
+					verticalAlignment: 'center',
+				},
+				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+				metadata: {
+					name: __( 'Footer', 'newspack-rolling-coverage' ),
+				},
+			},
+			[
+				[
+					'core/post-date',
+					{
+						...POST_DATE_ATTRIBUTES,
+						format: 'human-diff',
+						fontSize: 'small',
+						...mutedDateColor( slugs ),
+					},
+				],
+				readMoreLink(),
+				shareLink(),
+			],
+		],
+	];
+
+	return isPinned ? [ PINNED_ROW, ...blocks ] : blocks;
+}
+
+/**
+ * The Stream layout's per-entry template: untitled entries spaced apart with
+ * no separator, and the pinned entry in a bordered card.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @return {TemplateItem[]} The template.
+ */
+function streamEntryTemplate( slugs: string[] ): TemplateItem[] {
+	return [
+		[
+			'core/group',
+			{
+				className: PINNED_CARD_CLASS,
+				lock: LOCKED_IN_PLACE,
+				style: {
+					spacing: {
+						padding: CARD_PADDING,
+						blockGap: 'var:preset|spacing|30',
+					},
+					border: {
+						color: CONTRAST,
+						style: 'solid',
+						width: '1px',
+						radius: CARD_RADIUS,
+					},
+				},
+				metadata: {
+					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			streamEntryBlocks( slugs, true ),
+		],
+		[
+			'core/group',
+			{
+				className: REGULAR_ENTRY_CLASS,
+				lock: LOCKED_IN_PLACE,
+				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+				metadata: {
+					name: __( 'Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			streamEntryBlocks( slugs, false ),
+		],
+	];
+}
+
+/**
+ * A Rail entry's row: the time, or on the pinned card the pin icon, in a
+ * narrow column, then the entry beside a vertical rule. The entry is a
+ * vertical flex group, so its spacing also applies on the Newspack Theme
+ * (see Rolling_Coverage_Block::apply_entry_block_gap()). The pinned card's
+ * rule is in the accent color and its entry sits on a tinted panel; the
+ * pin icon carries the "Pinned" label.
+ *
+ * @param {boolean} isPinned Whether the row is the pinned card's.
+ * @return {TemplateItem} The row.
+ */
+function railRow( isPinned: boolean ): TemplateItem {
+	const marker: TemplateItem = isPinned
+		? [
+				'core/icon',
+				{
+					icon: PIN_ICON,
+					ariaLabel: __( 'Pinned', 'newspack-rolling-coverage' ),
+					align: 'right',
+					style: {
+						dimensions: { width: '24px' },
+						color: { text: ACCENT },
+					},
+				},
+			]
+		: [
+				'core/post-date',
+				{
+					...POST_DATE_ATTRIBUTES,
+					format: siteTimeFormat(),
+					fontSize: 'small',
+					style: {
+						typography: { textAlign: 'right', fontWeight: '700' },
+					},
+				},
+			];
+	const entry: TemplateItem[] = [
+		[ 'core/post-title', { level: 4 } ],
+		postContent(),
+		linksRow( [ readMoreLink(), shareLink() ] ),
 	];
 
 	return [
 		'core/columns',
 		{
 			isStackedOnMobile: false,
-			verticalAlignment: 'top',
 			style: {
 				spacing: {
-					blockGap: { left: 'var:preset|spacing|30' },
+					blockGap: { left: '0' },
 					margin: { top: '0', bottom: '0' },
 				},
 			},
@@ -371,16 +526,37 @@ function compactRow( timeColor: { textColor?: string } ): TemplateItem {
 			[
 				'core/column',
 				{
-					width: '6rem',
+					width: '5.5rem',
+					style: {
+						spacing: {
+							padding: { right: 'var:preset|spacing|30' },
+						},
+					},
 					metadata: {
 						name: __( 'Time', 'newspack-rolling-coverage' ),
 					},
 				},
-				[ date ],
+				[ marker ],
 			],
 			[
 				'core/column',
-				{},
+				{
+					style: {
+						border: {
+							left: {
+								color: isPinned ? ACCENT : BORDER_COLOR,
+								style: 'solid',
+								width: '1px',
+							},
+						},
+						spacing: {
+							padding: { left: 'var:preset|spacing|40' },
+						},
+					},
+					metadata: {
+						name: __( 'Body', 'newspack-rolling-coverage' ),
+					},
+				},
 				[
 					[
 						'core/group',
@@ -391,48 +567,35 @@ function compactRow( timeColor: { textColor?: string } ): TemplateItem {
 								justifyContent: 'stretch',
 							},
 							style: {
-								spacing: { blockGap: 'var:preset|spacing|20' },
+								...( isPinned
+									? {
+											color: {
+												background: PINNED_BACKGROUND,
+											},
+										}
+									: {} ),
+								spacing: {
+									...( isPinned
+										? {
+												padding: {
+													top: 'var:preset|spacing|40',
+													right: 'var:preset|spacing|40',
+													bottom: 'var:preset|spacing|40',
+													left: 'var:preset|spacing|40',
+												},
+											}
+										: {} ),
+									blockGap: DEFAULT_ENTRY_GAP,
+								},
 							},
 							metadata: {
-								name: __( 'Body', 'newspack-rolling-coverage' ),
+								name: __(
+									'Entry',
+									'newspack-rolling-coverage'
+								),
 							},
 						},
-						[
-							[
-								'core/post-content',
-								{
-									style: {
-										spacing: {
-											padding: {
-												top: '0',
-												right: '0',
-												bottom: '0',
-												left: '0',
-											},
-										},
-									},
-								},
-							],
-							[
-								'core/paragraph',
-								{
-									className: READ_MORE_CLASS,
-									content: placeholderLink(
-										__(
-											'Read more',
-											'newspack-rolling-coverage'
-										)
-									),
-									lock: LOCKED,
-									metadata: {
-										name: __(
-											'Read more',
-											'newspack-rolling-coverage'
-										),
-									},
-								},
-							],
-						],
+						entry,
 					],
 				],
 			],
@@ -441,225 +604,37 @@ function compactRow( timeColor: { textColor?: string } ): TemplateItem {
 }
 
 /**
- * The Compact layout's per-entry template: a time column beside the entry's
- * content, with a "Read more" paragraph linked to the breakout post.
+ * The Rail layout's per-entry template: a timeline with the time beside each
+ * entry, and no separator.
  *
- * @param {string[]} slugs The palette's color slugs.
  * @return {TemplateItem[]} The template.
  */
-function compactEntryTemplate( slugs: string[] ): TemplateItem[] {
+function railEntryTemplate(): TemplateItem[] {
 	return [
 		[
 			'core/group',
 			{
 				className: PINNED_CARD_CLASS,
 				lock: LOCKED_IN_PLACE,
-				style: {
-					color: { background: PINNED_CARD_BACKGROUND },
-					spacing: {
-						padding: {
-							top: 'var:preset|spacing|30',
-							right: 'var:preset|spacing|30',
-							bottom: 'var:preset|spacing|30',
-							left: 'var:preset|spacing|30',
-						},
-						blockGap: DEFAULT_ENTRY_GAP,
-					},
-				},
 				metadata: {
 					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			[ compactRow( compactTimeColor( slugs, true ) ) ],
+			[ railRow( true ) ],
 		],
 		[
 			'core/group',
 			{
 				className: REGULAR_ENTRY_CLASS,
 				lock: LOCKED_IN_PLACE,
-				style: {
-					spacing: {
-						padding: {
-							right: 'var:preset|spacing|30',
-							left: 'var:preset|spacing|30',
-						},
-						blockGap: DEFAULT_ENTRY_GAP,
-					},
-				},
 				metadata: {
 					name: __( 'Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			[ compactRow( compactTimeColor( slugs, false ) ) ],
-		],
-		[ 'core/separator', { className: 'is-style-wide' } ],
-	];
-}
-
-/**
- * Class of the paragraph that links to the entry's share URL, mirroring
- * Entry_Bindings::SHARE_CLASS.
- */
-const SHARE_CLASS = 'newspack-rolling-coverage-share';
-
-const CARD_BORDER_COLOR =
-	'var(--wp--preset--color--base-3, var(--newspack-theme-color-border, #ddd))';
-const CARD_CONTRAST =
-	'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, #111))';
-const CARD_BASE =
-	'var(--wp--preset--color--base, var(--newspack-theme-color-bg-body, #fff))';
-
-/**
- * What a Cards entry shows: the date and title stacked, the content, then a
- * footer with "Read more" and "Share" links. The footer packs its links to
- * the end and "Read more" fills the space before "Share", so "Share" stays
- * at the end with or without "Read more", in either text direction. The
- * pinned card's blocks also carry the pinned row, and its date takes the
- * card's text color.
- *
- * @param {boolean} isPinned Whether the blocks are the pinned card's.
- * @return {TemplateItem[]} The entry's blocks.
- */
-function cardsEntryBlocks( isPinned: boolean ): TemplateItem[] {
-	const date: TemplateItem = [
-		'core/post-date',
-		{
-			...POST_DATE_ATTRIBUTES,
-			format: 'human-diff',
-			fontSize: 'small',
-			...( isPinned ? { style: { color: { text: CARD_BASE } } } : {} ),
-		},
-	];
-	const title: TemplateItem = [ 'core/post-title', { level: 4 } ];
-
-	return [
-		[
-			'core/group',
-			{
-				layout: { type: 'flex', orientation: 'vertical' },
-				style: { spacing: { blockGap: 'var:preset|spacing|20' } },
-				metadata: { name: __( 'Meta', 'newspack-rolling-coverage' ) },
-			},
-			isPinned ? [ PINNED_ROW, date, title ] : [ date, title ],
-		],
-		[
-			'core/post-content',
-			{
-				style: {
-					spacing: {
-						padding: {
-							top: '0',
-							right: '0',
-							bottom: '0',
-							left: '0',
-						},
-					},
-				},
-			},
-		],
-		[
-			'core/group',
-			{
-				layout: {
-					type: 'flex',
-					flexWrap: 'nowrap',
-					justifyContent: 'right',
-				},
-				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
-				metadata: {
-					name: __( 'Footer', 'newspack-rolling-coverage' ),
-				},
-			},
-			[
-				[
-					'core/paragraph',
-					{
-						className: `use-header-font ${ READ_MORE_CLASS }`,
-						content: placeholderLink(
-							__( 'Read more', 'newspack-rolling-coverage' )
-						),
-						fontSize: 'small',
-						style: { layout: { selfStretch: 'fill' } },
-						lock: LOCKED,
-						metadata: {
-							name: __(
-								'Read more',
-								'newspack-rolling-coverage'
-							),
-						},
-					},
-				],
-				[
-					'core/paragraph',
-					{
-						className: `use-header-font ${ SHARE_CLASS }`,
-						content: placeholderLink(
-							__( 'Share', 'newspack-rolling-coverage' )
-						),
-						fontSize: 'small',
-						metadata: {
-							name: __( 'Share', 'newspack-rolling-coverage' ),
-						},
-					},
-				],
-			],
+			[ railRow( false ) ],
 		],
 	];
 }
-
-/**
- * The Cards layout's per-entry template: each entry in a bordered card, so
- * no separator closes it. The pinned card is set in reverse: a contrast
- * background and border, with its text, links and headings in the base
- * color.
- */
-const CARDS_ENTRY_TEMPLATE: TemplateItem[] = [
-	[
-		'core/group',
-		{
-			className: PINNED_CARD_CLASS,
-			lock: LOCKED_IN_PLACE,
-			style: {
-				color: { background: CARD_CONTRAST, text: CARD_BASE },
-				elements: {
-					link: { color: { text: CARD_BASE } },
-					heading: { color: { text: CARD_BASE } },
-				},
-				spacing: { padding: CARD_PADDING, blockGap: DEFAULT_ENTRY_GAP },
-				border: {
-					color: CARD_CONTRAST,
-					style: 'solid',
-					width: '1px',
-					radius: CARD_RADIUS,
-				},
-			},
-			metadata: {
-				name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
-			},
-		},
-		cardsEntryBlocks( true ),
-	],
-	[
-		'core/group',
-		{
-			className: REGULAR_ENTRY_CLASS,
-			lock: LOCKED_IN_PLACE,
-			style: {
-				spacing: { padding: CARD_PADDING, blockGap: DEFAULT_ENTRY_GAP },
-				border: {
-					color: CARD_BORDER_COLOR,
-					style: 'solid',
-					width: '1px',
-					radius: CARD_RADIUS,
-				},
-			},
-			metadata: {
-				name: __( 'Entry', 'newspack-rolling-coverage' ),
-			},
-		},
-		cardsEntryBlocks( false ),
-	],
-];
 
 /**
  * The follow button, rendered once at the top of the coverage: a core button
@@ -1460,9 +1435,9 @@ const ENTRY_ALLOWED_BLOCKS = [
 ];
 
 export {
-	ENTRY_TEMPLATE,
-	compactEntryTemplate,
-	CARDS_ENTRY_TEMPLATE,
+	bulletinEntryTemplate,
+	streamEntryTemplate,
+	railEntryTemplate,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_TEMPLATE,
 	feedTemplate,

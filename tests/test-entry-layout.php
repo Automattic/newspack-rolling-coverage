@@ -45,7 +45,7 @@ class Test_Entry_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The Compact row's columns get their horizontal gap written on the
+	 * A time-column row's columns get their horizontal gap written on the
 	 * Newspack Theme, as a column gap only.
 	 */
 	public function test_entry_columns_gap_is_written_on_the_newspack_theme() {

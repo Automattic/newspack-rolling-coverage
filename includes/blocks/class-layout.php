@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Layout {
 
-	const BUILT_IN_SLUGS = [ 'default', 'compact', 'cards' ];
+	const BUILT_IN_SLUGS = [ 'default', 'stream', 'rail' ];
 
 	const SLUG_META_KEY = '_rolling_coverage_layout';
 
@@ -422,11 +422,11 @@ class Layout {
 	private static function get_title( string $slug ): string {
 		return match ( $slug ) {
 			/* translators: %s: Rolling Coverage, the product name. */
-			'compact' => sprintf( __( '%s: Compact', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
+			'stream' => sprintf( __( '%s: Stream', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
 			/* translators: %s: Rolling Coverage, the product name. */
-			'cards'   => sprintf( __( '%s: Cards', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
+			'rail'   => sprintf( __( '%s: Rail', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
 			/* translators: %s: Rolling Coverage, the product name. */
-			default   => sprintf( __( '%s: Classic', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
+			default  => sprintf( __( '%s: Bulletin', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
 		};
 	}
 
