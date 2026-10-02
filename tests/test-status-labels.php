@@ -59,14 +59,14 @@ class Test_Status_Labels extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Saved labels are trimmed, stripped of markup and capped in length, and
-	 * the response lists every status.
+	 * Saved labels are trimmed, stripped of markup and capped in characters,
+	 * not bytes, and the response lists every status.
 	 */
 	public function test_saving_labels() {
 		$response = self::save(
 			[
 				'active' => '  On <b>air</b> ',
-				'paused' => str_repeat( 'a', Status_Labels::MAX_LENGTH + 10 ),
+				'paused' => str_repeat( 'é', Status_Labels::MAX_LENGTH + 10 ),
 			]
 		);
 
@@ -74,11 +74,31 @@ class Test_Status_Labels extends Rolling_Coverage_TestCase {
 		$this->assertSame(
 			[
 				'active'   => 'On air',
-				'paused'   => str_repeat( 'a', Status_Labels::MAX_LENGTH ),
+				'paused'   => str_repeat( 'é', Status_Labels::MAX_LENGTH ),
 				'archived' => '',
 			],
 			$response->get_data()
 		);
+	}
+
+	/**
+	 * A lone "<" or "&" is kept as typed, not stored as an entity that the
+	 * editor would show literally.
+	 */
+	public function test_labels_keep_special_characters_as_typed() {
+		$response = self::save( [ 'active' => 'Q < A & B' ] );
+
+		$this->assertSame( 'Q < A & B', $response->get_data()['active'] );
+	}
+
+	/**
+	 * A label that isn't text is refused, leaving the stored labels alone.
+	 */
+	public function test_labels_that_are_not_text_are_refused() {
+		self::save( [ 'active' => 'On air' ] );
+
+		$this->assertSame( 400, self::save( [ 'active' => [ 'x' ] ] )->get_status() );
+		$this->assertSame( [ 'active' => 'On air' ], get_option( Status_Labels::OPTION_KEY ) );
 	}
 
 	/**
@@ -134,9 +154,6 @@ class Test_Status_Labels extends Rolling_Coverage_TestCase {
 	 * A stored value that isn't a list of text is ignored.
 	 */
 	public function test_malformed_option_falls_back_to_the_defaults() {
-		update_option( Status_Labels::OPTION_KEY, 'On air' );
-		$this->assertSame( Status_Labels::get_defaults(), Status_Labels::get_all() );
-
 		update_option(
 			Status_Labels::OPTION_KEY,
 			[

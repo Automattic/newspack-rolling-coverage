@@ -73,6 +73,10 @@ function SettingsModal( { onClose }: { onClose: () => void } ) {
 	 ).some( ( key ) => labels[ key ] !== savedLabels[ key ] );
 
 	const handleClose = useCallback( () => {
+		if ( isSaving ) {
+			return;
+		}
+
 		if ( ! isDirty ) {
 			onClose();
 			return;
@@ -87,7 +91,7 @@ function SettingsModal( { onClose }: { onClose: () => void } ) {
 			confirmLabel: __( 'Discard', 'newspack-rolling-coverage' ),
 			onConfirm: async () => onClose(),
 		} );
-	}, [ isDirty, onClose, requestConfirm ] );
+	}, [ isDirty, isSaving, onClose, requestConfirm ] );
 
 	const handleSave = async () => {
 		setIsSaving( true );

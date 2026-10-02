@@ -45,6 +45,7 @@ class Status_Labels {
 			$args[ $status ] = [
 				'type'              => 'string',
 				'required'          => false,
+				'validate_callback' => 'rest_validate_request_arg',
 				'sanitize_callback' => [ __CLASS__, 'sanitize_label' ],
 			];
 		}
@@ -78,13 +79,15 @@ class Status_Labels {
 	}
 
 	/**
-	 * Sanitize and length-cap a label.
+	 * Sanitize and length-cap a label. It's stored as plain text, escaped
+	 * where it's shown, so a "<" reaches the editor as typed rather than as
+	 * an entity.
 	 *
 	 * @param mixed $value Raw label.
 	 * @return string
 	 */
 	public static function sanitize_label( $value ): string {
-		$clean = trim( sanitize_text_field( (string) $value ) );
+		$clean = trim( wp_specialchars_decode( sanitize_text_field( (string) $value ), ENT_QUOTES ) );
 
 		return mb_substr( $clean, 0, self::MAX_LENGTH );
 	}
@@ -172,7 +175,7 @@ class Status_Labels {
 		if ( empty( $labels ) ) {
 			delete_option( self::OPTION_KEY );
 		} else {
-			update_option( self::OPTION_KEY, $labels );
+			update_option( self::OPTION_KEY, $labels, true );
 		}
 
 		return new WP_REST_Response( self::response_data(), 200 );
