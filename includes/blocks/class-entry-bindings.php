@@ -61,6 +61,11 @@ class Entry_Bindings {
 	const READ_MORE_CLASS = 'newspack-rolling-coverage-read-more';
 
 	/**
+	 * Class of the paragraph that links to the entry's share URL.
+	 */
+	const SHARE_CLASS = 'newspack-rolling-coverage-share';
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
@@ -68,6 +73,7 @@ class Entry_Bindings {
 		add_filter( 'render_block_core/button', [ __CLASS__, 'filter_button' ], 10, 3 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'filter_pinned_label' ], 10, 2 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_read_more' ], 10, 2 );
+		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_share' ], 10, 2 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'filter_pinned_group' ], 10, 2 );
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'link_title_to_breakout' ], 10, 3 );
 	}
@@ -241,20 +247,29 @@ class Entry_Bindings {
 			return $block_content;
 		}
 
-		$label = $label ? $label : __( 'Share', 'newspack-rolling-coverage' );
-		$entry = self::entry_name( $entry_id );
-
 		$open->set_attribute( 'style', trim( (string) $open->get_attribute( 'style' ) . ';' . self::SHARE_BOX_STYLE, ';' ) );
-		$open->set_attribute(
-			'aria-label',
-			$entry
-				/* translators: 1: share button text, e.g. "Share", 2: entry title or its first words. */
-				? sprintf( __( '%1$s: %2$s', 'newspack-rolling-coverage' ), $label, $entry )
-				: $label
-		);
+		$open->set_attribute( 'aria-label', self::share_name( $label, $entry_id ) );
 		$svg->set_attribute( 'fill', 'currentColor' );
 
 		return str_replace( $link[0], $open->get_updated_html() . trim( $svg->get_updated_html() ) . $link[3], $block_content );
+	}
+
+	/**
+	 * A share link's accessible name: its text and the entry it shares, so
+	 * each entry's link is told apart, e.g. "Share: Polls close at 8pm".
+	 *
+	 * @param string $label    The link's text, as plain text.
+	 * @param int    $entry_id Entry the link shares.
+	 * @return string
+	 */
+	private static function share_name( string $label, int $entry_id ): string {
+		$label = $label ? $label : __( 'Share', 'newspack-rolling-coverage' );
+		$entry = self::entry_name( $entry_id );
+
+		return $entry
+			/* translators: 1: share button text, e.g. "Share", 2: entry title or its first words. */
+			? sprintf( __( '%1$s: %2$s', 'newspack-rolling-coverage' ), $label, $entry )
+			: $label;
 	}
 
 	/**
@@ -328,11 +343,60 @@ class Entry_Bindings {
 			return '';
 		}
 
-		if ( ! preg_match( '/<p(?=[\s>])(?:"[^"]*"|\'[^\']*\'|[^>"\'])*>/i', $block_content, $open, PREG_OFFSET_CAPTURE ) ) {
+		return self::link_paragraph( $block_content, [ 'href' => $url ] );
+	}
+
+	/**
+	 * Link a "Share" paragraph to the entry's share URL, as a link the share
+	 * script picks up, or render nothing when the entry can't be shared.
+	 *
+	 * Parameters stay untyped because this runs for every paragraph on the
+	 * site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string $block_content Rendered block.
+	 * @param array  $block         Parsed block.
+	 * @return string
+	 */
+	public static function link_share( $block_content, $block ) {
+		if ( ! Rolling_Coverage_Block::is_rendering_entry() || ! is_array( $block ) || ! is_string( $block_content ) || ! self::is_share_paragraph( $block ) ) {
 			return $block_content;
 		}
 
-		$inner_start = $open[0][1] + strlen( $open[0][0] );
+		$entry_id = (int) get_the_ID();
+		$url      = $entry_id && Post_Type::CPT_SLUG === get_post_type( $entry_id ) ? Social_Sharing::get_entry_share_url( $entry_id ) : '';
+
+		if ( ! $url ) {
+			return '';
+		}
+
+		return self::link_paragraph(
+			$block_content,
+			[
+				'href'                => $url,
+				self::SHARE_ATTRIBUTE => '',
+				'role'                => 'button',
+				'aria-label'          => self::share_name( self::plain_text( $block_content ), $entry_id ),
+			]
+		);
+	}
+
+	/**
+	 * Link a rendered paragraph's content. A placeholder link (`href="#"`),
+	 * which the layouts ship so the editor shows a link, takes the
+	 * attributes; any other link inside is the author's own and is left
+	 * alone, as links can't nest; otherwise the content is wrapped in a new
+	 * link.
+	 *
+	 * @param string $block_content Rendered paragraph.
+	 * @param array  $attributes    The link's attributes, keyed by name.
+	 * @return string
+	 */
+	private static function link_paragraph( string $block_content, array $attributes ): string {
+		if ( ! preg_match( '/<p(?=[\s>])(?:"[^"]*"|\'[^\']*\'|[^>"\'])*>/i', $block_content, $tag, PREG_OFFSET_CAPTURE ) ) {
+			return $block_content;
+		}
+
+		$inner_start = $tag[0][1] + strlen( $tag[0][0] );
 		$close       = stripos( $block_content, '</p>', $inner_start );
 
 		if ( false === $close ) {
@@ -342,11 +406,30 @@ class Entry_Bindings {
 		$inner = substr( $block_content, $inner_start, $close - $inner_start );
 
 		if ( preg_match( '/<a[\s>]/i', $inner ) ) {
+			$links = new WP_HTML_Tag_Processor( $inner );
+
+			while ( $links->next_tag( 'a' ) ) {
+				if ( '#' === $links->get_attribute( 'href' ) ) {
+					foreach ( $attributes as $name => $value ) {
+						$links->set_attribute( $name, $value );
+					}
+
+					return substr( $block_content, 0, $inner_start ) . $links->get_updated_html() . substr( $block_content, $close );
+				}
+			}
+
 			return $block_content;
 		}
 
+		$open = new WP_HTML_Tag_Processor( '<a>' );
+		$open->next_tag();
+
+		foreach ( $attributes as $name => $value ) {
+			$open->set_attribute( $name, $value );
+		}
+
 		return substr( $block_content, 0, $inner_start )
-			. '<a href="' . esc_url( $url ) . '">' . $inner . '</a>'
+			. $open->get_updated_html() . $inner . '</a>'
 			. substr( $block_content, $close );
 	}
 
@@ -363,6 +446,21 @@ class Entry_Bindings {
 		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
 			is_string( $class_name ) &&
 			in_array( self::READ_MORE_CLASS, explode( ' ', $class_name ), true );
+	}
+
+	/**
+	 * Whether a parsed block is the paragraph linking to the entry's share
+	 * URL.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_share_paragraph( array $parsed_block ): bool {
+		$class_name = $parsed_block['attrs']['className'] ?? '';
+
+		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
+			is_string( $class_name ) &&
+			in_array( self::SHARE_CLASS, explode( ' ', $class_name ), true );
 	}
 
 	/**

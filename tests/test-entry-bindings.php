@@ -1092,4 +1092,80 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( '<a href="https://example.com/">Elsewhere</a></p>', $html );
 		$this->assertSame( 1, substr_count( $html, '<a ' ) );
 	}
+
+	/**
+	 * A "Share" paragraph, as the editor saves it.
+	 *
+	 * @param string $classes Classes on the paragraph.
+	 * @param string $text    Paragraph HTML.
+	 * @return string Block markup.
+	 */
+	private static function share_paragraph( string $classes = 'newspack-rolling-coverage-share', string $text = 'Share' ): string {
+		return '<!-- wp:paragraph {"className":"' . $classes . '"} --><p class="' . $classes . '">' . $text . '</p><!-- /wp:paragraph -->';
+	}
+
+	/**
+	 * A "Share" paragraph links to the entry, marked for the share script and
+	 * named after the entry it shares, keeping its own text.
+	 */
+	public function test_share_paragraph_links_to_the_entry() {
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_title' => 'Polls close at 8pm' ] );
+
+		$html = self::render_markup( $entry_id, self::share_paragraph( 'foo newspack-rolling-coverage-share', '<strong>Share</strong> this' ) );
+
+		$this->assertMatchesRegularExpression(
+			'#<p class="foo newspack-rolling-coverage-share wp-block-paragraph"><a (?=[^>]*href="' . preg_quote( esc_url( get_permalink( $entry_id ) ), '#' ) . '")(?=[^>]*data-rc-share)(?=[^>]*role="button")(?=[^>]*aria-label="Share this: Polls close at 8pm")[^>]*><strong>Share</strong> this</a></p>#',
+			$html
+		);
+	}
+
+	/**
+	 * An entry that can't be shared renders no "Share" paragraph.
+	 */
+	public function test_share_paragraph_is_removed_when_the_entry_cannot_be_shared() {
+		$entry_id = self::create_entry( self::create_coverage() );
+		wp_update_post(
+			[
+				'ID'          => $entry_id,
+				'post_status' => 'draft',
+			]
+		);
+
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-share', self::render_markup( $entry_id, self::share_paragraph() ) );
+	}
+
+	/**
+	 * A "Share" paragraph outside an entry is left alone.
+	 */
+	public function test_share_paragraph_outside_entries_is_untouched() {
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-share wp-block-paragraph">Share</p>', do_blocks( self::share_paragraph() ) );
+	}
+
+	/**
+	 * A placeholder link in a "Read more" paragraph, as the template ships it so
+	 * the editor shows a link, points at the published breakout.
+	 */
+	public function test_read_more_placeholder_link_points_at_the_breakout() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+
+		$html = self::render_markup( $entry_id, self::read_more_paragraph( 'newspack-rolling-coverage-read-more', '<a href="#">Read more</a>' ) );
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-read-more wp-block-paragraph"><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Read more</a></p>', $html );
+	}
+
+	/**
+	 * A placeholder link in a "Share" paragraph becomes the entry's share link.
+	 */
+	public function test_share_placeholder_link_becomes_the_share_link() {
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_title' => 'Polls close at 8pm' ] );
+
+		$html = self::render_markup( $entry_id, self::share_paragraph( 'newspack-rolling-coverage-share', '<a href="#">Share</a>' ) );
+
+		$this->assertMatchesRegularExpression(
+			'#<p class="newspack-rolling-coverage-share wp-block-paragraph"><a (?=[^>]*href="' . preg_quote( esc_url( get_permalink( $entry_id ) ), '#' ) . '")(?=[^>]*data-rc-share)(?=[^>]*role="button")(?=[^>]*aria-label="Share: Polls close at 8pm")[^>]*>Share</a></p>#',
+			$html
+		);
+		$this->assertSame( 1, substr_count( $html, '<a ' ) );
+	}
 }

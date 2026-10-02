@@ -283,7 +283,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'wp_block', get_post_type( $id ) );
 		$this->assertSame( [ Layout::PATTERN_CATEGORY ], wp_get_object_terms( $id, 'wp_pattern_category', [ 'fields' => 'slugs' ] ) );
 		$this->assertSame( $id, Layout::get_layout_id( 'default' ) );
-		$this->assertSame( 'Rolling Coverage: Default', get_the_title( $id ) );
+		$this->assertSame( 'Rolling Coverage: Classic', get_the_title( $id ) );
 		$this->assertSame( Layout::get_pattern_category_id(), $first->get_data()['categoryId'] );
 		$this->assertGreaterThan( 0, $first->get_data()['categoryId'] );
 	}
@@ -423,6 +423,22 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The first cards create publishes and records it under its own option.
+	 */
+	public function test_create_makes_the_cards_layout_once() {
+		self::log_in_as( 'editor' );
+
+		$response = self::dispatch( 'POST', '/layouts/cards', [ 'content' => self::layout_markup() ] );
+		$this->assertSame( 201, $response->get_status() );
+		$id = $response->get_data()['id'];
+
+		$this->assertSame( $id, (int) get_option( 'rolling_coverage_cards_layout_id' ) );
+		$this->assertSame( 'Rolling Coverage: Cards', get_the_title( $id ) );
+		$this->assertSame( $id, Layout::get_layout_id( 'cards' ) );
+		$this->assertSame( 200, self::dispatch( 'POST', '/layouts/cards', [ 'content' => self::layout_markup( 'Other' ) ] )->get_status() );
+	}
+
+	/**
 	 * A second compact create returns the existing pattern.
 	 */
 	public function test_create_returns_the_existing_compact_layout() {
@@ -467,7 +483,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$this->assertSame( 201, $default->get_status() );
 		$this->assertNotSame( $compact, $default->get_data()['id'] );
 		$this->assertSame( $compact, (int) get_option( 'rolling_coverage_compact_layout_id' ) );
-		$this->assertSame( 'Rolling Coverage: Default', get_the_title( $default->get_data()['id'] ) );
+		$this->assertSame( 'Rolling Coverage: Classic', get_the_title( $default->get_data()['id'] ) );
 	}
 
 	/**

@@ -2,6 +2,7 @@
  * WordPress dependencies
  */
 import { getSettings } from '@wordpress/date';
+import { escapeHTML } from '@wordpress/escape-html';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -132,10 +133,16 @@ const REGULAR_ENTRY_CLASS = 'newspack-rolling-coverage-regular-entry';
 const DEFAULT_ENTRY_GAP = 'var:preset|spacing|20';
 
 /**
- * The corner radius of the entry group and the pinned card, mirroring
- * Rolling_Coverage_Block::ENTRY_RADIUS.
+ * The corner radius of the Cards layout's cards.
  */
-const ENTRY_RADIUS = '0.5rem';
+const CARD_RADIUS = '0.5rem';
+
+const CARD_PADDING = {
+	top: 'var:preset|spacing|50',
+	right: 'var:preset|spacing|50',
+	bottom: 'var:preset|spacing|50',
+	left: 'var:preset|spacing|50',
+};
 
 /**
  * What an entry shows: the date and title stacked with the share button
@@ -251,16 +258,7 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 			lock: LOCKED_IN_PLACE,
 			style: {
 				color: { background: PINNED_CARD_BACKGROUND },
-				spacing: {
-					padding: {
-						top: 'var:preset|spacing|50',
-						right: 'var:preset|spacing|50',
-						bottom: 'var:preset|spacing|50',
-						left: 'var:preset|spacing|50',
-					},
-					blockGap: DEFAULT_ENTRY_GAP,
-				},
-				border: { radius: ENTRY_RADIUS },
+				spacing: { padding: CARD_PADDING, blockGap: DEFAULT_ENTRY_GAP },
 			},
 			metadata: {
 				name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
@@ -275,7 +273,6 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 			lock: LOCKED_IN_PLACE,
 			style: {
 				spacing: { blockGap: DEFAULT_ENTRY_GAP },
-				border: { radius: ENTRY_RADIUS },
 			},
 			metadata: {
 				name: __( 'Entry', 'newspack-rolling-coverage' ),
@@ -291,6 +288,18 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
  * Entry_Bindings::READ_MORE_CLASS.
  */
 const READ_MORE_CLASS = 'newspack-rolling-coverage-read-more';
+
+/**
+ * Paragraph content holding a placeholder link, so the editor shows the text
+ * as a link. The site points it at the entry's link (see
+ * Entry_Bindings::link_paragraph()).
+ *
+ * @param {string} text The link's text.
+ * @return {string} The paragraph content.
+ */
+function placeholderLink( text: string ): string {
+	return `<a href="#">${ escapeHTML( text ) }</a>`;
+}
 
 /**
  * The site's time format, for the Compact layout's time column.
@@ -408,9 +417,11 @@ function compactRow( timeColor: { textColor?: string } ): TemplateItem {
 								'core/paragraph',
 								{
 									className: READ_MORE_CLASS,
-									content: __(
-										'Read more',
-										'newspack-rolling-coverage'
+									content: placeholderLink(
+										__(
+											'Read more',
+											'newspack-rolling-coverage'
+										)
 									),
 									lock: LOCKED,
 									metadata: {
@@ -484,6 +495,171 @@ function compactEntryTemplate( slugs: string[] ): TemplateItem[] {
 		[ 'core/separator', { className: 'is-style-wide' } ],
 	];
 }
+
+/**
+ * Class of the paragraph that links to the entry's share URL, mirroring
+ * Entry_Bindings::SHARE_CLASS.
+ */
+const SHARE_CLASS = 'newspack-rolling-coverage-share';
+
+const CARD_BORDER_COLOR =
+	'var(--wp--preset--color--base-3, var(--newspack-theme-color-border, #ddd))';
+const CARD_CONTRAST =
+	'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, #111))';
+const CARD_BASE =
+	'var(--wp--preset--color--base, var(--newspack-theme-color-bg-body, #fff))';
+
+/**
+ * What a Cards entry shows: the date and title stacked, the content, then a
+ * footer with "Read more" and "Share" links. The footer packs its links to
+ * the end and "Read more" fills the space before "Share", so "Share" stays
+ * at the end with or without "Read more", in either text direction. The
+ * pinned card's blocks also carry the pinned row, and its date takes the
+ * card's text color.
+ *
+ * @param {boolean} isPinned Whether the blocks are the pinned card's.
+ * @return {TemplateItem[]} The entry's blocks.
+ */
+function cardsEntryBlocks( isPinned: boolean ): TemplateItem[] {
+	const date: TemplateItem = [
+		'core/post-date',
+		{
+			...POST_DATE_ATTRIBUTES,
+			format: 'human-diff',
+			fontSize: 'small',
+			...( isPinned ? { style: { color: { text: CARD_BASE } } } : {} ),
+		},
+	];
+	const title: TemplateItem = [ 'core/post-title', { level: 4 } ];
+
+	return [
+		[
+			'core/group',
+			{
+				layout: { type: 'flex', orientation: 'vertical' },
+				style: { spacing: { blockGap: 'var:preset|spacing|20' } },
+				metadata: { name: __( 'Meta', 'newspack-rolling-coverage' ) },
+			},
+			isPinned ? [ PINNED_ROW, date, title ] : [ date, title ],
+		],
+		[
+			'core/post-content',
+			{
+				style: {
+					spacing: {
+						padding: {
+							top: '0',
+							right: '0',
+							bottom: '0',
+							left: '0',
+						},
+					},
+				},
+			},
+		],
+		[
+			'core/group',
+			{
+				layout: {
+					type: 'flex',
+					flexWrap: 'nowrap',
+					justifyContent: 'right',
+				},
+				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+				metadata: {
+					name: __( 'Footer', 'newspack-rolling-coverage' ),
+				},
+			},
+			[
+				[
+					'core/paragraph',
+					{
+						className: `use-header-font ${ READ_MORE_CLASS }`,
+						content: placeholderLink(
+							__( 'Read more', 'newspack-rolling-coverage' )
+						),
+						fontSize: 'small',
+						style: { layout: { selfStretch: 'fill' } },
+						lock: LOCKED,
+						metadata: {
+							name: __(
+								'Read more',
+								'newspack-rolling-coverage'
+							),
+						},
+					},
+				],
+				[
+					'core/paragraph',
+					{
+						className: `use-header-font ${ SHARE_CLASS }`,
+						content: placeholderLink(
+							__( 'Share', 'newspack-rolling-coverage' )
+						),
+						fontSize: 'small',
+						metadata: {
+							name: __( 'Share', 'newspack-rolling-coverage' ),
+						},
+					},
+				],
+			],
+		],
+	];
+}
+
+/**
+ * The Cards layout's per-entry template: each entry in a bordered card, so
+ * no separator closes it. The pinned card is set in reverse: a contrast
+ * background and border, with its text, links and headings in the base
+ * color.
+ */
+const CARDS_ENTRY_TEMPLATE: TemplateItem[] = [
+	[
+		'core/group',
+		{
+			className: PINNED_CARD_CLASS,
+			lock: LOCKED_IN_PLACE,
+			style: {
+				color: { background: CARD_CONTRAST, text: CARD_BASE },
+				elements: {
+					link: { color: { text: CARD_BASE } },
+					heading: { color: { text: CARD_BASE } },
+				},
+				spacing: { padding: CARD_PADDING, blockGap: DEFAULT_ENTRY_GAP },
+				border: {
+					color: CARD_CONTRAST,
+					style: 'solid',
+					width: '1px',
+					radius: CARD_RADIUS,
+				},
+			},
+			metadata: {
+				name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
+			},
+		},
+		cardsEntryBlocks( true ),
+	],
+	[
+		'core/group',
+		{
+			className: REGULAR_ENTRY_CLASS,
+			lock: LOCKED_IN_PLACE,
+			style: {
+				spacing: { padding: CARD_PADDING, blockGap: DEFAULT_ENTRY_GAP },
+				border: {
+					color: CARD_BORDER_COLOR,
+					style: 'solid',
+					width: '1px',
+					radius: CARD_RADIUS,
+				},
+			},
+			metadata: {
+				name: __( 'Entry', 'newspack-rolling-coverage' ),
+			},
+		},
+		cardsEntryBlocks( false ),
+	],
+];
 
 /**
  * The follow button, rendered once at the top of the coverage: a core button
@@ -1286,6 +1462,7 @@ const ENTRY_ALLOWED_BLOCKS = [
 export {
 	ENTRY_TEMPLATE,
 	compactEntryTemplate,
+	CARDS_ENTRY_TEMPLATE,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_TEMPLATE,
 	feedTemplate,

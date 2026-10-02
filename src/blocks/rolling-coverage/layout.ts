@@ -12,6 +12,7 @@ import metadata from './block.json';
 import {
 	ENTRY_TEMPLATE,
 	compactEntryTemplate,
+	CARDS_ENTRY_TEMPLATE,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
@@ -101,6 +102,25 @@ export function compactInnerTemplate(): TemplateItem[] {
 				...compactEntryTemplate( slugs ),
 			],
 			'var:preset|spacing|30'
+		),
+	];
+}
+
+/**
+ * The Cards layout's inner-blocks template: the same Feed group and buttons
+ * as the default, with each entry in a bordered card.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function cardsInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			[
+				latestTemplate( paletteSlugs() ),
+				FOLLOW_TEMPLATE,
+				...CARDS_ENTRY_TEMPLATE,
+			],
+			'var:preset|spacing|40'
 		),
 	];
 }
