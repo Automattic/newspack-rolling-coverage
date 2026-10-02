@@ -501,11 +501,11 @@ class Schema {
 		$last_modified = get_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true );
 		$end_time      = get_term_meta( $coverage_id, Taxonomy::END_TIME_META_KEY, true );
 
-		// The date is part of the key because a scheduled entry going live
-		// changes what the page shows without moving the coverage's
+		// The newest entry's date is part of the key because a scheduled entry
+		// going live changes what the page shows without moving the coverage's
 		// last-modified meta.
-		$modified_datetime = self::get_date_modified( $post, $coverage_id );
-		$cache_key         = 'nrc_' . $coverage_id . '_' . md5( $post->ID . '|' . $post->post_modified_gmt . '|' . $entries_per_page . '|' . $status . '|' . $last_modified . '|' . $end_time . '|' . ( null === $modified_datetime ? '' : $modified_datetime->getTimestamp() ) );
+		$latest_entry_date = self::get_latest_entry_date( $coverage_id );
+		$cache_key         = 'nrc_' . $coverage_id . '_' . md5( $post->ID . '|' . $post->post_modified_gmt . '|' . $entries_per_page . '|' . $status . '|' . $last_modified . '|' . $end_time . '|' . ( null === $latest_entry_date ? '' : $latest_entry_date->getTimestamp() ) );
 
 		$cached_metadata = get_transient( $cache_key );
 		if ( false !== $cached_metadata ) {
@@ -532,6 +532,7 @@ class Schema {
 			$metadata['datePublished'] = $published_datetime->format( 'c' );
 		}
 
+		$modified_datetime = self::get_date_modified( $post, $latest_entry_date );
 		if ( null !== $modified_datetime ) {
 			$metadata['dateModified'] = $modified_datetime->format( 'c' );
 		}
@@ -565,15 +566,15 @@ class Schema {
 	 * Returns when the page last changed in a way readers can see: an edit to
 	 * the host post or to one of the coverage's published entries.
 	 *
-	 * @param WP_Post $post        Host post the block is embedded in.
-	 * @param int     $coverage_id Coverage term id.
+	 * @param WP_Post                $post              Host post the block is embedded in.
+	 * @param DateTimeImmutable|null $latest_entry_date When the coverage's published entries last changed.
 	 * @return DateTimeImmutable|null Latest change, or null when no date is available.
 	 */
-	private static function get_date_modified( WP_Post $post, int $coverage_id ): ?DateTimeImmutable {
+	private static function get_date_modified( WP_Post $post, ?DateTimeImmutable $latest_entry_date ): ?DateTimeImmutable {
 		$dates = array_filter(
 			[
 				self::get_own_date( $post ),
-				self::get_latest_entry_date( $coverage_id ),
+				$latest_entry_date,
 			]
 		);
 

@@ -177,11 +177,18 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	/**
 	 * The standalone script is cached, and a scheduled entry going live leaves
 	 * the coverage's own last-modified marker where it was, so the cache has
-	 * to follow the page's date to pick the entry up.
+	 * to follow the newest entry to pick it up, whether or not the page's own
+	 * date is the later one.
+	 *
+	 * @dataProvider data_page_dates_around_a_scheduled_entry
+	 *
+	 * @param string $page_date           The page's own date.
+	 * @param string $date_before_go_live The `dateModified` expected before the entry goes live.
+	 * @param string $date_after_go_live  The `dateModified` expected after.
 	 */
-	public function test_the_standalone_script_picks_up_a_scheduled_entry_going_live() {
+	public function test_the_standalone_script_picks_up_a_scheduled_entry_going_live( string $page_date, string $date_before_go_live, string $date_after_go_live ) {
 		$coverage_id = self::create_coverage();
-		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		$host_id     = $this->create_host_post( [ $coverage_id ], $page_date );
 		$this->create_dated_entry( $coverage_id, '2026-09-02 08:00:00' );
 		$entry_id = $this->create_scheduled_entry( $coverage_id, '2026-09-02 09:00:00', '2026-09-02 10:00:00' );
 
@@ -195,10 +202,22 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 		$after = $this->render_scripts( $host_id )[0];
 
 		$this->assertSame( '2026-09-02 09:00:00', get_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true ), 'Going live should leave the marker where it was.' );
-		$this->assertSame( '2026-09-02T08:00:00+00:00', $before['dateModified'] );
+		$this->assertSame( $date_before_go_live, $before['dateModified'] );
 		$this->assertCount( 1, $before['liveBlogUpdate'] );
-		$this->assertSame( '2026-09-02T10:00:00+00:00', $after['dateModified'] );
+		$this->assertSame( $date_after_go_live, $after['dateModified'] );
 		$this->assertCount( 2, $after['liveBlogUpdate'] );
+	}
+
+	/**
+	 * A page last changed before its entries, and one last changed after them.
+	 *
+	 * @return array[]
+	 */
+	public function data_page_dates_around_a_scheduled_entry(): array {
+		return [
+			'page older than its entries' => [ '2026-09-01 10:00:00', '2026-09-02T08:00:00+00:00', '2026-09-02T10:00:00+00:00' ],
+			'page newer than its entries' => [ '2026-09-05 10:00:00', '2026-09-05T10:00:00+00:00', '2026-09-05T10:00:00+00:00' ],
+		];
 	}
 
 	/**
