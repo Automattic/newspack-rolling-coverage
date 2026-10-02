@@ -395,6 +395,180 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Wrap blocks in a group, as the editor saves it.
+	 *
+	 * @param string $inner Inner blocks' markup.
+	 * @return string Group markup.
+	 */
+	private static function group_markup( string $inner ): string {
+		return '<!-- wp:group --><div class="wp-block-group">' . $inner . '</div><!-- /wp:group -->';
+	}
+
+	/**
+	 * Render a coverage block holding the given layout items.
+	 *
+	 * @param array  $attributes Block attributes.
+	 * @param string $items      The layout items' markup.
+	 * @return string Rendered block.
+	 */
+	private static function render_coverage_items( array $attributes, string $items ): string {
+		self::configure_onesignal();
+
+		$block = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $items . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+
+		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+	}
+
+	/**
+	 * A follow button placed after the entry blocks renders once, below the
+	 * entries.
+	 */
+	public function test_follow_after_the_entry_blocks_renders_below_the_entries() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::create_entry( $coverage_id );
+
+		$html = self::render_coverage_items( [ 'coverageId' => $coverage_id ], self::BUTTONS_MARKUP . self::FOLLOW_MARKUP );
+
+		$this->assertSame( 1, substr_count( $html, 'data-rc-follow' ), 'The follow button should render once.' );
+		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, 'data-rc-follow' ), 'It should follow the last entry.' );
+		$this->assertGreaterThan( strpos( $html, 'class="newspack-rolling-coverage-entries"' ), strpos( $html, 'data-rc-follow' ), 'It should come after the entries.' );
+	}
+
+	/**
+	 * A follow button inside a group renders once, with the coverage's tag,
+	 * and no entry repeats it.
+	 */
+	public function test_nested_follow_renders_once_with_the_coverage_tag() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::create_entry( $coverage_id );
+
+		$html = self::render_coverage_items( [ 'coverageId' => $coverage_id ], self::group_markup( self::FOLLOW_MARKUP ) . self::BUTTONS_MARKUP );
+
+		$this->assertSame( 1, substr_count( $html, 'data-rc-follow' ), 'The follow button should render once.' );
+		$this->assertStringContainsString( 'data-tag="' . esc_attr( Push_Notifications::follow_tag( $coverage_id ) ) . '"', $html );
+		$this->assertSame( 2, substr_count( $html, 'data-rc-share' ), 'Each entry should still render its own buttons.' );
+		$this->assertSame( 4, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button, the jump to latest button and one row per entry should render.' );
+	}
+
+	/**
+	 * A group holding the follow button and other blocks, placed before the
+	 * entry blocks, renders once above the entries.
+	 */
+	public function test_header_group_with_follow_renders_once_above_the_entries() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::create_entry( $coverage_id );
+
+		$header = self::group_markup( '<!-- wp:paragraph --><p>Coverage header</p><!-- /wp:paragraph -->' . self::FOLLOW_MARKUP );
+		$html   = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $header . self::BUTTONS_MARKUP );
+
+		$this->assertSame( 1, substr_count( $html, 'Coverage header' ), 'The header should render once.' );
+		$this->assertSame( 1, substr_count( $html, 'data-rc-follow' ), 'Its follow button should render once.' );
+		$this->assertLessThan( strpos( $html, 'class="newspack-rolling-coverage-entries"' ), strpos( $html, 'Coverage header' ), 'It should come before the entries.' );
+		$this->assertLessThan( strpos( $html, 'Coverage header' ), strpos( $html, 'newspack-rolling-coverage-feed' ), 'It should sit inside the Feed.' );
+	}
+
+	/**
+	 * An archived coverage's nested follow button renders nothing, without
+	 * leaving its empty Buttons block behind; the rest of its group stays.
+	 */
+	public function test_nested_follow_is_dropped_for_an_archived_coverage() {
+		$coverage_id = self::create_coverage( 'archived' );
+		self::create_entry( $coverage_id );
+
+		$header = self::group_markup( '<!-- wp:paragraph --><p>Coverage header</p><!-- /wp:paragraph -->' . self::FOLLOW_MARKUP );
+		$html   = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $header . self::BUTTONS_MARKUP );
+
+		$this->assertStringContainsString( 'Coverage header', $html );
+		$this->assertStringNotContainsString( 'data-rc-follow', $html );
+		$this->assertSame( 2, substr_count( $html, 'class="wp-block-buttons' ), 'Only the jump to latest button and the entry row should render.' );
+	}
+
+	/**
+	 * The coverage renders its parts in order: the status, the archived
+	 * notice, the blocks above the entries, the live region, "Jump to
+	 * Latest", the entries, the blocks below them and the sentinel.
+	 */
+	public function test_coverage_level_blocks_render_around_the_entries_in_order() {
+		$coverage_id = self::create_coverage( 'archived' );
+		self::create_entry( $coverage_id );
+
+		$header = self::group_markup( '<!-- wp:paragraph --><p>Coverage header</p><!-- /wp:paragraph -->' . self::FOLLOW_MARKUP );
+		$footer = self::group_markup( '<!-- wp:paragraph --><p>Coverage footer</p><!-- /wp:paragraph -->' . self::FOLLOW_MARKUP );
+		$html   = self::render_coverage_items(
+			[
+				'coverageId'          => $coverage_id,
+				'statusIndicatorShow' => true,
+			],
+			$header . self::BUTTONS_MARKUP . $footer
+		);
+
+		$order = [
+			'newspack-rolling-coverage-status-indicator',
+			'newspack-rolling-coverage-archived-notice',
+			'Coverage header',
+			'class="newspack-rolling-coverage-status"',
+			'newspack-rolling-coverage-new-entries',
+			'class="newspack-rolling-coverage-entries"',
+			'data-rc-share',
+			'Coverage footer',
+			'newspack-rolling-coverage-sentinel',
+		];
+
+		$positions = array_map( static fn( $needle ) => strpos( $html, $needle ), $order );
+
+		$this->assertNotContains( false, $positions, 'Every part should render.' );
+		$this->assertSame( $positions, array_values( array_unique( $positions ) ) );
+
+		$sorted = $positions;
+		sort( $sorted );
+		$this->assertSame( $sorted, $positions, 'The parts should render in order.' );
+		$this->assertSame( 1, substr_count( $html, 'Coverage footer' ), 'The footer should render once.' );
+	}
+
+	/**
+	 * Coverage-level blocks: the follow and "Jump to Latest" buttons, the
+	 * legacy follow block, a heading bound to the coverage's name, the "See
+	 * all updates" paragraph, or a block holding one at any depth.
+	 *
+	 * @dataProvider data_coverage_items
+	 *
+	 * @param string $markup   Block markup.
+	 * @param bool   $expected Whether it's a coverage-level block.
+	 */
+	public function test_is_coverage_item( string $markup, bool $expected ) {
+		$this->assertSame( $expected, Entry_Bindings::is_coverage_item( parse_blocks( $markup )[0] ) );
+	}
+
+	/**
+	 * Blocks that are, or aren't, coverage-level.
+	 *
+	 * @return array[]
+	 */
+	public function data_coverage_items(): array {
+		$name_heading = '<!-- wp:heading {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"coverageName"}}}}} --><h2 class="wp-block-heading">Coverage</h2><!-- /wp:heading -->';
+		$all_updates  = '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-all-updates"} --><p class="use-header-font newspack-rolling-coverage-all-updates"><a href="#">See all updates</a></p><!-- /wp:paragraph -->';
+		$latest       = '<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"latestUrl"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button">Jump to Latest</a></div><!-- /wp:button --></div><!-- /wp:buttons -->';
+
+		return [
+			'follow buttons'             => [ self::FOLLOW_MARKUP, true ],
+			'jump to latest'             => [ $latest, true ],
+			'legacy follow'              => [ '<!-- wp:newspack-rolling-coverage/coverage-follow /-->', true ],
+			'coverage name heading'      => [ $name_heading, true ],
+			'all updates paragraph'      => [ $all_updates, true ],
+			'group holding a follow'     => [ self::group_markup( self::FOLLOW_MARKUP ), true ],
+			'deeply nested heading'      => [ self::group_markup( self::group_markup( $name_heading ) ), true ],
+			'entry buttons'              => [ self::BUTTONS_MARKUP, false ],
+			'plain heading'              => [ '<!-- wp:heading --><h2 class="wp-block-heading">Title</h2><!-- /wp:heading -->', false ],
+			'heading bound to other key' => [ str_replace( 'coverageName', 'shareUrl', $name_heading ), false ],
+			'paragraph bound to name'    => [ str_replace( [ 'wp:heading', 'h2 class="wp-block-heading"', '/h2' ], [ 'wp:paragraph', 'p', '/p' ], $name_heading ), false ],
+			'plain group'                => [ self::group_markup( '<!-- wp:paragraph --><p>Text</p><!-- /wp:paragraph -->' ), false ],
+		];
+	}
+
+	/**
 	 * The pin icon and pinned label, as the editor saves them.
 	 */
 	const PINNED_ROW_MARKUP = '<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap"}} --><div class="wp-block-group">'

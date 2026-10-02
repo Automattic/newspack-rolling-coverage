@@ -142,6 +142,15 @@ class Rolling_Coverage_Block {
 	private static $entry_render_depth = 0;
 
 	/**
+	 * How many coverage-level block lists are rendering right now. The
+	 * filters that space an entry's blocks and drop its empty Buttons act
+	 * on them too.
+	 *
+	 * @var int
+	 */
+	private static $coverage_render_depth = 0;
+
+	/**
 	 * Whether the entry rendering now shows as unpinned, whatever its pinned
 	 * state. Read by the entry bindings that show the pinned label and row.
 	 *
@@ -190,6 +199,16 @@ class Rolling_Coverage_Block {
 	 */
 	public static function is_rendering_entry(): bool {
 		return self::$entry_render_depth > 0;
+	}
+
+	/**
+	 * Whether an entry or the coverage-level blocks are being rendered, so
+	 * the filters shaping the layout's blocks apply.
+	 *
+	 * @return bool
+	 */
+	private static function is_rendering_template_blocks(): bool {
+		return self::$entry_render_depth > 0 || self::$coverage_render_depth > 0;
 	}
 
 	/**
@@ -309,6 +328,38 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * The layout's items split by where they render: the coverage-level
+	 * items before the first per-entry item render above the entries, the
+	 * per-entry items make the entry template, and the coverage-level items
+	 * after it render below the entries. "Jump to Latest" renders in its own
+	 * place, so it's in neither list.
+	 *
+	 * @param WP_Block $block The Rolling Coverage block instance.
+	 * @return array{header: array[], template: array[], footer: array[]} Parsed blocks.
+	 */
+	private static function layout_parts( WP_Block $block ): array {
+		$parts = [
+			'header'   => [],
+			'template' => [],
+			'footer'   => [],
+		];
+
+		foreach ( self::layout_items( $block ) as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
+
+			if ( ! Entry_Bindings::is_coverage_item( $item ) ) {
+				$parts['template'][] = $item;
+			} elseif ( ! Entry_Bindings::is_latest_buttons( $item ) ) {
+				$parts[ $parts['template'] ? 'footer' : 'header' ][] = $item;
+			}
+		}
+
+		return $parts;
+	}
+
+	/**
 	 * Wraps the coverage's items in the Feed group, rendered by core so its
 	 * classes and styles apply, or in a plain container for a layout without
 	 * one.
@@ -396,7 +447,7 @@ class Rolling_Coverage_Block {
 			! is_string( $block_content ) ||
 			! is_array( $block ) ||
 			'flex' !== ( $block['attrs']['layout']['type'] ?? ( 'core/columns' === ( $block['blockName'] ?? '' ) ? 'flex' : '' ) ) ||
-			! self::$entry_render_depth ||
+			! self::is_rendering_template_blocks() ||
 			'newspack-theme' !== get_template() ||
 			null !== wp_get_global_settings( [ 'spacing', 'blockGap' ] )
 		) {
@@ -439,7 +490,7 @@ class Rolling_Coverage_Block {
 	 * @return string
 	 */
 	public static function drop_empty_entry_buttons( $block_content ) {
-		if ( ! is_string( $block_content ) || ! self::$entry_render_depth ) {
+		if ( ! is_string( $block_content ) || ! self::is_rendering_template_blocks() ) {
 			return $block_content;
 		}
 
@@ -858,9 +909,7 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		// Follow button: rendered once at the top of the coverage, not per entry.
-		$follow_html = self::maybe_render_follow_button( $block, $coverage_id, $status );
-
+		$layout_parts = self::layout_parts( $block );
 		$feed         = self::feed_group( $block );
 		$wrapper_data = [
 			'data-coverage-id'      => $coverage_id,
@@ -900,13 +949,14 @@ class Rolling_Coverage_Block {
 
 		try {
 			$items_html = sprintf(
-				'%5$s%3$s<div class="%1$s-status" role="status" aria-live="polite"></div>%4$s<div class="%1$s-entries">%2$s</div>%6$s',
+				'%5$s%3$s<div class="%1$s-status" role="status" aria-live="polite"></div>%4$s<div class="%1$s-entries">%2$s</div>%7$s%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
-				$follow_html,
+				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status ),
 				$is_capped ? '' : self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
 				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
-				$is_capped ? '' : sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX )
+				$is_capped ? '' : sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ),
+				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status )
 			);
 
 			return sprintf(
@@ -1502,45 +1552,24 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Renders the follow button once at the top of the coverage.
+	 * Renders coverage-level blocks once, with the coverage in their context
+	 * so the follow button carries its tag. A follow button that can't render,
+	 * e.g. on an archived coverage, leaves nothing behind.
 	 *
-	 * The button is removable, so this returns an empty string if the editor
-	 * deleted it (or if the follow button shouldn't render at all). It's a
-	 * core button bound to the coverage, or the legacy Follow block on
-	 * coverages saved before it.
-	 *
-	 * @param WP_Block $block       The parent rolling-coverage block instance.
-	 * @param int      $coverage_id Coverage term id.
-	 * @param string   $status      Coverage status.
-	 * @return string Follow button HTML, or an empty string.
+	 * @param array[] $blocks      Parsed coverage-level blocks.
+	 * @param int     $coverage_id Coverage term id.
+	 * @param string  $status      Coverage status.
+	 * @return string Rendered HTML, or an empty string.
 	 */
-	private static function maybe_render_follow_button( WP_Block $block, int $coverage_id, string $status ): string {
-		if ( ! Coverage_Follow_Block::should_render( $status ) ) {
-			return '';
-		}
-
-		$follow_block = null;
-
-		foreach ( self::layout_items( $block ) as $inner ) {
-			// A Buttons block also holding "Jump to Latest" renders as that control.
-			if ( Entry_Bindings::is_latest_buttons( $inner ) ) {
-				continue;
-			}
-
-			if ( Coverage_Follow_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $inner ) ) {
-				$follow_block = $inner;
-				break;
-			}
-		}
-
-		if ( null === $follow_block ) {
+	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status ): string {
+		if ( ! $blocks ) {
 			return '';
 		}
 
 		// Preload the follow button's view script and the legacy block's
 		// styles: the button renders inside this callback, so WordPress
 		// doesn't enqueue its assets.
-		$follow_block_type = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Follow_Block::BLOCK_NAME );
+		$follow_block_type = Coverage_Follow_Block::should_render( $status ) && self::holds_follow_button( $blocks ) ? WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Follow_Block::BLOCK_NAME ) : null;
 
 		if ( $follow_block_type ) {
 			foreach ( $follow_block_type->style_handles as $style_handle ) {
@@ -1552,37 +1581,64 @@ class Rolling_Coverage_Block {
 			}
 		}
 
-		if ( Coverage_Follow_Block::BLOCK_NAME !== $follow_block['blockName'] ) {
-			$add_coverage_context = fn( $context ) => array_merge(
-				(array) $context,
-				[
-					Entry_Bindings::COVERAGE_ID_CONTEXT => $coverage_id,
-					Entry_Bindings::COVERAGE_STATUS_CONTEXT => $status,
-				]
-			);
+		$blocks = self::map_template_blocks(
+			$blocks,
+			static function ( array $block ) use ( $coverage_id, $status ) {
+				if ( Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) {
+					$block['attrs'] = array_merge(
+						(array) ( $block['attrs'] ?? [] ),
+						[
+							'coverageId' => $coverage_id,
+							'status'     => $status,
+						]
+					);
+				}
 
-			add_filter( 'render_block_context', $add_coverage_context );
+				return [ $block ];
+			}
+		);
 
-			try {
-				return render_block( $follow_block );
-			} finally {
-				remove_filter( 'render_block_context', $add_coverage_context );
+		$add_coverage_context = fn( $context ) => array_merge(
+			(array) $context,
+			[
+				Entry_Bindings::COVERAGE_ID_CONTEXT     => $coverage_id,
+				Entry_Bindings::COVERAGE_STATUS_CONTEXT => $status,
+			]
+		);
+
+		add_filter( 'render_block_context', $add_coverage_context );
+		++self::$coverage_render_depth;
+
+		try {
+			return implode( '', array_map( 'render_block', $blocks ) );
+		} finally {
+			--self::$coverage_render_depth;
+			remove_filter( 'render_block_context', $add_coverage_context );
+		}
+	}
+
+	/**
+	 * Whether blocks hold a follow button, the core one or the legacy block,
+	 * at any depth.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return bool
+	 */
+	private static function holds_follow_button( array $blocks ): bool {
+		foreach ( $blocks as $block ) {
+			if (
+				is_array( $block ) &&
+				(
+					Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ||
+					Entry_Bindings::is_follow_buttons( $block ) ||
+					self::holds_follow_button( $block['innerBlocks'] ?? [] )
+				)
+			) {
+				return true;
 			}
 		}
 
-		$attrs               = $follow_block['attrs'] ?? [];
-		$attrs['coverageId'] = $coverage_id;
-		$attrs['status']     = $status;
-
-		return render_block(
-			[
-				'blockName'    => Coverage_Follow_Block::BLOCK_NAME,
-				'attrs'        => $attrs,
-				'innerBlocks'  => [],
-				'innerHTML'    => '',
-				'innerContent' => [],
-			]
-		);
+		return false;
 	}
 
 	/**
@@ -1700,26 +1756,11 @@ class Rolling_Coverage_Block {
 	 *                  `innerBlocks` key of a WP_Block source array.
 	 */
 	private static function get_entry_template( WP_Block $block ) {
-		$inner_blocks = self::layout_items( $block );
-
-		if ( empty( $inner_blocks ) ) {
+		if ( empty( self::layout_items( $block ) ) ) {
 			return self::default_entry_template();
 		}
 
-		// The saved inner blocks also include blocks that render once at the
-		// top of the coverage, not per entry.
-		$singleton_blocks = [
-			Coverage_Follow_Block::BLOCK_NAME,
-		];
-		$template         = [];
-
-		foreach ( $inner_blocks as $inner_block ) {
-			if ( ! in_array( $inner_block['blockName'] ?? '', $singleton_blocks, true ) && ! Entry_Bindings::is_follow_buttons( $inner_block ) && ! Entry_Bindings::is_latest_buttons( $inner_block ) ) {
-				$template[] = $inner_block;
-			}
-		}
-
-		return $template;
+		return self::layout_parts( $block )['template'];
 	}
 
 	/**

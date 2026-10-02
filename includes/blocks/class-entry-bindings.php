@@ -66,6 +66,11 @@ class Entry_Bindings {
 	const SHARE_CLASS = 'newspack-rolling-coverage-share';
 
 	/**
+	 * Class of the paragraph that links to the coverage page's full feed.
+	 */
+	const ALL_UPDATES_CLASS = 'newspack-rolling-coverage-all-updates';
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
@@ -584,6 +589,65 @@ class Entry_Bindings {
 	 */
 	public static function is_latest_buttons( array $parsed_block ): bool {
 		return self::is_buttons_bound_to( $parsed_block, 'latestUrl' );
+	}
+
+	/**
+	 * Whether a parsed block is a heading bound to the coverage's name.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_coverage_name_heading( array $parsed_block ): bool {
+		$binding = $parsed_block['attrs']['metadata']['bindings']['content'] ?? [];
+
+		return 'core/heading' === ( $parsed_block['blockName'] ?? '' ) &&
+			is_array( $binding ) &&
+			self::SOURCE_NAME === ( $binding['source'] ?? '' ) &&
+			'coverageName' === ( $binding['args']['key'] ?? '' );
+	}
+
+	/**
+	 * Whether a parsed block is the paragraph linking to the coverage page's
+	 * full feed.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_all_updates_paragraph( array $parsed_block ): bool {
+		$class_name = $parsed_block['attrs']['className'] ?? '';
+
+		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
+			is_string( $class_name ) &&
+			in_array( self::ALL_UPDATES_CLASS, explode( ' ', $class_name ), true );
+	}
+
+	/**
+	 * Whether a parsed block belongs to the coverage rather than to each
+	 * entry, so it renders once: the follow or "Jump to Latest" button, the
+	 * legacy follow block, a heading bound to the coverage's name, the "See
+	 * all updates" paragraph, or a block holding one at any depth.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_coverage_item( array $parsed_block ): bool {
+		if (
+			Coverage_Follow_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
+			self::is_follow_buttons( $parsed_block ) ||
+			self::is_latest_buttons( $parsed_block ) ||
+			self::is_coverage_name_heading( $parsed_block ) ||
+			self::is_all_updates_paragraph( $parsed_block )
+		) {
+			return true;
+		}
+
+		foreach ( $parsed_block['innerBlocks'] ?? [] as $inner_block ) {
+			if ( is_array( $inner_block ) && self::is_coverage_item( $inner_block ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

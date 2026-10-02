@@ -77,11 +77,12 @@ import {
 import {
 	feedGroupOf,
 	feedItems,
-	isFollowButtons,
+	followBlockIds,
 	isPinnedCard,
 	isRegularEntry,
 	forEntryKind,
 	breakoutBlockIds,
+	withoutFollowButtons,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -100,12 +101,7 @@ import LayoutPickerModal, {
 import { getBuiltInLayouts, builtInLayoutSlugFor } from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
 import { blockGapCss } from './spacing';
-import {
-	BLOCK_NAME,
-	FOLLOW_BLOCK_NAME,
-	innerTemplate,
-	useLayoutPreview,
-} from './layout';
+import { BLOCK_NAME, innerTemplate, useLayoutPreview } from './layout';
 import type {
 	CoverageOption,
 	ApplyNotice,
@@ -541,11 +537,12 @@ export default function Edit( {
 		showsSamples && entryContexts.length === 0
 			? sampleContexts
 			: entryContexts;
-	const { templateBlocks, blocksForEntry } = useLayoutPreview(
-		isSynced ? feedItems( syncedBlocks ) : allBlocks,
-		previewContexts,
-		entriesPerPage
-	);
+	const { headerBlocks, footerBlocks, templateBlocks, blocksForEntry } =
+		useLayoutPreview(
+			isSynced ? feedItems( syncedBlocks ) : allBlocks,
+			previewContexts,
+			entriesPerPage
+		);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
 		[ templateBlocks ]
@@ -594,12 +591,10 @@ export default function Edit( {
 		: false;
 	const hiddenIds = useMemo(
 		() => [
+			...( isFollowHidden ? followBlockIds( allBlocks ) : [] ),
 			...allBlocks
 				.filter(
 					( block, index ) =>
-						( isFollowHidden &&
-							( block.name === FOLLOW_BLOCK_NAME ||
-								isFollowButtons( block ) ) ) ||
 						( isCardHidden && isPinnedCard( block ) ) ||
 						( isEntryHidden &&
 							( isRegularEntry( block ) ||
@@ -643,21 +638,19 @@ export default function Edit( {
 		[ hiddenIds ]
 	);
 
-	const syncedRenderOnceBlocks = useMemo(
+	const syncedHeaderBlocks = useMemo(
 		() =>
-			feedItems( syncedBlocks )
-				.filter(
-					( block ) =>
-						block.name === FOLLOW_BLOCK_NAME ||
-						isFollowButtons( block )
-				)
-				.filter(
-					( block ) =>
-						! isFollowHidden ||
-						( block.name !== FOLLOW_BLOCK_NAME &&
-							! isFollowButtons( block ) )
-				),
-		[ syncedBlocks, isFollowHidden ]
+			isFollowHidden
+				? withoutFollowButtons( headerBlocks )
+				: headerBlocks,
+		[ headerBlocks, isFollowHidden ]
+	);
+	const syncedFooterBlocks = useMemo(
+		() =>
+			isFollowHidden
+				? withoutFollowButtons( footerBlocks )
+				: footerBlocks,
+		[ footerBlocks, isFollowHidden ]
 	);
 
 	const detach = useCallback( () => {
@@ -1527,7 +1520,7 @@ export default function Edit( {
 								) }
 							{ isSynced && (
 								<div { ...feedPreviewProps( feedGroup ) }>
-									{ syncedRenderOnceBlocks.length > 0 && (
+									{ syncedHeaderBlocks.length > 0 && (
 										<BlockContextProvider
 											value={
 												previewContexts[ 0 ] ??
@@ -1535,9 +1528,7 @@ export default function Edit( {
 											}
 										>
 											<EntryBlockPreview
-												blocks={
-													syncedRenderOnceBlocks
-												}
+												blocks={ syncedHeaderBlocks }
 											/>
 										</BlockContextProvider>
 									) }
@@ -1569,6 +1560,18 @@ export default function Edit( {
 											</BlockContextProvider>
 										) }
 									</div>
+									{ syncedFooterBlocks.length > 0 && (
+										<BlockContextProvider
+											value={
+												previewContexts[ 0 ] ??
+												NEUTRAL_ENTRY_CONTEXT
+											}
+										>
+											<EntryBlockPreview
+												blocks={ syncedFooterBlocks }
+											/>
+										</BlockContextProvider>
+									) }
 								</div>
 							) }
 							{ ! isSynced && (

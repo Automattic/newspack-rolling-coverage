@@ -17,11 +17,11 @@ import {
 	marginEntryTemplate,
 	minuteEntryTemplate,
 	ENTRY_ALLOWED_BLOCKS,
+	FOLLOW_BLOCK_NAME,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
 	latestTemplate,
-	isFollowButtons,
-	isLatestButtons,
+	layoutParts,
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	withLinkedTitle,
@@ -38,11 +38,7 @@ import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
 export const BLOCK_NAME = metadata.name;
 
-/**
- * The legacy follow button block, still rendered once at the top of
- * coverages saved before the follow button became a core button.
- */
-export const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
+export { FOLLOW_BLOCK_NAME };
 
 /**
  * The slugs of every color in the editor's palette: the theme's, core's
@@ -240,33 +236,30 @@ export function previewTemplateFor(
 }
 
 /**
- * The per-entry preview blocks for a layout: the layout's blocks minus the
- * follow and Jump to Latest buttons, shaped per entry the way the site
- * renders each entry.
+ * The preview blocks for a layout: the coverage-level blocks above and below
+ * the entries (see layoutParts()), and the per-entry blocks, shaped per entry
+ * the way the site renders each entry.
  *
  * @param {Object[]}       allBlocks      The layout's top-level blocks.
  * @param {EntryContext[]} entryContexts  The entries being previewed.
  * @param {number}         entriesPerPage Entries loaded per page.
- * @return {Object} The per-entry template blocks and a getter for one entry's preview blocks.
+ * @return {Object} The header, footer and per-entry template blocks, and a getter for one entry's preview blocks.
  */
 export function useLayoutPreview(
 	allBlocks: TemplateBlocks,
 	entryContexts: EntryContext[],
 	entriesPerPage: number
 ): {
+	headerBlocks: TemplateBlocks;
+	footerBlocks: TemplateBlocks;
 	templateBlocks: TemplateBlocks;
 	blocksForEntry: ( context: EntryContext ) => TemplateBlocks;
 } {
-	const templateBlocks = useMemo(
-		() =>
-			allBlocks.filter(
-				( block ) =>
-					block.name !== FOLLOW_BLOCK_NAME &&
-					! isFollowButtons( block ) &&
-					! isLatestButtons( block )
-			),
-		[ allBlocks ]
-	);
+	const {
+		header: headerBlocks,
+		template: templateBlocks,
+		footer: footerBlocks,
+	} = useMemo( () => layoutParts( allBlocks ), [ allBlocks ] );
 	const previewTemplates = useMemo( () => {
 		const pinnedBlocks = forEntryKind( templateBlocks, true );
 		const hasCard = hasPinnedCard( pinnedBlocks );
@@ -350,5 +343,5 @@ export function useLayoutPreview(
 		[ lastContext, lastPreviewBlocks, previewTemplates ]
 	);
 
-	return { templateBlocks, blocksForEntry };
+	return { headerBlocks, footerBlocks, templateBlocks, blocksForEntry };
 }

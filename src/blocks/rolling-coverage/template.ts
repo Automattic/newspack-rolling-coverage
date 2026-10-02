@@ -110,6 +110,18 @@ const READ_MORE_CLASS = 'newspack-rolling-coverage-read-more';
  */
 const SHARE_CLASS = 'newspack-rolling-coverage-share';
 
+/**
+ * Class of the paragraph that links to the coverage page's full feed,
+ * mirroring Entry_Bindings::ALL_UPDATES_CLASS.
+ */
+const ALL_UPDATES_CLASS = 'newspack-rolling-coverage-all-updates';
+
+/**
+ * The legacy follow button block, still rendered once by coverages saved
+ * before the follow button became a core button.
+ */
+const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
+
 const ACCENT =
 	'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
 const ACCENT_CONTRAST =
@@ -948,7 +960,7 @@ function minuteEntryTemplate(): TemplateItem[] {
 }
 
 /**
- * The follow button, rendered once at the top of the coverage: a core button
+ * The follow button, rendered once wherever the layout places it: a core button
  * bound to the coverage's notification tag. It's a `<button>`, so the bound
  * value never shows as a link; it only carries the tag to the follow script.
  */
@@ -1110,6 +1122,171 @@ function isFollowButtons( block: ButtonsBlock ): boolean {
  */
 function isLatestButtons( block: ButtonsBlock ): boolean {
 	return isButtonsBoundTo( block, 'latestUrl' );
+}
+
+/**
+ * Whether a block is a heading bound to the coverage's name, mirroring
+ * Entry_Bindings::is_coverage_name_heading().
+ *
+ * @param {Object} block            The block.
+ * @param {string} block.name       Block name.
+ * @param {Object} block.attributes Block attributes.
+ * @return {boolean} Whether it's the coverage name heading.
+ */
+function isCoverageNameHeading( block: {
+	name: string;
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const metadata = block.attributes?.metadata as
+		| {
+				bindings?: {
+					content?: { source?: string; args?: { key?: string } };
+				};
+		  }
+		| undefined;
+	const content = metadata?.bindings?.content;
+
+	return (
+		block.name === 'core/heading' &&
+		content?.source === ENTRY_BINDINGS_SOURCE &&
+		content?.args?.key === 'coverageName'
+	);
+}
+
+/**
+ * Whether a block is the paragraph linking to the coverage page's full feed,
+ * mirroring Entry_Bindings::is_all_updates_paragraph().
+ *
+ * @param {Object} block            The block.
+ * @param {string} block.name       Block name.
+ * @param {Object} block.attributes Block attributes.
+ * @return {boolean} Whether it's the "See all updates" paragraph.
+ */
+function isAllUpdatesParagraph( block: {
+	name: string;
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const className = block.attributes?.className;
+
+	return (
+		block.name === 'core/paragraph' &&
+		typeof className === 'string' &&
+		className.split( ' ' ).includes( ALL_UPDATES_CLASS )
+	);
+}
+
+/**
+ * Whether a block is the follow button: the core one's Buttons block or the
+ * legacy block.
+ *
+ * @param {Object} block The block.
+ * @return {boolean} Whether it's a follow button.
+ */
+function isFollowBlock( block: ButtonsBlock ): boolean {
+	return block.name === FOLLOW_BLOCK_NAME || isFollowButtons( block );
+}
+
+/**
+ * Whether a block belongs to the coverage rather than to each entry, so it
+ * renders once: the follow or "Jump to Latest" button, the legacy follow
+ * block, a heading bound to the coverage's name, the "See all updates"
+ * paragraph, or a block holding one at any depth, mirroring
+ * Entry_Bindings::is_coverage_item().
+ *
+ * @param {Object} block      The block.
+ * @param {string} block.name Block name.
+ * @return {boolean} Whether it's a coverage-level block.
+ */
+function isCoverageItem( block: {
+	name: string;
+	[ key: string ]: unknown;
+} ): boolean {
+	const typed = block as ButtonsBlock & {
+		attributes?: Record< string, unknown >;
+	};
+
+	return (
+		isFollowBlock( typed ) ||
+		isLatestButtons( typed ) ||
+		isCoverageNameHeading( typed ) ||
+		isAllUpdatesParagraph( typed ) ||
+		( Array.isArray( block.innerBlocks ) &&
+			( block.innerBlocks as { name: string }[] ).some( isCoverageItem ) )
+	);
+}
+
+/**
+ * The layout's items split by where they render, mirroring
+ * Rolling_Coverage_Block::layout_parts(): the coverage-level items before the
+ * first per-entry item go above the entries, the per-entry items make the
+ * entry template, and the coverage-level items after it go below the
+ * entries. "Jump to Latest" renders in its own place, so it's in neither
+ * list.
+ *
+ * @param {Object[]} items The layout's items.
+ * @return {Object} The header, template and footer blocks.
+ */
+function layoutParts< T extends { name: string; [ key: string ]: unknown } >(
+	items: T[]
+): { header: T[]; template: T[]; footer: T[] } {
+	return items.reduce(
+		( parts, item ) => {
+			if ( ! isCoverageItem( item ) ) {
+				parts.template.push( item );
+			} else if ( ! isLatestButtons( item as ButtonsBlock ) ) {
+				( parts.template.length ? parts.footer : parts.header ).push(
+					item
+				);
+			}
+
+			return parts;
+		},
+		{ header: [] as T[], template: [] as T[], footer: [] as T[] }
+	);
+}
+
+/**
+ * The blocks without their follow buttons, at any depth, as the site renders
+ * them where the coverage can't be followed.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {Object[]} The blocks without follow buttons.
+ */
+function withoutFollowButtons<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks
+		.filter( ( block ) => ! isFollowBlock( block as ButtonsBlock ) )
+		.map( ( block ) =>
+			Array.isArray( block.innerBlocks ) && block.innerBlocks.length
+				? {
+						...block,
+						innerBlocks: withoutFollowButtons(
+							block.innerBlocks as T[]
+						),
+					}
+				: block
+		);
+}
+
+/**
+ * The client IDs of the follow buttons among the blocks, at any depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {string[]} Client IDs.
+ */
+function followBlockIds(
+	blocks: { name: string; [ key: string ]: unknown }[]
+): string[] {
+	return blocks.flatMap( ( block ) =>
+		isFollowBlock( block as ButtonsBlock )
+			? [ block.clientId as string ]
+			: followBlockIds(
+					Array.isArray( block.innerBlocks )
+						? ( block.innerBlocks as typeof blocks )
+						: []
+				)
+	);
 }
 
 /**
@@ -1777,6 +1954,8 @@ export {
 	marginEntryTemplate,
 	minuteEntryTemplate,
 	ENTRY_ALLOWED_BLOCKS,
+	ALL_UPDATES_CLASS,
+	FOLLOW_BLOCK_NAME,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
 	feedGroupOf,
@@ -1785,6 +1964,12 @@ export {
 	latestTemplate,
 	isFollowButtons,
 	isLatestButtons,
+	isCoverageNameHeading,
+	isAllUpdatesParagraph,
+	isCoverageItem,
+	layoutParts,
+	withoutFollowButtons,
+	followBlockIds,
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	breakoutBlockIds,
