@@ -59,6 +59,13 @@ class Rolling_Coverage_Block {
 	// Option name prefix for persisted entry templates: rc_tpl_{coverage_id}_{hash}.
 	const TEMPLATE_OPTION_PREFIX = 'rc_tpl_';
 
+	/**
+	 * How many stored block configs to keep per coverage.
+	 *
+	 * @var int
+	 */
+	const CONFIGS_KEPT = 5;
+
 	const PINNED_CARD_CLASS = 'newspack-rolling-coverage-pinned-card';
 
 	/**
@@ -2514,23 +2521,19 @@ class Rolling_Coverage_Block {
 			update_option( $option_key, $config, false );
 		}
 
-		// Keep the previous config too: pages still in the page cache poll with
-		// its key. Anything older is pruned so the options table stays bounded.
-		$current_template_meta_key  = 'rolling_coverage_template_hash';
-		$previous_template_meta_key = 'rolling_coverage_previous_template_hash';
-		$current_hash               = get_term_meta( $coverage_id, $current_template_meta_key, true );
+		// Pages still in the page cache poll with an older config's key, and
+		// one coverage can show several layouts at once. Only the most recent
+		// configs are kept so the options table stays bounded.
+		$meta_key = 'rolling_coverage_template_hashes';
+		$hashes   = get_term_meta( $coverage_id, $meta_key, true );
+		$hashes   = array_values( array_diff( is_array( $hashes ) ? $hashes : [], [ $hash ] ) );
+		$hashes[] = $hash;
 
-		if ( $current_hash && $current_hash !== $hash ) {
-			$previous_hash = get_term_meta( $coverage_id, $previous_template_meta_key, true );
-
-			if ( $previous_hash && $previous_hash !== $hash ) {
-				delete_option( self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $previous_hash );
-			}
-
-			update_term_meta( $coverage_id, $previous_template_meta_key, $current_hash );
+		foreach ( array_splice( $hashes, 0, max( 0, count( $hashes ) - self::CONFIGS_KEPT ) ) as $old_hash ) {
+			delete_option( self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $old_hash );
 		}
 
-		update_term_meta( $coverage_id, $current_template_meta_key, $hash );
+		update_term_meta( $coverage_id, $meta_key, $hashes );
 
 		return $hash;
 	}
