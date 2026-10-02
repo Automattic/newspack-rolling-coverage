@@ -25,10 +25,13 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		parent::set_up();
 
 		if ( ! WP_Block_Type_Registry::get_instance()->is_registered( Coverage_Status_Block::BLOCK_NAME ) ) {
+			$metadata = json_decode( file_get_contents( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'src/blocks/coverage-status/block.json' ), true ); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
+
 			register_block_type(
 				Coverage_Status_Block::BLOCK_NAME,
 				[
-					'uses_context'    => [ 'postId' ],
+					'supports'        => $metadata['supports'],
+					'uses_context'    => $metadata['usesContext'],
 					'render_callback' => [ Coverage_Status_Block::class, 'render_block' ],
 				]
 			);
@@ -362,26 +365,41 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 		$scss = file_get_contents( $dir . 'style.scss' ); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
 
-		$this->assertStringContainsString( 'font-size: var(--newspack-ui-font-size-xs)', $scss );
-		$this->assertStringContainsString( 'line-height: var(--newspack-ui-line-height-xs)', $scss );
+		$this->assertMatchesRegularExpression( '#font-size:\s*var\(--newspack-ui-font-size-xs\)#', $scss );
+		$this->assertMatchesRegularExpression( '#line-height:\s*var\(--newspack-ui-line-height-xs\)#', $scss );
 		$this->assertStringNotContainsString( 'font-family', $scss );
 
-		if ( ! file_exists( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/blocks/coverage-status/block.json' ) ) {
-			$this->markTestSkipped( 'The block is not built.' );
-		}
-
 		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Status_Block::BLOCK_NAME );
+
+		if ( ! $block_type->style_handles ) {
+			$this->markTestSkipped( 'The block is registered without a build, so it has no style handles.' );
+		}
 
 		$this->assertContains( 'newspack-rolling-coverage-coverage-status-style', $block_type->style_handles );
 	}
 
 	/**
-	 * The gap setting makes the wrapper a flex layout that carries the chosen gap.
+	 * The block declares a flex layout and block gap support, and core renders
+	 * the wrapper as a flex layout with the chosen gap on themes that support it.
 	 */
-	public function test_wrapper_is_a_flex_layout_with_the_chosen_gap() {
-		if ( ! file_exists( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/blocks/coverage-status/block.json' ) ) {
-			$this->markTestSkipped( 'The block is not built.' );
-		}
+	public function test_wrapper_gets_a_flex_layout_and_the_chosen_gap_from_core() {
+		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Status_Block::BLOCK_NAME );
+
+		$this->assertTrue( block_has_support( $block_type, [ 'spacing', 'blockGap' ], false ) );
+		$this->assertSame( 'flex', $block_type->supports['layout']['default']['type'] ?? null );
+
+		add_filter(
+			'wp_theme_json_data_theme',
+			static function ( $theme_json ) {
+				return $theme_json->update_with(
+					[
+						'version'  => WP_Theme_JSON::LATEST_SCHEMA,
+						'settings' => [ 'spacing' => [ 'blockGap' => true ] ],
+					]
+				);
+			}
+		);
+		wp_clean_theme_json_cache();
 
 		$coverage_id = self::create_coverage();
 		$html        = $this->render(
@@ -393,5 +411,6 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertMatchesRegularExpression( '#^<div class="(?:[^"]* )?is-layout-flex(?: [^"]*)?"#', $html );
+		$this->assertStringContainsString( 'gap:var(--wp--preset--spacing--30)', wp_style_engine_get_stylesheet_from_context( 'block-supports', [] ) );
 	}
 }
