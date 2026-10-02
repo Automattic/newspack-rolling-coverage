@@ -1796,7 +1796,13 @@ function initBlock( root: HTMLElement ): void {
 					return;
 				}
 
-				if ( data.overflow && shouldReloadForOverflow() ) {
+				// A capped feed shares its page with other content, so it never
+				// reloads it; its polls send the newest entries instead.
+				if (
+					data.overflow &&
+					! latestCap &&
+					shouldReloadForOverflow()
+				) {
 					window.location.reload();
 					return;
 				}

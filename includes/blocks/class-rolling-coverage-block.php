@@ -3194,7 +3194,9 @@ class Rolling_Coverage_Block {
 
 		$config           = self::load_block_config( $term_id, $template_key );
 		$template         = $config['template'];
-		$is_capped        = self::latest_count( $config ) > 0 || self::requested_latest_count( $params ) > 0;
+		$latest_count     = self::latest_count( $config );
+		$latest_count     = $latest_count ? $latest_count : self::requested_latest_count( $params );
+		$is_capped        = $latest_count > 0;
 		$ads_interval     = max( 1, (int) $config['adsInterval'] );
 		$ads_enabled_attr = (bool) $config['adsEnabled'];
 		$ads_enabled      = ! $is_capped && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $term_id );
@@ -3242,6 +3244,10 @@ class Rolling_Coverage_Block {
 
 			// Signal the client to refresh when the poll result reaches the cap.
 			if ( count( $query->posts ) > self::POLL_CAP ) {
+				if ( $is_capped ) {
+					return self::capped_burst_response( $term_id, $template, $latest_count, $query->posts[0], $params );
+				}
+
 				return self::poll_response(
 					[
 						'entries'  => [],
@@ -3381,6 +3387,55 @@ class Rolling_Coverage_Block {
 				'count'   => count( $posts ),
 				'adSlots' => $ad_slots,
 			]
+		);
+	}
+
+	/**
+	 * The poll response for a capped feed after a burst too large to send
+	 * piecemeal: rather than reload the page hosting it, the newest entries
+	 * by date come as inserts, for the page to put on top and trim to the
+	 * cap, with the cursor at the most recent change.
+	 *
+	 * @param int     $term_id       Coverage term ID.
+	 * @param array[] $template      Per-entry template.
+	 * @param int     $latest_count  How many entries the feed shows.
+	 * @param WP_Post $last_modified The most recently modified entry.
+	 * @param array   $params        Request parameters.
+	 * @return WP_REST_Response
+	 */
+	private static function capped_burst_response( int $term_id, array $template, int $latest_count, WP_Post $last_modified, array $params ): WP_REST_Response {
+		$args = array_merge(
+			self::coverage_entries_args( $term_id ),
+			[
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+				'posts_per_page' => $latest_count,
+			]
+		);
+
+		$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
+
+		$entries = [];
+
+		foreach ( ( new WP_Query( $args ) )->posts as $entry ) {
+			$entries[] = [
+				'id'     => $entry->ID,
+				'html'   => self::render_entry( $entry, $template, 'poll', is_capped: true ),
+				'type'   => 'insert',
+				'adHtml' => null,
+				'adSlot' => null,
+			];
+		}
+		wp_reset_postdata();
+
+		return self::poll_response(
+			[
+				'entries'     => $entries,
+				'cursor'      => $last_modified->ID . ':' . self::post_modified_gmt( $last_modified ),
+				'overflow'    => false,
+				'polledCount' => max( 0, (int) ( $params['polled_count'] ?? 0 ) ),
+			],
+			$term_id
 		);
 	}
 

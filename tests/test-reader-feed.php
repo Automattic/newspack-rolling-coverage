@@ -580,6 +580,41 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A capped feed never reloads its host page on a burst: the poll sends
+	 * the newest entries by date as inserts, for the page to put on top and
+	 * trim, and moves the cursor to the most recent change.
+	 */
+	public function test_capped_poll_over_the_cap_sends_the_newest_entries_instead_of_overflowing() {
+		$entry_ids = [];
+
+		for ( $i = 0; $i <= Rolling_Coverage_Block::POLL_CAP; $i++ ) {
+			$entry_ids[] = $this->create_entry_at( gmdate( 'Y-m-d H:i:s', strtotime( '2026-01-01 12:00:00' ) + $i * 60 ) );
+		}
+
+		wp_update_post(
+			[
+				'ID'           => $entry_ids[0],
+				'post_content' => 'Corrected.',
+			]
+		);
+		$edited = get_post( $entry_ids[0] );
+
+		$poll = [
+			'cursor'       => '0:2026-01-01 00:00:00',
+			'template_key' => 'pruned',
+		];
+
+		$this->assertTrue( $this->get_feed( $poll )->get_data()['overflow'], 'Uncapped, the burst should overflow.' );
+
+		$capped = $this->get_feed( array_merge( $poll, [ 'latest' => 3 ] ) )->get_data();
+
+		$this->assertFalse( $capped['overflow'] );
+		$this->assertSame( array_slice( array_reverse( $entry_ids ), 0, 3 ), wp_list_pluck( $capped['entries'], 'id' ) );
+		$this->assertSame( [ 'insert', 'insert', 'insert' ], wp_list_pluck( $capped['entries'], 'type' ) );
+		$this->assertSame( $edited->ID . ':' . $edited->post_modified_gmt, $capped['cursor'] );
+	}
+
+	/**
 	 * A page whose stored config is gone, pruned after newer layouts, still
 	 * polls capped when it sends how many entries it shows: no pinned card,
 	 * no ad. Without the count, the same poll falls back to the defaults.
