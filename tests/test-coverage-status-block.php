@@ -187,6 +187,15 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 			]
 		);
 		$this->assertSame( '', $this->render( [], self::page( '<!-- wp:block {"ref":' . $draft_pattern . '} /-->' ) ) );
+
+		$protected_pattern = self::factory()->post->create(
+			[
+				'post_type'     => 'wp_block',
+				'post_password' => 'secret',
+				'post_content'  => self::feed( $coverage_id ),
+			]
+		);
+		$this->assertSame( '', $this->render( [], self::page( '<!-- wp:block {"ref":' . $protected_pattern . '} /-->' ) ) );
 	}
 
 	/**
@@ -310,5 +319,34 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 		$this->assertArrayHasKey( 'newestEntry', $data );
 		$this->assertNull( $data['newestEntry'] );
+	}
+
+	/**
+	 * Only people who can edit see the newest entry through REST.
+	 */
+	public function test_rest_newest_entry_is_hidden_from_anonymous_requests() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
+
+		wp_set_current_user( 0 );
+
+		$this->assertNull( Coverage_Status_Block::get_newest_entry_rest_field( [ 'id' => $coverage_id ] ) );
+		$this->assertNull( Coverage_Status_Block::get_newest_entry_rest_field( [] ) );
+	}
+
+	/**
+	 * Asking for the field alone raises no warning.
+	 */
+	public function test_rest_newest_entry_alone_raises_no_warning() {
+		$coverage_id = self::create_coverage();
+
+		self::log_in_as( 'editor' );
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Taxonomy::REST_BASE . '/' . $coverage_id );
+		$request->set_param( '_fields', Coverage_Status_Block::NEWEST_ENTRY_REST_FIELD );
+
+		$data = rest_get_server()->dispatch( $request )->get_data();
+
+		$this->assertArrayHasKey( 'newestEntry', $data );
 	}
 }

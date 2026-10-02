@@ -448,7 +448,10 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 
 		update_term_meta( $this->coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
 
-		$idle = $this->get_feed( [ 'cursor' => $entry_id . ':' . get_post( $entry_id )->post_modified_gmt ] )->get_data();
+		$modified = get_post( $entry_id )->post_modified_gmt;
+		update_term_meta( $this->coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, $modified );
+
+		$idle = $this->get_feed( [ 'cursor' => $entry_id . ':' . $modified ] )->get_data();
 
 		$this->assertSame( [], $idle['entries'], 'Nothing changed since the cursor.' );
 		$this->assertSame( 'archived', $idle['status'], 'An idle poll still reports a status change.' );
