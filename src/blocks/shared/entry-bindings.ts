@@ -6,6 +6,8 @@ import { registerBlockBindingsSource } from '@wordpress/blocks';
 const ENTRY_BINDINGS_SOURCE = 'newspack-rolling-coverage/entry';
 const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
 const COVERAGE_TAXONOMY = 'rolling_coverage';
+// Edit context needs manage_categories, which Authors and Contributors lack.
+const VIEW_CONTEXT = { context: 'view' };
 
 interface BindingsArgs {
 	bindings: Record< string, { args?: { key?: string } } >;
@@ -14,7 +16,8 @@ interface BindingsArgs {
 		getEntityRecord: (
 			kind: string,
 			name: string,
-			id: number
+			id: number,
+			query: Record< string, string >
 		) => { name?: string } | undefined;
 	};
 }
@@ -39,7 +42,8 @@ registerBlockBindingsSource( {
 				const coverage = select( 'core' ).getEntityRecord(
 					'taxonomy',
 					COVERAGE_TAXONOMY,
-					coverageId
+					coverageId,
+					VIEW_CONTEXT
 				);
 
 				return [ attribute, coverage?.name ?? '' ];

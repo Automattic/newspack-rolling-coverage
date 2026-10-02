@@ -1711,7 +1711,8 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A capped feed shaped like the Wire layout shows the newest entries with
-	 * their excerpts, and its "See all updates" link once, after them.
+	 * their excerpts, and its "See all updates" link once, after them. It
+	 * can sit on every page, so it announces nothing.
 	 */
 	public function test_wire_shaped_feed_renders_capped_entries_with_the_link_below() {
 		$coverage_id = self::create_coverage();
@@ -1738,6 +1739,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertStringNotContainsString( 'Short summary of Oldest update', $html );
 		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-all-updates' ) );
 		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, 'newspack-rolling-coverage-all-updates' ), 'The link should follow the last entry.' );
+		$this->assertStringNotContainsString( 'class="newspack-rolling-coverage-status"', $html, 'A capped feed should not announce new entries.' );
 	}
 
 	/**
@@ -1844,6 +1846,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'Summary of Latest update', $html );
 		$this->assertStringNotContainsString( 'Summary of Older update', $html );
 		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, 'newspack-rolling-coverage-all-updates' ), 'The link should follow the entry.' );
+		$this->assertStringContainsString( 'data-hide-when-ended="true"', $html, 'Open pages need the setting to hide when a poll reports the end.' );
 
 		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
 		$this->assertSame( '', self::render_capped_coverage( $coverage_id, $attributes, $entry_group . self::ALL_UPDATES_MARKUP ) );

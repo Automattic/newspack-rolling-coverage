@@ -660,9 +660,8 @@ class Entry_Bindings {
 	 * entry, so it renders once: the follow or "Jump to Latest" button, the
 	 * legacy follow block, the Coverage Status block, a heading bound to the
 	 * coverage's name, the "See all updates" paragraph, or a block holding one
-	 * at any depth. The
-	 * pinned card and the entry group always belong to each entry, whatever
-	 * they hold.
+	 * at any depth. The pinned card and the entry group always belong to each
+	 * entry, whatever they hold.
 	 *
 	 * @param array $parsed_block Parsed block.
 	 * @return bool

@@ -1768,11 +1768,14 @@ function initBlock( root: HTMLElement ): void {
 			const url = new URL( restBaseUrl );
 			url.searchParams.set( 'cursor', cursor );
 			url.searchParams.set( 'template_key', templateKey );
-			url.searchParams.set( 'host_post_id', hostPostId );
-			url.searchParams.set( 'polled_count', polledCount.toString() );
 
+			// A capped feed shows no Share or ads, so it leaves out the page
+			// and ad count; every page holding it then shares one cached reply.
 			if ( latestCap ) {
 				url.searchParams.set( 'latest', String( latestCap ) );
+			} else {
+				url.searchParams.set( 'host_post_id', hostPostId );
+				url.searchParams.set( 'polled_count', polledCount.toString() );
 			}
 
 			const response = await fetchEntries( url.toString() );
@@ -1796,6 +1799,17 @@ function initBlock( root: HTMLElement ): void {
 							},
 						} )
 					);
+				}
+
+				// Pages rendered before the coverage ended, open or cached, close
+				// up the way a fresh render does.
+				if (
+					data.status === 'archived' &&
+					root.dataset.hideWhenEnded === 'true'
+				) {
+					cleanup();
+					root.remove();
+					return;
 				}
 
 				if ( data.overflow && isEntryView ) {
@@ -1893,11 +1907,12 @@ function initBlock( root: HTMLElement ): void {
 			url.searchParams.set( 'before', before );
 			url.searchParams.set( 'per_page', String( entriesPerPage ) );
 			url.searchParams.set( 'template_key', templateKey );
-			url.searchParams.set( 'host_post_id', hostPostId );
 			url.searchParams.set( 'entry_offset', backlogOffset.toString() );
 
 			if ( latestCap ) {
 				url.searchParams.set( 'latest', String( latestCap ) );
+			} else {
+				url.searchParams.set( 'host_post_id', hostPostId );
 			}
 
 			if ( isEntryView ) {

@@ -1552,8 +1552,9 @@ function isFollowBlock( block: ButtonsBlock ): boolean {
 /**
  * Whether a block belongs to the coverage rather than to each entry, so it
  * renders once: the follow or "Jump to Latest" button, the legacy follow
- * block, a heading bound to the coverage's name, the "See all updates"
- * paragraph, or a block holding one at any depth, mirroring
+ * block, the Coverage Status block, a heading bound to the coverage's name,
+ * the "See all updates" paragraph, or a block holding one at any depth,
+ * mirroring
  * Entry_Bindings::is_coverage_item(). The pinned card and the entry group
  * always belong to each entry, whatever they hold.
  *

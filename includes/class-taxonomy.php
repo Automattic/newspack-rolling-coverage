@@ -29,8 +29,8 @@ class Taxonomy {
 	// REST field holding the URL of the published page that displays the coverage.
 	const PAGE_URL_REST_FIELD = 'pageUrl';
 
-	// Cache last-changed group for the coverage-to-page map.
-	const PAGE_IDS_CACHE_GROUP = 'newspack-rolling-coverage-pages';
+	// Option holding the coverage-to-page map.
+	const PAGE_IDS_OPTION = 'rolling_coverage_page_ids';
 
 	// Term meta key for disabling ads on a coverage term.
 	const ADS_DISABLED_META_KEY = 'rolling_coverage_ads_disabled';
@@ -618,7 +618,7 @@ class Taxonomy {
 	 */
 	public static function flush_coverage_page_ids_on_update( $post_id, $post_after, $post_before ): void {
 		if ( self::shows_coverage_block( $post_after ) || self::shows_coverage_block( $post_before ) ) {
-			wp_cache_set_last_changed( self::PAGE_IDS_CACHE_GROUP );
+			self::flush_coverage_page_ids();
 		}
 	}
 
@@ -633,7 +633,7 @@ class Taxonomy {
 	 */
 	public static function flush_coverage_page_ids_on_status_change( $new_status, $old_status, $post ): void {
 		if ( $new_status !== $old_status && in_array( 'publish', [ $new_status, $old_status ], true ) && self::holds_coverage_block( $post ) ) {
-			wp_cache_set_last_changed( self::PAGE_IDS_CACHE_GROUP );
+			self::flush_coverage_page_ids();
 		}
 	}
 
@@ -646,21 +646,54 @@ class Taxonomy {
 	 */
 	public static function flush_coverage_page_ids_on_delete( $post_id, $post = null ): void {
 		if ( self::shows_coverage_block( $post ) ) {
-			wp_cache_set_last_changed( self::PAGE_IDS_CACHE_GROUP );
+			self::flush_coverage_page_ids();
 		}
 	}
 
 	/**
-	 * Whether a post can be the coverage page and its content holds a Rolling
-	 * Coverage block.
+	 * Drops the coverage-to-page map and rebuilds it once the request ends, so
+	 * readers don't each rebuild it after an edit, and a request changing
+	 * several posts rebuilds it only once.
+	 */
+	private static function flush_coverage_page_ids(): void {
+		delete_option( self::PAGE_IDS_OPTION );
+
+		if ( ! has_action( 'shutdown', [ __CLASS__, 'rebuild_coverage_page_ids' ] ) ) {
+			add_action( 'shutdown', [ __CLASS__, 'rebuild_coverage_page_ids' ] );
+		}
+	}
+
+	/**
+	 * Rebuilds the coverage-to-page map unless a reader already has.
+	 */
+	public static function rebuild_coverage_page_ids(): void {
+		self::get_coverage_page_ids();
+	}
+
+	/**
+	 * Whether a post can be the coverage page and its content holds an
+	 * uncapped Rolling Coverage block. Capped blocks never make a post the
+	 * coverage page, so saving a post that only holds those keeps the map.
 	 *
 	 * @param mixed $post Post object.
 	 * @return bool
 	 */
 	private static function holds_coverage_block( $post ): bool {
-		return $post instanceof \WP_Post &&
-			self::can_host_coverage_block( $post->post_type ) &&
-			str_contains( $post->post_content, '<!-- wp:' . Schema::BLOCK_NAME . ' ' );
+		if (
+			! $post instanceof \WP_Post ||
+			! self::can_host_coverage_block( $post->post_type ) ||
+			! str_contains( $post->post_content, '<!-- wp:' . Schema::BLOCK_NAME . ' ' )
+		) {
+			return false;
+		}
+
+		foreach ( Schema::flatten_blocks( parse_blocks( $post->post_content ) ) as $block ) {
+			if ( Schema::BLOCK_NAME === ( $block['blockName'] ?? '' ) && empty( $block['attrs']['latestOnly'] ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -691,11 +724,10 @@ class Taxonomy {
 	 * @return array<int,int> Map of coverage term ID => post ID.
 	 */
 	private static function get_coverage_page_ids(): array {
-		$cache_key = 'coverage_page_ids:' . wp_cache_get_last_changed( self::PAGE_IDS_CACHE_GROUP );
-		$cached    = wp_cache_get( $cache_key, self::PAGE_IDS_CACHE_GROUP );
+		$stored = get_option( self::PAGE_IDS_OPTION );
 
-		if ( is_array( $cached ) ) {
-			return $cached;
+		if ( is_array( $stored ) ) {
+			return $stored;
 		}
 
 		$post_types = array_values( array_filter( get_post_types(), [ __CLASS__, 'can_host_coverage_block' ] ) );
@@ -724,7 +756,7 @@ class Taxonomy {
 			}
 		}
 
-		wp_cache_set( $cache_key, $map, self::PAGE_IDS_CACHE_GROUP );
+		update_option( self::PAGE_IDS_OPTION, $map, false );
 
 		return $map;
 	}

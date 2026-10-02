@@ -378,14 +378,35 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	 * @return bool
 	 */
 	private static function clears_page_lookup( callable $action ): bool {
-		$group = Taxonomy::PAGE_IDS_CACHE_GROUP;
-		wp_cache_set_last_changed( $group );
-		$last_changed = wp_cache_get_last_changed( $group );
-		usleep( 1000 );
+		update_option( Taxonomy::PAGE_IDS_OPTION, [ 1 => 1 ], false );
 
 		$action();
 
-		return wp_cache_get_last_changed( $group ) !== $last_changed;
+		return false === get_option( Taxonomy::PAGE_IDS_OPTION );
+	}
+
+	/**
+	 * Capped feeds look the page up on every front-end render, so the map is
+	 * stored rather than cached, and the request that changed it rebuilds it
+	 * before readers need it.
+	 */
+	public function test_a_change_rebuilds_the_stored_page_lookup_once_the_request_ends() {
+		$coverage_id = self::create_coverage();
+		remove_all_actions( 'shutdown' );
+
+		$page_id = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->',
+			]
+		);
+
+		$this->assertFalse( get_option( Taxonomy::PAGE_IDS_OPTION ) );
+
+		do_action( 'shutdown' );
+
+		$this->assertSame( [ $coverage_id => $page_id ], get_option( Taxonomy::PAGE_IDS_OPTION ) );
 	}
 
 	/**
@@ -465,6 +486,17 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 				)
 			),
 			'An approved comment on the page keeps the lookup.'
+		);
+		$this->assertFalse(
+			self::clears_page_lookup(
+				fn() => self::factory()->post->create(
+					[
+						'post_type'    => 'page',
+						'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":1,"latestOnly":true} /-->',
+					]
+				)
+			),
+			'A page holding only a capped block keeps the lookup.'
 		);
 		$this->assertTrue(
 			self::clears_page_lookup(

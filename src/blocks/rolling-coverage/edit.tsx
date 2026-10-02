@@ -471,7 +471,7 @@ export default function Edit( {
 		currentPostType === 'wp_block' &&
 		( ( patternCategories ?? [] ).includes( getLayoutCategoryId() ) ||
 			builtInLayoutSlugFor( currentPostId ) !== null );
-	// A built-in layout's pattern previews the cap the layout sets when picked.
+	// The pattern itself carries no cap, so its preview borrows the one picking the layout sets.
 	const patternLatest = isLayoutPattern
 		? getBuiltInLayouts().find(
 				( layout ) =>

@@ -910,7 +910,7 @@ class Rolling_Coverage_Block {
 		$latest_count    = self::latest_count( $attributes );
 		$is_capped       = $latest_count > 0;
 		// Capped feeds sit in site-wide placements, where readers must never see the notices meant for editors.
-		$hides_when_gone = ! empty( $attributes['hideWhenEnded'] ) || ( $is_capped && ! wp_is_serving_rest_request() );
+		$hides_when_gone = ! empty( $attributes['hideWhenEnded'] ) || $is_capped;
 
 		if ( ! $coverage_id || ! term_exists( $coverage_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			self::$host_post_id = $previous_post_id;
@@ -1067,6 +1067,10 @@ class Rolling_Coverage_Block {
 			$wrapper_data['data-latest'] = $latest_count;
 		}
 
+		if ( ! empty( $attributes['hideWhenEnded'] ) ) {
+			$wrapper_data['data-hide-when-ended'] = 'true';
+		}
+
 		// Polls carry the minimum too; the page has it so a first poll that fails still waits.
 		$min_poll_interval = self::get_min_poll_interval();
 
@@ -1090,14 +1094,16 @@ class Rolling_Coverage_Block {
 
 		try {
 			$items_html = sprintf(
-				'%5$s%3$s<div class="%1$s-status" role="status" aria-live="polite"></div>%4$s<div class="%1$s-entries">%2$s</div>%7$s%6$s',
+				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%7$s%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
 				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url ),
 				$is_capped ? '' : self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
 				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
 				$is_capped ? '' : sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ),
-				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url )
+				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url ),
+				// A capped feed can sit on every page, where announcing each new entry would be noise.
+				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX )
 			);
 
 			return sprintf(

@@ -99,6 +99,20 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A capped feed only previews a coverage, so the status follows the
+	 * page's full feed even when the capped one comes first, and an article
+	 * holding only a capped feed shows no status.
+	 */
+	public function test_does_not_follow_capped_feeds() {
+		$related = self::create_coverage();
+		$own     = self::create_coverage();
+		$capped  = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $related . ',"latestOnly":true} /-->';
+
+		$this->assertStringContainsString( 'data-coverage-id="' . $own . '"', $this->render( [], self::page( $capped . self::feed( $own ) ) ) );
+		$this->assertSame( '', $this->render( [], self::page( $capped ) ) );
+	}
+
+	/**
 	 * A chosen feed wins; a chosen feed no longer on the page falls back to
 	 * the first.
 	 */

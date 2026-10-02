@@ -118,6 +118,7 @@ export default function Edit( {
 				) => string[];
 				getBlockAttributes: ( id: string ) => {
 					coverageId?: number;
+					latestOnly?: boolean;
 				} | null;
 			};
 			const editor = select( editorStore ) as unknown as {
@@ -150,6 +151,11 @@ export default function Edit( {
 				? []
 				: blockEditor
 						.getBlocksByName( FEED_BLOCK )
+						.filter(
+							( id: string ) =>
+								! blockEditor.getBlockAttributes( id )
+									?.latestOnly
+						)
 						.map(
 							( id: string ) =>
 								Number(

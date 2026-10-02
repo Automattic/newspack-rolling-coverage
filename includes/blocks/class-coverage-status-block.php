@@ -161,8 +161,10 @@ class Coverage_Status_Block {
 	}
 
 	/**
-	 * Coverage IDs of the Rolling Coverage blocks in a post, in page order,
-	 * including those in synced patterns, without missing or trashed ones.
+	 * Coverage IDs of the uncapped Rolling Coverage blocks in a post, in page
+	 * order, including those in synced patterns, without missing or trashed
+	 * ones. A capped block only previews a coverage, so it never decides
+	 * which coverage the page is about.
 	 *
 	 * @param int $post_id Post ID.
 	 * @return int[]
@@ -248,7 +250,9 @@ class Coverage_Status_Block {
 			$name = $block['blockName'] ?? '';
 
 			if ( Rolling_Coverage_Block::BLOCK_NAME === $name ) {
-				$ids[] = (int) ( $block['attrs']['coverageId'] ?? 0 );
+				if ( empty( $block['attrs']['latestOnly'] ) ) {
+					$ids[] = (int) ( $block['attrs']['coverageId'] ?? 0 );
+				}
 				continue;
 			}
 

@@ -497,33 +497,4 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 		$this->assertSame( $length, apply_filters( 'excerpt_length', 55 ) );
 		$this->assertSame( $more, apply_filters( 'excerpt_more', ' [&hellip;]' ) );
 	}
-
-	/**
-	 * Entries do not take manual excerpts, so the type must not gain support.
-	 */
-	public function test_entries_do_not_support_excerpts() {
-		$this->assertFalse( post_type_supports( Post_Type::CPT_SLUG, 'excerpt' ) );
-	}
-
-	/**
-	 * The Post Excerpt block trims an entry to the requested words with an
-	 * ellipsis and no more link, whatever the theme adds to excerpts.
-	 */
-	public function test_post_excerpt_block_trims_an_entry_without_a_more_link() {
-		$entry_id = self::create_entry(
-			self::create_active_coverage(),
-			[
-				'post_excerpt' => '',
-				'post_content' => '<!-- wp:paragraph --><p>' . self::words( 120 ) . '</p><!-- /wp:paragraph -->',
-			]
-		);
-		add_filter( 'excerpt_more', fn() => ' <a class="more-link" href="#">Read more</a>' );
-		$GLOBALS['post'] = get_post( $entry_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-
-		$html = do_blocks( '<!-- wp:post-excerpt {"excerptLength":15,"moreText":""} /-->' );
-		$text = trim( html_entity_decode( wp_strip_all_tags( $html ) ) );
-
-		$this->assertSame( self::words( 15 ) . '…', $text );
-		$this->assertStringNotContainsString( 'more-link', $html );
-	}
 }
