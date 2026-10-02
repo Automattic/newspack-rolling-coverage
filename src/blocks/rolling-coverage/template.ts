@@ -15,8 +15,9 @@ import type { TemplateItem } from './types';
 const LOCKED = { remove: true, move: false };
 
 /**
- * The Feed group stays at the layout's top level, and the pinned card and the
- * entry group at the Feed's, where the template is split by kind of entry.
+ * The Feed group and the groups wrapping it stay in place, and the pinned
+ * card and the entry group at the Feed's top level, where the template is
+ * split by kind of entry.
  */
 const LOCKED_IN_PLACE = { remove: true, move: true };
 
@@ -1814,6 +1815,45 @@ function isFeedGroup( block: {
 }
 
 /**
+ * The groups leading to the layout's Feed group, from the outermost wrapper
+ * group down to the Feed itself, which may sit at the layout's top level or
+ * inside plain groups, mirroring Rolling_Coverage_Block::feed_path().
+ *
+ * @param {Object[]} blocks The layout's top-level blocks.
+ * @return {Object[]} The groups, the Feed last, or none for a layout without one.
+ */
+function feedPathOf< T extends { name: string; [ key: string ]: unknown } >(
+	blocks: T[]
+): T[] {
+	for ( const block of blocks ) {
+		if ( block.name !== 'core/group' ) {
+			continue;
+		}
+
+		if (
+			isFeedGroup(
+				block as {
+					name: string;
+					attributes?: Record< string, unknown >;
+				}
+			)
+		) {
+			return [ block ];
+		}
+
+		const path = Array.isArray( block.innerBlocks )
+			? feedPathOf( block.innerBlocks as T[] )
+			: [];
+
+		if ( path.length > 0 ) {
+			return [ block, ...path ];
+		}
+	}
+
+	return [];
+}
+
+/**
  * The layout's Feed group, if it has one.
  *
  * @param {Object[]} blocks The layout's top-level blocks.
@@ -1822,11 +1862,7 @@ function isFeedGroup( block: {
 function feedGroupOf< T extends { name: string; [ key: string ]: unknown } >(
 	blocks: T[]
 ): T | undefined {
-	return blocks.find( ( block ) =>
-		isFeedGroup(
-			block as { name: string; attributes?: Record< string, unknown > }
-		)
-	);
+	return feedPathOf( blocks ).pop();
 }
 
 /**
@@ -2441,6 +2477,7 @@ export {
 	FOLLOW_TEMPLATE,
 	feedTemplate,
 	feedGroupOf,
+	feedPathOf,
 	isFeedGroup,
 	feedItems,
 	latestTemplate,

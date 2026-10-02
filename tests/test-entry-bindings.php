@@ -1864,4 +1864,66 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$flex  = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $group );
 		$this->assertMatchesRegularExpression( '#<div class="wp-block-group newspack-rolling-coverage-feed[^"]*is-layout-flex#', $flex );
 	}
+
+	/**
+	 * A Feed group set inside a wrapper group renders inside the wrapper, which
+	 * keeps its own classes, styles and other blocks, while the entries and
+	 * the stored template match the same Feed at the layout's top level.
+	 */
+	public function test_feed_inside_a_wrapper_group_renders_inside_the_wrapper() {
+		$coverage_id = self::create_coverage();
+		self::create_entry(
+			$coverage_id,
+			[
+				'post_title'   => 'Wrapped update',
+				'post_excerpt' => 'Summary of the wrapped update',
+			]
+		);
+
+		$feed    = '<!-- wp:group {"className":"newspack-rolling-coverage-feed","align":"wide","style":{"spacing":{"blockGap":"var:preset|spacing|40"}},"layout":{"type":"flex","flexWrap":"wrap"}} --><div class="wp-block-group alignwide newspack-rolling-coverage-feed">'
+			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry","layout":{"type":"flex","flexWrap":"wrap"}} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. '<!-- wp:post-excerpt {"excerptLength":20,"moreText":""} /-->'
+			. '</div><!-- /wp:group -->'
+			. '</div><!-- /wp:group -->';
+		$wrapper = '<!-- wp:group {"className":"rc-bar","style":{"color":{"background":"#123456"}},"layout":{"type":"constrained"}} --><div class="wp-block-group rc-bar has-background" style="background-color:#123456">'
+			. '<!-- wp:paragraph --><p>Before the feed</p><!-- /wp:paragraph -->'
+			. $feed
+			. '<!-- wp:paragraph --><p>After the feed</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$wrapped    = self::render_coverage_items( $attributes, $wrapper );
+		$top_level  = self::render_coverage_items( $attributes, $feed );
+
+		$this->assertStringContainsString( '<div class="wp-block-group rc-bar has-background" style="background-color:#123456">', $wrapped );
+		$this->assertMatchesRegularExpression( '#rc-bar[^>]*>(<div class="wp-block-group__inner-container)?[^>]*is-layout-constrained#', $wrapped );
+		$this->assertMatchesRegularExpression( '#<div class="wp-block-group alignwide newspack-rolling-coverage-feed[^"]*is-layout-flex#', $wrapped );
+
+		$bar     = strpos( $wrapped, 'rc-bar' );
+		$before  = strpos( $wrapped, 'Before the feed' );
+		$feed_at = strpos( $wrapped, 'alignwide newspack-rolling-coverage-feed' );
+		$entry   = strpos( $wrapped, 'Summary of the wrapped update' );
+		$after   = strpos( $wrapped, 'After the feed' );
+
+		$this->assertTrue( $bar < $before && $before < $feed_at && $feed_at < $entry && $entry < $after, 'The wrapper should hold its own blocks around the Feed, and the Feed the entries.' );
+		$this->assertSame( 1, substr_count( $wrapped, '<article' ) );
+		$this->assertSame( 1, substr_count( $wrapped, 'Before the feed' ) );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-feed-items', $wrapped );
+
+		preg_match( '/data-template-key="([^"]+)"/', $wrapped, $wrapped_key );
+		preg_match( '/data-template-key="([^"]+)"/', $top_level, $top_level_key );
+		$this->assertSame( $top_level_key[1], $wrapped_key[1], 'The wrapper should not change the entry template.' );
+		$this->assertStringContainsString( 'style="--newspack-rolling-coverage-gap:var(--wp--preset--spacing--40)"', $wrapped );
+
+		$request = new WP_REST_Request( 'GET' );
+		$request->set_param( 'term_id', $coverage_id );
+		$request->set_param( 'template_key', $wrapped_key[1] );
+		$request->set_param( 'before', gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ) );
+
+		$polled = Rolling_Coverage_Block::get_entries( $request )->get_data()['html'];
+
+		$this->assertStringContainsString( 'Summary of the wrapped update', $polled );
+		$this->assertStringContainsString( 'newspack-rolling-coverage-regular-entry', $polled );
+		$this->assertStringNotContainsString( 'Before the feed', $polled );
+	}
 }

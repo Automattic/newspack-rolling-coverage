@@ -94,6 +94,12 @@ class Rolling_Coverage_Block {
 	const FEED_GAP_PROPERTY = '--newspack-rolling-coverage-gap';
 
 	/**
+	 * Marks where the coverage's items go while the Feed group and the groups
+	 * wrapping it render.
+	 */
+	const FEED_ITEMS_PLACEHOLDER = '<!-- newspack-rolling-coverage-feed-items -->';
+
+	/**
 	 * The space between the blocks of an entry group or pinned card whose
 	 * Block spacing is unset.
 	 */
@@ -360,17 +366,37 @@ class Rolling_Coverage_Block {
 	 * @return array|null Parsed Feed group, or null for a layout without one.
 	 */
 	private static function feed_group( WP_Block $block ): ?array {
-		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner_block ) {
-			if (
-				is_array( $inner_block ) &&
-				'core/group' === ( $inner_block['blockName'] ?? '' ) &&
-				in_array( self::FEED_CLASS, explode( ' ', (string) ( $inner_block['attrs']['className'] ?? '' ) ), true )
-			) {
-				return $inner_block;
+		$path = self::feed_path( $block->parsed_block['innerBlocks'] ?? [] );
+
+		return $path ? end( $path ) : null;
+	}
+
+	/**
+	 * The groups leading to the layout's Feed group, from the outermost
+	 * wrapper group down to the Feed itself, which may sit at the layout's top
+	 * level or inside plain groups.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return array[] Parsed groups, the Feed last, or an empty list for a layout without one.
+	 */
+	private static function feed_path( array $blocks ): array {
+		foreach ( $blocks as $inner_block ) {
+			if ( ! is_array( $inner_block ) || 'core/group' !== ( $inner_block['blockName'] ?? '' ) ) {
+				continue;
+			}
+
+			if ( in_array( self::FEED_CLASS, explode( ' ', (string) ( $inner_block['attrs']['className'] ?? '' ) ), true ) ) {
+				return [ $inner_block ];
+			}
+
+			$path = self::feed_path( $inner_block['innerBlocks'] ?? [] );
+
+			if ( $path ) {
+				return array_merge( [ $inner_block ], $path );
 			}
 		}
 
-		return null;
+		return [];
 	}
 
 	/**
@@ -420,34 +446,74 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Wraps the coverage's items in the Feed group, rendered by core so its
-	 * classes and styles apply, or in a plain container for a layout without
-	 * one.
+	 * classes and styles apply, then in each group wrapping the Feed, or in a
+	 * plain container for a layout without one.
 	 *
-	 * @param array|null $feed  Parsed Feed group.
-	 * @param string     $items The items' HTML.
+	 * @param WP_Block $block The Rolling Coverage block instance.
+	 * @param string   $items The items' HTML.
 	 * @return string
 	 */
-	private static function render_feed( ?array $feed, string $items ): string {
+	private static function render_feed( WP_Block $block, string $items ): string {
+		$path    = self::feed_path( $block->parsed_block['innerBlocks'] ?? [] );
+		$feed    = array_pop( $path );
 		$content = array_values( array_filter( $feed['innerContent'] ?? [], 'is_string' ) );
 
 		if ( count( $content ) < 2 ) {
 			return '<div class="' . esc_attr( self::FEED_CLASS ) . '">' . $items . '</div>';
 		}
 
-		$placeholder = '<!-- newspack-rolling-coverage-feed-items -->';
-		$shell       = $feed;
+		$shell = $feed;
 
 		$shell['innerBlocks']  = [];
 		$shell['innerHTML']    = $content[0] . end( $content );
-		$shell['innerContent'] = [ $content[0], $placeholder, end( $content ) ];
+		$shell['innerContent'] = [ $content[0], self::FEED_ITEMS_PLACEHOLDER, end( $content ) ];
 
-		$html = render_block( $shell );
+		$html = self::render_around( $shell, $items );
 
-		if ( false === strpos( $html, $placeholder ) ) {
+		if ( null === $html ) {
 			return '<div class="' . esc_attr( self::FEED_CLASS ) . '">' . $items . '</div>';
 		}
 
-		return str_replace( $placeholder, $items, $html );
+		$child = $feed;
+
+		foreach ( array_reverse( $path ) as $wrapper ) {
+			$index = array_search( $child, $wrapper['innerBlocks'], true );
+			$shell = $wrapper;
+			$slot  = -1;
+
+			foreach ( $shell['innerContent'] as $position => $chunk ) {
+				if ( null === $chunk && ++$slot === $index ) {
+					$shell['innerContent'][ $position ] = self::FEED_ITEMS_PLACEHOLDER;
+					break;
+				}
+			}
+
+			array_splice( $shell['innerBlocks'], $index, 1 );
+
+			$wrapped = self::render_around( $shell, $html );
+			$html    = $wrapped ?? $html;
+			$child   = $wrapper;
+		}
+
+		return $html;
+	}
+
+	/**
+	 * Renders a block whose content holds the Feed's items placeholder, with
+	 * the given HTML in its place.
+	 *
+	 * @param array  $block Parsed block.
+	 * @param string $html  HTML for the placeholder.
+	 * @return string|null The block's HTML, or null when rendering dropped the placeholder.
+	 */
+	private static function render_around( array $block, string $html ): ?string {
+		$rendered = render_block( $block );
+
+		if ( false === strpos( $rendered, self::FEED_ITEMS_PLACEHOLDER ) ) {
+			return null;
+		}
+
+		return str_replace( self::FEED_ITEMS_PLACEHOLDER, $html, $rendered );
 	}
 
 	/**
@@ -1037,7 +1103,7 @@ class Rolling_Coverage_Block {
 			return sprintf(
 				'<div %s>%s</div>',
 				$wrapper_attributes,
-				self::render_feed( $feed, $items_html )
+				self::render_feed( $block, $items_html )
 			);
 		} finally {
 			self::$host_post_id = $previous_post_id;

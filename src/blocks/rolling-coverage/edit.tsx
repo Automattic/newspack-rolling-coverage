@@ -77,7 +77,7 @@ import {
 	PREVIEW_COVERAGE_ID,
 } from './utils';
 import {
-	feedGroupOf,
+	feedPathOf,
 	feedItems,
 	followBlockIds,
 	allUpdatesBlockIds,
@@ -244,18 +244,19 @@ function feedFlexStyle( layout?: Record< string, string > ): {
 }
 
 /**
- * The Feed group's own classes and styles (colour, border, spacing,
- * typography), for the container a synced layout's preview shows in place
- * of the Feed, so it previews as the site renders it.
+ * A group's own classes and styles (alignment, layout, colour, border,
+ * spacing, typography), for the container a synced layout's preview shows in
+ * place of the group, so it previews as the site renders it.
  *
- * @param {Object} feed The layout's Feed group.
- * @return {Object} The container's className and style.
+ * @param {Object} group The group.
+ * @return {Object} The container's classNames and style.
  */
-function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
-	className: string;
+function groupPreviewParts( group?: { [ key: string ]: unknown } ): {
+	classNames: unknown[];
 	style: Record< string, unknown >;
 } {
-	const attributes = ( feed?.attributes ?? {} ) as Record< string, unknown >;
+	const attributes = ( group?.attributes ?? {} ) as Record< string, unknown >;
+	const layout = attributes.layout as Record< string, string > | undefined;
 	const parts = [
 		getColorClassesAndStyles( attributes ),
 		getBorderClassesAndStyles( attributes ),
@@ -264,28 +265,112 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
 		getShadowClassesAndStyles( attributes ),
 		getDimensionsClassesAndStyles( attributes ),
 	];
-	const flexStyle = feedFlexStyle(
-		attributes.layout as Record< string, string >
-	);
-	const classNames = [
-		'wp-block-group',
-		'newspack-rolling-coverage-feed',
-		flexStyle ? 'is-layout-flex' : '',
-		attributes.className,
-		...parts.map( ( part ) => part.className ),
-	]
-		.filter( ( name ): name is string => typeof name === 'string' )
-		.flatMap( ( name ) => name.split( ' ' ) )
-		.filter( Boolean );
+	const flexStyle = feedFlexStyle( layout );
 
 	return {
-		className: [ ...new Set( classNames ) ].join( ' ' ),
+		classNames: [
+			flexStyle ? 'is-layout-flex' : '',
+			layout?.type === 'constrained' ? 'is-layout-constrained' : '',
+			attributes.className,
+			...parts.map( ( part ) => part.className ),
+			typeof attributes.align === 'string'
+				? `align${ attributes.align }`
+				: '',
+		],
 		style: Object.assign(
 			{},
 			flexStyle ?? {},
 			...parts.map( ( part ) => part.style )
 		),
 	};
+}
+
+/**
+ * A container's className from a list of class names.
+ *
+ * @param {Array} classNames The class names, possibly empty or space-separated.
+ * @return {string} The className.
+ */
+function joinClassNames( classNames: unknown[] ): string {
+	const names = classNames
+		.filter( ( name ): name is string => typeof name === 'string' )
+		.flatMap( ( name ) => name.split( ' ' ) )
+		.filter( Boolean );
+
+	return [ ...new Set( names ) ].join( ' ' );
+}
+
+/**
+ * The Feed group's own classes and styles, for the container a synced
+ * layout's preview shows in place of the Feed.
+ *
+ * @param {Object} feed The layout's Feed group.
+ * @return {Object} The container's className and style.
+ */
+function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
+	className: string;
+	style: Record< string, unknown >;
+} {
+	const { classNames, style } = groupPreviewParts( feed );
+
+	return {
+		className: joinClassNames( [
+			'wp-block-group',
+			'newspack-rolling-coverage-feed',
+			...classNames,
+		] ),
+		style,
+	};
+}
+
+/**
+ * The groups wrapping a synced layout's Feed, previewed around it with
+ * their own classes, styles and other blocks, as the site renders them.
+ *
+ * @param {Object}      props          Component props.
+ * @param {Object[]}    props.path     The groups leading to the Feed, the Feed last.
+ * @param {Object}      props.context  The coverage's block context.
+ * @param {JSX.Element} props.children The Feed's preview.
+ * @return {JSX.Element} The Feed's preview inside its wrappers.
+ */
+function FeedWrappersPreview( {
+	path,
+	context,
+	children,
+}: {
+	path: TemplateBlocks;
+	context: Record< string, unknown >;
+	children: JSX.Element;
+} ): JSX.Element {
+	return path.slice( 0, -1 ).reduceRight( ( inner, wrapper, index ) => {
+		const siblings = ( wrapper.innerBlocks ?? [] ) as TemplateBlocks;
+		const position = siblings.indexOf( path[ index + 1 ] );
+		const before = siblings.slice( 0, Math.max( position, 0 ) );
+		const after = position < 0 ? [] : siblings.slice( position + 1 );
+		const { classNames, style } = groupPreviewParts( wrapper );
+
+		return (
+			<div
+				className={ joinClassNames( [
+					'wp-block-group',
+					...classNames,
+				] ) }
+				style={ style }
+			>
+				{ before.length > 0 && (
+					<BlockContextProvider value={ context }>
+						<EntryBlockPreview blocks={ before } />
+					</BlockContextProvider>
+				) }
+				{ inner }
+				{ after.length > 0 && (
+					<BlockContextProvider value={ context }>
+						<EntryBlockPreview blocks={ after } />
+					</BlockContextProvider>
+				) }
+			</div>
+		);
+	}, children );
 }
 
 export default function Edit( {
@@ -618,7 +703,8 @@ export default function Edit( {
 		[ defaultTemplate ]
 	);
 	const syncedBlocks = layoutBlocks ?? defaultLayoutBlocks;
-	const feedGroup = feedGroupOf( isSynced ? syncedBlocks : innerBlocks );
+	const feedPath = feedPathOf( isSynced ? syncedBlocks : innerBlocks );
+	const feedGroup = feedPath[ feedPath.length - 1 ];
 	const blockProps = useBlockProps( {
 		style: feedGapStyle( feedGroup ),
 	} );
@@ -1789,54 +1875,67 @@ export default function Edit( {
 									</Notice>
 								) }
 							{ isSynced && (
-								<div { ...feedPreviewProps( feedGroup ) }>
-									{ syncedHeaderBlocks.length > 0 && (
-										<BlockContextProvider
-											value={ coverageContext }
-										>
-											<EntryBlockPreview
-												blocks={ syncedHeaderBlocks }
-											/>
-										</BlockContextProvider>
-									) }
-									<div className="newspack-rolling-coverage-entries">
-										{ previewContexts.length > 0 ? (
-											previewContexts.map(
-												( context ) => (
-													<BlockContextProvider
-														key={ context.postId }
-														value={ context }
-													>
-														<EntryBlockPreview
-															blocks={ blocksForEntry(
-																context
-															) }
-														/>
-													</BlockContextProvider>
-												)
-											)
-										) : (
+								<FeedWrappersPreview
+									path={ feedPath }
+									context={ coverageContext }
+								>
+									<div { ...feedPreviewProps( feedGroup ) }>
+										{ syncedHeaderBlocks.length > 0 && (
 											<BlockContextProvider
-												value={ NEUTRAL_ENTRY_CONTEXT }
+												value={ coverageContext }
 											>
 												<EntryBlockPreview
 													blocks={
-														emptyPreviewBlocks
+														syncedHeaderBlocks
+													}
+												/>
+											</BlockContextProvider>
+										) }
+										<div className="newspack-rolling-coverage-entries">
+											{ previewContexts.length > 0 ? (
+												previewContexts.map(
+													( context ) => (
+														<BlockContextProvider
+															key={
+																context.postId
+															}
+															value={ context }
+														>
+															<EntryBlockPreview
+																blocks={ blocksForEntry(
+																	context
+																) }
+															/>
+														</BlockContextProvider>
+													)
+												)
+											) : (
+												<BlockContextProvider
+													value={
+														NEUTRAL_ENTRY_CONTEXT
+													}
+												>
+													<EntryBlockPreview
+														blocks={
+															emptyPreviewBlocks
+														}
+													/>
+												</BlockContextProvider>
+											) }
+										</div>
+										{ syncedFooterBlocks.length > 0 && (
+											<BlockContextProvider
+												value={ coverageContext }
+											>
+												<EntryBlockPreview
+													blocks={
+														syncedFooterBlocks
 													}
 												/>
 											</BlockContextProvider>
 										) }
 									</div>
-									{ syncedFooterBlocks.length > 0 && (
-										<BlockContextProvider
-											value={ coverageContext }
-										>
-											<EntryBlockPreview
-												blocks={ syncedFooterBlocks }
-											/>
-										</BlockContextProvider>
-									) }
-								</div>
+								</FeedWrappersPreview>
 							) }
 							{ ! isSynced && (
 								<>
