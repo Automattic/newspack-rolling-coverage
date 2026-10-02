@@ -335,12 +335,6 @@ export default function Edit( {
 				<PanelBody
 					title={ __( 'Settings', 'newspack-rolling-coverage' ) }
 				>
-					<p>
-						{ __(
-							'Shows the status of the Rolling Coverage block on this page. Shows nothing on pages without one.',
-							'newspack-rolling-coverage'
-						) }
-					</p>
 					{ canChoose && feeds.length > 1 && (
 						<SelectControl
 							__next40pxDefaultSize

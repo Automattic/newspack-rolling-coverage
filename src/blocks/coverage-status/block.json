@@ -4,7 +4,7 @@
 	"name": "newspack-rolling-coverage/coverage-status",
 	"title": "Coverage Status",
 	"category": "newspack",
-	"description": "Shows whether the Rolling Coverage on this page is live, paused or ended.",
+	"description": "Shows whether the Rolling Coverage on this page is live, paused or ended. Shows nothing on pages without one.",
 	"textdomain": "newspack-rolling-coverage",
 	"usesContext": [ "postId" ],
 	"attributes": {
