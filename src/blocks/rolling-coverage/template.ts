@@ -518,6 +518,7 @@ function cardsEntryBlocks( isPinned: boolean ): TemplateItem[] {
 		{
 			...POST_DATE_ATTRIBUTES,
 			format: 'human-diff',
+			fontSize: 'small',
 			...( isPinned ? { style: { color: { text: CARD_ACCENT } } } : {} ),
 		},
 	];
