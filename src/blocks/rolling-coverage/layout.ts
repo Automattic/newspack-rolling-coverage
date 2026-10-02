@@ -258,7 +258,7 @@ export function flashInnerTemplate(): TemplateItem[] {
 		feedTemplate(
 			[
 				[ STATUS_BLOCK_NAME, {} ],
-				...flashEntryTemplate( themeFontSizeSlugs() ),
+				...flashEntryTemplate(),
 				allUpdatesLink(),
 			],
 			'var:preset|spacing|40',

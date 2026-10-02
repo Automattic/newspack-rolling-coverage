@@ -1759,7 +1759,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$entry_columns = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
 			. '<!-- wp:columns {"isStackedOnMobile":false} --><div class="wp-block-columns is-not-stacked-on-mobile">'
-			. '<!-- wp:column {"width":"4.5rem"} --><div class="wp-block-column" style="flex-basis:4.5rem"><!-- wp:post-date /--></div><!-- /wp:column -->'
+			. '<!-- wp:column {"width":"5.5rem"} --><div class="wp-block-column" style="flex-basis:5.5rem"><!-- wp:post-date /--></div><!-- /wp:column -->'
 			. '<!-- wp:column --><div class="wp-block-column"><!-- wp:post-title {"level":4} /--></div><!-- /wp:column -->'
 			. '</div><!-- /wp:columns --></div><!-- /wp:group -->';
 		$footer        = self::group_markup( self::ALL_UPDATES_MARKUP . self::FOLLOW_MARKUP );

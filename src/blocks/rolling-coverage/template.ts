@@ -1160,7 +1160,7 @@ function digestRow( slugs: string[], sizes: string[] ): TemplateItem {
 		[
 			[
 				'core/column',
-				{ width: '4.5rem' },
+				{ width: '5.5rem' },
 				[
 					[
 						'core/post-date',
@@ -1222,6 +1222,7 @@ const FLASH_FEED_LAYOUT = {
 	type: 'flex',
 	orientation: 'horizontal',
 	flexWrap: 'wrap',
+	justifyContent: 'center',
 	verticalAlignment: 'center',
 };
 
@@ -1230,10 +1231,9 @@ const FLASH_FEED_LAYOUT = {
  * row. The pinned card matches the regular entry, since a capped feed ignores
  * pinning.
  *
- * @param {string[]} sizes The theme's font size slugs.
  * @return {TemplateItem[]} The template.
  */
-function flashEntryTemplate( sizes: string[] ): TemplateItem[] {
+function flashEntryTemplate(): TemplateItem[] {
 	const entry = ( className: string, name: string ): TemplateItem => [
 		'core/group',
 		{
@@ -1262,7 +1262,7 @@ function flashEntryTemplate( sizes: string[] ): TemplateItem[] {
 				{
 					excerptLength: 20,
 					moreText: '',
-					fontSize: themeFontSize( sizes, 'medium', 'normal' ),
+					fontSize: 'small',
 				},
 			],
 		],
