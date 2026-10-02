@@ -44,6 +44,7 @@ const TEMPLATE_TYPES = [ 'wp_template', 'wp_template_part' ];
 const NAME_SEPARATOR = '\u0000';
 const VIEW_CONTEXT = { context: 'view' };
 const SAMPLE_AGE_MS = 2 * 60 * 1000;
+const DEFAULT_GAP_SLUG = '30';
 const INSERT_SOURCES = [ undefined, 'inserter_menu', 'quick_inserter' ];
 
 const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {
@@ -241,7 +242,7 @@ export default function Edit( {
 		}
 	}
 
-	const { justInserted, paletteSlugs } = useSelect(
+	const { justInserted, paletteSlugs, spacingSlugs } = useSelect(
 		( select ) => {
 			const blockEditor = select( blockEditorStore ) as unknown as {
 				wasBlockJustInserted: (
@@ -253,6 +254,9 @@ export default function Edit( {
 					__experimentalFeatures?: {
 						color?: {
 							palette?: Record< string, { slug: string }[] >;
+						};
+						spacing?: {
+							spacingSizes?: Record< string, { slug: string }[] >;
 						};
 					};
 				};
@@ -271,6 +275,12 @@ export default function Edit( {
 				]
 					.map( ( color ) => color.slug )
 					.join( ',' ),
+				spacingSlugs: Object.values(
+					settings.__experimentalFeatures?.spacing?.spacingSizes ?? {}
+				)
+					.flat()
+					.map( ( size ) => size.slug )
+					.join( ',' ),
 			};
 		},
 		[ clientId ]
@@ -286,11 +296,36 @@ export default function Edit( {
 		mutedApplied.current = true;
 
 		const color = mutedTextColor( paletteSlugs.split( ',' ) );
+		const defaults: Partial< CoverageStatusAttributes > = {};
 
 		if ( color && ! textColor && ! style?.color?.text ) {
-			setAttributes( { textColor: color } );
+			defaults.textColor = color;
 		}
-	}, [ justInserted, paletteSlugs, textColor, style, setAttributes ] );
+
+		if (
+			spacingSlugs.split( ',' ).includes( DEFAULT_GAP_SLUG ) &&
+			! style?.spacing?.blockGap
+		) {
+			defaults.style = {
+				...style,
+				spacing: {
+					...style?.spacing,
+					blockGap: `var:preset|spacing|${ DEFAULT_GAP_SLUG }`,
+				},
+			};
+		}
+
+		if ( Object.keys( defaults ).length ) {
+			setAttributes( defaults );
+		}
+	}, [
+		justInserted,
+		paletteSlugs,
+		spacingSlugs,
+		textColor,
+		style,
+		setAttributes,
+	] );
 
 	const blockProps = useBlockProps();
 

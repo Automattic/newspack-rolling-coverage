@@ -6,5 +6,8 @@ export type CoverageStatusAttributes = {
 	showLastUpdated: boolean;
 	labels: Partial< Record< string, string > >;
 	textColor?: string;
-	style?: { color?: { text?: string } };
+	style?: {
+		color?: { text?: string };
+		spacing?: { blockGap?: string | Record< string, string > };
+	};
 };

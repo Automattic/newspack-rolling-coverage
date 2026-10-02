@@ -374,4 +374,24 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 		$this->assertContains( 'newspack-rolling-coverage-coverage-status-style', $block_type->style_handles );
 	}
+
+	/**
+	 * The gap setting makes the wrapper a flex layout that carries the chosen gap.
+	 */
+	public function test_wrapper_is_a_flex_layout_with_the_chosen_gap() {
+		if ( ! file_exists( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/blocks/coverage-status/block.json' ) ) {
+			$this->markTestSkipped( 'The block is not built.' );
+		}
+
+		$coverage_id = self::create_coverage();
+		$html        = $this->render(
+			[
+				'showLastUpdated' => true,
+				'style'           => [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ] ],
+			],
+			self::page( self::feed( $coverage_id ) )
+		);
+
+		$this->assertMatchesRegularExpression( '#^<div class="(?:[^"]* )?is-layout-flex(?: [^"]*)?"#', $html );
+	}
 }

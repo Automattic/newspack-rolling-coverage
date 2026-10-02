@@ -31,8 +31,18 @@
 				"text": true
 			}
 		},
+		"layout": {
+			"default": {
+				"type": "flex",
+				"flexWrap": "wrap",
+				"verticalAlignment": "center"
+			},
+			"allowSwitching": false,
+			"allowInheriting": false
+		},
 		"spacing": {
-			"margin": true
+			"margin": true,
+			"blockGap": true
 		}
 	},
 	"editorScript": "file:./index.js",
