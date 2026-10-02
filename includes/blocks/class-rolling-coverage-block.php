@@ -240,29 +240,44 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Whether a URL is the page being requested: same host and path, ignoring
-	 * the trailing slash and fragment. The query string counts only when the
-	 * URL has one, as plain permalinks keep the post in it.
+	 * Whether a URL is the page being requested: same host as the site and
+	 * the same path, ignoring the trailing slash, the case of percent-encoded
+	 * octets and the fragment. The URL's query arguments must all be present
+	 * in the request with the same values; the request may carry more.
 	 *
 	 * @param string $url URL to compare.
 	 * @return bool
 	 */
 	public static function is_coverage_page( string $url ): bool {
 		$target = wp_parse_url( $url );
+		$home   = wp_parse_url( home_url() );
 
-		if ( empty( $target['host'] ) ) {
+		if ( empty( $target['host'] ) || strtolower( $target['host'] ) !== strtolower( (string) ( $home['host'] ?? '' ) ) ) {
 			return false;
 		}
 
-		$request      = wp_parse_url( home_url( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$request_path = untrailingslashit( (string) ( $request['path'] ?? '' ) );
-		$target_path  = untrailingslashit( (string) ( $target['path'] ?? '' ) );
+		$request_uri  = wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$request_path = untrailingslashit( rawurldecode( (string) wp_parse_url( $request_uri, PHP_URL_PATH ) ) );
+		$target_path  = untrailingslashit( rawurldecode( (string) ( $target['path'] ?? '' ) ) );
 
-		if ( ! empty( $target['query'] ) && ( $target['query'] ?? '' ) !== ( $request['query'] ?? '' ) ) {
+		if ( $request_path !== $target_path ) {
 			return false;
 		}
 
-		return strtolower( $target['host'] ) === strtolower( (string) ( $request['host'] ?? '' ) ) && $request_path === $target_path;
+		if ( empty( $target['query'] ) ) {
+			return true;
+		}
+
+		wp_parse_str( $target['query'], $target_args );
+		wp_parse_str( (string) wp_parse_url( $request_uri, PHP_URL_QUERY ), $request_args );
+
+		foreach ( $target_args as $name => $value ) {
+			if ( ! isset( $request_args[ $name ] ) || $request_args[ $name ] !== $value ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
@@ -1606,9 +1621,9 @@ class Rolling_Coverage_Block {
 	 * e.g. on an archived coverage, leaves nothing behind, and "Jump to
 	 * Latest" renders only as its own control, so none renders here.
 	 *
-	 * @param array[] $blocks      Parsed coverage-level blocks.
-	 * @param int     $coverage_id Coverage term id.
-	 * @param string  $status      Coverage status.
+	 * @param array[] $blocks          Parsed coverage-level blocks.
+	 * @param int     $coverage_id     Coverage term id.
+	 * @param string  $status          Coverage status.
 	 * @param string  $all_updates_url Where the "See all updates" paragraph links; empty drops it.
 	 * @return string Rendered HTML, or an empty string.
 	 */

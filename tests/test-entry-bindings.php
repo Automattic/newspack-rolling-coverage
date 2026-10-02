@@ -19,6 +19,15 @@ use Newspack_Rolling_Coverage\Taxonomy;
 class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 	/**
+	 * Restore the request the tests above change.
+	 */
+	public function tear_down() {
+		$this->go_to( home_url( '/' ) );
+
+		parent::tear_down();
+	}
+
+	/**
 	 * The entry template's buttons, as the editor saves them.
 	 */
 	const BUTTONS_MARKUP = '<!-- wp:buttons --><div class="wp-block-buttons">'
@@ -1455,11 +1464,46 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$this->go_to( $canonical );
 
-		$hidden = self::render_capped_coverage( $coverage_id );
+		$this->assertStringNotContainsString( 'See all updates', self::render_capped_coverage( $coverage_id ) );
+	}
 
-		$this->go_to( home_url( '/' ) );
+	/**
+	 * Extra query arguments on the request, in any order, still leave it the
+	 * coverage page; a different value doesn't.
+	 */
+	public function test_all_updates_ignores_extra_request_arguments() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, home_url( '/?page_id=12&a=1' ) );
 
-		$this->assertStringNotContainsString( 'See all updates', $hidden );
+		$_SERVER['REQUEST_URI'] = '/?utm_source=x&a=1&page_id=12';
+		$same                   = self::render_capped_coverage( $coverage_id );
+		$_SERVER['REQUEST_URI'] = '/?page_id=13&a=1';
+		$other                  = self::render_capped_coverage( $coverage_id );
+
+		$this->assertStringNotContainsString( 'See all updates', $same );
+		$this->assertStringContainsString( 'See all updates', $other );
+	}
+
+	/**
+	 * On a site whose address has a path, a request for the canonical page is
+	 * still recognized.
+	 */
+	public function test_all_updates_is_hidden_on_the_coverage_page_of_a_subdirectory_site() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$home = static fn() => 'http://example.org/news';
+		add_filter( 'pre_option_home', $home );
+		add_filter( 'pre_option_siteurl', $home );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'http://example.org/news/Storm%2Dwatch/' );
+
+		$_SERVER['REQUEST_URI'] = '/news/Storm%2dwatch';
+		$on_page                = self::render_capped_coverage( $coverage_id );
+		$_SERVER['REQUEST_URI'] = '/news/other/';
+		$elsewhere              = self::render_capped_coverage( $coverage_id );
+
+		$this->assertStringNotContainsString( 'See all updates', $on_page );
+		$this->assertStringContainsString( 'See all updates', $elsewhere );
 	}
 
 	/**
@@ -1506,6 +1550,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . self::ALL_UPDATES_MARKUP . '</div><!-- /wp:group -->';
 		$html        = self::render_capped_coverage( $coverage_id, [], $entry_group );
 
+		$this->assertStringContainsString( 'newspack-rolling-coverage-regular-entry', $html );
 		$this->assertStringNotContainsString( 'See all updates', $html );
 	}
 }
