@@ -310,6 +310,39 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The built-in template closes an entry group with a separator, which
+	 * the last entry drops.
+	 */
+	public function test_default_template_closes_the_entry_group_with_a_separator() {
+		$coverage_id = self::create_coverage();
+		$older_id    = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		$newer_id    = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 11:00:00' ] );
+
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		preg_match( '/<article id="newspack-rolling-coverage-entry-' . $newer_id . '".*?<\/article>/s', $html, $newer );
+		preg_match( '/<article id="newspack-rolling-coverage-entry-' . $older_id . '".*?<\/article>/s', $html, $older );
+
+		$this->assertMatchesRegularExpression( '/newspack-rolling-coverage-regular-entry.*<hr class="wp-block-separator[^"]*"\/>\s*(<\/div>\s*)+<\/article>/s', $newer[0], 'The separator should end the entry group.' );
+		$this->assertStringNotContainsString( 'wp-block-separator', $older[0], 'The last entry should drop it.' );
+	}
+
+	/**
+	 * A separator ending the entry group is dropped from the last entry.
+	 */
+	public function test_last_entry_drops_the_separator_ending_the_entry_group() {
+		$markup   = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry"><!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph --><!-- wp:separator --><hr class="wp-block-separator has-alpha-channel-opacity"/><!-- /wp:separator --></div><!-- /wp:group -->';
+		$entry_id = self::create_entry( self::create_coverage() );
+		$last     = self::render( $entry_id, true, $markup );
+
+		$this->assertStringContainsString( 'wp-block-separator', self::render( $entry_id, false, $markup ), 'An entry that is not last should keep it.' );
+		$this->assertStringNotContainsString( 'wp-block-separator', $last );
+		$this->assertStringContainsString( 'Entry text', $last );
+	}
+
+	/**
 	 * The last entry drops the separator.
 	 */
 	public function test_last_entry_drops_the_separator() {

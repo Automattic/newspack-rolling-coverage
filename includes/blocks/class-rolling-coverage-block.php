@@ -1681,36 +1681,24 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The hardcoded fallback per-entry template, the Bulletin layout's: the
-	 * pinned card, which a pinned entry shows, the entry group, which every
-	 * other entry shows, then a separator.
+	 * pinned card, which a pinned entry shows, and the entry group, which
+	 * every other entry shows, closed by a separator.
 	 *
 	 * @return array[] Array of parsed-block-shaped arrays.
 	 */
 	private static function default_entry_template() {
-		$separator_style = [
-			'spacing' => [
-				'margin' => [
-					'top'    => 'var:preset|spacing|50',
-					'bottom' => '0',
-				],
-			],
+		$separator_html = '<hr class="wp-block-separator has-alpha-channel-opacity is-style-wide"/>';
+		$separator      = [
+			'blockName'    => 'core/separator',
+			'attrs'        => [ 'className' => 'is-style-wide' ],
+			'innerBlocks'  => [],
+			'innerHTML'    => $separator_html,
+			'innerContent' => [ $separator_html ],
 		];
-		$separator_css   = wp_style_engine_get_styles( $separator_style )['css'] ?? '';
-		$separator_html  = '<hr class="wp-block-separator has-alpha-channel-opacity is-style-wide" style="' . esc_attr( $separator_css ) . '"/>';
 
 		return [
 			self::pinned_card_block( self::default_entry_blocks( true ) ),
-			self::regular_entry_block( self::default_entry_blocks( false ) ),
-			[
-				'blockName'    => 'core/separator',
-				'attrs'        => [
-					'className' => 'is-style-wide',
-					'style'     => $separator_style,
-				],
-				'innerBlocks'  => [],
-				'innerHTML'    => $separator_html,
-				'innerContent' => [ $separator_html ],
-			],
+			self::regular_entry_block( array_merge( self::default_entry_blocks( false ), [ $separator ] ) ),
 		];
 	}
 
@@ -1767,7 +1755,7 @@ class Rolling_Coverage_Block {
 				'core/post-title',
 				[
 					'level'    => 3,
-					'fontSize' => $is_pinned ? 'x-large' : 'large',
+					'fontSize' => $is_pinned ? self::theme_font_size( 'x-large', 'huge' ) : 'large',
 				]
 			),
 			self::post_block(
@@ -1787,6 +1775,23 @@ class Rolling_Coverage_Block {
 			),
 			self::link_paragraph_block( Entry_Bindings::READ_MORE_CLASS, __( 'Read more', 'newspack-rolling-coverage' ) ),
 		];
+	}
+
+	/**
+	 * A font size preset the theme defines: the preferred slug where the
+	 * theme has it, else its fallback. The Newspack Theme names its sizes
+	 * Normal and Huge where block themes have Medium and X-Large.
+	 *
+	 * @param string $preferred The preferred slug.
+	 * @param string $fallback  The slug to use where the theme lacks it.
+	 * @return string
+	 */
+	private static function theme_font_size( string $preferred, string $fallback ): string {
+		$origins = wp_get_global_settings( [ 'typography', 'fontSizes' ] );
+		$theme   = is_array( $origins ) && is_array( $origins['theme'] ?? null ) ? $origins['theme'] : [];
+		$sizes   = array_column( array_filter( $theme, 'is_array' ), 'slug' );
+
+		return ! in_array( $preferred, $sizes, true ) && in_array( $fallback, $sizes, true ) ? $fallback : $preferred;
 	}
 
 	/**
@@ -1914,7 +1919,7 @@ class Rolling_Coverage_Block {
 	 * other entry the entry group. Without an entry group, only a pinned entry
 	 * keeps the card; others render its blocks without it. A pinned entry shown
 	 * as a card, and the last entry once no more can load, drop the separator
-	 * that closes the template. A pinned card with no breakout link to show
+	 * that closes the template or the entry group. A pinned card with no breakout link to show
 	 * also drops any bottom margin set on its last block, and as the last
 	 * entry, a card that closes the template drops any set below it, so the
 	 * card's padding is even and nothing trails the list.
@@ -1930,11 +1935,7 @@ class Rolling_Coverage_Block {
 		$template = self::for_entry_kind( $template, $is_pinned );
 
 		if ( ( $is_pinned && self::has_pinned_card( $template ) ) || $is_last ) {
-			$last = end( $template );
-
-			if ( is_array( $last ) && 'core/separator' === ( $last['blockName'] ?? '' ) ) {
-				array_pop( $template );
-			}
+			$template = self::without_closing_separator( $template );
 		}
 
 		$closing        = end( $template );
@@ -1971,6 +1972,38 @@ class Rolling_Coverage_Block {
 				return [ self::with_entry_layout( $block ) ];
 			}
 		);
+	}
+
+	/**
+	 * The template without the separator that closes it, whether it follows
+	 * the entry group or ends it.
+	 *
+	 * @param array[] $template Parsed template blocks.
+	 * @return array[]
+	 */
+	private static function without_closing_separator( array $template ): array {
+		$index = array_key_last( $template );
+		$last  = null === $index ? null : $template[ $index ];
+
+		if ( ! is_array( $last ) ) {
+			return $template;
+		}
+
+		if ( 'core/separator' === ( $last['blockName'] ?? '' ) ) {
+			unset( $template[ $index ] );
+
+			return array_values( $template );
+		}
+
+		$inner_blocks = $last['innerBlocks'] ?? [];
+		$closing      = end( $inner_blocks );
+
+		if ( self::is_regular_entry( $last ) && is_array( $closing ) && 'core/separator' === ( $closing['blockName'] ?? '' ) ) {
+			array_pop( $inner_blocks );
+			$template[ $index ] = self::sync_inner_content( $last, $inner_blocks );
+		}
+
+		return $template;
 	}
 
 	/**

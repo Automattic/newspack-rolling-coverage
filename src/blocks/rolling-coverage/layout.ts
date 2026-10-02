@@ -68,6 +68,29 @@ function paletteSlugs(): string[] {
 }
 
 /**
+ * The slugs of the theme's font sizes.
+ *
+ * @return {string[]} Font size slugs.
+ */
+function themeFontSizeSlugs(): string[] {
+	const settings = (
+		select( blockEditorStore.name ) as unknown as {
+			getSettings: () => {
+				__experimentalFeatures?: {
+					typography?: {
+						fontSizes?: { theme?: { slug: string }[] };
+					};
+				};
+			};
+		}
+	 ).getSettings();
+
+	return (
+		settings.__experimentalFeatures?.typography?.fontSizes?.theme ?? []
+	).map( ( size ) => size.slug );
+}
+
+/**
  * The Bulletin layout's inner-blocks template, the default: the Feed group,
  * holding the "Jump to Latest" button, in the colors the editor's palette
  * has for it, and the follow button at the top, then the per-entry blocks.
@@ -79,7 +102,7 @@ export function innerTemplate(): TemplateItem[] {
 		feedTemplate( [
 			latestTemplate( paletteSlugs() ),
 			FOLLOW_TEMPLATE,
-			...bulletinEntryTemplate(),
+			...bulletinEntryTemplate( themeFontSizeSlugs() ),
 		] ),
 	];
 }
@@ -98,7 +121,7 @@ export function streamInnerTemplate(): TemplateItem[] {
 			[
 				latestTemplate( slugs ),
 				FOLLOW_TEMPLATE,
-				...streamEntryTemplate( slugs ),
+				...streamEntryTemplate( slugs, themeFontSizeSlugs() ),
 			],
 			'var:preset|spacing|60'
 		),

@@ -166,6 +166,26 @@ function mutedDateColor( slugs: string[] ): { textColor?: string } {
 }
 
 /**
+ * A font size preset the theme defines: the preferred slug where the theme
+ * has it, else its fallback. The Newspack Theme names its sizes Normal and
+ * Huge where block themes have Medium and X-Large.
+ *
+ * @param {string[]} sizes     The theme's font size slugs.
+ * @param {string}   preferred The preferred slug.
+ * @param {string}   fallback  The slug to use where the theme lacks it.
+ * @return {string} The slug.
+ */
+function themeFontSize(
+	sizes: string[],
+	preferred: string,
+	fallback: string
+): string {
+	return ! sizes.includes( preferred ) && sizes.includes( fallback )
+		? fallback
+		: preferred;
+}
+
+/**
  * The entry's content, without the padding core gives Post Content.
  *
  * @param {string} [fontSize] The content's font size preset.
@@ -249,10 +269,14 @@ function linksRow( links: TemplateItem[] ): TemplateItem {
  * pinned card the pinned row and the relative date, then a large title, the
  * content and "Read more".
  *
- * @param {boolean} isPinned Whether the blocks are the pinned card's.
+ * @param {boolean}  isPinned Whether the blocks are the pinned card's.
+ * @param {string[]} sizes    The theme's font size slugs.
  * @return {TemplateItem[]} The entry's blocks.
  */
-function bulletinEntryBlocks( isPinned: boolean ): TemplateItem[] {
+function bulletinEntryBlocks(
+	isPinned: boolean,
+	sizes: string[]
+): TemplateItem[] {
 	const meta: TemplateItem[] = isPinned
 		? [
 				PINNED_ROW,
@@ -294,7 +318,12 @@ function bulletinEntryBlocks( isPinned: boolean ): TemplateItem[] {
 		],
 		[
 			'core/post-title',
-			{ level: 3, fontSize: isPinned ? 'x-large' : 'large' },
+			{
+				level: 3,
+				fontSize: isPinned
+					? themeFontSize( sizes, 'x-large', 'huge' )
+					: 'large',
+			},
 		],
 		postContent(),
 		readMoreLink(),
@@ -303,12 +332,14 @@ function bulletinEntryBlocks( isPinned: boolean ): TemplateItem[] {
 
 /**
  * The Bulletin layout's per-entry template, the default: a headline-led
- * entry closed by a separator. The pinned card is set in the accent color,
+ * entry closed by a separator, which the entry group's Block spacing spaces
+ * like its other blocks. The pinned card is set in the accent color,
  * with its text, links and headings in the accent's contrast color.
  *
+ * @param {string[]} sizes The theme's font size slugs.
  * @return {TemplateItem[]} The template.
  */
-function bulletinEntryTemplate(): TemplateItem[] {
+function bulletinEntryTemplate( sizes: string[] ): TemplateItem[] {
 	return [
 		[
 			'core/group',
@@ -330,7 +361,7 @@ function bulletinEntryTemplate(): TemplateItem[] {
 					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			bulletinEntryBlocks( true ),
+			bulletinEntryBlocks( true, sizes ),
 		],
 		[
 			'core/group',
@@ -342,18 +373,10 @@ function bulletinEntryTemplate(): TemplateItem[] {
 					name: __( 'Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			bulletinEntryBlocks( false ),
-		],
-		[
-			'core/separator',
-			{
-				className: 'is-style-wide',
-				style: {
-					spacing: {
-						margin: { top: 'var:preset|spacing|50', bottom: '0' },
-					},
-				},
-			},
+			[
+				...bulletinEntryBlocks( false, sizes ),
+				[ 'core/separator', { className: 'is-style-wide' } ],
+			],
 		],
 	];
 }
@@ -364,15 +387,17 @@ function bulletinEntryTemplate(): TemplateItem[] {
  * carry the pinned row.
  *
  * @param {string[]} slugs    The palette's color slugs.
+ * @param {string[]} sizes    The theme's font size slugs.
  * @param {boolean}  isPinned Whether the blocks are the pinned card's.
  * @return {TemplateItem[]} The entry's blocks.
  */
 function streamEntryBlocks(
 	slugs: string[],
+	sizes: string[],
 	isPinned: boolean
 ): TemplateItem[] {
 	const blocks: TemplateItem[] = [
-		postContent( 'medium' ),
+		postContent( themeFontSize( sizes, 'medium', 'normal' ) ),
 		[
 			'core/group',
 			{
@@ -410,9 +435,13 @@ function streamEntryBlocks(
  * no separator, and the pinned entry in a bordered card.
  *
  * @param {string[]} slugs The palette's color slugs.
+ * @param {string[]} sizes The theme's font size slugs.
  * @return {TemplateItem[]} The template.
  */
-function streamEntryTemplate( slugs: string[] ): TemplateItem[] {
+function streamEntryTemplate(
+	slugs: string[],
+	sizes: string[]
+): TemplateItem[] {
 	return [
 		[
 			'core/group',
@@ -435,7 +464,7 @@ function streamEntryTemplate( slugs: string[] ): TemplateItem[] {
 					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			streamEntryBlocks( slugs, true ),
+			streamEntryBlocks( slugs, sizes, true ),
 		],
 		[
 			'core/group',
@@ -447,7 +476,7 @@ function streamEntryTemplate( slugs: string[] ): TemplateItem[] {
 					name: __( 'Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			streamEntryBlocks( slugs, false ),
+			streamEntryBlocks( slugs, sizes, false ),
 		],
 	];
 }
@@ -1217,18 +1246,42 @@ function withoutPinnedCard<
 }
 
 /**
- * The template without the separator that closes it, as a pinned entry and
- * the last entry render.
+ * The template without the separator that closes it or ends the entry
+ * group, as a pinned entry and the last entry render (see
+ * Rolling_Coverage_Block::without_closing_separator()).
  *
  * @param {Object[]} blocks The template blocks.
  * @return {Object[]} The blocks without the closing separator.
  */
-function withoutClosingSeparator< T extends { name: string } >(
-	blocks: T[]
-): T[] {
-	return blocks.at( -1 )?.name === 'core/separator'
-		? blocks.slice( 0, -1 )
-		: blocks;
+function withoutClosingSeparator<
+	T extends {
+		name: string;
+		attributes?: Record< string, unknown >;
+		innerBlocks?: unknown;
+	},
+>( blocks: T[] ): T[] {
+	const last = blocks.at( -1 );
+
+	if ( last?.name === 'core/separator' ) {
+		return blocks.slice( 0, -1 );
+	}
+
+	const innerBlocks = Array.isArray( last?.innerBlocks )
+		? ( last.innerBlocks as { name: string }[] )
+		: [];
+
+	if (
+		last &&
+		isRegularEntry( last ) &&
+		innerBlocks.at( -1 )?.name === 'core/separator'
+	) {
+		return [
+			...blocks.slice( 0, -1 ),
+			{ ...last, innerBlocks: innerBlocks.slice( 0, -1 ) },
+		];
+	}
+
+	return blocks;
 }
 
 /**
