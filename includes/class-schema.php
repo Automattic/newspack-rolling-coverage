@@ -23,6 +23,8 @@ defined( 'ABSPATH' ) || exit;
  * With Yoast SEO, the page's first coverage is merged into Yoast's Article so
  * search engines see one article with one set of dates. Without Yoast, or on
  * pages Yoast gives no Article, the coverage is printed as its own script.
+ * The merge happens wherever Yoast builds the Article, which includes the
+ * head fields it adds to REST responses.
  *
  * A page changes whenever one of its coverage's entries does, but its stored
  * modified date only knows about edits to the page itself. The stored date is
@@ -202,9 +204,13 @@ class Schema {
 	 * Gives the page's entry in Yoast's sitemap the date it last changed for
 	 * readers, so search engines are told to fetch it again.
 	 *
-	 * @param array|mixed  $url  Sitemap entry.
-	 * @param string       $type Entry type.
-	 * @param object|mixed $post The post's database row.
+	 * Yoast hands over a post built from the few columns its sitemap query
+	 * selects, without the password. The password check can't apply here, and
+	 * doesn't need to: that query leaves protected posts out.
+	 *
+	 * @param array|mixed   $url  Sitemap entry.
+	 * @param string        $type Entry type.
+	 * @param WP_Post|mixed $post The post, with only the columns Yoast's sitemap query selects.
 	 * @return array|mixed Sitemap entry.
 	 */
 	public static function set_yoast_sitemap_lastmod( $url, $type, $post ) {

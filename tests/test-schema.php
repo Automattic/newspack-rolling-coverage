@@ -257,7 +257,7 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 
 		$sitemap_entry = [ 'mod' => '2026-09-05 10:00:00' ];
 
-		$this->assertSame( $sitemap_entry, apply_filters( 'wpseo_sitemap_entry', $sitemap_entry, 'post', $this->sitemap_row( $host_id ) ) );
+		$this->assertSame( $sitemap_entry, apply_filters( 'wpseo_sitemap_entry', $sitemap_entry, 'post', $this->sitemap_post( $host_id ) ) );
 		$this->assertSame( '2026-09-05T10:00:00+00:00', $this->render_scripts( $host_id )[0]['dateModified'] );
 	}
 
@@ -274,7 +274,7 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 		$this->create_dated_entry( $coverage_id, '2026-09-03 10:00:00' );
 
 		$presentation = apply_filters( 'wpseo_frontend_presentation', (object) [ 'open_graph_article_modified_time' => '' ], $this->yoast_context( $host_id ) );
-		$yoast_entry  = apply_filters( 'wpseo_sitemap_entry', [ 'mod' => '2026-09-01 10:00:00' ], 'post', $this->sitemap_row( $host_id ) );
+		$yoast_entry  = apply_filters( 'wpseo_sitemap_entry', [ 'mod' => '2026-09-01 10:00:00' ], 'post', $this->sitemap_post( $host_id ) );
 		$core_entry   = apply_filters( 'wp_sitemaps_posts_entry', [ 'lastmod' => '2026-09-01T06:00:00-04:00' ], get_post( $host_id ), 'post' );
 
 		$this->assertSame( '2026-09-03T10:00:00+00:00', $presentation->open_graph_article_modified_time );
@@ -322,7 +322,7 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 
 		$sitemap_entry = [ 'mod' => '2026-09-01 10:00:00' ];
 
-		$this->assertSame( $sitemap_entry, apply_filters( 'wpseo_sitemap_entry', $sitemap_entry, 'post', $this->sitemap_row( $post_id ) ) );
+		$this->assertSame( $sitemap_entry, apply_filters( 'wpseo_sitemap_entry', $sitemap_entry, 'post', $this->sitemap_post( $post_id ) ) );
 		$this->assertSame( $sitemap_entry, apply_filters( 'wp_sitemaps_posts_entry', $sitemap_entry, get_post( $post_id ), 'post' ) );
 	}
 
@@ -395,21 +395,25 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A stand-in for the database row Yoast's sitemap hands to its filter.
+	 * A stand-in for the post Yoast's sitemap hands to its filter: built from
+	 * the few columns its query selects, so it carries no password.
 	 *
 	 * @param int $post_id Post ID.
-	 * @return object Row.
+	 * @return WP_Post Partial post.
 	 */
-	private function sitemap_row( int $post_id ) {
+	private function sitemap_post( int $post_id ): WP_Post {
 		$post = get_post( $post_id );
 
-		return (object) [
-			'ID'                => $post->ID,
-			'post_content'      => $post->post_content,
-			'post_status'       => $post->post_status,
-			'post_date_gmt'     => $post->post_date_gmt,
-			'post_modified_gmt' => $post->post_modified_gmt,
-		];
+		return new WP_Post(
+			(object) [
+				'ID'                => $post->ID,
+				'post_type'         => $post->post_type,
+				'post_content'      => $post->post_content,
+				'post_status'       => $post->post_status,
+				'post_date_gmt'     => $post->post_date_gmt,
+				'post_modified_gmt' => $post->post_modified_gmt,
+			]
+		);
 	}
 
 	/**
