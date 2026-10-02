@@ -637,18 +637,6 @@ function railEntryTemplate(): TemplateItem[] {
 }
 
 /**
- * The time a Clock entry is headed by: hours and minutes on the 24-hour
- * clock, padded the way the site pads its hours, so the time stays
- * unambiguous without an AM/PM marker once the relative date below it
- * only gives the day.
- *
- * @return {string} A PHP date format.
- */
-function clockTimeFormat(): string {
-	return /(?<!\\)[hH]/.test( siteTimeFormat() ) ? 'H:i' : 'G:i';
-}
-
-/**
  * Blocks stacked in a vertical flex group, so their Block spacing also
  * applies on the Newspack Theme (see
  * Rolling_Coverage_Block::apply_entry_block_gap()).
@@ -732,8 +720,8 @@ function clockRow(
 					'core/post-date',
 					{
 						...POST_DATE_ATTRIBUTES,
-						format: clockTimeFormat(),
-						fontSize: themeFontSize( sizes, 'xx-large', 'huge' ),
+						format: siteTimeFormat(),
+						fontSize: themeFontSize( sizes, 'x-large', 'large' ),
 						style: {
 							color: { text: CONTRAST },
 							typography: { fontWeight: '300' },
