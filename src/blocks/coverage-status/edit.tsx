@@ -10,15 +10,18 @@ import {
 	PanelBody,
 	SelectControl,
 	TextControl,
-	ToggleControl,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalToggleGroupControl as ToggleGroupControl,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
 } from '@wordpress/components';
 import { store as coreStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
 import { humanTimeDiff } from '@wordpress/date';
 import { store as editorStore } from '@wordpress/editor';
 import { decodeEntities } from '@wordpress/html-entities';
-import { __, sprintf } from '@wordpress/i18n';
-import { useEffect, useMemo, useRef } from '@wordpress/element';
+import { __, _x, sprintf } from '@wordpress/i18n';
+import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
 
 /**
  * Internal dependencies
@@ -83,6 +86,13 @@ export default function Edit( {
 } ) {
 	const { coverageId, showLastUpdated, labels, textColor, style } =
 		attributes;
+
+	const [ customLabels, setCustomLabels ] = useState( () =>
+		Object.keys( LABEL_FIELDS ).some(
+			( key ) =>
+				typeof labels?.[ key ] === 'string' && labels[ key ]?.trim()
+		)
+	);
 
 	const { feedKey, canChoose } = useSelect(
 		( select ) => {
@@ -384,36 +394,119 @@ export default function Edit( {
 							}
 						/>
 					) }
-					{ Object.entries( LABEL_FIELDS ).map(
-						( [ key, field ] ) => (
-							<TextControl
-								key={ key }
-								__next40pxDefaultSize
-								label={ field }
-								placeholder={ config.statusLabels[ key ] }
-								value={
-									typeof labels?.[ key ] === 'string'
-										? labels[ key ]
-										: ''
-								}
-								onChange={ ( value: string ) =>
-									setAttributes( {
-										labels: { ...labels, [ key ]: value },
-									} )
-								}
-							/>
-						)
-					) }
-					<ToggleControl
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
+						label={ __( 'Labels', 'newspack-rolling-coverage' ) }
+						value={ customLabels ? 'custom' : 'default' }
+						onChange={ ( value ) => {
+							setCustomLabels( value === 'custom' );
+
+							if ( value === 'default' ) {
+								setAttributes( { labels: {} } );
+							}
+						} }
+					>
+						<ToggleGroupControlOption
+							value="default"
+							label={ _x(
+								'Default',
+								'status labels',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Default” option. Keep the word used to translate “Default”. */
+								__(
+									'Default labels',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+						<ToggleGroupControlOption
+							value="custom"
+							label={ _x(
+								'Custom',
+								'status labels',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Custom” option. Keep the word used to translate “Custom”. */
+								__(
+									'Custom labels',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+					</ToggleGroupControl>
+					{ customLabels &&
+						Object.entries( LABEL_FIELDS ).map(
+							( [ key, field ] ) => (
+								<TextControl
+									key={ key }
+									__next40pxDefaultSize
+									label={ field }
+									placeholder={ config.statusLabels[ key ] }
+									value={
+										typeof labels?.[ key ] === 'string'
+											? labels[ key ]
+											: ''
+									}
+									onChange={ ( value: string ) =>
+										setAttributes( {
+											labels: {
+												...labels,
+												[ key ]: value,
+											},
+										} )
+									}
+								/>
+							)
+						) }
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
 						label={ __(
-							'Show last updated',
+							'Last updated',
 							'newspack-rolling-coverage'
 						) }
-						checked={ showLastUpdated }
-						onChange={ ( value: boolean ) =>
-							setAttributes( { showLastUpdated: value } )
+						value={ showLastUpdated ? 'show' : 'hide' }
+						onChange={ ( value ) =>
+							setAttributes( {
+								showLastUpdated: value === 'show',
+							} )
 						}
-					/>
+					>
+						<ToggleGroupControlOption
+							value="show"
+							label={ _x(
+								'Show',
+								'last updated',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+								__(
+									'Show last updated',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+						<ToggleGroupControlOption
+							value="hide"
+							label={ _x(
+								'Hide',
+								'last updated',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+								__(
+									'Hide last updated',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+					</ToggleGroupControl>
 				</PanelBody>
 			</InspectorControls>
 			<div { ...blockProps }>
