@@ -823,12 +823,13 @@ class Rolling_Coverage_Block {
 
 		try {
 			$items_html = sprintf(
-				'%5$s%3$s<div class="%1$s-status" role="status" aria-live="polite"></div>%4$s<div class="%1$s-entries">%2$s</div><div class="%1$s-sentinel" aria-hidden="true"></div>',
+				'%6$s%5$s%3$s<div class="%1$s-status" role="status" aria-live="polite"></div>%4$s<div class="%1$s-entries">%2$s</div><div class="%1$s-sentinel" aria-hidden="true"></div>',
 				self::MARKUP_PREFIX,
 				$entries_html,
 				$follow_html,
 				self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
-				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : ''
+				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
+				self::render_status_indicator( $attributes, $status )
 			);
 
 			return sprintf(
@@ -1504,6 +1505,46 @@ class Rolling_Coverage_Block {
 				'innerHTML'    => '',
 				'innerContent' => [],
 			]
+		);
+	}
+
+	/**
+	 * Renders the badge that opens the Feed with the coverage's status, when
+	 * the block turns it on: the block's label for that status, or the
+	 * default one. A status the badge doesn't know shows as live.
+	 *
+	 * @param array  $attributes Block attributes.
+	 * @param string $status     Coverage status.
+	 * @return string Rendered HTML.
+	 */
+	private static function render_status_indicator( array $attributes, string $status ): string {
+		if ( empty( $attributes['statusIndicatorShow'] ) ) {
+			return '';
+		}
+
+		$badges = [
+			Taxonomy::STATUS_ACTIVE   => [
+				'class' => 'newspack-ui__badge--success newspack-ui__badge--pulse',
+				'label' => _x( 'Live', 'coverage status', 'newspack-rolling-coverage' ),
+			],
+			Taxonomy::STATUS_PAUSED   => [
+				'class' => '',
+				'label' => _x( 'Paused', 'coverage status', 'newspack-rolling-coverage' ),
+			],
+			Taxonomy::STATUS_ARCHIVED => [
+				'class' => 'newspack-ui__badge--error',
+				'label' => _x( 'Ended', 'coverage status', 'newspack-rolling-coverage' ),
+			],
+		];
+		$status = isset( $badges[ $status ] ) ? $status : Taxonomy::STATUS_ACTIVE;
+		$labels = is_array( $attributes['statusIndicatorLabels'] ?? null ) ? $attributes['statusIndicatorLabels'] : [];
+		$label  = is_string( $labels[ $status ] ?? null ) ? trim( $labels[ $status ] ) : '';
+
+		return sprintf(
+			'<div class="%s-status-indicator"><span class="%s">%s</span></div>',
+			self::MARKUP_PREFIX,
+			esc_attr( trim( 'newspack-ui__badge newspack-ui__badge--dot ' . $badges[ $status ]['class'] ) ),
+			esc_html( '' !== $label ? $label : $badges[ $status ]['label'] )
 		);
 	}
 

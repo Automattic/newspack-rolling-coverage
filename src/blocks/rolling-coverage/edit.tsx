@@ -92,6 +92,10 @@ import {
 import { useSampleEntries } from './samples';
 import EntryBlockPreview from './components/entry-block-preview';
 import LoadingState from './components/loading-state';
+import StatusIndicator, {
+	badgeStatus,
+	defaultStatusLabel,
+} from './components/status-indicator';
 import LayoutPickerModal, {
 	type LayoutChoice,
 	layoutsQuery,
@@ -210,6 +214,8 @@ export default function Edit( {
 		entriesPerPage,
 		enableAds,
 		adsInterval,
+		statusIndicatorShow,
+		statusIndicatorLabels,
 		archivedNoticeShow,
 		archivedNotice,
 		archivedNoticeShowLink,
@@ -1096,6 +1102,60 @@ export default function Edit( {
 						} )
 					}
 				/>
+				<ToggleGroupControl
+					__next40pxDefaultSize
+					isBlock
+					label={ __(
+						'Status indicator',
+						'newspack-rolling-coverage'
+					) }
+					help={ __(
+						"Shows the coverage's status at the top of the feed.",
+						'newspack-rolling-coverage'
+					) }
+					value={ statusIndicatorShow ? 'show' : 'hide' }
+					onChange={ ( value ) =>
+						setAttributes( {
+							statusIndicatorShow: value === 'show',
+						} )
+					}
+				>
+					<ToggleGroupControlOption
+						value="show"
+						label={ __( 'Show', 'newspack-rolling-coverage' ) }
+					/>
+					<ToggleGroupControlOption
+						value="hide"
+						label={ __( 'Hide', 'newspack-rolling-coverage' ) }
+					/>
+				</ToggleGroupControl>
+				{ statusIndicatorShow && (
+					<TextControl
+						__next40pxDefaultSize
+						label={ __( 'Label', 'newspack-rolling-coverage' ) }
+						help={ __(
+							'Each status keeps its own label.',
+							'newspack-rolling-coverage'
+						) }
+						placeholder={ defaultStatusLabel(
+							currentCoverage?.status
+						) }
+						value={
+							statusIndicatorLabels?.[
+								badgeStatus( currentCoverage?.status )
+							] ?? ''
+						}
+						onChange={ ( value: string ) =>
+							setAttributes( {
+								statusIndicatorLabels: {
+									...statusIndicatorLabels,
+									[ badgeStatus( currentCoverage?.status ) ]:
+										value,
+								},
+							} )
+						}
+					/>
+				) }
 			</PanelBody>
 
 			<PanelBody
@@ -1484,6 +1544,18 @@ export default function Edit( {
 								) }
 							{ isSynced && (
 								<div { ...feedPreviewProps( feedGroup ) }>
+									{ statusIndicatorShow && (
+										<StatusIndicator
+											status={ currentCoverage?.status }
+											label={
+												statusIndicatorLabels?.[
+													badgeStatus(
+														currentCoverage?.status
+													)
+												]
+											}
+										/>
+									) }
 									{ syncedRenderOnceBlocks.length > 0 && (
 										<BlockContextProvider
 											value={
@@ -1530,6 +1602,18 @@ export default function Edit( {
 							) }
 							{ ! isSynced && (
 								<>
+									{ statusIndicatorShow && (
+										<StatusIndicator
+											status={ currentCoverage?.status }
+											label={
+												statusIndicatorLabels?.[
+													badgeStatus(
+														currentCoverage?.status
+													)
+												]
+											}
+										/>
+									) }
 									<PinnedEntryContext.Provider
 										value={ pinnedContext ?? null }
 									>

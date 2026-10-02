@@ -515,6 +515,81 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The status indicator is off unless the block turns it on.
+	 */
+	public function test_status_indicator_is_hidden_by_default() {
+		$coverage_id = self::create_coverage();
+
+		$this->assertStringNotContainsString( 'status-indicator', self::render_feed_block( [ 'coverageId' => $coverage_id ] ) );
+	}
+
+	/**
+	 * The indicator opens the Feed, ahead of the archived notice, with a
+	 * badge for the coverage's status.
+	 */
+	public function test_status_indicator_opens_the_feed() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		self::create_entry( $coverage_id );
+
+		$html     = self::render_feed_block(
+			[
+				'coverageId'          => $coverage_id,
+				'statusIndicatorShow' => true,
+			]
+		);
+		$position = strpos( $html, 'newspack-rolling-coverage-status-indicator' );
+
+		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-status-indicator"><span class="newspack-ui__badge newspack-ui__badge--dot newspack-ui__badge--error">Ended</span></div>', $html );
+		$this->assertGreaterThan( strpos( $html, 'newspack-rolling-coverage-feed' ), $position, 'The indicator should sit inside the Feed.' );
+		$this->assertLessThan( strpos( $html, 'newspack-rolling-coverage-archived-notice' ), $position, 'The indicator should come before the archived notice.' );
+	}
+
+	/**
+	 * Each status has its own badge, and a status the badge doesn't know
+	 * shows as live.
+	 */
+	public function test_status_indicator_follows_the_coverage_status() {
+		$coverage_id = self::create_coverage();
+		$attributes  = [
+			'coverageId'          => $coverage_id,
+			'statusIndicatorShow' => true,
+		];
+
+		$this->assertStringContainsString( 'newspack-ui__badge--dot newspack-ui__badge--success newspack-ui__badge--pulse">Live<', self::render_feed_block( $attributes ), 'Active: a pulsing live badge.' );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
+
+		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--dot">Paused</span>', self::render_feed_block( $attributes ), 'Paused: a still, neutral badge.' );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, 'unknown' );
+
+		$this->assertStringContainsString( '>Live</span>', self::render_feed_block( $attributes ), 'An unknown status shows as live.' );
+	}
+
+	/**
+	 * The block's label for the current status replaces the default, escaped;
+	 * labels for other statuses and blank labels don't.
+	 */
+	public function test_status_indicator_uses_the_label_for_the_status() {
+		$coverage_id = self::create_coverage();
+		$attributes  = [
+			'coverageId'            => $coverage_id,
+			'statusIndicatorShow'   => true,
+			'statusIndicatorLabels' => [
+				'active'   => 'On <b>air</b>',
+				'archived' => 'Over',
+				'paused'   => '  ',
+			],
+		];
+
+		$this->assertStringContainsString( '>On &lt;b&gt;air&lt;/b&gt;</span>', self::render_feed_block( $attributes ), "The active status's label." );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
+
+		$this->assertStringContainsString( '>Paused</span>', self::render_feed_block( $attributes ), 'A blank label falls back to the default.' );
+	}
+
+	/**
 	 * An archived coverage shows the block's notice once, first in the Feed.
 	 */
 	public function test_archived_notice_renders_once_above_the_feed() {

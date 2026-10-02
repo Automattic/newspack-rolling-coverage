@@ -27,6 +27,14 @@
 			"type": "number",
 			"default": 4
 		},
+		"statusIndicatorShow": {
+			"type": "boolean",
+			"default": false
+		},
+		"statusIndicatorLabels": {
+			"type": "object",
+			"default": {}
+		},
 		"archivedNoticeShow": {
 			"type": "boolean",
 			"default": true
