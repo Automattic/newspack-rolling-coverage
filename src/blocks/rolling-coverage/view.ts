@@ -1007,10 +1007,10 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Whether a fetched block can replace the shared view in place. It can't
 	 * when it is itself a shared view, when the coverage's status has changed
-	 * since this page rendered, as the Follow button, archived notice and
-	 * status indicator depend on it, when it holds ads, which need the page's
-	 * own ad setup to run, or when its entries hold scripts or interactive
-	 * blocks, which would never start.
+	 * since this page rendered, as the Follow button and archived notice
+	 * depend on it, when it holds ads, which need the page's own ad setup to
+	 * run, or when its entries hold scripts or interactive blocks, which would
+	 * never start.
 	 *
 	 * @param {HTMLElement | null} live The fetched block.
 	 * @return {boolean} True if the block can be shown in place.
