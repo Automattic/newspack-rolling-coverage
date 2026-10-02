@@ -893,6 +893,60 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Coverages that are gone render nothing for the given attributes: a
+	 * trashed one, a deleted one, and none chosen.
+	 *
+	 * @param array $attributes Block attributes besides the coverage.
+	 * @return string[] Rendered HTML keyed by case.
+	 */
+	private static function render_gone_coverages( array $attributes ): array {
+		$trashed_id = self::create_coverage( 'trash' );
+		$deleted_id = self::create_coverage();
+		wp_delete_term( $deleted_id, Taxonomy::TAXONOMY_SLUG );
+
+		return [
+			'trashed' => self::render_feed_block( array_merge( $attributes, [ 'coverageId' => $trashed_id ] ) ),
+			'deleted' => self::render_feed_block( array_merge( $attributes, [ 'coverageId' => $deleted_id ] ) ),
+			'none'    => self::render_feed_block( $attributes ),
+		];
+	}
+
+	/**
+	 * A block that hides when its coverage ends hides when the coverage is
+	 * trashed or deleted too, instead of showing a notice meant for editors.
+	 */
+	public function test_hide_when_ended_renders_nothing_for_a_coverage_that_is_gone() {
+		$this->assertSame(
+			[
+				'trashed' => '',
+				'deleted' => '',
+				'none'    => '',
+			],
+			self::render_gone_coverages( [ 'hideWhenEnded' => true ] )
+		);
+	}
+
+	/**
+	 * A capped feed sits in site-wide placements, so on the site it never
+	 * shows a placeholder meant for editors; a full feed still does.
+	 */
+	public function test_capped_feed_shows_no_placeholder_on_the_site() {
+		$this->assertSame(
+			[
+				'trashed' => '',
+				'deleted' => '',
+				'none'    => '',
+			],
+			self::render_gone_coverages( [ 'latestOnly' => true ] )
+		);
+
+		$full = self::render_gone_coverages( [] );
+		$this->assertStringContainsString( 'This coverage is no longer available.', $full['trashed'] );
+		$this->assertStringContainsString( 'Select a coverage to display its entries.', $full['deleted'] );
+		$this->assertStringContainsString( 'Select a coverage to display its entries.', $full['none'] );
+	}
+
+	/**
 	 * Line breaks typed in the notice carry through to the front end.
 	 */
 	public function test_archived_notice_keeps_line_breaks() {

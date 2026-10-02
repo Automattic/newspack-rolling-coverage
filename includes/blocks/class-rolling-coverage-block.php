@@ -840,20 +840,22 @@ class Rolling_Coverage_Block {
 			}
 		}
 
-		$coverage_id = (int) ( $attributes['coverageId'] ?? 0 );
+		$coverage_id     = (int) ( $attributes['coverageId'] ?? 0 );
+		$latest_count    = self::latest_count( $attributes );
+		$is_capped       = $latest_count > 0;
+		// Capped feeds sit in site-wide placements, where readers must never see the notices meant for editors.
+		$hides_when_gone = ! empty( $attributes['hideWhenEnded'] ) || ( $is_capped && ! wp_is_serving_rest_request() );
 
 		if ( ! $coverage_id || ! term_exists( $coverage_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			self::$host_post_id = $previous_post_id;
 
-			return sprintf(
+			return $hides_when_gone ? '' : sprintf(
 				'<p %s>%s</p>',
 				get_block_wrapper_attributes(),
 				esc_html__( 'Select a coverage to display its entries.', 'newspack-rolling-coverage' )
 			);
 		}
 
-		$latest_count     = self::latest_count( $attributes );
-		$is_capped        = $latest_count > 0;
 		$entries_per_page = $is_capped ? $latest_count : min( max( 1, (int) ( $attributes['entriesPerPage'] ?? 20 ) ), self::PER_PAGE_MAX );
 		$poll_interval    = max( 1, (int) ( $attributes['pollInterval'] ?? 10 ) );
 		$ads_interval     = max( 1, (int) ( $attributes['adsInterval'] ?? 4 ) );
@@ -873,7 +875,7 @@ class Rolling_Coverage_Block {
 		if ( 'trash' === $status ) {
 			self::$host_post_id = $previous_post_id;
 
-			return sprintf(
+			return $hides_when_gone ? '' : sprintf(
 				'<p %s>%s</p>',
 				get_block_wrapper_attributes(),
 				esc_html__( 'This coverage is no longer available.', 'newspack-rolling-coverage' )
