@@ -436,4 +436,86 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'wp-block-post', $entries[0]['html'] );
 		$this->assertSame( $allowed, apply_filters( 'newspack_lite_site_allowed_html', $allowed ) );
 	}
+
+	/**
+	 * What Lite Site prints after a single page's footer.
+	 *
+	 * @return string
+	 */
+	private function print_after_footer(): string {
+		ob_start();
+		do_action( 'newspack_lite_site_single_after_footer', get_post( self::factory()->post->create() ) );
+		return ob_get_clean();
+	}
+
+	/**
+	 * What plugins add inside Lite Site's style element.
+	 *
+	 * @return string
+	 */
+	private function print_lite_styles(): string {
+		ob_start();
+		do_action( 'newspack_lite_site_styles' );
+		return ob_get_clean();
+	}
+
+	/**
+	 * Run a test with the block's view script registered under a test handle.
+	 *
+	 * The block only registers from its built `dist/`, which the test run may
+	 * not have, so a bare block type stands in when it's missing.
+	 *
+	 * @param callable $test Test body.
+	 */
+	private function with_view_script( callable $test ) {
+		$registry   = WP_Block_Type_Registry::get_instance();
+		$registered = $registry->is_registered( Rolling_Coverage_Block::BLOCK_NAME );
+		$block_type = $registered ? $registry->get_registered( Rolling_Coverage_Block::BLOCK_NAME ) : register_block_type( Rolling_Coverage_Block::BLOCK_NAME );
+		$handles    = $block_type->view_script_handles;
+
+		wp_register_script( 'rolling-coverage-test-view', 'https://example.test/view.js', [], '1', true );
+		$block_type->view_script_handles = [ 'rolling-coverage-test-view' ];
+
+		try {
+			$test();
+		} finally {
+			$block_type->view_script_handles = $handles;
+			wp_deregister_script( 'rolling-coverage-test-view' );
+
+			if ( ! $registered ) {
+				unregister_block_type( Rolling_Coverage_Block::BLOCK_NAME );
+			}
+		}
+	}
+
+	/**
+	 * Lite pages print no enqueued scripts, so a page with a feed prints the
+	 * view script itself, and a page without one prints nothing.
+	 */
+	public function test_view_script_prints_only_on_a_lite_page_with_a_feed() {
+		$this->with_view_script(
+			function () {
+				$this->assertSame( '', $this->print_after_footer(), 'A lite page without a feed prints no script.' );
+
+				Lite_Feed::add_feed();
+
+				$this->assertStringContainsString( 'https://example.test/view.js', $this->print_after_footer() );
+			}
+		);
+	}
+
+	/**
+	 * A page with a feed gets the few styles the feed needs, which print
+	 * inside Lite Site's style element.
+	 */
+	public function test_styles_print_only_on_a_lite_page_with_a_feed() {
+		$this->assertSame( '', $this->print_lite_styles(), 'A lite page without a feed adds no styles.' );
+
+		Lite_Feed::add_feed();
+		$styles = $this->print_lite_styles();
+
+		$this->assertStringContainsString( '.newspack-rolling-coverage-new-entries[hidden]', $styles );
+		$this->assertStringContainsString( '.newspack-rolling-coverage-status', $styles );
+		$this->assertStringNotContainsString( '<', $styles, 'Nothing can close the style element early.' );
+	}
 }

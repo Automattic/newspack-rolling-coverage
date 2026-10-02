@@ -7,6 +7,7 @@
 
 namespace Newspack_Rolling_Coverage;
 
+use WP_Block_Type_Registry;
 use WP_Post;
 
 defined( 'ABSPATH' ) || exit;
@@ -31,6 +32,54 @@ class Lite_Feed {
 	const CONTENT_FILTER = 'newspack_lite_site_post_content';
 
 	/**
+	 * The few styles the feed needs on a lite page, which prints no block
+	 * styles: the status region is for screen readers only, the new-posts
+	 * control floats at the top of the screen, and entries are set apart.
+	 */
+	const STYLES = '
+		.newspack-rolling-coverage-status {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
+		}
+		.newspack-rolling-coverage-new-entries {
+			position: fixed;
+			z-index: 1;
+			top: var(--newspack-rolling-coverage-control-top, 1rem);
+			left: 50%;
+			margin: 0;
+			transform: translateX(-50%);
+		}
+		.newspack-rolling-coverage-new-entries[hidden] {
+			display: none;
+		}
+		.newspack-rolling-coverage-new-entries a {
+			display: block;
+			padding: 0.5em 1em;
+			border-radius: 2em;
+			background: #000;
+			color: #fff;
+			text-decoration: none;
+			white-space: nowrap;
+		}
+		.newspack-rolling-coverage-entry + .newspack-rolling-coverage-entry {
+			margin-top: 1.5rem;
+			padding-top: 1.5rem;
+			border-top: 1px solid #ddd;
+		}
+		.newspack-rolling-coverage-entry-meta {
+			margin: 0 0 0.25rem;
+			font-size: 0.875em;
+		}
+		.newspack-rolling-coverage-entry h3 {
+			margin: 0 0 0.5rem;
+		}
+	';
+
+	/**
 	 * Whether this request renders a feed for a lite page or answers a lite
 	 * entries request. Never cleared: once set, entry bodies and the page
 	 * around them keep the feed's markup.
@@ -44,6 +93,42 @@ class Lite_Feed {
 	 */
 	public static function init() {
 		add_filter( 'newspack_lite_site_allowed_html', [ __CLASS__, 'allow_feed_markup' ] );
+		add_action( 'newspack_lite_site_styles', [ __CLASS__, 'print_styles' ] );
+		add_action( 'newspack_lite_site_single_after_footer', [ __CLASS__, 'print_script' ] );
+	}
+
+	/**
+	 * Print the feed's styles inside Lite Site's style element, on a page
+	 * that carries a feed. Lite Site renders the content before the head, so
+	 * by then the feed has rendered.
+	 */
+	public static function print_styles(): void {
+		if ( ! self::$has_feed ) {
+			return;
+		}
+
+		echo self::STYLES; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static CSS.
+	}
+
+	/**
+	 * Print the view script at the end of a lite page that carries a feed.
+	 *
+	 * Lite pages print no enqueued scripts, so this prints the block's own
+	 * view script and its dependencies. Lite Site serves the page from a
+	 * cache shared by every reader, and `wp_enqueue_scripts` never runs on
+	 * it, so no reader-specific settings print with the script: it polls
+	 * without cookies and tracks no reader events.
+	 */
+	public static function print_script(): void {
+		if ( ! self::$has_feed ) {
+			return;
+		}
+
+		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( Rolling_Coverage_Block::BLOCK_NAME );
+
+		if ( $block_type ) {
+			wp_print_scripts( $block_type->view_script_handles );
+		}
 	}
 
 	/**
