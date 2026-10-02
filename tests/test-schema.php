@@ -283,6 +283,25 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A password-protected page gives nothing away about its coverage until it
+	 * is unlocked: no script with the entries' text, no merge into Yoast's
+	 * Article, and no date taken from an entry.
+	 */
+	public function test_a_password_protected_page_reports_nothing_about_its_coverage() {
+		$coverage_id = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00', [ 'post_password' => 'secret' ] );
+		$this->create_dated_entry( $coverage_id, '2026-09-03 10:00:00' );
+		$article = [
+			'@type'    => 'Article',
+			'headline' => 'Protected page',
+		];
+
+		$this->assertSame( [], $this->render_scripts( $host_id ) );
+		$this->assertSame( $article, apply_filters( 'wpseo_schema_article', $article, $this->yoast_context( $host_id ) ) );
+		$this->assertSame( '2026-09-01 10:00:00', get_the_modified_date( 'Y-m-d H:i:s', $host_id ) );
+	}
+
+	/**
 	 * Other plugins' values are left alone on pages without a coverage,
 	 * including pages that aren't posts.
 	 */
@@ -312,20 +331,24 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	 *
 	 * @param int[]  $coverage_ids Coverage term IDs, one block each.
 	 * @param string $date         Publish date, which is also its modified date.
+	 * @param array  $args         Further post factory arguments.
 	 * @return int Post ID.
 	 */
-	private function create_host_post( array $coverage_ids, string $date ): int {
+	private function create_host_post( array $coverage_ids, string $date, array $args = [] ): int {
 		$content = '';
 		foreach ( $coverage_ids as $coverage_id ) {
 			$content .= sprintf( '<!-- wp:%s {"coverageId":%d} /-->', Schema::BLOCK_NAME, $coverage_id );
 		}
 
 		return self::factory()->post->create(
-			[
-				'post_content'  => $content,
-				'post_date'     => $date,
-				'post_date_gmt' => $date,
-			]
+			array_merge(
+				[
+					'post_content'  => $content,
+					'post_date'     => $date,
+					'post_date_gmt' => $date,
+				],
+				$args
+			)
 		);
 	}
 
