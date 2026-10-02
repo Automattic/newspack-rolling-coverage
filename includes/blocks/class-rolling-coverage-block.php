@@ -698,6 +698,18 @@ class Rolling_Coverage_Block {
 			);
 		}
 
+		// On a Lite Site page the feed renders its entries as text and polls
+		// with the same view script, without ads or a Follow button. It opens
+		// at the newest entries: Lite Site caches a page by its path alone, so
+		// one reader's shared entry would be served to everyone.
+		$is_lite = Lite_Feed::is_lite_render();
+
+		if ( $is_lite ) {
+			Lite_Feed::add_feed();
+
+			$ads_enabled = false;
+		}
+
 		$query = new WP_Query(
 			array_merge(
 				self::coverage_entries_args( $coverage_id ),
@@ -716,7 +728,7 @@ class Rolling_Coverage_Block {
 
 		$posts        = $query->posts;
 		$has_more     = count( $posts ) === $entries_per_page;
-		$linked_entry = self::get_linked_entry( $coverage_id );
+		$linked_entry = $is_lite ? null : self::get_linked_entry( $coverage_id );
 		$shared_entry = self::get_shared_entry( $linked_entry, $posts );
 
 		if ( $shared_entry ) {
@@ -751,7 +763,9 @@ class Rolling_Coverage_Block {
 			$entry_index++;
 			$shows_pinned  = $shows_pinned || Post_Type::is_pinned( $entry->ID );
 			$shows_regular = $shows_regular || ! Post_Type::is_pinned( $entry->ID );
-			$entries_html .= self::render_entry( $entry, $template, 'initial', ! $has_more && count( $posts ) === $entry_index, $linked_entry && $linked_entry->ID === $entry->ID );
+			$entries_html .= $is_lite
+				? Lite_Feed::render_entry( $entry, 'initial' )
+				: self::render_entry( $entry, $template, 'initial', ! $has_more && count( $posts ) === $entry_index, $linked_entry && $linked_entry->ID === $entry->ID );
 
 			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
 				$entries_html .= Ads::render_placement()['html'];
@@ -789,7 +803,7 @@ class Rolling_Coverage_Block {
 		}
 
 		// Follow button: rendered once at the top of the coverage, not per entry.
-		$follow_html = self::maybe_render_follow_button( $block, $coverage_id, $status );
+		$follow_html = $is_lite ? '' : self::maybe_render_follow_button( $block, $coverage_id, $status );
 
 		$feed         = self::feed_group( $block );
 		$wrapper_data = [
@@ -808,6 +822,14 @@ class Rolling_Coverage_Block {
 
 		if ( $shared_entry ) {
 			$wrapper_data['data-view'] = 'entry';
+		}
+
+		if ( $is_lite ) {
+			// Polls from a lite page ask for text-only entries. The host ID only
+			// feeds share links, which lite entries don't carry, and a lite
+			// request's global post isn't the host.
+			$wrapper_data['data-lite'] = '1';
+			unset( $wrapper_data['data-host-post-id'] );
 		}
 
 		// Polls carry the minimum too; the page has it so a first poll that fails still waits.
@@ -837,7 +859,7 @@ class Rolling_Coverage_Block {
 			return sprintf(
 				'<div %s>%s</div>',
 				$wrapper_attributes,
-				self::render_feed( $feed, $items_html )
+				$is_lite ? $items_html : self::render_feed( $feed, $items_html )
 			);
 		} finally {
 			self::$host_post_id = $previous_post_id;
