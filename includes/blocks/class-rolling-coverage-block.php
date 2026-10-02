@@ -1727,7 +1727,7 @@ class Rolling_Coverage_Block {
 				self::post_block(
 					'core/post-date',
 					[
-						'format'   => get_option( 'time_format' ),
+						'format'   => get_option( 'time_format' ) ?: 'g:i a', // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
 						'fontSize' => 'small',
 					]
 				),

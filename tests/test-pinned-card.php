@@ -186,13 +186,13 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A compact template: a pinned card and an entry group, each a row of the
+	 * A time-column template: a pinned card and an entry group, each a row of the
 	 * time and the body, with the visible pinned label in the card or without.
 	 *
 	 * @param bool $with_label Whether the card carries the pinned label.
 	 * @return string Template markup.
 	 */
-	private static function compact_markup( bool $with_label = false ): string {
+	private static function time_column_markup( bool $with_label = false ): string {
 		$label = $with_label
 			? '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-pinned-label"} --><p class="use-header-font newspack-rolling-coverage-pinned-label">Pinned</p><!-- /wp:paragraph -->'
 			: '';
@@ -212,7 +212,7 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	 * screen readers first in the article; an unpinned one is not.
 	 */
 	public function test_pinned_entry_without_a_label_is_announced_to_screen_readers() {
-		$markup = self::compact_markup();
+		$markup = self::time_column_markup();
 		$pinned = self::render( self::create_pinned_entry(), false, $markup );
 		$other  = self::render( self::create_entry( self::create_coverage() ), false, $markup );
 
@@ -227,7 +227,7 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	 * label.
 	 */
 	public function test_pinned_entry_with_a_label_adds_no_announcement() {
-		$pinned = self::render( self::create_pinned_entry(), false, self::compact_markup( true ) );
+		$pinned = self::render( self::create_pinned_entry(), false, self::time_column_markup( true ) );
 
 		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-label', $pinned );
 		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-status', $pinned );
@@ -249,11 +249,11 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A compact pinned card and entry group carry no corner radius of their
+	 * A time-column pinned card and entry group carry no corner radius of their
 	 * own, and rendering adds none.
 	 */
-	public function test_compact_cards_render_without_a_border_radius() {
-		$markup = self::compact_markup();
+	public function test_time_column_cards_render_without_a_border_radius() {
+		$markup = self::time_column_markup();
 		$pinned = self::render( self::create_pinned_entry(), false, $markup );
 		$other  = self::render( self::create_entry( self::create_coverage() ), false, $markup );
 

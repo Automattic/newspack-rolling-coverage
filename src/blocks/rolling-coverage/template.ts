@@ -447,8 +447,9 @@ function streamEntryTemplate( slugs: string[] ): TemplateItem[] {
  * narrow column, then the entry beside a vertical rule. The entry is a
  * vertical flex group, so its spacing also applies on the Newspack Theme
  * (see Rolling_Coverage_Block::apply_entry_block_gap()). The pinned card's
- * rule is in the accent color and its entry sits on a tinted panel; the
- * pin icon carries the "Pinned" label.
+ * rule is in the accent color and its entry sits on a tinted panel. With no
+ * pinned label, the site announces the entry as pinned itself (see
+ * Rolling_Coverage_Block::render_entry()).
  *
  * @param {boolean} isPinned Whether the row is the pinned card's.
  * @return {TemplateItem} The row.
@@ -459,7 +460,6 @@ function railRow( isPinned: boolean ): TemplateItem {
 				'core/icon',
 				{
 					icon: PIN_ICON,
-					ariaLabel: __( 'Pinned', 'newspack-rolling-coverage' ),
 					align: 'right',
 					style: {
 						dimensions: { width: '24px' },
