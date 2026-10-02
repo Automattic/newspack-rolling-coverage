@@ -131,7 +131,7 @@ class Coverage_Status_Block {
 	public static function feed_coverage_ids( int $post_id ): array {
 		$post = $post_id ? get_post( $post_id ) : null;
 
-		if ( ! $post ) {
+		if ( ! $post || post_password_required( $post ) ) {
 			return [];
 		}
 
@@ -167,21 +167,22 @@ class Coverage_Status_Block {
 
 	/**
 	 * The post whose feeds the block follows: the one it sits in, or, in a
-	 * template part, the page being viewed.
+	 * template part, the page being viewed. Core hands the first listed post
+	 * to blocks on archives, so nothing is followed outside single views.
 	 *
 	 * @param WP_Block $block Block instance.
 	 * @return int Post ID, or 0 on views that aren't a single post or page.
 	 */
 	private static function page_id( WP_Block $block ): int {
+		if ( ! is_singular() ) {
+			return 0;
+		}
+
 		if ( ! empty( $block->context['postId'] ) ) {
 			return (int) $block->context['postId'];
 		}
 
-		if ( in_the_loop() ) {
-			return (int) get_the_ID();
-		}
-
-		return is_singular() ? (int) get_queried_object_id() : 0;
+		return (int) get_queried_object_id();
 	}
 
 	/**
@@ -207,7 +208,7 @@ class Coverage_Status_Block {
 				$ref     = (int) ( $block['attrs']['ref'] ?? 0 );
 				$pattern = $ref && ! in_array( $ref, $seen_refs, true ) ? get_post( $ref ) : null;
 
-				if ( $pattern && 'wp_block' === $pattern->post_type && 'publish' === $pattern->post_status ) {
+				if ( $pattern && 'wp_block' === $pattern->post_type && 'publish' === $pattern->post_status && '' === $pattern->post_password ) {
 					$ids = array_merge( $ids, self::collect_feeds( parse_blocks( $pattern->post_content ), array_merge( $seen_refs, [ $ref ] ) ) );
 				}
 

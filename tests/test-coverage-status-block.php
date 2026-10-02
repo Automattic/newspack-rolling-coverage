@@ -59,17 +59,19 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Render the block as it would be inside the given post.
+	 * Render the block the way core does on the given post's page: the post is
+	 * the queried one and core supplies the context.
 	 *
 	 * @param array $attributes Block attributes.
-	 * @param int   $post_id    Post the block sits in, passed as context; 0 for none.
+	 * @param int   $post_id    Post being viewed; 0 to keep the current view.
 	 * @return string
 	 */
-	private static function render( array $attributes = [], int $post_id = 0 ): string {
-		$parsed = parse_blocks( '<!-- wp:newspack-rolling-coverage/coverage-status ' . wp_json_encode( (object) $attributes ) . ' /-->' )[0];
-		$block  = new WP_Block( $parsed, $post_id ? [ 'postId' => $post_id ] : [] );
+	private function render( array $attributes = [], int $post_id = 0 ): string {
+		if ( $post_id ) {
+			$this->go_to( get_permalink( $post_id ) );
+		}
 
-		return Coverage_Status_Block::render_block( $block->attributes, '', $block );
+		return do_blocks( '<!-- wp:newspack-rolling-coverage/coverage-status ' . wp_json_encode( (object) $attributes ) . ' /-->' );
 	}
 
 	/**
@@ -80,7 +82,7 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$second  = self::create_coverage();
 		$page_id = self::page( self::feed( $first ) . self::feed( $second ) );
 
-		$this->assertStringContainsString( 'data-coverage-id="' . $first . '"', self::render( [], $page_id ) );
+		$this->assertStringContainsString( 'data-coverage-id="' . $first . '"', $this->render( [], $page_id ) );
 	}
 
 	/**
@@ -93,8 +95,8 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$gone    = self::create_coverage();
 		$page_id = self::page( self::feed( $first ) . self::feed( $second ) );
 
-		$this->assertStringContainsString( 'data-coverage-id="' . $second . '"', self::render( [ 'coverageId' => $second ], $page_id ) );
-		$this->assertStringContainsString( 'data-coverage-id="' . $first . '"', self::render( [ 'coverageId' => $gone ], $page_id ) );
+		$this->assertStringContainsString( 'data-coverage-id="' . $second . '"', $this->render( [ 'coverageId' => $second ], $page_id ) );
+		$this->assertStringContainsString( 'data-coverage-id="' . $first . '"', $this->render( [ 'coverageId' => $gone ], $page_id ) );
 	}
 
 	/**
@@ -111,7 +113,7 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		);
 		$page_id     = self::page( self::feed( 0 ) . '<!-- wp:block {"ref":' . $pattern_id . '} /-->' );
 
-		$this->assertStringContainsString( 'data-coverage-id="' . $coverage_id . '"', self::render( [], $page_id ) );
+		$this->assertStringContainsString( 'data-coverage-id="' . $coverage_id . '"', $this->render( [], $page_id ) );
 	}
 
 	/**
@@ -127,7 +129,7 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		);
 		$page_id = self::page( '<!-- wp:block {"ref":' . $pattern_id . '} /-->' );
 
-		$this->assertSame( '', self::render( [], $page_id ) );
+		$this->assertSame( '', $this->render( [], $page_id ) );
 	}
 
 	/**
@@ -137,25 +139,52 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$trashed = self::create_coverage( 'trash' );
 		$live    = self::create_coverage();
 
-		$this->assertSame( '', self::render( [], self::page( '<!-- wp:paragraph --><p>Hi</p><!-- /wp:paragraph -->' ) ) );
-		$this->assertSame( '', self::render( [], self::page( self::feed( $trashed ) . self::feed( 999999 ) ) ) );
-		$this->assertStringContainsString( 'data-coverage-id="' . $live . '"', self::render( [], self::page( self::feed( $trashed ) . self::feed( $live ) ) ), 'A trashed coverage is skipped.' );
+		$this->assertSame( '', $this->render( [], self::page( '<!-- wp:paragraph --><p>Hi</p><!-- /wp:paragraph -->' ) ) );
+		$this->assertSame( '', $this->render( [], self::page( self::feed( $trashed ) . self::feed( 999999 ) ) ) );
+		$this->assertStringContainsString( 'data-coverage-id="' . $live . '"', $this->render( [], self::page( self::feed( $trashed ) . self::feed( $live ) ) ), 'A trashed coverage is skipped.' );
 	}
 
 	/**
-	 * Outside post content, as in a header template part, it follows the
-	 * queried page, and renders nothing on views that aren't a single page.
+	 * It follows the page being viewed, and renders nothing on views that
+	 * aren't a single post or page, even though core hands it the first listed
+	 * post as context there.
 	 */
-	public function test_template_part_follows_the_queried_page_only() {
+	public function test_renders_on_single_views_only() {
 		$coverage_id = self::create_coverage();
 		$page_id     = self::page( self::feed( $coverage_id ) );
 
 		$this->go_to( get_permalink( $page_id ) );
-		$this->assertStringContainsString( 'data-coverage-id="' . $coverage_id . '"', self::render() );
+		$this->assertStringContainsString( 'data-coverage-id="' . $coverage_id . '"', $this->render() );
 
-		self::factory()->post->create( [ 'post_content' => self::feed( $coverage_id ) ] );
+		$post_id = self::factory()->post->create( [ 'post_content' => self::feed( $coverage_id ) ] );
 		$this->go_to( home_url( '/' ) );
-		$this->assertSame( '', self::render(), 'A list of posts is not a coverage page.' );
+		$this->assertSame( $post_id, $GLOBALS['post']->ID, 'The post is the first one listed, so core passes it as context.' );
+		$this->assertSame( '', $this->render() );
+	}
+
+	/**
+	 * A feed a reader can't see isn't followed: a password-protected page, or
+	 * a synced pattern that isn't published.
+	 */
+	public function test_does_not_follow_feeds_the_reader_cannot_see() {
+		$coverage_id = self::create_coverage();
+		$protected   = self::factory()->post->create(
+			[
+				'post_type'     => 'page',
+				'post_password' => 'secret',
+				'post_content'  => self::feed( $coverage_id ),
+			]
+		);
+		$this->assertSame( '', $this->render( [], $protected ) );
+
+		$draft_pattern = self::factory()->post->create(
+			[
+				'post_type'    => 'wp_block',
+				'post_status'  => 'draft',
+				'post_content' => self::feed( $coverage_id ),
+			]
+		);
+		$this->assertSame( '', $this->render( [], self::page( '<!-- wp:block {"ref":' . $draft_pattern . '} /-->' ) ) );
 	}
 
 	/**
@@ -165,18 +194,18 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$coverage_id = self::create_coverage();
 		$page_id     = self::page( self::feed( $coverage_id ) );
 
-		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse">Live</span>', self::render( [], $page_id ) );
+		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse">Live</span>', $this->render( [], $page_id ) );
 
 		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
-		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--secondary">Paused</span>', self::render( [], $page_id ) );
+		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--secondary">Paused</span>', $this->render( [], $page_id ) );
 
 		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
-		$html = self::render( [], $page_id );
+		$html = $this->render( [], $page_id );
 		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--error">Ended</span>', $html );
 		$this->assertStringContainsString( 'data-status="archived"', $html );
 
 		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, 'unknown' );
-		$this->assertStringContainsString( 'data-status="active"', self::render( [], $page_id ) );
+		$this->assertStringContainsString( 'data-status="active"', $this->render( [], $page_id ) );
 	}
 
 	/**
@@ -189,7 +218,7 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$page_id     = self::page( self::feed( $coverage_id ) );
 		update_option( Status_Labels::OPTION_KEY, [ 'paused' => 'On hold' ] );
 
-		$html = self::render(
+		$html = $this->render(
 			[
 				'labels' => [
 					'active'   => 'On <b>air</b>',
@@ -213,7 +242,7 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$coverage_id = self::create_coverage();
 		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
 
-		$this->assertStringNotContainsString( 'newspack-rolling-coverage-updated', self::render( [], self::page( self::feed( $coverage_id ) ) ) );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-updated', $this->render( [], self::page( self::feed( $coverage_id ) ) ) );
 	}
 
 	/**
@@ -223,7 +252,7 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$coverage_id = self::create_coverage();
 		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
 
-		$html = self::render( [ 'showLastUpdated' => true ], self::page( self::feed( $coverage_id ) ) );
+		$html = $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $coverage_id ) ) );
 
 		$this->assertMatchesRegularExpression( '#<span class="newspack-rolling-coverage-updated">Updated <time datetime="2026-01-01T12:00:00\+00:00" data-rc-relative>[^<]+ ago</time></span>#', $html );
 	}
@@ -237,7 +266,7 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$ended_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
 		self::create_entry( $ended_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
 
-		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated" hidden>Updated <time datetime="" data-rc-relative></time></span>', self::render( [ 'showLastUpdated' => true ], self::page( self::feed( $empty_id ) ) ) );
-		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated" hidden>', self::render( [ 'showLastUpdated' => true ], self::page( self::feed( $ended_id ) ) ) );
+		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated" hidden>Updated <time datetime="" data-rc-relative></time></span>', $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $empty_id ) ) ) );
+		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated" hidden>', $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $ended_id ) ) ) );
 	}
 }
