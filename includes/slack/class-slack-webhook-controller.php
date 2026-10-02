@@ -443,6 +443,9 @@ class Slack_Webhook_Controller {
 		$settings = Slack_Config::get_settings();
 		$settings['masked_token'] = Slack_Config::get_masked_bot_token();
 
+		// Only a definite "no" is reported: unknown scopes are not a problem to act on.
+		$settings['can_read_files'] = false !== $this->api_client->can_read_files();
+
 		$bot_user_id = (int) ( $settings['bot_user_id'] ?? 0 );
 
 		if ( $bot_user_id > 0 ) {
@@ -870,8 +873,10 @@ class Slack_Webhook_Controller {
 				}
 			}
 
-			// 4. Process this message inline. Outbound calls use a 1s timeout
-			// to keep the webhook response inside Slack's 3-second limit.
+			// 4. Process this message inline. Its lookups use a 1s timeout, so
+			// a text message is answered inside Slack's 3-second limit. One
+			// with images can take longer: Slack then redelivers it, and the
+			// ingestion service skips the copy.
 			Slack_Monitor::log(
 				'info',
 				'Dispatching message to ingestion pipeline',
@@ -1448,8 +1453,8 @@ class Slack_Webhook_Controller {
 
 	/**
 	 * Core ingestion pipeline. Performs author resolution (with a 1s API
-	 * timeout to stay under Slack's 3s webhook limit), content processing,
-	 * and DB writes.
+	 * timeout, so a text message stays under Slack's 3s webhook limit),
+	 * content processing, image import, and DB writes.
 	 *
 	 * @param array $payload Pre-validated payload with event + resolved IDs.
 	 * @return void
@@ -1532,16 +1537,23 @@ class Slack_Webhook_Controller {
 			Post_Type::META_SLACK_AUTHOR_NAME => $author_name,
 		];
 
-		// 6. Call the generic ingestion service.
+		// 6. Call the generic ingestion service. Uploaded images are imported
+		// from inside it, once the message is known not to be a redelivery.
+		$files          = is_array( $event['files'] ?? null ) ? $event['files'] : [];
+		$media_importer = new Slack_Media_Importer( $api_client, $bot_user_id );
+
 		$post_id = Entry_Ingestion_Service::ingest(
 			$source_payload,
 			$term_id,
 			$auto_publish,
 			$bot_user_id,
-			$provenance_meta
+			$provenance_meta,
+			static fn( callable $keep_lock ): string => $media_importer->import( $files, $keep_lock )
 		);
 
 		if ( is_wp_error( $post_id ) || $post_id <= 0 ) {
+			$media_importer->discard();
+
 			if ( is_wp_error( $post_id ) ) {
 				error_log( 'Slack ingestion: entry creation failed — ' . $post_id->get_error_code() . ': ' . $post_id->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				Slack_Monitor::log(
@@ -1552,6 +1564,9 @@ class Slack_Webhook_Controller {
 						'message' => $post_id->get_error_message(),
 					] 
 				);
+			} elseif ( Entry_Ingestion_Service::SKIP_IN_PROGRESS === $post_id ) {
+				// Expected for a message with images, which Slack redelivers while the first delivery imports them.
+				Slack_Monitor::log( 'info', 'Ingestion: entry not created (another delivery of this message is still being processed)', [ 'ts' => $ts ] );
 			} elseif ( Entry_Ingestion_Service::SKIP_ARCHIVED_COVERAGE === $post_id ) {
 				Slack_Monitor::log( 'info', 'Ingestion: entry not created (coverage archived)', [ 'ts' => $ts ] );
 				error_log( 'Slack ingestion: entry not created for ts ' . $ts . ' (coverage archived).' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -1562,7 +1577,8 @@ class Slack_Webhook_Controller {
 			return;
 		}
 
-		// 7. Adapter-specific side effects: last_sync_ts update.
+		// 7. Adapter-specific side effects: image attachment, last_sync_ts update.
+		$media_importer->attach_to( (int) $post_id );
 		Slack_Config::update_channel( $channel_id, [ 'last_sync_ts' => $ts ] );
 
 		Slack_Monitor::log(

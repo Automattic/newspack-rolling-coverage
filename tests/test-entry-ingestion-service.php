@@ -129,9 +129,96 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 
 		$result = self::ingest( $payload, self::create_coverage() );
 
-		$this->assertSame( 0, $result, 'The overlapping request should be skipped.' );
+		$this->assertSame( Entry_Ingestion_Service::SKIP_IN_PROGRESS, $result, 'The overlapping request should be skipped, and told why.' );
 		$this->assertSame( 0, self::count_entries(), 'No entry should be created.' );
 		$this->assertNotFalse( get_option( self::lock_key( $payload ) ), "The other request's lock should be left in place." );
+	}
+
+	/**
+	 * Media is imported between the duplicate check and the insert, which can
+	 * take long enough for another delivery of the same message to finish. The
+	 * message still becomes one entry.
+	 */
+	public function test_message_saved_by_another_request_during_the_media_import_is_not_saved_twice() {
+		$payload     = self::payload();
+		$coverage_id = self::create_coverage();
+		$bot_user_id = self::factory()->user->create( [ 'role' => 'author' ] );
+
+		$result = Entry_Ingestion_Service::ingest(
+			$payload,
+			$coverage_id,
+			false,
+			$bot_user_id,
+			[],
+			static function () use ( $payload, $coverage_id ) {
+				global $wpdb;
+
+				// The other delivery's entry, saved while this one imports its media. Written
+				// straight to the database, as a write by another request reaches this one:
+				// without touching this request's caches.
+				// phpcs:disable WordPress.DB.DirectDatabaseQuery
+				$wpdb->insert(
+					$wpdb->posts,
+					[
+						'post_type'   => Post_Type::CPT_SLUG,
+						'post_status' => 'draft',
+					]
+				);
+				$other_entry_id = $wpdb->insert_id;
+				$wpdb->insert(
+					$wpdb->postmeta,
+					[
+						'post_id'    => $other_entry_id,
+						'meta_key'   => Post_Type::META_SOURCE_REF, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+						'meta_value' => $payload->source_ref, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+					]
+				);
+				$wpdb->insert(
+					$wpdb->term_relationships,
+					[
+						'object_id'        => $other_entry_id,
+						'term_taxonomy_id' => get_term( $coverage_id, Taxonomy::TAXONOMY_SLUG )->term_taxonomy_id,
+					]
+				);
+				// phpcs:enable WordPress.DB.DirectDatabaseQuery
+
+				return '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.test/photo.jpg" alt=""/></figure><!-- /wp:image -->';
+			}
+		);
+
+		$this->assertSame( 0, $result, 'The second save should be skipped as a duplicate.' );
+		$this->assertSame( 1, self::count_entries(), 'The message should have one entry.' );
+	}
+
+	/**
+	 * Media work can outlast the lock's lifetime. It keeps the lock as it
+	 * progresses, so a redelivery arriving meanwhile still backs off.
+	 */
+	public function test_media_work_keeps_the_lock_while_it_progresses() {
+		$payload     = self::payload();
+		$coverage_id = self::create_coverage();
+		$bot_user_id = self::factory()->user->create( [ 'role' => 'author' ] );
+		$redelivery  = null;
+
+		Entry_Ingestion_Service::ingest(
+			$payload,
+			$coverage_id,
+			false,
+			$bot_user_id,
+			[],
+			static function ( callable $keep_lock ) use ( $payload, $coverage_id, $bot_user_id, &$redelivery ) {
+				// The work has been running for longer than the lock's lifetime.
+				update_option( self::lock_key( $payload ), time() - Entry_Ingestion_Service::MUTEX_TTL - 1, false );
+				$keep_lock();
+
+				$redelivery = Entry_Ingestion_Service::ingest( $payload, $coverage_id, false, $bot_user_id, [] );
+
+				return '';
+			}
+		);
+
+		$this->assertSame( Entry_Ingestion_Service::SKIP_IN_PROGRESS, $redelivery, 'The redelivery should back off.' );
+		$this->assertSame( 1, self::count_entries(), 'The message should have one entry.' );
 	}
 
 	/**

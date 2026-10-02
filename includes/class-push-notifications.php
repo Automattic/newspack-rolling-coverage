@@ -287,6 +287,13 @@ class Push_Notifications {
 			return;
 		}
 
+		$post = get_post( $post_id );
+
+		// An entry holding only an image has no words for the notification to carry.
+		if ( ! $post instanceof WP_Post || '' === self::build_notification_content( $post ) ) {
+			return;
+		}
+
 		update_post_meta( $post_id, self::NOTIFY_META_KEY, true );
 
 		if ( 'publish' === get_post_status( $post_id ) ) {

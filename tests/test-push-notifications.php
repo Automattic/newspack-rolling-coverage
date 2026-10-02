@@ -91,17 +91,21 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	 * Save an entry the way Slack ingestion does: inserted first, then given
 	 * its coverage, then announced.
 	 *
-	 * @param int  $coverage_id  Coverage term ID.
-	 * @param bool $auto_publish Whether the channel publishes straight away.
+	 * @param int   $coverage_id  Coverage term ID.
+	 * @param bool  $auto_publish Whether the channel publishes straight away.
+	 * @param array $post_args    Post fields to override.
 	 * @return int Entry post ID.
 	 */
-	private static function ingest_slack_message( $coverage_id, $auto_publish ) {
+	private static function ingest_slack_message( $coverage_id, $auto_publish, array $post_args = [] ) {
 		$entry_id = self::factory()->post->create(
-			[
-				'post_type'   => \Newspack_Rolling_Coverage\Post_Type::CPT_SLUG,
-				'post_status' => $auto_publish ? 'publish' : 'draft',
-				'post_title'  => 'Polls have closed',
-			]
+			array_merge(
+				[
+					'post_type'   => \Newspack_Rolling_Coverage\Post_Type::CPT_SLUG,
+					'post_status' => $auto_publish ? 'publish' : 'draft',
+					'post_title'  => 'Polls have closed',
+				],
+				$post_args
+			)
 		);
 		wp_set_object_terms( $entry_id, [ (int) $coverage_id ], Taxonomy::TAXONOMY_SLUG );
 
@@ -312,6 +316,25 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertCount( 1, self::get_sent_notifications() );
+	}
+
+	/**
+	 * A photo posted on its own has no words to announce. It is not opted in,
+	 * since followers would get a notification with an empty message.
+	 */
+	public function test_slack_entry_holding_only_an_image_is_not_opted_in() {
+		$entry_id = self::ingest_slack_message(
+			self::create_coverage_with_canonical_url(),
+			true,
+			[
+				'post_title'   => '',
+				'post_excerpt' => '',
+				'post_content' => "<!-- wp:image {\"id\":7} -->\n<figure class=\"wp-block-image\"><img src=\"https://example.test/queue.jpg\" alt=\"Voters queue\"/></figure>\n<!-- /wp:image -->",
+			]
+		);
+
+		$this->assertSame( '', (string) get_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true ), 'The entry should not be opted in.' );
+		$this->assertFalse( wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'No send should be scheduled.' );
 	}
 
 	/**
