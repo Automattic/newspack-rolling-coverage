@@ -43,6 +43,19 @@ class Schema {
 	private static $merged_coverage_ids = [];
 
 	/**
+	 * Page dates worked out so far, by post ID. A page's date is asked for
+	 * several times while it renders, and again wherever the page is listed.
+	 * `salt` ties them to the state of posts and terms they were worked out
+	 * from, so any change throws them away.
+	 *
+	 * @var array{salt:string,dates:array<int,DateTimeImmutable|null>}
+	 */
+	private static $page_dates = [
+		'salt'  => '',
+		'dates' => [],
+	];
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -302,6 +315,24 @@ class Schema {
 	 * @return DateTimeImmutable|null The later date, or null.
 	 */
 	public static function get_page_date_modified( WP_Post $post ): ?DateTimeImmutable {
+		// Themes ask for the date of every post they list, so a post without
+		// the block leaves before any work is done.
+		if ( ! has_block( self::BLOCK_NAME, $post ) ) {
+			return null;
+		}
+
+		$salt = wp_cache_get_last_changed( 'posts' ) . '|' . wp_cache_get_last_changed( 'terms' );
+		if ( self::$page_dates['salt'] !== $salt ) {
+			self::$page_dates = [
+				'salt'  => $salt,
+				'dates' => [],
+			];
+		}
+
+		if ( array_key_exists( $post->ID, self::$page_dates['dates'] ) ) {
+			return self::$page_dates['dates'][ $post->ID ];
+		}
+
 		$latest = null;
 
 		foreach ( array_keys( self::get_page_coverages( $post ) ) as $coverage_id ) {
@@ -315,9 +346,17 @@ class Schema {
 			}
 		}
 
-		$own = self::get_own_date( $post );
+		if ( null !== $latest ) {
+			$own = self::get_own_date( $post );
 
-		return null !== $latest && ( null === $own || $latest > $own ) ? $latest : null;
+			if ( null !== $own && $latest <= $own ) {
+				$latest = null;
+			}
+		}
+
+		self::$page_dates['dates'][ $post->ID ] = $latest;
+
+		return $latest;
 	}
 
 	/**

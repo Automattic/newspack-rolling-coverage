@@ -202,6 +202,37 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A page's date is asked for several times while it renders, so it is
+	 * worked out once and reused, until an entry changes.
+	 */
+	public function test_the_page_date_is_worked_out_once_until_something_changes() {
+		$coverage_id = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		$this->create_dated_entry( $coverage_id, '2026-09-03 10:00:00' );
+
+		$entry_lookups = 0;
+		add_action(
+			'pre_get_posts',
+			function ( $query ) use ( &$entry_lookups ) {
+				if ( Post_Type::CPT_SLUG === $query->get( 'post_type' ) ) {
+					++$entry_lookups;
+				}
+			}
+		);
+
+		get_the_modified_date( 'c', $host_id );
+		$lookups_for_one_read = $entry_lookups;
+		get_the_modified_time( 'U', $host_id );
+
+		$this->assertGreaterThan( 0, $lookups_for_one_read );
+		$this->assertSame( $lookups_for_one_read, $entry_lookups, 'A second read should reuse the first.' );
+
+		$this->create_dated_entry( $coverage_id, '2026-09-04 10:00:00' );
+
+		$this->assertSame( '2026-09-04T10:00:00+00:00', get_the_modified_date( 'c', $host_id ), 'A new entry should be picked up in the same request.' );
+	}
+
+	/**
 	 * A page published on schedule has a publish date later than its last
 	 * edit. An entry from before the page went live must not become its date,
 	 * or the page would report a change from before it was published.
