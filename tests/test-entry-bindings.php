@@ -858,8 +858,8 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 				[
 					'coverageId'    => $coverage_id,
 					'hideWhenEnded' => true,
-				] 
-			) 
+				]
+			)
 		);
 	}
 
@@ -887,8 +887,8 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 				[
 					'coverageId'    => $coverage_id,
 					'hideWhenEnded' => true,
-				] 
-			) 
+				]
+			)
 		);
 	}
 

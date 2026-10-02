@@ -351,7 +351,7 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 			[
 				'post_excerpt' => '',
 				'post_content' => $content,
-			] 
+			]
 		);
 
 		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
@@ -372,7 +372,7 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 				'post_excerpt'  => '',
 				'post_password' => 'secret',
 				'post_content'  => '<p>Hidden text.</p>',
-			] 
+			]
 		);
 
 		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
@@ -484,10 +484,11 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 		};
 		add_filter( 'get_the_excerpt', $throw, 1 );
 
+		// Called directly: an exception through the REST server would leave it dispatching for later tests.
 		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
 		$request->set_param( 'context', 'edit' );
 		try {
-			rest_get_server()->dispatch( $request );
+			Post_Type::filter_rest_response( new WP_REST_Response( [] ), get_post( $entry_id ), $request );
 		} catch ( RuntimeException $e ) {
 			unset( $e );
 		}

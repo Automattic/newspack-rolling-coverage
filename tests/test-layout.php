@@ -528,15 +528,15 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The first clock and margin creates each publish their layout under its
-	 * own option and title.
+	 * The first create of each built-in layout publishes it under its own
+	 * option and title; a second returns the same pattern.
 	 *
-	 * @dataProvider data_clock_and_margin
+	 * @dataProvider data_built_in_layouts
 	 *
 	 * @param string $slug  Built-in layout slug.
 	 * @param string $title Expected pattern title.
 	 */
-	public function test_create_makes_the_clock_and_margin_layouts_once( string $slug, string $title ) {
+	public function test_create_makes_each_built_in_layout_once( string $slug, string $title ) {
 		self::log_in_as( 'editor' );
 
 		$response = self::dispatch( 'POST', "/layouts/{$slug}", [ 'content' => self::layout_markup() ] );
@@ -553,11 +553,11 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The Clock and Margin layouts with their pattern titles.
+	 * Built-in layouts with their pattern titles.
 	 *
 	 * @return array[]
 	 */
-	public function data_clock_and_margin(): array {
+	public function data_built_in_layouts(): array {
 		return [
 			'clock'  => [ 'clock', 'Rolling Coverage: Clock' ],
 			'margin' => [ 'margin', 'Rolling Coverage: Margin' ],
