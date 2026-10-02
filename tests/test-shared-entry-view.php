@@ -175,15 +175,19 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	 * @param string|array $slug        Value of the entry query var.
 	 * @param string       $layout      The block's inner blocks, as the editor saves them; the default layout when empty.
 	 * @param int          $coverage_id Coverage to render; the fixture's when 0.
+	 * @param array        $attributes  Further block attributes.
 	 * @return string
 	 */
-	private function render_layout_with_shared( $slug, string $layout, int $coverage_id = 0 ): string {
+	private function render_layout_with_shared( $slug, string $layout, int $coverage_id = 0, array $attributes = [] ): string {
 		set_query_var( Social_Sharing::ENTRY_QUERY_VAR, $slug );
 
-		$attributes = [
-			'coverageId'     => $coverage_id ? $coverage_id : $this->coverage_id,
-			'entriesPerPage' => 2,
-		];
+		$attributes = array_merge(
+			[
+				'coverageId'     => $coverage_id ? $coverage_id : $this->coverage_id,
+				'entriesPerPage' => 2,
+			],
+			$attributes
+		);
 		$name       = 'wp:newspack-rolling-coverage/rolling-coverage';
 		$parsed     = parse_blocks(
 			'' === $layout
@@ -777,6 +781,26 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$this->assertStringNotContainsString( 'data-view=', $html );
 		$this->assertSame( $this->ids( 'entry-2' ), $this->linked_ids( $html ), 'Normal view, pinned.' );
+	}
+
+	/**
+	 * A capped feed ignores a link to an entry: it shows its newest entries,
+	 * marks none as linked and offers no way back to the live feed.
+	 */
+	public function test_capped_feed_ignores_a_shared_entry() {
+		$capped = [
+			'latestOnly'  => true,
+			'latestCount' => 2,
+		];
+
+		foreach ( [ 'entry-3', 'entry-5' ] as $shared ) {
+			$html = $this->render_layout_with_shared( $shared, '', 0, $capped );
+
+			$this->assertStringNotContainsString( 'data-view=', $html, $shared );
+			$this->assertSame( $this->ids( 'entry-6', 'entry-5' ), $this->entry_ids_in( $html ), $shared );
+			$this->assertSame( [], $this->linked_ids( $html ), $shared );
+			$this->assertSame( 0, $this->control( $html )['count'], $shared );
+		}
 	}
 
 	/**

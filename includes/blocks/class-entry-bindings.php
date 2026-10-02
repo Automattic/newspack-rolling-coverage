@@ -549,12 +549,16 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Whether the entry being rendered is pinned. Entries render with the
-	 * global post swapped to the entry.
+	 * Whether the entry being rendered shows as pinned. Entries render with
+	 * the global post swapped to the entry; a capped feed shows none pinned.
 	 *
 	 * @return bool
 	 */
 	private static function is_current_entry_pinned(): bool {
+		if ( Rolling_Coverage_Block::is_ignoring_pinning() ) {
+			return false;
+		}
+
 		$entry_id = (int) get_the_ID();
 
 		return $entry_id && Post_Type::CPT_SLUG === get_post_type( $entry_id ) && Post_Type::is_pinned( $entry_id );

@@ -135,6 +135,14 @@ class Rolling_Coverage_Block {
 	private static $entry_render_depth = 0;
 
 	/**
+	 * Whether the entry rendering now shows as unpinned, whatever its pinned
+	 * state. Read by the entry bindings that show the pinned label and row.
+	 *
+	 * @var bool
+	 */
+	private static $ignoring_pinning = false;
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -175,6 +183,31 @@ class Rolling_Coverage_Block {
 	 */
 	public static function is_rendering_entry(): bool {
 		return self::$entry_render_depth > 0;
+	}
+
+	/**
+	 * Whether the entry rendering now is shown as unpinned, whatever its
+	 * pinned state.
+	 *
+	 * @return bool
+	 */
+	public static function is_ignoring_pinning(): bool {
+		return self::$ignoring_pinning;
+	}
+
+	/**
+	 * How many entries a capped feed shows, from the block's attributes or
+	 * its stored config: at least one, or 0 when the feed is not capped.
+	 *
+	 * @param array $settings Block attributes or stored block config.
+	 * @return int
+	 */
+	private static function latest_count( array $settings ): int {
+		if ( empty( $settings['latestOnly'] ) ) {
+			return 0;
+		}
+
+		return min( max( 1, (int) ( $settings['latestCount'] ?? 5 ) ), self::PER_PAGE_MAX );
 	}
 
 	/**
@@ -679,13 +712,15 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		$entries_per_page = min( max( 1, (int) ( $attributes['entriesPerPage'] ?? 20 ) ), self::PER_PAGE_MAX );
+		$latest_count     = self::latest_count( $attributes );
+		$is_capped        = $latest_count > 0;
+		$entries_per_page = $is_capped ? $latest_count : min( max( 1, (int) ( $attributes['entriesPerPage'] ?? 20 ) ), self::PER_PAGE_MAX );
 		$poll_interval    = max( 1, (int) ( $attributes['pollInterval'] ?? 10 ) );
 		$ads_interval     = max( 1, (int) ( $attributes['adsInterval'] ?? 4 ) );
 		$status           = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
 		$status           = $status ? $status : 'active';
 		$ads_enabled_attr = ! empty( $attributes['enableAds'] );
-		$ads_enabled      = $ads_enabled_attr && ! self::is_coverage_ads_disabled( $coverage_id );
+		$ads_enabled      = ! $is_capped && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $coverage_id );
 
 		// A trashed coverage is effectively invisible on the frontend.
 		if ( 'trash' === $status ) {
@@ -698,25 +733,29 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		$query = new WP_Query(
-			array_merge(
-				self::coverage_entries_args( $coverage_id ),
-				[
-					'orderby'        => 'date',
-					'order'          => 'DESC',
-					'posts_per_page' => $entries_per_page,
-				]
-			)
+		$query_args = array_merge(
+			self::coverage_entries_args( $coverage_id ),
+			[
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+				'posts_per_page' => $entries_per_page,
+			]
 		);
 
+		if ( $is_capped ) {
+			$query_args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
+		}
+
+		$query = new WP_Query( $query_args );
+
 		$template     = self::get_entry_template( $block );
-		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval );
+		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval, $latest_count );
 
 		self::store_entry_layout_styles( $template );
 
 		$posts        = $query->posts;
-		$has_more     = count( $posts ) === $entries_per_page;
-		$linked_entry = self::get_linked_entry( $coverage_id );
+		$has_more     = ! $is_capped && count( $posts ) === $entries_per_page;
+		$linked_entry = $is_capped ? null : self::get_linked_entry( $coverage_id );
 		$shared_entry = self::get_shared_entry( $linked_entry, $posts );
 
 		if ( $shared_entry ) {
@@ -749,9 +788,10 @@ class Rolling_Coverage_Block {
 
 		foreach ( $posts as $entry ) {
 			$entry_index++;
-			$shows_pinned  = $shows_pinned || Post_Type::is_pinned( $entry->ID );
-			$shows_regular = $shows_regular || ! Post_Type::is_pinned( $entry->ID );
-			$entries_html .= self::render_entry( $entry, $template, 'initial', ! $has_more && count( $posts ) === $entry_index, $linked_entry && $linked_entry->ID === $entry->ID );
+			$is_pinned     = ! $is_capped && Post_Type::is_pinned( $entry->ID );
+			$shows_pinned  = $shows_pinned || $is_pinned;
+			$shows_regular = $shows_regular || ! $is_pinned;
+			$entries_html .= self::render_entry( $entry, $template, 'initial', ! $has_more && count( $posts ) === $entry_index, $linked_entry && $linked_entry->ID === $entry->ID, $is_capped );
 
 			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
 				$entries_html .= Ads::render_placement()['html'];
@@ -763,7 +803,7 @@ class Rolling_Coverage_Block {
 		$cursor     = $shared_entry ? self::coverage_cursor( $coverage_id ) : self::latest_cursor( $posts );
 		$oldest_gmt = ! empty( $posts ) ? self::post_date_gmt( $posts[ count( $posts ) - 1 ] ) : '';
 
-		if ( $posts && ! $shows_pinned ) {
+		if ( $posts && ! $shows_pinned && ! $is_capped ) {
 			self::store_template_layout_styles( self::pinned_cards( $template ) );
 		}
 
@@ -810,6 +850,10 @@ class Rolling_Coverage_Block {
 			$wrapper_data['data-view'] = 'entry';
 		}
 
+		if ( $is_capped ) {
+			$wrapper_data['data-latest'] = $latest_count;
+		}
+
 		// Polls carry the minimum too; the page has it so a first poll that fails still waits.
 		$min_poll_interval = self::get_min_poll_interval();
 
@@ -826,12 +870,13 @@ class Rolling_Coverage_Block {
 
 		try {
 			$items_html = sprintf(
-				'%5$s%3$s<div class="%1$s-status" role="status" aria-live="polite"></div>%4$s<div class="%1$s-entries">%2$s</div><div class="%1$s-sentinel" aria-hidden="true"></div>',
+				'%5$s%3$s<div class="%1$s-status" role="status" aria-live="polite"></div>%4$s<div class="%1$s-entries">%2$s</div>%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
 				$follow_html,
-				self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
-				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : ''
+				$is_capped ? '' : self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
+				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
+				$is_capped ? '' : sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX )
 			);
 
 			return sprintf(
@@ -2417,20 +2462,27 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Stores the entry template plus the block's ad settings in the options
-	 * table and returns a hash key identifying that exact combination.
+	 * table and returns a hash key identifying that exact combination. A
+	 * capped feed's config also holds how many entries it shows.
 	 *
 	 * @param int   $coverage_id  Coverage term ID.
 	 * @param array $template     Per-entry inner-block template.
 	 * @param bool  $ads_enabled  The block's own Enable Ads toggle.
 	 * @param int   $ads_interval Show an ad after every N entries.
+	 * @param int   $latest_count How many entries a capped feed shows; 0 when not capped.
 	 * @return string Hash key identifying this config.
 	 */
-	private static function persist_block_config( int $coverage_id, array $template, bool $ads_enabled, int $ads_interval ): string {
+	private static function persist_block_config( int $coverage_id, array $template, bool $ads_enabled, int $ads_interval, int $latest_count = 0 ): string {
 		$config = [
 			'template'    => $template,
 			'adsEnabled'  => $ads_enabled,
 			'adsInterval' => $ads_interval,
 		];
+
+		if ( $latest_count ) {
+			$config['latestOnly']  = true;
+			$config['latestCount'] = $latest_count;
+		}
 
 		$hash       = substr( md5( wp_json_encode( $config ) ), 0, 12 );
 		$option_key = self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $hash;
@@ -2467,7 +2519,7 @@ class Rolling_Coverage_Block {
 	 *
 	 * @param int    $coverage_id  Coverage term ID.
 	 * @param string $template_key Hash returned by persist_block_config().
-	 * @return array{template: array[], adsEnabled: bool, adsInterval: int}
+	 * @return array{template: array[], adsEnabled: bool, adsInterval: int, latestOnly?: bool, latestCount?: int}
 	 */
 	private static function load_block_config( int $coverage_id, string $template_key ): array {
 		$defaults = [
@@ -2530,18 +2582,21 @@ class Rolling_Coverage_Block {
 	 *                       entry for the duration of this render and
 	 *                       restored to its previous value afterwards.
 	 *
-	 * @param WP_Post $entry     Entry post object.
-	 * @param array[] $template  Per-entry inner-block template, as returned
-	 *                           by get_entry_template().
-	 * @param string  $arrival   How the entry first reaches the client:
-	 *                           'initial', 'poll', or 'load_more'. Stamped as
-	 *                           data-arrival for frontend entry-seen tracking.
-	 * @param bool    $is_last   Whether no entry can load after this one.
-	 * @param bool    $is_linked Whether the page's link names this entry.
+	 * @param WP_Post $entry          Entry post object.
+	 * @param array[] $template       Per-entry inner-block template, as returned
+	 *                                by get_entry_template().
+	 * @param string  $arrival        How the entry first reaches the client:
+	 *                                'initial', 'poll', or 'load_more'. Stamped as
+	 *                                data-arrival for frontend entry-seen tracking.
+	 * @param bool    $is_last        Whether no entry can load after this one.
+	 * @param bool    $is_linked      Whether the page's link names this entry.
+	 * @param bool    $ignore_pinning Whether to render the entry as unpinned
+	 *                                whatever its pinned state, as a capped
+	 *                                feed shows every entry.
 	 * @return string Rendered HTML for the entry.
 	 */
-	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', bool $is_last = false, bool $is_linked = false ): string {
-		$is_pinned = Post_Type::is_pinned( $entry->ID );
+	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', bool $is_last = false, bool $is_linked = false, bool $ignore_pinning = false ): string {
+		$is_pinned = ! $ignore_pinning && Post_Type::is_pinned( $entry->ID );
 		$template  = self::shape_entry_template(
 			self::drop_fixed_template_dates( $template ),
 			$is_pinned,
@@ -2555,8 +2610,10 @@ class Rolling_Coverage_Block {
 
 		global $post;
 
-		$previous_post = $post;
-		$post          = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$previous_post          = $post;
+		$was_ignoring_pinning   = self::$ignoring_pinning;
+		$post                   = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		self::$ignoring_pinning = $ignore_pinning;
 		setup_postdata( $entry );
 
 		$is_archived = Archive_Mode::is_entry_archived( $entry->ID );
@@ -2585,7 +2642,8 @@ class Rolling_Coverage_Block {
 				remove_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );
 			}
 
-			$post = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			$post                   = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			self::$ignoring_pinning = $was_ignoring_pinning;
 			setup_postdata( $previous_post );
 		}
 
@@ -2938,9 +2996,10 @@ class Rolling_Coverage_Block {
 
 		$config           = self::load_block_config( $term_id, $template_key );
 		$template         = $config['template'];
+		$is_capped        = self::latest_count( $config ) > 0;
 		$ads_interval     = max( 1, (int) $config['adsInterval'] );
 		$ads_enabled_attr = (bool) $config['adsEnabled'];
-		$ads_enabled      = $ads_enabled_attr && ! self::is_coverage_ads_disabled( $term_id );
+		$ads_enabled      = ! $is_capped && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $term_id );
 
 		// Forward/polling branch: entries modified at or after the cursor, newest first.
 		if ( $cursor ) {
@@ -3032,7 +3091,7 @@ class Rolling_Coverage_Block {
 				// blank: the client preserves the original value across the replace.
 				$entries[] = [
 					'id'     => $entry->ID,
-					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '' ),
+					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '', false, false, $is_capped ),
 					'type'   => $is_new_entry ? 'insert' : 'update',
 					'adHtml' => $ad_html,
 					'adSlot' => $ad_slot,
@@ -3048,6 +3107,18 @@ class Rolling_Coverage_Block {
 					'polledCount' => ( $polled_count + $new_entry_count ) % $ads_interval,
 				],
 				$term_id
+			);
+		}
+
+		if ( $is_capped ) {
+			return new WP_REST_Response(
+				[
+					'html'    => '',
+					'before'  => null,
+					'hasMore' => false,
+					'count'   => 0,
+					'adSlots' => [],
+				]
 			);
 		}
 

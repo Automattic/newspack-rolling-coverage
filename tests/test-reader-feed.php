@@ -34,6 +34,17 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Take the feed placement's ad unit away again.
+	 */
+	public function tear_down() {
+		if ( class_exists( \Newspack_Ads\Placements::class ) ) {
+			\Newspack_Ads\Placements::$placements = [];
+		}
+
+		parent::tear_down();
+	}
+
+	/**
 	 * Request the feed for the test coverage.
 	 *
 	 * @param array $params Query parameters.
@@ -486,5 +497,66 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'active', $overflow['status'] );
 		$this->assertArrayNotHasKey( 'status', $page );
 		$this->assertArrayNotHasKey( 'newestEntry', $page );
+	}
+
+	/**
+	 * Polls for a feed rendered with these attributes, from the start of the
+	 * coverage.
+	 *
+	 * @param array $attributes Block attributes besides the coverage.
+	 * @return array Poll response data.
+	 */
+	private function poll_with_attributes( array $attributes ) {
+		$attributes = array_merge( [ 'coverageId' => $this->coverage_id ], $attributes );
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		preg_match( '/data-template-key="([^"]+)"/', $html, $matches );
+
+		return $this->get_feed(
+			[
+				'cursor'       => '0:2026-01-01 00:00:00',
+				'template_key' => $matches[1],
+			]
+		)->get_data();
+	}
+
+	/**
+	 * A capped feed's polls bring a pinned entry in as any other, with no
+	 * ad; uncapped, the same poll brings the pinned card and an ad.
+	 */
+	public function test_capped_feed_polls_entries_unpinned_and_without_ads() {
+		require_once __DIR__ . '/mocks/newspack-ads.php';
+
+		\Newspack_Ads\Placements::$placements = [
+			'rolling_coverage_entry' => [
+				'data' => [
+					'enabled' => true,
+					'ad_unit' => 'test-unit',
+				],
+			],
+		];
+
+		$entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+		Post_Type::pin_entry( $entry_id );
+
+		$attributes = [
+			'enableAds'   => true,
+			'adsInterval' => 1,
+			'latestCount' => 3,
+		];
+		$uncapped   = $this->poll_with_attributes( $attributes )['entries'];
+		$capped     = $this->poll_with_attributes( array_merge( $attributes, [ 'latestOnly' => true ] ) )['entries'];
+
+		$this->assertSame( [ $entry_id ], wp_list_pluck( $uncapped, 'id' ) );
+		$this->assertStringContainsString( 'data-pinned', $uncapped[0]['html'] );
+		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-card', $uncapped[0]['html'] );
+		$this->assertStringContainsString( 'test-ad-code', (string) $uncapped[0]['adHtml'] );
+
+		$this->assertSame( [ $entry_id ], wp_list_pluck( $capped, 'id' ) );
+		$this->assertStringNotContainsString( 'data-pinned', $capped[0]['html'] );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-card', $capped[0]['html'] );
+		$this->assertStringNotContainsString( 'Pinned', $capped[0]['html'] );
+		$this->assertNull( $capped[0]['adHtml'] );
 	}
 }

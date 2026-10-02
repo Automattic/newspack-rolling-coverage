@@ -50,6 +50,22 @@
 		"layoutId": {
 			"type": "number",
 			"default": 0
+		},
+		"latestOnly": {
+			"type": "boolean",
+			"default": false
+		},
+		"latestCount": {
+			"type": "number",
+			"default": 5
+		},
+		"allUpdatesLink": {
+			"type": "boolean",
+			"default": true
+		},
+		"hideWhenEnded": {
+			"type": "boolean",
+			"default": false
 		}
 	},
 	"supports": {
