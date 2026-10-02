@@ -285,6 +285,55 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A post that only embeds a capped block is never the coverage page,
+	 * while one that also embeds an uncapped block still can be.
+	 */
+	public function test_page_url_skips_posts_that_only_embed_a_capped_block() {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$coverage_id = self::create_coverage();
+		$full        = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->';
+		$capped      = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . ',"latestOnly":true} /-->';
+
+		$page_id = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_date'    => '2026-01-01 10:00:00',
+				'post_content' => $full,
+			]
+		);
+		$only_capped_id = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_date'    => '2026-02-01 10:00:00',
+				'post_content' => $capped,
+			]
+		);
+
+		$this->assertSame( get_permalink( $page_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'A capped-only post should be skipped.' );
+
+		wp_update_post(
+			[
+				'ID'           => $page_id,
+				'post_content' => $capped,
+			]
+		);
+
+		$this->assertSame( '', Taxonomy::get_coverage_page_url( $coverage_id ), 'With only capped blocks there is no page.' );
+
+		wp_update_post(
+			[
+				'ID'           => $only_capped_id,
+				'post_content' => $capped . '<!-- wp:group --><div class="wp-block-group">' . $full . '</div><!-- /wp:group -->',
+			]
+		);
+
+		$this->assertSame( get_permalink( $only_capped_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'A post with a capped and an uncapped block is eligible.' );
+	}
+
+	/**
 	 * A canonical URL is where share links and notifications send readers,
 	 * so it wins over the newest embedding page.
 	 */

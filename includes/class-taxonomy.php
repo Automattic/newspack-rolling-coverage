@@ -588,7 +588,7 @@ class Taxonomy {
 	/**
 	 * Returns the URL of the page that displays a coverage: its canonical URL
 	 * when set, since share links and notifications send readers there, else
-	 * the newest published post embedding a Rolling Coverage block for it.
+	 * the newest published post embedding an uncapped Rolling Coverage block for it.
 	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return string Page URL, or '' when the coverage has no page.
@@ -632,7 +632,8 @@ class Taxonomy {
 	}
 
 	/**
-	 * Maps each coverage to the newest published post embedding it.
+	 * Maps each coverage to the newest published post embedding it in an uncapped
+	 * block, since a capped block only shows a few entries and links here.
 	 *
 	 * @return array<int,int> Map of coverage term ID => post ID.
 	 */
@@ -663,7 +664,7 @@ class Taxonomy {
 				foreach ( Schema::flatten_blocks( parse_blocks( $post->post_content ) ) as $block ) {
 					$coverage_id = (int) ( $block['attrs']['coverageId'] ?? 0 );
 
-					if ( Schema::BLOCK_NAME === ( $block['blockName'] ?? '' ) && $coverage_id && ! isset( $map[ $coverage_id ] ) ) {
+					if ( Schema::BLOCK_NAME === ( $block['blockName'] ?? '' ) && $coverage_id && empty( $block['attrs']['latestOnly'] ) && ! isset( $map[ $coverage_id ] ) ) {
 						$map[ $coverage_id ] = (int) $post->ID;
 					}
 				}
