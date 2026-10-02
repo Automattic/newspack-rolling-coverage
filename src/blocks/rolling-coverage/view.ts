@@ -336,6 +336,9 @@ function initBlock( root: HTMLElement ): void {
 	const status = root.dataset.status || 'active';
 	const isEntryView = root.dataset.view === 'entry';
 
+	// A Lite Site page renders entries as text, so it asks for them that way.
+	const isLite = root.dataset.lite === '1';
+
 	const coverageId = root.dataset.coverageId || '0';
 
 	let cursor = root.dataset.cursor || '';
@@ -1723,6 +1726,10 @@ function initBlock( root: HTMLElement ): void {
 			url.searchParams.set( 'host_post_id', hostPostId );
 			url.searchParams.set( 'polled_count', polledCount.toString() );
 
+			if ( isLite ) {
+				url.searchParams.set( 'lite', '1' );
+			}
+
 			const response = await fetchEntries( url.toString() );
 			if ( response.ok ) {
 				const data: PollResponse = await response.json();
@@ -1838,6 +1845,10 @@ function initBlock( root: HTMLElement ): void {
 
 			if ( isEntryView ) {
 				url.searchParams.set( 'skip_pinned', '1' );
+			}
+
+			if ( isLite ) {
+				url.searchParams.set( 'lite', '1' );
 			}
 
 			const response = await fetchEntries( url.toString() );
