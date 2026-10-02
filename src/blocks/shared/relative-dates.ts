@@ -115,4 +115,9 @@ function keepRelativeDatesCurrent(
 	};
 }
 
-export { keepRelativeDatesCurrent };
+export {
+	keepRelativeDatesCurrent,
+	getFormatter,
+	refreshRelativeDates,
+	REFRESH_INTERVAL_MS,
+};

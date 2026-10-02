@@ -8,7 +8,7 @@ import { __, _n, sprintf } from '@wordpress/i18n';
  */
 import './style.scss';
 import { trackEvent, isConfigEnabled, EVENTS } from './analytics';
-import { keepRelativeDatesCurrent } from './relative-dates';
+import { keepRelativeDatesCurrent } from '../shared/relative-dates';
 import { POLL_EVENT } from '../shared/poll-event';
 import type { PollEventDetail } from '../shared/poll-event';
 import type {
