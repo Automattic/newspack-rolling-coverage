@@ -637,17 +637,15 @@ function railEntryTemplate(): TemplateItem[] {
 }
 
 /**
- * The time a Clock entry is headed by: the site's time format without its
- * AM/PM marker, which the relative date below it makes redundant.
+ * The time a Clock entry is headed by: hours and minutes on the 24-hour
+ * clock, padded the way the site pads its hours, so the time stays
+ * unambiguous without an AM/PM marker once the relative date below it
+ * only gives the day.
  *
  * @return {string} A PHP date format.
  */
 function clockTimeFormat(): string {
-	return (
-		siteTimeFormat()
-			.replace( /\s*(?<!\\)[aA]/g, '' )
-			.trim() || 'g:i'
-	);
+	return /(?<!\\)[hH]/.test( siteTimeFormat() ) ? 'H:i' : 'G:i';
 }
 
 /**

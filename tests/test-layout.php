@@ -457,7 +457,10 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$this->assertSame( $id, (int) get_option( "rolling_coverage_{$slug}_layout_id" ) );
 		$this->assertSame( $title, get_the_title( $id ) );
 		$this->assertSame( $id, Layout::get_layout_id( $slug ) );
-		$this->assertSame( 200, self::dispatch( 'POST', "/layouts/{$slug}", [ 'content' => self::layout_markup( 'Other' ) ] )->get_status() );
+
+		$second = self::dispatch( 'POST', "/layouts/{$slug}", [ 'content' => self::layout_markup( 'Other' ) ] );
+		$this->assertSame( 200, $second->get_status() );
+		$this->assertSame( $id, $second->get_data()['id'] );
 	}
 
 	/**

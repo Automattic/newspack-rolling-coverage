@@ -59,6 +59,18 @@ class Test_Entry_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Columns that stack keep both gaps on the Newspack Theme: the space
+	 * between stacked columns as well as between columns side by side.
+	 */
+	public function test_stacking_columns_keep_both_gaps_on_the_newspack_theme() {
+		$markup = '<!-- wp:columns {"style":{"spacing":{"blockGap":{"top":"var:preset|spacing|20","left":"var:preset|spacing|40"}}}} --><div class="wp-block-columns"><!-- wp:column --><div class="wp-block-column"><!-- wp:post-date /--></div><!-- /wp:column --></div><!-- /wp:columns -->';
+
+		add_filter( 'template', fn() => 'newspack-theme' );
+
+		$this->assertMatchesRegularExpression( '#<div style="[^"]*gap:var\(--wp--preset--spacing--20\) var\(--wp--preset--spacing--40\)#', self::render( $markup ) );
+	}
+
+	/**
 	 * Entry content drops core's `entry-content` class, which themes style as
 	 * the page's own content; post content elsewhere keeps it.
 	 */
