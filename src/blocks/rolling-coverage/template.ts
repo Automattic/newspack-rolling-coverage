@@ -279,9 +279,12 @@ function shareLink(): TemplateItem {
  * The "See all updates" link to the coverage page, shown once by a capped
  * feed.
  *
+ * @param {Object} attributes Extra paragraph settings, such as its alignment.
  * @return {TemplateItem} The paragraph.
  */
-function allUpdatesLink(): TemplateItem {
+function allUpdatesLink(
+	attributes: Record< string, unknown > = {}
+): TemplateItem {
 	return [
 		'core/paragraph',
 		{
@@ -293,6 +296,7 @@ function allUpdatesLink(): TemplateItem {
 			metadata: {
 				name: __( 'See all updates', 'newspack-rolling-coverage' ),
 			},
+			...attributes,
 		},
 	];
 }
@@ -1206,7 +1210,7 @@ function digestRow( slugs: string[], sizes: string[] ): TemplateItem {
 	];
 }
 
-const FLASH_FEED_STYLE = {
+const FLASH_BAR_STYLE = {
 	color: { background: ACCENT, text: ACCENT_CONTRAST },
 	elements: { link: { color: { text: ACCENT_CONTRAST } } },
 	spacing: {
@@ -1223,9 +1227,30 @@ const FLASH_FEED_LAYOUT = {
 	type: 'flex',
 	orientation: 'horizontal',
 	flexWrap: 'wrap',
-	justifyContent: 'center',
+	justifyContent: 'left',
 	verticalAlignment: 'center',
 };
+
+/**
+ * The Flash layout's bar: a group on the site's accent color spanning the
+ * block, its content laid out at the theme's widths so a wide Feed lines up
+ * with the site's wide content.
+ *
+ * @param {TemplateItem} feed The Feed group.
+ * @return {TemplateItem} The bar.
+ */
+function flashBar( feed: TemplateItem ): TemplateItem {
+	return [
+		'core/group',
+		{
+			lock: LOCKED_IN_PLACE,
+			layout: { type: 'constrained' },
+			style: FLASH_BAR_STYLE,
+			metadata: { name: __( 'Bar', 'newspack-rolling-coverage' ) },
+		},
+		[ feed ],
+	];
+}
 
 /**
  * The Flash layout's per-entry template: the time and the entry's text on one
@@ -1758,10 +1783,11 @@ function emptiedGroupIds(
  * The Feed group holding the layout's items: everything the coverage shows,
  * spaced by its Block spacing.
  *
- * @param {Object[]} items  The items.
- * @param {string}   gap    The space between the items, as a spacing preset.
- * @param {Object}   style  Extra style settings, such as a border or padding.
- * @param {Object}   layout The group's layout, a vertical stack by default.
+ * @param {Object[]} items      The items.
+ * @param {string}   gap        The space between the items, as a spacing preset.
+ * @param {Object}   style      Extra style settings, such as a border or padding.
+ * @param {Object}   layout     The group's layout, a vertical stack by default.
+ * @param {Object}   attributes Extra group settings, such as its alignment.
  * @return {Object} The Feed group.
  */
 function feedTemplate(
@@ -1774,11 +1800,13 @@ function feedTemplate(
 		justifyContent: 'stretch',
 		// A wrapping column sizes each item's height at its fit-content width, so text that wraps narrower leaves space below it.
 		flexWrap: 'nowrap',
-	}
+	},
+	attributes: Record< string, unknown > = {}
 ): TemplateItem {
 	return [
 		'core/group',
 		{
+			...attributes,
 			className: FEED_CLASS,
 			lock: LOCKED_IN_PLACE,
 			layout,
@@ -2467,7 +2495,7 @@ export {
 	digestHeader,
 	digestFooter,
 	flashEntryTemplate,
-	FLASH_FEED_STYLE,
+	flashBar,
 	FLASH_FEED_LAYOUT,
 	DIGEST_FEED_STYLE,
 	ENTRY_ALLOWED_BLOCKS,

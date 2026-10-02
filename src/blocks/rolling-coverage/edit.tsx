@@ -301,6 +301,33 @@ function joinClassNames( classNames: unknown[] ): string {
 }
 
 /**
+ * The flex-child sizing core gives a lone coverage-level block set in the
+ * Feed, for the container its preview sits in, so a block set to fill the
+ * Feed's row fills it in the preview too.
+ *
+ * @param {Object[]} blocks The coverage-level blocks previewed together.
+ * @return {Object|undefined} The container's inline style.
+ */
+function chromePreviewStyle(
+	blocks: TemplateBlocks
+): Record< string, string | number > | undefined {
+	const attributes = blocks.length === 1 ? blocks[ 0 ].attributes : null;
+	const layout = (
+		attributes as { style?: { layout?: Record< string, string > } } | null
+	 )?.style?.layout;
+
+	if ( layout?.selfStretch === 'fill' ) {
+		return { flexGrow: 1 };
+	}
+
+	if ( layout?.selfStretch === 'fixed' && layout.flexSize ) {
+		return { flexShrink: 0, flexBasis: layout.flexSize };
+	}
+
+	return undefined;
+}
+
+/**
  * The Feed group's own classes and styles, for the container a synced
  * layout's preview shows in place of the Feed.
  *
@@ -1888,6 +1915,9 @@ export default function Edit( {
 													blocks={
 														syncedHeaderBlocks
 													}
+													style={ chromePreviewStyle(
+														syncedHeaderBlocks
+													) }
 												/>
 											</BlockContextProvider>
 										) }
@@ -1931,6 +1961,9 @@ export default function Edit( {
 													blocks={
 														syncedFooterBlocks
 													}
+													style={ chromePreviewStyle(
+														syncedFooterBlocks
+													) }
 												/>
 											</BlockContextProvider>
 										) }

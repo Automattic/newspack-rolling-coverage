@@ -21,7 +21,7 @@ import {
 	digestHeader,
 	digestFooter,
 	flashEntryTemplate,
-	FLASH_FEED_STYLE,
+	flashBar,
 	FLASH_FEED_LAYOUT,
 	DIGEST_FEED_STYLE,
 	allUpdatesLink,
@@ -247,23 +247,32 @@ export function digestInnerTemplate(): TemplateItem[] {
 }
 
 /**
- * The Flash layout's inner-blocks template: a full-width strip on the site's
- * accent color holding the coverage's status, the newest entry's time and
- * text, then a link to the coverage page.
+ * The Flash layout's inner-blocks template: a full-width bar on the site's
+ * accent color holding, at the theme's wide width, the coverage's status,
+ * the newest entry's time and text, then a link to the coverage page on the
+ * right.
  *
  * @return {TemplateItem[]} The template.
  */
 export function flashInnerTemplate(): TemplateItem[] {
 	return [
-		feedTemplate(
-			[
-				[ STATUS_BLOCK_NAME, {} ],
-				...flashEntryTemplate(),
-				allUpdatesLink(),
-			],
-			'var:preset|spacing|40',
-			FLASH_FEED_STYLE,
-			FLASH_FEED_LAYOUT
+		flashBar(
+			feedTemplate(
+				[
+					[ STATUS_BLOCK_NAME, {} ],
+					...flashEntryTemplate(),
+					allUpdatesLink( {
+						style: {
+							layout: { selfStretch: 'fill' },
+							typography: { textAlign: 'right' },
+						},
+					} ),
+				],
+				'var:preset|spacing|40',
+				{},
+				FLASH_FEED_LAYOUT,
+				{ align: 'wide' }
+			)
 		),
 	];
 }
