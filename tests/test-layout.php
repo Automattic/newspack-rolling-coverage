@@ -439,6 +439,40 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The first clock and margin creates each publish their layout under its
+	 * own option and title.
+	 *
+	 * @dataProvider data_clock_and_margin
+	 *
+	 * @param string $slug  Built-in layout slug.
+	 * @param string $title Expected pattern title.
+	 */
+	public function test_create_makes_the_clock_and_margin_layouts_once( string $slug, string $title ) {
+		self::log_in_as( 'editor' );
+
+		$response = self::dispatch( 'POST', "/layouts/{$slug}", [ 'content' => self::layout_markup() ] );
+		$this->assertSame( 201, $response->get_status() );
+		$id = $response->get_data()['id'];
+
+		$this->assertSame( $id, (int) get_option( "rolling_coverage_{$slug}_layout_id" ) );
+		$this->assertSame( $title, get_the_title( $id ) );
+		$this->assertSame( $id, Layout::get_layout_id( $slug ) );
+		$this->assertSame( 200, self::dispatch( 'POST', "/layouts/{$slug}", [ 'content' => self::layout_markup( 'Other' ) ] )->get_status() );
+	}
+
+	/**
+	 * The Clock and Margin layouts with their pattern titles.
+	 *
+	 * @return array[]
+	 */
+	public function data_clock_and_margin(): array {
+		return [
+			'clock'  => [ 'clock', 'Rolling Coverage: Clock' ],
+			'margin' => [ 'margin', 'Rolling Coverage: Margin' ],
+		];
+	}
+
+	/**
 	 * A second stream create returns the existing pattern.
 	 */
 	public function test_create_returns_the_existing_stream_layout() {

@@ -38,6 +38,8 @@ const layoutIds: Record< BuiltInLayoutSlug, number > = {
 	default: Number( LAYOUT_IDS.default ) || 0,
 	stream: Number( LAYOUT_IDS.stream ) || 0,
 	rail: Number( LAYOUT_IDS.rail ) || 0,
+	clock: Number( LAYOUT_IDS.clock ) || 0,
+	margin: Number( LAYOUT_IDS.margin ) || 0,
 };
 let layoutCategoryId = Number( LAYOUT_CATEGORY_ID ) || 0;
 const pendingLayouts: Partial<

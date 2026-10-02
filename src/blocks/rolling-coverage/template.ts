@@ -40,35 +40,45 @@ const PINNED_LABEL_CLASS = 'newspack-rolling-coverage-pinned-label';
 /**
  * The pin icon and the pinned label in a row, shown only on pinned entries
  * (see Entry_Bindings::filter_pinned_group()).
+ *
+ * @param {string} [color] The row's text color.
+ * @return {TemplateItem} The row.
  */
-const PINNED_ROW: TemplateItem = [
-	'core/group',
-	{
-		layout: {
-			type: 'flex',
-			flexWrap: 'nowrap',
-			verticalAlignment: 'center',
-		},
-		style: { spacing: { blockGap: '0' } },
-		metadata: { name: __( 'Pinned', 'newspack-rolling-coverage' ) },
-	},
-	[
-		[
-			'core/icon',
-			{ icon: PIN_ICON, style: { dimensions: { width: '24px' } } },
-		],
-		[
-			'core/paragraph',
-			{
-				// The Newspack Theme's class for its heading font, which it also gives the date.
-				className: `use-header-font ${ PINNED_LABEL_CLASS }`,
-				content: __( 'Pinned', 'newspack-rolling-coverage' ),
-				fontSize: 'small',
-				style: { typography: { fontWeight: '700' } },
+function pinnedRow( color?: string ): TemplateItem {
+	return [
+		'core/group',
+		{
+			layout: {
+				type: 'flex',
+				flexWrap: 'nowrap',
+				verticalAlignment: 'center',
 			},
+			style: {
+				...( color ? { color: { text: color } } : {} ),
+				spacing: { blockGap: '0' },
+			},
+			metadata: { name: __( 'Pinned', 'newspack-rolling-coverage' ) },
+		},
+		[
+			[
+				'core/icon',
+				{ icon: PIN_ICON, style: { dimensions: { width: '24px' } } },
+			],
+			[
+				'core/paragraph',
+				{
+					// The Newspack Theme's class for its heading font, which it also gives the date.
+					className: `use-header-font ${ PINNED_LABEL_CLASS }`,
+					content: __( 'Pinned', 'newspack-rolling-coverage' ),
+					fontSize: 'small',
+					style: { typography: { fontWeight: '700' } },
+				},
+			],
 		],
-	],
-];
+	];
+}
+
+const PINNED_ROW = pinnedRow();
 
 /**
  * Class of the group that shows a pinned entry as a card, mirroring
@@ -623,6 +633,215 @@ function railRow( isPinned: boolean ): TemplateItem {
  * @return {TemplateItem[]} The template.
  */
 function railEntryTemplate(): TemplateItem[] {
+	return rowEntryTemplate( railRow );
+}
+
+/**
+ * The time a Clock entry is headed by: the site's time format without its
+ * AM/PM marker, which the relative date below it makes redundant.
+ *
+ * @return {string} A PHP date format.
+ */
+function clockTimeFormat(): string {
+	return (
+		siteTimeFormat()
+			.replace( /\s*(?<!\\)[aA]/g, '' )
+			.trim() || 'g:i'
+	);
+}
+
+/**
+ * Blocks stacked in a vertical flex group, so their Block spacing also
+ * applies on the Newspack Theme (see
+ * Rolling_Coverage_Block::apply_entry_block_gap()).
+ *
+ * @param {string}         name   The group's name in the List View.
+ * @param {TemplateItem[]} blocks The blocks.
+ * @return {TemplateItem} The group.
+ */
+function stack( name: string, blocks: TemplateItem[] ): TemplateItem {
+	return [
+		'core/group',
+		{
+			layout: {
+				type: 'flex',
+				orientation: 'vertical',
+				justifyContent: 'stretch',
+			},
+			style: { spacing: { blockGap: DEFAULT_ENTRY_GAP } },
+			metadata: { name },
+		},
+		blocks,
+	];
+}
+
+/**
+ * An entry's columns, ruled off from the entry above by a top border. The
+ * space below the rule matches the Feed's Block spacing above it, and the
+ * columns stack on narrow screens.
+ *
+ * @param {Object}         border       The top border.
+ * @param {string}         border.color Its color.
+ * @param {string}         border.width Its width.
+ * @param {string}         stackedGap   The space between the stacked columns.
+ * @param {TemplateItem[]} columns      The columns.
+ * @return {TemplateItem} The row.
+ */
+function ruledRow(
+	border: { color: string; width: string },
+	stackedGap: string,
+	columns: TemplateItem[]
+): TemplateItem {
+	return [
+		'core/columns',
+		{
+			style: {
+				border: { top: { ...border, style: 'solid' } },
+				spacing: {
+					blockGap: {
+						top: stackedGap,
+						left: 'var:preset|spacing|40',
+					},
+					padding: { top: 'var:preset|spacing|50' },
+					margin: { top: '0', bottom: '0' },
+				},
+			},
+			metadata: { name: __( 'Row', 'newspack-rolling-coverage' ) },
+		},
+		columns,
+	];
+}
+
+/**
+ * A Clock entry's row: the time set large in a narrow column with the
+ * relative date below it, or on the pinned card the pinned row in the
+ * accent color, then the title, content and links beside it.
+ *
+ * @param {string[]} slugs    The palette's color slugs.
+ * @param {string[]} sizes    The theme's font size slugs.
+ * @param {boolean}  isPinned Whether the row is the pinned card's.
+ * @return {TemplateItem} The row.
+ */
+function clockRow(
+	slugs: string[],
+	sizes: string[],
+	isPinned: boolean
+): TemplateItem {
+	const time: TemplateItem = isPinned
+		? pinnedRow( ACCENT )
+		: stack( __( 'Time', 'newspack-rolling-coverage' ), [
+				[
+					'core/post-date',
+					{
+						...POST_DATE_ATTRIBUTES,
+						format: clockTimeFormat(),
+						fontSize: themeFontSize( sizes, 'xx-large', 'huge' ),
+						style: {
+							color: { text: CONTRAST },
+							typography: { fontWeight: '300' },
+						},
+					},
+				],
+				[
+					'core/post-date',
+					{
+						...POST_DATE_ATTRIBUTES,
+						format: 'human-diff',
+						fontSize: 'small',
+						...mutedDateColor( slugs ),
+						style: { typography: { fontWeight: '600' } },
+					},
+				],
+			] );
+
+	return ruledRow( { color: BORDER_COLOR, width: '1px' }, DEFAULT_ENTRY_GAP, [
+		[
+			'core/column',
+			{
+				width: '9.5rem',
+				metadata: { name: __( 'Time', 'newspack-rolling-coverage' ) },
+			},
+			[ time ],
+		],
+		[
+			'core/column',
+			{ metadata: { name: __( 'Body', 'newspack-rolling-coverage' ) } },
+			[
+				stack( __( 'Entry', 'newspack-rolling-coverage' ), [
+					[ 'core/post-title', { level: 4 } ],
+					postContent(),
+					linksRow( [ readMoreLink(), shareLink() ] ),
+				] ),
+			],
+		],
+	] );
+}
+
+/**
+ * A Margin entry's row: the time, or on the pinned card the pinned row,
+ * the title and the links in a margin column, and the content in the wider
+ * column beside it. The pinned card is ruled off with a heavier rule.
+ *
+ * @param {boolean} isPinned Whether the row is the pinned card's.
+ * @return {TemplateItem} The row.
+ */
+function marginRow( isPinned: boolean ): TemplateItem {
+	const marker: TemplateItem = isPinned
+		? PINNED_ROW
+		: [
+				'core/post-date',
+				{
+					...POST_DATE_ATTRIBUTES,
+					format: siteTimeFormat(),
+					fontSize: 'small',
+				},
+			];
+
+	return ruledRow(
+		isPinned
+			? { color: CONTRAST, width: '3px' }
+			: { color: BORDER_COLOR, width: '1px' },
+		'var:preset|spacing|30',
+		[
+			[
+				'core/column',
+				{
+					width: '33.33%',
+					metadata: {
+						name: __( 'Side', 'newspack-rolling-coverage' ),
+					},
+				},
+				[
+					stack( __( 'Summary', 'newspack-rolling-coverage' ), [
+						marker,
+						[ 'core/post-title', { level: 4 } ],
+						linksRow( [ readMoreLink(), shareLink() ] ),
+					] ),
+				],
+			],
+			[
+				'core/column',
+				{
+					width: '66.66%',
+					metadata: {
+						name: __( 'Body', 'newspack-rolling-coverage' ),
+					},
+				},
+				[ postContent() ],
+			],
+		]
+	);
+}
+
+/**
+ * A per-entry template whose pinned card and entry group each hold one row.
+ *
+ * @param {Function} row Returns the row, given whether it's the pinned card's.
+ * @return {TemplateItem[]} The template.
+ */
+function rowEntryTemplate(
+	row: ( isPinned: boolean ) => TemplateItem
+): TemplateItem[] {
 	return [
 		[
 			'core/group',
@@ -633,7 +852,7 @@ function railEntryTemplate(): TemplateItem[] {
 					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			[ railRow( true ) ],
+			[ row( true ) ],
 		],
 		[
 			'core/group',
@@ -644,9 +863,36 @@ function railEntryTemplate(): TemplateItem[] {
 					name: __( 'Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			[ railRow( false ) ],
+			[ row( false ) ],
 		],
 	];
+}
+
+/**
+ * The Clock layout's per-entry template: each entry headed by the time it
+ * was posted, set large, and ruled off from the one above.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @param {string[]} sizes The theme's font size slugs.
+ * @return {TemplateItem[]} The template.
+ */
+function clockEntryTemplate(
+	slugs: string[],
+	sizes: string[]
+): TemplateItem[] {
+	return rowEntryTemplate( ( isPinned ) =>
+		clockRow( slugs, sizes, isPinned )
+	);
+}
+
+/**
+ * The Margin layout's per-entry template: a broadsheet split, each entry
+ * ruled off from the one above.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+function marginEntryTemplate(): TemplateItem[] {
+	return rowEntryTemplate( marginRow );
 }
 
 /**
@@ -1475,6 +1721,8 @@ export {
 	bulletinEntryTemplate,
 	streamEntryTemplate,
 	railEntryTemplate,
+	clockEntryTemplate,
+	marginEntryTemplate,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_TEMPLATE,
 	feedTemplate,

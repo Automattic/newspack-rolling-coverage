@@ -11,10 +11,13 @@ import {
 	innerTemplate,
 	streamInnerTemplate,
 	railInnerTemplate,
+	clockInnerTemplate,
+	marginInnerTemplate,
 } from './layout';
 import type { TemplateItem } from './types';
 
-export type BuiltInLayoutSlug = 'default' | 'stream' | 'rail';
+export type BuiltInLayoutSlug =
+	'default' | 'stream' | 'rail' | 'clock' | 'margin';
 
 export type BuiltInLayout = {
 	slug: BuiltInLayoutSlug;
@@ -43,6 +46,16 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			slug: 'rail',
 			title: _x( 'Rail', 'layout name', 'newspack-rolling-coverage' ),
 			template: railInnerTemplate,
+		},
+		{
+			slug: 'clock',
+			title: _x( 'Clock', 'layout name', 'newspack-rolling-coverage' ),
+			template: clockInnerTemplate,
+		},
+		{
+			slug: 'margin',
+			title: _x( 'Margin', 'layout name', 'newspack-rolling-coverage' ),
+			template: marginInnerTemplate,
 		},
 	];
 }
