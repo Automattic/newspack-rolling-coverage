@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-02T17:03:43+00:00\n"
+"POT-Creation-Date: 2026-10-02T17:12:08+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -159,7 +159,7 @@ msgstr ""
 
 #. translators: %s: How long ago the newest entry was published, e.g. "2 minutes ago".
 #: includes/blocks/class-coverage-status-block.php:325
-#: dist/blocks/coverage-status/index.js:2
+#: dist/blocks/coverage-status/index.js:6
 #, php-format,js-format
 msgid "Updated %s"
 msgstr ""
@@ -1926,7 +1926,51 @@ msgid "First on the page"
 msgstr ""
 
 #: dist/blocks/coverage-status/index.js:1
+msgid "Labels"
+msgstr ""
+
+#: dist/blocks/coverage-status/index.js:1
+msgctxt "status labels"
+msgid "Default"
+msgstr ""
+
+#. translators: Screen reader name for the “Default” option. Keep the word used to translate “Default”.
+#: dist/blocks/coverage-status/index.js:2
+msgid "Default labels"
+msgstr ""
+
+#: dist/blocks/coverage-status/index.js:2
+msgctxt "status labels"
+msgid "Custom"
+msgstr ""
+
+#. translators: Screen reader name for the “Custom” option. Keep the word used to translate “Custom”.
+#: dist/blocks/coverage-status/index.js:3
+msgid "Custom labels"
+msgstr ""
+
+#: dist/blocks/coverage-status/index.js:3
+msgid "Last updated"
+msgstr ""
+
+#: dist/blocks/coverage-status/index.js:3
+msgctxt "last updated"
+msgid "Show"
+msgstr ""
+
+#. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
+#: dist/blocks/coverage-status/index.js:4
 msgid "Show last updated"
+msgstr ""
+
+#: dist/blocks/coverage-status/index.js:4
+msgctxt "last updated"
+msgid "Hide"
+msgstr ""
+
+#. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
+#: dist/blocks/coverage-status/index.js:5
+msgid "Hide last updated"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
