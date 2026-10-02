@@ -9,6 +9,7 @@
 namespace Newspack_Rolling_Coverage;
 
 use DateTimeImmutable;
+use DateTimeZone;
 use WP_Post;
 use WP_Query;
 use WP_Term;
@@ -205,7 +206,8 @@ class Schema {
 
 		$page_date = self::get_page_date_modified( $post );
 		if ( null !== $page_date ) {
-			$url['mod'] = $page_date->format( 'Y-m-d H:i:s' );
+			// Yoast reads this value as UTC, whatever timezone the site is in.
+			$url['mod'] = gmdate( 'Y-m-d H:i:s', $page_date->getTimestamp() );
 		}
 
 		return $url;
@@ -507,7 +509,7 @@ class Schema {
 			]
 		);
 
-		return empty( $dates ) ? null : max( $dates );
+		return empty( $dates ) ? null : max( $dates )->setTimezone( new DateTimeZone( 'UTC' ) );
 	}
 
 	/**
@@ -517,6 +519,8 @@ class Schema {
 	 * pending and private entry saves move it too. The newest entry by publish
 	 * date counts as well as the newest by edit: an entry published on schedule
 	 * keeps the modified date of its last edit, from before it went live.
+	 *
+	 * The date comes back in UTC, like the dates Yoast prints beside it.
 	 *
 	 * @param int $coverage_id Coverage term id.
 	 * @return DateTimeImmutable|null Latest change, or null when the coverage has no published entries.
@@ -554,7 +558,7 @@ class Schema {
 
 		$dates = array_filter( $dates );
 
-		return empty( $dates ) ? null : max( $dates );
+		return empty( $dates ) ? null : max( $dates )->setTimezone( new DateTimeZone( 'UTC' ) );
 	}
 
 	/**

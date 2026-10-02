@@ -189,21 +189,24 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Yoast's `article:modified_time` and both sitemaps report the same date
-	 * as the structured data.
+	 * Yoast's `article:modified_time` and both sitemaps report the same moment
+	 * as the structured data, each in the form its reader expects: Yoast takes
+	 * UTC, WordPress's sitemap the site's timezone.
 	 */
 	public function test_yoast_meta_and_sitemaps_report_the_newest_published_entry() {
+		update_option( 'timezone_string', 'America/New_York' );
+
 		$coverage_id = self::create_coverage();
 		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
 		$this->create_dated_entry( $coverage_id, '2026-09-03 10:00:00' );
 
 		$presentation = apply_filters( 'wpseo_frontend_presentation', (object) [ 'open_graph_article_modified_time' => '' ], $this->yoast_context( $host_id ) );
 		$yoast_entry  = apply_filters( 'wpseo_sitemap_entry', [ 'mod' => '2026-09-01 10:00:00' ], 'post', $this->sitemap_row( $host_id ) );
-		$core_entry   = apply_filters( 'wp_sitemaps_posts_entry', [ 'lastmod' => '2026-09-01T10:00:00+00:00' ], get_post( $host_id ), 'post' );
+		$core_entry   = apply_filters( 'wp_sitemaps_posts_entry', [ 'lastmod' => '2026-09-01T06:00:00-04:00' ], get_post( $host_id ), 'post' );
 
 		$this->assertSame( '2026-09-03T10:00:00+00:00', $presentation->open_graph_article_modified_time );
-		$this->assertSame( '2026-09-03 10:00:00', $yoast_entry['mod'] );
-		$this->assertSame( '2026-09-03T10:00:00+00:00', $core_entry['lastmod'] );
+		$this->assertSame( '2026-09-03 10:00:00', $yoast_entry['mod'], 'Yoast reads this value as UTC.' );
+		$this->assertSame( '2026-09-03T06:00:00-04:00', $core_entry['lastmod'] );
 	}
 
 	/**
