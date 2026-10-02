@@ -15,11 +15,19 @@ import {
 	marginInnerTemplate,
 	minuteInnerTemplate,
 	wireInnerTemplate,
+	digestInnerTemplate,
 } from './layout';
 import type { TemplateItem } from './types';
 
 export type BuiltInLayoutSlug =
-	'default' | 'stream' | 'rail' | 'clock' | 'margin' | 'minute' | 'wire';
+	| 'default'
+	| 'stream'
+	| 'rail'
+	| 'clock'
+	| 'margin'
+	| 'minute'
+	| 'wire'
+	| 'digest';
 
 export type BuiltInLayout = {
 	slug: BuiltInLayoutSlug;
@@ -71,6 +79,12 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			title: _x( 'Wire', 'layout name', 'newspack-rolling-coverage' ),
 			template: wireInnerTemplate,
 			latest: 5,
+		},
+		{
+			slug: 'digest',
+			title: _x( 'Digest', 'layout name', 'newspack-rolling-coverage' ),
+			template: digestInnerTemplate,
+			latest: 3,
 		},
 	];
 }

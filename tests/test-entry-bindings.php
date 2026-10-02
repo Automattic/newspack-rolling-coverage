@@ -1657,4 +1657,47 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-all-updates' ) );
 		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, 'newspack-rolling-coverage-all-updates' ), 'The link should follow the last entry.' );
 	}
+
+	/**
+	 * A capped feed shaped like the Digest layout renders the name once above
+	 * the entries, and the footer with its link and Follow button once below.
+	 */
+	public function test_digest_shaped_feed_renders_name_above_and_footer_below() {
+		$coverage_id = self::create_coverage( '', [ 'name' => 'Election Night' ] );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/election-night/' );
+		foreach ( [ 'First update', 'Second update', 'Third update', 'Fourth update' ] as $offset => $title ) {
+			self::create_entry(
+				$coverage_id,
+				[
+					'post_title' => $title,
+					'post_date'  => gmdate( 'Y-m-d H:i:s', strtotime( '-' . ( 4 - $offset ) . ' hours' ) ),
+				]
+			);
+		}
+
+		$entry_columns = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. '<!-- wp:columns {"isStackedOnMobile":false} --><div class="wp-block-columns is-not-stacked-on-mobile">'
+			. '<!-- wp:column {"width":"4.5rem"} --><div class="wp-block-column" style="flex-basis:4.5rem"><!-- wp:post-date /--></div><!-- /wp:column -->'
+			. '<!-- wp:column --><div class="wp-block-column"><!-- wp:post-title {"level":4} /--></div><!-- /wp:column -->'
+			. '</div><!-- /wp:columns --></div><!-- /wp:group -->';
+		$footer        = self::group_markup( self::ALL_UPDATES_MARKUP . self::FOLLOW_MARKUP );
+		$html          = self::render_coverage_items(
+			[
+				'coverageId'  => $coverage_id,
+				'latestOnly'  => true,
+				'latestCount' => 3,
+			],
+			self::NAME_HEADING_MARKUP . $entry_columns . $footer
+		);
+
+		$this->assertSame( 1, substr_count( $html, '>Election Night</h2>' ), 'The name should render once.' );
+		$this->assertSame( 3, substr_count( $html, '<article' ), 'Only the newest three entries should render.' );
+		$this->assertStringNotContainsString( 'First update', $html );
+		$this->assertLessThan( strpos( $html, '<article' ), strpos( $html, 'Election Night' ), 'The name should come before the entries.' );
+		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-all-updates' ), 'The link should render once.' );
+		$this->assertStringContainsString( '<a href="https://example.org/election-night/">See all updates</a>', $html );
+		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, 'newspack-rolling-coverage-all-updates' ), 'The footer should follow the last entry.' );
+		$this->assertSame( 1, substr_count( $html, '>Follow</button>' ), 'Follow should render once, in the footer.' );
+		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, '>Follow</button>' ) );
+	}
 }

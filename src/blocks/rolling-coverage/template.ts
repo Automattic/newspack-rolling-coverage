@@ -1057,6 +1057,164 @@ function wireEntryTemplate( slugs: string[], sizes: string[] ): TemplateItem[] {
 	];
 }
 
+const DIGEST_FEED_STYLE = {
+	border: { color: CONTRAST, width: '1px', style: 'solid' },
+	spacing: { padding: 'var:preset|spacing|50' },
+};
+
+/**
+ * The Digest layout's header: the coverage's name as a heading, bound so it
+ * follows the coverage.
+ *
+ * @return {TemplateItem} The heading.
+ */
+function digestHeader(): TemplateItem {
+	return [
+		'core/heading',
+		{
+			level: 3,
+			fontSize: 'large',
+			content: __( 'Live Coverage', 'newspack-rolling-coverage' ),
+			metadata: {
+				name: __( 'Coverage Name', 'newspack-rolling-coverage' ),
+				bindings: {
+					content: {
+						source: ENTRY_BINDINGS_SOURCE,
+						args: { key: 'coverageName' },
+					},
+				},
+			},
+		},
+	];
+}
+
+/**
+ * The Digest layout's footer: the link to the coverage page beside the Follow
+ * button, ruled off from the entries.
+ *
+ * @return {TemplateItem} The group.
+ */
+function digestFooter(): TemplateItem {
+	return [
+		'core/group',
+		{
+			layout: {
+				type: 'flex',
+				flexWrap: 'wrap',
+				justifyContent: 'space-between',
+				verticalAlignment: 'center',
+			},
+			style: {
+				border: {
+					top: {
+						color: BORDER_COLOR,
+						width: '1px',
+						style: 'solid',
+					},
+				},
+				spacing: { padding: { top: 'var:preset|spacing|40' } },
+			},
+			metadata: { name: __( 'Footer', 'newspack-rolling-coverage' ) },
+		},
+		[ allUpdatesLink(), FOLLOW_TEMPLATE ],
+	];
+}
+
+/**
+ * A Digest entry's row: the time in a narrow column, then the headline over a
+ * short excerpt.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @param {string[]} sizes The theme's font size slugs.
+ * @return {TemplateItem} The row.
+ */
+function digestRow( slugs: string[], sizes: string[] ): TemplateItem {
+	return [
+		'core/columns',
+		{
+			isStackedOnMobile: false,
+			style: {
+				border: {
+					top: {
+						color: BORDER_COLOR,
+						width: '1px',
+						style: 'solid',
+					},
+				},
+				spacing: {
+					blockGap: { left: 'var:preset|spacing|30' },
+					padding: { top: 'var:preset|spacing|30' },
+					margin: { top: '0', bottom: '0' },
+				},
+			},
+			metadata: {
+				name: __( 'Row', 'newspack-rolling-coverage' ),
+			},
+		},
+		[
+			[
+				'core/column',
+				{ width: '4.5rem' },
+				[
+					[
+						'core/post-date',
+						{
+							...POST_DATE_ATTRIBUTES,
+							format: siteTimeFormat(),
+							fontSize: 'small',
+							style: { typography: { fontWeight: '700' } },
+						},
+					],
+				],
+			],
+			[
+				'core/column',
+				{},
+				[
+					stack( __( 'Details', 'newspack-rolling-coverage' ), [
+						[
+							'core/post-title',
+							{
+								level: 4,
+								fontSize: themeFontSize(
+									sizes,
+									'medium',
+									'normal'
+								),
+							},
+						],
+						[
+							'core/post-excerpt',
+							{
+								excerptLength: 20,
+								moreText: '',
+								fontSize: 'small',
+								...mutedDateColor( slugs ),
+							},
+						],
+					] ),
+				],
+			],
+		],
+	];
+}
+
+/**
+ * The Digest layout's per-entry template: the time and, beside it, the
+ * headline over a short excerpt, ruled off from the entry above. The pinned
+ * card matches the regular entry, since a capped feed ignores pinning.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @param {string[]} sizes The theme's font size slugs.
+ * @return {TemplateItem[]} The template.
+ */
+function digestEntryTemplate(
+	slugs: string[],
+	sizes: string[]
+): TemplateItem[] {
+	return rowEntryTemplate( () => digestRow( slugs, sizes ) );
+}
+
 /**
  * The follow button, rendered once wherever the layout places it: a core button
  * bound to the coverage's notification tag. It's a `<button>`, so the bound
@@ -1468,11 +1626,13 @@ function allUpdatesBlockIds(
  *
  * @param {Object[]} items The items.
  * @param {string}   gap   The space between the items, as a spacing preset.
+ * @param {Object}   style Extra style settings, such as a border or padding.
  * @return {Object} The Feed group.
  */
 function feedTemplate(
 	items: TemplateItem[],
-	gap = 'var:preset|spacing|50'
+	gap = 'var:preset|spacing|50',
+	style: Record< string, unknown > = {}
 ): TemplateItem {
 	return [
 		'core/group',
@@ -1484,7 +1644,10 @@ function feedTemplate(
 				orientation: 'vertical',
 				justifyContent: 'stretch',
 			},
-			style: { spacing: { blockGap: gap } },
+			style: {
+				...style,
+				spacing: { ...( style.spacing ?? {} ), blockGap: gap },
+			},
 			metadata: { name: __( 'Feed', 'newspack-rolling-coverage' ) },
 		},
 		items,
@@ -2127,6 +2290,10 @@ export {
 	marginEntryTemplate,
 	minuteEntryTemplate,
 	wireEntryTemplate,
+	digestEntryTemplate,
+	digestHeader,
+	digestFooter,
+	DIGEST_FEED_STYLE,
 	ENTRY_ALLOWED_BLOCKS,
 	ALL_UPDATES_CLASS,
 	FOLLOW_BLOCK_NAME,

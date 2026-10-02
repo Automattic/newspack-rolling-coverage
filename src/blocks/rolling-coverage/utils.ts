@@ -42,6 +42,7 @@ const layoutIds: Record< BuiltInLayoutSlug, number > = {
 	margin: Number( LAYOUT_IDS.margin ) || 0,
 	minute: Number( LAYOUT_IDS.minute ) || 0,
 	wire: Number( LAYOUT_IDS.wire ) || 0,
+	digest: Number( LAYOUT_IDS.digest ) || 0,
 };
 let layoutCategoryId = Number( LAYOUT_CATEGORY_ID ) || 0;
 const pendingLayouts: Partial<

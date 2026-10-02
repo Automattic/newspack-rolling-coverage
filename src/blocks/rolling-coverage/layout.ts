@@ -17,6 +17,10 @@ import {
 	marginEntryTemplate,
 	minuteEntryTemplate,
 	wireEntryTemplate,
+	digestEntryTemplate,
+	digestHeader,
+	digestFooter,
+	DIGEST_FEED_STYLE,
 	allUpdatesLink,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_BLOCK_NAME,
@@ -213,6 +217,27 @@ export function wireInnerTemplate(): TemplateItem[] {
 				allUpdatesLink(),
 			],
 			'var:preset|spacing|40'
+		),
+	];
+}
+
+/**
+ * The Digest layout's inner-blocks template: a bordered box with the coverage
+ * name, the latest entries against their times, and a footer holding the link
+ * to the coverage page beside the Follow button.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function digestInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			[
+				digestHeader(),
+				...digestEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
+				digestFooter(),
+			],
+			'var:preset|spacing|40',
+			DIGEST_FEED_STYLE
 		),
 	];
 }

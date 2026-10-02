@@ -1723,7 +1723,10 @@ export default function Edit( {
 										value={ pinnedContext ?? null }
 									>
 										<BlockContextProvider
-											value={ layoutContext }
+											value={ {
+												...layoutContext,
+												...coverageContext,
+											} }
 										>
 											<div { ...innerBlocksProps } />
 										</BlockContextProvider>
