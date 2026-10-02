@@ -1120,11 +1120,27 @@ export default function Edit( {
 				>
 					<ToggleGroupControlOption
 						value="show"
-						label={ __( 'Show', 'newspack-rolling-coverage' ) }
+						label={ _x(
+							'Show',
+							'status indicator',
+							'newspack-rolling-coverage'
+						) }
+						aria-label={ __(
+							'Show status indicator',
+							'newspack-rolling-coverage'
+						) }
 					/>
 					<ToggleGroupControlOption
 						value="hide"
-						label={ __( 'Hide', 'newspack-rolling-coverage' ) }
+						label={ _x(
+							'Hide',
+							'status indicator',
+							'newspack-rolling-coverage'
+						) }
+						aria-label={ __(
+							'Hide status indicator',
+							'newspack-rolling-coverage'
+						) }
 					/>
 				</ToggleGroupControl>
 				{ statusIndicatorShow &&
@@ -1186,11 +1202,27 @@ export default function Edit( {
 				>
 					<ToggleGroupControlOption
 						value="show"
-						label={ __( 'Show', 'newspack-rolling-coverage' ) }
+						label={ _x(
+							'Show',
+							'archived notice',
+							'newspack-rolling-coverage'
+						) }
+						aria-label={ __(
+							'Show archived notice',
+							'newspack-rolling-coverage'
+						) }
 					/>
 					<ToggleGroupControlOption
 						value="hide"
-						label={ __( 'Hide', 'newspack-rolling-coverage' ) }
+						label={ _x(
+							'Hide',
+							'archived notice',
+							'newspack-rolling-coverage'
+						) }
+						aria-label={ __(
+							'Hide archived notice',
+							'newspack-rolling-coverage'
+						) }
 					/>
 				</ToggleGroupControl>
 				{ archivedNoticeShow && (
@@ -1239,15 +1271,25 @@ export default function Edit( {
 						>
 							<ToggleGroupControlOption
 								value="show"
-								label={ __(
+								label={ _x(
 									'Show',
+									'archived notice link',
+									'newspack-rolling-coverage'
+								) }
+								aria-label={ __(
+									'Show link',
 									'newspack-rolling-coverage'
 								) }
 							/>
 							<ToggleGroupControlOption
 								value="hide"
-								label={ __(
+								label={ _x(
 									'Hide',
+									'archived notice link',
+									'newspack-rolling-coverage'
+								) }
+								aria-label={ __(
+									'Hide link',
 									'newspack-rolling-coverage'
 								) }
 							/>
@@ -1409,15 +1451,25 @@ export default function Edit( {
 					>
 						<ToggleGroupControlOption
 							value="enabled"
-							label={ __(
+							label={ _x(
 								'Enabled',
+								'advertising',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={ __(
+								'Advertising enabled',
 								'newspack-rolling-coverage'
 							) }
 						/>
 						<ToggleGroupControlOption
 							value="disabled"
-							label={ __(
+							label={ _x(
 								'Disabled',
+								'advertising',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={ __(
+								'Advertising disabled',
 								'newspack-rolling-coverage'
 							) }
 						/>
