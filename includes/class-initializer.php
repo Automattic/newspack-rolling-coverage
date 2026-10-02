@@ -45,6 +45,7 @@ class Initializer {
 		Ads::init();
 		AI_Service::init();
 		AI_Settings::init();
+		Status_Labels::init();
 		Abilities::init();
 		Schema::init();
 		Coverage_Follow_Block::init();

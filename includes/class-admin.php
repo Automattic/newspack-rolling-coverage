@@ -283,33 +283,35 @@ class Admin {
 		);
 
 		return array(
-			'page'                => $page,
-			'adminTitleSuffix'    => self::$admin_title_suffix,
-			'supportsHandoff'     => class_exists( '\Newspack\Handoff_Banner' ),
-			'restBase'            => array(
+			'page'                 => $page,
+			'adminTitleSuffix'     => self::$admin_title_suffix,
+			'supportsHandoff'      => class_exists( '\Newspack\Handoff_Banner' ),
+			'restBase'             => array(
 				'coverages' => Taxonomy::REST_BASE,
 				'entries'   => Post_Type::REST_BASE,
 				'slack'     => Slack::REST_NAMESPACE,
 			),
-			'restBaseUrls'        => array(
+			'restBaseUrls'         => array(
 				'coverages'     => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
 				'entries'       => esc_url_raw( rest_url( 'wp/v2/' . Post_Type::REST_BASE ) ),
 				'slack'         => esc_url_raw( rest_url( Slack::REST_NAMESPACE . '/' ) ),
 				'breakout'      => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/entries' ) ),
 				'entriesView'   => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 				'aiSettings'    => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . AI_Settings::REST_ROUTE ) ),
+				'statusLabels'  => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Status_Labels::REST_ROUTE ) ),
 				'restNamespace' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/' ) ),
 				'posts'         => esc_url_raw( rest_url( 'wp/v2/posts' ) ),
 			),
-			'nonce'               => wp_create_nonce( 'wp_rest' ),
-			'capabilities'        => array(
+			'nonce'                => wp_create_nonce( 'wp_rest' ),
+			'capabilities'         => array(
 				'canEditPosts'        => current_user_can( 'edit_posts' ),
 				'canEditEntries'      => current_user_can( Post_Type::EDIT_ENTRIES_CAP ),
 				'canManageTerms'      => current_user_can( 'manage_categories' ),
 				'canManageOptions'    => current_user_can( 'manage_options' ),
 				'canManageAiSettings' => current_user_can( 'edit_others_posts' ),
+				'canManageSettings'   => Status_Labels::can_manage(),
 			),
-			'adminUrls'           => array(
+			'adminUrls'            => array(
 				'coverages'          => admin_url( 'admin.php?page=' . self::MENU_SLUG ),
 				'editEntry'          => admin_url( 'post.php?action=edit' ),
 				'newEntry'           => admin_url( 'post-new.php?post_type=' . Post_Type::CPT_SLUG ),
@@ -317,26 +319,28 @@ class Admin {
 				'editUser'           => admin_url( 'user-edit.php' ),
 				'connectorApprovals' => AI_Service::get_connector_approvals_url(),
 			),
-			'postType'            => Post_Type::CPT_SLUG,
-			'taxonomy'            => Taxonomy::TAXONOMY_SLUG,
-			'taxMeta'             => array(
+			'postType'             => Post_Type::CPT_SLUG,
+			'taxonomy'             => Taxonomy::TAXONOMY_SLUG,
+			'taxMeta'              => array(
 				'statusKey'       => Taxonomy::STATUS_META_KEY,
 				'lastModifiedKey' => Rolling_Coverage_Block::LAST_MODIFIED_META_KEY,
 				'canonicalUrlKey' => Taxonomy::CANONICAL_URL_META_KEY,
 				'adsDisabledKey'  => Taxonomy::ADS_DISABLED_META_KEY,
 			),
-			'slack'               => array(
+			'slack'                => array(
 				'isConfigured' => Slack_Config::is_configured(),
 			),
-			'availableAdapters'   => array(
+			'availableAdapters'    => array(
 				'slack' => __( 'Slack', 'newspack-rolling-coverage' ),
 			),
-			'blockEditorSettings' => $block_editor_settings,
-			'aiSettings'          => AI_Settings::get_all(),
-			'aiDefaultSettings'   => AI_Settings::get_defaults(),
-			'aiAvailable'         => AI_Service::is_available(),
-			'aiNeedsApproval'     => AI_Service::needs_connector_approval(),
-			'aiMaxPromptLength'   => AI_Service::MAX_PROMPT_LENGTH,
+			'blockEditorSettings'  => $block_editor_settings,
+			'aiSettings'           => AI_Settings::get_all(),
+			'aiDefaultSettings'    => AI_Settings::get_defaults(),
+			'aiAvailable'          => AI_Service::is_available(),
+			'aiNeedsApproval'      => AI_Service::needs_connector_approval(),
+			'aiMaxPromptLength'    => AI_Service::MAX_PROMPT_LENGTH,
+			'statusLabelDefaults'  => Status_Labels::get_defaults(),
+			'statusLabelMaxLength' => Status_Labels::MAX_LENGTH,
 		);
 	}
 }

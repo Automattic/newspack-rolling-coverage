@@ -1,11 +1,16 @@
 /**
  * WordPress dependencies
  */
-import { __, _x } from '@wordpress/i18n';
+import { __ } from '@wordpress/i18n';
 
 /**
- * The badge for each coverage status, matching the front end's, and the
- * label of the field that sets its text.
+ * Internal dependencies
+ */
+import { STATUS_LABELS } from '../config';
+
+/**
+ * The badge for each coverage status, matching the front end's, its text
+ * when the block sets none, and the label of the field that sets it.
  */
 export const STATUS_BADGES: Record<
 	string,
@@ -14,17 +19,17 @@ export const STATUS_BADGES: Record<
 	active: {
 		className:
 			'newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse',
-		label: _x( 'Live', 'coverage status', 'newspack-rolling-coverage' ),
+		label: STATUS_LABELS.active,
 		field: __( 'Live label', 'newspack-rolling-coverage' ),
 	},
 	paused: {
 		className: 'newspack-ui__badge--secondary',
-		label: _x( 'Paused', 'coverage status', 'newspack-rolling-coverage' ),
+		label: STATUS_LABELS.paused,
 		field: __( 'Paused label', 'newspack-rolling-coverage' ),
 	},
 	archived: {
 		className: 'newspack-ui__badge--error',
-		label: _x( 'Ended', 'coverage status', 'newspack-rolling-coverage' ),
+		label: STATUS_LABELS.archived,
 		field: __( 'Ended label', 'newspack-rolling-coverage' ),
 	},
 };
