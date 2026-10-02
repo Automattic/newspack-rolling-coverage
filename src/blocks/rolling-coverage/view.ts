@@ -1721,12 +1721,12 @@ function initBlock( root: HTMLElement ): void {
 	 * Fetches entries modified at or after the cursor and applies them. Also
 	 * passes the running ad counter so the server can continue the interval
 	 * across poll batches. Takes the place of a poll already scheduled, and
-	 * does nothing while another poll is in flight.
+	 * does nothing while another poll is in flight or the page is hidden.
 	 *
 	 * @return {Promise<void>} Resolves when the poll response has been handled.
 	 */
 	async function poll(): Promise< void > {
-		if ( ! cursor || isPolling ) {
+		if ( ! cursor || isPolling || document.hidden ) {
 			return;
 		}
 
