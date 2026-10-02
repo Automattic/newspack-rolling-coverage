@@ -539,7 +539,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		);
 		$position = strpos( $html, 'newspack-rolling-coverage-status-indicator' );
 
-		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-status-indicator"><span class="newspack-ui__badge newspack-ui__badge--dot newspack-ui__badge--error">Ended</span></div>', $html );
+		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-status-indicator"><span class="newspack-ui__badge newspack-ui__badge--error">Ended</span></div>', $html );
 		$this->assertGreaterThan( strpos( $html, 'newspack-rolling-coverage-feed' ), $position, 'The indicator should sit inside the Feed.' );
 		$this->assertLessThan( strpos( $html, 'newspack-rolling-coverage-archived-notice' ), $position, 'The indicator should come before the archived notice.' );
 	}
@@ -555,11 +555,11 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 			'statusIndicatorShow' => true,
 		];
 
-		$this->assertStringContainsString( 'newspack-ui__badge--dot newspack-ui__badge--success newspack-ui__badge--pulse">Live<', self::render_feed_block( $attributes ), 'Active: a pulsing live badge.' );
+		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse">Live</span>', self::render_feed_block( $attributes ), 'Active: a live badge with a pulsing dot.' );
 
 		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
 
-		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--dot">Paused</span>', self::render_feed_block( $attributes ), 'Paused: a still, neutral badge.' );
+		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--secondary">Paused</span>', self::render_feed_block( $attributes ), 'Paused: a secondary badge without a dot.' );
 
 		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, 'unknown' );
 
@@ -567,8 +567,8 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The block's label for the current status replaces the default, escaped;
-	 * labels for other statuses and blank labels don't.
+	 * The block's label for the coverage's status replaces the default,
+	 * escaped; a blank label or one that isn't text falls back to it.
 	 */
 	public function test_status_indicator_uses_the_label_for_the_status() {
 		$coverage_id = self::create_coverage();
@@ -587,6 +587,18 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
 
 		$this->assertStringContainsString( '>Paused</span>', self::render_feed_block( $attributes ), 'A blank label falls back to the default.' );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$this->assertStringContainsString( '>Over</span>', self::render_feed_block( $attributes ), "The archived status's label." );
+
+		$attributes['statusIndicatorLabels']['archived'] = [ 'Over' ];
+
+		$this->assertStringContainsString( '>Ended</span>', self::render_feed_block( $attributes ), 'A label that is not text falls back to the default.' );
+
+		$attributes['statusIndicatorLabels'] = 'Over';
+
+		$this->assertStringContainsString( '>Ended</span>', self::render_feed_block( $attributes ), 'Labels that are not a list fall back to the defaults.' );
 	}
 
 	/**

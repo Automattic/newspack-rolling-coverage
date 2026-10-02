@@ -1524,11 +1524,11 @@ class Rolling_Coverage_Block {
 
 		$badges = [
 			Taxonomy::STATUS_ACTIVE   => [
-				'class' => 'newspack-ui__badge--success newspack-ui__badge--pulse',
+				'class' => 'newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse',
 				'label' => _x( 'Live', 'coverage status', 'newspack-rolling-coverage' ),
 			],
 			Taxonomy::STATUS_PAUSED   => [
-				'class' => '',
+				'class' => 'newspack-ui__badge--secondary',
 				'label' => _x( 'Paused', 'coverage status', 'newspack-rolling-coverage' ),
 			],
 			Taxonomy::STATUS_ARCHIVED => [
@@ -1543,7 +1543,7 @@ class Rolling_Coverage_Block {
 		return sprintf(
 			'<div class="%s-status-indicator"><span class="%s">%s</span></div>',
 			self::MARKUP_PREFIX,
-			esc_attr( trim( 'newspack-ui__badge newspack-ui__badge--dot ' . $badges[ $status ]['class'] ) ),
+			esc_attr( 'newspack-ui__badge ' . $badges[ $status ]['class'] ),
 			esc_html( '' !== $label ? $label : $badges[ $status ]['label'] )
 		);
 	}
