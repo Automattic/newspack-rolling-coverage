@@ -350,6 +350,11 @@ function initBlock( root: HTMLElement ): void {
 	let pendingNewEntries: PendingEntry[] = [];
 	let polledCount = 0;
 
+	// Whether a poll request is in flight. At most one poll is in flight or
+	// scheduled at a time, so tab switches and back/forward navigation can't
+	// start a second chain of polls.
+	let isPolling = false;
+
 	// The site's minimum poll interval, in seconds; 0 when it sets none. Each
 	// poll brings the current value, so an open page follows it both ways.
 	let minPollInterval =
@@ -471,11 +476,19 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Schedules the next poll, at the block's interval or the site's minimum,
-	 * whichever is longer.
+	 * whichever is longer, in place of any poll already scheduled. Schedules
+	 * none while a poll is in flight, as that poll schedules the next, or
+	 * while the page is hidden, as showing it polls at once.
 	 *
 	 * @return {void}
 	 */
 	function schedulePoll(): void {
+		cancelPoll();
+
+		if ( isPolling || document.hidden ) {
+			return;
+		}
+
 		pollTimeoutId = setTimeout(
 			poll,
 			Math.max( pollInterval, minPollInterval ) * 1000
@@ -1738,14 +1751,18 @@ function initBlock( root: HTMLElement ): void {
 	 *
 	 * Fetches entries modified at or after the cursor and applies them. Also
 	 * passes the running ad counter so the server can continue the interval
-	 * across poll batches.
+	 * across poll batches. Takes the place of a poll already scheduled, and
+	 * does nothing while another poll is in flight or the page is hidden.
 	 *
 	 * @return {Promise<void>} Resolves when the poll response has been handled.
 	 */
 	async function poll(): Promise< void > {
-		if ( ! cursor ) {
+		if ( ! cursor || isPolling || document.hidden ) {
 			return;
 		}
+
+		cancelPoll();
+		isPolling = true;
 
 		try {
 			const url = new URL( restBaseUrl );
@@ -1819,6 +1836,8 @@ function initBlock( root: HTMLElement ): void {
 
 			// Network hiccups shouldn't break the page; the next poll interval retries.
 			console.error( error ); // eslint-disable-line no-console
+		} finally {
+			isPolling = false;
 		}
 
 		if ( ! isDisposed ) {
