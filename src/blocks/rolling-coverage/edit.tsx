@@ -244,7 +244,7 @@ function feedFlexStyle( layout?: Record< string, string > ): {
 }
 
 /**
- * A group's own classes and styles (alignment, layout, colour, border,
+ * A group's own classes and styles (alignment, layout, color, border,
  * spacing, typography), for the container a synced layout's preview shows in
  * place of the group, so it previews as the site renders it.
  *
@@ -321,6 +321,10 @@ function chromePreviewStyle(
 	}
 
 	if ( layout?.selfStretch === 'fixed' && layout.flexSize ) {
+		return { flexBasis: layout.flexSize };
+	}
+
+	if ( layout?.selfStretch === 'fixedNoShrink' && layout.flexSize ) {
 		return { flexShrink: 0, flexBasis: layout.flexSize };
 	}
 

@@ -1926,4 +1926,35 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'newspack-rolling-coverage-regular-entry', $polled );
 		$this->assertStringNotContainsString( 'Before the feed', $polled );
 	}
+
+	/**
+	 * A Feed group two wrapper groups deep renders inside both, the outer one
+	 * outermost, with its entries rendered once.
+	 */
+	public function test_feed_inside_nested_wrapper_groups_renders_inside_both() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id, [ 'post_excerpt' => 'Summary of the nested update' ] );
+
+		$items = '<!-- wp:group {"className":"rc-outer"} --><div class="wp-block-group rc-outer">'
+			. '<!-- wp:group {"className":"rc-inner"} --><div class="wp-block-group rc-inner">'
+			. '<!-- wp:group {"className":"newspack-rolling-coverage-feed","layout":{"type":"flex","orientation":"vertical"}} --><div class="wp-block-group newspack-rolling-coverage-feed">'
+			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. '<!-- wp:post-excerpt /-->'
+			. '</div><!-- /wp:group -->'
+			. '</div><!-- /wp:group -->'
+			. '</div><!-- /wp:group -->'
+			. '</div><!-- /wp:group -->';
+
+		$html = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $items );
+
+		$outer   = strpos( $html, 'rc-outer' );
+		$inner   = strpos( $html, 'rc-inner' );
+		$feed_at = strpos( $html, 'wp-block-group newspack-rolling-coverage-feed' );
+		$article = strpos( $html, '<article' );
+
+		$this->assertTrue( false !== $outer && $outer < $inner && $inner < $feed_at && $feed_at < $article, 'The wrappers should hold the Feed, outer first, and the Feed the entries.' );
+		$this->assertSame( 1, substr_count( $html, '<article' ) );
+		$this->assertSame( 1, substr_count( $html, 'rc-inner' ) );
+		$this->assertStringContainsString( 'Summary of the nested update', $html );
+	}
 }
