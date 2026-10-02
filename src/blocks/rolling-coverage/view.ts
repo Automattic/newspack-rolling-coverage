@@ -341,6 +341,7 @@ function initBlock( root: HTMLElement ): void {
 	let cursor = root.dataset.cursor || '';
 	let before = root.dataset.before || '';
 	let hasMore = root.dataset.hasMore === '1';
+	const latestCap = parseInt( root.dataset.latest || '0', 10 ) || 0;
 	let isLoadingMore = false;
 	let isJumping = false;
 	let linkedObserver: IntersectionObserver | null = null;
@@ -557,6 +558,27 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Removes the oldest entries beyond the cap of a capped feed, and stops
+	 * watching them for being seen.
+	 *
+	 * @return {void}
+	 */
+	function trimToLatestCap(): void {
+		if ( ! latestCap ) {
+			return;
+		}
+
+		const entries = entriesList.querySelectorAll< HTMLElement >(
+			':scope > [data-entry-id]'
+		);
+
+		for ( let i = entries.length - 1; i >= latestCap; i-- ) {
+			unobserveEntry( entries[ i ] );
+			entries[ i ].remove();
+		}
+	}
+
+	/**
 	 * Inserts entries above the newest unpinned entry, below any pinned
 	 * entries, removing the "no entries yet" placeholder if it's still
 	 * present.
@@ -591,7 +613,10 @@ function initBlock( root: HTMLElement ): void {
 		} );
 
 		entriesList.insertBefore( fragment, firstUnpinnedEntry() );
+		trimToLatestCap();
 		dropLastSeparator();
+
+		const shown = Math.min( entries.length, latestCap || entries.length );
 
 		announce(
 			sprintf(
@@ -599,10 +624,10 @@ function initBlock( root: HTMLElement ): void {
 				_n(
 					'%d new post added',
 					'%d new posts added',
-					entries.length,
+					shown,
 					'newspack-rolling-coverage'
 				),
-				entries.length
+				shown
 			)
 		);
 
@@ -1389,6 +1414,8 @@ function initBlock( root: HTMLElement ): void {
 	 * on the page for loadMore(). Inserts or queues newly published entries
 	 * based on the reader's scroll position. When the feed opens at a shared
 	 * entry, new entries are added to the control's count instead of inserted.
+	 * A capped feed inserts new entries at once, whatever the scroll position,
+	 * and ignores edits to entries it doesn't show.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
@@ -1410,6 +1437,10 @@ function initBlock( root: HTMLElement ): void {
 			const entryEl = template.content.firstElementChild as HTMLElement;
 
 			if ( entry.type === 'update' && ! existing ) {
+				if ( latestCap ) {
+					return;
+				}
+
 				offPageUpdates.set( String( entry.id ), entry.html );
 				return;
 			}
@@ -1475,7 +1506,7 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		if ( isScrolledPastTop() ) {
+		if ( ! latestCap && isScrolledPastTop() ) {
 			queueNewEntries( newEntries );
 		} else {
 			insertNewEntries( newEntries );
@@ -1737,8 +1768,15 @@ function initBlock( root: HTMLElement ): void {
 			const url = new URL( restBaseUrl );
 			url.searchParams.set( 'cursor', cursor );
 			url.searchParams.set( 'template_key', templateKey );
-			url.searchParams.set( 'host_post_id', hostPostId );
-			url.searchParams.set( 'polled_count', polledCount.toString() );
+
+			// A capped feed shows no Share or ads, so it leaves out the page
+			// and ad count; every page holding it then shares one cached reply.
+			if ( latestCap ) {
+				url.searchParams.set( 'latest', String( latestCap ) );
+			} else {
+				url.searchParams.set( 'host_post_id', hostPostId );
+				url.searchParams.set( 'polled_count', polledCount.toString() );
+			}
 
 			const response = await fetchEntries( url.toString() );
 			if ( response.ok ) {
@@ -1763,6 +1801,17 @@ function initBlock( root: HTMLElement ): void {
 					);
 				}
 
+				// Pages rendered before the coverage ended, open or cached, close
+				// up the way a fresh render does.
+				if (
+					data.status === 'archived' &&
+					root.dataset.hideWhenEnded === 'true'
+				) {
+					cleanup();
+					root.remove();
+					return;
+				}
+
 				if ( data.overflow && isEntryView ) {
 					// A reload lands on the same shared URL, so there is nothing
 					// to gain from one, and every later poll overflows from the
@@ -1772,7 +1821,13 @@ function initBlock( root: HTMLElement ): void {
 					return;
 				}
 
-				if ( data.overflow && shouldReloadForOverflow() ) {
+				// A capped feed shares its page with other content, so it never
+				// reloads it; its polls send the newest entries instead.
+				if (
+					data.overflow &&
+					! latestCap &&
+					shouldReloadForOverflow()
+				) {
 					window.location.reload();
 					return;
 				}
@@ -1852,8 +1907,13 @@ function initBlock( root: HTMLElement ): void {
 			url.searchParams.set( 'before', before );
 			url.searchParams.set( 'per_page', String( entriesPerPage ) );
 			url.searchParams.set( 'template_key', templateKey );
-			url.searchParams.set( 'host_post_id', hostPostId );
 			url.searchParams.set( 'entry_offset', backlogOffset.toString() );
+
+			if ( latestCap ) {
+				url.searchParams.set( 'latest', String( latestCap ) );
+			} else {
+				url.searchParams.set( 'host_post_id', hostPostId );
+			}
 
 			if ( isEntryView ) {
 				url.searchParams.set( 'skip_pinned', '1' );

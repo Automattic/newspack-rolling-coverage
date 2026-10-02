@@ -226,10 +226,94 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Pages still cached with the previous layout's key keep loading it, so
-	 * only the config from two layout edits ago is dropped.
+	 * Pages still cached with an earlier layout's key keep loading it: only
+	 * the oldest config beyond Rolling_Coverage_Block::CONFIGS_KEPT is dropped.
 	 */
-	public function test_pattern_edit_keeps_the_previous_block_config() {
+	public function test_pattern_edit_keeps_the_recent_block_configs() {
+		$coverage_id = self::create_coverage();
+		$persist     = new ReflectionMethod( Rolling_Coverage_Block::class, 'persist_block_config' );
+		$load        = new ReflectionMethod( Rolling_Coverage_Block::class, 'load_block_config' );
+		$persist->setAccessible( true );
+		$load->setAccessible( true );
+
+		$kept      = Rolling_Coverage_Block::CONFIGS_KEPT;
+		$templates = [];
+		$keys      = [];
+		for ( $i = 0; $i <= $kept; $i++ ) {
+			$template    = parse_blocks( '<!-- wp:paragraph --><p>Config ' . $i . '</p><!-- /wp:paragraph -->' );
+			$templates[] = $template;
+			$keys[]      = $persist->invoke( null, $coverage_id, $template, true, 4 );
+		}
+
+		$this->assertFalse( get_option( Rolling_Coverage_Block::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $keys[0] ) );
+		for ( $i = 1; $i <= $kept; $i++ ) {
+			$this->assertSame( $templates[ $i ], $load->invoke( null, $coverage_id, $keys[ $i ] )['template'] );
+		}
+	}
+
+	/**
+	 * Re-rendering the config that is next to be dropped makes it the most
+	 * recent instead of storing it twice, so it outlives the next new config.
+	 */
+	public function test_rerendering_the_next_config_to_drop_keeps_it() {
+		$coverage_id = self::create_coverage();
+		$persist     = new ReflectionMethod( Rolling_Coverage_Block::class, 'persist_block_config' );
+		$persist->setAccessible( true );
+
+		$kept = Rolling_Coverage_Block::CONFIGS_KEPT;
+		$keys = [];
+		for ( $i = 0; $i < $kept; $i++ ) {
+			$keys[] = $persist->invoke( null, $coverage_id, parse_blocks( '<!-- wp:paragraph --><p>Config ' . $i . '</p><!-- /wp:paragraph -->' ), true, 4 );
+		}
+
+		$persist->invoke( null, $coverage_id, parse_blocks( '<!-- wp:paragraph --><p>Config 0</p><!-- /wp:paragraph -->' ), true, 4 );
+		$persist->invoke( null, $coverage_id, parse_blocks( '<!-- wp:paragraph --><p>Newer</p><!-- /wp:paragraph -->' ), true, 4 );
+
+		$this->assertIsArray( get_option( Rolling_Coverage_Block::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $keys[0] ) );
+		$this->assertFalse( get_option( Rolling_Coverage_Block::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $keys[1] ) );
+	}
+
+	/**
+	 * Rendering configs that are already stored writes no term meta, so
+	 * steady-state front-end renders do not flush the site's term caches.
+	 */
+	public function test_rendering_stored_configs_writes_no_term_meta() {
+		$coverage_id = self::create_coverage();
+		$persist     = new ReflectionMethod( Rolling_Coverage_Block::class, 'persist_block_config' );
+		$persist->setAccessible( true );
+
+		$templates = [];
+		for ( $i = 0; $i < Rolling_Coverage_Block::CONFIGS_KEPT - 1; $i++ ) {
+			$templates[] = parse_blocks( '<!-- wp:paragraph --><p>Config ' . $i . '</p><!-- /wp:paragraph -->' );
+			$persist->invoke( null, $coverage_id, $templates[ $i ], true, 4 );
+		}
+
+		$writes  = 0;
+		$counter = function () use ( &$writes ) {
+			$writes++;
+		};
+		$before  = get_term_meta( $coverage_id, 'rolling_coverage_template_hashes', true );
+		foreach ( [ 'added_term_meta', 'updated_term_meta' ] as $hook ) {
+			add_action( $hook, $counter );
+		}
+
+		foreach ( [ 0, 3, 1, 2, 0, 1 ] as $i ) {
+			$persist->invoke( null, $coverage_id, $templates[ $i ], true, 4 );
+		}
+
+		foreach ( [ 'added_term_meta', 'updated_term_meta' ] as $hook ) {
+			remove_action( $hook, $counter );
+		}
+
+		$this->assertSame( 0, $writes );
+		$this->assertSame( $before, get_term_meta( $coverage_id, 'rolling_coverage_template_hashes', true ) );
+	}
+
+	/**
+	 * Three layouts on one coverage (for example a page, a sidebar and a
+	 * footer) keep loading while unrelated layout edits churn the list.
+	 */
+	public function test_three_layouts_on_one_coverage_all_load() {
 		$coverage_id = self::create_coverage();
 		$persist     = new ReflectionMethod( Rolling_Coverage_Block::class, 'persist_block_config' );
 		$load        = new ReflectionMethod( Rolling_Coverage_Block::class, 'load_block_config' );
@@ -238,17 +322,22 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 
 		$templates = [];
 		$keys      = [];
-		foreach ( [ 'First', 'Second', 'Third' ] as $text ) {
-			$template    = parse_blocks( '<!-- wp:paragraph --><p>' . $text . '</p><!-- /wp:paragraph -->' );
+		foreach ( [ 'wire', 'flash', 'digest' ] as $name ) {
+			$template    = parse_blocks( '<!-- wp:paragraph --><p>' . $name . '</p><!-- /wp:paragraph -->' );
 			$templates[] = $template;
-			$keys[]      = $persist->invoke( null, $coverage_id, $template, true, 4 );
+			$keys[]      = $persist->invoke( null, $coverage_id, $template, false, 4 );
 		}
 
-		$this->assertFalse( get_option( Rolling_Coverage_Block::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $keys[0] ) );
-		$this->assertIsArray( get_option( Rolling_Coverage_Block::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $keys[1] ) );
-		$this->assertIsArray( get_option( Rolling_Coverage_Block::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $keys[2] ) );
-		$this->assertSame( $templates[1], $load->invoke( null, $coverage_id, $keys[1] )['template'] );
-		$this->assertSame( $templates[2], $load->invoke( null, $coverage_id, $keys[2] )['template'] );
+		for ( $edit = 0; $edit < 6; $edit++ ) {
+			$persist->invoke( null, $coverage_id, parse_blocks( '<!-- wp:paragraph --><p>Edit ' . $edit . '</p><!-- /wp:paragraph -->' ), false, 4 );
+			foreach ( $templates as $template ) {
+				$persist->invoke( null, $coverage_id, $template, false, 4 );
+			}
+		}
+
+		foreach ( $keys as $i => $key ) {
+			$this->assertSame( $templates[ $i ], $load->invoke( null, $coverage_id, $key )['template'] );
+		}
 	}
 
 	/**
@@ -439,15 +528,15 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The first clock and margin creates each publish their layout under its
-	 * own option and title.
+	 * The first create of each built-in layout publishes it under its own
+	 * option and title; a second returns the same pattern.
 	 *
-	 * @dataProvider data_clock_and_margin
+	 * @dataProvider data_built_in_layouts
 	 *
 	 * @param string $slug  Built-in layout slug.
 	 * @param string $title Expected pattern title.
 	 */
-	public function test_create_makes_the_clock_and_margin_layouts_once( string $slug, string $title ) {
+	public function test_create_makes_each_built_in_layout_once( string $slug, string $title ) {
 		self::log_in_as( 'editor' );
 
 		$response = self::dispatch( 'POST', "/layouts/{$slug}", [ 'content' => self::layout_markup() ] );
@@ -464,14 +553,18 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The Clock and Margin layouts with their pattern titles.
+	 * Built-in layouts with their pattern titles.
 	 *
 	 * @return array[]
 	 */
-	public function data_clock_and_margin(): array {
+	public function data_built_in_layouts(): array {
 		return [
 			'clock'  => [ 'clock', 'Rolling Coverage: Clock' ],
 			'margin' => [ 'margin', 'Rolling Coverage: Margin' ],
+			'minute' => [ 'minute', 'Rolling Coverage: Minute' ],
+			'wire'   => [ 'wire', 'Rolling Coverage: Wire' ],
+			'digest' => [ 'digest', 'Rolling Coverage: Digest' ],
+			'flash'  => [ 'flash', 'Rolling Coverage: Flash' ],
 		];
 	}
 

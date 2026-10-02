@@ -37,6 +37,8 @@ import {
 	Notice,
 	Placeholder,
 	TextareaControl,
+	ToggleControl,
+	RadioControl,
 	ToolbarButton,
 } from '@wordpress/components';
 import {
@@ -75,13 +77,17 @@ import {
 	PREVIEW_COVERAGE_ID,
 } from './utils';
 import {
-	feedGroupOf,
+	feedPathOf,
 	feedItems,
-	isFollowButtons,
+	followBlockIds,
+	allUpdatesBlockIds,
+	emptiedGroupIds,
+	withoutAllUpdatesParagraph,
 	isPinnedCard,
 	isRegularEntry,
 	forEntryKind,
 	breakoutBlockIds,
+	withoutFollowButtons,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -90,6 +96,7 @@ import {
 	ONESIGNAL_CONFIGURED,
 	STATUS_LABELS,
 } from './config';
+import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
 import { useSampleEntries } from './samples';
 import EntryBlockPreview from './components/entry-block-preview';
 import LoadingState from './components/loading-state';
@@ -97,15 +104,15 @@ import LayoutPickerModal, {
 	type LayoutChoice,
 	layoutsQuery,
 } from './components/layout-picker-modal';
-import { getBuiltInLayouts, builtInLayoutSlugFor } from './layouts';
+import {
+	getBuiltInLayouts,
+	builtInLayoutSlugFor,
+	switchLayoutAttributes,
+	type BuiltInLayoutSlug,
+} from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
 import { blockGapCss } from './spacing';
-import {
-	BLOCK_NAME,
-	FOLLOW_BLOCK_NAME,
-	innerTemplate,
-	useLayoutPreview,
-} from './layout';
+import { BLOCK_NAME, innerTemplate, useLayoutPreview } from './layout';
 import type {
 	CoverageOption,
 	ApplyNotice,
@@ -163,19 +170,93 @@ function feedGapStyle( feed?: {
 	return gap ? { '--newspack-rolling-coverage-gap': gap } : {};
 }
 
+const FLEX_JUSTIFY: Record< string, string > = {
+	left: 'flex-start',
+	right: 'flex-end',
+	center: 'center',
+};
+
+const FLEX_VERTICAL: Record< string, string > = {
+	top: 'flex-start',
+	center: 'center',
+	bottom: 'flex-end',
+};
+
 /**
- * The Feed group's own classes and styles (colour, border, spacing,
- * typography), for the container a synced layout's preview shows in place
- * of the Feed, so it previews as the site renders it.
+ * The flex declarations core's layout support emits for a Feed group, so the
+ * preview container lays out its children the same way. A layout that isn't
+ * flex has none: the stylesheet lays it out as a column.
  *
- * @param {Object} feed The layout's Feed group.
- * @return {Object} The container's className and style.
+ * @param {Object} layout The Feed group's layout attribute.
+ * @return {Object|null} The container's inline style, or null.
  */
-function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
-	className: string;
+function feedFlexStyle( layout?: Record< string, string > ): {
+	[ key: string ]: string;
+} | null {
+	if ( layout?.type !== 'flex' ) {
+		return null;
+	}
+
+	const { justifyContent, verticalAlignment } = layout;
+
+	if ( layout.orientation !== 'vertical' ) {
+		const justify: Record< string, string > = {
+			...FLEX_JUSTIFY,
+			'space-between': 'space-between',
+		};
+		const vertical: Record< string, string > = {
+			...FLEX_VERTICAL,
+			stretch: 'stretch',
+		};
+
+		return {
+			flexDirection: 'row',
+			flexWrap: layout.flexWrap === 'nowrap' ? 'nowrap' : 'wrap',
+			...( justifyContent && justify[ justifyContent ]
+				? { justifyContent: justify[ justifyContent ] }
+				: {} ),
+			...( verticalAlignment && vertical[ verticalAlignment ]
+				? { alignItems: vertical[ verticalAlignment ] }
+				: {} ),
+		};
+	}
+
+	const justify: Record< string, string > = {
+		...FLEX_JUSTIFY,
+		stretch: 'stretch',
+	};
+	const vertical: Record< string, string > = {
+		...FLEX_VERTICAL,
+		'space-between': 'space-between',
+	};
+
+	return {
+		flexDirection: 'column',
+		...( layout.flexWrap === 'nowrap' ? { flexWrap: 'nowrap' } : {} ),
+		alignItems:
+			justifyContent && justify[ justifyContent ]
+				? justify[ justifyContent ]
+				: 'flex-start',
+		...( verticalAlignment && vertical[ verticalAlignment ]
+			? { justifyContent: vertical[ verticalAlignment ] }
+			: {} ),
+	};
+}
+
+/**
+ * A group's own classes and styles (alignment, layout, color, border,
+ * spacing, typography), for the container a synced layout's preview shows in
+ * place of the group, so it previews as the site renders it.
+ *
+ * @param {Object} group The group.
+ * @return {Object} The container's classNames and style.
+ */
+function groupPreviewParts( group?: { [ key: string ]: unknown } ): {
+	classNames: unknown[];
 	style: Record< string, unknown >;
 } {
-	const attributes = ( feed?.attributes ?? {} ) as Record< string, unknown >;
+	const attributes = ( group?.attributes ?? {} ) as Record< string, unknown >;
+	const layout = attributes.layout as Record< string, string > | undefined;
 	const parts = [
 		getColorClassesAndStyles( attributes ),
 		getBorderClassesAndStyles( attributes ),
@@ -184,20 +265,143 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
 		getShadowClassesAndStyles( attributes ),
 		getDimensionsClassesAndStyles( attributes ),
 	];
-	const classNames = [
-		'wp-block-group',
-		'newspack-rolling-coverage-feed',
-		attributes.className,
-		...parts.map( ( part ) => part.className ),
-	]
+	const flexStyle = feedFlexStyle( layout );
+
+	return {
+		classNames: [
+			flexStyle ? 'is-layout-flex' : '',
+			layout?.type === 'constrained' ? 'is-layout-constrained' : '',
+			attributes.className,
+			...parts.map( ( part ) => part.className ),
+			typeof attributes.align === 'string'
+				? `align${ attributes.align }`
+				: '',
+		],
+		style: Object.assign(
+			{},
+			flexStyle ?? {},
+			...parts.map( ( part ) => part.style )
+		),
+	};
+}
+
+/**
+ * A container's className from a list of class names.
+ *
+ * @param {Array} classNames The class names, possibly empty or space-separated.
+ * @return {string} The className.
+ */
+function joinClassNames( classNames: unknown[] ): string {
+	const names = classNames
 		.filter( ( name ): name is string => typeof name === 'string' )
 		.flatMap( ( name ) => name.split( ' ' ) )
 		.filter( Boolean );
 
+	return [ ...new Set( names ) ].join( ' ' );
+}
+
+/**
+ * The flex-child sizing core gives a lone coverage-level block set in the
+ * Feed, for the container its preview sits in, so a block set to fill the
+ * Feed's row fills it in the preview too.
+ *
+ * @param {Object[]} blocks The coverage-level blocks previewed together.
+ * @return {Object|undefined} The container's inline style.
+ */
+function chromePreviewStyle(
+	blocks: TemplateBlocks
+): Record< string, string | number > | undefined {
+	const attributes = blocks.length === 1 ? blocks[ 0 ].attributes : null;
+	const layout = (
+		attributes as { style?: { layout?: Record< string, string > } } | null
+	 )?.style?.layout;
+
+	if ( layout?.selfStretch === 'fill' ) {
+		return { flexGrow: 1 };
+	}
+
+	if ( layout?.selfStretch === 'fixed' && layout.flexSize ) {
+		return { flexBasis: layout.flexSize };
+	}
+
+	if ( layout?.selfStretch === 'fixedNoShrink' && layout.flexSize ) {
+		return { flexShrink: 0, flexBasis: layout.flexSize };
+	}
+
+	return undefined;
+}
+
+/**
+ * The Feed group's own classes and styles, for the container a synced
+ * layout's preview shows in place of the Feed.
+ *
+ * @param {Object} feed The layout's Feed group.
+ * @return {Object} The container's className and style.
+ */
+function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
+	className: string;
+	style: Record< string, unknown >;
+} {
+	const { classNames, style } = groupPreviewParts( feed );
+
 	return {
-		className: [ ...new Set( classNames ) ].join( ' ' ),
-		style: Object.assign( {}, ...parts.map( ( part ) => part.style ) ),
+		className: joinClassNames( [
+			'wp-block-group',
+			'newspack-rolling-coverage-feed',
+			...classNames,
+		] ),
+		style,
 	};
+}
+
+/**
+ * The groups wrapping a synced layout's Feed, previewed around it with
+ * their own classes, styles and other blocks, as the site renders them.
+ *
+ * @param {Object}      props          Component props.
+ * @param {Object[]}    props.path     The groups leading to the Feed, the Feed last.
+ * @param {Object}      props.context  The coverage's block context.
+ * @param {JSX.Element} props.children The Feed's preview.
+ * @return {JSX.Element} The Feed's preview inside its wrappers.
+ */
+function FeedWrappersPreview( {
+	path,
+	context,
+	children,
+}: {
+	path: TemplateBlocks;
+	context: Record< string, unknown >;
+	children: JSX.Element;
+} ): JSX.Element {
+	return path.slice( 0, -1 ).reduceRight( ( inner, wrapper, index ) => {
+		const siblings = ( wrapper.innerBlocks ?? [] ) as TemplateBlocks;
+		const position = siblings.indexOf( path[ index + 1 ] );
+		const before = siblings.slice( 0, Math.max( position, 0 ) );
+		const after = position < 0 ? [] : siblings.slice( position + 1 );
+		const { classNames, style } = groupPreviewParts( wrapper );
+
+		return (
+			<div
+				className={ joinClassNames( [
+					'wp-block-group',
+					...classNames,
+				] ) }
+				style={ style }
+			>
+				{ before.length > 0 && (
+					<BlockContextProvider value={ context }>
+						<EntryBlockPreview blocks={ before } />
+					</BlockContextProvider>
+				) }
+				{ inner }
+				{ after.length > 0 && (
+					<BlockContextProvider value={ context }>
+						<EntryBlockPreview blocks={ after } />
+					</BlockContextProvider>
+				) }
+			</div>
+		);
+	}, children );
 }
 
 export default function Edit( {
@@ -207,16 +411,21 @@ export default function Edit( {
 }: EditProps ) {
 	const {
 		coverageId,
+		latestOnly,
+		latestCount,
+		allUpdatesLink,
 		pollInterval,
 		entriesPerPage,
 		enableAds,
 		adsInterval,
+		hideWhenEnded,
 		archivedNoticeShow,
 		archivedNotice,
 		archivedNoticeShowLink,
 		archivedNoticeLinkUrl,
 		archivedNoticeLinkLabel,
 		layoutId,
+		align,
 	} = attributes;
 	const { currentPostType, currentPostId, patternCategories } = useSelect(
 		( select ) => {
@@ -262,6 +471,15 @@ export default function Edit( {
 		currentPostType === 'wp_block' &&
 		( ( patternCategories ?? [] ).includes( getLayoutCategoryId() ) ||
 			builtInLayoutSlugFor( currentPostId ) !== null );
+	// The pattern itself carries no cap, so its preview borrows the one picking the layout sets.
+	const patternLatest = isLayoutPattern
+		? getBuiltInLayouts().find(
+				( layout ) =>
+					layout.slug === builtInLayoutSlugFor( currentPostId )
+			)?.latest
+		: undefined;
+	const isCapped = patternLatest ? true : !! latestOnly;
+	const cappedCount = patternLatest ?? latestCount;
 	const innerBlockCount = useSelect(
 		( select ) =>
 			(
@@ -277,6 +495,9 @@ export default function Edit( {
 		isPreviewMode && ! coverageId && ! layoutId && innerBlockCount > 0;
 	const showsSamples = isLayoutPattern || isSamplePreview;
 	const [ isPickingLayout, setIsPickingLayout ] = useState( false );
+	const [ latestCountInput, setLatestCountInput ] = useState< string | null >(
+		null
+	);
 	const registry = useRegistry();
 	const isSynced = layoutId > 0 && ! isNested;
 	const defaultTemplate = useMemo( innerTemplate, [] );
@@ -513,19 +734,29 @@ export default function Edit( {
 		[ defaultTemplate ]
 	);
 	const syncedBlocks = layoutBlocks ?? defaultLayoutBlocks;
-	const feedGroup = feedGroupOf( isSynced ? syncedBlocks : innerBlocks );
+	const feedPath = feedPathOf( isSynced ? syncedBlocks : innerBlocks );
+	const feedGroup = feedPath[ feedPath.length - 1 ];
 	const blockProps = useBlockProps( {
 		style: feedGapStyle( feedGroup ),
 	} );
 
 	const allSampleContexts = useSampleEntries( showsSamples );
-	const sampleContexts = useMemo(
-		() =>
-			isSamplePreview
-				? allSampleContexts.slice( 0, entriesPerPage )
-				: allSampleContexts,
-		[ allSampleContexts, isSamplePreview, entriesPerPage ]
-	);
+	const sampleContexts = useMemo( () => {
+		if ( isCapped ) {
+			return allSampleContexts
+				.slice( 0, cappedCount )
+				.map( ( context ) => ( { ...context, pinned: false } ) );
+		}
+		return isSamplePreview
+			? allSampleContexts.slice( 0, entriesPerPage )
+			: allSampleContexts;
+	}, [
+		allSampleContexts,
+		isSamplePreview,
+		entriesPerPage,
+		isCapped,
+		cappedCount,
+	] );
 	const entriesCoverageId = isChoosing
 		? 0
 		: coverageId || ( isLayoutPattern ? PREVIEW_COVERAGE_ID : 0 );
@@ -541,11 +772,13 @@ export default function Edit( {
 		showsSamples && entryContexts.length === 0
 			? sampleContexts
 			: entryContexts;
-	const { templateBlocks, blocksForEntry } = useLayoutPreview(
-		isSynced ? feedItems( syncedBlocks ) : allBlocks,
-		previewContexts,
-		entriesPerPage
-	);
+	const { headerBlocks, footerBlocks, templateBlocks, blocksForEntry } =
+		useLayoutPreview(
+			isSynced ? feedItems( syncedBlocks ) : allBlocks,
+			previewContexts,
+			entriesPerPage,
+			isCapped
+		);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
 		[ templateBlocks ]
@@ -562,6 +795,7 @@ export default function Edit( {
 	// coverage is archived. It stays in the template for when it can render.
 	const isFollowHidden =
 		! ONESIGNAL_CONFIGURED || currentCoverage?.status === 'archived';
+	const isAllUpdatesHidden = ! isCapped || allUpdatesLink === false;
 	// An editable layout previews the pinned card against the pinned entry
 	// and the entry group against one that isn't pinned, and leaves out the
 	// one the coverage has no entry for, and "Read more" where the entry
@@ -584,6 +818,10 @@ export default function Edit( {
 		: previewContexts[ 0 ];
 	const layoutContext =
 		regularContext ?? pinnedContext ?? NEUTRAL_ENTRY_CONTEXT;
+	const coverageContext = useMemo(
+		() => ( { [ COVERAGE_ID_CONTEXT ]: entriesCoverageId } ),
+		[ entriesCoverageId ]
+	);
 	const isCardHidden = hasBothKinds && ! pinnedContext;
 	const isEntryHidden = hasBothKinds && ! regularContext && !! pinnedContext;
 	const hidesCardBreakout = pinnedContext
@@ -592,14 +830,13 @@ export default function Edit( {
 	const hidesEntryBreakout = regularContext
 		? ! regularContext.hasBreakout
 		: false;
-	const hiddenIds = useMemo(
-		() => [
+	const hiddenIds = useMemo( () => {
+		const ids = [
+			...( isFollowHidden ? followBlockIds( allBlocks ) : [] ),
+			...( isAllUpdatesHidden ? allUpdatesBlockIds( allBlocks ) : [] ),
 			...allBlocks
 				.filter(
 					( block, index ) =>
-						( isFollowHidden &&
-							( block.name === FOLLOW_BLOCK_NAME ||
-								isFollowButtons( block ) ) ) ||
 						( isCardHidden && isPinnedCard( block ) ) ||
 						( isEntryHidden &&
 							( isRegularEntry( block ) ||
@@ -614,17 +851,19 @@ export default function Edit( {
 						: hidesEntryBreakout
 				)
 			),
-		],
-		[
-			allBlocks,
-			isFollowHidden,
-			isCardHidden,
-			isEntryHidden,
-			pinnedContext,
-			hidesCardBreakout,
-			hidesEntryBreakout,
-		]
-	);
+		];
+
+		return [ ...ids, ...emptiedGroupIds( allBlocks, ids ) ];
+	}, [
+		allBlocks,
+		isFollowHidden,
+		isAllUpdatesHidden,
+		isCardHidden,
+		isEntryHidden,
+		pinnedContext,
+		hidesCardBreakout,
+		hidesEntryBreakout,
+	] );
 	const hiddenKey = hiddenIds.join( ',' );
 	useEffect( () => {
 		const ids = hiddenKey ? hiddenKey.split( ',' ) : [];
@@ -643,22 +882,22 @@ export default function Edit( {
 		[ hiddenIds ]
 	);
 
-	const syncedRenderOnceBlocks = useMemo(
-		() =>
-			feedItems( syncedBlocks )
-				.filter(
-					( block ) =>
-						block.name === FOLLOW_BLOCK_NAME ||
-						isFollowButtons( block )
-				)
-				.filter(
-					( block ) =>
-						! isFollowHidden ||
-						( block.name !== FOLLOW_BLOCK_NAME &&
-							! isFollowButtons( block ) )
-				),
-		[ syncedBlocks, isFollowHidden ]
-	);
+	const syncedHeaderBlocks = useMemo( () => {
+		const blocks = isFollowHidden
+			? withoutFollowButtons( headerBlocks )
+			: headerBlocks;
+		return isAllUpdatesHidden
+			? withoutAllUpdatesParagraph( blocks )
+			: blocks;
+	}, [ headerBlocks, isFollowHidden, isAllUpdatesHidden ] );
+	const syncedFooterBlocks = useMemo( () => {
+		const blocks = isFollowHidden
+			? withoutFollowButtons( footerBlocks )
+			: footerBlocks;
+		return isAllUpdatesHidden
+			? withoutAllUpdatesParagraph( blocks )
+			: blocks;
+	}, [ footerBlocks, isFollowHidden, isAllUpdatesHidden ] );
 
 	const detach = useCallback( () => {
 		registry.batch( () => {
@@ -685,6 +924,17 @@ export default function Edit( {
 		( choice: LayoutChoice ) => {
 			setIsPickingLayout( false );
 
+			const syncedSlug = isSynced
+				? builtInLayoutSlugFor( layoutId )
+				: null;
+			let replaced: BuiltInLayoutSlug[] = [];
+
+			if ( syncedSlug ) {
+				replaced = [ syncedSlug ];
+			} else if ( ! isSynced && innerBlockCount > 0 ) {
+				replaced = getBuiltInLayouts().map( ( layout ) => layout.slug );
+			}
+
 			if ( choice.kind === 'pattern' ) {
 				if ( isSynced && choice.id === layoutId ) {
 					if ( isLayoutMissing ) {
@@ -701,7 +951,17 @@ export default function Edit( {
 					if ( ! isSynced && innerBlockCount > 0 ) {
 						replaceInnerBlocks( clientId, [], false );
 					}
-					setAttributes( { layoutId: choice.id } );
+					const patternSlug = builtInLayoutSlugFor( choice.id );
+					setAttributes( {
+						layoutId: choice.id,
+						...( patternSlug
+							? switchLayoutAttributes(
+									patternSlug,
+									replaced,
+									align
+								)
+							: {} ),
+					} );
 				} );
 				return;
 			}
@@ -720,10 +980,14 @@ export default function Edit( {
 					createBlocksFromInnerBlocksTemplate( layout.template() ),
 					false
 				);
-				setAttributes( { layoutId: 0 } );
+				setAttributes( {
+					layoutId: 0,
+					...switchLayoutAttributes( layout.slug, replaced, align ),
+				} );
 			} );
 		},
 		[
+			align,
 			isSynced,
 			isLayoutMissing,
 			invalidateResolution,
@@ -782,7 +1046,11 @@ export default function Edit( {
 				id: number
 			) => Promise< unknown >;
 		};
-		fetchEntryPreviewContexts( entriesCoverageId, entriesPerPage )
+		fetchEntryPreviewContexts(
+			entriesCoverageId,
+			isCapped ? cappedCount : entriesPerPage,
+			isCapped
+		)
 			.then( ( contexts ) =>
 				// Entries are read before the preview shows, so it doesn't
 				// fill in piece by piece.
@@ -805,7 +1073,7 @@ export default function Edit( {
 		return () => {
 			cancelled = true;
 		};
-	}, [ entriesCoverageId, entriesPerPage, registry ] );
+	}, [ entriesCoverageId, entriesPerPage, isCapped, cappedCount, registry ] );
 
 	// Populate the combobox as the user searches.
 	useEffect( () => {
@@ -1029,59 +1297,141 @@ export default function Edit( {
 								'newspack-rolling-coverage'
 							) }
 						/>
-						<Stack direction="column" gap="sm" align="flex-start">
-							<Button
-								variant="secondary"
-								onClick={ () =>
-									setPendingCanonicalUrl(
-										currentPagePermalink || ''
-									)
-								}
-								disabled={
-									isCurrentPageUnsaved ||
-									! currentPagePermalink
-								}
+						{ ! latestOnly && (
+							<Stack
+								direction="column"
+								gap="sm"
+								align="flex-start"
 							>
-								{ __(
-									'Use This Page',
-									'newspack-rolling-coverage'
-								) }
-							</Button>
-							{ ( isCurrentPageUnsaved ||
-								! currentPagePermalink ) && (
-								<p className="components-base-control__help">
+								<Button
+									variant="secondary"
+									onClick={ () =>
+										setPendingCanonicalUrl(
+											currentPagePermalink || ''
+										)
+									}
+									disabled={
+										isCurrentPageUnsaved ||
+										! currentPagePermalink
+									}
+								>
 									{ __(
-										'Save this page to get its permalink.',
+										'Use This Page',
 										'newspack-rolling-coverage'
 									) }
-								</p>
-							) }
-						</Stack>
+								</Button>
+								{ ( isCurrentPageUnsaved ||
+									! currentPagePermalink ) && (
+									<p className="components-base-control__help">
+										{ __(
+											'Save this page to get its permalink.',
+											'newspack-rolling-coverage'
+										) }
+									</p>
+								) }
+							</Stack>
+						) }
 					</>
 				) : null }
 			</PanelBody>
 
-			<PanelBody title={ __( 'Display', 'newspack-rolling-coverage' ) }>
-				<TextControl
-					__next40pxDefaultSize
-					type="number"
-					label={ __(
-						'Entries per page',
+			<PanelBody title={ __( 'Entries', 'newspack-rolling-coverage' ) }>
+				<RadioControl
+					label={ _x(
+						'Show',
+						'which entries the feed shows',
 						'newspack-rolling-coverage'
 					) }
-					help={ __(
-						'Used for both the initial number of entries shown and the infinite-scroll page size.',
-						'newspack-rolling-coverage'
-					) }
-					value={ String( entriesPerPage ) }
-					min={ 1 }
-					max={ 100 }
+					selected={ latestOnly ? 'latest' : 'all' }
+					options={ [
+						{
+							label: __(
+								'All entries, loading more on scroll',
+								'newspack-rolling-coverage'
+							),
+							value: 'all',
+						},
+						{
+							label: __(
+								'The latest entries only',
+								'newspack-rolling-coverage'
+							),
+							value: 'latest',
+						},
+					] }
 					onChange={ ( value: string ) =>
-						setAttributes( {
-							entriesPerPage: value ? parseInt( value, 10 ) : 20,
-						} )
+						setAttributes( { latestOnly: value === 'latest' } )
 					}
 				/>
+				{ latestOnly && (
+					<>
+						<TextControl
+							__next40pxDefaultSize
+							type="number"
+							label={ __(
+								'Number of entries',
+								'newspack-rolling-coverage'
+							) }
+							value={ latestCountInput ?? String( latestCount ) }
+							min={ 1 }
+							max={ 100 }
+							onChange={ ( value: string ) => {
+								setLatestCountInput( value );
+								const parsed = parseInt( value, 10 );
+								if ( ! Number.isNaN( parsed ) ) {
+									setAttributes( {
+										latestCount: Math.min(
+											Math.max( parsed, 1 ),
+											100
+										),
+									} );
+								}
+							} }
+							onBlur={ () => setLatestCountInput( null ) }
+						/>
+						<ToggleControl
+							label={ __(
+								'Link to all updates',
+								'newspack-rolling-coverage'
+							) }
+							help={ __(
+								'Links to the coverage page. Hidden on that page.',
+								'newspack-rolling-coverage'
+							) }
+							checked={ allUpdatesLink !== false }
+							onChange={ ( value: boolean ) =>
+								setAttributes( { allUpdatesLink: value } )
+							}
+						/>
+					</>
+				) }
+			</PanelBody>
+
+			<PanelBody title={ __( 'Display', 'newspack-rolling-coverage' ) }>
+				{ ! latestOnly && (
+					<TextControl
+						__next40pxDefaultSize
+						type="number"
+						label={ __(
+							'Entries per page',
+							'newspack-rolling-coverage'
+						) }
+						help={ __(
+							'Used for both the initial number of entries shown and the infinite-scroll page size.',
+							'newspack-rolling-coverage'
+						) }
+						value={ String( entriesPerPage ) }
+						min={ 1 }
+						max={ 100 }
+						onChange={ ( value: string ) =>
+							setAttributes( {
+								entriesPerPage: value
+									? parseInt( value, 10 )
+									: 20,
+							} )
+						}
+					/>
+				) }
 				<TextControl
 					__next40pxDefaultSize
 					type="number"
@@ -1100,6 +1450,16 @@ export default function Edit( {
 			</PanelBody>
 
 			<PanelBody title={ STATUS_LABELS.archived } initialOpen={ false }>
+				<ToggleControl
+					label={ __(
+						'Hide when the coverage ends',
+						'newspack-rolling-coverage'
+					) }
+					checked={ !! hideWhenEnded }
+					onChange={ ( value: boolean ) =>
+						setAttributes( { hideWhenEnded: value } )
+					}
+				/>
 				<ToggleGroupControl
 					__next40pxDefaultSize
 					isBlock
@@ -1362,12 +1722,19 @@ export default function Edit( {
 							'Advertising',
 							'newspack-rolling-coverage'
 						) }
-						help={ __(
-							'Shows ads at a regular interval in the feed.',
-							'newspack-rolling-coverage'
-						) }
+						help={
+							latestOnly
+								? __(
+										'Not shown while the feed shows only the latest entries.',
+										'newspack-rolling-coverage'
+									)
+								: __(
+										'Shows ads at a regular interval in the feed.',
+										'newspack-rolling-coverage'
+									)
+						}
 						value={ enableAds ? 'enabled' : 'disabled' }
-						disabled={ coverageAdsDisabled }
+						disabled={ coverageAdsDisabled || latestOnly }
 						onChange={ ( value ) =>
 							setAttributes( {
 								enableAds: value === 'enabled',
@@ -1405,7 +1772,7 @@ export default function Edit( {
 							}
 						/>
 					</ToggleGroupControl>
-					{ enableAds && ! coverageAdsDisabled && (
+					{ enableAds && ! coverageAdsDisabled && ! latestOnly && (
 						<TextControl
 							__next40pxDefaultSize
 							type="number"
@@ -1514,6 +1881,19 @@ export default function Edit( {
 									</Notice>
 								) }
 							{ ! isLayoutPattern &&
+								hideWhenEnded &&
+								currentCoverage?.status === 'archived' && (
+									<Notice
+										status="info"
+										isDismissible={ false }
+									>
+										{ __(
+											'This feed is hidden on the site because the coverage has ended.',
+											'newspack-rolling-coverage'
+										) }
+									</Notice>
+								) }
+							{ ! isLayoutPattern &&
 								previewContexts.length === 0 && (
 									<Notice
 										status="info"
@@ -1526,50 +1906,73 @@ export default function Edit( {
 									</Notice>
 								) }
 							{ isSynced && (
-								<div { ...feedPreviewProps( feedGroup ) }>
-									{ syncedRenderOnceBlocks.length > 0 && (
-										<BlockContextProvider
-											value={
-												previewContexts[ 0 ] ??
-												NEUTRAL_ENTRY_CONTEXT
-											}
-										>
-											<EntryBlockPreview
-												blocks={
-													syncedRenderOnceBlocks
-												}
-											/>
-										</BlockContextProvider>
-									) }
-									<div className="newspack-rolling-coverage-entries">
-										{ previewContexts.length > 0 ? (
-											previewContexts.map(
-												( context ) => (
-													<BlockContextProvider
-														key={ context.postId }
-														value={ context }
-													>
-														<EntryBlockPreview
-															blocks={ blocksForEntry(
-																context
-															) }
-														/>
-													</BlockContextProvider>
-												)
-											)
-										) : (
+								<FeedWrappersPreview
+									path={ feedPath }
+									context={ coverageContext }
+								>
+									<div { ...feedPreviewProps( feedGroup ) }>
+										{ syncedHeaderBlocks.length > 0 && (
 											<BlockContextProvider
-												value={ NEUTRAL_ENTRY_CONTEXT }
+												value={ coverageContext }
 											>
 												<EntryBlockPreview
 													blocks={
-														emptyPreviewBlocks
+														syncedHeaderBlocks
 													}
+													style={ chromePreviewStyle(
+														syncedHeaderBlocks
+													) }
+												/>
+											</BlockContextProvider>
+										) }
+										<div className="newspack-rolling-coverage-entries">
+											{ previewContexts.length > 0 ? (
+												previewContexts.map(
+													( context ) => (
+														<BlockContextProvider
+															key={
+																context.postId
+															}
+															value={ context }
+														>
+															<EntryBlockPreview
+																blocks={ blocksForEntry(
+																	context
+																) }
+															/>
+														</BlockContextProvider>
+													)
+												)
+											) : (
+												<BlockContextProvider
+													value={
+														NEUTRAL_ENTRY_CONTEXT
+													}
+												>
+													<EntryBlockPreview
+														blocks={
+															emptyPreviewBlocks
+														}
+													/>
+												</BlockContextProvider>
+											) }
+										</div>
+										{ syncedFooterBlocks.length > 0 && (
+											<BlockContextProvider
+												value={ coverageContext }
+											>
+												<EntryBlockPreview
+													blocks={
+														syncedFooterBlocks
+													}
+													style={ chromePreviewStyle(
+														syncedFooterBlocks
+													) }
 												/>
 											</BlockContextProvider>
 										) }
 									</div>
-								</div>
+								</FeedWrappersPreview>
 							) }
 							{ ! isSynced && (
 								<>
@@ -1577,7 +1980,10 @@ export default function Edit( {
 										value={ pinnedContext ?? null }
 									>
 										<BlockContextProvider
-											value={ layoutContext }
+											value={ {
+												...layoutContext,
+												...coverageContext,
+											} }
 										>
 											<div { ...innerBlocksProps } />
 										</BlockContextProvider>

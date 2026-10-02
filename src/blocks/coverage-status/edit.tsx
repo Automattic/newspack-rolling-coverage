@@ -43,6 +43,7 @@ declare global {
 }
 
 const FEED_BLOCK = 'newspack-rolling-coverage/rolling-coverage';
+const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
 const TEMPLATE_TYPES = [ 'wp_template', 'wp_template_part' ];
 const NAME_SEPARATOR = '\u0000';
 const VIEW_CONTEXT = { context: 'view' };
@@ -68,24 +69,30 @@ const LABEL_FIELDS: Record< string, string > = {
 
 /**
  * Editor for the Coverage Status block: the badge of the Rolling Coverage
- * block it follows on this page, or a sample where the page isn't known.
+ * block it follows on this page, or of the one it sits in, or a sample where
+ * the page or coverage isn't known.
  *
  * @param {Object}   props               Block props.
  * @param {string}   props.clientId      Block client ID.
  * @param {Object}   props.attributes    Block attributes.
  * @param {Function} props.setAttributes Attribute setter.
+ * @param {Object}   props.context       Block context.
  */
 export default function Edit( {
 	clientId,
 	attributes,
 	setAttributes,
+	context,
 }: {
 	clientId: string;
 	attributes: CoverageStatusAttributes;
 	setAttributes: ( attrs: Partial< CoverageStatusAttributes > ) => void;
+	context?: Record< string, unknown >;
 } ) {
 	const { coverageId, showLastUpdated, labels, textColor, style } =
 		attributes;
+	const feedCoverageId = context?.[ COVERAGE_ID_CONTEXT ];
+	const isInFeed = feedCoverageId !== undefined;
 
 	const hasCustomLabels = Object.keys( LABEL_FIELDS ).some(
 		( key ) =>
@@ -96,6 +103,13 @@ export default function Edit( {
 
 	const { feedKey, canChoose } = useSelect(
 		( select ) => {
+			if ( isInFeed ) {
+				return {
+					feedKey: String( Number( feedCoverageId ) || '' ),
+					canChoose: false,
+				};
+			}
+
 			const blockEditor = select( blockEditorStore ) as unknown as {
 				getBlocksByName: ( name: string ) => string[];
 				getBlockParentsByBlockName: (
@@ -104,6 +118,7 @@ export default function Edit( {
 				) => string[];
 				getBlockAttributes: ( id: string ) => {
 					coverageId?: number;
+					latestOnly?: boolean;
 				} | null;
 			};
 			const editor = select( editorStore ) as unknown as {
@@ -136,6 +151,11 @@ export default function Edit( {
 				? []
 				: blockEditor
 						.getBlocksByName( FEED_BLOCK )
+						.filter(
+							( id: string ) =>
+								! blockEditor.getBlockAttributes( id )
+									?.latestOnly
+						)
 						.map(
 							( id: string ) =>
 								Number(
@@ -176,7 +196,7 @@ export default function Edit( {
 				canChoose: ! isTemplate && inContent,
 			};
 		},
-		[ clientId ]
+		[ clientId, isInFeed, feedCoverageId ]
 	);
 
 	const feeds = useMemo(

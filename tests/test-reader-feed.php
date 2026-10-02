@@ -487,4 +487,197 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$this->assertArrayNotHasKey( 'status', $page );
 		$this->assertArrayNotHasKey( 'newestEntry', $page );
 	}
+
+	/**
+	 * Polls for a feed rendered with these attributes, from the start of the
+	 * coverage.
+	 *
+	 * @param array  $attributes Block attributes besides the coverage.
+	 * @param string $items      The layout items' markup, or none for the default layout.
+	 * @return array Poll response data.
+	 */
+	private function poll_with_attributes( array $attributes, string $items = '' ) {
+		$attributes = array_merge( [ 'coverageId' => $this->coverage_id ], $attributes );
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ( '' === $items ? ' /-->' : ' -->' . $items . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' ) )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		preg_match( '/data-template-key="([^"]+)"/', $html, $matches );
+
+		return $this->get_feed(
+			[
+				'cursor'       => '0:2026-01-01 00:00:00',
+				'template_key' => $matches[1],
+			]
+		)->get_data();
+	}
+
+	/**
+	 * Polled entries carry only the entry template, never the blocks the
+	 * coverage renders once around them.
+	 */
+	public function test_polled_entries_hold_no_coverage_level_blocks() {
+		$this->create_entry_at( '2026-01-01 12:00:00' );
+
+		$header = '<!-- wp:group --><div class="wp-block-group">'
+			. '<!-- wp:paragraph --><p>Coverage header</p><!-- /wp:paragraph -->'
+			. '<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"tagName":"button","metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"followTag"}}}}} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Follow</button></div><!-- /wp:button --></div><!-- /wp:buttons -->'
+			. '</div><!-- /wp:group -->';
+		$entries = $this->poll_with_attributes( [], $header . '<!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph -->' )['entries'];
+
+		$this->assertCount( 1, $entries );
+		$this->assertStringContainsString( 'Entry text', $entries[0]['html'] );
+		$this->assertStringNotContainsString( 'Coverage header', $entries[0]['html'] );
+		$this->assertStringNotContainsString( 'Follow', $entries[0]['html'] );
+	}
+
+	/**
+	 * A capped feed's polls bring a pinned entry in as any other, with no
+	 * ad; uncapped, the same poll brings the pinned card and an ad.
+	 */
+	public function test_capped_feed_polls_entries_unpinned_and_without_ads() {
+		self::enable_ad_placement();
+
+		$entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+		Post_Type::pin_entry( $entry_id );
+
+		$attributes = [
+			'enableAds'   => true,
+			'adsInterval' => 1,
+			'latestCount' => 3,
+		];
+		$uncapped   = $this->poll_with_attributes( $attributes )['entries'];
+		$capped     = $this->poll_with_attributes( array_merge( $attributes, [ 'latestOnly' => true ] ) )['entries'];
+
+		$this->assertSame( [ $entry_id ], wp_list_pluck( $uncapped, 'id' ) );
+		$this->assertStringContainsString( 'data-pinned', $uncapped[0]['html'] );
+		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-card', $uncapped[0]['html'] );
+		$this->assertStringContainsString( 'test-ad-code', (string) $uncapped[0]['adHtml'] );
+
+		$this->assertSame( [ $entry_id ], wp_list_pluck( $capped, 'id' ) );
+		$this->assertStringNotContainsString( 'data-pinned', $capped[0]['html'] );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-card', $capped[0]['html'] );
+		$this->assertStringNotContainsString( 'Pinned', $capped[0]['html'] );
+		$this->assertNull( $capped[0]['adHtml'] );
+	}
+
+	/**
+	 * Polled entries of a capped feed carry no anchor id, like its first
+	 * render, so links to an entry never land on the capped feed.
+	 */
+	public function test_capped_feed_polls_entries_without_an_anchor_id() {
+		$entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+
+		$uncapped = $this->poll_with_attributes( [ 'latestCount' => 3 ] )['entries'];
+		$capped   = $this->poll_with_attributes(
+			[
+				'latestOnly'  => true,
+				'latestCount' => 3,
+			]
+		)['entries'];
+
+		$this->assertStringContainsString( 'id="newspack-rolling-coverage-entry-' . $entry_id . '"', $uncapped[0]['html'] );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-entry-' . $entry_id . '"', $capped[0]['html'] );
+	}
+
+	/**
+	 * A capped feed never reloads its host page on a burst: the poll sends
+	 * the newest entries by date as inserts, for the page to put on top and
+	 * trim, and moves the cursor to the most recent change.
+	 */
+	public function test_capped_poll_over_the_cap_sends_the_newest_entries_instead_of_overflowing() {
+		$entry_ids = [];
+
+		for ( $i = 0; $i <= Rolling_Coverage_Block::POLL_CAP; $i++ ) {
+			$entry_ids[] = $this->create_entry_at( gmdate( 'Y-m-d H:i:s', strtotime( '2026-01-01 12:00:00' ) + $i * 60 ) );
+		}
+
+		wp_update_post(
+			[
+				'ID'           => $entry_ids[0],
+				'post_content' => 'Corrected.',
+			]
+		);
+		$edited = get_post( $entry_ids[0] );
+
+		$poll = [
+			'cursor'       => '0:2026-01-01 00:00:00',
+			'template_key' => 'pruned',
+		];
+
+		$this->assertTrue( $this->get_feed( $poll )->get_data()['overflow'], 'Uncapped, the burst should overflow.' );
+
+		$capped = $this->get_feed( array_merge( $poll, [ 'latest' => 3 ] ) )->get_data();
+
+		$this->assertFalse( $capped['overflow'] );
+		$this->assertSame( array_slice( array_reverse( $entry_ids ), 0, 3 ), wp_list_pluck( $capped['entries'], 'id' ) );
+		$this->assertSame( [ 'insert', 'insert', 'insert' ], wp_list_pluck( $capped['entries'], 'type' ) );
+		$this->assertSame( $edited->ID . ':' . $edited->post_modified_gmt, $capped['cursor'] );
+	}
+
+	/**
+	 * A page whose stored config is gone, pruned after newer layouts, still
+	 * polls capped when it sends how many entries it shows: no pinned card,
+	 * no ad. Without the count, the same poll falls back to the defaults.
+	 */
+	public function test_capped_poll_without_a_stored_config_stays_capped() {
+		self::enable_ad_placement();
+
+		$entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+		Post_Type::pin_entry( $entry_id );
+
+		$poll     = [
+			'cursor'       => '0:2026-01-01 00:00:00',
+			'template_key' => 'pruned',
+			'polled_count' => 3,
+		];
+		$uncapped = $this->get_feed( $poll )->get_data()['entries'];
+		$capped   = $this->get_feed( array_merge( $poll, [ 'latest' => 3 ] ) )->get_data()['entries'];
+
+		$this->assertStringContainsString( 'data-pinned', $uncapped[0]['html'] );
+		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-card', $uncapped[0]['html'] );
+		$this->assertStringContainsString( 'test-ad-code', (string) $uncapped[0]['adHtml'] );
+
+		$this->assertSame( [ $entry_id ], wp_list_pluck( $capped, 'id' ) );
+		$this->assertStringNotContainsString( 'data-pinned', $capped[0]['html'] );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-card', $capped[0]['html'] );
+		$this->assertNull( $capped[0]['adHtml'] );
+	}
+
+	/**
+	 * Load more without a stored config brings nothing further when the
+	 * request says the feed is capped.
+	 */
+	public function test_capped_load_more_without_a_stored_config_returns_nothing() {
+		$this->create_entry_at( '2026-01-01 11:00:00' );
+
+		$page = [
+			'before'       => '2026-01-01 12:00:00',
+			'template_key' => 'pruned',
+		];
+
+		$this->assertSame( 1, $this->get_feed( $page )->get_data()['count'] );
+
+		$capped = $this->get_feed( array_merge( $page, [ 'latest' => 3 ] ) )->get_data();
+
+		$this->assertSame( '', $capped['html'] );
+		$this->assertSame( 0, $capped['count'] );
+		$this->assertFalse( $capped['hasMore'] );
+	}
+
+	/**
+	 * A count that is not a positive number is refused.
+	 */
+	public function test_entries_refuse_a_count_below_one() {
+		$this->create_entry_at( '2026-01-01 11:00:00' );
+
+		$response = $this->get_feed(
+			[
+				'before'       => '2026-01-01 12:00:00',
+				'template_key' => 'pruned',
+				'latest'       => 0,
+			]
+		);
+
+		$this->assertSame( 400, $response->get_status() );
+	}
 }

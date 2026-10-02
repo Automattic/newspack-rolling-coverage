@@ -277,14 +277,14 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 			[
 				'post_author' => $contributor_id,
 				'post_status' => 'draft',
-			] 
+			]
 		);
 		$published = self::create_entry(
 			$coverage,
 			[
 				'post_author' => $contributor_id,
 				'post_status' => 'publish',
-			] 
+			]
 		);
 		wp_trash_post( $own_draft );
 		wp_trash_post( $published );
@@ -301,5 +301,200 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 		$this->assertSame( 200, $response->get_status(), 'The collection should resolve.' );
 		$this->assertSame( [ $own_draft ], wp_list_pluck( $body, 'id' ), 'The contributor should only get the trashed entry they can edit.' );
 		$this->assertSame( count( $body ), (int) $headers['X-WP-Total'], 'X-WP-Total must match the returned body so core-data does not treat it as a failed resolution.' );
+	}
+
+	/**
+	 * Words 1 to N of a sentence, for content longer than any excerpt length used here.
+	 *
+	 * @param int $count Number of words.
+	 * @return string
+	 */
+	private static function words( $count ) {
+		return implode( ' ', array_map( fn( $n ) => "word{$n}", range( 1, $count ) ) );
+	}
+
+	/**
+	 * Entries have no excerpt of their own, but the editor's Post Excerpt
+	 * block reads one from the REST record, so it is generated from the content.
+	 */
+	public function test_entry_rest_record_has_an_excerpt_generated_from_content() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_excerpt' => '',
+				'post_content' => '<!-- wp:paragraph --><p>' . self::words( 80 ) . '</p><!-- /wp:paragraph -->',
+			]
+		);
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_param( 'context', 'edit' );
+		$excerpt = rest_get_server()->dispatch( $request )->get_data()['excerpt'];
+
+		$this->assertSame( self::words( 80 ), $excerpt['raw'], 'The raw excerpt should be the content as plain text.' );
+		$this->assertStringContainsString( 'word1 word2', $excerpt['rendered'] );
+		$this->assertStringNotContainsString( 'word80', $excerpt['rendered'], 'The rendered excerpt should be trimmed like core.' );
+		$this->assertFalse( $excerpt['protected'] );
+	}
+
+	/**
+	 * The raw excerpt follows the front end: entities decoded, blocks the
+	 * excerpt drops left out, and words from adjacent paragraphs kept apart.
+	 */
+	public function test_entry_raw_excerpt_matches_the_front_end() {
+		self::log_in_as( 'editor' );
+		$content  = '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image -->';
+		$content .= '<!-- wp:embed {"url":"https://example.com/video"} --><figure class="wp-block-embed"><div class="wp-block-embed__wrapper">https://example.com/video</div></figure><!-- /wp:embed -->';
+		$content .= '<!-- wp:paragraph --><p>Q&amp;A</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>second</p><!-- /wp:paragraph -->';
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_excerpt' => '',
+				'post_content' => $content,
+			]
+		);
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_param( 'context', 'edit' );
+		$raw = rest_get_server()->dispatch( $request )->get_data()['excerpt']['raw'];
+
+		$this->assertSame( 'Q&A second', $raw );
+	}
+
+	/**
+	 * Protected entries keep the raw text in the editor, flagged as protected.
+	 */
+	public function test_protected_entry_excerpt_is_flagged() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_excerpt'  => '',
+				'post_password' => 'secret',
+				'post_content'  => '<p>Hidden text.</p>',
+			]
+		);
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_param( 'context', 'edit' );
+		$excerpt = rest_get_server()->dispatch( $request )->get_data()['excerpt'];
+
+		$this->assertTrue( $excerpt['protected'] );
+		$this->assertSame( 'Hidden text.', $excerpt['raw'] );
+	}
+
+	/**
+	 * Only the editor reads the generated excerpt, so public responses skip
+	 * the cost of generating it.
+	 */
+	public function test_entry_excerpt_is_left_out_of_the_public_view() {
+		self::create_entry(
+			self::create_active_coverage(),
+			[
+				'post_excerpt' => '',
+				'post_content' => '<p>Short update.</p>',
+			]
+		);
+
+		$this->assertArrayNotHasKey( 'excerpt', self::list_entries_via_rest()[0] );
+	}
+
+	/**
+	 * The excerpt is generated, so a client sending one back must not store it.
+	 */
+	public function test_saving_an_entry_ignores_a_sent_excerpt() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_excerpt' => '' ] );
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_param( 'excerpt', 'Stored by mistake.' );
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( '', get_post( $entry_id )->post_excerpt );
+	}
+
+	/**
+	 * Autosaves go through the same field mapping, so they must ignore it too.
+	 */
+	public function test_autosaving_an_entry_ignores_a_sent_excerpt() {
+		$user_id  = self::log_in_as( 'editor' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_author'  => $user_id,
+				'post_status'  => 'draft',
+				'post_excerpt' => '',
+			]
+		);
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id . '/autosaves' );
+		$request->set_param( 'content', 'Autosaved text.' );
+		$request->set_param( 'excerpt', 'Stored by mistake.' );
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( '', get_post( $entry_id )->post_excerpt );
+	}
+
+	/**
+	 * Requests limiting the fields skip the excerpt unless they ask for it.
+	 */
+	public function test_entry_excerpt_follows_the_requested_fields() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_excerpt' => '',
+				'post_content' => '<p>Short update.</p>',
+			]
+		);
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_param( 'context', 'edit' );
+		$request->set_param( '_fields', 'title' );
+		$without = rest_get_server()->dispatch( $request )->get_data();
+		$request->set_param( '_fields', 'excerpt.raw' );
+		$with = rest_get_server()->dispatch( $request )->get_data();
+
+		$this->assertArrayNotHasKey( 'excerpt', $without );
+		$this->assertSame( 'Short update.', $with['excerpt']['raw'] );
+	}
+
+	/**
+	 * The editor-only length and more-text overrides never outlive the
+	 * request, even when another excerpt filter throws.
+	 */
+	public function test_excerpt_overrides_are_removed_when_a_filter_throws() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_excerpt' => '',
+				'post_content' => '<p>Short update.</p>',
+			]
+		);
+		$length   = apply_filters( 'excerpt_length', 55 );
+		$more     = apply_filters( 'excerpt_more', ' [&hellip;]' );
+		$throw    = static function ( $text ) use ( $length ) {
+			if ( apply_filters( 'excerpt_length', 55 ) !== $length ) {
+				throw new RuntimeException( 'excerpt failure' );
+			}
+			return $text;
+		};
+		add_filter( 'get_the_excerpt', $throw, 1 );
+
+		// Called directly: an exception through the REST server would leave it dispatching for later tests.
+		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_param( 'context', 'edit' );
+		try {
+			Post_Type::filter_rest_response( new WP_REST_Response( [] ), get_post( $entry_id ), $request );
+		} catch ( RuntimeException $e ) {
+			unset( $e );
+		}
+		remove_filter( 'get_the_excerpt', $throw, 1 );
+
+		$this->assertSame( $length, apply_filters( 'excerpt_length', 55 ) );
+		$this->assertSame( $more, apply_filters( 'excerpt_more', ' [&hellip;]' ) );
 	}
 }

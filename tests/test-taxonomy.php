@@ -285,6 +285,53 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A post that only embeds a capped block is never the coverage page,
+	 * while one that also embeds an uncapped block still can be.
+	 */
+	public function test_page_url_skips_posts_that_only_embed_a_capped_block() {
+		$coverage_id = self::create_coverage();
+		$full        = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->';
+		$capped      = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . ',"latestOnly":true} /-->';
+
+		$page_id = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_date'    => '2026-01-01 10:00:00',
+				'post_content' => $full,
+			]
+		);
+		$only_capped_id = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_date'    => '2026-02-01 10:00:00',
+				'post_content' => $capped,
+			]
+		);
+
+		$this->assertSame( get_permalink( $page_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'A capped-only post should be skipped.' );
+
+		wp_update_post(
+			[
+				'ID'           => $page_id,
+				'post_content' => $capped,
+			]
+		);
+
+		$this->assertSame( '', Taxonomy::get_coverage_page_url( $coverage_id ), 'With only capped blocks there is no page.' );
+
+		wp_update_post(
+			[
+				'ID'           => $only_capped_id,
+				'post_content' => $capped . '<!-- wp:group --><div class="wp-block-group">' . $full . '</div><!-- /wp:group -->',
+			]
+		);
+
+		$this->assertSame( get_permalink( $only_capped_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'A post with a capped and an uncapped block is eligible.' );
+	}
+
+	/**
 	 * A canonical URL is where share links and notifications send readers,
 	 * so it wins over the newest embedding page.
 	 */
@@ -325,28 +372,202 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Entries and revisions change constantly during live coverage, so saving
-	 * them keeps the page lookup cached; saving a page clears it.
+	 * Whether an action clears the coverage-page lookup.
+	 *
+	 * @param callable $action Action to run.
+	 * @return bool
 	 */
-	public function test_only_pages_that_can_host_the_block_clear_the_page_lookup() {
-		$group = Taxonomy::PAGE_IDS_CACHE_GROUP;
-		wp_cache_set_last_changed( $group );
-		$last_changed = wp_cache_get_last_changed( $group );
+	private static function clears_page_lookup( callable $action ): bool {
+		Taxonomy::rebuild_coverage_page_ids();
+		update_option( Taxonomy::PAGE_IDS_OPTION, [ 1 => 1 ], false );
 
-		$entry_id = self::factory()->post->create( [ 'post_type' => Post_Type::CPT_SLUG ] );
-		self::factory()->post->create(
+		$action();
+		Taxonomy::rebuild_coverage_page_ids();
+
+		return [ 1 => 1 ] !== get_option( Taxonomy::PAGE_IDS_OPTION );
+	}
+
+	/**
+	 * Capped feeds look the page up on every front-end render, so readers keep
+	 * the stored map while a change is saved, and the request that made the
+	 * change, which is sure to see it, stores the new one when it ends.
+	 */
+	public function test_a_change_rebuilds_the_stored_page_lookup_once_the_request_ends() {
+		$coverage_id = self::create_coverage();
+		Taxonomy::rebuild_coverage_page_ids();
+		update_option( Taxonomy::PAGE_IDS_OPTION, [], false );
+		remove_all_actions( 'shutdown' );
+
+		$page_id = self::factory()->post->create(
 			[
-				'post_type'   => 'revision',
-				'post_status' => 'inherit',
-				'post_parent' => $entry_id,
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->',
 			]
 		);
 
-		$this->assertSame( $last_changed, wp_cache_get_last_changed( $group ), 'Entry and revision writes should keep the lookup cached.' );
+		$this->assertSame( [], get_option( Taxonomy::PAGE_IDS_OPTION ), 'Readers keep the stored map until the request ends.' );
+		$this->assertSame( get_permalink( $page_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'The request that made the change sees it straight away.' );
 
-		usleep( 1000 );
-		self::factory()->post->create( [ 'post_type' => 'page' ] );
+		wp_update_post(
+			[
+				'ID'         => $page_id,
+				'post_title' => 'Renamed',
+			]
+		);
+		update_option( Taxonomy::PAGE_IDS_OPTION, [], false );
+		do_action( 'shutdown' );
 
-		$this->assertNotSame( $last_changed, wp_cache_get_last_changed( $group ), 'Saving a page should clear the lookup.' );
+		$this->assertSame( [ $coverage_id => $page_id ], get_option( Taxonomy::PAGE_IDS_OPTION ), 'The end of the request overwrites whatever a reader stored.' );
+	}
+
+	/**
+	 * Entries and revisions change constantly during live coverage, so saving
+	 * them keeps the page lookup cached; saving a page with the block clears it.
+	 */
+	public function test_only_pages_that_can_host_the_block_clear_the_page_lookup() {
+		$block = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":1} /-->';
+
+		$this->assertFalse(
+			self::clears_page_lookup(
+				function () use ( $block ) {
+					$entry_id = self::factory()->post->create(
+						[
+							'post_type'    => Post_Type::CPT_SLUG,
+							'post_content' => $block,
+						]
+					);
+					self::factory()->post->create(
+						[
+							'post_type'    => 'revision',
+							'post_status'  => 'inherit',
+							'post_parent'  => $entry_id,
+							'post_content' => $block,
+						]
+					);
+				}
+			),
+			'Entry and revision writes should keep the lookup cached.'
+		);
+		$this->assertTrue(
+			self::clears_page_lookup(
+				fn() => self::factory()->post->create(
+					[
+						'post_type'    => 'page',
+						'post_content' => $block,
+					]
+				)
+			),
+			'Saving a page with the block should clear the lookup.'
+		);
+	}
+
+	/**
+	 * Only posts that hold the block, or held it before the change, can
+	 * change which page shows a coverage, so other writes keep the lookup.
+	 */
+	public function test_only_changes_to_posts_holding_the_block_clear_the_page_lookup() {
+		$block    = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":1} /-->';
+		$plain_id = self::factory()->post->create( [ 'post_type' => 'page' ] );
+		$host_id  = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_content' => $block,
+			]
+		);
+
+		$this->assertFalse( self::clears_page_lookup( fn() => self::factory()->post->create( [ 'post_type' => 'page' ] ) ), 'A new page without the block keeps the lookup.' );
+		$this->assertFalse(
+			self::clears_page_lookup(
+				fn() => wp_update_post(
+					[
+						'ID'         => $plain_id,
+						'post_title' => 'Renamed',
+					]
+				)
+			),
+			'Editing a page without the block keeps the lookup.'
+		);
+		$this->assertFalse(
+			self::clears_page_lookup(
+				fn() => self::factory()->comment->create(
+					[
+						'comment_post_ID'  => $host_id,
+						'comment_approved' => 1,
+					]
+				)
+			),
+			'An approved comment on the page keeps the lookup.'
+		);
+		$this->assertFalse(
+			self::clears_page_lookup(
+				fn() => self::factory()->post->create(
+					[
+						'post_type'    => 'page',
+						'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":1,"latestOnly":true} /-->',
+					]
+				)
+			),
+			'A page holding only a capped block keeps the lookup.'
+		);
+		$this->assertTrue(
+			self::clears_page_lookup(
+				fn() => wp_update_post(
+					[
+						'ID'           => $plain_id,
+						'post_content' => $block,
+					]
+				)
+			),
+			'Adding the block clears the lookup.'
+		);
+		$this->assertTrue(
+			self::clears_page_lookup(
+				fn() => wp_update_post(
+					[
+						'ID'           => $plain_id,
+						'post_content' => 'No block.',
+					]
+				)
+			),
+			'Removing the block clears the lookup.'
+		);
+		$this->assertTrue(
+			self::clears_page_lookup(
+				fn() => wp_update_post(
+					[
+						'ID'         => $host_id,
+						'post_title' => 'Renamed',
+					]
+				)
+			),
+			'Editing a page with the block clears the lookup.'
+		);
+		$this->assertTrue( self::clears_page_lookup( fn() => wp_trash_post( $host_id ) ), 'Trashing a page with the block clears the lookup.' );
+		$this->assertFalse( self::clears_page_lookup( fn() => wp_delete_post( $host_id, true ) ), 'Deleting a trashed page keeps the lookup.' );
+		$other_id = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_content' => $block,
+			]
+		);
+		$this->assertTrue( self::clears_page_lookup( fn() => wp_delete_post( $other_id, true ) ), 'Deleting a published page with the block clears the lookup.' );
+	}
+
+	/**
+	 * A scheduled page publishes without an update, so the status change
+	 * itself clears the lookup.
+	 */
+	public function test_publishing_a_scheduled_page_with_the_block_clears_the_page_lookup() {
+		$page_id = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'future',
+				'post_date'    => gmdate( 'Y-m-d H:i:s', strtotime( '+1 day' ) ),
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":1} /-->',
+			]
+		);
+
+		$this->assertTrue( self::clears_page_lookup( fn() => wp_publish_post( $page_id ) ) );
 	}
 }

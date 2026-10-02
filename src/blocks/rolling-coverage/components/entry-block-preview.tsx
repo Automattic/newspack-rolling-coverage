@@ -18,11 +18,21 @@ import type { TemplateBlocks } from '../types';
  *
  * @param {Object}   props        Component props.
  * @param {Object[]} props.blocks The current per-entry template blocks.
+ * @param {Object}   props.style  The container's inline style.
  */
-function EntryBlockPreview( { blocks }: { blocks: TemplateBlocks } ) {
+function EntryBlockPreview( {
+	blocks,
+	style,
+}: {
+	blocks: TemplateBlocks;
+	style?: Record< string, string | number >;
+} ) {
 	const blockPreviewProps = useBlockPreview( {
 		blocks,
-		props: { className: 'newspack-rolling-coverage-entry wp-block-post' },
+		props: {
+			className: 'newspack-rolling-coverage-entry wp-block-post',
+			...( style ? { style } : {} ),
+		},
 	} );
 
 	return <div { ...blockPreviewProps } />;

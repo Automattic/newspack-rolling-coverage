@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Registers the `newspack-rolling-coverage/coverage-follow` block and its
  * server-side render callback, which emits a "Follow" button for push
- * notifications. Rendered once at the top of the coverage by the parent block.
+ * notifications. Rendered once by the parent block, where the layout places it.
  */
 class Coverage_Follow_Block {
 

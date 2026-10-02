@@ -346,6 +346,28 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A post that only embeds a capped block shows a few entries and links to
+	 * the coverage page, so it is not the live blog and its date stays its own;
+	 * a full feed is.
+	 */
+	public function test_only_uncapped_blocks_make_a_live_blog() {
+		$coverage_id = self::create_coverage();
+		self::create_dated_entry( $coverage_id, '2026-09-03 10:00:00' );
+		$capped = sprintf( '<!-- wp:%s {"coverageId":%d,"latestOnly":true} /-->', Schema::BLOCK_NAME, $coverage_id );
+		$full   = sprintf( '<!-- wp:%s {"coverageId":%d} /-->', Schema::BLOCK_NAME, $coverage_id );
+
+		$capped_id = $this->create_host_post( [], '2026-09-01 10:00:00', [ 'post_content' => $capped ] );
+		$both_id   = $this->create_host_post( [], '2026-09-01 10:00:00', [ 'post_content' => $capped . $full ] );
+
+		$this->assertSame( [], $this->render_scripts( $capped_id ) );
+		$this->assertNull( Schema::get_page_date_modified( get_post( $capped_id ) ) );
+
+		$scripts = $this->render_scripts( $both_id );
+		$this->assertCount( 1, $scripts );
+		$this->assertSame( 'LiveBlogPosting', $scripts[0]['@type'] );
+	}
+
+	/**
 	 * Create a published post embedding the given coverages.
 	 *
 	 * @param int[]  $coverage_ids Coverage term IDs, one block each.
