@@ -353,4 +353,85 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'Select a coverage to display its entries.', $html );
 		$this->assertSame( $allowed, apply_filters( 'newspack_lite_site_allowed_html', $allowed ), 'The message adds nothing to the allowlist.' );
 	}
+
+	/**
+	 * Request entries the way a lite page's view script does.
+	 *
+	 * @param array $params Query parameters.
+	 * @return WP_REST_Response
+	 */
+	private function get_lite_feed( array $params ): WP_REST_Response {
+		return self::dispatch(
+			'GET',
+			"/coverages/{$this->coverage_id}/entries",
+			array_merge(
+				[
+					'template_key' => 'test',
+					'lite'         => true,
+				],
+				$params
+			)
+		);
+	}
+
+	/**
+	 * A poll from a lite page gets entries in the form the page renders them,
+	 * without ads.
+	 */
+	public function test_lite_poll_returns_entries_as_text() {
+		$entry_id = self::create_entry(
+			$this->coverage_id,
+			[
+				'post_title' => 'Bridge reopens',
+				'post_date'  => '2026-01-01 12:00:00',
+			]
+		);
+
+		$entries = $this->get_lite_feed( [ 'cursor' => '0:2025-12-31 00:00:00' ] )->get_data()['entries'];
+
+		$this->assertCount( 1, $entries );
+		$this->assertSame( $entry_id, $entries[0]['id'] );
+		$this->assertSame( Lite_Feed::render_entry( get_post( $entry_id ), 'poll' ), $entries[0]['html'] );
+		$this->assertNull( $entries[0]['adHtml'] );
+	}
+
+	/**
+	 * Load more from a lite page gets older entries in the same form.
+	 */
+	public function test_lite_load_more_returns_entries_as_text() {
+		$entry_id = self::create_entry(
+			$this->coverage_id,
+			[
+				'post_title' => 'Gates open',
+				'post_date'  => '2026-01-01 08:00:00',
+			]
+		);
+
+		$page = $this->get_lite_feed( [ 'before' => '2026-01-02 00:00:00' ] )->get_data();
+
+		$this->assertSame( 1, $page['count'] );
+		$this->assertSame( Lite_Feed::render_entry( get_post( $entry_id ), 'load_more' ), $page['html'] );
+		$this->assertSame( [], $page['adSlots'] );
+	}
+
+	/**
+	 * Without the flag, full pages keep getting entries in their layout, and
+	 * the request serves no lite feed.
+	 */
+	public function test_full_pages_still_get_layout_entries() {
+		self::create_entry( $this->coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
+
+		$entries = self::dispatch(
+			'GET',
+			"/coverages/{$this->coverage_id}/entries",
+			[
+				'template_key' => 'test',
+				'cursor'       => '0:2025-12-31 00:00:00',
+			]
+		)->get_data()['entries'];
+		$allowed = [ 'div' => [ 'class' => true ] ];
+
+		$this->assertStringContainsString( 'wp-block-post', $entries[0]['html'] );
+		$this->assertSame( $allowed, apply_filters( 'newspack_lite_site_allowed_html', $allowed ) );
+	}
 }

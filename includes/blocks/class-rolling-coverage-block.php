@@ -2782,6 +2782,10 @@ class Rolling_Coverage_Block {
 						'type'    => 'integer',
 						'default' => 0,
 					],
+					'lite'         => [
+						'type'    => 'boolean',
+						'default' => false,
+					],
 				],
 			]
 		);
@@ -2971,6 +2975,16 @@ class Rolling_Coverage_Block {
 		$ads_enabled_attr = (bool) $config['adsEnabled'];
 		$ads_enabled      = $ads_enabled_attr && ! self::is_coverage_ads_disabled( $term_id );
 
+		// A lite page asks for entries in the text-only form it renders them
+		// in, and lite pages carry no ads.
+		$is_lite = rest_sanitize_boolean( $params['lite'] ?? false ) && Lite_Feed::is_available();
+
+		if ( $is_lite ) {
+			Lite_Feed::add_feed();
+
+			$ads_enabled = false;
+		}
+
 		// Forward/polling branch: entries modified at or after the cursor, newest first.
 		if ( $cursor ) {
 			$cursor_parts    = explode( ':', $cursor, 2 );
@@ -3061,7 +3075,7 @@ class Rolling_Coverage_Block {
 				// blank: the client preserves the original value across the replace.
 				$entries[] = [
 					'id'     => $entry->ID,
-					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '' ),
+					'html'   => $is_lite ? Lite_Feed::render_entry( $entry, $is_new_entry ? 'poll' : '' ) : self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '' ),
 					'type'   => $is_new_entry ? 'insert' : 'update',
 					'adHtml' => $ad_html,
 					'adSlot' => $ad_slot,
@@ -3117,7 +3131,7 @@ class Rolling_Coverage_Block {
 
 		foreach ( $posts as $entry ) {
 			$entry_index++;
-			$html .= self::render_entry( $entry, $template, 'load_more', ! $has_more && count( $posts ) === $entry_index );
+			$html .= $is_lite ? Lite_Feed::render_entry( $entry, 'load_more' ) : self::render_entry( $entry, $template, 'load_more', ! $has_more && count( $posts ) === $entry_index );
 
 			$position = $entry_offset + $entry_index;
 			if ( $ads_enabled && Ads::is_capped_ad_position( $position, $ads_interval ) ) {
