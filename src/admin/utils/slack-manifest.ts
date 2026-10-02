@@ -54,6 +54,7 @@ function buildSlackManifest( restUrl: string ): string {
 						'groups:history',
 						'groups:read',
 						'chat:write',
+						'files:read',
 						'users:read',
 						'commands',
 					],

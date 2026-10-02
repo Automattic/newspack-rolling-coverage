@@ -31,6 +31,7 @@ class Initializer {
 	private static function includes() {
 		Post_Type::init();
 		Taxonomy::init();
+		Newest_Entry::init();
 		Slack::init();
 		Breakout::init();
 		Social_Sharing::init();
@@ -41,15 +42,15 @@ class Initializer {
 		Entry_Bindings::init();
 		Block_Category::init();
 		Block_Icons::init();
-		Coverage_Archived_Notice_Block::init();
 		Share_Block::init();
-		Deep_Link_CTA_Block::init();
 		Ads::init();
 		AI_Service::init();
 		AI_Settings::init();
+		Status_Labels::init();
 		Abilities::init();
 		Schema::init();
 		Coverage_Follow_Block::init();
+		Coverage_Status_Block::init();
 		Push_Notifications::init();
 
 		// Admin interface (only load in admin context).

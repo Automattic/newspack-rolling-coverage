@@ -9,7 +9,7 @@ import {
 } from '@wordpress/element';
 import { ExternalLink } from '@wordpress/components';
 import { DataForm } from '@wordpress/dataviews/wp';
-import { __ } from '@wordpress/i18n';
+import { __, _x } from '@wordpress/i18n';
 import { decodeEntities } from '@wordpress/html-entities';
 import { Stack } from '@wordpress/ui';
 import { Drawer } from 'newspack-components/dist/esm/drawer';
@@ -20,94 +20,108 @@ import { Drawer } from 'newspack-components/dist/esm/drawer';
 import { ErrorNotice } from '../shared/error-notice';
 import { saveCoverage } from '../utils/coverage-api';
 import { useAdminContext } from '../hooks/useAdminContext';
-import type { CoverageDrawerProps, Coverage, CoverageFormData } from '../types';
+import { useStatusLabels } from '../utils/status-labels';
+import type {
+	CoverageDrawerProps,
+	Coverage,
+	CoverageFormData,
+	StatusLabels,
+} from '../types';
 
-const coverageFields = [
-	{
-		id: 'name',
-		type: 'text' as const,
-		label: __( 'Name', 'newspack-rolling-coverage' ),
-		description: (
-			<>
-				{ __(
-					'Used as the headline in LiveBlogPosting structured data when this coverage is shown on a page or post. Choose a reader-facing title rather than an internal label.',
-					'newspack-rolling-coverage'
-				) }{ ' ' }
-				<ExternalLink href="https://schema.org/LiveBlogPosting">
-					{ __( 'Learn more', 'newspack-rolling-coverage' ) }
-				</ExternalLink>
-			</>
-		),
-		required: true,
-	},
-	{
-		id: 'description',
-		type: 'text' as const,
-		label: __( 'Description', 'newspack-rolling-coverage' ),
-		description: __(
-			'An internal note about this coverage. Readers never see it.',
-			'newspack-rolling-coverage'
-		),
-	},
-	{
-		id: 'status',
-		type: 'text' as const,
-		label: __( 'Status', 'newspack-rolling-coverage' ),
-		Edit: 'radio' as const,
-		elements: [
-			{
-				value: 'active',
-				label: __( 'Active', 'newspack-rolling-coverage' ),
-			},
-			{
-				value: 'paused',
-				label: __( 'Paused', 'newspack-rolling-coverage' ),
-			},
-			{
-				value: 'archived',
-				label: __( 'Archived', 'newspack-rolling-coverage' ),
-			},
-		],
-	},
-	{
-		id: 'canonicalUrl',
-		type: 'text' as const,
-		label: __( 'Canonical URL', 'newspack-rolling-coverage' ),
-		placeholder: __(
-			'https://example.com/live-coverage',
-			'newspack-rolling-coverage'
-		),
-		description: __(
-			"The page readers land on when they open a link to one of this coverage's entries.",
-			'newspack-rolling-coverage'
-		),
-	},
-	{
-		id: 'adsDisabled',
-		type: 'text' as const,
-		label: __( 'Advertising', 'newspack-rolling-coverage' ),
-		description: __(
-			'Disable ads for this coverage, useful for emergency or other sensitive news coverage.',
-			'newspack-rolling-coverage'
-		),
-		elements: [
-			{
-				value: 'enabled',
-				label: __( 'Enabled', 'newspack-rolling-coverage' ),
-			},
-			{
-				value: 'disabled',
-				label: __( 'Disabled', 'newspack-rolling-coverage' ),
-			},
-		],
-		getValue: ( { item }: { item: CoverageFormData } ) =>
-			item.adsDisabled ? 'disabled' : 'enabled',
-		setValue: ( { value }: { value: string } ) => ( {
-			adsDisabled: value === 'disabled',
-		} ),
-		Edit: 'toggleGroup' as const,
-	},
-];
+/**
+ * The drawer's fields, with the statuses named after the site's status
+ * indicator labels.
+ *
+ * @param {StatusLabels} labels The site's status labels.
+ * @return {Object[]} DataForm fields.
+ */
+function getCoverageFormFields( labels: StatusLabels ) {
+	return [
+		{
+			id: 'name',
+			type: 'text' as const,
+			label: __( 'Name', 'newspack-rolling-coverage' ),
+			description: (
+				<>
+					{ __(
+						'Used as the headline in LiveBlogPosting structured data when this coverage is shown on a page or post. Choose a reader-facing title rather than an internal label.',
+						'newspack-rolling-coverage'
+					) }{ ' ' }
+					<ExternalLink href="https://schema.org/LiveBlogPosting">
+						{ __( 'Learn more', 'newspack-rolling-coverage' ) }
+					</ExternalLink>
+				</>
+			),
+			required: true,
+		},
+		{
+			id: 'description',
+			type: 'text' as const,
+			label: __( 'Description', 'newspack-rolling-coverage' ),
+			description: __(
+				'An internal note about this coverage. Readers never see it.',
+				'newspack-rolling-coverage'
+			),
+		},
+		{
+			id: 'status',
+			type: 'text' as const,
+			label: __( 'Status', 'newspack-rolling-coverage' ),
+			Edit: 'radio' as const,
+			elements: [
+				{ value: 'active', label: labels.active },
+				{ value: 'paused', label: labels.paused },
+				{ value: 'archived', label: labels.archived },
+			],
+		},
+		{
+			id: 'canonicalUrl',
+			type: 'text' as const,
+			label: __( 'Canonical URL', 'newspack-rolling-coverage' ),
+			placeholder: __(
+				'https://example.com/live-coverage',
+				'newspack-rolling-coverage'
+			),
+			description: __(
+				"The page readers land on when they open a link to one of this coverage's entries.",
+				'newspack-rolling-coverage'
+			),
+		},
+		{
+			id: 'adsDisabled',
+			type: 'text' as const,
+			label: __( 'Advertising', 'newspack-rolling-coverage' ),
+			description: __(
+				'Disable ads for this coverage, useful for emergency or other sensitive news coverage.',
+				'newspack-rolling-coverage'
+			),
+			elements: [
+				{
+					value: 'enabled',
+					label: _x(
+						'Enabled',
+						'advertising',
+						'newspack-rolling-coverage'
+					),
+				},
+				{
+					value: 'disabled',
+					label: _x(
+						'Disabled',
+						'advertising',
+						'newspack-rolling-coverage'
+					),
+				},
+			],
+			getValue: ( { item }: { item: CoverageFormData } ) =>
+				item.adsDisabled ? 'disabled' : 'enabled',
+			setValue: ( { value }: { value: string } ) => ( {
+				adsDisabled: value === 'disabled',
+			} ),
+			Edit: 'toggleGroup' as const,
+		},
+	];
+}
 
 const coverageForm = {
 	type: 'regular' as const,
@@ -164,6 +178,11 @@ function CoverageDrawer( {
 	onSaved,
 }: CoverageDrawerProps ) {
 	const { restBaseUrls, taxMeta } = useAdminContext();
+	const statusLabels = useStatusLabels();
+	const coverageFields = useMemo(
+		() => getCoverageFormFields( statusLabels ),
+		[ statusLabels ]
+	);
 	const isEditing = coverage !== null;
 	const initialData = useMemo(
 		() => getFormData( coverage, taxMeta ),

@@ -10,6 +10,7 @@ use Newspack_Rolling_Coverage\Entry_Bindings;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
+use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
  * The entry template's "Read more" and share buttons are core buttons whose
@@ -40,10 +41,11 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	 *
 	 * @param int    $entry_id Entry post ID.
 	 * @param string $status   Breakout post status.
+	 * @param array  $args     Further post factory arguments.
 	 * @return int Breakout post ID.
 	 */
-	private static function add_breakout( int $entry_id, string $status ): int {
-		$breakout_id = self::factory()->post->create( [ 'post_status' => $status ] );
+	private static function add_breakout( int $entry_id, string $status, array $args = [] ): int {
+		$breakout_id = self::factory()->post->create( array_merge( [ 'post_status' => $status ], $args ) );
 		update_post_meta( $entry_id, Breakout::ENTRY_BREAKOUT_POST_ID_META, $breakout_id );
 		update_post_meta( $breakout_id, Breakout::BREAKOUT_SOURCE_ENTRY_META, $entry_id );
 
@@ -340,8 +342,34 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$html = self::render_coverage_with_follow( $coverage_id );
 
 		$this->assertSame( 1, substr_count( $html, 'data-rc-follow' ), 'The follow button should render once.' );
-		$this->assertSame( 3, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button and one row per entry should render, so entries hold no follow button.' );
+		$this->assertSame( 4, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button, the jump to latest button and one row per entry should render, so entries hold no follow button.' );
 		$this->assertStringContainsString( 'data-tag="' . esc_attr( Push_Notifications::follow_tag( $coverage_id ) ) . '"', $html );
+	}
+
+	/**
+	 * A Buttons block holding both a follow button and a "Jump to latest"
+	 * button is the jump control, not the follow button: it renders once.
+	 */
+	public function test_latest_button_takes_precedence_over_follow_in_one_buttons_block() {
+		self::configure_onesignal();
+
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+
+		$combined   = str_replace(
+			'</div><!-- /wp:buttons -->',
+			'<!-- wp:button {"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"latestUrl"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button">Back to live</a></div><!-- /wp:button --></div><!-- /wp:buttons -->',
+			self::FOLLOW_MARKUP
+		);
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $combined . '<!-- wp:post-title /--><!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+
+		$html = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		$this->assertSame( 1, substr_count( $html, 'Back to live' ), 'The block should render once, as the control.' );
+		$this->assertSame( 1, substr_count( $html, 'class="wp-block-buttons' ) );
+		$this->assertStringContainsString( 'newspack-rolling-coverage-new-entries', $html );
+		$this->assertStringNotContainsString( 'data-rc-follow', $html, 'Rendered as the control, its follow button has no coverage to follow.' );
 	}
 
 	/**
@@ -371,13 +399,13 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	 */
 	const PINNED_ROW_MARKUP = '<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap"}} --><div class="wp-block-group">'
 		. '<!-- wp:icon {"icon":"newspack-rolling-coverage/pin-small"} /-->'
-		. '<!-- wp:paragraph {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"pinnedLabel"}}}},"fontSize":"small"} --><p class="has-small-font-size"></p><!-- /wp:paragraph -->'
+		. '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-pinned-label","fontSize":"small"} --><p class="use-header-font newspack-rolling-coverage-pinned-label has-small-font-size">Top story</p><!-- /wp:paragraph -->'
 		. '</div><!-- /wp:group -->'
 		. '<!-- wp:paragraph --><p>Entry body</p><!-- /wp:paragraph -->';
 
 	/**
-	 * Only pinned entries show the pinned row, labelled with the block's
-	 * label or the default, and are marked for the theme.
+	 * Only pinned entries show the pinned row, labeled with the layout's
+	 * text, and are marked for the theme.
 	 */
 	public function test_pinned_row_shows_only_on_pinned_entries() {
 		$coverage_id = self::create_coverage();
@@ -390,19 +418,18 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$pinned = Rolling_Coverage_Block::render_entry( get_post( $pinned_id ), $template );
 		$other  = Rolling_Coverage_Block::render_entry( get_post( $other_id ), $template );
 
-		$this->assertStringContainsString( '>Pinned</p>', $pinned, 'A pinned entry should show the default label.' );
+		$this->assertStringContainsString( '>Top story</p>', $pinned, "A pinned entry should show the layout's label." );
 		$this->assertStringContainsString( 'data-pinned', $pinned, 'A pinned entry should be marked.' );
 		$this->assertStringNotContainsString( 'wp-block-group', $other, 'An unpinned entry should have no pinned row.' );
 		$this->assertStringNotContainsString( 'data-pinned', $other, 'An unpinned entry should not be marked.' );
 		$this->assertStringContainsString( 'Entry body', $other, 'The rest of the template should still render.' );
-		$this->assertStringContainsString( '>Top story</p>', Rolling_Coverage_Block::render_entry( get_post( $pinned_id ), $template, 'initial', 'Top story' ), "The block's label should win." );
 	}
 
 	/**
 	 * A pinned label moved out of its row still shows only on pinned entries.
 	 */
 	public function test_pinned_label_outside_a_row_is_hidden_on_unpinned_entries() {
-		$template = parse_blocks( '<!-- wp:paragraph {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"pinnedLabel"}}}}} --><p>Saved text</p><!-- /wp:paragraph -->' );
+		$template = parse_blocks( '<!-- wp:paragraph {"className":"newspack-rolling-coverage-pinned-label"} --><p class="newspack-rolling-coverage-pinned-label">Saved text</p><!-- /wp:paragraph -->' );
 
 		$this->assertStringNotContainsString( 'Saved text', Rolling_Coverage_Block::render_entry( get_post( self::create_entry( self::create_coverage() ) ), $template ) );
 	}
@@ -414,7 +441,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	public function test_group_holding_the_label_and_other_blocks_keeps_them() {
 		$template = parse_blocks(
 			'<!-- wp:group --><div class="wp-block-group">'
-			. '<!-- wp:paragraph {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"pinnedLabel"}}}}} --><p>Saved text</p><!-- /wp:paragraph -->'
+			. '<!-- wp:paragraph {"className":"newspack-rolling-coverage-pinned-label"} --><p class="newspack-rolling-coverage-pinned-label">Saved text</p><!-- /wp:paragraph -->'
 			. '<!-- wp:paragraph --><p>Entry byline</p><!-- /wp:paragraph -->'
 			. '</div><!-- /wp:group -->'
 		);
@@ -425,34 +452,340 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Entries are core flow layouts spaced by the block's Block spacing,
-	 * with `spacing-20` when it's unset.
+	 * The Feed group's Block spacing sets the space between the coverage's
+	 * items on the block's wrapper; unset or invalid, the wrapper sets none
+	 * and the stylesheet's `spacing-50` applies.
 	 *
 	 * @dataProvider data_block_spacing
 	 *
-	 * @param array  $style    The block's style attribute.
-	 * @param string $expected The space between an entry's blocks.
+	 * @param array  $style    The Feed group's style attribute.
+	 * @param string $expected The wrapper's style attribute, or '' for none.
 	 */
-	public function test_block_spacing_lays_out_entries( array $style, string $expected ) {
+	public function test_feed_spacing_sets_the_space_between_items( array $style, string $expected ) {
+		$attributes = [ 'coverageId' => self::create_coverage() ];
+		$feed_attrs = [ 'className' => 'newspack-rolling-coverage-feed' ];
+
+		if ( $style ) {
+			$feed_attrs['style'] = $style;
+		}
+
+		$feed       = '<!-- wp:group ' . wp_json_encode( $feed_attrs ) . ' --><div class="wp-block-group newspack-rolling-coverage-feed">'
+			. '<!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $feed . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+		$wrapper    = new WP_HTML_Tag_Processor( $html );
+		$wrapper->next_tag();
+
+		$this->assertSame( $expected, (string) $wrapper->get_attribute( 'style' ) );
+	}
+
+	/**
+	 * Everything the coverage shows renders inside the Feed group, and the
+	 * Feed's blocks are its entry template, not the Feed itself.
+	 */
+	public function test_feed_group_holds_the_coverage() {
 		$coverage_id = self::create_coverage();
 		self::create_entry( $coverage_id );
 
-		$attributes = array_filter(
-			[
-				'coverageId' => $coverage_id,
-				'style'      => $style,
-			]
-		);
-		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$feed       = '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">'
+			. '<!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $feed . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
 		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
 
-		$this->assertMatchesRegularExpression( '/<article [^>]*class="[^"]*is-layout-flow[^"]*(newspack-rolling-coverage-entry-layout-[0-9a-f]+)/', $html );
-		preg_match( '/(newspack-rolling-coverage-entry-layout-[0-9a-f]+)/', $html, $matches );
+		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-feed' ), 'The Feed should render once.' );
+		$this->assertMatchesRegularExpression( '/newspack-rolling-coverage-feed[^>]*>.*<div class="newspack-rolling-coverage-entries"><article [^>]*>.*Entry text/s', $html, 'The entries should render inside it.' );
+	}
+
+	/**
+	 * Render a Rolling Coverage block with a Feed group holding one paragraph.
+	 *
+	 * @param array $attributes Block attributes.
+	 * @return string Rendered block.
+	 */
+	private static function render_feed_block( array $attributes ): string {
+		$feed  = '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">'
+			. '<!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+		$block = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $feed . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+
+		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+	}
+
+	/**
+	 * The feed no longer shows a status badge of its own; the Coverage
+	 * Status block does, wherever it's placed.
+	 */
+	public function test_feed_renders_no_status_badge() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+
+		$html = self::render_feed_block(
+			[
+				'coverageId'          => $coverage_id,
+				'statusIndicatorShow' => true,
+			]
+		);
+
+		$this->assertStringNotContainsString( 'newspack-ui__badge', $html );
+		$this->assertStringNotContainsString( 'status-indicator', $html );
+	}
+
+	/**
+	 * An archived coverage shows the block's notice once, first in the Feed.
+	 */
+	public function test_archived_notice_renders_once_above_the_feed() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 11:00:00' ] );
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$html = self::render_feed_block(
+			[
+				'coverageId'     => $coverage_id,
+				'archivedNotice' => 'Coverage <b>ended</b>',
+			]
+		);
+
+		$this->assertSame( 1, substr_count( $html, '<p class="newspack-rolling-coverage-archived-notice">Coverage &lt;b&gt;ended&lt;/b&gt;</p>' ), 'The escaped notice should render once.' );
+		$notice_position = strpos( $html, 'newspack-rolling-coverage-archived-notice' );
+		$this->assertNotFalse( $notice_position, 'The notice should render.' );
+		$this->assertGreaterThan( strpos( $html, 'newspack-rolling-coverage-feed' ), $notice_position, 'The notice should sit inside the Feed.' );
+		$this->assertLessThan( strpos( $html, 'newspack-rolling-coverage-entries' ), $notice_position, 'The notice should come before the entries.' );
+		$this->assertSame( 2, substr_count( $html, 'Entry text' ), 'Each entry should still render.' );
+	}
+
+	/**
+	 * Line breaks typed in the notice carry through to the front end.
+	 */
+	public function test_archived_notice_keeps_line_breaks() {
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$html = self::render_feed_block(
+			[
+				'coverageId'     => $coverage_id,
+				'archivedNotice' => "Coverage ended.\nThanks for following.",
+			]
+		);
+
+		$this->assertStringContainsString( "<p class=\"newspack-rolling-coverage-archived-notice\">Coverage ended.<br>\nThanks for following.</p>", $html );
+	}
+
+	/**
+	 * An archived coverage whose block sets no notice shows the default one,
+	 * naming the coverage.
+	 */
+	public function test_archived_notice_falls_back_to_the_default_text() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED, [ 'name' => 'Polls & results' ] );
+
+		$html = self::render_feed_block(
+			[
+				'coverageId'     => $coverage_id,
+				'archivedNotice' => '  ',
+			]
+		);
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage of “Polls &amp; results” has concluded and this feed is now archived.</p>', $html );
+	}
+
+	/**
+	 * Without a URL or a published breakout post, the notice has no link.
+	 */
+	public function test_archived_notice_without_a_published_breakout_has_no_link() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		$entry_id    = self::create_entry( $coverage_id );
+
+		$this->assertStringNotContainsString( 'archived-notice__link', self::render_feed_block( [ 'coverageId' => $coverage_id ] ), 'No breakout: no link.' );
+
+		self::add_breakout( $entry_id, 'draft' );
+
+		$this->assertStringNotContainsString( 'archived-notice__link', self::render_feed_block( [ 'coverageId' => $coverage_id ] ), 'A draft breakout: no link.' );
+	}
+
+	/**
+	 * Without a URL, the notice links to the coverage's most recently
+	 * published breakout post, ignoring drafts and other coverages.
+	 */
+	public function test_archived_notice_links_to_the_latest_published_breakout() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		$other_id    = self::create_coverage();
+		$older_entry = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
+		$newer_entry = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		$draft_entry = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 13:00:00' ] );
+		$other_entry = self::create_entry( $other_id, [ 'post_date' => '2026-01-01 14:00:00' ] );
+
+		self::add_breakout( $older_entry, 'publish', [ 'post_date' => '2026-02-01 10:00:00' ] );
+		$newer = self::add_breakout( $newer_entry, 'publish', [ 'post_date' => '2026-02-02 10:00:00' ] );
+		self::add_breakout( $draft_entry, 'draft', [ 'post_date' => '2026-02-03 10:00:00' ] );
+		self::add_breakout( $other_entry, 'publish', [ 'post_date' => '2026-02-04 10:00:00' ] );
+
+		$html = self::render_feed_block(
+			[
+				'coverageId'     => $coverage_id,
+				'archivedNotice' => 'Coverage ended.',
+			]
+		);
 
 		$this->assertStringContainsString(
-			'.' . $matches[1] . ' > * + *{margin-block-start:' . $expected,
-			wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] )
+			'<p class="newspack-rolling-coverage-archived-notice">Coverage ended. <a class="newspack-rolling-coverage-archived-notice__link" href="' . esc_url( get_permalink( $newer ) ) . '">Read more</a></p>',
+			$html,
+			'The notice should link to the latest published breakout post.'
 		);
+	}
+
+	/**
+	 * The cached breakout link follows a breakout published after it was
+	 * first looked up.
+	 */
+	public function test_archived_notice_breakout_link_follows_a_new_breakout() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		$first       = self::add_breakout( self::create_entry( $coverage_id ), 'publish', [ 'post_date' => '2026-02-01 10:00:00' ] );
+		$draft       = self::add_breakout( self::create_entry( $coverage_id ), 'draft', [ 'post_date' => '2026-02-02 10:00:00' ] );
+		$attributes  = [ 'coverageId' => $coverage_id ];
+
+		$this->assertStringContainsString( 'href="' . esc_url( get_permalink( $first ) ) . '"', self::render_feed_block( $attributes ), 'The published breakout should be linked.' );
+
+		wp_update_post(
+			[
+				'ID'          => $draft,
+				'post_status' => 'publish',
+			]
+		);
+
+		$this->assertStringContainsString( 'href="' . esc_url( get_permalink( $draft ) ) . '"', self::render_feed_block( $attributes ), 'A breakout published later should replace the cached link.' );
+	}
+
+	/**
+	 * A URL set on the block wins over the coverage's breakout post.
+	 */
+	public function test_archived_notice_url_overrides_the_breakout() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		$breakout_id = self::add_breakout( self::create_entry( $coverage_id ), 'publish' );
+
+		$html = self::render_feed_block(
+			[
+				'coverageId'            => $coverage_id,
+				'archivedNoticeLinkUrl' => 'https://example.com/story',
+			]
+		);
+
+		$this->assertStringContainsString( 'href="https://example.com/story"', $html, "The block's URL should be used." );
+		$this->assertStringNotContainsString( esc_url( get_permalink( $breakout_id ) ), $html, 'The breakout post should not be linked.' );
+	}
+
+	/**
+	 * A coverage that isn't archived shows no notice.
+	 */
+	public function test_archived_notice_is_hidden_until_the_coverage_is_archived() {
+		$coverage_id = self::create_coverage();
+		$attributes  = [
+			'coverageId'            => $coverage_id,
+			'archivedNotice'        => 'Coverage ended',
+			'archivedNoticeLinkUrl' => 'https://example.com/story',
+		];
+
+		$this->assertStringNotContainsString( 'archived-notice', self::render_feed_block( $attributes ), 'An active coverage has no notice.' );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
+
+		$this->assertStringNotContainsString( 'archived-notice', self::render_feed_block( $attributes ), 'Nor does a paused one.' );
+	}
+
+	/**
+	 * A block that turns the notice off renders none, whatever text and link it sets.
+	 */
+	public function test_archived_notice_can_be_turned_off() {
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$attributes = [
+			'coverageId'            => $coverage_id,
+			'archivedNotice'        => 'Coverage ended.',
+			'archivedNoticeLinkUrl' => 'https://example.com/story',
+		];
+
+		$this->assertStringContainsString( 'class="newspack-rolling-coverage-archived-notice"', self::render_feed_block( $attributes ), 'The notice shows by default.' );
+
+		$attributes['archivedNoticeShow'] = false;
+
+		$this->assertStringNotContainsString( 'class="newspack-rolling-coverage-archived-notice"', self::render_feed_block( $attributes ), 'The notice should be hidden.' );
+	}
+
+	/**
+	 * The notice links on after its text when the block sets a URL, labeled
+	 * with the block's link text or "Read more".
+	 */
+	public function test_archived_notice_link() {
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$attributes = [
+			'coverageId'              => $coverage_id,
+			'archivedNotice'          => 'Coverage ended.',
+			'archivedNoticeLinkUrl'   => 'https://example.com/story?a=1&b=2',
+			'archivedNoticeLinkLabel' => 'Follow <em>the</em> story',
+		];
+
+		$this->assertStringContainsString(
+			'<p class="newspack-rolling-coverage-archived-notice">Coverage ended. <a class="newspack-rolling-coverage-archived-notice__link" href="https://example.com/story?a=1&#038;b=2">Follow &lt;em&gt;the&lt;/em&gt; story</a></p>',
+			self::render_feed_block( $attributes ),
+			"The link should carry the block's text."
+		);
+
+		$attributes['archivedNoticeLinkLabel'] = '';
+
+		$this->assertStringContainsString(
+			'Coverage ended. <a class="newspack-rolling-coverage-archived-notice__link" href="https://example.com/story?a=1&#038;b=2">Read more</a></p>',
+			self::render_feed_block( $attributes ),
+			'Without text, the link should read "Read more".'
+		);
+	}
+
+	/**
+	 * With the link turned off, the notice has none, whether the block sets a
+	 * URL or the coverage has a published breakout post.
+	 */
+	public function test_archived_notice_link_can_be_turned_off() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		self::add_breakout( self::create_entry( $coverage_id ), 'publish' );
+
+		$attributes = [
+			'coverageId'             => $coverage_id,
+			'archivedNotice'         => 'Coverage ended.',
+			'archivedNoticeShowLink' => false,
+		];
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage ended.</p>', self::render_feed_block( $attributes ), 'No link to the breakout post.' );
+
+		$attributes['archivedNoticeLinkUrl'] = 'https://example.com/story';
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage ended.</p>', self::render_feed_block( $attributes ), "No link to the block's URL." );
+
+		$attributes['archivedNoticeShowLink'] = true;
+
+		$this->assertStringContainsString( 'href="https://example.com/story"', self::render_feed_block( $attributes ), "Turned back on, the block's URL is linked." );
+	}
+
+	/**
+	 * Without a URL, or with one esc_url() rejects, the notice has no link.
+	 */
+	public function test_archived_notice_without_a_url_has_no_link() {
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$attributes = [
+			'coverageId'              => $coverage_id,
+			'archivedNotice'          => 'Coverage ended.',
+			'archivedNoticeLinkLabel' => 'Follow <em>the</em> story',
+		];
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage ended.</p>', self::render_feed_block( $attributes ), 'No URL: no link.' );
+
+		$attributes['archivedNoticeLinkUrl'] = 'javascript:alert(1)';
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-archived-notice">Coverage ended.</p>', self::render_feed_block( $attributes ), 'A rejected URL: no link.' );
 	}
 
 	/**
@@ -465,7 +798,31 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
 
-		$this->assertStringContainsString( 'justify-content:space-between', wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] ), 'The header row layout should be stored.' );
+		$this->assertStringContainsString( '{align-items:center;}', wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] ), 'The meta row layout should be stored.' );
+	}
+
+	/**
+	 * On a theme that loads block styles only for the blocks on the page, a
+	 * coverage still loads the image and gallery styles, for Slack photos
+	 * that arrive later by polling.
+	 */
+	public function test_coverage_loads_the_styles_of_photos_that_arrive_later() {
+		$previous_styles      = $GLOBALS['wp_styles'] ?? null;
+		$GLOBALS['wp_styles'] = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- A registry of this test's own, so its handles and queue do not outlive it.
+		add_filter( 'should_load_separate_core_block_assets', '__return_true' );
+		register_core_block_style_handles();
+
+		try {
+			$attributes = [ 'coverageId' => self::create_coverage() ];
+			$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+
+			Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+			$this->assertTrue( wp_style_is( 'wp-block-image' ), 'The image styles should be loaded.' );
+			$this->assertTrue( wp_style_is( 'wp-block-gallery' ), 'The gallery styles should be loaded.' );
+		} finally {
+			$GLOBALS['wp_styles'] = $previous_styles; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		}
 	}
 
 	/**
@@ -475,24 +832,23 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	 */
 	public function data_block_spacing(): array {
 		return [
-			'unset'  => [ [], 'var(--wp--preset--spacing--20)' ],
-			'preset' => [ [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ] ], 'var(--wp--preset--spacing--30)' ],
+			'unset'   => [ [], '' ],
+			'preset'  => [ [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ] ], '--newspack-rolling-coverage-gap:var(--wp--preset--spacing--30)' ],
+			'custom'  => [ [ 'spacing' => [ 'blockGap' => '2rem' ] ], '--newspack-rolling-coverage-gap:2rem' ],
+			'invalid' => [ [ 'spacing' => [ 'blockGap' => '1px;}body{display:none' ] ], '' ],
+			'extra'   => [ [ 'spacing' => [ 'blockGap' => '10px;position:fixed' ] ], '--newspack-rolling-coverage-gap:10px' ],
 		];
 	}
 
 	/**
-	 * Entries loaded after the first render keep the block's pinned label
-	 * and the entries' layout.
+	 * Entries loaded after the first render keep the layout's pinned label.
 	 */
-	public function test_load_more_keeps_the_block_pinned_label() {
+	public function test_load_more_keeps_the_layout_pinned_label() {
 		$coverage_id = self::create_coverage();
 		$entry_id    = self::create_entry( $coverage_id );
 		Post_Type::pin_entry( $entry_id );
 
-		$attributes = [
-			'coverageId'  => $coverage_id,
-			'pinnedLabel' => 'Top story',
-		];
+		$attributes = [ 'coverageId' => $coverage_id ];
 		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . self::PINNED_ROW_MARKUP . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
 		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
 
@@ -506,9 +862,265 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$more = Rolling_Coverage_Block::get_entries( $request )->get_data()['html'];
 
-		$this->assertStringContainsString( '>Top story</p>', $more, 'The pinned label should carry over.' );
+		$this->assertStringContainsString( '>Top story</p>', $more );
+	}
 
-		preg_match( '/newspack-rolling-coverage-entry-layout-[0-9a-f]+/', $html, $layout );
-		$this->assertMatchesRegularExpression( '/class="[^"]*is-layout-flow ' . $layout[0] . '/', $more, 'The entries layout should carry over.' );
+	/**
+	 * The built-in layout labels pinned entries "Pinned".
+	 */
+	public function test_default_layout_labels_pinned_entries() {
+		$coverage_id = self::create_coverage();
+		$entry_id    = self::create_entry( $coverage_id );
+		Post_Type::pin_entry( $entry_id );
+
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		$this->assertMatchesRegularExpression( '#<p class="[^"]*newspack-rolling-coverage-pinned-label[^"]*"[^>]*>Pinned</p>#', $html );
+	}
+
+	/**
+	 * Render an entry through the given template markup.
+	 *
+	 * @param int    $entry_id Entry post ID.
+	 * @param string $markup   Template markup.
+	 * @return string Rendered entry.
+	 */
+	private static function render_markup( int $entry_id, string $markup ): string {
+		return Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( $markup ) );
+	}
+
+	/**
+	 * A "Read more" paragraph, as the editor saves it.
+	 *
+	 * @param string $classes Classes on the paragraph.
+	 * @param string $text    Paragraph HTML.
+	 * @return string Block markup.
+	 */
+	private static function read_more_paragraph( string $classes = 'newspack-rolling-coverage-read-more', string $text = 'Read more' ): string {
+		return '<!-- wp:paragraph {"className":"' . $classes . '"} --><p class="' . $classes . '">' . $text . '</p><!-- /wp:paragraph -->';
+	}
+
+	/**
+	 * A "Read more" paragraph links to the published breakout.
+	 */
+	public function test_read_more_paragraph_links_to_the_breakout() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+
+		$html = self::render_markup( $entry_id, self::read_more_paragraph() );
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-read-more wp-block-paragraph"><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Read more</a></p>', $html );
+	}
+
+	/**
+	 * Without a published breakout the paragraph goes.
+	 */
+	public function test_read_more_paragraph_is_removed_without_a_breakout() {
+		$entry_id = self::create_entry( self::create_coverage() );
+
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-read-more', self::render_markup( $entry_id, self::read_more_paragraph() ) );
+
+		self::add_breakout( $entry_id, 'draft' );
+
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-read-more', self::render_markup( $entry_id, self::read_more_paragraph() ) );
+	}
+
+	/**
+	 * Other classes and inner markup survive the link.
+	 */
+	public function test_read_more_paragraph_keeps_its_markup_and_other_classes() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+
+		$html = self::render_markup( $entry_id, self::read_more_paragraph( 'foo newspack-rolling-coverage-read-more', '<strong>Read</strong> more' ) );
+
+		$this->assertStringContainsString( '<p class="foo newspack-rolling-coverage-read-more wp-block-paragraph"><a href="' . esc_url( get_permalink( $breakout_id ) ) . '"><strong>Read</strong> more</a></p>', $html );
+	}
+
+	/**
+	 * A paragraph rendered outside an entry is left alone.
+	 */
+	public function test_paragraph_outside_entries_is_untouched() {
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-read-more wp-block-paragraph">Read more</p>', do_blocks( self::read_more_paragraph() ) );
+	}
+
+	/**
+	 * A title-only entry in a time-column shape renders its time and nothing
+	 * empty.
+	 */
+	public function test_time_column_entry_without_content_renders() {
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_title'   => 'Headline',
+				'post_content' => '',
+			]
+		);
+		$markup   = '<!-- wp:columns {"isStackedOnMobile":false} --><div class="wp-block-columns">'
+			. '<!-- wp:column {"width":"6rem"} --><div class="wp-block-column" style="flex-basis:6rem"><!-- wp:post-date {"format":"g:i a"} /--></div><!-- /wp:column -->'
+			. '<!-- wp:column --><div class="wp-block-column">'
+			. '<!-- wp:group {"layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} --><div class="wp-block-group">'
+			. '<!-- wp:post-content /-->'
+			. self::read_more_paragraph()
+			. '</div><!-- /wp:group -->'
+			. '</div><!-- /wp:column --></div><!-- /wp:columns -->';
+
+		$html = self::render_markup( $entry_id, $markup );
+
+		$this->assertStringContainsString( '<time', $html );
+		$this->assertStringNotContainsString( 'data-rc-relative', $html );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-read-more', $html, 'No breakout: no Read more.' );
+
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+
+		$this->assertStringContainsString( '<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Read more</a>', self::render_markup( $entry_id, $markup ) );
+	}
+
+	/**
+	 * Markup a filter put before the paragraph, or a ">" in an attribute,
+	 * doesn't move the link.
+	 */
+	public function test_read_more_link_sits_inside_the_paragraph_tag() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+		$url         = esc_url( get_permalink( $breakout_id ) );
+
+		$filter = static function ( $content, $block ) {
+			return 'core/paragraph' === $block['blockName'] ? '<span class="x">a > b</span>' . str_replace( '<p ', '<p title="a>b" ', $content ) : $content;
+		};
+		add_filter( 'render_block_core/paragraph', $filter, 5, 2 );
+		$html = self::render_markup( $entry_id, self::read_more_paragraph() );
+		remove_filter( 'render_block_core/paragraph', $filter, 5 );
+
+		$this->assertStringContainsString( '<span class="x">a > b</span><p title="a>b" class="newspack-rolling-coverage-read-more wp-block-paragraph"><a href="' . $url . '">Read more</a></p>', $html );
+	}
+
+	/**
+	 * A paragraph a filter appended after the "Read more" paragraph stays
+	 * outside the link.
+	 */
+	public function test_read_more_link_ends_at_its_own_paragraph() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+		$url         = esc_url( get_permalink( $breakout_id ) );
+
+		$filter = static function ( $content, $block ) {
+			return 'core/paragraph' === $block['blockName'] ? $content . '<p>x</p>' : $content;
+		};
+		add_filter( 'render_block_core/paragraph', $filter, 5, 2 );
+		$html = self::render_markup( $entry_id, self::read_more_paragraph() );
+		remove_filter( 'render_block_core/paragraph', $filter, 5 );
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-read-more wp-block-paragraph"><a href="' . $url . '">Read more</a></p><p>x</p>', $html );
+	}
+
+	/**
+	 * A global post that isn't an entry never gets a link.
+	 */
+	public function test_read_more_ignores_a_global_post_that_is_not_an_entry() {
+		$entry_id = self::create_entry( self::create_coverage() );
+		self::add_breakout( $entry_id, 'publish' );
+		$other_id = self::factory()->post->create();
+
+		$filter = static function ( $content ) use ( $other_id ) {
+			$GLOBALS['post'] = get_post( $other_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			return $content;
+		};
+		add_filter( 'render_block_core/paragraph', $filter, 5 );
+		$html = self::render_markup( $entry_id, self::read_more_paragraph() );
+		remove_filter( 'render_block_core/paragraph', $filter, 5 );
+
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-read-more', $html );
+	}
+
+	/**
+	 * A link already inside the paragraph is not wrapped in another.
+	 */
+	public function test_read_more_paragraph_with_its_own_link_is_left_alone() {
+		$entry_id = self::create_entry( self::create_coverage() );
+		self::add_breakout( $entry_id, 'publish' );
+
+		$html = self::render_markup( $entry_id, self::read_more_paragraph( 'newspack-rolling-coverage-read-more', '<a href="https://example.com/">Elsewhere</a>' ) );
+
+		$this->assertStringContainsString( '<a href="https://example.com/">Elsewhere</a></p>', $html );
+		$this->assertSame( 1, substr_count( $html, '<a ' ) );
+	}
+
+	/**
+	 * A "Share" paragraph, as the editor saves it.
+	 *
+	 * @param string $classes Classes on the paragraph.
+	 * @param string $text    Paragraph HTML.
+	 * @return string Block markup.
+	 */
+	private static function share_paragraph( string $classes = 'newspack-rolling-coverage-share', string $text = 'Share' ): string {
+		return '<!-- wp:paragraph {"className":"' . $classes . '"} --><p class="' . $classes . '">' . $text . '</p><!-- /wp:paragraph -->';
+	}
+
+	/**
+	 * A "Share" paragraph links to the entry, marked for the share script and
+	 * named after the entry it shares, keeping its own text.
+	 */
+	public function test_share_paragraph_links_to_the_entry() {
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_title' => 'Polls close at 8pm' ] );
+
+		$html = self::render_markup( $entry_id, self::share_paragraph( 'foo newspack-rolling-coverage-share', '<strong>Share</strong> this' ) );
+
+		$this->assertMatchesRegularExpression(
+			'#<p class="foo newspack-rolling-coverage-share wp-block-paragraph"><a (?=[^>]*href="' . preg_quote( esc_url( get_permalink( $entry_id ) ), '#' ) . '")(?=[^>]*data-rc-share)(?=[^>]*role="button")(?=[^>]*aria-label="Share this: Polls close at 8pm")[^>]*><strong>Share</strong> this</a></p>#',
+			$html
+		);
+	}
+
+	/**
+	 * An entry that can't be shared renders no "Share" paragraph.
+	 */
+	public function test_share_paragraph_is_removed_when_the_entry_cannot_be_shared() {
+		$entry_id = self::create_entry( self::create_coverage() );
+		wp_update_post(
+			[
+				'ID'          => $entry_id,
+				'post_status' => 'draft',
+			]
+		);
+
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-share', self::render_markup( $entry_id, self::share_paragraph() ) );
+	}
+
+	/**
+	 * A "Share" paragraph outside an entry is left alone.
+	 */
+	public function test_share_paragraph_outside_entries_is_untouched() {
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-share wp-block-paragraph">Share</p>', do_blocks( self::share_paragraph() ) );
+	}
+
+	/**
+	 * A placeholder link in a "Read more" paragraph, as the template ships it so
+	 * the editor shows a link, points at the published breakout.
+	 */
+	public function test_read_more_placeholder_link_points_at_the_breakout() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+
+		$html = self::render_markup( $entry_id, self::read_more_paragraph( 'newspack-rolling-coverage-read-more', '<a href="#">Read more</a>' ) );
+
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-read-more wp-block-paragraph"><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Read more</a></p>', $html );
+	}
+
+	/**
+	 * A placeholder link in a "Share" paragraph becomes the entry's share link.
+	 */
+	public function test_share_placeholder_link_becomes_the_share_link() {
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_title' => 'Polls close at 8pm' ] );
+
+		$html = self::render_markup( $entry_id, self::share_paragraph( 'newspack-rolling-coverage-share', '<a href="#">Share</a>' ) );
+
+		$this->assertMatchesRegularExpression(
+			'#<p class="newspack-rolling-coverage-share wp-block-paragraph"><a (?=[^>]*href="' . preg_quote( esc_url( get_permalink( $entry_id ) ), '#' ) . '")(?=[^>]*data-rc-share)(?=[^>]*role="button")(?=[^>]*aria-label="Share: Polls close at 8pm")[^>]*>Share</a></p>#',
+			$html
+		);
+		$this->assertSame( 1, substr_count( $html, '<a ' ) );
 	}
 }

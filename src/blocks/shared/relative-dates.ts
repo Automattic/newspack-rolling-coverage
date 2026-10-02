@@ -1,10 +1,10 @@
 /**
- * Keeps relative entry dates ("5 minutes ago") current. The server writes
- * them when it renders the page, so a cached page, or a tab left open, would
- * otherwise show how old each entry was when the HTML was made.
+ * Keeps relative dates ("5 minutes ago") current. The server writes them when
+ * it renders the page, so a cached page, or a tab left open, would otherwise
+ * show how old each date was when the HTML was made.
  */
 
-// Entry dates in the relative format, marked by Rolling_Coverage_Block.
+// Relative dates, marked by the Rolling Coverage block's entries and the Coverage Status block's "Updated" time.
 const RELATIVE_DATE_SELECTOR = 'time[data-rc-relative][datetime]';
 
 const REFRESH_INTERVAL_MS = 60000;
@@ -59,12 +59,12 @@ function refreshRelativeDates(
 				return;
 			}
 
-			const seconds = ( timestamp - Date.now() ) / 1000;
+			const seconds =
+				( Math.min( timestamp, Date.now() ) - Date.now() ) / 1000;
 			const [ unit, size ] = UNITS.find(
 				( [ , unitSeconds ] ) => Math.abs( seconds ) >= unitSeconds
 			) ?? [ 'second', 1 ];
-			const value =
-				Math.round( seconds / size ) || ( seconds < 0 ? -1 : 1 );
+			const value = Math.round( seconds / size ) || -1;
 			const text = formatter.format( value, unit );
 
 			if ( time.textContent !== text ) {
@@ -79,25 +79,26 @@ function refreshRelativeDates(
  *
  * @param {HTMLElement} root        The block's outer wrapper element.
  * @param {HTMLElement} entriesList The block's entries list.
+ * @return {Function} Stops the updates.
  */
 function keepRelativeDatesCurrent(
 	root: HTMLElement,
 	entriesList: HTMLElement
-): void {
+): () => void {
 	const formatter = getFormatter();
 
 	if ( ! formatter ) {
-		return;
+		return () => {};
 	}
 
 	refreshRelativeDates( root, formatter );
 
-	window.setInterval(
+	const intervalId = window.setInterval(
 		() => refreshRelativeDates( root, formatter ),
 		REFRESH_INTERVAL_MS
 	);
 
-	new MutationObserver( ( mutations ) =>
+	const observer = new MutationObserver( ( mutations ) =>
 		mutations.forEach( ( mutation ) =>
 			mutation.addedNodes.forEach( ( node ) => {
 				if ( node instanceof Element ) {
@@ -105,7 +106,18 @@ function keepRelativeDatesCurrent(
 				}
 			} )
 		)
-	).observe( entriesList, { childList: true } );
+	);
+	observer.observe( entriesList, { childList: true } );
+
+	return () => {
+		window.clearInterval( intervalId );
+		observer.disconnect();
+	};
 }
 
-export { keepRelativeDatesCurrent };
+export {
+	keepRelativeDatesCurrent,
+	getFormatter,
+	refreshRelativeDates,
+	REFRESH_INTERVAL_MS,
+};

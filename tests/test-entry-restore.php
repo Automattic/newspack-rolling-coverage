@@ -5,6 +5,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Archive_Mode;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Taxonomy;
 
@@ -142,6 +143,23 @@ class Test_Entry_Restore extends Rolling_Coverage_TestCase {
 		$response = self::dispatch( 'POST', "/entries/{$entry_id}/restore" );
 
 		$this->assertSame( 403, $response->get_status(), 'The request should be refused.' );
+		$this->assertStringContainsString( '“Ended”', $response->get_data()['message'], "The refusal should name the coverage's status." );
+		$this->assertSame( 'trash', get_post_status( $entry_id ), 'The entry should stay in the trash.' );
+	}
+
+	/**
+	 * An archived entry of an open coverage stays in the trash, and the
+	 * refusal blames the entry, not its coverage.
+	 */
+	public function test_archived_entry_cannot_be_restored() {
+		$entry_id = self::create_entry( self::create_coverage() );
+		update_post_meta( $entry_id, Archive_Mode::ENTRY_ARCHIVED_META_KEY, time() );
+		wp_trash_post( $entry_id );
+
+		$response = self::dispatch( 'POST', "/entries/{$entry_id}/restore" );
+
+		$this->assertSame( 403, $response->get_status(), 'The request should be refused.' );
+		$this->assertStringNotContainsString( 'coverage', $response->get_data()['message'], 'The refusal should not blame the coverage.' );
 		$this->assertSame( 'trash', get_post_status( $entry_id ), 'The entry should stay in the trash.' );
 	}
 

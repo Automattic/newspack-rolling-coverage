@@ -39,14 +39,13 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	/**
 	 * Render an entry through the card template.
 	 *
-	 * @param int    $entry_id     Entry post ID.
-	 * @param bool   $is_last      Whether no entry can load after it.
-	 * @param string $markup       Template markup.
-	 * @param string $layout_class The entries' layout container class.
+	 * @param int    $entry_id Entry post ID.
+	 * @param bool   $is_last  Whether no entry can load after it.
+	 * @param string $markup   Template markup.
 	 * @return string Rendered entry.
 	 */
-	private static function render( int $entry_id, bool $is_last = false, string $markup = self::TEMPLATE_MARKUP, string $layout_class = '' ): string {
-		return Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( $markup ), 'initial', '', $layout_class, $is_last );
+	private static function render( int $entry_id, bool $is_last = false, string $markup = self::TEMPLATE_MARKUP ): string {
+		return Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( $markup ), 'initial', $is_last );
 	}
 
 	/**
@@ -121,15 +120,15 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The entry group spaces its blocks as an entry does, and the last entry
+	 * The entry group spaces its blocks by its own layout, and the last entry
 	 * still drops the separator after it.
 	 */
 	public function test_entry_group_carries_the_entry_layout() {
 		switch_theme( 'twentytwentyfive' );
 
-		$html = self::render( self::create_entry( self::create_coverage() ), true, self::markup_with_entry_group(), 'entry-layout-test' );
+		$html = self::render( self::create_entry( self::create_coverage() ), true, self::markup_with_entry_group() );
 
-		$this->assertMatchesRegularExpression( '/<div class="[^"]*newspack-rolling-coverage-regular-entry[^"]*entry-layout-test/', $html );
+		$this->assertMatchesRegularExpression( '/<div class="[^"]*newspack-rolling-coverage-regular-entry[^"]*newspack-rolling-coverage-entry-layout-[0-9a-f]+/', $html );
 		$this->assertStringNotContainsString( 'wp-block-separator', $html, 'The last entry should drop the separator.' );
 	}
 
@@ -152,10 +151,10 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	public function test_entry_group_inner_container_carries_the_entry_layout_without_theme_json() {
 		self::use_theme_without_theme_json();
 
-		$html       = self::render( self::create_entry( self::create_coverage() ), false, self::markup_with_entry_group(), 'entry-layout-test' );
+		$html       = self::render( self::create_entry( self::create_coverage() ), false, self::markup_with_entry_group() );
 		$group_html = substr( $html, strpos( $html, 'newspack-rolling-coverage-regular-entry' ) );
 
-		$this->assertMatchesRegularExpression( '/^[^>]*>\s*<div class="wp-block-group__inner-container[^"]*entry-layout-test/', $group_html, 'The first thing inside the entry group should be the inner container.' );
+		$this->assertMatchesRegularExpression( '/^[^>]*>\s*<div class="wp-block-group__inner-container[^"]*newspack-rolling-coverage-entry-layout-[0-9a-f]+/', $group_html, 'The first thing inside the entry group should be the inner container.' );
 	}
 
 	/**
@@ -184,6 +183,95 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 		Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
 
 		$this->assertStringContainsString( $container[0], wp_style_engine_get_stylesheet_from_context( 'block-supports' ) );
+	}
+
+	/**
+	 * A time-column template: a pinned card and an entry group, each a row of the
+	 * time and the body, with the visible pinned label in the card or without.
+	 *
+	 * @param bool   $with_label Whether the card carries the pinned label.
+	 * @param string $pin_icon   Icon block markup shown in the card in place of the time, if any.
+	 * @return string Template markup.
+	 */
+	private static function time_column_markup( bool $with_label = false, string $pin_icon = '' ): string {
+		$label = $with_label
+			? '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-pinned-label"} --><p class="use-header-font newspack-rolling-coverage-pinned-label">Pinned</p><!-- /wp:paragraph -->'
+			: '';
+		$date  = '<!-- wp:post-date {"format":"g:i a"} /-->';
+		$body  = '<!-- wp:column --><div class="wp-block-column"><!-- wp:paragraph --><p>Body text</p><!-- /wp:paragraph --></div><!-- /wp:column -->';
+		$row   = static fn( string $time ): string => '<!-- wp:columns {"isStackedOnMobile":false} --><div class="wp-block-columns">'
+			. '<!-- wp:column {"width":"6rem"} --><div class="wp-block-column" style="flex-basis:6rem">' . $time . '</div><!-- /wp:column -->'
+			. $body
+			. '</div><!-- /wp:columns -->';
+
+		return '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">' . $label . $row( $pin_icon ? $pin_icon : $date ) . '</div><!-- /wp:group -->'
+			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . $row( $date ) . '</div><!-- /wp:group -->';
+	}
+
+	/**
+	 * A pinned entry whose template shows no pinned label is announced to
+	 * screen readers first in the article; an unpinned one is not.
+	 */
+	public function test_pinned_entry_without_a_label_is_announced_to_screen_readers() {
+		$markup = self::time_column_markup();
+		$pinned = self::render( self::create_pinned_entry(), false, $markup );
+		$other  = self::render( self::create_entry( self::create_coverage() ), false, $markup );
+
+		$this->assertMatchesRegularExpression( '/<article [^>]*><span class="newspack-rolling-coverage-pinned-status">Pinned<\/span>/', $pinned );
+		$this->assertStringContainsString( 'Body text', $pinned );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-status', $other, 'An unpinned entry should carry no announcement.' );
+		$this->assertStringContainsString( '<time', $other );
+	}
+
+	/**
+	 * A pin icon in place of the pinned label stays silent, so the entry is
+	 * announced as pinned once.
+	 */
+	public function test_pin_icon_without_a_label_is_announced_once() {
+		$pinned = self::render( self::create_pinned_entry(), false, self::time_column_markup( false, '<!-- wp:icon {"icon":"newspack-rolling-coverage/pin-small"} /-->' ) );
+
+		$this->assertStringContainsString( '<svg', $pinned );
+		$this->assertSame( 1, substr_count( $pinned, 'Pinned' ) );
+	}
+
+	/**
+	 * A pinned entry whose template shows the pinned label keeps just that
+	 * label.
+	 */
+	public function test_pinned_entry_with_a_label_adds_no_announcement() {
+		$pinned = self::render( self::create_pinned_entry(), false, self::time_column_markup( true ) );
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-label', $pinned );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-status', $pinned );
+	}
+
+	/**
+	 * A label nested in a row group inside the card still counts as the
+	 * pinned label.
+	 */
+	public function test_pinned_entry_with_a_nested_label_adds_no_announcement() {
+		$label  = '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-pinned-label"} --><p class="use-header-font newspack-rolling-coverage-pinned-label">Pinned</p><!-- /wp:paragraph -->';
+		$markup = '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">'
+			. '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group">' . $label . '<!-- wp:post-date /--></div><!-- /wp:group -->'
+			. '<!-- wp:paragraph --><p>Body text</p><!-- /wp:paragraph --></div><!-- /wp:group -->';
+		$pinned = self::render( self::create_pinned_entry(), false, $markup );
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-label', $pinned );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-status', $pinned );
+	}
+
+	/**
+	 * A time-column pinned card and entry group carry no corner radius of their
+	 * own, and rendering adds none.
+	 */
+	public function test_time_column_cards_render_without_a_border_radius() {
+		$markup = self::time_column_markup();
+		$pinned = self::render( self::create_pinned_entry(), false, $markup );
+		$other  = self::render( self::create_entry( self::create_coverage() ), false, $markup );
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-card', $pinned );
+		$this->assertStringNotContainsString( 'border-radius', $pinned );
+		$this->assertStringNotContainsString( 'border-radius', $other );
 	}
 
 	/**
@@ -222,6 +310,39 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The built-in template closes an entry group with a separator, which
+	 * the last entry drops.
+	 */
+	public function test_default_template_closes_the_entry_group_with_a_separator() {
+		$coverage_id = self::create_coverage();
+		$older_id    = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		$newer_id    = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 11:00:00' ] );
+
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		preg_match( '/<article id="newspack-rolling-coverage-entry-' . $newer_id . '".*?<\/article>/s', $html, $newer );
+		preg_match( '/<article id="newspack-rolling-coverage-entry-' . $older_id . '".*?<\/article>/s', $html, $older );
+
+		$this->assertMatchesRegularExpression( '/newspack-rolling-coverage-regular-entry.*<hr class="wp-block-separator[^"]*"\/>\s*(<\/div>\s*)+<\/article>/s', $newer[0], 'The separator should end the entry group.' );
+		$this->assertStringNotContainsString( 'wp-block-separator', $older[0], 'The last entry should drop it.' );
+	}
+
+	/**
+	 * A separator ending the entry group is dropped from the last entry.
+	 */
+	public function test_last_entry_drops_the_separator_ending_the_entry_group() {
+		$markup   = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry"><!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph --><!-- wp:separator --><hr class="wp-block-separator has-alpha-channel-opacity"/><!-- /wp:separator --></div><!-- /wp:group -->';
+		$entry_id = self::create_entry( self::create_coverage() );
+		$last     = self::render( $entry_id, true, $markup );
+
+		$this->assertStringContainsString( 'wp-block-separator', self::render( $entry_id, false, $markup ), 'An entry that is not last should keep it.' );
+		$this->assertStringNotContainsString( 'wp-block-separator', $last );
+		$this->assertStringContainsString( 'Entry text', $last );
+	}
+
+	/**
 	 * The last entry drops the separator.
 	 */
 	public function test_last_entry_drops_the_separator() {
@@ -254,6 +375,22 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A card holding the "Read more" paragraph drops it without a breakout.
+	 */
+	public function test_pinned_card_drops_the_read_more_paragraph_without_a_breakout() {
+		$entry_id = self::create_pinned_entry();
+		$markup   = '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">'
+			. '<!-- wp:paragraph --><p>Card text</p><!-- /wp:paragraph -->'
+			. '<!-- wp:paragraph {"className":"newspack-rolling-coverage-read-more"} --><p class="newspack-rolling-coverage-read-more">Read more</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+
+		$html = self::render( $entry_id, false, $markup );
+
+		$this->assertStringContainsString( 'Card text', $html );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-read-more', $html );
+	}
+
+	/**
 	 * A pinned entry that is last drops the space below the card.
 	 */
 	public function test_last_pinned_card_drops_its_bottom_margin() {
@@ -264,30 +401,29 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * On a theme with theme.json, the card itself carries the entries'
-	 * layout class.
+	 * On a theme with theme.json, the card itself carries its layout class.
 	 */
 	public function test_card_carries_the_entry_layout() {
 		switch_theme( 'twentytwentyfive' );
 
-		$html = self::render( self::create_pinned_entry(), false, self::TEMPLATE_MARKUP, 'entry-layout-test' );
+		$html = self::render( self::create_pinned_entry() );
 
-		$this->assertMatchesRegularExpression( '/<div class="[^"]*newspack-rolling-coverage-pinned-card[^"]*entry-layout-test/', $html );
+		$this->assertMatchesRegularExpression( '/<div class="[^"]*newspack-rolling-coverage-pinned-card[^"]*newspack-rolling-coverage-entry-layout-[0-9a-f]+/', $html );
 		$this->assertStringNotContainsString( 'wp-block-group__inner-container', $html, 'Themes with theme.json have no inner container.' );
 	}
 
 	/**
 	 * On a theme without theme.json, one inner container holds the card's
-	 * blocks and carries the entries' layout class.
+	 * blocks and carries its layout class.
 	 */
 	public function test_card_inner_container_carries_the_entry_layout_without_theme_json() {
 		self::use_theme_without_theme_json();
 
-		$html      = self::render( self::create_pinned_entry(), false, self::TEMPLATE_MARKUP, 'entry-layout-test' );
+		$html      = self::render( self::create_pinned_entry() );
 		$card_html = substr( $html, strpos( $html, 'newspack-rolling-coverage-pinned-card' ) );
 
-		$this->assertMatchesRegularExpression( '/^[^>]*>\s*<div class="wp-block-group__inner-container[^"]*entry-layout-test/', $card_html, 'The first thing inside the card should be the inner container.' );
-		$this->assertSame( 1, preg_match_all( '/<div class="wp-block-group__inner-container[^"]*entry-layout-test/', $html ), 'Only the card should carry the layout class.' );
+		$this->assertMatchesRegularExpression( '/^[^>]*>\s*<div class="wp-block-group__inner-container[^"]*newspack-rolling-coverage-entry-layout-[0-9a-f]+/', $card_html, 'The first thing inside the card should be the inner container.' );
+		$this->assertSame( 1, preg_match_all( '/<div class="wp-block-group__inner-container[^"]*newspack-rolling-coverage-entry-layout-/', $html ), 'Only the card should carry the layout class.' );
 	}
 
 	/**
@@ -295,9 +431,44 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	 */
 	public function test_row_card_keeps_its_own_layout() {
 		$markup = str_replace( '"className":"newspack-rolling-coverage-pinned-card",', '"className":"newspack-rolling-coverage-pinned-card","layout":{"type":"flex"},', self::TEMPLATE_MARKUP );
-		$html   = self::render( self::create_pinned_entry(), false, $markup, 'entry-layout-test' );
 
-		$this->assertSame( 1, substr_count( $html, 'entry-layout-test' ), 'Only the entry should carry the layout class.' );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-entry-layout-', self::render( self::create_pinned_entry(), false, $markup ) );
+	}
+
+	/**
+	 * The card and the entry group space their blocks by their own Block
+	 * spacing, with `spacing-20` when it's unset.
+	 *
+	 * @dataProvider data_group_spacing
+	 *
+	 * @param string $style    The group's style attribute, as JSON.
+	 * @param string $expected The space between the group's blocks.
+	 */
+	public function test_group_spacing_lays_out_its_blocks( string $style, string $expected ) {
+		switch_theme( 'twentytwentyfive' );
+
+		$markup = str_replace( '{"className":"newspack-rolling-coverage-regular-entry"}', '{"className":"newspack-rolling-coverage-regular-entry"' . $style . '}', self::markup_with_entry_group() );
+		$html   = self::render( self::create_entry( self::create_coverage() ), false, $markup );
+
+		$this->assertMatchesRegularExpression( '/newspack-rolling-coverage-regular-entry[^"]*(newspack-rolling-coverage-entry-layout-[0-9a-f]+)/', $html );
+		preg_match( '/newspack-rolling-coverage-regular-entry[^"]*(newspack-rolling-coverage-entry-layout-[0-9a-f]+)/', $html, $matches );
+
+		$this->assertStringContainsString(
+			'.' . $matches[1] . ' > * + *{margin-block-start:' . $expected,
+			wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] )
+		);
+	}
+
+	/**
+	 * Group spacing settings and the space they give.
+	 *
+	 * @return array[]
+	 */
+	public function data_group_spacing(): array {
+		return [
+			'unset'  => [ '', 'var(--wp--preset--spacing--20)' ],
+			'preset' => [ ',"style":{"spacing":{"blockGap":"var:preset|spacing|30"}}', 'var(--wp--preset--spacing--30)' ],
+		];
 	}
 
 	/**

@@ -1,6 +1,8 @@
 /**
  * WordPress dependencies
  */
+import { store as blockEditorStore } from '@wordpress/block-editor';
+import { select } from '@wordpress/data';
 import { useCallback, useMemo } from '@wordpress/element';
 
 /**
@@ -8,11 +10,17 @@ import { useCallback, useMemo } from '@wordpress/element';
  */
 import metadata from './block.json';
 import {
-	ENTRY_TEMPLATE,
+	bulletinEntryTemplate,
+	streamEntryTemplate,
+	railEntryTemplate,
+	clockEntryTemplate,
+	marginEntryTemplate,
 	ENTRY_ALLOWED_BLOCKS,
-	ENTRY_EDITED_STATES,
 	FOLLOW_TEMPLATE,
+	feedTemplate,
+	latestTemplate,
 	isFollowButtons,
+	isLatestButtons,
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	withLinkedTitle,
@@ -25,7 +33,7 @@ import {
 	isPinnedCard,
 	forEntryKind,
 } from './template';
-import type { EntryContext, TemplateBlocks } from './types';
+import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
 export const BLOCK_NAME = metadata.name;
 
@@ -36,46 +44,148 @@ export const BLOCK_NAME = metadata.name;
 export const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 
 /**
- * Every block name injected by an editor state. Used for the allowed-blocks
- * list, and to exclude these from the per-entry preview cards below.
+ * The slugs of every color in the editor's palette: the theme's, core's
+ * default and the site's custom ones.
+ *
+ * @return {string[]} Color slugs.
  */
-export const STATE_BLOCK_NAMES = ENTRY_EDITED_STATES.flatMap( ( state ) =>
-	state.blocks.map( ( [ blockName ] ) => blockName )
-);
+function paletteSlugs(): string[] {
+	const settings = (
+		select( blockEditorStore.name ) as unknown as {
+			getSettings: () => {
+				colors?: { slug: string }[];
+				__experimentalFeatures?: {
+					color?: { palette?: Record< string, { slug: string }[] > };
+				};
+			};
+		}
+	 ).getSettings();
+	const origins = Object.values(
+		settings.__experimentalFeatures?.color?.palette ?? {}
+	);
+
+	return [ ...origins.flat(), ...( settings.colors ?? [] ) ].map(
+		( color ) => color.slug
+	);
+}
 
 /**
- * Block names that render once at the top of the coverage (not per entry).
- * Used to split inner blocks into these vs. the per-entry template.
+ * The slugs of the theme's font sizes.
+ *
+ * @return {string[]} Font size slugs.
  */
-export const RENDER_ONCE_BLOCKS = [ FOLLOW_BLOCK_NAME, ...STATE_BLOCK_NAMES ];
+function themeFontSizeSlugs(): string[] {
+	const settings = (
+		select( blockEditorStore.name ) as unknown as {
+			getSettings: () => {
+				__experimentalFeatures?: {
+					typography?: {
+						fontSizes?: { theme?: { slug: string }[] };
+					};
+				};
+			};
+		}
+	 ).getSettings();
+
+	return (
+		settings.__experimentalFeatures?.typography?.fontSizes?.theme ?? []
+	).map( ( size ) => size.slug );
+}
 
 /**
- * The editor state each state block belongs to, keyed by block name.
+ * The Bulletin layout's inner-blocks template, the default: the Feed group,
+ * holding the "Jump to Latest" button, in the colors the editor's palette
+ * has for it, and the follow button at the top, then the per-entry blocks.
+ *
+ * @return {TemplateItem[]} The template.
  */
-export const STATE_BY_BLOCK_NAME: Record< string, string > = Object.fromEntries(
-	ENTRY_EDITED_STATES.flatMap( ( state ) =>
-		state.blocks.map( ( [ blockName ] ) => [ blockName, state.value ] )
-	)
-);
+export function innerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate( [
+			latestTemplate( paletteSlugs() ),
+			FOLLOW_TEMPLATE,
+			...bulletinEntryTemplate( themeFontSizeSlugs() ),
+		] ),
+	];
+}
 
 /**
- * Default inner-blocks template for the Rolling Coverage block: the follow
- * button at the top, then every editor state's blocks, then the per-entry
- * blocks.
+ * The Stream layout's inner-blocks template: the same Feed group and buttons
+ * as the default, with a wider gap between untitled entries.
+ *
+ * @return {TemplateItem[]} The template.
  */
-export const INNER_TEMPLATE = [
-	FOLLOW_TEMPLATE,
-	...ENTRY_EDITED_STATES.flatMap( ( state ) => state.blocks ),
-	...ENTRY_TEMPLATE,
-];
+export function streamInnerTemplate(): TemplateItem[] {
+	const slugs = paletteSlugs();
+
+	return [
+		feedTemplate(
+			[
+				latestTemplate( slugs ),
+				FOLLOW_TEMPLATE,
+				...streamEntryTemplate( slugs, themeFontSizeSlugs() ),
+			],
+			'var:preset|spacing|60'
+		),
+	];
+}
 
 /**
- * All block types allowed inside the Rolling Coverage block's inner blocks.
+ * The Rail layout's inner-blocks template: the same Feed group and buttons
+ * as the default, with each entry hanging off a timeline.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function railInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate( [
+			latestTemplate( paletteSlugs() ),
+			FOLLOW_TEMPLATE,
+			...railEntryTemplate(),
+		] ),
+	];
+}
+
+/**
+ * The Clock layout's inner-blocks template: the same Feed group and buttons
+ * as the default, with each entry headed by the time it was posted.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function clockInnerTemplate(): TemplateItem[] {
+	const slugs = paletteSlugs();
+
+	return [
+		feedTemplate( [
+			latestTemplate( slugs ),
+			FOLLOW_TEMPLATE,
+			...clockEntryTemplate( slugs, themeFontSizeSlugs() ),
+		] ),
+	];
+}
+
+/**
+ * The Margin layout's inner-blocks template: the same Feed group and buttons
+ * as the default, with each entry split into a margin and its content.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function marginInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate( [
+			latestTemplate( paletteSlugs() ),
+			FOLLOW_TEMPLATE,
+			...marginEntryTemplate(),
+		] ),
+	];
+}
+
+/**
+ * All block types allowed inside the Feed group.
  */
 export const ALL_ALLOWED_BLOCKS = [
 	...ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_BLOCK_NAME,
-	...STATE_BLOCK_NAMES,
 ];
 
 /**
@@ -111,7 +221,8 @@ export function previewTemplateFor(
 
 /**
  * The per-entry preview blocks for a layout: the layout's blocks minus the
- * render-once ones, shaped per entry the way the site renders each entry.
+ * follow and Jump to Latest buttons, shaped per entry the way the site
+ * renders each entry.
  *
  * @param {Object[]}       allBlocks      The layout's top-level blocks.
  * @param {EntryContext[]} entryContexts  The entries being previewed.
@@ -130,8 +241,9 @@ export function useLayoutPreview(
 		() =>
 			allBlocks.filter(
 				( block ) =>
-					! RENDER_ONCE_BLOCKS.includes( block.name ) &&
-					! isFollowButtons( block )
+					block.name !== FOLLOW_BLOCK_NAME &&
+					! isFollowButtons( block ) &&
+					! isLatestButtons( block )
 			),
 		[ allBlocks ]
 	);

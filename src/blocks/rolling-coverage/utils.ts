@@ -16,7 +16,7 @@ import { addQueryArgs, getQueryArg } from '@wordpress/url';
 /**
  * Internal dependencies
  */
-import type { CoverageOption, EntryContext } from './types';
+import type { CoverageOption, EntryContext, TemplateItem } from './types';
 import {
 	COVERAGES_REST_BASE,
 	STATUS_META_KEY,
@@ -24,16 +24,27 @@ import {
 	ADS_DISABLED_META_KEY,
 	ENTRIES_PREVIEW_REST_BASE,
 	AI_ENDPOINT,
-	DEFAULT_LAYOUT_ID,
+	LAYOUT_IDS,
 	LAYOUTS_REST_BASE,
 	ADMIN_URL,
 	IS_BLOCK_THEME,
 	CAN_EDIT_THEME_OPTIONS,
+	LAYOUT_CATEGORY_ID,
 } from './config';
-import { BLOCK_NAME, INNER_TEMPLATE } from './layout';
+import { BLOCK_NAME } from './layout';
+import type { BuiltInLayoutSlug } from './layouts';
 
-let defaultLayoutId = Number( DEFAULT_LAYOUT_ID ) || 0;
-let pendingDefaultLayout: Promise< number > | null = null;
+const layoutIds: Record< BuiltInLayoutSlug, number > = {
+	default: Number( LAYOUT_IDS.default ) || 0,
+	stream: Number( LAYOUT_IDS.stream ) || 0,
+	rail: Number( LAYOUT_IDS.rail ) || 0,
+	clock: Number( LAYOUT_IDS.clock ) || 0,
+	margin: Number( LAYOUT_IDS.margin ) || 0,
+};
+let layoutCategoryId = Number( LAYOUT_CATEGORY_ID ) || 0;
+const pendingLayouts: Partial<
+	Record< BuiltInLayoutSlug, Promise< number > >
+> = {};
 
 /**
  * Searches coverage terms by name.
@@ -108,29 +119,6 @@ async function getCoverage( id: number ): Promise< CoverageOption | null > {
 		};
 	} catch ( error ) {
 		return null;
-	}
-}
-
-/**
- * Updates a coverage term's status.
- *
- * @param {number} id     Coverage term ID.
- * @param {string} status New status value.
- * @return {Promise<boolean>} Whether the update succeeded.
- */
-async function updateCoverageStatus(
-	id: number,
-	status: string
-): Promise< boolean > {
-	try {
-		await apiFetch( {
-			url: `${ COVERAGES_REST_BASE }/${ id }`,
-			method: 'POST',
-			data: { meta: { [ STATUS_META_KEY ]: status } },
-		} );
-		return true;
-	} catch ( error ) {
-		return false;
 	}
 }
 
@@ -229,49 +217,71 @@ async function generateKeyTakeaways(
 }
 
 /**
- * The ID of the shared layout pattern new blocks sync to, or 0 when there
- * isn't one yet.
+ * The ID of a built-in layout's shared pattern, or 0 when there isn't one yet.
  *
- * @return {number} The default layout's pattern ID.
+ * @param {BuiltInLayoutSlug} slug The built-in layout's slug.
+ * @return {number} The layout's pattern ID.
  */
-function getDefaultLayoutId(): number {
-	return defaultLayoutId;
+function getLayoutId( slug: BuiltInLayoutSlug ): number {
+	return layoutIds[ slug ];
 }
 
 /**
- * Creates the shared layout pattern from the built-in default layout, or
- * returns the existing one if another story created it first. Concurrent
- * calls share one request.
+ * The layout pattern category's ID, or 0 until a built-in layout creates it.
  *
- * @return {Promise<number>} The default layout's pattern ID. Rejects on failure.
+ * @return {number} The category's term ID.
  */
-function createDefaultLayout(): Promise< number > {
-	if ( ! pendingDefaultLayout ) {
-		const content = serialize(
-			createBlock(
-				BLOCK_NAME,
-				{},
-				createBlocksFromInnerBlocksTemplate( INNER_TEMPLATE )
-			)
-		);
-		pendingDefaultLayout = apiFetch< { id: number } >( {
-			url: `${ LAYOUTS_REST_BASE }/default`,
-			method: 'POST',
-			data: { content },
-		} )
-			.then( ( response ) => {
-				if ( ! response?.id ) {
-					throw new Error( 'Missing layout ID.' );
-				}
-				defaultLayoutId = response.id;
-				return defaultLayoutId;
-			} )
-			.finally( () => {
-				pendingDefaultLayout = null;
-			} );
+function getLayoutCategoryId(): number {
+	return layoutCategoryId;
+}
+
+/**
+ * Creates a built-in layout's shared pattern, or returns the existing one if
+ * another story created it first. Concurrent calls for a layout share one
+ * request.
+ *
+ * @param {BuiltInLayoutSlug} slug     The built-in layout's slug.
+ * @param {Function}          template Returns the layout's inner blocks template.
+ * @return {Promise<number>} The layout's pattern ID. Rejects on failure.
+ */
+function createLayout(
+	slug: BuiltInLayoutSlug,
+	template: () => TemplateItem[]
+): Promise< number > {
+	const pending = pendingLayouts[ slug ];
+
+	if ( pending ) {
+		return pending;
 	}
 
-	return pendingDefaultLayout;
+	const content = serialize(
+		createBlock(
+			BLOCK_NAME,
+			{},
+			createBlocksFromInnerBlocksTemplate( template() )
+		)
+	);
+	const request = apiFetch< { id: number; categoryId?: number } >( {
+		url: `${ LAYOUTS_REST_BASE }/${ slug }`,
+		method: 'POST',
+		data: { content },
+	} )
+		.then( ( response ) => {
+			if ( ! response?.id ) {
+				throw new Error( 'Missing layout ID.' );
+			}
+			layoutIds[ slug ] = response.id;
+			layoutCategoryId =
+				Number( response.categoryId ) || layoutCategoryId;
+			return response.id;
+		} )
+		.finally( () => {
+			delete pendingLayouts[ slug ];
+		} );
+
+	pendingLayouts[ slug ] = request;
+
+	return request;
 }
 
 const PREVIEW_COVERAGE_ARG = 'rolling_coverage_preview';
@@ -312,12 +322,12 @@ function getLayoutEditUrl( layoutId: number, coverageId: number ): string {
 export {
 	searchCoverages,
 	getCoverage,
-	updateCoverageStatus,
 	updateCoverageCanonicalUrl,
 	fetchEntryPreviewContexts,
 	generateKeyTakeaways,
-	getDefaultLayoutId,
-	createDefaultLayout,
+	getLayoutId,
+	getLayoutCategoryId,
+	createLayout,
 	getLayoutEditUrl,
 	PREVIEW_COVERAGE_ID,
 };

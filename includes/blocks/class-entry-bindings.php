@@ -14,8 +14,9 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Supplies the values core blocks in the Rolling Coverage template are
- * bound to: per entry, the breakout post's link and label, the share link and
- * the pinned label; per coverage, the follow button's notification tag.
+ * bound to: per entry, the breakout post's link and the share link; per
+ * coverage, the follow button's notification tag and the link to the live
+ * feed.
  */
 class Entry_Bindings {
 
@@ -39,15 +40,30 @@ class Entry_Bindings {
 	const FOLLOW_ATTRIBUTE = 'data-rc-follow';
 
 	/**
+	 * Attribute the view script looks for on the link to the live feed.
+	 */
+	const LATEST_ATTRIBUTE = 'data-rc-latest';
+
+	/**
 	 * Block context the Rolling Coverage block renders its follow button with.
 	 */
 	const COVERAGE_ID_CONTEXT     = 'newspack-rolling-coverage/coverageId';
 	const COVERAGE_STATUS_CONTEXT = 'newspack-rolling-coverage/coverageStatus';
 
 	/**
-	 * Block context carrying the Rolling Coverage block's label for pinned entries.
+	 * Class of the paragraph that labels a pinned entry.
 	 */
-	const PINNED_LABEL_CONTEXT = 'newspack-rolling-coverage/pinnedLabel';
+	const PINNED_LABEL_CLASS = 'newspack-rolling-coverage-pinned-label';
+
+	/**
+	 * Class of the paragraph that links to the entry's breakout post.
+	 */
+	const READ_MORE_CLASS = 'newspack-rolling-coverage-read-more';
+
+	/**
+	 * Class of the paragraph that links to the entry's share URL.
+	 */
+	const SHARE_CLASS = 'newspack-rolling-coverage-share';
 
 	/**
 	 * Initialize hooks.
@@ -56,6 +72,8 @@ class Entry_Bindings {
 		add_action( 'init', [ __CLASS__, 'register_source' ] );
 		add_filter( 'render_block_core/button', [ __CLASS__, 'filter_button' ], 10, 3 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'filter_pinned_label' ], 10, 2 );
+		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_read_more' ], 10, 2 );
+		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_share' ], 10, 2 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'filter_pinned_group' ], 10, 2 );
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'link_title_to_breakout' ], 10, 3 );
 	}
@@ -69,7 +87,7 @@ class Entry_Bindings {
 			[
 				'label'              => __( 'Rolling Coverage Entry', 'newspack-rolling-coverage' ),
 				'get_value_callback' => [ __CLASS__, 'get_value' ],
-				'uses_context'       => [ 'postId', 'postType', self::COVERAGE_ID_CONTEXT, self::COVERAGE_STATUS_CONTEXT, self::PINNED_LABEL_CONTEXT ],
+				'uses_context'       => [ 'postId', 'postType', self::COVERAGE_ID_CONTEXT, self::COVERAGE_STATUS_CONTEXT ],
 			]
 		);
 	}
@@ -89,6 +107,10 @@ class Entry_Bindings {
 			return $coverage_id && Coverage_Follow_Block::should_render( $status ) ? Push_Notifications::follow_tag( $coverage_id ) : null;
 		}
 
+		if ( 'latestUrl' === ( $source_args['key'] ?? '' ) ) {
+			return Rolling_Coverage_Block::is_rendering_entry() ? null : Rolling_Coverage_Block::live_feed_url();
+		}
+
 		$entry_id = (int) ( $block->context['postId'] ?? 0 );
 
 		if ( ! $entry_id || Post_Type::CPT_SLUG !== get_post_type( $entry_id ) ) {
@@ -101,15 +123,6 @@ class Entry_Bindings {
 
 			case 'shareUrl':
 				return Social_Sharing::get_entry_share_url( $entry_id ) ?: null; // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
-
-			case 'pinnedLabel':
-				if ( ! Post_Type::is_pinned( $entry_id ) ) {
-					return null;
-				}
-
-				$label = trim( (string) ( $block->context[ self::PINNED_LABEL_CONTEXT ] ?? '' ) );
-
-				return $label ? $label : self::default_pinned_label();
 		}
 
 		return null;
@@ -160,7 +173,8 @@ class Entry_Bindings {
 	/**
 	 * Render nothing for a button whose link is bound to a value the entry
 	 * doesn't have, e.g. "Read more" before the breakout post is published,
-	 * and hand the share and follow buttons what their scripts need.
+	 * or "Jump to Latest" inside an entry, and hand the share, follow and
+	 * "Jump to Latest" buttons what their scripts need.
 	 *
 	 * Parameters stay untyped because this runs for every core button on the
 	 * site, after other plugins' filters that may hand on unexpected types.
@@ -202,6 +216,10 @@ class Entry_Bindings {
 			$button->set_attribute( 'aria-pressed', 'false' );
 		}
 
+		if ( 'latestUrl' === $key && $button->next_tag( 'a' ) ) {
+			$button->set_attribute( self::LATEST_ATTRIBUTE, '' );
+		}
+
 		return $button->get_updated_html();
 	}
 
@@ -229,20 +247,29 @@ class Entry_Bindings {
 			return $block_content;
 		}
 
-		$label = $label ? $label : __( 'Share', 'newspack-rolling-coverage' );
-		$entry = self::entry_name( $entry_id );
-
 		$open->set_attribute( 'style', trim( (string) $open->get_attribute( 'style' ) . ';' . self::SHARE_BOX_STYLE, ';' ) );
-		$open->set_attribute(
-			'aria-label',
-			$entry
-				/* translators: 1: share button text, e.g. "Share", 2: entry title or its first words. */
-				? sprintf( __( '%1$s: %2$s', 'newspack-rolling-coverage' ), $label, $entry )
-				: $label
-		);
+		$open->set_attribute( 'aria-label', self::share_name( $label, $entry_id ) );
 		$svg->set_attribute( 'fill', 'currentColor' );
 
 		return str_replace( $link[0], $open->get_updated_html() . trim( $svg->get_updated_html() ) . $link[3], $block_content );
+	}
+
+	/**
+	 * A share link's accessible name: its text and the entry it shares, so
+	 * each entry's link is told apart, e.g. "Share: Polls close at 8pm".
+	 *
+	 * @param string $label    The link's text, as plain text.
+	 * @param int    $entry_id Entry the link shares.
+	 * @return string
+	 */
+	private static function share_name( string $label, int $entry_id ): string {
+		$label = $label ? $label : __( 'Share', 'newspack-rolling-coverage' );
+		$entry = self::entry_name( $entry_id );
+
+		return $entry
+			/* translators: 1: share button text, e.g. "Share", 2: entry title or its first words. */
+			? sprintf( __( '%1$s: %2$s', 'newspack-rolling-coverage' ), $label, $entry )
+			: $label;
 	}
 
 	/**
@@ -291,6 +318,149 @@ class Entry_Bindings {
 		}
 
 		return self::is_current_entry_pinned() ? $block_content : '';
+	}
+
+	/**
+	 * Link a "Read more" paragraph to the entry's published breakout post, or
+	 * render nothing when there is none.
+	 *
+	 * Parameters stay untyped because this runs for every paragraph on the
+	 * site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string $block_content Rendered block.
+	 * @param array  $block         Parsed block.
+	 * @return string
+	 */
+	public static function link_read_more( $block_content, $block ) {
+		if ( ! Rolling_Coverage_Block::is_rendering_entry() || ! is_array( $block ) || ! is_string( $block_content ) || ! self::is_read_more_paragraph( $block ) ) {
+			return $block_content;
+		}
+
+		$entry_id = (int) get_the_ID();
+		$url      = $entry_id && Post_Type::CPT_SLUG === get_post_type( $entry_id ) ? Breakout::get_published_breakout_url( $entry_id ) : null;
+
+		if ( ! $url ) {
+			return '';
+		}
+
+		return self::link_paragraph( $block_content, [ 'href' => $url ] );
+	}
+
+	/**
+	 * Link a "Share" paragraph to the entry's share URL, as a link the share
+	 * script picks up, or render nothing when the entry can't be shared.
+	 *
+	 * Parameters stay untyped because this runs for every paragraph on the
+	 * site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string $block_content Rendered block.
+	 * @param array  $block         Parsed block.
+	 * @return string
+	 */
+	public static function link_share( $block_content, $block ) {
+		if ( ! Rolling_Coverage_Block::is_rendering_entry() || ! is_array( $block ) || ! is_string( $block_content ) || ! self::is_share_paragraph( $block ) ) {
+			return $block_content;
+		}
+
+		$entry_id = (int) get_the_ID();
+		$url      = $entry_id && Post_Type::CPT_SLUG === get_post_type( $entry_id ) ? Social_Sharing::get_entry_share_url( $entry_id ) : '';
+
+		if ( ! $url ) {
+			return '';
+		}
+
+		return self::link_paragraph(
+			$block_content,
+			[
+				'href'                => $url,
+				self::SHARE_ATTRIBUTE => '',
+				'role'                => 'button',
+				'aria-label'          => self::share_name( self::plain_text( $block_content ), $entry_id ),
+			]
+		);
+	}
+
+	/**
+	 * Link a rendered paragraph's content. A placeholder link (`href="#"`),
+	 * which the layouts ship so the editor shows a link, takes the
+	 * attributes; any other link inside is the author's own and is left
+	 * alone, as links can't nest; otherwise the content is wrapped in a new
+	 * link.
+	 *
+	 * @param string $block_content Rendered paragraph.
+	 * @param array  $attributes    The link's attributes, keyed by name.
+	 * @return string
+	 */
+	private static function link_paragraph( string $block_content, array $attributes ): string {
+		if ( ! preg_match( '/<p(?=[\s>])(?:"[^"]*"|\'[^\']*\'|[^>"\'])*>/i', $block_content, $tag, PREG_OFFSET_CAPTURE ) ) {
+			return $block_content;
+		}
+
+		$inner_start = $tag[0][1] + strlen( $tag[0][0] );
+		$close       = stripos( $block_content, '</p>', $inner_start );
+
+		if ( false === $close ) {
+			return $block_content;
+		}
+
+		$inner = substr( $block_content, $inner_start, $close - $inner_start );
+
+		if ( preg_match( '/<a[\s>]/i', $inner ) ) {
+			$links = new WP_HTML_Tag_Processor( $inner );
+
+			while ( $links->next_tag( 'a' ) ) {
+				if ( '#' === $links->get_attribute( 'href' ) ) {
+					foreach ( $attributes as $name => $value ) {
+						$links->set_attribute( $name, $value );
+					}
+
+					return substr( $block_content, 0, $inner_start ) . $links->get_updated_html() . substr( $block_content, $close );
+				}
+			}
+
+			return $block_content;
+		}
+
+		$open = new WP_HTML_Tag_Processor( '<a>' );
+		$open->next_tag();
+
+		foreach ( $attributes as $name => $value ) {
+			$open->set_attribute( $name, $value );
+		}
+
+		return substr( $block_content, 0, $inner_start )
+			. $open->get_updated_html() . $inner . '</a>'
+			. substr( $block_content, $close );
+	}
+
+	/**
+	 * Whether a parsed block is the paragraph linking to the entry's breakout
+	 * post.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_read_more_paragraph( array $parsed_block ): bool {
+		$class_name = $parsed_block['attrs']['className'] ?? '';
+
+		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
+			is_string( $class_name ) &&
+			in_array( self::READ_MORE_CLASS, explode( ' ', $class_name ), true );
+	}
+
+	/**
+	 * Whether a parsed block is the paragraph linking to the entry's share
+	 * URL.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_share_paragraph( array $parsed_block ): bool {
+		$class_name = $parsed_block['attrs']['className'] ?? '';
+
+		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
+			is_string( $class_name ) &&
+			in_array( self::SHARE_CLASS, explode( ' ', $class_name ), true );
 	}
 
 	/**
@@ -345,27 +515,37 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * The label pinned entries show when the Rolling Coverage block has none.
+	 * Whether a template shows the pinned label, at any depth.
 	 *
-	 * @return string
+	 * @param array[] $blocks Parsed blocks.
+	 * @return bool
 	 */
-	public static function default_pinned_label(): string {
-		return __( 'Pinned', 'newspack-rolling-coverage' );
+	public static function has_pinned_label( array $blocks ): bool {
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) ) {
+				continue;
+			}
+
+			if ( self::is_pinned_label( $block ) || ( ! empty( $block['innerBlocks'] ) && is_array( $block['innerBlocks'] ) && self::has_pinned_label( $block['innerBlocks'] ) ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
-	 * Whether a parsed block is a paragraph bound to the pinned label.
+	 * Whether a parsed block is the paragraph labeling a pinned entry.
 	 *
 	 * @param array $parsed_block Parsed block.
 	 * @return bool
 	 */
 	private static function is_pinned_label( array $parsed_block ): bool {
-		$binding = $parsed_block['attrs']['metadata']['bindings']['content'] ?? [];
+		$class_name = $parsed_block['attrs']['className'] ?? '';
 
 		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
-			is_array( $binding ) &&
-			self::SOURCE_NAME === ( $binding['source'] ?? '' ) &&
-			'pinnedLabel' === ( $binding['args']['key'] ?? '' );
+			is_string( $class_name ) &&
+			in_array( self::PINNED_LABEL_CLASS, explode( ' ', $class_name ), true );
 	}
 
 	/**
@@ -388,6 +568,29 @@ class Entry_Bindings {
 	 * @return bool
 	 */
 	public static function is_follow_buttons( array $parsed_block ): bool {
+		return self::is_buttons_bound_to( $parsed_block, 'followTag' );
+	}
+
+	/**
+	 * Whether a parsed block is the Rolling Coverage "Jump to Latest" button:
+	 * a core Buttons block holding a button bound to the live feed's link.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_latest_buttons( array $parsed_block ): bool {
+		return self::is_buttons_bound_to( $parsed_block, 'latestUrl' );
+	}
+
+	/**
+	 * Whether a parsed block is a core Buttons block holding a button whose
+	 * link is bound to one of this source's values.
+	 *
+	 * @param array  $parsed_block Parsed block.
+	 * @param string $key          The bound value's key.
+	 * @return bool
+	 */
+	private static function is_buttons_bound_to( array $parsed_block, string $key ): bool {
 		if ( 'core/buttons' !== ( $parsed_block['blockName'] ?? '' ) ) {
 			return false;
 		}
@@ -395,7 +598,7 @@ class Entry_Bindings {
 		foreach ( $parsed_block['innerBlocks'] ?? [] as $inner_block ) {
 			$binding = $inner_block['attrs']['metadata']['bindings']['url'] ?? [];
 
-			if ( self::SOURCE_NAME === ( $binding['source'] ?? '' ) && 'followTag' === ( $binding['args']['key'] ?? '' ) ) {
+			if ( self::SOURCE_NAME === ( $binding['source'] ?? '' ) && $key === ( $binding['args']['key'] ?? '' ) ) {
 				return true;
 			}
 		}

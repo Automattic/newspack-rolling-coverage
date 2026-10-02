@@ -14,18 +14,23 @@ import {
 	getSlackChannelLabel,
 	COVERAGE_STATUS_INDICATORS,
 } from '../utils/fields';
-import type { Field, ViewState, Coverage } from '../types';
+import type { Field, ViewState, Coverage, StatusLabels } from '../types';
 
-const COVERAGE_STATUS_ELEMENTS = [
-	{ value: 'active', label: __( 'Active', 'newspack-rolling-coverage' ) },
-	{ value: 'paused', label: __( 'Paused', 'newspack-rolling-coverage' ) },
-	{ value: 'archived', label: __( 'Archived', 'newspack-rolling-coverage' ) },
-	{ value: 'trash', label: __( 'Trash', 'newspack-rolling-coverage' ) },
-];
-
-const COVERAGE_STATUS_LABELS: Record< string, string > = Object.fromEntries(
-	COVERAGE_STATUS_ELEMENTS.map( ( { value, label } ) => [ value, label ] )
-);
+/**
+ * The coverage statuses as the list shows them, named after the site's
+ * status indicator labels.
+ *
+ * @param {StatusLabels} labels The site's status labels.
+ * @return {Object[]} Status filter elements.
+ */
+function getCoverageStatusElements( labels: StatusLabels ) {
+	return [
+		{ value: 'active', label: labels.active },
+		{ value: 'paused', label: labels.paused },
+		{ value: 'archived', label: labels.archived },
+		{ value: 'trash', label: __( 'Trash', 'newspack-rolling-coverage' ) },
+	];
+}
 
 /**
  * Field definitions for the coverage DataViews table.
@@ -33,14 +38,18 @@ const COVERAGE_STATUS_LABELS: Record< string, string > = Object.fromEntries(
  *
  * @param {string}                       statusKey            Meta key for the coverage status (from AdminConfig).
  * @param {string}                       lastModifiedKey      Meta key for the coverage's latest entry activity (from AdminConfig).
+ * @param {StatusLabels}                 statusLabels         The site's status labels, which name the statuses.
  * @param {(coverage: Coverage) => void} [onOpenSlackConnect] Opens the Slack connection drawer from the channel name, or a Connect link when unlinked; without it the column is plain text.
  * @return {Field< Coverage >[]} Field definitions for the coverage table.
  */
 function getCoverageFields(
 	statusKey: string,
 	lastModifiedKey: string,
+	statusLabels: StatusLabels,
 	onOpenSlackConnect?: ( coverage: Coverage ) => void
 ): Field< Coverage >[] {
+	const statusElements = getCoverageStatusElements( statusLabels );
+
 	return [
 		{
 			id: 'term_id',
@@ -71,7 +80,7 @@ function getCoverageFields(
 			label: __( 'Status', 'newspack-rolling-coverage' ),
 			getValue: ( { item } ) =>
 				String( item.meta?.[ statusKey ] ?? '' ) || 'active',
-			elements: COVERAGE_STATUS_ELEMENTS,
+			elements: statusElements,
 			render: ( { item } ) => {
 				const status =
 					String( item.meta?.[ statusKey ] ?? '' ) || 'active';
@@ -79,7 +88,9 @@ function getCoverageFields(
 					<StatusIndicator
 						status={ COVERAGE_STATUS_INDICATORS[ status ] }
 					>
-						{ COVERAGE_STATUS_LABELS[ status ] ?? status }
+						{ statusElements.find(
+							( element ) => element.value === status
+						)?.label ?? status }
 					</StatusIndicator>
 				);
 			},

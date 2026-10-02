@@ -54,7 +54,7 @@ const POST_STATUS_INDICATORS: Record< string, StatusName > = {
  */
 const COVERAGE_STATUS_INDICATORS: Record< string, StatusName > = {
 	active: 'active',
-	paused: 'pending',
+	paused: 'draft',
 	archived: 'ended',
 	trash: 'trash',
 };

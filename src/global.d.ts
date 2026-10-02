@@ -69,9 +69,26 @@ declare module '@wordpress/block-editor' {
 		props: Record< string, unknown >
 	): JSX.Element;
 
+	export const BlockPreview: ComponentType< {
+		blocks: unknown[];
+		viewportWidth?: number;
+		minHeight?: number;
+	} >;
+
 	export const __experimentalUseBlockPreview: (
 		props: Record< string, unknown >
 	) => Record< string, unknown >;
+
+	type ClassesAndStyles = (
+		attributes: Record< string, unknown >
+	) => { className?: string; style?: Record< string, unknown > };
+
+	export const __experimentalGetBorderClassesAndStyles: ClassesAndStyles;
+	export const __experimentalGetColorClassesAndStyles: ClassesAndStyles;
+	export const __experimentalGetDimensionsClassesAndStyles: ClassesAndStyles;
+	export const __experimentalGetShadowClassesAndStyles: ClassesAndStyles;
+	export const __experimentalGetSpacingClassesAndStyles: ClassesAndStyles;
+	export const getTypographyClassesAndStyles: ClassesAndStyles;
 
 	export const store: {
 		name: string;

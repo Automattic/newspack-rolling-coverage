@@ -23,6 +23,7 @@ import type { View } from '@wordpress/dataviews';
 import { ErrorNotice } from '../shared/error-notice';
 import { useEntries } from '../hooks/useEntries';
 import { useAdminContext } from '../hooks/useAdminContext';
+import { useStatusLabels } from '../utils/status-labels';
 import { EmptyState } from 'newspack-components/dist/esm/empty-state';
 import { LoadingState } from '../shared/loading-state';
 import { useHeader } from '../hooks/useHeader';
@@ -69,6 +70,7 @@ const GROUP_NOTICE_THRESHOLD = 5;
  */
 function EntryView() {
 	const config = useAdminContext();
+	const statusLabels = useStatusLabels();
 	const { coverageId } = useParams< { coverageId?: string } >();
 	const { createInfoNotice } = useDispatch( noticesStore );
 	const [ context, setContext, refresh ] =
@@ -511,9 +513,14 @@ function EntryView() {
 					showTooltip
 					tooltipPosition="bottom"
 					label={ __( 'Add Entry', 'newspack-rolling-coverage' ) }
-					describedBy={ __(
-						'This coverage is archived. Set it back to Active to add entries.',
-						'newspack-rolling-coverage'
+					describedBy={ sprintf(
+						/* translators: 1: The coverage's status, e.g. "Ended". 2: The status that allows new entries, e.g. "Live". */
+						__(
+							'This coverage is set to “%1$s”. Set it to “%2$s” to add entries.',
+							'newspack-rolling-coverage'
+						),
+						statusLabels.archived,
+						statusLabels.active
 					) }
 				>
 					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
@@ -528,7 +535,7 @@ function EntryView() {
 					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
 				</Button>
 			),
-		[ isArchived, handleNewEntry, isCreatingEntry ]
+		[ isArchived, handleNewEntry, isCreatingEntry, statusLabels ]
 	);
 
 	const viewPageButton = useMemo(

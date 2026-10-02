@@ -26,7 +26,8 @@ class Entry_Ingestion_Service {
 	 * timeout) mid-insert, the `finally` block won't run and the lock option
 	 * stays forever. This TTL allows stale locks to be reclaimed: when
 	 * add_option() fails, we check the stored timestamp and break the lock
-	 * if it's older than this.
+	 * if it's older than this. Media work refreshes the timestamp as it
+	 * progresses, so a long import keeps its lock.
 	 *
 	 * @var int
 	 */
@@ -34,6 +35,9 @@ class Entry_Ingestion_Service {
 
 	// Skip result when the target coverage is archived.
 	const SKIP_ARCHIVED_COVERAGE = -1;
+
+	// Skip result when another request is still ingesting the same event.
+	const SKIP_IN_PROGRESS = -2;
 
 	/**
 	 * Ingest a normalized source event into a rolling coverage entry.
@@ -43,16 +47,26 @@ class Entry_Ingestion_Service {
 	 * @param bool                 $auto_publish    Whether to insert as 'publish' or 'draft'.
 	 * @param int                  $bot_user_id     WP user id to assign as post_author.
 	 * @param array<string, mixed> $provenance_meta Platform-specific meta keyed by meta_key.
+	 * @param callable|null        $render_media    Returns block markup for the event's
+	 *                                              media, added after the content. Only
+	 *                                              called for an event that is about to
+	 *                                              become an entry, so a redelivered
+	 *                                              event does not import its media twice.
+	 *                                              It receives a callable to call as the
+	 *                                              work progresses, which keeps the
+	 *                                              event's lock from going stale.
 	 * @return int|\WP_Error Post id on success, 0 on a clean skip,
 	 *                       self::SKIP_ARCHIVED_COVERAGE when the coverage is
-	 *                       archived, or WP_Error.
+	 *                       archived, self::SKIP_IN_PROGRESS when another
+	 *                       request holds the event's lock, or WP_Error.
 	 */
 	public static function ingest(
 		Source_Event_Payload $payload,
 		int $term_id,
 		bool $auto_publish,
 		int $bot_user_id,
-		array $provenance_meta
+		array $provenance_meta,
+		?callable $render_media = null
 	) {
 		if ( Archive_Mode::is_coverage_archived( $term_id ) ) {
 			return self::SKIP_ARCHIVED_COVERAGE;
@@ -67,7 +81,7 @@ class Entry_Ingestion_Service {
 
 			// Lock is fresh — another request is actively processing; skip.
 			if ( $lock_time > 0 && ( time() - $lock_time ) < self::MUTEX_TTL ) {
-				return 0;
+				return self::SKIP_IN_PROGRESS;
 			}
 
 			// Lock is stale — reclaim it by updating the timestamp and proceed.
@@ -75,13 +89,7 @@ class Entry_Ingestion_Service {
 		}
 
 		try {
-			if ( self::entry_exists( $payload->source_ref, $term_id ) ) {
-				return 0;
-			}
-
-			if ( '' === $payload->content_html ) {
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( 'Source ingestion: empty content, skipping.' );
+			if ( self::find_entry_id( $payload->source_ref, $term_id ) > 0 ) {
 				return 0;
 			}
 
@@ -91,13 +99,38 @@ class Entry_Ingestion_Service {
 				return 0;
 			}
 
+			$content = $payload->content_html;
+
+			if ( null !== $render_media ) {
+				$keep_lock = static fn() => update_option( $lock_key, time(), false );
+				$content   = implode( "\n\n", array_filter( [ $content, (string) $render_media( $keep_lock ) ], 'strlen' ) );
+
+				// The import can outlast another delivery of the same event that got past the lock.
+				if ( self::find_entry_id( $payload->source_ref, $term_id ) > 0 ) {
+					return 0;
+				}
+			}
+
+			if ( '' === $content ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( 'Source ingestion: empty content, skipping.' );
+				return 0;
+			}
+
 			$postarr = [
 				'post_type'    => Post_Type::CPT_SLUG,
 				'post_title'   => '',
-				'post_content' => wp_slash( $payload->content_html ),
+				'post_content' => wp_slash( $content ),
 				'post_author'  => $bot_user_id,
 				'post_status'  => $auto_publish ? 'publish' : 'draft',
 			];
+
+			// A reply is a child of the entry for the message its thread starts
+			// from, so the two can be shown together. When that message has no
+			// entry in this coverage, the reply is a top-level entry.
+			if ( null !== $payload->thread_ref && '' !== $payload->thread_ref ) {
+				$postarr['post_parent'] = self::find_entry_id( $payload->thread_ref, $term_id );
+			}
 
 			try {
 				$post_id = wp_insert_post( $postarr, true );
@@ -129,6 +162,14 @@ class Entry_Ingestion_Service {
 				add_post_meta( $post_id, $meta_key, $meta_value );
 			}
 
+			/**
+			 * Fires once an entry from a chat source is saved with its
+			 * coverage and meta.
+			 *
+			 * @param int $post_id Entry post id.
+			 */
+			do_action( 'newspack_rolling_coverage_entry_ingested', $post_id );
+
 			return $post_id;
 		} finally {
 			delete_option( $lock_key );
@@ -136,19 +177,21 @@ class Entry_Ingestion_Service {
 	}
 
 	/**
-	 * Check whether an entry already exists for the given source_ref + term.
+	 * Find the entry for the given source_ref + term.
 	 *
 	 * @param string $source_ref Platform-native message id.
 	 * @param int    $term_id    Term id.
-	 * @return bool
+	 * @return int Entry post id, or 0 when there is none.
 	 */
-	private static function entry_exists( string $source_ref, int $term_id ): bool {
+	private static function find_entry_id( string $source_ref, int $term_id ): int {
 		$posts = get_posts(
 			[
 				'post_type'      => Post_Type::CPT_SLUG,
 				'post_status'    => 'any',
 				'posts_per_page' => 1,
 				'fields'         => 'ids',
+				// A cached answer cannot see an entry another request saved since.
+				'cache_results'  => false,
 				'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Checks whether post is from same source e.g. slack.
 					[
 						'key'   => Post_Type::META_SOURCE_REF,
@@ -165,6 +208,6 @@ class Entry_Ingestion_Service {
 			]
 		);
 
-		return ! empty( $posts );
+		return (int) ( $posts[0] ?? 0 );
 	}
 }

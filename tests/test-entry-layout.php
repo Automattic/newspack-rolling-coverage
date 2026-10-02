@@ -5,7 +5,6 @@
  * @package Newspack_Rolling_Coverage
  */
 
-use Newspack_Rolling_Coverage\Deep_Link_CTA_Block;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 
 /**
@@ -43,6 +42,32 @@ class Test_Entry_Layout extends Rolling_Coverage_TestCase {
 		$preset = str_replace( '"blockGap":"0"', '"blockGap":"var:preset|spacing|40"', self::STACK_MARKUP );
 
 		$this->assertStringContainsString( 'gap:var(--wp--preset--spacing--40)', self::render( $preset ), 'A preset should resolve to its variable.' );
+	}
+
+	/**
+	 * A time-column row's columns get their horizontal gap written on the
+	 * Newspack Theme, as a column gap only.
+	 */
+	public function test_entry_columns_gap_is_written_on_the_newspack_theme() {
+		$markup = '<!-- wp:columns {"isStackedOnMobile":false,"style":{"spacing":{"blockGap":{"left":"var:preset|spacing|30"}}}} --><div class="wp-block-columns"><!-- wp:column --><div class="wp-block-column"><!-- wp:post-date /--></div><!-- /wp:column --></div><!-- /wp:columns -->';
+
+		$this->assertStringNotContainsString( 'column-gap', self::render( $markup ), 'Other themes should be left to core.' );
+
+		add_filter( 'template', fn() => 'newspack-theme' );
+
+		$this->assertMatchesRegularExpression( '#<div style="[^"]*column-gap:var\(--wp--preset--spacing--30\)#', self::render( $markup ) );
+	}
+
+	/**
+	 * Columns that stack keep both gaps on the Newspack Theme: the space
+	 * between stacked columns as well as between columns side by side.
+	 */
+	public function test_stacking_columns_keep_both_gaps_on_the_newspack_theme() {
+		$markup = '<!-- wp:columns {"style":{"spacing":{"blockGap":{"top":"var:preset|spacing|20","left":"var:preset|spacing|40"}}}} --><div class="wp-block-columns"><!-- wp:column --><div class="wp-block-column"><!-- wp:post-date /--></div><!-- /wp:column --></div><!-- /wp:columns -->';
+
+		add_filter( 'template', fn() => 'newspack-theme' );
+
+		$this->assertMatchesRegularExpression( '#<div style="[^"]*gap:var\(--wp--preset--spacing--20\) var\(--wp--preset--spacing--40\)#', self::render( $markup ) );
 	}
 
 	/**
@@ -104,43 +129,5 @@ class Test_Entry_Layout extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'datetime="' . get_the_date( 'c', $entry_id ) . '"', $html, 'The template date should show the entry\'s own date.' );
 		$this->assertStringNotContainsString( '2001-01-01', $html, 'The template\'s saved date should be ignored.' );
 		$this->assertStringContainsString( '2020-06-01', $html, 'A custom date written in the entry should stay.' );
-	}
-
-	/**
-	 * The notice for a deep-linked older entry names an untitled entry by
-	 * its first words.
-	 */
-	public function test_deep_link_notice_names_an_untitled_entry_by_its_first_words() {
-		$coverage_id = self::create_coverage();
-		self::create_entry(
-			$coverage_id,
-			[
-				'post_title'   => '',
-				'post_name'    => 'counting-update',
-				'post_content' => "<!-- wp:paragraph -->\n<p>Counting starts at 9pm<br>in the town hall.</p>\n<!-- /wp:paragraph -->",
-			]
-		);
-		set_query_var( \Newspack_Rolling_Coverage\Social_Sharing::ENTRY_QUERY_VAR, 'counting-update' );
-
-		// The block registers from built assets, which the PHP test job does not build.
-		if ( ! WP_Block_Type_Registry::get_instance()->is_registered( Deep_Link_CTA_Block::BLOCK_NAME ) ) {
-			register_block_type( Deep_Link_CTA_Block::BLOCK_NAME, [ 'render_callback' => [ Deep_Link_CTA_Block::class, 'render_block' ] ] );
-		}
-
-		$render = new ReflectionMethod( Rolling_Coverage_Block::class, 'maybe_render_deep_link_cta' );
-		$render->setAccessible( true );
-		$html = $render->invoke(
-			null,
-			[],
-			new WP_Block(
-				[
-					'blockName'   => 'newspack-rolling-coverage/rolling-coverage',
-					'attrs'       => [ 'coverageId' => $coverage_id ],
-					'innerBlocks' => [],
-				]
-			)
-		);
-
-		$this->assertStringContainsString( '<strong>Counting starts at 9pm in the town hall.</strong>', $html );
 	}
 }

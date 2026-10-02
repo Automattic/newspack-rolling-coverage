@@ -27,7 +27,23 @@
 			"type": "number",
 			"default": 4
 		},
-		"pinnedLabel": {
+		"archivedNoticeShow": {
+			"type": "boolean",
+			"default": true
+		},
+		"archivedNotice": {
+			"type": "string",
+			"default": ""
+		},
+		"archivedNoticeShowLink": {
+			"type": "boolean",
+			"default": true
+		},
+		"archivedNoticeLinkUrl": {
+			"type": "string",
+			"default": ""
+		},
+		"archivedNoticeLinkLabel": {
 			"type": "string",
 			"default": ""
 		},
@@ -36,37 +52,10 @@
 			"default": 0
 		}
 	},
-	"providesContext": {
-		"newspack-rolling-coverage/pinnedLabel": "pinnedLabel"
-	},
 	"supports": {
 		"html": false,
 		"align": true,
-		"anchor": true,
-		"color": {
-			"text": true,
-			"background": true,
-			"link": true,
-			"__experimentalDefaultControls": {
-				"text": true,
-				"background": true
-			}
-		},
-		"typography": {
-			"fontSize": true,
-			"lineHeight": true,
-			"__experimentalDefaultControls": {
-				"fontSize": true
-			}
-		},
-		"spacing": {
-			"margin": true,
-			"padding": true,
-			"blockGap": true,
-			"__experimentalDefaultControls": {
-				"padding": true
-			}
-		}
+		"anchor": true
 	},
 	"editorScript": "file:./index.js",
 	"editorStyle": "file:./index.css",

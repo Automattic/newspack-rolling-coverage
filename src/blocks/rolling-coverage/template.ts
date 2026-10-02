@@ -1,6 +1,8 @@
 /**
  * WordPress dependencies
  */
+import { getSettings } from '@wordpress/date';
+import { escapeHTML } from '@wordpress/escape-html';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -8,15 +10,21 @@ import { __ } from '@wordpress/i18n';
  */
 import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
-import type { TemplateItem, EntryEditedState } from './types';
+import type { TemplateItem } from './types';
 
 const LOCKED = { remove: true, move: false };
 
 /**
- * The pinned card and the entry group stay at the layout's top level, where
- * the template is split by kind of entry.
+ * The Feed group stays at the layout's top level, and the pinned card and the
+ * entry group at the Feed's, where the template is split by kind of entry.
  */
 const LOCKED_IN_PLACE = { remove: true, move: true };
+
+/**
+ * Class of the layout's Feed group, mirroring
+ * Rolling_Coverage_Block::FEED_CLASS.
+ */
+const FEED_CLASS = 'newspack-rolling-coverage-feed';
 
 /**
  * The pin icon registered by Block_Icons::PIN.
@@ -24,105 +32,59 @@ const LOCKED_IN_PLACE = { remove: true, move: true };
 const PIN_ICON = 'newspack-rolling-coverage/pin-small';
 
 /**
+ * Class of the paragraph that labels a pinned entry, mirroring
+ * Entry_Bindings::PINNED_LABEL_CLASS.
+ */
+const PINNED_LABEL_CLASS = 'newspack-rolling-coverage-pinned-label';
+
+/**
  * The pin icon and the pinned label in a row, shown only on pinned entries
  * (see Entry_Bindings::filter_pinned_group()).
+ *
+ * @param {string} [color] The row's text color.
+ * @return {TemplateItem} The row.
  */
-const PINNED_ROW: TemplateItem = [
-	'core/group',
-	{
-		layout: {
-			type: 'flex',
-			flexWrap: 'nowrap',
-			verticalAlignment: 'center',
+function pinnedRow( color?: string ): TemplateItem {
+	return [
+		'core/group',
+		{
+			layout: {
+				type: 'flex',
+				flexWrap: 'nowrap',
+				verticalAlignment: 'center',
+			},
+			style: {
+				...( color ? { color: { text: color } } : {} ),
+				spacing: { blockGap: '0' },
+			},
+			metadata: { name: __( 'Pinned', 'newspack-rolling-coverage' ) },
 		},
-		style: { spacing: { blockGap: '0' } },
-		metadata: { name: __( 'Pinned', 'newspack-rolling-coverage' ) },
-	},
-	[
 		[
-			'core/icon',
-			{ icon: PIN_ICON, style: { dimensions: { width: '24px' } } },
-		],
-		[
-			'core/paragraph',
-			{
-				// The Newspack Theme's class for its heading font, which it also gives the date.
-				className: 'use-header-font',
-				fontSize: 'small',
-				style: { typography: { fontWeight: '700' } },
-				metadata: {
-					bindings: {
-						content: {
-							source: ENTRY_BINDINGS_SOURCE,
-							args: { key: 'pinnedLabel' },
-						},
-					},
+			[
+				'core/icon',
+				{ icon: PIN_ICON, style: { dimensions: { width: '24px' } } },
+			],
+			[
+				'core/paragraph',
+				{
+					// The Newspack Theme's class for its heading font, which it also gives the date.
+					className: `use-header-font ${ PINNED_LABEL_CLASS }`,
+					content: __( 'Pinned', 'newspack-rolling-coverage' ),
+					fontSize: 'small',
+					style: { typography: { fontWeight: '700' } },
 				},
-			},
+			],
 		],
-	],
-];
+	];
+}
 
-const SHARE_BACKGROUND =
-	'var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f0f0f0))';
-const SHARE_TEXT =
-	'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, currentcolor))';
-const READ_MORE_BACKGROUND =
-	'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
-const READ_MORE_TEXT =
-	'var(--wp--preset--color--accent-contrast, var(--wp--preset--color--base, var(--newspack-theme-color-against-primary)))';
-
-/**
- * The share button: a 36px circle showing the link icon, both set by the
- * server (see Entry_Bindings::show_share_icon()). Its text and the entry's title
- * make the link's accessible name.
- */
-const SHARE_BUTTONS: TemplateItem = [
-	'core/buttons',
-	{ metadata: { name: __( 'Share', 'newspack-rolling-coverage' ) } },
-	[
-		[
-			'core/button',
-			{
-				text: __( 'Share', 'newspack-rolling-coverage' ),
-				style: {
-					border: { radius: '9999px' },
-					color: {
-						background: SHARE_BACKGROUND,
-						text: SHARE_TEXT,
-					},
-				},
-				metadata: {
-					name: __( 'Share', 'newspack-rolling-coverage' ),
-					bindings: {
-						url: {
-							source: ENTRY_BINDINGS_SOURCE,
-							args: { key: 'shareUrl' },
-						},
-					},
-				},
-			},
-		],
-	],
-];
-
-/**
- * Spaces what follows the entry's content, such as "Read more", as the theme
- * spaces paragraphs: its block gap, or on a theme without one (the classic
- * theme), the preset matching its paragraph margin. Set on Post Content
- * because the classic theme redefines the block gap on Buttons.
- */
-const CONTENT_GAP =
-	'var(--wp--style--block-gap, var(--wp--preset--spacing--40))';
+const PINNED_ROW = pinnedRow();
 
 /**
  * Class of the group that shows a pinned entry as a card, mirroring
  * Rolling_Coverage_Block::PINNED_CARD_CLASS.
  */
 const PINNED_CARD_CLASS = 'newspack-rolling-coverage-pinned-card';
-const PINNED_CARD_BACKGROUND = 'var(--wp--custom--color--neutral-5, #f7f7f7)';
-const PINNED_CARD_RADIUS =
-	'var(--wp--custom--border--radius-large, var(--newspack-ui-border-radius-l, 8px))';
 
 /**
  * Class of the group that shows an entry that isn't pinned, mirroring
@@ -131,19 +93,224 @@ const PINNED_CARD_RADIUS =
 const REGULAR_ENTRY_CLASS = 'newspack-rolling-coverage-regular-entry';
 
 /**
- * What an entry shows: the date and title stacked with the share button
- * opposite, then content and "Read more" bound to the entry and locked
- * against removal. The pinned card's also carry the pinned row.
+ * The space between the blocks of an entry group or pinned card, mirroring
+ * Rolling_Coverage_Block::DEFAULT_ENTRY_GAP.
+ */
+const DEFAULT_ENTRY_GAP = 'var:preset|spacing|20';
+
+/**
+ * Class of the paragraph that links to the entry's breakout post, mirroring
+ * Entry_Bindings::READ_MORE_CLASS.
+ */
+const READ_MORE_CLASS = 'newspack-rolling-coverage-read-more';
+
+/**
+ * Class of the paragraph that links to the entry's share URL, mirroring
+ * Entry_Bindings::SHARE_CLASS.
+ */
+const SHARE_CLASS = 'newspack-rolling-coverage-share';
+
+const ACCENT =
+	'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
+const ACCENT_CONTRAST =
+	'var(--wp--preset--color--accent-contrast, var(--wp--preset--color--base, var(--newspack-theme-color-against-primary)))';
+const CONTRAST =
+	'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, #111))';
+const BORDER_COLOR =
+	'var(--wp--preset--color--base-3, var(--newspack-theme-color-border, #ddd))';
+const PINNED_BACKGROUND = 'var(--wp--custom--color--neutral-5, #f7f7f7)';
+
+/**
+ * The corner radius of the Stream layout's pinned card.
+ */
+const CARD_RADIUS = '0.5rem';
+
+const CARD_PADDING = {
+	top: 'var:preset|spacing|50',
+	right: 'var:preset|spacing|50',
+	bottom: 'var:preset|spacing|50',
+	left: 'var:preset|spacing|50',
+};
+
+const NO_PADDING = {
+	top: '0',
+	right: '0',
+	bottom: '0',
+	left: '0',
+};
+
+/**
+ * Paragraph content holding a placeholder link, so the editor shows the text
+ * as a link. The site points it at the entry's link (see
+ * Entry_Bindings::link_paragraph()).
  *
- * @param {boolean} isPinned Whether the blocks are the pinned card's.
+ * @param {string} text The link's text.
+ * @return {string} The paragraph content.
+ */
+function placeholderLink( text: string ): string {
+	return `<a href="#">${ escapeHTML( text ) }</a>`;
+}
+
+/**
+ * The site's time format, for layouts that show the time an entry was posted.
+ *
+ * @return {string} A PHP date format.
+ */
+function siteTimeFormat(): string {
+	return getSettings().formats.time || 'g:i a';
+}
+
+/**
+ * The muted date color: the block theme's Contrast 3, else the classic
+ * theme's Medium Gray, else the theme's own date color.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @return {Object} The date's color attributes.
+ */
+function mutedDateColor( slugs: string[] ): { textColor?: string } {
+	const slug = [ 'contrast-3', 'medium-gray' ].find( ( candidate ) =>
+		slugs.includes( candidate )
+	);
+
+	return slug ? { textColor: slug } : {};
+}
+
+/**
+ * A font size preset the theme defines: the preferred slug where the theme
+ * has it, else its fallback. The Newspack Theme names its sizes Normal and
+ * Huge where block themes have Medium and X-Large.
+ *
+ * @param {string[]} sizes     The theme's font size slugs.
+ * @param {string}   preferred The preferred slug.
+ * @param {string}   fallback  The slug to use where the theme lacks it.
+ * @return {string} The slug.
+ */
+function themeFontSize(
+	sizes: string[],
+	preferred: string,
+	fallback: string
+): string {
+	return ! sizes.includes( preferred ) && sizes.includes( fallback )
+		? fallback
+		: preferred;
+}
+
+/**
+ * The entry's content, without the padding core gives Post Content.
+ *
+ * @param {string} [fontSize] The content's font size preset.
+ * @return {TemplateItem} The Post Content block.
+ */
+function postContent( fontSize?: string ): TemplateItem {
+	return [
+		'core/post-content',
+		{
+			...( fontSize ? { fontSize } : {} ),
+			style: { spacing: { padding: NO_PADDING } },
+		},
+	];
+}
+
+/**
+ * The "Read more" link to the entry's breakout post, locked against removal.
+ *
+ * @param {Object} attributes Extra paragraph attributes.
+ * @return {TemplateItem} The paragraph.
+ */
+function readMoreLink(
+	attributes: Record< string, unknown > = {}
+): TemplateItem {
+	return [
+		'core/paragraph',
+		{
+			className: `use-header-font ${ READ_MORE_CLASS }`,
+			content: placeholderLink(
+				__( 'Read more', 'newspack-rolling-coverage' )
+			),
+			fontSize: 'small',
+			lock: LOCKED,
+			metadata: {
+				name: __( 'Read more', 'newspack-rolling-coverage' ),
+			},
+			...attributes,
+		},
+	];
+}
+
+/**
+ * The "Share" link to the entry's share URL.
+ *
+ * @return {TemplateItem} The paragraph.
+ */
+function shareLink(): TemplateItem {
+	return [
+		'core/paragraph',
+		{
+			className: `use-header-font ${ SHARE_CLASS }`,
+			content: placeholderLink(
+				__( 'Share', 'newspack-rolling-coverage' )
+			),
+			fontSize: 'small',
+			metadata: { name: __( 'Share', 'newspack-rolling-coverage' ) },
+		},
+	];
+}
+
+/**
+ * A row of links, wrapping on narrow screens.
+ *
+ * @param {TemplateItem[]} links The links.
+ * @return {TemplateItem} The row.
+ */
+function linksRow( links: TemplateItem[] ): TemplateItem {
+	return [
+		'core/group',
+		{
+			layout: { type: 'flex', verticalAlignment: 'center' },
+			style: { spacing: { blockGap: 'var:preset|spacing|40' } },
+			metadata: { name: __( 'Links', 'newspack-rolling-coverage' ) },
+		},
+		links,
+	];
+}
+
+/**
+ * What a Bulletin entry shows: a row with the time and "Share", or on the
+ * pinned card the pinned row and the relative date, then a large title, the
+ * content and "Read more".
+ *
+ * @param {boolean}  isPinned Whether the blocks are the pinned card's.
+ * @param {string[]} sizes    The theme's font size slugs.
  * @return {TemplateItem[]} The entry's blocks.
  */
-function entryBlocks( isPinned: boolean ): TemplateItem[] {
-	const date: TemplateItem = [
-		'core/post-date',
-		{ ...POST_DATE_ATTRIBUTES, format: 'human-diff' },
-	];
-	const title: TemplateItem = [ 'core/post-title', { level: 4 } ];
+function bulletinEntryBlocks(
+	isPinned: boolean,
+	sizes: string[]
+): TemplateItem[] {
+	const meta: TemplateItem[] = isPinned
+		? [
+				PINNED_ROW,
+				[
+					'core/post-date',
+					{
+						...POST_DATE_ATTRIBUTES,
+						format: 'human-diff',
+						fontSize: 'small',
+						style: { color: { text: ACCENT_CONTRAST } },
+					},
+				],
+			]
+		: [
+				[
+					'core/post-date',
+					{
+						...POST_DATE_ATTRIBUTES,
+						format: siteTimeFormat(),
+						fontSize: 'small',
+					},
+				],
+				shareLink(),
+			];
 
 	return [
 		[
@@ -151,81 +318,308 @@ function entryBlocks( isPinned: boolean ): TemplateItem[] {
 			{
 				layout: {
 					type: 'flex',
-					flexWrap: 'nowrap',
-					justifyContent: 'space-between',
-					verticalAlignment: 'top',
+					flexWrap: 'wrap',
+					verticalAlignment: 'center',
+				},
+				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+				metadata: { name: __( 'Meta', 'newspack-rolling-coverage' ) },
+			},
+			meta,
+		],
+		[
+			'core/post-title',
+			{
+				level: 3,
+				fontSize: isPinned
+					? themeFontSize( sizes, 'x-large', 'huge' )
+					: 'large',
+			},
+		],
+		postContent(),
+		readMoreLink(),
+	];
+}
+
+/**
+ * The Bulletin layout's per-entry template, the default: a headline-led
+ * entry closed by a separator, which the entry group's Block spacing spaces
+ * like its other blocks. The pinned card is set in the accent color,
+ * with its text, links and headings in the accent's contrast color.
+ *
+ * @param {string[]} sizes The theme's font size slugs.
+ * @return {TemplateItem[]} The template.
+ */
+function bulletinEntryTemplate( sizes: string[] ): TemplateItem[] {
+	return [
+		[
+			'core/group',
+			{
+				className: PINNED_CARD_CLASS,
+				lock: LOCKED_IN_PLACE,
+				style: {
+					color: { background: ACCENT, text: ACCENT_CONTRAST },
+					elements: {
+						link: { color: { text: ACCENT_CONTRAST } },
+						heading: { color: { text: ACCENT_CONTRAST } },
+					},
+					spacing: {
+						padding: CARD_PADDING,
+						blockGap: 'var:preset|spacing|30',
+					},
+				},
+				metadata: {
+					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			bulletinEntryBlocks( true, sizes ),
+		],
+		[
+			'core/group',
+			{
+				className: REGULAR_ENTRY_CLASS,
+				lock: LOCKED_IN_PLACE,
+				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+				metadata: {
+					name: __( 'Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			[
+				...bulletinEntryBlocks( false, sizes ),
+				[ 'core/separator', { className: 'is-style-wide' } ],
+			],
+		],
+	];
+}
+
+/**
+ * What a Stream entry shows: no title, the content set larger, then a row
+ * with the relative date, "Read more" and "Share". The pinned card's also
+ * carry the pinned row.
+ *
+ * @param {string[]} slugs    The palette's color slugs.
+ * @param {string[]} sizes    The theme's font size slugs.
+ * @param {boolean}  isPinned Whether the blocks are the pinned card's.
+ * @return {TemplateItem[]} The entry's blocks.
+ */
+function streamEntryBlocks(
+	slugs: string[],
+	sizes: string[],
+	isPinned: boolean
+): TemplateItem[] {
+	const blocks: TemplateItem[] = [
+		postContent( themeFontSize( sizes, 'medium', 'normal' ) ),
+		[
+			'core/group',
+			{
+				layout: {
+					type: 'flex',
+					flexWrap: 'wrap',
+					verticalAlignment: 'center',
 				},
 				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
 				metadata: {
-					name: __( 'Header', 'newspack-rolling-coverage' ),
+					name: __( 'Footer', 'newspack-rolling-coverage' ),
 				},
 			},
 			[
 				[
-					'core/group',
+					'core/post-date',
 					{
-						layout: { type: 'flex', orientation: 'vertical' },
-						style: {
-							spacing: { blockGap: 'var:preset|spacing|20' },
-						},
-						metadata: {
-							name: __( 'Meta', 'newspack-rolling-coverage' ),
-						},
+						...POST_DATE_ATTRIBUTES,
+						format: 'human-diff',
+						fontSize: 'small',
+						...mutedDateColor( slugs ),
 					},
-					isPinned ? [ PINNED_ROW, date, title ] : [ date, title ],
 				],
-				SHARE_BUTTONS,
+				readMoreLink(),
+				shareLink(),
 			],
 		],
+	];
+
+	return isPinned ? [ PINNED_ROW, ...blocks ] : blocks;
+}
+
+/**
+ * The Stream layout's per-entry template: untitled entries spaced apart with
+ * no separator, and the pinned entry in a bordered card.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @param {string[]} sizes The theme's font size slugs.
+ * @return {TemplateItem[]} The template.
+ */
+function streamEntryTemplate(
+	slugs: string[],
+	sizes: string[]
+): TemplateItem[] {
+	return [
 		[
-			'core/post-content',
+			'core/group',
 			{
+				className: PINNED_CARD_CLASS,
+				lock: LOCKED_IN_PLACE,
 				style: {
 					spacing: {
-						padding: {
-							top: '0',
-							right: '0',
-							bottom: '0',
-							left: '0',
-						},
-						margin: { bottom: CONTENT_GAP },
+						padding: CARD_PADDING,
+						blockGap: 'var:preset|spacing|20',
+					},
+					border: {
+						color: CONTRAST,
+						style: 'solid',
+						width: '1px',
+						radius: CARD_RADIUS,
 					},
 				},
+				metadata: {
+					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
+				},
 			},
+			streamEntryBlocks( slugs, sizes, true ),
 		],
 		[
-			'core/buttons',
+			'core/group',
 			{
-				lock: LOCKED,
+				className: REGULAR_ENTRY_CLASS,
+				lock: LOCKED_IN_PLACE,
+				style: { spacing: { blockGap: 'var:preset|spacing|20' } },
 				metadata: {
-					name: __( 'Read more', 'newspack-rolling-coverage' ),
+					name: __( 'Entry', 'newspack-rolling-coverage' ),
 				},
 			},
+			streamEntryBlocks( slugs, sizes, false ),
+		],
+	];
+}
+
+/**
+ * A Rail entry's row: the time, or on the pinned card the pin icon, in a
+ * narrow column, then the entry beside a vertical rule. The entry is a
+ * vertical flex group, so its spacing also applies on the Newspack Theme
+ * (see Rolling_Coverage_Block::apply_entry_block_gap()). The pinned card's
+ * rule is in the accent color and its entry sits on a tinted panel. With no
+ * pinned label, the site announces the entry as pinned itself (see
+ * Rolling_Coverage_Block::render_entry()).
+ *
+ * @param {boolean} isPinned Whether the row is the pinned card's.
+ * @return {TemplateItem} The row.
+ */
+function railRow( isPinned: boolean ): TemplateItem {
+	const marker: TemplateItem = isPinned
+		? [
+				'core/icon',
+				{
+					icon: PIN_ICON,
+					align: 'right',
+					style: {
+						dimensions: { width: '24px' },
+						color: { text: ACCENT },
+					},
+				},
+			]
+		: [
+				'core/post-date',
+				{
+					...POST_DATE_ATTRIBUTES,
+					format: siteTimeFormat(),
+					fontSize: 'small',
+					style: {
+						typography: { textAlign: 'right', fontWeight: '700' },
+					},
+				},
+			];
+	const entry: TemplateItem[] = [
+		[ 'core/post-title', { level: 4 } ],
+		postContent(),
+		linksRow( [ readMoreLink(), shareLink() ] ),
+	];
+
+	return [
+		'core/columns',
+		{
+			isStackedOnMobile: false,
+			style: {
+				spacing: {
+					blockGap: { left: '0' },
+					margin: { top: '0', bottom: '0' },
+				},
+			},
+			metadata: { name: __( 'Row', 'newspack-rolling-coverage' ) },
+		},
+		[
 			[
-				[
-					'core/button',
-					{
-						lock: LOCKED,
-						text: __( 'Read more', 'newspack-rolling-coverage' ),
-						style: {
-							color: {
-								background: READ_MORE_BACKGROUND,
-								text: READ_MORE_TEXT,
-							},
-						},
-						metadata: {
-							name: __(
-								'Read more',
-								'newspack-rolling-coverage'
-							),
-							bindings: {
-								url: {
-									source: ENTRY_BINDINGS_SOURCE,
-									args: { key: 'breakoutUrl' },
-								},
-							},
+				'core/column',
+				{
+					width: '5.5rem',
+					style: {
+						spacing: {
+							padding: { right: 'var:preset|spacing|30' },
 						},
 					},
+					metadata: {
+						name: __( 'Time', 'newspack-rolling-coverage' ),
+					},
+				},
+				[ marker ],
+			],
+			[
+				'core/column',
+				{
+					style: {
+						border: {
+							left: {
+								color: isPinned ? ACCENT : BORDER_COLOR,
+								style: 'solid',
+								width: '1px',
+							},
+						},
+						spacing: {
+							padding: { left: 'var:preset|spacing|40' },
+						},
+					},
+					metadata: {
+						name: __( 'Body', 'newspack-rolling-coverage' ),
+					},
+				},
+				[
+					[
+						'core/group',
+						{
+							layout: {
+								type: 'flex',
+								orientation: 'vertical',
+								justifyContent: 'stretch',
+							},
+							style: {
+								...( isPinned
+									? {
+											color: {
+												background: PINNED_BACKGROUND,
+											},
+										}
+									: {} ),
+								spacing: {
+									...( isPinned
+										? {
+												padding: {
+													top: 'var:preset|spacing|40',
+													right: 'var:preset|spacing|40',
+													bottom: 'var:preset|spacing|40',
+													left: 'var:preset|spacing|40',
+												},
+											}
+										: {} ),
+									blockGap: DEFAULT_ENTRY_GAP,
+								},
+							},
+							metadata: {
+								name: __(
+									'Entry',
+									'newspack-rolling-coverage'
+								),
+							},
+						},
+						entry,
+					],
 				],
 			],
 		],
@@ -233,61 +627,259 @@ function entryBlocks( isPinned: boolean ): TemplateItem[] {
 }
 
 /**
- * Default per-entry template: the pinned card, which a pinned entry shows,
- * the entry group, which every other entry shows, then the separator that
- * closes an entry.
+ * The Rail layout's per-entry template: a timeline with the time beside each
+ * entry, and no separator.
+ *
+ * @return {TemplateItem[]} The template.
  */
-const ENTRY_TEMPLATE: TemplateItem[] = [
-	[
+function railEntryTemplate(): TemplateItem[] {
+	return rowEntryTemplate( railRow );
+}
+
+/**
+ * Blocks stacked in a vertical flex group, so their Block spacing also
+ * applies on the Newspack Theme (see
+ * Rolling_Coverage_Block::apply_entry_block_gap()).
+ *
+ * @param {string}         name   The group's name in the List View.
+ * @param {TemplateItem[]} blocks The blocks.
+ * @return {TemplateItem} The group.
+ */
+function stack( name: string, blocks: TemplateItem[] ): TemplateItem {
+	return [
 		'core/group',
 		{
-			className: PINNED_CARD_CLASS,
-			lock: LOCKED_IN_PLACE,
-			style: {
-				color: { background: PINNED_CARD_BACKGROUND },
-				spacing: {
-					padding: {
-						top: 'var:preset|spacing|50',
-						right: 'var:preset|spacing|50',
-						bottom: 'var:preset|spacing|50',
-						left: 'var:preset|spacing|50',
-					},
-					margin: { bottom: 'var:preset|spacing|50' },
-				},
-				border: { radius: PINNED_CARD_RADIUS },
+			layout: {
+				type: 'flex',
+				orientation: 'vertical',
+				justifyContent: 'stretch',
 			},
-			metadata: {
-				name: __( 'Pinned Card', 'newspack-rolling-coverage' ),
-			},
+			style: { spacing: { blockGap: DEFAULT_ENTRY_GAP } },
+			metadata: { name },
 		},
-		entryBlocks( true ),
-	],
-	[
-		'core/group',
+		blocks,
+	];
+}
+
+/**
+ * An entry's columns, ruled off from the entry above by a top border. The
+ * space below the rule matches the Feed's Block spacing above it, and the
+ * columns stack on narrow screens.
+ *
+ * @param {Object}         border       The top border.
+ * @param {string}         border.color Its color.
+ * @param {string}         border.width Its width.
+ * @param {string}         stackedGap   The space between the stacked columns.
+ * @param {TemplateItem[]} columns      The columns.
+ * @return {TemplateItem} The row.
+ */
+function ruledRow(
+	border: { color: string; width: string },
+	stackedGap: string,
+	columns: TemplateItem[]
+): TemplateItem {
+	return [
+		'core/columns',
 		{
-			className: REGULAR_ENTRY_CLASS,
-			lock: LOCKED_IN_PLACE,
-			metadata: {
-				name: __( 'Entry', 'newspack-rolling-coverage' ),
-			},
-		},
-		entryBlocks( false ),
-	],
-	[
-		'core/separator',
-		{
-			className: 'is-style-wide',
 			style: {
+				border: { top: { ...border, style: 'solid' } },
 				spacing: {
-					margin: {
-						top: 'var:preset|spacing|50',
-						bottom: 'var:preset|spacing|50',
+					blockGap: {
+						top: stackedGap,
+						left: 'var:preset|spacing|40',
 					},
+					padding: { top: 'var:preset|spacing|50' },
+					margin: { top: '0', bottom: '0' },
 				},
 			},
+			metadata: { name: __( 'Row', 'newspack-rolling-coverage' ) },
 		},
-	],
-];
+		columns,
+	];
+}
+
+/**
+ * A Clock entry's row: the time set large in a narrow column with the
+ * relative date below it, or on the pinned card the pinned row in the
+ * accent color, then the title, content and links beside it.
+ *
+ * @param {string[]} slugs    The palette's color slugs.
+ * @param {string[]} sizes    The theme's font size slugs.
+ * @param {boolean}  isPinned Whether the row is the pinned card's.
+ * @return {TemplateItem} The row.
+ */
+function clockRow(
+	slugs: string[],
+	sizes: string[],
+	isPinned: boolean
+): TemplateItem {
+	const time: TemplateItem = isPinned
+		? pinnedRow( ACCENT )
+		: stack( __( 'Dates', 'newspack-rolling-coverage' ), [
+				[
+					'core/post-date',
+					{
+						...POST_DATE_ATTRIBUTES,
+						format: siteTimeFormat(),
+						fontSize: themeFontSize( sizes, 'x-large', 'large' ),
+						style: {
+							color: { text: CONTRAST },
+							typography: { fontWeight: '300' },
+						},
+					},
+				],
+				[
+					'core/post-date',
+					{
+						...POST_DATE_ATTRIBUTES,
+						format: 'human-diff',
+						fontSize: 'small',
+						...mutedDateColor( slugs ),
+						style: { typography: { fontWeight: '600' } },
+					},
+				],
+			] );
+
+	return ruledRow( { color: BORDER_COLOR, width: '1px' }, DEFAULT_ENTRY_GAP, [
+		[
+			'core/column',
+			{
+				width: '9.5rem',
+				metadata: { name: __( 'Time', 'newspack-rolling-coverage' ) },
+			},
+			[ time ],
+		],
+		[
+			'core/column',
+			{ metadata: { name: __( 'Body', 'newspack-rolling-coverage' ) } },
+			[
+				stack( __( 'Entry', 'newspack-rolling-coverage' ), [
+					[ 'core/post-title', { level: 4 } ],
+					postContent(),
+					linksRow( [ readMoreLink(), shareLink() ] ),
+				] ),
+			],
+		],
+	] );
+}
+
+/**
+ * A Margin entry's row: the time, or on the pinned card the pinned row,
+ * the title and the links in a margin column, and the content in the wider
+ * column beside it. The pinned card is ruled off with a heavier rule.
+ *
+ * @param {boolean} isPinned Whether the row is the pinned card's.
+ * @return {TemplateItem} The row.
+ */
+function marginRow( isPinned: boolean ): TemplateItem {
+	const marker: TemplateItem = isPinned
+		? PINNED_ROW
+		: [
+				'core/post-date',
+				{
+					...POST_DATE_ATTRIBUTES,
+					format: siteTimeFormat(),
+					fontSize: 'small',
+				},
+			];
+
+	return ruledRow(
+		isPinned
+			? { color: CONTRAST, width: '3px' }
+			: { color: BORDER_COLOR, width: '1px' },
+		'var:preset|spacing|30',
+		[
+			[
+				'core/column',
+				{
+					width: '33.33%',
+					metadata: {
+						name: __( 'Side', 'newspack-rolling-coverage' ),
+					},
+				},
+				[
+					stack( __( 'Summary', 'newspack-rolling-coverage' ), [
+						marker,
+						[ 'core/post-title', { level: 4 } ],
+						linksRow( [ readMoreLink(), shareLink() ] ),
+					] ),
+				],
+			],
+			[
+				'core/column',
+				{
+					width: '66.66%',
+					metadata: {
+						name: __( 'Body', 'newspack-rolling-coverage' ),
+					},
+				},
+				[ postContent() ],
+			],
+		]
+	);
+}
+
+/**
+ * A per-entry template whose pinned card and entry group each hold one row.
+ *
+ * @param {Function} row Returns the row, given whether it's the pinned card's.
+ * @return {TemplateItem[]} The template.
+ */
+function rowEntryTemplate(
+	row: ( isPinned: boolean ) => TemplateItem
+): TemplateItem[] {
+	return [
+		[
+			'core/group',
+			{
+				className: PINNED_CARD_CLASS,
+				lock: LOCKED_IN_PLACE,
+				metadata: {
+					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			[ row( true ) ],
+		],
+		[
+			'core/group',
+			{
+				className: REGULAR_ENTRY_CLASS,
+				lock: LOCKED_IN_PLACE,
+				metadata: {
+					name: __( 'Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			[ row( false ) ],
+		],
+	];
+}
+
+/**
+ * The Clock layout's per-entry template: each entry headed by the time it
+ * was posted, set large, and ruled off from the one above.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @param {string[]} sizes The theme's font size slugs.
+ * @return {TemplateItem[]} The template.
+ */
+function clockEntryTemplate(
+	slugs: string[],
+	sizes: string[]
+): TemplateItem[] {
+	return rowEntryTemplate( ( isPinned ) =>
+		clockRow( slugs, sizes, isPinned )
+	);
+}
+
+/**
+ * The Margin layout's per-entry template: a broadsheet split, each entry
+ * ruled off from the one above.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+function marginEntryTemplate(): TemplateItem[] {
+	return rowEntryTemplate( marginRow );
+}
 
 /**
  * The follow button, rendered once at the top of the coverage: a core button
@@ -322,18 +914,94 @@ const FOLLOW_TEMPLATE: TemplateItem = [
 ];
 
 /**
- * Whether a block is the follow button's Buttons block (see FOLLOW_TEMPLATE),
- * mirroring Entry_Bindings::is_follow_buttons().
+ * The "Jump to Latest" button's default colors, as palette slugs: the theme's
+ * Contrast and Base where its palette has both, as block themes do; otherwise
+ * Dark Gray and White where it has both, as the Newspack Theme does; otherwise
+ * Contrast and Base. Mirrors Rolling_Coverage_Block::latest_button_colors().
  *
- * @param {Object}   block             The block.
- * @param {string}   block.name        Block name.
- * @param {Object[]} block.innerBlocks Inner blocks.
- * @return {boolean} Whether it's the follow button.
+ * @param {string[]} slugs The palette's color slugs.
+ * @return {Object} The background and text color slugs.
  */
-function isFollowButtons( block: {
+function latestColors( slugs: string[] ): {
+	backgroundColor: string;
+	textColor: string;
+} {
+	const hasContrastAndBase =
+		slugs.includes( 'contrast' ) && slugs.includes( 'base' );
+
+	if (
+		! hasContrastAndBase &&
+		slugs.includes( 'dark-gray' ) &&
+		slugs.includes( 'white' )
+	) {
+		return { backgroundColor: 'dark-gray', textColor: 'white' };
+	}
+
+	return { backgroundColor: 'contrast', textColor: 'base' };
+}
+
+/**
+ * The "Jump to Latest" button, rendered once above the feed: a core button
+ * bound to the live feed's link, in the palette's colors (see latestColors())
+ * with the theme's Elevation 1 shadow. The site fixes it to the top of the
+ * viewport and shows it when new entries wait, or when the feed opens at a
+ * shared entry (see Rolling_Coverage_Block::render_new_entries_control()).
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @return {TemplateItem} The button's template.
+ */
+function latestTemplate( slugs: string[] ): TemplateItem {
+	return [
+		'core/buttons',
+		{
+			lock: LOCKED_IN_PLACE,
+			className: 'newspack-rolling-coverage-new-entries',
+			layout: { type: 'flex', justifyContent: 'center' },
+			metadata: {
+				name: __( 'Jump to Latest', 'newspack-rolling-coverage' ),
+			},
+		},
+		[
+			[
+				'core/button',
+				{
+					lock: LOCKED_IN_PLACE,
+					text: __( 'Jump to Latest', 'newspack-rolling-coverage' ),
+					...latestColors( slugs ),
+					style: { shadow: 'var:preset|shadow|elevation-1' },
+					metadata: {
+						name: __(
+							'Jump to Latest',
+							'newspack-rolling-coverage'
+						),
+						bindings: {
+							url: {
+								source: ENTRY_BINDINGS_SOURCE,
+								args: { key: 'latestUrl' },
+							},
+						},
+					},
+				},
+			],
+		],
+	];
+}
+
+type ButtonsBlock = {
 	name: string;
 	innerBlocks?: { attributes?: Record< string, unknown > }[];
-} ): boolean {
+};
+
+/**
+ * Whether a block is a Buttons block holding a button whose link is bound to
+ * one of the entry bindings source's values, mirroring
+ * Entry_Bindings::is_buttons_bound_to().
+ *
+ * @param {Object} block The block.
+ * @param {string} key   The bound value's key.
+ * @return {boolean} Whether it holds a button bound to the value.
+ */
+function isButtonsBoundTo( block: ButtonsBlock, key: string ): boolean {
 	return (
 		block.name === 'core/buttons' &&
 		( block.innerBlocks ?? [] ).some( ( inner ) => {
@@ -346,15 +1014,125 @@ function isFollowButtons( block: {
 				| undefined;
 			const url = metadata?.bindings?.url;
 			return (
-				url?.source === ENTRY_BINDINGS_SOURCE &&
-				url?.args?.key === 'followTag'
+				url?.source === ENTRY_BINDINGS_SOURCE && url?.args?.key === key
 			);
 		} )
 	);
 }
 
 /**
- * Whether a block is a paragraph bound to the pinned label, mirroring
+ * Whether a block is the follow button's Buttons block (see FOLLOW_TEMPLATE),
+ * mirroring Entry_Bindings::is_follow_buttons().
+ *
+ * @param {Object}   block             The block.
+ * @param {string}   block.name        Block name.
+ * @param {Object[]} block.innerBlocks Inner blocks.
+ * @return {boolean} Whether it's the follow button.
+ */
+function isFollowButtons( block: ButtonsBlock ): boolean {
+	return isButtonsBoundTo( block, 'followTag' );
+}
+
+/**
+ * Whether a block is the "Jump to Latest" button's Buttons block (see
+ * latestTemplate()), mirroring Entry_Bindings::is_latest_buttons().
+ *
+ * @param {Object}   block             The block.
+ * @param {string}   block.name        Block name.
+ * @param {Object[]} block.innerBlocks Inner blocks.
+ * @return {boolean} Whether it's the "Jump to Latest" button.
+ */
+function isLatestButtons( block: ButtonsBlock ): boolean {
+	return isButtonsBoundTo( block, 'latestUrl' );
+}
+
+/**
+ * The Feed group holding the layout's items: everything the coverage shows,
+ * spaced by its Block spacing.
+ *
+ * @param {Object[]} items The items.
+ * @param {string}   gap   The space between the items, as a spacing preset.
+ * @return {Object} The Feed group.
+ */
+function feedTemplate(
+	items: TemplateItem[],
+	gap = 'var:preset|spacing|50'
+): TemplateItem {
+	return [
+		'core/group',
+		{
+			className: FEED_CLASS,
+			lock: LOCKED_IN_PLACE,
+			layout: {
+				type: 'flex',
+				orientation: 'vertical',
+				justifyContent: 'stretch',
+			},
+			style: { spacing: { blockGap: gap } },
+			metadata: { name: __( 'Feed', 'newspack-rolling-coverage' ) },
+		},
+		items,
+	];
+}
+
+/**
+ * Whether a block is the layout's Feed group, mirroring
+ * Rolling_Coverage_Block::feed_group().
+ *
+ * @param {Object} block            The block.
+ * @param {string} block.name       Block name.
+ * @param {Object} block.attributes Block attributes.
+ * @return {boolean} Whether it's the Feed group.
+ */
+function isFeedGroup( block: {
+	name: string;
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const className = block.attributes?.className;
+
+	return (
+		block.name === 'core/group' &&
+		typeof className === 'string' &&
+		className.split( ' ' ).includes( FEED_CLASS )
+	);
+}
+
+/**
+ * The layout's Feed group, if it has one.
+ *
+ * @param {Object[]} blocks The layout's top-level blocks.
+ * @return {Object|undefined} The Feed group.
+ */
+function feedGroupOf< T extends { name: string; [ key: string ]: unknown } >(
+	blocks: T[]
+): T | undefined {
+	return blocks.find( ( block ) =>
+		isFeedGroup(
+			block as { name: string; attributes?: Record< string, unknown > }
+		)
+	);
+}
+
+/**
+ * The layout's items: the blocks inside its Feed group, or for a layout
+ * without one, its top-level blocks, mirroring
+ * Rolling_Coverage_Block::layout_items().
+ *
+ * @param {Object[]} blocks The layout's top-level blocks.
+ * @return {Object[]} The items.
+ */
+function feedItems< T extends { name: string; [ key: string ]: unknown } >(
+	blocks: T[]
+): T[] {
+	const feed = feedGroupOf( blocks );
+
+	return feed && Array.isArray( feed.innerBlocks )
+		? ( feed.innerBlocks as T[] )
+		: blocks;
+}
+
+/**
+ * Whether a block is the paragraph labeling a pinned entry, mirroring
  * Entry_Bindings::is_pinned_label().
  *
  * @param {Object} block            The block.
@@ -366,19 +1144,12 @@ function isPinnedLabel( block: {
 	name: string;
 	attributes?: Record< string, unknown >;
 } ): boolean {
-	const metadata = block.attributes?.metadata as
-		| {
-				bindings?: {
-					content?: { source?: string; args?: { key?: string } };
-				};
-		  }
-		| undefined;
-	const content = metadata?.bindings?.content;
+	const className = block.attributes?.className;
 
 	return (
 		block.name === 'core/paragraph' &&
-		content?.source === ENTRY_BINDINGS_SOURCE &&
-		content?.args?.key === 'pinnedLabel'
+		typeof className === 'string' &&
+		className.split( ' ' ).includes( PINNED_LABEL_CLASS )
 	);
 }
 
@@ -435,8 +1206,31 @@ function withoutPinnedRow<
 }
 
 /**
+ * Whether a block is the paragraph that links to the entry's breakout post,
+ * mirroring Entry_Bindings::is_read_more_paragraph().
+ *
+ * @param {Object} block            The block.
+ * @param {string} block.name       Block name.
+ * @param {Object} block.attributes Block attributes.
+ * @return {boolean} Whether it's the "Read more" paragraph.
+ */
+function isReadMoreParagraph( block: {
+	name: string;
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const className = block.attributes?.className;
+
+	return (
+		block.name === 'core/paragraph' &&
+		typeof className === 'string' &&
+		className.split( ' ' ).includes( READ_MORE_CLASS )
+	);
+}
+
+/**
  * Whether a block is the "Read more" link to the entry's breakout post: a
- * button whose link is bound to it, or the legacy Breakout Post Link block.
+ * button whose link is bound to it, the "Read more" paragraph, or the legacy
+ * Breakout Post Link block.
  *
  * @param {Object} block            The block.
  * @param {string} block.name       Block name.
@@ -447,7 +1241,10 @@ function isBreakoutLink( block: {
 	name: string;
 	attributes?: Record< string, unknown >;
 } ): boolean {
-	if ( block.name === 'newspack-rolling-coverage/breakout-post-link' ) {
+	if (
+		block.name === 'newspack-rolling-coverage/breakout-post-link' ||
+		isReadMoreParagraph( block )
+	) {
 		return true;
 	}
 
@@ -681,18 +1478,42 @@ function withoutPinnedCard<
 }
 
 /**
- * The template without the separator that closes it, as a pinned entry and
- * the last entry render.
+ * The template without the separator that closes it or ends the entry
+ * group, as a pinned entry and the last entry render (see
+ * Rolling_Coverage_Block::without_closing_separator()).
  *
  * @param {Object[]} blocks The template blocks.
  * @return {Object[]} The blocks without the closing separator.
  */
-function withoutClosingSeparator< T extends { name: string } >(
-	blocks: T[]
-): T[] {
-	return blocks.at( -1 )?.name === 'core/separator'
-		? blocks.slice( 0, -1 )
-		: blocks;
+function withoutClosingSeparator<
+	T extends {
+		name: string;
+		attributes?: Record< string, unknown >;
+		innerBlocks?: unknown;
+	},
+>( blocks: T[] ): T[] {
+	const last = blocks.at( -1 );
+
+	if ( last?.name === 'core/separator' ) {
+		return blocks.slice( 0, -1 );
+	}
+
+	const innerBlocks = Array.isArray( last?.innerBlocks )
+		? ( last.innerBlocks as { name: string }[] )
+		: [];
+
+	if (
+		last &&
+		isRegularEntry( last ) &&
+		innerBlocks.at( -1 )?.name === 'core/separator'
+	) {
+		return [
+			...blocks.slice( 0, -1 ),
+			{ ...last, innerBlocks: innerBlocks.slice( 0, -1 ) },
+		];
+	}
+
+	return blocks;
 }
 
 /**
@@ -882,54 +1703,21 @@ const ENTRY_ALLOWED_BLOCKS = [
 	'newspack-rolling-coverage/share',
 ];
 
-/**
- * Builds the className a state's block needs for editor.scss to show/hide it.
- *
- * @param {string} stateValue The state's value (see ENTRY_EDITED_STATES).
- * @return {string} The className for the block's template attrs.
- */
-function stateBlockClassName( stateValue: string ): string {
-	return `newspack-rolling-coverage-state-block newspack-rolling-coverage-state-block--${ stateValue }`;
-}
-
-/**
- * The block's editor states. "default" has no extra blocks. Extend by
- * adding an entry here plus a matching editor.scss rule.
- */
-const ENTRY_EDITED_STATES: EntryEditedState[] = [
-	{
-		value: 'default',
-		label: __( 'Default', 'newspack-rolling-coverage' ),
-		blocks: [],
-	},
-	{
-		value: 'archived',
-		label: __( 'Archived', 'newspack-rolling-coverage' ),
-		blocks: [
-			[
-				'newspack-rolling-coverage/coverage-archived-notice',
-				{ className: stateBlockClassName( 'archived' ) },
-			],
-		],
-	},
-	{
-		value: 'deep-link',
-		label: __( 'Deep Link', 'newspack-rolling-coverage' ),
-		blocks: [
-			[
-				'newspack-rolling-coverage/deep-link-cta',
-				{ className: stateBlockClassName( 'deep-link' ) },
-			],
-		],
-	},
-];
-
 export {
-	ENTRY_TEMPLATE,
+	bulletinEntryTemplate,
+	streamEntryTemplate,
+	railEntryTemplate,
+	clockEntryTemplate,
+	marginEntryTemplate,
 	ENTRY_ALLOWED_BLOCKS,
-	ENTRY_EDITED_STATES,
 	FOLLOW_TEMPLATE,
+	feedTemplate,
+	feedGroupOf,
+	isFeedGroup,
+	feedItems,
+	latestTemplate,
 	isFollowButtons,
+	isLatestButtons,
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	breakoutBlockIds,

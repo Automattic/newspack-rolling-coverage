@@ -1,14 +1,16 @@
 /**
  * WordPress dependencies
  */
-import { _n, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
 import './style.scss';
 import { trackEvent, isConfigEnabled, EVENTS } from './analytics';
-import { keepRelativeDatesCurrent } from './relative-dates';
+import { keepRelativeDatesCurrent } from '../shared/relative-dates';
+import { POLL_EVENT } from '../shared/poll-event';
+import type { PollEventDetail } from '../shared/poll-event';
 import type {
 	AdSlot,
 	PendingEntry,
@@ -24,6 +26,27 @@ const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 // again on its next poll; without the wait the reader would reload on every
 // poll until that copy expires.
 const OVERFLOW_RELOAD_RETRY_MS = 60 * 1000;
+
+// How long the jump to the live feed waits for the page before it navigates instead.
+const JUMP_TIMEOUT_MS = 8000;
+
+// How long the jump waits for stylesheets the live feed needs before it shows
+// the feed without them.
+const STYLES_TIMEOUT_MS = 3000;
+
+// Space left above the block when the page scrolls to it, matching the
+// control's gap in the stylesheet.
+const EDGE_GAP = 24;
+
+// Space between the bars at the top of the viewport and what sits below them.
+const BAR_GAP = 16;
+
+// How long the linked entry's outline stays once the reader can see it.
+const LINKED_OUTLINE_MS = 4000;
+
+// The tallest the floating control is expected to be, so an entry scrolled
+// into view lands clear of it.
+const CONTROL_HEIGHT = 56;
 
 // Entries are the same for every reader, so requests for them go out without
 // credentials and readers share one cached reply. A login or cart cookie makes
@@ -121,6 +144,127 @@ function parseElement( html: string ): HTMLElement | null {
 }
 
 /**
+ * The label of the control on a feed opened at a shared entry: the number of
+ * newer entries, exact up to ten and from there the round number it has
+ * passed, e.g. "10+ Newer Posts" for 11 to 50. Mirrors
+ * Rolling_Coverage_Block::newer_posts_label().
+ *
+ * @param {number} count How many entries are newer.
+ * @return {string} The label, or an empty string when there are none.
+ */
+function newerPostsLabel( count: number ): string {
+	if ( count < 1 ) {
+		return '';
+	}
+
+	if ( count <= 10 ) {
+		return sprintf(
+			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
+			_n(
+				'%d Newer Post',
+				'%d Newer Posts',
+				count,
+				'newspack-rolling-coverage'
+			),
+			count
+		);
+	}
+
+	let floor = 10;
+
+	if ( count > 100 ) {
+		floor = 100;
+	} else if ( count > 50 ) {
+		floor = 50;
+	}
+
+	return sprintf(
+		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
+		_n(
+			'%d+ Newer Post',
+			'%d+ Newer Posts',
+			floor,
+			'newspack-rolling-coverage'
+		),
+		floor
+	);
+}
+
+/**
+ * How far down the viewport the fixed and sticky elements over its top centre
+ * reach, such as the admin bar and a sticky site header, so the floating
+ * control can sit below them. An element taller than half the viewport is an
+ * overlay rather than a header, and is passed over.
+ *
+ * @param {HTMLElement|null} control The floating control, which is never counted.
+ * @return {number} Distance from the top of the viewport, in pixels.
+ */
+function topBarsBottom( control: HTMLElement | null ): number {
+	const x = window.innerWidth / 2;
+	const checked = new Set< Element >();
+	let bottom = 0;
+
+	// Bars can stack, like a sticky header held below the admin bar.
+	for ( let i = 0; i < 4; i++ ) {
+		const y = bottom + 1;
+		let next = bottom;
+
+		document.elementsFromPoint( x, y ).forEach( ( element ) => {
+			let below: Element | null = null;
+
+			for (
+				let node: Element | null = element;
+				node &&
+				node !== document.body &&
+				! control?.contains( node ) &&
+				! checked.has( node );
+				node = node.parentElement
+			) {
+				checked.add( node );
+
+				const { position } = window.getComputedStyle( node );
+
+				if ( position !== 'fixed' && position !== 'sticky' ) {
+					below = node;
+					continue;
+				}
+
+				// A full-screen layer can hold a bar, like a prompt pinned to
+				// the top without an overlay; the box inside it is the bar.
+				const bar =
+					node.getBoundingClientRect().height < window.innerHeight / 2
+						? node
+						: below;
+				const rect = bar?.getBoundingClientRect();
+
+				if (
+					rect &&
+					bar?.checkVisibility?.( {
+						opacityProperty: true,
+						visibilityProperty: true,
+					} ) !== false &&
+					rect.top <= y &&
+					rect.bottom > next &&
+					rect.height < window.innerHeight / 2
+				) {
+					next = rect.bottom;
+				}
+
+				break;
+			}
+		} );
+
+		if ( next <= bottom ) {
+			break;
+		}
+
+		bottom = next;
+	}
+
+	return bottom;
+}
+
+/**
  * Requests entries, with credentials only on a site that requires them.
  *
  * HTTP authentication, a firewall challenge or a login requirement in front
@@ -170,7 +314,7 @@ function initBlock( root: HTMLElement ): void {
 	const entriesList: HTMLElement = entriesListEl;
 	const restBaseUrl: string = restUrl;
 
-	keepRelativeDatesCurrent( root, entriesList );
+	const stopRelativeDates = keepRelativeDatesCurrent( root, entriesList );
 
 	const pollInterval = parseInt( root.dataset.pollInterval || '10', 10 );
 	const entriesPerPage = parseInt( root.dataset.entriesPerPage || '20', 10 );
@@ -179,14 +323,18 @@ function initBlock( root: HTMLElement ): void {
 	const sentinel = root.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-sentinel'
 	);
-	const newEntriesButton = root.querySelector< HTMLButtonElement >(
+	const newEntriesControl = root.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-new-entries'
 	);
+	const newEntriesLink =
+		newEntriesControl?.querySelector< HTMLElement >( '[data-rc-latest]' ) ??
+		null;
 	const statusEl = root.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-status'
 	);
 
 	const status = root.dataset.status || 'active';
+	const isEntryView = root.dataset.view === 'entry';
 
 	const coverageId = root.dataset.coverageId || '0';
 
@@ -194,10 +342,20 @@ function initBlock( root: HTMLElement ): void {
 	let before = root.dataset.before || '';
 	let hasMore = root.dataset.hasMore === '1';
 	let isLoadingMore = false;
+	let isJumping = false;
+	let linkedObserver: IntersectionObserver | null = null;
+	let isDisposed = false;
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
 	let polledCount = 0;
-	let backlogOffset = entriesPerPage;
+
+	// The site's minimum poll interval, in seconds; 0 when it sets none. Each
+	// poll brings the current value, so an open page follows it both ways.
+	let minPollInterval =
+		parseInt( root.dataset.minPollInterval || '0', 10 ) || 0;
+	let backlogOffset = entriesList.querySelectorAll(
+		':scope > [data-entry-id]'
+	).length;
 
 	// Tracks forward-poll health so a sustained outage reports one error per
 	// episode (healthy->failing transition) instead of one per failed interval.
@@ -207,6 +365,46 @@ function initBlock( root: HTMLElement ): void {
 	// entry ID. A cached load-more reply can predate them while the cursor has
 	// already moved past them, so loadMore() applies them as the entries arrive.
 	const offPageUpdates = new Map< string, string >();
+
+	const countedEntryIds = new Set< string >();
+
+	// Entries newer than the shared entry when the server rendered the page.
+	const newerCount =
+		parseInt( newEntriesControl?.dataset.newerCount || '0', 10 ) || 0;
+
+	// The control's own text: the server keeps it on the link when it writes
+	// the count in its place.
+	const ownLabel =
+		newEntriesLink?.dataset.label ?? newEntriesLink?.textContent ?? '';
+
+	// Whether the poll can still tell how many entries are newer.
+	let canCount = true;
+
+	/**
+	 * Shows on the control how many entries are newer than the shared entry:
+	 * those the page was rendered with plus those the poll has counted since.
+	 * With none, or once the poll can no longer count, the control shows its
+	 * own text.
+	 *
+	 * @return {void}
+	 */
+	function showNewerCount(): void {
+		if ( ! newEntriesLink ) {
+			return;
+		}
+
+		const label = canCount
+			? newerPostsLabel( newerCount + countedEntryIds.size )
+			: '';
+
+		if ( label || ! canCount ) {
+			newEntriesLink.textContent = label || ownLabel;
+		}
+	}
+
+	if ( isEntryView ) {
+		showNewerCount();
+	}
 
 	// Entry IDs already reported as seen. Guards against re-firing
 	// coverage_entry_seen when a polled edit replaces an already-seen entry's element.
@@ -271,12 +469,16 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Schedules the next poll.
+	 * Schedules the next poll, at the block's interval or the site's minimum,
+	 * whichever is longer.
 	 *
 	 * @return {void}
 	 */
 	function schedulePoll(): void {
-		pollTimeoutId = setTimeout( poll, pollInterval * 1000 );
+		pollTimeoutId = setTimeout(
+			poll,
+			Math.max( pollInterval, minPollInterval ) * 1000
+		);
 	}
 
 	/**
@@ -326,8 +528,25 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Inserts entries at the top of the entries list, removing the "no
-	 * entries yet" placeholder if it's still present.
+	 * The first unpinned entry in the list, where pinned entries end.
+	 *
+	 * @param {HTMLElement} [except] Entry to leave out.
+	 * @return {HTMLElement|null} The entry, or null if every entry is pinned.
+	 */
+	function firstUnpinnedEntry( except?: HTMLElement ): HTMLElement | null {
+		return (
+			Array.from(
+				entriesList.querySelectorAll< HTMLElement >(
+					':scope > [data-entry-id]:not([data-pinned])'
+				)
+			).find( ( entry ) => entry !== except ) ?? null
+		);
+	}
+
+	/**
+	 * Inserts entries above the newest unpinned entry, below any pinned
+	 * entries, removing the "no entries yet" placeholder if it's still
+	 * present.
 	 *
 	 * Removes the "no entries yet" placeholder, starts observing each entry
 	 * for coverage_entry_seen, and displays any associated ad slots.
@@ -358,7 +577,7 @@ function initBlock( root: HTMLElement ): void {
 			}
 		} );
 
-		entriesList.insertBefore( fragment, entriesList.firstChild );
+		entriesList.insertBefore( fragment, firstUnpinnedEntry() );
 		dropLastSeparator();
 
 		announce(
@@ -380,9 +599,28 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Label for the control that tells the reader new entries are waiting.
+	 *
+	 * @param {number} count How many new entries are waiting.
+	 * @return {string} The label.
+	 */
+	function newEntriesLabel( count: number ): string {
+		return sprintf(
+			/* translators: %d: number of new coverage entries waiting to be shown. */
+			_n(
+				'%d New Post',
+				'%d New Posts',
+				count,
+				'newspack-rolling-coverage'
+			),
+			count
+		);
+	}
+
+	/**
 	 * Adds entries to the pending queue.
 	 *
-	 * Updates the "X new posts" button label and visibility.
+	 * Updates the "X New Posts" control label and visibility.
 	 *
 	 * @param {PendingEntry[]} newEntries Newly published entries.
 	 * @return {void}
@@ -390,23 +628,15 @@ function initBlock( root: HTMLElement ): void {
 	function queueNewEntries( newEntries: PendingEntry[] ): void {
 		pendingNewEntries.unshift( ...newEntries );
 
-		if ( ! newEntriesButton ) {
+		if ( ! newEntriesControl || ! newEntriesLink ) {
 			return;
 		}
 
-		const label = sprintf(
-			/* translators: %d: number of new coverage entries waiting to be shown. */
-			_n(
-				'%d new post',
-				'%d new posts',
-				pendingNewEntries.length,
-				'newspack-rolling-coverage'
-			),
-			pendingNewEntries.length
-		);
+		const label = newEntriesLabel( pendingNewEntries.length );
 
-		newEntriesButton.textContent = label;
-		newEntriesButton.hidden = false;
+		newEntriesLink.textContent = label;
+		newEntriesControl.hidden = false;
+		placeControl();
 		announce( label );
 	}
 
@@ -434,24 +664,600 @@ function initBlock( root: HTMLElement ): void {
 		cleanupFns.push( () => target.removeEventListener( type, handler ) );
 	}
 
-	// Removes all event listeners, observers, and pending timeouts.
+	// Removes the listeners, observers and timers this run set up, and lets the
+	// block be initialized again. Requests still in flight are not aborted;
+	// their replies are dropped.
 	function cleanup(): void {
+		isDisposed = true;
 		cancelPoll();
+		stopRelativeDates();
+		entrySeenObserver?.disconnect();
 		cleanupFns.forEach( ( fn ) => fn() );
 		cleanupFns.length = 0;
+		delete root.dataset.rcInitialized;
 	}
 
-	if ( newEntriesButton ) {
-		const onNewEntriesClick = () => {
+	/**
+	 * Where the page scrolls to show the top of the block.
+	 *
+	 * @return {number} The vertical scroll position.
+	 */
+	function blockTopY(): number {
+		const bars = topBarsBottom( newEntriesControl );
+
+		return (
+			root.getBoundingClientRect().top +
+			window.scrollY -
+			( bars > 0 ? bars + BAR_GAP : EDGE_GAP )
+		);
+	}
+
+	/**
+	 * Fades the linked entry's outline a few seconds after the reader first
+	 * sees it. The wait starts only while the page is visible, so a link
+	 * opened in a background tab still shows it.
+	 *
+	 * @return {void}
+	 */
+	function fadeLinkedOutline(): void {
+		const linked = entriesList.querySelector( '[data-linked]' );
+
+		if (
+			! linked ||
+			root.dataset.linkedFaded !== undefined ||
+			typeof IntersectionObserver === 'undefined'
+		) {
+			return;
+		}
+
+		let isInView = false;
+		let fadeTimeoutId: ReturnType< typeof setTimeout > | null = null;
+
+		const startWhenSeen = () => {
+			if (
+				fadeTimeoutId === null &&
+				isInView &&
+				document.visibilityState === 'visible'
+			) {
+				fadeTimeoutId = setTimeout( stop, LINKED_OUTLINE_MS );
+			}
+		};
+
+		const observer = new IntersectionObserver(
+			( entries ) => {
+				isInView = entries.some( ( entry ) => entry.isIntersecting );
+				startWhenSeen();
+			},
+			{ threshold: 0 }
+		);
+		linkedObserver = observer;
+
+		function stop(): void {
+			root.dataset.linkedFaded = '';
+			observer.disconnect();
+			linkedObserver = null;
+			document.removeEventListener( 'visibilitychange', startWhenSeen );
+		}
+
+		observer.observe( linked );
+		document.addEventListener( 'visibilitychange', startWhenSeen );
+
+		cleanupFns.push( () => {
+			observer.disconnect();
+			document.removeEventListener( 'visibilitychange', startWhenSeen );
+
+			if ( fadeTimeoutId !== null ) {
+				clearTimeout( fadeTimeoutId );
+			}
+		} );
+	}
+
+	/**
+	 * Keeps the floating control below the bars at the top of the viewport.
+	 * Without any, the stylesheet's position applies.
+	 *
+	 * @return {void}
+	 */
+	function placeControl(): void {
+		if ( ! newEntriesControl || newEntriesControl.hidden ) {
+			return;
+		}
+
+		const barsBottom = topBarsBottom( newEntriesControl );
+
+		if ( barsBottom > 0 ) {
+			newEntriesControl.style.setProperty(
+				'--newspack-rolling-coverage-control-top',
+				`${ barsBottom + BAR_GAP }px`
+			);
+		} else {
+			newEntriesControl.style.removeProperty(
+				'--newspack-rolling-coverage-control-top'
+			);
+		}
+	}
+
+	/**
+	 * Finds this block in a fetched copy of the page: the block of the same
+	 * coverage, at the same position among that coverage's blocks.
+	 *
+	 * @param {Document} doc The fetched page.
+	 * @return {HTMLElement | null} The block, or null if the page doesn't hold it.
+	 */
+	function findBlockIn( doc: Document ): HTMLElement | null {
+		const selector = `${ BLOCK_SELECTOR }[data-coverage-id="${ cssEscape(
+			coverageId
+		) }"]`;
+		const position = Array.from(
+			document.querySelectorAll< HTMLElement >( selector )
+		).indexOf( root );
+
+		return (
+			doc.querySelectorAll< HTMLElement >( selector )[ position ] ?? null
+		);
+	}
+
+	/**
+	 * This page's stylesheet for a fetched page's, by id. Core serves a
+	 * block's stylesheet inline (`…-inline-css`) or linked (`…-css`) depending
+	 * on the page, so either form counts as the other.
+	 *
+	 * @param {string} id The fetched stylesheet's id.
+	 * @return {HTMLElement | null} This page's element, or null if it has neither form.
+	 */
+	function ownStyleFor( id: string ): HTMLElement | null {
+		const twinId = id.endsWith( '-inline-css' )
+			? id.replace( /-inline-css$/, '-css' )
+			: id.replace( /-css$/, '-inline-css' );
+
+		return (
+			document.getElementById( id ) ?? document.getElementById( twinId )
+		);
+	}
+
+	/**
+	 * The rules a fetched inline style holds and this page's copy of it
+	 * doesn't. Throws where constructable stylesheets aren't supported.
+	 *
+	 * @param {HTMLStyleElement} style The fetched style.
+	 * @param {HTMLStyleElement} own   This page's style of the same id.
+	 * @return {string[]} The missing rules, as CSS text.
+	 */
+	function missingRules(
+		style: HTMLStyleElement,
+		own: HTMLStyleElement
+	): string[] {
+		if ( style.textContent === own.textContent ) {
+			return [];
+		}
+
+		const rulesOf = ( css: string ) => {
+			const sheet = new CSSStyleSheet();
+			sheet.replaceSync( css );
+			return Array.from( sheet.cssRules, ( rule ) => rule.cssText );
+		};
+		const ownRules = new Set( rulesOf( own.textContent ?? '' ) );
+
+		return rulesOf( style.textContent ?? '' ).filter(
+			( rule ) => ! ownRules.has( rule )
+		);
+	}
+
+	/**
+	 * Adds to this page the styles a fetched page has and this one doesn't,
+	 * so blocks taken from it show styled here: core loads a block's styles
+	 * only on pages that render the block. A stylesheet this page lacks goes
+	 * where the fetched page has it among the stylesheets both pages share,
+	 * as a block's own styles must come before the theme's for the theme's
+	 * to apply. An inline style both pages have under one id, such as the
+	 * theme's global styles or the block supports styles, holds only the
+	 * rules of the blocks its page renders, so the rules this page's copy
+	 * lacks are added in one style element after it. Waits for linked
+	 * stylesheets to load, up to STYLES_TIMEOUT_MS or until the jump is
+	 * aborted. Throws, so the jump navigates instead, when a missing
+	 * stylesheet is deferred, disabled or guarded by a nonce, as a copy of
+	 * it would not apply.
+	 *
+	 * @param {Document}    doc    The fetched page.
+	 * @param {AbortSignal} signal Aborts the jump.
+	 * @return {Promise<void>} Resolves when the styles are in place or the wait is over.
+	 */
+	async function adoptLiveStyles(
+		doc: Document,
+		signal: AbortSignal
+	): Promise< void > {
+		const styles = Array.from(
+			doc.querySelectorAll< HTMLElement >(
+				'link[rel="stylesheet"][id], style[id]'
+			)
+		).filter( ( style ) => ! style.closest( 'noscript' ) );
+		const owns = styles.map( ( style ) => ownStyleFor( style.id ) );
+		// Where each fetched stylesheet sits on this page, to place the
+		// missing ones by. The block's entries are about to be replaced, so
+		// nothing inside the block is placed by.
+		const placed = owns.map( ( own ) =>
+			own && ! root.contains( own ) ? own : null
+		);
+		const extraRules = new Map< HTMLStyleElement, string[] >();
+
+		// Everything that can make the jump give up comes before any change.
+		styles.forEach( ( style, index ) => {
+			const own = owns[ index ];
+
+			if ( ! own ) {
+				if (
+					[ 'onload', 'disabled', 'nonce' ].some( ( name ) =>
+						style.hasAttribute( name )
+					)
+				) {
+					throw new Error( 'The stylesheet cannot be copied.' );
+				}
+
+				return;
+			}
+
+			if (
+				own instanceof HTMLStyleElement &&
+				style instanceof HTMLStyleElement
+			) {
+				const rules = missingRules( style, own );
+
+				if ( rules.length > 0 && style.hasAttribute( 'nonce' ) ) {
+					throw new Error( 'The style rules cannot be copied.' );
+				}
+
+				if ( rules.length > 0 ) {
+					extraRules.set( own, rules );
+				}
+			}
+		} );
+
+		extraRules.forEach( ( rules, own ) => {
+			const extra = document.createElement( 'style' );
+			const media = own.getAttribute( 'media' );
+
+			extra.dataset.rcLiveFor = own.id;
+			extra.textContent = rules.join( '\n' );
+
+			if ( media ) {
+				extra.setAttribute( 'media', media );
+			}
+
+			// One per style, however many times the jump runs on this page.
+			const previous = Array.from(
+				document.querySelectorAll< HTMLElement >(
+					'style[data-rc-live-for]'
+				)
+			).find( ( element ) => element.dataset.rcLiveFor === own.id );
+
+			if ( previous ) {
+				previous.replaceWith( extra );
+			} else {
+				own.after( extra );
+			}
+		} );
+
+		const loads: Promise< void >[] = [];
+
+		styles.forEach( ( style, index ) => {
+			if ( owns[ index ] ) {
+				return;
+			}
+
+			// A fresh element, so nothing but the stylesheet itself comes along.
+			const copy = document.createElement(
+				style instanceof HTMLLinkElement ? 'link' : 'style'
+			);
+			const media = style.getAttribute( 'media' );
+
+			copy.id = style.id;
+
+			if ( media ) {
+				copy.setAttribute( 'media', media );
+			}
+
+			if ( copy instanceof HTMLLinkElement ) {
+				copy.rel = 'stylesheet';
+				copy.href = style.getAttribute( 'href' ) ?? '';
+				loads.push(
+					new Promise( ( resolve ) => {
+						copy.addEventListener( 'load', () => resolve() );
+						copy.addEventListener( 'error', () => resolve() );
+					} )
+				);
+			} else {
+				copy.textContent = style.textContent;
+			}
+
+			// Before the next stylesheet both pages share, or else after the
+			// nearest earlier one, counting those just placed.
+			const next = placed.slice( index + 1 ).find( Boolean );
+			const earlier = placed.slice( 0, index ).reverse().find( Boolean );
+
+			if ( next ) {
+				next.before( copy );
+			} else if ( earlier ) {
+				earlier.after( copy );
+			} else {
+				document.head.append( copy );
+			}
+
+			placed[ index ] = copy;
+		} );
+
+		if ( loads.length === 0 ) {
+			return;
+		}
+
+		let timeoutId: ReturnType< typeof setTimeout > | undefined;
+
+		await Promise.race( [
+			Promise.all( loads ),
+			new Promise< void >( ( resolve ) => {
+				timeoutId = setTimeout( resolve, STYLES_TIMEOUT_MS );
+				signal.addEventListener( 'abort', () => resolve(), {
+					once: true,
+				} );
+			} ),
+		] );
+
+		clearTimeout( timeoutId );
+	}
+
+	/**
+	 * Whether a fetched block can replace the shared view in place. It can't
+	 * when it is itself a shared view, when the coverage's status has changed
+	 * since this page rendered, as the Follow button and archived notice
+	 * depend on it, when it holds ads, which need the page's own ad setup to
+	 * run, or when its entries hold scripts or interactive blocks, which would
+	 * never start.
+	 *
+	 * @param {HTMLElement | null} live The fetched block.
+	 * @return {boolean} True if the block can be shown in place.
+	 */
+	function canShowInPlace( live: HTMLElement | null ): live is HTMLElement {
+		const liveEntries = live?.querySelector(
+			'.newspack-rolling-coverage-entries'
+		);
+
+		return (
+			!! live &&
+			!! liveEntries &&
+			live.dataset.view !== 'entry' &&
+			live.dataset.status === root.dataset.status &&
+			! live.querySelector( '.newspack_global_ad' ) &&
+			! liveEntries.querySelector( 'script, [data-wp-interactive]' ) &&
+			!! live.querySelector(
+				'.newspack-rolling-coverage-new-entries [data-rc-latest]'
+			)
+		);
+	}
+
+	/**
+	 * Fetches the live feed's page and returns this block from it, when the
+	 * block can replace the shared view in place.
+	 *
+	 * @param {string} url The live feed's URL.
+	 * @return {Promise<Object | null>} The live block and the URL it came from, or null to navigate instead.
+	 */
+	async function fetchLiveBlock(
+		url: string
+	): Promise< { live: HTMLElement; url: string } | null > {
+		const controller = new AbortController();
+		const timeoutId = setTimeout(
+			() => controller.abort(),
+			JUMP_TIMEOUT_MS
+		);
+		let fetched: { live: HTMLElement; url: string } | null = null;
+
+		try {
+			const response = await fetch( url, { signal: controller.signal } );
+			const doc = new DOMParser().parseFromString(
+				response.ok ? await response.text() : '',
+				'text/html'
+			);
+			const live = findBlockIn( doc );
+			const finalUrl = new URL( response.url || url, url );
+
+			// A page the request was redirected to on another site is left to
+			// the link.
+			if (
+				finalUrl.origin === window.location.origin &&
+				canShowInPlace( live )
+			) {
+				await adoptLiveStyles( doc, controller.signal );
+
+				if ( ! controller.signal.aborted ) {
+					fetched = {
+						live,
+						url: response.redirected ? finalUrl.toString() : url,
+					};
+				}
+			}
+		} catch {
+			fetched = null;
+		}
+
+		clearTimeout( timeoutId );
+
+		return fetched;
+	}
+
+	/**
+	 * Turns the shared view into the live feed: takes over the live block's
+	 * entries, cursors, status and control, then starts the block again on
+	 * the same element, as a freshly loaded normal view.
+	 *
+	 * @param {HTMLElement} live The live block, from the fetched page.
+	 * @param {string}      url  The live feed's URL.
+	 * @return {void}
+	 */
+	function showLiveBlock( live: HTMLElement, url: string ): void {
+		const liveEntries = live.querySelector< HTMLElement >(
+			'.newspack-rolling-coverage-entries'
+		);
+		const liveControl = live.querySelector< HTMLElement >(
+			'.newspack-rolling-coverage-new-entries'
+		);
+		const control = liveControl
+			? parseElement( liveControl.outerHTML )
+			: null;
+
+		cleanup();
+
+		entriesList.replaceChildren(
+			parseFragment( liveEntries?.innerHTML ?? '' )
+		);
+
+		if ( control ) {
+			newEntriesControl?.replaceWith( control );
+		}
+
+		(
+			[ 'cursor', 'before', 'hasMore', 'templateKey', 'status' ] as const
+		 ).forEach( ( key ) => {
+			root.dataset[ key ] = live.dataset[ key ] ?? '';
+		} );
+		delete root.dataset.view;
+
+		window.history.replaceState( window.history.state, '', url );
+
+		initBlock( root );
+	}
+
+	/**
+	 * Marks the control busy while the jump to the live feed runs, or ready
+	 * again.
+	 *
+	 * @param {boolean} jumping Whether the jump is running.
+	 * @return {void}
+	 */
+	function setJumping( jumping: boolean ): void {
+		isJumping = jumping;
+
+		if ( jumping ) {
+			newEntriesControl?.setAttribute( 'aria-busy', 'true' );
+		} else {
+			newEntriesControl?.removeAttribute( 'aria-busy' );
+		}
+	}
+
+	/**
+	 * Replaces the shared view with the live feed without leaving the page,
+	 * landing at the top of the block. Navigates to the live feed instead when
+	 * it can't be shown in place.
+	 *
+	 * @param {string} url The live feed's URL.
+	 * @return {Promise<void>} Resolves when the live feed shows or the page navigates.
+	 */
+	async function jumpToLatest( url: string ): Promise< void > {
+		setJumping( true );
+		announce(
+			__( 'Loading the latest posts…', 'newspack-rolling-coverage' )
+		);
+
+		const fetched = await fetchLiveBlock( url );
+
+		if ( isDisposed ) {
+			return;
+		}
+
+		// A page restored by Back must find the control ready again.
+		const navigate = () => {
+			setJumping( false );
+			window.location.assign( url );
+		};
+
+		if ( ! fetched ) {
+			navigate();
+			return;
+		}
+
+		const reducesMotion = window.matchMedia(
+			'(prefers-reduced-motion: reduce)'
+		).matches;
+		// Once cleanup() has run, a failure would leave a block that does
+		// nothing, so the live feed's own page takes over.
+		const show = ( behavior: ScrollBehavior ) => {
+			try {
+				showLiveBlock( fetched.live, fetched.url );
+				window.scrollTo( { top: blockTopY(), behavior } );
+				entriesList.setAttribute( 'tabindex', '-1' );
+				entriesList.addEventListener(
+					'blur',
+					() => entriesList.removeAttribute( 'tabindex' ),
+					{ once: true }
+				);
+				entriesList.focus( { preventScroll: true } );
+				announce(
+					__(
+						'Showing the latest posts.',
+						'newspack-rolling-coverage'
+					)
+				);
+			} catch {
+				navigate();
+			}
+		};
+
+		if (
+			typeof document.startViewTransition === 'function' &&
+			! reducesMotion
+		) {
+			document.startViewTransition( () => show( 'instant' ) );
+			return;
+		}
+
+		show( reducesMotion ? 'instant' : 'smooth' );
+	}
+
+	if ( newEntriesControl && newEntriesLink ) {
+		const onNewEntriesClick = ( event: MouseEvent ) => {
+			// Any other click keeps the link's own behavior, e.g. a new tab.
+			if (
+				event.button !== 0 ||
+				event.metaKey ||
+				event.ctrlKey ||
+				event.shiftKey ||
+				event.altKey
+			) {
+				return;
+			}
+
+			if ( isEntryView ) {
+				const liveUrl = newEntriesControl.dataset.liveUrl;
+				const url = liveUrl
+					? new URL( liveUrl, window.location.href )
+					: null;
+
+				// Ads need the live feed's own page, so the link navigates.
+				if (
+					! url ||
+					url.origin !== window.location.origin ||
+					root.dataset.ads === '1'
+				) {
+					return;
+				}
+
+				event.preventDefault();
+
+				if ( ! isJumping ) {
+					jumpToLatest( url.toString() );
+				}
+
+				return;
+			}
+
+			event.preventDefault();
+
 			if ( pendingNewEntries.length === 0 ) {
 				return;
 			}
 
 			const entries = takePendingEntries();
-			newEntriesButton.hidden = true;
+			newEntriesControl.hidden = true;
 
-			const targetY =
-				root.getBoundingClientRect().top + window.scrollY - 24;
+			const targetY = blockTopY();
 
 			insertNewEntries( entries );
 
@@ -460,9 +1266,9 @@ function initBlock( root: HTMLElement ): void {
 				behavior: 'smooth',
 			} );
 		};
-		newEntriesButton.addEventListener( 'click', onNewEntriesClick );
+		newEntriesLink.addEventListener( 'click', onNewEntriesClick );
 		cleanupFns.push( () =>
-			newEntriesButton!.removeEventListener( 'click', onNewEntriesClick )
+			newEntriesLink.removeEventListener( 'click', onNewEntriesClick )
 		);
 	}
 
@@ -476,14 +1282,18 @@ function initBlock( root: HTMLElement ): void {
 	function checkIfScrolledBackToTop(): void {
 		scrollCheckScheduled = false;
 
-		if ( pendingNewEntries.length === 0 || isScrolledPastTop() ) {
+		if (
+			isDisposed ||
+			pendingNewEntries.length === 0 ||
+			isScrolledPastTop()
+		) {
 			return;
 		}
 
 		const entries = takePendingEntries();
 
-		if ( newEntriesButton ) {
-			newEntriesButton.hidden = true;
+		if ( newEntriesControl ) {
+			newEntriesControl.hidden = true;
 		}
 
 		insertNewEntries( entries );
@@ -495,17 +1305,77 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		scrollCheckScheduled = true;
-		requestAnimationFrame( checkIfScrolledBackToTop );
+		requestAnimationFrame( () => {
+			checkIfScrolledBackToTop();
+			placeControl();
+		} );
 	};
 	window.addEventListener( 'scroll', onScroll, { passive: true } );
 	cleanupFns.push( () => window.removeEventListener( 'scroll', onScroll ) );
+	on( window, 'resize', onScroll );
+
+	placeControl();
+
+	// The browser lands on the hash target before the bars can be measured,
+	// and a theme's offset for its sticky header leaves no room for the
+	// control, so the margin is set on the target itself. Only a target still
+	// where that landing put it is moved, never a page the reader has scrolled.
+	const landingBars = topBarsBottom( newEntriesControl );
+
+	if ( landingBars > 0 ) {
+		let id = window.location.hash.slice( 1 );
+
+		try {
+			id = decodeURIComponent( id );
+		} catch {
+			// A malformed escape is matched as written.
+		}
+
+		const target = id
+			? root.querySelector( `#${ cssEscape( id ) }` )
+			: null;
+		// Core pads the root's scroll area by the admin bar's height.
+		const scrollPadding =
+			parseFloat(
+				window.getComputedStyle( document.documentElement )
+					.scrollPaddingTop
+			) || 0;
+		const isAtLanding =
+			target instanceof HTMLElement &&
+			Math.abs(
+				target.getBoundingClientRect().top -
+					scrollPadding -
+					parseFloat(
+						window.getComputedStyle( target ).scrollMarginTop
+					)
+			) < 2;
+
+		root.style.setProperty(
+			'--newspack-rolling-coverage-scroll-offset',
+			`${ landingBars - scrollPadding + BAR_GAP + CONTROL_HEIGHT }px`
+		);
+
+		if ( target instanceof HTMLElement ) {
+			target.style.scrollMarginTop =
+				target.dataset.linked === undefined
+					? 'var(--newspack-rolling-coverage-scroll-offset)'
+					: 'var(--newspack-rolling-coverage-linked-margin)';
+
+			if ( isAtLanding ) {
+				target.scrollIntoView( { behavior: 'instant' } );
+			}
+		}
+	}
+
+	fadeLinkedOutline();
 
 	/**
 	 * Applies a poll response to the entry list.
 	 *
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
 	 * on the page for loadMore(). Inserts or queues newly published entries
-	 * based on the reader's scroll position.
+	 * based on the reader's scroll position. When the feed opens at a shared
+	 * entry, new entries are added to the control's count instead of inserted.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
@@ -522,14 +1392,14 @@ function initBlock( root: HTMLElement ): void {
 				`[data-entry-id="${ entry.id }"]`
 			);
 
+			const template = document.createElement( 'template' );
+			template.innerHTML = sanitizeHtml( entry.html );
+			const entryEl = template.content.firstElementChild as HTMLElement;
+
 			if ( entry.type === 'update' && ! existing ) {
 				offPageUpdates.set( String( entry.id ), entry.html );
 				return;
 			}
-
-			const template = document.createElement( 'template' );
-			template.innerHTML = sanitizeHtml( entry.html );
-			const entryEl = template.content.firstElementChild as HTMLElement;
 
 			if ( ! entryEl ) {
 				return;
@@ -540,7 +1410,26 @@ function initBlock( root: HTMLElement ): void {
 				// observeEntry() is a no-op if it was already reported as seen.
 				unobserveEntry( existing );
 				entryEl.dataset.arrival = existing.dataset.arrival;
+
+				// The poll can't know which entry the page's link names.
+				if ( existing.dataset.linked !== undefined ) {
+					entryEl.dataset.linked = '';
+					linkedObserver?.unobserve( existing );
+					linkedObserver?.observe( entryEl );
+				}
+
 				existing.replaceWith( entryEl );
+
+				if (
+					existing.hasAttribute( 'data-pinned' ) !==
+					entryEl.hasAttribute( 'data-pinned' )
+				) {
+					entriesList.insertBefore(
+						entryEl,
+						firstUnpinnedEntry( entryEl )
+					);
+				}
+
 				observeEntry( entryEl );
 				dropLastSeparator();
 
@@ -556,6 +1445,23 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
+		if ( isEntryView ) {
+			const countedBefore = countedEntryIds.size;
+
+			newEntries.forEach( ( { el } ) => {
+				if ( el.dataset.entryId ) {
+					countedEntryIds.add( el.dataset.entryId );
+				}
+			} );
+
+			if ( canCount && countedEntryIds.size !== countedBefore ) {
+				showNewerCount();
+				announce( newEntriesLabel( countedEntryIds.size ) );
+			}
+
+			return;
+		}
+
 		if ( isScrolledPastTop() ) {
 			queueNewEntries( newEntries );
 		} else {
@@ -564,11 +1470,12 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Drops the closing separator, and a closing pinned card's space below
-	 * it, from the last entry once no more entries can load, as the server
-	 * renders it (see Rolling_Coverage_Block::shape_entry_template()).
-	 * Entries re-rendered by the poll, and a final page that comes back
-	 * empty, don't know they're last.
+	 * Drops the closing separator, after the entry group or at its end, and a
+	 * closing pinned card's space below it, from the last entry once no more
+	 * entries can load, as the server renders it (see
+	 * Rolling_Coverage_Block::shape_entry_template()). Entries re-rendered by
+	 * the poll, and a final page that comes back empty, don't know they're
+	 * last.
 	 */
 	function dropLastSeparator(): void {
 		if ( hasMore ) {
@@ -582,7 +1489,11 @@ function initBlock( root: HTMLElement ): void {
 		const last = entries[ entries.length - 1 ];
 
 		last?.querySelector(
-			':scope > .wp-block-separator:last-child'
+			[
+				':scope > .wp-block-separator:last-child',
+				':scope > .newspack-rolling-coverage-regular-entry:last-child > .wp-block-separator:last-child',
+				':scope > .newspack-rolling-coverage-regular-entry:last-child > .wp-block-group__inner-container > .wp-block-separator:last-child',
+			].join( ', ' )
 		)?.remove();
 		last?.querySelector< HTMLElement >(
 			':scope > .newspack-rolling-coverage-pinned-card:last-child'
@@ -816,6 +1727,34 @@ function initBlock( root: HTMLElement ): void {
 			if ( response.ok ) {
 				const data: PollResponse = await response.json();
 
+				// The block was cleaned up meanwhile, so this reply is no longer its own.
+				if ( isDisposed ) {
+					return;
+				}
+
+				minPollInterval = Number( data.minPollInterval ) || 0;
+
+				if ( typeof data.status === 'string' ) {
+					document.dispatchEvent(
+						new CustomEvent< PollEventDetail >( POLL_EVENT, {
+							detail: {
+								coverageId: Number( coverageId ),
+								status: data.status,
+								newestEntry: data.newestEntry ?? null,
+							},
+						} )
+					);
+				}
+
+				if ( data.overflow && isEntryView ) {
+					// A reload lands on the same shared URL, so there is nothing
+					// to gain from one, and every later poll overflows from the
+					// same cursor: polling ends here, and with it the count.
+					canCount = false;
+					showNewerCount();
+					return;
+				}
+
 				if ( data.overflow && shouldReloadForOverflow() ) {
 					window.location.reload();
 					return;
@@ -841,7 +1780,9 @@ function initBlock( root: HTMLElement ): void {
 			console.error( error ); // eslint-disable-line no-console
 		}
 
-		schedulePoll();
+		if ( ! isDisposed ) {
+			schedulePoll();
+		}
 	}
 
 	/**
@@ -895,9 +1836,19 @@ function initBlock( root: HTMLElement ): void {
 			url.searchParams.set( 'host_post_id', hostPostId );
 			url.searchParams.set( 'entry_offset', backlogOffset.toString() );
 
+			if ( isEntryView ) {
+				url.searchParams.set( 'skip_pinned', '1' );
+			}
+
 			const response = await fetchEntries( url.toString() );
 			if ( response.ok ) {
 				const data: PageResponse = await response.json();
+
+				// The block was cleaned up meanwhile, so this reply is no longer its own.
+				if ( isDisposed ) {
+					return;
+				}
+
 				if ( data.count > 0 ) {
 					const fragment = parseFragment( data.html );
 
@@ -984,9 +1935,16 @@ function initBlock( root: HTMLElement ): void {
 		{ once: true }
 	);
 
-	// Resume polling after a BFCache restore.
+	// Resume polling after a BFCache restore, with the control ready again if
+	// the page was left during a jump.
 	on( window, 'pageshow', ( event ) => {
-		if ( event.persisted && cursor && status === 'active' ) {
+		if ( ! event.persisted ) {
+			return;
+		}
+
+		setJumping( false );
+
+		if ( cursor && status === 'active' ) {
 			schedulePoll();
 		}
 	} );
@@ -1006,57 +1964,6 @@ function initBlock( root: HTMLElement ): void {
 		observer.observe( sentinel );
 		cleanupFns.push( () => observer.disconnect() );
 	}
-
-	// Deep-link detection: if the URL carries the rolling-coverage-entry
-	// query var and the entry is not in the initial SSR set, un-hide the
-	// deep-link CTA (rendered hidden by the parent block's SSR).
-	/**
-	 * Detects a deep-link request via the `rolling-coverage-entry` query
-	 * var and, if the entry is not in the initial SSR set, un-hides the
-	 * deep-link CTA (which was SSR'd with entry data by PHP). The hash
-	 * fragment is only for smooth scroll.
-	 *
-	 * If the entry IS in the DOM, the browser's native #anchor scroll
-	 * handles navigation — no CTA needed.
-	 */
-	function handleDeepLink(): void {
-		const params = new URLSearchParams( window.location.search );
-		const entrySlug = params.get( 'rolling-coverage-entry' );
-
-		if ( ! entrySlug ) {
-			return;
-		}
-
-		// If the entry is in ANY block's entries list on the page, the
-		// browser scrolls to it via #hash — no CTA needed.
-		const entry_selector = `[data-entry-slug="${ cssEscape(
-			entrySlug
-		) }"]`;
-
-		const allEntryLists = document.querySelectorAll< HTMLElement >(
-			BLOCK_SELECTOR + ' .newspack-rolling-coverage-entries'
-		);
-		for ( const list of allEntryLists ) {
-			if ( list.querySelector( entry_selector ) ) {
-				return;
-			}
-		}
-
-		// Entry not in DOM — un-hide the CTA (SSR'd with entry data by PHP).
-		const cta = root.querySelector< HTMLElement >(
-			'.newspack-rolling-coverage-cta'
-		);
-		if ( cta ) {
-			cta.hidden = false;
-		}
-	}
-
-	handleDeepLink();
-
-	const onHashChange = () => {
-		handleDeepLink();
-	};
-	window.addEventListener( 'hashchange', onHashChange, { once: true } );
 }
 
 document.querySelectorAll< HTMLElement >( BLOCK_SELECTOR ).forEach( initBlock );

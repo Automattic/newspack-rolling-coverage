@@ -129,9 +129,96 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 
 		$result = self::ingest( $payload, self::create_coverage() );
 
-		$this->assertSame( 0, $result, 'The overlapping request should be skipped.' );
+		$this->assertSame( Entry_Ingestion_Service::SKIP_IN_PROGRESS, $result, 'The overlapping request should be skipped, and told why.' );
 		$this->assertSame( 0, self::count_entries(), 'No entry should be created.' );
 		$this->assertNotFalse( get_option( self::lock_key( $payload ) ), "The other request's lock should be left in place." );
+	}
+
+	/**
+	 * Media is imported between the duplicate check and the insert, which can
+	 * take long enough for another delivery of the same message to finish. The
+	 * message still becomes one entry.
+	 */
+	public function test_message_saved_by_another_request_during_the_media_import_is_not_saved_twice() {
+		$payload     = self::payload();
+		$coverage_id = self::create_coverage();
+		$bot_user_id = self::factory()->user->create( [ 'role' => 'author' ] );
+
+		$result = Entry_Ingestion_Service::ingest(
+			$payload,
+			$coverage_id,
+			false,
+			$bot_user_id,
+			[],
+			static function () use ( $payload, $coverage_id ) {
+				global $wpdb;
+
+				// The other delivery's entry, saved while this one imports its media. Written
+				// straight to the database, as a write by another request reaches this one:
+				// without touching this request's caches.
+				// phpcs:disable WordPress.DB.DirectDatabaseQuery
+				$wpdb->insert(
+					$wpdb->posts,
+					[
+						'post_type'   => Post_Type::CPT_SLUG,
+						'post_status' => 'draft',
+					]
+				);
+				$other_entry_id = $wpdb->insert_id;
+				$wpdb->insert(
+					$wpdb->postmeta,
+					[
+						'post_id'    => $other_entry_id,
+						'meta_key'   => Post_Type::META_SOURCE_REF, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+						'meta_value' => $payload->source_ref, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+					]
+				);
+				$wpdb->insert(
+					$wpdb->term_relationships,
+					[
+						'object_id'        => $other_entry_id,
+						'term_taxonomy_id' => get_term( $coverage_id, Taxonomy::TAXONOMY_SLUG )->term_taxonomy_id,
+					]
+				);
+				// phpcs:enable WordPress.DB.DirectDatabaseQuery
+
+				return '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.test/photo.jpg" alt=""/></figure><!-- /wp:image -->';
+			}
+		);
+
+		$this->assertSame( 0, $result, 'The second save should be skipped as a duplicate.' );
+		$this->assertSame( 1, self::count_entries(), 'The message should have one entry.' );
+	}
+
+	/**
+	 * Media work can outlast the lock's lifetime. It keeps the lock as it
+	 * progresses, so a redelivery arriving meanwhile still backs off.
+	 */
+	public function test_media_work_keeps_the_lock_while_it_progresses() {
+		$payload     = self::payload();
+		$coverage_id = self::create_coverage();
+		$bot_user_id = self::factory()->user->create( [ 'role' => 'author' ] );
+		$redelivery  = null;
+
+		Entry_Ingestion_Service::ingest(
+			$payload,
+			$coverage_id,
+			false,
+			$bot_user_id,
+			[],
+			static function ( callable $keep_lock ) use ( $payload, $coverage_id, $bot_user_id, &$redelivery ) {
+				// The work has been running for longer than the lock's lifetime.
+				update_option( self::lock_key( $payload ), time() - Entry_Ingestion_Service::MUTEX_TTL - 1, false );
+				$keep_lock();
+
+				$redelivery = Entry_Ingestion_Service::ingest( $payload, $coverage_id, false, $bot_user_id, [] );
+
+				return '';
+			}
+		);
+
+		$this->assertSame( Entry_Ingestion_Service::SKIP_IN_PROGRESS, $redelivery, 'The redelivery should back off.' );
+		$this->assertSame( 1, self::count_entries(), 'The message should have one entry.' );
 	}
 
 	/**
@@ -201,6 +288,48 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A reply's entry is a child of the entry for the message its thread
+	 * starts from, so the two can be shown together.
+	 */
+	public function test_reply_is_filed_under_the_entry_its_thread_starts_from() {
+		$coverage_id = self::create_coverage();
+
+		$first_entry_id = self::ingest( self::payload(), $coverage_id );
+		$reply_entry_id = self::ingest(
+			self::payload(
+				[
+					'source_ref' => '1767225700.000200',
+					'thread_ref' => self::SOURCE_REF,
+				]
+			),
+			$coverage_id
+		);
+
+		$this->assertSame( $first_entry_id, get_post( $reply_entry_id )->post_parent, 'The reply should be a child of the first entry.' );
+		$this->assertSame( 0, get_post( $first_entry_id )->post_parent, 'The first entry should stay top-level.' );
+	}
+
+	/**
+	 * A reply whose thread has no entry in its coverage is a top-level entry.
+	 * The same message id in another coverage is a different message.
+	 */
+	public function test_reply_is_top_level_when_its_thread_has_no_entry_in_the_coverage() {
+		self::ingest( self::payload(), self::create_coverage() );
+
+		$reply_entry_id = self::ingest(
+			self::payload(
+				[
+					'source_ref' => '1767225700.000200',
+					'thread_ref' => self::SOURCE_REF,
+				]
+			),
+			self::create_coverage()
+		);
+
+		$this->assertSame( 0, get_post( $reply_entry_id )->post_parent );
+	}
+
+	/**
 	 * Entries from a chat source have no title; the message is the entry.
 	 */
 	public function test_entry_has_no_title() {
@@ -218,5 +347,38 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 		$entry_id = self::ingest( self::payload( [ 'content_html' => $content ] ), self::create_coverage() );
 
 		$this->assertSame( $content, get_post( $entry_id )->post_content );
+	}
+
+	/**
+	 * Other features hear about a new entry once it has its coverage and
+	 * meta, and only once for a message Slack sends twice.
+	 */
+	public function test_new_entry_is_announced_once_saved_with_its_coverage() {
+		$coverage_id = self::create_coverage();
+		$announced   = [];
+		add_action(
+			'newspack_rolling_coverage_entry_ingested',
+			static function ( $post_id ) use ( &$announced ) {
+				$announced[] = [
+					'post_id'  => $post_id,
+					'coverage' => wp_get_post_terms( $post_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] ),
+					'ref'      => get_post_meta( $post_id, Post_Type::META_SOURCE_REF, true ),
+				];
+			}
+		);
+
+		$entry_id = self::ingest( self::payload(), $coverage_id );
+		self::ingest( self::payload(), $coverage_id );
+
+		$this->assertSame(
+			[
+				[
+					'post_id'  => $entry_id,
+					'coverage' => [ $coverage_id ],
+					'ref'      => self::SOURCE_REF,
+				],
+			],
+			$announced
+		);
 	}
 }

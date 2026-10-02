@@ -278,11 +278,14 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$this->assertSame( 201, $first->get_status() );
 		$id = $first->get_data()['id'];
 
-		$this->assertSame( $id, (int) get_option( Layout::DEFAULT_OPTION ) );
+		$this->assertSame( $id, (int) get_option( Layout::option_name( 'default' ) ) );
 		$this->assertSame( 'publish', get_post_status( $id ) );
 		$this->assertSame( 'wp_block', get_post_type( $id ) );
 		$this->assertSame( [ Layout::PATTERN_CATEGORY ], wp_get_object_terms( $id, 'wp_pattern_category', [ 'fields' => 'slugs' ] ) );
-		$this->assertSame( $id, Layout::get_default_layout_id() );
+		$this->assertSame( $id, Layout::get_layout_id( 'default' ) );
+		$this->assertSame( 'Rolling Coverage: Bulletin', get_the_title( $id ) );
+		$this->assertSame( Layout::get_pattern_category_id(), $first->get_data()['categoryId'] );
+		$this->assertGreaterThan( 0, $first->get_data()['categoryId'] );
 	}
 
 	/**
@@ -308,7 +311,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$id = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] )->get_data()['id'];
 		wp_trash_post( $id );
 
-		$this->assertSame( 0, Layout::get_default_layout_id() );
+		$this->assertSame( 0, Layout::get_layout_id( 'default' ) );
 
 		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
 
@@ -329,7 +332,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => $content ] );
 
 		$this->assertSame( 400, $response->get_status() );
-		$this->assertSame( 0, (int) get_option( Layout::DEFAULT_OPTION, 0 ) );
+		$this->assertSame( 0, (int) get_option( Layout::option_name( 'default' ), 0 ) );
 	}
 
 	/**
@@ -399,6 +402,334 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
 
 		$this->assertContains( $response->get_status(), [ 401, 403 ] );
-		$this->assertSame( 0, (int) get_option( Layout::DEFAULT_OPTION, 0 ) );
+		$this->assertSame( 0, (int) get_option( Layout::option_name( 'default' ), 0 ) );
+	}
+
+	/**
+	 * The first stream create publishes and records it under its own option.
+	 */
+	public function test_create_makes_the_stream_layout_once() {
+		self::log_in_as( 'editor' );
+
+		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
+		$this->assertSame( 201, $response->get_status() );
+		$id = $response->get_data()['id'];
+
+		$this->assertSame( $id, (int) get_option( 'rolling_coverage_stream_layout_id' ) );
+		$this->assertSame( 'publish', get_post_status( $id ) );
+		$this->assertSame( 'Rolling Coverage: Stream', get_the_title( $id ) );
+		$this->assertSame( [ Layout::PATTERN_CATEGORY ], wp_get_object_terms( $id, 'wp_pattern_category', [ 'fields' => 'slugs' ] ) );
+		$this->assertSame( $id, Layout::get_layout_id( 'stream' ) );
+	}
+
+	/**
+	 * The first rail create publishes and records it under its own option.
+	 */
+	public function test_create_makes_the_rail_layout_once() {
+		self::log_in_as( 'editor' );
+
+		$response = self::dispatch( 'POST', '/layouts/rail', [ 'content' => self::layout_markup() ] );
+		$this->assertSame( 201, $response->get_status() );
+		$id = $response->get_data()['id'];
+
+		$this->assertSame( $id, (int) get_option( 'rolling_coverage_rail_layout_id' ) );
+		$this->assertSame( 'Rolling Coverage: Rail', get_the_title( $id ) );
+		$this->assertSame( $id, Layout::get_layout_id( 'rail' ) );
+		$this->assertSame( 200, self::dispatch( 'POST', '/layouts/rail', [ 'content' => self::layout_markup( 'Other' ) ] )->get_status() );
+	}
+
+	/**
+	 * The first clock and margin creates each publish their layout under its
+	 * own option and title.
+	 *
+	 * @dataProvider data_clock_and_margin
+	 *
+	 * @param string $slug  Built-in layout slug.
+	 * @param string $title Expected pattern title.
+	 */
+	public function test_create_makes_the_clock_and_margin_layouts_once( string $slug, string $title ) {
+		self::log_in_as( 'editor' );
+
+		$response = self::dispatch( 'POST', "/layouts/{$slug}", [ 'content' => self::layout_markup() ] );
+		$this->assertSame( 201, $response->get_status() );
+		$id = $response->get_data()['id'];
+
+		$this->assertSame( $id, (int) get_option( "rolling_coverage_{$slug}_layout_id" ) );
+		$this->assertSame( $title, get_the_title( $id ) );
+		$this->assertSame( $id, Layout::get_layout_id( $slug ) );
+
+		$second = self::dispatch( 'POST', "/layouts/{$slug}", [ 'content' => self::layout_markup( 'Other' ) ] );
+		$this->assertSame( 200, $second->get_status() );
+		$this->assertSame( $id, $second->get_data()['id'] );
+	}
+
+	/**
+	 * The Clock and Margin layouts with their pattern titles.
+	 *
+	 * @return array[]
+	 */
+	public function data_clock_and_margin(): array {
+		return [
+			'clock'  => [ 'clock', 'Rolling Coverage: Clock' ],
+			'margin' => [ 'margin', 'Rolling Coverage: Margin' ],
+		];
+	}
+
+	/**
+	 * A second stream create returns the existing pattern.
+	 */
+	public function test_create_returns_the_existing_stream_layout() {
+		self::log_in_as( 'editor' );
+		$id           = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$count_before = (int) wp_count_posts( 'wp_block' )->publish;
+
+		$second = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup( 'Other' ) ] );
+
+		$this->assertSame( 200, $second->get_status() );
+		$this->assertSame( $id, $second->get_data()['id'] );
+		$this->assertSame( $count_before, (int) wp_count_posts( 'wp_block' )->publish );
+	}
+
+	/**
+	 * A trashed stream layout no longer resolves, so create makes a new one.
+	 */
+	public function test_create_recreates_a_trashed_stream_layout() {
+		self::log_in_as( 'editor' );
+		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		wp_trash_post( $id );
+
+		$this->assertSame( 0, Layout::get_layout_id( 'stream' ) );
+
+		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
+
+		$this->assertSame( 201, $response->get_status() );
+		$this->assertNotSame( $id, $response->get_data()['id'] );
+		$this->assertSame( $response->get_data()['id'], (int) get_option( 'rolling_coverage_stream_layout_id' ) );
+	}
+
+	/**
+	 * Each built-in layout keeps its own option.
+	 */
+	public function test_stream_and_default_layouts_are_independent() {
+		self::log_in_as( 'editor' );
+
+		$stream = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		$this->assertSame( 0, (int) get_option( Layout::option_name( 'default' ), 0 ) );
+
+		$default = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
+		$this->assertSame( 201, $default->get_status() );
+		$this->assertNotSame( $stream, $default->get_data()['id'] );
+		$this->assertSame( $stream, (int) get_option( 'rolling_coverage_stream_layout_id' ) );
+		$this->assertSame( 'Rolling Coverage: Bulletin', get_the_title( $default->get_data()['id'] ) );
+	}
+
+	/**
+	 * Only built-in slugs have a route.
+	 */
+	public function test_create_rejects_an_unknown_layout_slug() {
+		self::log_in_as( 'editor' );
+
+		$response = self::dispatch( 'POST', '/layouts/fancy', [ 'content' => self::layout_markup() ] );
+
+		$this->assertSame( 404, $response->get_status() );
+	}
+
+	/**
+	 * Users who cannot publish patterns cannot create the stream layout.
+	 */
+	public function test_create_stream_is_closed_to_users_who_cannot_publish_patterns() {
+		self::log_in_as( 'contributor' );
+
+		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
+
+		$this->assertContains( $response->get_status(), [ 401, 403 ] );
+		$this->assertSame( 0, (int) get_option( 'rolling_coverage_stream_layout_id', 0 ) );
+	}
+
+	/**
+	 * The default layout keeps its original option name.
+	 */
+	public function test_option_name_keeps_the_default_option() {
+		$this->assertSame( 'rolling_coverage_default_layout_id', Layout::option_name( 'default' ) );
+	}
+
+	/**
+	 * A created built-in pattern is tagged with its slug.
+	 */
+	public function test_created_layout_carries_its_slug() {
+		self::log_in_as( 'editor' );
+
+		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+
+		$this->assertSame( 'stream', get_post_meta( $id, Layout::SLUG_META_KEY, true ) );
+	}
+
+	/**
+	 * A lost option doesn't hide the pattern, and is repaired.
+	 */
+	public function test_layout_is_found_by_its_slug_when_the_option_is_lost() {
+		self::log_in_as( 'editor' );
+		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+
+		delete_option( Layout::option_name( 'stream' ) );
+		$this->assertSame( $id, Layout::get_layout_id( 'stream' ) );
+		$this->assertSame( $id, (int) get_option( Layout::option_name( 'stream' ) ) );
+
+		update_option( Layout::option_name( 'stream' ), 999999 );
+		$this->assertSame( $id, Layout::get_layout_id( 'stream' ) );
+		$this->assertSame( $id, (int) get_option( Layout::option_name( 'stream' ) ) );
+		$this->assertSame( 0, Layout::get_layout_id( 'default' ) );
+	}
+
+	/**
+	 * Creating after the option is lost returns the existing pattern.
+	 */
+	public function test_create_returns_the_existing_layout_when_the_option_is_lost() {
+		self::log_in_as( 'editor' );
+		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		delete_option( Layout::option_name( 'stream' ) );
+		$count_before = (int) wp_count_posts( 'wp_block' )->publish;
+
+		$second = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
+
+		$this->assertSame( 200, $second->get_status() );
+		$this->assertSame( $id, $second->get_data()['id'] );
+		$this->assertSame( $count_before, (int) wp_count_posts( 'wp_block' )->publish );
+	}
+
+	/**
+	 * A trashed tagged pattern is not returned.
+	 */
+	public function test_trashed_tagged_layout_is_not_found_by_its_slug() {
+		self::log_in_as( 'editor' );
+		$id = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] )->get_data()['id'];
+		wp_trash_post( $id );
+		delete_option( Layout::option_name( 'stream' ) );
+
+		$this->assertSame( 0, Layout::get_layout_id( 'stream' ) );
+	}
+
+	/**
+	 * Whether a built-in layout's creation lock is in the database.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return bool
+	 */
+	private static function is_locked( string $slug ): bool {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return null !== $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", Layout::lock_name( $slug ) ) );
+	}
+
+	/**
+	 * A create while another holds the lock is refused without inserting.
+	 */
+	public function test_create_is_refused_while_another_holds_the_lock() {
+		self::log_in_as( 'editor' );
+		add_option( Layout::lock_name( 'stream' ), time(), '', false );
+		$count_before = (int) wp_count_posts( 'wp_block' )->publish;
+
+		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
+
+		$this->assertSame( 409, $response->get_status() );
+		$this->assertSame( $count_before, (int) wp_count_posts( 'wp_block' )->publish );
+		$this->assertSame( 0, (int) get_option( Layout::option_name( 'stream' ), 0 ) );
+		$this->assertTrue( self::is_locked( 'stream' ), 'The other request keeps its lock.' );
+	}
+
+	/**
+	 * An abandoned lock doesn't block creation.
+	 */
+	public function test_create_takes_over_a_stale_lock() {
+		self::log_in_as( 'editor' );
+		add_option( Layout::lock_name( 'stream' ), time() - Layout::LOCK_TIMEOUT - 1, '', false );
+
+		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
+
+		$this->assertSame( 201, $response->get_status() );
+		$this->assertFalse( self::is_locked( 'stream' ) );
+	}
+
+	/**
+	 * The lock is released after a successful create.
+	 */
+	public function test_create_releases_the_lock_after_success() {
+		self::log_in_as( 'editor' );
+
+		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
+
+		$this->assertSame( 201, $response->get_status() );
+		$this->assertFalse( self::is_locked( 'default' ) );
+	}
+
+	/**
+	 * The lock is released when the insert fails.
+	 */
+	public function test_create_releases_the_lock_after_failure() {
+		self::log_in_as( 'editor' );
+		add_filter( 'wp_insert_post_empty_content', '__return_true' );
+
+		$response = self::dispatch( 'POST', '/layouts/default', [ 'content' => self::layout_markup() ] );
+
+		remove_filter( 'wp_insert_post_empty_content', '__return_true' );
+
+		$this->assertTrue( $response->is_error() );
+		$this->assertSame( 0, Layout::get_layout_id( 'default' ) );
+		$this->assertFalse( self::is_locked( 'default' ) );
+	}
+
+	/**
+	 * A layout another request created after this one first looked is found
+	 * once the lock is held, even though this request's caches missed it.
+	 */
+	public function test_create_finds_a_layout_created_behind_the_cache() {
+		global $wpdb;
+
+		self::log_in_as( 'editor' );
+		$this->assertSame( 0, Layout::get_layout_id( 'stream' ) );
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->insert(
+			$wpdb->posts,
+			[
+				'post_type'         => 'wp_block',
+				'post_status'       => 'publish',
+				'post_title'        => 'Rolling Coverage: Stream',
+				'post_content'      => self::layout_markup(),
+				'post_author'       => get_current_user_id(),
+				'post_date'         => current_time( 'mysql' ),
+				'post_date_gmt'     => current_time( 'mysql', true ),
+				'post_modified'     => current_time( 'mysql' ),
+				'post_modified_gmt' => current_time( 'mysql', true ),
+			]
+		);
+		$id = (int) $wpdb->insert_id;
+		$wpdb->insert(
+			$wpdb->postmeta,
+			[
+				'post_id'    => $id,
+				'meta_key'   => Layout::SLUG_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+				'meta_value' => 'stream', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+			]
+		);
+		$wpdb->insert(
+			$wpdb->options,
+			[
+				'option_name'  => Layout::option_name( 'stream' ),
+				'option_value' => (string) $id,
+				'autoload'     => 'off',
+			]
+		);
+		$count_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'wp_block' AND post_status = 'publish'" );
+		// phpcs:enable
+
+		$response = self::dispatch( 'POST', '/layouts/stream', [ 'content' => self::layout_markup() ] );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( $id, $response->get_data()['id'] );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$this->assertSame( $count_before, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'wp_block' AND post_status = 'publish'" ) );
+		$this->assertSame( $id, (int) get_option( Layout::option_name( 'stream' ) ) );
 	}
 }

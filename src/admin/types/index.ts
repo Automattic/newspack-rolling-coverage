@@ -31,6 +31,7 @@ interface AdminConfig {
 		entriesView: string;
 		restNamespace: string;
 		aiSettings: string;
+		statusLabels: string;
 		posts: string;
 	};
 	nonce: string;
@@ -40,6 +41,7 @@ interface AdminConfig {
 		canManageTerms: boolean;
 		canManageOptions: boolean;
 		canManageAiSettings: boolean;
+		canManageSettings: boolean;
 	};
 	supportsHandoff: boolean;
 	adminUrls: {
@@ -64,6 +66,9 @@ interface AdminConfig {
 	/** True when AI is unavailable only because the plugin isn't approved for a connector. */
 	aiNeedsApproval: boolean;
 	aiMaxPromptLength: number;
+	statusLabels: StatusLabels;
+	statusLabelDefaults: StatusLabels;
+	statusLabelMaxLength: number;
 	slack: {
 		isConfigured: boolean;
 	};
@@ -372,6 +377,19 @@ interface AiSettingsResult extends ApiResult {
 	data?: AiSettings;
 }
 
+/**
+ * The Coverage Status block's text for each coverage status.
+ */
+interface StatusLabels {
+	active: string;
+	paused: string;
+	archived: string;
+}
+
+interface StatusLabelsResult extends ApiResult {
+	data?: StatusLabels;
+}
+
 type StatusName =
 	| 'active'
 	| 'done'
@@ -455,6 +473,8 @@ interface SlackSettingsInfo {
 	bot_user_id: number;
 	slack_bot_user_id?: string;
 	masked_token: string;
+	/** False when the Slack app lacks the `files:read` scope that images need. */
+	can_read_files: boolean;
 	bot_user?: SlackBotUserInfo;
 }
 
@@ -623,6 +643,8 @@ interface SyncPollContext {
 
 export type {
 	AdminConfig,
+	StatusLabels,
+	StatusLabelsResult,
 	Context,
 	ContextExports,
 	Coverage,

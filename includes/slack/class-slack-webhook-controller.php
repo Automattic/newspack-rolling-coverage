@@ -17,9 +17,10 @@ class Slack_Webhook_Controller {
 	const CHANNEL_ID_PATTERN = '[CG][A-Z0-9]+';
 
 	/**
-	 * Seconds into an ingestion after which mentioned users are no longer
-	 * looked up from the Slack API. The lookups run inside the webhook
+	 * Seconds into handling a message after which mentioned users are no
+	 * longer looked up from the Slack API. The lookups run inside the webhook
 	 * request, which Slack retries when it takes longer than three seconds.
+	 * Reading the thread a reply belongs to counts toward it.
 	 *
 	 * @var float
 	 */
@@ -442,6 +443,9 @@ class Slack_Webhook_Controller {
 		$settings = Slack_Config::get_settings();
 		$settings['masked_token'] = Slack_Config::get_masked_bot_token();
 
+		// Only a definite "no" is reported: unknown scopes are not a problem to act on.
+		$settings['can_read_files'] = false !== $this->api_client->can_read_files();
+
 		$bot_user_id = (int) ( $settings['bot_user_id'] ?? 0 );
 
 		if ( $bot_user_id > 0 ) {
@@ -788,6 +792,8 @@ class Slack_Webhook_Controller {
 		$event_type = (string) ( $event['type'] ?? '' );
 
 		if ( 'message' === $event_type ) {
+			$started = microtime( true );
+
 			// 1. Filter — Slack-specific rules from Slack_Ingestion_Service.
 			if ( Slack_Ingestion_Service::should_filter_message( $event ) ) {
 				Slack_Monitor::log( 'info', 'Message filtered (bot/edit/delete/join-leave/ignore prefix)', [ 'channel' => $event['channel'] ?? '' ] );
@@ -820,9 +826,57 @@ class Slack_Webhook_Controller {
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
-			// 3. Process this message inline. The 1s API timeout for the
-			// outbound users.info call keeps the total webhook response well
-			// under Slack's 3-second limit.
+			// 3. A message with the ignore prefix opts its whole thread out,
+			// so a reply under it is skipped too. The reply event does not
+			// carry the message its thread starts from, so that is read from
+			// Slack.
+			$thread_ts = (string) ( $event['thread_ts'] ?? '' );
+
+			if ( '' !== $thread_ts && $thread_ts !== $ts ) {
+				$thread_message = $this->api_client->get_message( $channel_id, $thread_ts, Slack_API_Client::WEBHOOK_TIMEOUT );
+
+				// A thread that cannot be read may be an opted-out one, and
+				// its reply would be published on an auto-publish channel, so
+				// the reply is not ingested. When a later attempt could read
+				// the thread, the error status makes Slack send the event
+				// again; otherwise the reply is given up on.
+				if ( is_wp_error( $thread_message ) ) {
+					$is_resend_wanted = Slack_API_Client::is_temporary_error( $thread_message );
+					$outcome          = $is_resend_wanted ? 'left for Slack to resend' : 'skipped';
+
+					Slack_Monitor::log(
+						'warning',
+						'Thread reply ' . $outcome . ' (the first message of its thread could not be read)',
+						[
+							'channel' => $channel_id,
+							'ts'      => $ts,
+							'error'   => $thread_message->get_error_message(),
+						]
+					);
+					error_log( 'Slack ingestion: thread reply ' . $ts . ' ' . $outcome . ', the first message of its thread could not be read (' . $thread_message->get_error_message() . ').' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+					return $is_resend_wanted
+						? new \WP_REST_Response( [ 'ok' => false ], 503 )
+						: new \WP_REST_Response( [ 'ok' => true ], 200 );
+				}
+
+				if ( Slack_Ingestion_Service::has_ignore_prefix( (string) ( $thread_message['text'] ?? '' ) ) ) {
+					Slack_Monitor::log(
+						'info',
+						'Thread reply filtered (its thread starts with the ignore prefix)',
+						[
+							'channel' => $channel_id,
+							'ts'      => $ts,
+						]
+					);
+					return new \WP_REST_Response( [ 'ok' => true ], 200 );
+				}
+			}
+
+			// 4. Process this message inline. Its lookups use a 1s timeout, so
+			// a text message is answered inside Slack's 3-second limit. One
+			// with images can take longer: Slack then redelivers it, and the
+			// ingestion service skips the copy.
 			Slack_Monitor::log(
 				'info',
 				'Dispatching message to ingestion pipeline',
@@ -840,6 +894,7 @@ class Slack_Webhook_Controller {
 					'ts'           => $ts,
 					'user_id'      => $user_id,
 					'auto_publish' => Slack_Config::is_autopublish_enabled( $channel_id ),
+					'started'      => $started,
 				]
 			);
 
@@ -1398,14 +1453,14 @@ class Slack_Webhook_Controller {
 
 	/**
 	 * Core ingestion pipeline. Performs author resolution (with a 1s API
-	 * timeout to stay under Slack's 3s webhook limit), content processing,
-	 * and DB writes.
+	 * timeout, so a text message stays under Slack's 3s webhook limit),
+	 * content processing, image import, and DB writes.
 	 *
 	 * @param array $payload Pre-validated payload with event + resolved IDs.
 	 * @return void
 	 */
 	protected static function process_ingest_payload( array $payload ): void {
-		$started      = microtime( true );
+		$started      = (float) ( $payload['started'] ?? microtime( true ) );
 		$event        = $payload['event'] ?? [];
 		$term_id      = (int) ( $payload['term_id'] ?? 0 );
 		$channel_id   = (string) ( $payload['channel_id'] ?? '' );
@@ -1482,16 +1537,23 @@ class Slack_Webhook_Controller {
 			Post_Type::META_SLACK_AUTHOR_NAME => $author_name,
 		];
 
-		// 6. Call the generic ingestion service.
+		// 6. Call the generic ingestion service. Uploaded images are imported
+		// from inside it, once the message is known not to be a redelivery.
+		$files          = is_array( $event['files'] ?? null ) ? $event['files'] : [];
+		$media_importer = new Slack_Media_Importer( $api_client, $bot_user_id );
+
 		$post_id = Entry_Ingestion_Service::ingest(
 			$source_payload,
 			$term_id,
 			$auto_publish,
 			$bot_user_id,
-			$provenance_meta
+			$provenance_meta,
+			static fn( callable $keep_lock ): string => $media_importer->import( $files, $keep_lock )
 		);
 
 		if ( is_wp_error( $post_id ) || $post_id <= 0 ) {
+			$media_importer->discard();
+
 			if ( is_wp_error( $post_id ) ) {
 				error_log( 'Slack ingestion: entry creation failed — ' . $post_id->get_error_code() . ': ' . $post_id->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				Slack_Monitor::log(
@@ -1502,6 +1564,9 @@ class Slack_Webhook_Controller {
 						'message' => $post_id->get_error_message(),
 					] 
 				);
+			} elseif ( Entry_Ingestion_Service::SKIP_IN_PROGRESS === $post_id ) {
+				// Expected for a message with images, which Slack redelivers while the first delivery imports them.
+				Slack_Monitor::log( 'info', 'Ingestion: entry not created (another delivery of this message is still being processed)', [ 'ts' => $ts ] );
 			} elseif ( Entry_Ingestion_Service::SKIP_ARCHIVED_COVERAGE === $post_id ) {
 				Slack_Monitor::log( 'info', 'Ingestion: entry not created (coverage archived)', [ 'ts' => $ts ] );
 				error_log( 'Slack ingestion: entry not created for ts ' . $ts . ' (coverage archived).' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -1512,7 +1577,8 @@ class Slack_Webhook_Controller {
 			return;
 		}
 
-		// 7. Adapter-specific side effects: last_sync_ts update.
+		// 7. Adapter-specific side effects: image attachment, last_sync_ts update.
+		$media_importer->attach_to( (int) $post_id );
 		Slack_Config::update_channel( $channel_id, [ 'last_sync_ts' => $ts ] );
 
 		Slack_Monitor::log(
