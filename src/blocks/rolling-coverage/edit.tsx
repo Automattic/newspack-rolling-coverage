@@ -1180,7 +1180,7 @@ export default function Edit( {
 				<ToggleGroupControl
 					__next40pxDefaultSize
 					isBlock
-					label={ __( 'Ended notice', 'newspack-rolling-coverage' ) }
+					label={ __( 'Notice', 'newspack-rolling-coverage' ) }
 					help={ sprintf(
 						/* translators: %s: The status that ends a coverage, e.g. "Ended". */
 						__(
@@ -1205,10 +1205,7 @@ export default function Edit( {
 						) }
 						aria-label={
 							/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
-							__(
-								'Show ended notice',
-								'newspack-rolling-coverage'
-							)
+							__( 'Show notice', 'newspack-rolling-coverage' )
 						}
 					/>
 					<ToggleGroupControlOption
@@ -1220,10 +1217,7 @@ export default function Edit( {
 						) }
 						aria-label={
 							/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
-							__(
-								'Hide ended notice',
-								'newspack-rolling-coverage'
-							)
+							__( 'Hide notice', 'newspack-rolling-coverage' )
 						}
 					/>
 				</ToggleGroupControl>
@@ -1231,7 +1225,7 @@ export default function Edit( {
 					<>
 						<TextareaControl
 							label={ __(
-								'Notice',
+								'Notice text',
 								'newspack-rolling-coverage'
 							) }
 							placeholder={
