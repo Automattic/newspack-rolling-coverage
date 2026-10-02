@@ -65,6 +65,7 @@ interface BlockConfig {
 	statusMetaKey: string;
 	canonicalUrlMetaKey: string;
 	onesignalConfigured: boolean;
+	statusLabels: Record< string, string >;
 	adsDisabledMetaKey: string;
 	entriesPreviewRestBase: string;
 	aiEndpoint: string;

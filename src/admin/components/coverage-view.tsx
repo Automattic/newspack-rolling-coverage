@@ -5,6 +5,7 @@ import { useNavigate, useOutletContext } from 'react-router';
 import { useState, useCallback, useMemo } from '@wordpress/element';
 import { Button } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
+import { Stack } from '@wordpress/ui';
 import type { View } from '@wordpress/dataviews';
 import { filterSortAndPaginate } from '@wordpress/dataviews/wp';
 
@@ -16,6 +17,7 @@ import { useCoverages } from '../hooks/useCoverages';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { CoverageDrawer } from './coverage-drawer';
 import { SlackConnectionDrawer } from './slack-connection-drawer';
+import SettingsModal from './settings-modal';
 import { useConfirmDialog } from './confirm-dialog';
 import { getCoverageActions } from '../actions/coverage-actions';
 import { getCoverageFields, defaultCoverageView } from '../fields/coverages';
@@ -38,6 +40,7 @@ function CoverageView() {
 		useOutletContext< ContextExports >();
 	const { refreshKey } = context;
 	const [ isSlackDrawerOpen, setIsSlackDrawerOpen ] = useState( false );
+	const [ isSettingsOpen, setIsSettingsOpen ] = useState( false );
 	const [ slackCoverage, setSlackCoverage ] = useState< Coverage | null >(
 		null
 	);
@@ -132,19 +135,33 @@ function CoverageView() {
 		[ navigate, setContext ]
 	);
 
+	const canAddCoverage =
+		config.capabilities.canManageTerms && ! isFirstLoad && ! isEmpty;
+	const canOpenSettings =
+		config.capabilities.canManageSettings && ! isFirstLoad;
 	const headerActions = useMemo(
 		() =>
-			config.capabilities.canManageTerms && ! isFirstLoad && ! isEmpty ? (
-				<Button variant="primary" onClick={ handleOpenCreate }>
-					{ __( 'Add Coverage', 'newspack-rolling-coverage' ) }
-				</Button>
+			canAddCoverage || canOpenSettings ? (
+				<Stack direction="row" gap="sm">
+					{ canOpenSettings && (
+						<Button
+							variant="secondary"
+							onClick={ () => setIsSettingsOpen( true ) }
+						>
+							{ __( 'Settings', 'newspack-rolling-coverage' ) }
+						</Button>
+					) }
+					{ canAddCoverage && (
+						<Button variant="primary" onClick={ handleOpenCreate }>
+							{ __(
+								'Add Coverage',
+								'newspack-rolling-coverage'
+							) }
+						</Button>
+					) }
+				</Stack>
 			) : null,
-		[
-			config.capabilities.canManageTerms,
-			isFirstLoad,
-			isEmpty,
-			handleOpenCreate,
-		]
+		[ canAddCoverage, canOpenSettings, handleOpenCreate ]
 	);
 	useHeader( {
 		actions: headerActions,
@@ -242,6 +259,9 @@ function CoverageView() {
 				onClose={ handleCloseSlackDrawer }
 				onSaved={ handleSaved }
 			/>
+			{ isSettingsOpen && (
+				<SettingsModal onClose={ () => setIsSettingsOpen( false ) } />
+			) }
 			{ confirmDialog }
 		</>
 	);

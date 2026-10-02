@@ -31,6 +31,7 @@ interface AdminConfig {
 		entriesView: string;
 		restNamespace: string;
 		aiSettings: string;
+		statusLabels: string;
 		posts: string;
 	};
 	nonce: string;
@@ -40,6 +41,7 @@ interface AdminConfig {
 		canManageTerms: boolean;
 		canManageOptions: boolean;
 		canManageAiSettings: boolean;
+		canManageSettings: boolean;
 	};
 	supportsHandoff: boolean;
 	adminUrls: {
@@ -64,6 +66,8 @@ interface AdminConfig {
 	/** True when AI is unavailable only because the plugin isn't approved for a connector. */
 	aiNeedsApproval: boolean;
 	aiMaxPromptLength: number;
+	statusLabelDefaults: StatusLabels;
+	statusLabelMaxLength: number;
 	slack: {
 		isConfigured: boolean;
 	};
@@ -372,6 +376,19 @@ interface AiSettingsResult extends ApiResult {
 	data?: AiSettings;
 }
 
+/**
+ * The status indicator's text for each coverage status.
+ */
+interface StatusLabels {
+	active: string;
+	paused: string;
+	archived: string;
+}
+
+interface StatusLabelsResult extends ApiResult {
+	data?: StatusLabels;
+}
+
 type StatusName =
 	| 'active'
 	| 'done'
@@ -623,6 +640,8 @@ interface SyncPollContext {
 
 export type {
 	AdminConfig,
+	StatusLabels,
+	StatusLabelsResult,
 	Context,
 	ContextExports,
 	Coverage,

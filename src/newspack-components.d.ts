@@ -63,6 +63,19 @@ declare module 'newspack-components/dist/esm/drawer' {
 	export { Drawer };
 }
 
+declare module 'newspack-components/dist/esm/modal' {
+	import type { ComponentType } from 'react';
+	import type { Modal as BaseModal } from '@wordpress/components';
+
+	const Modal: ComponentType<
+		React.ComponentProps< typeof BaseModal > & {
+			size?: 'small' | 'medium' | 'large' | 'x-large' | 'full';
+			hideTitle?: boolean;
+		}
+	>;
+	export default Modal;
+}
+
 declare module 'newspack-components/dist/esm/tabbed-navigation' {
 	import type { ComponentType } from 'react';
 

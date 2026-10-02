@@ -537,6 +537,7 @@ class Rolling_Coverage_Block {
 					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
 					'canonicalUrlMetaKey'         => Taxonomy::CANONICAL_URL_META_KEY,
 					'onesignalConfigured'         => Push_Notifications::is_onesignal_configured(),
+					'statusLabels'                => Status_Labels::get_all(),
 					'layoutIds'                   => array_combine(
 						Layout::BUILT_IN_SLUGS,
 						array_map( [ Layout::class, 'get_layout_id' ], Layout::BUILT_IN_SLUGS )
@@ -1511,7 +1512,7 @@ class Rolling_Coverage_Block {
 	/**
 	 * Renders the badge that opens the Feed with the coverage's status, when
 	 * the block turns it on: the block's label for that status, or the
-	 * default one. A status the badge doesn't know shows as live.
+	 * site's. A status the badge doesn't know shows as live.
 	 *
 	 * @param array  $attributes Block attributes.
 	 * @param string $status     Coverage status.
@@ -1523,18 +1524,9 @@ class Rolling_Coverage_Block {
 		}
 
 		$badges = [
-			Taxonomy::STATUS_ACTIVE   => [
-				'class' => 'newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse',
-				'label' => _x( 'Live', 'coverage status', 'newspack-rolling-coverage' ),
-			],
-			Taxonomy::STATUS_PAUSED   => [
-				'class' => 'newspack-ui__badge--secondary',
-				'label' => _x( 'Paused', 'coverage status', 'newspack-rolling-coverage' ),
-			],
-			Taxonomy::STATUS_ARCHIVED => [
-				'class' => 'newspack-ui__badge--error',
-				'label' => _x( 'Ended', 'coverage status', 'newspack-rolling-coverage' ),
-			],
+			Taxonomy::STATUS_ACTIVE   => 'newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse',
+			Taxonomy::STATUS_PAUSED   => 'newspack-ui__badge--secondary',
+			Taxonomy::STATUS_ARCHIVED => 'newspack-ui__badge--error',
 		];
 		$status = isset( $badges[ $status ] ) ? $status : Taxonomy::STATUS_ACTIVE;
 		$labels = is_array( $attributes['statusIndicatorLabels'] ?? null ) ? $attributes['statusIndicatorLabels'] : [];
@@ -1543,8 +1535,8 @@ class Rolling_Coverage_Block {
 		return sprintf(
 			'<div class="%s-status-indicator"><span class="%s">%s</span></div>',
 			self::MARKUP_PREFIX,
-			esc_attr( 'newspack-ui__badge ' . $badges[ $status ]['class'] ),
-			esc_html( '' !== $label ? $label : $badges[ $status ]['label'] )
+			esc_attr( 'newspack-ui__badge ' . $badges[ $status ] ),
+			esc_html( '' !== $label ? $label : Status_Labels::get_all()[ $status ] )
 		);
 	}
 
