@@ -16,11 +16,18 @@ use WP_Term;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Builds and prints LiveBlogPosting structured data on the front end.
+ * Builds and prints LiveBlogPosting structured data on the front end, and
+ * reports when a page embedding a coverage last changed.
  *
  * With Yoast SEO, the page's first coverage is merged into Yoast's Article so
  * search engines see one article with one set of dates. Without Yoast, or on
  * pages Yoast gives no Article, the coverage is printed as its own script.
+ *
+ * A page changes whenever one of its coverage's entries does, but its stored
+ * modified date only knows about edits to the page itself. The stored date is
+ * left alone: the later of the two is worked out when the date is read and
+ * handed to the theme, Yoast and the sitemaps through their filters, so they
+ * agree with the structured data.
  */
 class Schema {
 
@@ -41,6 +48,11 @@ class Schema {
 		add_action( 'wp_head', [ __CLASS__, 'print_schema' ] );
 		add_filter( 'wpseo_schema_article', [ __CLASS__, 'merge_into_yoast_article' ], 10, 2 );
 		add_filter( 'wpseo_schema_webpage', [ __CLASS__, 'align_yoast_webpage_dates' ], 10, 2 );
+		add_filter( 'wpseo_frontend_presentation', [ __CLASS__, 'set_yoast_modified_time' ], 10, 2 );
+		add_filter( 'wpseo_sitemap_entry', [ __CLASS__, 'set_yoast_sitemap_lastmod' ], 10, 3 );
+		add_filter( 'wp_sitemaps_posts_entry', [ __CLASS__, 'set_core_sitemap_lastmod' ], 10, 2 );
+		add_filter( 'get_the_modified_date', [ __CLASS__, 'filter_the_modified_date' ], 10, 3 );
+		add_filter( 'get_the_modified_time', [ __CLASS__, 'filter_the_modified_time' ], 10, 3 );
 	}
 
 	/**
@@ -89,8 +101,8 @@ class Schema {
 	 * Printed separately, the two would describe one URL as two articles that
 	 * disagree on when it last changed. Yoast's values win where both describe
 	 * the page (headline, publish date, main entity), since they match what
-	 * readers see. The live blog adds its coverage times and updates, and its
-	 * dateModified replaces Yoast's because it also counts entry changes.
+	 * readers see. The live blog adds its coverage times and updates, and
+	 * dateModified becomes the page's, which also counts entry changes.
 	 *
 	 * @param array|mixed $data    Yoast's Article graph piece.
 	 * @param object      $context Yoast's meta tags context.
@@ -118,8 +130,9 @@ class Schema {
 			}
 		}
 
-		if ( isset( $metadata['dateModified'] ) ) {
-			$data['dateModified'] = $metadata['dateModified'];
+		$page_date = self::get_page_date_modified( $post );
+		if ( null !== $page_date ) {
+			$data['dateModified'] = $page_date->format( 'c' );
 		}
 
 		self::$merged_coverage_ids[ $post->ID ] = $primary['coverage_id'];
@@ -128,7 +141,7 @@ class Schema {
 	}
 
 	/**
-	 * Gives Yoast's WebPage the live blog's dateModified, so every date in the
+	 * Gives Yoast's WebPage the page's dateModified, so every date in the
 	 * page's structured data agrees on when it last changed.
 	 *
 	 * @param array|mixed $data    Yoast's WebPage graph piece.
@@ -141,12 +154,168 @@ class Schema {
 			return $data;
 		}
 
-		$primary = self::get_primary_metadata( $post );
-		if ( null !== $primary && isset( $primary['metadata']['dateModified'] ) ) {
-			$data['dateModified'] = $primary['metadata']['dateModified'];
+		$page_date = self::get_page_date_modified( $post );
+		if ( null !== $page_date ) {
+			$data['dateModified'] = $page_date->format( 'c' );
 		}
 
 		return $data;
+	}
+
+	/**
+	 * Gives Yoast's `article:modified_time` the date the page last changed for
+	 * readers.
+	 *
+	 * @param object|mixed $presentation Yoast's presentation of the page.
+	 * @param object       $context      Yoast's meta tags context.
+	 * @return object|mixed The presentation.
+	 */
+	public static function set_yoast_modified_time( $presentation, $context ) {
+		$post = is_object( $context ) ? ( $context->post ?? null ) : null;
+		if ( ! is_object( $presentation ) || ! $post instanceof WP_Post ) {
+			return $presentation;
+		}
+
+		$page_date = self::get_page_date_modified( $post );
+		if ( null !== $page_date ) {
+			$presentation->open_graph_article_modified_time = $page_date->format( DATE_W3C );
+		}
+
+		return $presentation;
+	}
+
+	/**
+	 * Gives the page's entry in Yoast's sitemap the date it last changed for
+	 * readers, so search engines are told to fetch it again.
+	 *
+	 * @param array|mixed  $url  Sitemap entry.
+	 * @param string       $type Entry type.
+	 * @param object|mixed $post The post's database row.
+	 * @return array|mixed Sitemap entry.
+	 */
+	public static function set_yoast_sitemap_lastmod( $url, $type, $post ) {
+		if ( ! is_array( $url ) || 'post' !== $type || ! is_object( $post ) ) {
+			return $url;
+		}
+
+		$post = get_post( $post );
+		if ( ! $post instanceof WP_Post ) {
+			return $url;
+		}
+
+		$page_date = self::get_page_date_modified( $post );
+		if ( null !== $page_date ) {
+			$url['mod'] = $page_date->format( 'Y-m-d H:i:s' );
+		}
+
+		return $url;
+	}
+
+	/**
+	 * Does the same for WordPress's own sitemap.
+	 *
+	 * @param array|mixed   $sitemap_entry Sitemap entry.
+	 * @param WP_Post|mixed $post          Post the entry is for.
+	 * @return array|mixed Sitemap entry.
+	 */
+	public static function set_core_sitemap_lastmod( $sitemap_entry, $post ) {
+		if ( ! is_array( $sitemap_entry ) || ! $post instanceof WP_Post ) {
+			return $sitemap_entry;
+		}
+
+		$page_date = self::get_page_date_modified( $post );
+		if ( null !== $page_date ) {
+			$sitemap_entry['lastmod'] = wp_date( DATE_W3C, $page_date->getTimestamp() );
+		}
+
+		return $sitemap_entry;
+	}
+
+	/**
+	 * Gives themes the date the page last changed for readers when they ask
+	 * for its modified date.
+	 *
+	 * Parameters stay untyped because this runs for every post on the site,
+	 * after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string|int|false $the_time The post's own modified date, formatted.
+	 * @param string           $format   Requested format, or empty for the site's date format.
+	 * @param WP_Post|null     $post     Post the date is for.
+	 * @return string|int|false Formatted date.
+	 */
+	public static function filter_the_modified_date( $the_time, $format, $post ) {
+		return self::format_page_date( $the_time, $format, $post, 'date_format' );
+	}
+
+	/**
+	 * Does the same when they ask for its modified time.
+	 *
+	 * @param string|int|false $the_time The post's own modified time, formatted.
+	 * @param string           $format   Requested format, or empty for the site's time format.
+	 * @param WP_Post|null     $post     Post the time is for.
+	 * @return string|int|false Formatted time.
+	 */
+	public static function filter_the_modified_time( $the_time, $format, $post ) {
+		return self::format_page_date( $the_time, $format, $post, 'time_format' );
+	}
+
+	/**
+	 * Formats the date the page last changed for readers the way core formats
+	 * a post's modified date, or returns the post's own when that stands.
+	 *
+	 * @param string|int|false $the_time              The post's own modified date, formatted.
+	 * @param string           $format                Requested format.
+	 * @param WP_Post|null     $post                  Post the date is for.
+	 * @param string           $default_format_option Option holding the format to use when none is requested.
+	 * @return string|int|false Formatted date.
+	 */
+	private static function format_page_date( $the_time, $format, $post, string $default_format_option ) {
+		if ( ! $post instanceof WP_Post ) {
+			return $the_time;
+		}
+
+		$page_date = self::get_page_date_modified( $post );
+		if ( null === $page_date ) {
+			return $the_time;
+		}
+
+		$format = is_string( $format ) && '' !== $format ? $format : (string) get_option( $default_format_option );
+
+		// Core returns these two formats with the site's UTC offset added, and
+		// themes compare them with the published date's, so the offset has to
+		// be added here as well.
+		if ( 'U' === $format || 'G' === $format ) {
+			return $page_date->getTimestamp() + $page_date->setTimezone( wp_timezone() )->getOffset();
+		}
+
+		return wp_date( $format, $page_date->getTimestamp() );
+	}
+
+	/**
+	 * Returns when a page last changed for readers, when that is later than
+	 * its own modified date: the newest published entry of the coverages it
+	 * embeds. Null means the page's own date stands.
+	 *
+	 * @param WP_Post $post Host post.
+	 * @return DateTimeImmutable|null The later date, or null.
+	 */
+	public static function get_page_date_modified( WP_Post $post ): ?DateTimeImmutable {
+		$latest = null;
+
+		foreach ( array_keys( self::get_page_coverages( $post ) ) as $coverage_id ) {
+			if ( 'trash' === get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ) ) {
+				continue;
+			}
+
+			$entry_date = self::get_latest_entry_date( $coverage_id );
+			if ( null !== $entry_date && ( null === $latest || $entry_date > $latest ) ) {
+				$latest = $entry_date;
+			}
+		}
+
+		$own = get_post_datetime( $post, 'modified', 'gmt' );
+
+		return null !== $latest && ( false === $own || $latest > $own ) ? $latest : null;
 	}
 
 	/**
@@ -326,42 +495,64 @@ class Schema {
 	 * Returns when the page last changed in a way readers can see: an edit to
 	 * the host post or to one of the coverage's published entries.
 	 *
-	 * The coverage's last-modified term meta isn't used here because draft,
-	 * pending and private entry saves move it too.
-	 *
 	 * @param WP_Post $post        Host post the block is embedded in.
 	 * @param int     $coverage_id Coverage term id.
 	 * @return DateTimeImmutable|null Latest change, or null when no date is available.
 	 */
 	private static function get_date_modified( WP_Post $post, int $coverage_id ): ?DateTimeImmutable {
-		$query = new WP_Query(
-			[
-				'post_type'                   => Post_Type::CPT_SLUG,
-				'post_status'                 => 'publish',
-				'tax_query'                   => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-					[
-						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
-						'field'    => 'term_id',
-						'terms'    => $coverage_id,
-					],
-				],
-				'orderby'                     => 'modified',
-				'order'                       => 'DESC',
-				'posts_per_page'              => 1,
-				'no_found_rows'               => true,
-				'ignore_sticky_posts'         => true,
-				'update_post_meta_cache'      => false,
-				'update_post_term_cache'      => false,
-				Post_Type::SKIP_PIN_ORDER_VAR => true,
-			]
-		);
-
 		$dates = array_filter(
 			[
 				get_post_datetime( $post, 'modified', 'gmt' ),
-				empty( $query->posts ) ? false : get_post_datetime( $query->posts[0], 'modified', 'gmt' ),
+				self::get_latest_entry_date( $coverage_id ),
 			]
 		);
+
+		return empty( $dates ) ? null : max( $dates );
+	}
+
+	/**
+	 * Returns when a coverage's published entries last changed.
+	 *
+	 * The coverage's last-modified term meta isn't used here because draft,
+	 * pending and private entry saves move it too. The newest entry by publish
+	 * date counts as well as the newest by edit: an entry published on schedule
+	 * keeps the modified date of its last edit, from before it went live.
+	 *
+	 * @param int $coverage_id Coverage term id.
+	 * @return DateTimeImmutable|null Latest change, or null when the coverage has no published entries.
+	 */
+	private static function get_latest_entry_date( int $coverage_id ): ?DateTimeImmutable {
+		$dates = [];
+
+		foreach ( [ 'modified', 'date' ] as $field ) {
+			$query = new WP_Query(
+				[
+					'post_type'                   => Post_Type::CPT_SLUG,
+					'post_status'                 => 'publish',
+					'tax_query'                   => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+						[
+							'taxonomy' => Taxonomy::TAXONOMY_SLUG,
+							'field'    => 'term_id',
+							'terms'    => $coverage_id,
+						],
+					],
+					'orderby'                     => $field,
+					'order'                       => 'DESC',
+					'posts_per_page'              => 1,
+					'no_found_rows'               => true,
+					'ignore_sticky_posts'         => true,
+					'update_post_meta_cache'      => false,
+					'update_post_term_cache'      => false,
+					Post_Type::SKIP_PIN_ORDER_VAR => true,
+				]
+			);
+
+			if ( ! empty( $query->posts ) ) {
+				$dates[] = get_post_datetime( $query->posts[0], $field, 'gmt' );
+			}
+		}
+
+		$dates = array_filter( $dates );
 
 		return empty( $dates ) ? null : max( $dates );
 	}

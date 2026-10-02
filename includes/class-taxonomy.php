@@ -95,8 +95,6 @@ class Taxonomy {
 		add_action( 'init', [ __CLASS__, 'register' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'clean_post_cache', [ __CLASS__, 'flush_coverage_page_ids' ], 10, 2 );
-		add_action( 'transition_post_status', [ __CLASS__, 'touch_pages_after_status_change' ], 10, 3 );
-		add_action( 'set_object_terms', [ __CLASS__, 'touch_pages_after_term_change' ], 10, 4 );
 		add_action( 'created_' . self::TAXONOMY_SLUG, [ __CLASS__, 'set_term_created_date' ] );
 		add_action( 'edited_' . self::TAXONOMY_SLUG, [ __CLASS__, 'update_term_modified_date' ] );
 		add_action( 'added_term_meta', [ __CLASS__, 'maybe_snapshot_end_time' ], 10, 4 );
@@ -602,20 +600,15 @@ class Taxonomy {
 			return $canonical_url;
 		}
 
-		$post_id = self::get_coverage_page_ids()[ $coverage_id ][0] ?? 0;
+		$post_id = self::get_coverage_page_ids()[ $coverage_id ] ?? 0;
 
 		return $post_id ? (string) get_permalink( $post_id ) : '';
 	}
 
 	/**
-	 * Invalidates the coverage-to-page map when a post of a type that can host
-	 * the block is saved with the block in it, before or after the save. That
-	 * catches the block going in, coming out or changing in place, and a
-	 * hosting page changing status. Every other save keeps the map, because
-	 * rebuilding it scans the content of every published post of those types:
-	 * saves of posts without the block, and of entries, revisions and
-	 * autosaves, which change constantly during live coverage and never host
-	 * it.
+	 * Invalidates the coverage-to-page map when a post that could host the
+	 * block changes. Entries, their revisions and autosaves are ignored: they
+	 * change constantly during live coverage and never host the block.
 	 *
 	 * @param int      $post_id Post ID.
 	 * @param \WP_Post $post    Post object.
@@ -625,143 +618,7 @@ class Taxonomy {
 			return;
 		}
 
-		// On an update, the hook hands over the post as it was before the save,
-		// because core read it into the post cache first, and that cache is
-		// cleared by the time this runs, so a fresh read returns the saved row:
-		// checking both catches the block going in as well as coming out. If
-		// the cached row is evicted mid-save, both reads return the saved row
-		// and a removed block goes unnoticed until the next flush.
-		if ( $post instanceof \WP_Post && ! has_block( Schema::BLOCK_NAME, $post ) ) {
-			$saved = get_post( $post_id );
-
-			if ( ! $saved instanceof \WP_Post || ! has_block( Schema::BLOCK_NAME, $saved ) ) {
-				return;
-			}
-		}
-
 		wp_cache_set_last_changed( self::PAGE_IDS_CACHE_GROUP );
-	}
-
-	/**
-	 * Dates the pages showing an entry's coverages to a change readers can see:
-	 * an entry published, edited while published, or taken down.
-	 *
-	 * @param string   $new_status New post status.
-	 * @param string   $old_status Previous post status.
-	 * @param \WP_Post $post       Post object.
-	 */
-	public static function touch_pages_after_status_change( string $new_status, string $old_status, $post ): void {
-		if ( ! $post instanceof \WP_Post || Post_Type::CPT_SLUG !== $post->post_type ) {
-			return;
-		}
-
-		if ( 'publish' !== $new_status && 'publish' !== $old_status ) {
-			return;
-		}
-
-		self::touch_coverage_pages( $post );
-	}
-
-	/**
-	 * Dates the pages showing a published entry's coverages when the entry is
-	 * assigned to them. Entries created through REST or Slack get their
-	 * coverage only after they're published, so the status change misses them.
-	 *
-	 * @param int    $object_id Object ID.
-	 * @param array  $terms     Term IDs or slugs assigned.
-	 * @param array  $tt_ids    Term taxonomy IDs.
-	 * @param string $taxonomy  Taxonomy slug.
-	 */
-	public static function touch_pages_after_term_change( int $object_id, array $terms, array $tt_ids, string $taxonomy ): void {
-		if ( self::TAXONOMY_SLUG !== $taxonomy ) {
-			return;
-		}
-
-		$post = get_post( $object_id );
-
-		if ( ! $post instanceof \WP_Post || Post_Type::CPT_SLUG !== $post->post_type || 'publish' !== $post->post_status ) {
-			return;
-		}
-
-		self::touch_coverage_pages( $post );
-	}
-
-	/**
-	 * Moves the modified date of every page showing the entry's coverages up to
-	 * the entry's, so the byline, the SEO plugin's dates and the sitemap all
-	 * report the page as changed. A page is never moved back in time, nor
-	 * ahead of now.
-	 *
-	 * The date is written without saving the page, so nothing that listens for
-	 * post saves runs: a page-cache copy keeps the old date until it expires,
-	 * and Jetpack Sync and Yoast's indexable see the new one at the page's next
-	 * real save. The new date also overtakes an editor's unsaved autosave of
-	 * the page, which WordPress then discards instead of offering to restore.
-	 *
-	 * @param \WP_Post $entry Entry post object.
-	 */
-	private static function touch_coverage_pages( \WP_Post $entry ): void {
-		$modified     = $entry->post_modified;
-		$modified_gmt = $entry->post_modified_gmt;
-
-		// An entry scheduled through the editor keeps the modified date of its
-		// last edit, which is before it went live; its publish date is when
-		// readers first saw it.
-		if ( $entry->post_date_gmt > $modified_gmt ) {
-			$modified     = $entry->post_date;
-			$modified_gmt = $entry->post_date_gmt;
-		}
-
-		// A publish date can also be ahead of now, when a live entry is moved
-		// to a later time. The page's modified date reaches the site's feeds as
-		// their Last-Modified, and a feed reader that saw a future one would be
-		// told nothing changed until that time passed.
-		$now_gmt = gmdate( 'Y-m-d H:i:s' );
-
-		if ( $modified_gmt > $now_gmt ) {
-			$modified     = get_date_from_gmt( $now_gmt );
-			$modified_gmt = $now_gmt;
-		}
-
-		if ( '' === $modified_gmt || '0000-00-00 00:00:00' === $modified_gmt ) {
-			return;
-		}
-
-		$coverage_ids = wp_get_post_terms( $entry->ID, self::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
-
-		if ( is_wp_error( $coverage_ids ) || empty( $coverage_ids ) ) {
-			return;
-		}
-
-		$page_ids = self::get_coverage_page_ids();
-
-		global $wpdb;
-
-		foreach ( $coverage_ids as $coverage_id ) {
-			foreach ( $page_ids[ (int) $coverage_id ] ?? [] as $page_id ) {
-				// Written directly because wp_update_post() re-saves the whole page:
-				// it would run the page's content through the current user's HTML
-				// filters, and entries are often published by Authors or by the Slack
-				// integration, who can't post unfiltered HTML. The date check is part
-				// of the statement so two entry saves landing at once can't leave the
-				// page on the earlier one. Only the post cache is cleared, not
-				// clean_post_cache(), because the page's content, and so this map,
-				// hasn't changed.
-				$updated = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-					$wpdb->prepare(
-						"UPDATE {$wpdb->posts} SET post_modified = %s, post_modified_gmt = %s WHERE ID = %d AND post_modified_gmt < %s",
-						$modified,
-						$modified_gmt,
-						$page_id,
-						$modified_gmt
-					)
-				);
-
-				if ( $updated ) {
-					wp_cache_delete( $page_id, 'posts' );
-				}
-			}
-		}
 	}
 
 	/**
@@ -775,12 +632,12 @@ class Taxonomy {
 	}
 
 	/**
-	 * Maps each coverage to the published posts embedding it, newest first.
+	 * Maps each coverage to the newest published post embedding it.
 	 *
-	 * @return array<int,int[]> Map of coverage term ID => post IDs.
+	 * @return array<int,int> Map of coverage term ID => post ID.
 	 */
 	private static function get_coverage_page_ids(): array {
-		$cache_key = 'coverage_pages:' . wp_cache_get_last_changed( self::PAGE_IDS_CACHE_GROUP );
+		$cache_key = 'coverage_page_ids:' . wp_cache_get_last_changed( self::PAGE_IDS_CACHE_GROUP );
 		$cached    = wp_cache_get( $cache_key, self::PAGE_IDS_CACHE_GROUP );
 
 		if ( is_array( $cached ) ) {
@@ -806,8 +663,8 @@ class Taxonomy {
 				foreach ( Schema::flatten_blocks( parse_blocks( $post->post_content ) ) as $block ) {
 					$coverage_id = (int) ( $block['attrs']['coverageId'] ?? 0 );
 
-					if ( Schema::BLOCK_NAME === ( $block['blockName'] ?? '' ) && $coverage_id && ! in_array( (int) $post->ID, $map[ $coverage_id ] ?? [], true ) ) {
-						$map[ $coverage_id ][] = (int) $post->ID;
+					if ( Schema::BLOCK_NAME === ( $block['blockName'] ?? '' ) && $coverage_id && ! isset( $map[ $coverage_id ] ) ) {
+						$map[ $coverage_id ] = (int) $post->ID;
 					}
 				}
 			}
