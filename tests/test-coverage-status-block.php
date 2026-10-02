@@ -39,6 +39,14 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Forget the theme.json data a test switched to.
+	 */
+	public function tear_down() {
+		parent::tear_down();
+		wp_clean_theme_json_cache();
+	}
+
+	/**
 	 * A Rolling Coverage block's markup.
 	 *
 	 * @param int $coverage_id Coverage term ID.
