@@ -323,7 +323,7 @@ function bulletinEntryTemplate(): TemplateItem[] {
 					},
 					spacing: {
 						padding: CARD_PADDING,
-						blockGap: 'var:preset|spacing|30',
+						blockGap: 'var:preset|spacing|50',
 					},
 				},
 				metadata: {
@@ -337,7 +337,7 @@ function bulletinEntryTemplate(): TemplateItem[] {
 			{
 				className: REGULAR_ENTRY_CLASS,
 				lock: LOCKED_IN_PLACE,
-				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+				style: { spacing: { blockGap: 'var:preset|spacing|50' } },
 				metadata: {
 					name: __( 'Entry', 'newspack-rolling-coverage' ),
 				},

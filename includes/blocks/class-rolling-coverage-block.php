@@ -1830,7 +1830,7 @@ class Rolling_Coverage_Block {
 	 */
 	private static function regular_entry_block( array $inner_blocks ): array {
 		$style = [
-			'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ],
+			'spacing' => [ 'blockGap' => 'var:preset|spacing|50' ],
 		];
 		$open  = '<div class="wp-block-group ' . esc_attr( self::REGULAR_ENTRY_CLASS ) . '">';
 
@@ -1872,7 +1872,7 @@ class Rolling_Coverage_Block {
 					'bottom' => 'var:preset|spacing|50',
 					'left'   => 'var:preset|spacing|50',
 				],
-				'blockGap' => 'var:preset|spacing|30',
+				'blockGap' => 'var:preset|spacing|50',
 			],
 		];
 		$styles = wp_style_engine_get_styles( $style );
