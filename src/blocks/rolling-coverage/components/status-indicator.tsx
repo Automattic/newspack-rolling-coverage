@@ -1,23 +1,38 @@
 /**
  * WordPress dependencies
  */
-import { _x } from '@wordpress/i18n';
+import { __, _x } from '@wordpress/i18n';
 
 /**
  * The badge for each coverage status, matching the front end's.
  */
-const BADGES: Record< string, { className: string; label: string } > = {
+const BADGES: Record<
+	string,
+	{ className: string; label: string; help: string }
+> = {
 	active: {
 		className: 'newspack-ui__badge--success newspack-ui__badge--pulse',
 		label: _x( 'Live', 'coverage status', 'newspack-rolling-coverage' ),
+		help: __(
+			'Shown while the coverage is live.',
+			'newspack-rolling-coverage'
+		),
 	},
 	paused: {
 		className: '',
 		label: _x( 'Paused', 'coverage status', 'newspack-rolling-coverage' ),
+		help: __(
+			'Shown while the coverage is paused.',
+			'newspack-rolling-coverage'
+		),
 	},
 	archived: {
 		className: 'newspack-ui__badge--error',
 		label: _x( 'Ended', 'coverage status', 'newspack-rolling-coverage' ),
+		help: __(
+			'Shown once the coverage has ended.',
+			'newspack-rolling-coverage'
+		),
 	},
 };
 
@@ -40,6 +55,16 @@ export function badgeStatus( status?: string ): string {
  */
 export function defaultStatusLabel( status?: string ): string {
 	return BADGES[ badgeStatus( status ) ].label;
+}
+
+/**
+ * When the label for a coverage status is shown, as help for its field.
+ *
+ * @param {string} status Coverage status.
+ * @return {string} The help text.
+ */
+export function statusLabelHelp( status?: string ): string {
+	return BADGES[ badgeStatus( status ) ].help;
 }
 
 /**

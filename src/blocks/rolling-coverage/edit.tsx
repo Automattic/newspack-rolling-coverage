@@ -95,6 +95,7 @@ import LoadingState from './components/loading-state';
 import StatusIndicator, {
 	badgeStatus,
 	defaultStatusLabel,
+	statusLabelHelp,
 } from './components/status-indicator';
 import LayoutPickerModal, {
 	type LayoutChoice,
@@ -1133,10 +1134,7 @@ export default function Edit( {
 					<TextControl
 						__next40pxDefaultSize
 						label={ __( 'Label', 'newspack-rolling-coverage' ) }
-						help={ __(
-							'Each status keeps its own label.',
-							'newspack-rolling-coverage'
-						) }
+						help={ statusLabelHelp( currentCoverage?.status ) }
 						placeholder={ defaultStatusLabel(
 							currentCoverage?.status
 						) }
