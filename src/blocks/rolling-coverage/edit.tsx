@@ -1125,10 +1125,13 @@ export default function Edit( {
 							'status indicator',
 							'newspack-rolling-coverage'
 						) }
-						aria-label={ __(
-							'Show status indicator',
-							'newspack-rolling-coverage'
-						) }
+						aria-label={
+							/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+							__(
+								'Show status indicator',
+								'newspack-rolling-coverage'
+							)
+						}
 					/>
 					<ToggleGroupControlOption
 						value="hide"
@@ -1137,10 +1140,13 @@ export default function Edit( {
 							'status indicator',
 							'newspack-rolling-coverage'
 						) }
-						aria-label={ __(
-							'Hide status indicator',
-							'newspack-rolling-coverage'
-						) }
+						aria-label={
+							/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+							__(
+								'Hide status indicator',
+								'newspack-rolling-coverage'
+							)
+						}
 					/>
 				</ToggleGroupControl>
 				{ statusIndicatorShow &&
@@ -1207,10 +1213,13 @@ export default function Edit( {
 							'archived notice',
 							'newspack-rolling-coverage'
 						) }
-						aria-label={ __(
-							'Show archived notice',
-							'newspack-rolling-coverage'
-						) }
+						aria-label={
+							/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+							__(
+								'Show archived notice',
+								'newspack-rolling-coverage'
+							)
+						}
 					/>
 					<ToggleGroupControlOption
 						value="hide"
@@ -1219,10 +1228,13 @@ export default function Edit( {
 							'archived notice',
 							'newspack-rolling-coverage'
 						) }
-						aria-label={ __(
-							'Hide archived notice',
-							'newspack-rolling-coverage'
-						) }
+						aria-label={
+							/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+							__(
+								'Hide archived notice',
+								'newspack-rolling-coverage'
+							)
+						}
 					/>
 				</ToggleGroupControl>
 				{ archivedNoticeShow && (
@@ -1276,10 +1288,13 @@ export default function Edit( {
 									'archived notice link',
 									'newspack-rolling-coverage'
 								) }
-								aria-label={ __(
-									'Show link',
-									'newspack-rolling-coverage'
-								) }
+								aria-label={
+									/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+									__(
+										'Show link',
+										'newspack-rolling-coverage'
+									)
+								}
 							/>
 							<ToggleGroupControlOption
 								value="hide"
@@ -1288,10 +1303,13 @@ export default function Edit( {
 									'archived notice link',
 									'newspack-rolling-coverage'
 								) }
-								aria-label={ __(
-									'Hide link',
-									'newspack-rolling-coverage'
-								) }
+								aria-label={
+									/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+									__(
+										'Hide link',
+										'newspack-rolling-coverage'
+									)
+								}
 							/>
 						</ToggleGroupControl>
 						{ archivedNoticeShowLink && (
@@ -1456,10 +1474,13 @@ export default function Edit( {
 								'advertising',
 								'newspack-rolling-coverage'
 							) }
-							aria-label={ __(
-								'Advertising enabled',
-								'newspack-rolling-coverage'
-							) }
+							aria-label={
+								/* translators: Screen reader name for the “Enabled” option. Keep the word used to translate “Enabled”. */
+								__(
+									'Advertising enabled',
+									'newspack-rolling-coverage'
+								)
+							}
 						/>
 						<ToggleGroupControlOption
 							value="disabled"
@@ -1468,10 +1489,13 @@ export default function Edit( {
 								'advertising',
 								'newspack-rolling-coverage'
 							) }
-							aria-label={ __(
-								'Advertising disabled',
-								'newspack-rolling-coverage'
-							) }
+							aria-label={
+								/* translators: Screen reader name for the “Disabled” option. Keep the word used to translate “Disabled”. */
+								__(
+									'Advertising disabled',
+									'newspack-rolling-coverage'
+								)
+							}
 						/>
 					</ToggleGroupControl>
 					{ enableAds && ! coverageAdsDisabled && (
