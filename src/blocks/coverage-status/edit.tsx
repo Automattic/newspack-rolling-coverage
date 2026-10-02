@@ -87,12 +87,12 @@ export default function Edit( {
 	const { coverageId, showLastUpdated, labels, textColor, style } =
 		attributes;
 
-	const [ customLabels, setCustomLabels ] = useState( () =>
-		Object.keys( LABEL_FIELDS ).some(
-			( key ) =>
-				typeof labels?.[ key ] === 'string' && labels[ key ]?.trim()
-		)
+	const hasCustomLabels = Object.keys( LABEL_FIELDS ).some(
+		( key ) =>
+			typeof labels?.[ key ] === 'string' && !! labels[ key ]?.trim()
 	);
+	const [ customChosen, setCustomChosen ] = useState( false );
+	const isCustom = hasCustomLabels || customChosen;
 
 	const { feedKey, canChoose } = useSelect(
 		( select ) => {
@@ -398,11 +398,14 @@ export default function Edit( {
 						__next40pxDefaultSize
 						isBlock
 						label={ __( 'Labels', 'newspack-rolling-coverage' ) }
-						value={ customLabels ? 'custom' : 'default' }
+						value={ isCustom ? 'custom' : 'default' }
 						onChange={ ( value ) => {
-							setCustomLabels( value === 'custom' );
+							setCustomChosen( value === 'custom' );
 
-							if ( value === 'default' ) {
+							if (
+								value === 'default' &&
+								Object.keys( labels ?? {} ).length
+							) {
 								setAttributes( { labels: {} } );
 							}
 						} }
@@ -438,7 +441,7 @@ export default function Edit( {
 							}
 						/>
 					</ToggleGroupControl>
-					{ customLabels &&
+					{ isCustom &&
 						Object.entries( LABEL_FIELDS ).map(
 							( [ key, field ] ) => (
 								<TextControl
