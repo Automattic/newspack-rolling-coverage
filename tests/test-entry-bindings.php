@@ -565,9 +565,9 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The coverage renders its parts in order: the status, the archived
-	 * notice, the blocks above the entries, the live region, "Jump to
-	 * Latest", the entries, the blocks below them and the sentinel.
+	 * The coverage renders its parts in order: the archived notice, the
+	 * blocks above the entries, the live region, "Jump to Latest", the
+	 * entries, the blocks below them and the sentinel.
 	 */
 	public function test_coverage_level_blocks_render_around_the_entries_in_order() {
 		$coverage_id = self::create_coverage( 'archived' );
@@ -575,16 +575,9 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$header = self::group_markup( '<!-- wp:paragraph --><p>Coverage header</p><!-- /wp:paragraph -->' . self::FOLLOW_MARKUP );
 		$footer = self::group_markup( '<!-- wp:paragraph --><p>Coverage footer</p><!-- /wp:paragraph -->' . self::FOLLOW_MARKUP );
-		$html   = self::render_coverage_items(
-			[
-				'coverageId'          => $coverage_id,
-				'statusIndicatorShow' => true,
-			],
-			$header . self::BUTTONS_MARKUP . $footer
-		);
+		$html   = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $header . self::BUTTONS_MARKUP . $footer );
 
 		$order = [
-			'newspack-rolling-coverage-status-indicator',
 			'newspack-rolling-coverage-archived-notice',
 			'Coverage header',
 			'class="newspack-rolling-coverage-status"',
