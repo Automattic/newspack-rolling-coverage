@@ -265,7 +265,8 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 		$html = $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $coverage_id ) ) );
 
-		$this->assertMatchesRegularExpression( '#<span class="newspack-rolling-coverage-updated">Updated <time datetime="2026-01-01T12:00:00\+00:00" data-rc-relative>[^<]+ ago</time></span>#', $html );
+		$this->assertMatchesRegularExpression( '#^<div class="[^"]*\bnewspack-ui\b[^"]*"#', $html );
+		$this->assertMatchesRegularExpression( '#<span class="newspack-rolling-coverage-updated newspack-ui__font--xs">Updated <time datetime="2026-01-01T12:00:00\+00:00" data-rc-relative>[^<]+ ago</time></span>#', $html );
 	}
 
 	/**
@@ -277,8 +278,8 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$ended_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
 		self::create_entry( $ended_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
 
-		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated" hidden>Updated <time datetime="" data-rc-relative></time></span>', $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $empty_id ) ) ) );
-		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated" hidden>', $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $ended_id ) ) ) );
+		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated newspack-ui__font--xs" hidden>Updated <time datetime="" data-rc-relative></time></span>', $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $empty_id ) ) ) );
+		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated newspack-ui__font--xs" hidden>', $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $ended_id ) ) ) );
 	}
 
 	/**

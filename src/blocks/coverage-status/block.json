@@ -31,12 +31,6 @@
 				"text": true
 			}
 		},
-		"typography": {
-			"fontSize": true,
-			"__experimentalDefaultControls": {
-				"fontSize": true
-			}
-		},
 		"spacing": {
 			"margin": true
 		}
