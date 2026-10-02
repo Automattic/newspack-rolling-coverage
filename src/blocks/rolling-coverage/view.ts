@@ -1468,11 +1468,12 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Drops the closing separator, and a closing pinned card's space below
-	 * it, from the last entry once no more entries can load, as the server
-	 * renders it (see Rolling_Coverage_Block::shape_entry_template()).
-	 * Entries re-rendered by the poll, and a final page that comes back
-	 * empty, don't know they're last.
+	 * Drops the closing separator, after the entry group or at its end, and a
+	 * closing pinned card's space below it, from the last entry once no more
+	 * entries can load, as the server renders it (see
+	 * Rolling_Coverage_Block::shape_entry_template()). Entries re-rendered by
+	 * the poll, and a final page that comes back empty, don't know they're
+	 * last.
 	 */
 	function dropLastSeparator(): void {
 		if ( hasMore ) {
@@ -1486,7 +1487,11 @@ function initBlock( root: HTMLElement ): void {
 		const last = entries[ entries.length - 1 ];
 
 		last?.querySelector(
-			':scope > .wp-block-separator:last-child'
+			[
+				':scope > .wp-block-separator:last-child',
+				':scope > .newspack-rolling-coverage-regular-entry:last-child > .wp-block-separator:last-child',
+				':scope > .newspack-rolling-coverage-regular-entry:last-child > .wp-block-group__inner-container > .wp-block-separator:last-child',
+			].join( ', ' )
 		)?.remove();
 		last?.querySelector< HTMLElement >(
 			':scope > .newspack-rolling-coverage-pinned-card:last-child'

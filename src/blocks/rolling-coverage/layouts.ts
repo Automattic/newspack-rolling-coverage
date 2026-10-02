@@ -9,12 +9,12 @@ import { _x } from '@wordpress/i18n';
 import { getLayoutId } from './utils';
 import {
 	innerTemplate,
-	compactInnerTemplate,
-	cardsInnerTemplate,
+	streamInnerTemplate,
+	railInnerTemplate,
 } from './layout';
 import type { TemplateItem } from './types';
 
-export type BuiltInLayoutSlug = 'default' | 'compact' | 'cards';
+export type BuiltInLayoutSlug = 'default' | 'stream' | 'rail';
 
 export type BuiltInLayout = {
 	slug: BuiltInLayoutSlug;
@@ -31,18 +31,18 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 	return [
 		{
 			slug: 'default',
-			title: _x( 'Classic', 'layout name', 'newspack-rolling-coverage' ),
+			title: _x( 'Bulletin', 'layout name', 'newspack-rolling-coverage' ),
 			template: innerTemplate,
 		},
 		{
-			slug: 'compact',
-			title: _x( 'Compact', 'layout name', 'newspack-rolling-coverage' ),
-			template: compactInnerTemplate,
+			slug: 'stream',
+			title: _x( 'Stream', 'layout name', 'newspack-rolling-coverage' ),
+			template: streamInnerTemplate,
 		},
 		{
-			slug: 'cards',
-			title: _x( 'Cards', 'layout name', 'newspack-rolling-coverage' ),
-			template: cardsInnerTemplate,
+			slug: 'rail',
+			title: _x( 'Rail', 'layout name', 'newspack-rolling-coverage' ),
+			template: railInnerTemplate,
 		},
 	];
 }

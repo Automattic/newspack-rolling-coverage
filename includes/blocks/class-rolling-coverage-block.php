@@ -92,6 +92,13 @@ class Rolling_Coverage_Block {
 	 */
 	const DEFAULT_ENTRY_GAP = 'var:preset|spacing|20';
 
+	/**
+	 * The fallback pinned card's background and text colors: the theme's
+	 * accent and its contrast color.
+	 */
+	const ACCENT          = 'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
+	const ACCENT_CONTRAST = 'var(--wp--preset--color--accent-contrast, var(--wp--preset--color--base, var(--newspack-theme-color-against-primary)))';
+
 	// Term meta key storing the coverage's latest entry modified timestamp.
 	const LAST_MODIFIED_META_KEY = 'rolling_coverage_last_modified';
 
@@ -1673,56 +1680,60 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The hardcoded fallback per-entry template: the pinned card, which a
-	 * pinned entry shows, the entry group, which every other entry shows, then
-	 * a separator.
+	 * The hardcoded fallback per-entry template, the Bulletin layout's: the
+	 * pinned card, which a pinned entry shows, and the entry group, which
+	 * every other entry shows, closed by a separator.
 	 *
 	 * @return array[] Array of parsed-block-shaped arrays.
 	 */
 	private static function default_entry_template() {
 		$separator_html = '<hr class="wp-block-separator has-alpha-channel-opacity is-style-wide"/>';
+		$separator      = [
+			'blockName'    => 'core/separator',
+			'attrs'        => [ 'className' => 'is-style-wide' ],
+			'innerBlocks'  => [],
+			'innerHTML'    => $separator_html,
+			'innerContent' => [ $separator_html ],
+		];
 
 		return [
 			self::pinned_card_block( self::default_entry_blocks( true ) ),
-			self::regular_entry_block( self::default_entry_blocks( false ) ),
-			[
-				'blockName'    => 'core/separator',
-				'attrs'        => [ 'className' => 'is-style-wide' ],
-				'innerBlocks'  => [],
-				'innerHTML'    => $separator_html,
-				'innerContent' => [ $separator_html ],
-			],
+			self::regular_entry_block( array_merge( self::default_entry_blocks( false ), [ $separator ] ) ),
 		];
 	}
 
 	/**
-	 * What an entry shows by default: the date and title stacked with the
-	 * share button opposite, content and the breakout post link. The pinned
-	 * card's also carry the pinned row.
+	 * What an entry shows by default: a row with the time and "Share", or on
+	 * the pinned card the pinned row and the relative date, then a large
+	 * title, the content and "Read more".
 	 *
 	 * @param bool $is_pinned Whether the blocks are the pinned card's.
 	 * @return array[] Array of parsed-block-shaped arrays.
 	 */
 	private static function default_entry_blocks( bool $is_pinned ): array {
-		$meta_blocks = array_merge(
-			$is_pinned ? [ self::pinned_row_block() ] : [],
-			[
-				[
-					'blockName'    => 'core/post-date',
-					'attrs'        => [ 'format' => 'human-diff' ],
-					'innerBlocks'  => [],
-					'innerHTML'    => '',
-					'innerContent' => [],
-				],
-				[
-					'blockName'    => 'core/post-title',
-					'attrs'        => [ 'level' => 4 ],
-					'innerBlocks'  => [],
-					'innerHTML'    => '',
-					'innerContent' => [],
-				],
+		$time_format = get_option( 'time_format' );
+		$meta_blocks = $is_pinned
+			? [
+				self::pinned_row_block(),
+				self::post_block(
+					'core/post-date',
+					[
+						'format'   => 'human-diff',
+						'fontSize' => 'small',
+						'style'    => [ 'color' => [ 'text' => self::ACCENT_CONTRAST ] ],
+					]
+				),
 			]
-		);
+			: [
+				self::post_block(
+					'core/post-date',
+					[
+						'format'   => $time_format ? $time_format : 'g:i a',
+						'fontSize' => 'small',
+					]
+				),
+				self::link_paragraph_block( Entry_Bindings::SHARE_CLASS, __( 'Share', 'newspack-rolling-coverage' ) ),
+			];
 
 		return [
 			[
@@ -1730,59 +1741,26 @@ class Rolling_Coverage_Block {
 				'attrs'        => [
 					'layout'   => [
 						'type'              => 'flex',
-						'flexWrap'          => 'nowrap',
-						'justifyContent'    => 'space-between',
-						'verticalAlignment' => 'top',
+						'flexWrap'          => 'wrap',
+						'verticalAlignment' => 'center',
 					],
 					'style'    => [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ] ],
-					'metadata' => [ 'name' => __( 'Header', 'newspack-rolling-coverage' ) ],
+					'metadata' => [ 'name' => __( 'Meta', 'newspack-rolling-coverage' ) ],
 				],
-				'innerBlocks'  => [
-					[
-						'blockName'    => 'core/group',
-						'attrs'        => [
-							'layout'   => [
-								'type'        => 'flex',
-								'orientation' => 'vertical',
-							],
-							'style'    => [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|20' ] ],
-							'metadata' => [ 'name' => __( 'Meta', 'newspack-rolling-coverage' ) ],
-						],
-						'innerBlocks'  => $meta_blocks,
-						'innerHTML'    => '<div class="wp-block-group"></div>',
-						'innerContent' => array_merge( [ '<div class="wp-block-group">' ], array_fill( 0, count( $meta_blocks ), null ), [ '</div>' ] ),
-					],
-					[
-						'blockName'    => 'core/buttons',
-						'attrs'        => [],
-						'innerBlocks'  => [
-							self::entry_button_block(
-								__( 'Share', 'newspack-rolling-coverage' ),
-								[
-									'url' => [
-										'source' => Entry_Bindings::SOURCE_NAME,
-										'args'   => [ 'key' => 'shareUrl' ],
-									],
-								],
-								[
-									'border' => [ 'radius' => '9999px' ],
-									'color'  => [
-										'background' => 'var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f0f0f0))',
-										'text'       => 'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, currentcolor))',
-									],
-								]
-							),
-						],
-						'innerHTML'    => '<div class="wp-block-buttons"></div>',
-						'innerContent' => [ '<div class="wp-block-buttons">', null, '</div>' ],
-					],
-				],
+				'innerBlocks'  => $meta_blocks,
 				'innerHTML'    => '<div class="wp-block-group"></div>',
 				'innerContent' => [ '<div class="wp-block-group">', null, null, '</div>' ],
 			],
-			[
-				'blockName'    => 'core/post-content',
-				'attrs'        => [
+			self::post_block(
+				'core/post-title',
+				[
+					'level'    => 3,
+					'fontSize' => $is_pinned ? self::theme_font_size( 'x-large', 'huge' ) : 'large',
+				]
+			),
+			self::post_block(
+				'core/post-content',
+				[
 					'style' => [
 						'spacing' => [
 							'padding' => [
@@ -1793,34 +1771,71 @@ class Rolling_Coverage_Block {
 							],
 						],
 					],
-				],
-				'innerBlocks'  => [],
-				'innerHTML'    => '',
-				'innerContent' => [],
+				]
+			),
+			self::link_paragraph_block( Entry_Bindings::READ_MORE_CLASS, __( 'Read more', 'newspack-rolling-coverage' ) ),
+		];
+	}
+
+	/**
+	 * A font size preset the theme defines: the preferred slug where the
+	 * theme has it, else its fallback. The Newspack Theme names its sizes
+	 * Normal and Huge where block themes have Medium and X-Large.
+	 *
+	 * @param string $preferred The preferred slug.
+	 * @param string $fallback  The slug to use where the theme lacks it.
+	 * @return string
+	 */
+	private static function theme_font_size( string $preferred, string $fallback ): string {
+		$origins = wp_get_global_settings( [ 'typography', 'fontSizes' ] );
+		$theme   = is_array( $origins ) && is_array( $origins['theme'] ?? null ) ? $origins['theme'] : [];
+		$sizes   = array_column( array_filter( $theme, 'is_array' ), 'slug' );
+
+		return ! in_array( $preferred, $sizes, true ) && in_array( $fallback, $sizes, true ) ? $fallback : $preferred;
+	}
+
+	/**
+	 * A parsed post block, such as Post Date, which renders from its attributes
+	 * alone.
+	 *
+	 * @param string $name  Block name.
+	 * @param array  $attrs Block attributes.
+	 * @return array Parsed-block-shaped array.
+	 */
+	private static function post_block( string $name, array $attrs ): array {
+		return [
+			'blockName'    => $name,
+			'attrs'        => $attrs,
+			'innerBlocks'  => [],
+			'innerHTML'    => '',
+			'innerContent' => [],
+		];
+	}
+
+	/**
+	 * A parsed paragraph holding a placeholder link, which the site points at
+	 * the entry's link (see Entry_Bindings::link_paragraph()).
+	 *
+	 * @param string $class_name The paragraph's class: Read more's or Share's.
+	 * @param string $text       The link's text.
+	 * @return array Parsed-block-shaped array.
+	 */
+	private static function link_paragraph_block( string $class_name, string $text ): array {
+		$html = sprintf(
+			'<p class="use-header-font %s has-small-font-size"><a href="#">%s</a></p>',
+			esc_attr( $class_name ),
+			esc_html( $text )
+		);
+
+		return [
+			'blockName'    => 'core/paragraph',
+			'attrs'        => [
+				'className' => 'use-header-font ' . $class_name,
+				'fontSize'  => 'small',
 			],
-			[
-				'blockName'    => 'core/buttons',
-				'attrs'        => [ 'metadata' => [ 'name' => __( 'Read More', 'newspack-rolling-coverage' ) ] ],
-				'innerBlocks'  => [
-					self::entry_button_block(
-						__( 'Read More', 'newspack-rolling-coverage' ),
-						[
-							'url' => [
-								'source' => Entry_Bindings::SOURCE_NAME,
-								'args'   => [ 'key' => 'breakoutUrl' ],
-							],
-						],
-						[
-							'color' => [
-								'background' => 'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))',
-								'text'       => 'var(--wp--preset--color--accent-contrast, var(--wp--preset--color--base, var(--newspack-theme-color-against-primary)))',
-							],
-						]
-					),
-				],
-				'innerHTML'    => '<div class="wp-block-buttons"></div>',
-				'innerContent' => [ '<div class="wp-block-buttons">', null, '</div>' ],
-			],
+			'innerBlocks'  => [],
+			'innerHTML'    => $html,
+			'innerContent' => [ $html ],
 		];
 	}
 
@@ -1833,7 +1848,7 @@ class Rolling_Coverage_Block {
 	 */
 	private static function regular_entry_block( array $inner_blocks ): array {
 		$style = [
-			'spacing' => [ 'blockGap' => self::DEFAULT_ENTRY_GAP ],
+			'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ],
 		];
 		$open  = '<div class="wp-block-group ' . esc_attr( self::REGULAR_ENTRY_CLASS ) . '">';
 
@@ -1851,23 +1866,31 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * A parsed pinned card: a group whose background and padding mark out a
-	 * pinned entry, holding the given blocks.
+	 * A parsed pinned card: a group set in the accent color, with its text,
+	 * links and headings in the accent's contrast color, holding the given
+	 * blocks.
 	 *
 	 * @param array[] $inner_blocks Parsed blocks inside the card.
 	 * @return array Parsed-block-shaped array.
 	 */
 	private static function pinned_card_block( array $inner_blocks ): array {
 		$style  = [
-			'color'   => [ 'background' => 'var(--wp--custom--color--neutral-5, #f7f7f7)' ],
-			'spacing' => [
+			'color'    => [
+				'background' => self::ACCENT,
+				'text'       => self::ACCENT_CONTRAST,
+			],
+			'elements' => [
+				'link'    => [ 'color' => [ 'text' => self::ACCENT_CONTRAST ] ],
+				'heading' => [ 'color' => [ 'text' => self::ACCENT_CONTRAST ] ],
+			],
+			'spacing'  => [
 				'padding'  => [
 					'top'    => 'var:preset|spacing|50',
 					'right'  => 'var:preset|spacing|50',
 					'bottom' => 'var:preset|spacing|50',
 					'left'   => 'var:preset|spacing|50',
 				],
-				'blockGap' => self::DEFAULT_ENTRY_GAP,
+				'blockGap' => 'var:preset|spacing|30',
 			],
 		];
 		$styles = wp_style_engine_get_styles( $style );
@@ -1896,10 +1919,10 @@ class Rolling_Coverage_Block {
 	 * other entry the entry group. Without an entry group, only a pinned entry
 	 * keeps the card; others render its blocks without it. A pinned entry shown
 	 * as a card, and the last entry once no more can load, drop the separator
-	 * that closes the template. A pinned card with no breakout link to show
-	 * also drops any bottom margin set on its last block, and as the last
-	 * entry, a card that closes the template drops any set below it, so the
-	 * card's padding is even and nothing trails the list.
+	 * that closes the template or the entry group. A pinned card with no
+	 * breakout link to show also drops any bottom margin set on its last
+	 * block, and as the last entry, a card that closes the template drops any
+	 * set below it, so the card's padding is even and nothing trails the list.
 	 *
 	 * @param array[] $template     Parsed template blocks.
 	 * @param bool    $is_pinned    Whether the entry is pinned.
@@ -1912,11 +1935,7 @@ class Rolling_Coverage_Block {
 		$template = self::for_entry_kind( $template, $is_pinned );
 
 		if ( ( $is_pinned && self::has_pinned_card( $template ) ) || $is_last ) {
-			$last = end( $template );
-
-			if ( is_array( $last ) && 'core/separator' === ( $last['blockName'] ?? '' ) ) {
-				array_pop( $template );
-			}
+			$template = self::without_closing_separator( $template );
 		}
 
 		$closing        = end( $template );
@@ -1953,6 +1972,38 @@ class Rolling_Coverage_Block {
 				return [ self::with_entry_layout( $block ) ];
 			}
 		);
+	}
+
+	/**
+	 * The template without the separator that closes it, whether it follows
+	 * the entry group or ends it.
+	 *
+	 * @param array[] $template Parsed template blocks.
+	 * @return array[]
+	 */
+	private static function without_closing_separator( array $template ): array {
+		$index = array_key_last( $template );
+		$last  = null === $index ? null : $template[ $index ];
+
+		if ( ! is_array( $last ) ) {
+			return $template;
+		}
+
+		if ( 'core/separator' === ( $last['blockName'] ?? '' ) ) {
+			unset( $template[ $index ] );
+
+			return array_values( $template );
+		}
+
+		$inner_blocks = $last['innerBlocks'] ?? [];
+		$closing      = end( $inner_blocks );
+
+		if ( self::is_regular_entry( $last ) && is_array( $closing ) && 'core/separator' === ( $closing['blockName'] ?? '' ) ) {
+			array_pop( $inner_blocks );
+			$template[ $index ] = self::sync_inner_content( $last, $inner_blocks );
+		}
+
+		return $template;
 	}
 
 	/**
@@ -2393,60 +2444,6 @@ class Rolling_Coverage_Block {
 			],
 			'innerHTML'    => '<div class="wp-block-group"></div>',
 			'innerContent' => [ '<div class="wp-block-group">', null, null, '</div>' ],
-		];
-	}
-
-	/**
-	 * A parsed core/button block whose link, and optionally label, are bound
-	 * to the entry.
-	 *
-	 * @param string $text     Button label.
-	 * @param array  $bindings Block bindings keyed by attribute.
-	 * @param array  $style    Border, color and spacing styles, as the editor saves them.
-	 * @return array Parsed-block-shaped array.
-	 */
-	private static function entry_button_block( string $text, array $bindings, array $style = [] ): array {
-		$link_style   = [];
-		$link_classes = [ 'wp-block-button__link' ];
-
-		if ( isset( $style['border']['radius'] ) ) {
-			$link_style[] = 'border-radius:' . $style['border']['radius'];
-		}
-
-		if ( isset( $style['color']['text'] ) ) {
-			$link_style[]   = 'color:' . $style['color']['text'];
-			$link_classes[] = 'has-text-color';
-		}
-
-		if ( isset( $style['color']['background'] ) ) {
-			$link_style[]   = 'background-color:' . $style['color']['background'];
-			$link_classes[] = 'has-background';
-		}
-
-		$link_classes[] = 'wp-element-button';
-
-		foreach ( $style['spacing']['padding'] ?? [] as $side => $value ) {
-			$link_style[] = 'padding-' . $side . ':' . $value;
-		}
-
-		$html = sprintf(
-			'<div class="wp-block-button"><a class="%s"%s>%s</a></div>',
-			esc_attr( implode( ' ', $link_classes ) ),
-			$link_style ? ' style="' . esc_attr( implode( ';', $link_style ) ) . '"' : '',
-			esc_html( $text )
-		);
-		$attrs = [ 'metadata' => [ 'bindings' => $bindings ] ];
-
-		if ( $style ) {
-			$attrs['style'] = $style;
-		}
-
-		return [
-			'blockName'    => 'core/button',
-			'attrs'        => $attrs,
-			'innerBlocks'  => [],
-			'innerHTML'    => $html,
-			'innerContent' => [ $html ],
 		];
 	}
 

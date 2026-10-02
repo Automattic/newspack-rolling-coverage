@@ -10,9 +10,9 @@ import { useCallback, useMemo } from '@wordpress/element';
  */
 import metadata from './block.json';
 import {
-	ENTRY_TEMPLATE,
-	compactEntryTemplate,
-	CARDS_ENTRY_TEMPLATE,
+	bulletinEntryTemplate,
+	streamEntryTemplate,
+	railEntryTemplate,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
@@ -68,10 +68,32 @@ function paletteSlugs(): string[] {
 }
 
 /**
- * Default inner-blocks template for the Rolling Coverage block: the Feed
- * group, holding the "Jump to Latest" button, in the colors the editor's
- * palette has for it, and the follow button at the top, then the per-entry
- * blocks.
+ * The slugs of the theme's font sizes.
+ *
+ * @return {string[]} Font size slugs.
+ */
+function themeFontSizeSlugs(): string[] {
+	const settings = (
+		select( blockEditorStore.name ) as unknown as {
+			getSettings: () => {
+				__experimentalFeatures?: {
+					typography?: {
+						fontSizes?: { theme?: { slug: string }[] };
+					};
+				};
+			};
+		}
+	 ).getSettings();
+
+	return (
+		settings.__experimentalFeatures?.typography?.fontSizes?.theme ?? []
+	).map( ( size ) => size.slug );
+}
+
+/**
+ * The Bulletin layout's inner-blocks template, the default: the Feed group,
+ * holding the "Jump to Latest" button, in the colors the editor's palette
+ * has for it, and the follow button at the top, then the per-entry blocks.
  *
  * @return {TemplateItem[]} The template.
  */
@@ -80,18 +102,18 @@ export function innerTemplate(): TemplateItem[] {
 		feedTemplate( [
 			latestTemplate( paletteSlugs() ),
 			FOLLOW_TEMPLATE,
-			...ENTRY_TEMPLATE,
+			...bulletinEntryTemplate( themeFontSizeSlugs() ),
 		] ),
 	];
 }
 
 /**
- * The Compact layout's inner-blocks template: the same Feed group, buttons
- * and entry kinds as the default, with a tighter gap and a time-led entry.
+ * The Stream layout's inner-blocks template: the same Feed group and buttons
+ * as the default, with a wider gap between untitled entries.
  *
  * @return {TemplateItem[]} The template.
  */
-export function compactInnerTemplate(): TemplateItem[] {
+export function streamInnerTemplate(): TemplateItem[] {
 	const slugs = paletteSlugs();
 
 	return [
@@ -99,29 +121,26 @@ export function compactInnerTemplate(): TemplateItem[] {
 			[
 				latestTemplate( slugs ),
 				FOLLOW_TEMPLATE,
-				...compactEntryTemplate( slugs ),
+				...streamEntryTemplate( slugs, themeFontSizeSlugs() ),
 			],
-			'var:preset|spacing|30'
+			'var:preset|spacing|60'
 		),
 	];
 }
 
 /**
- * The Cards layout's inner-blocks template: the same Feed group and buttons
- * as the default, with each entry in a bordered card.
+ * The Rail layout's inner-blocks template: the same Feed group and buttons
+ * as the default, with each entry hanging off a timeline.
  *
  * @return {TemplateItem[]} The template.
  */
-export function cardsInnerTemplate(): TemplateItem[] {
+export function railInnerTemplate(): TemplateItem[] {
 	return [
-		feedTemplate(
-			[
-				latestTemplate( paletteSlugs() ),
-				FOLLOW_TEMPLATE,
-				...CARDS_ENTRY_TEMPLATE,
-			],
-			'var:preset|spacing|40'
-		),
+		feedTemplate( [
+			latestTemplate( paletteSlugs() ),
+			FOLLOW_TEMPLATE,
+			...railEntryTemplate(),
+		] ),
 	];
 }
 

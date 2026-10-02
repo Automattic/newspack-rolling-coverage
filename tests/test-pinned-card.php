@@ -186,13 +186,14 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A compact template: a pinned card and an entry group, each a row of the
+	 * A time-column template: a pinned card and an entry group, each a row of the
 	 * time and the body, with the visible pinned label in the card or without.
 	 *
-	 * @param bool $with_label Whether the card carries the pinned label.
+	 * @param bool   $with_label Whether the card carries the pinned label.
+	 * @param string $pin_icon   Icon block markup shown in the card in place of the time, if any.
 	 * @return string Template markup.
 	 */
-	private static function compact_markup( bool $with_label = false ): string {
+	private static function time_column_markup( bool $with_label = false, string $pin_icon = '' ): string {
 		$label = $with_label
 			? '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-pinned-label"} --><p class="use-header-font newspack-rolling-coverage-pinned-label">Pinned</p><!-- /wp:paragraph -->'
 			: '';
@@ -203,7 +204,7 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 			. $body
 			. '</div><!-- /wp:columns -->';
 
-		return '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">' . $label . $row( $date ) . '</div><!-- /wp:group -->'
+		return '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">' . $label . $row( $pin_icon ? $pin_icon : $date ) . '</div><!-- /wp:group -->'
 			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . $row( $date ) . '</div><!-- /wp:group -->';
 	}
 
@@ -212,7 +213,7 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	 * screen readers first in the article; an unpinned one is not.
 	 */
 	public function test_pinned_entry_without_a_label_is_announced_to_screen_readers() {
-		$markup = self::compact_markup();
+		$markup = self::time_column_markup();
 		$pinned = self::render( self::create_pinned_entry(), false, $markup );
 		$other  = self::render( self::create_entry( self::create_coverage() ), false, $markup );
 
@@ -223,11 +224,22 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A pin icon in place of the pinned label stays silent, so the entry is
+	 * announced as pinned once.
+	 */
+	public function test_pin_icon_without_a_label_is_announced_once() {
+		$pinned = self::render( self::create_pinned_entry(), false, self::time_column_markup( false, '<!-- wp:icon {"icon":"newspack-rolling-coverage/pin-small"} /-->' ) );
+
+		$this->assertStringContainsString( '<svg', $pinned );
+		$this->assertSame( 1, substr_count( $pinned, 'Pinned' ) );
+	}
+
+	/**
 	 * A pinned entry whose template shows the pinned label keeps just that
 	 * label.
 	 */
 	public function test_pinned_entry_with_a_label_adds_no_announcement() {
-		$pinned = self::render( self::create_pinned_entry(), false, self::compact_markup( true ) );
+		$pinned = self::render( self::create_pinned_entry(), false, self::time_column_markup( true ) );
 
 		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-label', $pinned );
 		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-status', $pinned );
@@ -249,11 +261,11 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A compact pinned card and entry group carry no corner radius of their
+	 * A time-column pinned card and entry group carry no corner radius of their
 	 * own, and rendering adds none.
 	 */
-	public function test_compact_cards_render_without_a_border_radius() {
-		$markup = self::compact_markup();
+	public function test_time_column_cards_render_without_a_border_radius() {
+		$markup = self::time_column_markup();
 		$pinned = self::render( self::create_pinned_entry(), false, $markup );
 		$other  = self::render( self::create_entry( self::create_coverage() ), false, $markup );
 
@@ -295,6 +307,39 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 		$markup = '<!-- wp:paragraph --><p>Text</p><!-- /wp:paragraph --><!-- wp:separator --><hr class="wp-block-separator has-alpha-channel-opacity"/><!-- /wp:separator -->';
 
 		$this->assertStringContainsString( 'wp-block-separator', self::render( self::create_pinned_entry(), false, $markup ) );
+	}
+
+	/**
+	 * The built-in template closes an entry group with a separator, which
+	 * the last entry drops.
+	 */
+	public function test_default_template_closes_the_entry_group_with_a_separator() {
+		$coverage_id = self::create_coverage();
+		$older_id    = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		$newer_id    = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 11:00:00' ] );
+
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		preg_match( '/<article id="newspack-rolling-coverage-entry-' . $newer_id . '".*?<\/article>/s', $html, $newer );
+		preg_match( '/<article id="newspack-rolling-coverage-entry-' . $older_id . '".*?<\/article>/s', $html, $older );
+
+		$this->assertMatchesRegularExpression( '/newspack-rolling-coverage-regular-entry.*<hr class="wp-block-separator[^"]*"\/>\s*(<\/div>\s*)+<\/article>/s', $newer[0], 'The separator should end the entry group.' );
+		$this->assertStringNotContainsString( 'wp-block-separator', $older[0], 'The last entry should drop it.' );
+	}
+
+	/**
+	 * A separator ending the entry group is dropped from the last entry.
+	 */
+	public function test_last_entry_drops_the_separator_ending_the_entry_group() {
+		$markup   = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry"><!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph --><!-- wp:separator --><hr class="wp-block-separator has-alpha-channel-opacity"/><!-- /wp:separator --></div><!-- /wp:group -->';
+		$entry_id = self::create_entry( self::create_coverage() );
+		$last     = self::render( $entry_id, true, $markup );
+
+		$this->assertStringContainsString( 'wp-block-separator', self::render( $entry_id, false, $markup ), 'An entry that is not last should keep it.' );
+		$this->assertStringNotContainsString( 'wp-block-separator', $last );
+		$this->assertStringContainsString( 'Entry text', $last );
 	}
 
 	/**
