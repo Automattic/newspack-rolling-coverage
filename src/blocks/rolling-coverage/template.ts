@@ -882,6 +882,72 @@ function marginEntryTemplate(): TemplateItem[] {
 }
 
 /**
+ * The Minute layout's per-entry template: each entry is only its content,
+ * ruled off from the one above. The pinned card is shaded.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+function minuteEntryTemplate(): TemplateItem[] {
+	const flex = {
+		type: 'flex',
+		orientation: 'vertical',
+		justifyContent: 'stretch',
+	};
+
+	return [
+		[
+			'core/group',
+			{
+				className: PINNED_CARD_CLASS,
+				lock: LOCKED_IN_PLACE,
+				layout: flex,
+				style: {
+					color: { background: PINNED_BACKGROUND },
+					spacing: {
+						blockGap: DEFAULT_ENTRY_GAP,
+						padding: {
+							top: 'var:preset|spacing|40',
+							right: 'var:preset|spacing|40',
+							bottom: 'var:preset|spacing|40',
+							left: 'var:preset|spacing|40',
+						},
+					},
+				},
+				metadata: {
+					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			[ pinnedRow( ACCENT ), postContent() ],
+		],
+		[
+			'core/group',
+			{
+				className: REGULAR_ENTRY_CLASS,
+				lock: LOCKED_IN_PLACE,
+				layout: flex,
+				style: {
+					border: {
+						top: {
+							color: BORDER_COLOR,
+							width: '1px',
+							style: 'solid',
+						},
+					},
+					spacing: {
+						blockGap: DEFAULT_ENTRY_GAP,
+						padding: { top: 'var:preset|spacing|30' },
+					},
+				},
+				metadata: {
+					name: __( 'Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			[ postContent() ],
+		],
+	];
+}
+
+/**
  * The follow button, rendered once at the top of the coverage: a core button
  * bound to the coverage's notification tag. It's a `<button>`, so the bound
  * value never shows as a link; it only carries the tag to the follow script.
@@ -1709,6 +1775,7 @@ export {
 	railEntryTemplate,
 	clockEntryTemplate,
 	marginEntryTemplate,
+	minuteEntryTemplate,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_TEMPLATE,
 	feedTemplate,

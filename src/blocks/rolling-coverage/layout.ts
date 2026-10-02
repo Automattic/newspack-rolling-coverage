@@ -15,6 +15,7 @@ import {
 	railEntryTemplate,
 	clockEntryTemplate,
 	marginEntryTemplate,
+	minuteEntryTemplate,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
@@ -177,6 +178,25 @@ export function marginInnerTemplate(): TemplateItem[] {
 			FOLLOW_TEMPLATE,
 			...marginEntryTemplate(),
 		] ),
+	];
+}
+
+/**
+ * The Minute layout's inner-blocks template: the same Feed group and buttons
+ * as the default, closer together, with each entry reduced to its content.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function minuteInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			[
+				latestTemplate( paletteSlugs() ),
+				FOLLOW_TEMPLATE,
+				...minuteEntryTemplate(),
+			],
+			'var:preset|spacing|30'
+		),
 	];
 }
 

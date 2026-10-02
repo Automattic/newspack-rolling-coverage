@@ -472,6 +472,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		return [
 			'clock'  => [ 'clock', 'Rolling Coverage: Clock' ],
 			'margin' => [ 'margin', 'Rolling Coverage: Margin' ],
+			'minute' => [ 'minute', 'Rolling Coverage: Minute' ],
 		];
 	}
 
