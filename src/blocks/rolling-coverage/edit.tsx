@@ -107,7 +107,8 @@ import LayoutPickerModal, {
 import {
 	getBuiltInLayouts,
 	builtInLayoutSlugFor,
-	layoutCapAttributes,
+	switchLayoutAttributes,
+	type BuiltInLayoutSlug,
 } from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
 import { blockGapCss } from './spacing';
@@ -308,6 +309,7 @@ export default function Edit( {
 		archivedNoticeLinkUrl,
 		archivedNoticeLinkLabel,
 		layoutId,
+		align,
 	} = attributes;
 	const { currentPostType, currentPostId, patternCategories } = useSelect(
 		( select ) => {
@@ -805,6 +807,17 @@ export default function Edit( {
 		( choice: LayoutChoice ) => {
 			setIsPickingLayout( false );
 
+			const syncedSlug = isSynced
+				? builtInLayoutSlugFor( layoutId )
+				: null;
+			let replaced: BuiltInLayoutSlug[] = [];
+
+			if ( syncedSlug ) {
+				replaced = [ syncedSlug ];
+			} else if ( ! isSynced && innerBlockCount > 0 ) {
+				replaced = getBuiltInLayouts().map( ( layout ) => layout.slug );
+			}
+
 			if ( choice.kind === 'pattern' ) {
 				if ( isSynced && choice.id === layoutId ) {
 					if ( isLayoutMissing ) {
@@ -825,7 +838,11 @@ export default function Edit( {
 					setAttributes( {
 						layoutId: choice.id,
 						...( patternSlug
-							? layoutCapAttributes( patternSlug )
+							? switchLayoutAttributes(
+									patternSlug,
+									replaced,
+									align
+								)
 							: {} ),
 					} );
 				} );
@@ -848,11 +865,12 @@ export default function Edit( {
 				);
 				setAttributes( {
 					layoutId: 0,
-					...layoutCapAttributes( layout.slug ),
+					...switchLayoutAttributes( layout.slug, replaced, align ),
 				} );
 			} );
 		},
 		[
+			align,
 			isSynced,
 			isLayoutMissing,
 			invalidateResolution,

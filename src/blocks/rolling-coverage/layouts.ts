@@ -145,3 +145,32 @@ export function layoutCapAttributes( slug: BuiltInLayoutSlug ): {
 
 	return { latestOnly: false, hideWhenEnded: false };
 }
+
+/**
+ * The attributes a built-in layout sets when picked in place of another: its
+ * cap, and its alignment. A layout that sets no alignment clears one the
+ * replaced layout set, while an alignment chosen by hand stays.
+ *
+ * @param {BuiltInLayoutSlug}   slug         The picked layout's slug.
+ * @param {BuiltInLayoutSlug[]} replaced     The built-in layouts that may have set the block's current values.
+ * @param {string}              currentAlign The block's current alignment.
+ * @return {Object} The attributes to set.
+ */
+export function switchLayoutAttributes(
+	slug: BuiltInLayoutSlug,
+	replaced: BuiltInLayoutSlug[],
+	currentAlign?: string
+): ReturnType< typeof layoutCapAttributes > {
+	const attributes = layoutCapAttributes( slug );
+
+	if ( attributes.align || ! currentAlign ) {
+		return attributes;
+	}
+
+	const setByLayout = getBuiltInLayouts().some(
+		( layout ) =>
+			replaced.includes( layout.slug ) && layout.align === currentAlign
+	);
+
+	return setByLayout ? { ...attributes, align: undefined } : attributes;
+}
