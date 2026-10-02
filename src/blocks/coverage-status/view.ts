@@ -8,6 +8,7 @@ import {
 	REFRESH_INTERVAL_MS,
 } from '../shared/relative-dates';
 import { BADGE_CLASSES, badgeStatus } from '../shared/status-badges';
+import './style.scss';
 
 const ALL_MODIFIERS = Object.values( BADGE_CLASSES ).flatMap( ( classes ) =>
 	classes.split( ' ' )

@@ -265,8 +265,8 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 		$html = $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $coverage_id ) ) );
 
-		$this->assertMatchesRegularExpression( '#^<div class="[^"]*\bnewspack-ui\b[^"]*"#', $html );
-		$this->assertMatchesRegularExpression( '#<span class="newspack-rolling-coverage-updated newspack-ui__font--xs">Updated <time datetime="2026-01-01T12:00:00\+00:00" data-rc-relative>[^<]+ ago</time></span>#', $html );
+		$this->assertDoesNotMatchRegularExpression( '#^<div class="(?:[^"]* )?newspack-ui(?: [^"]*)?"#', $html );
+		$this->assertMatchesRegularExpression( '#<span class="newspack-rolling-coverage-updated">Updated <time datetime="2026-01-01T12:00:00\+00:00" data-rc-relative>[^<]+ ago</time></span>#', $html );
 	}
 
 	/**
@@ -278,8 +278,8 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$ended_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
 		self::create_entry( $ended_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
 
-		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated newspack-ui__font--xs" hidden>Updated <time datetime="" data-rc-relative></time></span>', $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $empty_id ) ) ) );
-		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated newspack-ui__font--xs" hidden>', $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $ended_id ) ) ) );
+		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated" hidden>Updated <time datetime="" data-rc-relative></time></span>', $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $empty_id ) ) ) );
+		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated" hidden>', $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $ended_id ) ) ) );
 	}
 
 	/**
@@ -349,5 +349,20 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$data = rest_get_server()->dispatch( $request )->get_data();
 
 		$this->assertArrayHasKey( 'newestEntry', $data );
+	}
+
+	/**
+	 * The time takes the newspack-ui type from the block's own stylesheet.
+	 */
+	public function test_updated_time_styles_ship_with_the_block() {
+		$dir = NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'src/blocks/coverage-status/';
+
+		$this->assertStringContainsString( '"style": "file:./view.css"', file_get_contents( $dir . 'block.json' ) ); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
+
+		$scss = file_get_contents( $dir . 'style.scss' ); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
+
+		foreach ( [ 'font-family', 'font-size', 'line-height' ] as $property ) {
+			$this->assertStringContainsString( $property . ': var(--newspack-ui-', $scss );
+		}
 	}
 }

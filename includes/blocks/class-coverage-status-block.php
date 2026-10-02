@@ -138,7 +138,6 @@ class Coverage_Status_Block {
 		$status  = Rolling_Coverage_Block::coverage_status( $coverage_id );
 		$labels  = self::labels( $attributes );
 		$wrapper = [
-			'class'            => 'newspack-ui',
 			'data-coverage-id' => $coverage_id,
 			'data-status'      => $status,
 		];
@@ -319,7 +318,7 @@ class Coverage_Status_Block {
 			: '';
 
 		return sprintf(
-			'<span class="newspack-rolling-coverage-updated newspack-ui__font--xs"%s>%s</span>',
+			'<span class="newspack-rolling-coverage-updated"%s>%s</span>',
 			Taxonomy::STATUS_ACTIVE === $status && $iso ? '' : ' hidden',
 			sprintf(
 				/* translators: %s: How long ago the newest entry was published, e.g. "2 minutes ago". */

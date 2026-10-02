@@ -238,7 +238,7 @@ export default function Edit( {
 		}
 	}
 
-	const blockProps = useBlockProps( { className: 'newspack-ui' } );
+	const blockProps = useBlockProps();
 
 	return (
 		<>
@@ -323,7 +323,7 @@ export default function Edit( {
 				{ updated && (
 					<>
 						{ ' ' }
-						<span className="newspack-rolling-coverage-updated newspack-ui__font--xs">
+						<span className="newspack-rolling-coverage-updated">
 							{ sprintf(
 								/* translators: %s: How long ago the newest entry was published, e.g. "2 minutes ago". */
 								__( 'Updated %s', 'newspack-rolling-coverage' ),
