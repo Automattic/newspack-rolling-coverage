@@ -135,6 +135,8 @@ interface PollResponse {
 	overflow: boolean;
 	polledCount: number;
 	minPollInterval: number;
+	status?: string;
+	newestEntry?: string | null;
 }
 
 /**

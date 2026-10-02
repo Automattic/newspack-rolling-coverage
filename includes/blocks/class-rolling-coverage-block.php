@@ -2990,7 +2990,8 @@ class Rolling_Coverage_Block {
 						'cursor'      => $cursor,
 						'overflow'    => false,
 						'polledCount' => max( 0, (int) ( $params['polled_count'] ?? 0 ) ),
-					]
+					],
+					$term_id
 				);
 			}
 
@@ -3021,7 +3022,8 @@ class Rolling_Coverage_Block {
 						'entries'  => [],
 						'cursor'   => $cursor,
 						'overflow' => true,
-					]
+					],
+					$term_id
 				);
 			}
 
@@ -3076,7 +3078,8 @@ class Rolling_Coverage_Block {
 					'cursor'      => $new_cursor,
 					'overflow'    => false,
 					'polledCount' => ( $polled_count + $new_entry_count ) % $ads_interval,
-				]
+				],
+				$term_id
 			);
 		}
 
@@ -3180,6 +3183,19 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * The coverage's status as readers see it: a status the plugin doesn't
+	 * know reads as live.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return string 'active', 'paused' or 'archived'.
+	 */
+	public static function coverage_status( int $coverage_id ): string {
+		$status = (string) get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
+
+		return in_array( $status, [ Taxonomy::STATUS_ACTIVE, Taxonomy::STATUS_PAUSED, Taxonomy::STATUS_ARCHIVED ], true ) ? $status : Taxonomy::STATUS_ACTIVE;
+	}
+
+	/**
 	 * Builds a poll response: how long caches may keep it, and the minimum
 	 * poll interval for the pages that receive it.
 	 *
@@ -3193,10 +3209,16 @@ class Rolling_Coverage_Block {
 	 * The lifetime grows to half the site's minimum poll interval and never
 	 * drops below POLL_MAX_AGE.
 	 *
-	 * @param array $data Poll response body.
+	 * It also carries the coverage's status and newest entry date for the
+	 * Coverage Status block.
+	 *
+	 * @param array $data        Poll response body.
+	 * @param int   $coverage_id Coverage term ID.
 	 * @return WP_REST_Response Response with a short Cache-Control header.
 	 */
-	private static function poll_response( array $data ): WP_REST_Response {
+	private static function poll_response( array $data, int $coverage_id ): WP_REST_Response {
+		$data['status']          = self::coverage_status( $coverage_id );
+		$data['newestEntry']     = Newest_Entry::get_iso( $coverage_id );
 		$min_poll_interval       = self::get_min_poll_interval();
 		$data['minPollInterval'] = $min_poll_interval;
 

@@ -7,6 +7,7 @@
 
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
+use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
  * This route is open to anonymous readers. It polls for new and edited
@@ -431,5 +432,56 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertArrayNotHasKey( 'Cache-Control', $response->get_headers() );
 		$this->assertArrayNotHasKey( 'minPollInterval', $response->get_data() );
+	}
+
+	/**
+	 * Every poll carries the coverage's status and its newest entry's date,
+	 * so a status block on the page can follow along.
+	 */
+	public function test_poll_reports_the_status_and_newest_entry() {
+		$entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+
+		$poll = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_data();
+
+		$this->assertSame( 'active', $poll['status'] );
+		$this->assertSame( '2026-01-01T12:00:00+00:00', $poll['newestEntry'] );
+
+		update_term_meta( $this->coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$idle = $this->get_feed( [ 'cursor' => $entry_id . ':' . get_post( $entry_id )->post_modified_gmt ] )->get_data();
+
+		$this->assertSame( [], $idle['entries'], 'Nothing changed since the cursor.' );
+		$this->assertSame( 'archived', $idle['status'], 'An idle poll still reports a status change.' );
+		$this->assertSame( '2026-01-01T12:00:00+00:00', $idle['newestEntry'] );
+	}
+
+	/**
+	 * A status the plugin doesn't know reads as live, and a coverage without
+	 * entries has no newest entry.
+	 */
+	public function test_poll_reports_unknown_status_as_live_and_no_entries_as_null() {
+		update_term_meta( $this->coverage_id, Taxonomy::STATUS_META_KEY, 'unknown' );
+
+		$poll = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_data();
+
+		$this->assertSame( 'active', $poll['status'] );
+		$this->assertNull( $poll['newestEntry'] );
+	}
+
+	/**
+	 * An overflowing poll carries them too; "load more" does not.
+	 */
+	public function test_overflow_carries_the_status_and_load_more_does_not() {
+		for ( $i = 0; $i <= Rolling_Coverage_Block::POLL_CAP; $i++ ) {
+			$this->create_entry_at( '2026-01-01 12:00:00' );
+		}
+
+		$overflow = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_data();
+		$page     = $this->get_feed( [ 'before' => '2026-01-02 00:00:00' ] )->get_data();
+
+		$this->assertTrue( $overflow['overflow'] );
+		$this->assertSame( 'active', $overflow['status'] );
+		$this->assertArrayNotHasKey( 'status', $page );
+		$this->assertArrayNotHasKey( 'newestEntry', $page );
 	}
 }

@@ -9,6 +9,8 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 import './style.scss';
 import { trackEvent, isConfigEnabled, EVENTS } from './analytics';
 import { keepRelativeDatesCurrent } from './relative-dates';
+import { POLL_EVENT } from '../shared/poll-event';
+import type { PollEventDetail } from '../shared/poll-event';
 import type {
 	AdSlot,
 	PendingEntry,
@@ -1731,6 +1733,18 @@ function initBlock( root: HTMLElement ): void {
 				}
 
 				minPollInterval = Number( data.minPollInterval ) || 0;
+
+				if ( typeof data.status === 'string' ) {
+					document.dispatchEvent(
+						new CustomEvent< PollEventDetail >( POLL_EVENT, {
+							detail: {
+								coverageId: Number( coverageId ),
+								status: data.status,
+								newestEntry: data.newestEntry ?? null,
+							},
+						} )
+					);
+				}
 
 				if ( data.overflow && isEntryView ) {
 					// A reload lands on the same shared URL, so there is nothing
