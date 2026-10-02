@@ -1469,10 +1469,11 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Drops the closing separator, after the entry group or at its end, and a
-	 * closing pinned card's space below it, from the last entry once no more entries can load, as the server
-	 * renders it (see Rolling_Coverage_Block::shape_entry_template()).
-	 * Entries re-rendered by the poll, and a final page that comes back
-	 * empty, don't know they're last.
+	 * closing pinned card's space below it, from the last entry once no more
+	 * entries can load, as the server renders it (see
+	 * Rolling_Coverage_Block::shape_entry_template()). Entries re-rendered by
+	 * the poll, and a final page that comes back empty, don't know they're
+	 * last.
 	 */
 	function dropLastSeparator(): void {
 		if ( hasMore ) {
