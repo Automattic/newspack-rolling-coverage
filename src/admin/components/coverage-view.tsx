@@ -22,6 +22,7 @@ import { useConfirmDialog } from './confirm-dialog';
 import { getCoverageActions } from '../actions/coverage-actions';
 import { getCoverageFields, defaultCoverageView } from '../fields/coverages';
 import { useAdminContext } from '../hooks/useAdminContext';
+import { useStatusLabels } from '../utils/status-labels';
 import { EmptyState } from 'newspack-components/dist/esm/empty-state';
 import { LoadingState } from '../shared/loading-state';
 import { activity } from 'newspack-icons';
@@ -52,16 +53,19 @@ function CoverageView() {
 
 	const canConnectSlack =
 		config.slack.isConfigured && config.capabilities.canManageOptions;
+	const statusLabels = useStatusLabels();
 	const fields = useMemo(
 		() =>
 			getCoverageFields(
 				config.taxMeta.statusKey,
 				config.taxMeta.lastModifiedKey,
+				statusLabels,
 				canConnectSlack ? handleOpenSlackConnect : undefined
 			),
 		[
 			config.taxMeta.statusKey,
 			config.taxMeta.lastModifiedKey,
+			statusLabels,
 			canConnectSlack,
 			handleOpenSlackConnect,
 		]

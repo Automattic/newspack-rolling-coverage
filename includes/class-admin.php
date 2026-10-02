@@ -339,6 +339,7 @@ class Admin {
 			'aiAvailable'          => AI_Service::is_available(),
 			'aiNeedsApproval'      => AI_Service::needs_connector_approval(),
 			'aiMaxPromptLength'    => AI_Service::MAX_PROMPT_LENGTH,
+			'statusLabels'         => Status_Labels::get_all(),
 			'statusLabelDefaults'  => Status_Labels::get_defaults(),
 			'statusLabelMaxLength' => Status_Labels::MAX_LENGTH,
 		);

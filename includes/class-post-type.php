@@ -2416,8 +2416,16 @@ class Post_Type {
 			);
 		}
 
+		if ( Archive_Mode::is_entry_archived( $entry_id ) ) {
+			return new \WP_Error(
+				'rolling_coverage_entry_locked',
+				__( 'This entry is archived, so it can’t be restored.', 'newspack-rolling-coverage' ),
+				[ 'status' => 403 ]
+			);
+		}
+
 		if ( Archive_Mode::is_entry_locked( $entry_id ) ) {
-			return Archive_Mode::archived_error();
+			return Archive_Mode::coverage_ended_error( 'rolling_coverage_entry_locked' );
 		}
 
 		$coverage_id      = 0;

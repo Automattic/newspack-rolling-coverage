@@ -17,6 +17,7 @@ import {
 	saveStatusLabels,
 } from '../utils/status-labels-api';
 import { notifySuccess } from '../utils/notices';
+import { setStatusLabels } from '../utils/status-labels';
 import type { StatusLabels } from '../types';
 
 const EMPTY_LABELS: StatusLabels = { active: '', paused: '', archived: '' };
@@ -105,7 +106,14 @@ function SettingsModal( { onClose }: { onClose: () => void } ) {
 		setIsSaving( false );
 
 		if ( result.success && result.data ) {
-			setSavedLabels( result.data );
+			const saved = result.data;
+
+			setSavedLabels( saved );
+			setStatusLabels( {
+				active: saved.active || config.statusLabelDefaults.active,
+				paused: saved.paused || config.statusLabelDefaults.paused,
+				archived: saved.archived || config.statusLabelDefaults.archived,
+			} );
 			notifySuccess( __( 'Saved.', 'newspack-rolling-coverage' ) );
 			onClose();
 		} else {
