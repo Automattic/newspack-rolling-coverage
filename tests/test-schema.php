@@ -415,7 +415,8 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A stand-in for the post Yoast's sitemap hands to its filter: built from
-	 * the few columns its query selects, so it carries no password.
+	 * the few columns its query selects, so it carries no password, and marked
+	 * raw as Yoast's is, or WordPress would swap it for the stored post.
 	 *
 	 * @param int $post_id Post ID.
 	 * @return WP_Post Partial post.
@@ -426,6 +427,7 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 		return new WP_Post(
 			(object) [
 				'ID'                => $post->ID,
+				'filter'            => 'raw',
 				'post_type'         => $post->post_type,
 				'post_content'      => $post->post_content,
 				'post_status'       => $post->post_status,
