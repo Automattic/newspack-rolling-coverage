@@ -16,7 +16,9 @@ import { store as coreStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
 import { humanTimeDiff } from '@wordpress/date';
 import { store as editorStore } from '@wordpress/editor';
+import { decodeEntities } from '@wordpress/html-entities';
 import { __, sprintf } from '@wordpress/i18n';
+import { useMemo } from '@wordpress/element';
 
 /**
  * Internal dependencies
@@ -28,8 +30,6 @@ interface CoverageStatusConfig {
 	statusLabels: Record< string, string >;
 	statusMetaKey: string;
 	taxonomySlug: string;
-	taxonomyRestBase: string;
-	entryPostType: string;
 }
 
 declare global {
@@ -40,6 +40,7 @@ declare global {
 
 const FEED_BLOCK = 'newspack-rolling-coverage/rolling-coverage';
 const TEMPLATE_TYPES = [ 'wp_template', 'wp_template_part' ];
+const NAME_SEPARATOR = '\u0000';
 const SAMPLE_AGE_MS = 2 * 60 * 1000;
 
 const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {
@@ -50,8 +51,6 @@ const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {
 	},
 	statusMetaKey: 'rolling_coverage_status',
 	taxonomySlug: 'rolling_coverage',
-	taxonomyRestBase: 'rolling-coverage',
-	entryPostType: 'rolling_cov_entry',
 };
 
 const LABEL_FIELDS: Record< string, string > = {
@@ -80,7 +79,7 @@ export default function Edit( {
 } ) {
 	const { coverageId, showLastUpdated, labels } = attributes;
 
-	const { feeds, canChoose } = useSelect(
+	const { feedKey, canChoose } = useSelect(
 		( select ) => {
 			const blockEditor = select( blockEditorStore ) as unknown as {
 				getBlocksByName: ( name: string ) => string[];
@@ -120,18 +119,23 @@ export default function Edit( {
 						.filter( Boolean );
 
 			return {
-				feeds: Array.from( new Set< number >( ids ) ),
+				feedKey: Array.from( new Set< number >( ids ) ).join( ',' ),
 				canChoose: ! isTemplate && inContent,
 			};
 		},
 		[ clientId ]
 	);
 
+	const feeds = useMemo(
+		() => ( feedKey ? feedKey.split( ',' ).map( Number ) : [] ),
+		[ feedKey ]
+	);
+
 	const followed = feeds.includes( coverageId )
 		? coverageId
 		: ( feeds[ 0 ] ?? 0 );
 
-	const { names, status, newest } = useSelect(
+	const { nameKey, status, newest } = useSelect(
 		( select ) => {
 			const core = select( coreStore ) as unknown as {
 				getEntityRecord: (
@@ -139,49 +143,40 @@ export default function Edit( {
 					name: string,
 					id: number
 				) => unknown;
-				getEntityRecords: (
-					kind: string,
-					name: string,
-					query: object
-				) => unknown;
 			};
-			const coverageNames: Record< number, string > = {};
+			const getTerm = ( id: number ) =>
+				core.getEntityRecord( 'taxonomy', config.taxonomySlug, id ) as
+					| {
+							name?: string;
+							newestEntry?: string | null;
+							meta?: Record< string, string >;
+					  }
+					| undefined;
 
-			feeds.forEach( ( id ) => {
-				const term = core.getEntityRecord(
-					'taxonomy',
-					config.taxonomySlug,
-					id
-				) as { name?: string } | undefined;
-				coverageNames[ id ] = term?.name ?? String( id );
-			} );
-
-			if ( ! followed ) {
-				return { names: coverageNames, status: 'active', newest: null };
-			}
-
-			const coverage = core.getEntityRecord(
-				'taxonomy',
-				config.taxonomySlug,
-				followed
-			) as { meta?: Record< string, string > } | undefined;
-			const entries = showLastUpdated
-				? ( core.getEntityRecords( 'postType', config.entryPostType, {
-						[ config.taxonomyRestBase ]: followed,
-						per_page: 1,
-						orderby: 'date',
-						order: 'desc',
-					} ) as { date_gmt?: string }[] | null )
-				: null;
+			const coverage = followed ? getTerm( followed ) : undefined;
 
 			return {
-				names: coverageNames,
-				status: badgeStatus( coverage?.meta?.[ config.statusMetaKey ] ),
-				newest: entries?.[ 0 ]?.date_gmt ?? null,
+				nameKey: feeds
+					.map( ( id ) => getTerm( id )?.name ?? String( id ) )
+					.join( NAME_SEPARATOR ),
+				status: followed
+					? badgeStatus( coverage?.meta?.[ config.statusMetaKey ] )
+					: 'active',
+				newest: coverage?.newestEntry ?? null,
 			};
 		},
-		[ feeds, followed, showLastUpdated ]
+		[ feeds, followed ]
 	);
+
+	const names = useMemo( () => {
+		const parts = nameKey ? nameKey.split( NAME_SEPARATOR ) : [];
+		return Object.fromEntries(
+			feeds.map( ( id, index ) => [
+				id,
+				decodeEntities( parts[ index ] ?? String( id ) ),
+			] )
+		) as Record< number, string >;
+	}, [ feeds, nameKey ] );
 
 	const label =
 		( typeof labels?.[ status ] === 'string' &&
@@ -194,7 +189,7 @@ export default function Edit( {
 		if ( ! followed ) {
 			updated = humanTimeDiff( new Date( Date.now() - SAMPLE_AGE_MS ) );
 		} else if ( newest ) {
-			updated = humanTimeDiff( `${ newest }Z` );
+			updated = humanTimeDiff( newest );
 		}
 	}
 

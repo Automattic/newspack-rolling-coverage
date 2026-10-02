@@ -6,6 +6,8 @@
  */
 
 use Newspack_Rolling_Coverage\Coverage_Status_Block;
+use Newspack_Rolling_Coverage\Newest_Entry;
+use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Status_Labels;
 use Newspack_Rolling_Coverage\Taxonomy;
 
@@ -268,5 +270,45 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated" hidden>Updated <time datetime="" data-rc-relative></time></span>', $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $empty_id ) ) ) );
 		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated" hidden>', $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $ended_id ) ) ) );
+	}
+
+	/**
+	 * GET a coverage term through the REST API as an editor.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return array Response data.
+	 */
+	private static function rest_coverage( int $coverage_id ): array {
+		self::log_in_as( 'editor' );
+
+		$response = rest_get_server()->dispatch( new WP_REST_Request( 'GET', '/wp/v2/' . Taxonomy::REST_BASE . '/' . $coverage_id ) );
+
+		return $response->get_data();
+	}
+
+	/**
+	 * The coverage's REST record carries the same publish moment the front end
+	 * shows, however the entries are pinned.
+	 */
+	public function test_rest_exposes_the_newest_entry_like_the_front_end() {
+		$coverage_id = self::create_coverage();
+		$older_id    = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 08:00:00' ] );
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
+		Post_Type::pin_entry( $older_id );
+
+		$data = self::rest_coverage( $coverage_id );
+
+		$this->assertSame( '2026-01-01T12:00:00+00:00', $data['newestEntry'] );
+		$this->assertSame( Newest_Entry::get_iso( $coverage_id ), $data['newestEntry'] );
+	}
+
+	/**
+	 * No published entries: null.
+	 */
+	public function test_rest_newest_entry_is_null_without_entries() {
+		$data = self::rest_coverage( self::create_coverage() );
+
+		$this->assertArrayHasKey( 'newestEntry', $data );
+		$this->assertNull( $data['newestEntry'] );
 	}
 }

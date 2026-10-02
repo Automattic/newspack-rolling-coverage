@@ -23,6 +23,9 @@ class Coverage_Status_Block {
 	// Block name, as registered in block.json.
 	const BLOCK_NAME = 'newspack-rolling-coverage/coverage-status';
 
+	// REST field on the coverage term holding when its newest entry was published.
+	const NEWEST_ENTRY_REST_FIELD = 'newestEntry';
+
 	// The badge's modifier classes for each status.
 	const BADGE_CLASSES = [
 		Taxonomy::STATUS_ACTIVE   => 'newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse',
@@ -43,6 +46,7 @@ class Coverage_Status_Block {
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register_block' ] );
 		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'localize_editor_config' ] );
+		add_action( 'rest_api_init', [ __CLASS__, 'register_rest_fields' ] );
 	}
 
 	/**
@@ -53,6 +57,27 @@ class Coverage_Status_Block {
 			NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/blocks/coverage-status',
 			[
 				'render_callback' => [ __CLASS__, 'render_block' ],
+			]
+		);
+	}
+
+	/**
+	 * Adds the newest entry's publish moment to the coverage REST record, so
+	 * the editor preview shows the same time as the front end.
+	 */
+	public static function register_rest_fields() {
+		register_rest_field(
+			Taxonomy::TAXONOMY_SLUG,
+			self::NEWEST_ENTRY_REST_FIELD,
+			[
+				'get_callback' => fn( $term ) => Newest_Entry::get_iso( (int) $term['id'] ),
+				'schema'       => [
+					'description' => __( 'When the newest published entry went out, as ISO 8601.', 'newspack-rolling-coverage' ),
+					'type'        => [ 'string', 'null' ],
+					'format'      => 'date-time',
+					'context'     => [ 'view', 'edit' ],
+					'readonly'    => true,
+				],
 			]
 		);
 	}
@@ -72,11 +97,9 @@ class Coverage_Status_Block {
 				$handle,
 				'newspackCoverageStatusBlock',
 				[
-					'statusLabels'     => Status_Labels::get_all(),
-					'statusMetaKey'    => Taxonomy::STATUS_META_KEY,
-					'taxonomySlug'     => Taxonomy::TAXONOMY_SLUG,
-					'taxonomyRestBase' => Taxonomy::REST_BASE,
-					'entryPostType'    => Post_Type::CPT_SLUG,
+					'statusLabels'  => Status_Labels::get_all(),
+					'statusMetaKey' => Taxonomy::STATUS_META_KEY,
+					'taxonomySlug'  => Taxonomy::TAXONOMY_SLUG,
 				]
 			);
 		}
