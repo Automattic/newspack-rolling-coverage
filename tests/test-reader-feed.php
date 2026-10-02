@@ -561,6 +561,25 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Polled entries of a capped feed carry no anchor id, like its first
+	 * render, so links to an entry never land on the capped feed.
+	 */
+	public function test_capped_feed_polls_entries_without_an_anchor_id() {
+		$entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+
+		$uncapped = $this->poll_with_attributes( [ 'latestCount' => 3 ] )['entries'];
+		$capped   = $this->poll_with_attributes(
+			[
+				'latestOnly'  => true,
+				'latestCount' => 3,
+			]
+		)['entries'];
+
+		$this->assertStringContainsString( 'id="newspack-rolling-coverage-entry-' . $entry_id . '"', $uncapped[0]['html'] );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-entry-' . $entry_id . '"', $capped[0]['html'] );
+	}
+
+	/**
 	 * A page whose stored config is gone, pruned after newer layouts, still
 	 * polls capped when it sends how many entries it shows: no pinned card,
 	 * no ad. Without the count, the same poll falls back to the defaults.

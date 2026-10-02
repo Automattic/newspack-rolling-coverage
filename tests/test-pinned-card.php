@@ -681,6 +681,23 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Share and notification links jump to an entry's anchor, which must
+	 * land on the coverage page, never on a capped feed elsewhere on the
+	 * page, so capped entries carry no id. Uncapped entries keep theirs.
+	 */
+	public function test_capped_feed_entries_carry_no_anchor_id() {
+		$coverage_id = self::create_coverage();
+		$entry_id    = self::create_entry( $coverage_id );
+		$attributes  = [
+			'coverageId'  => $coverage_id,
+			'latestCount' => 2,
+		];
+
+		$this->assertStringContainsString( 'id="newspack-rolling-coverage-entry-' . $entry_id . '"', self::render_block( $attributes ) );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-entry-' . $entry_id . '"', self::render_block( array_merge( $attributes, [ 'latestOnly' => true ] ) ) );
+	}
+
+	/**
 	 * A capped feed shows at least one entry.
 	 */
 	public function test_capped_feed_shows_at_least_one_entry() {

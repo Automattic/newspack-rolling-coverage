@@ -938,7 +938,7 @@ class Rolling_Coverage_Block {
 			$is_pinned     = ! $is_capped && Post_Type::is_pinned( $entry->ID );
 			$shows_pinned  = $shows_pinned || $is_pinned;
 			$shows_regular = $shows_regular || ! $is_pinned;
-			$entries_html .= self::render_entry( $entry, $template, 'initial', ! $has_more && count( $posts ) === $entry_index, $linked_entry && $linked_entry->ID === $entry->ID, $is_capped );
+			$entries_html .= self::render_entry( $entry, $template, 'initial', is_last: ! $has_more && count( $posts ) === $entry_index, is_linked: $linked_entry && $linked_entry->ID === $entry->ID, is_capped: $is_capped );
 
 			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
 				$entries_html .= Ads::render_placement()['html'];
@@ -2760,13 +2760,14 @@ class Rolling_Coverage_Block {
 	 *                                data-arrival for frontend entry-seen tracking.
 	 * @param bool    $is_last        Whether no entry can load after this one.
 	 * @param bool    $is_linked      Whether the page's link names this entry.
-	 * @param bool    $ignore_pinning Whether to render the entry as unpinned
-	 *                                whatever its pinned state, as a capped
-	 *                                feed shows every entry.
+	 * @param bool    $is_capped      Whether the entry shows in a capped feed:
+	 *                                rendered as unpinned whatever its pinned
+	 *                                state, and with no anchor id, so links to
+	 *                                the entry land on the coverage page.
 	 * @return string Rendered HTML for the entry.
 	 */
-	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', bool $is_last = false, bool $is_linked = false, bool $ignore_pinning = false ): string {
-		$is_pinned = ! $ignore_pinning && Post_Type::is_pinned( $entry->ID );
+	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', bool $is_last = false, bool $is_linked = false, bool $is_capped = false ): string {
+		$is_pinned = ! $is_capped && Post_Type::is_pinned( $entry->ID );
 		$template  = self::shape_entry_template(
 			self::drop_fixed_template_dates( $template ),
 			$is_pinned,
@@ -2783,7 +2784,7 @@ class Rolling_Coverage_Block {
 		$previous_post          = $post;
 		$was_ignoring_pinning   = self::$ignoring_pinning;
 		$post                   = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-		self::$ignoring_pinning = $ignore_pinning;
+		self::$ignoring_pinning = $is_capped;
 		setup_postdata( $entry );
 
 		$is_archived = Archive_Mode::is_entry_archived( $entry->ID );
@@ -2824,8 +2825,8 @@ class Rolling_Coverage_Block {
 		$post_classes = implode( ' ', get_post_class( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post' ], $entry ) );
 
 		$html = sprintf(
-			'<article id="%1$s-entry-%2$d" class="%3$s" data-entry-id="%2$d" data-entry-slug="%6$s" data-arrival="%5$s"%7$s%8$s>%4$s</article>',
-			self::MARKUP_PREFIX,
+			'<article%1$s class="%3$s" data-entry-id="%2$d" data-entry-slug="%6$s" data-arrival="%5$s"%7$s%8$s>%4$s</article>',
+			$is_capped ? '' : sprintf( ' id="%s-entry-%d"', self::MARKUP_PREFIX, $entry->ID ),
 			$entry->ID,
 			esc_attr( $post_classes ),
 			$entry_content,
@@ -3277,7 +3278,7 @@ class Rolling_Coverage_Block {
 				// blank: the client preserves the original value across the replace.
 				$entries[] = [
 					'id'     => $entry->ID,
-					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '', false, false, $is_capped ),
+					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '', is_capped: $is_capped ),
 					'type'   => $is_new_entry ? 'insert' : 'update',
 					'adHtml' => $ad_html,
 					'adSlot' => $ad_slot,
@@ -3345,7 +3346,7 @@ class Rolling_Coverage_Block {
 
 		foreach ( $posts as $entry ) {
 			$entry_index++;
-			$html .= self::render_entry( $entry, $template, 'load_more', ! $has_more && count( $posts ) === $entry_index );
+			$html .= self::render_entry( $entry, $template, 'load_more', is_last: ! $has_more && count( $posts ) === $entry_index );
 
 			$position = $entry_offset + $entry_index;
 			if ( $ads_enabled && Ads::is_capped_ad_position( $position, $ads_interval ) ) {
