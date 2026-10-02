@@ -111,15 +111,6 @@ const BORDER_COLOR =
 const PINNED_BACKGROUND = 'var(--wp--custom--color--neutral-5, #f7f7f7)';
 
 /**
- * Title sizes as custom values rather than presets: the Newspack Theme's
- * Large preset is 36px, where the Newspack Block Theme's is 1.5rem.
- */
-const BULLETIN_TITLE_SIZE = 'clamp(1.5rem, 1.25rem + 1vw, 1.875rem)';
-const BULLETIN_PINNED_TITLE_SIZE = 'clamp(1.75rem, 1.35rem + 1.6vw, 2.375rem)';
-const STREAM_CONTENT_SIZE = '1.125rem';
-const STREAM_PINNED_CONTENT_SIZE = '1.25rem';
-
-/**
  * The corner radius of the Stream layout's pinned card.
  */
 const CARD_RADIUS = '0.5rem';
@@ -177,18 +168,15 @@ function mutedDateColor( slugs: string[] ): { textColor?: string } {
 /**
  * The entry's content, without the padding core gives Post Content.
  *
- * @param {Object} [typography]        Typography settings.
- * @param {string} typography.fontSize The content's font size.
+ * @param {string} [fontSize] The content's font size preset.
  * @return {TemplateItem} The Post Content block.
  */
-function postContent( typography?: { fontSize: string } ): TemplateItem {
+function postContent( fontSize?: string ): TemplateItem {
 	return [
 		'core/post-content',
 		{
-			style: {
-				spacing: { padding: NO_PADDING },
-				...( typography ? { typography } : {} ),
-			},
+			...( fontSize ? { fontSize } : {} ),
+			style: { spacing: { padding: NO_PADDING } },
 		},
 	];
 }
@@ -306,17 +294,7 @@ function bulletinEntryBlocks( isPinned: boolean ): TemplateItem[] {
 		],
 		[
 			'core/post-title',
-			{
-				level: 3,
-				style: {
-					typography: {
-						fontSize: isPinned
-							? BULLETIN_PINNED_TITLE_SIZE
-							: BULLETIN_TITLE_SIZE,
-						lineHeight: '1.15',
-					},
-				},
-			},
+			{ level: 3, fontSize: isPinned ? 'x-large' : 'large' },
 		],
 		postContent(),
 		readMoreLink(),
@@ -384,11 +362,7 @@ function streamEntryBlocks(
 	isPinned: boolean
 ): TemplateItem[] {
 	const blocks: TemplateItem[] = [
-		postContent( {
-			fontSize: isPinned
-				? STREAM_PINNED_CONTENT_SIZE
-				: STREAM_CONTENT_SIZE,
-		} ),
+		postContent( 'medium' ),
 		[
 			'core/group',
 			{

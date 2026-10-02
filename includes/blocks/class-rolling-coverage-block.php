@@ -1753,13 +1753,8 @@ class Rolling_Coverage_Block {
 			self::post_block(
 				'core/post-title',
 				[
-					'level' => 3,
-					'style' => [
-						'typography' => [
-							'fontSize'   => $is_pinned ? 'clamp(1.75rem, 1.35rem + 1.6vw, 2.375rem)' : 'clamp(1.5rem, 1.25rem + 1vw, 1.875rem)',
-							'lineHeight' => '1.15',
-						],
-					],
+					'level'    => 3,
+					'fontSize' => $is_pinned ? 'x-large' : 'large',
 				]
 			),
 			self::post_block(
