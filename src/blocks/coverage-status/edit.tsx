@@ -18,11 +18,12 @@ import { humanTimeDiff } from '@wordpress/date';
 import { store as editorStore } from '@wordpress/editor';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, sprintf } from '@wordpress/i18n';
-import { useMemo } from '@wordpress/element';
+import { useEffect, useMemo, useRef } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
+import { mutedTextColor } from '../shared/muted-color';
 import { BADGE_CLASSES, badgeStatus } from '../shared/status-badges';
 import type { CoverageStatusAttributes } from './types';
 
@@ -43,6 +44,7 @@ const TEMPLATE_TYPES = [ 'wp_template', 'wp_template_part' ];
 const NAME_SEPARATOR = '\u0000';
 const VIEW_CONTEXT = { context: 'view' };
 const SAMPLE_AGE_MS = 2 * 60 * 1000;
+const INSERT_SOURCES = [ undefined, 'inserter_menu', 'quick_inserter' ];
 
 const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {
 	statusLabels: {
@@ -78,7 +80,8 @@ export default function Edit( {
 	attributes: CoverageStatusAttributes;
 	setAttributes: ( attrs: Partial< CoverageStatusAttributes > ) => void;
 } ) {
-	const { coverageId, showLastUpdated, labels } = attributes;
+	const { coverageId, showLastUpdated, labels, textColor, style } =
+		attributes;
 
 	const { feedKey, canChoose } = useSelect(
 		( select ) => {
@@ -237,6 +240,57 @@ export default function Edit( {
 			updated = humanTimeDiff( newest );
 		}
 	}
+
+	const { justInserted, paletteSlugs } = useSelect(
+		( select ) => {
+			const blockEditor = select( blockEditorStore ) as unknown as {
+				wasBlockJustInserted: (
+					id: string,
+					source?: string
+				) => boolean;
+				getSettings: () => {
+					colors?: { slug: string }[];
+					__experimentalFeatures?: {
+						color?: {
+							palette?: Record< string, { slug: string }[] >;
+						};
+					};
+				};
+			};
+			const settings = blockEditor.getSettings();
+
+			return {
+				justInserted: INSERT_SOURCES.some( ( source ) =>
+					blockEditor.wasBlockJustInserted( clientId, source )
+				),
+				paletteSlugs: [
+					...Object.values(
+						settings.__experimentalFeatures?.color?.palette ?? {}
+					).flat(),
+					...( settings.colors ?? [] ),
+				]
+					.map( ( color ) => color.slug )
+					.join( ',' ),
+			};
+		},
+		[ clientId ]
+	);
+
+	const mutedApplied = useRef( false );
+
+	useEffect( () => {
+		if ( mutedApplied.current || ! justInserted ) {
+			return;
+		}
+
+		mutedApplied.current = true;
+
+		const color = mutedTextColor( paletteSlugs.split( ',' ) );
+
+		if ( color && ! textColor && ! style?.color?.text ) {
+			setAttributes( { textColor: color } );
+		}
+	}, [ justInserted, paletteSlugs, textColor, style, setAttributes ] );
 
 	const blockProps = useBlockProps();
 
