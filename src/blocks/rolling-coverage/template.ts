@@ -715,7 +715,7 @@ function clockRow(
 ): TemplateItem {
 	const time: TemplateItem = isPinned
 		? pinnedRow( ACCENT )
-		: stack( __( 'Time', 'newspack-rolling-coverage' ), [
+		: stack( __( 'Dates', 'newspack-rolling-coverage' ), [
 				[
 					'core/post-date',
 					{
