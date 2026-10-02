@@ -38,6 +38,7 @@ export type BuiltInLayout = {
 	latest?: number;
 	hidesWhenEnded?: boolean;
 	align?: string;
+	showsStatus?: boolean;
 };
 
 /**
@@ -96,6 +97,7 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			latest: 1,
 			hidesWhenEnded: true,
 			align: 'full',
+			showsStatus: true,
 		},
 	];
 }
@@ -131,6 +133,7 @@ export function layoutCapAttributes( slug: BuiltInLayoutSlug ): {
 	latestCount?: number;
 	hideWhenEnded: boolean;
 	align?: string;
+	statusIndicatorShow?: boolean;
 } {
 	const layout = getBuiltInLayouts().find( ( item ) => item.slug === slug );
 
@@ -140,6 +143,7 @@ export function layoutCapAttributes( slug: BuiltInLayoutSlug ): {
 			latestCount: layout.latest,
 			hideWhenEnded: !! layout.hidesWhenEnded,
 			...( layout.align ? { align: layout.align } : {} ),
+			...( layout.showsStatus ? { statusIndicatorShow: true } : {} ),
 		};
 	}
 
