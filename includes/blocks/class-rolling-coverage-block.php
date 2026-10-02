@@ -2615,7 +2615,7 @@ class Rolling_Coverage_Block {
 	 *
 	 * @return string Rendered HTML.
 	 */
-	private static function render_archived_entry_notice(): string {
+	public static function render_archived_entry_notice(): string {
 		$text = apply_filters(
 			'newspack_rolling_coverage_entry_archived_notice',
 			__( 'This entry is now out of date compared to newer entries, but is preserved as it originally appeared.', 'newspack-rolling-coverage' )
