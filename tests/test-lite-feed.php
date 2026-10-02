@@ -41,24 +41,40 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	private $coverage_id;
 
 	/**
-	 * Load the Lite Site stand-in and create the coverage. Requests are anonymous.
+	 * Request URI to restore after the test.
+	 *
+	 * @var string|null
+	 */
+	private $request_uri;
+
+	/**
+	 * Load the Lite Site stand-in, create the coverage and keep the request
+	 * URI to restore. Requests are anonymous.
 	 */
 	public function set_up() {
 		parent::set_up();
 		require_once __DIR__ . '/mocks/class-lite-site.php';
 		$this->coverage_id = self::create_coverage();
+		$this->request_uri = $_SERVER['REQUEST_URI'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Stored only to be restored.
 		wp_set_current_user( 0 );
 	}
 
 	/**
 	 * Forget any lite feed the test served. It would otherwise last for the
-	 * rest of the run, as it lasts for the rest of a request.
+	 * rest of the run, as it lasts for the rest of a request. Restore the
+	 * request the test changed.
 	 */
 	public function tear_down() {
 		$has_feed = new ReflectionProperty( Lite_Feed::class, 'has_feed' );
 		$has_feed->setAccessible( true );
 		$has_feed->setValue( null, false );
 		set_query_var( Social_Sharing::ENTRY_QUERY_VAR, '' );
+
+		if ( null === $this->request_uri ) {
+			unset( $_SERVER['REQUEST_URI'] );
+		} else {
+			$_SERVER['REQUEST_URI'] = $this->request_uri;
+		}
 
 		parent::tear_down();
 	}
@@ -260,6 +276,18 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A full page wraps the feed's items in the layout's Feed group, or in a
+	 * plain container standing in for it. A lite page has no layout to
+	 * apply, so its items sit right inside the block.
+	 */
+	public function test_lite_page_leaves_out_the_feed_group() {
+		self::create_entry( $this->coverage_id );
+
+		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-feed">', $this->render_block_html(), 'A full page wraps its items.' );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-feed', $this->render_lite_page(), 'A lite page does not.' );
+	}
+
+	/**
 	 * Lite Site caches a page by its path alone, so a lite page keeps the
 	 * normal view instead of opening at a shared entry.
 	 */
@@ -276,6 +304,43 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'data-view="entry"', $this->render_block_html( [ 'entriesPerPage' => 1 ] ), 'A full page opens at the shared entry.' );
 		$this->assertStringNotContainsString( 'data-view="entry"', $this->render_lite_page( [ 'entriesPerPage' => 1 ] ), 'A lite page keeps the normal view.' );
+	}
+
+	/**
+	 * Lite Site caches a page by its path alone, so the new-posts control
+	 * links to that path, not to the URL of whoever filled the cache.
+	 */
+	public function test_lite_page_links_to_its_path_without_the_query_string() {
+		self::create_entry( $this->coverage_id );
+
+		// A page request, after the main query ran.
+		$_SERVER['REQUEST_URI']      = '/lite/live-story/?mc_eid=abc123';
+		$GLOBALS['wp_actions']['wp'] = 1; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- The core test case restores it.
+
+		$this->assertStringContainsString( 'data-live-url="/lite/live-story/?mc_eid=abc123"', $this->render_block_html(), 'A full page links to the URL it was requested at.' );
+
+		$html = $this->render_lite_page();
+
+		$this->assertStringContainsString( 'data-live-url="/lite/live-story/"', $html );
+		$this->assertStringContainsString( 'href="/lite/live-story/"', $html );
+		$this->assertStringNotContainsString( 'mc_eid', $html, 'Nothing on a lite page carries the query string of whoever filled the cache.' );
+	}
+
+	/**
+	 * The link stays on this site even when the request path starts with two
+	 * slashes, which would make the path alone protocol-relative.
+	 */
+	public function test_lite_page_links_stay_on_this_site() {
+		self::create_entry( $this->coverage_id );
+
+		// A page request, after the main query ran.
+		$_SERVER['REQUEST_URI']      = '//lite//evil.example/live-story/';
+		$GLOBALS['wp_actions']['wp'] = 1; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- The core test case restores it.
+
+		$html = $this->render_lite_page();
+
+		$this->assertMatchesRegularExpression( '#data-live-url="/[^/]#', $html );
+		$this->assertMatchesRegularExpression( '#href="/[^/]#', $html );
 	}
 
 	/**

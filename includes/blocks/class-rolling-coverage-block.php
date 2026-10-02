@@ -1117,9 +1117,10 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The URL of the live feed. On a front-end page request it is the host
-	 * post's permalink when that post is the page being viewed, otherwise the
-	 * current URL without the shared entry, kept on this site. Anywhere else
+	 * The URL of the live feed. On a front-end page request it is the current
+	 * path alone on a lite page, the host post's permalink when that post is
+	 * the page being viewed, and otherwise the current URL without the shared
+	 * entry. Either current URL is kept on this site. Anywhere else
 	 * (wp-admin, admin-ajax, cron, a REST request, a feed, WP-CLI) the
 	 * request's URL is not a page's, so it is the host post's permalink, or
 	 * the site's home URL when no host post is known.
@@ -1133,6 +1134,12 @@ class Rolling_Coverage_Block {
 
 		if ( ! $is_page_request ) {
 			return $host_url ? $host_url : home_url( '/' );
+		}
+
+		// Lite Site caches the page by its path alone, so the link can't carry
+		// the query string of whoever filled the cache.
+		if ( Lite_Feed::is_lite_render() ) {
+			return '/' . ltrim( (string) wp_parse_url( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ), PHP_URL_PATH ), '/' );
 		}
 
 		if ( $host_url && is_singular() && get_queried_object_id() === self::$host_post_id ) {
