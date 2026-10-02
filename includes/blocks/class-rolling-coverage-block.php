@@ -1687,14 +1687,26 @@ class Rolling_Coverage_Block {
 	 * @return array[] Array of parsed-block-shaped arrays.
 	 */
 	private static function default_entry_template() {
-		$separator_html = '<hr class="wp-block-separator has-alpha-channel-opacity is-style-wide"/>';
+		$separator_style = [
+			'spacing' => [
+				'margin' => [
+					'top'    => 'var:preset|spacing|50',
+					'bottom' => '0',
+				],
+			],
+		];
+		$separator_css   = wp_style_engine_get_styles( $separator_style )['css'] ?? '';
+		$separator_html  = '<hr class="wp-block-separator has-alpha-channel-opacity is-style-wide" style="' . esc_attr( $separator_css ) . '"/>';
 
 		return [
 			self::pinned_card_block( self::default_entry_blocks( true ) ),
 			self::regular_entry_block( self::default_entry_blocks( false ) ),
 			[
 				'blockName'    => 'core/separator',
-				'attrs'        => [ 'className' => 'is-style-wide' ],
+				'attrs'        => [
+					'className' => 'is-style-wide',
+					'style'     => $separator_style,
+				],
 				'innerBlocks'  => [],
 				'innerHTML'    => $separator_html,
 				'innerContent' => [ $separator_html ],
@@ -1711,6 +1723,7 @@ class Rolling_Coverage_Block {
 	 * @return array[] Array of parsed-block-shaped arrays.
 	 */
 	private static function default_entry_blocks( bool $is_pinned ): array {
+		$time_format = get_option( 'time_format' );
 		$meta_blocks = $is_pinned
 			? [
 				self::pinned_row_block(),
@@ -1727,7 +1740,7 @@ class Rolling_Coverage_Block {
 				self::post_block(
 					'core/post-date',
 					[
-						'format'   => get_option( 'time_format' ) ?: 'g:i a', // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
+						'format'   => $time_format ? $time_format : 'g:i a',
 						'fontSize' => 'small',
 					]
 				),

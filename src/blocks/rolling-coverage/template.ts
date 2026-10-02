@@ -344,7 +344,17 @@ function bulletinEntryTemplate(): TemplateItem[] {
 			},
 			bulletinEntryBlocks( false ),
 		],
-		[ 'core/separator', { className: 'is-style-wide' } ],
+		[
+			'core/separator',
+			{
+				className: 'is-style-wide',
+				style: {
+					spacing: {
+						margin: { top: 'var:preset|spacing|50', bottom: '0' },
+					},
+				},
+			},
+		],
 	];
 }
 

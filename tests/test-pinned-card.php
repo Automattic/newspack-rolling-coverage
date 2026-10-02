@@ -189,10 +189,11 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	 * A time-column template: a pinned card and an entry group, each a row of the
 	 * time and the body, with the visible pinned label in the card or without.
 	 *
-	 * @param bool $with_label Whether the card carries the pinned label.
+	 * @param bool   $with_label Whether the card carries the pinned label.
+	 * @param string $pin_icon   Icon block markup shown in the card in place of the time, if any.
 	 * @return string Template markup.
 	 */
-	private static function time_column_markup( bool $with_label = false ): string {
+	private static function time_column_markup( bool $with_label = false, string $pin_icon = '' ): string {
 		$label = $with_label
 			? '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-pinned-label"} --><p class="use-header-font newspack-rolling-coverage-pinned-label">Pinned</p><!-- /wp:paragraph -->'
 			: '';
@@ -203,7 +204,7 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 			. $body
 			. '</div><!-- /wp:columns -->';
 
-		return '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">' . $label . $row( $date ) . '</div><!-- /wp:group -->'
+		return '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">' . $label . $row( $pin_icon ? $pin_icon : $date ) . '</div><!-- /wp:group -->'
 			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . $row( $date ) . '</div><!-- /wp:group -->';
 	}
 
@@ -220,6 +221,17 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'Body text', $pinned );
 		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-status', $other, 'An unpinned entry should carry no announcement.' );
 		$this->assertStringContainsString( '<time', $other );
+	}
+
+	/**
+	 * A pin icon in place of the pinned label stays silent, so the entry is
+	 * announced as pinned once.
+	 */
+	public function test_pin_icon_without_a_label_is_announced_once() {
+		$pinned = self::render( self::create_pinned_entry(), false, self::time_column_markup( false, '<!-- wp:icon {"icon":"newspack-rolling-coverage/pin-small"} /-->' ) );
+
+		$this->assertStringContainsString( '<svg', $pinned );
+		$this->assertSame( 1, substr_count( $pinned, 'Pinned' ) );
 	}
 
 	/**
