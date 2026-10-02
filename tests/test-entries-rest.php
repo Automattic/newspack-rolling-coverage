@@ -384,9 +384,10 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The public view carries the rendered excerpt only.
+	 * Only the editor reads the generated excerpt, so public responses skip
+	 * the cost of generating it.
 	 */
-	public function test_entry_excerpt_is_rendered_in_the_public_view() {
+	public function test_entry_excerpt_is_left_out_of_the_public_view() {
 		self::create_entry(
 			self::create_active_coverage(),
 			[
@@ -395,10 +396,105 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 			]
 		);
 
-		$excerpt = self::list_entries_via_rest()[0]['excerpt'];
+		$this->assertArrayNotHasKey( 'excerpt', self::list_entries_via_rest()[0] );
+	}
 
-		$this->assertStringContainsString( 'Short update.', $excerpt['rendered'] );
-		$this->assertArrayNotHasKey( 'raw', $excerpt );
+	/**
+	 * The excerpt is generated, so a client sending one back must not store it.
+	 */
+	public function test_saving_an_entry_ignores_a_sent_excerpt() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_excerpt' => '' ] );
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_param( 'excerpt', 'Stored by mistake.' );
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( '', get_post( $entry_id )->post_excerpt );
+	}
+
+	/**
+	 * Autosaves go through the same field mapping, so they must ignore it too.
+	 */
+	public function test_autosaving_an_entry_ignores_a_sent_excerpt() {
+		$user_id  = self::log_in_as( 'editor' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_author'  => $user_id,
+				'post_status'  => 'draft',
+				'post_excerpt' => '',
+			]
+		);
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id . '/autosaves' );
+		$request->set_param( 'content', 'Autosaved text.' );
+		$request->set_param( 'excerpt', 'Stored by mistake.' );
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( '', get_post( $entry_id )->post_excerpt );
+	}
+
+	/**
+	 * Requests limiting the fields skip the excerpt unless they ask for it.
+	 */
+	public function test_entry_excerpt_follows_the_requested_fields() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_excerpt' => '',
+				'post_content' => '<p>Short update.</p>',
+			]
+		);
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_param( 'context', 'edit' );
+		$request->set_param( '_fields', 'title' );
+		$without = rest_get_server()->dispatch( $request )->get_data();
+		$request->set_param( '_fields', 'excerpt.raw' );
+		$with = rest_get_server()->dispatch( $request )->get_data();
+
+		$this->assertArrayNotHasKey( 'excerpt', $without );
+		$this->assertSame( 'Short update.', $with['excerpt']['raw'] );
+	}
+
+	/**
+	 * The editor-only length and more-text overrides never outlive the
+	 * request, even when another excerpt filter throws.
+	 */
+	public function test_excerpt_overrides_are_removed_when_a_filter_throws() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_excerpt' => '',
+				'post_content' => '<p>Short update.</p>',
+			]
+		);
+		$length   = apply_filters( 'excerpt_length', 55 );
+		$more     = apply_filters( 'excerpt_more', ' [&hellip;]' );
+		$throw    = static function ( $text ) use ( $length ) {
+			if ( apply_filters( 'excerpt_length', 55 ) !== $length ) {
+				throw new RuntimeException( 'excerpt failure' );
+			}
+			return $text;
+		};
+		add_filter( 'get_the_excerpt', $throw, 1 );
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_param( 'context', 'edit' );
+		try {
+			rest_get_server()->dispatch( $request );
+		} catch ( RuntimeException $e ) {
+			unset( $e );
+		}
+		remove_filter( 'get_the_excerpt', $throw, 1 );
+
+		$this->assertSame( $length, apply_filters( 'excerpt_length', 55 ) );
+		$this->assertSame( $more, apply_filters( 'excerpt_more', ' [&hellip;]' ) );
 	}
 
 	/**
