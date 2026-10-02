@@ -371,16 +371,6 @@ export default function Edit( {
 							}
 						/>
 					) }
-					<ToggleControl
-						label={ __(
-							'Show last updated',
-							'newspack-rolling-coverage'
-						) }
-						checked={ showLastUpdated }
-						onChange={ ( value: boolean ) =>
-							setAttributes( { showLastUpdated: value } )
-						}
-					/>
 					{ Object.entries( LABEL_FIELDS ).map(
 						( [ key, field ] ) => (
 							<TextControl
@@ -401,6 +391,16 @@ export default function Edit( {
 							/>
 						)
 					) }
+					<ToggleControl
+						label={ __(
+							'Show last updated',
+							'newspack-rolling-coverage'
+						) }
+						checked={ showLastUpdated }
+						onChange={ ( value: boolean ) =>
+							setAttributes( { showLastUpdated: value } )
+						}
+					/>
 				</PanelBody>
 			</InspectorControls>
 			<div { ...blockProps }>
