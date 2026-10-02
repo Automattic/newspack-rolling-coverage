@@ -70,7 +70,9 @@ class Schema {
 	}
 
 	/**
-	 * Collects the Rolling Coverage blocks embedded in a post, deduped by coverage ID.
+	 * Collects the uncapped Rolling Coverage blocks embedded in a post, deduped
+	 * by coverage ID. A capped block shows a few entries and links to the
+	 * coverage page, so it doesn't make the post a live blog.
 	 *
 	 * @param WP_Post $post Host post being rendered.
 	 * @return array<int,int> Map of coverage term id => entries-per-page attribute.
@@ -79,7 +81,7 @@ class Schema {
 		$coverages = [];
 
 		foreach ( self::flatten_blocks( parse_blocks( $post->post_content ) ) as $block ) {
-			if ( self::BLOCK_NAME !== ( $block['blockName'] ?? '' ) ) {
+			if ( self::BLOCK_NAME !== ( $block['blockName'] ?? '' ) || ! empty( $block['attrs']['latestOnly'] ) ) {
 				continue;
 			}
 
