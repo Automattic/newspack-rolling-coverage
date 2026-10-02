@@ -10,6 +10,10 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	.newspack-rolling-coverage-feed {
 		display: flex;
 		gap: $feed-gap;
+
+		&:not(.is-layout-flex) {
+			flex-direction: column;
+		}
 	}
 
 	.newspack-rolling-coverage-feed > *,

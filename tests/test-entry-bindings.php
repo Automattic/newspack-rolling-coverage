@@ -1737,4 +1737,20 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
 		$this->assertSame( '', self::render_capped_coverage( $coverage_id, $attributes, $entry_group . self::ALL_UPDATES_MARKUP ) );
 	}
+
+	/**
+	 * A layout without a Feed group renders the bare container the stylesheet
+	 * lays out as a column; a flex Feed group is laid out by core instead.
+	 */
+	public function test_feed_container_is_bare_without_a_group_and_flex_with_one() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+
+		$bare = self::render_coverage_items( [ 'coverageId' => $coverage_id ], '' );
+		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-feed">', $bare );
+
+		$group = '<!-- wp:group {"className":"newspack-rolling-coverage-feed","layout":{"type":"flex","orientation":"horizontal"}} --><div class="wp-block-group newspack-rolling-coverage-feed">' . self::ALL_UPDATES_MARKUP . '</div><!-- /wp:group -->';
+		$flex  = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $group );
+		$this->assertMatchesRegularExpression( '#<div class="wp-block-group newspack-rolling-coverage-feed[^"]*is-layout-flex#', $flex );
+	}
 }

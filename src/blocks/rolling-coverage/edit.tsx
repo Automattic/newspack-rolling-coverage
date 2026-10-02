@@ -168,6 +168,51 @@ function feedGapStyle( feed?: {
 	return gap ? { '--newspack-rolling-coverage-gap': gap } : {};
 }
 
+const FLEX_ALIGNMENTS: Record< string, string > = {
+	left: 'flex-start',
+	right: 'flex-end',
+	center: 'center',
+	stretch: 'stretch',
+	'space-between': 'space-between',
+	top: 'flex-start',
+	bottom: 'flex-end',
+};
+
+/**
+ * The flex declarations core's layout support would emit for the Feed group,
+ * so the preview container lays out its children the same way.
+ *
+ * @param {Object} layout The Feed group's layout attribute.
+ * @return {Object} The container's inline style.
+ */
+function feedFlexStyle( layout?: Record< string, string > ): {
+	[ key: string ]: string;
+} {
+	const align = ( value?: string ) =>
+		value ? FLEX_ALIGNMENTS[ value ] : undefined;
+
+	if ( layout?.orientation === 'horizontal' ) {
+		return {
+			flexDirection: 'row',
+			flexWrap: layout.flexWrap === 'nowrap' ? 'nowrap' : 'wrap',
+			...( align( layout.justifyContent )
+				? { justifyContent: align( layout.justifyContent ) as string }
+				: {} ),
+			...( align( layout.verticalAlignment )
+				? { alignItems: align( layout.verticalAlignment ) as string }
+				: {} ),
+		};
+	}
+
+	return {
+		flexDirection: 'column',
+		alignItems: align( layout?.justifyContent ) ?? 'flex-start',
+		...( align( layout?.verticalAlignment )
+			? { justifyContent: align( layout?.verticalAlignment ) as string }
+			: {} ),
+	};
+}
+
 /**
  * The Feed group's own classes and styles (colour, border, spacing,
  * typography), for the container a synced layout's preview shows in place
@@ -192,6 +237,7 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
 	const classNames = [
 		'wp-block-group',
 		'newspack-rolling-coverage-feed',
+		'is-layout-flex',
 		attributes.className,
 		...parts.map( ( part ) => part.className ),
 	]
@@ -201,7 +247,11 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
 
 	return {
 		className: [ ...new Set( classNames ) ].join( ' ' ),
-		style: Object.assign( {}, ...parts.map( ( part ) => part.style ) ),
+		style: Object.assign(
+			{},
+			feedFlexStyle( attributes.layout as Record< string, string > ),
+			...parts.map( ( part ) => part.style )
+		),
 	};
 }
 
