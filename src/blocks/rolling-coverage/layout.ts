@@ -136,14 +136,11 @@ export function streamInnerTemplate(): TemplateItem[] {
  */
 export function railInnerTemplate(): TemplateItem[] {
 	return [
-		feedTemplate(
-			[
-				latestTemplate( paletteSlugs() ),
-				FOLLOW_TEMPLATE,
-				...railEntryTemplate(),
-			],
-			'var:preset|spacing|40'
-		),
+		feedTemplate( [
+			latestTemplate( paletteSlugs() ),
+			FOLLOW_TEMPLATE,
+			...railEntryTemplate(),
+		] ),
 	];
 }
 
