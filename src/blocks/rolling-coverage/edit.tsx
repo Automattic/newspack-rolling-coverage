@@ -1176,21 +1176,11 @@ export default function Edit( {
 					) }
 			</PanelBody>
 
-			<PanelBody
-				title={ _x(
-					'Archived',
-					'settings panel title',
-					'newspack-rolling-coverage'
-				) }
-				initialOpen={ false }
-			>
+			<PanelBody title={ STATUS_LABELS.archived } initialOpen={ false }>
 				<ToggleGroupControl
 					__next40pxDefaultSize
 					isBlock
-					label={ __(
-						'Archived notice',
-						'newspack-rolling-coverage'
-					) }
+					label={ __( 'Ended notice', 'newspack-rolling-coverage' ) }
 					help={ sprintf(
 						/* translators: %s: The status that ends a coverage, e.g. "Ended". */
 						__(
@@ -1210,13 +1200,13 @@ export default function Edit( {
 						value="show"
 						label={ _x(
 							'Show',
-							'archived notice',
+							'ended notice',
 							'newspack-rolling-coverage'
 						) }
 						aria-label={
 							/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
 							__(
-								'Show archived notice',
+								'Show ended notice',
 								'newspack-rolling-coverage'
 							)
 						}
@@ -1225,13 +1215,13 @@ export default function Edit( {
 						value="hide"
 						label={ _x(
 							'Hide',
-							'archived notice',
+							'ended notice',
 							'newspack-rolling-coverage'
 						) }
 						aria-label={
 							/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
 							__(
-								'Hide archived notice',
+								'Hide ended notice',
 								'newspack-rolling-coverage'
 							)
 						}
@@ -1285,7 +1275,7 @@ export default function Edit( {
 								value="show"
 								label={ _x(
 									'Show',
-									'archived notice link',
+									'ended notice link',
 									'newspack-rolling-coverage'
 								) }
 								aria-label={
@@ -1300,7 +1290,7 @@ export default function Edit( {
 								value="hide"
 								label={ _x(
 									'Hide',
-									'archived notice link',
+									'ended notice link',
 									'newspack-rolling-coverage'
 								) }
 								aria-label={
