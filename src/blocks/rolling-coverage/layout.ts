@@ -244,12 +244,14 @@ export function previewTemplateFor(
  * @param {Object[]}       allBlocks      The layout's top-level blocks.
  * @param {EntryContext[]} entryContexts  The entries being previewed.
  * @param {number}         entriesPerPage Entries loaded per page.
+ * @param {boolean}        isCapped       Whether the feed shows only its latest entries, so the last one previewed is the last.
  * @return {Object} The header, footer and per-entry template blocks, and a getter for one entry's preview blocks.
  */
 export function useLayoutPreview(
 	allBlocks: TemplateBlocks,
 	entryContexts: EntryContext[],
-	entriesPerPage: number
+	entriesPerPage: number,
+	isCapped = false
 ): {
 	headerBlocks: TemplateBlocks;
 	footerBlocks: TemplateBlocks;
@@ -306,7 +308,7 @@ export function useLayoutPreview(
 	// The last entry drops its separator once no more entries would load
 	// (see Rolling_Coverage_Block::shape_entry_template()).
 	const lastContext =
-		entryContexts.length < entriesPerPage
+		isCapped || entryContexts.length < entriesPerPage
 			? entryContexts.at( -1 )
 			: undefined;
 	const lastPreviewBlocks = useMemo( () => {

@@ -2996,12 +2996,16 @@ class Rolling_Coverage_Block {
 				'callback'            => [ __CLASS__, 'get_entries_preview' ],
 				'permission_callback' => [ __CLASS__, 'can_preview_entries' ],
 				'args'                => [
-					'term_id'  => [
+					'term_id'     => [
 						'required'          => true,
 						'validate_callback' => [ __CLASS__, 'validate_term_id' ],
 					],
-					'per_page' => [
+					'per_page'    => [
 						'type' => 'integer',
+					],
+					'latest_only' => [
+						'type'    => 'boolean',
+						'default' => false,
 					],
 				],
 			]
@@ -3037,27 +3041,32 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		$per_page = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
+		$per_page    = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
+		$latest_only = rest_sanitize_boolean( $params['latest_only'] ?? false );
 
-		$query = new WP_Query(
-			[
-				'post_type'           => Post_Type::CPT_SLUG,
-				'post_status'         => 'publish',
-				'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-					[
-						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
-						'field'    => 'term_id',
-						'terms'    => $term_id,
-					],
+		$query_args = [
+			'post_type'           => Post_Type::CPT_SLUG,
+			'post_status'         => 'publish',
+			'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+				[
+					'taxonomy' => Taxonomy::TAXONOMY_SLUG,
+					'field'    => 'term_id',
+					'terms'    => $term_id,
 				],
-				'orderby'             => 'date',
-				'order'               => 'DESC',
-				'posts_per_page'      => $per_page,
-				'no_found_rows'       => true,
-				'ignore_sticky_posts' => true,
-				'fields'              => 'ids',
-			]
-		);
+			],
+			'orderby'             => 'date',
+			'order'               => 'DESC',
+			'posts_per_page'      => $per_page,
+			'no_found_rows'       => true,
+			'ignore_sticky_posts' => true,
+			'fields'              => 'ids',
+		];
+
+		if ( $latest_only ) {
+			$query_args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
+		}
+
+		$query = new WP_Query( $query_args );
 
 		update_meta_cache( 'post', $query->posts );
 		_prime_post_caches( $query->posts, false, false );
@@ -3067,7 +3076,7 @@ class Rolling_Coverage_Block {
 			false
 		);
 
-		$entries = array_map( [ __CLASS__, 'map_entry_preview' ], $query->posts );
+		$entries = array_map( fn( $id ) => self::map_entry_preview( $id, $latest_only ), $query->posts );
 
 		return new WP_REST_Response( $entries );
 	}
@@ -3077,14 +3086,15 @@ class Rolling_Coverage_Block {
 	 * the bare `{ id, type, pinned, hasBreakout, hasTitle }` shape the editor
 	 * preview needs.
 	 *
-	 * @param int $id Entry post ID.
+	 * @param int  $id          Entry post ID.
+	 * @param bool $ignore_pins Whether to report the entry as unpinned, as a capped feed does.
 	 * @return array{id: int, type: string, pinned: bool, hasBreakout: bool, hasTitle: bool}
 	 */
-	private static function map_entry_preview( int $id ): array {
+	private static function map_entry_preview( int $id, bool $ignore_pins = false ): array {
 		return [
 			'id'          => $id,
 			'type'        => Post_Type::CPT_SLUG,
-			'pinned'      => Post_Type::is_pinned( $id ),
+			'pinned'      => ! $ignore_pins && Post_Type::is_pinned( $id ),
 			'hasBreakout' => null !== Breakout::get_published_breakout_url( $id ),
 			'hasTitle'    => self::has_title( get_post( $id ) ),
 		];

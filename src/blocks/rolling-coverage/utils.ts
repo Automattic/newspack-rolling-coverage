@@ -151,13 +151,15 @@ async function updateCoverageCanonicalUrl(
  * Fetches the IDs of a coverage's current published entries, newest first,
  * for the editor's per-entry template preview.
  *
- * @param {number} coverageId Coverage term ID.
- * @param {number} perPage    Maximum number of entries to fetch.
+ * @param {number}  coverageId Coverage term ID.
+ * @param {number}  perPage    Maximum number of entries to fetch.
+ * @param {boolean} latestOnly Whether the feed is capped, which ignores pinning.
  * @return {Promise<EntryContext[]>} Up to `perPage` entries, newest first.
  */
 async function fetchEntryPreviewContexts(
 	coverageId: number,
-	perPage: number
+	perPage: number,
+	latestOnly = false
 ): Promise< EntryContext[] > {
 	if ( ! coverageId ) {
 		return [];
@@ -173,7 +175,9 @@ async function fetchEntryPreviewContexts(
 				hasTitle?: boolean;
 			} >
 		>( {
-			url: `${ ENTRIES_PREVIEW_REST_BASE }/${ coverageId }/entries-preview?per_page=${ perPage }`,
+			url: `${ ENTRIES_PREVIEW_REST_BASE }/${ coverageId }/entries-preview?per_page=${ perPage }${
+				latestOnly ? '&latest_only=1' : ''
+			}`,
 		} );
 
 		return entries.map( ( entry ) => ( {

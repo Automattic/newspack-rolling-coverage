@@ -113,6 +113,31 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A capped feed ignores pinning, so its editor preview lists the newest
+	 * entries first with none of them pinned.
+	 */
+	public function test_the_editor_preview_of_a_capped_feed_ignores_pinning() {
+		$coverage_id = self::create_coverage();
+		$oldest      = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		$middle      = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-02 10:00:00' ] );
+		$newest      = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-03 10:00:00' ] );
+		Post_Type::pin_entry( $oldest );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$request = new WP_REST_Request( 'GET', '/' . NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages/' . $coverage_id . '/entries-preview' );
+		$default = rest_do_request( $request )->get_data();
+
+		$this->assertSame( [ $oldest, $newest, $middle ], wp_list_pluck( $default, 'id' ), 'Without the flag the pinned entry should float first.' );
+		$this->assertTrue( $default[0]['pinned'], 'Without the flag the pinned entry should be flagged.' );
+
+		$request->set_param( 'latest_only', true );
+		$capped = rest_do_request( $request )->get_data();
+
+		$this->assertSame( [ $newest, $middle, $oldest ], wp_list_pluck( $capped, 'id' ), 'A capped feed should list the newest first.' );
+		$this->assertSame( [ false, false, false ], wp_list_pluck( $capped, 'pinned' ), 'A capped feed should flag no entry as pinned.' );
+	}
+
+	/**
 	 * An entry's title links to its breakout post once that post is published.
 	 */
 	public function test_the_title_links_to_the_published_breakout() {

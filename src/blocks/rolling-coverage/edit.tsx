@@ -286,6 +286,9 @@ export default function Edit( {
 		isPreviewMode && ! coverageId && ! layoutId && innerBlockCount > 0;
 	const showsSamples = isLayoutPattern || isSamplePreview;
 	const [ isPickingLayout, setIsPickingLayout ] = useState( false );
+	const [ latestCountInput, setLatestCountInput ] = useState< string | null >(
+		null
+	);
 	const registry = useRegistry();
 	const isSynced = layoutId > 0 && ! isNested;
 	const defaultTemplate = useMemo( innerTemplate, [] );
@@ -528,13 +531,22 @@ export default function Edit( {
 	} );
 
 	const allSampleContexts = useSampleEntries( showsSamples );
-	const sampleContexts = useMemo(
-		() =>
-			isSamplePreview
-				? allSampleContexts.slice( 0, entriesPerPage )
-				: allSampleContexts,
-		[ allSampleContexts, isSamplePreview, entriesPerPage ]
-	);
+	const sampleContexts = useMemo( () => {
+		if ( latestOnly ) {
+			return allSampleContexts
+				.slice( 0, latestCount )
+				.map( ( context ) => ( { ...context, pinned: false } ) );
+		}
+		return isSamplePreview
+			? allSampleContexts.slice( 0, entriesPerPage )
+			: allSampleContexts;
+	}, [
+		allSampleContexts,
+		isSamplePreview,
+		entriesPerPage,
+		latestOnly,
+		latestCount,
+	] );
 	const entriesCoverageId = isChoosing
 		? 0
 		: coverageId || ( isLayoutPattern ? PREVIEW_COVERAGE_ID : 0 );
@@ -554,7 +566,8 @@ export default function Edit( {
 		useLayoutPreview(
 			isSynced ? feedItems( syncedBlocks ) : allBlocks,
 			previewContexts,
-			entriesPerPage
+			entriesPerPage,
+			!! latestOnly
 		);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
@@ -806,7 +819,11 @@ export default function Edit( {
 				id: number
 			) => Promise< unknown >;
 		};
-		fetchEntryPreviewContexts( entriesCoverageId, entriesPerPage )
+		fetchEntryPreviewContexts(
+			entriesCoverageId,
+			latestOnly ? latestCount : entriesPerPage,
+			!! latestOnly
+		)
 			.then( ( contexts ) =>
 				// Entries are read before the preview shows, so it doesn't
 				// fill in piece by piece.
@@ -829,7 +846,13 @@ export default function Edit( {
 		return () => {
 			cancelled = true;
 		};
-	}, [ entriesCoverageId, entriesPerPage, registry ] );
+	}, [
+		entriesCoverageId,
+		entriesPerPage,
+		latestOnly,
+		latestCount,
+		registry,
+	] );
 
 	// Populate the combobox as the user searches.
 	useEffect( () => {
@@ -1118,22 +1141,22 @@ export default function Edit( {
 								'Number of entries',
 								'newspack-rolling-coverage'
 							) }
-							value={ String( latestCount ) }
+							value={ latestCountInput ?? String( latestCount ) }
 							min={ 1 }
 							max={ 100 }
-							onChange={ ( value: string ) =>
-								setAttributes( {
-									latestCount: value
-										? Math.min(
-												Math.max(
-													parseInt( value, 10 ) || 1,
-													1
-												),
-												100
-											)
-										: 5,
-								} )
-							}
+							onChange={ ( value: string ) => {
+								setLatestCountInput( value );
+								const parsed = parseInt( value, 10 );
+								if ( ! Number.isNaN( parsed ) ) {
+									setAttributes( {
+										latestCount: Math.min(
+											Math.max( parsed, 1 ),
+											100
+										),
+									} );
+								}
+							} }
+							onBlur={ () => setLatestCountInput( null ) }
 						/>
 						<ToggleControl
 							label={ __(
@@ -1615,6 +1638,19 @@ export default function Edit( {
 									>
 										{ __(
 											'This coverage has been trashed and is no longer available. Select a different coverage or restore it from the Rolling Coverage admin.',
+											'newspack-rolling-coverage'
+										) }
+									</Notice>
+								) }
+							{ ! isLayoutPattern &&
+								hideWhenEnded &&
+								currentCoverage?.status === 'archived' && (
+									<Notice
+										status="info"
+										isDismissible={ false }
+									>
+										{ __(
+											'This feed is hidden on the site because the coverage has ended.',
 											'newspack-rolling-coverage'
 										) }
 									</Notice>
