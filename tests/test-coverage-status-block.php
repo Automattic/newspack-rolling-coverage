@@ -352,7 +352,8 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The time takes the newspack-ui type from the block's own stylesheet.
+	 * The time takes the newspack-ui size from the block's own stylesheet,
+	 * and keeps the theme's font.
 	 */
 	public function test_updated_time_styles_ship_with_the_block() {
 		$dir = NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'src/blocks/coverage-status/';
@@ -361,8 +362,16 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 		$scss = file_get_contents( $dir . 'style.scss' ); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
 
-		foreach ( [ 'font-family', 'font-size', 'line-height' ] as $property ) {
-			$this->assertStringContainsString( $property . ': var(--newspack-ui-', $scss );
+		$this->assertStringContainsString( 'font-size: var(--newspack-ui-font-size-xs)', $scss );
+		$this->assertStringContainsString( 'line-height: var(--newspack-ui-line-height-xs)', $scss );
+		$this->assertStringNotContainsString( 'font-family', $scss );
+
+		if ( ! file_exists( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/blocks/coverage-status/block.json' ) ) {
+			$this->markTestSkipped( 'The block is not built.' );
 		}
+
+		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Status_Block::BLOCK_NAME );
+
+		$this->assertContains( 'newspack-rolling-coverage-coverage-status-style', $block_type->style_handles );
 	}
 }
