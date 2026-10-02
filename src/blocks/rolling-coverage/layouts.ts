@@ -24,6 +24,8 @@ export type BuiltInLayout = {
 	slug: BuiltInLayoutSlug;
 	title: string;
 	template: () => TemplateItem[];
+	latest?: number;
+	hidesWhenEnded?: boolean;
 };
 
 /**
@@ -84,4 +86,28 @@ export function builtInLayoutSlugFor(
 			( layout ) => getLayoutId( layout.slug ) === patternId
 		)?.slug ?? null
 	);
+}
+
+/**
+ * The cap attributes a built-in layout sets when it is picked.
+ *
+ * @param {BuiltInLayoutSlug} slug The layout's slug.
+ * @return {Object} The attributes to set.
+ */
+export function layoutCapAttributes( slug: BuiltInLayoutSlug ): {
+	latestOnly: boolean;
+	latestCount?: number;
+	hideWhenEnded: boolean;
+} {
+	const layout = getBuiltInLayouts().find( ( item ) => item.slug === slug );
+
+	if ( layout?.latest ) {
+		return {
+			latestOnly: true,
+			latestCount: layout.latest,
+			hideWhenEnded: !! layout.hidesWhenEnded,
+		};
+	}
+
+	return { latestOnly: false, hideWhenEnded: false };
 }

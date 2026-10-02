@@ -38,6 +38,7 @@ import {
 	Placeholder,
 	TextareaControl,
 	ToggleControl,
+	RadioControl,
 	ToolbarButton,
 } from '@wordpress/components';
 import {
@@ -102,7 +103,11 @@ import LayoutPickerModal, {
 	type LayoutChoice,
 	layoutsQuery,
 } from './components/layout-picker-modal';
-import { getBuiltInLayouts, builtInLayoutSlugFor } from './layouts';
+import {
+	getBuiltInLayouts,
+	builtInLayoutSlugFor,
+	layoutCapAttributes,
+} from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
 import { blockGapCss } from './spacing';
 import { BLOCK_NAME, innerTemplate, useLayoutPreview } from './layout';
@@ -208,6 +213,7 @@ export default function Edit( {
 	const {
 		coverageId,
 		latestOnly,
+		latestCount,
 		allUpdatesLink,
 		pollInterval,
 		entriesPerPage,
@@ -710,7 +716,13 @@ export default function Edit( {
 					if ( ! isSynced && innerBlockCount > 0 ) {
 						replaceInnerBlocks( clientId, [], false );
 					}
-					setAttributes( { layoutId: choice.id } );
+					const patternSlug = builtInLayoutSlugFor( choice.id );
+					setAttributes( {
+						layoutId: choice.id,
+						...( patternSlug
+							? layoutCapAttributes( patternSlug )
+							: {} ),
+					} );
 				} );
 				return;
 			}
@@ -729,7 +741,10 @@ export default function Edit( {
 					createBlocksFromInnerBlocksTemplate( layout.template() ),
 					false
 				);
-				setAttributes( { layoutId: 0 } );
+				setAttributes( {
+					layoutId: 0,
+					...layoutCapAttributes( layout.slug ),
+				} );
 			} );
 		},
 		[
@@ -1070,27 +1085,99 @@ export default function Edit( {
 				) : null }
 			</PanelBody>
 
-			<PanelBody title={ __( 'Display', 'newspack-rolling-coverage' ) }>
-				<TextControl
-					__next40pxDefaultSize
-					type="number"
-					label={ __(
-						'Entries per page',
-						'newspack-rolling-coverage'
-					) }
-					help={ __(
-						'Used for both the initial number of entries shown and the infinite-scroll page size.',
-						'newspack-rolling-coverage'
-					) }
-					value={ String( entriesPerPage ) }
-					min={ 1 }
-					max={ 100 }
+			<PanelBody title={ __( 'Entries', 'newspack-rolling-coverage' ) }>
+				<RadioControl
+					label={ __( 'Show', 'newspack-rolling-coverage' ) }
+					selected={ latestOnly ? 'latest' : 'all' }
+					options={ [
+						{
+							label: __(
+								'All entries, loading more on scroll',
+								'newspack-rolling-coverage'
+							),
+							value: 'all',
+						},
+						{
+							label: __(
+								'The latest entries only',
+								'newspack-rolling-coverage'
+							),
+							value: 'latest',
+						},
+					] }
 					onChange={ ( value: string ) =>
-						setAttributes( {
-							entriesPerPage: value ? parseInt( value, 10 ) : 20,
-						} )
+						setAttributes( { latestOnly: value === 'latest' } )
 					}
 				/>
+				{ latestOnly && (
+					<>
+						<TextControl
+							__next40pxDefaultSize
+							type="number"
+							label={ __(
+								'Number of entries',
+								'newspack-rolling-coverage'
+							) }
+							value={ String( latestCount ) }
+							min={ 1 }
+							max={ 100 }
+							onChange={ ( value: string ) =>
+								setAttributes( {
+									latestCount: value
+										? Math.min(
+												Math.max(
+													parseInt( value, 10 ) || 1,
+													1
+												),
+												100
+											)
+										: 5,
+								} )
+							}
+						/>
+						<ToggleControl
+							label={ __(
+								'Link to all updates',
+								'newspack-rolling-coverage'
+							) }
+							help={ __(
+								'Links to the coverage page. Hidden on that page.',
+								'newspack-rolling-coverage'
+							) }
+							checked={ allUpdatesLink !== false }
+							onChange={ ( value: boolean ) =>
+								setAttributes( { allUpdatesLink: value } )
+							}
+						/>
+					</>
+				) }
+			</PanelBody>
+
+			<PanelBody title={ __( 'Display', 'newspack-rolling-coverage' ) }>
+				{ ! latestOnly && (
+					<TextControl
+						__next40pxDefaultSize
+						type="number"
+						label={ __(
+							'Entries per page',
+							'newspack-rolling-coverage'
+						) }
+						help={ __(
+							'Used for both the initial number of entries shown and the infinite-scroll page size.',
+							'newspack-rolling-coverage'
+						) }
+						value={ String( entriesPerPage ) }
+						min={ 1 }
+						max={ 100 }
+						onChange={ ( value: string ) =>
+							setAttributes( {
+								entriesPerPage: value
+									? parseInt( value, 10 )
+									: 20,
+							} )
+						}
+					/>
+				) }
 				<TextControl
 					__next40pxDefaultSize
 					type="number"
