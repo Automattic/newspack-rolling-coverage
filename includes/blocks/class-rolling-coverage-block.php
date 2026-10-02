@@ -159,6 +159,14 @@ class Rolling_Coverage_Block {
 	private static $ignoring_pinning = false;
 
 	/**
+	 * The coverage page URL the "See all updates" paragraph links to while
+	 * the coverage-level blocks render; empty otherwise.
+	 *
+	 * @var string
+	 */
+	private static $all_updates_url = '';
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -219,6 +227,42 @@ class Rolling_Coverage_Block {
 	 */
 	public static function is_ignoring_pinning(): bool {
 		return self::$ignoring_pinning;
+	}
+
+	/**
+	 * The URL the "See all updates" paragraph links to now, or an empty
+	 * string outside the coverage-level blocks.
+	 *
+	 * @return string
+	 */
+	public static function get_all_updates_url(): string {
+		return self::$all_updates_url;
+	}
+
+	/**
+	 * Whether a URL is the page being requested: same host and path, ignoring
+	 * the trailing slash and fragment. The query string counts only when the
+	 * URL has one, as plain permalinks keep the post in it.
+	 *
+	 * @param string $url URL to compare.
+	 * @return bool
+	 */
+	public static function is_coverage_page( string $url ): bool {
+		$target = wp_parse_url( $url );
+
+		if ( empty( $target['host'] ) ) {
+			return false;
+		}
+
+		$request      = wp_parse_url( home_url( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$request_path = untrailingslashit( (string) ( $request['path'] ?? '' ) );
+		$target_path  = untrailingslashit( (string) ( $target['path'] ?? '' ) );
+
+		if ( ! empty( $target['query'] ) && ( $target['query'] ?? '' ) !== ( $request['query'] ?? '' ) ) {
+			return false;
+		}
+
+		return strtolower( $target['host'] ) === strtolower( (string) ( $request['host'] ?? '' ) ) && $request_path === $target_path;
 	}
 
 	/**
@@ -946,17 +990,22 @@ class Rolling_Coverage_Block {
 		}
 
 		$wrapper_attributes = get_block_wrapper_attributes( $wrapper_data );
+		$all_updates_url    = $is_capped && false !== ( $attributes['allUpdatesLink'] ?? true ) ? Taxonomy::get_coverage_page_url( $coverage_id ) : '';
+
+		if ( self::is_coverage_page( $all_updates_url ) ) {
+			$all_updates_url = '';
+		}
 
 		try {
 			$items_html = sprintf(
 				'%5$s%3$s<div class="%1$s-status" role="status" aria-live="polite"></div>%4$s<div class="%1$s-entries">%2$s</div>%7$s%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
-				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status ),
+				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url ),
 				$is_capped ? '' : self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
 				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
 				$is_capped ? '' : sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ),
-				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status )
+				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url )
 			);
 
 			return sprintf(
@@ -1560,9 +1609,10 @@ class Rolling_Coverage_Block {
 	 * @param array[] $blocks      Parsed coverage-level blocks.
 	 * @param int     $coverage_id Coverage term id.
 	 * @param string  $status      Coverage status.
+	 * @param string  $all_updates_url Where the "See all updates" paragraph links; empty drops it.
 	 * @return string Rendered HTML, or an empty string.
 	 */
-	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status ): string {
+	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '' ): string {
 		if ( ! $blocks ) {
 			return '';
 		}
@@ -1584,8 +1634,8 @@ class Rolling_Coverage_Block {
 
 		$blocks = self::map_template_blocks(
 			$blocks,
-			static function ( array $block ) use ( $coverage_id, $status ) {
-				if ( Entry_Bindings::is_latest_buttons( $block ) ) {
+			static function ( array $block ) use ( $coverage_id, $status, $all_updates_url ) {
+				if ( Entry_Bindings::is_latest_buttons( $block ) || ( '' === $all_updates_url && Entry_Bindings::is_all_updates_paragraph( $block ) ) ) {
 					return [];
 				}
 
@@ -1611,6 +1661,9 @@ class Rolling_Coverage_Block {
 			]
 		);
 
+		$previous_all_updates_url = self::$all_updates_url;
+		self::$all_updates_url    = $all_updates_url;
+
 		add_filter( 'render_block_context', $add_coverage_context );
 		++self::$coverage_render_depth;
 
@@ -1618,6 +1671,7 @@ class Rolling_Coverage_Block {
 			return implode( '', array_map( 'render_block', $blocks ) );
 		} finally {
 			--self::$coverage_render_depth;
+			self::$all_updates_url = $previous_all_updates_url;
 			remove_filter( 'render_block_context', $add_coverage_context );
 		}
 	}

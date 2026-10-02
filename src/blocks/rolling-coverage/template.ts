@@ -269,6 +269,28 @@ function shareLink(): TemplateItem {
 }
 
 /**
+ * The "See all updates" link to the coverage page, shown once by a capped
+ * feed.
+ *
+ * @return {TemplateItem} The paragraph.
+ */
+function allUpdatesLink(): TemplateItem {
+	return [
+		'core/paragraph',
+		{
+			className: `use-header-font ${ ALL_UPDATES_CLASS }`,
+			content: placeholderLink(
+				__( 'See all updates', 'newspack-rolling-coverage' )
+			),
+			fontSize: 'small',
+			metadata: {
+				name: __( 'See all updates', 'newspack-rolling-coverage' ),
+			},
+		},
+	];
+}
+
+/**
  * A row of links, wrapping on narrow screens.
  *
  * @param {TemplateItem[]} links The links.
@@ -1320,6 +1342,51 @@ function followBlockIds(
 }
 
 /**
+ * The blocks without the "See all updates" paragraph, at any depth, as the
+ * site renders them where the link has nothing to show.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {Object[]} The blocks without the paragraph.
+ */
+function withoutAllUpdatesParagraph<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks
+		.filter( ( block ) => ! isAllUpdatesParagraph( block ) )
+		.map( ( block ) =>
+			Array.isArray( block.innerBlocks ) && block.innerBlocks.length
+				? {
+						...block,
+						innerBlocks: withoutAllUpdatesParagraph(
+							block.innerBlocks as T[]
+						),
+					}
+				: block
+		);
+}
+
+/**
+ * The client IDs of the "See all updates" paragraphs among the blocks, at
+ * any depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {string[]} Client IDs.
+ */
+function allUpdatesBlockIds(
+	blocks: { name: string; [ key: string ]: unknown }[]
+): string[] {
+	return blocks.flatMap( ( block ) =>
+		isAllUpdatesParagraph( block )
+			? [ block.clientId as string ]
+			: allUpdatesBlockIds(
+					Array.isArray( block.innerBlocks )
+						? ( block.innerBlocks as typeof blocks )
+						: []
+				)
+	);
+}
+
+/**
  * The Feed group holding the layout's items: everything the coverage shows,
  * spaced by its Block spacing.
  *
@@ -2001,6 +2068,9 @@ export {
 	withoutFollowButtons,
 	withoutLatestButtons,
 	followBlockIds,
+	allUpdatesLink,
+	allUpdatesBlockIds,
+	withoutAllUpdatesParagraph,
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	breakoutBlockIds,

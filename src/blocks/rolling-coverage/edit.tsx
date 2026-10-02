@@ -78,6 +78,8 @@ import {
 	feedGroupOf,
 	feedItems,
 	followBlockIds,
+	allUpdatesBlockIds,
+	withoutAllUpdatesParagraph,
 	isPinnedCard,
 	isRegularEntry,
 	forEntryKind,
@@ -204,6 +206,8 @@ export default function Edit( {
 }: EditProps ) {
 	const {
 		coverageId,
+		latestOnly,
+		allUpdatesLink,
 		pollInterval,
 		entriesPerPage,
 		enableAds,
@@ -560,6 +564,7 @@ export default function Edit( {
 	// coverage is archived. It stays in the template for when it can render.
 	const isFollowHidden =
 		! ONESIGNAL_CONFIGURED || currentCoverage?.status === 'archived';
+	const isAllUpdatesHidden = ! latestOnly || allUpdatesLink === false;
 	// An editable layout previews the pinned card against the pinned entry
 	// and the entry group against one that isn't pinned, and leaves out the
 	// one the coverage has no entry for, and "Read more" where the entry
@@ -597,6 +602,7 @@ export default function Edit( {
 	const hiddenIds = useMemo(
 		() => [
 			...( isFollowHidden ? followBlockIds( allBlocks ) : [] ),
+			...( isAllUpdatesHidden ? allUpdatesBlockIds( allBlocks ) : [] ),
 			...allBlocks
 				.filter(
 					( block, index ) =>
@@ -618,6 +624,7 @@ export default function Edit( {
 		[
 			allBlocks,
 			isFollowHidden,
+			isAllUpdatesHidden,
 			isCardHidden,
 			isEntryHidden,
 			pinnedContext,
@@ -643,20 +650,22 @@ export default function Edit( {
 		[ hiddenIds ]
 	);
 
-	const syncedHeaderBlocks = useMemo(
-		() =>
-			isFollowHidden
-				? withoutFollowButtons( headerBlocks )
-				: headerBlocks,
-		[ headerBlocks, isFollowHidden ]
-	);
-	const syncedFooterBlocks = useMemo(
-		() =>
-			isFollowHidden
-				? withoutFollowButtons( footerBlocks )
-				: footerBlocks,
-		[ footerBlocks, isFollowHidden ]
-	);
+	const syncedHeaderBlocks = useMemo( () => {
+		const blocks = isFollowHidden
+			? withoutFollowButtons( headerBlocks )
+			: headerBlocks;
+		return isAllUpdatesHidden
+			? withoutAllUpdatesParagraph( blocks )
+			: blocks;
+	}, [ headerBlocks, isFollowHidden, isAllUpdatesHidden ] );
+	const syncedFooterBlocks = useMemo( () => {
+		const blocks = isFollowHidden
+			? withoutFollowButtons( footerBlocks )
+			: footerBlocks;
+		return isAllUpdatesHidden
+			? withoutAllUpdatesParagraph( blocks )
+			: blocks;
+	}, [ footerBlocks, isFollowHidden, isAllUpdatesHidden ] );
 
 	const detach = useCallback( () => {
 		registry.batch( () => {

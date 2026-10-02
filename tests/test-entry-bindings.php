@@ -1384,4 +1384,128 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		);
 		$this->assertSame( 1, substr_count( $html, '<a ' ) );
 	}
+
+	const ALL_UPDATES_MARKUP = '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-all-updates"} --><p class="use-header-font newspack-rolling-coverage-all-updates"><a href="#">See all updates</a></p><!-- /wp:paragraph -->';
+
+	/**
+	 * Render a capped coverage block holding the "See all updates" paragraph.
+	 *
+	 * @param int    $coverage_id Coverage term ID.
+	 * @param array  $attributes  Extra block attributes.
+	 * @param string $items       Layout items; the paragraph above the entries by default.
+	 * @return string Rendered block.
+	 */
+	private static function render_capped_coverage( int $coverage_id, array $attributes = [], string $items = self::ALL_UPDATES_MARKUP . self::BUTTONS_MARKUP ): string {
+		return self::render_coverage_items(
+			array_merge(
+				[
+					'coverageId'  => $coverage_id,
+					'latestOnly'  => true,
+					'latestCount' => 2,
+				],
+				$attributes
+			),
+			$items
+		);
+	}
+
+	/**
+	 * A capped feed's "See all updates" paragraph links to the coverage's
+	 * canonical URL, once.
+	 */
+	public function test_all_updates_links_to_the_canonical_url() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+
+		$html = self::render_capped_coverage( $coverage_id );
+
+		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-all-updates' ) );
+		$this->assertStringContainsString( '<a href="https://example.org/storm-coverage/">See all updates</a>', $html );
+	}
+
+	/**
+	 * Without a canonical URL it links to the page embedding the coverage.
+	 */
+	public function test_all_updates_falls_back_to_the_host_page() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$host_id = self::factory()->post->create(
+			[
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( [ 'coverageId' => $coverage_id ] ) . ' /-->',
+			]
+		);
+
+		$html = self::render_capped_coverage( $coverage_id );
+
+		$this->assertStringContainsString( '<a href="' . esc_url( get_permalink( $host_id ) ) . '">See all updates</a>', $html );
+	}
+
+	/**
+	 * On the coverage page itself the link has nowhere to go.
+	 */
+	public function test_all_updates_is_hidden_on_the_coverage_page() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$canonical = home_url( '/storm-coverage/' );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, $canonical );
+
+		$this->assertStringContainsString( 'See all updates', self::render_capped_coverage( $coverage_id ) );
+
+		$this->go_to( $canonical );
+
+		$hidden = self::render_capped_coverage( $coverage_id );
+
+		$this->go_to( home_url( '/' ) );
+
+		$this->assertStringNotContainsString( 'See all updates', $hidden );
+	}
+
+	/**
+	 * A coverage with no page has nowhere to link to.
+	 */
+	public function test_all_updates_is_hidden_without_a_coverage_page() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+
+		$this->assertStringNotContainsString( 'See all updates', self::render_capped_coverage( $coverage_id ) );
+	}
+
+	/**
+	 * The block's toggle turns the link off.
+	 */
+	public function test_all_updates_is_hidden_when_the_toggle_is_off() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+
+		$this->assertStringNotContainsString( 'See all updates', self::render_capped_coverage( $coverage_id, [ 'allUpdatesLink' => false ] ) );
+	}
+
+	/**
+	 * A feed that shows every entry has no use for the link.
+	 */
+	public function test_all_updates_is_hidden_when_the_feed_is_not_capped() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+
+		$this->assertStringNotContainsString( 'See all updates', self::render_capped_coverage( $coverage_id, [ 'latestOnly' => false ] ) );
+	}
+
+	/**
+	 * Placed inside the entry layout, the paragraph renders nothing, instead
+	 * of linking once per entry.
+	 */
+	public function test_all_updates_is_hidden_inside_an_entry() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+
+		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . self::ALL_UPDATES_MARKUP . '</div><!-- /wp:group -->';
+		$html        = self::render_capped_coverage( $coverage_id, [], $entry_group );
+
+		$this->assertStringNotContainsString( 'See all updates', $html );
+	}
 }

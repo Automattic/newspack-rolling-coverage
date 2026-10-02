@@ -80,6 +80,7 @@ class Entry_Bindings {
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'filter_pinned_label' ], 10, 2 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_read_more' ], 10, 2 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_share' ], 10, 2 );
+		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_all_updates' ], 10, 2 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'filter_pinned_group' ], 10, 2 );
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'link_title_to_breakout' ], 10, 3 );
 	}
@@ -390,6 +391,32 @@ class Entry_Bindings {
 				'aria-label'          => self::share_name( self::plain_text( $block_content ), $entry_id ),
 			]
 		);
+	}
+
+	/**
+	 * Link a "See all updates" paragraph to the coverage page, or render
+	 * nothing when there is no page to link to. Entries render outside the
+	 * coverage-level blocks, so a paragraph inside one never has a URL.
+	 *
+	 * Parameters stay untyped because this runs for every paragraph on the
+	 * site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string $block_content Rendered block.
+	 * @param array  $block         Parsed block.
+	 * @return string
+	 */
+	public static function link_all_updates( $block_content, $block ) {
+		if ( ! is_array( $block ) || ! is_string( $block_content ) || ! self::is_all_updates_paragraph( $block ) ) {
+			return $block_content;
+		}
+
+		$url = Rolling_Coverage_Block::get_all_updates_url();
+
+		if ( '' === $url ) {
+			return '';
+		}
+
+		return self::link_paragraph( $block_content, [ 'href' => $url ] );
 	}
 
 	/**
