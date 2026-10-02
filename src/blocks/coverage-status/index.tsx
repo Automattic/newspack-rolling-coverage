@@ -13,8 +13,7 @@ import metadata from './block.json';
 import Edit from './edit';
 import type { CoverageStatusAttributes } from './types';
 
-registerBlockType< CoverageStatusAttributes >( metadata.name, {
-	...metadata,
+registerBlockType< CoverageStatusAttributes >( metadata, {
 	category: getBlockCategory(),
 	icon: blockIcon( published ),
 	edit: Edit,

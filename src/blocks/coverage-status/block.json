@@ -38,7 +38,9 @@
 				"verticalAlignment": "center"
 			},
 			"allowSwitching": false,
-			"allowInheriting": false
+			"allowInheriting": false,
+			"allowOrientation": false,
+			"allowVerticalAlignment": false
 		},
 		"spacing": {
 			"margin": true,
