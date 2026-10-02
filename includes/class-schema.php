@@ -455,7 +455,12 @@ class Schema {
 
 		$last_modified = get_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true );
 		$end_time      = get_term_meta( $coverage_id, Taxonomy::END_TIME_META_KEY, true );
-		$cache_key     = 'nrc_' . $coverage_id . '_' . md5( $post->ID . '|' . $post->post_modified_gmt . '|' . $entries_per_page . '|' . $status . '|' . $last_modified . '|' . $end_time );
+
+		// The date is part of the key because a scheduled entry going live
+		// changes what the page shows without moving the coverage's
+		// last-modified meta.
+		$modified_datetime = self::get_date_modified( $post, $coverage_id );
+		$cache_key         = 'nrc_' . $coverage_id . '_' . md5( $post->ID . '|' . $post->post_modified_gmt . '|' . $entries_per_page . '|' . $status . '|' . $last_modified . '|' . $end_time . '|' . ( null === $modified_datetime ? '' : $modified_datetime->getTimestamp() ) );
 
 		$cached_metadata = get_transient( $cache_key );
 		if ( false !== $cached_metadata ) {
@@ -482,7 +487,6 @@ class Schema {
 			$metadata['datePublished'] = $published_datetime->format( 'c' );
 		}
 
-		$modified_datetime = self::get_date_modified( $post, $coverage_id );
 		if ( null !== $modified_datetime ) {
 			$metadata['dateModified'] = $modified_datetime->format( 'c' );
 		}
