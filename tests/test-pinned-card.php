@@ -32,10 +32,6 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 	 * Forget the theme.json data a test switched to.
 	 */
 	public function tear_down() {
-		if ( class_exists( \Newspack_Ads\Placements::class ) ) {
-			\Newspack_Ads\Placements::$placements = [];
-		}
-
 		parent::tear_down();
 		wp_clean_theme_json_cache();
 	}
@@ -611,22 +607,6 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 		preg_match_all( '/data-entry-id="(\d+)"/', $html, $matches );
 
 		return array_map( 'intval', $matches[1] );
-	}
-
-	/**
-	 * Give the feed placement an ad unit, as Newspack Ads would.
-	 */
-	private static function enable_ad_placement(): void {
-		require_once __DIR__ . '/mocks/newspack-ads.php';
-
-		\Newspack_Ads\Placements::$placements = [
-			'rolling_coverage_entry' => [
-				'data' => [
-					'enabled' => true,
-					'ad_unit' => 'test-unit',
-				],
-			],
-		];
 	}
 
 	/**

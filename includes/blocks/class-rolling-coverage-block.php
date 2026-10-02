@@ -196,6 +196,29 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * How many entries a capped feed shows, as an entries request states it:
+	 * the page's own count, so a page whose stored config has been pruned
+	 * still polls capped. 0 when the request states no positive count.
+	 *
+	 * @param array $params Request parameters.
+	 * @return int
+	 */
+	private static function requested_latest_count( array $params ): int {
+		$latest = (int) ( $params['latest'] ?? 0 );
+
+		if ( $latest < 1 ) {
+			return 0;
+		}
+
+		return self::latest_count(
+			[
+				'latestOnly'  => true,
+				'latestCount' => $latest,
+			]
+		);
+	}
+
+	/**
 	 * How many entries a capped feed shows, from the block's attributes or
 	 * its stored config: at least one, or 0 when the feed is not capped.
 	 *
@@ -2811,6 +2834,9 @@ class Rolling_Coverage_Block {
 						'type'    => 'integer',
 						'default' => 0,
 					],
+					'latest'       => [
+						'type' => 'integer',
+					],
 				],
 			]
 		);
@@ -2945,6 +2971,9 @@ class Rolling_Coverage_Block {
 	 *   With skip_pinned, pinned entries are left out, for a feed that opens at
 	 *   a shared entry.
 	 *
+	 * A capped feed, as its stored config or a positive `latest` count says,
+	 * polls entries as unpinned and without ads, and loads no more.
+	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
 	 */
@@ -2996,7 +3025,7 @@ class Rolling_Coverage_Block {
 
 		$config           = self::load_block_config( $term_id, $template_key );
 		$template         = $config['template'];
-		$is_capped        = self::latest_count( $config ) > 0;
+		$is_capped        = self::latest_count( $config ) > 0 || self::requested_latest_count( $params ) > 0;
 		$ads_interval     = max( 1, (int) $config['adsInterval'] );
 		$ads_enabled_attr = (bool) $config['adsEnabled'];
 		$ads_enabled      = ! $is_capped && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $term_id );
