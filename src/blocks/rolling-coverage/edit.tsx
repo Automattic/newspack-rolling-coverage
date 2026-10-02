@@ -92,6 +92,7 @@ import {
 import { useSampleEntries } from './samples';
 import EntryBlockPreview from './components/entry-block-preview';
 import LoadingState from './components/loading-state';
+import StatusBadge, { STATUS_BADGES } from './components/status-badge';
 import LayoutPickerModal, {
 	type LayoutChoice,
 	layoutsQuery,
@@ -210,6 +211,8 @@ export default function Edit( {
 		entriesPerPage,
 		enableAds,
 		adsInterval,
+		statusIndicatorShow,
+		statusIndicatorLabels,
 		archivedNoticeShow,
 		archivedNotice,
 		archivedNoticeShowLink,
@@ -1096,6 +1099,58 @@ export default function Edit( {
 						} )
 					}
 				/>
+				<ToggleGroupControl
+					__next40pxDefaultSize
+					isBlock
+					label={ __(
+						'Status indicator',
+						'newspack-rolling-coverage'
+					) }
+					help={ __(
+						"Shows the coverage's status at the top of the feed.",
+						'newspack-rolling-coverage'
+					) }
+					value={ statusIndicatorShow ? 'show' : 'hide' }
+					onChange={ ( value ) =>
+						setAttributes( {
+							statusIndicatorShow: value === 'show',
+						} )
+					}
+				>
+					<ToggleGroupControlOption
+						value="show"
+						label={ __( 'Show', 'newspack-rolling-coverage' ) }
+					/>
+					<ToggleGroupControlOption
+						value="hide"
+						label={ __( 'Hide', 'newspack-rolling-coverage' ) }
+					/>
+				</ToggleGroupControl>
+				{ statusIndicatorShow &&
+					Object.entries( STATUS_BADGES ).map(
+						( [ status, badge ] ) => (
+							<TextControl
+								key={ status }
+								__next40pxDefaultSize
+								label={ badge.field }
+								placeholder={ badge.label }
+								value={
+									typeof statusIndicatorLabels?.[ status ] ===
+									'string'
+										? statusIndicatorLabels[ status ]
+										: ''
+								}
+								onChange={ ( value: string ) =>
+									setAttributes( {
+										statusIndicatorLabels: {
+											...statusIndicatorLabels,
+											[ status ]: value,
+										},
+									} )
+								}
+							/>
+						)
+					) }
 			</PanelBody>
 
 			<PanelBody
@@ -1484,6 +1539,15 @@ export default function Edit( {
 								) }
 							{ isSynced && (
 								<div { ...feedPreviewProps( feedGroup ) }>
+									{ statusIndicatorShow &&
+										currentCoverage?.status !== 'trash' && (
+											<StatusBadge
+												status={
+													currentCoverage?.status
+												}
+												labels={ statusIndicatorLabels }
+											/>
+										) }
 									{ syncedRenderOnceBlocks.length > 0 && (
 										<BlockContextProvider
 											value={
@@ -1530,6 +1594,15 @@ export default function Edit( {
 							) }
 							{ ! isSynced && (
 								<>
+									{ statusIndicatorShow &&
+										currentCoverage?.status !== 'trash' && (
+											<StatusBadge
+												status={
+													currentCoverage?.status
+												}
+												labels={ statusIndicatorLabels }
+											/>
+										) }
 									<PinnedEntryContext.Provider
 										value={ pinnedContext ?? null }
 									>

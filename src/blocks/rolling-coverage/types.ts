@@ -28,6 +28,8 @@ interface RollingCoverageAttributes {
 	entriesPerPage: number;
 	enableAds: boolean;
 	adsInterval: number;
+	statusIndicatorShow: boolean;
+	statusIndicatorLabels: Partial< Record< string, string > >;
 	archivedNoticeShow: boolean;
 	archivedNotice: string;
 	archivedNoticeShowLink: boolean;
