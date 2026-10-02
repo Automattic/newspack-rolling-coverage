@@ -277,14 +277,14 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 			[
 				'post_author' => $contributor_id,
 				'post_status' => 'draft',
-			] 
+			]
 		);
 		$published = self::create_entry(
 			$coverage,
 			[
 				'post_author' => $contributor_id,
 				'post_status' => 'publish',
-			] 
+			]
 		);
 		wp_trash_post( $own_draft );
 		wp_trash_post( $published );
@@ -331,10 +331,56 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 		$request->set_param( 'context', 'edit' );
 		$excerpt = rest_get_server()->dispatch( $request )->get_data()['excerpt'];
 
-		$this->assertSame( self::words( 80 ), $excerpt['raw'], 'The raw excerpt should be the whole content as plain text.' );
+		$this->assertSame( self::words( 80 ), $excerpt['raw'], 'The raw excerpt should be the content as plain text.' );
 		$this->assertStringContainsString( 'word1 word2', $excerpt['rendered'] );
 		$this->assertStringNotContainsString( 'word80', $excerpt['rendered'], 'The rendered excerpt should be trimmed like core.' );
 		$this->assertFalse( $excerpt['protected'] );
+	}
+
+	/**
+	 * The raw excerpt follows the front end: entities decoded, blocks the
+	 * excerpt drops left out, and words from adjacent paragraphs kept apart.
+	 */
+	public function test_entry_raw_excerpt_matches_the_front_end() {
+		self::log_in_as( 'editor' );
+		$content  = '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image -->';
+		$content .= '<!-- wp:embed {"url":"https://example.com/video"} --><figure class="wp-block-embed"><div class="wp-block-embed__wrapper">https://example.com/video</div></figure><!-- /wp:embed -->';
+		$content .= '<!-- wp:paragraph --><p>Q&amp;A</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>second</p><!-- /wp:paragraph -->';
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_excerpt' => '',
+				'post_content' => $content,
+			] 
+		);
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_param( 'context', 'edit' );
+		$raw = rest_get_server()->dispatch( $request )->get_data()['excerpt']['raw'];
+
+		$this->assertSame( 'Q&A second', $raw );
+	}
+
+	/**
+	 * Protected entries keep the raw text in the editor, flagged as protected.
+	 */
+	public function test_protected_entry_excerpt_is_flagged() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_excerpt'  => '',
+				'post_password' => 'secret',
+				'post_content'  => '<p>Hidden text.</p>',
+			] 
+		);
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_param( 'context', 'edit' );
+		$excerpt = rest_get_server()->dispatch( $request )->get_data()['excerpt'];
+
+		$this->assertTrue( $excerpt['protected'] );
+		$this->assertSame( 'Hidden text.', $excerpt['raw'] );
 	}
 
 	/**
@@ -346,7 +392,7 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 			[
 				'post_excerpt' => '',
 				'post_content' => '<p>Short update.</p>',
-			] 
+			]
 		);
 
 		$excerpt = self::list_entries_via_rest()[0]['excerpt'];
@@ -371,7 +417,7 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 			self::create_active_coverage(),
 			[
 				'post_excerpt' => '',
-				'post_content' => '<!-- wp:paragraph --><p>' . self::words( 40 ) . '</p><!-- /wp:paragraph -->',
+				'post_content' => '<!-- wp:paragraph --><p>' . self::words( 120 ) . '</p><!-- /wp:paragraph -->',
 			]
 		);
 		add_filter( 'excerpt_more', fn() => ' <a class="more-link" href="#">Read more</a>' );

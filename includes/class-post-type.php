@@ -676,8 +676,9 @@ class Post_Type {
 	/**
 	 * REST field callback returning the generated excerpt of an entry.
 	 *
-	 * The raw value is the whole content as plain text, so the block can trim it
-	 * to any length; the rendered value is core's own generated excerpt.
+	 * The rendered value is core's generated excerpt. The raw value is that
+	 * same excerpt at the block's maximum length with no ellipsis, as decoded
+	 * plain text, so the editor can trim it to any length the block allows.
 	 *
 	 * @param array           $post    Entry REST object data.
 	 * @param string          $field   Field name.
@@ -688,12 +689,23 @@ class Post_Type {
 		$entry     = get_post( (int) $post['id'] );
 		$protected = post_password_required( $entry );
 		$excerpt   = [
-			'rendered'  => $protected ? '' : apply_filters( 'the_excerpt', apply_filters( 'get_the_excerpt', '', $entry ) ),
+			'rendered'  => $protected ? '' : apply_filters( 'the_excerpt', apply_filters( 'get_the_excerpt', $entry->post_excerpt, $entry ) ),
 			'protected' => $protected,
 		];
 
 		if ( $request && 'edit' === $request['context'] ) {
-			$excerpt['raw'] = $protected ? '' : trim( wp_strip_all_tags( strip_shortcodes( $entry->post_content ) ) );
+			$length = static fn() => 101;
+			$more   = static fn() => '';
+			add_filter( 'excerpt_length', $length, PHP_INT_MAX );
+			add_filter( 'excerpt_more', $more, PHP_INT_MAX );
+			$open = clone $entry;
+
+			$open->post_password = '';
+			$text                = apply_filters( 'get_the_excerpt', $open->post_excerpt, $open );
+			remove_filter( 'excerpt_length', $length, PHP_INT_MAX );
+			remove_filter( 'excerpt_more', $more, PHP_INT_MAX );
+
+			$excerpt['raw'] = trim( html_entity_decode( wp_strip_all_tags( $text ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
 		}
 
 		return $excerpt;
