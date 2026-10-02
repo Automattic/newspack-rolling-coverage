@@ -2,6 +2,7 @@
  * WordPress dependencies
  */
 import { getSettings } from '@wordpress/date';
+import { escapeHTML } from '@wordpress/escape-html';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -289,6 +290,18 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 const READ_MORE_CLASS = 'newspack-rolling-coverage-read-more';
 
 /**
+ * Paragraph content holding a placeholder link, so the editor shows the text
+ * as a link. The site points it at the entry's link (see
+ * Entry_Bindings::link_paragraph()).
+ *
+ * @param {string} text The link's text.
+ * @return {string} The paragraph content.
+ */
+function placeholderLink( text: string ): string {
+	return `<a href="#">${ escapeHTML( text ) }</a>`;
+}
+
+/**
  * The site's time format, for the Compact layout's time column.
  *
  * @return {string} A PHP date format.
@@ -404,9 +417,11 @@ function compactRow( timeColor: { textColor?: string } ): TemplateItem {
 								'core/paragraph',
 								{
 									className: READ_MORE_CLASS,
-									content: __(
-										'Read more',
-										'newspack-rolling-coverage'
+									content: placeholderLink(
+										__(
+											'Read more',
+											'newspack-rolling-coverage'
+										)
 									),
 									lock: LOCKED,
 									metadata: {
@@ -560,7 +575,9 @@ function cardsEntryBlocks( isPinned: boolean ): TemplateItem[] {
 					'core/paragraph',
 					{
 						className: `use-header-font ${ READ_MORE_CLASS }`,
-						content: __( 'Read more', 'newspack-rolling-coverage' ),
+						content: placeholderLink(
+							__( 'Read more', 'newspack-rolling-coverage' )
+						),
 						fontSize: 'small',
 						style: { layout: { selfStretch: 'fill' } },
 						lock: LOCKED,
@@ -576,7 +593,9 @@ function cardsEntryBlocks( isPinned: boolean ): TemplateItem[] {
 					'core/paragraph',
 					{
 						className: `use-header-font ${ SHARE_CLASS }`,
-						content: __( 'Share', 'newspack-rolling-coverage' ),
+						content: placeholderLink(
+							__( 'Share', 'newspack-rolling-coverage' )
+						),
 						fontSize: 'small',
 						metadata: {
 							name: __( 'Share', 'newspack-rolling-coverage' ),

@@ -343,7 +343,7 @@ class Entry_Bindings {
 			return '';
 		}
 
-		return self::link_paragraph( $block_content, '<a href="' . esc_url( $url ) . '">' );
+		return self::link_paragraph( $block_content, [ 'href' => $url ] );
 	}
 
 	/**
@@ -369,25 +369,29 @@ class Entry_Bindings {
 			return '';
 		}
 
-		$open = new WP_HTML_Tag_Processor( '<a>' );
-		$open->next_tag();
-		$open->set_attribute( 'href', $url );
-		$open->set_attribute( self::SHARE_ATTRIBUTE, '' );
-		$open->set_attribute( 'role', 'button' );
-		$open->set_attribute( 'aria-label', self::share_name( self::plain_text( $block_content ), $entry_id ) );
-
-		return self::link_paragraph( $block_content, $open->get_updated_html() );
+		return self::link_paragraph(
+			$block_content,
+			[
+				'href'                => $url,
+				self::SHARE_ATTRIBUTE => '',
+				'role'                => 'button',
+				'aria-label'          => self::share_name( self::plain_text( $block_content ), $entry_id ),
+			]
+		);
 	}
 
 	/**
-	 * Wrap a rendered paragraph's content in a link, unless it already holds
-	 * one, as links can't nest.
+	 * Link a rendered paragraph's content. A placeholder link (`href="#"`),
+	 * which the layouts ship so the editor shows a link, takes the
+	 * attributes; any other link inside is the author's own and is left
+	 * alone, as links can't nest; otherwise the content is wrapped in a new
+	 * link.
 	 *
 	 * @param string $block_content Rendered paragraph.
-	 * @param string $open          The link's opening tag.
+	 * @param array  $attributes    The link's attributes, keyed by name.
 	 * @return string
 	 */
-	private static function link_paragraph( string $block_content, string $open ): string {
+	private static function link_paragraph( string $block_content, array $attributes ): string {
 		if ( ! preg_match( '/<p(?=[\s>])(?:"[^"]*"|\'[^\']*\'|[^>"\'])*>/i', $block_content, $tag, PREG_OFFSET_CAPTURE ) ) {
 			return $block_content;
 		}
@@ -402,11 +406,30 @@ class Entry_Bindings {
 		$inner = substr( $block_content, $inner_start, $close - $inner_start );
 
 		if ( preg_match( '/<a[\s>]/i', $inner ) ) {
+			$links = new WP_HTML_Tag_Processor( $inner );
+
+			while ( $links->next_tag( 'a' ) ) {
+				if ( '#' === $links->get_attribute( 'href' ) ) {
+					foreach ( $attributes as $name => $value ) {
+						$links->set_attribute( $name, $value );
+					}
+
+					return substr( $block_content, 0, $inner_start ) . $links->get_updated_html() . substr( $block_content, $close );
+				}
+			}
+
 			return $block_content;
 		}
 
+		$open = new WP_HTML_Tag_Processor( '<a>' );
+		$open->next_tag();
+
+		foreach ( $attributes as $name => $value ) {
+			$open->set_attribute( $name, $value );
+		}
+
 		return substr( $block_content, 0, $inner_start )
-			. $open . $inner . '</a>'
+			. $open->get_updated_html() . $inner . '</a>'
 			. substr( $block_content, $close );
 	}
 
