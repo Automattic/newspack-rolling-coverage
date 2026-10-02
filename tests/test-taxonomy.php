@@ -409,13 +409,13 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 		$this->assertSame( [], get_option( Taxonomy::PAGE_IDS_OPTION ), 'Readers keep the stored map until the request ends.' );
 		$this->assertSame( get_permalink( $page_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'The request that made the change sees it straight away.' );
 
-		update_option( Taxonomy::PAGE_IDS_OPTION, [], false );
 		wp_update_post(
 			[
 				'ID'         => $page_id,
 				'post_title' => 'Renamed',
 			]
 		);
+		update_option( Taxonomy::PAGE_IDS_OPTION, [], false );
 		do_action( 'shutdown' );
 
 		$this->assertSame( [ $coverage_id => $page_id ], get_option( Taxonomy::PAGE_IDS_OPTION ), 'The end of the request overwrites whatever a reader stored.' );

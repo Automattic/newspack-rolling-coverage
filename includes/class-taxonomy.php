@@ -89,12 +89,12 @@ class Taxonomy {
 	];
 
 	/**
-	 * Whether this request changed the coverage-to-page map since it last
-	 * stored it.
+	 * Sites whose coverage-to-page map this request changed since it last
+	 * stored it, keyed by blog ID.
 	 *
-	 * @var bool
+	 * @var array<int,true>
 	 */
-	private static $page_ids_stale = false;
+	private static $stale_page_ids = [];
 
 	/**
 	 * Initialize hooks.
@@ -659,13 +659,13 @@ class Taxonomy {
 	}
 
 	/**
-	 * Marks the coverage-to-page map out of date for this request, and has the
+	 * Marks the current site's coverage-to-page map out of date, and has the
 	 * request rebuild the stored one once it ends. Readers keep the stored map
 	 * until then, so they never rebuild it themselves, and the request that
 	 * made the change, which is sure to see it, writes last.
 	 */
 	private static function flush_coverage_page_ids(): void {
-		self::$page_ids_stale = true;
+		self::$stale_page_ids[ get_current_blog_id() ] = true;
 
 		if ( ! has_action( 'shutdown', [ __CLASS__, 'rebuild_coverage_page_ids' ] ) ) {
 			add_action( 'shutdown', [ __CLASS__, 'rebuild_coverage_page_ids' ] );
@@ -677,8 +677,14 @@ class Taxonomy {
 	 * since it last read it.
 	 */
 	public static function rebuild_coverage_page_ids(): void {
-		if ( self::$page_ids_stale ) {
+		foreach ( array_keys( self::$stale_page_ids ) as $blog_id ) {
+			$switched = get_current_blog_id() !== $blog_id && switch_to_blog( $blog_id );
+
 			self::get_coverage_page_ids();
+
+			if ( $switched ) {
+				restore_current_blog();
+			}
 		}
 	}
 
@@ -736,7 +742,7 @@ class Taxonomy {
 	 * @return array<int,int> Map of coverage term ID => post ID.
 	 */
 	private static function get_coverage_page_ids(): array {
-		$stored = self::$page_ids_stale ? false : get_option( self::PAGE_IDS_OPTION );
+		$stored = isset( self::$stale_page_ids[ get_current_blog_id() ] ) ? false : get_option( self::PAGE_IDS_OPTION );
 
 		if ( is_array( $stored ) ) {
 			return $stored;
@@ -769,7 +775,7 @@ class Taxonomy {
 		}
 
 		update_option( self::PAGE_IDS_OPTION, $map, false );
-		self::$page_ids_stale = false;
+		unset( self::$stale_page_ids[ get_current_blog_id() ] );
 
 		return $map;
 	}
