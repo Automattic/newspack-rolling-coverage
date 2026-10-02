@@ -7,10 +7,14 @@ import { _x } from '@wordpress/i18n';
  * Internal dependencies
  */
 import { getLayoutId } from './utils';
-import { innerTemplate, compactInnerTemplate } from './layout';
+import {
+	innerTemplate,
+	compactInnerTemplate,
+	cardsInnerTemplate,
+} from './layout';
 import type { TemplateItem } from './types';
 
-export type BuiltInLayoutSlug = 'default' | 'compact';
+export type BuiltInLayoutSlug = 'default' | 'compact' | 'cards';
 
 export type BuiltInLayout = {
 	slug: BuiltInLayoutSlug;
@@ -27,13 +31,18 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 	return [
 		{
 			slug: 'default',
-			title: _x( 'Default', 'layout name', 'newspack-rolling-coverage' ),
+			title: _x( 'Classic', 'layout name', 'newspack-rolling-coverage' ),
 			template: innerTemplate,
 		},
 		{
 			slug: 'compact',
 			title: _x( 'Compact', 'layout name', 'newspack-rolling-coverage' ),
 			template: compactInnerTemplate,
+		},
+		{
+			slug: 'cards',
+			title: _x( 'Cards', 'layout name', 'newspack-rolling-coverage' ),
+			template: cardsInnerTemplate,
 		},
 	];
 }

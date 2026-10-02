@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Layout {
 
-	const BUILT_IN_SLUGS = [ 'default', 'compact' ];
+	const BUILT_IN_SLUGS = [ 'default', 'compact', 'cards' ];
 
 	const SLUG_META_KEY = '_rolling_coverage_layout';
 
@@ -424,7 +424,9 @@ class Layout {
 			/* translators: %s: Rolling Coverage, the product name. */
 			'compact' => sprintf( __( '%s: Compact', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
 			/* translators: %s: Rolling Coverage, the product name. */
-			default   => sprintf( __( '%s: Default', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
+			'cards'   => sprintf( __( '%s: Cards', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
+			/* translators: %s: Rolling Coverage, the product name. */
+			default   => sprintf( __( '%s: Classic', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
 		};
 	}
 

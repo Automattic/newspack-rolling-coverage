@@ -486,6 +486,169 @@ function compactEntryTemplate( slugs: string[] ): TemplateItem[] {
 }
 
 /**
+ * Class of the paragraph that links to the entry's share URL, mirroring
+ * Entry_Bindings::SHARE_CLASS.
+ */
+const SHARE_CLASS = 'newspack-rolling-coverage-share';
+
+const CARD_BORDER_COLOR =
+	'var(--wp--preset--color--base-3, var(--newspack-theme-color-border, #ddd))';
+const CARD_ACCENT =
+	'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
+const CARD_PADDING = {
+	top: 'var:preset|spacing|50',
+	right: 'var:preset|spacing|50',
+	bottom: 'var:preset|spacing|50',
+	left: 'var:preset|spacing|50',
+};
+
+/**
+ * What a Cards entry shows: the date and title stacked, the content, then a
+ * footer with "Read more" and "Share" links. "Share" fills the rest of the
+ * footer, aligned right, so it stays right when there is no "Read more".
+ * The pinned card's also carry the pinned row, and its date takes the
+ * card's accent color.
+ *
+ * @param {boolean} isPinned Whether the blocks are the pinned card's.
+ * @return {TemplateItem[]} The entry's blocks.
+ */
+function cardsEntryBlocks( isPinned: boolean ): TemplateItem[] {
+	const date: TemplateItem = [
+		'core/post-date',
+		{
+			...POST_DATE_ATTRIBUTES,
+			format: 'human-diff',
+			...( isPinned ? { style: { color: { text: CARD_ACCENT } } } : {} ),
+		},
+	];
+	const title: TemplateItem = [ 'core/post-title', { level: 4 } ];
+
+	return [
+		[
+			'core/group',
+			{
+				layout: { type: 'flex', orientation: 'vertical' },
+				style: { spacing: { blockGap: 'var:preset|spacing|20' } },
+				metadata: { name: __( 'Meta', 'newspack-rolling-coverage' ) },
+			},
+			isPinned ? [ PINNED_ROW, date, title ] : [ date, title ],
+		],
+		[
+			'core/post-content',
+			{
+				style: {
+					spacing: {
+						padding: {
+							top: '0',
+							right: '0',
+							bottom: '0',
+							left: '0',
+						},
+					},
+				},
+			},
+		],
+		[
+			'core/group',
+			{
+				layout: {
+					type: 'flex',
+					flexWrap: 'nowrap',
+					justifyContent: 'space-between',
+				},
+				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+				metadata: {
+					name: __( 'Footer', 'newspack-rolling-coverage' ),
+				},
+			},
+			[
+				[
+					'core/paragraph',
+					{
+						className: READ_MORE_CLASS,
+						content: __( 'Read more', 'newspack-rolling-coverage' ),
+						lock: LOCKED,
+						metadata: {
+							name: __(
+								'Read more',
+								'newspack-rolling-coverage'
+							),
+						},
+					},
+				],
+				[
+					'core/paragraph',
+					{
+						className: SHARE_CLASS,
+						content: __( 'Share', 'newspack-rolling-coverage' ),
+						style: {
+							layout: { selfStretch: 'fill' },
+							typography: { textAlign: 'right' },
+						},
+						metadata: {
+							name: __( 'Share', 'newspack-rolling-coverage' ),
+						},
+					},
+				],
+			],
+		],
+	];
+}
+
+/**
+ * The Cards layout's per-entry template: each entry in a bordered card, so
+ * no separator closes it. The pinned card takes the accent color for its
+ * border and everything inside it.
+ */
+const CARDS_ENTRY_TEMPLATE: TemplateItem[] = [
+	[
+		'core/group',
+		{
+			className: PINNED_CARD_CLASS,
+			lock: LOCKED_IN_PLACE,
+			style: {
+				color: { text: CARD_ACCENT },
+				elements: {
+					link: { color: { text: CARD_ACCENT } },
+					heading: { color: { text: CARD_ACCENT } },
+				},
+				spacing: { padding: CARD_PADDING, blockGap: DEFAULT_ENTRY_GAP },
+				border: {
+					color: CARD_ACCENT,
+					style: 'solid',
+					width: '1px',
+					radius: ENTRY_RADIUS,
+				},
+			},
+			metadata: {
+				name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
+			},
+		},
+		cardsEntryBlocks( true ),
+	],
+	[
+		'core/group',
+		{
+			className: REGULAR_ENTRY_CLASS,
+			lock: LOCKED_IN_PLACE,
+			style: {
+				spacing: { padding: CARD_PADDING, blockGap: DEFAULT_ENTRY_GAP },
+				border: {
+					color: CARD_BORDER_COLOR,
+					style: 'solid',
+					width: '1px',
+					radius: ENTRY_RADIUS,
+				},
+			},
+			metadata: {
+				name: __( 'Entry', 'newspack-rolling-coverage' ),
+			},
+		},
+		cardsEntryBlocks( false ),
+	],
+];
+
+/**
  * The follow button, rendered once at the top of the coverage: a core button
  * bound to the coverage's notification tag. It's a `<button>`, so the bound
  * value never shows as a link; it only carries the tag to the follow script.
@@ -1286,6 +1449,7 @@ const ENTRY_ALLOWED_BLOCKS = [
 export {
 	ENTRY_TEMPLATE,
 	compactEntryTemplate,
+	CARDS_ENTRY_TEMPLATE,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
