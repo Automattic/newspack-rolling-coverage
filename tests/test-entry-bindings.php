@@ -471,6 +471,50 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A heading in the header chrome, bound to the coverage's name, as the
+	 * layouts save it.
+	 */
+	const NAME_HEADING_MARKUP = '<!-- wp:heading {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"coverageName"}}}}} --><h2 class="wp-block-heading">Saved title</h2><!-- /wp:heading -->';
+
+	/**
+	 * A heading bound to the coverage's name renders the name once, above the
+	 * entries.
+	 */
+	public function test_name_heading_renders_the_coverage_name_once_above_the_entries() {
+		$coverage_id = self::create_coverage( '', [ 'name' => 'Election Night' ] );
+		self::create_entry( $coverage_id );
+		self::create_entry( $coverage_id );
+
+		$html = self::render_coverage_items( [ 'coverageId' => $coverage_id ], self::NAME_HEADING_MARKUP . self::BUTTONS_MARKUP );
+
+		$this->assertSame( 1, substr_count( $html, '>Election Night</h2>' ), 'The heading should show the name once.' );
+		$this->assertStringNotContainsString( 'Saved title', $html );
+		$this->assertLessThan( strpos( $html, 'class="newspack-rolling-coverage-entries"' ), strpos( $html, 'Election Night' ), 'It should come before the entries.' );
+	}
+
+	/**
+	 * A name with an ampersand is escaped once.
+	 */
+	public function test_name_heading_escapes_the_name_once() {
+		$coverage_id = self::create_coverage( '', [ 'name' => 'Storm & Flood' ] );
+		self::create_entry( $coverage_id );
+
+		$html = self::render_coverage_items( [ 'coverageId' => $coverage_id ], self::NAME_HEADING_MARKUP . self::BUTTONS_MARKUP );
+
+		$this->assertStringContainsString( '>Storm &amp; Flood</h2>', $html );
+		$this->assertStringNotContainsString( '&amp;amp;', $html );
+	}
+
+	/**
+	 * Without a coverage in context the heading keeps its saved content.
+	 */
+	public function test_name_heading_without_coverage_context_keeps_its_content() {
+		$html = render_block( parse_blocks( self::NAME_HEADING_MARKUP )[0] );
+
+		$this->assertStringContainsString( '>Saved title</h2>', $html );
+	}
+
+	/**
 	 * An archived coverage's nested follow button renders nothing, without
 	 * leaving its empty Buttons block behind; the rest of its group stays.
 	 */

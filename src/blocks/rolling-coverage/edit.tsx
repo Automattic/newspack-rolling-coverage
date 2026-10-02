@@ -91,6 +91,7 @@ import {
 	ONESIGNAL_CONFIGURED,
 	STATUS_LABELS,
 } from './config';
+import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
 import { useSampleEntries } from './samples';
 import EntryBlockPreview from './components/entry-block-preview';
 import LoadingState from './components/loading-state';
@@ -581,6 +582,10 @@ export default function Edit( {
 		: previewContexts[ 0 ];
 	const layoutContext =
 		regularContext ?? pinnedContext ?? NEUTRAL_ENTRY_CONTEXT;
+	const coverageContext = useMemo(
+		() => ( { [ COVERAGE_ID_CONTEXT ]: entriesCoverageId } ),
+		[ entriesCoverageId ]
+	);
 	const isCardHidden = hasBothKinds && ! pinnedContext;
 	const isEntryHidden = hasBothKinds && ! regularContext && !! pinnedContext;
 	const hidesCardBreakout = pinnedContext
@@ -1522,10 +1527,7 @@ export default function Edit( {
 								<div { ...feedPreviewProps( feedGroup ) }>
 									{ syncedHeaderBlocks.length > 0 && (
 										<BlockContextProvider
-											value={
-												previewContexts[ 0 ] ??
-												NEUTRAL_ENTRY_CONTEXT
-											}
+											value={ coverageContext }
 										>
 											<EntryBlockPreview
 												blocks={ syncedHeaderBlocks }
@@ -1562,10 +1564,7 @@ export default function Edit( {
 									</div>
 									{ syncedFooterBlocks.length > 0 && (
 										<BlockContextProvider
-											value={
-												previewContexts[ 0 ] ??
-												NEUTRAL_ENTRY_CONTEXT
-											}
+											value={ coverageContext }
 										>
 											<EntryBlockPreview
 												blocks={ syncedFooterBlocks }

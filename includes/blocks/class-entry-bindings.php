@@ -9,6 +9,7 @@ namespace Newspack_Rolling_Coverage;
 
 use WP_Block;
 use WP_HTML_Tag_Processor;
+use WP_Term;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -110,6 +111,12 @@ class Entry_Bindings {
 			$status      = (string) ( $block->context[ self::COVERAGE_STATUS_CONTEXT ] ?? 'active' );
 
 			return $coverage_id && Coverage_Follow_Block::should_render( $status ) ? Push_Notifications::follow_tag( $coverage_id ) : null;
+		}
+
+		if ( 'coverageName' === ( $source_args['key'] ?? '' ) ) {
+			$coverage = get_term( (int) ( $block->context[ self::COVERAGE_ID_CONTEXT ] ?? 0 ), Taxonomy::TAXONOMY_SLUG );
+
+			return $coverage instanceof WP_Term ? esc_html( $coverage->name ) : null;
 		}
 
 		if ( 'latestUrl' === ( $source_args['key'] ?? '' ) ) {
