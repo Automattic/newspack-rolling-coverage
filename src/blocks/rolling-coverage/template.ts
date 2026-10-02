@@ -565,8 +565,9 @@ function cardsEntryBlocks( isPinned: boolean ): TemplateItem[] {
 				[
 					'core/paragraph',
 					{
-						className: READ_MORE_CLASS,
+						className: `use-header-font ${ READ_MORE_CLASS }`,
 						content: __( 'Read more', 'newspack-rolling-coverage' ),
+						fontSize: 'small',
 						lock: LOCKED,
 						metadata: {
 							name: __(
@@ -579,8 +580,9 @@ function cardsEntryBlocks( isPinned: boolean ): TemplateItem[] {
 				[
 					'core/paragraph',
 					{
-						className: SHARE_CLASS,
+						className: `use-header-font ${ SHARE_CLASS }`,
 						content: __( 'Share', 'newspack-rolling-coverage' ),
+						fontSize: 'small',
 						style: {
 							layout: { selfStretch: 'fill' },
 							typography: { textAlign: 'right' },
