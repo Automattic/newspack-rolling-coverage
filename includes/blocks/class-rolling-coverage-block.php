@@ -92,11 +92,6 @@ class Rolling_Coverage_Block {
 	 */
 	const DEFAULT_ENTRY_GAP = 'var:preset|spacing|20';
 
-	/**
-	 * The corner radius of the entry group and the pinned card.
-	 */
-	const ENTRY_RADIUS = '0.5rem';
-
 	// Term meta key storing the coverage's latest entry modified timestamp.
 	const LAST_MODIFIED_META_KEY = 'rolling_coverage_last_modified';
 
@@ -1831,7 +1826,7 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * A parsed entry group: a group holding what an entry that isn't pinned
-	 * shows, with the pinned card's corners and nothing else of its look.
+	 * shows, with none of the pinned card's look.
 	 *
 	 * @param array[] $inner_blocks Parsed blocks inside the group.
 	 * @return array Parsed-block-shaped array.
@@ -1839,7 +1834,6 @@ class Rolling_Coverage_Block {
 	private static function regular_entry_block( array $inner_blocks ): array {
 		$style  = [
 			'spacing' => [ 'blockGap' => self::DEFAULT_ENTRY_GAP ],
-			'border'  => [ 'radius' => self::ENTRY_RADIUS ],
 		];
 		$styles = wp_style_engine_get_styles( $style );
 		$open   = sprintf(
@@ -1862,8 +1856,8 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * A parsed pinned card: a group whose background, padding and corners
-	 * mark out a pinned entry, holding the given blocks.
+	 * A parsed pinned card: a group whose background and padding mark out a
+	 * pinned entry, holding the given blocks.
 	 *
 	 * @param array[] $inner_blocks Parsed blocks inside the card.
 	 * @return array Parsed-block-shaped array.
@@ -1880,7 +1874,6 @@ class Rolling_Coverage_Block {
 				],
 				'blockGap' => self::DEFAULT_ENTRY_GAP,
 			],
-			'border'  => [ 'radius' => self::ENTRY_RADIUS ],
 		];
 		$styles = wp_style_engine_get_styles( $style );
 		$open   = sprintf(

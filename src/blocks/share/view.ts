@@ -172,7 +172,7 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		const originalText = button.textContent || '';
+		const originalContent = Array.from( button.childNodes );
 		const originalLabel = button.getAttribute( 'aria-label' ) || '';
 		// The icon-only share button keeps its icon; its label and the snackbar say it's copied.
 		const isIconOnly = !! button.querySelector( 'svg' );
@@ -189,8 +189,14 @@ function initBlock( root: HTMLElement ): void {
 
 		setTimeout( () => {
 			if ( ! isIconOnly ) {
-				button.textContent =
-					originalText || __( 'Share', 'newspack-rolling-coverage' );
+				if ( originalContent.length ) {
+					button.replaceChildren( ...originalContent );
+				} else {
+					button.textContent = __(
+						'Share',
+						'newspack-rolling-coverage'
+					);
+				}
 			}
 			if ( originalLabel ) {
 				button.setAttribute( 'aria-label', originalLabel );

@@ -621,15 +621,10 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The default Entry group's opening tag carries the Pinned Entry's corner radius as its only inline style, with or without a closing semicolon.
+	 * The default layout's entries render with square corners.
 	 */
-	public function test_default_entry_group_has_the_card_radius() {
-		$radius = 'border-radius:' . Rolling_Coverage_Block::ENTRY_RADIUS;
-
-		$this->assertMatchesRegularExpression(
-			'/<div class="wp-block-group newspack-rolling-coverage-regular-entry[^"]*" style="' . preg_quote( $radius, '/' ) . ';?"/',
-			$this->render_with_shared( '' )
-		);
+	public function test_default_entries_render_without_a_border_radius() {
+		$this->assertMatchesRegularExpression( '/<div class="wp-block-group newspack-rolling-coverage-regular-entry[^"]*"(?![^>]*border-radius)[^>]*>/', $this->render_with_shared( '' ) );
 	}
 
 	/**

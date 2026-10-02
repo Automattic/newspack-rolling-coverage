@@ -132,10 +132,16 @@ const REGULAR_ENTRY_CLASS = 'newspack-rolling-coverage-regular-entry';
 const DEFAULT_ENTRY_GAP = 'var:preset|spacing|20';
 
 /**
- * The corner radius of the entry group and the pinned card, mirroring
- * Rolling_Coverage_Block::ENTRY_RADIUS.
+ * The corner radius of the Cards layout's cards.
  */
-const ENTRY_RADIUS = '0.5rem';
+const CARD_RADIUS = '0.5rem';
+
+const CARD_PADDING = {
+	top: 'var:preset|spacing|50',
+	right: 'var:preset|spacing|50',
+	bottom: 'var:preset|spacing|50',
+	left: 'var:preset|spacing|50',
+};
 
 /**
  * What an entry shows: the date and title stacked with the share button
@@ -251,16 +257,7 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 			lock: LOCKED_IN_PLACE,
 			style: {
 				color: { background: PINNED_CARD_BACKGROUND },
-				spacing: {
-					padding: {
-						top: 'var:preset|spacing|50',
-						right: 'var:preset|spacing|50',
-						bottom: 'var:preset|spacing|50',
-						left: 'var:preset|spacing|50',
-					},
-					blockGap: DEFAULT_ENTRY_GAP,
-				},
-				border: { radius: ENTRY_RADIUS },
+				spacing: { padding: CARD_PADDING, blockGap: DEFAULT_ENTRY_GAP },
 			},
 			metadata: {
 				name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
@@ -275,7 +272,6 @@ const ENTRY_TEMPLATE: TemplateItem[] = [
 			lock: LOCKED_IN_PLACE,
 			style: {
 				spacing: { blockGap: DEFAULT_ENTRY_GAP },
-				border: { radius: ENTRY_RADIUS },
 			},
 			metadata: {
 				name: __( 'Entry', 'newspack-rolling-coverage' ),
@@ -493,21 +489,18 @@ const SHARE_CLASS = 'newspack-rolling-coverage-share';
 
 const CARD_BORDER_COLOR =
 	'var(--wp--preset--color--base-3, var(--newspack-theme-color-border, #ddd))';
-const CARD_ACCENT =
-	'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
-const CARD_PADDING = {
-	top: 'var:preset|spacing|50',
-	right: 'var:preset|spacing|50',
-	bottom: 'var:preset|spacing|50',
-	left: 'var:preset|spacing|50',
-};
+const CARD_CONTRAST =
+	'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main))';
+const CARD_BASE =
+	'var(--wp--preset--color--base, var(--newspack-theme-color-bg-body, #fff))';
 
 /**
  * What a Cards entry shows: the date and title stacked, the content, then a
- * footer with "Read more" and "Share" links. "Share" fills the rest of the
- * footer, aligned right, so it stays right when there is no "Read more".
- * The pinned card's also carry the pinned row, and its date takes the
- * card's accent color.
+ * footer with "Read more" and "Share" links. The footer packs its links to
+ * the end and "Read more" fills the space before "Share", so "Share" stays
+ * at the end with or without "Read more", in either text direction. The
+ * pinned card's blocks also carry the pinned row, and its date takes the
+ * card's text color.
  *
  * @param {boolean} isPinned Whether the blocks are the pinned card's.
  * @return {TemplateItem[]} The entry's blocks.
@@ -519,7 +512,7 @@ function cardsEntryBlocks( isPinned: boolean ): TemplateItem[] {
 			...POST_DATE_ATTRIBUTES,
 			format: 'human-diff',
 			fontSize: 'small',
-			...( isPinned ? { style: { color: { text: CARD_ACCENT } } } : {} ),
+			...( isPinned ? { style: { color: { text: CARD_BASE } } } : {} ),
 		},
 	];
 	const title: TemplateItem = [ 'core/post-title', { level: 4 } ];
@@ -555,7 +548,7 @@ function cardsEntryBlocks( isPinned: boolean ): TemplateItem[] {
 				layout: {
 					type: 'flex',
 					flexWrap: 'nowrap',
-					justifyContent: 'space-between',
+					justifyContent: 'right',
 				},
 				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
 				metadata: {
@@ -569,6 +562,7 @@ function cardsEntryBlocks( isPinned: boolean ): TemplateItem[] {
 						className: `use-header-font ${ READ_MORE_CLASS }`,
 						content: __( 'Read more', 'newspack-rolling-coverage' ),
 						fontSize: 'small',
+						style: { layout: { selfStretch: 'fill' } },
 						lock: LOCKED,
 						metadata: {
 							name: __(
@@ -584,10 +578,6 @@ function cardsEntryBlocks( isPinned: boolean ): TemplateItem[] {
 						className: `use-header-font ${ SHARE_CLASS }`,
 						content: __( 'Share', 'newspack-rolling-coverage' ),
 						fontSize: 'small',
-						style: {
-							layout: { selfStretch: 'fill' },
-							typography: { textAlign: 'right' },
-						},
 						metadata: {
 							name: __( 'Share', 'newspack-rolling-coverage' ),
 						},
@@ -600,8 +590,9 @@ function cardsEntryBlocks( isPinned: boolean ): TemplateItem[] {
 
 /**
  * The Cards layout's per-entry template: each entry in a bordered card, so
- * no separator closes it. The pinned card takes the accent color for its
- * border and everything inside it.
+ * no separator closes it. The pinned card is set in reverse: a contrast
+ * background and border, with its text, links and headings in the base
+ * color.
  */
 const CARDS_ENTRY_TEMPLATE: TemplateItem[] = [
 	[
@@ -610,17 +601,17 @@ const CARDS_ENTRY_TEMPLATE: TemplateItem[] = [
 			className: PINNED_CARD_CLASS,
 			lock: LOCKED_IN_PLACE,
 			style: {
-				color: { text: CARD_ACCENT },
+				color: { background: CARD_CONTRAST, text: CARD_BASE },
 				elements: {
-					link: { color: { text: CARD_ACCENT } },
-					heading: { color: { text: CARD_ACCENT } },
+					link: { color: { text: CARD_BASE } },
+					heading: { color: { text: CARD_BASE } },
 				},
 				spacing: { padding: CARD_PADDING, blockGap: DEFAULT_ENTRY_GAP },
 				border: {
-					color: CARD_ACCENT,
+					color: CARD_CONTRAST,
 					style: 'solid',
 					width: '1px',
-					radius: ENTRY_RADIUS,
+					radius: CARD_RADIUS,
 				},
 			},
 			metadata: {
@@ -640,7 +631,7 @@ const CARDS_ENTRY_TEMPLATE: TemplateItem[] = [
 					color: CARD_BORDER_COLOR,
 					style: 'solid',
 					width: '1px',
-					radius: ENTRY_RADIUS,
+					radius: CARD_RADIUS,
 				},
 			},
 			metadata: {

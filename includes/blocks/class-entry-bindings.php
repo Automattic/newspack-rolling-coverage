@@ -371,7 +371,7 @@ class Entry_Bindings {
 
 		$open = new WP_HTML_Tag_Processor( '<a>' );
 		$open->next_tag();
-		$open->set_attribute( 'href', esc_url( $url ) );
+		$open->set_attribute( 'href', $url );
 		$open->set_attribute( self::SHARE_ATTRIBUTE, '' );
 		$open->set_attribute( 'role', 'button' );
 		$open->set_attribute( 'aria-label', self::share_name( self::plain_text( $block_content ), $entry_id ) );
