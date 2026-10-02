@@ -1,17 +1,17 @@
 <?php
 /**
- * Tests for the site-wide status indicator labels.
+ * Tests for the site-wide Coverage Status block labels.
  *
  * @package Newspack_Rolling_Coverage
  */
 
-use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
+use Newspack_Rolling_Coverage\Coverage_Status_Block;
 use Newspack_Rolling_Coverage\Status_Labels;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
- * A site can set the status indicator's text for each status; a block's own
- * label still wins, and an empty site label falls back to the built-in one.
+ * A site can set the Coverage Status block's text for each status; a block's
+ * own label still wins, and an empty site label falls back to the built-in one.
  */
 class Test_Status_Labels extends Rolling_Coverage_TestCase {
 
@@ -21,6 +21,16 @@ class Test_Status_Labels extends Rolling_Coverage_TestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		if ( ! WP_Block_Type_Registry::get_instance()->is_registered( Coverage_Status_Block::BLOCK_NAME ) ) {
+			register_block_type(
+				Coverage_Status_Block::BLOCK_NAME,
+				[
+					'uses_context'    => [ 'postId' ],
+					'render_callback' => [ Coverage_Status_Block::class, 'render_block' ],
+				]
+			);
+		}
 	}
 
 	/**
@@ -40,22 +50,22 @@ class Test_Status_Labels extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Render a block with the status indicator on.
+	 * Render a Coverage Status block on a page holding a feed.
 	 *
 	 * @param int   $coverage_id Coverage term ID.
 	 * @param array $labels      The block's own labels.
 	 * @return string Rendered block.
 	 */
-	private static function render_indicator( int $coverage_id, array $labels = [] ): string {
-		$attributes = [
-			'coverageId'            => $coverage_id,
-			'statusIndicatorShow'   => true,
-			'statusIndicatorLabels' => $labels,
-		];
-		$feed       = '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed"></div><!-- /wp:group -->';
-		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $feed . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+	private function render_indicator( int $coverage_id, array $labels = [] ): string {
+		$page_id = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->',
+			]
+		);
+		$this->go_to( get_permalink( $page_id ) );
 
-		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+		return do_blocks( '<!-- wp:newspack-rolling-coverage/coverage-status ' . wp_json_encode( [ 'labels' => $labels ] ) . ' /-->' );
 	}
 
 	/**
@@ -172,8 +182,8 @@ class Test_Status_Labels extends Rolling_Coverage_TestCase {
 		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
 		self::save( [ 'archived' => 'Over' ] );
 
-		$this->assertStringContainsString( '>Over</span>', self::render_indicator( $coverage_id ), "The site's label." );
-		$this->assertStringContainsString( '>Finished</span>', self::render_indicator( $coverage_id, [ 'archived' => 'Finished' ] ), "The block's label." );
-		$this->assertStringContainsString( '>Over</span>', self::render_indicator( $coverage_id, [ 'archived' => ' ' ] ), "A blank block label falls back to the site's." );
+		$this->assertStringContainsString( '>Over</span>', $this->render_indicator( $coverage_id ), "The site's label." );
+		$this->assertStringContainsString( '>Finished</span>', $this->render_indicator( $coverage_id, [ 'archived' => 'Finished' ] ), "The block's label." );
+		$this->assertStringContainsString( '>Over</span>', $this->render_indicator( $coverage_id, [ 'archived' => ' ' ] ), "A blank block label falls back to the site's." );
 	}
 }

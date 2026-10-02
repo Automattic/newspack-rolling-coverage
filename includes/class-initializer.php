@@ -31,6 +31,7 @@ class Initializer {
 	private static function includes() {
 		Post_Type::init();
 		Taxonomy::init();
+		Newest_Entry::init();
 		Slack::init();
 		Breakout::init();
 		Social_Sharing::init();
@@ -49,6 +50,7 @@ class Initializer {
 		Abilities::init();
 		Schema::init();
 		Coverage_Follow_Block::init();
+		Coverage_Status_Block::init();
 		Push_Notifications::init();
 
 		// Admin interface (only load in admin context).

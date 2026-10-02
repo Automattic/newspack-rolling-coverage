@@ -1,6 +1,6 @@
 <?php
 /**
- * Site-wide labels for the Rolling Coverage block's status indicator.
+ * Site-wide labels for the Coverage Status block's status indicator.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -14,7 +14,7 @@ use WP_REST_Server;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The text the status indicator shows for each coverage status when a block
+ * The text the Coverage Status block shows for each coverage status when it
  * sets none: the site's own label, or the built-in one.
  */
 class Status_Labels {

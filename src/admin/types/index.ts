@@ -378,7 +378,7 @@ interface AiSettingsResult extends ApiResult {
 }
 
 /**
- * The status indicator's text for each coverage status.
+ * The Coverage Status block's text for each coverage status.
  */
 interface StatusLabels {
 	active: string;

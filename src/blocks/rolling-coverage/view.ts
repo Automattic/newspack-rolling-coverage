@@ -8,7 +8,9 @@ import { __, _n, sprintf } from '@wordpress/i18n';
  */
 import './style.scss';
 import { trackEvent, isConfigEnabled, EVENTS } from './analytics';
-import { keepRelativeDatesCurrent } from './relative-dates';
+import { keepRelativeDatesCurrent } from '../shared/relative-dates';
+import { POLL_EVENT } from '../shared/poll-event';
+import type { PollEventDetail } from '../shared/poll-event';
 import type {
 	AdSlot,
 	PendingEntry,
@@ -1005,10 +1007,10 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Whether a fetched block can replace the shared view in place. It can't
 	 * when it is itself a shared view, when the coverage's status has changed
-	 * since this page rendered, as the Follow button, archived notice and
-	 * status indicator depend on it, when it holds ads, which need the page's
-	 * own ad setup to run, or when its entries hold scripts or interactive
-	 * blocks, which would never start.
+	 * since this page rendered, as the Follow button and archived notice
+	 * depend on it, when it holds ads, which need the page's own ad setup to
+	 * run, or when its entries hold scripts or interactive blocks, which would
+	 * never start.
 	 *
 	 * @param {HTMLElement | null} live The fetched block.
 	 * @return {boolean} True if the block can be shown in place.
@@ -1731,6 +1733,18 @@ function initBlock( root: HTMLElement ): void {
 				}
 
 				minPollInterval = Number( data.minPollInterval ) || 0;
+
+				if ( typeof data.status === 'string' ) {
+					document.dispatchEvent(
+						new CustomEvent< PollEventDetail >( POLL_EVENT, {
+							detail: {
+								coverageId: Number( coverageId ),
+								status: data.status,
+								newestEntry: data.newestEntry ?? null,
+							},
+						} )
+					);
+				}
 
 				if ( data.overflow && isEntryView ) {
 					// A reload lands on the same shared URL, so there is nothing
