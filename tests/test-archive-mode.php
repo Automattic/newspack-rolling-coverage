@@ -138,6 +138,7 @@ class Test_Archive_Mode extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 'rolling_coverage_entry_locked', $response->get_data()['code'] ?? null, 'The save should be refused with the entry-locked error.' );
 		$this->assertSame( 403, $response->get_status(), 'The refusal should be a 403.' );
+		$this->assertStringContainsString( '“Ended”', $response->get_data()['message'], "The refusal should name the site's label for the status." );
 		$this->assertSame( [ $open_coverage_id ], wp_get_post_terms( $entry_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] ), 'The entry should stay in its coverage.' );
 	}
 
@@ -225,7 +226,10 @@ class Test_Archive_Mode extends Rolling_Coverage_TestCase {
 		$entry_id = self::create_entry( self::create_coverage( Taxonomy::STATUS_ARCHIVED ) );
 		update_post_meta( $entry_id, Archive_Mode::ENTRY_ARCHIVED_META_KEY, time() );
 
-		$this->assertStringContainsString( '“Over”', self::set_entry_archived( $entry_id, false )->get_data()['message'] );
+		$response = self::set_entry_archived( $entry_id, false );
+
+		$this->assertSame( 'rolling_coverage_coverage_archived', $response->get_data()['code'] ?? null, 'The change should be refused because the coverage has ended.' );
+		$this->assertStringContainsString( '“Over”', $response->get_data()['message'] );
 	}
 
 	/**

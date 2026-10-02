@@ -516,7 +516,7 @@ function EntryView() {
 					describedBy={ sprintf(
 						/* translators: 1: The coverage's status, e.g. "Ended". 2: The status that allows new entries, e.g. "Live". */
 						__(
-							'This coverage is set to “%1$s”. Set it back to “%2$s” to add entries.',
+							'This coverage is set to “%1$s”. Set it to “%2$s” to add entries.',
 							'newspack-rolling-coverage'
 						),
 						statusLabels.archived,

@@ -140,6 +140,25 @@ class Archive_Mode {
 	}
 
 	/**
+	 * The error returned when an entry can't change because its coverage
+	 * has ended, naming the status as the site labels it.
+	 *
+	 * @param string $code Error code.
+	 * @return WP_Error
+	 */
+	public static function coverage_ended_error( string $code ) {
+		return new WP_Error(
+			$code,
+			sprintf(
+				/* translators: %s: The status that ends a coverage, e.g. "Ended". */
+				__( 'This entry’s coverage is set to “%s”; change its status first.', 'newspack-rolling-coverage' ),
+				Status_Labels::get_all()[ Taxonomy::STATUS_ARCHIVED ]
+			),
+			[ 'status' => 403 ]
+		);
+	}
+
+	/**
 	 * The error returned when an entry is assigned to an archived coverage.
 	 *
 	 * @return WP_Error
@@ -147,7 +166,11 @@ class Archive_Mode {
 	public static function archived_error() {
 		return new WP_Error(
 			'rolling_coverage_entry_locked',
-			__( 'This entry cannot be assigned to an archived coverage.', 'newspack-rolling-coverage' ),
+			sprintf(
+				/* translators: %s: The status that ends a coverage, e.g. "Ended". */
+				__( 'This entry can’t be added to a coverage set to “%s”.', 'newspack-rolling-coverage' ),
+				Status_Labels::get_all()[ Taxonomy::STATUS_ARCHIVED ]
+			),
 			[ 'status' => 403 ]
 		);
 	}
@@ -252,15 +275,7 @@ class Archive_Mode {
 		if ( ! is_wp_error( $coverage_ids ) ) {
 			foreach ( $coverage_ids as $coverage_id ) {
 				if ( self::is_coverage_archived( $coverage_id ) ) {
-					return new WP_Error(
-						'rolling_coverage_coverage_archived',
-						sprintf(
-							/* translators: %s: The status that ends a coverage, e.g. "Ended". */
-							__( "This entry's coverage is set to “%s”; change its status first.", 'newspack-rolling-coverage' ),
-							Status_Labels::get_all()[ Taxonomy::STATUS_ARCHIVED ]
-						),
-						[ 'status' => 403 ]
-					);
+					return self::coverage_ended_error( 'rolling_coverage_coverage_archived' );
 				}
 			}
 		}

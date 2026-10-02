@@ -48,9 +48,9 @@ function getEditWarningMessage( entry: Entry ): string {
 		case 'coverage-archived':
 		case 'coverage-paused':
 			return sprintf(
-				/* translators: %s: The coverage's status, e.g. "Ended". */
+				/* translators: %s: The coverage's status, e.g. "Paused" or "Ended". */
 				__(
-					"This entry's coverage is set to “%s”, are you sure you want to edit it?",
+					'This entry’s coverage is set to “%s”. Edit it anyway?',
 					'newspack-rolling-coverage'
 				),
 				getStatusLabel(
