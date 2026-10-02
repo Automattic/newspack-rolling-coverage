@@ -33,7 +33,8 @@ class Newest_Entry {
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
-		add_action( 'transition_post_status', [ __CLASS__, 'on_status_change' ], 10, 3 );
+		// After Post_Type records the publish time at priority 10, which the refresh reads.
+		add_action( 'transition_post_status', [ __CLASS__, 'on_status_change' ], 20, 3 );
 		add_action( 'set_object_terms', [ __CLASS__, 'on_terms_change' ], 10, 6 );
 		add_action( 'before_delete_post', [ __CLASS__, 'before_delete' ], 10, 2 );
 		add_action( 'deleted_post', [ __CLASS__, 'after_delete' ], 10, 1 );
@@ -165,14 +166,14 @@ class Newest_Entry {
 	 * @param bool   $append     Whether terms were appended.
 	 * @param array  $old_tt_ids Term taxonomy IDs set before.
 	 */
-	public static function on_terms_change( $object_id, $terms, $tt_ids, $taxonomy, $append, $old_tt_ids ): void {
-		if ( Taxonomy::TAXONOMY_SLUG !== $taxonomy || 'publish' !== get_post_status( (int) $object_id ) || Post_Type::CPT_SLUG !== get_post_type( (int) $object_id ) ) {
+	public static function on_terms_change( int $object_id, array $terms, array $tt_ids, string $taxonomy, bool $append, array $old_tt_ids ): void {
+		if ( Taxonomy::TAXONOMY_SLUG !== $taxonomy || 'publish' !== get_post_status( $object_id ) || Post_Type::CPT_SLUG !== get_post_type( $object_id ) ) {
 			return;
 		}
 
 		$coverage_ids = [];
 
-		foreach ( array_unique( array_merge( (array) $tt_ids, (array) $old_tt_ids ) ) as $tt_id ) {
+		foreach ( array_unique( array_merge( $tt_ids, $old_tt_ids ) ) as $tt_id ) {
 			$term = get_term_by( 'term_taxonomy_id', (int) $tt_id, Taxonomy::TAXONOMY_SLUG );
 
 			if ( $term ) {
@@ -190,9 +191,9 @@ class Newest_Entry {
 	 * @param int     $post_id Post ID.
 	 * @param WP_Post $post    Post object.
 	 */
-	public static function before_delete( $post_id, $post ): void {
-		if ( $post instanceof WP_Post && Post_Type::CPT_SLUG === $post->post_type && 'publish' === $post->post_status ) {
-			self::$deleting[ (int) $post_id ] = self::coverage_ids( (int) $post_id );
+	public static function before_delete( int $post_id, WP_Post $post ): void {
+		if ( Post_Type::CPT_SLUG === $post->post_type && 'publish' === $post->post_status ) {
+			self::$deleting[ $post_id ] = self::coverage_ids( $post_id );
 		}
 	}
 
@@ -201,9 +202,9 @@ class Newest_Entry {
 	 *
 	 * @param int $post_id Post ID.
 	 */
-	public static function after_delete( $post_id ): void {
-		$coverage_ids = self::$deleting[ (int) $post_id ] ?? [];
-		unset( self::$deleting[ (int) $post_id ] );
+	public static function after_delete( int $post_id ): void {
+		$coverage_ids = self::$deleting[ $post_id ] ?? [];
+		unset( self::$deleting[ $post_id ] );
 
 		self::refresh_all( $coverage_ids );
 	}

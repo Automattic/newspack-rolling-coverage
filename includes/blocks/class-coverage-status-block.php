@@ -43,7 +43,7 @@ class Coverage_Status_Block {
 	/**
 	 * Initialize hooks.
 	 */
-	public static function init() {
+	public static function init(): void {
 		add_action( 'init', [ __CLASS__, 'register_block' ] );
 		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'localize_editor_config' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_rest_fields' ] );
@@ -52,7 +52,7 @@ class Coverage_Status_Block {
 	/**
 	 * Registers the block type.
 	 */
-	public static function register_block() {
+	public static function register_block(): void {
 		register_block_type(
 			NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/blocks/coverage-status',
 			[
@@ -65,12 +65,12 @@ class Coverage_Status_Block {
 	 * Adds the newest entry's publish moment to the coverage REST record, so
 	 * the editor preview shows the same time as the front end.
 	 */
-	public static function register_rest_fields() {
+	public static function register_rest_fields(): void {
 		register_rest_field(
 			Taxonomy::TAXONOMY_SLUG,
 			self::NEWEST_ENTRY_REST_FIELD,
 			[
-				'get_callback' => fn( $term ) => Newest_Entry::get_iso( (int) $term['id'] ),
+				'get_callback' => [ __CLASS__, 'get_newest_entry_rest_field' ],
 				'schema'       => [
 					'description' => __( 'When the newest published entry went out, as ISO 8601.', 'newspack-rolling-coverage' ),
 					'type'        => [ 'string', 'null' ],
@@ -83,9 +83,24 @@ class Coverage_Status_Block {
 	}
 
 	/**
+	 * The newest entry's publish moment for the coverage REST record, shown
+	 * to people who can edit only.
+	 *
+	 * @param array $term Coverage term REST data.
+	 * @return string|null ISO 8601 date, or null without entries or access.
+	 */
+	public static function get_newest_entry_rest_field( array $term ): ?string {
+		if ( ! isset( $term['id'] ) || ! current_user_can( 'edit_posts' ) ) {
+			return null;
+		}
+
+		return Newest_Entry::get_iso( (int) $term['id'] );
+	}
+
+	/**
 	 * Gives the editor script what its preview needs.
 	 */
-	public static function localize_editor_config() {
+	public static function localize_editor_config(): void {
 		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( self::BLOCK_NAME );
 
 		if ( ! $block_type instanceof WP_Block_Type ) {
@@ -113,15 +128,15 @@ class Coverage_Status_Block {
 	 * @param WP_Block $block      Block instance.
 	 * @return string Rendered HTML, or '' when the page has no feed to follow.
 	 */
-	public static function render_block( $attributes, $content, WP_Block $block ) {
-		$coverage_id = self::followed_coverage_id( (array) $attributes, $block );
+	public static function render_block( array $attributes, string $content, WP_Block $block ): string {
+		$coverage_id = self::followed_coverage_id( $attributes, $block );
 
 		if ( ! $coverage_id ) {
 			return '';
 		}
 
 		$status  = Rolling_Coverage_Block::coverage_status( $coverage_id );
-		$labels  = self::labels( (array) $attributes );
+		$labels  = self::labels( $attributes );
 		$wrapper = [
 			'data-coverage-id' => $coverage_id,
 			'data-status'      => $status,
@@ -155,6 +170,10 @@ class Coverage_Status_Block {
 		$post = $post_id ? get_post( $post_id ) : null;
 
 		if ( ! $post || post_password_required( $post ) ) {
+			return [];
+		}
+
+		if ( ! has_block( Rolling_Coverage_Block::BLOCK_NAME, $post ) && ! has_block( 'core/block', $post ) ) {
 			return [];
 		}
 

@@ -41,6 +41,7 @@ declare global {
 const FEED_BLOCK = 'newspack-rolling-coverage/rolling-coverage';
 const TEMPLATE_TYPES = [ 'wp_template', 'wp_template_part' ];
 const NAME_SEPARATOR = '\u0000';
+const VIEW_CONTEXT = { context: 'view' };
 const SAMPLE_AGE_MS = 2 * 60 * 1000;
 
 const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {
@@ -94,6 +95,18 @@ export default function Edit( {
 			const editor = select( editorStore ) as unknown as {
 				getCurrentPostType: () => string | undefined;
 			};
+			const core = select( coreStore ) as unknown as {
+				getEntityRecord: (
+					kind: string,
+					name: string,
+					id: number,
+					query: Record< string, string >
+				) => { meta?: Record< string, string > } | null | undefined;
+				hasFinishedResolution: (
+					selector: string,
+					args: unknown[]
+				) => boolean;
+			};
 			const isTemplate = TEMPLATE_TYPES.includes(
 				editor.getCurrentPostType() ?? ''
 			);
@@ -116,7 +129,33 @@ export default function Edit( {
 										?.coverageId
 								) || 0
 						)
-						.filter( Boolean );
+						.filter( Boolean )
+						.filter( ( id: number ) => {
+							const args = [
+								'taxonomy',
+								config.taxonomySlug,
+								id,
+								VIEW_CONTEXT,
+							];
+							const term = core.getEntityRecord(
+								'taxonomy',
+								config.taxonomySlug,
+								id,
+								VIEW_CONTEXT
+							);
+							const missing =
+								term === null ||
+								( term === undefined &&
+									core.hasFinishedResolution(
+										'getEntityRecord',
+										args
+									) );
+
+							return (
+								! missing &&
+								term?.meta?.[ config.statusMetaKey ] !== 'trash'
+							);
+						} );
 
 			return {
 				feedKey: Array.from( new Set< number >( ids ) ).join( ',' ),
@@ -141,11 +180,17 @@ export default function Edit( {
 				getEntityRecord: (
 					kind: string,
 					name: string,
-					id: number
+					id: number,
+					query: Record< string, string >
 				) => unknown;
 			};
 			const getTerm = ( id: number ) =>
-				core.getEntityRecord( 'taxonomy', config.taxonomySlug, id ) as
+				core.getEntityRecord(
+					'taxonomy',
+					config.taxonomySlug,
+					id,
+					VIEW_CONTEXT
+				) as
 					| {
 							name?: string;
 							newestEntry?: string | null;

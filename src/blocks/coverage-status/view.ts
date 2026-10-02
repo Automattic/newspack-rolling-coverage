@@ -41,9 +41,7 @@ function applyPoll( block: HTMLElement, detail: PollEventDetail ): void {
 	const time = updated?.querySelector( 'time' );
 
 	if ( updated && time ) {
-		if ( detail.newestEntry ) {
-			time.dateTime = detail.newestEntry;
-		}
+		time.dateTime = detail.newestEntry ?? '';
 
 		updated.hidden = status !== 'active' || ! time.dateTime;
 	}
