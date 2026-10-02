@@ -1054,9 +1054,10 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Several images keep the order they were uploaded in.
+	 * Photos posted together show as one gallery below the text, in the order
+	 * they were uploaded, each still an image of its own.
 	 */
-	public function test_several_images_keep_their_order() {
+	public function test_several_images_become_one_gallery_in_upload_order() {
 		$coverage_id = self::deliver_to_linked_channel(
 			[
 				'files' => [
@@ -1065,8 +1066,39 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 				],
 			]
 		);
+		$content     = self::get_coverage_entries( $coverage_id )[0]->post_content;
+		$blocks      = array_values( array_filter( parse_blocks( $content ), static fn( $block ) => null !== $block['blockName'] ) );
 
-		$this->assertMatchesRegularExpression( '#first\.png.*second\.png#s', self::get_coverage_entries( $coverage_id )[0]->post_content );
+		$this->assertSame( [ 'core/paragraph', 'core/gallery' ], wp_list_pluck( $blocks, 'blockName' ), 'The text should be followed by one gallery.' );
+		$this->assertSame( [ 'core/image', 'core/image' ], wp_list_pluck( $blocks[1]['innerBlocks'], 'blockName' ), 'Each photo should be an image in the gallery.' );
+		$this->assertStringContainsString( "<!-- wp:gallery {\"linkTo\":\"none\"} -->\n<figure class=\"wp-block-gallery has-nested-images columns-default is-cropped\">", $content, 'The gallery should be saved as the editor saves one.' );
+		$this->assertMatchesRegularExpression( '#first\.png.*second\.png#s', $content, 'The photos should keep their upload order.' );
+	}
+
+	/**
+	 * When only one of a message's images can be imported, it is shown as an
+	 * image, not as a gallery of one.
+	 */
+	public function test_single_imported_image_is_not_put_in_a_gallery() {
+		$this->silence_error_log();
+
+		$coverage_id = self::deliver_to_linked_channel(
+			[
+				'files' => [
+					self::slack_file(),
+					self::slack_file(
+						[
+							'name'        => 'second.png',
+							'url_private' => '',
+						]
+					),
+				],
+			]
+		);
+		$content     = self::get_coverage_entries( $coverage_id )[0]->post_content;
+
+		$this->assertStringContainsString( '<!-- wp:image ', $content, 'The imported image should be in the entry.' );
+		$this->assertStringNotContainsString( 'wp:gallery', $content, 'It should not be wrapped in a gallery.' );
 	}
 
 	/**

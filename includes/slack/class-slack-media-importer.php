@@ -93,7 +93,8 @@ class Slack_Media_Importer {
 	 * @param callable|null $on_progress Called while WordPress processes each
 	 *                                   image, which can take longer than the
 	 *                                   download.
-	 * @return string Block markup, one image block per imported image, or ''.
+	 * @return string Block markup: an image block for one imported image, a
+	 *                gallery of image blocks for several, or ''.
 	 */
 	public function import( array $files, ?callable $on_progress = null ): string {
 		$blocks      = [];
@@ -133,7 +134,14 @@ class Slack_Media_Importer {
 			$blocks[] = $this->image_block( $attachment_id, $alt );
 		}
 
-		return implode( "\n\n", array_filter( $blocks ) );
+		$blocks = array_values( array_filter( $blocks ) );
+
+		if ( count( $blocks ) < 2 ) {
+			return implode( '', $blocks );
+		}
+
+		// Photos posted together are shown together, as the gallery an editor would insert, with its default layout.
+		return "<!-- wp:gallery {\"linkTo\":\"none\"} -->\n<figure class=\"wp-block-gallery has-nested-images columns-default is-cropped\">" . implode( "\n\n", $blocks ) . "</figure>\n<!-- /wp:gallery -->";
 	}
 
 	/**

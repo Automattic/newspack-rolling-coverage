@@ -784,6 +784,30 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * On a theme that loads block styles only for the blocks on the page, a
+	 * coverage still loads the image and gallery styles, for Slack photos
+	 * that arrive later by polling.
+	 */
+	public function test_coverage_loads_the_styles_of_photos_that_arrive_later() {
+		$previous_styles      = $GLOBALS['wp_styles'] ?? null;
+		$GLOBALS['wp_styles'] = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- A registry of this test's own, so its handles and queue do not outlive it.
+		add_filter( 'should_load_separate_core_block_assets', '__return_true' );
+		register_core_block_style_handles();
+
+		try {
+			$attributes = [ 'coverageId' => self::create_coverage() ];
+			$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+
+			Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+			$this->assertTrue( wp_style_is( 'wp-block-image' ), 'The image styles should be loaded.' );
+			$this->assertTrue( wp_style_is( 'wp-block-gallery' ), 'The gallery styles should be loaded.' );
+		} finally {
+			$GLOBALS['wp_styles'] = $previous_styles; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		}
+	}
+
+	/**
 	 * Block spacing settings and the space they give.
 	 *
 	 * @return array[]

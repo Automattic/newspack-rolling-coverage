@@ -645,8 +645,8 @@ class Rolling_Coverage_Block {
 		$previous_post_id   = self::$host_post_id;
 		self::$host_post_id = (int) get_the_ID();
 
-		// Preload so polled entries' blocks are styled and share even if none appeared on initial render.
-		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon' ] as $entry_block_name ) {
+		// Preload so polled entries' blocks, including the photos Slack messages add, are styled and share even if none appeared on initial render.
+		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon', 'core/image', 'core/gallery' ] as $entry_block_name ) {
 			$entry_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $entry_block_name );
 
 			foreach ( $entry_block_type ? $entry_block_type->style_handles : [] as $style_handle ) {
