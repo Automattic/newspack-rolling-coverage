@@ -23,7 +23,7 @@ import type { StatusLabels } from '../types';
 const EMPTY_LABELS: StatusLabels = { active: '', paused: '', archived: '' };
 
 /**
- * Site-wide settings for Rolling Coverage: the status indicator's default
+ * Site-wide settings for Rolling Coverage: the Coverage Status block's default
  * labels, used by every block that doesn't set its own.
  *
  * @param {Object}   props         Component props.

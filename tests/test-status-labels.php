@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for the site-wide status indicator labels.
+ * Tests for the site-wide Coverage Status block labels.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -10,8 +10,8 @@ use Newspack_Rolling_Coverage\Status_Labels;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
- * A site can set the status indicator's text for each status; a block's own
- * label still wins, and an empty site label falls back to the built-in one.
+ * A site can set the Coverage Status block's text for each status; a block's
+ * own label still wins, and an empty site label falls back to the built-in one.
  */
 class Test_Status_Labels extends Rolling_Coverage_TestCase {
 
