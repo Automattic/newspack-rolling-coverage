@@ -11,7 +11,8 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 		display: flex;
 		gap: $feed-gap;
 
-		&:not(.is-layout-flex) {
+		&:not(.is-layout-flex),
+		&.is-layout-flex.is-vertical {
 			flex-direction: column;
 		}
 	}

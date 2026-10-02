@@ -1180,41 +1180,51 @@ export default function Edit( {
 								'newspack-rolling-coverage'
 							) }
 						/>
-						<Stack direction="column" gap="sm" align="flex-start">
-							<Button
-								variant="secondary"
-								onClick={ () =>
-									setPendingCanonicalUrl(
-										currentPagePermalink || ''
-									)
-								}
-								disabled={
-									isCurrentPageUnsaved ||
-									! currentPagePermalink
-								}
+						{ ! latestOnly && (
+							<Stack
+								direction="column"
+								gap="sm"
+								align="flex-start"
 							>
-								{ __(
-									'Use This Page',
-									'newspack-rolling-coverage'
-								) }
-							</Button>
-							{ ( isCurrentPageUnsaved ||
-								! currentPagePermalink ) && (
-								<p className="components-base-control__help">
+								<Button
+									variant="secondary"
+									onClick={ () =>
+										setPendingCanonicalUrl(
+											currentPagePermalink || ''
+										)
+									}
+									disabled={
+										isCurrentPageUnsaved ||
+										! currentPagePermalink
+									}
+								>
 									{ __(
-										'Save this page to get its permalink.',
+										'Use This Page',
 										'newspack-rolling-coverage'
 									) }
-								</p>
-							) }
-						</Stack>
+								</Button>
+								{ ( isCurrentPageUnsaved ||
+									! currentPagePermalink ) && (
+									<p className="components-base-control__help">
+										{ __(
+											'Save this page to get its permalink.',
+											'newspack-rolling-coverage'
+										) }
+									</p>
+								) }
+							</Stack>
+						) }
 					</>
 				) : null }
 			</PanelBody>
 
 			<PanelBody title={ __( 'Entries', 'newspack-rolling-coverage' ) }>
 				<RadioControl
-					label={ __( 'Show', 'newspack-rolling-coverage' ) }
+					label={ _x(
+						'Show',
+						'which entries the feed shows',
+						'newspack-rolling-coverage'
+					) }
 					selected={ latestOnly ? 'latest' : 'all' }
 					options={ [
 						{
@@ -1595,12 +1605,19 @@ export default function Edit( {
 							'Advertising',
 							'newspack-rolling-coverage'
 						) }
-						help={ __(
-							'Shows ads at a regular interval in the feed.',
-							'newspack-rolling-coverage'
-						) }
+						help={
+							latestOnly
+								? __(
+										'Not shown while the feed shows only the latest entries.',
+										'newspack-rolling-coverage'
+									)
+								: __(
+										'Shows ads at a regular interval in the feed.',
+										'newspack-rolling-coverage'
+									)
+						}
 						value={ enableAds ? 'enabled' : 'disabled' }
-						disabled={ coverageAdsDisabled }
+						disabled={ coverageAdsDisabled || latestOnly }
 						onChange={ ( value ) =>
 							setAttributes( {
 								enableAds: value === 'enabled',
@@ -1638,7 +1655,7 @@ export default function Edit( {
 							}
 						/>
 					</ToggleGroupControl>
-					{ enableAds && ! coverageAdsDisabled && (
+					{ enableAds && ! coverageAdsDisabled && ! latestOnly && (
 						<TextControl
 							__next40pxDefaultSize
 							type="number"

@@ -16,8 +16,8 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Supplies the values core blocks in the Rolling Coverage template are
  * bound to: per entry, the breakout post's link and the share link; per
- * coverage, the follow button's notification tag and the link to the live
- * feed.
+ * coverage, its name, the follow button's notification tag and the link to
+ * the live feed.
  */
 class Entry_Bindings {
 

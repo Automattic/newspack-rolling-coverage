@@ -3005,7 +3005,9 @@ class Rolling_Coverage_Block {
 						'default' => 0,
 					],
 					'latest'       => [
-						'type' => 'integer',
+						'description' => __( 'How many entries a capped feed shows, so its requests stay capped without a stored config.', 'newspack-rolling-coverage' ),
+						'type'        => 'integer',
+						'minimum'     => 1,
 					],
 				],
 			]
@@ -3105,9 +3107,8 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Array_map() callback for get_entries_preview(): reduces a post ID to
-	 * the bare `{ id, type, pinned, hasBreakout, hasTitle }` shape the editor
-	 * preview needs.
+	 * Reduces a post ID to the bare `{ id, type, pinned, hasBreakout, hasTitle }`
+	 * shape the editor preview needs, for get_entries_preview().
 	 *
 	 * @param int  $id          Entry post ID.
 	 * @param bool $ignore_pins Whether to report the entry as unpinned, as a capped feed does.

@@ -665,19 +665,19 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A count that is not a positive number leaves the request uncapped.
+	 * A count that is not a positive number is refused.
 	 */
-	public function test_load_more_ignores_a_count_below_one() {
+	public function test_entries_refuse_a_count_below_one() {
 		$this->create_entry_at( '2026-01-01 11:00:00' );
 
-		$page = $this->get_feed(
+		$response = $this->get_feed(
 			[
 				'before'       => '2026-01-01 12:00:00',
 				'template_key' => 'pruned',
 				'latest'       => 0,
 			]
-		)->get_data();
+		);
 
-		$this->assertSame( 1, $page['count'] );
+		$this->assertSame( 400, $response->get_status() );
 	}
 }

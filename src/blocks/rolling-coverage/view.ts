@@ -545,8 +545,8 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Removes the oldest entries beyond the cap of a capped feed, and the
-	 * state held for them so they are never updated or re-inserted.
+	 * Removes the oldest entries beyond the cap of a capped feed, and stops
+	 * watching them for being seen.
 	 *
 	 * @return {void}
 	 */
@@ -560,18 +560,8 @@ function initBlock( root: HTMLElement ): void {
 		);
 
 		for ( let i = entries.length - 1; i >= latestCap; i-- ) {
-			const entry = entries[ i ];
-			const entryId = entry.dataset.entryId;
-
-			unobserveEntry( entry );
-			linkedObserver?.unobserve( entry );
-
-			if ( entryId ) {
-				offPageUpdates.delete( entryId );
-				countedEntryIds.delete( entryId );
-			}
-
-			entry.remove();
+			unobserveEntry( entries[ i ] );
+			entries[ i ].remove();
 		}
 	}
 
@@ -613,16 +603,18 @@ function initBlock( root: HTMLElement ): void {
 		trimToLatestCap();
 		dropLastSeparator();
 
+		const shown = Math.min( entries.length, latestCap || entries.length );
+
 		announce(
 			sprintf(
 				/* translators: %d: number of new coverage entries just added. */
 				_n(
 					'%d new post added',
 					'%d new posts added',
-					entries.length,
+					shown,
 					'newspack-rolling-coverage'
 				),
-				entries.length
+				shown
 			)
 		);
 
@@ -1409,6 +1401,8 @@ function initBlock( root: HTMLElement ): void {
 	 * on the page for loadMore(). Inserts or queues newly published entries
 	 * based on the reader's scroll position. When the feed opens at a shared
 	 * entry, new entries are added to the control's count instead of inserted.
+	 * A capped feed inserts new entries at once, whatever the scroll position,
+	 * and ignores edits to entries it doesn't show.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
