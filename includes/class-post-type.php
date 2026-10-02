@@ -231,6 +231,7 @@ class Post_Type {
 		add_action( 'set_object_terms', [ __CLASS__, 'sync_coverage_context_meta' ], 10, 6 );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_pinned_rest_field' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_coverage_status_rest_field' ] );
+		add_action( 'rest_api_init', [ __CLASS__, 'register_excerpt_rest_field' ] );
 		add_filter( 'posts_orderby', [ __CLASS__, 'orderby_pinned_first' ], 10, 2 );
 		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'on_save_post' ], 10, 2 );
@@ -635,6 +636,67 @@ class Post_Type {
 				],
 			]
 		);
+	}
+
+	/**
+	 * Register a read-only `excerpt` REST field generated from the entry content.
+	 *
+	 * Entries do not support excerpts, so core omits the field, and the
+	 * editor's Post Excerpt block would preview nothing.
+	 */
+	public static function register_excerpt_rest_field() {
+		register_rest_field(
+			self::CPT_SLUG,
+			'excerpt',
+			[
+				'get_callback' => [ __CLASS__, 'get_excerpt_rest_field' ],
+				'schema'       => [
+					'type'       => 'object',
+					'context'    => [ 'edit', 'view' ],
+					'readonly'   => true,
+					'properties' => [
+						'raw'       => [
+							'type'    => 'string',
+							'context' => [ 'edit' ],
+						],
+						'rendered'  => [
+							'type'    => 'string',
+							'context' => [ 'edit', 'view' ],
+						],
+						'protected' => [
+							'type'    => 'boolean',
+							'context' => [ 'edit', 'view' ],
+						],
+					],
+				],
+			]
+		);
+	}
+
+	/**
+	 * REST field callback returning the generated excerpt of an entry.
+	 *
+	 * The raw value is the whole content as plain text, so the block can trim it
+	 * to any length; the rendered value is core's own generated excerpt.
+	 *
+	 * @param array           $post    Entry REST object data.
+	 * @param string          $field   Field name.
+	 * @param WP_REST_Request $request Request.
+	 * @return array{raw?: string, rendered: string, protected: bool}
+	 */
+	public static function get_excerpt_rest_field( array $post, $field = 'excerpt', $request = null ): array {
+		$entry     = get_post( (int) $post['id'] );
+		$protected = post_password_required( $entry );
+		$excerpt   = [
+			'rendered'  => $protected ? '' : apply_filters( 'the_excerpt', apply_filters( 'get_the_excerpt', '', $entry ) ),
+			'protected' => $protected,
+		];
+
+		if ( $request && 'edit' === $request['context'] ) {
+			$excerpt['raw'] = $protected ? '' : trim( wp_strip_all_tags( strip_shortcodes( $entry->post_content ) ) );
+		}
+
+		return $excerpt;
 	}
 
 	/**

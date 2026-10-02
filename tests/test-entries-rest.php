@@ -302,4 +302,85 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 		$this->assertSame( [ $own_draft ], wp_list_pluck( $body, 'id' ), 'The contributor should only get the trashed entry they can edit.' );
 		$this->assertSame( count( $body ), (int) $headers['X-WP-Total'], 'X-WP-Total must match the returned body so core-data does not treat it as a failed resolution.' );
 	}
+
+	/**
+	 * Words 1 to N of a sentence, for content longer than any excerpt length used here.
+	 *
+	 * @param int $count Number of words.
+	 * @return string
+	 */
+	private static function words( $count ) {
+		return implode( ' ', array_map( fn( $n ) => "word{$n}", range( 1, $count ) ) );
+	}
+
+	/**
+	 * Entries have no excerpt of their own, but the editor's Post Excerpt
+	 * block reads one from the REST record, so it is generated from the content.
+	 */
+	public function test_entry_rest_record_has_an_excerpt_generated_from_content() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_excerpt' => '',
+				'post_content' => '<!-- wp:paragraph --><p>' . self::words( 80 ) . '</p><!-- /wp:paragraph -->',
+			]
+		);
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_param( 'context', 'edit' );
+		$excerpt = rest_get_server()->dispatch( $request )->get_data()['excerpt'];
+
+		$this->assertSame( self::words( 80 ), $excerpt['raw'], 'The raw excerpt should be the whole content as plain text.' );
+		$this->assertStringContainsString( 'word1 word2', $excerpt['rendered'] );
+		$this->assertStringNotContainsString( 'word80', $excerpt['rendered'], 'The rendered excerpt should be trimmed like core.' );
+		$this->assertFalse( $excerpt['protected'] );
+	}
+
+	/**
+	 * The public view carries the rendered excerpt only.
+	 */
+	public function test_entry_excerpt_is_rendered_in_the_public_view() {
+		self::create_entry(
+			self::create_active_coverage(),
+			[
+				'post_excerpt' => '',
+				'post_content' => '<p>Short update.</p>',
+			] 
+		);
+
+		$excerpt = self::list_entries_via_rest()[0]['excerpt'];
+
+		$this->assertStringContainsString( 'Short update.', $excerpt['rendered'] );
+		$this->assertArrayNotHasKey( 'raw', $excerpt );
+	}
+
+	/**
+	 * Entries do not take manual excerpts, so the type must not gain support.
+	 */
+	public function test_entries_do_not_support_excerpts() {
+		$this->assertFalse( post_type_supports( Post_Type::CPT_SLUG, 'excerpt' ) );
+	}
+
+	/**
+	 * The Post Excerpt block trims an entry to the requested words with an
+	 * ellipsis and no more link, whatever the theme adds to excerpts.
+	 */
+	public function test_post_excerpt_block_trims_an_entry_without_a_more_link() {
+		$entry_id = self::create_entry(
+			self::create_active_coverage(),
+			[
+				'post_excerpt' => '',
+				'post_content' => '<!-- wp:paragraph --><p>' . self::words( 40 ) . '</p><!-- /wp:paragraph -->',
+			]
+		);
+		add_filter( 'excerpt_more', fn() => ' <a class="more-link" href="#">Read more</a>' );
+		$GLOBALS['post'] = get_post( $entry_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+
+		$html = do_blocks( '<!-- wp:post-excerpt {"excerptLength":15,"moreText":""} /-->' );
+		$text = trim( html_entity_decode( wp_strip_all_tags( $html ) ) );
+
+		$this->assertSame( self::words( 15 ) . '…', $text );
+		$this->assertStringNotContainsString( 'more-link', $html );
+	}
 }
