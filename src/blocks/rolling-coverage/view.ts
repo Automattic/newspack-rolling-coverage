@@ -341,6 +341,7 @@ function initBlock( root: HTMLElement ): void {
 	let cursor = root.dataset.cursor || '';
 	let before = root.dataset.before || '';
 	let hasMore = root.dataset.hasMore === '1';
+	const latestCap = parseInt( root.dataset.latest || '0', 10 ) || 0;
 	let isLoadingMore = false;
 	let isJumping = false;
 	let linkedObserver: IntersectionObserver | null = null;
@@ -544,6 +545,37 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Removes the oldest entries beyond the cap of a capped feed, and the
+	 * state held for them so they are never updated or re-inserted.
+	 *
+	 * @return {void}
+	 */
+	function trimToLatestCap(): void {
+		if ( ! latestCap ) {
+			return;
+		}
+
+		const entries = entriesList.querySelectorAll< HTMLElement >(
+			':scope > [data-entry-id]'
+		);
+
+		for ( let i = entries.length - 1; i >= latestCap; i-- ) {
+			const entry = entries[ i ];
+			const entryId = entry.dataset.entryId;
+
+			unobserveEntry( entry );
+			linkedObserver?.unobserve( entry );
+
+			if ( entryId ) {
+				offPageUpdates.delete( entryId );
+				countedEntryIds.delete( entryId );
+			}
+
+			entry.remove();
+		}
+	}
+
+	/**
 	 * Inserts entries above the newest unpinned entry, below any pinned
 	 * entries, removing the "no entries yet" placeholder if it's still
 	 * present.
@@ -578,6 +610,7 @@ function initBlock( root: HTMLElement ): void {
 		} );
 
 		entriesList.insertBefore( fragment, firstUnpinnedEntry() );
+		trimToLatestCap();
 		dropLastSeparator();
 
 		announce(
@@ -1397,6 +1430,10 @@ function initBlock( root: HTMLElement ): void {
 			const entryEl = template.content.firstElementChild as HTMLElement;
 
 			if ( entry.type === 'update' && ! existing ) {
+				if ( latestCap ) {
+					return;
+				}
+
 				offPageUpdates.set( String( entry.id ), entry.html );
 				return;
 			}
@@ -1462,7 +1499,7 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		if ( isScrolledPastTop() ) {
+		if ( ! latestCap && isScrolledPastTop() ) {
 			queueNewEntries( newEntries );
 		} else {
 			insertNewEntries( newEntries );
@@ -1723,6 +1760,10 @@ function initBlock( root: HTMLElement ): void {
 			url.searchParams.set( 'host_post_id', hostPostId );
 			url.searchParams.set( 'polled_count', polledCount.toString() );
 
+			if ( latestCap ) {
+				url.searchParams.set( 'latest', String( latestCap ) );
+			}
+
 			const response = await fetchEntries( url.toString() );
 			if ( response.ok ) {
 				const data: PollResponse = await response.json();
@@ -1835,6 +1876,10 @@ function initBlock( root: HTMLElement ): void {
 			url.searchParams.set( 'template_key', templateKey );
 			url.searchParams.set( 'host_post_id', hostPostId );
 			url.searchParams.set( 'entry_offset', backlogOffset.toString() );
+
+			if ( latestCap ) {
+				url.searchParams.set( 'latest', String( latestCap ) );
+			}
 
 			if ( isEntryView ) {
 				url.searchParams.set( 'skip_pinned', '1' );
