@@ -16,6 +16,8 @@ import {
 	clockEntryTemplate,
 	marginEntryTemplate,
 	minuteEntryTemplate,
+	wireEntryTemplate,
+	allUpdatesLink,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_BLOCK_NAME,
 	FOLLOW_TEMPLATE,
@@ -193,6 +195,24 @@ export function minuteInnerTemplate(): TemplateItem[] {
 				...minuteEntryTemplate(),
 			],
 			'var:preset|spacing|30'
+		),
+	];
+}
+
+/**
+ * The Wire layout's inner-blocks template: a narrow list of the latest
+ * entries, with no buttons, ending in a link to the coverage page.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function wireInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			[
+				...wireEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
+				allUpdatesLink(),
+			],
+			'var:preset|spacing|40'
 		),
 	];
 }

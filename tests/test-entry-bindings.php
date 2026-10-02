@@ -1626,4 +1626,35 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'newspack-rolling-coverage-regular-entry', $html );
 		$this->assertStringNotContainsString( 'See all updates', $html );
 	}
+
+	/**
+	 * A capped feed shaped like the Wire layout shows the newest entries with
+	 * their excerpts, and its "See all updates" link once, after them.
+	 */
+	public function test_wire_shaped_feed_renders_capped_entries_with_the_link_below() {
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+		foreach ( [ 'Oldest update', 'Middle update', 'Newest update' ] as $offset => $title ) {
+			self::create_entry(
+				$coverage_id,
+				[
+					'post_title'   => $title,
+					'post_excerpt' => 'Short summary of ' . $title,
+					'post_date'    => gmdate( 'Y-m-d H:i:s', strtotime( '-' . ( 3 - $offset ) . ' hours' ) ),
+				]
+			);
+		}
+
+		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. '<!-- wp:post-excerpt {"excerptLength":15,"moreText":""} /-->'
+			. '</div><!-- /wp:group -->';
+		$html        = self::render_capped_coverage( $coverage_id, [], $entry_group . self::ALL_UPDATES_MARKUP );
+
+		$this->assertSame( 2, substr_count( $html, '<article' ), 'Only the newest entries should render.' );
+		$this->assertStringContainsString( 'Short summary of Newest update', $html );
+		$this->assertStringContainsString( 'Short summary of Middle update', $html );
+		$this->assertStringNotContainsString( 'Short summary of Oldest update', $html );
+		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-all-updates' ) );
+		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, 'newspack-rolling-coverage-all-updates' ), 'The link should follow the last entry.' );
+	}
 }

@@ -982,6 +982,82 @@ function minuteEntryTemplate(): TemplateItem[] {
 }
 
 /**
+ * The Wire layout's per-entry template: the time, headline and a short
+ * excerpt, ruled off from the entry above. The pinned card matches the
+ * regular entry, since a capped feed ignores pinning.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @param {string[]} sizes The theme's font size slugs.
+ * @return {TemplateItem[]} The template.
+ */
+function wireEntryTemplate( slugs: string[], sizes: string[] ): TemplateItem[] {
+	const entry = ( className: string, name: string ): TemplateItem => [
+		'core/group',
+		{
+			className,
+			lock: LOCKED_IN_PLACE,
+			layout: {
+				type: 'flex',
+				orientation: 'vertical',
+				justifyContent: 'stretch',
+			},
+			style: {
+				border: {
+					top: {
+						color: BORDER_COLOR,
+						width: '1px',
+						style: 'solid',
+					},
+				},
+				spacing: {
+					blockGap: 'var:preset|spacing|10',
+					padding: { top: 'var:preset|spacing|30' },
+				},
+			},
+			metadata: { name },
+		},
+		[
+			[
+				'core/post-date',
+				{
+					...POST_DATE_ATTRIBUTES,
+					format: siteTimeFormat(),
+					fontSize: 'small',
+					style: { typography: { fontWeight: '700' } },
+				},
+			],
+			[
+				'core/post-title',
+				{
+					level: 4,
+					fontSize: themeFontSize( sizes, 'medium', 'normal' ),
+				},
+			],
+			[
+				'core/post-excerpt',
+				{
+					excerptLength: 15,
+					moreText: '',
+					fontSize: 'small',
+					...mutedDateColor( slugs ),
+				},
+			],
+		],
+	];
+
+	return [
+		entry(
+			PINNED_CARD_CLASS,
+			__( 'Pinned Entry', 'newspack-rolling-coverage' )
+		),
+		entry(
+			REGULAR_ENTRY_CLASS,
+			__( 'Entry', 'newspack-rolling-coverage' )
+		),
+	];
+}
+
+/**
  * The follow button, rendered once wherever the layout places it: a core button
  * bound to the coverage's notification tag. It's a `<button>`, so the bound
  * value never shows as a link; it only carries the tag to the follow script.
@@ -2050,6 +2126,7 @@ export {
 	clockEntryTemplate,
 	marginEntryTemplate,
 	minuteEntryTemplate,
+	wireEntryTemplate,
 	ENTRY_ALLOWED_BLOCKS,
 	ALL_UPDATES_CLASS,
 	FOLLOW_BLOCK_NAME,
