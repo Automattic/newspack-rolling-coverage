@@ -13,6 +13,8 @@ import {
 	bulletinEntryTemplate,
 	streamEntryTemplate,
 	railEntryTemplate,
+	clockEntryTemplate,
+	marginEntryTemplate,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
@@ -140,6 +142,40 @@ export function railInnerTemplate(): TemplateItem[] {
 			latestTemplate( paletteSlugs() ),
 			FOLLOW_TEMPLATE,
 			...railEntryTemplate(),
+		] ),
+	];
+}
+
+/**
+ * The Clock layout's inner-blocks template: the same Feed group and buttons
+ * as the default, with each entry headed by the time it was posted.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function clockInnerTemplate(): TemplateItem[] {
+	const slugs = paletteSlugs();
+
+	return [
+		feedTemplate( [
+			latestTemplate( slugs ),
+			FOLLOW_TEMPLATE,
+			...clockEntryTemplate( slugs, themeFontSizeSlugs() ),
+		] ),
+	];
+}
+
+/**
+ * The Margin layout's inner-blocks template: the same Feed group and buttons
+ * as the default, with each entry split into a margin and its content.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function marginInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate( [
+			latestTemplate( paletteSlugs() ),
+			FOLLOW_TEMPLATE,
+			...marginEntryTemplate(),
 		] ),
 	];
 }
