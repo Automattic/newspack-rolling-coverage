@@ -13,7 +13,7 @@ import {
 	ToggleControl,
 } from '@wordpress/components';
 import { store as coreStore } from '@wordpress/core-data';
-import { useSelect } from '@wordpress/data';
+import { useDispatch, useSelect } from '@wordpress/data';
 import { humanTimeDiff } from '@wordpress/date';
 import { store as editorStore } from '@wordpress/editor';
 import { decodeEntities } from '@wordpress/html-entities';
@@ -242,50 +242,65 @@ export default function Edit( {
 		}
 	}
 
-	const { justInserted, paletteSlugs, spacingSlugs } = useSelect(
-		( select ) => {
-			const blockEditor = select( blockEditorStore ) as unknown as {
-				wasBlockJustInserted: (
-					id: string,
-					source?: string
-				) => boolean;
-				getSettings: () => {
-					colors?: { slug: string }[];
-					__experimentalFeatures?: {
-						color?: {
-							palette?: Record< string, { slug: string }[] >;
-						};
-						spacing?: {
-							spacingSizes?: Record< string, { slug: string }[] >;
+	const { justInserted, paletteSlugs, spacingSlugs, blockGapSupport } =
+		useSelect(
+			( select ) => {
+				const blockEditor = select( blockEditorStore ) as unknown as {
+					wasBlockJustInserted: (
+						id: string,
+						source?: string
+					) => boolean;
+					getSettings: () => {
+						colors?: { slug: string }[];
+						__experimentalFeatures?: {
+							color?: {
+								palette?: Record< string, { slug: string }[] >;
+							};
+							spacing?: {
+								blockGap?: boolean;
+								spacingSizes?: Record<
+									string,
+									{ slug: string }[]
+								>;
+							};
 						};
 					};
 				};
-			};
-			const settings = blockEditor.getSettings();
+				const settings = blockEditor.getSettings();
 
-			return {
-				justInserted: INSERT_SOURCES.some( ( source ) =>
-					blockEditor.wasBlockJustInserted( clientId, source )
-				),
-				paletteSlugs: [
-					...Object.values(
-						settings.__experimentalFeatures?.color?.palette ?? {}
-					).flat(),
-					...( settings.colors ?? [] ),
-				]
-					.map( ( color ) => color.slug )
-					.join( ',' ),
-				spacingSlugs: Object.values(
-					settings.__experimentalFeatures?.spacing?.spacingSizes ?? {}
-				)
-					.flat()
-					.map( ( size ) => size.slug )
-					.join( ',' ),
-			};
-		},
-		[ clientId ]
-	);
+				return {
+					justInserted: INSERT_SOURCES.some( ( source ) =>
+						blockEditor.wasBlockJustInserted( clientId, source )
+					),
+					paletteSlugs: [
+						...Object.values(
+							settings.__experimentalFeatures?.color?.palette ??
+								{}
+						).flat(),
+						...( settings.colors ?? [] ),
+					]
+						.map( ( color ) => color.slug )
+						.join( ',' ),
+					blockGapSupport:
+						settings.__experimentalFeatures?.spacing?.blockGap ??
+						false,
+					spacingSlugs: Object.values(
+						settings.__experimentalFeatures?.spacing
+							?.spacingSizes ?? {}
+					)
+						.flat()
+						.map( ( size ) => size.slug )
+						.join( ',' ),
+				};
+			},
+			[ clientId ]
+		);
 
+	const { __unstableMarkNextChangeAsNotPersistent } = useDispatch(
+		blockEditorStore.name
+	) as unknown as {
+		__unstableMarkNextChangeAsNotPersistent: () => void;
+	};
 	const mutedApplied = useRef( false );
 
 	useEffect( () => {
@@ -303,6 +318,7 @@ export default function Edit( {
 		}
 
 		if (
+			blockGapSupport &&
 			spacingSlugs.split( ',' ).includes( DEFAULT_GAP_SLUG ) &&
 			! style?.spacing?.blockGap
 		) {
@@ -316,12 +332,15 @@ export default function Edit( {
 		}
 
 		if ( Object.keys( defaults ).length ) {
+			__unstableMarkNextChangeAsNotPersistent();
 			setAttributes( defaults );
 		}
 	}, [
 		justInserted,
 		paletteSlugs,
 		spacingSlugs,
+		blockGapSupport,
+		__unstableMarkNextChangeAsNotPersistent,
 		textColor,
 		style,
 		setAttributes,
