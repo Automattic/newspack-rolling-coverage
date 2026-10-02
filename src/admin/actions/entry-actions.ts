@@ -25,31 +25,37 @@ import {
 } from '../utils/entries-api';
 import { notifySuccess, notifyError, pluralize } from '../utils/notices';
 import { ConfirmModal } from '../components/confirm-modal';
+import { getStatusLabel } from '../utils/status-labels';
 import type { Entry, Action, AdminConfig, RequestConfirm } from '../types';
 
 /**
  * Returns the confirmation message for editing an entry that is archived
- * or whose coverage is paused or archived.
+ * or whose coverage is paused or archived, naming the coverage's status as
+ * the site labels it.
  *
  * @param {Entry} entry The entry being edited.
  * @return {string} The confirmation message.
  */
 function getEditWarningMessage( entry: Entry ): string {
-	switch ( getEntryEditWarning( entry ) ) {
+	const warning = getEntryEditWarning( entry );
+
+	switch ( warning ) {
 		case 'entry-archived':
 			return __(
 				'This entry is archived, are you sure you want to edit it?',
 				'newspack-rolling-coverage'
 			);
 		case 'coverage-archived':
-			return __(
-				"This entry's coverage is archived, are you sure you want to edit it?",
-				'newspack-rolling-coverage'
-			);
 		case 'coverage-paused':
-			return __(
-				"This entry's coverage is paused, are you sure you want to edit it?",
-				'newspack-rolling-coverage'
+			return sprintf(
+				/* translators: %s: The coverage's status, e.g. "Ended". */
+				__(
+					"This entry's coverage is set to “%s”, are you sure you want to edit it?",
+					'newspack-rolling-coverage'
+				),
+				getStatusLabel(
+					warning === 'coverage-archived' ? 'archived' : 'paused'
+				)
 			);
 		default:
 			return __(

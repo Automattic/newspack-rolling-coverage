@@ -88,6 +88,7 @@ import {
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
 	ONESIGNAL_CONFIGURED,
+	STATUS_LABELS,
 } from './config';
 import { useSampleEntries } from './samples';
 import EntryBlockPreview from './components/entry-block-preview';
@@ -1168,9 +1169,13 @@ export default function Edit( {
 						'Archived notice',
 						'newspack-rolling-coverage'
 					) }
-					help={ __(
-						"Tells readers the coverage has ended. Shown at the top of the feed once it's archived in All Coverages.",
-						'newspack-rolling-coverage'
+					help={ sprintf(
+						/* translators: %s: The status that ends a coverage, e.g. "Ended". */
+						__(
+							'Tells readers the coverage has ended. Shown at the top of the feed once its status is set to “%s” in All Coverages.',
+							'newspack-rolling-coverage'
+						),
+						STATUS_LABELS.archived
 					) }
 					value={ archivedNoticeShow ? 'show' : 'hide' }
 					onChange={ ( value ) =>

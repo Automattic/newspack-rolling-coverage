@@ -7,6 +7,7 @@
 
 use Newspack_Rolling_Coverage\Archive_Mode;
 use Newspack_Rolling_Coverage\Post_Type;
+use Newspack_Rolling_Coverage\Status_Labels;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
@@ -212,6 +213,19 @@ class Test_Archive_Mode extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 403, $response->get_status(), 'The request should be refused.' );
 		$this->assertTrue( Archive_Mode::is_entry_archived( $entry_id ), 'The entry should stay archived.' );
+	}
+
+	/**
+	 * The refusal names the coverage's status as the site labels it, so it
+	 * matches what All Coverages shows.
+	 */
+	public function test_frozen_entry_refusal_names_the_site_label() {
+		self::log_in_as( 'editor' );
+		update_option( Status_Labels::OPTION_KEY, [ 'archived' => 'Over' ] );
+		$entry_id = self::create_entry( self::create_coverage( Taxonomy::STATUS_ARCHIVED ) );
+		update_post_meta( $entry_id, Archive_Mode::ENTRY_ARCHIVED_META_KEY, time() );
+
+		$this->assertStringContainsString( '“Over”', self::set_entry_archived( $entry_id, false )->get_data()['message'] );
 	}
 
 	/**

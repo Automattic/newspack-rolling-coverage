@@ -254,7 +254,11 @@ class Archive_Mode {
 				if ( self::is_coverage_archived( $coverage_id ) ) {
 					return new WP_Error(
 						'rolling_coverage_coverage_archived',
-						__( "This entry's coverage is archived; unarchive the coverage first.", 'newspack-rolling-coverage' ),
+						sprintf(
+							/* translators: %s: The status that ends a coverage, e.g. "Ended". */
+							__( "This entry's coverage is set to “%s”; change its status first.", 'newspack-rolling-coverage' ),
+							Status_Labels::get_all()[ Taxonomy::STATUS_ARCHIVED ]
+						),
 						[ 'status' => 403 ]
 					);
 				}

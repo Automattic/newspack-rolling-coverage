@@ -66,6 +66,7 @@ interface AdminConfig {
 	/** True when AI is unavailable only because the plugin isn't approved for a connector. */
 	aiNeedsApproval: boolean;
 	aiMaxPromptLength: number;
+	statusLabels: StatusLabels;
 	statusLabelDefaults: StatusLabels;
 	statusLabelMaxLength: number;
 	slack: {
