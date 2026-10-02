@@ -1832,15 +1832,10 @@ class Rolling_Coverage_Block {
 	 * @return array Parsed-block-shaped array.
 	 */
 	private static function regular_entry_block( array $inner_blocks ): array {
-		$style  = [
+		$style = [
 			'spacing' => [ 'blockGap' => self::DEFAULT_ENTRY_GAP ],
 		];
-		$styles = wp_style_engine_get_styles( $style );
-		$open   = sprintf(
-			'<div class="%s" style="%s">',
-			esc_attr( trim( 'wp-block-group ' . self::REGULAR_ENTRY_CLASS . ' ' . ( $styles['classnames'] ?? '' ) ) ),
-			esc_attr( $styles['css'] ?? '' )
-		);
+		$open  = '<div class="wp-block-group ' . esc_attr( self::REGULAR_ENTRY_CLASS ) . '">';
 
 		return [
 			'blockName'    => 'core/group',

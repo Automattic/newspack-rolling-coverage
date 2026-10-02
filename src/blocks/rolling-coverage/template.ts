@@ -490,7 +490,7 @@ const SHARE_CLASS = 'newspack-rolling-coverage-share';
 const CARD_BORDER_COLOR =
 	'var(--wp--preset--color--base-3, var(--newspack-theme-color-border, #ddd))';
 const CARD_CONTRAST =
-	'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main))';
+	'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, #111))';
 const CARD_BASE =
 	'var(--wp--preset--color--base, var(--newspack-theme-color-bg-body, #fff))';
 

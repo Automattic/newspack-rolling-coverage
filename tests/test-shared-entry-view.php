@@ -621,10 +621,15 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The default layout's entries render with square corners.
+	 * The default layout's pinned card and entries render with square corners.
 	 */
 	public function test_default_entries_render_without_a_border_radius() {
-		$this->assertMatchesRegularExpression( '/<div class="wp-block-group newspack-rolling-coverage-regular-entry[^"]*"(?![^>]*border-radius)[^>]*>/', $this->render_with_shared( '' ) );
+		Post_Type::pin_entry( $this->entries['entry-6'] );
+		$html = $this->render_with_shared( '' );
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-card', $html );
+		$this->assertStringContainsString( 'newspack-rolling-coverage-regular-entry', $html );
+		$this->assertDoesNotMatchRegularExpression( '/class="wp-block-group newspack-rolling-coverage-(?:regular-entry|pinned-card)[^"]*"[^>]*border-radius/', $html );
 	}
 
 	/**
