@@ -295,7 +295,7 @@ class Schema {
 
 	/**
 	 * Returns when a page last changed for readers, when that is later than
-	 * its own modified date: the newest published entry of the coverages it
+	 * the page's own date: the newest published entry of the coverages it
 	 * embeds. Null means the page's own date stands.
 	 *
 	 * @param WP_Post $post Host post.
@@ -315,9 +315,28 @@ class Schema {
 			}
 		}
 
-		$own = get_post_datetime( $post, 'modified', 'gmt' );
+		$own = self::get_own_date( $post );
 
-		return null !== $latest && ( false === $own || $latest > $own ) ? $latest : null;
+		return null !== $latest && ( null === $own || $latest > $own ) ? $latest : null;
+	}
+
+	/**
+	 * Returns when a post itself last changed for readers: its last edit, or
+	 * its publish date when that is later. A post published on schedule keeps
+	 * the modified date of its last edit, from before it went live.
+	 *
+	 * @param WP_Post $post Post.
+	 * @return DateTimeImmutable|null The date, or null when the post has none.
+	 */
+	private static function get_own_date( WP_Post $post ): ?DateTimeImmutable {
+		$dates = array_filter(
+			[
+				get_post_datetime( $post, 'modified', 'gmt' ),
+				get_post_datetime( $post, 'date', 'gmt' ),
+			]
+		);
+
+		return empty( $dates ) ? null : max( $dates );
 	}
 
 	/**
@@ -504,7 +523,7 @@ class Schema {
 	private static function get_date_modified( WP_Post $post, int $coverage_id ): ?DateTimeImmutable {
 		$dates = array_filter(
 			[
-				get_post_datetime( $post, 'modified', 'gmt' ),
+				self::get_own_date( $post ),
 				self::get_latest_entry_date( $coverage_id ),
 			]
 		);
@@ -552,7 +571,7 @@ class Schema {
 			);
 
 			if ( ! empty( $query->posts ) ) {
-				$dates[] = get_post_datetime( $query->posts[0], $field, 'gmt' );
+				$dates[] = self::get_own_date( $query->posts[0] );
 			}
 		}
 

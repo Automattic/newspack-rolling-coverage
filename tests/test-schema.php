@@ -189,6 +189,35 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A page published on schedule has a publish date later than its last
+	 * edit. An entry from before the page went live must not become its date,
+	 * or the page would report a change from before it was published.
+	 */
+	public function test_an_entry_older_than_the_pages_publish_date_does_not_date_the_page() {
+		global $wpdb;
+
+		$coverage_id = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-05 10:00:00' );
+		$this->create_dated_entry( $coverage_id, '2026-09-03 10:00:00' );
+
+		// Last edited on the 1st, set to go live on the 5th.
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->posts,
+			[
+				'post_modified'     => '2026-09-01 10:00:00',
+				'post_modified_gmt' => '2026-09-01 10:00:00',
+			],
+			[ 'ID' => $host_id ]
+		);
+		clean_post_cache( $host_id );
+
+		$sitemap_entry = [ 'mod' => '2026-09-05 10:00:00' ];
+
+		$this->assertSame( $sitemap_entry, apply_filters( 'wpseo_sitemap_entry', $sitemap_entry, 'post', $this->sitemap_row( $host_id ) ) );
+		$this->assertSame( '2026-09-05T10:00:00+00:00', $this->render_scripts( $host_id )[0]['dateModified'] );
+	}
+
+	/**
 	 * Yoast's `article:modified_time` and both sitemaps report the same moment
 	 * as the structured data, each in the form its reader expects: Yoast takes
 	 * UTC, WordPress's sitemap the site's timezone.
