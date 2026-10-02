@@ -9,7 +9,7 @@ import {
 } from '@wordpress/element';
 import { ExternalLink } from '@wordpress/components';
 import { DataForm } from '@wordpress/dataviews/wp';
-import { __ } from '@wordpress/i18n';
+import { __, _x } from '@wordpress/i18n';
 import { decodeEntities } from '@wordpress/html-entities';
 import { Stack } from '@wordpress/ui';
 import { Drawer } from 'newspack-components/dist/esm/drawer';
@@ -98,11 +98,19 @@ function getCoverageFormFields( labels: StatusLabels ) {
 			elements: [
 				{
 					value: 'enabled',
-					label: __( 'Enabled', 'newspack-rolling-coverage' ),
+					label: _x(
+						'Enabled',
+						'advertising',
+						'newspack-rolling-coverage'
+					),
 				},
 				{
 					value: 'disabled',
-					label: __( 'Disabled', 'newspack-rolling-coverage' ),
+					label: _x(
+						'Disabled',
+						'advertising',
+						'newspack-rolling-coverage'
+					),
 				},
 			],
 			getValue: ( { item }: { item: CoverageFormData } ) =>

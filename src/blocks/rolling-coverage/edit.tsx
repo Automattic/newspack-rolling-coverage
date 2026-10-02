@@ -1120,11 +1120,33 @@ export default function Edit( {
 				>
 					<ToggleGroupControlOption
 						value="show"
-						label={ __( 'Show', 'newspack-rolling-coverage' ) }
+						label={ _x(
+							'Show',
+							'status indicator',
+							'newspack-rolling-coverage'
+						) }
+						aria-label={
+							/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+							__(
+								'Show status indicator',
+								'newspack-rolling-coverage'
+							)
+						}
 					/>
 					<ToggleGroupControlOption
 						value="hide"
-						label={ __( 'Hide', 'newspack-rolling-coverage' ) }
+						label={ _x(
+							'Hide',
+							'status indicator',
+							'newspack-rolling-coverage'
+						) }
+						aria-label={
+							/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+							__(
+								'Hide status indicator',
+								'newspack-rolling-coverage'
+							)
+						}
 					/>
 				</ToggleGroupControl>
 				{ statusIndicatorShow &&
@@ -1154,21 +1176,11 @@ export default function Edit( {
 					) }
 			</PanelBody>
 
-			<PanelBody
-				title={ _x(
-					'Archived',
-					'settings panel title',
-					'newspack-rolling-coverage'
-				) }
-				initialOpen={ false }
-			>
+			<PanelBody title={ STATUS_LABELS.archived } initialOpen={ false }>
 				<ToggleGroupControl
 					__next40pxDefaultSize
 					isBlock
-					label={ __(
-						'Archived notice',
-						'newspack-rolling-coverage'
-					) }
+					label={ __( 'Notice', 'newspack-rolling-coverage' ) }
 					help={ sprintf(
 						/* translators: %s: The status that ends a coverage, e.g. "Ended". */
 						__(
@@ -1186,18 +1198,34 @@ export default function Edit( {
 				>
 					<ToggleGroupControlOption
 						value="show"
-						label={ __( 'Show', 'newspack-rolling-coverage' ) }
+						label={ _x(
+							'Show',
+							'ended notice',
+							'newspack-rolling-coverage'
+						) }
+						aria-label={
+							/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+							__( 'Show notice', 'newspack-rolling-coverage' )
+						}
 					/>
 					<ToggleGroupControlOption
 						value="hide"
-						label={ __( 'Hide', 'newspack-rolling-coverage' ) }
+						label={ _x(
+							'Hide',
+							'ended notice',
+							'newspack-rolling-coverage'
+						) }
+						aria-label={
+							/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+							__( 'Hide notice', 'newspack-rolling-coverage' )
+						}
 					/>
 				</ToggleGroupControl>
 				{ archivedNoticeShow && (
 					<>
 						<TextareaControl
 							label={ __(
-								'Notice',
+								'Notice text',
 								'newspack-rolling-coverage'
 							) }
 							placeholder={
@@ -1239,17 +1267,33 @@ export default function Edit( {
 						>
 							<ToggleGroupControlOption
 								value="show"
-								label={ __(
+								label={ _x(
 									'Show',
+									'ended notice link',
 									'newspack-rolling-coverage'
 								) }
+								aria-label={
+									/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+									__(
+										'Show link',
+										'newspack-rolling-coverage'
+									)
+								}
 							/>
 							<ToggleGroupControlOption
 								value="hide"
-								label={ __(
+								label={ _x(
 									'Hide',
+									'ended notice link',
 									'newspack-rolling-coverage'
 								) }
+								aria-label={
+									/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+									__(
+										'Hide link',
+										'newspack-rolling-coverage'
+									)
+								}
 							/>
 						</ToggleGroupControl>
 						{ archivedNoticeShowLink && (
@@ -1409,17 +1453,33 @@ export default function Edit( {
 					>
 						<ToggleGroupControlOption
 							value="enabled"
-							label={ __(
+							label={ _x(
 								'Enabled',
+								'advertising',
 								'newspack-rolling-coverage'
 							) }
+							aria-label={
+								/* translators: Screen reader name for the “Enabled” option. Keep the word used to translate “Enabled”. */
+								__(
+									'Advertising enabled',
+									'newspack-rolling-coverage'
+								)
+							}
 						/>
 						<ToggleGroupControlOption
 							value="disabled"
-							label={ __(
+							label={ _x(
 								'Disabled',
+								'advertising',
 								'newspack-rolling-coverage'
 							) }
+							aria-label={
+								/* translators: Screen reader name for the “Disabled” option. Keep the word used to translate “Disabled”. */
+								__(
+									'Advertising disabled',
+									'newspack-rolling-coverage'
+								)
+							}
 						/>
 					</ToggleGroupControl>
 					{ enableAds && ! coverageAdsDisabled && (
