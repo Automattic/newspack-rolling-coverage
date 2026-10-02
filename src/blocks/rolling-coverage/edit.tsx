@@ -168,47 +168,75 @@ function feedGapStyle( feed?: {
 	return gap ? { '--newspack-rolling-coverage-gap': gap } : {};
 }
 
-const FLEX_ALIGNMENTS: Record< string, string > = {
+const FLEX_JUSTIFY: Record< string, string > = {
 	left: 'flex-start',
 	right: 'flex-end',
 	center: 'center',
-	stretch: 'stretch',
-	'space-between': 'space-between',
+};
+
+const FLEX_VERTICAL: Record< string, string > = {
 	top: 'flex-start',
+	center: 'center',
 	bottom: 'flex-end',
 };
 
 /**
- * The flex declarations core's layout support would emit for the Feed group,
- * so the preview container lays out its children the same way.
+ * The flex declarations core's layout support emits for a Feed group, so the
+ * preview container lays out its children the same way. A layout that isn't
+ * flex has none: the stylesheet lays it out as a column.
  *
  * @param {Object} layout The Feed group's layout attribute.
- * @return {Object} The container's inline style.
+ * @return {Object|null} The container's inline style, or null.
  */
 function feedFlexStyle( layout?: Record< string, string > ): {
 	[ key: string ]: string;
-} {
-	const align = ( value?: string ) =>
-		value ? FLEX_ALIGNMENTS[ value ] : undefined;
+} | null {
+	if ( layout?.type !== 'flex' ) {
+		return null;
+	}
 
-	if ( layout?.orientation === 'horizontal' ) {
+	const { justifyContent, verticalAlignment } = layout;
+
+	if ( layout.orientation !== 'vertical' ) {
+		const justify: Record< string, string > = {
+			...FLEX_JUSTIFY,
+			'space-between': 'space-between',
+		};
+		const vertical: Record< string, string > = {
+			...FLEX_VERTICAL,
+			stretch: 'stretch',
+		};
+
 		return {
 			flexDirection: 'row',
 			flexWrap: layout.flexWrap === 'nowrap' ? 'nowrap' : 'wrap',
-			...( align( layout.justifyContent )
-				? { justifyContent: align( layout.justifyContent ) as string }
+			...( justifyContent && justify[ justifyContent ]
+				? { justifyContent: justify[ justifyContent ] }
 				: {} ),
-			...( align( layout.verticalAlignment )
-				? { alignItems: align( layout.verticalAlignment ) as string }
+			...( verticalAlignment && vertical[ verticalAlignment ]
+				? { alignItems: vertical[ verticalAlignment ] }
 				: {} ),
 		};
 	}
 
+	const justify: Record< string, string > = {
+		...FLEX_JUSTIFY,
+		stretch: 'stretch',
+	};
+	const vertical: Record< string, string > = {
+		...FLEX_VERTICAL,
+		'space-between': 'space-between',
+	};
+
 	return {
 		flexDirection: 'column',
-		alignItems: align( layout?.justifyContent ) ?? 'flex-start',
-		...( align( layout?.verticalAlignment )
-			? { justifyContent: align( layout?.verticalAlignment ) as string }
+		...( layout.flexWrap === 'nowrap' ? { flexWrap: 'nowrap' } : {} ),
+		alignItems:
+			justifyContent && justify[ justifyContent ]
+				? justify[ justifyContent ]
+				: 'flex-start',
+		...( verticalAlignment && vertical[ verticalAlignment ]
+			? { justifyContent: vertical[ verticalAlignment ] }
 			: {} ),
 	};
 }
@@ -234,10 +262,13 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
 		getShadowClassesAndStyles( attributes ),
 		getDimensionsClassesAndStyles( attributes ),
 	];
+	const flexStyle = feedFlexStyle(
+		attributes.layout as Record< string, string >
+	);
 	const classNames = [
 		'wp-block-group',
 		'newspack-rolling-coverage-feed',
-		'is-layout-flex',
+		flexStyle ? 'is-layout-flex' : '',
 		attributes.className,
 		...parts.map( ( part ) => part.className ),
 	]
@@ -249,7 +280,7 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
 		className: [ ...new Set( classNames ) ].join( ' ' ),
 		style: Object.assign(
 			{},
-			feedFlexStyle( attributes.layout as Record< string, string > ),
+			flexStyle ?? {},
 			...parts.map( ( part ) => part.style )
 		),
 	};
