@@ -16,7 +16,8 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Registers the `newspack-rolling-coverage/coverage-status` block, which shows
  * the status of the Rolling Coverage block on its page wherever it is placed:
- * in post content, next to the title in a template, or in a header.
+ * in post content, next to the title in a template, or in a header. Placed
+ * inside a Rolling Coverage block, it shows that block's status instead.
  */
 class Coverage_Status_Block {
 
@@ -188,7 +189,8 @@ class Coverage_Status_Block {
 	}
 
 	/**
-	 * The coverage the block follows: its chosen one while that is on the
+	 * The coverage the block follows: inside a Rolling Coverage block, that
+	 * block's, on any page; elsewhere, its chosen one while that is on the
 	 * page, otherwise the page's first.
 	 *
 	 * @param array    $attributes Block attributes.
@@ -196,6 +198,10 @@ class Coverage_Status_Block {
 	 * @return int Coverage term ID, or 0.
 	 */
 	private static function followed_coverage_id( array $attributes, WP_Block $block ): int {
+		if ( isset( $block->context[ Entry_Bindings::COVERAGE_ID_CONTEXT ] ) ) {
+			return (int) $block->context[ Entry_Bindings::COVERAGE_ID_CONTEXT ];
+		}
+
 		$feeds = self::feed_coverage_ids( self::page_id( $block ) );
 
 		if ( ! $feeds ) {

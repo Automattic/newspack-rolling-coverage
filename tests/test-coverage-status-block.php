@@ -421,4 +421,77 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$this->assertMatchesRegularExpression( '#^<div class="(?:[^"]* )?is-layout-flex(?: [^"]*)?"#', $html );
 		$this->assertStringContainsString( 'gap:var(--wp--preset--spacing--30)', wp_style_engine_get_stylesheet_from_context( 'block-supports', [] ) );
 	}
+
+	/**
+	 * A capped Rolling Coverage block shaped like Flash: a status block, then
+	 * the entry, among the coverage-level blocks of its Feed.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return string
+	 */
+	private static function flash_feed( int $coverage_id ): string {
+		$attributes = [
+			'coverageId'  => $coverage_id,
+			'latestOnly'  => true,
+			'latestCount' => 2,
+		];
+
+		return '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->'
+			. '<!-- wp:group {"className":"newspack-rolling-coverage-feed","layout":{"type":"flex"}} --><div class="wp-block-group newspack-rolling-coverage-feed">'
+			. '<!-- wp:newspack-rolling-coverage/coverage-status /-->'
+			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry"><!-- wp:post-title /--></div><!-- /wp:group -->'
+			. '</div><!-- /wp:group -->'
+			. '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->';
+	}
+
+	/**
+	 * The coverage each status block in the HTML follows, in order.
+	 *
+	 * @param string $html Rendered HTML.
+	 * @return int[]
+	 */
+	private static function followed_coverages( string $html ): array {
+		$processor = new WP_HTML_Tag_Processor( $html );
+		$followed  = [];
+
+		while ( $processor->next_tag( [ 'class_name' => 'wp-block-newspack-rolling-coverage-coverage-status' ] ) ) {
+			$followed[] = (int) $processor->get_attribute( 'data-coverage-id' );
+		}
+
+		return $followed;
+	}
+
+	/**
+	 * Inside a Rolling Coverage block, the status block follows that block's
+	 * coverage on any page, the home page included, and renders once above
+	 * the entries rather than in each one.
+	 */
+	public function test_status_inside_a_feed_follows_that_feed_on_any_page() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_PAUSED );
+		self::create_entry( $coverage_id );
+		self::create_entry( $coverage_id );
+		self::factory()->post->create();
+		$this->go_to( home_url( '/' ) );
+
+		$html = do_blocks( self::flash_feed( $coverage_id ) );
+
+		$this->assertSame( [ $coverage_id ], self::followed_coverages( $html ) );
+		$this->assertSame( 1, substr_count( $html, '<span class="newspack-ui__badge newspack-ui__badge--secondary">Paused</span>' ) );
+		$this->assertLessThan( strpos( $html, '<article' ), strpos( $html, 'newspack-ui__badge' ) );
+	}
+
+	/**
+	 * A standalone status block still follows the page's first feed, not the
+	 * coverage of a status block nested in a later feed.
+	 */
+	public function test_standalone_status_ignores_a_status_nested_in_a_feed() {
+		$first   = self::create_coverage();
+		$capped  = self::create_coverage();
+		$page_id = self::page( self::feed( $first ) . self::flash_feed( $capped ) );
+		$this->go_to( get_permalink( $page_id ) );
+
+		$html = do_blocks( '<!-- wp:newspack-rolling-coverage/coverage-status /-->' . get_post( $page_id )->post_content );
+
+		$this->assertSame( [ $first, $capped ], self::followed_coverages( $html ) );
+	}
 }

@@ -27,6 +27,7 @@ import {
 	allUpdatesLink,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_BLOCK_NAME,
+	STATUS_BLOCK_NAME,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
 	latestTemplate,
@@ -247,15 +248,19 @@ export function digestInnerTemplate(): TemplateItem[] {
 
 /**
  * The Flash layout's inner-blocks template: a full-width strip on the site's
- * accent color holding the newest entry's time and text, then a link to the
- * coverage page.
+ * accent color holding the coverage's status, the newest entry's time and
+ * text, then a link to the coverage page.
  *
  * @return {TemplateItem[]} The template.
  */
 export function flashInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
-			[ ...flashEntryTemplate( themeFontSizeSlugs() ), allUpdatesLink() ],
+			[
+				[ STATUS_BLOCK_NAME, {} ],
+				...flashEntryTemplate( themeFontSizeSlugs() ),
+				allUpdatesLink(),
+			],
 			'var:preset|spacing|40',
 			FLASH_FEED_STYLE,
 			FLASH_FEED_LAYOUT
@@ -269,6 +274,7 @@ export function flashInnerTemplate(): TemplateItem[] {
 export const ALL_ALLOWED_BLOCKS = [
 	...ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_BLOCK_NAME,
+	STATUS_BLOCK_NAME,
 ];
 
 /**

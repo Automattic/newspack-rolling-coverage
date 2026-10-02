@@ -658,8 +658,9 @@ class Entry_Bindings {
 	/**
 	 * Whether a parsed block belongs to the coverage rather than to each
 	 * entry, so it renders once: the follow or "Jump to Latest" button, the
-	 * legacy follow block, a heading bound to the coverage's name, the "See
-	 * all updates" paragraph, or a block holding one at any depth. The
+	 * legacy follow block, the Coverage Status block, a heading bound to the
+	 * coverage's name, the "See all updates" paragraph, or a block holding one
+	 * at any depth. The
 	 * pinned card and the entry group always belong to each entry, whatever
 	 * they hold.
 	 *
@@ -673,6 +674,7 @@ class Entry_Bindings {
 
 		if (
 			Coverage_Follow_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
+			Coverage_Status_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			self::is_follow_buttons( $parsed_block ) ||
 			self::is_latest_buttons( $parsed_block ) ||
 			self::is_coverage_name_heading( $parsed_block ) ||

@@ -122,6 +122,12 @@ const ALL_UPDATES_CLASS = 'newspack-rolling-coverage-all-updates';
  */
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 
+/**
+ * The Coverage Status block, which shows the coverage's status once when it
+ * sits among the layout's coverage-level blocks.
+ */
+const STATUS_BLOCK_NAME = 'newspack-rolling-coverage/coverage-status';
+
 const ACCENT =
 	'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
 const ACCENT_CONTRAST =
@@ -1543,6 +1549,7 @@ function isCoverageItem( block: {
 
 	return (
 		isFollowBlock( typed ) ||
+		block.name === STATUS_BLOCK_NAME ||
 		isLatestButtons( typed ) ||
 		isCoverageNameHeading( typed ) ||
 		isAllUpdatesParagraph( typed ) ||
@@ -2428,6 +2435,7 @@ export {
 	ENTRY_ALLOWED_BLOCKS,
 	ALL_UPDATES_CLASS,
 	FOLLOW_BLOCK_NAME,
+	STATUS_BLOCK_NAME,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
 	feedGroupOf,
