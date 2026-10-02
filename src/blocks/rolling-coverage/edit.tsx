@@ -81,6 +81,7 @@ import {
 	feedItems,
 	followBlockIds,
 	allUpdatesBlockIds,
+	emptiedGroupIds,
 	withoutAllUpdatesParagraph,
 	isPinnedCard,
 	isRegularEntry,
@@ -710,8 +711,8 @@ export default function Edit( {
 	const hidesEntryBreakout = regularContext
 		? ! regularContext.hasBreakout
 		: false;
-	const hiddenIds = useMemo(
-		() => [
+	const hiddenIds = useMemo( () => {
+		const ids = [
 			...( isFollowHidden ? followBlockIds( allBlocks ) : [] ),
 			...( isAllUpdatesHidden ? allUpdatesBlockIds( allBlocks ) : [] ),
 			...allBlocks
@@ -731,18 +732,19 @@ export default function Edit( {
 						: hidesEntryBreakout
 				)
 			),
-		],
-		[
-			allBlocks,
-			isFollowHidden,
-			isAllUpdatesHidden,
-			isCardHidden,
-			isEntryHidden,
-			pinnedContext,
-			hidesCardBreakout,
-			hidesEntryBreakout,
-		]
-	);
+		];
+
+		return [ ...ids, ...emptiedGroupIds( allBlocks, ids ) ];
+	}, [
+		allBlocks,
+		isFollowHidden,
+		isAllUpdatesHidden,
+		isCardHidden,
+		isEntryHidden,
+		pinnedContext,
+		hidesCardBreakout,
+		hidesEntryBreakout,
+	] );
 	const hiddenKey = hiddenIds.join( ',' );
 	useEffect( () => {
 		const ids = hiddenKey ? hiddenKey.split( ',' ) : [];

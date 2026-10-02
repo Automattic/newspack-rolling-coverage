@@ -1629,8 +1629,9 @@ class Rolling_Coverage_Block {
 	/**
 	 * Renders coverage-level blocks once, with the coverage in their context
 	 * so the follow button carries its tag. A follow button that can't render,
-	 * e.g. on an archived coverage, leaves nothing behind, and "Jump to
-	 * Latest" renders only as its own control, so none renders here.
+	 * e.g. on an archived coverage, leaves nothing behind, nor does a group
+	 * left empty once it and the "See all updates" paragraph drop out, and
+	 * "Jump to Latest" renders only as its own control, so none renders here.
 	 *
 	 * @param array[] $blocks          Parsed coverage-level blocks.
 	 * @param int     $coverage_id     Coverage term id.
@@ -1643,10 +1644,12 @@ class Rolling_Coverage_Block {
 			return '';
 		}
 
+		$can_follow = Coverage_Follow_Block::should_render( $status );
+
 		// Preload the follow button's view script and the legacy block's
 		// styles: the button renders inside this callback, so WordPress
 		// doesn't enqueue its assets.
-		$follow_block_type = Coverage_Follow_Block::should_render( $status ) && self::holds_follow_button( $blocks ) ? WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Follow_Block::BLOCK_NAME ) : null;
+		$follow_block_type = $can_follow && self::holds_follow_button( $blocks ) ? WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Follow_Block::BLOCK_NAME ) : null;
 
 		if ( $follow_block_type ) {
 			foreach ( $follow_block_type->style_handles as $style_handle ) {
@@ -1660,8 +1663,13 @@ class Rolling_Coverage_Block {
 
 		$blocks = self::map_template_blocks(
 			$blocks,
-			static function ( array $block ) use ( $coverage_id, $status, $all_updates_url ) {
-				if ( Entry_Bindings::is_latest_buttons( $block ) || ( '' === $all_updates_url && Entry_Bindings::is_all_updates_paragraph( $block ) ) ) {
+			static function ( array $block, array $original ) use ( $coverage_id, $status, $all_updates_url, $can_follow ) {
+				if (
+					Entry_Bindings::is_latest_buttons( $block ) ||
+					( '' === $all_updates_url && Entry_Bindings::is_all_updates_paragraph( $block ) ) ||
+					( ! $can_follow && ( Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $block ) ) ) ||
+					( 'core/group' === ( $block['blockName'] ?? '' ) && empty( $block['innerBlocks'] ) && ! empty( $original['innerBlocks'] ) )
+				) {
 					return [];
 				}
 
@@ -2517,22 +2525,25 @@ class Rolling_Coverage_Block {
 	 * Inner blocks are mapped before the block holding them.
 	 *
 	 * @param array[]  $blocks Parsed blocks.
-	 * @param callable $map    Returns the blocks that replace the one given.
+	 * @param callable $map    Returns the blocks that replace the one given, which
+	 *                         it gets with its inner blocks mapped, then as it was.
 	 * @return array[]
 	 */
 	private static function map_template_blocks( array $blocks, callable $map ): array {
 		$mapped = [];
 
-		foreach ( $blocks as $block ) {
-			if ( ! is_array( $block ) ) {
+		foreach ( $blocks as $original ) {
+			if ( ! is_array( $original ) ) {
 				continue;
 			}
+
+			$block = $original;
 
 			if ( ! empty( $block['innerBlocks'] ) ) {
 				$block = self::sync_inner_content( $block, self::map_template_blocks( $block['innerBlocks'], $map ) );
 			}
 
-			foreach ( $map( $block ) as $replacement ) {
+			foreach ( $map( $block, $original ) as $replacement ) {
 				$mapped[] = $replacement;
 			}
 		}

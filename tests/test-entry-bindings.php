@@ -1784,6 +1784,35 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A footer whose link and Follow button both drop out, on an ended
+	 * coverage with no page to link to, leaves no empty bordered group; with
+	 * Follow still showing, the footer stays.
+	 */
+	public function test_footer_left_empty_renders_nothing() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		self::create_entry( $coverage_id );
+
+		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry"><!-- wp:post-title /--></div><!-- /wp:group -->';
+		$footer      = '<!-- wp:group {"className":"digest-footer","style":{"border":{"top":{"width":"1px"}}}} --><div class="wp-block-group digest-footer" style="border-top-width:1px">'
+			. self::group_markup( self::ALL_UPDATES_MARKUP . self::FOLLOW_MARKUP )
+			. '</div><!-- /wp:group -->';
+		$attributes  = [
+			'coverageId'         => $coverage_id,
+			'latestOnly'         => true,
+			'latestCount'        => 3,
+			'archivedNoticeShow' => false,
+		];
+
+		$this->assertStringNotContainsString( 'digest-footer', self::render_coverage_items( $attributes, $entry_group . $footer ) );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ACTIVE );
+		$html = self::render_coverage_items( $attributes, $entry_group . $footer );
+
+		$this->assertStringContainsString( 'digest-footer', $html );
+		$this->assertStringContainsString( '>Follow</button>', $html );
+	}
+
+	/**
 	 * A capped, self-hiding feed shaped like the Flash layout shows one entry
 	 * with the "See all updates" link after it, and nothing once the coverage
 	 * has ended.

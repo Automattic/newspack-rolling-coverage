@@ -1582,6 +1582,42 @@ function layoutParts< T extends { name: string; [ key: string ]: unknown } >(
 }
 
 /**
+ * The blocks without those matching a test, at any depth, and without the
+ * groups that leaves empty, as the site renders coverage-level blocks (see
+ * Rolling_Coverage_Block::render_coverage_blocks()).
+ *
+ * @param {Object[]} blocks    The blocks.
+ * @param {Function} isDropped Whether a block is left out.
+ * @return {Object[]} The blocks left.
+ */
+function withoutBlocks< T extends { name: string; [ key: string ]: unknown } >(
+	blocks: T[],
+	isDropped: ( block: T ) => boolean
+): T[] {
+	return blocks.flatMap( ( block ) => {
+		if ( isDropped( block ) ) {
+			return [];
+		}
+
+		if (
+			! Array.isArray( block.innerBlocks ) ||
+			! block.innerBlocks.length
+		) {
+			return [ block ];
+		}
+
+		const innerBlocks = withoutBlocks(
+			block.innerBlocks as T[],
+			isDropped
+		);
+
+		return block.name === 'core/group' && ! innerBlocks.length
+			? []
+			: [ { ...block, innerBlocks } ];
+	} );
+}
+
+/**
  * The blocks without their follow buttons, at any depth, as the site renders
  * them where the coverage can't be followed.
  *
@@ -1591,18 +1627,9 @@ function layoutParts< T extends { name: string; [ key: string ]: unknown } >(
 function withoutFollowButtons<
 	T extends { name: string; [ key: string ]: unknown },
 >( blocks: T[] ): T[] {
-	return blocks
-		.filter( ( block ) => ! isFollowBlock( block as ButtonsBlock ) )
-		.map( ( block ) =>
-			Array.isArray( block.innerBlocks ) && block.innerBlocks.length
-				? {
-						...block,
-						innerBlocks: withoutFollowButtons(
-							block.innerBlocks as T[]
-						),
-					}
-				: block
-		);
+	return withoutBlocks( blocks, ( block ) =>
+		isFollowBlock( block as ButtonsBlock )
+	);
 }
 
 /**
@@ -1616,18 +1643,9 @@ function withoutFollowButtons<
 function withoutLatestButtons<
 	T extends { name: string; [ key: string ]: unknown },
 >( blocks: T[] ): T[] {
-	return blocks
-		.filter( ( block ) => ! isLatestButtons( block as ButtonsBlock ) )
-		.map( ( block ) =>
-			Array.isArray( block.innerBlocks ) && block.innerBlocks.length
-				? {
-						...block,
-						innerBlocks: withoutLatestButtons(
-							block.innerBlocks as T[]
-						),
-					}
-				: block
-		);
+	return withoutBlocks( blocks, ( block ) =>
+		isLatestButtons( block as ButtonsBlock )
+	);
 }
 
 /**
@@ -1660,18 +1678,7 @@ function followBlockIds(
 function withoutAllUpdatesParagraph<
 	T extends { name: string; [ key: string ]: unknown },
 >( blocks: T[] ): T[] {
-	return blocks
-		.filter( ( block ) => ! isAllUpdatesParagraph( block ) )
-		.map( ( block ) =>
-			Array.isArray( block.innerBlocks ) && block.innerBlocks.length
-				? {
-						...block,
-						innerBlocks: withoutAllUpdatesParagraph(
-							block.innerBlocks as T[]
-						),
-					}
-				: block
-		);
+	return withoutBlocks( blocks, isAllUpdatesParagraph );
 }
 
 /**
@@ -1693,6 +1700,50 @@ function allUpdatesBlockIds(
 						: []
 				)
 	);
+}
+
+/**
+ * The client IDs of the coverage-level groups whose inner blocks are all
+ * hidden, at any depth, as the site leaves such a group out.
+ *
+ * @param {Object[]} blocks    The layout's items.
+ * @param {string[]} hiddenIds The client IDs of the hidden blocks.
+ * @return {string[]} Client IDs.
+ */
+function emptiedGroupIds(
+	blocks: { name: string; [ key: string ]: unknown }[],
+	hiddenIds: string[]
+): string[] {
+	const hidden = new Set( hiddenIds );
+	const emptied: string[] = [];
+	const isHidden = ( block: {
+		name: string;
+		[ key: string ]: unknown;
+	} ): boolean => {
+		if ( hidden.has( block.clientId as string ) ) {
+			return true;
+		}
+
+		const inner = Array.isArray( block.innerBlocks )
+			? ( block.innerBlocks as typeof blocks )
+			: [];
+		const innerHidden = inner.map( isHidden );
+
+		if (
+			block.name === 'core/group' &&
+			inner.length > 0 &&
+			innerHidden.every( Boolean )
+		) {
+			emptied.push( block.clientId as string );
+			return true;
+		}
+
+		return false;
+	};
+
+	blocks.filter( isCoverageItem ).forEach( isHidden );
+
+	return emptied;
 }
 
 /**
@@ -2395,6 +2446,7 @@ export {
 	allUpdatesLink,
 	allUpdatesBlockIds,
 	withoutAllUpdatesParagraph,
+	emptiedGroupIds,
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	breakoutBlockIds,
