@@ -37,6 +37,7 @@ import {
 	Notice,
 	Placeholder,
 	TextareaControl,
+	ToggleControl,
 	ToolbarButton,
 } from '@wordpress/components';
 import {
@@ -212,6 +213,7 @@ export default function Edit( {
 		entriesPerPage,
 		enableAds,
 		adsInterval,
+		hideWhenEnded,
 		archivedNoticeShow,
 		archivedNotice,
 		archivedNoticeShowLink,
@@ -1107,6 +1109,16 @@ export default function Edit( {
 			</PanelBody>
 
 			<PanelBody title={ STATUS_LABELS.archived } initialOpen={ false }>
+				<ToggleControl
+					label={ __(
+						'Hide when the coverage ends',
+						'newspack-rolling-coverage'
+					) }
+					checked={ !! hideWhenEnded }
+					onChange={ ( value: boolean ) =>
+						setAttributes( { hideWhenEnded: value } )
+					}
+				/>
 				<ToggleGroupControl
 					__next40pxDefaultSize
 					isBlock

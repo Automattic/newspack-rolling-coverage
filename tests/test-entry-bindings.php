@@ -827,6 +827,54 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An ended coverage renders nothing when the block hides itself.
+	 */
+	public function test_hide_when_ended_renders_nothing_for_an_archived_coverage() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$this->assertSame(
+			'',
+			self::render_feed_block(
+				[
+					'coverageId'    => $coverage_id,
+					'hideWhenEnded' => true,
+				] 
+			) 
+		);
+	}
+
+	/**
+	 * Without the setting an ended coverage still renders.
+	 */
+	public function test_archived_coverage_still_renders_without_hide_when_ended() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$this->assertStringContainsString( 'Entry text', self::render_feed_block( [ 'coverageId' => $coverage_id ] ) );
+	}
+
+	/**
+	 * An active coverage renders even when the block hides itself on ending.
+	 */
+	public function test_hide_when_ended_keeps_an_active_coverage_visible() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+
+		$this->assertStringContainsString(
+			'Entry text',
+			self::render_feed_block(
+				[
+					'coverageId'    => $coverage_id,
+					'hideWhenEnded' => true,
+				] 
+			) 
+		);
+	}
+
+	/**
 	 * Line breaks typed in the notice carry through to the front end.
 	 */
 	public function test_archived_notice_keeps_line_breaks() {

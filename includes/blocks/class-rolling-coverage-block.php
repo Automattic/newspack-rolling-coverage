@@ -859,6 +859,13 @@ class Rolling_Coverage_Block {
 		$ads_interval     = max( 1, (int) ( $attributes['adsInterval'] ?? 4 ) );
 		$status           = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
 		$status           = $status ? $status : 'active';
+
+		if ( ! empty( $attributes['hideWhenEnded'] ) && Taxonomy::STATUS_ARCHIVED === $status ) {
+			self::$host_post_id = $previous_post_id;
+
+			return '';
+		}
+
 		$ads_enabled_attr = ! empty( $attributes['enableAds'] );
 		$ads_enabled      = ! $is_capped && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $coverage_id );
 
