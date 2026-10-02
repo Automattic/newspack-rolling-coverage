@@ -529,6 +529,46 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The entry group stays the entry template even when it holds the follow
+	 * button: every entry renders it, and nothing renders it once outside the
+	 * entries.
+	 */
+	public function test_entry_group_holding_follow_renders_per_entry() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::create_entry( $coverage_id );
+
+		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. '<!-- wp:paragraph --><p>Entry body</p><!-- /wp:paragraph -->'
+			. self::FOLLOW_MARKUP
+			. '</div><!-- /wp:group -->';
+		$html        = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $entry_group );
+
+		$this->assertSame( 2, substr_count( $html, 'Entry body' ), 'Each entry should render the entry group.' );
+		$this->assertGreaterThan( strpos( $html, 'class="newspack-rolling-coverage-entries"' ), strpos( $html, 'Entry body' ), 'Nothing should render it outside the entries.' );
+		$this->assertSame( 2, substr_count( $html, '<article ' ) );
+	}
+
+	/**
+	 * "Jump to Latest" only renders as the control: one inside a group of
+	 * coverage-level blocks renders nothing there, and the default control
+	 * stands in.
+	 */
+	public function test_nested_latest_button_renders_only_as_the_control() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+
+		$latest = '<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"latestUrl"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button">Back to live</a></div><!-- /wp:button --></div><!-- /wp:buttons -->';
+		$header = self::group_markup( '<!-- wp:paragraph --><p>Coverage header</p><!-- /wp:paragraph -->' . $latest );
+		$html   = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $header . self::BUTTONS_MARKUP );
+
+		$this->assertStringContainsString( 'Coverage header', $html );
+		$this->assertStringNotContainsString( 'Back to live', $html, 'The nested button should not render.' );
+		$this->assertSame( 1, substr_count( $html, 'data-rc-latest' ), 'Only the control should link to the live feed.' );
+		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-new-entries' ) );
+	}
+
+	/**
 	 * Coverage-level blocks: the follow and "Jump to Latest" buttons, the
 	 * legacy follow block, a heading bound to the coverage's name, the "See
 	 * all updates" paragraph, or a block holding one at any depth.
@@ -553,18 +593,21 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$latest       = '<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"latestUrl"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button">Jump to Latest</a></div><!-- /wp:button --></div><!-- /wp:buttons -->';
 
 		return [
-			'follow buttons'             => [ self::FOLLOW_MARKUP, true ],
-			'jump to latest'             => [ $latest, true ],
-			'legacy follow'              => [ '<!-- wp:newspack-rolling-coverage/coverage-follow /-->', true ],
-			'coverage name heading'      => [ $name_heading, true ],
-			'all updates paragraph'      => [ $all_updates, true ],
-			'group holding a follow'     => [ self::group_markup( self::FOLLOW_MARKUP ), true ],
-			'deeply nested heading'      => [ self::group_markup( self::group_markup( $name_heading ) ), true ],
-			'entry buttons'              => [ self::BUTTONS_MARKUP, false ],
-			'plain heading'              => [ '<!-- wp:heading --><h2 class="wp-block-heading">Title</h2><!-- /wp:heading -->', false ],
-			'heading bound to other key' => [ str_replace( 'coverageName', 'shareUrl', $name_heading ), false ],
-			'paragraph bound to name'    => [ str_replace( [ 'wp:heading', 'h2 class="wp-block-heading"', '/h2' ], [ 'wp:paragraph', 'p', '/p' ], $name_heading ), false ],
-			'plain group'                => [ self::group_markup( '<!-- wp:paragraph --><p>Text</p><!-- /wp:paragraph -->' ), false ],
+			'follow buttons'              => [ self::FOLLOW_MARKUP, true ],
+			'jump to latest'              => [ $latest, true ],
+			'legacy follow'               => [ '<!-- wp:newspack-rolling-coverage/coverage-follow /-->', true ],
+			'coverage name heading'       => [ $name_heading, true ],
+			'all updates paragraph'       => [ $all_updates, true ],
+			'group holding a follow'      => [ self::group_markup( self::FOLLOW_MARKUP ), true ],
+			'deeply nested heading'       => [ self::group_markup( self::group_markup( $name_heading ) ), true ],
+			'entry buttons'               => [ self::BUTTONS_MARKUP, false ],
+			'plain heading'               => [ '<!-- wp:heading --><h2 class="wp-block-heading">Title</h2><!-- /wp:heading -->', false ],
+			'heading bound to other key'  => [ str_replace( 'coverageName', 'shareUrl', $name_heading ), false ],
+			'paragraph bound to name'     => [ str_replace( [ 'wp:heading', 'h2 class="wp-block-heading"', '/h2' ], [ 'wp:paragraph', 'p', '/p' ], $name_heading ), false ],
+			'plain group'                 => [ self::group_markup( '<!-- wp:paragraph --><p>Text</p><!-- /wp:paragraph -->' ), false ],
+			'entry group holding follow'  => [ '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . self::FOLLOW_MARKUP . '</div><!-- /wp:group -->', false ],
+			'pinned card holding name'    => [ '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">' . $name_heading . '</div><!-- /wp:group -->', false ],
+			'group around an entry group' => [ self::group_markup( '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . $all_updates . '</div><!-- /wp:group -->' ), false ],
 		];
 	}
 

@@ -492,12 +492,13 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	 * Polls for a feed rendered with these attributes, from the start of the
 	 * coverage.
 	 *
-	 * @param array $attributes Block attributes besides the coverage.
+	 * @param array  $attributes Block attributes besides the coverage.
+	 * @param string $items      The layout items' markup, or none for the default layout.
 	 * @return array Poll response data.
 	 */
-	private function poll_with_attributes( array $attributes ) {
+	private function poll_with_attributes( array $attributes, string $items = '' ) {
 		$attributes = array_merge( [ 'coverageId' => $this->coverage_id ], $attributes );
-		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ( '' === $items ? ' /-->' : ' -->' . $items . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' ) )[0];
 		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
 
 		preg_match( '/data-template-key="([^"]+)"/', $html, $matches );
@@ -508,6 +509,25 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 				'template_key' => $matches[1],
 			]
 		)->get_data();
+	}
+
+	/**
+	 * Polled entries carry only the entry template, never the blocks the
+	 * coverage renders once around them.
+	 */
+	public function test_polled_entries_hold_no_coverage_level_blocks() {
+		$this->create_entry_at( '2026-01-01 12:00:00' );
+
+		$header = '<!-- wp:group --><div class="wp-block-group">'
+			. '<!-- wp:paragraph --><p>Coverage header</p><!-- /wp:paragraph -->'
+			. '<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"tagName":"button","metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"followTag"}}}}} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Follow</button></div><!-- /wp:button --></div><!-- /wp:buttons -->'
+			. '</div><!-- /wp:group -->';
+		$entries = $this->poll_with_attributes( [], $header . '<!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph -->' )['entries'];
+
+		$this->assertCount( 1, $entries );
+		$this->assertStringContainsString( 'Entry text', $entries[0]['html'] );
+		$this->assertStringNotContainsString( 'Coverage header', $entries[0]['html'] );
+		$this->assertStringNotContainsString( 'Follow', $entries[0]['html'] );
 	}
 
 	/**

@@ -22,6 +22,7 @@ import {
 	feedTemplate,
 	latestTemplate,
 	layoutParts,
+	withoutLatestButtons,
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	withLinkedTitle,
@@ -255,11 +256,15 @@ export function useLayoutPreview(
 	templateBlocks: TemplateBlocks;
 	blocksForEntry: ( context: EntryContext ) => TemplateBlocks;
 } {
-	const {
-		header: headerBlocks,
-		template: templateBlocks,
-		footer: footerBlocks,
-	} = useMemo( () => layoutParts( allBlocks ), [ allBlocks ] );
+	const { headerBlocks, templateBlocks, footerBlocks } = useMemo( () => {
+		const { header, template, footer } = layoutParts( allBlocks );
+
+		return {
+			headerBlocks: withoutLatestButtons( header ),
+			templateBlocks: template,
+			footerBlocks: withoutLatestButtons( footer ),
+		};
+	}, [ allBlocks ] );
 	const previewTemplates = useMemo( () => {
 		const pinnedBlocks = forEntryKind( templateBlocks, true );
 		const hasCard = hasPinnedCard( pinnedBlocks );

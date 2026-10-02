@@ -19,7 +19,7 @@ import { __ } from '@wordpress/i18n';
  */
 import { BLOCK_NAME } from '../layout';
 import { getBuiltInLayouts, type BuiltInLayoutSlug } from '../layouts';
-import { isLatestButtons } from '../template';
+import { withoutLatestButtons } from '../template';
 import { createLayout, getLayoutCategoryId, getLayoutId } from '../utils';
 import type { TemplateItem } from '../types';
 
@@ -103,25 +103,6 @@ type PreviewBlock = {
 	attributes?: Record< string, unknown >;
 	innerBlocks?: PreviewBlock[];
 };
-
-/**
- * Blocks without the "Jump to Latest" button, at any depth.
- *
- * @param {Object[]} blocks Blocks.
- * @return {Object[]} The blocks without it.
- */
-function withoutLatestButtons( blocks: PreviewBlock[] ): PreviewBlock[] {
-	return blocks
-		.filter( ( block ) => ! isLatestButtons( block ) )
-		.map( ( block ) =>
-			block.innerBlocks?.length
-				? {
-						...block,
-						innerBlocks: withoutLatestButtons( block.innerBlocks ),
-					}
-				: block
-		);
-}
 
 /**
  * One layout in the picker: a scaled preview of the block rendering sample

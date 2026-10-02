@@ -1191,7 +1191,8 @@ function isFollowBlock( block: ButtonsBlock ): boolean {
  * renders once: the follow or "Jump to Latest" button, the legacy follow
  * block, a heading bound to the coverage's name, the "See all updates"
  * paragraph, or a block holding one at any depth, mirroring
- * Entry_Bindings::is_coverage_item().
+ * Entry_Bindings::is_coverage_item(). The pinned card and the entry group
+ * always belong to each entry, whatever they hold.
  *
  * @param {Object} block      The block.
  * @param {string} block.name Block name.
@@ -1204,6 +1205,10 @@ function isCoverageItem( block: {
 	const typed = block as ButtonsBlock & {
 		attributes?: Record< string, unknown >;
 	};
+
+	if ( isPinnedCard( typed ) || isRegularEntry( typed ) ) {
+		return false;
+	}
 
 	return (
 		isFollowBlock( typed ) ||
@@ -1262,6 +1267,31 @@ function withoutFollowButtons<
 				? {
 						...block,
 						innerBlocks: withoutFollowButtons(
+							block.innerBlocks as T[]
+						),
+					}
+				: block
+		);
+}
+
+/**
+ * Blocks without the "Jump to Latest" button, at any depth, as everywhere
+ * but its own control renders them (see
+ * Rolling_Coverage_Block::render_coverage_blocks()).
+ *
+ * @param {Object[]} blocks Blocks.
+ * @return {Object[]} The blocks without it.
+ */
+function withoutLatestButtons<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks
+		.filter( ( block ) => ! isLatestButtons( block as ButtonsBlock ) )
+		.map( ( block ) =>
+			Array.isArray( block.innerBlocks ) && block.innerBlocks.length
+				? {
+						...block,
+						innerBlocks: withoutLatestButtons(
 							block.innerBlocks as T[]
 						),
 					}
@@ -1969,6 +1999,7 @@ export {
 	isCoverageItem,
 	layoutParts,
 	withoutFollowButtons,
+	withoutLatestButtons,
 	followBlockIds,
 	withoutPinnedRow,
 	withoutBreakoutLink,

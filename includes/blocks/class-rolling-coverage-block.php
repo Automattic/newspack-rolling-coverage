@@ -1554,7 +1554,8 @@ class Rolling_Coverage_Block {
 	/**
 	 * Renders coverage-level blocks once, with the coverage in their context
 	 * so the follow button carries its tag. A follow button that can't render,
-	 * e.g. on an archived coverage, leaves nothing behind.
+	 * e.g. on an archived coverage, leaves nothing behind, and "Jump to
+	 * Latest" renders only as its own control, so none renders here.
 	 *
 	 * @param array[] $blocks      Parsed coverage-level blocks.
 	 * @param int     $coverage_id Coverage term id.
@@ -1584,6 +1585,10 @@ class Rolling_Coverage_Block {
 		$blocks = self::map_template_blocks(
 			$blocks,
 			static function ( array $block ) use ( $coverage_id, $status ) {
+				if ( Entry_Bindings::is_latest_buttons( $block ) ) {
+					return [];
+				}
+
 				if ( Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) {
 					$block['attrs'] = array_merge(
 						(array) ( $block['attrs'] ?? [] ),
@@ -2345,6 +2350,17 @@ class Rolling_Coverage_Block {
 	private static function is_regular_entry( array $block ): bool {
 		return 'core/group' === ( $block['blockName'] ?? '' ) &&
 			in_array( self::REGULAR_ENTRY_CLASS, explode( ' ', (string) ( $block['attrs']['className'] ?? '' ) ), true );
+	}
+
+	/**
+	 * Whether a parsed block is the pinned card or the entry group, which
+	 * render per entry.
+	 *
+	 * @param array $block Parsed block.
+	 * @return bool
+	 */
+	public static function is_entry_group( array $block ): bool {
+		return self::is_pinned_card( $block ) || self::is_regular_entry( $block );
 	}
 
 	/**
