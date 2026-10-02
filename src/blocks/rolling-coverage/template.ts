@@ -1199,6 +1199,81 @@ function digestRow( slugs: string[], sizes: string[] ): TemplateItem {
 	];
 }
 
+const FLASH_FEED_STYLE = {
+	color: { background: ACCENT, text: ACCENT_CONTRAST },
+	elements: { link: { color: { text: ACCENT_CONTRAST } } },
+	spacing: {
+		padding: {
+			top: 'var:preset|spacing|30',
+			bottom: 'var:preset|spacing|30',
+			left: 'var:preset|spacing|50',
+			right: 'var:preset|spacing|50',
+		},
+	},
+};
+
+const FLASH_FEED_LAYOUT = {
+	type: 'flex',
+	orientation: 'horizontal',
+	flexWrap: 'wrap',
+	verticalAlignment: 'center',
+};
+
+/**
+ * The Flash layout's per-entry template: the time and the entry's text on one
+ * row. The pinned card matches the regular entry, since a capped feed ignores
+ * pinning.
+ *
+ * @param {string[]} sizes The theme's font size slugs.
+ * @return {TemplateItem[]} The template.
+ */
+function flashEntryTemplate( sizes: string[] ): TemplateItem[] {
+	const entry = ( className: string, name: string ): TemplateItem => [
+		'core/group',
+		{
+			className,
+			lock: LOCKED_IN_PLACE,
+			layout: {
+				type: 'flex',
+				flexWrap: 'wrap',
+				verticalAlignment: 'center',
+			},
+			style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+			metadata: { name },
+		},
+		[
+			[
+				'core/post-date',
+				{
+					...POST_DATE_ATTRIBUTES,
+					format: siteTimeFormat(),
+					fontSize: 'small',
+					style: { typography: { fontWeight: '700' } },
+				},
+			],
+			[
+				'core/post-excerpt',
+				{
+					excerptLength: 20,
+					moreText: '',
+					fontSize: themeFontSize( sizes, 'medium', 'normal' ),
+				},
+			],
+		],
+	];
+
+	return [
+		entry(
+			PINNED_CARD_CLASS,
+			__( 'Pinned Entry', 'newspack-rolling-coverage' )
+		),
+		entry(
+			REGULAR_ENTRY_CLASS,
+			__( 'Entry', 'newspack-rolling-coverage' )
+		),
+	];
+}
+
 /**
  * The Digest layout's per-entry template: the time and, beside it, the
  * headline over a short excerpt, ruled off from the entry above. The pinned
@@ -1624,26 +1699,28 @@ function allUpdatesBlockIds(
  * The Feed group holding the layout's items: everything the coverage shows,
  * spaced by its Block spacing.
  *
- * @param {Object[]} items The items.
- * @param {string}   gap   The space between the items, as a spacing preset.
- * @param {Object}   style Extra style settings, such as a border or padding.
+ * @param {Object[]} items  The items.
+ * @param {string}   gap    The space between the items, as a spacing preset.
+ * @param {Object}   style  Extra style settings, such as a border or padding.
+ * @param {Object}   layout The group's layout, a vertical stack by default.
  * @return {Object} The Feed group.
  */
 function feedTemplate(
 	items: TemplateItem[],
 	gap = 'var:preset|spacing|50',
-	style: Record< string, unknown > = {}
+	style: Record< string, unknown > = {},
+	layout: Record< string, unknown > = {
+		type: 'flex',
+		orientation: 'vertical',
+		justifyContent: 'stretch',
+	}
 ): TemplateItem {
 	return [
 		'core/group',
 		{
 			className: FEED_CLASS,
 			lock: LOCKED_IN_PLACE,
-			layout: {
-				type: 'flex',
-				orientation: 'vertical',
-				justifyContent: 'stretch',
-			},
+			layout,
 			style: {
 				...style,
 				spacing: { ...( style.spacing ?? {} ), blockGap: gap },
@@ -2293,6 +2370,9 @@ export {
 	digestEntryTemplate,
 	digestHeader,
 	digestFooter,
+	flashEntryTemplate,
+	FLASH_FEED_STYLE,
+	FLASH_FEED_LAYOUT,
 	DIGEST_FEED_STYLE,
 	ENTRY_ALLOWED_BLOCKS,
 	ALL_UPDATES_CLASS,

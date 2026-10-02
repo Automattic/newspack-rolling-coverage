@@ -564,6 +564,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 			'minute' => [ 'minute', 'Rolling Coverage: Minute' ],
 			'wire'   => [ 'wire', 'Rolling Coverage: Wire' ],
 			'digest' => [ 'digest', 'Rolling Coverage: Digest' ],
+			'flash'  => [ 'flash', 'Rolling Coverage: Flash' ],
 		];
 	}
 

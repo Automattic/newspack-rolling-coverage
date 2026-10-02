@@ -16,6 +16,7 @@ import {
 	minuteInnerTemplate,
 	wireInnerTemplate,
 	digestInnerTemplate,
+	flashInnerTemplate,
 } from './layout';
 import type { TemplateItem } from './types';
 
@@ -27,7 +28,8 @@ export type BuiltInLayoutSlug =
 	| 'margin'
 	| 'minute'
 	| 'wire'
-	| 'digest';
+	| 'digest'
+	| 'flash';
 
 export type BuiltInLayout = {
 	slug: BuiltInLayoutSlug;
@@ -35,6 +37,7 @@ export type BuiltInLayout = {
 	template: () => TemplateItem[];
 	latest?: number;
 	hidesWhenEnded?: boolean;
+	align?: string;
 };
 
 /**
@@ -86,6 +89,14 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			template: digestInnerTemplate,
 			latest: 3,
 		},
+		{
+			slug: 'flash',
+			title: _x( 'Flash', 'layout name', 'newspack-rolling-coverage' ),
+			template: flashInnerTemplate,
+			latest: 1,
+			hidesWhenEnded: true,
+			align: 'full',
+		},
 	];
 }
 
@@ -119,6 +130,7 @@ export function layoutCapAttributes( slug: BuiltInLayoutSlug ): {
 	latestOnly: boolean;
 	latestCount?: number;
 	hideWhenEnded: boolean;
+	align?: string;
 } {
 	const layout = getBuiltInLayouts().find( ( item ) => item.slug === slug );
 
@@ -127,6 +139,7 @@ export function layoutCapAttributes( slug: BuiltInLayoutSlug ): {
 			latestOnly: true,
 			latestCount: layout.latest,
 			hideWhenEnded: !! layout.hidesWhenEnded,
+			...( layout.align ? { align: layout.align } : {} ),
 		};
 	}
 

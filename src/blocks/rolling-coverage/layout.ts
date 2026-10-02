@@ -20,6 +20,9 @@ import {
 	digestEntryTemplate,
 	digestHeader,
 	digestFooter,
+	flashEntryTemplate,
+	FLASH_FEED_STYLE,
+	FLASH_FEED_LAYOUT,
 	DIGEST_FEED_STYLE,
 	allUpdatesLink,
 	ENTRY_ALLOWED_BLOCKS,
@@ -238,6 +241,24 @@ export function digestInnerTemplate(): TemplateItem[] {
 			],
 			'var:preset|spacing|40',
 			DIGEST_FEED_STYLE
+		),
+	];
+}
+
+/**
+ * The Flash layout's inner-blocks template: a full-width strip on the site's
+ * accent color holding the newest entry's time and text, then a link to the
+ * coverage page.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function flashInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			[ ...flashEntryTemplate( themeFontSizeSlugs() ), allUpdatesLink() ],
+			'var:preset|spacing|40',
+			FLASH_FEED_STYLE,
+			FLASH_FEED_LAYOUT
 		),
 	];
 }

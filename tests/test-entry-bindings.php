@@ -1700,4 +1700,41 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertSame( 1, substr_count( $html, '>Follow</button>' ), 'Follow should render once, in the footer.' );
 		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, '>Follow</button>' ) );
 	}
+
+	/**
+	 * A capped, self-hiding feed shaped like the Flash layout shows one entry
+	 * with the "See all updates" link after it, and nothing once the coverage
+	 * has ended.
+	 */
+	public function test_flash_shaped_feed_shows_one_entry_then_hides_when_ended() {
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+		foreach ( [ 'Older update', 'Latest update' ] as $offset => $title ) {
+			self::create_entry(
+				$coverage_id,
+				[
+					'post_title'   => $title,
+					'post_excerpt' => 'Summary of ' . $title,
+					'post_date'    => gmdate( 'Y-m-d H:i:s', strtotime( '-' . ( 2 - $offset ) . ' hours' ) ),
+				]
+			);
+		}
+
+		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry","layout":{"type":"flex","flexWrap":"wrap"}} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. '<!-- wp:post-excerpt {"excerptLength":20,"moreText":""} /-->'
+			. '</div><!-- /wp:group -->';
+		$attributes  = [
+			'latestCount'   => 1,
+			'hideWhenEnded' => true,
+		];
+		$html        = self::render_capped_coverage( $coverage_id, $attributes, $entry_group . self::ALL_UPDATES_MARKUP );
+
+		$this->assertSame( 1, substr_count( $html, '<article' ) );
+		$this->assertStringContainsString( 'Summary of Latest update', $html );
+		$this->assertStringNotContainsString( 'Summary of Older update', $html );
+		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, 'newspack-rolling-coverage-all-updates' ), 'The link should follow the entry.' );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+		$this->assertSame( '', self::render_capped_coverage( $coverage_id, $attributes, $entry_group . self::ALL_UPDATES_MARKUP ) );
+	}
 }
