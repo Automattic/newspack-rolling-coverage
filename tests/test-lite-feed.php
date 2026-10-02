@@ -387,12 +387,14 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 			]
 		);
 
-		$entries = $this->get_lite_feed( [ 'cursor' => '0:2025-12-31 00:00:00' ] )->get_data()['entries'];
+		$entries      = $this->get_lite_feed( [ 'cursor' => '0:2025-12-31 00:00:00' ] )->get_data()['entries'];
+		$allowed_html = apply_filters( 'newspack_lite_site_allowed_html', [ 'div' => [ 'class' => true ] ] );
 
 		$this->assertCount( 1, $entries );
 		$this->assertSame( $entry_id, $entries[0]['id'] );
 		$this->assertSame( Lite_Feed::render_entry( get_post( $entry_id ), 'poll' ), $entries[0]['html'] );
 		$this->assertNull( $entries[0]['adHtml'] );
+		$this->assertTrue( $allowed_html['div']['data-*'] ?? false, 'A lite request serves a lite feed.' );
 	}
 
 	/**
