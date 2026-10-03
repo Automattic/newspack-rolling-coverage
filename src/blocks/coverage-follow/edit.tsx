@@ -110,8 +110,9 @@ export default function Edit( {
 	);
 
 	const isChosenGone =
-		chosenState === 'trash' ||
-		( chosenState === 'missing' && feeds.length === 0 );
+		( chosenState === 'trash' || chosenState === 'missing' ) &&
+		! isTemplate &&
+		feeds.length === 0;
 
 	const blockProps = useBlockProps();
 	const innerBlocksProps = useInnerBlocksProps( blockProps, {
