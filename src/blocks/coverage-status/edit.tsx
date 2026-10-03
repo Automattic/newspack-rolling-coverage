@@ -323,6 +323,17 @@ export default function Edit( {
 	return (
 		<>
 			<InspectorControls>
+				{ endedHidden && (
+					<PanelBody>
+						<Notice
+							status="warning"
+							isDismissible={ false }
+							spokenMessage={ endedNotice }
+						>
+							{ endedNotice }
+						</Notice>
+					</PanelBody>
+				) }
 				<PanelBody
 					title={ __( 'Settings', 'newspack-rolling-coverage' ) }
 				>
@@ -553,15 +564,6 @@ export default function Edit( {
 							}
 						/>
 					</ToggleGroupControl>
-					{ endedHidden && (
-						<Notice
-							status="warning"
-							isDismissible={ false }
-							spokenMessage={ endedNotice }
-						>
-							{ endedNotice }
-						</Notice>
-					) }
 				</PanelBody>
 			</InspectorControls>
 			<InspectorControls group="color">
