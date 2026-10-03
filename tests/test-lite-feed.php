@@ -28,11 +28,11 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	const FEED_PLACEHOLDER = '<!-- rolling-coverage-test-feed -->';
 
 	/**
-	 * The Follow button, as the editor saves it.
+	 * The Follow Coverage block, as the editor saves it.
 	 */
-	const FOLLOW_MARKUP = '<!-- wp:buttons --><div class="wp-block-buttons">'
+	const FOLLOW_MARKUP = '<!-- wp:newspack-rolling-coverage/coverage-follow --><!-- wp:buttons --><div class="wp-block-buttons">'
 		. '<!-- wp:button {"tagName":"button","metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"followTag"}}}}} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Follow</button></div><!-- /wp:button -->'
-		. '</div><!-- /wp:buttons -->';
+		. '</div><!-- /wp:buttons --><!-- /wp:newspack-rolling-coverage/coverage-follow -->';
 
 	/**
 	 * Coverage the entries belong to.
