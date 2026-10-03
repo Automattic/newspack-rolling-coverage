@@ -186,7 +186,7 @@ class Coverage_Status_Block {
 	 * @param string $color Background color, any form Apca::normalize() accepts.
 	 * @return string The style, or '' when the color is unset or invalid.
 	 */
-	public static function badge_style( string $color ): string {
+	private static function badge_style( string $color ): string {
 		$background = Apca::normalize( $color );
 
 		if ( '' === $background ) {

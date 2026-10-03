@@ -25,7 +25,7 @@ class Test_Apca extends WP_UnitTestCase {
 	/**
 	 * Hex forms normalize; everything else is rejected.
 	 */
-	public function test_normalize() {
+	public function test_normalize_accepts_hex_forms_and_rejects_anything_else() {
 		$this->assertSame( '#aabbcc', Apca::normalize( '#abc' ) );
 		$this->assertSame( '#aabbcc', Apca::normalize( '#AABBCC' ) );
 		$this->assertSame( '#aabbcc', Apca::normalize( '  #aBc8 ' ) );
@@ -39,7 +39,7 @@ class Test_Apca extends WP_UnitTestCase {
 	/**
 	 * Text is whichever of black and white contrasts more.
 	 */
-	public function test_text_color() {
+	public function test_text_color_picks_whichever_of_black_and_white_contrasts_more() {
 		$this->assertSame( '#000000', Apca::text_color( '#ffffff' ) );
 		$this->assertSame( '#ffffff', Apca::text_color( '#000000' ) );
 		$this->assertSame( '#ffffff', Apca::text_color( '#2271b1' ) );
