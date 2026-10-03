@@ -3,9 +3,7 @@
  */
 import type { OneSignalApi } from './types';
 
-// The core button marked by Entry_Bindings, and the legacy Follow block.
-const FOLLOW_BUTTON_SELECTOR =
-	'button[data-rc-follow], button.newspack-rolling-coverage-follow';
+const FOLLOW_BUTTON_SELECTOR = 'button[data-rc-follow]';
 
 // How long to wait for the OneSignal SDK before treating a click as failed.
 const SDK_WAIT_TIMEOUT_MS = 10000;

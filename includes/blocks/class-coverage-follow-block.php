@@ -8,6 +8,8 @@
 namespace Newspack_Rolling_Coverage;
 
 use WP_Block;
+use WP_Block_Type;
+use WP_Block_Type_Registry;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -28,6 +30,7 @@ class Coverage_Follow_Block {
 	 */
 	public static function init(): void {
 		add_action( 'init', [ __CLASS__, 'register_block' ] );
+		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'localize_editor_config' ] );
 		add_filter( 'render_block_context', [ __CLASS__, 'add_coverage_context' ], 10, 3 );
 	}
 
@@ -39,6 +42,29 @@ class Coverage_Follow_Block {
 			NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/blocks/coverage-follow',
 			self::block_type_args()
 		);
+	}
+
+	/**
+	 * Gives the editor script what its coverage picker and notices need.
+	 */
+	public static function localize_editor_config(): void {
+		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( self::BLOCK_NAME );
+
+		if ( ! $block_type instanceof WP_Block_Type ) {
+			return;
+		}
+
+		foreach ( $block_type->editor_script_handles as $handle ) {
+			wp_localize_script(
+				$handle,
+				'newspackCoverageFollowBlock',
+				[
+					'onesignalConfigured' => Push_Notifications::is_onesignal_configured(),
+					'statusMetaKey'       => Taxonomy::STATUS_META_KEY,
+					'taxonomySlug'        => Taxonomy::TAXONOMY_SLUG,
+				]
+			);
+		}
 	}
 
 	/**
