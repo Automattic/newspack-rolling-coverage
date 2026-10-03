@@ -1892,7 +1892,9 @@ class Rolling_Coverage_Block {
 		}
 
 		// The Follow button needs its own script and a push provider, neither
-		// of which a lite page has.
+		// of which a lite page has. Dropping it here, before it renders, also
+		// collapses a group that only it filled, which the block's own lite
+		// guard can't do.
 		$can_follow = ! Lite_Feed::is_lite_render() && Coverage_Follow_Block::should_render( $status );
 
 		$blocks = self::map_template_blocks(
@@ -3252,8 +3254,9 @@ class Rolling_Coverage_Block {
 						'minimum'     => 1,
 					],
 					'lite'         => [
-						'type'    => 'boolean',
-						'default' => false,
+						'description' => __( 'Whether a Lite Site page asks, so entries come as text, as that page renders them.', 'newspack-rolling-coverage' ),
+						'type'        => 'boolean',
+						'default'     => false,
 					],
 				],
 			]
@@ -3473,6 +3476,7 @@ class Rolling_Coverage_Block {
 		$is_lite = rest_sanitize_boolean( $params['lite'] ?? false ) && Lite_Feed::is_available();
 
 		if ( $is_lite ) {
+			// So entry bodies keep the markup the lite page keeps.
 			Lite_Feed::add_feed();
 
 			$ads_enabled = false;
