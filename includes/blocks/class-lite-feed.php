@@ -20,8 +20,8 @@ defined( 'ABSPATH' ) || exit;
  * strips scripts, styles and every attribute outside a short allowlist, and
  * never prints enqueued assets. On those pages the feed renders its entries
  * as text, asks Lite Site to keep the attributes the view script polls with,
- * and prints that script itself. Polls from a lite page ask the entries
- * route for entries in the same text-only form.
+ * and, once Lite Site keeps them, prints that script itself. Polls from a
+ * lite page ask the entries route for entries in the same text-only form.
  */
 class Lite_Feed {
 
@@ -89,6 +89,16 @@ class Lite_Feed {
 	private static $has_feed = false;
 
 	/**
+	 * Whether Lite Site kept the feed's markup: it applied its allowlist
+	 * filter, which the feed widens, while this request served a feed. A
+	 * Lite Site without the filter strips what the styles and the view
+	 * script rely on, so neither prints. Never cleared, like $has_feed.
+	 *
+	 * @var bool
+	 */
+	private static $keeps_feed_markup = false;
+
+	/**
 	 * Entries whose bodies are rendering, keyed by ID.
 	 *
 	 * @var true[]
@@ -106,11 +116,11 @@ class Lite_Feed {
 
 	/**
 	 * Print the feed's styles inside Lite Site's style element, on a page
-	 * that carries a feed. Lite Site renders the content before the head, so
-	 * by then the feed has rendered.
+	 * whose feed markup Lite Site kept. Lite Site cleans the content before
+	 * the head, so by then it has.
 	 */
 	public static function print_styles(): void {
-		if ( ! self::$has_feed ) {
+		if ( ! self::$keeps_feed_markup ) {
 			return;
 		}
 
@@ -118,23 +128,26 @@ class Lite_Feed {
 	}
 
 	/**
-	 * Print the view script at the end of a lite page that carries a feed.
+	 * Print the view script at the end of a lite page whose feed markup Lite
+	 * Site kept.
 	 *
 	 * Lite pages print no enqueued scripts, so this prints the block's own
 	 * view script and its dependencies. Lite Site serves the page from a
 	 * cache shared by every reader, and `wp_enqueue_scripts` never runs on
 	 * it, so no reader-specific settings print with the script: it polls
-	 * without cookies and tracks no reader events.
+	 * without cookies and tracks no reader events. It prints through
+	 * wp_scripts() rather than wp_print_scripts(), which would also fire the
+	 * `wp_print_scripts` action, letting its callbacks print into that page.
 	 */
 	public static function print_script(): void {
-		if ( ! self::$has_feed ) {
+		if ( ! self::$keeps_feed_markup ) {
 			return;
 		}
 
 		$block_type = WP_Block_Type_Registry::get_instance()->get_registered( Rolling_Coverage_Block::BLOCK_NAME );
 
 		if ( $block_type ) {
-			wp_print_scripts( $block_type->view_script_handles );
+			wp_scripts()->do_items( $block_type->view_script_handles );
 		}
 	}
 
@@ -164,7 +177,8 @@ class Lite_Feed {
 	}
 
 	/**
-	 * Keep the feed's markup on a lite page that carries a feed.
+	 * Keep the feed's markup on a lite page that carries a feed, and record
+	 * that Lite Site keeps it, so the feed's styles and script print.
 	 *
 	 * The view script reads the feed's settings and each entry's ID and
 	 * pinned state from data attributes, keeps the new-posts control hidden
@@ -179,6 +193,8 @@ class Lite_Feed {
 		if ( ! self::$has_feed || ! is_array( $allowed_html ) ) {
 			return $allowed_html;
 		}
+
+		self::$keeps_feed_markup = true;
 
 		$feed_markup = [
 			'div'     => [

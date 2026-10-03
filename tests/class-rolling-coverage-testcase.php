@@ -8,6 +8,7 @@
 use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Coverage_Follow_Block;
 use Newspack_Rolling_Coverage\Coverage_Status_Block;
+use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Taxonomy;
 
@@ -58,12 +59,20 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Restore error logging if the test silenced it, and take away any ad
-	 * unit the test gave the feed placement.
+	 * Restore error logging if the test silenced it, take away any ad unit
+	 * the test gave the feed placement, and forget any lite feed the test
+	 * served, which would otherwise last for the rest of the run, as it lasts
+	 * for the rest of a request.
 	 */
 	public function tear_down() {
 		if ( class_exists( \Newspack_Ads\Placements::class ) ) {
 			\Newspack_Ads\Placements::$placements = [];
+		}
+
+		foreach ( [ 'has_feed', 'keeps_feed_markup' ] as $lite_feed_state ) {
+			$property = new ReflectionProperty( Lite_Feed::class, $lite_feed_state );
+			$property->setAccessible( true );
+			$property->setValue( null, false );
 		}
 
 		if ( $this->registered_follow_block ) {

@@ -73,14 +73,10 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Forget any lite feed the test served. It would otherwise last for the
-	 * rest of the run, as it lasts for the rest of a request. Restore the
-	 * request the test changed.
+	 * Restore the request the test changed, and forget the block if the test
+	 * registered it.
 	 */
 	public function tear_down() {
-		$has_feed = new ReflectionProperty( Lite_Feed::class, 'has_feed' );
-		$has_feed->setAccessible( true );
-		$has_feed->setValue( null, false );
 		set_query_var( Social_Sharing::ENTRY_QUERY_VAR, '' );
 		unset( $_COOKIE[ 'wp-postpass_' . COOKIEHASH ] ); // phpcs:ignore WordPressVIPMinimum.Variables.RestrictedVariables.cache_constraints___COOKIE -- Forgetting the test's postpass cookie.
 
@@ -759,7 +755,8 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	 * Run a test with the block's view script registered under a test handle.
 	 *
 	 * The block only registers from its built `dist/`, which the test run may
-	 * not have, so a bare block type stands in when it's missing.
+	 * not have, so a bare block type stands in when it's missing. Afterwards
+	 * the handle is forgotten, printed or not, so the next test prints it too.
 	 *
 	 * @param callable $test Test body.
 	 */
@@ -777,11 +774,21 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		} finally {
 			$block_type->view_script_handles = $handles;
 			wp_deregister_script( 'rolling-coverage-test-view' );
+			wp_scripts()->done = array_values( array_diff( wp_scripts()->done, [ 'rolling-coverage-test-view' ] ) );
 
 			if ( ! $registered ) {
 				unregister_block_type( Rolling_Coverage_Block::BLOCK_NAME );
 			}
 		}
+	}
+
+	/**
+	 * Serve a feed on a lite page as Lite Site does: the feed renders, then
+	 * Lite Site applies its allowlist filter as it cleans the page.
+	 */
+	private static function serve_lite_feed() {
+		Lite_Feed::add_feed();
+		apply_filters( 'newspack_lite_site_allowed_html', \Newspack_Lite_Site\Lite_Site::ALLOWED_HTML );
 	}
 
 	/**
@@ -793,9 +800,52 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 			function () {
 				$this->assertSame( '', $this->print_after_footer(), 'A lite page without a feed prints no script.' );
 
-				Lite_Feed::add_feed();
+				self::serve_lite_feed();
 
 				$this->assertStringContainsString( 'https://example.test/view.js', $this->print_after_footer() );
+			}
+		);
+	}
+
+	/**
+	 * Lite Site caches the page for every reader, so the view script prints
+	 * without the `wp_print_scripts` action, whose callbacks could print a
+	 * reader's own settings into it.
+	 */
+	public function test_view_script_prints_without_the_script_printing_action() {
+		$this->with_view_script(
+			function () {
+				add_action(
+					'wp_print_scripts',
+					static function () {
+						echo '<script>var reader = "reader@example.test";</script>';
+					}
+				);
+				self::serve_lite_feed();
+
+				$footer = $this->print_after_footer();
+
+				$this->assertStringContainsString( 'https://example.test/view.js', $footer );
+				$this->assertStringNotContainsString( 'reader@example.test', $footer );
+			}
+		);
+	}
+
+	/**
+	 * A Lite Site without the allowlist filter strips the markup the feed's
+	 * styles and view script rely on: the styles would fix a new-posts
+	 * control that lost its hidden attribute to the screen for good, and the
+	 * script would find no settings to poll with. A page whose feed was
+	 * cleaned that way gets neither.
+	 */
+	public function test_nothing_prints_when_lite_site_cannot_keep_the_feed_markup() {
+		$this->with_view_script(
+			function () {
+				// The feed rendered, but Lite Site never applied the filter.
+				Lite_Feed::add_feed();
+
+				$this->assertSame( '', $this->print_lite_styles(), 'No styles.' );
+				$this->assertSame( '', $this->print_after_footer(), 'No script.' );
 			}
 		);
 	}
@@ -807,7 +857,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	public function test_styles_print_only_on_a_lite_page_with_a_feed() {
 		$this->assertSame( '', $this->print_lite_styles(), 'A lite page without a feed adds no styles.' );
 
-		Lite_Feed::add_feed();
+		self::serve_lite_feed();
 		$styles = $this->print_lite_styles();
 
 		$this->assertStringContainsString( '.newspack-rolling-coverage-new-entries[hidden]', $styles );
