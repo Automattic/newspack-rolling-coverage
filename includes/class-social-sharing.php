@@ -167,11 +167,7 @@ class Social_Sharing {
 			return;
 		}
 
-		// Drop any fragment already on the canonical so we don't emit two.
-		$canonical_url = explode( '#', $canonical_url, 2 )[0];
-
-		$redirect_url = add_query_arg( self::ENTRY_QUERY_VAR, $entry->post_name, $canonical_url )
-			. '#' . Rolling_Coverage_Block::MARKUP_PREFIX . '-entry-' . $entry->ID;
+		$redirect_url = self::get_entry_deep_link( $entry, $canonical_url );
 
 		/**
 		 * Filters the URL an entry permalink redirects to.
@@ -211,6 +207,20 @@ class Social_Sharing {
 
 		wp_safe_redirect( $redirect_url, $status );
 		exit;
+	}
+
+	/**
+	 * The link to an entry on a page showing its coverage, which opens the
+	 * feed at the entry. A fragment already on the page URL is dropped, so
+	 * the link carries one.
+	 *
+	 * @param WP_Post $entry    Entry post object.
+	 * @param string  $page_url URL of the page showing the coverage.
+	 * @return string
+	 */
+	public static function get_entry_deep_link( WP_Post $entry, string $page_url ): string {
+		return add_query_arg( self::ENTRY_QUERY_VAR, $entry->post_name, explode( '#', $page_url, 2 )[0] )
+			. '#' . Rolling_Coverage_Block::MARKUP_PREFIX . '-entry-' . $entry->ID;
 	}
 
 	/**

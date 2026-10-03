@@ -7,6 +7,7 @@
 
 use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Coverage_Follow_Block;
+use Newspack_Rolling_Coverage\Coverage_Status_Block;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Taxonomy;
 
@@ -31,6 +32,13 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	 * @var bool
 	 */
 	private $registered_follow_block = false;
+
+	/**
+	 * Whether the test registered the Coverage Status block itself.
+	 *
+	 * @var bool
+	 */
+	private $registered_status_block = false;
 
 	/**
 	 * Register the plugin's post and term meta again before every test.
@@ -61,6 +69,11 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		if ( $this->registered_follow_block ) {
 			unregister_block_type( Coverage_Follow_Block::BLOCK_NAME );
 			$this->registered_follow_block = false;
+		}
+
+		if ( $this->registered_status_block ) {
+			unregister_block_type( Coverage_Status_Block::BLOCK_NAME );
+			$this->registered_status_block = false;
 		}
 
 		if ( null !== $this->previous_error_log ) {
@@ -143,6 +156,30 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 			)
 		);
 		$this->registered_follow_block = true;
+	}
+
+	/**
+	 * Register the Coverage Status block from its metadata for the rest of
+	 * the test when the build isn't there, so the coverage reaches its render
+	 * callback.
+	 */
+	protected function register_status_block() {
+		if ( WP_Block_Type_Registry::get_instance()->is_registered( Coverage_Status_Block::BLOCK_NAME ) ) {
+			return;
+		}
+
+		$metadata = wp_json_file_decode( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'src/blocks/coverage-status/block.json', [ 'associative' => true ] );
+
+		register_block_type(
+			Coverage_Status_Block::BLOCK_NAME,
+			[
+				'attributes'      => $metadata['attributes'],
+				'supports'        => $metadata['supports'],
+				'uses_context'    => $metadata['usesContext'],
+				'render_callback' => [ Coverage_Status_Block::class, 'render_block' ],
+			]
+		);
+		$this->registered_status_block = true;
 	}
 
 	/**

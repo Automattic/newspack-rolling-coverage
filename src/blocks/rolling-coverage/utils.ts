@@ -42,6 +42,7 @@ const layoutIds: Record< BuiltInLayoutSlug, number > = {
 	margin: Number( LAYOUT_IDS.margin ) || 0,
 	minute: Number( LAYOUT_IDS.minute ) || 0,
 	byline: Number( LAYOUT_IDS.byline ) || 0,
+	ticker: Number( LAYOUT_IDS.ticker ) || 0,
 	wire: Number( LAYOUT_IDS.wire ) || 0,
 	digest: Number( LAYOUT_IDS.digest ) || 0,
 	flash: Number( LAYOUT_IDS.flash ) || 0,
@@ -178,6 +179,7 @@ async function fetchEntryPreviewContexts(
 				hasBreakout?: boolean;
 				hasTitle?: boolean;
 				hidesByline?: boolean;
+				fallbackTitle?: string;
 			} >
 		>( {
 			url: `${ ENTRIES_PREVIEW_REST_BASE }/${ coverageId }/entries-preview?per_page=${ perPage }${
@@ -193,6 +195,7 @@ async function fetchEntryPreviewContexts(
 			hasBreakout: Boolean( entry.hasBreakout ),
 			hasTitle: entry.hasTitle !== false,
 			hidesByline: Boolean( entry.hidesByline ),
+			fallbackTitle: entry.fallbackTitle ?? '',
 		} ) );
 	} catch ( error ) {
 		return [];

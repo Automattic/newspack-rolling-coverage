@@ -38,6 +38,7 @@ type Sample = {
 	minutesAgo: number;
 	title: string;
 	content: string;
+	excerpt?: string;
 	pinned?: boolean;
 	hasBreakout?: boolean;
 	hasImage?: boolean;
@@ -45,7 +46,9 @@ type Sample = {
 
 /**
  * One live coverage of a match, newest first, with an entry for each way an
- * entry can render.
+ * entry can render. The untitled entry's excerpt is short enough to show
+ * whole as its headline where a layout gives untitled entries one, as the
+ * site would (see Entry_Bindings::get_fallback_title()).
  */
 function getSamples(): Sample[] {
 	return [
@@ -71,6 +74,10 @@ function getSamples(): Sample[] {
 			title: '',
 			content: __(
 				"Halvorsen at full stretch to push Renee Vargas's header over the bar, four minutes into stoppage time. The North Bank greets it like a third goal.",
+				'newspack-rolling-coverage'
+			),
+			excerpt: __(
+				"Halvorsen at full stretch to push Renee Vargas's header over the bar",
 				'newspack-rolling-coverage'
 			),
 		},
@@ -202,8 +209,8 @@ function loadSampleRecords(): void {
 				protected: false,
 			},
 			excerpt: {
-				raw: sample.content,
-				rendered: `<p>${ paragraph }</p>`,
+				raw: sample.excerpt ?? sample.content,
+				rendered: `<p>${ escapeHTML( sample.excerpt ?? sample.content ) }</p>`,
 				protected: false,
 			},
 			author: sample.authorId,
@@ -258,6 +265,8 @@ export function useSampleEntries( enabled: boolean ): EntryContext[] {
 				hasBreakout: Boolean( sample.hasBreakout ),
 				hasTitle: '' !== sample.title,
 				hidesByline: false,
+				fallbackTitle:
+					'' === sample.title ? ( sample.excerpt ?? '' ) : '',
 			} ) )
 		);
 	}, [ enabled ] );
