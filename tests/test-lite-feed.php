@@ -375,8 +375,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A poll from a lite page gets entries in the form the page renders them,
-	 * without ads.
+	 * A poll from a lite page gets entries in the form the page renders them.
 	 */
 	public function test_lite_poll_returns_entries_as_text() {
 		$entry_id = self::create_entry(
@@ -393,7 +392,6 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		$this->assertCount( 1, $entries );
 		$this->assertSame( $entry_id, $entries[0]['id'] );
 		$this->assertSame( Lite_Feed::render_entry( get_post( $entry_id ), 'poll' ), $entries[0]['html'] );
-		$this->assertNull( $entries[0]['adHtml'] );
 		$this->assertTrue( $allowed_html['div']['data-*'] ?? false, 'A lite request serves a lite feed.' );
 	}
 
@@ -413,7 +411,6 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 1, $page['count'] );
 		$this->assertSame( Lite_Feed::render_entry( get_post( $entry_id ), 'load_more' ), $page['html'] );
-		$this->assertSame( [], $page['adSlots'] );
 	}
 
 	/**
@@ -435,6 +432,106 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'wp-block-post', $entries[0]['html'] );
 		$this->assertSame( $allowed, apply_filters( 'newspack_lite_site_allowed_html', $allowed ) );
+	}
+
+	/**
+	 * A capped feed shows every entry as unpinned, so on a lite page a pinned
+	 * entry carries no pin, on the page or in its polls, and the view script
+	 * places it like any other. Uncapped, the same entry shows as pinned.
+	 */
+	public function test_capped_lite_feed_shows_no_entry_as_pinned() {
+		$entry_id = self::create_entry( $this->coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
+		Post_Type::pin_entry( $entry_id );
+
+		$this->assertStringContainsString( 'data-pinned', $this->render_lite_page(), 'Uncapped, the entry shows as pinned.' );
+
+		$page = $this->render_lite_page(
+			[
+				'latestOnly'  => true,
+				'latestCount' => 2,
+			]
+		);
+		$poll = $this->get_lite_feed(
+			[
+				'cursor' => '0:2025-12-31 00:00:00',
+				'latest' => 2,
+			]
+		)->get_data()['entries'];
+
+		$this->assertStringContainsString( 'data-entry-id="' . $entry_id . '"', $page );
+		$this->assertStringNotContainsString( 'data-pinned', $page );
+		$this->assertStringNotContainsString( 'Pinned', $page );
+		$this->assertStringNotContainsString( 'data-pinned', $poll[0]['html'] );
+		$this->assertStringNotContainsString( 'Pinned', $poll[0]['html'] );
+	}
+
+	/**
+	 * A burst too large to send piecemeal brings a capped feed its newest
+	 * entries in place of a reload. A lite page gets them as text, like its
+	 * other polls, and without a pin, like the rest of a capped feed.
+	 */
+	public function test_capped_lite_burst_sends_the_newest_entries_as_text() {
+		$entry_ids = [];
+
+		for ( $i = 0; $i <= Rolling_Coverage_Block::POLL_CAP; $i++ ) {
+			$entry_ids[] = self::create_entry( $this->coverage_id, [ 'post_date' => gmdate( 'Y-m-d H:i:s', strtotime( '2026-01-01 12:00:00' ) + $i * 60 ) ] );
+		}
+
+		$newest_ids = array_slice( array_reverse( $entry_ids ), 0, 2 );
+		Post_Type::pin_entry( $newest_ids[0] );
+
+		$entries = $this->get_lite_feed(
+			[
+				'cursor' => '0:2025-12-31 00:00:00',
+				'latest' => 2,
+			]
+		)->get_data()['entries'];
+
+		$this->assertSame(
+			[
+				Lite_Feed::render_entry( get_post( $newest_ids[0] ), 'poll', true ),
+				Lite_Feed::render_entry( get_post( $newest_ids[1] ), 'poll', true ),
+			],
+			wp_list_pluck( $entries, 'html' )
+		);
+	}
+
+	/**
+	 * Lite pages carry no ads. A feed that shows them on a full page and in
+	 * that page's polls shows none on a lite page, and its lite polls and load
+	 * more bring none.
+	 */
+	public function test_lite_page_and_its_requests_carry_no_ads() {
+		self::enable_ad_placement();
+		self::create_entry( $this->coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
+
+		$attributes   = [
+			'enableAds'   => true,
+			'adsInterval' => 1,
+		];
+		$full_page    = $this->render_block_html( $attributes );
+		$template_key = preg_match( '/data-template-key="([^"]+)"/', $full_page, $matches ) ? $matches[1] : '';
+		$poll         = [
+			'cursor'       => '0:2025-12-31 00:00:00',
+			'template_key' => $template_key,
+		];
+		$full_poll    = self::dispatch( 'GET', "/coverages/{$this->coverage_id}/entries", $poll )->get_data()['entries'];
+
+		$this->assertStringContainsString( 'test-ad-code', $full_page, 'A full page shows an ad.' );
+		$this->assertStringContainsString( 'test-ad-code', (string) $full_poll[0]['adHtml'], 'So do its polls.' );
+
+		$this->assertStringNotContainsString( 'test-ad-code', $this->render_lite_page( $attributes ), 'A lite page shows none.' );
+		$this->assertNull( $this->get_lite_feed( $poll )->get_data()['entries'][0]['adHtml'], 'Nor do its polls.' );
+		$this->assertStringNotContainsString(
+			'test-ad-code',
+			$this->get_lite_feed(
+				[
+					'before'       => '2026-01-02 00:00:00',
+					'template_key' => $template_key,
+				]
+			)->get_data()['html'],
+			'Nor does its load more.'
+		);
 	}
 
 	/**

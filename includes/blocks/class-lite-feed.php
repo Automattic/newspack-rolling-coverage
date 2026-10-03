@@ -208,12 +208,13 @@ class Lite_Feed {
 	 * Built from the entry alone, not the block's layout, and carrying the
 	 * attributes the view script uses to place and replace entries.
 	 *
-	 * @param WP_Post $entry   Entry post object.
-	 * @param string  $arrival How the entry reached the page: 'initial', 'poll' or 'load_more'; empty for an edit the page already shows.
+	 * @param WP_Post $entry     Entry post object.
+	 * @param string  $arrival   How the entry reached the page: 'initial', 'poll' or 'load_more'; empty for an edit the page already shows.
+	 * @param bool    $is_capped Whether the entry shows in a capped feed, which shows every entry as unpinned, whatever its pinned state.
 	 * @return string Entry HTML.
 	 */
-	public static function render_entry( WP_Post $entry, string $arrival ): string {
-		$is_pinned   = Post_Type::is_pinned( $entry->ID );
+	public static function render_entry( WP_Post $entry, string $arrival, bool $is_capped = false ): string {
+		$is_pinned   = ! $is_capped && Post_Type::is_pinned( $entry->ID );
 		$time_format = get_option( 'time_format' );
 		$meta        = sprintf(
 			'<time datetime="%s">%s</time>',

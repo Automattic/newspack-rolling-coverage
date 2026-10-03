@@ -1019,7 +1019,7 @@ class Rolling_Coverage_Block {
 			$shows_pinned  = $shows_pinned || $is_pinned;
 			$shows_regular = $shows_regular || ! $is_pinned;
 			$entries_html .= $is_lite
-				? Lite_Feed::render_entry( $entry, 'initial' )
+				? Lite_Feed::render_entry( $entry, 'initial', $is_capped )
 				: self::render_entry( $entry, $template, 'initial', is_last: ! $has_more && count( $posts ) === $entry_index, is_linked: $linked_entry && $linked_entry->ID === $entry->ID, is_capped: $is_capped );
 
 			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
@@ -3374,7 +3374,7 @@ class Rolling_Coverage_Block {
 			// Signal the client to refresh when the poll result reaches the cap.
 			if ( count( $query->posts ) > self::POLL_CAP ) {
 				if ( $is_capped ) {
-					return self::capped_burst_response( $term_id, $template, $latest_count, $query->posts[0], $params );
+					return self::capped_burst_response( $term_id, $template, $latest_count, $query->posts[0], $params, $is_lite );
 				}
 
 				return self::poll_response(
@@ -3424,7 +3424,7 @@ class Rolling_Coverage_Block {
 				// blank: the client preserves the original value across the replace.
 				$entries[] = [
 					'id'     => $entry->ID,
-					'html'   => $is_lite ? Lite_Feed::render_entry( $entry, $is_new_entry ? 'poll' : '' ) : self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '', is_capped: $is_capped ),
+					'html'   => $is_lite ? Lite_Feed::render_entry( $entry, $is_new_entry ? 'poll' : '', $is_capped ) : self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '', is_capped: $is_capped ),
 					'type'   => $is_new_entry ? 'insert' : 'update',
 					'adHtml' => $ad_html,
 					'adSlot' => $ad_slot,
@@ -3523,16 +3523,18 @@ class Rolling_Coverage_Block {
 	 * The poll response for a capped feed after a burst too large to send
 	 * piecemeal: rather than reload the page hosting it, the newest entries
 	 * by date come as inserts, for the page to put on top and trim to the
-	 * cap, with the cursor at the most recent change.
+	 * cap, with the cursor at the most recent change. A lite page gets them
+	 * as text, like its other polls.
 	 *
 	 * @param int     $term_id       Coverage term ID.
 	 * @param array[] $template      Per-entry template.
 	 * @param int     $latest_count  How many entries the feed shows.
 	 * @param WP_Post $last_modified The most recently modified entry.
 	 * @param array   $params        Request parameters.
+	 * @param bool    $is_lite       Whether a lite page asks.
 	 * @return WP_REST_Response
 	 */
-	private static function capped_burst_response( int $term_id, array $template, int $latest_count, WP_Post $last_modified, array $params ): WP_REST_Response {
+	private static function capped_burst_response( int $term_id, array $template, int $latest_count, WP_Post $last_modified, array $params, bool $is_lite ): WP_REST_Response {
 		$args = array_merge(
 			self::coverage_entries_args( $term_id ),
 			[
@@ -3549,7 +3551,7 @@ class Rolling_Coverage_Block {
 		foreach ( ( new WP_Query( $args ) )->posts as $entry ) {
 			$entries[] = [
 				'id'     => $entry->ID,
-				'html'   => self::render_entry( $entry, $template, 'poll', is_capped: true ),
+				'html'   => $is_lite ? Lite_Feed::render_entry( $entry, 'poll', true ) : self::render_entry( $entry, $template, 'poll', is_capped: true ),
 				'type'   => 'insert',
 				'adHtml' => null,
 				'adSlot' => null,
