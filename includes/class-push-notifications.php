@@ -18,8 +18,8 @@ defined( 'ABSPATH' ) || exit;
  * Opt-in checkbox lives in a classic meta box on the entry edit screen,
  * shown only while the entry isn't published, and unchecks itself after a
  * send. Entries from a chat source such as Slack are opted in when they are
- * saved. Scoped to readers who followed the coverage via the Coverage
- * Follow Button. No-ops when OneSignal isn't installed or configured.
+ * saved. Scoped to readers who followed the coverage via the Follow
+ * Coverage block. No-ops when OneSignal isn't installed or configured.
  */
 class Push_Notifications {
 
@@ -30,7 +30,7 @@ class Push_Notifications {
 	const NONCE_ACTION = 'rolling_coverage_push_notifications_save';
 	const NONCE_NAME   = 'rolling_coverage_push_notifications_nonce';
 
-	// OneSignal tag key prefix written by the Coverage Follow Button; sends are scoped to it via follow_tag().
+	// OneSignal tag key prefix written by the Follow Coverage block; sends are scoped to it via follow_tag().
 	const FOLLOW_TAG_PREFIX = 'coverage_';
 
 	// Cron hook that sends an entry's notification outside the request that published it.

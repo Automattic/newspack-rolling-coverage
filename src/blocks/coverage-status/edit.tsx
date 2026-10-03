@@ -18,7 +18,6 @@ import {
 import { store as coreStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
 import { humanTimeDiff } from '@wordpress/date';
-import { store as editorStore } from '@wordpress/editor';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, _x, sprintf } from '@wordpress/i18n';
 import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
@@ -27,6 +26,7 @@ import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
  * Internal dependencies
  */
 import { mutedTextColor } from '../shared/muted-color';
+import { usePageFeeds } from '../shared/page-feeds';
 import { BADGE_CLASSES, badgeStatus } from '../shared/status-badges';
 import type { CoverageStatusAttributes } from './types';
 
@@ -42,9 +42,7 @@ declare global {
 	}
 }
 
-const FEED_BLOCK = 'newspack-rolling-coverage/rolling-coverage';
 const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
-const TEMPLATE_TYPES = [ 'wp_template', 'wp_template_part' ];
 const NAME_SEPARATOR = '\u0000';
 const VIEW_CONTEXT = { context: 'view' };
 const SAMPLE_AGE_MS = 2 * 60 * 1000;
@@ -92,7 +90,6 @@ export default function Edit( {
 	const { coverageId, showLastUpdated, labels, textColor, style } =
 		attributes;
 	const feedCoverageId = context?.[ COVERAGE_ID_CONTEXT ];
-	const isInFeed = feedCoverageId !== undefined;
 
 	const hasCustomLabels = Object.keys( LABEL_FIELDS ).some(
 		( key ) =>
@@ -101,108 +98,12 @@ export default function Edit( {
 	const [ customChosen, setCustomChosen ] = useState( false );
 	const isCustom = hasCustomLabels || customChosen;
 
-	const { feedKey, canChoose } = useSelect(
-		( select ) => {
-			if ( isInFeed ) {
-				return {
-					feedKey: String( Number( feedCoverageId ) || '' ),
-					canChoose: false,
-				};
-			}
-
-			const blockEditor = select( blockEditorStore ) as unknown as {
-				getBlocksByName: ( name: string ) => string[];
-				getBlockParentsByBlockName: (
-					id: string,
-					name: string
-				) => string[];
-				getBlockAttributes: ( id: string ) => {
-					coverageId?: number;
-					latestOnly?: boolean;
-				} | null;
-			};
-			const editor = select( editorStore ) as unknown as {
-				getCurrentPostType: () => string | undefined;
-			};
-			const core = select( coreStore ) as unknown as {
-				getEntityRecord: (
-					kind: string,
-					name: string,
-					id: number,
-					query: Record< string, string >
-				) => { meta?: Record< string, string > } | null | undefined;
-				hasFinishedResolution: (
-					selector: string,
-					args: unknown[]
-				) => boolean;
-			};
-			const isTemplate = TEMPLATE_TYPES.includes(
-				editor.getCurrentPostType() ?? ''
-			);
-			const showsTemplate =
-				blockEditor.getBlocksByName( 'core/post-content' ).length > 0;
-			const inContent =
-				! showsTemplate ||
-				blockEditor.getBlockParentsByBlockName(
-					clientId,
-					'core/post-content'
-				).length > 0;
-			const ids = isTemplate
-				? []
-				: blockEditor
-						.getBlocksByName( FEED_BLOCK )
-						.filter(
-							( id: string ) =>
-								! blockEditor.getBlockAttributes( id )
-									?.latestOnly
-						)
-						.map(
-							( id: string ) =>
-								Number(
-									blockEditor.getBlockAttributes( id )
-										?.coverageId
-								) || 0
-						)
-						.filter( Boolean )
-						.filter( ( id: number ) => {
-							const args = [
-								'taxonomy',
-								config.taxonomySlug,
-								id,
-								VIEW_CONTEXT,
-							];
-							const term = core.getEntityRecord(
-								'taxonomy',
-								config.taxonomySlug,
-								id,
-								VIEW_CONTEXT
-							);
-							const missing =
-								term === null ||
-								( term === undefined &&
-									core.hasFinishedResolution(
-										'getEntityRecord',
-										args
-									) );
-
-							return (
-								! missing &&
-								term?.meta?.[ config.statusMetaKey ] !== 'trash'
-							);
-						} );
-
-			return {
-				feedKey: Array.from( new Set< number >( ids ) ).join( ',' ),
-				canChoose: ! isTemplate && inContent,
-			};
-		},
-		[ clientId, isInFeed, feedCoverageId ]
-	);
-
-	const feeds = useMemo(
-		() => ( feedKey ? feedKey.split( ',' ).map( Number ) : [] ),
-		[ feedKey ]
-	);
+	const { feeds, canChoose } = usePageFeeds( {
+		clientId,
+		feedCoverageId,
+		taxonomySlug: config.taxonomySlug,
+		statusMetaKey: config.statusMetaKey,
+	} );
 
 	const followed = feeds.includes( coverageId )
 		? coverageId

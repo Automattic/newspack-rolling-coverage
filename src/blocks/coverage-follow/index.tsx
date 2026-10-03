@@ -2,7 +2,8 @@
  * WordPress dependencies
  */
 import { registerBlockType } from '@wordpress/blocks';
-import { bell } from '@wordpress/icons';
+import { InnerBlocks } from '@wordpress/block-editor';
+import { buttons } from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -11,11 +12,11 @@ import { getBlockCategory } from '../shared/category';
 import { blockIcon } from '../shared/icon';
 import metadata from './block.json';
 import Edit from './edit';
+import type { CoverageFollowAttributes } from './types';
 
-registerBlockType( metadata.name, {
-	...metadata,
+registerBlockType< CoverageFollowAttributes >( metadata, {
 	category: getBlockCategory(),
-	icon: blockIcon( bell ),
+	icon: blockIcon( buttons ),
 	edit: Edit,
-	save: () => null,
+	save: () => <InnerBlocks.Content />,
 } );

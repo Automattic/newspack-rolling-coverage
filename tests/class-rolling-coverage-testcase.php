@@ -6,6 +6,7 @@
  */
 
 use Newspack_Rolling_Coverage\Breakout;
+use Newspack_Rolling_Coverage\Coverage_Follow_Block;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Taxonomy;
 
@@ -23,6 +24,13 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	 * @var string|null
 	 */
 	private $previous_error_log = null;
+
+	/**
+	 * Whether the test registered the Follow Coverage block itself.
+	 *
+	 * @var bool
+	 */
+	private $registered_follow_block = false;
 
 	/**
 	 * Register the plugin's post and term meta again before every test.
@@ -48,6 +56,11 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	public function tear_down() {
 		if ( class_exists( \Newspack_Ads\Placements::class ) ) {
 			\Newspack_Ads\Placements::$placements = [];
+		}
+
+		if ( $this->registered_follow_block ) {
+			unregister_block_type( Coverage_Follow_Block::BLOCK_NAME );
+			$this->registered_follow_block = false;
 		}
 
 		if ( null !== $this->previous_error_log ) {
@@ -87,6 +100,49 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 			$this->previous_error_log = (string) ini_get( 'error_log' );
 		}
 		ini_set( 'error_log', '/dev/null' ); // phpcs:ignore WordPress.PHP.IniSet.Risky -- Restored in tear_down().
+	}
+
+	/**
+	 * Stand in an active, configured OneSignal.
+	 */
+	protected static function configure_onesignal(): void {
+		require_once __DIR__ . '/mocks/onesignal.php';
+		update_option(
+			'OneSignalWPSetting',
+			[
+				'app_id'           => 'test-app-id',
+				'app_rest_api_key' => 'test-rest-api-key',
+			]
+		);
+	}
+
+	/**
+	 * Register the Follow Coverage block from its metadata for the rest of
+	 * the test when the build isn't there, so its context reaches the render
+	 * callback.
+	 */
+	protected function register_follow_block() {
+		if ( WP_Block_Type_Registry::get_instance()->is_registered( Coverage_Follow_Block::BLOCK_NAME ) ) {
+			return;
+		}
+
+		$metadata = wp_json_file_decode( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'src/blocks/coverage-follow/block.json', [ 'associative' => true ] );
+
+		wp_register_script( 'newspack-rolling-coverage-follow-test-view', false, [], '1.0.0', true );
+
+		register_block_type(
+			Coverage_Follow_Block::BLOCK_NAME,
+			array_merge(
+				[
+					'attributes'          => $metadata['attributes'],
+					'supports'            => $metadata['supports'],
+					'uses_context'        => $metadata['usesContext'],
+					'view_script_handles' => [ 'newspack-rolling-coverage-follow-test-view' ],
+				],
+				Coverage_Follow_Block::block_type_args()
+			)
+		);
+		$this->registered_follow_block = true;
 	}
 
 	/**

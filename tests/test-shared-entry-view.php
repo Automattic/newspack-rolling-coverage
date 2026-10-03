@@ -470,9 +470,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$follow['innerBlocks'][0]['attrs']['metadata']['bindings']['url']['args']['key'] = 'followTag';
 
 		$this->assertTrue( Entry_Bindings::is_latest_buttons( $latest ) );
-		$this->assertFalse( Entry_Bindings::is_follow_buttons( $latest ) );
 		$this->assertFalse( Entry_Bindings::is_latest_buttons( $follow ) );
-		$this->assertTrue( Entry_Bindings::is_follow_buttons( $follow ) );
 		$this->assertFalse( Entry_Bindings::is_latest_buttons( $latest['innerBlocks'][0] ), 'The button alone is not the Buttons block.' );
 		$this->assertFalse( Entry_Bindings::is_latest_buttons( parse_blocks( '<!-- wp:buttons --><div class="wp-block-buttons"></div><!-- /wp:buttons -->' )[0] ) );
 	}

@@ -9,6 +9,7 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies
  */
 import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
+import { FOLLOW_BUTTONS_TEMPLATE } from '../shared/follow-buttons';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
 import type { TemplateItem } from './types';
 
@@ -118,8 +119,8 @@ const SHARE_CLASS = 'newspack-rolling-coverage-share';
 const ALL_UPDATES_CLASS = 'newspack-rolling-coverage-all-updates';
 
 /**
- * The legacy follow button block, still rendered once by coverages saved
- * before the follow button became a core button.
+ * The Follow Coverage block, which sits once among the layout's coverage-level
+ * blocks.
  */
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 
@@ -1323,35 +1324,14 @@ function digestEntryTemplate(
 }
 
 /**
- * The follow button, rendered once wherever the layout places it: a core button
- * bound to the coverage's notification tag. It's a `<button>`, so the bound
- * value never shows as a link; it only carries the tag to the follow script.
+ * The follow button, rendered once wherever the layout places it: the Follow
+ * Coverage block, which holds the core button bound to the coverage's
+ * notification tag.
  */
 const FOLLOW_TEMPLATE: TemplateItem = [
-	'core/buttons',
-	{
-		lock: LOCKED,
-		metadata: { name: __( 'Follow', 'newspack-rolling-coverage' ) },
-	},
-	[
-		[
-			'core/button',
-			{
-				lock: LOCKED,
-				tagName: 'button',
-				text: __( 'Follow', 'newspack-rolling-coverage' ),
-				metadata: {
-					name: __( 'Follow', 'newspack-rolling-coverage' ),
-					bindings: {
-						url: {
-							source: ENTRY_BINDINGS_SOURCE,
-							args: { key: 'followTag' },
-						},
-					},
-				},
-			},
-		],
-	],
+	FOLLOW_BLOCK_NAME,
+	{ lock: LOCKED },
+	[ FOLLOW_BUTTONS_TEMPLATE ],
 ];
 
 /**
@@ -1462,19 +1442,6 @@ function isButtonsBoundTo( block: ButtonsBlock, key: string ): boolean {
 }
 
 /**
- * Whether a block is the follow button's Buttons block (see FOLLOW_TEMPLATE),
- * mirroring Entry_Bindings::is_follow_buttons().
- *
- * @param {Object}   block             The block.
- * @param {string}   block.name        Block name.
- * @param {Object[]} block.innerBlocks Inner blocks.
- * @return {boolean} Whether it's the follow button.
- */
-function isFollowButtons( block: ButtonsBlock ): boolean {
-	return isButtonsBoundTo( block, 'followTag' );
-}
-
-/**
  * Whether a block is the "Jump to Latest" button's Buttons block (see
  * latestTemplate()), mirroring Entry_Bindings::is_latest_buttons().
  *
@@ -1539,20 +1506,9 @@ function isAllUpdatesParagraph( block: {
 }
 
 /**
- * Whether a block is the follow button: the core one's Buttons block or the
- * legacy block.
- *
- * @param {Object} block The block.
- * @return {boolean} Whether it's a follow button.
- */
-function isFollowBlock( block: ButtonsBlock ): boolean {
-	return block.name === FOLLOW_BLOCK_NAME || isFollowButtons( block );
-}
-
-/**
  * Whether a block belongs to the coverage rather than to each entry, so it
- * renders once: the follow or "Jump to Latest" button, the legacy follow
- * block, the Coverage Status block, a heading bound to the coverage's name,
+ * renders once: the Follow Coverage block, the "Jump to Latest" button,
+ * the Coverage Status block, a heading bound to the coverage's name,
  * the "See all updates" paragraph, or a block holding one at any depth,
  * mirroring
  * Entry_Bindings::is_coverage_item(). The pinned card and the entry group
@@ -1575,7 +1531,7 @@ function isCoverageItem( block: {
 	}
 
 	return (
-		isFollowBlock( typed ) ||
+		typed.name === FOLLOW_BLOCK_NAME ||
 		block.name === STATUS_BLOCK_NAME ||
 		isLatestButtons( typed ) ||
 		isCoverageNameHeading( typed ) ||
@@ -1661,8 +1617,9 @@ function withoutBlocks< T extends { name: string; [ key: string ]: unknown } >(
 function withoutFollowButtons<
 	T extends { name: string; [ key: string ]: unknown },
 >( blocks: T[] ): T[] {
-	return withoutBlocks( blocks, ( block ) =>
-		isFollowBlock( block as ButtonsBlock )
+	return withoutBlocks(
+		blocks,
+		( block ) => block.name === FOLLOW_BLOCK_NAME
 	);
 }
 
@@ -1692,7 +1649,7 @@ function followBlockIds(
 	blocks: { name: string; [ key: string ]: unknown }[]
 ): string[] {
 	return blocks.flatMap( ( block ) =>
-		isFollowBlock( block as ButtonsBlock )
+		block.name === FOLLOW_BLOCK_NAME
 			? [ block.clientId as string ]
 			: followBlockIds(
 					Array.isArray( block.innerBlocks )
@@ -2510,7 +2467,6 @@ export {
 	isFeedGroup,
 	feedItems,
 	latestTemplate,
-	isFollowButtons,
 	isLatestButtons,
 	isCoverageNameHeading,
 	isAllUpdatesParagraph,

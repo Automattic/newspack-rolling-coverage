@@ -19,6 +19,14 @@ use Newspack_Rolling_Coverage\Taxonomy;
 class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 	/**
+	 * Register the Follow Coverage block the layouts hold.
+	 */
+	public function set_up() {
+		parent::set_up();
+		$this->register_follow_block();
+	}
+
+	/**
 	 * Restore the request the tests above change.
 	 */
 	public function tear_down() {
@@ -329,25 +337,16 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The follow button, as the editor saves it.
+	 * The follow button, as the Follow Coverage block holds it.
 	 */
-	const FOLLOW_MARKUP = '<!-- wp:buttons --><div class="wp-block-buttons">'
+	const FOLLOW_BUTTONS_MARKUP = '<!-- wp:buttons --><div class="wp-block-buttons">'
 		. '<!-- wp:button {"tagName":"button","metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"followTag"}}}}} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Follow</button></div><!-- /wp:button -->'
 		. '</div><!-- /wp:buttons -->';
 
 	/**
-	 * Stand in an active, configured OneSignal.
+	 * The Follow Coverage block, as the editor saves it.
 	 */
-	private static function configure_onesignal(): void {
-		require_once __DIR__ . '/mocks/onesignal.php';
-		update_option(
-			'OneSignalWPSetting',
-			[
-				'app_id'           => 'test-app-id',
-				'app_rest_api_key' => 'test-rest-api-key',
-			]
-		);
-	}
+	const FOLLOW_MARKUP = '<!-- wp:newspack-rolling-coverage/coverage-follow -->' . self::FOLLOW_BUTTONS_MARKUP . '<!-- /wp:newspack-rolling-coverage/coverage-follow -->';
 
 	/**
 	 * Render a coverage block holding the follow button and the entry buttons.
@@ -393,7 +392,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$combined   = str_replace(
 			'</div><!-- /wp:buttons -->',
 			'<!-- wp:button {"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"latestUrl"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button">Back to live</a></div><!-- /wp:button --></div><!-- /wp:buttons -->',
-			self::FOLLOW_MARKUP
+			self::FOLLOW_BUTTONS_MARKUP
 		);
 		$attributes = [ 'coverageId' => $coverage_id ];
 		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $combined . '<!-- wp:post-title /--><!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
@@ -415,7 +414,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$this->assertStringNotContainsString( 'data-rc-follow', self::render_coverage_with_follow( $coverage_id ), 'The rendered coverage should have no follow button.' );
 
-		$button          = new WP_Block( parse_blocks( self::FOLLOW_MARKUP )[0]['innerBlocks'][0] );
+		$button          = new WP_Block( parse_blocks( self::FOLLOW_BUTTONS_MARKUP )[0]['innerBlocks'][0] );
 		$button->context = [
 			Entry_Bindings::COVERAGE_ID_CONTEXT     => $coverage_id,
 			Entry_Bindings::COVERAGE_STATUS_CONTEXT => 'archived',
@@ -640,9 +639,9 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Coverage-level blocks: the follow and "Jump to Latest" buttons, the
-	 * legacy follow block, a heading bound to the coverage's name, the "See
-	 * all updates" paragraph, or a block holding one at any depth.
+	 * Coverage-level blocks: the Follow Coverage block, the "Jump to Latest"
+	 * button, a heading bound to the coverage's name, the "See all updates"
+	 * paragraph, or a block holding one at any depth.
 	 *
 	 * @dataProvider data_coverage_items
 	 *
@@ -664,9 +663,9 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$latest       = '<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"latestUrl"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button">Jump to Latest</a></div><!-- /wp:button --></div><!-- /wp:buttons -->';
 
 		return [
-			'follow buttons'              => [ self::FOLLOW_MARKUP, true ],
+			'follow block'                => [ self::FOLLOW_MARKUP, true ],
 			'jump to latest'              => [ $latest, true ],
-			'legacy follow'               => [ '<!-- wp:newspack-rolling-coverage/coverage-follow /-->', true ],
+			'bare follow buttons'         => [ self::FOLLOW_BUTTONS_MARKUP, false ],
 			'coverage name heading'       => [ $name_heading, true ],
 			'all updates paragraph'       => [ $all_updates, true ],
 			'group holding a follow'      => [ self::group_markup( self::FOLLOW_MARKUP ), true ],

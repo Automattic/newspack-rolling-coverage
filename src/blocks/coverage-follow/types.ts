@@ -29,8 +29,25 @@ interface OneSignalApi {
 
 declare global {
 	interface Window {
+		newspackCoverageFollowBlock?: CoverageFollowConfig;
 		OneSignalDeferred?: Array< ( os: OneSignalApi ) => void >;
 	}
 }
 
-export type { OneSignalApi };
+/**
+ * Attributes saved on the Follow Coverage block.
+ */
+type CoverageFollowAttributes = {
+	coverageId: number;
+};
+
+/**
+ * Editor config localized by Coverage_Follow_Block.
+ */
+interface CoverageFollowConfig {
+	onesignalConfigured: boolean;
+	statusMetaKey: string;
+	taxonomySlug: string;
+}
+
+export type { OneSignalApi, CoverageFollowAttributes, CoverageFollowConfig };
