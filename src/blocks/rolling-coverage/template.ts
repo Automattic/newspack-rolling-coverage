@@ -1605,6 +1605,300 @@ function tickerEntryTemplate( slugs: string[] ): TemplateItem[] {
 }
 
 /**
+ * How many columns the Split layout's grid has on desktop: the summary in
+ * the first, the entries across the other two.
+ */
+const SPLIT_COLUMNS = 3;
+
+/**
+ * How many rows the Split layout's summary spans, so it runs down beside
+ * every entry a page can load (Rolling_Coverage_Block::PER_PAGE_MAX).
+ */
+const SPLIT_SUMMARY_ROWS = 100;
+
+/**
+ * The Split layout's Feed layout: a grid of three columns.
+ */
+const SPLIT_FEED_LAYOUT = {
+	type: 'grid',
+	columnCount: SPLIT_COLUMNS,
+};
+
+/**
+ * The Split layout's Feed style: one column on tablets and phones.
+ */
+const SPLIT_FEED_STYLE = {
+	'@tablet': { layout: { columnCount: 1 } },
+	'@mobile': { layout: { columnCount: 1 } },
+};
+
+/**
+ * The Split layout's Feed spacing: space between the columns and none
+ * between the rows, since the summary spans many rows that would each add
+ * it. The entries space themselves with their padding.
+ */
+const SPLIT_FEED_GAP = { top: '0', left: 'var:preset|spacing|50' };
+
+/**
+ * Where a Split block sits on tablets and phones, where the grid has one
+ * column.
+ */
+const SPLIT_STACKED_PLACEMENT = { layout: { columnStart: 1, columnSpan: 1 } };
+
+/**
+ * The Split layout's header: the Follow button across the grid's full
+ * width.
+ *
+ * @return {TemplateItem} The group.
+ */
+function splitHeader(): TemplateItem {
+	return [
+		'core/group',
+		{
+			style: {
+				layout: { columnSpan: SPLIT_COLUMNS },
+				'@tablet': { layout: { columnSpan: 1 } },
+				'@mobile': { layout: { columnSpan: 1 } },
+				spacing: { padding: { bottom: 'var:preset|spacing|40' } },
+			},
+			metadata: { name: __( 'Header', 'newspack-rolling-coverage' ) },
+		},
+		[ FOLLOW_TEMPLATE ],
+	];
+}
+
+/**
+ * The Split layout's per-entry template. The pinned entry, the summary,
+ * holds the grid's first column down the feed's full length and sticks as
+ * the reader scrolls where the theme supports it, ruled off with a heavier
+ * rule; above the entries on tablets and phones. Each entry spans the other
+ * two columns, the time it was posted beside the title, content and links,
+ * or above them on phones. The site places each entry's article where its
+ * group says (see Rolling_Coverage_Block::place_in_grid()).
+ *
+ * @return {TemplateItem[]} The template.
+ */
+function splitEntryTemplate(): TemplateItem[] {
+	return [
+		[
+			'core/group',
+			{
+				className: PINNED_CARD_CLASS,
+				lock: LOCKED_IN_PLACE,
+				layout: {
+					type: 'flex',
+					orientation: 'vertical',
+					justifyContent: 'stretch',
+				},
+				style: {
+					layout: {
+						columnStart: 1,
+						columnSpan: 1,
+						rowSpan: SPLIT_SUMMARY_ROWS,
+					},
+					'@tablet': {
+						layout: {
+							...SPLIT_STACKED_PLACEMENT.layout,
+							rowSpan: 1,
+						},
+					},
+					'@mobile': {
+						layout: {
+							...SPLIT_STACKED_PLACEMENT.layout,
+							rowSpan: 1,
+						},
+					},
+					border: {
+						top: { color: CONTRAST, width: '3px', style: 'solid' },
+					},
+					spacing: {
+						blockGap: DEFAULT_ENTRY_GAP,
+						padding: {
+							top: 'var:preset|spacing|40',
+							bottom: 'var:preset|spacing|50',
+						},
+					},
+					position: { type: 'sticky', top: '0px' },
+				},
+				metadata: {
+					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			[
+				pinnedRow( ACCENT ),
+				[ 'core/post-title', { level: 4 } ],
+				postContent(),
+				linksRow( [ readMoreLink(), shareLink() ] ),
+			],
+		],
+		[
+			'core/group',
+			{
+				className: REGULAR_ENTRY_CLASS,
+				lock: LOCKED_IN_PLACE,
+				style: {
+					layout: { columnStart: 2, columnSpan: 2 },
+					'@tablet': SPLIT_STACKED_PLACEMENT,
+					'@mobile': SPLIT_STACKED_PLACEMENT,
+					border: {
+						top: {
+							color: BORDER_COLOR,
+							width: '1px',
+							style: 'solid',
+						},
+					},
+					spacing: {
+						padding: {
+							top: 'var:preset|spacing|40',
+							bottom: 'var:preset|spacing|40',
+						},
+					},
+				},
+				metadata: {
+					name: __( 'Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			[
+				[
+					'core/columns',
+					{
+						style: {
+							spacing: {
+								blockGap: {
+									top: 'var:preset|spacing|20',
+									left: 'var:preset|spacing|30',
+								},
+								margin: { top: '0', bottom: '0' },
+							},
+						},
+						metadata: {
+							name: __( 'Row', 'newspack-rolling-coverage' ),
+						},
+					},
+					[
+						[
+							'core/column',
+							{
+								width: '5.5rem',
+								metadata: {
+									name: __(
+										'Time',
+										'newspack-rolling-coverage'
+									),
+								},
+							},
+							[
+								[
+									'core/post-date',
+									{
+										...POST_DATE_ATTRIBUTES,
+										format: siteTimeFormat(),
+										fontSize: 'small',
+										style: {
+											typography: { fontWeight: '700' },
+										},
+									},
+								],
+							],
+						],
+						[
+							'core/column',
+							{
+								metadata: {
+									name: __(
+										'Body',
+										'newspack-rolling-coverage'
+									),
+								},
+							},
+							[
+								stack(
+									__( 'Entry', 'newspack-rolling-coverage' ),
+									[
+										[ 'core/post-title', { level: 4 } ],
+										postContent(),
+										linksRow( [
+											readMoreLink(),
+											shareLink(),
+										] ),
+									]
+								),
+							],
+						],
+					],
+				],
+			],
+		],
+	];
+}
+
+/**
+ * The grid cell an entry's preview takes in a grid Feed, mirroring the
+ * article the site places (see Rolling_Coverage_Block::place_in_grid()):
+ * the pinned card's desktop placement for the first pinned entry, else the
+ * entry group's, which takes the full row while no pinned entry shows if
+ * the pinned card carries a placement of its own. None outside a grid Feed,
+ * or where the group sets no placement.
+ *
+ * @param {Object[]} template   The layout's per-entry blocks.
+ * @param {Object}   feedLayout The Feed group's layout attribute.
+ * @param {boolean}  isLeadPin  Whether the entry is the first pinned entry previewed.
+ * @param {boolean}  showsPin   Whether any pinned entry is previewed.
+ * @return {Object|undefined} The preview container's inline style.
+ */
+function entryPreviewPlacement(
+	template: { name: string; attributes?: Record< string, unknown > }[],
+	feedLayout: Record< string, unknown > | undefined,
+	isLeadPin: boolean,
+	showsPin: boolean
+): Record< string, string > | undefined {
+	if ( feedLayout?.type !== 'grid' ) {
+		return undefined;
+	}
+
+	const placementOf = ( block?: {
+		attributes?: Record< string, unknown >;
+	} ) =>
+		(
+			block?.attributes?.style as
+				{ layout?: Record< string, string | number > } | undefined
+		 )?.layout;
+	const card = placementOf( template.find( isPinnedCard ) );
+	const entry = placementOf( template.find( isRegularEntry ) );
+	const placement = isLeadPin && card ? card : entry;
+
+	if ( ! placement ) {
+		return undefined;
+	}
+
+	const hasCardPlacement = Boolean(
+		card &&
+		( card.columnStart || card.columnSpan || card.rowStart || card.rowSpan )
+	);
+
+	if ( placement === entry && hasCardPlacement && ! showsPin ) {
+		return { gridColumn: '1 / -1' };
+	}
+
+	const track = ( start?: string | number, span?: string | number ) => {
+		if ( start && span ) {
+			return `${ start } / span ${ span }`;
+		}
+
+		return start ? `${ start }` : span && `span ${ span }`;
+	};
+	const gridColumn = track( placement.columnStart, placement.columnSpan );
+	const gridRow = track( placement.rowStart, placement.rowSpan );
+
+	return gridColumn || gridRow
+		? {
+				...( gridColumn ? { gridColumn } : {} ),
+				...( gridRow ? { gridRow } : {} ),
+			}
+		: undefined;
+}
+
+/**
  * The Digest layout's per-entry template: the time and, beside it, the
  * headline over a short excerpt, ruled off from the entry above. The pinned
  * card matches the regular entry, since a capped feed ignores pinning.
@@ -2038,16 +2332,18 @@ function emptiedGroupIds(
  * The Feed group holding the layout's items: everything the coverage shows,
  * spaced by its Block spacing.
  *
- * @param {Object[]} items      The items.
- * @param {string}   gap        The space between the items, as a spacing preset.
- * @param {Object}   style      Extra style settings, such as a border or padding.
- * @param {Object}   layout     The group's layout, a vertical stack by default.
- * @param {Object}   attributes Extra group settings, such as its alignment.
+ * @param {Object[]}      items      The items.
+ * @param {string|Object} gap        The space between the items, as a spacing
+ *                                   preset, or between the rows (`top`) and the
+ *                                   columns (`left`).
+ * @param {Object}        style      Extra style settings, such as a border or padding.
+ * @param {Object}        layout     The group's layout, a vertical stack by default.
+ * @param {Object}        attributes Extra group settings, such as its alignment.
  * @return {Object} The Feed group.
  */
 function feedTemplate(
 	items: TemplateItem[],
-	gap = 'var:preset|spacing|50',
+	gap: string | { top: string; left: string } = 'var:preset|spacing|50',
 	style: Record< string, unknown > = {},
 	layout: Record< string, unknown > = {
 		type: 'flex',
@@ -2933,6 +3229,12 @@ export {
 	tickerFooter,
 	TICKER_FEED_LAYOUT,
 	TICKER_FEED_STYLE,
+	splitEntryTemplate,
+	splitHeader,
+	entryPreviewPlacement,
+	SPLIT_FEED_LAYOUT,
+	SPLIT_FEED_STYLE,
+	SPLIT_FEED_GAP,
 	DIGEST_FEED_STYLE,
 	ENTRY_ALLOWED_BLOCKS,
 	ALL_UPDATES_CLASS,

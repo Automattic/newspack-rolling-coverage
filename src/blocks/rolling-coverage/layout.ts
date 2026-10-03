@@ -29,6 +29,11 @@ import {
 	tickerFooter,
 	TICKER_FEED_LAYOUT,
 	TICKER_FEED_STYLE,
+	splitEntryTemplate,
+	splitHeader,
+	SPLIT_FEED_LAYOUT,
+	SPLIT_FEED_STYLE,
+	SPLIT_FEED_GAP,
 	DIGEST_FEED_STYLE,
 	allUpdatesLink,
 	ENTRY_ALLOWED_BLOCKS,
@@ -253,6 +258,28 @@ export function tickerInnerTemplate(): TemplateItem[] {
 			'var:preset|spacing|40',
 			TICKER_FEED_STYLE,
 			TICKER_FEED_LAYOUT
+		),
+	];
+}
+
+/**
+ * The Split layout's inner-blocks template: the full feed at wide width,
+ * the pinned entry's summary in a column beside the entries, with the
+ * "Jump to Latest" and follow buttons.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function splitInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			[
+				latestTemplate( paletteSlugs() ),
+				splitHeader(),
+				...splitEntryTemplate(),
+			],
+			SPLIT_FEED_GAP,
+			SPLIT_FEED_STYLE,
+			SPLIT_FEED_LAYOUT
 		),
 	];
 }

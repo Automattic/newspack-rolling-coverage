@@ -2028,6 +2028,66 @@ function initBlock( root: HTMLElement ): void {
 		}
 	} );
 
+	/**
+	 * Lets a sticky pinned card that is taller than the viewport below the
+	 * top it sticks at scroll with the page, so its end isn't hidden until
+	 * the feed ends, and makes it sticky again once it fits.
+	 *
+	 * @return {void}
+	 */
+	function fitStickyCards(): void {
+		root.querySelectorAll< HTMLElement >(
+			'.newspack-rolling-coverage-pinned-card.is-position-sticky'
+		).forEach( ( card ) => {
+			const top = parseFloat( window.getComputedStyle( card ).top ) || 0;
+
+			if (
+				card.getBoundingClientRect().height >
+				window.innerHeight - top
+			) {
+				card.style.position = 'static';
+			} else {
+				card.style.removeProperty( 'position' );
+			}
+		} );
+	}
+
+	const stickyCardObserver =
+		typeof ResizeObserver === 'undefined'
+			? null
+			: new ResizeObserver( ( entries ) => {
+					entries.forEach( ( { target } ) => {
+						if ( ! target.isConnected ) {
+							stickyCardObserver?.unobserve( target );
+						}
+					} );
+					fitStickyCards();
+				} );
+
+	/**
+	 * Watches each sticky pinned card in the block for changes in its size,
+	 * and fits them all.
+	 *
+	 * @return {void}
+	 */
+	function watchStickyCards(): void {
+		root.querySelectorAll< HTMLElement >(
+			'.newspack-rolling-coverage-pinned-card.is-position-sticky'
+		).forEach( ( card ) => stickyCardObserver?.observe( card ) );
+		fitStickyCards();
+	}
+
+	// Entries are inserted, replaced and appended in several places, the
+	// pinned card among them, so the list itself is watched.
+	const entriesListObserver = new MutationObserver( watchStickyCards );
+	entriesListObserver.observe( entriesList, { childList: true } );
+	watchStickyCards();
+	on( window, 'resize', fitStickyCards );
+	cleanupFns.push( () => {
+		entriesListObserver.disconnect();
+		stickyCardObserver?.disconnect();
+	} );
+
 	if ( sentinel && hasMore ) {
 		const observer = new IntersectionObserver( ( entries ) => {
 			entries.forEach( ( entry ) => {

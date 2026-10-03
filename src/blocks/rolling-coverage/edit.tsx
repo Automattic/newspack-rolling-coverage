@@ -88,6 +88,7 @@ import {
 	forEntryKind,
 	breakoutBlockIds,
 	withoutFollowButtons,
+	entryPreviewPlacement,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -861,6 +862,30 @@ export default function Edit( {
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
 		[ templateBlocks ]
+	);
+	// In a grid Feed, each entry's preview takes the cell the site places its
+	// article in, the first pinned entry the pinned card's. Kept between
+	// renders, so the previews don't render again for a new style object.
+	const leadPinContext = previewContexts.find(
+		( context ) => context.pinned
+	);
+	const showsPin = Boolean( leadPinContext );
+	const previewPlacements = useMemo(
+		() => ( {
+			lead: entryPreviewPlacement(
+				templateBlocks,
+				feedLayout,
+				true,
+				true
+			),
+			other: entryPreviewPlacement(
+				templateBlocks,
+				feedLayout,
+				false,
+				showsPin
+			),
+		} ),
+		[ templateBlocks, feedLayout, showsPin ]
 	);
 
 	const { setBlockEditingMode, unsetBlockEditingMode } = useDispatch(
@@ -2019,6 +2044,12 @@ export default function Edit( {
 																blocks={ blocksForEntry(
 																	context
 																) }
+																style={
+																	context ===
+																	leadPinContext
+																		? previewPlacements.lead
+																		: previewPlacements.other
+																}
 															/>
 														</BlockContextProvider>
 													)
@@ -2032,6 +2063,9 @@ export default function Edit( {
 													<EntryBlockPreview
 														blocks={
 															emptyPreviewBlocks
+														}
+														style={
+															previewPlacements.other
 														}
 													/>
 												</BlockContextProvider>
