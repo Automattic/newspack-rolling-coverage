@@ -8,6 +8,7 @@
 use Newspack_Rolling_Coverage\Coverage_Status_Block;
 use Newspack_Rolling_Coverage\Newest_Entry;
 use Newspack_Rolling_Coverage\Post_Type;
+use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Status_Labels;
 use Newspack_Rolling_Coverage\Taxonomy;
 
@@ -18,11 +19,24 @@ use Newspack_Rolling_Coverage\Taxonomy;
 class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 	/**
+	 * Whether this test registered the Rolling Coverage block itself.
+	 *
+	 * @var bool
+	 */
+	private $registered_feed = false;
+
+	/**
 	 * Register the block from its metadata when the build isn't there, so its
-	 * `postId` context reaches the render callback.
+	 * `postId` context reaches the render callback, and the Rolling Coverage
+	 * block, so the feeds the tests nest it in render.
 	 */
 	public function set_up() {
 		parent::set_up();
+
+		if ( ! WP_Block_Type_Registry::get_instance()->is_registered( Rolling_Coverage_Block::BLOCK_NAME ) ) {
+			register_block_type( Rolling_Coverage_Block::BLOCK_NAME, Rolling_Coverage_Block::block_type_args() );
+			$this->registered_feed = true;
+		}
 
 		if ( ! WP_Block_Type_Registry::get_instance()->is_registered( Coverage_Status_Block::BLOCK_NAME ) ) {
 			$metadata = json_decode( file_get_contents( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'src/blocks/coverage-status/block.json' ), true ); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
@@ -39,9 +53,15 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Forget the theme.json data a test switched to.
+	 * Forget the theme.json data a test switched to, and the Rolling Coverage
+	 * block if the test registered it.
 	 */
 	public function tear_down() {
+		if ( $this->registered_feed ) {
+			unregister_block_type( Rolling_Coverage_Block::BLOCK_NAME );
+			$this->registered_feed = false;
+		}
+
 		parent::tear_down();
 		wp_clean_theme_json_cache();
 	}
