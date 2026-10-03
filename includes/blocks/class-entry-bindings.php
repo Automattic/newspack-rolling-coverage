@@ -209,8 +209,8 @@ class Entry_Bindings {
 	 * An untitled entry's opening words as its title, for a Post Title
 	 * carrying ENTRY_LINK_CLASS inside an entry: its excerpt when it has one,
 	 * else the start of its text. The title then renders and links as one of
-	 * the entry's own would (see link_title_to_breakout()). A password
-	 * protected entry keeps its empty title.
+	 * the entry's own would (see link_title_to_breakout()). A
+	 * password-protected entry keeps its empty title.
 	 *
 	 * Only that block's own lookup gets the words: has_title() in
 	 * Rolling_Coverage_Block::render_entry() and every other caller during the

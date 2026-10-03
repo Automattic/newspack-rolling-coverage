@@ -1844,8 +1844,9 @@ class Rolling_Coverage_Block {
 	 * out, and "Jump to Latest" renders only as its own control, so none
 	 * renders here. The blocks render outside the Feed group, so they're
 	 * handed its layout, as core hands a parent's layout to its inner blocks:
-	 * core then treats a grid Feed with a column count as fixed-column, and
-	 * adds no container query resetting the span of a block spanning it.
+	 * core then treats a grid Feed with a column count and no minimum column
+	 * width as fixed-column, and adds no container query resetting the span
+	 * of a block spanning it.
 	 *
 	 * @param array[] $blocks          Parsed coverage-level blocks.
 	 * @param int     $coverage_id     Coverage term id.

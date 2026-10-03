@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for the social-sharing `rc_source` redirect script.
+ * Tests for the social-sharing `rc_source` redirect and the entry deep link.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -10,6 +10,8 @@ use Newspack_Rolling_Coverage\Social_Sharing;
 /**
  * The `rc_source` query var is attacker-controlled, so its target must be
  * publicly viewable before its permalink is reflected into the response.
+ * The entry deep link is shared by the redirect, push notifications and the
+ * Ticker's headlines, so it must carry exactly one fragment.
  */
 class Test_Social_Sharing extends Rolling_Coverage_TestCase {
 
