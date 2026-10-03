@@ -14,6 +14,7 @@ import {
 	clockInnerTemplate,
 	marginInnerTemplate,
 	minuteInnerTemplate,
+	bylineInnerTemplate,
 	wireInnerTemplate,
 	digestInnerTemplate,
 	flashInnerTemplate,
@@ -27,6 +28,7 @@ export type BuiltInLayoutSlug =
 	| 'clock'
 	| 'margin'
 	| 'minute'
+	| 'byline'
 	| 'wire'
 	| 'digest'
 	| 'flash';
@@ -76,6 +78,11 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			slug: 'minute',
 			title: _x( 'Minute', 'layout name', 'newspack-rolling-coverage' ),
 			template: minuteInnerTemplate,
+		},
+		{
+			slug: 'byline',
+			title: _x( 'Byline', 'layout name', 'newspack-rolling-coverage' ),
+			template: bylineInnerTemplate,
 		},
 		{
 			slug: 'wire',

@@ -58,6 +58,6 @@ class Test_Theme_FSE_Blocks extends WP_UnitTestCase {
 		preg_match_all( '/var updateAllowedBlocks = (\{.*?\});/', $localized_data, $assignments );
 		$last_assignment = json_decode( (string) end( $assignments[1] ), true );
 
-		$this->assertSame( 'core/query,core/avatar', $last_assignment['removeblocks'] ?? null );
+		$this->assertSame( 'core/query', $last_assignment['removeblocks'] ?? null );
 	}
 }
