@@ -185,6 +185,8 @@ class Rolling_Coverage_Block {
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 10, 3 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
+		add_filter( 'render_block_core/avatar', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
+		add_filter( 'render_block_core/post-author-name', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
 		add_filter( 'render_block_core/post-content', [ __CLASS__, 'drop_entry_content_class' ], 10, 3 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
 		add_filter( 'render_block_core/columns', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
@@ -692,6 +694,31 @@ class Rolling_Coverage_Block {
 		}
 
 		return $time->get_updated_html();
+	}
+
+	/**
+	 * Hides an entry's avatar and author name while the Slack bot is its
+	 * author. The rule keys on the author, so an entry an editor reassigns
+	 * to a reporter shows that reporter.
+	 *
+	 * @param string   $block_content Rendered block.
+	 * @param array    $block         Parsed block.
+	 * @param WP_Block $instance      Block instance.
+	 * @return string
+	 */
+	public static function hide_slack_bot_byline( $block_content, $block, $instance ) {
+		if ( ! self::is_rendering_entry() || ! $instance instanceof WP_Block ) {
+			return $block_content;
+		}
+
+		$bot_id  = Slack_Config::get_bot_user_id();
+		$post_id = (int) ( $instance->context['postId'] ?? 0 );
+
+		if ( $bot_id > 0 && $post_id > 0 && (int) get_post_field( 'post_author', $post_id ) === $bot_id ) {
+			return '';
+		}
+
+		return $block_content;
 	}
 
 	/**
@@ -2142,6 +2169,7 @@ class Rolling_Coverage_Block {
 	 * breakout link to show also drops any bottom margin set on its last
 	 * block, and as the last entry, a card that closes the template drops any
 	 * set below it, so the card's padding is even and nothing trails the list.
+	 * With avatars turned off, a column holding only an avatar goes.
 	 *
 	 * @param array[] $template     Parsed template blocks.
 	 * @param bool    $is_pinned    Whether the entry is pinned.
@@ -2152,6 +2180,10 @@ class Rolling_Coverage_Block {
 	 */
 	public static function shape_entry_template( array $template, bool $is_pinned, bool $has_breakout, bool $is_last ): array {
 		$template = self::for_entry_kind( $template, $is_pinned );
+
+		if ( ! get_option( 'show_avatars' ) ) {
+			$template = self::without_avatar_columns( $template );
+		}
 
 		if ( ( $is_pinned && self::has_pinned_card( $template ) ) || $is_last ) {
 			$template = self::without_closing_separator( $template );
@@ -2189,6 +2221,27 @@ class Rolling_Coverage_Block {
 				}
 
 				return [ self::with_entry_layout( $block ) ];
+			}
+		);
+	}
+
+	/**
+	 * The template without the columns that hold only an avatar.
+	 *
+	 * @param array[] $template Parsed template blocks.
+	 * @return array[]
+	 */
+	private static function without_avatar_columns( array $template ): array {
+		return self::map_template_blocks(
+			$template,
+			static function ( array $block ) {
+				$inner = $block['innerBlocks'] ?? [];
+
+				$is_avatar_column = 'core/column' === ( $block['blockName'] ?? '' )
+					&& 1 === count( $inner )
+					&& 'core/avatar' === ( $inner[0]['blockName'] ?? '' );
+
+				return $is_avatar_column ? [] : [ $block ];
 			}
 		);
 	}

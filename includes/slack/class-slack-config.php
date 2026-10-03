@@ -268,6 +268,15 @@ class Slack_Config {
 	}
 
 	/**
+	 * The Slack bot user's ID, without creating the user.
+	 *
+	 * @return int User ID, or 0 when there is no bot user.
+	 */
+	public static function get_bot_user_id(): int {
+		return (int) get_option( self::OPTION_BOT_USER_ID, 0 );
+	}
+
+	/**
 	 * Get or create the Slack bot WordPress user ID.
 	 *
 	 * Order of resolution: cached option → existing user by login →

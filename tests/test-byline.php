@@ -1,0 +1,141 @@
+<?php
+/**
+ * Tests for the byline the Byline layout shows.
+ *
+ * @package Newspack_Rolling_Coverage
+ */
+
+use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
+use Newspack_Rolling_Coverage\Slack_Config;
+
+/**
+ * Entries show their author's avatar and name, except while the Slack bot
+ * is the author, and the avatar column goes when the site hides avatars.
+ */
+class Test_Byline extends Rolling_Coverage_TestCase {
+
+	const BYLINE_MARKUP = '<!-- wp:avatar /--><!-- wp:post-author-name /-->';
+
+	const ROW_MARKUP = '<!-- wp:columns {"isStackedOnMobile":false} --><div class="wp-block-columns"><!-- wp:column {"width":"40px"} --><div class="wp-block-column"><!-- wp:avatar {"size":40} /--></div><!-- /wp:column --><!-- wp:column --><div class="wp-block-column"><!-- wp:post-author-name /--><!-- wp:post-date /--></div><!-- /wp:column --></div><!-- /wp:columns -->';
+
+	/**
+	 * Render an entry by the given author through the given template markup.
+	 *
+	 * @param int    $author_id Author user ID.
+	 * @param string $markup    Template markup.
+	 * @return string Rendered entry.
+	 */
+	private static function render( int $author_id, string $markup ): string {
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_author' => $author_id ] );
+
+		return Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( $markup ) );
+	}
+
+	/**
+	 * How many columns a rendered row has.
+	 *
+	 * @param string $html Rendered HTML.
+	 * @return int
+	 */
+	private static function count_columns( string $html ): int {
+		return preg_match_all( '/class="wp-block-column[ "]/', $html );
+	}
+
+	/**
+	 * A regular author's avatar and name render.
+	 */
+	public function test_an_entry_shows_its_authors_avatar_and_name() {
+		$author_id = self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] );
+
+		$html = self::render( $author_id, self::BYLINE_MARKUP );
+
+		$this->assertStringContainsString( 'wp-block-avatar', $html );
+		$this->assertStringContainsString( 'Jane Reporter', $html );
+	}
+
+	/**
+	 * The Slack bot's entries carry no byline.
+	 */
+	public function test_a_slack_bot_entry_shows_no_avatar_or_name() {
+		$html = self::render( Slack_Config::get_or_create_bot_user_id(), self::BYLINE_MARKUP );
+
+		$this->assertStringNotContainsString( 'wp-block-avatar', $html );
+		$this->assertStringNotContainsString( 'wp-block-post-author-name', $html );
+	}
+
+	/**
+	 * The rule follows the author, not the entry's origin.
+	 */
+	public function test_a_slack_entry_reassigned_to_a_reporter_shows_the_reporter() {
+		Slack_Config::get_or_create_bot_user_id();
+		$author_id = self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] );
+
+		$html = self::render( $author_id, self::BYLINE_MARKUP );
+
+		$this->assertStringContainsString( 'Jane Reporter', $html );
+	}
+
+	/**
+	 * Hiding the bot's avatar leaves its column in place.
+	 */
+	public function test_a_slack_bot_entry_keeps_its_avatar_column() {
+		$html = self::render( Slack_Config::get_or_create_bot_user_id(), self::ROW_MARKUP );
+
+		$this->assertSame( 2, self::count_columns( $html ), 'The empty column keeps the text aligned with other entries.' );
+	}
+
+	/**
+	 * Turning avatars off removes the column that holds only the avatar.
+	 */
+	public function test_the_avatar_column_goes_when_avatars_are_off() {
+		$author_id = self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] );
+
+		$this->assertSame( 2, self::count_columns( self::render( $author_id, self::ROW_MARKUP ) ) );
+
+		update_option( 'show_avatars', 0 );
+		$html = self::render( $author_id, self::ROW_MARKUP );
+
+		$this->assertSame( 1, self::count_columns( $html ) );
+		$this->assertStringContainsString( 'Jane Reporter', $html );
+	}
+
+	/**
+	 * Both rules apply together.
+	 */
+	public function test_a_slack_bot_entry_with_avatars_off_shows_only_the_rest() {
+		update_option( 'show_avatars', 0 );
+
+		$html = self::render( Slack_Config::get_or_create_bot_user_id(), self::ROW_MARKUP );
+
+		$this->assertSame( 1, self::count_columns( $html ) );
+		$this->assertStringNotContainsString( 'wp-block-post-author-name', $html );
+		$this->assertStringContainsString( 'wp-block-post-date', $html );
+	}
+
+	/**
+	 * An entry without an author renders no avatar image.
+	 */
+	public function test_an_entry_with_no_author_renders_no_byline() {
+		$html = self::render( 0, self::BYLINE_MARKUP );
+
+		$this->assertStringNotContainsString( '<img', $html );
+	}
+
+	/**
+	 * The rule only applies inside Rolling Coverage entries.
+	 */
+	public function test_bot_authored_posts_outside_a_feed_keep_their_byline() {
+		$bot_id  = Slack_Config::get_or_create_bot_user_id();
+		$post_id = self::factory()->post->create( [ 'post_author' => $bot_id ] );
+
+		$block = new WP_Block(
+			parse_blocks( '<!-- wp:post-author-name /-->' )[0],
+			[
+				'postId'   => $post_id,
+				'postType' => 'post',
+			]
+		);
+
+		$this->assertStringContainsString( 'wp-block-post-author-name', $block->render() );
+	}
+}
