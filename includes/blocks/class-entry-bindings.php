@@ -46,7 +46,8 @@ class Entry_Bindings {
 	const LATEST_ATTRIBUTE = 'data-rc-latest';
 
 	/**
-	 * Block context the Rolling Coverage block renders its follow button with.
+	 * Block context the follow button's binding reads its coverage from, set
+	 * by the Rolling Coverage block and by the Follow Coverage block.
 	 */
 	const COVERAGE_ID_CONTEXT     = 'newspack-rolling-coverage/coverageId';
 	const COVERAGE_STATUS_CONTEXT = 'newspack-rolling-coverage/coverageStatus';
@@ -604,17 +605,6 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Whether a parsed block is the Rolling Coverage follow button: a core
-	 * Buttons block holding a button bound to the coverage's follow tag.
-	 *
-	 * @param array $parsed_block Parsed block.
-	 * @return bool
-	 */
-	public static function is_follow_buttons( array $parsed_block ): bool {
-		return self::is_buttons_bound_to( $parsed_block, 'followTag' );
-	}
-
-	/**
 	 * Whether a parsed block is the Rolling Coverage "Jump to Latest" button:
 	 * a core Buttons block holding a button bound to the live feed's link.
 	 *
@@ -657,8 +647,8 @@ class Entry_Bindings {
 
 	/**
 	 * Whether a parsed block belongs to the coverage rather than to each
-	 * entry, so it renders once: the follow or "Jump to Latest" button, the
-	 * legacy follow block, the Coverage Status block, a heading bound to the
+	 * entry, so it renders once: the Follow Coverage block, the "Jump to
+	 * Latest" button, the Coverage Status block, a heading bound to the
 	 * coverage's name, the "See all updates" paragraph, or a block holding one
 	 * at any depth. The pinned card and the entry group always belong to each
 	 * entry, whatever they hold.
@@ -674,7 +664,6 @@ class Entry_Bindings {
 		if (
 			Coverage_Follow_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			Coverage_Status_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
-			self::is_follow_buttons( $parsed_block ) ||
 			self::is_latest_buttons( $parsed_block ) ||
 			self::is_coverage_name_heading( $parsed_block ) ||
 			self::is_all_updates_paragraph( $parsed_block )

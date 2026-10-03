@@ -1700,8 +1700,9 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Renders coverage-level blocks once, with the coverage in their context
-	 * so the follow button carries its tag. A follow button that can't render,
-	 * e.g. on an archived coverage, leaves nothing behind, nor does a group
+	 * so the Follow Coverage block follows it. A Follow Coverage block that
+	 * can't render, e.g. on an archived coverage, leaves nothing behind, nor
+	 * does a group
 	 * left empty once it and the "See all updates" paragraph drop out, and
 	 * "Jump to Latest" renders only as its own control, so none renders here.
 	 *
@@ -1718,41 +1719,16 @@ class Rolling_Coverage_Block {
 
 		$can_follow = Coverage_Follow_Block::should_render( $status );
 
-		// Preload the follow button's view script and the legacy block's
-		// styles: the button renders inside this callback, so WordPress
-		// doesn't enqueue its assets.
-		$follow_block_type = $can_follow && self::holds_follow_button( $blocks ) ? WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Follow_Block::BLOCK_NAME ) : null;
-
-		if ( $follow_block_type ) {
-			foreach ( $follow_block_type->style_handles as $style_handle ) {
-				wp_enqueue_style( $style_handle );
-			}
-
-			foreach ( $follow_block_type->view_script_handles as $script_handle ) {
-				wp_enqueue_script( $script_handle );
-			}
-		}
-
 		$blocks = self::map_template_blocks(
 			$blocks,
-			static function ( array $block, array $original ) use ( $coverage_id, $status, $all_updates_url, $can_follow ) {
+			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow ) {
 				if (
 					Entry_Bindings::is_latest_buttons( $block ) ||
 					( '' === $all_updates_url && Entry_Bindings::is_all_updates_paragraph( $block ) ) ||
-					( ! $can_follow && ( Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $block ) ) ) ||
+					( ! $can_follow && Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
 					( 'core/group' === ( $block['blockName'] ?? '' ) && empty( $block['innerBlocks'] ) && ! empty( $original['innerBlocks'] ) )
 				) {
 					return [];
-				}
-
-				if ( Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) {
-					$block['attrs'] = array_merge(
-						(array) ( $block['attrs'] ?? [] ),
-						[
-							'coverageId' => $coverage_id,
-							'status'     => $status,
-						]
-					);
 				}
 
 				return [ $block ];
@@ -1780,20 +1756,6 @@ class Rolling_Coverage_Block {
 			self::$all_updates_url = $previous_all_updates_url;
 			remove_filter( 'render_block_context', $add_coverage_context );
 		}
-	}
-
-	/**
-	 * Whether blocks hold a follow button, the core one or the legacy block,
-	 * at any depth.
-	 *
-	 * @param array[] $blocks Parsed blocks.
-	 * @return bool
-	 */
-	private static function holds_follow_button( array $blocks ): bool {
-		return self::holds_block(
-			$blocks,
-			static fn( array $block ) => Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $block )
-		);
 	}
 
 	/**

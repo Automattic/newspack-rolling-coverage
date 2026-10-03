@@ -2,44 +2,21 @@
 	"$schema": "https://schemas.wp.org/trunk/block.json",
 	"apiVersion": 3,
 	"name": "newspack-rolling-coverage/coverage-follow",
-	"title": "Coverage Follow Button",
+	"title": "Follow Coverage",
 	"category": "newspack",
-	"description": "Lets readers follow this coverage to receive push notifications for new entries. Rendered once at the top of the coverage.",
+	"description": "Lets readers follow a coverage to get push notifications of new entries: inside a Rolling Coverage block, that block's coverage; elsewhere, the chosen one or the one on this page.",
 	"textdomain": "newspack-rolling-coverage",
-	"ancestor": [ "newspack-rolling-coverage/rolling-coverage" ],
+	"usesContext": [
+		"postId",
+		"newspack-rolling-coverage/coverageId",
+		"newspack-rolling-coverage/coverageStatus"
+	],
 	"attributes": {
-		"coverageId": { "type": "number", "default": 0 },
-		"status": { "type": "string", "default": "active" }
+		"coverageId": { "type": "number", "default": 0 }
 	},
 	"supports": {
 		"html": false,
-		"multiple": false,
-		"reusable": false,
-		"align": true,
-		"color": {
-			"text": true,
-			"background": true,
-			"__experimentalDefaultControls": {
-				"text": true,
-				"background": true
-			}
-		},
-		"typography": {
-			"fontSize": true,
-			"__experimentalDefaultControls": {
-				"fontSize": true
-			}
-		},
-		"spacing": {
-			"margin": true,
-			"padding": true
-		},
-		"__experimentalBorder": {
-			"color": true,
-			"radius": true,
-			"style": true,
-			"width": true
-		}
+		"reusable": false
 	},
 	"editorScript": "file:./index.js",
 	"viewScript": "file:./view.js"

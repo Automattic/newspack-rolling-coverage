@@ -520,7 +520,7 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 
 		$header = '<!-- wp:group --><div class="wp-block-group">'
 			. '<!-- wp:paragraph --><p>Coverage header</p><!-- /wp:paragraph -->'
-			. '<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"tagName":"button","metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"followTag"}}}}} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Follow</button></div><!-- /wp:button --></div><!-- /wp:buttons -->'
+			. '<!-- wp:newspack-rolling-coverage/coverage-follow --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"tagName":"button","metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"followTag"}}}}} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Follow</button></div><!-- /wp:button --></div><!-- /wp:buttons --><!-- /wp:newspack-rolling-coverage/coverage-follow -->'
 			. '</div><!-- /wp:group -->';
 		$entries = $this->poll_with_attributes( [], $header . '<!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph -->' )['entries'];
 
