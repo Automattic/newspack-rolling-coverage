@@ -1988,8 +1988,7 @@ class Rolling_Coverage_Block {
 			$kind = self::is_pinned_card( $block ) ? 'card' : 'entry';
 
 			if ( ! isset( $tops[ $kind ] ) ) {
-				$top           = $block['attrs']['style']['border']['top'] ?? [];
-				$tops[ $kind ] = is_array( $top ) ? $top : [];
+				$tops[ $kind ] = self::top_border( $block );
 			}
 		}
 
@@ -2007,6 +2006,32 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * A group's top border settings: its top side's, or those of all its
+	 * sides when they're linked, the color preset among them.
+	 *
+	 * @param array $group Parsed group.
+	 * @return array Top border settings, as a group's style holds them.
+	 */
+	private static function top_border( array $group ): array {
+		$border = $group['attrs']['style']['border'] ?? [];
+		$border = is_array( $border ) ? $border : [];
+		$top    = is_array( $border['top'] ?? null ) ? $border['top'] : [];
+		$preset = $group['attrs']['borderColor'] ?? '';
+
+		if ( ! isset( $border['color'] ) && is_string( $preset ) && '' !== $preset ) {
+			$border['color'] = 'var:preset|color|' . $preset;
+		}
+
+		foreach ( [ 'color', 'width', 'style' ] as $property ) {
+			if ( ! isset( $top[ $property ] ) && is_string( $border[ $property ] ?? null ) && '' !== $border[ $property ] ) {
+				$top[ $property ] = $border[ $property ];
+			}
+		}
+
+		return $top;
+	}
+
+	/**
 	 * A group with the given top border in place of its own, in its
 	 * settings and in the inline styles of its saved markup.
 	 *
@@ -2021,7 +2046,7 @@ class Rolling_Coverage_Block {
 		return self::map_opening_style(
 			$group,
 			static fn( array $declarations ) => array_merge(
-				array_filter( $declarations, static fn( $declaration ) => ! str_starts_with( self::css_property( $declaration ), 'border-top' ) ),
+				array_filter( $declarations, static fn( $declaration ) => ! in_array( self::css_property( $declaration ), [ 'border-top', 'border-top-color', 'border-top-style', 'border-top-width' ], true ) ),
 				array_filter( array_map( 'trim', explode( ';', $css ) ) )
 			)
 		);
@@ -2227,9 +2252,9 @@ class Rolling_Coverage_Block {
 	 * pinned entries: the order they were pinned in (see
 	 * Post_Type::orderby_pinned_first()). The view script puts an entry
 	 * pinned while the page is open after the pinned entries already there,
-	 * so the first stays first. Looked up once per request for each coverage
-	 * and set of pinned entries, since a poll asks for every pinned entry it
-	 * renders.
+	 * so the first stays first. Looked up once per request for each site,
+	 * coverage and set of pinned entries, since a poll asks for every pinned
+	 * entry it renders.
 	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return int Entry ID, or 0 when the coverage has no pinned entry.
@@ -2243,7 +2268,7 @@ class Rolling_Coverage_Block {
 			return 0;
 		}
 
-		$key = $coverage_id . ':' . implode( ',', $pinned_ids );
+		$key = get_current_blog_id() . ':' . $coverage_id . ':' . implode( ',', $pinned_ids );
 
 		if ( isset( $found[ $key ] ) ) {
 			return $found[ $key ];

@@ -21,6 +21,9 @@ import type {
 
 const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 
+const STICKY_CARD_SELECTOR =
+	'.newspack-rolling-coverage-pinned-card.is-position-sticky';
+
 // How long an overflow holds back another reload into the same cursor. The
 // reload can land on a page cache copy from before the burst, which overflows
 // again on its next poll; without the wait the reader would reload on every
@@ -817,14 +820,15 @@ function initBlock( root: HTMLElement ): void {
 	 * Keeps the floating control below the bars at the top of the viewport.
 	 * Without any, the stylesheet's position applies.
 	 *
+	 * @param {number} [measuredBars] The bars' bottom, when the caller already measured it this frame.
 	 * @return {void}
 	 */
-	function placeControl(): void {
+	function placeControl( measuredBars?: number ): void {
 		if ( ! newEntriesControl || newEntriesControl.hidden ) {
 			return;
 		}
 
-		const barsBottom = topBarsBottom( root );
+		const barsBottom = measuredBars ?? topBarsBottom( root );
 
 		if ( barsBottom > 0 ) {
 			newEntriesControl.style.setProperty(
@@ -1368,8 +1372,16 @@ function initBlock( root: HTMLElement ): void {
 		scrollCheckScheduled = true;
 		requestAnimationFrame( () => {
 			checkIfScrolledBackToTop();
-			placeControl();
-			fitStickyCards( true );
+
+			const showsControl =
+				newEntriesControl && ! newEntriesControl.hidden;
+			const bars =
+				showsControl || root.querySelector( STICKY_CARD_SELECTOR )
+					? topBarsBottom( root )
+					: 0;
+
+			placeControl( bars );
+			fitStickyCards( true, bars );
 		} );
 	};
 	window.addEventListener( 'scroll', onScroll, { passive: true } );
@@ -2063,19 +2075,22 @@ function initBlock( root: HTMLElement ): void {
 	 * so its end isn't hidden until the feed ends, and makes it sticky again
 	 * once it fits.
 	 *
-	 * @param {boolean} [ifBarsMoved] Whether to leave the cards as they are while the bars haven't moved.
+	 * @param {boolean} [ifBarsMoved]  Whether to leave the cards as they are while the bars haven't moved.
+	 * @param {number}  [measuredBars] The bars' bottom, when the caller already measured it this frame.
 	 * @return {void}
 	 */
-	function fitStickyCards( ifBarsMoved = false ): void {
-		const cards = root.querySelectorAll< HTMLElement >(
-			'.newspack-rolling-coverage-pinned-card.is-position-sticky'
-		);
+	function fitStickyCards(
+		ifBarsMoved = false,
+		measuredBars?: number
+	): void {
+		const cards =
+			root.querySelectorAll< HTMLElement >( STICKY_CARD_SELECTOR );
 
 		if ( cards.length === 0 ) {
 			return;
 		}
 
-		const bars = topBarsBottom( root );
+		const bars = measuredBars ?? topBarsBottom( root );
 
 		if ( ifBarsMoved && bars === stickyCardsBars ) {
 			return;
@@ -2127,9 +2142,9 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {void}
 	 */
 	function watchStickyCards(): void {
-		root.querySelectorAll< HTMLElement >(
-			'.newspack-rolling-coverage-pinned-card.is-position-sticky'
-		).forEach( ( card ) => stickyCardObserver?.observe( card ) );
+		root.querySelectorAll< HTMLElement >( STICKY_CARD_SELECTOR ).forEach(
+			( card ) => stickyCardObserver?.observe( card )
+		);
 		fitStickyCards();
 	}
 

@@ -1868,6 +1868,46 @@ function hasGridPlacement( block?: {
 }
 
 /**
+ * A group's top border settings: its top side's, or those of all its sides
+ * when they're linked, the color preset among them, mirroring
+ * Rolling_Coverage_Block::top_border().
+ *
+ * @param {Object} block            The group.
+ * @param {Object} block.attributes Its attributes.
+ * @return {Object} Top border settings, as a group's style holds them.
+ */
+function topBorder( block?: {
+	attributes?: Record< string, unknown >;
+} ): Record< string, unknown > {
+	const border = {
+		...( (
+			block?.attributes?.style as
+				{ border?: Record< string, unknown > } | undefined
+		 )?.border ?? {} ),
+	};
+	const top = { ...( border.top as Record< string, unknown > | undefined ) };
+	const preset = block?.attributes?.borderColor;
+
+	if ( border.color === undefined && typeof preset === 'string' && preset ) {
+		border.color = `var:preset|color|${ preset }`;
+	}
+
+	[ 'color', 'width', 'style' ].forEach( ( property ) => {
+		const value = border[ property ];
+
+		if (
+			top[ property ] === undefined &&
+			typeof value === 'string' &&
+			value
+		) {
+			top[ property ] = value;
+		}
+	} );
+
+	return top;
+}
+
+/**
  * An entry's preview blocks with the pinned card's top border on the entry
  * group, as the entry heading the entries beside the card renders, so the
  * two rules line up (see Rolling_Coverage_Block::column_rules()). Unchanged
@@ -1885,16 +1925,12 @@ function withColumnRule< T extends { name: string; [ key: string ]: unknown } >(
 	feedLayout: Record< string, unknown > | undefined
 ): T[] {
 	const card = template.find( isPinnedCard );
-	const top = (
-		card?.attributes?.style as
-			{ border?: { top?: Record< string, unknown > } } | undefined
-	 )?.border?.top;
+	const top = topBorder( card );
 
 	if (
 		feedLayout?.type !== 'grid' ||
 		! hasGridPlacement( card ) ||
 		! template.some( isRegularEntry ) ||
-		! top ||
 		Object.keys( top ).length === 0
 	) {
 		return blocks;

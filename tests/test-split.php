@@ -48,19 +48,24 @@ class Test_Split extends Rolling_Coverage_TestCase {
 
 	/**
 	 * The Split layout's Feed, as the editor saves it, or with the given
-	 * layout and style in place of its grid.
+	 * layout and style in place of its grid, or the given groups in place of
+	 * its pinned card and entry group.
 	 *
 	 * @param string $layout Feed layout attribute, as JSON.
 	 * @param string $style  Feed style attribute, as JSON.
+	 * @param string $card   Pinned card markup.
+	 * @param string $entry  Entry group markup.
 	 * @return string
 	 */
 	private static function feed_markup(
 		string $layout = '{"type":"grid","columnCount":3}',
-		string $style = '{"@tablet":{"layout":{"columnCount":1}},"@mobile":{"layout":{"columnCount":1}},"spacing":{"blockGap":{"top":"0","left":"var:preset|spacing|50"}}}'
+		string $style = '{"@tablet":{"layout":{"columnCount":1}},"@mobile":{"layout":{"columnCount":1}},"spacing":{"blockGap":{"top":"0","left":"var:preset|spacing|50"}}}',
+		string $card = self::CARD_MARKUP,
+		string $entry = self::ENTRY_MARKUP
 	): string {
 		return '<!-- wp:group {"className":"newspack-rolling-coverage-feed","style":' . $style . ',"layout":' . $layout . '} --><div class="wp-block-group newspack-rolling-coverage-feed">'
-			. self::CARD_MARKUP
-			. self::ENTRY_MARKUP
+			. $card
+			. $entry
 			. '</div><!-- /wp:group -->';
 	}
 
@@ -443,6 +448,71 @@ class Test_Split extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( self::COLUMN_RULE, $root->get_attribute( 'data-column-rule' ) );
 		$this->assertSame( self::ENTRY_RULE, $root->get_attribute( 'data-entry-rule' ) );
+	}
+
+	/**
+	 * The head takes only the card's top edge, keeping the rounded corners
+	 * of its own top.
+	 */
+	public function test_head_keeps_its_top_radius() {
+		$coverage_id = self::create_coverage();
+		[ $pinned_id, , $newest_id ] = self::create_entries( $coverage_id );
+		Post_Type::pin_entry( $pinned_id );
+
+		$entry = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry","style":{' . self::ENTRY_PLACEMENT . '"border":{"radius":{"topLeft":"8px","topRight":"8px"},"top":{"color":"#ddd","width":"1px","style":"solid"}}}} -->'
+			. '<div class="wp-block-group newspack-rolling-coverage-regular-entry" style="border-top-left-radius:8px;border-top-right-radius:8px;border-top-color:#ddd;border-top-style:solid;border-top-width:1px">'
+			. '<!-- wp:post-title {"level":4} /-->'
+			. '</div><!-- /wp:group -->';
+
+		$style = self::entry_group_styles( self::render_split( $coverage_id, self::feed_markup( entry: $entry ) ) )[ $newest_id ];
+
+		$this->assertStringContainsString( 'border-top-left-radius:8px', $style );
+		$this->assertStringContainsString( 'border-top-right-radius:8px', $style );
+		$this->assertStringContainsString( 'border-top-color:#111', $style );
+		$this->assertStringNotContainsString( 'border-top-color:#ddd', $style );
+	}
+
+	/**
+	 * A card whose border sides are linked still rules the column with its
+	 * top edge.
+	 */
+	public function test_card_with_linked_sides_rules_the_column() {
+		$coverage_id = self::create_coverage();
+		[ $pinned_id, , $newest_id ] = self::create_entries( $coverage_id );
+		Post_Type::pin_entry( $pinned_id );
+
+		$card = '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card","style":{' . self::CARD_PLACEMENT . '"border":{"color":"#111","width":"3px","style":"solid"}}} -->'
+			. '<div class="wp-block-group newspack-rolling-coverage-pinned-card" style="border-color:#111;border-style:solid;border-width:3px">'
+			. '<!-- wp:post-title {"level":4} /-->'
+			. '</div><!-- /wp:group -->';
+
+		$html = self::render_split( $coverage_id, self::feed_markup( card: $card ) );
+		$root = new WP_HTML_Tag_Processor( $html );
+		$root->next_tag();
+
+		$this->assertSame( self::COLUMN_RULE, $root->get_attribute( 'data-column-rule' ) );
+		$this->assertSame( self::rule_of( self::COLUMN_RULE ), self::rule_of( self::entry_group_styles( $html )[ $newest_id ] ) );
+	}
+
+	/**
+	 * An entry group whose border sides are linked, its color a preset,
+	 * gives the view script a rule to restore on the entry that headed the
+	 * column.
+	 */
+	public function test_entry_with_linked_sides_has_a_rule_to_restore() {
+		$coverage_id = self::create_coverage();
+		[ $pinned_id ] = self::create_entries( $coverage_id );
+		Post_Type::pin_entry( $pinned_id );
+
+		$entry = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry","borderColor":"contrast","style":{' . self::ENTRY_PLACEMENT . '"border":{"width":"1px","style":"solid"}}} -->'
+			. '<div class="wp-block-group newspack-rolling-coverage-regular-entry has-border-color has-contrast-border-color" style="border-style:solid;border-width:1px">'
+			. '<!-- wp:post-title {"level":4} /-->'
+			. '</div><!-- /wp:group -->';
+
+		$root = new WP_HTML_Tag_Processor( self::render_split( $coverage_id, self::feed_markup( entry: $entry ) ) );
+		$root->next_tag();
+
+		$this->assertSame( 'border-top-color:var(--wp--preset--color--contrast);border-top-width:1px;border-top-style:solid;', $root->get_attribute( 'data-entry-rule' ) );
 	}
 
 	/**
