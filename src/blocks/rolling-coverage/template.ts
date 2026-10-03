@@ -996,7 +996,8 @@ function minuteEntryTemplate(): TemplateItem[] {
 /**
  * A Byline entry's row: the author's avatar in a narrow column that stays
  * beside the entry at every width, then the byline, title, content and
- * links. The pinned entry differs only by the pinned label after its time.
+ * links. The pinned entry differs only by the pinned label at the end of its
+ * byline row.
  *
  * @param {string[]} slugs    The palette's color slugs.
  * @param {boolean}  isPinned Whether the row is the pinned card's.
@@ -1011,27 +1012,45 @@ function bylineRow( slugs: string[], isPinned: boolean ): TemplateItem {
 					type: 'flex',
 					flexWrap: 'wrap',
 					verticalAlignment: 'center',
+					justifyContent: 'space-between',
 				},
 				style: { spacing: { blockGap: 'var:preset|spacing|20' } },
 				metadata: { name: __( 'Byline', 'newspack-rolling-coverage' ) },
 			},
 			[
 				[
-					'core/post-author-name',
+					'core/group',
 					{
-						className: 'use-header-font',
-						fontSize: 'small',
-						style: { typography: { fontWeight: '700' } },
+						layout: { type: 'flex', flexWrap: 'nowrap' },
+						style: {
+							spacing: { blockGap: 'var:preset|spacing|20' },
+						},
+						metadata: {
+							name: __(
+								'Author + Date',
+								'newspack-rolling-coverage'
+							),
+						},
 					},
-				],
-				[
-					'core/post-date',
-					{
-						...POST_DATE_ATTRIBUTES,
-						format: siteTimeFormat(),
-						fontSize: 'small',
-						...mutedDateColor( slugs ),
-					},
+					[
+						[
+							'core/post-author-name',
+							{
+								className: 'use-header-font',
+								fontSize: 'small',
+								style: { typography: { fontWeight: '700' } },
+							},
+						],
+						[
+							'core/post-date',
+							{
+								...POST_DATE_ATTRIBUTES,
+								format: siteTimeFormat(),
+								fontSize: 'small',
+								...mutedDateColor( slugs ),
+							},
+						],
+					],
 				],
 				...( isPinned ? [ pinnedRow( ACCENT ) ] : [] ),
 			],
