@@ -7,7 +7,11 @@ import {
 	refreshRelativeDates,
 	REFRESH_INTERVAL_MS,
 } from '../shared/relative-dates';
-import { BADGE_CLASSES, badgeStatus } from '../shared/status-badges';
+import {
+	BADGE_CLASSES,
+	badgeClasses,
+	badgeStatus,
+} from '../shared/status-badges';
 import './style.scss';
 
 const ALL_MODIFIERS = Object.values( BADGE_CLASSES ).flatMap( ( classes ) =>
@@ -27,7 +31,20 @@ function applyPoll( block: HTMLElement, detail: PollEventDetail ): void {
 
 	if ( badge ) {
 		badge.classList.remove( ...ALL_MODIFIERS );
-		badge.classList.add( ...BADGE_CLASSES[ status ].split( ' ' ) );
+		badge.classList.add(
+			...badgeClasses(
+				status,
+				! block.hasAttribute( 'data-hide-dot' )
+			).split( ' ' )
+		);
+
+		const style = block.getAttribute( `data-style-${ status }` );
+
+		if ( style ) {
+			badge.setAttribute( 'style', style );
+		} else {
+			badge.removeAttribute( 'style' );
+		}
 
 		if ( label !== null && badge.textContent !== label ) {
 			badge.textContent = label;
@@ -35,6 +52,8 @@ function applyPoll( block: HTMLElement, detail: PollEventDetail ): void {
 	}
 
 	block.dataset.status = status;
+	block.hidden =
+		status === 'archived' && block.hasAttribute( 'data-hide-when-ended' );
 
 	const updated = block.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-updated'

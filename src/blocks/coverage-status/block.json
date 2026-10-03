@@ -19,6 +19,18 @@
 		"labels": {
 			"type": "object",
 			"default": {}
+		},
+		"hideWhenEnded": {
+			"type": "boolean",
+			"default": false
+		},
+		"showDot": {
+			"type": "boolean",
+			"default": true
+		},
+		"backgroundColors": {
+			"type": "object",
+			"default": {}
 		}
 	},
 	"supports": {

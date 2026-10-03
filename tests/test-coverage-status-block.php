@@ -292,6 +292,88 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Hidden once ended when asked to; still shown while paused, and shown
+	 * when ended without the option.
+	 */
+	public function test_hide_when_ended() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::page( self::feed( $coverage_id ) );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+		$this->assertSame( '', $this->render( [ 'hideWhenEnded' => true ], $page_id ) );
+		$this->assertStringContainsString( 'data-status="archived"', $this->render( [], $page_id ) );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
+		$html = $this->render( [ 'hideWhenEnded' => true ], $page_id );
+		$this->assertStringContainsString( 'data-status="paused"', $html );
+		$this->assertStringContainsString( 'data-hide-when-ended="true"', $html );
+		$this->assertStringNotContainsString( 'data-hide-when-ended', $this->render( [], $page_id ) );
+	}
+
+	/**
+	 * Turning the dot off drops its classes from the live badge only.
+	 */
+	public function test_dot_can_be_turned_off() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::page( self::feed( $coverage_id ) );
+
+		$html = $this->render( [ 'showDot' => false ], $page_id );
+		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--success">Live</span>', $html );
+		$this->assertStringContainsString( 'data-hide-dot="true"', $html );
+
+		$html = $this->render( [ 'showDot' => true ], $page_id );
+		$this->assertStringContainsString( 'newspack-ui__badge--dot newspack-ui__badge--pulse', $html );
+		$this->assertStringNotContainsString( 'data-hide-dot', $html );
+		$this->assertStringNotContainsString( 'data-hide-dot', $this->render( [], $page_id ) );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
+		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--secondary">Paused</span>', $this->render( [ 'showDot' => false ], $page_id ) );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--error">Ended</span>', $this->render( [ 'showDot' => false ], $page_id ) );
+	}
+
+	/**
+	 * A custom color styles the current badge, and every status's style rides
+	 * on the wrapper; an invalid color adds nothing.
+	 */
+	public function test_custom_background_colors() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::page( self::feed( $coverage_id ) );
+
+		$html = $this->render(
+			[
+				'backgroundColors' => [
+					'active'   => '#FFD700',
+					'paused'   => 'red',
+					'archived' => '#2271b1',
+				],
+			],
+			$page_id
+		);
+
+		$this->assertStringContainsString( 'style="background:#ffd700;color:#000000;--newspack-ui-badge-dot-color:color-mix(in srgb, #000000 60%, #ffd700)">Live</span>', $html );
+		$this->assertStringContainsString( 'data-style-active="background:#ffd700;color:#000000;--newspack-ui-badge-dot-color:color-mix(in srgb, #000000 60%, #ffd700)"', $html );
+		$this->assertStringContainsString( 'data-style-paused=""', $html );
+		$this->assertStringContainsString( 'data-style-archived="background:#2271b1;color:#ffffff;', $html );
+
+		$html = $this->render( [ 'backgroundColors' => [ 'active' => 'url(x)' ] ], $page_id );
+		$this->assertStringNotContainsString( '<span class="newspack-ui__badge newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse" style', $html );
+		$this->assertStringContainsString( 'data-style-active=""', $html );
+		$this->assertStringContainsString( 'data-style-paused=""', $html );
+		$this->assertStringContainsString( 'data-style-archived=""', $html );
+	}
+
+	/**
+	 * The badge style is built from the normalized color only.
+	 */
+	public function test_badge_style() {
+		$this->assertSame( 'background:#000000;color:#ffffff;--newspack-ui-badge-dot-color:color-mix(in srgb, #ffffff 60%, #000000)', Coverage_Status_Block::badge_style( '#000' ) );
+		$this->assertSame( '', Coverage_Status_Block::badge_style( '#fff;}' ) );
+		$this->assertSame( '', Coverage_Status_Block::badge_style( '' ) );
+	}
+
+	/**
 	 * "Updated" is off by default.
 	 */
 	public function test_last_updated_is_off_by_default() {

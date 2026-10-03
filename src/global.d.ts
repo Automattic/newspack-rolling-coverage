@@ -57,8 +57,21 @@ declare module '@wordpress/block-editor' {
 	} >;
 
 	export const InspectorControls: ComponentType< {
+		group?: string;
 		children?: ReactNode;
 	} >;
+
+	export const __experimentalColorGradientSettingsDropdown: ComponentType< {
+		settings: Record< string, unknown >[];
+		panelId?: string;
+		__experimentalIsRenderedInSidebar?: boolean;
+		[ key: string ]: unknown;
+	} >;
+
+	export function __experimentalUseMultipleOriginColorsAndGradients(): Record<
+		string,
+		unknown
+	>;
 
 	export const BlockControls: ComponentType< {
 		group?: string;
