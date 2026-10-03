@@ -16,6 +16,7 @@ import {
 	clockEntryTemplate,
 	marginEntryTemplate,
 	minuteEntryTemplate,
+	bylineEntryTemplate,
 	wireEntryTemplate,
 	digestEntryTemplate,
 	digestHeader,
@@ -204,6 +205,24 @@ export function minuteInnerTemplate(): TemplateItem[] {
 			],
 			'var:preset|spacing|30'
 		),
+	];
+}
+
+/**
+ * The Byline layout's inner-blocks template: the same Feed group and buttons
+ * as the default, with each entry signed by its author.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function bylineInnerTemplate(): TemplateItem[] {
+	const slugs = paletteSlugs();
+
+	return [
+		feedTemplate( [
+			latestTemplate( slugs ),
+			FOLLOW_TEMPLATE,
+			...bylineEntryTemplate( slugs ),
+		] ),
 	];
 }
 

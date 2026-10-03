@@ -994,6 +994,113 @@ function minuteEntryTemplate(): TemplateItem[] {
 }
 
 /**
+ * A Byline entry's row: the author's avatar in a narrow column that stays
+ * beside the entry at every width, then the byline, title, content and
+ * links. The pinned entry differs only by the pinned row above its byline.
+ *
+ * @param {string[]} slugs    The palette's color slugs.
+ * @param {boolean}  isPinned Whether the row is the pinned card's.
+ * @return {TemplateItem} The row.
+ */
+function bylineRow( slugs: string[], isPinned: boolean ): TemplateItem {
+	const entry: TemplateItem[] = [
+		[
+			'core/group',
+			{
+				layout: {
+					type: 'flex',
+					flexWrap: 'wrap',
+					verticalAlignment: 'center',
+				},
+				style: { spacing: { blockGap: 'var:preset|spacing|20' } },
+				metadata: { name: __( 'Byline', 'newspack-rolling-coverage' ) },
+			},
+			[
+				[
+					'core/post-author-name',
+					{
+						fontSize: 'small',
+						style: { typography: { fontWeight: '700' } },
+					},
+				],
+				[
+					'core/post-date',
+					{
+						...POST_DATE_ATTRIBUTES,
+						format: siteTimeFormat(),
+						fontSize: 'small',
+						...mutedDateColor( slugs ),
+					},
+				],
+			],
+		],
+		[ 'core/post-title', { level: 4 } ],
+		postContent(),
+		linksRow( [ readMoreLink(), shareLink() ] ),
+	];
+
+	return [
+		'core/columns',
+		{
+			isStackedOnMobile: false,
+			style: {
+				border: {
+					top: { color: BORDER_COLOR, width: '1px', style: 'solid' },
+				},
+				spacing: {
+					blockGap: { left: 'var:preset|spacing|30' },
+					padding: { top: 'var:preset|spacing|50' },
+					margin: { top: '0', bottom: '0' },
+				},
+			},
+			metadata: { name: __( 'Row', 'newspack-rolling-coverage' ) },
+		},
+		[
+			[
+				'core/column',
+				{
+					width: '40px',
+					metadata: {
+						name: __( 'Avatar', 'newspack-rolling-coverage' ),
+					},
+				},
+				[
+					[
+						'core/avatar',
+						{ size: 40, style: { border: { radius: '50%' } } },
+					],
+				],
+			],
+			[
+				'core/column',
+				{
+					metadata: {
+						name: __( 'Body', 'newspack-rolling-coverage' ),
+					},
+				},
+				[
+					stack(
+						__( 'Entry', 'newspack-rolling-coverage' ),
+						isPinned ? [ pinnedRow( ACCENT ), ...entry ] : entry
+					),
+				],
+			],
+		],
+	];
+}
+
+/**
+ * The Byline layout's per-entry template: each entry signed with its
+ * author's avatar and name, and ruled off from the one above.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @return {TemplateItem[]} The template.
+ */
+function bylineEntryTemplate( slugs: string[] ): TemplateItem[] {
+	return rowEntryTemplate( ( isPinned ) => bylineRow( slugs, isPinned ) );
+}
+
+/**
  * The Wire layout's per-entry template: the time, headline and a short
  * excerpt, ruled off from the entry above. The pinned card matches the
  * regular entry, since a capped feed ignores pinning.
@@ -2428,6 +2535,8 @@ const ENTRY_ALLOWED_BLOCKS = [
 	'core/post-content',
 	'core/post-excerpt',
 	'core/post-featured-image',
+	'core/post-author-name',
+	'core/avatar',
 	'core/group',
 	'core/columns',
 	'core/column',
@@ -2448,6 +2557,7 @@ export {
 	clockEntryTemplate,
 	marginEntryTemplate,
 	minuteEntryTemplate,
+	bylineEntryTemplate,
 	wireEntryTemplate,
 	digestEntryTemplate,
 	digestHeader,
