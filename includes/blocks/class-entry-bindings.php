@@ -8,6 +8,7 @@
 namespace Newspack_Rolling_Coverage;
 
 use WP_Block;
+use WP_Block_Supports;
 use WP_HTML_Tag_Processor;
 use WP_Term;
 
@@ -74,7 +75,8 @@ class Entry_Bindings {
 
 	/**
 	 * Class of a title that links to its entry on the coverage page when the
-	 * entry has no published breakout post.
+	 * entry has no published breakout post, and shows the entry's first
+	 * UNTITLED_FALLBACK_WORDS words when it has no title.
 	 */
 	const ENTRY_LINK_CLASS = 'newspack-rolling-coverage-entry-link';
 
@@ -82,14 +84,6 @@ class Entry_Bindings {
 	 * How many words of an untitled entry stand in for its title.
 	 */
 	const UNTITLED_FALLBACK_WORDS = 15;
-
-	/**
-	 * Whether a title carrying ENTRY_LINK_CLASS is rendering inside an
-	 * entry, so an empty title falls back to the entry's opening words.
-	 *
-	 * @var bool
-	 */
-	private static $is_rendering_entry_link_title = false;
 
 	/**
 	 * Initialize hooks.
@@ -103,7 +97,6 @@ class Entry_Bindings {
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_all_updates' ], 10, 2 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'filter_pinned_group' ], 10, 2 );
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'link_title_to_breakout' ], 10, 3 );
-		add_filter( 'pre_render_block', [ __CLASS__, 'start_untitled_fallback' ], 10, 2 );
 		add_filter( 'the_title', [ __CLASS__, 'untitled_fallback_title' ], 10, 2 );
 	}
 
@@ -179,8 +172,6 @@ class Entry_Bindings {
 	 * @return string
 	 */
 	public static function link_title_to_breakout( $block_content, $block, $instance ) {
-		self::$is_rendering_entry_link_title = false;
-
 		if ( ! is_string( $block_content ) || '' === $block_content || ! Rolling_Coverage_Block::is_rendering_entry() || ! $instance instanceof WP_Block ) {
 			return $block_content;
 		}
@@ -215,31 +206,13 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Marks a title carrying ENTRY_LINK_CLASS as rendering while an entry
-	 * renders, so untitled_fallback_title() gives an untitled entry its
-	 * opening words. link_title_to_breakout() clears the mark once the title
-	 * has rendered.
-	 *
-	 * Parameters stay untyped because this runs for every block on the site,
-	 * after other plugins' filters that may hand on unexpected types.
-	 *
-	 * @param string|null $pre_render   The pre-rendered content, null to render the block.
-	 * @param array       $parsed_block Parsed block.
-	 * @return string|null
-	 */
-	public static function start_untitled_fallback( $pre_render, $parsed_block ) {
-		if ( null === $pre_render && is_array( $parsed_block ) && Rolling_Coverage_Block::is_rendering_entry() && self::is_entry_link_title( $parsed_block ) ) {
-			self::$is_rendering_entry_link_title = true;
-		}
-
-		return $pre_render;
-	}
-
-	/**
 	 * An untitled entry's opening words as its title, while a title carrying
-	 * ENTRY_LINK_CLASS renders: its excerpt when it has one, else the start of
-	 * its text. Core then renders the title, and link_title_to_breakout()
-	 * links it, as it would a title of the entry's own.
+	 * ENTRY_LINK_CLASS renders inside an entry: its excerpt when it has one,
+	 * else the start of its text. Core holds the block whose render callback
+	 * is running in WP_Block_Supports::$block_to_render, and Post Title asks
+	 * for the title from its callback. Core then renders the title, and
+	 * link_title_to_breakout() links it, as it would a title of the entry's
+	 * own.
 	 *
 	 * Parameters stay untyped because this runs for every title on the site,
 	 * after other plugins' filters that may hand on unexpected types.
@@ -249,7 +222,9 @@ class Entry_Bindings {
 	 * @return string
 	 */
 	public static function untitled_fallback_title( $title, $post_id = 0 ) {
-		if ( ! self::$is_rendering_entry_link_title || ! is_string( $title ) || '' !== trim( wp_strip_all_tags( $title ) ) ) {
+		$block = WP_Block_Supports::$block_to_render;
+
+		if ( ! Rolling_Coverage_Block::is_rendering_entry() || ! is_array( $block ) || ! self::is_entry_link_title( $block ) || ! is_string( $title ) || '' !== trim( wp_strip_all_tags( $title ) ) ) {
 			return $title;
 		}
 
@@ -269,7 +244,8 @@ class Entry_Bindings {
 
 	/**
 	 * Whether a parsed block is a title that links to its entry when the entry
-	 * has no published breakout post.
+	 * has no published breakout post, and shows the entry's opening words
+	 * when it has no title.
 	 *
 	 * @param array $parsed_block Parsed block.
 	 * @return bool
@@ -299,13 +275,13 @@ class Entry_Bindings {
 			return '';
 		}
 
-		$coverage_ids = wp_get_post_terms( $entry_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
+		$coverages = get_the_terms( $entry_id, Taxonomy::TAXONOMY_SLUG );
 
-		foreach ( is_wp_error( $coverage_ids ) ? [] : $coverage_ids as $coverage_id ) {
-			$page_url = Taxonomy::get_coverage_page_url( (int) $coverage_id );
+		foreach ( is_array( $coverages ) ? $coverages : [] as $coverage ) {
+			$page_url = Taxonomy::get_coverage_page_url( (int) $coverage->term_id );
 
 			if ( '' !== $page_url ) {
-				return add_query_arg( Social_Sharing::ENTRY_QUERY_VAR, $entry->post_name, explode( '#', $page_url, 2 )[0] ) . '#' . Rolling_Coverage_Block::MARKUP_PREFIX . '-entry-' . $entry_id;
+				return Social_Sharing::get_entry_deep_link( $entry, $page_url );
 			}
 		}
 

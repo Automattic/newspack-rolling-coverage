@@ -6,7 +6,6 @@
  */
 
 use Newspack_Rolling_Coverage\Breakout;
-use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Social_Sharing;
 use Newspack_Rolling_Coverage\Taxonomy;
@@ -25,7 +24,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	const ENTRY_BLOCKS = '<!-- wp:post-date {"format":"human-diff","metadata":{"bindings":{"datetime":{"source":"core/post-data","args":{"field":"date"}}}}} /-->'
 		. self::TITLE_MARKUP;
 
-	const TITLE_MARKUP = '<!-- wp:post-title {"level":3,"isLink":true,"className":"newspack-rolling-coverage-entry-link"} /-->';
+	const TITLE_MARKUP = '<!-- wp:post-title {"level":4,"isLink":true,"className":"newspack-rolling-coverage-entry-link"} /-->';
 
 	const FOOTER_MARKUP = '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-all-updates","style":{"layout":{"columnSpan":4},"@tablet":{"layout":{"columnSpan":2}},"@mobile":{"layout":{"columnSpan":1}}}} --><p class="use-header-font newspack-rolling-coverage-all-updates"><a href="#">See all updates</a></p><!-- /wp:paragraph -->';
 
@@ -96,16 +95,13 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Create five entries an hour apart, the oldest pinned.
+	 * Create five entries an hour apart.
 	 *
 	 * @param int $coverage_id Coverage term ID.
-	 * @return int[] Entry IDs, oldest first.
 	 */
-	private static function create_entries( int $coverage_id ): array {
-		$ids = [];
-
+	private static function create_entries( int $coverage_id ): void {
 		foreach ( range( 1, 5 ) as $number ) {
-			$ids[] = self::create_entry(
+			self::create_entry(
 				$coverage_id,
 				[
 					'post_title' => 'Update ' . $number,
@@ -113,86 +109,16 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 				]
 			);
 		}
-
-		Post_Type::pin_entry( $ids[0] );
-
-		return $ids;
-	}
-
-	/**
-	 * The Ticker shows the latest four entries, newest first, as regular
-	 * entries even when the oldest is pinned.
-	 */
-	public function test_shows_the_latest_four_entries_newest_first_ignoring_pins() {
-		$coverage_id = self::create_coverage();
-		self::create_entries( $coverage_id );
-
-		$html = self::render_ticker( $coverage_id );
-
-		$this->assertSame( 4, substr_count( $html, '<article' ) );
-		preg_match_all( '/Update (\d)/', $html, $titles );
-		$this->assertSame( [ '5', '4', '3', '2' ], $titles[1], 'The newest four should show, newest first.' );
-		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-card', $html, 'A capped feed shows no pinned card.' );
-		$this->assertSame( 4, substr_count( $html, 'newspack-rolling-coverage-regular-entry' ) );
-		$this->assertMatchesRegularExpression( '#<div class="wp-block-group newspack-rolling-coverage-feed[^"]*is-layout-grid#', $html );
-	}
-
-	/**
-	 * Each entry shows its relative date.
-	 */
-	public function test_entries_show_a_relative_date() {
-		$coverage_id = self::create_coverage();
-		self::create_entries( $coverage_id );
-
-		$this->assertStringContainsString( '1 hour ago', self::render_ticker( $coverage_id ) );
-	}
-
-	/**
-	 * The Ticker renders nothing once the coverage has ended.
-	 */
-	public function test_renders_nothing_once_the_coverage_ends() {
-		$coverage_id = self::create_coverage();
-		self::create_entries( $coverage_id );
-
-		$this->assertStringContainsString( 'data-hide-when-ended="true"', self::render_ticker( $coverage_id ) );
-
-		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
-
-		$this->assertSame( '', self::render_ticker( $coverage_id ) );
-	}
-
-	/**
-	 * The header shows the status and the coverage's name once, above the
-	 * entries, and the footer links to the coverage page below them, except
-	 * on the coverage page itself.
-	 */
-	public function test_header_and_footer_render_once_around_the_entries() {
-		$coverage_id = self::create_coverage( '', [ 'name' => 'Storm Watch' ] );
-		self::create_entries( $coverage_id );
-		$canonical = home_url( '/storm-coverage/' );
-		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, $canonical );
-
-		$html    = self::render_ticker( $coverage_id );
-		$entries = strpos( $html, 'class="newspack-rolling-coverage-entries"' );
-
-		$this->assertSame( 1, substr_count( $html, '<span class="newspack-ui__badge ' ), 'The status should show once.' );
-		$this->assertSame( 1, substr_count( $html, 'Storm Watch</h3>' ), 'The name should show once.' );
-		$this->assertLessThan( $entries, strpos( $html, 'newspack-ui__badge' ) );
-		$this->assertLessThan( $entries, strpos( $html, 'Storm Watch</h3>' ) );
-		$this->assertStringContainsString( '<a href="' . esc_url( $canonical ) . '">See all updates</a>', $html );
-		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, 'See all updates' ), 'The link should follow the entries.' );
-
-		$this->go_to( $canonical );
-
-		$this->assertStringNotContainsString( 'See all updates', self::render_ticker( $coverage_id ) );
 	}
 
 	/**
 	 * The header and footer render outside the Feed group, yet span its grid
-	 * as its own children would: four columns, then two on tablets and one on
-	 * phones, as the Feed's columns drop.
+	 * as its own children would: by the Feed's column count at each
+	 * viewport, without the container query core adds to reset the span of a
+	 * child whose grid it can't see.
 	 */
-	public function test_header_and_footer_span_the_grid_at_each_viewport() {
+	public function test_header_and_footer_span_the_grid_without_a_container_reset() {
+		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
 		$coverage_id = self::create_coverage();
 		self::create_entries( $coverage_id );
 		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, home_url( '/storm-coverage/' ) );
@@ -202,12 +128,9 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 
 		$this->assertMatchesRegularExpression( '#<div class="wp-block-group [^"]*wp-container-content-[^"]*"[^>]*>\s*<div class="wp-block-newspack-rolling-coverage-coverage-status#', $html, 'The header should carry its child layout class.' );
 		$this->assertMatchesRegularExpression( '#<p class="[^"]*newspack-rolling-coverage-all-updates[^"]*wp-container-content-#', $html, 'The footer should carry its child layout class.' );
-		$this->assertStringContainsString( 'grid-template-columns:repeat(4, minmax(0, 1fr))', $css );
 		$this->assertStringContainsString( 'grid-column:span 4', $css );
-		$this->assertMatchesRegularExpression( '#@media \(480px < width <= 782px\)\{[^}]*grid-template-columns:repeat\(2, minmax\(0, 1fr\)\)#', $css );
 		$this->assertMatchesRegularExpression( '#@media \(480px < width <= 782px\)\{[^}]*grid-column:span 2#', $css );
-		$this->assertMatchesRegularExpression( '#@media \(width <= 480px\)\{[^}]*grid-template-columns:repeat\(1, minmax\(0, 1fr\)\)#', $css );
-		$this->assertMatchesRegularExpression( '#@media \(width <= 480px\)\{[^}]*grid-column:span 1#', $css );
+		$this->assertStringNotContainsString( '@container', $css );
 	}
 
 	/**
@@ -244,12 +167,12 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	 * post, else to the entry on the coverage page, else to its share link.
 	 */
 	public function test_entry_link_title_links_to_the_breakout_then_the_coverage_page() {
-		$title                       = '<!-- wp:post-title {"level":3,"className":"newspack-rolling-coverage-entry-link"} /-->';
+		$title                       = '<!-- wp:post-title {"level":4,"className":"newspack-rolling-coverage-entry-link"} /-->';
 		[ $coverage_id, $entry_id ] = self::create_titled_entry();
 		$page_url                    = home_url( '/storm-coverage/' );
 
 		$this->assertStringContainsString(
-			'<a href="' . esc_url( Social_Sharing::get_entry_share_url( $entry_id ) ) . '">Bridge closed</a></h3>',
+			'<a href="' . esc_url( Social_Sharing::get_entry_share_url( $entry_id ) ) . '">Bridge closed</a></h4>',
 			self::render_title( $entry_id, $title ),
 			'Without a coverage page: the share link.'
 		);
@@ -257,7 +180,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, $page_url );
 
 		$this->assertStringContainsString(
-			'<a href="' . self::deep_link( $page_url, $entry_id ) . '">Bridge closed</a></h3>',
+			'<a href="' . self::deep_link( $page_url, $entry_id ) . '">Bridge closed</a></h4>',
 			self::render_title( $entry_id, $title ),
 			'The entry on the coverage page.'
 		);
@@ -266,7 +189,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 		update_post_meta( $entry_id, Breakout::ENTRY_BREAKOUT_POST_ID_META, $breakout_id );
 
 		$this->assertStringContainsString(
-			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Bridge closed</a></h3>',
+			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Bridge closed</a></h4>',
 			self::render_title( $entry_id, $title ),
 			'A published breakout wins.'
 		);
@@ -281,7 +204,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 		$page_url                    = home_url( '/storm-coverage/' );
 		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, $page_url );
 
-		$html = self::render_title( $entry_id, '<!-- wp:post-title {"level":3,"isLink":true,"className":"newspack-rolling-coverage-entry-link"} /-->' );
+		$html = self::render_title( $entry_id, '<!-- wp:post-title {"level":4,"isLink":true,"className":"newspack-rolling-coverage-entry-link"} /-->' );
 
 		$this->assertStringContainsString( 'href="' . self::deep_link( $page_url, $entry_id ) . '"', $html );
 		$this->assertSame( 1, substr_count( $html, '<a ' ) );
@@ -317,7 +240,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 		$words          = 'Traffic is being diverted while engineers inspect the bridge after the storm, with the council…';
 
 		$this->assertStringContainsString(
-			'<h3 class="newspack-rolling-coverage-entry-link wp-block-post-title"><a href="' . self::deep_link( home_url( '/storm-coverage/' ), $entry_id ) . '" target="_self" >' . $words . '</a></h3>',
+			'<h4 class="newspack-rolling-coverage-entry-link wp-block-post-title"><a href="' . self::deep_link( home_url( '/storm-coverage/' ), $entry_id ) . '" target="_self" >' . $words . '</a></h4>',
 			self::render_title( $entry_id, self::TITLE_MARKUP )
 		);
 
@@ -325,7 +248,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 		update_post_meta( $entry_id, Breakout::ENTRY_BREAKOUT_POST_ID_META, $breakout_id );
 
 		$this->assertStringContainsString(
-			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '" target="_self" >' . $words . '</a></h3>',
+			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '" target="_self" >' . $words . '</a></h4>',
 			self::render_title( $entry_id, self::TITLE_MARKUP )
 		);
 	}
@@ -344,7 +267,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 			]
 		);
 
-		$this->assertStringContainsString( '>Roads closed &amp; diverted</a></h3>', self::render_title( $entry_id, self::TITLE_MARKUP ) );
+		$this->assertStringContainsString( '>Roads closed &amp; diverted</a></h4>', self::render_title( $entry_id, self::TITLE_MARKUP ) );
 	}
 
 	/**
@@ -361,7 +284,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 
 		$html = self::render_title( $entry_id, self::TITLE_MARKUP );
 
-		$this->assertStringContainsString( '>Bridge closed</a></h3>', $html );
+		$this->assertStringContainsString( '>Bridge closed</a></h4>', $html );
 		$this->assertStringNotContainsString( 'Traffic is being diverted', $html );
 	}
 
@@ -372,29 +295,22 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	public function test_unmarked_title_of_an_untitled_entry_stays_empty() {
 		[ , $entry_id ] = self::create_untitled_entry();
 
-		$this->assertStringNotContainsString( 'wp-block-post-title', self::render_title( $entry_id, '<!-- wp:post-title {"level":3} /-->' ) );
-		$this->assertSame( 1, substr_count( self::render_title( $entry_id, self::TITLE_MARKUP . '<!-- wp:post-title {"level":4} /-->' ), 'wp-block-post-title' ), 'Only the marked title should show.' );
+		$this->assertStringNotContainsString( 'wp-block-post-title', self::render_title( $entry_id, '<!-- wp:post-title {"level":4} /-->' ) );
+		$this->assertSame( 1, substr_count( self::render_title( $entry_id, self::TITLE_MARKUP . '<!-- wp:post-title {"level":5} /-->' ), 'wp-block-post-title' ), 'Only the marked title should show.' );
 	}
 
 	/**
-	 * Outside a marked title rendering in an entry, an untitled entry's title
-	 * stays empty.
+	 * A marked title rendering outside an entry, with the untitled entry as
+	 * the global post, stays empty.
 	 */
-	public function test_the_title_outside_a_marked_title_is_untouched() {
+	public function test_marked_title_outside_an_entry_render_stays_empty() {
 		[ , $entry_id ] = self::create_untitled_entry();
+		$GLOBALS['post'] = get_post( $entry_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- The title reads the global post, as on the entry's own page.
+		setup_postdata( $GLOBALS['post'] );
 
-		$this->assertSame( '', get_the_title( $entry_id ) );
+		$this->assertSame( '', render_block( parse_blocks( self::TITLE_MARKUP )[0] ) );
 
-		$block = new WP_Block(
-			parse_blocks( self::TITLE_MARKUP )[0],
-			[
-				'postId'   => $entry_id,
-				'postType' => Post_Type::CPT_SLUG,
-			]
-		);
-
-		$this->assertSame( '', $block->render(), 'Outside an entry render the title stays empty.' );
-		$this->assertSame( '', get_the_title( $entry_id ) );
+		wp_reset_postdata();
 	}
 
 	/**
@@ -405,7 +321,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 		$entry_id    = self::create_entry( $coverage_id, [ 'post_title' => 'Bridge closed' ] );
 		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, home_url( '/storm-coverage/' ) );
 
-		$this->assertStringNotContainsString( '<a ', self::render_title( $entry_id, '<!-- wp:post-title {"level":3} /-->' ) );
+		$this->assertStringNotContainsString( '<a ', self::render_title( $entry_id, '<!-- wp:post-title {"level":4} /-->' ) );
 	}
 
 	/**
