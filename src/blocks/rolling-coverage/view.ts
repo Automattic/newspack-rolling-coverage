@@ -21,6 +21,9 @@ import type {
 
 const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 
+const STICKY_CARD_SELECTOR =
+	'.newspack-rolling-coverage-pinned-card.is-position-sticky';
+
 // How long an overflow holds back another reload into the same cursor. The
 // reload can land on a page cache copy from before the burst, which overflows
 // again on its next poll; without the wait the reader would reload on every
@@ -76,6 +79,28 @@ const cssEscape = ( str: string ): string => {
 	}
 	return str.replace( /([!"#$%&'()*+,./:;<=>?@[\]^`{|}~])/g, '\\$1' );
 };
+
+/**
+ * The declarations of a block of CSS, as property and value pairs.
+ *
+ * @param {string} css CSS declarations, such as `border-top-width:3px;`.
+ * @return {string[][]} The declarations.
+ */
+function cssDeclarations( css: string ): string[][] {
+	return css
+		.split( ';' )
+		.map( ( declaration ) => {
+			const colon = declaration.indexOf( ':' );
+
+			return colon > 0
+				? [
+						declaration.slice( 0, colon ).trim(),
+						declaration.slice( colon + 1 ).trim(),
+					]
+				: [];
+		} )
+		.filter( ( [ property, value ] ) => property && value );
+}
 
 /**
  * Strips <script> tags and on* event handler attributes from an HTML
@@ -193,13 +218,14 @@ function newerPostsLabel( count: number ): string {
 /**
  * How far down the viewport the fixed and sticky elements over its top centre
  * reach, such as the admin bar and a sticky site header, so the floating
- * control can sit below them. An element taller than half the viewport is an
- * overlay rather than a header, and is passed over.
+ * control and the sticky pinned cards can sit below them. An element taller
+ * than half the viewport is an overlay rather than a header, and is passed
+ * over.
  *
- * @param {HTMLElement|null} control The floating control, which is never counted.
+ * @param {HTMLElement} block The block, whose own floating control and sticky cards are never counted.
  * @return {number} Distance from the top of the viewport, in pixels.
  */
-function topBarsBottom( control: HTMLElement | null ): number {
+function topBarsBottom( block: HTMLElement ): number {
 	const x = window.innerWidth / 2;
 	const checked = new Set< Element >();
 	let bottom = 0;
@@ -216,7 +242,7 @@ function topBarsBottom( control: HTMLElement | null ): number {
 				let node: Element | null = element;
 				node &&
 				node !== document.body &&
-				! control?.contains( node ) &&
+				! block.contains( node ) &&
 				! checked.has( node );
 				node = node.parentElement
 			) {
@@ -721,7 +747,7 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {number} The vertical scroll position.
 	 */
 	function blockTopY(): number {
-		const bars = topBarsBottom( newEntriesControl );
+		const bars = topBarsBottom( root );
 
 		return (
 			root.getBoundingClientRect().top +
@@ -794,14 +820,15 @@ function initBlock( root: HTMLElement ): void {
 	 * Keeps the floating control below the bars at the top of the viewport.
 	 * Without any, the stylesheet's position applies.
 	 *
+	 * @param {number} [measuredBars] The bars' bottom, when the caller already measured it this frame.
 	 * @return {void}
 	 */
-	function placeControl(): void {
+	function placeControl( measuredBars?: number ): void {
 		if ( ! newEntriesControl || newEntriesControl.hidden ) {
 			return;
 		}
 
-		const barsBottom = topBarsBottom( newEntriesControl );
+		const barsBottom = measuredBars ?? topBarsBottom( root );
 
 		if ( barsBottom > 0 ) {
 			newEntriesControl.style.setProperty(
@@ -1345,7 +1372,16 @@ function initBlock( root: HTMLElement ): void {
 		scrollCheckScheduled = true;
 		requestAnimationFrame( () => {
 			checkIfScrolledBackToTop();
-			placeControl();
+
+			const showsControl =
+				newEntriesControl && ! newEntriesControl.hidden;
+			const bars =
+				showsControl || root.querySelector( STICKY_CARD_SELECTOR )
+					? topBarsBottom( root )
+					: 0;
+
+			placeControl( bars );
+			fitStickyCards( true, bars );
 		} );
 	};
 	window.addEventListener( 'scroll', onScroll, { passive: true } );
@@ -1358,7 +1394,7 @@ function initBlock( root: HTMLElement ): void {
 	// and a theme's offset for its sticky header leaves no room for the
 	// control, so the margin is set on the target itself. Only a target still
 	// where that landing put it is moved, never a page the reader has scrolled.
-	const landingBars = topBarsBottom( newEntriesControl );
+	const landingBars = topBarsBottom( root );
 
 	if ( landingBars > 0 ) {
 		let id = window.location.hash.slice( 1 );
@@ -2026,6 +2062,174 @@ function initBlock( root: HTMLElement ): void {
 		if ( cursor && status === 'active' ) {
 			schedulePoll();
 		}
+	} );
+
+	// The top of the bars the sticky cards were last fitted below.
+	let stickyCardsBars = -1;
+
+	/**
+	 * Sticks each sticky pinned card its own offset below the bars fixed or
+	 * stuck at the top of the viewport, such as the admin bar and a sticky
+	 * site header, or below the admin bar alone until any are measured. Lets
+	 * a card taller than the viewport below that top scroll with the page,
+	 * so its end isn't hidden until the feed ends, and makes it sticky again
+	 * once it fits.
+	 *
+	 * @param {boolean} [ifBarsMoved]  Whether to leave the cards as they are while the bars haven't moved.
+	 * @param {number}  [measuredBars] The bars' bottom, when the caller already measured it this frame.
+	 * @return {void}
+	 */
+	function fitStickyCards(
+		ifBarsMoved = false,
+		measuredBars?: number
+	): void {
+		const cards =
+			root.querySelectorAll< HTMLElement >( STICKY_CARD_SELECTOR );
+
+		if ( cards.length === 0 ) {
+			return;
+		}
+
+		const bars = measuredBars ?? topBarsBottom( root );
+
+		if ( ifBarsMoved && bars === stickyCardsBars ) {
+			return;
+		}
+
+		stickyCardsBars = bars;
+
+		cards.forEach( ( card ) => {
+			if ( bars > 0 ) {
+				card.style.setProperty(
+					'--newspack-rolling-coverage-top-bars',
+					`${ bars }px`
+				);
+			} else {
+				card.style.removeProperty(
+					'--newspack-rolling-coverage-top-bars'
+				);
+			}
+
+			const top = parseFloat( window.getComputedStyle( card ).top ) || 0;
+
+			if (
+				card.getBoundingClientRect().height >
+				window.innerHeight - top
+			) {
+				card.style.position = 'static';
+			} else {
+				card.style.removeProperty( 'position' );
+			}
+		} );
+	}
+
+	const stickyCardObserver =
+		typeof ResizeObserver === 'undefined'
+			? null
+			: new ResizeObserver( ( entries ) => {
+					entries.forEach( ( { target } ) => {
+						if ( ! target.isConnected ) {
+							stickyCardObserver?.unobserve( target );
+						}
+					} );
+					fitStickyCards();
+				} );
+
+	/**
+	 * Watches each sticky pinned card in the block for changes in its size,
+	 * and fits them all.
+	 *
+	 * @return {void}
+	 */
+	function watchStickyCards(): void {
+		root.querySelectorAll< HTMLElement >( STICKY_CARD_SELECTOR ).forEach(
+			( card ) => stickyCardObserver?.observe( card )
+		);
+		fitStickyCards();
+	}
+
+	const columnRule = cssDeclarations( root.dataset.columnRule ?? '' );
+	const entryRule = cssDeclarations( root.dataset.entryRule ?? '' );
+
+	/**
+	 * Moves the pinned card's top border onto the entry heading the entries
+	 * beside the card, the first after the card's own entry, when another
+	 * entry comes to head them, giving the entry that headed them its own
+	 * back. A pinned entry heading them already has the card's look, and is
+	 * left as it is (see Rolling_Coverage_Block::column_rules()).
+	 *
+	 * @return {void}
+	 */
+	function placeColumnRule(): void {
+		if ( columnRule.length === 0 ) {
+			return;
+		}
+
+		const entryGroupOf = ( entry: Element | null ) =>
+			entry?.querySelector< HTMLElement >(
+				':scope > .newspack-rolling-coverage-regular-entry'
+			) ?? null;
+		const ruled = entriesList.querySelector< HTMLElement >(
+			':scope > [data-heads-column]'
+		);
+		let head =
+			entriesList.querySelector( ':scope > [data-leads-column]' )
+				?.nextElementSibling ?? null;
+
+		while ( head && ! head.matches( '[data-entry-id]' ) ) {
+			head = head.nextElementSibling;
+		}
+
+		const next =
+			head instanceof HTMLElement &&
+			! head.hasAttribute( 'data-pinned' ) &&
+			entryGroupOf( head )
+				? head
+				: null;
+
+		if ( next === ruled ) {
+			return;
+		}
+
+		const swapRule = (
+			entry: HTMLElement,
+			from: string[][],
+			to: string[][]
+		) => {
+			const group = entryGroupOf( entry );
+
+			from.forEach( ( [ property ] ) =>
+				group?.style.removeProperty( property )
+			);
+			to.forEach( ( [ property, value ] ) =>
+				group?.style.setProperty( property, value )
+			);
+		};
+
+		if ( ruled ) {
+			swapRule( ruled, columnRule, entryRule );
+			delete ruled.dataset.headsColumn;
+		}
+
+		if ( next ) {
+			swapRule( next, entryRule, columnRule );
+			next.dataset.headsColumn = '';
+		}
+	}
+
+	// Entries are inserted, replaced and appended in several places, the
+	// pinned card among them, so the list itself is watched.
+	const entriesListObserver = new MutationObserver( () => {
+		watchStickyCards();
+		placeColumnRule();
+	} );
+	entriesListObserver.observe( entriesList, { childList: true } );
+	watchStickyCards();
+	placeColumnRule();
+	on( window, 'resize', () => fitStickyCards() );
+	cleanupFns.push( () => {
+		entriesListObserver.disconnect();
+		stickyCardObserver?.disconnect();
 	} );
 
 	if ( sentinel && hasMore ) {

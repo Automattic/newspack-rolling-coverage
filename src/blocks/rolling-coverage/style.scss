@@ -84,6 +84,10 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 		grid-column: 1 / -1;
 	}
 
+	.newspack-rolling-coverage-feed:not(:has([data-pinned])) .newspack-rolling-coverage-entry-beside-pinned {
+		grid-column: 1 / -1;
+	}
+
 	.newspack-rolling-coverage-entry {
 		scroll-margin-top: var(--newspack-rolling-coverage-scroll-offset, 80px);
 
