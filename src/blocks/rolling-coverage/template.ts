@@ -119,6 +119,13 @@ const SHARE_CLASS = 'newspack-rolling-coverage-share';
 const ALL_UPDATES_CLASS = 'newspack-rolling-coverage-all-updates';
 
 /**
+ * Class of a title that links to its entry on the coverage page when the
+ * entry has no published breakout post, mirroring
+ * Entry_Bindings::ENTRY_LINK_CLASS.
+ */
+const ENTRY_LINK_CLASS = 'newspack-rolling-coverage-entry-link';
+
+/**
  * The Follow Coverage block, which sits once among the layout's coverage-level
  * blocks.
  */
@@ -1198,12 +1205,12 @@ const DIGEST_FEED_STYLE = {
 };
 
 /**
- * The Digest layout's header: the coverage's name as a heading, bound so it
- * follows the coverage.
+ * The coverage's name as a heading, bound so it follows the coverage, as
+ * the Digest layout's header and in the Ticker layout's.
  *
  * @return {TemplateItem} The heading.
  */
-function digestHeader(): TemplateItem {
+function coverageNameHeading(): TemplateItem {
 	return [
 		'core/heading',
 		{
@@ -1413,6 +1420,153 @@ function flashEntryTemplate(): TemplateItem[] {
 					excerptLength: 20,
 					moreText: '',
 					fontSize: 'small',
+				},
+			],
+		],
+	];
+
+	return [
+		entry(
+			PINNED_CARD_CLASS,
+			__( 'Pinned Entry', 'newspack-rolling-coverage' )
+		),
+		entry(
+			REGULAR_ENTRY_CLASS,
+			__( 'Entry', 'newspack-rolling-coverage' )
+		),
+	];
+}
+
+/**
+ * How many columns the Ticker layout's grid has at its widest.
+ */
+const TICKER_COLUMNS = 4;
+
+/**
+ * How many columns the Ticker layout's grid has on tablets and on phones.
+ */
+const TICKER_TABLET_COLUMNS = 2;
+const TICKER_MOBILE_COLUMNS = 1;
+
+/**
+ * The Ticker layout's Feed layout: a grid of four columns.
+ */
+const TICKER_FEED_LAYOUT = {
+	type: 'grid',
+	columnCount: TICKER_COLUMNS,
+};
+
+/**
+ * The Ticker layout's Feed style: two columns on tablets and one on phones.
+ */
+const TICKER_FEED_STYLE = {
+	'@tablet': { layout: { columnCount: TICKER_TABLET_COLUMNS } },
+	'@mobile': { layout: { columnCount: TICKER_MOBILE_COLUMNS } },
+};
+
+/**
+ * The style that spans an item across the Ticker's grid at every viewport.
+ */
+const TICKER_FULL_ROW_STYLE = {
+	layout: { columnSpan: TICKER_COLUMNS },
+	'@tablet': { layout: { columnSpan: TICKER_TABLET_COLUMNS } },
+	'@mobile': { layout: { columnSpan: TICKER_MOBILE_COLUMNS } },
+};
+
+/**
+ * The Ticker layout's header: the coverage's status beside its name, across
+ * the grid's full width.
+ *
+ * @return {TemplateItem} The group.
+ */
+function tickerHeader(): TemplateItem {
+	return [
+		'core/group',
+		{
+			layout: {
+				type: 'flex',
+				flexWrap: 'wrap',
+				verticalAlignment: 'center',
+			},
+			style: {
+				...TICKER_FULL_ROW_STYLE,
+				spacing: { blockGap: 'var:preset|spacing|30' },
+			},
+			metadata: { name: __( 'Header', 'newspack-rolling-coverage' ) },
+		},
+		[ [ STATUS_BLOCK_NAME, {} ], coverageNameHeading() ],
+	];
+}
+
+/**
+ * The Ticker layout's footer: the link to the coverage page, across the
+ * grid's full width.
+ *
+ * @return {TemplateItem} The paragraph.
+ */
+function tickerFooter(): TemplateItem {
+	return allUpdatesLink( {
+		style: TICKER_FULL_ROW_STYLE,
+	} );
+}
+
+/**
+ * The Ticker layout's per-entry template: the relative time over the
+ * headline, which links to the entry, ruled off above. An entry without a
+ * title shows its opening words as the headline (see
+ * Entry_Bindings::untitled_fallback_title()). The pinned card matches the
+ * regular entry, since a capped feed ignores pinning.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @param {string[]} sizes The theme's font size slugs.
+ * @return {TemplateItem[]} The template.
+ */
+function tickerEntryTemplate(
+	slugs: string[],
+	sizes: string[]
+): TemplateItem[] {
+	const entry = ( className: string, name: string ): TemplateItem => [
+		'core/group',
+		{
+			className,
+			lock: LOCKED_IN_PLACE,
+			layout: {
+				type: 'flex',
+				orientation: 'vertical',
+				justifyContent: 'stretch',
+			},
+			style: {
+				border: {
+					top: {
+						color: BORDER_COLOR,
+						width: '1px',
+						style: 'solid',
+					},
+				},
+				spacing: {
+					blockGap: 'var:preset|spacing|10',
+					padding: { top: 'var:preset|spacing|30' },
+				},
+			},
+			metadata: { name },
+		},
+		[
+			[
+				'core/post-date',
+				{
+					...POST_DATE_ATTRIBUTES,
+					format: 'human-diff',
+					fontSize: 'small',
+					...mutedDateColor( slugs ),
+				},
+			],
+			[
+				'core/post-title',
+				{
+					level: 3,
+					isLink: true,
+					fontSize: themeFontSize( sizes, 'medium', 'normal' ),
+					className: ENTRY_LINK_CLASS,
 				},
 			],
 		],
@@ -2196,17 +2350,50 @@ function breakoutBlockIds(
 }
 
 /**
- * The template with the entry's title as a link, as an entry with a published
- * breakout post renders (see Entry_Bindings::link_title_to_breakout()).
+ * Whether a block is a title that links to its entry when the entry has no
+ * published breakout post, mirroring Entry_Bindings::is_entry_link_title().
  *
- * @param {Object[]} blocks The template blocks.
- * @return {Object[]} The blocks an entry with a breakout shows.
+ * @param {Object} block            The block.
+ * @param {string} block.name       Block name.
+ * @param {Object} block.attributes Block attributes.
+ * @return {boolean} Whether it's such a title.
+ */
+function isEntryLinkTitle( block: {
+	name: string;
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const className = block.attributes?.className;
+
+	return (
+		block.name === 'core/post-title' &&
+		typeof className === 'string' &&
+		className.split( ' ' ).includes( ENTRY_LINK_CLASS )
+	);
+}
+
+/**
+ * The template with the entry's title as a link, as an entry with a published
+ * breakout post renders, or with `entryLinksOnly`, only the titles that link
+ * to their entry without one (see Entry_Bindings::link_title_to_breakout()).
+ *
+ * @param {Object[]} blocks         The template blocks.
+ * @param {boolean}  entryLinksOnly Whether only titles carrying ENTRY_LINK_CLASS link.
+ * @return {Object[]} The blocks with the titles linked.
  */
 function withLinkedTitle<
 	T extends { name: string; [ key: string ]: unknown },
->( blocks: T[] ): T[] {
+>( blocks: T[], entryLinksOnly = false ): T[] {
 	return blocks.map( ( block ) => {
-		if ( block.name === 'core/post-title' ) {
+		if (
+			block.name === 'core/post-title' &&
+			( ! entryLinksOnly ||
+				isEntryLinkTitle(
+					block as {
+						name: string;
+						attributes?: Record< string, unknown >;
+					}
+				) )
+		) {
 			return {
 				...block,
 				attributes: {
@@ -2219,7 +2406,10 @@ function withLinkedTitle<
 		return Array.isArray( block.innerBlocks ) && block.innerBlocks.length
 			? {
 					...block,
-					innerBlocks: withLinkedTitle( block.innerBlocks as T[] ),
+					innerBlocks: withLinkedTitle(
+						block.innerBlocks as T[],
+						entryLinksOnly
+					),
 				}
 			: block;
 	} );
@@ -2543,6 +2733,51 @@ function withoutPostTitle<
 }
 
 /**
+ * The template as an entry without a title previews it: a title carrying
+ * ENTRY_LINK_CLASS shows the entry's opening words, as
+ * Entry_Bindings::untitled_fallback_title() gives it on the site. The
+ * preview has no title text to show, so an excerpt in the title's size
+ * stands in for it.
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks with those titles swapped.
+ */
+function withEntryLinkTitlesAsExcerpts<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks.map( ( block ) => {
+		const attributes = ( block.attributes ?? {} ) as Record<
+			string,
+			unknown
+		>;
+
+		if ( isEntryLinkTitle( { name: block.name, attributes } ) ) {
+			return {
+				...block,
+				name: 'core/post-excerpt',
+				attributes: {
+					excerptLength: 15,
+					moreText: '',
+					className: 'use-header-font',
+					...( attributes.fontSize
+						? { fontSize: attributes.fontSize }
+						: {} ),
+				},
+			};
+		}
+
+		return Array.isArray( block.innerBlocks )
+			? {
+					...block,
+					innerBlocks: withEntryLinkTitlesAsExcerpts(
+						block.innerBlocks as T[]
+					),
+				}
+			: block;
+	} );
+}
+
+/**
  * The template as the site renders it with avatars turned off: without the
  * columns that hold only an avatar, mirroring
  * Rolling_Coverage_Block::without_avatar_columns(), or any other avatar,
@@ -2639,11 +2874,16 @@ export {
 	bylineEntryTemplate,
 	wireEntryTemplate,
 	digestEntryTemplate,
-	digestHeader,
+	coverageNameHeading,
 	digestFooter,
 	flashEntryTemplate,
 	flashBar,
 	FLASH_FEED_LAYOUT,
+	tickerEntryTemplate,
+	tickerHeader,
+	tickerFooter,
+	TICKER_FEED_LAYOUT,
+	TICKER_FEED_STYLE,
 	DIGEST_FEED_STYLE,
 	ENTRY_ALLOWED_BLOCKS,
 	ALL_UPDATES_CLASS,
@@ -2681,6 +2921,7 @@ export {
 	withShapedPinnedCard,
 	withCenteredTitleRows,
 	withoutPostTitle,
+	withEntryLinkTitlesAsExcerpts,
 	withoutAvatarColumns,
 	withoutByline,
 };

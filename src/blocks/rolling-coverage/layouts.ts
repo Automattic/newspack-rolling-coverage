@@ -15,6 +15,7 @@ import {
 	marginInnerTemplate,
 	minuteInnerTemplate,
 	bylineInnerTemplate,
+	tickerInnerTemplate,
 	wireInnerTemplate,
 	digestInnerTemplate,
 	flashInnerTemplate,
@@ -29,6 +30,7 @@ export type BuiltInLayoutSlug =
 	| 'margin'
 	| 'minute'
 	| 'byline'
+	| 'ticker'
 	| 'wire'
 	| 'digest'
 	| 'flash';
@@ -83,6 +85,14 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			slug: 'byline',
 			title: _x( 'Byline', 'layout name', 'newspack-rolling-coverage' ),
 			template: bylineInnerTemplate,
+		},
+		{
+			slug: 'ticker',
+			title: _x( 'Ticker', 'layout name', 'newspack-rolling-coverage' ),
+			template: tickerInnerTemplate,
+			latest: 4,
+			hidesWhenEnded: true,
+			align: 'wide',
 		},
 		{
 			slug: 'wire',

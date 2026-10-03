@@ -185,7 +185,8 @@ const FLEX_VERTICAL: Record< string, string > = {
 /**
  * The flex declarations core's layout support emits for a Feed group, so the
  * preview container lays out its children the same way. A layout that isn't
- * flex has none: the stylesheet lays it out as a column.
+ * flex has none: the stylesheet lays it out as a column, unless it's a grid
+ * (see feedGridStyle()).
  *
  * @param {Object} layout The Feed group's layout attribute.
  * @return {Object|null} The container's inline style, or null.
@@ -244,6 +245,53 @@ function feedFlexStyle( layout?: Record< string, string > ): {
 }
 
 /**
+ * The grid declarations core's layout support emits for a Feed group, with
+ * its gap, so the preview container lays its children out in the same
+ * columns. The preview shows the desktop layout, without the Feed's tablet
+ * and mobile overrides. A layout that isn't grid has none.
+ *
+ * @param {Object} layout   The Feed group's layout attribute.
+ * @param {Object} blockGap The Feed group's Block spacing setting.
+ * @return {Object|null} The container's inline style, or null.
+ */
+function feedGridStyle(
+	layout?: Record< string, string >,
+	blockGap?: string | { top?: string; left?: string }
+): { [ key: string ]: string } | null {
+	if ( layout?.type !== 'grid' ) {
+		return null;
+	}
+
+	const fallbackGap = 'var(--wp--style--block-gap, 0.5em)';
+	const rowGap = blockGapCss( blockGap ) ?? fallbackGap;
+	const columnGap =
+		( typeof blockGap === 'object'
+			? blockGapCss( blockGap.left )
+			: undefined ) ?? rowGap;
+	const { columnCount, minimumColumnWidth } = layout;
+	const placement = layout.autoFit ? 'auto-fit' : 'auto-fill';
+	const gap = rowGap === columnGap ? rowGap : `${ rowGap } ${ columnGap }`;
+
+	if ( columnCount && ! minimumColumnWidth ) {
+		return {
+			gap,
+			gridTemplateColumns: `repeat(${ columnCount }, minmax(0, 1fr))`,
+		};
+	}
+
+	const minimum = minimumColumnWidth || '12rem';
+	const track = columnCount
+		? `max(min(${ minimum }, 100%), (100% - (${ columnGap } * (${ columnCount } - 1))) /${ columnCount })`
+		: `min(${ minimum }, 100%)`;
+
+	return {
+		gap,
+		gridTemplateColumns: `repeat(${ placement }, minmax(${ track }, 1fr))`,
+		containerType: 'inline-size',
+	};
+}
+
+/**
  * A group's own classes and styles (alignment, layout, color, border,
  * spacing, typography), for the container a synced layout's preview shows in
  * place of the group, so it previews as the site renders it.
@@ -266,10 +314,23 @@ function groupPreviewParts( group?: { [ key: string ]: unknown } ): {
 		getDimensionsClassesAndStyles( attributes ),
 	];
 	const flexStyle = feedFlexStyle( layout );
+	const gridStyle = feedGridStyle(
+		layout,
+		(
+			attributes.style as
+				| {
+						spacing?: {
+							blockGap?: string | { top?: string; left?: string };
+						};
+				  }
+				| undefined
+		 )?.spacing?.blockGap
+	);
 
 	return {
 		classNames: [
 			flexStyle ? 'is-layout-flex' : '',
+			gridStyle ? 'is-layout-grid' : '',
 			layout?.type === 'constrained' ? 'is-layout-constrained' : '',
 			attributes.className,
 			...parts.map( ( part ) => part.className ),
@@ -280,6 +341,7 @@ function groupPreviewParts( group?: { [ key: string ]: unknown } ): {
 		style: Object.assign(
 			{},
 			flexStyle ?? {},
+			gridStyle ?? {},
 			...parts.map( ( part ) => part.style )
 		),
 	};
@@ -301,20 +363,34 @@ function joinClassNames( classNames: unknown[] ): string {
 }
 
 /**
- * The flex-child sizing core gives a lone coverage-level block set in the
- * Feed, for the container its preview sits in, so a block set to fill the
- * Feed's row fills it in the preview too.
+ * The child sizing core gives a lone coverage-level block set in the Feed,
+ * for the container its preview sits in, so a block set to fill the Feed's
+ * row fills it in the preview too, and one spanning a grid Feed's columns
+ * spans them. The preview shows the desktop layout; a span across every
+ * column covers the full row.
  *
- * @param {Object[]} blocks The coverage-level blocks previewed together.
+ * @param {Object[]} blocks     The coverage-level blocks previewed together.
+ * @param {Object}   feedLayout The Feed group's layout attribute.
  * @return {Object|undefined} The container's inline style.
  */
 function chromePreviewStyle(
-	blocks: TemplateBlocks
+	blocks: TemplateBlocks,
+	feedLayout?: Record< string, unknown >
 ): Record< string, string | number > | undefined {
 	const attributes = blocks.length === 1 ? blocks[ 0 ].attributes : null;
 	const layout = (
 		attributes as { style?: { layout?: Record< string, string > } } | null
 	 )?.style?.layout;
+	const columnSpan = Number( layout?.columnSpan );
+
+	if ( feedLayout?.type === 'grid' && columnSpan > 0 ) {
+		return {
+			gridColumn:
+				columnSpan >= Number( feedLayout.columnCount )
+					? '1 / -1'
+					: `span ${ columnSpan }`,
+		};
+	}
 
 	if ( layout?.selfStretch === 'fill' ) {
 		return { flexGrow: 1 };
@@ -736,6 +812,9 @@ export default function Edit( {
 	const syncedBlocks = layoutBlocks ?? defaultLayoutBlocks;
 	const feedPath = feedPathOf( isSynced ? syncedBlocks : innerBlocks );
 	const feedGroup = feedPath[ feedPath.length - 1 ];
+	const feedLayout = (
+		feedGroup?.attributes as { layout?: Record< string, unknown > }
+	 )?.layout;
 	const blockProps = useBlockProps( {
 		style: feedGapStyle( feedGroup ),
 	} );
@@ -1920,7 +1999,8 @@ export default function Edit( {
 														syncedHeaderBlocks
 													}
 													style={ chromePreviewStyle(
-														syncedHeaderBlocks
+														syncedHeaderBlocks,
+														feedLayout
 													) }
 												/>
 											</BlockContextProvider>
@@ -1966,7 +2046,8 @@ export default function Edit( {
 														syncedFooterBlocks
 													}
 													style={ chromePreviewStyle(
-														syncedFooterBlocks
+														syncedFooterBlocks,
+														feedLayout
 													) }
 												/>
 											</BlockContextProvider>

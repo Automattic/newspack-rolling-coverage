@@ -19,11 +19,16 @@ import {
 	bylineEntryTemplate,
 	wireEntryTemplate,
 	digestEntryTemplate,
-	digestHeader,
+	coverageNameHeading,
 	digestFooter,
 	flashEntryTemplate,
 	flashBar,
 	FLASH_FEED_LAYOUT,
+	tickerEntryTemplate,
+	tickerHeader,
+	tickerFooter,
+	TICKER_FEED_LAYOUT,
+	TICKER_FEED_STYLE,
 	DIGEST_FEED_STYLE,
 	allUpdatesLink,
 	ENTRY_ALLOWED_BLOCKS,
@@ -42,6 +47,7 @@ import {
 	withShapedPinnedCard,
 	withCenteredTitleRows,
 	withoutPostTitle,
+	withEntryLinkTitlesAsExcerpts,
 	withoutAvatarColumns,
 	withoutByline,
 	hasPinnedCard,
@@ -230,6 +236,28 @@ export function bylineInnerTemplate(): TemplateItem[] {
 }
 
 /**
+ * The Ticker layout's inner-blocks template: the coverage's status and name,
+ * the latest entries' headlines side by side, and a link to the coverage
+ * page, with no buttons.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function tickerInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			[
+				tickerHeader(),
+				...tickerEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
+				tickerFooter(),
+			],
+			'var:preset|spacing|40',
+			TICKER_FEED_STYLE,
+			TICKER_FEED_LAYOUT
+		),
+	];
+}
+
+/**
  * The Wire layout's inner-blocks template: a narrow list of the latest
  * entries, with no buttons, ending in a link to the coverage page.
  *
@@ -258,7 +286,7 @@ export function digestInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
 			[
-				digestHeader(),
+				coverageNameHeading(),
 				...digestEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
 				digestFooter(),
 			],
@@ -311,7 +339,8 @@ export const ALL_ALLOWED_BLOCKS = [
 /**
  * Picks the template variant an entry renders with on the front end: the
  * pinned row only when pinned; "Read more" and a linked title only with a
- * published breakout.
+ * published breakout, though a title that links to its entry links either
+ * way.
  *
  * @param {Object}       templates                         Template variants.
  * @param {Object}       templates.pinned                  Full template, title linked.
@@ -407,15 +436,20 @@ export function useLayoutPreview(
 		);
 
 		const asUntitled = ( blocks: TemplateBlocks ) =>
-			withoutPostTitle( withCenteredTitleRows( blocks ) );
+			withoutPostTitle(
+				withCenteredTitleRows( withEntryLinkTitlesAsExcerpts( blocks ) )
+			);
 		const titled = {
 			pinned: withLinkedTitle( pinned ),
 			unpinned: withLinkedTitle( unpinned ),
 			pinnedWithoutBreakout: withShapedPinnedCard(
-				withoutBreakoutLink( pinned ),
+				withLinkedTitle( withoutBreakoutLink( pinned ), true ),
 				{ closeUp: true, isLastCard: false }
 			),
-			unpinnedWithoutBreakout: withoutBreakoutLink( unpinned ),
+			unpinnedWithoutBreakout: withLinkedTitle(
+				withoutBreakoutLink( unpinned ),
+				true
+			),
 		};
 
 		const untitled = {

@@ -7,7 +7,7 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 .wp-block-newspack-rolling-coverage-rolling-coverage {
 	--nrc-color-text: var(--wp--preset--color--contrast, #000);
 
-	.newspack-rolling-coverage-feed {
+	.newspack-rolling-coverage-feed:not(.is-layout-grid) {
 		display: flex;
 		gap: $feed-gap;
 
@@ -73,6 +73,10 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 			color: var(--nrc-color-text);
 			font-style: italic;
 		}
+	}
+
+	.newspack-rolling-coverage-feed.is-layout-grid > .newspack-rolling-coverage-entries {
+		display: contents;
 	}
 
 	.newspack-rolling-coverage-entry {

@@ -21,6 +21,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
 use WP_Term;
+use WP_Theme_JSON;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -478,6 +479,7 @@ class Rolling_Coverage_Block {
 			return '<div class="' . esc_attr( self::FEED_CLASS ) . '">' . $items . '</div>';
 		}
 
+		$html  = self::with_grid_feed_gap( $html, $feed );
 		$child = $feed;
 
 		foreach ( array_reverse( $path ) as $wrapper ) {
@@ -500,6 +502,68 @@ class Rolling_Coverage_Block {
 		}
 
 		return $html;
+	}
+
+	/**
+	 * Lays a grid Feed out with its own Block spacing on a theme without
+	 * block spacing support, where core leaves the gap at its 0.5em fallback
+	 * and works any responsive column widths out from that. The Feed gets
+	 * the grid styles core would give it with that support, its tablet and
+	 * mobile overrides included, which a single rule would otherwise
+	 * outrank. The class depends only on the layout and the spacing.
+	 *
+	 * @param string $html Rendered Feed group.
+	 * @param array  $feed Parsed Feed group.
+	 * @return string
+	 */
+	private static function with_grid_feed_gap( string $html, array $feed ): string {
+		$layout = (array) ( $feed['attrs']['layout'] ?? [] );
+		$style  = (array) ( $feed['attrs']['style'] ?? [] );
+		$gap    = wp_sanitize_block_gap_value( $style['spacing']['blockGap'] ?? null );
+
+		if ( 'grid' !== ( $layout['type'] ?? '' ) || null === $gap || '' === $gap || null !== wp_get_global_settings( [ 'spacing', 'blockGap' ] ) ) {
+			return $html;
+		}
+
+		$media_queries = WP_Theme_JSON::get_viewport_media_queries( wp_get_global_settings( [ 'viewport' ] ) );
+		$class         = self::MARKUP_PREFIX . '-feed-layout-' . substr( md5( (string) wp_json_encode( [ $layout, $gap, array_intersect_key( $style, $media_queries ) ] ) ), 0, 8 );
+		$selector      = '.' . self::FEED_CLASS . '.' . $class;
+		$processor     = new WP_HTML_Tag_Processor( $html );
+
+		if ( ! $processor->next_tag() ) {
+			return $html;
+		}
+
+		wp_get_layout_style( $selector, $layout, true, $gap );
+
+		foreach ( $media_queries as $breakpoint => $media_query ) {
+			$viewport         = is_array( $style[ $breakpoint ] ?? null ) ? $style[ $breakpoint ] : [];
+			$viewport_layout  = wp_get_layout_container_values( $viewport['layout'] ?? null );
+			$has_viewport_gap = isset( $viewport['spacing']['blockGap'] );
+
+			if ( ! $viewport_layout && ! $has_viewport_gap ) {
+				continue;
+			}
+
+			wp_get_layout_style(
+				$selector,
+				$layout,
+				true,
+				$has_viewport_gap ? wp_sanitize_block_gap_value( $viewport['spacing']['blockGap'] ) : $gap,
+				false,
+				'0.5em',
+				null,
+				[
+					'rules_group'            => $media_query,
+					'viewport_overrides'     => $viewport_layout,
+					'has_block_gap_override' => $has_viewport_gap,
+				]
+			);
+		}
+
+		$processor->add_class( $class );
+
+		return $processor->get_updated_html();
 	}
 
 	/**
@@ -1171,11 +1235,11 @@ class Rolling_Coverage_Block {
 				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%7$s%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
-				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url ),
+				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, (array) ( $feed['attrs']['layout'] ?? [] ) ),
 				$is_capped ? '' : self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
 				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
 				$is_capped ? '' : sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ),
-				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url ),
+				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, (array) ( $feed['attrs']['layout'] ?? [] ) ),
 				// A capped feed can sit on every page, where announcing each new entry would be noise.
 				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX )
 			);
@@ -1778,15 +1842,18 @@ class Rolling_Coverage_Block {
 	 * can't render, e.g. on an archived coverage, leaves nothing behind, nor
 	 * does a group left empty once it and the "See all updates" paragraph drop
 	 * out, and "Jump to Latest" renders only as its own control, so none
-	 * renders here.
+	 * renders here. The blocks render outside the Feed group, so they're
+	 * handed its layout, as core hands a parent's layout to its inner blocks,
+	 * for their own settings within it, such as a span across a grid.
 	 *
 	 * @param array[] $blocks          Parsed coverage-level blocks.
 	 * @param int     $coverage_id     Coverage term id.
 	 * @param string  $status          Coverage status.
 	 * @param string  $all_updates_url Where the "See all updates" paragraph links; empty drops it.
+	 * @param array   $parent_layout   The Feed group's layout.
 	 * @return string Rendered HTML, or an empty string.
 	 */
-	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '' ): string {
+	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '', array $parent_layout = [] ): string {
 		if ( ! $blocks ) {
 			return '';
 		}
@@ -1824,7 +1891,13 @@ class Rolling_Coverage_Block {
 		++self::$coverage_render_depth;
 
 		try {
-			return implode( '', array_map( 'render_block', $blocks ) );
+			return implode(
+				'',
+				array_map(
+					static fn( array $block ) => render_block( $parent_layout ? array_merge( $block, [ 'parentLayout' => $parent_layout ] ) : $block ),
+					$blocks
+				)
+			);
 		} finally {
 			--self::$coverage_render_depth;
 			self::$all_updates_url = $previous_all_updates_url;

@@ -73,6 +73,25 @@ class Entry_Bindings {
 	const ALL_UPDATES_CLASS = 'newspack-rolling-coverage-all-updates';
 
 	/**
+	 * Class of a title that links to its entry on the coverage page when the
+	 * entry has no published breakout post.
+	 */
+	const ENTRY_LINK_CLASS = 'newspack-rolling-coverage-entry-link';
+
+	/**
+	 * How many words of an untitled entry stand in for its title.
+	 */
+	const UNTITLED_FALLBACK_WORDS = 15;
+
+	/**
+	 * Whether a title carrying ENTRY_LINK_CLASS is rendering inside an
+	 * entry, so an empty title falls back to the entry's opening words.
+	 *
+	 * @var bool
+	 */
+	private static $is_rendering_entry_link_title = false;
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
@@ -84,6 +103,8 @@ class Entry_Bindings {
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_all_updates' ], 10, 2 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'filter_pinned_group' ], 10, 2 );
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'link_title_to_breakout' ], 10, 3 );
+		add_filter( 'pre_render_block', [ __CLASS__, 'start_untitled_fallback' ], 10, 2 );
+		add_filter( 'the_title', [ __CLASS__, 'untitled_fallback_title' ], 10, 2 );
 	}
 
 	/**
@@ -143,9 +164,11 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Link an entry's title to its published breakout post. A title already
-	 * set to link to the entry points at the breakout instead; a title whose
-	 * text holds a link of its own is left alone, as links can't nest.
+	 * Link an entry's title to its published breakout post, or for a title
+	 * carrying ENTRY_LINK_CLASS, to the entry on the coverage page when there
+	 * is none (see entry_link_url()). A title already set to link to the entry
+	 * points there instead; a title whose text holds a link of its own is
+	 * left alone, as links can't nest.
 	 *
 	 * Parameters stay untyped because this runs for every post title on the
 	 * site, after other plugins' filters that may hand on unexpected types.
@@ -156,12 +179,19 @@ class Entry_Bindings {
 	 * @return string
 	 */
 	public static function link_title_to_breakout( $block_content, $block, $instance ) {
+		self::$is_rendering_entry_link_title = false;
+
 		if ( ! is_string( $block_content ) || '' === $block_content || ! Rolling_Coverage_Block::is_rendering_entry() || ! $instance instanceof WP_Block ) {
 			return $block_content;
 		}
 
 		$entry_id = (int) ( $instance->context['postId'] ?? 0 );
-		$url      = $entry_id && Post_Type::CPT_SLUG === get_post_type( $entry_id ) ? Breakout::get_published_breakout_url( $entry_id ) : null;
+		$is_entry = $entry_id && Post_Type::CPT_SLUG === get_post_type( $entry_id );
+		$url      = $is_entry ? Breakout::get_published_breakout_url( $entry_id ) : null;
+
+		if ( ! $url && $is_entry && is_array( $block ) && self::is_entry_link_title( $block ) ) {
+			$url = self::entry_link_url( $entry_id );
+		}
 
 		if ( ! $url ) {
 			return $block_content;
@@ -182,6 +212,104 @@ class Entry_Bindings {
 		}
 
 		return $parts[1] . '<a href="' . esc_url( $url ) . '">' . $parts[3] . '</a>' . $parts[4];
+	}
+
+	/**
+	 * Marks a title carrying ENTRY_LINK_CLASS as rendering while an entry
+	 * renders, so untitled_fallback_title() gives an untitled entry its
+	 * opening words. link_title_to_breakout() clears the mark once the title
+	 * has rendered.
+	 *
+	 * Parameters stay untyped because this runs for every block on the site,
+	 * after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string|null $pre_render   The pre-rendered content, null to render the block.
+	 * @param array       $parsed_block Parsed block.
+	 * @return string|null
+	 */
+	public static function start_untitled_fallback( $pre_render, $parsed_block ) {
+		if ( null === $pre_render && is_array( $parsed_block ) && Rolling_Coverage_Block::is_rendering_entry() && self::is_entry_link_title( $parsed_block ) ) {
+			self::$is_rendering_entry_link_title = true;
+		}
+
+		return $pre_render;
+	}
+
+	/**
+	 * An untitled entry's opening words as its title, while a title carrying
+	 * ENTRY_LINK_CLASS renders: its excerpt when it has one, else the start of
+	 * its text. Core then renders the title, and link_title_to_breakout()
+	 * links it, as it would a title of the entry's own.
+	 *
+	 * Parameters stay untyped because this runs for every title on the site,
+	 * after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string $title   The title.
+	 * @param int    $post_id Post ID.
+	 * @return string
+	 */
+	public static function untitled_fallback_title( $title, $post_id = 0 ) {
+		if ( ! self::$is_rendering_entry_link_title || ! is_string( $title ) || '' !== trim( wp_strip_all_tags( $title ) ) ) {
+			return $title;
+		}
+
+		$entry = get_post( (int) $post_id );
+
+		if ( ! $entry || Post_Type::CPT_SLUG !== $entry->post_type ) {
+			return $title;
+		}
+
+		$excerpt = trim( $entry->post_excerpt );
+		$words   = '' !== $excerpt
+			? html_entity_decode( wp_trim_words( $excerpt, self::UNTITLED_FALLBACK_WORDS, '…' ), ENT_QUOTES | ENT_HTML5, 'UTF-8' )
+			: Post_Type::get_entry_summary( $entry, self::UNTITLED_FALLBACK_WORDS );
+
+		return esc_html( $words );
+	}
+
+	/**
+	 * Whether a parsed block is a title that links to its entry when the entry
+	 * has no published breakout post.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_entry_link_title( array $parsed_block ): bool {
+		$class_name = $parsed_block['attrs']['className'] ?? '';
+
+		return 'core/post-title' === ( $parsed_block['blockName'] ?? '' ) &&
+			is_string( $class_name ) &&
+			in_array( self::ENTRY_LINK_CLASS, explode( ' ', $class_name ), true );
+	}
+
+	/**
+	 * The link to an entry on the page showing its coverage, opened at the
+	 * entry, as notifications and the entry's own permalink link to it. The
+	 * entry's share link stands in when the coverage has no page; it isn't
+	 * used first because it leads back to the page the feed is on, which for
+	 * a capped feed on a section front isn't the coverage page.
+	 *
+	 * @param int $entry_id Entry post ID.
+	 * @return string The URL, or an empty string when the entry can't be linked.
+	 */
+	private static function entry_link_url( int $entry_id ): string {
+		$entry = get_post( $entry_id );
+
+		if ( ! $entry || 'publish' !== $entry->post_status ) {
+			return '';
+		}
+
+		$coverage_ids = wp_get_post_terms( $entry_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
+
+		foreach ( is_wp_error( $coverage_ids ) ? [] : $coverage_ids as $coverage_id ) {
+			$page_url = Taxonomy::get_coverage_page_url( (int) $coverage_id );
+
+			if ( '' !== $page_url ) {
+				return add_query_arg( Social_Sharing::ENTRY_QUERY_VAR, $entry->post_name, explode( '#', $page_url, 2 )[0] ) . '#' . Rolling_Coverage_Block::MARKUP_PREFIX . '-entry-' . $entry_id;
+			}
+		}
+
+		return Social_Sharing::get_entry_share_url( $entry_id );
 	}
 
 	/**
