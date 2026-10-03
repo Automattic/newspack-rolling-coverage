@@ -64,9 +64,4 @@ function badgeStyleObject( color?: string ): CSSProperties | undefined {
 	} as CSSProperties;
 }
 
-export {
-	BADGE_CLASSES,
-	badgeClasses,
-	badgeStatus,
-	badgeStyleObject,
-};
+export { BADGE_CLASSES, badgeClasses, badgeStatus, badgeStyleObject };
