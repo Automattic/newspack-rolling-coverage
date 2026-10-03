@@ -571,4 +571,179 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 
 		$this->assertStringNotContainsString( 'wp-block-separator', Rolling_Coverage_Block::get_entries( $request )->get_data()['html'], 'The last page should drop it.' );
 	}
+
+	/**
+	 * A card, then an entry group whose pinned row shows only on pinned
+	 * entries.
+	 */
+	const CAPPED_MARKUP = '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">'
+		. '<!-- wp:paragraph --><p>Card text</p><!-- /wp:paragraph -->'
+		. '</div><!-- /wp:group -->'
+		. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+		. '<!-- wp:group --><div class="wp-block-group"><!-- wp:paragraph {"className":"newspack-rolling-coverage-pinned-label"} --><p class="newspack-rolling-coverage-pinned-label">Pinned</p><!-- /wp:paragraph --></div><!-- /wp:group -->'
+		. '<!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph -->'
+		. '</div><!-- /wp:group -->';
+
+	/**
+	 * Render the block holding a layout.
+	 *
+	 * @param array  $attributes Block attributes.
+	 * @param string $markup     The block's inner blocks, as the editor saves them.
+	 * @return string
+	 */
+	private static function render_block( array $attributes, string $markup = self::CAPPED_MARKUP ): string {
+		$block = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $markup . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+
+		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+	}
+
+	/**
+	 * Entry IDs in the order the HTML lists them.
+	 *
+	 * @param string $html Rendered HTML.
+	 * @return int[]
+	 */
+	private static function entry_ids_in( string $html ): array {
+		preg_match_all( '/data-entry-id="(\d+)"/', $html, $matches );
+
+		return array_map( 'intval', $matches[1] );
+	}
+
+	/**
+	 * A capped feed shows its newest entries by date, leaving out an older
+	 * pinned entry, with no infinite scroll, ads or "Jump to Latest"; the
+	 * same block uncapped keeps all of them.
+	 */
+	public function test_capped_feed_shows_only_the_newest_entries() {
+		self::enable_ad_placement();
+
+		$coverage_id = self::create_coverage();
+		$pinned_id   = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 11:00:00' ] );
+		$second_id = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
+		$newest_id = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 13:00:00' ] );
+		Post_Type::pin_entry( $pinned_id );
+
+		$attributes = [
+			'coverageId'     => $coverage_id,
+			'entriesPerPage' => 1,
+			'enableAds'      => true,
+			'adsInterval'    => 1,
+			'latestCount'    => 2,
+		];
+		$uncapped   = self::render_block( $attributes );
+		$capped     = self::render_block( array_merge( $attributes, [ 'latestOnly' => true ] ) );
+
+		$this->assertSame( [ $pinned_id ], self::entry_ids_in( $uncapped ), 'Uncapped, the pinned entry leads a page of entriesPerPage.' );
+		$this->assertStringContainsString( 'test-ad-code', $uncapped );
+		$this->assertStringContainsString( 'data-ads="1"', $uncapped );
+		$this->assertStringContainsString( 'newspack-rolling-coverage-sentinel', $uncapped );
+		$this->assertStringContainsString( 'newspack-rolling-coverage-new-entries', $uncapped );
+		$this->assertStringNotContainsString( 'data-latest', $uncapped );
+
+		$this->assertSame( [ $newest_id, $second_id ], self::entry_ids_in( $capped ) );
+		$this->assertStringNotContainsString( 'Card text', $capped );
+		$this->assertStringNotContainsString( 'data-pinned', $capped );
+		$this->assertStringContainsString( 'data-has-more="0"', $capped );
+		$this->assertStringContainsString( 'data-latest="2"', $capped );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-sentinel', $capped );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-new-entries', $capped );
+		$this->assertStringNotContainsString( 'test-ad-code', $capped );
+		$this->assertStringNotContainsString( 'data-ads', $capped );
+	}
+
+	/**
+	 * A pinned entry among the newest renders as any other: in date order,
+	 * in the entry group, with no pinned row, label or announcement.
+	 */
+	public function test_capped_feed_renders_a_pinned_entry_unpinned() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		$pinned_id = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 11:00:00' ] );
+		$newest_id = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
+		Post_Type::pin_entry( $pinned_id );
+
+		$attributes = [
+			'coverageId'  => $coverage_id,
+			'latestOnly'  => true,
+			'latestCount' => 2,
+		];
+
+		foreach ( [ self::CAPPED_MARKUP, '<!-- wp:paragraph --><p>Entry text</p><!-- /wp:paragraph -->' ] as $markup ) {
+			$html = self::render_block( $attributes, $markup );
+
+			$this->assertSame( [ $newest_id, $pinned_id ], self::entry_ids_in( $html ) );
+			$this->assertSame( 2, substr_count( $html, 'Entry text' ) );
+			$this->assertStringNotContainsString( 'Card text', $html );
+			$this->assertStringNotContainsString( 'data-pinned', $html );
+			$this->assertStringNotContainsString( 'Pinned', $html );
+		}
+	}
+
+	/**
+	 * Share and notification links jump to an entry's anchor, which must
+	 * land on the coverage page, never on a capped feed elsewhere on the
+	 * page, so capped entries carry no id. Uncapped entries keep theirs.
+	 */
+	public function test_capped_feed_entries_carry_no_anchor_id() {
+		$coverage_id = self::create_coverage();
+		$entry_id    = self::create_entry( $coverage_id );
+		$attributes  = [
+			'coverageId'  => $coverage_id,
+			'latestCount' => 2,
+		];
+
+		$this->assertStringContainsString( 'id="newspack-rolling-coverage-entry-' . $entry_id . '"', self::render_block( $attributes ) );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-entry-' . $entry_id . '"', self::render_block( array_merge( $attributes, [ 'latestOnly' => true ] ) ) );
+	}
+
+	/**
+	 * A capped feed shows at least one entry.
+	 */
+	public function test_capped_feed_shows_at_least_one_entry() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		$newest_id = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 11:00:00' ] );
+
+		$html = self::render_block(
+			[
+				'coverageId'  => $coverage_id,
+				'latestOnly'  => true,
+				'latestCount' => 0,
+			]
+		);
+
+		$this->assertSame( [ $newest_id ], self::entry_ids_in( $html ) );
+		$this->assertStringContainsString( 'data-latest="1"', $html );
+	}
+
+	/**
+	 * Load more with a capped feed's key brings no further entries.
+	 */
+	public function test_load_more_for_a_capped_feed_returns_nothing() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 11:00:00' ] );
+
+		$html = self::render_block(
+			[
+				'coverageId'  => $coverage_id,
+				'latestOnly'  => true,
+				'latestCount' => 1,
+			]
+		);
+
+		preg_match( '/data-template-key="([^"]+)"/', $html, $matches );
+
+		$request = new WP_REST_Request( 'GET' );
+		$request->set_param( 'term_id', $coverage_id );
+		$request->set_param( 'template_key', $matches[1] );
+		$request->set_param( 'before', '2026-01-01 11:00:00' );
+
+		$page = Rolling_Coverage_Block::get_entries( $request )->get_data();
+
+		$this->assertSame( '', $page['html'] );
+		$this->assertSame( 0, $page['count'] );
+		$this->assertFalse( $page['hasMore'] );
+	}
 }

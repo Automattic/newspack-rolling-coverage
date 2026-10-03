@@ -15,12 +15,24 @@ import {
 	railEntryTemplate,
 	clockEntryTemplate,
 	marginEntryTemplate,
+	minuteEntryTemplate,
+	wireEntryTemplate,
+	digestEntryTemplate,
+	digestHeader,
+	digestFooter,
+	flashEntryTemplate,
+	flashBar,
+	FLASH_FEED_LAYOUT,
+	DIGEST_FEED_STYLE,
+	allUpdatesLink,
 	ENTRY_ALLOWED_BLOCKS,
+	FOLLOW_BLOCK_NAME,
+	STATUS_BLOCK_NAME,
 	FOLLOW_TEMPLATE,
 	feedTemplate,
 	latestTemplate,
-	isFollowButtons,
-	isLatestButtons,
+	layoutParts,
+	withoutLatestButtons,
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	withLinkedTitle,
@@ -37,11 +49,7 @@ import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
 export const BLOCK_NAME = metadata.name;
 
-/**
- * The legacy follow button block, still rendered once at the top of
- * coverages saved before the follow button became a core button.
- */
-export const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
+export { FOLLOW_BLOCK_NAME };
 
 /**
  * The slugs of every color in the editor's palette: the theme's, core's
@@ -181,11 +189,101 @@ export function marginInnerTemplate(): TemplateItem[] {
 }
 
 /**
+ * The Minute layout's inner-blocks template: the same Feed group and buttons
+ * as the default, closer together, with each entry reduced to its content.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function minuteInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			[
+				latestTemplate( paletteSlugs() ),
+				FOLLOW_TEMPLATE,
+				...minuteEntryTemplate(),
+			],
+			'var:preset|spacing|30'
+		),
+	];
+}
+
+/**
+ * The Wire layout's inner-blocks template: a narrow list of the latest
+ * entries, with no buttons, ending in a link to the coverage page.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function wireInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			[
+				...wireEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
+				allUpdatesLink(),
+			],
+			'var:preset|spacing|40'
+		),
+	];
+}
+
+/**
+ * The Digest layout's inner-blocks template: a bordered box with the coverage
+ * name, the latest entries against their times, and a footer holding the link
+ * to the coverage page beside the Follow button.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function digestInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			[
+				digestHeader(),
+				...digestEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
+				digestFooter(),
+			],
+			'var:preset|spacing|40',
+			DIGEST_FEED_STYLE
+		),
+	];
+}
+
+/**
+ * The Flash layout's inner-blocks template: a full-width bar on the site's
+ * accent color holding, at the theme's wide width, the coverage's status,
+ * the newest entry's time and text, then a link to the coverage page on the
+ * right.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function flashInnerTemplate(): TemplateItem[] {
+	return [
+		flashBar(
+			feedTemplate(
+				[
+					[ STATUS_BLOCK_NAME, {} ],
+					...flashEntryTemplate(),
+					allUpdatesLink( {
+						style: {
+							layout: { selfStretch: 'fill' },
+							typography: { textAlign: 'right' },
+						},
+					} ),
+				],
+				'var:preset|spacing|40',
+				{},
+				FLASH_FEED_LAYOUT,
+				{ align: 'wide' }
+			)
+		),
+	];
+}
+
+/**
  * All block types allowed inside the Feed group.
  */
 export const ALL_ALLOWED_BLOCKS = [
 	...ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_BLOCK_NAME,
+	STATUS_BLOCK_NAME,
 ];
 
 /**
@@ -220,33 +318,36 @@ export function previewTemplateFor(
 }
 
 /**
- * The per-entry preview blocks for a layout: the layout's blocks minus the
- * follow and Jump to Latest buttons, shaped per entry the way the site
- * renders each entry.
+ * The preview blocks for a layout: the coverage-level blocks above and below
+ * the entries (see layoutParts()), and the per-entry blocks, shaped per entry
+ * the way the site renders each entry.
  *
  * @param {Object[]}       allBlocks      The layout's top-level blocks.
  * @param {EntryContext[]} entryContexts  The entries being previewed.
  * @param {number}         entriesPerPage Entries loaded per page.
- * @return {Object} The per-entry template blocks and a getter for one entry's preview blocks.
+ * @param {boolean}        isCapped       Whether the feed shows only its latest entries, so the last one previewed is the last.
+ * @return {Object} The header, footer and per-entry template blocks, and a getter for one entry's preview blocks.
  */
 export function useLayoutPreview(
 	allBlocks: TemplateBlocks,
 	entryContexts: EntryContext[],
-	entriesPerPage: number
+	entriesPerPage: number,
+	isCapped = false
 ): {
+	headerBlocks: TemplateBlocks;
+	footerBlocks: TemplateBlocks;
 	templateBlocks: TemplateBlocks;
 	blocksForEntry: ( context: EntryContext ) => TemplateBlocks;
 } {
-	const templateBlocks = useMemo(
-		() =>
-			allBlocks.filter(
-				( block ) =>
-					block.name !== FOLLOW_BLOCK_NAME &&
-					! isFollowButtons( block ) &&
-					! isLatestButtons( block )
-			),
-		[ allBlocks ]
-	);
+	const { headerBlocks, templateBlocks, footerBlocks } = useMemo( () => {
+		const { header, template, footer } = layoutParts( allBlocks );
+
+		return {
+			headerBlocks: withoutLatestButtons( header ),
+			templateBlocks: template,
+			footerBlocks: withoutLatestButtons( footer ),
+		};
+	}, [ allBlocks ] );
 	const previewTemplates = useMemo( () => {
 		const pinnedBlocks = forEntryKind( templateBlocks, true );
 		const hasCard = hasPinnedCard( pinnedBlocks );
@@ -288,7 +389,7 @@ export function useLayoutPreview(
 	// The last entry drops its separator once no more entries would load
 	// (see Rolling_Coverage_Block::shape_entry_template()).
 	const lastContext =
-		entryContexts.length < entriesPerPage
+		isCapped || entryContexts.length < entriesPerPage
 			? entryContexts.at( -1 )
 			: undefined;
 	const lastPreviewBlocks = useMemo( () => {
@@ -330,5 +431,5 @@ export function useLayoutPreview(
 		[ lastContext, lastPreviewBlocks, previewTemplates ]
 	);
 
-	return { templateBlocks, blocksForEntry };
+	return { headerBlocks, footerBlocks, templateBlocks, blocksForEntry };
 }

@@ -341,7 +341,8 @@ class Post_Type {
 	}
 
 	/**
-	 * Strip sensitive Slack/source meta from the REST response for requests
+	 * Add the generated excerpt to edit responses, and strip sensitive
+	 * Slack/source meta from the REST response for requests
 	 * that are not in the edit context. The edit context requires the
 	 * `edit_post` meta cap for the specific post, so requests without it
 	 * (view context) will have these meta keys removed.
@@ -358,6 +359,14 @@ class Post_Type {
 		$context = $request->get_param( 'context' );
 
 		if ( 'edit' === $context ) {
+			$fields = wp_parse_list( $request->get_param( '_fields' ) ?? '' );
+
+			if ( ! $fields || rest_is_field_included( 'excerpt', $fields ) ) {
+				$data            = $response->get_data();
+				$data['excerpt'] = self::get_editor_excerpt( $post );
+				$response->set_data( $data );
+			}
+
 			return $response;
 		}
 
@@ -635,6 +644,45 @@ class Post_Type {
 				],
 			]
 		);
+	}
+
+	/**
+	 * Returns the generated excerpt of an entry for the editor.
+	 *
+	 * Entries do not support excerpts, so core omits the field and the
+	 * editor's Post Excerpt block would preview nothing. It is added to edit
+	 * responses only and kept out of the schema, so a client sending it back
+	 * cannot store it.
+	 *
+	 * The rendered value is core's generated excerpt. The raw value is that
+	 * same excerpt at the block's maximum length with no ellipsis, as decoded
+	 * plain text, so the editor can trim it to any length the block allows.
+	 *
+	 * @param \WP_Post $entry Entry.
+	 * @return array{raw: string, rendered: string, protected: bool}
+	 */
+	private static function get_editor_excerpt( \WP_Post $entry ): array {
+		$protected = post_password_required( $entry );
+		$length    = static fn() => 101;
+		$more      = static fn() => '';
+		$open      = clone $entry;
+
+		$open->post_password = '';
+
+		add_filter( 'excerpt_length', $length, PHP_INT_MAX );
+		add_filter( 'excerpt_more', $more, PHP_INT_MAX );
+		try {
+			$text = apply_filters( 'get_the_excerpt', $open->post_excerpt, $open );
+		} finally {
+			remove_filter( 'excerpt_length', $length, PHP_INT_MAX );
+			remove_filter( 'excerpt_more', $more, PHP_INT_MAX );
+		}
+
+		return [
+			'raw'       => trim( html_entity_decode( wp_strip_all_tags( $text ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ),
+			'rendered'  => $protected ? '' : apply_filters( 'the_excerpt', apply_filters( 'get_the_excerpt', $entry->post_excerpt, $entry ) ),
+			'protected' => $protected,
+		];
 	}
 
 	/**

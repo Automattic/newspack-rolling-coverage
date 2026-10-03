@@ -19,6 +19,15 @@ use Newspack_Rolling_Coverage\Taxonomy;
 class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 	/**
+	 * Restore the request the tests above change.
+	 */
+	public function tear_down() {
+		$this->go_to( home_url( '/' ) );
+
+		parent::tear_down();
+	}
+
+	/**
 	 * The entry template's buttons, as the editor saves them.
 	 */
 	const BUTTONS_MARKUP = '<!-- wp:buttons --><div class="wp-block-buttons">'
@@ -101,6 +110,31 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertTrue( $flags[ $published ], 'A published breakout should be flagged.' );
 		$this->assertFalse( $flags[ $drafted ], 'A draft breakout should not be.' );
 		$this->assertFalse( $flags[ $none ], 'An entry without a breakout should not be.' );
+	}
+
+	/**
+	 * A capped feed ignores pinning, so its editor preview lists the newest
+	 * entries first with none of them pinned.
+	 */
+	public function test_the_editor_preview_of_a_capped_feed_ignores_pinning() {
+		$coverage_id = self::create_coverage();
+		$oldest      = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 10:00:00' ] );
+		$middle      = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-02 10:00:00' ] );
+		$newest      = self::create_entry( $coverage_id, [ 'post_date' => '2026-01-03 10:00:00' ] );
+		Post_Type::pin_entry( $oldest );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$request = new WP_REST_Request( 'GET', '/' . NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages/' . $coverage_id . '/entries-preview' );
+		$default = rest_do_request( $request )->get_data();
+
+		$this->assertSame( [ $oldest, $newest, $middle ], wp_list_pluck( $default, 'id' ), 'Without the flag the pinned entry should float first.' );
+		$this->assertTrue( $default[0]['pinned'], 'Without the flag the pinned entry should be flagged.' );
+
+		$request->set_param( 'latest_only', true );
+		$capped = rest_do_request( $request )->get_data();
+
+		$this->assertSame( [ $newest, $middle, $oldest ], wp_list_pluck( $capped, 'id' ), 'A capped feed should list the newest first.' );
+		$this->assertSame( [ false, false, false ], wp_list_pluck( $capped, 'pinned' ), 'A capped feed should flag no entry as pinned.' );
 	}
 
 	/**
@@ -395,6 +429,260 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Wrap blocks in a group, as the editor saves it.
+	 *
+	 * @param string $inner Inner blocks' markup.
+	 * @return string Group markup.
+	 */
+	private static function group_markup( string $inner ): string {
+		return '<!-- wp:group --><div class="wp-block-group">' . $inner . '</div><!-- /wp:group -->';
+	}
+
+	/**
+	 * Render a coverage block holding the given layout items.
+	 *
+	 * @param array  $attributes Block attributes.
+	 * @param string $items      The layout items' markup.
+	 * @return string Rendered block.
+	 */
+	private static function render_coverage_items( array $attributes, string $items ): string {
+		self::configure_onesignal();
+
+		$block = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $items . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+
+		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+	}
+
+	/**
+	 * A follow button placed after the entry blocks renders once, below the
+	 * entries.
+	 */
+	public function test_follow_after_the_entry_blocks_renders_below_the_entries() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::create_entry( $coverage_id );
+
+		$html = self::render_coverage_items( [ 'coverageId' => $coverage_id ], self::BUTTONS_MARKUP . self::FOLLOW_MARKUP );
+
+		$this->assertSame( 1, substr_count( $html, 'data-rc-follow' ), 'The follow button should render once.' );
+		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, 'data-rc-follow' ), 'It should follow the last entry.' );
+		$this->assertGreaterThan( strpos( $html, 'class="newspack-rolling-coverage-entries"' ), strpos( $html, 'data-rc-follow' ), 'It should come after the entries.' );
+	}
+
+	/**
+	 * A follow button inside a group renders once, with the coverage's tag,
+	 * and no entry repeats it.
+	 */
+	public function test_nested_follow_renders_once_with_the_coverage_tag() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::create_entry( $coverage_id );
+
+		$html = self::render_coverage_items( [ 'coverageId' => $coverage_id ], self::group_markup( self::FOLLOW_MARKUP ) . self::BUTTONS_MARKUP );
+
+		$this->assertSame( 1, substr_count( $html, 'data-rc-follow' ), 'The follow button should render once.' );
+		$this->assertStringContainsString( 'data-tag="' . esc_attr( Push_Notifications::follow_tag( $coverage_id ) ) . '"', $html );
+		$this->assertSame( 2, substr_count( $html, 'data-rc-share' ), 'Each entry should still render its own buttons.' );
+		$this->assertSame( 4, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button, the jump to latest button and one row per entry should render.' );
+	}
+
+	/**
+	 * A group holding the follow button and other blocks, placed before the
+	 * entry blocks, renders once above the entries.
+	 */
+	public function test_header_group_with_follow_renders_once_above_the_entries() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::create_entry( $coverage_id );
+
+		$header = self::group_markup( '<!-- wp:paragraph --><p>Coverage header</p><!-- /wp:paragraph -->' . self::FOLLOW_MARKUP );
+		$html   = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $header . self::BUTTONS_MARKUP );
+
+		$this->assertSame( 1, substr_count( $html, 'Coverage header' ), 'The header should render once.' );
+		$this->assertSame( 1, substr_count( $html, 'data-rc-follow' ), 'Its follow button should render once.' );
+		$this->assertLessThan( strpos( $html, 'class="newspack-rolling-coverage-entries"' ), strpos( $html, 'Coverage header' ), 'It should come before the entries.' );
+		$this->assertLessThan( strpos( $html, 'Coverage header' ), strpos( $html, 'newspack-rolling-coverage-feed' ), 'It should sit inside the Feed.' );
+	}
+
+	/**
+	 * A heading in the header chrome, bound to the coverage's name, as the
+	 * layouts save it.
+	 */
+	const NAME_HEADING_MARKUP = '<!-- wp:heading {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"coverageName"}}}}} --><h2 class="wp-block-heading">Saved title</h2><!-- /wp:heading -->';
+
+	/**
+	 * A heading bound to the coverage's name renders the name once, above the
+	 * entries.
+	 */
+	public function test_name_heading_renders_the_coverage_name_once_above_the_entries() {
+		$coverage_id = self::create_coverage( '', [ 'name' => 'Election Night' ] );
+		self::create_entry( $coverage_id );
+		self::create_entry( $coverage_id );
+
+		$html = self::render_coverage_items( [ 'coverageId' => $coverage_id ], self::NAME_HEADING_MARKUP . self::BUTTONS_MARKUP );
+
+		$this->assertSame( 1, substr_count( $html, '>Election Night</h2>' ), 'The heading should show the name once.' );
+		$this->assertStringNotContainsString( 'Saved title', $html );
+		$this->assertLessThan( strpos( $html, 'class="newspack-rolling-coverage-entries"' ), strpos( $html, 'Election Night' ), 'It should come before the entries.' );
+	}
+
+	/**
+	 * A name with an ampersand is escaped once.
+	 */
+	public function test_name_heading_escapes_the_name_once() {
+		$coverage_id = self::create_coverage( '', [ 'name' => 'Storm & Flood' ] );
+		self::create_entry( $coverage_id );
+
+		$html = self::render_coverage_items( [ 'coverageId' => $coverage_id ], self::NAME_HEADING_MARKUP . self::BUTTONS_MARKUP );
+
+		$this->assertStringContainsString( '>Storm &amp; Flood</h2>', $html );
+		$this->assertStringNotContainsString( '&amp;amp;', $html );
+	}
+
+	/**
+	 * Without a coverage in context the heading keeps its saved content.
+	 */
+	public function test_name_heading_without_coverage_context_keeps_its_content() {
+		$html = render_block( parse_blocks( self::NAME_HEADING_MARKUP )[0] );
+
+		$this->assertStringContainsString( '>Saved title</h2>', $html );
+	}
+
+	/**
+	 * An archived coverage's nested follow button renders nothing, without
+	 * leaving its empty Buttons block behind; the rest of its group stays.
+	 */
+	public function test_nested_follow_is_dropped_for_an_archived_coverage() {
+		$coverage_id = self::create_coverage( 'archived' );
+		self::create_entry( $coverage_id );
+
+		$header = self::group_markup( '<!-- wp:paragraph --><p>Coverage header</p><!-- /wp:paragraph -->' . self::FOLLOW_MARKUP );
+		$html   = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $header . self::BUTTONS_MARKUP );
+
+		$this->assertStringContainsString( 'Coverage header', $html );
+		$this->assertStringNotContainsString( 'data-rc-follow', $html );
+		$this->assertSame( 2, substr_count( $html, 'class="wp-block-buttons' ), 'Only the jump to latest button and the entry row should render.' );
+	}
+
+	/**
+	 * The coverage renders its parts in order: the archived notice, the
+	 * blocks above the entries, the live region, "Jump to Latest", the
+	 * entries, the blocks below them and the sentinel.
+	 */
+	public function test_coverage_level_blocks_render_around_the_entries_in_order() {
+		$coverage_id = self::create_coverage( 'archived' );
+		self::create_entry( $coverage_id );
+
+		$header = self::group_markup( '<!-- wp:paragraph --><p>Coverage header</p><!-- /wp:paragraph -->' . self::FOLLOW_MARKUP );
+		$footer = self::group_markup( '<!-- wp:paragraph --><p>Coverage footer</p><!-- /wp:paragraph -->' . self::FOLLOW_MARKUP );
+		$html   = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $header . self::BUTTONS_MARKUP . $footer );
+
+		$order = [
+			'newspack-rolling-coverage-archived-notice',
+			'Coverage header',
+			'class="newspack-rolling-coverage-status"',
+			'newspack-rolling-coverage-new-entries',
+			'class="newspack-rolling-coverage-entries"',
+			'data-rc-share',
+			'Coverage footer',
+			'newspack-rolling-coverage-sentinel',
+		];
+
+		$positions = array_map( static fn( $needle ) => strpos( $html, $needle ), $order );
+
+		$this->assertNotContains( false, $positions, 'Every part should render.' );
+		$this->assertSame( $positions, array_values( array_unique( $positions ) ) );
+
+		$sorted = $positions;
+		sort( $sorted );
+		$this->assertSame( $sorted, $positions, 'The parts should render in order.' );
+		$this->assertSame( 1, substr_count( $html, 'Coverage footer' ), 'The footer should render once.' );
+	}
+
+	/**
+	 * The entry group stays the entry template even when it holds the follow
+	 * button: every entry renders it, and nothing renders it once outside the
+	 * entries.
+	 */
+	public function test_entry_group_holding_follow_renders_per_entry() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::create_entry( $coverage_id );
+
+		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. '<!-- wp:paragraph --><p>Entry body</p><!-- /wp:paragraph -->'
+			. self::FOLLOW_MARKUP
+			. '</div><!-- /wp:group -->';
+		$html        = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $entry_group );
+
+		$this->assertSame( 2, substr_count( $html, 'Entry body' ), 'Each entry should render the entry group.' );
+		$this->assertGreaterThan( strpos( $html, 'class="newspack-rolling-coverage-entries"' ), strpos( $html, 'Entry body' ), 'Nothing should render it outside the entries.' );
+		$this->assertSame( 2, substr_count( $html, '<article ' ) );
+	}
+
+	/**
+	 * "Jump to Latest" only renders as the control: one inside a group of
+	 * coverage-level blocks renders nothing there, and the default control
+	 * stands in.
+	 */
+	public function test_nested_latest_button_renders_only_as_the_control() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+
+		$latest = '<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"latestUrl"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button">Back to live</a></div><!-- /wp:button --></div><!-- /wp:buttons -->';
+		$header = self::group_markup( '<!-- wp:paragraph --><p>Coverage header</p><!-- /wp:paragraph -->' . $latest );
+		$html   = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $header . self::BUTTONS_MARKUP );
+
+		$this->assertStringContainsString( 'Coverage header', $html );
+		$this->assertStringNotContainsString( 'Back to live', $html, 'The nested button should not render.' );
+		$this->assertSame( 1, substr_count( $html, 'data-rc-latest' ), 'Only the control should link to the live feed.' );
+		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-new-entries' ) );
+	}
+
+	/**
+	 * Coverage-level blocks: the follow and "Jump to Latest" buttons, the
+	 * legacy follow block, a heading bound to the coverage's name, the "See
+	 * all updates" paragraph, or a block holding one at any depth.
+	 *
+	 * @dataProvider data_coverage_items
+	 *
+	 * @param string $markup   Block markup.
+	 * @param bool   $expected Whether it's a coverage-level block.
+	 */
+	public function test_is_coverage_item( string $markup, bool $expected ) {
+		$this->assertSame( $expected, Entry_Bindings::is_coverage_item( parse_blocks( $markup )[0] ) );
+	}
+
+	/**
+	 * Blocks that are, or aren't, coverage-level.
+	 *
+	 * @return array[]
+	 */
+	public function data_coverage_items(): array {
+		$name_heading = '<!-- wp:heading {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"coverageName"}}}}} --><h2 class="wp-block-heading">Coverage</h2><!-- /wp:heading -->';
+		$all_updates  = '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-all-updates"} --><p class="use-header-font newspack-rolling-coverage-all-updates"><a href="#">See all updates</a></p><!-- /wp:paragraph -->';
+		$latest       = '<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"latestUrl"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button">Jump to Latest</a></div><!-- /wp:button --></div><!-- /wp:buttons -->';
+
+		return [
+			'follow buttons'              => [ self::FOLLOW_MARKUP, true ],
+			'jump to latest'              => [ $latest, true ],
+			'legacy follow'               => [ '<!-- wp:newspack-rolling-coverage/coverage-follow /-->', true ],
+			'coverage name heading'       => [ $name_heading, true ],
+			'all updates paragraph'       => [ $all_updates, true ],
+			'group holding a follow'      => [ self::group_markup( self::FOLLOW_MARKUP ), true ],
+			'deeply nested heading'       => [ self::group_markup( self::group_markup( $name_heading ) ), true ],
+			'entry buttons'               => [ self::BUTTONS_MARKUP, false ],
+			'plain heading'               => [ '<!-- wp:heading --><h2 class="wp-block-heading">Title</h2><!-- /wp:heading -->', false ],
+			'heading bound to other key'  => [ str_replace( 'coverageName', 'shareUrl', $name_heading ), false ],
+			'paragraph bound to name'     => [ str_replace( [ 'wp:heading', 'h2 class="wp-block-heading"', '/h2' ], [ 'wp:paragraph', 'p', '/p' ], $name_heading ), false ],
+			'plain group'                 => [ self::group_markup( '<!-- wp:paragraph --><p>Text</p><!-- /wp:paragraph -->' ), false ],
+			'entry group holding follow'  => [ '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . self::FOLLOW_MARKUP . '</div><!-- /wp:group -->', false ],
+			'pinned card holding name'    => [ '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">' . $name_heading . '</div><!-- /wp:group -->', false ],
+			'group around an entry group' => [ self::group_markup( '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . $all_updates . '</div><!-- /wp:group -->' ), false ],
+		];
+	}
+
+	/**
 	 * The pin icon and pinned label, as the editor saves them.
 	 */
 	const PINNED_ROW_MARKUP = '<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap"}} --><div class="wp-block-group">'
@@ -554,6 +842,108 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertGreaterThan( strpos( $html, 'newspack-rolling-coverage-feed' ), $notice_position, 'The notice should sit inside the Feed.' );
 		$this->assertLessThan( strpos( $html, 'newspack-rolling-coverage-entries' ), $notice_position, 'The notice should come before the entries.' );
 		$this->assertSame( 2, substr_count( $html, 'Entry text' ), 'Each entry should still render.' );
+	}
+
+	/**
+	 * An ended coverage renders nothing when the block hides itself.
+	 */
+	public function test_hide_when_ended_renders_nothing_for_an_archived_coverage() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$this->assertSame(
+			'',
+			self::render_feed_block(
+				[
+					'coverageId'    => $coverage_id,
+					'hideWhenEnded' => true,
+				]
+			)
+		);
+	}
+
+	/**
+	 * Without the setting an ended coverage still renders.
+	 */
+	public function test_archived_coverage_still_renders_without_hide_when_ended() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$this->assertStringContainsString( 'Entry text', self::render_feed_block( [ 'coverageId' => $coverage_id ] ) );
+	}
+
+	/**
+	 * An active coverage renders even when the block hides itself on ending.
+	 */
+	public function test_hide_when_ended_keeps_an_active_coverage_visible() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+
+		$this->assertStringContainsString(
+			'Entry text',
+			self::render_feed_block(
+				[
+					'coverageId'    => $coverage_id,
+					'hideWhenEnded' => true,
+				]
+			)
+		);
+	}
+
+	/**
+	 * Coverages that are gone render nothing for the given attributes: a
+	 * trashed one, a deleted one, and none chosen.
+	 *
+	 * @param array $attributes Block attributes besides the coverage.
+	 * @return string[] Rendered HTML keyed by case.
+	 */
+	private static function render_gone_coverages( array $attributes ): array {
+		$trashed_id = self::create_coverage( 'trash' );
+		$deleted_id = self::create_coverage();
+		wp_delete_term( $deleted_id, Taxonomy::TAXONOMY_SLUG );
+
+		return [
+			'trashed' => self::render_feed_block( array_merge( $attributes, [ 'coverageId' => $trashed_id ] ) ),
+			'deleted' => self::render_feed_block( array_merge( $attributes, [ 'coverageId' => $deleted_id ] ) ),
+			'none'    => self::render_feed_block( $attributes ),
+		];
+	}
+
+	/**
+	 * A block that hides when its coverage ends hides when the coverage is
+	 * trashed or deleted too, instead of showing a notice meant for editors.
+	 */
+	public function test_hide_when_ended_renders_nothing_for_a_coverage_that_is_gone() {
+		$this->assertSame(
+			[
+				'trashed' => '',
+				'deleted' => '',
+				'none'    => '',
+			],
+			self::render_gone_coverages( [ 'hideWhenEnded' => true ] )
+		);
+	}
+
+	/**
+	 * A capped feed sits in site-wide placements, so on the site it never
+	 * shows a placeholder meant for editors; a full feed still does.
+	 */
+	public function test_capped_feed_shows_no_placeholder_on_the_site() {
+		$this->assertSame(
+			[
+				'trashed' => '',
+				'deleted' => '',
+				'none'    => '',
+			],
+			self::render_gone_coverages( [ 'latestOnly' => true ] )
+		);
+
+		$full = self::render_gone_coverages( [] );
+		$this->assertStringContainsString( 'This coverage is no longer available.', $full['trashed'] );
+		$this->assertStringContainsString( 'Select a coverage to display its entries.', $full['deleted'] );
+		$this->assertStringContainsString( 'Select a coverage to display its entries.', $full['none'] );
 	}
 
 	/**
@@ -1122,5 +1512,452 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 			$html
 		);
 		$this->assertSame( 1, substr_count( $html, '<a ' ) );
+	}
+
+	const ALL_UPDATES_MARKUP = '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-all-updates"} --><p class="use-header-font newspack-rolling-coverage-all-updates"><a href="#">See all updates</a></p><!-- /wp:paragraph -->';
+
+	/**
+	 * Render a capped coverage block holding the "See all updates" paragraph.
+	 *
+	 * @param int    $coverage_id Coverage term ID.
+	 * @param array  $attributes  Extra block attributes.
+	 * @param string $items       Layout items; the paragraph above the entries by default.
+	 * @return string Rendered block.
+	 */
+	private static function render_capped_coverage( int $coverage_id, array $attributes = [], string $items = self::ALL_UPDATES_MARKUP . self::BUTTONS_MARKUP ): string {
+		return self::render_coverage_items(
+			array_merge(
+				[
+					'coverageId'  => $coverage_id,
+					'latestOnly'  => true,
+					'latestCount' => 2,
+				],
+				$attributes
+			),
+			$items
+		);
+	}
+
+	/**
+	 * A capped feed's "See all updates" paragraph links to the coverage's
+	 * canonical URL, once.
+	 */
+	public function test_all_updates_links_to_the_canonical_url() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+
+		$html = self::render_capped_coverage( $coverage_id );
+
+		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-all-updates' ) );
+		$this->assertStringContainsString( '<a href="https://example.org/storm-coverage/">See all updates</a>', $html );
+	}
+
+	/**
+	 * Without a canonical URL it links to the page embedding the coverage.
+	 */
+	public function test_all_updates_falls_back_to_the_host_page() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$host_id = self::factory()->post->create(
+			[
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( [ 'coverageId' => $coverage_id ] ) . ' /-->',
+			]
+		);
+
+		$html = self::render_capped_coverage( $coverage_id );
+
+		$this->assertStringContainsString( '<a href="' . esc_url( get_permalink( $host_id ) ) . '">See all updates</a>', $html );
+	}
+
+	/**
+	 * On the coverage page itself the link has nowhere to go.
+	 */
+	public function test_all_updates_is_hidden_on_the_coverage_page() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$canonical = home_url( '/storm-coverage/' );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, $canonical );
+
+		$this->assertStringContainsString( 'See all updates', self::render_capped_coverage( $coverage_id ) );
+
+		$this->go_to( $canonical );
+
+		$this->assertStringNotContainsString( 'See all updates', self::render_capped_coverage( $coverage_id ) );
+	}
+
+	/**
+	 * Extra query arguments on the request, in any order, still leave it the
+	 * coverage page; a different value doesn't.
+	 */
+	public function test_all_updates_ignores_extra_request_arguments() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, home_url( '/?page_id=12&a=1' ) );
+
+		$_SERVER['REQUEST_URI'] = '/?utm_source=x&a=1&page_id=12';
+		$same                   = self::render_capped_coverage( $coverage_id );
+		$_SERVER['REQUEST_URI'] = '/?page_id=13&a=1';
+		$other                  = self::render_capped_coverage( $coverage_id );
+
+		$this->assertStringNotContainsString( 'See all updates', $same );
+		$this->assertStringContainsString( 'See all updates', $other );
+	}
+
+	/**
+	 * On a site whose address has a path, a request for the canonical page is
+	 * still recognized.
+	 */
+	public function test_all_updates_is_hidden_on_the_coverage_page_of_a_subdirectory_site() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$home = static fn() => 'http://example.org/news';
+		add_filter( 'pre_option_home', $home );
+		add_filter( 'pre_option_siteurl', $home );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'http://example.org/news/Storm%2Dwatch/' );
+
+		$_SERVER['REQUEST_URI'] = '/news/Storm%2dwatch';
+		$on_page                = self::render_capped_coverage( $coverage_id );
+		$_SERVER['REQUEST_URI'] = '/news/other/';
+		$elsewhere              = self::render_capped_coverage( $coverage_id );
+
+		$this->assertStringNotContainsString( 'See all updates', $on_page );
+		$this->assertStringContainsString( 'See all updates', $elsewhere );
+	}
+
+	/**
+	 * A coverage with no page has nowhere to link to.
+	 */
+	public function test_all_updates_is_hidden_without_a_coverage_page() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+
+		$this->assertStringNotContainsString( 'See all updates', self::render_capped_coverage( $coverage_id ) );
+	}
+
+	/**
+	 * Looking up the coverage page scans post content, so a capped feed whose
+	 * layout has no "See all updates" paragraph, or holds it only inside the
+	 * entries, never runs it.
+	 */
+	public function test_all_updates_lookup_runs_only_for_a_layout_with_the_link() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		self::factory()->post->create(
+			[
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( [ 'coverageId' => $coverage_id ] ) . ' /-->',
+			]
+		);
+		$scans = 0;
+		$count = static function ( $query ) use ( &$scans ) {
+			if ( str_contains( $query, 'post_content LIKE' ) ) {
+				++$scans;
+			}
+			return $query;
+		};
+		add_filter( 'query', $count );
+
+		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . self::ALL_UPDATES_MARKUP . '</div><!-- /wp:group -->';
+		self::render_capped_coverage( $coverage_id, [], self::BUTTONS_MARKUP );
+		self::render_capped_coverage( $coverage_id, [], $entry_group );
+		$without = $scans;
+		$html    = self::render_capped_coverage( $coverage_id );
+		remove_filter( 'query', $count );
+
+		$this->assertSame( 0, $without );
+		$this->assertSame( 1, $scans );
+		$this->assertStringContainsString( 'See all updates', $html );
+	}
+
+	/**
+	 * The block's toggle turns the link off.
+	 */
+	public function test_all_updates_is_hidden_when_the_toggle_is_off() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+
+		$this->assertStringNotContainsString( 'See all updates', self::render_capped_coverage( $coverage_id, [ 'allUpdatesLink' => false ] ) );
+	}
+
+	/**
+	 * A feed that shows every entry has no use for the link.
+	 */
+	public function test_all_updates_is_hidden_when_the_feed_is_not_capped() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+
+		$this->assertStringNotContainsString( 'See all updates', self::render_capped_coverage( $coverage_id, [ 'latestOnly' => false ] ) );
+	}
+
+	/**
+	 * Placed inside the entry layout, the paragraph renders nothing, instead
+	 * of linking once per entry.
+	 */
+	public function test_all_updates_is_hidden_inside_an_entry() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+
+		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . self::ALL_UPDATES_MARKUP . '</div><!-- /wp:group -->';
+		$html        = self::render_capped_coverage( $coverage_id, [], $entry_group );
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-regular-entry', $html );
+		$this->assertStringNotContainsString( 'See all updates', $html );
+	}
+
+	/**
+	 * A capped feed shaped like the Wire layout shows the newest entries with
+	 * their excerpts, and its "See all updates" link once, after them. It
+	 * can sit on every page, so it announces nothing.
+	 */
+	public function test_wire_shaped_feed_renders_capped_entries_with_the_link_below() {
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+		foreach ( [ 'Oldest update', 'Middle update', 'Newest update' ] as $offset => $title ) {
+			self::create_entry(
+				$coverage_id,
+				[
+					'post_title'   => $title,
+					'post_excerpt' => 'Short summary of ' . $title,
+					'post_date'    => gmdate( 'Y-m-d H:i:s', strtotime( '-' . ( 3 - $offset ) . ' hours' ) ),
+				]
+			);
+		}
+
+		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. '<!-- wp:post-excerpt {"excerptLength":15,"moreText":""} /-->'
+			. '</div><!-- /wp:group -->';
+		$html        = self::render_capped_coverage( $coverage_id, [], $entry_group . self::ALL_UPDATES_MARKUP );
+
+		$this->assertSame( 2, substr_count( $html, '<article' ), 'Only the newest entries should render.' );
+		$this->assertStringContainsString( 'Short summary of Newest update', $html );
+		$this->assertStringContainsString( 'Short summary of Middle update', $html );
+		$this->assertStringNotContainsString( 'Short summary of Oldest update', $html );
+		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-all-updates' ) );
+		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, 'newspack-rolling-coverage-all-updates' ), 'The link should follow the last entry.' );
+		$this->assertStringNotContainsString( 'class="newspack-rolling-coverage-status"', $html, 'A capped feed should not announce new entries.' );
+	}
+
+	/**
+	 * A capped feed shaped like the Digest layout renders the name once above
+	 * the entries, and the footer with its link and Follow button once below.
+	 */
+	public function test_digest_shaped_feed_renders_name_above_and_footer_below() {
+		$coverage_id = self::create_coverage( '', [ 'name' => 'Election Night' ] );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/election-night/' );
+		foreach ( [ 'First update', 'Second update', 'Third update', 'Fourth update' ] as $offset => $title ) {
+			self::create_entry(
+				$coverage_id,
+				[
+					'post_title' => $title,
+					'post_date'  => gmdate( 'Y-m-d H:i:s', strtotime( '-' . ( 4 - $offset ) . ' hours' ) ),
+				]
+			);
+		}
+
+		$entry_columns = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. '<!-- wp:columns {"isStackedOnMobile":false} --><div class="wp-block-columns is-not-stacked-on-mobile">'
+			. '<!-- wp:column {"width":"5.5rem"} --><div class="wp-block-column" style="flex-basis:5.5rem"><!-- wp:post-date /--></div><!-- /wp:column -->'
+			. '<!-- wp:column --><div class="wp-block-column"><!-- wp:post-title {"level":4} /--></div><!-- /wp:column -->'
+			. '</div><!-- /wp:columns --></div><!-- /wp:group -->';
+		$footer        = self::group_markup( self::ALL_UPDATES_MARKUP . self::FOLLOW_MARKUP );
+		$html          = self::render_coverage_items(
+			[
+				'coverageId'  => $coverage_id,
+				'latestOnly'  => true,
+				'latestCount' => 3,
+			],
+			self::NAME_HEADING_MARKUP . $entry_columns . $footer
+		);
+
+		$this->assertSame( 1, substr_count( $html, '>Election Night</h2>' ), 'The name should render once.' );
+		$this->assertSame( 3, substr_count( $html, '<article' ), 'Only the newest three entries should render.' );
+		$this->assertStringNotContainsString( 'First update', $html );
+		$this->assertLessThan( strpos( $html, '<article' ), strpos( $html, 'Election Night' ), 'The name should come before the entries.' );
+		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-all-updates' ), 'The link should render once.' );
+		$this->assertStringContainsString( '<a href="https://example.org/election-night/">See all updates</a>', $html );
+		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, 'newspack-rolling-coverage-all-updates' ), 'The footer should follow the last entry.' );
+		$this->assertSame( 1, substr_count( $html, '>Follow</button>' ), 'Follow should render once, in the footer.' );
+		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, '>Follow</button>' ) );
+	}
+
+	/**
+	 * A footer whose link and Follow button both drop out, on an ended
+	 * coverage with no page to link to, leaves no empty bordered group; with
+	 * Follow still showing, the footer stays.
+	 */
+	public function test_footer_left_empty_renders_nothing() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		self::create_entry( $coverage_id );
+
+		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry"><!-- wp:post-title /--></div><!-- /wp:group -->';
+		$footer      = '<!-- wp:group {"className":"digest-footer","style":{"border":{"top":{"width":"1px"}}}} --><div class="wp-block-group digest-footer" style="border-top-width:1px">'
+			. self::group_markup( self::ALL_UPDATES_MARKUP . self::FOLLOW_MARKUP )
+			. '</div><!-- /wp:group -->';
+		$attributes  = [
+			'coverageId'         => $coverage_id,
+			'latestOnly'         => true,
+			'latestCount'        => 3,
+			'archivedNoticeShow' => false,
+		];
+
+		$this->assertStringNotContainsString( 'digest-footer', self::render_coverage_items( $attributes, $entry_group . $footer ) );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ACTIVE );
+		$html = self::render_coverage_items( $attributes, $entry_group . $footer );
+
+		$this->assertStringContainsString( 'digest-footer', $html );
+		$this->assertStringContainsString( '>Follow</button>', $html );
+	}
+
+	/**
+	 * A capped, self-hiding feed shaped like the Flash layout shows one entry
+	 * with the "See all updates" link after it, and nothing once the coverage
+	 * has ended.
+	 */
+	public function test_flash_shaped_feed_shows_one_entry_then_hides_when_ended() {
+		$coverage_id = self::create_coverage();
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+		foreach ( [ 'Older update', 'Latest update' ] as $offset => $title ) {
+			self::create_entry(
+				$coverage_id,
+				[
+					'post_title'   => $title,
+					'post_excerpt' => 'Summary of ' . $title,
+					'post_date'    => gmdate( 'Y-m-d H:i:s', strtotime( '-' . ( 2 - $offset ) . ' hours' ) ),
+				]
+			);
+		}
+
+		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry","layout":{"type":"flex","flexWrap":"wrap"}} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. '<!-- wp:post-excerpt {"excerptLength":20,"moreText":""} /-->'
+			. '</div><!-- /wp:group -->';
+		$attributes  = [
+			'latestCount'   => 1,
+			'hideWhenEnded' => true,
+		];
+		$html        = self::render_capped_coverage( $coverage_id, $attributes, $entry_group . self::ALL_UPDATES_MARKUP );
+
+		$this->assertSame( 1, substr_count( $html, '<article' ) );
+		$this->assertStringContainsString( 'Summary of Latest update', $html );
+		$this->assertStringNotContainsString( 'Summary of Older update', $html );
+		$this->assertGreaterThan( strrpos( $html, '</article>' ), strpos( $html, 'newspack-rolling-coverage-all-updates' ), 'The link should follow the entry.' );
+		$this->assertStringContainsString( 'data-hide-when-ended="true"', $html, 'Open pages need the setting to hide when a poll reports the end.' );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+		$this->assertSame( '', self::render_capped_coverage( $coverage_id, $attributes, $entry_group . self::ALL_UPDATES_MARKUP ) );
+	}
+
+	/**
+	 * A layout without a Feed group renders the bare container the stylesheet
+	 * lays out as a column; a flex Feed group is laid out by core instead.
+	 */
+	public function test_feed_container_is_bare_without_a_group_and_flex_with_one() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+
+		$bare = self::render_coverage_items( [ 'coverageId' => $coverage_id ], '' );
+		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-feed">', $bare );
+
+		$group = '<!-- wp:group {"className":"newspack-rolling-coverage-feed","layout":{"type":"flex","orientation":"horizontal"}} --><div class="wp-block-group newspack-rolling-coverage-feed">' . self::ALL_UPDATES_MARKUP . '</div><!-- /wp:group -->';
+		$flex  = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $group );
+		$this->assertMatchesRegularExpression( '#<div class="wp-block-group newspack-rolling-coverage-feed[^"]*is-layout-flex#', $flex );
+	}
+
+	/**
+	 * A Feed group set inside a wrapper group renders inside the wrapper, which
+	 * keeps its own classes, styles and other blocks, while the entries and
+	 * the stored template match the same Feed at the layout's top level.
+	 */
+	public function test_feed_inside_a_wrapper_group_renders_inside_the_wrapper() {
+		$coverage_id = self::create_coverage();
+		self::create_entry(
+			$coverage_id,
+			[
+				'post_title'   => 'Wrapped update',
+				'post_excerpt' => 'Summary of the wrapped update',
+			]
+		);
+
+		$feed    = '<!-- wp:group {"className":"newspack-rolling-coverage-feed","align":"wide","style":{"spacing":{"blockGap":"var:preset|spacing|40"}},"layout":{"type":"flex","flexWrap":"wrap"}} --><div class="wp-block-group alignwide newspack-rolling-coverage-feed">'
+			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry","layout":{"type":"flex","flexWrap":"wrap"}} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. '<!-- wp:post-excerpt {"excerptLength":20,"moreText":""} /-->'
+			. '</div><!-- /wp:group -->'
+			. '</div><!-- /wp:group -->';
+		$wrapper = '<!-- wp:group {"className":"rc-bar","style":{"color":{"background":"#123456"}},"layout":{"type":"constrained"}} --><div class="wp-block-group rc-bar has-background" style="background-color:#123456">'
+			. '<!-- wp:paragraph --><p>Before the feed</p><!-- /wp:paragraph -->'
+			. $feed
+			. '<!-- wp:paragraph --><p>After the feed</p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$wrapped    = self::render_coverage_items( $attributes, $wrapper );
+		$top_level  = self::render_coverage_items( $attributes, $feed );
+
+		$this->assertStringContainsString( '<div class="wp-block-group rc-bar has-background" style="background-color:#123456">', $wrapped );
+		$this->assertMatchesRegularExpression( '#rc-bar[^>]*>(<div class="wp-block-group__inner-container)?[^>]*is-layout-constrained#', $wrapped );
+		$this->assertMatchesRegularExpression( '#<div class="wp-block-group alignwide newspack-rolling-coverage-feed[^"]*is-layout-flex#', $wrapped );
+
+		$bar     = strpos( $wrapped, 'rc-bar' );
+		$before  = strpos( $wrapped, 'Before the feed' );
+		$feed_at = strpos( $wrapped, 'alignwide newspack-rolling-coverage-feed' );
+		$entry   = strpos( $wrapped, 'Summary of the wrapped update' );
+		$after   = strpos( $wrapped, 'After the feed' );
+
+		$this->assertTrue( $bar < $before && $before < $feed_at && $feed_at < $entry && $entry < $after, 'The wrapper should hold its own blocks around the Feed, and the Feed the entries.' );
+		$this->assertSame( 1, substr_count( $wrapped, '<article' ) );
+		$this->assertSame( 1, substr_count( $wrapped, 'Before the feed' ) );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-feed-items', $wrapped );
+
+		preg_match( '/data-template-key="([^"]+)"/', $wrapped, $wrapped_key );
+		preg_match( '/data-template-key="([^"]+)"/', $top_level, $top_level_key );
+		$this->assertSame( $top_level_key[1], $wrapped_key[1], 'The wrapper should not change the entry template.' );
+		$this->assertStringContainsString( 'style="--newspack-rolling-coverage-gap:var(--wp--preset--spacing--40)"', $wrapped );
+
+		$request = new WP_REST_Request( 'GET' );
+		$request->set_param( 'term_id', $coverage_id );
+		$request->set_param( 'template_key', $wrapped_key[1] );
+		$request->set_param( 'before', gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ) );
+
+		$polled = Rolling_Coverage_Block::get_entries( $request )->get_data()['html'];
+
+		$this->assertStringContainsString( 'Summary of the wrapped update', $polled );
+		$this->assertStringContainsString( 'newspack-rolling-coverage-regular-entry', $polled );
+		$this->assertStringNotContainsString( 'Before the feed', $polled );
+	}
+
+	/**
+	 * A Feed group two wrapper groups deep renders inside both, the outer one
+	 * outermost, with its entries rendered once.
+	 */
+	public function test_feed_inside_nested_wrapper_groups_renders_inside_both() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id, [ 'post_excerpt' => 'Summary of the nested update' ] );
+
+		$items = '<!-- wp:group {"className":"rc-outer"} --><div class="wp-block-group rc-outer">'
+			. '<!-- wp:group {"className":"rc-inner"} --><div class="wp-block-group rc-inner">'
+			. '<!-- wp:group {"className":"newspack-rolling-coverage-feed","layout":{"type":"flex","orientation":"vertical"}} --><div class="wp-block-group newspack-rolling-coverage-feed">'
+			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. '<!-- wp:post-excerpt /-->'
+			. '</div><!-- /wp:group -->'
+			. '</div><!-- /wp:group -->'
+			. '</div><!-- /wp:group -->'
+			. '</div><!-- /wp:group -->';
+
+		$html = self::render_coverage_items( [ 'coverageId' => $coverage_id ], $items );
+
+		$outer   = strpos( $html, 'rc-outer' );
+		$inner   = strpos( $html, 'rc-inner' );
+		$feed_at = strpos( $html, 'wp-block-group newspack-rolling-coverage-feed' );
+		$article = strpos( $html, '<article' );
+
+		$this->assertTrue( false !== $outer && $outer < $inner && $inner < $feed_at && $feed_at < $article, 'The wrappers should hold the Feed, outer first, and the Feed the entries.' );
+		$this->assertSame( 1, substr_count( $html, '<article' ) );
+		$this->assertSame( 1, substr_count( $html, 'rc-inner' ) );
+		$this->assertStringContainsString( 'Summary of the nested update', $html );
 	}
 }

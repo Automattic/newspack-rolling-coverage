@@ -42,15 +42,37 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Restore error logging if the test silenced it.
+	 * Restore error logging if the test silenced it, and take away any ad
+	 * unit the test gave the feed placement.
 	 */
 	public function tear_down() {
+		if ( class_exists( \Newspack_Ads\Placements::class ) ) {
+			\Newspack_Ads\Placements::$placements = [];
+		}
+
 		if ( null !== $this->previous_error_log ) {
 			ini_set( 'error_log', $this->previous_error_log ); // phpcs:ignore WordPress.PHP.IniSet.Risky -- Restoring the value changed by silence_error_log().
 			$this->previous_error_log = null;
 		}
 
 		parent::tear_down();
+	}
+
+	/**
+	 * Give the feed placement an ad unit, as Newspack Ads would, for the rest
+	 * of the test.
+	 */
+	protected static function enable_ad_placement() {
+		require_once __DIR__ . '/mocks/newspack-ads.php';
+
+		\Newspack_Ads\Placements::$placements = [
+			'rolling_coverage_entry' => [
+				'data' => [
+					'enabled' => true,
+					'ad_unit' => 'test-unit',
+				],
+			],
+		];
 	}
 
 	/**
@@ -108,6 +130,26 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		}
 
 		return $entry_id;
+	}
+
+	/**
+	 * Create an entry whose publish and modified dates are both `$date`.
+	 *
+	 * @param int    $coverage_id Coverage term ID.
+	 * @param string $date        GMT date.
+	 * @param string $status      Post status.
+	 * @return int Entry post ID.
+	 */
+	protected static function create_dated_entry( int $coverage_id, string $date, string $status = 'publish' ): int {
+		return self::create_entry(
+			$coverage_id,
+			[
+				'post_status'   => $status,
+				'post_content'  => 'Update at ' . $date,
+				'post_date'     => $date,
+				'post_date_gmt' => $date,
+			]
+		);
 	}
 
 	/**

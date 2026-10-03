@@ -34,6 +34,11 @@ interface RollingCoverageAttributes {
 	archivedNoticeLinkUrl: string;
 	archivedNoticeLinkLabel: string;
 	layoutId: number;
+	latestOnly: boolean;
+	latestCount: number;
+	allUpdatesLink: boolean;
+	hideWhenEnded: boolean;
+	align?: string;
 	[ key: string ]: unknown;
 }
 

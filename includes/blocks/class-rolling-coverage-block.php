@@ -59,6 +59,13 @@ class Rolling_Coverage_Block {
 	// Option name prefix for persisted entry templates: rc_tpl_{coverage_id}_{hash}.
 	const TEMPLATE_OPTION_PREFIX = 'rc_tpl_';
 
+	/**
+	 * How many stored block configs to keep per coverage.
+	 *
+	 * @var int
+	 */
+	const CONFIGS_KEPT = 5;
+
 	const PINNED_CARD_CLASS = 'newspack-rolling-coverage-pinned-card';
 
 	/**
@@ -85,6 +92,12 @@ class Rolling_Coverage_Block {
 	 * is in the block's stylesheet.
 	 */
 	const FEED_GAP_PROPERTY = '--newspack-rolling-coverage-gap';
+
+	/**
+	 * Marks where the coverage's items go while the Feed group and the groups
+	 * wrapping it render.
+	 */
+	const FEED_ITEMS_PLACEHOLDER = '<!-- newspack-rolling-coverage-feed-items -->';
 
 	/**
 	 * The space between the blocks of an entry group or pinned card whose
@@ -135,6 +148,31 @@ class Rolling_Coverage_Block {
 	private static $entry_render_depth = 0;
 
 	/**
+	 * How many coverage-level block lists are rendering right now. The
+	 * filters that space an entry's blocks and drop its empty Buttons act
+	 * on them too.
+	 *
+	 * @var int
+	 */
+	private static $coverage_render_depth = 0;
+
+	/**
+	 * Whether the entry rendering now shows as unpinned, whatever its pinned
+	 * state. Read by the entry bindings that show the pinned label and row.
+	 *
+	 * @var bool
+	 */
+	private static $ignoring_pinning = false;
+
+	/**
+	 * The coverage page URL the "See all updates" paragraph links to while
+	 * the coverage-level blocks render; empty otherwise.
+	 *
+	 * @var string
+	 */
+	private static $all_updates_url = '';
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -175,6 +213,115 @@ class Rolling_Coverage_Block {
 	 */
 	public static function is_rendering_entry(): bool {
 		return self::$entry_render_depth > 0;
+	}
+
+	/**
+	 * Whether an entry or the coverage-level blocks are being rendered, so
+	 * the filters shaping the layout's blocks apply.
+	 *
+	 * @return bool
+	 */
+	private static function is_rendering_template_blocks(): bool {
+		return self::$entry_render_depth > 0 || self::$coverage_render_depth > 0;
+	}
+
+	/**
+	 * Whether the entry rendering now is shown as unpinned, whatever its
+	 * pinned state.
+	 *
+	 * @return bool
+	 */
+	public static function is_ignoring_pinning(): bool {
+		return self::$ignoring_pinning;
+	}
+
+	/**
+	 * The URL the "See all updates" paragraph links to now, or an empty
+	 * string outside the coverage-level blocks.
+	 *
+	 * @return string
+	 */
+	public static function get_all_updates_url(): string {
+		return self::$all_updates_url;
+	}
+
+	/**
+	 * Whether a URL is the page being requested: same host as the site and
+	 * the same path, ignoring the trailing slash, the case of percent-encoded
+	 * octets and the fragment. The URL's query arguments must all be present
+	 * in the request with the same values; the request may carry more.
+	 *
+	 * @param string $url URL to compare.
+	 * @return bool
+	 */
+	public static function is_coverage_page( string $url ): bool {
+		$target = wp_parse_url( $url );
+		$home   = wp_parse_url( home_url() );
+
+		if ( empty( $target['host'] ) || strtolower( $target['host'] ) !== strtolower( (string) ( $home['host'] ?? '' ) ) ) {
+			return false;
+		}
+
+		$request_uri  = wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$request_path = untrailingslashit( rawurldecode( (string) wp_parse_url( $request_uri, PHP_URL_PATH ) ) );
+		$target_path  = untrailingslashit( rawurldecode( (string) ( $target['path'] ?? '' ) ) );
+
+		if ( $request_path !== $target_path ) {
+			return false;
+		}
+
+		if ( empty( $target['query'] ) ) {
+			return true;
+		}
+
+		wp_parse_str( $target['query'], $target_args );
+		wp_parse_str( (string) wp_parse_url( $request_uri, PHP_URL_QUERY ), $request_args );
+
+		foreach ( $target_args as $name => $value ) {
+			if ( ! isset( $request_args[ $name ] ) || $request_args[ $name ] !== $value ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * How many entries a capped feed shows, as an entries request states it:
+	 * the page's own count, so a page whose stored config has been pruned
+	 * still polls capped. 0 when the request states no positive count.
+	 *
+	 * @param array $params Request parameters.
+	 * @return int
+	 */
+	private static function requested_latest_count( array $params ): int {
+		$latest = (int) ( $params['latest'] ?? 0 );
+
+		if ( $latest < 1 ) {
+			return 0;
+		}
+
+		return self::latest_count(
+			[
+				'latestOnly'  => true,
+				'latestCount' => $latest,
+			]
+		);
+	}
+
+	/**
+	 * How many entries a capped feed shows, from the block's attributes or
+	 * its stored config: at least one, or 0 when the feed is not capped.
+	 *
+	 * @param array $settings Block attributes or stored block config.
+	 * @return int
+	 */
+	private static function latest_count( array $settings ): int {
+		if ( empty( $settings['latestOnly'] ) ) {
+			return 0;
+		}
+
+		return min( max( 1, (int) ( $settings['latestCount'] ?? 5 ) ), self::PER_PAGE_MAX );
 	}
 
 	/**
@@ -219,17 +366,37 @@ class Rolling_Coverage_Block {
 	 * @return array|null Parsed Feed group, or null for a layout without one.
 	 */
 	private static function feed_group( WP_Block $block ): ?array {
-		foreach ( $block->parsed_block['innerBlocks'] ?? [] as $inner_block ) {
-			if (
-				is_array( $inner_block ) &&
-				'core/group' === ( $inner_block['blockName'] ?? '' ) &&
-				in_array( self::FEED_CLASS, explode( ' ', (string) ( $inner_block['attrs']['className'] ?? '' ) ), true )
-			) {
-				return $inner_block;
+		$path = self::feed_path( $block->parsed_block['innerBlocks'] ?? [] );
+
+		return $path ? end( $path ) : null;
+	}
+
+	/**
+	 * The groups leading to the layout's Feed group, from the outermost
+	 * wrapper group down to the Feed itself, which may sit at the layout's top
+	 * level or inside plain groups.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return array[] Parsed groups, the Feed last, or an empty list for a layout without one.
+	 */
+	private static function feed_path( array $blocks ): array {
+		foreach ( $blocks as $inner_block ) {
+			if ( ! is_array( $inner_block ) || 'core/group' !== ( $inner_block['blockName'] ?? '' ) ) {
+				continue;
+			}
+
+			if ( in_array( self::FEED_CLASS, explode( ' ', (string) ( $inner_block['attrs']['className'] ?? '' ) ), true ) ) {
+				return [ $inner_block ];
+			}
+
+			$path = self::feed_path( $inner_block['innerBlocks'] ?? [] );
+
+			if ( $path ) {
+				return array_merge( [ $inner_block ], $path );
 			}
 		}
 
-		return null;
+		return [];
 	}
 
 	/**
@@ -246,35 +413,107 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Wraps the coverage's items in the Feed group, rendered by core so its
-	 * classes and styles apply, or in a plain container for a layout without
-	 * one.
+	 * The layout's items split by where they render: the coverage-level
+	 * items before the first per-entry item render above the entries, the
+	 * per-entry items make the entry template, and the coverage-level items
+	 * after it render below the entries. "Jump to Latest" renders in its own
+	 * place, so it's in neither list.
 	 *
-	 * @param array|null $feed  Parsed Feed group.
-	 * @param string     $items The items' HTML.
+	 * @param WP_Block $block The Rolling Coverage block instance.
+	 * @return array{header: array[], template: array[], footer: array[]} Parsed blocks.
+	 */
+	private static function layout_parts( WP_Block $block ): array {
+		$parts = [
+			'header'   => [],
+			'template' => [],
+			'footer'   => [],
+		];
+
+		foreach ( self::layout_items( $block ) as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
+
+			if ( ! Entry_Bindings::is_coverage_item( $item ) ) {
+				$parts['template'][] = $item;
+			} elseif ( ! Entry_Bindings::is_latest_buttons( $item ) ) {
+				$parts[ $parts['template'] ? 'footer' : 'header' ][] = $item;
+			}
+		}
+
+		return $parts;
+	}
+
+	/**
+	 * Wraps the coverage's items in the Feed group, rendered by core so its
+	 * classes and styles apply, then in each group wrapping the Feed, or in a
+	 * plain container for a layout without one.
+	 *
+	 * @param WP_Block $block The Rolling Coverage block instance.
+	 * @param string   $items The items' HTML.
 	 * @return string
 	 */
-	private static function render_feed( ?array $feed, string $items ): string {
+	private static function render_feed( WP_Block $block, string $items ): string {
+		$path    = self::feed_path( $block->parsed_block['innerBlocks'] ?? [] );
+		$feed    = array_pop( $path );
 		$content = array_values( array_filter( $feed['innerContent'] ?? [], 'is_string' ) );
 
 		if ( count( $content ) < 2 ) {
 			return '<div class="' . esc_attr( self::FEED_CLASS ) . '">' . $items . '</div>';
 		}
 
-		$placeholder = '<!-- newspack-rolling-coverage-feed-items -->';
-		$shell       = $feed;
+		$shell = $feed;
 
 		$shell['innerBlocks']  = [];
 		$shell['innerHTML']    = $content[0] . end( $content );
-		$shell['innerContent'] = [ $content[0], $placeholder, end( $content ) ];
+		$shell['innerContent'] = [ $content[0], self::FEED_ITEMS_PLACEHOLDER, end( $content ) ];
 
-		$html = render_block( $shell );
+		$html = self::render_around( $shell, $items );
 
-		if ( false === strpos( $html, $placeholder ) ) {
+		if ( null === $html ) {
 			return '<div class="' . esc_attr( self::FEED_CLASS ) . '">' . $items . '</div>';
 		}
 
-		return str_replace( $placeholder, $items, $html );
+		$child = $feed;
+
+		foreach ( array_reverse( $path ) as $wrapper ) {
+			$index = array_search( $child, $wrapper['innerBlocks'], true );
+			$shell = $wrapper;
+			$slot  = -1;
+
+			foreach ( $shell['innerContent'] as $position => $chunk ) {
+				if ( null === $chunk && ++$slot === $index ) {
+					$shell['innerContent'][ $position ] = self::FEED_ITEMS_PLACEHOLDER;
+					break;
+				}
+			}
+
+			array_splice( $shell['innerBlocks'], $index, 1 );
+
+			$wrapped = self::render_around( $shell, $html );
+			$html    = $wrapped ?? $html;
+			$child   = $wrapper;
+		}
+
+		return $html;
+	}
+
+	/**
+	 * Renders a block whose content holds the Feed's items placeholder, with
+	 * the given HTML in its place.
+	 *
+	 * @param array  $block Parsed block.
+	 * @param string $html  HTML for the placeholder.
+	 * @return string|null The block's HTML, or null when rendering dropped the placeholder.
+	 */
+	private static function render_around( array $block, string $html ): ?string {
+		$rendered = render_block( $block );
+
+		if ( false === strpos( $rendered, self::FEED_ITEMS_PLACEHOLDER ) ) {
+			return null;
+		}
+
+		return str_replace( self::FEED_ITEMS_PLACEHOLDER, $html, $rendered );
 	}
 
 	/**
@@ -333,7 +572,7 @@ class Rolling_Coverage_Block {
 			! is_string( $block_content ) ||
 			! is_array( $block ) ||
 			'flex' !== ( $block['attrs']['layout']['type'] ?? ( 'core/columns' === ( $block['blockName'] ?? '' ) ? 'flex' : '' ) ) ||
-			! self::$entry_render_depth ||
+			! self::is_rendering_template_blocks() ||
 			'newspack-theme' !== get_template() ||
 			null !== wp_get_global_settings( [ 'spacing', 'blockGap' ] )
 		) {
@@ -376,7 +615,7 @@ class Rolling_Coverage_Block {
 	 * @return string
 	 */
 	public static function drop_empty_entry_buttons( $block_content ) {
-		if ( ! is_string( $block_content ) || ! self::$entry_render_depth ) {
+		if ( ! is_string( $block_content ) || ! self::is_rendering_template_blocks() ) {
 			return $block_content;
 		}
 
@@ -667,31 +906,42 @@ class Rolling_Coverage_Block {
 			}
 		}
 
-		$coverage_id = (int) ( $attributes['coverageId'] ?? 0 );
+		$coverage_id     = (int) ( $attributes['coverageId'] ?? 0 );
+		$latest_count    = self::latest_count( $attributes );
+		$is_capped       = $latest_count > 0;
+		// Capped feeds sit in site-wide placements, where readers must never see the notices meant for editors.
+		$hides_when_gone = ! empty( $attributes['hideWhenEnded'] ) || $is_capped;
 
 		if ( ! $coverage_id || ! term_exists( $coverage_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			self::$host_post_id = $previous_post_id;
 
-			return sprintf(
+			return $hides_when_gone ? '' : sprintf(
 				'<p %s>%s</p>',
 				get_block_wrapper_attributes(),
 				esc_html__( 'Select a coverage to display its entries.', 'newspack-rolling-coverage' )
 			);
 		}
 
-		$entries_per_page = min( max( 1, (int) ( $attributes['entriesPerPage'] ?? 20 ) ), self::PER_PAGE_MAX );
+		$entries_per_page = $is_capped ? $latest_count : min( max( 1, (int) ( $attributes['entriesPerPage'] ?? 20 ) ), self::PER_PAGE_MAX );
 		$poll_interval    = max( 1, (int) ( $attributes['pollInterval'] ?? 10 ) );
 		$ads_interval     = max( 1, (int) ( $attributes['adsInterval'] ?? 4 ) );
 		$status           = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
 		$status           = $status ? $status : 'active';
+
+		if ( ! empty( $attributes['hideWhenEnded'] ) && Taxonomy::STATUS_ARCHIVED === $status ) {
+			self::$host_post_id = $previous_post_id;
+
+			return '';
+		}
+
 		$ads_enabled_attr = ! empty( $attributes['enableAds'] );
-		$ads_enabled      = $ads_enabled_attr && ! self::is_coverage_ads_disabled( $coverage_id );
+		$ads_enabled      = ! $is_capped && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $coverage_id );
 
 		// A trashed coverage is effectively invisible on the frontend.
 		if ( 'trash' === $status ) {
 			self::$host_post_id = $previous_post_id;
 
-			return sprintf(
+			return $hides_when_gone ? '' : sprintf(
 				'<p %s>%s</p>',
 				get_block_wrapper_attributes(),
 				esc_html__( 'This coverage is no longer available.', 'newspack-rolling-coverage' )
@@ -710,25 +960,29 @@ class Rolling_Coverage_Block {
 			$ads_enabled = false;
 		}
 
-		$query = new WP_Query(
-			array_merge(
-				self::coverage_entries_args( $coverage_id ),
-				[
-					'orderby'        => 'date',
-					'order'          => 'DESC',
-					'posts_per_page' => $entries_per_page,
-				]
-			)
+		$query_args = array_merge(
+			self::coverage_entries_args( $coverage_id ),
+			[
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+				'posts_per_page' => $entries_per_page,
+			]
 		);
 
+		if ( $is_capped ) {
+			$query_args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
+		}
+
+		$query = new WP_Query( $query_args );
+
 		$template     = self::get_entry_template( $block );
-		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval );
+		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval, $latest_count );
 
 		self::store_entry_layout_styles( $template );
 
 		$posts        = $query->posts;
-		$has_more     = count( $posts ) === $entries_per_page;
-		$linked_entry = $is_lite ? null : self::get_linked_entry( $coverage_id );
+		$has_more     = ! $is_capped && count( $posts ) === $entries_per_page;
+		$linked_entry = ( $is_lite || $is_capped ) ? null : self::get_linked_entry( $coverage_id );
 		$shared_entry = self::get_shared_entry( $linked_entry, $posts );
 
 		if ( $shared_entry ) {
@@ -761,11 +1015,12 @@ class Rolling_Coverage_Block {
 
 		foreach ( $posts as $entry ) {
 			$entry_index++;
-			$shows_pinned  = $shows_pinned || Post_Type::is_pinned( $entry->ID );
-			$shows_regular = $shows_regular || ! Post_Type::is_pinned( $entry->ID );
+			$is_pinned     = ! $is_capped && Post_Type::is_pinned( $entry->ID );
+			$shows_pinned  = $shows_pinned || $is_pinned;
+			$shows_regular = $shows_regular || ! $is_pinned;
 			$entries_html .= $is_lite
 				? Lite_Feed::render_entry( $entry, 'initial' )
-				: self::render_entry( $entry, $template, 'initial', ! $has_more && count( $posts ) === $entry_index, $linked_entry && $linked_entry->ID === $entry->ID );
+				: self::render_entry( $entry, $template, 'initial', is_last: ! $has_more && count( $posts ) === $entry_index, is_linked: $linked_entry && $linked_entry->ID === $entry->ID, is_capped: $is_capped );
 
 			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
 				$entries_html .= Ads::render_placement()['html'];
@@ -777,7 +1032,7 @@ class Rolling_Coverage_Block {
 		$cursor     = $shared_entry ? self::coverage_cursor( $coverage_id ) : self::latest_cursor( $posts );
 		$oldest_gmt = ! empty( $posts ) ? self::post_date_gmt( $posts[ count( $posts ) - 1 ] ) : '';
 
-		if ( $posts && ! $shows_pinned ) {
+		if ( $posts && ! $shows_pinned && ! $is_capped ) {
 			self::store_template_layout_styles( self::pinned_cards( $template ) );
 		}
 
@@ -802,9 +1057,7 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		// Follow button: rendered once at the top of the coverage, not per entry.
-		$follow_html = $is_lite ? '' : self::maybe_render_follow_button( $block, $coverage_id, $status );
-
+		$layout_parts = self::layout_parts( $block );
 		$feed         = self::feed_group( $block );
 		$wrapper_data = [
 			'data-coverage-id'      => $coverage_id,
@@ -822,6 +1075,14 @@ class Rolling_Coverage_Block {
 
 		if ( $shared_entry ) {
 			$wrapper_data['data-view'] = 'entry';
+		}
+
+		if ( $is_capped ) {
+			$wrapper_data['data-latest'] = $latest_count;
+		}
+
+		if ( ! empty( $attributes['hideWhenEnded'] ) ) {
+			$wrapper_data['data-hide-when-ended'] = 'true';
 		}
 
 		if ( $is_lite ) {
@@ -845,21 +1106,32 @@ class Rolling_Coverage_Block {
 		}
 
 		$wrapper_attributes = get_block_wrapper_attributes( $wrapper_data );
+		$all_updates_url    = $is_capped && false !== ( $attributes['allUpdatesLink'] ?? true ) && self::holds_block( array_merge( $layout_parts['header'], $layout_parts['footer'] ), [ Entry_Bindings::class, 'is_all_updates_paragraph' ] )
+			? Taxonomy::get_coverage_page_url( $coverage_id )
+			: '';
+
+		if ( self::is_coverage_page( $all_updates_url ) ) {
+			$all_updates_url = '';
+		}
 
 		try {
 			$items_html = sprintf(
-				'%5$s%3$s<div class="%1$s-status" role="status" aria-live="polite"></div>%4$s<div class="%1$s-entries">%2$s</div><div class="%1$s-sentinel" aria-hidden="true"></div>',
+				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%7$s%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
-				$follow_html,
-				self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
-				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : ''
+				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url ),
+				$is_capped ? '' : self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
+				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
+				$is_capped ? '' : sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ),
+				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url ),
+				// A capped feed can sit on every page, where announcing each new entry would be noise.
+				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX )
 			);
 
 			return sprintf(
 				'<div %s>%s</div>',
 				$wrapper_attributes,
-				$is_lite ? $items_html : self::render_feed( $feed, $items_html )
+				$is_lite ? $items_html : self::render_feed( $block, $items_html )
 			);
 		} finally {
 			self::$host_post_id = $previous_post_id;
@@ -1456,45 +1728,31 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Renders the follow button once at the top of the coverage.
+	 * Renders coverage-level blocks once, with the coverage in their context
+	 * so the follow button carries its tag. A follow button that can't render,
+	 * e.g. on an archived coverage, leaves nothing behind, nor does a group
+	 * left empty once it and the "See all updates" paragraph drop out, and
+	 * "Jump to Latest" renders only as its own control, so none renders here.
 	 *
-	 * The button is removable, so this returns an empty string if the editor
-	 * deleted it (or if the follow button shouldn't render at all). It's a
-	 * core button bound to the coverage, or the legacy Follow block on
-	 * coverages saved before it.
-	 *
-	 * @param WP_Block $block       The parent rolling-coverage block instance.
-	 * @param int      $coverage_id Coverage term id.
-	 * @param string   $status      Coverage status.
-	 * @return string Follow button HTML, or an empty string.
+	 * @param array[] $blocks          Parsed coverage-level blocks.
+	 * @param int     $coverage_id     Coverage term id.
+	 * @param string  $status          Coverage status.
+	 * @param string  $all_updates_url Where the "See all updates" paragraph links; empty drops it.
+	 * @return string Rendered HTML, or an empty string.
 	 */
-	private static function maybe_render_follow_button( WP_Block $block, int $coverage_id, string $status ): string {
-		if ( ! Coverage_Follow_Block::should_render( $status ) ) {
+	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '' ): string {
+		if ( ! $blocks ) {
 			return '';
 		}
 
-		$follow_block = null;
-
-		foreach ( self::layout_items( $block ) as $inner ) {
-			// A Buttons block also holding "Jump to Latest" renders as that control.
-			if ( Entry_Bindings::is_latest_buttons( $inner ) ) {
-				continue;
-			}
-
-			if ( Coverage_Follow_Block::BLOCK_NAME === ( $inner['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $inner ) ) {
-				$follow_block = $inner;
-				break;
-			}
-		}
-
-		if ( null === $follow_block ) {
-			return '';
-		}
+		// The Follow button needs its own script and a push provider, neither
+		// of which a lite page has.
+		$can_follow = ! Lite_Feed::is_lite_render() && Coverage_Follow_Block::should_render( $status );
 
 		// Preload the follow button's view script and the legacy block's
 		// styles: the button renders inside this callback, so WordPress
 		// doesn't enqueue its assets.
-		$follow_block_type = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Follow_Block::BLOCK_NAME );
+		$follow_block_type = $can_follow && self::holds_follow_button( $blocks ) ? WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Follow_Block::BLOCK_NAME ) : null;
 
 		if ( $follow_block_type ) {
 			foreach ( $follow_block_type->style_handles as $style_handle ) {
@@ -1506,37 +1764,84 @@ class Rolling_Coverage_Block {
 			}
 		}
 
-		if ( Coverage_Follow_Block::BLOCK_NAME !== $follow_block['blockName'] ) {
-			$add_coverage_context = fn( $context ) => array_merge(
-				(array) $context,
-				[
-					Entry_Bindings::COVERAGE_ID_CONTEXT => $coverage_id,
-					Entry_Bindings::COVERAGE_STATUS_CONTEXT => $status,
-				]
-			);
+		$blocks = self::map_template_blocks(
+			$blocks,
+			static function ( array $block, array $original ) use ( $coverage_id, $status, $all_updates_url, $can_follow ) {
+				if (
+					Entry_Bindings::is_latest_buttons( $block ) ||
+					( '' === $all_updates_url && Entry_Bindings::is_all_updates_paragraph( $block ) ) ||
+					( ! $can_follow && ( Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $block ) ) ) ||
+					( 'core/group' === ( $block['blockName'] ?? '' ) && empty( $block['innerBlocks'] ) && ! empty( $original['innerBlocks'] ) )
+				) {
+					return [];
+				}
 
-			add_filter( 'render_block_context', $add_coverage_context );
+				if ( Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) {
+					$block['attrs'] = array_merge(
+						(array) ( $block['attrs'] ?? [] ),
+						[
+							'coverageId' => $coverage_id,
+							'status'     => $status,
+						]
+					);
+				}
 
-			try {
-				return render_block( $follow_block );
-			} finally {
-				remove_filter( 'render_block_context', $add_coverage_context );
+				return [ $block ];
+			}
+		);
+
+		$add_coverage_context = fn( $context ) => array_merge(
+			(array) $context,
+			[
+				Entry_Bindings::COVERAGE_ID_CONTEXT     => $coverage_id,
+				Entry_Bindings::COVERAGE_STATUS_CONTEXT => $status,
+			]
+		);
+
+		$previous_all_updates_url = self::$all_updates_url;
+		self::$all_updates_url    = $all_updates_url;
+
+		add_filter( 'render_block_context', $add_coverage_context );
+		++self::$coverage_render_depth;
+
+		try {
+			return implode( '', array_map( 'render_block', $blocks ) );
+		} finally {
+			--self::$coverage_render_depth;
+			self::$all_updates_url = $previous_all_updates_url;
+			remove_filter( 'render_block_context', $add_coverage_context );
+		}
+	}
+
+	/**
+	 * Whether blocks hold a follow button, the core one or the legacy block,
+	 * at any depth.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return bool
+	 */
+	private static function holds_follow_button( array $blocks ): bool {
+		return self::holds_block(
+			$blocks,
+			static fn( array $block ) => Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $block )
+		);
+	}
+
+	/**
+	 * Whether blocks hold a block matching a test, at any depth.
+	 *
+	 * @param array[]  $blocks   Parsed blocks.
+	 * @param callable $is_match Tests a parsed block.
+	 * @return bool
+	 */
+	private static function holds_block( array $blocks, callable $is_match ): bool {
+		foreach ( $blocks as $block ) {
+			if ( is_array( $block ) && ( $is_match( $block ) || self::holds_block( $block['innerBlocks'] ?? [], $is_match ) ) ) {
+				return true;
 			}
 		}
 
-		$attrs               = $follow_block['attrs'] ?? [];
-		$attrs['coverageId'] = $coverage_id;
-		$attrs['status']     = $status;
-
-		return render_block(
-			[
-				'blockName'    => Coverage_Follow_Block::BLOCK_NAME,
-				'attrs'        => $attrs,
-				'innerBlocks'  => [],
-				'innerHTML'    => '',
-				'innerContent' => [],
-			]
-		);
+		return false;
 	}
 
 	/**
@@ -1654,26 +1959,11 @@ class Rolling_Coverage_Block {
 	 *                  `innerBlocks` key of a WP_Block source array.
 	 */
 	private static function get_entry_template( WP_Block $block ) {
-		$inner_blocks = self::layout_items( $block );
-
-		if ( empty( $inner_blocks ) ) {
+		if ( empty( self::layout_items( $block ) ) ) {
 			return self::default_entry_template();
 		}
 
-		// The saved inner blocks also include blocks that render once at the
-		// top of the coverage, not per entry.
-		$singleton_blocks = [
-			Coverage_Follow_Block::BLOCK_NAME,
-		];
-		$template         = [];
-
-		foreach ( $inner_blocks as $inner_block ) {
-			if ( ! in_array( $inner_block['blockName'] ?? '', $singleton_blocks, true ) && ! Entry_Bindings::is_follow_buttons( $inner_block ) && ! Entry_Bindings::is_latest_buttons( $inner_block ) ) {
-				$template[] = $inner_block;
-			}
-		}
-
-		return $template;
+		return self::layout_parts( $block )['template'];
 	}
 
 	/**
@@ -2261,6 +2551,17 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Whether a parsed block is the pinned card or the entry group, which
+	 * render per entry.
+	 *
+	 * @param array $block Parsed block.
+	 * @return bool
+	 */
+	public static function is_entry_group( array $block ): bool {
+		return self::is_pinned_card( $block ) || self::is_regular_entry( $block );
+	}
+
+	/**
 	 * Whether a parsed block is the pinned card.
 	 *
 	 * @param array $block Parsed block.
@@ -2327,22 +2628,25 @@ class Rolling_Coverage_Block {
 	 * Inner blocks are mapped before the block holding them.
 	 *
 	 * @param array[]  $blocks Parsed blocks.
-	 * @param callable $map    Returns the blocks that replace the one given.
+	 * @param callable $map    Returns the blocks that replace the one given, which
+	 *                         it gets with its inner blocks mapped, then as it was.
 	 * @return array[]
 	 */
 	private static function map_template_blocks( array $blocks, callable $map ): array {
 		$mapped = [];
 
-		foreach ( $blocks as $block ) {
-			if ( ! is_array( $block ) ) {
+		foreach ( $blocks as $original ) {
+			if ( ! is_array( $original ) ) {
 				continue;
 			}
+
+			$block = $original;
 
 			if ( ! empty( $block['innerBlocks'] ) ) {
 				$block = self::sync_inner_content( $block, self::map_template_blocks( $block['innerBlocks'], $map ) );
 			}
 
-			foreach ( $map( $block ) as $replacement ) {
+			foreach ( $map( $block, $original ) as $replacement ) {
 				$mapped[] = $replacement;
 			}
 		}
@@ -2446,20 +2750,27 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Stores the entry template plus the block's ad settings in the options
-	 * table and returns a hash key identifying that exact combination.
+	 * table and returns a hash key identifying that exact combination. A
+	 * capped feed's config also holds how many entries it shows.
 	 *
 	 * @param int   $coverage_id  Coverage term ID.
 	 * @param array $template     Per-entry inner-block template.
 	 * @param bool  $ads_enabled  The block's own Enable Ads toggle.
 	 * @param int   $ads_interval Show an ad after every N entries.
+	 * @param int   $latest_count How many entries a capped feed shows; 0 when not capped.
 	 * @return string Hash key identifying this config.
 	 */
-	private static function persist_block_config( int $coverage_id, array $template, bool $ads_enabled, int $ads_interval ): string {
+	private static function persist_block_config( int $coverage_id, array $template, bool $ads_enabled, int $ads_interval, int $latest_count = 0 ): string {
 		$config = [
 			'template'    => $template,
 			'adsEnabled'  => $ads_enabled,
 			'adsInterval' => $ads_interval,
 		];
+
+		if ( $latest_count ) {
+			$config['latestOnly']  = true;
+			$config['latestCount'] = $latest_count;
+		}
 
 		$hash       = substr( md5( wp_json_encode( $config ) ), 0, 12 );
 		$option_key = self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $hash;
@@ -2468,23 +2779,30 @@ class Rolling_Coverage_Block {
 			update_option( $option_key, $config, false );
 		}
 
-		// Keep the previous config too: pages still in the page cache poll with
-		// its key. Anything older is pruned so the options table stays bounded.
-		$current_template_meta_key  = 'rolling_coverage_template_hash';
-		$previous_template_meta_key = 'rolling_coverage_previous_template_hash';
-		$current_hash               = get_term_meta( $coverage_id, $current_template_meta_key, true );
+		// Pages still in the page cache poll with an older config's key, and
+		// one coverage can show several layouts at once. Only the most recent
+		// configs are kept so the options table stays bounded. The list is
+		// written only when its membership changes or the next config to drop
+		// is rendered again, since every term meta write flushes the site's
+		// term query caches.
+		$meta_key = 'rolling_coverage_template_hashes';
+		$hashes   = get_term_meta( $coverage_id, $meta_key, true );
+		$hashes   = is_array( $hashes ) ? array_values( $hashes ) : [];
 
-		if ( $current_hash && $current_hash !== $hash ) {
-			$previous_hash = get_term_meta( $coverage_id, $previous_template_meta_key, true );
-
-			if ( $previous_hash && $previous_hash !== $hash ) {
-				delete_option( self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $previous_hash );
-			}
-
-			update_term_meta( $coverage_id, $previous_template_meta_key, $current_hash );
+		if ( ! in_array( $hash, $hashes, true ) ) {
+			$hashes[] = $hash;
+		} elseif ( count( $hashes ) >= self::CONFIGS_KEPT && $hashes[0] === $hash ) {
+			array_shift( $hashes );
+			$hashes[] = $hash;
+		} else {
+			return $hash;
 		}
 
-		update_term_meta( $coverage_id, $current_template_meta_key, $hash );
+		foreach ( array_splice( $hashes, 0, max( 0, count( $hashes ) - self::CONFIGS_KEPT ) ) as $old_hash ) {
+			delete_option( self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $old_hash );
+		}
+
+		update_term_meta( $coverage_id, $meta_key, $hashes );
 
 		return $hash;
 	}
@@ -2496,7 +2814,7 @@ class Rolling_Coverage_Block {
 	 *
 	 * @param int    $coverage_id  Coverage term ID.
 	 * @param string $template_key Hash returned by persist_block_config().
-	 * @return array{template: array[], adsEnabled: bool, adsInterval: int}
+	 * @return array{template: array[], adsEnabled: bool, adsInterval: int, latestOnly?: bool, latestCount?: int}
 	 */
 	private static function load_block_config( int $coverage_id, string $template_key ): array {
 		$defaults = [
@@ -2559,18 +2877,22 @@ class Rolling_Coverage_Block {
 	 *                       entry for the duration of this render and
 	 *                       restored to its previous value afterwards.
 	 *
-	 * @param WP_Post $entry     Entry post object.
-	 * @param array[] $template  Per-entry inner-block template, as returned
-	 *                           by get_entry_template().
-	 * @param string  $arrival   How the entry first reaches the client:
-	 *                           'initial', 'poll', or 'load_more'. Stamped as
-	 *                           data-arrival for frontend entry-seen tracking.
-	 * @param bool    $is_last   Whether no entry can load after this one.
-	 * @param bool    $is_linked Whether the page's link names this entry.
+	 * @param WP_Post $entry          Entry post object.
+	 * @param array[] $template       Per-entry inner-block template, as returned
+	 *                                by get_entry_template().
+	 * @param string  $arrival        How the entry first reaches the client:
+	 *                                'initial', 'poll', or 'load_more'. Stamped as
+	 *                                data-arrival for frontend entry-seen tracking.
+	 * @param bool    $is_last        Whether no entry can load after this one.
+	 * @param bool    $is_linked      Whether the page's link names this entry.
+	 * @param bool    $is_capped      Whether the entry shows in a capped feed:
+	 *                                rendered as unpinned whatever its pinned
+	 *                                state, and with no anchor id, so links to
+	 *                                the entry land on the coverage page.
 	 * @return string Rendered HTML for the entry.
 	 */
-	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', bool $is_last = false, bool $is_linked = false ): string {
-		$is_pinned = Post_Type::is_pinned( $entry->ID );
+	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', bool $is_last = false, bool $is_linked = false, bool $is_capped = false ): string {
+		$is_pinned = ! $is_capped && Post_Type::is_pinned( $entry->ID );
 		$template  = self::shape_entry_template(
 			self::drop_fixed_template_dates( $template ),
 			$is_pinned,
@@ -2584,8 +2906,10 @@ class Rolling_Coverage_Block {
 
 		global $post;
 
-		$previous_post = $post;
-		$post          = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$previous_post          = $post;
+		$was_ignoring_pinning   = self::$ignoring_pinning;
+		$post                   = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		self::$ignoring_pinning = $is_capped;
 		setup_postdata( $entry );
 
 		$is_archived = Archive_Mode::is_entry_archived( $entry->ID );
@@ -2614,7 +2938,8 @@ class Rolling_Coverage_Block {
 				remove_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );
 			}
 
-			$post = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			$post                   = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			self::$ignoring_pinning = $was_ignoring_pinning;
 			setup_postdata( $previous_post );
 		}
 
@@ -2625,8 +2950,8 @@ class Rolling_Coverage_Block {
 		$post_classes = implode( ' ', get_post_class( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post' ], $entry ) );
 
 		$html = sprintf(
-			'<article id="%1$s-entry-%2$d" class="%3$s" data-entry-id="%2$d" data-entry-slug="%6$s" data-arrival="%5$s"%7$s%8$s>%4$s</article>',
-			self::MARKUP_PREFIX,
+			'<article%1$s class="%3$s" data-entry-id="%2$d" data-entry-slug="%6$s" data-arrival="%5$s"%7$s%8$s>%4$s</article>',
+			$is_capped ? '' : sprintf( ' id="%s-entry-%d"', self::MARKUP_PREFIX, $entry->ID ),
 			$entry->ID,
 			esc_attr( $post_classes ),
 			$entry_content,
@@ -2782,6 +3107,11 @@ class Rolling_Coverage_Block {
 						'type'    => 'integer',
 						'default' => 0,
 					],
+					'latest'       => [
+						'description' => __( 'How many entries a capped feed shows, so its requests stay capped without a stored config.', 'newspack-rolling-coverage' ),
+						'type'        => 'integer',
+						'minimum'     => 1,
+					],
 					'lite'         => [
 						'type'    => 'boolean',
 						'default' => false,
@@ -2798,12 +3128,16 @@ class Rolling_Coverage_Block {
 				'callback'            => [ __CLASS__, 'get_entries_preview' ],
 				'permission_callback' => [ __CLASS__, 'can_preview_entries' ],
 				'args'                => [
-					'term_id'  => [
+					'term_id'     => [
 						'required'          => true,
 						'validate_callback' => [ __CLASS__, 'validate_term_id' ],
 					],
-					'per_page' => [
+					'per_page'    => [
 						'type' => 'integer',
+					],
+					'latest_only' => [
+						'type'    => 'boolean',
+						'default' => false,
 					],
 				],
 			]
@@ -2839,27 +3173,32 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		$per_page = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
+		$per_page    = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
+		$latest_only = rest_sanitize_boolean( $params['latest_only'] ?? false );
 
-		$query = new WP_Query(
-			[
-				'post_type'           => Post_Type::CPT_SLUG,
-				'post_status'         => 'publish',
-				'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-					[
-						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
-						'field'    => 'term_id',
-						'terms'    => $term_id,
-					],
+		$query_args = [
+			'post_type'           => Post_Type::CPT_SLUG,
+			'post_status'         => 'publish',
+			'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+				[
+					'taxonomy' => Taxonomy::TAXONOMY_SLUG,
+					'field'    => 'term_id',
+					'terms'    => $term_id,
 				],
-				'orderby'             => 'date',
-				'order'               => 'DESC',
-				'posts_per_page'      => $per_page,
-				'no_found_rows'       => true,
-				'ignore_sticky_posts' => true,
-				'fields'              => 'ids',
-			]
-		);
+			],
+			'orderby'             => 'date',
+			'order'               => 'DESC',
+			'posts_per_page'      => $per_page,
+			'no_found_rows'       => true,
+			'ignore_sticky_posts' => true,
+			'fields'              => 'ids',
+		];
+
+		if ( $latest_only ) {
+			$query_args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
+		}
+
+		$query = new WP_Query( $query_args );
 
 		update_meta_cache( 'post', $query->posts );
 		_prime_post_caches( $query->posts, false, false );
@@ -2869,24 +3208,24 @@ class Rolling_Coverage_Block {
 			false
 		);
 
-		$entries = array_map( [ __CLASS__, 'map_entry_preview' ], $query->posts );
+		$entries = array_map( fn( $id ) => self::map_entry_preview( $id, $latest_only ), $query->posts );
 
 		return new WP_REST_Response( $entries );
 	}
 
 	/**
-	 * Array_map() callback for get_entries_preview(): reduces a post ID to
-	 * the bare `{ id, type, pinned, hasBreakout, hasTitle }` shape the editor
-	 * preview needs.
+	 * Reduces a post ID to the bare `{ id, type, pinned, hasBreakout, hasTitle }`
+	 * shape the editor preview needs, for get_entries_preview().
 	 *
-	 * @param int $id Entry post ID.
+	 * @param int  $id          Entry post ID.
+	 * @param bool $ignore_pins Whether to report the entry as unpinned, as a capped feed does.
 	 * @return array{id: int, type: string, pinned: bool, hasBreakout: bool, hasTitle: bool}
 	 */
-	private static function map_entry_preview( int $id ): array {
+	private static function map_entry_preview( int $id, bool $ignore_pins = false ): array {
 		return [
 			'id'          => $id,
 			'type'        => Post_Type::CPT_SLUG,
-			'pinned'      => Post_Type::is_pinned( $id ),
+			'pinned'      => ! $ignore_pins && Post_Type::is_pinned( $id ),
 			'hasBreakout' => null !== Breakout::get_published_breakout_url( $id ),
 			'hasTitle'    => self::has_title( get_post( $id ) ),
 		];
@@ -2919,6 +3258,9 @@ class Rolling_Coverage_Block {
 	 *   those edits and applies them when load more brings the entry in.
 	 *   With skip_pinned, pinned entries are left out, for a feed that opens at
 	 *   a shared entry.
+	 *
+	 * A capped feed, as its stored config or a positive `latest` count says,
+	 * polls entries as unpinned and without ads, and loads no more.
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
@@ -2971,9 +3313,12 @@ class Rolling_Coverage_Block {
 
 		$config           = self::load_block_config( $term_id, $template_key );
 		$template         = $config['template'];
+		$latest_count     = self::latest_count( $config );
+		$latest_count     = $latest_count ? $latest_count : self::requested_latest_count( $params );
+		$is_capped        = $latest_count > 0;
 		$ads_interval     = max( 1, (int) $config['adsInterval'] );
 		$ads_enabled_attr = (bool) $config['adsEnabled'];
-		$ads_enabled      = $ads_enabled_attr && ! self::is_coverage_ads_disabled( $term_id );
+		$ads_enabled      = ! $is_capped && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $term_id );
 
 		// A lite page asks for entries in the text-only form it renders them
 		// in, and lite pages carry no ads.
@@ -3028,6 +3373,10 @@ class Rolling_Coverage_Block {
 
 			// Signal the client to refresh when the poll result reaches the cap.
 			if ( count( $query->posts ) > self::POLL_CAP ) {
+				if ( $is_capped ) {
+					return self::capped_burst_response( $term_id, $template, $latest_count, $query->posts[0], $params );
+				}
+
 				return self::poll_response(
 					[
 						'entries'  => [],
@@ -3075,7 +3424,7 @@ class Rolling_Coverage_Block {
 				// blank: the client preserves the original value across the replace.
 				$entries[] = [
 					'id'     => $entry->ID,
-					'html'   => $is_lite ? Lite_Feed::render_entry( $entry, $is_new_entry ? 'poll' : '' ) : self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '' ),
+					'html'   => $is_lite ? Lite_Feed::render_entry( $entry, $is_new_entry ? 'poll' : '' ) : self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '', is_capped: $is_capped ),
 					'type'   => $is_new_entry ? 'insert' : 'update',
 					'adHtml' => $ad_html,
 					'adSlot' => $ad_slot,
@@ -3091,6 +3440,18 @@ class Rolling_Coverage_Block {
 					'polledCount' => ( $polled_count + $new_entry_count ) % $ads_interval,
 				],
 				$term_id
+			);
+		}
+
+		if ( $is_capped ) {
+			return new WP_REST_Response(
+				[
+					'html'    => '',
+					'before'  => null,
+					'hasMore' => false,
+					'count'   => 0,
+					'adSlots' => [],
+				]
 			);
 		}
 
@@ -3131,7 +3492,7 @@ class Rolling_Coverage_Block {
 
 		foreach ( $posts as $entry ) {
 			$entry_index++;
-			$html .= $is_lite ? Lite_Feed::render_entry( $entry, 'load_more' ) : self::render_entry( $entry, $template, 'load_more', ! $has_more && count( $posts ) === $entry_index );
+			$html .= $is_lite ? Lite_Feed::render_entry( $entry, 'load_more' ) : self::render_entry( $entry, $template, 'load_more', is_last: ! $has_more && count( $posts ) === $entry_index );
 
 			$position = $entry_offset + $entry_index;
 			if ( $ads_enabled && Ads::is_capped_ad_position( $position, $ads_interval ) ) {
@@ -3155,6 +3516,55 @@ class Rolling_Coverage_Block {
 				'count'   => count( $posts ),
 				'adSlots' => $ad_slots,
 			]
+		);
+	}
+
+	/**
+	 * The poll response for a capped feed after a burst too large to send
+	 * piecemeal: rather than reload the page hosting it, the newest entries
+	 * by date come as inserts, for the page to put on top and trim to the
+	 * cap, with the cursor at the most recent change.
+	 *
+	 * @param int     $term_id       Coverage term ID.
+	 * @param array[] $template      Per-entry template.
+	 * @param int     $latest_count  How many entries the feed shows.
+	 * @param WP_Post $last_modified The most recently modified entry.
+	 * @param array   $params        Request parameters.
+	 * @return WP_REST_Response
+	 */
+	private static function capped_burst_response( int $term_id, array $template, int $latest_count, WP_Post $last_modified, array $params ): WP_REST_Response {
+		$args = array_merge(
+			self::coverage_entries_args( $term_id ),
+			[
+				'orderby'        => 'date',
+				'order'          => 'DESC',
+				'posts_per_page' => $latest_count,
+			]
+		);
+
+		$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
+
+		$entries = [];
+
+		foreach ( ( new WP_Query( $args ) )->posts as $entry ) {
+			$entries[] = [
+				'id'     => $entry->ID,
+				'html'   => self::render_entry( $entry, $template, 'poll', is_capped: true ),
+				'type'   => 'insert',
+				'adHtml' => null,
+				'adSlot' => null,
+			];
+		}
+		wp_reset_postdata();
+
+		return self::poll_response(
+			[
+				'entries'     => $entries,
+				'cursor'      => $last_modified->ID . ':' . self::post_modified_gmt( $last_modified ),
+				'overflow'    => false,
+				'polledCount' => max( 0, (int) ( $params['polled_count'] ?? 0 ) ),
+			],
+			$term_id
 		);
 	}
 

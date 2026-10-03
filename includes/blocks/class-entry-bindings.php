@@ -9,14 +9,15 @@ namespace Newspack_Rolling_Coverage;
 
 use WP_Block;
 use WP_HTML_Tag_Processor;
+use WP_Term;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Supplies the values core blocks in the Rolling Coverage template are
  * bound to: per entry, the breakout post's link and the share link; per
- * coverage, the follow button's notification tag and the link to the live
- * feed.
+ * coverage, its name, the follow button's notification tag and the link to
+ * the live feed.
  */
 class Entry_Bindings {
 
@@ -66,6 +67,11 @@ class Entry_Bindings {
 	const SHARE_CLASS = 'newspack-rolling-coverage-share';
 
 	/**
+	 * Class of the paragraph that links to the coverage page's full feed.
+	 */
+	const ALL_UPDATES_CLASS = 'newspack-rolling-coverage-all-updates';
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
@@ -74,6 +80,7 @@ class Entry_Bindings {
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'filter_pinned_label' ], 10, 2 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_read_more' ], 10, 2 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_share' ], 10, 2 );
+		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_all_updates' ], 10, 2 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'filter_pinned_group' ], 10, 2 );
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'link_title_to_breakout' ], 10, 3 );
 	}
@@ -105,6 +112,12 @@ class Entry_Bindings {
 			$status      = (string) ( $block->context[ self::COVERAGE_STATUS_CONTEXT ] ?? 'active' );
 
 			return $coverage_id && Coverage_Follow_Block::should_render( $status ) ? Push_Notifications::follow_tag( $coverage_id ) : null;
+		}
+
+		if ( 'coverageName' === ( $source_args['key'] ?? '' ) ) {
+			$coverage = get_term( (int) ( $block->context[ self::COVERAGE_ID_CONTEXT ] ?? 0 ), Taxonomy::TAXONOMY_SLUG );
+
+			return $coverage instanceof WP_Term ? esc_html( $coverage->name ) : null;
 		}
 
 		if ( 'latestUrl' === ( $source_args['key'] ?? '' ) ) {
@@ -381,6 +394,32 @@ class Entry_Bindings {
 	}
 
 	/**
+	 * Link a "See all updates" paragraph to the coverage page, or render
+	 * nothing when there is no page to link to. Entries render outside the
+	 * coverage-level blocks, so a paragraph inside one never has a URL.
+	 *
+	 * Parameters stay untyped because this runs for every paragraph on the
+	 * site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string $block_content Rendered block.
+	 * @param array  $block         Parsed block.
+	 * @return string
+	 */
+	public static function link_all_updates( $block_content, $block ) {
+		if ( ! is_array( $block ) || ! is_string( $block_content ) || ! self::is_all_updates_paragraph( $block ) ) {
+			return $block_content;
+		}
+
+		$url = Rolling_Coverage_Block::get_all_updates_url();
+
+		if ( '' === $url ) {
+			return '';
+		}
+
+		return self::link_paragraph( $block_content, [ 'href' => $url ] );
+	}
+
+	/**
 	 * Link a rendered paragraph's content. A placeholder link (`href="#"`),
 	 * which the layouts ship so the editor shows a link, takes the
 	 * attributes; any other link inside is the author's own and is left
@@ -549,12 +588,16 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Whether the entry being rendered is pinned. Entries render with the
-	 * global post swapped to the entry.
+	 * Whether the entry being rendered shows as pinned. Entries render with
+	 * the global post swapped to the entry; a capped feed shows none pinned.
 	 *
 	 * @return bool
 	 */
 	private static function is_current_entry_pinned(): bool {
+		if ( Rolling_Coverage_Block::is_ignoring_pinning() ) {
+			return false;
+		}
+
 		$entry_id = (int) get_the_ID();
 
 		return $entry_id && Post_Type::CPT_SLUG === get_post_type( $entry_id ) && Post_Type::is_pinned( $entry_id );
@@ -580,6 +623,72 @@ class Entry_Bindings {
 	 */
 	public static function is_latest_buttons( array $parsed_block ): bool {
 		return self::is_buttons_bound_to( $parsed_block, 'latestUrl' );
+	}
+
+	/**
+	 * Whether a parsed block is a heading bound to the coverage's name.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_coverage_name_heading( array $parsed_block ): bool {
+		$binding = $parsed_block['attrs']['metadata']['bindings']['content'] ?? [];
+
+		return 'core/heading' === ( $parsed_block['blockName'] ?? '' ) &&
+			is_array( $binding ) &&
+			self::SOURCE_NAME === ( $binding['source'] ?? '' ) &&
+			'coverageName' === ( $binding['args']['key'] ?? '' );
+	}
+
+	/**
+	 * Whether a parsed block is the paragraph linking to the coverage page's
+	 * full feed.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_all_updates_paragraph( array $parsed_block ): bool {
+		$class_name = $parsed_block['attrs']['className'] ?? '';
+
+		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
+			is_string( $class_name ) &&
+			in_array( self::ALL_UPDATES_CLASS, explode( ' ', $class_name ), true );
+	}
+
+	/**
+	 * Whether a parsed block belongs to the coverage rather than to each
+	 * entry, so it renders once: the follow or "Jump to Latest" button, the
+	 * legacy follow block, the Coverage Status block, a heading bound to the
+	 * coverage's name, the "See all updates" paragraph, or a block holding one
+	 * at any depth. The pinned card and the entry group always belong to each
+	 * entry, whatever they hold.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_coverage_item( array $parsed_block ): bool {
+		if ( Rolling_Coverage_Block::is_entry_group( $parsed_block ) ) {
+			return false;
+		}
+
+		if (
+			Coverage_Follow_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
+			Coverage_Status_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
+			self::is_follow_buttons( $parsed_block ) ||
+			self::is_latest_buttons( $parsed_block ) ||
+			self::is_coverage_name_heading( $parsed_block ) ||
+			self::is_all_updates_paragraph( $parsed_block )
+		) {
+			return true;
+		}
+
+		foreach ( $parsed_block['innerBlocks'] ?? [] as $inner_block ) {
+			if ( is_array( $inner_block ) && self::is_coverage_item( $inner_block ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
