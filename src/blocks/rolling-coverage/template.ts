@@ -996,7 +996,7 @@ function minuteEntryTemplate(): TemplateItem[] {
 /**
  * A Byline entry's row: the author's avatar in a narrow column that stays
  * beside the entry at every width, then the byline, title, content and
- * links. The pinned entry differs only by the pinned row above its byline.
+ * links. The pinned entry differs only by the pinned label after its time.
  *
  * @param {string[]} slugs    The palette's color slugs.
  * @param {boolean}  isPinned Whether the row is the pinned card's.
@@ -1033,6 +1033,7 @@ function bylineRow( slugs: string[], isPinned: boolean ): TemplateItem {
 						...mutedDateColor( slugs ),
 					},
 				],
+				...( isPinned ? [ pinnedRow( ACCENT ) ] : [] ),
 			],
 		],
 		[ 'core/post-title', { level: 4 } ],
@@ -1079,12 +1080,7 @@ function bylineRow( slugs: string[], isPinned: boolean ): TemplateItem {
 						name: __( 'Body', 'newspack-rolling-coverage' ),
 					},
 				},
-				[
-					stack(
-						__( 'Entry', 'newspack-rolling-coverage' ),
-						isPinned ? [ pinnedRow( ACCENT ), ...entry ] : entry
-					),
-				],
+				[ stack( __( 'Entry', 'newspack-rolling-coverage' ), entry ) ],
 			],
 		],
 	];
