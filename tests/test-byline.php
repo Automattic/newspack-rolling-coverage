@@ -28,6 +28,17 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	private static function render( int $author_id, string $markup ): string {
 		$entry_id = self::create_entry( self::create_coverage(), [ 'post_author' => $author_id ] );
 
+		return self::render_existing( $entry_id, $markup );
+	}
+
+	/**
+	 * Render an existing entry through the given template markup.
+	 *
+	 * @param int    $entry_id Entry post ID.
+	 * @param string $markup   Template markup.
+	 * @return string Rendered entry.
+	 */
+	private static function render_existing( int $entry_id, string $markup ): string {
 		return Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( $markup ) );
 	}
 
@@ -67,12 +78,34 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	 * The rule follows the author, not the entry's origin.
 	 */
 	public function test_a_slack_entry_reassigned_to_a_reporter_shows_the_reporter() {
-		Slack_Config::get_or_create_bot_user_id();
+		$entry_id  = self::create_entry( self::create_coverage(), [ 'post_author' => Slack_Config::get_or_create_bot_user_id() ] );
 		$author_id = self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] );
 
-		$html = self::render( $author_id, self::BYLINE_MARKUP );
+		wp_update_post(
+			[
+				'ID'          => $entry_id,
+				'post_author' => $author_id,
+			]
+		);
+
+		$html = self::render_existing( $entry_id, self::BYLINE_MARKUP );
 
 		$this->assertStringContainsString( 'Jane Reporter', $html );
+		$this->assertStringContainsString( 'wp-block-avatar', $html );
+	}
+
+	/**
+	 * A disconnect clears the stored bot ID, but the bot's entries stay hidden.
+	 */
+	public function test_a_slack_bot_entry_stays_hidden_after_a_disconnect() {
+		$bot_id = Slack_Config::get_or_create_bot_user_id();
+		delete_option( Slack_Config::OPTION_BOT_USER_ID );
+
+		$html = self::render( $bot_id, self::BYLINE_MARKUP );
+
+		$this->assertStringNotContainsString( 'wp-block-avatar', $html );
+		$this->assertStringNotContainsString( 'wp-block-post-author-name', $html );
+		$this->assertFalse( get_option( Slack_Config::OPTION_BOT_USER_ID ), 'Reading must not store the ID again.' );
 	}
 
 	/**
