@@ -1019,6 +1019,7 @@ function bylineRow( slugs: string[], isPinned: boolean ): TemplateItem {
 				[
 					'core/post-author-name',
 					{
+						className: 'use-header-font',
 						fontSize: 'small',
 						style: { typography: { fontWeight: '700' } },
 					},
