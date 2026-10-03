@@ -4,6 +4,9 @@
 export type CoverageStatusAttributes = {
 	coverageId: number;
 	showLastUpdated: boolean;
+	hideWhenEnded: boolean;
+	showDot: boolean;
+	backgroundColors: Partial< Record< string, string > >;
 	labels: Partial< Record< string, string > >;
 	textColor?: string;
 	style?: {

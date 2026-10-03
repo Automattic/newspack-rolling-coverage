@@ -129,9 +129,16 @@ class Coverage_Status_Block {
 			return '';
 		}
 
-		$status  = Rolling_Coverage_Block::coverage_status( $coverage_id );
-		$labels  = self::labels( $attributes );
-		$wrapper = [
+		$status = Rolling_Coverage_Block::coverage_status( $coverage_id );
+
+		if ( Taxonomy::STATUS_ARCHIVED === $status && ! empty( $attributes['hideWhenEnded'] ) ) {
+			return '';
+		}
+
+		$show_dot = false !== ( $attributes['showDot'] ?? true );
+		$labels   = self::labels( $attributes );
+		$styles   = self::badge_styles( $attributes );
+		$wrapper  = [
 			'data-coverage-id' => $coverage_id,
 			'data-status'      => $status,
 		];
@@ -140,9 +147,28 @@ class Coverage_Status_Block {
 			$wrapper[ 'data-label-' . $key ] = $label;
 		}
 
+		foreach ( array_filter( $styles ) as $key => $style ) {
+			$wrapper[ 'data-style-' . $key ] = $style;
+		}
+
+		if ( ! $show_dot ) {
+			$wrapper['data-hide-dot'] = 'true';
+		}
+
+		if ( ! empty( $attributes['hideWhenEnded'] ) ) {
+			$wrapper['data-hide-when-ended'] = 'true';
+		}
+
+		$classes = self::BADGE_CLASSES[ $status ];
+
+		if ( ! $show_dot && Taxonomy::STATUS_ACTIVE === $status ) {
+			$classes = 'newspack-ui__badge--success';
+		}
+
 		$html = sprintf(
-			'<span class="%s">%s</span>',
-			esc_attr( 'newspack-ui__badge ' . self::BADGE_CLASSES[ $status ] ),
+			'<span class="%s"%s>%s</span>',
+			esc_attr( 'newspack-ui__badge ' . $classes ),
+			'' !== $styles[ $status ] ? ' style="' . esc_attr( $styles[ $status ] ) . '"' : '',
 			esc_html( $labels[ $status ] )
 		);
 
@@ -151,6 +177,42 @@ class Coverage_Status_Block {
 		}
 
 		return sprintf( '<div %s>%s</div>', get_block_wrapper_attributes( $wrapper ), $html );
+	}
+
+	/**
+	 * Inline badge style for a custom background: the color, the APCA-picked
+	 * text color, and a dot color that stays visible on it.
+	 *
+	 * @param string $color Background color, any form Apca::normalize() accepts.
+	 * @return string The style, or '' when the color is unset or invalid.
+	 */
+	private static function badge_style( string $color ): string {
+		$background = Apca::normalize( $color );
+
+		if ( '' === $background ) {
+			return '';
+		}
+
+		$text = Apca::text_color( $background );
+
+		return sprintf( 'background:%1$s;color:%2$s;--newspack-ui-badge-dot-color:color-mix(in srgb, %2$s 60%%, %1$s)', $background, $text );
+	}
+
+	/**
+	 * The badge style for each status from the block's custom colors.
+	 *
+	 * @param array $attributes Block attributes.
+	 * @return array<string, string>
+	 */
+	private static function badge_styles( array $attributes ): array {
+		$own    = is_array( $attributes['backgroundColors'] ?? null ) ? $attributes['backgroundColors'] : [];
+		$styles = [];
+
+		foreach ( array_keys( self::BADGE_CLASSES ) as $status ) {
+			$styles[ $status ] = is_string( $own[ $status ] ?? null ) ? self::badge_style( $own[ $status ] ) : '';
+		}
+
+		return $styles;
 	}
 
 	/**

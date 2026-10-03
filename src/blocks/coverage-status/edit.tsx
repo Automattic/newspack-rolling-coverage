@@ -4,9 +4,14 @@
 import {
 	InspectorControls,
 	useBlockProps,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalColorGradientSettingsDropdown as ColorGradientSettingsDropdown,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalUseMultipleOriginColorsAndGradients as useMultipleOriginColorsAndGradients,
 	store as blockEditorStore,
 } from '@wordpress/block-editor';
 import {
+	Notice,
 	PanelBody,
 	SelectControl,
 	TextControl,
@@ -27,7 +32,11 @@ import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
  */
 import { mutedTextColor } from '../shared/muted-color';
 import { usePageFeeds } from '../shared/page-feeds';
-import { BADGE_CLASSES, badgeStatus } from '../shared/status-badges';
+import {
+	badgeClasses,
+	badgeStatus,
+	badgeStyleObject,
+} from '../shared/status-badges';
 import type { CoverageStatusAttributes } from './types';
 
 interface CoverageStatusConfig {
@@ -59,6 +68,12 @@ const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {
 	taxonomySlug: 'rolling_coverage',
 };
 
+const BACKGROUND_FIELDS: Record< string, string > = {
+	active: __( 'Live background', 'newspack-rolling-coverage' ),
+	paused: __( 'Paused background', 'newspack-rolling-coverage' ),
+	archived: __( 'Ended background', 'newspack-rolling-coverage' ),
+};
+
 const LABEL_FIELDS: Record< string, string > = {
 	active: __( 'Live label', 'newspack-rolling-coverage' ),
 	paused: __( 'Paused label', 'newspack-rolling-coverage' ),
@@ -87,8 +102,16 @@ export default function Edit( {
 	setAttributes: ( attrs: Partial< CoverageStatusAttributes > ) => void;
 	context?: Record< string, unknown >;
 } ) {
-	const { coverageId, showLastUpdated, labels, textColor, style } =
-		attributes;
+	const {
+		coverageId,
+		showLastUpdated,
+		hideWhenEnded,
+		showDot,
+		labels,
+		backgroundColors,
+		textColor,
+		style,
+	} = attributes;
 	const feedCoverageId = context?.[ COVERAGE_ID_CONTEXT ];
 
 	const hasCustomLabels = Object.keys( LABEL_FIELDS ).some(
@@ -278,10 +301,39 @@ export default function Edit( {
 	] );
 
 	const blockProps = useBlockProps();
+	const colorGradientSettings = useMultipleOriginColorsAndGradients();
+
+	const setBackground = ( key: string, value?: string ) => {
+		const next = { ...backgroundColors };
+
+		if ( value ) {
+			next[ key ] = value;
+		} else {
+			delete next[ key ];
+		}
+
+		setAttributes( { backgroundColors: next } );
+	};
+	const endedHidden = !! followed && status === 'archived' && hideWhenEnded;
+	const endedNotice = __(
+		"This coverage has ended, so the badge won't show on the site.",
+		'newspack-rolling-coverage'
+	);
 
 	return (
 		<>
 			<InspectorControls>
+				{ endedHidden && (
+					<PanelBody>
+						<Notice
+							status="warning"
+							isDismissible={ false }
+							spokenMessage={ endedNotice }
+						>
+							{ endedNotice }
+						</Notice>
+					</PanelBody>
+				) }
 				<PanelBody
 					title={ __( 'Settings', 'newspack-rolling-coverage' ) }
 				>
@@ -431,11 +483,117 @@ export default function Edit( {
 							}
 						/>
 					</ToggleGroupControl>
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
+						label={ __(
+							'When ended',
+							'newspack-rolling-coverage'
+						) }
+						value={ hideWhenEnded ? 'hide' : 'show' }
+						onChange={ ( value ) =>
+							setAttributes( {
+								hideWhenEnded: value === 'hide',
+							} )
+						}
+					>
+						<ToggleGroupControlOption
+							value="show"
+							label={ _x(
+								'Show',
+								'when ended',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+								__(
+									'Show when ended',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+						<ToggleGroupControlOption
+							value="hide"
+							label={ _x(
+								'Hide',
+								'when ended',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+								__(
+									'Hide when ended',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+					</ToggleGroupControl>
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
+						label={ __( 'Dot', 'newspack-rolling-coverage' ) }
+						value={ showDot === false ? 'hide' : 'show' }
+						onChange={ ( value ) =>
+							setAttributes( {
+								showDot: value === 'show',
+							} )
+						}
+					>
+						<ToggleGroupControlOption
+							value="show"
+							label={ _x(
+								'Show',
+								'dot',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+								__( 'Show dot', 'newspack-rolling-coverage' )
+							}
+						/>
+						<ToggleGroupControlOption
+							value="hide"
+							label={ _x(
+								'Hide',
+								'dot',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+								__( 'Hide dot', 'newspack-rolling-coverage' )
+							}
+						/>
+					</ToggleGroupControl>
 				</PanelBody>
+			</InspectorControls>
+			<InspectorControls group="color">
+				<ColorGradientSettingsDropdown
+					__experimentalIsRenderedInSidebar
+					panelId={ clientId }
+					settings={ Object.entries( BACKGROUND_FIELDS ).map(
+						( [ key, field ] ) => ( {
+							label: field,
+							colorValue: backgroundColors?.[ key ],
+							onColorChange: ( value?: string ) =>
+								setBackground( key, value ),
+							resetAllFilter: () => ( {
+								backgroundColors: {},
+							} ),
+							clearable: true,
+						} )
+					) }
+					{ ...colorGradientSettings }
+					gradients={ [] }
+					disableCustomGradients
+				/>
 			</InspectorControls>
 			<div { ...blockProps }>
 				<span
-					className={ `newspack-ui__badge ${ BADGE_CLASSES[ status ] }` }
+					className={ `newspack-ui__badge ${ badgeClasses(
+						status,
+						showDot !== false
+					) }` }
+					style={ badgeStyleObject( backgroundColors?.[ status ] ) }
 				>
 					{ label }
 				</span>
