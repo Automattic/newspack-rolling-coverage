@@ -16,7 +16,10 @@ use Newspack_Rolling_Coverage\Taxonomy;
  * Provides fixtures for coverages and entries and a REST dispatch helper.
  *
  * The plugin keeps its state in posts, terms and options, all of which the
- * core test case rolls back, so no plugin-specific cleanup is needed here.
+ * core test case rolls back. Its tear_down() resets the rest, which would
+ * otherwise outlast the test: the ad unit a test gave the feed placement,
+ * any lite feed it served, the blocks it registered and the error logging
+ * it silenced.
  */
 abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 
