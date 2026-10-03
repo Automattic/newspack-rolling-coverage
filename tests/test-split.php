@@ -32,6 +32,10 @@ class Test_Split extends Rolling_Coverage_TestCase {
 		. '<!-- wp:post-title {"level":4} /-->'
 		. '</div><!-- /wp:group -->';
 
+	const COLUMN_RULE = 'border-top-color:#111;border-top-width:3px;border-top-style:solid;';
+
+	const ENTRY_RULE = 'border-top-color:#ddd;border-top-width:1px;border-top-style:solid;';
+
 	/**
 	 * Forget the theme.json data a test changed.
 	 */
@@ -116,6 +120,64 @@ class Test_Split extends Rolling_Coverage_TestCase {
 		}
 
 		return $classes;
+	}
+
+	/**
+	 * The column markers each entry's article carries, by entry ID.
+	 *
+	 * @param string $html Rendered entries.
+	 * @return array<int, string[]>
+	 */
+	private static function article_marks( string $html ): array {
+		$processor = new WP_HTML_Tag_Processor( $html );
+		$marks     = [];
+
+		while ( $processor->next_tag( 'article' ) ) {
+			$marks[ (int) $processor->get_attribute( 'data-entry-id' ) ] = array_values(
+				array_filter(
+					[ 'data-leads-column', 'data-heads-column' ],
+					static fn( $name ) => null !== $processor->get_attribute( $name )
+				)
+			);
+		}
+
+		return $marks;
+	}
+
+	/**
+	 * The inline style of each entry's top-level entry group or pinned card,
+	 * by entry ID.
+	 *
+	 * @param string $html Rendered entries.
+	 * @return array<int, string>
+	 */
+	private static function entry_group_styles( string $html ): array {
+		$processor = new WP_HTML_Tag_Processor( $html );
+		$styles    = [];
+		$entry_id  = 0;
+
+		while ( $processor->next_tag() ) {
+			if ( 'ARTICLE' === $processor->get_tag() ) {
+				$entry_id = (int) $processor->get_attribute( 'data-entry-id' );
+			} elseif ( $entry_id && ! isset( $styles[ $entry_id ] ) && ( $processor->has_class( 'newspack-rolling-coverage-regular-entry' ) || $processor->has_class( 'newspack-rolling-coverage-pinned-card' ) ) ) {
+				$styles[ $entry_id ] = (string) $processor->get_attribute( 'style' );
+			}
+		}
+
+		return $styles;
+	}
+
+	/**
+	 * The top border declarations of an inline style, sorted.
+	 *
+	 * @param string $style Inline style.
+	 * @return string[]
+	 */
+	private static function rule_of( string $style ): array {
+		$rule = array_values( array_filter( array_map( 'trim', explode( ';', $style ) ), static fn( $declaration ) => str_starts_with( $declaration, 'border-top' ) ) );
+		sort( $rule );
+
+		return $rule;
 	}
 
 	/**
@@ -338,17 +400,129 @@ class Test_Split extends Rolling_Coverage_TestCase {
 		Post_Type::pin_entry( $first_pin );
 		Post_Type::pin_entry( $shared_pin );
 
-		$html    = self::render_split( $coverage_id );
-		$classes = self::article_classes( $html );
-		$polled  = self::article_classes( implode( '', wp_list_pluck( self::poll( $coverage_id, $html )['entries'], 'html' ) ) );
-		$other   = self::article_classes( self::render_split( $other_id ) );
-		$card    = self::cell_class( $classes[ $first_pin ] );
+		$html         = self::render_split( $coverage_id );
+		$classes      = self::article_classes( $html );
+		$polled       = self::article_classes( implode( '', wp_list_pluck( self::poll( $coverage_id, $html )['entries'], 'html' ) ) );
+		$other_html   = self::render_split( $other_id );
+		$other        = self::article_classes( $other_html );
+		$other_polled = self::article_classes( implode( '', wp_list_pluck( self::poll( $other_id, $other_html )['entries'], 'html' ) ) );
+		$card         = self::cell_class( $classes[ $first_pin ] );
 
 		$this->assertNotSame( $card, self::cell_class( $classes[ $shared_pin ] ), "The second pin should take the entry group's placement." );
 		$this->assertContains( Rolling_Coverage_Block::BESIDE_PINNED_CLASS, $classes[ $shared_pin ] );
 		$this->assertSame( self::cell_class( $classes[ $shared_pin ] ), self::cell_class( $polled[ $shared_pin ] ), 'A poll should place it the same way.' );
 		$this->assertSame( $card, self::cell_class( $polled[ $first_pin ] ), 'A poll should keep the lead.' );
 		$this->assertSame( $card, self::cell_class( $other[ $shared_pin ] ), 'It should lead the coverage it is pinned first in.' );
+		$this->assertSame( $card, self::cell_class( $other_polled[ $shared_pin ] ), 'A poll of that coverage should keep it as the lead.' );
+	}
+
+	/**
+	 * The entry heading the entries beside the pinned card carries the
+	 * card's top border in place of its own, so the two rules line up; the
+	 * entries below it keep their own. The lead and the head are marked, and
+	 * the block carries both rules for the view script.
+	 */
+	public function test_first_entry_beside_the_card_carries_its_rule() {
+		$coverage_id = self::create_coverage();
+		[ $pinned_id, $middle_id, $newest_id ] = self::create_entries( $coverage_id );
+		Post_Type::pin_entry( $pinned_id );
+
+		$html   = self::render_split( $coverage_id );
+		$styles = self::entry_group_styles( $html );
+		$marks  = self::article_marks( $html );
+
+		$this->assertSame( self::rule_of( self::COLUMN_RULE ), self::rule_of( $styles[ $newest_id ] ), 'The head should carry the card\'s rule in place of its own.' );
+		$this->assertStringContainsString( 'padding-top:var(--wp--preset--spacing--40)', $styles[ $newest_id ], 'The head should keep its other styles.' );
+		$this->assertSame( self::rule_of( self::ENTRY_RULE ), self::rule_of( $styles[ $middle_id ] ), 'The next entry should keep its own rule.' );
+		$this->assertSame( [ 'data-leads-column' ], $marks[ $pinned_id ] );
+		$this->assertSame( [ 'data-heads-column' ], $marks[ $newest_id ] );
+		$this->assertSame( [], $marks[ $middle_id ] );
+
+		$root = new WP_HTML_Tag_Processor( $html );
+		$root->next_tag();
+
+		$this->assertSame( self::COLUMN_RULE, $root->get_attribute( 'data-column-rule' ) );
+		$this->assertSame( self::ENTRY_RULE, $root->get_attribute( 'data-entry-rule' ) );
+	}
+
+	/**
+	 * Without a lead card, no pin or a capped feed, no entry takes the
+	 * card's rule; a capped feed carries no rules for the view script.
+	 */
+	public function test_no_column_rule_without_a_lead_card() {
+		$coverage_id = self::create_coverage();
+		self::create_entries( $coverage_id );
+
+		$capped = self::render_split(
+			$coverage_id,
+			'',
+			[
+				'latestOnly'  => true,
+				'latestCount' => 3,
+			]
+		);
+
+		foreach ( [ self::render_split( $coverage_id ), $capped ] as $html ) {
+			foreach ( self::entry_group_styles( $html ) as $style ) {
+				$this->assertSame( self::rule_of( self::ENTRY_RULE ), self::rule_of( $style ) );
+			}
+
+			$this->assertStringNotContainsString( 'data-heads-column', $html );
+			$this->assertStringNotContainsString( 'data-leads-column', $html );
+		}
+
+		$this->assertStringNotContainsString( 'data-column-rule', $capped );
+	}
+
+	/**
+	 * A second pin heading the entries beside the card already has the
+	 * card's look, and is left as it is.
+	 */
+	public function test_second_pin_heading_the_column_is_untouched() {
+		$coverage_id = self::create_coverage();
+		[ $first_pin, $second_pin, $newest_id ] = self::create_entries( $coverage_id );
+		Post_Type::pin_entry( $first_pin );
+		Post_Type::pin_entry( $second_pin );
+
+		$html   = self::render_split( $coverage_id );
+		$styles = self::entry_group_styles( $html );
+		$marks  = self::article_marks( $html );
+
+		$this->assertSame( [], $marks[ $second_pin ] );
+		$this->assertSame( [], $marks[ $newest_id ] );
+		$this->assertSame( self::rule_of( self::ENTRY_RULE ), self::rule_of( $styles[ $newest_id ] ) );
+		$this->assertStringNotContainsString( 'data-heads-column', $html );
+	}
+
+	/**
+	 * Polls and load more mark the lead, so the view script can find the
+	 * entry heading the column whichever way the entries arrived.
+	 */
+	public function test_lead_is_marked_on_polls_and_load_more() {
+		$coverage_id = self::create_coverage();
+		[ $pinned_id, $middle_id ] = self::create_entries( $coverage_id );
+		Post_Type::pin_entry( $pinned_id );
+
+		$html = self::render_split( $coverage_id );
+
+		preg_match( '/data-template-key="([^"]+)"/', $html, $key );
+
+		$polled = self::article_marks( implode( '', wp_list_pluck( self::poll( $coverage_id, $html )['entries'], 'html' ) ) );
+		$loaded = self::article_marks(
+			self::dispatch(
+				'GET',
+				'/coverages/' . $coverage_id . '/entries',
+				[
+					'before'       => gmdate( 'Y-m-d H:i:s', strtotime( '+1 hour' ) ),
+					'per_page'     => 10,
+					'template_key' => $key[1],
+				]
+			)->get_data()['html']
+		);
+
+		$this->assertSame( [ 'data-leads-column' ], $polled[ $pinned_id ] );
+		$this->assertSame( [], $polled[ $middle_id ], 'A poll should leave the head to the view script.' );
+		$this->assertSame( [ 'data-leads-column' ], $loaded[ $pinned_id ] );
 	}
 
 	/**
@@ -457,7 +631,7 @@ class Test_Split extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'is-position-sticky', $card[0] ?? '' );
 		$this->assertNotEmpty( $position, 'The card should carry a stable position class.' );
 		$this->assertDoesNotMatchRegularExpression( '/wp-container-\d/', $card[0], "Core's class unique to the render should be gone." );
-		$this->assertStringContainsString( '.wp-block-newspack-rolling-coverage-rolling-coverage .' . $position[0] . '{top:calc(0px + var(--wp-admin--admin-bar--position-offset, 0px));position:sticky;z-index:10;}', self::stored_css() );
+		$this->assertStringContainsString( '.wp-block-newspack-rolling-coverage-rolling-coverage .' . $position[0] . '{top:calc(0px + var(--newspack-rolling-coverage-top-bars, var(--wp-admin--admin-bar--position-offset, 0px)));position:sticky;z-index:10;}', self::stored_css() );
 
 		$poll = self::dispatch(
 			'GET',

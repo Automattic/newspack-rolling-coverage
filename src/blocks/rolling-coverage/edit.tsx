@@ -89,6 +89,7 @@ import {
 	breakoutBlockIds,
 	withoutFollowButtons,
 	entryPreviewPlacement,
+	withColumnRule,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -886,6 +887,22 @@ export default function Edit( {
 			),
 		} ),
 		[ templateBlocks, feedLayout, showsPin ]
+	);
+	// The entry after the lead pin heads the entries beside the card, and
+	// carries the card's top border too.
+	const columnHeadContext = leadPinContext
+		? previewContexts[ previewContexts.indexOf( leadPinContext ) + 1 ]
+		: undefined;
+	const columnHeadBlocks = useMemo(
+		() =>
+			columnHeadContext && ! columnHeadContext.pinned
+				? withColumnRule(
+						blocksForEntry( columnHeadContext ),
+						templateBlocks,
+						feedLayout
+					)
+				: undefined,
+		[ columnHeadContext, blocksForEntry, templateBlocks, feedLayout ]
 	);
 
 	const { setBlockEditingMode, unsetBlockEditingMode } = useDispatch(
@@ -2041,9 +2058,15 @@ export default function Edit( {
 															value={ context }
 														>
 															<EntryBlockPreview
-																blocks={ blocksForEntry(
-																	context
-																) }
+																blocks={
+																	context ===
+																		columnHeadContext &&
+																	columnHeadBlocks
+																		? columnHeadBlocks
+																		: blocksForEntry(
+																				context
+																			)
+																}
 																style={
 																	context ===
 																	leadPinContext

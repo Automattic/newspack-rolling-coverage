@@ -78,6 +78,28 @@ const cssEscape = ( str: string ): string => {
 };
 
 /**
+ * The declarations of a block of CSS, as property and value pairs.
+ *
+ * @param {string} css CSS declarations, such as `border-top-width:3px;`.
+ * @return {string[][]} The declarations.
+ */
+function cssDeclarations( css: string ): string[][] {
+	return css
+		.split( ';' )
+		.map( ( declaration ) => {
+			const colon = declaration.indexOf( ':' );
+
+			return colon > 0
+				? [
+						declaration.slice( 0, colon ).trim(),
+						declaration.slice( colon + 1 ).trim(),
+					]
+				: [];
+		} )
+		.filter( ( [ property, value ] ) => property && value );
+}
+
+/**
  * Strips <script> tags and on* event handler attributes from an HTML
  * string as a defense-in-depth measure against XSS. The HTML is
  * already sanitized server-side by WordPress's block rendering pipeline
@@ -193,13 +215,14 @@ function newerPostsLabel( count: number ): string {
 /**
  * How far down the viewport the fixed and sticky elements over its top centre
  * reach, such as the admin bar and a sticky site header, so the floating
- * control can sit below them. An element taller than half the viewport is an
- * overlay rather than a header, and is passed over.
+ * control and the sticky pinned cards can sit below them. An element taller
+ * than half the viewport is an overlay rather than a header, and is passed
+ * over.
  *
- * @param {HTMLElement|null} control The floating control, which is never counted.
+ * @param {HTMLElement} block The block, whose own floating control and sticky cards are never counted.
  * @return {number} Distance from the top of the viewport, in pixels.
  */
-function topBarsBottom( control: HTMLElement | null ): number {
+function topBarsBottom( block: HTMLElement ): number {
 	const x = window.innerWidth / 2;
 	const checked = new Set< Element >();
 	let bottom = 0;
@@ -216,7 +239,7 @@ function topBarsBottom( control: HTMLElement | null ): number {
 				let node: Element | null = element;
 				node &&
 				node !== document.body &&
-				! control?.contains( node ) &&
+				! block.contains( node ) &&
 				! checked.has( node );
 				node = node.parentElement
 			) {
@@ -721,7 +744,7 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {number} The vertical scroll position.
 	 */
 	function blockTopY(): number {
-		const bars = topBarsBottom( newEntriesControl );
+		const bars = topBarsBottom( root );
 
 		return (
 			root.getBoundingClientRect().top +
@@ -801,7 +824,7 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		const barsBottom = topBarsBottom( newEntriesControl );
+		const barsBottom = topBarsBottom( root );
 
 		if ( barsBottom > 0 ) {
 			newEntriesControl.style.setProperty(
@@ -1346,6 +1369,7 @@ function initBlock( root: HTMLElement ): void {
 		requestAnimationFrame( () => {
 			checkIfScrolledBackToTop();
 			placeControl();
+			fitStickyCards( true );
 		} );
 	};
 	window.addEventListener( 'scroll', onScroll, { passive: true } );
@@ -1358,7 +1382,7 @@ function initBlock( root: HTMLElement ): void {
 	// and a theme's offset for its sticky header leaves no room for the
 	// control, so the margin is set on the target itself. Only a target still
 	// where that landing put it is moved, never a page the reader has scrolled.
-	const landingBars = topBarsBottom( newEntriesControl );
+	const landingBars = topBarsBottom( root );
 
 	if ( landingBars > 0 ) {
 		let id = window.location.hash.slice( 1 );
@@ -2028,29 +2052,50 @@ function initBlock( root: HTMLElement ): void {
 		}
 	} );
 
+	// The top of the bars the sticky cards were last fitted below.
+	let stickyCardsBars = -1;
+
 	/**
-	 * Sticks each sticky pinned card below the bars fixed or stuck at the top
-	 * of the viewport, such as the admin bar and a sticky site header, or at
-	 * the stylesheet's top when there are none. Lets a card taller than the
-	 * viewport below that top scroll with the page, so its end isn't hidden
-	 * until the feed ends, and makes it sticky again once it fits.
+	 * Sticks each sticky pinned card its own offset below the bars fixed or
+	 * stuck at the top of the viewport, such as the admin bar and a sticky
+	 * site header, or below the admin bar alone until any are measured. Lets
+	 * a card taller than the viewport below that top scroll with the page,
+	 * so its end isn't hidden until the feed ends, and makes it sticky again
+	 * once it fits.
 	 *
+	 * @param {boolean} [ifBarsMoved] Whether to leave the cards as they are while the bars haven't moved.
 	 * @return {void}
 	 */
-	function fitStickyCards(): void {
-		root.querySelectorAll< HTMLElement >(
+	function fitStickyCards( ifBarsMoved = false ): void {
+		const cards = root.querySelectorAll< HTMLElement >(
 			'.newspack-rolling-coverage-pinned-card.is-position-sticky'
-		).forEach( ( card ) => {
-			const bars = topBarsBottom( card );
+		);
 
+		if ( cards.length === 0 ) {
+			return;
+		}
+
+		const bars = topBarsBottom( root );
+
+		if ( ifBarsMoved && bars === stickyCardsBars ) {
+			return;
+		}
+
+		stickyCardsBars = bars;
+
+		cards.forEach( ( card ) => {
 			if ( bars > 0 ) {
-				card.style.top = `${ bars }px`;
+				card.style.setProperty(
+					'--newspack-rolling-coverage-top-bars',
+					`${ bars }px`
+				);
 			} else {
-				card.style.removeProperty( 'top' );
+				card.style.removeProperty(
+					'--newspack-rolling-coverage-top-bars'
+				);
 			}
 
-			const top =
-				bars || parseFloat( window.getComputedStyle( card ).top ) || 0;
+			const top = parseFloat( window.getComputedStyle( card ).top ) || 0;
 
 			if (
 				card.getBoundingClientRect().height >
@@ -2088,12 +2133,85 @@ function initBlock( root: HTMLElement ): void {
 		fitStickyCards();
 	}
 
+	const columnRule = cssDeclarations( root.dataset.columnRule ?? '' );
+	const entryRule = cssDeclarations( root.dataset.entryRule ?? '' );
+
+	/**
+	 * Moves the pinned card's top border onto the entry heading the entries
+	 * beside the card, the first after the card's own entry, when another
+	 * entry comes to head them, giving the entry that headed them its own
+	 * back. A pinned entry heading them already has the card's look, and is
+	 * left as it is (see Rolling_Coverage_Block::column_rules()).
+	 *
+	 * @return {void}
+	 */
+	function placeColumnRule(): void {
+		if ( columnRule.length === 0 ) {
+			return;
+		}
+
+		const entryGroupOf = ( entry: Element | null ) =>
+			entry?.querySelector< HTMLElement >(
+				':scope > .newspack-rolling-coverage-regular-entry'
+			) ?? null;
+		const ruled = entriesList.querySelector< HTMLElement >(
+			':scope > [data-heads-column]'
+		);
+		let head =
+			entriesList.querySelector( ':scope > [data-leads-column]' )
+				?.nextElementSibling ?? null;
+
+		while ( head && ! head.matches( '[data-entry-id]' ) ) {
+			head = head.nextElementSibling;
+		}
+
+		const next =
+			head instanceof HTMLElement &&
+			! head.hasAttribute( 'data-pinned' ) &&
+			entryGroupOf( head )
+				? head
+				: null;
+
+		if ( next === ruled ) {
+			return;
+		}
+
+		const swapRule = (
+			entry: HTMLElement,
+			from: string[][],
+			to: string[][]
+		) => {
+			const group = entryGroupOf( entry );
+
+			from.forEach( ( [ property ] ) =>
+				group?.style.removeProperty( property )
+			);
+			to.forEach( ( [ property, value ] ) =>
+				group?.style.setProperty( property, value )
+			);
+		};
+
+		if ( ruled ) {
+			swapRule( ruled, columnRule, entryRule );
+			delete ruled.dataset.headsColumn;
+		}
+
+		if ( next ) {
+			swapRule( next, entryRule, columnRule );
+			next.dataset.headsColumn = '';
+		}
+	}
+
 	// Entries are inserted, replaced and appended in several places, the
 	// pinned card among them, so the list itself is watched.
-	const entriesListObserver = new MutationObserver( watchStickyCards );
+	const entriesListObserver = new MutationObserver( () => {
+		watchStickyCards();
+		placeColumnRule();
+	} );
 	entriesListObserver.observe( entriesList, { childList: true } );
 	watchStickyCards();
-	on( window, 'resize', fitStickyCards );
+	placeColumnRule();
+	on( window, 'resize', () => fitStickyCards() );
 	cleanupFns.push( () => {
 		entriesListObserver.disconnect();
 		stickyCardObserver?.disconnect();

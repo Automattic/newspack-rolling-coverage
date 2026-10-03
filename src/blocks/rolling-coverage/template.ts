@@ -1836,6 +1836,94 @@ function splitEntryTemplate(): TemplateItem[] {
 }
 
 /**
+ * Whether a group sets where it sits in a grid, on desktop or at any
+ * viewport, mirroring Rolling_Coverage_Block::grid_placement().
+ *
+ * @param {Object} block            The group.
+ * @param {Object} block.attributes Its attributes.
+ * @return {boolean} Whether it sets a placement.
+ */
+function hasGridPlacement( block?: {
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const style = block?.attributes?.style as
+		Record< string, unknown > | undefined;
+	const setsPlacement = ( styles: unknown ) => {
+		const layout = ( styles as { layout?: Record< string, unknown > } )
+			?.layout;
+
+		return [ 'columnStart', 'columnSpan', 'rowStart', 'rowSpan' ].some(
+			( key ) => Boolean( layout?.[ key ] )
+		);
+	};
+
+	return (
+		!! style &&
+		( setsPlacement( style ) ||
+			Object.keys( style ).some(
+				( key ) =>
+					key.startsWith( '@' ) && setsPlacement( style[ key ] )
+			) )
+	);
+}
+
+/**
+ * An entry's preview blocks with the pinned card's top border on the entry
+ * group, as the entry heading the entries beside the card renders, so the
+ * two rules line up (see Rolling_Coverage_Block::column_rules()). Unchanged
+ * unless a grid Feed places the card beside the entry group and the card
+ * has a top border.
+ *
+ * @param {Object[]} blocks     The entry's preview blocks.
+ * @param {Object[]} template   The layout's per-entry blocks.
+ * @param {Object}   feedLayout The Feed group's layout attribute.
+ * @return {Object[]} The blocks.
+ */
+function withColumnRule< T extends { name: string; [ key: string ]: unknown } >(
+	blocks: T[],
+	template: { name: string; attributes?: Record< string, unknown > }[],
+	feedLayout: Record< string, unknown > | undefined
+): T[] {
+	const card = template.find( isPinnedCard );
+	const top = (
+		card?.attributes?.style as
+			{ border?: { top?: Record< string, unknown > } } | undefined
+	 )?.border?.top;
+
+	if (
+		feedLayout?.type !== 'grid' ||
+		! hasGridPlacement( card ) ||
+		! template.some( isRegularEntry ) ||
+		! top ||
+		Object.keys( top ).length === 0
+	) {
+		return blocks;
+	}
+
+	return blocks.map( ( block ) => {
+		const attributes = ( block.attributes ?? {} ) as {
+			className?: string;
+			style?: { border?: Record< string, unknown > };
+		};
+
+		if ( ! isRegularEntry( { name: block.name, attributes } ) ) {
+			return block;
+		}
+
+		return {
+			...block,
+			attributes: {
+				...attributes,
+				style: {
+					...attributes.style,
+					border: { ...attributes.style?.border, top },
+				},
+			},
+		};
+	} );
+}
+
+/**
  * The grid cell an entry's preview takes in a grid Feed, mirroring the
  * article the site places (see Rolling_Coverage_Block::place_in_grid()):
  * the pinned card's desktop placement for the first pinned entry, else the
@@ -1874,12 +1962,11 @@ function entryPreviewPlacement(
 		return undefined;
 	}
 
-	const hasCardPlacement = Boolean(
-		card &&
-		( card.columnStart || card.columnSpan || card.rowStart || card.rowSpan )
-	);
-
-	if ( placement === entry && hasCardPlacement && ! showsPin ) {
+	if (
+		placement === entry &&
+		hasGridPlacement( template.find( isPinnedCard ) ) &&
+		! showsPin
+	) {
 		return { gridColumn: '1 / -1' };
 	}
 
@@ -3235,6 +3322,7 @@ export {
 	splitEntryTemplate,
 	splitHeader,
 	entryPreviewPlacement,
+	withColumnRule,
 	SPLIT_FEED_LAYOUT,
 	SPLIT_FEED_STYLE,
 	SPLIT_FEED_GAP,
