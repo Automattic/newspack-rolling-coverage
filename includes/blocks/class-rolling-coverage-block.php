@@ -126,6 +126,7 @@ class Rolling_Coverage_Block {
 		'core/post-excerpt',
 		'core/post-featured-image',
 		'core/post-author-name',
+		'core/avatar',
 	];
 
 	/**

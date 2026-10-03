@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Layout {
 
-	const BUILT_IN_SLUGS = [ 'default', 'stream', 'rail', 'clock', 'margin', 'minute', 'wire', 'digest', 'flash' ];
+	const BUILT_IN_SLUGS = [ 'default', 'stream', 'rail', 'clock', 'margin', 'minute', 'byline', 'wire', 'digest', 'flash' ];
 
 	const SLUG_META_KEY = '_rolling_coverage_layout';
 
@@ -431,6 +431,8 @@ class Layout {
 			'margin' => sprintf( __( '%s: Margin', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
 			/* translators: %s: Rolling Coverage, the product name. */
 			'minute' => sprintf( __( '%s: Minute', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
+			/* translators: %s: Rolling Coverage, the product name. */
+			'byline' => sprintf( __( '%s: Byline', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
 			/* translators: %s: Rolling Coverage, the product name. */
 			'wire'   => sprintf( __( '%s: Wire', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
 			/* translators: %s: Rolling Coverage, the product name. */
