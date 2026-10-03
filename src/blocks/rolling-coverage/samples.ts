@@ -11,7 +11,7 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import { ENTRY_POST_TYPE, SAMPLE_AVATAR_URLS } from './config';
+import { ENTRY_POST_TYPE, SAMPLE_AVATAR_URLS, SHOW_AVATARS } from './config';
 import type { EntryContext } from './types';
 
 const AUTHORS = [
@@ -139,7 +139,8 @@ function loadSampleRecords(): void {
 		'root',
 		'user',
 		AUTHORS.map( ( { id, name, slug, initials } ) => {
-			const avatar = SAMPLE_AVATAR_URLS?.[ initials.toLowerCase() ];
+			const avatar =
+				SHOW_AVATARS && SAMPLE_AVATAR_URLS?.[ initials.toLowerCase() ];
 
 			return {
 				id,
@@ -256,6 +257,7 @@ export function useSampleEntries( enabled: boolean ): EntryContext[] {
 				pinned: Boolean( sample.pinned ),
 				hasBreakout: Boolean( sample.hasBreakout ),
 				hasTitle: '' !== sample.title,
+				hidesByline: false,
 			} ) )
 		);
 	}, [ enabled ] );

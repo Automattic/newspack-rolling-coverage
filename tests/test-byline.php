@@ -203,6 +203,23 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The editor preview knows which entries the Slack bot wrote, so it hides
+	 * their byline as the site does.
+	 */
+	public function test_the_editor_preview_flags_bot_authored_entries() {
+		$coverage_id = self::create_coverage();
+		$bot_entry   = self::create_entry( $coverage_id, [ 'post_author' => Slack_Config::get_or_create_bot_user_id() ] );
+		$reporter    = self::create_entry( $coverage_id, [ 'post_author' => self::factory()->user->create() ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$response = rest_do_request( new WP_REST_Request( 'GET', '/' . NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages/' . $coverage_id . '/entries-preview' ) );
+		$flags    = wp_list_pluck( $response->get_data(), 'hidesByline', 'id' );
+
+		$this->assertTrue( $flags[ $bot_entry ], "The bot's entry should be flagged." );
+		$this->assertFalse( $flags[ $reporter ], "A reporter's entry should not be." );
+	}
+
+	/**
 	 * Avatars outside an entry are left as core renders them.
 	 */
 	public function test_an_avatar_outside_a_feed_gets_no_inline_size() {

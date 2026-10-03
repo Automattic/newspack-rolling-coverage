@@ -712,14 +712,19 @@ class Rolling_Coverage_Block {
 			return $block_content;
 		}
 
-		$post_id = (int) ( $instance->context['postId'] ?? 0 );
-		$author  = $post_id > 0 ? get_userdata( (int) get_post_field( 'post_author', $post_id ) ) : false;
+		return self::is_bot_authored( (int) ( $instance->context['postId'] ?? 0 ) ) ? '' : $block_content;
+	}
 
-		if ( $author && Slack_Config::BOT_USER_LOGIN === $author->user_login ) {
-			return '';
-		}
+	/**
+	 * Whether the Slack bot is a post's author.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	private static function is_bot_authored( int $post_id ): bool {
+		$author = $post_id > 0 ? get_userdata( (int) get_post_field( 'post_author', $post_id ) ) : false;
 
-		return $block_content;
+		return $author && Slack_Config::BOT_USER_LOGIN === $author->user_login;
 	}
 
 	/**
@@ -856,6 +861,7 @@ class Rolling_Coverage_Block {
 					'canEditThemeOptions'         => current_user_can( 'edit_theme_options' ),
 					'layoutCategoryId'            => Layout::get_pattern_category_id(),
 					'entryPostType'               => Post_Type::CPT_SLUG,
+					'showAvatars'                 => (bool) get_option( 'show_avatars' ),
 					'sampleAvatarUrls'            => [
 						'mq' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/mq.svg' ),
 						'ta' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/ta.svg' ),
@@ -3239,12 +3245,12 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Reduces a post ID to the bare `{ id, type, pinned, hasBreakout, hasTitle }`
-	 * shape the editor preview needs, for get_entries_preview().
+	 * Reduces a post ID to the bare `{ id, type, pinned, hasBreakout, hasTitle,
+	 * hidesByline }` shape the editor preview needs, for get_entries_preview().
 	 *
 	 * @param int  $id          Entry post ID.
 	 * @param bool $ignore_pins Whether to report the entry as unpinned, as a capped feed does.
-	 * @return array{id: int, type: string, pinned: bool, hasBreakout: bool, hasTitle: bool}
+	 * @return array{id: int, type: string, pinned: bool, hasBreakout: bool, hasTitle: bool, hidesByline: bool}
 	 */
 	private static function map_entry_preview( int $id, bool $ignore_pins = false ): array {
 		return [
@@ -3253,6 +3259,7 @@ class Rolling_Coverage_Block {
 			'pinned'      => ! $ignore_pins && Post_Type::is_pinned( $id ),
 			'hasBreakout' => null !== Breakout::get_published_breakout_url( $id ),
 			'hasTitle'    => self::has_title( get_post( $id ) ),
+			'hidesByline' => self::is_bot_authored( $id ),
 		];
 	}
 

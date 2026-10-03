@@ -2543,6 +2543,69 @@ function withoutPostTitle<
 }
 
 /**
+ * The template as the site renders it with avatars turned off: without the
+ * columns that hold only an avatar, mirroring
+ * Rolling_Coverage_Block::without_avatar_columns(), or any other avatar,
+ * which renders nothing (see Rolling_Coverage_Block::size_entry_avatar()).
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks without avatars.
+ */
+function withoutAvatarColumns<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks
+		.filter( ( block ) => {
+			const innerBlocks = Array.isArray( block.innerBlocks )
+				? ( block.innerBlocks as T[] )
+				: [];
+			const isAvatarColumn =
+				block.name === 'core/column' &&
+				innerBlocks.length === 1 &&
+				innerBlocks[ 0 ].name === 'core/avatar';
+
+			return block.name !== 'core/avatar' && ! isAvatarColumn;
+		} )
+		.map( ( block ) =>
+			Array.isArray( block.innerBlocks )
+				? {
+						...block,
+						innerBlocks: withoutAvatarColumns(
+							block.innerBlocks as T[]
+						),
+					}
+				: block
+		);
+}
+
+/**
+ * The template without the author's avatar and name, as an entry the Slack
+ * bot wrote renders, mirroring Rolling_Coverage_Block::hide_slack_bot_byline().
+ * The avatar's column stays, so the entry's text lines up with the others.
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks without the byline.
+ */
+function withoutByline< T extends { name: string; [ key: string ]: unknown } >(
+	blocks: T[]
+): T[] {
+	return blocks
+		.filter(
+			( block ) =>
+				block.name !== 'core/avatar' &&
+				block.name !== 'core/post-author-name'
+		)
+		.map( ( block ) =>
+			Array.isArray( block.innerBlocks )
+				? {
+						...block,
+						innerBlocks: withoutByline( block.innerBlocks as T[] ),
+					}
+				: block
+		);
+}
+
+/**
  * Block types allowed inside the per-entry template.
  */
 const ENTRY_ALLOWED_BLOCKS = [
@@ -2618,4 +2681,6 @@ export {
 	withShapedPinnedCard,
 	withCenteredTitleRows,
 	withoutPostTitle,
+	withoutAvatarColumns,
+	withoutByline,
 };
