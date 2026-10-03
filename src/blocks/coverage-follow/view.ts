@@ -121,6 +121,19 @@ function syncFollowButtons(
 }
 
 /**
+ * Every follow button on the page for a tag, so buttons sharing one stay in
+ * sync.
+ *
+ * @param {string} tag OneSignal tag.
+ * @return {HTMLButtonElement[]} Matching buttons.
+ */
+function buttonsForTag( tag: string ): HTMLButtonElement[] {
+	return Array.from(
+		document.querySelectorAll< HTMLButtonElement >( FOLLOW_BUTTON_SELECTOR )
+	).filter( ( candidate ) => candidate.dataset.tag === tag );
+}
+
+/**
  * Wires a follow button's click handler: toggle the OneSignal tag, with an
  * optimistic UI update reverted on failure.
  *
@@ -141,14 +154,25 @@ function initFollowButton( button: HTMLButtonElement ): void {
 	button.addEventListener( 'click', () => {
 		const willFollow = button.getAttribute( 'aria-pressed' ) !== 'true';
 
-		updateButtonState( button, willFollow );
+		const siblings = buttonsForTag( tag );
+
+		siblings.forEach( ( sibling ) => {
+			updateButtonState( sibling, willFollow );
+			sibling.disabled = true;
+		} );
 		setStatusMessage( button, '' );
-		button.disabled = true;
+
+		const settle = () =>
+			siblings.forEach( ( sibling ) => {
+				sibling.disabled = false;
+			} );
 
 		const revert = ( message: string ) => {
-			updateButtonState( button, ! willFollow );
+			siblings.forEach( ( sibling ) =>
+				updateButtonState( sibling, ! willFollow )
+			);
 			setStatusMessage( button, message );
-			button.disabled = false;
+			settle();
 		};
 
 		let hasResolvedSdkWait = false;
@@ -187,7 +211,7 @@ function initFollowButton( button: HTMLButtonElement ): void {
 					OneSignal.User.addTag( tag, '1' );
 				}
 
-				button.disabled = false;
+				settle();
 			} catch {
 				revert( button.dataset.errorMessage || '' );
 			}

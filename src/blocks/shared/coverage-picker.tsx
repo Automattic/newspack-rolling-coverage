@@ -3,8 +3,9 @@
  */
 import { ComboboxControl } from '@wordpress/components';
 import { store as coreStore } from '@wordpress/core-data';
+import { useDebounce } from '@wordpress/compose';
 import { useSelect } from '@wordpress/data';
-import { useMemo, useState } from '@wordpress/element';
+import { useMemo, useRef, useState } from '@wordpress/element';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __ } from '@wordpress/i18n';
 
@@ -40,8 +41,10 @@ export default function CoveragePicker( {
 	statusMetaKey,
 }: CoveragePickerProps ) {
 	const [ search, setSearch ] = useState( '' );
+	const setSearchDebounced = useDebounce( setSearch, 300 );
+	const lastFound = useRef< CoverageTerm[] >( [] );
 
-	const { found, current } = useSelect(
+	const { found, current, isLoading } = useSelect(
 		( select ) => {
 			const core = select( coreStore ) as unknown as {
 				getEntityRecords: (
@@ -55,13 +58,20 @@ export default function CoveragePicker( {
 					id: number,
 					query: Record< string, string >
 				) => CoverageTerm | null | undefined;
+				hasFinishedResolution: (
+					selector: string,
+					args: unknown[]
+				) => boolean;
 			};
+			const query = { ...SEARCH_QUERY, search };
 
 			return {
-				found: core.getEntityRecords( 'taxonomy', taxonomySlug, {
-					...SEARCH_QUERY,
-					search,
-				} ),
+				found: core.getEntityRecords( 'taxonomy', taxonomySlug, query ),
+				isLoading: ! core.hasFinishedResolution( 'getEntityRecords', [
+					'taxonomy',
+					taxonomySlug,
+					query,
+				] ),
 				current: value
 					? core.getEntityRecord( 'taxonomy', taxonomySlug, value, {
 							context: 'view',
@@ -72,8 +82,12 @@ export default function CoveragePicker( {
 		[ taxonomySlug, search, value ]
 	);
 
+	if ( found ) {
+		lastFound.current = found;
+	}
+
 	const options = useMemo( () => {
-		const terms = ( found ?? [] ).filter(
+		const terms = ( found ?? lastFound.current ).filter(
 			( term ) => term.meta?.[ statusMetaKey ] !== 'trash'
 		);
 
@@ -102,7 +116,8 @@ export default function CoveragePicker( {
 			onChange={ ( next ) =>
 				onChange( parseInt( next ?? '0', 10 ) || 0 )
 			}
-			onFilterValueChange={ setSearch }
+			onFilterValueChange={ setSearchDebounced }
+			isLoading={ isLoading }
 		/>
 	);
 }

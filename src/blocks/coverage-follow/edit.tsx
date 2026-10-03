@@ -7,6 +7,8 @@ import {
 	useInnerBlocksProps,
 } from '@wordpress/block-editor';
 import { Notice, PanelBody } from '@wordpress/components';
+import { store as coreStore } from '@wordpress/core-data';
+import { useSelect } from '@wordpress/data';
 import type { ReactNode } from 'react';
 import { __ } from '@wordpress/i18n';
 
@@ -19,7 +21,7 @@ import { usePageFeeds } from '../shared/page-feeds';
 import type { CoverageFollowAttributes, CoverageFollowConfig } from './types';
 
 const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
-const ALLOWED_BLOCKS = [ 'core/buttons', 'core/button' ];
+const ALLOWED_BLOCKS = [ 'core/buttons' ];
 const TEMPLATE = [ FOLLOW_BUTTONS_TEMPLATE ];
 
 const config: CoverageFollowConfig = window.newspackCoverageFollowBlock ?? {
@@ -63,6 +65,54 @@ export default function Edit( {
 	const needsCoverage =
 		! isInFeed && ! isTemplate && ! coverageId && feeds.length === 0;
 
+	const chosenState = useSelect(
+		( select ) => {
+			if ( isInFeed || ! coverageId ) {
+				return '';
+			}
+
+			const core = select( coreStore ) as unknown as {
+				getEntityRecord: (
+					kind: string,
+					name: string,
+					id: number,
+					query: Record< string, string >
+				) => { meta?: Record< string, string > } | null | undefined;
+				hasFinishedResolution: (
+					selector: string,
+					args: unknown[]
+				) => boolean;
+			};
+			const args = [
+				'taxonomy',
+				config.taxonomySlug,
+				coverageId,
+				{ context: 'view' },
+			];
+			const term = core.getEntityRecord(
+				'taxonomy',
+				config.taxonomySlug,
+				coverageId,
+				{ context: 'view' }
+			);
+
+			if (
+				term === null ||
+				( term === undefined &&
+					core.hasFinishedResolution( 'getEntityRecord', args ) )
+			) {
+				return 'missing';
+			}
+
+			return term?.meta?.[ config.statusMetaKey ] ?? '';
+		},
+		[ isInFeed, coverageId ]
+	);
+
+	const isChosenGone =
+		chosenState === 'trash' ||
+		( chosenState === 'missing' && feeds.length === 0 );
+
 	const blockProps = useBlockProps();
 	const innerBlocksProps = useInnerBlocksProps( blockProps, {
 		template: TEMPLATE,
@@ -87,13 +137,25 @@ export default function Edit( {
 						/>
 					) }
 					{ ! config.onesignalConfigured && (
-						<Notice
-							status="warning"
-							isDismissible={ false }
-							className="newspack-rolling-coverage-follow__notice"
-						>
+						<Notice status="warning" isDismissible={ false }>
 							{ __(
 								"Push notifications aren't set up, so this button won't appear on the site.",
+								'newspack-rolling-coverage'
+							) }
+						</Notice>
+					) }
+					{ chosenState === 'archived' && (
+						<Notice status="warning" isDismissible={ false }>
+							{ __(
+								"This coverage has ended, so this button won't appear on the site.",
+								'newspack-rolling-coverage'
+							) }
+						</Notice>
+					) }
+					{ isChosenGone && (
+						<Notice status="warning" isDismissible={ false }>
+							{ __(
+								"This coverage no longer exists, so this button won't appear on the site.",
 								'newspack-rolling-coverage'
 							) }
 						</Notice>

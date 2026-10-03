@@ -119,7 +119,8 @@ const SHARE_CLASS = 'newspack-rolling-coverage-share';
 const ALL_UPDATES_CLASS = 'newspack-rolling-coverage-all-updates';
 
 /**
- * The Follow Coverage block, which wraps the follow button.
+ * The Follow Coverage block, which sits once among the layout's coverage-level
+ * blocks.
  */
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 

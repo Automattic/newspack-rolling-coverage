@@ -96,9 +96,7 @@ class Coverage_Follow_Block {
 
 	/**
 	 * Hands the coverage the block follows to the blocks it holds, so the
-	 * button's follow binding carries that coverage's tag. Core passes a
-	 * block's context on to its descendants, so only the block's own
-	 * children need it, and each block hands on its own coverage.
+	 * button's follow binding carries that coverage's tag.
 	 *
 	 * Parameters stay untyped because this runs for every block on the site,
 	 * after other plugins' filters that may hand on unexpected types.

@@ -126,15 +126,18 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 			return;
 		}
 
-		$metadata = json_decode( file_get_contents( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'src/blocks/coverage-follow/block.json' ), true ); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
+		$metadata = wp_json_file_decode( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'src/blocks/coverage-follow/block.json', [ 'associative' => true ] );
+
+		wp_register_script( 'newspack-rolling-coverage-follow-test-view', false, [], '1.0.0', true );
 
 		register_block_type(
 			Coverage_Follow_Block::BLOCK_NAME,
 			array_merge(
 				[
-					'attributes'   => $metadata['attributes'],
-					'supports'     => $metadata['supports'],
-					'uses_context' => $metadata['usesContext'],
+					'attributes'          => $metadata['attributes'],
+					'supports'            => $metadata['supports'],
+					'uses_context'        => $metadata['usesContext'],
+					'view_script_handles' => [ 'newspack-rolling-coverage-follow-test-view' ],
 				],
 				Coverage_Follow_Block::block_type_args()
 			)

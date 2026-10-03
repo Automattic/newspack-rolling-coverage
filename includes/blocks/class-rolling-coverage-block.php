@@ -1702,9 +1702,9 @@ class Rolling_Coverage_Block {
 	 * Renders coverage-level blocks once, with the coverage in their context
 	 * so the Follow Coverage block follows it. A Follow Coverage block that
 	 * can't render, e.g. on an archived coverage, leaves nothing behind, nor
-	 * does a group
-	 * left empty once it and the "See all updates" paragraph drop out, and
-	 * "Jump to Latest" renders only as its own control, so none renders here.
+	 * does a group left empty once it and the "See all updates" paragraph drop
+	 * out, and "Jump to Latest" renders only as its own control, so none
+	 * renders here.
 	 *
 	 * @param array[] $blocks          Parsed coverage-level blocks.
 	 * @param int     $coverage_id     Coverage term id.

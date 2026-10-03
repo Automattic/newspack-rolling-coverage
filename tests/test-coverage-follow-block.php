@@ -164,10 +164,6 @@ class Test_Coverage_Follow_Block extends Rolling_Coverage_TestCase {
 	public function test_inside_a_feed_enqueues_the_follow_script() {
 		$handles = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Follow_Block::BLOCK_NAME )->view_script_handles;
 
-		if ( ! $handles ) {
-			$this->markTestSkipped( 'The block is registered without a build, so it has no view script.' );
-		}
-
 		$coverage_id = self::create_coverage();
 		self::create_entry( $coverage_id );
 
