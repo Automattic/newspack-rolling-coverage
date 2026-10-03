@@ -145,6 +145,8 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		$entry_id = self::create_entry( $this->coverage_id, [ 'post_content' => '<p>Before</p><script>alert(1)</script><iframe src="https://example.test/embed"></iframe>' ] );
 		wp_set_current_user( 0 );
 
+		$this->assertStringContainsString( '<script>alert(1)</script><iframe', get_post_field( 'post_content', $entry_id ), 'Precondition: the script and the embed were saved.' );
+
 		$html = Lite_Feed::render_entry( get_post( $entry_id ), 'initial' );
 
 		$this->assertStringContainsString( '<p>Before</p>', $html );
@@ -272,26 +274,12 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Set up the push provider the Follow button needs, so a full page shows it.
-	 */
-	private static function enable_push_provider() {
-		require_once __DIR__ . '/mocks/onesignal.php';
-		update_option(
-			'OneSignalWPSetting',
-			[
-				'app_id'           => 'test-app-id',
-				'app_rest_api_key' => 'test-rest-api-key',
-			]
-		);
-	}
-
-	/**
 	 * The Follow button needs its own script and a push provider, neither of
 	 * which a lite page has.
 	 */
 	public function test_lite_page_leaves_out_the_follow_button() {
 		self::create_entry( $this->coverage_id );
-		self::enable_push_provider();
+		self::configure_onesignal();
 
 		$this->assertStringContainsString( 'Follow</button>', $this->render_block_html( [], self::FOLLOW_MARKUP ), 'A full page shows the Follow button.' );
 		$this->assertStringNotContainsString( 'Follow</button>', $this->render_lite_page( [], self::FOLLOW_MARKUP ), 'A lite page does not.' );
@@ -303,7 +291,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	 * while the Follow button sharing their group drops out.
 	 */
 	public function test_capped_lite_page_keeps_the_name_and_link_but_drops_follow() {
-		self::enable_push_provider();
+		self::configure_onesignal();
 		wp_update_term( $this->coverage_id, Taxonomy::TAXONOMY_SLUG, [ 'name' => 'Storm coverage' ] );
 
 		// The coverage page lives on this site; an address elsewhere isn't kept.
@@ -428,14 +416,17 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A poll from a lite page gets entries in the form the page renders them.
+	 * A poll from a lite page gets entries in the form the page renders them,
+	 * with bodies keeping the markup the page keeps, so the poll serves its
+	 * feed before it renders them.
 	 */
 	public function test_lite_poll_returns_entries_as_text() {
 		$entry_id = self::create_entry(
 			$this->coverage_id,
 			[
-				'post_title' => 'Bridge reopens',
-				'post_date'  => '2026-01-01 12:00:00',
+				'post_title'   => 'Bridge reopens',
+				'post_content' => '<!-- wp:paragraph --><p>Open since <time datetime="2026-01-01T12:00:00+00:00">noon</time>.</p><!-- /wp:paragraph -->',
+				'post_date'    => '2026-01-01 12:00:00',
 			]
 		);
 
@@ -444,6 +435,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertCount( 1, $entries );
 		$this->assertSame( $entry_id, $entries[0]['id'] );
+		$this->assertStringContainsString( 'Open since <time datetime="2026-01-01T12:00:00+00:00">noon</time>.', $entries[0]['html'], 'Only a served lite feed keeps the time.' );
 		$this->assertSame( Lite_Feed::render_entry( get_post( $entry_id ), 'poll' ), $entries[0]['html'] );
 		$this->assertTrue( $allowed_html['div']['data-*'] ?? false, 'A lite request serves a lite feed.' );
 	}
