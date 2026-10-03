@@ -390,6 +390,9 @@ export function useLayoutPreview(
 			footerBlocks: withoutLatestButtons( footer ),
 		};
 	}, [ allBlocks ] );
+	const hasBotEntry = entryContexts.some(
+		( context ) => context.hidesByline
+	);
 	const previewTemplates = useMemo( () => {
 		const entryBlocks = SHOW_AVATARS
 			? templateBlocks
@@ -428,10 +431,14 @@ export function useLayoutPreview(
 			hasCard,
 			titled,
 			untitled,
-			titledWithoutByline: withoutBylines( titled ),
-			untitledWithoutByline: withoutBylines( untitled ),
+			titledWithoutByline: hasBotEntry
+				? withoutBylines( titled )
+				: undefined,
+			untitledWithoutByline: hasBotEntry
+				? withoutBylines( untitled )
+				: undefined,
 		};
-	}, [ templateBlocks ] );
+	}, [ templateBlocks, hasBotEntry ] );
 
 	// The last entry drops its separator once no more entries would load
 	// (see Rolling_Coverage_Block::shape_entry_template()).
@@ -472,17 +479,17 @@ export function useLayoutPreview(
 			}
 
 			const untitled = context.hasTitle === false;
-			let templates = untitled
+			const templates = untitled
 				? previewTemplates.untitled
 				: previewTemplates.titled;
+			const bylineless = untitled
+				? previewTemplates.untitledWithoutByline
+				: previewTemplates.titledWithoutByline;
 
-			if ( context.hidesByline ) {
-				templates = untitled
-					? previewTemplates.untitledWithoutByline
-					: previewTemplates.titledWithoutByline;
-			}
-
-			return previewTemplateFor( templates, context );
+			return previewTemplateFor(
+				( context.hidesByline && bylineless ) || templates,
+				context
+			);
 		},
 		[ lastContext, lastPreviewBlocks, previewTemplates ]
 	);
