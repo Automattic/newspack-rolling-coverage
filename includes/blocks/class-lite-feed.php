@@ -203,10 +203,13 @@ class Lite_Feed {
 
 	/**
 	 * Render an entry as text: its time, whether it is pinned, its title and
-	 * its body, which Lite Site cleans like the rest of the page.
+	 * its body, which Lite Site cleans like the rest of the page, or a notice
+	 * in place of a protected entry's body.
 	 *
 	 * Built from the entry alone, not the block's layout, and carrying the
-	 * attributes the view script uses to place and replace entries.
+	 * attributes the view script uses to place and replace entries. It cleans
+	 * the body with Lite Site, so it needs Lite Site loaded: callers check
+	 * is_lite_render() or is_available() first.
 	 *
 	 * @param WP_Post $entry     Entry post object.
 	 * @param string  $arrival   How the entry reached the page: 'initial', 'poll' or 'load_more'; empty for an edit the page already shows.
@@ -243,10 +246,22 @@ class Lite_Feed {
 	 * Clean an entry's content as Lite Site cleans a post's, with the entry
 	 * as the global post for blocks and shortcodes that read it.
 	 *
+	 * A protected entry gets a notice in place of its body, whatever the
+	 * reader's postpass cookie: Lite Site caches the page for every reader,
+	 * and lite polls and load more are public.
+	 *
 	 * @param WP_Post $entry Entry post object.
 	 * @return string Cleaned HTML.
 	 */
 	private static function render_body( WP_Post $entry ): string {
+		if ( '' !== $entry->post_password ) {
+			return sprintf(
+				'<p class="%s-entry-protected">%s</p>',
+				Rolling_Coverage_Block::MARKUP_PREFIX,
+				esc_html__( 'This content is password protected.', 'newspack-rolling-coverage' )
+			);
+		}
+
 		global $post;
 
 		$previous_post = $post;

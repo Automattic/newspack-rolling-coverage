@@ -35,6 +35,11 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		. '</div><!-- /wp:buttons --><!-- /wp:newspack-rolling-coverage/coverage-follow -->';
 
 	/**
+	 * What a lite feed shows in place of a protected entry's body.
+	 */
+	const PROTECTED_NOTICE = '<p class="newspack-rolling-coverage-entry-protected">This content is password protected.</p>';
+
+	/**
 	 * Coverage the entries belong to.
 	 *
 	 * @var int
@@ -70,6 +75,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		$has_feed->setAccessible( true );
 		$has_feed->setValue( null, false );
 		set_query_var( Social_Sharing::ENTRY_QUERY_VAR, '' );
+		unset( $_COOKIE[ 'wp-postpass_' . COOKIEHASH ] ); // phpcs:ignore WordPressVIPMinimum.Variables.RestrictedVariables.cache_constraints___COOKIE -- Forgetting the test's postpass cookie.
 
 		if ( null === $this->request_uri ) {
 			unset( $_SERVER['REQUEST_URI'] );
@@ -450,6 +456,87 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 1, $page['count'] );
 		$this->assertSame( Lite_Feed::render_entry( get_post( $entry_id ), 'load_more' ), $page['html'] );
+	}
+
+	/**
+	 * Create a password-protected entry, as seen by a reader who entered its
+	 * password or by one who didn't.
+	 *
+	 * @param bool $knows_password Whether the reader holds a valid postpass cookie.
+	 * @return int Entry ID.
+	 */
+	private function create_protected_entry( bool $knows_password ): int {
+		$entry_id = self::create_entry(
+			$this->coverage_id,
+			[
+				'post_title'    => 'Locked',
+				'post_content'  => '<!-- wp:paragraph --><p>Only for subscribers.</p><!-- /wp:paragraph -->',
+				'post_password' => 'secret',
+				'post_date'     => '2026-01-01 12:00:00',
+			]
+		);
+
+		if ( $knows_password ) {
+			require_once ABSPATH . WPINC . '/class-phpass.php';
+			$_COOKIE[ 'wp-postpass_' . COOKIEHASH ] = ( new PasswordHash( 8, true ) )->HashPassword( 'secret' ); // phpcs:ignore WordPressVIPMinimum.Variables.RestrictedVariables.cache_constraints___COOKIE -- The cookie core sets for a reader who entered the password.
+		}
+
+		$this->assertSame( ! $knows_password, post_password_required( $entry_id ), 'Precondition: only the password lets the reader in.' );
+
+		return $entry_id;
+	}
+
+	/**
+	 * A reader who didn't enter a protected entry's password, and one who did.
+	 *
+	 * @return array[]
+	 */
+	public function data_protected_entry_readers(): array {
+		return [
+			'without the password' => [ false ],
+			'with the password'    => [ true ],
+		];
+	}
+
+	/**
+	 * Lite Site caches a page for every reader, so a protected entry shows a
+	 * notice in place of its body, even to a reader who entered the password
+	 * and would fill the cache with it.
+	 *
+	 * @dataProvider data_protected_entry_readers
+	 *
+	 * @param bool $knows_password Whether the reader holds a valid postpass cookie.
+	 */
+	public function test_lite_page_shows_a_notice_in_place_of_a_protected_body( bool $knows_password ) {
+		$entry_id = $this->create_protected_entry( $knows_password );
+
+		$html = $this->render_lite_page();
+
+		$this->assertStringContainsString( 'data-entry-id="' . $entry_id . '"', $html );
+		$this->assertStringNotContainsString( 'Only for subscribers.', $html );
+		$this->assertStringContainsString( self::PROTECTED_NOTICE, $html );
+	}
+
+	/**
+	 * Lite polls and load more are public, so they send a protected entry
+	 * with the same notice in place of its body.
+	 *
+	 * @dataProvider data_protected_entry_readers
+	 *
+	 * @param bool $knows_password Whether the reader holds a valid postpass cookie.
+	 */
+	public function test_lite_requests_send_a_protected_entry_without_its_body( bool $knows_password ) {
+		$entry_id = $this->create_protected_entry( $knows_password );
+
+		$poll = $this->get_lite_feed( [ 'cursor' => '0:2025-12-31 00:00:00' ] )->get_data()['entries'];
+		$more = $this->get_lite_feed( [ 'before' => '2026-01-02 00:00:00' ] )->get_data()['html'];
+
+		$this->assertSame( $entry_id, $poll[0]['id'] );
+		$this->assertStringNotContainsString( 'Only for subscribers.', $poll[0]['html'], 'A poll sends no body.' );
+		$this->assertStringContainsString( self::PROTECTED_NOTICE, $poll[0]['html'] );
+		$this->assertStringContainsString( 'data-entry-id="' . $entry_id . '"', $more );
+		$this->assertStringNotContainsString( 'Only for subscribers.', $more, 'Nor does load more.' );
+		$this->assertStringContainsString( self::PROTECTED_NOTICE, $more );
 	}
 
 	/**
