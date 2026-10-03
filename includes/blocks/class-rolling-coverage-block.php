@@ -712,10 +712,10 @@ class Rolling_Coverage_Block {
 			return $block_content;
 		}
 
-		$bot_id  = Slack_Config::get_bot_user_id();
 		$post_id = (int) ( $instance->context['postId'] ?? 0 );
+		$author  = $post_id > 0 ? get_userdata( (int) get_post_field( 'post_author', $post_id ) ) : false;
 
-		if ( $bot_id > 0 && $post_id > 0 && (int) get_post_field( 'post_author', $post_id ) === $bot_id ) {
+		if ( $author && Slack_Config::BOT_USER_LOGIN === $author->user_login ) {
 			return '';
 		}
 
@@ -736,7 +736,12 @@ class Rolling_Coverage_Block {
 			return $block_content;
 		}
 
-		$size = (int) ( $block['attrs']['size'] ?? 96 );
+		$size = absint( $block['attrs']['size'] ?? 0 );
+
+		if ( ! $size ) {
+			$size = 96;
+		}
+
 		$html = new WP_HTML_Tag_Processor( $block_content );
 
 		if ( ! $html->next_tag( 'img' ) ) {
@@ -851,9 +856,9 @@ class Rolling_Coverage_Block {
 					'layoutCategoryId'            => Layout::get_pattern_category_id(),
 					'entryPostType'               => Post_Type::CPT_SLUG,
 					'sampleAvatarUrls'            => [
-						'mq' => NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/mq.svg',
-						'ta' => NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/ta.svg',
-						'io' => NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/io.svg',
+						'mq' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/mq.svg' ),
+						'ta' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/ta.svg' ),
+						'io' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/io.svg' ),
 					],
 				]
 			);

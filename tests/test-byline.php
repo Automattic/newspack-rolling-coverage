@@ -221,4 +221,13 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 		$this->assertStringNotContainsString( 'wp-block-avatar', $html );
 		$this->assertStringNotContainsString( 'width:40px', $html );
 	}
+
+	/**
+	 * A zero size falls back to core's default rather than collapsing the image.
+	 */
+	public function test_an_entry_avatar_with_a_zero_size_gets_the_core_default() {
+		$html = self::render( self::factory()->user->create(), '<!-- wp:avatar {"size":0} /-->' );
+
+		$this->assertStringContainsString( 'width:96px;height:96px;', $html );
+	}
 }
