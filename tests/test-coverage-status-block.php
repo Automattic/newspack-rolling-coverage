@@ -6,6 +6,7 @@
  */
 
 use Newspack_Rolling_Coverage\Coverage_Status_Block;
+use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Newest_Entry;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Status_Labels;
@@ -305,6 +306,51 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated" hidden>Updated <time datetime="" data-rc-relative></time></span>', $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $empty_id ) ) ) );
 		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-updated" hidden>', $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $ended_id ) ) ) );
+	}
+
+	/**
+	 * Lite Site strips the span that hides "Updated" and never runs the view
+	 * script that keeps it current, so on a lite page the block shows its
+	 * badge alone. A full page keeps the line.
+	 *
+	 * @dataProvider data_live_and_ended_statuses
+	 *
+	 * @param string $status Coverage status.
+	 * @param string $badge  The badge's text for that status.
+	 */
+	public function test_lite_page_shows_the_badge_without_last_updated( string $status, string $badge ) {
+		require_once __DIR__ . '/mocks/class-lite-site.php';
+
+		$coverage_id = self::create_coverage( $status );
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
+
+		$full_render = $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $coverage_id ) ) );
+
+		// Lite Site renders a post's blocks inside its content filter.
+		add_filter( Lite_Feed::CONTENT_FILTER, 'do_blocks', 9 );
+
+		try {
+			$lite_render = apply_filters( Lite_Feed::CONTENT_FILTER, '<!-- wp:newspack-rolling-coverage/coverage-status {"showLastUpdated":true} /-->' );
+		} finally {
+			remove_filter( Lite_Feed::CONTENT_FILTER, 'do_blocks', 9 );
+		}
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-updated', $full_render, 'A full page has the line.' );
+		$this->assertStringContainsString( '>' . $badge . '</span>', $lite_render, 'A lite page keeps the badge.' );
+		$this->assertStringNotContainsString( 'Updated', $lite_render );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-updated', $lite_render );
+	}
+
+	/**
+	 * A live and an ended coverage, with their badges' text.
+	 *
+	 * @return array[]
+	 */
+	public function data_live_and_ended_statuses(): array {
+		return [
+			'live'  => [ Taxonomy::STATUS_ACTIVE, 'Live' ],
+			'ended' => [ Taxonomy::STATUS_ARCHIVED, 'Ended' ],
+		];
 	}
 
 	/**

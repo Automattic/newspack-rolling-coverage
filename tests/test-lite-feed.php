@@ -10,6 +10,7 @@ use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Social_Sharing;
+use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
  * Lite Site renders a post's blocks through its own content filter, then
@@ -257,11 +258,9 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The Follow button needs its own script and a push provider, neither of
-	 * which a lite page has.
+	 * Set up the push provider the Follow button needs, so a full page shows it.
 	 */
-	public function test_lite_page_leaves_out_the_follow_button() {
-		self::create_entry( $this->coverage_id );
+	private static function enable_push_provider() {
 		require_once __DIR__ . '/mocks/onesignal.php';
 		update_option(
 			'OneSignalWPSetting',
@@ -270,15 +269,55 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 				'app_rest_api_key' => 'test-rest-api-key',
 			]
 		);
+	}
+
+	/**
+	 * The Follow button needs its own script and a push provider, neither of
+	 * which a lite page has.
+	 */
+	public function test_lite_page_leaves_out_the_follow_button() {
+		self::create_entry( $this->coverage_id );
+		self::enable_push_provider();
 
 		$this->assertStringContainsString( 'Follow</button>', $this->render_block_html( [], self::FOLLOW_MARKUP ), 'A full page shows the Follow button.' );
 		$this->assertStringNotContainsString( 'Follow</button>', $this->render_lite_page( [], self::FOLLOW_MARKUP ), 'A lite page does not.' );
 	}
 
 	/**
+	 * The layout's other coverage-level blocks read as text on a lite page: a
+	 * capped feed keeps the coverage's name and its "See all updates" link,
+	 * while the Follow button sharing their group drops out.
+	 */
+	public function test_capped_lite_page_keeps_the_name_and_link_but_drops_follow() {
+		self::enable_push_provider();
+		wp_update_term( $this->coverage_id, Taxonomy::TAXONOMY_SLUG, [ 'name' => 'Storm coverage' ] );
+
+		// The coverage page lives on this site; an address elsewhere isn't kept.
+		$coverage_page = home_url( '/storm-coverage/' );
+		update_term_meta( $this->coverage_id, Taxonomy::CANONICAL_URL_META_KEY, $coverage_page );
+
+		$attributes = [
+			'latestOnly'  => true,
+			'latestCount' => 2,
+		];
+		$footer     = '<!-- wp:group --><div class="wp-block-group">'
+			. '<!-- wp:heading {"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"coverageName"}}}}} --><h2 class="wp-block-heading">Saved title</h2><!-- /wp:heading -->'
+			. '<!-- wp:paragraph {"className":"newspack-rolling-coverage-all-updates"} --><p class="newspack-rolling-coverage-all-updates"><a href="#">See all updates</a></p><!-- /wp:paragraph -->'
+			. self::FOLLOW_MARKUP
+			. '</div><!-- /wp:group -->';
+		$lite_page  = $this->render_lite_page( $attributes, $footer );
+
+		$this->assertStringContainsString( 'Follow</button>', $this->render_block_html( $attributes, $footer ), 'A full page shows the Follow button.' );
+		$this->assertStringContainsString( '<h2>Storm coverage</h2>', $lite_page );
+		$this->assertStringContainsString( '<a href="' . $coverage_page . '">See all updates</a>', $lite_page );
+		$this->assertStringNotContainsString( 'Follow</button>', $lite_page );
+	}
+
+	/**
 	 * A full page wraps the feed's items in the layout's Feed group, or in a
-	 * plain container standing in for it. A lite page has no layout to
-	 * apply, so its items sit right inside the block.
+	 * plain container standing in for it. A lite page leaves out the layout's
+	 * Feed group and the groups around it, so its items sit right inside the
+	 * block.
 	 */
 	public function test_lite_page_leaves_out_the_feed_group() {
 		self::create_entry( $this->coverage_id );
