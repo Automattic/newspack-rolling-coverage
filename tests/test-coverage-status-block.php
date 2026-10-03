@@ -6,7 +6,6 @@
  */
 
 use Newspack_Rolling_Coverage\Coverage_Status_Block;
-use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Newest_Entry;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
@@ -401,8 +400,10 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 	/**
 	 * Lite Site strips the span that hides "Updated" and never runs the view
-	 * script that keeps it current, so on a lite page the block shows its
-	 * badge alone. A full page keeps the line.
+	 * script that keeps it current, so on a lite page a feed's status block
+	 * shows its badge alone, where a full page shows the line. A lite request
+	 * views the home page, where a standalone status block follows no feed,
+	 * so the feed's own is the only one a lite page shows.
 	 *
 	 * @dataProvider data_live_and_ended_statuses
 	 *
@@ -414,22 +415,18 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 		$coverage_id = self::create_coverage( $status );
 		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
+		$feed = self::flash_feed( $coverage_id, [ 'showLastUpdated' => true ] );
+		$this->go_to( home_url( '/' ) );
 
-		$full_render = $this->render( [ 'showLastUpdated' => true ], self::page( self::feed( $coverage_id ) ) );
+		$full_page  = do_blocks( $feed );
+		$lite_page  = \Newspack_Lite_Site\Lite_Site::clean_content( $feed );
+		$standalone = \Newspack_Lite_Site\Lite_Site::clean_content( '<!-- wp:newspack-rolling-coverage/coverage-status {"showLastUpdated":true} /-->' );
 
-		// Lite Site renders a post's blocks inside its content filter.
-		add_filter( Lite_Feed::CONTENT_FILTER, 'do_blocks', 9 );
-
-		try {
-			$lite_render = apply_filters( Lite_Feed::CONTENT_FILTER, '<!-- wp:newspack-rolling-coverage/coverage-status {"showLastUpdated":true} /-->' );
-		} finally {
-			remove_filter( Lite_Feed::CONTENT_FILTER, 'do_blocks', 9 );
-		}
-
-		$this->assertStringContainsString( 'newspack-rolling-coverage-updated', $full_render, 'A full page has the line.' );
-		$this->assertStringContainsString( '>' . $badge . '</span>', $lite_render, 'A lite page keeps the badge.' );
-		$this->assertStringNotContainsString( 'Updated', $lite_render );
-		$this->assertStringNotContainsString( 'newspack-rolling-coverage-updated', $lite_render );
+		$this->assertStringContainsString( 'newspack-rolling-coverage-updated', $full_page, 'A full page has the line.' );
+		$this->assertSame( [ $coverage_id ], self::followed_coverages( $lite_page ), 'A lite page keeps the status block.' );
+		$this->assertStringContainsString( '>' . $badge . '<', $lite_page, 'It keeps the badge.' );
+		$this->assertStringNotContainsString( 'Updated', $lite_page );
+		$this->assertSame( '', $standalone, 'A standalone status block shows nothing on a lite page.' );
 	}
 
 	/**
@@ -577,10 +574,11 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	 * A capped Rolling Coverage block shaped like Flash: a status block, then
 	 * the entry, among the coverage-level blocks of its Feed.
 	 *
-	 * @param int $coverage_id Coverage term ID.
+	 * @param int   $coverage_id       Coverage term ID.
+	 * @param array $status_attributes The status block's attributes.
 	 * @return string
 	 */
-	private static function flash_feed( int $coverage_id ): string {
+	private static function flash_feed( int $coverage_id, array $status_attributes = [] ): string {
 		$attributes = [
 			'coverageId'  => $coverage_id,
 			'latestOnly'  => true,
@@ -589,7 +587,7 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 		return '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->'
 			. '<!-- wp:group {"className":"newspack-rolling-coverage-feed","layout":{"type":"flex"}} --><div class="wp-block-group newspack-rolling-coverage-feed">'
-			. '<!-- wp:newspack-rolling-coverage/coverage-status /-->'
+			. '<!-- wp:newspack-rolling-coverage/coverage-status ' . ( $status_attributes ? wp_json_encode( $status_attributes ) . ' ' : '' ) . '/-->'
 			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry"><!-- wp:post-title /--></div><!-- /wp:group -->'
 			. '</div><!-- /wp:group -->'
 			. '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->';
