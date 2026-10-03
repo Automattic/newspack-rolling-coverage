@@ -171,4 +171,54 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'wp-block-post-author-name', $block->render() );
 	}
+
+	/**
+	 * The block's own size is written onto the image, over theme avatar sizing.
+	 */
+	public function test_an_entry_avatar_is_sized_from_the_block_setting() {
+		$author_id = self::factory()->user->create();
+
+		$html = self::render( $author_id, '<!-- wp:avatar {"size":40,"style":{"border":{"radius":"50%"}}} /-->' );
+
+		$this->assertMatchesRegularExpression( '/<img [^>]*style="[^"]*border-radius:50%;[^"]*width:40px;height:40px;/', $html );
+	}
+
+	/**
+	 * Without a size set, the entry avatar gets core's default.
+	 */
+	public function test_an_entry_avatar_without_a_size_gets_the_core_default() {
+		$html = self::render( self::factory()->user->create(), '<!-- wp:avatar /-->' );
+
+		$this->assertStringContainsString( 'width:96px;height:96px;', $html );
+	}
+
+	/**
+	 * Avatars outside an entry are left as core renders them.
+	 */
+	public function test_an_avatar_outside_a_feed_gets_no_inline_size() {
+		$post_id = self::factory()->post->create( [ 'post_author' => self::factory()->user->create() ] );
+
+		$block = new WP_Block(
+			parse_blocks( '<!-- wp:avatar {"size":40} /-->' )[0],
+			[
+				'postId'   => $post_id,
+				'postType' => 'post',
+			]
+		);
+
+		$html = $block->render();
+
+		$this->assertStringContainsString( 'wp-block-avatar', $html );
+		$this->assertStringNotContainsString( 'width:40px', $html );
+	}
+
+	/**
+	 * Sizing leaves a hidden bot avatar hidden.
+	 */
+	public function test_a_slack_bot_avatar_still_renders_nothing_when_sized() {
+		$html = self::render( Slack_Config::get_or_create_bot_user_id(), '<!-- wp:avatar {"size":40} /-->' );
+
+		$this->assertStringNotContainsString( 'wp-block-avatar', $html );
+		$this->assertStringNotContainsString( 'width:40px', $html );
+	}
 }

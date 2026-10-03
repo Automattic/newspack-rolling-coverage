@@ -186,6 +186,7 @@ class Rolling_Coverage_Block {
 		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 10, 3 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
+		add_filter( 'render_block_core/avatar', [ __CLASS__, 'size_entry_avatar' ], 10, 2 );
 		add_filter( 'render_block_core/post-author-name', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
 		add_filter( 'render_block_core/post-content', [ __CLASS__, 'drop_entry_content_class' ], 10, 3 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
@@ -719,6 +720,38 @@ class Rolling_Coverage_Block {
 		}
 
 		return $block_content;
+	}
+
+	/**
+	 * Writes an entry avatar's block size onto its image as inline width and
+	 * height. Core only sets them as attributes, which classic themes'
+	 * global avatar sizing overrides.
+	 *
+	 * @param string $block_content Rendered block.
+	 * @param array  $block         Parsed block.
+	 * @return string
+	 */
+	public static function size_entry_avatar( $block_content, $block ) {
+		if ( ! is_string( $block_content ) || '' === $block_content || ! self::is_rendering_entry() ) {
+			return $block_content;
+		}
+
+		$size = (int) ( $block['attrs']['size'] ?? 96 );
+		$html = new WP_HTML_Tag_Processor( $block_content );
+
+		if ( ! $html->next_tag( 'img' ) ) {
+			return $block_content;
+		}
+
+		$style = trim( (string) $html->get_attribute( 'style' ) );
+
+		if ( '' !== $style && ';' !== substr( $style, -1 ) ) {
+			$style .= ';';
+		}
+
+		$html->set_attribute( 'style', $style . sprintf( 'width:%1$dpx;height:%1$dpx;', $size ) );
+
+		return $html->get_updated_html();
 	}
 
 	/**
