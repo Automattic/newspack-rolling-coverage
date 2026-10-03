@@ -14,7 +14,16 @@ import { __ } from '@wordpress/i18n';
 import { ENTRY_POST_TYPE } from './config';
 import type { EntryContext } from './types';
 
-const AUTHOR_ID = -900;
+const AUTHORS = [
+	{ id: -900, name: 'Marisol Quinn', slug: 'marisol-quinn', initials: 'MQ' },
+	{
+		id: -901,
+		name: 'Theo Abernathy',
+		slug: 'theo-abernathy',
+		initials: 'TA',
+	},
+	{ id: -902, name: 'Ines Okafor', slug: 'ines-okafor', initials: 'IO' },
+];
 const IMAGE_ID = -800;
 
 const SAMPLE_IMAGE =
@@ -23,8 +32,24 @@ const SAMPLE_IMAGE =
 		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675"><rect width="1200" height="675" fill="#dcdcde"/><g fill="none" stroke="#f6f7f7" stroke-width="6"><rect x="60" y="60" width="1080" height="555"/><line x1="600" y1="60" x2="600" y2="615"/><circle cx="600" cy="337.5" r="90"/><rect x="60" y="197.5" width="165" height="280"/><rect x="975" y="197.5" width="165" height="280"/></g></svg>'
 	);
 
+/**
+ * A sample author's avatar: their initials on a neutral circle.
+ *
+ * @param {string} initials The author's initials.
+ * @return {string} An SVG data URI.
+ */
+function sampleAvatar( initials: string ): string {
+	return (
+		'data:image/svg+xml,' +
+		encodeURIComponent(
+			`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="#dcdcde"/><text x="48" y="48" dy=".35em" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" font-size="36" font-weight="600" fill="#50575e">${ initials }</text></svg>`
+		)
+	);
+}
+
 type Sample = {
 	id: number;
+	authorId: number;
 	minutesAgo: number;
 	title: string;
 	content: string;
@@ -41,6 +66,7 @@ function getSamples(): Sample[] {
 	return [
 		{
 			id: -101,
+			authorId: -900,
 			minutesAgo: 2,
 			title: __(
 				'Full time: Riverbend 2, Fresno Verde 1',
@@ -55,6 +81,7 @@ function getSamples(): Sample[] {
 		},
 		{
 			id: -102,
+			authorId: -901,
 			minutesAgo: 9,
 			title: '',
 			content: __(
@@ -64,6 +91,7 @@ function getSamples(): Sample[] {
 		},
 		{
 			id: -103,
+			authorId: -902,
 			minutesAgo: 40,
 			title: __(
 				'Kowalski again, straight off the training ground',
@@ -78,6 +106,7 @@ function getSamples(): Sample[] {
 		},
 		{
 			id: -104,
+			authorId: -901,
 			minutesAgo: 55,
 			title: __( '14,213 at DS Stadium', 'newspack-rolling-coverage' ),
 			content: __(
@@ -87,6 +116,7 @@ function getSamples(): Sample[] {
 		},
 		{
 			id: -105,
+			authorId: -900,
 			minutesAgo: 120,
 			title: __( 'Team news', 'newspack-rolling-coverage' ),
 			content: __(
@@ -120,10 +150,24 @@ function loadSampleRecords(): void {
 		receiveUserPermission: ( key: string, isAllowed: boolean ) => void;
 	};
 
-	core.receiveEntityRecords( 'root', 'user', [
-		{ id: AUTHOR_ID, name: 'Marisol Quinn', slug: 'marisol-quinn' },
-	] );
-	core.finishResolution( 'getEntityRecord', [ 'root', 'user', AUTHOR_ID ] );
+	core.receiveEntityRecords(
+		'root',
+		'user',
+		AUTHORS.map( ( { id, name, slug, initials } ) => {
+			const avatar = sampleAvatar( initials );
+
+			return {
+				id,
+				name,
+				slug,
+				avatar_urls: { 24: avatar, 48: avatar, 96: avatar },
+			};
+		} )
+	);
+	AUTHORS.forEach( ( { id } ) => {
+		core.finishResolution( 'getEntityRecord', [ 'root', 'user', id ] );
+		core.finishResolution( 'getUser', [ id ] );
+	} );
 
 	core.receiveEntityRecords(
 		'postType',
@@ -174,7 +218,7 @@ function loadSampleRecords(): void {
 				rendered: `<p>${ paragraph }</p>`,
 				protected: false,
 			},
-			author: AUTHOR_ID,
+			author: sample.authorId,
 			featured_media: sample.hasImage ? IMAGE_ID : 0,
 			link: '#',
 			meta: {},
