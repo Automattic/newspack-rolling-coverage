@@ -41,6 +41,10 @@ function setStatusMessage( button: HTMLButtonElement, text: string ): void {
 			: null;
 
 	if ( ! message ) {
+		if ( '' === text ) {
+			return;
+		}
+
 		message = document.createElement( 'p' );
 		message.className =
 			'newspack-rolling-coverage-follow__message wp-block-paragraph';
@@ -160,7 +164,7 @@ function initFollowButton( button: HTMLButtonElement ): void {
 			updateButtonState( sibling, willFollow );
 			sibling.disabled = true;
 		} );
-		setStatusMessage( button, '' );
+		siblings.forEach( ( sibling ) => setStatusMessage( sibling, '' ) );
 
 		const settle = () =>
 			siblings.forEach( ( sibling ) => {

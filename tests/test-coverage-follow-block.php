@@ -164,6 +164,11 @@ class Test_Coverage_Follow_Block extends Rolling_Coverage_TestCase {
 	public function test_inside_a_feed_enqueues_the_follow_script() {
 		$handles = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Follow_Block::BLOCK_NAME )->view_script_handles;
 
+		foreach ( $handles as $handle ) {
+			wp_dequeue_script( $handle );
+			$this->assertFalse( wp_script_is( $handle, 'enqueued' ), $handle . ' should start dequeued.' );
+		}
+
 		$coverage_id = self::create_coverage();
 		self::create_entry( $coverage_id );
 

@@ -7,16 +7,23 @@ import { addFilter } from '@wordpress/hooks';
  * Internal dependencies
  */
 import { ALL_ALLOWED_BLOCKS, BLOCK_NAME, FOLLOW_BLOCK_NAME } from './layout';
-import { STATUS_BLOCK_NAME, feedPathOf, isFeedGroup } from './template';
+import {
+	STATUS_BLOCK_NAME,
+	feedPathOf,
+	isFeedGroup,
+	isPinnedCard,
+	isRegularEntry,
+} from './template';
 
 /**
  * Limits the Feed group to the layout's block types, and keeps the Follow
- * Coverage block, which renders once at the top of the coverage, directly in
- * the Feed, where Rolling_Coverage_Block::layout_items() reads it. Anywhere
- * deeper in a Rolling Coverage block, the site would render it in every
- * entry or leave it out. The groups wrapping the Feed take no coverage status
- * either: the site renders them outside the coverage, so only the Feed can
- * hold it.
+ * Coverage block, which renders once at the top of the coverage, in the Feed
+ * or in a coverage-level group inside it, such as a layout's footer, where
+ * Rolling_Coverage_Block::layout_items() reads it. Inside an entry or the
+ * pinned card, the site would render it in every entry or leave it out. The
+ * groups wrapping the Feed take no coverage status either: the site renders
+ * them outside the coverage, so only the Feed and its coverage-level groups
+ * can hold it.
  *
  * @param {boolean} canInsert                            Whether the block can be inserted so far.
  * @param {Object}  blockType                            The block type being inserted.
@@ -39,7 +46,8 @@ function canInsertIntoFeed(
 		} | null;
 		getBlockParentsByBlockName: (
 			clientId: string,
-			blockName: string
+			blockName: string | string[],
+			ascending?: boolean
 		) => string[];
 	}
 ): boolean {
@@ -65,11 +73,35 @@ function canInsertIntoFeed(
 		return true;
 	}
 
-	return (
-		root?.name !== BLOCK_NAME &&
+	if ( root?.name === BLOCK_NAME ) {
+		return false;
+	}
+
+	if (
 		selectors.getBlockParentsByBlockName( rootClientId, BLOCK_NAME )
 			.length === 0
-	);
+	) {
+		return true;
+	}
+
+	const chain = [
+		root,
+		...selectors
+			.getBlockParentsByBlockName( rootClientId, 'core/group', true )
+			.map( ( clientId ) => selectors.getBlock( clientId ) ),
+	];
+
+	for ( const block of chain ) {
+		if ( ! block || isRegularEntry( block ) || isPinnedCard( block ) ) {
+			return false;
+		}
+
+		if ( isFeedGroup( block ) ) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 addFilter(
