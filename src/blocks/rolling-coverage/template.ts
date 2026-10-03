@@ -1208,14 +1208,15 @@ const DIGEST_FEED_STYLE = {
  * The coverage's name as a heading, bound so it follows the coverage, as
  * the Digest layout's header and in the Ticker layout's.
  *
+ * @param {string} fontSize The heading's font size preset.
  * @return {TemplateItem} The heading.
  */
-function coverageNameHeading(): TemplateItem {
+function coverageNameHeading( fontSize = 'large' ): TemplateItem {
 	return [
 		'core/heading',
 		{
 			level: 3,
-			fontSize: 'large',
+			fontSize,
 			content: __( 'Live Coverage', 'newspack-rolling-coverage' ),
 			metadata: {
 				name: __( 'Coverage Name', 'newspack-rolling-coverage' ),
@@ -1438,14 +1439,15 @@ function flashEntryTemplate(): TemplateItem[] {
 }
 
 /**
- * How many columns the Ticker layout's grid has at its widest.
+ * How many columns the Ticker layout's grid has at its widest: the header,
+ * then the three latest entries.
  */
 const TICKER_COLUMNS = 4;
 
 /**
  * How many columns the Ticker layout's grid has on tablets and on phones.
  */
-const TICKER_TABLET_COLUMNS = 2;
+const TICKER_TABLET_COLUMNS = 3;
 const TICKER_MOBILE_COLUMNS = 1;
 
 /**
@@ -1457,7 +1459,8 @@ const TICKER_FEED_LAYOUT = {
 };
 
 /**
- * The Ticker layout's Feed style: two columns on tablets and one on phones.
+ * The Ticker layout's Feed style: three columns on tablets and one on
+ * phones.
  */
 const TICKER_FEED_STYLE = {
 	'@tablet': { layout: { columnCount: TICKER_TABLET_COLUMNS } },
@@ -1465,66 +1468,80 @@ const TICKER_FEED_STYLE = {
 };
 
 /**
- * The style that spans an item across the Ticker's grid at every viewport.
- */
-const TICKER_FULL_ROW_STYLE = {
-	layout: { columnSpan: TICKER_COLUMNS },
-	'@tablet': { layout: { columnSpan: TICKER_TABLET_COLUMNS } },
-	'@mobile': { layout: { columnSpan: TICKER_MOBILE_COLUMNS } },
-};
-
-/**
- * The Ticker layout's header: the coverage's status beside its name, across
- * the grid's full width.
+ * The Ticker layout's header: the coverage's status over its name, at the
+ * top of the grid's first cell, then across the row once the entries fill
+ * one below it.
  *
+ * @param {string[]} sizes The theme's font size slugs.
  * @return {TemplateItem} The group.
  */
-function tickerHeader(): TemplateItem {
+function tickerHeader( sizes: string[] ): TemplateItem {
 	return [
 		'core/group',
 		{
 			layout: {
 				type: 'flex',
-				flexWrap: 'wrap',
-				verticalAlignment: 'center',
+				orientation: 'vertical',
+				justifyContent: 'left',
 			},
 			style: {
-				...TICKER_FULL_ROW_STYLE,
-				spacing: { blockGap: 'var:preset|spacing|30' },
+				'@tablet': { layout: { columnSpan: TICKER_TABLET_COLUMNS } },
+				'@mobile': { layout: { columnSpan: TICKER_MOBILE_COLUMNS } },
+				spacing: { blockGap: '0' },
 			},
 			metadata: { name: __( 'Header', 'newspack-rolling-coverage' ) },
 		},
-		[ [ STATUS_BLOCK_NAME, {} ], coverageNameHeading() ],
+		[
+			[ STATUS_BLOCK_NAME, {} ],
+			coverageNameHeading( themeFontSize( sizes, 'medium', 'normal' ) ),
+		],
 	];
 }
 
 /**
- * The Ticker layout's footer: the link to the coverage page, across the
- * grid's full width.
+ * The Ticker layout's footer: the link to the coverage page across the
+ * grid's full width, ruled off from the entries.
  *
  * @return {TemplateItem} The paragraph.
  */
 function tickerFooter(): TemplateItem {
 	return allUpdatesLink( {
-		style: TICKER_FULL_ROW_STYLE,
+		style: {
+			layout: { columnSpan: TICKER_COLUMNS },
+			'@tablet': { layout: { columnSpan: TICKER_TABLET_COLUMNS } },
+			'@mobile': { layout: { columnSpan: TICKER_MOBILE_COLUMNS } },
+			border: {
+				top: { color: BORDER_COLOR, width: '1px', style: 'solid' },
+			},
+			spacing: { padding: { top: 'var:preset|spacing|40' } },
+		},
 	} );
 }
 
 /**
+ * A Ticker entry's rule on tablets and phones, where the entries stack or
+ * share a row below the header: above the entry rather than beside it.
+ */
+const TICKER_STACKED_ENTRY_STYLE = {
+	border: {
+		left: { style: 'none' },
+		top: { color: BORDER_COLOR, width: '1px', style: 'solid' },
+	},
+	spacing: { padding: { left: '0', top: 'var:preset|spacing|40' } },
+};
+
+/**
  * The Ticker layout's per-entry template: the relative time over the
- * headline, which links to the entry, ruled off above. An entry without a
+ * headline, which links to the entry, ruled off beside the cell before it
+ * down the row's full height, or above it on tablets and phones. An entry without a
  * title shows its opening words as the headline (see
  * Entry_Bindings::untitled_fallback_title()). The pinned card matches the
  * regular entry, since a capped feed ignores pinning.
  *
  * @param {string[]} slugs The palette's color slugs.
- * @param {string[]} sizes The theme's font size slugs.
  * @return {TemplateItem[]} The template.
  */
-function tickerEntryTemplate(
-	slugs: string[],
-	sizes: string[]
-): TemplateItem[] {
+function tickerEntryTemplate( slugs: string[] ): TemplateItem[] {
 	const entry = ( className: string, name: string ): TemplateItem => [
 		'core/group',
 		{
@@ -1537,16 +1554,19 @@ function tickerEntryTemplate(
 			},
 			style: {
 				border: {
-					top: {
+					left: {
 						color: BORDER_COLOR,
 						width: '1px',
 						style: 'solid',
 					},
 				},
 				spacing: {
-					blockGap: 'var:preset|spacing|10',
-					padding: { top: 'var:preset|spacing|30' },
+					blockGap: '0',
+					padding: { left: 'var:preset|spacing|40' },
 				},
+				dimensions: { minHeight: '100%' },
+				'@tablet': TICKER_STACKED_ENTRY_STYLE,
+				'@mobile': TICKER_STACKED_ENTRY_STYLE,
 			},
 			metadata: { name },
 		},
@@ -1565,7 +1585,7 @@ function tickerEntryTemplate(
 				{
 					level: 4,
 					isLink: true,
-					fontSize: themeFontSize( sizes, 'medium', 'normal' ),
+					fontSize: 'small',
 					className: ENTRY_LINK_CLASS,
 				},
 			],
@@ -2710,7 +2730,8 @@ function withCenteredTitleRows<
 /**
  * The template without its Post Title blocks, as an entry without a title
  * renders: core's Post Title block renders nothing for it, where its editor
- * preview would show a placeholder.
+ * preview would show a placeholder. A title carrying ENTRY_LINK_CLASS stays,
+ * for withEntryLinkTitleText() to fill with the entry's opening words.
  *
  * @param {Object[]} blocks The template blocks.
  * @return {Object[]} The blocks without Post Title.
@@ -2719,7 +2740,16 @@ function withoutPostTitle<
 	T extends { name: string; [ key: string ]: unknown },
 >( blocks: T[] ): T[] {
 	return blocks
-		.filter( ( block ) => block.name !== 'core/post-title' )
+		.filter(
+			( block ) =>
+				block.name !== 'core/post-title' ||
+				isEntryLinkTitle(
+					block as {
+						name: string;
+						attributes?: Record< string, unknown >;
+					}
+				)
+		)
 		.map( ( block ) =>
 			Array.isArray( block.innerBlocks )
 				? {
@@ -2733,47 +2763,66 @@ function withoutPostTitle<
 }
 
 /**
- * The template as an entry without a title previews it: a title carrying
- * ENTRY_LINK_CLASS shows the entry's opening words, as
- * Entry_Bindings::untitled_fallback_title() gives it on the site. The
- * preview has no title text to show, so an excerpt in the title's size
- * stands in for it.
+ * The template as an untitled entry renders its titles carrying
+ * ENTRY_LINK_CLASS: a heading with the title's classes and settings, its
+ * text the entry's opening words as a link, the markup core's Post Title
+ * gives Entry_Bindings::untitled_fallback_title(), so the theme styles it
+ * as a title. Without opening words, as for a protected entry, the title
+ * renders nothing.
  *
  * @param {Object[]} blocks The template blocks.
- * @return {Object[]} The blocks with those titles swapped.
+ * @param {string}   text   The entry's opening words, from the server.
+ * @return {Object[]} The blocks with those titles filled in.
  */
-function withEntryLinkTitlesAsExcerpts<
+function withEntryLinkTitleText<
 	T extends { name: string; [ key: string ]: unknown },
->( blocks: T[] ): T[] {
-	return blocks.map( ( block ) => {
+>( blocks: T[], text: string ): T[] {
+	return blocks.flatMap( ( block ) => {
 		const attributes = ( block.attributes ?? {} ) as Record<
 			string,
 			unknown
 		>;
 
 		if ( isEntryLinkTitle( { name: block.name, attributes } ) ) {
-			return {
-				...block,
-				name: 'core/post-excerpt',
-				attributes: {
-					excerptLength: 15,
-					moreText: '',
-					className: 'use-header-font',
-					...( attributes.fontSize
-						? { fontSize: attributes.fontSize }
-						: {} ),
+			if ( ! text ) {
+				return [];
+			}
+
+			const {
+				isLink,
+				linkTarget,
+				rel,
+				level = 2,
+				className,
+				...settings
+			} = attributes;
+			const content = `<a href="#">${ escapeHTML( text ) }</a>`;
+
+			return [
+				{
+					...block,
+					name: level === 0 ? 'core/paragraph' : 'core/heading',
+					attributes: {
+						...settings,
+						...( level === 0 ? {} : { level } ),
+						className: `wp-block-post-title ${ className }`,
+						content,
+					},
 				},
-			};
+			];
 		}
 
-		return Array.isArray( block.innerBlocks )
-			? {
-					...block,
-					innerBlocks: withEntryLinkTitlesAsExcerpts(
-						block.innerBlocks as T[]
-					),
-				}
-			: block;
+		return [
+			Array.isArray( block.innerBlocks )
+				? {
+						...block,
+						innerBlocks: withEntryLinkTitleText(
+							block.innerBlocks as T[],
+							text
+						),
+					}
+				: block,
+		];
 	} );
 }
 
@@ -2921,7 +2970,7 @@ export {
 	withShapedPinnedCard,
 	withCenteredTitleRows,
 	withoutPostTitle,
-	withEntryLinkTitlesAsExcerpts,
+	withEntryLinkTitleText,
 	withoutAvatarColumns,
 	withoutByline,
 };

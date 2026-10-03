@@ -90,7 +90,7 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			slug: 'ticker',
 			title: _x( 'Ticker', 'layout name', 'newspack-rolling-coverage' ),
 			template: tickerInnerTemplate,
-			latest: 4,
+			latest: 3,
 			hidesWhenEnded: true,
 			align: 'wide',
 		},

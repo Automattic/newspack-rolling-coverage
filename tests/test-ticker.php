@@ -11,12 +11,12 @@ use Newspack_Rolling_Coverage\Social_Sharing;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
- * A capped grid of the latest headlines under the coverage's status and
- * name, each headline linking to its entry.
+ * A capped grid of the coverage's status and name beside the latest
+ * headlines, each headline linking to its entry.
  */
 class Test_Ticker extends Rolling_Coverage_TestCase {
 
-	const HEADER_MARKUP = '<!-- wp:group {"style":{"layout":{"columnSpan":4},"@tablet":{"layout":{"columnSpan":2}},"@mobile":{"layout":{"columnSpan":1}},"spacing":{"blockGap":"var:preset|spacing|30"}},"layout":{"type":"flex","flexWrap":"wrap","verticalAlignment":"center"}} --><div class="wp-block-group">'
+	const HEADER_MARKUP = '<!-- wp:group {"style":{"@tablet":{"layout":{"columnSpan":3}},"@mobile":{"layout":{"columnSpan":1}},"spacing":{"blockGap":"0"}},"layout":{"type":"flex","orientation":"vertical","justifyContent":"left"}} --><div class="wp-block-group">'
 		. '<!-- wp:newspack-rolling-coverage/coverage-status /-->'
 		. '<!-- wp:heading {"level":3,"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"coverageName"}}}}} --><h3 class="wp-block-heading">Live Coverage</h3><!-- /wp:heading -->'
 		. '</div><!-- /wp:group -->';
@@ -26,7 +26,9 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 
 	const TITLE_MARKUP = '<!-- wp:post-title {"level":4,"isLink":true,"className":"newspack-rolling-coverage-entry-link"} /-->';
 
-	const FOOTER_MARKUP = '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-all-updates","style":{"layout":{"columnSpan":4},"@tablet":{"layout":{"columnSpan":2}},"@mobile":{"layout":{"columnSpan":1}}}} --><p class="use-header-font newspack-rolling-coverage-all-updates"><a href="#">See all updates</a></p><!-- /wp:paragraph -->';
+	const STACKED_ENTRY_STYLE = '{"border":{"left":{"style":"none"},"top":{"color":"#ddd","width":"1px","style":"solid"}},"spacing":{"padding":{"left":"0","top":"var:preset|spacing|40"}}}';
+
+	const FOOTER_MARKUP = '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-all-updates","style":{"layout":{"columnSpan":4},"@tablet":{"layout":{"columnSpan":3}},"@mobile":{"layout":{"columnSpan":1}},"border":{"top":{"color":"#ddd","width":"1px","style":"solid"}},"spacing":{"padding":{"top":"var:preset|spacing|40"}}}} --><p class="use-header-font newspack-rolling-coverage-all-updates" style="border-top-color:#ddd;border-top-style:solid;border-top-width:1px;padding-top:var(--wp--preset--spacing--40)"><a href="#">See all updates</a></p><!-- /wp:paragraph -->';
 
 	/**
 	 * Register the Coverage Status block the header holds.
@@ -51,11 +53,11 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	 * @return string
 	 */
 	private static function feed_markup(): string {
-		$entry = static fn( string $class_name ) => '<!-- wp:group {"className":"' . $class_name . '","style":{"spacing":{"blockGap":"var:preset|spacing|10"}},"layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} --><div class="wp-block-group ' . $class_name . '">'
+		$entry = static fn( string $class_name ) => '<!-- wp:group {"className":"' . $class_name . '","style":{"border":{"left":{"color":"#ddd","width":"1px","style":"solid"}},"spacing":{"blockGap":"0","padding":{"left":"var:preset|spacing|40"}},"dimensions":{"minHeight":"100%"},"@tablet":' . self::STACKED_ENTRY_STYLE . ',"@mobile":' . self::STACKED_ENTRY_STYLE . '},"layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} --><div class="wp-block-group ' . $class_name . '" style="border-left-color:#ddd;border-left-style:solid;border-left-width:1px;min-height:100%;padding-left:var(--wp--preset--spacing--40)">'
 			. self::ENTRY_BLOCKS
 			. '</div><!-- /wp:group -->';
 
-		return '<!-- wp:group {"className":"newspack-rolling-coverage-feed","style":{"@tablet":{"layout":{"columnCount":2}},"@mobile":{"layout":{"columnCount":1}},"spacing":{"blockGap":"var:preset|spacing|40"}},"layout":{"type":"grid","columnCount":4}} --><div class="wp-block-group newspack-rolling-coverage-feed">'
+		return '<!-- wp:group {"className":"newspack-rolling-coverage-feed","style":{"@tablet":{"layout":{"columnCount":3}},"@mobile":{"layout":{"columnCount":1}},"spacing":{"blockGap":"var:preset|spacing|40"}},"layout":{"type":"grid","columnCount":4}} --><div class="wp-block-group newspack-rolling-coverage-feed">'
 			. self::HEADER_MARKUP
 			. $entry( 'newspack-rolling-coverage-pinned-card' )
 			. $entry( 'newspack-rolling-coverage-regular-entry' )
@@ -74,7 +76,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 		$attributes = [
 			'coverageId'    => $coverage_id,
 			'latestOnly'    => true,
-			'latestCount'   => 4,
+			'latestCount'   => 3,
 			'hideWhenEnded' => true,
 			'align'         => 'wide',
 		];
@@ -115,7 +117,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	 * The header and footer render outside the Feed group, yet core treats
 	 * the Feed's grid as fixed-column for them, so their spans, at each
 	 * viewport from their own settings, come without a container query
-	 * resetting them.
+	 * resetting them. The header takes one cell on desktop and the row below.
 	 */
 	public function test_header_and_footer_span_the_grid_without_a_container_reset() {
 		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
@@ -129,7 +131,8 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 		$this->assertMatchesRegularExpression( '#<div class="wp-block-group [^"]*wp-container-content-[^"]*"[^>]*>\s*<div class="wp-block-newspack-rolling-coverage-coverage-status#', $html, 'The header should carry its child layout class.' );
 		$this->assertMatchesRegularExpression( '#<p class="[^"]*newspack-rolling-coverage-all-updates[^"]*wp-container-content-#', $html, 'The footer should carry its child layout class.' );
 		$this->assertStringContainsString( 'grid-column:span 4', $css );
-		$this->assertMatchesRegularExpression( '#@media \(480px < width <= 782px\)\{[^}]*grid-column:span 2#', $css );
+		$this->assertSame( 1, substr_count( $css, 'grid-column:span 4' ), 'Only the footer should span the row on desktop.' );
+		$this->assertMatchesRegularExpression( '#@media \(480px < width <= 782px\)\{[^}]*grid-column:span 3#', $css );
 		$this->assertStringNotContainsString( '@container', $css );
 	}
 
@@ -331,6 +334,22 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The editor preview gets an untitled entry's opening words, as the site
+	 * shows them, and none for a titled entry.
+	 */
+	public function test_the_editor_preview_gets_an_untitled_entrys_opening_words() {
+		[ $coverage_id, $untitled ] = self::create_untitled_entry();
+		$titled                     = self::create_entry( $coverage_id, [ 'post_title' => 'Bridge reopens' ] );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$response = rest_do_request( new WP_REST_Request( 'GET', '/' . NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages/' . $coverage_id . '/entries-preview' ) );
+		$words    = wp_list_pluck( $response->get_data(), 'fallbackTitle', 'id' );
+
+		$this->assertSame( 'Traffic is being diverted while engineers inspect the bridge after the storm, with the council…', $words[ $untitled ] );
+		$this->assertSame( '', $words[ $titled ] );
+	}
+
+	/**
 	 * A title without the class still links only to a published breakout.
 	 */
 	public function test_titles_without_the_class_stay_unlinked_without_a_breakout() {
@@ -339,6 +358,78 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, home_url( '/storm-coverage/' ) );
 
 		$this->assertStringNotContainsString( '<a ', self::render_title( $entry_id, '<!-- wp:post-title {"level":4} /-->' ) );
+	}
+
+	/**
+	 * Each entry is ruled off beside the cell before it on desktop, and above
+	 * on tablets and phones, where its tablet and mobile styles win over the
+	 * inline desktop rule, on a classic and a block theme alike.
+	 *
+	 * @dataProvider data_themes
+	 *
+	 * @param string $theme Theme to switch to, or '' for the test theme.
+	 */
+	public function test_entries_move_their_rule_above_on_tablets_and_phones( string $theme ) {
+		if ( $theme ) {
+			switch_theme( $theme );
+		}
+		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
+		$coverage_id = self::create_coverage();
+		self::create_entries( $coverage_id );
+
+		$html = self::render_ticker( $coverage_id );
+		$css  = wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] );
+
+		$this->assertSame( 3, preg_match_all( '#<div class="wp-block-group newspack-rolling-coverage-regular-entry [^"]*(wp-states-[0-9a-f]{8})#', $html, $classes ) );
+		$this->assertCount( 1, array_unique( $classes[1] ) );
+		$this->assertStringContainsString( 'border-left-width:1px', $html, 'Desktop keeps the inline rule.' );
+		self::assert_stacked_rule( $css, $classes[1][0] );
+	}
+
+	/**
+	 * Themes to render the Ticker under.
+	 *
+	 * @return array[]
+	 */
+	public function data_themes(): array {
+		return [
+			'classic theme' => [ '' ],
+			'block theme'   => [ 'twentytwentyfive' ],
+		];
+	}
+
+	/**
+	 * A coverage that loads empty still stores its entries' tablet and phone
+	 * rules, for the entries that arrive later.
+	 */
+	public function test_an_empty_ticker_stores_the_entries_tablet_and_phone_rules() {
+		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
+
+		self::render_ticker( self::create_coverage() );
+		$css = wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] );
+
+		$this->assertSame( 1, preg_match( '#\.(wp-states-[0-9a-f]{8})\{[^}]*border-left-style:none !important#', $css, $class_name ) );
+		self::assert_stacked_rule( $css, $class_name[1] );
+	}
+
+	/**
+	 * Assert that an entry's tablet and phone rule drops its left border and
+	 * padding for a top border and padding, over the inline desktop style.
+	 *
+	 * @param string $css        Stored block support styles.
+	 * @param string $class_name The entry's state class.
+	 */
+	private static function assert_stacked_rule( string $css, string $class_name ): void {
+		foreach ( [ '@media (480px < width <= 782px)', '@media (width <= 480px)' ] as $media_query ) {
+			$rule = preg_quote( $media_query . '{.' . $class_name . '{', '#' ) . '([^}]*)\}';
+
+			self::assertMatchesRegularExpression( '#' . $rule . '#', $css );
+			preg_match( '#' . $rule . '#', $css, $declarations );
+
+			foreach ( [ 'border-left-style:none !important', 'border-top-width:1px !important', 'border-top-style:solid !important', 'padding-left:0 !important', 'padding-top:var(--wp--preset--spacing--40) !important' ] as $declaration ) {
+				self::assertStringContainsString( $declaration, $declarations[1], $media_query );
+			}
+		}
 	}
 
 	/**
@@ -360,7 +451,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 		$selector = preg_quote( '.newspack-rolling-coverage-feed.' . $class_name[0], '#' );
 
 		$this->assertMatchesRegularExpression( '#(?<!\{)' . $selector . '\{grid-template-columns:repeat\(4, minmax\(0, 1fr\)\);gap:var\(--wp--preset--spacing--40\);\}#', $css );
-		$this->assertMatchesRegularExpression( '#@media \(480px < width <= 782px\)\{' . $selector . '\{grid-template-columns:repeat\(2, minmax\(0, 1fr\)\);\}\}#', $css );
+		$this->assertMatchesRegularExpression( '#@media \(480px < width <= 782px\)\{' . $selector . '\{grid-template-columns:repeat\(3, minmax\(0, 1fr\)\);\}\}#', $css );
 		$this->assertMatchesRegularExpression( '#@media \(width <= 480px\)\{' . $selector . '\{grid-template-columns:repeat\(1, minmax\(0, 1fr\)\);\}\}#', $css );
 		$this->assertGreaterThan( strpos( $css, $class_name[0] . '{' ), strpos( $css, '@media (480px < width <= 782px){.newspack-rolling-coverage-feed.' . $class_name[0] ), 'The overrides should follow the base rule they override.' );
 	}

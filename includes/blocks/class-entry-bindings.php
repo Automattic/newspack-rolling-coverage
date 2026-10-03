@@ -10,6 +10,7 @@ namespace Newspack_Rolling_Coverage;
 use WP_Block;
 use WP_Block_Supports;
 use WP_HTML_Tag_Processor;
+use WP_Post;
 use WP_Term;
 
 defined( 'ABSPATH' ) || exit;
@@ -234,17 +235,29 @@ class Entry_Bindings {
 		}
 
 		$entry = get_post( (int) $post_id );
+		$words = $entry ? self::get_fallback_title( $entry ) : '';
 
-		if ( ! $entry || Post_Type::CPT_SLUG !== $entry->post_type || post_password_required( $entry ) ) {
-			return $title;
+		return '' !== $words ? esc_html( $words ) : $title;
+	}
+
+	/**
+	 * The opening words an untitled entry shows as its title: its excerpt
+	 * when it has one, else the start of its text, as plain text. A password
+	 * protected entry, or a post that isn't an entry, has none.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return string
+	 */
+	public static function get_fallback_title( WP_Post $entry ): string {
+		if ( Post_Type::CPT_SLUG !== $entry->post_type || post_password_required( $entry ) ) {
+			return '';
 		}
 
 		$excerpt = trim( $entry->post_excerpt );
-		$words   = '' !== $excerpt
+
+		return '' !== $excerpt
 			? html_entity_decode( wp_trim_words( $excerpt, self::UNTITLED_FALLBACK_WORDS, '…' ), ENT_QUOTES | ENT_HTML5, 'UTF-8' )
 			: Post_Type::get_entry_summary( $entry, self::UNTITLED_FALLBACK_WORDS );
-
-		return esc_html( $words );
 	}
 
 	/**

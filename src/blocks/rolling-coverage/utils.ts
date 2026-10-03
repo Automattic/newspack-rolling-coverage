@@ -179,6 +179,7 @@ async function fetchEntryPreviewContexts(
 				hasBreakout?: boolean;
 				hasTitle?: boolean;
 				hidesByline?: boolean;
+				fallbackTitle?: string;
 			} >
 		>( {
 			url: `${ ENTRIES_PREVIEW_REST_BASE }/${ coverageId }/entries-preview?per_page=${ perPage }${
@@ -194,6 +195,7 @@ async function fetchEntryPreviewContexts(
 			hasBreakout: Boolean( entry.hasBreakout ),
 			hasTitle: entry.hasTitle !== false,
 			hidesByline: Boolean( entry.hidesByline ),
+			fallbackTitle: entry.fallbackTitle ?? '',
 		} ) );
 	} catch ( error ) {
 		return [];

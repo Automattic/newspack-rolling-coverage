@@ -47,7 +47,7 @@ import {
 	withShapedPinnedCard,
 	withCenteredTitleRows,
 	withoutPostTitle,
-	withEntryLinkTitlesAsExcerpts,
+	withEntryLinkTitleText,
 	withoutAvatarColumns,
 	withoutByline,
 	hasPinnedCard,
@@ -236,8 +236,8 @@ export function bylineInnerTemplate(): TemplateItem[] {
 }
 
 /**
- * The Ticker layout's inner-blocks template: the coverage's status and name,
- * the latest entries' headlines side by side, and a link to the coverage
+ * The Ticker layout's inner-blocks template: the coverage's status and name
+ * beside the three latest entries' headlines, then a link to the coverage
  * page, with no buttons.
  *
  * @return {TemplateItem[]} The template.
@@ -246,8 +246,8 @@ export function tickerInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
 			[
-				tickerHeader(),
-				...tickerEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
+				tickerHeader( themeFontSizeSlugs() ),
+				...tickerEntryTemplate( paletteSlugs() ),
 				tickerFooter(),
 			],
 			'var:preset|spacing|40',
@@ -436,9 +436,7 @@ export function useLayoutPreview(
 		);
 
 		const asUntitled = ( blocks: TemplateBlocks ) =>
-			withoutPostTitle(
-				withCenteredTitleRows( withEntryLinkTitlesAsExcerpts( blocks ) )
-			);
+			withoutPostTitle( withCenteredTitleRows( blocks ) );
 		const titled = {
 			pinned: withLinkedTitle( pinned ),
 			unpinned: withLinkedTitle( unpinned ),
@@ -506,26 +504,53 @@ export function useLayoutPreview(
 		return lastContext.hidesByline ? withoutByline( shaped ) : shaped;
 	}, [ previewTemplates, lastContext ] );
 
+	// Untitled entries' blocks carry their own text, so they're kept per entry
+	// to hand the preview the same blocks on every render.
+	const untitledBlocks = useMemo(
+		() => new WeakMap< EntryContext, TemplateBlocks >(),
+		[ lastPreviewBlocks, previewTemplates ]
+	);
+
 	const blocksForEntry = useCallback(
 		( context: EntryContext ) => {
-			if ( context === lastContext && lastPreviewBlocks ) {
-				return lastPreviewBlocks;
+			const untitled = context.hasTitle === false;
+			const kept = untitled ? untitledBlocks.get( context ) : undefined;
+
+			if ( kept ) {
+				return kept;
 			}
 
-			const untitled = context.hasTitle === false;
-			const templates = untitled
-				? previewTemplates.untitled
-				: previewTemplates.titled;
-			const bylineless = untitled
-				? previewTemplates.untitledWithoutByline
-				: previewTemplates.titledWithoutByline;
+			let blocks: TemplateBlocks;
 
-			return previewTemplateFor(
-				( context.hidesByline && bylineless ) || templates,
-				context
+			if ( context === lastContext && lastPreviewBlocks ) {
+				blocks = lastPreviewBlocks;
+			} else {
+				const templates = untitled
+					? previewTemplates.untitled
+					: previewTemplates.titled;
+				const bylineless = untitled
+					? previewTemplates.untitledWithoutByline
+					: previewTemplates.titledWithoutByline;
+
+				blocks = previewTemplateFor(
+					( context.hidesByline && bylineless ) || templates,
+					context
+				);
+			}
+
+			if ( ! untitled ) {
+				return blocks;
+			}
+
+			const filled = withEntryLinkTitleText(
+				blocks,
+				context.fallbackTitle ?? ''
 			);
+			untitledBlocks.set( context, filled );
+
+			return filled;
 		},
-		[ lastContext, lastPreviewBlocks, previewTemplates ]
+		[ lastContext, lastPreviewBlocks, previewTemplates, untitledBlocks ]
 	);
 
 	return { headerBlocks, footerBlocks, templateBlocks, blocksForEntry };

@@ -1766,10 +1766,11 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Stores the layout styles of the template's blocks, as rendering an
-	 * entry would. Core prints them only for blocks rendered on the page, so
-	 * without this, entries that reach a coverage that loaded empty would
-	 * arrive by polling with no layout, e.g. Share not opposite the title.
+	 * Stores the layout styles and the per-viewport styles of the template's
+	 * blocks, as rendering an entry would. Core prints them only for blocks
+	 * rendered on the page, so without this, entries that reach a coverage
+	 * that loaded empty would arrive by polling with no layout, e.g. Share
+	 * not opposite the title.
 	 *
 	 * @param array[] $blocks        Parsed template blocks.
 	 * @param array   $parent_layout The parent block's layout, as core passes
@@ -1788,6 +1789,7 @@ class Rolling_Coverage_Block {
 			// Dynamic blocks have no saved markup; core needs a tag to store their styles.
 			$markup = trim( (string) ( $block['innerHTML'] ?? '' ) );
 			wp_render_layout_support_flag( '' !== $markup ? $markup : '<div></div>', $block );
+			wp_render_block_states_support( '' !== $markup ? $markup : '<div></div>', $block );
 
 			self::store_template_layout_styles( $block['innerBlocks'] ?? [], (array) ( $block['attrs']['layout'] ?? [] ) );
 		}
@@ -3318,20 +3320,27 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Reduces a post ID to the bare `{ id, type, pinned, hasBreakout, hasTitle,
-	 * hidesByline }` shape the editor preview needs, for get_entries_preview().
+	 * hidesByline, fallbackTitle }` shape the editor preview needs, for
+	 * get_entries_preview(). `fallbackTitle` holds the opening words an
+	 * untitled entry shows as a title carrying Entry_Bindings::ENTRY_LINK_CLASS,
+	 * and is empty for a titled one.
 	 *
 	 * @param int  $id          Entry post ID.
 	 * @param bool $ignore_pins Whether to report the entry as unpinned, as a capped feed does.
-	 * @return array{id: int, type: string, pinned: bool, hasBreakout: bool, hasTitle: bool, hidesByline: bool}
+	 * @return array{id: int, type: string, pinned: bool, hasBreakout: bool, hasTitle: bool, hidesByline: bool, fallbackTitle: string}
 	 */
 	private static function map_entry_preview( int $id, bool $ignore_pins = false ): array {
+		$entry     = get_post( $id );
+		$has_title = self::has_title( $entry );
+
 		return [
-			'id'          => $id,
-			'type'        => Post_Type::CPT_SLUG,
-			'pinned'      => ! $ignore_pins && Post_Type::is_pinned( $id ),
-			'hasBreakout' => null !== Breakout::get_published_breakout_url( $id ),
-			'hasTitle'    => self::has_title( get_post( $id ) ),
-			'hidesByline' => self::is_bot_authored( $id ),
+			'id'            => $id,
+			'type'          => Post_Type::CPT_SLUG,
+			'pinned'        => ! $ignore_pins && Post_Type::is_pinned( $id ),
+			'hasBreakout'   => null !== Breakout::get_published_breakout_url( $id ),
+			'hasTitle'      => $has_title,
+			'hidesByline'   => self::is_bot_authored( $id ),
+			'fallbackTitle' => $has_title ? '' : Entry_Bindings::get_fallback_title( $entry ),
 		];
 	}
 
