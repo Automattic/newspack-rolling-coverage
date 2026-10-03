@@ -89,6 +89,13 @@ class Lite_Feed {
 	private static $has_feed = false;
 
 	/**
+	 * Entries whose bodies are rendering, keyed by ID.
+	 *
+	 * @var true[]
+	 */
+	private static $rendering_bodies = [];
+
+	/**
 	 * Hook into Lite Site, whose hooks only run for lite pages.
 	 */
 	public static function init() {
@@ -250,6 +257,11 @@ class Lite_Feed {
 	 * reader's postpass cookie: Lite Site caches the page for every reader,
 	 * and lite polls and load more are public.
 	 *
+	 * An entry's content can hold a feed of its own coverage, which lists the
+	 * entry again. Its body then renders only the first time, as core's Post
+	 * Content block renders it on full pages. The body renders as an entry's
+	 * does there too, so such a feed has no new-posts control of its own.
+	 *
 	 * @param WP_Post $entry Entry post object.
 	 * @return string Cleaned HTML.
 	 */
@@ -262,15 +274,26 @@ class Lite_Feed {
 			);
 		}
 
+		if ( isset( self::$rendering_bodies[ $entry->ID ] ) ) {
+			return '';
+		}
+
 		global $post;
 
 		$previous_post = $post;
 		$post          = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		setup_postdata( $entry );
 
+		self::$rendering_bodies[ $entry->ID ] = true;
+
 		try {
-			return \Newspack_Lite_Site\Lite_Site::clean_content( $entry->post_content );
+			return Rolling_Coverage_Block::render_as_entry(
+				static function () use ( $entry ) {
+					return \Newspack_Lite_Site\Lite_Site::clean_content( $entry->post_content );
+				}
+			);
 		} finally {
+			unset( self::$rendering_bodies[ $entry->ID ] );
 			$post = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 			setup_postdata( $previous_post );
 		}

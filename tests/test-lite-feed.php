@@ -54,6 +54,13 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	private $request_uri;
 
 	/**
+	 * Whether the test registered the block itself.
+	 *
+	 * @var bool
+	 */
+	private $registered_block = false;
+
+	/**
 	 * Load the Lite Site stand-in, create the coverage and keep the request
 	 * URI to restore. Requests are anonymous.
 	 */
@@ -76,6 +83,11 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		$has_feed->setValue( null, false );
 		set_query_var( Social_Sharing::ENTRY_QUERY_VAR, '' );
 		unset( $_COOKIE[ 'wp-postpass_' . COOKIEHASH ] ); // phpcs:ignore WordPressVIPMinimum.Variables.RestrictedVariables.cache_constraints___COOKIE -- Forgetting the test's postpass cookie.
+
+		if ( $this->registered_block ) {
+			unregister_block_type( Rolling_Coverage_Block::BLOCK_NAME );
+			$this->registered_block = false;
+		}
 
 		if ( null === $this->request_uri ) {
 			unset( $_SERVER['REQUEST_URI'] );
@@ -537,6 +549,67 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'data-entry-id="' . $entry_id . '"', $more );
 		$this->assertStringNotContainsString( 'Only for subscribers.', $more, 'Nor does load more.' );
 		$this->assertStringContainsString( self::PROTECTED_NOTICE, $more );
+	}
+
+	/**
+	 * Register the block for the rest of the test when the build isn't there,
+	 * so a feed in an entry's content renders.
+	 */
+	private function register_block() {
+		if ( WP_Block_Type_Registry::get_instance()->is_registered( Rolling_Coverage_Block::BLOCK_NAME ) ) {
+			return;
+		}
+
+		register_block_type( Rolling_Coverage_Block::BLOCK_NAME, Rolling_Coverage_Block::block_type_args() );
+		$this->registered_block = true;
+	}
+
+	/**
+	 * Stop a render that nests Lite Site's content filter deeper than a page
+	 * and an entry in it need. Left alone, it would go on until PHP runs out
+	 * of stack, taking the test run with it.
+	 *
+	 * @param string $content Content being filtered.
+	 * @return string
+	 * @throws RuntimeException When the filter nests too deep.
+	 */
+	public static function stop_runaway_nesting( $content ) {
+		$depth = count( array_keys( $GLOBALS['wp_current_filter'], Lite_Feed::CONTENT_FILTER, true ) );
+
+		if ( $depth > 4 ) {
+			throw new RuntimeException( sprintf( 'Lite Site\'s content filter nested %d deep.', (int) $depth ) );
+		}
+
+		return $content;
+	}
+
+	/**
+	 * An entry can hold a feed of its own coverage, which lists the entry
+	 * again. As on a full page, the lite page and its polls show the entry's
+	 * body only once, and the feed inside it has no new-posts control.
+	 */
+	public function test_a_feed_inside_its_own_entry_shows_the_entry_body_once() {
+		$this->register_block();
+		$entry_id = self::create_entry(
+			$this->coverage_id,
+			[
+				'post_title'   => 'Key updates',
+				'post_content' => '<!-- wp:paragraph --><p>Catch up below.</p><!-- /wp:paragraph -->'
+					. '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $this->coverage_id . '} /-->',
+				'post_date'    => '2026-01-01 12:00:00',
+			]
+		);
+		add_filter( Lite_Feed::CONTENT_FILTER, [ __CLASS__, 'stop_runaway_nesting' ], 1 );
+
+		$page = $this->render_lite_page();
+		$poll = $this->get_lite_feed( [ 'cursor' => '0:2025-12-31 00:00:00' ] )->get_data()['entries'];
+
+		$this->assertSame( 2, substr_count( $page, 'data-coverage-id="' . $this->coverage_id . '"' ), 'The page shows its feed and the one inside the entry.' );
+		$this->assertSame( 1, substr_count( $page, 'Catch up below.' ), 'The entry\'s body shows once.' );
+		$this->assertSame( 1, substr_count( $page, 'newspack-rolling-coverage-new-entries' ), 'Only the page\'s own feed has a new-posts control.' );
+		$this->assertSame( $entry_id, $poll[0]['id'] );
+		$this->assertSame( 1, substr_count( $poll[0]['html'], 'Catch up below.' ), 'A poll sends the body once.' );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-new-entries', $poll[0]['html'], 'The feed inside a polled entry has no new-posts control.' );
 	}
 
 	/**
