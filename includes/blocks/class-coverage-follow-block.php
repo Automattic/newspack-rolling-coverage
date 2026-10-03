@@ -116,8 +116,8 @@ class Coverage_Follow_Block {
 
 	/**
 	 * Server-side render callback: the block's button, already rendered with
-	 * the coverage in its context, or nothing when there's no coverage to
-	 * follow, it's archived, or OneSignal isn't set up.
+	 * the coverage in its context, or nothing on a lite page, when there's no
+	 * coverage to follow, it's archived, or OneSignal isn't set up.
 	 *
 	 * @param array    $attributes Block attributes (unused).
 	 * @param string   $content    Rendered inner blocks.
@@ -125,6 +125,12 @@ class Coverage_Follow_Block {
 	 * @return string
 	 */
 	public static function render_block( array $attributes, string $content, WP_Block $block ): string {
+		// A lite page has neither the follow script nor a push provider. The
+		// script WordPress still enqueues for the block never prints there.
+		if ( Lite_Feed::is_lite_render() ) {
+			return '';
+		}
+
 		$context = self::coverage_context( $block );
 
 		if ( ! $context || ! self::should_render( $context[ Entry_Bindings::COVERAGE_STATUS_CONTEXT ] ) ) {
