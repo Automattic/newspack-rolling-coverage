@@ -817,6 +817,11 @@ class Rolling_Coverage_Block {
 					'canEditThemeOptions'         => current_user_can( 'edit_theme_options' ),
 					'layoutCategoryId'            => Layout::get_pattern_category_id(),
 					'entryPostType'               => Post_Type::CPT_SLUG,
+					'sampleAvatarUrls'            => [
+						'mq' => NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/mq.svg',
+						'ta' => NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/ta.svg',
+						'io' => NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/io.svg',
+					],
 				]
 			);
 		}

@@ -82,6 +82,7 @@ interface BlockConfig {
 	canEditThemeOptions: boolean;
 	layoutCategoryId: number;
 	entryPostType: string;
+	sampleAvatarUrls?: Record< string, string >;
 }
 
 /**

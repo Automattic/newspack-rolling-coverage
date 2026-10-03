@@ -42,6 +42,7 @@ const {
 	canEditThemeOptions: CAN_EDIT_THEME_OPTIONS,
 	layoutCategoryId: LAYOUT_CATEGORY_ID,
 	entryPostType: ENTRY_POST_TYPE,
+	sampleAvatarUrls: SAMPLE_AVATAR_URLS,
 } = config;
 
 export {
@@ -63,4 +64,5 @@ export {
 	CAN_EDIT_THEME_OPTIONS,
 	LAYOUT_CATEGORY_ID,
 	ENTRY_POST_TYPE,
+	SAMPLE_AVATAR_URLS,
 };

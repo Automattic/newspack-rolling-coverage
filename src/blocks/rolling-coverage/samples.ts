@@ -11,7 +11,7 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import { ENTRY_POST_TYPE } from './config';
+import { ENTRY_POST_TYPE, SAMPLE_AVATAR_URLS } from './config';
 import type { EntryContext } from './types';
 
 const AUTHORS = [
@@ -31,21 +31,6 @@ const SAMPLE_IMAGE =
 	encodeURIComponent(
 		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675"><rect width="1200" height="675" fill="#dcdcde"/><g fill="none" stroke="#f6f7f7" stroke-width="6"><rect x="60" y="60" width="1080" height="555"/><line x1="600" y1="60" x2="600" y2="615"/><circle cx="600" cy="337.5" r="90"/><rect x="60" y="197.5" width="165" height="280"/><rect x="975" y="197.5" width="165" height="280"/></g></svg>'
 	);
-
-/**
- * A sample author's avatar: their initials on a neutral circle.
- *
- * @param {string} initials The author's initials.
- * @return {string} An SVG data URI.
- */
-function sampleAvatar( initials: string ): string {
-	return (
-		'data:image/svg+xml,' +
-		encodeURIComponent(
-			`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="#dcdcde"/><text x="48" y="48" dy=".35em" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" font-size="36" font-weight="600" fill="#50575e">${ initials }</text></svg>`
-		)
-	);
-}
 
 type Sample = {
 	id: number;
@@ -154,13 +139,15 @@ function loadSampleRecords(): void {
 		'root',
 		'user',
 		AUTHORS.map( ( { id, name, slug, initials } ) => {
-			const avatar = sampleAvatar( initials );
+			const avatar = SAMPLE_AVATAR_URLS?.[ initials.toLowerCase() ];
 
 			return {
 				id,
 				name,
 				slug,
-				avatar_urls: { 24: avatar, 48: avatar, 96: avatar },
+				...( avatar && {
+					avatar_urls: { 24: avatar, 48: avatar, 96: avatar },
+				} ),
 			};
 		} )
 	);
