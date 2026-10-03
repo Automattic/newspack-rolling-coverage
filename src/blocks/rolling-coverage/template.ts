@@ -120,8 +120,8 @@ const ALL_UPDATES_CLASS = 'newspack-rolling-coverage-all-updates';
 
 /**
  * Class of a title that links to its entry on the coverage page when the
- * entry has no published breakout post, and shows the entry's first 15
- * words when it has no title, mirroring Entry_Bindings::ENTRY_LINK_CLASS.
+ * entry has no published breakout post, and shows the entry's opening words
+ * when it has no title, mirroring Entry_Bindings::ENTRY_LINK_CLASS.
  */
 const ENTRY_LINK_CLASS = 'newspack-rolling-coverage-entry-link';
 

@@ -79,7 +79,8 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 		display: contents;
 	}
 
-	.newspack-rolling-coverage-feed.is-layout-grid > :is(.newspack-rolling-coverage-archived-notice, .newspack-rolling-coverage-sentinel) {
+	.newspack-rolling-coverage-feed.is-layout-grid > :is(.newspack-rolling-coverage-archived-notice, .newspack-rolling-coverage-sentinel),
+	.newspack-rolling-coverage-feed.is-layout-grid > .newspack-rolling-coverage-entries > .newspack-rolling-coverage-entries__empty {
 		grid-column: 1 / -1;
 	}
 

@@ -73,4 +73,17 @@ class Test_Social_Sharing extends Rolling_Coverage_TestCase {
 
 		return $output;
 	}
+
+	/**
+	 * An entry's deep link keeps the page's query arguments and replaces its
+	 * fragment, so the link carries one.
+	 */
+	public function test_entry_deep_link_replaces_the_page_fragment() {
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_name' => 'bridge-closed' ] );
+
+		$this->assertSame(
+			'https://example.test/live/?ref=x&rolling-coverage-entry=bridge-closed#newspack-rolling-coverage-entry-' . $entry_id,
+			Social_Sharing::get_entry_deep_link( get_post( $entry_id ), 'https://example.test/live/?ref=x#top' )
+		);
+	}
 }

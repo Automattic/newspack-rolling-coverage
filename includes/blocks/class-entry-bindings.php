@@ -75,8 +75,8 @@ class Entry_Bindings {
 
 	/**
 	 * Class of a title that links to its entry on the coverage page when the
-	 * entry has no published breakout post, and shows the entry's first
-	 * UNTITLED_FALLBACK_WORDS words when it has no title.
+	 * entry has no published breakout post, and shows the entry's opening
+	 * words when it has no title (see untitled_fallback_title()).
 	 */
 	const ENTRY_LINK_CLASS = 'newspack-rolling-coverage-entry-link';
 
@@ -206,13 +206,18 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * An untitled entry's opening words as its title, while a title carrying
-	 * ENTRY_LINK_CLASS renders inside an entry: its excerpt when it has one,
-	 * else the start of its text. Core holds the block whose render callback
-	 * is running in WP_Block_Supports::$block_to_render, and Post Title asks
-	 * for the title from its callback. Core then renders the title, and
-	 * link_title_to_breakout() links it, as it would a title of the entry's
-	 * own.
+	 * An untitled entry's opening words as its title, for a Post Title
+	 * carrying ENTRY_LINK_CLASS inside an entry: its excerpt when it has one,
+	 * else the start of its text. The title then renders and links as one of
+	 * the entry's own would (see link_title_to_breakout()). A password
+	 * protected entry keeps its empty title.
+	 *
+	 * Only that block's own lookup gets the words: has_title() in
+	 * Rolling_Coverage_Block::render_entry() and every other caller during the
+	 * entry's render keep seeing the empty title, which the entry's shaping,
+	 * such as Rolling_Coverage_Block::with_centered_title_rows(), relies on.
+	 * That's why the check reads the block whose render callback is running
+	 * (WP_Block_Supports::$block_to_render) rather than anything wider.
 	 *
 	 * Parameters stay untyped because this runs for every title on the site,
 	 * after other plugins' filters that may hand on unexpected types.
@@ -230,7 +235,7 @@ class Entry_Bindings {
 
 		$entry = get_post( (int) $post_id );
 
-		if ( ! $entry || Post_Type::CPT_SLUG !== $entry->post_type ) {
+		if ( ! $entry || Post_Type::CPT_SLUG !== $entry->post_type || post_password_required( $entry ) ) {
 			return $title;
 		}
 
@@ -260,10 +265,12 @@ class Entry_Bindings {
 
 	/**
 	 * The link to an entry on the page showing its coverage, opened at the
-	 * entry, as notifications and the entry's own permalink link to it. The
-	 * entry's share link stands in when the coverage has no page; it isn't
-	 * used first because it leads back to the page the feed is on, which for
-	 * a capped feed on a section front isn't the coverage page.
+	 * entry: the coverage's canonical URL, as notifications and the entry's
+	 * own permalink use, or without one, the page found to show the coverage
+	 * (see Taxonomy::get_coverage_page_url()). The entry's share link stands
+	 * in when the coverage has no page; it isn't used first because it leads
+	 * back to the page the feed is on, which for a capped feed on a section
+	 * front isn't the coverage page.
 	 *
 	 * @param int $entry_id Entry post ID.
 	 * @return string The URL, or an empty string when the entry can't be linked.

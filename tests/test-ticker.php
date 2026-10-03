@@ -112,10 +112,10 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The header and footer render outside the Feed group, yet span its grid
-	 * as its own children would: by the Feed's column count at each
-	 * viewport, without the container query core adds to reset the span of a
-	 * child whose grid it can't see.
+	 * The header and footer render outside the Feed group, yet core treats
+	 * the Feed's grid as fixed-column for them, so their spans, at each
+	 * viewport from their own settings, come without a container query
+	 * resetting them.
 	 */
 	public function test_header_and_footer_span_the_grid_without_a_container_reset() {
 		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
@@ -311,6 +311,23 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 		$this->assertSame( '', render_block( parse_blocks( self::TITLE_MARKUP )[0] ) );
 
 		wp_reset_postdata();
+	}
+
+	/**
+	 * A password-protected untitled entry doesn't show its opening words,
+	 * even where the protected title format adds nothing to the empty title.
+	 */
+	public function test_protected_untitled_entry_shows_no_opening_words() {
+		[ , $entry_id ] = self::create_untitled_entry();
+		wp_update_post(
+			[
+				'ID'            => $entry_id,
+				'post_password' => 'secret',
+			]
+		);
+		add_filter( 'protected_title_format', static fn() => '%s' );
+
+		$this->assertStringNotContainsString( 'Traffic', self::render_title( $entry_id, self::TITLE_MARKUP ) );
 	}
 
 	/**
