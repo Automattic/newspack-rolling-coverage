@@ -147,7 +147,7 @@ class Coverage_Status_Block {
 			$wrapper[ 'data-label-' . $key ] = $label;
 		}
 
-		foreach ( $styles as $key => $style ) {
+		foreach ( array_filter( $styles ) as $key => $style ) {
 			$wrapper[ 'data-style-' . $key ] = $style;
 		}
 

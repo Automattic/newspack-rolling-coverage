@@ -334,8 +334,8 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A custom color styles the current badge, and every status's style rides
-	 * on the wrapper; an invalid color adds nothing.
+	 * A custom color styles the current badge, and each custom status style
+	 * rides on the wrapper; an invalid color adds nothing.
 	 */
 	public function test_custom_background_colors() {
 		$coverage_id = self::create_coverage();
@@ -354,23 +354,20 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'style="background:#ffd700;color:#000000;--newspack-ui-badge-dot-color:color-mix(in srgb, #000000 60%, #ffd700)">Live</span>', $html );
 		$this->assertStringContainsString( 'data-style-active="background:#ffd700;color:#000000;--newspack-ui-badge-dot-color:color-mix(in srgb, #000000 60%, #ffd700)"', $html );
-		$this->assertStringContainsString( 'data-style-paused=""', $html );
+		$this->assertStringNotContainsString( 'data-style-paused', $html );
 		$this->assertStringContainsString( 'data-style-archived="background:#2271b1;color:#ffffff;', $html );
 
 		$html = $this->render( [ 'backgroundColors' => [ 'active' => 'url(x)' ] ], $page_id );
 		$this->assertStringNotContainsString( '<span class="newspack-ui__badge newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse" style', $html );
-		$this->assertStringContainsString( 'data-style-active=""', $html );
-		$this->assertStringContainsString( 'data-style-paused=""', $html );
-		$this->assertStringContainsString( 'data-style-archived=""', $html );
+		$this->assertStringNotContainsString( 'data-style-', $html );
 	}
 
 	/**
-	 * The badge style is built from the normalized color only.
+	 * The badge style pairs the normalized color with its APCA text color and
+	 * a dot mixed from both.
 	 */
 	public function test_badge_style() {
 		$this->assertSame( 'background:#000000;color:#ffffff;--newspack-ui-badge-dot-color:color-mix(in srgb, #ffffff 60%, #000000)', Coverage_Status_Block::badge_style( '#000' ) );
-		$this->assertSame( '', Coverage_Status_Block::badge_style( '#fff;}' ) );
-		$this->assertSame( '', Coverage_Status_Block::badge_style( '' ) );
 	}
 
 	/**

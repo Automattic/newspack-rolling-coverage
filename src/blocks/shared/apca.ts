@@ -111,4 +111,4 @@ function textColor( background: string ): string {
 	return white > black ? '#ffffff' : '#000000';
 }
 
-export { normalizeColor, textColor, lc };
+export { normalizeColor, textColor };

@@ -26,6 +26,15 @@ const ALL_MODIFIERS = Object.values( BADGE_CLASSES ).flatMap( ( classes ) =>
  */
 function applyPoll( block: HTMLElement, detail: PollEventDetail ): void {
 	const status = badgeStatus( detail.status );
+
+	if (
+		status === 'archived' &&
+		block.hasAttribute( 'data-hide-when-ended' )
+	) {
+		block.remove();
+		return;
+	}
+
 	const badge = block.querySelector< HTMLElement >( '.newspack-ui__badge' );
 	const label = block.getAttribute( `data-label-${ status }` );
 
@@ -52,8 +61,6 @@ function applyPoll( block: HTMLElement, detail: PollEventDetail ): void {
 	}
 
 	block.dataset.status = status;
-	block.hidden =
-		status === 'archived' && block.hasAttribute( 'data-hide-when-ended' );
 
 	const updated = block.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-updated'

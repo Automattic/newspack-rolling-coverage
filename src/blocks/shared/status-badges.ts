@@ -46,24 +46,6 @@ function badgeClasses( status: string, showDot: boolean ): string {
  * Coverage_Status_Block::badge_style().
  *
  * @param {string} color Background color.
- * @return {string} Inline style, or '' when the color isn't usable.
- */
-function badgeStyle( color?: string ): string {
-	const background = normalizeColor( color ?? '' );
-
-	if ( ! background ) {
-		return '';
-	}
-
-	const text = textColor( background );
-
-	return `background:${ background };color:${ text };--newspack-ui-badge-dot-color:color-mix(in srgb, ${ text } 60%, ${ background })`;
-}
-
-/**
- * The same badge style as a React style object.
- *
- * @param {string} color Background color.
  * @return {CSSProperties|undefined} Style object, or undefined when unset.
  */
 function badgeStyleObject( color?: string ): CSSProperties | undefined {
@@ -86,6 +68,5 @@ export {
 	BADGE_CLASSES,
 	badgeClasses,
 	badgeStatus,
-	badgeStyle,
 	badgeStyleObject,
 };
