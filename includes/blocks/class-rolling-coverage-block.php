@@ -725,7 +725,8 @@ class Rolling_Coverage_Block {
 	/**
 	 * Writes an entry avatar's block size onto its image as inline width and
 	 * height. Core only sets them as attributes, which classic themes'
-	 * global avatar sizing overrides.
+	 * global avatar sizing overrides. With avatars off core still prints an
+	 * empty wrapper, which is dropped so it leaves no gap.
 	 *
 	 * @param string $block_content Rendered block.
 	 * @param array  $block         Parsed block.
@@ -745,7 +746,7 @@ class Rolling_Coverage_Block {
 		$html = new WP_HTML_Tag_Processor( $block_content );
 
 		if ( ! $html->next_tag( 'img' ) ) {
-			return $block_content;
+			return '';
 		}
 
 		$style = trim( (string) $html->get_attribute( 'style' ) );

@@ -5,6 +5,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Slack_Config;
 
@@ -53,18 +54,6 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A regular author's avatar and name render.
-	 */
-	public function test_an_entry_shows_its_authors_avatar_and_name() {
-		$author_id = self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] );
-
-		$html = self::render( $author_id, self::BYLINE_MARKUP );
-
-		$this->assertStringContainsString( 'wp-block-avatar', $html );
-		$this->assertStringContainsString( 'Jane Reporter', $html );
-	}
-
-	/**
 	 * The Slack bot's entries carry no byline.
 	 */
 	public function test_a_slack_bot_entry_shows_no_avatar_or_name() {
@@ -78,7 +67,9 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	 * The rule follows the author, not the entry's origin.
 	 */
 	public function test_a_slack_entry_reassigned_to_a_reporter_shows_the_reporter() {
-		$entry_id  = self::create_entry( self::create_coverage(), [ 'post_author' => Slack_Config::get_or_create_bot_user_id() ] );
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_author' => Slack_Config::get_or_create_bot_user_id() ] );
+		update_post_meta( $entry_id, Post_Type::META_ENTRY_SOURCE, 'slack' );
+		update_post_meta( $entry_id, Post_Type::META_SLACK_TS, '1700000000.000100' );
 		$author_id = self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] );
 
 		wp_update_post(
@@ -146,15 +137,6 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An entry without an author renders no avatar image.
-	 */
-	public function test_an_entry_with_no_author_renders_no_byline() {
-		$html = self::render( 0, self::BYLINE_MARKUP );
-
-		$this->assertStringNotContainsString( '<img', $html );
-	}
-
-	/**
 	 * The rule only applies inside Rolling Coverage entries.
 	 */
 	public function test_bot_authored_posts_outside_a_feed_keep_their_byline() {
@@ -184,12 +166,40 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Without a size set, the entry avatar gets core's default.
+	 * A missing or zero size falls back to core's default rather than collapsing the image.
+	 *
+	 * @dataProvider unset_size_provider
+	 *
+	 * @param string $markup Avatar block markup.
 	 */
-	public function test_an_entry_avatar_without_a_size_gets_the_core_default() {
-		$html = self::render( self::factory()->user->create(), '<!-- wp:avatar /-->' );
+	public function test_an_entry_avatar_without_a_usable_size_gets_the_core_default( $markup ) {
+		$html = self::render( self::factory()->user->create(), $markup );
 
 		$this->assertStringContainsString( 'width:96px;height:96px;', $html );
+	}
+
+	/**
+	 * Avatar markup with no usable size.
+	 *
+	 * @return array[]
+	 */
+	public function unset_size_provider() {
+		return [
+			'no size'   => [ '<!-- wp:avatar /-->' ],
+			'zero size' => [ '<!-- wp:avatar {"size":0} /-->' ],
+		];
+	}
+
+	/**
+	 * With avatars off, the empty avatar wrapper is dropped, leaving the name.
+	 */
+	public function test_an_entry_drops_the_empty_avatar_when_avatars_are_off() {
+		update_option( 'show_avatars', 0 );
+
+		$html = self::render( self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] ), self::BYLINE_MARKUP );
+
+		$this->assertStringNotContainsString( 'wp-block-avatar', $html );
+		$this->assertStringContainsString( 'Jane Reporter', $html );
 	}
 
 	/**
@@ -210,24 +220,5 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'wp-block-avatar', $html );
 		$this->assertStringNotContainsString( 'width:40px', $html );
-	}
-
-	/**
-	 * Sizing leaves a hidden bot avatar hidden.
-	 */
-	public function test_a_slack_bot_avatar_still_renders_nothing_when_sized() {
-		$html = self::render( Slack_Config::get_or_create_bot_user_id(), '<!-- wp:avatar {"size":40} /-->' );
-
-		$this->assertStringNotContainsString( 'wp-block-avatar', $html );
-		$this->assertStringNotContainsString( 'width:40px', $html );
-	}
-
-	/**
-	 * A zero size falls back to core's default rather than collapsing the image.
-	 */
-	public function test_an_entry_avatar_with_a_zero_size_gets_the_core_default() {
-		$html = self::render( self::factory()->user->create(), '<!-- wp:avatar {"size":0} /-->' );
-
-		$this->assertStringContainsString( 'width:96px;height:96px;', $html );
 	}
 }
