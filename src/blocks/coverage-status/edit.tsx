@@ -4,9 +4,14 @@
 import {
 	InspectorControls,
 	useBlockProps,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalColorGradientSettingsDropdown as ColorGradientSettingsDropdown,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalUseMultipleOriginColorsAndGradients as useMultipleOriginColorsAndGradients,
 	store as blockEditorStore,
 } from '@wordpress/block-editor';
 import {
+	Notice,
 	PanelBody,
 	SelectControl,
 	TextControl,
@@ -18,7 +23,6 @@ import {
 import { store as coreStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
 import { humanTimeDiff } from '@wordpress/date';
-import { store as editorStore } from '@wordpress/editor';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, _x, sprintf } from '@wordpress/i18n';
 import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
@@ -27,7 +31,12 @@ import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
  * Internal dependencies
  */
 import { mutedTextColor } from '../shared/muted-color';
-import { BADGE_CLASSES, badgeStatus } from '../shared/status-badges';
+import { usePageFeeds } from '../shared/page-feeds';
+import {
+	badgeClasses,
+	badgeStatus,
+	badgeStyleObject,
+} from '../shared/status-badges';
 import type { CoverageStatusAttributes } from './types';
 
 interface CoverageStatusConfig {
@@ -42,9 +51,7 @@ declare global {
 	}
 }
 
-const FEED_BLOCK = 'newspack-rolling-coverage/rolling-coverage';
 const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
-const TEMPLATE_TYPES = [ 'wp_template', 'wp_template_part' ];
 const NAME_SEPARATOR = '\u0000';
 const VIEW_CONTEXT = { context: 'view' };
 const SAMPLE_AGE_MS = 2 * 60 * 1000;
@@ -59,6 +66,12 @@ const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {
 	},
 	statusMetaKey: 'rolling_coverage_status',
 	taxonomySlug: 'rolling_coverage',
+};
+
+const BACKGROUND_FIELDS: Record< string, string > = {
+	active: __( 'Live background', 'newspack-rolling-coverage' ),
+	paused: __( 'Paused background', 'newspack-rolling-coverage' ),
+	archived: __( 'Ended background', 'newspack-rolling-coverage' ),
 };
 
 const LABEL_FIELDS: Record< string, string > = {
@@ -89,10 +102,17 @@ export default function Edit( {
 	setAttributes: ( attrs: Partial< CoverageStatusAttributes > ) => void;
 	context?: Record< string, unknown >;
 } ) {
-	const { coverageId, showLastUpdated, labels, textColor, style } =
-		attributes;
+	const {
+		coverageId,
+		showLastUpdated,
+		hideWhenEnded,
+		showDot,
+		labels,
+		backgroundColors,
+		textColor,
+		style,
+	} = attributes;
 	const feedCoverageId = context?.[ COVERAGE_ID_CONTEXT ];
-	const isInFeed = feedCoverageId !== undefined;
 
 	const hasCustomLabels = Object.keys( LABEL_FIELDS ).some(
 		( key ) =>
@@ -101,108 +121,12 @@ export default function Edit( {
 	const [ customChosen, setCustomChosen ] = useState( false );
 	const isCustom = hasCustomLabels || customChosen;
 
-	const { feedKey, canChoose } = useSelect(
-		( select ) => {
-			if ( isInFeed ) {
-				return {
-					feedKey: String( Number( feedCoverageId ) || '' ),
-					canChoose: false,
-				};
-			}
-
-			const blockEditor = select( blockEditorStore ) as unknown as {
-				getBlocksByName: ( name: string ) => string[];
-				getBlockParentsByBlockName: (
-					id: string,
-					name: string
-				) => string[];
-				getBlockAttributes: ( id: string ) => {
-					coverageId?: number;
-					latestOnly?: boolean;
-				} | null;
-			};
-			const editor = select( editorStore ) as unknown as {
-				getCurrentPostType: () => string | undefined;
-			};
-			const core = select( coreStore ) as unknown as {
-				getEntityRecord: (
-					kind: string,
-					name: string,
-					id: number,
-					query: Record< string, string >
-				) => { meta?: Record< string, string > } | null | undefined;
-				hasFinishedResolution: (
-					selector: string,
-					args: unknown[]
-				) => boolean;
-			};
-			const isTemplate = TEMPLATE_TYPES.includes(
-				editor.getCurrentPostType() ?? ''
-			);
-			const showsTemplate =
-				blockEditor.getBlocksByName( 'core/post-content' ).length > 0;
-			const inContent =
-				! showsTemplate ||
-				blockEditor.getBlockParentsByBlockName(
-					clientId,
-					'core/post-content'
-				).length > 0;
-			const ids = isTemplate
-				? []
-				: blockEditor
-						.getBlocksByName( FEED_BLOCK )
-						.filter(
-							( id: string ) =>
-								! blockEditor.getBlockAttributes( id )
-									?.latestOnly
-						)
-						.map(
-							( id: string ) =>
-								Number(
-									blockEditor.getBlockAttributes( id )
-										?.coverageId
-								) || 0
-						)
-						.filter( Boolean )
-						.filter( ( id: number ) => {
-							const args = [
-								'taxonomy',
-								config.taxonomySlug,
-								id,
-								VIEW_CONTEXT,
-							];
-							const term = core.getEntityRecord(
-								'taxonomy',
-								config.taxonomySlug,
-								id,
-								VIEW_CONTEXT
-							);
-							const missing =
-								term === null ||
-								( term === undefined &&
-									core.hasFinishedResolution(
-										'getEntityRecord',
-										args
-									) );
-
-							return (
-								! missing &&
-								term?.meta?.[ config.statusMetaKey ] !== 'trash'
-							);
-						} );
-
-			return {
-				feedKey: Array.from( new Set< number >( ids ) ).join( ',' ),
-				canChoose: ! isTemplate && inContent,
-			};
-		},
-		[ clientId, isInFeed, feedCoverageId ]
-	);
-
-	const feeds = useMemo(
-		() => ( feedKey ? feedKey.split( ',' ).map( Number ) : [] ),
-		[ feedKey ]
-	);
+	const { feeds, canChoose } = usePageFeeds( {
+		clientId,
+		feedCoverageId,
+		taxonomySlug: config.taxonomySlug,
+		statusMetaKey: config.statusMetaKey,
+	} );
 
 	const followed = feeds.includes( coverageId )
 		? coverageId
@@ -377,10 +301,39 @@ export default function Edit( {
 	] );
 
 	const blockProps = useBlockProps();
+	const colorGradientSettings = useMultipleOriginColorsAndGradients();
+
+	const setBackground = ( key: string, value?: string ) => {
+		const next = { ...backgroundColors };
+
+		if ( value ) {
+			next[ key ] = value;
+		} else {
+			delete next[ key ];
+		}
+
+		setAttributes( { backgroundColors: next } );
+	};
+	const endedHidden = !! followed && status === 'archived' && hideWhenEnded;
+	const endedNotice = __(
+		"This coverage has ended, so the badge won't show on the site.",
+		'newspack-rolling-coverage'
+	);
 
 	return (
 		<>
 			<InspectorControls>
+				{ endedHidden && (
+					<PanelBody>
+						<Notice
+							status="warning"
+							isDismissible={ false }
+							spokenMessage={ endedNotice }
+						>
+							{ endedNotice }
+						</Notice>
+					</PanelBody>
+				) }
 				<PanelBody
 					title={ __( 'Settings', 'newspack-rolling-coverage' ) }
 				>
@@ -530,11 +483,117 @@ export default function Edit( {
 							}
 						/>
 					</ToggleGroupControl>
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
+						label={ __(
+							'When ended',
+							'newspack-rolling-coverage'
+						) }
+						value={ hideWhenEnded ? 'hide' : 'show' }
+						onChange={ ( value ) =>
+							setAttributes( {
+								hideWhenEnded: value === 'hide',
+							} )
+						}
+					>
+						<ToggleGroupControlOption
+							value="show"
+							label={ _x(
+								'Show',
+								'when ended',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+								__(
+									'Show when ended',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+						<ToggleGroupControlOption
+							value="hide"
+							label={ _x(
+								'Hide',
+								'when ended',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+								__(
+									'Hide when ended',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+					</ToggleGroupControl>
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
+						label={ __( 'Dot', 'newspack-rolling-coverage' ) }
+						value={ showDot === false ? 'hide' : 'show' }
+						onChange={ ( value ) =>
+							setAttributes( {
+								showDot: value === 'show',
+							} )
+						}
+					>
+						<ToggleGroupControlOption
+							value="show"
+							label={ _x(
+								'Show',
+								'dot',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+								__( 'Show dot', 'newspack-rolling-coverage' )
+							}
+						/>
+						<ToggleGroupControlOption
+							value="hide"
+							label={ _x(
+								'Hide',
+								'dot',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+								__( 'Hide dot', 'newspack-rolling-coverage' )
+							}
+						/>
+					</ToggleGroupControl>
 				</PanelBody>
+			</InspectorControls>
+			<InspectorControls group="color">
+				<ColorGradientSettingsDropdown
+					__experimentalIsRenderedInSidebar
+					panelId={ clientId }
+					settings={ Object.entries( BACKGROUND_FIELDS ).map(
+						( [ key, field ] ) => ( {
+							label: field,
+							colorValue: backgroundColors?.[ key ],
+							onColorChange: ( value?: string ) =>
+								setBackground( key, value ),
+							resetAllFilter: () => ( {
+								backgroundColors: {},
+							} ),
+							clearable: true,
+						} )
+					) }
+					{ ...colorGradientSettings }
+					gradients={ [] }
+					disableCustomGradients
+				/>
 			</InspectorControls>
 			<div { ...blockProps }>
 				<span
-					className={ `newspack-ui__badge ${ BADGE_CLASSES[ status ] }` }
+					className={ `newspack-ui__badge ${ badgeClasses(
+						status,
+						showDot !== false
+					) }` }
+					style={ badgeStyleObject( backgroundColors?.[ status ] ) }
 				>
 					{ label }
 				</span>

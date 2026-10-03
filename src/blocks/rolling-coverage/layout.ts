@@ -16,6 +16,7 @@ import {
 	clockEntryTemplate,
 	marginEntryTemplate,
 	minuteEntryTemplate,
+	bylineEntryTemplate,
 	wireEntryTemplate,
 	digestEntryTemplate,
 	digestHeader,
@@ -41,10 +42,13 @@ import {
 	withShapedPinnedCard,
 	withCenteredTitleRows,
 	withoutPostTitle,
+	withoutAvatarColumns,
+	withoutByline,
 	hasPinnedCard,
 	isPinnedCard,
 	forEntryKind,
 } from './template';
+import { SHOW_AVATARS } from './config';
 import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
 export const BLOCK_NAME = metadata.name;
@@ -208,6 +212,24 @@ export function minuteInnerTemplate(): TemplateItem[] {
 }
 
 /**
+ * The Byline layout's inner-blocks template: the same Feed group and buttons
+ * as the default, with each entry signed by its author.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function bylineInnerTemplate(): TemplateItem[] {
+	const slugs = paletteSlugs();
+
+	return [
+		feedTemplate( [
+			latestTemplate( slugs ),
+			FOLLOW_TEMPLATE,
+			...bylineEntryTemplate( slugs ),
+		] ),
+	];
+}
+
+/**
  * The Wire layout's inner-blocks template: a narrow list of the latest
  * entries, with no buttons, ending in a link to the coverage page.
  *
@@ -318,6 +340,26 @@ export function previewTemplateFor(
 }
 
 /**
+ * Every template variant of a set without the author's avatar and name, as
+ * an entry the Slack bot wrote renders.
+ *
+ * @param {Object} templates Template variants, as previewTemplateFor() takes them.
+ * @return {Object} The same variants without the byline.
+ */
+function withoutBylines(
+	templates: Parameters< typeof previewTemplateFor >[ 0 ]
+): Parameters< typeof previewTemplateFor >[ 0 ] {
+	return {
+		pinned: withoutByline( templates.pinned ),
+		unpinned: withoutByline( templates.unpinned ),
+		pinnedWithoutBreakout: withoutByline( templates.pinnedWithoutBreakout ),
+		unpinnedWithoutBreakout: withoutByline(
+			templates.unpinnedWithoutBreakout
+		),
+	};
+}
+
+/**
  * The preview blocks for a layout: the coverage-level blocks above and below
  * the entries (see layoutParts()), and the per-entry blocks, shaped per entry
  * the way the site renders each entry.
@@ -348,14 +390,20 @@ export function useLayoutPreview(
 			footerBlocks: withoutLatestButtons( footer ),
 		};
 	}, [ allBlocks ] );
+	const hasBotEntry = entryContexts.some(
+		( context ) => context.hidesByline
+	);
 	const previewTemplates = useMemo( () => {
-		const pinnedBlocks = forEntryKind( templateBlocks, true );
+		const entryBlocks = SHOW_AVATARS
+			? templateBlocks
+			: withoutAvatarColumns( templateBlocks );
+		const pinnedBlocks = forEntryKind( entryBlocks, true );
 		const hasCard = hasPinnedCard( pinnedBlocks );
 		const pinned = hasCard
 			? withoutClosingSeparator( pinnedBlocks )
 			: pinnedBlocks;
 		const unpinned = withoutPinnedCard(
-			withoutPinnedRow( forEntryKind( templateBlocks, false ) )
+			withoutPinnedRow( forEntryKind( entryBlocks, false ) )
 		);
 
 		const asUntitled = ( blocks: TemplateBlocks ) =>
@@ -370,21 +418,27 @@ export function useLayoutPreview(
 			unpinnedWithoutBreakout: withoutBreakoutLink( unpinned ),
 		};
 
+		const untitled = {
+			pinned: asUntitled( titled.pinned ),
+			unpinned: asUntitled( titled.unpinned ),
+			pinnedWithoutBreakout: asUntitled( titled.pinnedWithoutBreakout ),
+			unpinnedWithoutBreakout: asUntitled(
+				titled.unpinnedWithoutBreakout
+			),
+		};
+
 		return {
 			hasCard,
 			titled,
-			untitled: {
-				pinned: asUntitled( titled.pinned ),
-				unpinned: asUntitled( titled.unpinned ),
-				pinnedWithoutBreakout: asUntitled(
-					titled.pinnedWithoutBreakout
-				),
-				unpinnedWithoutBreakout: asUntitled(
-					titled.unpinnedWithoutBreakout
-				),
-			},
+			untitled,
+			titledWithoutByline: hasBotEntry
+				? withoutBylines( titled )
+				: undefined,
+			untitledWithoutByline: hasBotEntry
+				? withoutBylines( untitled )
+				: undefined,
 		};
-	}, [ templateBlocks ] );
+	}, [ templateBlocks, hasBotEntry ] );
 
 	// The last entry drops its separator once no more entries would load
 	// (see Rolling_Coverage_Block::shape_entry_template()).
@@ -403,31 +457,40 @@ export function useLayoutPreview(
 				: previewTemplates.titled,
 			lastContext
 		);
+		const closing = blocks.at( -1 );
+		let shaped = blocks;
 
 		if ( ! lastContext.pinned || ! previewTemplates.hasCard ) {
-			return withoutClosingSeparator( blocks );
+			shaped = withoutClosingSeparator( blocks );
+		} else if ( closing && isPinnedCard( closing ) ) {
+			shaped = withShapedPinnedCard( blocks, {
+				closeUp: false,
+				isLastCard: true,
+			} );
 		}
 
-		const closing = blocks.at( -1 );
-
-		return closing && isPinnedCard( closing )
-			? withShapedPinnedCard( blocks, {
-					closeUp: false,
-					isLastCard: true,
-				} )
-			: blocks;
+		return lastContext.hidesByline ? withoutByline( shaped ) : shaped;
 	}, [ previewTemplates, lastContext ] );
 
 	const blocksForEntry = useCallback(
-		( context: EntryContext ) =>
-			context === lastContext && lastPreviewBlocks
-				? lastPreviewBlocks
-				: previewTemplateFor(
-						context.hasTitle === false
-							? previewTemplates.untitled
-							: previewTemplates.titled,
-						context
-					),
+		( context: EntryContext ) => {
+			if ( context === lastContext && lastPreviewBlocks ) {
+				return lastPreviewBlocks;
+			}
+
+			const untitled = context.hasTitle === false;
+			const templates = untitled
+				? previewTemplates.untitled
+				: previewTemplates.titled;
+			const bylineless = untitled
+				? previewTemplates.untitledWithoutByline
+				: previewTemplates.titledWithoutByline;
+
+			return previewTemplateFor(
+				( context.hidesByline && bylineless ) || templates,
+				context
+			);
+		},
 		[ lastContext, lastPreviewBlocks, previewTemplates ]
 	);
 

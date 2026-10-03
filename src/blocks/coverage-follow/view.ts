@@ -3,9 +3,7 @@
  */
 import type { OneSignalApi } from './types';
 
-// The core button marked by Entry_Bindings, and the legacy Follow block.
-const FOLLOW_BUTTON_SELECTOR =
-	'button[data-rc-follow], button.newspack-rolling-coverage-follow';
+const FOLLOW_BUTTON_SELECTOR = 'button[data-rc-follow]';
 
 // How long to wait for the OneSignal SDK before treating a click as failed.
 const SDK_WAIT_TIMEOUT_MS = 10000;
@@ -43,6 +41,10 @@ function setStatusMessage( button: HTMLButtonElement, text: string ): void {
 			: null;
 
 	if ( ! message ) {
+		if ( '' === text ) {
+			return;
+		}
+
 		message = document.createElement( 'p' );
 		message.className =
 			'newspack-rolling-coverage-follow__message wp-block-paragraph';
@@ -123,6 +125,19 @@ function syncFollowButtons(
 }
 
 /**
+ * Every follow button on the page for a tag, so buttons sharing one stay in
+ * sync.
+ *
+ * @param {string} tag OneSignal tag.
+ * @return {HTMLButtonElement[]} Matching buttons.
+ */
+function buttonsForTag( tag: string ): HTMLButtonElement[] {
+	return Array.from(
+		document.querySelectorAll< HTMLButtonElement >( FOLLOW_BUTTON_SELECTOR )
+	).filter( ( candidate ) => candidate.dataset.tag === tag );
+}
+
+/**
  * Wires a follow button's click handler: toggle the OneSignal tag, with an
  * optimistic UI update reverted on failure.
  *
@@ -143,14 +158,25 @@ function initFollowButton( button: HTMLButtonElement ): void {
 	button.addEventListener( 'click', () => {
 		const willFollow = button.getAttribute( 'aria-pressed' ) !== 'true';
 
-		updateButtonState( button, willFollow );
-		setStatusMessage( button, '' );
-		button.disabled = true;
+		const siblings = buttonsForTag( tag );
+
+		siblings.forEach( ( sibling ) => {
+			updateButtonState( sibling, willFollow );
+			sibling.disabled = true;
+		} );
+		siblings.forEach( ( sibling ) => setStatusMessage( sibling, '' ) );
+
+		const settle = () =>
+			siblings.forEach( ( sibling ) => {
+				sibling.disabled = false;
+			} );
 
 		const revert = ( message: string ) => {
-			updateButtonState( button, ! willFollow );
+			siblings.forEach( ( sibling ) =>
+				updateButtonState( sibling, ! willFollow )
+			);
 			setStatusMessage( button, message );
-			button.disabled = false;
+			settle();
 		};
 
 		let hasResolvedSdkWait = false;
@@ -189,7 +215,7 @@ function initFollowButton( button: HTMLButtonElement ): void {
 					OneSignal.User.addTag( tag, '1' );
 				}
 
-				button.disabled = false;
+				settle();
 			} catch {
 				revert( button.dataset.errorMessage || '' );
 			}

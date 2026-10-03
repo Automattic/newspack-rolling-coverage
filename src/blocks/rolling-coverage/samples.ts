@@ -11,10 +11,19 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import { ENTRY_POST_TYPE } from './config';
+import { ENTRY_POST_TYPE, SAMPLE_AVATAR_URLS, SHOW_AVATARS } from './config';
 import type { EntryContext } from './types';
 
-const AUTHOR_ID = -900;
+const AUTHORS = [
+	{ id: -900, name: 'Marisol Quinn', slug: 'marisol-quinn', initials: 'MQ' },
+	{
+		id: -901,
+		name: 'Theo Abernathy',
+		slug: 'theo-abernathy',
+		initials: 'TA',
+	},
+	{ id: -902, name: 'Ines Okafor', slug: 'ines-okafor', initials: 'IO' },
+];
 const IMAGE_ID = -800;
 
 const SAMPLE_IMAGE =
@@ -25,6 +34,7 @@ const SAMPLE_IMAGE =
 
 type Sample = {
 	id: number;
+	authorId: number;
 	minutesAgo: number;
 	title: string;
 	content: string;
@@ -41,6 +51,7 @@ function getSamples(): Sample[] {
 	return [
 		{
 			id: -101,
+			authorId: -900,
 			minutesAgo: 2,
 			title: __(
 				'Full time: Riverbend 2, Fresno Verde 1',
@@ -55,6 +66,7 @@ function getSamples(): Sample[] {
 		},
 		{
 			id: -102,
+			authorId: -901,
 			minutesAgo: 9,
 			title: '',
 			content: __(
@@ -64,6 +76,7 @@ function getSamples(): Sample[] {
 		},
 		{
 			id: -103,
+			authorId: -902,
 			minutesAgo: 40,
 			title: __(
 				'Kowalski again, straight off the training ground',
@@ -78,6 +91,7 @@ function getSamples(): Sample[] {
 		},
 		{
 			id: -104,
+			authorId: -901,
 			minutesAgo: 55,
 			title: __( '14,213 at DS Stadium', 'newspack-rolling-coverage' ),
 			content: __(
@@ -87,6 +101,7 @@ function getSamples(): Sample[] {
 		},
 		{
 			id: -105,
+			authorId: -900,
 			minutesAgo: 120,
 			title: __( 'Team news', 'newspack-rolling-coverage' ),
 			content: __(
@@ -120,10 +135,27 @@ function loadSampleRecords(): void {
 		receiveUserPermission: ( key: string, isAllowed: boolean ) => void;
 	};
 
-	core.receiveEntityRecords( 'root', 'user', [
-		{ id: AUTHOR_ID, name: 'Marisol Quinn', slug: 'marisol-quinn' },
-	] );
-	core.finishResolution( 'getEntityRecord', [ 'root', 'user', AUTHOR_ID ] );
+	core.receiveEntityRecords(
+		'root',
+		'user',
+		AUTHORS.map( ( { id, name, slug, initials } ) => {
+			const avatar =
+				SHOW_AVATARS && SAMPLE_AVATAR_URLS?.[ initials.toLowerCase() ];
+
+			return {
+				id,
+				name,
+				slug,
+				...( avatar && {
+					avatar_urls: { 24: avatar, 48: avatar, 96: avatar },
+				} ),
+			};
+		} )
+	);
+	AUTHORS.forEach( ( { id } ) => {
+		core.finishResolution( 'getEntityRecord', [ 'root', 'user', id ] );
+		core.finishResolution( 'getUser', [ id ] );
+	} );
 
 	core.receiveEntityRecords(
 		'postType',
@@ -174,7 +206,7 @@ function loadSampleRecords(): void {
 				rendered: `<p>${ paragraph }</p>`,
 				protected: false,
 			},
-			author: AUTHOR_ID,
+			author: sample.authorId,
 			featured_media: sample.hasImage ? IMAGE_ID : 0,
 			link: '#',
 			meta: {},
@@ -225,6 +257,7 @@ export function useSampleEntries( enabled: boolean ): EntryContext[] {
 				pinned: Boolean( sample.pinned ),
 				hasBreakout: Boolean( sample.hasBreakout ),
 				hasTitle: '' !== sample.title,
+				hidesByline: false,
 			} ) )
 		);
 	}, [ enabled ] );

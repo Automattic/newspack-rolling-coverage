@@ -126,6 +126,7 @@ class Rolling_Coverage_Block {
 		'core/post-excerpt',
 		'core/post-featured-image',
 		'core/post-author-name',
+		'core/avatar',
 	];
 
 	/**
@@ -184,6 +185,9 @@ class Rolling_Coverage_Block {
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 10, 3 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
+		add_filter( 'render_block_core/avatar', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
+		add_filter( 'render_block_core/avatar', [ __CLASS__, 'size_entry_avatar' ], 10, 2 );
+		add_filter( 'render_block_core/post-author-name', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
 		add_filter( 'render_block_core/post-content', [ __CLASS__, 'drop_entry_content_class' ], 10, 3 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
 		add_filter( 'render_block_core/columns', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
@@ -694,6 +698,70 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Hides an entry's avatar and author name while the Slack bot is its
+	 * author. The rule keys on the author, so an entry an editor reassigns
+	 * to a reporter shows that reporter.
+	 *
+	 * @param string   $block_content Rendered block.
+	 * @param array    $block         Parsed block.
+	 * @param WP_Block $instance      Block instance.
+	 * @return string
+	 */
+	public static function hide_slack_bot_byline( $block_content, $block, $instance ) {
+		if ( ! self::is_rendering_entry() || ! $instance instanceof WP_Block ) {
+			return $block_content;
+		}
+
+		return self::is_bot_authored( (int) ( $instance->context['postId'] ?? 0 ) ) ? '' : $block_content;
+	}
+
+	/**
+	 * Whether the Slack bot is a post's author.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	private static function is_bot_authored( int $post_id ): bool {
+		$author = $post_id > 0 ? get_userdata( (int) get_post_field( 'post_author', $post_id ) ) : false;
+
+		return Slack_Config::is_bot_user( $author );
+	}
+
+	/**
+	 * Writes an entry avatar's block size onto its image as inline width and
+	 * height. Core only sets them as attributes, which classic themes'
+	 * global avatar sizing overrides. With avatars off core still prints an
+	 * empty wrapper, which is dropped so it leaves no gap; an avatar with no
+	 * image otherwise, such as an inline SVG, is left as it is.
+	 *
+	 * @param string $block_content Rendered block.
+	 * @param array  $block         Parsed block.
+	 * @return string
+	 */
+	public static function size_entry_avatar( $block_content, $block ) {
+		if ( ! is_string( $block_content ) || '' === $block_content || ! self::is_rendering_entry() ) {
+			return $block_content;
+		}
+
+		$size = absint( $block['attrs']['size'] ?? 0 );
+
+		if ( ! $size ) {
+			$size = 96;
+		}
+
+		$html = new WP_HTML_Tag_Processor( $block_content );
+
+		if ( ! $html->next_tag( 'img' ) ) {
+			return get_option( 'show_avatars' ) ? $block_content : '';
+		}
+
+		$style = trim( (string) $html->get_attribute( 'style' ), " \t\n\r;" );
+		$html->set_attribute( 'style', ( $style ? $style . ';' : '' ) . sprintf( 'width:%1$dpx;height:%1$dpx;', $size ) );
+
+		return $html->get_updated_html();
+	}
+
+	/**
 	 * Updates the coverage's last-modified term meta when an entry's status
 	 * changes to or from 'publish', and on saves while already published.
 	 *
@@ -789,6 +857,12 @@ class Rolling_Coverage_Block {
 					'canEditThemeOptions'         => current_user_can( 'edit_theme_options' ),
 					'layoutCategoryId'            => Layout::get_pattern_category_id(),
 					'entryPostType'               => Post_Type::CPT_SLUG,
+					'showAvatars'                 => (bool) get_option( 'show_avatars' ),
+					'sampleAvatarUrls'            => [
+						'mq' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/mq.svg' ),
+						'ta' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/ta.svg' ),
+						'io' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/io.svg' ),
+					],
 				]
 			);
 		}
@@ -1729,10 +1803,11 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Renders coverage-level blocks once, with the coverage in their context
-	 * so the follow button carries its tag. A follow button that can't render,
-	 * e.g. on an archived coverage, leaves nothing behind, nor does a group
-	 * left empty once it and the "See all updates" paragraph drop out, and
-	 * "Jump to Latest" renders only as its own control, so none renders here.
+	 * so the Follow Coverage block follows it. A Follow Coverage block that
+	 * can't render, e.g. on an archived coverage, leaves nothing behind, nor
+	 * does a group left empty once it and the "See all updates" paragraph drop
+	 * out, and "Jump to Latest" renders only as its own control, so none
+	 * renders here.
 	 *
 	 * @param array[] $blocks          Parsed coverage-level blocks.
 	 * @param int     $coverage_id     Coverage term id.
@@ -1749,41 +1824,16 @@ class Rolling_Coverage_Block {
 		// of which a lite page has.
 		$can_follow = ! Lite_Feed::is_lite_render() && Coverage_Follow_Block::should_render( $status );
 
-		// Preload the follow button's view script and the legacy block's
-		// styles: the button renders inside this callback, so WordPress
-		// doesn't enqueue its assets.
-		$follow_block_type = $can_follow && self::holds_follow_button( $blocks ) ? WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Follow_Block::BLOCK_NAME ) : null;
-
-		if ( $follow_block_type ) {
-			foreach ( $follow_block_type->style_handles as $style_handle ) {
-				wp_enqueue_style( $style_handle );
-			}
-
-			foreach ( $follow_block_type->view_script_handles as $script_handle ) {
-				wp_enqueue_script( $script_handle );
-			}
-		}
-
 		$blocks = self::map_template_blocks(
 			$blocks,
-			static function ( array $block, array $original ) use ( $coverage_id, $status, $all_updates_url, $can_follow ) {
+			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow ) {
 				if (
 					Entry_Bindings::is_latest_buttons( $block ) ||
 					( '' === $all_updates_url && Entry_Bindings::is_all_updates_paragraph( $block ) ) ||
-					( ! $can_follow && ( Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $block ) ) ) ||
+					( ! $can_follow && Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
 					( 'core/group' === ( $block['blockName'] ?? '' ) && empty( $block['innerBlocks'] ) && ! empty( $original['innerBlocks'] ) )
 				) {
 					return [];
-				}
-
-				if ( Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) {
-					$block['attrs'] = array_merge(
-						(array) ( $block['attrs'] ?? [] ),
-						[
-							'coverageId' => $coverage_id,
-							'status'     => $status,
-						]
-					);
 				}
 
 				return [ $block ];
@@ -1811,20 +1861,6 @@ class Rolling_Coverage_Block {
 			self::$all_updates_url = $previous_all_updates_url;
 			remove_filter( 'render_block_context', $add_coverage_context );
 		}
-	}
-
-	/**
-	 * Whether blocks hold a follow button, the core one or the legacy block,
-	 * at any depth.
-	 *
-	 * @param array[] $blocks Parsed blocks.
-	 * @return bool
-	 */
-	private static function holds_follow_button( array $blocks ): bool {
-		return self::holds_block(
-			$blocks,
-			static fn( array $block ) => Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) || Entry_Bindings::is_follow_buttons( $block )
-		);
 	}
 
 	/**
@@ -2210,6 +2246,7 @@ class Rolling_Coverage_Block {
 	 * breakout link to show also drops any bottom margin set on its last
 	 * block, and as the last entry, a card that closes the template drops any
 	 * set below it, so the card's padding is even and nothing trails the list.
+	 * With avatars turned off, a column holding only an avatar goes.
 	 *
 	 * @param array[] $template     Parsed template blocks.
 	 * @param bool    $is_pinned    Whether the entry is pinned.
@@ -2220,6 +2257,10 @@ class Rolling_Coverage_Block {
 	 */
 	public static function shape_entry_template( array $template, bool $is_pinned, bool $has_breakout, bool $is_last ): array {
 		$template = self::for_entry_kind( $template, $is_pinned );
+
+		if ( ! get_option( 'show_avatars' ) ) {
+			$template = self::without_avatar_columns( $template );
+		}
 
 		if ( ( $is_pinned && self::has_pinned_card( $template ) ) || $is_last ) {
 			$template = self::without_closing_separator( $template );
@@ -2257,6 +2298,27 @@ class Rolling_Coverage_Block {
 				}
 
 				return [ self::with_entry_layout( $block ) ];
+			}
+		);
+	}
+
+	/**
+	 * The template without the columns that hold only an avatar.
+	 *
+	 * @param array[] $template Parsed template blocks.
+	 * @return array[]
+	 */
+	private static function without_avatar_columns( array $template ): array {
+		return self::map_template_blocks(
+			$template,
+			static function ( array $block ) {
+				$inner = $block['innerBlocks'] ?? [];
+
+				$is_avatar_column = 'core/column' === ( $block['blockName'] ?? '' )
+					&& 1 === count( $inner )
+					&& 'core/avatar' === ( $inner[0]['blockName'] ?? '' );
+
+				return $is_avatar_column ? [] : [ $block ];
 			}
 		);
 	}
@@ -3202,6 +3264,7 @@ class Rolling_Coverage_Block {
 
 		update_meta_cache( 'post', $query->posts );
 		_prime_post_caches( $query->posts, false, false );
+		update_post_author_caches( array_map( 'get_post', $query->posts ) );
 		_prime_post_caches(
 			array_filter( array_map( fn( $id ) => (int) get_post_meta( $id, Breakout::ENTRY_BREAKOUT_POST_ID_META, true ), $query->posts ) ),
 			true,
@@ -3214,12 +3277,12 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Reduces a post ID to the bare `{ id, type, pinned, hasBreakout, hasTitle }`
-	 * shape the editor preview needs, for get_entries_preview().
+	 * Reduces a post ID to the bare `{ id, type, pinned, hasBreakout, hasTitle,
+	 * hidesByline }` shape the editor preview needs, for get_entries_preview().
 	 *
 	 * @param int  $id          Entry post ID.
 	 * @param bool $ignore_pins Whether to report the entry as unpinned, as a capped feed does.
-	 * @return array{id: int, type: string, pinned: bool, hasBreakout: bool, hasTitle: bool}
+	 * @return array{id: int, type: string, pinned: bool, hasBreakout: bool, hasTitle: bool, hidesByline: bool}
 	 */
 	private static function map_entry_preview( int $id, bool $ignore_pins = false ): array {
 		return [
@@ -3228,6 +3291,7 @@ class Rolling_Coverage_Block {
 			'pinned'      => ! $ignore_pins && Post_Type::is_pinned( $id ),
 			'hasBreakout' => null !== Breakout::get_published_breakout_url( $id ),
 			'hasTitle'    => self::has_title( get_post( $id ) ),
+			'hidesByline' => self::is_bot_authored( $id ),
 		];
 	}
 

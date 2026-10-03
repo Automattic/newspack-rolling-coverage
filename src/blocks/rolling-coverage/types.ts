@@ -82,6 +82,8 @@ interface BlockConfig {
 	canEditThemeOptions: boolean;
 	layoutCategoryId: number;
 	entryPostType: string;
+	showAvatars: boolean;
+	sampleAvatarUrls?: Record< string, string >;
 }
 
 /**
@@ -116,6 +118,7 @@ interface EntryContext {
 	pinned?: boolean;
 	hasBreakout?: boolean;
 	hasTitle?: boolean;
+	hidesByline?: boolean;
 }
 
 /**

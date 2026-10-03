@@ -9,6 +9,7 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies
  */
 import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
+import { FOLLOW_BUTTONS_TEMPLATE } from '../shared/follow-buttons';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
 import type { TemplateItem } from './types';
 
@@ -118,8 +119,8 @@ const SHARE_CLASS = 'newspack-rolling-coverage-share';
 const ALL_UPDATES_CLASS = 'newspack-rolling-coverage-all-updates';
 
 /**
- * The legacy follow button block, still rendered once by coverages saved
- * before the follow button became a core button.
+ * The Follow Coverage block, which sits once among the layout's coverage-level
+ * blocks.
  */
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 
@@ -993,6 +994,129 @@ function minuteEntryTemplate(): TemplateItem[] {
 }
 
 /**
+ * A Byline entry's row: the author's avatar in a narrow column that stays
+ * beside the entry at every width, then the byline, title, content and
+ * links. The pinned entry differs only by the pinned label at the end of its
+ * byline row.
+ *
+ * @param {string[]} slugs    The palette's color slugs.
+ * @param {boolean}  isPinned Whether the row is the pinned card's.
+ * @return {TemplateItem} The row.
+ */
+function bylineRow( slugs: string[], isPinned: boolean ): TemplateItem {
+	const entry: TemplateItem[] = [
+		[
+			'core/group',
+			{
+				layout: {
+					type: 'flex',
+					flexWrap: 'wrap',
+					verticalAlignment: 'center',
+					justifyContent: 'space-between',
+				},
+				style: { spacing: { blockGap: 'var:preset|spacing|20' } },
+				metadata: { name: __( 'Byline', 'newspack-rolling-coverage' ) },
+			},
+			[
+				[
+					'core/group',
+					{
+						layout: { type: 'flex', flexWrap: 'nowrap' },
+						style: {
+							spacing: { blockGap: 'var:preset|spacing|20' },
+						},
+						metadata: {
+							name: __(
+								'Author + Date',
+								'newspack-rolling-coverage'
+							),
+						},
+					},
+					[
+						[
+							'core/post-author-name',
+							{
+								className: 'use-header-font',
+								fontSize: 'small',
+								style: { typography: { fontWeight: '700' } },
+							},
+						],
+						[
+							'core/post-date',
+							{
+								...POST_DATE_ATTRIBUTES,
+								format: siteTimeFormat(),
+								fontSize: 'small',
+								...mutedDateColor( slugs ),
+							},
+						],
+					],
+				],
+				...( isPinned ? [ pinnedRow( ACCENT ) ] : [] ),
+			],
+		],
+		[ 'core/post-title', { level: 4 } ],
+		postContent(),
+		linksRow( [ readMoreLink(), shareLink() ] ),
+	];
+
+	return [
+		'core/columns',
+		{
+			isStackedOnMobile: false,
+			style: {
+				border: {
+					top: { color: BORDER_COLOR, width: '1px', style: 'solid' },
+				},
+				spacing: {
+					blockGap: { left: 'var:preset|spacing|30' },
+					padding: { top: 'var:preset|spacing|50' },
+					margin: { top: '0', bottom: '0' },
+				},
+			},
+			metadata: { name: __( 'Row', 'newspack-rolling-coverage' ) },
+		},
+		[
+			[
+				'core/column',
+				{
+					width: '40px',
+					metadata: {
+						name: __( 'Avatar', 'newspack-rolling-coverage' ),
+					},
+				},
+				[
+					[
+						'core/avatar',
+						{ size: 40, style: { border: { radius: '50%' } } },
+					],
+				],
+			],
+			[
+				'core/column',
+				{
+					metadata: {
+						name: __( 'Body', 'newspack-rolling-coverage' ),
+					},
+				},
+				[ stack( __( 'Entry', 'newspack-rolling-coverage' ), entry ) ],
+			],
+		],
+	];
+}
+
+/**
+ * The Byline layout's per-entry template: each entry signed with its
+ * author's avatar and name, and ruled off from the one above.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @return {TemplateItem[]} The template.
+ */
+function bylineEntryTemplate( slugs: string[] ): TemplateItem[] {
+	return rowEntryTemplate( ( isPinned ) => bylineRow( slugs, isPinned ) );
+}
+
+/**
  * The Wire layout's per-entry template: the time, headline and a short
  * excerpt, ruled off from the entry above. The pinned card matches the
  * regular entry, since a capped feed ignores pinning.
@@ -1323,35 +1447,14 @@ function digestEntryTemplate(
 }
 
 /**
- * The follow button, rendered once wherever the layout places it: a core button
- * bound to the coverage's notification tag. It's a `<button>`, so the bound
- * value never shows as a link; it only carries the tag to the follow script.
+ * The follow button, rendered once wherever the layout places it: the Follow
+ * Coverage block, which holds the core button bound to the coverage's
+ * notification tag.
  */
 const FOLLOW_TEMPLATE: TemplateItem = [
-	'core/buttons',
-	{
-		lock: LOCKED,
-		metadata: { name: __( 'Follow', 'newspack-rolling-coverage' ) },
-	},
-	[
-		[
-			'core/button',
-			{
-				lock: LOCKED,
-				tagName: 'button',
-				text: __( 'Follow', 'newspack-rolling-coverage' ),
-				metadata: {
-					name: __( 'Follow', 'newspack-rolling-coverage' ),
-					bindings: {
-						url: {
-							source: ENTRY_BINDINGS_SOURCE,
-							args: { key: 'followTag' },
-						},
-					},
-				},
-			},
-		],
-	],
+	FOLLOW_BLOCK_NAME,
+	{ lock: LOCKED },
+	[ FOLLOW_BUTTONS_TEMPLATE ],
 ];
 
 /**
@@ -1462,19 +1565,6 @@ function isButtonsBoundTo( block: ButtonsBlock, key: string ): boolean {
 }
 
 /**
- * Whether a block is the follow button's Buttons block (see FOLLOW_TEMPLATE),
- * mirroring Entry_Bindings::is_follow_buttons().
- *
- * @param {Object}   block             The block.
- * @param {string}   block.name        Block name.
- * @param {Object[]} block.innerBlocks Inner blocks.
- * @return {boolean} Whether it's the follow button.
- */
-function isFollowButtons( block: ButtonsBlock ): boolean {
-	return isButtonsBoundTo( block, 'followTag' );
-}
-
-/**
  * Whether a block is the "Jump to Latest" button's Buttons block (see
  * latestTemplate()), mirroring Entry_Bindings::is_latest_buttons().
  *
@@ -1539,20 +1629,9 @@ function isAllUpdatesParagraph( block: {
 }
 
 /**
- * Whether a block is the follow button: the core one's Buttons block or the
- * legacy block.
- *
- * @param {Object} block The block.
- * @return {boolean} Whether it's a follow button.
- */
-function isFollowBlock( block: ButtonsBlock ): boolean {
-	return block.name === FOLLOW_BLOCK_NAME || isFollowButtons( block );
-}
-
-/**
  * Whether a block belongs to the coverage rather than to each entry, so it
- * renders once: the follow or "Jump to Latest" button, the legacy follow
- * block, the Coverage Status block, a heading bound to the coverage's name,
+ * renders once: the Follow Coverage block, the "Jump to Latest" button,
+ * the Coverage Status block, a heading bound to the coverage's name,
  * the "See all updates" paragraph, or a block holding one at any depth,
  * mirroring
  * Entry_Bindings::is_coverage_item(). The pinned card and the entry group
@@ -1575,7 +1654,7 @@ function isCoverageItem( block: {
 	}
 
 	return (
-		isFollowBlock( typed ) ||
+		typed.name === FOLLOW_BLOCK_NAME ||
 		block.name === STATUS_BLOCK_NAME ||
 		isLatestButtons( typed ) ||
 		isCoverageNameHeading( typed ) ||
@@ -1661,8 +1740,9 @@ function withoutBlocks< T extends { name: string; [ key: string ]: unknown } >(
 function withoutFollowButtons<
 	T extends { name: string; [ key: string ]: unknown },
 >( blocks: T[] ): T[] {
-	return withoutBlocks( blocks, ( block ) =>
-		isFollowBlock( block as ButtonsBlock )
+	return withoutBlocks(
+		blocks,
+		( block ) => block.name === FOLLOW_BLOCK_NAME
 	);
 }
 
@@ -1692,7 +1772,7 @@ function followBlockIds(
 	blocks: { name: string; [ key: string ]: unknown }[]
 ): string[] {
 	return blocks.flatMap( ( block ) =>
-		isFollowBlock( block as ButtonsBlock )
+		block.name === FOLLOW_BLOCK_NAME
 			? [ block.clientId as string ]
 			: followBlockIds(
 					Array.isArray( block.innerBlocks )
@@ -2463,6 +2543,69 @@ function withoutPostTitle<
 }
 
 /**
+ * The template as the site renders it with avatars turned off: without the
+ * columns that hold only an avatar, mirroring
+ * Rolling_Coverage_Block::without_avatar_columns(), or any other avatar,
+ * which renders nothing (see Rolling_Coverage_Block::size_entry_avatar()).
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks without avatars.
+ */
+function withoutAvatarColumns<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks
+		.filter( ( block ) => {
+			const innerBlocks = Array.isArray( block.innerBlocks )
+				? ( block.innerBlocks as T[] )
+				: [];
+			const isAvatarColumn =
+				block.name === 'core/column' &&
+				innerBlocks.length === 1 &&
+				innerBlocks[ 0 ].name === 'core/avatar';
+
+			return block.name !== 'core/avatar' && ! isAvatarColumn;
+		} )
+		.map( ( block ) =>
+			Array.isArray( block.innerBlocks )
+				? {
+						...block,
+						innerBlocks: withoutAvatarColumns(
+							block.innerBlocks as T[]
+						),
+					}
+				: block
+		);
+}
+
+/**
+ * The template without the author's avatar and name, as an entry the Slack
+ * bot wrote renders, mirroring Rolling_Coverage_Block::hide_slack_bot_byline().
+ * The avatar's column stays, so the entry's text lines up with the others.
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks without the byline.
+ */
+function withoutByline< T extends { name: string; [ key: string ]: unknown } >(
+	blocks: T[]
+): T[] {
+	return blocks
+		.filter(
+			( block ) =>
+				block.name !== 'core/avatar' &&
+				block.name !== 'core/post-author-name'
+		)
+		.map( ( block ) =>
+			Array.isArray( block.innerBlocks )
+				? {
+						...block,
+						innerBlocks: withoutByline( block.innerBlocks as T[] ),
+					}
+				: block
+		);
+}
+
+/**
  * Block types allowed inside the per-entry template.
  */
 const ENTRY_ALLOWED_BLOCKS = [
@@ -2471,6 +2614,8 @@ const ENTRY_ALLOWED_BLOCKS = [
 	'core/post-content',
 	'core/post-excerpt',
 	'core/post-featured-image',
+	'core/post-author-name',
+	'core/avatar',
 	'core/group',
 	'core/columns',
 	'core/column',
@@ -2491,6 +2636,7 @@ export {
 	clockEntryTemplate,
 	marginEntryTemplate,
 	minuteEntryTemplate,
+	bylineEntryTemplate,
 	wireEntryTemplate,
 	digestEntryTemplate,
 	digestHeader,
@@ -2510,7 +2656,6 @@ export {
 	isFeedGroup,
 	feedItems,
 	latestTemplate,
-	isFollowButtons,
 	isLatestButtons,
 	isCoverageNameHeading,
 	isAllUpdatesParagraph,
@@ -2536,4 +2681,6 @@ export {
 	withShapedPinnedCard,
 	withCenteredTitleRows,
 	withoutPostTitle,
+	withoutAvatarColumns,
+	withoutByline,
 };

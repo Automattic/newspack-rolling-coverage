@@ -9,6 +9,7 @@ use Newspack_Rolling_Coverage\Coverage_Status_Block;
 use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Newest_Entry;
 use Newspack_Rolling_Coverage\Post_Type;
+use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Status_Labels;
 use Newspack_Rolling_Coverage\Taxonomy;
 
@@ -19,11 +20,24 @@ use Newspack_Rolling_Coverage\Taxonomy;
 class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 	/**
+	 * Whether this test registered the Rolling Coverage block itself.
+	 *
+	 * @var bool
+	 */
+	private $registered_feed = false;
+
+	/**
 	 * Register the block from its metadata when the build isn't there, so its
-	 * `postId` context reaches the render callback.
+	 * `postId` context reaches the render callback, and the Rolling Coverage
+	 * block, so the feeds the tests nest it in render.
 	 */
 	public function set_up() {
 		parent::set_up();
+
+		if ( ! WP_Block_Type_Registry::get_instance()->is_registered( Rolling_Coverage_Block::BLOCK_NAME ) ) {
+			register_block_type( Rolling_Coverage_Block::BLOCK_NAME, Rolling_Coverage_Block::block_type_args() );
+			$this->registered_feed = true;
+		}
 
 		if ( ! WP_Block_Type_Registry::get_instance()->is_registered( Coverage_Status_Block::BLOCK_NAME ) ) {
 			$metadata = json_decode( file_get_contents( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'src/blocks/coverage-status/block.json' ), true ); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
@@ -40,9 +54,15 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Forget the theme.json data a test switched to.
+	 * Forget the theme.json data a test switched to, and the Rolling Coverage
+	 * block if the test registered it.
 	 */
 	public function tear_down() {
+		if ( $this->registered_feed ) {
+			unregister_block_type( Rolling_Coverage_Block::BLOCK_NAME );
+			$this->registered_feed = false;
+		}
+
 		parent::tear_down();
 		wp_clean_theme_json_cache();
 	}
@@ -270,6 +290,77 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'data-label-active="On &lt;b&gt;air&lt;/b&gt;"', $html );
 		$this->assertStringContainsString( 'data-label-paused="On hold"', $html );
 		$this->assertStringContainsString( 'data-label-archived="Ended"', $html );
+	}
+
+	/**
+	 * Hidden once ended when asked to; still shown while paused, and shown
+	 * when ended without the option.
+	 */
+	public function test_hide_when_ended() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::page( self::feed( $coverage_id ) );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+		$this->assertSame( '', $this->render( [ 'hideWhenEnded' => true ], $page_id ) );
+		$this->assertStringContainsString( 'data-status="archived"', $this->render( [], $page_id ) );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
+		$html = $this->render( [ 'hideWhenEnded' => true ], $page_id );
+		$this->assertStringContainsString( 'data-status="paused"', $html );
+		$this->assertStringContainsString( 'data-hide-when-ended="true"', $html );
+		$this->assertStringNotContainsString( 'data-hide-when-ended', $this->render( [], $page_id ) );
+	}
+
+	/**
+	 * Turning the dot off drops its classes from the live badge only.
+	 */
+	public function test_dot_can_be_turned_off() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::page( self::feed( $coverage_id ) );
+
+		$html = $this->render( [ 'showDot' => false ], $page_id );
+		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--success">Live</span>', $html );
+		$this->assertStringContainsString( 'data-hide-dot="true"', $html );
+
+		$html = $this->render( [ 'showDot' => true ], $page_id );
+		$this->assertStringContainsString( 'newspack-ui__badge--dot newspack-ui__badge--pulse', $html );
+		$this->assertStringNotContainsString( 'data-hide-dot', $html );
+		$this->assertStringNotContainsString( 'data-hide-dot', $this->render( [], $page_id ) );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
+		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--secondary">Paused</span>', $this->render( [ 'showDot' => false ], $page_id ) );
+
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--error">Ended</span>', $this->render( [ 'showDot' => false ], $page_id ) );
+	}
+
+	/**
+	 * A custom color styles the current badge, and each custom status style
+	 * rides on the wrapper; an invalid color adds nothing.
+	 */
+	public function test_custom_background_colors() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::page( self::feed( $coverage_id ) );
+
+		$html = $this->render(
+			[
+				'backgroundColors' => [
+					'active'   => '#FFD700',
+					'paused'   => 'red',
+					'archived' => '#2271b1',
+				],
+			],
+			$page_id
+		);
+
+		$this->assertStringContainsString( 'style="background:#ffd700;color:#000000;--newspack-ui-badge-dot-color:color-mix(in srgb, #000000 60%, #ffd700)">Live</span>', $html );
+		$this->assertStringContainsString( 'data-style-active="background:#ffd700;color:#000000;--newspack-ui-badge-dot-color:color-mix(in srgb, #000000 60%, #ffd700)"', $html );
+		$this->assertStringNotContainsString( 'data-style-paused', $html );
+		$this->assertStringContainsString( 'data-style-archived="background:#2271b1;color:#ffffff;', $html );
+
+		$html = $this->render( [ 'backgroundColors' => [ 'active' => 'url(x)' ] ], $page_id );
+		$this->assertStringNotContainsString( 'style="background', $html );
+		$this->assertStringNotContainsString( 'data-style-', $html );
 	}
 
 	/**
