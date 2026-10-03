@@ -19,11 +19,16 @@ import {
 	bylineEntryTemplate,
 	wireEntryTemplate,
 	digestEntryTemplate,
-	digestHeader,
+	coverageNameHeading,
 	digestFooter,
 	flashEntryTemplate,
 	flashBar,
 	FLASH_FEED_LAYOUT,
+	tickerEntryTemplate,
+	tickerHeader,
+	tickerFooter,
+	TICKER_FEED_LAYOUT,
+	TICKER_FEED_STYLE,
 	DIGEST_FEED_STYLE,
 	allUpdatesLink,
 	ENTRY_ALLOWED_BLOCKS,
@@ -42,6 +47,7 @@ import {
 	withShapedPinnedCard,
 	withCenteredTitleRows,
 	withoutPostTitle,
+	withEntryLinkTitleText,
 	withoutAvatarColumns,
 	withoutByline,
 	hasPinnedCard,
@@ -230,6 +236,28 @@ export function bylineInnerTemplate(): TemplateItem[] {
 }
 
 /**
+ * The Ticker layout's inner-blocks template: the coverage's status and name
+ * beside the three latest entries' headlines, then a link to the coverage
+ * page, with no buttons.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function tickerInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			[
+				tickerHeader( themeFontSizeSlugs() ),
+				...tickerEntryTemplate( paletteSlugs() ),
+				tickerFooter(),
+			],
+			'var:preset|spacing|40',
+			TICKER_FEED_STYLE,
+			TICKER_FEED_LAYOUT
+		),
+	];
+}
+
+/**
  * The Wire layout's inner-blocks template: a narrow list of the latest
  * entries, with no buttons, ending in a link to the coverage page.
  *
@@ -258,7 +286,7 @@ export function digestInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
 			[
-				digestHeader(),
+				coverageNameHeading(),
 				...digestEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
 				digestFooter(),
 			],
@@ -311,7 +339,8 @@ export const ALL_ALLOWED_BLOCKS = [
 /**
  * Picks the template variant an entry renders with on the front end: the
  * pinned row only when pinned; "Read more" and a linked title only with a
- * published breakout.
+ * published breakout, though a title that links to its entry links either
+ * way.
  *
  * @param {Object}       templates                         Template variants.
  * @param {Object}       templates.pinned                  Full template, title linked.
@@ -412,10 +441,13 @@ export function useLayoutPreview(
 			pinned: withLinkedTitle( pinned ),
 			unpinned: withLinkedTitle( unpinned ),
 			pinnedWithoutBreakout: withShapedPinnedCard(
-				withoutBreakoutLink( pinned ),
+				withLinkedTitle( withoutBreakoutLink( pinned ), true ),
 				{ closeUp: true, isLastCard: false }
 			),
-			unpinnedWithoutBreakout: withoutBreakoutLink( unpinned ),
+			unpinnedWithoutBreakout: withLinkedTitle(
+				withoutBreakoutLink( unpinned ),
+				true
+			),
 		};
 
 		const untitled = {
@@ -472,26 +504,53 @@ export function useLayoutPreview(
 		return lastContext.hidesByline ? withoutByline( shaped ) : shaped;
 	}, [ previewTemplates, lastContext ] );
 
+	// Untitled entries' blocks carry their own text, so they're kept per entry
+	// to hand the preview the same blocks on every render.
+	const untitledBlocks = useMemo(
+		() => new WeakMap< EntryContext, TemplateBlocks >(),
+		[ lastPreviewBlocks, previewTemplates ]
+	);
+
 	const blocksForEntry = useCallback(
 		( context: EntryContext ) => {
-			if ( context === lastContext && lastPreviewBlocks ) {
-				return lastPreviewBlocks;
+			const untitled = context.hasTitle === false;
+			const kept = untitled ? untitledBlocks.get( context ) : undefined;
+
+			if ( kept ) {
+				return kept;
 			}
 
-			const untitled = context.hasTitle === false;
-			const templates = untitled
-				? previewTemplates.untitled
-				: previewTemplates.titled;
-			const bylineless = untitled
-				? previewTemplates.untitledWithoutByline
-				: previewTemplates.titledWithoutByline;
+			let blocks: TemplateBlocks;
 
-			return previewTemplateFor(
-				( context.hidesByline && bylineless ) || templates,
-				context
+			if ( context === lastContext && lastPreviewBlocks ) {
+				blocks = lastPreviewBlocks;
+			} else {
+				const templates = untitled
+					? previewTemplates.untitled
+					: previewTemplates.titled;
+				const bylineless = untitled
+					? previewTemplates.untitledWithoutByline
+					: previewTemplates.titledWithoutByline;
+
+				blocks = previewTemplateFor(
+					( context.hidesByline && bylineless ) || templates,
+					context
+				);
+			}
+
+			if ( ! untitled ) {
+				return blocks;
+			}
+
+			const filled = withEntryLinkTitleText(
+				blocks,
+				context.fallbackTitle ?? ''
 			);
+			untitledBlocks.set( context, filled );
+
+			return filled;
 		},
-		[ lastContext, lastPreviewBlocks, previewTemplates ]
+		[ lastContext, lastPreviewBlocks, previewTemplates, untitledBlocks ]
 	);
 
 	return { headerBlocks, footerBlocks, templateBlocks, blocksForEntry };

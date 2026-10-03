@@ -119,6 +119,7 @@ interface EntryContext {
 	hasBreakout?: boolean;
 	hasTitle?: boolean;
 	hidesByline?: boolean;
+	fallbackTitle?: string;
 }
 
 /**

@@ -21,6 +21,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
 use WP_Term;
+use WP_Theme_JSON;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -478,6 +479,7 @@ class Rolling_Coverage_Block {
 			return '<div class="' . esc_attr( self::FEED_CLASS ) . '">' . $items . '</div>';
 		}
 
+		$html  = self::with_grid_feed_gap( $html, $feed );
 		$child = $feed;
 
 		foreach ( array_reverse( $path ) as $wrapper ) {
@@ -500,6 +502,68 @@ class Rolling_Coverage_Block {
 		}
 
 		return $html;
+	}
+
+	/**
+	 * Lays a grid Feed out with its own Block spacing on a theme without
+	 * block spacing support, where core leaves the gap at its 0.5em fallback
+	 * and works any responsive column widths out from that. The Feed gets
+	 * the grid styles core would give it with that support, its tablet and
+	 * mobile overrides included, which a single rule would otherwise
+	 * outrank. The class depends only on the layout and the spacing.
+	 *
+	 * @param string $html Rendered Feed group.
+	 * @param array  $feed Parsed Feed group.
+	 * @return string
+	 */
+	private static function with_grid_feed_gap( string $html, array $feed ): string {
+		$layout = (array) ( $feed['attrs']['layout'] ?? [] );
+		$style  = (array) ( $feed['attrs']['style'] ?? [] );
+		$gap    = wp_sanitize_block_gap_value( $style['spacing']['blockGap'] ?? null );
+
+		if ( 'grid' !== ( $layout['type'] ?? '' ) || null === $gap || '' === $gap || null !== wp_get_global_settings( [ 'spacing', 'blockGap' ] ) ) {
+			return $html;
+		}
+
+		$media_queries = WP_Theme_JSON::get_viewport_media_queries( wp_get_global_settings( [ 'viewport' ] ) );
+		$class         = self::MARKUP_PREFIX . '-feed-layout-' . substr( md5( (string) wp_json_encode( [ $layout, $gap, array_intersect_key( $style, $media_queries ) ] ) ), 0, 8 );
+		$selector      = '.' . self::FEED_CLASS . '.' . $class;
+		$processor     = new WP_HTML_Tag_Processor( $html );
+
+		if ( ! $processor->next_tag() ) {
+			return $html;
+		}
+
+		wp_get_layout_style( $selector, $layout, true, $gap );
+
+		foreach ( $media_queries as $breakpoint => $media_query ) {
+			$viewport         = is_array( $style[ $breakpoint ] ?? null ) ? $style[ $breakpoint ] : [];
+			$viewport_layout  = wp_get_layout_container_values( $viewport['layout'] ?? null );
+			$has_viewport_gap = isset( $viewport['spacing']['blockGap'] );
+
+			if ( ! $viewport_layout && ! $has_viewport_gap ) {
+				continue;
+			}
+
+			wp_get_layout_style(
+				$selector,
+				$layout,
+				true,
+				$has_viewport_gap ? wp_sanitize_block_gap_value( $viewport['spacing']['blockGap'] ) : $gap,
+				false,
+				'0.5em',
+				null,
+				[
+					'rules_group'            => $media_query,
+					'viewport_overrides'     => $viewport_layout,
+					'has_block_gap_override' => $has_viewport_gap,
+				]
+			);
+		}
+
+		$processor->add_class( $class );
+
+		return $processor->get_updated_html();
 	}
 
 	/**
@@ -1193,11 +1257,11 @@ class Rolling_Coverage_Block {
 				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%7$s%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
-				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url ),
+				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, (array) ( $feed['attrs']['layout'] ?? [] ) ),
 				$is_capped ? '' : self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
 				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
 				$is_capped ? '' : sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ),
-				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url ),
+				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, (array) ( $feed['attrs']['layout'] ?? [] ) ),
 				// A capped feed can sit on every page, where announcing each new entry would be noise.
 				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX )
 			);
@@ -1731,10 +1795,11 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Stores the layout styles of the template's blocks, as rendering an
-	 * entry would. Core prints them only for blocks rendered on the page, so
-	 * without this, entries that reach a coverage that loaded empty would
-	 * arrive by polling with no layout, e.g. Share not opposite the title.
+	 * Stores the layout styles and the per-viewport styles of the template's
+	 * blocks, as rendering an entry would. Core prints them only for blocks
+	 * rendered on the page, so without this, entries that reach a coverage
+	 * that loaded empty would arrive by polling with no layout, e.g. Share
+	 * not opposite the title.
 	 *
 	 * @param array[] $blocks        Parsed template blocks.
 	 * @param array   $parent_layout The parent block's layout, as core passes
@@ -1753,6 +1818,7 @@ class Rolling_Coverage_Block {
 			// Dynamic blocks have no saved markup; core needs a tag to store their styles.
 			$markup = trim( (string) ( $block['innerHTML'] ?? '' ) );
 			wp_render_layout_support_flag( '' !== $markup ? $markup : '<div></div>', $block );
+			wp_render_block_states_support( '' !== $markup ? $markup : '<div></div>', $block );
 
 			self::store_template_layout_styles( $block['innerBlocks'] ?? [], (array) ( $block['attrs']['layout'] ?? [] ) );
 		}
@@ -1807,15 +1873,20 @@ class Rolling_Coverage_Block {
 	 * can't render, e.g. on an archived coverage, leaves nothing behind, nor
 	 * does a group left empty once it and the "See all updates" paragraph drop
 	 * out, and "Jump to Latest" renders only as its own control, so none
-	 * renders here.
+	 * renders here. The blocks render outside the Feed group, so they're
+	 * handed its layout, as core hands a parent's layout to its inner blocks:
+	 * core then treats a grid Feed with a column count and no minimum column
+	 * width as fixed-column, and adds no container query resetting the span
+	 * of a block spanning it.
 	 *
 	 * @param array[] $blocks          Parsed coverage-level blocks.
 	 * @param int     $coverage_id     Coverage term id.
 	 * @param string  $status          Coverage status.
 	 * @param string  $all_updates_url Where the "See all updates" paragraph links; empty drops it.
+	 * @param array   $parent_layout   The Feed group's layout.
 	 * @return string Rendered HTML, or an empty string.
 	 */
-	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '' ): string {
+	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '', array $parent_layout = [] ): string {
 		if ( ! $blocks ) {
 			return '';
 		}
@@ -1855,7 +1926,13 @@ class Rolling_Coverage_Block {
 		++self::$coverage_render_depth;
 
 		try {
-			return implode( '', array_map( 'render_block', $blocks ) );
+			return implode(
+				'',
+				array_map(
+					static fn( array $block ) => render_block( $parent_layout ? array_merge( $block, [ 'parentLayout' => $parent_layout ] ) : $block ),
+					$blocks
+				)
+			);
 		} finally {
 			--self::$coverage_render_depth;
 			self::$all_updates_url = $previous_all_updates_url;
@@ -3278,20 +3355,27 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Reduces a post ID to the bare `{ id, type, pinned, hasBreakout, hasTitle,
-	 * hidesByline }` shape the editor preview needs, for get_entries_preview().
+	 * hidesByline, fallbackTitle }` shape the editor preview needs, for
+	 * get_entries_preview(). `fallbackTitle` holds the opening words an
+	 * untitled entry shows as a title carrying Entry_Bindings::ENTRY_LINK_CLASS,
+	 * and is empty for a titled one.
 	 *
 	 * @param int  $id          Entry post ID.
 	 * @param bool $ignore_pins Whether to report the entry as unpinned, as a capped feed does.
-	 * @return array{id: int, type: string, pinned: bool, hasBreakout: bool, hasTitle: bool, hidesByline: bool}
+	 * @return array{id: int, type: string, pinned: bool, hasBreakout: bool, hasTitle: bool, hidesByline: bool, fallbackTitle: string}
 	 */
 	private static function map_entry_preview( int $id, bool $ignore_pins = false ): array {
+		$entry     = get_post( $id );
+		$has_title = self::has_title( $entry );
+
 		return [
-			'id'          => $id,
-			'type'        => Post_Type::CPT_SLUG,
-			'pinned'      => ! $ignore_pins && Post_Type::is_pinned( $id ),
-			'hasBreakout' => null !== Breakout::get_published_breakout_url( $id ),
-			'hasTitle'    => self::has_title( get_post( $id ) ),
-			'hidesByline' => self::is_bot_authored( $id ),
+			'id'            => $id,
+			'type'          => Post_Type::CPT_SLUG,
+			'pinned'        => ! $ignore_pins && Post_Type::is_pinned( $id ),
+			'hasBreakout'   => null !== Breakout::get_published_breakout_url( $id ),
+			'hasTitle'      => $has_title,
+			'hidesByline'   => self::is_bot_authored( $id ),
+			'fallbackTitle' => $has_title ? '' : Entry_Bindings::get_fallback_title( $entry ),
 		];
 	}
 

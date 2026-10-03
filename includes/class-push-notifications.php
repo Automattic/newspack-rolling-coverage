@@ -608,6 +608,6 @@ class Push_Notifications {
 			return '';
 		}
 
-		return add_query_arg( Social_Sharing::ENTRY_QUERY_VAR, $entry->post_name, $canonical_url ) . '#' . Rolling_Coverage_Block::MARKUP_PREFIX . '-entry-' . $entry->ID;
+		return Social_Sharing::get_entry_deep_link( $entry, $canonical_url );
 	}
 }

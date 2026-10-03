@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for the social-sharing `rc_source` redirect script.
+ * Tests for the social-sharing `rc_source` redirect and the entry deep link.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -10,6 +10,8 @@ use Newspack_Rolling_Coverage\Social_Sharing;
 /**
  * The `rc_source` query var is attacker-controlled, so its target must be
  * publicly viewable before its permalink is reflected into the response.
+ * The entry deep link is shared by the redirect, push notifications and the
+ * Ticker's headlines, so it must carry exactly one fragment.
  */
 class Test_Social_Sharing extends Rolling_Coverage_TestCase {
 
@@ -72,5 +74,18 @@ class Test_Social_Sharing extends Rolling_Coverage_TestCase {
 		set_query_var( Social_Sharing::SOURCE_QUERY_VAR, '' );
 
 		return $output;
+	}
+
+	/**
+	 * An entry's deep link keeps the page's query arguments and replaces its
+	 * fragment, so the link carries one.
+	 */
+	public function test_entry_deep_link_replaces_the_page_fragment() {
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_name' => 'bridge-closed' ] );
+
+		$this->assertSame(
+			'https://example.test/live/?ref=x&rolling-coverage-entry=bridge-closed#newspack-rolling-coverage-entry-' . $entry_id,
+			Social_Sharing::get_entry_deep_link( get_post( $entry_id ), 'https://example.test/live/?ref=x#top' )
+		);
 	}
 }
