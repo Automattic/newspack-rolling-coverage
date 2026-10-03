@@ -724,14 +724,15 @@ class Rolling_Coverage_Block {
 	private static function is_bot_authored( int $post_id ): bool {
 		$author = $post_id > 0 ? get_userdata( (int) get_post_field( 'post_author', $post_id ) ) : false;
 
-		return $author && Slack_Config::BOT_USER_LOGIN === $author->user_login;
+		return Slack_Config::is_bot_user( $author );
 	}
 
 	/**
 	 * Writes an entry avatar's block size onto its image as inline width and
 	 * height. Core only sets them as attributes, which classic themes'
 	 * global avatar sizing overrides. With avatars off core still prints an
-	 * empty wrapper, which is dropped so it leaves no gap.
+	 * empty wrapper, which is dropped so it leaves no gap; an avatar with no
+	 * image otherwise, such as an inline SVG, is left as it is.
 	 *
 	 * @param string $block_content Rendered block.
 	 * @param array  $block         Parsed block.
@@ -751,16 +752,11 @@ class Rolling_Coverage_Block {
 		$html = new WP_HTML_Tag_Processor( $block_content );
 
 		if ( ! $html->next_tag( 'img' ) ) {
-			return '';
+			return get_option( 'show_avatars' ) ? $block_content : '';
 		}
 
-		$style = trim( (string) $html->get_attribute( 'style' ) );
-
-		if ( '' !== $style && ';' !== substr( $style, -1 ) ) {
-			$style .= ';';
-		}
-
-		$html->set_attribute( 'style', $style . sprintf( 'width:%1$dpx;height:%1$dpx;', $size ) );
+		$style = trim( (string) $html->get_attribute( 'style' ), " \t\n\r;" );
+		$html->set_attribute( 'style', ( $style ? $style . ';' : '' ) . sprintf( 'width:%1$dpx;height:%1$dpx;', $size ) );
 
 		return $html->get_updated_html();
 	}
@@ -3233,6 +3229,7 @@ class Rolling_Coverage_Block {
 
 		update_meta_cache( 'post', $query->posts );
 		_prime_post_caches( $query->posts, false, false );
+		update_post_author_caches( array_map( 'get_post', $query->posts ) );
 		_prime_post_caches(
 			array_filter( array_map( fn( $id ) => (int) get_post_meta( $id, Breakout::ENTRY_BREAKOUT_POST_ID_META, true ), $query->posts ) ),
 			true,

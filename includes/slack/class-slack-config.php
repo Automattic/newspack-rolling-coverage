@@ -318,6 +318,16 @@ class Slack_Config {
 	}
 
 	/**
+	 * Whether a user is the Slack bot user.
+	 *
+	 * @param \WP_User|false|null $user User, or what a failed lookup returns.
+	 * @return bool
+	 */
+	public static function is_bot_user( $user ): bool {
+		return $user instanceof \WP_User && self::BOT_USER_LOGIN === $user->user_login;
+	}
+
+	/**
 	 * Give the bot user the bundled avatar, so Slack entries are recognisable
 	 * wherever an author avatar shows. The user is matched by login rather
 	 * than the stored ID, which a disconnect deletes while the user and its
@@ -343,7 +353,7 @@ class Slack_Config {
 			return $args;
 		}
 
-		if ( ! $user || self::BOT_USER_LOGIN !== $user->user_login ) {
+		if ( ! self::is_bot_user( $user ) ) {
 			return $args;
 		}
 

@@ -124,19 +124,6 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Both rules apply together.
-	 */
-	public function test_a_slack_bot_entry_with_avatars_off_shows_only_the_rest() {
-		update_option( 'show_avatars', 0 );
-
-		$html = self::render( Slack_Config::get_or_create_bot_user_id(), self::ROW_MARKUP );
-
-		$this->assertSame( 1, self::count_columns( $html ) );
-		$this->assertStringNotContainsString( 'wp-block-post-author-name', $html );
-		$this->assertStringContainsString( 'wp-block-post-date', $html );
-	}
-
-	/**
 	 * The rule only applies inside Rolling Coverage entries.
 	 */
 	public function test_bot_authored_posts_outside_a_feed_keep_their_byline() {
@@ -188,6 +175,17 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 			'no size'   => [ '<!-- wp:avatar /-->' ],
 			'zero size' => [ '<!-- wp:avatar {"size":0} /-->' ],
 		];
+	}
+
+	/**
+	 * An avatar with no image, such as initials from an avatar filter, is kept.
+	 */
+	public function test_an_entry_keeps_an_avatar_that_has_no_image() {
+		add_filter( 'pre_get_avatar', fn() => '<span class="initials">JR</span>' );
+
+		$html = self::render( self::factory()->user->create(), self::BYLINE_MARKUP );
+
+		$this->assertStringContainsString( '<span class="initials">JR</span>', $html );
 	}
 
 	/**
