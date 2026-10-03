@@ -1611,8 +1611,11 @@ function tickerEntryTemplate( slugs: string[] ): TemplateItem[] {
 const SPLIT_COLUMNS = 3;
 
 /**
- * How many rows the Split layout's summary spans, so it runs down beside
- * every entry a page can load (Rolling_Coverage_Block::PER_PAGE_MAX).
+ * How many rows the Split layout's summary spans, one per entry beside it,
+ * enough for a full page (Rolling_Coverage_Block::PER_PAGE_MAX). Infinite
+ * scroll appends further pages and each ad takes a row, so a long feed can
+ * pass the span: updates past it continue in their column and the summary
+ * column ends there.
  */
 const SPLIT_SUMMARY_ROWS = 100;
 

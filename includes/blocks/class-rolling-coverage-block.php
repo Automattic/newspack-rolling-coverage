@@ -1151,20 +1151,26 @@ class Rolling_Coverage_Block {
 			$has_more = $page['has_more'];
 		}
 
-		$entries_html  = '';
-		$entry_index   = 0;
-		$shows_pinned  = false;
-		$shows_regular = false;
+		$entries_html   = '';
+		$entry_index    = 0;
+		$shows_pinned   = false;
+		$shows_regular  = false;
+		$lead_pinned_id = 0;
 
 		foreach ( $posts as $entry ) {
 			$entry_index++;
 			$is_pinned     = ! $is_capped && Post_Type::is_pinned( $entry->ID );
 			$shows_pinned  = $shows_pinned || $is_pinned;
 			$shows_regular = $shows_regular || ! $is_pinned;
-			$entries_html .= self::render_entry( $entry, $template, 'initial', is_last: ! $has_more && count( $posts ) === $entry_index, is_linked: $linked_entry && $linked_entry->ID === $entry->ID, is_capped: $is_capped, feed_layout: $feed_layout );
+
+			if ( $is_pinned && ! $lead_pinned_id ) {
+				$lead_pinned_id = $entry->ID;
+			}
+
+			$entries_html .= self::render_entry( $entry, $template, 'initial', is_last: ! $has_more && count( $posts ) === $entry_index, is_linked: $linked_entry && $linked_entry->ID === $entry->ID, is_capped: $is_capped, feed_layout: $feed_layout, coverage_id: $coverage_id, lead_pinned_id: $lead_pinned_id );
 
 			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
-				$entries_html .= Ads::render_placement()['html'];
+				$entries_html .= self::place_ad_in_grid( Ads::render_placement()['html'], $template, $feed_layout );
 			}
 		}
 
@@ -1857,20 +1863,22 @@ class Rolling_Coverage_Block {
 	 * Feed's layout as core would for a child of the Feed.
 	 *
 	 * A pinned entry takes the pinned card's placement only as the first
-	 * pinned entry of its coverage (see is_first_pinned_entry()); later ones
-	 * take the entry group's, so they head the entries beside the card
-	 * rather than stack below it. An entry placed by the entry group's
-	 * placement while the card carries one of its own is marked with
-	 * BESIDE_PINNED_CLASS, so it can take the full row while no pinned entry
-	 * shows. Outside a grid Feed, the template is left as it is.
+	 * pinned entry of the coverage it renders in; later ones take the entry
+	 * group's, so they head the entries beside the card rather than stack
+	 * below it. An entry placed by the entry group's placement while the
+	 * card carries one of its own is marked with BESIDE_PINNED_CLASS, so it
+	 * can take the full row while no pinned entry shows. Outside a grid
+	 * Feed, the template is left as it is.
 	 *
-	 * @param array[] $template    Parsed template blocks.
-	 * @param array   $feed_layout The Feed group's layout.
-	 * @param WP_Post $entry       Entry post object.
-	 * @param bool    $is_pinned   Whether the entry renders as pinned.
+	 * @param array[]  $template    Parsed template blocks.
+	 * @param array    $feed_layout The Feed group's layout.
+	 * @param bool     $is_pinned   Whether the entry renders as pinned.
+	 * @param callable $is_lead     Whether the entry is the first pinned entry
+	 *                              of the coverage it renders in, asked only
+	 *                              when its placement depends on it.
 	 * @return array{0: array[], 1: string[]} The template without the placements, and the article's classes.
 	 */
-	private static function place_in_grid( array $template, array $feed_layout, WP_Post $entry, bool $is_pinned ): array {
+	private static function place_in_grid( array $template, array $feed_layout, bool $is_pinned, callable $is_lead ): array {
 		if ( 'grid' !== ( $feed_layout['type'] ?? '' ) ) {
 			return [ $template, [] ];
 		}
@@ -1881,17 +1889,59 @@ class Rolling_Coverage_Block {
 			return [ $template, [] ];
 		}
 
-		$renders_card = $is_pinned && null !== $placements['card'];
-		$is_lead      = $renders_card && $placements['card'] && self::is_first_pinned_entry( $entry );
-		$placement    = $is_lead ? $placements['card'] : (array) ( $renders_card || null !== $placements['entry'] ? $placements['entry'] : [] );
-		$cell_class   = $placement ? self::grid_cell_class( $placement, $feed_layout ) : '';
-		$classes      = '' !== $cell_class ? [ $cell_class ] : [];
+		return [
+			self::without_grid_placements( $template ),
+			self::grid_cell_classes( $placements, $feed_layout, $is_pinned && $placements['card'] && $is_lead() ),
+		];
+	}
+
+	/**
+	 * The classes placing an entry's article in a grid Feed (see
+	 * place_in_grid()): the pinned card's placement for the lead pinned
+	 * entry, the entry group's otherwise, marked as beside the card when the
+	 * card carries a placement of its own.
+	 *
+	 * @param array $placements  The template's placements (see template_grid_placements()).
+	 * @param array $feed_layout The Feed group's layout.
+	 * @param bool  $is_lead     Whether the article takes the pinned card's placement.
+	 * @return string[]
+	 */
+	private static function grid_cell_classes( array $placements, array $feed_layout, bool $is_lead ): array {
+		$placement  = $is_lead ? $placements['card'] : (array) $placements['entry'];
+		$cell_class = $placement ? self::grid_cell_class( $placement, $feed_layout ) : '';
+		$classes    = '' !== $cell_class ? [ $cell_class ] : [];
 
 		if ( $placement && ! $is_lead && $placements['card'] ) {
 			$classes[] = self::BESIDE_PINNED_CLASS;
 		}
 
-		return [ self::without_grid_placements( $template ), $classes ];
+		return $classes;
+	}
+
+	/**
+	 * Places an ad between entries in a grid Feed as an unpinned entry is
+	 * placed, so it fills the entries' columns rather than one free cell.
+	 * Outside a grid Feed whose groups carry placements, the ad is left as
+	 * it is.
+	 *
+	 * @param string  $html        The ad's HTML.
+	 * @param array[] $template    Parsed template blocks.
+	 * @param array   $feed_layout The Feed group's layout.
+	 * @return string
+	 */
+	private static function place_ad_in_grid( string $html, array $template, array $feed_layout ): string {
+		$classes   = 'grid' === ( $feed_layout['type'] ?? '' ) ? self::grid_cell_classes( self::template_grid_placements( $template ), $feed_layout, false ) : [];
+		$processor = new WP_HTML_Tag_Processor( $html );
+
+		if ( ! $classes || ! $processor->next_tag() ) {
+			return $html;
+		}
+
+		foreach ( $classes as $class ) {
+			$processor->add_class( $class );
+		}
+
+		return $processor->get_updated_html();
 	}
 
 	/**
@@ -2003,13 +2053,11 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The class core's child layout support gives a block placed in a grid
-	 * Feed as the placement says, with its styles stored alongside the
-	 * page's other block styles. The block is rendered as one with no layout
-	 * support of its own, handed the Feed's layout as core hands a parent's
-	 * layout to its inner blocks, so a Feed with a column count and no
-	 * minimum column width adds no container query resetting the placement.
-	 * The class depends only on the placement and the Feed's columns.
+	 * The child layout class placing an article in a grid Feed as the
+	 * placement says, with its styles stored alongside the page's other
+	 * block styles. The class depends only on the placement and the Feed's
+	 * columns, so every article with the same placement shares it, and with
+	 * a fixed column count no container query resets the placement.
 	 *
 	 * @param array $placement   Style attribute holding the placement (see grid_placement()).
 	 * @param array $feed_layout The Feed group's layout.
@@ -2041,43 +2089,36 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Whether an entry is the first pinned entry of a coverage it belongs
-	 * to, in the order the live feed shows pinned entries: the order they
-	 * were pinned in (see Post_Type::orderby_pinned_first()). The view script
-	 * puts an entry pinned while the page is open after the pinned entries
-	 * already there, so the first stays first.
+	 * The first pinned entry of a coverage, in the order the live feed shows
+	 * pinned entries: the order they were pinned in (see
+	 * Post_Type::orderby_pinned_first()). The view script puts an entry
+	 * pinned while the page is open after the pinned entries already there,
+	 * so the first stays first.
 	 *
-	 * @param WP_Post $entry Entry post object.
-	 * @return bool
+	 * @param int $coverage_id Coverage term ID.
+	 * @return int Entry ID, or 0 when the coverage has no pinned entry.
 	 */
-	private static function is_first_pinned_entry( WP_Post $entry ): bool {
+	private static function first_pinned_entry_id( int $coverage_id ): int {
 		$pinned_ids = Post_Type::get_pinned_ids();
-		$coverages  = get_the_terms( $entry, Taxonomy::TAXONOMY_SLUG );
 
-		if ( ! in_array( $entry->ID, $pinned_ids, true ) || ! is_array( $coverages ) ) {
-			return false;
+		if ( ! $coverage_id || ! $pinned_ids ) {
+			return 0;
 		}
 
-		foreach ( $coverages as $coverage ) {
-			$query = new WP_Query(
-				array_merge(
-					self::coverage_entries_args( (int) $coverage->term_id ),
-					[
-						'post__in'                    => $pinned_ids,
-						'orderby'                     => 'post__in',
-						'posts_per_page'              => 1,
-						'fields'                      => 'ids',
-						Post_Type::SKIP_PIN_ORDER_VAR => true,
-					]
-				)
-			);
+		$query = new WP_Query(
+			array_merge(
+				self::coverage_entries_args( $coverage_id ),
+				[
+					'post__in'                    => $pinned_ids,
+					'orderby'                     => 'post__in',
+					'posts_per_page'              => 1,
+					'fields'                      => 'ids',
+					Post_Type::SKIP_PIN_ORDER_VAR => true,
+				]
+			)
+		);
 
-			if ( $query->posts && $entry->ID === (int) $query->posts[0] ) {
-				return true;
-			}
-		}
-
-		return false;
+		return $query->posts ? (int) $query->posts[0] : 0;
 	}
 
 	/**
@@ -2121,7 +2162,6 @@ class Rolling_Coverage_Block {
 				continue;
 			}
 
-			// Core offsets the top by the admin bar, as it does for these blocks.
 			if ( 'top' === $side ) {
 				$value = 'calc(' . ( '0' === $value || 0 === $value ? '0px' : $value ) . ' + var(--wp-admin--admin-bar--position-offset, 0px))';
 			}
@@ -3337,27 +3377,38 @@ class Rolling_Coverage_Block {
 	 *                       entry for the duration of this render and
 	 *                       restored to its previous value afterwards.
 	 *
-	 * @param WP_Post $entry          Entry post object.
-	 * @param array[] $template       Per-entry inner-block template, as returned
-	 *                                by get_entry_template().
-	 * @param string  $arrival        How the entry first reaches the client:
-	 *                                'initial', 'poll', or 'load_more'. Stamped as
-	 *                                data-arrival for frontend entry-seen tracking.
-	 * @param bool    $is_last        Whether no entry can load after this one.
-	 * @param bool    $is_linked      Whether the page's link names this entry.
-	 * @param bool    $is_capped      Whether the entry shows in a capped feed:
-	 *                                rendered as unpinned whatever its pinned
-	 *                                state, and with no anchor id, so links to
-	 *                                the entry land on the coverage page.
-	 * @param array   $feed_layout    The Feed group's layout. In a grid Feed,
-	 *                                the entry takes the grid placement set on
-	 *                                the group it renders (see place_in_grid()).
+	 * @param WP_Post  $entry          Entry post object.
+	 * @param array[]  $template       Per-entry inner-block template, as returned
+	 *                                 by get_entry_template().
+	 * @param string   $arrival        How the entry first reaches the client:
+	 *                                 'initial', 'poll', or 'load_more'. Stamped as
+	 *                                 data-arrival for frontend entry-seen tracking.
+	 * @param bool     $is_last        Whether no entry can load after this one.
+	 * @param bool     $is_linked      Whether the page's link names this entry.
+	 * @param bool     $is_capped      Whether the entry shows in a capped feed:
+	 *                                 rendered as unpinned whatever its pinned
+	 *                                 state, and with no anchor id, so links to
+	 *                                 the entry land on the coverage page.
+	 * @param array    $feed_layout    The Feed group's layout. In a grid Feed,
+	 *                                 the entry takes the grid placement set on
+	 *                                 the group it renders (see place_in_grid()).
+	 * @param int      $coverage_id    The coverage the entry renders in, whose
+	 *                                 first pinned entry takes the pinned card's
+	 *                                 grid placement.
+	 * @param int|null $lead_pinned_id That coverage's first pinned entry, 0 for
+	 *                                 none, when the caller already knows it;
+	 *                                 looked up when null.
 	 * @return string Rendered HTML for the entry.
 	 */
-	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', bool $is_last = false, bool $is_linked = false, bool $is_capped = false, array $feed_layout = [] ): string {
+	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', bool $is_last = false, bool $is_linked = false, bool $is_capped = false, array $feed_layout = [], int $coverage_id = 0, ?int $lead_pinned_id = null ): string {
 		$is_pinned = ! $is_capped && Post_Type::is_pinned( $entry->ID );
 
-		[ $template, $cell_classes ] = self::place_in_grid( $template, $feed_layout, $entry, $is_pinned );
+		[ $template, $cell_classes ] = self::place_in_grid(
+			$template,
+			$feed_layout,
+			$is_pinned,
+			static fn() => $entry->ID === ( $lead_pinned_id ?? self::first_pinned_entry_id( $coverage_id ) )
+		);
 
 		$template = self::shape_entry_template(
 			self::drop_fixed_template_dates( $template ),
@@ -3876,7 +3927,7 @@ class Rolling_Coverage_Block {
 					if ( $ads_enabled && 0 === ( $polled_count + $new_entry_count ) % $ads_interval ) {
 						$placement = Ads::render_placement();
 						if ( $placement['html'] ) {
-							$ad_html = $placement['html'];
+							$ad_html = self::place_ad_in_grid( $placement['html'], $template, $feed_layout );
 							$ad_slot = $placement['slots'][0] ?? null;
 						}
 					}
@@ -3886,7 +3937,7 @@ class Rolling_Coverage_Block {
 				// blank: the client preserves the original value across the replace.
 				$entries[] = [
 					'id'     => $entry->ID,
-					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '', is_capped: $is_capped, feed_layout: $feed_layout ),
+					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '', is_capped: $is_capped, feed_layout: $feed_layout, coverage_id: $term_id ),
 					'type'   => $is_new_entry ? 'insert' : 'update',
 					'adHtml' => $ad_html,
 					'adSlot' => $ad_slot,
@@ -3954,12 +4005,12 @@ class Rolling_Coverage_Block {
 
 		foreach ( $posts as $entry ) {
 			$entry_index++;
-			$html .= self::render_entry( $entry, $template, 'load_more', is_last: ! $has_more && count( $posts ) === $entry_index, feed_layout: $feed_layout );
+			$html .= self::render_entry( $entry, $template, 'load_more', is_last: ! $has_more && count( $posts ) === $entry_index, feed_layout: $feed_layout, coverage_id: $term_id );
 
 			$position = $entry_offset + $entry_index;
 			if ( $ads_enabled && Ads::is_capped_ad_position( $position, $ads_interval ) ) {
 				$placement = Ads::render_placement();
-				$html     .= $placement['html'];
+				$html     .= self::place_ad_in_grid( $placement['html'], $template, $feed_layout );
 				$ad_slots  = array_merge( $ad_slots, $placement['slots'] );
 			}
 		}
@@ -4012,7 +4063,7 @@ class Rolling_Coverage_Block {
 		foreach ( ( new WP_Query( $args ) )->posts as $entry ) {
 			$entries[] = [
 				'id'     => $entry->ID,
-				'html'   => self::render_entry( $entry, $template, 'poll', is_capped: true, feed_layout: $feed_layout ),
+				'html'   => self::render_entry( $entry, $template, 'poll', is_capped: true, feed_layout: $feed_layout, coverage_id: $term_id ),
 				'type'   => 'insert',
 				'adHtml' => null,
 				'adSlot' => null,

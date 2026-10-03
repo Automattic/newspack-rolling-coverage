@@ -2029,9 +2029,11 @@ function initBlock( root: HTMLElement ): void {
 	} );
 
 	/**
-	 * Lets a sticky pinned card that is taller than the viewport below the
-	 * top it sticks at scroll with the page, so its end isn't hidden until
-	 * the feed ends, and makes it sticky again once it fits.
+	 * Sticks each sticky pinned card below the bars fixed or stuck at the top
+	 * of the viewport, such as the admin bar and a sticky site header, or at
+	 * the stylesheet's top when there are none. Lets a card taller than the
+	 * viewport below that top scroll with the page, so its end isn't hidden
+	 * until the feed ends, and makes it sticky again once it fits.
 	 *
 	 * @return {void}
 	 */
@@ -2039,7 +2041,16 @@ function initBlock( root: HTMLElement ): void {
 		root.querySelectorAll< HTMLElement >(
 			'.newspack-rolling-coverage-pinned-card.is-position-sticky'
 		).forEach( ( card ) => {
-			const top = parseFloat( window.getComputedStyle( card ).top ) || 0;
+			const bars = topBarsBottom( card );
+
+			if ( bars > 0 ) {
+				card.style.top = `${ bars }px`;
+			} else {
+				card.style.removeProperty( 'top' );
+			}
+
+			const top =
+				bars || parseFloat( window.getComputedStyle( card ).top ) || 0;
 
 			if (
 				card.getBoundingClientRect().height >

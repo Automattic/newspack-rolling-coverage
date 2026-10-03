@@ -7,6 +7,7 @@
 
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
+use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
  * The full feed in a grid, the first pinned entry's summary down the first
@@ -64,13 +65,17 @@ class Test_Split extends Rolling_Coverage_TestCase {
 	 *
 	 * @param int    $coverage_id Coverage term ID.
 	 * @param string $feed        Feed markup.
+	 * @param array  $attributes  Further block attributes.
 	 * @return string Rendered block.
 	 */
-	private static function render_split( int $coverage_id, string $feed = '' ): string {
-		$attributes = [
-			'coverageId' => $coverage_id,
-			'align'      => 'wide',
-		];
+	private static function render_split( int $coverage_id, string $feed = '', array $attributes = [] ): string {
+		$attributes = array_merge(
+			[
+				'coverageId' => $coverage_id,
+				'align'      => 'wide',
+			],
+			$attributes
+		);
 		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . ( '' !== $feed ? $feed : self::feed_markup() ) . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
 
 		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
@@ -111,6 +116,44 @@ class Test_Split extends Rolling_Coverage_TestCase {
 		}
 
 		return $classes;
+	}
+
+	/**
+	 * The classes of each ad's wrapper.
+	 *
+	 * @param string $html Rendered entries and ads.
+	 * @return array<int, string[]>
+	 */
+	private static function ad_classes( string $html ): array {
+		$processor = new WP_HTML_Tag_Processor( $html );
+		$classes   = [];
+
+		while ( $processor->next_tag( [ 'class_name' => 'newspack_global_ad' ] ) ) {
+			$classes[] = iterator_to_array( $processor->class_list(), false );
+		}
+
+		return $classes;
+	}
+
+	/**
+	 * Poll a coverage from the start, as the page rendered with the template
+	 * key would.
+	 *
+	 * @param int    $coverage_id Coverage term ID.
+	 * @param string $html        The rendered page.
+	 * @return array The poll response.
+	 */
+	private static function poll( int $coverage_id, string $html ): array {
+		preg_match( '/data-template-key="([^"]+)"/', $html, $key );
+
+		return self::dispatch(
+			'GET',
+			'/coverages/' . $coverage_id . '/entries',
+			[
+				'cursor'       => '0:2000-01-01 00:00:00',
+				'template_key' => $key[1] ?? '',
+			]
+		)->get_data();
 	}
 
 	/**
@@ -268,11 +311,103 @@ class Test_Split extends Rolling_Coverage_TestCase {
 	public function test_placements_are_stored_for_kinds_not_on_the_page() {
 		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
 		$coverage_id = self::create_coverage();
-		self::create_entries( $coverage_id );
+		[ $entry_id ] = self::create_entries( $coverage_id );
 
-		self::render_split( $coverage_id );
+		$html = self::render_split( $coverage_id );
+		$css  = self::stored_css();
 
-		$this->assertStringContainsString( '{grid-column:1 / span 1;grid-row:span 100;}', self::stored_css(), "The pinned card's placement should be stored with no pinned entry shown." );
+		Post_Type::pin_entry( $entry_id );
+
+		$polled = self::article_classes( implode( '', wp_list_pluck( self::poll( $coverage_id, $html )['entries'], 'html' ) ) );
+		$card   = self::cell_class( $polled[ $entry_id ] );
+
+		$this->assertNotSame( '', $card, 'The polled pinned entry should carry a child layout class.' );
+		$this->assertStringContainsString( '.' . $card . '{grid-column:1 / span 1;grid-row:span 100;}', $css, "The pinned card's placement should be stored with no pinned entry shown." );
+	}
+
+	/**
+	 * The lead pinned entry is the first of the coverage the feed shows: an
+	 * entry filed under two coverages, pinned second in one but first in the
+	 * other, heads the entries beside the card in the first.
+	 */
+	public function test_lead_pinned_entry_is_decided_per_coverage() {
+		$coverage_id = self::create_coverage();
+		$other_id    = self::create_coverage();
+		[ $first_pin, $shared_pin ] = self::create_entries( $coverage_id );
+		wp_set_object_terms( $shared_pin, [ $coverage_id, $other_id ], Taxonomy::TAXONOMY_SLUG );
+		Post_Type::pin_entry( $first_pin );
+		Post_Type::pin_entry( $shared_pin );
+
+		$html    = self::render_split( $coverage_id );
+		$classes = self::article_classes( $html );
+		$polled  = self::article_classes( implode( '', wp_list_pluck( self::poll( $coverage_id, $html )['entries'], 'html' ) ) );
+		$other   = self::article_classes( self::render_split( $other_id ) );
+		$card    = self::cell_class( $classes[ $first_pin ] );
+
+		$this->assertNotSame( $card, self::cell_class( $classes[ $shared_pin ] ), "The second pin should take the entry group's placement." );
+		$this->assertContains( Rolling_Coverage_Block::BESIDE_PINNED_CLASS, $classes[ $shared_pin ] );
+		$this->assertSame( self::cell_class( $classes[ $shared_pin ] ), self::cell_class( $polled[ $shared_pin ] ), 'A poll should place it the same way.' );
+		$this->assertSame( $card, self::cell_class( $polled[ $first_pin ] ), 'A poll should keep the lead.' );
+		$this->assertSame( $card, self::cell_class( $other[ $shared_pin ] ), 'It should lead the coverage it is pinned first in.' );
+	}
+
+	/**
+	 * An ad between entries is placed as the entries beside the pinned card
+	 * are, on the page, in a poll and in load more, so it fills their
+	 * columns; outside a grid Feed it renders as before.
+	 */
+	public function test_ads_take_the_entries_placement() {
+		self::enable_ad_placement();
+
+		$coverage_id = self::create_coverage();
+		[ $pinned_id, , $newest_id ] = self::create_entries( $coverage_id );
+		Post_Type::pin_entry( $pinned_id );
+
+		$ads   = [
+			'enableAds'   => true,
+			'adsInterval' => 1,
+		];
+		$html  = self::render_split( $coverage_id, '', $ads );
+		$entry = self::cell_class( self::article_classes( $html )[ $newest_id ] );
+
+		preg_match( '/data-template-key="([^"]+)"/', $html, $key );
+
+		$more = self::dispatch(
+			'GET',
+			'/coverages/' . $coverage_id . '/entries',
+			[
+				'before'       => gmdate( 'Y-m-d H:i:s', strtotime( '+1 hour' ) ),
+				'per_page'     => 10,
+				'template_key' => $key[1],
+			]
+		)->get_data();
+
+		$rendered = [
+			'page'      => $html,
+			'poll'      => implode( '', wp_list_pluck( self::poll( $coverage_id, $html )['entries'], 'adHtml' ) ),
+			'load more' => $more['html'],
+		];
+
+		$this->assertNotSame( '', $entry );
+
+		foreach ( $rendered as $path => $ad_html ) {
+			$classes = self::ad_classes( $ad_html );
+
+			$this->assertNotEmpty( $classes, "The $path should hold ads." );
+
+			foreach ( $classes as $ad ) {
+				$this->assertContains( $entry, $ad, "An ad in the $path should take the entry group's placement." );
+				$this->assertContains( Rolling_Coverage_Block::BESIDE_PINNED_CLASS, $ad );
+			}
+		}
+
+		$flex = self::render_split( $coverage_id, self::feed_markup( '{"type":"flex","orientation":"vertical"}', '{}' ), $ads );
+
+		$this->assertNotEmpty( self::ad_classes( $flex ) );
+
+		foreach ( self::ad_classes( $flex ) as $ad ) {
+			$this->assertSame( [ 'newspack_global_ad', 'rolling_coverage_entry' ], $ad, 'Outside a grid Feed the ad should render as before.' );
+		}
 	}
 
 	/**
