@@ -169,6 +169,45 @@ function parseElement( html: string ): HTMLElement | null {
 }
 
 /**
+ * The elements in a block that match a selector, leaving out those of a feed
+ * nested in one of its entries. A nested feed uses the same classes and, for
+ * the same coverage, the same entry IDs. It comes before the block's later
+ * entries and its sentinel, so a plain query can return its elements instead
+ * of the block's own.
+ *
+ * @param {HTMLElement} block    The block's outer wrapper element.
+ * @param {string}      selector Selector to match.
+ * @param {HTMLElement} [within] Part of the block to look in; all of it by default.
+ * @return {HTMLElement[]} The block's own matching elements, in document order.
+ */
+function ownElements(
+	block: HTMLElement,
+	selector: string,
+	within: HTMLElement = block
+): HTMLElement[] {
+	return Array.from(
+		within.querySelectorAll< HTMLElement >( selector )
+	).filter( ( element ) => element.closest( BLOCK_SELECTOR ) === block );
+}
+
+/**
+ * The first of a block's own elements that match a selector (see
+ * ownElements()).
+ *
+ * @param {HTMLElement} block    The block's outer wrapper element.
+ * @param {string}      selector Selector to match.
+ * @param {HTMLElement} [within] Part of the block to look in; all of it by default.
+ * @return {HTMLElement | null} The element, or null if the block has none of its own.
+ */
+function ownElement(
+	block: HTMLElement,
+	selector: string,
+	within: HTMLElement = block
+): HTMLElement | null {
+	return ownElements( block, selector, within )[ 0 ] ?? null;
+}
+
+/**
  * The label of the control on a feed opened at a shared entry: the number of
  * newer entries, exact up to ten and from there the round number it has
  * passed, e.g. "10+ Newer Posts" for 11 to 50. Mirrors
@@ -329,7 +368,8 @@ function initBlock( root: HTMLElement ): void {
 	root.dataset.rcInitialized = '1';
 
 	const restUrl = root.dataset.restUrl;
-	const entriesListEl = root.querySelector< HTMLElement >(
+	const entriesListEl = ownElement(
+		root,
 		'.newspack-rolling-coverage-entries'
 	);
 
@@ -346,18 +386,15 @@ function initBlock( root: HTMLElement ): void {
 	const entriesPerPage = parseInt( root.dataset.entriesPerPage || '20', 10 );
 	const templateKey = root.dataset.templateKey || '';
 	const hostPostId = root.dataset.hostPostId || '0';
-	const sentinel = root.querySelector< HTMLElement >(
-		'.newspack-rolling-coverage-sentinel'
-	);
-	const newEntriesControl = root.querySelector< HTMLElement >(
+	const sentinel = ownElement( root, '.newspack-rolling-coverage-sentinel' );
+	const newEntriesControl = ownElement(
+		root,
 		'.newspack-rolling-coverage-new-entries'
 	);
 	const newEntriesLink =
 		newEntriesControl?.querySelector< HTMLElement >( '[data-rc-latest]' ) ??
 		null;
-	const statusEl = root.querySelector< HTMLElement >(
-		'.newspack-rolling-coverage-status'
-	);
+	const statusEl = ownElement( root, '.newspack-rolling-coverage-status' );
 
 	const status = root.dataset.status || 'active';
 	const isEntryView = root.dataset.view === 'entry';
@@ -620,9 +657,11 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		entriesList
-			.querySelector( '.newspack-rolling-coverage-entries__empty' )
-			?.remove();
+		ownElement(
+			root,
+			'.newspack-rolling-coverage-entries__empty',
+			entriesList
+		)?.remove();
 
 		const fragment = document.createDocumentFragment();
 		const adSlotsToDisplay: AdSlot[] = [];
@@ -764,7 +803,7 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {void}
 	 */
 	function fadeLinkedOutline(): void {
-		const linked = entriesList.querySelector( '[data-linked]' );
+		const linked = ownElement( root, '[data-linked]', entriesList );
 
 		if (
 			! linked ||
@@ -1376,7 +1415,7 @@ function initBlock( root: HTMLElement ): void {
 			const showsControl =
 				newEntriesControl && ! newEntriesControl.hidden;
 			const bars =
-				showsControl || root.querySelector( STICKY_CARD_SELECTOR )
+				showsControl || ownElement( root, STICKY_CARD_SELECTOR )
 					? topBarsBottom( root )
 					: 0;
 
@@ -1405,9 +1444,7 @@ function initBlock( root: HTMLElement ): void {
 			// A malformed escape is matched as written.
 		}
 
-		const target = id
-			? root.querySelector( `#${ cssEscape( id ) }` )
-			: null;
+		const target = id ? ownElement( root, `#${ cssEscape( id ) }` ) : null;
 		// Core pads the root's scroll area by the admin bar's height.
 		const scrollPadding =
 			parseFloat(
@@ -1464,8 +1501,10 @@ function initBlock( root: HTMLElement ): void {
 				return;
 			}
 
-			const existing = entriesList.querySelector< HTMLElement >(
-				`[data-entry-id="${ entry.id }"]`
+			const existing = ownElement(
+				root,
+				`[data-entry-id="${ entry.id }"]`,
+				entriesList
 			);
 
 			const template = document.createElement( 'template' );
@@ -1979,10 +2018,12 @@ function initBlock( root: HTMLElement ): void {
 							return;
 						}
 
-						const existing = entriesList.querySelector(
+						const existing = ownElement(
+							root,
 							`[data-entry-id="${ cssEscape(
 								child.dataset.entryId
-							) }"]`
+							) }"]`,
+							entriesList
 						);
 						if ( existing ) {
 							child.remove();
@@ -2017,9 +2058,7 @@ function initBlock( root: HTMLElement ): void {
 		}
 	}
 
-	entriesList
-		.querySelectorAll< HTMLElement >( '[data-entry-id]' )
-		.forEach( observeEntry );
+	ownElements( root, '[data-entry-id]', entriesList ).forEach( observeEntry );
 
 	if ( cursor && status === 'active' ) {
 		schedulePoll();
@@ -2083,8 +2122,7 @@ function initBlock( root: HTMLElement ): void {
 		ifBarsMoved = false,
 		measuredBars?: number
 	): void {
-		const cards =
-			root.querySelectorAll< HTMLElement >( STICKY_CARD_SELECTOR );
+		const cards = ownElements( root, STICKY_CARD_SELECTOR );
 
 		if ( cards.length === 0 ) {
 			return;
@@ -2142,8 +2180,8 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {void}
 	 */
 	function watchStickyCards(): void {
-		root.querySelectorAll< HTMLElement >( STICKY_CARD_SELECTOR ).forEach(
-			( card ) => stickyCardObserver?.observe( card )
+		ownElements( root, STICKY_CARD_SELECTOR ).forEach( ( card ) =>
+			stickyCardObserver?.observe( card )
 		);
 		fitStickyCards();
 	}
