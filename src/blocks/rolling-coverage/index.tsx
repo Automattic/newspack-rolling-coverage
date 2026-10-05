@@ -16,6 +16,7 @@ import { blockIcon } from '../shared/icon';
 import metadata from './block.json';
 import Edit from './edit';
 import Save from './save';
+import './entry-date-preview';
 import './entry-gap-preview';
 import './feed-insertion';
 import './pattern-insertion';
