@@ -576,6 +576,30 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Without a gap of its own, the block puts spacing 20 between the badge and
+	 * the time, as a block default that theme and user styles can override.
+	 */
+	public function test_default_gap_is_spacing_20_in_global_styles() {
+		add_filter(
+			'wp_theme_json_data_theme',
+			static function ( $theme_json ) {
+				return $theme_json->update_with(
+					[
+						'version'  => WP_Theme_JSON::LATEST_SCHEMA,
+						'settings' => [ 'spacing' => [ 'blockGap' => true ] ],
+					]
+				);
+			}
+		);
+		wp_clean_theme_json_cache();
+
+		$this->assertStringContainsString(
+			'.wp-block-newspack-rolling-coverage-coverage-status-is-layout-flex){gap: var(--wp--preset--spacing--20);}',
+			wp_get_global_stylesheet()
+		);
+	}
+
+	/**
 	 * A capped Rolling Coverage block shaped like Flash: a status block, then
 	 * the entry, among the coverage-level blocks of its Feed.
 	 *
