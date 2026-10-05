@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-05T16:02:46+00:00\n"
+"POT-Creation-Date: 2026-10-05T16:26:35+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -86,7 +86,7 @@ msgstr ""
 #: includes/blocks/class-rolling-coverage-block.php:3914
 #: includes/blocks/class-rolling-coverage-block.php:4040
 #: includes/blocks/class-rolling-coverage-block.php:4051
-#: includes/class-post-type.php:1027
+#: includes/class-post-type.php:1039
 #: includes/class-taxonomy.php:361
 msgid "Coverage not found."
 msgstr ""
@@ -143,23 +143,55 @@ msgstr ""
 msgid "Updated %s"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:111
+#: includes/blocks/class-entry-bindings.php:121
 msgid "Rolling Coverage Entry"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:351
+#. translators: 1: kind of media, e.g. "Photo" or "Video", 2: its caption or description.
+#: includes/blocks/class-entry-bindings.php:403
+#, php-format
+msgctxt "media label and caption"
+msgid "%1$s: %2$s"
+msgstr ""
+
+#. translators: Stands in for the title and excerpt of an entry whose only content is a photo, alone or before the photo's caption.
+#: includes/blocks/class-entry-bindings.php:486
+msgid "Photo"
+msgstr ""
+
+#. translators: Stands in for the title and excerpt of an entry whose only content is a gallery of photos, alone or before the gallery's caption.
+#: includes/blocks/class-entry-bindings.php:488
+msgid "Gallery"
+msgstr ""
+
+#. translators: Stands in for the title and excerpt of an entry whose only content is a video, alone or before the video's caption.
+#: includes/blocks/class-entry-bindings.php:490
+msgid "Video"
+msgstr ""
+
+#. translators: Stands in for the title and excerpt of an entry whose only content is an audio clip, alone or before the clip's caption.
+#: includes/blocks/class-entry-bindings.php:492
+msgid "Audio"
+msgstr ""
+
+#. translators: Stands in for the title and excerpt of an entry whose only content is embedded from another site, such as a social media post, alone or before the embed's caption.
+#: includes/blocks/class-entry-bindings.php:494
+msgid "Embed"
+msgstr ""
+
+#: includes/blocks/class-entry-bindings.php:642
 msgid "Following"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:352
+#: includes/blocks/class-entry-bindings.php:643
 msgid "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:353
+#: includes/blocks/class-entry-bindings.php:644
 msgid "Something went wrong. Please try again."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:404
+#: includes/blocks/class-entry-bindings.php:695
 #: includes/blocks/class-rolling-coverage-block.php:2736
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
@@ -169,7 +201,7 @@ msgid "Share"
 msgstr ""
 
 #. translators: 1: share button text, e.g. "Share", 2: entry title or its first words.
-#: includes/blocks/class-entry-bindings.php:409
+#: includes/blocks/class-entry-bindings.php:700
 #, php-format
 msgid "%1$s: %2$s"
 msgstr ""
@@ -421,8 +453,8 @@ msgstr ""
 
 #: includes/class-archive-mode.php:268
 #: includes/class-breakout.php:238
-#: includes/class-post-type.php:961
-#: includes/class-post-type.php:2454
+#: includes/class-post-type.php:973
+#: includes/class-post-type.php:2466
 msgid "Entry not found."
 msgstr ""
 
@@ -483,35 +515,35 @@ msgstr ""
 msgid "Individual entries within a Rolling Coverage."
 msgstr ""
 
-#: includes/class-post-type.php:2354
+#: includes/class-post-type.php:2366
 msgid "No entry IDs provided."
 msgstr ""
 
-#: includes/class-post-type.php:2370
+#: includes/class-post-type.php:2382
 msgid "You do not have permission to restore this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2423
+#: includes/class-post-type.php:2435
 msgid "An editor needs to restore the coverage before this entry can be restored."
 msgstr ""
 
-#: includes/class-post-type.php:2462
+#: includes/class-post-type.php:2474
 msgid "Entry is not in trash."
 msgstr ""
 
-#: includes/class-post-type.php:2470
+#: includes/class-post-type.php:2482
 msgid "This entry is archived, so it can’t be restored."
 msgstr ""
 
-#: includes/class-post-type.php:2521
+#: includes/class-post-type.php:2533
 msgid "This entry's coverage was deleted. An editor needs to restore it."
 msgstr ""
 
-#: includes/class-post-type.php:2543
+#: includes/class-post-type.php:2555
 msgid "This entry has no coverage context to restore to."
 msgstr ""
 
-#: includes/class-post-type.php:2601
+#: includes/class-post-type.php:2613
 msgid "Failed to restore entry."
 msgstr ""
 
