@@ -85,22 +85,28 @@ const LABEL_FIELDS: Record< string, string > = {
  * block it follows on this page, or of the one it sits in, or a sample where
  * the page or coverage isn't known.
  *
- * @param {Object}   props               Block props.
- * @param {string}   props.clientId      Block client ID.
- * @param {Object}   props.attributes    Block attributes.
- * @param {Function} props.setAttributes Attribute setter.
- * @param {Object}   props.context       Block context.
+ * @param {Object}   props                            Block props.
+ * @param {string}   props.clientId                   Block client ID.
+ * @param {Object}   props.attributes                 Block attributes.
+ * @param {Function} props.setAttributes              Attribute setter.
+ * @param {Object}   props.context                    Block context.
+ * @param {string}   props.__unstableLayoutClassNames The flex layout's classes,
+ *                                                    which the editor only applies
+ *                                                    itself to blocks with inner
+ *                                                    blocks.
  */
 export default function Edit( {
 	clientId,
 	attributes,
 	setAttributes,
 	context,
+	__unstableLayoutClassNames: layoutClassNames,
 }: {
 	clientId: string;
 	attributes: CoverageStatusAttributes;
 	setAttributes: ( attrs: Partial< CoverageStatusAttributes > ) => void;
 	context?: Record< string, unknown >;
+	__unstableLayoutClassNames?: string;
 } ) {
 	const {
 		coverageId,
@@ -300,7 +306,7 @@ export default function Edit( {
 		setAttributes,
 	] );
 
-	const blockProps = useBlockProps();
+	const blockProps = useBlockProps( { className: layoutClassNames } );
 	const colorGradientSettings = useMultipleOriginColorsAndGradients();
 
 	const setBackground = ( key: string, value?: string ) => {
