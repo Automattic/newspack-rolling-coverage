@@ -48,7 +48,7 @@ The server finds the parts of a layout by class name and binding, not by positio
 
 ## Server rendering and polling
 
-`Rolling_Coverage_Block::render_block()` queries the newest entries, renders each one through the entry template (`render_entry()`), adds ads every `adsInterval` entries when enabled, and wraps the result in the Feed group (`render_feed()`). It hands the view script its state through `data-*` attributes on the wrapper, such as `data-rest-url`, `data-cursor`, `data-before`, `data-poll-interval` and `data-latest`.
+`Rolling_Coverage_Block::render_block()` queries the newest entries, renders each one through the entry template (`render_entry()`), adds ads every `adsInterval` entries when enabled, and wraps the result in the Feed group (`render_feed()`). It hands the view script its state through `data-*` attributes on the wrapper.
 
 It also stores the entry template, with the ad and cap settings, in an option named `rc_tpl_{coverage_id}_{hash}` (`persist_block_config()`), and prints the hash as `data-template-key`. REST requests render entries from that stored config, so polled entries match the page. Only the five most recent configs per coverage are kept (`CONFIGS_KEPT`, tracked in the `rolling_coverage_template_hashes` term meta). A request with a pruned key renders with the default template (`load_block_config()`).
 
@@ -61,7 +61,7 @@ REST routes, in the `rolling-coverage/v1` namespace (`register_routes()`):
 Polling, in `view.ts` (`initBlock()`, `poll()`):
 
 - The block polls every `max( pollInterval, minPollInterval )` seconds. It polls only when the coverage was `active` at render time (`data-status`), so a paused or ended coverage never starts polling. Polling stops while the tab is hidden and resumes when it shows.
-- A feed can sit inside another feed's entries, for the same coverage. A feed acts only on its own elements: `ownElement()` and `ownElements()` in `view.ts` skip any element whose closest block wrapper is another feed, and every lookup of entries, sentinel, control, status and sticky cards goes through them. Use them for any new query inside the block, since a nested feed repeats the classes and entry IDs.
+- A feed can sit inside another feed's entries, possibly for the same coverage. A feed acts only on its own elements: `ownElement()` and `ownElements()` in `view.ts` skip any element whose closest block wrapper is another feed, and every lookup of the sentinel, control, status and sticky cards goes through them; entry lookups stay on the block's own entries list. Use them for any new query inside the block, since a nested feed repeats the classes and entry IDs.
 - A site-wide minimum comes from the `NEWSPACK_ROLLING_COVERAGE_MIN_POLL_INTERVAL` constant or the `newspack_rolling_coverage_min_poll_interval` filter (`get_min_poll_interval()`). Poll responses send `Cache-Control: public, max-age=N`, where N is the larger of `POLL_MAX_AGE` (5) and half the minimum (`poll_response()`), so readers polling at the same moment share a cached reply. Open pages learn a changed minimum from their next poll.
 - Each poll response carries the coverage's `status` and `newestEntry`. The view script dispatches `newspack-rolling-coverage:poll` on `document` with both (`src/blocks/shared/poll-event.ts`); the Coverage Status block listens for it. A feed with `hideWhenEnded` removes itself when a poll reports `archived`.
 - Infinite scroll: an `IntersectionObserver` on the `.newspack-rolling-coverage-sentinel` element calls `loadMore()`, which requests entries `before` the oldest one loaded. Capped feeds render no sentinel.
@@ -72,7 +72,7 @@ Entry bindings use the `newspack-rolling-coverage/entry` source, registered by `
 
 A layout's look comes from block settings in its template: colors, typography, spacing and borders, using theme presets with fallbacks. Publishers can then change them in the editor, and the pattern carries them to every synced block. Keep the plugin's CSS structural:
 
-- `style.scss` (built to `view.css`, loaded on the front end and in the editor) covers the Feed's flex and grid behavior, the gap, screen-reader text, the floating new-entries control, the linked-entry outline and archived notices. Rules that size items use `:where()` so block settings win.
+- `style.scss` (built to `view.css`, loaded on the front end and in the editor) holds structural rules only. Rules that size items use `:where()` so block settings win.
 - `editor.scss` covers editor-only UI.
 
 Don't add a layout's colors or type to these files.
@@ -87,4 +87,4 @@ Don't add a layout's colors or type to these files.
 
 PHP tests live in `tests/`; `test-layout.php` covers layout creation and lookup, and the per-layout `test-ticker.php`, `test-split.php` and `test-byline.php` show how to test a layout that relies on server behavior.
 
-This plugin lives inside the newspack-workspace dev environment. From the plugin directory, run them with `../../../n test-php` (add `--filter` or `--group` to narrow). Outside the workspace, `npm run test:php` runs `./vendor/bin/phpunit` against the WordPress test library, which `bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version]` installs; `tests/bootstrap.php` reads it from `WP_TESTS_DIR`, or `/tmp/wordpress-tests-lib` by default. The repository has no JavaScript unit tests; run `npm run typecheck` and `npm run lint:js` for the TypeScript side.
+When the plugin is checked out under newspack-workspace's `repos/plugins/`, run them from the plugin directory with `../../../n test-php` (add `--filter` or `--group` to narrow). The tests register the blocks from `dist/`, so build first if it is stale. Outside the workspace, `npm run test:php` runs `./vendor/bin/phpunit` against the WordPress test library, which `bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version]` installs; `tests/bootstrap.php` reads it from `WP_TESTS_DIR`, or `/tmp/wordpress-tests-lib` by default. The repository has no JavaScript unit tests; run `npm run typecheck` and `npm run lint:js` for the TypeScript side.

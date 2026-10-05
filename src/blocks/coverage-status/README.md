@@ -11,18 +11,18 @@ The block is in the inserter's Newspack category, or Rolling Coverage on sites w
 
 ## Which coverage it shows
 
-The Coverage panel is the first panel in the block's settings. It appears only when the block is outside a Rolling Coverage block.
+The Coverage panel is at the top of the block's settings. It appears only when the block is outside a Rolling Coverage block.
 
 | Setting | What it does |
 | --- | --- |
-| Automatic | "Shows the coverage on this page, or a breakout post’s coverage." Uses the first Rolling Coverage block on the page. On a breakout post, uses the coverage the post came from. |
+| Automatic | "Shows the coverage on this page, or a breakout post’s coverage." Uses the first Rolling Coverage block in this post or page's content, not one placed in the site's template. On a breakout post, uses the coverage the post came from. |
 | Custom | "Always shows this coverage." Pick the coverage from the list. |
 
 Automatic works on single posts and pages only, not on archives or password-protected posts. It ignores a Rolling Coverage block that only previews the latest entries. With no coverage to show, the block shows nothing on the site.
 
 If a coverage you chose is deleted, the block falls back to the page's coverage. The editor shows a notice.
 
-In a template, the editor shows a sample Live badge, because the page isn't known there.
+With Automatic in a template, the editor shows a sample Live badge, because the page isn't known there.
 
 ## Settings
 
@@ -41,7 +41,7 @@ Site-wide labels are set in Rolling Coverage > All Coverages, under the Settings
 
 - **Badge colors.** In the Styles tab, under Color, set Live background, Paused background, and Ended background. The text color is chosen automatically for contrast.
 - **Text color.** The Text color setting changes the "Updated … ago" text. New blocks start with a muted color from the theme palette when it has one.
-- **Spacing.** The Dimensions settings control margin and the gap between the badge and the "Updated … ago" text. The default gap is the theme's spacing size 20. Themes that don't support block gap keep the standard spacing.
+- **Spacing.** The Dimensions settings control margin. On themes that support block spacing, they also control the gap between the badge and the "Updated … ago" text, which defaults to the theme's small spacing step. Other themes, including the Newspack Theme, use WordPress's standard gap.
 
 ## What readers see
 

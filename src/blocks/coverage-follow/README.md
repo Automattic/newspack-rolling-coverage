@@ -1,6 +1,6 @@
 # Follow Coverage
 
-A button that lets readers follow a coverage. Readers who follow get a push notification when a new entry is published.
+A button that lets readers follow a coverage. Followers get a push notification when an entry that sends one is published. See [Sending notifications](#sending-notifications).
 
 ## Requirements
 
@@ -24,7 +24,7 @@ The Coverage panel appears only outside a Rolling Coverage block.
 | Automatic | "Follows the coverage on this page, or a breakout post’s coverage." |
 | Custom | "Always follows this coverage." Pick the coverage from the list. |
 
-Automatic works on single posts and pages only, not on archives or password-protected posts. With no coverage to follow, the button doesn't appear.
+Automatic uses the first Rolling Coverage block in this post or page's content, not one placed in the site's template, and ignores a block that only previews the latest entries. It works on single posts and pages only, not on archives or password-protected posts. With no coverage to follow, the button doesn't appear.
 
 If a coverage you chose is deleted, the block falls back to the page's coverage. The editor shows a notice.
 
@@ -32,7 +32,7 @@ The Settings panel shows up only when something stops the button from appearing:
 
 ## The button
 
-The block holds a standard Button block. Style it, change its text, and set its colors and size like any other button. The button starts as "Follow". Once a reader follows, it reads "Following". Readers click it again to unfollow.
+The block holds a standard Button block. Style it, change its text, and set its colors and size like any other button. The button's text replaces "Follow". Once a reader follows, it reads "Following", which can't be changed. Readers click it again to unfollow.
 
 The button is part of the block and rebuilds itself when the editor reloads, so leave it in place.
 
@@ -42,7 +42,7 @@ The button is part of the block and rebuilds itself when the editor reloads, so 
 - The browser asks for permission to send notifications the first time.
 - If the reader has blocked notifications, the button returns to Follow and a message appears: "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 - If something fails, the button returns to its previous state and a message appears: "Something went wrong. Please try again."
-- When the coverage ends, the button disappears.
+- Once the coverage ends, the button no longer appears when the page loads.
 
 ## Sending notifications
 
@@ -53,7 +53,7 @@ A notification goes out when an entry is published and one of these is true:
 
 Only readers who followed that coverage are notified. The notification links to the entry on the coverage's canonical URL, so the coverage needs one. If it doesn't, the Push Notifications box warns you and no notification is sent. An entry notifies once.
 
-Entries published from the block editor, the Rolling Coverage screen, or Slack go out about a minute after publishing, so changes to the Push Notifications box right after publishing still count.
+In the block editor, the notification goes out when the Push Notifications box is saved, right after publishing. Slack entries published straight away go out on the site's next scheduled-task run. An entry opted in earlier and published another way, such as from the Rolling Coverage screen, goes out about a minute after publishing.
 
 ## Limits
 

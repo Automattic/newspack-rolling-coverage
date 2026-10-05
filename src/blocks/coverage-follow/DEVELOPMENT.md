@@ -36,13 +36,7 @@ Inside a Rolling Coverage layout, the block counts as coverage-level (`Entry_Bin
 
 ## View script
 
-`view.ts` wires every `button[data-rc-follow]`:
-
-- **Initial state.** Through `window.OneSignalDeferred`, it reads `OneSignal.User.getTags()` and marks a button followed when its tag is `'1'`. OneSignal's synced tags are the source of truth; nothing is cached locally.
-- **Click.** It flips every button sharing the tag at once and disables them, then waits for the SDK. If the SDK hasn't answered within `SDK_WAIT_TIMEOUT_MS` (10 seconds), it reverts and shows the error message.
-- **Follow.** It checks `OneSignal.Notifications.isPushSupported()`, asks for permission if needed, then calls `OneSignal.User.addTag( tag, '1' )`. When the browser has already denied permission, it doesn't prompt (the browser would not show the prompt again); it reverts and shows the blocked message.
-- **Unfollow.** It calls `OneSignal.User.removeTag( tag )`.
-- **State and messages.** `aria-pressed` and the label switch between Follow and Following. The blocked and error messages appear in a `<p class="newspack-rolling-coverage-follow__message" role="status" aria-live="polite">` placed after the button.
+`view.ts` wires every `button[data-rc-follow]` through `window.OneSignalDeferred`. OneSignal's synced tags (`coverage_{id}` set to `'1'`) are the source of truth for whether a reader follows; nothing is cached locally. A click flips every button sharing the tag at once, and reverts with the error message if the SDK doesn't answer within `SDK_WAIT_TIMEOUT_MS`. When the browser has already denied permission, it doesn't prompt, since the browser would not show the prompt again; it reverts and shows the blocked message.
 
 The plugin does not load the OneSignal SDK. It relies on the OneSignal plugin's front-end SDK and its `OneSignalDeferred` queue.
 
@@ -51,8 +45,8 @@ The plugin does not load the OneSignal SDK. It relies on the OneSignal plugin's 
 `Push_Notifications` sends one notification per entry, only to readers who follow that entry's coverage.
 
 - **Opt-in.** The "Push Notifications" meta box on an unpublished entry (`add_meta_box()`, shown only when OneSignal is configured) stores the choice in the `rolling_coverage_notify_on_publish` post meta. It warns when no coverage of the entry has a canonical URL, since the notification links there.
-- **Chat-sourced entries.** `Entry_Ingestion_Service::ingest()` fires `newspack_rolling_coverage_entry_ingested` for entries created from a chat source, which today is Slack. `opt_in_ingested_entry()` opts them in, unless the entry has no words (an image alone), and schedules the send at once when the entry is already published.
-- **Trigger.** `maybe_notify()` runs on `transition_post_status` to `publish`. It skips entries that already have `os_notification_id` meta, which OneSignal sets after a send, so a re-publish never notifies twice. During a REST request (the block editor, the plugin's admin, Slack), it schedules the send on the `newspack_rolling_coverage_send_notification` cron hook after 60 seconds (`REST_SEND_DELAY`) instead of sending. OneSignal never sends during a REST request, and the delay lets the block editor's meta box save, which follows the REST save, change the opt-in first. The `newspack_rolling_coverage_defer_notification` filter overrides that choice.
+- **Chat-sourced entries.** `Entry_Ingestion_Service::ingest()` fires `newspack_rolling_coverage_entry_ingested` for entries created from a chat source (Slack is the only one). `opt_in_ingested_entry()` opts them in, unless the entry has no words (an image alone), and schedules the send at once when the entry is already published.
+- **Trigger.** `maybe_notify()` runs on `transition_post_status` to `publish`. It skips entries that already have `os_notification_id` meta, which OneSignal sets after a send, so a re-publish never notifies twice. During a REST request (the block editor, the plugin's admin), it schedules the send on the `newspack_rolling_coverage_send_notification` cron hook after 60 seconds (`REST_SEND_DELAY`) instead of sending. OneSignal never sends during a REST request, and the delay lets the block editor's meta box save, which follows the REST save, change the opt-in first. The `newspack_rolling_coverage_defer_notification` filter overrides that choice.
 - **Send.** `send()` takes a per-entry lock (`SEND_LOCK_PREFIX`, 60-second TTL), re-reads the meta uncached, and calls `onesignal_create_notification()` once per coverage with a canonical URL. It clears the opt-in after a send. A coverage without a canonical URL sends nothing and keeps the opt-in.
 - **Audience and link.** `override_notification_fields()` filters `onesignal_send_notification` for that send. It replaces `included_segments` with a tag filter (`coverage_{id}` equals `'1'`), so only followers are notified, and sets `web_push_topic` to the same tag, so a newer update replaces an older one in the browser. The URL deep-links to the entry on the coverage's canonical URL (`Social_Sharing::get_entry_deep_link()`).
 

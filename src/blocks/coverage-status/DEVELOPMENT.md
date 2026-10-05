@@ -29,9 +29,9 @@ The editor mirrors these rules in `useBlockCoverage()` (`src/blocks/shared/block
 
 ## Default gap
 
-The gap between the badge and the "Updated" time is `spacing|20`, declared once as the block's default style: `supports.__experimentalStyle.spacing.blockGap` in `block.json`. Core merges that into Global Styles, so saved blocks get the gap without an inline value and themes or users can override it. A block's own Block Spacing still wins. Classic themes have no block gap support, so they are unaffected.
+The gap between the badge and the "Updated" time is `spacing|20`, declared once as the block's default style: `supports.__experimentalStyle.spacing.blockGap` in `block.json`. Core merges that into Global Styles, so saved blocks get the gap without an inline value and themes or users can override it. A block's own Block Spacing still wins. Themes that don't enable `settings.spacing.blockGap` (classic themes without a theme.json, such as Newspack Theme) don't print it and use core's flex gap.
 
-`test_default_gap_is_spacing_20_in_global_styles` guards it. The badge's own gap between its dot and label (6px) comes from newspack-ui, is deliberate and is fixed.
+`test_default_gap_is_spacing_20_in_global_styles` guards it. The badge's own gap between its dot and label (6px) comes from newspack-ui and is deliberate; don't change it.
 
 ## Labels
 

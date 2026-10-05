@@ -5,7 +5,7 @@ The Rolling Coverage block shows the entries of a coverage on any page or story.
 ## Add the block
 
 1. In the editor, add the Rolling Coverage block (Newspack category, or Rolling Coverage on sites without Newspack).
-2. In the placeholder, search for a coverage under "Search for a coverage…" and select it.
+2. In the placeholder, type in the "Search for a coverage…" field and select a coverage.
 3. Select Choose and pick a layout from "Choose a layout". See [Layouts](#layouts).
 
 The entries of the coverage appear in the editor as a preview. If the coverage has no published entries yet, the block shows the layout on its own, with a notice.
@@ -33,7 +33,7 @@ A layout is how the feed looks: spacing, colors, type, and which parts each entr
 
 Ticker, Wire, Digest, and Flash show only the latest entries. They set Show to Latest and a matching Number of entries when you pick them. You can change either afterward.
 
-The first time anyone picks a built-in layout, the site saves it as a shared layout. Every story using it then follows that one copy. See [Edit, detach, and change a layout](#edit-detach-and-change-a-layout).
+The first time someone who can publish picks a built-in layout, the site saves it as a shared layout. Every story using it then follows that one copy. A Contributor who picks one before that gets a copy for that story only. See [Edit, detach, and change a layout](#edit-detach-and-change-a-layout).
 
 ## Settings
 
@@ -52,7 +52,7 @@ Says whether the block uses the shared layout or its own detached copy.
 | Setting | What it does |
 | --- | --- |
 | Coverage | The coverage the block shows. |
-| Canonical URL | The page readers land on when they open a link to one of this coverage's entries. It is shared by every block connected to this coverage. Shown once a coverage is selected. |
+| Canonical URL | The page readers land on when they open a link to one of this coverage's entries. It is shared by every block connected to this coverage. Saved to the coverage when you save the page. Editors and administrators can change it. Shown once a coverage is selected. |
 | Use This Page | Fills Canonical URL with this page's address. Save the page first to get its address. Hidden when Show is set to Latest. |
 
 ### Entries
@@ -61,7 +61,7 @@ Says whether the block uses the shared layout or its own detached copy.
 | --- | --- |
 | Show | All shows every entry and loads more as readers scroll. Latest shows only the most recent entries. |
 | Number of entries | With Show set to Latest: how many entries to show, from 1 to 100. |
-| Link to all updates | With Show set to Latest: Show or Hide the link to the coverage page. The link is hidden on the coverage page itself. |
+| Link to all updates | With Show set to Latest, in layouts that have one (Ticker, Wire, Digest, Flash): Show or Hide the link to the coverage page. The link is hidden on the coverage page itself. |
 | Entries per page | With Show set to All: how many entries load first, and how many each scroll adds. From 1 to 100. Default 20. |
 | Poll interval (seconds) | How often the page checks for new entries. Default 10. The site can set a longer minimum, which wins over a shorter value here. |
 
@@ -78,11 +78,11 @@ The panel title shows the site's label for an ended coverage ("Ended" unless the
 | URL | Where the link goes. When empty, it goes to the coverage's latest breakout post, if there is one. |
 | Link text | The link's wording. When empty, "Read more". |
 
-Notice, Link, URL, and Link text appear only when When ended is set to Show.
+Notice appears only when When ended is set to Show. Notice text and Link appear only when Notice is set to Show, and URL and Link text only when Link is set to Show.
 
 ### AI
 
-Appears when AI is set up on the site. Generate Key Takeaways writes a summary of the coverage's entries into Generated Output. Copy puts it on your clipboard. Site administrators set the prompts on the AI settings page.
+Appears when AI is set up on the site. Generate Key Takeaways writes a summary of the coverage's entries into Generated Output. Copy copies it. Editors and administrators set the prompts under Rolling Coverage > AI.
 
 ### Ads
 
@@ -91,11 +91,11 @@ Appears when Newspack Ads is active.
 | Setting | What it does |
 | --- | --- |
 | Advertising | Enabled or Disabled. Shows ads between entries. Not available when Show is set to Latest. |
-| Ads interval | Show an ad after every N entries. Up to 3 ads in the first load and in each load of older entries. New entries are not capped. |
+| Ads interval | Show an ad after every N entries, up to 3 ads across the first load and older entries combined. New entries that arrive while the page is open are not capped. |
 
 Ads need the Rolling Coverage: Entry placement enabled in Newspack Ads, and ads enabled in the coverage's own settings. The panel tells you when either is missing.
 
-Alignment and the HTML anchor are in the block toolbar and the Advanced section like any other block. Colors, type, and spacing of the feed come from the layout. See below.
+Alignment and the HTML anchor are in the block toolbar and the Advanced section like any other block. Colors, type, and spacing of the feed come from the layout. See [Edit, detach, and change a layout](#edit-detach-and-change-a-layout).
 
 ## What readers see
 
@@ -127,7 +127,7 @@ A block that shows all entries counts as the coverage's live feed on its page, i
 
 When a block uses a shared layout, the block toolbar shows Edit Layout and Detach.
 
-- **Edit Layout** opens the shared layout in a new tab (the Site Editor on block themes, the pattern editor otherwise). Editing it changes every story that uses it. Entries in that editor are samples. Only people who can edit patterns see this button.
+- **Edit Layout** opens the shared layout in a new tab (the Site Editor on block themes for people who can edit the site's design, the pattern editor otherwise). Editing it changes every story that uses it. The editor previews this story's coverage, or sample entries when the coverage has none yet. Only people who can edit patterns see this button.
 - **Detach** copies the layout into this story. From then on, changes you make to this block affect this story only, and changes to the shared layout no longer reach it. The Layout panel reads "Uses its own layout, detached from the shared one."
 - **Change Layout** in the Layout panel opens "Choose a layout". Picking another layout replaces the current one, including a detached copy.
 
@@ -135,31 +135,37 @@ If a story points at a layout that was deleted, readers see the Bulletin layout,
 
 ## Restore a built-in layout
 
-Built-in layouts are saved as patterns, so editing one changes it for good. To bring one back:
-
-- **Restore the first version.** Open the pattern, open Revisions, and restore the oldest one. WordPress saved it when the plugin created the layout, so it is the layout as first created.
-- **Rebuild it from the plugin.** Move the pattern to the trash, then delete it permanently, then pick the layout again. The site recreates it from the plugin's current version. Use this after a plugin update to get the updated design. Stories using the deleted layout show Bulletin until they pick a layout again.
+Built-in layouts are saved as patterns, so editing one changes it for good. To get the plugin's version back, move the pattern to the trash, reload the editor, and pick the layout again. The site recreates it from the plugin's current version, which is also how to get an updated design after a plugin update. Stories using the trashed layout show Bulletin until they pick a layout again.
 
 ## Make a custom layout
 
-<!-- CUSTOM LAYOUT FLOW: pending live test -->
+A custom layout is a synced pattern in the Rolling Coverage pattern category that holds one Rolling Coverage block. Published patterns in that category appear in "Choose a layout" after the built-in layouts, sorted by title (up to 100).
 
-A custom layout is a synced pattern in the Rolling Coverage pattern category, holding one Rolling Coverage block. Anything saved that way appears in "Choose a layout" after the built-in layouts, sorted by title. The picker lists up to 100 published patterns from that category.
+Set the category before you add the Rolling Coverage block. With the category set, the block opens as an editable layout with sample entries, starting from Bulletin. Without it, the block asks for a coverage instead. Don't pick a coverage inside a pattern: a pattern with a coverage set is no longer treated as a layout.
 
-Draft steps, to be confirmed:
+### Block themes
 
-1. Open the pattern editor.
-   - Block themes: Site Editor, then Patterns.
-   - Classic themes have no Patterns menu. Go to `wp-admin/edit.php?post_type=wp_block` and select Add New. There is no Duplicate action there.
-2. Create a new pattern. Turn on Synced. Add it to the Rolling Coverage category. The category exists once any built-in layout has been picked.
-3. Build the layout inside one Rolling Coverage block, using blocks such as Group, Post Title, Post Content, and Post Date. Style them in the editor with the block settings.
-4. Save. Open a story, select Change Layout, and pick the new layout.
+1. Go to Appearance > Editor > Patterns. Select Add Pattern (+), then Add Pattern.
+2. Enter a Name. In Categories, pick Rolling Coverage. Leave Synced on. Select Add.
+3. Add a Rolling Coverage block and edit the layout with the block settings.
+4. Select Save.
 
-On block themes you can instead duplicate a built-in layout from the Patterns screen and edit the copy.
+To start from a built-in layout instead, open the Rolling Coverage category in Patterns, open a layout's Actions menu (⋮) and select Duplicate. The copy keeps the category and stays synced. Rename it and select Duplicate.
 
-Notes for building a layout:
+### Classic themes
 
-- Read more links to the entry's breakout post and only shows on entries that have one. Share links to the entry itself. Both are parts of an entry in the built-in layouts; remove them from the layout if you do not want them.
+1. Go to the Patterns screen (`wp-admin/edit.php?post_type=wp_block`) and select Add Pattern.
+2. Enter a Name, leave Synced on, and select Create.
+3. In the Settings sidebar, under Pattern Categories, add Rolling Coverage. The category is only in the sidebar, not in the Create pattern dialog.
+4. Add a Rolling Coverage block and edit the layout with the block settings.
+5. Select Publish.
+
+### Use it
+
+In a story, add or select a Rolling Coverage block, open "Choose a layout" (Choose, or Change Layout in the Layout panel) and pick your layout. It is listed after Flash.
+
+Things to know:
+
+- Picking Ticker, Wire, Digest, or Flash also sets Show to Latest and their alignment. A custom layout, including a copy of one of those, doesn't. Set Show, Number of entries, and alignment on the block in the story.
+- Read more links to the entry's breakout post and only shows on entries that have one. Share links to the entry itself. Both are parts of an entry in the built-in layouts; remove them from your layout if you do not want them.
 - Follow Coverage is not part of the built-in layouts.
-
-<!-- END CUSTOM LAYOUT FLOW -->
