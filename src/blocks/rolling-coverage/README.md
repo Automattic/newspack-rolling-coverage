@@ -16,20 +16,20 @@ You can change the coverage later in the Coverage panel of the block's settings.
 
 A layout is how the feed looks: spacing, colors, type, and which parts each entry shows. The picker lists the built-in layouts first, then any custom layouts. Each card shows a preview with sample entries.
 
-| Layout | What it looks like |
-| --- | --- |
-| Bulletin | The default. Entries stacked with their time, title, content, and links. |
-| Stream | Like Bulletin, with more space between entries without titles. |
-| Rail | Entries hang off a timeline. |
-| Clock | Each entry starts with the time it was posted. |
-| Margin | Each entry split into a margin and its content. |
-| Minute | Closer together, with each entry reduced to its content. |
-| Byline | Each entry signed by its author. |
-| Ticker | A strip with the coverage's status and name beside the three latest headlines, and a link to the coverage page, with a thin rule between them. The Feed's Block spacing sets the space on either side of a rule. Wide width. Hides when the coverage ends. |
-| Split | The full feed at wide width, with the pinned entry's summary in a column beside the entries. |
-| Wire | A narrow list of the five latest entries, ending in a link to the coverage page. |
-| Digest | A bordered box with the coverage name, the three latest entries next to their times, and a link to the coverage page. |
-| Flash | A full-width bar in the site's accent color with the latest entry, its time, and a link to the coverage page. Hides when the coverage ends. |
+| Layout | What it looks like | Best for |
+| --- | --- | --- |
+| Bulletin | The default. Entries stacked with their time, title, content, and links. | Most live blogs. |
+| Stream | Like Bulletin, with more space between entries without titles. | Fast-moving events with many short updates without titles, such as a press conference or a court hearing. |
+| Rail | Entries hang off a timeline. | Events where the order of updates and the gaps between them matter, such as a storm moving through. |
+| Clock | Each entry starts with the time it was posted. | Coverage where the time of each update is the point, such as election results or travel delays. |
+| Margin | Each entry split into a margin and its content. | Coverage with headlines readers scan down the side, such as a long-running story. |
+| Minute | Closer together, with each entry reduced to its content. | Sports and other minute-by-minute coverage. Start each entry with the minute: "70' Goal! Kowalski scores from the edge of the box." |
+| Byline | Each entry signed by its author. | Coverage with several reporters filing, where who reported each entry matters. |
+| Ticker | A strip with the coverage's status and name beside the three latest headlines, and a link to the coverage page, with a thin rule between them. The Feed's Block spacing sets the space on either side of a rule. Wide width. Hides when the coverage ends. | The homepage, under the header, to point readers to breaking news. |
+| Split | The full feed at wide width, with the pinned entry's summary in a column beside the entries. | A coverage page that leads with a pinned summary, such as "What we know", beside the feed. |
+| Wire | A narrow list of the five latest entries, ending in a link to the coverage page. | A sidebar or another narrow column. |
+| Digest | A bordered box with the coverage name, the three latest entries next to their times, and a link to the coverage page. | A sidebar, or a box inside a related story that links to the main coverage. |
+| Flash | A full-width bar in the site's accent color with the latest entry, its time, and a link to the coverage page. Hides when the coverage ends. | The site header, so a major breaking story shows on every page. |
 
 Ticker, Wire, Digest, and Flash show only the latest entries. They set Show to Latest and a matching Number of entries when you pick them. You can change either afterward.
 
