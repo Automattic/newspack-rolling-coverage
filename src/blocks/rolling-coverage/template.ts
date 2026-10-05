@@ -9,7 +9,6 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies
  */
 import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
-import { FOLLOW_BUTTONS_TEMPLATE } from '../shared/follow-buttons';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
 import type { TemplateItem } from './types';
 
@@ -126,8 +125,8 @@ const ALL_UPDATES_CLASS = 'newspack-rolling-coverage-all-updates';
 const ENTRY_LINK_CLASS = 'newspack-rolling-coverage-entry-link';
 
 /**
- * The Follow Coverage block, which sits once among the layout's coverage-level
- * blocks.
+ * The Follow Coverage block, which renders with a layout's coverage-level
+ * blocks; the editor keeps it out of entries.
  */
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 
@@ -1232,8 +1231,8 @@ function coverageNameHeading( fontSize = 'large' ): TemplateItem {
 }
 
 /**
- * The Digest layout's footer: the link to the coverage page beside the Follow
- * button, ruled off from the entries.
+ * The Digest layout's footer: the link to the coverage page, ruled off from
+ * the entries.
  *
  * @return {TemplateItem} The group.
  */
@@ -1259,7 +1258,7 @@ function digestFooter(): TemplateItem {
 			},
 			metadata: { name: __( 'Footer', 'newspack-rolling-coverage' ) },
 		},
-		[ allUpdatesLink(), FOLLOW_TEMPLATE ],
+		[ allUpdatesLink() ],
 	];
 }
 
@@ -1649,28 +1648,6 @@ const SPLIT_FEED_GAP = { top: '0', left: 'var:preset|spacing|50' };
 const SPLIT_STACKED_PLACEMENT = { layout: { columnStart: 1, columnSpan: 1 } };
 
 /**
- * The Split layout's header: the Follow button across the grid's full
- * width.
- *
- * @return {TemplateItem} The group.
- */
-function splitHeader(): TemplateItem {
-	return [
-		'core/group',
-		{
-			style: {
-				layout: { columnSpan: SPLIT_COLUMNS },
-				'@tablet': { layout: { columnSpan: 1 } },
-				'@mobile': { layout: { columnSpan: 1 } },
-				spacing: { padding: { bottom: 'var:preset|spacing|40' } },
-			},
-			metadata: { name: __( 'Header', 'newspack-rolling-coverage' ) },
-		},
-		[ FOLLOW_TEMPLATE ],
-	];
-}
-
-/**
  * The Split layout's per-entry template. The pinned entry, the summary,
  * holds the grid's first column down the feed's full length and sticks as
  * the reader scrolls where the theme supports it, ruled off with a heavier
@@ -2039,17 +2016,6 @@ function digestEntryTemplate(
 ): TemplateItem[] {
 	return rowEntryTemplate( () => digestRow( slugs, sizes ) );
 }
-
-/**
- * The follow button, rendered once wherever the layout places it: the Follow
- * Coverage block, which holds the core button bound to the coverage's
- * notification tag.
- */
-const FOLLOW_TEMPLATE: TemplateItem = [
-	FOLLOW_BLOCK_NAME,
-	{ lock: LOCKED },
-	[ FOLLOW_BUTTONS_TEMPLATE ],
-];
 
 /**
  * The "Jump to Latest" button's default colors, as palette slugs: the theme's
@@ -3356,7 +3322,6 @@ export {
 	TICKER_FEED_LAYOUT,
 	TICKER_FEED_STYLE,
 	splitEntryTemplate,
-	splitHeader,
 	entryPreviewPlacement,
 	withColumnRule,
 	SPLIT_FEED_LAYOUT,
@@ -3367,7 +3332,6 @@ export {
 	ALL_UPDATES_CLASS,
 	FOLLOW_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
-	FOLLOW_TEMPLATE,
 	feedTemplate,
 	feedGroupOf,
 	feedPathOf,
