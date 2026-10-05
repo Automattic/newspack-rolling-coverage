@@ -151,9 +151,16 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	}
 }
 
-.wp-block-newspack-rolling-coverage-rolling-coverage.alignfull:has(> .alignfull, > .newspack-rolling-coverage-layout > .alignfull) {
+.wp-block-newspack-rolling-coverage-rolling-coverage.alignfull:has(> .alignfull):not(:has(> :not(.alignfull))),
+.wp-block-newspack-rolling-coverage-rolling-coverage.alignfull:has(> .newspack-rolling-coverage-layout > .alignfull):not(:has(> .newspack-rolling-coverage-layout > :not(.alignfull))) {
 	padding-left: 0;
 	padding-right: 0;
+}
+
+.wp-block-newspack-rolling-coverage-rolling-coverage:not(.alignfull) > .alignfull {
+	max-width: 100%;
+	margin-left: 0;
+	margin-right: 0;
 }
 
 :where(.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex:not(.is-vertical)) {

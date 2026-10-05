@@ -110,7 +110,7 @@ function patternTitle( record: LayoutRecord ): string {
  * @param {string} slug The built-in layout's slug, if the card is one.
  * @return {Object} The cap and alignment attributes.
  */
-function previewCap( slug?: BuiltInLayoutSlug ): {
+function previewAttributes( slug?: BuiltInLayoutSlug ): {
 	latestOnly?: boolean;
 	latestCount?: number;
 	align?: string;
@@ -162,7 +162,10 @@ function LayoutPickerCard( {
 		() => [
 			createBlock(
 				BLOCK_NAME,
-				{ entriesPerPage: PREVIEW_ENTRIES, ...previewCap( card.slug ) },
+				{
+					entriesPerPage: PREVIEW_ENTRIES,
+					...previewAttributes( card.slug ),
+				},
 				withoutLatestButtons(
 					card.innerBlocks() as PreviewBlock[]
 				) as unknown as Parameters< typeof createBlock >[ 2 ]
