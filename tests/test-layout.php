@@ -372,7 +372,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'wp_block', get_post_type( $id ) );
 		$this->assertSame( [ Layout::PATTERN_CATEGORY ], wp_get_object_terms( $id, 'wp_pattern_category', [ 'fields' => 'slugs' ] ) );
 		$this->assertSame( $id, Layout::get_layout_id( 'default' ) );
-		$this->assertSame( 'Rolling Coverage: Bulletin', get_the_title( $id ) );
+		$this->assertSame( 'Bulletin', get_the_title( $id ) );
 		$this->assertSame( Layout::get_pattern_category_id(), $first->get_data()['categoryId'] );
 		$this->assertGreaterThan( 0, $first->get_data()['categoryId'] );
 	}
@@ -506,7 +506,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( $id, (int) get_option( 'rolling_coverage_stream_layout_id' ) );
 		$this->assertSame( 'publish', get_post_status( $id ) );
-		$this->assertSame( 'Rolling Coverage: Stream', get_the_title( $id ) );
+		$this->assertSame( 'Stream', get_the_title( $id ) );
 		$this->assertSame( [ Layout::PATTERN_CATEGORY ], wp_get_object_terms( $id, 'wp_pattern_category', [ 'fields' => 'slugs' ] ) );
 		$this->assertSame( $id, Layout::get_layout_id( 'stream' ) );
 	}
@@ -522,7 +522,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$id = $response->get_data()['id'];
 
 		$this->assertSame( $id, (int) get_option( 'rolling_coverage_rail_layout_id' ) );
-		$this->assertSame( 'Rolling Coverage: Rail', get_the_title( $id ) );
+		$this->assertSame( 'Rail', get_the_title( $id ) );
 		$this->assertSame( $id, Layout::get_layout_id( 'rail' ) );
 		$this->assertSame( 200, self::dispatch( 'POST', '/layouts/rail', [ 'content' => self::layout_markup( 'Other' ) ] )->get_status() );
 	}
@@ -559,16 +559,26 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function data_built_in_layouts(): array {
 		return [
-			'clock'  => [ 'clock', 'Rolling Coverage: Clock' ],
-			'margin' => [ 'margin', 'Rolling Coverage: Margin' ],
-			'minute' => [ 'minute', 'Rolling Coverage: Minute' ],
-			'byline' => [ 'byline', 'Rolling Coverage: Byline' ],
-			'ticker' => [ 'ticker', 'Rolling Coverage: Ticker' ],
-			'split'  => [ 'split', 'Rolling Coverage: Split' ],
-			'wire'   => [ 'wire', 'Rolling Coverage: Wire' ],
-			'digest' => [ 'digest', 'Rolling Coverage: Digest' ],
-			'flash'  => [ 'flash', 'Rolling Coverage: Flash' ],
+			'clock'  => [ 'clock', 'Clock' ],
+			'margin' => [ 'margin', 'Margin' ],
+			'minute' => [ 'minute', 'Minute' ],
+			'byline' => [ 'byline', 'Byline' ],
+			'ticker' => [ 'ticker', 'Ticker' ],
+			'split'  => [ 'split', 'Split' ],
+			'wire'   => [ 'wire', 'Wire' ],
+			'digest' => [ 'digest', 'Digest' ],
+			'flash'  => [ 'flash', 'Flash' ],
 		];
+	}
+
+	/**
+	 * Every built-in slug has its title asserted: here, or in the default,
+	 * stream and rail tests. A slug without a title fails to create.
+	 */
+	public function test_every_built_in_layout_has_a_title_test() {
+		$covered = array_merge( [ 'default', 'stream', 'rail' ], array_keys( $this->data_built_in_layouts() ) );
+
+		$this->assertEqualsCanonicalizing( Layout::BUILT_IN_SLUGS, $covered );
 	}
 
 	/**
@@ -616,7 +626,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		$this->assertSame( 201, $default->get_status() );
 		$this->assertNotSame( $stream, $default->get_data()['id'] );
 		$this->assertSame( $stream, (int) get_option( 'rolling_coverage_stream_layout_id' ) );
-		$this->assertSame( 'Rolling Coverage: Bulletin', get_the_title( $default->get_data()['id'] ) );
+		$this->assertSame( 'Bulletin', get_the_title( $default->get_data()['id'] ) );
 	}
 
 	/**
@@ -791,7 +801,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 			[
 				'post_type'         => 'wp_block',
 				'post_status'       => 'publish',
-				'post_title'        => 'Rolling Coverage: Stream',
+				'post_title'        => 'Stream',
 				'post_content'      => self::layout_markup(),
 				'post_author'       => get_current_user_id(),
 				'post_date'         => current_time( 'mysql' ),

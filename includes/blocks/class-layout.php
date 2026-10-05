@@ -414,37 +414,27 @@ class Layout {
 	}
 
 	/**
-	 * The title a built-in layout's pattern is created with.
+	 * The title a built-in layout's pattern is created with: the layout's name
+	 * as getBuiltInLayouts() in layouts.ts spells it, without the block's title,
+	 * which would rank the patterns above the block in inserter search.
 	 *
 	 * @param string $slug Built-in layout slug.
 	 * @return string
 	 */
 	private static function get_title( string $slug ): string {
 		return match ( $slug ) {
-			/* translators: %s: Rolling Coverage, the product name. */
-			'stream' => sprintf( __( '%s: Stream', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
-			/* translators: %s: Rolling Coverage, the product name. */
-			'rail'   => sprintf( __( '%s: Rail', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
-			/* translators: %s: Rolling Coverage, the product name. */
-			'clock'  => sprintf( __( '%s: Clock', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
-			/* translators: %s: Rolling Coverage, the product name. */
-			'margin' => sprintf( __( '%s: Margin', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
-			/* translators: %s: Rolling Coverage, the product name. */
-			'minute' => sprintf( __( '%s: Minute', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
-			/* translators: %s: Rolling Coverage, the product name. */
-			'byline' => sprintf( __( '%s: Byline', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
-			/* translators: %s: Rolling Coverage, the product name. */
-			'ticker' => sprintf( __( '%s: Ticker', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
-			/* translators: %s: Rolling Coverage, the product name. */
-			'split'  => sprintf( __( '%s: Split', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
-			/* translators: %s: Rolling Coverage, the product name. */
-			'wire'   => sprintf( __( '%s: Wire', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
-			/* translators: %s: Rolling Coverage, the product name. */
-			'digest' => sprintf( __( '%s: Digest', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
-			/* translators: %s: Rolling Coverage, the product name. */
-			'flash'  => sprintf( __( '%s: Flash', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
-			/* translators: %s: Rolling Coverage, the product name. */
-			default  => sprintf( __( '%s: Bulletin', 'newspack-rolling-coverage' ), 'Rolling Coverage' ),
+			'default' => _x( 'Bulletin', 'layout name', 'newspack-rolling-coverage' ),
+			'stream'  => _x( 'Stream', 'layout name', 'newspack-rolling-coverage' ),
+			'rail'    => _x( 'Rail', 'layout name', 'newspack-rolling-coverage' ),
+			'clock'   => _x( 'Clock', 'layout name', 'newspack-rolling-coverage' ),
+			'margin'  => _x( 'Margin', 'layout name', 'newspack-rolling-coverage' ),
+			'minute'  => _x( 'Minute', 'layout name', 'newspack-rolling-coverage' ),
+			'byline'  => _x( 'Byline', 'layout name', 'newspack-rolling-coverage' ),
+			'ticker'  => _x( 'Ticker', 'layout name', 'newspack-rolling-coverage' ),
+			'split'   => _x( 'Split', 'layout name', 'newspack-rolling-coverage' ),
+			'wire'    => _x( 'Wire', 'layout name', 'newspack-rolling-coverage' ),
+			'digest'  => _x( 'Digest', 'layout name', 'newspack-rolling-coverage' ),
+			'flash'   => _x( 'Flash', 'layout name', 'newspack-rolling-coverage' ),
 		};
 	}
 
