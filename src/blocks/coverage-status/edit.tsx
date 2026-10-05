@@ -54,7 +54,7 @@ declare global {
 const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
 const VIEW_CONTEXT = { context: 'view' };
 const SAMPLE_AGE_MS = 2 * 60 * 1000;
-const DEFAULT_GAP_SLUG = '30';
+const DEFAULT_GAP_SLUG = '20';
 const INSERT_SOURCES = [ undefined, 'inserter_menu', 'quick_inserter' ];
 
 const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {

@@ -38,6 +38,7 @@ import {
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
+	STATUS_TEMPLATE,
 	feedTemplate,
 	latestTemplate,
 	layoutParts,
@@ -319,11 +320,7 @@ export function flashInnerTemplate(): TemplateItem[] {
 	return [
 		flashBar(
 			feedTemplate(
-				[
-					[ STATUS_BLOCK_NAME, {} ],
-					...flashEntryTemplate(),
-					allUpdatesLink(),
-				],
+				[ STATUS_TEMPLATE, ...flashEntryTemplate(), allUpdatesLink() ],
 				'var:preset|spacing|30',
 				{},
 				FLASH_FEED_LAYOUT,
