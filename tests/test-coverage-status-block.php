@@ -448,10 +448,11 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 	/**
 	 * Lite Site strips the span that hides "Updated" and never runs the view
-	 * script that keeps it current, so on a lite page a feed's status block
-	 * shows its badge alone, where a full page shows the line. A lite request
-	 * views the home page, where a standalone status block follows no feed,
-	 * so the feed's own is the only one a lite page shows.
+	 * script that keeps it current, so on a lite page a status block shows
+	 * its badge alone, where a full page shows the line. That holds for a
+	 * feed's status block and for a standalone one that names its coverage,
+	 * which shows on any page. A lite request views the home page, so a
+	 * standalone status block on Automatic follows no feed and shows nothing.
 	 *
 	 * @dataProvider data_live_and_ended_statuses
 	 *
@@ -463,18 +464,24 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 		$coverage_id = self::create_coverage( $status );
 		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
-		$feed = self::flash_feed( $coverage_id, [ 'showLastUpdated' => true ] );
+		$feed  = self::flash_feed( $coverage_id, [ 'showLastUpdated' => true ] );
+		$named = '<!-- wp:newspack-rolling-coverage/coverage-status {"showLastUpdated":true,"coverageId":' . $coverage_id . '} /-->';
 		$this->go_to( home_url( '/' ) );
 
 		$full_page  = do_blocks( $feed );
+		$full_named = do_blocks( $named );
 		$lite_page  = \Newspack_Lite_Site\Lite_Site::clean_content( $feed );
-		$standalone = \Newspack_Lite_Site\Lite_Site::clean_content( '<!-- wp:newspack-rolling-coverage/coverage-status {"showLastUpdated":true} /-->' );
+		$lite_named = \Newspack_Lite_Site\Lite_Site::clean_content( $named );
+		$automatic  = \Newspack_Lite_Site\Lite_Site::clean_content( '<!-- wp:newspack-rolling-coverage/coverage-status {"showLastUpdated":true} /-->' );
 
 		$this->assertStringContainsString( 'newspack-rolling-coverage-updated', $full_page, 'A full page has the line.' );
-		$this->assertSame( [ $coverage_id ], self::followed_coverages( $lite_page ), 'A lite page keeps the status block.' );
+		$this->assertStringContainsString( 'newspack-rolling-coverage-updated', $full_named, 'So does a standalone block that names its coverage.' );
+		$this->assertSame( [ $coverage_id ], self::followed_coverages( $lite_page ), 'A lite page keeps the feed\'s status block.' );
 		$this->assertStringContainsString( '>' . $badge . '<', $lite_page, 'It keeps the badge.' );
 		$this->assertStringNotContainsString( 'Updated', $lite_page );
-		$this->assertSame( '', $standalone, 'A standalone status block shows nothing on a lite page.' );
+		$this->assertStringNotContainsString( 'Updated', $lite_named, 'A standalone block that names its coverage leaves the line out on a lite page.' );
+		$this->assertStringContainsString( '>' . $badge . '<', $lite_named, 'But keeps its badge.' );
+		$this->assertSame( '', $automatic, 'A standalone block on Automatic shows nothing on a lite page.' );
 	}
 
 	/**
