@@ -910,6 +910,19 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A feed set not to load older entries opens at a shared entry with
+	 * nothing more to load, and neither the sentinel nor the button.
+	 */
+	public function test_shared_view_of_a_feed_that_loads_no_older_entries_has_nothing_more_to_load() {
+		$html = $this->render_layout_with_shared( 'entry-3', '', 0, [ 'olderEntries' => 'none' ] );
+
+		$this->assertStringContainsString( 'data-view="entry"', $html );
+		$this->assertStringContainsString( 'data-has-more="0"', $html );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-sentinel', $html );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-load-more', $html );
+	}
+
+	/**
 	 * Links that cannot open the feed at an entry leave the normal feed.
 	 *
 	 * @dataProvider unusable_shared_entries

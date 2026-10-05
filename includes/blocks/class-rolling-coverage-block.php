@@ -107,6 +107,13 @@ class Rolling_Coverage_Block {
 	const FEED_GAP_PROPERTY = '--newspack-rolling-coverage-gap';
 
 	/**
+	 * The custom property holding a grid Feed's column gap, set only when its
+	 * Block spacing gives the columns their own value; the block's stylesheet
+	 * falls back to FEED_GAP_PROPERTY.
+	 */
+	const FEED_COLUMN_GAP_PROPERTY = '--newspack-rolling-coverage-column-gap';
+
+	/**
 	 * Marks where the coverage's items go while the Feed group and the groups
 	 * wrapping it render.
 	 */
@@ -342,6 +349,24 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * How the feed loads entries older than its first page: 'scroll' as the
+	 * reader nears the end, 'button' when the reader asks, or 'none'. A
+	 * capped feed loads none.
+	 *
+	 * @param array $attributes Block attributes.
+	 * @return string
+	 */
+	private static function older_entries( array $attributes ): string {
+		if ( self::latest_count( $attributes ) ) {
+			return 'none';
+		}
+
+		$older_entries = $attributes['olderEntries'] ?? 'scroll';
+
+		return in_array( $older_entries, [ 'button', 'none' ], true ) ? $older_entries : 'scroll';
+	}
+
+	/**
 	 * A spacing value as CSS: a preset such as `var:preset|spacing|20`
 	 * becomes its custom property, as core writes it; anything else is kept.
 	 *
@@ -357,15 +382,37 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * A Block spacing value as the declaration setting the space between the
-	 * coverage's items, or an empty string when it's unset or not a valid gap.
+	 * A Block spacing value as the declarations setting the space between the
+	 * coverage's items, and between a grid's columns when they have their own
+	 * value, or an empty string when neither is set or valid. Each axis is
+	 * read on its own, so a column gap set without a row gap still applies.
 	 *
-	 * @param mixed $block_gap Block spacing value, a string or an array with a `top` value.
+	 * @param mixed $block_gap Block spacing value, a string or an array with `top` and `left` values.
 	 * @return string
 	 */
 	private static function feed_gap_declaration( $block_gap ): string {
-		$gap = wp_sanitize_block_gap_value( $block_gap );
-		$gap = is_array( $gap ) ? ( $gap['top'] ?? null ) : $gap;
+		$sanitized = wp_sanitize_block_gap_value( $block_gap );
+		$values    = [
+			self::FEED_GAP_PROPERTY        => self::gap_css_value( is_array( $sanitized ) ? ( $sanitized['top'] ?? null ) : $sanitized ),
+			self::FEED_COLUMN_GAP_PROPERTY => is_array( $sanitized ) ? self::gap_css_value( $sanitized['left'] ?? null ) : '',
+		];
+		$declarations = [];
+
+		foreach ( array_filter( $values ) as $property => $value ) {
+			$declarations[] = $property . ':' . $value;
+		}
+
+		return implode( ';', $declarations );
+	}
+
+	/**
+	 * One axis of a sanitized Block spacing value as CSS, or an empty string
+	 * when it's unset.
+	 *
+	 * @param mixed $gap The axis's value.
+	 * @return string
+	 */
+	private static function gap_css_value( $gap ): string {
 		$gap = is_string( $gap ) ? trim( explode( ';', $gap )[0] ) : '';
 
 		if ( '' === $gap ) {
@@ -373,7 +420,7 @@ class Rolling_Coverage_Block {
 		}
 
 		// The property is used in calc(), where a unitless 0 isn't a length.
-		return self::FEED_GAP_PROPERTY . ':' . ( '0' === $gap ? '0px' : self::spacing_css_value( $gap ) );
+		return '0' === $gap ? '0px' : self::spacing_css_value( $gap );
 	}
 
 	/**
@@ -1111,7 +1158,7 @@ class Rolling_Coverage_Block {
 			[
 				'orderby'        => 'date',
 				'order'          => 'DESC',
-				'posts_per_page' => $entries_per_page,
+				'posts_per_page' => $is_capped ? $entries_per_page : $entries_per_page + 1,
 			]
 		);
 
@@ -1131,8 +1178,8 @@ class Rolling_Coverage_Block {
 		self::store_entry_layout_styles( $template );
 		self::store_grid_placement_styles( $template, $feed_layout );
 
-		$posts        = $query->posts;
-		$has_more     = ! $is_capped && count( $posts ) === $entries_per_page;
+		$posts        = array_slice( $query->posts, 0, $entries_per_page );
+		$has_more     = count( $query->posts ) > $entries_per_page;
 		$linked_entry = $is_capped ? null : self::get_linked_entry( $coverage_id );
 		$shared_entry = self::get_shared_entry( $linked_entry, $posts );
 
@@ -1157,6 +1204,12 @@ class Rolling_Coverage_Block {
 
 			$posts    = array_merge( self::query_pinned_entries( $coverage_id ), $page['posts'] );
 			$has_more = $page['has_more'];
+		}
+
+		$older_entries = self::older_entries( $attributes );
+
+		if ( 'none' === $older_entries ) {
+			$has_more = false;
 		}
 
 		$entries_html   = '';
@@ -1269,16 +1322,17 @@ class Rolling_Coverage_Block {
 
 		try {
 			$items_html = sprintf(
-				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%7$s%6$s',
+				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%9$s%7$s%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
 				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout ),
 				$is_capped ? '' : self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
 				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
-				$is_capped ? '' : sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ),
+				'scroll' === $older_entries ? sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ) : '',
 				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout ),
 				// A capped feed can sit on every page, where announcing each new entry would be noise.
-				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX )
+				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX ),
+				'button' === $older_entries ? self::render_load_more_button() : ''
 			);
 
 			return sprintf(
@@ -1637,6 +1691,27 @@ class Rolling_Coverage_Block {
 		}
 
 		return $control->get_updated_html();
+	}
+
+	/**
+	 * The button that loads the next page of older entries, styled as the
+	 * theme styles buttons. It renders hidden, for the view script to show
+	 * while older entries remain, so a page without the script never shows a
+	 * button that does nothing.
+	 *
+	 * @return string Rendered HTML, or an empty string in a syndication feed.
+	 */
+	private static function render_load_more_button(): string {
+		if ( is_feed() ) {
+			return '';
+		}
+
+		return sprintf(
+			'<div class="%1$s-load-more" hidden><button type="button" class="wp-element-button wp-block-button__link">%2$s</button></div>',
+			self::MARKUP_PREFIX,
+			/* translators: Button that loads older entries at the end of a coverage's feed. */
+			esc_html__( 'Load More', 'newspack-rolling-coverage' )
+		);
 	}
 
 	/**
@@ -3829,7 +3904,9 @@ class Rolling_Coverage_Block {
 	/**
 	 * REST callback: returns the IDs (and post type) of up to `per_page` of a
 	 * coverage's current published entries, newest first, for the block
-	 * editor's per-entry template preview.
+	 * editor's per-entry template preview. `per_page` goes one past the
+	 * largest page, so the editor can ask for a page and one more entry to
+	 * tell whether more would load.
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
@@ -3846,7 +3923,7 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		$per_page    = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
+		$per_page    = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX + 1 );
 		$latest_only = rest_sanitize_boolean( $params['latest_only'] ?? false );
 
 		$query_args = [
@@ -4152,11 +4229,11 @@ class Rolling_Coverage_Block {
 		} else {
 			// Prevents duplicate pinned entries on frontend.
 			$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
-			$args['posts_per_page']                = $per_page;
+			$args['posts_per_page']                = $per_page + 1;
 
 			$query    = new WP_Query( $args );
-			$posts    = $query->posts;
-			$has_more = count( $posts ) === $per_page;
+			$posts    = array_slice( $query->posts, 0, $per_page );
+			$has_more = count( $query->posts ) > $per_page;
 		}
 
 		$html        = '';

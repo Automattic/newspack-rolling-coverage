@@ -1,6 +1,6 @@
 # Rolling Coverage block
 
-The Rolling Coverage block shows the entries of a coverage on any page or story. New entries arrive on the page while readers are looking at it, and older entries load as they scroll. Use it to run a live blog, a developing-story box, or a headline ticker.
+The Rolling Coverage block shows the entries of a coverage on any page or story. New entries arrive on the page while readers are looking at it, and readers can load older entries as they go. Use it to run a live blog, a developing-story box, or a headline ticker.
 
 ## Add the block
 
@@ -25,7 +25,7 @@ A layout is how the feed looks: spacing, colors, type, and which parts each entr
 | Margin | Each entry split into a margin and its content. |
 | Minute | Closer together, with each entry reduced to its content. |
 | Byline | Each entry signed by its author. |
-| Ticker | A strip with the coverage's status and name beside the three latest headlines, and a link to the coverage page. Wide width. Hides when the coverage ends. |
+| Ticker | A strip with the coverage's status and name beside the three latest headlines, and a link to the coverage page, with a thin rule between them. The Feed's Block spacing sets the space on either side of a rule. Wide width. Hides when the coverage ends. |
 | Split | The full feed at wide width, with the pinned entry's summary in a column beside the entries. |
 | Wire | A narrow list of the five latest entries, ending in a link to the coverage page. |
 | Digest | A bordered box with the coverage name, the three latest entries next to their times, and a link to the coverage page. |
@@ -34,6 +34,8 @@ A layout is how the feed looks: spacing, colors, type, and which parts each entr
 Ticker, Wire, Digest, and Flash show only the latest entries. They set Show to Latest and a matching Number of entries when you pick them. You can change either afterward.
 
 The first time someone who can publish picks a built-in layout, the site saves it as a shared layout. Every story using it then follows that one copy. A Contributor who picks one before that gets a copy for that story only. See [Edit, detach, and change a layout](#edit-detach-and-change-a-layout).
+
+You can also insert a layout from the inserter's Patterns tab, in the Rolling Coverage category. It becomes a Rolling Coverage block that uses that layout and asks for a coverage.
 
 ## Settings
 
@@ -59,10 +61,11 @@ Says whether the block uses the shared layout or its own detached copy.
 
 | Setting | What it does |
 | --- | --- |
-| Show | All shows every entry and loads more as readers scroll. Latest shows only the most recent entries. |
+| Show | All shows every entry, one page at a time. Latest shows only the most recent entries. |
+| Older entries | With Show set to All: what happens after the first page. Load on scroll (default) loads the next page as readers reach the end of the feed. Load More button shows a Load More button below the entries; each press adds a page, and the button goes away once every entry is shown. Don’t load shows the first page only. |
 | Number of entries | With Show set to Latest: how many entries to show, from 1 to 100. |
 | Link to all updates | With Show set to Latest, in layouts that have one (Ticker, Wire, Digest, Flash): Show or Hide the link to the coverage page. The link is hidden on the coverage page itself. |
-| Entries per page | With Show set to All: how many entries load first, and how many each scroll adds. From 1 to 100. Default 20. |
+| Entries per page | With Show set to All: how many entries show first, and how many each load of older entries adds. From 1 to 100. Default 20. |
 | Poll interval (seconds) | How often the page checks for new entries. Default 10. The site can set a longer minimum, which wins over a shorter value here. |
 
 ### Ended
@@ -105,11 +108,11 @@ The page checks for new entries every poll interval. It stops while the tab is i
 
 - If the reader is at the top, new entries appear at once.
 - If the reader has scrolled down, the page does not move. A "New Posts" button shows the count (for example "3 New Posts"). Selecting it brings the new entries in. Edited entries update in place.
-- Older entries load as the reader scrolls to the end.
+- Older entries load as the reader scrolls to the end, or with the Load More button, depending on Older entries. The button takes the theme's button style. If a load fails, the button stays so the reader can try again.
 - A paused or ended coverage does not check for new entries.
 - Times follow the site's time format.
 
-Feeds that show only the latest entries update in place without the button: the newest entry appears and the oldest drops off. They have no ads and no infinite scroll.
+Feeds that show only the latest entries update in place without the New Posts button: the newest entry appears and the oldest drops off. They have no ads and load no older entries.
 
 When a reader opens a link to one entry, the feed opens at that entry and shows a control that takes them to the live feed, with the number of newer posts when there are any.
 
@@ -118,6 +121,23 @@ When a reader opens a link to one entry, the feed opens at that entry and shows 
 An entry pinned in the coverage stays at the top of the feed with a "Pinned" label, whatever its date. Some layouts keep the pinned entry in view while the reader scrolls.
 
 Feeds set to Latest ignore pinning and show the newest entries only.
+
+### Photo, video, and other media entries
+
+An entry that holds only a photo, gallery, video, audio clip, or embed has no words of its own, so it is described by its media instead: Photo, Gallery, Video, Audio, or Embed. When the media has a caption, the caption follows, for example "Photo: Crowds at the finish line". A photo without a caption uses its alt text. A gallery without a caption uses the caption or alt text of its first image that has one.
+
+- Layouts that show a short excerpt of each entry, such as Wire, Digest, and Flash, show this description as the excerpt, under the entry's title when it has one.
+- Ticker, which gives an entry without a title a headline made of its first words, uses this description as the headline.
+
+An entry with any text of its own, or with an excerpt written for it, shows that text as usual.
+
+Entries posted from Slack follow the same rules:
+
+- A message with text shows its text as usual.
+- An image posted without text becomes a photo entry. The image's description in Slack becomes its alt text, so the entry reads "Photo: " followed by that description. Without a description, the entry reads only "Photo".
+- Several images become a gallery. Posted without text, the entry reads "Gallery: " followed by the first description among its images, or only "Gallery" when none has one.
+
+To give readers more than "Photo" or "Gallery", add a description to the image in Slack before you post it, or write a line of text with the images.
 
 ### Live blog markup
 
@@ -139,11 +159,11 @@ Built-in layouts are saved as patterns, so editing one changes it for good. To g
 
 ## Make a custom layout
 
-A custom layout is a synced pattern in the Rolling Coverage pattern category whose top-level block is a Rolling Coverage block. Published patterns in that category appear in "Choose a layout" after the built-in layouts, sorted by title. The picker reads up to 100 patterns from the category, built-in ones included.
+A custom layout is a synced pattern in the Rolling Coverage pattern category whose only top-level block is a Rolling Coverage block. Published patterns in that category appear in "Choose a layout" after the built-in layouts, sorted by title. The picker reads up to 100 patterns from the category, built-in ones included.
 
 The Rolling Coverage category appears once someone picks a built-in layout in a story. If it isn't there yet, pick a layout in any story first, then open the pattern editor. If you create the Rolling Coverage category yourself instead, save the pattern and reload the editor before you add the Rolling Coverage block.
 
-Set the category before you add the Rolling Coverage block. With the category set, the block opens as an editable layout with sample entries, starting from Bulletin. Without it, the block asks for a coverage instead. Don't pick a coverage inside a pattern: the block then edits like a story's feed, with that coverage's entries, instead of as a layout.
+Set the category before you add the Rolling Coverage block. With the category set, the block opens as an editable layout with sample entries, starting from Bulletin. Without it, the block asks for a coverage instead. Don't pick a coverage inside a pattern, and don't add other blocks beside the Rolling Coverage block: the pattern then no longer counts as a layout.
 
 ### Block themes
 

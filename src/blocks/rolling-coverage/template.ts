@@ -28,6 +28,12 @@ const LOCKED_IN_PLACE = { remove: true, move: true };
 const FEED_CLASS = 'newspack-rolling-coverage-feed';
 
 /**
+ * Class of a Feed group drawing a rule centered in every gap between its
+ * items, doubling its Block spacing to make room (see style.scss).
+ */
+const RULED_FEED_CLASS = 'newspack-rolling-coverage-ruled';
+
+/**
  * The pin icon registered by Block_Icons::PIN.
  */
 const PIN_ICON = 'newspack-rolling-coverage/pin-small';
@@ -1503,7 +1509,7 @@ function tickerHeader( sizes: string[] ): TemplateItem {
 
 /**
  * The Ticker layout's footer: the link to the coverage page across the
- * grid's full width, ruled off from the entries.
+ * grid's full width.
  *
  * @return {TemplateItem} The paragraph.
  */
@@ -1513,31 +1519,14 @@ function tickerFooter(): TemplateItem {
 			layout: { columnSpan: TICKER_COLUMNS },
 			'@tablet': { layout: { columnSpan: TICKER_TABLET_COLUMNS } },
 			'@mobile': { layout: { columnSpan: TICKER_MOBILE_COLUMNS } },
-			border: {
-				top: { color: BORDER_COLOR, width: '1px', style: 'solid' },
-			},
-			spacing: { padding: { top: 'var:preset|spacing|40' } },
 		},
 	} );
 }
 
 /**
- * A Ticker entry's rule on tablets and phones, where the entries stack or
- * share a row below the header: above the entry rather than beside it.
- */
-const TICKER_STACKED_ENTRY_STYLE = {
-	border: {
-		left: { style: 'none' },
-		top: { color: BORDER_COLOR, width: '1px', style: 'solid' },
-	},
-	spacing: { padding: { left: '0', top: 'var:preset|spacing|40' } },
-};
-
-/**
  * The Ticker layout's per-entry template: the relative time over the
- * headline, which links to the entry, ruled off beside the cell before it
- * down the row's full height, or above it on tablets and phones. An entry without a
- * title shows its opening words as the headline (see
+ * headline, which links to the entry. An entry without a title shows its
+ * opening words as the headline (see
  * Entry_Bindings::untitled_fallback_title()). The pinned card matches the
  * regular entry, since a capped feed ignores pinning.
  *
@@ -1555,22 +1544,7 @@ function tickerEntryTemplate( slugs: string[] ): TemplateItem[] {
 				orientation: 'vertical',
 				justifyContent: 'stretch',
 			},
-			style: {
-				border: {
-					left: {
-						color: BORDER_COLOR,
-						width: '1px',
-						style: 'solid',
-					},
-				},
-				spacing: {
-					blockGap: '0',
-					padding: { left: 'var:preset|spacing|40' },
-				},
-				dimensions: { minHeight: '100%' },
-				'@tablet': TICKER_STACKED_ENTRY_STYLE,
-				'@mobile': TICKER_STACKED_ENTRY_STYLE,
-			},
+			style: { spacing: { blockGap: '0' } },
 			metadata: { name },
 		},
 		[
@@ -2454,7 +2428,9 @@ function feedTemplate(
 		'core/group',
 		{
 			...attributes,
-			className: FEED_CLASS,
+			className: [ FEED_CLASS, attributes.className ]
+				.filter( Boolean )
+				.join( ' ' ),
 			lock: LOCKED_IN_PLACE,
 			layout,
 			style: {
@@ -3325,6 +3301,7 @@ export {
 	tickerFooter,
 	TICKER_FEED_LAYOUT,
 	TICKER_FEED_STYLE,
+	RULED_FEED_CLASS,
 	splitEntryTemplate,
 	entryPreviewPlacement,
 	withColumnRule,

@@ -29,6 +29,7 @@ import {
 	tickerFooter,
 	TICKER_FEED_LAYOUT,
 	TICKER_FEED_STYLE,
+	RULED_FEED_CLASS,
 	splitEntryTemplate,
 	SPLIT_FEED_LAYOUT,
 	SPLIT_FEED_STYLE,
@@ -231,7 +232,7 @@ export function bylineInnerTemplate(): TemplateItem[] {
 /**
  * The Ticker layout's inner-blocks template: the coverage's status and name
  * beside the three latest entries' headlines, then a link to the coverage
- * page, with no buttons.
+ * page, with no buttons and a rule in every gap between them.
  *
  * @return {TemplateItem[]} The template.
  */
@@ -245,7 +246,8 @@ export function tickerInnerTemplate(): TemplateItem[] {
 			],
 			'var:preset|spacing|40',
 			TICKER_FEED_STYLE,
-			TICKER_FEED_LAYOUT
+			TICKER_FEED_LAYOUT,
+			{ className: RULED_FEED_CLASS }
 		),
 	];
 }
@@ -402,14 +404,14 @@ function withoutBylines(
  * @param {Object[]}       allBlocks      The layout's top-level blocks.
  * @param {EntryContext[]} entryContexts  The entries being previewed.
  * @param {number}         entriesPerPage Entries loaded per page.
- * @param {boolean}        isCapped       Whether the feed shows only its latest entries, so the last one previewed is the last.
+ * @param {boolean}        isLastPage     Whether no more entries load after those previewed, as in a capped feed.
  * @return {Object} The header, footer and per-entry template blocks, and a getter for one entry's preview blocks.
  */
 export function useLayoutPreview(
 	allBlocks: TemplateBlocks,
 	entryContexts: EntryContext[],
 	entriesPerPage: number,
-	isCapped = false
+	isLastPage = false
 ): {
 	headerBlocks: TemplateBlocks;
 	footerBlocks: TemplateBlocks;
@@ -481,7 +483,7 @@ export function useLayoutPreview(
 	// The last entry drops its separator once no more entries would load
 	// (see Rolling_Coverage_Block::shape_entry_template()).
 	const lastContext =
-		isCapped || entryContexts.length < entriesPerPage
+		isLastPage || entryContexts.length < entriesPerPage
 			? entryContexts.at( -1 )
 			: undefined;
 	const lastPreviewBlocks = useMemo( () => {
