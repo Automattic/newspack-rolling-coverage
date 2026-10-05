@@ -623,6 +623,9 @@ export default function Edit( {
 	const [ latestCountInput, setLatestCountInput ] = useState< string | null >(
 		null
 	);
+	const [ entriesPerPageInput, setEntriesPerPageInput ] = useState<
+		string | null
+	>( null );
 	const registry = useRegistry();
 	const isSynced = layoutId > 0 && ! isNested;
 	const defaultTemplate = useMemo( innerTemplate, [] );
@@ -1718,16 +1721,22 @@ export default function Edit( {
 											'newspack-rolling-coverage'
 										)
 							}
-							value={ String( entriesPerPage ) }
+							value={
+								entriesPerPageInput ?? String( entriesPerPage )
+							}
 							min={ 1 }
 							max={ 100 }
-							onChange={ ( value: string ) =>
-								setAttributes( {
-									entriesPerPage: clampEntriesPerPage(
-										parseInt( value, 10 )
-									),
-								} )
-							}
+							onChange={ ( value: string ) => {
+								setEntriesPerPageInput( value );
+								const parsed = parseInt( value, 10 );
+								if ( ! Number.isNaN( parsed ) ) {
+									setAttributes( {
+										entriesPerPage:
+											clampEntriesPerPage( parsed ),
+									} );
+								}
+							} }
+							onBlur={ () => setEntriesPerPageInput( null ) }
 						/>
 					</>
 				) }
