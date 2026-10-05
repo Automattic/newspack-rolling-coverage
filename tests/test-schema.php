@@ -8,6 +8,7 @@
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Schema;
+use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
  * A page with a coverage should describe itself as one live blog with one
@@ -365,6 +366,102 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 		$scripts = $this->render_scripts( $both_id );
 		$this->assertCount( 1, $scripts );
 		$this->assertSame( 'LiveBlogPosting', $scripts[0]['@type'] );
+	}
+
+	/**
+	 * The metadata is cached in the object cache, never as a database
+	 * transient. Its key carries the `terms`/`users` cache salts, which are
+	 * per-request when no persistent object cache is installed; a transient
+	 * would then write a new wp_options row on every page view.
+	 */
+	public function test_the_metadata_is_not_cached_as_a_database_transient() {
+		global $wpdb;
+
+		$coverage_id = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		$this->create_dated_entry( $coverage_id, '2026-09-02 10:00:00' );
+
+		$this->render_scripts( $host_id );
+
+		$transient_rows = (int) $wpdb->get_var(
+			"SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE '_transient_nrc_%' OR option_name LIKE '_transient_timeout_nrc_%'"
+		);
+
+		$this->assertSame( 0, $transient_rows, 'The schema metadata must not be stored as a database transient.' );
+	}
+
+	/**
+	 * The cached metadata is keyed off changes the coverage's own last-modified
+	 * meta never records. Renaming the coverage changes the headline it emits.
+	 */
+	public function test_renaming_the_coverage_refreshes_the_cached_headline() {
+		$coverage_id = self::create_coverage( '', [ 'name' => 'Original Name' ] );
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		$this->create_dated_entry( $coverage_id, '2026-09-02 10:00:00' );
+
+		$this->assertSame( 'Original Name', $this->render_scripts( $host_id )[0]['headline'] );
+
+		// A rename bumps term last_changed but not the coverage's last-modified meta.
+		wp_update_term( $coverage_id, Taxonomy::TAXONOMY_SLUG, [ 'name' => 'Renamed Coverage' ] );
+
+		$this->assertSame( 'Renamed Coverage', $this->render_scripts( $host_id )[0]['headline'] );
+	}
+
+	/**
+	 * Moving a published entry out of the coverage changes which entries the
+	 * liveBlogUpdate lists, without moving the coverage's last-modified meta.
+	 *
+	 * The moved entry is deliberately not the newest one: moving the newest
+	 * would also move the "latest entry date" in the key and mask whether the
+	 * term-relationship change invalidated the cache on its own.
+	 */
+	public function test_moving_an_entry_out_of_the_coverage_refreshes_the_cached_updates() {
+		$coverage_id = self::create_coverage();
+		$other_id    = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+
+		$newest_id = $this->create_dated_entry( $coverage_id, '2026-09-03 10:00:00' );
+		$older_id  = $this->create_dated_entry( $coverage_id, '2026-09-02 10:00:00' );
+
+		$urls_before = array_column( $this->render_scripts( $host_id )[0]['liveBlogUpdate'], 'url' );
+		$this->assertCount( 2, $urls_before );
+
+		// A term-relationship change bumps terms last_changed.
+		wp_set_object_terms( $older_id, [ $other_id ], Taxonomy::TAXONOMY_SLUG );
+
+		$updates_after = $this->render_scripts( $host_id )[0]['liveBlogUpdate'];
+		$this->assertCount( 1, $updates_after );
+		$this->assertStringContainsString( 'entry-' . $newest_id, $updates_after[0]['url'] );
+		$this->assertStringNotContainsString( 'entry-' . $older_id, $updates_after[0]['url'] );
+	}
+
+	/**
+	 * Renaming an entry's author changes the author emitted in the schema,
+	 * which bumps the users cache salt but no post or term cache.
+	 */
+	public function test_renaming_an_author_refreshes_the_cached_author() {
+		$author_id = self::factory()->user->create(
+			[
+				'display_name' => 'Original Author',
+				'role'         => 'author',
+			]
+		);
+
+		$coverage_id = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		$this->create_dated_entry( $coverage_id, '2026-09-02 10:00:00', 'publish', $author_id );
+
+		$this->assertSame( 'Original Author', $this->render_scripts( $host_id )[0]['liveBlogUpdate'][0]['author']['name'] );
+
+		// A user rename bumps users last_changed but no post or term cache.
+		wp_update_user(
+			[
+				'ID'           => $author_id,
+				'display_name' => 'Renamed Author',
+			]
+		);
+
+		$this->assertSame( 'Renamed Author', $this->render_scripts( $host_id )[0]['liveBlogUpdate'][0]['author']['name'] );
 	}
 
 	/**

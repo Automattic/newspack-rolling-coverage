@@ -37,6 +37,12 @@ class Schema {
 	const BLOCK_NAME = 'newspack-rolling-coverage/rolling-coverage';
 
 	/**
+	 * Object cache group for the built LiveBlogPosting metadata. The key carries the
+	 * per-request `terms`/`users` salts, so it must never be a database transient.
+	 */
+	const CACHE_GROUP = 'newspack_rolling_coverage_schema';
+
+	/**
 	 * Coverage merged into Yoast's Article, by host post ID, so print_schema()
 	 * doesn't describe it a second time.
 	 *
@@ -507,9 +513,14 @@ class Schema {
 		// going live changes what the page shows without moving the coverage's
 		// last-modified meta.
 		$latest_entry_date = self::get_latest_entry_date( $coverage_id );
-		$cache_key         = 'nrc_' . $coverage_id . '_' . md5( $post->ID . '|' . $post->post_modified_gmt . '|' . $entries_per_page . '|' . $status . '|' . $last_modified . '|' . $end_time . '|' . ( null === $latest_entry_date ? '' : $latest_entry_date->getTimestamp() ) );
 
-		$cached_metadata = get_transient( $cache_key );
+		// The `terms`/`users` salts invalidate the key on rename, entry move and
+		// author rename; all other inputs are persisted, so the key stays stable.
+		$cache_key = 'nrc_' . $coverage_id . '_' . md5(
+			$post->ID . '|' . $post->post_modified_gmt . '|' . $entries_per_page . '|' . $status . '|' . $last_modified . '|' . $end_time . '|' . ( null === $latest_entry_date ? '' : $latest_entry_date->getTimestamp() ) . '|' . wp_cache_get_last_changed( 'terms' ) . '|' . wp_cache_get_last_changed( 'users' )
+		);
+
+		$cached_metadata = wp_cache_get( $cache_key, self::CACHE_GROUP );
 		if ( false !== $cached_metadata ) {
 			return $cached_metadata;
 		}
@@ -559,7 +570,9 @@ class Schema {
 		 */
 		$metadata = apply_filters( 'newspack_rolling_coverage_schema_metadata', $metadata, $coverage_id, $post );
 
-		set_transient( $cache_key, $metadata, WEEK_IN_SECONDS );
+		// A week's TTL bounds how long a stale entry can be served if a cache
+		// salt somehow fails to move; the versioned key is the usual path.
+		wp_cache_set( $cache_key, $metadata, self::CACHE_GROUP, WEEK_IN_SECONDS );
 
 		return $metadata;
 	}
