@@ -85,15 +85,17 @@ const LABEL_FIELDS: Record< string, string > = {
  * block it follows on this page, or of the one it sits in, or a sample where
  * the page or coverage isn't known.
  *
- * @param {Object}   props                            Block props.
- * @param {string}   props.clientId                   Block client ID.
- * @param {Object}   props.attributes                 Block attributes.
- * @param {Function} props.setAttributes              Attribute setter.
- * @param {Object}   props.context                    Block context.
- * @param {string}   props.__unstableLayoutClassNames The flex layout's classes,
- *                                                    which the editor only applies
- *                                                    itself to blocks with inner
- *                                                    blocks.
+ * @param {Object}          props                            Block props.
+ * @param {string}          props.clientId                   Block client ID.
+ * @param {Object}          props.attributes                 Block attributes.
+ * @param {Function}        props.setAttributes              Attribute setter.
+ * @param {Object}          props.context                    Block context.
+ * @param {string|string[]} props.__unstableLayoutClassNames Layout classes for the
+ *                                                           wrapper, so the editor
+ *                                                           shows the gap the site
+ *                                                           renders. This block has
+ *                                                           no inner blocks to carry
+ *                                                           them.
  */
 export default function Edit( {
 	clientId,
@@ -106,7 +108,7 @@ export default function Edit( {
 	attributes: CoverageStatusAttributes;
 	setAttributes: ( attrs: Partial< CoverageStatusAttributes > ) => void;
 	context?: Record< string, unknown >;
-	__unstableLayoutClassNames?: string;
+	__unstableLayoutClassNames?: string | string[];
 } ) {
 	const {
 		coverageId,
