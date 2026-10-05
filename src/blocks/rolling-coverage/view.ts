@@ -70,6 +70,10 @@ let entriesCredentials: RequestCredentials = isConfigEnabled(
 	? 'same-origin'
 	: 'omit';
 
+// Each running feed's cleanup(), by its outer wrapper element, so the page can
+// stop a feed that leaves it.
+const feedStops = new WeakMap< HTMLElement, () => void >();
+
 /**
  * cssEscape polyfill for older browsers.
  */
@@ -205,6 +209,24 @@ function ownElement(
 	within: HTMLElement = block
 ): HTMLElement | null {
 	return ownElements( block, selector, within )[ 0 ] ?? null;
+}
+
+/**
+ * The feeds in a node, the node itself included, in document order.
+ *
+ * @param {Node} node Node to look in.
+ * @return {HTMLElement[]} The feeds' outer wrapper elements.
+ */
+function feedsIn( node: Node ): HTMLElement[] {
+	if ( ! ( node instanceof HTMLElement ) ) {
+		return [];
+	}
+
+	const feeds = Array.from(
+		node.querySelectorAll< HTMLElement >( BLOCK_SELECTOR )
+	);
+
+	return node.matches( BLOCK_SELECTOR ) ? [ node, ...feeds ] : feeds;
 }
 
 /**
@@ -780,8 +802,11 @@ function initBlock( root: HTMLElement ): void {
 		entrySeenObserver?.disconnect();
 		cleanupFns.forEach( ( fn ) => fn() );
 		cleanupFns.length = 0;
+		feedStops.delete( root );
 		delete root.dataset.rcInitialized;
 	}
+
+	feedStops.set( root, cleanup );
 
 	/**
 	 * Where the page scrolls to show the top of the block.
@@ -2299,3 +2324,29 @@ function initBlock( root: HTMLElement ): void {
 }
 
 document.querySelectorAll< HTMLElement >( BLOCK_SELECTOR ).forEach( initBlock );
+
+// Feeds can sit in an entry's content, so they also reach the page after load,
+// in entries a poll, load more or the jump to the live feed brings in, and
+// leave it in entries those replace or drop, or with a feed that hides once its
+// coverage ends. A feed runs only while it's in the page: one that arrives
+// starts, and one that leaves stops. Records arrive once the changes are done,
+// so what counts is where each feed ended up: one moved within the page keeps
+// running.
+new MutationObserver( ( records ) => {
+	records.forEach( ( { addedNodes, removedNodes } ) => {
+		removedNodes.forEach( ( node ) =>
+			feedsIn( node ).forEach( ( feed ) => {
+				if ( ! feed.isConnected ) {
+					feedStops.get( feed )?.();
+				}
+			} )
+		);
+		addedNodes.forEach( ( node ) =>
+			feedsIn( node ).forEach( ( feed ) => {
+				if ( feed.isConnected ) {
+					initBlock( feed );
+				}
+			} )
+		);
+	} );
+} ).observe( document.body, { childList: true, subtree: true } );
