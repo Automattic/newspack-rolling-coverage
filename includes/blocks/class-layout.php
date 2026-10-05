@@ -414,25 +414,27 @@ class Layout {
 	}
 
 	/**
-	 * The title a built-in layout's pattern is created with.
+	 * The title a built-in layout's pattern is created with: the layout's name
+	 * as getBuiltInLayouts() in layouts.ts spells it, without the block's title,
+	 * which would rank the patterns above the block in inserter search.
 	 *
 	 * @param string $slug Built-in layout slug.
 	 * @return string
 	 */
 	private static function get_title( string $slug ): string {
 		return match ( $slug ) {
-			'stream' => _x( 'Stream', 'layout name', 'newspack-rolling-coverage' ),
-			'rail'   => _x( 'Rail', 'layout name', 'newspack-rolling-coverage' ),
-			'clock'  => _x( 'Clock', 'layout name', 'newspack-rolling-coverage' ),
-			'margin' => _x( 'Margin', 'layout name', 'newspack-rolling-coverage' ),
-			'minute' => _x( 'Minute', 'layout name', 'newspack-rolling-coverage' ),
-			'byline' => _x( 'Byline', 'layout name', 'newspack-rolling-coverage' ),
-			'ticker' => _x( 'Ticker', 'layout name', 'newspack-rolling-coverage' ),
-			'split'  => _x( 'Split', 'layout name', 'newspack-rolling-coverage' ),
-			'wire'   => _x( 'Wire', 'layout name', 'newspack-rolling-coverage' ),
-			'digest' => _x( 'Digest', 'layout name', 'newspack-rolling-coverage' ),
-			'flash'  => _x( 'Flash', 'layout name', 'newspack-rolling-coverage' ),
-			default  => _x( 'Bulletin', 'layout name', 'newspack-rolling-coverage' ),
+			'default' => _x( 'Bulletin', 'layout name', 'newspack-rolling-coverage' ),
+			'stream'  => _x( 'Stream', 'layout name', 'newspack-rolling-coverage' ),
+			'rail'    => _x( 'Rail', 'layout name', 'newspack-rolling-coverage' ),
+			'clock'   => _x( 'Clock', 'layout name', 'newspack-rolling-coverage' ),
+			'margin'  => _x( 'Margin', 'layout name', 'newspack-rolling-coverage' ),
+			'minute'  => _x( 'Minute', 'layout name', 'newspack-rolling-coverage' ),
+			'byline'  => _x( 'Byline', 'layout name', 'newspack-rolling-coverage' ),
+			'ticker'  => _x( 'Ticker', 'layout name', 'newspack-rolling-coverage' ),
+			'split'   => _x( 'Split', 'layout name', 'newspack-rolling-coverage' ),
+			'wire'    => _x( 'Wire', 'layout name', 'newspack-rolling-coverage' ),
+			'digest'  => _x( 'Digest', 'layout name', 'newspack-rolling-coverage' ),
+			'flash'   => _x( 'Flash', 'layout name', 'newspack-rolling-coverage' ),
 		};
 	}
 
