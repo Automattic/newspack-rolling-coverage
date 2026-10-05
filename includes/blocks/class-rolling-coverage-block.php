@@ -54,6 +54,9 @@ class Rolling_Coverage_Block {
 	// CSS class/ID prefix for the block's front-end markup.
 	const MARKUP_PREFIX = 'newspack-rolling-coverage';
 
+	// Attribute the view script looks for on the control's link to the live feed.
+	const LATEST_ATTRIBUTE = 'data-rc-latest';
+
 	// Word count cap for an archived entry's collapsed-content summary; CSS clips it to one line regardless.
 	const ARCHIVED_ENTRY_SUMMARY_WORD_CAP = 50;
 
@@ -105,6 +108,13 @@ class Rolling_Coverage_Block {
 	 * is in the block's stylesheet.
 	 */
 	const FEED_GAP_PROPERTY = '--newspack-rolling-coverage-gap';
+
+	/**
+	 * The custom property holding a grid Feed's column gap, set only when its
+	 * Block spacing gives the columns their own value; the block's stylesheet
+	 * falls back to FEED_GAP_PROPERTY.
+	 */
+	const FEED_COLUMN_GAP_PROPERTY = '--newspack-rolling-coverage-column-gap';
 
 	/**
 	 * Marks where the coverage's items go while the Feed group and the groups
@@ -375,15 +385,37 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * A Block spacing value as the declaration setting the space between the
-	 * coverage's items, or an empty string when it's unset or not a valid gap.
+	 * A Block spacing value as the declarations setting the space between the
+	 * coverage's items, and between a grid's columns when they have their own
+	 * value, or an empty string when neither is set or valid. Each axis is
+	 * read on its own, so a column gap set without a row gap still applies.
 	 *
-	 * @param mixed $block_gap Block spacing value, a string or an array with a `top` value.
+	 * @param mixed $block_gap Block spacing value, a string or an array with `top` and `left` values.
 	 * @return string
 	 */
 	private static function feed_gap_declaration( $block_gap ): string {
-		$gap = wp_sanitize_block_gap_value( $block_gap );
-		$gap = is_array( $gap ) ? ( $gap['top'] ?? null ) : $gap;
+		$sanitized = wp_sanitize_block_gap_value( $block_gap );
+		$values    = [
+			self::FEED_GAP_PROPERTY        => self::gap_css_value( is_array( $sanitized ) ? ( $sanitized['top'] ?? null ) : $sanitized ),
+			self::FEED_COLUMN_GAP_PROPERTY => is_array( $sanitized ) ? self::gap_css_value( $sanitized['left'] ?? null ) : '',
+		];
+		$declarations = [];
+
+		foreach ( array_filter( $values ) as $property => $value ) {
+			$declarations[] = $property . ':' . $value;
+		}
+
+		return implode( ';', $declarations );
+	}
+
+	/**
+	 * One axis of a sanitized Block spacing value as CSS, or an empty string
+	 * when it's unset.
+	 *
+	 * @param mixed $gap The axis's value.
+	 * @return string
+	 */
+	private static function gap_css_value( $gap ): string {
 		$gap = is_string( $gap ) ? trim( explode( ';', $gap )[0] ) : '';
 
 		if ( '' === $gap ) {
@@ -391,7 +423,7 @@ class Rolling_Coverage_Block {
 		}
 
 		// The property is used in calc(), where a unitless 0 isn't a length.
-		return self::FEED_GAP_PROPERTY . ':' . ( '0' === $gap ? '0px' : self::spacing_css_value( $gap ) );
+		return '0' === $gap ? '0px' : self::spacing_css_value( $gap );
 	}
 
 	/**
@@ -452,8 +484,7 @@ class Rolling_Coverage_Block {
 	 * The layout's items split by where they render: the coverage-level
 	 * items before the first per-entry item render above the entries, the
 	 * per-entry items make the entry template, and the coverage-level items
-	 * after it render below the entries. "Jump to Latest" renders in its own
-	 * place, so it's in neither list.
+	 * after it render below the entries.
 	 *
 	 * @param WP_Block $block The Rolling Coverage block instance.
 	 * @return array{header: array[], template: array[], footer: array[]} Parsed blocks.
@@ -472,7 +503,7 @@ class Rolling_Coverage_Block {
 
 			if ( ! Entry_Bindings::is_coverage_item( $item ) ) {
 				$parts['template'][] = $item;
-			} elseif ( ! Entry_Bindings::is_latest_buttons( $item ) ) {
+			} else {
 				$parts[ $parts['template'] ? 'footer' : 'header' ][] = $item;
 			}
 		}
@@ -1056,8 +1087,8 @@ class Rolling_Coverage_Block {
 		$previous_post_id   = self::$host_post_id;
 		self::$host_post_id = (int) get_the_ID();
 
-		// Preload so polled entries' blocks, including the photos Slack messages add, are styled and share even if none appeared on initial render.
-		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon', 'core/image', 'core/gallery' ] as $entry_block_name ) {
+		// Preload so polled entries' blocks are styled and work even if none appeared on initial render. Those include the photos Slack messages add, and Follow and Status blocks placed in an entry or in a feed nested in one.
+		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon', 'core/image', 'core/gallery', Coverage_Status_Block::BLOCK_NAME ] as $entry_block_name ) {
 			$entry_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $entry_block_name );
 
 			foreach ( $entry_block_type ? $entry_block_type->style_handles : [] as $style_handle ) {
@@ -1067,10 +1098,17 @@ class Rolling_Coverage_Block {
 
 		self::enqueue_template_block_styles( ! empty( $block->parsed_block['innerBlocks'] ) ? $block->parsed_block['innerBlocks'] : self::default_entry_template() );
 
-		$share_link_block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/share' );
+		$scripted_block_names = [ 'newspack-rolling-coverage/share', Coverage_Status_Block::BLOCK_NAME ];
 
-		if ( $share_link_block_type ) {
-			foreach ( $share_link_block_type->view_script_handles as $script_handle ) {
+		// Follow renders nothing until OneSignal is set up.
+		if ( Push_Notifications::is_onesignal_configured() ) {
+			$scripted_block_names[] = Coverage_Follow_Block::BLOCK_NAME;
+		}
+
+		foreach ( $scripted_block_names as $scripted_block_name ) {
+			$scripted_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $scripted_block_name );
+
+			foreach ( $scripted_block_type ? $scripted_block_type->view_script_handles : [] as $script_handle ) {
 				wp_enqueue_script( $script_handle );
 			}
 		}
@@ -1312,7 +1350,7 @@ class Rolling_Coverage_Block {
 				self::MARKUP_PREFIX,
 				$entries_html,
 				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout ),
-				$is_capped ? '' : self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
+				$is_capped ? '' : self::render_new_entries_control( (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
 				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
 				'scroll' === $older_entries ? sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ) : '',
 				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout ),
@@ -1615,10 +1653,9 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The control fixed above the feed: the layout's "Jump to Latest" button,
-	 * or the default one when the layout has none, or has one that cannot
-	 * link to the live feed (its label emptied, or its element switched to a
-	 * button). It links to the live feed, so it works without the view
+	 * The control fixed above the feed: a button, styled as the theme styles
+	 * buttons, labeled with the site's "Jump to Latest" text (see
+	 * Latest_Label). It links to the live feed, so it works without the view
 	 * script, and its wrapper carries that URL for the script. In the normal
 	 * view it is hidden until the view script reveals it when new entries
 	 * wait; when the feed opens at a shared entry it shows, reading how many
@@ -1626,37 +1663,24 @@ class Rolling_Coverage_Block {
 	 * block inside an entry's content: a control fixed to the viewport
 	 * belongs to the page's own feed.
 	 *
-	 * @param WP_Block $block          The parent rolling-coverage block instance.
-	 * @param bool     $is_shared_view Whether the feed opens at a shared entry.
-	 * @param int      $newer_count    How many entries are newer than the shared entry.
+	 * @param bool $is_shared_view Whether the feed opens at a shared entry.
+	 * @param int  $newer_count    How many entries are newer than the shared entry.
 	 * @return string Control HTML.
 	 */
-	private static function render_new_entries_control( WP_Block $block, bool $is_shared_view, int $newer_count = 0 ): string {
+	private static function render_new_entries_control( bool $is_shared_view, int $newer_count = 0 ): string {
 		if ( is_feed() || self::is_rendering_entry() ) {
 			return '';
 		}
 
-		$html = '';
-
-		foreach ( self::layout_items( $block ) as $inner ) {
-			if ( Entry_Bindings::is_latest_buttons( $inner ) ) {
-				$html = render_block( $inner );
-				break;
-			}
-		}
-
-		if ( ! self::has_latest_link( $html ) ) {
-			$html = render_block( self::default_latest_buttons_block() );
-		}
-
-		$control = new WP_HTML_Tag_Processor( $html );
+		$own_label = Latest_Label::get();
+		$live_url  = self::live_feed_url();
+		$control   = new WP_HTML_Tag_Processor( render_block( self::latest_buttons_block( $own_label, $live_url ) ) );
 
 		if ( ! $control->next_tag( [ 'class_name' => 'wp-block-buttons' ] ) ) {
 			return '';
 		}
 
-		$control->add_class( self::MARKUP_PREFIX . '-new-entries' );
-		$control->set_attribute( 'data-live-url', esc_url_raw( self::live_feed_url() ) );
+		$control->set_attribute( 'data-live-url', esc_url_raw( $live_url ) );
 
 		if ( ! $is_shared_view ) {
 			$control->set_attribute( 'hidden', true );
@@ -1668,19 +1692,16 @@ class Rolling_Coverage_Block {
 
 		$label = self::newer_posts_label( $newer_count );
 
-		$own_label = '' !== $label ? self::plain_latest_label( $html ) : null;
+		// The replaced label is kept on the link, for when the view script can no longer count.
+		if ( '' !== $label && $control->next_tag( 'a' ) ) {
+			$control->set_bookmark( 'link' );
 
-		// A label holding markup is left for the view script, which reads the same count.
-		// A replaced label is kept on the link, for when the script can no longer count.
-		if ( null !== $own_label ) {
-			while ( $control->next_tag( 'a' ) ) {
-				if ( null !== $control->get_attribute( Entry_Bindings::LATEST_ATTRIBUTE ) ) {
-					$control->set_attribute( 'data-label', $own_label );
-					$control->next_token();
-					$control->set_modifiable_text( $label );
-					break;
-				}
+			if ( $control->next_token() && '#text' === $control->get_token_type() && $control->set_modifiable_text( $label ) ) {
+				$control->seek( 'link' );
+				$control->set_attribute( 'data-label', $own_label );
 			}
+
+			$control->release_bookmark( 'link' );
 		}
 
 		return $control->get_updated_html();
@@ -1708,110 +1729,28 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The text of the link to the live feed in rendered HTML, when the link
-	 * holds text alone, so its label can be replaced without losing markup.
+	 * The "Jump to Latest" control as a parsed Buttons block holding one
+	 * button: a link to the live feed with the theme's Elevation 1 shadow,
+	 * marked for the view script, and otherwise styled as the theme styles
+	 * buttons.
 	 *
-	 * @param string $html Rendered HTML.
-	 * @return string|null The text, or null when the link holds anything else.
-	 */
-	private static function plain_latest_label( string $html ): ?string {
-		$tags = new WP_HTML_Tag_Processor( $html );
-
-		while ( $tags->next_tag( 'a' ) ) {
-			if ( null === $tags->get_attribute( Entry_Bindings::LATEST_ATTRIBUTE ) ) {
-				continue;
-			}
-
-			if ( ! $tags->next_token() || '#text' !== $tags->get_token_name() ) {
-				return null;
-			}
-
-			$text = $tags->get_modifiable_text();
-
-			return $tags->next_token() && 'A' === $tags->get_token_name() && $tags->is_tag_closer() ? $text : null;
-		}
-
-		return null;
-	}
-
-	/**
-	 * Whether rendered HTML holds the link to the live feed, marked for the
-	 * view script (see Entry_Bindings::filter_button()).
-	 *
-	 * @param string $html Rendered HTML.
-	 * @return bool
-	 */
-	private static function has_latest_link( string $html ): bool {
-		$tags = new WP_HTML_Tag_Processor( $html );
-
-		while ( $tags->next_tag( 'a' ) ) {
-			if ( null !== $tags->get_attribute( Entry_Bindings::LATEST_ATTRIBUTE ) && $tags->get_attribute( 'href' ) ) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	/**
-	 * The default "Jump to Latest" button's colors, as palette slugs: the
-	 * theme's Contrast and Base where its palette has both, as block themes
-	 * do; otherwise Dark Gray and White where it has both, as the Newspack
-	 * Theme does; otherwise Contrast and Base. The editor picks the same way
-	 * (see latestColors() in template.ts).
-	 *
-	 * @return array{background: string, text: string}
-	 */
-	private static function latest_button_colors(): array {
-		$slugs = [];
-
-		foreach ( (array) wp_get_global_settings( [ 'color', 'palette' ] ) as $palette ) {
-			$slugs = array_merge( $slugs, wp_list_pluck( (array) $palette, 'slug' ) );
-		}
-
-		$has_contrast_and_base = in_array( 'contrast', $slugs, true ) && in_array( 'base', $slugs, true );
-
-		if ( ! $has_contrast_and_base && in_array( 'dark-gray', $slugs, true ) && in_array( 'white', $slugs, true ) ) {
-			return [
-				'background' => 'dark-gray',
-				'text'       => 'white',
-			];
-		}
-
-		return [
-			'background' => 'contrast',
-			'text'       => 'base',
-		];
-	}
-
-	/**
-	 * The default "Jump to Latest" button, as the editor saves the one in the
-	 * default layout: a parsed Buttons block holding a button in the palette's
-	 * colors (see latest_button_colors()) with the theme's Elevation 1
-	 * shadow, its link bound to the live feed.
-	 *
+	 * @param string $label    The button's text.
+	 * @param string $live_url The live feed's URL.
 	 * @return array Parsed-block-shaped array.
 	 */
-	private static function default_latest_buttons_block(): array {
-		$name        = __( 'Jump to Latest', 'newspack-rolling-coverage' );
-		$lock        = [
-			'remove' => true,
-			'move'   => true,
-		];
+	private static function latest_buttons_block( string $label, string $live_url ): array {
 		$class       = self::MARKUP_PREFIX . '-new-entries';
-		$colors      = self::latest_button_colors();
 		$open        = sprintf( '<div class="%s">', esc_attr( 'wp-block-buttons ' . $class ) );
 		$button_html = sprintf(
-			'<div class="wp-block-button"><a class="%s" style="box-shadow:var(--wp--preset--shadow--elevation-1)">%s</a></div>',
-			esc_attr( sprintf( 'wp-block-button__link has-%s-color has-%s-background-color has-text-color has-background wp-element-button', $colors['text'], $colors['background'] ) ),
-			esc_html( $name )
+			'<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="%1$s" style="box-shadow:var(--wp--preset--shadow--elevation-1)" %2$s>%3$s</a></div>',
+			esc_url( $live_url ),
+			self::LATEST_ATTRIBUTE,
+			esc_html( $label )
 		);
 
 		return [
 			'blockName'    => 'core/buttons',
 			'attrs'        => [
-				'lock'      => $lock,
-				'metadata'  => [ 'name' => $name ],
 				'className' => $class,
 				'layout'    => [
 					'type'           => 'flex',
@@ -1822,19 +1761,7 @@ class Rolling_Coverage_Block {
 				[
 					'blockName'    => 'core/button',
 					'attrs'        => [
-						'backgroundColor' => $colors['background'],
-						'textColor'       => $colors['text'],
-						'lock'            => $lock,
-						'metadata'        => [
-							'name'     => $name,
-							'bindings' => [
-								'url' => [
-									'source' => Entry_Bindings::SOURCE_NAME,
-									'args'   => [ 'key' => 'latestUrl' ],
-								],
-							],
-						],
-						'style'           => [ 'shadow' => 'var:preset|shadow|elevation-1' ],
+						'style' => [ 'shadow' => 'var:preset|shadow|elevation-1' ],
 					],
 					'innerBlocks'  => [],
 					'innerHTML'    => $button_html,
@@ -2475,8 +2402,7 @@ class Rolling_Coverage_Block {
 	 * so the Follow Coverage block follows it. A Follow Coverage block that
 	 * can't render, e.g. on an archived coverage, leaves nothing behind, nor
 	 * does a group left empty once it and the "See all updates" paragraph drop
-	 * out, and "Jump to Latest" renders only as its own control, so none
-	 * renders here. The blocks render outside the Feed group, so they're
+	 * out. The blocks render outside the Feed group, so they're
 	 * handed its layout, as core hands a parent's layout to its inner blocks:
 	 * core then treats a grid Feed with a column count and no minimum column
 	 * width as fixed-column, and adds no container query resetting the span
@@ -2504,7 +2430,6 @@ class Rolling_Coverage_Block {
 			$blocks,
 			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow ) {
 				if (
-					Entry_Bindings::is_latest_buttons( $block ) ||
 					( '' === $all_updates_url && Entry_Bindings::is_all_updates_paragraph( $block ) ) ||
 					( ! $can_follow && Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
 					( 'core/group' === ( $block['blockName'] ?? '' ) && empty( $block['innerBlocks'] ) && ! empty( $original['innerBlocks'] ) )
@@ -4006,7 +3931,8 @@ class Rolling_Coverage_Block {
 	 * REST callback: returns pre-rendered HTML for either direction.
 	 *
 	 * - `cursor` (forward/polling): entries modified at or after the cursor
-	 *   timestamp, including new entries and edits. If the result exceeds
+	 *   timestamp, including new entries and edits, and entries taken down
+	 *   since it, named for the page to drop. If the result exceeds
 	 *   POLL_CAP, the response is flagged `overflow` so the client can reload.
 	 *   Sends a short Cache-Control and the site's minimum poll interval; see
 	 *   poll_response().
@@ -4021,7 +3947,10 @@ class Rolling_Coverage_Block {
 	 *   a shared entry.
 	 *
 	 * A capped feed, as its stored config or a positive `latest` count says,
-	 * polls entries as unpinned and without ads, and loads no more.
+	 * polls entries as unpinned and without ads, and loads no more. After a
+	 * removal later than the cursor's second, or a burst past POLL_CAP, its
+	 * poll brings the removals and its newest entries with `replace`, for the
+	 * page to swap in for its own.
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
@@ -4093,7 +4022,7 @@ class Rolling_Coverage_Block {
 			$ads_enabled = false;
 		}
 
-		// Forward/polling branch: entries modified at or after the cursor, newest first.
+		// Forward/polling branch: entries modified or taken down at or after the cursor, newest first.
 		if ( $cursor ) {
 			$cursor_parts    = explode( ':', $cursor, 2 );
 			$cursor_id       = (int) ( $cursor_parts[0] ?? 0 );
@@ -4132,12 +4061,33 @@ class Rolling_Coverage_Block {
 
 			$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
 
-			$query = new WP_Query( $args );
+			// Entries taken down since the cursor, which open pages may still show.
+			$removed = ( new WP_Query(
+				array_merge(
+					$args,
+					[
+						'post_status' => array_values( array_diff( Post_Type::ALLOWED_STATUSES, [ 'publish' ] ) ),
+						'meta_query'  => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+							[
+								'key'     => Post_Type::META_UNPUBLISHED_GMT,
+								'value'   => $cursor_modified,
+								'compare' => '>=',
+								'type'    => 'DATETIME',
+							],
+						],
+					]
+				)
+			) )->posts;
+
+			$changes = array_merge( ( new WP_Query( $args ) )->posts, $removed );
+			usort( $changes, static fn( WP_Post $a, WP_Post $b ) => strcmp( self::post_modified_gmt( $b ), self::post_modified_gmt( $a ) ) );
+
+			$is_cursor_entry = static fn( WP_Post $entry ) => $entry->ID === $cursor_id && self::post_modified_gmt( $entry ) === $cursor_modified;
 
 			// Signal the client to refresh when the poll result reaches the cap.
-			if ( count( $query->posts ) > self::POLL_CAP ) {
+			if ( count( $changes ) > self::POLL_CAP ) {
 				if ( $is_capped ) {
-					return self::capped_burst_response( $term_id, $template, $latest_count, $query->posts[0], $params, $is_lite, $feed_layout );
+					return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $is_lite, $feed_layout, $removed );
 				}
 
 				return self::poll_response(
@@ -4150,20 +4100,32 @@ class Rolling_Coverage_Block {
 				);
 			}
 
+			// A capped feed can't load an entry to take a removed one's place. One
+			// taken down in the cursor's own second comes as a plain removal: it
+			// may share that second with the cursor entry, so the whole feed sent
+			// for it would come again on every poll from that cursor.
+			if ( $is_capped && array_filter( $removed, static fn( WP_Post $entry ) => get_post_meta( $entry->ID, Post_Type::META_UNPUBLISHED_GMT, true ) > $cursor_modified ) ) {
+				return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $is_lite, $feed_layout, $removed );
+			}
+
 			$entries    = [];
 			$new_cursor = $cursor;
 			$polled_count = max( 0, (int) ( $params['polled_count'] ?? 0 ) );
 			$new_entry_count = 0;
 
-			foreach ( $query->posts as $entry ) {
-				$entry_modified = self::post_modified_gmt( $entry );
-
-				if ( $entry->ID === $cursor_id && $entry_modified === $cursor_modified ) {
+			foreach ( $changes as $entry ) {
+				if ( $is_cursor_entry( $entry ) ) {
 					continue;
 				}
 
 				if ( empty( $entries ) ) {
-					$new_cursor = $entry->ID . ':' . $entry_modified;
+					$new_cursor = $entry->ID . ':' . self::post_modified_gmt( $entry );
+				}
+
+				if ( 'publish' !== $entry->post_status ) {
+					$entries[] = self::removal( $entry );
+
+					continue;
 				}
 
 				// Counts only if first published after the poll cursor.
@@ -4283,34 +4245,53 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The poll response for a capped feed after a burst too large to send
-	 * piecemeal: rather than reload the page hosting it, the newest entries
-	 * by date come as inserts, for the page to put on top and trim to the
-	 * cap, with the cursor at the most recent change. A lite page gets them
-	 * as text, like its other polls.
+	 * A poll reply's entry telling the page to drop an entry taken down.
 	 *
-	 * @param int     $term_id       Coverage term ID.
-	 * @param array[] $template      Per-entry template.
-	 * @param int     $latest_count  How many entries the feed shows.
-	 * @param WP_Post $last_modified The most recently modified entry.
-	 * @param array   $params        Request parameters.
-	 * @param bool    $is_lite       Whether a lite page asks.
-	 * @param array   $feed_layout   The Feed group's layout.
+	 * @param WP_Post $entry Entry post object.
+	 * @return array Poll entry with no markup.
+	 */
+	private static function removal( WP_Post $entry ): array {
+		return [
+			'id'     => $entry->ID,
+			'html'   => '',
+			'type'   => 'remove',
+			'adHtml' => null,
+			'adSlot' => null,
+		];
+	}
+
+	/**
+	 * The poll response for a capped feed after a burst too large to send
+	 * piecemeal, or after an entry was taken down, which leaves a place only
+	 * the server can fill: rather than reload the page hosting it, the
+	 * removals and the newest entries by date come whole, for the page to
+	 * swap in for its own, with the cursor at the most recent change. A lite
+	 * page gets the entries as text, like its other polls.
+	 *
+	 * @param int       $term_id       Coverage term ID.
+	 * @param array[]   $template      Per-entry template.
+	 * @param int       $latest_count  How many entries the feed shows.
+	 * @param WP_Post   $last_modified The most recently modified entry.
+	 * @param array     $params        Request parameters.
+	 * @param bool      $is_lite       Whether a lite page asks.
+	 * @param array     $feed_layout   The Feed group's layout.
+	 * @param WP_Post[] $removed       Entries taken down since the cursor.
 	 * @return WP_REST_Response
 	 */
-	private static function capped_burst_response( int $term_id, array $template, int $latest_count, WP_Post $last_modified, array $params, bool $is_lite, array $feed_layout = [] ): WP_REST_Response {
+	private static function capped_burst_response( int $term_id, array $template, int $latest_count, WP_Post $last_modified, array $params, bool $is_lite, array $feed_layout = [], array $removed = [] ): WP_REST_Response {
 		$args = array_merge(
 			self::coverage_entries_args( $term_id ),
 			[
 				'orderby'        => 'date',
 				'order'          => 'DESC',
-				'posts_per_page' => $latest_count,
+				// Twice the count, up to a page of load more: a page leaves out entries it dropped, which come back on reload, and still fills its places.
+				'posts_per_page' => min( 2 * $latest_count, self::PER_PAGE_MAX ),
 			]
 		);
 
 		$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
 
-		$entries = [];
+		$entries = array_map( static fn( WP_Post $entry ) => self::removal( $entry ), $removed );
 
 		foreach ( ( new WP_Query( $args ) )->posts as $entry ) {
 			$entries[] = [
@@ -4329,6 +4310,7 @@ class Rolling_Coverage_Block {
 				'cursor'      => $last_modified->ID . ':' . self::post_modified_gmt( $last_modified ),
 				'overflow'    => false,
 				'polledCount' => max( 0, (int) ( $params['polled_count'] ?? 0 ) ),
+				'replace'     => true,
 			],
 			$term_id
 		);

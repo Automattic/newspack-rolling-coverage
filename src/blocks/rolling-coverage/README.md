@@ -25,7 +25,7 @@ A layout is how the feed looks: spacing, colors, type, and which parts each entr
 | Margin | Each entry split into a margin and its content. |
 | Minute | Closer together, with each entry reduced to its content. |
 | Byline | Each entry signed by its author. |
-| Ticker | A strip with the coverage's status and name beside the three latest headlines, and a link to the coverage page. Wide width. Hides when the coverage ends. |
+| Ticker | A strip with the coverage's status and name beside the three latest headlines, and a link to the coverage page, with a thin rule between them. The Feed's Block spacing sets the space on either side of a rule. Wide width. Hides when the coverage ends. |
 | Split | The full feed at wide width, with the pinned entry's summary in a column beside the entries. |
 | Wire | A narrow list of the five latest entries, ending in a link to the coverage page. |
 | Digest | A bordered box with the coverage name, the three latest entries next to their times, and a link to the coverage page. |
@@ -114,13 +114,32 @@ The page checks for new entries every poll interval. It stops while the tab is i
 
 Feeds that show only the latest entries update in place without the New Posts button: the newest entry appears and the oldest drops off. They have no ads and load no older entries.
 
-When a reader opens a link to one entry, the feed opens at that entry and shows a control that takes them to the live feed, with the number of newer posts when there are any.
+When a reader opens a link to one entry, the feed opens at that entry and shows a "Jump to Latest" button that takes them to the live feed, with the number of newer posts when there are any.
+
+The New Posts count and Jump to Latest show on the same button. It sits at the top of the screen and takes the theme's button style. It isn't part of the layout, so it doesn't appear in the editor. To change its text, go to Rolling Coverage > All Coverages, select Settings, and set Button label under Jump to Latest. The label can be up to 40 characters. Leave it empty to use "Jump to Latest".
 
 ### Pinned entries
 
 An entry pinned in the coverage stays at the top of the feed with a "Pinned" label, whatever its date. Some layouts keep the pinned entry in view while the reader scrolls.
 
 Feeds set to Latest ignore pinning and show the newest entries only.
+
+### Photo, video, and other media entries
+
+An entry that holds only a photo, gallery, video, audio clip, or embed has no words of its own, so it is described by its media instead: Photo, Gallery, Video, Audio, or Embed. When the media has a caption, the caption follows, for example "Photo: Crowds at the finish line". A photo without a caption uses its alt text. A gallery without a caption uses the caption or alt text of its first image that has one.
+
+- Layouts that show a short excerpt of each entry, such as Wire, Digest, and Flash, show this description as the excerpt, under the entry's title when it has one.
+- Ticker, which gives an entry without a title a headline made of its first words, uses this description as the headline.
+
+An entry with any text of its own, or with an excerpt written for it, shows that text as usual.
+
+Entries posted from Slack follow the same rules:
+
+- A message with text shows its text as usual.
+- An image posted without text becomes a photo entry. The image's description in Slack becomes its alt text, so the entry reads "Photo: " followed by that description. Without a description, the entry reads only "Photo".
+- Several images become a gallery. Posted without text, the entry reads "Gallery: " followed by the first description among its images, or only "Gallery" when none has one.
+
+To give readers more than "Photo" or "Gallery", add a description to the image in Slack before you post it, or write a line of text with the images.
 
 ### Live blog markup
 

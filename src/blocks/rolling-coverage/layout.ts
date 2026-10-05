@@ -29,6 +29,7 @@ import {
 	tickerFooter,
 	TICKER_FEED_LAYOUT,
 	TICKER_FEED_STYLE,
+	RULED_FEED_CLASS,
 	splitEntryTemplate,
 	SPLIT_FEED_LAYOUT,
 	SPLIT_FEED_STYLE,
@@ -39,9 +40,7 @@ import {
 	FOLLOW_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
 	feedTemplate,
-	latestTemplate,
 	layoutParts,
-	withoutLatestButtons,
 	withoutPinnedRow,
 	withoutBreakoutLink,
 	withLinkedTitle,
@@ -114,124 +113,88 @@ function themeFontSizeSlugs(): string[] {
 }
 
 /**
- * The Bulletin layout's inner-blocks template, the default: the Feed group,
- * holding the "Jump to Latest" button, in the colors the editor's palette
- * has for it, then the per-entry blocks.
+ * The Bulletin layout's inner-blocks template, the default: the Feed group
+ * holding the per-entry blocks.
  *
  * @return {TemplateItem[]} The template.
  */
 export function innerTemplate(): TemplateItem[] {
-	return [
-		feedTemplate( [
-			latestTemplate( paletteSlugs() ),
-			...bulletinEntryTemplate( themeFontSizeSlugs() ),
-		] ),
-	];
+	return [ feedTemplate( bulletinEntryTemplate( themeFontSizeSlugs() ) ) ];
 }
 
 /**
- * The Stream layout's inner-blocks template: the same Feed group and button
- * as the default, with a wider gap between untitled entries.
+ * The Stream layout's inner-blocks template: the same Feed group as the
+ * default, with a wider gap between untitled entries.
  *
  * @return {TemplateItem[]} The template.
  */
 export function streamInnerTemplate(): TemplateItem[] {
-	const slugs = paletteSlugs();
-
 	return [
 		feedTemplate(
-			[
-				latestTemplate( slugs ),
-				...streamEntryTemplate( slugs, themeFontSizeSlugs() ),
-			],
+			streamEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
 			'var:preset|spacing|60'
 		),
 	];
 }
 
 /**
- * The Rail layout's inner-blocks template: the same Feed group and button
- * as the default, with each entry hanging off a timeline.
+ * The Rail layout's inner-blocks template: the same Feed group as the
+ * default, with each entry hanging off a timeline.
  *
  * @return {TemplateItem[]} The template.
  */
 export function railInnerTemplate(): TemplateItem[] {
-	return [
-		feedTemplate( [
-			latestTemplate( paletteSlugs() ),
-			...railEntryTemplate(),
-		] ),
-	];
+	return [ feedTemplate( railEntryTemplate() ) ];
 }
 
 /**
- * The Clock layout's inner-blocks template: the same Feed group and button
- * as the default, with each entry headed by the time it was posted.
+ * The Clock layout's inner-blocks template: the same Feed group as the
+ * default, with each entry headed by the time it was posted.
  *
  * @return {TemplateItem[]} The template.
  */
 export function clockInnerTemplate(): TemplateItem[] {
-	const slugs = paletteSlugs();
-
-	return [
-		feedTemplate( [
-			latestTemplate( slugs ),
-			...clockEntryTemplate( slugs, themeFontSizeSlugs() ),
-		] ),
-	];
-}
-
-/**
- * The Margin layout's inner-blocks template: the same Feed group and button
- * as the default, with each entry split into a margin and its content.
- *
- * @return {TemplateItem[]} The template.
- */
-export function marginInnerTemplate(): TemplateItem[] {
-	return [
-		feedTemplate( [
-			latestTemplate( paletteSlugs() ),
-			...marginEntryTemplate(),
-		] ),
-	];
-}
-
-/**
- * The Minute layout's inner-blocks template: the same Feed group and button
- * as the default, closer together, with each entry reduced to its content.
- *
- * @return {TemplateItem[]} The template.
- */
-export function minuteInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
-			[ latestTemplate( paletteSlugs() ), ...minuteEntryTemplate() ],
-			'var:preset|spacing|30'
+			clockEntryTemplate( paletteSlugs(), themeFontSizeSlugs() )
 		),
 	];
 }
 
 /**
- * The Byline layout's inner-blocks template: the same Feed group and button
- * as the default, with each entry signed by its author.
+ * The Margin layout's inner-blocks template: the same Feed group as the
+ * default, with each entry split into a margin and its content.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function marginInnerTemplate(): TemplateItem[] {
+	return [ feedTemplate( marginEntryTemplate() ) ];
+}
+
+/**
+ * The Minute layout's inner-blocks template: the same Feed group as the
+ * default, closer together, with each entry reduced to its content.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function minuteInnerTemplate(): TemplateItem[] {
+	return [ feedTemplate( minuteEntryTemplate(), 'var:preset|spacing|30' ) ];
+}
+
+/**
+ * The Byline layout's inner-blocks template: the same Feed group as the
+ * default, with each entry signed by its author.
  *
  * @return {TemplateItem[]} The template.
  */
 export function bylineInnerTemplate(): TemplateItem[] {
-	const slugs = paletteSlugs();
-
-	return [
-		feedTemplate( [
-			latestTemplate( slugs ),
-			...bylineEntryTemplate( slugs ),
-		] ),
-	];
+	return [ feedTemplate( bylineEntryTemplate( paletteSlugs() ) ) ];
 }
 
 /**
  * The Ticker layout's inner-blocks template: the coverage's status and name
  * beside the three latest entries' headlines, then a link to the coverage
- * page, with no buttons.
+ * page, with a rule in every gap between them.
  *
  * @return {TemplateItem[]} The template.
  */
@@ -245,22 +208,22 @@ export function tickerInnerTemplate(): TemplateItem[] {
 			],
 			'var:preset|spacing|40',
 			TICKER_FEED_STYLE,
-			TICKER_FEED_LAYOUT
+			TICKER_FEED_LAYOUT,
+			{ className: RULED_FEED_CLASS }
 		),
 	];
 }
 
 /**
  * The Split layout's inner-blocks template: the full feed at wide width,
- * the pinned entry's summary in a column beside the entries, with the
- * "Jump to Latest" button.
+ * the pinned entry's summary in a column beside the entries.
  *
  * @return {TemplateItem[]} The template.
  */
 export function splitInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
-			[ latestTemplate( paletteSlugs() ), ...splitEntryTemplate() ],
+			splitEntryTemplate(),
 			SPLIT_FEED_GAP,
 			SPLIT_FEED_STYLE,
 			SPLIT_FEED_LAYOUT
@@ -270,7 +233,7 @@ export function splitInnerTemplate(): TemplateItem[] {
 
 /**
  * The Wire layout's inner-blocks template: a narrow list of the latest
- * entries, with no buttons, ending in a link to the coverage page.
+ * entries, ending in a link to the coverage page.
  *
  * @return {TemplateItem[]} The template.
  */
@@ -420,9 +383,9 @@ export function useLayoutPreview(
 		const { header, template, footer } = layoutParts( allBlocks );
 
 		return {
-			headerBlocks: withoutLatestButtons( header ),
+			headerBlocks: header,
 			templateBlocks: template,
-			footerBlocks: withoutLatestButtons( footer ),
+			footerBlocks: footer,
 		};
 	}, [ allBlocks ] );
 	const hasBotEntry = entryContexts.some(

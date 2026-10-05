@@ -48,6 +48,7 @@ import {
 	useMemo,
 	useRef,
 } from '@wordpress/element';
+import { useDebounce } from '@wordpress/compose';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as editorStore } from '@wordpress/editor';
@@ -90,6 +91,7 @@ import {
 	withoutFollowButtons,
 	entryPreviewPlacement,
 	withColumnRule,
+	RULED_FEED_CLASS,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -113,6 +115,10 @@ import {
 	type BuiltInLayoutSlug,
 } from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
+import {
+	EntryPreviewsAnchorContext,
+	EntryPreviewsContext,
+} from './entry-previews';
 import { blockGapCss } from './spacing';
 import { BLOCK_NAME, innerTemplate, useLayoutPreview } from './layout';
 import type {
@@ -193,11 +199,49 @@ function feedGapStyle( feed?: {
 	[ key: string ]: unknown;
 } ): Record< string, string > {
 	const attributes = feed?.attributes as
-		| { style?: { spacing?: { blockGap?: string | { top?: string } } } }
+		| {
+				style?: {
+					spacing?: {
+						blockGap?: string | { top?: string; left?: string };
+					};
+				};
+		  }
 		| undefined;
-	const gap = blockGapCss( attributes?.style?.spacing?.blockGap );
+	const blockGap = attributes?.style?.spacing?.blockGap;
+	const gap = blockGapCss( blockGap );
+	const columnGap =
+		typeof blockGap === 'object' ? blockGapCss( blockGap.left ) : undefined;
 
-	return gap ? { '--newspack-rolling-coverage-gap': gap } : {};
+	return {
+		...( gap ? { '--newspack-rolling-coverage-gap': gap } : {} ),
+		...( columnGap
+			? { '--newspack-rolling-coverage-column-gap': columnGap }
+			: {} ),
+	};
+}
+
+/**
+ * Whether Block Visibility shows a block in every viewport.
+ *
+ * @param {Object} block The block.
+ * @return {boolean} Whether the block shows everywhere.
+ */
+function isShownEverywhere( block: { [ key: string ]: unknown } ): boolean {
+	const visibility = (
+		( block.attributes as { metadata?: unknown } | undefined )?.metadata as
+			| {
+					blockVisibility?:
+						boolean | { viewport?: Record< string, boolean > };
+			  }
+			| undefined
+	 )?.blockVisibility;
+
+	return (
+		visibility !== false &&
+		! Object.values(
+			( typeof visibility === 'object' && visibility.viewport ) || {}
+		).includes( false )
+	);
 }
 
 const FLEX_JUSTIFY: Record< string, string > = {
@@ -442,7 +486,8 @@ function chromePreviewStyle(
 
 /**
  * The Feed group's own classes and styles, for the container a synced
- * layout's preview shows in place of the Feed.
+ * layout's preview shows in place of the Feed. A ruled Feed takes its gap
+ * from the block's stylesheet, which widens it to fit the rules.
  *
  * @param {Object} feed The layout's Feed group.
  * @return {Object} The container's className and style.
@@ -452,15 +497,19 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
 	style: Record< string, unknown >;
 } {
 	const { classNames, style } = groupPreviewParts( feed );
+	const className = joinClassNames( [
+		'wp-block-group',
+		'newspack-rolling-coverage-feed',
+		...classNames,
+	] );
 
-	return {
-		className: joinClassNames( [
-			'wp-block-group',
-			'newspack-rolling-coverage-feed',
-			...classNames,
-		] ),
-		style,
-	};
+	if ( className.split( ' ' ).includes( RULED_FEED_CLASS ) ) {
+		const { gap, ...rest } = style;
+
+		return { className, style: rest };
+	}
+
+	return { className, style };
 }
 
 /**
@@ -620,6 +669,8 @@ export default function Edit( {
 		isPreviewMode && ! coverageId && ! layoutId && innerBlockCount > 0;
 	const showsSamples = isLayoutPattern || isSamplePreview;
 	const [ isPickingLayout, setIsPickingLayout ] = useState( false );
+	const [ isPickerReady, setIsPickerReady ] = useState( false );
+	const isPickerLoading = isPickingLayout && ! isPickerReady;
 	const [ latestCountInput, setLatestCountInput ] = useState< string | null >(
 		null
 	);
@@ -654,7 +705,9 @@ export default function Edit( {
 	);
 
 	const [ search, setSearch ] = useState( '' );
+	const setSearchDebounced = useDebounce( setSearch, 300 );
 	const [ options, setOptions ] = useState< CoverageOption[] >( [] );
+	const [ loadedSearch, setLoadedSearch ] = useState< string | null >( null );
 	const [ currentCoverage, setCurrentCoverage ] =
 		useState< CoverageOption | null >( null );
 	const [ pendingCanonicalUrl, setPendingCanonicalUrl ] =
@@ -919,18 +972,23 @@ export default function Edit( {
 			pageSize,
 			! previewHasMore
 		);
-	const loadMorePreview = olderEntries === 'button' && previewHasMore && (
-		<Disabled className="newspack-rolling-coverage-load-more">
-			<button
-				type="button"
-				className="wp-element-button wp-block-button__link"
-			>
-				{
-					/* translators: Button that loads older entries at the end of a coverage's feed. */
-					__( 'Load More', 'newspack-rolling-coverage' )
-				}
-			</button>
-		</Disabled>
+	const loadMorePreview = useMemo(
+		() =>
+			olderEntries === 'button' &&
+			previewHasMore && (
+				<Disabled className="newspack-rolling-coverage-load-more">
+					<button
+						type="button"
+						className="wp-element-button wp-block-button__link"
+					>
+						{
+							/* translators: Button that loads older entries at the end of a coverage's feed. */
+							__( 'Load More', 'newspack-rolling-coverage' )
+						}
+					</button>
+				</Disabled>
+			),
+		[ olderEntries, previewHasMore ]
 	);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
@@ -1017,6 +1075,45 @@ export default function Edit( {
 	);
 	const isCardHidden = hasBothKinds && ! pinnedContext;
 	const isEntryHidden = hasBothKinds && ! regularContext && !! pinnedContext;
+	// Core skips rendering a hidden block, filters included, so the previews
+	// follow the last block shown in every viewport.
+	const entryPreviewsAnchorId =
+		(
+			( templateBlocks.findLast( isShownEverywhere ) ??
+				templateBlocks.at( -1 ) ) as { clientId?: string } | undefined
+		 )?.clientId ?? null;
+	const entryPreviews = useMemo(
+		() => (
+			<>
+				{ previewContexts
+					.filter(
+						( context ) =>
+							context !== pinnedContext &&
+							context !== regularContext
+					)
+					.map( ( context ) => (
+						<BlockContextProvider
+							key={ context.postId }
+							value={ context }
+						>
+							<EntryBlockPreview
+								blocks={ blocksForEntry( context ) }
+								style={ previewPlacements.other }
+							/>
+						</BlockContextProvider>
+					) ) }
+				{ loadMorePreview }
+			</>
+		),
+		[
+			previewContexts,
+			pinnedContext,
+			regularContext,
+			blocksForEntry,
+			previewPlacements.other,
+			loadMorePreview,
+		]
+	);
 	const hidesCardBreakout = pinnedContext
 		? ! pinnedContext.hasBreakout
 		: false;
@@ -1069,7 +1166,7 @@ export default function Edit( {
 			hiddenIds
 				.map(
 					( id ) =>
-						`.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ id }"] { display: none; }`
+						`.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ id }"]:not(.newspack-rolling-coverage-layout .block-editor-block-preview__live-content *) { display: none; }`
 				)
 				.join( '\n' ),
 		[ hiddenIds ]
@@ -1113,9 +1210,25 @@ export default function Edit( {
 		setAttributes,
 	] );
 
+	const closePicker = useCallback( () => {
+		setIsPickingLayout( false );
+		setIsPickerReady( false );
+	}, [] );
+
+	// Claims Escape before the editor canvas moves focus to its stop.
+	const closeLoadingPickerOnEscape = ( event: {
+		key: string;
+		preventDefault: () => void;
+	} ) => {
+		if ( isPickerLoading && event.key === 'Escape' ) {
+			event.preventDefault();
+			closePicker();
+		}
+	};
+
 	const applyLayout = useCallback(
 		( choice: LayoutChoice ) => {
-			setIsPickingLayout( false );
+			closePicker();
 
 			const syncedSlug = isSynced
 				? builtInLayoutSlugFor( layoutId )
@@ -1181,6 +1294,7 @@ export default function Edit( {
 		},
 		[
 			align,
+			closePicker,
 			isSynced,
 			isLayoutMissing,
 			invalidateResolution,
@@ -1231,13 +1345,17 @@ export default function Edit( {
 			setEntriesLoadedFor( 0 );
 			return;
 		}
-		const { getEntityRecord } = registry.resolveSelect(
+		const { getEntityRecord, getUser } = registry.resolveSelect(
 			coreStore
 		) as unknown as {
 			getEntityRecord: (
 				kind: string,
 				name: string,
 				id: number
+			) => Promise< unknown >;
+			getUser: (
+				id: number,
+				query?: Record< string, string >
 			) => Promise< unknown >;
 		};
 		const perPage = isCapped ? cappedCount : pageSize;
@@ -1250,8 +1368,8 @@ export default function Edit( {
 			.then( ( fetched ) => {
 				const contexts = fetched.slice( 0, perPage );
 
-				// Entries are read before the preview shows, so it doesn't
-				// fill in piece by piece.
+				// Entries and their authors are read before the preview
+				// shows, so it doesn't fill in piece by piece.
 				return Promise.all(
 					contexts.map( ( context ) =>
 						getEntityRecord(
@@ -1260,10 +1378,32 @@ export default function Edit( {
 							context.postId
 						).catch( () => undefined )
 					)
-				).then( () => ( {
-					contexts,
-					hasMore: fetched.length > perPage,
-				} ) );
+				)
+					.then( ( records ) => {
+						const authorIds = new Set< number >();
+						records.forEach( ( record ) => {
+							const author = ( record as { author?: number } )
+								?.author;
+							if ( author ) {
+								authorIds.add( author );
+							}
+						} );
+
+						// Post Author reads the view context; Post Author
+						// Name and Avatar read the default one.
+						return Promise.all(
+							[ ...authorIds ].flatMap( ( authorId ) => [
+								getUser( authorId ).catch( () => undefined ),
+								getUser( authorId, {
+									context: 'view',
+								} ).catch( () => undefined ),
+							] )
+						);
+					} )
+					.then( () => ( {
+						contexts,
+						hasMore: fetched.length > perPage,
+					} ) );
 			} )
 			.then( ( { contexts, hasMore } ) => {
 				if ( ! cancelled ) {
@@ -1299,6 +1439,7 @@ export default function Edit( {
 			}
 
 			setOptions( results );
+			setLoadedSearch( search );
 		} );
 
 		return () => {
@@ -1413,26 +1554,42 @@ export default function Edit( {
 		handleApplyCanonicalUrl,
 	] );
 
-	// Combobox for selecting the connected coverage.
-	const coverageCombobox = (
-		<ComboboxControl
-			__next40pxDefaultSize
-			label={ __( 'Coverage', 'newspack-rolling-coverage' ) }
-			hideLabelFromVision
-			value={ coverageId ? String( coverageId ) : '' }
-			options={ options }
-			placeholder={ __(
-				'Search for a coverage…',
-				'newspack-rolling-coverage'
-			) }
-			onChange={ ( value ) =>
-				setAttributes( {
-					coverageId: value ? parseInt( value, 10 ) : 0,
-				} )
-			}
-			onFilterValueChange={ setSearch }
-		/>
-	);
+	/**
+	 * Combobox for selecting the connected coverage, or its loading state
+	 * until the coverages arrive.
+	 *
+	 * @param {boolean} isSilent Whether the loading state skips its
+	 *                           announcement, for the second of two copies.
+	 */
+	const renderCoverageCombobox = ( isSilent = false ) =>
+		! isPreviewMode && loadedSearch === null ? (
+			<LoadingState
+				isSilent={ isSilent }
+				label={ __(
+					'Loading coverages…',
+					'newspack-rolling-coverage'
+				) }
+			/>
+		) : (
+			<ComboboxControl
+				__next40pxDefaultSize
+				label={ __( 'Coverage', 'newspack-rolling-coverage' ) }
+				hideLabelFromVision
+				value={ coverageId ? String( coverageId ) : '' }
+				options={ options }
+				placeholder={ __(
+					'Search for a coverage…',
+					'newspack-rolling-coverage'
+				) }
+				onChange={ ( value ) =>
+					setAttributes( {
+						coverageId: value ? parseInt( value, 10 ) : 0,
+					} )
+				}
+				onFilterValueChange={ setSearchDebounced }
+				isLoading={ ! isPreviewMode && loadedSearch !== search }
+			/>
+		);
 
 	const inspector = isLayoutPattern ? (
 		<InspectorControls>
@@ -1469,7 +1626,11 @@ export default function Edit( {
 				{ canChangeLayout && (
 					<Button
 						variant="secondary"
+						isBusy={ isPickerLoading }
+						accessibleWhenDisabled
+						disabled={ isPickerLoading }
 						onClick={ () => setIsPickingLayout( true ) }
+						onKeyDownCapture={ closeLoadingPickerOnEscape }
 					>
 						{ __( 'Change Layout', 'newspack-rolling-coverage' ) }
 					</Button>
@@ -1477,7 +1638,7 @@ export default function Edit( {
 			</PanelBody>
 			<PanelBody title={ __( 'Coverage', 'newspack-rolling-coverage' ) }>
 				<Stack direction="column" gap="lg">
-					{ coverageCombobox }
+					{ renderCoverageCombobox( ! coverageId ) }
 
 					{ coverageId ? (
 						<div>
@@ -2190,7 +2351,8 @@ export default function Edit( {
 				<LayoutPickerModal
 					currentLayoutId={ isSynced ? layoutId : 0 }
 					onSelect={ applyLayout }
-					onClose={ () => setIsPickingLayout( false ) }
+					onClose={ closePicker }
+					onReady={ () => setIsPickerReady( true ) }
 				/>
 			) }
 
@@ -2220,7 +2382,11 @@ export default function Edit( {
 							<Button
 								__next40pxDefaultSize
 								variant="primary"
+								isBusy={ isPickerLoading }
+								accessibleWhenDisabled
+								disabled={ isPickerLoading }
 								onClick={ () => setIsPickingLayout( true ) }
+								onKeyDownCapture={ closeLoadingPickerOnEscape }
 							>
 								{ __( 'Choose', 'newspack-rolling-coverage' ) }
 							</Button>
@@ -2357,41 +2523,26 @@ export default function Edit( {
 								</FeedWrappersPreview>
 							) }
 							{ ! isSynced && (
-								<>
-									<PinnedEntryContext.Provider
-										value={ pinnedContext ?? null }
+								<PinnedEntryContext.Provider
+									value={ pinnedContext ?? null }
+								>
+									<EntryPreviewsAnchorContext.Provider
+										value={ entryPreviewsAnchorId }
 									>
-										<BlockContextProvider
-											value={ {
-												...layoutContext,
-												...coverageContext,
-											} }
+										<EntryPreviewsContext.Provider
+											value={ entryPreviews }
 										>
-											<div { ...innerBlocksProps } />
-										</BlockContextProvider>
-									</PinnedEntryContext.Provider>
-									<div className="newspack-rolling-coverage-entries">
-										{ previewContexts
-											.filter(
-												( context ) =>
-													context !== pinnedContext &&
-													context !== regularContext
-											)
-											.map( ( context ) => (
-												<BlockContextProvider
-													key={ context.postId }
-													value={ context }
-												>
-													<EntryBlockPreview
-														blocks={ blocksForEntry(
-															context
-														) }
-													/>
-												</BlockContextProvider>
-											) ) }
-									</div>
-									{ loadMorePreview }
-								</>
+											<BlockContextProvider
+												value={ {
+													...layoutContext,
+													...coverageContext,
+												} }
+											>
+												<div { ...innerBlocksProps } />
+											</BlockContextProvider>
+										</EntryPreviewsContext.Provider>
+									</EntryPreviewsAnchorContext.Provider>
+								</PinnedEntryContext.Provider>
 							) }
 						</>
 					) : (
@@ -2404,7 +2555,7 @@ export default function Edit( {
 							) }
 							isColumnLayout
 						>
-							{ coverageCombobox }
+							{ renderCoverageCombobox() }
 						</Placeholder>
 					) ) }
 			</div>

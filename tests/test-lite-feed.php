@@ -702,9 +702,9 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A burst too large to send piecemeal brings a capped feed its newest
-	 * entries in place of a reload. A lite page gets them as text, like its
-	 * other polls, and without a pin, like the rest of a capped feed.
+	 * A burst too large to send piecemeal brings a capped feed twice its count
+	 * of newest entries in place of a reload. A lite page gets them as text,
+	 * like its other polls, and without a pin, like the rest of a capped feed.
 	 */
 	public function test_capped_lite_burst_sends_the_newest_entries_as_text() {
 		$entry_ids = [];
@@ -713,7 +713,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 			$entry_ids[] = self::create_entry( $this->coverage_id, [ 'post_date' => gmdate( 'Y-m-d H:i:s', strtotime( '2026-01-01 12:00:00' ) + $i * 60 ) ] );
 		}
 
-		$newest_ids = array_slice( array_reverse( $entry_ids ), 0, 2 );
+		$newest_ids = array_slice( array_reverse( $entry_ids ), 0, 4 );
 		Post_Type::pin_entry( $newest_ids[0] );
 
 		$entries = $this->get_lite_feed(
@@ -724,10 +724,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		)->get_data()['entries'];
 
 		$this->assertSame(
-			[
-				Lite_Feed::render_entry( get_post( $newest_ids[0] ), 'poll', true ),
-				Lite_Feed::render_entry( get_post( $newest_ids[1] ), 'poll', true ),
-			],
+			array_map( static fn( $entry_id ) => Lite_Feed::render_entry( get_post( $entry_id ), 'poll', true ), $newest_ids ),
 			wp_list_pluck( $entries, 'html' )
 		);
 	}

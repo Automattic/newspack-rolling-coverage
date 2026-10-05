@@ -32,6 +32,7 @@ interface AdminConfig {
 		restNamespace: string;
 		aiSettings: string;
 		statusLabels: string;
+		latestLabel: string;
 		posts: string;
 	};
 	nonce: string;
@@ -69,6 +70,8 @@ interface AdminConfig {
 	statusLabels: StatusLabels;
 	statusLabelDefaults: StatusLabels;
 	statusLabelMaxLength: number;
+	latestLabelDefault: string;
+	latestLabelMaxLength: number;
 	slack: {
 		isConfigured: boolean;
 	};
@@ -388,6 +391,17 @@ interface StatusLabelsResult extends ApiResult {
 	data?: StatusLabels;
 }
 
+/**
+ * The "Jump to Latest" control's text, empty where the site sets none.
+ */
+interface LatestLabel {
+	label: string;
+}
+
+interface LatestLabelResult extends ApiResult {
+	data?: LatestLabel;
+}
+
 type StatusName =
 	| 'active'
 	| 'done'
@@ -643,6 +657,8 @@ export type {
 	AdminConfig,
 	StatusLabels,
 	StatusLabelsResult,
+	LatestLabel,
+	LatestLabelResult,
 	Context,
 	ContextExports,
 	Coverage,

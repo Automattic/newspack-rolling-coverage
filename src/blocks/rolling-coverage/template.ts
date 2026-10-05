@@ -28,6 +28,12 @@ const LOCKED_IN_PLACE = { remove: true, move: true };
 const FEED_CLASS = 'newspack-rolling-coverage-feed';
 
 /**
+ * Class of a Feed group drawing a rule centered in every gap between its
+ * items, doubling its Block spacing to make room (see style.scss).
+ */
+const RULED_FEED_CLASS = 'newspack-rolling-coverage-ruled';
+
+/**
  * The pin icon registered by Block_Icons::PIN.
  */
 const PIN_ICON = 'newspack-rolling-coverage/pin-small';
@@ -1503,7 +1509,7 @@ function tickerHeader( sizes: string[] ): TemplateItem {
 
 /**
  * The Ticker layout's footer: the link to the coverage page across the
- * grid's full width, ruled off from the entries.
+ * grid's full width.
  *
  * @return {TemplateItem} The paragraph.
  */
@@ -1513,31 +1519,14 @@ function tickerFooter(): TemplateItem {
 			layout: { columnSpan: TICKER_COLUMNS },
 			'@tablet': { layout: { columnSpan: TICKER_TABLET_COLUMNS } },
 			'@mobile': { layout: { columnSpan: TICKER_MOBILE_COLUMNS } },
-			border: {
-				top: { color: BORDER_COLOR, width: '1px', style: 'solid' },
-			},
-			spacing: { padding: { top: 'var:preset|spacing|40' } },
 		},
 	} );
 }
 
 /**
- * A Ticker entry's rule on tablets and phones, where the entries stack or
- * share a row below the header: above the entry rather than beside it.
- */
-const TICKER_STACKED_ENTRY_STYLE = {
-	border: {
-		left: { style: 'none' },
-		top: { color: BORDER_COLOR, width: '1px', style: 'solid' },
-	},
-	spacing: { padding: { left: '0', top: 'var:preset|spacing|40' } },
-};
-
-/**
  * The Ticker layout's per-entry template: the relative time over the
- * headline, which links to the entry, ruled off beside the cell before it
- * down the row's full height, or above it on tablets and phones. An entry without a
- * title shows its opening words as the headline (see
+ * headline, which links to the entry. An entry without a title shows its
+ * opening words as the headline (see
  * Entry_Bindings::untitled_fallback_title()). The pinned card matches the
  * regular entry, since a capped feed ignores pinning.
  *
@@ -1555,22 +1544,7 @@ function tickerEntryTemplate( slugs: string[] ): TemplateItem[] {
 				orientation: 'vertical',
 				justifyContent: 'stretch',
 			},
-			style: {
-				border: {
-					left: {
-						color: BORDER_COLOR,
-						width: '1px',
-						style: 'solid',
-					},
-				},
-				spacing: {
-					blockGap: '0',
-					padding: { left: 'var:preset|spacing|40' },
-				},
-				dimensions: { minHeight: '100%' },
-				'@tablet': TICKER_STACKED_ENTRY_STYLE,
-				'@mobile': TICKER_STACKED_ENTRY_STYLE,
-			},
+			style: { spacing: { blockGap: '0' } },
 			metadata: { name },
 		},
 		[
@@ -2022,126 +1996,6 @@ function digestEntryTemplate(
 }
 
 /**
- * The "Jump to Latest" button's default colors, as palette slugs: the theme's
- * Contrast and Base where its palette has both, as block themes do; otherwise
- * Dark Gray and White where it has both, as the Newspack Theme does; otherwise
- * Contrast and Base. Mirrors Rolling_Coverage_Block::latest_button_colors().
- *
- * @param {string[]} slugs The palette's color slugs.
- * @return {Object} The background and text color slugs.
- */
-function latestColors( slugs: string[] ): {
-	backgroundColor: string;
-	textColor: string;
-} {
-	const hasContrastAndBase =
-		slugs.includes( 'contrast' ) && slugs.includes( 'base' );
-
-	if (
-		! hasContrastAndBase &&
-		slugs.includes( 'dark-gray' ) &&
-		slugs.includes( 'white' )
-	) {
-		return { backgroundColor: 'dark-gray', textColor: 'white' };
-	}
-
-	return { backgroundColor: 'contrast', textColor: 'base' };
-}
-
-/**
- * The "Jump to Latest" button, rendered once above the feed: a core button
- * bound to the live feed's link, in the palette's colors (see latestColors())
- * with the theme's Elevation 1 shadow. The site fixes it to the top of the
- * viewport and shows it when new entries wait, or when the feed opens at a
- * shared entry (see Rolling_Coverage_Block::render_new_entries_control()).
- *
- * @param {string[]} slugs The palette's color slugs.
- * @return {TemplateItem} The button's template.
- */
-function latestTemplate( slugs: string[] ): TemplateItem {
-	return [
-		'core/buttons',
-		{
-			lock: LOCKED_IN_PLACE,
-			className: 'newspack-rolling-coverage-new-entries',
-			layout: { type: 'flex', justifyContent: 'center' },
-			metadata: {
-				name: __( 'Jump to Latest', 'newspack-rolling-coverage' ),
-			},
-		},
-		[
-			[
-				'core/button',
-				{
-					lock: LOCKED_IN_PLACE,
-					text: __( 'Jump to Latest', 'newspack-rolling-coverage' ),
-					...latestColors( slugs ),
-					style: { shadow: 'var:preset|shadow|elevation-1' },
-					metadata: {
-						name: __(
-							'Jump to Latest',
-							'newspack-rolling-coverage'
-						),
-						bindings: {
-							url: {
-								source: ENTRY_BINDINGS_SOURCE,
-								args: { key: 'latestUrl' },
-							},
-						},
-					},
-				},
-			],
-		],
-	];
-}
-
-type ButtonsBlock = {
-	name: string;
-	innerBlocks?: { attributes?: Record< string, unknown > }[];
-};
-
-/**
- * Whether a block is a Buttons block holding a button whose link is bound to
- * one of the entry bindings source's values, mirroring
- * Entry_Bindings::is_buttons_bound_to().
- *
- * @param {Object} block The block.
- * @param {string} key   The bound value's key.
- * @return {boolean} Whether it holds a button bound to the value.
- */
-function isButtonsBoundTo( block: ButtonsBlock, key: string ): boolean {
-	return (
-		block.name === 'core/buttons' &&
-		( block.innerBlocks ?? [] ).some( ( inner ) => {
-			const metadata = inner.attributes?.metadata as
-				| {
-						bindings?: {
-							url?: { source?: string; args?: { key?: string } };
-						};
-				  }
-				| undefined;
-			const url = metadata?.bindings?.url;
-			return (
-				url?.source === ENTRY_BINDINGS_SOURCE && url?.args?.key === key
-			);
-		} )
-	);
-}
-
-/**
- * Whether a block is the "Jump to Latest" button's Buttons block (see
- * latestTemplate()), mirroring Entry_Bindings::is_latest_buttons().
- *
- * @param {Object}   block             The block.
- * @param {string}   block.name        Block name.
- * @param {Object[]} block.innerBlocks Inner blocks.
- * @return {boolean} Whether it's the "Jump to Latest" button.
- */
-function isLatestButtons( block: ButtonsBlock ): boolean {
-	return isButtonsBoundTo( block, 'latestUrl' );
-}
-
-/**
  * Whether a block is a heading bound to the coverage's name, mirroring
  * Entry_Bindings::is_coverage_name_heading().
  *
@@ -2194,10 +2048,9 @@ function isAllUpdatesParagraph( block: {
 
 /**
  * Whether a block belongs to the coverage rather than to each entry, so it
- * renders once: the Follow Coverage block, the "Jump to Latest" button,
- * the Coverage Status block, a heading bound to the coverage's name,
- * the "See all updates" paragraph, or a block holding one at any depth,
- * mirroring
+ * renders once: the Follow Coverage block, the Coverage Status block, a
+ * heading bound to the coverage's name, the "See all updates" paragraph, or
+ * a block holding one at any depth, mirroring
  * Entry_Bindings::is_coverage_item(). The pinned card and the entry group
  * always belong to each entry, whatever they hold.
  *
@@ -2209,7 +2062,8 @@ function isCoverageItem( block: {
 	name: string;
 	[ key: string ]: unknown;
 } ): boolean {
-	const typed = block as ButtonsBlock & {
+	const typed = block as {
+		name: string;
 		attributes?: Record< string, unknown >;
 	};
 
@@ -2220,7 +2074,6 @@ function isCoverageItem( block: {
 	return (
 		typed.name === FOLLOW_BLOCK_NAME ||
 		block.name === STATUS_BLOCK_NAME ||
-		isLatestButtons( typed ) ||
 		isCoverageNameHeading( typed ) ||
 		isAllUpdatesParagraph( typed ) ||
 		( Array.isArray( block.innerBlocks ) &&
@@ -2233,8 +2086,7 @@ function isCoverageItem( block: {
  * Rolling_Coverage_Block::layout_parts(): the coverage-level items before the
  * first per-entry item go above the entries, the per-entry items make the
  * entry template, and the coverage-level items after it go below the
- * entries. "Jump to Latest" renders in its own place, so it's in neither
- * list.
+ * entries.
  *
  * @param {Object[]} items The layout's items.
  * @return {Object} The header, template and footer blocks.
@@ -2246,7 +2098,7 @@ function layoutParts< T extends { name: string; [ key: string ]: unknown } >(
 		( parts, item ) => {
 			if ( ! isCoverageItem( item ) ) {
 				parts.template.push( item );
-			} else if ( ! isLatestButtons( item as ButtonsBlock ) ) {
+			} else {
 				( parts.template.length ? parts.footer : parts.header ).push(
 					item
 				);
@@ -2307,22 +2159,6 @@ function withoutFollowButtons<
 	return withoutBlocks(
 		blocks,
 		( block ) => block.name === FOLLOW_BLOCK_NAME
-	);
-}
-
-/**
- * Blocks without the "Jump to Latest" button, at any depth, as everywhere
- * but its own control renders them (see
- * Rolling_Coverage_Block::render_coverage_blocks()).
- *
- * @param {Object[]} blocks Blocks.
- * @return {Object[]} The blocks without it.
- */
-function withoutLatestButtons<
-	T extends { name: string; [ key: string ]: unknown },
->( blocks: T[] ): T[] {
-	return withoutBlocks( blocks, ( block ) =>
-		isLatestButtons( block as ButtonsBlock )
 	);
 }
 
@@ -2454,7 +2290,9 @@ function feedTemplate(
 		'core/group',
 		{
 			...attributes,
-			className: FEED_CLASS,
+			className: [ FEED_CLASS, attributes.className ]
+				.filter( Boolean )
+				.join( ' ' ),
 			lock: LOCKED_IN_PLACE,
 			layout,
 			style: {
@@ -3325,6 +3163,7 @@ export {
 	tickerFooter,
 	TICKER_FEED_LAYOUT,
 	TICKER_FEED_STYLE,
+	RULED_FEED_CLASS,
 	splitEntryTemplate,
 	entryPreviewPlacement,
 	withColumnRule,
@@ -3341,14 +3180,11 @@ export {
 	feedPathOf,
 	isFeedGroup,
 	feedItems,
-	latestTemplate,
-	isLatestButtons,
 	isCoverageNameHeading,
 	isAllUpdatesParagraph,
 	isCoverageItem,
 	layoutParts,
 	withoutFollowButtons,
-	withoutLatestButtons,
 	followBlockIds,
 	allUpdatesLink,
 	allUpdatesBlockIds,
