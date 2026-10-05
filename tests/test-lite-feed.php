@@ -877,15 +877,17 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	 * styles and view script rely on: the styles would fix a new-posts
 	 * control that lost its hidden attribute to the screen for good, and the
 	 * script would find no settings to poll with. A page whose feed was
-	 * cleaned that way gets neither.
+	 * cleaned that way gets neither, only a rule hiding the Load More
+	 * control, which lost its hidden attribute too and has nothing to run it.
 	 */
-	public function test_nothing_prints_when_lite_site_cannot_keep_the_feed_markup() {
+	public function test_only_the_load_more_control_is_hidden_when_lite_site_cannot_keep_the_feed_markup() {
 		$this->with_view_script(
 			function () {
 				// The feed rendered, but Lite Site never applied the filter.
 				Lite_Feed::add_feed();
+				$styles = $this->print_lite_styles();
 
-				$this->assertSame( '', $this->print_lite_styles(), 'No styles.' );
+				$this->assertMatchesRegularExpression( '/^\.newspack-rolling-coverage-load-more\s*\{\s*display:\s*none;\s*\}$/', $styles, 'Only the Load More control is hidden.' );
 				$this->assertSame( '', $this->print_after_footer(), 'No script.' );
 			}
 		);
@@ -903,6 +905,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( '.newspack-rolling-coverage-new-entries[hidden]', $styles );
 		$this->assertStringContainsString( '.newspack-rolling-coverage-status', $styles );
+		$this->assertStringNotContainsString( '.newspack-rolling-coverage-load-more', $styles, 'The view script shows and hides the Load More control.' );
 		$this->assertStringNotContainsString( '<', $styles, 'Nothing can close the style element early.' );
 	}
 }

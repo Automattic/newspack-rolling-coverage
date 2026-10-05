@@ -90,9 +90,10 @@ class Lite_Feed {
 
 	/**
 	 * Whether Lite Site kept the feed's markup: it applied its allowlist
-	 * filter, which the feed widens, while this request served a feed. A
-	 * Lite Site without the filter strips what the styles and the view
-	 * script rely on, so neither prints. Never cleared, like $has_feed.
+	 * filter, which the feed widens, while this request served a feed.
+	 * Without the filter, Lite Site strips what the feed's styles and view
+	 * script rely on, so they print only once this is set. Never cleared,
+	 * like $has_feed.
 	 *
 	 * @var bool
 	 */
@@ -118,13 +119,19 @@ class Lite_Feed {
 	 * Print the feed's styles inside Lite Site's style element, on a page
 	 * whose feed markup Lite Site kept. Lite Site cleans the content before
 	 * the head, so by then it has.
+	 *
+	 * Where it couldn't keep that markup, a Load More control loses its
+	 * hidden attribute, and no script prints to run it, so it is hidden.
 	 */
 	public static function print_styles(): void {
-		if ( ! self::$keeps_feed_markup ) {
+		if ( self::$keeps_feed_markup ) {
+			echo self::STYLES; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static CSS.
 			return;
 		}
 
-		echo self::STYLES; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static CSS.
+		if ( self::$has_feed ) {
+			echo '.newspack-rolling-coverage-load-more { display: none; }';
+		}
 	}
 
 	/**
