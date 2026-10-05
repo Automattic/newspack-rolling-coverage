@@ -747,8 +747,20 @@ class Post_Type {
 	 *
 	 * Reads the stored HTML of every block, including lists and code blocks,
 	 * which `excerpt_remove_blocks()` would drop, without rendering it:
-	 * rendering could recurse through an embedded Rolling Coverage block. Line
-	 * breaks and block-level tags count as word boundaries.
+	 * rendering could recurse through an embedded Rolling Coverage block. See
+	 * get_html_summary() for how the text is read.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @param int     $words Number of words to keep.
+	 * @return string
+	 */
+	public static function get_entry_summary( WP_Post $entry, int $words = 8 ): string {
+		return self::get_html_summary( $entry->post_content, $words );
+	}
+
+	/**
+	 * The first words of stored HTML as plain text. Line breaks and
+	 * block-level tags count as word boundaries.
 	 *
 	 * The result is decoded plain text, so text typed as `<b>` comes back as
 	 * `<b>`: escape it for any HTML context. Shortcodes are removed after
@@ -756,12 +768,12 @@ class Post_Type {
 	 * come back live wherever the summary is shown. Stripping repeats until
 	 * nothing changes, because one pass turns `[[tag]]` into a live `[tag]`.
 	 *
-	 * @param WP_Post $entry Entry post.
-	 * @param int     $words Number of words to keep.
+	 * @param string $html  Stored HTML, such as an entry's content.
+	 * @param int    $words Number of words to keep.
 	 * @return string
 	 */
-	public static function get_entry_summary( WP_Post $entry, int $words = 8 ): string {
-		$html = (string) preg_replace( '/<!--.*?-->/s', ' ', strip_shortcodes( $entry->post_content ) );
+	public static function get_html_summary( string $html, int $words = 8 ): string {
+		$html = (string) preg_replace( '/<!--.*?-->/s', ' ', strip_shortcodes( $html ) );
 		$html = (string) preg_replace( '/<(?:br|\/?(?:p|li|ul|ol|pre|blockquote|h[1-6]|div|figure|figcaption|tr|td|th))\b[^>]*>/i', ' $0 ', $html );
 		$text = wp_trim_words( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( $html ) ), $words, '…' );
 
