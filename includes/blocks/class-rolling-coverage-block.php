@@ -107,6 +107,13 @@ class Rolling_Coverage_Block {
 	const FEED_GAP_PROPERTY = '--newspack-rolling-coverage-gap';
 
 	/**
+	 * The custom property holding a grid Feed's column gap, set only when its
+	 * Block spacing gives the columns their own value; the block's stylesheet
+	 * falls back to FEED_GAP_PROPERTY.
+	 */
+	const FEED_COLUMN_GAP_PROPERTY = '--newspack-rolling-coverage-column-gap';
+
+	/**
 	 * Marks where the coverage's items go while the Feed group and the groups
 	 * wrapping it render.
 	 */
@@ -375,15 +382,37 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * A Block spacing value as the declaration setting the space between the
-	 * coverage's items, or an empty string when it's unset or not a valid gap.
+	 * A Block spacing value as the declarations setting the space between the
+	 * coverage's items, and between a grid's columns when they have their own
+	 * value, or an empty string when neither is set or valid. Each axis is
+	 * read on its own, so a column gap set without a row gap still applies.
 	 *
-	 * @param mixed $block_gap Block spacing value, a string or an array with a `top` value.
+	 * @param mixed $block_gap Block spacing value, a string or an array with `top` and `left` values.
 	 * @return string
 	 */
 	private static function feed_gap_declaration( $block_gap ): string {
-		$gap = wp_sanitize_block_gap_value( $block_gap );
-		$gap = is_array( $gap ) ? ( $gap['top'] ?? null ) : $gap;
+		$sanitized = wp_sanitize_block_gap_value( $block_gap );
+		$values    = [
+			self::FEED_GAP_PROPERTY        => self::gap_css_value( is_array( $sanitized ) ? ( $sanitized['top'] ?? null ) : $sanitized ),
+			self::FEED_COLUMN_GAP_PROPERTY => is_array( $sanitized ) ? self::gap_css_value( $sanitized['left'] ?? null ) : '',
+		];
+		$declarations = [];
+
+		foreach ( array_filter( $values ) as $property => $value ) {
+			$declarations[] = $property . ':' . $value;
+		}
+
+		return implode( ';', $declarations );
+	}
+
+	/**
+	 * One axis of a sanitized Block spacing value as CSS, or an empty string
+	 * when it's unset.
+	 *
+	 * @param mixed $gap The axis's value.
+	 * @return string
+	 */
+	private static function gap_css_value( $gap ): string {
 		$gap = is_string( $gap ) ? trim( explode( ';', $gap )[0] ) : '';
 
 		if ( '' === $gap ) {
@@ -391,7 +420,7 @@ class Rolling_Coverage_Block {
 		}
 
 		// The property is used in calc(), where a unitless 0 isn't a length.
-		return self::FEED_GAP_PROPERTY . ':' . ( '0' === $gap ? '0px' : self::spacing_css_value( $gap ) );
+		return '0' === $gap ? '0px' : self::spacing_css_value( $gap );
 	}
 
 	/**

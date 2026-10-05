@@ -29,6 +29,7 @@ import {
 	tickerFooter,
 	TICKER_FEED_LAYOUT,
 	TICKER_FEED_STYLE,
+	RULED_FEED_CLASS,
 	splitEntryTemplate,
 	SPLIT_FEED_LAYOUT,
 	SPLIT_FEED_STYLE,
@@ -231,7 +232,7 @@ export function bylineInnerTemplate(): TemplateItem[] {
 /**
  * The Ticker layout's inner-blocks template: the coverage's status and name
  * beside the three latest entries' headlines, then a link to the coverage
- * page, with no buttons.
+ * page, with no buttons and a rule in every gap between them.
  *
  * @return {TemplateItem[]} The template.
  */
@@ -245,7 +246,8 @@ export function tickerInnerTemplate(): TemplateItem[] {
 			],
 			'var:preset|spacing|40',
 			TICKER_FEED_STYLE,
-			TICKER_FEED_LAYOUT
+			TICKER_FEED_LAYOUT,
+			{ className: RULED_FEED_CLASS }
 		),
 	];
 }

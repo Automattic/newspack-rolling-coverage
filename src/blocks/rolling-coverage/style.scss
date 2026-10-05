@@ -187,6 +187,57 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	}
 }
 
+@property --newspack-rolling-coverage-rule-row {
+	syntax: "<length>";
+	inherits: true;
+	initial-value: 0;
+}
+
+@property --newspack-rolling-coverage-rule-column {
+	syntax: "<length>";
+	inherits: true;
+	initial-value: 0;
+}
+
+.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.newspack-rolling-coverage-ruled {
+	--newspack-rolling-coverage-rule-row: #{$feed-gap};
+	--newspack-rolling-coverage-rule-column: var(--newspack-rolling-coverage-column-gap, #{$feed-gap});
+	--newspack-rolling-coverage-rule-color: color-mix(in srgb, currentcolor 13%, transparent);
+	row-gap: calc(2 * var(--newspack-rolling-coverage-rule-row) + 1px);
+	column-gap: calc(2 * var(--newspack-rolling-coverage-rule-column) + 1px);
+	clip-path: inset(calc(-1 * min(var(--newspack-rolling-coverage-rule-row), 4px)) -4px -4px 0) content-box;
+
+	&:dir(rtl) {
+		clip-path: inset(calc(-1 * min(var(--newspack-rolling-coverage-rule-row), 4px)) 0 -4px -4px) content-box;
+	}
+
+	&:has(> .newspack-rolling-coverage-new-entries) {
+		overflow: clip;
+		clip-path: none;
+	}
+
+	> :where(:not(.newspack-rolling-coverage-entries, .newspack-rolling-coverage-status, .newspack-rolling-coverage-new-entries, .newspack-rolling-coverage-sentinel, .block-list-appender)),
+	> .newspack-rolling-coverage-entries > * {
+		--newspack-rolling-coverage-rule-side: left;
+		position: relative;
+
+		&:dir(rtl) {
+			--newspack-rolling-coverage-rule-side: right;
+		}
+
+		&::before {
+			content: "";
+			position: absolute;
+			inset-block: calc(-2 * var(--newspack-rolling-coverage-rule-row) - 1px) 0;
+			inset-inline: calc(-2 * var(--newspack-rolling-coverage-rule-column) - 1px) 0;
+			background:
+				linear-gradient(var(--newspack-rolling-coverage-rule-color), var(--newspack-rolling-coverage-rule-color)) var(--newspack-rolling-coverage-rule-side) var(--newspack-rolling-coverage-rule-column) bottom 0 / 1px calc(100% - 2 * var(--newspack-rolling-coverage-rule-row) - 1px) no-repeat,
+				linear-gradient(var(--newspack-rolling-coverage-rule-color), var(--newspack-rolling-coverage-rule-color)) 0 var(--newspack-rolling-coverage-rule-row) / 100% 1px no-repeat;
+			pointer-events: none;
+		}
+	}
+}
+
 :where(.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-load-more) {
 	text-align: center;
 }

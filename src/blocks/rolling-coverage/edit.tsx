@@ -90,6 +90,7 @@ import {
 	withoutFollowButtons,
 	entryPreviewPlacement,
 	withColumnRule,
+	RULED_FEED_CLASS,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -197,11 +198,25 @@ function feedGapStyle( feed?: {
 	[ key: string ]: unknown;
 } ): Record< string, string > {
 	const attributes = feed?.attributes as
-		| { style?: { spacing?: { blockGap?: string | { top?: string } } } }
+		| {
+				style?: {
+					spacing?: {
+						blockGap?: string | { top?: string; left?: string };
+					};
+				};
+		  }
 		| undefined;
-	const gap = blockGapCss( attributes?.style?.spacing?.blockGap );
+	const blockGap = attributes?.style?.spacing?.blockGap;
+	const gap = blockGapCss( blockGap );
+	const columnGap =
+		typeof blockGap === 'object' ? blockGapCss( blockGap.left ) : undefined;
 
-	return gap ? { '--newspack-rolling-coverage-gap': gap } : {};
+	return {
+		...( gap ? { '--newspack-rolling-coverage-gap': gap } : {} ),
+		...( columnGap
+			? { '--newspack-rolling-coverage-column-gap': columnGap }
+			: {} ),
+	};
 }
 
 /**
@@ -470,7 +485,8 @@ function chromePreviewStyle(
 
 /**
  * The Feed group's own classes and styles, for the container a synced
- * layout's preview shows in place of the Feed.
+ * layout's preview shows in place of the Feed. A ruled Feed takes its gap
+ * from the block's stylesheet, which widens it to fit the rules.
  *
  * @param {Object} feed The layout's Feed group.
  * @return {Object} The container's className and style.
@@ -480,15 +496,19 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
 	style: Record< string, unknown >;
 } {
 	const { classNames, style } = groupPreviewParts( feed );
+	const className = joinClassNames( [
+		'wp-block-group',
+		'newspack-rolling-coverage-feed',
+		...classNames,
+	] );
 
-	return {
-		className: joinClassNames( [
-			'wp-block-group',
-			'newspack-rolling-coverage-feed',
-			...classNames,
-		] ),
-		style,
-	};
+	if ( className.split( ' ' ).includes( RULED_FEED_CLASS ) ) {
+		const { gap, ...rest } = style;
+
+		return { className, style: rest };
+	}
+
+	return { className, style };
 }
 
 /**
