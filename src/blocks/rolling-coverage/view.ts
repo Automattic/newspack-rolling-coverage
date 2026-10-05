@@ -399,7 +399,7 @@ async function fetchEntries( url: string ): Promise< Response > {
 }
 
 /**
- * Sets up polling and infinite scroll for a single block instance.
+ * Sets up polling and the loading of older entries for a single block instance.
  *
  * @param {HTMLElement} root The block's outer wrapper element.
  * @return {void}
@@ -2040,6 +2040,24 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Tells the reader that pressing Load More failed. A feed that loads on
+	 * scroll stays silent.
+	 *
+	 * @return {void}
+	 */
+	function announceLoadMoreFailure(): void {
+		if ( loadMoreButton ) {
+			announce(
+				/* translators: Announced when pressing the Load More button fails to load older entries. */
+				__(
+					'Couldn’t load more entries. Try again.',
+					'newspack-rolling-coverage'
+				)
+			);
+		}
+	}
+
+	/**
 	 * Loads and appends the next page of older entries.
 	 *
 	 * Sends the backlog position so ad placement stays stable across load-more
@@ -2133,11 +2151,13 @@ function initBlock( root: HTMLElement ): void {
 				}
 
 				trackPollError( 'load_more' );
+				announceLoadMoreFailure();
 			}
 		} catch ( error ) {
 			trackPollError( 'load_more' );
+			announceLoadMoreFailure();
 
-			// Leave hasMore as-is; retried if the sentinel intersects again.
+			// Leave hasMore as-is, so the sentinel or the button can try again.
 			console.error( error ); // eslint-disable-line no-console
 		} finally {
 			isLoadingMore = false;

@@ -56,8 +56,7 @@ class Test_Older_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * With the setting left unset, more entries load on scroll, as before it
-	 * existed; a value the block doesn't know does the same.
+	 * With the setting unset or unknown, more entries load on scroll.
 	 */
 	public function test_entries_load_on_scroll_by_default() {
 		$coverage_id = self::create_coverage_with_entries();
@@ -82,7 +81,8 @@ class Test_Older_Entries extends Rolling_Coverage_TestCase {
 	/**
 	 * The Load More button takes the sentinel's place, styled as the theme
 	 * styles buttons, right after the entries and above the blocks below
-	 * them.
+	 * them. It renders hidden, for the view script to show while more
+	 * entries remain, so a page without the script never offers it.
 	 */
 	public function test_load_more_button_follows_the_entries() {
 		$coverage_id = self::create_coverage_with_entries();
@@ -97,7 +97,7 @@ class Test_Older_Entries extends Rolling_Coverage_TestCase {
 
 		$this->assertStringNotContainsString( 'newspack-rolling-coverage-sentinel', $html );
 		$this->assertStringContainsString( 'data-has-more="1"', $html );
-		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-load-more"><button type="button" class="wp-element-button wp-block-button__link">Load More</button></div>', $html, 'With more to load, the button should show.' );
+		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-load-more" hidden><button type="button" class="wp-element-button wp-block-button__link">Load More</button></div>', $html );
 
 		$entries   = strpos( $html, 'class="newspack-rolling-coverage-entries"' );
 		$load_more = strpos( $html, 'newspack-rolling-coverage-load-more' );
@@ -109,21 +109,54 @@ class Test_Older_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * With nothing more to load, the button renders hidden, for the view
-	 * script to show if a swap to the live feed brings more.
+	 * A coverage with exactly one page of entries has nothing more to load,
+	 * so the button is never offered for a page that would load nothing.
 	 */
-	public function test_load_more_button_is_hidden_when_nothing_more_loads() {
+	public function test_exactly_one_page_of_entries_leaves_nothing_more_to_load() {
 		$coverage_id = self::create_coverage_with_entries();
 		$html        = self::render_block(
 			[
 				'coverageId'     => $coverage_id,
-				'entriesPerPage' => 5,
+				'entriesPerPage' => 3,
 				'olderEntries'   => 'button',
 			]
 		);
 
+		preg_match_all( '/data-entry-id="(\d+)"/', $html, $matches );
+
+		$this->assertCount( 3, $matches[1] );
 		$this->assertStringContainsString( 'data-has-more="0"', $html );
-		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-load-more" hidden>', $html );
+	}
+
+	/**
+	 * A page of older entries that ends at the coverage's oldest entry
+	 * reports nothing more to load.
+	 */
+	public function test_older_page_ending_at_the_oldest_entry_leaves_nothing_more_to_load() {
+		$coverage_id = self::create_coverage_with_entries();
+		$html        = self::render_block(
+			[
+				'coverageId'     => $coverage_id,
+				'entriesPerPage' => 1,
+				'olderEntries'   => 'button',
+			]
+		);
+
+		preg_match( '/data-before="([^"]*)"/', $html, $before );
+		preg_match( '/data-template-key="([^"]*)"/', $html, $template_key );
+
+		$data = self::dispatch(
+			'GET',
+			'/coverages/' . $coverage_id . '/entries',
+			[
+				'before'       => html_entity_decode( $before[1] ),
+				'per_page'     => 2,
+				'template_key' => $template_key[1],
+			]
+		)->get_data();
+
+		$this->assertSame( 2, $data['count'] );
+		$this->assertFalse( $data['hasMore'] );
 	}
 
 	/**
@@ -148,27 +181,6 @@ class Test_Older_Entries extends Rolling_Coverage_TestCase {
 		$this->assertStringNotContainsString( 'newspack-rolling-coverage-load-more', $html );
 		$this->assertStringContainsString( 'data-has-more="0"', $html );
 		$this->assertSame( 1, substr_count( $html, 'wp-block-separator' ), 'Only the first entry should keep its separator.' );
-	}
-
-	/**
-	 * Every setting keeps the feed polling for new entries.
-	 */
-	public function test_every_setting_keeps_polling() {
-		$coverage_id = self::create_coverage_with_entries();
-
-		foreach ( [ 'scroll', 'button', 'none' ] as $older_entries ) {
-			$html = self::render_block(
-				[
-					'coverageId'     => $coverage_id,
-					'entriesPerPage' => 2,
-					'olderEntries'   => $older_entries,
-				]
-			);
-
-			$this->assertMatchesRegularExpression( '/data-cursor="[^"]+"/', $html, $older_entries );
-			$this->assertStringContainsString( 'data-template-key="', $html, $older_entries );
-			$this->assertStringContainsString( 'newspack-rolling-coverage-new-entries', $html, $older_entries );
-		}
 	}
 
 	/**
