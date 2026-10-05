@@ -572,6 +572,16 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Every built-in slug has its title asserted: here, or in the default,
+	 * stream and rail tests. A slug without a title fails to create.
+	 */
+	public function test_every_built_in_layout_has_a_title_test() {
+		$covered = array_merge( [ 'default', 'stream', 'rail' ], array_keys( $this->data_built_in_layouts() ) );
+
+		$this->assertEqualsCanonicalizing( Layout::BUILT_IN_SLUGS, $covered );
+	}
+
+	/**
 	 * A second stream create returns the existing pattern.
 	 */
 	public function test_create_returns_the_existing_stream_layout() {
