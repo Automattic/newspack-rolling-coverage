@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-05T17:22:28+00:00\n"
+"POT-Creation-Date: 2026-10-05T17:31:35+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -83,9 +83,9 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:461
-#: includes/blocks/class-rolling-coverage-block.php:3914
-#: includes/blocks/class-rolling-coverage-block.php:4040
-#: includes/blocks/class-rolling-coverage-block.php:4051
+#: includes/blocks/class-rolling-coverage-block.php:3921
+#: includes/blocks/class-rolling-coverage-block.php:4047
+#: includes/blocks/class-rolling-coverage-block.php:4058
 #: includes/class-post-type.php:1039
 #: includes/class-taxonomy.php:361
 msgid "Coverage not found."
@@ -192,7 +192,7 @@ msgid "Something went wrong. Please try again."
 msgstr ""
 
 #: includes/blocks/class-entry-bindings.php:709
-#: includes/blocks/class-rolling-coverage-block.php:2736
+#: includes/blocks/class-rolling-coverage-block.php:2743
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/share/index.js:1
@@ -288,21 +288,21 @@ msgctxt "layout name"
 msgid "Flash"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1119
+#: includes/blocks/class-rolling-coverage-block.php:1126
 #: dist/blocks/rolling-coverage/index.js:19
 msgid "Select a coverage to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1145
+#: includes/blocks/class-rolling-coverage-block.php:1152
 msgid "This coverage is no longer available."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1259
+#: includes/blocks/class-rolling-coverage-block.php:1266
 msgid "No entries yet."
 msgstr ""
 
 #. translators: %d: number of coverage entries newer than the one shown, from 1 to 10.
-#: includes/blocks/class-rolling-coverage-block.php:1576
+#: includes/blocks/class-rolling-coverage-block.php:1583
 #: dist/blocks/rolling-coverage/view.js:2
 #, php-format,js-format
 msgid "%d Newer Post"
@@ -311,7 +311,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100.
-#: includes/blocks/class-rolling-coverage-block.php:1588
+#: includes/blocks/class-rolling-coverage-block.php:1595
 #: dist/blocks/rolling-coverage/view.js:3
 #, php-format,js-format
 msgid "%d+ Newer Post"
@@ -320,67 +320,67 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: Button that loads older entries at the end of a coverage's feed.
-#: includes/blocks/class-rolling-coverage-block.php:1706
+#: includes/blocks/class-rolling-coverage-block.php:1713
 #: dist/blocks/rolling-coverage/index.js:3
 msgid "Load More"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1796
+#: includes/blocks/class-rolling-coverage-block.php:1803
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Jump to Latest"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2596
-#: includes/blocks/class-rolling-coverage-block.php:2777
+#: includes/blocks/class-rolling-coverage-block.php:2603
+#: includes/blocks/class-rolling-coverage-block.php:2784
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/rolling-coverage/index.js:17
 msgid "Read more"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2614
+#: includes/blocks/class-rolling-coverage-block.php:2621
 #: dist/blocks/rolling-coverage/index.js:15
 msgid "Coverage of this news event has concluded and this feed is now archived."
 msgstr ""
 
 #. translators: %s: Coverage name.
-#: includes/blocks/class-rolling-coverage-block.php:2618
+#: includes/blocks/class-rolling-coverage-block.php:2625
 #: dist/blocks/rolling-coverage/index.js:15
 #, php-format,js-format
 msgid "Coverage of “%s” has concluded and this feed is now archived."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2749
+#: includes/blocks/class-rolling-coverage-block.php:2756
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Meta"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2861
+#: includes/blocks/class-rolling-coverage-block.php:2868
 #: includes/class-post-type.php:256
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Entry"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2909
+#: includes/blocks/class-rolling-coverage-block.php:2916
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned Entry"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3417
-#: includes/blocks/class-rolling-coverage-block.php:3429
-#: includes/blocks/class-rolling-coverage-block.php:3691
+#: includes/blocks/class-rolling-coverage-block.php:3424
+#: includes/blocks/class-rolling-coverage-block.php:3436
+#: includes/blocks/class-rolling-coverage-block.php:3698
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3720
+#: includes/blocks/class-rolling-coverage-block.php:3727
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3856
+#: includes/blocks/class-rolling-coverage-block.php:3863
 msgid "How many entries a capped feed shows, so its requests stay capped without a stored config."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4059
+#: includes/blocks/class-rolling-coverage-block.php:4066
 msgid "Either cursor or before must be provided."
 msgstr ""
 
