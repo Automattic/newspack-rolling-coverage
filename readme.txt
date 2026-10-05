@@ -6,59 +6,15 @@ Requires PHP: 8.0
 Stable tag: trunk
 License: GPL-3.0
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
-Tags: live blog, rolling coverage, breaking news, newspack, live updates
+Tags: liveblog, rolling coverage, breaking news, newspack, live updates
 
-Live blog and rolling coverage of ongoing news events, with real-time updates, Slack ingestion, archive mode, and AI summaries.
+Liveblog and rolling coverage of ongoing news events, with real-time updates, Slack ingestion, archive mode, and AI summaries.
 
 == Description ==
 
-Newspack Rolling Coverage helps newsrooms cover developing stories with a continuous feed of short, timestamped entries. Publish updates as they happen, embed the feed on any post or page, and let readers follow along as the story unfolds — no page reload required.
+Rolling Coverage publishes a continuous feed of short, timestamped entries for each developing story. Entries are authored from a few well-known tools and delivered to readers in real time without a page reload. Rolling Coverage Blocks can be placed in multiple spots across a site — a post, a sidebar, a homepage marquee — with each placement configurable to show readers a tailored view of the same coverage. Archive mode locks a coverage once an event concludes and optional AI-generated summaries help readers stay oriented as the story grows.
 
-= Live coverage feeds =
-
-Add the Rolling Coverage block to any post or page to display a live feed of entries for a coverage. Readers see new entries appear automatically as they are published, and can load earlier entries as they scroll back through the story.
-
-= Editorial workflow =
-
-Create a Rolling Coverage for each ongoing event, then add entries to it. Entries can be published immediately, scheduled, saved as drafts, or submitted for review, and each entry is displayed with its title, date, content, and featured image inside a customizable block template.
-
-The Rolling Coverage admin screen gives you a filterable, sortable list of every entry across your coverage, with live updates as colleagues publish. You can quickly edit an entry, open it in the full editor, pin it to the top of the feed, archive it, or turn it into a standalone article.
-
-= Real-time reader updates =
-
-The feed polls for new and updated entries and inserts them as they arrive. New entries published while a reader is on the page are surfaced with a "new posts" prompt, and updated entries are refreshed in place so readers always see the latest version.
-
-= Slack ingestion =
-
-Connect a Slack channel to a coverage and let reporters file updates directly from Slack. Messages become entries automatically, with an option to publish immediately or hold them as drafts for review. You can ignore messages that begin with a prefix such as `~~`, and every incoming request is verified with Slack's signing secret.
-
-= Archive mode =
-
-When an event concludes, archive the coverage. Archiving freezes the feed, records an end time, shows readers an archived notice, and locks the entries from further changes — while keeping the story fully readable.
-
-= Follow and push notifications =
-
-Readers can follow a coverage to receive push notifications when it is updated. With the OneSignal plugin installed and configured, notifications are sent only to followers of the relevant coverage, and each notification links straight to the new entry. Push notifications require a canonical URL to be set on the coverage.
-
-= Breakout posts =
-
-When a single update deserves its own article, create a breakout post. Rolling Coverage copies the entry into a new draft post, links the two together, and adds a "Read more" link in the feed once the article is published.
-
-= Social sharing and deep links =
-
-Each entry has a shareable link. When a reader opens an entry link, they are taken to the coverage on the embedding page and scrolled to the right entry. Readers who arrive from an older link see a helpful call-to-action pointing them to the latest coverage.
-
-= AI key takeaways =
-
-When the WordPress AI plugin and a provider are configured, generate a concise summary of the most important developments in a coverage from the block editor. The summary prompt is customizable from the AI settings screen.
-
-= Advertising =
-
-Sites using Newspack Ads can insert ad units between entries at a configurable interval, and can disable advertising on individual coverages.
-
-= Structured data =
-
-Coverage feeds output schema.org `LiveBlogPosting` structured data, helping search engines and news aggregators understand the story and its updates.
+For the full documentation, see the README in the GitHub repository: https://github.com/Automattic/newspack-rolling-coverage/blob/trunk/README.md
 
 = About Newspack =
 
