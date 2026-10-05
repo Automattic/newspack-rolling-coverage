@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-03T19:31:08+00:00\n"
+"POT-Creation-Date: 2026-10-05T06:47:35+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -184,76 +184,76 @@ msgstr ""
 msgid "This layout is being created. Try again in a moment."
 msgstr ""
 
-#. translators: %s: Rolling Coverage, the product name.
-#: includes/blocks/class-layout.php:425
-#, php-format
-msgid "%s: Stream"
+#: includes/blocks/class-layout.php:426
+#: dist/blocks/rolling-coverage/index.js:1
+msgctxt "layout name"
+msgid "Bulletin"
 msgstr ""
 
-#. translators: %s: Rolling Coverage, the product name.
 #: includes/blocks/class-layout.php:427
-#, php-format
-msgid "%s: Rail"
+#: dist/blocks/rolling-coverage/index.js:1
+msgctxt "layout name"
+msgid "Stream"
 msgstr ""
 
-#. translators: %s: Rolling Coverage, the product name.
+#: includes/blocks/class-layout.php:428
+#: dist/blocks/rolling-coverage/index.js:1
+msgctxt "layout name"
+msgid "Rail"
+msgstr ""
+
 #: includes/blocks/class-layout.php:429
-#, php-format
-msgid "%s: Clock"
+#: dist/blocks/rolling-coverage/index.js:1
+msgctxt "layout name"
+msgid "Clock"
 msgstr ""
 
-#. translators: %s: Rolling Coverage, the product name.
+#: includes/blocks/class-layout.php:430
+#: dist/blocks/rolling-coverage/index.js:1
+msgctxt "layout name"
+msgid "Margin"
+msgstr ""
+
 #: includes/blocks/class-layout.php:431
-#, php-format
-msgid "%s: Margin"
+#: dist/blocks/rolling-coverage/index.js:1
+msgctxt "layout name"
+msgid "Minute"
 msgstr ""
 
-#. translators: %s: Rolling Coverage, the product name.
+#: includes/blocks/class-layout.php:432
+#: dist/blocks/rolling-coverage/index.js:1
+msgctxt "layout name"
+msgid "Byline"
+msgstr ""
+
 #: includes/blocks/class-layout.php:433
-#, php-format
-msgid "%s: Minute"
+#: dist/blocks/rolling-coverage/index.js:1
+msgctxt "layout name"
+msgid "Ticker"
 msgstr ""
 
-#. translators: %s: Rolling Coverage, the product name.
+#: includes/blocks/class-layout.php:434
+#: dist/blocks/rolling-coverage/index.js:1
+msgctxt "layout name"
+msgid "Split"
+msgstr ""
+
 #: includes/blocks/class-layout.php:435
-#, php-format
-msgid "%s: Byline"
+#: dist/blocks/rolling-coverage/index.js:1
+msgctxt "layout name"
+msgid "Wire"
 msgstr ""
 
-#. translators: %s: Rolling Coverage, the product name.
+#: includes/blocks/class-layout.php:436
+#: dist/blocks/rolling-coverage/index.js:1
+msgctxt "layout name"
+msgid "Digest"
+msgstr ""
+
 #: includes/blocks/class-layout.php:437
-#, php-format
-msgid "%s: Ticker"
-msgstr ""
-
-#. translators: %s: Rolling Coverage, the product name.
-#: includes/blocks/class-layout.php:439
-#, php-format
-msgid "%s: Split"
-msgstr ""
-
-#. translators: %s: Rolling Coverage, the product name.
-#: includes/blocks/class-layout.php:441
-#, php-format
-msgid "%s: Wire"
-msgstr ""
-
-#. translators: %s: Rolling Coverage, the product name.
-#: includes/blocks/class-layout.php:443
-#, php-format
-msgid "%s: Digest"
-msgstr ""
-
-#. translators: %s: Rolling Coverage, the product name.
-#: includes/blocks/class-layout.php:445
-#, php-format
-msgid "%s: Flash"
-msgstr ""
-
-#. translators: %s: Rolling Coverage, the product name.
-#: includes/blocks/class-layout.php:447
-#, php-format
-msgid "%s: Bulletin"
+#: dist/blocks/rolling-coverage/index.js:1
+msgctxt "layout name"
+msgid "Flash"
 msgstr ""
 
 #: includes/blocks/class-rolling-coverage-block.php:1072
@@ -2208,66 +2208,6 @@ msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Bethany Osei rotates less than usual for the rematch. Vandermeer captains, Kowalski leads the line and Nia Fletcher plays behind her."
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgctxt "layout name"
-msgid "Bulletin"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgctxt "layout name"
-msgid "Stream"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgctxt "layout name"
-msgid "Rail"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgctxt "layout name"
-msgid "Clock"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgctxt "layout name"
-msgid "Margin"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgctxt "layout name"
-msgid "Minute"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgctxt "layout name"
-msgid "Byline"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgctxt "layout name"
-msgid "Ticker"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgctxt "layout name"
-msgid "Split"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgctxt "layout name"
-msgid "Wire"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgctxt "layout name"
-msgid "Digest"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgctxt "layout name"
-msgid "Flash"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
