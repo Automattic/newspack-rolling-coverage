@@ -135,7 +135,7 @@ Entries posted from Slack follow the same rules:
 
 - A message with text shows its text as usual.
 - An image posted without text becomes a photo entry. The image's description in Slack becomes its alt text, so the entry reads "Photo: " followed by that description. Without a description, the entry reads only "Photo".
-- Several images posted without text become a gallery, which reads "Gallery: " followed by the first description among its images, or only "Gallery" when none has one.
+- Several images become a gallery. Posted without text, the entry reads "Gallery: " followed by the first description among its images, or only "Gallery" when none has one.
 
 To give readers more than "Photo" or "Gallery", add a description to the image in Slack before you post it, or write a line of text with the images.
 
