@@ -10,6 +10,12 @@ const SHARE_BUTTON_SELECTOR =
 const STATUS_SELECTOR = '.newspack-rolling-coverage-status';
 const COPIED_STATE_MS = 2000;
 
+// A share button's events reach every feed holding it. Only the closest feed
+// with listeners handles each one, so the link is shared or copied once. A
+// feed added after page load gets no listeners, and the feed holding it
+// handles its buttons.
+const handledEvents = new WeakSet< Event >();
+
 type NewspackUI = {
 	notices?: { createNotice?: ( message: string ) => void };
 };
@@ -149,9 +155,13 @@ function initBlock( root: HTMLElement ): void {
 		const createNotice = ( window as Window & { newspackUI?: NewspackUI } )
 			.newspackUI?.notices?.createNotice;
 		// The snackbar announces itself, so the status region stays empty.
+		// Only the feed's own region counts: a capped feed renders none, and
+		// the first match would then be a nested feed's.
 		const status = createNotice
 			? null
-			: root.querySelector( STATUS_SELECTOR );
+			: Array.from( root.querySelectorAll( STATUS_SELECTOR ) ).find(
+					( region ) => region.closest( BLOCK_SELECTOR ) === root
+				);
 		const notify = ( message: string ) => {
 			if ( createNotice ) {
 				showSnackbar( createNotice, message );
@@ -218,6 +228,7 @@ function initBlock( root: HTMLElement ): void {
 		// Modified clicks keep the link's own behaviour, e.g. a new tab.
 		if (
 			! button ||
+			handledEvents.has( event ) ||
 			event.metaKey ||
 			event.ctrlKey ||
 			event.shiftKey ||
@@ -226,6 +237,7 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
+		handledEvents.add( event );
 		event.preventDefault();
 		handleShareClick( button );
 	} );
@@ -236,10 +248,16 @@ function initBlock( root: HTMLElement ): void {
 			'a[data-rc-share]'
 		);
 
-		if ( ! button || event.key !== ' ' || event.repeat ) {
+		if (
+			! button ||
+			handledEvents.has( event ) ||
+			event.key !== ' ' ||
+			event.repeat
+		) {
 			return;
 		}
 
+		handledEvents.add( event );
 		event.preventDefault();
 		handleShareClick( button );
 	} );
