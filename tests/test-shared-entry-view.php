@@ -323,7 +323,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertSame( '3 Newer Posts', $control['text'] );
 		$this->assertSame( 'Jump to Latest', $control['own'], 'The link keeps its own text for the view script.' );
 		$this->assertSame( 'wp-block-button__link wp-element-button', $control['link'] );
-		$this->assertSame( 'box-shadow:var(--wp--preset--shadow--elevation-1)', $control['style'] );
+		$this->assertSame( 'box-shadow:var(--wp--preset--shadow--elevation-2)', $control['style'] );
 		$this->assertSame( get_permalink( $this->page_id ), $control['live'], 'The wrapper carries the live feed URL for the view script.' );
 		$this->assertSame( 1, $control['marked'], 'Only the link to the live feed is marked for the view script.' );
 		$this->assertContains( 'is-layout-flex', explode( ' ', $control['classes'] ) );
