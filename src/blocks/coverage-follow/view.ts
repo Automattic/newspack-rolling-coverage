@@ -18,6 +18,12 @@ function updateButtonState(
 	button: HTMLButtonElement,
 	followed: boolean
 ): void {
+	// Until its state is first shown, the button reads the label set in the
+	// editor, so that's the "Follow" text.
+	if ( ! button.dataset.labelFollow ) {
+		button.dataset.labelFollow = button.textContent?.trim() || undefined;
+	}
+
 	const { labelFollow = 'Follow', labelFollowing = 'Following' } =
 		button.dataset;
 	button.textContent = followed ? labelFollowing : labelFollow;
@@ -138,100 +144,145 @@ function buttonsForTag( tag: string ): HTMLButtonElement[] {
 }
 
 /**
- * Wires a follow button's click handler: toggle the OneSignal tag, with an
- * optimistic UI update reverted on failure.
+ * Paints follow buttons from OneSignal's tags once the SDK is ready.
+ *
+ * @param {HTMLButtonElement[]} buttons Follow buttons to paint.
+ */
+function syncWhenReady( buttons: HTMLButtonElement[] ): void {
+	window.OneSignalDeferred = window.OneSignalDeferred || [];
+	window.OneSignalDeferred.push( ( OneSignal ) =>
+		syncFollowButtons( OneSignal, buttons )
+	);
+}
+
+/**
+ * The follow buttons in a node, the node itself included.
+ *
+ * @param {Node} node Node to look in.
+ * @return {HTMLButtonElement[]} Matching buttons.
+ */
+function followButtonsIn( node: Node ): HTMLButtonElement[] {
+	if ( ! ( node instanceof HTMLElement ) ) {
+		return [];
+	}
+
+	const buttons = Array.from(
+		node.querySelectorAll< HTMLButtonElement >( FOLLOW_BUTTON_SELECTOR )
+	);
+
+	return node instanceof HTMLButtonElement &&
+		node.matches( FOLLOW_BUTTON_SELECTOR )
+		? [ node, ...buttons ]
+		: buttons;
+}
+
+/**
+ * Toggles a follow button's OneSignal tag, with an optimistic UI update
+ * reverted on failure.
  *
  * @param {HTMLButtonElement} button Follow button element.
+ * @param {string}            tag    The button's OneSignal tag.
  */
-function initFollowButton( button: HTMLButtonElement ): void {
-	const tag = button.dataset.tag;
+function toggleFollow( button: HTMLButtonElement, tag: string ): void {
+	const willFollow = button.getAttribute( 'aria-pressed' ) !== 'true';
 
-	if ( ! tag ) {
-		return;
-	}
+	const siblings = buttonsForTag( tag );
 
-	// The core button's label is set in the editor, so it's the "Follow" text.
-	if ( ! button.dataset.labelFollow ) {
-		button.dataset.labelFollow = button.textContent?.trim() || undefined;
-	}
+	siblings.forEach( ( sibling ) => {
+		updateButtonState( sibling, willFollow );
+		sibling.disabled = true;
+	} );
+	siblings.forEach( ( sibling ) => setStatusMessage( sibling, '' ) );
 
-	button.addEventListener( 'click', () => {
-		const willFollow = button.getAttribute( 'aria-pressed' ) !== 'true';
-
-		const siblings = buttonsForTag( tag );
-
+	const settle = () =>
 		siblings.forEach( ( sibling ) => {
-			updateButtonState( sibling, willFollow );
-			sibling.disabled = true;
+			sibling.disabled = false;
 		} );
-		siblings.forEach( ( sibling ) => setStatusMessage( sibling, '' ) );
 
-		const settle = () =>
-			siblings.forEach( ( sibling ) => {
-				sibling.disabled = false;
-			} );
+	const revert = ( message: string ) => {
+		siblings.forEach( ( sibling ) =>
+			updateButtonState( sibling, ! willFollow )
+		);
+		setStatusMessage( button, message );
+		settle();
+	};
 
-		const revert = ( message: string ) => {
-			siblings.forEach( ( sibling ) =>
-				updateButtonState( sibling, ! willFollow )
-			);
-			setStatusMessage( button, message );
-			settle();
-		};
+	let hasResolvedSdkWait = false;
+	const timeoutId = window.setTimeout( () => {
+		hasResolvedSdkWait = true;
+		revert( button.dataset.errorMessage || '' );
+	}, SDK_WAIT_TIMEOUT_MS );
 
-		let hasResolvedSdkWait = false;
-		const timeoutId = window.setTimeout( () => {
-			hasResolvedSdkWait = true;
-			revert( button.dataset.errorMessage || '' );
-		}, SDK_WAIT_TIMEOUT_MS );
+	window.OneSignalDeferred = window.OneSignalDeferred || [];
+	window.OneSignalDeferred.push( async ( OneSignal ) => {
+		// Already reverted by the timeout; ignore a late-loading SDK.
+		if ( hasResolvedSdkWait ) {
+			return;
+		}
 
-		window.OneSignalDeferred = window.OneSignalDeferred || [];
-		window.OneSignalDeferred.push( async ( OneSignal ) => {
-			// Already reverted by the timeout; ignore a late-loading SDK.
-			if ( hasResolvedSdkWait ) {
-				return;
-			}
+		hasResolvedSdkWait = true;
+		window.clearTimeout( timeoutId );
 
-			hasResolvedSdkWait = true;
-			window.clearTimeout( timeoutId );
-
-			try {
-				if ( ! willFollow ) {
-					OneSignal.User.removeTag( tag );
-				} else {
-					if ( ! OneSignal.Notifications.isPushSupported() ) {
-						revert( button.dataset.blockedMessage || '' );
-						return;
-					}
-
-					const granted =
-						await requestNotificationPermission( OneSignal );
-
-					if ( ! granted ) {
-						revert( button.dataset.blockedMessage || '' );
-						return;
-					}
-
-					OneSignal.User.addTag( tag, '1' );
+		try {
+			if ( ! willFollow ) {
+				OneSignal.User.removeTag( tag );
+			} else {
+				if ( ! OneSignal.Notifications.isPushSupported() ) {
+					revert( button.dataset.blockedMessage || '' );
+					return;
 				}
 
-				settle();
-			} catch {
-				revert( button.dataset.errorMessage || '' );
+				const granted =
+					await requestNotificationPermission( OneSignal );
+
+				if ( ! granted ) {
+					revert( button.dataset.blockedMessage || '' );
+					return;
+				}
+
+				OneSignal.User.addTag( tag, '1' );
 			}
-		} );
+
+			settle();
+		} catch {
+			revert( button.dataset.errorMessage || '' );
+		}
 	} );
 }
+
+// Handled from the document, so buttons that reach the page after load work
+// too, and a button that moves within the page never gets a second handler.
+document.addEventListener( 'click', ( event ) => {
+	const button =
+		event.target instanceof Element
+			? event.target.closest< HTMLButtonElement >(
+					FOLLOW_BUTTON_SELECTOR
+				)
+			: null;
+	const tag = button?.dataset.tag;
+
+	if ( button && tag ) {
+		toggleFollow( button, tag );
+	}
+} );
 
 const followButtons = Array.from(
 	document.querySelectorAll< HTMLButtonElement >( FOLLOW_BUTTON_SELECTOR )
 );
 
-followButtons.forEach( initFollowButton );
-
 if ( followButtons.length ) {
-	window.OneSignalDeferred = window.OneSignalDeferred || [];
-	window.OneSignalDeferred.push( ( OneSignal ) =>
-		syncFollowButtons( OneSignal, followButtons )
-	);
+	syncWhenReady( followButtons );
 }
+
+// Buttons can sit in an entry's content, so they also reach the page after
+// load, in entries a poll, load more or the jump to the live feed brings in.
+// Each shows its tag's state as it arrives.
+new MutationObserver( ( records ) => {
+	const arrived = records.flatMap( ( { addedNodes } ) =>
+		Array.from( addedNodes ).flatMap( followButtonsIn )
+	);
+
+	if ( arrived.length ) {
+		syncWhenReady( arrived );
+	}
+} ).observe( document.body, { childList: true, subtree: true } );
