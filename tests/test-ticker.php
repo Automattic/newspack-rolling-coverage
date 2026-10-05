@@ -16,7 +16,7 @@ use Newspack_Rolling_Coverage\Taxonomy;
  */
 class Test_Ticker extends Rolling_Coverage_TestCase {
 
-	const HEADER_MARKUP = '<!-- wp:group {"style":{"@tablet":{"layout":{"columnSpan":3}},"@mobile":{"layout":{"columnSpan":1}},"spacing":{"blockGap":"0"}},"layout":{"type":"flex","orientation":"vertical","justifyContent":"left"}} --><div class="wp-block-group">'
+	const HEADER_MARKUP = '<!-- wp:group {"style":{"@tablet":{"layout":{"columnSpan":3}},"@mobile":{"layout":{"columnSpan":1}},"spacing":{"blockGap":"0.25em"}},"layout":{"type":"flex","orientation":"vertical","justifyContent":"left"}} --><div class="wp-block-group">'
 		. '<!-- wp:newspack-rolling-coverage/coverage-status /-->'
 		. '<!-- wp:heading {"level":3,"metadata":{"bindings":{"content":{"source":"newspack-rolling-coverage/entry","args":{"key":"coverageName"}}}}} --><h3 class="wp-block-heading">Live Coverage</h3><!-- /wp:heading -->'
 		. '</div><!-- /wp:group -->';
@@ -26,11 +26,11 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 
 	const TITLE_MARKUP = '<!-- wp:post-title {"level":4,"isLink":true,"className":"newspack-rolling-coverage-entry-link"} /-->';
 
-	const ENTRY_STYLE = '{"spacing":{"blockGap":"0"}}';
+	const ENTRY_STYLE = '{"spacing":{"blockGap":"0.25em"}}';
 
 	const STACKED_ENTRY_STYLE = '{"border":{"left":{"style":"none"},"top":{"color":"#ddd","width":"1px","style":"solid"}},"spacing":{"padding":{"left":"0","top":"var:preset|spacing|40"}}}';
 
-	const BORDERED_ENTRY_STYLE = '{"border":{"left":{"color":"#ddd","width":"1px","style":"solid"}},"spacing":{"blockGap":"0","padding":{"left":"var:preset|spacing|40"}},"@tablet":' . self::STACKED_ENTRY_STYLE . ',"@mobile":' . self::STACKED_ENTRY_STYLE . '}';
+	const BORDERED_ENTRY_STYLE = '{"border":{"left":{"color":"#ddd","width":"1px","style":"solid"}},"spacing":{"blockGap":"0.25em","padding":{"left":"var:preset|spacing|40"}},"@tablet":' . self::STACKED_ENTRY_STYLE . ',"@mobile":' . self::STACKED_ENTRY_STYLE . '}';
 
 	const BORDERED_ENTRY_INLINE_STYLE = 'border-left-color:#ddd;border-left-style:solid;border-left-width:1px;padding-left:var(--wp--preset--spacing--40)';
 
