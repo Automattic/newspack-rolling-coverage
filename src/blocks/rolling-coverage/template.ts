@@ -136,15 +136,6 @@ const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
  */
 const STATUS_BLOCK_NAME = 'newspack-rolling-coverage/coverage-status';
 
-/**
- * The Coverage Status block as the built-in layouts place it, with the same
- * block spacing it gets when inserted by hand.
- */
-const STATUS_TEMPLATE: TemplateItem = [
-	STATUS_BLOCK_NAME,
-	{ style: { spacing: { blockGap: 'var:preset|spacing|20' } } },
-];
-
 const ACCENT =
 	'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
 const ACCENT_CONTRAST =
@@ -1504,7 +1495,7 @@ function tickerHeader( sizes: string[] ): TemplateItem {
 			metadata: { name: __( 'Header', 'newspack-rolling-coverage' ) },
 		},
 		[
-			STATUS_TEMPLATE,
+			[ STATUS_BLOCK_NAME, {} ],
 			coverageNameHeading( themeFontSize( sizes, 'medium', 'normal' ) ),
 		],
 	];
@@ -3345,7 +3336,6 @@ export {
 	ALL_UPDATES_CLASS,
 	FOLLOW_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
-	STATUS_TEMPLATE,
 	feedTemplate,
 	feedGroupOf,
 	feedPathOf,
