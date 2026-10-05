@@ -55,7 +55,7 @@ It also stores the entry template, with the ad and cap settings, in an option na
 
 REST routes, in the `rolling-coverage/v1` namespace (`register_routes()`):
 
-- `GET /coverages/{id}/entries` is public. With `cursor`, it is a forward poll for new and edited entries. With `before`, it returns the next page of older entries. `template_key` is required. Capped feeds send `latest`, so their requests stay capped without a stored config.
+- `GET /coverages/{id}/entries` is public. With `cursor`, it is a forward poll for new and edited entries. With `before`, it returns the next page of older entries. `template_key` is required. Capped feeds send `latest`, so their requests stay capped without a stored config. Lite pages send `lite` (see Lite Site pages).
 - `GET /coverages/{id}/entries-preview` needs `edit_posts`. It returns entry IDs for the editor's preview.
 - `POST /layouts/{slug}`: see Layouts.
 
@@ -70,6 +70,15 @@ Polling, in `view.ts` (`initBlock()`, `poll()`):
 - `hasMore` comes from fetching one entry more than a page (the page render, the REST `before` page and the editor preview), so a coverage whose entry count is an exact multiple of the page size shows no button on its last page.
 
 Entry bindings use the `newspack-rolling-coverage/entry` source, registered by `Entry_Bindings::register_source()`. Keys: `breakoutUrl` and `shareUrl` resolve per entry; `coverageName`, `latestUrl` and `followTag` resolve per coverage. The editor registers the same source in `src/blocks/shared/entry-bindings.ts`; it resolves only `coverageName` and leaves the rest empty. `Entry_Bindings::filter_button()` drops a bound button whose value is empty and adds the data attributes the view scripts need.
+
+## Lite Site pages
+
+The Lite Site plugin serves cached, text-only copies of posts. It renders a post's blocks inside its `newspack_lite_site_post_content` filter, strips scripts and every attribute outside a short allowlist, and prints no enqueued assets. `Lite_Feed` (`includes/blocks/class-lite-feed.php`) keeps a feed live there with the same view script:
+
+- **Detection.** A block that renders while that filter runs is rendering for a lite page (`Lite_Feed::is_lite_render()`). There `render_block()` renders each entry as text through `Lite_Feed::render_entry()` rather than the entry template, skips `render_feed()`, ads and the Follow button, and marks the wrapper `data-lite="1"`. Coverage Status leaves out its "Updated" line, and its badge shows the status the page rendered with.
+- **Markup and assets.** Once a feed renders, `Lite_Feed::allow_feed_markup()` widens Lite Site's allowlist through `newspack_lite_site_allowed_html` to keep what the view script reads. Only then do the feed's few styles and its view script print, through Lite Site's `newspack_lite_site_styles` and `newspack_lite_site_single_after_footer` hooks. A Lite Site without that filter keeps a plain lite feed, with the Load More control hidden, since nothing would run it.
+- **Polls and load more.** `view.ts` sends `lite=1` from a lite wrapper, and the entries route then renders `Lite_Feed::render_entry()` too, so a polled entry matches the page.
+- **Caching.** Lite Site caches each page by its path for every reader, so lite output can't depend on the reader or the query string: the feed opens at the newest entries with no shared-entry view, prints no per-reader data, judges password protection by `post_password` rather than the reader's cookie, and links the live feed by its bare path (`live_feed_url()`).
 
 ## Styling policy
 
