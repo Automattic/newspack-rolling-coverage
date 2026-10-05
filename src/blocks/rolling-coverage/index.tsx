@@ -18,6 +18,7 @@ import Edit from './edit';
 import Save from './save';
 import './entry-gap-preview';
 import './feed-insertion';
+import './pattern-insertion';
 import './share-preview';
 import './editor.scss';
 import type { RollingCoverageAttributes } from './types';

@@ -24,7 +24,12 @@ import {
 	type BuiltInLayoutSlug,
 } from '../layouts';
 import { withoutLatestButtons } from '../template';
-import { createLayout, getLayoutCategoryId, getLayoutId } from '../utils';
+import {
+	createLayout,
+	getLayoutCategoryId,
+	getLayoutId,
+	isLayoutContent,
+} from '../utils';
 import type { TemplateItem } from '../types';
 
 export type LayoutChoice =
@@ -297,7 +302,9 @@ export default function LayoutPickerModal( {
 		const others = records
 			.filter( ( record ) => ! builtInIds.includes( record.id ) )
 			.map( ( record ): LayoutCard | null => {
-				const innerBlocks = patternInnerBlocks( record );
+				const innerBlocks = isLayoutContent( record.content )
+					? patternInnerBlocks( record )
+					: null;
 
 				return innerBlocks
 					? {

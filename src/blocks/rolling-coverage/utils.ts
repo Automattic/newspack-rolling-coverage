@@ -10,6 +10,7 @@ import {
 	serialize,
 	createBlock,
 	createBlocksFromInnerBlocksTemplate,
+	parse,
 } from '@wordpress/blocks';
 import { addQueryArgs, getQueryArg } from '@wordpress/url';
 
@@ -334,6 +335,25 @@ function getLayoutEditUrl( layoutId: number, coverageId: number ): string {
 	} );
 }
 
+/**
+ * Whether a pattern's content is a layout: its only top-level block is a
+ * Rolling Coverage block with no coverage. A pattern holding more, or a block
+ * saved with its coverage, is not one.
+ *
+ * @param {Object|string} content The pattern's content, raw or as returned by REST.
+ * @return {boolean} Whether the content is a layout.
+ */
+function isLayoutContent( content?: { raw?: string } | string ): boolean {
+	const raw = typeof content === 'string' ? content : content?.raw;
+	const blocks = parse( raw ?? '' );
+
+	return (
+		blocks.length === 1 &&
+		blocks[ 0 ].name === BLOCK_NAME &&
+		! blocks[ 0 ].attributes?.coverageId
+	);
+}
+
 export {
 	searchCoverages,
 	getCoverage,
@@ -344,5 +364,6 @@ export {
 	getLayoutCategoryId,
 	createLayout,
 	getLayoutEditUrl,
+	isLayoutContent,
 	PREVIEW_COVERAGE_ID,
 };
