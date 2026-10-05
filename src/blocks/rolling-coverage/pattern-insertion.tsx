@@ -2,18 +2,17 @@
  * WordPress dependencies
  */
 import { store as blockEditorStore } from '@wordpress/block-editor';
-import { createBlock } from '@wordpress/blocks';
+import { createBlock, parse } from '@wordpress/blocks';
 import { createHigherOrderComponent } from '@wordpress/compose';
 import { store as coreStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
-import { useEffect, useMemo } from '@wordpress/element';
+import { useEffect, useMemo, useRef } from '@wordpress/element';
 import { addFilter } from '@wordpress/hooks';
 
 /**
  * Internal dependencies
  */
-import { patternInnerBlocks } from './components/layout-picker-modal';
 import { BLOCK_NAME } from './layout';
 import { builtInLayoutSlugFor, switchLayoutAttributes } from './layouts';
 import { getLayoutCategoryId } from './utils';
@@ -26,15 +25,35 @@ type PatternRecord = {
 	content?: { raw?: string } | string;
 };
 
-const replacedClientIds = new Set< string >();
+/**
+ * Whether a pattern is a layout: its only top-level block is a Rolling
+ * Coverage block with no coverage. A pattern holding more, or a block saved
+ * with its coverage, stays a pattern.
+ *
+ * @param {Object} record The pattern's record.
+ * @return {boolean} Whether the pattern is a layout.
+ */
+function isLayoutRecord( record: PatternRecord ): boolean {
+	const raw =
+		typeof record.content === 'string'
+			? record.content
+			: record.content?.raw;
+	const blocks = parse( raw ?? '' ).filter( ( block ) => block.name );
+
+	return (
+		blocks.length === 1 &&
+		blocks[ 0 ].name === BLOCK_NAME &&
+		! blocks[ 0 ].attributes?.coverageId
+	);
+}
 
 /**
- * Turns a layout pattern inserted from the inserter's Patterns tab into a
- * Rolling Coverage block that uses the layout, as picking the layout in the
- * block does. Core locks the blocks inside a synced pattern reference, and
- * the Rolling Coverage block there would write its coverage into the shared
- * layout. Leaves the reference alone while editing a pattern, and wherever
- * the block can't replace it.
+ * Turns a layout pattern reference into a Rolling Coverage block that uses
+ * the layout, as picking the layout in the block does: core locks the blocks
+ * inside a synced pattern reference, so the coverage couldn't be picked
+ * there. Covers a layout inserted from the inserter, pasted, or already in a
+ * story when it opens. Leaves the reference alone while editing a pattern,
+ * and wherever the block can't replace it.
  *
  * @param {Object} props           Component props.
  * @param {string} props.clientId  The pattern reference's client ID.
@@ -48,6 +67,7 @@ function LayoutPatternReplacer( {
 	patternId: number;
 } ) {
 	const builtInSlug = builtInLayoutSlugFor( patternId );
+	const replaced = useRef( false );
 
 	const { canReplace, record } = useSelect(
 		( select ) => {
@@ -68,6 +88,10 @@ function LayoutPatternReplacer( {
 				) => boolean;
 			};
 
+			if ( ! builtInSlug && ! getLayoutCategoryId() ) {
+				return { canReplace: false, record: null };
+			}
+
 			const replaceable =
 				patternId > 0 &&
 				editor.getCurrentPostType?.() !== 'wp_block' &&
@@ -82,7 +106,7 @@ function LayoutPatternReplacer( {
 					blockEditor.getBlockRootClientId( clientId )
 				);
 
-			if ( ! replaceable || builtInSlug || ! getLayoutCategoryId() ) {
+			if ( ! replaceable || builtInSlug ) {
 				return { canReplace: replaceable, record: null };
 			}
 
@@ -114,7 +138,7 @@ function LayoutPatternReplacer( {
 			( record.wp_pattern_category ?? [] ).includes(
 				getLayoutCategoryId()
 			) &&
-			patternInnerBlocks( record ) !== null
+			isLayoutRecord( record )
 		);
 	}, [ builtInSlug, record ] );
 
@@ -125,11 +149,11 @@ function LayoutPatternReplacer( {
 		};
 
 	useEffect( () => {
-		if ( ! canReplace || ! isLayout || replacedClientIds.has( clientId ) ) {
+		if ( ! canReplace || ! isLayout || replaced.current ) {
 			return;
 		}
 
-		replacedClientIds.add( clientId );
+		replaced.current = true;
 		// Merges the replacement into the insertion's undo level, so one undo
 		// removes the layout instead of restoring the locked reference.
 		__unstableMarkNextChangeAsNotPersistent();

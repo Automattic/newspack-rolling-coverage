@@ -73,7 +73,7 @@ export function layoutsQuery( categoryId: number ) {
  * @param {Object} record The pattern's record.
  * @return {Function|null} A function returning the inner blocks, or null.
  */
-export function patternInnerBlocks(
+function patternInnerBlocks(
 	record: LayoutRecord
 ): ( () => unknown[] ) | null {
 	const raw =
