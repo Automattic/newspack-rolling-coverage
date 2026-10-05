@@ -35,6 +35,8 @@ Ticker, Wire, Digest, and Flash show only the latest entries. They set Show to L
 
 The first time someone who can publish picks a built-in layout, the site saves it as a shared layout. Every story using it then follows that one copy. A Contributor who picks one before that gets a copy for that story only. See [Edit, detach, and change a layout](#edit-detach-and-change-a-layout).
 
+You can also insert a layout from the inserter's Patterns tab, in the Rolling Coverage category. It becomes a Rolling Coverage block that uses that layout and asks for a coverage.
+
 ## Settings
 
 Select the block to open its settings in the sidebar. Some panels appear only when they apply.
