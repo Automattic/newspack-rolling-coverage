@@ -204,3 +204,8 @@
 	align-items: center;
 	gap: wp-vars.$grid-unit-10;
 }
+
+.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout > .wp-block:not([data-align]) {
+	width: 100%;
+	max-width: none;
+}
