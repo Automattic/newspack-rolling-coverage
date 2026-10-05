@@ -205,7 +205,7 @@ function feedGapStyle( feed?: {
 }
 
 /**
- * Whether no Block Visibility setting hides a block, in any viewport.
+ * Whether Block Visibility shows a block in every viewport.
  *
  * @param {Object} block The block.
  * @return {boolean} Whether the block shows everywhere.
@@ -1054,8 +1054,8 @@ export default function Edit( {
 	// follow the last block shown in every viewport.
 	const entryPreviewsAnchorId =
 		(
-			templateBlocks.findLast( isShownEverywhere ) as
-				{ clientId?: string } | undefined
+			( templateBlocks.findLast( isShownEverywhere ) ??
+				templateBlocks.at( -1 ) ) as { clientId?: string } | undefined
 		 )?.clientId ?? null;
 	const entryPreviews = useMemo(
 		() => (

@@ -13,8 +13,9 @@ import PinnedEntryContext from './pinned-entry-context';
 
 /**
  * The client ID of the block an editable layout renders its entry previews
- * after: the Feed's last per-entry block. Kept apart from the previews, so
- * editing the layout doesn't render every block in it again.
+ * after: the Feed's last per-entry block that Block Visibility shows in every
+ * viewport. Kept apart from the previews, so editing the layout doesn't
+ * render every block in it again.
  */
 export const EntryPreviewsAnchorContext = createContext< string | null >(
 	null
@@ -45,9 +46,9 @@ function EntryPreviews() {
 }
 
 /**
- * Renders the entry previews right after the Feed's last per-entry block,
- * where the site renders the coverage's entries, so they take the Feed's
- * grid cells and come before its footer.
+ * Renders the entry previews right after the anchor block, where the site
+ * renders the coverage's entries, so they take the Feed's grid cells and
+ * come before its footer.
  */
 const withEntryPreviews = createHigherOrderComponent(
 	( BlockListBlock ) => ( props: { clientId: string } ) => {
