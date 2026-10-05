@@ -6,6 +6,8 @@
  */
 
 use Newspack_Rolling_Coverage\Breakout;
+use Newspack_Rolling_Coverage\Coverage_Follow_Block;
+use Newspack_Rolling_Coverage\Coverage_Status_Block;
 use Newspack_Rolling_Coverage\Entry_Bindings;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
@@ -1211,6 +1213,70 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 			$this->assertTrue( wp_style_is( 'wp-block-gallery' ), 'The gallery styles should be loaded.' );
 		} finally {
 			$GLOBALS['wp_styles'] = $previous_styles; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		}
+	}
+
+	/**
+	 * A coverage whose layout has no Follow button still loads the follow
+	 * script, for buttons that arrive later inside entries, but only once
+	 * OneSignal is set up, since the block renders nothing before that.
+	 */
+	public function test_coverage_loads_the_follow_script_for_buttons_that_arrive_later() {
+		$handles = WP_Block_Type_Registry::get_instance()->get_registered( Coverage_Follow_Block::BLOCK_NAME )->view_script_handles;
+
+		$this->assertNotEmpty( $handles, 'The block should have a script to load.' );
+
+		foreach ( $handles as $handle ) {
+			wp_dequeue_script( $handle );
+		}
+
+		self::render_feed_block( [ 'coverageId' => self::create_coverage() ] );
+
+		foreach ( $handles as $handle ) {
+			$this->assertFalse( wp_script_is( $handle, 'enqueued' ), $handle . ' should wait for OneSignal.' );
+		}
+
+		self::configure_onesignal();
+		self::render_feed_block( [ 'coverageId' => self::create_coverage() ] );
+
+		foreach ( $handles as $handle ) {
+			$this->assertTrue( wp_script_is( $handle, 'enqueued' ), $handle . ' should be loaded.' );
+		}
+	}
+
+	/**
+	 * A coverage whose layout has no Coverage Status block still loads the
+	 * block's script and styles, for the ones that arrive later inside
+	 * entries.
+	 */
+	public function test_coverage_loads_the_status_assets_for_blocks_that_arrive_later() {
+		$registry = WP_Block_Type_Registry::get_instance();
+		$previous = $registry->is_registered( Coverage_Status_Block::BLOCK_NAME ) ? $registry->unregister( Coverage_Status_Block::BLOCK_NAME ) : null;
+
+		// Other tests register the block without assets, and without the build it has none, so this one carries its own.
+		wp_register_script( 'newspack-rolling-coverage-status-test-view', false, [], '1.0.0', true );
+		wp_register_style( 'newspack-rolling-coverage-status-test-style', false, [], '1.0.0' );
+		register_block_type(
+			Coverage_Status_Block::BLOCK_NAME,
+			[
+				'view_script_handles' => [ 'newspack-rolling-coverage-status-test-view' ],
+				'style_handles'       => [ 'newspack-rolling-coverage-status-test-style' ],
+			]
+		);
+
+		try {
+			self::render_feed_block( [ 'coverageId' => self::create_coverage() ] );
+
+			$this->assertTrue( wp_script_is( 'newspack-rolling-coverage-status-test-view', 'enqueued' ), 'The status script should be loaded.' );
+			$this->assertTrue( wp_style_is( 'newspack-rolling-coverage-status-test-style', 'enqueued' ), 'The status styles should be loaded.' );
+		} finally {
+			wp_dequeue_script( 'newspack-rolling-coverage-status-test-view' );
+			wp_dequeue_style( 'newspack-rolling-coverage-status-test-style' );
+			unregister_block_type( Coverage_Status_Block::BLOCK_NAME );
+
+			if ( $previous ) {
+				$registry->register( $previous );
+			}
 		}
 	}
 

@@ -1038,8 +1038,8 @@ class Rolling_Coverage_Block {
 		$previous_post_id   = self::$host_post_id;
 		self::$host_post_id = (int) get_the_ID();
 
-		// Preload so polled entries' blocks, including the photos Slack messages add, are styled and share even if none appeared on initial render.
-		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon', 'core/image', 'core/gallery' ] as $entry_block_name ) {
+		// Preload so polled entries' blocks are styled and work even if none appeared on initial render. Those include the photos Slack messages add, and Follow and Status blocks placed in an entry or in a feed nested in one.
+		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon', 'core/image', 'core/gallery', Coverage_Status_Block::BLOCK_NAME ] as $entry_block_name ) {
 			$entry_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $entry_block_name );
 
 			foreach ( $entry_block_type ? $entry_block_type->style_handles : [] as $style_handle ) {
@@ -1049,10 +1049,17 @@ class Rolling_Coverage_Block {
 
 		self::enqueue_template_block_styles( ! empty( $block->parsed_block['innerBlocks'] ) ? $block->parsed_block['innerBlocks'] : self::default_entry_template() );
 
-		$share_link_block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'newspack-rolling-coverage/share' );
+		$scripted_block_names = [ 'newspack-rolling-coverage/share', Coverage_Status_Block::BLOCK_NAME ];
 
-		if ( $share_link_block_type ) {
-			foreach ( $share_link_block_type->view_script_handles as $script_handle ) {
+		// Follow renders nothing until OneSignal is set up.
+		if ( Push_Notifications::is_onesignal_configured() ) {
+			$scripted_block_names[] = Coverage_Follow_Block::BLOCK_NAME;
+		}
+
+		foreach ( $scripted_block_names as $scripted_block_name ) {
+			$scripted_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $scripted_block_name );
+
+			foreach ( $scripted_block_type ? $scripted_block_type->view_script_handles : [] as $script_handle ) {
 				wp_enqueue_script( $script_handle );
 			}
 		}
