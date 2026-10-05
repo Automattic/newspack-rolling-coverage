@@ -59,10 +59,11 @@ Says whether the block uses the shared layout or its own detached copy.
 
 | Setting | What it does |
 | --- | --- |
-| Show | All shows every entry and loads more as readers scroll. Latest shows only the most recent entries. |
+| Show | All shows every entry, one page at a time. Latest shows only the most recent entries. |
+| Older entries | With Show set to All: what happens after the first page. Load on scroll (default) loads the next page as readers reach the end of the feed. Load More button shows a Load More button below the entries; each press adds a page, and the button goes away once every entry is shown. Don’t load shows the first page only. |
 | Number of entries | With Show set to Latest: how many entries to show, from 1 to 100. |
 | Link to all updates | With Show set to Latest, in layouts that have one (Ticker, Wire, Digest, Flash): Show or Hide the link to the coverage page. The link is hidden on the coverage page itself. |
-| Entries per page | With Show set to All: how many entries load first, and how many each scroll adds. From 1 to 100. Default 20. |
+| Entries per page | With Show set to All: how many entries show first, and how many each load of older entries adds. From 1 to 100. Default 20. |
 | Poll interval (seconds) | How often the page checks for new entries. Default 10. The site can set a longer minimum, which wins over a shorter value here. |
 
 ### Ended
@@ -105,11 +106,11 @@ The page checks for new entries every poll interval. It stops while the tab is i
 
 - If the reader is at the top, new entries appear at once.
 - If the reader has scrolled down, the page does not move. A "New Posts" button shows the count (for example "3 New Posts"). Selecting it brings the new entries in. Edited entries update in place.
-- Older entries load as the reader scrolls to the end.
+- Older entries load as the reader scrolls to the end, or with the Load More button, depending on Older entries. The button takes the theme's button style. If a load fails, the button stays so the reader can try again.
 - A paused or ended coverage does not check for new entries.
 - Times follow the site's time format.
 
-Feeds that show only the latest entries update in place without the button: the newest entry appears and the oldest drops off. They have no ads and no infinite scroll.
+Feeds that show only the latest entries update in place without the button: the newest entry appears and the oldest drops off. They have no ads and load no older entries.
 
 When a reader opens a link to one entry, the feed opens at that entry and shows a control that takes them to the live feed, with the number of newer posts when there are any.
 
