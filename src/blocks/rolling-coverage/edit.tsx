@@ -649,6 +649,7 @@ export default function Edit( {
 			allowedBlocks: [],
 			templateLock: false,
 			layout: INNER_BLOCKS_LAYOUT,
+			renderAppender: false,
 		}
 	);
 
