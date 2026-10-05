@@ -38,7 +38,6 @@ import {
 	Placeholder,
 	TextareaControl,
 	ToggleControl,
-	RadioControl,
 	ToolbarButton,
 } from '@wordpress/components';
 import {
@@ -1356,7 +1355,7 @@ export default function Edit( {
 	const inspector = isLayoutPattern ? (
 		<InspectorControls>
 			<PanelBody
-				title={ __( 'Shared layout', 'newspack-rolling-coverage' ) }
+				title={ __( 'Shared Layout', 'newspack-rolling-coverage' ) }
 			>
 				<p>
 					{ entryContexts.length > 0
@@ -1459,33 +1458,55 @@ export default function Edit( {
 			</PanelBody>
 
 			<PanelBody title={ __( 'Entries', 'newspack-rolling-coverage' ) }>
-				<RadioControl
+				<ToggleGroupControl
+					__next40pxDefaultSize
+					isBlock
 					label={ _x(
 						'Show',
 						'which entries the feed shows',
 						'newspack-rolling-coverage'
 					) }
-					selected={ latestOnly ? 'latest' : 'all' }
-					options={ [
-						{
-							label: __(
-								'All entries, loading more on scroll',
-								'newspack-rolling-coverage'
-							),
-							value: 'all',
-						},
-						{
-							label: __(
-								'The latest entries only',
-								'newspack-rolling-coverage'
-							),
-							value: 'latest',
-						},
-					] }
-					onChange={ ( value: string ) =>
+					help={
+						latestOnly
+							? __(
+									'Only the most recent entries.',
+									'newspack-rolling-coverage'
+								)
+							: __(
+									'Every entry, loading more as readers scroll.',
+									'newspack-rolling-coverage'
+								)
+					}
+					value={ latestOnly ? 'latest' : 'all' }
+					onChange={ ( value ) =>
 						setAttributes( { latestOnly: value === 'latest' } )
 					}
-				/>
+				>
+					<ToggleGroupControlOption
+						value="all"
+						label={ _x(
+							'All',
+							'which entries the feed shows',
+							'newspack-rolling-coverage'
+						) }
+						aria-label={
+							/* translators: Screen reader name for the “All” option. Keep the word used to translate “All”. */
+							__( 'All entries', 'newspack-rolling-coverage' )
+						}
+					/>
+					<ToggleGroupControlOption
+						value="latest"
+						label={ _x(
+							'Latest',
+							'which entries the feed shows',
+							'newspack-rolling-coverage'
+						) }
+						aria-label={
+							/* translators: Screen reader name for the “Latest” option. Keep the word used to translate “Latest”. */
+							__( 'Latest entries', 'newspack-rolling-coverage' )
+						}
+					/>
+				</ToggleGroupControl>
 				{ latestOnly ? (
 					<>
 						<TextControl
@@ -1576,7 +1597,7 @@ export default function Edit( {
 					help={ sprintf(
 						/* translators: %s: The status that ends a coverage, e.g. "Ended". */
 						__(
-							'Hides the whole block once the coverage’s status is set to “%s” in All Coverages.',
+							'Hide removes the whole block once the coverage’s status is set to “%s” in All Coverages.',
 							'newspack-rolling-coverage'
 						),
 						STATUS_LABELS.archived
@@ -1611,91 +1632,27 @@ export default function Edit( {
 						}
 					/>
 				</ToggleGroupControl>
-				<ToggleGroupControl
-					__next40pxDefaultSize
-					isBlock
-					label={ __( 'Notice', 'newspack-rolling-coverage' ) }
-					help={ sprintf(
-						/* translators: %s: The status that ends a coverage, e.g. "Ended". */
-						__(
-							'Tells readers the coverage has ended. Shown at the top of the feed once its status is set to “%s” in All Coverages.',
-							'newspack-rolling-coverage'
-						),
-						STATUS_LABELS.archived
-					) }
-					value={ archivedNoticeShow ? 'show' : 'hide' }
-					onChange={ ( value ) =>
-						setAttributes( {
-							archivedNoticeShow: value === 'show',
-						} )
-					}
-				>
-					<ToggleGroupControlOption
-						value="show"
-						label={ _x(
-							'Show',
-							'ended notice',
-							'newspack-rolling-coverage'
-						) }
-						aria-label={
-							/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
-							__( 'Show notice', 'newspack-rolling-coverage' )
-						}
-					/>
-					<ToggleGroupControlOption
-						value="hide"
-						label={ _x(
-							'Hide',
-							'ended notice',
-							'newspack-rolling-coverage'
-						) }
-						aria-label={
-							/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
-							__( 'Hide notice', 'newspack-rolling-coverage' )
-						}
-					/>
-				</ToggleGroupControl>
-				{ archivedNoticeShow && (
+				{ ! hideWhenEnded && (
 					<>
-						<TextareaControl
-							label={ __(
-								'Notice text',
-								'newspack-rolling-coverage'
-							) }
-							placeholder={
-								currentCoverage?.label
-									? sprintf(
-											/* translators: %s: Coverage name. */
-											__(
-												'Coverage of “%s” has concluded and this feed is now archived.',
-												'newspack-rolling-coverage'
-											),
-											decodeEntities(
-												currentCoverage.label
-											)
-										)
-									: __(
-											'Coverage of this news event has concluded and this feed is now archived.',
-											'newspack-rolling-coverage'
-										)
-							}
-							value={ archivedNotice }
-							onChange={ ( value: string ) =>
-								setAttributes( { archivedNotice: value } )
-							}
-						/>
 						<ToggleGroupControl
 							__next40pxDefaultSize
 							isBlock
-							label={ __( 'Link', 'newspack-rolling-coverage' ) }
-							help={ __(
-								'Points readers to where the story continues.',
+							label={ __(
+								'Notice',
 								'newspack-rolling-coverage'
 							) }
-							value={ archivedNoticeShowLink ? 'show' : 'hide' }
+							help={ sprintf(
+								/* translators: %s: The status that ends a coverage, e.g. "Ended". */
+								__(
+									'Tells readers the coverage has ended. Shown at the top of the feed once its status is set to “%s” in All Coverages.',
+									'newspack-rolling-coverage'
+								),
+								STATUS_LABELS.archived
+							) }
+							value={ archivedNoticeShow ? 'show' : 'hide' }
 							onChange={ ( value ) =>
 								setAttributes( {
-									archivedNoticeShowLink: value === 'show',
+									archivedNoticeShow: value === 'show',
 								} )
 							}
 						>
@@ -1703,13 +1660,13 @@ export default function Edit( {
 								value="show"
 								label={ _x(
 									'Show',
-									'ended notice link',
+									'ended notice',
 									'newspack-rolling-coverage'
 								) }
 								aria-label={
 									/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
 									__(
-										'Show link',
+										'Show notice',
 										'newspack-rolling-coverage'
 									)
 								}
@@ -1718,56 +1675,143 @@ export default function Edit( {
 								value="hide"
 								label={ _x(
 									'Hide',
-									'ended notice link',
+									'ended notice',
 									'newspack-rolling-coverage'
 								) }
 								aria-label={
 									/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
 									__(
-										'Hide link',
+										'Hide notice',
 										'newspack-rolling-coverage'
 									)
 								}
 							/>
 						</ToggleGroupControl>
-						{ archivedNoticeShowLink && (
+						{ archivedNoticeShow && (
 							<>
-								<TextControl
-									__next40pxDefaultSize
-									type="url"
+								<TextareaControl
 									label={ __(
-										'URL',
+										'Notice text',
+										'newspack-rolling-coverage'
+									) }
+									placeholder={
+										currentCoverage?.label
+											? sprintf(
+													/* translators: %s: Coverage name. */
+													__(
+														'Coverage of “%s” has concluded and this feed is now archived.',
+														'newspack-rolling-coverage'
+													),
+													decodeEntities(
+														currentCoverage.label
+													)
+												)
+											: __(
+													'Coverage of this news event has concluded and this feed is now archived.',
+													'newspack-rolling-coverage'
+												)
+									}
+									value={ archivedNotice }
+									onChange={ ( value: string ) =>
+										setAttributes( {
+											archivedNotice: value,
+										} )
+									}
+								/>
+								<ToggleGroupControl
+									__next40pxDefaultSize
+									isBlock
+									label={ __(
+										'Link',
 										'newspack-rolling-coverage'
 									) }
 									help={ __(
-										"When empty, links to the coverage's latest breakout post, if there is one.",
+										'Points readers to where the story continues.',
 										'newspack-rolling-coverage'
 									) }
-									placeholder="https://example.com/story"
-									value={ archivedNoticeLinkUrl }
-									onChange={ ( value: string ) =>
+									value={
+										archivedNoticeShowLink ? 'show' : 'hide'
+									}
+									onChange={ ( value ) =>
 										setAttributes( {
-											archivedNoticeLinkUrl: value,
+											archivedNoticeShowLink:
+												value === 'show',
 										} )
 									}
-								/>
-								<TextControl
-									__next40pxDefaultSize
-									label={ __(
-										'Link text',
-										'newspack-rolling-coverage'
-									) }
-									placeholder={ __(
-										'Read more',
-										'newspack-rolling-coverage'
-									) }
-									value={ archivedNoticeLinkLabel }
-									onChange={ ( value: string ) =>
-										setAttributes( {
-											archivedNoticeLinkLabel: value,
-										} )
-									}
-								/>
+								>
+									<ToggleGroupControlOption
+										value="show"
+										label={ _x(
+											'Show',
+											'ended notice link',
+											'newspack-rolling-coverage'
+										) }
+										aria-label={
+											/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+											__(
+												'Show link',
+												'newspack-rolling-coverage'
+											)
+										}
+									/>
+									<ToggleGroupControlOption
+										value="hide"
+										label={ _x(
+											'Hide',
+											'ended notice link',
+											'newspack-rolling-coverage'
+										) }
+										aria-label={
+											/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+											__(
+												'Hide link',
+												'newspack-rolling-coverage'
+											)
+										}
+									/>
+								</ToggleGroupControl>
+								{ archivedNoticeShowLink && (
+									<>
+										<TextControl
+											__next40pxDefaultSize
+											type="url"
+											label={ __(
+												'URL',
+												'newspack-rolling-coverage'
+											) }
+											help={ __(
+												"When empty, links to the coverage's latest breakout post, if there is one.",
+												'newspack-rolling-coverage'
+											) }
+											placeholder="https://example.com/story"
+											value={ archivedNoticeLinkUrl }
+											onChange={ ( value: string ) =>
+												setAttributes( {
+													archivedNoticeLinkUrl:
+														value,
+												} )
+											}
+										/>
+										<TextControl
+											__next40pxDefaultSize
+											label={ __(
+												'Link text',
+												'newspack-rolling-coverage'
+											) }
+											placeholder={ __(
+												'Read more',
+												'newspack-rolling-coverage'
+											) }
+											value={ archivedNoticeLinkLabel }
+											onChange={ ( value: string ) =>
+												setAttributes( {
+													archivedNoticeLinkLabel:
+														value,
+												} )
+											}
+										/>
+									</>
+								) }
 							</>
 						) }
 					</>
