@@ -114,7 +114,9 @@ The page checks for new entries every poll interval. It stops while the tab is i
 
 Feeds that show only the latest entries update in place without the New Posts button: the newest entry appears and the oldest drops off. They have no ads and load no older entries.
 
-When a reader opens a link to one entry, the feed opens at that entry and shows a control that takes them to the live feed, with the number of newer posts when there are any.
+When a reader opens a link to one entry, the feed opens at that entry and shows a "Jump to Latest" button that takes them to the live feed, with the number of newer posts when there are any.
+
+The New Posts count and Jump to Latest show on the same button. It sits at the top of the screen and takes the theme's button style. It isn't part of the layout, so it doesn't appear in the editor. To change its text, go to Rolling Coverage > All Coverages, select Settings, and set Button label under Jump to Latest. The label can be up to 40 characters. Leave it empty to use "Jump to Latest".
 
 ### Pinned entries
 

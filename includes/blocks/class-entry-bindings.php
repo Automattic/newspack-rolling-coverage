@@ -18,8 +18,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Supplies the values core blocks in the Rolling Coverage template are
  * bound to: per entry, the breakout post's link and the share link; per
- * coverage, its name, the follow button's notification tag and the link to
- * the live feed.
+ * coverage, its name and the follow button's notification tag.
  */
 class Entry_Bindings {
 
@@ -41,11 +40,6 @@ class Entry_Bindings {
 	 * Attribute the follow script looks for on the follow button.
 	 */
 	const FOLLOW_ATTRIBUTE = 'data-rc-follow';
-
-	/**
-	 * Attribute the view script looks for on the link to the live feed.
-	 */
-	const LATEST_ATTRIBUTE = 'data-rc-latest';
 
 	/**
 	 * Block context the follow button's binding reads its coverage from, set
@@ -144,10 +138,6 @@ class Entry_Bindings {
 			$coverage = get_term( (int) ( $block->context[ self::COVERAGE_ID_CONTEXT ] ?? 0 ), Taxonomy::TAXONOMY_SLUG );
 
 			return $coverage instanceof WP_Term ? esc_html( $coverage->name ) : null;
-		}
-
-		if ( 'latestUrl' === ( $source_args['key'] ?? '' ) ) {
-			return Rolling_Coverage_Block::is_rendering_entry() ? null : Rolling_Coverage_Block::live_feed_url();
 		}
 
 		$entry_id = (int) ( $block->context['postId'] ?? 0 );
@@ -616,8 +606,7 @@ class Entry_Bindings {
 	/**
 	 * Render nothing for a button whose link is bound to a value the entry
 	 * doesn't have, e.g. "Read more" before the breakout post is published,
-	 * or "Jump to Latest" inside an entry, and hand the share, follow and
-	 * "Jump to Latest" buttons what their scripts need.
+	 * and hand the share and follow buttons what their scripts need.
 	 *
 	 * Parameters stay untyped because this runs for every core button on the
 	 * site, after other plugins' filters that may hand on unexpected types.
@@ -657,10 +646,6 @@ class Entry_Bindings {
 			$button->set_attribute( 'data-blocked-message', __( 'Notifications are blocked in your browser. Allow them in your browser\'s site settings, then try again.', 'newspack-rolling-coverage' ) );
 			$button->set_attribute( 'data-error-message', __( 'Something went wrong. Please try again.', 'newspack-rolling-coverage' ) );
 			$button->set_attribute( 'aria-pressed', 'false' );
-		}
-
-		if ( 'latestUrl' === $key && $button->next_tag( 'a' ) ) {
-			$button->set_attribute( self::LATEST_ATTRIBUTE, '' );
 		}
 
 		return $button->get_updated_html();
@@ -1034,17 +1019,6 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Whether a parsed block is the Rolling Coverage "Jump to Latest" button:
-	 * a core Buttons block holding a button bound to the live feed's link.
-	 *
-	 * @param array $parsed_block Parsed block.
-	 * @return bool
-	 */
-	public static function is_latest_buttons( array $parsed_block ): bool {
-		return self::is_buttons_bound_to( $parsed_block, 'latestUrl' );
-	}
-
-	/**
 	 * Whether a parsed block is a heading bound to the coverage's name.
 	 *
 	 * @param array $parsed_block Parsed block.
@@ -1076,11 +1050,11 @@ class Entry_Bindings {
 
 	/**
 	 * Whether a parsed block belongs to the coverage rather than to each
-	 * entry, so it renders once: the Follow Coverage block, the "Jump to
-	 * Latest" button, the Coverage Status block, a heading bound to the
-	 * coverage's name, the "See all updates" paragraph, or a block holding one
-	 * at any depth. The pinned card and the entry group always belong to each
-	 * entry, whatever they hold.
+	 * entry, so it renders once: the Follow Coverage block, the Coverage
+	 * Status block, a heading bound to the coverage's name, the "See all
+	 * updates" paragraph, or a block holding one at any depth. The pinned
+	 * card and the entry group always belong to each entry, whatever they
+	 * hold.
 	 *
 	 * @param array $parsed_block Parsed block.
 	 * @return bool
@@ -1093,7 +1067,6 @@ class Entry_Bindings {
 		if (
 			Coverage_Follow_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			Coverage_Status_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
-			self::is_latest_buttons( $parsed_block ) ||
 			self::is_coverage_name_heading( $parsed_block ) ||
 			self::is_all_updates_paragraph( $parsed_block )
 		) {
@@ -1102,30 +1075,6 @@ class Entry_Bindings {
 
 		foreach ( $parsed_block['innerBlocks'] ?? [] as $inner_block ) {
 			if ( is_array( $inner_block ) && self::is_coverage_item( $inner_block ) ) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	/**
-	 * Whether a parsed block is a core Buttons block holding a button whose
-	 * link is bound to one of this source's values.
-	 *
-	 * @param array  $parsed_block Parsed block.
-	 * @param string $key          The bound value's key.
-	 * @return bool
-	 */
-	private static function is_buttons_bound_to( array $parsed_block, string $key ): bool {
-		if ( 'core/buttons' !== ( $parsed_block['blockName'] ?? '' ) ) {
-			return false;
-		}
-
-		foreach ( $parsed_block['innerBlocks'] ?? [] as $inner_block ) {
-			$binding = $inner_block['attrs']['metadata']['bindings']['url'] ?? [];
-
-			if ( self::SOURCE_NAME === ( $binding['source'] ?? '' ) && $key === ( $binding['args']['key'] ?? '' ) ) {
 				return true;
 			}
 		}

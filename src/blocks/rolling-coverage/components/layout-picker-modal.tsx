@@ -24,7 +24,6 @@ import {
 	layoutCapAttributes,
 	type BuiltInLayoutSlug,
 } from '../layouts';
-import { withoutLatestButtons } from '../template';
 import LoadingState from './loading-state';
 import {
 	createLayout,
@@ -207,16 +206,9 @@ function useSettledPreview(
 	}, [ previewRef, isEnabled ] );
 }
 
-type PreviewBlock = {
-	name: string;
-	attributes?: Record< string, unknown >;
-	innerBlocks?: PreviewBlock[];
-};
-
 /**
  * One layout in the picker: a scaled preview of the block rendering sample
- * entries in the layout, without the "Jump to Latest" button, with the
- * layout's title.
+ * entries in the layout, with the layout's title.
  *
  * @param {Object}   props            Component props.
  * @param {Object}   props.card       The layout.
@@ -254,9 +246,7 @@ function LayoutPickerCard( {
 					entriesPerPage: PREVIEW_ENTRIES,
 					...previewAttributes( card.slug ),
 				},
-				withoutLatestButtons(
-					card.innerBlocks() as PreviewBlock[]
-				) as unknown as Parameters< typeof createBlock >[ 2 ]
+				card.innerBlocks() as Parameters< typeof createBlock >[ 2 ]
 			),
 		],
 		[ card ]
