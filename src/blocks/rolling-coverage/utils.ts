@@ -43,6 +43,7 @@ const layoutIds: Record< BuiltInLayoutSlug, number > = {
 	minute: Number( LAYOUT_IDS.minute ) || 0,
 	byline: Number( LAYOUT_IDS.byline ) || 0,
 	ticker: Number( LAYOUT_IDS.ticker ) || 0,
+	split: Number( LAYOUT_IDS.split ) || 0,
 	wire: Number( LAYOUT_IDS.wire ) || 0,
 	digest: Number( LAYOUT_IDS.digest ) || 0,
 	flash: Number( LAYOUT_IDS.flash ) || 0,

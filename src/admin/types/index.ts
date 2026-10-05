@@ -147,10 +147,7 @@ interface Entry {
 		raw?: string;
 	};
 	author: number;
-	meta: {
-		rolling_coverage_breakout_post_id?: number;
-		[ key: string ]: unknown;
-	};
+	meta: Record< string, unknown >;
 	pinned?: boolean;
 	coverageStatus?: 'active' | 'paused' | 'archived' | 'trash' | '';
 	archivedAt?: number;
@@ -160,6 +157,7 @@ interface Entry {
 	canPublish?: boolean;
 	/** Whether the current user authored this entry. */
 	isOwn?: boolean;
+	rolling_coverage_breakout_post_id?: number;
 	rolling_coverage_breakout_status?: PostStatus | null;
 	_embedded?: {
 		author?: Array< {

@@ -9,7 +9,6 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies
  */
 import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
-import { FOLLOW_BUTTONS_TEMPLATE } from '../shared/follow-buttons';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
 import type { TemplateItem } from './types';
 
@@ -126,8 +125,8 @@ const ALL_UPDATES_CLASS = 'newspack-rolling-coverage-all-updates';
 const ENTRY_LINK_CLASS = 'newspack-rolling-coverage-entry-link';
 
 /**
- * The Follow Coverage block, which sits once among the layout's coverage-level
- * blocks.
+ * The Follow Coverage block, which renders with a layout's coverage-level
+ * blocks; the editor keeps it out of entries.
  */
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 
@@ -1180,6 +1179,7 @@ function wireEntryTemplate( slugs: string[], sizes: string[] ): TemplateItem[] {
 				{
 					excerptLength: 15,
 					moreText: '',
+					showMoreOnNewLine: false,
 					fontSize: 'small',
 					...mutedDateColor( slugs ),
 				},
@@ -1232,8 +1232,8 @@ function coverageNameHeading( fontSize = 'large' ): TemplateItem {
 }
 
 /**
- * The Digest layout's footer: the link to the coverage page beside the Follow
- * button, ruled off from the entries.
+ * The Digest layout's footer: the link to the coverage page, ruled off from
+ * the entries.
  *
  * @return {TemplateItem} The group.
  */
@@ -1259,7 +1259,7 @@ function digestFooter(): TemplateItem {
 			},
 			metadata: { name: __( 'Footer', 'newspack-rolling-coverage' ) },
 		},
-		[ allUpdatesLink(), FOLLOW_TEMPLATE ],
+		[ allUpdatesLink() ],
 	];
 }
 
@@ -1331,6 +1331,7 @@ function digestRow( slugs: string[], sizes: string[] ): TemplateItem {
 							{
 								excerptLength: 20,
 								moreText: '',
+								showMoreOnNewLine: false,
 								fontSize: 'small',
 								...mutedDateColor( slugs ),
 							},
@@ -1364,9 +1365,9 @@ const FLASH_FEED_LAYOUT = {
 };
 
 /**
- * The Flash layout's bar: a group on the site's accent color spanning the
- * block, its content laid out at the theme's widths so a wide Feed lines up
- * with the site's wide content.
+ * The Flash layout's bar: a full-width group on the site's accent color, its
+ * content laid out at the theme's widths so a wide Feed lines up with the
+ * site's wide content.
  *
  * @param {TemplateItem} feed The Feed group.
  * @return {TemplateItem} The bar.
@@ -1376,6 +1377,7 @@ function flashBar( feed: TemplateItem ): TemplateItem {
 		'core/group',
 		{
 			lock: LOCKED_IN_PLACE,
+			align: 'full',
 			layout: { type: 'constrained' },
 			style: FLASH_BAR_STYLE,
 			metadata: { name: __( 'Bar', 'newspack-rolling-coverage' ) },
@@ -1418,8 +1420,9 @@ function flashEntryTemplate(): TemplateItem[] {
 			[
 				'core/post-excerpt',
 				{
-					excerptLength: 20,
+					excerptLength: 100,
 					moreText: '',
+					showMoreOnNewLine: false,
 					fontSize: 'small',
 				},
 			],
@@ -1605,6 +1608,404 @@ function tickerEntryTemplate( slugs: string[] ): TemplateItem[] {
 }
 
 /**
+ * How many columns the Split layout's grid has on desktop: the summary in
+ * the first, the entries across the other two.
+ */
+const SPLIT_COLUMNS = 3;
+
+/**
+ * How many rows the Split layout's summary spans, one per entry beside it,
+ * enough for a full page (Rolling_Coverage_Block::PER_PAGE_MAX). Infinite
+ * scroll appends further pages and each ad takes a row, so a long feed can
+ * pass the span: updates past it continue in their column and the summary
+ * column ends there.
+ */
+const SPLIT_SUMMARY_ROWS = 100;
+
+/**
+ * The Split layout's Feed layout: a grid of three columns.
+ */
+const SPLIT_FEED_LAYOUT = {
+	type: 'grid',
+	columnCount: SPLIT_COLUMNS,
+};
+
+/**
+ * The Split layout's Feed style: one column on tablets and phones.
+ */
+const SPLIT_FEED_STYLE = {
+	'@tablet': { layout: { columnCount: 1 } },
+	'@mobile': { layout: { columnCount: 1 } },
+};
+
+/**
+ * The Split layout's Feed spacing: space between the columns and none
+ * between the rows, since the summary spans many rows that would each add
+ * it. The entries space themselves with their padding.
+ */
+const SPLIT_FEED_GAP = { top: '0', left: 'var:preset|spacing|50' };
+
+/**
+ * Where a Split block sits on tablets and phones, where the grid has one
+ * column.
+ */
+const SPLIT_STACKED_PLACEMENT = { layout: { columnStart: 1, columnSpan: 1 } };
+
+/**
+ * The Split layout's per-entry template. The pinned entry, the summary,
+ * holds the grid's first column down the feed's full length and sticks as
+ * the reader scrolls where the theme supports it, ruled off with a heavier
+ * rule; above the entries on tablets and phones. Each entry spans the other
+ * two columns, the time it was posted beside the title, content and links,
+ * or above them on phones. The site places each entry's article where its
+ * group says (see Rolling_Coverage_Block::place_in_grid()).
+ *
+ * @return {TemplateItem[]} The template.
+ */
+function splitEntryTemplate(): TemplateItem[] {
+	return [
+		[
+			'core/group',
+			{
+				className: PINNED_CARD_CLASS,
+				lock: LOCKED_IN_PLACE,
+				layout: {
+					type: 'flex',
+					orientation: 'vertical',
+					justifyContent: 'stretch',
+				},
+				style: {
+					layout: {
+						columnStart: 1,
+						columnSpan: 1,
+						rowSpan: SPLIT_SUMMARY_ROWS,
+					},
+					'@tablet': {
+						layout: {
+							...SPLIT_STACKED_PLACEMENT.layout,
+							rowSpan: 1,
+						},
+					},
+					'@mobile': {
+						layout: {
+							...SPLIT_STACKED_PLACEMENT.layout,
+							rowSpan: 1,
+						},
+					},
+					border: {
+						top: { color: CONTRAST, width: '3px', style: 'solid' },
+					},
+					spacing: {
+						blockGap: DEFAULT_ENTRY_GAP,
+						padding: {
+							top: 'var:preset|spacing|40',
+							bottom: 'var:preset|spacing|50',
+						},
+					},
+					position: { type: 'sticky', top: '0px' },
+				},
+				metadata: {
+					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			[
+				pinnedRow( ACCENT ),
+				[ 'core/post-title', { level: 4 } ],
+				postContent(),
+				linksRow( [ readMoreLink(), shareLink() ] ),
+			],
+		],
+		[
+			'core/group',
+			{
+				className: REGULAR_ENTRY_CLASS,
+				lock: LOCKED_IN_PLACE,
+				style: {
+					layout: { columnStart: 2, columnSpan: 2 },
+					'@tablet': SPLIT_STACKED_PLACEMENT,
+					'@mobile': SPLIT_STACKED_PLACEMENT,
+					border: {
+						top: {
+							color: BORDER_COLOR,
+							width: '1px',
+							style: 'solid',
+						},
+					},
+					spacing: {
+						padding: {
+							top: 'var:preset|spacing|40',
+							bottom: 'var:preset|spacing|40',
+						},
+					},
+				},
+				metadata: {
+					name: __( 'Entry', 'newspack-rolling-coverage' ),
+				},
+			},
+			[
+				[
+					'core/columns',
+					{
+						style: {
+							spacing: {
+								blockGap: {
+									top: 'var:preset|spacing|20',
+									left: 'var:preset|spacing|30',
+								},
+								margin: { top: '0', bottom: '0' },
+							},
+						},
+						metadata: {
+							name: __( 'Row', 'newspack-rolling-coverage' ),
+						},
+					},
+					[
+						[
+							'core/column',
+							{
+								width: '5.5rem',
+								metadata: {
+									name: __(
+										'Time',
+										'newspack-rolling-coverage'
+									),
+								},
+							},
+							[
+								[
+									'core/post-date',
+									{
+										...POST_DATE_ATTRIBUTES,
+										format: siteTimeFormat(),
+										fontSize: 'small',
+										style: {
+											typography: { fontWeight: '700' },
+										},
+									},
+								],
+							],
+						],
+						[
+							'core/column',
+							{
+								metadata: {
+									name: __(
+										'Body',
+										'newspack-rolling-coverage'
+									),
+								},
+							},
+							[
+								stack(
+									__( 'Entry', 'newspack-rolling-coverage' ),
+									[
+										[ 'core/post-title', { level: 4 } ],
+										postContent(),
+										linksRow( [
+											readMoreLink(),
+											shareLink(),
+										] ),
+									]
+								),
+							],
+						],
+					],
+				],
+			],
+		],
+	];
+}
+
+/**
+ * Whether a group sets where it sits in a grid, on desktop or at any
+ * viewport, mirroring Rolling_Coverage_Block::grid_placement().
+ *
+ * @param {Object} block            The group.
+ * @param {Object} block.attributes Its attributes.
+ * @return {boolean} Whether it sets a placement.
+ */
+function hasGridPlacement( block?: {
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const style = block?.attributes?.style as
+		Record< string, unknown > | undefined;
+	const setsPlacement = ( styles: unknown ) => {
+		const layout = ( styles as { layout?: Record< string, unknown > } )
+			?.layout;
+
+		return [ 'columnStart', 'columnSpan', 'rowStart', 'rowSpan' ].some(
+			( key ) => Boolean( layout?.[ key ] )
+		);
+	};
+
+	return (
+		!! style &&
+		( setsPlacement( style ) ||
+			Object.keys( style ).some(
+				( key ) =>
+					key.startsWith( '@' ) && setsPlacement( style[ key ] )
+			) )
+	);
+}
+
+/**
+ * A group's top border settings: its top side's, or those of all its sides
+ * when they're linked, the color preset among them, mirroring
+ * Rolling_Coverage_Block::top_border().
+ *
+ * @param {Object} block            The group.
+ * @param {Object} block.attributes Its attributes.
+ * @return {Object} Top border settings, as a group's style holds them.
+ */
+function topBorder( block?: {
+	attributes?: Record< string, unknown >;
+} ): Record< string, unknown > {
+	const border = {
+		...( (
+			block?.attributes?.style as
+				{ border?: Record< string, unknown > } | undefined
+		 )?.border ?? {} ),
+	};
+	const top = { ...( border.top as Record< string, unknown > | undefined ) };
+	const preset = block?.attributes?.borderColor;
+
+	if ( border.color === undefined && typeof preset === 'string' && preset ) {
+		border.color = `var:preset|color|${ preset }`;
+	}
+
+	[ 'color', 'width', 'style' ].forEach( ( property ) => {
+		const value = border[ property ];
+
+		if (
+			top[ property ] === undefined &&
+			typeof value === 'string' &&
+			value
+		) {
+			top[ property ] = value;
+		}
+	} );
+
+	return top;
+}
+
+/**
+ * An entry's preview blocks with the pinned card's top border on the entry
+ * group, as the entry heading the entries beside the card renders, so the
+ * two rules line up (see Rolling_Coverage_Block::column_rules()). Unchanged
+ * unless a grid Feed places the card beside the entry group and the card
+ * has a top border.
+ *
+ * @param {Object[]} blocks     The entry's preview blocks.
+ * @param {Object[]} template   The layout's per-entry blocks.
+ * @param {Object}   feedLayout The Feed group's layout attribute.
+ * @return {Object[]} The blocks.
+ */
+function withColumnRule< T extends { name: string; [ key: string ]: unknown } >(
+	blocks: T[],
+	template: { name: string; attributes?: Record< string, unknown > }[],
+	feedLayout: Record< string, unknown > | undefined
+): T[] {
+	const card = template.find( isPinnedCard );
+	const top = topBorder( card );
+
+	if (
+		feedLayout?.type !== 'grid' ||
+		! hasGridPlacement( card ) ||
+		! template.some( isRegularEntry ) ||
+		Object.keys( top ).length === 0
+	) {
+		return blocks;
+	}
+
+	return blocks.map( ( block ) => {
+		const attributes = ( block.attributes ?? {} ) as {
+			className?: string;
+			style?: { border?: Record< string, unknown > };
+		};
+
+		if ( ! isRegularEntry( { name: block.name, attributes } ) ) {
+			return block;
+		}
+
+		return {
+			...block,
+			attributes: {
+				...attributes,
+				style: {
+					...attributes.style,
+					border: { ...attributes.style?.border, top },
+				},
+			},
+		};
+	} );
+}
+
+/**
+ * The grid cell an entry's preview takes in a grid Feed, mirroring the
+ * article the site places (see Rolling_Coverage_Block::place_in_grid()):
+ * the pinned card's desktop placement for the first pinned entry, else the
+ * entry group's, which takes the full row while no pinned entry shows if
+ * the pinned card carries a placement of its own. None outside a grid Feed,
+ * or where the group sets no placement.
+ *
+ * @param {Object[]} template   The layout's per-entry blocks.
+ * @param {Object}   feedLayout The Feed group's layout attribute.
+ * @param {boolean}  isLeadPin  Whether the entry is the first pinned entry previewed.
+ * @param {boolean}  showsPin   Whether any pinned entry is previewed.
+ * @return {Object|undefined} The preview container's inline style.
+ */
+function entryPreviewPlacement(
+	template: { name: string; attributes?: Record< string, unknown > }[],
+	feedLayout: Record< string, unknown > | undefined,
+	isLeadPin: boolean,
+	showsPin: boolean
+): Record< string, string > | undefined {
+	if ( feedLayout?.type !== 'grid' ) {
+		return undefined;
+	}
+
+	const placementOf = ( block?: {
+		attributes?: Record< string, unknown >;
+	} ) =>
+		(
+			block?.attributes?.style as
+				{ layout?: Record< string, string | number > } | undefined
+		 )?.layout;
+	const card = placementOf( template.find( isPinnedCard ) );
+	const entry = placementOf( template.find( isRegularEntry ) );
+	const placement = isLeadPin && card ? card : entry;
+
+	if ( ! placement ) {
+		return undefined;
+	}
+
+	if (
+		placement === entry &&
+		hasGridPlacement( template.find( isPinnedCard ) ) &&
+		! showsPin
+	) {
+		return { gridColumn: '1 / -1' };
+	}
+
+	const track = ( start?: string | number, span?: string | number ) => {
+		if ( start && span ) {
+			return `${ start } / span ${ span }`;
+		}
+
+		return start ? `${ start }` : span && `span ${ span }`;
+	};
+	const gridColumn = track( placement.columnStart, placement.columnSpan );
+	const gridRow = track( placement.rowStart, placement.rowSpan );
+
+	return gridColumn || gridRow
+		? {
+				...( gridColumn ? { gridColumn } : {} ),
+				...( gridRow ? { gridRow } : {} ),
+			}
+		: undefined;
+}
+
+/**
  * The Digest layout's per-entry template: the time and, beside it, the
  * headline over a short excerpt, ruled off from the entry above. The pinned
  * card matches the regular entry, since a capped feed ignores pinning.
@@ -1619,17 +2020,6 @@ function digestEntryTemplate(
 ): TemplateItem[] {
 	return rowEntryTemplate( () => digestRow( slugs, sizes ) );
 }
-
-/**
- * The follow button, rendered once wherever the layout places it: the Follow
- * Coverage block, which holds the core button bound to the coverage's
- * notification tag.
- */
-const FOLLOW_TEMPLATE: TemplateItem = [
-	FOLLOW_BLOCK_NAME,
-	{ lock: LOCKED },
-	[ FOLLOW_BUTTONS_TEMPLATE ],
-];
 
 /**
  * The "Jump to Latest" button's default colors, as palette slugs: the theme's
@@ -2038,16 +2428,18 @@ function emptiedGroupIds(
  * The Feed group holding the layout's items: everything the coverage shows,
  * spaced by its Block spacing.
  *
- * @param {Object[]} items      The items.
- * @param {string}   gap        The space between the items, as a spacing preset.
- * @param {Object}   style      Extra style settings, such as a border or padding.
- * @param {Object}   layout     The group's layout, a vertical stack by default.
- * @param {Object}   attributes Extra group settings, such as its alignment.
+ * @param {Object[]}      items      The items.
+ * @param {string|Object} gap        The space between the items, as a spacing
+ *                                   preset, or between the rows (`top`) and the
+ *                                   columns (`left`).
+ * @param {Object}        style      Extra style settings, such as a border or padding.
+ * @param {Object}        layout     The group's layout, a vertical stack by default.
+ * @param {Object}        attributes Extra group settings, such as its alignment.
  * @return {Object} The Feed group.
  */
 function feedTemplate(
 	items: TemplateItem[],
-	gap = 'var:preset|spacing|50',
+	gap: string | { top: string; left: string } = 'var:preset|spacing|50',
 	style: Record< string, unknown > = {},
 	layout: Record< string, unknown > = {
 		type: 'flex',
@@ -2933,12 +3325,17 @@ export {
 	tickerFooter,
 	TICKER_FEED_LAYOUT,
 	TICKER_FEED_STYLE,
+	splitEntryTemplate,
+	entryPreviewPlacement,
+	withColumnRule,
+	SPLIT_FEED_LAYOUT,
+	SPLIT_FEED_STYLE,
+	SPLIT_FEED_GAP,
 	DIGEST_FEED_STYLE,
 	ENTRY_ALLOWED_BLOCKS,
 	ALL_UPDATES_CLASS,
 	FOLLOW_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
-	FOLLOW_TEMPLATE,
 	feedTemplate,
 	feedGroupOf,
 	feedPathOf,

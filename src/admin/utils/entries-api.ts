@@ -87,10 +87,9 @@ function toEntry( row: EntryViewRow ): Entry {
 		canPublish: row.can_publish,
 		isOwn: row.is_own,
 		meta: {
-			rolling_coverage_breakout_post_id:
-				row.breakout_post_id || undefined,
 			rolling_coverage_entry_source: row.source,
 		},
+		rolling_coverage_breakout_post_id: row.breakout_post_id || undefined,
 		rolling_coverage_breakout_status: row.breakout_status,
 		_embedded: {
 			author: row.author ? [ row.author ] : undefined,

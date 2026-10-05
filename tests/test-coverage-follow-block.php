@@ -5,6 +5,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Coverage_Follow_Block;
 use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Push_Notifications;
@@ -13,7 +14,8 @@ use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
  * The block's core "Follow" button follows the coverage around it, else the
- * chosen one, else the page's first feed, and renders nothing without one.
+ * chosen one, else the page's first feed or a breakout post's coverage, and
+ * renders nothing without one.
  */
 class Test_Coverage_Follow_Block extends Rolling_Coverage_TestCase {
 
@@ -209,6 +211,18 @@ class Test_Coverage_Follow_Block extends Rolling_Coverage_TestCase {
 		$page_id     = self::page( self::feed( $coverage_id ) );
 
 		$this->assertSame( [ Push_Notifications::follow_tag( $coverage_id ) ], self::tags( $this->render( self::follow(), $page_id ) ) );
+	}
+
+	/**
+	 * Automatic follows the coverage of the entry a breakout post was made
+	 * from.
+	 */
+	public function test_automatic_follows_a_breakout_posts_coverage() {
+		$coverage_id = self::create_coverage();
+		$breakout_id = self::factory()->post->create();
+		update_post_meta( $breakout_id, Breakout::BREAKOUT_SOURCE_ENTRY_META, self::create_entry( $coverage_id ) );
+
+		$this->assertSame( [ Push_Notifications::follow_tag( $coverage_id ) ], self::tags( $this->render( self::follow(), $breakout_id ) ) );
 	}
 
 	/**

@@ -16,6 +16,7 @@ import {
 	minuteInnerTemplate,
 	bylineInnerTemplate,
 	tickerInnerTemplate,
+	splitInnerTemplate,
 	wireInnerTemplate,
 	digestInnerTemplate,
 	flashInnerTemplate,
@@ -31,6 +32,7 @@ export type BuiltInLayoutSlug =
 	| 'minute'
 	| 'byline'
 	| 'ticker'
+	| 'split'
 	| 'wire'
 	| 'digest'
 	| 'flash';
@@ -42,6 +44,7 @@ export type BuiltInLayout = {
 	latest?: number;
 	hidesWhenEnded?: boolean;
 	align?: string;
+	previewWidth?: number;
 };
 
 /**
@@ -95,6 +98,12 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			align: 'wide',
 		},
 		{
+			slug: 'split',
+			title: _x( 'Split', 'layout name', 'newspack-rolling-coverage' ),
+			template: splitInnerTemplate,
+			align: 'wide',
+		},
+		{
 			slug: 'wire',
 			title: _x( 'Wire', 'layout name', 'newspack-rolling-coverage' ),
 			template: wireInnerTemplate,
@@ -113,6 +122,7 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			latest: 1,
 			hidesWhenEnded: true,
 			align: 'full',
+			previewWidth: 1400,
 		},
 	];
 }
@@ -138,7 +148,8 @@ export function builtInLayoutSlugFor(
 }
 
 /**
- * The cap attributes a built-in layout sets when it is picked.
+ * The cap attributes a built-in layout sets when it is picked, and its
+ * alignment, capped or not.
  *
  * @param {BuiltInLayoutSlug} slug The layout's slug.
  * @return {Object} The attributes to set.
@@ -160,7 +171,11 @@ export function layoutCapAttributes( slug: BuiltInLayoutSlug ): {
 		};
 	}
 
-	return { latestOnly: false, hideWhenEnded: false };
+	return {
+		latestOnly: false,
+		hideWhenEnded: false,
+		...( layout?.align ? { align: layout.align } : {} ),
+	};
 }
 
 /**
