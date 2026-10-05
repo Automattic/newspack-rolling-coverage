@@ -274,6 +274,34 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An archived entry's notice is filterable, so Lite Site cleans it like
+	 * the body: a poll sends the notice the page shows, without markup the
+	 * page strips.
+	 */
+	public function test_archived_notice_is_cleaned_like_the_rest_of_a_lite_page() {
+		$entry_id = self::create_entry(
+			$this->coverage_id,
+			[
+				'post_title' => 'Road closed',
+				'post_date'  => '2026-01-01 08:00:00',
+			]
+		);
+		update_post_meta( $entry_id, Archive_Mode::ENTRY_ARCHIVED_META_KEY, time() );
+		add_filter(
+			'newspack_rolling_coverage_entry_archived_notice',
+			function () {
+				return 'Out of date. <img src="https://example.test/map.png" alt="Map">';
+			}
+		);
+
+		$entry = Lite_Feed::render_entry( get_post( $entry_id ), 'initial' );
+
+		$this->assertStringContainsString( 'Out of date.', $entry );
+		$this->assertStringNotContainsString( '<img', $entry, 'The notice loses what a lite page strips.' );
+		$this->assertStringContainsString( $entry, $this->render_lite_page(), 'A poll sends the notice the page shows.' );
+	}
+
+	/**
 	 * The Follow button needs its own script and a push provider, neither of
 	 * which a lite page has.
 	 */

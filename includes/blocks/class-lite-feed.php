@@ -231,8 +231,10 @@ class Lite_Feed {
 	 *
 	 * Built from the entry alone, not the block's layout, and carrying the
 	 * attributes the view script uses to place and replace entries. It cleans
-	 * the body with Lite Site, so it needs Lite Site loaded: callers check
-	 * is_lite_render() or is_available() first.
+	 * the body with Lite Site, and the archived notice too, whose text is
+	 * filterable: a poll then sends no markup the page itself would strip. So
+	 * it needs Lite Site loaded: callers check is_lite_render() or
+	 * is_available() first.
 	 *
 	 * @param WP_Post $entry     Entry post object.
 	 * @param string  $arrival   How the entry reached the page: 'initial', 'poll' or 'load_more'; empty for an edit the page already shows.
@@ -260,7 +262,7 @@ class Lite_Feed {
 			$is_pinned ? ' data-pinned' : '',
 			$meta,
 			Rolling_Coverage_Block::has_title( $entry ) ? '<h3>' . esc_html( get_the_title( $entry ) ) . '</h3>' : '',
-			Archive_Mode::is_entry_archived( $entry->ID ) ? Rolling_Coverage_Block::render_archived_entry_notice() : '',
+			Archive_Mode::is_entry_archived( $entry->ID ) ? \Newspack_Lite_Site\Lite_Site::clean_content( Rolling_Coverage_Block::render_archived_entry_notice() ) : '',
 			self::render_body( $entry )
 		);
 	}
