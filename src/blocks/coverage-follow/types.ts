@@ -46,6 +46,7 @@ type CoverageFollowAttributes = {
  */
 interface CoverageFollowConfig {
 	onesignalConfigured: boolean;
+	sourceEntryField: string;
 	statusMetaKey: string;
 	taxonomySlug: string;
 }

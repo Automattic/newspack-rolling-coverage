@@ -5,6 +5,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Coverage_Status_Block;
 use Newspack_Rolling_Coverage\Newest_Entry;
 use Newspack_Rolling_Coverage\Post_Type;
@@ -133,17 +134,64 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A chosen feed wins; a chosen feed no longer on the page falls back to
-	 * the first.
+	 * A custom coverage shows anywhere: over the page's own feeds, and on
+	 * views with no page to follow, such as the home page.
 	 */
-	public function test_follows_the_chosen_feed_while_it_is_on_the_page() {
-		$first   = self::create_coverage();
-		$second  = self::create_coverage();
-		$gone    = self::create_coverage();
-		$page_id = self::page( self::feed( $first ) . self::feed( $second ) );
+	public function test_custom_coverage_shows_anywhere() {
+		$feed_id   = self::create_coverage();
+		$chosen_id = self::create_coverage();
+		$page_id   = self::page( self::feed( $feed_id ) );
 
-		$this->assertStringContainsString( 'data-coverage-id="' . $second . '"', $this->render( [ 'coverageId' => $second ], $page_id ) );
-		$this->assertStringContainsString( 'data-coverage-id="' . $first . '"', $this->render( [ 'coverageId' => $gone ], $page_id ) );
+		$this->assertStringContainsString( 'data-coverage-id="' . $chosen_id . '"', $this->render( [ 'coverageId' => $chosen_id ], $page_id ) );
+
+		$this->go_to( home_url( '/' ) );
+		$this->assertStringContainsString( 'data-coverage-id="' . $chosen_id . '"', $this->render( [ 'coverageId' => $chosen_id ] ) );
+	}
+
+	/**
+	 * A custom coverage that is trashed or gone leaves the block on
+	 * Automatic.
+	 */
+	public function test_custom_coverage_that_cannot_be_followed_falls_back_to_automatic() {
+		$feed_id    = self::create_coverage();
+		$trashed_id = self::create_coverage( 'trash' );
+		$page_id    = self::page( self::feed( $feed_id ) );
+
+		$this->assertStringContainsString( 'data-coverage-id="' . $feed_id . '"', $this->render( [ 'coverageId' => $trashed_id ], $page_id ) );
+		$this->assertStringContainsString( 'data-coverage-id="' . $feed_id . '"', $this->render( [ 'coverageId' => 999999 ], $page_id ) );
+	}
+
+	/**
+	 * A post broken out from an entry.
+	 *
+	 * @param int   $entry_id Source entry ID.
+	 * @param array $args     Further post factory arguments.
+	 * @return int Breakout post ID.
+	 */
+	private static function breakout_post( int $entry_id, array $args = [] ): int {
+		$breakout_id = self::factory()->post->create( $args );
+		update_post_meta( $breakout_id, Breakout::BREAKOUT_SOURCE_ENTRY_META, $entry_id );
+
+		return $breakout_id;
+	}
+
+	/**
+	 * On Automatic, a breakout post shows its entry's coverage: the oldest
+	 * followable one should the entry have several, whatever their names.
+	 * A feed in the post still comes first, and a breakout post the reader
+	 * can't see shows nothing.
+	 */
+	public function test_automatic_shows_a_breakout_posts_coverage() {
+		$trashed  = self::create_coverage( 'trash' );
+		$oldest   = self::create_coverage( '', [ 'name' => 'Zoning vote' ] );
+		$newer    = self::create_coverage( '', [ 'name' => 'Airport strike' ] );
+		$feed_id  = self::create_coverage();
+		$entry_id = self::create_entry();
+		wp_set_object_terms( $entry_id, [ $newer, $trashed, $oldest ], Taxonomy::TAXONOMY_SLUG );
+
+		$this->assertStringContainsString( 'data-coverage-id="' . $oldest . '"', $this->render( [], self::breakout_post( $entry_id ) ) );
+		$this->assertStringContainsString( 'data-coverage-id="' . $feed_id . '"', $this->render( [], self::breakout_post( $entry_id, [ 'post_content' => self::feed( $feed_id ) ] ) ) );
+		$this->assertSame( '', $this->render( [], self::breakout_post( $entry_id, [ 'post_password' => 'secret' ] ) ) );
 	}
 
 	/**
@@ -583,6 +631,31 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$this->assertSame( [ $coverage_id ], self::followed_coverages( $html ) );
 		$this->assertSame( 1, substr_count( $html, '<span class="newspack-ui__badge newspack-ui__badge--secondary">Paused</span>' ) );
 		$this->assertLessThan( strpos( $html, '<article' ), strpos( $html, 'newspack-ui__badge' ) );
+	}
+
+	/**
+	 * A breakout post whose source entry readers can no longer see, such as
+	 * a trashed one, shows no coverage on Automatic.
+	 */
+	public function test_automatic_ignores_a_breakout_posts_trashed_entry() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::breakout_post( $entry_id );
+		wp_trash_post( $entry_id );
+
+		$this->assertSame( '', $this->render( [], $breakout_id ) );
+	}
+
+	/**
+	 * Inside a Rolling Coverage block, the status block shows that block's
+	 * coverage even when it was set to a custom one.
+	 */
+	public function test_status_inside_a_feed_ignores_a_custom_coverage() {
+		$coverage_id = self::create_coverage();
+		$custom_id   = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$feed = str_replace( '<!-- wp:newspack-rolling-coverage/coverage-status /-->', '<!-- wp:newspack-rolling-coverage/coverage-status {"coverageId":' . $custom_id . '} /-->', self::flash_feed( $coverage_id ) );
+
+		$this->assertSame( [ $coverage_id ], self::followed_coverages( do_blocks( $feed ) ) );
 	}
 
 	/**

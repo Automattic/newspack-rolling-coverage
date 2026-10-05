@@ -8,6 +8,7 @@
 	"textdomain": "newspack-rolling-coverage",
 	"usesContext": [
 		"postId",
+		"postType",
 		"newspack-rolling-coverage/coverageId",
 		"newspack-rolling-coverage/coverageStatus"
 	],

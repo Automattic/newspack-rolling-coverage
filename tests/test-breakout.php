@@ -6,6 +6,7 @@
  */
 
 use Newspack_Rolling_Coverage\Breakout;
+use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
@@ -234,6 +235,93 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 
 		$wpdb->update( $wpdb->posts, [ 'post_modified_gmt' => '2026-01-01 12:00:00' ], [ 'ID' => $entry_id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		clean_post_cache( $entry_id );
+	}
+
+	/**
+	 * The editor can read which entry a post was broken out from, to show
+	 * that entry's coverage while readers can see the entry, but the link
+	 * can't be rewritten over REST.
+	 */
+	public function test_source_entry_is_readable_but_not_writable_over_rest() {
+		self::log_in_as( 'editor' );
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::factory()->post->create();
+		update_post_meta( $breakout_id, Breakout::BREAKOUT_SOURCE_ENTRY_META, $entry_id );
+
+		$read = new WP_REST_Request( 'GET', '/wp/v2/posts/' . $breakout_id );
+		$read->set_param( 'context', 'edit' );
+		$this->assertSame( $entry_id, rest_get_server()->dispatch( $read )->get_data()[ Breakout::BREAKOUT_SOURCE_ENTRY_FIELD ] ?? null );
+
+		$write = new WP_REST_Request( 'POST', '/wp/v2/posts/' . $breakout_id );
+		$write->set_body_params( [ Breakout::BREAKOUT_SOURCE_ENTRY_FIELD => self::create_entry() ] );
+		rest_get_server()->dispatch( $write );
+		$this->assertSame( $entry_id, (int) get_post_meta( $breakout_id, Breakout::BREAKOUT_SOURCE_ENTRY_META, true ) );
+
+		wp_trash_post( $entry_id );
+		$this->assertSame( 0, rest_get_server()->dispatch( $read )->get_data()[ Breakout::BREAKOUT_SOURCE_ENTRY_FIELD ], 'A trashed entry gives the post no coverage, as on the site.' );
+	}
+
+	/**
+	 * The block editor sends a post's whole meta object back once any of it
+	 * is edited; that must not stop an editor saving a post that was never
+	 * broken out.
+	 */
+	public function test_editor_can_save_a_post_with_what_it_read_echoed_back() {
+		self::log_in_as( 'editor' );
+		$post_id = self::factory()->post->create();
+
+		$read = new WP_REST_Request( 'GET', '/wp/v2/posts/' . $post_id );
+		$read->set_param( 'context', 'edit' );
+		$data = rest_get_server()->dispatch( $read )->get_data();
+
+		$save = new WP_REST_Request( 'POST', '/wp/v2/posts/' . $post_id );
+		$save->set_body_params(
+			[
+				'title'                               => 'Recount ordered',
+				'meta'                                => $data['meta'],
+				Breakout::BREAKOUT_SOURCE_ENTRY_FIELD => $data[ Breakout::BREAKOUT_SOURCE_ENTRY_FIELD ] ?? 0,
+			]
+		);
+
+		$this->assertSame( 200, rest_get_server()->dispatch( $save )->get_status() );
+	}
+
+	/**
+	 * The same holds for an entry: the editor sends its whole meta object
+	 * back, and an entry that was never broken out must still save.
+	 */
+	public function test_editor_can_save_an_entry_with_what_it_read_echoed_back() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry( self::create_coverage() );
+		$path     = '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id;
+
+		$read = new WP_REST_Request( 'GET', $path );
+		$read->set_param( 'context', 'edit' );
+		$data = rest_get_server()->dispatch( $read )->get_data();
+
+		$save = new WP_REST_Request( 'POST', $path );
+		$save->set_body_params(
+			[
+				'title' => 'Recount ordered',
+				'meta'  => $data['meta'],
+			]
+		);
+
+		$this->assertSame( 200, rest_get_server()->dispatch( $save )->get_status() );
+	}
+
+	/**
+	 * The breakout links and cached status drive writes to other posts, so
+	 * they can't be edited as custom fields, even by an administrator.
+	 */
+	public function test_breakout_meta_cannot_be_edited_as_custom_fields() {
+		self::log_in_as( 'administrator' );
+		$entry_id = self::create_entry( self::create_coverage() );
+		$post_id  = self::factory()->post->create();
+
+		$this->assertFalse( current_user_can( 'edit_post_meta', $entry_id, Breakout::ENTRY_BREAKOUT_POST_ID_META ) );
+		$this->assertFalse( current_user_can( 'edit_post_meta', $entry_id, Breakout::BREAKOUT_STATUS_FIELD ) );
+		$this->assertFalse( current_user_can( 'edit_post_meta', $post_id, Breakout::BREAKOUT_SOURCE_ENTRY_META ) );
 	}
 
 	/**
