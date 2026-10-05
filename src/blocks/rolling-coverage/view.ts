@@ -457,9 +457,10 @@ function initBlock( root: HTMLElement ): void {
 	// already moved past them, so loadMore() applies them as the entries arrive.
 	const offPageUpdates = new Map< string, string >();
 
-	// Entries the poll reported taken down. A cached load-more reply can
-	// predate the removal, so loadMore() leaves them out; and one that comes
-	// back is an older entry, not a new post, so it returns on reload.
+	// Entries the poll reported taken down, or a capped feed dropped. A cached
+	// load-more reply can predate the removal, so loadMore() leaves them out;
+	// and one that comes back is an older entry, not a new post, so it returns
+	// on reload.
 	const removedEntryIds = new Set< string >();
 
 	const countedEntryIds = new Set< string >();
@@ -750,6 +751,7 @@ function initBlock( root: HTMLElement ): void {
 			] )
 		);
 		const fragment = document.createDocumentFragment();
+		const replyIds = new Set< string >();
 
 		entries.forEach( ( entry ) => {
 			const el = isSafeEntryId( entry.id )
@@ -760,6 +762,8 @@ function initBlock( root: HTMLElement ): void {
 				return;
 			}
 
+			replyIds.add( String( entry.id ) );
+
 			if ( arrivals.has( String( entry.id ) ) ) {
 				el.dataset.arrival = arrivals.get( String( entry.id ) );
 			}
@@ -769,6 +773,10 @@ function initBlock( root: HTMLElement ): void {
 		} );
 
 		shownEntries.forEach( ( el ) => {
+			if ( el.dataset.entryId && ! replyIds.has( el.dataset.entryId ) ) {
+				removedEntryIds.add( el.dataset.entryId );
+			}
+
 			unobserveEntry( el );
 			el.remove();
 		} );
