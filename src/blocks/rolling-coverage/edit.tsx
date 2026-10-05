@@ -113,6 +113,7 @@ import {
 	type BuiltInLayoutSlug,
 } from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
+import EntryPreviewsContext from './entry-previews';
 import { blockGapCss } from './spacing';
 import { BLOCK_NAME, innerTemplate, useLayoutPreview } from './layout';
 import type {
@@ -919,18 +920,23 @@ export default function Edit( {
 			pageSize,
 			! previewHasMore
 		);
-	const loadMorePreview = olderEntries === 'button' && previewHasMore && (
-		<Disabled className="newspack-rolling-coverage-load-more">
-			<button
-				type="button"
-				className="wp-element-button wp-block-button__link"
-			>
-				{
-					/* translators: Button that loads older entries at the end of a coverage's feed. */
-					__( 'Load More', 'newspack-rolling-coverage' )
-				}
-			</button>
-		</Disabled>
+	const loadMorePreview = useMemo(
+		() =>
+			olderEntries === 'button' &&
+			previewHasMore && (
+				<Disabled className="newspack-rolling-coverage-load-more">
+					<button
+						type="button"
+						className="wp-element-button wp-block-button__link"
+					>
+						{
+							/* translators: Button that loads older entries at the end of a coverage's feed. */
+							__( 'Load More', 'newspack-rolling-coverage' )
+						}
+					</button>
+				</Disabled>
+			),
+		[ olderEntries, previewHasMore ]
 	);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
@@ -1017,6 +1023,42 @@ export default function Edit( {
 	);
 	const isCardHidden = hasBothKinds && ! pinnedContext;
 	const isEntryHidden = hasBothKinds && ! regularContext && !! pinnedContext;
+	const entryPreviews = useMemo(
+		() => ( {
+			followsCard: ! allBlocks.some( isRegularEntry ),
+			previews: (
+				<>
+					{ previewContexts
+						.filter(
+							( context ) =>
+								context !== pinnedContext &&
+								context !== regularContext
+						)
+						.map( ( context ) => (
+							<BlockContextProvider
+								key={ context.postId }
+								value={ context }
+							>
+								<EntryBlockPreview
+									blocks={ blocksForEntry( context ) }
+									style={ previewPlacements.other }
+								/>
+							</BlockContextProvider>
+						) ) }
+					{ loadMorePreview }
+				</>
+			),
+		} ),
+		[
+			allBlocks,
+			previewContexts,
+			pinnedContext,
+			regularContext,
+			blocksForEntry,
+			previewPlacements.other,
+			loadMorePreview,
+		]
+	);
 	const hidesCardBreakout = pinnedContext
 		? ! pinnedContext.hasBreakout
 		: false;
@@ -2361,36 +2403,19 @@ export default function Edit( {
 									<PinnedEntryContext.Provider
 										value={ pinnedContext ?? null }
 									>
-										<BlockContextProvider
-											value={ {
-												...layoutContext,
-												...coverageContext,
-											} }
+										<EntryPreviewsContext.Provider
+											value={ entryPreviews }
 										>
-											<div { ...innerBlocksProps } />
-										</BlockContextProvider>
+											<BlockContextProvider
+												value={ {
+													...layoutContext,
+													...coverageContext,
+												} }
+											>
+												<div { ...innerBlocksProps } />
+											</BlockContextProvider>
+										</EntryPreviewsContext.Provider>
 									</PinnedEntryContext.Provider>
-									<div className="newspack-rolling-coverage-entries">
-										{ previewContexts
-											.filter(
-												( context ) =>
-													context !== pinnedContext &&
-													context !== regularContext
-											)
-											.map( ( context ) => (
-												<BlockContextProvider
-													key={ context.postId }
-													value={ context }
-												>
-													<EntryBlockPreview
-														blocks={ blocksForEntry(
-															context
-														) }
-													/>
-												</BlockContextProvider>
-											) ) }
-									</div>
-									{ loadMorePreview }
 								</>
 							) }
 						</>
