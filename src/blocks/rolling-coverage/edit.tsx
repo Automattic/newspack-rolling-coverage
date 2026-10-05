@@ -34,8 +34,10 @@ import {
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
 	Button,
+	Disabled,
 	Notice,
 	Placeholder,
+	SelectControl,
 	TextareaControl,
 	ToolbarButton,
 } from '@wordpress/components';
@@ -126,6 +128,28 @@ import type {
  * like Flash's can span the page in the editor as it does on the site.
  */
 const INNER_BLOCKS_LAYOUT = { type: 'default', alignments: [ 'none', 'full' ] };
+
+/**
+ * What each choice of loading older entries does, as the help below it.
+ */
+const OLDER_ENTRIES_HELP: Record< string, () => string > = {
+	scroll: () =>
+		__(
+			'More entries load as readers scroll down.',
+			'newspack-rolling-coverage'
+		),
+	button: () =>
+		/* translators: “Load More” is the label of the button readers press. Keep the words used to translate it. */
+		__(
+			'Readers load more entries with a Load More button.',
+			'newspack-rolling-coverage'
+		),
+	none: () =>
+		__(
+			'Readers see only the first page of entries.',
+			'newspack-rolling-coverage'
+		),
+};
 
 /**
  * Neutral block context used when a coverage has no published entries yet,
@@ -489,6 +513,20 @@ function FeedWrappersPreview( {
 	}, children );
 }
 
+/**
+ * Entries per page as the server renders it: 1 to PER_PAGE_MAX (100),
+ * 20 when unset.
+ *
+ * @param {number} value Stored or typed value.
+ * @return {number} The page size.
+ */
+function clampEntriesPerPage( value: number ): number {
+	return Math.min(
+		Math.max( 1, Number.isFinite( value ) ? Math.trunc( value ) : 20 ),
+		100
+	);
+}
+
 export default function Edit( {
 	clientId,
 	attributes,
@@ -501,6 +539,7 @@ export default function Edit( {
 		allUpdatesLink,
 		pollInterval,
 		entriesPerPage,
+		olderEntries,
 		enableAds,
 		adsInterval,
 		hideWhenEnded,
@@ -512,6 +551,7 @@ export default function Edit( {
 		layoutId,
 		align,
 	} = attributes;
+	const pageSize = clampEntriesPerPage( entriesPerPage );
 	const { currentPostType, currentPostId, patternCategories } = useSelect(
 		( select ) => {
 			const editor = select( editorStore ) as unknown as {
@@ -583,6 +623,9 @@ export default function Edit( {
 	const [ latestCountInput, setLatestCountInput ] = useState< string | null >(
 		null
 	);
+	const [ entriesPerPageInput, setEntriesPerPageInput ] = useState<
+		string | null
+	>( null );
 	const registry = useRegistry();
 	const isSynced = layoutId > 0 && ! isNested;
 	const defaultTemplate = useMemo( innerTemplate, [] );
@@ -619,6 +662,7 @@ export default function Edit( {
 	const [ entryContexts, setEntryContexts ] = useState< EntryContext[] >(
 		[]
 	);
+	const [ hasMoreEntries, setHasMoreEntries ] = useState( false );
 	const [ entriesLoadedFor, setEntriesLoadedFor ] = useState( 0 );
 	const [ coverageLoadedFor, setCoverageLoadedFor ] = useState( 0 );
 	const [ isGenerating, setIsGenerating ] = useState( false );
@@ -837,12 +881,12 @@ export default function Edit( {
 				.map( ( context ) => ( { ...context, pinned: false } ) );
 		}
 		return isSamplePreview
-			? allSampleContexts.slice( 0, entriesPerPage )
+			? allSampleContexts.slice( 0, pageSize )
 			: allSampleContexts;
 	}, [
 		allSampleContexts,
 		isSamplePreview,
-		entriesPerPage,
+		pageSize,
 		isCapped,
 		cappedCount,
 	] );
@@ -857,17 +901,36 @@ export default function Edit( {
 		( entriesCoverageId > 0 && entriesLoadedFor !== entriesCoverageId ) ||
 		( showsSamples && sampleContexts.length === 0 ) ||
 		( isSynced && ! hasResolvedLayout );
-	const previewContexts =
-		showsSamples && entryContexts.length === 0
-			? sampleContexts
-			: entryContexts;
+	const showsSampleContexts = showsSamples && entryContexts.length === 0;
+	const previewContexts = showsSampleContexts
+		? sampleContexts
+		: entryContexts;
+	const previewHasMore =
+		! isCapped &&
+		olderEntries !== 'none' &&
+		( showsSampleContexts
+			? allSampleContexts.length > sampleContexts.length
+			: hasMoreEntries );
 	const { headerBlocks, footerBlocks, templateBlocks, blocksForEntry } =
 		useLayoutPreview(
 			isSynced ? feedItems( syncedBlocks ) : allBlocks,
 			previewContexts,
-			entriesPerPage,
-			isCapped
+			pageSize,
+			! previewHasMore
 		);
+	const loadMorePreview = olderEntries === 'button' && previewHasMore && (
+		<Disabled className="newspack-rolling-coverage-load-more">
+			<button
+				type="button"
+				className="wp-element-button wp-block-button__link"
+			>
+				{
+					/* translators: Button that loads older entries at the end of a coverage's feed. */
+					__( 'Load More', 'newspack-rolling-coverage' )
+				}
+			</button>
+		</Disabled>
+	);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
 		[ templateBlocks ]
@@ -1163,6 +1226,7 @@ export default function Edit( {
 		let cancelled = false;
 		if ( ! entriesCoverageId ) {
 			setEntryContexts( [] );
+			setHasMoreEntries( false );
 			setEntriesLoadedFor( 0 );
 			return;
 		}
@@ -1175,15 +1239,19 @@ export default function Edit( {
 				id: number
 			) => Promise< unknown >;
 		};
+		const perPage = isCapped ? cappedCount : pageSize;
+		// One entry past the page tells whether more would load.
 		fetchEntryPreviewContexts(
 			entriesCoverageId,
-			isCapped ? cappedCount : entriesPerPage,
+			isCapped ? perPage : perPage + 1,
 			isCapped
 		)
-			.then( ( contexts ) =>
+			.then( ( fetched ) => {
+				const contexts = fetched.slice( 0, perPage );
+
 				// Entries are read before the preview shows, so it doesn't
 				// fill in piece by piece.
-				Promise.all(
+				return Promise.all(
 					contexts.map( ( context ) =>
 						getEntityRecord(
 							'postType',
@@ -1191,18 +1259,22 @@ export default function Edit( {
 							context.postId
 						).catch( () => undefined )
 					)
-				).then( () => contexts )
-			)
-			.then( ( contexts ) => {
+				).then( () => ( {
+					contexts,
+					hasMore: fetched.length > perPage,
+				} ) );
+			} )
+			.then( ( { contexts, hasMore } ) => {
 				if ( ! cancelled ) {
 					setEntryContexts( contexts );
+					setHasMoreEntries( hasMore );
 					setEntriesLoadedFor( entriesCoverageId );
 				}
 			} );
 		return () => {
 			cancelled = true;
 		};
-	}, [ entriesCoverageId, entriesPerPage, isCapped, cappedCount, registry ] );
+	}, [ entriesCoverageId, pageSize, isCapped, cappedCount, registry ] );
 
 	// Populate the combobox as the user searches.
 	useEffect( () => {
@@ -1482,7 +1554,7 @@ export default function Edit( {
 									'newspack-rolling-coverage'
 								)
 							: __(
-									'Every entry, loading more as readers scroll.',
+									'Every entry. Pinned entries stay at the top.',
 									'newspack-rolling-coverage'
 								)
 					}
@@ -1593,28 +1665,80 @@ export default function Edit( {
 						</ToggleGroupControl>
 					</>
 				) : (
-					<TextControl
-						__next40pxDefaultSize
-						type="number"
-						label={ __(
-							'Entries per page',
-							'newspack-rolling-coverage'
-						) }
-						help={ __(
-							'Used for both the initial number of entries shown and the infinite-scroll page size.',
-							'newspack-rolling-coverage'
-						) }
-						value={ String( entriesPerPage ) }
-						min={ 1 }
-						max={ 100 }
-						onChange={ ( value: string ) =>
-							setAttributes( {
-								entriesPerPage: value
-									? parseInt( value, 10 )
-									: 20,
-							} )
-						}
-					/>
+					<>
+						<SelectControl
+							__next40pxDefaultSize
+							label={ __(
+								'Older entries',
+								'newspack-rolling-coverage'
+							) }
+							help={ OLDER_ENTRIES_HELP[ olderEntries ]?.() }
+							value={ olderEntries }
+							options={ [
+								{
+									value: 'scroll',
+									label: __(
+										'Load on scroll',
+										'newspack-rolling-coverage'
+									),
+								},
+								{
+									value: 'button',
+									label:
+										/* translators: “Load More” is the label of the button readers press. Keep the words used to translate it. */
+										__(
+											'Load More button',
+											'newspack-rolling-coverage'
+										),
+								},
+								{
+									value: 'none',
+									label: __(
+										'Don’t load',
+										'newspack-rolling-coverage'
+									),
+								},
+							] }
+							onChange={ ( value ) =>
+								setAttributes( { olderEntries: value } )
+							}
+						/>
+						<TextControl
+							__next40pxDefaultSize
+							type="number"
+							label={ __(
+								'Entries per page',
+								'newspack-rolling-coverage'
+							) }
+							help={
+								olderEntries === 'none'
+									? __(
+											'How many entries the feed shows.',
+											'newspack-rolling-coverage'
+										)
+									: __(
+											'How many entries show first, and how many each load of older entries adds.',
+											'newspack-rolling-coverage'
+										)
+							}
+							value={
+								entriesPerPageInput ?? String( entriesPerPage )
+							}
+							min={ 1 }
+							max={ 100 }
+							onChange={ ( value: string ) => {
+								setEntriesPerPageInput( value );
+								const parsed = parseInt( value, 10 );
+								if ( ! Number.isNaN( parsed ) ) {
+									setAttributes( {
+										entriesPerPage:
+											clampEntriesPerPage( parsed ),
+									} );
+								}
+							} }
+							onBlur={ () => setEntriesPerPageInput( null ) }
+						/>
+					</>
 				) }
 				<TextControl
 					__next40pxDefaultSize
@@ -2212,6 +2336,7 @@ export default function Edit( {
 												</BlockContextProvider>
 											) }
 										</div>
+										{ loadMorePreview }
 										{ syncedFooterBlocks.length > 0 && (
 											<BlockContextProvider
 												value={ coverageContext }
@@ -2264,6 +2389,7 @@ export default function Edit( {
 												</BlockContextProvider>
 											) ) }
 									</div>
+									{ loadMorePreview }
 								</>
 							) }
 						</>

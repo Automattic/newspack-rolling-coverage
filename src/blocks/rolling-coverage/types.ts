@@ -26,6 +26,7 @@ interface RollingCoverageAttributes {
 	coverageId: number;
 	pollInterval: number;
 	entriesPerPage: number;
+	olderEntries: 'scroll' | 'button' | 'none';
 	enableAds: boolean;
 	adsInterval: number;
 	archivedNoticeShow: boolean;
