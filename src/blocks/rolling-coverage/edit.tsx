@@ -1395,65 +1395,67 @@ export default function Edit( {
 				) }
 			</PanelBody>
 			<PanelBody title={ __( 'Coverage', 'newspack-rolling-coverage' ) }>
-				{ coverageCombobox }
+				<Stack direction="column" gap="lg">
+					{ coverageCombobox }
 
-				{ coverageId ? (
-					<>
-						<TextControl
-							__next40pxDefaultSize
-							type="url"
-							label={ __(
-								'Canonical URL',
-								'newspack-rolling-coverage'
-							) }
-							placeholder={ __(
-								'https://example.com/live-coverage',
-								'newspack-rolling-coverage'
-							) }
-							value={ pendingCanonicalUrl }
-							onChange={ setPendingCanonicalUrl }
-							disabled={ isApplyingUrl }
-							help={ __(
-								"The page readers land on when they open a link to one of this coverage's entries. Shared across every block connected to this coverage.",
-								'newspack-rolling-coverage'
-							) }
-						/>
-						{ ! latestOnly && (
-							<Stack
-								direction="column"
-								gap="sm"
-								align="flex-start"
-							>
-								<Button
-									variant="secondary"
-									onClick={ () =>
-										setPendingCanonicalUrl(
-											currentPagePermalink || ''
-										)
-									}
-									disabled={
-										isCurrentPageUnsaved ||
-										! currentPagePermalink
-									}
+					{ coverageId ? (
+						<div>
+							<TextControl
+								__next40pxDefaultSize
+								type="url"
+								label={ __(
+									'Canonical URL',
+									'newspack-rolling-coverage'
+								) }
+								placeholder={ __(
+									'https://example.com/live-coverage',
+									'newspack-rolling-coverage'
+								) }
+								value={ pendingCanonicalUrl }
+								onChange={ setPendingCanonicalUrl }
+								disabled={ isApplyingUrl }
+								help={ __(
+									"The page readers land on when they open a link to one of this coverage's entries. Shared across every block connected to this coverage.",
+									'newspack-rolling-coverage'
+								) }
+							/>
+							{ ! latestOnly && (
+								<Stack
+									direction="column"
+									gap="sm"
+									align="flex-start"
 								>
-									{ __(
-										'Use This Page',
-										'newspack-rolling-coverage'
-									) }
-								</Button>
-								{ ( isCurrentPageUnsaved ||
-									! currentPagePermalink ) && (
-									<p className="components-base-control__help">
+									<Button
+										variant="secondary"
+										onClick={ () =>
+											setPendingCanonicalUrl(
+												currentPagePermalink || ''
+											)
+										}
+										disabled={
+											isCurrentPageUnsaved ||
+											! currentPagePermalink
+										}
+									>
 										{ __(
-											'Save this page to get its permalink.',
+											'Use This Page',
 											'newspack-rolling-coverage'
 										) }
-									</p>
-								) }
-							</Stack>
-						) }
-					</>
-				) : null }
+									</Button>
+									{ ( isCurrentPageUnsaved ||
+										! currentPagePermalink ) && (
+										<p className="components-base-control__help">
+											{ __(
+												'Save this page to get its permalink.',
+												'newspack-rolling-coverage'
+											) }
+										</p>
+									) }
+								</Stack>
+							) }
+						</div>
+					) : null }
+				</Stack>
 			</PanelBody>
 
 			<PanelBody title={ __( 'Entries', 'newspack-rolling-coverage' ) }>
@@ -1484,7 +1486,7 @@ export default function Edit( {
 						setAttributes( { latestOnly: value === 'latest' } )
 					}
 				/>
-				{ latestOnly && (
+				{ latestOnly ? (
 					<>
 						<TextControl
 							__next40pxDefaultSize
@@ -1525,11 +1527,7 @@ export default function Edit( {
 							}
 						/>
 					</>
-				) }
-			</PanelBody>
-
-			<PanelBody title={ __( 'Display', 'newspack-rolling-coverage' ) }>
-				{ ! latestOnly && (
+				) : (
 					<TextControl
 						__next40pxDefaultSize
 						type="number"
@@ -1571,16 +1569,48 @@ export default function Edit( {
 			</PanelBody>
 
 			<PanelBody title={ STATUS_LABELS.archived } initialOpen={ false }>
-				<ToggleControl
-					label={ __(
-						'Hide when the coverage ends',
-						'newspack-rolling-coverage'
+				<ToggleGroupControl
+					__next40pxDefaultSize
+					isBlock
+					label={ __( 'When ended', 'newspack-rolling-coverage' ) }
+					help={ sprintf(
+						/* translators: %s: The status that ends a coverage, e.g. "Ended". */
+						__(
+							'Hides the whole block once the coverage’s status is set to “%s” in All Coverages.',
+							'newspack-rolling-coverage'
+						),
+						STATUS_LABELS.archived
 					) }
-					checked={ !! hideWhenEnded }
-					onChange={ ( value: boolean ) =>
-						setAttributes( { hideWhenEnded: value } )
+					value={ hideWhenEnded ? 'hide' : 'show' }
+					onChange={ ( value ) =>
+						setAttributes( { hideWhenEnded: value === 'hide' } )
 					}
-				/>
+				>
+					<ToggleGroupControlOption
+						value="show"
+						label={ _x(
+							'Show',
+							'when ended',
+							'newspack-rolling-coverage'
+						) }
+						aria-label={
+							/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+							__( 'Show when ended', 'newspack-rolling-coverage' )
+						}
+					/>
+					<ToggleGroupControlOption
+						value="hide"
+						label={ _x(
+							'Hide',
+							'when ended',
+							'newspack-rolling-coverage'
+						) }
+						aria-label={
+							/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+							__( 'Hide when ended', 'newspack-rolling-coverage' )
+						}
+					/>
+				</ToggleGroupControl>
 				<ToggleGroupControl
 					__next40pxDefaultSize
 					isBlock
