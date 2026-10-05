@@ -218,7 +218,12 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 
 	> :where(:not(.newspack-rolling-coverage-entries, .newspack-rolling-coverage-status, .newspack-rolling-coverage-new-entries, .newspack-rolling-coverage-sentinel, .block-list-appender)),
 	> .newspack-rolling-coverage-entries > * {
+		--newspack-rolling-coverage-rule-side: left;
 		position: relative;
+
+		&:dir(rtl) {
+			--newspack-rolling-coverage-rule-side: right;
+		}
 
 		&::before {
 			content: "";
@@ -226,14 +231,10 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 			inset-block: calc(-2 * var(--newspack-rolling-coverage-rule-row) - 1px) 0;
 			inset-inline: calc(-2 * var(--newspack-rolling-coverage-rule-column) - 1px) 0;
 			background:
-				linear-gradient(var(--newspack-rolling-coverage-rule-color), var(--newspack-rolling-coverage-rule-color)) left var(--newspack-rolling-coverage-rule-column) bottom 0 / 1px calc(100% - 2 * var(--newspack-rolling-coverage-rule-row) - 1px) no-repeat,
+				linear-gradient(var(--newspack-rolling-coverage-rule-color), var(--newspack-rolling-coverage-rule-color)) var(--newspack-rolling-coverage-rule-side) var(--newspack-rolling-coverage-rule-column) bottom 0 / 1px calc(100% - 2 * var(--newspack-rolling-coverage-rule-row) - 1px) no-repeat,
 				linear-gradient(var(--newspack-rolling-coverage-rule-color), var(--newspack-rolling-coverage-rule-color)) 0 var(--newspack-rolling-coverage-rule-row) / 100% 1px no-repeat;
 			pointer-events: none;
 		}
-	}
-
-	> .newspack-rolling-coverage-sentinel {
-		margin-top: calc(-2 * var(--newspack-rolling-coverage-rule-row) - 1px);
 	}
 }
 
