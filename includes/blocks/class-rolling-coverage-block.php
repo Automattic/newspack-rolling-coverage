@@ -4059,7 +4059,7 @@ class Rolling_Coverage_Block {
 			// Signal the client to refresh when the poll result reaches the cap.
 			if ( count( $changes ) > self::POLL_CAP ) {
 				if ( $is_capped ) {
-					return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $feed_layout );
+					return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $feed_layout, $removed );
 				}
 
 				return self::poll_response(
@@ -4074,7 +4074,7 @@ class Rolling_Coverage_Block {
 
 			// A capped feed can't load an entry to take a removed one's place.
 			if ( $is_capped && array_filter( $removed, static fn( WP_Post $entry ) => ! $is_cursor_entry( $entry ) ) ) {
-				return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $feed_layout );
+				return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $feed_layout, $removed );
 			}
 
 			$entries    = [];
@@ -4092,13 +4092,7 @@ class Rolling_Coverage_Block {
 				}
 
 				if ( 'publish' !== $entry->post_status ) {
-					$entries[] = [
-						'id'     => $entry->ID,
-						'html'   => '',
-						'type'   => 'remove',
-						'adHtml' => null,
-						'adSlot' => null,
-					];
+					$entries[] = self::removal( $entry );
 
 					continue;
 				}
@@ -4220,33 +4214,51 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * A poll reply's entry telling the page to drop an entry taken down.
+	 *
+	 * @param WP_Post $entry Entry post object.
+	 * @return array Poll entry with no markup.
+	 */
+	private static function removal( WP_Post $entry ): array {
+		return [
+			'id'     => $entry->ID,
+			'html'   => '',
+			'type'   => 'remove',
+			'adHtml' => null,
+			'adSlot' => null,
+		];
+	}
+
+	/**
 	 * The poll response for a capped feed after a burst too large to send
 	 * piecemeal, or after an entry was taken down, which leaves a place only
 	 * the server can fill: rather than reload the page hosting it, the
-	 * newest entries by date come whole, for the page to swap in for its
-	 * own, with the cursor at the most recent change.
+	 * removals and the newest entries by date come whole, for the page to
+	 * swap in for its own, with the cursor at the most recent change.
 	 *
-	 * @param int     $term_id       Coverage term ID.
-	 * @param array[] $template      Per-entry template.
-	 * @param int     $latest_count  How many entries the feed shows.
-	 * @param WP_Post $last_modified The most recently modified entry.
-	 * @param array   $params        Request parameters.
-	 * @param array   $feed_layout   The Feed group's layout.
+	 * @param int       $term_id       Coverage term ID.
+	 * @param array[]   $template      Per-entry template.
+	 * @param int       $latest_count  How many entries the feed shows.
+	 * @param WP_Post   $last_modified The most recently modified entry.
+	 * @param array     $params        Request parameters.
+	 * @param array     $feed_layout   The Feed group's layout.
+	 * @param WP_Post[] $removed       Entries taken down since the cursor.
 	 * @return WP_REST_Response
 	 */
-	private static function capped_burst_response( int $term_id, array $template, int $latest_count, WP_Post $last_modified, array $params, array $feed_layout = [] ): WP_REST_Response {
+	private static function capped_burst_response( int $term_id, array $template, int $latest_count, WP_Post $last_modified, array $params, array $feed_layout = [], array $removed = [] ): WP_REST_Response {
 		$args = array_merge(
 			self::coverage_entries_args( $term_id ),
 			[
 				'orderby'        => 'date',
 				'order'          => 'DESC',
-				'posts_per_page' => $latest_count,
+				// Twice the count: a page leaves out entries it dropped, which come back on reload, and still fills its places.
+				'posts_per_page' => 2 * $latest_count,
 			]
 		);
 
 		$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
 
-		$entries = [];
+		$entries = array_map( static fn( WP_Post $entry ) => self::removal( $entry ), $removed );
 
 		foreach ( ( new WP_Query( $args ) )->posts as $entry ) {
 			$entries[] = [

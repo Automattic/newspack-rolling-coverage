@@ -136,8 +136,8 @@ interface PollEntry {
 
 /**
  * REST response containing newly-published, edited or removed entries.
- * With `replace`, sent only to a capped feed, the entries are the feed's
- * newest, whole and in order.
+ * With `replace`, sent only to a capped feed, the entries are the removals,
+ * then the feed's newest entries, whole and in order.
  */
 interface PollResponse {
 	entries: PollEntry[];

@@ -457,10 +457,9 @@ function initBlock( root: HTMLElement ): void {
 	// already moved past them, so loadMore() applies them as the entries arrive.
 	const offPageUpdates = new Map< string, string >();
 
-	// Entries the poll reported taken down, or a capped feed dropped. A cached
-	// load-more reply can predate the removal, so loadMore() leaves them out;
-	// and one that comes back is an older entry, not a new post, so it returns
-	// on reload.
+	// Entries the poll reported taken down. One that comes back shows on
+	// reload, not before: polls, load more and a capped feed's whole replies
+	// all leave it out, cached load-more replies from before the removal too.
 	const removedEntryIds = new Set< string >();
 
 	const countedEntryIds = new Set< string >();
@@ -732,13 +731,20 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Swaps a capped feed's entries for the ones a poll sent whole, keeping
+	 * Swaps a capped feed's entries for the newest ones a poll sent whole,
+	 * leaving out entries taken down, in this reply or earlier, and keeping
 	 * the arrival of those it already showed.
 	 *
-	 * @param {PollEntry[]} entries The feed's newest entries, newest first.
+	 * @param {PollEntry[]} entries Removals, then the newest entries, newest first.
 	 * @return {void}
 	 */
 	function replaceEntries( entries: PollEntry[] ): void {
+		entries.forEach( ( entry ) => {
+			if ( entry.type === 'remove' && isSafeEntryId( entry.id ) ) {
+				removedEntryIds.add( String( entry.id ) );
+			}
+		} );
+
 		const shownEntries = ownElements(
 			root,
 			':scope > [data-entry-id]',
@@ -751,32 +757,31 @@ function initBlock( root: HTMLElement ): void {
 			] )
 		);
 		const fragment = document.createDocumentFragment();
-		const replyIds = new Set< string >();
 
-		entries.forEach( ( entry ) => {
-			const el = isSafeEntryId( entry.id )
-				? parseElement( sanitizeHtml( entry.html ) )
-				: null;
+		entries
+			.filter(
+				( entry ) =>
+					entry.type !== 'remove' &&
+					isSafeEntryId( entry.id ) &&
+					! removedEntryIds.has( String( entry.id ) )
+			)
+			.slice( 0, latestCap || entries.length )
+			.forEach( ( entry ) => {
+				const el = parseElement( sanitizeHtml( entry.html ) );
 
-			if ( ! el ) {
-				return;
-			}
+				if ( ! el ) {
+					return;
+				}
 
-			replyIds.add( String( entry.id ) );
+				if ( arrivals.has( String( entry.id ) ) ) {
+					el.dataset.arrival = arrivals.get( String( entry.id ) );
+				}
 
-			if ( arrivals.has( String( entry.id ) ) ) {
-				el.dataset.arrival = arrivals.get( String( entry.id ) );
-			}
-
-			observeEntry( el );
-			fragment.appendChild( el );
-		} );
+				observeEntry( el );
+				fragment.appendChild( el );
+			} );
 
 		shownEntries.forEach( ( el ) => {
-			if ( el.dataset.entryId && ! replyIds.has( el.dataset.entryId ) ) {
-				removedEntryIds.add( el.dataset.entryId );
-			}
-
 			unobserveEntry( el );
 			el.remove();
 		} );
@@ -1629,8 +1634,8 @@ function initBlock( root: HTMLElement ): void {
 	 * Applies a poll response to the entry list.
 	 *
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
-	 * on the page for loadMore(). Drops entries taken down, and treats one that
-	 * comes back like such an edit. Inserts or queues newly published entries
+	 * on the page for loadMore(). Drops entries taken down, and leaves one
+	 * that comes back for reload. Inserts or queues newly published entries
 	 * based on the reader's scroll position. When the feed opens at a shared
 	 * entry, new entries are added to the control's count instead of inserted.
 	 * A capped feed inserts new entries at once, whatever the scroll position,
@@ -1652,7 +1657,9 @@ function initBlock( root: HTMLElement ): void {
 				return;
 			}
 
-			const wasRemoved = removedEntryIds.delete( String( entry.id ) );
+			if ( removedEntryIds.has( String( entry.id ) ) ) {
+				return;
+			}
 
 			const existing = ownElement(
 				root,
@@ -1664,7 +1671,7 @@ function initBlock( root: HTMLElement ): void {
 			template.innerHTML = sanitizeHtml( entry.html );
 			const entryEl = template.content.firstElementChild as HTMLElement;
 
-			if ( ( entry.type === 'update' || wasRemoved ) && ! existing ) {
+			if ( entry.type === 'update' && ! existing ) {
 				if ( latestCap ) {
 					return;
 				}
@@ -2132,6 +2139,9 @@ function initBlock( root: HTMLElement ): void {
 		}
 		isLoadingMore = true;
 
+		const pageBefore = before;
+		let addedNothing = false;
+
 		try {
 			const url = new URL( restBaseUrl );
 			url.searchParams.set( 'before', before );
@@ -2194,6 +2204,7 @@ function initBlock( root: HTMLElement ): void {
 
 					entriesList.appendChild( fragment );
 					backlogOffset += appended;
+					addedNothing = appended === 0;
 				}
 				if ( data.adSlots && data.adSlots.length > 0 ) {
 					displayAdSlots( data.adSlots );
@@ -2213,6 +2224,18 @@ function initBlock( root: HTMLElement ): void {
 			console.error( error ); // eslint-disable-line no-console
 		} finally {
 			isLoadingMore = false;
+		}
+
+		// A page that adds nothing, its entries all taken down or already
+		// shown, leaves the sentinel in view, where its observer won't fire
+		// again: load the next one.
+		if (
+			addedNothing &&
+			! isDisposed &&
+			hasMore &&
+			before !== pageBefore
+		) {
+			await loadMore();
 		}
 	}
 

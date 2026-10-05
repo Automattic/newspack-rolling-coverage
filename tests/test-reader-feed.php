@@ -679,18 +679,21 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A capped feed can't load an entry to take a removed one's place, so a
-	 * removal brings its newest entries whole, for the page to swap in for
-	 * its own, with the cursor past the removal. Polls without a removal
-	 * send changes as usual.
+	 * removal brings the removals and twice its count of newest entries
+	 * whole, for the page to swap in for its own, with the cursor past the
+	 * removal. The margin lets a page leave out entries it dropped and still
+	 * fill its places. Polls without a removal send changes as usual.
 	 */
 	public function test_capped_poll_after_a_removal_sends_the_newest_entries_whole() {
 		$oldest_entry_id = $this->create_entry_at( '2026-01-01 11:00:00' );
 		$older_entry_id  = $this->create_entry_at( '2026-01-01 11:30:00' );
 		$newest_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
 
+		$this->create_entry_at( '2026-01-01 10:00:00' );
+
 		$capped = [
 			'template_key' => 'pruned',
-			'latest'       => 2,
+			'latest'       => 1,
 		];
 
 		$this->assertArrayNotHasKey( 'replace', $this->get_feed( array_merge( $capped, [ 'cursor' => '0:2026-01-01 00:00:00' ] ) )->get_data() );
@@ -700,14 +703,21 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$poll = $this->get_feed( array_merge( $capped, [ 'cursor' => "{$newest_entry_id}:2026-01-01 12:00:00" ] ) )->get_data();
 
 		$this->assertTrue( $poll['replace'] );
-		$this->assertSame( [ $older_entry_id, $oldest_entry_id ], wp_list_pluck( $poll['entries'], 'id' ) );
+		$this->assertSame(
+			[
+				$newest_entry_id => 'remove',
+				$older_entry_id  => 'insert',
+				$oldest_entry_id => 'insert',
+			],
+			wp_list_pluck( $poll['entries'], 'type', 'id' )
+		);
 		$this->assertSame( $newest_entry_id . ':' . get_post( $newest_entry_id )->post_modified_gmt, $poll['cursor'] );
 	}
 
 	/**
 	 * A capped feed never reloads its host page on a burst: the poll sends
-	 * its newest entries by date whole, for the page to swap in for its own,
-	 * and moves the cursor to the most recent change.
+	 * twice its count of newest entries by date whole, for the page to swap
+	 * in for its own, and moves the cursor to the most recent change.
 	 */
 	public function test_capped_poll_over_the_cap_sends_the_newest_entries_instead_of_overflowing() {
 		$entry_ids = [];
@@ -735,8 +745,8 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertFalse( $capped['overflow'] );
 		$this->assertTrue( $capped['replace'] );
-		$this->assertSame( array_slice( array_reverse( $entry_ids ), 0, 3 ), wp_list_pluck( $capped['entries'], 'id' ) );
-		$this->assertSame( [ 'insert', 'insert', 'insert' ], wp_list_pluck( $capped['entries'], 'type' ) );
+		$this->assertSame( array_slice( array_reverse( $entry_ids ), 0, 6 ), wp_list_pluck( $capped['entries'], 'id' ) );
+		$this->assertSame( array_fill( 0, 6, 'insert' ), wp_list_pluck( $capped['entries'], 'type' ) );
 		$this->assertSame( $edited->ID . ':' . $edited->post_modified_gmt, $capped['cursor'] );
 	}
 
