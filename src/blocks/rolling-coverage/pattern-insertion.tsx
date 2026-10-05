@@ -2,7 +2,7 @@
  * WordPress dependencies
  */
 import { store as blockEditorStore } from '@wordpress/block-editor';
-import { createBlock, parse } from '@wordpress/blocks';
+import { createBlock } from '@wordpress/blocks';
 import { createHigherOrderComponent } from '@wordpress/compose';
 import { store as coreStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
@@ -15,7 +15,7 @@ import { addFilter } from '@wordpress/hooks';
  */
 import { BLOCK_NAME } from './layout';
 import { builtInLayoutSlugFor, switchLayoutAttributes } from './layouts';
-import { getLayoutCategoryId } from './utils';
+import { getLayoutCategoryId, isLayoutContent } from './utils';
 
 const PATTERN_BLOCK_NAME = 'core/block';
 
@@ -24,28 +24,6 @@ type PatternRecord = {
 	wp_pattern_category?: number[];
 	content?: { raw?: string } | string;
 };
-
-/**
- * Whether a pattern is a layout: its only top-level block is a Rolling
- * Coverage block with no coverage. A pattern holding more, or a block saved
- * with its coverage, stays a pattern.
- *
- * @param {Object} record The pattern's record.
- * @return {boolean} Whether the pattern is a layout.
- */
-function isLayoutRecord( record: PatternRecord ): boolean {
-	const raw =
-		typeof record.content === 'string'
-			? record.content
-			: record.content?.raw;
-	const blocks = parse( raw ?? '' ).filter( ( block ) => block.name );
-
-	return (
-		blocks.length === 1 &&
-		blocks[ 0 ].name === BLOCK_NAME &&
-		! blocks[ 0 ].attributes?.coverageId
-	);
-}
 
 /**
  * Turns a layout pattern reference into a Rolling Coverage block that uses
@@ -138,14 +116,16 @@ function LayoutPatternReplacer( {
 			( record.wp_pattern_category ?? [] ).includes(
 				getLayoutCategoryId()
 			) &&
-			isLayoutRecord( record )
+			isLayoutContent( record.content )
 		);
 	}, [ builtInSlug, record ] );
 
 	const { replaceBlock, __unstableMarkNextChangeAsNotPersistent } =
 		useDispatch( blockEditorStore.name ) as unknown as {
 			replaceBlock: ( id: string, block: unknown ) => void;
-			__unstableMarkNextChangeAsNotPersistent: () => void;
+			__unstableMarkNextChangeAsNotPersistent: ( options?: {
+				history?: string;
+			} ) => void;
 		};
 
 	useEffect( () => {
@@ -154,9 +134,10 @@ function LayoutPatternReplacer( {
 		}
 
 		replaced.current = true;
-		// Merges the replacement into the insertion's undo level, so one undo
-		// removes the layout instead of restoring the locked reference.
-		__unstableMarkNextChangeAsNotPersistent();
+		// Kept out of undo history: undo then never lands on the locked
+		// reference, whether the layout was just inserted or the story opened
+		// with it.
+		__unstableMarkNextChangeAsNotPersistent( { history: 'ignore' } );
 		replaceBlock(
 			clientId,
 			createBlock( BLOCK_NAME, {
