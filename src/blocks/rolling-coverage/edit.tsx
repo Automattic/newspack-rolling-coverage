@@ -1638,7 +1638,7 @@ export default function Edit( {
 			</PanelBody>
 			<PanelBody title={ __( 'Coverage', 'newspack-rolling-coverage' ) }>
 				<Stack direction="column" gap="lg">
-					{ renderCoverageCombobox( true ) }
+					{ renderCoverageCombobox( ! coverageId ) }
 
 					{ coverageId ? (
 						<div>
