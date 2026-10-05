@@ -1701,7 +1701,7 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The "Jump to Latest" control as a parsed Buttons block holding one
-	 * button: a link to the live feed with the theme's Elevation 1 shadow,
+	 * button: a link to the live feed with the theme's Elevation 2 shadow,
 	 * marked for the view script, and otherwise styled as the theme styles
 	 * buttons.
 	 *
@@ -1713,7 +1713,7 @@ class Rolling_Coverage_Block {
 		$class       = self::MARKUP_PREFIX . '-new-entries';
 		$open        = sprintf( '<div class="%s">', esc_attr( 'wp-block-buttons ' . $class ) );
 		$button_html = sprintf(
-			'<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="%1$s" style="box-shadow:var(--wp--preset--shadow--elevation-1)" %2$s>%3$s</a></div>',
+			'<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="%1$s" style="box-shadow:var(--wp--preset--shadow--elevation-2)" %2$s>%3$s</a></div>',
 			esc_url( $live_url ),
 			self::LATEST_ATTRIBUTE,
 			esc_html( $label )
@@ -1732,7 +1732,7 @@ class Rolling_Coverage_Block {
 				[
 					'blockName'    => 'core/button',
 					'attrs'        => [
-						'style' => [ 'shadow' => 'var:preset|shadow|elevation-1' ],
+						'style' => [ 'shadow' => 'var:preset|shadow|elevation-2' ],
 					],
 					'innerBlocks'  => [],
 					'innerHTML'    => $button_html,
