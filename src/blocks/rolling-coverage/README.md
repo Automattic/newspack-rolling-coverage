@@ -122,6 +122,15 @@ An entry pinned in the coverage stays at the top of the feed with a "Pinned" lab
 
 Feeds set to Latest ignore pinning and show the newest entries only.
 
+### Photo and video entries
+
+An entry that holds only a photo, gallery, video, audio clip, or embed has no words of its own, so it is described by its media instead: Photo, Gallery, Video, Audio, or Embed. When the media has a caption, the caption follows, for example "Photo: Crowds at the finish line". A photo without a caption uses its alt text.
+
+- Layouts that show a short excerpt of each entry, such as Wire, Digest, and Flash, show this description as the excerpt, under the entry's title when it has one.
+- Ticker, which gives an entry without a title a headline made of its first words, uses this description as the headline.
+
+An entry with any text of its own, or with an excerpt written for it, shows that text as usual.
+
 ### Live blog markup
 
 A block that shows all entries counts as the coverage's live feed on its page, including the live blog markup search engines read. A block set to Latest never does.

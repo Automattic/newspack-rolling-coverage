@@ -87,6 +87,15 @@ class Entry_Bindings {
 	const UNTITLED_FALLBACK_WORDS = 15;
 
 	/**
+	 * Embed providers, by the embed block's `providerNameSlug`, whose embeds
+	 * an entry's media title calls a video or an audio (see
+	 * get_media_title()). Embeds of any other provider are called an embed,
+	 * unless the provider says it serves a video.
+	 */
+	const VIDEO_EMBED_PROVIDERS = [ 'animoto', 'dailymotion', 'ted', 'tiktok', 'videopress', 'vimeo', 'wordpress-tv', 'youtube' ];
+	const AUDIO_EMBED_PROVIDERS = [ 'mixcloud', 'pocket-casts', 'reverbnation', 'soundcloud', 'spotify' ];
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
@@ -99,6 +108,7 @@ class Entry_Bindings {
 		add_filter( 'render_block_core/group', [ __CLASS__, 'filter_pinned_group' ], 10, 2 );
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'link_title_to_breakout' ], 10, 3 );
 		add_filter( 'the_title', [ __CLASS__, 'untitled_fallback_title' ], 10, 2 );
+		add_filter( 'get_the_excerpt', [ __CLASS__, 'media_excerpt' ], 11, 2 );
 	}
 
 	/**
@@ -242,7 +252,9 @@ class Entry_Bindings {
 
 	/**
 	 * The opening words an untitled entry shows as its title: its excerpt
-	 * when it has one, else the start of its text, as plain text. A password
+	 * when it has one, else the start of its text, as plain text. An entry
+	 * with no words outside its media, such as a lone photo, is described by
+	 * its first media block instead (see get_media_title()). A password
 	 * protected entry, or a post that isn't an entry, has none.
 	 *
 	 * @param WP_Post $entry Entry post.
@@ -255,9 +267,257 @@ class Entry_Bindings {
 
 		$excerpt = trim( $entry->post_excerpt );
 
-		return '' !== $excerpt
-			? html_entity_decode( wp_trim_words( $excerpt, self::UNTITLED_FALLBACK_WORDS, '…' ), ENT_QUOTES | ENT_HTML5, 'UTF-8' )
-			: Post_Type::get_entry_summary( $entry, self::UNTITLED_FALLBACK_WORDS );
+		if ( '' !== $excerpt ) {
+			return html_entity_decode( wp_trim_words( $excerpt, self::UNTITLED_FALLBACK_WORDS, '…' ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		}
+
+		$media_title = self::get_media_title( $entry );
+
+		return '' !== $media_title ? $media_title : Post_Type::get_entry_summary( $entry, self::UNTITLED_FALLBACK_WORDS );
+	}
+
+	/**
+	 * An entry's media title as its excerpt when it has no words outside its
+	 * media, such as a lone photo, and no excerpt of its own: core generates
+	 * none for it, as it leaves media out. Runs after core's
+	 * wp_trim_excerpt(), so it reaches core's Post Excerpt block on the site
+	 * and the excerpt the editor previews (Post_Type::get_editor_excerpt()).
+	 *
+	 * Parameters stay untyped because this runs for every excerpt on the
+	 * site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string           $excerpt The excerpt.
+	 * @param WP_Post|int|null $post    The post.
+	 * @return string
+	 */
+	public static function media_excerpt( $excerpt, $post = null ) {
+		$post = get_post( $post );
+
+		if (
+			! is_string( $excerpt ) ||
+			! $post instanceof WP_Post ||
+			Post_Type::CPT_SLUG !== $post->post_type ||
+			'' !== trim( $post->post_excerpt ) ||
+			self::has_visible_text( $excerpt ) ||
+			post_password_required( $post )
+		) {
+			return $excerpt;
+		}
+
+		$media_title = self::get_media_title( $post );
+
+		return '' !== $media_title ? esc_html( $media_title ) : $excerpt;
+	}
+
+	/**
+	 * Whether any of the parsed blocks, at any depth, holds text outside a
+	 * media block. Reads the stored HTML, as Post_Type::get_entry_summary()
+	 * does, without rendering it.
+	 *
+	 * @param array $blocks Parsed blocks.
+	 * @return bool
+	 */
+	private static function has_words( array $blocks ): bool {
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) || '' !== self::media_kind( $block ) ) {
+				continue;
+			}
+
+			$html = implode( ' ', array_filter( $block['innerContent'] ?? [], 'is_string' ) );
+
+			if ( self::has_visible_text( $html ) || self::has_words( $block['innerBlocks'] ?? [] ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Whether stored HTML shows any text once its tags, comments and
+	 * shortcodes are gone. A non-breaking space alone doesn't count.
+	 *
+	 * @param string $html Stored HTML.
+	 * @return bool
+	 */
+	private static function has_visible_text( string $html ): bool {
+		return 1 === preg_match( '/[^\s\x{00A0}]/u', Post_Type::get_html_summary( $html, 1 ) );
+	}
+
+	/**
+	 * What an entry with no words outside its media shows in place of them,
+	 * from its first media block: what the media is, e.g. "Photo", followed
+	 * by its caption, else an image's alt text, e.g. "Photo: Crowds at the
+	 * finish line". Captions and text over a cover don't count as words,
+	 * since core leaves those blocks out of the excerpt it generates. Empty
+	 * for an entry with words, or without media.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return string Plain text.
+	 */
+	private static function get_media_title( WP_Post $entry ): string {
+		$blocks = parse_blocks( $entry->post_content );
+
+		if ( self::has_words( $blocks ) ) {
+			return '';
+		}
+
+		$block = self::first_media_block( $blocks );
+
+		if ( ! $block ) {
+			return '';
+		}
+
+		$label       = self::media_label( self::media_kind( $block ) );
+		$description = Post_Type::get_html_summary( self::media_description( $block ), self::UNTITLED_FALLBACK_WORDS );
+
+		return '' !== $description
+			/* translators: 1: kind of media, e.g. "Photo" or "Video", 2: its caption or description. */
+			? sprintf( __( '%1$s: %2$s', 'newspack-rolling-coverage' ), $label, $description )
+			: $label;
+	}
+
+	/**
+	 * The first media block among the parsed blocks, at any depth, in the
+	 * order they show.
+	 *
+	 * @param array $blocks Parsed blocks.
+	 * @return array|null The block, or null when there is none.
+	 */
+	private static function first_media_block( array $blocks ): ?array {
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) ) {
+				continue;
+			}
+
+			if ( '' !== self::media_kind( $block ) ) {
+				return $block;
+			}
+
+			$inner = self::first_media_block( $block['innerBlocks'] ?? [] );
+
+			if ( $inner ) {
+				return $inner;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * What kind of media a parsed block shows: `photo`, `gallery`, `video`,
+	 * `audio` or `embed`. A cover counts when it shows an image or a video,
+	 * and an embed is a video or an audio when its provider serves one.
+	 *
+	 * @param array $block Parsed block.
+	 * @return string The kind, or an empty string for a block that isn't media.
+	 */
+	private static function media_kind( array $block ): string {
+		$attrs = is_array( $block['attrs'] ?? null ) ? $block['attrs'] : [];
+
+		switch ( $block['blockName'] ?? '' ) {
+			case 'core/image':
+				return 'photo';
+			case 'core/gallery':
+				return 'gallery';
+			case 'core/video':
+				return 'video';
+			case 'core/audio':
+				return 'audio';
+			case 'core/cover':
+				if ( empty( $attrs['url'] ) && empty( $attrs['useFeaturedImage'] ) ) {
+					return '';
+				}
+
+				return 'video' === ( $attrs['backgroundType'] ?? '' ) ? 'video' : 'photo';
+			case 'core/embed':
+				$provider = (string) ( $attrs['providerNameSlug'] ?? '' );
+
+				if ( in_array( $provider, self::AUDIO_EMBED_PROVIDERS, true ) ) {
+					return 'audio';
+				}
+
+				return in_array( $provider, self::VIDEO_EMBED_PROVIDERS, true ) || 'video' === ( $attrs['type'] ?? '' ) ? 'video' : 'embed';
+			default:
+				return '';
+		}
+	}
+
+	/**
+	 * The label a media title gives a kind of media.
+	 *
+	 * @param string $kind Kind of media, from media_kind().
+	 * @return string
+	 */
+	private static function media_label( string $kind ): string {
+		return match ( $kind ) {
+			/* translators: Stands in for the title and excerpt of an entry whose only content is a photo, alone or before the photo's caption. */
+			'photo'   => __( 'Photo', 'newspack-rolling-coverage' ),
+			/* translators: Stands in for the title and excerpt of an entry whose only content is a gallery of photos, alone or before the gallery's caption. */
+			'gallery' => __( 'Gallery', 'newspack-rolling-coverage' ),
+			/* translators: Stands in for the title and excerpt of an entry whose only content is a video, alone or before the video's caption. */
+			'video'   => __( 'Video', 'newspack-rolling-coverage' ),
+			/* translators: Stands in for the title and excerpt of an entry whose only content is an audio clip, alone or before the clip's caption. */
+			'audio'   => __( 'Audio', 'newspack-rolling-coverage' ),
+			/* translators: Stands in for the title and excerpt of an entry whose only content is embedded from another site, such as a social media post, alone or before the embed's caption. */
+			default   => __( 'Embed', 'newspack-rolling-coverage' ),
+		};
+	}
+
+	/**
+	 * The stored HTML describing a media block: its caption, the text over a
+	 * cover, else an image's alt text. Empty when it has none.
+	 *
+	 * @param array $block Parsed media block.
+	 * @return string
+	 */
+	private static function media_description( array $block ): string {
+		$name  = $block['blockName'] ?? '';
+		$attrs = is_array( $block['attrs'] ?? null ) ? $block['attrs'] : [];
+		$html  = (string) ( $block['innerHTML'] ?? '' );
+
+		if ( 'core/cover' === $name ) {
+			$text = implode( ' ', array_map( [ __CLASS__, 'stored_html' ], array_filter( $block['innerBlocks'] ?? [], 'is_array' ) ) );
+
+			return self::has_visible_text( $text ) ? $text : esc_html( (string) ( $attrs['alt'] ?? '' ) );
+		}
+
+		if ( preg_match( '#<figcaption\b[^>]*>(.*?)</figcaption>#is', $html, $caption ) && self::has_visible_text( $caption[1] ) ) {
+			return $caption[1];
+		}
+
+		if ( 'core/image' !== $name ) {
+			return '';
+		}
+
+		$image = new WP_HTML_Tag_Processor( $html );
+		$alt   = $image->next_tag( 'img' ) ? $image->get_attribute( 'alt' ) : null;
+
+		return is_string( $alt ) ? esc_html( $alt ) : '';
+	}
+
+	/**
+	 * A parsed block's stored HTML, its inner blocks' HTML in place, as it
+	 * would read before rendering.
+	 *
+	 * @param array $block Parsed block.
+	 * @return string
+	 */
+	private static function stored_html( array $block ): string {
+		$html  = '';
+		$index = 0;
+
+		foreach ( $block['innerContent'] ?? [] as $chunk ) {
+			if ( is_string( $chunk ) ) {
+				$html .= $chunk;
+				continue;
+			}
+
+			$inner = $block['innerBlocks'][ $index++ ] ?? null;
+			$html .= is_array( $inner ) ? ' ' . self::stored_html( $inner ) . ' ' : '';
+		}
+
+		return $html;
 	}
 
 	/**
