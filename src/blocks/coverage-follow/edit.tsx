@@ -9,20 +9,21 @@ import {
 import { Notice, PanelBody } from '@wordpress/components';
 import { store as coreStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
-import type { ReactNode } from 'react';
+import { useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
-import CoveragePicker from '../shared/coverage-picker';
+import CoverageChoice from '../shared/coverage-choice';
 import { FOLLOW_BUTTONS_TEMPLATE } from '../shared/follow-buttons';
-import { usePageFeeds } from '../shared/page-feeds';
+import { useBlockCoverage } from '../shared/page-feeds';
 import type { CoverageFollowAttributes, CoverageFollowConfig } from './types';
 
 const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
 const ALLOWED_BLOCKS = [ 'core/buttons' ];
 const TEMPLATE = [ FOLLOW_BUTTONS_TEMPLATE ];
+const VIEW_CONTEXT = { context: 'view' };
 
 const config: CoverageFollowConfig = window.newspackCoverageFollowBlock ?? {
 	onesignalConfigured: true,
@@ -32,42 +33,40 @@ const config: CoverageFollowConfig = window.newspackCoverageFollowBlock ?? {
 
 /**
  * Editor for the Follow Coverage block: the locked "Follow" button, with a
- * coverage to follow when the block isn't inside a Rolling Coverage block.
+ * choice of coverage when the block isn't inside a Rolling Coverage block.
  *
  * @param {Object}   props               Block props.
- * @param {string}   props.clientId      Block client ID.
  * @param {Object}   props.attributes    Block attributes.
  * @param {Function} props.setAttributes Attribute setter.
  * @param {Object}   props.context       Block context.
  */
 export default function Edit( {
-	clientId,
 	attributes,
 	setAttributes,
 	context,
 }: {
-	clientId: string;
 	attributes: CoverageFollowAttributes;
 	setAttributes: ( attrs: Partial< CoverageFollowAttributes > ) => void;
 	context?: Record< string, unknown >;
 } ) {
 	const { coverageId } = attributes;
-	const feedCoverageId = context?.[ COVERAGE_ID_CONTEXT ];
-	const isInFeed = feedCoverageId !== undefined;
+	const [ customChosen, setCustomChosen ] = useState( false );
 
-	const { feeds, isTemplate } = usePageFeeds( {
-		clientId,
-		feedCoverageId,
+	const {
+		coverageId: followed,
+		isInFeed,
+		isTemplate,
+		isChosenGone,
+	} = useBlockCoverage( {
+		feedCoverageId: context?.[ COVERAGE_ID_CONTEXT ],
+		chosenId: coverageId,
 		taxonomySlug: config.taxonomySlug,
 		statusMetaKey: config.statusMetaKey,
 	} );
 
-	const needsCoverage =
-		! isInFeed && ! isTemplate && ! coverageId && feeds.length === 0;
-
-	const chosenState = useSelect(
+	const status = useSelect(
 		( select ) => {
-			if ( isInFeed || ! coverageId ) {
+			if ( ! followed ) {
 				return '';
 			}
 
@@ -78,41 +77,21 @@ export default function Edit( {
 					id: number,
 					query: Record< string, string >
 				) => { meta?: Record< string, string > } | null | undefined;
-				hasFinishedResolution: (
-					selector: string,
-					args: unknown[]
-				) => boolean;
 			};
-			const args = [
-				'taxonomy',
-				config.taxonomySlug,
-				coverageId,
-				{ context: 'view' },
-			];
-			const term = core.getEntityRecord(
-				'taxonomy',
-				config.taxonomySlug,
-				coverageId,
-				{ context: 'view' }
+
+			return (
+				core.getEntityRecord(
+					'taxonomy',
+					config.taxonomySlug,
+					followed,
+					VIEW_CONTEXT
+				)?.meta?.[ config.statusMetaKey ] ?? ''
 			);
-
-			if (
-				term === null ||
-				( term === undefined &&
-					core.hasFinishedResolution( 'getEntityRecord', args ) )
-			) {
-				return 'missing';
-			}
-
-			return term?.meta?.[ config.statusMetaKey ] ?? '';
 		},
-		[ isInFeed, coverageId ]
+		[ followed ]
 	);
 
-	const isChosenGone =
-		( chosenState === 'trash' || chosenState === 'missing' ) &&
-		! isTemplate &&
-		feeds.length === 0;
+	const showsGone = isChosenGone && ! followed && ! isTemplate;
 
 	const blockProps = useBlockProps();
 	const innerBlocksProps = useInnerBlocksProps( blockProps, {
@@ -123,57 +102,57 @@ export default function Edit( {
 
 	return (
 		<>
-			<InspectorControls>
-				<PanelBody
-					title={ __( 'Settings', 'newspack-rolling-coverage' ) }
-				>
-					{ ! isInFeed && (
-						<CoveragePicker
-							value={ coverageId }
-							onChange={ ( value ) =>
-								setAttributes( { coverageId: value } )
-							}
-							taxonomySlug={ config.taxonomySlug }
-							statusMetaKey={ config.statusMetaKey }
-						/>
-					) }
-					{ ! config.onesignalConfigured && (
-						<Notice status="warning" isDismissible={ false }>
-							{ __(
-								"Push notifications aren't set up, so this button won't appear on the site.",
-								'newspack-rolling-coverage'
-							) }
-						</Notice>
-					) }
-					{ chosenState === 'archived' && (
-						<Notice status="warning" isDismissible={ false }>
-							{ __(
-								"This coverage has ended, so this button won't appear on the site.",
-								'newspack-rolling-coverage'
-							) }
-						</Notice>
-					) }
-					{ isChosenGone && (
-						<Notice status="warning" isDismissible={ false }>
-							{ __(
-								"This coverage no longer exists, so this button won't appear on the site.",
-								'newspack-rolling-coverage'
-							) }
-						</Notice>
-					) }
-				</PanelBody>
-			</InspectorControls>
-			<div { ...innerBlocksProps }>
-				{ needsCoverage && (
-					<Notice status="warning" isDismissible={ false }>
-						{ __(
-							'Choose a coverage for this button to follow.',
-							'newspack-rolling-coverage'
+			{ ( ! isInFeed ||
+				! config.onesignalConfigured ||
+				status === 'archived' ) && (
+				<InspectorControls>
+					<PanelBody
+						title={ __( 'Settings', 'newspack-rolling-coverage' ) }
+					>
+						{ ! isInFeed && (
+							<CoverageChoice
+								value={ coverageId }
+								onChange={ ( value ) =>
+									setAttributes( { coverageId: value } )
+								}
+								customChosen={ customChosen }
+								onCustomChosenChange={ setCustomChosen }
+								customHelp={ __(
+									'Always follows this coverage.',
+									'newspack-rolling-coverage'
+								) }
+								taxonomySlug={ config.taxonomySlug }
+								statusMetaKey={ config.statusMetaKey }
+							/>
 						) }
-					</Notice>
-				) }
-				{ innerBlocksProps.children as ReactNode }
-			</div>
+						{ ! config.onesignalConfigured && (
+							<Notice status="warning" isDismissible={ false }>
+								{ __(
+									"Push notifications aren't set up, so this button won't appear on the site.",
+									'newspack-rolling-coverage'
+								) }
+							</Notice>
+						) }
+						{ status === 'archived' && (
+							<Notice status="warning" isDismissible={ false }>
+								{ __(
+									"This coverage has ended, so this button won't appear on the site.",
+									'newspack-rolling-coverage'
+								) }
+							</Notice>
+						) }
+						{ showsGone && (
+							<Notice status="warning" isDismissible={ false }>
+								{ __(
+									"This coverage no longer exists, so this button won't appear on the site.",
+									'newspack-rolling-coverage'
+								) }
+							</Notice>
+						) }
+					</PanelBody>
+				</InspectorControls>
+			) }
+			<div { ...innerBlocksProps } />
 		</>
 	);
 }

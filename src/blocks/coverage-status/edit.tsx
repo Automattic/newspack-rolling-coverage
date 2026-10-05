@@ -13,7 +13,6 @@ import {
 import {
 	Notice,
 	PanelBody,
-	SelectControl,
 	TextControl,
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalToggleGroupControl as ToggleGroupControl,
@@ -23,15 +22,15 @@ import {
 import { store as coreStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
 import { humanTimeDiff } from '@wordpress/date';
-import { decodeEntities } from '@wordpress/html-entities';
 import { __, _x, sprintf } from '@wordpress/i18n';
-import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
+import { useEffect, useRef, useState } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
+import CoverageChoice from '../shared/coverage-choice';
 import { mutedTextColor } from '../shared/muted-color';
-import { usePageFeeds } from '../shared/page-feeds';
+import { useBlockCoverage } from '../shared/page-feeds';
 import {
 	badgeClasses,
 	badgeStatus,
@@ -52,7 +51,6 @@ declare global {
 }
 
 const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
-const NAME_SEPARATOR = '\u0000';
 const VIEW_CONTEXT = { context: 'view' };
 const SAMPLE_AGE_MS = 2 * 60 * 1000;
 const DEFAULT_GAP_SLUG = '30';
@@ -81,9 +79,8 @@ const LABEL_FIELDS: Record< string, string > = {
 };
 
 /**
- * Editor for the Coverage Status block: the badge of the Rolling Coverage
- * block it follows on this page, or of the one it sits in, or a sample where
- * the page or coverage isn't known.
+ * Editor for the Coverage Status block: the badge of the coverage it shows,
+ * decided as on the site, or a sample where that isn't known.
  *
  * @param {Object}          props                            Block props.
  * @param {string}          props.clientId                   Block client ID.
@@ -120,7 +117,6 @@ export default function Edit( {
 		textColor,
 		style,
 	} = attributes;
-	const feedCoverageId = context?.[ COVERAGE_ID_CONTEXT ];
 
 	const hasCustomLabels = Object.keys( LABEL_FIELDS ).some(
 		( key ) =>
@@ -128,19 +124,16 @@ export default function Edit( {
 	);
 	const [ customChosen, setCustomChosen ] = useState( false );
 	const isCustom = hasCustomLabels || customChosen;
+	const [ customCoverageChosen, setCustomCoverageChosen ] = useState( false );
 
-	const { feeds, canChoose } = usePageFeeds( {
-		clientId,
-		feedCoverageId,
+	const { coverageId: followed, isInFeed } = useBlockCoverage( {
+		feedCoverageId: context?.[ COVERAGE_ID_CONTEXT ],
+		chosenId: coverageId,
 		taxonomySlug: config.taxonomySlug,
 		statusMetaKey: config.statusMetaKey,
 	} );
 
-	const followed = feeds.includes( coverageId )
-		? coverageId
-		: ( feeds[ 0 ] ?? 0 );
-
-	const { nameKey, status, newest } = useSelect(
+	const { status, newest } = useSelect(
 		( select ) => {
 			const core = select( coreStore ) as unknown as {
 				getEntityRecord: (
@@ -150,44 +143,29 @@ export default function Edit( {
 					query: Record< string, string >
 				) => unknown;
 			};
-			const getTerm = ( id: number ) =>
-				core.getEntityRecord(
-					'taxonomy',
-					config.taxonomySlug,
-					id,
-					VIEW_CONTEXT
-				) as
-					| {
-							name?: string;
-							newestEntry?: string | null;
-							meta?: Record< string, string >;
-					  }
-					| undefined;
-
-			const coverage = followed ? getTerm( followed ) : undefined;
+			const coverage = followed
+				? ( core.getEntityRecord(
+						'taxonomy',
+						config.taxonomySlug,
+						followed,
+						VIEW_CONTEXT
+					) as
+						| {
+								newestEntry?: string | null;
+								meta?: Record< string, string >;
+						  }
+						| undefined )
+				: undefined;
 
 			return {
-				nameKey: feeds
-					.map( ( id ) => getTerm( id )?.name ?? String( id ) )
-					.join( NAME_SEPARATOR ),
 				status: followed
 					? badgeStatus( coverage?.meta?.[ config.statusMetaKey ] )
 					: 'active',
 				newest: coverage?.newestEntry ?? null,
 			};
 		},
-		[ feeds, followed ]
+		[ followed ]
 	);
-
-	const names = useMemo( () => {
-		const parts = nameKey ? nameKey.split( NAME_SEPARATOR ) : [];
-		return Object.fromEntries(
-			feeds.map( ( id, index ) => [
-				id,
-				decodeEntities( parts[ index ] ?? String( id ) ),
-			] )
-		) as Record< number, string >;
-	}, [ feeds, nameKey ] );
 
 	const label =
 		( typeof labels?.[ status ] === 'string' &&
@@ -345,34 +323,20 @@ export default function Edit( {
 				<PanelBody
 					title={ __( 'Settings', 'newspack-rolling-coverage' ) }
 				>
-					{ canChoose && feeds.length > 1 && (
-						<SelectControl
-							__next40pxDefaultSize
-							label={ __(
-								'Coverage',
+					{ ! isInFeed && (
+						<CoverageChoice
+							value={ coverageId }
+							onChange={ ( value ) =>
+								setAttributes( { coverageId: value } )
+							}
+							customChosen={ customCoverageChosen }
+							onCustomChosenChange={ setCustomCoverageChosen }
+							customHelp={ __(
+								'Always shows this coverage.',
 								'newspack-rolling-coverage'
 							) }
-							value={ String(
-								feeds.includes( coverageId ) ? coverageId : 0
-							) }
-							options={ [
-								{
-									value: '0',
-									label: __(
-										'First on the page',
-										'newspack-rolling-coverage'
-									),
-								},
-								...feeds.map( ( id ) => ( {
-									value: String( id ),
-									label: names[ id ],
-								} ) ),
-							] }
-							onChange={ ( value: string ) =>
-								setAttributes( {
-									coverageId: parseInt( value, 10 ) || 0,
-								} )
-							}
+							taxonomySlug={ config.taxonomySlug }
+							statusMetaKey={ config.statusMetaKey }
 						/>
 					) }
 					<ToggleGroupControl

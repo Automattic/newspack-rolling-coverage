@@ -45,7 +45,9 @@ class Breakout {
 	}
 
 	/**
-	 * Register postmeta used by the breakout feature.
+	 * Register postmeta used by the breakout feature, read-only over REST.
+	 * The breakout post's source entry is there so the coverage blocks'
+	 * editors can show the coverage a breakout post belongs to.
 	 */
 	public static function register_meta() {
 		register_post_meta(
@@ -62,6 +64,23 @@ class Breakout {
 				'type'          => 'integer',
 				'default'       => 0,
 				'auth_callback' => '__return_false', // Read-only over REST.
+			]
+		);
+
+		register_post_meta(
+			'post',
+			self::BREAKOUT_SOURCE_ENTRY_META,
+			[
+				'show_in_rest'  => [
+					'schema' => [
+						'type'    => 'integer',
+						'context' => [ 'edit' ],
+					],
+				],
+				'single'        => true,
+				'type'          => 'integer',
+				'default'       => 0,
+				'auth_callback' => '__return_false',
 			]
 		);
 	}

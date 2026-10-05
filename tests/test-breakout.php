@@ -237,6 +237,26 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The editor can read which entry a post was broken out from, to show
+	 * that entry's coverage, but the link can't be rewritten over REST.
+	 */
+	public function test_source_entry_is_read_only_over_rest() {
+		self::log_in_as( 'editor' );
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::factory()->post->create();
+		update_post_meta( $breakout_id, Breakout::BREAKOUT_SOURCE_ENTRY_META, $entry_id );
+
+		$read = new WP_REST_Request( 'GET', '/wp/v2/posts/' . $breakout_id );
+		$read->set_param( 'context', 'edit' );
+		$this->assertSame( $entry_id, rest_get_server()->dispatch( $read )->get_data()['meta'][ Breakout::BREAKOUT_SOURCE_ENTRY_META ] );
+
+		$write = new WP_REST_Request( 'POST', '/wp/v2/posts/' . $breakout_id );
+		$write->set_body_params( [ 'meta' => [ Breakout::BREAKOUT_SOURCE_ENTRY_META => self::create_entry() ] ] );
+		$this->assertSame( 403, rest_get_server()->dispatch( $write )->get_status() );
+		$this->assertSame( $entry_id, (int) get_post_meta( $breakout_id, Breakout::BREAKOUT_SOURCE_ENTRY_META, true ) );
+	}
+
+	/**
 	 * A breakout would spin new work off a frozen record.
 	 */
 	public function test_locked_entry_cannot_be_broken_out() {

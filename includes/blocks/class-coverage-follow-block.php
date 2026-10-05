@@ -17,7 +17,8 @@ defined( 'ABSPATH' ) || exit;
  * Registers the `newspack-rolling-coverage/coverage-follow` block, which
  * wraps a core "Follow" button that lets readers subscribe to a coverage's
  * push notifications. Inside a Rolling Coverage block it follows that
- * block's coverage; elsewhere, the chosen one, or else the page's first.
+ * block's coverage; elsewhere, the chosen one, or else the one the page
+ * being viewed belongs to.
  * It adds no markup of its own.
  */
 class Coverage_Follow_Block {
@@ -135,29 +136,22 @@ class Coverage_Follow_Block {
 	}
 
 	/**
-	 * The coverage the block follows, as the context the follow binding
-	 * reads: inside a Rolling Coverage block, that block's, on any page;
-	 * elsewhere, the chosen one while it can be followed, otherwise the
-	 * page's first feed.
+	 * The coverage the block follows, as Page_Coverages::coverage_for_block()
+	 * decides it, in the context the follow binding reads.
 	 *
 	 * @param WP_Block $block Block instance.
 	 * @return array Coverage ID and status context, or empty when it follows none.
 	 */
 	private static function coverage_context( WP_Block $block ): array {
-		if ( isset( $block->context[ Entry_Bindings::COVERAGE_ID_CONTEXT ] ) ) {
-			$coverage_id = (int) $block->context[ Entry_Bindings::COVERAGE_ID_CONTEXT ];
-			$status      = (string) ( $block->context[ Entry_Bindings::COVERAGE_STATUS_CONTEXT ] ?? '' );
-		} else {
-			// WP_Block serves attributes through __get alone, which `??` can't see.
-			$attributes  = $block->attributes;
-			$chosen      = (int) ( $attributes['coverageId'] ?? 0 );
-			$coverage_id = Page_Coverages::is_followable( $chosen ) ? $chosen : ( Page_Coverages::feed_coverage_ids( Page_Coverages::page_id( $block ) )[0] ?? 0 );
-			$status      = '';
-		}
+		// WP_Block serves attributes through __get alone, which `??` can't see.
+		$attributes  = $block->attributes;
+		$coverage_id = Page_Coverages::coverage_for_block( $block, (int) ( $attributes['coverageId'] ?? 0 ) );
 
 		if ( $coverage_id <= 0 ) {
 			return [];
 		}
+
+		$status = (string) ( $block->context[ Entry_Bindings::COVERAGE_STATUS_CONTEXT ] ?? '' );
 
 		return [
 			Entry_Bindings::COVERAGE_ID_CONTEXT     => $coverage_id,

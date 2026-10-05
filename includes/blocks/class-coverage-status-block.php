@@ -15,9 +15,10 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Registers the `newspack-rolling-coverage/coverage-status` block, which shows
- * the status of the Rolling Coverage block on its page wherever it is placed:
- * in post content, next to the title in a template, or in a header. Placed
- * inside a Rolling Coverage block, it shows that block's status instead.
+ * a coverage's status wherever it is placed: in post content, next to the
+ * title in a template, or in a header. Placed inside a Rolling Coverage
+ * block, it shows that block's status; elsewhere, its chosen coverage's, or
+ * else that of the coverage the page being viewed belongs to.
  */
 class Coverage_Status_Block {
 
@@ -120,7 +121,7 @@ class Coverage_Status_Block {
 	 * @param array    $attributes Block attributes.
 	 * @param string   $content    Block content (unused).
 	 * @param WP_Block $block      Block instance.
-	 * @return string Rendered HTML, or '' when the page has no feed to follow.
+	 * @return string Rendered HTML, or '' when there's no coverage to show.
 	 */
 	public static function render_block( array $attributes, string $content, WP_Block $block ): string {
 		$coverage_id = self::followed_coverage_id( $attributes, $block );
@@ -216,28 +217,15 @@ class Coverage_Status_Block {
 	}
 
 	/**
-	 * The coverage the block follows: inside a Rolling Coverage block, that
-	 * block's, on any page; elsewhere, its chosen one while that is on the
-	 * page, otherwise the page's first.
+	 * The coverage the block shows, as Page_Coverages::coverage_for_block()
+	 * decides it.
 	 *
 	 * @param array    $attributes Block attributes.
 	 * @param WP_Block $block      Block instance.
 	 * @return int Coverage term ID, or 0.
 	 */
 	private static function followed_coverage_id( array $attributes, WP_Block $block ): int {
-		if ( isset( $block->context[ Entry_Bindings::COVERAGE_ID_CONTEXT ] ) ) {
-			return (int) $block->context[ Entry_Bindings::COVERAGE_ID_CONTEXT ];
-		}
-
-		$feeds = Page_Coverages::feed_coverage_ids( Page_Coverages::page_id( $block ) );
-
-		if ( ! $feeds ) {
-			return 0;
-		}
-
-		$chosen = (int) ( $attributes['coverageId'] ?? 0 );
-
-		return in_array( $chosen, $feeds, true ) ? $chosen : $feeds[0];
+		return Page_Coverages::coverage_for_block( $block, (int) ( $attributes['coverageId'] ?? 0 ) );
 	}
 
 	/**
