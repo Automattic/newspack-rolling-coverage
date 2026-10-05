@@ -74,35 +74,43 @@ function applyPoll( block: HTMLElement, detail: PollEventDetail ): void {
 	}
 }
 
-const blocks = Array.from(
-	document.querySelectorAll< HTMLElement >(
-		'.wp-block-newspack-rolling-coverage-coverage-status[data-coverage-id]'
-	)
-);
+/**
+ * The status blocks in the page. Looked up each time, since blocks in an
+ * entry's content also reach the page after load, in entries a poll, load
+ * more or the jump to the live feed brings in, and leave it with the entries
+ * those replace or drop.
+ *
+ * @return {HTMLElement[]} The blocks' wrappers.
+ */
+function statusBlocks(): HTMLElement[] {
+	return Array.from(
+		document.querySelectorAll< HTMLElement >(
+			'.wp-block-newspack-rolling-coverage-coverage-status[data-coverage-id]'
+		)
+	);
+}
 
-if ( blocks.length ) {
-	const formatter = getFormatter();
-	const refresh = () => {
-		if ( formatter ) {
-			blocks.forEach( ( block ) =>
-				refreshRelativeDates( block, formatter )
-			);
-		}
-	};
+const formatter = getFormatter();
+const refresh = () => {
+	if ( formatter ) {
+		statusBlocks().forEach( ( block ) =>
+			refreshRelativeDates( block, formatter )
+		);
+	}
+};
+
+refresh();
+window.setInterval( refresh, REFRESH_INTERVAL_MS );
+
+document.addEventListener( POLL_EVENT, ( event ) => {
+	const { detail } = event as CustomEvent< PollEventDetail >;
+
+	statusBlocks()
+		.filter(
+			( block ) =>
+				Number( block.dataset.coverageId ) === detail.coverageId
+		)
+		.forEach( ( block ) => applyPoll( block, detail ) );
 
 	refresh();
-	window.setInterval( refresh, REFRESH_INTERVAL_MS );
-
-	document.addEventListener( POLL_EVENT, ( event ) => {
-		const { detail } = event as CustomEvent< PollEventDetail >;
-
-		blocks
-			.filter(
-				( block ) =>
-					Number( block.dataset.coverageId ) === detail.coverageId
-			)
-			.forEach( ( block ) => applyPoll( block, detail ) );
-
-		refresh();
-	} );
-}
+} );
