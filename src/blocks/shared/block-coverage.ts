@@ -243,8 +243,8 @@ function useBlockCoverage( {
 				typeof postType === 'string' &&
 				( itemId !== Number( editor.getCurrentPostId() ) ||
 					postType !== currentType );
-			let feeds: number[];
-			let entryId: number;
+			let feeds: number[] = [];
+			let entryId = 0;
 
 			if ( isItem ) {
 				const readPattern = ( ref: number ) => {
@@ -293,7 +293,7 @@ function useBlockCoverage( {
 					? contentFeeds( rawContent( readable ), [] )
 					: [];
 				entryId = Number( readable?.[ sourceEntryField ] ) || 0;
-			} else {
+			} else if ( ! editor.getEditedPostAttribute( 'password' ) ) {
 				const showsTemplate = editor.getRenderingMode() !== 'post-only';
 
 				feeds = blockEditor

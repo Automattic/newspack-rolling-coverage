@@ -23,7 +23,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Breakout {
 
-	// Stores the breakout post ID on the entry; also used as the REST field name.
+	// Stores the breakout post ID on the entry.
 	const ENTRY_BREAKOUT_POST_ID_META = 'rolling_coverage_breakout_post_id';
 
 	// Stores the source entry ID on the breakout post (reverse link).
@@ -48,9 +48,9 @@ class Breakout {
 	}
 
 	/**
-	 * Register the meta linking an entry and its breakout post. Only the
-	 * breakout code writes it, so it is kept out of REST and can't be edited
-	 * as a custom field.
+	 * Register the meta linking an entry and its breakout post, and the
+	 * breakout's cached status. Only the breakout code writes them, so they
+	 * are kept out of REST and can't be edited as custom fields.
 	 */
 	public static function register_meta(): void {
 		$args = [
@@ -63,15 +63,25 @@ class Breakout {
 
 		register_post_meta( Post_Type::CPT_SLUG, self::ENTRY_BREAKOUT_POST_ID_META, $args );
 		register_post_meta( 'post', self::BREAKOUT_SOURCE_ENTRY_META, $args );
+		register_post_meta(
+			Post_Type::CPT_SLUG,
+			self::BREAKOUT_STATUS_FIELD,
+			array_merge(
+				$args,
+				[
+					'type'    => 'string',
+					'default' => '',
+				]
+			)
+		);
 	}
 
 	/**
-	 * Expose the breakout post and its cached status as REST fields on the
-	 * entry, and the source entry on the breakout post so the coverage
-	 * blocks' editors can show the coverage it belongs to. The links are
-	 * read-only fields rather than registered meta: the block editor sends
-	 * all of a post's meta back on save, and read-only meta would refuse
-	 * that save.
+	 * Expose the breakout's cached status as a REST field on the entry, and
+	 * the source entry on the breakout post so the coverage blocks' editors
+	 * can show the coverage it belongs to. The source entry is a read-only
+	 * field rather than registered meta: the block editor sends all of a
+	 * post's meta back on save, and read-only meta would refuse that save.
 	 */
 	public static function register_rest_field(): void {
 		register_rest_field(
@@ -82,20 +92,6 @@ class Breakout {
 				'schema'       => [
 					'type'    => [ 'string', 'null' ],
 					'context' => [ 'edit' ],
-				],
-			]
-		);
-
-		register_rest_field(
-			Post_Type::CPT_SLUG,
-			self::ENTRY_BREAKOUT_POST_ID_META,
-			[
-				'get_callback' => [ __CLASS__, 'get_breakout_post_field' ],
-				'schema'       => [
-					'description' => __( 'The post this entry was broken out into, or 0.', 'newspack-rolling-coverage' ),
-					'type'        => 'integer',
-					'context'     => [ 'edit' ],
-					'readonly'    => true,
 				],
 			]
 		);
@@ -113,16 +109,6 @@ class Breakout {
 				],
 			]
 		);
-	}
-
-	/**
-	 * REST field callback returning the post an entry was broken out into.
-	 *
-	 * @param array $object Entry REST object data.
-	 * @return int Breakout post ID, or 0.
-	 */
-	public static function get_breakout_post_field( array $object ): int {
-		return (int) get_post_meta( (int) $object['id'], self::ENTRY_BREAKOUT_POST_ID_META, true );
 	}
 
 	/**

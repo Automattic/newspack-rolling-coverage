@@ -302,13 +302,26 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 		$save = new WP_REST_Request( 'POST', $path );
 		$save->set_body_params(
 			[
-				'title'                               => 'Recount ordered',
-				'meta'                                => $data['meta'],
-				Breakout::ENTRY_BREAKOUT_POST_ID_META => $data[ Breakout::ENTRY_BREAKOUT_POST_ID_META ] ?? 0,
+				'title' => 'Recount ordered',
+				'meta'  => $data['meta'],
 			]
 		);
 
 		$this->assertSame( 200, rest_get_server()->dispatch( $save )->get_status() );
+	}
+
+	/**
+	 * The breakout links and cached status drive writes to other posts, so
+	 * they can't be edited as custom fields, even by an administrator.
+	 */
+	public function test_breakout_meta_cannot_be_edited_as_custom_fields() {
+		self::log_in_as( 'administrator' );
+		$entry_id = self::create_entry( self::create_coverage() );
+		$post_id  = self::factory()->post->create();
+
+		$this->assertFalse( current_user_can( 'edit_post_meta', $entry_id, Breakout::ENTRY_BREAKOUT_POST_ID_META ) );
+		$this->assertFalse( current_user_can( 'edit_post_meta', $entry_id, Breakout::BREAKOUT_STATUS_FIELD ) );
+		$this->assertFalse( current_user_can( 'edit_post_meta', $post_id, Breakout::BREAKOUT_SOURCE_ENTRY_META ) );
 	}
 
 	/**
