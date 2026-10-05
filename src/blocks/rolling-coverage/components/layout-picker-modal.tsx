@@ -104,23 +104,27 @@ function patternTitle( record: LayoutRecord ): string {
 }
 
 /**
- * The cap a built-in layout's card previews, as the layout sets it when
- * picked; other layouts show every entry.
+ * The cap and alignment a built-in layout's card previews, as the layout
+ * sets them when picked; other layouts show every entry.
  *
  * @param {string} slug The built-in layout's slug, if the card is one.
- * @return {Object} The cap attributes.
+ * @return {Object} The cap and alignment attributes.
  */
 function previewCap( slug?: BuiltInLayoutSlug ): {
 	latestOnly?: boolean;
 	latestCount?: number;
+	align?: string;
 } {
 	if ( ! slug ) {
 		return {};
 	}
 
-	const { latestOnly, latestCount } = layoutCapAttributes( slug );
+	const { latestOnly, latestCount, align } = layoutCapAttributes( slug );
 
-	return latestOnly ? { latestOnly, latestCount } : {};
+	return {
+		...( latestOnly ? { latestOnly, latestCount } : {} ),
+		...( align ? { align } : {} ),
+	};
 }
 
 type PreviewBlock = {

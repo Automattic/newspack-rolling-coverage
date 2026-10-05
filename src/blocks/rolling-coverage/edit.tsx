@@ -330,6 +330,9 @@ function groupPreviewParts( group?: { [ key: string ]: unknown } ): {
 	return {
 		classNames: [
 			flexStyle ? 'is-layout-flex' : '',
+			flexStyle && layout?.orientation
+				? `is-${ layout.orientation }`
+				: '',
 			gridStyle ? 'is-layout-grid' : '',
 			layout?.type === 'constrained' ? 'is-layout-constrained' : '',
 			attributes.className,
@@ -596,6 +599,7 @@ export default function Edit( {
 					: undefined,
 			allowedBlocks: [],
 			templateLock: false,
+			layout: { type: 'default', alignments: [ 'wide', 'full' ] },
 		}
 	);
 

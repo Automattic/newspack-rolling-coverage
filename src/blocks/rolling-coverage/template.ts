@@ -1375,6 +1375,7 @@ function flashBar( feed: TemplateItem ): TemplateItem {
 		'core/group',
 		{
 			lock: LOCKED_IN_PLACE,
+			align: 'full',
 			layout: { type: 'constrained' },
 			style: FLASH_BAR_STYLE,
 			metadata: { name: __( 'Bar', 'newspack-rolling-coverage' ) },
