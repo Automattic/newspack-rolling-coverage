@@ -205,7 +205,14 @@
 	gap: wp-vars.$grid-unit-10;
 }
 
-.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout > .wp-block:not([data-align]) {
-	width: 100%;
-	max-width: none;
+.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout {
+
+	> .wp-block:not([data-align]) {
+		width: 100%;
+	}
+
+	.wp-block:not([data-align], .wp-block-separator) {
+		box-sizing: border-box;
+		max-width: none !important;
+	}
 }
