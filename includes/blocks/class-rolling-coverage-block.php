@@ -3968,7 +3968,8 @@ class Rolling_Coverage_Block {
 	 * REST callback: returns pre-rendered HTML for either direction.
 	 *
 	 * - `cursor` (forward/polling): entries modified at or after the cursor
-	 *   timestamp, including new entries and edits. If the result exceeds
+	 *   timestamp, including new entries and edits, and entries taken down
+	 *   since it, named for the page to drop. If the result exceeds
 	 *   POLL_CAP, the response is flagged `overflow` so the client can reload.
 	 *   Sends a short Cache-Control and the site's minimum poll interval; see
 	 *   poll_response().
@@ -3983,7 +3984,9 @@ class Rolling_Coverage_Block {
 	 *   a shared entry.
 	 *
 	 * A capped feed, as its stored config or a positive `latest` count says,
-	 * polls entries as unpinned and without ads, and loads no more.
+	 * polls entries as unpinned and without ads, and loads no more. After a
+	 * removal, or a burst past POLL_CAP, its poll brings the removals and its
+	 * newest entries with `replace`, for the page to swap in for its own.
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
@@ -4088,11 +4091,13 @@ class Rolling_Coverage_Block {
 				array_merge(
 					$args,
 					[
-						'post_status' => [ 'draft', 'pending', 'private', 'future', 'trash' ],
+						'post_status' => array_values( array_diff( Post_Type::ALLOWED_STATUSES, [ 'publish' ] ) ),
 						'meta_query'  => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 							[
-								'key'     => Post_Type::META_WAS_PUBLISHED,
-								'compare' => 'EXISTS',
+								'key'     => Post_Type::META_UNPUBLISHED_GMT,
+								'value'   => $cursor_modified,
+								'compare' => '>=',
+								'type'    => 'DATETIME',
 							],
 						],
 					]
@@ -4120,8 +4125,11 @@ class Rolling_Coverage_Block {
 				);
 			}
 
-			// A capped feed can't load an entry to take a removed one's place.
-			if ( $is_capped && array_filter( $removed, static fn( WP_Post $entry ) => ! $is_cursor_entry( $entry ) ) ) {
+			// A capped feed can't load an entry to take a removed one's place. One
+			// taken down in the cursor's own second comes as a plain removal: it
+			// may share that second with the cursor entry, so the whole feed sent
+			// for it would come again on every poll from that cursor.
+			if ( $is_capped && array_filter( $removed, static fn( WP_Post $entry ) => get_post_meta( $entry->ID, Post_Type::META_UNPUBLISHED_GMT, true ) > $cursor_modified ) ) {
 				return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $feed_layout, $removed );
 			}
 
@@ -4299,8 +4307,8 @@ class Rolling_Coverage_Block {
 			[
 				'orderby'        => 'date',
 				'order'          => 'DESC',
-				// Twice the count: a page leaves out entries it dropped, which come back on reload, and still fills its places.
-				'posts_per_page' => 2 * $latest_count,
+				// Twice the count, up to a page of load more: a page leaves out entries it dropped, which come back on reload, and still fills its places.
+				'posts_per_page' => min( 2 * $latest_count, self::PER_PAGE_MAX ),
 			]
 		);
 

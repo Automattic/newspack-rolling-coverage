@@ -182,6 +182,30 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Later saves of an entry already taken down, such as edits to it as a
+	 * draft, don't name it again: open pages dropped it when it was taken
+	 * down.
+	 */
+	public function test_poll_names_a_withdrawn_entry_only_once() {
+		$entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+
+		wp_update_post(
+			[
+				'ID'          => $entry_id,
+				'post_status' => 'draft',
+			]
+		);
+
+		// Taken down before the cursor; the save above stands in for a later edit.
+		update_post_meta( $entry_id, Post_Type::META_UNPUBLISHED_GMT, '2026-01-01 12:30:00' );
+
+		$poll = $this->get_feed( [ 'cursor' => '0:2026-01-01 13:00:00' ] )->get_data();
+
+		$this->assertSame( [], $poll['entries'] );
+		$this->assertSame( '0:2026-01-01 13:00:00', $poll['cursor'] );
+	}
+
+	/**
 	 * An entry published again after being taken down polls as an entry,
 	 * not as a removal.
 	 */
@@ -712,6 +736,42 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 			wp_list_pluck( $poll['entries'], 'type', 'id' )
 		);
 		$this->assertSame( $newest_entry_id . ':' . get_post( $newest_entry_id )->post_modified_gmt, $poll['cursor'] );
+	}
+
+	/**
+	 * Two entries taken down in the same second share it, but the cursor can
+	 * name only one. A capped feed gets the other as a plain removal rather
+	 * than its whole list, which would come again on every poll from that
+	 * cursor.
+	 */
+	public function test_capped_poll_sends_a_same_second_removal_as_a_removal() {
+		global $wpdb;
+
+		$first_entry_id  = $this->create_entry_at( '2026-01-01 11:30:00' );
+		$second_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+
+		wp_trash_post( $first_entry_id );
+		wp_trash_post( $second_entry_id );
+
+		// The same second for both, as the admin's bulk Trash usually gives.
+		$taken_down = get_post( $first_entry_id )->post_modified_gmt;
+		$wpdb->update( $wpdb->posts, [ 'post_modified_gmt' => $taken_down ], [ 'ID' => $second_entry_id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		clean_post_cache( $second_entry_id );
+		update_post_meta( $second_entry_id, Post_Type::META_UNPUBLISHED_GMT, $taken_down );
+
+		// The coverage's last change a second later, as the trash handler's own clock can record it.
+		update_term_meta( $this->coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, gmdate( 'Y-m-d H:i:s', strtotime( $taken_down ) + 1 ) );
+
+		$poll = $this->get_feed(
+			[
+				'cursor'       => "{$first_entry_id}:{$taken_down}",
+				'template_key' => 'pruned',
+				'latest'       => 1,
+			]
+		)->get_data();
+
+		$this->assertArrayNotHasKey( 'replace', $poll );
+		$this->assertSame( [ $second_entry_id => 'remove' ], wp_list_pluck( $poll['entries'], 'type', 'id' ) );
 	}
 
 	/**

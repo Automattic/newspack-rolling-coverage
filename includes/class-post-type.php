@@ -56,8 +56,8 @@ class Post_Type {
 	// Protected post-meta key recording the GMT time an entry first reached 'publish'.
 	const META_PUBLISHED_GMT = '_rolling_coverage_published_gmt';
 
-	// Protected post-meta key marking an entry taken down after publishing, which readers may still have on their pages.
-	const META_WAS_PUBLISHED = '_rolling_coverage_was_published';
+	// Protected post-meta key recording the GMT time an entry last left 'publish', which readers may still have on their pages.
+	const META_UNPUBLISHED_GMT = '_rolling_coverage_unpublished_gmt';
 
 	// Entries-view endpoint constants.
 	const PER_PAGE_MAX = 100;
@@ -1771,10 +1771,11 @@ class Post_Type {
 	}
 
 	/**
-	 * Mark an entry that leaves 'publish', by trash or any other status, so
-	 * the reader poll can tell open pages to drop it. Core keeps no such
+	 * Record when an entry leaves 'publish', by trash or any other status, so
+	 * the reader poll can tell open pages to drop it once. Core keeps no such
 	 * record outside the trash, and without it the public poll couldn't tell
-	 * a withdrawn entry from a draft readers never saw.
+	 * a withdrawn entry from a draft readers never saw, or a withdrawal from a
+	 * later edit to the withdrawn entry.
 	 *
 	 * @param string  $new_status New post status.
 	 * @param string  $old_status Previous post status.
@@ -1785,7 +1786,7 @@ class Post_Type {
 			return;
 		}
 
-		update_post_meta( $post->ID, self::META_WAS_PUBLISHED, '1' );
+		update_post_meta( $post->ID, self::META_UNPUBLISHED_GMT, $post->post_modified_gmt );
 	}
 
 	/**
@@ -1828,6 +1829,11 @@ class Post_Type {
 	 * endpoint's query runs. The deleted entry will not appear in the
 	 * `changed` set (it no longer exists), but the `last_modified` advance
 	 * prevents the short-circuit from hiding concurrent changes.
+	 *
+	 * The reader poll can't name a permanently deleted entry either, since it
+	 * finds removals by their post row. Open pages drop the entry when it's
+	 * trashed, which the admin always does first; a page that didn't poll in
+	 * between keeps it until reload.
 	 *
 	 * Fires on `before_delete_post` so term relationships are still available
 	 * for lookup.
