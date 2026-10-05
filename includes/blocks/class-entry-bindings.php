@@ -88,7 +88,7 @@ class Entry_Bindings {
 
 	/**
 	 * Embed providers, by the embed block's `providerNameSlug`, whose embeds
-	 * an entry's media title calls a video or an audio (see
+	 * an entry's media title calls a video or audio (see
 	 * get_media_title()). Embeds of any other provider are called an embed,
 	 * unless the provider says it serves a video.
 	 */
@@ -247,7 +247,7 @@ class Entry_Bindings {
 		$entry = get_post( (int) $post_id );
 		$words = $entry ? self::get_fallback_title( $entry ) : '';
 
-		return '' !== $words ? esc_html( $words ) : $title;
+		return '' !== $words ? htmlspecialchars( $words, ENT_QUOTES, 'UTF-8' ) : $title;
 	}
 
 	/**
@@ -306,13 +306,14 @@ class Entry_Bindings {
 
 		$media_title = self::get_media_title( $post );
 
-		return '' !== $media_title ? esc_html( $media_title ) : $excerpt;
+		return '' !== $media_title ? htmlspecialchars( $media_title, ENT_QUOTES, 'UTF-8' ) : $excerpt;
 	}
 
 	/**
 	 * Whether any of the parsed blocks, at any depth, holds text outside a
 	 * media block. Reads the stored HTML, as Post_Type::get_entry_summary()
-	 * does, without rendering it.
+	 * does, without rendering it, so a synced pattern counts as text: what it
+	 * holds isn't stored in the entry.
 	 *
 	 * @param array $blocks Parsed blocks.
 	 * @return bool
@@ -321,6 +322,10 @@ class Entry_Bindings {
 		foreach ( $blocks as $block ) {
 			if ( ! is_array( $block ) || '' !== self::media_kind( $block ) ) {
 				continue;
+			}
+
+			if ( 'core/block' === ( $block['blockName'] ?? '' ) ) {
+				return true;
 			}
 
 			$html = implode( ' ', array_filter( $block['innerContent'] ?? [], 'is_string' ) );
@@ -335,13 +340,15 @@ class Entry_Bindings {
 
 	/**
 	 * Whether stored HTML shows any text once its tags, comments and
-	 * shortcodes are gone. A non-breaking space alone doesn't count.
+	 * shortcodes are gone. Non-breaking spaces alone don't count.
 	 *
 	 * @param string $html Stored HTML.
 	 * @return bool
 	 */
 	private static function has_visible_text( string $html ): bool {
-		return 1 === preg_match( '/[^\s\x{00A0}]/u', Post_Type::get_html_summary( $html, 1 ) );
+		$text = wp_strip_all_tags( (string) preg_replace( '/<!--.*?-->/s', ' ', strip_shortcodes( $html ) ) );
+
+		return 1 === preg_match( '/[^\s\x{00A0}]/u', html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
 	}
 
 	/**
@@ -350,13 +357,21 @@ class Entry_Bindings {
 	 * by its caption, else an image's alt text, e.g. "Photo: Crowds at the
 	 * finish line". Captions and text over a cover don't count as words,
 	 * since core leaves those blocks out of the excerpt it generates. Empty
-	 * for an entry with words, or without media.
+	 * for an entry with words, or without media. Blocks Newspack hides from
+	 * the public are left out first, so media meant for members is never
+	 * described to everyone.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return string Plain text.
 	 */
 	private static function get_media_title( WP_Post $entry ): string {
-		$blocks = parse_blocks( $entry->post_content );
+		$content = $entry->post_content;
+
+		if ( class_exists( '\Newspack\Block_Visibility' ) && method_exists( '\Newspack\Block_Visibility', 'strip_blocks_hidden_from_public' ) ) {
+			$content = \Newspack\Block_Visibility::strip_blocks_hidden_from_public( $content );
+		}
+
+		$blocks = parse_blocks( $content );
 
 		if ( self::has_words( $blocks ) ) {
 			return '';
@@ -373,7 +388,7 @@ class Entry_Bindings {
 
 		return '' !== $description
 			/* translators: 1: kind of media, e.g. "Photo" or "Video", 2: its caption or description. */
-			? sprintf( __( '%1$s: %2$s', 'newspack-rolling-coverage' ), $label, $description )
+			? sprintf( _x( '%1$s: %2$s', 'media label and caption', 'newspack-rolling-coverage' ), $label, $description )
 			: $label;
 	}
 
@@ -407,7 +422,7 @@ class Entry_Bindings {
 	/**
 	 * What kind of media a parsed block shows: `photo`, `gallery`, `video`,
 	 * `audio` or `embed`. A cover counts when it shows an image or a video,
-	 * and an embed is a video or an audio when its provider serves one.
+	 * and an embed is a photo, video or audio when its provider says so.
 	 *
 	 * @param array $block Parsed block.
 	 * @return string The kind, or an empty string for a block that isn't media.
@@ -435,6 +450,10 @@ class Entry_Bindings {
 
 				if ( in_array( $provider, self::AUDIO_EMBED_PROVIDERS, true ) ) {
 					return 'audio';
+				}
+
+				if ( 'photo' === ( $attrs['type'] ?? '' ) ) {
+					return 'photo';
 				}
 
 				return in_array( $provider, self::VIDEO_EMBED_PROVIDERS, true ) || 'video' === ( $attrs['type'] ?? '' ) ? 'video' : 'embed';
@@ -479,7 +498,7 @@ class Entry_Bindings {
 		if ( 'core/cover' === $name ) {
 			$text = implode( ' ', array_map( [ __CLASS__, 'stored_html' ], array_filter( $block['innerBlocks'] ?? [], 'is_array' ) ) );
 
-			return self::has_visible_text( $text ) ? $text : esc_html( (string) ( $attrs['alt'] ?? '' ) );
+			return self::has_visible_text( $text ) ? $text : htmlspecialchars( (string) ( $attrs['alt'] ?? '' ), ENT_QUOTES, 'UTF-8' );
 		}
 
 		if ( preg_match( '#<figcaption\b[^>]*>(.*?)</figcaption>#is', $html, $caption ) && self::has_visible_text( $caption[1] ) ) {
@@ -493,7 +512,7 @@ class Entry_Bindings {
 		$image = new WP_HTML_Tag_Processor( $html );
 		$alt   = $image->next_tag( 'img' ) ? $image->get_attribute( 'alt' ) : null;
 
-		return is_string( $alt ) ? esc_html( $alt ) : '';
+		return is_string( $alt ) ? htmlspecialchars( $alt, ENT_QUOTES, 'UTF-8' ) : '';
 	}
 
 	/**

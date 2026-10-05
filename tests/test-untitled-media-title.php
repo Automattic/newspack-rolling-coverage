@@ -95,6 +95,8 @@ https://example.com/media
 			'other video embed' => [ $embed( 'example', 'video' ), 'Video' ],
 			'audio embed'       => [ $embed( 'spotify', 'rich' ), 'Audio' ],
 			'other embed'       => [ $embed( 'twitter', 'rich' ), 'Embed' ],
+			'photo embed'       => [ $embed( 'flickr', 'photo' ), 'Photo' ],
+			'spaces only'       => [ '<!-- wp:paragraph --><p>&nbsp; &nbsp; &nbsp;</p><!-- /wp:paragraph --><!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image -->', 'Photo' ],
 			'image cover'       => [ '<!-- wp:cover {"url":"https://example.com/a.jpg","dimRatio":50} --><div class="wp-block-cover"><img class="wp-block-cover__image-background" alt="" src="https://example.com/a.jpg"/><span class="wp-block-cover__background has-background-dim"></span><div class="wp-block-cover__inner-container"><!-- wp:paragraph --><p></p><!-- /wp:paragraph --></div></div><!-- /wp:cover -->', 'Photo' ],
 			'video cover'       => [ '<!-- wp:cover {"url":"https://example.com/a.mp4","backgroundType":"video"} --><div class="wp-block-cover"><video class="wp-block-cover__video-background" src="https://example.com/a.mp4"></video><div class="wp-block-cover__inner-container"></div></div><!-- /wp:cover -->', 'Video' ],
 			'nested image'      => [ '<!-- wp:group --><div class="wp-block-group"><!-- wp:paragraph --><p>&nbsp;</p><!-- /wp:paragraph --><!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image --></div><!-- /wp:group -->', 'Photo' ],
@@ -137,6 +139,71 @@ https://example.com/media
 
 		$this->assertSame( 'Crews are clearing the road. Crowds at the finish & line', Entry_Bindings::get_fallback_title( get_post( $entry_id ) ) );
 		$this->assertSame( 'Crews are clearing the road.', self::excerpt( $entry_id ) );
+	}
+
+	/**
+	 * Text in a block core leaves out of the excerpt, or in a synced pattern,
+	 * still counts as the entry's own words, so it gets no media title.
+	 *
+	 * @dataProvider data_unexcerpted_words
+	 *
+	 * @param string $content Entry content before the photo.
+	 */
+	public function test_words_core_leaves_out_still_count( string $content ) {
+		$entry_id = self::create_untitled_entry( $content . self::CAPTIONED_IMAGE );
+
+		$this->assertStringNotContainsString( 'Photo', Entry_Bindings::get_fallback_title( get_post( $entry_id ) ) );
+		$this->assertStringNotContainsString( 'Photo', self::excerpt( $entry_id ) );
+	}
+
+	/**
+	 * Words the generated excerpt leaves out.
+	 *
+	 * @return array[]
+	 */
+	public function data_unexcerpted_words(): array {
+		return [
+			'code'           => [ '<!-- wp:code --><pre class="wp-block-code"><code>npm run build</code></pre><!-- /wp:code -->' ],
+			'synced pattern' => [ '<!-- wp:block {"ref":123} /-->' ],
+		];
+	}
+
+	/**
+	 * An embed's caption follows its label.
+	 */
+	public function test_embed_caption_follows_the_label() {
+		$this->assertSame(
+			'Video: Drone footage of the flood',
+			self::fallback_title(
+				'<!-- wp:embed {"url":"https://www.youtube.com/watch?v=1","type":"video","providerNameSlug":"youtube"} --><figure class="wp-block-embed is-type-video is-provider-youtube"><div class="wp-block-embed__wrapper">
+https://www.youtube.com/watch?v=1
+</div><figcaption class="wp-element-caption">Drone footage of the flood</figcaption></figure><!-- /wp:embed -->' 
+			)
+		);
+	}
+
+	/**
+	 * Literal entity text in a caption or alt text survives as typed.
+	 */
+	public function test_literal_entities_survive() {
+		$this->assertSame( 'Photo: R&amp;D lab', self::fallback_title( '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt="R&amp;amp;D lab"/></figure><!-- /wp:image -->' ) );
+	}
+
+	/**
+	 * A password-protected media entry gives nothing away: no title, and no
+	 * excerpt on the site.
+	 */
+	public function test_protected_media_entry_has_no_title_or_excerpt() {
+		$entry_id = self::create_untitled_entry( self::CAPTIONED_IMAGE );
+		wp_update_post(
+			[
+				'ID'            => $entry_id,
+				'post_password' => 'secret',
+			]
+		);
+
+		$this->assertSame( '', Entry_Bindings::get_fallback_title( get_post( $entry_id ) ) );
+		$this->assertStringNotContainsString( 'Crowds', get_the_excerpt( $entry_id ) );
 	}
 
 	/**
