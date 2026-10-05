@@ -272,7 +272,10 @@ class Lite_Feed {
 
 	/**
 	 * Clean an entry's content as Lite Site cleans a post's, with the entry
-	 * as the global post for blocks and shortcodes that read it.
+	 * as the global post for blocks and shortcodes that read it, and within
+	 * the wp_kses_post() bound Lite Site's single template prints a post's
+	 * content through. A plugin can widen Lite Site's list past that bound,
+	 * and the page would still strip what lies beyond it, so a poll must too.
 	 *
 	 * A protected entry gets a notice in place of its body, whatever the
 	 * reader's postpass cookie: Lite Site caches the page for every reader,
@@ -310,7 +313,7 @@ class Lite_Feed {
 		try {
 			return Rolling_Coverage_Block::render_as_entry(
 				static function () use ( $entry ) {
-					return \Newspack_Lite_Site\Lite_Site::clean_content( $entry->post_content );
+					return wp_kses_post( \Newspack_Lite_Site\Lite_Site::clean_content( $entry->post_content ) );
 				}
 			);
 		} finally {

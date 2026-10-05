@@ -183,6 +183,34 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A plugin can widen Lite Site's list past what its single template
+	 * prints, which bounds the page with wp_kses_post(). Entry bodies keep
+	 * within that bound, so a poll still sends only what the page shows.
+	 */
+	public function test_entry_body_keeps_within_what_a_lite_page_prints() {
+		// Saved as an administrator, so core keeps the iframe.
+		self::log_in_as( 'administrator' );
+		$entry_id = self::create_entry( $this->coverage_id, [ 'post_content' => '<p>Before</p><iframe src="https://example.test/embed"></iframe>' ] );
+		wp_set_current_user( 0 );
+
+		add_filter(
+			'newspack_lite_site_allowed_html',
+			static function ( $allowed_html ) {
+				$allowed_html['iframe'] = [ 'src' => true ];
+				return $allowed_html;
+			},
+			20
+		);
+
+		$this->assertStringContainsString( '<iframe', \Newspack_Lite_Site\Lite_Site::clean_content( get_post_field( 'post_content', $entry_id ) ), 'Precondition: the widened list keeps the embed.' );
+
+		$html = Lite_Feed::render_entry( get_post( $entry_id ), 'poll' );
+
+		$this->assertStringContainsString( '<p>Before</p>', $html );
+		$this->assertStringNotContainsString( '<iframe', $html );
+	}
+
+	/**
 	 * Render the block for the test coverage, as a full page does.
 	 *
 	 * @param array  $attributes   Block attributes, on top of the test coverage.
