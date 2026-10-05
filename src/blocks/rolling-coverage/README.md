@@ -135,19 +135,19 @@ If a story points at a layout that was deleted, readers see the Bulletin layout,
 
 ## Restore a built-in layout
 
-Built-in layouts are saved as patterns, so editing one changes it for good. To get the plugin's version back, remove the pattern, reload the editor, and pick the layout again. On block themes, use Delete in the Site Editor's Patterns, which can't be undone; on classic themes, use Trash on the Patterns screen. The site recreates the layout from the plugin's current version, which is also how to get an updated design after a plugin update. Stories using the removed layout show Bulletin until they pick a layout again.
+Built-in layouts are saved as patterns, so editing one changes it for good. To get the plugin's version back, remove the pattern, reload the editor, and pick the layout again. On block themes, use Delete in the Site Editor's Patterns, which can't be undone; on classic themes, use Trash on the Patterns screen (`wp-admin/edit.php?post_type=wp_block`). The site recreates the layout from the plugin's current version, which is also how to get an updated design after a plugin update. Stories using the removed layout show Bulletin until they pick a layout again.
 
 ## Make a custom layout
 
 A custom layout is a synced pattern in the Rolling Coverage pattern category whose top-level block is a Rolling Coverage block. Published patterns in that category appear in "Choose a layout" after the built-in layouts, sorted by title. The picker reads up to 100 patterns from the category, built-in ones included.
 
-The Rolling Coverage category appears once someone picks a built-in layout in a story. If it isn't there yet, pick a layout in any story first, then open the pattern editor. A category you add by hand only takes effect after the editor reloads.
+The Rolling Coverage category appears once someone picks a built-in layout in a story. If it isn't there yet, pick a layout in any story first, then open the pattern editor. If you create the Rolling Coverage category yourself instead, save the pattern and reload the editor before you add the Rolling Coverage block.
 
 Set the category before you add the Rolling Coverage block. With the category set, the block opens as an editable layout with sample entries, starting from Bulletin. Without it, the block asks for a coverage instead. Don't pick a coverage inside a pattern: the block then edits like a story's feed, with that coverage's entries, instead of as a layout.
 
 ### Block themes
 
-1. Go to Appearance > Editor > Patterns. Select Add Pattern (+), then Add Pattern.
+1. Go to Appearance > Editor > Patterns. Select Add Pattern, then Add Pattern in the menu.
 2. Enter a Name. In Categories, pick Rolling Coverage. Leave Synced on. Select Add.
 3. Add a Rolling Coverage block and edit the layout with the block settings.
 4. Select Save.
@@ -169,5 +169,5 @@ In a story, add or select a Rolling Coverage block, open "Choose a layout" (Choo
 Things to know:
 
 - Picking a built-in layout also changes block settings: Ticker, Wire, Digest, and Flash set Show to Latest and Number of entries; Ticker, Split, and Flash set the alignment; Ticker and Flash set When ended to Hide. A custom layout, including a copy of a built-in one, changes none of them, and the block keeps its current values. Set them on the block in the story.
-- Read more links to the entry's breakout post and only shows on entries that have one. Share links to the entry itself. Both are parts of an entry in the built-in layouts. To remove Share, delete it. Read more is locked: select it, open Options (⋮) > Unlock, then delete it.
+- Read more links to the entry's breakout post and only shows on entries that have one. Share links to the entry itself. Both are parts of an entry in the built-in layouts. To remove Share, delete it. Read more is locked: select it, open Options (⋮) > Unlock, clear Lock removal, select Apply, then delete it.
 - Follow Coverage is not part of the built-in layouts.
