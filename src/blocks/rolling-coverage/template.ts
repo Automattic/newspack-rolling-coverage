@@ -1363,9 +1363,9 @@ const FLASH_FEED_LAYOUT = {
 };
 
 /**
- * The Flash layout's bar: a group on the site's accent color spanning the
- * block, its content laid out at the theme's widths so a wide Feed lines up
- * with the site's wide content.
+ * The Flash layout's bar: a full-width group on the site's accent color, its
+ * content laid out at the theme's widths so a wide Feed lines up with the
+ * site's wide content.
  *
  * @param {TemplateItem} feed The Feed group.
  * @return {TemplateItem} The bar.
@@ -1375,6 +1375,7 @@ function flashBar( feed: TemplateItem ): TemplateItem {
 		'core/group',
 		{
 			lock: LOCKED_IN_PLACE,
+			align: 'full',
 			layout: { type: 'constrained' },
 			style: FLASH_BAR_STYLE,
 			metadata: { name: __( 'Bar', 'newspack-rolling-coverage' ) },

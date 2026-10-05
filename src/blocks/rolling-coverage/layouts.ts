@@ -44,6 +44,7 @@ export type BuiltInLayout = {
 	latest?: number;
 	hidesWhenEnded?: boolean;
 	align?: string;
+	previewWidth?: number;
 };
 
 /**
@@ -121,6 +122,7 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			latest: 1,
 			hidesWhenEnded: true,
 			align: 'full',
+			previewWidth: 1400,
 		},
 	];
 }

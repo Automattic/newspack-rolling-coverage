@@ -122,6 +122,12 @@ import type {
 } from './types';
 
 /**
+ * The layout the block offers the blocks of a layout: full width, so a bar
+ * like Flash's can span the page in the editor as it does on the site.
+ */
+const INNER_BLOCKS_LAYOUT = { type: 'default', alignments: [ 'none', 'full' ] };
+
+/**
  * Neutral block context used when a coverage has no published entries yet,
  * so the template can still be edited against something.
  */
@@ -330,6 +336,9 @@ function groupPreviewParts( group?: { [ key: string ]: unknown } ): {
 	return {
 		classNames: [
 			flexStyle ? 'is-layout-flex' : '',
+			flexStyle && layout?.orientation
+				? `is-${ layout.orientation }`
+				: '',
 			gridStyle ? 'is-layout-grid' : '',
 			layout?.type === 'constrained' ? 'is-layout-constrained' : '',
 			attributes.className,
@@ -596,6 +605,7 @@ export default function Edit( {
 					: undefined,
 			allowedBlocks: [],
 			templateLock: false,
+			layout: INNER_BLOCKS_LAYOUT,
 		}
 	);
 

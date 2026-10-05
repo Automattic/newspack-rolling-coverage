@@ -151,6 +151,29 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	}
 }
 
+.wp-block-newspack-rolling-coverage-rolling-coverage.alignfull:has(> .alignfull):not(:has(> :not(.alignfull))),
+.wp-block-newspack-rolling-coverage-rolling-coverage.alignfull:has(> .newspack-rolling-coverage-layout > .alignfull):not(:has(> .newspack-rolling-coverage-layout > :not(.alignfull))) {
+	padding-left: 0;
+	padding-right: 0;
+}
+
+.wp-block-newspack-rolling-coverage-rolling-coverage.wp-block-newspack-rolling-coverage-rolling-coverage:not(.alignfull) > .wp-block-group.alignfull {
+	max-width: 100%;
+	margin-left: 0;
+	margin-right: 0;
+}
+
+:where(.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex:not(.is-vertical)) {
+
+	> :where(.newspack-rolling-coverage-entries, .newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-regular-entry):where(:not([class*="wp-container-content-"])) {
+		flex: 1 1 24rem;
+	}
+
+	:where(.newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-regular-entry):where(.is-layout-flex:not(.is-vertical)) > :where(.wp-block-post-excerpt):where(:not([class*="wp-container-content-"])) {
+		flex: 1 1 20rem;
+	}
+}
+
 // Smooth-scroll for native #anchor navigation. Applied to <html> (not
 // <body>) so it propagates to the viewport scroller. Wrapped in a
 // reduced-motion guard so users who prefer reduced motion get instant

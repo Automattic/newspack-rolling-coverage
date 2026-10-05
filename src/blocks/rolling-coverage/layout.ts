@@ -322,14 +322,9 @@ export function flashInnerTemplate(): TemplateItem[] {
 				[
 					[ STATUS_BLOCK_NAME, {} ],
 					...flashEntryTemplate(),
-					allUpdatesLink( {
-						style: {
-							layout: { selfStretch: 'fill' },
-							typography: { textAlign: 'right' },
-						},
-					} ),
+					allUpdatesLink(),
 				],
-				'var:preset|spacing|40',
+				'var:preset|spacing|30',
 				{},
 				FLASH_FEED_LAYOUT,
 				{ align: 'wide' }

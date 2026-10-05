@@ -52,6 +52,11 @@
 	}
 }
 
+.newspack-rolling-coverage-feed .wp-block-post-excerpt__more-text:has([data-rich-text-placeholder]),
+.newspack-rolling-coverage-feed .wp-block-post-excerpt__more-link:has([data-rich-text-placeholder]) {
+	display: none;
+}
+
 .newspack-rolling-coverage-feed > .wp-block-separator:is(.is-style-wide, .is-style-dots) {
 	width: 100%;
 }
