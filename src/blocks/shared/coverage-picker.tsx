@@ -116,7 +116,6 @@ export default function CoveragePicker( {
 	if ( ! hasLoaded && isLoading ) {
 		return (
 			<LoadingState
-				compact
 				label={ __(
 					'Loading coverages…',
 					'newspack-rolling-coverage'

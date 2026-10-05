@@ -166,6 +166,7 @@ function loadSampleRecords(): void {
 			{ context: 'view' },
 		] );
 		core.finishResolution( 'getUser', [ id ] );
+		core.finishResolution( 'getUser', [ id, { context: 'view' } ] );
 	} );
 
 	core.receiveEntityRecords(

@@ -48,6 +48,7 @@ import {
 	useMemo,
 	useRef,
 } from '@wordpress/element';
+import { useDebounce } from '@wordpress/compose';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as editorStore } from '@wordpress/editor';
@@ -704,6 +705,7 @@ export default function Edit( {
 	);
 
 	const [ search, setSearch ] = useState( '' );
+	const setSearchDebounced = useDebounce( setSearch, 300 );
 	const [ options, setOptions ] = useState< CoverageOption[] >( [] );
 	const [ loadedSearch, setLoadedSearch ] = useState< string | null >( null );
 	const [ currentCoverage, setCurrentCoverage ] =
@@ -1552,11 +1554,17 @@ export default function Edit( {
 		handleApplyCanonicalUrl,
 	] );
 
-	// Combobox for selecting the connected coverage.
-	const coverageCombobox =
+	/**
+	 * Combobox for selecting the connected coverage, or its loading state
+	 * until the coverages arrive.
+	 *
+	 * @param {boolean} isSilent Whether the loading state skips its
+	 *                           announcement, for the second of two copies.
+	 */
+	const renderCoverageCombobox = ( isSilent = false ) =>
 		! isPreviewMode && loadedSearch === null ? (
 			<LoadingState
-				compact
+				isSilent={ isSilent }
 				label={ __(
 					'Loading coverages…',
 					'newspack-rolling-coverage'
@@ -1578,8 +1586,8 @@ export default function Edit( {
 						coverageId: value ? parseInt( value, 10 ) : 0,
 					} )
 				}
-				onFilterValueChange={ setSearch }
-				isLoading={ loadedSearch !== search }
+				onFilterValueChange={ setSearchDebounced }
+				isLoading={ ! isPreviewMode && loadedSearch !== search }
 			/>
 		);
 
@@ -1630,7 +1638,7 @@ export default function Edit( {
 			</PanelBody>
 			<PanelBody title={ __( 'Coverage', 'newspack-rolling-coverage' ) }>
 				<Stack direction="column" gap="lg">
-					{ coverageCombobox }
+					{ renderCoverageCombobox( true ) }
 
 					{ coverageId ? (
 						<div>
@@ -2547,7 +2555,7 @@ export default function Edit( {
 							) }
 							isColumnLayout
 						>
-							{ coverageCombobox }
+							{ renderCoverageCombobox() }
 						</Placeholder>
 					) ) }
 			</div>
