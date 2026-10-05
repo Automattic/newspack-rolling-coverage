@@ -155,8 +155,9 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The allowlist only grows once the request serves a lite feed, and then
-	 * keeps what the view script reads.
+	 * The allowlist grows only once the request serves a lite feed, and keeps
+	 * what it already allowed. The page tests check that what the view script
+	 * reads survives.
 	 */
 	public function test_allowlist_grows_only_once_a_feed_is_served() {
 		$allowed = [
@@ -169,17 +170,9 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		Lite_Feed::add_feed();
 		$grown = apply_filters( 'newspack_lite_site_allowed_html', $allowed );
 
-		$this->assertTrue( $grown['div']['class'], 'Attributes already on the list stay.' );
 		$this->assertTrue( $grown['div']['data-*'], 'The feed settings survive.' );
-		$this->assertTrue( $grown['div']['hidden'], 'The new-posts control stays hidden.' );
-		$this->assertTrue( $grown['div']['role'], 'The status region keeps its role.' );
-		$this->assertTrue( $grown['div']['aria-live'], 'The status region keeps announcing.' );
-		$this->assertTrue( $grown['div']['aria-hidden'], 'The sentinel stays hidden from screen readers.' );
-		$this->assertTrue( $grown['article']['class'], 'Entries keep their class.' );
-		$this->assertTrue( $grown['article']['data-*'], 'Entries keep their IDs.' );
-		$this->assertTrue( $grown['time']['datetime'], 'Entry times keep their machine-readable date.' );
+		$this->assertTrue( $grown['div']['class'], 'Attributes already on the list stay.' );
 		$this->assertTrue( $grown['a']['href'], 'Links keep their targets.' );
-		$this->assertTrue( $grown['a']['data-*'], 'The new-posts link keeps its marker.' );
 	}
 
 	/**
@@ -836,7 +829,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	 */
 	private static function serve_lite_feed() {
 		Lite_Feed::add_feed();
-		apply_filters( 'newspack_lite_site_allowed_html', \Newspack_Lite_Site\Lite_Site::ALLOWED_HTML );
+		apply_filters( 'newspack_lite_site_allowed_html', [] );
 	}
 
 	/**

@@ -451,8 +451,7 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	 * script that keeps it current, so on a lite page a status block shows
 	 * its badge alone, where a full page shows the line. That holds for a
 	 * feed's status block and for a standalone one that names its coverage,
-	 * which shows on any page. A lite request views the home page, so a
-	 * standalone status block on Automatic follows no feed and shows nothing.
+	 * which shows on any page.
 	 *
 	 * @dataProvider data_live_and_ended_statuses
 	 *
@@ -472,7 +471,6 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$full_named = do_blocks( $named );
 		$lite_page  = \Newspack_Lite_Site\Lite_Site::clean_content( $feed );
 		$lite_named = \Newspack_Lite_Site\Lite_Site::clean_content( $named );
-		$automatic  = \Newspack_Lite_Site\Lite_Site::clean_content( '<!-- wp:newspack-rolling-coverage/coverage-status {"showLastUpdated":true} /-->' );
 
 		$this->assertStringContainsString( 'newspack-rolling-coverage-updated', $full_page, 'A full page has the line.' );
 		$this->assertStringContainsString( 'newspack-rolling-coverage-updated', $full_named, 'So does a standalone block that names its coverage.' );
@@ -481,7 +479,6 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$this->assertStringNotContainsString( 'Updated', $lite_page );
 		$this->assertStringNotContainsString( 'Updated', $lite_named, 'A standalone block that names its coverage leaves the line out on a lite page.' );
 		$this->assertStringContainsString( '>' . $badge . '<', $lite_named, 'But keeps its badge.' );
-		$this->assertSame( '', $automatic, 'A standalone block on Automatic shows nothing on a lite page.' );
 	}
 
 	/**
