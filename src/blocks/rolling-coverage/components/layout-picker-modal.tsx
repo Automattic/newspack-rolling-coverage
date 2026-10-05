@@ -24,6 +24,7 @@ import {
 	type BuiltInLayoutSlug,
 } from '../layouts';
 import { withoutLatestButtons } from '../template';
+import LoadingState from './loading-state';
 import {
 	createLayout,
 	getLayoutCategoryId,
@@ -55,6 +56,10 @@ type LayoutCard = {
 const PREVIEW_ENTRIES = 3;
 const PREVIEW_VIEWPORT_WIDTH = 800;
 const NO_RECORDS: LayoutRecord[] = [];
+const SETTLED_FRAMES = 3;
+const REVEAL_TIMEOUT = 3000;
+const LOAD_TIMEOUT = 10000;
+const LOADING_SELECTOR = '.newspack-rolling-coverage-loading';
 
 /**
  * The query listing the published layouts in the layout pattern category.
@@ -132,6 +137,50 @@ function previewAttributes( slug?: BuiltInLayoutSlug ): {
 	};
 }
 
+type PreviewRef = { current: HTMLElement | null };
+
+/**
+ * Reports once a card's preview has settled: its iframe holds the block, no
+ * loading state, and a height that has not changed for a few frames.
+ *
+ * @param {Object}   previewRef Ref to the element wrapping the preview.
+ * @param {Function} onSettled  Called once, when the preview has settled.
+ */
+function useSettledPreview( previewRef: PreviewRef, onSettled: () => void ) {
+	const callback = useRef( onSettled );
+	callback.current = onSettled;
+
+	useEffect( () => {
+		let frame = 0;
+		let lastHeight = -1;
+		let stableFrames = 0;
+
+		const check = () => {
+			const iframe = previewRef.current?.querySelector( 'iframe' );
+			const doc = iframe?.contentDocument;
+			const height = previewRef.current?.offsetHeight ?? 0;
+			const isRendered =
+				height > 0 &&
+				!! doc?.querySelector( `[data-type="${ BLOCK_NAME }"]` ) &&
+				! doc.querySelector( LOADING_SELECTOR );
+
+			stableFrames =
+				isRendered && height === lastHeight ? stableFrames + 1 : 0;
+			lastHeight = height;
+
+			if ( stableFrames >= SETTLED_FRAMES ) {
+				callback.current();
+				return;
+			}
+			frame = window.requestAnimationFrame( check );
+		};
+
+		frame = window.requestAnimationFrame( check );
+
+		return () => window.cancelAnimationFrame( frame );
+	}, [ previewRef ] );
+}
+
 type PreviewBlock = {
 	name: string;
 	attributes?: Record< string, unknown >;
@@ -149,6 +198,7 @@ type PreviewBlock = {
  * @param {boolean}  props.isPending  Whether this layout is being set up.
  * @param {boolean}  props.isDisabled Whether another layout is being set up.
  * @param {Function} props.onClick    Picks the layout.
+ * @param {Function} props.onSettled  Called once the preview has settled.
  */
 function LayoutPickerCard( {
 	card,
@@ -156,13 +206,17 @@ function LayoutPickerCard( {
 	isPending,
 	isDisabled,
 	onClick,
+	onSettled,
 }: {
 	card: LayoutCard;
 	isCurrent: boolean;
 	isPending: boolean;
 	isDisabled: boolean;
 	onClick: () => void;
+	onSettled: () => void;
 } ) {
+	const previewRef = useRef< HTMLSpanElement >( null );
+	useSettledPreview( previewRef, onSettled );
 	const blocks = useMemo(
 		() => [
 			createBlock(
@@ -190,6 +244,7 @@ function LayoutPickerCard( {
 			onClick={ onClick }
 		>
 			<span
+				ref={ previewRef }
 				className="newspack-rolling-coverage-layout-picker__preview"
 				aria-hidden="true"
 			>
@@ -212,23 +267,32 @@ function LayoutPickerCard( {
  * Picks the layout a Rolling Coverage block renders its entries in: the
  * built-in layouts, then the other published layouts in the layout pattern
  * category. Picking a built-in layout that has no pattern yet creates it,
- * and falls back to an unsynced copy of its template when that fails.
+ * and falls back to an unsynced copy of its template when that fails. The
+ * modal stays hidden until every card's preview has settled, so it opens at
+ * its final size, or until a timeout passes, so a slow preview or layouts
+ * request can't keep it closed.
  *
  * @param {Object}   props                 Component props.
  * @param {number}   props.currentLayoutId The block's layout pattern ID, or 0.
  * @param {Function} props.onSelect        Called with the picked layout.
  * @param {Function} props.onClose         Closes the picker.
+ * @param {Function} props.onReady         Called when the modal is revealed.
  */
 export default function LayoutPickerModal( {
 	currentLayoutId,
 	onSelect,
 	onClose,
+	onReady,
 }: {
 	currentLayoutId: number;
 	onSelect: ( choice: LayoutChoice ) => void;
 	onClose: () => void;
+	onReady?: () => void;
 } ) {
 	const [ pendingKey, setPendingKey ] = useState< string | null >( null );
+	const [ settledKeys, setSettledKeys ] = useState< string[] >( [] );
+	const [ timedOut, setTimedOut ] = useState( false );
+	const contentRef = useRef< HTMLDivElement >( null );
 	const isMounted = useRef( true );
 
 	useEffect( () => {
@@ -321,6 +385,53 @@ export default function LayoutPickerModal( {
 		return [ ...builtIns, ...others ];
 	}, [ records ] );
 
+	const isReady =
+		timedOut ||
+		( hasResolved &&
+			cards.every( ( card ) => settledKeys.includes( card.key ) ) );
+
+	useEffect( () => {
+		const timer = window.setTimeout(
+			() => setTimedOut( true ),
+			hasResolved ? REVEAL_TIMEOUT : LOAD_TIMEOUT
+		);
+
+		return () => window.clearTimeout( timer );
+	}, [ hasResolved ] );
+
+	useEffect( () => {
+		if ( isReady ) {
+			const content = contentRef.current;
+			(
+				content?.querySelector< HTMLElement >(
+					'button:not(:disabled)'
+				) ??
+				content?.closest< HTMLElement >( '.components-modal__frame' )
+			)?.focus();
+			onReady?.();
+		}
+	}, [ isReady ] );
+
+	useEffect( () => {
+		if ( isReady ) {
+			return;
+		}
+
+		const closeOnEscape = ( event: KeyboardEvent ) => {
+			if ( event.key === 'Escape' ) {
+				onClose();
+			}
+		};
+		document.addEventListener( 'keydown', closeOnEscape );
+
+		return () => document.removeEventListener( 'keydown', closeOnEscape );
+	}, [ isReady, onClose ] );
+
+	const markSettled = ( key: string ) =>
+		setSettledKeys( ( keys ) =>
+			keys.includes( key ) ? keys : [ ...keys, key ]
+		);
+
 	const pick = ( card: LayoutCard ) => {
 		if ( pendingKey ) {
 			return;
@@ -362,29 +473,40 @@ export default function LayoutPickerModal( {
 		<Modal
 			title={ __( 'Choose a layout', 'newspack-rolling-coverage' ) }
 			size="large"
+			focusOnMount={ false }
+			overlayClassName={ isReady ? undefined : 'is-awaiting-previews' }
 			onRequestClose={ onClose }
 		>
-			{ hasResolved ? (
-				<div className="newspack-rolling-coverage-layout-picker">
-					{ cards.map( ( card ) => (
-						<LayoutPickerCard
-							key={ card.key }
-							card={ card }
-							isCurrent={
-								currentLayoutId > 0 &&
-								card.patternId === currentLayoutId
-							}
-							isPending={ pendingKey === card.key }
-							isDisabled={
-								pendingKey !== null && pendingKey !== card.key
-							}
-							onClick={ () => pick( card ) }
-						/>
-					) ) }
-				</div>
-			) : (
-				<Spinner />
-			) }
+			<div ref={ contentRef }>
+				{ hasResolved ? (
+					<div className="newspack-rolling-coverage-layout-picker">
+						{ cards.map( ( card ) => (
+							<LayoutPickerCard
+								key={ card.key }
+								card={ card }
+								isCurrent={
+									currentLayoutId > 0 &&
+									card.patternId === currentLayoutId
+								}
+								isPending={ pendingKey === card.key }
+								isDisabled={
+									pendingKey !== null &&
+									pendingKey !== card.key
+								}
+								onClick={ () => pick( card ) }
+								onSettled={ () => markSettled( card.key ) }
+							/>
+						) ) }
+					</div>
+				) : (
+					<LoadingState
+						label={ __(
+							'Loading layouts…',
+							'newspack-rolling-coverage'
+						) }
+					/>
+				) }
+			</div>
 		</Modal>
 	);
 }

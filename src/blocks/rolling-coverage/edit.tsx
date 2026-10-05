@@ -668,6 +668,8 @@ export default function Edit( {
 		isPreviewMode && ! coverageId && ! layoutId && innerBlockCount > 0;
 	const showsSamples = isLayoutPattern || isSamplePreview;
 	const [ isPickingLayout, setIsPickingLayout ] = useState( false );
+	const [ isPickerReady, setIsPickerReady ] = useState( false );
+	const isPickerLoading = isPickingLayout && ! isPickerReady;
 	const [ latestCountInput, setLatestCountInput ] = useState< string | null >(
 		null
 	);
@@ -1205,9 +1207,14 @@ export default function Edit( {
 		setAttributes,
 	] );
 
+	const closePicker = useCallback( () => {
+		setIsPickingLayout( false );
+		setIsPickerReady( false );
+	}, [] );
+
 	const applyLayout = useCallback(
 		( choice: LayoutChoice ) => {
-			setIsPickingLayout( false );
+			closePicker();
 
 			const syncedSlug = isSynced
 				? builtInLayoutSlugFor( layoutId )
@@ -1273,6 +1280,7 @@ export default function Edit( {
 		},
 		[
 			align,
+			closePicker,
 			isSynced,
 			isLayoutMissing,
 			invalidateResolution,
@@ -1561,6 +1569,9 @@ export default function Edit( {
 				{ canChangeLayout && (
 					<Button
 						variant="secondary"
+						isBusy={ isPickerLoading }
+						accessibleWhenDisabled
+						disabled={ isPickerLoading }
 						onClick={ () => setIsPickingLayout( true ) }
 					>
 						{ __( 'Change Layout', 'newspack-rolling-coverage' ) }
@@ -2282,7 +2293,8 @@ export default function Edit( {
 				<LayoutPickerModal
 					currentLayoutId={ isSynced ? layoutId : 0 }
 					onSelect={ applyLayout }
-					onClose={ () => setIsPickingLayout( false ) }
+					onClose={ closePicker }
+					onReady={ () => setIsPickerReady( true ) }
 				/>
 			) }
 
@@ -2312,6 +2324,9 @@ export default function Edit( {
 							<Button
 								__next40pxDefaultSize
 								variant="primary"
+								isBusy={ isPickerLoading }
+								accessibleWhenDisabled
+								disabled={ isPickerLoading }
 								onClick={ () => setIsPickingLayout( true ) }
 							>
 								{ __( 'Choose', 'newspack-rolling-coverage' ) }
