@@ -1496,7 +1496,7 @@ function tickerHeader( sizes: string[] ): TemplateItem {
 			style: {
 				'@tablet': { layout: { columnSpan: TICKER_TABLET_COLUMNS } },
 				'@mobile': { layout: { columnSpan: TICKER_MOBILE_COLUMNS } },
-				spacing: { blockGap: '0' },
+				spacing: { blockGap: '0.25em' },
 			},
 			metadata: { name: __( 'Header', 'newspack-rolling-coverage' ) },
 		},
@@ -1544,7 +1544,7 @@ function tickerEntryTemplate( slugs: string[] ): TemplateItem[] {
 				orientation: 'vertical',
 				justifyContent: 'stretch',
 			},
-			style: { spacing: { blockGap: '0' } },
+			style: { spacing: { blockGap: '0.25em' } },
 			metadata: { name },
 		},
 		[
