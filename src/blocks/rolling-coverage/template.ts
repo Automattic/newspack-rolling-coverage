@@ -1418,7 +1418,7 @@ function flashEntryTemplate(): TemplateItem[] {
 			[
 				'core/post-excerpt',
 				{
-					excerptLength: 20,
+					excerptLength: 100,
 					moreText: '',
 					fontSize: 'small',
 				},
