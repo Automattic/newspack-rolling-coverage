@@ -42,8 +42,27 @@ class Block_Visibility {
 				continue;
 			}
 
-			$block['innerBlocks'] = self::strip( $block['innerBlocks'] ?? [] );
-			$kept[]               = $block;
+			$inner_blocks  = [];
+			$inner_content = [];
+			$index         = 0;
+
+			foreach ( $block['innerContent'] ?? [] as $chunk ) {
+				if ( is_string( $chunk ) ) {
+					$inner_content[] = $chunk;
+					continue;
+				}
+
+				$inner = $block['innerBlocks'][ $index++ ] ?? null;
+
+				if ( is_array( $inner ) && empty( $inner['attrs']['zzHiddenFromPublic'] ) ) {
+					$inner_blocks[]  = self::strip( [ $inner ] )[0];
+					$inner_content[] = null;
+				}
+			}
+
+			$block['innerBlocks']  = $inner_blocks;
+			$block['innerContent'] = $inner_content;
+			$kept[]                = $block;
 		}
 
 		return $kept;
