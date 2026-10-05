@@ -18,12 +18,12 @@ A layout is how the feed looks: spacing, colors, type, and which parts each entr
 
 | Layout | What it looks like | Best for |
 | --- | --- | --- |
-| Bulletin | The default. Entries stacked with their time, title, content, and links. | Most live blogs. The default on a story page. |
+| Bulletin | The default. Entries stacked with their time, title, content, and links. | Most live blogs. |
 | Stream | Like Bulletin, with more space between entries without titles. | Fast-moving events with many short updates without titles, such as a press conference or a court hearing. |
 | Rail | Entries hang off a timeline. | Events where the order of updates and the gaps between them matter, such as a storm moving through. |
-| Clock | Each entry starts with the time it was posted. | Coverage where the time of each update is the point, such as election results or travel disruption. |
-| Margin | Each entry split into a margin and its content. | Longer entries that need room, on a wide story page. |
-| Minute | Closer together, with each entry reduced to its content. | Sport and other minute-by-minute coverage. Start each entry with the minute: "70' Goal! Kowalski scores from the edge of the box." |
+| Clock | Each entry starts with the time it was posted. | Coverage where the time of each update is the point, such as election results or travel delays. |
+| Margin | Each entry split into a margin and its content. | Coverage with headlines readers scan down the side, such as a long-running story. |
+| Minute | Closer together, with each entry reduced to its content. | Sports and other minute-by-minute coverage. Start each entry with the minute: "70' Goal! Kowalski scores from the edge of the box." |
 | Byline | Each entry signed by its author. | Coverage with several reporters filing, where who reported each entry matters. |
 | Ticker | A strip with the coverage's status and name beside the three latest headlines, and a link to the coverage page, with a thin rule between them. The Feed's Block spacing sets the space on either side of a rule. Wide width. Hides when the coverage ends. | The homepage, under the header, to point readers to breaking news. |
 | Split | The full feed at wide width, with the pinned entry's summary in a column beside the entries. | A coverage page that leads with a pinned summary, such as "What we know", beside the feed. |
