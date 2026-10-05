@@ -187,6 +187,33 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	}
 }
 
+.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.newspack-rolling-coverage-ruled {
+	--newspack-rolling-coverage-rule-row: #{$feed-gap};
+	--newspack-rolling-coverage-rule-column: var(--newspack-rolling-coverage-column-gap, var(--newspack-rolling-coverage-rule-row));
+	--newspack-rolling-coverage-rule-color: color-mix(in srgb, currentcolor 13%, transparent);
+	row-gap: calc(2 * var(--newspack-rolling-coverage-rule-row) + 1px);
+	column-gap: calc(2 * var(--newspack-rolling-coverage-rule-column) + 1px);
+	clip-path: inset(calc(-1 * min(var(--newspack-rolling-coverage-rule-row), 4px)) 0);
+
+	> :where(:not(.newspack-rolling-coverage-entries, .newspack-rolling-coverage-status, .newspack-rolling-coverage-new-entries, .newspack-rolling-coverage-sentinel, .block-list-appender)),
+	> .newspack-rolling-coverage-entries > * {
+		position: relative;
+
+		&::before {
+			content: "";
+			position: absolute;
+			top: calc(-2 * var(--newspack-rolling-coverage-rule-row) - 1px);
+			right: 0;
+			bottom: 0;
+			left: calc(-2 * var(--newspack-rolling-coverage-rule-column) - 1px);
+			background:
+				linear-gradient(var(--newspack-rolling-coverage-rule-color), var(--newspack-rolling-coverage-rule-color)) var(--newspack-rolling-coverage-rule-column) 100% / 1px calc(100% - 2 * var(--newspack-rolling-coverage-rule-row) - 1px) no-repeat,
+				linear-gradient(var(--newspack-rolling-coverage-rule-color), var(--newspack-rolling-coverage-rule-color)) 0 var(--newspack-rolling-coverage-rule-row) / 100% 1px no-repeat;
+			pointer-events: none;
+		}
+	}
+}
+
 :where(.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-load-more) {
 	text-align: center;
 }

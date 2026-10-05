@@ -26,9 +26,15 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 
 	const TITLE_MARKUP = '<!-- wp:post-title {"level":4,"isLink":true,"className":"newspack-rolling-coverage-entry-link"} /-->';
 
+	const ENTRY_STYLE = '{"spacing":{"blockGap":"0"}}';
+
 	const STACKED_ENTRY_STYLE = '{"border":{"left":{"style":"none"},"top":{"color":"#ddd","width":"1px","style":"solid"}},"spacing":{"padding":{"left":"0","top":"var:preset|spacing|40"}}}';
 
-	const FOOTER_MARKUP = '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-all-updates","style":{"layout":{"columnSpan":4},"@tablet":{"layout":{"columnSpan":3}},"@mobile":{"layout":{"columnSpan":1}},"border":{"top":{"color":"#ddd","width":"1px","style":"solid"}},"spacing":{"padding":{"top":"var:preset|spacing|40"}}}} --><p class="use-header-font newspack-rolling-coverage-all-updates" style="border-top-color:#ddd;border-top-style:solid;border-top-width:1px;padding-top:var(--wp--preset--spacing--40)"><a href="#">See all updates</a></p><!-- /wp:paragraph -->';
+	const RULED_ENTRY_STYLE = '{"border":{"left":{"color":"#ddd","width":"1px","style":"solid"}},"spacing":{"blockGap":"0","padding":{"left":"var:preset|spacing|40"}},"@tablet":' . self::STACKED_ENTRY_STYLE . ',"@mobile":' . self::STACKED_ENTRY_STYLE . '}';
+
+	const RULED_ENTRY_INLINE_STYLE = 'border-left-color:#ddd;border-left-style:solid;border-left-width:1px;padding-left:var(--wp--preset--spacing--40)';
+
+	const FOOTER_MARKUP = '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-all-updates","style":{"layout":{"columnSpan":4},"@tablet":{"layout":{"columnSpan":3}},"@mobile":{"layout":{"columnSpan":1}}}} --><p class="use-header-font newspack-rolling-coverage-all-updates"><a href="#">See all updates</a></p><!-- /wp:paragraph -->';
 
 	/**
 	 * Register the Coverage Status block the header holds.
@@ -48,16 +54,20 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The Ticker layout's Feed, as the editor saves it.
+	 * The Ticker layout's Feed, as the editor saves it, with its entries'
+	 * style as given.
 	 *
+	 * @param string $entry_style        The entry groups' style attribute, as JSON.
+	 * @param string $entry_inline_style The entry groups' saved inline style.
 	 * @return string
 	 */
-	private static function feed_markup(): string {
-		$entry = static fn( string $class_name ) => '<!-- wp:group {"className":"' . $class_name . '","style":{"border":{"left":{"color":"#ddd","width":"1px","style":"solid"}},"spacing":{"blockGap":"0","padding":{"left":"var:preset|spacing|40"}},"dimensions":{"minHeight":"100%"},"@tablet":' . self::STACKED_ENTRY_STYLE . ',"@mobile":' . self::STACKED_ENTRY_STYLE . '},"layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} --><div class="wp-block-group ' . $class_name . '" style="border-left-color:#ddd;border-left-style:solid;border-left-width:1px;min-height:100%;padding-left:var(--wp--preset--spacing--40)">'
+	private static function feed_markup( string $entry_style = self::ENTRY_STYLE, string $entry_inline_style = '' ): string {
+		$style = '' === $entry_inline_style ? '' : ' style="' . $entry_inline_style . '"';
+		$entry = static fn( string $class_name ) => '<!-- wp:group {"className":"' . $class_name . '","style":' . $entry_style . ',"layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} --><div class="wp-block-group ' . $class_name . '"' . $style . '>'
 			. self::ENTRY_BLOCKS
 			. '</div><!-- /wp:group -->';
 
-		return '<!-- wp:group {"className":"newspack-rolling-coverage-feed","style":{"@tablet":{"layout":{"columnCount":3}},"@mobile":{"layout":{"columnCount":1}},"spacing":{"blockGap":"var:preset|spacing|40"}},"layout":{"type":"grid","columnCount":4}} --><div class="wp-block-group newspack-rolling-coverage-feed">'
+		return '<!-- wp:group {"className":"newspack-rolling-coverage-feed newspack-rolling-coverage-ruled","style":{"@tablet":{"layout":{"columnCount":3}},"@mobile":{"layout":{"columnCount":1}},"spacing":{"blockGap":"var:preset|spacing|40"}},"layout":{"type":"grid","columnCount":4}} --><div class="wp-block-group newspack-rolling-coverage-feed newspack-rolling-coverage-ruled">'
 			. self::HEADER_MARKUP
 			. $entry( 'newspack-rolling-coverage-pinned-card' )
 			. $entry( 'newspack-rolling-coverage-regular-entry' )
@@ -69,10 +79,11 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	 * Render a coverage in the Ticker layout, with the attributes the layout
 	 * sets when picked.
 	 *
-	 * @param int $coverage_id Coverage term ID.
+	 * @param int    $coverage_id Coverage term ID.
+	 * @param string $feed        Feed markup, the Ticker's by default.
 	 * @return string Rendered block.
 	 */
-	private static function render_ticker( int $coverage_id ): string {
+	private static function render_ticker( int $coverage_id, string $feed = '' ): string {
 		$attributes = [
 			'coverageId'    => $coverage_id,
 			'latestOnly'    => true,
@@ -80,7 +91,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 			'hideWhenEnded' => true,
 			'align'         => 'wide',
 		];
-		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . self::feed_markup() . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . ( '' === $feed ? self::feed_markup() : $feed ) . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
 
 		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
 	}
@@ -361,15 +372,15 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Each entry is ruled off beside the cell before it on desktop, and above
-	 * on tablets and phones, where its tablet and mobile styles win over the
-	 * inline desktop rule, on a classic and a block theme alike.
+	 * An entry's tablet and mobile styles win over its inline desktop style,
+	 * on a classic and a block theme alike: here, a rule beside the cell on
+	 * desktop that moves above it on tablets and phones.
 	 *
 	 * @dataProvider data_themes
 	 *
 	 * @param string $theme Theme to switch to, or '' for the test theme.
 	 */
-	public function test_entries_move_their_rule_above_on_tablets_and_phones( string $theme ) {
+	public function test_entry_viewport_styles_win_over_its_desktop_style( string $theme ) {
 		if ( $theme ) {
 			switch_theme( $theme );
 		}
@@ -377,7 +388,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 		$coverage_id = self::create_coverage();
 		self::create_entries( $coverage_id );
 
-		$html = self::render_ticker( $coverage_id );
+		$html = self::render_ticker( $coverage_id, self::feed_markup( self::RULED_ENTRY_STYLE, self::RULED_ENTRY_INLINE_STYLE ) );
 		$css  = wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] );
 
 		$this->assertSame( 3, preg_match_all( '#<div class="wp-block-group newspack-rolling-coverage-regular-entry [^"]*(wp-states-[0-9a-f]{8})#', $html, $classes ) );
@@ -400,12 +411,12 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A coverage that loads empty still stores its entries' tablet and phone
-	 * rules, for the entries that arrive later.
+	 * styles, for the entries that arrive later.
 	 */
-	public function test_an_empty_ticker_stores_the_entries_tablet_and_phone_rules() {
+	public function test_an_empty_coverage_stores_the_entries_viewport_styles() {
 		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
 
-		self::render_ticker( self::create_coverage() );
+		self::render_ticker( self::create_coverage(), self::feed_markup( self::RULED_ENTRY_STYLE, self::RULED_ENTRY_INLINE_STYLE ) );
 		$css = wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] );
 
 		$this->assertSame( 1, preg_match( '#\.(wp-states-[0-9a-f]{8})\{[^}]*border-left-style:none !important#', $css, $class_name ) );

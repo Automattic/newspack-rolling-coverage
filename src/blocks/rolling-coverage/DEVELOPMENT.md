@@ -80,6 +80,8 @@ A layout's look comes from block settings in its template: colors, typography, s
 
 Don't add a layout's colors or type to these files.
 
+The one exception is a ruled Feed: a Feed group with the class `newspack-rolling-coverage-ruled` (`RULED_FEED_CLASS`, used by Ticker) gets a 1px rule centered in every gap between its items, in a color mixed from the text color. Borders can't do this: a border sits inside its cell, so the cells' text widths differ and the rule can't sit in the middle of the gap. Publishers can't restyle the rule, but its space follows the Feed's Block spacing: `style.scss` doubles the row and column gaps and adds 1px, so a rule has a full gap on each side. Each item's `::before` draws the rules above it and to its left, and the Feed clips the ones that would land on its outer edges, so the CSS needs no column count or breakpoints. The gaps reach the stylesheet as `--newspack-rolling-coverage-gap` and, when the columns have their own value, `--newspack-rolling-coverage-column-gap` (`feed_gap_declaration()`, `feedGapStyle()`). A synced preview leaves the gap of a ruled Feed to the stylesheet (`feedPreviewProps()`).
+
 ## Gotchas
 
 - **Stored patterns are not reconciled.** Once a built-in layout's pattern exists, changes to `layout.ts` or `template.ts` do not reach it or the blocks synced to it; `create_layout()` returns the existing pattern. To try a changed template, trash the pattern, reload the editor and pick the layout again, which creates a new one. Blocks still pointing at the trashed pattern render the Bulletin fallback until they pick a layout again.
