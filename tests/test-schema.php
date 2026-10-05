@@ -10,7 +10,7 @@ use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Schema;
 
 /**
- * A page with a coverage should describe itself as one live blog with one
+ * A page with a coverage should describe itself as one liveblog with one
  * answer to when it last changed, with or without Yoast SEO.
  */
 class Test_Schema extends Rolling_Coverage_TestCase {
@@ -64,9 +64,9 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Yoast's Article becomes the live blog: it keeps Yoast's type, headline,
+	 * Yoast's Article becomes the liveblog: it keeps Yoast's type, headline,
 	 * publish date and main entity, gains the coverage times and updates, and
-	 * takes the live blog's dateModified.
+	 * takes the liveblog's dateModified.
 	 */
 	public function test_yoast_article_becomes_the_live_blog() {
 		$coverage_id = self::create_coverage();
@@ -162,7 +162,7 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Yoast's WebPage takes the live blog's dateModified too.
+	 * Yoast's WebPage takes the liveblog's dateModified too.
 	 */
 	public function test_yoast_webpage_gets_the_live_blog_date_modified() {
 		$coverage_id = self::create_coverage();
@@ -393,7 +393,7 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A post that only embeds a capped block shows a few entries and links to
-	 * the coverage page, so it is not the live blog and its date stays its own;
+	 * the coverage page, so it is not the liveblog and its date stays its own;
 	 * a full feed is.
 	 */
 	public function test_only_uncapped_blocks_make_a_live_blog() {
