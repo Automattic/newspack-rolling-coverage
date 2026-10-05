@@ -30,7 +30,6 @@ import {
 	TICKER_FEED_LAYOUT,
 	TICKER_FEED_STYLE,
 	splitEntryTemplate,
-	splitHeader,
 	SPLIT_FEED_LAYOUT,
 	SPLIT_FEED_STYLE,
 	SPLIT_FEED_GAP,
@@ -39,7 +38,6 @@ import {
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
-	FOLLOW_TEMPLATE,
 	feedTemplate,
 	latestTemplate,
 	layoutParts,
@@ -118,7 +116,7 @@ function themeFontSizeSlugs(): string[] {
 /**
  * The Bulletin layout's inner-blocks template, the default: the Feed group,
  * holding the "Jump to Latest" button, in the colors the editor's palette
- * has for it, and the follow button at the top, then the per-entry blocks.
+ * has for it, then the per-entry blocks.
  *
  * @return {TemplateItem[]} The template.
  */
@@ -126,14 +124,13 @@ export function innerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate( [
 			latestTemplate( paletteSlugs() ),
-			FOLLOW_TEMPLATE,
 			...bulletinEntryTemplate( themeFontSizeSlugs() ),
 		] ),
 	];
 }
 
 /**
- * The Stream layout's inner-blocks template: the same Feed group and buttons
+ * The Stream layout's inner-blocks template: the same Feed group and button
  * as the default, with a wider gap between untitled entries.
  *
  * @return {TemplateItem[]} The template.
@@ -145,7 +142,6 @@ export function streamInnerTemplate(): TemplateItem[] {
 		feedTemplate(
 			[
 				latestTemplate( slugs ),
-				FOLLOW_TEMPLATE,
 				...streamEntryTemplate( slugs, themeFontSizeSlugs() ),
 			],
 			'var:preset|spacing|60'
@@ -154,7 +150,7 @@ export function streamInnerTemplate(): TemplateItem[] {
 }
 
 /**
- * The Rail layout's inner-blocks template: the same Feed group and buttons
+ * The Rail layout's inner-blocks template: the same Feed group and button
  * as the default, with each entry hanging off a timeline.
  *
  * @return {TemplateItem[]} The template.
@@ -163,14 +159,13 @@ export function railInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate( [
 			latestTemplate( paletteSlugs() ),
-			FOLLOW_TEMPLATE,
 			...railEntryTemplate(),
 		] ),
 	];
 }
 
 /**
- * The Clock layout's inner-blocks template: the same Feed group and buttons
+ * The Clock layout's inner-blocks template: the same Feed group and button
  * as the default, with each entry headed by the time it was posted.
  *
  * @return {TemplateItem[]} The template.
@@ -181,14 +176,13 @@ export function clockInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate( [
 			latestTemplate( slugs ),
-			FOLLOW_TEMPLATE,
 			...clockEntryTemplate( slugs, themeFontSizeSlugs() ),
 		] ),
 	];
 }
 
 /**
- * The Margin layout's inner-blocks template: the same Feed group and buttons
+ * The Margin layout's inner-blocks template: the same Feed group and button
  * as the default, with each entry split into a margin and its content.
  *
  * @return {TemplateItem[]} The template.
@@ -197,14 +191,13 @@ export function marginInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate( [
 			latestTemplate( paletteSlugs() ),
-			FOLLOW_TEMPLATE,
 			...marginEntryTemplate(),
 		] ),
 	];
 }
 
 /**
- * The Minute layout's inner-blocks template: the same Feed group and buttons
+ * The Minute layout's inner-blocks template: the same Feed group and button
  * as the default, closer together, with each entry reduced to its content.
  *
  * @return {TemplateItem[]} The template.
@@ -212,18 +205,14 @@ export function marginInnerTemplate(): TemplateItem[] {
 export function minuteInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
-			[
-				latestTemplate( paletteSlugs() ),
-				FOLLOW_TEMPLATE,
-				...minuteEntryTemplate(),
-			],
+			[ latestTemplate( paletteSlugs() ), ...minuteEntryTemplate() ],
 			'var:preset|spacing|30'
 		),
 	];
 }
 
 /**
- * The Byline layout's inner-blocks template: the same Feed group and buttons
+ * The Byline layout's inner-blocks template: the same Feed group and button
  * as the default, with each entry signed by its author.
  *
  * @return {TemplateItem[]} The template.
@@ -234,7 +223,6 @@ export function bylineInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate( [
 			latestTemplate( slugs ),
-			FOLLOW_TEMPLATE,
 			...bylineEntryTemplate( slugs ),
 		] ),
 	];
@@ -265,18 +253,14 @@ export function tickerInnerTemplate(): TemplateItem[] {
 /**
  * The Split layout's inner-blocks template: the full feed at wide width,
  * the pinned entry's summary in a column beside the entries, with the
- * "Jump to Latest" and follow buttons.
+ * "Jump to Latest" button.
  *
  * @return {TemplateItem[]} The template.
  */
 export function splitInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
-			[
-				latestTemplate( paletteSlugs() ),
-				splitHeader(),
-				...splitEntryTemplate(),
-			],
+			[ latestTemplate( paletteSlugs() ), ...splitEntryTemplate() ],
 			SPLIT_FEED_GAP,
 			SPLIT_FEED_STYLE,
 			SPLIT_FEED_LAYOUT
@@ -305,7 +289,7 @@ export function wireInnerTemplate(): TemplateItem[] {
 /**
  * The Digest layout's inner-blocks template: a bordered box with the coverage
  * name, the latest entries against their times, and a footer holding the link
- * to the coverage page beside the Follow button.
+ * to the coverage page.
  *
  * @return {TemplateItem[]} The template.
  */
