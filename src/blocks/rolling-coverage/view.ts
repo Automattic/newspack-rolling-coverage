@@ -1878,7 +1878,15 @@ function initBlock( root: HTMLElement ): void {
 				url.searchParams.set( 'latest', String( latestCap ) );
 			} else {
 				url.searchParams.set( 'host_post_id', hostPostId );
-				url.searchParams.set( 'polled_count', polledCount.toString() );
+
+				// A lite page shows no ads either, so it leaves out the ad
+				// count and its readers share one cached reply too.
+				if ( ! isLite ) {
+					url.searchParams.set(
+						'polled_count',
+						polledCount.toString()
+					);
+				}
 			}
 
 			if ( isLite ) {
