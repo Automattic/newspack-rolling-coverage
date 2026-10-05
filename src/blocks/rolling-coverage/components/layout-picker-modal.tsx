@@ -44,6 +44,7 @@ type LayoutCard = {
 	slug?: BuiltInLayoutSlug;
 	template?: () => TemplateItem[];
 	innerBlocks: () => unknown[];
+	previewWidth?: number;
 };
 
 const PREVIEW_ENTRIES = 3;
@@ -103,23 +104,27 @@ function patternTitle( record: LayoutRecord ): string {
 }
 
 /**
- * The cap a built-in layout's card previews, as the layout sets it when
- * picked; other layouts show every entry.
+ * The cap and alignment a built-in layout's card previews, as the layout
+ * sets them when picked; other layouts show every entry.
  *
  * @param {string} slug The built-in layout's slug, if the card is one.
- * @return {Object} The cap attributes.
+ * @return {Object} The cap and alignment attributes.
  */
-function previewCap( slug?: BuiltInLayoutSlug ): {
+function previewAttributes( slug?: BuiltInLayoutSlug ): {
 	latestOnly?: boolean;
 	latestCount?: number;
+	align?: string;
 } {
 	if ( ! slug ) {
 		return {};
 	}
 
-	const { latestOnly, latestCount } = layoutCapAttributes( slug );
+	const { latestOnly, latestCount, align } = layoutCapAttributes( slug );
 
-	return latestOnly ? { latestOnly, latestCount } : {};
+	return {
+		...( latestOnly ? { latestOnly, latestCount } : {} ),
+		...( align ? { align } : {} ),
+	};
 }
 
 type PreviewBlock = {
@@ -157,7 +162,10 @@ function LayoutPickerCard( {
 		() => [
 			createBlock(
 				BLOCK_NAME,
-				{ entriesPerPage: PREVIEW_ENTRIES, ...previewCap( card.slug ) },
+				{
+					entriesPerPage: PREVIEW_ENTRIES,
+					...previewAttributes( card.slug ),
+				},
 				withoutLatestButtons(
 					card.innerBlocks() as PreviewBlock[]
 				) as unknown as Parameters< typeof createBlock >[ 2 ]
@@ -182,7 +190,9 @@ function LayoutPickerCard( {
 			>
 				<BlockPreview
 					blocks={ blocks }
-					viewportWidth={ PREVIEW_VIEWPORT_WIDTH }
+					viewportWidth={
+						card.previewWidth ?? PREVIEW_VIEWPORT_WIDTH
+					}
 				/>
 			</span>
 			<span className="newspack-rolling-coverage-layout-picker__title">
@@ -272,6 +282,7 @@ export default function LayoutPickerModal( {
 				patternId: id,
 				slug: layout.slug,
 				template: layout.template,
+				previewWidth: layout.previewWidth,
 				innerBlocks:
 					fromPattern ??
 					( () =>

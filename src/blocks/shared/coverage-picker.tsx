@@ -25,11 +25,11 @@ interface CoveragePickerProps {
 const SEARCH_QUERY = { per_page: 50, context: 'view' };
 
 /**
- * A searchable picker for a coverage, with an "Automatic" choice (0) for the
- * page's own coverage.
+ * A searchable picker for any coverage that isn't trashed, keeping the
+ * chosen one listed even once it is.
  *
  * @param {Object}   props               Props.
- * @param {number}   props.value         The chosen coverage ID, or 0 for Automatic.
+ * @param {number}   props.value         The chosen coverage ID, or 0 for none yet.
  * @param {Function} props.onChange      Called with the new coverage ID.
  * @param {string}   props.taxonomySlug  The coverage taxonomy.
  * @param {string}   props.statusMetaKey The coverage status meta key.
@@ -95,27 +95,24 @@ export default function CoveragePicker( {
 			terms.unshift( current );
 		}
 
-		return [
-			{
-				value: '0',
-				label: __( 'Automatic', 'newspack-rolling-coverage' ),
-			},
-			...terms.map( ( term ) => ( {
-				value: String( term.id ),
-				label: decodeEntities( term.name ?? String( term.id ) ),
-			} ) ),
-		];
+		return terms.map( ( term ) => ( {
+			value: String( term.id ),
+			label: decodeEntities( term.name ?? String( term.id ) ),
+		} ) );
 	}, [ found, current, statusMetaKey ] );
 
 	return (
 		<ComboboxControl
 			__next40pxDefaultSize
-			label={ __( 'Coverage', 'newspack-rolling-coverage' ) }
-			value={ String( value || 0 ) }
+			label={ __( 'Choose a coverage', 'newspack-rolling-coverage' ) }
+			hideLabelFromVision
+			placeholder={ __(
+				'Search for a coverage…',
+				'newspack-rolling-coverage'
+			) }
+			value={ value ? String( value ) : null }
 			options={ options }
-			onChange={ ( next ) =>
-				onChange( parseInt( next ?? '0', 10 ) || 0 )
-			}
+			onChange={ ( next ) => onChange( parseInt( next ?? '', 10 ) || 0 ) }
 			onFilterValueChange={ setSearchDebounced }
 			isLoading={ isLoading }
 		/>

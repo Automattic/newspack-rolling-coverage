@@ -9,7 +9,6 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies
  */
 import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
-import { FOLLOW_BUTTONS_TEMPLATE } from '../shared/follow-buttons';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
 import type { TemplateItem } from './types';
 
@@ -126,8 +125,8 @@ const ALL_UPDATES_CLASS = 'newspack-rolling-coverage-all-updates';
 const ENTRY_LINK_CLASS = 'newspack-rolling-coverage-entry-link';
 
 /**
- * The Follow Coverage block, which sits once among the layout's coverage-level
- * blocks.
+ * The Follow Coverage block, which renders with a layout's coverage-level
+ * blocks; the editor keeps it out of entries.
  */
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 
@@ -1180,6 +1179,7 @@ function wireEntryTemplate( slugs: string[], sizes: string[] ): TemplateItem[] {
 				{
 					excerptLength: 15,
 					moreText: '',
+					showMoreOnNewLine: false,
 					fontSize: 'small',
 					...mutedDateColor( slugs ),
 				},
@@ -1232,8 +1232,8 @@ function coverageNameHeading( fontSize = 'large' ): TemplateItem {
 }
 
 /**
- * The Digest layout's footer: the link to the coverage page beside the Follow
- * button, ruled off from the entries.
+ * The Digest layout's footer: the link to the coverage page, ruled off from
+ * the entries.
  *
  * @return {TemplateItem} The group.
  */
@@ -1259,7 +1259,7 @@ function digestFooter(): TemplateItem {
 			},
 			metadata: { name: __( 'Footer', 'newspack-rolling-coverage' ) },
 		},
-		[ allUpdatesLink(), FOLLOW_TEMPLATE ],
+		[ allUpdatesLink() ],
 	];
 }
 
@@ -1331,6 +1331,7 @@ function digestRow( slugs: string[], sizes: string[] ): TemplateItem {
 							{
 								excerptLength: 20,
 								moreText: '',
+								showMoreOnNewLine: false,
 								fontSize: 'small',
 								...mutedDateColor( slugs ),
 							},
@@ -1364,9 +1365,9 @@ const FLASH_FEED_LAYOUT = {
 };
 
 /**
- * The Flash layout's bar: a group on the site's accent color spanning the
- * block, its content laid out at the theme's widths so a wide Feed lines up
- * with the site's wide content.
+ * The Flash layout's bar: a full-width group on the site's accent color, its
+ * content laid out at the theme's widths so a wide Feed lines up with the
+ * site's wide content.
  *
  * @param {TemplateItem} feed The Feed group.
  * @return {TemplateItem} The bar.
@@ -1376,6 +1377,7 @@ function flashBar( feed: TemplateItem ): TemplateItem {
 		'core/group',
 		{
 			lock: LOCKED_IN_PLACE,
+			align: 'full',
 			layout: { type: 'constrained' },
 			style: FLASH_BAR_STYLE,
 			metadata: { name: __( 'Bar', 'newspack-rolling-coverage' ) },
@@ -1418,8 +1420,9 @@ function flashEntryTemplate(): TemplateItem[] {
 			[
 				'core/post-excerpt',
 				{
-					excerptLength: 20,
+					excerptLength: 100,
 					moreText: '',
+					showMoreOnNewLine: false,
 					fontSize: 'small',
 				},
 			],
@@ -1647,28 +1650,6 @@ const SPLIT_FEED_GAP = { top: '0', left: 'var:preset|spacing|50' };
  * column.
  */
 const SPLIT_STACKED_PLACEMENT = { layout: { columnStart: 1, columnSpan: 1 } };
-
-/**
- * The Split layout's header: the Follow button across the grid's full
- * width.
- *
- * @return {TemplateItem} The group.
- */
-function splitHeader(): TemplateItem {
-	return [
-		'core/group',
-		{
-			style: {
-				layout: { columnSpan: SPLIT_COLUMNS },
-				'@tablet': { layout: { columnSpan: 1 } },
-				'@mobile': { layout: { columnSpan: 1 } },
-				spacing: { padding: { bottom: 'var:preset|spacing|40' } },
-			},
-			metadata: { name: __( 'Header', 'newspack-rolling-coverage' ) },
-		},
-		[ FOLLOW_TEMPLATE ],
-	];
-}
 
 /**
  * The Split layout's per-entry template. The pinned entry, the summary,
@@ -2039,17 +2020,6 @@ function digestEntryTemplate(
 ): TemplateItem[] {
 	return rowEntryTemplate( () => digestRow( slugs, sizes ) );
 }
-
-/**
- * The follow button, rendered once wherever the layout places it: the Follow
- * Coverage block, which holds the core button bound to the coverage's
- * notification tag.
- */
-const FOLLOW_TEMPLATE: TemplateItem = [
-	FOLLOW_BLOCK_NAME,
-	{ lock: LOCKED },
-	[ FOLLOW_BUTTONS_TEMPLATE ],
-];
 
 /**
  * The "Jump to Latest" button's default colors, as palette slugs: the theme's
@@ -3356,7 +3326,6 @@ export {
 	TICKER_FEED_LAYOUT,
 	TICKER_FEED_STYLE,
 	splitEntryTemplate,
-	splitHeader,
 	entryPreviewPlacement,
 	withColumnRule,
 	SPLIT_FEED_LAYOUT,
@@ -3367,7 +3336,6 @@ export {
 	ALL_UPDATES_CLASS,
 	FOLLOW_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
-	FOLLOW_TEMPLATE,
 	feedTemplate,
 	feedGroupOf,
 	feedPathOf,

@@ -262,8 +262,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			enableSorting: false,
 			getValue: ( { item } ) => getBreakoutStatus( item ),
 			render: ( { item } ) => {
-				const breakoutPostId =
-					item.meta?.rolling_coverage_breakout_post_id;
+				const breakoutPostId = item.rolling_coverage_breakout_post_id;
 				if (
 					! item.rolling_coverage_breakout_status ||
 					! breakoutPostId

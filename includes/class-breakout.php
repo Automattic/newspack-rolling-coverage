@@ -29,6 +29,9 @@ class Breakout {
 	// Stores the source entry ID on the breakout post (reverse link).
 	const BREAKOUT_SOURCE_ENTRY_META = 'rolling_coverage_source_entry_id';
 
+	// Read-only REST field exposing the source entry ID to the block editor.
+	const BREAKOUT_SOURCE_ENTRY_FIELD = 'rolling_coverage_source_entry';
+
 	// Cached breakout post status stored on the source entry; also used as the REST field name.
 	const BREAKOUT_STATUS_FIELD = 'rolling_coverage_breakout_status';
 
@@ -45,31 +48,42 @@ class Breakout {
 	}
 
 	/**
-	 * Register postmeta used by the breakout feature.
+	 * Register the meta linking an entry and its breakout post, and the
+	 * breakout's cached status. Only the breakout code writes them, so they
+	 * are kept out of REST and can't be edited as custom fields.
 	 */
-	public static function register_meta() {
+	public static function register_meta(): void {
+		$args = [
+			'show_in_rest'  => false,
+			'single'        => true,
+			'type'          => 'integer',
+			'default'       => 0,
+			'auth_callback' => '__return_false',
+		];
+
+		register_post_meta( Post_Type::CPT_SLUG, self::ENTRY_BREAKOUT_POST_ID_META, $args );
+		register_post_meta( 'post', self::BREAKOUT_SOURCE_ENTRY_META, $args );
 		register_post_meta(
 			Post_Type::CPT_SLUG,
-			self::ENTRY_BREAKOUT_POST_ID_META,
-			[
-				'show_in_rest'  => [
-					'schema' => [
-						'type'    => 'integer',
-						'context' => [ 'edit' ],
-					],
-				],
-				'single'        => true,
-				'type'          => 'integer',
-				'default'       => 0,
-				'auth_callback' => '__return_false', // Read-only over REST.
-			]
+			self::BREAKOUT_STATUS_FIELD,
+			array_merge(
+				$args,
+				[
+					'type'    => 'string',
+					'default' => '',
+				]
+			)
 		);
 	}
 
 	/**
-	 * Expose the cached breakout post status as a REST field on the entry.
+	 * Expose the breakout's cached status as a REST field on the entry, and
+	 * the source entry on the breakout post so the coverage blocks' editors
+	 * can show the coverage it belongs to. The source entry is a read-only
+	 * field rather than registered meta: the block editor sends all of a
+	 * post's meta back on save, and read-only meta would refuse that save.
 	 */
-	public static function register_rest_field() {
+	public static function register_rest_field(): void {
 		register_rest_field(
 			Post_Type::CPT_SLUG,
 			self::BREAKOUT_STATUS_FIELD,
@@ -81,6 +95,47 @@ class Breakout {
 				],
 			]
 		);
+
+		register_rest_field(
+			'post',
+			self::BREAKOUT_SOURCE_ENTRY_FIELD,
+			[
+				'get_callback' => [ __CLASS__, 'get_source_entry_field' ],
+				'schema'       => [
+					'description' => __( 'The entry this post was broken out from, or 0.', 'newspack-rolling-coverage' ),
+					'type'        => 'integer',
+					'context'     => [ 'edit' ],
+					'readonly'    => true,
+				],
+			]
+		);
+	}
+
+	/**
+	 * REST field callback returning the entry a post was broken out from.
+	 *
+	 * @param array $object Post REST object data.
+	 * @return int Source entry ID, or 0.
+	 */
+	public static function get_source_entry_field( array $object ): int {
+		return self::viewable_source_entry_id( (int) $object['id'] );
+	}
+
+	/**
+	 * The entry a post was broken out from, while readers can see it. A
+	 * trashed or unpublished entry no longer gives the post a coverage.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return int Source entry ID, or 0.
+	 */
+	public static function viewable_source_entry_id( int $post_id ): int {
+		$entry_id = (int) get_post_meta( $post_id, self::BREAKOUT_SOURCE_ENTRY_META, true );
+
+		if ( ! $entry_id || Post_Type::CPT_SLUG !== get_post_type( $entry_id ) || ! is_post_publicly_viewable( $entry_id ) ) {
+			return 0;
+		}
+
+		return $entry_id;
 	}
 
 	/**
