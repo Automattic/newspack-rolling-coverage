@@ -1,22 +1,134 @@
-# Newspack Rolling Coverage: Agent Instructions
+# AI Agent Instructions
+
+Guidance for AI coding agents working in this repository. Tool-specific files
+(`CLAUDE.md`, `.github/copilot-instructions.md`) reference this file.
 
 This file covers what is specific to `newspack-rolling-coverage`. Where a shared
 workspace `AGENTS.md` exists (e.g. `../../AGENTS.md`), shared conventions
 (Docker, the `n` script, coding standards, git rules) live there and take
 precedence.
 
-## Project overview
+## Overview
 
-Newspack Rolling Coverage is a live-blog plugin. It provides:
+Newspack Rolling Coverage is a liveblog plugin. It provides:
 
 - A `rolling_coverage` taxonomy (one term per news event).
 - A `rolling_cov_entry` custom post type (individual updates in the feed).
-- Six Gutenberg blocks for rendering the feed and its supporting UI.
+- Five Gutenberg blocks for rendering the feed and its supporting UI.
 - A React/TypeScript admin app for managing coverages and entries.
 - Integrations: Slack ingestion, OneSignal push, Newspack Ads, WordPress AI.
 
-See `README.md` for the full technical reference and `readme.txt` for the
-end-user feature overview.
+See `README.md` for the full technical reference (indexed from
+`.github/CONTRIBUTING.md`) and `readme.txt` for the end-user overview.
+
+## Conventions
+
+**File structure**
+
+```
+newspack-rolling-coverage/
+├── newspack-rolling-coverage.php   # Main plugin file with header and bootstrap
+├── includes/                       # PHP classes: class-<slug>.php (also in ai/, blocks/, slack/, sources/)
+├── src/
+│   ├── admin/                      # React/TypeScript admin app
+│   └── blocks/<slug>/              # block.json, index.tsx, edit.tsx, view.ts
+├── dist/                           # Compiled assets (gitignored)
+├── tests/                          # PHPUnit suite
+├── composer.json
+├── package.json
+└── phpunit.xml.dist
+```
+
+**Naming** — All PHP lives in the `Newspack_Rolling_Coverage` namespace. Classes
+are namespaced files named `class-<slug>.php`; subdirectories use the same
+namespace (`includes/ai/`, `includes/slack/`, `includes/blocks/`,
+`includes/sources/`).
+
+**Standards** — PHP: WordPress + VIP coding standards (`phpcs.xml`), with
+docblocks on every class, method, and property. JS/TS: ESLint; SCSS: Stylelint;
+both via `newspack-scripts`.
+
+**PHP** — Feature classes use the static `init()` pattern and register hooks
+there. REST route callbacks and permission callbacks are static methods.
+
+**Frontend**
+
+- Admin app: React function components in TypeScript (`src/admin/`), hash-based
+  routing (`react-router` v7), `@wordpress/components` and `@wordpress/dataviews`.
+- API calls go through `src/admin/utils/*-api.ts` using `@wordpress/api-fetch`.
+- Blocks: `block.json` + `index.tsx` (registration), `edit.tsx` (editor), and
+  `view.ts` (frontend) when the block needs frontend behavior (the
+  `breakout-post-link` block has no `view.ts`). Server render callbacks
+  live in `includes/blocks/`.
+- Dynamic blocks return `null` or `<InnerBlocks.Content />` from `save`.
+- SCSS styles are colocated per component; shared admin styles live in
+  `src/admin/styles/`.
+
+**Commits** — Conventional commits (`<type>(<scope>): <subject>`). Subject on
+one line, max 72 chars, no body; `Co-Authored-By` trailers after a blank line.
+`feat` triggers a minor release and `fix` a patch release via semantic-release,
+so use those only for publisher-visible change; otherwise `chore`, `ci`, `docs`,
+`test`, `refactor`, `perf`, `build`, `style`, `revert`. Never commit unless
+explicitly asked.
+
+### New PHP classes
+
+```php
+<?php
+/**
+ * Feature description.
+ *
+ * @package Newspack_Rolling_Coverage
+ */
+
+namespace Newspack_Rolling_Coverage;
+
+defined( 'ABSPATH' ) || exit;
+
+class My_Feature {
+
+	/**
+	 * Initialize hooks.
+	 */
+	public static function init() {
+		add_action( 'init', [ __CLASS__, 'register_things' ] );
+	}
+}
+```
+
+Then:
+
+1. Add `My_Feature::init();` to `Initializer::includes()`
+   (`includes/class-initializer.php`).
+2. Run `composer dump-autoload`.
+3. Run `npm run lint`.
+
+## Key commands
+
+```bash
+npm run build             # Production webpack build (cleans dist first)
+npm run watch             # Watch mode
+npm run lint              # SCSS + JS + PHP + TypeScript
+npm run lint:php          # PHPCS only
+npm run typecheck         # tsc --noEmit
+composer dump-autoload    # Rebuild the classmap after adding a PHP file
+```
+
+### Testing
+
+```bash
+npm run test:php          # ./vendor/bin/phpunit
+bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1 latest  # install WP test lib
+```
+
+- Tests extend `Rolling_Coverage_TestCase` (`tests/class-rolling-coverage-testcase.php`)
+  which re-registers the CPT, taxonomy, and meta because WordPress unregisters
+  them between tests.
+- Use the `create_coverage()` / `create_entry()` / `log_in_as()` / `dispatch()`
+  helpers in the base class.
+- Mocks: `tests/mocks/newspack-theme.php`, `tests/mocks/onesignal.php`,
+  `tests/mocks/newspack-ads.php`, `tests/mocks/class-simple-local-avatars.php`.
+- Slack outbound HTTP is mocked with the `pre_http_request` filter.
 
 ## Common gotchas
 
@@ -58,77 +170,6 @@ end-user feature overview.
   tests, tooling, and developer docs are excluded; compiled `dist/`, `includes/`,
   `languages/`, and production `vendor/` ship.
 
-## Dominant pattern for new PHP classes
-
-```php
-<?php
-/**
- * Feature description.
- *
- * @package Newspack_Rolling_Coverage
- */
-
-namespace Newspack_Rolling_Coverage;
-
-defined( 'ABSPATH' ) || exit;
-
-class My_Feature {
-
-	/**
-	 * Initialize hooks.
-	 */
-	public static function init() {
-		add_action( 'init', [ __CLASS__, 'register_things' ] );
-	}
-}
-```
-
-Then:
-
-1. Add `My_Feature::init();` to `Initializer::includes()`
-   (`includes/class-initializer.php`).
-2. Run `composer dump-autoload`.
-3. Run `npm run lint`.
-
-## PHP conventions
-
-- All code lives in the `Newspack_Rolling_Coverage` namespace.
-- Classes are namespaced files named `class-<slug>.php`; subdirectories use the
-  same namespace (`includes/ai/`, `includes/slack/`, `includes/blocks/`,
-  `includes/sources/`).
-- Feature classes use the static `init()` pattern and register hooks there.
-- REST route callbacks and permission callbacks are static methods.
-- Follow WordPress + VIP coding standards (`phpcs.xml`), with docblocks on every
-  class, method, and property.
-
-## Frontend conventions
-
-- Admin app: React function components in TypeScript (`src/admin/`), hash-based
-  routing (`react-router` v7), `@wordpress/components` and `@wordpress/dataviews`.
-- API calls go through `src/admin/utils/*-api.ts` using `@wordpress/api-fetch`.
-- Blocks: `block.json` + `index.tsx` (registration), `edit.tsx` (editor), and
-  `view.ts` (frontend) when the block needs frontend behavior (the
-  `coverage-archived-notice` block has no `view.ts`). Server render callbacks
-  live in `includes/blocks/`.
-- Dynamic blocks return `null` or `<InnerBlocks.Content />` from `save`.
-- SCSS styles are colocated per component; shared admin styles live in
-  `src/admin/styles/`.
-
-## Testing
-
-```bash
-npm run test:php          # ./vendor/bin/phpunit
-bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1 latest  # install WP test lib
-```
-
-- Tests extend `Rolling_Coverage_TestCase` (`tests/class-rolling-coverage-testcase.php`)
-  which re-registers the CPT, taxonomy, and meta because WordPress unregisters
-  them between tests.
-- Use the `create_coverage()` / `create_entry()` / `log_in_as()` / `dispatch()`
-  helpers in the base class.
-- Mocks: `tests/mocks/newspack-theme.php`, `tests/mocks/onesignal.php`.
-- Slack outbound HTTP is mocked with the `pre_http_request` filter.
-
 ## Recipes
 
 ### Add a REST route
@@ -156,10 +197,9 @@ bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1 latest  # install WP te
 3. Register admin routes with `manage_options` permission and webhook routes
    behind signature verification.
 
-## Git and releases
+## Pull requests
 
-- Use Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, etc.).
-- Never commit unless explicitly asked.
+- PR bodies follow the repository template (`.github/PULL_REQUEST_TEMPLATE.md`).
 - Releases run through `semantic-release` (`newspack-scripts`) on the `release`
   branch; `alpha`, `hotfix/*`, and `epic/*` are prereleases; `trunk` is
   development only.
