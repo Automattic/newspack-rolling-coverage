@@ -54,6 +54,17 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 		@media (max-width: 480px) {
 			max-width: calc(100vw - 32px);
 		}
+
+		.wp-block-button {
+			min-width: 0;
+			max-width: 100%;
+		}
+
+		.wp-block-button__link {
+			max-width: 100%;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
 	}
 
 	body.admin-bar & .newspack-rolling-coverage-new-entries:not([hidden]) {

@@ -1637,13 +1637,14 @@ class Rolling_Coverage_Block {
 		}
 
 		$own_label = Latest_Label::get();
-		$control   = new WP_HTML_Tag_Processor( render_block( self::latest_buttons_block( $own_label ) ) );
+		$live_url  = self::live_feed_url();
+		$control   = new WP_HTML_Tag_Processor( render_block( self::latest_buttons_block( $own_label, $live_url ) ) );
 
 		if ( ! $control->next_tag( [ 'class_name' => 'wp-block-buttons' ] ) ) {
 			return '';
 		}
 
-		$control->set_attribute( 'data-live-url', esc_url_raw( self::live_feed_url() ) );
+		$control->set_attribute( 'data-live-url', esc_url_raw( $live_url ) );
 
 		if ( ! $is_shared_view ) {
 			$control->set_attribute( 'hidden', true );
@@ -1657,9 +1658,14 @@ class Rolling_Coverage_Block {
 
 		// The replaced label is kept on the link, for when the view script can no longer count.
 		if ( '' !== $label && $control->next_tag( 'a' ) ) {
-			$control->set_attribute( 'data-label', $own_label );
-			$control->next_token();
-			$control->set_modifiable_text( $label );
+			$control->set_bookmark( 'link' );
+
+			if ( $control->next_token() && '#text' === $control->get_token_type() && $control->set_modifiable_text( $label ) ) {
+				$control->seek( 'link' );
+				$control->set_attribute( 'data-label', $own_label );
+			}
+
+			$control->release_bookmark( 'link' );
 		}
 
 		return $control->get_updated_html();
@@ -1692,15 +1698,16 @@ class Rolling_Coverage_Block {
 	 * marked for the view script, and otherwise styled as the theme styles
 	 * buttons.
 	 *
-	 * @param string $label The button's text.
+	 * @param string $label    The button's text.
+	 * @param string $live_url The live feed's URL.
 	 * @return array Parsed-block-shaped array.
 	 */
-	private static function latest_buttons_block( string $label ): array {
+	private static function latest_buttons_block( string $label, string $live_url ): array {
 		$class       = self::MARKUP_PREFIX . '-new-entries';
 		$open        = sprintf( '<div class="%s">', esc_attr( 'wp-block-buttons ' . $class ) );
 		$button_html = sprintf(
 			'<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="%1$s" style="box-shadow:var(--wp--preset--shadow--elevation-1)" %2$s>%3$s</a></div>',
-			esc_url( self::live_feed_url() ),
+			esc_url( $live_url ),
 			self::LATEST_ATTRIBUTE,
 			esc_html( $label )
 		);

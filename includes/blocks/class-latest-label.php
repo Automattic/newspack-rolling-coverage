@@ -37,14 +37,14 @@ class Latest_Label {
 	/**
 	 * Initialize hooks.
 	 */
-	public static function init() {
+	public static function init(): void {
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 	}
 
 	/**
 	 * Register REST routes for the label.
 	 */
-	public static function register_routes() {
+	public static function register_routes(): void {
 		register_rest_route(
 			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
 			self::REST_ROUTE,
