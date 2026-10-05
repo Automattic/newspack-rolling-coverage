@@ -113,6 +113,10 @@ import {
 	type BuiltInLayoutSlug,
 } from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
+import {
+	EntryPreviewsAnchorContext,
+	EntryPreviewsContext,
+} from './entry-previews';
 import { blockGapCss } from './spacing';
 import { BLOCK_NAME, innerTemplate, useLayoutPreview } from './layout';
 import type {
@@ -198,6 +202,30 @@ function feedGapStyle( feed?: {
 	const gap = blockGapCss( attributes?.style?.spacing?.blockGap );
 
 	return gap ? { '--newspack-rolling-coverage-gap': gap } : {};
+}
+
+/**
+ * Whether Block Visibility shows a block in every viewport.
+ *
+ * @param {Object} block The block.
+ * @return {boolean} Whether the block shows everywhere.
+ */
+function isShownEverywhere( block: { [ key: string ]: unknown } ): boolean {
+	const visibility = (
+		( block.attributes as { metadata?: unknown } | undefined )?.metadata as
+			| {
+					blockVisibility?:
+						boolean | { viewport?: Record< string, boolean > };
+			  }
+			| undefined
+	 )?.blockVisibility;
+
+	return (
+		visibility !== false &&
+		! Object.values(
+			( typeof visibility === 'object' && visibility.viewport ) || {}
+		).includes( false )
+	);
 }
 
 const FLEX_JUSTIFY: Record< string, string > = {
@@ -919,18 +947,23 @@ export default function Edit( {
 			pageSize,
 			! previewHasMore
 		);
-	const loadMorePreview = olderEntries === 'button' && previewHasMore && (
-		<Disabled className="newspack-rolling-coverage-load-more">
-			<button
-				type="button"
-				className="wp-element-button wp-block-button__link"
-			>
-				{
-					/* translators: Button that loads older entries at the end of a coverage's feed. */
-					__( 'Load More', 'newspack-rolling-coverage' )
-				}
-			</button>
-		</Disabled>
+	const loadMorePreview = useMemo(
+		() =>
+			olderEntries === 'button' &&
+			previewHasMore && (
+				<Disabled className="newspack-rolling-coverage-load-more">
+					<button
+						type="button"
+						className="wp-element-button wp-block-button__link"
+					>
+						{
+							/* translators: Button that loads older entries at the end of a coverage's feed. */
+							__( 'Load More', 'newspack-rolling-coverage' )
+						}
+					</button>
+				</Disabled>
+			),
+		[ olderEntries, previewHasMore ]
 	);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
@@ -1017,6 +1050,45 @@ export default function Edit( {
 	);
 	const isCardHidden = hasBothKinds && ! pinnedContext;
 	const isEntryHidden = hasBothKinds && ! regularContext && !! pinnedContext;
+	// Core skips rendering a hidden block, filters included, so the previews
+	// follow the last block shown in every viewport.
+	const entryPreviewsAnchorId =
+		(
+			( templateBlocks.findLast( isShownEverywhere ) ??
+				templateBlocks.at( -1 ) ) as { clientId?: string } | undefined
+		 )?.clientId ?? null;
+	const entryPreviews = useMemo(
+		() => (
+			<>
+				{ previewContexts
+					.filter(
+						( context ) =>
+							context !== pinnedContext &&
+							context !== regularContext
+					)
+					.map( ( context ) => (
+						<BlockContextProvider
+							key={ context.postId }
+							value={ context }
+						>
+							<EntryBlockPreview
+								blocks={ blocksForEntry( context ) }
+								style={ previewPlacements.other }
+							/>
+						</BlockContextProvider>
+					) ) }
+				{ loadMorePreview }
+			</>
+		),
+		[
+			previewContexts,
+			pinnedContext,
+			regularContext,
+			blocksForEntry,
+			previewPlacements.other,
+			loadMorePreview,
+		]
+	);
 	const hidesCardBreakout = pinnedContext
 		? ! pinnedContext.hasBreakout
 		: false;
@@ -1069,7 +1141,7 @@ export default function Edit( {
 			hiddenIds
 				.map(
 					( id ) =>
-						`.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ id }"] { display: none; }`
+						`.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ id }"]:not(.newspack-rolling-coverage-layout .block-editor-block-preview__live-content *) { display: none; }`
 				)
 				.join( '\n' ),
 		[ hiddenIds ]
@@ -2357,41 +2429,26 @@ export default function Edit( {
 								</FeedWrappersPreview>
 							) }
 							{ ! isSynced && (
-								<>
-									<PinnedEntryContext.Provider
-										value={ pinnedContext ?? null }
+								<PinnedEntryContext.Provider
+									value={ pinnedContext ?? null }
+								>
+									<EntryPreviewsAnchorContext.Provider
+										value={ entryPreviewsAnchorId }
 									>
-										<BlockContextProvider
-											value={ {
-												...layoutContext,
-												...coverageContext,
-											} }
+										<EntryPreviewsContext.Provider
+											value={ entryPreviews }
 										>
-											<div { ...innerBlocksProps } />
-										</BlockContextProvider>
-									</PinnedEntryContext.Provider>
-									<div className="newspack-rolling-coverage-entries">
-										{ previewContexts
-											.filter(
-												( context ) =>
-													context !== pinnedContext &&
-													context !== regularContext
-											)
-											.map( ( context ) => (
-												<BlockContextProvider
-													key={ context.postId }
-													value={ context }
-												>
-													<EntryBlockPreview
-														blocks={ blocksForEntry(
-															context
-														) }
-													/>
-												</BlockContextProvider>
-											) ) }
-									</div>
-									{ loadMorePreview }
-								</>
+											<BlockContextProvider
+												value={ {
+													...layoutContext,
+													...coverageContext,
+												} }
+											>
+												<div { ...innerBlocksProps } />
+											</BlockContextProvider>
+										</EntryPreviewsContext.Provider>
+									</EntryPreviewsAnchorContext.Provider>
+								</PinnedEntryContext.Provider>
 							) }
 						</>
 					) : (
