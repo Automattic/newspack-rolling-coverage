@@ -9,45 +9,57 @@ import { addFilter } from '@wordpress/hooks';
 /**
  * Internal dependencies
  */
-import { isPinnedCard, isRegularEntry } from './template';
+import PinnedEntryContext from './pinned-entry-context';
+
+/**
+ * The client ID of the block an editable layout renders its entry previews
+ * after: the Feed's last per-entry block. Kept apart from the previews, so
+ * editing the layout doesn't render every block in it again.
+ */
+export const EntryPreviewsAnchorContext = createContext< string | null >(
+	null
+);
 
 /**
  * The previews of the entries an editable layout shows beside its editable
  * one, set by the Rolling Coverage block around its inner blocks.
  */
-const EntryPreviewsContext = createContext< {
-	previews: ReactNode;
-	followsCard: boolean;
-} | null >( null );
+export const EntryPreviewsContext = createContext< ReactNode >( null );
 
 /**
- * Renders the entry previews right after the entry group (or the pinned
- * card, in a template without one) inside the Feed, where the site renders
- * the coverage's entries, so they take the Feed's grid cells and come before
- * its footer. The previews and the entry's own blocks see no previews, or
- * every entry preview would render them again.
+ * The entry previews, without the anchor or pinned entry context: a preview
+ * renders copies of the template's blocks, client IDs included, so it would
+ * otherwise render the previews again inside itself and show its pinned
+ * card against the lead pinned entry.
+ */
+function EntryPreviews() {
+	const previews = useContext( EntryPreviewsContext );
+
+	return (
+		<EntryPreviewsAnchorContext.Provider value={ null }>
+			<PinnedEntryContext.Provider value={ null }>
+				{ previews }
+			</PinnedEntryContext.Provider>
+		</EntryPreviewsAnchorContext.Provider>
+	);
+}
+
+/**
+ * Renders the entry previews right after the Feed's last per-entry block,
+ * where the site renders the coverage's entries, so they take the Feed's
+ * grid cells and come before its footer.
  */
 const withEntryPreviews = createHigherOrderComponent(
-	( BlockListBlock ) =>
-		( props: { name: string; attributes: Record< string, unknown > } ) => {
-			const entryPreviews = useContext( EntryPreviewsContext );
-			const isAnchor =
-				entryPreviews &&
-				( entryPreviews.followsCard
-					? isPinnedCard( props )
-					: isRegularEntry( props ) );
+	( BlockListBlock ) => ( props: { clientId: string } ) => {
+		const anchorId = useContext( EntryPreviewsAnchorContext );
 
-			if ( ! isAnchor ) {
-				return <BlockListBlock { ...props } />;
-			}
-
-			return (
-				<EntryPreviewsContext.Provider value={ null }>
-					<BlockListBlock { ...props } />
-					{ entryPreviews.previews }
-				</EntryPreviewsContext.Provider>
-			);
-		},
+		return (
+			<>
+				<BlockListBlock { ...props } />
+				{ anchorId === props.clientId && <EntryPreviews /> }
+			</>
+		);
+	},
 	'withEntryPreviews'
 );
 
@@ -56,5 +68,3 @@ addFilter(
 	'newspack-rolling-coverage/entry-previews',
 	withEntryPreviews
 );
-
-export default EntryPreviewsContext;

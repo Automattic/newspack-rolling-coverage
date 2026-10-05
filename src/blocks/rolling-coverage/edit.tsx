@@ -113,7 +113,10 @@ import {
 	type BuiltInLayoutSlug,
 } from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
-import EntryPreviewsContext from './entry-previews';
+import {
+	EntryPreviewsAnchorContext,
+	EntryPreviewsContext,
+} from './entry-previews';
 import { blockGapCss } from './spacing';
 import { BLOCK_NAME, innerTemplate, useLayoutPreview } from './layout';
 import type {
@@ -1023,34 +1026,33 @@ export default function Edit( {
 	);
 	const isCardHidden = hasBothKinds && ! pinnedContext;
 	const isEntryHidden = hasBothKinds && ! regularContext && !! pinnedContext;
+	const entryPreviewsAnchorId =
+		( templateBlocks.at( -1 ) as { clientId?: string } | undefined )
+			?.clientId ?? null;
 	const entryPreviews = useMemo(
-		() => ( {
-			followsCard: ! allBlocks.some( isRegularEntry ),
-			previews: (
-				<>
-					{ previewContexts
-						.filter(
-							( context ) =>
-								context !== pinnedContext &&
-								context !== regularContext
-						)
-						.map( ( context ) => (
-							<BlockContextProvider
-								key={ context.postId }
-								value={ context }
-							>
-								<EntryBlockPreview
-									blocks={ blocksForEntry( context ) }
-									style={ previewPlacements.other }
-								/>
-							</BlockContextProvider>
-						) ) }
-					{ loadMorePreview }
-				</>
-			),
-		} ),
+		() => (
+			<>
+				{ previewContexts
+					.filter(
+						( context ) =>
+							context !== pinnedContext &&
+							context !== regularContext
+					)
+					.map( ( context ) => (
+						<BlockContextProvider
+							key={ context.postId }
+							value={ context }
+						>
+							<EntryBlockPreview
+								blocks={ blocksForEntry( context ) }
+								style={ previewPlacements.other }
+							/>
+						</BlockContextProvider>
+					) ) }
+				{ loadMorePreview }
+			</>
+		),
 		[
-			allBlocks,
 			previewContexts,
 			pinnedContext,
 			regularContext,
@@ -1111,7 +1113,7 @@ export default function Edit( {
 			hiddenIds
 				.map(
 					( id ) =>
-						`.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ id }"] { display: none; }`
+						`.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ id }"]:not(.block-editor-block-preview__live-content *) { display: none; }`
 				)
 				.join( '\n' ),
 		[ hiddenIds ]
@@ -2399,9 +2401,11 @@ export default function Edit( {
 								</FeedWrappersPreview>
 							) }
 							{ ! isSynced && (
-								<>
-									<PinnedEntryContext.Provider
-										value={ pinnedContext ?? null }
+								<PinnedEntryContext.Provider
+									value={ pinnedContext ?? null }
+								>
+									<EntryPreviewsAnchorContext.Provider
+										value={ entryPreviewsAnchorId }
 									>
 										<EntryPreviewsContext.Provider
 											value={ entryPreviews }
@@ -2415,8 +2419,8 @@ export default function Edit( {
 												<div { ...innerBlocksProps } />
 											</BlockContextProvider>
 										</EntryPreviewsContext.Provider>
-									</PinnedEntryContext.Provider>
-								</>
+									</EntryPreviewsAnchorContext.Provider>
+								</PinnedEntryContext.Provider>
 							) }
 						</>
 					) : (
