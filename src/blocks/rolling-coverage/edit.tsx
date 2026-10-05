@@ -37,7 +37,6 @@ import {
 	Notice,
 	Placeholder,
 	TextareaControl,
-	ToggleControl,
 	ToolbarButton,
 } from '@wordpress/components';
 import {
@@ -1469,7 +1468,7 @@ export default function Edit( {
 					help={
 						latestOnly
 							? __(
-									'Only the most recent entries.',
+									'Only the most recent entries. Pinned entries aren’t kept at the top.',
 									'newspack-rolling-coverage'
 								)
 							: __(
@@ -1533,7 +1532,9 @@ export default function Edit( {
 							} }
 							onBlur={ () => setLatestCountInput( null ) }
 						/>
-						<ToggleControl
+						<ToggleGroupControl
+							__next40pxDefaultSize
+							isBlock
 							label={ __(
 								'Link to all updates',
 								'newspack-rolling-coverage'
@@ -1542,11 +1543,44 @@ export default function Edit( {
 								'Links to the coverage page. Hidden on that page.',
 								'newspack-rolling-coverage'
 							) }
-							checked={ allUpdatesLink !== false }
-							onChange={ ( value: boolean ) =>
-								setAttributes( { allUpdatesLink: value } )
+							value={ allUpdatesLink !== false ? 'show' : 'hide' }
+							onChange={ ( value ) =>
+								setAttributes( {
+									allUpdatesLink: value === 'show',
+								} )
 							}
-						/>
+						>
+							<ToggleGroupControlOption
+								value="show"
+								label={ _x(
+									'Show',
+									'link to all updates',
+									'newspack-rolling-coverage'
+								) }
+								aria-label={
+									/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+									__(
+										'Show link to all updates',
+										'newspack-rolling-coverage'
+									)
+								}
+							/>
+							<ToggleGroupControlOption
+								value="hide"
+								label={ _x(
+									'Hide',
+									'link to all updates',
+									'newspack-rolling-coverage'
+								) }
+								aria-label={
+									/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+									__(
+										'Hide link to all updates',
+										'newspack-rolling-coverage'
+									)
+								}
+							/>
+						</ToggleGroupControl>
 					</>
 				) : (
 					<TextControl
