@@ -230,10 +230,13 @@ class Lite_Feed {
 	 * in place of a protected entry's body.
 	 *
 	 * Built from the entry alone, not the block's layout, and carrying the
-	 * attributes the view script uses to place and replace entries. It cleans
-	 * the body with Lite Site, and the archived notice too, whose text is
-	 * filterable: a poll then sends no markup the page itself would strip. So
-	 * it needs Lite Site loaded: callers check is_lite_render() or
+	 * attributes the view script uses to place and replace entries. Layouts
+	 * that show only a title or an excerpt on full pages show whole entries
+	 * here: a lite page has no view of a single entry for them to link to.
+	 *
+	 * It cleans the body with Lite Site, and the archived notice too, whose
+	 * text is filterable: a poll then sends no markup the page itself would
+	 * strip. So it needs Lite Site loaded: callers check is_lite_render() or
 	 * is_available() first.
 	 *
 	 * @param WP_Post $entry     Entry post object.
