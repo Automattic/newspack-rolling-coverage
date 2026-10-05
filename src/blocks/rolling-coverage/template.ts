@@ -125,8 +125,8 @@ const ALL_UPDATES_CLASS = 'newspack-rolling-coverage-all-updates';
 const ENTRY_LINK_CLASS = 'newspack-rolling-coverage-entry-link';
 
 /**
- * The Follow Coverage block, which renders once with a layout's
- * coverage-level blocks, never per entry.
+ * The Follow Coverage block, which renders with a layout's coverage-level
+ * blocks; the editor keeps it out of entries.
  */
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 
