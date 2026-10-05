@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-05T17:31:35+00:00\n"
+"POT-Creation-Date: 2026-10-05T17:47:36+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -83,10 +83,10 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:461
-#: includes/blocks/class-rolling-coverage-block.php:3921
-#: includes/blocks/class-rolling-coverage-block.php:4047
-#: includes/blocks/class-rolling-coverage-block.php:4058
-#: includes/class-post-type.php:1039
+#: includes/blocks/class-rolling-coverage-block.php:3810
+#: includes/blocks/class-rolling-coverage-block.php:3940
+#: includes/blocks/class-rolling-coverage-block.php:3951
+#: includes/class-post-type.php:1043
 #: includes/class-taxonomy.php:361
 msgid "Coverage not found."
 msgstr ""
@@ -143,56 +143,56 @@ msgstr ""
 msgid "Updated %s"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:121
+#: includes/blocks/class-entry-bindings.php:115
 msgid "Rolling Coverage Entry"
 msgstr ""
 
 #. translators: 1: kind of media, e.g. "Photo" or "Video", 2: its caption or description.
-#: includes/blocks/class-entry-bindings.php:403
+#: includes/blocks/class-entry-bindings.php:393
 #, php-format
 msgctxt "media label and caption"
 msgid "%1$s: %2$s"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a photo, alone or before the photo's caption.
-#: includes/blocks/class-entry-bindings.php:486
+#: includes/blocks/class-entry-bindings.php:476
 msgid "Photo"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a gallery of photos, alone or before the gallery's caption.
-#: includes/blocks/class-entry-bindings.php:488
+#: includes/blocks/class-entry-bindings.php:478
 msgid "Gallery"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a video, alone or before the video's caption.
-#: includes/blocks/class-entry-bindings.php:490
+#: includes/blocks/class-entry-bindings.php:480
 msgid "Video"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is an audio clip, alone or before the clip's caption.
-#: includes/blocks/class-entry-bindings.php:492
+#: includes/blocks/class-entry-bindings.php:482
 msgid "Audio"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is embedded from another site, such as a social media post, alone or before the embed's caption.
-#: includes/blocks/class-entry-bindings.php:494
+#: includes/blocks/class-entry-bindings.php:484
 msgid "Embed"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:656
+#: includes/blocks/class-entry-bindings.php:645
 msgid "Following"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:657
+#: includes/blocks/class-entry-bindings.php:646
 msgid "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:658
+#: includes/blocks/class-entry-bindings.php:647
 msgid "Something went wrong. Please try again."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:709
-#: includes/blocks/class-rolling-coverage-block.php:2743
+#: includes/blocks/class-entry-bindings.php:694
+#: includes/blocks/class-rolling-coverage-block.php:2632
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/share/index.js:1
@@ -201,9 +201,14 @@ msgid "Share"
 msgstr ""
 
 #. translators: 1: share button text, e.g. "Share", 2: entry title or its first words.
-#: includes/blocks/class-entry-bindings.php:714
+#: includes/blocks/class-entry-bindings.php:699
 #, php-format
 msgid "%1$s: %2$s"
+msgstr ""
+
+#: includes/blocks/class-latest-label.php:103
+#: dist/admin.js:213
+msgid "Jump to Latest"
 msgstr ""
 
 #. translators: %s: Rolling Coverage, the product name.
@@ -288,21 +293,21 @@ msgctxt "layout name"
 msgid "Flash"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1126
+#: includes/blocks/class-rolling-coverage-block.php:1128
 #: dist/blocks/rolling-coverage/index.js:19
 msgid "Select a coverage to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1152
+#: includes/blocks/class-rolling-coverage-block.php:1154
 msgid "This coverage is no longer available."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1266
+#: includes/blocks/class-rolling-coverage-block.php:1268
 msgid "No entries yet."
 msgstr ""
 
 #. translators: %d: number of coverage entries newer than the one shown, from 1 to 10.
-#: includes/blocks/class-rolling-coverage-block.php:1583
+#: includes/blocks/class-rolling-coverage-block.php:1585
 #: dist/blocks/rolling-coverage/view.js:2
 #, php-format,js-format
 msgid "%d Newer Post"
@@ -311,7 +316,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100.
-#: includes/blocks/class-rolling-coverage-block.php:1595
+#: includes/blocks/class-rolling-coverage-block.php:1597
 #: dist/blocks/rolling-coverage/view.js:3
 #, php-format,js-format
 msgid "%d+ Newer Post"
@@ -320,67 +325,62 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: Button that loads older entries at the end of a coverage's feed.
-#: includes/blocks/class-rolling-coverage-block.php:1713
+#: includes/blocks/class-rolling-coverage-block.php:1698
 #: dist/blocks/rolling-coverage/index.js:3
 msgid "Load More"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1803
-#: dist/blocks/rolling-coverage/index.js:1
-msgid "Jump to Latest"
-msgstr ""
-
-#: includes/blocks/class-rolling-coverage-block.php:2603
-#: includes/blocks/class-rolling-coverage-block.php:2784
+#: includes/blocks/class-rolling-coverage-block.php:2492
+#: includes/blocks/class-rolling-coverage-block.php:2673
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/rolling-coverage/index.js:17
 msgid "Read more"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2621
+#: includes/blocks/class-rolling-coverage-block.php:2510
 #: dist/blocks/rolling-coverage/index.js:15
 msgid "Coverage of this news event has concluded and this feed is now archived."
 msgstr ""
 
 #. translators: %s: Coverage name.
-#: includes/blocks/class-rolling-coverage-block.php:2625
+#: includes/blocks/class-rolling-coverage-block.php:2514
 #: dist/blocks/rolling-coverage/index.js:15
 #, php-format,js-format
 msgid "Coverage of “%s” has concluded and this feed is now archived."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2756
+#: includes/blocks/class-rolling-coverage-block.php:2645
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Meta"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2868
-#: includes/class-post-type.php:256
+#: includes/blocks/class-rolling-coverage-block.php:2757
+#: includes/class-post-type.php:260
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Entry"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2916
+#: includes/blocks/class-rolling-coverage-block.php:2805
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned Entry"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3424
-#: includes/blocks/class-rolling-coverage-block.php:3436
-#: includes/blocks/class-rolling-coverage-block.php:3698
+#: includes/blocks/class-rolling-coverage-block.php:3313
+#: includes/blocks/class-rolling-coverage-block.php:3325
+#: includes/blocks/class-rolling-coverage-block.php:3587
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3727
+#: includes/blocks/class-rolling-coverage-block.php:3616
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3863
+#: includes/blocks/class-rolling-coverage-block.php:3752
 msgid "How many entries a capped feed shows, so its requests stay capped without a stored config."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4066
+#: includes/blocks/class-rolling-coverage-block.php:3959
 msgid "Either cursor or before must be provided."
 msgstr ""
 
@@ -425,7 +425,7 @@ msgstr ""
 msgid "AI"
 msgstr ""
 
-#: includes/class-admin.php:334
+#: includes/class-admin.php:335
 #: dist/admin.js:213
 #: dist/admin.js:219
 msgid "Slack"
@@ -453,8 +453,8 @@ msgstr ""
 
 #: includes/class-archive-mode.php:268
 #: includes/class-breakout.php:238
-#: includes/class-post-type.php:973
-#: includes/class-post-type.php:2466
+#: includes/class-post-type.php:977
+#: includes/class-post-type.php:2494
 msgid "Entry not found."
 msgstr ""
 
@@ -474,76 +474,76 @@ msgstr ""
 msgid "This entry already has a breakout post."
 msgstr ""
 
-#: includes/class-post-type.php:255
+#: includes/class-post-type.php:259
 #: dist/admin.js:213
 #: dist/admin.js:214
 #: dist/blocks/rolling-coverage/index.js:3
 msgid "Entries"
 msgstr ""
 
-#: includes/class-post-type.php:257
+#: includes/class-post-type.php:261
 #: dist/admin.js:225
 #: dist/admin.js:226
 msgid "Add Entry"
 msgstr ""
 
-#: includes/class-post-type.php:258
+#: includes/class-post-type.php:262
 msgid "Edit Entry"
 msgstr ""
 
-#: includes/class-post-type.php:259
+#: includes/class-post-type.php:263
 msgid "New Entry"
 msgstr ""
 
-#: includes/class-post-type.php:260
+#: includes/class-post-type.php:264
 msgid "View Entry"
 msgstr ""
 
-#: includes/class-post-type.php:261
+#: includes/class-post-type.php:265
 msgid "Search Entries"
 msgstr ""
 
-#: includes/class-post-type.php:262
+#: includes/class-post-type.php:266
 msgid "No entries found."
 msgstr ""
 
-#: includes/class-post-type.php:263
+#: includes/class-post-type.php:267
 msgid "All Entries"
 msgstr ""
 
-#: includes/class-post-type.php:265
+#: includes/class-post-type.php:269
 msgid "Individual entries within a Rolling Coverage."
 msgstr ""
 
-#: includes/class-post-type.php:2366
+#: includes/class-post-type.php:2394
 msgid "No entry IDs provided."
 msgstr ""
 
-#: includes/class-post-type.php:2382
+#: includes/class-post-type.php:2410
 msgid "You do not have permission to restore this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2435
+#: includes/class-post-type.php:2463
 msgid "An editor needs to restore the coverage before this entry can be restored."
 msgstr ""
 
-#: includes/class-post-type.php:2474
+#: includes/class-post-type.php:2502
 msgid "Entry is not in trash."
 msgstr ""
 
-#: includes/class-post-type.php:2482
+#: includes/class-post-type.php:2510
 msgid "This entry is archived, so it can’t be restored."
 msgstr ""
 
-#: includes/class-post-type.php:2533
+#: includes/class-post-type.php:2561
 msgid "This entry's coverage was deleted. An editor needs to restore it."
 msgstr ""
 
-#: includes/class-post-type.php:2555
+#: includes/class-post-type.php:2583
 msgid "This entry has no coverage context to restore to."
 msgstr ""
 
-#: includes/class-post-type.php:2613
+#: includes/class-post-type.php:2641
 msgid "Failed to restore entry."
 msgstr ""
 
@@ -1106,15 +1106,27 @@ msgid "Ended label"
 msgstr ""
 
 #: dist/admin.js:213
+msgid "Coverage Status"
+msgstr ""
+
+#: dist/admin.js:213
 msgid "Set the text the status indicator shows for each coverage status. A block can still set its own."
 msgstr ""
 
 #: dist/admin.js:213
-msgid "Saved."
+msgid "Set the text of the button that takes readers back to the live feed. When it can, the button counts the new posts instead."
+msgstr ""
+
+#: dist/admin.js:213
+msgid "Button label"
 msgstr ""
 
 #: dist/admin.js:213
 msgid "The settings couldn’t be saved."
+msgstr ""
+
+#: dist/admin.js:213
+msgid "Saved."
 msgstr ""
 
 #: dist/admin.js:213
@@ -2233,6 +2245,18 @@ msgid "Summary"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
+msgid "Live Coverage"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Coverage Name"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Feed"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:1
 msgid "Dates"
 msgstr ""
 
@@ -2246,18 +2270,6 @@ msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Avatar"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgid "Live Coverage"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgid "Coverage Name"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgid "Feed"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
