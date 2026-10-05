@@ -3996,7 +3996,7 @@ class Rolling_Coverage_Block {
 		$ads_enabled      = ! $is_capped && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $term_id );
 		$feed_layout      = is_array( $config['feedLayout'] ?? null ) ? $config['feedLayout'] : [];
 
-		// Forward/polling branch: entries modified at or after the cursor, newest first.
+		// Forward/polling branch: entries modified or taken down at or after the cursor, newest first.
 		if ( $cursor ) {
 			$cursor_parts    = explode( ':', $cursor, 2 );
 			$cursor_id       = (int) ( $cursor_parts[0] ?? 0 );
@@ -4035,12 +4035,31 @@ class Rolling_Coverage_Block {
 
 			$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
 
-			$query = new WP_Query( $args );
+			// Entries taken down since the cursor, which open pages may still show.
+			$removed = ( new WP_Query(
+				array_merge(
+					$args,
+					[
+						'post_status' => [ 'draft', 'pending', 'private', 'future', 'trash' ],
+						'meta_query'  => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+							[
+								'key'     => Post_Type::META_WAS_PUBLISHED,
+								'compare' => 'EXISTS',
+							],
+						],
+					]
+				)
+			) )->posts;
+
+			$changes = array_merge( ( new WP_Query( $args ) )->posts, $removed );
+			usort( $changes, static fn( WP_Post $a, WP_Post $b ) => strcmp( self::post_modified_gmt( $b ), self::post_modified_gmt( $a ) ) );
+
+			$is_cursor_entry = static fn( WP_Post $entry ) => $entry->ID === $cursor_id && self::post_modified_gmt( $entry ) === $cursor_modified;
 
 			// Signal the client to refresh when the poll result reaches the cap.
-			if ( count( $query->posts ) > self::POLL_CAP ) {
+			if ( count( $changes ) > self::POLL_CAP ) {
 				if ( $is_capped ) {
-					return self::capped_burst_response( $term_id, $template, $latest_count, $query->posts[0], $params, $feed_layout );
+					return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $feed_layout );
 				}
 
 				return self::poll_response(
@@ -4053,20 +4072,35 @@ class Rolling_Coverage_Block {
 				);
 			}
 
+			// A capped feed can't load an entry to take a removed one's place.
+			if ( $is_capped && array_filter( $removed, static fn( WP_Post $entry ) => ! $is_cursor_entry( $entry ) ) ) {
+				return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $feed_layout );
+			}
+
 			$entries    = [];
 			$new_cursor = $cursor;
 			$polled_count = max( 0, (int) ( $params['polled_count'] ?? 0 ) );
 			$new_entry_count = 0;
 
-			foreach ( $query->posts as $entry ) {
-				$entry_modified = self::post_modified_gmt( $entry );
-
-				if ( $entry->ID === $cursor_id && $entry_modified === $cursor_modified ) {
+			foreach ( $changes as $entry ) {
+				if ( $is_cursor_entry( $entry ) ) {
 					continue;
 				}
 
 				if ( empty( $entries ) ) {
-					$new_cursor = $entry->ID . ':' . $entry_modified;
+					$new_cursor = $entry->ID . ':' . self::post_modified_gmt( $entry );
+				}
+
+				if ( 'publish' !== $entry->post_status ) {
+					$entries[] = [
+						'id'     => $entry->ID,
+						'html'   => '',
+						'type'   => 'remove',
+						'adHtml' => null,
+						'adSlot' => null,
+					];
+
+					continue;
 				}
 
 				// Counts only if first published after the poll cursor.
@@ -4187,9 +4221,10 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The poll response for a capped feed after a burst too large to send
-	 * piecemeal: rather than reload the page hosting it, the newest entries
-	 * by date come as inserts, for the page to put on top and trim to the
-	 * cap, with the cursor at the most recent change.
+	 * piecemeal, or after an entry was taken down, which leaves a place only
+	 * the server can fill: rather than reload the page hosting it, the
+	 * newest entries by date come whole, for the page to swap in for its
+	 * own, with the cursor at the most recent change.
 	 *
 	 * @param int     $term_id       Coverage term ID.
 	 * @param array[] $template      Per-entry template.
@@ -4230,6 +4265,7 @@ class Rolling_Coverage_Block {
 				'cursor'      => $last_modified->ID . ':' . self::post_modified_gmt( $last_modified ),
 				'overflow'    => false,
 				'polledCount' => max( 0, (int) ( $params['polled_count'] ?? 0 ) ),
+				'replace'     => true,
 			],
 			$term_id
 		);

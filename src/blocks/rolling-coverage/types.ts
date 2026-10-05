@@ -123,24 +123,28 @@ interface EntryContext {
 }
 
 /**
- * A single entry in a poll response.
+ * A single entry in a poll response. A removal names an entry taken down
+ * since the cursor and carries no markup.
  */
 interface PollEntry {
 	id: number;
 	html: string;
-	type: 'insert' | 'update';
+	type: 'insert' | 'update' | 'remove';
 	adHtml: string | null;
 	adSlot: AdSlot | null;
 }
 
 /**
- * REST response containing newly-published or edited entries.
+ * REST response containing newly-published, edited or removed entries.
+ * With `replace`, sent only to a capped feed, the entries are the feed's
+ * newest, whole and in order.
  */
 interface PollResponse {
 	entries: PollEntry[];
 	cursor: string;
 	overflow: boolean;
 	polledCount: number;
+	replace?: boolean;
 	minPollInterval: number;
 	status?: string;
 	newestEntry?: string | null;

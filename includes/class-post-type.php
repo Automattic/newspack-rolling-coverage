@@ -56,6 +56,9 @@ class Post_Type {
 	// Protected post-meta key recording the GMT time an entry first reached 'publish'.
 	const META_PUBLISHED_GMT = '_rolling_coverage_published_gmt';
 
+	// Protected post-meta key marking an entry taken down after publishing, which readers may still have on their pages.
+	const META_WAS_PUBLISHED = '_rolling_coverage_was_published';
+
 	// Entries-view endpoint constants.
 	const PER_PAGE_MAX = 100;
 
@@ -236,6 +239,7 @@ class Post_Type {
 		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'on_save_post' ], 10, 2 );
 		add_filter( 'wp_insert_post_data', [ __CLASS__, 'normalize_entry_gmt_dates' ], 10, 2 );
 		add_action( 'transition_post_status', [ __CLASS__, 'record_entry_published_gmt' ], 10, 3 );
+		add_action( 'transition_post_status', [ __CLASS__, 'record_entry_unpublished' ], 10, 3 );
 		add_action( 'set_object_terms', [ __CLASS__, 'on_set_object_terms' ], 10, 6 );
 		add_action( 'trashed_post', [ __CLASS__, 'on_trash_post' ] );
 		add_action( 'before_delete_post', [ __CLASS__, 'on_delete_post' ] );
@@ -1764,6 +1768,24 @@ class Post_Type {
 		}
 
 		update_post_meta( $post->ID, self::META_PUBLISHED_GMT, gmdate( 'Y-m-d H:i:s' ) );
+	}
+
+	/**
+	 * Mark an entry that leaves 'publish', by trash or any other status, so
+	 * the reader poll can tell open pages to drop it. Core keeps no such
+	 * record outside the trash, and without it the public poll couldn't tell
+	 * a withdrawn entry from a draft readers never saw.
+	 *
+	 * @param string  $new_status New post status.
+	 * @param string  $old_status Previous post status.
+	 * @param WP_Post $post       Entry post object.
+	 */
+	public static function record_entry_unpublished( string $new_status, string $old_status, WP_Post $post ): void {
+		if ( 'publish' !== $old_status || 'publish' === $new_status || self::CPT_SLUG !== $post->post_type ) {
+			return;
+		}
+
+		update_post_meta( $post->ID, self::META_WAS_PUBLISHED, '1' );
 	}
 
 	/**

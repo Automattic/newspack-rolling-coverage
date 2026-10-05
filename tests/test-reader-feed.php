@@ -110,6 +110,104 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Trashing a published entry tells open pages to drop it: the next poll
+	 * names it as removed, with no markup, and moves the cursor past it so
+	 * later polls stay idle.
+	 */
+	public function test_poll_tells_pages_to_drop_a_trashed_entry() {
+		$trashed_entry_id = $this->create_entry_at( '2026-01-01 11:00:00' );
+		$cursor_entry_id  = $this->create_entry_at( '2026-01-01 12:00:00' );
+
+		wp_trash_post( $trashed_entry_id );
+
+		$poll = $this->get_feed( [ 'cursor' => "{$cursor_entry_id}:2026-01-01 12:00:00" ] )->get_data();
+
+		$this->assertSame( [ $trashed_entry_id => 'remove' ], wp_list_pluck( $poll['entries'], 'type', 'id' ) );
+		$this->assertSame( '', $poll['entries'][0]['html'], 'A removal carries no markup.' );
+		$this->assertSame( $trashed_entry_id . ':' . get_post( $trashed_entry_id )->post_modified_gmt, $poll['cursor'], 'The cursor should move past the removal.' );
+		$this->assertArrayNotHasKey( 'replace', $poll, 'An uncapped feed is never sent whole.' );
+		$this->assertSame( [], $this->get_feed( [ 'cursor' => $poll['cursor'] ] )->get_data()['entries'], 'The removal should be sent once.' );
+	}
+
+	/**
+	 * The other ways an editor takes an entry down.
+	 *
+	 * @return array[]
+	 */
+	public function unpublish_changes() {
+		return [
+			'back to draft'  => [ [ 'post_status' => 'draft' ] ],
+			'pending review' => [ [ 'post_status' => 'pending' ] ],
+			'private'        => [ [ 'post_status' => 'private' ] ],
+			'scheduled anew' => [
+				[
+					'post_date'     => '2099-01-01 12:00:00',
+					'post_date_gmt' => '2099-01-01 12:00:00',
+				],
+			],
+		];
+	}
+
+	/**
+	 * Taking a published entry down any other way removes it from open pages
+	 * too.
+	 *
+	 * @dataProvider unpublish_changes
+	 * @param array $change Post fields the editor changes.
+	 */
+	public function test_poll_tells_pages_to_drop_an_unpublished_entry( $change ) {
+		$entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+
+		wp_update_post( array_merge( [ 'ID' => $entry_id ], $change ) );
+
+		$poll = $this->get_feed( [ 'cursor' => "{$entry_id}:2026-01-01 12:00:00" ] )->get_data();
+
+		$this->assertNotSame( 'publish', get_post_status( $entry_id ) );
+		$this->assertSame( [ $entry_id => 'remove' ], wp_list_pluck( $poll['entries'], 'type', 'id' ) );
+	}
+
+	/**
+	 * An entry readers never saw is never named, even once it's trashed, and
+	 * the cursor stays clear of it.
+	 */
+	public function test_poll_never_names_an_entry_that_was_never_published() {
+		$draft_id = $this->create_entry_at( '2026-01-01 12:05:00', [ 'post_status' => 'draft' ] );
+
+		wp_trash_post( $draft_id );
+
+		$poll = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_data();
+
+		$this->assertSame( [], $poll['entries'] );
+		$this->assertSame( '0:2026-01-01 00:00:00', $poll['cursor'] );
+	}
+
+	/**
+	 * An entry published again after being taken down polls as an entry,
+	 * not as a removal.
+	 */
+	public function test_poll_sends_a_republished_entry_as_an_entry() {
+		$entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+
+		wp_update_post(
+			[
+				'ID'          => $entry_id,
+				'post_status' => 'draft',
+			]
+		);
+		wp_update_post(
+			[
+				'ID'          => $entry_id,
+				'post_status' => 'publish',
+			]
+		);
+
+		$poll = $this->get_feed( [ 'cursor' => "{$entry_id}:2026-01-01 12:00:00" ] )->get_data();
+
+		$this->assertSame( [ $entry_id ], wp_list_pluck( $poll['entries'], 'id' ) );
+		$this->assertStringContainsString( 'data-entry-id="' . $entry_id . '"', $poll['entries'][0]['html'], 'The entry should come with its markup.' );
+	}
+
+	/**
 	 * A trashed coverage answers as if it did not exist, even though its
 	 * entries are still published.
 	 */
@@ -580,9 +678,36 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A capped feed can't load an entry to take a removed one's place, so a
+	 * removal brings its newest entries whole, for the page to swap in for
+	 * its own, with the cursor past the removal. Polls without a removal
+	 * send changes as usual.
+	 */
+	public function test_capped_poll_after_a_removal_sends_the_newest_entries_whole() {
+		$oldest_entry_id = $this->create_entry_at( '2026-01-01 11:00:00' );
+		$older_entry_id  = $this->create_entry_at( '2026-01-01 11:30:00' );
+		$newest_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+
+		$capped = [
+			'template_key' => 'pruned',
+			'latest'       => 2,
+		];
+
+		$this->assertArrayNotHasKey( 'replace', $this->get_feed( array_merge( $capped, [ 'cursor' => '0:2026-01-01 00:00:00' ] ) )->get_data() );
+
+		wp_trash_post( $newest_entry_id );
+
+		$poll = $this->get_feed( array_merge( $capped, [ 'cursor' => "{$newest_entry_id}:2026-01-01 12:00:00" ] ) )->get_data();
+
+		$this->assertTrue( $poll['replace'] );
+		$this->assertSame( [ $older_entry_id, $oldest_entry_id ], wp_list_pluck( $poll['entries'], 'id' ) );
+		$this->assertSame( $newest_entry_id . ':' . get_post( $newest_entry_id )->post_modified_gmt, $poll['cursor'] );
+	}
+
+	/**
 	 * A capped feed never reloads its host page on a burst: the poll sends
-	 * the newest entries by date as inserts, for the page to put on top and
-	 * trim, and moves the cursor to the most recent change.
+	 * its newest entries by date whole, for the page to swap in for its own,
+	 * and moves the cursor to the most recent change.
 	 */
 	public function test_capped_poll_over_the_cap_sends_the_newest_entries_instead_of_overflowing() {
 		$entry_ids = [];
@@ -609,6 +734,7 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$capped = $this->get_feed( array_merge( $poll, [ 'latest' => 3 ] ) )->get_data();
 
 		$this->assertFalse( $capped['overflow'] );
+		$this->assertTrue( $capped['replace'] );
 		$this->assertSame( array_slice( array_reverse( $entry_ids ), 0, 3 ), wp_list_pluck( $capped['entries'], 'id' ) );
 		$this->assertSame( [ 'insert', 'insert', 'insert' ], wp_list_pluck( $capped['entries'], 'type' ) );
 		$this->assertSame( $edited->ID . ':' . $edited->post_modified_gmt, $capped['cursor'] );
