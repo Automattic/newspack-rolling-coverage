@@ -19,6 +19,7 @@ interface CoverageChoiceProps {
 	onChange: ( coverageId: number ) => void;
 	customChosen: boolean;
 	onCustomChosenChange: ( customChosen: boolean ) => void;
+	automaticHelp: string;
 	customHelp: string;
 	taxonomySlug: string;
 	statusMetaKey: string;
@@ -35,6 +36,7 @@ interface CoverageChoiceProps {
  * @param {Function} props.onChange             Called with the new coverage ID.
  * @param {boolean}  props.customChosen         Whether Custom was picked without a coverage yet.
  * @param {Function} props.onCustomChosenChange Called when Custom is picked or left.
+ * @param {string}   props.automaticHelp        Help shown under Automatic.
  * @param {string}   props.customHelp           Help shown under Custom.
  * @param {string}   props.taxonomySlug         The coverage taxonomy.
  * @param {string}   props.statusMetaKey        The coverage status meta key.
@@ -44,6 +46,7 @@ export default function CoverageChoice( {
 	onChange,
 	customChosen,
 	onCustomChosenChange,
+	automaticHelp,
 	customHelp,
 	taxonomySlug,
 	statusMetaKey,
@@ -56,14 +59,8 @@ export default function CoverageChoice( {
 				__next40pxDefaultSize
 				isBlock
 				label={ __( 'Coverage', 'newspack-rolling-coverage' ) }
-				help={
-					isCustom
-						? customHelp
-						: __(
-								'Follows the coverage on this page, or a breakout post’s coverage.',
-								'newspack-rolling-coverage'
-							)
-				}
+				hideLabelFromVision
+				help={ isCustom ? customHelp : automaticHelp }
 				value={ isCustom ? 'custom' : 'automatic' }
 				onChange={ ( next ) => {
 					onCustomChosenChange( next === 'custom' );

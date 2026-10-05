@@ -238,9 +238,10 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 
 	/**
 	 * The editor can read which entry a post was broken out from, to show
-	 * that entry's coverage, but the link can't be rewritten over REST.
+	 * that entry's coverage while readers can see the entry, but the link
+	 * can't be rewritten over REST.
 	 */
-	public function test_source_entry_is_read_only_over_rest() {
+	public function test_source_entry_is_readable_but_not_writable_over_rest() {
 		self::log_in_as( 'editor' );
 		$entry_id    = self::create_entry( self::create_coverage() );
 		$breakout_id = self::factory()->post->create();
@@ -248,12 +249,40 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 
 		$read = new WP_REST_Request( 'GET', '/wp/v2/posts/' . $breakout_id );
 		$read->set_param( 'context', 'edit' );
-		$this->assertSame( $entry_id, rest_get_server()->dispatch( $read )->get_data()['meta'][ Breakout::BREAKOUT_SOURCE_ENTRY_META ] );
+		$this->assertSame( $entry_id, rest_get_server()->dispatch( $read )->get_data()[ Breakout::BREAKOUT_SOURCE_ENTRY_FIELD ] ?? null );
 
 		$write = new WP_REST_Request( 'POST', '/wp/v2/posts/' . $breakout_id );
-		$write->set_body_params( [ 'meta' => [ Breakout::BREAKOUT_SOURCE_ENTRY_META => self::create_entry() ] ] );
-		$this->assertSame( 403, rest_get_server()->dispatch( $write )->get_status() );
+		$write->set_body_params( [ Breakout::BREAKOUT_SOURCE_ENTRY_FIELD => self::create_entry() ] );
+		rest_get_server()->dispatch( $write );
 		$this->assertSame( $entry_id, (int) get_post_meta( $breakout_id, Breakout::BREAKOUT_SOURCE_ENTRY_META, true ) );
+
+		wp_trash_post( $entry_id );
+		$this->assertSame( 0, rest_get_server()->dispatch( $read )->get_data()[ Breakout::BREAKOUT_SOURCE_ENTRY_FIELD ], 'A trashed entry gives the post no coverage, as on the site.' );
+	}
+
+	/**
+	 * The block editor saves a post by sending back everything it read,
+	 * source entry included. That must not stop an editor saving a post that
+	 * was never broken out.
+	 */
+	public function test_editor_can_save_a_post_with_what_it_read_echoed_back() {
+		self::log_in_as( 'editor' );
+		$post_id = self::factory()->post->create();
+
+		$read = new WP_REST_Request( 'GET', '/wp/v2/posts/' . $post_id );
+		$read->set_param( 'context', 'edit' );
+		$data = rest_get_server()->dispatch( $read )->get_data();
+
+		$save = new WP_REST_Request( 'POST', '/wp/v2/posts/' . $post_id );
+		$save->set_body_params(
+			[
+				'title'                               => 'Recount ordered',
+				'meta'                                => $data['meta'],
+				Breakout::BREAKOUT_SOURCE_ENTRY_FIELD => $data[ Breakout::BREAKOUT_SOURCE_ENTRY_FIELD ] ?? 0,
+			]
+		);
+
+		$this->assertSame( 200, rest_get_server()->dispatch( $save )->get_status() );
 	}
 
 	/**

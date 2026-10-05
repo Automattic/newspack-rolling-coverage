@@ -1,6 +1,6 @@
 <?php
 /**
- * The coverages a page holds feeds of.
+ * Decides which coverage a block outside a feed shows or follows.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -81,9 +81,10 @@ class Page_Coverages {
 	}
 
 	/**
-	 * The coverage of the entry a breakout post was made from. An entry
-	 * normally has one coverage; should it have more, the oldest followable
-	 * one wins, so the choice doesn't change between requests.
+	 * The coverage of the entry a breakout post was made from, while readers
+	 * can see that entry. An entry normally has one coverage; should it have
+	 * more, the oldest followable one wins, so the choice doesn't change
+	 * between requests.
 	 *
 	 * @param int $post_id Post ID.
 	 * @return int Coverage term ID, or 0 when the post isn't a breakout post.
@@ -95,9 +96,9 @@ class Page_Coverages {
 			return 0;
 		}
 
-		$entry_id = (int) get_post_meta( $post_id, Breakout::BREAKOUT_SOURCE_ENTRY_META, true );
+		$entry_id = Breakout::viewable_source_entry_id( $post_id );
 
-		if ( ! $entry_id || Post_Type::CPT_SLUG !== get_post_type( $entry_id ) ) {
+		if ( ! $entry_id ) {
 			return 0;
 		}
 

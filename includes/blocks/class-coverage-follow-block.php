@@ -61,6 +61,7 @@ class Coverage_Follow_Block {
 				'newspackCoverageFollowBlock',
 				[
 					'onesignalConfigured' => Push_Notifications::is_onesignal_configured(),
+					'sourceEntryField'    => Breakout::BREAKOUT_SOURCE_ENTRY_FIELD,
 					'statusMetaKey'       => Taxonomy::STATUS_META_KEY,
 					'taxonomySlug'        => Taxonomy::TAXONOMY_SLUG,
 				]

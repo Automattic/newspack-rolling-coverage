@@ -30,7 +30,7 @@ import { useEffect, useRef, useState } from '@wordpress/element';
  */
 import CoverageChoice from '../shared/coverage-choice';
 import { mutedTextColor } from '../shared/muted-color';
-import { useBlockCoverage } from '../shared/page-feeds';
+import { useBlockCoverage } from '../shared/block-coverage';
 import {
 	badgeClasses,
 	badgeStatus,
@@ -39,6 +39,7 @@ import {
 import type { CoverageStatusAttributes } from './types';
 
 interface CoverageStatusConfig {
+	sourceEntryField: string;
 	statusLabels: Record< string, string >;
 	statusMetaKey: string;
 	taxonomySlug: string;
@@ -57,6 +58,7 @@ const DEFAULT_GAP_SLUG = '30';
 const INSERT_SOURCES = [ undefined, 'inserter_menu', 'quick_inserter' ];
 
 const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {
+	sourceEntryField: 'rolling_coverage_source_entry',
 	statusLabels: {
 		active: __( 'Live', 'newspack-rolling-coverage' ),
 		paused: __( 'Paused', 'newspack-rolling-coverage' ),
@@ -126,11 +128,19 @@ export default function Edit( {
 	const isCustom = hasCustomLabels || customChosen;
 	const [ customCoverageChosen, setCustomCoverageChosen ] = useState( false );
 
-	const { coverageId: followed, isInFeed } = useBlockCoverage( {
+	const {
+		coverageId: followed,
+		isInFeed,
+		isTemplate,
+		isChosenGone,
+	} = useBlockCoverage( {
 		feedCoverageId: context?.[ COVERAGE_ID_CONTEXT ],
+		postId: context?.postId,
+		postType: context?.postType,
 		chosenId: coverageId,
 		taxonomySlug: config.taxonomySlug,
 		statusMetaKey: config.statusMetaKey,
+		sourceEntryField: config.sourceEntryField,
 	} );
 
 	const { status, newest } = useSelect(
@@ -305,6 +315,19 @@ export default function Edit( {
 		"This coverage has ended, so the badge won't show on the site.",
 		'newspack-rolling-coverage'
 	);
+	let goneNotice = '';
+
+	if ( isChosenGone && ! isTemplate ) {
+		goneNotice = followed
+			? __(
+					'This coverage no longer exists, so the page’s coverage is used.',
+					'newspack-rolling-coverage'
+				)
+			: __(
+					'This coverage no longer exists, so this badge won’t appear on the site.',
+					'newspack-rolling-coverage'
+				);
+	}
 
 	return (
 		<>
@@ -320,10 +343,10 @@ export default function Edit( {
 						</Notice>
 					</PanelBody>
 				) }
-				<PanelBody
-					title={ __( 'Settings', 'newspack-rolling-coverage' ) }
-				>
-					{ ! isInFeed && (
+				{ ! isInFeed && (
+					<PanelBody
+						title={ __( 'Coverage', 'newspack-rolling-coverage' ) }
+					>
 						<CoverageChoice
 							value={ coverageId }
 							onChange={ ( value ) =>
@@ -331,6 +354,10 @@ export default function Edit( {
 							}
 							customChosen={ customCoverageChosen }
 							onCustomChosenChange={ setCustomCoverageChosen }
+							automaticHelp={ __(
+								'Shows the coverage on this page, or a breakout post’s coverage.',
+								'newspack-rolling-coverage'
+							) }
 							customHelp={ __(
 								'Always shows this coverage.',
 								'newspack-rolling-coverage'
@@ -338,7 +365,20 @@ export default function Edit( {
 							taxonomySlug={ config.taxonomySlug }
 							statusMetaKey={ config.statusMetaKey }
 						/>
-					) }
+						{ goneNotice && (
+							<Notice
+								status="warning"
+								isDismissible={ false }
+								spokenMessage={ goneNotice }
+							>
+								{ goneNotice }
+							</Notice>
+						) }
+					</PanelBody>
+				) }
+				<PanelBody
+					title={ __( 'Settings', 'newspack-rolling-coverage' ) }
+				>
 					<ToggleGroupControl
 						__next40pxDefaultSize
 						isBlock

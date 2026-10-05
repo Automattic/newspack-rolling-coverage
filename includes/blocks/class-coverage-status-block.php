@@ -107,9 +107,10 @@ class Coverage_Status_Block {
 				$handle,
 				'newspackCoverageStatusBlock',
 				[
-					'statusLabels'  => Status_Labels::get_all(),
-					'statusMetaKey' => Taxonomy::STATUS_META_KEY,
-					'taxonomySlug'  => Taxonomy::TAXONOMY_SLUG,
+					'sourceEntryField' => Breakout::BREAKOUT_SOURCE_ENTRY_FIELD,
+					'statusLabels'     => Status_Labels::get_all(),
+					'statusMetaKey'    => Taxonomy::STATUS_META_KEY,
+					'taxonomySlug'     => Taxonomy::TAXONOMY_SLUG,
 				]
 			);
 		}

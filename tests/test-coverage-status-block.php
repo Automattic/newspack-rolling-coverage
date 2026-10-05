@@ -634,6 +634,18 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A breakout post whose source entry readers can no longer see, such as
+	 * a trashed one, shows no coverage on Automatic.
+	 */
+	public function test_automatic_ignores_a_breakout_posts_trashed_entry() {
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::breakout_post( $entry_id );
+		wp_trash_post( $entry_id );
+
+		$this->assertSame( '', $this->render( [], $breakout_id ) );
+	}
+
+	/**
 	 * Inside a Rolling Coverage block, the status block shows that block's
 	 * coverage even when it was set to a custom one.
 	 */
