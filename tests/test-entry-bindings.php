@@ -1742,8 +1742,8 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A capped feed shaped like the Digest layout renders the name once above
-	 * the entries, and the footer with its link and Follow button once below.
+	 * A Digest-shaped capped feed with a Follow block added to its footer
+	 * renders the name once above the entries, and the footer once below.
 	 */
 	public function test_digest_shaped_feed_renders_name_above_and_footer_below() {
 		$coverage_id = self::create_coverage( '', [ 'name' => 'Election Night' ] );
