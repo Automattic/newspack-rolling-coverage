@@ -126,6 +126,11 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$this->assertSame( '', $poll['entries'][0]['html'], 'A removal carries no markup.' );
 		$this->assertSame( $trashed_entry_id . ':' . get_post( $trashed_entry_id )->post_modified_gmt, $poll['cursor'], 'The cursor should move past the removal.' );
 		$this->assertArrayNotHasKey( 'replace', $poll, 'An uncapped feed is never sent whole.' );
+
+		// The coverage's last change a second later, so the next poll runs its queries instead of stopping at the unchanged coverage.
+		[ , $taken_down ] = explode( ':', $poll['cursor'], 2 );
+		update_term_meta( $this->coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, gmdate( 'Y-m-d H:i:s', strtotime( $taken_down ) + 1 ) );
+
 		$this->assertSame( [], $this->get_feed( [ 'cursor' => $poll['cursor'] ] )->get_data()['entries'], 'The removal should be sent once.' );
 	}
 
