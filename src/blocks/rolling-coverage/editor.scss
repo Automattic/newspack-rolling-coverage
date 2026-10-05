@@ -146,6 +146,15 @@
 	}
 }
 
+.components-modal__screen-overlay.is-awaiting-previews {
+	visibility: hidden;
+
+	&,
+	.components-modal__frame {
+		animation-name: none;
+	}
+}
+
 .newspack-rolling-coverage-layout-picker {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(min(100%, #{wp-vars.$grid-unit-80 * 4}), 1fr));
