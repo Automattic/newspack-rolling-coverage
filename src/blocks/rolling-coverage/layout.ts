@@ -209,7 +209,7 @@ export function tickerInnerTemplate(): TemplateItem[] {
 			'var:preset|spacing|40',
 			TICKER_FEED_STYLE,
 			TICKER_FEED_LAYOUT,
-			{ className: RULED_FEED_CLASS }
+			{ className: RULED_FEED_CLASS, align: 'wide' }
 		),
 	];
 }
@@ -226,7 +226,8 @@ export function splitInnerTemplate(): TemplateItem[] {
 			splitEntryTemplate(),
 			SPLIT_FEED_GAP,
 			SPLIT_FEED_STYLE,
-			SPLIT_FEED_LAYOUT
+			SPLIT_FEED_LAYOUT,
+			{ align: 'wide' }
 		),
 	];
 }

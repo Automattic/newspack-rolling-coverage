@@ -133,7 +133,10 @@ import type {
  * The layout the block offers the blocks of a layout: full width, so a bar
  * like Flash's can span the page in the editor as it does on the site.
  */
-const INNER_BLOCKS_LAYOUT = { type: 'default', alignments: [ 'none', 'full' ] };
+const INNER_BLOCKS_LAYOUT = {
+	type: 'default',
+	alignments: [ 'none', 'wide', 'full' ],
+};
 
 /**
  * What each choice of loading older entries does, as the help below it.
