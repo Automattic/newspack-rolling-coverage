@@ -1629,7 +1629,7 @@ export default function Edit( {
 					isBlock
 					label={ __( 'When ended', 'newspack-rolling-coverage' ) }
 					help={ sprintf(
-						/* translators: %s: The status that ends a coverage, e.g. "Ended". */
+						/* translators: %s: The status that ends a coverage, e.g. "Ended". “Hide” is the option above; keep the word used to translate it. */
 						__(
 							'Hide removes the whole block once the coverage’s status is set to “%s” in All Coverages.',
 							'newspack-rolling-coverage'
