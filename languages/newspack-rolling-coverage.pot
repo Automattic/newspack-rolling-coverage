@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-05T07:13:42+00:00\n"
+"POT-Creation-Date: 2026-10-05T08:31:27+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -126,19 +126,19 @@ msgstr ""
 msgid "Read More"
 msgstr ""
 
-#: includes/blocks/class-coverage-status-block.php:69
+#: includes/blocks/class-coverage-status-block.php:70
 msgid "When the newest published entry went out, as ISO 8601."
 msgstr ""
 
 #. translators: %s: Time difference, e.g. "2 minutes".
-#: includes/blocks/class-coverage-status-block.php:278
+#: includes/blocks/class-coverage-status-block.php:267
 #, php-format
 msgid "%s ago"
 msgstr ""
 
 #. translators: %s: How long ago the newest entry was published, e.g. "2 minutes ago".
-#: includes/blocks/class-coverage-status-block.php:288
-#: dist/blocks/coverage-status/index.js:10
+#: includes/blocks/class-coverage-status-block.php:277
+#: dist/blocks/coverage-status/index.js:12
 #, php-format,js-format
 msgid "Updated %s"
 msgstr ""
@@ -414,7 +414,7 @@ msgid "This entry can’t be added to a coverage set to “%s”."
 msgstr ""
 
 #: includes/class-archive-mode.php:268
-#: includes/class-breakout.php:183
+#: includes/class-breakout.php:238
 #: includes/class-post-type.php:961
 #: includes/class-post-type.php:2454
 msgid "Entry not found."
@@ -428,7 +428,11 @@ msgstr ""
 msgid "Failed to update entry."
 msgstr ""
 
-#: includes/class-breakout.php:191
+#: includes/class-breakout.php:105
+msgid "The entry this post was broken out from, or 0."
+msgstr ""
+
+#: includes/class-breakout.php:246
 msgid "This entry already has a breakout post."
 msgstr ""
 
@@ -763,15 +767,17 @@ msgstr ""
 #: dist/admin.js:213
 #: dist/admin.js:214
 #: dist/admin.js:216
-#: dist/blocks/coverage-follow/index.js:1
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-follow/index.js:3
+#: dist/blocks/coverage-status/index.js:3
 msgid "Settings"
 msgstr ""
 
 #: dist/admin.js:4
 #: dist/admin.js:230
 #: dist/blocks/coverage-follow/index.js:1
+#: dist/blocks/coverage-follow/index.js:3
 #: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-status/index.js:3
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Coverage"
 msgstr ""
@@ -1047,17 +1053,17 @@ msgid "Discard"
 msgstr ""
 
 #: dist/admin.js:213
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-status/index.js:3
 msgid "Live label"
 msgstr ""
 
 #: dist/admin.js:213
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-status/index.js:3
 msgid "Paused label"
 msgstr ""
 
 #: dist/admin.js:213
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-status/index.js:3
 msgid "Ended label"
 msgstr ""
 
@@ -1950,160 +1956,208 @@ msgid "Are you sure you want to disconnect Slack? All channel mappings will be r
 msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:1
-msgid "Automatic"
+#: dist/blocks/coverage-status/index.js:1
+msgid "Choose a coverage"
 msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:1
+#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "Search for a coverage…"
+msgstr ""
+
+#: dist/blocks/coverage-follow/index.js:1
+#: dist/blocks/coverage-status/index.js:1
+msgctxt "coverage choice"
+msgid "Automatic"
+msgstr ""
+
+#. translators: Screen reader name for the “Automatic” option. Keep the word used to translate “Automatic”.
+#: dist/blocks/coverage-follow/index.js:2
+#: dist/blocks/coverage-status/index.js:2
+msgid "Automatic coverage"
+msgstr ""
+
+#: dist/blocks/coverage-follow/index.js:2
+#: dist/blocks/coverage-status/index.js:2
+msgctxt "coverage choice"
+msgid "Custom"
+msgstr ""
+
+#. translators: Screen reader name for the “Custom” option. Keep the word used to translate “Custom”.
+#: dist/blocks/coverage-follow/index.js:3
+#: dist/blocks/coverage-status/index.js:3
+msgid "Custom coverage"
+msgstr ""
+
+#: dist/blocks/coverage-follow/index.js:3
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Follow"
 msgstr ""
 
-#: dist/blocks/coverage-follow/index.js:1
-msgid "Push notifications aren't set up, so this button won't appear on the site."
+#: dist/blocks/coverage-follow/index.js:3
+msgid "Follows the coverage on this page, or a breakout post’s coverage."
 msgstr ""
 
-#: dist/blocks/coverage-follow/index.js:1
-msgid "This coverage has ended, so this button won't appear on the site."
+#: dist/blocks/coverage-follow/index.js:3
+msgid "Always follows this coverage."
 msgstr ""
 
-#: dist/blocks/coverage-follow/index.js:1
+#: dist/blocks/coverage-follow/index.js:3
+#: dist/blocks/coverage-status/index.js:3
+msgid "This coverage no longer exists, so the page’s coverage is used."
+msgstr ""
+
+#: dist/blocks/coverage-follow/index.js:3
 msgid "This coverage no longer exists, so this button won't appear on the site."
 msgstr ""
 
-#: dist/blocks/coverage-follow/index.js:1
-msgid "Choose a coverage for this button to follow."
+#: dist/blocks/coverage-follow/index.js:3
+msgid "Push notifications aren't set up, so this button won't appear on the site."
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-follow/index.js:3
+msgid "This coverage has ended, so this button won't appear on the site."
+msgstr ""
+
+#: dist/blocks/coverage-status/index.js:3
 msgid "Live"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-status/index.js:3
 msgid "Paused"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-status/index.js:3
 msgid "Ended"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-status/index.js:3
 msgid "Live background"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-status/index.js:3
 msgid "Paused background"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-status/index.js:3
 msgid "Ended background"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-status/index.js:3
 msgid "This coverage has ended, so the badge won't show on the site."
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:1
-msgid "First on the page"
+#: dist/blocks/coverage-status/index.js:3
+msgid "This coverage no longer exists, so this badge won’t appear on the site."
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-status/index.js:3
+msgid "Shows the coverage on this page, or a breakout post’s coverage."
+msgstr ""
+
+#: dist/blocks/coverage-status/index.js:3
+msgid "Always shows this coverage."
+msgstr ""
+
+#: dist/blocks/coverage-status/index.js:3
 msgid "Labels"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:1
+#: dist/blocks/coverage-status/index.js:3
 msgctxt "status labels"
 msgid "Default"
 msgstr ""
 
 #. translators: Screen reader name for the “Default” option. Keep the word used to translate “Default”.
-#: dist/blocks/coverage-status/index.js:2
+#: dist/blocks/coverage-status/index.js:4
 msgid "Default labels"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:2
+#: dist/blocks/coverage-status/index.js:4
 msgctxt "status labels"
 msgid "Custom"
 msgstr ""
 
 #. translators: Screen reader name for the “Custom” option. Keep the word used to translate “Custom”.
-#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/coverage-status/index.js:5
 msgid "Custom labels"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/coverage-status/index.js:5
 msgid "Last updated"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/coverage-status/index.js:5
 msgctxt "last updated"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
-#: dist/blocks/coverage-status/index.js:4
+#: dist/blocks/coverage-status/index.js:6
 msgid "Show last updated"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:4
+#: dist/blocks/coverage-status/index.js:6
 msgctxt "last updated"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
-#: dist/blocks/coverage-status/index.js:5
+#: dist/blocks/coverage-status/index.js:7
 msgid "Hide last updated"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:5
+#: dist/blocks/coverage-status/index.js:7
 #: dist/blocks/rolling-coverage/index.js:5
 msgid "When ended"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:5
+#: dist/blocks/coverage-status/index.js:7
 #: dist/blocks/rolling-coverage/index.js:6
 msgctxt "when ended"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
-#: dist/blocks/coverage-status/index.js:6
+#: dist/blocks/coverage-status/index.js:8
 #: dist/blocks/rolling-coverage/index.js:7
 msgid "Show when ended"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:6
+#: dist/blocks/coverage-status/index.js:8
 #: dist/blocks/rolling-coverage/index.js:7
 msgctxt "when ended"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
-#: dist/blocks/coverage-status/index.js:7
+#: dist/blocks/coverage-status/index.js:9
 #: dist/blocks/rolling-coverage/index.js:8
 msgid "Hide when ended"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:7
+#: dist/blocks/coverage-status/index.js:9
 msgid "Dot"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:7
+#: dist/blocks/coverage-status/index.js:9
 msgctxt "dot"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
-#: dist/blocks/coverage-status/index.js:8
+#: dist/blocks/coverage-status/index.js:10
 msgid "Show dot"
 msgstr ""
 
-#: dist/blocks/coverage-status/index.js:8
+#: dist/blocks/coverage-status/index.js:10
 msgctxt "dot"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
-#: dist/blocks/coverage-status/index.js:9
+#: dist/blocks/coverage-status/index.js:11
 msgid "Hide dot"
 msgstr ""
 
@@ -2229,10 +2283,6 @@ msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Failed to generate key takeaways."
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgid "Search for a coverage…"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
@@ -2571,7 +2621,7 @@ msgstr ""
 #: dist/blocks/coverage-status/block.json
 #: src/blocks/coverage-status/block.json
 msgctxt "block description"
-msgid "Shows whether a Rolling Coverage is live, paused or ended: the one around it, or else the one on this page. Shows nothing without one."
+msgid "Shows whether a Rolling Coverage is live, paused or ended: the one around it, a chosen one, or else the one this page or breakout post belongs to. Shows nothing without one."
 msgstr ""
 
 #: dist/blocks/rolling-coverage/block.json
