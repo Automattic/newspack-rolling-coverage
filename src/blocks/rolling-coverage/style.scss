@@ -168,7 +168,8 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	padding-right: 0;
 }
 
-.wp-block-newspack-rolling-coverage-rolling-coverage.wp-block-newspack-rolling-coverage-rolling-coverage:not(.alignfull) > .wp-block-group.alignfull {
+.wp-block-newspack-rolling-coverage-rolling-coverage.wp-block-newspack-rolling-coverage-rolling-coverage:not(.alignfull) > .wp-block-group.alignfull,
+.wp-block-newspack-rolling-coverage-rolling-coverage.wp-block-newspack-rolling-coverage-rolling-coverage:not(.alignfull) > .wp-block-group.alignwide {
 	max-width: 100%;
 	margin-left: 0;
 	margin-right: 0;
