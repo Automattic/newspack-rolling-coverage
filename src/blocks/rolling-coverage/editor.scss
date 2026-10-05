@@ -148,7 +148,11 @@
 
 .components-modal__screen-overlay.is-awaiting-previews {
 	visibility: hidden;
-	pointer-events: none;
+
+	&,
+	.components-modal__frame {
+		animation-name: none;
+	}
 }
 
 .newspack-rolling-coverage-layout-picker {

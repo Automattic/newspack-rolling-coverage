@@ -1212,6 +1212,17 @@ export default function Edit( {
 		setIsPickerReady( false );
 	}, [] );
 
+	// Claims Escape before the editor canvas moves focus to its stop.
+	const closeLoadingPickerOnEscape = ( event: {
+		key: string;
+		preventDefault: () => void;
+	} ) => {
+		if ( isPickerLoading && event.key === 'Escape' ) {
+			event.preventDefault();
+			closePicker();
+		}
+	};
+
 	const applyLayout = useCallback(
 		( choice: LayoutChoice ) => {
 			closePicker();
@@ -1573,6 +1584,7 @@ export default function Edit( {
 						accessibleWhenDisabled
 						disabled={ isPickerLoading }
 						onClick={ () => setIsPickingLayout( true ) }
+						onKeyDownCapture={ closeLoadingPickerOnEscape }
 					>
 						{ __( 'Change Layout', 'newspack-rolling-coverage' ) }
 					</Button>
@@ -2328,6 +2340,7 @@ export default function Edit( {
 								accessibleWhenDisabled
 								disabled={ isPickerLoading }
 								onClick={ () => setIsPickingLayout( true ) }
+								onKeyDownCapture={ closeLoadingPickerOnEscape }
 							>
 								{ __( 'Choose', 'newspack-rolling-coverage' ) }
 							</Button>

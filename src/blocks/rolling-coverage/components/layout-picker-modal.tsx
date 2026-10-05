@@ -1,6 +1,7 @@
 /**
  * WordPress dependencies
  */
+import { speak } from '@wordpress/a11y';
 import { BlockPreview } from '@wordpress/block-editor';
 import {
 	createBlock,
@@ -59,7 +60,6 @@ const NO_RECORDS: LayoutRecord[] = [];
 const SETTLED_FRAMES = 3;
 const REVEAL_TIMEOUT = 3000;
 const LOAD_TIMEOUT = 10000;
-const LOADING_SELECTOR = '.newspack-rolling-coverage-loading';
 
 /**
  * The query listing the published layouts in the layout pattern category.
@@ -140,17 +140,44 @@ function previewAttributes( slug?: BuiltInLayoutSlug ): {
 type PreviewRef = { current: HTMLElement | null };
 
 /**
- * Reports once a card's preview has settled: its iframe holds the block, no
- * loading state, and a height that has not changed for a few frames.
+ * The focused element, followed into iframes such as the editor canvas.
+ *
+ * @param {Document} ownerDocument The document to start from.
+ */
+function getActiveElement( ownerDocument?: Document ): Element | null {
+	let active = ownerDocument?.activeElement ?? null;
+
+	while (
+		active?.tagName === 'IFRAME' &&
+		( active as HTMLIFrameElement ).contentDocument?.activeElement
+	) {
+		active = ( active as HTMLIFrameElement ).contentDocument!.activeElement;
+	}
+
+	return active;
+}
+
+/**
+ * Reports once a card's preview has settled: its iframe holds the block and
+ * its height has not changed for a few frames.
  *
  * @param {Object}   previewRef Ref to the element wrapping the preview.
+ * @param {boolean}  isEnabled  Whether to keep watching the preview.
  * @param {Function} onSettled  Called once, when the preview has settled.
  */
-function useSettledPreview( previewRef: PreviewRef, onSettled: () => void ) {
+function useSettledPreview(
+	previewRef: PreviewRef,
+	isEnabled: boolean,
+	onSettled: () => void
+) {
 	const callback = useRef( onSettled );
 	callback.current = onSettled;
 
 	useEffect( () => {
+		if ( ! isEnabled ) {
+			return;
+		}
+
 		let frame = 0;
 		let lastHeight = -1;
 		let stableFrames = 0;
@@ -161,8 +188,7 @@ function useSettledPreview( previewRef: PreviewRef, onSettled: () => void ) {
 			const height = previewRef.current?.offsetHeight ?? 0;
 			const isRendered =
 				height > 0 &&
-				!! doc?.querySelector( `[data-type="${ BLOCK_NAME }"]` ) &&
-				! doc.querySelector( LOADING_SELECTOR );
+				!! doc?.querySelector( `[data-type="${ BLOCK_NAME }"]` );
 
 			stableFrames =
 				isRendered && height === lastHeight ? stableFrames + 1 : 0;
@@ -178,7 +204,7 @@ function useSettledPreview( previewRef: PreviewRef, onSettled: () => void ) {
 		frame = window.requestAnimationFrame( check );
 
 		return () => window.cancelAnimationFrame( frame );
-	}, [ previewRef ] );
+	}, [ previewRef, isEnabled ] );
 }
 
 type PreviewBlock = {
@@ -197,6 +223,7 @@ type PreviewBlock = {
  * @param {boolean}  props.isCurrent  Whether the block uses this layout.
  * @param {boolean}  props.isPending  Whether this layout is being set up.
  * @param {boolean}  props.isDisabled Whether another layout is being set up.
+ * @param {boolean}  props.isWatching Whether to watch the preview settle.
  * @param {Function} props.onClick    Picks the layout.
  * @param {Function} props.onSettled  Called once the preview has settled.
  */
@@ -205,6 +232,7 @@ function LayoutPickerCard( {
 	isCurrent,
 	isPending,
 	isDisabled,
+	isWatching,
 	onClick,
 	onSettled,
 }: {
@@ -212,11 +240,12 @@ function LayoutPickerCard( {
 	isCurrent: boolean;
 	isPending: boolean;
 	isDisabled: boolean;
+	isWatching: boolean;
 	onClick: () => void;
 	onSettled: () => void;
 } ) {
 	const previewRef = useRef< HTMLSpanElement >( null );
-	useSettledPreview( previewRef, onSettled );
+	useSettledPreview( previewRef, isWatching, onSettled );
 	const blocks = useMemo(
 		() => [
 			createBlock(
@@ -292,7 +321,9 @@ export default function LayoutPickerModal( {
 	const [ pendingKey, setPendingKey ] = useState< string | null >( null );
 	const [ settledKeys, setSettledKeys ] = useState< string[] >( [] );
 	const [ timedOut, setTimedOut ] = useState( false );
+	const [ isRevealed, setIsRevealed ] = useState( false );
 	const contentRef = useRef< HTMLDivElement >( null );
+	const opener = useRef< Element | null >( null );
 	const isMounted = useRef( true );
 
 	useEffect( () => {
@@ -391,41 +422,76 @@ export default function LayoutPickerModal( {
 			cards.every( ( card ) => settledKeys.includes( card.key ) ) );
 
 	useEffect( () => {
+		opener.current = getActiveElement( contentRef.current?.ownerDocument );
+		if ( hasResolved ) {
+			speak( __( 'Loading layouts…', 'newspack-rolling-coverage' ) );
+		}
+	}, [] );
+
+	useEffect( () => {
+		if ( isRevealed ) {
+			return;
+		}
+
 		const timer = window.setTimeout(
 			() => setTimedOut( true ),
 			hasResolved ? REVEAL_TIMEOUT : LOAD_TIMEOUT
 		);
 
 		return () => window.clearTimeout( timer );
-	}, [ hasResolved ] );
+	}, [ hasResolved, isRevealed ] );
 
 	useEffect( () => {
-		if ( isReady ) {
-			const content = contentRef.current;
-			(
-				content?.querySelector< HTMLElement >(
-					'button:not(:disabled)'
-				) ??
-				content?.closest< HTMLElement >( '.components-modal__frame' )
-			)?.focus();
-			onReady?.();
+		if ( ! isReady || isRevealed ) {
+			return;
 		}
-	}, [ isReady ] );
+
+		// Don't pull focus from someone who moved on while the previews loaded.
+		if (
+			getActiveElement( contentRef.current?.ownerDocument ) !==
+			opener.current
+		) {
+			onClose();
+			return;
+		}
+
+		setIsRevealed( true );
+	}, [ isReady, isRevealed, onClose ] );
 
 	useEffect( () => {
-		if ( isReady ) {
+		if ( ! isRevealed ) {
+			return;
+		}
+
+		const content = contentRef.current;
+		(
+			content?.querySelector< HTMLElement >(
+				'button[aria-pressed="true"]:not(:disabled)'
+			) ??
+			content?.querySelector< HTMLElement >( 'button:not(:disabled)' ) ??
+			content?.closest< HTMLElement >( '.components-modal__frame' )
+		)?.focus();
+		onReady?.();
+	}, [ isRevealed ] );
+
+	useEffect( () => {
+		if ( isRevealed ) {
 			return;
 		}
 
 		const closeOnEscape = ( event: KeyboardEvent ) => {
-			if ( event.key === 'Escape' ) {
+			if (
+				event.key === 'Escape' &&
+				! event.defaultPrevented &&
+				! event.isComposing
+			) {
 				onClose();
 			}
 		};
 		document.addEventListener( 'keydown', closeOnEscape );
 
 		return () => document.removeEventListener( 'keydown', closeOnEscape );
-	}, [ isReady, onClose ] );
+	}, [ isRevealed, onClose ] );
 
 	const markSettled = ( key: string ) =>
 		setSettledKeys( ( keys ) =>
@@ -474,7 +540,7 @@ export default function LayoutPickerModal( {
 			title={ __( 'Choose a layout', 'newspack-rolling-coverage' ) }
 			size="large"
 			focusOnMount={ false }
-			overlayClassName={ isReady ? undefined : 'is-awaiting-previews' }
+			overlayClassName={ isRevealed ? undefined : 'is-awaiting-previews' }
 			onRequestClose={ onClose }
 		>
 			<div ref={ contentRef }>
@@ -493,6 +559,7 @@ export default function LayoutPickerModal( {
 									pendingKey !== null &&
 									pendingKey !== card.key
 								}
+								isWatching={ ! isRevealed }
 								onClick={ () => pick( card ) }
 								onSettled={ () => markSettled( card.key ) }
 							/>
