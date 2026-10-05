@@ -485,6 +485,11 @@ function initBlock( root: HTMLElement ): void {
 	// already moved past them, so loadMore() applies them as the entries arrive.
 	const offPageUpdates = new Map< string, string >();
 
+	// Entries the poll reported taken down. One that comes back shows on
+	// reload, not before: polls, load more and a capped feed's whole replies
+	// all leave it out, cached load-more replies from before the removal too.
+	const removedEntryIds = new Set< string >();
+
 	const countedEntryIds = new Set< string >();
 
 	// Entries newer than the shared entry when the server rendered the page.
@@ -515,9 +520,11 @@ function initBlock( root: HTMLElement ): void {
 		const label = canCount
 			? newerPostsLabel( newerCount + countedEntryIds.size )
 			: '';
+		const text = label || ownLabel;
 
-		if ( label || ! canCount ) {
-			newEntriesLink.textContent = label || ownLabel;
+		// Writing only a change keeps a label holding markup as the server rendered it.
+		if ( newEntriesLink.textContent !== text ) {
+			newEntriesLink.textContent = text;
 		}
 	}
 
@@ -752,6 +759,74 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Swaps a capped feed's entries for the newest ones a poll sent whole,
+	 * leaving out entries taken down, in this reply or earlier, and keeping
+	 * the arrival of those it already showed.
+	 *
+	 * @param {PollEntry[]} entries Removals, then the newest entries, newest first.
+	 * @return {void}
+	 */
+	function replaceEntries( entries: PollEntry[] ): void {
+		entries.forEach( ( entry ) => {
+			if ( entry.type === 'remove' && isSafeEntryId( entry.id ) ) {
+				removedEntryIds.add( String( entry.id ) );
+			}
+		} );
+
+		const shownEntries = ownElements(
+			root,
+			':scope > [data-entry-id]',
+			entriesList
+		);
+		const arrivals = new Map(
+			shownEntries.map( ( el ) => [
+				el.dataset.entryId,
+				el.dataset.arrival,
+			] )
+		);
+		const fragment = document.createDocumentFragment();
+
+		entries
+			.filter(
+				( entry ) =>
+					entry.type !== 'remove' &&
+					isSafeEntryId( entry.id ) &&
+					! removedEntryIds.has( String( entry.id ) )
+			)
+			.slice( 0, latestCap || entries.length )
+			.forEach( ( entry ) => {
+				const el = parseElement( sanitizeHtml( entry.html ) );
+
+				if ( ! el ) {
+					return;
+				}
+
+				if ( arrivals.has( String( entry.id ) ) ) {
+					el.dataset.arrival = arrivals.get( String( entry.id ) );
+				}
+
+				observeEntry( el );
+				fragment.appendChild( el );
+			} );
+
+		shownEntries.forEach( ( el ) => {
+			unobserveEntry( el );
+			el.remove();
+		} );
+
+		if ( fragment.childElementCount > 0 ) {
+			ownElement(
+				root,
+				'.newspack-rolling-coverage-entries__empty',
+				entriesList
+			)?.remove();
+		}
+
+		entriesList.appendChild( fragment );
+		dropLastSeparator();
+	}
+
+	/**
 	 * Label for the control that tells the reader new entries are waiting.
 	 *
 	 * @param {number} count How many new entries are waiting.
@@ -802,6 +877,56 @@ function initBlock( root: HTMLElement ): void {
 		const entries = pendingNewEntries;
 		pendingNewEntries = [];
 		return entries;
+	}
+
+	/**
+	 * Takes an entry that was taken down off the page and out of the new
+	 * entries waiting to be shown, the count of newer entries and the edits
+	 * kept for load more.
+	 *
+	 * @param {string} entryId Entry ID.
+	 * @return {void}
+	 */
+	function removeEntry( entryId: string ): void {
+		const existing = ownElement(
+			root,
+			`[data-entry-id="${ entryId }"]`,
+			entriesList
+		);
+
+		if ( existing ) {
+			unobserveEntry( existing );
+			linkedObserver?.unobserve( existing );
+			existing.remove();
+			dropLastSeparator();
+		}
+
+		const waiting = pendingNewEntries.length;
+
+		pendingNewEntries = pendingNewEntries.filter(
+			( { el } ) => el.dataset.entryId !== entryId
+		);
+
+		if (
+			pendingNewEntries.length !== waiting &&
+			newEntriesControl &&
+			newEntriesLink
+		) {
+			if ( pendingNewEntries.length > 0 ) {
+				newEntriesLink.textContent = newEntriesLabel(
+					pendingNewEntries.length
+				);
+			} else {
+				newEntriesControl.hidden = true;
+			}
+		}
+
+		if ( countedEntryIds.delete( entryId ) ) {
+			showNewerCount();
+		}
+
+		offPageUpdates.delete( entryId );
+		removedEntryIds.add( entryId );
 	}
 
 	const cleanupFns: Array< () => void > = [];
@@ -1531,7 +1656,8 @@ function initBlock( root: HTMLElement ): void {
 	 * Applies a poll response to the entry list.
 	 *
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
-	 * on the page for loadMore(). Inserts or queues newly published entries
+	 * on the page for loadMore(). Drops entries taken down, and leaves one
+	 * that comes back for reload. Inserts or queues newly published entries
 	 * based on the reader's scroll position. When the feed opens at a shared
 	 * entry, new entries are added to the control's count instead of inserted.
 	 * A capped feed inserts new entries at once, whatever the scroll position,
@@ -1545,6 +1671,15 @@ function initBlock( root: HTMLElement ): void {
 
 		entries.forEach( ( entry ) => {
 			if ( ! isSafeEntryId( entry.id ) ) {
+				return;
+			}
+
+			if ( entry.type === 'remove' ) {
+				removeEntry( String( entry.id ) );
+				return;
+			}
+
+			if ( removedEntryIds.has( String( entry.id ) ) ) {
 				return;
 			}
 
@@ -1954,7 +2089,9 @@ function initBlock( root: HTMLElement ): void {
 					return;
 				}
 
-				if ( data.entries.length > 0 ) {
+				if ( data.replace ) {
+					replaceEntries( data.entries );
+				} else if ( data.entries.length > 0 ) {
 					applyPollResponse( data.entries );
 				}
 				cursor = data.cursor || cursor;
@@ -2075,6 +2212,7 @@ function initBlock( root: HTMLElement ): void {
 		setLoadMoreBusy( true );
 
 		let firstAppended: HTMLElement | null = null;
+		const pageBefore = before;
 
 		try {
 			const url = new URL( restBaseUrl );
@@ -2108,7 +2246,7 @@ function initBlock( root: HTMLElement ): void {
 					// Count how many entries were appended so the next page's offset can be correct.
 					let appended = 0;
 
-					// Defensive: never append an entry that is already in the list.
+					// Never append an entry that is already in the list, or one taken down since.
 					Array.from( fragment.children ).forEach( ( child ) => {
 						if (
 							! ( child instanceof HTMLElement ) ||
@@ -2124,7 +2262,10 @@ function initBlock( root: HTMLElement ): void {
 							) }"]`,
 							entriesList
 						);
-						if ( existing ) {
+						if (
+							existing ||
+							removedEntryIds.has( child.dataset.entryId )
+						) {
 							child.remove();
 							return;
 						}
@@ -2167,6 +2308,19 @@ function initBlock( root: HTMLElement ): void {
 			if ( ! isDisposed ) {
 				setLoadMoreBusy( false );
 			}
+		}
+
+		// A page that adds nothing, its entries all taken down or already
+		// shown, leaves the reader with nothing new: the sentinel stays in
+		// view, where its observer won't fire again, and a press of the
+		// button shows nothing. Load the next one instead.
+		if (
+			! firstAppended &&
+			! isDisposed &&
+			hasMore &&
+			before !== pageBefore
+		) {
+			return loadMore();
 		}
 
 		return firstAppended;
