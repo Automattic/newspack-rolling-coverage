@@ -73,6 +73,11 @@
 	margin-bottom: 0;
 }
 
+.wp-block-newspack-rolling-coverage-rolling-coverage .wp-block:has(> .newspack-rolling-coverage-feed) {
+	margin-top: 0;
+	margin-bottom: 0;
+}
+
 .newspack-rolling-coverage-pinned-card:not(.is-layout-flex, .is-layout-grid) > .wp-block,
 .newspack-rolling-coverage-pinned-card > .wp-block-group__inner-container > .wp-block,
 .newspack-rolling-coverage-regular-entry:not(.is-layout-flex, .is-layout-grid) > .wp-block,
