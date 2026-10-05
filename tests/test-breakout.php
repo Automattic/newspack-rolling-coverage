@@ -6,6 +6,7 @@
  */
 
 use Newspack_Rolling_Coverage\Breakout;
+use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
@@ -261,9 +262,9 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The block editor saves a post by sending back everything it read,
-	 * source entry included. That must not stop an editor saving a post that
-	 * was never broken out.
+	 * The block editor sends a post's whole meta object back once any of it
+	 * is edited; that must not stop an editor saving a post that was never
+	 * broken out.
 	 */
 	public function test_editor_can_save_a_post_with_what_it_read_echoed_back() {
 		self::log_in_as( 'editor' );
@@ -279,6 +280,31 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 				'title'                               => 'Recount ordered',
 				'meta'                                => $data['meta'],
 				Breakout::BREAKOUT_SOURCE_ENTRY_FIELD => $data[ Breakout::BREAKOUT_SOURCE_ENTRY_FIELD ] ?? 0,
+			]
+		);
+
+		$this->assertSame( 200, rest_get_server()->dispatch( $save )->get_status() );
+	}
+
+	/**
+	 * The same holds for an entry: the editor sends its whole meta object
+	 * back, and an entry that was never broken out must still save.
+	 */
+	public function test_editor_can_save_an_entry_with_what_it_read_echoed_back() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry( self::create_coverage() );
+		$path     = '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id;
+
+		$read = new WP_REST_Request( 'GET', $path );
+		$read->set_param( 'context', 'edit' );
+		$data = rest_get_server()->dispatch( $read )->get_data();
+
+		$save = new WP_REST_Request( 'POST', $path );
+		$save->set_body_params(
+			[
+				'title'                               => 'Recount ordered',
+				'meta'                                => $data['meta'],
+				Breakout::ENTRY_BREAKOUT_POST_ID_META => $data[ Breakout::ENTRY_BREAKOUT_POST_ID_META ] ?? 0,
 			]
 		);
 

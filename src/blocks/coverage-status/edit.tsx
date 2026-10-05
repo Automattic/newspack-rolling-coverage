@@ -317,16 +317,17 @@ export default function Edit( {
 	);
 	let goneNotice = '';
 
-	if ( isChosenGone && ! isTemplate ) {
-		goneNotice = followed
-			? __(
-					'This coverage no longer exists, so the page’s coverage is used.',
-					'newspack-rolling-coverage'
-				)
-			: __(
-					'This coverage no longer exists, so this badge won’t appear on the site.',
-					'newspack-rolling-coverage'
-				);
+	if ( isChosenGone ) {
+		goneNotice =
+			followed || isTemplate
+				? __(
+						'This coverage no longer exists, so the page’s coverage is used.',
+						'newspack-rolling-coverage'
+					)
+				: __(
+						'This coverage no longer exists, so this badge won’t appear on the site.',
+						'newspack-rolling-coverage'
+					);
 	}
 
 	return (

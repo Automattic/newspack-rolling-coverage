@@ -206,7 +206,7 @@ function getEntryActions(
 				}
 
 				const breakoutPostId =
-					items[ 0 ].meta?.rolling_coverage_breakout_post_id;
+					items[ 0 ].rolling_coverage_breakout_post_id;
 				if ( ! breakoutPostId ) {
 					return;
 				}
@@ -250,7 +250,7 @@ function getEntryActions(
 				}
 
 				const breakoutPostId =
-					items[ 0 ].meta?.rolling_coverage_breakout_post_id;
+					items[ 0 ].rolling_coverage_breakout_post_id;
 				if ( ! breakoutPostId ) {
 					return;
 				}

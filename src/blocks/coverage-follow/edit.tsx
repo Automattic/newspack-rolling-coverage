@@ -95,7 +95,6 @@ export default function Edit( {
 		[ followed ]
 	);
 
-	const showsGone = isChosenGone && ! isTemplate;
 	const showsSettings = ! config.onesignalConfigured || status === 'archived';
 
 	const blockProps = useBlockProps();
@@ -134,12 +133,12 @@ export default function Edit( {
 								taxonomySlug={ config.taxonomySlug }
 								statusMetaKey={ config.statusMetaKey }
 							/>
-							{ showsGone && (
+							{ isChosenGone && (
 								<Notice
 									status="warning"
 									isDismissible={ false }
 								>
-									{ followed
+									{ followed || isTemplate
 										? __(
 												'This coverage no longer exists, so the page’s coverage is used.',
 												'newspack-rolling-coverage'

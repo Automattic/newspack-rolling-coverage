@@ -2,7 +2,7 @@
  * WordPress dependencies
  */
 import { store as blockEditorStore } from '@wordpress/block-editor';
-import { parse } from '@wordpress/blocks';
+import { parse } from '@wordpress/block-serialization-default-parser';
 import { store as coreStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
@@ -16,15 +16,15 @@ const PARSED_CACHE_LIMIT = 50;
 
 type CoverageTerm = { id: number; meta?: Record< string, string > };
 type ParsedBlock = {
-	name: string;
-	attributes: Record< string, unknown >;
+	blockName: string | null;
+	attrs: Record< string, unknown > | null;
 	innerBlocks: ParsedBlock[];
 };
 type FeedItem = { coverageId: number } | { ref: number };
 type PostRecord = {
 	status?: string;
 	password?: string;
-	content?: string | { raw?: string };
+	content?: string | { raw?: string; protected?: boolean };
 } & Record< string, unknown >;
 
 interface BlockCoverageOptions {
@@ -47,19 +47,14 @@ const parsedFeeds = new Map< string, FeedItem[] >();
  */
 function collectFeedItems( blocks: ParsedBlock[] ): FeedItem[] {
 	return blocks.flatMap( ( block ): FeedItem[] => {
-		if ( block.name === FEED_BLOCK ) {
-			return block.attributes.latestOnly
+		if ( block.blockName === FEED_BLOCK ) {
+			return block.attrs?.latestOnly
 				? []
-				: [
-						{
-							coverageId:
-								Number( block.attributes.coverageId ) || 0,
-						},
-					];
+				: [ { coverageId: Number( block.attrs?.coverageId ) || 0 } ];
 		}
 
-		if ( block.name === PATTERN_BLOCK ) {
-			return [ { ref: Number( block.attributes.ref ) || 0 } ];
+		if ( block.blockName === PATTERN_BLOCK ) {
+			return [ { ref: Number( block.attrs?.ref ) || 0 } ];
 		}
 
 		return collectFeedItems( block.innerBlocks ?? [] );
@@ -67,7 +62,8 @@ function collectFeedItems( blocks: ParsedBlock[] ): FeedItem[] {
 }
 
 /**
- * The feed items in saved content, parsed once per distinct content.
+ * The feed items in saved content, parsed once per distinct content while
+ * that content is among the most recently parsed.
  *
  * @param {string} content Saved post content.
  * @return {Object[]} Feed coverage IDs and pattern refs.
@@ -76,10 +72,10 @@ function feedItems( content: string ): FeedItem[] {
 	let items = parsedFeeds.get( content );
 
 	if ( ! items ) {
-		items = collectFeedItems( parse( content ) as ParsedBlock[] );
+		items = collectFeedItems( parse( content ) );
 
 		if ( parsedFeeds.size >= PARSED_CACHE_LIMIT ) {
-			parsedFeeds.clear();
+			parsedFeeds.delete( parsedFeeds.keys().next().value as string );
 		}
 
 		parsedFeeds.set( content, items );
@@ -91,13 +87,27 @@ function feedItems( content: string ): FeedItem[] {
 /**
  * The saved content of a post record.
  *
- * @param {Object} record Post record, in edit context.
+ * @param {Object} record Post record, with raw content.
  * @return {string} Raw content.
  */
 function rawContent( record: PostRecord ): string {
 	return typeof record.content === 'string'
 		? record.content
 		: ( record.content?.raw ?? '' );
+}
+
+/**
+ * Whether a post record is password protected, which keeps the site from
+ * reading its content.
+ *
+ * @param {Object} record Post record.
+ * @return {boolean} Whether it has a password.
+ */
+function isProtected( record: PostRecord ): boolean {
+	return (
+		!! record.password ||
+		( typeof record.content === 'object' && !! record.content.protected )
+	);
 }
 
 /**
@@ -112,7 +122,8 @@ function rawContent( record: PostRecord ): string {
  * block renders for. With the template shown, only feeds in the post
  * content count. An item's feeds come from its saved content, following
  * published synced patterns; its content and source entry are only readable
- * in edit context, so an item the user can't edit has no coverage here.
+ * in edit context, so an item the user can't edit has no coverage here, and
+ * neither does a password-protected one, as on the site.
  *
  * @param {Object} options                  Options.
  * @param {*}      options.feedCoverageId   The coverage in the block's context, if any.
@@ -166,6 +177,7 @@ function useBlockCoverage( {
 				getCurrentPostId: () => number | string | undefined;
 				getCurrentPostType: () => string | undefined;
 				getEditedPostAttribute: ( attribute: string ) => unknown;
+				getRenderingMode: () => string;
 			};
 			const core = select( coreStore ) as unknown as {
 				getEntityRecord: (
@@ -239,10 +251,12 @@ function useBlockCoverage( {
 					const pattern = core.getEntityRecord(
 						'postType',
 						'wp_block',
-						ref
+						ref,
+						VIEW_CONTEXT
 					);
 
-					return pattern?.status === 'publish' && ! pattern.password
+					return pattern?.status === 'publish' &&
+						! isProtected( pattern )
 						? rawContent( pattern )
 						: null;
 				};
@@ -272,13 +286,15 @@ function useBlockCoverage( {
 					postType as string,
 					itemId
 				);
+				const readable =
+					record && ! isProtected( record ) ? record : null;
 
-				feeds = record ? contentFeeds( rawContent( record ), [] ) : [];
-				entryId = Number( record?.[ sourceEntryField ] ) || 0;
+				feeds = readable
+					? contentFeeds( rawContent( readable ), [] )
+					: [];
+				entryId = Number( readable?.[ sourceEntryField ] ) || 0;
 			} else {
-				const showsTemplate =
-					blockEditor.getBlocksByName( POST_CONTENT_BLOCK ).length >
-					0;
+				const showsTemplate = editor.getRenderingMode() !== 'post-only';
 
 				feeds = blockEditor
 					.getBlocksByName( FEED_BLOCK )
