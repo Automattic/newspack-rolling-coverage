@@ -513,6 +513,20 @@ function FeedWrappersPreview( {
 	}, children );
 }
 
+/**
+ * Entries per page as the server renders it: 1 to PER_PAGE_MAX (100),
+ * 20 when unset.
+ *
+ * @param {number} value Stored or typed value.
+ * @return {number} The page size.
+ */
+function clampEntriesPerPage( value: number ): number {
+	return Math.min(
+		Math.max( 1, Number.isFinite( value ) ? Math.trunc( value ) : 20 ),
+		100
+	);
+}
+
 export default function Edit( {
 	clientId,
 	attributes,
@@ -537,6 +551,7 @@ export default function Edit( {
 		layoutId,
 		align,
 	} = attributes;
+	const pageSize = clampEntriesPerPage( entriesPerPage );
 	const { currentPostType, currentPostId, patternCategories } = useSelect(
 		( select ) => {
 			const editor = select( editorStore ) as unknown as {
@@ -863,12 +878,12 @@ export default function Edit( {
 				.map( ( context ) => ( { ...context, pinned: false } ) );
 		}
 		return isSamplePreview
-			? allSampleContexts.slice( 0, entriesPerPage )
+			? allSampleContexts.slice( 0, pageSize )
 			: allSampleContexts;
 	}, [
 		allSampleContexts,
 		isSamplePreview,
-		entriesPerPage,
+		pageSize,
 		isCapped,
 		cappedCount,
 	] );
@@ -897,7 +912,7 @@ export default function Edit( {
 		useLayoutPreview(
 			isSynced ? feedItems( syncedBlocks ) : allBlocks,
 			previewContexts,
-			entriesPerPage,
+			pageSize,
 			! previewHasMore
 		);
 	const loadMorePreview = olderEntries === 'button' && previewHasMore && (
@@ -1221,9 +1236,7 @@ export default function Edit( {
 				id: number
 			) => Promise< unknown >;
 		};
-		const perPage = isCapped
-			? cappedCount
-			: Math.min( Math.max( 1, entriesPerPage || 20 ), 100 );
+		const perPage = isCapped ? cappedCount : pageSize;
 		// One entry past the page tells whether more would load.
 		fetchEntryPreviewContexts(
 			entriesCoverageId,
@@ -1258,7 +1271,7 @@ export default function Edit( {
 		return () => {
 			cancelled = true;
 		};
-	}, [ entriesCoverageId, entriesPerPage, isCapped, cappedCount, registry ] );
+	}, [ entriesCoverageId, pageSize, isCapped, cappedCount, registry ] );
 
 	// Populate the combobox as the user searches.
 	useEffect( () => {
@@ -1710,9 +1723,9 @@ export default function Edit( {
 							max={ 100 }
 							onChange={ ( value: string ) =>
 								setAttributes( {
-									entriesPerPage: value
-										? parseInt( value, 10 )
-										: 20,
+									entriesPerPage: clampEntriesPerPage(
+										parseInt( value, 10 )
+									),
 								} )
 							}
 						/>
