@@ -211,12 +211,8 @@ function feedGapStyle( feed?: {
 	const columnGap =
 		typeof blockGap === 'object' ? blockGapCss( blockGap.left ) : undefined;
 
-	if ( ! gap ) {
-		return {};
-	}
-
 	return {
-		'--newspack-rolling-coverage-gap': gap,
+		...( gap ? { '--newspack-rolling-coverage-gap': gap } : {} ),
 		...( columnGap
 			? { '--newspack-rolling-coverage-column-gap': columnGap }
 			: {} ),

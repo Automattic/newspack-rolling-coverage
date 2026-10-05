@@ -25,7 +25,7 @@ A layout is how the feed looks: spacing, colors, type, and which parts each entr
 | Margin | Each entry split into a margin and its content. |
 | Minute | Closer together, with each entry reduced to its content. |
 | Byline | Each entry signed by its author. |
-| Ticker | A strip with the coverage's status and name beside the three latest headlines, and a link to the coverage page, with a thin rule between each. The Feed's Block spacing sets the space on either side of a rule. Wide width. Hides when the coverage ends. |
+| Ticker | A strip with the coverage's status and name beside the three latest headlines, and a link to the coverage page, with a thin rule between them. The Feed's Block spacing sets the space on either side of a rule. Wide width. Hides when the coverage ends. |
 | Split | The full feed at wide width, with the pinned entry's summary in a column beside the entries. |
 | Wire | A narrow list of the five latest entries, ending in a link to the coverage page. |
 | Digest | A bordered box with the coverage name, the three latest entries next to their times, and a link to the coverage page. |

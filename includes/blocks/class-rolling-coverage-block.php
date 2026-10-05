@@ -384,22 +384,25 @@ class Rolling_Coverage_Block {
 	/**
 	 * A Block spacing value as the declarations setting the space between the
 	 * coverage's items, and between a grid's columns when they have their own
-	 * value, or an empty string when it's unset or not a valid gap.
+	 * value, or an empty string when neither is set or valid. Each axis is
+	 * read on its own, so a column gap set without a row gap still applies.
 	 *
 	 * @param mixed $block_gap Block spacing value, a string or an array with `top` and `left` values.
 	 * @return string
 	 */
 	private static function feed_gap_declaration( $block_gap ): string {
 		$sanitized = wp_sanitize_block_gap_value( $block_gap );
-		$gap       = self::gap_css_value( is_array( $sanitized ) ? ( $sanitized['top'] ?? null ) : $sanitized );
+		$values    = [
+			self::FEED_GAP_PROPERTY        => self::gap_css_value( is_array( $sanitized ) ? ( $sanitized['top'] ?? null ) : $sanitized ),
+			self::FEED_COLUMN_GAP_PROPERTY => is_array( $sanitized ) ? self::gap_css_value( $sanitized['left'] ?? null ) : '',
+		];
+		$declarations = [];
 
-		if ( '' === $gap ) {
-			return '';
+		foreach ( array_filter( $values ) as $property => $value ) {
+			$declarations[] = $property . ':' . $value;
 		}
 
-		$column_gap = is_array( $sanitized ) ? self::gap_css_value( $sanitized['left'] ?? null ) : '';
-
-		return self::FEED_GAP_PROPERTY . ':' . $gap . ( '' === $column_gap ? '' : ';' . self::FEED_COLUMN_GAP_PROPERTY . ':' . $column_gap );
+		return implode( ';', $declarations );
 	}
 
 	/**

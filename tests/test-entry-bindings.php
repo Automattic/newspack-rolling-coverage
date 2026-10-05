@@ -1238,6 +1238,29 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 				'--newspack-rolling-coverage-gap:var(--wp--preset--spacing--30);--newspack-rolling-coverage-column-gap:2rem',
 			],
 			'row'     => [ [ 'spacing' => [ 'blockGap' => [ 'top' => '0' ] ] ], '--newspack-rolling-coverage-gap:0px' ],
+			'column'  => [ [ 'spacing' => [ 'blockGap' => [ 'left' => '2rem' ] ] ], '--newspack-rolling-coverage-column-gap:2rem' ],
+			'no gap'  => [
+				[
+					'spacing' => [
+						'blockGap' => [
+							'top'  => '1rem',
+							'left' => '0',
+						],
+					],
+				],
+				'--newspack-rolling-coverage-gap:1rem;--newspack-rolling-coverage-column-gap:0px',
+			],
+			'unsafe'  => [
+				[
+					'spacing' => [
+						'blockGap' => [
+							'top'  => '1rem',
+							'left' => '1px;}body{display:none',
+						],
+					],
+				],
+				'--newspack-rolling-coverage-gap:1rem',
+			],
 		];
 	}
 

@@ -30,9 +30,9 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 
 	const STACKED_ENTRY_STYLE = '{"border":{"left":{"style":"none"},"top":{"color":"#ddd","width":"1px","style":"solid"}},"spacing":{"padding":{"left":"0","top":"var:preset|spacing|40"}}}';
 
-	const RULED_ENTRY_STYLE = '{"border":{"left":{"color":"#ddd","width":"1px","style":"solid"}},"spacing":{"blockGap":"0","padding":{"left":"var:preset|spacing|40"}},"@tablet":' . self::STACKED_ENTRY_STYLE . ',"@mobile":' . self::STACKED_ENTRY_STYLE . '}';
+	const BORDERED_ENTRY_STYLE = '{"border":{"left":{"color":"#ddd","width":"1px","style":"solid"}},"spacing":{"blockGap":"0","padding":{"left":"var:preset|spacing|40"}},"@tablet":' . self::STACKED_ENTRY_STYLE . ',"@mobile":' . self::STACKED_ENTRY_STYLE . '}';
 
-	const RULED_ENTRY_INLINE_STYLE = 'border-left-color:#ddd;border-left-style:solid;border-left-width:1px;padding-left:var(--wp--preset--spacing--40)';
+	const BORDERED_ENTRY_INLINE_STYLE = 'border-left-color:#ddd;border-left-style:solid;border-left-width:1px;padding-left:var(--wp--preset--spacing--40)';
 
 	const FOOTER_MARKUP = '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-all-updates","style":{"layout":{"columnSpan":4},"@tablet":{"layout":{"columnSpan":3}},"@mobile":{"layout":{"columnSpan":1}}}} --><p class="use-header-font newspack-rolling-coverage-all-updates"><a href="#">See all updates</a></p><!-- /wp:paragraph -->';
 
@@ -388,7 +388,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 		$coverage_id = self::create_coverage();
 		self::create_entries( $coverage_id );
 
-		$html = self::render_ticker( $coverage_id, self::feed_markup( self::RULED_ENTRY_STYLE, self::RULED_ENTRY_INLINE_STYLE ) );
+		$html = self::render_ticker( $coverage_id, self::feed_markup( self::BORDERED_ENTRY_STYLE, self::BORDERED_ENTRY_INLINE_STYLE ) );
 		$css  = wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] );
 
 		$this->assertSame( 3, preg_match_all( '#<div class="wp-block-group newspack-rolling-coverage-regular-entry [^"]*(wp-states-[0-9a-f]{8})#', $html, $classes ) );
@@ -416,7 +416,7 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	public function test_an_empty_coverage_stores_the_entries_viewport_styles() {
 		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
 
-		self::render_ticker( self::create_coverage(), self::feed_markup( self::RULED_ENTRY_STYLE, self::RULED_ENTRY_INLINE_STYLE ) );
+		self::render_ticker( self::create_coverage(), self::feed_markup( self::BORDERED_ENTRY_STYLE, self::BORDERED_ENTRY_INLINE_STYLE ) );
 		$css = wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] );
 
 		$this->assertSame( 1, preg_match( '#\.(wp-states-[0-9a-f]{8})\{[^}]*border-left-style:none !important#', $css, $class_name ) );
