@@ -5,9 +5,14 @@ import { ComboboxControl } from '@wordpress/components';
 import { store as coreStore } from '@wordpress/core-data';
 import { useDebounce } from '@wordpress/compose';
 import { useSelect } from '@wordpress/data';
-import { useMemo, useRef, useState } from '@wordpress/element';
+import { useEffect, useMemo, useRef, useState } from '@wordpress/element';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __ } from '@wordpress/i18n';
+
+/**
+ * Internal dependencies
+ */
+import LoadingState from '../rolling-coverage/components/loading-state';
 
 type CoverageTerm = {
 	id: number;
@@ -43,6 +48,7 @@ export default function CoveragePicker( {
 	const [ search, setSearch ] = useState( '' );
 	const setSearchDebounced = useDebounce( setSearch, 300 );
 	const lastFound = useRef< CoverageTerm[] >( [] );
+	const [ hasLoaded, setHasLoaded ] = useState( false );
 
 	const { found, current, isLoading } = useSelect(
 		( select ) => {
@@ -86,6 +92,12 @@ export default function CoveragePicker( {
 		lastFound.current = found;
 	}
 
+	useEffect( () => {
+		if ( ! isLoading ) {
+			setHasLoaded( true );
+		}
+	}, [ isLoading ] );
+
 	const options = useMemo( () => {
 		const terms = ( found ?? lastFound.current ).filter(
 			( term ) => term.meta?.[ statusMetaKey ] !== 'trash'
@@ -100,6 +112,18 @@ export default function CoveragePicker( {
 			label: decodeEntities( term.name ?? String( term.id ) ),
 		} ) );
 	}, [ found, current, statusMetaKey ] );
+
+	if ( ! hasLoaded && isLoading ) {
+		return (
+			<LoadingState
+				compact
+				label={ __(
+					'Loading coverages…',
+					'newspack-rolling-coverage'
+				) }
+			/>
+		);
+	}
 
 	return (
 		<ComboboxControl

@@ -144,6 +144,23 @@
 		font-weight: wp-vars.$font-weight-medium;
 		line-height: wp-vars.$font-line-height-small;
 	}
+
+	&.is-compact {
+		flex-direction: row;
+		justify-content: flex-start;
+		gap: wp-vars.$grid-unit-10;
+		padding-block: 0;
+		min-height: wp-vars.$button-size-next-default-40px;
+
+		.components-spinner {
+			margin: 0;
+		}
+
+		p {
+			font-size: wp-vars.$default-font-size;
+			font-weight: wp-vars.$font-weight-regular;
+		}
+	}
 }
 
 .components-modal__screen-overlay.is-awaiting-previews {

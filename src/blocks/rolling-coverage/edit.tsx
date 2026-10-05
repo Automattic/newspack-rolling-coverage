@@ -705,6 +705,7 @@ export default function Edit( {
 
 	const [ search, setSearch ] = useState( '' );
 	const [ options, setOptions ] = useState< CoverageOption[] >( [] );
+	const [ loadedSearch, setLoadedSearch ] = useState< string | null >( null );
 	const [ currentCoverage, setCurrentCoverage ] =
 		useState< CoverageOption | null >( null );
 	const [ pendingCanonicalUrl, setPendingCanonicalUrl ] =
@@ -1342,13 +1343,17 @@ export default function Edit( {
 			setEntriesLoadedFor( 0 );
 			return;
 		}
-		const { getEntityRecord } = registry.resolveSelect(
+		const { getEntityRecord, getUser } = registry.resolveSelect(
 			coreStore
 		) as unknown as {
 			getEntityRecord: (
 				kind: string,
 				name: string,
 				id: number
+			) => Promise< unknown >;
+			getUser: (
+				id: number,
+				query?: Record< string, string >
 			) => Promise< unknown >;
 		};
 		const perPage = isCapped ? cappedCount : pageSize;
@@ -1361,8 +1366,8 @@ export default function Edit( {
 			.then( ( fetched ) => {
 				const contexts = fetched.slice( 0, perPage );
 
-				// Entries are read before the preview shows, so it doesn't
-				// fill in piece by piece.
+				// Entries and their authors are read before the preview
+				// shows, so it doesn't fill in piece by piece.
 				return Promise.all(
 					contexts.map( ( context ) =>
 						getEntityRecord(
@@ -1371,10 +1376,32 @@ export default function Edit( {
 							context.postId
 						).catch( () => undefined )
 					)
-				).then( () => ( {
-					contexts,
-					hasMore: fetched.length > perPage,
-				} ) );
+				)
+					.then( ( records ) => {
+						const authorIds = new Set< number >();
+						records.forEach( ( record ) => {
+							const author = ( record as { author?: number } )
+								?.author;
+							if ( author ) {
+								authorIds.add( author );
+							}
+						} );
+
+						// Post Author reads the view context; Post Author
+						// Name and Avatar read the default one.
+						return Promise.all(
+							[ ...authorIds ].flatMap( ( authorId ) => [
+								getUser( authorId ).catch( () => undefined ),
+								getUser( authorId, {
+									context: 'view',
+								} ).catch( () => undefined ),
+							] )
+						);
+					} )
+					.then( () => ( {
+						contexts,
+						hasMore: fetched.length > perPage,
+					} ) );
 			} )
 			.then( ( { contexts, hasMore } ) => {
 				if ( ! cancelled ) {
@@ -1410,6 +1437,7 @@ export default function Edit( {
 			}
 
 			setOptions( results );
+			setLoadedSearch( search );
 		} );
 
 		return () => {
@@ -1525,25 +1553,35 @@ export default function Edit( {
 	] );
 
 	// Combobox for selecting the connected coverage.
-	const coverageCombobox = (
-		<ComboboxControl
-			__next40pxDefaultSize
-			label={ __( 'Coverage', 'newspack-rolling-coverage' ) }
-			hideLabelFromVision
-			value={ coverageId ? String( coverageId ) : '' }
-			options={ options }
-			placeholder={ __(
-				'Search for a coverage…',
-				'newspack-rolling-coverage'
-			) }
-			onChange={ ( value ) =>
-				setAttributes( {
-					coverageId: value ? parseInt( value, 10 ) : 0,
-				} )
-			}
-			onFilterValueChange={ setSearch }
-		/>
-	);
+	const coverageCombobox =
+		! isPreviewMode && loadedSearch === null ? (
+			<LoadingState
+				compact
+				label={ __(
+					'Loading coverages…',
+					'newspack-rolling-coverage'
+				) }
+			/>
+		) : (
+			<ComboboxControl
+				__next40pxDefaultSize
+				label={ __( 'Coverage', 'newspack-rolling-coverage' ) }
+				hideLabelFromVision
+				value={ coverageId ? String( coverageId ) : '' }
+				options={ options }
+				placeholder={ __(
+					'Search for a coverage…',
+					'newspack-rolling-coverage'
+				) }
+				onChange={ ( value ) =>
+					setAttributes( {
+						coverageId: value ? parseInt( value, 10 ) : 0,
+					} )
+				}
+				onFilterValueChange={ setSearch }
+				isLoading={ loadedSearch !== search }
+			/>
+		);
 
 	const inspector = isLayoutPattern ? (
 		<InspectorControls>
