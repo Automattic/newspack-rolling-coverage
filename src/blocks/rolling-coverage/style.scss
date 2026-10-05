@@ -185,6 +185,7 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 
 	> :where(.newspack-rolling-coverage-entries, .newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-regular-entry):where(:not([class*="wp-container-content-"])) {
 		flex: 1 1 0;
+		width: 100%;
 		min-width: min(24rem, 100%);
 	}
 
@@ -200,7 +201,7 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 		-webkit-line-clamp: 1;
 		line-clamp: 1;
 
-		@media (max-width: 781px) {
+		@media (max-width: 782px) {
 			-webkit-line-clamp: 2;
 			line-clamp: 2;
 		}

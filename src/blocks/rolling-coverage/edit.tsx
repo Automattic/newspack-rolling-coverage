@@ -488,16 +488,36 @@ function chromePreviewStyle(
 }
 
 /**
- * A style value as CSS, with a `var:preset|color|slug` reference turned into
- * its custom property.
+ * A color from a group's style as CSS: a `var:preset|color|slug` reference as
+ * its custom property, kebab-cased as core prints it, or any other value the
+ * browser accepts as a color.
  *
- * @param {string} value The style value.
- * @return {string} The CSS value.
+ * @param {unknown} value The style value.
+ * @return {string|null} The CSS value, or null when it isn't a color.
  */
-function cssValue( value: string ): string {
-	return value.startsWith( 'var:' )
-		? `var(--wp--${ value.slice( 4 ).replace( /\|/g, '--' ) })`
-		: value;
+function cssColor( value: unknown ): string | null {
+	if ( typeof value !== 'string' || ! value ) {
+		return null;
+	}
+
+	if ( value.startsWith( 'var:' ) ) {
+		const segments = value
+			.slice( 4 )
+			.split( '|' )
+			.map( ( segment ) =>
+				segment
+					.replace( /([a-z])([A-Z])/g, '$1-$2' )
+					.replace( /([a-zA-Z])(\d)/g, '$1-$2' )
+					.replace( /(\d)([a-zA-Z])/g, '$1-$2' )
+					.toLowerCase()
+			);
+
+		return segments.every( ( segment ) => /^[a-z0-9-]+$/.test( segment ) )
+			? `var(--wp--${ segments.join( '--' ) })`
+			: null;
+	}
+
+	return CSS.supports( 'color', value ) ? value : null;
 }
 
 /**
@@ -527,7 +547,7 @@ function groupElementsCSS(
 		}
 	 ).style?.elements;
 	const link = `${ selector } a:where(:not(.wp-element-button))`;
-	const rules: [ string, string | undefined ][] = [
+	const rules: [ string, unknown ][] = [
 		[ link, elements?.link?.color?.text ],
 		[ `${ link }:hover`, elements?.link?.[ ':hover' ]?.color?.text ],
 		[
@@ -537,11 +557,11 @@ function groupElementsCSS(
 	];
 
 	return rules
-		.filter( ( [ , color ] ) => typeof color === 'string' && color )
-		.map(
-			( [ rule, color ] ) =>
-				`${ rule } { color: ${ cssValue( color as string ) }; }`
-		)
+		.map( ( [ rule, value ] ) => {
+			const color = cssColor( value );
+			return color ? `${ rule } { color: ${ color }; }` : '';
+		} )
+		.filter( Boolean )
 		.join( '\n' );
 }
 
@@ -646,8 +666,8 @@ function FeedWrappersPreview( {
 
 	return (
 		<>
-			{ css && <style>{ css }</style> }
 			{ tree }
+			{ css && <style>{ css }</style> }
 		</>
 	);
 }
