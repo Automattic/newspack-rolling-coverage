@@ -44,6 +44,7 @@ type LayoutCard = {
 	slug?: BuiltInLayoutSlug;
 	template?: () => TemplateItem[];
 	innerBlocks: () => unknown[];
+	previewWidth?: number;
 };
 
 const PREVIEW_ENTRIES = 3;
@@ -182,7 +183,9 @@ function LayoutPickerCard( {
 			>
 				<BlockPreview
 					blocks={ blocks }
-					viewportWidth={ PREVIEW_VIEWPORT_WIDTH }
+					viewportWidth={
+						card.previewWidth ?? PREVIEW_VIEWPORT_WIDTH
+					}
 				/>
 			</span>
 			<span className="newspack-rolling-coverage-layout-picker__title">
@@ -272,6 +275,7 @@ export default function LayoutPickerModal( {
 				patternId: id,
 				slug: layout.slug,
 				template: layout.template,
+				previewWidth: layout.previewWidth,
 				innerBlocks:
 					fromPattern ??
 					( () =>
