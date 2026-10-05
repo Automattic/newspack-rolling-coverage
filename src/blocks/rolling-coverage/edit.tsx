@@ -204,6 +204,30 @@ function feedGapStyle( feed?: {
 	return gap ? { '--newspack-rolling-coverage-gap': gap } : {};
 }
 
+/**
+ * Whether no Block Visibility setting hides a block, in any viewport.
+ *
+ * @param {Object} block The block.
+ * @return {boolean} Whether the block shows everywhere.
+ */
+function isShownEverywhere( block: { [ key: string ]: unknown } ): boolean {
+	const visibility = (
+		( block.attributes as { metadata?: unknown } | undefined )?.metadata as
+			| {
+					blockVisibility?:
+						boolean | { viewport?: Record< string, boolean > };
+			  }
+			| undefined
+	 )?.blockVisibility;
+
+	return (
+		visibility !== false &&
+		! Object.values(
+			( typeof visibility === 'object' && visibility.viewport ) || {}
+		).includes( false )
+	);
+}
+
 const FLEX_JUSTIFY: Record< string, string > = {
 	left: 'flex-start',
 	right: 'flex-end',
@@ -1026,9 +1050,13 @@ export default function Edit( {
 	);
 	const isCardHidden = hasBothKinds && ! pinnedContext;
 	const isEntryHidden = hasBothKinds && ! regularContext && !! pinnedContext;
+	// Core skips rendering a hidden block, filters included, so the previews
+	// follow the last block shown in every viewport.
 	const entryPreviewsAnchorId =
-		( templateBlocks.at( -1 ) as { clientId?: string } | undefined )
-			?.clientId ?? null;
+		(
+			templateBlocks.findLast( isShownEverywhere ) as
+				{ clientId?: string } | undefined
+		 )?.clientId ?? null;
 	const entryPreviews = useMemo(
 		() => (
 			<>
@@ -1113,7 +1141,7 @@ export default function Edit( {
 			hiddenIds
 				.map(
 					( id ) =>
-						`.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ id }"]:not(.block-editor-block-preview__live-content *) { display: none; }`
+						`.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ id }"]:not(.newspack-rolling-coverage-layout .block-editor-block-preview__live-content *) { display: none; }`
 				)
 				.join( '\n' ),
 		[ hiddenIds ]
