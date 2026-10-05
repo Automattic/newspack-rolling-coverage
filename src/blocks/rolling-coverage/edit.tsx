@@ -122,15 +122,15 @@ import type {
 } from './types';
 
 /**
- * Neutral block context used when a coverage has no published entries yet,
- * so the template can still be edited against something.
- */
-/**
  * The layout the block offers the blocks of a layout: full width, so a bar
  * like Flash's can span the page in the editor as it does on the site.
  */
 const INNER_BLOCKS_LAYOUT = { type: 'default', alignments: [ 'none', 'full' ] };
 
+/**
+ * Neutral block context used when a coverage has no published entries yet,
+ * so the template can still be edited against something.
+ */
 const NEUTRAL_ENTRY_CONTEXT: EntryContext = {
 	postId: 0,
 	postType: '',
