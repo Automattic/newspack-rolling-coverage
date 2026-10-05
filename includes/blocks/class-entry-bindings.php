@@ -497,7 +497,9 @@ class Entry_Bindings {
 
 	/**
 	 * The stored HTML describing a media block: its caption, the text over a
-	 * cover, else an image's alt text. Empty when it has none.
+	 * cover, else an image's alt text. A gallery without a caption of its own
+	 * takes its first image that has one of these, as galleries posted from
+	 * Slack carry their descriptions on the images. Empty when it has none.
 	 *
 	 * @param array $block Parsed media block.
 	 * @return string
@@ -515,6 +517,18 @@ class Entry_Bindings {
 
 		if ( preg_match( '#<figcaption\b[^>]*>(.*?)</figcaption>#is', $html, $caption ) && self::has_visible_text( $caption[1] ) ) {
 			return $caption[1];
+		}
+
+		if ( 'core/gallery' === $name ) {
+			foreach ( array_filter( $block['innerBlocks'] ?? [], 'is_array' ) as $image ) {
+				$description = self::media_description( $image );
+
+				if ( self::has_visible_text( $description ) ) {
+					return $description;
+				}
+			}
+
+			return '';
 		}
 
 		if ( 'core/image' !== $name ) {

@@ -88,7 +88,7 @@ https://example.com/media
 
 		return [
 			'image'             => [ '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image -->', 'Photo' ],
-			'gallery'           => [ '<!-- wp:gallery {"linkTo":"none"} --><figure class="wp-block-gallery has-nested-images"><!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt="Inside the gallery"/><figcaption class="wp-element-caption">One photo of several</figcaption></figure><!-- /wp:image --></figure><!-- /wp:gallery -->', 'Gallery' ],
+			'gallery'           => [ '<!-- wp:gallery {"linkTo":"none"} --><figure class="wp-block-gallery has-nested-images"><!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image --></figure><!-- /wp:gallery -->', 'Gallery' ],
 			'video'             => [ '<!-- wp:video --><figure class="wp-block-video"><video controls src="https://example.com/a.mp4"></video></figure><!-- /wp:video -->', 'Video' ],
 			'audio'             => [ '<!-- wp:audio --><figure class="wp-block-audio"><audio controls src="https://example.com/a.mp3"></audio></figure><!-- /wp:audio -->', 'Audio' ],
 			'video embed'       => [ $embed( 'youtube', 'video' ), 'Video' ],
@@ -118,6 +118,19 @@ https://example.com/media
 			'Gallery: The parade route',
 			self::fallback_title( '<!-- wp:gallery {"linkTo":"none"} --><figure class="wp-block-gallery has-nested-images"><!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image --><figcaption class="blocks-gallery-caption wp-element-caption">The parade route</figcaption></figure><!-- /wp:gallery -->' )
 		);
+	}
+
+	/**
+	 * A gallery without a caption of its own takes the caption or alt text
+	 * of its first image that has one, as a gallery posted from Slack carries
+	 * its descriptions on its images.
+	 */
+	public function test_gallery_without_a_caption_takes_its_first_described_image() {
+		$image = static fn( string $alt, string $caption = '' ) => '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt="' . $alt . '"/>' . ( $caption ? '<figcaption class="wp-element-caption">' . $caption . '</figcaption>' : '' ) . '</figure><!-- /wp:image -->';
+		$gallery = static fn( string $images ) => '<!-- wp:gallery {"linkTo":"none"} --><figure class="wp-block-gallery has-nested-images">' . $images . '</figure><!-- /wp:gallery -->';
+
+		$this->assertSame( 'Gallery: Crowds at the finish line', self::fallback_title( $gallery( $image( '' ) . $image( 'Crowds at the finish line' ) . $image( 'The podium' ) ) ) );
+		$this->assertSame( 'Gallery: One photo of several', self::fallback_title( $gallery( $image( 'Inside the gallery', 'One photo of several' ) ) ) );
 	}
 
 	/**
