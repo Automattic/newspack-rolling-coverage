@@ -230,6 +230,27 @@ function feedsIn( node: Node ): HTMLElement[] {
 }
 
 /**
+ * Moves focus to an element that takes none of its own, such as an entry,
+ * making it focusable until it loses focus.
+ *
+ * @param {HTMLElement} element   The element to focus.
+ * @param {Object}      [options] Focus options.
+ * @return {void}
+ */
+function focusFromScript( element: HTMLElement, options?: FocusOptions ): void {
+	if ( ! element.hasAttribute( 'tabindex' ) ) {
+		element.setAttribute( 'tabindex', '-1' );
+		element.addEventListener(
+			'blur',
+			() => element.removeAttribute( 'tabindex' ),
+			{ once: true }
+		);
+	}
+
+	element.focus( options );
+}
+
+/**
  * The label of the control on a feed opened at a shared entry: the number of
  * newer entries, exact up to ten and from there the round number it has
  * passed, e.g. "10+ Newer Posts" for 11 to 50. Mirrors
@@ -409,6 +430,13 @@ function initBlock( root: HTMLElement ): void {
 	const templateKey = root.dataset.templateKey || '';
 	const hostPostId = root.dataset.hostPostId || '0';
 	const sentinel = ownElement( root, '.newspack-rolling-coverage-sentinel' );
+	const loadMoreControl = ownElement(
+		root,
+		'.newspack-rolling-coverage-load-more'
+	);
+	const loadMoreButton =
+		loadMoreControl?.querySelector< HTMLButtonElement >( 'button' ) ?? null;
+	const loadMoreLabel = loadMoreButton?.textContent ?? '';
 	const newEntriesControl = ownElement(
 		root,
 		'.newspack-rolling-coverage-new-entries'
@@ -1311,13 +1339,7 @@ function initBlock( root: HTMLElement ): void {
 			try {
 				showLiveBlock( fetched.live, fetched.url );
 				window.scrollTo( { top: blockTopY(), behavior } );
-				entriesList.setAttribute( 'tabindex', '-1' );
-				entriesList.addEventListener(
-					'blur',
-					() => entriesList.removeAttribute( 'tabindex' ),
-					{ once: true }
-				);
-				entriesList.focus( { preventScroll: true } );
+				focusFromScript( entriesList, { preventScroll: true } );
 				announce(
 					__(
 						'Showing the latest posts.',
@@ -1989,18 +2011,50 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Marks the Load More button busy while a page loads, or ready again, and
+	 * hides it once no more entries can load.
+	 *
+	 * @param {boolean} busy Whether a page is loading.
+	 * @return {void}
+	 */
+	function setLoadMoreBusy( busy: boolean ): void {
+		if ( ! loadMoreControl || ! loadMoreButton ) {
+			return;
+		}
+
+		loadMoreControl.hidden = ! hasMore;
+
+		if ( busy ) {
+			loadMoreButton.textContent = __(
+				'Loading…',
+				'newspack-rolling-coverage'
+			);
+			loadMoreButton.setAttribute( 'aria-busy', 'true' );
+			// Unlike disabled, keeps focus on the button, for a retry.
+			loadMoreButton.setAttribute( 'aria-disabled', 'true' );
+		} else {
+			loadMoreButton.textContent = loadMoreLabel;
+			loadMoreButton.removeAttribute( 'aria-busy' );
+			loadMoreButton.removeAttribute( 'aria-disabled' );
+		}
+	}
+
+	/**
 	 * Loads and appends the next page of older entries.
 	 *
 	 * Sends the backlog position so ad placement stays stable across load-more
 	 * pages.
 	 *
-	 * @return {Promise<void>} Resolves when the next page has been handled.
+	 * @return {Promise<HTMLElement | null>} The first entry appended, or null if none was.
 	 */
-	async function loadMore(): Promise< void > {
+	async function loadMore(): Promise< HTMLElement | null > {
 		if ( isLoadingMore || ! hasMore || ! before ) {
-			return;
+			return null;
 		}
 		isLoadingMore = true;
+		setLoadMoreBusy( true );
+
+		let firstAppended: HTMLElement | null = null;
 
 		try {
 			const url = new URL( restBaseUrl );
@@ -2025,7 +2079,7 @@ function initBlock( root: HTMLElement ): void {
 
 				// The block was cleaned up meanwhile, so this reply is no longer its own.
 				if ( isDisposed ) {
-					return;
+					return null;
 				}
 
 				if ( data.count > 0 ) {
@@ -2055,7 +2109,10 @@ function initBlock( root: HTMLElement ): void {
 							return;
 						}
 
-						observeEntry( applyOffPageUpdate( child ) );
+						const entry = applyOffPageUpdate( child );
+
+						observeEntry( entry );
+						firstAppended ??= entry;
 						appended++;
 					} );
 
@@ -2069,7 +2126,11 @@ function initBlock( root: HTMLElement ): void {
 				before = data.before || '';
 				dropLastSeparator();
 			} else {
-				hasMore = false;
+				// The reader can try the button again; the sentinel would
+				// ask again each time it comes into view.
+				if ( ! loadMoreButton ) {
+					hasMore = false;
+				}
 
 				trackPollError( 'load_more' );
 			}
@@ -2080,7 +2141,51 @@ function initBlock( root: HTMLElement ): void {
 			console.error( error ); // eslint-disable-line no-console
 		} finally {
 			isLoadingMore = false;
+
+			if ( ! isDisposed ) {
+				setLoadMoreBusy( false );
+			}
 		}
+
+		return firstAppended;
+	}
+
+	if ( loadMoreButton ) {
+		const onLoadMoreClick = async () => {
+			if ( isLoadingMore ) {
+				return;
+			}
+
+			const firstAppended = await loadMore();
+			const active = loadMoreButton.ownerDocument.activeElement;
+
+			// Leaves focus where the reader moved it while the page loaded.
+			if (
+				isDisposed ||
+				( active &&
+					active !== loadMoreButton &&
+					active !== document.body )
+			) {
+				return;
+			}
+
+			// Focus would fall to the page with the button hidden.
+			const entries = hasMore
+				? []
+				: ownElements( root, ':scope > [data-entry-id]', entriesList );
+			const target = firstAppended ?? entries[ entries.length - 1 ];
+
+			if ( target ) {
+				focusFromScript( target );
+			}
+		};
+
+		loadMoreButton.addEventListener( 'click', onLoadMoreClick );
+		cleanupFns.push( () => {
+			loadMoreButton.removeEventListener( 'click', onLoadMoreClick );
+			setLoadMoreBusy( false );
+		} );
+		setLoadMoreBusy( false );
 	}
 
 	ownElements( root, '[data-entry-id]', entriesList ).forEach( observeEntry );

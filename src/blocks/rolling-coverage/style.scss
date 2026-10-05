@@ -187,6 +187,14 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	}
 }
 
+:where(.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-load-more) {
+	text-align: center;
+}
+
+:where(.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-grid > .newspack-rolling-coverage-load-more) {
+	grid-column: 1 / -1;
+}
+
 // Smooth-scroll for native #anchor navigation. Applied to <html> (not
 // <body>) so it propagates to the viewport scroller. Wrapped in a
 // reduced-motion guard so users who prefer reduced motion get instant

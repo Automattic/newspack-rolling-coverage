@@ -342,6 +342,24 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * How the feed loads entries older than its first page: 'scroll' as the
+	 * reader nears the end, 'button' when the reader asks, or 'none'. A
+	 * capped feed loads none.
+	 *
+	 * @param array $attributes Block attributes.
+	 * @return string
+	 */
+	private static function older_entries( array $attributes ): string {
+		if ( self::latest_count( $attributes ) ) {
+			return 'none';
+		}
+
+		$older_entries = $attributes['olderEntries'] ?? 'scroll';
+
+		return in_array( $older_entries, [ 'button', 'none' ], true ) ? $older_entries : 'scroll';
+	}
+
+	/**
 	 * A spacing value as CSS: a preset such as `var:preset|spacing|20`
 	 * becomes its custom property, as core writes it; anything else is kept.
 	 *
@@ -1152,6 +1170,12 @@ class Rolling_Coverage_Block {
 			$has_more = $page['has_more'];
 		}
 
+		$older_entries = self::older_entries( $attributes );
+
+		if ( 'none' === $older_entries ) {
+			$has_more = false;
+		}
+
 		$entries_html   = '';
 		$entry_index    = 0;
 		$shows_pinned   = false;
@@ -1262,16 +1286,17 @@ class Rolling_Coverage_Block {
 
 		try {
 			$items_html = sprintf(
-				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%7$s%6$s',
+				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%9$s%7$s%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
 				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout ),
 				$is_capped ? '' : self::render_new_entries_control( $block, (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
 				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
-				$is_capped ? '' : sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ),
+				'scroll' === $older_entries ? sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ) : '',
 				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout ),
 				// A capped feed can sit on every page, where announcing each new entry would be noise.
-				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX )
+				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX ),
+				'button' === $older_entries ? self::render_load_more_button( $has_more ) : ''
 			);
 
 			return sprintf(
@@ -1630,6 +1655,28 @@ class Rolling_Coverage_Block {
 		}
 
 		return $control->get_updated_html();
+	}
+
+	/**
+	 * The button that loads the next page of older entries, styled as the
+	 * theme styles buttons. Hidden while no more entries can load; the view
+	 * script shows it again when a swap to the live feed brings more.
+	 *
+	 * @param bool $has_more Whether older entries remain.
+	 * @return string Rendered HTML, or an empty string in a syndication feed.
+	 */
+	private static function render_load_more_button( bool $has_more ): string {
+		if ( is_feed() ) {
+			return '';
+		}
+
+		return sprintf(
+			'<div class="%1$s-load-more"%2$s><button type="button" class="wp-element-button wp-block-button__link">%3$s</button></div>',
+			self::MARKUP_PREFIX,
+			$has_more ? '' : ' hidden',
+			/* translators: Button that loads older entries at the end of a coverage's feed. */
+			esc_html__( 'Load More', 'newspack-rolling-coverage' )
+		);
 	}
 
 	/**

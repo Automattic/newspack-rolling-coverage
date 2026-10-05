@@ -34,8 +34,10 @@ import {
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
 	Button,
+	Disabled,
 	Notice,
 	Placeholder,
+	SelectControl,
 	TextareaControl,
 	ToolbarButton,
 } from '@wordpress/components';
@@ -126,6 +128,27 @@ import type {
  * like Flash's can span the page in the editor as it does on the site.
  */
 const INNER_BLOCKS_LAYOUT = { type: 'default', alignments: [ 'none', 'full' ] };
+
+/**
+ * What each choice of loading older entries does, as the help below it.
+ */
+const OLDER_ENTRIES_HELP: Record< string, () => string > = {
+	scroll: () =>
+		__(
+			'More entries load as readers scroll down.',
+			'newspack-rolling-coverage'
+		),
+	button: () =>
+		__(
+			'Readers load more entries with a Load More button.',
+			'newspack-rolling-coverage'
+		),
+	none: () =>
+		__(
+			'Readers see only the first page of entries.',
+			'newspack-rolling-coverage'
+		),
+};
 
 /**
  * Neutral block context used when a coverage has no published entries yet,
@@ -501,6 +524,7 @@ export default function Edit( {
 		allUpdatesLink,
 		pollInterval,
 		entriesPerPage,
+		olderEntries,
 		enableAds,
 		adsInterval,
 		hideWhenEnded,
@@ -866,7 +890,23 @@ export default function Edit( {
 			isSynced ? feedItems( syncedBlocks ) : allBlocks,
 			previewContexts,
 			entriesPerPage,
-			isCapped
+			isCapped || olderEntries === 'none'
+		);
+	// As on the site, the button shows only while a full page suggests more.
+	const loadMorePreview = ! isCapped &&
+		olderEntries === 'button' &&
+		previewContexts.length >= entriesPerPage && (
+			<Disabled className="newspack-rolling-coverage-load-more">
+				<button
+					type="button"
+					className="wp-element-button wp-block-button__link"
+				>
+					{
+						/* translators: Button that loads older entries at the end of a coverage's feed. */
+						__( 'Load More', 'newspack-rolling-coverage' )
+					}
+				</button>
+			</Disabled>
 		);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
@@ -1482,7 +1522,7 @@ export default function Edit( {
 									'newspack-rolling-coverage'
 								)
 							: __(
-									'Every entry, loading more as readers scroll.',
+									'Every entry. Pinned entries stay at the top.',
 									'newspack-rolling-coverage'
 								)
 					}
@@ -1593,28 +1633,67 @@ export default function Edit( {
 						</ToggleGroupControl>
 					</>
 				) : (
-					<TextControl
-						__next40pxDefaultSize
-						type="number"
-						label={ __(
-							'Entries per page',
-							'newspack-rolling-coverage'
-						) }
-						help={ __(
-							'Used for both the initial number of entries shown and the infinite-scroll page size.',
-							'newspack-rolling-coverage'
-						) }
-						value={ String( entriesPerPage ) }
-						min={ 1 }
-						max={ 100 }
-						onChange={ ( value: string ) =>
-							setAttributes( {
-								entriesPerPage: value
-									? parseInt( value, 10 )
-									: 20,
-							} )
-						}
-					/>
+					<>
+						<SelectControl
+							__next40pxDefaultSize
+							label={ __(
+								'Older entries',
+								'newspack-rolling-coverage'
+							) }
+							help={ OLDER_ENTRIES_HELP[ olderEntries ]?.() }
+							value={ olderEntries }
+							options={ [
+								{
+									value: 'scroll',
+									label: __(
+										'Load on scroll',
+										'newspack-rolling-coverage'
+									),
+								},
+								{
+									value: 'button',
+									label:
+										/* translators: “Load More” is the label of the button readers press. Keep the words used to translate it. */
+										__(
+											'Load More button',
+											'newspack-rolling-coverage'
+										),
+								},
+								{
+									value: 'none',
+									label: __(
+										'Don’t load',
+										'newspack-rolling-coverage'
+									),
+								},
+							] }
+							onChange={ ( value ) =>
+								setAttributes( { olderEntries: value } )
+							}
+						/>
+						<TextControl
+							__next40pxDefaultSize
+							type="number"
+							label={ __(
+								'Entries per page',
+								'newspack-rolling-coverage'
+							) }
+							help={ __(
+								'Used for both the initial number of entries shown and each page of older entries.',
+								'newspack-rolling-coverage'
+							) }
+							value={ String( entriesPerPage ) }
+							min={ 1 }
+							max={ 100 }
+							onChange={ ( value: string ) =>
+								setAttributes( {
+									entriesPerPage: value
+										? parseInt( value, 10 )
+										: 20,
+								} )
+							}
+						/>
+					</>
 				) }
 				<TextControl
 					__next40pxDefaultSize
@@ -2212,6 +2291,7 @@ export default function Edit( {
 												</BlockContextProvider>
 											) }
 										</div>
+										{ loadMorePreview }
 										{ syncedFooterBlocks.length > 0 && (
 											<BlockContextProvider
 												value={ coverageContext }
@@ -2264,6 +2344,7 @@ export default function Edit( {
 												</BlockContextProvider>
 											) ) }
 									</div>
+									{ loadMorePreview }
 								</>
 							) }
 						</>

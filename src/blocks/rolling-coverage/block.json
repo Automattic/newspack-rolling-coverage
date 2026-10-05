@@ -19,6 +19,11 @@
 			"type": "number",
 			"default": 20
 		},
+		"olderEntries": {
+			"type": "string",
+			"enum": [ "scroll", "button", "none" ],
+			"default": "scroll"
+		},
 		"enableAds": {
 			"type": "boolean",
 			"default": true
