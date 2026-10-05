@@ -1,0 +1,94 @@
+# Rolling Coverage block: development notes
+
+The Rolling Coverage block (`newspack-rolling-coverage/rolling-coverage`) shows a coverage's entries on any page, polls for new ones, and loads older ones on scroll or with a Load More button. Editor code lives in `src/blocks/rolling-coverage/`. Server rendering and the entries REST routes live in `includes/blocks/class-rolling-coverage-block.php`, shared layouts in `includes/blocks/class-layout.php`, and the block bindings in `includes/blocks/class-entry-bindings.php`.
+
+For how publishers use the block, see `README.md` in this directory.
+
+## Attributes: block or layout
+
+Settings for one placement are block attributes (`block.json`): coverage, polling, paging, ads, the ended notice, the cap (`latestOnly`, `latestCount`, `allUpdatesLink`), `hideWhenEnded` and `layoutId`. `entriesPerPage` and `latestCount` are capped at `Rolling_Coverage_Block::PER_PAGE_MAX` (100). `align` and `anchor` come from block supports.
+
+What the feed looks like is the layout: the block's inner blocks. That covers the Feed group with its layout and gap, the coverage-level blocks, and the entry template. A synced block (`layoutId > 0`) stores no inner blocks of its own. A block with `layoutId: 0` and inner blocks has a local, detached layout.
+
+Built-in layouts also carry `latest`, `hidesWhenEnded` and `align`. These are not stored in the pattern. Picking a layout copies them onto the block's `latestOnly`, `latestCount`, `hideWhenEnded` and `align` through `layoutCapAttributes()` and `switchLayoutAttributes()` in `layouts.ts`. Switching layouts clears values the replaced built-in layout set and keeps values set by hand.
+
+## Layouts
+
+A layout is a `wp_block` synced pattern whose content is one Rolling Coverage block. That block's inner blocks are the layout; its own attributes are ignored.
+
+- **Injection.** `Layout::inject_layout()` runs on `render_block_data`. For a block with `layoutId > 0`, it swaps in the pattern's inner blocks (`Layout::get_layout_blocks()`) before core builds the block, so every reader of the inner blocks sees the shared layout. Only published patterns resolve. A missing, unpublished or malformed pattern leaves no inner blocks, and the block renders the Bulletin template from `Rolling_Coverage_Block::default_entry_template()`.
+- **Nested blocks.** `Layout::detach_nested_blocks()` drops `layoutId` from every Rolling Coverage block nested inside a layout, and inside a detached block. Without it, a synced block inside a layout would pull the layout into itself at every level. The editor does the same with `detachNestedBlocks()` in `edit.tsx`.
+- **Built-in slugs.** `Layout::BUILT_IN_SLUGS` lists them. A built-in's pattern does not exist until someone first picks it.
+- **Create on pick.** The picker (`components/layout-picker-modal.tsx`) calls `createLayout()` in `utils.ts`. That serializes the layout's template and sends it to `POST rolling-coverage/v1/layouts/{slug}`. The editor supplies the markup because its template is what core validates the pattern's blocks against. `Layout::create_layout()` returns the existing pattern when one resolves (200). Otherwise it inserts a published pattern (201) titled by `Layout::get_title()`, sets its `_rolling_coverage_layout` post meta to the slug, files it under the `rolling-coverage` term of `wp_pattern_category` (created on first use), and stores the ID in the `rolling_coverage_{slug}_layout_id` option. The route needs permission to create and publish `wp_block` posts (`can_create_layout()`). A lock row in the options table (`acquire_lock()`, 30-second timeout) stops two first requests from creating two patterns. If the request fails, the picker inserts the template as a detached layout instead.
+- **Lookup.** `Layout::get_layout_id()` reads the option and falls back to the oldest published pattern tagged with the slug, then repairs the option. This covers a persistent object cache that loses the option.
+- **Inserted from Patterns.** The inserter adds a layout as a `core/block` reference, and core locks the blocks inside a synced reference, so the coverage couldn't be picked. `pattern-insertion.tsx` replaces a reference to a layout with a Rolling Coverage block whose `layoutId` is the pattern, plus `switchLayoutAttributes()` for a built-in layout, as the picker does. A layout here is a built-in, or a pattern in the layout category that passes `isLayoutContent()` in `utils.ts`: its only top-level block is a Rolling Coverage block with no coverage. The picker lists custom layouts by the same test; anything else stays a pattern. It also converts a layout reference already in a story when the story opens. It skips the `wp_block` editor and any reference it can't replace, and keeps the replacement out of undo history, so undo never lands on the locked reference.
+- **Editor config.** The editor gets the built-in pattern IDs and the category ID from `Rolling_Coverage_Block::localize_block_config()`; `utils.ts` keeps them in `layoutIds` and `layoutCategoryId` and updates them when `createLayout()` succeeds.
+
+## Template structure contract
+
+The server finds the parts of a layout by class name and binding, not by position. Each class in `template.ts` mirrors a PHP constant; change both together.
+
+- **Feed group.** A `core/group` with the class `newspack-rolling-coverage-feed` (`Rolling_Coverage_Block::FEED_CLASS`). It may sit at the top level or inside plain groups (`feed_path()`). Its Block spacing becomes `--newspack-rolling-coverage-gap`, and its layout (flex or grid) decides how entries are placed. A layout without one uses its top-level blocks as the items.
+- **Entry groups.** Groups at the Feed's top level with the class `newspack-rolling-coverage-pinned-card` (`PINNED_CARD_CLASS`) or `newspack-rolling-coverage-regular-entry` (`REGULAR_ENTRY_CLASS`). When both exist, a pinned entry renders the card alone and every other entry renders the regular group alone (`for_entry_kind()`). A template missing either one is used as it is for every entry.
+- **Header and footer.** `Rolling_Coverage_Block::layout_parts()` splits the Feed's items. Coverage-level items render once: the ones before the first per-entry item form the header, the ones after it the footer. Everything else is the entry template. `Entry_Bindings::is_coverage_item()` decides what is coverage-level: the Follow Coverage block, the Coverage Status block, the "Jump to Latest" buttons (a button bound to `latestUrl`), a heading bound to `coverageName`, the all-updates paragraph, or any block holding one of these. The entry groups are never coverage-level. "Jump to Latest" renders in its own place. The editor mirror is `layoutParts()` in `template.ts`.
+- **All-updates paragraph.** A `core/paragraph` with the class `newspack-rolling-coverage-all-updates` (`Entry_Bindings::ALL_UPDATES_CLASS`). It links to the coverage page. It renders only in a capped feed with `allUpdatesLink` on, and drops on the coverage page itself (`render_block()`, `is_coverage_page()`).
+- **Context.** Coverage-level blocks render with `newspack-rolling-coverage/coverageId` and `newspack-rolling-coverage/coverageStatus` in context (`render_coverage_blocks()`). Each entry renders with its own `postId` and `postType` (`render_entry()`).
+
+## Adding a built-in layout
+
+1. `src/blocks/rolling-coverage/template.ts`: add the per-entry template and any coverage-level parts the layout needs, and export them. Build the entry groups with the shared classes; `rowEntryTemplate()` builds the pinned card and entry group pair.
+2. `src/blocks/rolling-coverage/layout.ts`: add `<name>InnerTemplate()`, wrapping the items in `feedTemplate()`.
+3. `src/blocks/rolling-coverage/layouts.ts`: add the slug to `BuiltInLayoutSlug` and an entry to `getBuiltInLayouts()`, whose order is the picker's order. Optional fields:
+   - `latest`: makes the layout a capped feed showing that many entries.
+   - `hidesWhenEnded`: sets `hideWhenEnded`; only applies with `latest`.
+   - `align`: the alignment the block takes.
+   - `previewWidth`: the picker preview's viewport width in pixels (default `PREVIEW_VIEWPORT_WIDTH`, 800, in `layout-picker-modal.tsx`).
+4. `src/blocks/rolling-coverage/utils.ts`: add the slug to the `layoutIds` map. It is typed `Record< BuiltInLayoutSlug, number >`, so `npm run typecheck` flags a missing key.
+5. `includes/blocks/class-layout.php`: add the slug to `BUILT_IN_SLUGS`, which also feeds the REST route pattern and enum, and add its title to `get_title()`. The `match` has no default arm, so a slug without a title fails to create. Use the same title as `getBuiltInLayouts()`.
+6. `tests/test-layout.php`: add the slug and title to `data_built_in_layouts()`. `test_every_built_in_layout_has_a_title_test()` fails until every slug in `BUILT_IN_SLUGS` is covered by it or by the default, stream and rail tests. If the layout relies on server behavior other layouts don't use, add a render test like `tests/test-ticker.php` or `tests/test-split.php`.
+
+## Server rendering and polling
+
+`Rolling_Coverage_Block::render_block()` queries the newest entries, renders each one through the entry template (`render_entry()`), adds ads every `adsInterval` entries when enabled, and wraps the result in the Feed group (`render_feed()`). It hands the view script its state through `data-*` attributes on the wrapper.
+
+It also stores the entry template, with the ad and cap settings, in an option named `rc_tpl_{coverage_id}_{hash}` (`persist_block_config()`), and prints the hash as `data-template-key`. REST requests render entries from that stored config, so polled entries match the page. Only the five most recent configs per coverage are kept (`CONFIGS_KEPT`, tracked in the `rolling_coverage_template_hashes` term meta). A request with a pruned key renders with the default template (`load_block_config()`).
+
+REST routes, in the `rolling-coverage/v1` namespace (`register_routes()`):
+
+- `GET /coverages/{id}/entries` is public. With `cursor`, it is a forward poll for new and edited entries. With `before`, it returns the next page of older entries. `template_key` is required. Capped feeds send `latest`, so their requests stay capped without a stored config.
+- `GET /coverages/{id}/entries-preview` needs `edit_posts`. It returns entry IDs for the editor's preview.
+- `POST /layouts/{slug}`: see Layouts.
+
+Polling, in `view.ts` (`initBlock()`, `poll()`):
+
+- The block polls every `max( pollInterval, minPollInterval )` seconds. It polls only when the coverage was `active` at render time (`data-status`), so a paused or ended coverage never starts polling. Polling stops while the tab is hidden and resumes when it shows.
+- A feed can sit inside another feed's entries, possibly for the same coverage. A feed acts only on its own elements: `ownElement()` and `ownElements()` in `view.ts` skip any element whose closest block wrapper is another feed, and every lookup of the sentinel, control, status and sticky cards goes through them; entry lookups stay on the block's own entries list. Use them for any new query inside the block, since a nested feed repeats the classes and entry IDs.
+- A site-wide minimum comes from the `NEWSPACK_ROLLING_COVERAGE_MIN_POLL_INTERVAL` constant or the `newspack_rolling_coverage_min_poll_interval` filter (`get_min_poll_interval()`). Poll responses send `Cache-Control: public, max-age=N`, where N is the larger of `POLL_MAX_AGE` (5) and half the minimum (`poll_response()`), so readers polling at the same moment share a cached reply. Open pages learn a changed minimum from their next poll.
+- Each poll response carries the coverage's `status` and `newestEntry`. The view script dispatches `newspack-rolling-coverage:poll` on `document` with both (`src/blocks/shared/poll-event.ts`); the Coverage Status block listens for it. A feed with `hideWhenEnded` removes itself when a poll reports `archived`.
+- Older entries follow the `olderEntries` attribute (`scroll`, `button` or `none`; `Rolling_Coverage_Block::older_entries()` treats an unknown value as `scroll` and a capped feed as `none`). `scroll` renders the `.newspack-rolling-coverage-sentinel`, watched by an `IntersectionObserver`. `button` renders a `.newspack-rolling-coverage-load-more` wrapper holding a core-styled button after the entries. `none` renders neither and sets `data-has-more="0"`. The view script reads the mode from the markup, and both triggers call `loadMore()`, which requests entries `before` the oldest one loaded.
+- The button's wrapper is rendered `hidden` and the view script reveals it while `hasMore` is true, so it never shows as a dead control before the script runs or without it. While a page loads it carries `aria-busy` and `aria-disabled` rather than `disabled`, which would drop focus. After a load, focus moves to the first new entry; a failed load is announced and leaves the button in place to retry.
+- `hasMore` comes from fetching one entry more than a page (the page render, the REST `before` page and the editor preview), so a coverage whose entry count is an exact multiple of the page size shows no button on its last page.
+
+Entry bindings use the `newspack-rolling-coverage/entry` source, registered by `Entry_Bindings::register_source()`. Keys: `breakoutUrl` and `shareUrl` resolve per entry; `coverageName`, `latestUrl` and `followTag` resolve per coverage. The editor registers the same source in `src/blocks/shared/entry-bindings.ts`; it resolves only `coverageName` and leaves the rest empty. `Entry_Bindings::filter_button()` drops a bound button whose value is empty and adds the data attributes the view scripts need.
+
+## Styling policy
+
+A layout's look comes from block settings in its template: colors, typography, spacing and borders, using theme presets with fallbacks. Publishers can then change them in the editor, and the pattern carries them to every synced block. Keep the plugin's CSS structural:
+
+- `style.scss` (built to `view.css`, loaded on the front end and in the editor) holds structural rules only. Rules that size items use `:where()` so block settings win.
+- `editor.scss` covers editor-only UI.
+
+Don't add a layout's colors or type to these files.
+
+## Gotchas
+
+- **Stored patterns are not reconciled.** Once a built-in layout's pattern exists, changes to `layout.ts` or `template.ts` do not reach it or the blocks synced to it; `create_layout()` returns the existing pattern. To try a changed template, trash the pattern, reload the editor and pick the layout again, which creates a new one. Blocks still pointing at the trashed pattern render the Bulletin fallback until they pick a layout again.
+- **Capped feeds are previews.** A block with `latestOnly` ignores pinning (`$is_pinned` is false, and the query sets `Post_Type::SKIP_PIN_ORDER_VAR`). It also shows no ads, loads no older entries, and has no new-entries control or live region. It never makes a page the coverage's page or a live blog: `Page_Coverages::collect_feeds()`, `Schema::get_coverage_blocks()` (no `LiveBlogPosting`) and `Taxonomy::holds_coverage_block()` / `get_coverage_page_ids()` all skip it.
+- **Editable layouts preview the other entries inside the Feed.** A detached layout, or a layout pattern being edited, shows its entry template as editable blocks, previewed against one or two entries, and every other entry as a static preview. `entry-previews.tsx` renders them right after the Feed's last per-entry block, where the site renders the entries, skipping blocks that Block Visibility hides in any viewport (core doesn't render a hidden block, filters included), so a grid Feed places them in its cells and a footer stays below them. Anything rendered after the Rolling Coverage block's inner blocks lands outside the Feed instead. The previews sit inside the editable layout, so they render copies of its blocks with the same client IDs and inherit its React context: `EntryPreviews` resets the anchor and pinned entry contexts around them, and the CSS that hides blocks in the editable entry skips them.
+- **Per-viewport styles.** WordPress 7.1 stores tablet and mobile overrides under `style['@tablet']` and `style['@mobile']`, with breakpoints from `WP_Theme_JSON::get_viewport_media_queries()`. The Ticker and Split templates use them for grid columns and spans. Core prints layout styles only for blocks rendered on the page, so the block stores the template's styles up front (`store_template_layout_styles()`, `store_grid_placement_styles()`) for entries that arrive later by polling or scroll. Check polled entries when a layout depends on these overrides.
+
+## Tests
+
+PHP tests live in `tests/`; `test-layout.php` covers layout creation and lookup, and the per-layout `test-ticker.php`, `test-split.php` and `test-byline.php` show how to test a layout that relies on server behavior.
+
+When the plugin is checked out under newspack-workspace's `repos/plugins/`, run them from the plugin directory with `../../../n test-php` (add `--filter` or `--group` to narrow). The tests register the blocks from `dist/`, so build first if it is stale. Outside the workspace, `npm run test:php` runs `./vendor/bin/phpunit` against the WordPress test library, which `bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version]` installs; `tests/bootstrap.php` reads it from `WP_TESTS_DIR`, or `/tmp/wordpress-tests-lib` by default. The repository has no JavaScript unit tests; run `npm run typecheck` and `npm run lint:js` for the TypeScript side.
