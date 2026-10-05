@@ -142,26 +142,31 @@ function loadSampleRecords(): void {
 		receiveUserPermission: ( key: string, isAllowed: boolean ) => void;
 	};
 
-	core.receiveEntityRecords(
-		'root',
-		'user',
-		AUTHORS.map( ( { id, name, slug, initials } ) => {
-			const avatar =
-				SHOW_AVATARS && SAMPLE_AVATAR_URLS?.[ initials.toLowerCase() ];
+	const users = AUTHORS.map( ( { id, name, slug, initials } ) => {
+		const avatar =
+			SHOW_AVATARS && SAMPLE_AVATAR_URLS?.[ initials.toLowerCase() ];
 
-			return {
-				id,
-				name,
-				slug,
-				...( avatar && {
-					avatar_urls: { 24: avatar, 48: avatar, 96: avatar },
-				} ),
-			};
-		} )
-	);
+		return {
+			id,
+			name,
+			slug,
+			...( avatar && {
+				avatar_urls: { 24: avatar, 48: avatar, 96: avatar },
+			} ),
+		};
+	} );
+	core.receiveEntityRecords( 'root', 'user', users );
+	core.receiveEntityRecords( 'root', 'user', users, { context: 'view' } );
 	AUTHORS.forEach( ( { id } ) => {
 		core.finishResolution( 'getEntityRecord', [ 'root', 'user', id ] );
+		core.finishResolution( 'getEntityRecord', [
+			'root',
+			'user',
+			id,
+			{ context: 'view' },
+		] );
 		core.finishResolution( 'getUser', [ id ] );
+		core.finishResolution( 'getUser', [ id, { context: 'view' } ] );
 	} );
 
 	core.receiveEntityRecords(

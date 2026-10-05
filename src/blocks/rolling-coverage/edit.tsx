@@ -48,6 +48,7 @@ import {
 	useMemo,
 	useRef,
 } from '@wordpress/element';
+import { useDebounce } from '@wordpress/compose';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as editorStore } from '@wordpress/editor';
@@ -704,7 +705,9 @@ export default function Edit( {
 	);
 
 	const [ search, setSearch ] = useState( '' );
+	const setSearchDebounced = useDebounce( setSearch, 300 );
 	const [ options, setOptions ] = useState< CoverageOption[] >( [] );
+	const [ loadedSearch, setLoadedSearch ] = useState< string | null >( null );
 	const [ currentCoverage, setCurrentCoverage ] =
 		useState< CoverageOption | null >( null );
 	const [ pendingCanonicalUrl, setPendingCanonicalUrl ] =
@@ -1342,13 +1345,17 @@ export default function Edit( {
 			setEntriesLoadedFor( 0 );
 			return;
 		}
-		const { getEntityRecord } = registry.resolveSelect(
+		const { getEntityRecord, getUser } = registry.resolveSelect(
 			coreStore
 		) as unknown as {
 			getEntityRecord: (
 				kind: string,
 				name: string,
 				id: number
+			) => Promise< unknown >;
+			getUser: (
+				id: number,
+				query?: Record< string, string >
 			) => Promise< unknown >;
 		};
 		const perPage = isCapped ? cappedCount : pageSize;
@@ -1361,8 +1368,8 @@ export default function Edit( {
 			.then( ( fetched ) => {
 				const contexts = fetched.slice( 0, perPage );
 
-				// Entries are read before the preview shows, so it doesn't
-				// fill in piece by piece.
+				// Entries and their authors are read before the preview
+				// shows, so it doesn't fill in piece by piece.
 				return Promise.all(
 					contexts.map( ( context ) =>
 						getEntityRecord(
@@ -1371,10 +1378,32 @@ export default function Edit( {
 							context.postId
 						).catch( () => undefined )
 					)
-				).then( () => ( {
-					contexts,
-					hasMore: fetched.length > perPage,
-				} ) );
+				)
+					.then( ( records ) => {
+						const authorIds = new Set< number >();
+						records.forEach( ( record ) => {
+							const author = ( record as { author?: number } )
+								?.author;
+							if ( author ) {
+								authorIds.add( author );
+							}
+						} );
+
+						// Post Author reads the view context; Post Author
+						// Name and Avatar read the default one.
+						return Promise.all(
+							[ ...authorIds ].flatMap( ( authorId ) => [
+								getUser( authorId ).catch( () => undefined ),
+								getUser( authorId, {
+									context: 'view',
+								} ).catch( () => undefined ),
+							] )
+						);
+					} )
+					.then( () => ( {
+						contexts,
+						hasMore: fetched.length > perPage,
+					} ) );
 			} )
 			.then( ( { contexts, hasMore } ) => {
 				if ( ! cancelled ) {
@@ -1410,6 +1439,7 @@ export default function Edit( {
 			}
 
 			setOptions( results );
+			setLoadedSearch( search );
 		} );
 
 		return () => {
@@ -1524,26 +1554,42 @@ export default function Edit( {
 		handleApplyCanonicalUrl,
 	] );
 
-	// Combobox for selecting the connected coverage.
-	const coverageCombobox = (
-		<ComboboxControl
-			__next40pxDefaultSize
-			label={ __( 'Coverage', 'newspack-rolling-coverage' ) }
-			hideLabelFromVision
-			value={ coverageId ? String( coverageId ) : '' }
-			options={ options }
-			placeholder={ __(
-				'Search for a coverage…',
-				'newspack-rolling-coverage'
-			) }
-			onChange={ ( value ) =>
-				setAttributes( {
-					coverageId: value ? parseInt( value, 10 ) : 0,
-				} )
-			}
-			onFilterValueChange={ setSearch }
-		/>
-	);
+	/**
+	 * Combobox for selecting the connected coverage, or its loading state
+	 * until the coverages arrive.
+	 *
+	 * @param {boolean} isSilent Whether the loading state skips its
+	 *                           announcement, for the second of two copies.
+	 */
+	const renderCoverageCombobox = ( isSilent = false ) =>
+		! isPreviewMode && loadedSearch === null ? (
+			<LoadingState
+				isSilent={ isSilent }
+				label={ __(
+					'Loading coverages…',
+					'newspack-rolling-coverage'
+				) }
+			/>
+		) : (
+			<ComboboxControl
+				__next40pxDefaultSize
+				label={ __( 'Coverage', 'newspack-rolling-coverage' ) }
+				hideLabelFromVision
+				value={ coverageId ? String( coverageId ) : '' }
+				options={ options }
+				placeholder={ __(
+					'Search for a coverage…',
+					'newspack-rolling-coverage'
+				) }
+				onChange={ ( value ) =>
+					setAttributes( {
+						coverageId: value ? parseInt( value, 10 ) : 0,
+					} )
+				}
+				onFilterValueChange={ setSearchDebounced }
+				isLoading={ ! isPreviewMode && loadedSearch !== search }
+			/>
+		);
 
 	const inspector = isLayoutPattern ? (
 		<InspectorControls>
@@ -1592,7 +1638,7 @@ export default function Edit( {
 			</PanelBody>
 			<PanelBody title={ __( 'Coverage', 'newspack-rolling-coverage' ) }>
 				<Stack direction="column" gap="lg">
-					{ coverageCombobox }
+					{ renderCoverageCombobox( ! coverageId ) }
 
 					{ coverageId ? (
 						<div>
@@ -2509,7 +2555,7 @@ export default function Edit( {
 							) }
 							isColumnLayout
 						>
-							{ coverageCombobox }
+							{ renderCoverageCombobox() }
 						</Placeholder>
 					) ) }
 			</div>
