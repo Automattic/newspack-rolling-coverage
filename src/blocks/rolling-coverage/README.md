@@ -1,6 +1,6 @@
 # Rolling Coverage block
 
-The Rolling Coverage block shows the entries of a coverage on any page or story. New entries arrive on the page while readers are looking at it, and older entries load as they scroll. Use it to run a live blog, a developing-story box, or a headline ticker.
+The Rolling Coverage block shows the entries of a coverage on any page or story. New entries arrive on the page while readers are looking at it, and readers can load older entries as they go. Use it to run a live blog, a developing-story box, or a headline ticker.
 
 ## Add the block
 
@@ -110,7 +110,7 @@ The page checks for new entries every poll interval. It stops while the tab is i
 - A paused or ended coverage does not check for new entries.
 - Times follow the site's time format.
 
-Feeds that show only the latest entries update in place without the button: the newest entry appears and the oldest drops off. They have no ads and load no older entries.
+Feeds that show only the latest entries update in place without the New Posts button: the newest entry appears and the oldest drops off. They have no ads and load no older entries.
 
 When a reader opens a link to one entry, the feed opens at that entry and shows a control that takes them to the live feed, with the number of newer posts when there are any.
 

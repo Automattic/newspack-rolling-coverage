@@ -2025,6 +2025,8 @@ function initBlock( root: HTMLElement ): void {
 		loadMoreControl.hidden = ! hasMore;
 
 		if ( busy ) {
+			// A repeat failure only announces again if the region changes.
+			announce( '' );
 			loadMoreButton.textContent = __(
 				'Loading…',
 				'newspack-rolling-coverage'

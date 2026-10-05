@@ -1221,7 +1221,9 @@ export default function Edit( {
 				id: number
 			) => Promise< unknown >;
 		};
-		const perPage = isCapped ? cappedCount : entriesPerPage;
+		const perPage = isCapped
+			? cappedCount
+			: Math.min( Math.max( 1, entriesPerPage || 20 ), 100 );
 		// One entry past the page tells whether more would load.
 		fetchEntryPreviewContexts(
 			entriesCoverageId,

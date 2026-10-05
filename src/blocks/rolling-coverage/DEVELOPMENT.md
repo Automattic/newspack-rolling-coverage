@@ -1,6 +1,6 @@
 # Rolling Coverage block: development notes
 
-The Rolling Coverage block (`newspack-rolling-coverage/rolling-coverage`) shows a coverage's entries on any page, polls for new ones, and loads older ones on scroll. Editor code lives in `src/blocks/rolling-coverage/`. Server rendering and the entries REST routes live in `includes/blocks/class-rolling-coverage-block.php`, shared layouts in `includes/blocks/class-layout.php`, and the block bindings in `includes/blocks/class-entry-bindings.php`.
+The Rolling Coverage block (`newspack-rolling-coverage/rolling-coverage`) shows a coverage's entries on any page, polls for new ones, and loads older ones on scroll or with a Load More button. Editor code lives in `src/blocks/rolling-coverage/`. Server rendering and the entries REST routes live in `includes/blocks/class-rolling-coverage-block.php`, shared layouts in `includes/blocks/class-layout.php`, and the block bindings in `includes/blocks/class-entry-bindings.php`.
 
 For how publishers use the block, see `README.md` in this directory.
 
