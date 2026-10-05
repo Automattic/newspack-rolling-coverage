@@ -1179,6 +1179,7 @@ function wireEntryTemplate( slugs: string[], sizes: string[] ): TemplateItem[] {
 				{
 					excerptLength: 15,
 					moreText: '',
+					showMoreOnNewLine: false,
 					fontSize: 'small',
 					...mutedDateColor( slugs ),
 				},
@@ -1330,6 +1331,7 @@ function digestRow( slugs: string[], sizes: string[] ): TemplateItem {
 							{
 								excerptLength: 20,
 								moreText: '',
+								showMoreOnNewLine: false,
 								fontSize: 'small',
 								...mutedDateColor( slugs ),
 							},
@@ -1418,8 +1420,9 @@ function flashEntryTemplate(): TemplateItem[] {
 			[
 				'core/post-excerpt',
 				{
-					excerptLength: 20,
+					excerptLength: 100,
 					moreText: '',
+					showMoreOnNewLine: false,
 					fontSize: 'small',
 				},
 			],

@@ -172,6 +172,19 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	:where(.newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-regular-entry):where(.is-layout-flex:not(.is-vertical)) > :where(.wp-block-post-excerpt):where(:not([class*="wp-container-content-"])) {
 		flex: 1 1 20rem;
 	}
+
+	:where(.newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-regular-entry):where(.is-layout-flex:not(.is-vertical)) > :where(.wp-block-post-excerpt) > :where(.wp-block-post-excerpt__excerpt:not(:has(> .wp-block-post-excerpt__more-link))) {
+		display: -webkit-box;
+		overflow: hidden;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 1;
+		line-clamp: 1;
+
+		@media (max-width: 781px) {
+			-webkit-line-clamp: 2;
+			line-clamp: 2;
+		}
+	}
 }
 
 // Smooth-scroll for native #anchor navigation. Applied to <html> (not
