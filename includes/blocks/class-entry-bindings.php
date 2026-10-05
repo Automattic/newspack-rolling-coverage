@@ -247,15 +247,17 @@ class Entry_Bindings {
 		$entry = get_post( (int) $post_id );
 		$words = $entry ? self::get_fallback_title( $entry ) : '';
 
-		return '' !== $words ? htmlspecialchars( $words, ENT_QUOTES, 'UTF-8' ) : $title;
+		return '' !== $words ? htmlspecialchars( $words, ENT_NOQUOTES, 'UTF-8' ) : $title;
 	}
 
 	/**
 	 * The opening words an untitled entry shows as its title: its excerpt
 	 * when it has one, else the start of its text, as plain text. An entry
 	 * with no words outside its media, such as a lone photo, is described by
-	 * its first media block instead (see get_media_title()). A password
-	 * protected entry, or a post that isn't an entry, has none.
+	 * its first media block instead (see get_media_title()). Both read the
+	 * entry without the blocks Newspack hides from the public (see
+	 * public_content()). A password protected entry, or a post that isn't an
+	 * entry, has none.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return string
@@ -271,9 +273,27 @@ class Entry_Bindings {
 			return html_entity_decode( wp_trim_words( $excerpt, self::UNTITLED_FALLBACK_WORDS, '…' ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 		}
 
-		$media_title = self::get_media_title( $entry );
+		$content     = self::public_content( $entry );
+		$media_title = self::get_media_title( $content );
 
-		return '' !== $media_title ? $media_title : Post_Type::get_entry_summary( $entry, self::UNTITLED_FALLBACK_WORDS );
+		return '' !== $media_title ? $media_title : Post_Type::get_html_summary( $content, self::UNTITLED_FALLBACK_WORDS );
+	}
+
+	/**
+	 * An entry's content without the blocks Newspack hides from readers who
+	 * aren't signed in, so text and media meant for members are never shown
+	 * to everyone in its title or excerpt. The content as stored when
+	 * Newspack isn't active.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return string
+	 */
+	private static function public_content( WP_Post $entry ): string {
+		if ( class_exists( '\Newspack\Block_Visibility' ) && method_exists( '\Newspack\Block_Visibility', 'strip_blocks_hidden_from_public' ) ) {
+			return (string) \Newspack\Block_Visibility::strip_blocks_hidden_from_public( $entry->post_content );
+		}
+
+		return $entry->post_content;
 	}
 
 	/**
@@ -304,9 +324,9 @@ class Entry_Bindings {
 			return $excerpt;
 		}
 
-		$media_title = self::get_media_title( $post );
+		$media_title = self::get_media_title( self::public_content( $post ) );
 
-		return '' !== $media_title ? htmlspecialchars( $media_title, ENT_QUOTES, 'UTF-8' ) : $excerpt;
+		return '' !== $media_title ? htmlspecialchars( $media_title, ENT_NOQUOTES, 'UTF-8' ) : $excerpt;
 	}
 
 	/**
@@ -357,20 +377,12 @@ class Entry_Bindings {
 	 * by its caption, else an image's alt text, e.g. "Photo: Crowds at the
 	 * finish line". Captions and text over a cover don't count as words,
 	 * since core leaves those blocks out of the excerpt it generates. Empty
-	 * for an entry with words, or without media. Blocks Newspack hides from
-	 * the public are left out first, so media meant for members is never
-	 * described to everyone.
+	 * for content with words, or without media.
 	 *
-	 * @param WP_Post $entry Entry post.
+	 * @param string $content An entry's content, as public_content() gives it.
 	 * @return string Plain text.
 	 */
-	private static function get_media_title( WP_Post $entry ): string {
-		$content = $entry->post_content;
-
-		if ( class_exists( '\Newspack\Block_Visibility' ) && method_exists( '\Newspack\Block_Visibility', 'strip_blocks_hidden_from_public' ) ) {
-			$content = \Newspack\Block_Visibility::strip_blocks_hidden_from_public( $content );
-		}
-
+	private static function get_media_title( string $content ): string {
 		$blocks = parse_blocks( $content );
 
 		if ( self::has_words( $blocks ) ) {

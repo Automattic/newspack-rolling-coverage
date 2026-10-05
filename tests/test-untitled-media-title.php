@@ -177,7 +177,7 @@ https://example.com/media
 			self::fallback_title(
 				'<!-- wp:embed {"url":"https://www.youtube.com/watch?v=1","type":"video","providerNameSlug":"youtube"} --><figure class="wp-block-embed is-type-video is-provider-youtube"><div class="wp-block-embed__wrapper">
 https://www.youtube.com/watch?v=1
-</div><figcaption class="wp-element-caption">Drone footage of the flood</figcaption></figure><!-- /wp:embed -->' 
+</div><figcaption class="wp-element-caption">Drone footage of the flood</figcaption></figure><!-- /wp:embed -->'
 			)
 		);
 	}
@@ -186,7 +186,32 @@ https://www.youtube.com/watch?v=1
 	 * Literal entity text in a caption or alt text survives as typed.
 	 */
 	public function test_literal_entities_survive() {
-		$this->assertSame( 'Photo: R&amp;D lab', self::fallback_title( '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt="R&amp;amp;D lab"/></figure><!-- /wp:image -->' ) );
+		$entry_id = self::create_untitled_entry( '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt="R&amp;amp;D lab"/></figure><!-- /wp:image -->' );
+
+		$this->assertSame( 'Photo: R&amp;D lab', Entry_Bindings::get_fallback_title( get_post( $entry_id ) ) );
+		$this->assertSame( 'Photo: R&amp;amp;D lab', get_the_excerpt( $entry_id ), 'The excerpt is HTML, so the typed entity stays encoded.' );
+	}
+
+	/**
+	 * Media and text Newspack hides from the public stay out of an entry's
+	 * title and excerpt.
+	 */
+	public function test_members_only_content_stays_out_of_title_and_excerpt() {
+		if ( ! class_exists( '\Newspack\Block_Visibility' ) ) {
+			require_once __DIR__ . '/stubs/class-block-visibility.php';
+		}
+
+		if ( ! defined( '\\Newspack\\Block_Visibility::IS_TEST_STUB' ) ) {
+			$this->markTestSkipped( 'Newspack is loaded; its visibility rules are tested there.' );
+		}
+
+		$hidden   = static fn( string $content ) => '<!-- wp:group {"zzHiddenFromPublic":true} --><div class="wp-block-group">' . $content . '</div><!-- /wp:group -->';
+		$photo_id = self::create_untitled_entry( $hidden( self::CAPTIONED_IMAGE ) );
+		$text_id  = self::create_untitled_entry( $hidden( '<!-- wp:paragraph --><p>Members hear it first.</p><!-- /wp:paragraph -->' ) );
+
+		$this->assertSame( '', Entry_Bindings::get_fallback_title( get_post( $photo_id ) ) );
+		$this->assertSame( '', Entry_Bindings::get_fallback_title( get_post( $text_id ) ) );
+		$this->assertStringNotContainsString( 'Crowds', apply_filters( 'get_the_excerpt', '', get_post( $photo_id ) ) );
 	}
 
 	/**
@@ -203,7 +228,7 @@ https://www.youtube.com/watch?v=1
 		);
 
 		$this->assertSame( '', Entry_Bindings::get_fallback_title( get_post( $entry_id ) ) );
-		$this->assertStringNotContainsString( 'Crowds', get_the_excerpt( $entry_id ) );
+		$this->assertStringNotContainsString( 'Photo', apply_filters( 'get_the_excerpt', '', get_post( $entry_id ) ) );
 	}
 
 	/**
