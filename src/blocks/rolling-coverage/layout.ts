@@ -24,6 +24,7 @@ import {
 	flashEntryTemplate,
 	flashBar,
 	FLASH_FEED_LAYOUT,
+	FLASH_FEED_STYLE,
 	tickerEntryTemplate,
 	tickerHeader,
 	tickerFooter,
@@ -275,7 +276,7 @@ export function digestInnerTemplate(): TemplateItem[] {
  * The Flash layout's inner-blocks template: a full-width bar on the site's
  * accent color holding, at the theme's wide width, the coverage's status,
  * the newest entry's time and text, then a link to the coverage page on the
- * right.
+ * right. On tablets and phones the three stack.
  *
  * @return {TemplateItem[]} The template.
  */
@@ -289,7 +290,7 @@ export function flashInnerTemplate(): TemplateItem[] {
 					allUpdatesLink(),
 				],
 				'var:preset|spacing|30',
-				{},
+				FLASH_FEED_STYLE,
 				FLASH_FEED_LAYOUT,
 				{ align: 'wide' }
 			)

@@ -29,7 +29,7 @@ A layout is how the feed looks: spacing, colors, type, and which parts each entr
 | Split | The full feed at wide width, with the pinned entry's summary in a column beside the entries. | A coverage page that leads with a pinned summary, such as "What we know", beside the feed. |
 | Wire | A narrow list of the five latest entries, ending in a link to the coverage page. | A sidebar or another narrow column. |
 | Digest | A bordered box with the coverage name, the three latest entries next to their times, and a link to the coverage page. | A sidebar, or a box inside a related story that links to the main coverage. |
-| Flash | A full-width bar in the site's accent color with the latest entry, its time, and a link to the coverage page. Hides when the coverage ends. | The site header, so a major breaking story shows on every page. |
+| Flash | A full-width bar in the site's accent color with the latest entry, its time, and a link to the coverage page. On tablets and phones the status, the entry and the link stack. Hides when the coverage ends. | The site header, so a major breaking story shows on every page. |
 
 Ticker, Wire, Digest, and Flash show only the latest entries. They set Show to Latest and a matching Number of entries when you pick them. You can change either afterward.
 

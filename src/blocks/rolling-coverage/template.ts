@@ -1370,6 +1370,15 @@ const FLASH_FEED_LAYOUT = {
 	verticalAlignment: 'center',
 };
 
+const FLASH_STACKED_LAYOUT = {
+	layout: { orientation: 'vertical', justifyContent: 'left' },
+};
+
+const FLASH_FEED_STYLE = {
+	'@tablet': FLASH_STACKED_LAYOUT,
+	'@mobile': FLASH_STACKED_LAYOUT,
+};
+
 /**
  * The Flash layout's bar: a full-width group on the site's accent color, its
  * content laid out at the theme's widths so a wide Feed lines up with the
@@ -3158,6 +3167,7 @@ export {
 	flashEntryTemplate,
 	flashBar,
 	FLASH_FEED_LAYOUT,
+	FLASH_FEED_STYLE,
 	tickerEntryTemplate,
 	tickerHeader,
 	tickerFooter,

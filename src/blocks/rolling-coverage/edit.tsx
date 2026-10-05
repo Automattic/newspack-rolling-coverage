@@ -48,7 +48,7 @@ import {
 	useMemo,
 	useRef,
 } from '@wordpress/element';
-import { useDebounce } from '@wordpress/compose';
+import { useDebounce, useInstanceId } from '@wordpress/compose';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as editorStore } from '@wordpress/editor';
@@ -488,14 +488,100 @@ function chromePreviewStyle(
 }
 
 /**
+ * A color from a group's style as CSS: a `var:preset|color|slug` reference as
+ * its custom property, kebab-cased as core prints it, or any other value the
+ * browser accepts as a color.
+ *
+ * @param {unknown} value The style value.
+ * @return {string|null} The CSS value, or null when it isn't a color.
+ */
+function cssColor( value: unknown ): string | null {
+	if ( typeof value !== 'string' || ! value ) {
+		return null;
+	}
+
+	if ( value.startsWith( 'var:' ) ) {
+		const segments = value
+			.slice( 4 )
+			.split( '|' )
+			.map( ( segment ) =>
+				segment
+					.replace( /([a-z])([A-Z])/g, '$1-$2' )
+					.replace( /([A-Z])([A-Z][a-z])/g, '$1-$2' )
+					.replace( /([a-zA-Z])(\d)/g, '$1-$2' )
+					.replace( /(\d)([a-zA-Z])/g, '$1-$2' )
+					.replace( /[^a-zA-Z0-9]+/g, '-' )
+					.replace( /^-|-$/g, '' )
+					.toLowerCase()
+			);
+
+		return segments.every( ( segment ) => /^[a-z0-9-]+$/.test( segment ) )
+			? `var(--wp--${ segments.join( '--' ) })`
+			: null;
+	}
+
+	return CSS.supports( 'color', value ) ? value : null;
+}
+
+/**
+ * The link and heading colors a group sets for the blocks inside it, as the
+ * rules core's elements support prints for it on the site, scoped to the
+ * container a synced layout's preview shows in place of the group.
+ *
+ * @param {Object} group    The group.
+ * @param {string} selector The container's selector.
+ * @return {string} The CSS.
+ */
+function groupElementsCSS(
+	group: { [ key: string ]: unknown } | undefined,
+	selector: string
+): string {
+	const elements = (
+		( group?.attributes ?? {} ) as {
+			style?: {
+				elements?: Record<
+					string,
+					{
+						color?: { text?: string };
+						':hover'?: { color?: { text?: string } };
+					}
+				>;
+			};
+		}
+	 ).style?.elements;
+	const link = `${ selector } a:where(:not(.wp-element-button))`;
+	const rules: [ string, unknown ][] = [
+		[ link, elements?.link?.color?.text ],
+		[ `${ link }:hover`, elements?.link?.[ ':hover' ]?.color?.text ],
+		[
+			`${ selector } :is(h1, h2, h3, h4, h5, h6)`,
+			elements?.heading?.color?.text,
+		],
+	];
+
+	return rules
+		.map( ( [ rule, value ] ) => {
+			const color = cssColor( value );
+			return color ? `${ rule } { color: ${ color }; }` : '';
+		} )
+		.filter( Boolean )
+		.join( '\n' );
+}
+
+/**
  * The Feed group's own classes and styles, for the container a synced
  * layout's preview shows in place of the Feed. A ruled Feed takes its gap
  * from the block's stylesheet, which widens it to fit the rules.
  *
- * @param {Object} feed The layout's Feed group.
+ * @param {Object} feed  The layout's Feed group.
+ * @param {string} scope The class FeedWrappersPreview scopes the Feed's
+ *                       element colors to.
  * @return {Object} The container's className and style.
  */
-function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
+function feedPreviewProps(
+	feed: { [ key: string ]: unknown } | undefined,
+	scope: string
+): {
 	className: string;
 	style: Record< string, unknown >;
 } {
@@ -503,6 +589,7 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
 	const className = joinClassNames( [
 		'wp-block-group',
 		'newspack-rolling-coverage-feed',
+		scope,
 		...classNames,
 	] );
 
@@ -522,19 +609,34 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
  * @param {Object}      props          Component props.
  * @param {Object[]}    props.path     The groups leading to the Feed, the Feed last.
  * @param {Object}      props.context  The coverage's block context.
+ * @param {string}      props.scope    The class the Feed's preview carries;
+ *                                     each wrapper's is suffixed with its depth.
  * @param {JSX.Element} props.children The Feed's preview.
  * @return {JSX.Element} The Feed's preview inside its wrappers.
  */
 function FeedWrappersPreview( {
 	path,
 	context,
+	scope,
 	children,
 }: {
 	path: TemplateBlocks;
 	context: Record< string, unknown >;
+	scope: string;
 	children: JSX.Element;
 } ): JSX.Element {
-	return path.slice( 0, -1 ).reduceRight( ( inner, wrapper, index ) => {
+	const css = path
+		.map( ( group, index ) =>
+			groupElementsCSS(
+				group,
+				index === path.length - 1
+					? `.${ scope }`
+					: `.${ scope }-${ index }`
+			)
+		)
+		.filter( Boolean )
+		.join( '\n' );
+	const tree = path.slice( 0, -1 ).reduceRight( ( inner, wrapper, index ) => {
 		const siblings = ( wrapper.innerBlocks ?? [] ) as TemplateBlocks;
 		const position = siblings.indexOf( path[ index + 1 ] );
 		const before = siblings.slice( 0, Math.max( position, 0 ) );
@@ -545,6 +647,7 @@ function FeedWrappersPreview( {
 			<div
 				className={ joinClassNames( [
 					'wp-block-group',
+					`${ scope }-${ index }`,
 					...classNames,
 				] ) }
 				style={ style }
@@ -563,6 +666,13 @@ function FeedWrappersPreview( {
 			</div>
 		);
 	}, children );
+
+	return (
+		<>
+			{ tree }
+			{ css && <style>{ css }</style> }
+		</>
+	);
 }
 
 /**
@@ -604,6 +714,10 @@ export default function Edit( {
 		align,
 	} = attributes;
 	const pageSize = clampEntriesPerPage( entriesPerPage );
+	const previewScope = useInstanceId(
+		Edit,
+		'newspack-rolling-coverage-preview'
+	) as string;
 	const { currentPostType, currentPostId, patternCategories } = useSelect(
 		( select ) => {
 			const editor = select( editorStore ) as unknown as {
@@ -2442,8 +2556,14 @@ export default function Edit( {
 								<FeedWrappersPreview
 									path={ feedPath }
 									context={ coverageContext }
+									scope={ previewScope }
 								>
-									<div { ...feedPreviewProps( feedGroup ) }>
+									<div
+										{ ...feedPreviewProps(
+											feedGroup,
+											previewScope
+										) }
+									>
 										{ syncedHeaderBlocks.length > 0 && (
 											<BlockContextProvider
 												value={ coverageContext }
