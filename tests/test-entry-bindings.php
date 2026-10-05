@@ -1833,7 +1833,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		}
 
 		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry","layout":{"type":"flex","flexWrap":"wrap"}} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
-			. '<!-- wp:post-excerpt {"excerptLength":20,"moreText":""} /-->'
+			. '<!-- wp:post-excerpt {"excerptLength":100,"moreText":"","showMoreOnNewLine":false} /-->'
 			. '</div><!-- /wp:group -->';
 		$attributes  = [
 			'latestCount'   => 1,
@@ -1884,7 +1884,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$feed    = '<!-- wp:group {"className":"newspack-rolling-coverage-feed","align":"wide","style":{"spacing":{"blockGap":"var:preset|spacing|40"}},"layout":{"type":"flex","flexWrap":"wrap"}} --><div class="wp-block-group alignwide newspack-rolling-coverage-feed">'
 			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry","layout":{"type":"flex","flexWrap":"wrap"}} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
-			. '<!-- wp:post-excerpt {"excerptLength":20,"moreText":""} /-->'
+			. '<!-- wp:post-excerpt {"excerptLength":100,"moreText":"","showMoreOnNewLine":false} /-->'
 			. '</div><!-- /wp:group -->'
 			. '</div><!-- /wp:group -->';
 		$wrapper = '<!-- wp:group {"className":"rc-bar","style":{"color":{"background":"#123456"}},"layout":{"type":"constrained"}} --><div class="wp-block-group rc-bar has-background" style="background-color:#123456">'
