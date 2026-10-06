@@ -159,15 +159,16 @@ class Test_Entry_Name extends Rolling_Coverage_TestCase {
 	 */
 	public static function incomplete_names(): array {
 		return [
-			'singular only'      => [ [ 'singular' => 'post' ] ],
-			'plural only'        => [ [ 'plural' => 'posts' ] ],
-			'empty plural'       => [
+			'singular only'       => [ [ 'singular' => 'post' ] ],
+			'plural only'         => [ [ 'plural' => 'posts' ] ],
+			'empty plural'        => [
 				[
 					'singular' => 'post',
 					'plural'   => '',
 				],
 			],
-			'plural only spaces' => [
+			'empty singular only' => [ [ 'singular' => '' ] ],
+			'plural only spaces'  => [
 				[
 					'singular' => 'post',
 					'plural'   => '   ',
@@ -255,6 +256,13 @@ class Test_Entry_Name extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Title case leaves a word with capitals of its own as typed.
+	 */
+	public function test_words_with_their_own_capitals_stay_as_typed() {
+		$this->assertSame( 'iPhone Alert', Entry_Name::title_case( 'iPhone alert' ) );
+	}
+
+	/**
 	 * Other languages keep the words as typed in button labels.
 	 */
 	public function test_other_languages_keep_the_words_as_typed() {
@@ -285,6 +293,19 @@ class Test_Entry_Name extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'No updates yet.', $html );
 		$this->assertSame( 1, preg_match( '/data-entry-name="([^"]*)"/', $html, $match ) );
 		$this->assertSame( 'updates', json_decode( html_entity_decode( $match[1] ), true )['plural'] );
+	}
+
+	/**
+	 * The archived entry notice allows markup, so a name stored with markup
+	 * is shown as text, not rendered.
+	 */
+	public function test_archived_notice_escapes_the_name() {
+		self::set_name( '<a href="https://example.test">x</a>', 'updates' );
+
+		$notice = self::call_private( Rolling_Coverage_Block::class, 'archived_entry_notice_text' );
+
+		$this->assertStringNotContainsString( '<a ', wp_kses_post( $notice ) );
+		$this->assertStringContainsString( '&lt;a href=', $notice );
 	}
 
 	/**

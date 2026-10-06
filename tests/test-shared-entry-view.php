@@ -563,7 +563,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Pinned entries are already on the page, so they are not counted as newer posts.
+	 * Pinned entries are already on the page, so they are not counted as newer entries.
 	 */
 	public function test_pinned_newer_entries_are_not_counted() {
 		Post_Type::pin_entry( $this->entries['entry-4'] );

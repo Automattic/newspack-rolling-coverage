@@ -160,8 +160,9 @@ class Entry_Name {
 	}
 
 	/**
-	 * Capitalizes each word's first letter where the site's language writes
-	 * button labels in title case. Elsewhere the words stay as typed: most
+	 * Capitalizes each all-lowercase word where the site's language writes
+	 * button labels in title case, leaving words with capitals of their own,
+	 * such as "iPhone", as typed. Elsewhere the words stay as typed: most
 	 * languages use sentence case, and some capitalize every noun already.
 	 *
 	 * @param string $text Text as it reads mid-sentence.
@@ -173,7 +174,7 @@ class Entry_Name {
 		}
 
 		return (string) preg_replace_callback(
-			'/(^|\s)(\p{Ll})/u',
+			'/(^|\s)(\p{Ll})(?=\p{Ll}*(?:\s|$))/u',
 			static fn( array $matches ): string => $matches[1] . mb_strtoupper( $matches[2] ),
 			$text
 		);
@@ -213,12 +214,13 @@ class Entry_Name {
 
 	/**
 	 * REST handler: save the site's words. Both empty go back to the built-in
-	 * wording; one without the other is refused.
+	 * wording; one without the other, or a request naming only one, is
+	 * refused.
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
 	 */
-	public static function update_settings( WP_REST_Request $request ) {
+	public static function update_settings( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$singular = $request->get_param( 'singular' );
 		$plural   = $request->get_param( 'plural' );
 
@@ -226,17 +228,14 @@ class Entry_Name {
 			return new WP_REST_Response( self::get_saved(), 200 );
 		}
 
-		$singular = (string) $singular;
-		$plural   = (string) $plural;
+		if ( null === $singular || null === $plural ) {
+			return self::incomplete_error();
+		}
 
 		if ( '' === $singular && '' === $plural ) {
 			delete_option( self::OPTION_KEY );
 		} elseif ( '' === $singular || '' === $plural ) {
-			return new WP_Error(
-				'rolling_coverage_entry_name_incomplete',
-				__( 'Set both the singular and the plural, or leave both empty.', 'newspack-rolling-coverage' ),
-				[ 'status' => 400 ]
-			);
+			return self::incomplete_error();
 		} else {
 			update_option(
 				self::OPTION_KEY,
@@ -249,5 +248,18 @@ class Entry_Name {
 		}
 
 		return new WP_REST_Response( self::get_saved(), 200 );
+	}
+
+	/**
+	 * The error for a save that sets one word without the other.
+	 *
+	 * @return WP_Error
+	 */
+	private static function incomplete_error(): WP_Error {
+		return new WP_Error(
+			'rolling_coverage_entry_name_incomplete',
+			__( 'Set both the singular and the plural, or leave both empty.', 'newspack-rolling-coverage' ),
+			[ 'status' => 400 ]
+		);
 	}
 }

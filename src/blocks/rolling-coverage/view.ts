@@ -781,7 +781,7 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Adds entries to the pending queue.
 	 *
-	 * Updates the "X New Posts" control label and visibility.
+	 * Updates the "X New Entries" control label and visibility.
 	 *
 	 * @param {PendingEntry[]} newEntries Newly published entries.
 	 * @return {void}
@@ -1330,7 +1330,14 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		(
-			[ 'cursor', 'before', 'hasMore', 'templateKey', 'status' ] as const
+			[
+				'cursor',
+				'before',
+				'hasMore',
+				'templateKey',
+				'status',
+				'entryName',
+			] as const
 		 ).forEach( ( key ) => {
 			root.dataset[ key ] = live.dataset[ key ] ?? '';
 		} );

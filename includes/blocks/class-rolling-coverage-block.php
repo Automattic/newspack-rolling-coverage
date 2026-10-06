@@ -1628,7 +1628,7 @@ class Rolling_Coverage_Block {
 		$word = Entry_Name::word( 0 );
 
 		if ( '' !== $word ) {
-			/* translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence. */
+			/* translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence; its grammatical gender is unknown. */
 			return sprintf( __( 'No %s yet.', 'newspack-rolling-coverage' ), $word );
 		}
 
@@ -3656,10 +3656,10 @@ class Rolling_Coverage_Block {
 
 		if ( '' !== $singular ) {
 			return sprintf(
-				/* translators: 1: the site's own name for one coverage entry, as it reads mid-sentence. 2: the same name for several entries. */
+				/* translators: 1: the site's own name for one coverage entry, as it reads mid-sentence; its grammatical gender is unknown. 2: the same name for several entries. */
 				__( 'This %1$s is now out of date compared to newer %2$s, but is preserved as it originally appeared.', 'newspack-rolling-coverage' ),
-				$singular,
-				Entry_Name::word( 2 )
+				esc_html( $singular ),
+				esc_html( Entry_Name::word( 2 ) )
 			);
 		}
 
