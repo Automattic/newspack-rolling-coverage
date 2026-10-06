@@ -301,6 +301,46 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An untitled entry's share button is named by the words everyone can
+	 * read: members-only text stays out.
+	 */
+	public function test_share_name_leaves_out_members_only_text() {
+		$this->use_block_visibility_stub();
+		$html = self::render(
+			self::create_entry(
+				self::create_coverage(),
+				[
+					'post_title'   => '',
+					'post_content' => self::members_only_paragraph( 'Members hear the result first.' ) . '<!-- wp:paragraph --><p>Doors open at 7pm.</p><!-- /wp:paragraph -->',
+				]
+			)
+		);
+
+		$this->assertStringContainsString( 'aria-label="Share: Doors open at 7pm."', $html );
+		$this->assertStringNotContainsString( 'Members hear', $html );
+	}
+
+	/**
+	 * The public summary of a password-protected entry is empty, whoever
+	 * asks: an editor holding the password included.
+	 */
+	public function test_public_summary_of_a_protected_entry_is_empty() {
+		$entry = get_post(
+			self::create_entry(
+				self::create_coverage(),
+				[
+					'post_title'    => '',
+					'post_password' => 'secret',
+					'post_content'  => '<!-- wp:paragraph --><p>The result is in.</p><!-- /wp:paragraph -->',
+				]
+			)
+		);
+		add_filter( 'post_password_required', '__return_false' );
+
+		$this->assertSame( '', Entry_Bindings::public_summary( $entry ) );
+	}
+
+	/**
 	 * The share button's name reads the title as text: the curly apostrophe
 	 * and ampersand core puts in titles are encoded once, not twice.
 	 */
