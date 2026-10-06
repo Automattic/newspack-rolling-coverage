@@ -29,8 +29,11 @@ class Placements {
 	// Scheduled event that rebuilds the map.
 	const REBUILD_HOOK = 'newspack_rolling_coverage_rebuild_placements';
 
-	// How many published posts, newest first, a rebuild scans.
-	const MAX_SCANNED_POSTS = 1000;
+	// Option row held while a rebuild runs, holding when it expires.
+	const LOCK_OPTION = 'rolling_coverage_placements_lock';
+
+	// Seconds after which a rebuild's lock counts as abandoned.
+	const LOCK_TTL = 300;
 
 	// How many posts a rebuild reads at a time.
 	const SCAN_BATCH = 100;
@@ -74,6 +77,14 @@ class Placements {
 	 * @var array<int,array<int,WP_Post>>
 	 */
 	private static $breakout_posts = [];
+
+	/**
+	 * Sites whose map this request has already checked or rebuilt since its
+	 * last change, keyed by blog ID.
+	 *
+	 * @var array<int,true>
+	 */
+	private static $fresh = [];
 
 	/**
 	 * Initialize hooks.
@@ -135,13 +146,21 @@ class Placements {
 	/**
 	 * REST field callback listing a coverage's placements.
 	 *
-	 * Only editors see them, so public term requests never pay for the lookup.
+	 * Only editors see them, and only when the request names the field in
+	 * `_fields`, so public term requests and the block editor's coverage
+	 * lookups never pay for it.
 	 *
-	 * @param array $term Coverage REST object data.
+	 * @param array                 $term       Coverage REST object data.
+	 * @param string                $field_name Field name.
+	 * @param \WP_REST_Request|null $request    Request.
 	 * @return array[]
 	 */
-	public static function get_rest_field( array $term ): array {
-		if ( ! isset( $term['id'] ) || ! current_user_can( 'edit_posts' ) ) {
+	public static function get_rest_field( array $term, $field_name = self::REST_FIELD, $request = null ): array {
+		if ( ! isset( $term['id'] ) || ! current_user_can( 'edit_posts' ) || ! $request instanceof \WP_REST_Request ) {
+			return [];
+		}
+
+		if ( ! in_array( self::REST_FIELD, wp_parse_list( (string) $request['_fields'] ), true ) ) {
 			return [];
 		}
 
@@ -164,13 +183,21 @@ class Placements {
 	 * Rebuilds the stored map now when it is out of date, missing, or was
 	 * built for another theme. For admin reads, which must show what was just
 	 * saved; the front end keeps the stored map until the scheduled rebuild.
+	 * Checks once per request until the next change. When another rebuild
+	 * holds the lock, the stored map is used as it is.
 	 */
 	public static function ensure_fresh(): void {
-		$stored = get_option( self::OPTION );
-		$token  = get_option( self::STALE_OPTION );
+		$blog_id = get_current_blog_id();
 
-		if ( false !== $token || ! self::is_map( $stored ) || self::theme_signature() !== $stored['theme'] ) {
-			self::store( self::build(), $token );
+		if ( isset( self::$fresh[ $blog_id ] ) ) {
+			return;
+		}
+
+		self::$fresh[ $blog_id ] = true;
+		$stored                  = get_option( self::OPTION );
+
+		if ( null !== self::read_token() || ! self::is_map( $stored ) || self::theme_signature() !== $stored['theme'] ) {
+			self::rebuild_locked();
 		}
 	}
 
@@ -675,46 +702,68 @@ class Placements {
 	}
 
 	/**
-	 * Marks the current site's map out of date and schedules one rebuild.
-	 * Readers keep the stored map until then; admin reads rebuild it at once.
-	 * Each change stores a new token, so a rebuild that started before it
-	 * leaves the map marked out of date.
+	 * Marks the current site's map out of date, and has the request schedule
+	 * one rebuild as it ends, after the change's own writes. Readers keep the
+	 * stored map until then; admin reads rebuild it at once. Each change
+	 * stores a new token, written past the object cache so a long request
+	 * whose cached copy went stale still marks it, and a rebuild that
+	 * started before the change leaves the map marked out of date.
 	 *
-	 * While switched to another site, the stored map is dropped instead, as
-	 * this request's post types, widget areas and patterns are not that
-	 * site's; its next read builds it.
+	 * While switched to another site, that site's rebuild is scheduled at
+	 * once, in its own cron, since the request may not be on it as it ends.
 	 */
 	public static function flush(): void {
-		unset( self::$breakout_posts[ get_current_blog_id() ] );
+		$blog_id = get_current_blog_id();
+
+		unset( self::$breakout_posts[ $blog_id ], self::$fresh[ $blog_id ] );
+		self::write_option( self::STALE_OPTION, uniqid( '', true ) );
 
 		if ( is_multisite() && ms_is_switched() ) {
-			delete_option( self::OPTION );
-			delete_option( self::STALE_OPTION );
+			self::schedule_rebuild();
 			return;
 		}
 
-		update_option( self::STALE_OPTION, uniqid( '', true ), false );
-
-		if ( wp_next_scheduled( self::REBUILD_HOOK ) ) {
-			return;
-		}
-
-		wp_schedule_single_event( time(), self::REBUILD_HOOK );
-
-		if ( ! wp_doing_cron() && ! ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) ) {
-			spawn_cron();
+		if ( ! has_action( 'shutdown', [ __CLASS__, 'schedule_rebuild' ] ) ) {
+			add_action( 'shutdown', [ __CLASS__, 'schedule_rebuild' ] );
 		}
 	}
 
 	/**
+	 * Schedules one rebuild unless one is already due. Reads the scheduled
+	 * events from the database, since a long request's cached copy can still
+	 * list an event that has already run, and reloads them before scheduling
+	 * so the write builds on the current list.
+	 */
+	public static function schedule_rebuild(): void {
+		global $wpdb;
+
+		$cron = maybe_unserialize(
+			$wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'cron' )
+			)
+		);
+
+		foreach ( is_array( $cron ) ? $cron : [] as $events ) {
+			if ( is_array( $events ) && isset( $events[ self::REBUILD_HOOK ] ) ) {
+				return;
+			}
+		}
+
+		wp_cache_delete( 'alloptions', 'options' );
+		wp_schedule_single_event( time(), self::REBUILD_HOOK );
+	}
+
+	/**
 	 * Rebuilds the stored map when it is out of date or missing. Runs from the
-	 * scheduled event.
+	 * scheduled event; when another rebuild holds the lock, tries again later.
 	 */
 	public static function rebuild(): void {
-		$token = get_option( self::STALE_OPTION );
+		if ( null === self::read_token() && self::is_map( get_option( self::OPTION ) ) ) {
+			return;
+		}
 
-		if ( false !== $token || ! self::is_map( get_option( self::OPTION ) ) ) {
-			self::store( self::build(), $token );
+		if ( ! self::rebuild_locked() ) {
+			wp_schedule_single_event( time() + self::LOCK_TTL, self::REBUILD_HOOK );
 		}
 	}
 
@@ -723,42 +772,128 @@ class Placements {
 	 */
 	public static function activate(): void {
 		self::flush();
+		self::schedule_rebuild();
 	}
 
 	/**
-	 * Drops the stored map and any pending rebuild when the plugin is
-	 * deactivated.
+	 * Drops the stored map, its marks and any pending rebuild when the
+	 * plugin is deactivated.
 	 */
 	public static function deactivate(): void {
 		delete_option( self::OPTION );
 		delete_option( self::STALE_OPTION );
+		delete_option( self::LOCK_OPTION );
 		wp_clear_scheduled_hook( self::REBUILD_HOOK );
 	}
 
 	/**
-	 * Stores a built map, and clears the out-of-date mark only when no change
-	 * came in while it was being built.
+	 * Builds and stores the map while holding the lock, so two rebuilds never
+	 * run at once and an older build never overwrites a newer one. The
+	 * out-of-date token is read inside the lock, and cleared only if no
+	 * change replaced it while building; such a change keeps the map marked,
+	 * though the new map is still stored, since it is newer than the last.
 	 *
-	 * @param array $map   Built map.
-	 * @param mixed $token The out-of-date token read before building, or false.
+	 * @return bool Whether this request rebuilt it; false when another holds the lock.
 	 */
-	private static function store( array $map, $token ): void {
+	private static function rebuild_locked(): bool {
 		global $wpdb;
 
-		update_option( self::OPTION, $map, false );
-
-		if ( false === $token ) {
-			return;
+		if ( ! self::lock() ) {
+			return false;
 		}
+
+		try {
+			$token = self::read_token();
+
+			self::write_option( self::OPTION, self::build() );
+
+			if ( null !== $token ) {
+				$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+					$wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::STALE_OPTION, $token )
+				);
+				self::forget_option( self::STALE_OPTION );
+			}
+		} finally {
+			$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", self::LOCK_OPTION )
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Takes the rebuild lock, an option row inserted only if absent, or taken
+	 * over once its holder's time is up.
+	 *
+	 * @return bool Whether this request holds the lock.
+	 */
+	private static function lock(): bool {
+		global $wpdb;
+
+		$expires = (string) ( time() + self::LOCK_TTL );
+
+		if ( $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", self::LOCK_OPTION, $expires ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			return true;
+		}
+
+		$held_until = (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::LOCK_OPTION ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		return (int) $held_until < time()
+			&& (bool) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", $expires, self::LOCK_OPTION, $held_until ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	}
+
+	/**
+	 * The current out-of-date token, read from the database.
+	 *
+	 * @return string|null Token, or null when the map is up to date.
+	 */
+	private static function read_token(): ?string {
+		global $wpdb;
+
+		$token = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::STALE_OPTION ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		return null === $token ? null : (string) $token;
+	}
+
+	/**
+	 * Writes an option straight to the database, inserting or replacing it,
+	 * and drops this request's cached copy. Unlike update_option(), it never
+	 * compares against a cached value that may be out of date.
+	 *
+	 * @param string $name  Option name.
+	 * @param mixed  $value Value.
+	 */
+	private static function write_option( string $name, $value ): void {
+		global $wpdb;
 
 		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->prepare(
-				"DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
-				self::STALE_OPTION,
-				(string) $token
+				"INSERT INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off') ON DUPLICATE KEY UPDATE option_value = VALUES(option_value), autoload = 'off'",
+				$name,
+				maybe_serialize( $value )
 			)
 		);
-		wp_cache_delete( self::STALE_OPTION, 'options' );
+		self::forget_option( $name );
+	}
+
+	/**
+	 * Drops an option from this request's caches, so the next get_option()
+	 * reads the database.
+	 *
+	 * @param string $name Option name.
+	 */
+	private static function forget_option( string $name ): void {
+		wp_cache_delete( $name, 'options' );
+
+		foreach ( [ 'notoptions', 'alloptions' ] as $key ) {
+			$cached = wp_cache_get( $key, 'options' );
+
+			if ( is_array( $cached ) && array_key_exists( $name, $cached ) ) {
+				unset( $cached[ $name ] );
+				wp_cache_set( $key, $cached, 'options' );
+			}
+		}
 	}
 
 	/**
@@ -890,8 +1025,9 @@ class Placements {
 	}
 
 	/**
-	 * Returns the stored map, even when it is out of date. Builds it only
-	 * when there is none at all.
+	 * Returns the stored map, even when it is out of date. Never builds one:
+	 * when there is none, it schedules a build and returns an empty map, so a
+	 * front-end render never waits on a scan.
 	 *
 	 * @return array{pages: array<int,int>, places: array<int,array[]>, breakout: array[], patterns: int[], theme: string}
 	 */
@@ -902,12 +1038,17 @@ class Placements {
 			return $stored;
 		}
 
-		$token = get_option( self::STALE_OPTION );
-		$map   = self::build();
+		if ( null === self::read_token() ) {
+			self::flush();
+		}
 
-		self::store( $map, $token );
-
-		return $map;
+		return [
+			'pages'    => [],
+			'places'   => [],
+			'breakout' => [],
+			'patterns' => [],
+			'theme'    => '',
+		];
 	}
 
 	/**
@@ -1091,8 +1232,8 @@ class Placements {
 	}
 
 	/**
-	 * Published posts that may show a coverage, newest first and at most
-	 * MAX_SCANNED_POSTS of them: those whose content holds one of the blocks,
+	 * Published posts that may show a coverage, newest first: those whose
+	 * content holds one of the blocks,
 	 * and those using one of the given synced patterns, directly or through
 	 * other patterns. Also returns every pattern that leads to the blocks,
 	 * the given ones and the patterns wrapping them.
@@ -1119,8 +1260,8 @@ class Placements {
 		$ids = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->prepare(
 				// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
-				"SELECT ID FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_password = '' AND post_type IN ({$type_holders}) AND ((" . self::blocks_like_clause() . "){$id_clause}) ORDER BY post_date DESC, ID DESC LIMIT %d",
-				array_merge( $post_types, self::blocks_like_values(), [ self::MAX_SCANNED_POSTS ] )
+				"SELECT ID FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_password = '' AND post_type IN ({$type_holders}) AND ((" . self::blocks_like_clause() . "){$id_clause}) ORDER BY post_date DESC, ID DESC",
+				array_merge( $post_types, self::blocks_like_values() )
 			)
 		);
 

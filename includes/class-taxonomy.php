@@ -578,8 +578,6 @@ class Taxonomy {
 			return '';
 		}
 
-		Placements::ensure_fresh();
-
 		return self::get_coverage_page_url( (int) $term['id'] );
 	}
 

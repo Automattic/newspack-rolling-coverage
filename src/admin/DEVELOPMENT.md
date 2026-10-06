@@ -71,16 +71,18 @@ Posts come first, newest first, then templates, template parts, widget areas and
 
 Scanning every post on each request would be too slow, so the map is built once and kept in the `rolling_coverage_placements` option: the places of each coverage, the template and widget rows for breakout posts, every synced pattern that leads to one of the blocks (directly or by wrapping another pattern), the theme it was built for, and the newest post with an uncapped feed for each coverage (`page_id()`, which `Taxonomy::get_coverage_page_url()` uses when there is no canonical URL). Titles, links and labels are filled in when the REST field is read, so renaming a post or layout, or a permalink changing, needs no rebuild. Whether a coverage has a published breakout post is checked then too, with one query for all coverages.
 
-A build scans at most `MAX_SCANNED_POSTS` (1,000) published posts, newest first, reading their content `SCAN_BATCH` (100) at a time straight from the database, so it doesn't fill the object cache.
+A build lists the IDs of every matching published post, newest first, and reads their content `SCAN_BATCH` (100) at a time straight from the database, so memory stays bounded and the object cache isn't filled.
 
 #### When it is rebuilt
 
-A change never rebuilds the map in the request that made it. `Placements::flush()` stores a new token in the `rolling_coverage_placements_stale` option and schedules one `newspack_rolling_coverage_rebuild_placements` event (spawning WP-Cron unless it is disabled). Until that runs:
+A change never rebuilds the map in the request that made it. `Placements::flush()` writes a new token to the `rolling_coverage_placements_stale` option, straight to the database with an upsert so a long request whose cached copy is out of date still marks it. As the request ends, `schedule_rebuild()` reads the scheduled events from the database (not the request's cached copy) and, unless a `newspack_rolling_coverage_rebuild_placements` event is already due, reloads them and schedules one. WP-Cron runs it on a following request.
 
-- **The front end** (`page_id()`, and so `get_coverage_page_url()`) keeps reading the stored map. It only builds one when there is none at all.
-- **Admin reads** (the `placements` and `pageUrl` REST fields, for users who can `edit_posts`) call `ensure_fresh()`, which rebuilds at once when the map is marked out of date, missing, or was built for another theme or theme version. An editor who has just saved a page sees it in the list.
+Until it runs:
 
-A rebuild clears the mark only if the token is still the one it read before building, so a change saved while it ran leaves the map marked for the next read or event.
+- **The front end** (`page_id()`, and so `get_coverage_page_url()`) keeps reading the stored map. It never builds one: when there is none, it marks the map out of date and returns no page until the event runs.
+- **Admin reads** of the `placements` field call `ensure_fresh()`, which rebuilds at once when the map is marked out of date, missing, or was built for another theme or theme version, so an editor who has just saved a page sees it in the list. It checks once per request until the next change. The `pageUrl` field doesn't, so the block editor never waits on a rebuild.
+
+A rebuild holds a lock: the `rolling_coverage_placements_lock` row, inserted only if absent and holding when it expires (`LOCK_TTL`, five minutes), after which another rebuild takes it over. While it is held, an admin read uses the stored map and the event tries again after `LOCK_TTL`. Inside the lock, the rebuild reads the token, builds, stores the map, and deletes the token only if it is still the one it read, so a change saved while it ran keeps the map marked for the next read or event.
 
 #### What marks it out of date
 
@@ -91,17 +93,17 @@ A rebuild clears the mark only if the token is still the one it read before buil
 - **Coverages:** a coverage moving into or out of the trash, or being deleted, since a Custom block whose coverage is trashed falls back to Automatic. Pausing, ending or resuming one doesn't.
 - **Breakout entries:** an entry with a breakout post moving to another coverage, since an Automatic block in the breakout post's own content follows it.
 
-On multisite, a change made while switched to another site deletes that site's map instead of scheduling a rebuild, since this request's post types, widget areas and patterns are not that site's; its next read builds it.
+On multisite, a change made while switched to another site marks that site's map and schedules its rebuild at once, in that site's own cron, so the scan runs on that site with its own post types, widget areas and patterns.
 
-Activating the plugin schedules the first build; deactivating it deletes both options and any pending event.
+Activating the plugin schedules the first build; deactivating it deletes the map, the token, the lock and any pending event.
 
 Not tracked: theme files edited without an update, and a breakout post's entry being unpublished. Both are picked up by the next rebuild.
 
 ### REST field
 
-`placements` on the coverage term, for users who can `edit_posts` (others get an empty list), in both the `view` and `edit` contexts. Each row has `id`, `title`, `type` (what the place is, such as "Page" or "Template part"), `tags`, `viewUrl`, `editUrl`, `isMain` and `breakout`. The coverages list asks for it in `_fields` (`src/admin/hooks/useCoverages.ts`).
+`placements` on the coverage term, for users who can `edit_posts` (others get an empty list), in both the `view` and `edit` contexts. It is only worked out when the request names it in `_fields`; otherwise it is an empty list, so the block editor's coverage lookups stay cheap. The coverages list (`useCoverages.ts`) and the single coverage fetch (`getCoverage()` in `src/admin/utils/coverage-api.ts`) both name it. Each row has `id`, `title`, `type` (what the place is, such as "Page" or "Template part"), `tags`, `viewUrl`, `editUrl`, `isMain` and `breakout`. 
 
-The older `pageUrl` field stays: the canonical URL, or else the newest post with an uncapped feed.
+The older `pageUrl` field stays: the canonical URL, or else the newest post with an uncapped feed, read from the stored map as it is.
 
 ### The button
 

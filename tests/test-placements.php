@@ -553,6 +553,7 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$coverage_id = self::create_coverage();
 		$page_id     = self::publish( self::feed( $coverage_id ) );
 		$request     = new WP_REST_Request( 'GET', '/wp/v2/' . Taxonomy::REST_BASE . '/' . $coverage_id );
+		$request->set_param( '_fields', 'id,' . Placements::REST_FIELD );
 
 		self::log_in_as( 'author' );
 
@@ -561,6 +562,23 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		self::log_in_as( 'subscriber' );
 
 		$this->assertSame( [], rest_get_server()->dispatch( $request )->get_data()[ Placements::REST_FIELD ] );
+	}
+
+	/**
+	 * The block editor fetches coverages without `_fields`, and must not
+	 * wait on a rebuild after every save; nor does the page URL field.
+	 */
+	public function test_rest_reads_without_the_field_named_never_rebuild() {
+		$coverage_id = self::create_coverage();
+		self::publish( self::feed( $coverage_id ) );
+		Placements::rebuild();
+		self::publish( self::feed( $coverage_id, [ 'latestOnly' => true ] ) );
+		$token = get_option( Placements::STALE_OPTION );
+		$data  = rest_get_server()->dispatch( new WP_REST_Request( 'GET', '/wp/v2/' . Taxonomy::REST_BASE . '/' . $coverage_id ) )->get_data();
+
+		$this->assertSame( [], $data[ Placements::REST_FIELD ] );
+		$this->assertNotFalse( $token );
+		$this->assertSame( $token, get_option( Placements::STALE_OPTION ), 'Nothing was rebuilt.' );
 	}
 
 	/**
@@ -819,6 +837,110 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( [ 'post:' . $page_id ], array_column( $rows, 'id' ) );
 		$this->assertTrue( $rows[0]['isMain'] );
+	}
+
+	/**
+	 * A long request's cached copy of the mark can be out of date once a
+	 * rebuild elsewhere deletes it; a change must still mark the map.
+	 */
+	public function test_a_change_marks_the_map_even_when_the_cached_mark_is_out_of_date() {
+		global $wpdb;
+
+		Placements::flush();
+		get_option( Placements::STALE_OPTION );
+		$wpdb->delete( $wpdb->options, [ 'option_name' => Placements::STALE_OPTION ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		Placements::flush();
+
+		$this->assertNotNull( $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", Placements::STALE_OPTION ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	}
+
+	/**
+	 * A long request's cached copy of the scheduled events can still list a
+	 * rebuild that has already run; a change must still schedule one.
+	 */
+	public function test_a_rebuild_is_scheduled_even_when_the_cached_events_are_out_of_date() {
+		global $wpdb;
+
+		wp_clear_scheduled_hook( Placements::REBUILD_HOOK );
+		wp_schedule_single_event( time(), Placements::REBUILD_HOOK );
+		$wpdb->update( $wpdb->options, [ 'option_value' => maybe_serialize( [ 'version' => 2 ] ) ], [ 'option_name' => 'cron' ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		$this->assertNotFalse( wp_next_scheduled( Placements::REBUILD_HOOK ), 'The cached events still list it.' );
+
+		Placements::schedule_rebuild();
+
+		$this->assertStringContainsString( Placements::REBUILD_HOOK, (string) $wpdb->get_var( "SELECT option_value FROM {$wpdb->options} WHERE option_name = 'cron'" ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	}
+
+	/**
+	 * Listing every coverage reads placements once per coverage, so the
+	 * out-of-date check runs once per request until the next change.
+	 */
+	public function test_the_freshness_check_runs_once_per_request_until_a_change() {
+		$coverage_id = self::create_coverage();
+		Placements::for_coverage( $coverage_id );
+		Placements::rebuild();
+		$checks = 0;
+		$count  = function ( $query ) use ( &$checks ) {
+			if ( str_contains( $query, Placements::STALE_OPTION ) ) {
+				++$checks;
+			}
+			return $query;
+		};
+		add_filter( 'query', $count );
+		Placements::for_coverage( $coverage_id );
+		Placements::for_coverage( self::create_coverage() );
+		$before_change = $checks;
+		Placements::flush();
+		$checks = 0;
+		Placements::for_coverage( $coverage_id );
+		remove_filter( 'query', $count );
+
+		$this->assertSame( 0, $before_change );
+		$this->assertGreaterThan( 0, $checks, 'A change makes the next read check again.' );
+	}
+
+	/**
+	 * Only one rebuild runs at a time: while another holds the lock, an admin
+	 * read uses the stored map and the scheduled event tries again later. A
+	 * lock whose time is up is taken over.
+	 */
+	public function test_only_one_rebuild_runs_at_a_time() {
+		global $wpdb;
+
+		$coverage_id = self::create_coverage();
+		$page_id     = self::publish( self::feed( $coverage_id ) );
+		$stored      = [
+			'pages'    => [],
+			'places'   => [],
+			'breakout' => [],
+			'patterns' => [],
+			'theme'    => self::theme(),
+		];
+		update_option( Placements::OPTION, $stored, false );
+		wp_clear_scheduled_hook( Placements::REBUILD_HOOK );
+		$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->options,
+			[
+				'option_name'  => Placements::LOCK_OPTION,
+				'option_value' => (string) ( time() + 60 ),
+				'autoload'     => 'off',
+			]
+		);
+
+		$this->assertSame( [], Placements::for_coverage( $coverage_id ), 'An admin read uses the stored map.' );
+
+		Placements::rebuild();
+
+		$this->assertSame( $stored, get_option( Placements::OPTION ) );
+		$this->assertNotFalse( wp_next_scheduled( Placements::REBUILD_HOOK ), 'The event tries again later.' );
+
+		$wpdb->update( $wpdb->options, [ 'option_value' => (string) ( time() - 1 ) ], [ 'option_name' => Placements::LOCK_OPTION ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		Placements::rebuild();
+
+		$this->assertSame( [ $coverage_id => $page_id ], get_option( Placements::OPTION )['pages'], 'An abandoned lock is taken over.' );
+		$this->assertNull( $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", Placements::LOCK_OPTION ) ), 'The lock is released.' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	}
 
 	/**

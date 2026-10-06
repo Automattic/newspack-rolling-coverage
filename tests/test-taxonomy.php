@@ -272,6 +272,8 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 			]
 		);
 
+		Placements::rebuild();
+
 		$this->assertSame( get_permalink( $newest_id ), self::get_coverage_via_rest( $coverage_id, 'view' )[ Taxonomy::PAGE_URL_REST_FIELD ], 'The newest published page should win over older and draft ones.' );
 		$this->assertSame( '', Taxonomy::get_coverage_page_url( $other_id ), 'A coverage no page embeds should have no URL.' );
 
@@ -413,8 +415,8 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	/**
 	 * Capped feeds look the page up on every front-end render, so a save
 	 * never waits on the scan: it marks the map out of date and schedules one
-	 * rebuild, readers keep the stored map until it runs, and a change made
-	 * while it runs leaves the map marked for the next one.
+	 * rebuild as the request ends, readers keep the stored map until it runs,
+	 * and a change made while it runs leaves the map marked for the next one.
 	 */
 	public function test_a_change_schedules_one_rebuild_and_readers_keep_the_stored_map() {
 		$coverage_id = self::create_coverage();
@@ -430,29 +432,27 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 				'post_content' => $block,
 			]
 		);
-		self::factory()->post->create(
-			[
-				'post_type'    => 'page',
-				'post_status'  => 'publish',
-				'post_content' => $block,
-				'post_date'    => '2020-01-01 10:00:00',
-			]
-		);
 
 		$this->assertSame( '', Taxonomy::get_coverage_page_url( $coverage_id ), 'Readers keep the stored map until the rebuild runs.' );
-		$this->assertCount( 1, array_filter( _get_cron_array(), fn( $events ) => isset( $events[ Placements::REBUILD_HOOK ] ) ), 'Two changes schedule one rebuild.' );
+		$this->assertSame( 10, has_action( 'shutdown', [ Placements::class, 'schedule_rebuild' ] ), 'The rebuild is scheduled as the request ends.' );
+		$this->assertFalse( wp_next_scheduled( Placements::REBUILD_HOOK ), 'Not before.' );
+
+		Placements::schedule_rebuild();
+		Placements::schedule_rebuild();
+
+		$this->assertCount( 1, array_filter( _get_cron_array(), fn( $events ) => isset( $events[ Placements::REBUILD_HOOK ] ) ), 'One rebuild is scheduled.' );
 
 		do_action( Placements::REBUILD_HOOK );
 
 		$this->assertSame( [ $coverage_id => $page_id ], get_option( Placements::OPTION )['pages'] );
 		$this->assertFalse( get_option( Placements::STALE_OPTION ), 'The rebuild clears the mark.' );
 
-		update_option( Placements::STALE_OPTION, 'token-read-by-the-rebuild', false );
+		Placements::flush();
 		$changed_mid_build = false;
 		$change_mid_build  = function ( $query ) use ( &$changed_mid_build ) {
 			if ( ! $changed_mid_build && str_contains( $query, 'ORDER BY post_date DESC' ) ) {
 				$changed_mid_build = true;
-				update_option( Placements::STALE_OPTION, 'token-from-a-change-mid-build', false );
+				Placements::flush();
 			}
 			return $query;
 		};
@@ -461,13 +461,14 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 		remove_filter( 'query', $change_mid_build );
 
 		$this->assertTrue( $changed_mid_build );
-		$this->assertSame( 'token-from-a-change-mid-build', get_option( Placements::STALE_OPTION ), 'A change made during the rebuild keeps the map marked out of date.' );
+		$this->assertNotFalse( get_option( Placements::STALE_OPTION ), 'A change made during the rebuild keeps the map marked out of date.' );
 	}
 
 	/**
-	 * Without a stored map, the first reader builds it, front end included.
+	 * Without a stored map, the front end never builds one: it schedules a
+	 * build and has no page until it runs.
 	 */
-	public function test_the_first_reader_builds_a_missing_map() {
+	public function test_the_front_end_schedules_a_missing_map_instead_of_building_it() {
 		$coverage_id = self::create_coverage();
 		$page_id     = self::factory()->post->create(
 			[
@@ -477,6 +478,14 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 			]
 		);
 		delete_option( Placements::OPTION );
+		delete_option( Placements::STALE_OPTION );
+		remove_all_actions( 'shutdown' );
+
+		$this->assertSame( '', Taxonomy::get_coverage_page_url( $coverage_id ) );
+		$this->assertFalse( get_option( Placements::OPTION ), 'Nothing was built.' );
+		$this->assertNotFalse( get_option( Placements::STALE_OPTION ), 'A build is due.' );
+
+		Placements::rebuild();
 
 		$this->assertSame( get_permalink( $page_id ), Taxonomy::get_coverage_page_url( $coverage_id ) );
 	}
