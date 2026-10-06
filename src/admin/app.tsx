@@ -21,6 +21,7 @@ import AIPage from './components/ai-page';
 import ConnectionPage from './components/connection-page';
 import SlackSettingsPage from './components/slack-settings-page';
 import { useAdminContext } from './hooks/useAdminContext';
+import { announceTrashedEntry } from './utils/notices';
 
 /**
  * Root admin component. Uses react-router's HashRouter so navigation state
@@ -46,6 +47,8 @@ function App() {
 			typeof document !== 'undefined' &&
 			document.body.classList.contains( 'modal-open' )
 	);
+
+	useEffect( announceTrashedEntry, [] );
 
 	useEffect( () => {
 		const observer = new MutationObserver( () => {

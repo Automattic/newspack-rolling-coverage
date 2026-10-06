@@ -829,7 +829,7 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Link a "See all updates" paragraph to the coverage page, or render
+	 * Link a all-updates paragraph to the coverage page, or render
 	 * nothing when there is no page to link to. Entries render outside the
 	 * coverage-level blocks, so a paragraph inside one never has a URL.
 	 *
@@ -1070,9 +1070,10 @@ class Entry_Bindings {
 
 	/**
 	 * Whether a parsed block belongs to the coverage rather than to each
-	 * entry, so it renders once: the Follow Coverage block, the Coverage
-	 * Status block, a heading bound to the coverage's name, the "See all
-	 * updates" paragraph, or a block holding one at any depth. The pinned
+	 * entry, so it renders once: the Follow Coverage block, the Check for
+	 * Updates block, the Coverage Status block, a heading bound to the
+	 * coverage's name, the all-updates paragraph, or a block holding
+	 * one at any depth. The pinned
 	 * card and the entry group always belong to each entry, whatever they
 	 * hold.
 	 *
@@ -1086,6 +1087,7 @@ class Entry_Bindings {
 
 		if (
 			Coverage_Follow_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
+			Check_Updates_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			Coverage_Status_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			self::is_coverage_name_heading( $parsed_block ) ||
 			self::is_all_updates_paragraph( $parsed_block )

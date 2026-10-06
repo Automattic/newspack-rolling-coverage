@@ -36,6 +36,7 @@ import {
 	allUpdatesLink,
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_BLOCK_NAME,
+	CHECK_UPDATES_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
 	feedTemplate,
 	layoutParts,
@@ -60,7 +61,7 @@ import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
 export const BLOCK_NAME = metadata.name;
 
-export { FOLLOW_BLOCK_NAME };
+export { FOLLOW_BLOCK_NAME, CHECK_UPDATES_BLOCK_NAME };
 
 type PaletteColor = { slug: string; color?: string };
 
@@ -331,6 +332,7 @@ export function flashInnerTemplate(): TemplateItem[] {
 export const ALL_ALLOWED_BLOCKS = [
 	...ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_BLOCK_NAME,
+	CHECK_UPDATES_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
 ];
 

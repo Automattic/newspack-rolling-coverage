@@ -89,7 +89,7 @@ class Page_Coverages {
 	 * @param int $post_id Post ID.
 	 * @return int Coverage term ID, or 0 when the post isn't a breakout post.
 	 */
-	private static function breakout_coverage_id( int $post_id ): int {
+	public static function breakout_coverage_id( int $post_id ): int {
 		$post = $post_id ? get_post( $post_id ) : null;
 
 		if ( ! $post || post_password_required( $post ) ) {

@@ -16,6 +16,8 @@ import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
 
 interface AdminConfig {
 	page: string;
+	/** Whether Co-Authors Plus is on for entries. */
+	hasCoauthors: boolean;
 	adminTitleSuffix: string;
 	availableAdapters?: Record< string, string >;
 	restBase: {
@@ -33,12 +35,14 @@ interface AdminConfig {
 		aiSettings: string;
 		statusLabels: string;
 		latestLabel: string;
+		entryName: string;
 		posts: string;
 	};
 	nonce: string;
 	capabilities: {
 		canEditPosts: boolean;
 		canEditEntries: boolean;
+		canChangeAuthors: boolean;
 		canManageTerms: boolean;
 		canManageOptions: boolean;
 		canManageAiSettings: boolean;
@@ -72,6 +76,8 @@ interface AdminConfig {
 	statusLabelMaxLength: number;
 	latestLabelDefault: string;
 	latestLabelMaxLength: number;
+	entryNameDefaults: EntryName;
+	entryNameMaxLength: number;
 	slack: {
 		isConfigured: boolean;
 	};
@@ -102,6 +108,21 @@ interface HeaderState {
 
 type TabHeader = Pick< HeaderState, 'count' | 'isEmpty' >;
 
+/**
+ * A published place that shows a coverage, from the coverage's
+ * `placements` REST field.
+ */
+interface Placement {
+	id: string;
+	title: string;
+	type: string;
+	tags: string[];
+	viewUrl: string;
+	editUrl: string;
+	isMain: boolean;
+	breakout: boolean;
+}
+
 interface Coverage {
 	id: number;
 	name: string;
@@ -110,6 +131,7 @@ interface Coverage {
 	description: string;
 	count: number;
 	pageUrl?: string;
+	placements?: Placement[];
 	meta: {
 		rolling_coverage_status?: 'active' | 'paused' | 'archived' | 'trash';
 		rolling_coverage_canonical_url?: string;
@@ -291,6 +313,31 @@ interface BulkRestoreResult extends ApiResult {
 	results?: BulkRestoreEntryResult[];
 }
 
+interface ChangeAuthorEntryResult {
+	entryId: number;
+	updated: boolean;
+	error?: string;
+}
+
+interface ChangeAuthorResult extends ApiResult {
+	results?: ChangeAuthorEntryResult[];
+}
+
+interface ChangeAuthorDrawerProps {
+	isOpen: boolean;
+	items: Entry[];
+	restNamespace: string;
+	postType: string;
+	onClose: () => void;
+	onChanged?: () => void;
+}
+
+interface PlacementsDrawerProps {
+	isOpen: boolean;
+	coverage: Coverage | null;
+	onClose: () => void;
+}
+
 interface ConfirmModalContentProps {
 	message: string;
 	confirmLabel?: string;
@@ -403,6 +450,19 @@ interface LatestLabel {
 
 interface LatestLabelResult extends ApiResult {
 	data?: LatestLabel;
+}
+
+/**
+ * What readers see entries called, each word as it reads mid-sentence, both
+ * empty where the site sets none.
+ */
+interface EntryName {
+	singular: string;
+	plural: string;
+}
+
+interface EntryNameResult extends ApiResult {
+	data?: EntryName;
 }
 
 type StatusName =
@@ -662,6 +722,8 @@ export type {
 	StatusLabelsResult,
 	LatestLabel,
 	LatestLabelResult,
+	EntryName,
+	EntryNameResult,
 	Context,
 	ContextExports,
 	Coverage,
@@ -691,6 +753,11 @@ export type {
 	SaveCoverageData,
 	BulkRestoreEntryResult,
 	BulkRestoreResult,
+	ChangeAuthorEntryResult,
+	ChangeAuthorResult,
+	ChangeAuthorDrawerProps,
+	Placement,
+	PlacementsDrawerProps,
 	AiSettings,
 	AiSettingsResult,
 	BreadcrumbItem,

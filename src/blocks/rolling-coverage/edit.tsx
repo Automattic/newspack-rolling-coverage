@@ -89,6 +89,11 @@ import {
 	forEntryKind,
 	breakoutBlockIds,
 	withoutFollowButtons,
+	withoutCheckUpdatesButtons,
+	blockIdsOfType,
+	holdsBlockType,
+	layoutParts,
+	CHECK_UPDATES_BLOCK_NAME,
 	entryPreviewPlacement,
 	withColumnRule,
 	RULED_FEED_CLASS,
@@ -1185,6 +1190,18 @@ export default function Edit( {
 	const isFollowHidden =
 		! ONESIGNAL_CONFIGURED || currentCoverage?.status === 'archived';
 	const isAllUpdatesHidden = ! isCapped || allUpdatesLink === false;
+	const isCheckUpdatesHidden =
+		isCapped || currentCoverage?.status === 'archived';
+	const checksOnRequest = useMemo( () => {
+		const parts = layoutParts(
+			isSynced ? feedItems( syncedBlocks ) : allBlocks
+		);
+
+		return holdsBlockType(
+			[ ...parts.header, ...parts.footer ],
+			CHECK_UPDATES_BLOCK_NAME
+		);
+	}, [ isSynced, syncedBlocks, allBlocks ] );
 	// An editable layout previews the pinned card against the pinned entry
 	// and the entry group against one that isn't pinned, and leaves out the
 	// one the coverage has no entry for, and "Read more" where the entry
@@ -1269,6 +1286,9 @@ export default function Edit( {
 	const hiddenIds = useMemo( () => {
 		const ids = [
 			...( isFollowHidden ? followBlockIds( allBlocks ) : [] ),
+			...( isCheckUpdatesHidden
+				? blockIdsOfType( allBlocks, CHECK_UPDATES_BLOCK_NAME )
+				: [] ),
 			...( isAllUpdatesHidden ? allUpdatesBlockIds( allBlocks ) : [] ),
 			...allBlocks
 				.filter(
@@ -1293,6 +1313,7 @@ export default function Edit( {
 	}, [
 		allBlocks,
 		isFollowHidden,
+		isCheckUpdatesHidden,
 		isAllUpdatesHidden,
 		isCardHidden,
 		isEntryHidden,
@@ -1319,21 +1340,37 @@ export default function Edit( {
 	);
 
 	const syncedHeaderBlocks = useMemo( () => {
-		const blocks = isFollowHidden
+		let blocks = isFollowHidden
 			? withoutFollowButtons( headerBlocks )
 			: headerBlocks;
+		blocks = isCheckUpdatesHidden
+			? withoutCheckUpdatesButtons( blocks )
+			: blocks;
 		return isAllUpdatesHidden
 			? withoutAllUpdatesParagraph( blocks )
 			: blocks;
-	}, [ headerBlocks, isFollowHidden, isAllUpdatesHidden ] );
+	}, [
+		headerBlocks,
+		isFollowHidden,
+		isCheckUpdatesHidden,
+		isAllUpdatesHidden,
+	] );
 	const syncedFooterBlocks = useMemo( () => {
-		const blocks = isFollowHidden
+		let blocks = isFollowHidden
 			? withoutFollowButtons( footerBlocks )
 			: footerBlocks;
+		blocks = isCheckUpdatesHidden
+			? withoutCheckUpdatesButtons( blocks )
+			: blocks;
 		return isAllUpdatesHidden
 			? withoutAllUpdatesParagraph( blocks )
 			: blocks;
-	}, [ footerBlocks, isFollowHidden, isAllUpdatesHidden ] );
+	}, [
+		footerBlocks,
+		isFollowHidden,
+		isCheckUpdatesHidden,
+		isAllUpdatesHidden,
+	] );
 
 	const detach = useCallback( () => {
 		registry.batch( () => {
@@ -2053,21 +2090,25 @@ export default function Edit( {
 						/>
 					</>
 				) }
-				<TextControl
-					__next40pxDefaultSize
-					type="number"
-					label={ __(
-						'Poll interval (seconds)',
-						'newspack-rolling-coverage'
-					) }
-					value={ String( pollInterval ) }
-					min={ 1 }
-					onChange={ ( value: string ) =>
-						setAttributes( {
-							pollInterval: value ? parseInt( value, 10 ) : 10,
-						} )
-					}
-				/>
+				{ ( latestOnly || ! checksOnRequest ) && (
+					<TextControl
+						__next40pxDefaultSize
+						type="number"
+						label={ __(
+							'Poll interval (seconds)',
+							'newspack-rolling-coverage'
+						) }
+						value={ String( pollInterval ) }
+						min={ 1 }
+						onChange={ ( value: string ) =>
+							setAttributes( {
+								pollInterval: value
+									? parseInt( value, 10 )
+									: 10,
+							} )
+						}
+					/>
+				) }
 			</PanelBody>
 
 			<PanelBody title={ STATUS_LABELS.archived } initialOpen={ false }>
@@ -2456,16 +2497,25 @@ export default function Edit( {
 								'Ads interval',
 								'newspack-rolling-coverage'
 							) }
-							help={ __(
-								'Show an ad after every N entries. Maximum 3 ads for the initial feed and load more; no cap for new entries.',
-								'newspack-rolling-coverage'
+							help={ sprintf(
+								/* translators: 1: the entry the first ad follows, 2: the entry the second ad follows, 3: the entry the third ad follows. */
+								__(
+									'Up to 3 ads, after entries %1$d, %2$d and %3$d. New entries that arrive while the page is open get one at this interval, with no limit.',
+									'newspack-rolling-coverage'
+								),
+								adsInterval,
+								adsInterval * 2,
+								adsInterval * 3
 							) }
 							value={ String( adsInterval ) }
 							min={ 1 }
 							onChange={ ( value: string ) =>
 								setAttributes( {
 									adsInterval: value
-										? parseInt( value, 10 )
+										? Math.max(
+												1,
+												parseInt( value, 10 ) || 1
+											)
 										: 4,
 								} )
 							}

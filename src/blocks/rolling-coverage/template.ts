@@ -3,11 +3,12 @@
  */
 import { getSettings } from '@wordpress/date';
 import { escapeHTML } from '@wordpress/escape-html';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
+import { ENTRY_PLURAL } from './config';
 import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
 import type { TemplateItem } from './types';
@@ -135,6 +136,12 @@ const ENTRY_LINK_CLASS = 'newspack-rolling-coverage-entry-link';
  * blocks; the editor keeps it out of entries.
  */
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
+
+/**
+ * The Check for Updates block, which renders with a layout's coverage-level
+ * blocks and makes the feed check for new entries only when readers ask.
+ */
+const CHECK_UPDATES_BLOCK_NAME = 'newspack-rolling-coverage/check-updates';
 
 /**
  * The Coverage Status block, which shows the coverage's status once when it
@@ -289,8 +296,25 @@ function shareLink(): TemplateItem {
 }
 
 /**
- * The "See all updates" link to the coverage page, shown once by a capped
- * feed.
+ * The text a new layout's link to the coverage page starts with, in the
+ * site's own plural for entries when it sets one.
+ *
+ * @return {string} The link text.
+ */
+function allUpdatesText(): string {
+	if ( ! ENTRY_PLURAL ) {
+		return __( 'See all entries', 'newspack-rolling-coverage' );
+	}
+
+	return sprintf(
+		/* translators: %s: the site's name for several coverage entries, as it reads mid-sentence, e.g. "updates". */
+		__( 'See all %s', 'newspack-rolling-coverage' ),
+		ENTRY_PLURAL
+	);
+}
+
+/**
+ * The link to the coverage page, shown once by a capped feed.
  *
  * @param {Object} attributes Extra paragraph settings, such as its alignment.
  * @return {TemplateItem} The paragraph.
@@ -302,13 +326,9 @@ function allUpdatesLink(
 		'core/paragraph',
 		{
 			className: `use-header-font ${ ALL_UPDATES_CLASS }`,
-			content: placeholderLink(
-				__( 'See all updates', 'newspack-rolling-coverage' )
-			),
+			content: placeholderLink( allUpdatesText() ),
 			fontSize: 'small',
-			metadata: {
-				name: __( 'See all updates', 'newspack-rolling-coverage' ),
-			},
+			metadata: { name: allUpdatesText() },
 			...attributes,
 		},
 	];
@@ -1997,7 +2017,7 @@ function isCoverageNameHeading( block: {
  * @param {Object} block            The block.
  * @param {string} block.name       Block name.
  * @param {Object} block.attributes Block attributes.
- * @return {boolean} Whether it's the "See all updates" paragraph.
+ * @return {boolean} Whether it's the all-updates paragraph.
  */
 function isAllUpdatesParagraph( block: {
 	name: string;
@@ -2015,7 +2035,7 @@ function isAllUpdatesParagraph( block: {
 /**
  * Whether a block belongs to the coverage rather than to each entry, so it
  * renders once: the Follow Coverage block, the Coverage Status block, a
- * heading bound to the coverage's name, the "See all updates" paragraph, or
+ * heading bound to the coverage's name, the all-updates paragraph, or
  * a block holding one at any depth, mirroring
  * Entry_Bindings::is_coverage_item(). The pinned card and the entry group
  * always belong to each entry, whatever they hold.
@@ -2039,6 +2059,7 @@ function isCoverageItem( block: {
 
 	return (
 		typed.name === FOLLOW_BLOCK_NAME ||
+		typed.name === CHECK_UPDATES_BLOCK_NAME ||
 		block.name === STATUS_BLOCK_NAME ||
 		isCoverageNameHeading( typed ) ||
 		isAllUpdatesParagraph( typed ) ||
@@ -2129,6 +2150,68 @@ function withoutFollowButtons<
 }
 
 /**
+ * The blocks without their Check for Updates blocks, at any depth, as the
+ * site renders them where the feed checks on its own.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {Object[]} The blocks without Check for Updates blocks.
+ */
+function withoutCheckUpdatesButtons<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return withoutBlocks(
+		blocks,
+		( block ) => block.name === CHECK_UPDATES_BLOCK_NAME
+	);
+}
+
+/**
+ * The client IDs of the blocks of a type among the blocks, at any depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @param {string}   name   Block type name.
+ * @return {string[]} Client IDs.
+ */
+function blockIdsOfType(
+	blocks: { name: string; [ key: string ]: unknown }[],
+	name: string
+): string[] {
+	return blocks.flatMap( ( block ) =>
+		block.name === name
+			? [ block.clientId as string ]
+			: blockIdsOfType(
+					Array.isArray( block.innerBlocks )
+						? ( block.innerBlocks as typeof blocks )
+						: [],
+					name
+				)
+	);
+}
+
+/**
+ * Whether the blocks hold a block of a type, at any depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @param {string}   name   Block type name.
+ * @return {boolean} Whether one of them is, or holds, that type.
+ */
+function holdsBlockType(
+	blocks: { name: string; [ key: string ]: unknown }[],
+	name: string
+): boolean {
+	return blocks.some(
+		( block ) =>
+			block.name === name ||
+			holdsBlockType(
+				Array.isArray( block.innerBlocks )
+					? ( block.innerBlocks as typeof blocks )
+					: [],
+				name
+			)
+	);
+}
+
+/**
  * The client IDs of the follow buttons among the blocks, at any depth.
  *
  * @param {Object[]} blocks The blocks.
@@ -2149,7 +2232,7 @@ function followBlockIds(
 }
 
 /**
- * The blocks without the "See all updates" paragraph, at any depth, as the
+ * The blocks without the all-updates paragraph, at any depth, as the
  * site renders them where the link has nothing to show.
  *
  * @param {Object[]} blocks The blocks.
@@ -2162,7 +2245,7 @@ function withoutAllUpdatesParagraph<
 }
 
 /**
- * The client IDs of the "See all updates" paragraphs among the blocks, at
+ * The client IDs of the all-updates paragraphs among the blocks, at
  * any depth.
  *
  * @param {Object[]} blocks The blocks.
@@ -3138,7 +3221,11 @@ export {
 	ENTRY_ALLOWED_BLOCKS,
 	ALL_UPDATES_CLASS,
 	FOLLOW_BLOCK_NAME,
+	CHECK_UPDATES_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
+	holdsBlockType,
+	blockIdsOfType,
+	withoutCheckUpdatesButtons,
 	feedTemplate,
 	feedGroupOf,
 	feedPathOf,
