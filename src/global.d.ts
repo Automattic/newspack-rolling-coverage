@@ -73,6 +73,31 @@ declare module '@wordpress/block-editor' {
 		children?: ReactNode;
 	} >;
 
+	export const Inserter: ComponentType< {
+		position?: string;
+		rootClientId?: string;
+		clientId?: string;
+		isAppender?: boolean;
+		renderToggle?: ( args: {
+			onToggle: () => void;
+			isOpen: boolean;
+			disabled: boolean;
+		} ) => ReactNode;
+		toggleProps?: Record< string, unknown >;
+	} >;
+
+	export const NavigableToolbar: ComponentType< {
+		className?: string;
+		'aria-label': string;
+		variant?: 'unstyled';
+		children?: ReactNode;
+	} >;
+
+	export const __experimentalListView: ComponentType< {
+		isExpanded?: boolean;
+		rootClientId?: string;
+	} >;
+
 	export const __experimentalColorGradientSettingsDropdown: ComponentType< {
 		settings: Record< string, unknown >[];
 		panelId?: string;
