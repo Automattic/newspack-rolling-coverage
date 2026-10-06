@@ -25,7 +25,7 @@ import type {
  * watching `isSavingPost` transition to `false` and then reading
  * `didPostSaveRequestFail()`. All store reads go through `useSelect` so
  * they resolve in the `EditorProvider` sub-registry. On failure an error
- * snackbar is dispatched for `EditorSnackbars` to render inside the modal.
+ * snackbar is dispatched for `SnackbarNotices` to render inside the modal.
  *
  * @param {QuickEditSaveBarProps} props Component props.
  */

@@ -27,8 +27,8 @@ import type { BlockEditorSelectors } from '../types';
  * The gear is disabled until a block is selected, since the inspector has
  * nothing to show for the document. The popover closes when the selection
  * goes away and when focus leaves it, with two exceptions that keep it
- * usable: focus landing on the gear, whose click is what toggles the popover
- * and would otherwise close and reopen it in one go; and focus landing in
+ * usable: focus landing on the gear, kept as a fallback for keyboard focus
+ * now that a click never moves focus there (see below); and focus landing in
  * another popover, which is how the color and font-size controls inside the
  * inspector render their pickers. `onFocusOutside` fires after focus has
  * settled, so the gear's document reports the element that took it.

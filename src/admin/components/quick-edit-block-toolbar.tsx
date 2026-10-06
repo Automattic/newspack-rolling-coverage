@@ -24,8 +24,8 @@ import type { BlockEditorSelectors } from '../types';
  * without a selection, so the row never shows an empty gap. The chevron
  * hides it to give the document tools room. The `block-toolbar` popover
  * slot sits outside the wrapper because collapsing hides the wrapper
- * outright, and the rich-text format toolbar (link popover, "more rich
- * text options") renders into that slot.
+ * outright; core's inline format toolbar and the resize-handle popover
+ * render into that slot.
  */
 function QuickEditBlockToolbar() {
 	const [ isCollapsed, setIsCollapsed ] = useState( false );
