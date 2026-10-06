@@ -99,7 +99,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 									'newspack-rolling-coverage'
 								) }
 							>
-								<SlackIcon size={ 12 } />
+								<SlackIcon size={ 10 } />
 								<VisuallyHidden render={ <span /> }>
 									{ __(
 										'From Slack',
