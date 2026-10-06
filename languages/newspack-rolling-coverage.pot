@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-06T18:11:52+00:00\n"
+"POT-Creation-Date: 2026-10-06T18:21:03+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -35,8 +35,8 @@ msgid "https://newspack.com/"
 msgstr ""
 
 #: includes/ai/class-abilities.php:60
-#: includes/class-admin.php:74
-#: includes/class-admin.php:75
+#: includes/class-admin.php:76
+#: includes/class-admin.php:77
 #: includes/class-taxonomy.php:111
 #: includes/class-taxonomy.php:112
 #: dist/admin.js:4
@@ -455,28 +455,28 @@ msgctxt "coverage status"
 msgid "Ended"
 msgstr ""
 
-#: includes/class-admin.php:85
-#: includes/class-admin.php:86
+#: includes/class-admin.php:87
+#: includes/class-admin.php:88
 #: dist/admin.js:4
 msgid "All Coverages"
 msgstr ""
 
-#: includes/class-admin.php:94
-#: includes/class-admin.php:95
+#: includes/class-admin.php:96
+#: includes/class-admin.php:97
 #: dist/admin.js:4
 #: dist/admin.js:211
 #: dist/admin.js:216
 msgid "Slack Connection"
 msgstr ""
 
-#: includes/class-admin.php:103
-#: includes/class-admin.php:104
+#: includes/class-admin.php:105
+#: includes/class-admin.php:106
 #: dist/admin.js:4
 #: dist/blocks/rolling-coverage/index.js:18
 msgid "AI"
 msgstr ""
 
-#: includes/class-admin.php:338
+#: includes/class-admin.php:461
 #: dist/admin.js:215
 #: dist/admin.js:222
 msgid "Slack"
@@ -650,6 +650,7 @@ msgid "Entry updated."
 msgstr ""
 
 #: includes/class-post-type.php:274
+#: dist/admin.js:215
 #: dist/admin.js:226
 msgid "Entry trashed."
 msgstr ""
@@ -2982,6 +2983,14 @@ msgstr ""
 
 #: dist/blocks/share/view.js:1
 msgid "Link copied."
+msgstr ""
+
+#: dist/entry-editor.js:1
+msgid "Back to Coverage"
+msgstr ""
+
+#: dist/entry-editor.js:1
+msgid "Back to All Coverages"
 msgstr ""
 
 #: dist/entry-editor.js:1
