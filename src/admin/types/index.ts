@@ -598,6 +598,21 @@ interface EntityRecord {
 	status?: string;
 }
 
+/** Selectors from the block editor store that Quick Edit's toolbar reads. */
+interface BlockEditorSelectors {
+	getBlockSelectionStart: () => string | null | undefined;
+}
+
+/** Selectors from the preferences store. */
+interface PreferencesSelectors {
+	get: ( scope: string, name: string ) => unknown;
+}
+
+/** Actions on the preferences store. */
+interface PreferencesActions {
+	set: ( scope: string, name: string, value: unknown ) => void;
+}
+
 /** Selectors from the editor store, typed for the sub-registry. */
 type EditorSelectors = {
 	__unstableIsEditorReady?: () => boolean;
@@ -768,5 +783,8 @@ export type {
 	EntityRecord,
 	EditorSelectors,
 	CoreSelectors,
+	BlockEditorSelectors,
+	PreferencesSelectors,
+	PreferencesActions,
 	TogglePinResult,
 };
