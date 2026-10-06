@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-06T15:27:33+00:00\n"
+"POT-Creation-Date: 2026-10-06T15:41:24+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -86,7 +86,7 @@ msgstr ""
 #: includes/blocks/class-rolling-coverage-block.php:3900
 #: includes/blocks/class-rolling-coverage-block.php:4030
 #: includes/blocks/class-rolling-coverage-block.php:4041
-#: includes/class-post-type.php:1076
+#: includes/class-post-type.php:1083
 #: includes/class-taxonomy.php:361
 msgid "Coverage not found."
 msgstr ""
@@ -504,9 +504,9 @@ msgstr ""
 
 #: includes/class-archive-mode.php:268
 #: includes/class-breakout.php:238
-#: includes/class-post-type.php:1006
-#: includes/class-post-type.php:2529
-#: includes/class-post-type.php:2667
+#: includes/class-post-type.php:1013
+#: includes/class-post-type.php:2536
+#: includes/class-post-type.php:2674
 msgid "Entry not found."
 msgstr ""
 
@@ -552,67 +552,96 @@ msgid "View Entry"
 msgstr ""
 
 #: includes/class-post-type.php:265
-msgid "Search Entries"
+msgid "View Entries"
 msgstr ""
 
 #: includes/class-post-type.php:266
-msgid "No entries found."
+msgid "Search Entries"
 msgstr ""
 
 #: includes/class-post-type.php:267
+msgid "No entries found."
+msgstr ""
+
+#: includes/class-post-type.php:268
 msgid "All Entries"
 msgstr ""
 
 #: includes/class-post-type.php:269
+msgid "Entry published."
+msgstr ""
+
+#: includes/class-post-type.php:270
+msgid "Entry published privately."
+msgstr ""
+
+#: includes/class-post-type.php:271
+msgid "Entry reverted to draft."
+msgstr ""
+
+#: includes/class-post-type.php:272
+msgid "Entry scheduled."
+msgstr ""
+
+#: includes/class-post-type.php:273
+msgid "Entry updated."
+msgstr ""
+
+#: includes/class-post-type.php:274
+#: dist/admin.js:226
+msgid "Entry trashed."
+msgstr ""
+
+#: includes/class-post-type.php:276
 msgid "Individual entries within a Rolling Coverage."
 msgstr ""
 
-#: includes/class-post-type.php:2441
-#: includes/class-post-type.php:2507
+#: includes/class-post-type.php:2448
+#: includes/class-post-type.php:2514
 msgid "No entry IDs provided."
 msgstr ""
 
-#: includes/class-post-type.php:2457
+#: includes/class-post-type.php:2464
 msgid "You do not have permission to restore this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2515
+#: includes/class-post-type.php:2522
 msgid "That person can’t be the author of an entry."
 msgstr ""
 
-#: includes/class-post-type.php:2538
+#: includes/class-post-type.php:2545
 msgid "You do not have permission to edit this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2547
+#: includes/class-post-type.php:2554
 msgid "This entry is archived, so its author can’t change."
 msgstr ""
 
-#: includes/class-post-type.php:2556
+#: includes/class-post-type.php:2563
 msgid "Co-Authors Plus couldn’t credit this entry to that person."
 msgstr ""
 
-#: includes/class-post-type.php:2636
+#: includes/class-post-type.php:2643
 msgid "An editor needs to restore the coverage before this entry can be restored."
 msgstr ""
 
-#: includes/class-post-type.php:2675
+#: includes/class-post-type.php:2682
 msgid "Entry is not in trash."
 msgstr ""
 
-#: includes/class-post-type.php:2683
+#: includes/class-post-type.php:2690
 msgid "This entry is archived, so it can’t be restored."
 msgstr ""
 
-#: includes/class-post-type.php:2734
+#: includes/class-post-type.php:2741
 msgid "This entry's coverage was deleted. An editor needs to restore it."
 msgstr ""
 
-#: includes/class-post-type.php:2756
+#: includes/class-post-type.php:2763
 msgid "This entry has no coverage context to restore to."
 msgstr ""
 
-#: includes/class-post-type.php:2814
+#: includes/class-post-type.php:2821
 msgid "Failed to restore entry."
 msgstr ""
 
@@ -1600,10 +1629,6 @@ msgstr[1] ""
 
 #: dist/admin.js:226
 msgid "Failed to trash entry."
-msgstr ""
-
-#: dist/admin.js:226
-msgid "Entry trashed."
 msgstr ""
 
 #: dist/admin.js:226
