@@ -59,7 +59,7 @@ Everything else that reads an entry's excerpt gets the media title too, such as 
 
 ## Server rendering and polling
 
-`Rolling_Coverage_Block::render_block()` queries the newest entries, renders each one through the entry template (`render_entry()`), adds ads every `adsInterval` entries when enabled, and wraps the result in the Feed group (`render_feed()`). It hands the view script its state through `data-*` attributes on the wrapper.
+`Rolling_Coverage_Block::render_block()` queries the newest entries, renders each one through the entry template (`render_entry()`), adds an ad after every `adsInterval` entries when enabled (up to `Ads::INITIAL_AD_CAP`, 3, across the page and its loaded older entries: `Ads::is_capped_ad_position()` counts positions from the top, pinned entries included, and the load-more endpoint continues from `entry_offset`; polled entries add one every `adsInterval` new entries with no cap, carrying the count between polls in `polledCount`), and wraps the result in the Feed group (`render_feed()`). It hands the view script its state through `data-*` attributes on the wrapper.
 
 It also stores the entry template, with the ad and cap settings, in an option named `rc_tpl_{coverage_id}_{hash}` (`persist_block_config()`), and prints the hash as `data-template-key`. REST requests render entries from that stored config, so polled entries match the page. Only the five most recent configs per coverage are kept (`CONFIGS_KEPT`, tracked in the `rolling_coverage_template_hashes` term meta). A request with a pruned key renders with the default template (`load_block_config()`).
 

@@ -94,7 +94,7 @@ Appears when Newspack Ads is active.
 | Setting | What it does |
 | --- | --- |
 | Advertising | Enabled or Disabled. Shows ads between entries. Not available when Show is set to Latest. |
-| Ads interval | Show an ad after every N entries, up to 3 ads across the first load and older entries combined. New entries that arrive while the page is open are not capped. |
+| Ads interval | Shows an ad after every N entries (4 by default), counting from the top of the feed with pinned entries included. Up to 3 ads appear among the entries that load with the page and the older ones readers load after them: with an interval of 4, after entries 4, 8 and 12, and none further down. New entries that arrive while the page is open get an ad after every N of them, with no limit. |
 
 Ads need the Rolling Coverage: Entry placement enabled in Newspack Ads, and ads enabled in the coverage's own settings. The panel tells you when either is missing.
 

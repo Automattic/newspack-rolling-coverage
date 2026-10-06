@@ -2456,16 +2456,25 @@ export default function Edit( {
 								'Ads interval',
 								'newspack-rolling-coverage'
 							) }
-							help={ __(
-								'Show an ad after every N entries. Maximum 3 ads for the initial feed and load more; no cap for new entries.',
-								'newspack-rolling-coverage'
+							help={ sprintf(
+								/* translators: 1: the entry the first ad follows, 2: the entry the second ad follows, 3: the entry the third ad follows. */
+								__(
+									'Up to 3 ads, after entries %1$d, %2$d and %3$d. New entries that arrive while the page is open get one at this interval, with no limit.',
+									'newspack-rolling-coverage'
+								),
+								adsInterval,
+								adsInterval * 2,
+								adsInterval * 3
 							) }
 							value={ String( adsInterval ) }
 							min={ 1 }
 							onChange={ ( value: string ) =>
 								setAttributes( {
 									adsInterval: value
-										? parseInt( value, 10 )
+										? Math.max(
+												1,
+												parseInt( value, 10 ) || 1
+											)
 										: 4,
 								} )
 							}
