@@ -1265,7 +1265,7 @@ class Rolling_Coverage_Block {
 			$entries_html = sprintf(
 				'<p class="%s-entries__empty">%s</p>',
 				self::MARKUP_PREFIX,
-				esc_html__( 'No entries yet.', 'newspack-rolling-coverage' )
+				esc_html( self::no_entries_text() )
 			);
 		}
 
@@ -1299,6 +1299,12 @@ class Rolling_Coverage_Block {
 
 		if ( ! empty( $attributes['hideWhenEnded'] ) ) {
 			$wrapper_data['data-hide-when-ended'] = 'true';
+		}
+
+		$entry_name = Entry_Name::for_script();
+
+		if ( '' !== $entry_name ) {
+			$wrapper_data['data-entry-name'] = $entry_name;
 		}
 
 		// Polls carry the minimum too; the page has it so a first poll that fails still waits.
@@ -1568,21 +1574,29 @@ class Rolling_Coverage_Block {
 	/**
 	 * The label of the control on a feed opened at a shared entry: the number
 	 * of newer entries, exact up to ten and from there the round number it
-	 * has passed, e.g. "10+ Newer Posts" for 11 to 50. Empty when there are
-	 * none, as the control then keeps its own text. The view script builds
-	 * the same labels.
+	 * has passed, e.g. "10+ Newer Entries" for 11 to 50, in the site's own
+	 * name for entries when it sets one. Empty when there are none, as the
+	 * control then keeps its own text. The view script builds the same
+	 * labels.
 	 *
 	 * @param int $count How many entries are newer.
 	 * @return string
 	 */
-	public static function newer_posts_label( int $count ): string {
+	public static function newer_entries_label( int $count ): string {
 		if ( $count < 1 ) {
 			return '';
 		}
 
 		if ( $count <= 10 ) {
+			$word = Entry_Name::title_word( $count );
+
+			if ( '' !== $word ) {
+				/* translators: 1: number of coverage entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as a button label shows it. */
+				return sprintf( _n( '%1$d Newer %2$s', '%1$d Newer %2$s', $count, 'newspack-rolling-coverage' ), $count, $word );
+			}
+
 			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
-			return sprintf( _n( '%d Newer Post', '%d Newer Posts', $count, 'newspack-rolling-coverage' ), $count );
+			return sprintf( _n( '%d Newer Entry', '%d Newer Entries', $count, 'newspack-rolling-coverage' ), $count );
 		}
 
 		$floor = 10;
@@ -1593,8 +1607,32 @@ class Rolling_Coverage_Block {
 			$floor = 50;
 		}
 
+		$word = Entry_Name::title_word( $floor );
+
+		if ( '' !== $word ) {
+			/* translators: 1: a round number the count of newer coverage entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as a button label shows it. */
+			return sprintf( _n( '%1$d+ Newer %2$s', '%1$d+ Newer %2$s', $floor, 'newspack-rolling-coverage' ), $floor, $word );
+		}
+
 		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
-		return sprintf( _n( '%d+ Newer Post', '%d+ Newer Posts', $floor, 'newspack-rolling-coverage' ), $floor );
+		return sprintf( _n( '%d+ Newer Entry', '%d+ Newer Entries', $floor, 'newspack-rolling-coverage' ), $floor );
+	}
+
+	/**
+	 * The text of a feed with no entries, in the site's own name for entries
+	 * when it sets one.
+	 *
+	 * @return string
+	 */
+	private static function no_entries_text(): string {
+		$word = Entry_Name::word( 0 );
+
+		if ( '' !== $word ) {
+			/* translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence; its grammatical gender is unknown. */
+			return sprintf( __( 'No %s yet.', 'newspack-rolling-coverage' ), $word );
+		}
+
+		return __( 'No entries yet.', 'newspack-rolling-coverage' );
 	}
 
 	/**
@@ -1661,7 +1699,7 @@ class Rolling_Coverage_Block {
 
 		$control->set_attribute( 'data-newer-count', (string) $newer_count );
 
-		$label = self::newer_posts_label( $newer_count );
+		$label = self::newer_entries_label( $newer_count );
 
 		// The replaced label is kept on the link, for when the view script can no longer count.
 		if ( '' !== $label && $control->next_tag( 'a' ) ) {
@@ -3608,6 +3646,27 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * The notice above an individually archived entry's content, in the site's
+	 * own name for entries when it sets one.
+	 *
+	 * @return string
+	 */
+	private static function archived_entry_notice_text(): string {
+		$singular = Entry_Name::word( 1 );
+
+		if ( '' !== $singular ) {
+			return sprintf(
+				/* translators: 1: the site's own name for one coverage entry, as it reads mid-sentence; its grammatical gender is unknown. 2: the same name for several entries. */
+				__( 'This %1$s is now out of date compared to newer %2$s, but is preserved as it originally appeared.', 'newspack-rolling-coverage' ),
+				esc_html( $singular ),
+				esc_html( Entry_Name::word( 2 ) )
+			);
+		}
+
+		return __( 'This entry is now out of date compared to newer entries, but is preserved as it originally appeared.', 'newspack-rolling-coverage' );
+	}
+
+	/**
 	 * Renders the notice shown above an individually archived entry's content.
 	 *
 	 * @return string Rendered HTML.
@@ -3615,7 +3674,7 @@ class Rolling_Coverage_Block {
 	private static function render_archived_entry_notice(): string {
 		$text = apply_filters(
 			'newspack_rolling_coverage_entry_archived_notice',
-			__( 'This entry is now out of date compared to newer entries, but is preserved as it originally appeared.', 'newspack-rolling-coverage' )
+			self::archived_entry_notice_text()
 		);
 
 		return sprintf(

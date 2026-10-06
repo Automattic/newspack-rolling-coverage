@@ -42,6 +42,7 @@ function CoverageView() {
 	const { refreshKey } = context;
 	const [ isSlackDrawerOpen, setIsSlackDrawerOpen ] = useState( false );
 	const [ isSettingsOpen, setIsSettingsOpen ] = useState( false );
+	const [ isSettingsLoading, setIsSettingsLoading ] = useState( false );
 	const [ slackCoverage, setSlackCoverage ] = useState< Coverage | null >(
 		null
 	);
@@ -106,6 +107,11 @@ function CoverageView() {
 		return filterSortAndPaginate( records ?? [], view, fields );
 	}, [ records, view, fields ] );
 
+	const handleSettingsReady = useCallback(
+		() => setIsSettingsLoading( false ),
+		[]
+	);
+
 	const handleOpenCreate = useCallback( () => {
 		setEditingCoverage( null );
 		setIsDrawerOpen( true );
@@ -150,7 +156,11 @@ function CoverageView() {
 					{ canOpenSettings && (
 						<Button
 							variant="secondary"
-							onClick={ () => setIsSettingsOpen( true ) }
+							isBusy={ isSettingsLoading }
+							onClick={ () => {
+								setIsSettingsOpen( true );
+								setIsSettingsLoading( true );
+							} }
 						>
 							{ __( 'Settings', 'newspack-rolling-coverage' ) }
 						</Button>
@@ -165,7 +175,7 @@ function CoverageView() {
 					) }
 				</Stack>
 			) : null,
-		[ canAddCoverage, canOpenSettings, handleOpenCreate ]
+		[ canAddCoverage, canOpenSettings, handleOpenCreate, isSettingsLoading ]
 	);
 	useHeader( {
 		actions: headerActions,
@@ -264,7 +274,13 @@ function CoverageView() {
 				onSaved={ handleSaved }
 			/>
 			{ isSettingsOpen && (
-				<SettingsModal onClose={ () => setIsSettingsOpen( false ) } />
+				<SettingsModal
+					onClose={ () => {
+						setIsSettingsOpen( false );
+						setIsSettingsLoading( false );
+					} }
+					onReady={ handleSettingsReady }
+				/>
 			) }
 			{ confirmDialog }
 		</>

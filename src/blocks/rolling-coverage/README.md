@@ -107,16 +107,18 @@ Alignment and the HTML anchor are in the block toolbar and the Advanced section 
 The page checks for new entries every poll interval. It stops while the tab is in the background and checks again when the reader returns.
 
 - If the reader is at the top, new entries appear at once.
-- If the reader has scrolled down, the page does not move. A "New Posts" button shows the count (for example "3 New Posts"). Selecting it brings the new entries in. Edited entries update in place.
+- If the reader has scrolled down, the page does not move. A button shows the count (for example "3 New Entries"). Selecting it brings the new entries in. Edited entries update in place.
 - Older entries load as the reader scrolls to the end, or with the Load More button, depending on Older entries. The button takes the theme's button style. If a load fails, the button stays so the reader can try again.
 - A paused or ended coverage does not check for new entries.
 - Times follow the site's time format.
 
-Feeds that show only the latest entries update in place without the New Posts button: the newest entry appears and the oldest drops off. They have no ads and load no older entries.
+Feeds that show only the latest entries update in place without that button: the newest entry appears and the oldest drops off. They have no ads and load no older entries.
 
-When a reader opens a link to one entry, the feed opens at that entry and shows a "Jump to Latest" button that takes them to the live feed, with the number of newer posts when there are any.
+When a reader opens a link to one entry, the feed opens at that entry and shows a "Jump to Latest" button that takes them to the live feed, with the number of newer entries when there are any.
 
-The New Posts count and Jump to Latest show on the same button. It sits at the top of the screen and takes the theme's button style. It isn't part of the layout, so it doesn't appear in the editor. To change its text, go to Rolling Coverage > All Coverages, select Settings, and set Button label under Jump to Latest. The label can be up to 40 characters. Leave it empty to use "Jump to Latest".
+The new entries count and Jump to Latest show on the same button. It sits at the top of the screen and takes the theme's button style. It isn't part of the layout, so it doesn't appear in the editor. To change its text, go to Rolling Coverage > All Coverages, select Settings, and set Button label under Jump to Latest. The label can be up to 40 characters. Leave it empty to use "Jump to Latest".
+
+Readers see entries called "entries" by default. To call them something else, such as "updates", go to Rolling Coverage > All Coverages, select Settings, and set Singular and Plural under Entry Name, each as it reads mid-sentence ("update", "updates"). Both are needed, up to 30 characters each. The name then shows in the counts ("3 New Updates", "1 Newer Update"), the empty feed ("No updates yet."), the share button's label for screen readers, the notice above an out-of-date entry and the feed's screen reader announcements. On English-language sites the counts capitalize each word, as buttons do; other languages keep the words as typed. Leave both empty to go back to "entry" and "entries".
 
 ### Pinned entries
 

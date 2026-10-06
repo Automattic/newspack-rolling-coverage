@@ -33,6 +33,7 @@ interface AdminConfig {
 		aiSettings: string;
 		statusLabels: string;
 		latestLabel: string;
+		entryName: string;
 		posts: string;
 	};
 	nonce: string;
@@ -72,6 +73,8 @@ interface AdminConfig {
 	statusLabelMaxLength: number;
 	latestLabelDefault: string;
 	latestLabelMaxLength: number;
+	entryNameDefaults: EntryName;
+	entryNameMaxLength: number;
 	slack: {
 		isConfigured: boolean;
 	};
@@ -402,6 +405,19 @@ interface LatestLabelResult extends ApiResult {
 	data?: LatestLabel;
 }
 
+/**
+ * What readers see entries called, each word as it reads mid-sentence, both
+ * empty where the site sets none.
+ */
+interface EntryName {
+	singular: string;
+	plural: string;
+}
+
+interface EntryNameResult extends ApiResult {
+	data?: EntryName;
+}
+
 type StatusName =
 	| 'active'
 	| 'done'
@@ -659,6 +675,8 @@ export type {
 	StatusLabelsResult,
 	LatestLabel,
 	LatestLabelResult,
+	EntryName,
+	EntryNameResult,
 	Context,
 	ContextExports,
 	Coverage,

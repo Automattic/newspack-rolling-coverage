@@ -320,7 +320,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertFalse( $control['hidden'] );
 		$this->assertSame( get_permalink( $this->page_id ), $control['href'] );
 		$this->assertSame( '3', $control['newer'] );
-		$this->assertSame( '3 Newer Posts', $control['text'] );
+		$this->assertSame( '3 Newer Entries', $control['text'] );
 		$this->assertSame( 'Jump to Latest', $control['own'], 'The link keeps its own text for the view script.' );
 		$this->assertSame( 'wp-block-button__link wp-element-button', $control['link'] );
 		$this->assertSame( 'box-shadow:var(--wp--preset--shadow--elevation-2)', $control['style'] );
@@ -368,7 +368,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 'Back to live', $normal['text'] );
 		$this->assertNull( $normal['own'] );
-		$this->assertSame( '3 Newer Posts', $shared['text'] );
+		$this->assertSame( '3 Newer Entries', $shared['text'] );
 		$this->assertSame( 'Back to live', $shared['own'] );
 	}
 
@@ -415,7 +415,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 				[
 					'hidden' => false,
 					'newer'  => '3',
-					'text'   => '3 Newer Posts',
+					'text'   => '3 Newer Entries',
 					'own'    => 'Jump to Latest',
 				]
 			),
@@ -559,11 +559,11 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'data-view="entry"', $html );
 		$this->assertSame( '1', $control['newer'] );
-		$this->assertSame( '1 Newer Post', $control['text'] );
+		$this->assertSame( '1 Newer Entry', $control['text'] );
 	}
 
 	/**
-	 * Pinned entries are already on the page, so they are not counted as newer posts.
+	 * Pinned entries are already on the page, so they are not counted as newer entries.
 	 */
 	public function test_pinned_newer_entries_are_not_counted() {
 		Post_Type::pin_entry( $this->entries['entry-4'] );
@@ -594,19 +594,19 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 101, Rolling_Coverage_Block::NEWER_COUNT_CAP );
 		$this->assertSame( '101', $control['newer'], 'One past a hundred stands for "more than 100".' );
-		$this->assertSame( '100+ Newer Posts', $control['text'] );
+		$this->assertSame( '100+ Newer Entries', $control['text'] );
 	}
 
 	/**
 	 * The label is exact up to ten; from there "N+" reads as more than N.
 	 *
-	 * @dataProvider newer_posts_labels
+	 * @dataProvider newer_entries_labels
 	 *
 	 * @param int    $count How many entries are newer.
 	 * @param string $label The label the control shows.
 	 */
-	public function test_newer_posts_label_is_bucketed( int $count, string $label ) {
-		$this->assertSame( $label, Rolling_Coverage_Block::newer_posts_label( $count ) );
+	public function test_newer_entries_label_is_bucketed( int $count, string $label ) {
+		$this->assertSame( $label, Rolling_Coverage_Block::newer_entries_label( $count ) );
 	}
 
 	/**
@@ -614,18 +614,18 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	 *
 	 * @return array[]
 	 */
-	public static function newer_posts_labels(): array {
+	public static function newer_entries_labels(): array {
 		return [
 			[ 0, '' ],
-			[ 1, '1 Newer Post' ],
-			[ 9, '9 Newer Posts' ],
-			[ 10, '10 Newer Posts' ],
-			[ 11, '10+ Newer Posts' ],
-			[ 50, '10+ Newer Posts' ],
-			[ 51, '50+ Newer Posts' ],
-			[ 100, '50+ Newer Posts' ],
-			[ 101, '100+ Newer Posts' ],
-			[ 250, '100+ Newer Posts' ],
+			[ 1, '1 Newer Entry' ],
+			[ 9, '9 Newer Entries' ],
+			[ 10, '10 Newer Entries' ],
+			[ 11, '10+ Newer Entries' ],
+			[ 50, '10+ Newer Entries' ],
+			[ 51, '50+ Newer Entries' ],
+			[ 100, '50+ Newer Entries' ],
+			[ 101, '100+ Newer Entries' ],
+			[ 250, '100+ Newer Entries' ],
 		];
 	}
 
