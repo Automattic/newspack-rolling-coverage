@@ -267,8 +267,8 @@ function getEmbeddedTerms( entry: Entry ): Array< {
  * Returns the lowercase machine value for an entry's source, defaulting to
  * 'wordpress' when the meta value is absent or not 'slack'. The returned value
  * matches the `elements[]` filter values so DataViews `is`/`isNot` operators
- * (strict equality) match correctly. The human-readable label belongs only in
- * the field's `render` callback.
+ * (strict equality) match correctly. The human-readable labels live in the
+ * field's `elements[]`.
  *
  * @param {Entry} item The entry whose source meta to read.
  * @return {string} 'slack' or 'wordpress'.

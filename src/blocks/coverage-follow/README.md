@@ -48,12 +48,12 @@ The button is part of the block and rebuilds itself when the editor reloads, so 
 
 A notification goes out when an entry is published and one of these is true:
 
-- **Notify subscribers when this entry publishes** is ticked in the Push Notifications box of the entry. The box shows on entries that aren't published yet, and only when OneSignal is set up.
+- **Notify subscribers when this entry publishes** is ticked in the entry's Push Notifications panel, in the entry editor's sidebar. The panel shows on entries that aren't published yet, and only when OneSignal is set up.
 - The entry came from Slack. Slack entries are included automatically, unless they contain only an image.
 
-Only readers who followed that coverage are notified. The notification links to the entry on the coverage's canonical URL, so the coverage needs one. If it doesn't, the Push Notifications box warns you and no notification is sent. An entry notifies once.
+Only readers who followed that coverage are notified. The notification links to the entry on the coverage's canonical URL, so the coverage needs one. If it doesn't, the Push Notifications panel warns you and no notification is sent. An entry notifies once.
 
-In the block editor, the notification goes out when the Push Notifications box is saved, right after publishing. Slack entries published straight away go out on the site's next scheduled-task run. An entry opted in earlier and published another way, such as from the Rolling Coverage screen, goes out about a minute after publishing.
+An entry that goes live from a schedule, or is published outside the editor (for example with Quick Edit), notifies at once. An entry published from the entry editor or from Slack notifies on the site's next scheduled-task run. The plugin's entries list doesn't publish entries.
 
 ## Limits
 

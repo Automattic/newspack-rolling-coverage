@@ -16,22 +16,22 @@ You can change the coverage later in the Coverage panel of the block's settings.
 
 A layout is how the feed looks: spacing, colors, type, and which parts each entry shows. The picker lists the built-in layouts first, then any custom layouts. Each card shows a preview with sample entries.
 
-| Layout | What it looks like |
-| --- | --- |
-| Bulletin | The default. Entries stacked with their time, title, content, and links. |
-| Stream | Like Bulletin, with more space between entries without titles. |
-| Rail | Entries hang off a timeline. |
-| Clock | Each entry starts with the time it was posted. |
-| Margin | Each entry split into a margin and its content. |
-| Minute | Closer together, with each entry reduced to its content. |
-| Byline | Each entry signed by its author. |
-| Ticker | A strip with the coverage's status and name beside the three latest headlines, and a link to the coverage page, with a thin rule between them. The Feed's Block spacing sets the space on either side of a rule. Wide width. Hides when the coverage ends. |
-| Split | The full feed at wide width, with the pinned entry's summary in a column beside the entries. |
-| Wire | A narrow list of the five latest entries, ending in a link to the coverage page. |
-| Digest | A bordered box with the coverage name, the three latest entries next to their times, and a link to the coverage page. |
-| Flash | A full-width bar in the site's accent color with the latest entry, its time, and a link to the coverage page. Hides when the coverage ends. |
+| Layout | What it looks like | Best for |
+| --- | --- | --- |
+| Bulletin | The default. Entries stacked with their time, title, content, and links. | Most live blogs. |
+| Stream | Like Bulletin, with more space between entries without titles. | Fast-moving events with many short updates without titles, such as a press conference or a court hearing. |
+| Rail | Entries hang off a timeline. | Events where the order of updates and the gaps between them matter, such as a storm moving through. |
+| Clock | Each entry starts with the time it was posted. | Coverage where the time of each update is the point, such as election results or travel delays. |
+| Margin | Each entry split into a margin and its content. | Coverage with headlines readers scan down the side, such as a long-running story. |
+| Minute | Closer together, with each entry reduced to its content. | Sports and other minute-by-minute coverage. Start each entry with the minute: "70' Goal! Kowalski scores from the edge of the box." |
+| Byline | Each entry signed by its author. | Coverage with several reporters filing, where who reported each entry matters. |
+| Ticker | A strip with the coverage's status and name beside the latest headlines, each under its time, and a link to the coverage page below, with a thin rule between them. The headlines stay on one line, whatever Number of entries is set to. Up to three share the width; more keep a minimum width, and once they don't fit the line scrolls sideways and fades at any edge with more to scroll. In a narrow space, such as a tablet or a column beside a sidebar, the status and name sit above the headlines. In the narrowest spaces, such as a phone, even three headlines scroll. A small gap (0.25em) separates the status and each time from the line below. The Feed's Block spacing sets the space on either side of a rule. Wide width. Hides when the coverage ends. | The homepage, under the header, to point readers to breaking news. |
+| Split | The full feed at wide width, with the pinned entry's summary in a column beside the entries. | A coverage page that leads with a pinned summary, such as "What we know", beside the feed. |
+| Wire | A narrow list of the five latest entries, ending in a link to the coverage page. | A sidebar or another narrow column. |
+| Digest | A bordered box with the coverage name, the three latest entries next to their times, and a link to the coverage page. | A sidebar, or a box inside a related story that links to the main coverage. |
+| Flash | A full-width bar in the site's accent color with the latest entry, its time, and a link to the coverage page, side by side at every width. The entry keeps to one line, cut short to fit, and phones hide the time. Picking Flash sets the Live badge's background to the page's background color as it is then: Base on block themes, White on the classic Newspack Theme. Change it under the Coverage Status block's Color settings. Hides when the coverage ends. | The site header, so a major breaking story shows on every page. |
 
-Ticker, Wire, Digest, and Flash show only the latest entries. They set Show to Latest and a matching Number of entries when you pick them. You can change either afterward.
+Ticker, Wire, Digest, and Flash show only the latest entries. They set Show to Latest and a matching Number of entries when you pick them. You can change either afterward, except Show on Ticker: its headlines run on one line, which has no room for pinned entries or older pages, so the setting is hidden while it's set to Latest.
 
 The first time someone who can publish picks a built-in layout, the site saves it as a shared layout. Every story using it then follows that one copy. A Contributor who picks one before that gets a copy for that story only. See [Edit, detach, and change a layout](#edit-detach-and-change-a-layout).
 
@@ -66,7 +66,7 @@ Says whether the block uses the shared layout or its own detached copy.
 | Number of entries | With Show set to Latest: how many entries to show, from 1 to 100. |
 | Link to all updates | With Show set to Latest, in layouts that have one (Ticker, Wire, Digest, Flash): Show or Hide the link to the coverage page. The link is hidden on the coverage page itself. |
 | Entries per page | With Show set to All: how many entries show first, and how many each load of older entries adds. From 1 to 100. Default 20. |
-| Poll interval (seconds) | How often the page checks for new entries. Default 10. The site can set a longer minimum, which wins over a shorter value here. |
+| Poll interval (seconds) | Hidden when Show is set to All and the layout holds a [Check for Updates](../check-updates/README.md) block. How often the page checks for new entries. Default 10. The site can set a longer minimum, which wins over a shorter value here. |
 
 ### Ended
 
@@ -94,7 +94,7 @@ Appears when Newspack Ads is active.
 | Setting | What it does |
 | --- | --- |
 | Advertising | Enabled or Disabled. Shows ads between entries. Not available when Show is set to Latest. |
-| Ads interval | Show an ad after every N entries, up to 3 ads across the first load and older entries combined. New entries that arrive while the page is open are not capped. |
+| Ads interval | Shows an ad after every N entries (4 by default), counting from the top of the feed with pinned entries included. Up to 3 ads appear among the entries that load with the page and the older ones readers load after them: with an interval of 4, after entries 4, 8 and 12, and none further down. New entries that arrive while the page is open get an ad after every N of them, with no limit. |
 
 Ads need the Rolling Coverage: Entry placement enabled in Newspack Ads, and ads enabled in the coverage's own settings. The panel tells you when either is missing.
 
@@ -107,16 +107,19 @@ Alignment and the HTML anchor are in the block toolbar and the Advanced section 
 The page checks for new entries every poll interval. It stops while the tab is in the background and checks again when the reader returns.
 
 - If the reader is at the top, new entries appear at once.
-- If the reader has scrolled down, the page does not move. A "New Posts" button shows the count (for example "3 New Posts"). Selecting it brings the new entries in. Edited entries update in place.
+- If the reader has scrolled down, the page does not move. A button shows the count (for example "3 New Entries"). Selecting it brings the new entries in. Edited entries update in place.
+- To have the page check only when readers ask, add a [Check for Updates](../check-updates/README.md) block to the layout. The page then makes no background checks, which suits readers on slow or metered connections.
 - Older entries load as the reader scrolls to the end, or with the Load More button, depending on Older entries. The button takes the theme's button style. If a load fails, the button stays so the reader can try again.
-- A paused or ended coverage does not check for new entries.
+- A paused or ended coverage does not check for new entries on its own. With a Check for Updates block, readers can still check a paused coverage.
 - Times follow the site's time format.
 
-Feeds that show only the latest entries update in place without the New Posts button: the newest entry appears and the oldest drops off. They have no ads and load no older entries.
+Feeds that show only the latest entries update in place without that button: the newest entry appears and the oldest drops off. They have no ads and load no older entries.
 
-When a reader opens a link to one entry, the feed opens at that entry and shows a "Jump to Latest" button that takes them to the live feed, with the number of newer posts when there are any.
+When a reader opens a link to one entry, the feed opens at that entry and shows a "Jump to Latest" button that takes them to the live feed, with the number of newer entries when there are any.
 
-The New Posts count and Jump to Latest show on the same button. It sits at the top of the screen and takes the theme's button style. It isn't part of the layout, so it doesn't appear in the editor. To change its text, go to Rolling Coverage > All Coverages, select Settings, and set Button label under Jump to Latest. The label can be up to 40 characters. Leave it empty to use "Jump to Latest".
+The new entries count and Jump to Latest show on the same button. It sits at the top of the screen and takes the theme's button style. It isn't part of the layout, so it doesn't appear in the editor. To change its text, go to Rolling Coverage > All Coverages, select Settings, and set Button label under Jump to Latest. The label can be up to 40 characters. Leave it empty to use "Jump to Latest".
+
+Readers see entries called "entries" by default. To call them something else, such as "updates", go to Rolling Coverage > All Coverages, select Settings, and set Singular and Plural under Entry Name, each as it reads mid-sentence ("update", "updates"). Both are needed, up to 30 characters each. The name then shows in the counts ("3 New Updates", "1 Newer Update"), the empty feed ("No updates yet."), the share button's label for screen readers, the notice above an out-of-date entry and the feed's screen reader announcements. On English-language sites the counts capitalize each word, as buttons do; other languages keep the words as typed. Leave both empty to go back to "entry" and "entries".
 
 ### Pinned entries
 

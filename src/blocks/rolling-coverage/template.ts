@@ -137,6 +137,12 @@ const ENTRY_LINK_CLASS = 'newspack-rolling-coverage-entry-link';
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 
 /**
+ * The Check for Updates block, which renders with a layout's coverage-level
+ * blocks and makes the feed check for new entries only when readers ask.
+ */
+const CHECK_UPDATES_BLOCK_NAME = 'newspack-rolling-coverage/check-updates';
+
+/**
  * The Coverage Status block, which shows the coverage's status once when it
  * sits among the layout's coverage-level blocks.
  */
@@ -1356,8 +1362,8 @@ const FLASH_BAR_STYLE = {
 		padding: {
 			top: 'var:preset|spacing|30',
 			bottom: 'var:preset|spacing|30',
-			left: 'var:preset|spacing|50',
-			right: 'var:preset|spacing|50',
+			left: 'var:preset|spacing|30',
+			right: 'var:preset|spacing|30',
 		},
 	},
 };
@@ -1365,7 +1371,7 @@ const FLASH_BAR_STYLE = {
 const FLASH_FEED_LAYOUT = {
 	type: 'flex',
 	orientation: 'horizontal',
-	flexWrap: 'wrap',
+	flexWrap: 'nowrap',
 	justifyContent: 'left',
 	verticalAlignment: 'center',
 };
@@ -1394,8 +1400,8 @@ function flashBar( feed: TemplateItem ): TemplateItem {
 
 /**
  * The Flash layout's per-entry template: the time and the entry's text on one
- * row. The pinned card matches the regular entry, since a capped feed ignores
- * pinning.
+ * line, the text cut short to fit. Phones hide the time. The pinned card
+ * matches the regular entry, since a capped feed ignores pinning.
  *
  * @return {TemplateItem[]} The template.
  */
@@ -1407,7 +1413,7 @@ function flashEntryTemplate(): TemplateItem[] {
 			lock: LOCKED_IN_PLACE,
 			layout: {
 				type: 'flex',
-				flexWrap: 'wrap',
+				flexWrap: 'nowrap',
 				verticalAlignment: 'center',
 			},
 			style: { spacing: { blockGap: 'var:preset|spacing|30' } },
@@ -1421,6 +1427,10 @@ function flashEntryTemplate(): TemplateItem[] {
 					format: siteTimeFormat(),
 					fontSize: 'small',
 					style: { typography: { fontWeight: '700' } },
+					metadata: {
+						...POST_DATE_ATTRIBUTES.metadata,
+						blockVisibility: { viewport: { mobile: false } },
+					},
 				},
 			],
 			[
@@ -1448,38 +1458,20 @@ function flashEntryTemplate(): TemplateItem[] {
 }
 
 /**
- * How many columns the Ticker layout's grid has at its widest: the header,
- * then the three latest entries.
- */
-const TICKER_COLUMNS = 4;
-
-/**
- * How many columns the Ticker layout's grid has on tablets and on phones.
- */
-const TICKER_TABLET_COLUMNS = 3;
-const TICKER_MOBILE_COLUMNS = 1;
-
-/**
- * The Ticker layout's Feed layout: a grid of four columns.
+ * The Ticker layout's Feed layout: a wrapping row. The ruled Feed's
+ * stylesheet keeps the entries on one line that scrolls, beside the header
+ * or under it in a narrow Feed, and puts the footer on a line of its own.
  */
 const TICKER_FEED_LAYOUT = {
-	type: 'grid',
-	columnCount: TICKER_COLUMNS,
+	type: 'flex',
+	orientation: 'horizontal',
+	flexWrap: 'wrap',
+	justifyContent: 'left',
+	verticalAlignment: 'stretch',
 };
 
 /**
- * The Ticker layout's Feed style: three columns on tablets and one on
- * phones.
- */
-const TICKER_FEED_STYLE = {
-	'@tablet': { layout: { columnCount: TICKER_TABLET_COLUMNS } },
-	'@mobile': { layout: { columnCount: TICKER_MOBILE_COLUMNS } },
-};
-
-/**
- * The Ticker layout's header: the coverage's status over its name, at the
- * top of the grid's first cell, then across the row once the entries fill
- * one below it.
+ * The Ticker layout's header: the coverage's status over its name.
  *
  * @param {string[]} sizes The theme's font size slugs.
  * @return {TemplateItem} The group.
@@ -1493,11 +1485,7 @@ function tickerHeader( sizes: string[] ): TemplateItem {
 				orientation: 'vertical',
 				justifyContent: 'left',
 			},
-			style: {
-				'@tablet': { layout: { columnSpan: TICKER_TABLET_COLUMNS } },
-				'@mobile': { layout: { columnSpan: TICKER_MOBILE_COLUMNS } },
-				spacing: { blockGap: '0' },
-			},
+			style: { spacing: { blockGap: '0.25em' } },
 			metadata: { name: __( 'Header', 'newspack-rolling-coverage' ) },
 		},
 		[
@@ -1505,22 +1493,6 @@ function tickerHeader( sizes: string[] ): TemplateItem {
 			coverageNameHeading( themeFontSize( sizes, 'medium', 'normal' ) ),
 		],
 	];
-}
-
-/**
- * The Ticker layout's footer: the link to the coverage page across the
- * grid's full width.
- *
- * @return {TemplateItem} The paragraph.
- */
-function tickerFooter(): TemplateItem {
-	return allUpdatesLink( {
-		style: {
-			layout: { columnSpan: TICKER_COLUMNS },
-			'@tablet': { layout: { columnSpan: TICKER_TABLET_COLUMNS } },
-			'@mobile': { layout: { columnSpan: TICKER_MOBILE_COLUMNS } },
-		},
-	} );
 }
 
 /**
@@ -1544,7 +1516,7 @@ function tickerEntryTemplate( slugs: string[] ): TemplateItem[] {
 				orientation: 'vertical',
 				justifyContent: 'stretch',
 			},
-			style: { spacing: { blockGap: '0' } },
+			style: { spacing: { blockGap: '0.25em' } },
 			metadata: { name },
 		},
 		[
@@ -2073,6 +2045,7 @@ function isCoverageItem( block: {
 
 	return (
 		typed.name === FOLLOW_BLOCK_NAME ||
+		typed.name === CHECK_UPDATES_BLOCK_NAME ||
 		block.name === STATUS_BLOCK_NAME ||
 		isCoverageNameHeading( typed ) ||
 		isAllUpdatesParagraph( typed ) ||
@@ -2159,6 +2132,68 @@ function withoutFollowButtons<
 	return withoutBlocks(
 		blocks,
 		( block ) => block.name === FOLLOW_BLOCK_NAME
+	);
+}
+
+/**
+ * The blocks without their Check for Updates blocks, at any depth, as the
+ * site renders them where the feed checks on its own.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {Object[]} The blocks without Check for Updates blocks.
+ */
+function withoutCheckUpdatesButtons<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return withoutBlocks(
+		blocks,
+		( block ) => block.name === CHECK_UPDATES_BLOCK_NAME
+	);
+}
+
+/**
+ * The client IDs of the blocks of a type among the blocks, at any depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @param {string}   name   Block type name.
+ * @return {string[]} Client IDs.
+ */
+function blockIdsOfType(
+	blocks: { name: string; [ key: string ]: unknown }[],
+	name: string
+): string[] {
+	return blocks.flatMap( ( block ) =>
+		block.name === name
+			? [ block.clientId as string ]
+			: blockIdsOfType(
+					Array.isArray( block.innerBlocks )
+						? ( block.innerBlocks as typeof blocks )
+						: [],
+					name
+				)
+	);
+}
+
+/**
+ * Whether the blocks hold a block of a type, at any depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @param {string}   name   Block type name.
+ * @return {boolean} Whether one of them is, or holds, that type.
+ */
+function holdsBlockType(
+	blocks: { name: string; [ key: string ]: unknown }[],
+	name: string
+): boolean {
+	return blocks.some(
+		( block ) =>
+			block.name === name ||
+			holdsBlockType(
+				Array.isArray( block.innerBlocks )
+					? ( block.innerBlocks as typeof blocks )
+					: [],
+				name
+			)
 	);
 }
 
@@ -3160,9 +3195,7 @@ export {
 	FLASH_FEED_LAYOUT,
 	tickerEntryTemplate,
 	tickerHeader,
-	tickerFooter,
 	TICKER_FEED_LAYOUT,
-	TICKER_FEED_STYLE,
 	RULED_FEED_CLASS,
 	splitEntryTemplate,
 	entryPreviewPlacement,
@@ -3174,7 +3207,11 @@ export {
 	ENTRY_ALLOWED_BLOCKS,
 	ALL_UPDATES_CLASS,
 	FOLLOW_BLOCK_NAME,
+	CHECK_UPDATES_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
+	holdsBlockType,
+	blockIdsOfType,
+	withoutCheckUpdatesButtons,
 	feedTemplate,
 	feedGroupOf,
 	feedPathOf,

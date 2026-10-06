@@ -15,20 +15,19 @@ defined( 'ABSPATH' ) || exit;
  * Notifies OneSignal subscribers when an entry is marked to notify and then
  * published.
  *
- * Opt-in checkbox lives in a classic meta box on the entry edit screen,
- * shown only while the entry isn't published, and unchecks itself after a
- * send. Entries from a chat source such as Slack are opted in when they are
+ * The opt-in is a REST meta field, set from the Push Notifications panel in
+ * the entry editor while the entry isn't published.
+ * Entries from a chat source such as Slack are opted in when they are
  * saved. Scoped to readers who followed the coverage via the Follow
  * Coverage block. No-ops when OneSignal isn't installed or configured.
  */
 class Push_Notifications {
 
-	// Entry post meta: editor opt-in checkbox, unchecked by default.
-	const NOTIFY_META_KEY = 'rolling_coverage_notify_on_publish';
+	// Entry post meta: editor opt-in checkbox, unchecked by default. Protected so the Custom Fields box can't write it back.
+	const NOTIFY_META_KEY = '_rolling_coverage_notify_on_publish';
 
-	// Nonce action/field name for the meta box's checkbox.
-	const NONCE_ACTION = 'rolling_coverage_push_notifications_save';
-	const NONCE_NAME   = 'rolling_coverage_push_notifications_nonce';
+	// Read-only REST field: whether the entry's coverage has a canonical URL to send readers to.
+	const NOTIFIABLE_FIELD = 'rolling_coverage_has_notifiable_coverage';
 
 	// OneSignal tag key prefix written by the Follow Coverage block; sends are scoped to it via follow_tag().
 	const FOLLOW_TAG_PREFIX = 'coverage_';
@@ -42,8 +41,9 @@ class Push_Notifications {
 	// Seconds after which a send lock left behind by a killed process is ignored.
 	const SEND_LOCK_TTL = 60;
 
-	// Seconds a send scheduled by a REST publish waits, so the block editor's
-	// meta box save that follows it can change the opt-in first.
+	// Seconds a send scheduled by a REST publish waits, so a route that
+	// writes the opt-in after the status can still change it. The entries
+	// route settles its own publishes sooner, in settle_rest_publish().
 	const REST_SEND_DELAY = 60;
 
 	/**
@@ -62,6 +62,13 @@ class Push_Notifications {
 	private static $pending_tag = null;
 
 	/**
+	 * Entries this request published, by entry id.
+	 *
+	 * @var array<int, bool>
+	 */
+	private static $published_in_request = [];
+
+	/**
 	 * Timestamps this request wrote to the send locks it holds, by entry id.
 	 *
 	 * @var array<int, int>
@@ -72,67 +79,90 @@ class Push_Notifications {
 	 * Initialize hooks.
 	 */
 	public static function init() {
-		add_action( 'add_meta_boxes_' . Post_Type::CPT_SLUG, [ __CLASS__, 'add_meta_box' ] );
-		add_action( 'save_post_' . Post_Type::CPT_SLUG, [ __CLASS__, 'save_meta' ] );
+		add_action( 'init', [ __CLASS__, 'register_meta' ] );
+		add_action( 'rest_api_init', [ __CLASS__, 'register_rest_field' ] );
+		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'enqueue_editor_panel' ] );
 		add_action( 'transition_post_status', [ __CLASS__, 'maybe_notify' ], 10, 3 );
+		add_action( 'rest_after_insert_' . Post_Type::CPT_SLUG, [ __CLASS__, 'settle_rest_publish' ] );
 		add_action( 'newspack_rolling_coverage_entry_ingested', [ __CLASS__, 'opt_in_ingested_entry' ] );
 		add_action( self::SEND_HOOK, [ __CLASS__, 'send_scheduled' ] );
 	}
 
 	/**
-	 * Registers the "notify on publish" meta box.
-	 *
-	 * Only shown while the entry isn't published, and only when OneSignal is
-	 * configured.
-	 *
-	 * @param WP_Post $post Entry post being edited.
+	 * Registers the opt-in for the REST API, so the editor panels can set it.
 	 */
-	public static function add_meta_box( WP_Post $post ): void {
-		if ( 'publish' === $post->post_status ) {
-			return;
-		}
-
-		if ( ! self::is_onesignal_configured() ) {
-			return;
-		}
-
-		add_meta_box(
-			'rolling-coverage-push-notifications',
-			__( 'Push Notifications', 'newspack-rolling-coverage' ),
-			[ __CLASS__, 'render_meta_box' ],
-			Post_Type::CPT_SLUG
+	public static function register_meta(): void {
+		register_post_meta(
+			Post_Type::CPT_SLUG,
+			self::NOTIFY_META_KEY,
+			[
+				'type'          => 'boolean',
+				'single'        => true,
+				'default'       => false,
+				'show_in_rest'  => [
+					'schema' => [
+						'context' => [ 'edit' ],
+					],
+				],
+				'auth_callback' => [ Post_Type::class, 'can_edit_post_meta' ],
+			]
 		);
 	}
 
 	/**
-	 * Renders the meta box: an opt-in checkbox, plus a warning if the entry's
-	 * coverage doesn't have a canonical URL set.
-	 *
-	 * @param WP_Post $post Entry post being edited.
+	 * Registers the read-only field the editor panels use to warn that no
+	 * notification will be sent.
 	 */
-	public static function render_meta_box( WP_Post $post ): void {
-		wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME );
+	public static function register_rest_field(): void {
+		register_rest_field(
+			Post_Type::CPT_SLUG,
+			self::NOTIFIABLE_FIELD,
+			[
+				'get_callback' => static function ( array $post ): bool {
+					$entry = get_post( $post['id'] );
+					return $entry instanceof WP_Post && self::has_notifiable_coverage( $entry );
+				},
+				'schema'       => [
+					'type'     => 'boolean',
+					'context'  => [ 'edit' ],
+					'readonly' => true,
+				],
+			]
+		);
+	}
 
-		$checked = (bool) get_post_meta( $post->ID, self::NOTIFY_META_KEY, true );
-		?>
-		<?php if ( ! self::has_notifiable_coverage( $post ) ) : ?>
-			<div class="notice notice-warning inline" style="margin: 0 0 14px;">
-				<p>
-					<?php esc_html_e( "This entry's coverage doesn't have a canonical URL set yet. Set one in the coverage's settings, or no notification will be sent.", 'newspack-rolling-coverage' ); ?>
-				</p>
-			</div>
-		<?php endif; ?>
-		<label for="<?php echo esc_attr( self::NOTIFY_META_KEY ); ?>">
-			<input
-				type="checkbox"
-				name="<?php echo esc_attr( self::NOTIFY_META_KEY ); ?>"
-				id="<?php echo esc_attr( self::NOTIFY_META_KEY ); ?>"
-				value="1"
-				<?php checked( $checked ); ?>
-			/>
-			<?php esc_html_e( 'Notify subscribers when this entry publishes', 'newspack-rolling-coverage' ); ?>
-		</label>
-		<?php
+	/**
+	 * Loads the Push Notifications panel on the entry edit screen, when
+	 * OneSignal is configured.
+	 */
+	public static function enqueue_editor_panel(): void {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+
+		if ( ! $screen || Post_Type::CPT_SLUG !== $screen->post_type || ! self::is_onesignal_configured() ) {
+			return;
+		}
+
+		$asset_file = NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/entry-editor.asset.php';
+
+		if ( ! file_exists( $asset_file ) ) {
+			return;
+		}
+
+		$asset = include $asset_file;
+
+		wp_enqueue_script(
+			'newspack-rolling-coverage-entry-editor',
+			NEWSPACK_ROLLING_COVERAGE_URL . 'dist/entry-editor.js',
+			$asset['dependencies'] ?? [],
+			$asset['version'],
+			[ 'in_footer' => true ]
+		);
+
+		wp_set_script_translations(
+			'newspack-rolling-coverage-entry-editor',
+			'newspack-rolling-coverage',
+			NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'languages'
+		);
 	}
 
 	/**
@@ -141,7 +171,7 @@ class Push_Notifications {
 	 * @param WP_Post $post Entry post.
 	 * @return bool
 	 */
-	private static function has_notifiable_coverage( WP_Post $post ): bool {
+	public static function has_notifiable_coverage( WP_Post $post ): bool {
 		$term_ids = wp_get_post_terms( $post->ID, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
 
 		if ( is_wp_error( $term_ids ) || empty( $term_ids ) ) {
@@ -155,39 +185,6 @@ class Push_Notifications {
 		}
 
 		return false;
-	}
-
-	/**
-	 * Persists the editor's notification intent before publish.
-	 *
-	 * @param int $post_id Entry post id.
-	 */
-	public static function save_meta( int $post_id ): void {
-		if ( ! isset( $_POST[ self::NONCE_NAME ] ) ) {
-			return;
-		}
-
-		$nonce = sanitize_text_field( wp_unslash( $_POST[ self::NONCE_NAME ] ) );
-
-		if ( ! wp_verify_nonce( $nonce, self::NONCE_ACTION ) ) {
-			return;
-		}
-
-		if ( wp_is_post_autosave( $post_id ) || wp_is_post_revision( $post_id ) ) {
-			return;
-		}
-
-		if ( ! current_user_can( 'edit_post', $post_id ) ) {
-			return;
-		}
-
-		if ( 'publish' === get_post_status( $post_id ) ) {
-			return;
-		}
-
-		$checked = isset( $_POST[ self::NOTIFY_META_KEY ] ) && ! empty( $_POST[ self::NOTIFY_META_KEY ] );
-
-		update_post_meta( $post_id, self::NOTIFY_META_KEY, $checked );
 	}
 
 	/**
@@ -251,29 +248,59 @@ class Push_Notifications {
 			return;
 		}
 
-		if ( ! self::resolve_notify_intent( $post, $old_status ) ) {
+		if ( 'publish' === $old_status || ! self::is_onesignal_configured() ) {
 			return;
 		}
 
-		if ( ! self::is_onesignal_configured() ) {
+		self::$published_in_request[ $post->ID ] = true;
+
+		if ( ! get_post_meta( $post->ID, self::NOTIFY_META_KEY, true ) ) {
 			return;
 		}
+
+		$is_rest = wp_is_rest_endpoint();
 
 		/**
 		 * Filters whether an entry's notification is scheduled instead of
-		 * sent during the request that published it. OneSignal never sends
-		 * during a REST request, which is how the block editor, the plugin's
-		 * admin and Slack publish.
+		 * sent during the request that published it. REST requests, which is
+		 * how the block editor and Slack publish, always
+		 * schedule: OneSignal never sends during one, and the opt-in read here
+		 * may be replaced by the request's own.
 		 *
 		 * @param bool    $defer Whether to schedule the send.
 		 * @param WP_Post $post  Entry being published.
 		 */
-		if ( apply_filters( 'newspack_rolling_coverage_defer_notification', defined( 'REST_REQUEST' ) && REST_REQUEST, $post ) ) {
+		if ( $is_rest || apply_filters( 'newspack_rolling_coverage_defer_notification', false, $post ) ) {
 			self::schedule_send( $post->ID, self::REST_SEND_DELAY );
 			return;
 		}
 
 		self::send( $post );
+	}
+
+	/**
+	 * Settles the send for an entry the entries REST route just published,
+	 * once the opt-in the request carries is written: maybe_notify() runs
+	 * before it is. Sends now when it's ticked, and cancels the send
+	 * scheduled from the old opt-in when it isn't.
+	 *
+	 * @param WP_Post $post Entry saved through the REST API.
+	 */
+	public static function settle_rest_publish( WP_Post $post ): void {
+		if ( ! isset( self::$published_in_request[ $post->ID ] ) ) {
+			return;
+		}
+
+		unset( self::$published_in_request[ $post->ID ] );
+		wp_clear_scheduled_hook( self::SEND_HOOK, [ $post->ID ] );
+
+		if (
+			'publish' === $post->post_status
+			&& get_post_meta( $post->ID, self::NOTIFY_META_KEY, true )
+			&& empty( get_post_meta( $post->ID, 'os_notification_id', true ) )
+		) {
+			self::schedule_send( $post->ID, 0 );
+		}
 	}
 
 	/**
@@ -345,8 +372,9 @@ class Push_Notifications {
 
 	/**
 	 * Notifies the followers of each of the entry's coverages, then spends the
-	 * opt-in. A lock keeps a scheduled send and an editor's save from both
-	 * sending when they run at the same time.
+	 * opt-in. A lock keeps a scheduled send and a publish outside a REST
+	 * request, such as a scheduled entry going live, from both sending when
+	 * they run at the same time.
 	 *
 	 * @param WP_Post $post Entry post.
 	 */
@@ -439,50 +467,6 @@ class Push_Notifications {
 	}
 
 	/**
-	 * Resolves notification intent for this publish.
-	 *
-	 * Uses the current request when available, otherwise falls back to saved
-	 * intent for scheduled or programmatic publishes.
-	 *
-	 * @param WP_Post $post       Post being transitioned.
-	 * @param string  $old_status Previous post status.
-	 * @return bool
-	 */
-	private static function resolve_notify_intent( WP_Post $post, string $old_status ): bool {
-		if ( isset( $_POST[ self::NONCE_NAME ] ) ) {
-			$nonce = sanitize_text_field( wp_unslash( $_POST[ self::NONCE_NAME ] ) );
-
-			if ( ! wp_verify_nonce( $nonce, self::NONCE_ACTION ) ) {
-				return false;
-			}
-
-			if ( ! current_user_can( 'edit_post', $post->ID ) ) {
-				return false;
-			}
-
-			$has_intent = ! empty( $_POST[ self::NOTIFY_META_KEY ] );
-
-			if ( $has_intent ) {
-				update_post_meta( $post->ID, self::NOTIFY_META_KEY, true );
-			} else {
-				delete_post_meta( $post->ID, self::NOTIFY_META_KEY );
-			}
-
-			// The editor's choice here settles it, whatever the REST save before
-			// it scheduled.
-			wp_clear_scheduled_hook( self::SEND_HOOK, [ $post->ID ] );
-
-			return $has_intent;
-		}
-
-		if ( 'publish' === $old_status ) {
-			return false;
-		}
-
-		return (bool) get_post_meta( $post->ID, self::NOTIFY_META_KEY, true );
-	}
-
-	/**
 	 * Sends one OneSignal notification for a single coverage/entry pairing.
 	 *
 	 * @param int     $coverage_id Coverage term id.
@@ -496,8 +480,14 @@ class Push_Notifications {
 			return false;
 		}
 
-		$title   = self::build_notification_title( $entry, $coverage_id );
 		$content = self::build_notification_content( $entry );
+
+		// An untitled entry with no words everyone may read has nothing to announce, and nothing members-only may stand in.
+		if ( '' === $content && '' === trim( wp_strip_all_tags( $entry->post_title ) ) ) {
+			return false;
+		}
+
+		$title = self::build_notification_title( $entry, $coverage_id );
 
 		self::$pending_url = $url;
 		self::$pending_tag = self::follow_tag( $coverage_id );
@@ -545,14 +535,19 @@ class Push_Notifications {
 
 	/**
 	 * Builds the notification body text from a short excerpt of the entry's
-	 * written content.
+	 * written content, leaving out anything members-only or password
+	 * protected: a notification reaches every follower.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return string Notification body text.
 	 */
 	private static function build_notification_content( WP_Post $entry ): string {
+		if ( '' !== $entry->post_password ) {
+			return '';
+		}
+
 		if ( ! has_excerpt( $entry ) ) {
-			return Post_Type::get_entry_summary( $entry, 15 );
+			return Entry_Bindings::public_summary( $entry, 15 );
 		}
 
 		return wp_trim_words( html_entity_decode( get_the_excerpt( $entry ), ENT_QUOTES, 'UTF-8' ), 15, '…' );

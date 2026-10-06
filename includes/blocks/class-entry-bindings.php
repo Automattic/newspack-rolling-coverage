@@ -270,6 +270,26 @@ class Entry_Bindings {
 	}
 
 	/**
+	 * The first words of what everyone may read of an entry: its content
+	 * without the blocks Newspack hides from the public, or nothing for a
+	 * password-protected entry. For text shown or sent outside the entry
+	 * itself, such as a share link's name, a push notification or a breakout
+	 * post's title. Decoded plain text, as Post_Type::get_html_summary()
+	 * gives it.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @param int     $words Number of words to keep.
+	 * @return string
+	 */
+	public static function public_summary( WP_Post $entry, int $words = 8 ): string {
+		if ( '' !== $entry->post_password ) {
+			return '';
+		}
+
+		return Post_Type::get_html_summary( self::public_content( $entry ), $words );
+	}
+
+	/**
 	 * An entry's content without the blocks Newspack hides from readers who
 	 * aren't signed in, so text and media meant for members are never shown
 	 * to everyone in its title or excerpt. The content as stored when
@@ -278,7 +298,7 @@ class Entry_Bindings {
 	 * @param WP_Post $entry Entry post.
 	 * @return string
 	 */
-	private static function public_content( WP_Post $entry ): string {
+	public static function public_content( WP_Post $entry ): string {
 		if ( class_exists( '\Newspack\Block_Visibility' ) && method_exists( '\Newspack\Block_Visibility', 'strip_blocks_hidden_from_public' ) ) {
 			return (string) \Newspack\Block_Visibility::strip_blocks_hidden_from_public( $entry->post_content );
 		}
@@ -715,7 +735,7 @@ class Entry_Bindings {
 
 		$title = self::plain_text( get_the_title( $entry ) );
 
-		return '' !== $title ? $title : Post_Type::get_entry_summary( $entry );
+		return '' !== $title ? $title : self::public_summary( $entry );
 	}
 
 	/**
@@ -1050,9 +1070,10 @@ class Entry_Bindings {
 
 	/**
 	 * Whether a parsed block belongs to the coverage rather than to each
-	 * entry, so it renders once: the Follow Coverage block, the Coverage
-	 * Status block, a heading bound to the coverage's name, the "See all
-	 * updates" paragraph, or a block holding one at any depth. The pinned
+	 * entry, so it renders once: the Follow Coverage block, the Check for
+	 * Updates block, the Coverage Status block, a heading bound to the
+	 * coverage's name, the "See all updates" paragraph, or a block holding
+	 * one at any depth. The pinned
 	 * card and the entry group always belong to each entry, whatever they
 	 * hold.
 	 *
@@ -1066,6 +1087,7 @@ class Entry_Bindings {
 
 		if (
 			Coverage_Follow_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
+			Check_Updates_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			Coverage_Status_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			self::is_coverage_name_heading( $parsed_block ) ||
 			self::is_all_updates_paragraph( $parsed_block )

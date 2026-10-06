@@ -352,6 +352,27 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Whether the feed checks for new entries only when the reader asks: its
+	 * layout holds a Check for Updates block among its coverage-level blocks.
+	 * A capped feed always checks on its own, and an ended one not at all.
+	 *
+	 * @param array  $attributes   Block attributes.
+	 * @param array  $layout_parts The layout's parts (see layout_parts()).
+	 * @param string $status       Coverage status.
+	 * @return bool
+	 */
+	private static function checks_on_request( array $attributes, array $layout_parts, string $status ): bool {
+		if ( self::latest_count( $attributes ) || Taxonomy::STATUS_ARCHIVED === $status ) {
+			return false;
+		}
+
+		return self::holds_block(
+			array_merge( $layout_parts['header'], $layout_parts['footer'] ),
+			static fn( array $block ): bool => Check_Updates_Block::BLOCK_NAME === ( $block['blockName'] ?? '' )
+		);
+	}
+
+	/**
 	 * How the feed loads entries older than its first page: 'scroll' as the
 	 * reader nears the end, 'button' when the reader asks, or 'none'. A
 	 * capped feed loads none.
@@ -1279,11 +1300,12 @@ class Rolling_Coverage_Block {
 			$entries_html = sprintf(
 				'<p class="%s-entries__empty">%s</p>',
 				self::MARKUP_PREFIX,
-				esc_html__( 'No entries yet.', 'newspack-rolling-coverage' )
+				esc_html( self::no_entries_text() )
 			);
 		}
 
-		$layout_parts = self::layout_parts( $block );
+		$layout_parts      = self::layout_parts( $block );
+		$checks_on_request = self::checks_on_request( $attributes, $layout_parts, $status );
 		$wrapper_data = [
 			'data-coverage-id'      => $coverage_id,
 			'data-poll-interval'    => $poll_interval,
@@ -1313,6 +1335,16 @@ class Rolling_Coverage_Block {
 
 		if ( ! empty( $attributes['hideWhenEnded'] ) ) {
 			$wrapper_data['data-hide-when-ended'] = 'true';
+		}
+
+		if ( $checks_on_request ) {
+			$wrapper_data['data-new-entries'] = 'button';
+		}
+
+		$entry_name = Entry_Name::for_script();
+
+		if ( '' !== $entry_name ) {
+			$wrapper_data['data-entry-name'] = $entry_name;
 		}
 
 		if ( $is_lite ) {
@@ -1349,11 +1381,11 @@ class Rolling_Coverage_Block {
 				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%9$s%7$s%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
-				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout ),
+				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request ),
 				$is_capped ? '' : self::render_new_entries_control( (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
 				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
 				'scroll' === $older_entries ? sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ) : '',
-				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout ),
+				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request ),
 				// A capped feed can sit on every page, where announcing each new entry would be noise.
 				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX ),
 				'button' === $older_entries ? self::render_load_more_button() : ''
@@ -1590,21 +1622,29 @@ class Rolling_Coverage_Block {
 	/**
 	 * The label of the control on a feed opened at a shared entry: the number
 	 * of newer entries, exact up to ten and from there the round number it
-	 * has passed, e.g. "10+ Newer Posts" for 11 to 50. Empty when there are
-	 * none, as the control then keeps its own text. The view script builds
-	 * the same labels.
+	 * has passed, e.g. "10+ Newer Entries" for 11 to 50, in the site's own
+	 * name for entries when it sets one. Empty when there are none, as the
+	 * control then keeps its own text. The view script builds the same
+	 * labels.
 	 *
 	 * @param int $count How many entries are newer.
 	 * @return string
 	 */
-	public static function newer_posts_label( int $count ): string {
+	public static function newer_entries_label( int $count ): string {
 		if ( $count < 1 ) {
 			return '';
 		}
 
 		if ( $count <= 10 ) {
+			$word = Entry_Name::title_word( $count );
+
+			if ( '' !== $word ) {
+				/* translators: 1: number of coverage entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as a button label shows it. */
+				return sprintf( _n( '%1$d Newer %2$s', '%1$d Newer %2$s', $count, 'newspack-rolling-coverage' ), $count, $word );
+			}
+
 			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
-			return sprintf( _n( '%d Newer Post', '%d Newer Posts', $count, 'newspack-rolling-coverage' ), $count );
+			return sprintf( _n( '%d Newer Entry', '%d Newer Entries', $count, 'newspack-rolling-coverage' ), $count );
 		}
 
 		$floor = 10;
@@ -1615,8 +1655,32 @@ class Rolling_Coverage_Block {
 			$floor = 50;
 		}
 
+		$word = Entry_Name::title_word( $floor );
+
+		if ( '' !== $word ) {
+			/* translators: 1: a round number the count of newer coverage entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as a button label shows it. */
+			return sprintf( _n( '%1$d+ Newer %2$s', '%1$d+ Newer %2$s', $floor, 'newspack-rolling-coverage' ), $floor, $word );
+		}
+
 		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
-		return sprintf( _n( '%d+ Newer Post', '%d+ Newer Posts', $floor, 'newspack-rolling-coverage' ), $floor );
+		return sprintf( _n( '%d+ Newer Entry', '%d+ Newer Entries', $floor, 'newspack-rolling-coverage' ), $floor );
+	}
+
+	/**
+	 * The text of a feed with no entries, in the site's own name for entries
+	 * when it sets one.
+	 *
+	 * @return string
+	 */
+	private static function no_entries_text(): string {
+		$word = Entry_Name::word( 0 );
+
+		if ( '' !== $word ) {
+			/* translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence; its grammatical gender is unknown. */
+			return sprintf( __( 'No %s yet.', 'newspack-rolling-coverage' ), $word );
+		}
+
+		return __( 'No entries yet.', 'newspack-rolling-coverage' );
 	}
 
 	/**
@@ -1690,7 +1754,7 @@ class Rolling_Coverage_Block {
 
 		$control->set_attribute( 'data-newer-count', (string) $newer_count );
 
-		$label = self::newer_posts_label( $newer_count );
+		$label = self::newer_entries_label( $newer_count );
 
 		// The replaced label is kept on the link, for when the view script can no longer count.
 		if ( '' !== $label && $control->next_tag( 'a' ) ) {
@@ -1730,7 +1794,7 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The "Jump to Latest" control as a parsed Buttons block holding one
-	 * button: a link to the live feed with the theme's Elevation 1 shadow,
+	 * button: a link to the live feed with the theme's Elevation 2 shadow,
 	 * marked for the view script, and otherwise styled as the theme styles
 	 * buttons.
 	 *
@@ -1742,7 +1806,7 @@ class Rolling_Coverage_Block {
 		$class       = self::MARKUP_PREFIX . '-new-entries';
 		$open        = sprintf( '<div class="%s">', esc_attr( 'wp-block-buttons ' . $class ) );
 		$button_html = sprintf(
-			'<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="%1$s" style="box-shadow:var(--wp--preset--shadow--elevation-1)" %2$s>%3$s</a></div>',
+			'<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="%1$s" style="box-shadow:var(--wp--preset--shadow--elevation-2)" %2$s>%3$s</a></div>',
 			esc_url( $live_url ),
 			self::LATEST_ATTRIBUTE,
 			esc_html( $label )
@@ -1761,7 +1825,7 @@ class Rolling_Coverage_Block {
 				[
 					'blockName'    => 'core/button',
 					'attrs'        => [
-						'style' => [ 'shadow' => 'var:preset|shadow|elevation-1' ],
+						'style' => [ 'shadow' => 'var:preset|shadow|elevation-2' ],
 					],
 					'innerBlocks'  => [],
 					'innerHTML'    => $button_html,
@@ -1798,11 +1862,12 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Stores the layout styles and the per-viewport styles of the template's
-	 * blocks, as rendering an entry would. Core prints them only for blocks
-	 * rendered on the page, so without this, entries that reach a coverage
-	 * that loaded empty would arrive by polling with no layout, e.g. Share
-	 * not opposite the title.
+	 * Stores the layout styles, the per-viewport styles and the Block
+	 * Visibility styles of the template's blocks, as rendering an entry
+	 * would. Core prints them only for blocks rendered on the page, so
+	 * without this, entries that reach a coverage that loaded empty would
+	 * arrive by polling with no layout, e.g. Share not opposite the title, or
+	 * Flash's time showing on phones.
 	 *
 	 * @param array[] $blocks        Parsed template blocks.
 	 * @param array   $parent_layout The parent block's layout, as core passes
@@ -1822,6 +1887,7 @@ class Rolling_Coverage_Block {
 			$markup = trim( (string) ( $block['innerHTML'] ?? '' ) );
 			wp_render_layout_support_flag( '' !== $markup ? $markup : '<div></div>', $block );
 			wp_render_block_states_support( '' !== $markup ? $markup : '<div></div>', $block );
+			wp_render_block_visibility_support( '' !== $markup ? $markup : '<div></div>', $block );
 
 			self::store_template_layout_styles( $block['innerBlocks'] ?? [], (array) ( $block['attrs']['layout'] ?? [] ) );
 		}
@@ -2400,8 +2466,9 @@ class Rolling_Coverage_Block {
 	/**
 	 * Renders coverage-level blocks once, with the coverage in their context
 	 * so the Follow Coverage block follows it. A Follow Coverage block that
-	 * can't render, e.g. on an archived coverage, leaves nothing behind, nor
-	 * does a group left empty once it and the "See all updates" paragraph drop
+	 * can't render, e.g. on an archived coverage, leaves nothing behind, as
+	 * does a Check for Updates block in a feed that checks on its own, and a
+	 * group left empty once they and the "See all updates" paragraph drop
 	 * out. The blocks render outside the Feed group, so they're
 	 * handed its layout, as core hands a parent's layout to its inner blocks:
 	 * core then treats a grid Feed with a column count and no minimum column
@@ -2413,9 +2480,10 @@ class Rolling_Coverage_Block {
 	 * @param string  $status          Coverage status.
 	 * @param string  $all_updates_url Where the "See all updates" paragraph links; empty drops it.
 	 * @param array   $parent_layout   The Feed group's layout.
+	 * @param bool    $checks_on_request Whether the feed checks for new entries only when asked.
 	 * @return string Rendered HTML, or an empty string.
 	 */
-	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '', array $parent_layout = [] ): string {
+	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '', array $parent_layout = [], bool $checks_on_request = false ): string {
 		if ( ! $blocks ) {
 			return '';
 		}
@@ -2428,10 +2496,11 @@ class Rolling_Coverage_Block {
 
 		$blocks = self::map_template_blocks(
 			$blocks,
-			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow ) {
+			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow, $checks_on_request ) {
 				if (
 					( '' === $all_updates_url && Entry_Bindings::is_all_updates_paragraph( $block ) ) ||
 					( ! $can_follow && Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
+					( ! $checks_on_request && Check_Updates_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
 					( 'core/group' === ( $block['blockName'] ?? '' ) && empty( $block['innerBlocks'] ) && ! empty( $original['innerBlocks'] ) )
 				) {
 					return [];
@@ -3639,6 +3708,27 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * The notice above an individually archived entry's content, in the site's
+	 * own name for entries when it sets one.
+	 *
+	 * @return string
+	 */
+	private static function archived_entry_notice_text(): string {
+		$singular = Entry_Name::word( 1 );
+
+		if ( '' !== $singular ) {
+			return sprintf(
+				/* translators: 1: the site's own name for one coverage entry, as it reads mid-sentence; its grammatical gender is unknown. 2: the same name for several entries. */
+				__( 'This %1$s is now out of date compared to newer %2$s, but is preserved as it originally appeared.', 'newspack-rolling-coverage' ),
+				esc_html( $singular ),
+				esc_html( Entry_Name::word( 2 ) )
+			);
+		}
+
+		return __( 'This entry is now out of date compared to newer entries, but is preserved as it originally appeared.', 'newspack-rolling-coverage' );
+	}
+
+	/**
 	 * Renders the notice shown above an individually archived entry's content.
 	 *
 	 * @return string Rendered HTML.
@@ -3646,7 +3736,7 @@ class Rolling_Coverage_Block {
 	public static function render_archived_entry_notice(): string {
 		$text = apply_filters(
 			'newspack_rolling_coverage_entry_archived_notice',
-			__( 'This entry is now out of date compared to newer entries, but is preserved as it originally appeared.', 'newspack-rolling-coverage' )
+			self::archived_entry_notice_text()
 		);
 
 		return sprintf(

@@ -48,7 +48,7 @@ import {
 	useMemo,
 	useRef,
 } from '@wordpress/element';
-import { useDebounce } from '@wordpress/compose';
+import { useDebounce, useInstanceId } from '@wordpress/compose';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as editorStore } from '@wordpress/editor';
@@ -89,6 +89,11 @@ import {
 	forEntryKind,
 	breakoutBlockIds,
 	withoutFollowButtons,
+	withoutCheckUpdatesButtons,
+	blockIdsOfType,
+	holdsBlockType,
+	layoutParts,
+	CHECK_UPDATES_BLOCK_NAME,
 	entryPreviewPlacement,
 	withColumnRule,
 	RULED_FEED_CLASS,
@@ -133,7 +138,10 @@ import type {
  * The layout the block offers the blocks of a layout: full width, so a bar
  * like Flash's can span the page in the editor as it does on the site.
  */
-const INNER_BLOCKS_LAYOUT = { type: 'default', alignments: [ 'none', 'full' ] };
+const INNER_BLOCKS_LAYOUT = {
+	type: 'default',
+	alignments: [ 'none', 'wide', 'full' ],
+};
 
 /**
  * What each choice of loading older entries does, as the help below it.
@@ -407,6 +415,7 @@ function groupPreviewParts( group?: { [ key: string ]: unknown } ): {
 			flexStyle && layout?.orientation
 				? `is-${ layout.orientation }`
 				: '',
+			flexStyle && layout?.flexWrap === 'nowrap' ? 'is-nowrap' : '',
 			gridStyle ? 'is-layout-grid' : '',
 			layout?.type === 'constrained' ? 'is-layout-constrained' : '',
 			attributes.className,
@@ -485,14 +494,120 @@ function chromePreviewStyle(
 }
 
 /**
+ * A color from a group's style as CSS: a `var:preset|color|slug` reference as
+ * its custom property, kebab-cased as core prints it, or any other value the
+ * browser accepts as a color.
+ *
+ * @param {unknown} value The style value.
+ * @return {string|null} The CSS value, or null when it isn't a color.
+ */
+function cssColor( value: unknown ): string | null {
+	if ( typeof value !== 'string' || ! value ) {
+		return null;
+	}
+
+	if ( value.startsWith( 'var:' ) ) {
+		const segments = value
+			.slice( 4 )
+			.split( '|' )
+			.map( ( segment ) =>
+				segment
+					.replace( /([a-z])([A-Z])/g, '$1-$2' )
+					.replace( /([A-Z])([A-Z][a-z])/g, '$1-$2' )
+					.replace( /([a-zA-Z])(\d)/g, '$1-$2' )
+					.replace( /(\d)([a-zA-Z])/g, '$1-$2' )
+					.replace( /[^a-zA-Z0-9]+/g, '-' )
+					.replace( /^-|-$/g, '' )
+					.toLowerCase()
+			);
+
+		return segments.every( ( segment ) => /^[a-z0-9-]+$/.test( segment ) )
+			? `var(--wp--${ segments.join( '--' ) })`
+			: null;
+	}
+
+	return CSS.supports( 'color', value ) ? value : null;
+}
+
+/**
+ * The link and heading colors a group sets for the blocks inside it, as the
+ * rules core's elements support prints for it on the site, scoped to the
+ * container a synced layout's preview shows in place of the group.
+ *
+ * @param {Object} group    The group.
+ * @param {string} selector The container's selector.
+ * @return {string} The CSS.
+ */
+function groupElementsCSS(
+	group: { [ key: string ]: unknown } | undefined,
+	selector: string
+): string {
+	const elements = (
+		( group?.attributes ?? {} ) as {
+			style?: {
+				elements?: Record<
+					string,
+					{
+						color?: { text?: string };
+						':hover'?: { color?: { text?: string } };
+					}
+				>;
+			};
+		}
+	 ).style?.elements;
+	const link = `${ selector } a:where(:not(.wp-element-button))`;
+	const rules: [ string, unknown ][] = [
+		[ link, elements?.link?.color?.text ],
+		[ `${ link }:hover`, elements?.link?.[ ':hover' ]?.color?.text ],
+		[
+			`${ selector } :is(h1, h2, h3, h4, h5, h6)`,
+			elements?.heading?.color?.text,
+		],
+	];
+
+	return rules
+		.map( ( [ rule, value ] ) => {
+			const color = cssColor( value );
+			return color ? `${ rule } { color: ${ color }; }` : '';
+		} )
+		.filter( Boolean )
+		.join( '\n' );
+}
+
+/**
+ * Whether the layout's Feed group is a ruled row, whose entries the site's
+ * stylesheet lines up in one element that scrolls.
+ *
+ * @param {Object} feed The layout's Feed group.
+ * @return {boolean} Whether it's a ruled row.
+ */
+function isRuledRow( feed: { [ key: string ]: unknown } | undefined ) {
+	const { className, layout } = ( feed?.attributes ?? {} ) as {
+		className?: string;
+		layout?: { type?: string; orientation?: string };
+	};
+
+	return (
+		( className ?? '' ).split( ' ' ).includes( RULED_FEED_CLASS ) &&
+		layout?.type === 'flex' &&
+		layout.orientation !== 'vertical'
+	);
+}
+
+/**
  * The Feed group's own classes and styles, for the container a synced
  * layout's preview shows in place of the Feed. A ruled Feed takes its gap
  * from the block's stylesheet, which widens it to fit the rules.
  *
- * @param {Object} feed The layout's Feed group.
+ * @param {Object} feed  The layout's Feed group.
+ * @param {string} scope The class FeedWrappersPreview scopes the Feed's
+ *                       element colors to.
  * @return {Object} The container's className and style.
  */
-function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
+function feedPreviewProps(
+	feed: { [ key: string ]: unknown } | undefined,
+	scope: string
+): {
 	className: string;
 	style: Record< string, unknown >;
 } {
@@ -500,6 +615,7 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
 	const className = joinClassNames( [
 		'wp-block-group',
 		'newspack-rolling-coverage-feed',
+		scope,
 		...classNames,
 	] );
 
@@ -519,19 +635,34 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
  * @param {Object}      props          Component props.
  * @param {Object[]}    props.path     The groups leading to the Feed, the Feed last.
  * @param {Object}      props.context  The coverage's block context.
+ * @param {string}      props.scope    The class the Feed's preview carries;
+ *                                     each wrapper's is suffixed with its depth.
  * @param {JSX.Element} props.children The Feed's preview.
  * @return {JSX.Element} The Feed's preview inside its wrappers.
  */
 function FeedWrappersPreview( {
 	path,
 	context,
+	scope,
 	children,
 }: {
 	path: TemplateBlocks;
 	context: Record< string, unknown >;
+	scope: string;
 	children: JSX.Element;
 } ): JSX.Element {
-	return path.slice( 0, -1 ).reduceRight( ( inner, wrapper, index ) => {
+	const css = path
+		.map( ( group, index ) =>
+			groupElementsCSS(
+				group,
+				index === path.length - 1
+					? `.${ scope }`
+					: `.${ scope }-${ index }`
+			)
+		)
+		.filter( Boolean )
+		.join( '\n' );
+	const tree = path.slice( 0, -1 ).reduceRight( ( inner, wrapper, index ) => {
 		const siblings = ( wrapper.innerBlocks ?? [] ) as TemplateBlocks;
 		const position = siblings.indexOf( path[ index + 1 ] );
 		const before = siblings.slice( 0, Math.max( position, 0 ) );
@@ -542,6 +673,7 @@ function FeedWrappersPreview( {
 			<div
 				className={ joinClassNames( [
 					'wp-block-group',
+					`${ scope }-${ index }`,
 					...classNames,
 				] ) }
 				style={ style }
@@ -560,6 +692,13 @@ function FeedWrappersPreview( {
 			</div>
 		);
 	}, children );
+
+	return (
+		<>
+			{ tree }
+			{ css && <style>{ css }</style> }
+		</>
+	);
 }
 
 /**
@@ -601,6 +740,10 @@ export default function Edit( {
 		align,
 	} = attributes;
 	const pageSize = clampEntriesPerPage( entriesPerPage );
+	const previewScope = useInstanceId(
+		Edit,
+		'newspack-rolling-coverage-preview'
+	) as string;
 	const { currentPostType, currentPostId, patternCategories } = useSelect(
 		( select ) => {
 			const editor = select( editorStore ) as unknown as {
@@ -1047,6 +1190,18 @@ export default function Edit( {
 	const isFollowHidden =
 		! ONESIGNAL_CONFIGURED || currentCoverage?.status === 'archived';
 	const isAllUpdatesHidden = ! isCapped || allUpdatesLink === false;
+	const isCheckUpdatesHidden =
+		isCapped || currentCoverage?.status === 'archived';
+	const checksOnRequest = useMemo( () => {
+		const parts = layoutParts(
+			isSynced ? feedItems( syncedBlocks ) : allBlocks
+		);
+
+		return holdsBlockType(
+			[ ...parts.header, ...parts.footer ],
+			CHECK_UPDATES_BLOCK_NAME
+		);
+	}, [ isSynced, syncedBlocks, allBlocks ] );
 	// An editable layout previews the pinned card against the pinned entry
 	// and the entry group against one that isn't pinned, and leaves out the
 	// one the coverage has no entry for, and "Read more" where the entry
@@ -1082,6 +1237,14 @@ export default function Edit( {
 			( templateBlocks.findLast( isShownEverywhere ) ??
 				templateBlocks.at( -1 ) ) as { clientId?: string } | undefined
 		 )?.clientId ?? null;
+	const isRow = isRuledRow( feedGroup );
+	const entryPreviewsAnchor = useMemo(
+		() =>
+			entryPreviewsAnchorId
+				? { clientId: entryPreviewsAnchorId, wrapsEntries: isRow }
+				: null,
+		[ entryPreviewsAnchorId, isRow ]
+	);
 	const entryPreviews = useMemo(
 		() => (
 			<>
@@ -1123,6 +1286,9 @@ export default function Edit( {
 	const hiddenIds = useMemo( () => {
 		const ids = [
 			...( isFollowHidden ? followBlockIds( allBlocks ) : [] ),
+			...( isCheckUpdatesHidden
+				? blockIdsOfType( allBlocks, CHECK_UPDATES_BLOCK_NAME )
+				: [] ),
 			...( isAllUpdatesHidden ? allUpdatesBlockIds( allBlocks ) : [] ),
 			...allBlocks
 				.filter(
@@ -1147,6 +1313,7 @@ export default function Edit( {
 	}, [
 		allBlocks,
 		isFollowHidden,
+		isCheckUpdatesHidden,
 		isAllUpdatesHidden,
 		isCardHidden,
 		isEntryHidden,
@@ -1173,21 +1340,37 @@ export default function Edit( {
 	);
 
 	const syncedHeaderBlocks = useMemo( () => {
-		const blocks = isFollowHidden
+		let blocks = isFollowHidden
 			? withoutFollowButtons( headerBlocks )
 			: headerBlocks;
+		blocks = isCheckUpdatesHidden
+			? withoutCheckUpdatesButtons( blocks )
+			: blocks;
 		return isAllUpdatesHidden
 			? withoutAllUpdatesParagraph( blocks )
 			: blocks;
-	}, [ headerBlocks, isFollowHidden, isAllUpdatesHidden ] );
+	}, [
+		headerBlocks,
+		isFollowHidden,
+		isCheckUpdatesHidden,
+		isAllUpdatesHidden,
+	] );
 	const syncedFooterBlocks = useMemo( () => {
-		const blocks = isFollowHidden
+		let blocks = isFollowHidden
 			? withoutFollowButtons( footerBlocks )
 			: footerBlocks;
+		blocks = isCheckUpdatesHidden
+			? withoutCheckUpdatesButtons( blocks )
+			: blocks;
 		return isAllUpdatesHidden
 			? withoutAllUpdatesParagraph( blocks )
 			: blocks;
-	}, [ footerBlocks, isFollowHidden, isAllUpdatesHidden ] );
+	}, [
+		footerBlocks,
+		isFollowHidden,
+		isCheckUpdatesHidden,
+		isAllUpdatesHidden,
+	] );
 
 	const detach = useCallback( () => {
 		registry.batch( () => {
@@ -1701,55 +1884,60 @@ export default function Edit( {
 			</PanelBody>
 
 			<PanelBody title={ __( 'Entries', 'newspack-rolling-coverage' ) }>
-				<ToggleGroupControl
-					__next40pxDefaultSize
-					isBlock
-					label={ _x(
-						'Show',
-						'which entries the feed shows',
-						'newspack-rolling-coverage'
-					) }
-					help={
-						latestOnly
-							? __(
-									'Only the most recent entries. Pinned entries aren’t kept at the top.',
-									'newspack-rolling-coverage'
-								)
-							: __(
-									'Every entry. Pinned entries stay at the top.',
-									'newspack-rolling-coverage'
-								)
-					}
-					value={ latestOnly ? 'latest' : 'all' }
-					onChange={ ( value ) =>
-						setAttributes( { latestOnly: value === 'latest' } )
-					}
-				>
-					<ToggleGroupControlOption
-						value="all"
+				{ ! ( isRow && latestOnly ) && (
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
 						label={ _x(
-							'All',
+							'Show',
 							'which entries the feed shows',
 							'newspack-rolling-coverage'
 						) }
-						aria-label={
-							/* translators: Screen reader name for the “All” option. Keep the word used to translate “All”. */
-							__( 'All entries', 'newspack-rolling-coverage' )
+						help={
+							latestOnly
+								? __(
+										'Only the most recent entries. Pinned entries aren’t kept at the top.',
+										'newspack-rolling-coverage'
+									)
+								: __(
+										'Every entry. Pinned entries stay at the top.',
+										'newspack-rolling-coverage'
+									)
 						}
-					/>
-					<ToggleGroupControlOption
-						value="latest"
-						label={ _x(
-							'Latest',
-							'which entries the feed shows',
-							'newspack-rolling-coverage'
-						) }
-						aria-label={
-							/* translators: Screen reader name for the “Latest” option. Keep the word used to translate “Latest”. */
-							__( 'Latest entries', 'newspack-rolling-coverage' )
+						value={ latestOnly ? 'latest' : 'all' }
+						onChange={ ( value ) =>
+							setAttributes( { latestOnly: value === 'latest' } )
 						}
-					/>
-				</ToggleGroupControl>
+					>
+						<ToggleGroupControlOption
+							value="all"
+							label={ _x(
+								'All',
+								'which entries the feed shows',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “All” option. Keep the word used to translate “All”. */
+								__( 'All entries', 'newspack-rolling-coverage' )
+							}
+						/>
+						<ToggleGroupControlOption
+							value="latest"
+							label={ _x(
+								'Latest',
+								'which entries the feed shows',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Latest” option. Keep the word used to translate “Latest”. */
+								__(
+									'Latest entries',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+					</ToggleGroupControl>
+				) }
 				{ latestOnly ? (
 					<>
 						<TextControl
@@ -1902,21 +2090,25 @@ export default function Edit( {
 						/>
 					</>
 				) }
-				<TextControl
-					__next40pxDefaultSize
-					type="number"
-					label={ __(
-						'Poll interval (seconds)',
-						'newspack-rolling-coverage'
-					) }
-					value={ String( pollInterval ) }
-					min={ 1 }
-					onChange={ ( value: string ) =>
-						setAttributes( {
-							pollInterval: value ? parseInt( value, 10 ) : 10,
-						} )
-					}
-				/>
+				{ ( latestOnly || ! checksOnRequest ) && (
+					<TextControl
+						__next40pxDefaultSize
+						type="number"
+						label={ __(
+							'Poll interval (seconds)',
+							'newspack-rolling-coverage'
+						) }
+						value={ String( pollInterval ) }
+						min={ 1 }
+						onChange={ ( value: string ) =>
+							setAttributes( {
+								pollInterval: value
+									? parseInt( value, 10 )
+									: 10,
+							} )
+						}
+					/>
+				) }
 			</PanelBody>
 
 			<PanelBody title={ STATUS_LABELS.archived } initialOpen={ false }>
@@ -2305,16 +2497,25 @@ export default function Edit( {
 								'Ads interval',
 								'newspack-rolling-coverage'
 							) }
-							help={ __(
-								'Show an ad after every N entries. Maximum 3 ads for the initial feed and load more; no cap for new entries.',
-								'newspack-rolling-coverage'
+							help={ sprintf(
+								/* translators: 1: the entry the first ad follows, 2: the entry the second ad follows, 3: the entry the third ad follows. */
+								__(
+									'Up to 3 ads, after entries %1$d, %2$d and %3$d. New entries that arrive while the page is open get one at this interval, with no limit.',
+									'newspack-rolling-coverage'
+								),
+								adsInterval,
+								adsInterval * 2,
+								adsInterval * 3
 							) }
 							value={ String( adsInterval ) }
 							min={ 1 }
 							onChange={ ( value: string ) =>
 								setAttributes( {
 									adsInterval: value
-										? parseInt( value, 10 )
+										? Math.max(
+												1,
+												parseInt( value, 10 ) || 1
+											)
 										: 4,
 								} )
 							}
@@ -2439,8 +2640,14 @@ export default function Edit( {
 								<FeedWrappersPreview
 									path={ feedPath }
 									context={ coverageContext }
+									scope={ previewScope }
 								>
-									<div { ...feedPreviewProps( feedGroup ) }>
+									<div
+										{ ...feedPreviewProps(
+											feedGroup,
+											previewScope
+										) }
+									>
 										{ syncedHeaderBlocks.length > 0 && (
 											<BlockContextProvider
 												value={ coverageContext }
@@ -2527,7 +2734,7 @@ export default function Edit( {
 									value={ pinnedContext ?? null }
 								>
 									<EntryPreviewsAnchorContext.Provider
-										value={ entryPreviewsAnchorId }
+										value={ entryPreviewsAnchor }
 									>
 										<EntryPreviewsContext.Provider
 											value={ entryPreviews }

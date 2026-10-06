@@ -1,7 +1,7 @@
 /**
  * WordPress dependencies
  */
-import { __, _n, sprintf } from '@wordpress/i18n';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -10,6 +10,17 @@ import './style.scss';
 import { trackEvent, isConfigEnabled, EVENTS } from './analytics';
 import { keepRelativeDatesCurrent } from '../shared/relative-dates';
 import { POLL_EVENT } from '../shared/poll-event';
+import {
+	entriesAddedButtonLabel,
+	entriesAddedLabel,
+	loadingLatestLabel,
+	loadMoreFailedLabel,
+	newEntriesLabel,
+	newerEntriesLabel,
+	noNewEntriesLabel,
+	readEntryName,
+	showingLatestLabel,
+} from './entry-name';
 import type { PollEventDetail } from '../shared/poll-event';
 import type {
 	AdSlot,
@@ -20,6 +31,16 @@ import type {
 } from './types';
 
 const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
+
+// How long the Check for Updates button shows the result of a check.
+const CHECK_MESSAGE_MS = 3000;
+
+/**
+ * How a poll ended: with a reply it applied, a failed request, a reload of
+ * the page, or not at all because another poll was running or the page was
+ * hidden.
+ */
+type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 
 const STICKY_CARD_SELECTOR =
 	'.newspack-rolling-coverage-pinned-card.is-position-sticky';
@@ -251,53 +272,6 @@ function focusFromScript( element: HTMLElement, options?: FocusOptions ): void {
 }
 
 /**
- * The label of the control on a feed opened at a shared entry: the number of
- * newer entries, exact up to ten and from there the round number it has
- * passed, e.g. "10+ Newer Posts" for 11 to 50. Mirrors
- * Rolling_Coverage_Block::newer_posts_label().
- *
- * @param {number} count How many entries are newer.
- * @return {string} The label, or an empty string when there are none.
- */
-function newerPostsLabel( count: number ): string {
-	if ( count < 1 ) {
-		return '';
-	}
-
-	if ( count <= 10 ) {
-		return sprintf(
-			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
-			_n(
-				'%d Newer Post',
-				'%d Newer Posts',
-				count,
-				'newspack-rolling-coverage'
-			),
-			count
-		);
-	}
-
-	let floor = 10;
-
-	if ( count > 100 ) {
-		floor = 100;
-	} else if ( count > 50 ) {
-		floor = 50;
-	}
-
-	return sprintf(
-		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
-		_n(
-			'%d+ Newer Post',
-			'%d+ Newer Posts',
-			floor,
-			'newspack-rolling-coverage'
-		),
-		floor
-	);
-}
-
-/**
  * How far down the viewport the fixed and sticky elements over its top centre
  * reach, such as the admin bar and a sticky site header, so the floating
  * control and the sticky pinned cards can sit below them. An element taller
@@ -426,6 +400,7 @@ function initBlock( root: HTMLElement ): void {
 	const stopRelativeDates = keepRelativeDatesCurrent( root, entriesList );
 
 	const pollInterval = parseInt( root.dataset.pollInterval || '10', 10 );
+	const entryName = readEntryName( root );
 	const entriesPerPage = parseInt( root.dataset.entriesPerPage || '20', 10 );
 	const templateKey = root.dataset.templateKey || '';
 	const hostPostId = root.dataset.hostPostId || '0';
@@ -445,9 +420,23 @@ function initBlock( root: HTMLElement ): void {
 		newEntriesControl?.querySelector< HTMLElement >( '[data-rc-latest]' ) ??
 		null;
 	const statusEl = ownElement( root, '.newspack-rolling-coverage-status' );
+	const checkControls = ownElements(
+		root,
+		'.newspack-rolling-coverage-check-updates'
+	);
+	const checkButtons = checkControls.flatMap(
+		( control ) =>
+			control.querySelector< HTMLButtonElement >( 'button' ) ?? []
+	);
+	// Each button's own label, as the layout sets it.
+	const checkLabels = new Map(
+		checkButtons.map( ( button ) => [ button, button.textContent ?? '' ] )
+	);
 
 	const status = root.dataset.status || 'active';
 	const isEntryView = root.dataset.view === 'entry';
+	// The feed checks for new entries only when the reader asks.
+	const checksOnRequest = root.dataset.newEntries === 'button';
 
 	// A Lite Site page renders entries as text, so it asks for them that way.
 	const isLite = root.dataset.lite === '1';
@@ -465,6 +454,17 @@ function initBlock( root: HTMLElement ): void {
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
 	let polledCount = 0;
+
+	// The coverage status the last poll reported.
+	let polledStatus = status;
+
+	// When the reader last checked for new entries, in milliseconds.
+	let lastCheckAt = 0;
+	let checkLabelTimeoutId: ReturnType< typeof setTimeout > | null = null;
+	let isChecking = false;
+
+	// How many new entries have been added to the page since it loaded.
+	let insertedCount = 0;
 
 	// Whether a poll request is in flight. At most one poll is in flight or
 	// scheduled at a time, so tab switches and back/forward navigation can't
@@ -521,7 +521,7 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		const label = canCount
-			? newerPostsLabel( newerCount + countedEntryIds.size )
+			? newerEntriesLabel( newerCount + countedEntryIds.size, entryName )
 			: '';
 		const text = label || ownLabel;
 
@@ -608,7 +608,7 @@ function initBlock( root: HTMLElement ): void {
 	function schedulePoll(): void {
 		cancelPoll();
 
-		if ( isPolling || document.hidden ) {
+		if ( checksOnRequest || isPolling || document.hidden ) {
 			return;
 		}
 
@@ -717,6 +717,8 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
+		insertedCount += entries.length;
+
 		ownElement(
 			root,
 			'.newspack-rolling-coverage-entries__empty',
@@ -743,18 +745,7 @@ function initBlock( root: HTMLElement ): void {
 
 		const shown = Math.min( entries.length, latestCap || entries.length );
 
-		announce(
-			sprintf(
-				/* translators: %d: number of new coverage entries just added. */
-				_n(
-					'%d new post added',
-					'%d new posts added',
-					shown,
-					'newspack-rolling-coverage'
-				),
-				shown
-			)
-		);
+		announce( entriesAddedLabel( shown, entryName ) );
 
 		if ( adSlotsToDisplay.length > 0 ) {
 			displayAdSlots( adSlotsToDisplay );
@@ -830,28 +821,9 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Label for the control that tells the reader new entries are waiting.
-	 *
-	 * @param {number} count How many new entries are waiting.
-	 * @return {string} The label.
-	 */
-	function newEntriesLabel( count: number ): string {
-		return sprintf(
-			/* translators: %d: number of new coverage entries waiting to be shown. */
-			_n(
-				'%d New Post',
-				'%d New Posts',
-				count,
-				'newspack-rolling-coverage'
-			),
-			count
-		);
-	}
-
-	/**
 	 * Adds entries to the pending queue.
 	 *
-	 * Updates the "X New Posts" control label and visibility.
+	 * Updates the "X New Entries" control label and visibility.
 	 *
 	 * @param {PendingEntry[]} newEntries Newly published entries.
 	 * @return {void}
@@ -863,7 +835,7 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		const label = newEntriesLabel( pendingNewEntries.length );
+		const label = newEntriesLabel( pendingNewEntries.length, entryName );
 
 		newEntriesLink.textContent = label;
 		newEntriesControl.hidden = false;
@@ -917,7 +889,8 @@ function initBlock( root: HTMLElement ): void {
 		) {
 			if ( pendingNewEntries.length > 0 ) {
 				newEntriesLink.textContent = newEntriesLabel(
-					pendingNewEntries.length
+					pendingNewEntries.length,
+					entryName
 				);
 			} else {
 				newEntriesControl.hidden = true;
@@ -1399,7 +1372,14 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		(
-			[ 'cursor', 'before', 'hasMore', 'templateKey', 'status' ] as const
+			[
+				'cursor',
+				'before',
+				'hasMore',
+				'templateKey',
+				'status',
+				'entryName',
+			] as const
 		 ).forEach( ( key ) => {
 			root.dataset[ key ] = live.dataset[ key ] ?? '';
 		} );
@@ -1437,9 +1417,7 @@ function initBlock( root: HTMLElement ): void {
 	 */
 	async function jumpToLatest( url: string ): Promise< void > {
 		setJumping( true );
-		announce(
-			__( 'Loading the latest posts…', 'newspack-rolling-coverage' )
-		);
+		announce( loadingLatestLabel( entryName ) );
 
 		const fetched = await fetchLiveBlock( url );
 
@@ -1468,12 +1446,7 @@ function initBlock( root: HTMLElement ): void {
 				showLiveBlock( fetched.live, fetched.url );
 				window.scrollTo( { top: blockTopY(), behavior } );
 				focusFromScript( entriesList, { preventScroll: true } );
-				announce(
-					__(
-						'Showing the latest posts.',
-						'newspack-rolling-coverage'
-					)
-				);
+				announce( showingLatestLabel( entryName ) );
 			} catch {
 				navigate();
 			}
@@ -1760,13 +1733,13 @@ function initBlock( root: HTMLElement ): void {
 
 			if ( canCount && countedEntryIds.size !== countedBefore ) {
 				showNewerCount();
-				announce( newEntriesLabel( countedEntryIds.size ) );
+				announce( newEntriesLabel( countedEntryIds.size, entryName ) );
 			}
 
 			return;
 		}
 
-		if ( ! latestCap && isScrolledPastTop() ) {
+		if ( ! latestCap && ! checksOnRequest && isScrolledPastTop() ) {
 			queueNewEntries( newEntries );
 		} else {
 			insertNewEntries( newEntries );
@@ -2014,15 +1987,16 @@ function initBlock( root: HTMLElement ): void {
 	 * across poll batches. Takes the place of a poll already scheduled, and
 	 * does nothing while another poll is in flight or the page is hidden.
 	 *
-	 * @return {Promise<void>} Resolves when the poll response has been handled.
+	 * @return {Promise<PollOutcome>} How the poll ended.
 	 */
-	async function poll(): Promise< void > {
+	async function poll(): Promise< PollOutcome > {
 		if ( ! cursor || isPolling || document.hidden ) {
-			return;
+			return 'skipped';
 		}
 
 		cancelPoll();
 		isPolling = true;
+		let outcome: PollOutcome = 'failed';
 
 		try {
 			const url = new URL( restBaseUrl );
@@ -2056,12 +2030,14 @@ function initBlock( root: HTMLElement ): void {
 
 				// The block was cleaned up meanwhile, so this reply is no longer its own.
 				if ( isDisposed ) {
-					return;
+					return 'skipped';
 				}
 
 				minPollInterval = Number( data.minPollInterval ) || 0;
+				outcome = 'ok';
 
 				if ( typeof data.status === 'string' ) {
+					polledStatus = data.status;
 					document.dispatchEvent(
 						new CustomEvent< PollEventDetail >( POLL_EVENT, {
 							detail: {
@@ -2081,7 +2057,7 @@ function initBlock( root: HTMLElement ): void {
 				) {
 					cleanup();
 					root.remove();
-					return;
+					return outcome;
 				}
 
 				if ( data.overflow && isEntryView ) {
@@ -2090,18 +2066,19 @@ function initBlock( root: HTMLElement ): void {
 					// same cursor: polling ends here, and with it the count.
 					canCount = false;
 					showNewerCount();
-					return;
+					return outcome;
 				}
 
 				// A capped feed shares its page with other content, so it never
-				// reloads it; its polls send the newest entries instead.
+				// reloads it; its polls send the newest entries instead. A reader
+				// who asked for updates gets the reload whatever the guard says.
 				if (
 					data.overflow &&
 					! latestCap &&
-					shouldReloadForOverflow()
+					( checksOnRequest || shouldReloadForOverflow() )
 				) {
 					window.location.reload();
-					return;
+					return 'reloading';
 				}
 
 				if ( data.replace ) {
@@ -2131,6 +2108,8 @@ function initBlock( root: HTMLElement ): void {
 		if ( ! isDisposed ) {
 			schedulePoll();
 		}
+
+		return outcome;
 	}
 
 	/**
@@ -2201,13 +2180,7 @@ function initBlock( root: HTMLElement ): void {
 	 */
 	function announceLoadMoreFailure(): void {
 		if ( loadMoreButton ) {
-			announce(
-				/* translators: Announced when pressing the Load More button fails to load older entries. */
-				__(
-					'Couldn’t load more entries. Try again.',
-					'newspack-rolling-coverage'
-				)
-			);
+			announce( loadMoreFailedLabel( entryName ) );
 		}
 	}
 
@@ -2385,6 +2358,191 @@ function initBlock( root: HTMLElement ): void {
 
 	ownElements( root, '[data-entry-id]', entriesList ).forEach( observeEntry );
 
+	/**
+	 * Shows a message on the Check for Updates buttons for a few seconds, then
+	 * their own labels again.
+	 *
+	 * @param {string} label The message.
+	 * @return {void}
+	 */
+	function flashCheckLabel( label: string ): void {
+		if ( checkLabelTimeoutId !== null ) {
+			clearTimeout( checkLabelTimeoutId );
+		}
+
+		checkButtons.forEach( ( button ) => {
+			button.textContent = label;
+		} );
+		checkLabelTimeoutId = setTimeout( () => {
+			checkLabelTimeoutId = null;
+			checkButtons.forEach( ( button ) => {
+				button.textContent = checkLabels.get( button ) ?? '';
+			} );
+		}, CHECK_MESSAGE_MS );
+	}
+
+	/**
+	 * Marks the Check for Updates buttons busy while a check runs, or ready
+	 * again.
+	 *
+	 * @param {boolean} busy Whether a check is running.
+	 * @return {void}
+	 */
+	function setCheckBusy( busy: boolean ): void {
+		isChecking = busy;
+
+		if ( busy ) {
+			if ( checkLabelTimeoutId !== null ) {
+				clearTimeout( checkLabelTimeoutId );
+				checkLabelTimeoutId = null;
+			}
+
+			// A repeat result only announces again if the region changes.
+			announce( '' );
+		}
+
+		checkButtons.forEach( ( button ) => {
+			if ( busy ) {
+				button.textContent =
+					/* translators: Shown on the Check for Updates button while a check runs. */
+					__( 'Checking…', 'newspack-rolling-coverage' );
+				button.setAttribute( 'aria-busy', 'true' );
+				// Unlike disabled, keeps focus on the button.
+				button.setAttribute( 'aria-disabled', 'true' );
+			} else {
+				button.textContent = checkLabels.get( button ) ?? '';
+				button.removeAttribute( 'aria-busy' );
+				button.removeAttribute( 'aria-disabled' );
+			}
+		} );
+	}
+
+	if (
+		checksOnRequest &&
+		checkButtons.length > 0 &&
+		cursor &&
+		status !== 'archived' &&
+		! isEntryView
+	) {
+		const onCheckClick = async () => {
+			if ( isChecking ) {
+				return;
+			}
+
+			setCheckBusy( true );
+
+			// Repeated clicks wait out the site's minimum poll interval.
+			const wait = lastCheckAt + minPollInterval * 1000 - Date.now();
+
+			if ( wait > 0 ) {
+				await new Promise( ( resolve ) => setTimeout( resolve, wait ) );
+			}
+
+			if ( isDisposed ) {
+				return;
+			}
+
+			// A poll skips a hidden page, so a check waits for the reader to return.
+			if ( document.hidden ) {
+				await new Promise< void >( ( resolve ) => {
+					const onShow = () => {
+						if ( ! document.hidden ) {
+							document.removeEventListener(
+								'visibilitychange',
+								onShow
+							);
+							resolve();
+						}
+					};
+
+					document.addEventListener( 'visibilitychange', onShow );
+				} );
+			}
+
+			if ( isDisposed ) {
+				return;
+			}
+
+			const insertedBefore = insertedCount;
+			const outcome = await poll();
+
+			lastCheckAt = Date.now();
+
+			// A reload is on its way, so the buttons stay busy until it lands.
+			if ( isDisposed || outcome === 'reloading' ) {
+				return;
+			}
+
+			setCheckBusy( false );
+
+			if ( outcome === 'failed' ) {
+				flashCheckLabel(
+					/* translators: Shown briefly on the Check for Updates button when a check fails. */
+					__( 'Couldn’t Check', 'newspack-rolling-coverage' )
+				);
+				announce(
+					__(
+						'Couldn’t check for updates. Try again.',
+						'newspack-rolling-coverage'
+					)
+				);
+				return;
+			}
+
+			if ( outcome === 'skipped' ) {
+				return;
+			}
+
+			// An ended coverage gets no new entries; a paused one may resume.
+			if ( polledStatus === 'archived' ) {
+				if (
+					checkButtons.some(
+						( button ) =>
+							button.ownerDocument.activeElement === button
+					)
+				) {
+					focusFromScript( entriesList, { preventScroll: true } );
+				}
+
+				checkControls.forEach( ( control ) => {
+					control.hidden = true;
+				} );
+				return;
+			}
+
+			const added = insertedCount - insertedBefore;
+
+			// New entries land at the top, out of sight of a button further down.
+			if ( added > 0 ) {
+				flashCheckLabel( entriesAddedButtonLabel( added, entryName ) );
+			} else {
+				const label = noNewEntriesLabel( entryName );
+
+				flashCheckLabel( label );
+				announce( label );
+			}
+		};
+
+		checkButtons.forEach( ( button ) =>
+			button.addEventListener( 'click', onCheckClick )
+		);
+		cleanupFns.push( () => {
+			checkButtons.forEach( ( button ) =>
+				button.removeEventListener( 'click', onCheckClick )
+			);
+
+			if ( checkLabelTimeoutId !== null ) {
+				clearTimeout( checkLabelTimeoutId );
+				checkLabelTimeoutId = null;
+			}
+
+			setCheckBusy( false );
+		} );
+		checkControls.forEach( ( control ) => {
+			control.hidden = false;
+		} );
+	}
+
 	if ( cursor && status === 'active' ) {
 		schedulePoll();
 	}
@@ -2393,7 +2551,7 @@ function initBlock( root: HTMLElement ): void {
 	const onVisibilityChange = () => {
 		if ( document.hidden ) {
 			cancelPoll();
-		} else if ( cursor && status === 'active' ) {
+		} else if ( cursor && status === 'active' && ! checksOnRequest ) {
 			poll();
 		}
 	};
@@ -2594,6 +2752,32 @@ function initBlock( root: HTMLElement ): void {
 		entriesListObserver.disconnect();
 		stickyCardObserver?.disconnect();
 	} );
+
+	// Chrome leaves a link focused from the keyboard partly outside a line that scrolls sideways when some of it already shows. The entry, not the link, is what the line snaps to.
+	const revealFocused = ( event: FocusEvent ) => {
+		const target = event.target;
+
+		if (
+			! ( target instanceof Element ) ||
+			target === entriesList ||
+			! target.matches( ':focus-visible' ) ||
+			getComputedStyle( entriesList ).overflowX === 'visible'
+		) {
+			return;
+		}
+
+		let entry: Element = target;
+
+		while ( entry.parentElement && entry.parentElement !== entriesList ) {
+			entry = entry.parentElement;
+		}
+
+		entry.scrollIntoView( { block: 'nearest', inline: 'nearest' } );
+	};
+	entriesList.addEventListener( 'focusin', revealFocused );
+	cleanupFns.push( () =>
+		entriesList.removeEventListener( 'focusin', revealFocused )
+	);
 
 	if ( sentinel && hasMore ) {
 		const observer = new IntersectionObserver( ( entries ) => {

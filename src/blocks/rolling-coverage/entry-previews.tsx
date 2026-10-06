@@ -12,14 +12,17 @@ import { addFilter } from '@wordpress/hooks';
 import PinnedEntryContext from './pinned-entry-context';
 
 /**
- * The client ID of the block an editable layout renders its entry previews
- * after: the Feed's last per-entry block that Block Visibility shows in every
- * viewport. Kept apart from the previews, so editing the layout doesn't
- * render every block in it again.
+ * Where an editable layout renders its entry previews: after the anchor, the
+ * Feed's last per-entry block that Block Visibility shows in every viewport,
+ * and whether the anchor and the previews share an entries element, as the
+ * site renders a ruled row's entries (see `isRuledRow()`). Kept apart from
+ * the previews, so editing the layout doesn't render every block in it
+ * again.
  */
-export const EntryPreviewsAnchorContext = createContext< string | null >(
-	null
-);
+export const EntryPreviewsAnchorContext = createContext< {
+	clientId: string;
+	wrapsEntries: boolean;
+} | null >( null );
 
 /**
  * The previews of the entries an editable layout shows beside its editable
@@ -52,12 +55,25 @@ function EntryPreviews() {
  */
 const withEntryPreviews = createHigherOrderComponent(
 	( BlockListBlock ) => ( props: { clientId: string } ) => {
-		const anchorId = useContext( EntryPreviewsAnchorContext );
+		const anchor = useContext( EntryPreviewsAnchorContext );
+
+		if ( anchor?.clientId !== props.clientId ) {
+			return <BlockListBlock { ...props } />;
+		}
+
+		if ( anchor.wrapsEntries ) {
+			return (
+				<div className="newspack-rolling-coverage-entries">
+					<BlockListBlock { ...props } />
+					<EntryPreviews />
+				</div>
+			);
+		}
 
 		return (
 			<>
 				<BlockListBlock { ...props } />
-				{ anchorId === props.clientId && <EntryPreviews /> }
+				<EntryPreviews />
 			</>
 		);
 	},

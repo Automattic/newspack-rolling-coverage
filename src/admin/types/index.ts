@@ -16,6 +16,8 @@ import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
 
 interface AdminConfig {
 	page: string;
+	/** Whether Co-Authors Plus is on for entries. */
+	hasCoauthors: boolean;
 	adminTitleSuffix: string;
 	availableAdapters?: Record< string, string >;
 	restBase: {
@@ -33,12 +35,14 @@ interface AdminConfig {
 		aiSettings: string;
 		statusLabels: string;
 		latestLabel: string;
+		entryName: string;
 		posts: string;
 	};
 	nonce: string;
 	capabilities: {
 		canEditPosts: boolean;
 		canEditEntries: boolean;
+		canChangeAuthors: boolean;
 		canManageTerms: boolean;
 		canManageOptions: boolean;
 		canManageAiSettings: boolean;
@@ -72,6 +76,8 @@ interface AdminConfig {
 	statusLabelMaxLength: number;
 	latestLabelDefault: string;
 	latestLabelMaxLength: number;
+	entryNameDefaults: EntryName;
+	entryNameMaxLength: number;
 	slack: {
 		isConfigured: boolean;
 	};
@@ -288,6 +294,25 @@ interface BulkRestoreResult extends ApiResult {
 	results?: BulkRestoreEntryResult[];
 }
 
+interface ChangeAuthorEntryResult {
+	entryId: number;
+	updated: boolean;
+	error?: string;
+}
+
+interface ChangeAuthorResult extends ApiResult {
+	results?: ChangeAuthorEntryResult[];
+}
+
+interface ChangeAuthorDrawerProps {
+	isOpen: boolean;
+	items: Entry[];
+	restNamespace: string;
+	postType: string;
+	onClose: () => void;
+	onChanged?: () => void;
+}
+
 interface ConfirmModalContentProps {
 	message: string;
 	confirmLabel?: string;
@@ -400,6 +425,19 @@ interface LatestLabel {
 
 interface LatestLabelResult extends ApiResult {
 	data?: LatestLabel;
+}
+
+/**
+ * What readers see entries called, each word as it reads mid-sentence, both
+ * empty where the site sets none.
+ */
+interface EntryName {
+	singular: string;
+	plural: string;
+}
+
+interface EntryNameResult extends ApiResult {
+	data?: EntryName;
 }
 
 type StatusName =
@@ -659,6 +697,8 @@ export type {
 	StatusLabelsResult,
 	LatestLabel,
 	LatestLabelResult,
+	EntryName,
+	EntryNameResult,
 	Context,
 	ContextExports,
 	Coverage,
@@ -688,6 +728,9 @@ export type {
 	SaveCoverageData,
 	BulkRestoreEntryResult,
 	BulkRestoreResult,
+	ChangeAuthorEntryResult,
+	ChangeAuthorResult,
+	ChangeAuthorDrawerProps,
 	AiSettings,
 	AiSettingsResult,
 	BreadcrumbItem,

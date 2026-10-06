@@ -10,6 +10,7 @@ use Newspack_Rolling_Coverage\Coverage_Follow_Block;
 use Newspack_Rolling_Coverage\Coverage_Status_Block;
 use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Post_Type;
+use Newspack_Rolling_Coverage\Push_Notifications;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
@@ -59,6 +60,7 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		Post_Type::register_meta();
 		Taxonomy::register();
 		Breakout::register_meta();
+		Push_Notifications::register_meta();
 	}
 
 	/**
@@ -210,6 +212,32 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		}
 
 		return $coverage_id;
+	}
+
+	/**
+	 * Load the stand-in for Newspack's Block_Visibility, which hides any block
+	 * carrying a `zzHiddenFromPublic` attribute, and skip the test when the
+	 * real one is loaded.
+	 */
+	protected function use_block_visibility_stub(): void {
+		if ( ! class_exists( '\\Newspack\\Block_Visibility' ) ) {
+			require_once __DIR__ . '/stubs/class-block-visibility.php';
+		}
+
+		if ( ! defined( '\\Newspack\\Block_Visibility::IS_TEST_STUB' ) ) {
+			$this->markTestSkipped( 'Newspack is loaded; its visibility rules are tested there.' );
+		}
+	}
+
+	/**
+	 * A block Newspack hides from the public, as the Block_Visibility
+	 * stand-in marks it.
+	 *
+	 * @param string $text The paragraph's text.
+	 * @return string Serialized block.
+	 */
+	protected static function members_only_paragraph( string $text ): string {
+		return '<!-- wp:paragraph {"zzHiddenFromPublic":true} --><p>' . $text . '</p><!-- /wp:paragraph -->';
 	}
 
 	/**
