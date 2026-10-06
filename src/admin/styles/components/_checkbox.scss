@@ -1,3 +1,5 @@
+@use "~@wordpress/base-styles/colors" as wp-colors;
+
 .components-checkbox-control__input:not(:disabled, [aria-disabled="true"]) ~ svg {
-	color: var(--wp-components-color-accent-inverted, var(--wpds-color-foreground-interactive-brand-strong, #fff));
+	color: var(--wp-components-color-accent-inverted, var(--wpds-color-foreground-interactive-brand-strong, #{wp-colors.$white}));
 }
