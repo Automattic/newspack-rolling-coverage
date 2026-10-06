@@ -1035,16 +1035,19 @@ class Post_Type {
 	 *
 	 * @param int   $entry_id Entry post ID.
 	 * @param bool  $wp_error Whether to return a WP_Error on failure.
-	 * @param array $changes  Other post fields to save, such as `post_author`.
+	 * @param array $changes  Other post fields to save, such as `post_author`. Content fields are ignored.
 	 * @return int|WP_Error The entry ID, 0 or a WP_Error on failure.
 	 */
 	public static function touch_entry( int $entry_id, bool $wp_error = false, array $changes = [] ) {
-		$keep_stored_content = static function ( $data, $postarr, $unsanitized_postarr ) use ( $entry_id, &$keep_stored_content ) {
+		$content_fields = [ 'post_content', 'post_content_filtered', 'post_title', 'post_excerpt' ];
+		$changes        = array_diff_key( $changes, array_flip( $content_fields ) );
+
+		$keep_stored_content = static function ( $data, $postarr, $unsanitized_postarr ) use ( $entry_id, $content_fields, &$keep_stored_content ) {
 			if ( $entry_id === (int) ( $postarr['ID'] ?? 0 ) ) {
 				// One save only: a hook that edits the entry during the touch still goes through kses.
 				remove_filter( 'wp_insert_post_data', $keep_stored_content, 5 );
 
-				foreach ( [ 'post_content', 'post_content_filtered', 'post_title', 'post_excerpt' ] as $field ) {
+				foreach ( $content_fields as $field ) {
 					if ( isset( $unsanitized_postarr[ $field ] ) ) {
 						$data[ $field ] = $unsanitized_postarr[ $field ];
 					}
@@ -2542,6 +2545,15 @@ class Post_Type {
 				continue;
 			}
 
+			if ( Archive_Mode::is_entry_locked( $entry_id ) ) {
+				$results[] = [
+					'entryId' => $entry_id,
+					'updated' => false,
+					'error'   => __( 'This entry is archived, so its author can’t change.', 'newspack-rolling-coverage' ),
+				];
+				continue;
+			}
+
 			if ( ! self::set_coauthor( $entry_id, $author ) ) {
 				$results[] = [
 					'entryId' => $entry_id,
@@ -2571,8 +2583,9 @@ class Post_Type {
 	/**
 	 * Makes a user an entry's only co-author when Co-Authors Plus is on for
 	 * entries. It runs before the `post_author` update because Co-Authors
-	 * Plus re-reads `post_author` from the author terms on every save, so
-	 * `post_updated` listeners already see the new author as the old one.
+	 * Plus re-reads `post_author` from the author terms on every save.
+	 * `add_coauthors()` also writes `post_author` itself, so `post_updated`
+	 * listeners see the new author on both sides of the save.
 	 *
 	 * @param int      $entry_id Entry post ID.
 	 * @param \WP_User $author   The new author.

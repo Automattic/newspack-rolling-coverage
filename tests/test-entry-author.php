@@ -110,6 +110,21 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An archived entry is locked, so its author stays as it was.
+	 */
+	public function test_skips_archived_entries() {
+		$old_author = self::factory()->user->create( [ 'role' => 'author' ] );
+		$new_author = self::factory()->user->create( [ 'role' => 'author' ] );
+		$entry_id   = self::create_entry( self::create_coverage(), [ 'post_author' => $old_author ] );
+		update_post_meta( $entry_id, Newspack_Rolling_Coverage\Archive_Mode::ENTRY_ARCHIVED_META_KEY, time() );
+
+		$results = self::change_author( $entry_id, $new_author )->get_data()['results'];
+
+		$this->assertFalse( $results[0]['updated'], 'The entry should be reported as failed.' );
+		$this->assertSame( $old_author, (int) get_post_field( 'post_author', $entry_id ), 'The entry should keep its author.' );
+	}
+
+	/**
 	 * Trashed entries and posts that aren't entries are reported as failures
 	 * without stopping the rest.
 	 */

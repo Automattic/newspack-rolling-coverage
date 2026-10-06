@@ -52,7 +52,12 @@ function ChangeAuthorModal( {
 
 	const [ picked, setPicked ] = useState<
 		{ id: number; name: string } | undefined
-	>( sharedAuthor );
+	>(
+		sharedAuthor && {
+			id: sharedAuthor.id,
+			name: decodeEntities( sharedAuthor.name ),
+		}
+	);
 	const authorId = picked?.id;
 	const [ search, setSearch ] = useState( '' );
 	const { invalidateResolution } = useDispatch( coreStore );
@@ -87,7 +92,7 @@ function ChangeAuthorModal( {
 		) {
 			fetched.unshift( {
 				value: String( picked.id ),
-				label: decodeEntities( picked.name ),
+				label: picked.name,
 			} );
 		}
 		return fetched;
