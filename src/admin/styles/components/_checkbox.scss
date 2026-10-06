@@ -1,0 +1,3 @@
+.components-checkbox-control__input:not(:disabled) ~ svg {
+	color: var(--wp-components-color-accent-inverted, #fff);
+}
