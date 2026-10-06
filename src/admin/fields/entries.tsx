@@ -5,7 +5,7 @@ import { Tooltip } from '@wordpress/components';
 import { dateI18n, getSettings } from '@wordpress/date';
 import { __, sprintf } from '@wordpress/i18n';
 import { Link, Stack, VisuallyHidden } from '@wordpress/ui';
-import { Icon, pinSmall } from '@wordpress/icons';
+import { Icon, pinSmall, wordpress } from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -74,9 +74,42 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 					item.summary ||
 					__( '(no title)', 'newspack-rolling-coverage' );
 				const isFromSlack = getEntrySource( item ) === SOURCE_SLACK;
-				if ( ! item.pinned && ! isFromSlack ) {
-					return title;
+				let sourceLabel;
+				if ( item.pinned ) {
+					sourceLabel = isFromSlack
+						? __(
+								'Pinned, from Slack',
+								'newspack-rolling-coverage'
+							)
+						: __(
+								'Pinned, from WordPress',
+								'newspack-rolling-coverage'
+							);
+				} else {
+					sourceLabel = isFromSlack
+						? __( 'From Slack', 'newspack-rolling-coverage' )
+						: __( 'From WordPress', 'newspack-rolling-coverage' );
 				}
+
+				let marker;
+				if ( item.pinned ) {
+					marker = (
+						<Icon
+							className={
+								isFromSlack
+									? 'newspack-rolling-coverage-entry-title__pin newspack-rolling-coverage-entry-title__pin--slack'
+									: 'newspack-rolling-coverage-entry-title__pin'
+							}
+							icon={ pinSmall }
+							size={ 24 }
+						/>
+					);
+				} else if ( isFromSlack ) {
+					marker = <SlackIcon size={ 10 } />;
+				} else {
+					marker = <Icon icon={ wordpress } size={ 12 } />;
+				}
+
 				return (
 					<Stack
 						render={ <span /> }
@@ -84,30 +117,15 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 						align="flex-start"
 						gap="sm"
 					>
-						{ item.pinned && (
-							<Icon
-								className="newspack-rolling-coverage-entry-title__icon"
-								icon={ pinSmall }
-								size={ 24 }
-							/>
-						) }
-						{ isFromSlack && (
-							<span
-								className="newspack-rolling-coverage-entry-title__source"
-								title={ __(
-									'From Slack',
-									'newspack-rolling-coverage'
-								) }
-							>
-								<SlackIcon size={ 10 } />
-								<VisuallyHidden render={ <span /> }>
-									{ __(
-										'From Slack',
-										'newspack-rolling-coverage'
-									) }
-								</VisuallyHidden>
-							</span>
-						) }
+						<span
+							className="newspack-rolling-coverage-entry-title__source"
+							title={ sourceLabel }
+						>
+							{ marker }
+							<VisuallyHidden render={ <span /> }>
+								{ sourceLabel }
+							</VisuallyHidden>
+						</span>
 						{ title }
 					</Stack>
 				);
@@ -152,7 +170,7 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			},
 		},
 		{
-			// Filter only: the Slack marker sits beside the title instead.
+			// Filter only: the source marker sits beside the title instead.
 			id: 'source',
 			type: 'text',
 			label: __( 'Source', 'newspack-rolling-coverage' ),

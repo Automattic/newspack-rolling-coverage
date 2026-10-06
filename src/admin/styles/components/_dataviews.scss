@@ -17,19 +17,20 @@
 		height: auto;
 	}
 
-	.newspack-rolling-coverage-entry-title__icon {
-		fill: currentcolor;
+	.newspack-rolling-coverage-entry-title__source {
+		display: grid;
+		place-items: center;
 		flex-shrink: 0;
-		margin: calc((#{wp-vars.$grid-unit-20} - #{wp-vars.$icon-size}) / 2);
+		width: wp-vars.$icon-size;
+		height: wp-vars.$icon-size;
 	}
 
-	.newspack-rolling-coverage-entry-title__source {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		width: wp-vars.$grid-unit-20;
-		height: wp-vars.$grid-unit-20;
+	.newspack-rolling-coverage-entry-title__pin {
+		fill: currentcolor;
+	}
+
+	.newspack-rolling-coverage-entry-title__pin--slack {
+		fill: #e3066a;
 	}
 
 	.newspack-rolling-coverage-slack-channel {
