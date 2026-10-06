@@ -37,8 +37,15 @@ type SettingsTab = 'entry-name' | 'status' | 'latest';
  *
  * @param {Object}   props         Component props.
  * @param {Function} props.onClose Closes the modal.
+ * @param {Function} props.onReady Called once the modal shows, loaded or failed.
  */
-function SettingsModal( { onClose }: { onClose: () => void } ) {
+function SettingsModal( {
+	onClose,
+	onReady,
+}: {
+	onClose: () => void;
+	onReady?: () => void;
+} ) {
 	const config = useAdminContext();
 	const { requestConfirm, dialog: confirmDialog } = useConfirmDialog();
 	const [ labels, setLabels ] = useState< StatusLabels >( EMPTY_LABELS );
@@ -228,7 +235,15 @@ function SettingsModal( { onClose }: { onClose: () => void } ) {
 		},
 	];
 
-	if ( ! isLoaded && ! error ) {
+	const isReady = isLoaded || Boolean( error );
+
+	useEffect( () => {
+		if ( isReady ) {
+			onReady?.();
+		}
+	}, [ isReady, onReady ] );
+
+	if ( ! isReady ) {
 		return null;
 	}
 
