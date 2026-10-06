@@ -12,7 +12,12 @@ import {
 import { BlockCanvas, BlockList } from '@wordpress/block-editor';
 import { EditorProvider, PostTitle } from '@wordpress/editor';
 import { useEntityRecord, store as coreStore } from '@wordpress/core-data';
-import { useDispatch, useRegistry } from '@wordpress/data';
+import {
+	createRegistry,
+	RegistryProvider,
+	useDispatch,
+	useRegistry,
+} from '@wordpress/data';
 import { SnackbarNotices, store as noticesStore } from '@wordpress/notices';
 import { store as preferencesStore } from '@wordpress/preferences';
 import { __ } from '@wordpress/i18n';
@@ -27,37 +32,38 @@ import { QuickEditToolbar } from './quick-edit-toolbar';
 import type {
 	QuickEditModalProps,
 	EntityRecord,
-	PreferencesSelectors,
 	PreferencesActions,
 } from '../types';
 
 /**
- * Pins the block toolbar to the toolbar row for as long as the modal is
- * mounted.
+ * Gives the editor its own preferences store, with the block toolbar pinned.
  *
  * `EditorProvider` ignores `hasFixedToolbar` in its settings and reads the
  * `core.fixedToolbar` preference instead, so the preference is the only
- * switch for the floating per-block toolbar. It lives in the parent
- * registry, which the provider's sub-registry falls through to. This admin
- * page loads no preferences persistence layer, so the user's real editor
- * preference is never written; the previous value is restored on unmount
- * all the same.
+ * switch for the floating per-block toolbar. The page's preferences store
+ * cannot carry it: WordPress core installs the user's persistence layer on
+ * every page that loads `wp-preferences`, so a write there reaches
+ * `localStorage` at once and the user's saved preferences a few seconds
+ * later, pinning the toolbar in their real post editor. A child registry
+ * with its own `core/preferences` instance shadows the page's; the editor's
+ * preference reads resolve to it, while core-data, notices and the block
+ * editor still fall through to the page. Inside Quick Edit the `core`
+ * preference scope therefore starts from defaults rather than the user's
+ * post-editor settings, which also keeps inspector panel toggles made here
+ * out of their saved preferences.
  */
-function useFixedToolbarPreference() {
-	const registry = useRegistry();
-	useEffect( () => {
-		const { get } = registry.select(
-			preferencesStore
-		) as unknown as PreferencesSelectors;
-		const { set } = registry.dispatch(
-			preferencesStore
-		) as unknown as PreferencesActions;
-		const previous = get( 'core', 'fixedToolbar' );
-		set( 'core', 'fixedToolbar', true );
-		return () => {
-			set( 'core', 'fixedToolbar', previous );
-		};
-	}, [ registry ] );
+function useQuickEditRegistry() {
+	const parent = useRegistry();
+	return useMemo( () => {
+		const registry = createRegistry( {}, parent );
+		registry.register( preferencesStore );
+		(
+			registry.dispatch(
+				preferencesStore
+			) as unknown as PreferencesActions
+		 ).set( 'core', 'fixedToolbar', true );
+		return registry;
+	}, [ parent ] );
 }
 
 /**
@@ -105,7 +111,7 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 		ensureEditorInitialized();
 	}, [] );
 
-	useFixedToolbarPreference();
+	const editorRegistry = useQuickEditRegistry();
 
 	const handleClose = useCallback( () => {
 		removeAllNotices( 'snackbar' );
@@ -177,33 +183,35 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 	return (
 		<>
 			<Modal { ...modalProps } onRequestClose={ handleRequestClose }>
-				<EditorProvider post={ typedRecord } settings={ settings }>
-					<QuickEditToolbar />
-					<div className="newspack-rolling-coverage-quick-edit__canvas">
-						<BlockCanvas
-							height="100%"
-							styles={ settings.styles as unknown[] }
-						>
-							<div
-								className={ `editor-visual-editor__post-title-wrapper${ layoutClassName }` }
+				<RegistryProvider value={ editorRegistry }>
+					<EditorProvider post={ typedRecord } settings={ settings }>
+						<QuickEditToolbar />
+						<div className="newspack-rolling-coverage-quick-edit__canvas">
+							<BlockCanvas
+								height="100%"
+								styles={ settings.styles as unknown[] }
 							>
-								<PostTitle />
-							</div>
-							<BlockList
-								className={ `wp-block-post-content${ layoutClassName }` }
-								layout={ blockListLayout }
+								<div
+									className={ `editor-visual-editor__post-title-wrapper${ layoutClassName }` }
+								>
+									<PostTitle />
+								</div>
+								<BlockList
+									className={ `wp-block-post-content${ layoutClassName }` }
+									layout={ blockListLayout }
+								/>
+							</BlockCanvas>
+						</div>
+						<div className="newspack-rolling-coverage-quick-edit__footer">
+							<QuickEditSaveBar
+								onClose={ handleRequestClose }
+								onSaved={ onSaved }
 							/>
-						</BlockCanvas>
-					</div>
-					<div className="newspack-rolling-coverage-quick-edit__footer">
-						<QuickEditSaveBar
-							onClose={ handleRequestClose }
-							onSaved={ onSaved }
-						/>
-					</div>
-					<SnackbarNotices className="components-editor-notices__snackbar" />
-					<Popover.Slot />
-				</EditorProvider>
+						</div>
+						<SnackbarNotices className="components-editor-notices__snackbar" />
+						<Popover.Slot />
+					</EditorProvider>
+				</RegistryProvider>
 			</Modal>
 			<ConfirmDialog
 				isOpen={ showCloseConfirm }

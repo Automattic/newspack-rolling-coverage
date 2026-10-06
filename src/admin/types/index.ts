@@ -602,11 +602,6 @@ interface BlockEditorSelectors {
 	getBlockSelectionStart: () => string | null | undefined;
 }
 
-/** Selectors from the preferences store. */
-interface PreferencesSelectors {
-	get: ( scope: string, name: string ) => unknown;
-}
-
 /** Actions on the preferences store. */
 interface PreferencesActions {
 	set: ( scope: string, name: string, value: unknown ) => void;
@@ -783,7 +778,6 @@ export type {
 	EditorSelectors,
 	CoreSelectors,
 	BlockEditorSelectors,
-	PreferencesSelectors,
 	PreferencesActions,
 	TogglePinResult,
 };
