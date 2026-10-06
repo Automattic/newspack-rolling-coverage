@@ -1,3 +1,4 @@
+@use "~@wordpress/base-styles/breakpoints" as wp-breakpoints;
 @use "~@wordpress/base-styles/colors" as wp-colors;
 @use "~@wordpress/base-styles/variables" as wp-vars;
 @use "~@wordpress/base-styles/z-index" as wp-z;
@@ -7,12 +8,12 @@ $quick-edit-inspector-width: 280px;
 $quick-edit-list-view-width: 350px;
 $quick-edit-footer-clearance: 72px;
 
-// The frame is a centered dialog the size of a generous comment box. The
-// WordPress Modal header is hidden, so its padding goes too; our toolbar,
-// canvas and footer stack in a column and the canvas takes what is left.
+// The WordPress Modal header is hidden, so its padding goes too; our toolbar,
+// canvas and footer stack in a column and the canvas takes what is left. On
+// small screens core's bottom-sheet layout (full width, content height) is
+// kept; from the small breakpoint up the frame is a centered dialog the size
+// of a generous comment box, released from core's 70%-of-viewport cap.
 .components-modal__frame.newspack-rolling-coverage-quick-edit {
-	width: min(840px, calc(100vw - #{wp-vars.$grid-unit-40}));
-	height: min(90vh, 720px);
 
 	.components-modal__content {
 		display: flex;
@@ -26,6 +27,12 @@ $quick-edit-footer-clearance: 72px;
 		flex: 1;
 		flex-direction: column;
 		min-height: 0;
+	}
+
+	@media (min-width: wp-breakpoints.$break-small) {
+		width: min(840px, calc(100vw - #{wp-vars.$grid-unit-40}));
+		height: min(90vh, 720px);
+		max-height: none;
 	}
 }
 
@@ -47,6 +54,12 @@ $quick-edit-footer-clearance: 72px;
 	padding: 0 wp-vars.$grid-unit-10 0 wp-vars.$grid-unit-20;
 	border-bottom: wp-vars.$border-width solid wp-colors.$gray-300;
 	overflow-x: auto;
+
+	// The `block-toolbar` popover slot is an empty flex item in this row;
+	// left as a box it would take a second gap before the chevron.
+	> .popover-slot {
+		display: contents;
+	}
 }
 
 .newspack-rolling-coverage-quick-edit__document-tools {
@@ -68,11 +81,12 @@ $quick-edit-footer-clearance: 72px;
 	}
 }
 
-// Pinned block toolbar. The wrapper clips, which is why the `block-toolbar`
-// popover slot sits outside it (see quick-edit-block-toolbar.tsx). It never
-// shrinks below its content: a row too narrow for it scrolls as a whole,
-// otherwise core's toolbar (a horizontal scroller below 782px) would hide its
-// last controls inside the clipped wrapper.
+// Pinned block toolbar. It never shrinks below its content: a row too narrow
+// for it scrolls as a whole, otherwise core's toolbar (a horizontal scroller
+// below 782px) would hide its last controls. The `block-toolbar` popover slot
+// sits outside the wrapper because `is-collapsed` hides the wrapper outright,
+// and an open block switcher or format popover rendered inside would vanish
+// with it (see quick-edit-block-toolbar.tsx).
 .newspack-rolling-coverage-quick-edit__block-toolbar {
 	display: flex;
 	flex: 1 0 auto;
@@ -80,7 +94,6 @@ $quick-edit-footer-clearance: 72px;
 	height: 100%;
 	padding-left: wp-vars.$grid-unit-10;
 	border-left: wp-vars.$border-width solid wp-colors.$gray-300;
-	overflow: hidden;
 
 	&.is-collapsed {
 		display: none;
@@ -99,12 +112,12 @@ $quick-edit-footer-clearance: 72px;
 	margin-left: auto;
 }
 
-// Popovers opened from the toolbar.
+// Popovers opened from the toolbar. Popover sizes and scrolls the content box
+// itself (inline `max-height` and `overflow` from its size middleware), so
+// only width and padding are set here.
 .newspack-rolling-coverage-quick-edit__inspector .components-popover__content {
 	width: $quick-edit-inspector-width;
-	max-height: 70vh;
 	padding: wp-vars.$grid-unit-20 0 0;
-	overflow-y: auto;
 
 	.block-editor-inspector-popover-header {
 		padding: 0 wp-vars.$grid-unit-20;
@@ -121,15 +134,24 @@ $quick-edit-footer-clearance: 72px;
 .newspack-rolling-coverage-quick-edit__list-view .components-popover__content {
 	width: $quick-edit-list-view-width;
 	min-height: 100px;
-	max-height: 70vh;
 	padding: wp-vars.$grid-unit-10;
-	overflow-y: auto;
 }
 
-// Canvas and footer.
+// newspack-components' Modal styles hide every popover's content while
+// `body.modal-open` is set and show it again only inside a `.newspack-drawer`
+// frame. This modal is not a drawer, so its popovers need the same release.
+// The frame class keeps this more specific than the blanket rule, which
+// newspack-blocks' editor stylesheet prints too, so print order cannot flip
+// it.
+.components-modal__frame.newspack-rolling-coverage-quick-edit .components-popover__content {
+	opacity: 1;
+}
+
+// Canvas and footer. The canvas minimum matters on small screens, where the
+// frame has no fixed height and the iframe takes the canvas's height.
 .newspack-rolling-coverage-quick-edit__canvas {
 	flex: 1;
-	min-height: 0;
+	min-height: 240px;
 	padding: 0 wp-vars.$grid-unit-20;
 	overflow: auto;
 }
@@ -141,31 +163,6 @@ $quick-edit-footer-clearance: 72px;
 	gap: wp-vars.$grid-unit-10;
 	padding: wp-vars.$grid-unit-15 wp-vars.$grid-unit-20;
 	border-top: wp-vars.$border-width solid wp-colors.$gray-300;
-}
-
-// The in-canvas quick inserter (the appender "+") is unchanged and needs
-// room for its block grid.
-.block-editor-inserter__quick-inserter {
-	width: 480px;
-	max-width: 480px;
-}
-
-.toplevel_page_rolling-coverage .block-editor-inserter__quick-inserter-expand {
-	display: none;
-}
-
-// Popovers that render in the body-level fallback container rather than the
-// slot inside the modal. Kept until a browser check confirms none do.
-.toplevel_page_rolling-coverage .components-popover__fallback-container {
-	position: relative;
-}
-
-body.toplevel_page_rolling-coverage.modal-open .components-popover__fallback-container {
-	position: relative;
-}
-
-body.toplevel_page_rolling-coverage.modal-open .components-popover__content {
-	opacity: 1;
 }
 
 .newspack-rolling-coverage-quick-edit .components-editor-notices__snackbar {
