@@ -274,7 +274,7 @@ export function digestInnerTemplate(): TemplateItem[] {
  * The Flash layout's inner-blocks template: a full-width bar on the site's
  * accent color holding, at the theme's wide width, the coverage's status,
  * the newest entry's time and text, then a link to the coverage page on the
- * right, on one line at every width.
+ * right, side by side at every width.
  *
  * @return {TemplateItem[]} The template.
  */

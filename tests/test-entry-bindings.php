@@ -1198,6 +1198,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$feed       = '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">' . $entry . '</div><!-- /wp:group -->';
 		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $feed . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
 
+		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
 		Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
 
 		$this->assertStringContainsString( '.wp-block-hidden-mobile{display:none !important;}', wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] ) );
