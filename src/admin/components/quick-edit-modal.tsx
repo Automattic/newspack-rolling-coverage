@@ -47,10 +47,11 @@ import type {
  * later, pinning the toolbar in their real post editor. A child registry
  * with its own `core/preferences` instance shadows the page's; the editor's
  * preference reads resolve to it, while core-data, notices and the block
- * editor still fall through to the page. Inside Quick Edit the `core`
- * preference scope therefore starts from defaults rather than the user's
- * post-editor settings, which also keeps inspector panel toggles made here
- * out of their saved preferences.
+ * editor still fall through to the page. The trade-off: the user's saved
+ * post-editor preferences (hidden block types, icon labels, focus mode,
+ * caret behavior) do not apply inside Quick Edit, and the few editor
+ * controls that write preferences (the link control's Advanced drawer, the
+ * distraction-free shortcut) write to this throwaway store instead.
  */
 function useQuickEditRegistry() {
 	const parent = useRegistry();
