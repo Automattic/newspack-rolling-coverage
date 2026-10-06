@@ -304,7 +304,8 @@ interface ChangeAuthorResult extends ApiResult {
 	results?: ChangeAuthorEntryResult[];
 }
 
-interface ChangeAuthorModalProps {
+interface ChangeAuthorDrawerProps {
+	isOpen: boolean;
 	items: Entry[];
 	restNamespace: string;
 	postType: string;
@@ -730,7 +731,7 @@ export type {
 	BulkRestoreResult,
 	ChangeAuthorEntryResult,
 	ChangeAuthorResult,
-	ChangeAuthorModalProps,
+	ChangeAuthorDrawerProps,
 	AiSettings,
 	AiSettingsResult,
 	BreadcrumbItem,

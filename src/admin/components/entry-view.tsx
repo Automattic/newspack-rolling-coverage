@@ -31,6 +31,7 @@ import { buildPageUrl, createEntry, toEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
+import { ChangeAuthorDrawer } from './change-author-drawer';
 import { SlackConnectionDrawer } from './slack-connection-drawer';
 import { useConfirmDialog } from './confirm-dialog';
 import { getEntryActions } from '../actions/entry-actions';
@@ -114,6 +115,15 @@ function EntryView() {
 	const [ quickEditEntry, setQuickEditEntry ] = useState< Entry | null >(
 		null
 	);
+
+	const [ changeAuthorItems, setChangeAuthorItems ] = useState< Entry[] >(
+		[]
+	);
+	const [ isChangeAuthorOpen, setIsChangeAuthorOpen ] = useState( false );
+	const handleChangeAuthor = useCallback( ( items: Entry[] ) => {
+		setChangeAuthorItems( items );
+		setIsChangeAuthorOpen( true );
+	}, [] );
 
 	const handleActionPerformed = useCallback( () => {
 		refresh();
@@ -327,9 +337,16 @@ function EntryView() {
 				config,
 				handleQuickEdit,
 				requestConfirm,
-				handleActionPerformed
+				handleActionPerformed,
+				handleChangeAuthor
 			),
-		[ config, handleQuickEdit, requestConfirm, handleActionPerformed ]
+		[
+			config,
+			handleQuickEdit,
+			requestConfirm,
+			handleActionPerformed,
+			handleChangeAuthor,
+		]
 	);
 
 	const hasNoLiveEntries =
@@ -702,6 +719,15 @@ function EntryView() {
 					onSaved={ handleQuickEditSaved }
 				/>
 			) }
+			<ChangeAuthorDrawer
+				isOpen={ isChangeAuthorOpen }
+				items={ changeAuthorItems }
+				restNamespace={ config.restBaseUrls.restNamespace }
+				postType={ config.postType }
+				hasCoauthors={ config.hasCoauthors }
+				onClose={ () => setIsChangeAuthorOpen( false ) }
+				onChanged={ handleActionPerformed }
+			/>
 			{ canConnectSlack && (
 				<SlackConnectionDrawer
 					isOpen={ isSlackDrawerOpen }

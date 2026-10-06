@@ -1,21 +1,22 @@
 /**
  * WordPress dependencies
  */
-import { useMemo, useState } from '@wordpress/element';
-import { Button, ComboboxControl, Notice } from '@wordpress/components';
+import { useEffect, useMemo, useState } from '@wordpress/element';
+import { ComboboxControl, Notice } from '@wordpress/components';
 import { useDebounce } from '@wordpress/compose';
 import { store as coreStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, _n, sprintf } from '@wordpress/i18n';
-import { Stack, Text } from '@wordpress/ui';
+import { Text } from '@wordpress/ui';
+import { Drawer } from 'newspack-components/dist/esm/drawer';
 
 /**
  * Internal dependencies
  */
 import { changeEntriesAuthor } from '../utils/entries-api';
 import { notifyError, notifySuccess } from '../utils/notices';
-import type { ChangeAuthorModalProps } from '../types';
+import type { ChangeAuthorDrawerProps } from '../types';
 
 const AUTHORS_QUERY = {
 	who: 'authors',
@@ -28,18 +29,20 @@ const AUTHORS_QUERY = {
  * Picks a new author for one or more entries. The chosen user replaces each
  * entry's author, and its co-authors when Co-Authors Plus is on.
  *
- * Renders inside a DataViews RenderModal, which supplies the modal frame.
+ * Stays mounted so the drawer can play its slide-out, and starts afresh each
+ * time it opens.
  *
- * @param {ChangeAuthorModalProps} props Component props.
+ * @param {ChangeAuthorDrawerProps} props Component props.
  */
-function ChangeAuthorModal( {
+function ChangeAuthorDrawer( {
+	isOpen,
 	items,
 	restNamespace,
 	postType,
 	hasCoauthors,
 	onClose,
 	onChanged,
-}: ChangeAuthorModalProps ) {
+}: ChangeAuthorDrawerProps ) {
 	const sharedAuthor = useMemo( () => {
 		const first = items[ 0 ]?._embedded?.author?.[ 0 ];
 		return first &&
@@ -63,6 +66,21 @@ function ChangeAuthorModal( {
 	const { invalidateResolution } = useDispatch( coreStore );
 	const [ isBusy, setIsBusy ] = useState( false );
 	const [ error, setError ] = useState( '' );
+
+	useEffect( () => {
+		if ( ! isOpen ) {
+			return;
+		}
+		setPicked(
+			sharedAuthor && {
+				id: sharedAuthor.id,
+				name: decodeEntities( sharedAuthor.name ),
+			}
+		);
+		setSearch( '' );
+		setIsBusy( false );
+		setError( '' );
+	}, [ isOpen, sharedAuthor ] );
 
 	const onFilterValueChange = useDebounce( setSearch, 300 );
 
@@ -173,65 +191,75 @@ function ChangeAuthorModal( {
 				)
 			);
 		}
+		setIsBusy( false );
 		onChanged?.();
 		onClose();
 	};
 
 	return (
-		<Stack direction="column" gap="xl">
-			{ error && (
-				<Notice
-					status="error"
-					isDismissible={ false }
-					politeness="assertive"
-				>
-					{ error }
-				</Notice>
-			) }
-			<Text render={ <p /> }>
-				{ items.length === 1
-					? __(
-							'The person you choose replaces this entry’s current author.',
-							'newspack-rolling-coverage'
-						)
-					: sprintf(
-							/* translators: %d: number of entries. */
-							_n(
-								'The person you choose replaces the current author of %d entry.',
-								'The person you choose replaces the current author of all %d entries.',
-								items.length,
+		<Drawer.Root isOpen={ isOpen } onRequestClose={ onClose }>
+			<Drawer.Header>
+				<Drawer.Title>
+					{ __( 'Change Author', 'newspack-rolling-coverage' ) }
+				</Drawer.Title>
+				<Drawer.CloseIcon />
+			</Drawer.Header>
+			<Drawer.Content>
+				{ error && (
+					<Notice
+						status="error"
+						isDismissible={ false }
+						politeness="assertive"
+					>
+						{ error }
+					</Notice>
+				) }
+				<Text render={ <p /> }>
+					{ items.length === 1
+						? __(
+								'The person you choose replaces this entry’s current author.',
 								'newspack-rolling-coverage'
-							),
-							items.length
-						) }
-			</Text>
-			<ComboboxControl
-				__next40pxDefaultSize
-				__nextHasNoMarginBottom
-				label={ __( 'Author', 'newspack-rolling-coverage' ) }
-				options={ options }
-				value={ authorId ? String( authorId ) : null }
-				onChange={ ( value ) => {
-					const option = options.find( ( o ) => o.value === value );
-					setPicked(
-						option
-							? { id: Number( option.value ), name: option.label }
-							: undefined
-					);
-				} }
-				onFilterValueChange={ onFilterValueChange }
-				isLoading={ isLoading }
-				allowReset={ false }
-			/>
-			<Stack direction="row" gap="sm" justify="flex-end">
-				<Button
-					variant="tertiary"
-					onClick={ onClose }
-					disabled={ isBusy }
-				>
+							)
+						: sprintf(
+								/* translators: %d: number of entries. */
+								_n(
+									'The person you choose replaces the current author of %d entry.',
+									'The person you choose replaces the current author of all %d entries.',
+									items.length,
+									'newspack-rolling-coverage'
+								),
+								items.length
+							) }
+				</Text>
+				<ComboboxControl
+					__next40pxDefaultSize
+					__nextHasNoMarginBottom
+					label={ __( 'Author', 'newspack-rolling-coverage' ) }
+					options={ options }
+					value={ authorId ? String( authorId ) : null }
+					onChange={ ( value ) => {
+						const option = options.find(
+							( o ) => o.value === value
+						);
+						setPicked(
+							option
+								? {
+										id: Number( option.value ),
+										name: option.label,
+									}
+								: undefined
+						);
+					} }
+					onFilterValueChange={ onFilterValueChange }
+					isLoading={ isLoading }
+					allowReset={ false }
+				/>
+			</Drawer.Content>
+			<Drawer.Footer>
+				<Drawer.Action variant="tertiary" closes disabled={ isBusy }>
 					{ __( 'Cancel', 'newspack-rolling-coverage' ) }
-				</Button>
-				<Button
+				</Drawer.Action>
+				<Drawer.Action
 					variant="primary"
 					onClick={ handleSubmit }
 					isBusy={ isBusy }
@@ -241,11 +269,11 @@ function ChangeAuthorModal( {
 						( ! hasCoauthors && authorId === sharedAuthor?.id )
 					}
 				>
-					{ __( 'Change Author', 'newspack-rolling-coverage' ) }
-				</Button>
-			</Stack>
-		</Stack>
+					{ __( 'Save', 'newspack-rolling-coverage' ) }
+				</Drawer.Action>
+			</Drawer.Footer>
+		</Drawer.Root>
 	);
 }
 
-export { ChangeAuthorModal };
+export { ChangeAuthorDrawer };
