@@ -35,6 +35,7 @@ import { useAdminContext } from '../hooks/useAdminContext';
 import { ensureEditorInitialized } from '../utils/block-registration';
 import { QuickEditSaveBar } from './quick-edit-save-bar';
 import { QuickEditEntryPanel } from './quick-edit-entry-panel';
+import { QuickEditSettingsPanels } from './quick-edit-settings-panels';
 import type {
 	Action,
 	Entry,
@@ -69,15 +70,18 @@ function EditorRegistryBridge( {
  * @param {Entry}           props.entry           The entry's row in the list.
  * @param {Action<Entry>[]} props.actions         The list's row actions.
  * @param {boolean}         props.canChangeStatus Whether the Entry tab can change the status.
+ * @param {boolean}         props.canNotify       Whether push notifications are set up.
  */
 function QuickEditSidebar( {
 	entry,
 	actions,
 	canChangeStatus,
+	canNotify,
 }: {
 	entry: Entry;
 	actions: Action< Entry >[];
 	canChangeStatus: boolean;
+	canNotify: boolean;
 } ) {
 	const hasBlockSelection = useSelect(
 		( select ) =>
@@ -119,6 +123,7 @@ function QuickEditSidebar( {
 					actions={ actions }
 					canChangeStatus={ canChangeStatus }
 				/>
+				<QuickEditSettingsPanels canNotify={ canNotify } />
 			</Tabs.Panel>
 			<Tabs.Panel value="block" tabIndex={ -1 }>
 				<BlockInspector />
@@ -295,6 +300,7 @@ function QuickEditModal( {
 									entry={ entry }
 									actions={ actions }
 									canChangeStatus={ canPublish }
+									canNotify={ Boolean( config.canNotify ) }
 								/>
 							</aside>
 						) }

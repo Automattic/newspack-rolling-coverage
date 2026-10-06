@@ -14,6 +14,7 @@ import { postContent } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
 import { useDispatch } from '@wordpress/data';
 import apiFetch from '@wordpress/api-fetch';
+import { store as coreStore } from '@wordpress/core-data';
 import { store as noticesStore } from '@wordpress/notices';
 import type { View } from '@wordpress/dataviews';
 
@@ -282,21 +283,57 @@ function EntryView() {
 		setQuickEditEntry( null );
 	}, [] );
 
-	// A row action run from inside Quick Edit can trash the entry, which the
-	// modal would otherwise go on editing.
+	const { clearEntityRecordEdits } = useDispatch( coreStore );
+	const quickEditIdRef = useRef< number | null >( null );
+	quickEditIdRef.current = quickEditEntry?.id ?? null;
+
+	// Re-reads the Quick Edit entry's own row after a row action run from
+	// its menu, wherever the list's current page has it, and closes Quick
+	// Edit once the entry is trashed.
 	const handleQuickEditActionPerformed = useCallback( async () => {
 		refresh();
-		const id = quickEditEntry?.id;
-		if ( ! id ) {
+		const id = quickEditIdRef.current;
+		if ( ! id || numericCoverageId === null ) {
 			return;
 		}
-		const post = await apiFetch< { status: string } >( {
-			path: `/wp/v2/${ config.restBase.entries }/${ id }?context=edit&_fields=status`,
-		} ).catch( () => null );
-		if ( ! post || post.status === 'trash' ) {
-			setQuickEditEntry( null );
+
+		let response: EntryPageResponse;
+		try {
+			response = await apiFetch< EntryPageResponse >( {
+				url: buildPageUrl(
+					config.restBaseUrls.entriesView,
+					numericCoverageId,
+					1,
+					1,
+					'date',
+					'desc',
+					'',
+					undefined,
+					undefined,
+					undefined,
+					undefined,
+					undefined,
+					undefined,
+					String( id )
+				),
+			} );
+		} catch {
+			return;
 		}
-	}, [ refresh, quickEditEntry?.id, config.restBase.entries ] );
+
+		if ( quickEditIdRef.current !== id ) {
+			return;
+		}
+
+		const row = response.entries.find( ( entry ) => entry.id === id );
+		if ( ! row || row.status === 'trash' ) {
+			clearEntityRecordEdits( 'postType', config.postType, id );
+			setQuickEditEntry( null );
+			return;
+		}
+
+		setQuickEditEntry( toEntry( row ) );
+	}, [ refresh, numericCoverageId, config, clearEntityRecordEdits ] );
 
 	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
 
@@ -367,10 +404,6 @@ function EntryView() {
 			handleQuickEditActionPerformed,
 		]
 	);
-	const quickEditRow = quickEditEntry
-		? ( mappedData.find( ( row ) => row.id === quickEditEntry.id ) ??
-			quickEditEntry )
-		: null;
 
 	const hasNoLiveEntries =
 		rows !== null &&
@@ -735,11 +768,11 @@ function EntryView() {
 					isLoading={ isResolving || isTrashCheckPending }
 				/>
 			) }
-			{ quickEditRow && (
+			{ quickEditEntry && (
 				<QuickEditModal
-					entry={ quickEditRow }
+					entry={ quickEditEntry }
 					actions={ quickEditActions }
-					canPublish={ ! isEntryLocked( quickEditRow ) }
+					canPublish={ ! isEntryLocked( quickEditEntry ) }
 					onClose={ handleQuickEditClose }
 					onSaved={ handleQuickEditSaved }
 				/>

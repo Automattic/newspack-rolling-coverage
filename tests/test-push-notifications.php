@@ -5,6 +5,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
 use Newspack_Rolling_Coverage\Taxonomy;
 
@@ -115,27 +116,28 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Save the classic meta box the way the block editor does after its REST
-	 * save: a post.php request carrying the checkbox.
+	 * Publishes an entry through the REST API, setting the opt-in in the same
+	 * request, as the editor's Push Notifications panel does.
 	 *
-	 * @param int  $entry_id   Entry post ID.
-	 * @param bool $is_checked Whether the editor left the box checked.
+	 * @param int  $entry_id   Entry post id.
+	 * @param bool $is_checked Whether the opt-in is ticked.
 	 */
-	private static function save_meta_box( $entry_id, $is_checked ) {
-		$_POST[ Push_Notifications::NONCE_NAME ] = wp_create_nonce( Push_Notifications::NONCE_ACTION );
+	private static function publish_through_rest( $entry_id, $is_checked ) {
+		add_filter( 'newspack_rolling_coverage_defer_notification', '__return_true' );
 
-		if ( $is_checked ) {
-			$_POST[ Push_Notifications::NOTIFY_META_KEY ] = '1';
-		}
-
-		wp_update_post(
+		$request = new WP_REST_Request( 'POST', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_body_params(
 			[
-				'ID'          => $entry_id,
-				'post_status' => 'publish',
+				'status' => 'publish',
+				'meta'   => [ Push_Notifications::NOTIFY_META_KEY => $is_checked ],
 			]
 		);
 
-		$_POST = [];
+		$response = rest_do_request( $request );
+
+		remove_filter( 'newspack_rolling_coverage_defer_notification', '__return_true' );
+
+		return $response;
 	}
 
 	/**
@@ -436,40 +438,72 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * In the block editor, a publish is a REST save followed by the meta box
-	 * save. When the editor leaves the box checked, followers get one
-	 * notification, not one from each.
+	 * Ticking the box in the same save that publishes the entry notifies
+	 * followers once, although the opt-in is written after the status.
 	 */
-	public function test_block_editor_publish_with_the_box_checked_sends_once() {
+	public function test_rest_publish_that_ticks_the_box_sends_once() {
 		self::log_in_as( 'editor' );
-		$entry_id = self::create_entry( self::create_coverage_with_canonical_url() );
-		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
-		wp_schedule_single_event( time() + Push_Notifications::REST_SEND_DELAY, Push_Notifications::SEND_HOOK, [ $entry_id ] );
+		$entry_id = self::create_draft_entry( self::create_coverage_with_canonical_url(), false );
 
-		self::save_meta_box( $entry_id, true );
+		$response = self::publish_through_rest( $entry_id, true );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertNotFalse( wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'The send should be scheduled.' );
+		$this->assertLessThanOrEqual( time(), wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'The send should not wait once the opt-in is saved.' );
+
 		do_action( Push_Notifications::SEND_HOOK, $entry_id );
 
 		$this->assertCount( 1, self::get_sent_notifications(), 'One notification should be sent.' );
-		$this->assertFalse( wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'The scheduled send should be cleared.' );
 	}
 
 	/**
-	 * When the editor unchecks the box on publish, the send the REST save
-	 * scheduled from the earlier opt-in is cancelled.
+	 * Unticking the box in the same save that publishes the entry cancels
+	 * the send its earlier opt-in scheduled.
 	 */
-	public function test_block_editor_publish_with_the_box_unchecked_sends_nothing() {
+	public function test_rest_publish_that_unticks_the_box_sends_nothing() {
 		self::log_in_as( 'editor' );
-		$entry_id = self::create_entry( self::create_coverage_with_canonical_url() );
-		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
-		wp_schedule_single_event( time() + Push_Notifications::REST_SEND_DELAY, Push_Notifications::SEND_HOOK, [ $entry_id ] );
+		$entry_id = self::create_draft_entry( self::create_coverage_with_canonical_url(), true );
 
-		self::save_meta_box( $entry_id, false );
+		$response = self::publish_through_rest( $entry_id, false );
 
+		$this->assertSame( 200, $response->get_status() );
 		$this->assertFalse( wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'The scheduled send should be cancelled.' );
 
 		do_action( Push_Notifications::SEND_HOOK, $entry_id );
 
 		$this->assertSame( [], self::get_sent_notifications() );
+	}
+
+	/**
+	 * Leaving the box ticked on a REST publish notifies followers once.
+	 */
+	public function test_rest_publish_with_the_box_left_ticked_sends_once() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_draft_entry( self::create_coverage_with_canonical_url(), true );
+
+		self::publish_through_rest( $entry_id, true );
+		do_action( Push_Notifications::SEND_HOOK, $entry_id );
+
+		$this->assertCount( 1, self::get_sent_notifications(), 'One notification should be sent.' );
+	}
+
+	/**
+	 * The editor panels read whether the entry's coverage can be notified.
+	 */
+	public function test_rest_response_says_whether_the_coverage_can_be_notified() {
+		self::log_in_as( 'editor' );
+		$ready   = self::create_draft_entry( self::create_coverage_with_canonical_url(), false );
+		$missing = self::create_draft_entry( self::create_coverage(), false );
+
+		foreach ( [
+			$ready   => true,
+			$missing => false,
+		] as $entry_id => $expected ) {
+			$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+			$request->set_param( 'context', 'edit' );
+
+			$this->assertSame( $expected, rest_do_request( $request )->get_data()[ Push_Notifications::NOTIFIABLE_FIELD ] );
+		}
 	}
 
 	/**
@@ -569,7 +603,7 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		wp_publish_post( $entry_id );
 
 		$this->assertSame( [], self::get_sent_notifications(), 'Nothing should be sent during the request.' );
-		$this->assertGreaterThan( time(), wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'The send should wait for the meta box save that follows.' );
+		$this->assertGreaterThan( time(), wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'The send should wait for the opt-in the save writes after the status.' );
 		$this->assertNotEmpty( get_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true ), 'The opt-in should be kept for the scheduled send.' );
 	}
 }

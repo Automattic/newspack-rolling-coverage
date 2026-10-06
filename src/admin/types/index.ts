@@ -16,6 +16,8 @@ import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
 
 interface AdminConfig {
 	page: string;
+	/** Whether OneSignal is set up, so entries can notify followers. */
+	canNotify?: boolean;
 	adminTitleSuffix: string;
 	availableAdapters?: Record< string, string >;
 	restBase: {

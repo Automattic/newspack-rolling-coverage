@@ -253,6 +253,8 @@ class Admin {
 			[ 'Newspack\Blocks', 'enqueue_block_editor_assets' ]
 		);
 
+		self::enqueue_coauthors_panel();
+
 		// Media library for Image/Gallery blocks.
 		wp_enqueue_media();
 
@@ -264,6 +266,55 @@ class Admin {
 			'newspack-rolling-coverage-admin',
 			'newspackRollingCoverageAdmin',
 			self::get_script_data( $hook_suffix )
+		);
+	}
+
+	/**
+	 * Loads Co-Authors Plus's Authors panel for Quick Edit. Co-Authors Plus
+	 * only loads it on the edit screens of the post types it supports, and
+	 * an admin page isn't one.
+	 */
+	private static function enqueue_coauthors_panel(): void {
+		global $coauthors_plus;
+
+		if (
+			! defined( 'COAUTHORS_PLUS_FILE' )
+			|| ! is_object( $coauthors_plus )
+			|| ! method_exists( $coauthors_plus, 'is_post_type_enabled' )
+			|| ! method_exists( $coauthors_plus, 'current_user_can_set_authors' )
+			|| ! $coauthors_plus->is_post_type_enabled( Post_Type::CPT_SLUG )
+			|| ! $coauthors_plus->current_user_can_set_authors()
+		) {
+			return;
+		}
+
+		$asset_file = dirname( COAUTHORS_PLUS_FILE ) . '/build/index.asset.php';
+
+		if ( ! file_exists( $asset_file ) ) {
+			return;
+		}
+
+		$asset = include $asset_file;
+
+		wp_enqueue_script(
+			'coauthors-sidebar-js',
+			plugins_url( 'build/index.js', COAUTHORS_PLUS_FILE ),
+			array_merge( $asset['dependencies'] ?? [], [ 'wp-editor' ] ),
+			$asset['version'] ?? false,
+			true
+		);
+
+		wp_set_script_translations(
+			'coauthors-sidebar-js',
+			'co-authors-plus',
+			dirname( COAUTHORS_PLUS_FILE ) . '/languages'
+		);
+
+		wp_enqueue_style(
+			'coauthors-sidebar-css',
+			plugins_url( 'build/style-index.css', COAUTHORS_PLUS_FILE ),
+			[],
+			$asset['version'] ?? false
 		);
 	}
 
@@ -321,6 +372,7 @@ class Admin {
 				'connectorApprovals' => AI_Service::get_connector_approvals_url(),
 			),
 			'postType'             => Post_Type::CPT_SLUG,
+			'canNotify'            => Push_Notifications::is_onesignal_configured(),
 			'taxonomy'             => Taxonomy::TAXONOMY_SLUG,
 			'taxMeta'              => array(
 				'statusKey'       => Taxonomy::STATUS_META_KEY,

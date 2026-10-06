@@ -2,8 +2,14 @@
  * External dependencies
  */
 import { useState } from '@wordpress/element';
-import { DropdownMenu, MenuGroup, MenuItem } from '@wordpress/components';
-import { useRegistry } from '@wordpress/data';
+import {
+	DropdownMenu,
+	MenuGroup,
+	MenuItem,
+	Modal,
+} from '@wordpress/components';
+import { useRegistry, useSelect } from '@wordpress/data';
+import { store as editorStore } from '@wordpress/editor';
 import { moreVertical } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
 
@@ -24,6 +30,19 @@ const EXCLUDED_ACTIONS = [
 ];
 
 /**
+ * Actions that work from the saved entry, so they'd miss or clash with
+ * Quick Edit's unsaved changes: opening it in the full editor, copying it
+ * into a breakout post, and locking or unlocking it.
+ */
+const SAVED_ENTRY_ACTIONS = [
+	'edit',
+	'edit-confirm',
+	'create-breakout',
+	'archive-entry',
+	'unarchive-entry',
+];
+
+/**
  * The entry's actions menu in the Quick Edit sidebar, standing in for the
  * post editor's, which `@wordpress/editor` doesn't export. It offers the
  * entries list's own row actions, so each one behaves as it does there.
@@ -35,6 +54,15 @@ function QuickEditEntryActions( {
 	actions,
 }: QuickEditEntryActionsProps ) {
 	const registry = useRegistry();
+	const isDirty = useSelect(
+		( select ) =>
+			(
+				select( editorStore ) as unknown as {
+					isEditedPostDirty: () => boolean;
+				}
+			 ).isEditedPostDirty(),
+		[]
+	);
 	const [ modalAction, setModalAction ] = useState< Action< Entry > | null >(
 		null
 	);
@@ -53,6 +81,11 @@ function QuickEditEntryActions( {
 		modalAction && 'RenderModal' in modalAction
 			? modalAction.RenderModal
 			: null;
+	const closeModal = () => setModalAction( null );
+	const labelOf = ( action: Action< Entry > ) =>
+		typeof action.label === 'function'
+			? action.label( [ entry ] )
+			: action.label;
 
 	return (
 		<>
@@ -69,6 +102,19 @@ function QuickEditEntryActions( {
 						{ eligible.map( ( action ) => (
 							<MenuItem
 								key={ action.id }
+								disabled={
+									isDirty &&
+									SAVED_ENTRY_ACTIONS.includes( action.id )
+								}
+								info={
+									isDirty &&
+									SAVED_ENTRY_ACTIONS.includes( action.id )
+										? __(
+												'Save your changes first.',
+												'newspack-rolling-coverage'
+											)
+										: undefined
+								}
 								onClick={ () => {
 									onClose();
 									if ( 'RenderModal' in action ) {
@@ -80,19 +126,23 @@ function QuickEditEntryActions( {
 									}
 								} }
 							>
-								{ typeof action.label === 'function'
-									? action.label( [ entry ] )
-									: action.label }
+								{ labelOf( action ) }
 							</MenuItem>
 						) ) }
 					</MenuGroup>
 				) }
 			</DropdownMenu>
-			{ RenderModal && (
-				<RenderModal
-					items={ [ entry ] }
-					closeModal={ () => setModalAction( null ) }
-				/>
+			{ modalAction && RenderModal && (
+				<Modal
+					title={ labelOf( modalAction ) }
+					onRequestClose={ closeModal }
+					size="medium"
+				>
+					<RenderModal
+						items={ [ entry ] }
+						closeModal={ closeModal }
+					/>
+				</Modal>
 			) }
 		</>
 	);
