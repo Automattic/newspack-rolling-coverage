@@ -20,11 +20,12 @@ import type { BlockEditorSelectors } from '../types';
  * The selected block's toolbar, pinned into the Quick Edit toolbar row the
  * way the post editor's Top Toolbar mode pins it.
  *
- * It reopens whenever a different block is selected and renders nothing
+ * It reopens whenever a block gets selected and renders nothing
  * without a selection, so the row never shows an empty gap. The chevron
  * hides it to give the document tools room. The `block-toolbar` popover
- * slot has to sit outside the clipped wrapper: the block switcher, the link
- * popover and "more rich text options" render into it.
+ * slot sits outside the wrapper because collapsing hides the wrapper
+ * outright, and the rich-text format toolbar (link popover, "more rich
+ * text options") renders into that slot.
  */
 function QuickEditBlockToolbar() {
 	const [ isCollapsed, setIsCollapsed ] = useState( false );

@@ -10,10 +10,10 @@ import {
 	__experimentalConfirmDialog as ConfirmDialog,
 } from '@wordpress/components';
 import { BlockCanvas, BlockList } from '@wordpress/block-editor';
-import { EditorProvider, EditorSnackbars, PostTitle } from '@wordpress/editor';
+import { EditorProvider, PostTitle } from '@wordpress/editor';
 import { useEntityRecord, store as coreStore } from '@wordpress/core-data';
 import { useDispatch, useRegistry } from '@wordpress/data';
-import { store as noticesStore } from '@wordpress/notices';
+import { SnackbarNotices, store as noticesStore } from '@wordpress/notices';
 import { store as preferencesStore } from '@wordpress/preferences';
 import { __ } from '@wordpress/i18n';
 
@@ -64,10 +64,12 @@ function useFixedToolbarPreference() {
  * Quick-edits an entry's title and content in the block editor without
  * leaving the entries list, laid out like P2's comment editor: one toolbar
  * row on top, the canvas, Cancel and Save at the bottom. The WordPress
- * `Modal` header is hidden; every control is ours.
+ * `Modal` header is hidden once the record loads; every control is ours.
  *
- * - Editor notices (success/error snackbars) render inside the
- *   `EditorProvider` via `<EditorSnackbars />`.
+ * - Save notices render inside the modal through `SnackbarNotices` from
+ *   `@wordpress/notices`, which replaces `EditorSnackbars` (deprecated in
+ *   WordPress 7.0, removed in 7.2). Its class name is what positions the
+ *   snackbar above the footer.
  * - Closing is guarded when unsaved edits exist (detected via
  *   `useEntityRecord().hasEdits`, backed by core-data's
  *   `hasEditsForEntityRecord`). A `ConfirmDialog` prompts before
@@ -78,7 +80,7 @@ function useFixedToolbarPreference() {
  *   off so its exit animation can't fire before the guard intercepts.
  *   Cancel in the footer goes through the guard instead.
  * - `EditorProvider` stays inside the Modal: its own helper modals
- *   (keyboard shortcuts, pattern rename and duplicate, media editor) must
+ *   (media editor, pattern rename and duplicate) must
  *   nest in this one, or opening them closes Quick Edit.
  * - The `Popover.Slot` inside the provider keeps the toolbar's popovers
  *   (block library, document overview, inspector) within the modal frame
@@ -199,7 +201,7 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 							onSaved={ onSaved }
 						/>
 					</div>
-					<EditorSnackbars />
+					<SnackbarNotices className="components-editor-notices__snackbar" />
 					<Popover.Slot />
 				</EditorProvider>
 			</Modal>

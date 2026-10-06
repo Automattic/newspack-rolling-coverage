@@ -12,6 +12,7 @@ import {
 import { useSelect } from '@wordpress/data';
 import { cog } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
+import type { MouseEvent } from 'react';
 
 /**
  * Internal dependencies
@@ -30,7 +31,12 @@ import type { BlockEditorSelectors } from '../types';
  * and would otherwise close and reopen it in one go; and focus landing in
  * another popover, which is how the color and font-size controls inside the
  * inspector render their pickers. `onFocusOutside` fires after focus has
- * settled, so `document.activeElement` is the element that took it.
+ * settled, so the gear's document reports the element that took it.
+ *
+ * The gear's `mousedown` is cancelled so a click never moves focus to it.
+ * Safari, and Firefox on macOS, do not focus a clicked button at all; the
+ * blur check would then see focus on `body` and close the popover just
+ * before the click reopened it.
  */
 function QuickEditInspector() {
 	const [ isOpen, setIsOpen ] = useState( false );
@@ -78,6 +84,7 @@ function QuickEditInspector() {
 				aria-expanded={ isOpen }
 				disabled={ ! hasBlockSelection }
 				accessibleWhenDisabled
+				onMouseDown={ ( event: MouseEvent ) => event.preventDefault() }
 				onClick={ () => setIsOpen( ( prev ) => ! prev ) }
 			/>
 			{ isOpen && (
