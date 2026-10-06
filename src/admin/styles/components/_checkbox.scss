@@ -1,3 +1,3 @@
-.components-checkbox-control__input:not(:disabled) ~ svg {
-	color: var(--wp-components-color-accent-inverted, #fff);
+.components-checkbox-control__input:not(:disabled, [aria-disabled="true"]) ~ svg {
+	color: var(--wp-components-color-accent-inverted, var(--wpds-color-foreground-interactive-brand-strong, #fff));
 }
