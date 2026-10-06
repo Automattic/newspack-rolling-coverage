@@ -293,7 +293,7 @@ class Post_Type {
 
 		// Post-meta for any chat-source adapter (Slack now, others in future).
 		$source_meta = [
-			// Entry origin — 'slack' for Slack-ingested entries vs 'wordpress' for admin-created; drives the Source column icon in DataViews.
+			// Entry origin: 'slack' for Slack-ingested entries, 'wordpress' for admin-created; drives the entries list's source marker and Source filter.
 			self::META_ENTRY_SOURCE      => [
 				'type'         => 'string',
 				'single'       => true,
