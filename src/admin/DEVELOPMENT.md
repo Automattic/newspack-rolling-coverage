@@ -8,7 +8,7 @@ Every entry records where it came from in the `rolling_coverage_entry_source` me
 
 The entries list has no Source column. The source shows as a marker before the title, rendered by the `title` field:
 
-- An unpinned entry shows its source's logo, a 10px glyph centered in a 24px box (`.newspack-rolling-coverage-entry-title__source`).
+- An unpinned entry shows its source's logo, a 10px glyph centered in the marker box (`.newspack-rolling-coverage-entry-title__source`). The box is 24px wide and one line of the title tall (`1lh`), so the marker centers on the title's first line whether the title wraps or not.
 - A pinned entry shows only the pin, never a pin and a logo. The pin's color carries the source instead: the regular text color for WordPress, the source's brand color for anything else (`#e3066a` for Slack, from `.newspack-rolling-coverage-entry-title__pin--slack`).
 - The marker's text ("From Slack", "Pinned, from WordPress") is hidden text for screen readers and the tooltip on hover, so color is never the only cue.
 
@@ -16,7 +16,7 @@ The `source` field stays defined, with no `render` and `enableHiding: false`. Da
 
 ## Adding a source
 
-The taxonomy already anticipates other chat platforms (Beeper, WhatsApp, Telegram). A new source needs each of these, or its entries read as WordPress in the list:
+The taxonomy already anticipates other chat platforms (Beeper, WhatsApp, Telegram). A new source needs each of these. Until it has them, its entries show the WordPress marker, yet "Source is WordPress" leaves them out, because the filter matches the stored slug:
 
 1. A `SOURCE_*` constant in `src/admin/utils/fields.ts`, recognized by `getEntrySource()`.
 2. An option in the `source` field's `elements`, so the filter offers it.

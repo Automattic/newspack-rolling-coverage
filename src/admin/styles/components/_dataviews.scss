@@ -19,10 +19,11 @@
 
 	.newspack-rolling-coverage-entry-title__source {
 		display: grid;
+		grid-template-rows: 100%;
 		place-items: center;
 		flex-shrink: 0;
 		width: wp-vars.$icon-size;
-		height: wp-vars.$icon-size;
+		height: 1lh;
 	}
 
 	.newspack-rolling-coverage-entry-title__pin {
