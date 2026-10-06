@@ -151,9 +151,20 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 		overlayClassName: 'newspack-rolling-coverage-quick-edit-overlay',
 	};
 
+	// While the record loads there is nothing of ours to click, so this
+	// render keeps the Modal's own header and close button: an entry that
+	// never resolves (deleted, or no longer editable) must still be
+	// closable.
 	if ( isResolving || ! typedRecord ) {
 		return (
-			<Modal { ...modalProps } onRequestClose={ onClose }>
+			<Modal
+				{ ...modalProps }
+				title={ __( 'Quick Edit', 'newspack-rolling-coverage' ) }
+				__experimentalHideHeader={ false }
+				isDismissible
+				shouldCloseOnEsc
+				onRequestClose={ onClose }
+			>
 				<div className="newspack-rolling-coverage-quick-edit__loading">
 					<Spinner />
 				</div>
