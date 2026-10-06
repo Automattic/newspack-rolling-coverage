@@ -201,6 +201,32 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Load the stand-in for Newspack's Block_Visibility, which hides any block
+	 * carrying a `zzHiddenFromPublic` attribute, and skip the test when the
+	 * real one is loaded.
+	 */
+	protected function use_block_visibility_stub(): void {
+		if ( ! class_exists( '\\Newspack\\Block_Visibility' ) ) {
+			require_once __DIR__ . '/stubs/class-block-visibility.php';
+		}
+
+		if ( ! defined( '\\Newspack\\Block_Visibility::IS_TEST_STUB' ) ) {
+			$this->markTestSkipped( 'Newspack is loaded; its visibility rules are tested there.' );
+		}
+	}
+
+	/**
+	 * A block Newspack hides from the public, as the Block_Visibility
+	 * stand-in marks it.
+	 *
+	 * @param string $text The paragraph's text.
+	 * @return string Serialized block.
+	 */
+	protected static function members_only_paragraph( string $text ): string {
+		return '<!-- wp:paragraph {"zzHiddenFromPublic":true} --><p>' . $text . '</p><!-- /wp:paragraph -->';
+	}
+
+	/**
 	 * Create an entry, optionally assigned to a coverage.
 	 *
 	 * @param int   $coverage_id Coverage term ID, or 0 for an unassigned entry.

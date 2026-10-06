@@ -79,6 +79,27 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A breakout post's title, built from an untitled entry's content, leaves
+	 * out what Newspack hides from the public: the post's title shows
+	 * wherever it's listed.
+	 */
+	public function test_breakout_title_leaves_out_members_only_text() {
+		$this->use_block_visibility_stub();
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_title'   => '',
+				'post_content' => self::members_only_paragraph( 'Members hear the result first.' ) . '<!-- wp:paragraph --><p>Doors open at 7pm.</p><!-- /wp:paragraph -->',
+			]
+		);
+
+		$breakout_post = get_post( self::break_out( $entry_id )->get_data()['breakoutPostId'] );
+
+		$this->assertSame( 'Doors open at 7pm.', $breakout_post->post_title );
+	}
+
+	/**
 	 * A title built from content keeps words apart across line breaks, and
 	 * keeps backslashes in the copied content.
 	 */

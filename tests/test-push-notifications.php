@@ -205,6 +205,37 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An untitled entry's notification text leaves out what Newspack hides
+	 * from the public, as every follower receives it. An entry with nothing
+	 * else to say isn't announced.
+	 */
+	public function test_untitled_entry_is_announced_without_members_only_text() {
+		$this->use_block_visibility_stub();
+		$coverage_id = self::create_coverage_with_canonical_url();
+		$entry       = static fn( string $content ) => self::create_entry(
+			$coverage_id,
+			[
+				'post_status'  => 'draft',
+				'post_title'   => '',
+				'post_excerpt' => '',
+				'post_content' => $content,
+			]
+		);
+		$mixed_id    = $entry( self::members_only_paragraph( 'Members hear the result first.' ) . '<!-- wp:paragraph --><p>Doors open at 7pm.</p><!-- /wp:paragraph -->' );
+		$hidden_id   = $entry( self::members_only_paragraph( 'Members hear the result first.' ) );
+
+		foreach ( [ $mixed_id, $hidden_id ] as $entry_id ) {
+			update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
+			wp_publish_post( $entry_id );
+		}
+
+		$sent_notifications = self::get_sent_notifications();
+
+		$this->assertCount( 1, $sent_notifications, 'Only the entry with public text should be announced.' );
+		$this->assertSame( 'Doors open at 7pm.', $sent_notifications[0]['content'] );
+	}
+
+	/**
 	 * The opt-in is spent by the send, so publishing the entry again after a
 	 * trip back to draft does not notify readers a second time.
 	 */

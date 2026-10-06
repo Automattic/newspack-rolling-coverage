@@ -210,13 +210,7 @@ https://www.youtube.com/watch?v=1
 	 * title and excerpt.
 	 */
 	public function test_members_only_content_stays_out_of_title_and_excerpt() {
-		if ( ! class_exists( '\Newspack\Block_Visibility' ) ) {
-			require_once __DIR__ . '/stubs/class-block-visibility.php';
-		}
-
-		if ( ! defined( '\\Newspack\\Block_Visibility::IS_TEST_STUB' ) ) {
-			$this->markTestSkipped( 'Newspack is loaded; its visibility rules are tested there.' );
-		}
+		$this->use_block_visibility_stub();
 
 		$hidden   = static fn( string $content ) => '<!-- wp:group {"zzHiddenFromPublic":true} --><div class="wp-block-group">' . $content . '</div><!-- /wp:group -->';
 		$photo_id = self::create_untitled_entry( $hidden( self::CAPTIONED_IMAGE ) );
