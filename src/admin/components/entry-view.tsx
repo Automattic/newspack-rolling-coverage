@@ -719,14 +719,16 @@ function EntryView() {
 					onSaved={ handleQuickEditSaved }
 				/>
 			) }
-			<ChangeAuthorDrawer
-				isOpen={ isChangeAuthorOpen }
-				items={ changeAuthorItems }
-				restNamespace={ config.restBaseUrls.restNamespace }
-				postType={ config.postType }
-				onClose={ () => setIsChangeAuthorOpen( false ) }
-				onChanged={ handleActionPerformed }
-			/>
+			{ config.capabilities.canChangeAuthors && (
+				<ChangeAuthorDrawer
+					isOpen={ isChangeAuthorOpen }
+					items={ changeAuthorItems }
+					restNamespace={ config.restBaseUrls.restNamespace }
+					postType={ config.postType }
+					onClose={ () => setIsChangeAuthorOpen( false ) }
+					onChanged={ handleActionPerformed }
+				/>
+			) }
 			{ canConnectSlack && (
 				<SlackConnectionDrawer
 					isOpen={ isSlackDrawerOpen }

@@ -1,7 +1,7 @@
 /**
  * WordPress dependencies
  */
-import { useEffect, useMemo, useState } from '@wordpress/element';
+import { useLayoutEffect, useMemo, useState } from '@wordpress/element';
 import { ComboboxControl, Notice } from '@wordpress/components';
 import { useDebounce } from '@wordpress/compose';
 import { store as coreStore } from '@wordpress/core-data';
@@ -66,7 +66,7 @@ function ChangeAuthorDrawer( {
 	const [ isBusy, setIsBusy ] = useState( false );
 	const [ error, setError ] = useState( '' );
 
-	useEffect( () => {
+	useLayoutEffect( () => {
 		if ( ! isOpen ) {
 			return;
 		}
@@ -102,6 +102,9 @@ function ChangeAuthorDrawer( {
 
 	const { authors, isLoading } = useSelect(
 		( select ) => {
+			if ( ! isOpen ) {
+				return { authors: null, isLoading: false };
+			}
 			const query = search
 				? { ...AUTHORS_QUERY, search, search_columns: [ 'name' ] }
 				: AUTHORS_QUERY;
@@ -112,7 +115,7 @@ function ChangeAuthorDrawer( {
 				isLoading: isResolving( 'getUsers', [ query ] ),
 			};
 		},
-		[ search ]
+		[ isOpen, search ]
 	);
 
 	const options = useMemo( () => {
@@ -216,7 +219,11 @@ function ChangeAuthorDrawer( {
 		<Drawer.Root
 			isOpen={ isOpen }
 			isDirty={ isDirty && ! isBusy }
-			onRequestClose={ onClose }
+			onRequestClose={ () => {
+				if ( ! isBusy ) {
+					onClose();
+				}
+			} }
 		>
 			<Drawer.Header>
 				<Drawer.Title>
