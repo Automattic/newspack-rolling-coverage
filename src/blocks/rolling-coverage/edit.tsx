@@ -139,7 +139,7 @@ const INNER_BLOCKS_LAYOUT = {
 };
 
 /**
- * What each choice of loading older entries does, as the help below it.
+ * What each choice of showing new entries does, as the help below it.
  */
 const NEW_ENTRIES_HELP: Record< string, () => string > = {
 	auto: () =>
@@ -150,11 +150,14 @@ const NEW_ENTRIES_HELP: Record< string, () => string > = {
 	button: () =>
 		/* translators: “Check for Updates” is the label of the button readers press. Keep the words used to translate it. */
 		__(
-			'Readers check for new entries with a Check for Updates button at the top of the feed. Nothing loads until they press it.',
+			'Readers check for new entries with a Check for Updates button at the top of the feed. No new entries load until they press it.',
 			'newspack-rolling-coverage'
 		),
 };
 
+/**
+ * What each choice of loading older entries does, as the help below it.
+ */
 const OLDER_ENTRIES_HELP: Record< string, () => string > = {
 	scroll: () =>
 		__(

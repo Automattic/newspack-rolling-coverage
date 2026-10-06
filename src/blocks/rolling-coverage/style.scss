@@ -260,7 +260,7 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 		clip-path: none;
 	}
 
-	> :where(:not(.newspack-rolling-coverage-entries, .newspack-rolling-coverage-status, .newspack-rolling-coverage-new-entries, .newspack-rolling-coverage-sentinel, .block-list-appender)),
+	> :where(:not(.newspack-rolling-coverage-entries, .newspack-rolling-coverage-status, .newspack-rolling-coverage-new-entries, .newspack-rolling-coverage-check-updates, .newspack-rolling-coverage-sentinel, .block-list-appender)),
 	> .newspack-rolling-coverage-entries > * {
 		--newspack-rolling-coverage-rule-side: left;
 		position: relative;
@@ -356,7 +356,7 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 		min-width: 8rem;
 	}
 
-	> :not(.newspack-rolling-coverage-status, .newspack-rolling-coverage-new-entries, .newspack-rolling-coverage-archived-notice, .newspack-rolling-coverage-pinned-card) ~ .newspack-rolling-coverage-entries {
+	> :not(.newspack-rolling-coverage-status, .newspack-rolling-coverage-new-entries, .newspack-rolling-coverage-check-updates, .newspack-rolling-coverage-archived-notice, .newspack-rolling-coverage-pinned-card) ~ .newspack-rolling-coverage-entries {
 		margin-inline-start: calc(-1 * var(--newspack-rolling-coverage-rule-column) - 1px);
 		padding-inline-start: var(--newspack-rolling-coverage-rule-column);
 		border-inline-start: 1px solid var(--newspack-rolling-coverage-rule-color);
@@ -374,7 +374,7 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 		scroll-padding-inline-start: 0;
 	}
 
-	#{$ruled-row} > :not(.newspack-rolling-coverage-status, .newspack-rolling-coverage-new-entries, .newspack-rolling-coverage-archived-notice, .newspack-rolling-coverage-pinned-card) ~ .newspack-rolling-coverage-entries {
+	#{$ruled-row} > :not(.newspack-rolling-coverage-status, .newspack-rolling-coverage-new-entries, .newspack-rolling-coverage-check-updates, .newspack-rolling-coverage-archived-notice, .newspack-rolling-coverage-pinned-card) ~ .newspack-rolling-coverage-entries {
 		margin-inline-start: 0;
 		margin-block-start: calc(-1 * var(--newspack-rolling-coverage-rule-row) - 1px);
 		padding-inline-start: 0;

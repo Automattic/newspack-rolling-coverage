@@ -34,6 +34,13 @@ const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 // How long the Check for Updates button shows the result of a check.
 const CHECK_MESSAGE_MS = 3000;
 
+/**
+ * How a poll ended: with a reply it applied, a failed request, a reload of
+ * the page, or not at all because another poll was running or the page was
+ * hidden.
+ */
+type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
+
 const STICKY_CARD_SELECTOR =
 	'.newspack-rolling-coverage-pinned-card.is-position-sticky';
 
@@ -446,6 +453,9 @@ function initBlock( root: HTMLElement ): void {
 	let lastCheckAt = 0;
 	let checkLabelTimeoutId: ReturnType< typeof setTimeout > | null = null;
 
+	// How many new entries have been added to the page since it loaded.
+	let insertedCount = 0;
+
 	// Whether a poll request is in flight. At most one poll is in flight or
 	// scheduled at a time, so tab switches and back/forward navigation can't
 	// start a second chain of polls.
@@ -696,6 +706,8 @@ function initBlock( root: HTMLElement ): void {
 		if ( entries.length === 0 ) {
 			return;
 		}
+
+		insertedCount += entries.length;
 
 		ownElement(
 			root,
@@ -1965,16 +1977,16 @@ function initBlock( root: HTMLElement ): void {
 	 * across poll batches. Takes the place of a poll already scheduled, and
 	 * does nothing while another poll is in flight or the page is hidden.
 	 *
-	 * @return {Promise<boolean>} Whether the poll got a reply it could use.
+	 * @return {Promise<PollOutcome>} How the poll ended.
 	 */
-	async function poll(): Promise< boolean > {
+	async function poll(): Promise< PollOutcome > {
 		if ( ! cursor || isPolling || document.hidden ) {
-			return false;
+			return 'skipped';
 		}
 
 		cancelPoll();
 		isPolling = true;
-		let isOk = false;
+		let outcome: PollOutcome = 'failed';
 
 		try {
 			const url = new URL( restBaseUrl );
@@ -1996,11 +2008,11 @@ function initBlock( root: HTMLElement ): void {
 
 				// The block was cleaned up meanwhile, so this reply is no longer its own.
 				if ( isDisposed ) {
-					return false;
+					return 'skipped';
 				}
 
 				minPollInterval = Number( data.minPollInterval ) || 0;
-				isOk = true;
+				outcome = 'ok';
 
 				if ( typeof data.status === 'string' ) {
 					polledStatus = data.status;
@@ -2023,7 +2035,7 @@ function initBlock( root: HTMLElement ): void {
 				) {
 					cleanup();
 					root.remove();
-					return isOk;
+					return outcome;
 				}
 
 				if ( data.overflow && isEntryView ) {
@@ -2032,18 +2044,19 @@ function initBlock( root: HTMLElement ): void {
 					// same cursor: polling ends here, and with it the count.
 					canCount = false;
 					showNewerCount();
-					return isOk;
+					return outcome;
 				}
 
 				// A capped feed shares its page with other content, so it never
-				// reloads it; its polls send the newest entries instead.
+				// reloads it; its polls send the newest entries instead. A reader
+				// who asked for updates gets the reload whatever the guard says.
 				if (
 					data.overflow &&
 					! latestCap &&
-					shouldReloadForOverflow()
+					( checksOnRequest || shouldReloadForOverflow() )
 				) {
 					window.location.reload();
-					return isOk;
+					return 'reloading';
 				}
 
 				if ( data.replace ) {
@@ -2074,7 +2087,7 @@ function initBlock( root: HTMLElement ): void {
 			schedulePoll();
 		}
 
-		return isOk;
+		return outcome;
 	}
 
 	/**
@@ -2362,10 +2375,9 @@ function initBlock( root: HTMLElement ): void {
 
 			// A repeat result only announces again if the region changes.
 			announce( '' );
-			checkButton.textContent = __(
-				'Checking…',
-				'newspack-rolling-coverage'
-			);
+			checkButton.textContent =
+				/* translators: Shown on the Check for Updates button while a check runs. */
+				__( 'Checking…', 'newspack-rolling-coverage' );
 			checkButton.setAttribute( 'aria-busy', 'true' );
 			// Unlike disabled, keeps focus on the button.
 			checkButton.setAttribute( 'aria-disabled', 'true' );
@@ -2398,27 +2410,42 @@ function initBlock( root: HTMLElement ): void {
 				await new Promise( ( resolve ) => setTimeout( resolve, wait ) );
 			}
 
+			// A poll skips a hidden page, so a check waits for the reader to return.
+			if ( document.hidden ) {
+				await new Promise< void >( ( resolve ) => {
+					const onShow = () => {
+						if ( ! document.hidden ) {
+							document.removeEventListener(
+								'visibilitychange',
+								onShow
+							);
+							resolve();
+						}
+					};
+
+					document.addEventListener( 'visibilitychange', onShow );
+				} );
+			}
+
 			if ( isDisposed ) {
 				return;
 			}
 
-			const shownIds = new Set(
-				ownElements( root, '[data-entry-id]', entriesList ).map(
-					( el ) => el.dataset.entryId
-				)
-			);
-			const isOk = await poll();
+			const insertedBefore = insertedCount;
+			const outcome = await poll();
 
 			lastCheckAt = Date.now();
 
-			if ( isDisposed ) {
+			// A reload is on its way, so the button stays busy until it lands.
+			if ( isDisposed || outcome === 'reloading' ) {
 				return;
 			}
 
 			setCheckBusy( false );
 
-			if ( ! isOk ) {
+			if ( outcome === 'failed' ) {
 				flashCheckLabel(
+					/* translators: Shown briefly on the Check for Updates button when a check fails. */
 					__( 'Couldn’t Check', 'newspack-rolling-coverage' )
 				);
 				announce(
@@ -2430,17 +2457,18 @@ function initBlock( root: HTMLElement ): void {
 				return;
 			}
 
-			if ( polledStatus !== 'active' ) {
-				checkControl.hidden = true;
+			if ( outcome === 'skipped' ) {
+				return;
 			}
 
-			const hasNew = ownElements(
-				root,
-				'[data-entry-id]',
-				entriesList
-			).some( ( el ) => ! shownIds.has( el.dataset.entryId ) );
+			// An ended coverage gets no new entries; a paused one may resume.
+			if ( polledStatus === 'archived' ) {
+				focusFromScript( entriesList );
+				checkControl.hidden = true;
+				return;
+			}
 
-			if ( ! hasNew ) {
+			if ( insertedCount === insertedBefore ) {
 				const label = noNewEntriesLabel( entryName );
 
 				flashCheckLabel( label );
