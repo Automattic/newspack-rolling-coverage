@@ -1,7 +1,7 @@
 /**
  * WordPress dependencies
  */
-import { __, _n, sprintf } from '@wordpress/i18n';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -10,6 +10,15 @@ import './style.scss';
 import { trackEvent, isConfigEnabled, EVENTS } from './analytics';
 import { keepRelativeDatesCurrent } from '../shared/relative-dates';
 import { POLL_EVENT } from '../shared/poll-event';
+import {
+	entriesAddedLabel,
+	loadingLatestLabel,
+	loadMoreFailedLabel,
+	newEntriesLabel,
+	newerEntriesLabel,
+	readEntryName,
+	showingLatestLabel,
+} from './entry-name';
 import type { PollEventDetail } from '../shared/poll-event';
 import type {
 	AdSlot,
@@ -251,53 +260,6 @@ function focusFromScript( element: HTMLElement, options?: FocusOptions ): void {
 }
 
 /**
- * The label of the control on a feed opened at a shared entry: the number of
- * newer entries, exact up to ten and from there the round number it has
- * passed, e.g. "10+ Newer Posts" for 11 to 50. Mirrors
- * Rolling_Coverage_Block::newer_posts_label().
- *
- * @param {number} count How many entries are newer.
- * @return {string} The label, or an empty string when there are none.
- */
-function newerPostsLabel( count: number ): string {
-	if ( count < 1 ) {
-		return '';
-	}
-
-	if ( count <= 10 ) {
-		return sprintf(
-			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
-			_n(
-				'%d Newer Post',
-				'%d Newer Posts',
-				count,
-				'newspack-rolling-coverage'
-			),
-			count
-		);
-	}
-
-	let floor = 10;
-
-	if ( count > 100 ) {
-		floor = 100;
-	} else if ( count > 50 ) {
-		floor = 50;
-	}
-
-	return sprintf(
-		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
-		_n(
-			'%d+ Newer Post',
-			'%d+ Newer Posts',
-			floor,
-			'newspack-rolling-coverage'
-		),
-		floor
-	);
-}
-
-/**
  * How far down the viewport the fixed and sticky elements over its top centre
  * reach, such as the admin bar and a sticky site header, so the floating
  * control and the sticky pinned cards can sit below them. An element taller
@@ -426,6 +388,7 @@ function initBlock( root: HTMLElement ): void {
 	const stopRelativeDates = keepRelativeDatesCurrent( root, entriesList );
 
 	const pollInterval = parseInt( root.dataset.pollInterval || '10', 10 );
+	const entryName = readEntryName( root );
 	const entriesPerPage = parseInt( root.dataset.entriesPerPage || '20', 10 );
 	const templateKey = root.dataset.templateKey || '';
 	const hostPostId = root.dataset.hostPostId || '0';
@@ -518,7 +481,7 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		const label = canCount
-			? newerPostsLabel( newerCount + countedEntryIds.size )
+			? newerEntriesLabel( newerCount + countedEntryIds.size, entryName )
 			: '';
 		const text = label || ownLabel;
 
@@ -740,18 +703,7 @@ function initBlock( root: HTMLElement ): void {
 
 		const shown = Math.min( entries.length, latestCap || entries.length );
 
-		announce(
-			sprintf(
-				/* translators: %d: number of new coverage entries just added. */
-				_n(
-					'%d new post added',
-					'%d new posts added',
-					shown,
-					'newspack-rolling-coverage'
-				),
-				shown
-			)
-		);
+		announce( entriesAddedLabel( shown, entryName ) );
 
 		if ( adSlotsToDisplay.length > 0 ) {
 			displayAdSlots( adSlotsToDisplay );
@@ -827,25 +779,6 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Label for the control that tells the reader new entries are waiting.
-	 *
-	 * @param {number} count How many new entries are waiting.
-	 * @return {string} The label.
-	 */
-	function newEntriesLabel( count: number ): string {
-		return sprintf(
-			/* translators: %d: number of new coverage entries waiting to be shown. */
-			_n(
-				'%d New Post',
-				'%d New Posts',
-				count,
-				'newspack-rolling-coverage'
-			),
-			count
-		);
-	}
-
-	/**
 	 * Adds entries to the pending queue.
 	 *
 	 * Updates the "X New Posts" control label and visibility.
@@ -860,7 +793,7 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		const label = newEntriesLabel( pendingNewEntries.length );
+		const label = newEntriesLabel( pendingNewEntries.length, entryName );
 
 		newEntriesLink.textContent = label;
 		newEntriesControl.hidden = false;
@@ -914,7 +847,8 @@ function initBlock( root: HTMLElement ): void {
 		) {
 			if ( pendingNewEntries.length > 0 ) {
 				newEntriesLink.textContent = newEntriesLabel(
-					pendingNewEntries.length
+					pendingNewEntries.length,
+					entryName
 				);
 			} else {
 				newEntriesControl.hidden = true;
@@ -1434,9 +1368,7 @@ function initBlock( root: HTMLElement ): void {
 	 */
 	async function jumpToLatest( url: string ): Promise< void > {
 		setJumping( true );
-		announce(
-			__( 'Loading the latest posts…', 'newspack-rolling-coverage' )
-		);
+		announce( loadingLatestLabel( entryName ) );
 
 		const fetched = await fetchLiveBlock( url );
 
@@ -1465,12 +1397,7 @@ function initBlock( root: HTMLElement ): void {
 				showLiveBlock( fetched.live, fetched.url );
 				window.scrollTo( { top: blockTopY(), behavior } );
 				focusFromScript( entriesList, { preventScroll: true } );
-				announce(
-					__(
-						'Showing the latest posts.',
-						'newspack-rolling-coverage'
-					)
-				);
+				announce( showingLatestLabel( entryName ) );
 			} catch {
 				navigate();
 			}
@@ -1757,7 +1684,7 @@ function initBlock( root: HTMLElement ): void {
 
 			if ( canCount && countedEntryIds.size !== countedBefore ) {
 				showNewerCount();
-				announce( newEntriesLabel( countedEntryIds.size ) );
+				announce( newEntriesLabel( countedEntryIds.size, entryName ) );
 			}
 
 			return;
@@ -2186,13 +2113,7 @@ function initBlock( root: HTMLElement ): void {
 	 */
 	function announceLoadMoreFailure(): void {
 		if ( loadMoreButton ) {
-			announce(
-				/* translators: Announced when pressing the Load More button fails to load older entries. */
-				__(
-					'Couldn’t load more entries. Try again.',
-					'newspack-rolling-coverage'
-				)
-			);
+			announce( loadMoreFailedLabel( entryName ) );
 		}
 	}
 

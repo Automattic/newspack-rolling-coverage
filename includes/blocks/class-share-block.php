@@ -72,8 +72,25 @@ class Share_Block {
 				[ 'class' => 'newspack-rolling-coverage-share-link wp-element-button wp-block-button__link' ]
 			),
 			esc_attr( $share_url ),
-			esc_attr( __( 'Share this entry', 'newspack-rolling-coverage' ) ),
+			esc_attr( self::aria_label() ),
 			esc_html( $label )
 		);
+	}
+
+	/**
+	 * The button's accessible name, in the site's own name for entries when
+	 * it sets one.
+	 *
+	 * @return string
+	 */
+	private static function aria_label(): string {
+		$word = Entry_Name::word( 1 );
+
+		if ( '' !== $word ) {
+			/* translators: %s: the site's own name for one coverage entry, as it reads mid-sentence. */
+			return sprintf( __( 'Share this %s', 'newspack-rolling-coverage' ), $word );
+		}
+
+		return __( 'Share this entry', 'newspack-rolling-coverage' );
 	}
 }

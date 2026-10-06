@@ -300,6 +300,7 @@ class Admin {
 				'aiSettings'    => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . AI_Settings::REST_ROUTE ) ),
 				'statusLabels'  => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Status_Labels::REST_ROUTE ) ),
 				'latestLabel'   => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Latest_Label::REST_ROUTE ) ),
+				'entryName'     => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Entry_Name::REST_ROUTE ) ),
 				'restNamespace' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/' ) ),
 				'posts'         => esc_url_raw( rest_url( 'wp/v2/posts' ) ),
 			),
@@ -345,6 +346,8 @@ class Admin {
 			'statusLabelMaxLength' => Status_Labels::MAX_LENGTH,
 			'latestLabelDefault'   => Latest_Label::get_default(),
 			'latestLabelMaxLength' => Latest_Label::MAX_LENGTH,
+			'entryNameDefaults'    => Entry_Name::get_defaults(),
+			'entryNameMaxLength'   => Entry_Name::MAX_LENGTH,
 		);
 	}
 }
