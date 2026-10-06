@@ -29,9 +29,6 @@ class Taxonomy {
 	// REST field holding the URL of the published page that displays the coverage.
 	const PAGE_URL_REST_FIELD = 'pageUrl';
 
-	// Option holding the coverage-to-page map.
-	const PAGE_IDS_OPTION = 'rolling_coverage_page_ids';
-
 	// Term meta key for disabling ads on a coverage term.
 	const ADS_DISABLED_META_KEY = 'rolling_coverage_ads_disabled';
 
@@ -89,22 +86,11 @@ class Taxonomy {
 	];
 
 	/**
-	 * Sites whose coverage-to-page map this request changed since it last
-	 * stored it, keyed by blog ID.
-	 *
-	 * @var array<int,true>
-	 */
-	private static $stale_page_ids = [];
-
-	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
-		add_action( 'post_updated', [ __CLASS__, 'flush_coverage_page_ids_on_update' ], 10, 3 );
-		add_action( 'transition_post_status', [ __CLASS__, 'flush_coverage_page_ids_on_status_change' ], 10, 3 );
-		add_action( 'deleted_post', [ __CLASS__, 'flush_coverage_page_ids_on_delete' ], 10, 2 );
 		add_action( 'created_' . self::TAXONOMY_SLUG, [ __CLASS__, 'set_term_created_date' ] );
 		add_action( 'edited_' . self::TAXONOMY_SLUG, [ __CLASS__, 'update_term_modified_date' ] );
 		add_action( 'added_term_meta', [ __CLASS__, 'maybe_snapshot_end_time' ], 10, 4 );
@@ -610,173 +596,8 @@ class Taxonomy {
 			return $canonical_url;
 		}
 
-		$post_id = self::get_coverage_page_ids()[ $coverage_id ] ?? 0;
+		$post_id = Placements::page_id( $coverage_id );
 
 		return $post_id ? (string) get_permalink( $post_id ) : '';
-	}
-
-	/**
-	 * Invalidates the coverage-to-page map when a published post showing the
-	 * block changes, or a post stops showing it. Other writes, such as
-	 * comment counts, entries and drafts, leave the map as it was.
-	 *
-	 * @param int      $post_id     Post ID.
-	 * @param \WP_Post $post_after  Post after the update.
-	 * @param \WP_Post $post_before Post before the update.
-	 */
-	public static function flush_coverage_page_ids_on_update( $post_id, $post_after, $post_before ): void {
-		if ( self::shows_coverage_block( $post_after ) || self::shows_coverage_block( $post_before ) ) {
-			self::flush_coverage_page_ids();
-		}
-	}
-
-	/**
-	 * Invalidates the coverage-to-page map when a post holding the block is
-	 * published or unpublished, including a scheduled post going live, which
-	 * changes its status without an update.
-	 *
-	 * @param string   $new_status New post status.
-	 * @param string   $old_status Old post status.
-	 * @param \WP_Post $post       Post object.
-	 */
-	public static function flush_coverage_page_ids_on_status_change( $new_status, $old_status, $post ): void {
-		if ( $new_status !== $old_status && in_array( 'publish', [ $new_status, $old_status ], true ) && self::holds_coverage_block( $post ) ) {
-			self::flush_coverage_page_ids();
-		}
-	}
-
-	/**
-	 * Invalidates the coverage-to-page map when a published post showing the
-	 * block is deleted without going through the trash.
-	 *
-	 * @param int      $post_id Post ID.
-	 * @param \WP_Post $post    Post object.
-	 */
-	public static function flush_coverage_page_ids_on_delete( $post_id, $post = null ): void {
-		if ( self::shows_coverage_block( $post ) ) {
-			self::flush_coverage_page_ids();
-		}
-	}
-
-	/**
-	 * Marks the current site's coverage-to-page map out of date, and has the
-	 * request rebuild the stored one once it ends. Readers keep the stored map
-	 * until then, so they never rebuild it themselves, and the request that
-	 * made the change, which is sure to see it, writes last.
-	 */
-	private static function flush_coverage_page_ids(): void {
-		self::$stale_page_ids[ get_current_blog_id() ] = true;
-
-		if ( ! has_action( 'shutdown', [ __CLASS__, 'rebuild_coverage_page_ids' ] ) ) {
-			add_action( 'shutdown', [ __CLASS__, 'rebuild_coverage_page_ids' ] );
-		}
-	}
-
-	/**
-	 * Rebuilds the stored coverage-to-page map if this request changed it
-	 * since it last read it.
-	 */
-	public static function rebuild_coverage_page_ids(): void {
-		foreach ( array_keys( self::$stale_page_ids ) as $blog_id ) {
-			$switched = get_current_blog_id() !== $blog_id && switch_to_blog( $blog_id );
-
-			self::get_coverage_page_ids();
-
-			if ( $switched ) {
-				restore_current_blog();
-			}
-		}
-	}
-
-	/**
-	 * Whether a post can be the coverage page and its content holds an
-	 * uncapped Rolling Coverage block. Capped blocks never make a post the
-	 * coverage page, so saving a post that only holds those keeps the map.
-	 *
-	 * @param mixed $post Post object.
-	 * @return bool
-	 */
-	private static function holds_coverage_block( $post ): bool {
-		if (
-			! $post instanceof \WP_Post ||
-			! self::can_host_coverage_block( $post->post_type ) ||
-			! str_contains( $post->post_content, '<!-- wp:' . Schema::BLOCK_NAME . ' ' )
-		) {
-			return false;
-		}
-
-		foreach ( Schema::flatten_blocks( parse_blocks( $post->post_content ) ) as $block ) {
-			if ( Schema::BLOCK_NAME === ( $block['blockName'] ?? '' ) && empty( $block['attrs']['latestOnly'] ) ) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	/**
-	 * Whether a post is published and holds a Rolling Coverage block, so the
-	 * coverage-to-page map may list it.
-	 *
-	 * @param mixed $post Post object.
-	 * @return bool
-	 */
-	private static function shows_coverage_block( $post ): bool {
-		return $post instanceof \WP_Post && 'publish' === $post->post_status && self::holds_coverage_block( $post );
-	}
-
-	/**
-	 * Whether posts of a type can be the page that shows a coverage.
-	 *
-	 * @param string $post_type Post type name.
-	 * @return bool
-	 */
-	private static function can_host_coverage_block( string $post_type ): bool {
-		return Post_Type::CPT_SLUG !== $post_type && 'attachment' !== $post_type && is_post_type_viewable( $post_type );
-	}
-
-	/**
-	 * Maps each coverage to the newest published post embedding it in an uncapped
-	 * block, since a capped block only shows a few entries and links here.
-	 *
-	 * @return array<int,int> Map of coverage term ID => post ID.
-	 */
-	private static function get_coverage_page_ids(): array {
-		$stored = isset( self::$stale_page_ids[ get_current_blog_id() ] ) ? false : get_option( self::PAGE_IDS_OPTION );
-
-		if ( is_array( $stored ) ) {
-			return $stored;
-		}
-
-		$post_types = array_values( array_filter( get_post_types(), [ __CLASS__, 'can_host_coverage_block' ] ) );
-
-		$map = [];
-
-		if ( $post_types ) {
-			global $wpdb;
-
-			$posts = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-				$wpdb->prepare(
-					// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-					"SELECT ID, post_content FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_password = '' AND post_type IN (" . implode( ',', array_fill( 0, count( $post_types ), '%s' ) ) . ') AND post_content LIKE %s ORDER BY post_date DESC, ID DESC',
-					array_merge( $post_types, [ '%' . $wpdb->esc_like( '<!-- wp:' . Schema::BLOCK_NAME . ' ' ) . '%' ] )
-				)
-			);
-
-			foreach ( $posts as $post ) {
-				foreach ( Schema::flatten_blocks( parse_blocks( $post->post_content ) ) as $block ) {
-					$coverage_id = (int) ( $block['attrs']['coverageId'] ?? 0 );
-
-					if ( Schema::BLOCK_NAME === ( $block['blockName'] ?? '' ) && $coverage_id && empty( $block['attrs']['latestOnly'] ) && ! isset( $map[ $coverage_id ] ) ) {
-						$map[ $coverage_id ] = (int) $post->ID;
-					}
-				}
-			}
-		}
-
-		update_option( self::PAGE_IDS_OPTION, $map, false );
-		unset( self::$stale_page_ids[ get_current_blog_id() ] );
-
-		return $map;
 	}
 }

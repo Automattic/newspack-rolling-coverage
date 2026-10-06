@@ -31,6 +31,7 @@ class Initializer {
 	private static function includes() {
 		Post_Type::init();
 		Taxonomy::init();
+		Placements::init();
 		Newest_Entry::init();
 		Slack::init();
 		Breakout::init();

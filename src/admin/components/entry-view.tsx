@@ -33,6 +33,8 @@ import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
 import { ChangeAuthorDrawer } from './change-author-drawer';
 import { SlackConnectionDrawer } from './slack-connection-drawer';
+import { PlacementsDrawer } from './placements-drawer';
+import { getPlacementsLink } from '../utils/placements';
 import { useConfirmDialog } from './confirm-dialog';
 import { getEntryActions } from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
@@ -514,11 +516,11 @@ function EntryView() {
 		[ canShowSlack, slackChannelLabel, routeCoverage, isRefreshingSlack ]
 	);
 
-	const pageUrl = routeCoverage?.pageUrl ?? '';
-	const showViewPage =
-		! isFirstLoad &&
-		routeCoverage !== null &&
-		( pageUrl !== '' || ! isEmpty );
+	const placementsLink = getPlacementsLink( routeCoverage );
+	const placementsKind = placementsLink.kind;
+	const pageUrl = placementsLink.kind === 'link' ? placementsLink.url : '';
+	const showViewPage = ! isFirstLoad && placementsKind !== 'none';
+	const [ isPlacementsOpen, setIsPlacementsOpen ] = useState( false );
 
 	const addEntryButton = useMemo(
 		() =>
@@ -557,7 +559,7 @@ function EntryView() {
 
 	const viewPageButton = useMemo(
 		() =>
-			pageUrl ? (
+			placementsKind === 'link' ? (
 				<Button
 					variant="secondary"
 					href={ pageUrl }
@@ -578,20 +580,12 @@ function EntryView() {
 			) : (
 				<Button
 					variant="secondary"
-					disabled
-					accessibleWhenDisabled
-					showTooltip
-					tooltipPosition="bottom"
-					label={ __( 'View Page', 'newspack-rolling-coverage' ) }
-					describedBy={ __(
-						'No published page shows this coverage yet. Add the Rolling Coverage block to a page and publish it.',
-						'newspack-rolling-coverage'
-					) }
+					onClick={ () => setIsPlacementsOpen( true ) }
 				>
-					{ __( 'View Page', 'newspack-rolling-coverage' ) }
+					{ __( 'View Pages', 'newspack-rolling-coverage' ) }
 				</Button>
 			),
-		[ pageUrl ]
+		[ placementsKind, pageUrl ]
 	);
 
 	const headerActions = useMemo(
@@ -729,6 +723,11 @@ function EntryView() {
 					onChanged={ handleActionPerformed }
 				/>
 			) }
+			<PlacementsDrawer
+				isOpen={ isPlacementsOpen }
+				coverage={ routeCoverage }
+				onClose={ () => setIsPlacementsOpen( false ) }
+			/>
 			{ canConnectSlack && (
 				<SlackConnectionDrawer
 					isOpen={ isSlackDrawerOpen }

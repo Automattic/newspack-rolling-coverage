@@ -6,6 +6,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Placements;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Taxonomy;
@@ -378,13 +379,30 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	 * @return bool
 	 */
 	private static function clears_page_lookup( callable $action ): bool {
-		Taxonomy::rebuild_coverage_page_ids();
-		update_option( Taxonomy::PAGE_IDS_OPTION, [ 1 => 1 ], false );
+		$sentinel = self::stored_map( [ 1 => 1 ] );
+
+		Placements::rebuild();
+		update_option( Placements::OPTION, $sentinel, false );
 
 		$action();
-		Taxonomy::rebuild_coverage_page_ids();
+		Placements::rebuild();
 
-		return [ 1 => 1 ] !== get_option( Taxonomy::PAGE_IDS_OPTION );
+		return get_option( Placements::OPTION ) !== $sentinel;
+	}
+
+	/**
+	 * A stored placements map holding only the given page lookup.
+	 *
+	 * @param array $pages Map of coverage ID => page ID.
+	 * @return array
+	 */
+	private static function stored_map( array $pages ): array {
+		return [
+			'pages'    => $pages,
+			'places'   => [],
+			'breakout' => [],
+			'patterns' => [],
+		];
 	}
 
 	/**
@@ -394,8 +412,8 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	 */
 	public function test_a_change_rebuilds_the_stored_page_lookup_once_the_request_ends() {
 		$coverage_id = self::create_coverage();
-		Taxonomy::rebuild_coverage_page_ids();
-		update_option( Taxonomy::PAGE_IDS_OPTION, [], false );
+		Placements::rebuild();
+		update_option( Placements::OPTION, self::stored_map( [] ), false );
 		remove_all_actions( 'shutdown' );
 
 		$page_id = self::factory()->post->create(
@@ -406,7 +424,7 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 			]
 		);
 
-		$this->assertSame( [], get_option( Taxonomy::PAGE_IDS_OPTION ), 'Readers keep the stored map until the request ends.' );
+		$this->assertSame( self::stored_map( [] ), get_option( Placements::OPTION ), 'Readers keep the stored map until the request ends.' );
 		$this->assertSame( get_permalink( $page_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'The request that made the change sees it straight away.' );
 
 		wp_update_post(
@@ -415,10 +433,10 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 				'post_title' => 'Renamed',
 			]
 		);
-		update_option( Taxonomy::PAGE_IDS_OPTION, [], false );
+		update_option( Placements::OPTION, self::stored_map( [] ), false );
 		do_action( 'shutdown' );
 
-		$this->assertSame( [ $coverage_id => $page_id ], get_option( Taxonomy::PAGE_IDS_OPTION ), 'The end of the request overwrites whatever a reader stored.' );
+		$this->assertSame( [ $coverage_id => $page_id ], get_option( Placements::OPTION )['pages'], 'The end of the request overwrites whatever a reader stored.' );
 	}
 
 	/**
@@ -499,7 +517,7 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 			),
 			'An approved comment on the page keeps the lookup.'
 		);
-		$this->assertFalse(
+		$this->assertTrue(
 			self::clears_page_lookup(
 				fn() => self::factory()->post->create(
 					[
@@ -508,7 +526,7 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 					]
 				)
 			),
-			'A page holding only a capped block keeps the lookup.'
+			'A capped block is a placement too, so a page holding one clears the lookup.'
 		);
 		$this->assertTrue(
 			self::clears_page_lookup(

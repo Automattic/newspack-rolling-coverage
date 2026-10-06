@@ -1779,7 +1779,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		remove_filter( 'query', $count );
 
 		$this->assertSame( 0, $without );
-		$this->assertSame( 1, $scans );
+		$this->assertSame( 2, $scans, 'One map build: the synced patterns, then the posts.' );
 		$this->assertStringContainsString( 'See all updates', $html );
 	}
 

@@ -17,6 +17,7 @@ import { useCoverages } from '../hooks/useCoverages';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { CoverageDrawer } from './coverage-drawer';
 import { SlackConnectionDrawer } from './slack-connection-drawer';
+import { PlacementsDrawer } from './placements-drawer';
 import SettingsModal from './settings-modal';
 import { useConfirmDialog } from './confirm-dialog';
 import { getCoverageActions } from '../actions/coverage-actions';
@@ -50,6 +51,15 @@ function CoverageView() {
 	const handleOpenSlackConnect = useCallback( ( coverage: Coverage ) => {
 		setSlackCoverage( coverage );
 		setIsSlackDrawerOpen( true );
+	}, [] );
+
+	const [ isPlacementsOpen, setIsPlacementsOpen ] = useState( false );
+	const [ placementsCoverage, setPlacementsCoverage ] =
+		useState< Coverage | null >( null );
+
+	const handleOpenPlacements = useCallback( ( coverage: Coverage ) => {
+		setPlacementsCoverage( coverage );
+		setIsPlacementsOpen( true );
 	}, [] );
 
 	const canConnectSlack =
@@ -192,7 +202,8 @@ function CoverageView() {
 				handleNavigateToEntries,
 				handleOpenEdit,
 				handleOpenSlackConnect,
-				requestConfirm
+				requestConfirm,
+				handleOpenPlacements
 			),
 		[
 			config,
@@ -201,6 +212,7 @@ function CoverageView() {
 			handleOpenEdit,
 			handleOpenSlackConnect,
 			requestConfirm,
+			handleOpenPlacements,
 		]
 	);
 
@@ -272,6 +284,11 @@ function CoverageView() {
 				coverage={ slackCoverage }
 				onClose={ handleCloseSlackDrawer }
 				onSaved={ handleSaved }
+			/>
+			<PlacementsDrawer
+				isOpen={ isPlacementsOpen }
+				coverage={ placementsCoverage }
+				onClose={ () => setIsPlacementsOpen( false ) }
 			/>
 			{ isSettingsOpen && (
 				<SettingsModal
