@@ -27,9 +27,7 @@ import {
 	FLASH_FEED_STYLE,
 	tickerEntryTemplate,
 	tickerHeader,
-	tickerFooter,
 	TICKER_FEED_LAYOUT,
-	TICKER_FEED_STYLE,
 	RULED_FEED_CLASS,
 	splitEntryTemplate,
 	SPLIT_FEED_LAYOUT,
@@ -194,8 +192,9 @@ export function bylineInnerTemplate(): TemplateItem[] {
 
 /**
  * The Ticker layout's inner-blocks template: the coverage's status and name
- * beside the three latest entries' headlines, then a link to the coverage
- * page, with a rule in every gap between them.
+ * beside the latest entries' headlines, on one line that scrolls when they
+ * don't fit, then a link to the coverage page, with a rule in every gap
+ * between them.
  *
  * @return {TemplateItem[]} The template.
  */
@@ -205,10 +204,10 @@ export function tickerInnerTemplate(): TemplateItem[] {
 			[
 				tickerHeader( themeFontSizeSlugs() ),
 				...tickerEntryTemplate( paletteSlugs() ),
-				tickerFooter(),
+				allUpdatesLink(),
 			],
 			'var:preset|spacing|40',
-			TICKER_FEED_STYLE,
+			{},
 			TICKER_FEED_LAYOUT,
 			{ className: RULED_FEED_CLASS, align: 'wide' }
 		),

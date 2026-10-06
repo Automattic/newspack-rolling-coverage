@@ -1457,38 +1457,20 @@ function flashEntryTemplate(): TemplateItem[] {
 }
 
 /**
- * How many columns the Ticker layout's grid has at its widest: the header,
- * then the three latest entries.
- */
-const TICKER_COLUMNS = 4;
-
-/**
- * How many columns the Ticker layout's grid has on tablets and on phones.
- */
-const TICKER_TABLET_COLUMNS = 3;
-const TICKER_MOBILE_COLUMNS = 1;
-
-/**
- * The Ticker layout's Feed layout: a grid of four columns.
+ * The Ticker layout's Feed layout: a wrapping row. The ruled Feed's
+ * stylesheet keeps the entries on one line that scrolls, beside the header
+ * or under it in a narrow Feed, and puts the footer on a line of its own.
  */
 const TICKER_FEED_LAYOUT = {
-	type: 'grid',
-	columnCount: TICKER_COLUMNS,
+	type: 'flex',
+	orientation: 'horizontal',
+	flexWrap: 'wrap',
+	justifyContent: 'left',
+	verticalAlignment: 'stretch',
 };
 
 /**
- * The Ticker layout's Feed style: three columns on tablets and one on
- * phones.
- */
-const TICKER_FEED_STYLE = {
-	'@tablet': { layout: { columnCount: TICKER_TABLET_COLUMNS } },
-	'@mobile': { layout: { columnCount: TICKER_MOBILE_COLUMNS } },
-};
-
-/**
- * The Ticker layout's header: the coverage's status over its name, at the
- * top of the grid's first cell, then across the row once the entries fill
- * one below it.
+ * The Ticker layout's header: the coverage's status over its name.
  *
  * @param {string[]} sizes The theme's font size slugs.
  * @return {TemplateItem} The group.
@@ -1502,11 +1484,7 @@ function tickerHeader( sizes: string[] ): TemplateItem {
 				orientation: 'vertical',
 				justifyContent: 'left',
 			},
-			style: {
-				'@tablet': { layout: { columnSpan: TICKER_TABLET_COLUMNS } },
-				'@mobile': { layout: { columnSpan: TICKER_MOBILE_COLUMNS } },
-				spacing: { blockGap: '0.25em' },
-			},
+			style: { spacing: { blockGap: '0.25em' } },
 			metadata: { name: __( 'Header', 'newspack-rolling-coverage' ) },
 		},
 		[
@@ -1514,22 +1492,6 @@ function tickerHeader( sizes: string[] ): TemplateItem {
 			coverageNameHeading( themeFontSize( sizes, 'medium', 'normal' ) ),
 		],
 	];
-}
-
-/**
- * The Ticker layout's footer: the link to the coverage page across the
- * grid's full width.
- *
- * @return {TemplateItem} The paragraph.
- */
-function tickerFooter(): TemplateItem {
-	return allUpdatesLink( {
-		style: {
-			layout: { columnSpan: TICKER_COLUMNS },
-			'@tablet': { layout: { columnSpan: TICKER_TABLET_COLUMNS } },
-			'@mobile': { layout: { columnSpan: TICKER_MOBILE_COLUMNS } },
-		},
-	} );
 }
 
 /**
@@ -3170,9 +3132,7 @@ export {
 	FLASH_FEED_STYLE,
 	tickerEntryTemplate,
 	tickerHeader,
-	tickerFooter,
 	TICKER_FEED_LAYOUT,
-	TICKER_FEED_STYLE,
 	RULED_FEED_CLASS,
 	splitEntryTemplate,
 	entryPreviewPlacement,
