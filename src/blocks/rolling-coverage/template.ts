@@ -1356,8 +1356,8 @@ const FLASH_BAR_STYLE = {
 		padding: {
 			top: 'var:preset|spacing|30',
 			bottom: 'var:preset|spacing|30',
-			left: 'var:preset|spacing|50',
-			right: 'var:preset|spacing|50',
+			left: 'var:preset|spacing|30',
+			right: 'var:preset|spacing|30',
 		},
 	},
 };
