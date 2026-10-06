@@ -1005,6 +1005,7 @@ class Rolling_Coverage_Block {
 					'layoutCategoryId'            => Layout::get_pattern_category_id(),
 					'entryPostType'               => Post_Type::CPT_SLUG,
 					'showAvatars'                 => (bool) get_option( 'show_avatars' ),
+					'entryPlural'                 => Entry_Name::plural_or_default(),
 					'sampleAvatarUrls'            => [
 						'mq' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/mq.svg' ),
 						'ta' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/ta.svg' ),

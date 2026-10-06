@@ -149,6 +149,18 @@ class Entry_Name {
 	}
 
 	/**
+	 * The plural the site uses for entries, or the built-in one when it sets
+	 * none, as it reads mid-sentence.
+	 *
+	 * @return string
+	 */
+	public static function plural_or_default(): string {
+		$word = self::word( 2 );
+
+		return '' !== $word ? $word : self::get_defaults()['plural'];
+	}
+
+	/**
 	 * The site's word for a count of entries as a button shows it, or an
 	 * empty string when the site sets none.
 	 *

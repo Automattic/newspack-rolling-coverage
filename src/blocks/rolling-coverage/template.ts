@@ -3,11 +3,12 @@
  */
 import { getSettings } from '@wordpress/date';
 import { escapeHTML } from '@wordpress/escape-html';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
+import { ENTRY_PLURAL } from './config';
 import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
 import type { TemplateItem } from './types';
@@ -295,8 +296,21 @@ function shareLink(): TemplateItem {
 }
 
 /**
- * The "See all updates" link to the coverage page, shown once by a capped
- * feed.
+ * The text a new layout's link to the coverage page starts with, in the
+ * site's own plural for entries.
+ *
+ * @return {string} The link text.
+ */
+function allUpdatesText(): string {
+	return sprintf(
+		/* translators: %s: the site's name for several coverage entries, as it reads mid-sentence, e.g. "entries" or "updates". */
+		__( 'See all %s', 'newspack-rolling-coverage' ),
+		ENTRY_PLURAL
+	);
+}
+
+/**
+ * The link to the coverage page, shown once by a capped feed.
  *
  * @param {Object} attributes Extra paragraph settings, such as its alignment.
  * @return {TemplateItem} The paragraph.
@@ -308,13 +322,9 @@ function allUpdatesLink(
 		'core/paragraph',
 		{
 			className: `use-header-font ${ ALL_UPDATES_CLASS }`,
-			content: placeholderLink(
-				__( 'See all updates', 'newspack-rolling-coverage' )
-			),
+			content: placeholderLink( allUpdatesText() ),
 			fontSize: 'small',
-			metadata: {
-				name: __( 'See all updates', 'newspack-rolling-coverage' ),
-			},
+			metadata: { name: allUpdatesText() },
 			...attributes,
 		},
 	];
@@ -2003,7 +2013,7 @@ function isCoverageNameHeading( block: {
  * @param {Object} block            The block.
  * @param {string} block.name       Block name.
  * @param {Object} block.attributes Block attributes.
- * @return {boolean} Whether it's the "See all updates" paragraph.
+ * @return {boolean} Whether it's the all-updates paragraph.
  */
 function isAllUpdatesParagraph( block: {
 	name: string;
@@ -2021,7 +2031,7 @@ function isAllUpdatesParagraph( block: {
 /**
  * Whether a block belongs to the coverage rather than to each entry, so it
  * renders once: the Follow Coverage block, the Coverage Status block, a
- * heading bound to the coverage's name, the "See all updates" paragraph, or
+ * heading bound to the coverage's name, the all-updates paragraph, or
  * a block holding one at any depth, mirroring
  * Entry_Bindings::is_coverage_item(). The pinned card and the entry group
  * always belong to each entry, whatever they hold.
@@ -2218,7 +2228,7 @@ function followBlockIds(
 }
 
 /**
- * The blocks without the "See all updates" paragraph, at any depth, as the
+ * The blocks without the all-updates paragraph, at any depth, as the
  * site renders them where the link has nothing to show.
  *
  * @param {Object[]} blocks The blocks.
@@ -2231,7 +2241,7 @@ function withoutAllUpdatesParagraph<
 }
 
 /**
- * The client IDs of the "See all updates" paragraphs among the blocks, at
+ * The client IDs of the all-updates paragraphs among the blocks, at
  * any depth.
  *
  * @param {Object[]} blocks The blocks.
