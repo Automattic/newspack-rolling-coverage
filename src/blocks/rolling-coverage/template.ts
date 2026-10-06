@@ -1365,18 +1365,9 @@ const FLASH_BAR_STYLE = {
 const FLASH_FEED_LAYOUT = {
 	type: 'flex',
 	orientation: 'horizontal',
-	flexWrap: 'wrap',
+	flexWrap: 'nowrap',
 	justifyContent: 'left',
 	verticalAlignment: 'center',
-};
-
-const FLASH_STACKED_LAYOUT = {
-	layout: { orientation: 'vertical', justifyContent: 'left' },
-};
-
-const FLASH_FEED_STYLE = {
-	'@tablet': FLASH_STACKED_LAYOUT,
-	'@mobile': FLASH_STACKED_LAYOUT,
 };
 
 /**
@@ -1403,8 +1394,8 @@ function flashBar( feed: TemplateItem ): TemplateItem {
 
 /**
  * The Flash layout's per-entry template: the time and the entry's text on one
- * row. The pinned card matches the regular entry, since a capped feed ignores
- * pinning.
+ * line, the text cut short to fit. Phones hide the time. The pinned card
+ * matches the regular entry, since a capped feed ignores pinning.
  *
  * @return {TemplateItem[]} The template.
  */
@@ -1416,7 +1407,7 @@ function flashEntryTemplate(): TemplateItem[] {
 			lock: LOCKED_IN_PLACE,
 			layout: {
 				type: 'flex',
-				flexWrap: 'wrap',
+				flexWrap: 'nowrap',
 				verticalAlignment: 'center',
 			},
 			style: { spacing: { blockGap: 'var:preset|spacing|30' } },
@@ -1430,6 +1421,10 @@ function flashEntryTemplate(): TemplateItem[] {
 					format: siteTimeFormat(),
 					fontSize: 'small',
 					style: { typography: { fontWeight: '700' } },
+					metadata: {
+						...POST_DATE_ATTRIBUTES.metadata,
+						blockVisibility: { viewport: { mobile: false } },
+					},
 				},
 			],
 			[
@@ -3129,7 +3124,6 @@ export {
 	flashEntryTemplate,
 	flashBar,
 	FLASH_FEED_LAYOUT,
-	FLASH_FEED_STYLE,
 	tickerEntryTemplate,
 	tickerHeader,
 	TICKER_FEED_LAYOUT,
