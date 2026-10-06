@@ -54,16 +54,15 @@ import type {
  */
 function useQuickEditRegistry() {
 	const parent = useRegistry();
-	return useMemo( () => {
-		const registry = createRegistry( {}, parent );
-		registry.register( preferencesStore );
+	const [ registry ] = useState( () => {
+		const child = createRegistry( {}, parent );
+		child.register( preferencesStore );
 		(
-			registry.dispatch(
-				preferencesStore
-			) as unknown as PreferencesActions
+			child.dispatch( preferencesStore ) as unknown as PreferencesActions
 		 ).set( 'core', 'fixedToolbar', true );
-		return registry;
-	}, [ parent ] );
+		return child;
+	} );
+	return registry;
 }
 
 /**
