@@ -3,9 +3,9 @@
  */
 import { useMemo, useState } from '@wordpress/element';
 import { Button, ComboboxControl, Notice } from '@wordpress/components';
-import { debounce } from '@wordpress/compose';
+import { useDebounce } from '@wordpress/compose';
 import { store as coreStore } from '@wordpress/core-data';
-import { useSelect } from '@wordpress/data';
+import { useDispatch, useSelect } from '@wordpress/data';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { Stack, Text } from '@wordpress/ui';
@@ -35,6 +35,8 @@ const AUTHORS_QUERY = {
 function ChangeAuthorModal( {
 	items,
 	restNamespace,
+	postType,
+	hasCoauthors,
 	onClose,
 	onChanged,
 }: ChangeAuthorModalProps ) {
@@ -48,17 +50,16 @@ function ChangeAuthorModal( {
 			: undefined;
 	}, [ items ] );
 
-	const [ authorId, setAuthorId ] = useState< number | null >(
-		sharedAuthor?.id ?? null
-	);
+	const [ picked, setPicked ] = useState<
+		{ id: number; name: string } | undefined
+	>( sharedAuthor );
+	const authorId = picked?.id;
 	const [ search, setSearch ] = useState( '' );
+	const { invalidateResolution } = useDispatch( coreStore );
 	const [ isBusy, setIsBusy ] = useState( false );
 	const [ error, setError ] = useState( '' );
 
-	const onFilterValueChange = useMemo(
-		() => debounce( ( value ) => setSearch( String( value ?? '' ) ), 300 ),
-		[]
-	);
+	const onFilterValueChange = useDebounce( setSearch, 300 );
 
 	const { authors, isLoading } = useSelect(
 		( select ) => {
@@ -81,18 +82,16 @@ function ChangeAuthorModal( {
 			label: decodeEntities( author.name ),
 		} ) );
 		if (
-			sharedAuthor &&
-			! fetched.some(
-				( option ) => option.value === String( sharedAuthor.id )
-			)
+			picked &&
+			! fetched.some( ( option ) => option.value === String( picked.id ) )
 		) {
 			fetched.unshift( {
-				value: String( sharedAuthor.id ),
-				label: decodeEntities( sharedAuthor.name ),
+				value: String( picked.id ),
+				label: decodeEntities( picked.name ),
 			} );
 		}
 		return fetched;
-	}, [ authors, sharedAuthor ] );
+	}, [ authors, picked ] );
 
 	const handleSubmit = async () => {
 		if ( ! authorId ) {
@@ -123,6 +122,16 @@ function ChangeAuthorModal( {
 			return;
 		}
 
+		// Quick Edit keeps its own copy of each entry, which would still hold
+		// the old author and could save it back.
+		updated.forEach( ( { entryId } ) =>
+			invalidateResolution( 'getEntityRecord', [
+				'postType',
+				postType,
+				entryId,
+			] )
+		);
+
 		notifySuccess(
 			updated.length === 1
 				? __( 'Author changed.', 'newspack-rolling-coverage' )
@@ -137,13 +146,26 @@ function ChangeAuthorModal( {
 						updated.length
 					)
 		);
-		if ( failed.length ) {
+		if ( failed.length === 1 ) {
 			notifyError(
 				failed[ 0 ].error ||
 					__(
 						'Failed to change the author.',
 						'newspack-rolling-coverage'
 					)
+			);
+		} else if ( failed.length ) {
+			notifyError(
+				sprintf(
+					/* translators: %d: number of entries. */
+					_n(
+						'Couldn’t change the author of %d entry.',
+						'Couldn’t change the author of %d entries.',
+						failed.length,
+						'newspack-rolling-coverage'
+					),
+					failed.length
+				)
 			);
 		}
 		onChanged?.();
@@ -169,8 +191,10 @@ function ChangeAuthorModal( {
 						)
 					: sprintf(
 							/* translators: %d: number of entries. */
-							__(
+							_n(
+								'The person you choose replaces the current author of %d entry.',
 								'The person you choose replaces the current author of all %d entries.',
+								items.length,
 								'newspack-rolling-coverage'
 							),
 							items.length
@@ -182,9 +206,14 @@ function ChangeAuthorModal( {
 				label={ __( 'Author', 'newspack-rolling-coverage' ) }
 				options={ options }
 				value={ authorId ? String( authorId ) : null }
-				onChange={ ( value ) =>
-					setAuthorId( value ? Number( value ) : null )
-				}
+				onChange={ ( value ) => {
+					const option = options.find( ( o ) => o.value === value );
+					setPicked(
+						option
+							? { id: Number( option.value ), name: option.label }
+							: undefined
+					);
+				} }
 				onFilterValueChange={ onFilterValueChange }
 				isLoading={ isLoading }
 				allowReset={ false }
@@ -202,7 +231,9 @@ function ChangeAuthorModal( {
 					onClick={ handleSubmit }
 					isBusy={ isBusy }
 					disabled={
-						isBusy || ! authorId || authorId === sharedAuthor?.id
+						isBusy ||
+						! authorId ||
+						( ! hasCoauthors && authorId === sharedAuthor?.id )
 					}
 				>
 					{ __( 'Change Author', 'newspack-rolling-coverage' ) }

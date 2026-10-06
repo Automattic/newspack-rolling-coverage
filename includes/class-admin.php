@@ -275,14 +275,11 @@ class Admin {
 	 * an admin page isn't one.
 	 */
 	private static function enqueue_coauthors_panel(): void {
-		global $coauthors_plus;
+		$coauthors_plus = Post_Type::coauthors_plus();
 
 		if (
 			! defined( 'COAUTHORS_PLUS_FILE' )
-			|| ! is_object( $coauthors_plus )
-			|| ! method_exists( $coauthors_plus, 'is_post_type_enabled' )
-			|| ! method_exists( $coauthors_plus, 'current_user_can_set_authors' )
-			|| ! $coauthors_plus->is_post_type_enabled( Post_Type::CPT_SLUG )
+			|| ! $coauthors_plus
 			|| ! $coauthors_plus->current_user_can_set_authors()
 		) {
 			return;
@@ -358,6 +355,7 @@ class Admin {
 			'capabilities'         => array(
 				'canEditPosts'        => current_user_can( 'edit_posts' ),
 				'canEditEntries'      => current_user_can( Post_Type::EDIT_ENTRIES_CAP ),
+				'canChangeAuthors'    => Post_Type::can_change_authors(),
 				'canManageTerms'      => current_user_can( 'manage_categories' ),
 				'canManageOptions'    => current_user_can( 'manage_options' ),
 				'canManageAiSettings' => current_user_can( 'edit_others_posts' ),
@@ -373,6 +371,7 @@ class Admin {
 			),
 			'postType'             => Post_Type::CPT_SLUG,
 			'canNotify'            => Push_Notifications::is_onesignal_configured(),
+			'hasCoauthors'         => null !== Post_Type::coauthors_plus(),
 			'taxonomy'             => Taxonomy::TAXONOMY_SLUG,
 			'taxMeta'              => array(
 				'statusKey'       => Taxonomy::STATUS_META_KEY,

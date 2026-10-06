@@ -636,11 +636,17 @@ class Post_Type {
 					'entry_ids' => [
 						'required' => true,
 						'type'     => 'array',
-						'items'    => [ 'type' => 'integer' ],
+						'minItems' => 1,
+						'maxItems' => 100,
+						'items'    => [
+							'type'    => 'integer',
+							'minimum' => 1,
+						],
 					],
 					'author_id' => [
 						'required' => true,
 						'type'     => 'integer',
+						'minimum'  => 1,
 					],
 				],
 			]
@@ -1022,16 +1028,17 @@ class Post_Type {
 	}
 
 	/**
-	 * Bump an entry's modified date so live feeds re-render it. This isn't an
-	 * edit, so the stored content is kept as it is: save filters would strip
-	 * HTML or block CSS the author could post but whoever triggers the touch
-	 * (or cron) can't.
+	 * Bump an entry's modified date so live feeds re-render it, saving any
+	 * other fields in `$changes` with it. The content isn't being edited, so
+	 * it's kept as stored: save filters would strip HTML or block CSS the
+	 * author could post but whoever triggers the touch (or cron) can't.
 	 *
-	 * @param int  $entry_id Entry post ID.
-	 * @param bool $wp_error Whether to return a WP_Error on failure.
+	 * @param int   $entry_id Entry post ID.
+	 * @param bool  $wp_error Whether to return a WP_Error on failure.
+	 * @param array $changes  Other post fields to save, such as `post_author`.
 	 * @return int|WP_Error The entry ID, 0 or a WP_Error on failure.
 	 */
-	public static function touch_entry( int $entry_id, bool $wp_error = false ) {
+	public static function touch_entry( int $entry_id, bool $wp_error = false, array $changes = [] ) {
 		$keep_stored_content = static function ( $data, $postarr, $unsanitized_postarr ) use ( $entry_id, &$keep_stored_content ) {
 			if ( $entry_id === (int) ( $postarr['ID'] ?? 0 ) ) {
 				// One save only: a hook that edits the entry during the touch still goes through kses.
@@ -1050,7 +1057,7 @@ class Post_Type {
 		add_filter( 'wp_insert_post_data', $keep_stored_content, 5, 3 );
 
 		try {
-			return wp_update_post( [ 'ID' => $entry_id ], $wp_error );
+			return wp_update_post( [ 'ID' => $entry_id ] + $changes, $wp_error );
 		} finally {
 			remove_filter( 'wp_insert_post_data', $keep_stored_content, 5 );
 		}
@@ -2373,12 +2380,16 @@ class Post_Type {
 
 	/**
 	 * Permission check for changing entries' author: crediting an entry to
-	 * someone else needs the same capability as editing others' entries.
+	 * someone else needs the same capability as editing others' entries, and
+	 * Co-Authors Plus's own say on who may set bylines when it's on.
 	 *
 	 * @return bool
 	 */
 	public static function can_change_authors(): bool {
-		return current_user_can( self::EDIT_ENTRIES_CAP );
+		$coauthors_plus = self::coauthors_plus();
+
+		return current_user_can( self::EDIT_ENTRIES_CAP )
+			&& ( ! $coauthors_plus || $coauthors_plus->current_user_can_set_authors() );
 	}
 
 	/**
@@ -2489,7 +2500,7 @@ class Post_Type {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public static function handle_bulk_change_author( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		$entry_ids = array_filter( array_map( 'intval', (array) $request->get_param( 'entry_ids' ) ) );
+		$entry_ids = array_unique( array_filter( array_map( 'intval', (array) $request->get_param( 'entry_ids' ) ) ) );
 		$author    = get_userdata( (int) $request->get_param( 'author_id' ) );
 
 		if ( empty( $entry_ids ) ) {
@@ -2531,15 +2542,16 @@ class Post_Type {
 				continue;
 			}
 
-			self::set_coauthor( $entry_id, $author );
+			if ( ! self::set_coauthor( $entry_id, $author ) ) {
+				$results[] = [
+					'entryId' => $entry_id,
+					'updated' => false,
+					'error'   => __( 'Co-Authors Plus couldn’t credit this entry to that person.', 'newspack-rolling-coverage' ),
+				];
+				continue;
+			}
 
-			$updated = wp_update_post(
-				[
-					'ID'          => $entry_id,
-					'post_author' => $author->ID,
-				],
-				true
-			);
+			$updated = self::touch_entry( $entry_id, true, [ 'post_author' => $author->ID ] );
 
 			$results[] = is_wp_error( $updated )
 				? [
@@ -2559,24 +2571,38 @@ class Post_Type {
 	/**
 	 * Makes a user an entry's only co-author when Co-Authors Plus is on for
 	 * entries. It runs before the `post_author` update because Co-Authors
-	 * Plus re-reads `post_author` from the author terms on every save.
+	 * Plus re-reads `post_author` from the author terms on every save, so
+	 * `post_updated` listeners already see the new author as the old one.
 	 *
 	 * @param int      $entry_id Entry post ID.
 	 * @param \WP_User $author   The new author.
+	 * @return bool False when Co-Authors Plus couldn't set the user.
 	 */
-	private static function set_coauthor( int $entry_id, \WP_User $author ): void {
+	private static function set_coauthor( int $entry_id, \WP_User $author ): bool {
+		$coauthors_plus = self::coauthors_plus();
+
+		return ! $coauthors_plus || $coauthors_plus->add_coauthors( $entry_id, [ $author->user_nicename ] );
+	}
+
+	/**
+	 * Co-Authors Plus, when it's active and on for entries.
+	 *
+	 * @return object|null The plugin's main object, or null.
+	 */
+	public static function coauthors_plus(): ?object {
 		global $coauthors_plus;
 
 		if (
 			! is_object( $coauthors_plus )
 			|| ! method_exists( $coauthors_plus, 'is_post_type_enabled' )
+			|| ! method_exists( $coauthors_plus, 'current_user_can_set_authors' )
 			|| ! method_exists( $coauthors_plus, 'add_coauthors' )
 			|| ! $coauthors_plus->is_post_type_enabled( self::CPT_SLUG )
 		) {
-			return;
+			return null;
 		}
 
-		$coauthors_plus->add_coauthors( $entry_id, [ $author->user_nicename ] );
+		return $coauthors_plus;
 	}
 
 	/**

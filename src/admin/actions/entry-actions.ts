@@ -416,11 +416,15 @@ function getEntryActions(
 			modalHeader: __( 'Change Author', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
-				config.capabilities.canEditEntries && entry.status !== 'trash',
+				config.capabilities.canChangeAuthors &&
+				entry.status !== 'trash' &&
+				! isEntryLocked( entry ),
 			RenderModal: ( { items, closeModal } ) =>
 				createElement( ChangeAuthorModal, {
 					items,
 					restNamespace: config.restBaseUrls.restNamespace,
+					postType: config.postType,
+					hasCoauthors: config.hasCoauthors,
 					onClose: closeModal ?? ( () => {} ),
 					onChanged: onActionPerformed,
 				} ),

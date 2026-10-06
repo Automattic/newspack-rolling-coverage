@@ -18,6 +18,8 @@ interface AdminConfig {
 	page: string;
 	/** Whether OneSignal is set up, so entries can notify followers. */
 	canNotify?: boolean;
+	/** Whether Co-Authors Plus is on for entries. */
+	hasCoauthors: boolean;
 	adminTitleSuffix: string;
 	availableAdapters?: Record< string, string >;
 	restBase: {
@@ -41,6 +43,7 @@ interface AdminConfig {
 	capabilities: {
 		canEditPosts: boolean;
 		canEditEntries: boolean;
+		canChangeAuthors: boolean;
 		canManageTerms: boolean;
 		canManageOptions: boolean;
 		canManageAiSettings: boolean;
@@ -303,6 +306,8 @@ interface ChangeAuthorResult extends ApiResult {
 interface ChangeAuthorModalProps {
 	items: Entry[];
 	restNamespace: string;
+	postType: string;
+	hasCoauthors: boolean;
 	onClose: () => void;
 	onChanged?: () => void;
 }

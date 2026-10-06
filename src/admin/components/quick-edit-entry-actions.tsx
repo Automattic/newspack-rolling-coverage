@@ -20,13 +20,15 @@ import type { Action, Entry, QuickEditEntryActionsProps } from '../types';
 
 /**
  * Actions Quick Edit leaves out: opening Quick Edit itself, and the status
- * changes, which the header and the Status row make instead.
+ * and author changes, which the header, the Status row and the Author panel
+ * make instead.
  */
 const EXCLUDED_ACTIONS = [
 	'quick-edit',
 	'quick-edit-confirm',
 	'publish-entry',
 	'draft-entry',
+	'change-author',
 ];
 
 /**
