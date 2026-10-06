@@ -16,6 +16,8 @@ import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
 
 interface AdminConfig {
 	page: string;
+	/** Whether Co-Authors Plus is on for entries. */
+	hasCoauthors: boolean;
 	adminTitleSuffix: string;
 	availableAdapters?: Record< string, string >;
 	restBase: {
@@ -40,6 +42,7 @@ interface AdminConfig {
 	capabilities: {
 		canEditPosts: boolean;
 		canEditEntries: boolean;
+		canChangeAuthors: boolean;
 		canManageTerms: boolean;
 		canManageOptions: boolean;
 		canManageAiSettings: boolean;
@@ -289,6 +292,25 @@ interface BulkRestoreEntryResult {
 
 interface BulkRestoreResult extends ApiResult {
 	results?: BulkRestoreEntryResult[];
+}
+
+interface ChangeAuthorEntryResult {
+	entryId: number;
+	updated: boolean;
+	error?: string;
+}
+
+interface ChangeAuthorResult extends ApiResult {
+	results?: ChangeAuthorEntryResult[];
+}
+
+interface ChangeAuthorModalProps {
+	items: Entry[];
+	restNamespace: string;
+	postType: string;
+	hasCoauthors: boolean;
+	onClose: () => void;
+	onChanged?: () => void;
 }
 
 interface ConfirmModalContentProps {
@@ -706,6 +728,9 @@ export type {
 	SaveCoverageData,
 	BulkRestoreEntryResult,
 	BulkRestoreResult,
+	ChangeAuthorEntryResult,
+	ChangeAuthorResult,
+	ChangeAuthorModalProps,
 	AiSettings,
 	AiSettingsResult,
 	BreadcrumbItem,
