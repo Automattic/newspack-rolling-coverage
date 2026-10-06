@@ -90,6 +90,7 @@ function QuickEditToolbar() {
 							) }
 							isPressed={ isOpen }
 							aria-expanded={ isOpen }
+							aria-haspopup="true"
 							onClick={ onToggle }
 						/>
 					) }
