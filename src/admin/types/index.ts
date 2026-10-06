@@ -75,6 +75,9 @@ interface AdminConfig {
 	slack: {
 		isConfigured: boolean;
 	};
+	pushNotifications: {
+		isConfigured: boolean;
+	};
 	blockEditorSettings: Record< string, unknown >;
 }
 

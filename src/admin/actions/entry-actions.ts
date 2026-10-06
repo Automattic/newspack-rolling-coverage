@@ -190,10 +190,17 @@ function getEntryActions(
 							items.length
 						)
 					),
-					description: __(
-						'Readers with the coverage open see published entries within seconds.',
-						'newspack-rolling-coverage'
-					),
+					// The list doesn't show which entries will notify followers, and
+					// entries from Slack opt in on their own, so say it can happen.
+					description: config.pushNotifications.isConfigured
+						? __(
+								'Readers with the coverage open see published entries within seconds. Entries set to notify followers also send a push notification.',
+								'newspack-rolling-coverage'
+							)
+						: __(
+								'Readers with the coverage open see published entries within seconds.',
+								'newspack-rolling-coverage'
+							),
 					confirmLabel: __( 'Publish', 'newspack-rolling-coverage' ),
 					onConfirm: async () => {
 						const { failed, succeeded } = await runStatusBulk(

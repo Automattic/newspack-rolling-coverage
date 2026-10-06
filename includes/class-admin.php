@@ -331,6 +331,9 @@ class Admin {
 			'slack'                => array(
 				'isConfigured' => Slack_Config::is_configured(),
 			),
+			'pushNotifications'    => array(
+				'isConfigured' => Push_Notifications::is_onesignal_configured(),
+			),
 			'availableAdapters'    => array(
 				'slack' => __( 'Slack', 'newspack-rolling-coverage' ),
 			),
