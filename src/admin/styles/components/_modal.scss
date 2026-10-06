@@ -5,6 +5,10 @@
 	max-width: var(--wpds-dimension-surface-width-md, 400px);
 }
 
+.newspack-modal.newspack-rolling-coverage-settings {
+	max-width: wp-breakpoints.$break-medium - wp-vars.$grid-unit-20 * 2;
+}
+
 .newspack-rolling-coverage-settings__tabs {
 	flex-shrink: 0;
 	min-width: wp-vars.$grid-unit * 20;

@@ -233,6 +233,7 @@ function SettingsModal( { onClose }: { onClose: () => void } ) {
 			{ confirmDialog }
 			<Modal
 				size="large"
+				className="newspack-rolling-coverage-settings"
 				title={ __( 'Settings', 'newspack-rolling-coverage' ) }
 				onRequestClose={ handleClose }
 			>
