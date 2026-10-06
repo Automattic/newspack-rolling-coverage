@@ -146,12 +146,12 @@ function QuickEditSidebar( {
  *   whose editor store is invisible to selectors outside the provider.
  * - The built-in Modal close button is disabled (`isDismissible={ false }`)
  *   to prevent the exit animation from firing before the guard can
- *   intercept. Cancel in the header goes through the guard instead.
+ *   intercept. The header's own close button goes through the guard instead.
  * - `EditorProvider` stays inside the Modal: its own helper modals
  *   (keyboard shortcuts, pattern rename and duplicate, media editor) must
- *   nest in this one, or opening them closes Quick Edit. The header's Cancel
- *   and Save sit outside the provider, so `EditorRegistryBridge` hands them
- *   the editor's sub-registry.
+ *   nest in this one, or opening them closes Quick Edit. The header's save
+ *   and close buttons sit outside the provider, so `EditorRegistryBridge`
+ *   hands them the editor's sub-registry.
  *
  * @param {QuickEditModalProps} props Component props.
  */

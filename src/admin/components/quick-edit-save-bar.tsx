@@ -12,6 +12,7 @@ import {
 import { store as coreStore } from '@wordpress/core-data';
 import { store as noticesStore } from '@wordpress/notices';
 import { useDispatch, useSelect } from '@wordpress/data';
+import { close } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -29,8 +30,8 @@ const SavedState = PostSavedState as unknown as ComponentType;
 const PublishButton = PostPublishButton as unknown as ComponentType;
 
 /**
- * Cancel and save buttons for the Quick Edit modal header, with any
- * children placed between them.
+ * Save and close buttons for the Quick Edit modal header, with any children
+ * placed before them. Saving keeps Quick Edit open, as in the post editor.
  *
  * When the entry can be published, the save buttons are the post editor's
  * own (`PostSavedState` and `PostPublishButton`), so a draft offers Save
@@ -108,14 +109,6 @@ function QuickEditSaveBar( {
 
 	return (
 		<>
-			<Button
-				variant="tertiary"
-				onClick={ onClose }
-				disabled={ isSavingPost }
-				size="compact"
-			>
-				{ __( 'Cancel', 'newspack-rolling-coverage' ) }
-			</Button>
 			{ children }
 			{ canPublish && ! hasNonPostEntityChanges ? (
 				<>
@@ -133,6 +126,13 @@ function QuickEditSaveBar( {
 					{ __( 'Save', 'newspack-rolling-coverage' ) }
 				</Button>
 			) }
+			<Button
+				icon={ close }
+				label={ __( 'Close', 'newspack-rolling-coverage' ) }
+				onClick={ onClose }
+				disabled={ isSavingPost }
+				size="compact"
+			/>
 		</>
 	);
 }
