@@ -2,12 +2,20 @@
  * External dependencies
  */
 import apiFetch from '@wordpress/api-fetch';
+import { addQueryArgs } from '@wordpress/url';
 
 /**
  * Internal dependencies
  */
 import { handleApiError } from './api-error';
 import type { ApiResult, Coverage, SaveCoverageData } from '../types';
+
+/**
+ * Fields a single coverage is fetched with. Placements are only worked out
+ * when asked for by name.
+ */
+const COVERAGE_FIELDS =
+	'id,name,slug,taxonomy,description,meta,count,placements';
 
 /**
  * Updates the rolling_coverage_status meta of a coverage term.
@@ -92,7 +100,9 @@ async function getCoverage(
 ): Promise< Coverage | null > {
 	try {
 		return await apiFetch< Coverage >( {
-			url: `${ restBaseCoverages }/${ id }`,
+			url: addQueryArgs( `${ restBaseCoverages }/${ id }`, {
+				_fields: COVERAGE_FIELDS,
+			} ),
 			method: 'GET',
 		} );
 	} catch ( error ) {

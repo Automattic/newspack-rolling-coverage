@@ -105,6 +105,21 @@ interface HeaderState {
 
 type TabHeader = Pick< HeaderState, 'count' | 'isEmpty' >;
 
+/**
+ * A published place that shows a coverage, from the coverage's
+ * `placements` REST field.
+ */
+interface Placement {
+	id: string;
+	title: string;
+	type: string;
+	tags: string[];
+	viewUrl: string;
+	editUrl: string;
+	isMain: boolean;
+	breakout: boolean;
+}
+
 interface Coverage {
 	id: number;
 	name: string;
@@ -113,6 +128,7 @@ interface Coverage {
 	description: string;
 	count: number;
 	pageUrl?: string;
+	placements?: Placement[];
 	meta: {
 		rolling_coverage_status?: 'active' | 'paused' | 'archived' | 'trash';
 		rolling_coverage_canonical_url?: string;
@@ -311,6 +327,12 @@ interface ChangeAuthorDrawerProps {
 	postType: string;
 	onClose: () => void;
 	onChanged?: () => void;
+}
+
+interface PlacementsDrawerProps {
+	isOpen: boolean;
+	coverage: Coverage | null;
+	onClose: () => void;
 }
 
 interface ConfirmModalContentProps {
@@ -731,6 +753,8 @@ export type {
 	ChangeAuthorEntryResult,
 	ChangeAuthorResult,
 	ChangeAuthorDrawerProps,
+	Placement,
+	PlacementsDrawerProps,
 	AiSettings,
 	AiSettingsResult,
 	BreadcrumbItem,

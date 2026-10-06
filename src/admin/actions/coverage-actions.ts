@@ -14,6 +14,7 @@ import {
 	runCoverageBulk,
 } from '../utils/coverage-api';
 import { notifySuccess, notifyError, pluralize } from '../utils/notices';
+import { getPlacementsLink } from '../utils/placements';
 
 /**
  * Returns DataViews action definitions for coverage rows.
@@ -24,6 +25,7 @@ import { notifySuccess, notifyError, pluralize } from '../utils/notices';
  * @param {(coverage: Coverage) => void} onEdit              Callback to open the edit modal.
  * @param {(coverage: Coverage) => void} onSlackConnect      Callback to open the Slack connection drawer.
  * @param {RequestConfirm}               requestConfirm      Opens the view's confirmation dialog.
+ * @param {(coverage: Coverage) => void} onViewPages         Callback to open the drawer listing the coverage's pages.
  *
  * @return {Action<Coverage>[]} Array of DataViews actions for coverages.
  */
@@ -33,7 +35,8 @@ function getCoverageActions(
 	onNavigateToEntries: ( coverage: Coverage ) => void,
 	onEdit: ( coverage: Coverage ) => void,
 	onSlackConnect: ( coverage: Coverage ) => void,
-	requestConfirm: RequestConfirm
+	requestConfirm: RequestConfirm,
+	onViewPages: ( coverage: Coverage ) => void
 ): Action< Coverage >[] {
 	const restNamespace = config.restBaseUrls.restNamespace;
 
@@ -67,10 +70,23 @@ function getCoverageActions(
 		{
 			id: 'view-page',
 			label: __( 'View Page', 'newspack-rolling-coverage' ),
-			isEligible: ( coverage: Coverage ) => Boolean( coverage.pageUrl ),
+			isEligible: ( coverage: Coverage ) =>
+				getPlacementsLink( coverage ).kind === 'link',
 			callback: ( items: Coverage[] ) => {
-				if ( items.length === 1 && items[ 0 ].pageUrl ) {
-					window.open( items[ 0 ].pageUrl, '_blank', 'noopener=yes' );
+				const link = getPlacementsLink( items[ 0 ] ?? null );
+				if ( items.length === 1 && link.kind === 'link' ) {
+					window.open( link.url, '_blank', 'noopener=yes' );
+				}
+			},
+		},
+		{
+			id: 'view-pages',
+			label: __( 'View Pages', 'newspack-rolling-coverage' ),
+			isEligible: ( coverage: Coverage ) =>
+				getPlacementsLink( coverage ).kind === 'drawer',
+			callback: ( items: Coverage[] ) => {
+				if ( items.length === 1 ) {
+					onViewPages( items[ 0 ] );
 				}
 			},
 		},
