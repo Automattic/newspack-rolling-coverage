@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-05T17:47:36+00:00\n"
+"POT-Creation-Date: 2026-10-06T09:15:05+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -83,10 +83,10 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:461
-#: includes/blocks/class-rolling-coverage-block.php:3810
-#: includes/blocks/class-rolling-coverage-block.php:3940
-#: includes/blocks/class-rolling-coverage-block.php:3951
-#: includes/class-post-type.php:1043
+#: includes/blocks/class-rolling-coverage-block.php:3812
+#: includes/blocks/class-rolling-coverage-block.php:3942
+#: includes/blocks/class-rolling-coverage-block.php:3953
+#: includes/class-post-type.php:1045
 #: includes/class-taxonomy.php:361
 msgid "Coverage not found."
 msgstr ""
@@ -148,51 +148,51 @@ msgid "Rolling Coverage Entry"
 msgstr ""
 
 #. translators: 1: kind of media, e.g. "Photo" or "Video", 2: its caption or description.
-#: includes/blocks/class-entry-bindings.php:393
+#: includes/blocks/class-entry-bindings.php:413
 #, php-format
 msgctxt "media label and caption"
 msgid "%1$s: %2$s"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a photo, alone or before the photo's caption.
-#: includes/blocks/class-entry-bindings.php:476
+#: includes/blocks/class-entry-bindings.php:496
 msgid "Photo"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a gallery of photos, alone or before the gallery's caption.
-#: includes/blocks/class-entry-bindings.php:478
+#: includes/blocks/class-entry-bindings.php:498
 msgid "Gallery"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a video, alone or before the video's caption.
-#: includes/blocks/class-entry-bindings.php:480
+#: includes/blocks/class-entry-bindings.php:500
 msgid "Video"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is an audio clip, alone or before the clip's caption.
-#: includes/blocks/class-entry-bindings.php:482
+#: includes/blocks/class-entry-bindings.php:502
 msgid "Audio"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is embedded from another site, such as a social media post, alone or before the embed's caption.
-#: includes/blocks/class-entry-bindings.php:484
+#: includes/blocks/class-entry-bindings.php:504
 msgid "Embed"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:645
+#: includes/blocks/class-entry-bindings.php:665
 msgid "Following"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:646
+#: includes/blocks/class-entry-bindings.php:666
 msgid "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:647
+#: includes/blocks/class-entry-bindings.php:667
 msgid "Something went wrong. Please try again."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:694
-#: includes/blocks/class-rolling-coverage-block.php:2632
+#: includes/blocks/class-entry-bindings.php:714
+#: includes/blocks/class-rolling-coverage-block.php:2634
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/share/index.js:1
@@ -201,7 +201,7 @@ msgid "Share"
 msgstr ""
 
 #. translators: 1: share button text, e.g. "Share", 2: entry title or its first words.
-#: includes/blocks/class-entry-bindings.php:699
+#: includes/blocks/class-entry-bindings.php:719
 #, php-format
 msgid "%1$s: %2$s"
 msgstr ""
@@ -330,57 +330,57 @@ msgstr[1] ""
 msgid "Load More"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2492
-#: includes/blocks/class-rolling-coverage-block.php:2673
+#: includes/blocks/class-rolling-coverage-block.php:2494
+#: includes/blocks/class-rolling-coverage-block.php:2675
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/rolling-coverage/index.js:17
 msgid "Read more"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2510
+#: includes/blocks/class-rolling-coverage-block.php:2512
 #: dist/blocks/rolling-coverage/index.js:15
 msgid "Coverage of this news event has concluded and this feed is now archived."
 msgstr ""
 
 #. translators: %s: Coverage name.
-#: includes/blocks/class-rolling-coverage-block.php:2514
+#: includes/blocks/class-rolling-coverage-block.php:2516
 #: dist/blocks/rolling-coverage/index.js:15
 #, php-format,js-format
 msgid "Coverage of “%s” has concluded and this feed is now archived."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2645
+#: includes/blocks/class-rolling-coverage-block.php:2647
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Meta"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2757
+#: includes/blocks/class-rolling-coverage-block.php:2759
 #: includes/class-post-type.php:260
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Entry"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2805
+#: includes/blocks/class-rolling-coverage-block.php:2807
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned Entry"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3313
-#: includes/blocks/class-rolling-coverage-block.php:3325
-#: includes/blocks/class-rolling-coverage-block.php:3587
+#: includes/blocks/class-rolling-coverage-block.php:3315
+#: includes/blocks/class-rolling-coverage-block.php:3327
+#: includes/blocks/class-rolling-coverage-block.php:3589
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3616
+#: includes/blocks/class-rolling-coverage-block.php:3618
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3752
+#: includes/blocks/class-rolling-coverage-block.php:3754
 msgid "How many entries a capped feed shows, so its requests stay capped without a stored config."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3959
+#: includes/blocks/class-rolling-coverage-block.php:3961
 msgid "Either cursor or before must be provided."
 msgstr ""
 
@@ -453,8 +453,8 @@ msgstr ""
 
 #: includes/class-archive-mode.php:268
 #: includes/class-breakout.php:238
-#: includes/class-post-type.php:977
-#: includes/class-post-type.php:2494
+#: includes/class-post-type.php:979
+#: includes/class-post-type.php:2496
 msgid "Entry not found."
 msgstr ""
 
@@ -515,35 +515,35 @@ msgstr ""
 msgid "Individual entries within a Rolling Coverage."
 msgstr ""
 
-#: includes/class-post-type.php:2394
+#: includes/class-post-type.php:2396
 msgid "No entry IDs provided."
 msgstr ""
 
-#: includes/class-post-type.php:2410
+#: includes/class-post-type.php:2412
 msgid "You do not have permission to restore this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2463
+#: includes/class-post-type.php:2465
 msgid "An editor needs to restore the coverage before this entry can be restored."
 msgstr ""
 
-#: includes/class-post-type.php:2502
+#: includes/class-post-type.php:2504
 msgid "Entry is not in trash."
 msgstr ""
 
-#: includes/class-post-type.php:2510
+#: includes/class-post-type.php:2512
 msgid "This entry is archived, so it can’t be restored."
 msgstr ""
 
-#: includes/class-post-type.php:2561
+#: includes/class-post-type.php:2563
 msgid "This entry's coverage was deleted. An editor needs to restore it."
 msgstr ""
 
-#: includes/class-post-type.php:2583
+#: includes/class-post-type.php:2585
 msgid "This entry has no coverage context to restore to."
 msgstr ""
 
-#: includes/class-post-type.php:2641
+#: includes/class-post-type.php:2643
 msgid "Failed to restore entry."
 msgstr ""
 
@@ -2294,10 +2294,6 @@ msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Halvorsen at full stretch to push Renee Vargas's header over the bar, four minutes into stoppage time. The North Bank greets it like a third goal."
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:1
-msgid "Halvorsen at full stretch to push Renee Vargas's header over the bar"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:1

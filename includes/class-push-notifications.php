@@ -496,8 +496,14 @@ class Push_Notifications {
 			return false;
 		}
 
-		$title   = self::build_notification_title( $entry, $coverage_id );
 		$content = self::build_notification_content( $entry );
+
+		// An untitled entry with no words everyone may read has nothing to announce, and nothing members-only may stand in.
+		if ( '' === $content && '' === trim( wp_strip_all_tags( $entry->post_title ) ) ) {
+			return false;
+		}
+
+		$title = self::build_notification_title( $entry, $coverage_id );
 
 		self::$pending_url = $url;
 		self::$pending_tag = self::follow_tag( $coverage_id );
@@ -545,14 +551,19 @@ class Push_Notifications {
 
 	/**
 	 * Builds the notification body text from a short excerpt of the entry's
-	 * written content.
+	 * written content, leaving out anything members-only or password
+	 * protected: a notification reaches every follower.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return string Notification body text.
 	 */
 	private static function build_notification_content( WP_Post $entry ): string {
+		if ( '' !== $entry->post_password ) {
+			return '';
+		}
+
 		if ( ! has_excerpt( $entry ) ) {
-			return Post_Type::get_entry_summary( $entry, 15 );
+			return Entry_Bindings::public_summary( $entry, 15 );
 		}
 
 		return wp_trim_words( html_entity_decode( get_the_excerpt( $entry ), ENT_QUOTES, 'UTF-8' ), 15, '…' );

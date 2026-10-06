@@ -205,6 +205,93 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An untitled entry's notification text leaves out what Newspack hides
+	 * from the public, as every follower receives it. An entry with nothing
+	 * else to say, or a password-protected one, isn't announced.
+	 */
+	public function test_untitled_entry_is_announced_without_members_only_text() {
+		$this->use_block_visibility_stub();
+		$coverage_id = self::create_coverage_with_canonical_url();
+		$entry       = static fn( string $content ) => self::create_entry(
+			$coverage_id,
+			[
+				'post_status'  => 'draft',
+				'post_title'   => '',
+				'post_excerpt' => '',
+				'post_content' => $content,
+			]
+		);
+		$mixed_id    = $entry( self::members_only_paragraph( 'Members hear the result first.' ) . '<!-- wp:paragraph --><p>Doors open at 7pm.</p><!-- /wp:paragraph -->' );
+		$hidden_id   = $entry( self::members_only_paragraph( 'Members hear the result first.' ) );
+		$secret_id   = $entry( '<!-- wp:paragraph --><p>The result is in.</p><!-- /wp:paragraph -->' );
+		wp_update_post(
+			[
+				'ID'            => $secret_id,
+				'post_password' => 'secret',
+			]
+		);
+
+		foreach ( [ $mixed_id, $hidden_id, $secret_id ] as $entry_id ) {
+			update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
+			wp_publish_post( $entry_id );
+		}
+
+		$sent_notifications = self::get_sent_notifications();
+
+		$this->assertCount( 1, $sent_notifications, 'Only the entry with public text should be announced.' );
+		$this->assertSame( 'Doors open at 7pm.', $sent_notifications[0]['content'] );
+	}
+
+	/**
+	 * A titled password-protected entry is announced by its title alone: its
+	 * hand-written excerpt is protected text too.
+	 */
+	public function test_protected_entry_is_announced_without_its_excerpt() {
+		$entry_id = self::create_entry(
+			self::create_coverage_with_canonical_url(),
+			[
+				'post_status'   => 'draft',
+				'post_title'    => 'Count update',
+				'post_excerpt'  => 'The result is in.',
+				'post_password' => 'secret',
+				'post_content'  => '<!-- wp:paragraph --><p>The result is in.</p><!-- /wp:paragraph -->',
+			]
+		);
+		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
+
+		wp_publish_post( $entry_id );
+
+		$sent_notifications = self::get_sent_notifications();
+
+		$this->assertCount( 1, $sent_notifications );
+		$this->assertSame( '', $sent_notifications[0]['content'] );
+	}
+
+	/**
+	 * A titled entry is still announced when it has no words everyone may
+	 * read, such as a lone photo: its title is public.
+	 */
+	public function test_titled_entry_without_public_words_is_still_announced() {
+		$entry_id = self::create_entry(
+			self::create_coverage_with_canonical_url(),
+			[
+				'post_status'  => 'draft',
+				'post_title'   => 'Crowds at the finish line',
+				'post_excerpt' => '',
+				'post_content' => '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image -->',
+			]
+		);
+		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
+
+		wp_publish_post( $entry_id );
+
+		$sent_notifications = self::get_sent_notifications();
+
+		$this->assertCount( 1, $sent_notifications );
+		$this->assertSame( 'Crowds at the finish line', $sent_notifications[0]['title'] );
+	}
+
+	/**
 	 * The opt-in is spent by the send, so publishing the entry again after a
 	 * trip back to draft does not notify readers a second time.
 	 */

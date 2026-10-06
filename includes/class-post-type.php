@@ -752,7 +752,9 @@ class Post_Type {
 	 * Reads the stored HTML of every block, including lists and code blocks,
 	 * which `excerpt_remove_blocks()` would drop, without rendering it:
 	 * rendering could recurse through an embedded Rolling Coverage block. See
-	 * get_html_summary() for how the text is read.
+	 * get_html_summary() for how the text is read. Members-only blocks are
+	 * read too, so this is for text only editors see; text for readers comes
+	 * from Entry_Bindings::public_summary().
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @param int     $words Number of words to keep.
