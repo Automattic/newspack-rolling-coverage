@@ -2410,6 +2410,10 @@ function initBlock( root: HTMLElement ): void {
 				await new Promise( ( resolve ) => setTimeout( resolve, wait ) );
 			}
 
+			if ( isDisposed ) {
+				return;
+			}
+
 			// A poll skips a hidden page, so a check waits for the reader to return.
 			if ( document.hidden ) {
 				await new Promise< void >( ( resolve ) => {
@@ -2463,7 +2467,10 @@ function initBlock( root: HTMLElement ): void {
 
 			// An ended coverage gets no new entries; a paused one may resume.
 			if ( polledStatus === 'archived' ) {
-				focusFromScript( entriesList );
+				if ( checkButton.ownerDocument.activeElement === checkButton ) {
+					focusFromScript( entriesList, { preventScroll: true } );
+				}
+
 				checkControl.hidden = true;
 				return;
 			}
