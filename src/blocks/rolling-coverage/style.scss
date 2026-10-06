@@ -259,6 +259,135 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	}
 }
 
+@property --newspack-rolling-coverage-fade-start {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0;
+}
+
+@property --newspack-rolling-coverage-fade-end {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0;
+}
+
+.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.newspack-rolling-coverage-ruled.is-layout-flex:not(.is-vertical) {
+	--newspack-rolling-coverage-row-column: 12rem;
+	container: newspack-rolling-coverage-row / inline-size;
+	clip-path: none;
+
+	> :has(~ .newspack-rolling-coverage-entries) {
+		flex: 0 0 var(--newspack-rolling-coverage-row-column);
+
+		&::before {
+			content: none;
+		}
+	}
+
+	> .newspack-rolling-coverage-entries ~ *,
+	> .newspack-rolling-coverage-archived-notice {
+		flex: 0 0 100%;
+
+		&::before {
+			inset-inline: 0;
+			background: linear-gradient(var(--newspack-rolling-coverage-rule-color), var(--newspack-rolling-coverage-rule-color)) 0 var(--newspack-rolling-coverage-rule-row) / 100% 1px no-repeat;
+		}
+	}
+
+	> .newspack-rolling-coverage-entries {
+		--newspack-rolling-coverage-fade: 3rem;
+		flex: 1 1 0;
+		flex-direction: row;
+		min-width: 0;
+		gap: calc(2 * var(--newspack-rolling-coverage-rule-column) + 1px);
+		overflow-x: auto;
+		overscroll-behavior-x: contain;
+		scroll-snap-type: x proximity;
+		scrollbar-width: thin;
+
+		> * {
+			flex: 1 0 var(--newspack-rolling-coverage-row-column);
+			scroll-snap-align: start;
+		}
+
+		> .newspack-rolling-coverage-entries__empty {
+			flex-basis: auto;
+		}
+	}
+
+	> .newspack-rolling-coverage-entries:not(:first-child) {
+		margin-inline-start: calc(-1 * var(--newspack-rolling-coverage-rule-column) - 1px);
+		padding-inline-start: var(--newspack-rolling-coverage-rule-column);
+		border-inline-start: 1px solid var(--newspack-rolling-coverage-rule-color);
+		scroll-padding-inline-start: var(--newspack-rolling-coverage-rule-column);
+	}
+}
+
+@container newspack-rolling-coverage-row (width < 36rem) {
+
+	.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.newspack-rolling-coverage-ruled.is-layout-flex:not(.is-vertical) > :has(~ .newspack-rolling-coverage-entries) {
+		flex-basis: 100%;
+	}
+
+	.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.newspack-rolling-coverage-ruled.is-layout-flex:not(.is-vertical) > .newspack-rolling-coverage-entries {
+		flex-basis: 100%;
+	}
+
+	.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.newspack-rolling-coverage-ruled.is-layout-flex:not(.is-vertical) > .newspack-rolling-coverage-entries:not(:first-child) {
+		margin-inline-start: 0;
+		margin-block-start: calc(-1 * var(--newspack-rolling-coverage-rule-row) - 1px);
+		padding-inline-start: 0;
+		padding-block-start: var(--newspack-rolling-coverage-rule-row);
+		border-inline-start: 0;
+		border-block-start: 1px solid var(--newspack-rolling-coverage-rule-color);
+		scroll-padding-inline-start: 0;
+	}
+}
+
+@supports (animation-timeline: scroll()) {
+
+	.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.newspack-rolling-coverage-ruled.is-layout-flex:not(.is-vertical) > .newspack-rolling-coverage-entries {
+		mask:
+			linear-gradient(#000, #000) 0 0 / 100% 1px no-repeat,
+			linear-gradient(#000, #000) 0 0 / 1px 100% no-repeat,
+			linear-gradient(to right, transparent, #000 var(--newspack-rolling-coverage-fade-start), #000 calc(100% - var(--newspack-rolling-coverage-fade-end)), transparent);
+		animation:
+			newspack-rolling-coverage-fade-start linear both,
+			newspack-rolling-coverage-fade-end linear both;
+		animation-timeline: scroll(self inline);
+		animation-range: 0 var(--newspack-rolling-coverage-fade), calc(100% - var(--newspack-rolling-coverage-fade)) 100%;
+
+		&:dir(rtl) {
+			mask:
+				linear-gradient(#000, #000) 0 0 / 100% 1px no-repeat,
+				linear-gradient(#000, #000) 100% 0 / 1px 100% no-repeat,
+				linear-gradient(to left, transparent, #000 var(--newspack-rolling-coverage-fade-start), #000 calc(100% - var(--newspack-rolling-coverage-fade-end)), transparent);
+		}
+	}
+}
+
+@keyframes newspack-rolling-coverage-fade-start {
+
+	from {
+		--newspack-rolling-coverage-fade-start: 0;
+	}
+
+	to {
+		--newspack-rolling-coverage-fade-start: var(--newspack-rolling-coverage-fade);
+	}
+}
+
+@keyframes newspack-rolling-coverage-fade-end {
+
+	from {
+		--newspack-rolling-coverage-fade-end: var(--newspack-rolling-coverage-fade);
+	}
+
+	to {
+		--newspack-rolling-coverage-fade-end: 0;
+	}
+}
+
 :where(.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-load-more) {
 	text-align: center;
 }
