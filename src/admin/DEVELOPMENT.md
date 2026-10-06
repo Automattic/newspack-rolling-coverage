@@ -16,12 +16,14 @@ The `source` field stays defined, with no `render` and `enableHiding: false`. Da
 
 ## Adding a source
 
-The taxonomy already anticipates other chat platforms (Beeper, WhatsApp, Telegram). A new source needs each of these. Until it has them, its entries show the WordPress marker, yet "Source is WordPress" leaves them out, because the filter matches the stored slug:
+The taxonomy already anticipates other chat platforms (Beeper, WhatsApp, Telegram). A new source needs each of these:
 
 1. A `SOURCE_*` constant in `src/admin/utils/fields.ts`, recognized by `getEntrySource()`.
 2. An option in the `source` field's `elements`, so the filter offers it.
 3. A logo for the unpinned marker. Draw it to fill its frame edge to edge, like `SlackIcon` (`src/admin/shared/icons/`), so it renders at 10px like the others. The WordPress icon from `@wordpress/icons` fills 20 of its 24 units, so it renders at `size={ 12 }`.
 4. A pin color: a `.newspack-rolling-coverage-entry-title__pin--<source>` modifier in `src/admin/styles/components/_dataviews.scss` set to the source's brand color, applied in the `title` field's `render`. Without one, a pinned entry from the new source looks like a pinned WordPress entry.
 5. Marker labels for both states ("From …" and "Pinned, from …").
+
+Until a source has them, its entries show the WordPress marker, yet "Source is WordPress" leaves them out, because the filter matches the stored slug.
 
 The server needs no change beyond the ingest path writing the slug to the meta. The entries endpoint's `source` and `source_exclude` filters accept any slug, with `wordpress` special-cased to include entries that have no meta.
