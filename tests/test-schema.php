@@ -383,7 +383,7 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 
 		$this->render_scripts( $host_id );
 
-		$transient_rows = (int) $wpdb->get_var(
+		$transient_rows = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			"SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE '_transient_nrc_%' OR option_name LIKE '_transient_timeout_nrc_%'"
 		);
 
