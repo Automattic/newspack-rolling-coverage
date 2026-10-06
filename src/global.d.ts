@@ -30,6 +30,13 @@ declare module '@wordpress/block-editor' {
 
 	export const BlockInspector: ComponentType;
 
+	export const __experimentalInspectorPopoverHeader: ComponentType< {
+		title: string;
+		help?: string;
+		actions?: unknown[];
+		onClose?: () => void;
+	} >;
+
 	export const BlockList: ComponentType< {
 		className?: string;
 		layout?: Record< string, unknown >;
