@@ -100,6 +100,26 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A breakout of an untitled password-protected entry takes none of its
+	 * text as a title.
+	 */
+	public function test_breakout_of_a_protected_entry_is_untitled() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_title'    => '',
+				'post_password' => 'secret',
+				'post_content'  => '<!-- wp:paragraph --><p>The result is in.</p><!-- /wp:paragraph -->',
+			]
+		);
+
+		$breakout_post = get_post( self::break_out( $entry_id )->get_data()['breakoutPostId'] );
+
+		$this->assertSame( '', $breakout_post->post_title );
+	}
+
+	/**
 	 * A title built from content keeps words apart across line breaks, and
 	 * keeps backslashes in the copied content.
 	 */

@@ -498,8 +498,8 @@ class Push_Notifications {
 
 		$content = self::build_notification_content( $entry );
 
-		// No words everyone may read: OneSignal can't send an empty push, and nothing members-only may stand in.
-		if ( '' === $content ) {
+		// An untitled entry with no words everyone may read has nothing to announce, and nothing members-only may stand in.
+		if ( '' === $content && '' === trim( wp_strip_all_tags( $entry->post_title ) ) ) {
 			return false;
 		}
 
@@ -558,6 +558,10 @@ class Push_Notifications {
 	 * @return string Notification body text.
 	 */
 	private static function build_notification_content( WP_Post $entry ): string {
+		if ( '' !== $entry->post_password ) {
+			return '';
+		}
+
 		if ( ! has_excerpt( $entry ) ) {
 			return Entry_Bindings::public_summary( $entry, 15 );
 		}

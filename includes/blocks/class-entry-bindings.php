@@ -298,7 +298,7 @@ class Entry_Bindings {
 	 * @param WP_Post $entry Entry post.
 	 * @return string
 	 */
-	private static function public_content( WP_Post $entry ): string {
+	public static function public_content( WP_Post $entry ): string {
 		if ( class_exists( '\Newspack\Block_Visibility' ) && method_exists( '\Newspack\Block_Visibility', 'strip_blocks_hidden_from_public' ) ) {
 			return (string) \Newspack\Block_Visibility::strip_blocks_hidden_from_public( $entry->post_content );
 		}
