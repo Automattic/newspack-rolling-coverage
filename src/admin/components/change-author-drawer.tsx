@@ -8,7 +8,6 @@ import { store as coreStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, _n, sprintf } from '@wordpress/i18n';
-import { Text } from '@wordpress/ui';
 import { Drawer } from 'newspack-components/dist/esm/drawer';
 
 /**
@@ -83,6 +82,23 @@ function ChangeAuthorDrawer( {
 	}, [ isOpen, sharedAuthor ] );
 
 	const onFilterValueChange = useDebounce( setSearch, 300 );
+
+	const help =
+		items.length === 1
+			? __(
+					'The person you choose replaces this entry’s current author.',
+					'newspack-rolling-coverage'
+				)
+			: sprintf(
+					/* translators: %d: number of entries. */
+					_n(
+						'The person you choose replaces the current author of %d entry.',
+						'The person you choose replaces the current author of all %d entries.',
+						items.length,
+						'newspack-rolling-coverage'
+					),
+					items.length
+				);
 
 	const { authors, isLoading } = useSelect(
 		( select ) => {
@@ -218,27 +234,11 @@ function ChangeAuthorDrawer( {
 						{ error }
 					</Notice>
 				) }
-				<Text render={ <p /> }>
-					{ items.length === 1
-						? __(
-								'The person you choose replaces this entry’s current author.',
-								'newspack-rolling-coverage'
-							)
-						: sprintf(
-								/* translators: %d: number of entries. */
-								_n(
-									'The person you choose replaces the current author of %d entry.',
-									'The person you choose replaces the current author of all %d entries.',
-									items.length,
-									'newspack-rolling-coverage'
-								),
-								items.length
-							) }
-				</Text>
 				<ComboboxControl
 					__next40pxDefaultSize
 					__nextHasNoMarginBottom
 					label={ __( 'Author', 'newspack-rolling-coverage' ) }
+					help={ help }
 					options={ options }
 					value={ authorId ? String( authorId ) : null }
 					onChange={ ( value ) => {
