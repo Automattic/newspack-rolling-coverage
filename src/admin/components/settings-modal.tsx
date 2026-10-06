@@ -2,6 +2,7 @@
  * WordPress dependencies
  */
 import { useCallback, useEffect, useState } from '@wordpress/element';
+import { useViewportMatch } from '@wordpress/compose';
 import { Button, Notice, TextControl } from '@wordpress/components';
 import { Stack, Tabs, Text } from '@wordpress/ui';
 import { __ } from '@wordpress/i18n';
@@ -52,6 +53,8 @@ function SettingsModal( { onClose }: { onClose: () => void } ) {
 	const [ isLoaded, setIsLoaded ] = useState( false );
 	const [ isSaving, setIsSaving ] = useState( false );
 	const [ error, setError ] = useState< string | null >( null );
+	const [ errorAttempt, setErrorAttempt ] = useState( 0 );
+	const isWide = useViewportMatch( 'medium' );
 
 	useEffect( () => {
 		let isCurrent = true;
@@ -131,6 +134,7 @@ function SettingsModal( { onClose }: { onClose: () => void } ) {
 			! entryName.singular.trim() !== ! entryName.plural.trim()
 		) {
 			setTab( 'entry-name' );
+			setErrorAttempt( ( attempt ) => attempt + 1 );
 			setError(
 				__(
 					'Set both the singular and the plural, or leave both empty.',
@@ -240,6 +244,7 @@ function SettingsModal( { onClose }: { onClose: () => void } ) {
 				<Stack direction="column" gap="xl">
 					{ error && (
 						<Notice
+							key={ errorAttempt }
 							status="error"
 							isDismissible={ false }
 							politeness={ isLoaded ? 'assertive' : 'polite' }
@@ -254,7 +259,11 @@ function SettingsModal( { onClose }: { onClose: () => void } ) {
 							setTab( value as SettingsTab )
 						}
 					>
-						<Stack direction="row" gap="xl" align="flex-start">
+						<Stack
+							direction={ isWide ? 'row' : 'column' }
+							gap="xl"
+							align={ isWide ? 'flex-start' : undefined }
+						>
 							<Tabs.List className="newspack-rolling-coverage-settings__tabs">
 								<Tabs.Tab value="entry-name">
 									{ __(
