@@ -9,6 +9,7 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
+import { BackToCoverage } from './back-to-coverage';
 import {
 	PushNotificationsControl,
 	useCanOptInToNotify,
@@ -29,7 +30,10 @@ const DocumentSettingPanel =
 function PushNotificationsPanel() {
 	const canOptIn = useCanOptInToNotify();
 
-	if ( ! canOptIn ) {
+	if (
+		! canOptIn ||
+		! window.newspackRollingCoverageEntryEditor?.pushNotifications
+	) {
 		return null;
 	}
 
@@ -43,6 +47,17 @@ function PushNotificationsPanel() {
 	);
 }
 
-registerPlugin( 'newspack-rolling-coverage-push-notifications', {
-	render: PushNotificationsPanel,
+function EntryEditor() {
+	const data = window.newspackRollingCoverageEntryEditor;
+
+	return (
+		<>
+			{ data && <BackToCoverage { ...data } /> }
+			<PushNotificationsPanel />
+		</>
+	);
+}
+
+registerPlugin( 'newspack-rolling-coverage-entry-editor', {
+	render: EntryEditor,
 } );

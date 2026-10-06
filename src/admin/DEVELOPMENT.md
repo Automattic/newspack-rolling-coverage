@@ -116,3 +116,12 @@ The older `pageUrl` field stays: the canonical URL, or else the newest post with
 The header button lives in `entry-view.tsx`; the row actions (`view-page`, `view-pages`) in `src/admin/actions/coverage-actions.ts`.
 
 Tests: `tests/test-placements.php`, plus the page lookup and its rebuild in `tests/test-taxonomy.php`.
+
+## Leaving the entry editor
+
+Entries are managed in the coverages screen, not in core's entries list, which stays registered but hidden (`show_in_menu` is false). Two exits from the editor point at that list, so both are redirected:
+
+- The back button. Core hardcodes its link to `edit.php?post_type=rolling_cov_entry` and shows it only when nothing else fills the slot. `src/entry-editor/back-to-coverage.tsx` fills it with `__experimentalMainDashboardButton` from `@wordpress/edit-post`, the one API for replacing it. It links to `#/coverages/<id>` for the entry's first coverage as currently edited (the first ID in the taxonomy's REST attribute), or `#/coverages` when it has none. The route format is repeated in `Admin::get_coverages_url()`, so change both together.
+- The redirect after trashing. Core sends the editor to `edit.php?trashed=1&post_type=…&ids=<id>`. `Admin::redirect_entry_list()` (on `load-edit.php`) sends any plain GET for the entries list to the screen above, using `ids` to find the trashed entry's coverage. Requests carrying an `action` are left alone.
+
+`Admin::enqueue_entry_editor()` loads the `entry-editor` bundle on the entry editor and passes it `window.newspackRollingCoverageEntryEditor` (the coverages URL, the taxonomy's REST base, and whether the Push Notifications panel applies).

@@ -81,7 +81,6 @@ class Push_Notifications {
 	public static function init() {
 		add_action( 'init', [ __CLASS__, 'register_meta' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_rest_field' ] );
-		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'enqueue_editor_panel' ] );
 		add_action( 'transition_post_status', [ __CLASS__, 'maybe_notify' ], 10, 3 );
 		add_action( 'rest_after_insert_' . Post_Type::CPT_SLUG, [ __CLASS__, 'settle_rest_publish' ] );
 		add_action( 'newspack_rolling_coverage_entry_ingested', [ __CLASS__, 'opt_in_ingested_entry' ] );
@@ -128,40 +127,6 @@ class Push_Notifications {
 					'readonly' => true,
 				],
 			]
-		);
-	}
-
-	/**
-	 * Loads the Push Notifications panel on the entry edit screen, when
-	 * OneSignal is configured.
-	 */
-	public static function enqueue_editor_panel(): void {
-		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-
-		if ( ! $screen || Post_Type::CPT_SLUG !== $screen->post_type || ! self::is_onesignal_configured() ) {
-			return;
-		}
-
-		$asset_file = NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/entry-editor.asset.php';
-
-		if ( ! file_exists( $asset_file ) ) {
-			return;
-		}
-
-		$asset = include $asset_file;
-
-		wp_enqueue_script(
-			'newspack-rolling-coverage-entry-editor',
-			NEWSPACK_ROLLING_COVERAGE_URL . 'dist/entry-editor.js',
-			$asset['dependencies'] ?? [],
-			$asset['version'],
-			[ 'in_footer' => true ]
-		);
-
-		wp_set_script_translations(
-			'newspack-rolling-coverage-entry-editor',
-			'newspack-rolling-coverage',
-			NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'languages'
 		);
 	}
 
