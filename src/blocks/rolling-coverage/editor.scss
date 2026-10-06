@@ -46,12 +46,12 @@
 	font-size: inherit;
 }
 
-.wp-block-newspack-rolling-coverage-rolling-coverage :is(.newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-regular-entry).is-layout-flex.is-nowrap:not(.is-vertical) > .wp-block-post-excerpt > .wp-block-post-excerpt__excerpt.is-inline {
-	display: block;
-}
-
 .wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex:not(.is-vertical) :is(.newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-regular-entry).is-layout-flex:not(.is-vertical, .is-nowrap) > .wp-block-post-excerpt > .wp-block-post-excerpt__excerpt.is-inline {
 	display: -webkit-box;
+}
+
+.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex:not(.is-vertical) :is(.newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-regular-entry).is-layout-flex.is-nowrap:not(.is-vertical) > .wp-block-post-excerpt > .wp-block-post-excerpt__excerpt.is-inline {
+	display: block;
 }
 
 .wp-block-newspack-rolling-coverage-rolling-coverage .wp-block-post-excerpt__more-text:has(> .wp-block-post-excerpt__more-link:empty),

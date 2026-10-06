@@ -215,7 +215,7 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	}
 }
 
-:where(.wp-block-newspack-rolling-coverage-rolling-coverage :is(.newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-regular-entry).is-layout-flex.is-nowrap:not(.is-vertical)) {
+:where(.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex:not(.is-vertical) :is(.newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-regular-entry).is-layout-flex.is-nowrap:not(.is-vertical)) {
 
 	> :where(.wp-block-post-excerpt):where(:not([class*="wp-container-content-"])) {
 		min-width: 0;
