@@ -25,7 +25,6 @@ import {
 } from '../utils/entries-api';
 import { notifySuccess, notifyError, pluralize } from '../utils/notices';
 import { ConfirmModal } from '../components/confirm-modal';
-import { ChangeAuthorModal } from '../components/change-author-modal';
 import { getStatusLabel } from '../utils/status-labels';
 import type { Entry, Action, AdminConfig, RequestConfirm } from '../types';
 
@@ -72,10 +71,11 @@ function getEditWarningMessage( entry: Entry ): string {
  * Includes "Edit" (opens the classic editor in a new tab) and "Quick Edit"
  * (opens the block editor in a modal on the current page).
  *
- * @param {AdminConfig}            config            Admin config containing edit URLs.
- * @param {(entry: Entry) => void} onQuickEdit       Handler for the Quick Edit action.
- * @param {RequestConfirm}         requestConfirm    Opens the view's confirmation dialog.
- * @param {() => void}             onActionPerformed Callback invoked after a successful create, or setting save, to refresh data.
+ * @param {AdminConfig}              config            Admin config containing edit URLs.
+ * @param {(entry: Entry) => void}   onQuickEdit       Handler for the Quick Edit action.
+ * @param {RequestConfirm}           requestConfirm    Opens the view's confirmation dialog.
+ * @param {() => void}               onActionPerformed Callback invoked after a successful create, or setting save, to refresh data.
+ * @param {(items: Entry[]) => void} onChangeAuthor    Opens the Change Author drawer for the selected entries.
  *
  * @return {Action<Entry>[]} Array of DataViews actions for entries.
  */
@@ -83,7 +83,8 @@ function getEntryActions(
 	config: AdminConfig,
 	onQuickEdit: ( entry: Entry ) => void,
 	requestConfirm: RequestConfirm,
-	onActionPerformed?: () => void
+	onActionPerformed: () => void,
+	onChangeAuthor: ( items: Entry[] ) => void
 ): Action< Entry >[] {
 	// Editors and above can act on any entry; lower roles are limited to
 	// entries WordPress grants them a meta cap for (author: own; contributor:
@@ -282,21 +283,12 @@ function getEntryActions(
 		{
 			id: 'change-author',
 			label: __( 'Change Author', 'newspack-rolling-coverage' ),
-			modalHeader: __( 'Change Author', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				config.capabilities.canChangeAuthors &&
 				entry.status !== 'trash' &&
 				! isEntryLocked( entry ),
-			RenderModal: ( { items, closeModal } ) =>
-				createElement( ChangeAuthorModal, {
-					items,
-					restNamespace: config.restBaseUrls.restNamespace,
-					postType: config.postType,
-					hasCoauthors: config.hasCoauthors,
-					onClose: closeModal ?? ( () => {} ),
-					onChanged: onActionPerformed,
-				} ),
+			callback: ( items: Entry[] ) => onChangeAuthor( items ),
 		},
 		{
 			id: 'archive-entry',
