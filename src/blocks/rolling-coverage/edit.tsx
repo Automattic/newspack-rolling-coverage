@@ -92,6 +92,7 @@ import {
 	withoutCheckUpdatesButtons,
 	blockIdsOfType,
 	holdsBlockType,
+	layoutParts,
 	CHECK_UPDATES_BLOCK_NAME,
 	entryPreviewPlacement,
 	withColumnRule,
@@ -1193,9 +1194,12 @@ export default function Edit( {
 		isCapped || currentCoverage?.status === 'archived';
 	const checksOnRequest = useMemo(
 		() =>
-			holdsBlockType(
-				isSynced ? feedItems( syncedBlocks ) : allBlocks,
-				CHECK_UPDATES_BLOCK_NAME
+			( ( parts ) =>
+				holdsBlockType(
+					[ ...parts.header, ...parts.footer ],
+					CHECK_UPDATES_BLOCK_NAME
+				) )(
+				layoutParts( isSynced ? feedItems( syncedBlocks ) : allBlocks )
 			),
 		[ isSynced, syncedBlocks, allBlocks ]
 	);

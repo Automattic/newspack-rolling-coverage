@@ -23,6 +23,9 @@ class Check_Updates_Block {
 	// Block name, as registered in block.json.
 	const BLOCK_NAME = 'newspack-rolling-coverage/check-updates';
 
+	// The class the feed's view script finds the block by, whatever its supports add.
+	const CONTROL_CLASS = 'newspack-rolling-coverage-check-updates';
+
 	/**
 	 * Initialize hooks.
 	 */
@@ -47,7 +50,6 @@ class Check_Updates_Block {
 	 */
 	public static function block_type_args(): array {
 		return [
-			'uses_context'    => [ Entry_Bindings::COVERAGE_ID_CONTEXT ],
 			'render_callback' => [ __CLASS__, 'render_block' ],
 		];
 	}
@@ -68,6 +70,10 @@ class Check_Updates_Block {
 			return '';
 		}
 
-		return sprintf( '<div %s hidden>%s</div>', get_block_wrapper_attributes(), $content );
+		return sprintf(
+			'<div %s hidden>%s</div>',
+			get_block_wrapper_attributes( [ 'class' => self::CONTROL_CLASS ] ),
+			$content
+		);
 	}
 }

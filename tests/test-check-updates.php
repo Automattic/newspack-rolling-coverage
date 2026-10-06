@@ -36,11 +36,19 @@ class Test_Check_Updates extends Rolling_Coverage_TestCase {
 
 		$registry = WP_Block_Type_Registry::get_instance();
 
-		foreach ( [ Rolling_Coverage_Block::class, Check_Updates_Block::class ] as $block_class ) {
-			if ( ! $registry->is_registered( $block_class::BLOCK_NAME ) ) {
-				register_block_type( $block_class::BLOCK_NAME, $block_class::block_type_args() );
-				$this->registered[] = $block_class::BLOCK_NAME;
-			}
+		if ( ! $registry->is_registered( Rolling_Coverage_Block::BLOCK_NAME ) ) {
+			register_block_type( Rolling_Coverage_Block::BLOCK_NAME, Rolling_Coverage_Block::block_type_args() );
+			$this->registered[] = Rolling_Coverage_Block::BLOCK_NAME;
+		}
+
+		if ( ! $registry->is_registered( Check_Updates_Block::BLOCK_NAME ) ) {
+			$metadata = json_decode( file_get_contents( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'src/blocks/check-updates/block.json' ), true ); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
+
+			register_block_type(
+				Check_Updates_Block::BLOCK_NAME,
+				array_merge( Check_Updates_Block::block_type_args(), [ 'uses_context' => $metadata['usesContext'] ] )
+			);
+			$this->registered[] = Check_Updates_Block::BLOCK_NAME;
 		}
 	}
 
@@ -58,6 +66,21 @@ class Test_Check_Updates extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A feed layout: a plain entry template, with blocks above and below it.
+	 *
+	 * @param string $header Markup above the entries.
+	 * @param string $footer Markup below the entries.
+	 * @return string The Feed group's markup.
+	 */
+	private static function feed_markup( string $header, string $footer = '' ): string {
+		return '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">'
+			. $header
+			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry"><!-- wp:post-title /--></div><!-- /wp:group -->'
+			. $footer
+			. '</div><!-- /wp:group -->';
+	}
+
+	/**
 	 * A feed of one coverage with a plain entry template, and optionally a
 	 * Check for Updates block above the entries.
 	 *
@@ -66,14 +89,34 @@ class Test_Check_Updates extends Rolling_Coverage_TestCase {
 	 * @return string Rendered HTML.
 	 */
 	private static function render_feed( array $attributes, bool $with_the_button ): string {
+		return self::render_layout( $attributes, self::feed_markup( $with_the_button ? self::CHECK_UPDATES_MARKUP : '' ) );
+	}
+
+	/**
+	 * A Rolling Coverage block holding a layout.
+	 *
+	 * @param array  $attributes Block attributes.
+	 * @param string $layout     The block's inner markup; none for a synced layout.
+	 * @return string Rendered HTML.
+	 */
+	private static function render_layout( array $attributes, string $layout ): string {
+		$name = 'newspack-rolling-coverage/rolling-coverage';
+
 		return do_blocks(
-			'<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->'
-			. '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">'
-			. ( $with_the_button ? self::CHECK_UPDATES_MARKUP : '' )
-			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry"><!-- wp:post-title /--></div><!-- /wp:group -->'
-			. '</div><!-- /wp:group -->'
-			. '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->'
+			'' === $layout
+				? '<!-- wp:' . $name . ' ' . wp_json_encode( $attributes ) . ' /-->'
+				: '<!-- wp:' . $name . ' ' . wp_json_encode( $attributes ) . ' -->' . $layout . '<!-- /wp:' . $name . ' -->'
 		);
+	}
+
+	/**
+	 * How many Check for Updates blocks the HTML shows the view script.
+	 *
+	 * @param string $html Rendered HTML.
+	 * @return int
+	 */
+	private static function check_buttons_in( string $html ): int {
+		return preg_match_all( '/<div class="[^"]*\bnewspack-rolling-coverage-check-updates\b[^"]*" hidden>.*?<button[^>]*>Check for Updates<\/button>/s', $html );
 	}
 
 	/**
@@ -99,10 +142,10 @@ class Test_Check_Updates extends Rolling_Coverage_TestCase {
 		$html = self::render_feed( [ 'coverageId' => $coverage_id ], true );
 
 		$this->assertStringContainsString( 'data-new-entries="button"', $html );
-		$this->assertSame( 1, preg_match( '/<div class="wp-block-newspack-rolling-coverage-check-updates" hidden>.*?<button[^>]*>Check for Updates<\/button>/s', $html ) );
+		$this->assertSame( 1, self::check_buttons_in( $html ) );
 		$this->assertLessThan(
 			strpos( $html, 'class="newspack-rolling-coverage-entries"' ),
-			strpos( $html, 'wp-block-newspack-rolling-coverage-check-updates' )
+			strpos( $html, 'newspack-rolling-coverage-check-updates' )
 		);
 	}
 
@@ -122,7 +165,7 @@ class Test_Check_Updates extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertStringNotContainsString( 'data-new-entries=', $html );
-		$this->assertStringNotContainsString( 'wp-block-newspack-rolling-coverage-check-updates', $html );
+		$this->assertSame( 0, self::check_buttons_in( $html ) );
 	}
 
 	/**
@@ -135,7 +178,66 @@ class Test_Check_Updates extends Rolling_Coverage_TestCase {
 		$html = self::render_feed( [ 'coverageId' => $coverage_id ], true );
 
 		$this->assertStringNotContainsString( 'data-new-entries=', $html );
-		$this->assertStringNotContainsString( 'wp-block-newspack-rolling-coverage-check-updates', $html );
+		$this->assertSame( 0, self::check_buttons_in( $html ) );
+	}
+
+	/**
+	 * A paused coverage may resume, so the feed keeps the button.
+	 */
+	public function test_paused_coverage_keeps_the_block() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_PAUSED );
+		self::create_entry( $coverage_id );
+
+		$html = self::render_feed( [ 'coverageId' => $coverage_id ], true );
+
+		$this->assertStringContainsString( 'data-new-entries="button"', $html );
+		$this->assertSame( 1, self::check_buttons_in( $html ) );
+	}
+
+	/**
+	 * The block switches the feed from a footer group too, and every copy
+	 * renders for the view script.
+	 */
+	public function test_block_in_a_footer_group_switches_the_feed_and_every_copy_renders() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+
+		$html = self::render_layout(
+			[ 'coverageId' => $coverage_id ],
+			self::feed_markup(
+				self::CHECK_UPDATES_MARKUP,
+				'<!-- wp:group --><div class="wp-block-group">' . self::CHECK_UPDATES_MARKUP . '</div><!-- /wp:group -->'
+			)
+		);
+
+		$this->assertStringContainsString( 'data-new-entries="button"', $html );
+		$this->assertSame( 2, self::check_buttons_in( $html ) );
+	}
+
+	/**
+	 * A synced layout holding the block switches the feed.
+	 */
+	public function test_synced_layout_with_the_block_switches_the_feed() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$layout_id = self::factory()->post->create(
+			[
+				'post_type'    => 'wp_block',
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage -->' . self::feed_markup( self::CHECK_UPDATES_MARKUP ) . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->',
+			]
+		);
+
+		$html = self::render_layout(
+			[
+				'coverageId' => $coverage_id,
+				'layoutId'   => $layout_id,
+			],
+			''
+		);
+
+		$this->assertStringContainsString( 'data-new-entries="button"', $html );
+		$this->assertSame( 1, self::check_buttons_in( $html ) );
 	}
 
 	/**

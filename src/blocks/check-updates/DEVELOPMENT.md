@@ -6,7 +6,7 @@ For how publishers use the block, see `README.md` in this directory.
 
 ## Attributes and supports
 
-The block has no attributes. `customClassName` and `reusable` are off. The default `wp-block-newspack-rolling-coverage-check-updates` class stays on: the view script finds the block by it.
+The block has no attributes. `customClassName` and `reusable` are off. `ancestor` limits it to a Rolling Coverage block, which also wraps a layout in the layout pattern editor. `render_block()` adds `newspack-rolling-coverage-check-updates` (`CONTROL_CLASS`) to the wrapper, and the view script finds the block by that class, whatever classes its supports add. `usesContext` lives in `block.json` only; tests that register the block without the build read it from there.
 
 ## Inner blocks
 
@@ -23,7 +23,7 @@ The block has no attributes. `customClassName` and `reusable` are off. The defau
 
 - `ALL_ALLOWED_BLOCKS` (`layout.ts`) lets the block into the Feed group. `feed-insertion.ts` keeps it, like Follow Coverage, out of entries and the pinned card.
 - `isCoverageItem()` (`template.ts`) matches it, as the server does.
-- `edit.tsx` hides the block in previews where the site drops it (`isCheckUpdatesHidden`: capped or archived), and hides Poll interval when the layout holds it (`holdsBlockType()`).
+- `edit.tsx` hides the block in previews where the site drops it (`isCheckUpdatesHidden`: capped or archived), and hides Poll interval when the layout's header or footer holds it (`holdsBlockType()` over `layoutParts()`), as the server decides.
 
 ## View script
 
@@ -31,14 +31,14 @@ In `src/blocks/rolling-coverage/view.ts`, a feed with `data-new-entries="button"
 
 - Never schedules a poll (`schedulePoll()` returns early), nor polls when the tab shows.
 - Inserts polled entries at once, rather than queueing them behind the "N New Entries" control.
-- Reveals the block and runs one `poll()` per press. `poll()` returns a `PollOutcome`: `ok`, `failed`, `reloading` or `skipped`.
-- Reads `insertedCount` before and after to tell "No New Entries" from new ones. An overflow always reloads in this mode, bypassing the 60-second guard, and the button stays busy until the page goes.
+- Reveals every copy of the block in the feed and runs one `poll()` per press, whichever copy is pressed; the copies share the busy state and messages, each keeping its own label. `poll()` returns a `PollOutcome`: `ok`, `failed`, `reloading` or `skipped`.
+- Reads `insertedCount` before and after: the buttons read "N New Entries" or "No New Entries" for a few seconds. An overflow always reloads in this mode, bypassing the 60-second guard, and the button stays busy until the page goes.
 - Waits out `minPollInterval` between presses, and for a hidden tab to show.
-- Hides the block once a poll reports the coverage `archived`, not `paused`, which can resume. Focus moves to the entries only if the button had it.
+- Hides the blocks once a poll reports the coverage `archived`, not `paused`, which can resume. Focus moves to the entries only if a button had it.
 - Leaves the block hidden in a shared-entry view. After Jump to Latest swaps in the live feed, `initBlock()` runs again and reveals it.
 
 With no polls, Coverage Status blocks (`POLL_EVENT`) and `hideWhenEnded` update only on a press, and a shared view's newer count stays as rendered.
 
 ## Tests
 
-`tests/test-check-updates.php` covers the switch: a feed without the block, a feed with it (attribute, hidden wrapper before the entries), a capped feed and an ended coverage (no attribute, block dropped), and the block outside a feed. The plugin has no JS tests.
+`tests/test-check-updates.php` covers the switch: a feed without the block, a feed with it (attribute, hidden wrapper before the entries), a paused coverage (kept), a capped feed and an ended coverage (no attribute, block dropped), a copy in a footer group alongside one in the header, a synced layout, and the block outside a feed. The plugin has no JS tests.

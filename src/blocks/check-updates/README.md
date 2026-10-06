@@ -4,17 +4,16 @@ A button readers press to load a coverage's new entries. A Rolling Coverage feed
 
 ## Where to put it
 
-Add it to a Rolling Coverage block's layout, among the blocks that sit above or below the entries, such as the header next to the Live badge or a footer. It can't go inside an entry or the pinned card. It is not part of any built-in layout, so add it yourself.
+Add it to a Rolling Coverage block's layout, among the blocks that sit above or below the entries, such as the header next to the Live badge or a footer. The header works best: new entries appear at the top of the feed, next to it. It can't go inside an entry or the pinned card, and the inserter only offers it inside a Rolling Coverage block. It is not part of any built-in layout, so add it yourself. A layout can hold more than one, for example one above and one below a long feed; they share each check.
 
 The block is in the inserter's Newspack category, or Rolling Coverage on sites without Newspack.
 
 Adding the block is what switches the feed: with it, the feed checks only when a reader presses the button, and the Rolling Coverage block's Poll interval setting goes away. Remove the block and the feed checks on its own again.
 
-It does nothing elsewhere:
+It doesn't appear:
 
-- **Outside a Rolling Coverage block** it doesn't appear on the site.
-- **In a feed that shows only the latest entries** (Show set to Latest, as in the Ticker and Flash layouts) it doesn't appear, and the feed keeps checking on its own.
-- **Once the coverage ends** it doesn't appear.
+- **In a feed that shows only the latest entries** (Show set to Latest, as in the Ticker and Flash layouts). The feed keeps checking on its own.
+- **Once the coverage ends.** A paused coverage keeps it, so readers can see whether the coverage has resumed.
 
 ## The button
 
@@ -23,7 +22,7 @@ The block holds a standard Button block. Style it, change its text, and set its 
 ## What readers see
 
 - Pressing the button checks for new entries. While it runs, the button reads "Checking…".
-- New entries appear at the top of the feed, below any pinned entries, and edits and removals apply at the same time. Screen readers hear how many arrived, for example "2 new entries added".
+- New entries appear at the top of the feed, below any pinned entries, and edits and removals apply at the same time. The button reads how many arrived for a few seconds, for example "2 New Entries", and screen readers hear "2 new entries added".
 - When nothing is new, the button reads "No New Entries" for a few seconds. When the check fails, it reads "Couldn't Check", and screen readers hear "Couldn't check for updates. Try again."
 - After a large burst of changes, the page reloads to show them all.
 - If the site sets a minimum poll interval, a second press waits until it has passed. A press in a background tab runs once the tab is back in view.
