@@ -35,6 +35,15 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		. '</div><!-- /wp:buttons --><!-- /wp:newspack-rolling-coverage/coverage-follow -->';
 
 	/**
+	 * A feed layout holding the Check for Updates block above a plain entry
+	 * template.
+	 */
+	const CHECK_UPDATES_LAYOUT = '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">'
+		. '<!-- wp:newspack-rolling-coverage/check-updates --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"tagName":"button"} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Check for Updates</button></div><!-- /wp:button --></div><!-- /wp:buttons --><!-- /wp:newspack-rolling-coverage/check-updates -->'
+		. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry"><!-- wp:post-title /--></div><!-- /wp:group -->'
+		. '</div><!-- /wp:group -->';
+
+	/**
 	 * What a lite feed shows in place of a protected entry's body.
 	 */
 	const PROTECTED_NOTICE = '<p class="newspack-rolling-coverage-entry-protected">This content is password protected.</p>';
@@ -348,6 +357,22 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'Follow</button>', $this->render_block_html( [], self::FOLLOW_MARKUP ), 'A full page shows the Follow button.' );
 		$this->assertStringNotContainsString( 'Follow</button>', $this->render_lite_page( [], self::FOLLOW_MARKUP ), 'A lite page does not.' );
+	}
+
+	/**
+	 * A feed whose layout holds the Check for Updates block checks for new
+	 * entries only when a reader presses its button, which suits a lite page.
+	 * The lite page keeps the switch, the block hidden for the view script to
+	 * show, and its button.
+	 */
+	public function test_lite_page_keeps_the_check_for_updates_block() {
+		self::create_entry( $this->coverage_id );
+
+		$html = $this->render_lite_page( [], self::CHECK_UPDATES_LAYOUT );
+
+		$this->assertStringContainsString( 'data-new-entries="button"', $html );
+		$this->assertMatchesRegularExpression( '/<div class="[^"]*newspack-rolling-coverage-check-updates[^"]*" hidden>/', $html );
+		$this->assertMatchesRegularExpression( '/<button type="button" class="[^"]+">Check for Updates<\/button>/', $html );
 	}
 
 	/**
@@ -890,17 +915,18 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	 * styles and view script rely on: the styles would fix a new-posts
 	 * control that lost its hidden attribute to the screen for good, and the
 	 * script would find no settings to poll with. A page whose feed was
-	 * cleaned that way gets neither, only a rule hiding the Load More
-	 * control, which lost its hidden attribute too and has nothing to run it.
+	 * cleaned that way gets neither, only a rule hiding the Load More and
+	 * Check for Updates controls, which lost their hidden attribute too and
+	 * have nothing to run them.
 	 */
-	public function test_only_the_load_more_control_is_hidden_when_lite_site_cannot_keep_the_feed_markup() {
+	public function test_only_the_controls_nothing_runs_are_hidden_when_lite_site_cannot_keep_the_feed_markup() {
 		$this->with_view_script(
 			function () {
 				// The feed rendered, but Lite Site never applied the filter.
 				Lite_Feed::add_feed();
 				$styles = $this->print_lite_styles();
 
-				$this->assertMatchesRegularExpression( '/^\.newspack-rolling-coverage-load-more\s*\{\s*display:\s*none;\s*\}$/', $styles, 'Only the Load More control is hidden.' );
+				$this->assertMatchesRegularExpression( '/^\.newspack-rolling-coverage-load-more,\s*\.newspack-rolling-coverage-check-updates\s*\{\s*display:\s*none;\s*\}$/', $styles, 'Only the Load More and Check for Updates controls are hidden.' );
 				$this->assertSame( '', $this->print_after_footer(), 'No script.' );
 			}
 		);
@@ -919,6 +945,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( '.newspack-rolling-coverage-new-entries[hidden]', $styles );
 		$this->assertStringContainsString( '.newspack-rolling-coverage-status', $styles );
 		$this->assertStringNotContainsString( '.newspack-rolling-coverage-load-more', $styles, 'The view script shows and hides the Load More control.' );
+		$this->assertStringNotContainsString( '.newspack-rolling-coverage-check-updates', $styles, 'And the Check for Updates control.' );
 		$this->assertStringNotContainsString( '<', $styles, 'Nothing can close the style element early.' );
 	}
 }

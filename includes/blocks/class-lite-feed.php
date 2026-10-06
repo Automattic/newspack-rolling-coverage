@@ -120,8 +120,9 @@ class Lite_Feed {
 	 * whose feed markup Lite Site kept. Lite Site cleans the content before
 	 * the head, so by then it has.
 	 *
-	 * Where it couldn't keep that markup, a Load More control loses its
-	 * hidden attribute, and no script prints to run it, so it is hidden.
+	 * Where it couldn't keep that markup, the Load More and Check for Updates
+	 * controls lose their hidden attribute, and no script prints to run
+	 * them, so they are hidden.
 	 */
 	public static function print_styles(): void {
 		if ( self::$keeps_feed_markup ) {
@@ -130,7 +131,7 @@ class Lite_Feed {
 		}
 
 		if ( self::$has_feed ) {
-			echo '.newspack-rolling-coverage-load-more { display: none; }';
+			echo '.newspack-rolling-coverage-load-more, .newspack-rolling-coverage-check-updates { display: none; }';
 		}
 	}
 
