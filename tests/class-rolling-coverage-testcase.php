@@ -9,6 +9,7 @@ use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Coverage_Follow_Block;
 use Newspack_Rolling_Coverage\Coverage_Status_Block;
 use Newspack_Rolling_Coverage\Post_Type;
+use Newspack_Rolling_Coverage\Push_Notifications;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
@@ -55,6 +56,7 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		Post_Type::register_meta();
 		Taxonomy::register();
 		Breakout::register_meta();
+		Push_Notifications::register_meta();
 	}
 
 	/**
