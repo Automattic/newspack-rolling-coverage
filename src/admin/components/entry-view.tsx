@@ -724,7 +724,6 @@ function EntryView() {
 				items={ changeAuthorItems }
 				restNamespace={ config.restBaseUrls.restNamespace }
 				postType={ config.postType }
-				hasCoauthors={ config.hasCoauthors }
 				onClose={ () => setIsChangeAuthorOpen( false ) }
 				onChanged={ handleActionPerformed }
 			/>

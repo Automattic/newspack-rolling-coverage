@@ -39,7 +39,6 @@ function ChangeAuthorDrawer( {
 	items,
 	restNamespace,
 	postType,
-	hasCoauthors,
 	onClose,
 	onChanged,
 }: ChangeAuthorDrawerProps ) {
@@ -62,6 +61,7 @@ function ChangeAuthorDrawer( {
 		}
 	);
 	const authorId = picked?.id;
+	const isDirty = Boolean( authorId ) && authorId !== sharedAuthor?.id;
 	const [ search, setSearch ] = useState( '' );
 	const { invalidateResolution } = useDispatch( coreStore );
 	const [ isBusy, setIsBusy ] = useState( false );
@@ -197,7 +197,11 @@ function ChangeAuthorDrawer( {
 	};
 
 	return (
-		<Drawer.Root isOpen={ isOpen } onRequestClose={ onClose }>
+		<Drawer.Root
+			isOpen={ isOpen }
+			isDirty={ isDirty && ! isBusy }
+			onRequestClose={ onClose }
+		>
 			<Drawer.Header>
 				<Drawer.Title>
 					{ __( 'Change Author', 'newspack-rolling-coverage' ) }
@@ -263,11 +267,7 @@ function ChangeAuthorDrawer( {
 					variant="primary"
 					onClick={ handleSubmit }
 					isBusy={ isBusy }
-					disabled={
-						isBusy ||
-						! authorId ||
-						( ! hasCoauthors && authorId === sharedAuthor?.id )
-					}
+					disabled={ isBusy || ! isDirty }
 				>
 					{ __( 'Save', 'newspack-rolling-coverage' ) }
 				</Drawer.Action>

@@ -309,7 +309,6 @@ interface ChangeAuthorDrawerProps {
 	items: Entry[];
 	restNamespace: string;
 	postType: string;
-	hasCoauthors: boolean;
 	onClose: () => void;
 	onChanged?: () => void;
 }
