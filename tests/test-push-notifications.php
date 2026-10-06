@@ -123,21 +123,27 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	 * @param bool $is_checked Whether the opt-in is ticked.
 	 */
 	private static function publish_through_rest( $entry_id, $is_checked ) {
-		add_filter( 'newspack_rolling_coverage_defer_notification', '__return_true' );
-
-		$request = new WP_REST_Request( 'POST', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
-		$request->set_body_params(
+		return self::save_through_rest(
+			$entry_id,
 			[
 				'status' => 'publish',
 				'meta'   => [ Push_Notifications::NOTIFY_META_KEY => $is_checked ],
 			]
 		);
+	}
 
-		$response = rest_do_request( $request );
+	/**
+	 * Saves an entry through the REST API.
+	 *
+	 * @param int   $entry_id Entry post id.
+	 * @param array $params   Body parameters.
+	 * @return WP_REST_Response
+	 */
+	private static function save_through_rest( $entry_id, array $params ) {
+		$request = new WP_REST_Request( 'POST', '/wp/v2/' . Post_Type::REST_BASE . '/' . $entry_id );
+		$request->set_body_params( $params );
 
-		remove_filter( 'newspack_rolling_coverage_defer_notification', '__return_true' );
-
-		return $response;
+		return rest_do_request( $request );
 	}
 
 	/**
@@ -605,5 +611,94 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		$this->assertSame( [], self::get_sent_notifications(), 'Nothing should be sent during the request.' );
 		$this->assertGreaterThan( time(), wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'The send should wait for the opt-in the save writes after the status.' );
 		$this->assertNotEmpty( get_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true ), 'The opt-in should be kept for the scheduled send.' );
+	}
+
+	/**
+	 * A REST publish never sends during the request, even when the defer
+	 * filter says otherwise: unticking the box in the same save must win.
+	 */
+	public function test_rest_publish_that_unticks_the_box_sends_nothing_even_if_deferral_is_filtered_off() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_draft_entry( self::create_coverage_with_canonical_url(), true );
+		add_filter( 'newspack_rolling_coverage_defer_notification', '__return_false' );
+
+		$response = self::publish_through_rest( $entry_id, false );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( [], self::get_sent_notifications(), 'Nothing should be sent during the request.' );
+		$this->assertFalse( wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'No send should be left scheduled.' );
+	}
+
+	/**
+	 * Scheduling an opted-in entry through REST sends nothing then; the send
+	 * happens once, when it goes live outside REST.
+	 */
+	public function test_scheduled_entry_notifies_once_when_it_goes_live() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_draft_entry( self::create_coverage_with_canonical_url(), false );
+
+		$response = self::save_through_rest(
+			$entry_id,
+			[
+				'status' => 'future',
+				'date'   => gmdate( 'Y-m-d\TH:i:s', time() + DAY_IN_SECONDS ),
+				'meta'   => [ Push_Notifications::NOTIFY_META_KEY => true ],
+			]
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'future', get_post_status( $entry_id ) );
+		$this->assertFalse( wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'Saving a scheduled entry should not schedule a send.' );
+		$this->assertSame( [], self::get_sent_notifications() );
+
+		wp_publish_post( $entry_id );
+
+		$this->assertCount( 1, self::get_sent_notifications(), 'One notification should be sent when it goes live.' );
+		$this->assertFalse( wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'No send should be left scheduled.' );
+	}
+
+	/**
+	 * An opt-in removed from a scheduled entry before it goes live stops the
+	 * notification.
+	 */
+	public function test_scheduled_entry_unticked_before_it_goes_live_sends_nothing() {
+		self::log_in_as( 'editor' );
+		$entry_id = self::create_draft_entry( self::create_coverage_with_canonical_url(), false );
+		$date     = gmdate( 'Y-m-d\TH:i:s', time() + DAY_IN_SECONDS );
+
+		self::save_through_rest(
+			$entry_id,
+			[
+				'status' => 'future',
+				'date'   => $date,
+				'meta'   => [ Push_Notifications::NOTIFY_META_KEY => true ],
+			]
+		);
+		self::save_through_rest( $entry_id, [ 'meta' => [ Push_Notifications::NOTIFY_META_KEY => false ] ] );
+
+		wp_publish_post( $entry_id );
+
+		$this->assertSame( [], self::get_sent_notifications() );
+	}
+
+	/**
+	 * A contributor can't set the opt-in on someone else's entry.
+	 */
+	public function test_contributor_cannot_set_the_opt_in_on_another_users_entry() {
+		$entry_id = self::create_draft_entry( self::create_coverage_with_canonical_url(), false );
+		self::log_in_as( 'contributor' );
+
+		$response = self::save_through_rest( $entry_id, [ 'meta' => [ Push_Notifications::NOTIFY_META_KEY => true ] ] );
+
+		$this->assertSame( 403, $response->get_status() );
+		$this->assertEmpty( get_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true ) );
+	}
+
+	/**
+	 * The opt-in is protected, so the Custom Fields box can't write it.
+	 */
+	public function test_the_opt_in_meta_is_protected() {
+		$this->assertTrue( is_protected_meta( Push_Notifications::NOTIFY_META_KEY, 'post' ) );
+		$this->assertSame( '_rolling_coverage_notify_on_publish', Push_Notifications::NOTIFY_META_KEY );
 	}
 }

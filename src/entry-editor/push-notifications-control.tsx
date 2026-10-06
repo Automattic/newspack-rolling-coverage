@@ -11,7 +11,7 @@ import { useDispatch, useSelect } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
 import { __ } from '@wordpress/i18n';
 
-const NOTIFY_META_KEY = 'rolling_coverage_notify_on_publish';
+const NOTIFY_META_KEY = '_rolling_coverage_notify_on_publish';
 const NOTIFIABLE_FIELD = 'rolling_coverage_has_notifiable_coverage';
 
 type EditorPostSelectors = {
