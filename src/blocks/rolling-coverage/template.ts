@@ -137,6 +137,12 @@ const ENTRY_LINK_CLASS = 'newspack-rolling-coverage-entry-link';
 const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
 
 /**
+ * The Check for Updates block, which renders with a layout's coverage-level
+ * blocks and makes the feed check for new entries only when readers ask.
+ */
+const CHECK_UPDATES_BLOCK_NAME = 'newspack-rolling-coverage/check-updates';
+
+/**
  * The Coverage Status block, which shows the coverage's status once when it
  * sits among the layout's coverage-level blocks.
  */
@@ -2039,6 +2045,7 @@ function isCoverageItem( block: {
 
 	return (
 		typed.name === FOLLOW_BLOCK_NAME ||
+		typed.name === CHECK_UPDATES_BLOCK_NAME ||
 		block.name === STATUS_BLOCK_NAME ||
 		isCoverageNameHeading( typed ) ||
 		isAllUpdatesParagraph( typed ) ||
@@ -2125,6 +2132,68 @@ function withoutFollowButtons<
 	return withoutBlocks(
 		blocks,
 		( block ) => block.name === FOLLOW_BLOCK_NAME
+	);
+}
+
+/**
+ * The blocks without their Check for Updates blocks, at any depth, as the
+ * site renders them where the feed checks on its own.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {Object[]} The blocks without Check for Updates blocks.
+ */
+function withoutCheckUpdatesButtons<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return withoutBlocks(
+		blocks,
+		( block ) => block.name === CHECK_UPDATES_BLOCK_NAME
+	);
+}
+
+/**
+ * The client IDs of the blocks of a type among the blocks, at any depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @param {string}   name   Block type name.
+ * @return {string[]} Client IDs.
+ */
+function blockIdsOfType(
+	blocks: { name: string; [ key: string ]: unknown }[],
+	name: string
+): string[] {
+	return blocks.flatMap( ( block ) =>
+		block.name === name
+			? [ block.clientId as string ]
+			: blockIdsOfType(
+					Array.isArray( block.innerBlocks )
+						? ( block.innerBlocks as typeof blocks )
+						: [],
+					name
+				)
+	);
+}
+
+/**
+ * Whether the blocks hold a block of a type, at any depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @param {string}   name   Block type name.
+ * @return {boolean} Whether one of them is, or holds, that type.
+ */
+function holdsBlockType(
+	blocks: { name: string; [ key: string ]: unknown }[],
+	name: string
+): boolean {
+	return blocks.some(
+		( block ) =>
+			block.name === name ||
+			holdsBlockType(
+				Array.isArray( block.innerBlocks )
+					? ( block.innerBlocks as typeof blocks )
+					: [],
+				name
+			)
 	);
 }
 
@@ -3138,7 +3207,11 @@ export {
 	ENTRY_ALLOWED_BLOCKS,
 	ALL_UPDATES_CLASS,
 	FOLLOW_BLOCK_NAME,
+	CHECK_UPDATES_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
+	holdsBlockType,
+	blockIdsOfType,
+	withoutCheckUpdatesButtons,
 	feedTemplate,
 	feedGroupOf,
 	feedPathOf,

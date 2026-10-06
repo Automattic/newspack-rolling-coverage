@@ -52,6 +52,7 @@ class Initializer {
 		Abilities::init();
 		Schema::init();
 		Coverage_Follow_Block::init();
+		Check_Updates_Block::init();
 		Coverage_Status_Block::init();
 		Push_Notifications::init();
 

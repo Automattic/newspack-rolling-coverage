@@ -11,6 +11,7 @@ import { trackEvent, isConfigEnabled, EVENTS } from './analytics';
 import { keepRelativeDatesCurrent } from '../shared/relative-dates';
 import { POLL_EVENT } from '../shared/poll-event';
 import {
+	entriesAddedButtonLabel,
 	entriesAddedLabel,
 	loadingLatestLabel,
 	loadMoreFailedLabel,
@@ -419,13 +420,18 @@ function initBlock( root: HTMLElement ): void {
 		newEntriesControl?.querySelector< HTMLElement >( '[data-rc-latest]' ) ??
 		null;
 	const statusEl = ownElement( root, '.newspack-rolling-coverage-status' );
-	const checkControl = ownElement(
+	const checkControls = ownElements(
 		root,
 		'.newspack-rolling-coverage-check-updates'
 	);
-	const checkButton =
-		checkControl?.querySelector< HTMLButtonElement >( 'button' ) ?? null;
-	const checkLabel = checkButton?.textContent ?? '';
+	const checkButtons = checkControls.flatMap(
+		( control ) =>
+			control.querySelector< HTMLButtonElement >( 'button' ) ?? []
+	);
+	// Each button's own label, as the layout sets it.
+	const checkLabels = new Map(
+		checkButtons.map( ( button ) => [ button, button.textContent ?? '' ] )
+	);
 
 	const status = root.dataset.status || 'active';
 	const isEntryView = root.dataset.view === 'entry';
@@ -452,6 +458,7 @@ function initBlock( root: HTMLElement ): void {
 	// When the reader last checked for new entries, in milliseconds.
 	let lastCheckAt = 0;
 	let checkLabelTimeoutId: ReturnType< typeof setTimeout > | null = null;
+	let isChecking = false;
 
 	// How many new entries have been added to the page since it loaded.
 	let insertedCount = 0;
@@ -2333,39 +2340,37 @@ function initBlock( root: HTMLElement ): void {
 	ownElements( root, '[data-entry-id]', entriesList ).forEach( observeEntry );
 
 	/**
-	 * Shows a message on the Check for Updates button for a few seconds, then
-	 * its own label again.
+	 * Shows a message on the Check for Updates buttons for a few seconds, then
+	 * their own labels again.
 	 *
 	 * @param {string} label The message.
 	 * @return {void}
 	 */
 	function flashCheckLabel( label: string ): void {
-		if ( ! checkButton ) {
-			return;
-		}
-
 		if ( checkLabelTimeoutId !== null ) {
 			clearTimeout( checkLabelTimeoutId );
 		}
 
-		checkButton.textContent = label;
+		checkButtons.forEach( ( button ) => {
+			button.textContent = label;
+		} );
 		checkLabelTimeoutId = setTimeout( () => {
 			checkLabelTimeoutId = null;
-			checkButton.textContent = checkLabel;
+			checkButtons.forEach( ( button ) => {
+				button.textContent = checkLabels.get( button ) ?? '';
+			} );
 		}, CHECK_MESSAGE_MS );
 	}
 
 	/**
-	 * Marks the Check for Updates button busy while a check runs, or ready
+	 * Marks the Check for Updates buttons busy while a check runs, or ready
 	 * again.
 	 *
 	 * @param {boolean} busy Whether a check is running.
 	 * @return {void}
 	 */
 	function setCheckBusy( busy: boolean ): void {
-		if ( ! checkButton ) {
-			return;
-		}
+		isChecking = busy;
 
 		if ( busy ) {
 			if ( checkLabelTimeoutId !== null ) {
@@ -2375,29 +2380,33 @@ function initBlock( root: HTMLElement ): void {
 
 			// A repeat result only announces again if the region changes.
 			announce( '' );
-			checkButton.textContent =
-				/* translators: Shown on the Check for Updates button while a check runs. */
-				__( 'Checking…', 'newspack-rolling-coverage' );
-			checkButton.setAttribute( 'aria-busy', 'true' );
-			// Unlike disabled, keeps focus on the button.
-			checkButton.setAttribute( 'aria-disabled', 'true' );
-		} else {
-			checkButton.textContent = checkLabel;
-			checkButton.removeAttribute( 'aria-busy' );
-			checkButton.removeAttribute( 'aria-disabled' );
 		}
+
+		checkButtons.forEach( ( button ) => {
+			if ( busy ) {
+				button.textContent =
+					/* translators: Shown on the Check for Updates button while a check runs. */
+					__( 'Checking…', 'newspack-rolling-coverage' );
+				button.setAttribute( 'aria-busy', 'true' );
+				// Unlike disabled, keeps focus on the button.
+				button.setAttribute( 'aria-disabled', 'true' );
+			} else {
+				button.textContent = checkLabels.get( button ) ?? '';
+				button.removeAttribute( 'aria-busy' );
+				button.removeAttribute( 'aria-disabled' );
+			}
+		} );
 	}
 
 	if (
 		checksOnRequest &&
-		checkControl &&
-		checkButton &&
+		checkButtons.length > 0 &&
 		cursor &&
-		status === 'active' &&
+		status !== 'archived' &&
 		! isEntryView
 	) {
 		const onCheckClick = async () => {
-			if ( checkButton.getAttribute( 'aria-busy' ) === 'true' ) {
+			if ( isChecking ) {
 				return;
 			}
 
@@ -2440,7 +2449,7 @@ function initBlock( root: HTMLElement ): void {
 
 			lastCheckAt = Date.now();
 
-			// A reload is on its way, so the button stays busy until it lands.
+			// A reload is on its way, so the buttons stay busy until it lands.
 			if ( isDisposed || outcome === 'reloading' ) {
 				return;
 			}
@@ -2467,15 +2476,27 @@ function initBlock( root: HTMLElement ): void {
 
 			// An ended coverage gets no new entries; a paused one may resume.
 			if ( polledStatus === 'archived' ) {
-				if ( checkButton.ownerDocument.activeElement === checkButton ) {
+				if (
+					checkButtons.some(
+						( button ) =>
+							button.ownerDocument.activeElement === button
+					)
+				) {
 					focusFromScript( entriesList, { preventScroll: true } );
 				}
 
-				checkControl.hidden = true;
+				checkControls.forEach( ( control ) => {
+					control.hidden = true;
+				} );
 				return;
 			}
 
-			if ( insertedCount === insertedBefore ) {
+			const added = insertedCount - insertedBefore;
+
+			// New entries land at the top, out of sight of a button further down.
+			if ( added > 0 ) {
+				flashCheckLabel( entriesAddedButtonLabel( added, entryName ) );
+			} else {
 				const label = noNewEntriesLabel( entryName );
 
 				flashCheckLabel( label );
@@ -2483,9 +2504,13 @@ function initBlock( root: HTMLElement ): void {
 			}
 		};
 
-		checkButton.addEventListener( 'click', onCheckClick );
+		checkButtons.forEach( ( button ) =>
+			button.addEventListener( 'click', onCheckClick )
+		);
 		cleanupFns.push( () => {
-			checkButton.removeEventListener( 'click', onCheckClick );
+			checkButtons.forEach( ( button ) =>
+				button.removeEventListener( 'click', onCheckClick )
+			);
 
 			if ( checkLabelTimeoutId !== null ) {
 				clearTimeout( checkLabelTimeoutId );
@@ -2494,7 +2519,9 @@ function initBlock( root: HTMLElement ): void {
 
 			setCheckBusy( false );
 		} );
-		checkControl.hidden = false;
+		checkControls.forEach( ( control ) => {
+			control.hidden = false;
+		} );
 	}
 
 	if ( cursor && status === 'active' ) {
