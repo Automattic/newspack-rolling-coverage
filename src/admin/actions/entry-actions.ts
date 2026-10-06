@@ -22,6 +22,7 @@ import {
 	runEntryBulk,
 	togglePinEntry,
 	runArchiveBulk,
+	runStatusBulk,
 } from '../utils/entries-api';
 import { notifySuccess, notifyError, pluralize } from '../utils/notices';
 import { ConfirmModal } from '../components/confirm-modal';
@@ -158,6 +159,137 @@ function getEntryActions(
 					},
 					onClose: closeModal ?? ( () => {} ),
 				} ),
+		},
+		{
+			id: 'publish-entry',
+			label: __( 'Publish', 'newspack-rolling-coverage' ),
+			supportsBulk: true,
+			// Scheduled entries are left to the editor: publishing one now
+			// would also need its date moved to now.
+			isEligible: ( entry: Entry ) =>
+				[ 'draft', 'pending' ].includes( entry.status ) &&
+				! isEntryLocked( entry ) &&
+				canEditRow( entry ) &&
+				Boolean( entry.canPublish ),
+			// Confirmed first: readers can't unsee an entry published by
+			// mistake, while a move to draft is undone by publishing again.
+			callback: ( items: Entry[] ) =>
+				requestConfirm( {
+					title: pluralize(
+						items.length,
+						__(
+							'Publish this entry?',
+							'newspack-rolling-coverage'
+						),
+						sprintf(
+							/* translators: %d: number of entries. */
+							_n(
+								'Publish %d entry?',
+								'Publish %d entries?',
+								items.length,
+								'newspack-rolling-coverage'
+							),
+							items.length
+						)
+					),
+					// The list doesn't show which entries will notify followers, and
+					// entries from Slack opt in on their own, so say it can happen.
+					description: config.pushNotifications.isConfigured
+						? __(
+								'Readers with the coverage open see published entries within seconds. Entries set to notify followers also send a push notification.',
+								'newspack-rolling-coverage'
+							)
+						: __(
+								'Readers with the coverage open see published entries within seconds.',
+								'newspack-rolling-coverage'
+							),
+					confirmLabel: __( 'Publish', 'newspack-rolling-coverage' ),
+					onConfirm: async () => {
+						const { failed, succeeded } = await runStatusBulk(
+							config,
+							items,
+							'publish'
+						);
+
+						if ( ! succeeded ) {
+							const error =
+								failed[ 0 ].error ||
+								__(
+									'Failed to publish entry.',
+									'newspack-rolling-coverage'
+								);
+							// Some items went through, so a retry would resend those too.
+							// Refresh the list and report the failure instead.
+							if ( failed.length < items.length ) {
+								notifyError( error );
+								onActionPerformed?.();
+								return;
+							}
+							return { error };
+						}
+
+						notifySuccess(
+							pluralize(
+								items.length,
+								__(
+									'Entry published.',
+									'newspack-rolling-coverage'
+								),
+								__(
+									'Entries published.',
+									'newspack-rolling-coverage'
+								)
+							)
+						);
+						onActionPerformed?.();
+					},
+				} ),
+		},
+		{
+			id: 'draft-entry',
+			label: __( 'Move to Draft', 'newspack-rolling-coverage' ),
+			supportsBulk: true,
+			isEligible: ( entry: Entry ) =>
+				[ 'publish', 'pending', 'private' ].includes( entry.status ) &&
+				! isEntryLocked( entry ) &&
+				canEditRow( entry ),
+			callback: async ( items: Entry[] ) => {
+				const { failed, succeeded } = await runStatusBulk(
+					config,
+					items,
+					'draft'
+				);
+
+				if ( ! succeeded ) {
+					notifyError(
+						failed[ 0 ].error ||
+							__(
+								'Failed to move entry to draft.',
+								'newspack-rolling-coverage'
+							)
+					);
+					// Some items went through, so the list is out of date.
+					if ( failed.length < items.length ) {
+						onActionPerformed?.();
+					}
+					return;
+				}
+
+				notifySuccess(
+					pluralize(
+						items.length,
+						__(
+							'Entry moved to draft.',
+							'newspack-rolling-coverage'
+						),
+						__(
+							'Entries moved to draft.',
+							'newspack-rolling-coverage'
+						)
+					)
+				);
+				onActionPerformed?.();
+			},
 		},
 		{
 			id: 'create-breakout',

@@ -2,6 +2,8 @@
  * WordPress dependencies
  */
 import apiFetch from '@wordpress/api-fetch';
+import { store as coreStore } from '@wordpress/core-data';
+import { dispatch } from '@wordpress/data';
 
 /**
  * Internal dependencies
@@ -620,6 +622,62 @@ async function runArchiveBulk(
 	return { failed, succeeded: failed.length === 0 };
 }
 
+/**
+ * Publishes a single entry or moves it to draft. Goes through the core
+ * entries route so WordPress checks the user's publish and edit
+ * capabilities, and the status hooks behind reader feeds and push
+ * notifications run as they do for a save in the editor.
+ *
+ * @param {AdminConfig}         config Admin config providing the entries REST base.
+ * @param {Entry}               entry  The entry row being operated on.
+ * @param {'publish' | 'draft'} status The status to set.
+ * @return {Promise<ApiResult>} Result indicating success or failure.
+ */
+async function setEntryStatus(
+	config: AdminConfig,
+	entry: Entry,
+	status: 'publish' | 'draft'
+): Promise< ApiResult > {
+	try {
+		const saved = await apiFetch( {
+			path: `/wp/v2/${ config.restBase.entries }/${ entry.id }`,
+			method: 'POST',
+			data: { status },
+		} );
+		// Quick Edit opens entries from core-data's cache, which this request
+		// bypasses. Store the saved entry so Quick Edit shows its new status.
+		dispatch( coreStore ).receiveEntityRecords(
+			'postType',
+			config.postType,
+			[ saved ]
+		);
+		return { success: true };
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
+/**
+ * Runs a bulk publish or move to draft against the supplied entries,
+ * aggregating per-item results.
+ *
+ * @param {AdminConfig}         config Admin config providing the entries REST base.
+ * @param {Entry[]}             items  The selected entry rows.
+ * @param {'publish' | 'draft'} status The status to set.
+ * @return {Promise<{ failed: ApiResult[], succeeded: boolean }>} Aggregated outcome.
+ */
+async function runStatusBulk(
+	config: AdminConfig,
+	items: Entry[],
+	status: 'publish' | 'draft'
+): Promise< { failed: ApiResult[]; succeeded: boolean } > {
+	const results = await Promise.all(
+		items.map( ( entry ) => setEntryStatus( config, entry, status ) )
+	);
+	const failed = results.filter( ( r ) => ! r.success );
+	return { failed, succeeded: failed.length === 0 };
+}
+
 export {
 	createEntry,
 	togglePinEntry,
@@ -641,4 +699,6 @@ export {
 	SYNC_INTERVAL_MS,
 	setEntryArchived,
 	runArchiveBulk,
+	setEntryStatus,
+	runStatusBulk,
 };
