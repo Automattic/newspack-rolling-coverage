@@ -19,6 +19,11 @@
 			"type": "number",
 			"default": 20
 		},
+		"newEntries": {
+			"type": "string",
+			"enum": [ "auto", "button" ],
+			"default": "auto"
+		},
 		"olderEntries": {
 			"type": "string",
 			"enum": [ "scroll", "button", "none" ],
