@@ -366,6 +366,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	 * show, and its button.
 	 */
 	public function test_lite_page_keeps_the_check_for_updates_block() {
+		$this->register_check_updates_block();
 		self::create_entry( $this->coverage_id );
 
 		$html = $this->render_lite_page( [], self::CHECK_UPDATES_LAYOUT );
