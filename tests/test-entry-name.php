@@ -288,6 +288,20 @@ class Test_Entry_Name extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The editor starts a layout's link to the coverage page with the site's
+	 * plural, and with its own wording when the site sets no complete name.
+	 */
+	public function test_plural_for_the_all_updates_link_is_empty_without_a_complete_name() {
+		$this->assertSame( '', Entry_Name::word( 2 ) );
+
+		self::set_name( 'dispatch', 'dispatches' );
+		$this->assertSame( 'dispatches', Entry_Name::word( 2 ) );
+
+		self::set_name( 'update', '' );
+		$this->assertSame( '', Entry_Name::word( 2 ) );
+	}
+
+	/**
 	 * Other languages keep the words as typed in button labels.
 	 */
 	public function test_other_languages_keep_the_words_as_typed() {

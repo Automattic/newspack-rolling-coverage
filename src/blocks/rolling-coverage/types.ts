@@ -84,6 +84,7 @@ interface BlockConfig {
 	layoutCategoryId: number;
 	entryPostType: string;
 	showAvatars: boolean;
+	entryPlural: string;
 	sampleAvatarUrls?: Record< string, string >;
 }
 

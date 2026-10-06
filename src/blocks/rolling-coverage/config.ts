@@ -43,6 +43,7 @@ const {
 	layoutCategoryId: LAYOUT_CATEGORY_ID,
 	entryPostType: ENTRY_POST_TYPE,
 	showAvatars: SHOW_AVATARS,
+	entryPlural: ENTRY_PLURAL,
 	sampleAvatarUrls: SAMPLE_AVATAR_URLS,
 } = config;
 
@@ -66,5 +67,6 @@ export {
 	LAYOUT_CATEGORY_ID,
 	ENTRY_POST_TYPE,
 	SHOW_AVATARS,
+	ENTRY_PLURAL,
 	SAMPLE_AVATAR_URLS,
 };
