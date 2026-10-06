@@ -55,7 +55,7 @@ class Ads {
 			self::PLACEMENT_KEY,
 			[
 				'name'        => __( 'Rolling Coverage: Entry', 'newspack-rolling-coverage' ),
-				'description' => __( 'Appears between entries in a Rolling Coverage feed, at the interval set in the block\'s Ads settings.', 'newspack-rolling-coverage' ),
+				'description' => __( 'Appears after entries in a Rolling Coverage feed, at the interval set in the block’s Ads settings.', 'newspack-rolling-coverage' ),
 				'show_ui'     => true,
 				'hook_name'   => self::PLACEMENT_KEY . '_ad',
 			]

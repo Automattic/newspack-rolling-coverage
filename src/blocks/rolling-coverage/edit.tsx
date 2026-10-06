@@ -2459,7 +2459,7 @@ export default function Edit( {
 							help={ sprintf(
 								/* translators: 1: the entry the first ad follows, 2: the entry the second ad follows, 3: the entry the third ad follows. */
 								__(
-									'Up to 3 ads, after entries %1$d, %2$d and %3$d. New entries that arrive while the page is open keep getting an ad at this interval, with no limit.',
+									'Up to 3 ads, after entries %1$d, %2$d and %3$d. New entries that arrive while the page is open get one at this interval, with no limit.',
 									'newspack-rolling-coverage'
 								),
 								adsInterval,
@@ -2471,7 +2471,10 @@ export default function Edit( {
 							onChange={ ( value: string ) =>
 								setAttributes( {
 									adsInterval: value
-										? parseInt( value, 10 )
+										? Math.max(
+												1,
+												parseInt( value, 10 ) || 1
+											)
 										: 4,
 								} )
 							}
