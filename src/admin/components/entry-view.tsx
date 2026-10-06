@@ -275,10 +275,6 @@ function EntryView() {
 		setQuickEditEntry( entry );
 	}, [] );
 
-	const handleQuickEditSaved = useCallback( () => {
-		refresh();
-	}, [ refresh ] );
-
 	const handleQuickEditClose = useCallback( () => {
 		setQuickEditEntry( null );
 	}, [] );
@@ -287,10 +283,10 @@ function EntryView() {
 	const quickEditIdRef = useRef< number | null >( null );
 	quickEditIdRef.current = quickEditEntry?.id ?? null;
 
-	// Re-reads the Quick Edit entry's own row after a row action run from
-	// its menu, wherever the list's current page has it, and closes Quick
-	// Edit once the entry is trashed.
-	const handleQuickEditActionPerformed = useCallback( async () => {
+	// Refetches the Quick Edit entry by ID after a save or a menu action:
+	// the list's current page may not hold it, and the menu and status
+	// controls depend on its fresh state.
+	const refreshQuickEditEntry = useCallback( async () => {
 		refresh();
 		const id = quickEditIdRef.current;
 		if ( ! id || numericCoverageId === null ) {
@@ -395,14 +391,9 @@ function EntryView() {
 				config,
 				handleQuickEdit,
 				requestConfirm,
-				handleQuickEditActionPerformed
+				refreshQuickEditEntry
 			),
-		[
-			config,
-			handleQuickEdit,
-			requestConfirm,
-			handleQuickEditActionPerformed,
-		]
+		[ config, handleQuickEdit, requestConfirm, refreshQuickEditEntry ]
 	);
 
 	const hasNoLiveEntries =
@@ -774,7 +765,7 @@ function EntryView() {
 					actions={ quickEditActions }
 					canPublish={ ! isEntryLocked( quickEditEntry ) }
 					onClose={ handleQuickEditClose }
-					onSaved={ handleQuickEditSaved }
+					onSaved={ refreshQuickEditEntry }
 				/>
 			) }
 			{ canConnectSlack && (

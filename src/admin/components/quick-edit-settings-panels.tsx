@@ -1,7 +1,8 @@
 /**
  * External dependencies
  */
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
+import { Component } from '@wordpress/element';
 import { PanelBody } from '@wordpress/components';
 import { PluginDocumentSettingPanel } from '@wordpress/editor';
 import { getPlugin } from '@wordpress/plugins';
@@ -25,6 +26,25 @@ const ALLOWED_PLUGINS = [ 'plugin-coauthors-document-setting' ];
 const DocumentSettingPanelSlot = (
 	PluginDocumentSettingPanel as unknown as { Slot: ComponentType }
  ).Slot;
+
+/**
+ * Drops a plugin's panel when it throws, as the editor's `PluginArea` does,
+ * so another plugin's error can't take Quick Edit down with it.
+ */
+class PluginPanelBoundary extends Component<
+	{ children: ReactNode },
+	{ hasError: boolean }
+> {
+	state = { hasError: false };
+
+	static getDerivedStateFromError() {
+		return { hasError: true };
+	}
+
+	render() {
+		return this.state.hasError ? null : this.props.children;
+	}
+}
 
 /**
  * The panels below the Entry tab's summary: Push Notifications while the
@@ -53,7 +73,9 @@ function QuickEditSettingsPanels( { canNotify }: { canNotify: boolean } ) {
 				</PanelBody>
 			) }
 			{ plugins.map( ( { name, render: Render } ) => (
-				<Render key={ name } />
+				<PluginPanelBoundary key={ name }>
+					<Render />
+				</PluginPanelBoundary>
 			) ) }
 			<DocumentSettingPanelSlot />
 		</>

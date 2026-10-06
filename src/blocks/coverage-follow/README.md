@@ -53,7 +53,7 @@ A notification goes out when an entry is published and one of these is true:
 
 Only readers who followed that coverage are notified. The notification links to the entry on the coverage's canonical URL, so the coverage needs one. If it doesn't, the Push Notifications panel warns you and no notification is sent. An entry notifies once.
 
-Publishing from the entry editor, Quick Edit or the entries list sends the notification straight away. Slack entries published straight away go out on the site's next scheduled-task run. An entry published another way can take about a minute.
+Publishing an entry from the entry editor, Quick Edit, the entries list or Slack sends the notification on the site's next scheduled-task run, usually within seconds. An entry published another way can take about a minute.
 
 ## Limits
 

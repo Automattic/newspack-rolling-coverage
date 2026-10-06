@@ -99,7 +99,11 @@ class Push_Notifications {
 				'type'          => 'boolean',
 				'single'        => true,
 				'default'       => false,
-				'show_in_rest'  => true,
+				'show_in_rest'  => [
+					'schema' => [
+						'context' => [ 'edit' ],
+					],
+				],
 				'auth_callback' => [ Post_Type::class, 'can_edit_post_meta' ],
 			]
 		);
@@ -365,8 +369,9 @@ class Push_Notifications {
 
 	/**
 	 * Notifies the followers of each of the entry's coverages, then spends the
-	 * opt-in. A lock keeps a scheduled send and an editor's save from both
-	 * sending when they run at the same time.
+	 * opt-in. A lock keeps a scheduled send and a publish outside a REST
+	 * request, such as a scheduled entry going live, from both sending when
+	 * they run at the same time.
 	 *
 	 * @param WP_Post $post Entry post.
 	 */
