@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-06T16:33:03+00:00\n"
+"POT-Creation-Date: 2026-10-06T18:05:06+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -37,8 +37,8 @@ msgstr ""
 #: includes/ai/class-abilities.php:60
 #: includes/class-admin.php:74
 #: includes/class-admin.php:75
-#: includes/class-taxonomy.php:125
-#: includes/class-taxonomy.php:126
+#: includes/class-taxonomy.php:111
+#: includes/class-taxonomy.php:112
 #: dist/admin.js:4
 msgid "Rolling Coverage"
 msgstr ""
@@ -87,7 +87,7 @@ msgstr ""
 #: includes/blocks/class-rolling-coverage-block.php:4030
 #: includes/blocks/class-rolling-coverage-block.php:4041
 #: includes/class-post-type.php:1083
-#: includes/class-taxonomy.php:361
+#: includes/class-taxonomy.php:347
 msgid "Coverage not found."
 msgstr ""
 
@@ -217,12 +217,12 @@ msgid "entries"
 msgstr ""
 
 #: includes/blocks/class-entry-name.php:261
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Set both the singular and the plural, or leave both empty."
 msgstr ""
 
 #: includes/blocks/class-latest-label.php:103
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Jump to Latest"
 msgstr ""
 
@@ -465,7 +465,7 @@ msgstr ""
 #: includes/class-admin.php:95
 #: dist/admin.js:4
 #: dist/admin.js:211
-#: dist/admin.js:214
+#: dist/admin.js:216
 msgid "Slack Connection"
 msgstr ""
 
@@ -477,7 +477,7 @@ msgid "AI"
 msgstr ""
 
 #: includes/class-admin.php:338
-#: dist/admin.js:213
+#: dist/admin.js:215
 #: dist/admin.js:222
 msgid "Slack"
 msgstr ""
@@ -526,9 +526,71 @@ msgstr ""
 msgid "This entry already has a breakout post."
 msgstr ""
 
-#: includes/class-post-type.php:259
+#: includes/class-placements.php:129
+msgid "Published places that show the coverage, the main page first."
+msgstr ""
+
+#: includes/class-placements.php:351
+msgid "Template"
+msgstr ""
+
+#: includes/class-placements.php:351
+msgid "Template part"
+msgstr ""
+
+#: includes/class-placements.php:364
+msgid "Pattern"
+msgstr ""
+
+#: includes/class-placements.php:372
+msgid "Widget area"
+msgstr ""
+
+#: includes/class-placements.php:392
 #: dist/admin.js:213
-#: dist/admin.js:214
+#: dist/admin.js:222
+#: dist/blocks/rolling-coverage/index.js:1
+msgid "(no title)"
+msgstr ""
+
+#: includes/class-placements.php:435
+msgid "Full"
+msgstr ""
+
+#: includes/class-placements.php:439
+#: dist/admin.js:209
+#: dist/admin.js:210
+#: dist/admin.js:215
+#: dist/admin.js:222
+#: dist/admin.js:233
+#: dist/admin.js:236
+msgid "Status"
+msgstr ""
+
+#: includes/class-placements.php:443
+#: dist/blocks/coverage-follow/index.js:3
+msgid "Follow"
+msgstr ""
+
+#: includes/class-placements.php:452
+msgid "Latest"
+msgstr ""
+
+#: includes/class-placements.php:463
+msgid "Template part, on this coverage’s breakout posts"
+msgstr ""
+
+#: includes/class-placements.php:467
+msgid "Widget area, on this coverage’s breakout posts"
+msgstr ""
+
+#: includes/class-placements.php:470
+msgid "Template, on this coverage’s breakout posts"
+msgstr ""
+
+#: includes/class-post-type.php:259
+#: dist/admin.js:215
+#: dist/admin.js:216
 #: dist/blocks/rolling-coverage/index.js:3
 msgid "Entries"
 msgstr ""
@@ -645,11 +707,11 @@ msgstr ""
 msgid "Failed to restore entry."
 msgstr ""
 
-#: includes/class-taxonomy.php:486
+#: includes/class-taxonomy.php:472
 msgid "Coverage is not in trash."
 msgstr ""
 
-#: includes/class-taxonomy.php:525
+#: includes/class-taxonomy.php:511
 msgid "Coverage could not be deleted."
 msgstr ""
 
@@ -799,17 +861,17 @@ msgstr ""
 
 #: includes/slack/class-slack-webhook-controller.php:1013
 #: dist/admin.js:211
-#: dist/admin.js:214
+#: dist/admin.js:216
 msgid "Connect"
 msgstr ""
 
 #: includes/slack/class-slack-webhook-controller.php:1017
 #: dist/admin.js:209
 #: dist/admin.js:211
-#: dist/admin.js:213
-#: dist/admin.js:216
-#: dist/admin.js:217
+#: dist/admin.js:215
+#: dist/admin.js:218
 #: dist/admin.js:219
+#: dist/admin.js:221
 msgid "Cancel"
 msgstr ""
 
@@ -890,9 +952,9 @@ msgid "Monitor"
 msgstr ""
 
 #: dist/admin.js:4
-#: dist/admin.js:213
-#: dist/admin.js:214
+#: dist/admin.js:215
 #: dist/admin.js:216
+#: dist/admin.js:218
 #: dist/blocks/coverage-follow/index.js:3
 #: dist/blocks/coverage-status/index.js:3
 msgid "Settings"
@@ -910,7 +972,7 @@ msgstr ""
 
 #. translators: %s: the drawer's title.
 #: dist/admin.js:209
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Name"
 msgstr ""
 
@@ -928,15 +990,6 @@ msgstr ""
 
 #: dist/admin.js:209
 msgid "An internal note about this coverage. Readers never see it."
-msgstr ""
-
-#: dist/admin.js:209
-#: dist/admin.js:210
-#: dist/admin.js:213
-#: dist/admin.js:222
-#: dist/admin.js:233
-#: dist/admin.js:236
-msgid "Status"
 msgstr ""
 
 #: dist/admin.js:209
@@ -979,8 +1032,8 @@ msgid "Edit Coverage"
 msgstr ""
 
 #: dist/admin.js:209
-#: dist/admin.js:214
 #: dist/admin.js:216
+#: dist/admin.js:218
 msgid "Add Coverage"
 msgstr ""
 
@@ -989,9 +1042,9 @@ msgid "Failed to save coverage"
 msgstr ""
 
 #: dist/admin.js:209
-#: dist/admin.js:213
-#: dist/admin.js:216
-#: dist/admin.js:219
+#: dist/admin.js:215
+#: dist/admin.js:218
+#: dist/admin.js:221
 #: dist/admin.js:232
 #: dist/admin.js:236
 msgid "Save"
@@ -1001,7 +1054,6 @@ msgstr ""
 msgid "Add"
 msgstr ""
 
-#. translators: accessibility text appended to link text
 #: dist/admin.js:209
 #: dist/admin.js:222
 msgid "Published"
@@ -1141,292 +1193,301 @@ msgstr ""
 msgid "Disconnect"
 msgstr ""
 
-#: dist/admin.js:211
-#: dist/admin.js:222
-#: dist/blocks/rolling-coverage/index.js:1
-msgid "(no title)"
+#. translators: accessibility text appended to link text
+#: dist/admin.js:213
+msgid "Main page"
+msgstr ""
+
+#: dist/admin.js:213
+msgid "View"
+msgstr ""
+
+#: dist/admin.js:213
+#: dist/admin.js:216
+#: dist/admin.js:225
+msgid "Edit"
+msgstr ""
+
+#: dist/admin.js:213
+#: dist/admin.js:216
+#: dist/admin.js:230
+msgid "View Pages"
 msgstr ""
 
 #. translators: %s: entry title.
-#: dist/admin.js:212
+#: dist/admin.js:214
 #, js-format
 msgid "New entry: %s"
 msgstr ""
 
 #. translators: %s: entry title.
-#: dist/admin.js:213
+#: dist/admin.js:215
 #, js-format
 msgid "Updated: %s"
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "1 entry removed"
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "The settings couldn’t be loaded."
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Discard changes?"
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "The changes to these settings haven’t been saved."
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Discard"
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 #: dist/blocks/coverage-status/index.js:3
 msgid "Live label"
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 #: dist/blocks/coverage-status/index.js:3
 msgid "Paused label"
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 #: dist/blocks/coverage-status/index.js:3
 msgid "Ended label"
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Entry Name"
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Coverage Status"
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Set what readers see entries called, written as they read mid-sentence, for example “update” and “updates”. Leave both empty to use “entry” and “entries”."
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Singular"
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Plural"
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Set the text the status indicator shows for each coverage status. A block can still set its own."
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Set the text of the button that takes readers back to the live feed. When it can, the button counts the new entries instead."
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Button label"
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "The settings couldn’t be saved."
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Saved."
 msgstr ""
 
-#: dist/admin.js:213
-#: dist/admin.js:214
 #: dist/admin.js:215
+#: dist/admin.js:216
+#: dist/admin.js:217
 #: dist/admin.js:225
 #: dist/admin.js:226
 msgid "Trash"
 msgstr ""
 
-#: dist/admin.js:213
+#: dist/admin.js:215
 msgid "Term ID"
 msgstr ""
 
 #. translators: %s: coverage name.
-#: dist/admin.js:214
+#: dist/admin.js:216
 #, js-format
 msgid "Connect %s to a Slack channel"
 msgstr ""
 
-#: dist/admin.js:214
+#: dist/admin.js:216
 #: dist/admin.js:222
 msgid "Created"
 msgstr ""
 
-#: dist/admin.js:214
+#: dist/admin.js:216
 #: dist/admin.js:222
 msgid "Modified"
 msgstr ""
 
-#: dist/admin.js:214
+#: dist/admin.js:216
 msgid "Failed to load coverages."
 msgstr ""
 
-#: dist/admin.js:214
-#: dist/admin.js:225
-msgid "Edit"
-msgstr ""
-
-#: dist/admin.js:214
+#: dist/admin.js:216
 #: dist/admin.js:229
-#: dist/admin.js:230
 msgid "View Page"
 msgstr ""
 
-#: dist/admin.js:214
+#: dist/admin.js:216
 msgid "Trash this coverage?"
 msgstr ""
 
 #. translators: %d: number of coverages.
-#: dist/admin.js:215
+#: dist/admin.js:217
 #, js-format
 msgid "Trash %d coverage?"
 msgid_plural "Trash %d coverages?"
 msgstr[0] ""
 msgstr[1] ""
 
-#: dist/admin.js:215
+#: dist/admin.js:217
 msgid "Its entries will be hidden from the frontend until the coverage is restored."
 msgstr ""
 
-#: dist/admin.js:215
+#: dist/admin.js:217
 msgid "Their entries will be hidden from the frontend until the coverages are restored."
 msgstr ""
 
-#: dist/admin.js:215
+#: dist/admin.js:217
 msgid "Failed to trash coverage."
 msgstr ""
 
-#: dist/admin.js:215
+#: dist/admin.js:217
 msgid "Coverage trashed."
 msgstr ""
 
-#: dist/admin.js:215
+#: dist/admin.js:217
 msgid "Coverages trashed."
 msgstr ""
 
-#: dist/admin.js:215
+#: dist/admin.js:217
 #: dist/admin.js:226
 msgid "Restore"
 msgstr ""
 
-#: dist/admin.js:215
+#: dist/admin.js:217
 msgid "Coverage restored."
 msgstr ""
 
-#: dist/admin.js:215
+#: dist/admin.js:217
 msgid "Coverages restored."
 msgstr ""
 
-#: dist/admin.js:215
+#: dist/admin.js:217
 msgid "Failed to restore coverage."
 msgstr ""
 
-#: dist/admin.js:215
-#: dist/admin.js:216
+#: dist/admin.js:217
+#: dist/admin.js:218
 #: dist/admin.js:226
 #: dist/admin.js:227
 msgid "Delete Permanently"
 msgstr ""
 
-#: dist/admin.js:215
+#: dist/admin.js:217
 msgid "Permanently delete this coverage?"
 msgstr ""
 
 #. translators: %d: number of coverages.
-#: dist/admin.js:216
+#: dist/admin.js:218
 #, js-format
 msgid "Permanently delete %d coverage?"
 msgid_plural "Permanently delete %d coverages?"
 msgstr[0] ""
 msgstr[1] ""
 
-#: dist/admin.js:216
+#: dist/admin.js:218
 msgid "This cannot be undone. Its entries are deleted too, apart from any already in the trash."
 msgstr ""
 
-#: dist/admin.js:216
+#: dist/admin.js:218
 msgid "This cannot be undone. Their entries are deleted too, apart from any already in the trash."
 msgstr ""
 
-#: dist/admin.js:216
+#: dist/admin.js:218
 msgid "Failed to delete coverage."
 msgstr ""
 
-#: dist/admin.js:216
+#: dist/admin.js:218
 msgid "Coverage permanently deleted."
 msgstr ""
 
-#: dist/admin.js:216
+#: dist/admin.js:218
 msgid "Coverages permanently deleted."
 msgstr ""
 
-#: dist/admin.js:216
+#: dist/admin.js:218
 msgid "Fetching coverages…"
 msgstr ""
 
-#: dist/admin.js:216
+#: dist/admin.js:218
 msgid "Get started with rolling coverage"
 msgstr ""
 
-#: dist/admin.js:216
+#: dist/admin.js:218
 msgid "Follow a developing story with a live stream of short, timestamped updates."
 msgstr ""
 
-#: dist/admin.js:216
+#: dist/admin.js:218
 msgid "Failed to save entry."
 msgstr ""
 
-#: dist/admin.js:216
+#: dist/admin.js:218
 #: dist/admin.js:225
 msgid "Quick Edit"
 msgstr ""
 
-#: dist/admin.js:216
+#: dist/admin.js:218
 msgid "Discard Changes"
 msgstr ""
 
-#: dist/admin.js:216
+#: dist/admin.js:218
 msgid "You have unsaved changes. Are you sure you want to close and discard them?"
 msgstr ""
 
-#: dist/admin.js:216
+#: dist/admin.js:218
 msgid "The person you choose replaces this entry’s current author."
 msgstr ""
 
 #. translators: %d: number of entries.
-#: dist/admin.js:217
+#: dist/admin.js:219
 #, js-format
 msgid "The person you choose replaces the current author of %d entry."
 msgid_plural "The person you choose replaces the current author of all %d entries."
 msgstr[0] ""
 msgstr[1] ""
 
-#: dist/admin.js:217
+#: dist/admin.js:219
 #: dist/admin.js:225
 msgid "Change Author"
 msgstr ""
 
-#: dist/admin.js:217
+#: dist/admin.js:219
 #: dist/admin.js:222
 msgid "Author"
 msgstr ""
 
-#: dist/admin.js:217
-#: dist/admin.js:218
+#: dist/admin.js:219
+#: dist/admin.js:220
 msgid "Failed to change the author."
 msgstr ""
 
-#: dist/admin.js:217
+#: dist/admin.js:219
 msgid "Author changed."
 msgstr ""
 
 #. translators: %d: number of entries.
-#: dist/admin.js:218
+#: dist/admin.js:220
 #, js-format
 msgid "Author changed for %d entry."
 msgid_plural "Author changed for %d entries."
@@ -1434,28 +1495,28 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of entries.
-#: dist/admin.js:219
+#: dist/admin.js:221
 #, js-format
 msgid "Couldn’t change the author of %d entry."
 msgid_plural "Couldn’t change the author of %d entries."
 msgstr[0] ""
 msgstr[1] ""
 
-#: dist/admin.js:219
+#: dist/admin.js:221
 msgid "Confirm"
 msgstr ""
 
-#: dist/admin.js:219
+#: dist/admin.js:221
 msgid "This entry is archived, are you sure you want to edit it?"
 msgstr ""
 
 #. translators: %s: The coverage's status, e.g. "Paused" or "Ended".
-#: dist/admin.js:220
+#: dist/admin.js:222
 #, js-format
 msgid "This entry’s coverage is set to “%s”. Edit it anyway?"
 msgstr ""
 
-#: dist/admin.js:220
+#: dist/admin.js:222
 msgid "Are you sure you want to edit this entry?"
 msgstr ""
 
@@ -1695,10 +1756,6 @@ msgstr ""
 #. translators: Accessibility text.
 #: dist/admin.js:230
 msgid "(opens in a new tab)"
-msgstr ""
-
-#: dist/admin.js:230
-msgid "No published page shows this coverage yet. Add the Rolling Coverage block to a page and publish it."
 msgstr ""
 
 #. translators: %d: number of updates.
@@ -2208,10 +2265,6 @@ msgstr ""
 #: dist/blocks/coverage-follow/index.js:3
 #: dist/blocks/coverage-status/index.js:3
 msgid "Custom coverage"
-msgstr ""
-
-#: dist/blocks/coverage-follow/index.js:3
-msgid "Follow"
 msgstr ""
 
 #: dist/blocks/coverage-follow/index.js:3
