@@ -6,14 +6,20 @@ import type { ComponentType, ReactNode } from 'react';
 // eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 import { __experimentalMainDashboardButton } from '@wordpress/edit-post';
 import { Button } from '@wordpress/components';
+import { useViewportMatch } from '@wordpress/compose';
 import { useSelect } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
+import { store as preferencesStore } from '@wordpress/preferences';
 import { __, isRTL } from '@wordpress/i18n';
 import { chevronLeft, chevronRight } from '@wordpress/icons';
 
 type EntryEditorData = {
 	coveragesUrl: string;
 	coverageRestBase: string;
+};
+
+type PreferencesSelectors = {
+	get: ( scope: string, name: string ) => unknown;
 };
 
 type EditorPostSelectors = {
@@ -67,10 +73,26 @@ export function BackToCoverage( {
 	coverageRestBase,
 }: EntryEditorData ) {
 	const coverageId = useEntryCoverageId( coverageRestBase );
+	const isMediumViewport = useViewportMatch( 'medium' );
+	const { isFullscreen, showIconLabels } = useSelect( ( select ) => {
+		const preferences = select(
+			preferencesStore
+		) as unknown as PreferencesSelectors;
+		return {
+			isFullscreen: !! preferences.get(
+				'core/edit-post',
+				'fullscreenMode'
+			),
+			showIconLabels: !! preferences.get( 'core', 'showIconLabels' ),
+		};
+	}, [] );
+
+	if ( ! MainDashboardButton || ! isFullscreen || ! isMediumViewport ) {
+		return null;
+	}
+
 	const href =
-		coverageId > 0
-			? `${ coveragesUrl }#/coverages/${ coverageId }`
-			: `${ coveragesUrl }#/coverages`;
+		coverageId > 0 ? `${ coveragesUrl }/${ coverageId }` : coveragesUrl;
 	const label =
 		coverageId > 0
 			? __( 'Back to Coverage', 'newspack-rolling-coverage' )
@@ -82,7 +104,7 @@ export function BackToCoverage( {
 				size="compact"
 				href={ href }
 				label={ label }
-				showTooltip
+				showTooltip={ ! showIconLabels }
 				tooltipPosition="bottom"
 				icon={ isRTL() ? chevronRight : chevronLeft }
 			/>

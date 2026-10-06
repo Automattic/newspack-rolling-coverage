@@ -180,11 +180,12 @@ class Admin {
 	/**
 	 * URL of the coverages screen, on a coverage's entries when given one.
 	 *
-	 * @param int $coverage_id Coverage term ID, or 0 for All Coverages.
+	 * @param int      $coverage_id Coverage term ID, or 0 for All Coverages.
+	 * @param string[] $args        Query args for the page, before the route.
 	 * @return string
 	 */
-	public static function get_coverages_url( int $coverage_id = 0 ): string {
-		$url = admin_url( 'admin.php?page=' . self::MENU_SLUG );
+	public static function get_coverages_url( int $coverage_id = 0, array $args = [] ): string {
+		$url = add_query_arg( $args, admin_url( 'admin.php?page=' . self::MENU_SLUG ) );
 
 		return $url . '#/coverages' . ( $coverage_id > 0 ? '/' . $coverage_id : '' );
 	}
@@ -193,17 +194,18 @@ class Admin {
 	 * URL of the screen to return to from an entry: its first coverage's
 	 * entries, or All Coverages when it has none.
 	 *
-	 * @param int $post_id Entry ID.
+	 * @param int      $post_id Entry ID.
+	 * @param string[] $args    Query args for the page, before the route.
 	 * @return string
 	 */
-	public static function get_entry_return_url( int $post_id ): string {
+	public static function get_entry_return_url( int $post_id, array $args = [] ): string {
 		$term_ids = wp_get_post_terms( $post_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
 
 		if ( is_wp_error( $term_ids ) || empty( $term_ids ) ) {
-			return self::get_coverages_url();
+			return self::get_coverages_url( 0, $args );
 		}
 
-		return self::get_coverages_url( (int) $term_ids[0] );
+		return self::get_coverages_url( (int) $term_ids[0], $args );
 	}
 
 	/**
@@ -228,9 +230,10 @@ class Admin {
 			}
 		}
 
-		$ids = isset( $query['ids'] ) && is_string( $query['ids'] ) ? absint( strtok( $query['ids'], ',' ) ) : 0;
+		$ids  = isset( $query['ids'] ) && is_string( $query['ids'] ) ? absint( strtok( $query['ids'], ',' ) ) : 0;
+		$args = ! empty( $query['trashed'] ) ? [ 'trashed' => '1' ] : [];
 
-		return $ids > 0 ? self::get_entry_return_url( $ids ) : self::get_coverages_url();
+		return $ids > 0 ? self::get_entry_return_url( $ids, $args ) : self::get_coverages_url( 0, $args );
 	}
 
 	/**

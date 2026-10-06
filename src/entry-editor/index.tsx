@@ -47,17 +47,16 @@ function PushNotificationsPanel() {
 	);
 }
 
-function EntryEditor() {
+function EntryBackButton() {
 	const data = window.newspackRollingCoverageEntryEditor;
 
-	return (
-		<>
-			{ data && <BackToCoverage { ...data } /> }
-			<PushNotificationsPanel />
-		</>
-	);
+	return data ? <BackToCoverage { ...data } /> : null;
 }
 
-registerPlugin( 'newspack-rolling-coverage-entry-editor', {
-	render: EntryEditor,
+registerPlugin( 'newspack-rolling-coverage-back-to-coverage', {
+	render: EntryBackButton,
+} );
+
+registerPlugin( 'newspack-rolling-coverage-push-notifications', {
+	render: PushNotificationsPanel,
 } );
