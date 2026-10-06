@@ -91,7 +91,24 @@ function pluralize( count: number, singular: string, plural: string ): string {
 	return count > 1 ? plural : singular;
 }
 
+/**
+ * Confirms an entry trashed in the editor, which redirects here with
+ * `rolling_coverage_trashed=1`, then drops the arg so a reload doesn't repeat the notice.
+ */
+function announceTrashedEntry() {
+	const url = new URL( window.location.href );
+
+	if ( ! url.searchParams.has( 'rolling_coverage_trashed' ) ) {
+		return;
+	}
+
+	url.searchParams.delete( 'rolling_coverage_trashed' );
+	window.history.replaceState( window.history.state, '', url );
+	notifySuccess( __( 'Entry trashed.', 'newspack-rolling-coverage' ) );
+}
+
 export {
+	announceTrashedEntry,
 	notifySuccess,
 	notifyError,
 	pluralize,
