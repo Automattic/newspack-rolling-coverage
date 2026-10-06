@@ -42,6 +42,11 @@ declare module '@wordpress/block-editor' {
 		layout?: Record< string, unknown >;
 	} >;
 
+	export const BlockToolbar: ComponentType< {
+		hideDragHandle?: boolean;
+		variant?: string;
+	} >;
+
 	export function useBlockProps(
 		props?: Record< string, unknown >
 	): Record< string, unknown >;
