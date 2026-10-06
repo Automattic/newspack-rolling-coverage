@@ -410,6 +410,7 @@ function groupPreviewParts( group?: { [ key: string ]: unknown } ): {
 			flexStyle && layout?.orientation
 				? `is-${ layout.orientation }`
 				: '',
+			flexStyle && layout?.flexWrap === 'nowrap' ? 'is-nowrap' : '',
 			gridStyle ? 'is-layout-grid' : '',
 			layout?.type === 'constrained' ? 'is-layout-constrained' : '',
 			attributes.className,

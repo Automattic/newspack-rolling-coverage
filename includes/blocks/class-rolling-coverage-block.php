@@ -1769,11 +1769,12 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Stores the layout styles and the per-viewport styles of the template's
-	 * blocks, as rendering an entry would. Core prints them only for blocks
-	 * rendered on the page, so without this, entries that reach a coverage
-	 * that loaded empty would arrive by polling with no layout, e.g. Share
-	 * not opposite the title.
+	 * Stores the layout styles, the per-viewport styles and the Block
+	 * Visibility styles of the template's blocks, as rendering an entry
+	 * would. Core prints them only for blocks rendered on the page, so
+	 * without this, entries that reach a coverage that loaded empty would
+	 * arrive by polling with no layout, e.g. Share not opposite the title, or
+	 * Flash's time showing on phones.
 	 *
 	 * @param array[] $blocks        Parsed template blocks.
 	 * @param array   $parent_layout The parent block's layout, as core passes
@@ -1793,6 +1794,7 @@ class Rolling_Coverage_Block {
 			$markup = trim( (string) ( $block['innerHTML'] ?? '' ) );
 			wp_render_layout_support_flag( '' !== $markup ? $markup : '<div></div>', $block );
 			wp_render_block_states_support( '' !== $markup ? $markup : '<div></div>', $block );
+			wp_render_block_visibility_support( '' !== $markup ? $markup : '<div></div>', $block );
 
 			self::store_template_layout_styles( $block['innerBlocks'] ?? [], (array) ( $block['attrs']['layout'] ?? [] ) );
 		}

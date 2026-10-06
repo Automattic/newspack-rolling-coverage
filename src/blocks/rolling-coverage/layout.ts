@@ -24,7 +24,6 @@ import {
 	flashEntryTemplate,
 	flashBar,
 	FLASH_FEED_LAYOUT,
-	FLASH_FEED_STYLE,
 	tickerEntryTemplate,
 	tickerHeader,
 	TICKER_FEED_LAYOUT,
@@ -55,6 +54,7 @@ import {
 	isPinnedCard,
 	forEntryKind,
 } from './template';
+import { normalizeColor } from '../shared/apca';
 import { SHOW_AVATARS } from './config';
 import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
@@ -62,19 +62,21 @@ export const BLOCK_NAME = metadata.name;
 
 export { FOLLOW_BLOCK_NAME };
 
+type PaletteColor = { slug: string; color?: string };
+
 /**
- * The slugs of every color in the editor's palette: the theme's, core's
- * default and the site's custom ones.
+ * Every color in the editor's palette: the theme's, core's default and the
+ * site's custom ones.
  *
- * @return {string[]} Color slugs.
+ * @return {PaletteColor[]} Colors.
  */
-function paletteSlugs(): string[] {
+function palette(): PaletteColor[] {
 	const settings = (
 		select( blockEditorStore.name ) as unknown as {
 			getSettings: () => {
-				colors?: { slug: string }[];
+				colors?: PaletteColor[];
 				__experimentalFeatures?: {
-					color?: { palette?: Record< string, { slug: string }[] > };
+					color?: { palette?: Record< string, PaletteColor[] > };
 				};
 			};
 		}
@@ -83,9 +85,26 @@ function paletteSlugs(): string[] {
 		settings.__experimentalFeatures?.color?.palette ?? {}
 	);
 
-	return [ ...origins.flat(), ...( settings.colors ?? [] ) ].map(
-		( color ) => color.slug
-	);
+	return [ ...origins.flat(), ...( settings.colors ?? [] ) ];
+}
+
+/**
+ * The slugs of every color in the editor's palette.
+ *
+ * @return {string[]} Color slugs.
+ */
+function paletteSlugs(): string[] {
+	return palette().map( ( color ) => color.slug );
+}
+
+/**
+ * The value of a palette color, if the palette has it.
+ *
+ * @param {string} slug The color's slug.
+ * @return {string|undefined} The color.
+ */
+function paletteColor( slug: string ): string | undefined {
+	return palette().find( ( color ) => color.slug === slug )?.color;
 }
 
 /**
@@ -275,21 +294,30 @@ export function digestInnerTemplate(): TemplateItem[] {
  * The Flash layout's inner-blocks template: a full-width bar on the site's
  * accent color holding, at the theme's wide width, the coverage's status,
  * the newest entry's time and text, then a link to the coverage page on the
- * right. On tablets and phones the three stack.
+ * right, side by side at every width. The Live badge takes the page's
+ * background color (Base on block themes, White on the classic Newspack
+ * Theme) as it is when the layout is picked.
  *
  * @return {TemplateItem[]} The template.
  */
 export function flashInnerTemplate(): TemplateItem[] {
+	const base = normalizeColor(
+		paletteColor( 'base' ) ?? paletteColor( 'white' ) ?? ''
+	);
+
 	return [
 		flashBar(
 			feedTemplate(
 				[
-					[ STATUS_BLOCK_NAME, {} ],
+					[
+						STATUS_BLOCK_NAME,
+						base ? { backgroundColors: { active: base } } : {},
+					],
 					...flashEntryTemplate(),
 					allUpdatesLink(),
 				],
 				'var:preset|spacing|30',
-				FLASH_FEED_STYLE,
+				{},
 				FLASH_FEED_LAYOUT,
 				{ align: 'wide' }
 			)

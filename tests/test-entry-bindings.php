@@ -1186,6 +1186,25 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A coverage that loads with no entries still stores the Block
+	 * Visibility styles of its entry template, so a block hidden on phones
+	 * stays hidden in entries that arrive later by polling.
+	 */
+	public function test_empty_coverage_stores_the_template_visibility_styles() {
+		$attributes = [ 'coverageId' => self::create_coverage() ];
+		$entry      = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. '<!-- wp:post-date {"metadata":{"blockVisibility":{"viewport":{"mobile":false}}}} /-->'
+			. '</div><!-- /wp:group -->';
+		$feed       = '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">' . $entry . '</div><!-- /wp:group -->';
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . $feed . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+
+		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
+		Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		$this->assertStringContainsString( '.wp-block-hidden-mobile{display:none !important;}', wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] ) );
+	}
+
+	/**
 	 * On a theme that loads block styles only for the blocks on the page, a
 	 * coverage still loads the image and gallery styles, for Slack photos
 	 * that arrive later by polling.
