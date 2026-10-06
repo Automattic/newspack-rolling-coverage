@@ -74,6 +74,8 @@ class Initializer {
 		// Flush rewrite rules to ensure the new post type and taxonomy are available.
 		flush_rewrite_rules(); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.flush_rewrite_rules_flush_rewrite_rules
 
+		Placements::activate();
+
 		/**
 		 * Action to hook into when Rolling Coverage plugin is activated.
 		 */
@@ -95,6 +97,8 @@ class Initializer {
 		}
 
 		wp_clear_scheduled_hook( Post_Type::CLEANUP_CRON_HOOK );
+
+		Placements::deactivate();
 
 		// Clean up the Slack monitor log file and keep-alive options.
 		Slack_Monitor::cleanup();

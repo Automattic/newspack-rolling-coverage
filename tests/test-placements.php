@@ -275,6 +275,18 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An Automatic block skips a feed whose coverage is trashed, as it does
+	 * on the site.
+	 */
+	public function test_automatic_blocks_skip_a_trashed_feed() {
+		$trashed_id  = self::create_coverage( 'trash' );
+		$coverage_id = self::create_coverage();
+		$page_id     = self::publish( self::status() . self::feed( $trashed_id ) . self::feed( $coverage_id ) );
+
+		$this->assertSame( [ 'post:' . $page_id => [ 'Full', 'Status' ] ], self::tags( $coverage_id ) );
+	}
+
+	/**
 	 * A Custom block whose coverage is trashed falls back to Automatic, as
 	 * it does on the site, and the map is rebuilt when that happens.
 	 */
@@ -381,7 +393,7 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( [ 'wp_block:' . $box_id ], array_keys( $rows ), 'The post holds no block of its own, so the pattern is the place.' );
 		$this->assertSame( [ 'Storm box', 'Pattern', [ 'Latest', 'Status' ], '' ], [ $rows[ 'wp_block:' . $box_id ]['title'], $rows[ 'wp_block:' . $box_id ]['type'], $rows[ 'wp_block:' . $box_id ]['tags'], $rows[ 'wp_block:' . $box_id ]['viewUrl'] ] );
-		$this->assertSame( admin_url( 'site-editor.php?p=/wp_block/' . $box_id . '&canvas=edit' ), $rows[ 'wp_block:' . $box_id ]['editUrl'] );
+		$this->assertSame( get_edit_post_link( $box_id, 'raw' ), $rows[ 'wp_block:' . $box_id ]['editUrl'], 'On a classic theme a pattern opens in the block editor.' );
 
 		wp_update_post(
 			[
@@ -552,41 +564,76 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Whether an action clears the stored map.
+	 * The theme signature a fresh map is stored with.
 	 *
-	 * @param callable $action   Action to run.
-	 * @param int[]    $patterns Synced patterns the stored map knows show a coverage.
-	 * @return bool
+	 * @return string
 	 */
-	private static function clears_map( callable $action, array $patterns = [] ): bool {
-		$sentinel = [
-			'pages'    => [ 1 => 1 ],
-			'places'   => [],
-			'breakout' => [],
-			'patterns' => $patterns,
-		];
-
-		Placements::rebuild();
-		update_option( Placements::OPTION, $sentinel, false );
-
-		$action();
-		Placements::rebuild();
-
-		return get_option( Placements::OPTION ) !== $sentinel;
+	private static function theme(): string {
+		return get_stylesheet() . '@' . wp_get_theme()->get( 'Version' );
 	}
 
 	/**
-	 * Templates, template parts, patterns and posts using a known pattern
-	 * clear the map when saved; posts using another pattern don't.
+	 * Whether an action marks the stored map out of date.
+	 *
+	 * @param callable $action   Action to run.
+	 * @param int[]    $patterns Synced patterns the stored map knows lead to a block.
+	 * @return bool
 	 */
-	public function test_saving_templates_and_patterns_clears_the_map() {
+	private static function clears_map( callable $action, array $patterns = [] ): bool {
+		update_option(
+			Placements::OPTION,
+			[
+				'pages'    => [ 1 => 1 ],
+				'places'   => [],
+				'breakout' => [],
+				'patterns' => $patterns,
+				'theme'    => self::theme(),
+			],
+			false
+		);
+		delete_option( Placements::STALE_OPTION );
+
+		$action();
+
+		return false !== get_option( Placements::STALE_OPTION );
+	}
+
+	/**
+	 * Patterns and posts using a known pattern clear the map when what they
+	 * show changes; posts using another pattern, drafts and edits that leave
+	 * the blocks as they were don't, so saving an article never waits on a
+	 * rebuild it doesn't need.
+	 */
+	public function test_only_saves_that_change_what_is_shown_clear_the_map() {
 		$coverage_id = self::create_coverage();
 		$known_id    = self::pattern( 'Storm box', self::feed( $coverage_id ) );
 		$other_id    = self::pattern( 'Newsletter', '<!-- wp:paragraph --><p>Sign up</p><!-- /wp:paragraph -->' );
+		$article_id  = self::publish( '<!-- wp:paragraph --><p>Roads are closed.</p><!-- /wp:paragraph -->' . self::feed( $coverage_id, [ 'latestOnly' => true ] ) );
 
-		$this->assertTrue( self::clears_map( fn() => self::publish( self::feed( $coverage_id ), [ 'post_type' => 'wp_template' ] ) ), 'A template with the block.' );
-		$this->assertTrue( self::clears_map( fn() => self::publish( self::status(), [ 'post_type' => 'wp_template_part' ] ) ), 'A template part with the block.' );
+		$this->assertFalse(
+			self::clears_map(
+				fn() => wp_update_post(
+					[
+						'ID'           => $article_id,
+						'post_title'   => 'Roads closed across the county',
+						'post_content' => '<!-- wp:paragraph --><p>Most roads are closed.</p><!-- /wp:paragraph -->' . self::feed( $coverage_id, [ 'latestOnly' => true ] ),
+					]
+				)
+			),
+			'Editing the text around a capped feed.'
+		);
 		$this->assertTrue(
+			self::clears_map(
+				fn() => wp_update_post(
+					[
+						'ID'           => $article_id,
+						'post_content' => self::feed( $coverage_id ),
+					]
+				)
+			),
+			'Turning the capped feed into a full one.'
+		);
+		$this->assertFalse(
 			self::clears_map(
 				fn() => wp_update_post(
 					[
@@ -595,7 +642,18 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 					]
 				)
 			),
-			'A pattern with the block.'
+			'Renaming a pattern.'
+		);
+		$this->assertTrue(
+			self::clears_map(
+				fn() => wp_update_post(
+					[
+						'ID'           => $known_id,
+						'post_content' => self::status( $coverage_id ),
+					]
+				)
+			),
+			'Changing a pattern\'s blocks.'
 		);
 		$this->assertTrue( self::clears_map( fn() => self::publish( self::ref( $known_id ) ), [ $known_id ] ), 'A post using a pattern that shows a coverage.' );
 		$this->assertFalse( self::clears_map( fn() => self::publish( self::ref( $other_id ) ), [ $known_id ] ), 'A post using another pattern.' );
@@ -603,15 +661,183 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Widget changes, theme switches and coverage status changes clear the map.
+	 * Templates and template parts clear the map whatever they hold: which
+	 * of them a breakout post renders with depends on their slugs and the
+	 * parts they hold, and resetting one hands its slug back to the theme's
+	 * file, which the deleted post doesn't show.
 	 */
-	public function test_widgets_themes_and_coverage_status_clear_the_map() {
-		$coverage_id = self::create_coverage();
+	public function test_templates_always_clear_the_map() {
+		$this->assertTrue( self::clears_map( fn() => self::publish( 'Plain.', [ 'post_type' => 'wp_template' ] ) ), 'Customizing a template.' );
+		$this->assertTrue( self::clears_map( fn() => self::publish( 'Plain.', [ 'post_type' => 'wp_template_part' ] ) ), 'Customizing a template part.' );
 
+		$template_id = self::publish( 'Plain.', [ 'post_type' => 'wp_template' ] );
+
+		$this->assertTrue(
+			self::clears_map(
+				fn() => wp_update_post(
+					[
+						'ID'           => $template_id,
+						'post_content' => '<!-- wp:template-part {"slug":"header"} /-->',
+					]
+				)
+			),
+			'Editing a template.'
+		);
+		$this->assertTrue( self::clears_map( fn() => wp_delete_post( $template_id, true ) ), 'Resetting a template.' );
+	}
+
+	/**
+	 * A pattern that only wraps another one leads to a block too, so a post
+	 * starting to use it clears the map, and the inner pattern is listed.
+	 */
+	public function test_patterns_wrapping_a_pattern_with_a_block_count() {
+		$coverage_id = self::create_coverage();
+		$inner_id    = self::pattern( 'Storm status', self::status( $coverage_id ) );
+		$wrapper_id  = self::pattern( 'Storm header', self::ref( $inner_id ) );
+
+		self::publish( self::ref( $wrapper_id ), [ 'post_type' => 'page' ] );
+
+		$this->assertSame( [ 'wp_block:' . $inner_id => [ 'Status' ] ], self::tags( $coverage_id ) );
+
+		$patterns = get_option( Placements::OPTION )['patterns'];
+
+		$this->assertEqualsCanonicalizing( [ $inner_id, $wrapper_id ], $patterns );
+		$this->assertTrue( self::clears_map( fn() => self::publish( self::ref( $wrapper_id ) ), $patterns ), 'A post starting to use the wrapper.' );
+	}
+
+	/**
+	 * Widget changes, theme switches and updates clear the map; translation
+	 * updates don't.
+	 */
+	public function test_widgets_and_theme_changes_clear_the_map() {
 		$this->assertTrue( self::clears_map( fn() => update_option( 'widget_block', [ 2 => [ 'content' => self::status() ] ] ) ), 'Editing block widgets.' );
 		$this->assertTrue( self::clears_map( fn() => update_option( 'sidebars_widgets', [ 'sidebar-1' => [ 'block-2' ] ] ) ), 'Moving widgets.' );
-		$this->assertTrue( self::clears_map( fn() => do_action( 'switch_theme', 'Other', wp_get_theme() ) ), 'Switching themes.' );
+		$this->assertSame( 10, has_action( 'after_switch_theme', [ Placements::class, 'flush' ] ), 'Switching themes, once the new theme is loaded.' );
+		$this->assertTrue( self::clears_map( fn() => Placements::flush_on_upgrade( null, [ 'type' => 'theme' ] ) ), 'Updating a theme.' );
+		$this->assertTrue( self::clears_map( fn() => Placements::flush_on_upgrade( null, [ 'type' => 'plugin' ] ) ), 'Updating a plugin.' );
+		$this->assertFalse( self::clears_map( fn() => Placements::flush_on_upgrade( null, [ 'type' => 'translation' ] ) ), 'Updating translations.' );
+	}
+
+	/**
+	 * Only moves into or out of the trash change which coverage a Custom
+	 * block shows, so only they clear the map.
+	 */
+	public function test_coverage_status_clears_the_map_only_around_the_trash() {
+		$coverage_id = self::create_coverage( 'active' );
+
+		$this->assertFalse( self::clears_map( fn() => update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, 'paused' ) ), 'Pausing a coverage.' );
 		$this->assertTrue( self::clears_map( fn() => update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, 'trash' ) ), 'Trashing a coverage.' );
+		$this->assertTrue( self::clears_map( fn() => update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, 'active' ) ), 'Restoring a coverage.' );
+		$this->assertFalse( self::clears_map( fn() => add_term_meta( self::create_coverage(), Taxonomy::STATUS_META_KEY, 'active' ) ), 'A coverage created live.' );
+		$this->assertTrue( self::clears_map( fn() => add_term_meta( self::create_coverage(), Taxonomy::STATUS_META_KEY, 'trash' ) ), 'A coverage created in the trash.' );
+		$this->assertFalse( self::clears_map( fn() => delete_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY ) ), 'Removing a live status.' );
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, 'trash' );
+		$this->assertTrue( self::clears_map( fn() => delete_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY ) ), 'Removing a trashed status.' );
 		$this->assertFalse( self::clears_map( fn() => update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, home_url( '/live/' ) ) ), 'Other coverage meta.' );
+	}
+
+	/**
+	 * An Automatic block in a breakout post follows its entry's coverage, so
+	 * moving that entry to another coverage clears the map.
+	 */
+	public function test_moving_a_broken_out_entry_clears_the_map() {
+		$coverage_id = self::create_coverage();
+		$other_id    = self::create_coverage();
+		$entry_id    = self::create_entry( $coverage_id );
+		$plain_id    = self::create_entry( $coverage_id );
+
+		update_post_meta( $entry_id, Breakout::ENTRY_BREAKOUT_POST_ID_META, self::publish( self::status() ) );
+
+		$this->assertFalse( self::clears_map( fn() => wp_set_object_terms( $plain_id, [ $other_id ], Taxonomy::TAXONOMY_SLUG ) ), 'An entry without a breakout post.' );
+		$this->assertFalse( self::clears_map( fn() => wp_set_object_terms( $entry_id, [ $coverage_id ], Taxonomy::TAXONOMY_SLUG ) ), 'The same coverage again.' );
+		$this->assertTrue( self::clears_map( fn() => wp_set_object_terms( $entry_id, [ $other_id ], Taxonomy::TAXONOMY_SLUG ) ), 'Another coverage.' );
+	}
+
+	/**
+	 * An Automatic block in a breakout post shows its entry's coverage.
+	 */
+	public function test_automatic_blocks_in_a_breakout_post_show_its_coverage() {
+		$coverage_id = self::create_coverage();
+		$breakout_id = self::breakout( $coverage_id );
+
+		wp_update_post(
+			[
+				'ID'           => $breakout_id,
+				'post_content' => self::follow() . '<!-- wp:paragraph --><p>Breakout story.</p><!-- /wp:paragraph -->',
+			]
+		);
+
+		$this->assertSame( [ 'post:' . $breakout_id => [ 'Follow' ] ], self::tags( $coverage_id ) );
+	}
+
+	/**
+	 * Admin reads rebuild an out-of-date map, or one built for another
+	 * theme; the front end keeps the stored one.
+	 */
+	public function test_admin_reads_rebuild_an_out_of_date_map() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::publish( self::feed( $coverage_id ) );
+
+		update_option(
+			Placements::OPTION,
+			[
+				'pages'    => [],
+				'places'   => [],
+				'breakout' => [],
+				'patterns' => [],
+				'theme'    => 'another-theme@1.0',
+			],
+			false
+		);
+		delete_option( Placements::STALE_OPTION );
+
+		$this->assertSame( 0, Placements::page_id( $coverage_id ), 'The front end keeps the stored map.' );
+		$this->assertSame( [ 'post:' . $page_id ], array_keys( self::rows( $coverage_id ) ), 'An admin read rebuilds a map built for another theme.' );
+		$this->assertSame( $page_id, Placements::page_id( $coverage_id ) );
+	}
+
+	/**
+	 * A canonical URL saved with different percent-encoding still matches
+	 * its page.
+	 */
+	public function test_the_main_page_matches_whatever_the_encoding() {
+		$this->set_permalink_structure( '/%postname%/' );
+		$coverage_id = self::create_coverage();
+		$page_id     = self::publish(
+			self::feed( $coverage_id ),
+			[
+				'post_type' => 'page',
+				'post_name' => 'ураган',
+			]
+		);
+		$slug = strtolower( rawurlencode( 'ураган' ) );
+
+		$this->assertStringContainsString( '/' . $slug . '/', get_permalink( $page_id ) );
+
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, home_url( '/' . strtoupper( $slug ) . '/' ) );
+		$rows = Placements::for_coverage( $coverage_id );
+
+		$this->assertSame( [ 'post:' . $page_id ], array_column( $rows, 'id' ) );
+		$this->assertTrue( $rows[0]['isMain'] );
+	}
+
+	/**
+	 * Activation schedules the first build; deactivation drops the map and
+	 * any pending rebuild.
+	 */
+	public function test_activation_schedules_a_build_and_deactivation_cleans_up() {
+		delete_option( Placements::STALE_OPTION );
+		wp_clear_scheduled_hook( Placements::REBUILD_HOOK );
+
+		Placements::activate();
+
+		$this->assertNotFalse( wp_next_scheduled( Placements::REBUILD_HOOK ) );
+
+		Placements::rebuild();
+		Placements::deactivate();
+
+		$this->assertFalse( get_option( Placements::OPTION ) );
+		$this->assertFalse( get_option( Placements::STALE_OPTION ) );
+		$this->assertFalse( wp_next_scheduled( Placements::REBUILD_HOOK ) );
 	}
 }

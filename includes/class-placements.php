@@ -15,13 +15,25 @@ defined( 'ABSPATH' ) || exit;
  * Finds every published place where the plugin's blocks show a coverage:
  * posts and pages, the active theme's templates and template parts, synced
  * patterns that published content uses, and block widgets. The scan runs
- * once after a change and is stored in an option, so reading it costs one
- * option lookup.
+ * in a scheduled event after a change and is stored in an option, so
+ * reading it costs one option lookup and saving a post never waits on it.
  */
 class Placements {
 
 	// Option holding the stored map.
 	const OPTION = 'rolling_coverage_placements';
+
+	// Option set while the stored map is out of date, holding a token per change.
+	const STALE_OPTION = 'rolling_coverage_placements_stale';
+
+	// Scheduled event that rebuilds the map.
+	const REBUILD_HOOK = 'newspack_rolling_coverage_rebuild_placements';
+
+	// How many published posts, newest first, a rebuild scans.
+	const MAX_SCANNED_POSTS = 1000;
+
+	// How many posts a rebuild reads at a time.
+	const SCAN_BATCH = 100;
 
 	// REST field on the coverage term listing its placements.
 	const REST_FIELD = 'placements';
@@ -56,27 +68,12 @@ class Placements {
 	const TAG_FOLLOW = 'follow';
 
 	/**
-	 * Sites whose stored map this request changed since it last stored it,
-	 * keyed by blog ID.
-	 *
-	 * @var array<int,true>
-	 */
-	private static $stale = [];
-
-	/**
 	 * The newest published breakout post of each coverage, worked out once
-	 * per request.
+	 * per request and site, keyed by blog ID.
 	 *
-	 * @var array<int,WP_Post>|null
+	 * @var array<int,array<int,WP_Post>>
 	 */
-	private static $breakout_posts = null;
-
-	/**
-	 * Whether this request has loaded the posts the stored map points at.
-	 *
-	 * @var bool
-	 */
-	private static $primed = false;
+	private static $breakout_posts = [];
 
 	/**
 	 * Initialize hooks.
@@ -90,12 +87,14 @@ class Placements {
 		add_action( 'update_option_widget_block', [ __CLASS__, 'flush' ] );
 		add_action( 'add_option_sidebars_widgets', [ __CLASS__, 'flush' ] );
 		add_action( 'update_option_sidebars_widgets', [ __CLASS__, 'flush' ] );
-		add_action( 'switch_theme', [ __CLASS__, 'flush' ] );
-		add_action( 'upgrader_process_complete', [ __CLASS__, 'flush' ] );
-		add_action( 'added_term_meta', [ __CLASS__, 'flush_on_coverage_status' ], 10, 3 );
-		add_action( 'updated_term_meta', [ __CLASS__, 'flush_on_coverage_status' ], 10, 3 );
-		add_action( 'deleted_term_meta', [ __CLASS__, 'flush_on_coverage_status' ], 10, 3 );
+		add_action( 'after_switch_theme', [ __CLASS__, 'flush' ] );
+		add_action( 'upgrader_process_complete', [ __CLASS__, 'flush_on_upgrade' ], 10, 2 );
+		add_action( 'added_term_meta', [ __CLASS__, 'flush_on_added_coverage_status' ], 10, 4 );
+		add_action( 'update_term_meta', [ __CLASS__, 'flush_on_coverage_status_change' ], 10, 4 );
+		add_action( 'delete_term_meta', [ __CLASS__, 'flush_on_deleted_coverage_status' ], 10, 3 );
 		add_action( 'delete_' . Taxonomy::TAXONOMY_SLUG, [ __CLASS__, 'flush' ] );
+		add_action( 'set_object_terms', [ __CLASS__, 'flush_on_breakout_entry_terms' ], 10, 6 );
+		add_action( self::REBUILD_HOOK, [ __CLASS__, 'rebuild' ] );
 	}
 
 	/**
@@ -162,17 +161,34 @@ class Placements {
 	}
 
 	/**
+	 * Rebuilds the stored map now when it is out of date, missing, or was
+	 * built for another theme. For admin reads, which must show what was just
+	 * saved; the front end keeps the stored map until the scheduled rebuild.
+	 */
+	public static function ensure_fresh(): void {
+		$stored = get_option( self::OPTION );
+		$token  = get_option( self::STALE_OPTION );
+
+		if ( false !== $token || ! self::is_map( $stored ) || self::theme_signature() !== $stored['theme'] ) {
+			self::store( self::build(), $token );
+		}
+	}
+
+	/**
 	 * Lists every published place that shows a coverage, one row per place,
-	 * with the coverage's main page first.
+	 * with the coverage's main page first. Rebuilds an out-of-date map first,
+	 * since only the admin reads this.
 	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return array[] Rows with id, title, type, tags, viewUrl, editUrl, isMain and breakout.
 	 */
 	public static function for_coverage( int $coverage_id ): array {
+		self::ensure_fresh();
+
 		$map  = self::get_map();
 		$rows = [];
 
-		self::prime( $map );
+		self::prime( $map['places'][ $coverage_id ] ?? [] );
 
 		foreach ( $map['places'][ $coverage_id ] ?? [] as $place ) {
 			$row = self::resolve( $place );
@@ -247,15 +263,16 @@ class Placements {
 	/**
 	 * A URL reduced to its path and query. A canonical URL is always on this
 	 * site, so they tell whether two links open the same page, whatever
-	 * scheme or host name each was saved with.
+	 * scheme, host name or percent-encoding each was saved with.
 	 *
 	 * @param string $url URL.
 	 * @return string
 	 */
 	private static function comparable_url( string $url ): string {
+		$path  = strtolower( rawurldecode( trim( (string) wp_parse_url( $url, PHP_URL_PATH ), '/' ) ) );
 		$query = (string) wp_parse_url( $url, PHP_URL_QUERY );
 
-		return '/' . trim( (string) wp_parse_url( $url, PHP_URL_PATH ), '/' ) . ( '' !== $query ? '?' . $query : '' );
+		return '/' . $path . ( '' !== $query ? '?' . $query : '' );
 	}
 
 	/**
@@ -308,7 +325,7 @@ class Placements {
 
 				$row['title']   = self::post_title( $post );
 				$row['type']    = __( 'Pattern', 'newspack-rolling-coverage' );
-				$row['editUrl'] = current_user_can( 'edit_theme_options' ) ? self::site_editor_url( self::TYPE_PATTERN, (string) $post->ID ) : (string) get_edit_post_link( $post, 'raw' );
+				$row['editUrl'] = wp_is_block_theme() && current_user_can( 'edit_theme_options' ) ? self::site_editor_url( self::TYPE_PATTERN, (string) $post->ID ) : (string) get_edit_post_link( $post, 'raw' );
 				break;
 
 			case self::TYPE_WIDGET_AREA:
@@ -417,29 +434,21 @@ class Placements {
 	}
 
 	/**
-	 * Loads every post the stored map points at in one query, so listing all
-	 * coverages doesn't query post by post.
+	 * Loads the posts and layouts a coverage's places point at in one query.
 	 *
-	 * @param array $map Stored map.
+	 * @param array[] $places Stored places of one coverage.
 	 */
-	private static function prime( array $map ): void {
-		if ( self::$primed ) {
-			return;
-		}
+	private static function prime( array $places ): void {
+		$ids = [];
 
-		self::$primed = true;
-		$ids          = [];
+		foreach ( $places as $place ) {
+			if ( in_array( $place['type'], [ self::TYPE_POST, self::TYPE_PATTERN ], true ) ) {
+				$ids[] = (int) $place['id'];
+			}
 
-		foreach ( $map['places'] as $places ) {
-			foreach ( $places as $place ) {
-				if ( in_array( $place['type'], [ self::TYPE_POST, self::TYPE_PATTERN ], true ) ) {
-					$ids[] = (int) $place['id'];
-				}
-
-				foreach ( $place['tags'] as $tag ) {
-					if ( 0 === strpos( $tag, self::TAG_LATEST . ':' ) ) {
-						$ids[] = (int) substr( $tag, strlen( self::TAG_LATEST ) + 1 );
-					}
+			foreach ( $place['tags'] as $tag ) {
+				if ( 0 === strpos( $tag, self::TAG_LATEST . ':' ) ) {
+					$ids[] = (int) substr( $tag, strlen( self::TAG_LATEST ) + 1 );
 				}
 			}
 		}
@@ -459,11 +468,22 @@ class Placements {
 	 * @return array<int,WP_Post> Map of coverage term ID => breakout post.
 	 */
 	private static function breakout_posts(): array {
-		if ( null !== self::$breakout_posts ) {
-			return self::$breakout_posts;
+		$blog_id = get_current_blog_id();
+
+		if ( ! isset( self::$breakout_posts[ $blog_id ] ) ) {
+			self::$breakout_posts[ $blog_id ] = self::find_breakout_posts();
 		}
 
-		self::$breakout_posts = [];
+		return self::$breakout_posts[ $blog_id ];
+	}
+
+	/**
+	 * Works out breakout_posts() for the current site.
+	 *
+	 * @return array<int,WP_Post> Map of coverage term ID => breakout post.
+	 */
+	private static function find_breakout_posts(): array {
+		$breakout_posts = [];
 
 		$entry_ids = get_posts(
 			[
@@ -481,7 +501,7 @@ class Placements {
 		);
 
 		if ( ! $entry_ids ) {
-			return self::$breakout_posts;
+			return $breakout_posts;
 		}
 
 		update_postmeta_cache( $entry_ids );
@@ -497,7 +517,7 @@ class Placements {
 		);
 
 		if ( ! $breakout_ids ) {
-			return self::$breakout_posts;
+			return $breakout_posts;
 		}
 
 		_prime_post_caches( $breakout_ids, false, true );
@@ -510,27 +530,29 @@ class Placements {
 			}
 
 			$coverage_id = Page_Coverages::breakout_coverage_id( $breakout_id );
-			$newest      = self::$breakout_posts[ $coverage_id ] ?? null;
+			$newest      = $breakout_posts[ $coverage_id ] ?? null;
 
 			if ( $coverage_id && ( ! $newest || $post->post_date > $newest->post_date ) ) {
-				self::$breakout_posts[ $coverage_id ] = $post;
+				$breakout_posts[ $coverage_id ] = $post;
 			}
 		}
 
-		return self::$breakout_posts;
+		return $breakout_posts;
 	}
 
 	/**
-	 * Invalidates the map when a published post, template, template part or
-	 * pattern showing a coverage changes, or a post stops showing one. Other
-	 * writes, such as comment counts, entries and drafts, leave it as it was.
+	 * Invalidates the map when a save changes what a published post or
+	 * pattern shows, or a post starts or stops showing a coverage. Saves that
+	 * leave it showing the same, such as a new title or a typo fix around a
+	 * capped feed, keep the map. Templates are handled on the status change
+	 * every save fires.
 	 *
 	 * @param int     $post_id     Post ID.
 	 * @param WP_Post $post_after  Post after the update.
 	 * @param WP_Post $post_before Post before the update.
 	 */
 	public static function flush_on_update( $post_id, $post_after, $post_before ): void {
-		if ( self::shows_blocks( $post_after ) || self::shows_blocks( $post_before ) ) {
+		if ( self::signature( $post_after ) !== self::signature( $post_before ) ) {
 			self::flush();
 		}
 	}
@@ -538,76 +560,261 @@ class Placements {
 	/**
 	 * Invalidates the map when a post showing a coverage is published or
 	 * unpublished, including a scheduled post going live, which changes its
-	 * status without an update.
+	 * status without an update, and whenever a template or template part is
+	 * saved, whatever it holds, including a theme template's first
+	 * customization: they are saved rarely, and which of them a breakout
+	 * post renders with depends on more than their own content.
 	 *
 	 * @param string  $new_status New post status.
 	 * @param string  $old_status Old post status.
 	 * @param WP_Post $post       Post object.
 	 */
 	public static function flush_on_status_change( $new_status, $old_status, $post ): void {
-		if ( $new_status !== $old_status && in_array( 'publish', [ $new_status, $old_status ], true ) && self::holds_blocks( $post ) ) {
+		if ( self::is_template( $post ) || ( $new_status !== $old_status && in_array( 'publish', [ $new_status, $old_status ], true ) && self::holds_blocks( $post ) ) ) {
 			self::flush();
 		}
 	}
 
 	/**
 	 * Invalidates the map when a published post showing a coverage is
-	 * deleted without going through the trash.
+	 * deleted without going through the trash, or a template or template
+	 * part is deleted, which can hand its slug back to the theme's file.
 	 *
 	 * @param int     $post_id Post ID.
 	 * @param WP_Post $post    Post object.
 	 */
 	public static function flush_on_delete( $post_id, $post = null ): void {
-		if ( self::shows_blocks( $post ) ) {
+		if ( self::is_template( $post ) || self::shows_blocks( $post ) ) {
 			self::flush();
 		}
 	}
 
 	/**
-	 * Invalidates the map when a coverage's status changes: a Coverage Status
-	 * or Follow Coverage block set to a trashed coverage falls back to the
-	 * page's own one.
+	 * Invalidates the map when a theme or plugin is updated, since theme
+	 * files hold templates and plugins can register them. Translation
+	 * updates keep it.
 	 *
-	 * @param int    $meta_id  Meta ID.
+	 * @param mixed $upgrader   Upgrader instance.
+	 * @param mixed $hook_extra Details of the update.
+	 */
+	public static function flush_on_upgrade( $upgrader, $hook_extra = [] ): void {
+		if ( is_array( $hook_extra ) && in_array( $hook_extra['type'] ?? '', [ 'theme', 'plugin' ], true ) ) {
+			self::flush();
+		}
+	}
+
+	/**
+	 * Invalidates the map when a coverage is first given a trashed status. A
+	 * Coverage Status or Follow Coverage block set to a trashed coverage
+	 * falls back to the page's own one.
+	 *
+	 * @param int    $meta_id    Meta ID.
+	 * @param int    $term_id    Term ID.
+	 * @param string $meta_key   Meta key.
+	 * @param mixed  $meta_value Meta value.
+	 */
+	public static function flush_on_added_coverage_status( $meta_id, $term_id, $meta_key, $meta_value ): void {
+		if ( Taxonomy::STATUS_META_KEY === $meta_key && 'trash' === $meta_value ) {
+			self::flush();
+		}
+	}
+
+	/**
+	 * Invalidates the map when a coverage moves into or out of the trash.
+	 * Runs before the change is saved, so it can read the old status.
+	 *
+	 * @param int    $meta_id    Meta ID.
+	 * @param int    $term_id    Term ID.
+	 * @param string $meta_key   Meta key.
+	 * @param mixed  $meta_value New meta value.
+	 */
+	public static function flush_on_coverage_status_change( $meta_id, $term_id, $meta_key, $meta_value ): void {
+		if ( Taxonomy::STATUS_META_KEY === $meta_key && ( 'trash' === get_term_meta( (int) $term_id, $meta_key, true ) ) !== ( 'trash' === $meta_value ) ) {
+			self::flush();
+		}
+	}
+
+	/**
+	 * Invalidates the map when a trashed status is removed from a coverage.
+	 * Runs before the change is saved, so it can read the old status.
+	 *
+	 * @param int[]  $meta_ids Meta IDs.
 	 * @param int    $term_id  Term ID.
 	 * @param string $meta_key Meta key.
 	 */
-	public static function flush_on_coverage_status( $meta_id, $term_id, $meta_key ): void {
-		if ( Taxonomy::STATUS_META_KEY === $meta_key ) {
+	public static function flush_on_deleted_coverage_status( $meta_ids, $term_id, $meta_key ): void {
+		if ( Taxonomy::STATUS_META_KEY === $meta_key && 'trash' === get_term_meta( (int) $term_id, $meta_key, true ) ) {
 			self::flush();
 		}
 	}
 
 	/**
-	 * Marks the current site's map out of date, and has the request rebuild
-	 * the stored one once it ends. Readers keep the stored map until then,
-	 * so they never rebuild it themselves, and the request that made the
-	 * change, which is sure to see it, writes last.
+	 * Invalidates the map when an entry with a breakout post moves to
+	 * another coverage, since an Automatic block in that post follows it.
+	 *
+	 * @param int    $object_id  Object ID.
+	 * @param array  $terms      Terms set.
+	 * @param int[]  $tt_ids     New term taxonomy IDs.
+	 * @param string $taxonomy   Taxonomy.
+	 * @param bool   $append     Whether the terms were appended.
+	 * @param int[]  $old_tt_ids Old term taxonomy IDs.
 	 */
-	public static function flush(): void {
-		self::$stale[ get_current_blog_id() ] = true;
-		self::$breakout_posts                 = null;
-		self::$primed                         = false;
+	public static function flush_on_breakout_entry_terms( $object_id, $terms, $tt_ids, $taxonomy, $append, $old_tt_ids ): void {
+		if ( Taxonomy::TAXONOMY_SLUG !== $taxonomy ) {
+			return;
+		}
 
-		if ( ! has_action( 'shutdown', [ __CLASS__, 'rebuild' ] ) ) {
-			add_action( 'shutdown', [ __CLASS__, 'rebuild' ] );
+		$new = array_map( 'intval', (array) $tt_ids );
+		$old = array_map( 'intval', (array) $old_tt_ids );
+		sort( $new );
+		sort( $old );
+
+		if ( $new !== $old && get_post_meta( (int) $object_id, Breakout::ENTRY_BREAKOUT_POST_ID_META, true ) ) {
+			self::flush();
 		}
 	}
 
 	/**
-	 * Rebuilds the stored map of every site this request changed since it
-	 * last read it.
+	 * Marks the current site's map out of date and schedules one rebuild.
+	 * Readers keep the stored map until then; admin reads rebuild it at once.
+	 * Each change stores a new token, so a rebuild that started before it
+	 * leaves the map marked out of date.
+	 *
+	 * While switched to another site, the stored map is dropped instead, as
+	 * this request's post types, widget areas and patterns are not that
+	 * site's; its next read builds it.
+	 */
+	public static function flush(): void {
+		unset( self::$breakout_posts[ get_current_blog_id() ] );
+
+		if ( is_multisite() && ms_is_switched() ) {
+			delete_option( self::OPTION );
+			delete_option( self::STALE_OPTION );
+			return;
+		}
+
+		update_option( self::STALE_OPTION, uniqid( '', true ), false );
+
+		if ( wp_next_scheduled( self::REBUILD_HOOK ) ) {
+			return;
+		}
+
+		wp_schedule_single_event( time(), self::REBUILD_HOOK );
+
+		if ( ! wp_doing_cron() && ! ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) ) {
+			spawn_cron();
+		}
+	}
+
+	/**
+	 * Rebuilds the stored map when it is out of date or missing. Runs from the
+	 * scheduled event.
 	 */
 	public static function rebuild(): void {
-		foreach ( array_keys( self::$stale ) as $blog_id ) {
-			$switched = get_current_blog_id() !== $blog_id && switch_to_blog( $blog_id );
+		$token = get_option( self::STALE_OPTION );
 
-			self::get_map();
-
-			if ( $switched ) {
-				restore_current_blog();
-			}
+		if ( false !== $token || ! self::is_map( get_option( self::OPTION ) ) ) {
+			self::store( self::build(), $token );
 		}
+	}
+
+	/**
+	 * Schedules the first build when the plugin is activated.
+	 */
+	public static function activate(): void {
+		self::flush();
+	}
+
+	/**
+	 * Drops the stored map and any pending rebuild when the plugin is
+	 * deactivated.
+	 */
+	public static function deactivate(): void {
+		delete_option( self::OPTION );
+		delete_option( self::STALE_OPTION );
+		wp_clear_scheduled_hook( self::REBUILD_HOOK );
+	}
+
+	/**
+	 * Stores a built map, and clears the out-of-date mark only when no change
+	 * came in while it was being built.
+	 *
+	 * @param array $map   Built map.
+	 * @param mixed $token The out-of-date token read before building, or false.
+	 */
+	private static function store( array $map, $token ): void {
+		global $wpdb;
+
+		update_option( self::OPTION, $map, false );
+
+		if ( false === $token ) {
+			return;
+		}
+
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
+				self::STALE_OPTION,
+				(string) $token
+			)
+		);
+		wp_cache_delete( self::STALE_OPTION, 'options' );
+	}
+
+	/**
+	 * Whether a stored value is a complete map.
+	 *
+	 * @param mixed $stored Stored option value.
+	 * @return bool
+	 */
+	private static function is_map( $stored ): bool {
+		return is_array( $stored ) && isset( $stored['pages'], $stored['places'], $stored['breakout'], $stored['patterns'], $stored['theme'] );
+	}
+
+	/**
+	 * The active theme and its version, so a map built for another theme is
+	 * rebuilt on the next admin read.
+	 *
+	 * @return string
+	 */
+	private static function theme_signature(): string {
+		return get_stylesheet() . '@' . wp_get_theme()->get( 'Version' );
+	}
+
+	/**
+	 * Whether a post is a template or template part.
+	 *
+	 * @param mixed $post Post object.
+	 * @return bool
+	 */
+	private static function is_template( $post ): bool {
+		return $post instanceof WP_Post && in_array( $post->post_type, [ self::TYPE_TEMPLATE, self::TYPE_TEMPLATE_PART ], true );
+	}
+
+	/**
+	 * What a post contributes to the map, or null when it contributes
+	 * nothing: what its blocks show, the patterns it uses, and the fields
+	 * that decide whether and where it is listed.
+	 *
+	 * @param mixed $post Post object.
+	 * @return string|null
+	 */
+	private static function signature( $post ): ?string {
+		if ( ! self::shows_blocks( $post ) ) {
+			return null;
+		}
+
+		return md5(
+			wp_json_encode(
+				[
+					$post->post_type,
+					$post->post_status,
+					$post->post_password,
+					$post->post_date,
+					self::scan( $post->post_content ),
+				]
+			)
+		);
 	}
 
 	/**
@@ -683,22 +890,22 @@ class Placements {
 	}
 
 	/**
-	 * Returns the stored map, building and storing it when it is missing or
-	 * this request changed it.
+	 * Returns the stored map, even when it is out of date. Builds it only
+	 * when there is none at all.
 	 *
-	 * @return array{pages: array<int,int>, places: array<int,array[]>, breakout: array[], patterns: int[]}
+	 * @return array{pages: array<int,int>, places: array<int,array[]>, breakout: array[], patterns: int[], theme: string}
 	 */
 	private static function get_map(): array {
-		$stored = isset( self::$stale[ get_current_blog_id() ] ) ? false : get_option( self::OPTION );
+		$stored = get_option( self::OPTION );
 
-		if ( is_array( $stored ) && isset( $stored['pages'], $stored['places'], $stored['breakout'], $stored['patterns'] ) ) {
+		if ( self::is_map( $stored ) ) {
 			return $stored;
 		}
 
-		$map = self::build();
+		$token = get_option( self::STALE_OPTION );
+		$map   = self::build();
 
-		update_option( self::OPTION, $map, false );
-		unset( self::$stale[ get_current_blog_id() ] );
+		self::store( $map, $token );
 
 		return $map;
 	}
@@ -706,7 +913,7 @@ class Placements {
 	/**
 	 * Scans every published place for the blocks.
 	 *
-	 * @return array{pages: array<int,int>, places: array<int,array[]>, breakout: array[], patterns: int[]}
+	 * @return array{pages: array<int,int>, places: array<int,array[]>, breakout: array[], patterns: int[], theme: string}
 	 */
 	private static function build(): array {
 		$map = [
@@ -714,34 +921,39 @@ class Placements {
 			'places'   => [],
 			'breakout' => [],
 			'patterns' => [],
+			'theme'    => self::theme_signature(),
 		];
 
 		$patterns = self::patterns_with_blocks();
 		$refs     = [];
+		$scan     = self::posts_to_scan( array_keys( $patterns ) );
 
-		$map['patterns'] = array_keys( $patterns );
+		$map['patterns'] = $scan['patterns'];
 
-		foreach ( self::posts_to_scan( array_keys( $patterns ) ) as $post ) {
-			$found = self::scan( $post->post_content );
-			$refs += $found['refs'];
+		foreach ( array_chunk( $scan['ids'], self::SCAN_BATCH ) as $batch ) {
+			foreach ( self::post_contents( $batch ) as $post_id => $content ) {
+				$found = self::scan( $content );
+				$refs += $found['refs'];
 
-			if ( $found['automatic'] ) {
-				$coverage_id = Page_Coverages::feed_coverage_ids( (int) $post->ID )[0] ?? Page_Coverages::breakout_coverage_id( (int) $post->ID );
+				if ( $found['automatic'] ) {
+					$coverage_id = self::first_feed( $found['feeds'] );
+					$coverage_id = $coverage_id ? $coverage_id : Page_Coverages::breakout_coverage_id( $post_id );
 
-				if ( $coverage_id ) {
-					self::add_tags( $found['coverages'], $coverage_id, array_keys( $found['automatic'] ) );
+					if ( $coverage_id ) {
+						self::add_tags( $found['coverages'], $coverage_id, array_keys( $found['automatic'] ) );
+					}
 				}
-			}
 
-			foreach ( $found['coverages'] as $coverage_id => $tags ) {
-				$map['places'][ $coverage_id ][] = [
-					'type' => self::TYPE_POST,
-					'id'   => (int) $post->ID,
-					'tags' => array_keys( $tags ),
-				];
+				foreach ( $found['coverages'] as $coverage_id => $tags ) {
+					$map['places'][ $coverage_id ][] = [
+						'type' => self::TYPE_POST,
+						'id'   => $post_id,
+						'tags' => array_keys( $tags ),
+					];
 
-				if ( isset( $tags[ self::TAG_FULL ] ) && ! isset( $map['pages'][ $coverage_id ] ) ) {
-					$map['pages'][ $coverage_id ] = (int) $post->ID;
+					if ( isset( $tags[ self::TAG_FULL ] ) && ! isset( $map['pages'][ $coverage_id ] ) ) {
+						$map['pages'][ $coverage_id ] = $post_id;
+					}
 				}
 			}
 		}
@@ -879,12 +1091,14 @@ class Placements {
 	}
 
 	/**
-	 * Published posts that may show a coverage, newest first: those whose
-	 * content holds one of the blocks, and those using one of the given
-	 * synced patterns, directly or through other patterns.
+	 * Published posts that may show a coverage, newest first and at most
+	 * MAX_SCANNED_POSTS of them: those whose content holds one of the blocks,
+	 * and those using one of the given synced patterns, directly or through
+	 * other patterns. Also returns every pattern that leads to the blocks,
+	 * the given ones and the patterns wrapping them.
 	 *
 	 * @param int[] $pattern_ids Synced patterns holding one of the blocks.
-	 * @return object[] Rows with ID and post_content.
+	 * @return array{ids: int[], patterns: int[]}
 	 */
 	private static function posts_to_scan( array $pattern_ids ): array {
 		global $wpdb;
@@ -892,20 +1106,73 @@ class Placements {
 		$post_types = array_values( array_filter( get_post_types(), [ __CLASS__, 'can_be_page' ] ) );
 
 		if ( ! $post_types ) {
-			return [];
+			return [
+				'ids'      => [],
+				'patterns' => $pattern_ids,
+			];
 		}
 
-		$referrer_ids = self::pattern_referrers( $pattern_ids, $post_types );
+		$referrers    = self::pattern_referrers( $pattern_ids, $post_types );
 		$type_holders = implode( ',', array_fill( 0, count( $post_types ), '%s' ) );
-		$id_clause    = $referrer_ids ? ' OR ID IN (' . implode( ',', array_map( 'intval', $referrer_ids ) ) . ')' : '';
+		$id_clause    = $referrers['posts'] ? ' OR ID IN (' . implode( ',', array_map( 'intval', $referrers['posts'] ) ) . ')' : '';
 
-		return $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$ids = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->prepare(
 				// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
-				"SELECT ID, post_content FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_password = '' AND post_type IN ({$type_holders}) AND ((" . self::blocks_like_clause() . "){$id_clause}) ORDER BY post_date DESC, ID DESC",
-				array_merge( $post_types, self::blocks_like_values() )
+				"SELECT ID FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_password = '' AND post_type IN ({$type_holders}) AND ((" . self::blocks_like_clause() . "){$id_clause}) ORDER BY post_date DESC, ID DESC LIMIT %d",
+				array_merge( $post_types, self::blocks_like_values(), [ self::MAX_SCANNED_POSTS ] )
 			)
 		);
+
+		return [
+			'ids'      => array_map( 'intval', $ids ),
+			'patterns' => $referrers['patterns'],
+		];
+	}
+
+	/**
+	 * The content of a batch of posts, in the order given, read straight
+	 * from the database so a rebuild doesn't fill the object cache.
+	 *
+	 * @param int[] $ids Post IDs.
+	 * @return array<int,string> Map of post ID => content.
+	 */
+	private static function post_contents( array $ids ): array {
+		global $wpdb;
+
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			"SELECT ID, post_content FROM {$wpdb->posts} WHERE ID IN (" . implode( ',', array_map( 'intval', $ids ) ) . ')' // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		);
+
+		$contents = array_fill_keys( $ids, null );
+
+		foreach ( $rows as $row ) {
+			$contents[ (int) $row->ID ] = (string) $row->post_content;
+		}
+
+		return array_filter(
+			$contents,
+			function ( $content ) {
+				return null !== $content;
+			}
+		);
+	}
+
+	/**
+	 * The first coverage among a post's uncapped feeds that can be followed,
+	 * as an Automatic block picks it.
+	 *
+	 * @param int[] $feeds Coverage IDs of the feeds, in page order.
+	 * @return int Coverage term ID, or 0.
+	 */
+	private static function first_feed( array $feeds ): int {
+		foreach ( $feeds as $coverage_id ) {
+			if ( Page_Coverages::is_followable( $coverage_id ) ) {
+				return $coverage_id;
+			}
+		}
+
+		return 0;
 	}
 
 	/**
@@ -914,7 +1181,7 @@ class Placements {
 	 *
 	 * @param int[]    $pattern_ids Synced pattern IDs.
 	 * @param string[] $post_types  Post types that can be a place.
-	 * @return int[]
+	 * @return array{posts: int[], patterns: int[]} The posts, and the given patterns with those wrapping them.
 	 */
 	private static function pattern_referrers( array $pattern_ids, array $post_types ): array {
 		global $wpdb;
@@ -956,7 +1223,10 @@ class Placements {
 			}
 		}
 
-		return array_values( $referrers );
+		return [
+			'posts'    => array_values( $referrers ),
+			'patterns' => array_keys( $seen ),
+		];
 	}
 
 	/**
@@ -1105,7 +1375,7 @@ class Placements {
 	 * Scans block content for what it shows.
 	 *
 	 * @param string $content Block content.
-	 * @return array{coverages: array<int,array<string,true>>, automatic: array<string,true>, refs: array<int,true>, parts: array<string,true>}
+	 * @return array{coverages: array<int,array<string,true>>, automatic: array<string,true>, refs: array<int,true>, parts: array<string,true>, feeds: int[]}
 	 */
 	private static function scan( string $content ): array {
 		$found = [
@@ -1113,6 +1383,7 @@ class Placements {
 			'automatic' => [],
 			'refs'      => [],
 			'parts'     => [],
+			'feeds'     => [],
 		];
 
 		self::walk( parse_blocks( $content ), $found, false, [] );
@@ -1123,7 +1394,8 @@ class Placements {
 	/**
 	 * Walks parsed blocks, recording the coverages the place's own blocks
 	 * show, its Automatic Status and Follow Coverage blocks, the synced
-	 * patterns it uses and the template parts it holds.
+	 * patterns it uses, the template parts it holds, and its uncapped feeds
+	 * in page order, patterns included, for Automatic blocks to pick from.
 	 *
 	 * Blocks inside a Rolling Coverage block are part of its layout and show
 	 * its coverage, so the walk doesn't go into one. A synced pattern is a
@@ -1146,6 +1418,10 @@ class Placements {
 				if ( ! $in_pattern && $coverage_id > 0 ) {
 					$tag = empty( $attrs['latestOnly'] ) ? self::TAG_FULL : self::TAG_LATEST . ':' . (int) ( $attrs['layoutId'] ?? 0 );
 					self::add_tags( $found['coverages'], $coverage_id, [ $tag ] );
+				}
+
+				if ( $coverage_id > 0 && empty( $attrs['latestOnly'] ) ) {
+					$found['feeds'][] = $coverage_id;
 				}
 
 				continue;

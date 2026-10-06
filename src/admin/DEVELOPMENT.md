@@ -48,7 +48,7 @@ The places it looks in, all published and for the active theme:
 | Posts and pages of any viewable post type, except entries and attachments. Password-protected ones are skipped. | The post's title | Its permalink | The block editor |
 | Templates (`wp_template`), customized or from the theme's files, through `get_block_templates()`. Only when the theme uses block templates. | The template's title | Front Page: the home page. Blog Home: the posts page. Others: none. | The Site Editor |
 | Template parts (`wp_template_part`), when the theme uses them | The part's title | None | The Site Editor |
-| Synced patterns (`wp_block`) that published content uses, directly or through other patterns | The pattern's title | None | The Site Editor, or the block editor for users who can't edit the theme |
+| Synced patterns (`wp_block`) that published content uses, directly or through other patterns | The pattern's title | None | On block themes, the Site Editor for users who can edit the theme; otherwise the block editor |
 | Widget areas with block widgets, for registered areas only | The area's name | None | The Widgets screen |
 
 Edit links only show for users who can edit that place.
@@ -58,27 +58,44 @@ Edit links only show for users who can edit that place.
 An Automatic block shows the coverage of the page being viewed (see `src/blocks/coverage-status/DEVELOPMENT.md`), so where it counts depends on where it sits:
 
 - **In a post's own content**, or in a synced pattern the post uses, it shows the post's first uncapped feed, or a breakout post's coverage. Its tag joins that post's row, so a page with a feed and an Automatic Status block is one row tagged "Full" and "Status".
-- **In a template, template part or widget area**, it shows the coverage on single posts. The rows only cover breakout posts: the single post template (the first of `single-post`, `single`, `singular` and `index` the theme has), the template parts it holds, and every widget area with an Automatic block are each listed once, as "…, on this coverage's breakout posts", for coverages with at least one published breakout post. View opens the newest one. Each breakout post isn't listed on its own.
+- **In a template, template part or widget area**, it shows the coverage on single posts. The rows only cover breakout posts: the single post template (the first of `single-post`, `single`, `singular` and `index` the theme has), the template parts it holds, and every widget area with an Automatic block are each listed once, as "…, on this coverage's breakout posts", for coverages with at least one published breakout post. View opens the newest one. Each breakout post isn't listed on its own. The check looks at the `MAX_BREAKOUT_POSTS` (500) newest entries that have a published breakout post, so a coverage whose only breakout posts are older than that gets no breakout rows.
 - **In a synced pattern's row**, it doesn't count, since it shows whichever page uses the pattern.
 
 An Automatic block in other templates, such as the page template, isn't listed.
 
 ### Order and the main page
 
-Posts come first, newest first, then templates, template parts, widget areas and synced patterns, then the breakout rows. When the coverage has a canonical URL, the row whose View link has the same path and query is marked as the main page and moves to the top. A canonical URL that matches no place gets a row of its own at the top, with only a View link.
+Posts come first, newest first, then templates, template parts, widget areas and synced patterns, then the breakout rows. When the coverage has a canonical URL, the row whose View link has the same path (compared decoded and in lowercase) and query is marked as the main page and moves to the top. A canonical URL that matches no place gets a row of its own at the top, with only a View link.
 
 ### The stored map
 
-Scanning every post on each request would be too slow, so `Placements::get_map()` builds a map once and keeps it in the `rolling_coverage_placements` option: the places of each coverage, the template and widget rows for breakout posts, the synced patterns that show a coverage, and the newest post with an uncapped feed for each coverage (`page_id()`, which `Taxonomy::get_coverage_page_url()` uses when there is no canonical URL). Titles, links and labels are filled in when the REST field is read, so renaming a layout or a post's permalink changing needs no rebuild. Whether a coverage has a published breakout post is checked then too, with one query for all coverages.
+Scanning every post on each request would be too slow, so the map is built once and kept in the `rolling_coverage_placements` option: the places of each coverage, the template and widget rows for breakout posts, every synced pattern that leads to one of the blocks (directly or by wrapping another pattern), the theme it was built for, and the newest post with an uncapped feed for each coverage (`page_id()`, which `Taxonomy::get_coverage_page_url()` uses when there is no canonical URL). Titles, links and labels are filled in when the REST field is read, so renaming a post or layout, or a permalink changing, needs no rebuild. Whether a coverage has a published breakout post is checked then too, with one query for all coverages.
 
-These changes mark the map out of date, and the request that made them rebuilds it on `shutdown`; readers keep the stored map until then:
+A build scans at most `MAX_SCANNED_POSTS` (1,000) published posts, newest first, reading their content `SCAN_BATCH` (100) at a time straight from the database, so it doesn't fill the object cache.
 
-- A published post, template, template part or synced pattern holding one of the blocks, or using a synced pattern that shows a coverage, is saved, published, unpublished or deleted.
-- Block widgets or the widget areas they sit in change (`widget_block`, `sidebars_widgets`).
-- The theme is switched or updated.
-- A coverage's status changes or a coverage is deleted, since a Custom block whose coverage is trashed falls back to Automatic.
+#### When it is rebuilt
 
-Theme files edited without an update aren't noticed until the next of these changes.
+A change never rebuilds the map in the request that made it. `Placements::flush()` stores a new token in the `rolling_coverage_placements_stale` option and schedules one `newspack_rolling_coverage_rebuild_placements` event (spawning WP-Cron unless it is disabled). Until that runs:
+
+- **The front end** (`page_id()`, and so `get_coverage_page_url()`) keeps reading the stored map. It only builds one when there is none at all.
+- **Admin reads** (the `placements` and `pageUrl` REST fields, for users who can `edit_posts`) call `ensure_fresh()`, which rebuilds at once when the map is marked out of date, missing, or was built for another theme or theme version. An editor who has just saved a page sees it in the list.
+
+A rebuild clears the mark only if the token is still the one it read before building, so a change saved while it ran leaves the map marked for the next read or event.
+
+#### What marks it out of date
+
+- **Posts and patterns:** a save that changes what a published post or synced pattern contributes: the coverages and tags its blocks show, its Automatic blocks, its uncapped feeds, the patterns and template parts it uses, its post type, password or date (which orders the rows and picks `page_id()`). A new title, or an edit to the text around a capped feed, keeps the map. Publishing, unpublishing or permanently deleting a post that holds one of the blocks, or uses a pattern in the stored set, marks it too.
+- **Templates and template parts:** any save, status change or deletion, whatever they hold. They are saved rarely, and which of them a breakout post renders with depends on their slugs and the parts they hold; deleting a customization hands the slug back to the theme's file.
+- **Widgets:** any change to `widget_block` or `sidebars_widgets`.
+- **Themes and plugins:** `after_switch_theme`, and `upgrader_process_complete` for theme and plugin updates (not translations).
+- **Coverages:** a coverage moving into or out of the trash, or being deleted, since a Custom block whose coverage is trashed falls back to Automatic. Pausing, ending or resuming one doesn't.
+- **Breakout entries:** an entry with a breakout post moving to another coverage, since an Automatic block in the breakout post's own content follows it.
+
+On multisite, a change made while switched to another site deletes that site's map instead of scheduling a rebuild, since this request's post types, widget areas and patterns are not that site's; its next read builds it.
+
+Activating the plugin schedules the first build; deactivating it deletes both options and any pending event.
+
+Not tracked: theme files edited without an update, and a breakout post's entry being unpublished. Both are picked up by the next rebuild.
 
 ### REST field
 
@@ -91,7 +108,7 @@ The older `pageUrl` field stays: the canonical URL, or else the newest post with
 `getPlacementsLink()` (`src/admin/utils/placements.ts`) decides what the header button and the row action do:
 
 - **No placements:** no button and no row action.
-- **One placement with a View link:** "View Page", a link that opens it in a new tab.
+- **One placement with a View link:** "View Page", a link that opens it in a new tab. A breakout row is the exception: its View link is only the newest of many breakout posts, so it opens the drawer.
 - **Anything else:** "View Pages", which opens `PlacementsDrawer` (`src/admin/components/placements-drawer.tsx`), a Newspack `Drawer` listing every row with its tags and View and Edit links. A single place without a page of its own, such as a template part, also opens the drawer, so its Edit link is reachable.
 
 The header button lives in `entry-view.tsx`; the row actions (`view-page`, `view-pages`) in `src/admin/actions/coverage-actions.ts`.

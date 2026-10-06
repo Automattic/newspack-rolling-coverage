@@ -6,7 +6,8 @@ import type { Coverage } from '../types';
 /**
  * What a coverage's View Page control does: nothing when no published place
  * shows the coverage, a link when one place with a page of its own does,
- * and a drawer listing every place otherwise.
+ * and a drawer listing every place otherwise. A breakout row's link is only
+ * the newest of many breakout posts, so it opens the drawer too.
  */
 type PlacementsLink =
 	{ kind: 'none' } | { kind: 'link'; url: string } | { kind: 'drawer' };
@@ -25,7 +26,11 @@ function getPlacementsLink( coverage: Coverage | null ): PlacementsLink {
 		return { kind: 'none' };
 	}
 
-	if ( placements.length === 1 && placements[ 0 ].viewUrl ) {
+	if (
+		placements.length === 1 &&
+		placements[ 0 ].viewUrl &&
+		! placements[ 0 ].breakout
+	) {
 		return { kind: 'link', url: placements[ 0 ].viewUrl };
 	}
 
