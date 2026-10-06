@@ -2245,6 +2245,78 @@ function withoutAllUpdatesParagraph<
 }
 
 /**
+ * The blocks with each all-updates paragraph reading the text, at any
+ * depth, as the site renders a shared layout with the block's own link text
+ * (Entry_Bindings::link_all_updates()).
+ *
+ * @param {Object[]} blocks The blocks.
+ * @param {string}   text   The link text.
+ * @return {Object[]} The blocks.
+ */
+function withAllUpdatesText<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[], text: string ): T[] {
+	return blocks.map( ( block ) => {
+		if ( isAllUpdatesParagraph( block ) ) {
+			return {
+				...block,
+				attributes: {
+					...( block.attributes as Record< string, unknown > ),
+					content: placeholderLink( text ),
+				},
+			};
+		}
+
+		return Array.isArray( block.innerBlocks ) && block.innerBlocks.length
+			? {
+					...block,
+					innerBlocks: withAllUpdatesText(
+						block.innerBlocks as T[],
+						text
+					),
+				}
+			: block;
+	} );
+}
+
+/**
+ * The text of the first all-updates paragraph among the blocks, at any
+ * depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {string|null} The text, or null without the paragraph.
+ */
+function allUpdatesTextOf(
+	blocks: { name: string; [ key: string ]: unknown }[]
+): string | null {
+	for ( const block of blocks ) {
+		if ( isAllUpdatesParagraph( block ) ) {
+			const content = ( block.attributes as Record< string, unknown > )
+				?.content;
+
+			return (
+				new DOMParser().parseFromString(
+					String( content ?? '' ),
+					'text/html'
+				).body.textContent ?? ''
+			).trim();
+		}
+
+		const text = allUpdatesTextOf(
+			Array.isArray( block.innerBlocks )
+				? ( block.innerBlocks as typeof blocks )
+				: []
+		);
+
+		if ( text !== null ) {
+			return text;
+		}
+	}
+
+	return null;
+}
+
+/**
  * The client IDs of the all-updates paragraphs among the blocks, at
  * any depth.
  *
@@ -3240,6 +3312,8 @@ export {
 	allUpdatesLink,
 	allUpdatesBlockIds,
 	withoutAllUpdatesParagraph,
+	withAllUpdatesText,
+	allUpdatesTextOf,
 	emptiedGroupIds,
 	withoutPinnedRow,
 	withoutBreakoutLink,
