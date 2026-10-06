@@ -2,6 +2,8 @@
  * WordPress dependencies
  */
 import apiFetch from '@wordpress/api-fetch';
+import { store as coreStore } from '@wordpress/core-data';
+import { dispatch } from '@wordpress/data';
 
 /**
  * Internal dependencies
@@ -607,11 +609,18 @@ async function setEntryStatus(
 	status: 'publish' | 'draft'
 ): Promise< ApiResult > {
 	try {
-		await apiFetch( {
+		const saved = await apiFetch( {
 			path: `/wp/v2/${ config.restBase.entries }/${ entry.id }`,
 			method: 'POST',
 			data: { status },
 		} );
+		// Quick Edit opens entries from core-data's cache, which this request
+		// bypasses. Store the saved entry so Quick Edit shows its new status.
+		dispatch( coreStore ).receiveEntityRecords(
+			'postType',
+			config.postType,
+			[ saved ]
+		);
 		return { success: true };
 	} catch ( error ) {
 		return { success: false, error: handleApiError( error as Error ) };
