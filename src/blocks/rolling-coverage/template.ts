@@ -297,13 +297,17 @@ function shareLink(): TemplateItem {
 
 /**
  * The text a new layout's link to the coverage page starts with, in the
- * site's own plural for entries.
+ * site's own plural for entries when it sets one.
  *
  * @return {string} The link text.
  */
 function allUpdatesText(): string {
+	if ( ! ENTRY_PLURAL ) {
+		return __( 'See all entries', 'newspack-rolling-coverage' );
+	}
+
 	return sprintf(
-		/* translators: %s: the site's name for several coverage entries, as it reads mid-sentence, e.g. "entries" or "updates". */
+		/* translators: %s: the site's name for several coverage entries, as it reads mid-sentence, e.g. "updates". */
 		__( 'See all %s', 'newspack-rolling-coverage' ),
 		ENTRY_PLURAL
 	);

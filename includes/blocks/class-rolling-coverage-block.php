@@ -189,7 +189,7 @@ class Rolling_Coverage_Block {
 	private static $ignoring_pinning = false;
 
 	/**
-	 * The coverage page URL the "See all updates" paragraph links to while
+	 * The coverage page URL the all-updates paragraph links to while
 	 * the coverage-level blocks render; empty otherwise.
 	 *
 	 * @var string
@@ -263,7 +263,7 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The URL the "See all updates" paragraph links to now, or an empty
+	 * The URL the all-updates paragraph links to now, or an empty
 	 * string outside the coverage-level blocks.
 	 *
 	 * @return string
@@ -1005,7 +1005,7 @@ class Rolling_Coverage_Block {
 					'layoutCategoryId'            => Layout::get_pattern_category_id(),
 					'entryPostType'               => Post_Type::CPT_SLUG,
 					'showAvatars'                 => (bool) get_option( 'show_avatars' ),
-					'entryPlural'                 => Entry_Name::plural_or_default(),
+					'entryPlural'                 => Entry_Name::word( 2 ),
 					'sampleAvatarUrls'            => [
 						'mq' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/mq.svg' ),
 						'ta' => esc_url_raw( NEWSPACK_ROLLING_COVERAGE_URL . 'assets/sample-avatars/ta.svg' ),
@@ -2440,7 +2440,7 @@ class Rolling_Coverage_Block {
 	 * so the Follow Coverage block follows it. A Follow Coverage block that
 	 * can't render, e.g. on an archived coverage, leaves nothing behind, as
 	 * does a Check for Updates block in a feed that checks on its own, and a
-	 * group left empty once they and the "See all updates" paragraph drop
+	 * group left empty once they and the all-updates paragraph drop
 	 * out. The blocks render outside the Feed group, so they're
 	 * handed its layout, as core hands a parent's layout to its inner blocks:
 	 * core then treats a grid Feed with a column count and no minimum column
@@ -2450,7 +2450,7 @@ class Rolling_Coverage_Block {
 	 * @param array[] $blocks          Parsed coverage-level blocks.
 	 * @param int     $coverage_id     Coverage term id.
 	 * @param string  $status          Coverage status.
-	 * @param string  $all_updates_url Where the "See all updates" paragraph links; empty drops it.
+	 * @param string  $all_updates_url Where the all-updates paragraph links; empty drops it.
 	 * @param array   $parent_layout   The Feed group's layout.
 	 * @param bool    $checks_on_request Whether the feed checks for new entries only when asked.
 	 * @return string Rendered HTML, or an empty string.
