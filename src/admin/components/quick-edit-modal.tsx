@@ -35,7 +35,12 @@ import { useAdminContext } from '../hooks/useAdminContext';
 import { ensureEditorInitialized } from '../utils/block-registration';
 import { QuickEditSaveBar } from './quick-edit-save-bar';
 import { QuickEditEntryPanel } from './quick-edit-entry-panel';
-import type { QuickEditModalProps, EntityRecord } from '../types';
+import type {
+	Action,
+	Entry,
+	QuickEditModalProps,
+	EntityRecord,
+} from '../types';
 
 /**
  * Reports the registry it renders in, so UI outside `EditorProvider` can use
@@ -60,10 +65,20 @@ function EditorRegistryBridge( {
  * The Quick Edit sidebar: Entry and Block tabs, switching between them as
  * blocks are selected and deselected, as the post editor's sidebar does.
  *
- * @param {Object}  props                 Component props.
- * @param {boolean} props.canChangeStatus Whether the Entry tab can change the status.
+ * @param {Object}          props                 Component props.
+ * @param {Entry}           props.entry           The entry's row in the list.
+ * @param {Action<Entry>[]} props.actions         The list's row actions.
+ * @param {boolean}         props.canChangeStatus Whether the Entry tab can change the status.
  */
-function QuickEditSidebar( { canChangeStatus }: { canChangeStatus: boolean } ) {
+function QuickEditSidebar( {
+	entry,
+	actions,
+	canChangeStatus,
+}: {
+	entry: Entry;
+	actions: Action< Entry >[];
+	canChangeStatus: boolean;
+} ) {
 	const hasBlockSelection = useSelect(
 		( select ) =>
 			Boolean(
@@ -75,7 +90,9 @@ function QuickEditSidebar( { canChangeStatus }: { canChangeStatus: boolean } ) {
 			),
 		[]
 	);
-	const [ tab, setTab ] = useState( 'entry' );
+	const [ tab, setTab ] = useState( () =>
+		hasBlockSelection ? 'block' : 'entry'
+	);
 
 	useEffect( () => {
 		setTab( hasBlockSelection ? 'block' : 'entry' );
@@ -97,7 +114,11 @@ function QuickEditSidebar( { canChangeStatus }: { canChangeStatus: boolean } ) {
 				</Tabs.List>
 			</div>
 			<Tabs.Panel value="entry" tabIndex={ -1 }>
-				<QuickEditEntryPanel canChangeStatus={ canChangeStatus } />
+				<QuickEditEntryPanel
+					entry={ entry }
+					actions={ actions }
+					canChangeStatus={ canChangeStatus }
+				/>
 			</Tabs.Panel>
 			<Tabs.Panel value="block" tabIndex={ -1 }>
 				<BlockInspector />
@@ -130,12 +151,14 @@ function QuickEditSidebar( { canChangeStatus }: { canChangeStatus: boolean } ) {
  * @param {QuickEditModalProps} props Component props.
  */
 function QuickEditModal( {
-	entryId,
+	entry,
+	actions,
 	canPublish,
 	onClose,
 	onSaved,
 }: QuickEditModalProps ) {
 	const config = useAdminContext();
+	const entryId = entry.id;
 	const { record, isResolving, hasEdits } = useEntityRecord(
 		'postType',
 		config.postType,
@@ -269,6 +292,8 @@ function QuickEditModal( {
 						{ isSidebarOpen && (
 							<aside className="newspack-rolling-coverage-quick-edit-sidebar">
 								<QuickEditSidebar
+									entry={ entry }
+									actions={ actions }
 									canChangeStatus={ canPublish }
 								/>
 							</aside>

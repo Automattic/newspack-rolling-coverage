@@ -439,7 +439,10 @@ interface SlackConnectionDrawerProps {
 	onSaved: () => void;
 }
 interface QuickEditModalProps {
-	entryId: number;
+	/** The entry's row in the list, refreshed after each list action. */
+	entry: Entry;
+	/** The list's row actions, offered in the Entry tab's actions menu. */
+	actions: Action< Entry >[];
 	/** False for an entry locked by Archive Mode, whose status stays as it is. */
 	canPublish: boolean;
 	onClose: () => void;
@@ -556,7 +559,14 @@ interface QuickEditSaveBarProps {
 }
 
 interface QuickEditEntryPanelProps {
+	entry: Entry;
+	actions: Action< Entry >[];
 	canChangeStatus: boolean;
+}
+
+interface QuickEditEntryActionsProps {
+	entry: Entry;
+	actions: Action< Entry >[];
 }
 
 interface EntityRecord {
@@ -572,6 +582,7 @@ type EditorSelectors = {
 	__unstableIsEditorReady?: () => boolean;
 	isSavingPost: () => boolean;
 	didPostSaveRequestFail: () => boolean;
+	hasNonPostEntityChanges: () => boolean;
 	getCurrentPostType: () => string;
 	getCurrentPostId: () => number;
 };
@@ -730,6 +741,7 @@ export type {
 	QuickEditModalProps,
 	QuickEditSaveBarProps,
 	QuickEditEntryPanelProps,
+	QuickEditEntryActionsProps,
 	EntityRecord,
 	EditorSelectors,
 	CoreSelectors,

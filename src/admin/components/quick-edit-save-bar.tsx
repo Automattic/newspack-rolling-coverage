@@ -36,7 +36,9 @@ const PublishButton = PostPublishButton as unknown as ComponentType;
  * own (`PostSavedState` and `PostPublishButton`), so a draft offers Save
  * draft and Publish, a published entry Save, and a contributor Submit for
  * Review. Publish goes straight through: there's no room in the modal for
- * the pre-publish panel. Otherwise a single Save keeps the entry's status.
+ * the pre-publish panel. Otherwise a single Save keeps the entry's status:
+ * for a locked entry, and while another entity has unsaved edits, since
+ * core's Publish button then reads Save but still publishes a draft.
  *
  * `savePost()` never rejects on failure, so the result is detected by
  * watching `isSavingPost` transition to `false` and then reading
@@ -55,25 +57,27 @@ function QuickEditSaveBar( {
 	const { savePost } = useDispatch( editorStore );
 	const { createErrorNotice } = useDispatch( noticesStore );
 
-	const { isEditorReady, isSavingPost, didFail, lastSaveError } = useSelect(
-		( registry ) => {
-			const editor = registry(
-				editorStore
-			) as unknown as EditorSelectors;
-			const core = registry( coreStore ) as unknown as CoreSelectors;
-			return {
-				isEditorReady: editor.__unstableIsEditorReady?.() ?? false,
-				isSavingPost: editor.isSavingPost(),
-				didFail: editor.didPostSaveRequestFail(),
-				lastSaveError: core.getLastEntitySaveError(
-					'postType',
-					editor.getCurrentPostType(),
-					editor.getCurrentPostId()
-				),
-			};
-		},
-		[]
-	);
+	const {
+		isEditorReady,
+		isSavingPost,
+		didFail,
+		lastSaveError,
+		hasNonPostEntityChanges,
+	} = useSelect( ( registry ) => {
+		const editor = registry( editorStore ) as unknown as EditorSelectors;
+		const core = registry( coreStore ) as unknown as CoreSelectors;
+		return {
+			isEditorReady: editor.__unstableIsEditorReady?.() ?? false,
+			isSavingPost: editor.isSavingPost(),
+			didFail: editor.didPostSaveRequestFail(),
+			hasNonPostEntityChanges: editor.hasNonPostEntityChanges(),
+			lastSaveError: core.getLastEntitySaveError(
+				'postType',
+				editor.getCurrentPostType(),
+				editor.getCurrentPostId()
+			),
+		};
+	}, [] );
 
 	const wasSavingRef = useRef( false );
 
@@ -113,7 +117,7 @@ function QuickEditSaveBar( {
 				{ __( 'Cancel', 'newspack-rolling-coverage' ) }
 			</Button>
 			{ children }
-			{ canPublish ? (
+			{ canPublish && ! hasNonPostEntityChanges ? (
 				<>
 					<SavedState />
 					<PublishButton />

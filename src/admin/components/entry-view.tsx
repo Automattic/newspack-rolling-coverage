@@ -282,6 +282,22 @@ function EntryView() {
 		setQuickEditEntry( null );
 	}, [] );
 
+	// A row action run from inside Quick Edit can trash the entry, which the
+	// modal would otherwise go on editing.
+	const handleQuickEditActionPerformed = useCallback( async () => {
+		refresh();
+		const id = quickEditEntry?.id;
+		if ( ! id ) {
+			return;
+		}
+		const post = await apiFetch< { status: string } >( {
+			path: `/wp/v2/${ config.restBase.entries }/${ id }?context=edit&_fields=status`,
+		} ).catch( () => null );
+		if ( ! post || post.status === 'trash' ) {
+			setQuickEditEntry( null );
+		}
+	}, [ refresh, quickEditEntry?.id, config.restBase.entries ] );
+
 	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
 
 	const { data: mappedData, paginationInfo } = useMemo( () => {
@@ -336,6 +352,25 @@ function EntryView() {
 			),
 		[ config, handleQuickEdit, requestConfirm, handleActionPerformed ]
 	);
+	const quickEditActions = useMemo(
+		() =>
+			getEntryActions(
+				config,
+				handleQuickEdit,
+				requestConfirm,
+				handleQuickEditActionPerformed
+			),
+		[
+			config,
+			handleQuickEdit,
+			requestConfirm,
+			handleQuickEditActionPerformed,
+		]
+	);
+	const quickEditRow = quickEditEntry
+		? ( mappedData.find( ( row ) => row.id === quickEditEntry.id ) ??
+			quickEditEntry )
+		: null;
 
 	const hasNoLiveEntries =
 		rows !== null &&
@@ -700,10 +735,11 @@ function EntryView() {
 					isLoading={ isResolving || isTrashCheckPending }
 				/>
 			) }
-			{ quickEditEntry && (
+			{ quickEditRow && (
 				<QuickEditModal
-					entryId={ quickEditEntry.id }
-					canPublish={ ! isEntryLocked( quickEditEntry ) }
+					entry={ quickEditRow }
+					actions={ quickEditActions }
+					canPublish={ ! isEntryLocked( quickEditRow ) }
 					onClose={ handleQuickEditClose }
 					onSaved={ handleQuickEditSaved }
 				/>

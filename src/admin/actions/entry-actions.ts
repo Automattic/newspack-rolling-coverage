@@ -97,13 +97,18 @@ function getEntryActions(
 		config.capabilities.canEditEntries ||
 		( Boolean( entry.isOwn ) && Boolean( entry.canPublish ) );
 
+	// Saving from Quick Edit can change the status, which would take a
+	// trashed entry out of the trash without the restore checks.
+	const canQuickEditRow = ( entry: Entry ) =>
+		canEditRow( entry ) && entry.status !== 'trash';
+
 	return [
 		{
 			id: 'quick-edit',
 			label: __( 'Quick Edit', 'newspack-rolling-coverage' ),
 			isPrimary: true,
 			isEligible: ( entry: Entry ) =>
-				canEditRow( entry ) && ! getEntryEditWarning( entry ),
+				canQuickEditRow( entry ) && ! getEntryEditWarning( entry ),
 			callback: ( items: Entry[] ) => {
 				if ( items.length === 1 ) {
 					onQuickEdit( items[ 0 ] );
@@ -115,7 +120,8 @@ function getEntryActions(
 			label: __( 'Quick Edit', 'newspack-rolling-coverage' ),
 			isPrimary: true,
 			isEligible: ( entry: Entry ) =>
-				canEditRow( entry ) && Boolean( getEntryEditWarning( entry ) ),
+				canQuickEditRow( entry ) &&
+				Boolean( getEntryEditWarning( entry ) ),
 			RenderModal: ( { items, closeModal } ) =>
 				createElement( ConfirmModal, {
 					message: getEditWarningMessage( items[ 0 ] ),
