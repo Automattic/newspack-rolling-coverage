@@ -2042,10 +2042,21 @@ export default function Edit( {
 										'Link text',
 										'newspack-rolling-coverage'
 									) }
-									help={ __(
-										"Leave empty to use the layout's text.",
-										'newspack-rolling-coverage'
-									) }
+									help={
+										layoutLinkText
+											? sprintf(
+													/* translators: %s: the link text the shared layout sets, e.g. "See all entries". */
+													__(
+														'Leave empty to use the layout’s text, “%s”.',
+														'newspack-rolling-coverage'
+													),
+													layoutLinkText
+												)
+											: __(
+													'Leave empty to use the layout’s text.',
+													'newspack-rolling-coverage'
+												)
+									}
 									placeholder={ layoutLinkText }
 									value={ allUpdatesLinkText ?? '' }
 									onChange={ ( value: string ) =>
