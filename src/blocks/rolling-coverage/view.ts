@@ -2576,6 +2576,23 @@ function initBlock( root: HTMLElement ): void {
 		stickyCardObserver?.disconnect();
 	} );
 
+	// Chrome leaves a focused link partly outside a line that scrolls sideways when some of it already shows.
+	const revealFocused = ( event: FocusEvent ) => {
+		if (
+			entriesList.scrollWidth > entriesList.clientWidth &&
+			event.target instanceof Element
+		) {
+			event.target.scrollIntoView( {
+				block: 'nearest',
+				inline: 'nearest',
+			} );
+		}
+	};
+	entriesList.addEventListener( 'focusin', revealFocused );
+	cleanupFns.push( () =>
+		entriesList.removeEventListener( 'focusin', revealFocused )
+	);
+
 	if ( sentinel && hasMore ) {
 		const observer = new IntersectionObserver( ( entries ) => {
 			entries.forEach( ( entry ) => {

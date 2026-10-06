@@ -308,11 +308,8 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 		flex-direction: row;
 		min-width: 0;
 		gap: calc(2 * var(--newspack-rolling-coverage-rule-column) + 1px);
-		margin-block-end: -4px;
-		padding-block-end: 4px;
 		overflow-x: auto;
 		overscroll-behavior-x: contain;
-		scroll-padding-inline: max(var(--newspack-rolling-coverage-rule-column), var(--newspack-rolling-coverage-fade));
 		scroll-snap-type: x proximity;
 		scrollbar-width: thin;
 
@@ -323,6 +320,10 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 
 		> .newspack-rolling-coverage-entries__empty {
 			flex-basis: auto;
+		}
+
+		:focus-visible {
+			outline-offset: -2px;
 		}
 	}
 
@@ -358,6 +359,7 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 @supports (animation-timeline: scroll()) {
 
 	#{$ruled-row} > .newspack-rolling-coverage-entries {
+		scroll-padding-inline: max(var(--newspack-rolling-coverage-rule-column), var(--newspack-rolling-coverage-fade));
 		mask: linear-gradient(#000, #000) 0 0 / 1px 100% no-repeat, #{$row-fade-start};
 		animation:
 			newspack-rolling-coverage-fade-start linear both,
