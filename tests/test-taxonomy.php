@@ -483,7 +483,18 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( '', Taxonomy::get_coverage_page_url( $coverage_id ) );
 		$this->assertFalse( get_option( Placements::OPTION ), 'Nothing was built.' );
-		$this->assertNotFalse( get_option( Placements::STALE_OPTION ), 'A build is due.' );
+		$this->assertSame( 10, has_action( 'shutdown', [ Placements::class, 'schedule_rebuild' ] ), 'A build is scheduled as the request ends.' );
+
+		remove_all_actions( 'shutdown' );
+		Taxonomy::get_coverage_page_url( $coverage_id );
+
+		$this->assertFalse( has_action( 'shutdown', [ Placements::class, 'schedule_rebuild' ] ), 'Once per request.' );
+
+		Placements::flush();
+		remove_all_actions( 'shutdown' );
+		Taxonomy::get_coverage_page_url( $coverage_id );
+
+		$this->assertSame( 10, has_action( 'shutdown', [ Placements::class, 'schedule_rebuild' ] ), 'Even with an out-of-date mark left behind, for instance by a build that died.' );
 
 		Placements::rebuild();
 

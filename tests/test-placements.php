@@ -565,6 +565,69 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * `_fields` can name the field as an array, or by one of its subfields.
+	 */
+	public function test_rest_field_accepts_every_form_of_fields() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::publish( self::feed( $coverage_id ) );
+
+		foreach ( [ [ 'id', Placements::REST_FIELD ], Placements::REST_FIELD . '.id' ] as $fields ) {
+			$request = new WP_REST_Request( 'GET', '/wp/v2/' . Taxonomy::REST_BASE . '/' . $coverage_id );
+			$request->set_param( '_fields', $fields );
+
+			$this->assertSame( 'post:' . $page_id, rest_get_server()->dispatch( $request )->get_data()[ Placements::REST_FIELD ][0]['id'] ?? null, wp_json_encode( $fields ) );
+		}
+	}
+
+	/**
+	 * A change made while the request is ending schedules the rebuild at
+	 * once, since a shutdown callback added then may never run.
+	 */
+	public function test_a_change_during_shutdown_schedules_at_once() {
+		wp_clear_scheduled_hook( Placements::REBUILD_HOOK );
+		remove_all_actions( 'shutdown' );
+		add_action( 'shutdown', [ Placements::class, 'flush' ], 20 );
+
+		do_action( 'shutdown' );
+
+		$this->assertNotFalse( wp_next_scheduled( Placements::REBUILD_HOOK ) );
+	}
+
+	/**
+	 * A build that outlives its lock, which another rebuild then took over,
+	 * stores nothing and leaves the other rebuild's lock alone.
+	 */
+	public function test_a_build_that_outlives_its_lock_stores_nothing() {
+		global $wpdb;
+
+		$coverage_id = self::create_coverage();
+		self::publish( self::feed( $coverage_id ) );
+		$stored = [
+			'pages'    => [],
+			'places'   => [],
+			'breakout' => [],
+			'patterns' => [],
+			'theme'    => self::theme(),
+		];
+		update_option( Placements::OPTION, $stored, false );
+		$taken_over = false;
+		$take_over  = function ( $query ) use ( &$taken_over, $wpdb ) {
+			if ( ! $taken_over && str_contains( $query, 'ORDER BY post_date DESC' ) ) {
+				$taken_over = true;
+				$wpdb->update( $wpdb->options, [ 'option_value' => 'successor' ], [ 'option_name' => Placements::LOCK_OPTION ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			}
+			return $query;
+		};
+		add_filter( 'query', $take_over );
+		Placements::rebuild();
+		remove_filter( 'query', $take_over );
+
+		$this->assertTrue( $taken_over );
+		$this->assertSame( $stored, get_option( Placements::OPTION ) );
+		$this->assertSame( 'successor', $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", Placements::LOCK_OPTION ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	}
+
+	/**
 	 * The block editor fetches coverages without `_fields`, and must not
 	 * wait on a rebuild after every save; nor does the page URL field.
 	 */

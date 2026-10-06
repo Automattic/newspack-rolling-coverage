@@ -75,14 +75,14 @@ A build lists the IDs of every matching published post, newest first, and reads 
 
 #### When it is rebuilt
 
-A change never rebuilds the map in the request that made it. `Placements::flush()` writes a new token to the `rolling_coverage_placements_stale` option, straight to the database with an upsert so a long request whose cached copy is out of date still marks it. As the request ends, `schedule_rebuild()` reads the scheduled events from the database (not the request's cached copy) and, unless a `newspack_rolling_coverage_rebuild_placements` event is already due, reloads them and schedules one. WP-Cron runs it on a following request.
+A change never rebuilds the map in the request that made it. `Placements::flush()` writes a new token to the `rolling_coverage_placements_stale` option, straight to the database with an upsert so a long request whose cached copy is out of date still marks it. As the request ends, `schedule_rebuild()` reloads the scheduled events (dropping the request's cached copy, which a long request may hold after the event already ran) and, unless a `newspack_rolling_coverage_rebuild_placements` event is already due, schedules one through core's cron functions, so cron replacements such as Cron Control keep working. A change made from a `shutdown` callback, or while switched to another site, schedules at once. WP-Cron runs the event on a following request.
 
 Until it runs:
 
-- **The front end** (`page_id()`, and so `get_coverage_page_url()`) keeps reading the stored map. It never builds one: when there is none, it marks the map out of date and returns no page until the event runs.
+- **The front end** (`page_id()`, and so `get_coverage_page_url()`) keeps reading the stored map. It never builds one: when there is none, it has the request schedule a build (once per request, whatever the out-of-date mark says, in case an earlier build died before storing a map) and returns no page until the event runs.
 - **Admin reads** of the `placements` field call `ensure_fresh()`, which rebuilds at once when the map is marked out of date, missing, or was built for another theme or theme version, so an editor who has just saved a page sees it in the list. It checks once per request until the next change. The `pageUrl` field doesn't, so the block editor never waits on a rebuild.
 
-A rebuild holds a lock: the `rolling_coverage_placements_lock` row, inserted only if absent and holding when it expires (`LOCK_TTL`, five minutes), after which another rebuild takes it over. While it is held, an admin read uses the stored map and the event tries again after `LOCK_TTL`. Inside the lock, the rebuild reads the token, builds, stores the map, and deletes the token only if it is still the one it read, so a change saved while it ran keeps the map marked for the next read or event.
+A rebuild holds a lock: the `rolling_coverage_placements_lock` row, inserted only if absent and holding when it expires (`LOCK_TTL`, five minutes), after which another rebuild takes it over. A build that outlives its lock checks it still holds it before storing anything, and releases only its own lock. While it is held, an admin read uses the stored map and the event tries again after `LOCK_TTL`. Inside the lock, the rebuild reads the token, builds, stores the map, and deletes the token only if it is still the one it read, so a change saved while it ran keeps the map marked for the next read or event.
 
 #### What marks it out of date
 
@@ -101,7 +101,7 @@ Not tracked: theme files edited without an update, and a breakout post's entry b
 
 ### REST field
 
-`placements` on the coverage term, for users who can `edit_posts` (others get an empty list), in both the `view` and `edit` contexts. It is only worked out when the request names it in `_fields`; otherwise it is an empty list, so the block editor's coverage lookups stay cheap. The coverages list (`useCoverages.ts`) and the single coverage fetch (`getCoverage()` in `src/admin/utils/coverage-api.ts`) both name it. Each row has `id`, `title`, `type` (what the place is, such as "Page" or "Template part"), `tags`, `viewUrl`, `editUrl`, `isMain` and `breakout`. 
+`placements` on the coverage term, for users who can `edit_posts` (others get an empty list), in both the `view` and `edit` contexts. It is only worked out when the request names it in `_fields`; otherwise it is an empty list, so the block editor's coverage lookups stay cheap. The coverages list (`useCoverages.ts`) and the single coverage fetch (`getCoverage()` in `src/admin/utils/coverage-api.ts`) both name it. Each row has `id`, `title`, `type` (what the place is, such as "Page" or "Template part"), `tags`, `viewUrl`, `editUrl`, `isMain` and `breakout`.
 
 The older `pageUrl` field stays: the canonical URL, or else the newest post with an uncapped feed, read from the stored map as it is.
 

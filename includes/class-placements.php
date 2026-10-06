@@ -87,6 +87,14 @@ class Placements {
 	private static $fresh = [];
 
 	/**
+	 * Sites whose missing map this request has already queued a build for,
+	 * keyed by blog ID.
+	 *
+	 * @var array<int,true>
+	 */
+	private static $queued = [];
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -160,7 +168,9 @@ class Placements {
 			return [];
 		}
 
-		if ( ! in_array( self::REST_FIELD, wp_parse_list( (string) $request['_fields'] ), true ) ) {
+		$fields = wp_parse_list( $request['_fields'] ?? [] );
+
+		if ( ! $fields || ! rest_is_field_included( self::REST_FIELD, $fields ) ) {
 			return [];
 		}
 
@@ -715,10 +725,18 @@ class Placements {
 	public static function flush(): void {
 		$blog_id = get_current_blog_id();
 
-		unset( self::$breakout_posts[ $blog_id ], self::$fresh[ $blog_id ] );
+		unset( self::$breakout_posts[ $blog_id ], self::$fresh[ $blog_id ], self::$queued[ $blog_id ] );
 		self::write_option( self::STALE_OPTION, uniqid( '', true ) );
+		self::queue_rebuild();
+	}
 
-		if ( is_multisite() && ms_is_switched() ) {
+	/**
+	 * Has the request schedule a rebuild as it ends, after the change's own
+	 * writes. Schedules it at once when the request is already ending, or
+	 * is switched to another site, which it may not be on as it ends.
+	 */
+	private static function queue_rebuild(): void {
+		if ( doing_action( 'shutdown' ) || ( is_multisite() && ms_is_switched() ) ) {
 			self::schedule_rebuild();
 			return;
 		}
@@ -729,28 +747,18 @@ class Placements {
 	}
 
 	/**
-	 * Schedules one rebuild unless one is already due. Reads the scheduled
-	 * events from the database, since a long request's cached copy can still
-	 * list an event that has already run, and reloads them before scheduling
-	 * so the write builds on the current list.
+	 * Schedules one rebuild unless one is already due. Reloads the scheduled
+	 * events first, since a long request's cached copy can still list an
+	 * event that has already run, and so the write builds on the current
+	 * list. Goes through core's cron functions, so cron replacements that
+	 * filter them keep working.
 	 */
 	public static function schedule_rebuild(): void {
-		global $wpdb;
-
-		$cron = maybe_unserialize(
-			$wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-				$wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'cron' )
-			)
-		);
-
-		foreach ( is_array( $cron ) ? $cron : [] as $events ) {
-			if ( is_array( $events ) && isset( $events[ self::REBUILD_HOOK ] ) ) {
-				return;
-			}
-		}
-
 		wp_cache_delete( 'alloptions', 'options' );
-		wp_schedule_single_event( time(), self::REBUILD_HOOK );
+
+		if ( ! wp_next_scheduled( self::REBUILD_HOOK ) ) {
+			wp_schedule_single_event( time(), self::REBUILD_HOOK );
+		}
 	}
 
 	/**
@@ -793,19 +801,30 @@ class Placements {
 	 * change replaced it while building; such a change keeps the map marked,
 	 * though the new map is still stored, since it is newer than the last.
 	 *
+	 * A build that outlives its lock, which another rebuild may then have
+	 * taken, stores nothing and leaves that rebuild's lock alone.
+	 *
 	 * @return bool Whether this request rebuilt it; false when another holds the lock.
 	 */
 	private static function rebuild_locked(): bool {
 		global $wpdb;
 
-		if ( ! self::lock() ) {
+		$expires = self::lock();
+
+		if ( null === $expires ) {
 			return false;
 		}
 
 		try {
 			$token = self::read_token();
+			$map   = self::build();
 
-			self::write_option( self::OPTION, self::build() );
+			if ( $expires !== self::lock_value() ) {
+				return true;
+			}
+
+			self::write_option( self::OPTION, $map );
+			unset( self::$queued[ get_current_blog_id() ] );
 
 			if ( null !== $token ) {
 				$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
@@ -815,7 +834,7 @@ class Placements {
 			}
 		} finally {
 			$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-				$wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", self::LOCK_OPTION )
+				$wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::LOCK_OPTION, $expires )
 			);
 		}
 
@@ -824,23 +843,46 @@ class Placements {
 
 	/**
 	 * Takes the rebuild lock, an option row inserted only if absent, or taken
-	 * over once its holder's time is up.
+	 * over once its holder's time is up. Tries the insert again once when the
+	 * holder released the lock between the insert and the read.
 	 *
-	 * @return bool Whether this request holds the lock.
+	 * @return string|null The lock's expiry, which identifies this holder, or null when another holds it.
 	 */
-	private static function lock(): bool {
+	private static function lock(): ?string {
 		global $wpdb;
 
 		$expires = (string) ( time() + self::LOCK_TTL );
 
-		if ( $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", self::LOCK_OPTION, $expires ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			return true;
+		for ( $attempt = 0; $attempt < 2; $attempt++ ) {
+			if ( $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", self::LOCK_OPTION, $expires ) ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				return $expires;
+			}
+
+			$held_until = (string) self::lock_value();
+
+			if ( '' !== $held_until ) {
+				break;
+			}
 		}
 
-		$held_until = (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::LOCK_OPTION ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		if ( '' === $held_until || (int) $held_until >= time() ) {
+			return null;
+		}
 
-		return (int) $held_until < time()
-			&& (bool) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", $expires, self::LOCK_OPTION, $held_until ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", $expires, self::LOCK_OPTION, $held_until ) ) ? $expires : null; // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	}
+
+	/**
+	 * The rebuild lock's current value, read from the database.
+	 *
+	 * @return string|null Expiry, or null when no rebuild holds the lock.
+	 */
+	private static function lock_value(): ?string {
+		global $wpdb;
+
+		$value = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::LOCK_OPTION ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		return null === $value ? null : (string) $value;
 	}
 
 	/**
@@ -1026,8 +1068,10 @@ class Placements {
 
 	/**
 	 * Returns the stored map, even when it is out of date. Never builds one:
-	 * when there is none, it schedules a build and returns an empty map, so a
-	 * front-end render never waits on a scan.
+	 * when there is none, it has the request schedule a build, once, whatever
+	 * the out-of-date mark says (an earlier build may have died before
+	 * storing one), and returns an empty map, so a front-end render never
+	 * waits on a scan.
 	 *
 	 * @return array{pages: array<int,int>, places: array<int,array[]>, breakout: array[], patterns: int[], theme: string}
 	 */
@@ -1038,8 +1082,11 @@ class Placements {
 			return $stored;
 		}
 
-		if ( null === self::read_token() ) {
-			self::flush();
+		$blog_id = get_current_blog_id();
+
+		if ( ! isset( self::$queued[ $blog_id ] ) ) {
+			self::$queued[ $blog_id ] = true;
+			self::queue_rebuild();
 		}
 
 		return [
