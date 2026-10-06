@@ -282,6 +282,7 @@ function EntryView() {
 	const { clearEntityRecordEdits } = useDispatch( coreStore );
 	const quickEditIdRef = useRef< number | null >( null );
 	quickEditIdRef.current = quickEditEntry?.id ?? null;
+	const quickEditRefreshRef = useRef( 0 );
 
 	// Refetches the Quick Edit entry by ID after a save or a menu action:
 	// the list's current page may not hold it, and the menu and status
@@ -292,6 +293,7 @@ function EntryView() {
 		if ( ! id || numericCoverageId === null ) {
 			return;
 		}
+		const requestNumber = ++quickEditRefreshRef.current;
 
 		let response: EntryPageResponse;
 		try {
@@ -317,7 +319,10 @@ function EntryView() {
 			return;
 		}
 
-		if ( quickEditIdRef.current !== id ) {
+		if (
+			quickEditIdRef.current !== id ||
+			quickEditRefreshRef.current !== requestNumber
+		) {
 			return;
 		}
 

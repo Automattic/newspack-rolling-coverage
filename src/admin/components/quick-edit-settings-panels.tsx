@@ -28,8 +28,9 @@ const DocumentSettingPanelSlot = (
  ).Slot;
 
 /**
- * Drops a plugin's panel when it throws, as the editor's `PluginArea` does,
- * so another plugin's error can't take Quick Edit down with it.
+ * Drops a plugin's panel when it throws, so another plugin's error can't
+ * take Quick Edit down with it. A panel's content renders where the slot
+ * is, not where the plugin is, so the slot needs one too.
  */
 class PluginPanelBoundary extends Component<
 	{ children: ReactNode },
@@ -77,7 +78,9 @@ function QuickEditSettingsPanels( { canNotify }: { canNotify: boolean } ) {
 					<Render />
 				</PluginPanelBoundary>
 			) ) }
-			<DocumentSettingPanelSlot />
+			<PluginPanelBoundary>
+				<DocumentSettingPanelSlot />
+			</PluginPanelBoundary>
 		</>
 	);
 }
