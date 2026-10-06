@@ -256,7 +256,7 @@ function ChangeAuthorDrawer( {
 				/>
 			</Drawer.Content>
 			<Drawer.Footer>
-				<Drawer.Action variant="tertiary" closes disabled={ isBusy }>
+				<Drawer.Action variant="secondary" closes disabled={ isBusy }>
 					{ __( 'Cancel', 'newspack-rolling-coverage' ) }
 				</Drawer.Action>
 				<Drawer.Action
