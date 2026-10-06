@@ -16,11 +16,30 @@ use Newspack_Rolling_Coverage\Share_Block;
 class Test_Entry_Name extends Rolling_Coverage_TestCase {
 
 	/**
+	 * Whether this test registered the Rolling Coverage block.
+	 *
+	 * @var bool
+	 */
+	private $registered_feed = false;
+
+	/**
 	 * Act as an editor, who can manage the name.
 	 */
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+	}
+
+	/**
+	 * Forget the Rolling Coverage block if the test registered it.
+	 */
+	public function tear_down() {
+		if ( $this->registered_feed ) {
+			unregister_block_type( Rolling_Coverage_Block::BLOCK_NAME );
+			$this->registered_feed = false;
+		}
+
+		parent::tear_down();
 	}
 
 	/**
@@ -65,12 +84,18 @@ class Test_Entry_Name extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A feed of one coverage with a plain entry template.
+	 * A feed of one coverage with a plain entry template. Registers the block
+	 * when the build isn't there.
 	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return string Rendered HTML.
 	 */
-	private static function render_feed( int $coverage_id ): string {
+	private function render_feed( int $coverage_id ): string {
+		if ( ! WP_Block_Type_Registry::get_instance()->is_registered( Rolling_Coverage_Block::BLOCK_NAME ) ) {
+			register_block_type( Rolling_Coverage_Block::BLOCK_NAME, Rolling_Coverage_Block::block_type_args() );
+			$this->registered_feed = true;
+		}
+
 		return do_blocks(
 			'<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( [ 'coverageId' => $coverage_id ] ) . ' -->'
 			. '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">'
@@ -282,13 +307,13 @@ class Test_Entry_Name extends Rolling_Coverage_TestCase {
 	public function test_feed_uses_the_name() {
 		$coverage_id = self::create_coverage();
 
-		$html = self::render_feed( $coverage_id );
+		$html = $this->render_feed( $coverage_id );
 
 		$this->assertStringNotContainsString( 'data-entry-name=', $html );
 		$this->assertStringContainsString( 'No entries yet.', $html );
 
 		self::set_name( 'update', 'updates' );
-		$html = self::render_feed( $coverage_id );
+		$html = $this->render_feed( $coverage_id );
 
 		$this->assertStringContainsString( 'No updates yet.', $html );
 		$this->assertSame( 1, preg_match( '/data-entry-name="([^"]*)"/', $html, $match ) );
