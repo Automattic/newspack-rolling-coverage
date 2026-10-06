@@ -683,12 +683,10 @@ class Schema {
 	 * @return array|null BlogPosting array, or null to skip the entry.
 	 */
 	private static function build_entry_update( WP_Post $entry, string $permalink ): ?array {
-		// The schema is cached for every visitor, so it holds only what everyone may read.
-		$content = '' === $entry->post_password ? Entry_Bindings::public_content( $entry ) : '';
-
+		// The schema is cached for every visitor, so it holds only what everyone may read. Protected entries never get here (build_updates()).
 		// Replace tags with spaces to preserve word boundaries, decode entities,
 		// then collapse whitespace so headline/articleBody read as clean prose.
-		$article_body = preg_replace( '/<[^>]+>/', ' ', do_blocks( $content ) );
+		$article_body = preg_replace( '/<[^>]+>/', ' ', do_blocks( Entry_Bindings::public_content( $entry ) ) );
 		$article_body = html_entity_decode( $article_body, ENT_QUOTES, 'UTF-8' );
 		$article_body = preg_replace( '/\s+/', ' ', $article_body );
 		$article_body = trim( $article_body );

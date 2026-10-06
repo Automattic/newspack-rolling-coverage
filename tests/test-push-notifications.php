@@ -243,6 +243,31 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A titled password-protected entry is announced by its title alone: its
+	 * hand-written excerpt is protected text too.
+	 */
+	public function test_protected_entry_is_announced_without_its_excerpt() {
+		$entry_id = self::create_entry(
+			self::create_coverage_with_canonical_url(),
+			[
+				'post_status'   => 'draft',
+				'post_title'    => 'Count update',
+				'post_excerpt'  => 'The result is in.',
+				'post_password' => 'secret',
+				'post_content'  => '<!-- wp:paragraph --><p>The result is in.</p><!-- /wp:paragraph -->',
+			]
+		);
+		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
+
+		wp_publish_post( $entry_id );
+
+		$sent_notifications = self::get_sent_notifications();
+
+		$this->assertCount( 1, $sent_notifications );
+		$this->assertSame( '', $sent_notifications[0]['content'] );
+	}
+
+	/**
 	 * A titled entry is still announced when it has no words everyone may
 	 * read, such as a lone photo: its title is public.
 	 */
