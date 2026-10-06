@@ -204,6 +204,22 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Lite Site caches a page for every reader and lite polls are public, so
+	 * an entry's body leaves out the blocks Newspack shows only to signed-in
+	 * readers, even when a signed-in reader asks.
+	 */
+	public function test_entry_body_leaves_out_members_only_blocks_whoever_asks() {
+		$this->use_block_visibility_stub();
+		$entry_id = self::create_entry( $this->coverage_id, [ 'post_content' => '<!-- wp:paragraph --><p>Everyone reads this.</p><!-- /wp:paragraph -->' . self::members_only_paragraph( 'Members read this.' ) ] );
+		self::log_in_as( 'administrator' );
+
+		$html = Lite_Feed::render_entry( get_post( $entry_id ), 'initial' );
+
+		$this->assertStringContainsString( 'Everyone reads this.', $html );
+		$this->assertStringNotContainsString( 'Members read this.', $html );
+	}
+
+	/**
 	 * Render the block for the test coverage, as a full page does.
 	 *
 	 * @param array  $attributes   Block attributes, on top of the test coverage.

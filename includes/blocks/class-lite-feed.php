@@ -285,8 +285,9 @@ class Lite_Feed {
 	 * and the page would still strip what lies beyond it, so a poll must too.
 	 *
 	 * A protected entry gets a notice in place of its body, whatever the
-	 * reader's postpass cookie: Lite Site caches the page for every reader,
-	 * and lite polls and load more are public.
+	 * reader's postpass cookie, and blocks Newspack shows only to signed-in
+	 * readers are left out, whoever is signed in: Lite Site caches the page
+	 * for every reader, and lite polls and load more are public.
 	 *
 	 * An entry's content can hold a feed of its own coverage, which lists the
 	 * entry again. Its body then renders only the first time, as core's Post
@@ -320,7 +321,7 @@ class Lite_Feed {
 		try {
 			return Rolling_Coverage_Block::render_as_entry(
 				static function () use ( $entry ) {
-					return wp_kses_post( \Newspack_Lite_Site\Lite_Site::clean_content( $entry->post_content ) );
+					return wp_kses_post( \Newspack_Lite_Site\Lite_Site::clean_content( Entry_Bindings::public_content( $entry ) ) );
 				}
 			);
 		} finally {
