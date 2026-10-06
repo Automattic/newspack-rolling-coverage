@@ -1101,6 +1101,22 @@ class Rolling_Coverage_Block {
 	 * @return string Rendered HTML.
 	 */
 	public static function render_block( $attributes, $content, WP_Block $block ) {
+		// Lite Site caches a page by its path for every reader, so a lite
+		// page gets the feed a signed-out reader gets, as its polls and load
+		// more do. Otherwise blocks that render by reader, in the layout or in
+		// an entry, would serve whoever filled the cache's view to everyone.
+		$reader_id = get_current_user_id();
+
+		if ( $reader_id && Lite_Feed::is_lite_render() ) {
+			wp_set_current_user( 0 );
+
+			try {
+				return self::render_block( $attributes, $content, $block );
+			} finally {
+				wp_set_current_user( $reader_id );
+			}
+		}
+
 		// Capture the host page's post ID before any entry rendering
 		// swaps the global $post. Used by the share-link block to build
 		// share URLs pointing back to this page. Save the previous

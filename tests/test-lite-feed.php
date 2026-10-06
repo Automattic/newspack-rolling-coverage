@@ -407,6 +407,52 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Lite Site keeps a page for every reader, so a signed-in reader's lite
+	 * page renders the feed as a signed-out reader gets it: an entry's own
+	 * blocks, those of a synced pattern in it, and the layout's blocks around
+	 * the entries. The reader is signed back in once the feed has rendered.
+	 */
+	public function test_lite_page_renders_the_feed_for_a_signed_out_reader() {
+		$pattern_id = self::factory()->post->create(
+			[
+				'post_type'    => 'wp_block',
+				'post_status'  => 'publish',
+				'post_content' => '<!-- wp:paragraph --><p>Pattern text.</p><!-- /wp:paragraph -->',
+			]
+		);
+		self::create_entry( $this->coverage_id, [ 'post_content' => '<!-- wp:paragraph --><p>Entry text.</p><!-- /wp:paragraph --><!-- wp:block {"ref":' . $pattern_id . '} /-->' ] );
+
+		// The layout's "See all updates" link shows only with a coverage page.
+		update_term_meta( $this->coverage_id, Taxonomy::CANONICAL_URL_META_KEY, home_url( '/storm-coverage/' ) );
+
+		$attributes = [
+			'latestOnly'  => true,
+			'latestCount' => 2,
+		];
+		$layout     = '<!-- wp:group --><div class="wp-block-group">'
+			. '<!-- wp:paragraph {"className":"newspack-rolling-coverage-all-updates"} --><p class="newspack-rolling-coverage-all-updates"><a href="#">See all updates</a></p><!-- /wp:paragraph -->'
+			. '</div><!-- /wp:group -->';
+
+		// Paragraphs read differently for a signed-in reader, as blocks
+		// Newspack shows or hides by reader do.
+		add_filter(
+			'render_block',
+			static fn( $html, $block ) => 'core/paragraph' === $block['blockName'] && is_user_logged_in() ? str_replace( '</p>', ' Signed in.</p>', $html ) : $html,
+			10,
+			2
+		);
+		$reader_id = self::log_in_as( 'subscriber' );
+		$lite_page = $this->render_lite_page( $attributes, $layout );
+
+		$this->assertStringContainsString( 'Signed in.', $this->render_block_html( $attributes, $layout ), 'A full page renders for the reader.' );
+		$this->assertStringContainsString( 'Entry text.', $lite_page );
+		$this->assertStringContainsString( 'Pattern text.', $lite_page );
+		$this->assertStringContainsString( 'See all updates', $lite_page );
+		$this->assertStringNotContainsString( 'Signed in.', $lite_page );
+		$this->assertSame( $reader_id, get_current_user_id(), 'The reader is signed back in.' );
+	}
+
+	/**
 	 * A full page wraps the feed's items in the layout's Feed group, or in a
 	 * plain container standing in for it. A lite page leaves out the layout's
 	 * Feed group and the groups around it, so its items sit right inside the
