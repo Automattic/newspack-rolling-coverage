@@ -23,6 +23,15 @@
 		margin: calc((#{wp-vars.$grid-unit-20} - #{wp-vars.$icon-size}) / 2);
 	}
 
+	.newspack-rolling-coverage-entry-title__source {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		width: wp-vars.$grid-unit-20;
+		height: wp-vars.$grid-unit-20;
+	}
+
 	.newspack-rolling-coverage-slack-channel {
 		white-space: nowrap;
 	}

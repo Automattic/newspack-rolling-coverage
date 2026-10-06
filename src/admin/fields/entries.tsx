@@ -4,12 +4,8 @@
 import { Tooltip } from '@wordpress/components';
 import { dateI18n, getSettings } from '@wordpress/date';
 import { __, sprintf } from '@wordpress/i18n';
-import { Link, Stack } from '@wordpress/ui';
-import {
-	Icon,
-	pinSmall,
-	wordpress as WordPressIconRaw,
-} from '@wordpress/icons';
+import { Link, Stack, VisuallyHidden } from '@wordpress/ui';
+import { Icon, pinSmall } from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -77,24 +73,44 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 					item.title?.rendered ||
 					item.summary ||
 					__( '(no title)', 'newspack-rolling-coverage' );
-				if ( item.pinned ) {
-					return (
-						<Stack
-							render={ <span /> }
-							direction="row"
-							align="flex-start"
-							gap="sm"
-						>
+				const isFromSlack = getEntrySource( item ) === SOURCE_SLACK;
+				if ( ! item.pinned && ! isFromSlack ) {
+					return title;
+				}
+				return (
+					<Stack
+						render={ <span /> }
+						direction="row"
+						align="flex-start"
+						gap="sm"
+					>
+						{ item.pinned && (
 							<Icon
 								className="newspack-rolling-coverage-entry-title__icon"
 								icon={ pinSmall }
 								size={ 24 }
 							/>
-							{ title }
-						</Stack>
-					);
-				}
-				return title;
+						) }
+						{ isFromSlack && (
+							<span
+								className="newspack-rolling-coverage-entry-title__source"
+								title={ __(
+									'From Slack',
+									'newspack-rolling-coverage'
+								) }
+							>
+								<SlackIcon size={ 12 } />
+								<VisuallyHidden render={ <span /> }>
+									{ __(
+										'From Slack',
+										'newspack-rolling-coverage'
+									) }
+								</VisuallyHidden>
+							</span>
+						) }
+						{ title }
+					</Stack>
+				);
 			},
 			filterBy: {
 				operators: [ 'contains' ],
@@ -136,25 +152,13 @@ function getEntryFields( config: AdminConfig ): Field< Entry >[] {
 			},
 		},
 		{
+			// Filter only: the Slack marker sits beside the title instead.
 			id: 'source',
 			type: 'text',
 			label: __( 'Source', 'newspack-rolling-coverage' ),
+			enableHiding: false,
 			enableSorting: false,
 			getValue: ( { item } ) => getEntrySource( item ),
-			render: ( { item } ) => {
-				if ( getEntrySource( item ) === SOURCE_SLACK ) {
-					return (
-						<span title="Slack" aria-label="Slack">
-							<SlackIcon size={ 15 } />
-						</span>
-					);
-				}
-				return (
-					<span title="WordPress" aria-label="WordPress">
-						<Icon icon={ WordPressIconRaw } size={ 18 } />
-					</span>
-				);
-			},
 			elements: [
 				{
 					value: SOURCE_SLACK,
@@ -315,7 +319,6 @@ const defaultEntryView: ViewState = {
 	fields: [
 		'author',
 		'status',
-		'source',
 		'breakout',
 		'categories',
 		'tags',
