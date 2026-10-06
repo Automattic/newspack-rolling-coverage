@@ -162,7 +162,7 @@ class Test_Entry_Editor_Navigation extends Rolling_Coverage_TestCase {
 		wp_trash_post( $entry_id );
 
 		$this->assertSame(
-			Admin::get_coverages_url( $coverage_id ),
+			Admin::get_coverages_url( $coverage_id, [ 'rolling_coverage_trashed' => 1 ] ),
 			Admin::get_entry_list_redirect(
 				[
 					'post_type' => Post_Type::CPT_SLUG,
