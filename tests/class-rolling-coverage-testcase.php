@@ -6,8 +6,10 @@
  */
 
 use Newspack_Rolling_Coverage\Breakout;
+use Newspack_Rolling_Coverage\Check_Updates_Block;
 use Newspack_Rolling_Coverage\Coverage_Follow_Block;
 use Newspack_Rolling_Coverage\Coverage_Status_Block;
+use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
 use Newspack_Rolling_Coverage\Taxonomy;
@@ -16,7 +18,10 @@ use Newspack_Rolling_Coverage\Taxonomy;
  * Provides fixtures for coverages and entries and a REST dispatch helper.
  *
  * The plugin keeps its state in posts, terms and options, all of which the
- * core test case rolls back, so no plugin-specific cleanup is needed here.
+ * core test case rolls back. Its tear_down() resets the rest, which would
+ * otherwise outlast the test: the ad unit a test gave the feed placement,
+ * any lite feed it served, the blocks it registered and the error logging
+ * it silenced.
  */
 abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 
@@ -42,6 +47,13 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	private $registered_status_block = false;
 
 	/**
+	 * Whether the test registered the Check for Updates block itself.
+	 *
+	 * @var bool
+	 */
+	private $registered_check_updates_block = false;
+
+	/**
 	 * Register the plugin's post and term meta again before every test.
 	 *
 	 * The core test case unregisters every meta key when a test ends, and the
@@ -60,12 +72,20 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Restore error logging if the test silenced it, and take away any ad
-	 * unit the test gave the feed placement.
+	 * Restore error logging if the test silenced it, take away any ad unit
+	 * the test gave the feed placement, and forget any lite feed the test
+	 * served, which would otherwise last for the rest of the run, as it lasts
+	 * for the rest of a request.
 	 */
 	public function tear_down() {
 		if ( class_exists( \Newspack_Ads\Placements::class ) ) {
 			\Newspack_Ads\Placements::$placements = [];
+		}
+
+		foreach ( [ 'has_feed', 'keeps_feed_markup' ] as $lite_feed_state ) {
+			$property = new ReflectionProperty( Lite_Feed::class, $lite_feed_state );
+			$property->setAccessible( true );
+			$property->setValue( null, false );
 		}
 
 		if ( $this->registered_follow_block ) {
@@ -76,6 +96,11 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		if ( $this->registered_status_block ) {
 			unregister_block_type( Coverage_Status_Block::BLOCK_NAME );
 			$this->registered_status_block = false;
+		}
+
+		if ( $this->registered_check_updates_block ) {
+			unregister_block_type( Check_Updates_Block::BLOCK_NAME );
+			$this->registered_check_updates_block = false;
 		}
 
 		if ( null !== $this->previous_error_log ) {
@@ -182,6 +207,25 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 			]
 		);
 		$this->registered_status_block = true;
+	}
+
+	/**
+	 * Register the Check for Updates block from its metadata for the rest of
+	 * the test when the build isn't there, so the coverage reaches its render
+	 * callback.
+	 */
+	protected function register_check_updates_block() {
+		if ( WP_Block_Type_Registry::get_instance()->is_registered( Check_Updates_Block::BLOCK_NAME ) ) {
+			return;
+		}
+
+		$metadata = wp_json_file_decode( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'src/blocks/check-updates/block.json', [ 'associative' => true ] );
+
+		register_block_type(
+			Check_Updates_Block::BLOCK_NAME,
+			array_merge( Check_Updates_Block::block_type_args(), [ 'uses_context' => $metadata['usesContext'] ] )
+		);
+		$this->registered_check_updates_block = true;
 	}
 
 	/**

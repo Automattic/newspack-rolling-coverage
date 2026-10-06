@@ -1120,6 +1120,22 @@ class Rolling_Coverage_Block {
 	 * @return string Rendered HTML.
 	 */
 	public static function render_block( $attributes, $content, WP_Block $block ) {
+		// Lite Site caches a page by its path for every reader, so a lite
+		// page gets the feed a signed-out reader gets, as its polls and load
+		// more do. Otherwise blocks that render by reader, in the layout or in
+		// an entry, would serve whoever filled the cache's view to everyone.
+		$reader_id = get_current_user_id();
+
+		if ( $reader_id && Lite_Feed::is_lite_render() ) {
+			wp_set_current_user( 0 );
+
+			try {
+				return self::render_block( $attributes, $content, $block );
+			} finally {
+				wp_set_current_user( $reader_id );
+			}
+		}
+
 		// Capture the host page's post ID before any entry rendering
 		// swaps the global $post. Used by the share-link block to build
 		// share URLs pointing back to this page. Save the previous
@@ -1195,6 +1211,18 @@ class Rolling_Coverage_Block {
 			);
 		}
 
+		// On a Lite Site page the feed renders its entries as text and polls
+		// with the same view script, without ads or a Follow button. It opens
+		// at the newest entries: Lite Site caches a page by its path alone, so
+		// one reader's shared entry would be served to everyone.
+		$is_lite = Lite_Feed::is_lite_render();
+
+		if ( $is_lite ) {
+			Lite_Feed::add_feed();
+
+			$ads_enabled = false;
+		}
+
 		$query_args = array_merge(
 			self::coverage_entries_args( $coverage_id ),
 			[
@@ -1222,7 +1250,7 @@ class Rolling_Coverage_Block {
 
 		$posts        = array_slice( $query->posts, 0, $entries_per_page );
 		$has_more     = count( $query->posts ) > $entries_per_page;
-		$linked_entry = $is_capped ? null : self::get_linked_entry( $coverage_id );
+		$linked_entry = ( $is_lite || $is_capped ) ? null : self::get_linked_entry( $coverage_id );
 		$shared_entry = self::get_shared_entry( $linked_entry, $posts );
 
 		if ( $shared_entry ) {
@@ -1271,7 +1299,9 @@ class Rolling_Coverage_Block {
 				$lead_pinned_id = $entry->ID;
 			}
 
-			$entries_html .= self::render_entry( $entry, $template, 'initial', is_last: ! $has_more && count( $posts ) === $entry_index, is_linked: $linked_entry && $linked_entry->ID === $entry->ID, is_capped: $is_capped, feed_layout: $feed_layout, coverage_id: $coverage_id, lead_pinned_id: $lead_pinned_id, column_rule: $follows_lead ? $column_rules['top'] : [] );
+			$entries_html .= $is_lite
+				? Lite_Feed::render_entry( $entry, 'initial', $is_capped )
+				: self::render_entry( $entry, $template, 'initial', is_last: ! $has_more && count( $posts ) === $entry_index, is_linked: $linked_entry && $linked_entry->ID === $entry->ID, is_capped: $is_capped, feed_layout: $feed_layout, coverage_id: $coverage_id, lead_pinned_id: $lead_pinned_id, column_rule: $follows_lead ? $column_rules['top'] : [] );
 			$follows_lead  = $column_rules && $entry->ID === $lead_pinned_id;
 
 			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
@@ -1352,6 +1382,14 @@ class Rolling_Coverage_Block {
 			$wrapper_data['data-entry-name'] = $entry_name;
 		}
 
+		if ( $is_lite ) {
+			// Polls from a lite page ask for text-only entries. The host ID only
+			// feeds share links, which lite entries don't carry, and a lite
+			// request's global post isn't the host.
+			$wrapper_data['data-lite'] = '1';
+			unset( $wrapper_data['data-host-post-id'] );
+		}
+
 		// Polls carry the minimum too; the page has it so a first poll that fails still waits.
 		$min_poll_interval = self::get_min_poll_interval();
 
@@ -1396,7 +1434,7 @@ class Rolling_Coverage_Block {
 			return sprintf(
 				'<div %s>%s</div>',
 				$wrapper_attributes,
-				self::render_feed( $block, $items_html )
+				$is_lite ? $items_html : self::render_feed( $block, $items_html )
 			);
 		} finally {
 			self::$host_post_id = $previous_post_id;
@@ -1686,9 +1724,10 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The URL of the live feed. On a front-end page request it is the host
-	 * post's permalink when that post is the page being viewed, otherwise the
-	 * current URL without the shared entry, kept on this site. Anywhere else
+	 * The URL of the live feed. On a front-end page request it is the current
+	 * path alone on a lite page, the host post's permalink when that post is
+	 * the page being viewed, and otherwise the current URL without the shared
+	 * entry. Either current URL is kept on this site. Anywhere else
 	 * (wp-admin, admin-ajax, cron, a REST request, a feed, WP-CLI) the
 	 * request's URL is not a page's, so it is the host post's permalink, or
 	 * the site's home URL when no host post is known.
@@ -1702,6 +1741,12 @@ class Rolling_Coverage_Block {
 
 		if ( ! $is_page_request ) {
 			return $host_url ? $host_url : home_url( '/' );
+		}
+
+		// Lite Site caches the page by its path alone, so the link can't carry
+		// the query string of whoever filled the cache.
+		if ( Lite_Feed::is_lite_render() ) {
+			return '/' . ltrim( (string) wp_parse_url( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ), PHP_URL_PATH ), '/' );
 		}
 
 		if ( $host_url && is_singular() && get_queried_object_id() === self::$host_post_id ) {
@@ -2484,7 +2529,11 @@ class Rolling_Coverage_Block {
 			return '';
 		}
 
-		$can_follow = Coverage_Follow_Block::should_render( $status );
+		// The Follow button needs its own script and a push provider, neither
+		// of which a lite page has. Dropping it here, before it renders, also
+		// collapses a group that only it filled, which the block's own lite
+		// guard can't do.
+		$can_follow = ! Lite_Feed::is_lite_render() && Coverage_Follow_Block::should_render( $status );
 
 		$blocks = self::map_template_blocks(
 			$blocks,
@@ -3728,7 +3777,7 @@ class Rolling_Coverage_Block {
 	 *
 	 * @return string Rendered HTML.
 	 */
-	private static function render_archived_entry_notice(): string {
+	public static function render_archived_entry_notice(): string {
 		$text = apply_filters(
 			'newspack_rolling_coverage_entry_archived_notice',
 			self::archived_entry_notice_text()
@@ -3870,6 +3919,11 @@ class Rolling_Coverage_Block {
 						'description' => __( 'How many entries a capped feed shows, so its requests stay capped without a stored config.', 'newspack-rolling-coverage' ),
 						'type'        => 'integer',
 						'minimum'     => 1,
+					],
+					'lite'         => [
+						'description' => __( 'Whether a Lite Site page asks, so entries come as text, as that page renders them.', 'newspack-rolling-coverage' ),
+						'type'        => 'boolean',
+						'default'     => false,
 					],
 				],
 			]
@@ -4091,6 +4145,17 @@ class Rolling_Coverage_Block {
 		$ads_enabled      = ! $is_capped && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $term_id );
 		$feed_layout      = is_array( $config['feedLayout'] ?? null ) ? $config['feedLayout'] : [];
 
+		// A lite page asks for entries in the text-only form it renders them
+		// in, and lite pages carry no ads.
+		$is_lite = rest_sanitize_boolean( $params['lite'] ?? false ) && Lite_Feed::is_available();
+
+		if ( $is_lite ) {
+			// So entry bodies keep the markup the lite page keeps.
+			Lite_Feed::add_feed();
+
+			$ads_enabled = false;
+		}
+
 		// Forward/polling branch: entries modified or taken down at or after the cursor, newest first.
 		if ( $cursor ) {
 			$cursor_parts    = explode( ':', $cursor, 2 );
@@ -4156,7 +4221,7 @@ class Rolling_Coverage_Block {
 			// Signal the client to refresh when the poll result reaches the cap.
 			if ( count( $changes ) > self::POLL_CAP ) {
 				if ( $is_capped ) {
-					return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $feed_layout, $removed );
+					return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $is_lite, $feed_layout, $removed );
 				}
 
 				return self::poll_response(
@@ -4174,7 +4239,7 @@ class Rolling_Coverage_Block {
 			// may share that second with the cursor entry, so the whole feed sent
 			// for it would come again on every poll from that cursor.
 			if ( $is_capped && array_filter( $removed, static fn( WP_Post $entry ) => get_post_meta( $entry->ID, Post_Type::META_UNPUBLISHED_GMT, true ) > $cursor_modified ) ) {
-				return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $feed_layout, $removed );
+				return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $is_lite, $feed_layout, $removed );
 			}
 
 			$entries    = [];
@@ -4218,7 +4283,7 @@ class Rolling_Coverage_Block {
 				// blank: the client preserves the original value across the replace.
 				$entries[] = [
 					'id'     => $entry->ID,
-					'html'   => self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '', is_capped: $is_capped, feed_layout: $feed_layout, coverage_id: $term_id ),
+					'html'   => $is_lite ? Lite_Feed::render_entry( $entry, $is_new_entry ? 'poll' : '', $is_capped ) : self::render_entry( $entry, $template, $is_new_entry ? 'poll' : '', is_capped: $is_capped, feed_layout: $feed_layout, coverage_id: $term_id ),
 					'type'   => $is_new_entry ? 'insert' : 'update',
 					'adHtml' => $ad_html,
 					'adSlot' => $ad_slot,
@@ -4286,7 +4351,7 @@ class Rolling_Coverage_Block {
 
 		foreach ( $posts as $entry ) {
 			$entry_index++;
-			$html .= self::render_entry( $entry, $template, 'load_more', is_last: ! $has_more && count( $posts ) === $entry_index, feed_layout: $feed_layout, coverage_id: $term_id );
+			$html .= $is_lite ? Lite_Feed::render_entry( $entry, 'load_more' ) : self::render_entry( $entry, $template, 'load_more', is_last: ! $has_more && count( $posts ) === $entry_index, feed_layout: $feed_layout, coverage_id: $term_id );
 
 			$position = $entry_offset + $entry_index;
 			if ( $ads_enabled && Ads::is_capped_ad_position( $position, $ads_interval ) ) {
@@ -4334,18 +4399,20 @@ class Rolling_Coverage_Block {
 	 * piecemeal, or after an entry was taken down, which leaves a place only
 	 * the server can fill: rather than reload the page hosting it, the
 	 * removals and the newest entries by date come whole, for the page to
-	 * swap in for its own, with the cursor at the most recent change.
+	 * swap in for its own, with the cursor at the most recent change. A lite
+	 * page gets the entries as text, like its other polls.
 	 *
 	 * @param int       $term_id       Coverage term ID.
 	 * @param array[]   $template      Per-entry template.
 	 * @param int       $latest_count  How many entries the feed shows.
 	 * @param WP_Post   $last_modified The most recently modified entry.
 	 * @param array     $params        Request parameters.
+	 * @param bool      $is_lite       Whether a lite page asks.
 	 * @param array     $feed_layout   The Feed group's layout.
 	 * @param WP_Post[] $removed       Entries taken down since the cursor.
 	 * @return WP_REST_Response
 	 */
-	private static function capped_burst_response( int $term_id, array $template, int $latest_count, WP_Post $last_modified, array $params, array $feed_layout = [], array $removed = [] ): WP_REST_Response {
+	private static function capped_burst_response( int $term_id, array $template, int $latest_count, WP_Post $last_modified, array $params, bool $is_lite, array $feed_layout = [], array $removed = [] ): WP_REST_Response {
 		$args = array_merge(
 			self::coverage_entries_args( $term_id ),
 			[
@@ -4363,7 +4430,7 @@ class Rolling_Coverage_Block {
 		foreach ( ( new WP_Query( $args ) )->posts as $entry ) {
 			$entries[] = [
 				'id'     => $entry->ID,
-				'html'   => self::render_entry( $entry, $template, 'poll', is_capped: true, feed_layout: $feed_layout, coverage_id: $term_id ),
+				'html'   => $is_lite ? Lite_Feed::render_entry( $entry, 'poll', true ) : self::render_entry( $entry, $template, 'poll', is_capped: true, feed_layout: $feed_layout, coverage_id: $term_id ),
 				'type'   => 'insert',
 				'adHtml' => null,
 				'adSlot' => null,

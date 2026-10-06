@@ -38,6 +38,7 @@ class Initializer {
 		Social_Sharing::init();
 		Archive_Mode::init();
 		Rolling_Coverage_Block::init();
+		Lite_Feed::init();
 		Layout::init();
 		Breakout_Post_Link_Block::init();
 		Entry_Bindings::init();
