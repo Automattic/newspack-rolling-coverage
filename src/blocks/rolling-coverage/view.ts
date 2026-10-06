@@ -2576,17 +2576,26 @@ function initBlock( root: HTMLElement ): void {
 		stickyCardObserver?.disconnect();
 	} );
 
-	// Chrome leaves a focused link partly outside a line that scrolls sideways when some of it already shows.
+	// Chrome leaves a link focused from the keyboard partly outside a line that scrolls sideways when some of it already shows. The entry, not the link, is what the line snaps to.
 	const revealFocused = ( event: FocusEvent ) => {
+		const target = event.target;
+
 		if (
-			entriesList.scrollWidth > entriesList.clientWidth &&
-			event.target instanceof Element
+			! ( target instanceof Element ) ||
+			target === entriesList ||
+			! target.matches( ':focus-visible' ) ||
+			getComputedStyle( entriesList ).overflowX === 'visible'
 		) {
-			event.target.scrollIntoView( {
-				block: 'nearest',
-				inline: 'nearest',
-			} );
+			return;
 		}
+
+		let entry: Element = target;
+
+		while ( entry.parentElement && entry.parentElement !== entriesList ) {
+			entry = entry.parentElement;
+		}
+
+		entry.scrollIntoView( { block: 'nearest', inline: 'nearest' } );
 	};
 	entriesList.addEventListener( 'focusin', revealFocused );
 	cleanupFns.push( () =>

@@ -310,6 +310,7 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 		gap: calc(2 * var(--newspack-rolling-coverage-rule-column) + 1px);
 		overflow-x: auto;
 		overscroll-behavior-x: contain;
+		scroll-padding-inline: var(--newspack-rolling-coverage-rule-column);
 		scroll-snap-type: x proximity;
 		scrollbar-width: thin;
 
@@ -344,6 +345,10 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 	#{$ruled-row} > :has(~ .newspack-rolling-coverage-entries):not(.newspack-rolling-coverage-archived-notice, [class*="wp-container-content-"]),
 	#{$ruled-row} > .newspack-rolling-coverage-entries {
 		flex-basis: 100%;
+	}
+
+	#{$ruled-row} > .newspack-rolling-coverage-entries {
+		scroll-padding-inline-start: 0;
 	}
 
 	#{$ruled-row} > :not(.newspack-rolling-coverage-status, .newspack-rolling-coverage-new-entries, .newspack-rolling-coverage-archived-notice, .newspack-rolling-coverage-pinned-card) ~ .newspack-rolling-coverage-entries {
