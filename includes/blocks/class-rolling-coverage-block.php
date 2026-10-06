@@ -352,15 +352,24 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Whether the feed checks for new entries only when the reader asks, with
-	 * a Check for Updates button, rather than on its own. A capped feed always
-	 * checks on its own.
+	 * Whether the feed checks for new entries only when the reader asks: its
+	 * layout holds a Check for Updates block among its coverage-level blocks.
+	 * A capped feed always checks on its own, and an ended one not at all.
 	 *
-	 * @param array $attributes Block attributes.
+	 * @param array  $attributes   Block attributes.
+	 * @param array  $layout_parts The layout's parts (see layout_parts()).
+	 * @param string $status       Coverage status.
 	 * @return bool
 	 */
-	private static function checks_on_request( array $attributes ): bool {
-		return ! self::latest_count( $attributes ) && 'button' === ( $attributes['newEntries'] ?? 'auto' );
+	private static function checks_on_request( array $attributes, array $layout_parts, string $status ): bool {
+		if ( self::latest_count( $attributes ) || Taxonomy::STATUS_ARCHIVED === $status ) {
+			return false;
+		}
+
+		return self::holds_block(
+			array_merge( $layout_parts['header'], $layout_parts['footer'] ),
+			static fn( array $block ): bool => Check_Updates_Block::BLOCK_NAME === ( $block['blockName'] ?? '' )
+		);
 	}
 
 	/**
@@ -1221,7 +1230,6 @@ class Rolling_Coverage_Block {
 		}
 
 		$older_entries = self::older_entries( $attributes );
-		$checks_on_request = self::checks_on_request( $attributes );
 
 		if ( 'none' === $older_entries ) {
 			$has_more = false;
@@ -1282,7 +1290,8 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		$layout_parts = self::layout_parts( $block );
+		$layout_parts      = self::layout_parts( $block );
+		$checks_on_request = self::checks_on_request( $attributes, $layout_parts, $status );
 		$wrapper_data = [
 			'data-coverage-id'      => $coverage_id,
 			'data-poll-interval'    => $poll_interval,
@@ -1347,18 +1356,17 @@ class Rolling_Coverage_Block {
 
 		try {
 			$items_html = sprintf(
-				'%5$s%3$s%8$s%4$s%10$s<div class="%1$s-entries">%2$s</div>%9$s%7$s%6$s',
+				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%9$s%7$s%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
-				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout ),
+				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request ),
 				$is_capped ? '' : self::render_new_entries_control( (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
 				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
 				'scroll' === $older_entries ? sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ) : '',
-				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout ),
+				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request ),
 				// A capped feed can sit on every page, where announcing each new entry would be noise.
 				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX ),
-				'button' === $older_entries ? self::render_load_more_button() : '',
-				$checks_on_request ? self::render_check_updates_button() : ''
+				'button' === $older_entries ? self::render_load_more_button() : ''
 			);
 
 			return sprintf(
@@ -1752,27 +1760,6 @@ class Rolling_Coverage_Block {
 			self::MARKUP_PREFIX,
 			/* translators: Button that loads older entries at the end of a coverage's feed. */
 			esc_html__( 'Load More', 'newspack-rolling-coverage' )
-		);
-	}
-
-	/**
-	 * The button that checks for new entries, above the entries of a feed
-	 * that checks only when the reader asks. Like Load More, it renders
-	 * hidden for the view script to show, and in a shared-entry view it stays
-	 * hidden until the reader jumps to the live feed.
-	 *
-	 * @return string Rendered HTML, or an empty string in a syndication feed.
-	 */
-	private static function render_check_updates_button(): string {
-		if ( is_feed() ) {
-			return '';
-		}
-
-		return sprintf(
-			'<div class="%1$s-check-updates" hidden><button type="button" class="wp-element-button wp-block-button__link">%2$s</button></div>',
-			self::MARKUP_PREFIX,
-			/* translators: Button that checks a coverage's feed for new entries. */
-			esc_html__( 'Check for Updates', 'newspack-rolling-coverage' )
 		);
 	}
 
@@ -2450,8 +2437,9 @@ class Rolling_Coverage_Block {
 	/**
 	 * Renders coverage-level blocks once, with the coverage in their context
 	 * so the Follow Coverage block follows it. A Follow Coverage block that
-	 * can't render, e.g. on an archived coverage, leaves nothing behind, nor
-	 * does a group left empty once it and the "See all updates" paragraph drop
+	 * can't render, e.g. on an archived coverage, leaves nothing behind, as
+	 * does a Check for Updates block in a feed that checks on its own, and a
+	 * group left empty once they and the "See all updates" paragraph drop
 	 * out. The blocks render outside the Feed group, so they're
 	 * handed its layout, as core hands a parent's layout to its inner blocks:
 	 * core then treats a grid Feed with a column count and no minimum column
@@ -2463,9 +2451,10 @@ class Rolling_Coverage_Block {
 	 * @param string  $status          Coverage status.
 	 * @param string  $all_updates_url Where the "See all updates" paragraph links; empty drops it.
 	 * @param array   $parent_layout   The Feed group's layout.
+	 * @param bool    $checks_on_request Whether the feed checks for new entries only when asked.
 	 * @return string Rendered HTML, or an empty string.
 	 */
-	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '', array $parent_layout = [] ): string {
+	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '', array $parent_layout = [], bool $checks_on_request = false ): string {
 		if ( ! $blocks ) {
 			return '';
 		}
@@ -2474,10 +2463,11 @@ class Rolling_Coverage_Block {
 
 		$blocks = self::map_template_blocks(
 			$blocks,
-			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow ) {
+			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow, $checks_on_request ) {
 				if (
 					( '' === $all_updates_url && Entry_Bindings::is_all_updates_paragraph( $block ) ) ||
 					( ! $can_follow && Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
+					( ! $checks_on_request && Check_Updates_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
 					( 'core/group' === ( $block['blockName'] ?? '' ) && empty( $block['innerBlocks'] ) && ! empty( $original['innerBlocks'] ) )
 				) {
 					return [];

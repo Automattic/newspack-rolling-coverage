@@ -1,0 +1,17 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "newspack-rolling-coverage/check-updates",
+	"title": "Check for Updates",
+	"category": "newspack",
+	"description": "A button readers press to load new entries. A Rolling Coverage feed that holds it checks for new entries only when they do.",
+	"textdomain": "newspack-rolling-coverage",
+	"usesContext": [ "newspack-rolling-coverage/coverageId" ],
+	"attributes": {},
+	"supports": {
+		"html": false,
+		"customClassName": false,
+		"reusable": false
+	},
+	"editorScript": "file:./index.js"
+}

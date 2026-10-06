@@ -421,7 +421,7 @@ function initBlock( root: HTMLElement ): void {
 	const statusEl = ownElement( root, '.newspack-rolling-coverage-status' );
 	const checkControl = ownElement(
 		root,
-		'.newspack-rolling-coverage-check-updates'
+		'.wp-block-newspack-rolling-coverage-check-updates'
 	);
 	const checkButton =
 		checkControl?.querySelector< HTMLButtonElement >( 'button' ) ?? null;
@@ -2393,7 +2393,7 @@ function initBlock( root: HTMLElement ): void {
 		checkControl &&
 		checkButton &&
 		cursor &&
-		status === 'active' &&
+		status !== 'archived' &&
 		! isEntryView
 	) {
 		const onCheckClick = async () => {

@@ -89,6 +89,10 @@ import {
 	forEntryKind,
 	breakoutBlockIds,
 	withoutFollowButtons,
+	withoutCheckUpdatesButtons,
+	blockIdsOfType,
+	holdsBlockType,
+	CHECK_UPDATES_BLOCK_NAME,
 	entryPreviewPlacement,
 	withColumnRule,
 	RULED_FEED_CLASS,
@@ -136,23 +140,6 @@ import type {
 const INNER_BLOCKS_LAYOUT = {
 	type: 'default',
 	alignments: [ 'none', 'wide', 'full' ],
-};
-
-/**
- * What each choice of showing new entries does, as the help below it.
- */
-const NEW_ENTRIES_HELP: Record< string, () => string > = {
-	auto: () =>
-		__(
-			'New entries appear as they’re published.',
-			'newspack-rolling-coverage'
-		),
-	button: () =>
-		/* translators: “Check for Updates” is the label of the button readers press. Keep the words used to translate it. */
-		__(
-			'Readers check for new entries with a Check for Updates button at the top of the feed. No new entries load until they press it.',
-			'newspack-rolling-coverage'
-		),
 };
 
 /**
@@ -739,7 +726,6 @@ export default function Edit( {
 		allUpdatesLink,
 		pollInterval,
 		entriesPerPage,
-		newEntries,
 		olderEntries,
 		enableAds,
 		adsInterval,
@@ -1203,6 +1189,16 @@ export default function Edit( {
 	const isFollowHidden =
 		! ONESIGNAL_CONFIGURED || currentCoverage?.status === 'archived';
 	const isAllUpdatesHidden = ! isCapped || allUpdatesLink === false;
+	const isCheckUpdatesHidden =
+		isCapped || currentCoverage?.status === 'archived';
+	const checksOnRequest = useMemo(
+		() =>
+			holdsBlockType(
+				isSynced ? feedItems( syncedBlocks ) : allBlocks,
+				CHECK_UPDATES_BLOCK_NAME
+			),
+		[ isSynced, syncedBlocks, allBlocks ]
+	);
 	// An editable layout previews the pinned card against the pinned entry
 	// and the entry group against one that isn't pinned, and leaves out the
 	// one the coverage has no entry for, and "Read more" where the entry
@@ -1287,6 +1283,9 @@ export default function Edit( {
 	const hiddenIds = useMemo( () => {
 		const ids = [
 			...( isFollowHidden ? followBlockIds( allBlocks ) : [] ),
+			...( isCheckUpdatesHidden
+				? blockIdsOfType( allBlocks, CHECK_UPDATES_BLOCK_NAME )
+				: [] ),
 			...( isAllUpdatesHidden ? allUpdatesBlockIds( allBlocks ) : [] ),
 			...allBlocks
 				.filter(
@@ -1311,6 +1310,7 @@ export default function Edit( {
 	}, [
 		allBlocks,
 		isFollowHidden,
+		isCheckUpdatesHidden,
 		isAllUpdatesHidden,
 		isCardHidden,
 		isEntryHidden,
@@ -1337,21 +1337,37 @@ export default function Edit( {
 	);
 
 	const syncedHeaderBlocks = useMemo( () => {
-		const blocks = isFollowHidden
+		let blocks = isFollowHidden
 			? withoutFollowButtons( headerBlocks )
 			: headerBlocks;
+		blocks = isCheckUpdatesHidden
+			? withoutCheckUpdatesButtons( blocks )
+			: blocks;
 		return isAllUpdatesHidden
 			? withoutAllUpdatesParagraph( blocks )
 			: blocks;
-	}, [ headerBlocks, isFollowHidden, isAllUpdatesHidden ] );
+	}, [
+		headerBlocks,
+		isFollowHidden,
+		isCheckUpdatesHidden,
+		isAllUpdatesHidden,
+	] );
 	const syncedFooterBlocks = useMemo( () => {
-		const blocks = isFollowHidden
+		let blocks = isFollowHidden
 			? withoutFollowButtons( footerBlocks )
 			: footerBlocks;
+		blocks = isCheckUpdatesHidden
+			? withoutCheckUpdatesButtons( blocks )
+			: blocks;
 		return isAllUpdatesHidden
 			? withoutAllUpdatesParagraph( blocks )
 			: blocks;
-	}, [ footerBlocks, isFollowHidden, isAllUpdatesHidden ] );
+	}, [
+		footerBlocks,
+		isFollowHidden,
+		isCheckUpdatesHidden,
+		isAllUpdatesHidden,
+	] );
 
 	const detach = useCallback( () => {
 		registry.batch( () => {
@@ -2000,36 +2016,6 @@ export default function Edit( {
 						<SelectControl
 							__next40pxDefaultSize
 							label={ __(
-								'New entries',
-								'newspack-rolling-coverage'
-							) }
-							help={ NEW_ENTRIES_HELP[ newEntries ]?.() }
-							value={ newEntries }
-							options={ [
-								{
-									value: 'auto',
-									label: __(
-										'Show automatically',
-										'newspack-rolling-coverage'
-									),
-								},
-								{
-									value: 'button',
-									label:
-										/* translators: “Check for Updates” is the label of the button readers press. Keep the words used to translate it. */
-										__(
-											'Check for Updates button',
-											'newspack-rolling-coverage'
-										),
-								},
-							] }
-							onChange={ ( value ) =>
-								setAttributes( { newEntries: value } )
-							}
-						/>
-						<SelectControl
-							__next40pxDefaultSize
-							label={ __(
 								'Older entries',
 								'newspack-rolling-coverage'
 							) }
@@ -2101,7 +2087,7 @@ export default function Edit( {
 						/>
 					</>
 				) }
-				{ ( latestOnly || newEntries !== 'button' ) && (
+				{ ( latestOnly || ! checksOnRequest ) && (
 					<TextControl
 						__next40pxDefaultSize
 						type="number"
