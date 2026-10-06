@@ -818,6 +818,34 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * When an entry is taken down, a capped feed gets the removal and twice
+	 * its count of newest entries to swap in for its own. A lite page gets
+	 * them as text, like its other polls.
+	 */
+	public function test_capped_lite_poll_after_a_removal_sends_the_newest_entries_as_text() {
+		$oldest_entry_id = self::create_dated_entry( $this->coverage_id, '2026-01-01 11:00:00' );
+		$older_entry_id  = self::create_dated_entry( $this->coverage_id, '2026-01-01 11:30:00' );
+		$newest_entry_id = self::create_dated_entry( $this->coverage_id, '2026-01-01 12:00:00' );
+
+		self::create_dated_entry( $this->coverage_id, '2026-01-01 10:00:00' );
+		wp_trash_post( $newest_entry_id );
+
+		$poll    = $this->get_lite_feed(
+			[
+				'cursor' => "{$newest_entry_id}:2026-01-01 12:00:00",
+				'latest' => 1,
+			]
+		)->get_data();
+		$inserts = wp_list_filter( $poll['entries'], [ 'type' => 'insert' ] );
+
+		$this->assertTrue( $poll['replace'] );
+		$this->assertSame(
+			array_map( static fn( $entry_id ) => Lite_Feed::render_entry( get_post( $entry_id ), 'poll', true ), [ $older_entry_id, $oldest_entry_id ] ),
+			array_values( wp_list_pluck( $inserts, 'html' ) )
+		);
+	}
+
+	/**
 	 * Lite pages carry no ads. A feed that shows them on a full page and in
 	 * that page's polls shows none on a lite page, and its lite polls and load
 	 * more bring none.
