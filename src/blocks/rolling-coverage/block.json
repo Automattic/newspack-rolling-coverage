@@ -68,6 +68,10 @@
 			"type": "boolean",
 			"default": true
 		},
+		"allUpdatesLinkText": {
+			"type": "string",
+			"default": ""
+		},
 		"hideWhenEnded": {
 			"type": "boolean",
 			"default": false

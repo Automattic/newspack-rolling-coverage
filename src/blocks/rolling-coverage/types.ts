@@ -38,6 +38,7 @@ interface RollingCoverageAttributes {
 	latestOnly: boolean;
 	latestCount: number;
 	allUpdatesLink: boolean;
+	allUpdatesLinkText: string;
 	hideWhenEnded: boolean;
 	align?: string;
 	[ key: string ]: unknown;

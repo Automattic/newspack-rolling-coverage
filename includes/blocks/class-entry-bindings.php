@@ -831,7 +831,8 @@ class Entry_Bindings {
 	/**
 	 * Link a all-updates paragraph to the coverage page, or render
 	 * nothing when there is no page to link to. Entries render outside the
-	 * coverage-level blocks, so a paragraph inside one never has a URL.
+	 * coverage-level blocks, so a paragraph inside one never has a URL. The
+	 * block's own link text, when set, replaces the paragraph's content.
 	 *
 	 * Parameters stay untyped because this runs for every paragraph on the
 	 * site, after other plugins' filters that may hand on unexpected types.
@@ -851,6 +852,12 @@ class Entry_Bindings {
 			return '';
 		}
 
+		$link_text = Rolling_Coverage_Block::get_all_updates_link_text();
+
+		if ( '' !== $link_text ) {
+			$block_content = self::replace_paragraph_content( $block_content, esc_html( $link_text ) );
+		}
+
 		return self::link_paragraph( $block_content, [ 'href' => $url ] );
 	}
 
@@ -866,16 +873,13 @@ class Entry_Bindings {
 	 * @return string
 	 */
 	private static function link_paragraph( string $block_content, array $attributes ): string {
-		if ( ! preg_match( '/<p(?=[\s>])(?:"[^"]*"|\'[^\']*\'|[^>"\'])*>/i', $block_content, $tag, PREG_OFFSET_CAPTURE ) ) {
+		$bounds = self::paragraph_content_bounds( $block_content );
+
+		if ( null === $bounds ) {
 			return $block_content;
 		}
 
-		$inner_start = $tag[0][1] + strlen( $tag[0][0] );
-		$close       = stripos( $block_content, '</p>', $inner_start );
-
-		if ( false === $close ) {
-			return $block_content;
-		}
+		[ $inner_start, $close ] = $bounds;
 
 		$inner = substr( $block_content, $inner_start, $close - $inner_start );
 
@@ -905,6 +909,40 @@ class Entry_Bindings {
 		return substr( $block_content, 0, $inner_start )
 			. $open->get_updated_html() . $inner . '</a>'
 			. substr( $block_content, $close );
+	}
+
+	/**
+	 * Replace a rendered paragraph's content, keeping its tag.
+	 *
+	 * @param string $block_content Rendered paragraph.
+	 * @param string $html          The new content, already escaped.
+	 * @return string
+	 */
+	private static function replace_paragraph_content( string $block_content, string $html ): string {
+		$bounds = self::paragraph_content_bounds( $block_content );
+
+		if ( null === $bounds ) {
+			return $block_content;
+		}
+
+		return substr( $block_content, 0, $bounds[0] ) . $html . substr( $block_content, $bounds[1] );
+	}
+
+	/**
+	 * Where a rendered paragraph's content starts and ends.
+	 *
+	 * @param string $block_content Rendered paragraph.
+	 * @return int[]|null The start and end offsets, or null without a paragraph.
+	 */
+	private static function paragraph_content_bounds( string $block_content ): ?array {
+		if ( ! preg_match( '/<p(?=[\s>])(?:"[^"]*"|\'[^\']*\'|[^>"\'])*>/i', $block_content, $tag, PREG_OFFSET_CAPTURE ) ) {
+			return null;
+		}
+
+		$inner_start = $tag[0][1] + strlen( $tag[0][0] );
+		$close       = stripos( $block_content, '</p>', $inner_start );
+
+		return false === $close ? null : [ $inner_start, $close ];
 	}
 
 	/**

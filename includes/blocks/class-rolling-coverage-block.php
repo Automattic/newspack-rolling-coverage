@@ -197,6 +197,14 @@ class Rolling_Coverage_Block {
 	private static $all_updates_url = '';
 
 	/**
+	 * The block's own text for the all-updates link while the
+	 * coverage-level blocks render; empty keeps the layout's text.
+	 *
+	 * @var string
+	 */
+	private static $all_updates_link_text = '';
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -270,6 +278,16 @@ class Rolling_Coverage_Block {
 	 */
 	public static function get_all_updates_url(): string {
 		return self::$all_updates_url;
+	}
+
+	/**
+	 * The block's own text for the all-updates link now, or an empty
+	 * string to keep the layout's text.
+	 *
+	 * @return string
+	 */
+	public static function get_all_updates_link_text(): string {
+		return self::$all_updates_link_text;
 	}
 
 	/**
@@ -1355,16 +1373,21 @@ class Rolling_Coverage_Block {
 			$all_updates_url = '';
 		}
 
+		// Only a shared layout takes it: a detached one's link is edited in place.
+		$all_updates_link_text = (int) ( $attributes['layoutId'] ?? 0 ) > 0 && is_string( $attributes['allUpdatesLinkText'] ?? null )
+			? trim( $attributes['allUpdatesLinkText'] )
+			: '';
+
 		try {
 			$items_html = sprintf(
 				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%9$s%7$s%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
-				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request ),
+				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text ),
 				$is_capped ? '' : self::render_new_entries_control( (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
 				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
 				'scroll' === $older_entries ? sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ) : '',
-				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request ),
+				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text ),
 				// A capped feed can sit on every page, where announcing each new entry would be noise.
 				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX ),
 				'button' === $older_entries ? self::render_load_more_button() : ''
@@ -2453,9 +2476,10 @@ class Rolling_Coverage_Block {
 	 * @param string  $all_updates_url Where the all-updates paragraph links; empty drops it.
 	 * @param array   $parent_layout   The Feed group's layout.
 	 * @param bool    $checks_on_request Whether the feed checks for new entries only when asked.
+	 * @param string  $all_updates_link_text The block's own text for the all-updates link; empty keeps the layout's.
 	 * @return string Rendered HTML, or an empty string.
 	 */
-	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '', array $parent_layout = [], bool $checks_on_request = false ): string {
+	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '', array $parent_layout = [], bool $checks_on_request = false, string $all_updates_link_text = '' ): string {
 		if ( ! $blocks ) {
 			return '';
 		}
@@ -2486,8 +2510,10 @@ class Rolling_Coverage_Block {
 			]
 		);
 
-		$previous_all_updates_url = self::$all_updates_url;
-		self::$all_updates_url    = $all_updates_url;
+		$previous_all_updates_url       = self::$all_updates_url;
+		$previous_all_updates_link_text = self::$all_updates_link_text;
+		self::$all_updates_url          = $all_updates_url;
+		self::$all_updates_link_text    = $all_updates_link_text;
 
 		add_filter( 'render_block_context', $add_coverage_context );
 		++self::$coverage_render_depth;
@@ -2502,7 +2528,8 @@ class Rolling_Coverage_Block {
 			);
 		} finally {
 			--self::$coverage_render_depth;
-			self::$all_updates_url = $previous_all_updates_url;
+			self::$all_updates_url       = $previous_all_updates_url;
+			self::$all_updates_link_text = $previous_all_updates_link_text;
 			remove_filter( 'render_block_context', $add_coverage_context );
 		}
 	}
