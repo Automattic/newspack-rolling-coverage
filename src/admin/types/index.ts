@@ -290,6 +290,23 @@ interface BulkRestoreResult extends ApiResult {
 	results?: BulkRestoreEntryResult[];
 }
 
+interface ChangeAuthorEntryResult {
+	entryId: number;
+	updated: boolean;
+	error?: string;
+}
+
+interface ChangeAuthorResult extends ApiResult {
+	results?: ChangeAuthorEntryResult[];
+}
+
+interface ChangeAuthorModalProps {
+	items: Entry[];
+	restNamespace: string;
+	onClose: () => void;
+	onChanged?: () => void;
+}
+
 interface ConfirmModalContentProps {
 	message: string;
 	confirmLabel?: string;
@@ -708,6 +725,9 @@ export type {
 	SaveCoverageData,
 	BulkRestoreEntryResult,
 	BulkRestoreResult,
+	ChangeAuthorEntryResult,
+	ChangeAuthorResult,
+	ChangeAuthorModalProps,
 	AiSettings,
 	AiSettingsResult,
 	BreadcrumbItem,

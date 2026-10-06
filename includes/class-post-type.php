@@ -624,6 +624,27 @@ class Post_Type {
 				],
 			]
 		);
+
+		register_rest_route(
+			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
+			'/entries/author',
+			[
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => [ __CLASS__, 'handle_bulk_change_author' ],
+				'permission_callback' => [ __CLASS__, 'can_change_authors' ],
+				'args'                => [
+					'entry_ids' => [
+						'required' => true,
+						'type'     => 'array',
+						'items'    => [ 'type' => 'integer' ],
+					],
+					'author_id' => [
+						'required' => true,
+						'type'     => 'integer',
+					],
+				],
+			]
+		);
 	}
 
 	/**
@@ -2351,6 +2372,16 @@ class Post_Type {
 	}
 
 	/**
+	 * Permission check for changing entries' author: crediting an entry to
+	 * someone else needs the same capability as editing others' entries.
+	 *
+	 * @return bool
+	 */
+	public static function can_change_authors(): bool {
+		return current_user_can( self::EDIT_ENTRIES_CAP );
+	}
+
+	/**
 	 * Auth callback for post-meta registration: requires edit_post for
 	 * the specific post being modified.
 	 *
@@ -2445,6 +2476,107 @@ class Post_Type {
 			],
 			200
 		);
+	}
+
+	/**
+	 * REST handler: make one user the author of several entries.
+	 *
+	 * With Co-Authors Plus on for entries, the user also becomes each entry's
+	 * only co-author. Otherwise its byline would keep the old author while
+	 * the entries list and the feed, which read `post_author`, show the new one.
+	 *
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function handle_bulk_change_author( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$entry_ids = array_filter( array_map( 'intval', (array) $request->get_param( 'entry_ids' ) ) );
+		$author    = get_userdata( (int) $request->get_param( 'author_id' ) );
+
+		if ( empty( $entry_ids ) ) {
+			return new WP_Error(
+				'rolling_coverage_no_entry_ids',
+				__( 'No entry IDs provided.', 'newspack-rolling-coverage' ),
+				[ 'status' => 400 ]
+			);
+		}
+
+		if ( ! $author || ! user_can( $author, 'edit_posts' ) ) {
+			return new WP_Error(
+				'rolling_coverage_invalid_author',
+				__( 'That person can’t be the author of an entry.', 'newspack-rolling-coverage' ),
+				[ 'status' => 400 ]
+			);
+		}
+
+		$results = [];
+
+		foreach ( $entry_ids as $entry_id ) {
+			$post = get_post( $entry_id );
+
+			if ( ! $post || self::CPT_SLUG !== $post->post_type || 'trash' === $post->post_status ) {
+				$results[] = [
+					'entryId' => $entry_id,
+					'updated' => false,
+					'error'   => __( 'Entry not found.', 'newspack-rolling-coverage' ),
+				];
+				continue;
+			}
+
+			if ( ! current_user_can( 'edit_post', $entry_id ) ) {
+				$results[] = [
+					'entryId' => $entry_id,
+					'updated' => false,
+					'error'   => __( 'You do not have permission to edit this entry.', 'newspack-rolling-coverage' ),
+				];
+				continue;
+			}
+
+			self::set_coauthor( $entry_id, $author );
+
+			$updated = wp_update_post(
+				[
+					'ID'          => $entry_id,
+					'post_author' => $author->ID,
+				],
+				true
+			);
+
+			$results[] = is_wp_error( $updated )
+				? [
+					'entryId' => $entry_id,
+					'updated' => false,
+					'error'   => $updated->get_error_message(),
+				]
+				: [
+					'entryId' => $entry_id,
+					'updated' => true,
+				];
+		}
+
+		return new WP_REST_Response( [ 'results' => $results ], 200 );
+	}
+
+	/**
+	 * Makes a user an entry's only co-author when Co-Authors Plus is on for
+	 * entries. It runs before the `post_author` update because Co-Authors
+	 * Plus re-reads `post_author` from the author terms on every save.
+	 *
+	 * @param int      $entry_id Entry post ID.
+	 * @param \WP_User $author   The new author.
+	 */
+	private static function set_coauthor( int $entry_id, \WP_User $author ): void {
+		global $coauthors_plus;
+
+		if (
+			! is_object( $coauthors_plus )
+			|| ! method_exists( $coauthors_plus, 'is_post_type_enabled' )
+			|| ! method_exists( $coauthors_plus, 'add_coauthors' )
+			|| ! $coauthors_plus->is_post_type_enabled( self::CPT_SLUG )
+		) {
+			return;
+		}
+
+		$coauthors_plus->add_coauthors( $entry_id, [ $author->user_nicename ] );
 	}
 
 	/**

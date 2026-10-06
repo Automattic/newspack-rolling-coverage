@@ -26,6 +26,7 @@ import {
 } from '../utils/entries-api';
 import { notifySuccess, notifyError, pluralize } from '../utils/notices';
 import { ConfirmModal } from '../components/confirm-modal';
+import { ChangeAuthorModal } from '../components/change-author-modal';
 import { getStatusLabel } from '../utils/status-labels';
 import type { Entry, Action, AdminConfig, RequestConfirm } from '../types';
 
@@ -408,6 +409,21 @@ function getEntryActions(
 					);
 				}
 			},
+		},
+		{
+			id: 'change-author',
+			label: __( 'Change Author', 'newspack-rolling-coverage' ),
+			modalHeader: __( 'Change Author', 'newspack-rolling-coverage' ),
+			supportsBulk: true,
+			isEligible: ( entry: Entry ) =>
+				config.capabilities.canEditEntries && entry.status !== 'trash',
+			RenderModal: ( { items, closeModal } ) =>
+				createElement( ChangeAuthorModal, {
+					items,
+					restNamespace: config.restBaseUrls.restNamespace,
+					onClose: closeModal ?? ( () => {} ),
+					onChanged: onActionPerformed,
+				} ),
 		},
 		{
 			id: 'archive-entry',

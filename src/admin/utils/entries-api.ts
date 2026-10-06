@@ -21,6 +21,8 @@ import type {
 	AdminConfig,
 	BulkRestoreResult,
 	BulkRestoreEntryResult,
+	ChangeAuthorEntryResult,
+	ChangeAuthorResult,
 } from '../types';
 
 const SYNC_INTERVAL_MS = 10000;
@@ -400,6 +402,34 @@ async function bulkRestoreEntries(
 }
 
 /**
+ * Makes one user the author of several entries in a single request.
+ *
+ * @param {string}   restNamespace - REST namespace URL.
+ * @param {number[]} entryIds      - Entry post IDs.
+ * @param {number}   authorId      - The new author's user ID.
+ * @return {Promise<ChangeAuthorResult>} Result with per-entry outcomes or error.
+ */
+async function changeEntriesAuthor(
+	restNamespace: string,
+	entryIds: number[],
+	authorId: number
+): Promise< ChangeAuthorResult > {
+	try {
+		const response = await apiFetch< {
+			results: ChangeAuthorEntryResult[];
+		} >( {
+			url: `${ restNamespace }entries/author`,
+			method: 'POST',
+			data: { entry_ids: entryIds, author_id: authorId },
+		} );
+
+		return { success: true, results: response.results };
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
+/**
  * Toggles the pinned status of an entry.
  *
  * @param {string} restNamespace - REST namespace URL (from config.restBaseUrls.restNamespace).
@@ -643,6 +673,7 @@ export {
 	createEntry,
 	togglePinEntry,
 	bulkRestoreEntries,
+	changeEntriesAuthor,
 	hasBreakout,
 	hasTrashedBreakout,
 	isEntryArchived,
