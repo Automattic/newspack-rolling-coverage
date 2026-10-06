@@ -80,6 +80,25 @@ export function newEntriesLabel(
 }
 
 /**
+ * The Check for Updates button's label, for a moment, when a check finds no
+ * new entries.
+ *
+ * @param {EntryName|null} name The site's name for entries.
+ * @return {string} The label.
+ */
+export function noNewEntriesLabel( name: EntryName | null ): string {
+	if ( name ) {
+		return sprintf(
+			/* translators: %s: the site's own name for coverage entries, plural, as a button label shows it. */
+			__( 'No New %s', 'newspack-rolling-coverage' ),
+			name.pluralTitle
+		);
+	}
+
+	return __( 'No New Entries', 'newspack-rolling-coverage' );
+}
+
+/**
  * The label of the control on a feed opened at a shared entry: the number of
  * newer entries, exact up to ten and from there the round number it has
  * passed, e.g. "10+ Newer Entries" for 11 to 50. Mirrors

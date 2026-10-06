@@ -139,6 +139,23 @@ const INNER_BLOCKS_LAYOUT = {
 };
 
 /**
+ * What each choice of showing new entries does, as the help below it.
+ */
+const NEW_ENTRIES_HELP: Record< string, () => string > = {
+	auto: () =>
+		__(
+			'New entries appear as they’re published.',
+			'newspack-rolling-coverage'
+		),
+	button: () =>
+		/* translators: “Check for Updates” is the label of the button readers press. Keep the words used to translate it. */
+		__(
+			'Readers check for new entries with a Check for Updates button at the top of the feed. No new entries load until they press it.',
+			'newspack-rolling-coverage'
+		),
+};
+
+/**
  * What each choice of loading older entries does, as the help below it.
  */
 const OLDER_ENTRIES_HELP: Record< string, () => string > = {
@@ -722,6 +739,7 @@ export default function Edit( {
 		allUpdatesLink,
 		pollInterval,
 		entriesPerPage,
+		newEntries,
 		olderEntries,
 		enableAds,
 		adsInterval,
@@ -1982,6 +2000,36 @@ export default function Edit( {
 						<SelectControl
 							__next40pxDefaultSize
 							label={ __(
+								'New entries',
+								'newspack-rolling-coverage'
+							) }
+							help={ NEW_ENTRIES_HELP[ newEntries ]?.() }
+							value={ newEntries }
+							options={ [
+								{
+									value: 'auto',
+									label: __(
+										'Show automatically',
+										'newspack-rolling-coverage'
+									),
+								},
+								{
+									value: 'button',
+									label:
+										/* translators: “Check for Updates” is the label of the button readers press. Keep the words used to translate it. */
+										__(
+											'Check for Updates button',
+											'newspack-rolling-coverage'
+										),
+								},
+							] }
+							onChange={ ( value ) =>
+								setAttributes( { newEntries: value } )
+							}
+						/>
+						<SelectControl
+							__next40pxDefaultSize
+							label={ __(
 								'Older entries',
 								'newspack-rolling-coverage'
 							) }
@@ -2053,21 +2101,25 @@ export default function Edit( {
 						/>
 					</>
 				) }
-				<TextControl
-					__next40pxDefaultSize
-					type="number"
-					label={ __(
-						'Poll interval (seconds)',
-						'newspack-rolling-coverage'
-					) }
-					value={ String( pollInterval ) }
-					min={ 1 }
-					onChange={ ( value: string ) =>
-						setAttributes( {
-							pollInterval: value ? parseInt( value, 10 ) : 10,
-						} )
-					}
-				/>
+				{ ( latestOnly || newEntries !== 'button' ) && (
+					<TextControl
+						__next40pxDefaultSize
+						type="number"
+						label={ __(
+							'Poll interval (seconds)',
+							'newspack-rolling-coverage'
+						) }
+						value={ String( pollInterval ) }
+						min={ 1 }
+						onChange={ ( value: string ) =>
+							setAttributes( {
+								pollInterval: value
+									? parseInt( value, 10 )
+									: 10,
+							} )
+						}
+					/>
+				) }
 			</PanelBody>
 
 			<PanelBody title={ STATUS_LABELS.archived } initialOpen={ false }>

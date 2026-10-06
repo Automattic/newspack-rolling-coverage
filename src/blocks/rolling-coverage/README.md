@@ -62,11 +62,12 @@ Says whether the block uses the shared layout or its own detached copy.
 | Setting | What it does |
 | --- | --- |
 | Show | All shows every entry, one page at a time. Latest shows only the most recent entries. |
+| New entries | With Show set to All: how new entries reach readers. Show automatically (default) checks every poll interval. Check for Updates button shows a button at the top of the feed instead; nothing loads until a reader presses it, which suits readers on slow or metered connections. A feed that shows only the latest entries always checks automatically. |
 | Older entries | With Show set to All: what happens after the first page. Load on scroll (default) loads the next page as readers reach the end of the feed. Load More button shows a Load More button below the entries; each press adds a page, and the button goes away once every entry is shown. Don’t load shows the first page only. |
 | Number of entries | With Show set to Latest: how many entries to show, from 1 to 100. |
 | Link to all updates | With Show set to Latest, in layouts that have one (Ticker, Wire, Digest, Flash): Show or Hide the link to the coverage page. The link is hidden on the coverage page itself. |
 | Entries per page | With Show set to All: how many entries show first, and how many each load of older entries adds. From 1 to 100. Default 20. |
-| Poll interval (seconds) | How often the page checks for new entries. Default 10. The site can set a longer minimum, which wins over a shorter value here. |
+| Poll interval (seconds) | Hidden when New entries is set to Check for Updates button. How often the page checks for new entries. Default 10. The site can set a longer minimum, which wins over a shorter value here. |
 
 ### Ended
 
@@ -108,6 +109,7 @@ The page checks for new entries every poll interval. It stops while the tab is i
 
 - If the reader is at the top, new entries appear at once.
 - If the reader has scrolled down, the page does not move. A button shows the count (for example "3 New Entries"). Selecting it brings the new entries in. Edited entries update in place.
+- With New entries set to Check for Updates button, the page checks only when the reader presses the button above the entries. New entries appear straight away below any pinned entries, and edits and removals apply at the same time. When nothing is new, the button reads "No New Entries" for a few seconds, and "Couldn't Check" when the check fails. After many changes at once, the page reloads instead. If the site sets a minimum poll interval, a second press waits until it has passed. The button goes away once the coverage ends. Like Jump to Latest, it isn't part of the layout, so it doesn't appear in the editor. Because the page doesn't check on its own, a Coverage Status block beside the feed and Hide when ended update only when a reader presses the button, and the newer-entries count on a shared entry's page stays as the page loaded it.
 - Older entries load as the reader scrolls to the end, or with the Load More button, depending on Older entries. The button takes the theme's button style. If a load fails, the button stays so the reader can try again.
 - A paused or ended coverage does not check for new entries.
 - Times follow the site's time format.

@@ -352,6 +352,18 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Whether the feed checks for new entries only when the reader asks, with
+	 * a Check for Updates button, rather than on its own. A capped feed always
+	 * checks on its own.
+	 *
+	 * @param array $attributes Block attributes.
+	 * @return bool
+	 */
+	private static function checks_on_request( array $attributes ): bool {
+		return ! self::latest_count( $attributes ) && 'button' === ( $attributes['newEntries'] ?? 'auto' );
+	}
+
+	/**
 	 * How the feed loads entries older than its first page: 'scroll' as the
 	 * reader nears the end, 'button' when the reader asks, or 'none'. A
 	 * capped feed loads none.
@@ -1209,6 +1221,7 @@ class Rolling_Coverage_Block {
 		}
 
 		$older_entries = self::older_entries( $attributes );
+		$checks_on_request = self::checks_on_request( $attributes );
 
 		if ( 'none' === $older_entries ) {
 			$has_more = false;
@@ -1301,6 +1314,10 @@ class Rolling_Coverage_Block {
 			$wrapper_data['data-hide-when-ended'] = 'true';
 		}
 
+		if ( $checks_on_request ) {
+			$wrapper_data['data-new-entries'] = 'button';
+		}
+
 		$entry_name = Entry_Name::for_script();
 
 		if ( '' !== $entry_name ) {
@@ -1330,7 +1347,7 @@ class Rolling_Coverage_Block {
 
 		try {
 			$items_html = sprintf(
-				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%9$s%7$s%6$s',
+				'%5$s%3$s%8$s%4$s%10$s<div class="%1$s-entries">%2$s</div>%9$s%7$s%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
 				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout ),
@@ -1340,7 +1357,8 @@ class Rolling_Coverage_Block {
 				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout ),
 				// A capped feed can sit on every page, where announcing each new entry would be noise.
 				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX ),
-				'button' === $older_entries ? self::render_load_more_button() : ''
+				'button' === $older_entries ? self::render_load_more_button() : '',
+				$checks_on_request ? self::render_check_updates_button() : ''
 			);
 
 			return sprintf(
@@ -1734,6 +1752,27 @@ class Rolling_Coverage_Block {
 			self::MARKUP_PREFIX,
 			/* translators: Button that loads older entries at the end of a coverage's feed. */
 			esc_html__( 'Load More', 'newspack-rolling-coverage' )
+		);
+	}
+
+	/**
+	 * The button that checks for new entries, above the entries of a feed
+	 * that checks only when the reader asks. Like Load More, it renders
+	 * hidden for the view script to show, and in a shared-entry view it stays
+	 * hidden until the reader jumps to the live feed.
+	 *
+	 * @return string Rendered HTML, or an empty string in a syndication feed.
+	 */
+	private static function render_check_updates_button(): string {
+		if ( is_feed() ) {
+			return '';
+		}
+
+		return sprintf(
+			'<div class="%1$s-check-updates" hidden><button type="button" class="wp-element-button wp-block-button__link">%2$s</button></div>',
+			self::MARKUP_PREFIX,
+			/* translators: Button that checks a coverage's feed for new entries. */
+			esc_html__( 'Check for Updates', 'newspack-rolling-coverage' )
 		);
 	}
 
