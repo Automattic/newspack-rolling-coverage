@@ -93,17 +93,17 @@ function pluralize( count: number, singular: string, plural: string ): string {
 
 /**
  * Confirms an entry trashed in the editor, which redirects here with
- * `trashed=1`, then drops the arg so a reload doesn't repeat the notice.
+ * `rolling_coverage_trashed=1`, then drops the arg so a reload doesn't repeat the notice.
  */
 function announceTrashedEntry() {
 	const url = new URL( window.location.href );
 
-	if ( ! url.searchParams.has( 'trashed' ) ) {
+	if ( ! url.searchParams.has( 'rolling_coverage_trashed' ) ) {
 		return;
 	}
 
-	url.searchParams.delete( 'trashed' );
-	window.history.replaceState( null, '', url );
+	url.searchParams.delete( 'rolling_coverage_trashed' );
+	window.history.replaceState( window.history.state, '', url );
 	notifySuccess( __( 'Entry trashed.', 'newspack-rolling-coverage' ) );
 }
 

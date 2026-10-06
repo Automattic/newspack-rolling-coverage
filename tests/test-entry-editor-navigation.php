@@ -16,6 +16,34 @@ use Newspack_Rolling_Coverage\Taxonomy;
 class Test_Entry_Editor_Navigation extends Rolling_Coverage_TestCase {
 
 	/**
+	 * The request method before the test, restored in tear_down().
+	 *
+	 * @var string|null
+	 */
+	private $request_method;
+
+	/**
+	 * Remember the request method.
+	 */
+	public function set_up() {
+		parent::set_up();
+		$this->request_method = $_SERVER['REQUEST_METHOD'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Restored as-is.
+	}
+
+	/**
+	 * Restore the request method and query args.
+	 */
+	public function tear_down() {
+		$_GET = [];
+		if ( null === $this->request_method ) {
+			unset( $_SERVER['REQUEST_METHOD'] );
+		} else {
+			$_SERVER['REQUEST_METHOD'] = $this->request_method;
+		}
+		parent::tear_down();
+	}
+
+	/**
 	 * The editor script appends `/<id>` to this URL, so it must end at the
 	 * coverages route and nowhere else.
 	 */
@@ -37,23 +65,21 @@ class Test_Entry_Editor_Navigation extends Rolling_Coverage_TestCase {
 
 	/**
 	 * Only GET requests are redirected: a POST to the list is left to core.
-	 * The test stops before any redirect, which would exit the process.
+	 * A redirect would exit the process, so the test makes one throw instead.
 	 */
 	public function test_redirect_ignores_non_get_requests() {
-		$method                    = $_SERVER['REQUEST_METHOD'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Restored as-is.
+		add_filter(
+			'wp_redirect',
+			function () { // phpcs:ignore WordPressVIPMinimum.Hooks.AlwaysReturnInFilter.MissingReturnStatement -- Throws so a redirect fails the test.
+				throw new \Exception( 'redirected' );
+			}
+		);
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_GET                      = [ 'post_type' => Post_Type::CPT_SLUG ];
 
+		$this->expectNotToPerformAssertions();
+
 		Admin::redirect_entry_list();
-
-		$this->assertTrue( true, 'A POST should return without redirecting.' );
-
-		$_GET = [];
-		if ( null === $method ) {
-			unset( $_SERVER['REQUEST_METHOD'] );
-		} else {
-			$_SERVER['REQUEST_METHOD'] = $method;
-		}
 	}
 
 	/**
@@ -66,7 +92,7 @@ class Test_Entry_Editor_Navigation extends Rolling_Coverage_TestCase {
 		wp_trash_post( $entry_id );
 
 		$this->assertSame(
-			admin_url( 'admin.php?page=rolling-coverage&trashed=1' ) . '#/coverages/' . $coverage_id,
+			admin_url( 'admin.php?page=rolling-coverage&rolling_coverage_trashed=1' ) . '#/coverages/' . $coverage_id,
 			Admin::get_entry_list_redirect(
 				[
 					'post_type' => Post_Type::CPT_SLUG,
@@ -75,7 +101,7 @@ class Test_Entry_Editor_Navigation extends Rolling_Coverage_TestCase {
 				]
 			)
 		);
-		$this->assertStringNotContainsString( 'trashed', Admin::get_entry_return_url( $entry_id ), 'A plain return should not flag a trash.' );
+		$this->assertStringNotContainsString( 'rolling_coverage_trashed', Admin::get_entry_return_url( $entry_id ), 'A plain return should not flag a trash.' );
 	}
 
 	/**

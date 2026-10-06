@@ -231,7 +231,7 @@ class Admin {
 		}
 
 		$ids  = isset( $query['ids'] ) && is_string( $query['ids'] ) ? absint( strtok( $query['ids'], ',' ) ) : 0;
-		$args = ! empty( $query['trashed'] ) ? [ 'trashed' => '1' ] : [];
+		$args = ! empty( $query['trashed'] ) ? [ 'rolling_coverage_trashed' => '1' ] : [];
 
 		return $ids > 0 ? self::get_entry_return_url( $ids, $args ) : self::get_coverages_url( 0, $args );
 	}
