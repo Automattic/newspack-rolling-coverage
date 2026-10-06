@@ -1219,13 +1219,13 @@ export default function Edit( {
 			( templateBlocks.findLast( isShownEverywhere ) ??
 				templateBlocks.at( -1 ) ) as { clientId?: string } | undefined
 		 )?.clientId ?? null;
-	const wrapsEntries = isRuledRow( feedGroup );
+	const isRow = isRuledRow( feedGroup );
 	const entryPreviewsAnchor = useMemo(
 		() =>
 			entryPreviewsAnchorId
-				? { clientId: entryPreviewsAnchorId, wrapsEntries }
+				? { clientId: entryPreviewsAnchorId, wrapsEntries: isRow }
 				: null,
-		[ entryPreviewsAnchorId, wrapsEntries ]
+		[ entryPreviewsAnchorId, isRow ]
 	);
 	const entryPreviews = useMemo(
 		() => (
@@ -1846,55 +1846,60 @@ export default function Edit( {
 			</PanelBody>
 
 			<PanelBody title={ __( 'Entries', 'newspack-rolling-coverage' ) }>
-				<ToggleGroupControl
-					__next40pxDefaultSize
-					isBlock
-					label={ _x(
-						'Show',
-						'which entries the feed shows',
-						'newspack-rolling-coverage'
-					) }
-					help={
-						latestOnly
-							? __(
-									'Only the most recent entries. Pinned entries aren’t kept at the top.',
-									'newspack-rolling-coverage'
-								)
-							: __(
-									'Every entry. Pinned entries stay at the top.',
-									'newspack-rolling-coverage'
-								)
-					}
-					value={ latestOnly ? 'latest' : 'all' }
-					onChange={ ( value ) =>
-						setAttributes( { latestOnly: value === 'latest' } )
-					}
-				>
-					<ToggleGroupControlOption
-						value="all"
+				{ ! ( isRow && latestOnly ) && (
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
 						label={ _x(
-							'All',
+							'Show',
 							'which entries the feed shows',
 							'newspack-rolling-coverage'
 						) }
-						aria-label={
-							/* translators: Screen reader name for the “All” option. Keep the word used to translate “All”. */
-							__( 'All entries', 'newspack-rolling-coverage' )
+						help={
+							latestOnly
+								? __(
+										'Only the most recent entries. Pinned entries aren’t kept at the top.',
+										'newspack-rolling-coverage'
+									)
+								: __(
+										'Every entry. Pinned entries stay at the top.',
+										'newspack-rolling-coverage'
+									)
 						}
-					/>
-					<ToggleGroupControlOption
-						value="latest"
-						label={ _x(
-							'Latest',
-							'which entries the feed shows',
-							'newspack-rolling-coverage'
-						) }
-						aria-label={
-							/* translators: Screen reader name for the “Latest” option. Keep the word used to translate “Latest”. */
-							__( 'Latest entries', 'newspack-rolling-coverage' )
+						value={ latestOnly ? 'latest' : 'all' }
+						onChange={ ( value ) =>
+							setAttributes( { latestOnly: value === 'latest' } )
 						}
-					/>
-				</ToggleGroupControl>
+					>
+						<ToggleGroupControlOption
+							value="all"
+							label={ _x(
+								'All',
+								'which entries the feed shows',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “All” option. Keep the word used to translate “All”. */
+								__( 'All entries', 'newspack-rolling-coverage' )
+							}
+						/>
+						<ToggleGroupControlOption
+							value="latest"
+							label={ _x(
+								'Latest',
+								'which entries the feed shows',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Latest” option. Keep the word used to translate “Latest”. */
+								__(
+									'Latest entries',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+					</ToggleGroupControl>
+				) }
 				{ latestOnly ? (
 					<>
 						<TextControl

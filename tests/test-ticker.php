@@ -49,12 +49,14 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Restore the request the tests change.
+	 * Restore the request the tests change, and the theme.json the block
+	 * theme data set leaves cached after its switch is rolled back.
 	 */
 	public function tear_down() {
 		$this->go_to( home_url( '/' ) );
 
 		parent::tear_down();
+		wp_clean_theme_json_cache();
 	}
 
 	/**
@@ -464,7 +466,8 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	/**
 	 * On a theme without block spacing support, a grid Feed's gap follows its
 	 * Block spacing rather than core's 0.5em, and its tablet and mobile
-	 * columns still apply over it.
+	 * columns still apply over it. Any grid Feed does; this one is a Ticker
+	 * whose Feed a publisher has switched to a grid.
 	 */
 	public function test_grid_feed_follows_its_spacing_without_block_spacing_support() {
 		$this->assertNull( wp_get_global_settings( [ 'spacing', 'blockGap' ] ), 'The test theme has no block spacing support.' );

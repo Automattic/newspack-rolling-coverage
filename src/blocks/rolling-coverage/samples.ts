@@ -6,7 +6,7 @@ import { store as coreStore } from '@wordpress/core-data';
 import { date as formatDate } from '@wordpress/date';
 import { escapeHTML } from '@wordpress/escape-html';
 import { useEffect, useState } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, _x } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -57,11 +57,25 @@ type Sample = {
  * @return {string} The headline.
  */
 function openingWords( content: string ): string {
-	const words = content.trim().split( /\s+/ );
+	const text = content.trim();
+	// wp_trim_words() counts characters where translators set the word count type to characters, as for Chinese and Japanese.
+	const countsCharacters = _x(
+		'words',
+		'Word count type. Do not translate!'
+	).startsWith( 'characters' );
+	const units = countsCharacters
+		? Array.from( text.replace( /\s+/g, ' ' ) )
+		: text.split( /\s+/ );
 
-	return words.length > UNTITLED_FALLBACK_WORDS
-		? words.slice( 0, UNTITLED_FALLBACK_WORDS ).join( ' ' ) + '…'
-		: content.trim();
+	if ( units.length <= UNTITLED_FALLBACK_WORDS ) {
+		return text;
+	}
+
+	return (
+		units
+			.slice( 0, UNTITLED_FALLBACK_WORDS )
+			.join( countsCharacters ? '' : ' ' ) + '…'
+	);
 }
 
 /**
