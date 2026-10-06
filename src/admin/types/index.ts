@@ -587,7 +587,6 @@ interface SettingField {
 interface QuickEditSaveBarProps {
 	onClose: () => void;
 	onSaved: () => void;
-	children?: ReactNode;
 }
 
 interface EntityRecord {

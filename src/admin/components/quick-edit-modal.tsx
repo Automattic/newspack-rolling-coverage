@@ -4,23 +4,18 @@
 import { useMemo, useEffect, useState, useCallback } from '@wordpress/element';
 import {
 	Modal,
+	Popover,
 	Spinner,
-	Button,
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalConfirmDialog as ConfirmDialog,
 } from '@wordpress/components';
-import {
-	BlockCanvas,
-	BlockInspector,
-	BlockList,
-} from '@wordpress/block-editor';
+import { BlockCanvas, BlockList } from '@wordpress/block-editor';
 import { EditorProvider, EditorSnackbars, PostTitle } from '@wordpress/editor';
 import { useEntityRecord, store as coreStore } from '@wordpress/core-data';
-import { RegistryProvider, useDispatch, useRegistry } from '@wordpress/data';
+import { useDispatch, useRegistry } from '@wordpress/data';
 import { store as noticesStore } from '@wordpress/notices';
-import { drawerLeft, drawerRight } from '@wordpress/icons';
-import { __, isRTL } from '@wordpress/i18n';
-import { Stack } from '@wordpress/ui';
+import { store as preferencesStore } from '@wordpress/preferences';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -28,32 +23,50 @@ import { Stack } from '@wordpress/ui';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { ensureEditorInitialized } from '../utils/block-registration';
 import { QuickEditSaveBar } from './quick-edit-save-bar';
-import type { QuickEditModalProps, EntityRecord } from '../types';
+import { QuickEditToolbar } from './quick-edit-toolbar';
+import type {
+	QuickEditModalProps,
+	EntityRecord,
+	PreferencesSelectors,
+	PreferencesActions,
+} from '../types';
 
 /**
- * Reports the registry it renders in, so UI outside `EditorProvider` can use
- * the editor's sub-registry.
+ * Pins the block toolbar to the toolbar row for as long as the modal is
+ * mounted.
  *
- * @param {Object}   props            Component props.
- * @param {Function} props.onRegistry Called with the current registry.
+ * `EditorProvider` ignores `hasFixedToolbar` in its settings and reads the
+ * `core.fixedToolbar` preference instead, so the preference is the only
+ * switch for the floating per-block toolbar. It lives in the parent
+ * registry, which the provider's sub-registry falls through to. This admin
+ * page loads no preferences persistence layer, so the user's real editor
+ * preference is never written; the previous value is restored on unmount
+ * all the same.
  */
-function EditorRegistryBridge( {
-	onRegistry,
-}: {
-	onRegistry: ( registry: ReturnType< typeof useRegistry > ) => void;
-} ) {
+function useFixedToolbarPreference() {
 	const registry = useRegistry();
 	useEffect( () => {
-		onRegistry( registry );
-	}, [ registry, onRegistry ] );
-	return null;
+		const { get } = registry.select(
+			preferencesStore
+		) as unknown as PreferencesSelectors;
+		const { set } = registry.dispatch(
+			preferencesStore
+		) as unknown as PreferencesActions;
+		const previous = get( 'core', 'fixedToolbar' );
+		set( 'core', 'fixedToolbar', true );
+		return () => {
+			set( 'core', 'fixedToolbar', previous );
+		};
+	}, [ registry ] );
 }
 
 /**
- * Renders a modal containing the WordPress post editor for quick-editing
- * an entry's title and content without leaving the admin page.
+ * Quick-edits an entry's title and content in the block editor without
+ * leaving the entries list, laid out like P2's comment editor: one toolbar
+ * row on top, the canvas, Cancel and Save at the bottom. The WordPress
+ * `Modal` header is hidden; every control is ours.
  *
- * - Editor notices (success/error snackbars) are rendered inside the
+ * - Editor notices (success/error snackbars) render inside the
  *   `EditorProvider` via `<EditorSnackbars />`.
  * - Closing is guarded when unsaved edits exist (detected via
  *   `useEntityRecord().hasEdits`, backed by core-data's
@@ -61,14 +74,15 @@ function EditorRegistryBridge( {
  *   discarding. The editor store's `isEditedPostDirty` selector is
  *   intentionally not used because `EditorProvider` runs in a sub-registry
  *   whose editor store is invisible to selectors outside the provider.
- * - The built-in Modal close button is disabled (`isDismissible={ false }`)
- *   to prevent the exit animation from firing before the guard can
- *   intercept. Cancel in the header goes through the guard instead.
+ * - The Modal's own close paths (dismiss button, Escape, click outside) are
+ *   off so its exit animation can't fire before the guard intercepts.
+ *   Cancel in the footer goes through the guard instead.
  * - `EditorProvider` stays inside the Modal: its own helper modals
  *   (keyboard shortcuts, pattern rename and duplicate, media editor) must
- *   nest in this one, or opening them closes Quick Edit. The header's Cancel
- *   and Save sit outside the provider, so `EditorRegistryBridge` hands them
- *   the editor's sub-registry.
+ *   nest in this one, or opening them closes Quick Edit.
+ * - The `Popover.Slot` inside the provider keeps the toolbar's popovers
+ *   (block library, document overview, inspector) within the modal frame
+ *   and its focus trap instead of the body-level fallback container.
  *
  * @param {QuickEditModalProps} props Component props.
  */
@@ -80,11 +94,7 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 		entryId
 	);
 	const typedRecord = record as EntityRecord | null;
-	const [ isSidebarOpen, setIsSidebarOpen ] = useState( true );
 	const [ showCloseConfirm, setShowCloseConfirm ] = useState( false );
-	const [ editorRegistry, setEditorRegistry ] = useState< ReturnType<
-		typeof useRegistry
-	> | null >( null );
 
 	const { removeAllNotices } = useDispatch( noticesStore );
 	const { clearEntityRecordEdits } = useDispatch( coreStore );
@@ -92,6 +102,8 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 	useEffect( () => {
 		ensureEditorInitialized();
 	}, [] );
+
+	useFixedToolbarPreference();
 
 	const handleClose = useCallback( () => {
 		removeAllNotices( 'snackbar' );
@@ -129,86 +141,55 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 		? { type: 'constrained' }
 		: undefined;
 
+	const modalProps = {
+		contentLabel: __( 'Quick Edit', 'newspack-rolling-coverage' ),
+		shouldCloseOnClickOutside: false,
+		shouldCloseOnEsc: false,
+		isDismissible: false,
+		__experimentalHideHeader: true,
+		className: 'newspack-rolling-coverage-quick-edit',
+		overlayClassName: 'newspack-rolling-coverage-quick-edit-overlay',
+	};
+
 	if ( isResolving || ! typedRecord ) {
 		return (
-			<Modal
-				title={ __( 'Quick Edit', 'newspack-rolling-coverage' ) }
-				onRequestClose={ onClose }
-				className="newspack-rolling-coverage-quick-edit"
-				overlayClassName="newspack-rolling-coverage-quick-edit-overlay"
-				isFullScreen
-			>
-				<Spinner />
+			<Modal { ...modalProps } onRequestClose={ onClose }>
+				<div className="newspack-rolling-coverage-quick-edit__loading">
+					<Spinner />
+				</div>
 			</Modal>
 		);
 	}
 
-	const sidebarToggle = (
-		<Button
-			icon={ isRTL() ? drawerLeft : drawerRight }
-			label={ __( 'Settings', 'newspack-rolling-coverage' ) }
-			isPressed={ isSidebarOpen }
-			onClick={ () => setIsSidebarOpen( ( prev ) => ! prev ) }
-			size="compact"
-		/>
-	);
-
 	return (
 		<>
-			<Modal
-				title={ __( 'Quick Edit', 'newspack-rolling-coverage' ) }
-				onRequestClose={ handleRequestClose }
-				shouldCloseOnClickOutside={ false }
-				shouldCloseOnEsc={ false }
-				isDismissible={ false }
-				headerActions={
-					<Stack direction="row" gap="sm" align="center">
-						{ editorRegistry ? (
-							<RegistryProvider value={ editorRegistry }>
-								<QuickEditSaveBar
-									onClose={ handleRequestClose }
-									onSaved={ onSaved }
-								>
-									{ sidebarToggle }
-								</QuickEditSaveBar>
-							</RegistryProvider>
-						) : (
-							sidebarToggle
-						) }
-					</Stack>
-				}
-				className="newspack-rolling-coverage-quick-edit"
-				overlayClassName="newspack-rolling-coverage-quick-edit-overlay"
-				isFullScreen
-			>
+			<Modal { ...modalProps } onRequestClose={ handleRequestClose }>
 				<EditorProvider post={ typedRecord } settings={ settings }>
-					<EditorRegistryBridge onRegistry={ setEditorRegistry } />
-					<EditorSnackbars />
-					<div className="newspack-rolling-coverage-quick-edit-layout">
-						<div className="newspack-rolling-coverage-quick-edit-main">
-							<div className="newspack-rolling-coverage-quick-edit-canvas">
-								<BlockCanvas
-									height="100%"
-									styles={ settings.styles as unknown[] }
-								>
-									<div
-										className={ `editor-visual-editor__post-title-wrapper${ layoutClassName }` }
-									>
-										<PostTitle />
-									</div>
-									<BlockList
-										className={ `wp-block-post-content${ layoutClassName }` }
-										layout={ blockListLayout }
-									/>
-								</BlockCanvas>
+					<QuickEditToolbar />
+					<div className="newspack-rolling-coverage-quick-edit__canvas">
+						<BlockCanvas
+							height="100%"
+							styles={ settings.styles as unknown[] }
+						>
+							<div
+								className={ `editor-visual-editor__post-title-wrapper${ layoutClassName }` }
+							>
+								<PostTitle />
 							</div>
-						</div>
-						{ isSidebarOpen && (
-							<aside className="newspack-rolling-coverage-quick-edit-sidebar">
-								<BlockInspector />
-							</aside>
-						) }
+							<BlockList
+								className={ `wp-block-post-content${ layoutClassName }` }
+								layout={ blockListLayout }
+							/>
+						</BlockCanvas>
 					</div>
+					<div className="newspack-rolling-coverage-quick-edit__footer">
+						<QuickEditSaveBar
+							onClose={ handleRequestClose }
+							onSaved={ onSaved }
+						/>
+					</div>
+					<EditorSnackbars />
+					<Popover.Slot />
 				</EditorProvider>
 			</Modal>
 			<ConfirmDialog
