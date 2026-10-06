@@ -66,7 +66,7 @@ Says whether the block uses the shared layout or its own detached copy.
 | Number of entries | With Show set to Latest: how many entries to show, from 1 to 100. |
 | Link to all updates | With Show set to Latest, in layouts that have one (Ticker, Wire, Digest, Flash): Show or Hide the link to the coverage page. The link is hidden on the coverage page itself. |
 | Entries per page | With Show set to All: how many entries show first, and how many each load of older entries adds. From 1 to 100. Default 20. |
-| Poll interval (seconds) | With Show set to All, hidden when the layout holds a [Check for Updates](../check-updates/README.md) block. How often the page checks for new entries. Default 10. The site can set a longer minimum, which wins over a shorter value here. |
+| Poll interval (seconds) | Hidden when Show is set to All and the layout holds a [Check for Updates](../check-updates/README.md) block. How often the page checks for new entries. Default 10. The site can set a longer minimum, which wins over a shorter value here. |
 
 ### Ended
 

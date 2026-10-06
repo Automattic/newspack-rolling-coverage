@@ -80,6 +80,44 @@ export function newEntriesLabel(
 }
 
 /**
+ * The Check for Updates button's label, for a moment, after a check added
+ * entries.
+ *
+ * @param {number}         count How many entries the check added.
+ * @param {EntryName|null} name  The site's name for entries.
+ * @return {string} The label.
+ */
+export function entriesAddedButtonLabel(
+	count: number,
+	name: EntryName | null
+): string {
+	if ( name ) {
+		return sprintf(
+			/* translators: 1: number of coverage entries a check just added. 2: the site's own name for entries, singular or plural to match the number, as a button label shows it. */
+			_n(
+				'%1$d %2$s Added',
+				'%1$d %2$s Added',
+				count,
+				'newspack-rolling-coverage'
+			),
+			count,
+			count === 1 ? name.singularTitle : name.pluralTitle
+		);
+	}
+
+	return sprintf(
+		/* translators: %d: number of coverage entries a check just added. */
+		_n(
+			'%d Entry Added',
+			'%d Entries Added',
+			count,
+			'newspack-rolling-coverage'
+		),
+		count
+	);
+}
+
+/**
  * The Check for Updates button's label, for a moment, when a check finds no
  * new entries.
  *

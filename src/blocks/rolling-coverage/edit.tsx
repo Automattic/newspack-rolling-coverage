@@ -1192,17 +1192,16 @@ export default function Edit( {
 	const isAllUpdatesHidden = ! isCapped || allUpdatesLink === false;
 	const isCheckUpdatesHidden =
 		isCapped || currentCoverage?.status === 'archived';
-	const checksOnRequest = useMemo(
-		() =>
-			( ( parts ) =>
-				holdsBlockType(
-					[ ...parts.header, ...parts.footer ],
-					CHECK_UPDATES_BLOCK_NAME
-				) )(
-				layoutParts( isSynced ? feedItems( syncedBlocks ) : allBlocks )
-			),
-		[ isSynced, syncedBlocks, allBlocks ]
-	);
+	const checksOnRequest = useMemo( () => {
+		const parts = layoutParts(
+			isSynced ? feedItems( syncedBlocks ) : allBlocks
+		);
+
+		return holdsBlockType(
+			[ ...parts.header, ...parts.footer ],
+			CHECK_UPDATES_BLOCK_NAME
+		);
+	}, [ isSynced, syncedBlocks, allBlocks ] );
 	// An editable layout previews the pinned card against the pinned entry
 	// and the entry group against one that isn't pinned, and leaves out the
 	// one the coverage has no entry for, and "Read more" where the entry

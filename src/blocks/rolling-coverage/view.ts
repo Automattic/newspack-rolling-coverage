@@ -11,6 +11,7 @@ import { trackEvent, isConfigEnabled, EVENTS } from './analytics';
 import { keepRelativeDatesCurrent } from '../shared/relative-dates';
 import { POLL_EVENT } from '../shared/poll-event';
 import {
+	entriesAddedButtonLabel,
 	entriesAddedLabel,
 	loadingLatestLabel,
 	loadMoreFailedLabel,
@@ -2494,7 +2495,7 @@ function initBlock( root: HTMLElement ): void {
 
 			// New entries land at the top, out of sight of a button further down.
 			if ( added > 0 ) {
-				flashCheckLabel( newEntriesLabel( added, entryName ) );
+				flashCheckLabel( entriesAddedButtonLabel( added, entryName ) );
 			} else {
 				const label = noNewEntriesLabel( entryName );
 
