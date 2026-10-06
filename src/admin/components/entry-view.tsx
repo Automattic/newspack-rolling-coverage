@@ -27,7 +27,12 @@ import { useStatusLabels } from '../utils/status-labels';
 import { EmptyState } from 'newspack-components/dist/esm/empty-state';
 import { LoadingState } from '../shared/loading-state';
 import { useHeader } from '../hooks/useHeader';
-import { buildPageUrl, createEntry, toEntry } from '../utils/entries-api';
+import {
+	buildPageUrl,
+	createEntry,
+	isEntryLocked,
+	toEntry,
+} from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
@@ -698,6 +703,7 @@ function EntryView() {
 			{ quickEditEntry && (
 				<QuickEditModal
 					entryId={ quickEditEntry.id }
+					canPublish={ ! isEntryLocked( quickEditEntry ) }
 					onClose={ handleQuickEditClose }
 					onSaved={ handleQuickEditSaved }
 				/>

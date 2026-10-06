@@ -1,9 +1,14 @@
 /**
  * External dependencies
  */
+import type { ComponentType } from 'react';
 import { useCallback, useEffect, useRef } from '@wordpress/element';
 import { Button } from '@wordpress/components';
-import { store as editorStore } from '@wordpress/editor';
+import {
+	PostPublishButton,
+	PostSavedState,
+	store as editorStore,
+} from '@wordpress/editor';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as noticesStore } from '@wordpress/notices';
 import { useDispatch, useSelect } from '@wordpress/data';
@@ -18,9 +23,20 @@ import type {
 	CoreSelectors,
 } from '../types';
 
+// The editor's JS components carry inferred types that mark optional props
+// as required.
+const SavedState = PostSavedState as unknown as ComponentType;
+const PublishButton = PostPublishButton as unknown as ComponentType;
+
 /**
- * Cancel and Save buttons for the Quick Edit modal header, with any
+ * Cancel and save buttons for the Quick Edit modal header, with any
  * children placed between them.
+ *
+ * When the entry can be published, the save buttons are the post editor's
+ * own (`PostSavedState` and `PostPublishButton`), so a draft offers Save
+ * draft and Publish, a published entry Save, and a contributor Submit for
+ * Review. Publish goes straight through: there's no room in the modal for
+ * the pre-publish panel. Otherwise a single Save keeps the entry's status.
  *
  * `savePost()` never rejects on failure, so the result is detected by
  * watching `isSavingPost` transition to `false` and then reading
@@ -33,6 +49,7 @@ import type {
 function QuickEditSaveBar( {
 	onClose,
 	onSaved,
+	canPublish,
 	children,
 }: QuickEditSaveBarProps ) {
 	const { savePost } = useDispatch( editorStore );
@@ -96,15 +113,22 @@ function QuickEditSaveBar( {
 				{ __( 'Cancel', 'newspack-rolling-coverage' ) }
 			</Button>
 			{ children }
-			<Button
-				variant="primary"
-				onClick={ handleSave }
-				isBusy={ isSavingPost }
-				disabled={ isSavingPost || ! isEditorReady }
-				size="compact"
-			>
-				{ __( 'Save', 'newspack-rolling-coverage' ) }
-			</Button>
+			{ canPublish ? (
+				<>
+					<SavedState />
+					<PublishButton />
+				</>
+			) : (
+				<Button
+					variant="primary"
+					onClick={ handleSave }
+					isBusy={ isSavingPost }
+					disabled={ isSavingPost || ! isEditorReady }
+					size="compact"
+				>
+					{ __( 'Save', 'newspack-rolling-coverage' ) }
+				</Button>
+			) }
 		</>
 	);
 }

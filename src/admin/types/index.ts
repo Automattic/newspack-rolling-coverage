@@ -440,6 +440,8 @@ interface SlackConnectionDrawerProps {
 }
 interface QuickEditModalProps {
 	entryId: number;
+	/** False for an entry locked by Archive Mode, whose status stays as it is. */
+	canPublish: boolean;
 	onClose: () => void;
 	onSaved: () => void;
 }
@@ -549,7 +551,12 @@ interface SettingField {
 interface QuickEditSaveBarProps {
 	onClose: () => void;
 	onSaved: () => void;
+	canPublish: boolean;
 	children?: ReactNode;
+}
+
+interface QuickEditEntryPanelProps {
+	canChangeStatus: boolean;
 }
 
 interface EntityRecord {
@@ -722,6 +729,7 @@ export type {
 	SyncPollContext,
 	QuickEditModalProps,
 	QuickEditSaveBarProps,
+	QuickEditEntryPanelProps,
 	EntityRecord,
 	EditorSelectors,
 	CoreSelectors,

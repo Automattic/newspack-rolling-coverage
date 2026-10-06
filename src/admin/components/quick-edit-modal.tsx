@@ -13,14 +13,20 @@ import {
 	BlockCanvas,
 	BlockInspector,
 	BlockList,
+	store as blockEditorStore,
 } from '@wordpress/block-editor';
 import { EditorProvider, EditorSnackbars, PostTitle } from '@wordpress/editor';
 import { useEntityRecord, store as coreStore } from '@wordpress/core-data';
-import { RegistryProvider, useDispatch, useRegistry } from '@wordpress/data';
+import {
+	RegistryProvider,
+	useDispatch,
+	useRegistry,
+	useSelect,
+} from '@wordpress/data';
 import { store as noticesStore } from '@wordpress/notices';
 import { drawerLeft, drawerRight } from '@wordpress/icons';
 import { __, isRTL } from '@wordpress/i18n';
-import { Stack } from '@wordpress/ui';
+import { Stack, Tabs } from '@wordpress/ui';
 
 /**
  * Internal dependencies
@@ -28,6 +34,7 @@ import { Stack } from '@wordpress/ui';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { ensureEditorInitialized } from '../utils/block-registration';
 import { QuickEditSaveBar } from './quick-edit-save-bar';
+import { QuickEditEntryPanel } from './quick-edit-entry-panel';
 import type { QuickEditModalProps, EntityRecord } from '../types';
 
 /**
@@ -47,6 +54,56 @@ function EditorRegistryBridge( {
 		onRegistry( registry );
 	}, [ registry, onRegistry ] );
 	return null;
+}
+
+/**
+ * The Quick Edit sidebar: Entry and Block tabs, switching between them as
+ * blocks are selected and deselected, as the post editor's sidebar does.
+ *
+ * @param {Object}  props                 Component props.
+ * @param {boolean} props.canChangeStatus Whether the Entry tab can change the status.
+ */
+function QuickEditSidebar( { canChangeStatus }: { canChangeStatus: boolean } ) {
+	const hasBlockSelection = useSelect(
+		( select ) =>
+			Boolean(
+				(
+					select( blockEditorStore ) as unknown as {
+						getBlockSelectionStart: () => string | null;
+					}
+				 ).getBlockSelectionStart()
+			),
+		[]
+	);
+	const [ tab, setTab ] = useState( 'entry' );
+
+	useEffect( () => {
+		setTab( hasBlockSelection ? 'block' : 'entry' );
+	}, [ hasBlockSelection ] );
+
+	return (
+		<Tabs.Root
+			value={ tab }
+			onValueChange={ ( value ) => setTab( String( value ) ) }
+		>
+			<div className="components-panel__header editor-sidebar__panel-tabs">
+				<Tabs.List activateOnFocus={ false }>
+					<Tabs.Tab value="entry">
+						{ __( 'Entry', 'newspack-rolling-coverage' ) }
+					</Tabs.Tab>
+					<Tabs.Tab value="block">
+						{ __( 'Block', 'newspack-rolling-coverage' ) }
+					</Tabs.Tab>
+				</Tabs.List>
+			</div>
+			<Tabs.Panel value="entry" tabIndex={ -1 }>
+				<QuickEditEntryPanel canChangeStatus={ canChangeStatus } />
+			</Tabs.Panel>
+			<Tabs.Panel value="block" tabIndex={ -1 }>
+				<BlockInspector />
+			</Tabs.Panel>
+		</Tabs.Root>
+	);
 }
 
 /**
@@ -72,7 +129,12 @@ function EditorRegistryBridge( {
  *
  * @param {QuickEditModalProps} props Component props.
  */
-function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
+function QuickEditModal( {
+	entryId,
+	canPublish,
+	onClose,
+	onSaved,
+}: QuickEditModalProps ) {
 	const config = useAdminContext();
 	const { record, isResolving, hasEdits } = useEntityRecord(
 		'postType',
@@ -168,6 +230,7 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 								<QuickEditSaveBar
 									onClose={ handleRequestClose }
 									onSaved={ onSaved }
+									canPublish={ canPublish }
 								>
 									{ sidebarToggle }
 								</QuickEditSaveBar>
@@ -205,7 +268,9 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 						</div>
 						{ isSidebarOpen && (
 							<aside className="newspack-rolling-coverage-quick-edit-sidebar">
-								<BlockInspector />
+								<QuickEditSidebar
+									canChangeStatus={ canPublish }
+								/>
 							</aside>
 						) }
 					</div>
