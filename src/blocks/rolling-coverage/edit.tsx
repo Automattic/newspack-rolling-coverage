@@ -1345,10 +1345,10 @@ export default function Edit( {
 	const linkText = isSynced ? ( allUpdatesLinkText ?? '' ).trim() : '';
 	const layoutLinkText = useMemo(
 		() =>
-			isSynced
+			isSynced && hasResolvedLayout
 				? allUpdatesTextOf( [ ...headerBlocks, ...footerBlocks ] )
 				: null,
-		[ isSynced, headerBlocks, footerBlocks ]
+		[ isSynced, hasResolvedLayout, headerBlocks, footerBlocks ]
 	);
 
 	const syncedHeaderBlocks = useMemo( () => {
