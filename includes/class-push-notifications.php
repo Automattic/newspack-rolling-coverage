@@ -69,13 +69,6 @@ class Push_Notifications {
 	private static $published_in_request = [];
 
 	/**
-	 * Whether a REST request is being dispatched.
-	 *
-	 * @var bool
-	 */
-	private static $is_rest_dispatch = false;
-
-	/**
 	 * Timestamps this request wrote to the send locks it holds, by entry id.
 	 *
 	 * @var array<int, int>
@@ -89,34 +82,10 @@ class Push_Notifications {
 		add_action( 'init', [ __CLASS__, 'register_meta' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_rest_field' ] );
 		add_action( 'enqueue_block_editor_assets', [ __CLASS__, 'enqueue_editor_panel' ] );
-		add_filter( 'rest_pre_dispatch', [ __CLASS__, 'start_rest_dispatch' ] );
-		add_filter( 'rest_request_after_callbacks', [ __CLASS__, 'end_rest_dispatch' ] );
 		add_action( 'transition_post_status', [ __CLASS__, 'maybe_notify' ], 10, 3 );
 		add_action( 'rest_after_insert_' . Post_Type::CPT_SLUG, [ __CLASS__, 'settle_rest_publish' ] );
 		add_action( 'newspack_rolling_coverage_entry_ingested', [ __CLASS__, 'opt_in_ingested_entry' ] );
 		add_action( self::SEND_HOOK, [ __CLASS__, 'send_scheduled' ] );
-	}
-
-	/**
-	 * Marks a REST request as being dispatched.
-	 *
-	 * @param mixed $result Dispatch result, passed through.
-	 * @return mixed
-	 */
-	public static function start_rest_dispatch( $result ) {
-		self::$is_rest_dispatch = true;
-		return $result;
-	}
-
-	/**
-	 * Marks the REST request as finished.
-	 *
-	 * @param mixed $result Response, passed through.
-	 * @return mixed
-	 */
-	public static function end_rest_dispatch( $result ) {
-		self::$is_rest_dispatch = false;
-		return $result;
 	}
 
 	/**
@@ -289,12 +258,12 @@ class Push_Notifications {
 			return;
 		}
 
-		$is_rest = self::$is_rest_dispatch || ( defined( 'REST_REQUEST' ) && REST_REQUEST );
+		$is_rest = wp_is_rest_endpoint();
 
 		/**
 		 * Filters whether an entry's notification is scheduled instead of
 		 * sent during the request that published it. REST requests, which is
-		 * how the block editor, the plugin's admin and Slack publish, always
+		 * how the block editor and Slack publish, always
 		 * schedule: OneSignal never sends during one, and the opt-in read here
 		 * may be replaced by the request's own.
 		 *

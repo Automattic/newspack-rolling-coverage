@@ -701,4 +701,18 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		$this->assertTrue( is_protected_meta( Push_Notifications::NOTIFY_META_KEY, 'post' ) );
 		$this->assertSame( '_rolling_coverage_notify_on_publish', Push_Notifications::NOTIFY_META_KEY );
 	}
+
+	/**
+	 * A REST request that ended early, earlier in the same process, does not
+	 * hold back a publish that happens outside REST.
+	 */
+	public function test_publish_after_an_unmatched_rest_request_sends_at_once() {
+		$entry_id = self::create_draft_entry( self::create_coverage_with_canonical_url(), true );
+
+		rest_do_request( new WP_REST_Request( 'GET', '/rolling-coverage/v1/no-such-route' ) );
+		wp_publish_post( $entry_id );
+
+		$this->assertCount( 1, self::get_sent_notifications(), 'The notification should be sent straight away.' );
+		$this->assertFalse( wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'Nothing should be left scheduled.' );
+	}
 }
