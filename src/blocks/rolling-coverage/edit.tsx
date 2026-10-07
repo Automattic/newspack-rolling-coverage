@@ -1387,6 +1387,14 @@ export default function Edit( {
 		isAllUpdatesHidden,
 		linkText,
 	] );
+	const syncedHeaderItems = useMemo(
+		() => syncedHeaderBlocks.map( ( block ) => [ block ] ),
+		[ syncedHeaderBlocks ]
+	);
+	const syncedFooterItems = useMemo(
+		() => syncedFooterBlocks.map( ( block ) => [ block ] ),
+		[ syncedFooterBlocks ]
+	);
 
 	const detach = useCallback( () => {
 		registry.batch( () => {
@@ -2705,15 +2713,18 @@ export default function Edit( {
 											<BlockContextProvider
 												value={ coverageContext }
 											>
-												<EntryBlockPreview
-													blocks={
-														syncedHeaderBlocks
-													}
-													style={ chromePreviewStyle(
-														syncedHeaderBlocks,
-														feedLayout
-													) }
-												/>
+												{ syncedHeaderItems.map(
+													( item, index ) => (
+														<EntryBlockPreview
+															key={ index }
+															blocks={ item }
+															style={ chromePreviewStyle(
+																item,
+																feedLayout
+															) }
+														/>
+													)
+												) }
 											</BlockContextProvider>
 										) }
 										<div className="newspack-rolling-coverage-entries">
@@ -2768,15 +2779,18 @@ export default function Edit( {
 											<BlockContextProvider
 												value={ coverageContext }
 											>
-												<EntryBlockPreview
-													blocks={
-														syncedFooterBlocks
-													}
-													style={ chromePreviewStyle(
-														syncedFooterBlocks,
-														feedLayout
-													) }
-												/>
+												{ syncedFooterItems.map(
+													( item, index ) => (
+														<EntryBlockPreview
+															key={ index }
+															blocks={ item }
+															style={ chromePreviewStyle(
+																item,
+																feedLayout
+															) }
+														/>
+													)
+												) }
 											</BlockContextProvider>
 										) }
 									</div>

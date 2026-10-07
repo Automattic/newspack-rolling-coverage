@@ -568,6 +568,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 			'wire'   => [ 'wire', 'Wire' ],
 			'digest' => [ 'digest', 'Digest' ],
 			'flash'  => [ 'flash', 'Flash' ],
+			'alert'  => [ 'alert', 'Alert' ],
 		];
 	}
 

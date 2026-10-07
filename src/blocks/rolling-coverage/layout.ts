@@ -24,6 +24,8 @@ import {
 	flashEntryTemplate,
 	flashBar,
 	FLASH_FEED_LAYOUT,
+	ALERT_FEED_STYLE,
+	themeFontSize,
 	tickerEntryTemplate,
 	tickerHeader,
 	TICKER_FEED_LAYOUT,
@@ -322,6 +324,32 @@ export function flashInnerTemplate(): TemplateItem[] {
 				FLASH_FEED_LAYOUT,
 				{ align: 'wide' }
 			)
+		),
+	];
+}
+
+/**
+ * The Alert layout's inner-blocks template: a box ruled in the site's accent
+ * color holding the coverage's status, its name on one line, cut short to
+ * fit, and a link to the coverage page, side by side at every width. It
+ * shows no entries.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function alertInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			[
+				[ STATUS_BLOCK_NAME, {} ],
+				coverageNameHeading(
+					themeFontSize( themeFontSizeSlugs(), 'medium', 'normal' ),
+					{ style: { layout: { selfStretch: 'fill' } } }
+				),
+				allUpdatesLink(),
+			],
+			'var:preset|spacing|30',
+			ALERT_FEED_STYLE,
+			FLASH_FEED_LAYOUT
 		),
 	];
 }

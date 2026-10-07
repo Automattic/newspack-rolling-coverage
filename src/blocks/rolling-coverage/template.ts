@@ -1232,15 +1232,20 @@ const DIGEST_FEED_STYLE = {
 
 /**
  * The coverage's name as a heading, bound so it follows the coverage, as
- * the Digest layout's header and in the Ticker layout's.
+ * the Digest layout's header, in the Ticker layout's and in the Alert box.
  *
- * @param {string} fontSize The heading's font size preset.
+ * @param {string} fontSize   The heading's font size preset.
+ * @param {Object} attributes More attributes for the heading.
  * @return {TemplateItem} The heading.
  */
-function coverageNameHeading( fontSize = 'large' ): TemplateItem {
+function coverageNameHeading(
+	fontSize = 'large',
+	attributes: Record< string, unknown > = {}
+): TemplateItem {
 	return [
 		'core/heading',
 		{
+			...attributes,
 			level: 3,
 			fontSize,
 			content: __( 'Live Coverage', 'newspack-rolling-coverage' ),
@@ -1380,6 +1385,11 @@ const FLASH_BAR_STYLE = {
 			right: 'var:preset|spacing|30',
 		},
 	},
+};
+
+const ALERT_FEED_STYLE = {
+	border: { color: ACCENT, width: '1px', style: 'solid' },
+	spacing: { padding: 'var:preset|spacing|30' },
 };
 
 const FLASH_FEED_LAYOUT = {
@@ -3279,6 +3289,8 @@ export {
 	flashEntryTemplate,
 	flashBar,
 	FLASH_FEED_LAYOUT,
+	ALERT_FEED_STYLE,
+	themeFontSize,
 	tickerEntryTemplate,
 	tickerHeader,
 	TICKER_FEED_LAYOUT,

@@ -1329,7 +1329,7 @@ class Rolling_Coverage_Block {
 			self::store_template_layout_styles( self::with_centered_title_rows( $title_rows ) );
 		}
 
-		if ( empty( $posts ) ) {
+		if ( empty( $posts ) && $template ) {
 			self::store_template_layout_styles( $unplaced );
 
 			$entries_html = sprintf(
