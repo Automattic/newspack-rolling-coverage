@@ -513,7 +513,7 @@ function EntryView() {
 		[ canShowSlack, slackChannelLabel, routeCoverage, isRefreshingSlack ]
 	);
 
-	const showViewPage =
+	const showPlacements =
 		! isFirstLoad && ( routeCoverage?.placements ?? [] ).length > 0;
 	const [ isPlacementsOpen, setIsPlacementsOpen ] = useState( false );
 
@@ -552,13 +552,13 @@ function EntryView() {
 		[ isArchived, handleNewEntry, isCreatingEntry, statusLabels ]
 	);
 
-	const viewPageButton = useMemo(
+	const placementsButton = useMemo(
 		() => (
 			<Button
 				variant="secondary"
 				onClick={ () => setIsPlacementsOpen( true ) }
 			>
-				{ __( 'View Pages', 'newspack-rolling-coverage' ) }
+				{ __( 'Placements', 'newspack-rolling-coverage' ) }
 			</Button>
 		),
 		[]
@@ -566,18 +566,18 @@ function EntryView() {
 
 	const headerActions = useMemo(
 		() =>
-			showNewEntry || showSlackInHeader || showViewPage ? (
+			showNewEntry || showSlackInHeader || showPlacements ? (
 				<>
 					{ showSlackInHeader && slackButton }
-					{ showViewPage && viewPageButton }
+					{ showPlacements && placementsButton }
 					{ showNewEntry && addEntryButton }
 				</>
 			) : null,
 		[
 			showNewEntry,
 			showSlackInHeader,
-			showViewPage,
-			viewPageButton,
+			showPlacements,
+			placementsButton,
 			slackButton,
 			addEntryButton,
 		]

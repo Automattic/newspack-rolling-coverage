@@ -183,7 +183,7 @@ function PlacementsDrawer( {
 		<Drawer.Root isOpen={ isOpen } onRequestClose={ onClose }>
 			<Drawer.Header>
 				<Drawer.Title>
-					{ __( 'View Pages', 'newspack-rolling-coverage' ) }
+					{ __( 'Placements', 'newspack-rolling-coverage' ) }
 				</Drawer.Title>
 				<Drawer.CloseIcon />
 			</Drawer.Header>

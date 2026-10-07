@@ -38,7 +38,7 @@ Row actions live in `src/admin/actions/coverage-actions.ts`:
 | --- | --- | --- |
 | Edit | `canManageTerms`, coverage not trashed | Opens the coverage drawer. |
 | Entries | Always | Opens the coverage's entries. |
-| View Pages | The coverage has placements | See [Placements](#placements-view-pages). |
+| Placements | The coverage has placements | See [Placements](#placements). |
 | Slack Connection | `canManageOptions`, once Slack is configured | Opens `SlackConnectionDrawer`. |
 | Trash | `canManageTerms`, coverage not trashed | Confirms, then `POST rolling-coverage/v1/coverages/<id>/trash`. The coverage's status becomes `trash`, and its entries are hidden on the site until it is restored. |
 | Restore | `canManageTerms`, coverage trashed | `POST rolling-coverage/v1/coverages/<id>/restore`. |
@@ -62,7 +62,7 @@ The options, their limits and what reads them are documented with the blocks: th
 
 ## A coverage's entries
 
-`EntryView` (`entry-view.tsx`) lists one coverage's entries. Its header holds the Slack channel button ("Connect Slack", or the connected channel's name), View Pages, and Add Entry. Add Entry creates a draft entry in the coverage through the core entries route and opens it in the block editor. On an ended coverage, Add Entry stays disabled, with a tooltip saying which status allows new entries; on a trashed coverage it is hidden.
+`EntryView` (`entry-view.tsx`) lists one coverage's entries. Its header holds the Slack channel button ("Connect Slack", or the connected channel's name), Placements, and Add Entry. Add Entry creates a draft entry in the coverage through the core entries route and opens it in the block editor. On an ended coverage, Add Entry stays disabled, with a tooltip saying which status allows new entries; on a trashed coverage it is hidden.
 
 ### Data and live sync
 
@@ -172,7 +172,7 @@ Until a source has them, its entries show the WordPress marker, yet "Source is W
 
 The server needs no change beyond the ingest path writing the slug to the meta. The entries endpoint's `source` and `source_exclude` filters accept any slug, with `wordpress` special-cased to include entries that have no meta.
 
-## Placements: View Pages
+## Placements
 
 A coverage's placements are every published place where the plugin's blocks show it. The coverage header and the All Coverages row actions use them to send editors to those places.
 
@@ -253,9 +253,9 @@ The older `pageUrl` field stays: the canonical URL, or else the newest post with
 
 ### The button
 
-A coverage with at least one placement gets a "View Pages" button in its header and a "View Pages" row action, however many places there are. Both open `PlacementsDrawer` (`src/admin/components/placements-drawer.tsx`), a Newspack `Drawer` listing every row as a description list. Each entry is a WP UI `Field.VisualLabel` over its value in a `Stack` with an 8px gap, as form fields lay out: the place's type over its title, with View beside the title, then "Blocks" over one block per line. The title links to the place's editor when the user can edit it, with an "Open in the editor" tooltip and an "Open … in the editor" accessible name; otherwise it is plain text. The main page's type reads "Page · Main" (screen readers hear "Page, Main page"), or "Main page" on the canonical URL's own row. Rows are a WP UI `Stack` with a 16px gap, separated by a Newspack `Divider`.
+A coverage with at least one placement gets a "Placements" button in its header and a "Placements" row action, however many places there are. Both open `PlacementsDrawer` (`src/admin/components/placements-drawer.tsx`), a Newspack `Drawer` listing every row as a description list. Each entry is a WP UI `Field.VisualLabel` over its value in a `Stack` with an 8px gap, as form fields lay out: the place's type over its title, with View beside the title, then "Blocks" over one block per line. The title links to the place's editor when the user can edit it, with an "Open in the editor" tooltip and an "Open … in the editor" accessible name; otherwise it is plain text. The main page's type reads "Page · Main" (screen readers hear "Page, Main page"), or "Main page" on the canonical URL's own row. Rows are a WP UI `Stack` with a 16px gap, separated by a Newspack `Divider`.
 
-The header button lives in `entry-view.tsx`; the row action (`view-pages`) in `src/admin/actions/coverage-actions.ts`.
+The header button lives in `entry-view.tsx`; the row action (`placements`) in `src/admin/actions/coverage-actions.ts`.
 
 Tests: `tests/test-placements.php`, plus the page lookup and its rebuild in `tests/test-taxonomy.php`.
 
