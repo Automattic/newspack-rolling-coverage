@@ -16,19 +16,24 @@ const BADGE_CLASSES: Record< string, string > = {
 };
 
 /**
- * Theme colors a badge background can name instead of a hex color, each with
- * the theme's text color made for it, matching
- * Coverage_Status_Block::THEME_COLORS.
+ * Theme colors a badge background can name instead of a hex color, keyed by
+ * the block theme's palette slug, each with the theme's text color and the
+ * palette slug of that pair, matching Coverage_Status_Block::THEME_COLORS.
  */
-const THEME_COLORS: Record< string, { background: string; text: string } > = {
+const THEME_COLORS: Record<
+	string,
+	{ background: string; pair: string; text: string }
+> = {
 	accent: {
 		background:
 			'var(--wp--preset--color--accent, var(--newspack-theme-color-primary, #003da5))',
+		pair: 'accent-contrast',
 		text: 'var(--wp--preset--color--accent-contrast, var(--wp--preset--color--base, var(--newspack-theme-color-against-primary, #fff)))',
 	},
 	base: {
 		background:
 			'var(--wp--preset--color--base, var(--newspack-theme-color-bg-body, #fff))',
+		pair: 'contrast',
 		text: 'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, #111))',
 	},
 };
@@ -63,10 +68,14 @@ function badgeClasses( status: string, showDot: boolean ): string {
  * The inline badge style for a custom background, matching
  * Coverage_Status_Block::badge_style().
  *
- * @param {string} color Background color: a THEME_COLORS name or a hex color.
+ * @param {string} color   Background color: a THEME_COLORS name or a hex color.
+ * @param {Object} presets The palette's current colors by slug: the THEME_COLORS names and their pairs.
  * @return {CSSProperties|undefined} Style object, or undefined when unset.
  */
-function badgeStyleObject( color?: string ): CSSProperties | undefined {
+function badgeStyleObject(
+	color?: string,
+	presets: Record< string, string > = {}
+): CSSProperties | undefined {
 	const theme = color ? THEME_COLORS[ color ] : undefined;
 	const background = theme?.background ?? normalizeColor( color ?? '' );
 
@@ -74,7 +83,17 @@ function badgeStyleObject( color?: string ): CSSProperties | undefined {
 		return undefined;
 	}
 
-	const text = theme?.text ?? textColor( background );
+	let text = theme?.text;
+
+	if ( theme ) {
+		const preset = normalizeColor( presets[ color ?? '' ] ?? '' );
+
+		if ( preset && ! presets[ theme.pair ] ) {
+			text = textColor( preset );
+		}
+	}
+
+	text ??= textColor( background );
 
 	return {
 		background,
