@@ -238,3 +238,28 @@ $quick-edit-footer-clearance: 72px;
 	transform: translateX(-50%);
 	z-index: wp-z.z-index(".components-snackbar-list");
 }
+
+.newspack-rolling-coverage-quick-edit__toolbar,
+.newspack-rolling-coverage-quick-edit__canvas,
+.newspack-rolling-coverage-quick-edit__footer {
+	opacity: 0;
+
+	.is-ready & {
+		opacity: 1;
+
+		@media not (prefers-reduced-motion) {
+			animation: newspack-rolling-coverage-quick-edit-fade-in 0.2s ease-out;
+		}
+	}
+}
+
+@keyframes newspack-rolling-coverage-quick-edit-fade-in {
+
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
+}

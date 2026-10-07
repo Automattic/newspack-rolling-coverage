@@ -1,6 +1,7 @@
 /**
  * External dependencies
  */
+import classnames from 'classnames';
 import {
 	useMemo,
 	useEffect,
@@ -11,7 +12,6 @@ import {
 import {
 	Modal,
 	Popover,
-	Spinner,
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalConfirmDialog as ConfirmDialog,
 } from '@wordpress/components';
@@ -41,6 +41,7 @@ import { __ } from '@wordpress/i18n';
  */
 import { useAdminContext } from '../hooks/useAdminContext';
 import { ensureEditorInitialized } from '../utils/block-registration';
+import { LoadingState } from '../shared/loading-state';
 import { quickEditPreferencesStore } from '../utils/quick-edit-preferences';
 import { QuickEditSaveBar } from './quick-edit-save-bar';
 import { QuickEditToolbar } from './quick-edit-toolbar';
@@ -214,12 +215,20 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 		<>
 			<Modal
 				{ ...modalProps }
+				className={ classnames( modalProps.className, {
+					'is-ready': isReady,
+				} ) }
 				onRequestClose={ handleRequestClose }
 				{ ...loadingModalProps }
 			>
 				{ ! isReady && (
 					<div className="newspack-rolling-coverage-quick-edit__loading">
-						<Spinner />
+						<LoadingState
+							label={ __(
+								'Fetching entry…',
+								'newspack-rolling-coverage'
+							) }
+						/>
 					</div>
 				) }
 				{ isRecordLoaded && (
