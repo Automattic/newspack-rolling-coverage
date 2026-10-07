@@ -27,8 +27,12 @@ import type { EditorSelectors } from '../types';
  *
  * Core's buttons can't be gated through props, because they set their own
  * `aria-disabled` and `onClick` after spreading them. These also leave out
- * the keyboard shortcut core shows in the tooltip, since nothing on this
- * page registers it.
+ * the keyboard shortcut core shows in the tooltip: WordPress 7.1 registers
+ * none on this page. Newer editors (`@wordpress/editor` 14.54 and later)
+ * register Ctrl/Cmd+Z from `EditorProvider`, bound to core's ungated undo,
+ * so the keyboard can still reach another entry's edits; opening an entry
+ * clears any it carries (see `handleQuickEdit` in `entry-view.tsx`), which
+ * keeps them out of a later Save.
  */
 function QuickEditHistory() {
 	const { hasUndo, hasRedo, isDirty } = useSelect( ( select ) => {
