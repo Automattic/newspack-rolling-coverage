@@ -9,8 +9,16 @@ import {
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalConfirmDialog as ConfirmDialog,
 } from '@wordpress/components';
-import { BlockCanvas, BlockList } from '@wordpress/block-editor';
-import { EditorProvider, PostTitle } from '@wordpress/editor';
+import {
+	BlockCanvas,
+	BlockList,
+	store as blockEditorStore,
+} from '@wordpress/block-editor';
+import {
+	EditorProvider,
+	PostTitle,
+	store as editorStore,
+} from '@wordpress/editor';
 import { useEntityRecord, store as coreStore } from '@wordpress/core-data';
 import {
 	createRegistry,
@@ -18,6 +26,7 @@ import {
 	useDispatch,
 	useRegistry,
 } from '@wordpress/data';
+import type { StoreDescriptor } from '@wordpress/data';
 import { SnackbarNotices, store as noticesStore } from '@wordpress/notices';
 import { store as preferencesStore } from '@wordpress/preferences';
 import { __ } from '@wordpress/i18n';
@@ -46,8 +55,8 @@ import type {
  * `localStorage` at once and the user's saved preferences a few seconds
  * later, pinning the toolbar in their real post editor. A child registry
  * with its own `core/preferences` instance shadows the page's; the editor's
- * preference reads resolve to it, while core-data, notices and the block
- * editor still fall through to the page. The trade-off: the user's saved
+ * preference reads resolve to it, while core-data and notices still fall
+ * through to the page. The trade-off: the user's saved
  * post-editor preferences (hidden block types, icon labels, focus mode,
  * caret behavior) do not apply inside Quick Edit, and the few editor
  * controls that write preferences (the link control's Advanced drawer, the
@@ -57,6 +66,12 @@ function useQuickEditRegistry() {
 	const parent = useRegistry();
 	const [ registry ] = useState( () => {
 		const child = createRegistry( {}, parent );
+		// `EditorProvider` re-creates both editor stores in its own
+		// sub-registry, which copies their private selectors and actions from
+		// this registry only, never from the page. Without these two here the
+		// editor throws on mount.
+		child.register( blockEditorStore as unknown as StoreDescriptor );
+		child.register( editorStore );
 		child.register( preferencesStore );
 		(
 			child.dispatch( preferencesStore ) as unknown as PreferencesActions
