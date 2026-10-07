@@ -185,6 +185,15 @@ $quick-edit-footer-clearance: 72px;
 	padding: wp-vars.$grid-unit-10;
 }
 
+// Core pulls a list view placed anywhere inside a modal up and out to meet the
+// modal's padding (`.components-modal__content .block-editor-list-view-tree`).
+// This one sits in a popover with padding of its own, where that pull clips
+// the first row, so it stays in place.
+.components-popover.newspack-rolling-coverage-quick-edit__list-view .block-editor-list-view-tree {
+	width: 100%;
+	margin: 0;
+}
+
 // newspack-components' Modal styles hide every popover's content while
 // `body.modal-open` is set and show it again only inside a `.newspack-drawer`
 // frame. This modal is not a drawer, so its popovers need the same release.
