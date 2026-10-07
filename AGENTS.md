@@ -9,7 +9,7 @@ A change that alters how something works updates its docs in the same pull reque
 - **Blocks** (`src/blocks/<block>/`) have two docs:
   - `README.md` is for publishers: what the block does and how to use it in the editor. Update it when a setting, option, label or visible behavior changes.
   - `DEVELOPMENT.md` is for developers: attributes, rendering, REST routes, and why the code is built the way it is. Update it when the structure or a contract changes.
-  - The inner blocks `share` and `breakout-post-link` have no docs of their own; they are covered in `src/blocks/rolling-coverage/DEVELOPMENT.md`.
+  - The inner blocks `share` and `breakout-post-link` have no docs of their own; they are covered under "Share and Read more" in `src/blocks/rolling-coverage/DEVELOPMENT.md`.
 - **Admin screens and the entry editor** (`src/admin/`, `src/entry-editor/`) share `src/admin/DEVELOPMENT.md`. Update the section for what you changed, or add one.
 - **PHP in `includes/`** updates the docs of the feature it serves: a block's docs for `includes/blocks/`, `src/admin/DEVELOPMENT.md` for everything else.
 - Describe the end state, not the history of the change. Rewrite or remove sentences the change makes untrue instead of appending to them.
@@ -40,7 +40,7 @@ npm run fix:js       # Auto-fix JS (also format:scss, fix:php)
 
 - CI runs `lint:js`, PHPCS and PHPUnit. It does not run `typecheck` or `lint:scss`, so those two only catch errors when you run them.
 - `npm run lint` runs Stylelint, ESLint, PHPCS and `typecheck` in that order and stops at the first failure. Run each one on its own to see every result.
-- PHP must stay compatible with PHP 7.2 (`phpcs.xml` sets `testVersion 7.2-`): no PHP 7.3+ syntax such as typed properties or arrow functions. PHPCS flags it.
+- PHP must stay compatible with PHP 7.2 (`phpcs.xml` sets `testVersion 7.2-`): no syntax newer than PHP 7.2, such as typed properties or arrow functions. PHPCS flags it.
 
 Tests:
 
