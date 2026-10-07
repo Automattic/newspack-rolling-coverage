@@ -147,12 +147,14 @@ function EntryDateField( {
 				) }
 			>
 				<Dropdown
+					className="newspack-rolling-coverage-entry-date"
 					popoverProps={ popoverProps }
 					focusOnMount
 					renderToggle={ ( { onToggle, isOpen } ) => (
 						<Button
 							__next40pxDefaultSize
 							id={ id }
+							className="newspack-rolling-coverage-entry-date__toggle"
 							variant="secondary"
 							onClick={ onToggle }
 							aria-expanded={ isOpen }
