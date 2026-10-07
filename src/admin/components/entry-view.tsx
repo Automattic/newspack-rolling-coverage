@@ -31,7 +31,7 @@ import { buildPageUrl, createEntry, toEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
-import { ChangeAuthorDrawer } from './change-author-drawer';
+import { EntryDetailsDrawer } from './entry-details-drawer';
 import { SlackConnectionDrawer } from './slack-connection-drawer';
 import { PlacementsDrawer } from './placements-drawer';
 import { getPlacementsLink } from '../utils/placements';
@@ -118,13 +118,11 @@ function EntryView() {
 		null
 	);
 
-	const [ changeAuthorItems, setChangeAuthorItems ] = useState< Entry[] >(
-		[]
-	);
-	const [ isChangeAuthorOpen, setIsChangeAuthorOpen ] = useState( false );
-	const handleChangeAuthor = useCallback( ( items: Entry[] ) => {
-		setChangeAuthorItems( items );
-		setIsChangeAuthorOpen( true );
+	const [ detailsItems, setDetailsItems ] = useState< Entry[] >( [] );
+	const [ isDetailsOpen, setIsDetailsOpen ] = useState( false );
+	const handleEditDetails = useCallback( ( items: Entry[] ) => {
+		setDetailsItems( items );
+		setIsDetailsOpen( true );
 	}, [] );
 
 	const handleActionPerformed = useCallback( () => {
@@ -340,14 +338,14 @@ function EntryView() {
 				handleQuickEdit,
 				requestConfirm,
 				handleActionPerformed,
-				handleChangeAuthor
+				handleEditDetails
 			),
 		[
 			config,
 			handleQuickEdit,
 			requestConfirm,
 			handleActionPerformed,
-			handleChangeAuthor,
+			handleEditDetails,
 		]
 	);
 
@@ -713,16 +711,12 @@ function EntryView() {
 					onSaved={ handleQuickEditSaved }
 				/>
 			) }
-			{ config.capabilities.canChangeAuthors && (
-				<ChangeAuthorDrawer
-					isOpen={ isChangeAuthorOpen }
-					items={ changeAuthorItems }
-					restNamespace={ config.restBaseUrls.restNamespace }
-					postType={ config.postType }
-					onClose={ () => setIsChangeAuthorOpen( false ) }
-					onChanged={ handleActionPerformed }
-				/>
-			) }
+			<EntryDetailsDrawer
+				isOpen={ isDetailsOpen }
+				items={ detailsItems }
+				onClose={ () => setIsDetailsOpen( false ) }
+				onChanged={ handleActionPerformed }
+			/>
 			<PlacementsDrawer
 				isOpen={ isPlacementsOpen }
 				coverage={ routeCoverage }
