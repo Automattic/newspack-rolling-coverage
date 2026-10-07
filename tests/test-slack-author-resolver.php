@@ -107,8 +107,22 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 		$by_username  = self::mapped_user( 'rsample' );
 		$by_full_name = self::mapped_user( 'Riley Sample' );
 
-		$this->assertSame( $by_full_name, self::resolve( self::slack_user( '', 'rsample', 'Riley Sample' ) ), 'The full name should win over the username.' );
-		$this->assertSame( $by_username, self::resolve( self::slack_user( '', 'rsample' ) ), 'The username should match when nothing else does.' );
+		$this->assertSame(
+			[
+				'user_id'    => $by_full_name,
+				'matched_by' => 'real_name',
+			],
+			Slack_Author_Resolver::resolve_author( self::MEMBER_ID, self::slack_user( '', 'rsample', 'Riley Sample' ) ),
+			'The full name should win over the username.'
+		);
+		$this->assertSame(
+			[
+				'user_id'    => $by_username,
+				'matched_by' => 'name',
+			],
+			Slack_Author_Resolver::resolve_author( self::MEMBER_ID, self::slack_user( '', 'rsample' ) ),
+			'The username should match when nothing else does.'
+		);
 	}
 
 	/**
@@ -273,6 +287,23 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 		$this->assertSame( '', get_user_meta( $user_id, Slack_Author_Resolver::META_SLACK_HANDLE, true ), 'The handle should not be saved.' );
 		$this->assertContains( 'rolling_coverage_slack_handle_taken', $errors->get_error_codes(), 'The profile should show an error.' );
 		$this->assertSame( 'Riley Sample', get_user_meta( $owner, Slack_Author_Resolver::META_SLACK_HANDLE, true ), 'The other user should keep the handle.' );
+	}
+
+	/**
+	 * A member ID another user has is refused, like a handle.
+	 */
+	public function test_profile_refuses_a_member_id_another_user_has() {
+		$owner   = self::mapped_user( self::MEMBER_ID );
+		$user_id = self::log_in_as( 'author' );
+
+		self::save_profile( $user_id, self::MEMBER_ID );
+
+		$errors = new WP_Error();
+		do_action_ref_array( 'user_profile_update_errors', [ &$errors, true, get_userdata( $user_id ) ] );
+
+		$this->assertSame( '', get_user_meta( $user_id, Slack_Author_Resolver::META_SLACK_HANDLE, true ), 'The member ID should not be saved.' );
+		$this->assertContains( 'rolling_coverage_slack_handle_taken', $errors->get_error_codes(), 'The profile should show an error.' );
+		$this->assertSame( self::MEMBER_ID, get_user_meta( $owner, Slack_Author_Resolver::META_SLACK_HANDLE, true ), 'The other user should keep the member ID.' );
 	}
 
 	/**

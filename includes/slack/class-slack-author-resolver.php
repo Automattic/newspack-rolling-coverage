@@ -181,7 +181,7 @@ class Slack_Author_Resolver {
 				<td>
 					<input type="text" name="<?php echo esc_attr( self::FIELD_SLACK_HANDLE ); ?>" id="<?php echo esc_attr( self::FIELD_SLACK_HANDLE ); ?>" value="<?php echo esc_attr( $handle ); ?>" class="regular-text" aria-describedby="<?php echo esc_attr( $description_id ); ?>" />
 					<div id="<?php echo esc_attr( $description_id ); ?>">
-						<p class="description"><?php esc_html_e( 'A Slack handle or member ID. Rolling coverage entries posted from Slack by that person are credited to this user. A member ID starts with U or W and includes digits, such as U012AB3CDE; anything else is read as a handle.', 'newspack-rolling-coverage' ); ?></p>
+						<p class="description"><?php esc_html_e( 'A Slack handle or member ID. Rolling coverage entries posted from Slack by that person are credited to this user. A member ID is uppercase, starts with U or W and includes digits, such as U012AB3CDE; anything else is read as a handle.', 'newspack-rolling-coverage' ); ?></p>
 						<p class="description"><?php esc_html_e( 'A member ID is the safer choice: it never changes, and nobody can match it by changing their name in Slack, as they can with a handle. To find a member ID in Slack, click the profile picture, choose Profile, then open the More (⋮) menu and choose Copy member ID.', 'newspack-rolling-coverage' ); ?></p>
 					</div>
 				</td>
@@ -193,7 +193,9 @@ class Slack_Author_Resolver {
 	/**
 	 * Save the Slack handle or member ID from the profile and user edit
 	 * screens. A value already mapped to another user who can be credited is
-	 * refused, so a Slack message never has two people it could go to.
+	 * refused, so a Slack message has one person it could go to. A user who
+	 * later regains `edit_posts` can bring back a value someone else has
+	 * since saved; the lower user ID is then credited.
 	 *
 	 * @param int $user_id ID of the user being saved.
 	 */
@@ -202,11 +204,12 @@ class Slack_Author_Resolver {
 			return;
 		}
 
-		check_admin_referer( 'update-user_' . $user_id );
-
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Only checks the field was submitted; the nonce is verified next.
 		if ( ! isset( $_POST[ self::FIELD_SLACK_HANDLE ] ) ) {
 			return;
 		}
+
+		check_admin_referer( 'update-user_' . $user_id );
 
 		$handle = self::normalize_handle( sanitize_text_field( wp_unslash( $_POST[ self::FIELD_SLACK_HANDLE ] ) ) );
 
