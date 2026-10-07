@@ -329,7 +329,7 @@ export function flashInnerTemplate(): TemplateItem[] {
 
 /**
  * The Alert layout's inner-blocks template: a box on the pinned entry's
- * light gray holding the coverage's status, its name on one line, cut short
+ * background holding the coverage's status, its name on one line, cut short
  * to fit, and a link to the coverage page, side by side at every width. It
  * shows no entries. The Live badge takes the site's accent color (Accent on
  * the Newspack Block Theme, Primary on the classic Newspack Theme) as it is
