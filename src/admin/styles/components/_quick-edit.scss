@@ -4,7 +4,7 @@
 @use "~@wordpress/base-styles/variables" as wp-vars;
 @use "~@wordpress/base-styles/z-index" as wp-z;
 
-$quick-edit-toolbar-height: 60px;
+$quick-edit-toolbar-height: wp-vars.$block-toolbar-height + wp-vars.$border-width;
 $quick-edit-inspector-width: 280px;
 $quick-edit-list-view-width: 350px;
 $quick-edit-footer-clearance: 72px;
@@ -132,15 +132,12 @@ $quick-edit-footer-clearance: 72px;
 // below 782px) would hide its last controls. The `block-toolbar` popover slot
 // sits outside the wrapper because `is-collapsed` hides the wrapper outright,
 // and an open format or resize popover rendered inside would vanish
-// with it (see quick-edit-block-toolbar.tsx). Core's toolbar keeps its
-// natural height and the row centers it. Stretched to the row's height, its
-// groups grow but their buttons stay at the top, so the icons sit above the
-// rest of the row; and its wrapper's bottom shadow, which the row's border
-// hid at full height, would show mid-row.
+// with it (see quick-edit-block-toolbar.tsx).
 .newspack-rolling-coverage-quick-edit__block-toolbar {
 	display: flex;
 	flex: 1 0 auto;
 	align-items: center;
+	align-self: stretch;
 	padding-inline-start: wp-vars.$grid-unit-10;
 	border-inline-start: wp-vars.$border-width solid wp-colors.$gray-300;
 
@@ -148,12 +145,22 @@ $quick-edit-footer-clearance: 72px;
 		display: none;
 	}
 
-	.block-editor-block-contextual-toolbar {
+	.block-editor-block-contextual-toolbar.is-unstyled {
 		box-shadow: none;
 	}
 
 	.block-editor-block-toolbar {
 		border: 0;
+	}
+
+	.block-editor-block-contextual-toolbar .block-editor-block-toolbar {
+		overflow: visible;
+	}
+
+	.block-editor-block-toolbar .components-toolbar-group,
+	.block-editor-block-toolbar .components-toolbar,
+	.block-editor-block-parent-selector {
+		margin-block: 0;
 	}
 }
 
@@ -228,6 +235,10 @@ $quick-edit-footer-clearance: 72px;
 	@media (min-width: wp-breakpoints.$break-small) {
 		min-height: 0;
 	}
+
+	iframe[name="editor-canvas"] {
+		background-color: transparent;
+	}
 }
 
 .newspack-rolling-coverage-quick-edit__footer {
@@ -246,4 +257,29 @@ $quick-edit-footer-clearance: 72px;
 	width: auto;
 	transform: translateX(-50%);
 	z-index: wp-z.z-index(".components-snackbar-list");
+}
+
+.newspack-rolling-coverage-quick-edit__toolbar,
+.newspack-rolling-coverage-quick-edit__canvas,
+.newspack-rolling-coverage-quick-edit__footer {
+	opacity: 0;
+
+	.newspack-rolling-coverage-quick-edit.is-ready & {
+		opacity: 1;
+
+		@media not (prefers-reduced-motion) {
+			animation: newspack-rolling-coverage-quick-edit-fade-in 0.2s ease-out;
+		}
+	}
+}
+
+@keyframes newspack-rolling-coverage-quick-edit-fade-in {
+
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
 }
