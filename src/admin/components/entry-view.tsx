@@ -32,10 +32,9 @@ import { buildPageUrl, createEntry, toEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
-import { ChangeAuthorDrawer } from './change-author-drawer';
+import { EntryDetailsDrawer } from './entry-details-drawer';
 import { SlackConnectionDrawer } from './slack-connection-drawer';
 import { PlacementsDrawer } from './placements-drawer';
-import { getPlacementsLink } from '../utils/placements';
 import { useConfirmDialog } from './confirm-dialog';
 import { getEntryActions } from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
@@ -119,13 +118,11 @@ function EntryView() {
 		null
 	);
 
-	const [ changeAuthorItems, setChangeAuthorItems ] = useState< Entry[] >(
-		[]
-	);
-	const [ isChangeAuthorOpen, setIsChangeAuthorOpen ] = useState( false );
-	const handleChangeAuthor = useCallback( ( items: Entry[] ) => {
-		setChangeAuthorItems( items );
-		setIsChangeAuthorOpen( true );
+	const [ detailsItems, setDetailsItems ] = useState< Entry[] >( [] );
+	const [ isDetailsOpen, setIsDetailsOpen ] = useState( false );
+	const handleEditDetails = useCallback( ( items: Entry[] ) => {
+		setDetailsItems( items );
+		setIsDetailsOpen( true );
 	}, [] );
 
 	const handleActionPerformed = useCallback( () => {
@@ -359,14 +356,14 @@ function EntryView() {
 				handleQuickEdit,
 				requestConfirm,
 				handleActionPerformed,
-				handleChangeAuthor
+				handleEditDetails
 			),
 		[
 			config,
 			handleQuickEdit,
 			requestConfirm,
 			handleActionPerformed,
-			handleChangeAuthor,
+			handleEditDetails,
 		]
 	);
 
@@ -535,10 +532,8 @@ function EntryView() {
 		[ canShowSlack, slackChannelLabel, routeCoverage, isRefreshingSlack ]
 	);
 
-	const placementsLink = getPlacementsLink( routeCoverage );
-	const placementsKind = placementsLink.kind;
-	const pageUrl = placementsLink.kind === 'link' ? placementsLink.url : '';
-	const showViewPage = ! isFirstLoad && placementsKind !== 'none';
+	const showPlacements =
+		! isFirstLoad && ( routeCoverage?.placements ?? [] ).length > 0;
 	const [ isPlacementsOpen, setIsPlacementsOpen ] = useState( false );
 
 	const addEntryButton = useMemo(
@@ -576,51 +571,32 @@ function EntryView() {
 		[ isArchived, handleNewEntry, isCreatingEntry, statusLabels ]
 	);
 
-	const viewPageButton = useMemo(
-		() =>
-			placementsKind === 'link' ? (
-				<Button
-					variant="secondary"
-					href={ pageUrl }
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					{ __( 'View Page', 'newspack-rolling-coverage' ) }
-					<VisuallyHidden>
-						{
-							/* translators: Accessibility text. */
-							__(
-								'(opens in a new tab)',
-								'newspack-rolling-coverage'
-							)
-						}
-					</VisuallyHidden>
-				</Button>
-			) : (
-				<Button
-					variant="secondary"
-					onClick={ () => setIsPlacementsOpen( true ) }
-				>
-					{ __( 'View Pages', 'newspack-rolling-coverage' ) }
-				</Button>
-			),
-		[ placementsKind, pageUrl ]
+	const placementsButton = useMemo(
+		() => (
+			<Button
+				variant="secondary"
+				onClick={ () => setIsPlacementsOpen( true ) }
+			>
+				{ __( 'Placements', 'newspack-rolling-coverage' ) }
+			</Button>
+		),
+		[]
 	);
 
 	const headerActions = useMemo(
 		() =>
-			showNewEntry || showSlackInHeader || showViewPage ? (
+			showNewEntry || showSlackInHeader || showPlacements ? (
 				<>
 					{ showSlackInHeader && slackButton }
-					{ showViewPage && viewPageButton }
+					{ showPlacements && placementsButton }
 					{ showNewEntry && addEntryButton }
 				</>
 			) : null,
 		[
 			showNewEntry,
 			showSlackInHeader,
-			showViewPage,
-			viewPageButton,
+			showPlacements,
+			placementsButton,
 			slackButton,
 			addEntryButton,
 		]
@@ -732,16 +708,12 @@ function EntryView() {
 					onSaved={ handleQuickEditSaved }
 				/>
 			) }
-			{ config.capabilities.canChangeAuthors && (
-				<ChangeAuthorDrawer
-					isOpen={ isChangeAuthorOpen }
-					items={ changeAuthorItems }
-					restNamespace={ config.restBaseUrls.restNamespace }
-					postType={ config.postType }
-					onClose={ () => setIsChangeAuthorOpen( false ) }
-					onChanged={ handleActionPerformed }
-				/>
-			) }
+			<EntryDetailsDrawer
+				isOpen={ isDetailsOpen }
+				items={ detailsItems }
+				onClose={ () => setIsDetailsOpen( false ) }
+				onChanged={ handleActionPerformed }
+			/>
 			<PlacementsDrawer
 				isOpen={ isPlacementsOpen }
 				coverage={ routeCoverage }

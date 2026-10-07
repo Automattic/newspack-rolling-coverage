@@ -14,11 +14,21 @@ use Newspack_Rolling_Coverage\AI_Settings;
 class Test_AI_Settings extends Rolling_Coverage_TestCase {
 
 	/**
-	 * Act as an editor, who can manage AI settings.
+	 * Act as an administrator, the only role that can manage AI settings.
 	 */
 	public function set_up() {
 		parent::set_up();
-		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'administrator' ] ) );
+	}
+
+	/**
+	 * Dispatch a request to the settings route.
+	 *
+	 * @param string $method HTTP method.
+	 * @return WP_REST_Response
+	 */
+	private static function request_settings( $method ) {
+		return rest_get_server()->dispatch( new WP_REST_Request( $method, '/' . NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . AI_Settings::REST_ROUTE ) );
 	}
 
 	/**
@@ -46,5 +56,26 @@ class Test_AI_Settings extends Rolling_Coverage_TestCase {
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertFalse( get_option( AI_Settings::OPTION_KEY ), 'The option should be deleted once every prompt is back to its default.' );
 		$this->assertSame( $defaults, $response->get_data() );
+	}
+
+	/**
+	 * Editors can neither read nor change the settings.
+	 */
+	public function test_editors_are_forbidden() {
+		wp_set_current_user( self::factory()->user->create( [ 'role' => 'editor' ] ) );
+
+		$this->assertSame( 403, self::request_settings( 'GET' )->get_status() );
+		$this->assertSame( 403, self::save_prompt( 'List up to {max_takeaways} takeaways.' )->get_status() );
+		$this->assertFalse( get_option( AI_Settings::OPTION_KEY ), 'A forbidden save should not store anything.' );
+	}
+
+	/**
+	 * Administrators can read the settings.
+	 */
+	public function test_administrators_can_read_settings() {
+		$response = self::request_settings( 'GET' );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( AI_Settings::get_defaults(), $response->get_data() );
 	}
 }

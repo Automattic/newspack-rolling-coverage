@@ -104,7 +104,7 @@ class Admin {
 			self::MENU_SLUG,
 			__( 'AI', 'newspack-rolling-coverage' ),
 			__( 'AI', 'newspack-rolling-coverage' ),
-			'edit_others_posts',
+			'manage_options',
 			self::AI_MENU_SLUG,
 			[ __CLASS__, 'render_page' ]
 		);
@@ -432,9 +432,12 @@ class Admin {
 				'canEditPosts'        => current_user_can( 'edit_posts' ),
 				'canEditEntries'      => current_user_can( Post_Type::EDIT_ENTRIES_CAP ),
 				'canChangeAuthors'    => Post_Type::can_change_authors(),
+				'canAssignCategories' => Post_Type::can_assign_terms( 'category' ),
+				'canCreateCategories' => Post_Type::can_create_terms( 'category' ),
+				'canAssignTags'       => Post_Type::can_assign_terms( 'post_tag' ),
+				'canCreateTags'       => Post_Type::can_create_terms( 'post_tag' ),
 				'canManageTerms'      => current_user_can( 'manage_categories' ),
 				'canManageOptions'    => current_user_can( 'manage_options' ),
-				'canManageAiSettings' => current_user_can( 'edit_others_posts' ),
 				'canManageSettings'   => Status_Labels::can_manage(),
 			),
 			'adminUrls'            => array(
@@ -446,7 +449,6 @@ class Admin {
 				'connectorApprovals' => AI_Service::get_connector_approvals_url(),
 			),
 			'postType'             => Post_Type::CPT_SLUG,
-			'hasCoauthors'         => null !== Post_Type::coauthors_plus(),
 			'taxonomy'             => Taxonomy::TAXONOMY_SLUG,
 			'taxMeta'              => array(
 				'statusKey'       => Taxonomy::STATUS_META_KEY,
@@ -464,7 +466,7 @@ class Admin {
 				'slack' => __( 'Slack', 'newspack-rolling-coverage' ),
 			),
 			'blockEditorSettings'  => $block_editor_settings,
-			'aiSettings'           => AI_Settings::get_all(),
+			'aiSettings'           => AI_Settings::can_manage_settings() ? AI_Settings::get_all() : null,
 			'aiDefaultSettings'    => AI_Settings::get_defaults(),
 			'aiAvailable'          => AI_Service::is_available(),
 			'aiNeedsApproval'      => AI_Service::needs_connector_approval(),

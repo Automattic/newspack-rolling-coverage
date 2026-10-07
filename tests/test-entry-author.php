@@ -6,7 +6,7 @@
  */
 
 /**
- * The entries list's Change Author action credits one person with every
+ * The entries list's Reassign drawer can credit one person with every
  * selected entry. It is an editor's job, checked per entry, and keeps
  * Co-Authors Plus in step so the byline and the list agree.
  */
@@ -50,7 +50,7 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 
 		$response = self::dispatch(
 			'POST',
-			'/entries/author',
+			'/entries/details',
 			[
 				'entry_ids' => $entry_ids,
 				'author_id' => $new_author,
@@ -76,7 +76,7 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 
 		$response = self::dispatch(
 			'POST',
-			'/entries/author',
+			'/entries/details',
 			[
 				'entry_ids' => [ $entry_id ],
 				'author_id' => $other_id,
@@ -98,7 +98,7 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 
 		$response = self::dispatch(
 			'POST',
-			'/entries/author',
+			'/entries/details',
 			[
 				'entry_ids' => [ $entry_id ],
 				'author_id' => $subscriber,
@@ -139,7 +139,7 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 
 		$results = self::dispatch(
 			'POST',
-			'/entries/author',
+			'/entries/details',
 			[
 				'entry_ids' => [ $entry_id, $trashed_id, $post_id ],
 				'author_id' => $new_author,
@@ -160,15 +160,19 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Stand in for Co-Authors Plus, recording what it's asked to do.
+	 * Stand in for Co-Authors Plus, recording what it's asked to do. Like the
+	 * real plugin, add_coauthors() writes `post_author` for the co-author it
+	 * finds by nicename, so a wrong lookup would show on the entry.
 	 *
-	 * @param bool $enabled  Whether it's on for entries.
-	 * @param bool $can_set  Whether the current user may set bylines.
-	 * @param bool $sets     What add_coauthors() returns.
+	 * @param bool        $enabled      Whether it's on for entries.
+	 * @param bool        $can_set      Whether the current user may set bylines.
+	 * @param bool        $sets         What add_coauthors() returns.
+	 * @param string|null $guest_holder Nicename a guest author holds, so it is found instead of the user.
+	 * @param bool        $guest_linked Whether that guest author is linked to the user with the nicename.
 	 * @return object The stand-in, also set as the global.
 	 */
-	private static function fake_coauthors_plus( $enabled = true, $can_set = true, $sets = true ) {
-		$GLOBALS['coauthors_plus'] = new class( $enabled, $can_set, $sets ) {
+	private static function fake_coauthors_plus( $enabled = true, $can_set = true, $sets = true, $guest_holder = null, $guest_linked = false ) {
+		$GLOBALS['coauthors_plus'] = new class( $enabled, $can_set, $sets, $guest_holder, $guest_linked ) {
 			/**
 			 * Calls to add_coauthors(), with the entry's author at the time.
 			 *
@@ -179,11 +183,39 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 			/**
 			 * Set up the answers.
 			 *
-			 * @param bool $enabled Whether it's on for entries.
-			 * @param bool $can_set Whether the current user may set bylines.
-			 * @param bool $sets    What add_coauthors() returns.
+			 * @param bool        $enabled      Whether it's on for entries.
+			 * @param bool        $can_set      Whether the current user may set bylines.
+			 * @param bool        $sets         What add_coauthors() returns.
+			 * @param string|null $guest_holder Nicename a guest author holds.
+			 * @param bool        $guest_linked Whether that guest author is linked to the user.
 			 */
-			public function __construct( private bool $enabled, private bool $can_set, private bool $sets ) {}
+			public function __construct( private bool $enabled, private bool $can_set, private bool $sets, private ?string $guest_holder, private bool $guest_linked ) {}
+
+			/**
+			 * Finds a co-author by nicename: the guest author holding it, if
+			 * any, otherwise the user.
+			 *
+			 * @param string $key   Field to search by.
+			 * @param string $value Value to search for.
+			 * @return object|false
+			 */
+			public function get_coauthor_by( $key, $value ) {
+				if ( $value === $this->guest_holder ) {
+					$guest_author = (object) [
+						'ID'            => 999999,
+						'user_nicename' => $value,
+						'type'          => 'guest-author',
+					];
+
+					if ( $this->guest_linked ) {
+						$guest_author->wp_user = get_user_by( 'slug', $value );
+					}
+
+					return $guest_author;
+				}
+
+				return get_user_by( 'slug', $value );
+			}
 
 			/**
 			 * Whether Co-Authors Plus is on for a post type.
@@ -211,8 +243,20 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 			 * @return bool
 			 */
 			public function add_coauthors( $post_id, $coauthors ) {
+				global $wpdb;
+
 				$this->calls[] = [ $post_id, $coauthors, (int) get_post_field( 'post_author', $post_id ) ];
-				return $this->sets;
+
+				if ( ! $this->sets ) {
+					return false;
+				}
+
+				$coauthor  = $this->get_coauthor_by( 'user_nicename', $coauthors[0] );
+				$author_id = isset( $coauthor->wp_user ) ? $coauthor->wp_user->ID : $coauthor->ID;
+				$wpdb->update( $wpdb->posts, [ 'post_author' => (int) $author_id ], [ 'ID' => $post_id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				clean_post_cache( $post_id );
+
+				return true;
 			}
 		};
 
@@ -229,7 +273,7 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 	private static function change_author( $entry_id, $author_id ) {
 		return self::dispatch(
 			'POST',
-			'/entries/author',
+			'/entries/details',
 			[
 				'entry_ids' => [ $entry_id ],
 				'author_id' => $author_id,
@@ -355,5 +399,63 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( '<iframe', $content, 'The administrator should be able to post the iframe.' );
 		$this->assertSame( $new_author, (int) get_post_field( 'post_author', $entry_id ), 'The entry should have the new author.' );
 		$this->assertSame( $content, get_post_field( 'post_content', $entry_id ), 'The content should be kept as stored.' );
+	}
+
+	/**
+	 * When the new author's nicename leads Co-Authors Plus to a guest author
+	 * instead, nothing is written, so the entry is never credited to the
+	 * guest author.
+	 */
+	public function test_refuses_a_nicename_that_leads_to_a_guest_author() {
+		$old_author     = self::factory()->user->create( [ 'role' => 'author' ] );
+		$new_author     = self::factory()->user->create( [ 'role' => 'author' ] );
+		$entry_id       = self::create_entry( self::create_coverage(), [ 'post_author' => $old_author ] );
+		$coauthors_plus = self::fake_coauthors_plus( true, true, true, get_userdata( $new_author )->user_nicename );
+
+		$results = self::change_author( $entry_id, $new_author )->get_data()['results'];
+
+		$this->assertFalse( $results[0]['updated'], 'The entry should be reported as failed.' );
+		$this->assertSame( [], $coauthors_plus->calls, 'Co-Authors Plus should not be asked to set co-authors.' );
+		$this->assertSame( $old_author, (int) get_post_field( 'post_author', $entry_id ), 'The entry should keep its author.' );
+	}
+
+	/**
+	 * A guest author linked to the new author's account leads back to that
+	 * user, so the entry is credited as asked.
+	 */
+	public function test_accepts_a_guest_author_linked_to_the_user() {
+		$old_author     = self::factory()->user->create( [ 'role' => 'author' ] );
+		$new_author     = self::factory()->user->create( [ 'role' => 'author' ] );
+		$entry_id       = self::create_entry( self::create_coverage(), [ 'post_author' => $old_author ] );
+		$coauthors_plus = self::fake_coauthors_plus( true, true, true, get_userdata( $new_author )->user_nicename, true );
+
+		$results = self::change_author( $entry_id, $new_author )->get_data()['results'];
+
+		$this->assertTrue( $results[0]['updated'], 'The entry should be reported as updated.' );
+		$this->assertCount( 1, $coauthors_plus->calls, 'Co-Authors Plus should be asked to set the co-author.' );
+		$this->assertSame( $new_author, (int) get_post_field( 'post_author', $entry_id ), 'The entry should have the new author.' );
+	}
+
+	/**
+	 * A term created for the request is deleted again when every entry fails
+	 * to save, so it doesn't linger unused.
+	 */
+	public function test_deletes_a_created_term_when_every_entry_fails() {
+		$new_author = self::factory()->user->create( [ 'role' => 'author' ] );
+		$entry_id   = self::create_entry( self::create_coverage() );
+		self::fake_coauthors_plus( true, true, false );
+
+		$results = self::dispatch(
+			'POST',
+			'/entries/details',
+			[
+				'entry_ids' => [ $entry_id ],
+				'author_id' => $new_author,
+				'tags'      => [ 'names' => [ 'Recount' ] ],
+			]
+		)->get_data()['results'];
+
+		$this->assertFalse( $results[0]['updated'], 'The entry should be reported as failed.' );
+		$this->assertFalse( get_term_by( 'name', 'Recount', 'post_tag' ), 'The tag created for the request should be deleted.' );
 	}
 }

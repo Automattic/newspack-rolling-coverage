@@ -86,7 +86,7 @@ Notice appears only when When ended is set to Show. Notice text and Link appear 
 
 ### AI
 
-Appears when AI is set up on the site. Generate Key Takeaways writes a summary of the coverage's entries into Generated Output. Copy copies it. Editors and administrators set the prompts under Rolling Coverage > AI.
+Appears when AI is set up on the site. Generate Key Takeaways writes a summary of the coverage's entries into Generated Output. Copy copies it. Administrators set the prompts under Rolling Coverage > AI.
 
 ### Ads
 
@@ -109,6 +109,7 @@ The page checks for new entries every poll interval. It stops while the tab is i
 
 - If the reader is at the top, new entries appear at once.
 - If the reader has scrolled down, the page does not move. A button shows the count (for example "3 New Entries"). Selecting it brings the new entries in. Edited entries update in place.
+- An entry that is unpublished, for example moved to draft or trashed, disappears from the page.
 - To have the page check only when readers ask, add a [Check for Updates](../check-updates/README.md) block to the layout. The page then makes no background checks, which suits readers on slow or metered connections.
 - Older entries load as the reader scrolls to the end, or with the Load More button, depending on Older entries. The button takes the theme's button style. If a load fails, the button stays so the reader can try again.
 - A paused or ended coverage does not check for new entries on its own. With a Check for Updates block, readers can still check a paused coverage.
@@ -144,6 +145,12 @@ Entries posted from Slack follow the same rules:
 - Several images become a gallery. Posted without text, the entry reads "Gallery: " followed by the first description among its images, or only "Gallery" when none has one.
 
 To give readers more than "Photo" or "Gallery", add a description to the image in Slack before you post it, or write a line of text with the images.
+
+### Lite Site pages
+
+On sites with the Lite Site plugin, a feed keeps updating on the text-only copy of the page too: new entries arrive, and older ones load, as the block is set. Each entry shows as text, with its time, a "Pinned" label when it's pinned, its title and its content, whatever the layout shows on the full page. Ads, Share, and Follow Coverage don't appear there. The coverage name, the Coverage Status badge (without "Updated … ago"), and the link to the coverage page still show.
+
+This needs a Lite Site release after 0.1.0. With 0.1.0 or older, the lite page shows the entries as they were when the page was saved for Lite Site: new entries don't arrive, and older ones don't load.
 
 ### Live blog markup
 

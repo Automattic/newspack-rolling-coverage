@@ -37,6 +37,14 @@ declare module '@wordpress/block-editor' {
 		onClose?: () => void;
 	} >;
 
+	export const __experimentalPublishDateTimePicker: ComponentType< {
+		title?: string;
+		currentDate?: string | null;
+		onChange?: ( date: string | null ) => void;
+		onClose?: () => void;
+		is12Hour?: boolean;
+	} >;
+
 	export const BlockList: ComponentType< {
 		className?: string;
 		layout?: Record< string, unknown >;

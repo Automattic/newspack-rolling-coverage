@@ -23,8 +23,9 @@ import type {
 	AdminConfig,
 	BulkRestoreResult,
 	BulkRestoreEntryResult,
-	ChangeAuthorEntryResult,
-	ChangeAuthorResult,
+	EntryDetailsChanges,
+	EntryDetailsEntryResult,
+	EntryDetailsResult,
 } from '../types';
 
 const SYNC_INTERVAL_MS = 10000;
@@ -76,7 +77,7 @@ function toEntry( row: EntryViewRow ): Entry {
 		date_gmt: row.date,
 		modified: row.modified,
 		modified_gmt: row.modified,
-		slug: '',
+		slug: row.slug,
 		status: row.status,
 		type: 'rolling_cov_entry',
 		link: '',
@@ -404,25 +405,27 @@ async function bulkRestoreEntries(
 }
 
 /**
- * Makes one user the author of several entries in a single request.
+ * Reassigns entries in a single request: their author, categories or
+ * tags, and for a single entry its slug or date. Only the details in
+ * `changes` are saved.
  *
- * @param {string}   restNamespace - REST namespace URL.
- * @param {number[]} entryIds      - Entry post IDs.
- * @param {number}   authorId      - The new author's user ID.
- * @return {Promise<ChangeAuthorResult>} Result with per-entry outcomes or error.
+ * @param {string}              restNamespace - REST namespace URL.
+ * @param {number[]}            entryIds      - Entry post IDs.
+ * @param {EntryDetailsChanges} changes       - The details to save.
+ * @return {Promise<EntryDetailsResult>} Result with per-entry outcomes or error.
  */
-async function changeEntriesAuthor(
+async function editEntriesDetails(
 	restNamespace: string,
 	entryIds: number[],
-	authorId: number
-): Promise< ChangeAuthorResult > {
+	changes: EntryDetailsChanges
+): Promise< EntryDetailsResult > {
 	try {
 		const response = await apiFetch< {
-			results: ChangeAuthorEntryResult[];
+			results: EntryDetailsEntryResult[];
 		} >( {
-			url: `${ restNamespace }entries/author`,
+			url: `${ restNamespace }entries/details`,
 			method: 'POST',
-			data: { entry_ids: entryIds, author_id: authorId },
+			data: { entry_ids: entryIds, ...changes },
 		} );
 
 		return { success: true, results: response.results };
@@ -682,7 +685,7 @@ export {
 	createEntry,
 	togglePinEntry,
 	bulkRestoreEntries,
-	changeEntriesAuthor,
+	editEntriesDetails,
 	hasBreakout,
 	hasTrashedBreakout,
 	isEntryArchived,

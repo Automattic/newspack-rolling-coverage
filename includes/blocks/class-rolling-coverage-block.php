@@ -361,7 +361,7 @@ class Rolling_Coverage_Block {
 	 * @param array $settings Block attributes or stored block config.
 	 * @return int
 	 */
-	private static function latest_count( array $settings ): int {
+	public static function latest_count( array $settings ): int {
 		if ( empty( $settings['latestOnly'] ) ) {
 			return 0;
 		}

@@ -421,7 +421,7 @@ class Layout {
 	 * @param string $slug Built-in layout slug.
 	 * @return string
 	 */
-	private static function get_title( string $slug ): string {
+	public static function get_title( string $slug ): string {
 		return match ( $slug ) {
 			'default' => _x( 'Bulletin', 'layout name', 'newspack-rolling-coverage' ),
 			'stream'  => _x( 'Stream', 'layout name', 'newspack-rolling-coverage' ),
