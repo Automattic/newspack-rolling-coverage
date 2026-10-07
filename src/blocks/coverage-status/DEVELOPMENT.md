@@ -69,6 +69,8 @@ The "Updated" time reads `Newest_Entry::get()` and `get_iso()` (`includes/class-
 
 The "Updated" text renders hidden unless the coverage is live and has an entry, so the view script only has to show it and fill in the time.
 
+On a Lite Site page (`Lite_Feed::is_lite_render()`), `render_block()` leaves the "Updated" text out: Lite Site strips the markup that hides it and never runs the script that keeps it current. The badge is a snapshot, like the rest of the page. See "Lite Site pages" in `src/blocks/rolling-coverage/DEVELOPMENT.md`.
+
 ## Hide when ended
 
 With `hideWhenEnded`, `render_block()` returns nothing for an archived coverage, and `view.ts` removes the block when a poll reports `archived`.
