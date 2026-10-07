@@ -35,7 +35,7 @@ All settings are in the Settings panel.
 | When ended | Show, Hide | Hide removes the block from the site once the coverage ends. The editor shows a notice when this applies. Show is the default. |
 | Dot | Show, Hide | Turns the dot on the Live badge on or off. Paused and Ended badges have no dot. Show is the default. |
 
-Site-wide labels are set in Rolling Coverage > All Coverages, under the Settings button. Each label can be up to 40 characters. A label set on a block overrides the site-wide one.
+Editors and administrators set the site-wide labels in Rolling Coverage > All Coverages: select Settings, then Coverage Status. Each label can be up to 40 characters. A label set on a block overrides the site-wide one.
 
 ## Styling
 

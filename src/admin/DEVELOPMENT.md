@@ -120,6 +120,8 @@ It sends `POST rolling-coverage/v1/entries/author` with `entry_ids` (1 to 100) a
 
 It answers 200 with `{ results: [ { entryId, updated, error } ] }`, whether or not some entries failed. The drawer shows one snackbar for the entries that changed and another for those that didn't, invalidates core-data's cached records of the changed entries so Quick Edit shows the new author, and refreshes the list.
 
+Tests: `tests/test-entry-author.php`. The entries-view route is covered by `tests/test-entries-view.php`, restoring entries by `tests/test-entry-restore.php`, and Archive Mode's locks by `tests/test-archive-mode.php`.
+
 ## Quick Edit
 
 `QuickEditModal` (`quick-edit-modal.tsx`) edits one entry in a full-screen modal without leaving the list. It holds a block editor (`EditorProvider` with `BlockCanvas`, the post title and the block list) and the block inspector in a sidebar, which the header's Settings button toggles. There are no document settings, so status, date, author and coverage are changed elsewhere. The header's Cancel and Save (`quick-edit-save-bar.tsx`) close the modal and call the editor's `savePost()`.
@@ -249,6 +251,8 @@ Entries are managed in the coverages screen, not in core's entries list, which s
 
 - The back button. Core hardcodes its link to `edit.php?post_type=rolling_cov_entry` and shows it only when nothing else fills the slot. `src/entry-editor/back-to-coverage.tsx` fills it with `__experimentalMainDashboardButton` from `@wordpress/edit-post`, the one API for replacing it. It links to `#/coverages/<id>` for the entry's first coverage as currently edited (the first ID in the taxonomy's REST attribute), or `#/coverages` when it has none. Its label, read by screen readers and shown as a tooltip, is "Back to Coverage", or "Back to All Coverages" when the entry has no coverage. It renders only where core's own button does: fullscreen mode at a medium viewport or wider. `coveragesUrl` already ends in `#/coverages`, so the entry's route is that URL plus `/<id>`; `Admin::get_coverages_url()` builds the same URLs server side, so change both together. The two editor registrations (back button, Push Notifications panel) are separate plugins so one failing can't unmount the other.
 - The redirect after trashing. Core sends the editor to `edit.php?trashed=1&post_type=…&ids=<id>`. `Admin::redirect_entry_list()` (on `load-edit.php`) sends any plain GET for the entries list to the screen above, using `ids` to find the trashed entry's coverage. Requests carrying an `action` are left alone. After a trash it adds `rolling_coverage_trashed=1` to the page URL (not `trashed`, which core strips from admin URLs before the script runs); the admin app (`announceTrashedEntry()`) shows the "Entry trashed." snackbar for it and removes the arg with `history.replaceState`. There is no Undo: restoring would need the already-loaded list to refresh.
+
+Tests: `tests/test-entry-editor-navigation.php`.
 
 `Admin::enqueue_entry_editor()` loads the `entry-editor` bundle on the entry editor and passes it `window.newspackRollingCoverageEntryEditor` (the coverages URL, the taxonomy's REST base, and whether the Push Notifications panel applies).
 
