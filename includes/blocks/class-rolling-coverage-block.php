@@ -1276,7 +1276,7 @@ class Rolling_Coverage_Block {
 			$has_more = $page['has_more'];
 		}
 
-		$older_entries = self::older_entries( $attributes );
+		$older_entries = $template ? self::older_entries( $attributes ) : 'none';
 
 		if ( 'none' === $older_entries ) {
 			$has_more = false;
@@ -1289,7 +1289,7 @@ class Rolling_Coverage_Block {
 		$lead_pinned_id = 0;
 		$follows_lead   = false;
 
-		foreach ( $posts as $entry ) {
+		foreach ( $template ? $posts : [] as $entry ) {
 			$entry_index++;
 			$is_pinned     = ! $is_capped && Post_Type::is_pinned( $entry->ID );
 			$shows_pinned  = $shows_pinned || $is_pinned;
@@ -1329,7 +1329,7 @@ class Rolling_Coverage_Block {
 			self::store_template_layout_styles( self::with_centered_title_rows( $title_rows ) );
 		}
 
-		if ( empty( $posts ) ) {
+		if ( empty( $posts ) && $template ) {
 			self::store_template_layout_styles( $unplaced );
 
 			$entries_html = sprintf(
@@ -1366,6 +1366,10 @@ class Rolling_Coverage_Block {
 
 		if ( $is_capped ) {
 			$wrapper_data['data-latest'] = $latest_count;
+		}
+
+		if ( ! $template ) {
+			$wrapper_data['data-entries'] = 'none';
 		}
 
 		if ( ! empty( $attributes['hideWhenEnded'] ) ) {

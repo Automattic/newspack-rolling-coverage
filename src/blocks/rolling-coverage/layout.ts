@@ -24,6 +24,7 @@ import {
 	flashEntryTemplate,
 	flashBar,
 	FLASH_FEED_LAYOUT,
+	ALERT_FEED_STYLE,
 	tickerEntryTemplate,
 	tickerHeader,
 	TICKER_FEED_LAYOUT,
@@ -322,6 +323,41 @@ export function flashInnerTemplate(): TemplateItem[] {
 				FLASH_FEED_LAYOUT,
 				{ align: 'wide' }
 			)
+		),
+	];
+}
+
+/**
+ * The Alert layout's inner-blocks template: a box on the pinned entry's
+ * light gray holding the coverage's status, its name on one line, cut short
+ * to fit, and a link to the coverage page, side by side at every width. It
+ * shows no entries. The Live badge takes the site's accent color (Accent on
+ * the Newspack Block Theme, Primary on the classic Newspack Theme) as it is
+ * when the layout is picked.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function alertInnerTemplate(): TemplateItem[] {
+	const accent = normalizeColor(
+		paletteColor( 'accent' ) ?? paletteColor( 'primary' ) ?? ''
+	);
+
+	return [
+		feedTemplate(
+			[
+				[
+					STATUS_BLOCK_NAME,
+					accent ? { backgroundColors: { active: accent } } : {},
+				],
+				coverageNameHeading( 'small', {
+					className: 'newspack-rolling-coverage-name',
+					style: { layout: { selfStretch: 'fill' } },
+				} ),
+				allUpdatesLink(),
+			],
+			'var:preset|spacing|30',
+			ALERT_FEED_STYLE,
+			FLASH_FEED_LAYOUT
 		),
 	];
 }

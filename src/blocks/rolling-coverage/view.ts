@@ -440,6 +440,7 @@ function initBlock( root: HTMLElement ): void {
 
 	// A Lite Site page renders entries as text, so it asks for them that way.
 	const isLite = root.dataset.lite === '1';
+	const showsEntries = root.dataset.entries !== 'none';
 
 	const coverageId = root.dataset.coverageId || '0';
 
@@ -2081,10 +2082,12 @@ function initBlock( root: HTMLElement ): void {
 					return 'reloading';
 				}
 
-				if ( data.replace ) {
-					replaceEntries( data.entries );
-				} else if ( data.entries.length > 0 ) {
-					applyPollResponse( data.entries );
+				if ( showsEntries ) {
+					if ( data.replace ) {
+						replaceEntries( data.entries );
+					} else if ( data.entries.length > 0 ) {
+						applyPollResponse( data.entries );
+					}
 				}
 				cursor = data.cursor || cursor;
 				polledCount = data.polledCount ?? polledCount;
