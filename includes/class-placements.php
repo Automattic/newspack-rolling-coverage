@@ -228,13 +228,14 @@ class Placements {
 	public static function for_coverage( int $coverage_id ): array {
 		self::ensure_fresh();
 
-		$map  = self::get_map();
-		$rows = [];
+		$map            = self::get_map();
+		$rows           = [];
+		$default_layout = self::layout_title( Layout::get_layout_id( 'default' ) );
 
 		self::prime( $map['places'][ $coverage_id ] ?? [] );
 
 		foreach ( $map['places'][ $coverage_id ] ?? [] as $place ) {
-			$row = self::resolve( $place );
+			$row = self::resolve( $place, $default_layout );
 
 			if ( $row ) {
 				$rows[] = $row;
@@ -245,7 +246,7 @@ class Placements {
 
 		if ( $breakout_post ) {
 			foreach ( $map['breakout'] as $place ) {
-				$row = self::resolve( $place );
+				$row = self::resolve( $place, $default_layout );
 
 				if ( $row ) {
 					$row['id']       = 'breakout:' . $row['id'];
@@ -321,15 +322,25 @@ class Placements {
 	/**
 	 * Turns a stored place into a row, or null when it is no longer published.
 	 *
-	 * @param array $place Stored place.
+	 * @param array  $place          Stored place.
+	 * @param string $default_layout The default layout's title, or an empty string.
 	 * @return array|null
 	 */
-	private static function resolve( array $place ): ?array {
+	private static function resolve( array $place, string $default_layout ): ?array {
 		$row = [
 			'id'       => $place['type'] . ':' . $place['id'],
 			'title'    => '',
 			'type'     => '',
-			'blocks'   => array_map( [ __CLASS__, 'tag_label' ], $place['tags'] ),
+			'blocks'   => array_values(
+				array_unique(
+					array_map(
+						function ( string $tag ) use ( $default_layout ): string {
+							return self::tag_label( $tag, $default_layout );
+						},
+						$place['tags']
+					)
+				)
+			),
 			'viewUrl'  => '',
 			'editUrl'  => '',
 			'isMain'   => false,
@@ -434,10 +445,11 @@ class Placements {
 	 * The label shown for a block tag: the block's name, and for a Rolling
 	 * Coverage block its layout and, when capped, how many entries it shows.
 	 *
-	 * @param string $tag Stored tag: feed:<layout>:<count>, status or follow.
+	 * @param string $tag            Stored tag: feed:<layout>:<count>, status or follow.
+	 * @param string $default_layout The default layout's title, or an empty string.
 	 * @return string
 	 */
-	private static function tag_label( string $tag ): string {
+	private static function tag_label( string $tag, string $default_layout ): string {
 		if ( self::TAG_STATUS === $tag ) {
 			return __( 'Coverage Status', 'newspack-rolling-coverage' );
 		}
@@ -450,21 +462,21 @@ class Placements {
 
 		$name   = __( 'Rolling Coverage', 'newspack-rolling-coverage' );
 		$layout = self::LAYOUT_DETACHED === $layout ? __( 'Detached', 'newspack-rolling-coverage' ) : self::layout_title( (int) $layout );
-		$layout = '' === $layout ? self::layout_title( Layout::get_layout_id( 'default' ) ) : $layout;
+		$layout = '' === $layout ? $default_layout : $layout;
 
 		if ( '' !== $layout && $count > 0 ) {
 			/* translators: 1: block name, 2: layout name, 3: how many entries the block shows */
-			return sprintf( _n( '%1$s (%2$s, latest %3$d)', '%1$s (%2$s, latest %3$d)', $count, 'newspack-rolling-coverage' ), $name, $layout, $count );
+			return sprintf( _n( '%1$s (%2$s, latest %3$s)', '%1$s (%2$s, latest %3$s)', $count, 'newspack-rolling-coverage' ), $name, $layout, number_format_i18n( $count ) );
 		}
 
 		if ( '' !== $layout ) {
 			/* translators: 1: block name, 2: layout name */
-			return sprintf( __( '%1$s (%2$s)', 'newspack-rolling-coverage' ), $name, $layout );
+			return sprintf( _x( '%1$s (%2$s)', 'block and its layout', 'newspack-rolling-coverage' ), $name, $layout );
 		}
 
 		if ( $count > 0 ) {
 			/* translators: 1: block name, 2: how many entries the block shows */
-			return sprintf( _n( '%1$s (latest %2$d)', '%1$s (latest %2$d)', $count, 'newspack-rolling-coverage' ), $name, $count );
+			return sprintf( _n( '%1$s (latest %2$s)', '%1$s (latest %2$s)', $count, 'newspack-rolling-coverage' ), $name, number_format_i18n( $count ) );
 		}
 
 		return $name;
@@ -483,20 +495,20 @@ class Placements {
 	}
 
 	/**
-	 * A shared layout's name, or an empty string when the layout is no longer
-	 * published.
+	 * A shared layout's name, or an empty string when the site can't render
+	 * the layout, as Layout::inject_layout() decides.
 	 *
 	 * @param int $layout_id Layout (wp_block) ID.
 	 * @return string
 	 */
 	private static function layout_title( int $layout_id ): string {
-		$layout = $layout_id > 0 ? get_post( $layout_id ) : null;
-
-		if ( ! $layout instanceof WP_Post || self::TYPE_PATTERN !== $layout->post_type || 'publish' !== $layout->post_status ) {
+		if ( null === Layout::get_layout_blocks( $layout_id ) ) {
 			return '';
 		}
 
-		return html_entity_decode( wp_strip_all_tags( $layout->post_title ), ENT_QUOTES, 'UTF-8' );
+		$title = html_entity_decode( wp_strip_all_tags( get_the_title( $layout_id ) ), ENT_QUOTES, 'UTF-8' );
+
+		return '' === $title ? __( 'Untitled layout', 'newspack-rolling-coverage' ) : $title;
 	}
 
 	/**

@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { Link, Stack, Text, VisuallyHidden } from '@wordpress/ui';
-import { __, _x } from '@wordpress/i18n';
+import { __, _x, sprintf } from '@wordpress/i18n';
 import Divider from 'newspack-components/dist/esm/divider';
 import { Drawer } from 'newspack-components/dist/esm/drawer';
 
@@ -36,7 +36,13 @@ function PlacementRow( {
 			gap="lg"
 			className="newspack-rolling-coverage-placement"
 		>
-			{ isSeparated && <Divider marginTop={ 0 } marginBottom={ 0 } /> }
+			{ isSeparated && (
+				<Divider
+					aria-hidden="true"
+					marginTop={ 0 }
+					marginBottom={ 0 }
+				/>
+			) }
 			<Stack direction="row" justify="space-between" gap="lg">
 				<Stack
 					direction="column"
@@ -49,21 +55,33 @@ function PlacementRow( {
 							variant="body-sm"
 							className="newspack-rolling-coverage-detail-help"
 						>
-							{ type }
-							{ type && isMain && (
+							{ type && isMain ? (
 								<>
 									<span aria-hidden="true">
-										{ ' · ' }
-										{ _x(
-											'Main',
-											'main page, shown after what the place is, such as Page',
-											'newspack-rolling-coverage'
+										{ sprintf(
+											/* translators: %s: what the place is, such as Page */
+											_x(
+												'%s · Main',
+												'visible label of the main page',
+												'newspack-rolling-coverage'
+											),
+											type
 										) }
 									</span>
-									<VisuallyHidden>{ `, ${ mainPage }` }</VisuallyHidden>
+									<VisuallyHidden render={ <span /> }>
+										{ sprintf(
+											/* translators: %s: what the place is, such as Page */
+											__(
+												'%s, Main page',
+												'newspack-rolling-coverage'
+											),
+											type
+										) }
+									</VisuallyHidden>
 								</>
+							) : (
+								type || mainPage
 							) }
-							{ ! type && isMain && mainPage }
 						</Text>
 					) }
 					{ blocks.map( ( block ) => (
@@ -82,13 +100,17 @@ function PlacementRow( {
 						{ viewUrl && (
 							<Link href={ viewUrl } openInNewTab>
 								{ __( 'View', 'newspack-rolling-coverage' ) }
-								<VisuallyHidden>{ ` ${ title }` }</VisuallyHidden>
+								<VisuallyHidden render={ <span /> }>
+									{ ` ${ title }` }
+								</VisuallyHidden>
 							</Link>
 						) }
 						{ editUrl && (
 							<Link href={ editUrl }>
 								{ __( 'Edit', 'newspack-rolling-coverage' ) }
-								<VisuallyHidden>{ ` ${ title }` }</VisuallyHidden>
+								<VisuallyHidden render={ <span /> }>
+									{ ` ${ title }` }
+								</VisuallyHidden>
 							</Link>
 						) }
 					</Stack>

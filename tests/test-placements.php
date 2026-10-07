@@ -283,6 +283,46 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Only a feed that shows every entry makes a post the coverage page, so
+	 * a newer capped feed never takes over from an older full one.
+	 */
+	public function test_only_uncapped_feeds_make_the_coverage_page() {
+		$coverage_id = self::create_coverage();
+		$capped_only = self::publish( self::feed( $coverage_id, [ 'latestOnly' => true ] ) );
+		Placements::ensure_fresh();
+
+		$this->assertSame( [ 'post:' . $capped_only ], array_keys( self::rows( $coverage_id ) ) );
+		$this->assertSame( 0, Placements::page_id( $coverage_id ), 'A capped feed alone is no coverage page.' );
+
+		$page_id = self::publish( self::feed( $coverage_id ), [ 'post_date' => '2026-01-01 00:00:00' ] );
+		self::publish( self::feed( $coverage_id, [ 'latestOnly' => true ] ) );
+		Placements::ensure_fresh();
+
+		$this->assertSame( $page_id, Placements::page_id( $coverage_id ) );
+		$this->assertNotSame( $capped_only, Placements::page_id( $coverage_id ) );
+	}
+
+	/**
+	 * A row lists feeds that show every entry, then capped feeds, then
+	 * Coverage Status and Follow Coverage, and lists a label once even when
+	 * two blocks read the same.
+	 */
+	public function test_a_row_lists_its_blocks_in_order_once() {
+		$coverage_id = self::create_coverage();
+		$bulletin_id = self::pattern( 'Bulletin', '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":0} /-->' );
+		update_option( Layout::option_name( 'default' ), $bulletin_id );
+
+		$page_id = self::publish(
+			self::follow( $coverage_id ) . self::status( $coverage_id ) . self::feed( $coverage_id, [ 'latestOnly' => true ] ) . self::feed( $coverage_id ) . self::feed( $coverage_id, [ 'layoutId' => $bulletin_id ] )
+		);
+
+		$this->assertSame(
+			[ 'Rolling Coverage (Bulletin)', 'Rolling Coverage (Bulletin, latest 5)', 'Coverage Status', 'Follow Coverage' ],
+			self::blocks( $coverage_id )[ 'post:' . $page_id ]
+		);
+	}
+
+	/**
 	 * Blocks in a Rolling Coverage block's layout are part of that feed, so
 	 * they are not listed on their own.
 	 */
