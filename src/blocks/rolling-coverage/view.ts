@@ -128,14 +128,15 @@ function cssDeclarations( css: string ): string[][] {
 }
 
 /**
- * Removes scripts and other active content from an entry's HTML before it is
- * inserted into the page. Entries come from this site's own REST route, whose
- * output WordPress sanitizes server side (KSES), so this is a second line
- * against markup an account with unfiltered_html could otherwise get to run.
- *
- * Ad markup is not passed through here: it carries the iframe or script the ad
- * needs, which this would strip, and it comes from the same origin once
- * initBlock() has checked the feed's REST URL.
+ * Removes active content from an HTML fragment before it is inserted into the
+ * page: scripts, object/embed, inline event handlers, an iframe's srcdoc, and
+ * javascript: URLs. Every fragment a feed inserts client-side passes through
+ * here — entries and ad markup alike, from a poll, load more or the jump to
+ * the live feed. The feed's REST URL is same-origin (initBlock), but that
+ * alone doesn't prove the reply is the plugin's own KSES'd output, so this is
+ * the line that neutralises markup an account without unfiltered_html could
+ * plant. A provider's ad placeholder survives it; the ad's own script loads
+ * the creative later.
  *
  * @param {string} html Raw HTML from the REST API.
  * @return {string} Sanitized HTML safe for DOM insertion.
@@ -1404,13 +1405,13 @@ function initBlock( root: HTMLElement ): void {
 			'.newspack-rolling-coverage-new-entries'
 		);
 		const control = liveControl
-			? parseElement( liveControl.outerHTML )
+			? parseElement( sanitizeHtml( liveControl.outerHTML ) )
 			: null;
 
 		cleanup();
 
 		entriesList.replaceChildren(
-			parseFragment( liveEntries?.innerHTML ?? '' )
+			parseFragment( sanitizeHtml( liveEntries?.innerHTML ?? '' ) )
 		);
 
 		if ( control ) {
@@ -1759,10 +1760,9 @@ function initBlock( root: HTMLElement ): void {
 				return;
 			}
 
-			// Ad markup is inserted as served: it comes from this origin (the
-			// feed's REST URL is checked in initBlock) and needs the iframe or
-			// script the ad ships with, which sanitizeHtml would strip.
-			const adEl = entry.adHtml ? parseElement( entry.adHtml ) : null;
+			const adEl = entry.adHtml
+				? parseElement( sanitizeHtml( entry.adHtml ) )
+				: null;
 
 			newEntries.push( { el: entryEl, adSlot: entry.adSlot, adEl } );
 		} );
