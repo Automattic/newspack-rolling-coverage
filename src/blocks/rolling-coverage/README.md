@@ -86,7 +86,7 @@ Notice appears only when When ended is set to Show. Notice text and Link appear 
 
 ### AI
 
-Appears when AI is set up on the site. Generate Key Takeaways writes a summary of the coverage's entries into Generated Output. Copy copies it. Editors and administrators set the prompts under Rolling Coverage > AI.
+Appears when AI is set up on the site. Generate Key Takeaways writes a summary of the coverage's entries into Generated Output. Copy copies it. Administrators set the prompts under Rolling Coverage > AI.
 
 ### Ads
 

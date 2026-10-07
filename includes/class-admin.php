@@ -104,7 +104,7 @@ class Admin {
 			self::MENU_SLUG,
 			__( 'AI', 'newspack-rolling-coverage' ),
 			__( 'AI', 'newspack-rolling-coverage' ),
-			'edit_others_posts',
+			'manage_options',
 			self::AI_MENU_SLUG,
 			[ __CLASS__, 'render_page' ]
 		);
@@ -429,13 +429,12 @@ class Admin {
 			),
 			'nonce'                => wp_create_nonce( 'wp_rest' ),
 			'capabilities'         => array(
-				'canEditPosts'        => current_user_can( 'edit_posts' ),
-				'canEditEntries'      => current_user_can( Post_Type::EDIT_ENTRIES_CAP ),
-				'canChangeAuthors'    => Post_Type::can_change_authors(),
-				'canManageTerms'      => current_user_can( 'manage_categories' ),
-				'canManageOptions'    => current_user_can( 'manage_options' ),
-				'canManageAiSettings' => current_user_can( 'edit_others_posts' ),
-				'canManageSettings'   => Status_Labels::can_manage(),
+				'canEditPosts'      => current_user_can( 'edit_posts' ),
+				'canEditEntries'    => current_user_can( Post_Type::EDIT_ENTRIES_CAP ),
+				'canChangeAuthors'  => Post_Type::can_change_authors(),
+				'canManageTerms'    => current_user_can( 'manage_categories' ),
+				'canManageOptions'  => current_user_can( 'manage_options' ),
+				'canManageSettings' => Status_Labels::can_manage(),
 			),
 			'adminUrls'            => array(
 				'coverages'          => admin_url( 'admin.php?page=' . self::MENU_SLUG ),

@@ -74,12 +74,12 @@ class AI_Settings {
 	}
 
 	/**
-	 * Permission check: user must have Editor or higher capability.
+	 * Permission check: only administrators can read or change the AI settings.
 	 *
 	 * @return bool
 	 */
 	public static function can_manage_settings(): bool {
-		return current_user_can( 'edit_others_posts' );
+		return current_user_can( 'manage_options' );
 	}
 
 	/**

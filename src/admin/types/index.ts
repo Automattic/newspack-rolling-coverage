@@ -45,7 +45,6 @@ interface AdminConfig {
 		canChangeAuthors: boolean;
 		canManageTerms: boolean;
 		canManageOptions: boolean;
-		canManageAiSettings: boolean;
 		canManageSettings: boolean;
 	};
 	supportsHandoff: boolean;
