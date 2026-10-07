@@ -429,7 +429,8 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 			'latestOnly'  => true,
 			'latestCount' => 2,
 		];
-		$layout     = '<!-- wp:group --><div class="wp-block-group">'
+		$layout     = '<!-- wp:post-title /-->'
+			. '<!-- wp:group --><div class="wp-block-group">'
 			. '<!-- wp:paragraph {"className":"newspack-rolling-coverage-all-updates"} --><p class="newspack-rolling-coverage-all-updates"><a href="#">See all updates</a></p><!-- /wp:paragraph -->'
 			. '</div><!-- /wp:group -->';
 

@@ -566,6 +566,22 @@ class Post_Type {
 
 		register_rest_route(
 			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
+			'/coverages/(?P<coverage_id>\d+)/entries',
+			[
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => [ __CLASS__, 'handle_create_entry' ],
+				'permission_callback' => [ __CLASS__, 'can_create_entries' ],
+				'args'                => [
+					'coverage_id' => [
+						'required'          => true,
+						'validate_callback' => [ __CLASS__, 'validate_numeric_id' ],
+					],
+				],
+			]
+		);
+
+		register_rest_route(
+			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
 			'/coverages/(?P<coverage_id>\d+)/generate-key-takeaways',
 			[
 				'methods'             => WP_REST_Server::CREATABLE,
@@ -715,6 +731,91 @@ class Post_Type {
 	 */
 	public static function check_permission() {
 		return current_user_can( 'edit_posts' );
+	}
+
+	/**
+	 * Permission callback for starting a new entry: the post type's
+	 * `create_posts` capability, which contributors have.
+	 *
+	 * @return bool
+	 */
+	public static function can_create_entries(): bool {
+		$post_type = get_post_type_object( self::CPT_SLUG );
+
+		return $post_type && current_user_can( $post_type->cap->create_posts );
+	}
+
+	/**
+	 * REST handler: start a new entry in a coverage, for Quick Edit to open.
+	 *
+	 * The editor needs a post to work on before anything is saved, so this
+	 * creates an empty auto-draft assigned to the coverage, as `post-new.php`
+	 * does for a post. The first save through the core entries route turns it
+	 * into a draft, or publishes it, and dates it then. An auto-draft is not
+	 * an entry yet: the entries list never asks for its status, the coverage's
+	 * last-modified time ignores it, and core's daily auto-draft cleanup,
+	 * scheduled here as `post-new.php` schedules it, deletes it after a week
+	 * if it is never saved.
+	 *
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response|WP_Error The new entry's ID, or why none was made.
+	 */
+	public static function handle_create_entry( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$coverage_id = (int) $request->get_param( 'coverage_id' );
+		$coverage    = Taxonomy::get_coverage_term( $coverage_id );
+
+		if ( is_wp_error( $coverage ) ) {
+			return $coverage;
+		}
+
+		if ( Archive_Mode::is_coverage_archived( $coverage_id ) ) {
+			return Archive_Mode::archived_error();
+		}
+
+		if ( 'trash' === get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ) ) {
+			return new WP_Error(
+				'rolling_coverage_coverage_trashed',
+				__( 'This coverage is in the trash. Restore it before adding entries.', 'newspack-rolling-coverage' ),
+				[ 'status' => 403 ]
+			);
+		}
+
+		// The auto-draft starts with nothing in it, which wp_insert_post() refuses by default.
+		$allow_empty = static fn() => false;
+
+		add_filter( 'wp_insert_post_empty_content', $allow_empty );
+		try {
+			$entry_id = wp_insert_post(
+				[
+					'post_type'    => self::CPT_SLUG,
+					'post_status'  => 'auto-draft',
+					'post_title'   => '',
+					'post_content' => '',
+					'post_author'  => get_current_user_id(),
+				],
+				true
+			);
+		} finally {
+			remove_filter( 'wp_insert_post_empty_content', $allow_empty );
+		}
+
+		if ( is_wp_error( $entry_id ) ) {
+			return $entry_id;
+		}
+
+		$assigned = wp_set_object_terms( $entry_id, [ $coverage_id ], Taxonomy::TAXONOMY_SLUG );
+
+		if ( is_wp_error( $assigned ) ) {
+			wp_delete_post( $entry_id, true );
+
+			return $assigned;
+		}
+
+		if ( ! wp_next_scheduled( 'wp_scheduled_auto_draft_delete' ) ) {
+			wp_schedule_event( time(), 'daily', 'wp_scheduled_auto_draft_delete' );
+		}
+
+		return new WP_REST_Response( [ 'id' => $entry_id ], 201 );
 	}
 
 	/**
@@ -1837,12 +1938,17 @@ class Post_Type {
 	 * (`wp_insert_post()`'s `$clear_date` branch). Once this runs, core leaves
 	 * the date alone.
 	 *
+	 * An auto-draft, which Quick Edit creates before the entry is first
+	 * saved, keeps floating dates for that same reason: its date should be
+	 * the moment it is saved as an entry, not the moment the editor opened,
+	 * and core's `$clear_date` branch sets that on the first save.
+	 *
 	 * @param array $data    Sanitized, slashed, processed post data about to be saved.
 	 * @param array $postarr Sanitized post data as originally passed.
 	 * @return array Filtered post data.
 	 */
 	public static function normalize_entry_gmt_dates( array $data, array $postarr ): array {
-		if ( self::CPT_SLUG !== ( $data['post_type'] ?? '' ) ) {
+		if ( self::CPT_SLUG !== ( $data['post_type'] ?? '' ) || 'auto-draft' === ( $data['post_status'] ?? '' ) ) {
 			return $data;
 		}
 
@@ -1996,10 +2102,20 @@ class Post_Type {
 	 * Update the last-modified term meta for every coverage term assigned to
 	 * the given entry post.
 	 *
+	 * An auto-draft, which Quick Edit creates before the entry is first
+	 * saved, is not entry activity: the list never shows one, its modified
+	 * GMT date is still the zero date, and core's cleanup deleting one that
+	 * was never saved changes nothing. Every hook that marks activity in a
+	 * coverage funnels through here, so an auto-draft is left out once.
+	 *
 	 * @param int    $post_id  Entry post ID.
 	 * @param string $modified GMT timestamp in Y-m-d H:i:s format to store.
 	 */
 	private static function update_coverage_last_modified( int $post_id, string $modified ): void {
+		if ( 'auto-draft' === get_post_status( $post_id ) ) {
+			return;
+		}
+
 		$term_ids = wp_get_post_terms( $post_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
 
 		if ( is_wp_error( $term_ids ) || empty( $term_ids ) ) {

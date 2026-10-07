@@ -118,6 +118,7 @@ function getEntryActions(
 			isPrimary: true,
 			isEligible: ( entry: Entry ) =>
 				canEditRow( entry ) && Boolean( getEntryEditWarning( entry ) ),
+			modalSize: 'small',
 			RenderModal: ( { items, closeModal } ) =>
 				createElement( ConfirmModal, {
 					message: getEditWarningMessage( items[ 0 ] ),
@@ -146,6 +147,7 @@ function getEntryActions(
 			label: __( 'Edit', 'newspack-rolling-coverage' ),
 			isEligible: ( entry: Entry ) =>
 				canEditRow( entry ) && Boolean( getEntryEditWarning( entry ) ),
+			modalSize: 'small',
 			RenderModal: ( { items, closeModal } ) =>
 				createElement( ConfirmModal, {
 					message: getEditWarningMessage( items[ 0 ] ),

@@ -30,6 +30,13 @@ declare module '@wordpress/block-editor' {
 
 	export const BlockInspector: ComponentType;
 
+	export const __experimentalInspectorPopoverHeader: ComponentType< {
+		title: string;
+		help?: string;
+		actions?: unknown[];
+		onClose?: () => void;
+	} >;
+
 	export const __experimentalPublishDateTimePicker: ComponentType< {
 		title?: string;
 		currentDate?: string | null;
@@ -41,6 +48,11 @@ declare module '@wordpress/block-editor' {
 	export const BlockList: ComponentType< {
 		className?: string;
 		layout?: Record< string, unknown >;
+	} >;
+
+	export const BlockToolbar: ComponentType< {
+		hideDragHandle?: boolean;
+		variant?: string;
 	} >;
 
 	export function useBlockProps(
@@ -67,6 +79,31 @@ declare module '@wordpress/block-editor' {
 	export const InspectorControls: ComponentType< {
 		group?: string;
 		children?: ReactNode;
+	} >;
+
+	export const Inserter: ComponentType< {
+		position?: string;
+		rootClientId?: string;
+		clientId?: string;
+		isAppender?: boolean;
+		renderToggle?: ( args: {
+			onToggle: () => void;
+			isOpen: boolean;
+			disabled: boolean;
+		} ) => ReactNode;
+		toggleProps?: Record< string, unknown >;
+	} >;
+
+	export const NavigableToolbar: ComponentType< {
+		className?: string;
+		'aria-label': string;
+		variant?: 'unstyled';
+		children?: ReactNode;
+	} >;
+
+	export const __experimentalListView: ComponentType< {
+		isExpanded?: boolean;
+		rootClientId?: string;
 	} >;
 
 	export const __experimentalColorGradientSettingsDropdown: ComponentType< {

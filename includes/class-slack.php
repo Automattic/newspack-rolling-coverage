@@ -51,6 +51,8 @@ class Slack {
 
 		add_action( 'rest_api_init', [ self::get_webhook_controller(), 'register_webhook_routes' ] );
 		add_action( 'delete_' . Taxonomy::TAXONOMY_SLUG, [ Slack_Config::class, 'on_term_deleted' ], 10, 1 );
+		// After filters at the default priority, so none of those can turn protection back on for the webhook.
+		add_filter( 'password_protected_is_active', [ Slack_Webhook_Controller::class, 'filter_password_protected_is_active' ], 100 );
 	}
 
 	/**

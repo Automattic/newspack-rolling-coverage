@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-07T13:11:50+00:00\n"
+"POT-Creation-Date: 2026-10-07T22:15:29+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -84,11 +84,11 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:461
-#: includes/blocks/class-rolling-coverage-block.php:3982
-#: includes/blocks/class-rolling-coverage-block.php:4112
-#: includes/blocks/class-rolling-coverage-block.php:4123
-#: includes/class-post-type.php:1149
-#: includes/class-taxonomy.php:347
+#: includes/blocks/class-rolling-coverage-block.php:3986
+#: includes/blocks/class-rolling-coverage-block.php:4116
+#: includes/blocks/class-rolling-coverage-block.php:4127
+#: includes/class-post-type.php:1250
+#: includes/class-taxonomy.php:348
 msgid "Coverage not found."
 msgstr ""
 
@@ -127,18 +127,18 @@ msgstr ""
 msgid "Read More"
 msgstr ""
 
-#: includes/blocks/class-coverage-status-block.php:70
+#: includes/blocks/class-coverage-status-block.php:90
 msgid "When the newest published entry went out, as ISO 8601."
 msgstr ""
 
 #. translators: %s: Time difference, e.g. "2 minutes".
-#: includes/blocks/class-coverage-status-block.php:270
+#: includes/blocks/class-coverage-status-block.php:324
 #, php-format
 msgid "%s ago"
 msgstr ""
 
 #. translators: %s: How long ago the newest entry was published, e.g. "2 minutes ago".
-#: includes/blocks/class-coverage-status-block.php:280
+#: includes/blocks/class-coverage-status-block.php:334
 #: dist/blocks/coverage-status/index.js:12
 #, php-format,js-format
 msgid "Updated %s"
@@ -193,7 +193,7 @@ msgid "Something went wrong. Please try again."
 msgstr ""
 
 #: includes/blocks/class-entry-bindings.php:714
-#: includes/blocks/class-rolling-coverage-block.php:2778
+#: includes/blocks/class-rolling-coverage-block.php:2782
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/share/index.js:1
@@ -309,10 +309,16 @@ msgctxt "layout name"
 msgid "Flash"
 msgstr ""
 
+#: includes/blocks/class-layout.php:438
+#: dist/blocks/rolling-coverage/index.js:2
+msgctxt "layout name"
+msgid "Alert"
+msgstr ""
+
 #: includes/blocks/class-lite-feed.php:265
-#: includes/blocks/class-rolling-coverage-block.php:3459
-#: includes/blocks/class-rolling-coverage-block.php:3471
-#: includes/blocks/class-rolling-coverage-block.php:3733
+#: includes/blocks/class-rolling-coverage-block.php:3463
+#: includes/blocks/class-rolling-coverage-block.php:3475
+#: includes/blocks/class-rolling-coverage-block.php:3737
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned"
 msgstr ""
@@ -331,7 +337,7 @@ msgid "This coverage is no longer available."
 msgstr ""
 
 #. translators: 1: number of coverage entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as a button label shows it.
-#: includes/blocks/class-rolling-coverage-block.php:1683
+#: includes/blocks/class-rolling-coverage-block.php:1687
 #: dist/blocks/rolling-coverage/view.js:4
 #, php-format,js-format
 msgid "%1$d Newer %2$s"
@@ -340,7 +346,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of coverage entries newer than the one shown, from 1 to 10.
-#: includes/blocks/class-rolling-coverage-block.php:1687
+#: includes/blocks/class-rolling-coverage-block.php:1691
 #: dist/blocks/rolling-coverage/view.js:5
 #, php-format,js-format
 msgid "%d Newer Entry"
@@ -349,7 +355,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: 1: a round number the count of newer coverage entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as a button label shows it.
-#: includes/blocks/class-rolling-coverage-block.php:1702
+#: includes/blocks/class-rolling-coverage-block.php:1706
 #: dist/blocks/rolling-coverage/view.js:6
 #, php-format,js-format
 msgid "%1$d+ Newer %2$s"
@@ -358,7 +364,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100.
-#: includes/blocks/class-rolling-coverage-block.php:1706
+#: includes/blocks/class-rolling-coverage-block.php:1710
 #: dist/blocks/rolling-coverage/view.js:7
 #, php-format,js-format
 msgid "%d+ Newer Entry"
@@ -367,75 +373,75 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence; its grammatical gender is unknown.
-#: includes/blocks/class-rolling-coverage-block.php:1720
+#: includes/blocks/class-rolling-coverage-block.php:1724
 #, php-format
 msgid "No %s yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1723
+#: includes/blocks/class-rolling-coverage-block.php:1727
 msgid "No entries yet."
 msgstr ""
 
 #. translators: Button that loads older entries at the end of a coverage's feed.
-#: includes/blocks/class-rolling-coverage-block.php:1831
+#: includes/blocks/class-rolling-coverage-block.php:1835
 #: dist/blocks/rolling-coverage/index.js:4
 msgid "Load More"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2638
-#: includes/blocks/class-rolling-coverage-block.php:2819
+#: includes/blocks/class-rolling-coverage-block.php:2642
+#: includes/blocks/class-rolling-coverage-block.php:2823
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/rolling-coverage/index.js:19
 msgid "Read more"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2656
+#: includes/blocks/class-rolling-coverage-block.php:2660
 #: dist/blocks/rolling-coverage/index.js:17
 msgid "Coverage of this news event has concluded and this feed is now archived."
 msgstr ""
 
 #. translators: %s: Coverage name.
-#: includes/blocks/class-rolling-coverage-block.php:2660
+#: includes/blocks/class-rolling-coverage-block.php:2664
 #: dist/blocks/rolling-coverage/index.js:17
 #, php-format,js-format
 msgid "Coverage of “%s” has concluded and this feed is now archived."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2791
+#: includes/blocks/class-rolling-coverage-block.php:2795
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "Meta"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2903
+#: includes/blocks/class-rolling-coverage-block.php:2907
 #: includes/class-post-type.php:269
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "Entry"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2951
+#: includes/blocks/class-rolling-coverage-block.php:2955
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "Pinned Entry"
 msgstr ""
 
 #. translators: 1: the site's own name for one coverage entry, as it reads mid-sentence; its grammatical gender is unknown. 2: the same name for several entries.
-#: includes/blocks/class-rolling-coverage-block.php:3766
+#: includes/blocks/class-rolling-coverage-block.php:3770
 #, php-format
 msgid "This %1$s is now out of date compared to newer %2$s, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3772
+#: includes/blocks/class-rolling-coverage-block.php:3776
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3919
+#: includes/blocks/class-rolling-coverage-block.php:3923
 msgid "How many entries a capped feed shows, so its requests stay capped without a stored config."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3924
+#: includes/blocks/class-rolling-coverage-block.php:3928
 msgid "Whether a Lite Site page asks, so entries come as text, as that page renders them."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4131
+#: includes/blocks/class-rolling-coverage-block.php:4135
 msgid "Either cursor or before must be provided."
 msgstr ""
 
@@ -486,7 +492,7 @@ msgstr ""
 msgid "AI"
 msgstr ""
 
-#: includes/class-admin.php:466
+#: includes/class-admin.php:463
 #: dist/admin.js:219
 #: dist/admin.js:232
 msgid "Slack"
@@ -512,19 +518,19 @@ msgstr ""
 msgid "This entry can’t be added to a coverage set to “%s”."
 msgstr ""
 
-#: includes/class-archive-mode.php:268
+#: includes/class-archive-mode.php:285
 #: includes/class-breakout.php:238
-#: includes/class-post-type.php:1066
-#: includes/class-post-type.php:2846
-#: includes/class-post-type.php:3251
+#: includes/class-post-type.php:1167
+#: includes/class-post-type.php:2962
+#: includes/class-post-type.php:3367
 msgid "Entry not found."
 msgstr ""
 
-#: includes/class-archive-mode.php:292
+#: includes/class-archive-mode.php:309
 msgid "Only published entries can be archived."
 msgstr ""
 
-#: includes/class-archive-mode.php:309
+#: includes/class-archive-mode.php:326
 msgid "Failed to update entry."
 msgstr ""
 
@@ -616,6 +622,7 @@ msgid "Entries"
 msgstr ""
 
 #: includes/class-post-type.php:270
+#: dist/admin.js:222
 #: dist/admin.js:239
 #: dist/admin.js:240
 msgid "Add Entry"
@@ -680,110 +687,114 @@ msgstr ""
 msgid "Individual entries within a Rolling Coverage."
 msgstr ""
 
-#: includes/class-post-type.php:2579
-#: includes/class-post-type.php:2663
+#: includes/class-post-type.php:778
+msgid "This coverage is in the trash. Restore it before adding entries."
+msgstr ""
+
+#: includes/class-post-type.php:2695
+#: includes/class-post-type.php:2779
 msgid "No entry IDs provided."
 msgstr ""
 
-#: includes/class-post-type.php:2595
+#: includes/class-post-type.php:2711
 msgid "You do not have permission to restore this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2671
+#: includes/class-post-type.php:2787
 msgid "The slug and date can only be changed one entry at a time."
 msgstr ""
 
-#: includes/class-post-type.php:2690
+#: includes/class-post-type.php:2806
 msgid "That person can’t be the author of an entry."
 msgstr ""
 
-#: includes/class-post-type.php:2703
+#: includes/class-post-type.php:2819
 msgid "That date isn’t valid."
 msgstr ""
 
-#: includes/class-post-type.php:2730
+#: includes/class-post-type.php:2846
 msgid "Nothing to change."
 msgstr ""
 
-#: includes/class-post-type.php:2850
+#: includes/class-post-type.php:2966
 msgid "You do not have permission to edit this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2854
+#: includes/class-post-type.php:2970
 msgid "This entry is archived, so it can’t be edited."
 msgstr ""
 
-#: includes/class-post-type.php:2865
+#: includes/class-post-type.php:2981
 msgid "A published entry can’t have a date in the future."
 msgstr ""
 
-#: includes/class-post-type.php:2869
+#: includes/class-post-type.php:2985
 msgid "Saving this entry would publish it, and you do not have permission to publish it."
 msgstr ""
 
-#: includes/class-post-type.php:2914
+#: includes/class-post-type.php:3030
 msgid "Co-Authors Plus couldn’t credit this entry to that person."
 msgstr ""
 
-#: includes/class-post-type.php:2983
+#: includes/class-post-type.php:3099
 msgid "One of the chosen categories doesn’t exist."
 msgstr ""
 
-#: includes/class-post-type.php:2984
+#: includes/class-post-type.php:3100
 msgid "One of the chosen tags doesn’t exist."
 msgstr ""
 
-#: includes/class-post-type.php:3018
+#: includes/class-post-type.php:3134
 msgid "You don’t have permission to assign one of the chosen categories."
 msgstr ""
 
-#: includes/class-post-type.php:3019
+#: includes/class-post-type.php:3135
 msgid "You don’t have permission to assign one of the chosen tags."
 msgstr ""
 
-#: includes/class-post-type.php:3029
+#: includes/class-post-type.php:3145
 msgid "You don’t have permission to create categories."
 msgstr ""
 
-#: includes/class-post-type.php:3030
+#: includes/class-post-type.php:3146
 msgid "You don’t have permission to create tags."
 msgstr ""
 
-#: includes/class-post-type.php:3220
+#: includes/class-post-type.php:3336
 msgid "An editor needs to restore the coverage before this entry can be restored."
 msgstr ""
 
-#: includes/class-post-type.php:3259
+#: includes/class-post-type.php:3375
 msgid "Entry is not in trash."
 msgstr ""
 
-#: includes/class-post-type.php:3267
+#: includes/class-post-type.php:3383
 msgid "This entry is archived, so it can’t be restored."
 msgstr ""
 
-#: includes/class-post-type.php:3318
+#: includes/class-post-type.php:3434
 msgid "This entry's coverage was deleted. An editor needs to restore it."
 msgstr ""
 
-#: includes/class-post-type.php:3340
+#: includes/class-post-type.php:3456
 msgid "This entry has no coverage context to restore to."
 msgstr ""
 
-#: includes/class-post-type.php:3398
+#: includes/class-post-type.php:3514
 msgid "Failed to restore entry."
 msgstr ""
 
-#: includes/class-taxonomy.php:472
+#: includes/class-taxonomy.php:473
 msgid "Coverage is not in trash."
 msgstr ""
 
-#: includes/class-taxonomy.php:511
+#: includes/class-taxonomy.php:512
 msgid "Coverage could not be deleted."
 msgstr ""
 
 #: includes/slack/class-slack-api-client.php:121
 #: includes/slack/class-slack-api-client.php:439
-#: includes/slack/class-slack-webhook-controller.php:307
+#: includes/slack/class-slack-webhook-controller.php:347
 msgid "Slack is not configured."
 msgstr ""
 
@@ -817,193 +828,192 @@ msgstr ""
 msgid "The message's images took too long to download."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:71
+#: includes/slack/class-slack-webhook-controller.php:83
 msgid "Channel not found. Make sure the bot is invited to the channel, or use the channel ID (e.g., C12345678) instead of the name."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:72
+#: includes/slack/class-slack-webhook-controller.php:84
 msgid "The bot is not a member of this channel. Please invite the bot first using /invite @Rolling Coverage in Slack."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:73
+#: includes/slack/class-slack-webhook-controller.php:85
 msgid "This channel is already linked to another coverage."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:74
+#: includes/slack/class-slack-webhook-controller.php:86
 msgid "This coverage is already connected to another channel."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:75
+#: includes/slack/class-slack-webhook-controller.php:87
 msgid "This coverage could not be found. Please refresh the page and try again."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:76
+#: includes/slack/class-slack-webhook-controller.php:88
 msgid "That channel could not be used. Try a channel ID like C12345678 or a channel name like #general."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:77
+#: includes/slack/class-slack-webhook-controller.php:89
 msgid "Please select a coverage."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:78
+#: includes/slack/class-slack-webhook-controller.php:90
 msgid "Selected coverage no longer exists."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:80
+#: includes/slack/class-slack-webhook-controller.php:92
 msgid "A bot token and signing secret are both required."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:81
+#: includes/slack/class-slack-webhook-controller.php:93
 msgid "The bot token is invalid. It must start with xoxb-."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:82
+#: includes/slack/class-slack-webhook-controller.php:94
 msgid "The signing secret is invalid. It must be a 32-character hex string."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:84
+#: includes/slack/class-slack-webhook-controller.php:96
 msgid "The bot token was rejected by Slack. Check that it starts with xoxb- and is still valid."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:85
+#: includes/slack/class-slack-webhook-controller.php:97
 msgid "The bot token has been revoked. Generate a new one in your Slack app settings."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:86
+#: includes/slack/class-slack-webhook-controller.php:98
 msgid "No valid token was provided to Slack."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:87
+#: includes/slack/class-slack-webhook-controller.php:99
 msgid "The Slack workspace account is inactive."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:89
+#: includes/slack/class-slack-webhook-controller.php:101
 msgid "The ignore prefix must be 1-10 printable characters."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:91
+#: includes/slack/class-slack-webhook-controller.php:103
 msgid "Slack integration is not configured. Please set up the bot token in Slack settings."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:92
+#: includes/slack/class-slack-webhook-controller.php:104
 msgid "Could not reach Slack. Please try again."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:325
+#: includes/slack/class-slack-webhook-controller.php:365
 msgid "Invalid Slack signature."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:713
+#: includes/slack/class-slack-webhook-controller.php:753
 msgid "🔔 Auto-publish is now enabled for this channel — new entries publish immediately."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:714
+#: includes/slack/class-slack-webhook-controller.php:754
 msgid "🔕 Auto-publish is now disabled for this channel — new entries are saved as drafts."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:913
+#: includes/slack/class-slack-webhook-controller.php:953
 msgid "👋 I'm now connected and will ingest messages for rolling coverage."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:955
+#: includes/slack/class-slack-webhook-controller.php:995
 msgid "This command is not available for your workspace."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:968
+#: includes/slack/class-slack-webhook-controller.php:1008
 msgid "Unknown command."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:989
+#: includes/slack/class-slack-webhook-controller.php:1029
 msgid "Select a Rolling Coverage"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:997
+#: includes/slack/class-slack-webhook-controller.php:1037
 msgid "Type to search..."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1009
+#: includes/slack/class-slack-webhook-controller.php:1049
 msgid "Connect Channel"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1013
+#: includes/slack/class-slack-webhook-controller.php:1053
 #: dist/admin.js:211
 #: dist/admin.js:220
 msgid "Connect"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1017
+#: includes/slack/class-slack-webhook-controller.php:1057
 #: dist/admin.js:209
 #: dist/admin.js:211
 #: dist/admin.js:219
 #: dist/admin.js:222
 #: dist/admin.js:228
-#: dist/admin.js:231
 msgid "Cancel"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1025
+#: includes/slack/class-slack-webhook-controller.php:1065
 msgid "Failed to open the connect modal. Please try again."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1041
-#: includes/slack/class-slack-webhook-controller.php:1069
+#: includes/slack/class-slack-webhook-controller.php:1081
+#: includes/slack/class-slack-webhook-controller.php:1109
 msgid "This channel is not connected to any coverage."
 msgstr ""
 
 #. translators: 1: coverage name
-#: includes/slack/class-slack-webhook-controller.php:1052
+#: includes/slack/class-slack-webhook-controller.php:1092
 #, php-format
 msgid "Disconnected from \"%1$s\"."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1055
+#: includes/slack/class-slack-webhook-controller.php:1095
 msgid "Channel unlinked successfully."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1074
+#: includes/slack/class-slack-webhook-controller.php:1114
 #: dist/admin.js:243
 msgid "(unknown)"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1078
+#: includes/slack/class-slack-webhook-controller.php:1118
 msgid "autopublish enabled"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1079
+#: includes/slack/class-slack-webhook-controller.php:1119
 msgid "autopublish disabled"
 msgstr ""
 
 #. translators: 1: term name, 2: autopublish status
-#: includes/slack/class-slack-webhook-controller.php:1084
+#: includes/slack/class-slack-webhook-controller.php:1124
 #, php-format
 msgid "Connected to \"%1$s\" — %2$s."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1373
+#: includes/slack/class-slack-webhook-controller.php:1413
 msgid "auto-publish is enabled"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1374
+#: includes/slack/class-slack-webhook-controller.php:1414
 msgid "auto-publish is disabled"
 msgstr ""
 
 #. translators: 1: coverage name, 2: auto-publish status
-#: includes/slack/class-slack-webhook-controller.php:1381
+#: includes/slack/class-slack-webhook-controller.php:1421
 #, php-format
 msgid "✅ This channel is now connected to the \"%1$s\" coverage. %2$s."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1385
+#: includes/slack/class-slack-webhook-controller.php:1425
 msgid "✅ This channel is now connected to rolling coverage."
 msgstr ""
 
 #. translators: 1: coverage name
-#: includes/slack/class-slack-webhook-controller.php:1427
+#: includes/slack/class-slack-webhook-controller.php:1467
 #, php-format
 msgid "🔌 This channel is no longer connected to the \"%1$s\" coverage."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1430
+#: includes/slack/class-slack-webhook-controller.php:1470
 msgid "🔌 This channel is no longer connected to rolling coverage."
 msgstr ""
 
@@ -1542,7 +1552,61 @@ msgid "Follow a developing story with a live stream of short, timestamped update
 msgstr ""
 
 #: dist/admin.js:222
+msgid "Confirm"
+msgstr ""
+
+#: dist/admin.js:222
 msgid "Failed to save entry."
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Save Draft"
+msgstr ""
+
+#: dist/admin.js:222
+#: dist/admin.js:235
+#: dist/admin.js:236
+msgid "Publish"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Submit for Review"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Show block tools"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Hide block tools"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Undo"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Redo"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Block"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Document tools"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Block Inserter"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Document Overview"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Failed to create entry"
 msgstr ""
 
 #: dist/admin.js:222
@@ -1551,11 +1615,23 @@ msgid "Quick Edit"
 msgstr ""
 
 #: dist/admin.js:222
-msgid "Discard Changes"
+msgid "Preparing entry…"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Fetching entry…"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Discard Changes?"
 msgstr ""
 
 #: dist/admin.js:222
 msgid "You have unsaved changes. Are you sure you want to close and discard them?"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Discard Changes"
 msgstr ""
 
 #. translators: 1: category name, 2: its parent category's name, or the path of its ancestors.
@@ -1711,10 +1787,6 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: dist/admin.js:231
-msgid "Confirm"
-msgstr ""
-
-#: dist/admin.js:231
 msgid "This entry is archived, are you sure you want to edit it?"
 msgstr ""
 
@@ -1772,15 +1844,6 @@ msgstr ""
 
 #: dist/admin.js:235
 msgid "Breakout"
-msgstr ""
-
-#: dist/admin.js:235
-msgid "Failed to create entry"
-msgstr ""
-
-#: dist/admin.js:235
-#: dist/admin.js:236
-msgid "Publish"
 msgstr ""
 
 #: dist/admin.js:235

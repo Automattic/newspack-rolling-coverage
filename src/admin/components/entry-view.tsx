@@ -12,7 +12,8 @@ import {
 import { Button, VisuallyHidden } from '@wordpress/components';
 import { postContent } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
-import { useDispatch } from '@wordpress/data';
+import { useDispatch, useRegistry } from '@wordpress/data';
+import { store as coreStore } from '@wordpress/core-data';
 import apiFetch from '@wordpress/api-fetch';
 import { store as noticesStore } from '@wordpress/notices';
 import type { View } from '@wordpress/dataviews';
@@ -27,7 +28,7 @@ import { useStatusLabels } from '../utils/status-labels';
 import { EmptyState } from 'newspack-components/dist/esm/empty-state';
 import { LoadingState } from '../shared/loading-state';
 import { useHeader } from '../hooks/useHeader';
-import { buildPageUrl, createEntry, toEntry } from '../utils/entries-api';
+import { buildPageUrl, toEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
@@ -67,8 +68,8 @@ const GROUP_NOTICE_THRESHOLD = 5;
  * The coverage is resolved from the route's :coverageId param and the
  * selected coverage passed via <Outlet context> by AdminLayout.
  *
- * The "Add Entry" header action creates a draft entry via the REST API with the
- * coverage term pre-assigned, then redirects to the classic editor.
+ * The "Add Entry" header action opens Quick Edit on a new entry in the
+ * coverage, which the modal starts itself; see `QuickEditModal`.
  */
 function EntryView() {
 	const config = useAdminContext();
@@ -111,8 +112,7 @@ function EntryView() {
 		},
 		[ view.filters, view.search ]
 	);
-	const [ isCreatingEntry, setIsCreatingEntry ] = useState( false );
-	const [ createError, setCreateError ] = useState< string | null >( null );
+	const [ isAddingEntry, setIsAddingEntry ] = useState( false );
 	const [ quickEditEntry, setQuickEditEntry ] = useState< Entry | null >(
 		null
 	);
@@ -274,9 +274,27 @@ function EntryView() {
 		refreshKey,
 	} );
 
-	const handleQuickEdit = useCallback( ( entry: Entry ) => {
-		setQuickEditEntry( entry );
-	}, [] );
+	const registry = useRegistry();
+	const { clearEntityRecordEdits } = useDispatch( coreStore );
+
+	// Quick Edit clears an entry's edits when it closes, so edits an entry
+	// carries when it opens came through the page's shared undo history:
+	// another entry's Undo or Redo reached this one. Starting from the saved
+	// entry keeps Save to what is typed in this Quick Edit. Clearing throws
+	// until core-data has loaded the post type's config, and an entry has no
+	// edits before then, so only an entry with edits is cleared.
+	const handleQuickEdit = useCallback(
+		( entry: Entry ) => {
+			const edits = registry
+				.select( coreStore )
+				.getEntityRecordEdits( 'postType', config.postType, entry.id );
+			if ( edits ) {
+				clearEntityRecordEdits( 'postType', config.postType, entry.id );
+			}
+			setQuickEditEntry( entry );
+		},
+		[ registry, clearEntityRecordEdits, config.postType ]
+	);
 
 	const handleQuickEditSaved = useCallback( () => {
 		refresh();
@@ -284,6 +302,14 @@ function EntryView() {
 
 	const handleQuickEditClose = useCallback( () => {
 		setQuickEditEntry( null );
+	}, [] );
+
+	const handleNewEntry = useCallback( () => {
+		setIsAddingEntry( true );
+	}, [] );
+
+	const handleNewEntryClose = useCallback( () => {
+		setIsAddingEntry( false );
 	}, [] );
 
 	const entryFields = useMemo( () => getEntryFields( config ), [ config ] );
@@ -302,32 +328,6 @@ function EntryView() {
 			paginationInfo: { totalItems, totalPages },
 		};
 	}, [ rows, view.filters, totalItems, totalPages ] );
-
-	const handleNewEntry = useCallback( async () => {
-		if ( ! isValidCoverageId || numericCoverageId === null ) {
-			return;
-		}
-		setIsCreatingEntry( true );
-		setCreateError( null );
-
-		const result = await createEntry(
-			config.restBaseUrls.entries,
-			config.restBase.coverages,
-			numericCoverageId
-		);
-
-		if ( result.success && result.id ) {
-			window.location.assign(
-				`${ config.adminUrls.editEntry }&post=${ result.id }`
-			);
-		} else {
-			setCreateError(
-				result.error ||
-					__( 'Failed to create entry', 'newspack-rolling-coverage' )
-			);
-			setIsCreatingEntry( false );
-		}
-	}, [ config, isValidCoverageId, numericCoverageId ] );
 
 	const { requestConfirm, dialog: confirmDialog } = useConfirmDialog();
 	const actions = useMemo(
@@ -426,9 +426,12 @@ function EntryView() {
 
 	// Moving to another coverage (for example with the browser's Back button)
 	// keeps this view mounted, so a drawer left open would still show the
-	// previous coverage's channel.
+	// previous coverage's channel, and a Quick Edit left open would save its
+	// entry into the previous coverage.
 	useEffect( () => {
 		setIsSlackDrawerOpen( false );
+		setQuickEditEntry( null );
+		setIsAddingEntry( false );
 	}, [ numericCoverageId ] );
 	const slackChannelLabel = routeCoverage
 		? getSlackChannelLabel( routeCoverage )
@@ -540,16 +543,11 @@ function EntryView() {
 					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
 				</Button>
 			) : (
-				<Button
-					variant="primary"
-					onClick={ handleNewEntry }
-					isBusy={ isCreatingEntry }
-					disabled={ isCreatingEntry }
-				>
+				<Button variant="primary" onClick={ handleNewEntry }>
 					{ __( 'Add Entry', 'newspack-rolling-coverage' ) }
 				</Button>
 			),
-		[ isArchived, handleNewEntry, isCreatingEntry, statusLabels ]
+		[ isArchived, handleNewEntry, statusLabels ]
 	);
 
 	const placementsButton = useMemo(
@@ -638,10 +636,6 @@ function EntryView() {
 				className="newspack-rolling-coverage-view-notice"
 				message={ error }
 			/>
-			<ErrorNotice
-				className="newspack-rolling-coverage-view-notice"
-				message={ createError }
-			/>
 			{ isFirstLoad && (
 				<LoadingState
 					label={ __(
@@ -686,6 +680,14 @@ function EntryView() {
 				<QuickEditModal
 					entryId={ quickEditEntry.id }
 					onClose={ handleQuickEditClose }
+					onSaved={ handleQuickEditSaved }
+				/>
+			) }
+			{ isAddingEntry && numericCoverageId !== null && (
+				<QuickEditModal
+					entryId={ null }
+					coverageId={ numericCoverageId }
+					onClose={ handleNewEntryClose }
 					onSaved={ handleQuickEditSaved }
 				/>
 			) }

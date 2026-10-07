@@ -157,7 +157,8 @@ const CONTRAST =
 	'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, #111))';
 const BORDER_COLOR =
 	'var(--wp--preset--color--base-3, var(--newspack-theme-color-border, #ddd))';
-const PINNED_BACKGROUND = 'var(--wp--custom--color--neutral-5, #f7f7f7)';
+const PINNED_BACKGROUND =
+	'var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f7f7f7))';
 
 /**
  * The corner radius of the Stream layout's pinned card.
@@ -1232,15 +1233,20 @@ const DIGEST_FEED_STYLE = {
 
 /**
  * The coverage's name as a heading, bound so it follows the coverage, as
- * the Digest layout's header and in the Ticker layout's.
+ * the Digest layout's header, in the Ticker layout's and in the Alert box.
  *
- * @param {string} fontSize The heading's font size preset.
+ * @param {string} fontSize   The heading's font size preset.
+ * @param {Object} attributes More attributes for the heading.
  * @return {TemplateItem} The heading.
  */
-function coverageNameHeading( fontSize = 'large' ): TemplateItem {
+function coverageNameHeading(
+	fontSize = 'large',
+	attributes: Record< string, unknown > = {}
+): TemplateItem {
 	return [
 		'core/heading',
 		{
+			...attributes,
 			level: 3,
 			fontSize,
 			content: __( 'Live Coverage', 'newspack-rolling-coverage' ),
@@ -1380,6 +1386,11 @@ const FLASH_BAR_STYLE = {
 			right: 'var:preset|spacing|30',
 		},
 	},
+};
+
+const ALERT_FEED_STYLE = {
+	color: { background: PINNED_BACKGROUND },
+	spacing: { padding: 'var:preset|spacing|30' },
 };
 
 const FLASH_FEED_LAYOUT = {
@@ -3279,6 +3290,7 @@ export {
 	flashEntryTemplate,
 	flashBar,
 	FLASH_FEED_LAYOUT,
+	ALERT_FEED_STYLE,
 	tickerEntryTemplate,
 	tickerHeader,
 	TICKER_FEED_LAYOUT,

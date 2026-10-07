@@ -39,7 +39,7 @@ Editors and administrators set the site-wide labels in Rolling Coverage > All Co
 
 ## Styling
 
-- **Badge colors.** In the Styles tab, under Color, set Live background, Paused background, and Ended background. The text color is chosen automatically for contrast.
+- **Badge colors.** In the Styles tab, under Color, set Live background, Paused background, and Ended background. The text color is chosen automatically for contrast. The Flash and Alert layouts color the Live badge with the theme's own colors, which follow the theme's style variations; picking a color here replaces that with the color you pick.
 - **Text color.** The Text color setting changes the "Updated … ago" text. New blocks start with a muted color from the theme palette when it has one.
 - **Spacing.** The Dimensions settings control margin. On themes that support block spacing, they also control the gap between the badge and the "Updated … ago" text, which defaults to the theme's small spacing step. Other themes, including the Newspack Theme, use WordPress's standard gap.
 
