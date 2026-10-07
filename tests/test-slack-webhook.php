@@ -536,17 +536,14 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	 * WordPress serve the given route.
 	 *
 	 * @param string $route REST route, or '' for a request that isn't a REST one.
-	 * @return Password_Protected The stand-in plugin.
 	 */
 	private static function serve_on_a_password_protected_site( $route ) {
 		require_once __DIR__ . '/mocks/class-password-protected.php';
-		$password_protected = new Password_Protected();
+		new Password_Protected();
 		update_option( 'password_protected_status', 1 );
 		self::configure_slack();
 		Slack::register_conditional_hooks();
 		$GLOBALS['wp']->query_vars['rest_route'] = $route;
-
-		return $password_protected;
 	}
 
 	/**
@@ -578,6 +575,17 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A filter at the default priority that turns protection on doesn't lock
+	 * Slack out of the webhook routes.
+	 */
+	public function test_password_protected_site_lets_slack_in_past_other_filters() {
+		self::serve_on_a_password_protected_site( '/rolling-coverage/v1/slack/events' );
+		add_filter( 'password_protected_is_active', '__return_true' );
+
+		$this->assertNotWPError( rest_get_server()->check_authentication() );
+	}
+
+	/**
 	 * Requests that aren't for a webhook route.
 	 *
 	 * @return array[]
@@ -599,9 +607,12 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	 * @param string $route REST route, or ''.
 	 */
 	public function test_password_protected_site_keeps_other_requests_protected( $route ) {
-		$password_protected = self::serve_on_a_password_protected_site( $route );
+		self::serve_on_a_password_protected_site( $route );
 
-		$this->assertTrue( $password_protected->is_active() );
+		$refusal = rest_get_server()->check_authentication();
+
+		$this->assertWPError( $refusal, 'Password Protected should refuse the request.' );
+		$this->assertSame( 'rest_cannot_access', $refusal->get_error_code() );
 	}
 
 	/**
