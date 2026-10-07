@@ -45,7 +45,6 @@ interface AdminConfig {
 		canChangeAuthors: boolean;
 		canManageTerms: boolean;
 		canManageOptions: boolean;
-		canManageAiSettings: boolean;
 		canManageSettings: boolean;
 	};
 	supportsHandoff: boolean;
@@ -65,7 +64,7 @@ interface AdminConfig {
 		canonicalUrlKey: string;
 		adsDisabledKey: string;
 	};
-	aiSettings: AiSettings;
+	aiSettings: AiSettings | null;
 	aiDefaultSettings: AiSettings;
 	aiAvailable: boolean;
 	/** True when AI is unavailable only because the plugin isn't approved for a connector. */
