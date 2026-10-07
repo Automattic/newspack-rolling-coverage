@@ -1,3 +1,5 @@
+@use "~@wordpress/base-styles/variables" as wp-vars;
+
 .newspack-rolling-coverage-placements,
 .newspack-rolling-coverage-placement__blocks {
 	list-style: none;
@@ -15,6 +17,7 @@
 .newspack-rolling-coverage-placement {
 
 	&__title {
+		font-weight: wp-vars.$font-weight-medium;
 		min-width: 0;
 		overflow-wrap: anywhere;
 	}
