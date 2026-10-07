@@ -43,90 +43,104 @@ function PlacementRow( {
 					marginBottom={ 0 }
 				/>
 			) }
-			<Stack direction="row" justify="space-between" gap="lg">
-				<Stack
-					render={ <dl /> }
-					direction="column"
-					gap="lg"
-					className="newspack-rolling-coverage-placement__details"
-				>
+			<Stack
+				render={ <dl /> }
+				direction="column"
+				gap="lg"
+				className="newspack-rolling-coverage-placement__details"
+			>
+				<Stack direction="column" gap="sm">
+					<Field.VisualLabel render={ <dt /> }>
+						{ type && isMain ? (
+							<>
+								<span aria-hidden="true">
+									{ sprintf(
+										/* translators: %s: what the place is, such as Page */
+										_x(
+											'%s · Main',
+											'visible label of the main page',
+											'newspack-rolling-coverage'
+										),
+										type
+									) }
+								</span>
+								<VisuallyHidden render={ <span /> }>
+									{ sprintf(
+										/* translators: %s: what the place is, such as Page */
+										__(
+											'%s, Main page',
+											'newspack-rolling-coverage'
+										),
+										type
+									) }
+								</VisuallyHidden>
+							</>
+						) : (
+							type || mainPage
+						) }
+					</Field.VisualLabel>
+					<Stack
+						render={ <dd /> }
+						direction="row"
+						justify="space-between"
+						align="baseline"
+						gap="lg"
+					>
+						<Text className="newspack-rolling-coverage-placement__title">
+							{ title }
+						</Text>
+						{ ( viewUrl || editUrl ) && (
+							<Stack
+								direction="row"
+								gap="md"
+								align="baseline"
+								className="newspack-rolling-coverage-placement__links"
+							>
+								{ viewUrl && (
+									<Link href={ viewUrl } openInNewTab>
+										{ __(
+											'View',
+											'newspack-rolling-coverage'
+										) }
+										<VisuallyHidden render={ <span /> }>
+											{ ` ${ title }` }
+										</VisuallyHidden>
+									</Link>
+								) }
+								{ editUrl && (
+									<Link href={ editUrl }>
+										{ __(
+											'Edit',
+											'newspack-rolling-coverage'
+										) }
+										<VisuallyHidden render={ <span /> }>
+											{ ` ${ title }` }
+										</VisuallyHidden>
+									</Link>
+								) }
+							</Stack>
+						) }
+					</Stack>
+				</Stack>
+				{ blocks.length > 0 && (
 					<Stack direction="column" gap="sm">
 						<Field.VisualLabel render={ <dt /> }>
-							{ type && isMain ? (
-								<>
-									<span aria-hidden="true">
-										{ sprintf(
-											/* translators: %s: what the place is, such as Page */
-											_x(
-												'%s · Main',
-												'visible label of the main page',
-												'newspack-rolling-coverage'
-											),
-											type
-										) }
-									</span>
-									<VisuallyHidden render={ <span /> }>
-										{ sprintf(
-											/* translators: %s: what the place is, such as Page */
-											__(
-												'%s, Main page',
-												'newspack-rolling-coverage'
-											),
-											type
-										) }
-									</VisuallyHidden>
-								</>
-							) : (
-								type || mainPage
-							) }
+							{ __( 'Blocks', 'newspack-rolling-coverage' ) }
 						</Field.VisualLabel>
-						<Text render={ <dd /> }>{ title }</Text>
-					</Stack>
-					{ blocks.length > 0 && (
-						<Stack direction="column" gap="sm">
-							<Field.VisualLabel render={ <dt /> }>
-								{ __( 'Blocks', 'newspack-rolling-coverage' ) }
-							</Field.VisualLabel>
-							<dd>
-								<Stack
-									render={ <ul /> }
-									direction="column"
-									gap="xs"
-									className="newspack-rolling-coverage-placement__blocks"
-								>
-									{ blocks.map( ( block ) => (
-										<Text key={ block } render={ <li /> }>
-											{ block }
-										</Text>
-									) ) }
-								</Stack>
-							</dd>
-						</Stack>
-					) }
-				</Stack>
-				{ ( viewUrl || editUrl ) && (
-					<Stack
-						direction="row"
-						gap="md"
-						align="baseline"
-						className="newspack-rolling-coverage-placement__links"
-					>
-						{ viewUrl && (
-							<Link href={ viewUrl } openInNewTab>
-								{ __( 'View', 'newspack-rolling-coverage' ) }
-								<VisuallyHidden render={ <span /> }>
-									{ ` ${ title }` }
-								</VisuallyHidden>
-							</Link>
-						) }
-						{ editUrl && (
-							<Link href={ editUrl }>
-								{ __( 'Edit', 'newspack-rolling-coverage' ) }
-								<VisuallyHidden render={ <span /> }>
-									{ ` ${ title }` }
-								</VisuallyHidden>
-							</Link>
-						) }
+						<dd>
+							<Stack
+								render={ <ul /> }
+								direction="column"
+								gap="xs"
+								className="newspack-rolling-coverage-placement__blocks"
+							>
+								{ blocks.map( ( block ) => (
+									<Text key={ block } render={ <li /> }>
+										{ block }
+									</Text>
+								) ) }
+							</Stack>
+						</dd>
 					</Stack>
 				) }
 			</Stack>
