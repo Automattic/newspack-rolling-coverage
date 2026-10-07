@@ -41,7 +41,7 @@ For the contribution process (bug reports, feature requests, pull requests, and 
 
 ### Frontend blocks
 
-Five blocks ship with the plugin (namespace `newspack-rolling-coverage`):
+Six blocks ship with the plugin (namespace `newspack-rolling-coverage`):
 
 | Block | Name | Purpose |
 | :--- | :--- | :--- |
@@ -49,6 +49,7 @@ Five blocks ship with the plugin (namespace `newspack-rolling-coverage`):
 | Breakout Post Link | `breakout-post-link` | "Read more" link to a published breakout post, shown inside an entry. |
 | Follow Coverage | `coverage-follow` | Push-notification follow button (requires OneSignal). Not rendered for an archived coverage. |
 | Coverage Status | `coverage-status` | Shows whether a coverage is live, paused, or ended. |
+| Check for Updates | `check-updates` | A button readers press to load new entries. A Rolling Coverage feed whose layout holds it checks for new entries only when they do; anywhere else it renders nothing. |
 | Share | `share` | Opens the device's share sheet for an entry's shareable URL, or copies the URL to the clipboard where there is no share sheet. |
 
 The Rolling Coverage block exposes these attributes:
@@ -57,7 +58,8 @@ The Rolling Coverage block exposes these attributes:
 | :--- | :--- | :--- | :--- |
 | `coverageId` | number | `0` | Coverage term to display. |
 | `pollInterval` | number | `10` | Seconds between polls for new entries. |
-| `entriesPerPage` | number | `20` | Entries loaded initially and per load-more page (max 100). |
+| `entriesPerPage` | number | `20` | Entries loaded initially and per page of older entries (max 100). |
+| `olderEntries` | string | `"scroll"` | How older entries load: `scroll` (as the reader nears the end of the feed), `button` (a Load More button), or `none` (first page only). |
 | `enableAds` | boolean | `true` | Insert ads between entries (requires Newspack Ads). |
 | `adsInterval` | number | `4` | Insert an ad every N entries. |
 | `archivedNoticeShow` | boolean | `true` | Show a notice at the top of the feed once the coverage is archived. |
@@ -69,9 +71,10 @@ The Rolling Coverage block exposes these attributes:
 | `latestOnly` | boolean | `false` | Show only the latest entries instead of the full feed. |
 | `latestCount` | number | `5` | Number of entries shown when `latestOnly` is on (1–100). |
 | `allUpdatesLink` | boolean | `true` | When `latestOnly` is on, link to the coverage page. Hidden on that page. |
+| `allUpdatesLinkText` | string | `""` | This block's own wording for that link. When empty, the layout's text is used. |
 | `hideWhenEnded` | boolean | `false` | Remove the whole block once the coverage is archived. |
 
-The feed supports live forward polling (new/updated entries), backward pagination ("load more" on scroll), off-page update reconciliation, overflow detection with automatic reload, and intersection-observer analytics events (`coverage_entry_seen`, `coverage_poll_error`).
+The feed supports live forward polling (new/updated entries), backward pagination (on scroll or with a Load More button), off-page update reconciliation, overflow detection with automatic reload, and intersection-observer analytics events (`coverage_entry_seen`, `coverage_poll_error`).
 
 ### Slack ingestion
 
@@ -112,7 +115,7 @@ Promote a single entry to a standalone article.
 
 When the OneSignal plugin is installed, configured, and v3-active:
 
-- A per-entry meta box can opt a newly published entry into a push notification.
+- A Push Notifications panel in the entry editor can opt a newly published entry into a push notification. Entries created from a chat source such as Slack are opted in automatically.
 - Notifications are sent **only to followers of the relevant coverage** using a tag filter (`coverage_{id}`).
 - The follow block lets readers subscribe to a coverage's tag.
 - Notification URLs deep-link to the coverage's canonical URL and the entry's slug anchor, and are scoped to followers via a tag filter.
@@ -150,6 +153,7 @@ includes/
   class-post-type.php            rolling_cov_entry CPT, meta, REST fields, entries-view endpoint, pinning, restore
   class-taxonomy.php             rolling_coverage taxonomy, term meta, coverage lifecycle REST routes
   class-archive-mode.php         Archive/lock rules and the entry archive endpoint
+  class-placements.php           Finds and stores every published place the plugin's blocks show a coverage
   class-newest-entry.php         Keeps each coverage's newest-entry time in term meta
   class-breakout.php             Breakout post creation, linking, status sync
   class-social-sharing.php       Canonical redirects, share URLs, deep-link query vars
@@ -163,7 +167,7 @@ includes/
     class-ai-settings.php        Prompt settings + REST route
     class-abilities.php          WordPress Abilities API registration
     class-key-takeaways-feature.php  AI plugin per-feature model config
-  blocks/                        Server render callbacks for the five blocks, entry bindings, shared layouts, status labels
+  blocks/                        Server render callbacks for the six blocks, entry bindings, shared layouts, status labels, entry name and Jump to Latest label settings, Lite Site feed support
   slack/                         Slack config, API client, content processor, media importer, author resolver, ingestion service, verifier, webhook controller, monitor
   sources/
     class-entry-ingestion-service.php  Generic ingestion + dedup/mutex
@@ -171,6 +175,7 @@ includes/
 src/
   admin/                         React/TypeScript admin app (DataViews, modals, Slack settings, AI page)
   blocks/                        Block editor + frontend view sources (edit.tsx, view.ts, block.json)
+  entry-editor/                  Entry editor script (Push Notifications panel, back-to-coverage link)
 tests/                           PHPUnit suite
 ```
 
@@ -202,12 +207,13 @@ All PHP classes live under the `Newspack_Rolling_Coverage` namespace and are loa
 | `rolling_coverage_slack_channel_id` | Source Slack channel | edit only |
 | `rolling_coverage_slack_thread_ts` | Thread timestamp | edit only |
 | `_rolling_coverage_published_gmt` | GMT first-publish time (protected) | — |
+| `_rolling_coverage_unpublished_gmt` | GMT time the entry last left `publish` (protected) | — |
 | `rolling_coverage_original_coverage_id`, `rolling_coverage_original_coverage_name`, `rolling_coverage_original_coverage_slug` | Recovery context snapshotted at first term assignment (not at trash time). Writes require `edit_post`; **readable over REST in both contexts** (not stripped). | view + edit |
 | `rolling_coverage_breakout_post_id` | Linked breakout post ID | — |
 | `rolling_coverage_breakout_status` | Cached breakout post status | edit only (as a REST field, not as meta) |
 | `rolling_coverage_source_entry_id` | Reverse link on the breakout post | — |
 | `_rolling_coverage_archived_at` | Entry archived timestamp (non-empty = archived) | — |
-| `rolling_coverage_notify_on_publish` | Push-notification opt-in flag, read and cleared by the publish transition | — |
+| `_rolling_coverage_notify_on_publish` | Push-notification opt-in flag, read and cleared by the publish transition | edit only |
 
 Sensitive Slack/source meta (`RESTRICTED_META` in `Post_Type`) is stripped from REST responses outside the `edit` context. On entry post meta, WordPress does not gate reads by `auth_callback` — writes are gated by the post's `edit_post` capability; the strip filter is what protects those keys on read.
 
@@ -229,10 +235,13 @@ Namespace: **`rolling-coverage/v1`** (constant `NEWSPACK_ROLLING_COVERAGE_REST_N
 | POST | `/entries/{entry_id}/pin` | `edit_others_posts` | Toggle pin. |
 | POST | `/entries/{entry_id}/restore` | `edit_post` | Restore one trashed entry. |
 | POST | `/entries/restore` | `edit_posts` | Bulk restore. |
+| POST | `/entries/author` | `edit_others_posts` | Make one user the author of several entries (up to 100). |
 | POST | `/entries/{entry_id}/breakout` | `edit_others_posts` | Create breakout post. |
 | POST | `/entries/{entry_id}/archive` | `edit_others_posts` | Archive/unarchive an entry. |
 | GET/POST | `/ai/settings` | `edit_others_posts` | Read/update the key-takeaways prompt. |
 | GET/POST | `/settings/status-labels` | `edit_others_posts` | Read/update the coverage status labels. |
+| GET/POST | `/settings/entry-name` | `edit_others_posts` | Read/update what readers see entries called (singular and plural). |
+| GET/POST | `/settings/latest-label` | `edit_others_posts` | Read/update the Jump to Latest button label. |
 | POST | `/layouts/{slug}` | create and publish patterns (`wp_block`) | Create the shared layout pattern for a built-in layout, or return the existing one. |
 
 ### Slack
@@ -291,7 +300,8 @@ The `entries-view` endpoint accepts `page`, `per_page`, `orderby` (`date`\|`modi
 - `rolling_coverage_ai_settings` (AI prompt settings).
 - `rolling_coverage_slack_bot_token`, `rolling_coverage_slack_signing_secret`, `rolling_coverage_slack_settings`, `rolling_coverage_slack_channel_map`, `rolling_coverage_slack_bot_user_id` (all non-autoloaded).
 - `rolling_coverage_slack_monitor_last_seen`, `rolling_coverage_slack_monitor_filename`.
-- `rolling_coverage_page_ids` (coverage-to-page map).
+- `rolling_coverage_placements` (stored map of the published places that show each coverage), `rolling_coverage_placements_stale`, `rolling_coverage_placements_lock` (rebuild lock, 300s TTL).
+- `rolling_coverage_entry_name`, `rolling_coverage_latest_label` (reader-facing label settings).
 - `rolling_coverage_status_labels` (custom coverage status labels).
 - `rolling_coverage_{slug}_layout_id` (pattern ID of each built-in shared layout).
 - `rolling_coverage_notification_lock_{post_id}` (push-notification send lock, 60s TTL).
@@ -309,6 +319,7 @@ Useful query vars for developers on `WP_Query`:
 
 - `rolling_coverage_cleanup_orphaned_entries` — permanently deletes entries orphaned by coverage deletion, in batches of 50, rescheduling while entries remain. Scheduled on coverage deletion and cleared on deactivation.
 - `newspack_rolling_coverage_send_notification` — single event that sends an entry's deferred push notification.
+- `newspack_rolling_coverage_rebuild_placements` — single event that rebuilds the stored placements map after a change.
 
 ### Capabilities
 
@@ -316,6 +327,6 @@ Useful query vars for developers on `WP_Query`:
 | :--- | :--- |
 | `edit_posts` | Access the plugin pages, view/author entries, generate takeaways, view trashed entries. |
 | `publish_posts` | Publish own entries. |
-| `edit_others_posts` / Editor+ | View and manage all entries, pin, archive, breakout, edit status labels, and access the AI page. |
+| `edit_others_posts` / Editor+ | View and manage all entries, pin, archive, breakout, change entry authors, edit status labels and reader-facing labels, and access the AI page. |
 | `manage_categories` | Create/edit/trash/restore/delete coverages. |
 | `manage_options` | Slack connection and monitor, and admin-UI-only Slack term meta writes. |

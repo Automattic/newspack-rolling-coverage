@@ -14,7 +14,7 @@ Newspack Rolling Coverage is a liveblog plugin. It provides:
 
 - A `rolling_coverage` taxonomy (one term per news event).
 - A `rolling_cov_entry` custom post type (individual updates in the feed).
-- Five Gutenberg blocks for rendering the feed and its supporting UI.
+- Six Gutenberg blocks for rendering the feed and its supporting UI.
 - A React/TypeScript admin app for managing coverages and entries.
 - Integrations: Slack ingestion, OneSignal push, Newspack Ads, WordPress AI.
 
@@ -31,7 +31,8 @@ newspack-rolling-coverage/
 ├── includes/                       # PHP classes: class-<slug>.php (also in ai/, blocks/, slack/, sources/)
 ├── src/
 │   ├── admin/                      # React/TypeScript admin app
-│   └── blocks/<slug>/              # block.json, index.tsx, edit.tsx, view.ts
+│   ├── blocks/<slug>/              # block.json, index.tsx, edit.tsx, view.ts
+│   └── entry-editor/               # Entry editor script
 ├── dist/                           # Compiled assets (gitignored)
 ├── tests/                          # PHPUnit suite
 ├── composer.json
@@ -127,7 +128,8 @@ bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1 latest  # install WP te
 - Use the `create_coverage()` / `create_entry()` / `log_in_as()` / `dispatch()`
   helpers in the base class.
 - Mocks: `tests/mocks/newspack-theme.php`, `tests/mocks/onesignal.php`,
-  `tests/mocks/newspack-ads.php`, `tests/mocks/class-simple-local-avatars.php`.
+  `tests/mocks/newspack-ads.php`, `tests/mocks/class-simple-local-avatars.php`,
+  `tests/mocks/class-lite-site.php`; stub `tests/stubs/class-block-visibility.php`.
 - Slack outbound HTTP is mocked with the `pre_http_request` filter.
 
 ## Common gotchas
@@ -145,8 +147,9 @@ bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1 latest  # install WP te
 - **There are no JS unit tests.** `npm test` is an intentional no-op
   (`echo 'No JS unit tests in this repository.'`). PHP tests are authoritative.
 - **Block entries are auto-discovered from `block.json`** by
-  `getWebpackEntryPoints('script')()`; only the admin app is a hardcoded webpack
-  entry (`src/admin/index.tsx`).
+  `getWebpackEntryPoints('script')()`; only the admin app (`src/admin/index.tsx`)
+  and the entry editor script (`src/entry-editor/index.tsx`) are hardcoded
+  webpack entries.
 - **REST namespace is shared.** `NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE`
   (`rolling-coverage/v1`) is used by both the core plugin routes and the Slack
   integration (`Slack::REST_NAMESPACE` has the same string).
