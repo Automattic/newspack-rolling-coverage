@@ -411,6 +411,30 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A theme color name renders the theme's color variables and the text
+	 * color the theme pairs with it, so the badge follows style variations.
+	 */
+	public function test_theme_color_backgrounds_use_the_theme_pair() {
+		$page_id = self::page( self::feed( self::create_coverage() ) );
+
+		$html = $this->render(
+			[
+				'backgroundColors' => [
+					'active'   => 'accent',
+					'archived' => 'base',
+				],
+			],
+			$page_id
+		);
+
+		$accent = Coverage_Status_Block::THEME_COLORS['accent'];
+		$base   = Coverage_Status_Block::THEME_COLORS['base'];
+
+		$this->assertStringContainsString( 'style="background:' . $accent['background'] . ';color:' . $accent['text'] . ';--newspack-ui-badge-dot-color:color-mix(in srgb, ' . $accent['text'] . ' 60%, ' . $accent['background'] . ')">Live</span>', $html );
+		$this->assertStringContainsString( 'data-style-archived="background:' . $base['background'] . ';color:' . $base['text'] . ';', $html );
+	}
+
+	/**
 	 * "Updated" is off by default.
 	 */
 	public function test_last_updated_is_off_by_default() {

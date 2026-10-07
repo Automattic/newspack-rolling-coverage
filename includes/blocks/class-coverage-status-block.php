@@ -36,6 +36,23 @@ class Coverage_Status_Block {
 	];
 
 	/**
+	 * Theme colors a badge background can name instead of a hex color, each
+	 * with the theme's text color made for it: the block theme's preset, then
+	 * the classic Newspack Theme's custom property, then a plain value. They
+	 * follow the theme's style variations, which a stored hex can't.
+	 */
+	const THEME_COLORS = [
+		'accent' => [
+			'background' => 'var(--wp--preset--color--accent, var(--newspack-theme-color-primary, #003da5))',
+			'text'       => 'var(--wp--preset--color--accent-contrast, var(--wp--preset--color--base, var(--newspack-theme-color-against-primary, #fff)))',
+		],
+		'base'   => [
+			'background' => 'var(--wp--preset--color--base, var(--newspack-theme-color-bg-body, #fff))',
+			'text'       => 'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, #111))',
+		],
+	];
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
@@ -185,20 +202,26 @@ class Coverage_Status_Block {
 	}
 
 	/**
-	 * Inline badge style for a custom background: the color, the APCA-picked
-	 * text color, and a dot color that stays visible on it.
+	 * Inline badge style for a custom background: the color, its text color
+	 * (the theme's pair for a THEME_COLORS name, else picked by APCA), and a
+	 * dot color that stays visible on it.
 	 *
-	 * @param string $color Background color, any form Apca::normalize() accepts.
+	 * @param string $color Background color: a THEME_COLORS name, or any form Apca::normalize() accepts.
 	 * @return string The style, or '' when the color is unset or invalid.
 	 */
 	private static function badge_style( string $color ): string {
-		$background = Apca::normalize( $color );
+		if ( isset( self::THEME_COLORS[ $color ] ) ) {
+			$background = self::THEME_COLORS[ $color ]['background'];
+			$text       = self::THEME_COLORS[ $color ]['text'];
+		} else {
+			$background = Apca::normalize( $color );
 
-		if ( '' === $background ) {
-			return '';
+			if ( '' === $background ) {
+				return '';
+			}
+
+			$text = Apca::text_color( $background );
 		}
-
-		$text = Apca::text_color( $background );
 
 		return sprintf( 'background:%1$s;color:%2$s;--newspack-ui-badge-dot-color:color-mix(in srgb, %2$s 60%%, %1$s)', $background, $text );
 	}

@@ -16,6 +16,24 @@ const BADGE_CLASSES: Record< string, string > = {
 };
 
 /**
+ * Theme colors a badge background can name instead of a hex color, each with
+ * the theme's text color made for it, matching
+ * Coverage_Status_Block::THEME_COLORS.
+ */
+const THEME_COLORS: Record< string, { background: string; text: string } > = {
+	accent: {
+		background:
+			'var(--wp--preset--color--accent, var(--newspack-theme-color-primary, #003da5))',
+		text: 'var(--wp--preset--color--accent-contrast, var(--wp--preset--color--base, var(--newspack-theme-color-against-primary, #fff)))',
+	},
+	base: {
+		background:
+			'var(--wp--preset--color--base, var(--newspack-theme-color-bg-body, #fff))',
+		text: 'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, #111))',
+	},
+};
+
+/**
  * The status a badge shows: a status it doesn't know reads as live.
  *
  * @param {string} status Coverage status.
@@ -45,17 +63,18 @@ function badgeClasses( status: string, showDot: boolean ): string {
  * The inline badge style for a custom background, matching
  * Coverage_Status_Block::badge_style().
  *
- * @param {string} color Background color.
+ * @param {string} color Background color: a THEME_COLORS name or a hex color.
  * @return {CSSProperties|undefined} Style object, or undefined when unset.
  */
 function badgeStyleObject( color?: string ): CSSProperties | undefined {
-	const background = normalizeColor( color ?? '' );
+	const theme = color ? THEME_COLORS[ color ] : undefined;
+	const background = theme?.background ?? normalizeColor( color ?? '' );
 
 	if ( ! background ) {
 		return undefined;
 	}
 
-	const text = textColor( background );
+	const text = theme?.text ?? textColor( background );
 
 	return {
 		background,

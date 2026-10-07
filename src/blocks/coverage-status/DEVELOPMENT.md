@@ -8,7 +8,7 @@ For how publishers use the block, see `README.md` in this directory.
 
 - `coverageId`: 0 for Automatic, or a chosen coverage (Custom).
 - `labels`: per-status text overrides, keyed `active`, `paused`, `archived`.
-- `backgroundColors`: per-status badge backgrounds, same keys.
+- `backgroundColors`: per-status badge backgrounds, same keys. Each is a hex color or a theme color name (`accent`, `base`).
 - `showDot`: the dot (and pulse, while live) on the badge. Default on.
 - `showLastUpdated`: the "Updated 2 minutes ago" text. Default off.
 - `hideWhenEnded`: render nothing once the coverage ends.
@@ -45,11 +45,15 @@ Site-wide labels live in the `rolling_coverage_status_labels` option, managed by
 
 ## Background colors and text contrast
 
-A custom background must be a hex color. `Apca::normalize()` accepts `#rgb`, `#rgba`, `#rrggbb` and `#rrggbbaa`, drops any alpha, and returns an empty string for anything else, which leaves the badge's default style. This keeps the value safe for an inline style.
+A custom background is a theme color name or a hex color.
 
-The text color is never chosen by the publisher. `Apca::text_color()` (`includes/blocks/class-apca.php`) picks black or white, whichever has the higher APCA contrast against the background. `badge_style()` then sets the background, that text color, and a dot color mixed from the two so the dot stays visible.
+A theme color name (`THEME_COLORS`: `accent`, `base`) renders as the theme's color variables, with the text color the theme pairs with it: `accent` with `accent-contrast` (else `base`, as the block theme's buttons do), `base` with `contrast`. Each names the block theme's preset, then the classic Newspack Theme's custom property, then a plain value, so the badge follows the theme's style variations, dark ones included. A stored hex can't: it keeps the color the palette had when it was saved. Built-in layouts that color the badge use these names (Flash `base`, Alert `accent`). The editor's color picker needs a literal color to show and mark as selected, so it shows a theme color as its palette swatch, or the plain fallback when the palette has none (`themeSwatch()` in `edit.tsx`); picking any color there stores a hex. A block theme whose accent is light and that prints no `accent-contrast` gets the light `base` as text; the Newspack Block Theme derives `accent-contrast` for every variation.
 
-`src/blocks/shared/apca.ts` ports the same algorithm and constants for the editor preview (`badgeStyleObject()` in `src/blocks/shared/status-badges.ts`). The two must agree, or the editor shows a different text color from the site; change them together. `tests/test-apca.php` checks the PHP side against reference values.
+A hex background goes through `Apca::normalize()`, which accepts `#rgb`, `#rgba`, `#rrggbb` and `#rrggbbaa`, drops any alpha, and returns an empty string for anything else, which leaves the badge's default style. This keeps the value safe for an inline style.
+
+The text color is never chosen by the publisher. For a hex background, `Apca::text_color()` (`includes/blocks/class-apca.php`) picks black or white, whichever has the higher APCA contrast against the background. `badge_style()` then sets the background, that text color, and a dot color mixed from the two so the dot stays visible.
+
+`src/blocks/shared/apca.ts` ports the same algorithm and constants for the editor preview (`badgeStyleObject()` in `src/blocks/shared/status-badges.ts`, which also mirrors `THEME_COLORS`). The two must agree, or the editor shows a different text color from the site; change them together. `tests/test-apca.php` checks the PHP side against reference values.
 
 The badge classes per status are `Coverage_Status_Block::BADGE_CLASSES`, mirrored by `BADGE_CLASSES` in `status-badges.ts`.
 
