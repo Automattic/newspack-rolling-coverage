@@ -154,7 +154,8 @@ $quick-edit-footer-clearance: 72px;
 	}
 
 	.block-editor-block-toolbar .components-toolbar-group,
-	.block-editor-block-toolbar .components-toolbar {
+	.block-editor-block-toolbar .components-toolbar,
+	.block-editor-block-parent-selector {
 		margin-block: 0;
 	}
 }
@@ -253,7 +254,7 @@ $quick-edit-footer-clearance: 72px;
 .newspack-rolling-coverage-quick-edit__footer {
 	opacity: 0;
 
-	.is-ready & {
+	.newspack-rolling-coverage-quick-edit.is-ready & {
 		opacity: 1;
 
 		@media not (prefers-reduced-motion) {

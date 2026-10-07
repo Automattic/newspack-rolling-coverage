@@ -94,6 +94,7 @@ function QuickEditSaveBar( { onClose, onSaved }: QuickEditSaveBarProps ) {
 				onClick={ handleSave }
 				isBusy={ isSavingPost }
 				disabled={ isSavingPost || ! isEditorReady || ! isDirty }
+				accessibleWhenDisabled
 				size="compact"
 			>
 				{ __( 'Save', 'newspack-rolling-coverage' ) }
