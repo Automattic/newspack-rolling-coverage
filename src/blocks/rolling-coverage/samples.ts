@@ -6,7 +6,7 @@ import { store as coreStore } from '@wordpress/core-data';
 import { date as formatDate } from '@wordpress/date';
 import { escapeHTML } from '@wordpress/escape-html';
 import { useEffect, useState } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, _x } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -26,6 +26,12 @@ const AUTHORS = [
 ];
 const IMAGE_ID = -800;
 
+/**
+ * How many opening words an untitled entry's headline keeps, as
+ * Entry_Bindings::UNTITLED_FALLBACK_WORDS.
+ */
+const UNTITLED_FALLBACK_WORDS = 15;
+
 const SAMPLE_IMAGE =
 	'data:image/svg+xml,' +
 	encodeURIComponent(
@@ -38,17 +44,43 @@ type Sample = {
 	minutesAgo: number;
 	title: string;
 	content: string;
-	excerpt?: string;
 	pinned?: boolean;
 	hasBreakout?: boolean;
 	hasImage?: boolean;
 };
 
 /**
+ * The headline the site gives an untitled entry without an excerpt: its
+ * opening words (see Entry_Bindings::get_fallback_title()).
+ *
+ * @param {string} content The entry's text.
+ * @return {string} The headline.
+ */
+function openingWords( content: string ): string {
+	const text = content.trim();
+	// wp_trim_words() counts characters where translators set the word count type to characters, as for Chinese and Japanese.
+	const countsCharacters = _x(
+		'words',
+		'Word count type. Do not translate!'
+	).startsWith( 'characters' );
+	const units = countsCharacters
+		? Array.from( text.replace( /\s+/g, ' ' ) )
+		: text.split( /\s+/ );
+
+	if ( units.length <= UNTITLED_FALLBACK_WORDS ) {
+		return text;
+	}
+
+	return (
+		units
+			.slice( 0, UNTITLED_FALLBACK_WORDS )
+			.join( countsCharacters ? '' : ' ' ) + '…'
+	);
+}
+
+/**
  * One live coverage of a match, newest first, with an entry for each way an
- * entry can render. The untitled entry's excerpt is short enough to show
- * whole as its headline where a layout gives untitled entries one, as the
- * site would (see Entry_Bindings::get_fallback_title()).
+ * entry can render.
  */
 function getSamples(): Sample[] {
 	return [
@@ -74,10 +106,6 @@ function getSamples(): Sample[] {
 			title: '',
 			content: __(
 				"Halvorsen at full stretch to push Renee Vargas's header over the bar, four minutes into stoppage time. The North Bank greets it like a third goal.",
-				'newspack-rolling-coverage'
-			),
-			excerpt: __(
-				"Halvorsen at full stretch to push Renee Vargas's header over the bar",
 				'newspack-rolling-coverage'
 			),
 		},
@@ -142,26 +170,31 @@ function loadSampleRecords(): void {
 		receiveUserPermission: ( key: string, isAllowed: boolean ) => void;
 	};
 
-	core.receiveEntityRecords(
-		'root',
-		'user',
-		AUTHORS.map( ( { id, name, slug, initials } ) => {
-			const avatar =
-				SHOW_AVATARS && SAMPLE_AVATAR_URLS?.[ initials.toLowerCase() ];
+	const users = AUTHORS.map( ( { id, name, slug, initials } ) => {
+		const avatar =
+			SHOW_AVATARS && SAMPLE_AVATAR_URLS?.[ initials.toLowerCase() ];
 
-			return {
-				id,
-				name,
-				slug,
-				...( avatar && {
-					avatar_urls: { 24: avatar, 48: avatar, 96: avatar },
-				} ),
-			};
-		} )
-	);
+		return {
+			id,
+			name,
+			slug,
+			...( avatar && {
+				avatar_urls: { 24: avatar, 48: avatar, 96: avatar },
+			} ),
+		};
+	} );
+	core.receiveEntityRecords( 'root', 'user', users );
+	core.receiveEntityRecords( 'root', 'user', users, { context: 'view' } );
 	AUTHORS.forEach( ( { id } ) => {
 		core.finishResolution( 'getEntityRecord', [ 'root', 'user', id ] );
+		core.finishResolution( 'getEntityRecord', [
+			'root',
+			'user',
+			id,
+			{ context: 'view' },
+		] );
 		core.finishResolution( 'getUser', [ id ] );
+		core.finishResolution( 'getUser', [ id, { context: 'view' } ] );
 	} );
 
 	core.receiveEntityRecords(
@@ -209,8 +242,8 @@ function loadSampleRecords(): void {
 				protected: false,
 			},
 			excerpt: {
-				raw: sample.excerpt ?? sample.content,
-				rendered: `<p>${ escapeHTML( sample.excerpt ?? sample.content ) }</p>`,
+				raw: sample.content,
+				rendered: `<p>${ paragraph }</p>`,
 				protected: false,
 			},
 			author: sample.authorId,
@@ -266,7 +299,7 @@ export function useSampleEntries( enabled: boolean ): EntryContext[] {
 				hasTitle: '' !== sample.title,
 				hidesByline: false,
 				fallbackTitle:
-					'' === sample.title ? ( sample.excerpt ?? '' ) : '',
+					'' === sample.title ? openingWords( sample.content ) : '',
 			} ) )
 		);
 	}, [ enabled ] );

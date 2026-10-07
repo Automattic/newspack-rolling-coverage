@@ -31,12 +31,14 @@ class Initializer {
 	private static function includes() {
 		Post_Type::init();
 		Taxonomy::init();
+		Placements::init();
 		Newest_Entry::init();
 		Slack::init();
 		Breakout::init();
 		Social_Sharing::init();
 		Archive_Mode::init();
 		Rolling_Coverage_Block::init();
+		Lite_Feed::init();
 		Layout::init();
 		Breakout_Post_Link_Block::init();
 		Entry_Bindings::init();
@@ -47,9 +49,12 @@ class Initializer {
 		AI_Service::init();
 		AI_Settings::init();
 		Status_Labels::init();
+		Latest_Label::init();
+		Entry_Name::init();
 		Abilities::init();
 		Schema::init();
 		Coverage_Follow_Block::init();
+		Check_Updates_Block::init();
 		Coverage_Status_Block::init();
 		Push_Notifications::init();
 
@@ -69,6 +74,8 @@ class Initializer {
 
 		// Flush rewrite rules to ensure the new post type and taxonomy are available.
 		flush_rewrite_rules(); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.flush_rewrite_rules_flush_rewrite_rules
+
+		Placements::activate();
 
 		/**
 		 * Action to hook into when Rolling Coverage plugin is activated.
@@ -91,6 +98,8 @@ class Initializer {
 		}
 
 		wp_clear_scheduled_hook( Post_Type::CLEANUP_CRON_HOOK );
+
+		Placements::deactivate();
 
 		// Clean up the Slack monitor log file and keep-alive options.
 		Slack_Monitor::cleanup();

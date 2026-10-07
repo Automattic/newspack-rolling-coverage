@@ -32,15 +32,21 @@ interface AdminConfig {
 		restNamespace: string;
 		aiSettings: string;
 		statusLabels: string;
+		latestLabel: string;
+		entryName: string;
 		posts: string;
 	};
 	nonce: string;
 	capabilities: {
 		canEditPosts: boolean;
 		canEditEntries: boolean;
+		canChangeAuthors: boolean;
+		canAssignCategories: boolean;
+		canCreateCategories: boolean;
+		canAssignTags: boolean;
+		canCreateTags: boolean;
 		canManageTerms: boolean;
 		canManageOptions: boolean;
-		canManageAiSettings: boolean;
 		canManageSettings: boolean;
 	};
 	supportsHandoff: boolean;
@@ -60,7 +66,7 @@ interface AdminConfig {
 		canonicalUrlKey: string;
 		adsDisabledKey: string;
 	};
-	aiSettings: AiSettings;
+	aiSettings: AiSettings | null;
 	aiDefaultSettings: AiSettings;
 	aiAvailable: boolean;
 	/** True when AI is unavailable only because the plugin isn't approved for a connector. */
@@ -69,7 +75,14 @@ interface AdminConfig {
 	statusLabels: StatusLabels;
 	statusLabelDefaults: StatusLabels;
 	statusLabelMaxLength: number;
+	latestLabelDefault: string;
+	latestLabelMaxLength: number;
+	entryNameDefaults: EntryName;
+	entryNameMaxLength: number;
 	slack: {
+		isConfigured: boolean;
+	};
+	pushNotifications: {
 		isConfigured: boolean;
 	};
 	blockEditorSettings: Record< string, unknown >;
@@ -96,6 +109,21 @@ interface HeaderState {
 
 type TabHeader = Pick< HeaderState, 'count' | 'isEmpty' >;
 
+/**
+ * A published place that shows a coverage, from the coverage's
+ * `placements` REST field.
+ */
+interface Placement {
+	id: string;
+	title: string;
+	type: string;
+	blocks: string[];
+	viewUrl: string;
+	editUrl: string;
+	isMain: boolean;
+	breakout: boolean;
+}
+
 interface Coverage {
 	id: number;
 	name: string;
@@ -104,6 +132,7 @@ interface Coverage {
 	description: string;
 	count: number;
 	pageUrl?: string;
+	placements?: Placement[];
 	meta: {
 		rolling_coverage_status?: 'active' | 'paused' | 'archived' | 'trash';
 		rolling_coverage_canonical_url?: string;
@@ -170,6 +199,7 @@ interface Entry {
 				id: number;
 				name: string;
 				slug: string;
+				parent?: number;
 				taxonomy: string;
 				link: string;
 			} >
@@ -285,6 +315,66 @@ interface BulkRestoreResult extends ApiResult {
 	results?: BulkRestoreEntryResult[];
 }
 
+/**
+ * A term picked in the Reassign drawer. New terms, which the server
+ * creates on save, have an `id` of 0.
+ */
+interface PickedTerm {
+	id: number;
+	name: string;
+	/** The parent term's ID, in a hierarchical taxonomy; 0 for none. */
+	parent?: number;
+}
+
+/**
+ * The terms a Reassign save sets in one taxonomy: existing terms by
+ * ID, and terms by name, which the server finds or creates.
+ */
+interface EntryTermChanges {
+	ids: number[];
+	names: string[];
+}
+
+/**
+ * The details a Reassign save changes. Only the keys present are saved.
+ * With `append`, terms are added to each entry's own instead of replacing
+ * them. `slug` and `date` (the site's local time, `YYYY-MM-DDTHH:mm:ss`)
+ * apply to a single entry only.
+ */
+interface EntryDetailsChanges {
+	author_id?: number;
+	categories?: EntryTermChanges;
+	tags?: EntryTermChanges;
+	slug?: string;
+	date?: string;
+	append?: boolean;
+}
+
+interface EntryDetailsEntryResult {
+	entryId: number;
+	updated: boolean;
+	error?: string;
+	/** The slug the entry ended up with, when the save set one. */
+	slug?: string;
+}
+
+interface EntryDetailsResult extends ApiResult {
+	results?: EntryDetailsEntryResult[];
+}
+
+interface EntryDetailsDrawerProps {
+	isOpen: boolean;
+	items: Entry[];
+	onClose: () => void;
+	onChanged?: () => void;
+}
+
+interface PlacementsDrawerProps {
+	isOpen: boolean;
+	coverage: Coverage | null;
+	onClose: () => void;
+}
+
 interface ConfirmModalContentProps {
 	message: string;
 	confirmLabel?: string;
@@ -386,6 +476,30 @@ interface StatusLabels {
 
 interface StatusLabelsResult extends ApiResult {
 	data?: StatusLabels;
+}
+
+/**
+ * The "Jump to Latest" control's text, empty where the site sets none.
+ */
+interface LatestLabel {
+	label: string;
+}
+
+interface LatestLabelResult extends ApiResult {
+	data?: LatestLabel;
+}
+
+/**
+ * What readers see entries called, each word as it reads mid-sentence, both
+ * empty where the site sets none.
+ */
+interface EntryName {
+	singular: string;
+	plural: string;
+}
+
+interface EntryNameResult extends ApiResult {
+	data?: EntryName;
 }
 
 type StatusName =
@@ -567,6 +681,8 @@ type CoreSelectors = {
 interface EntryViewRow {
 	id: number;
 	title: string;
+	/** The entry's slug (`post_name`); empty for a draft that has none yet. */
+	slug: string;
 	/** First words of the content when the entry has no title, else ''. */
 	summary: string;
 	date: string;
@@ -585,9 +701,16 @@ interface EntryViewRow {
 		id: number;
 		name: string;
 		slug: string;
+		parent: number;
 		link: string;
 	} >;
-	tags: Array< { id: number; name: string; slug: string; link: string } >;
+	tags: Array< {
+		id: number;
+		name: string;
+		slug: string;
+		parent: number;
+		link: string;
+	} >;
 	breakout_post_id: number;
 	breakout_status: PostStatus | null;
 	/** Whether the current user may edit this entry (core `edit_post` meta cap). */
@@ -643,6 +766,10 @@ export type {
 	AdminConfig,
 	StatusLabels,
 	StatusLabelsResult,
+	LatestLabel,
+	LatestLabelResult,
+	EntryName,
+	EntryNameResult,
 	Context,
 	ContextExports,
 	Coverage,
@@ -672,6 +799,14 @@ export type {
 	SaveCoverageData,
 	BulkRestoreEntryResult,
 	BulkRestoreResult,
+	PickedTerm,
+	EntryTermChanges,
+	EntryDetailsChanges,
+	EntryDetailsEntryResult,
+	EntryDetailsResult,
+	EntryDetailsDrawerProps,
+	Placement,
+	PlacementsDrawerProps,
 	AiSettings,
 	AiSettingsResult,
 	BreadcrumbItem,

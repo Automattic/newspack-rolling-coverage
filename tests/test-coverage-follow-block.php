@@ -7,6 +7,7 @@
 
 use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Coverage_Follow_Block;
+use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Push_Notifications;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Taxonomy;
@@ -278,6 +279,29 @@ class Test_Coverage_Follow_Block extends Rolling_Coverage_TestCase {
 		delete_option( 'OneSignalWPSetting' );
 
 		$this->assertSame( '', $this->render( self::follow( self::create_coverage() ) ) );
+	}
+
+	/**
+	 * Nothing renders on a lite page, which has neither the follow script nor
+	 * a push provider. A full page shows the button.
+	 */
+	public function test_renders_nothing_on_a_lite_page() {
+		require_once __DIR__ . '/mocks/class-lite-site.php';
+
+		$coverage_id = self::create_coverage();
+		$full_render = $this->render( self::follow( $coverage_id ) );
+
+		// Lite Site renders a post's blocks inside its content filter.
+		add_filter( Lite_Feed::CONTENT_FILTER, 'do_blocks', 9 );
+
+		try {
+			$lite_render = apply_filters( Lite_Feed::CONTENT_FILTER, self::follow( $coverage_id ) );
+		} finally {
+			remove_filter( Lite_Feed::CONTENT_FILTER, 'do_blocks', 9 );
+		}
+
+		$this->assertSame( [ Push_Notifications::follow_tag( $coverage_id ) ], self::tags( $full_render ), 'A full page shows the button.' );
+		$this->assertSame( '', $lite_render, 'A lite page shows nothing of it.' );
 	}
 
 	/**

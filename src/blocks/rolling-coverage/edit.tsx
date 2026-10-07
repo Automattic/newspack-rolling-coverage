@@ -34,8 +34,10 @@ import {
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
 	Button,
+	Disabled,
 	Notice,
 	Placeholder,
+	SelectControl,
 	TextareaControl,
 	ToolbarButton,
 } from '@wordpress/components';
@@ -46,6 +48,7 @@ import {
 	useMemo,
 	useRef,
 } from '@wordpress/element';
+import { useDebounce, useInstanceId } from '@wordpress/compose';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as editorStore } from '@wordpress/editor';
@@ -81,13 +84,21 @@ import {
 	allUpdatesBlockIds,
 	emptiedGroupIds,
 	withoutAllUpdatesParagraph,
+	withAllUpdatesText,
+	allUpdatesTextOf,
 	isPinnedCard,
 	isRegularEntry,
 	forEntryKind,
 	breakoutBlockIds,
 	withoutFollowButtons,
+	withoutCheckUpdatesButtons,
+	blockIdsOfType,
+	holdsBlockType,
+	layoutParts,
+	CHECK_UPDATES_BLOCK_NAME,
 	entryPreviewPlacement,
 	withColumnRule,
+	RULED_FEED_CLASS,
 } from './template';
 import {
 	AI_AVAILABLE,
@@ -111,6 +122,10 @@ import {
 	type BuiltInLayoutSlug,
 } from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
+import {
+	EntryPreviewsAnchorContext,
+	EntryPreviewsContext,
+} from './entry-previews';
 import { blockGapCss } from './spacing';
 import { BLOCK_NAME, innerTemplate, useLayoutPreview } from './layout';
 import type {
@@ -125,7 +140,32 @@ import type {
  * The layout the block offers the blocks of a layout: full width, so a bar
  * like Flash's can span the page in the editor as it does on the site.
  */
-const INNER_BLOCKS_LAYOUT = { type: 'default', alignments: [ 'none', 'full' ] };
+const INNER_BLOCKS_LAYOUT = {
+	type: 'default',
+	alignments: [ 'none', 'wide', 'full' ],
+};
+
+/**
+ * What each choice of loading older entries does, as the help below it.
+ */
+const OLDER_ENTRIES_HELP: Record< string, () => string > = {
+	scroll: () =>
+		__(
+			'More entries load as readers scroll down.',
+			'newspack-rolling-coverage'
+		),
+	button: () =>
+		/* translators: “Load More” is the label of the button readers press. Keep the words used to translate it. */
+		__(
+			'Readers load more entries with a Load More button.',
+			'newspack-rolling-coverage'
+		),
+	none: () =>
+		__(
+			'Readers see only the first page of entries.',
+			'newspack-rolling-coverage'
+		),
+};
 
 /**
  * Neutral block context used when a coverage has no published entries yet,
@@ -169,11 +209,49 @@ function feedGapStyle( feed?: {
 	[ key: string ]: unknown;
 } ): Record< string, string > {
 	const attributes = feed?.attributes as
-		| { style?: { spacing?: { blockGap?: string | { top?: string } } } }
+		| {
+				style?: {
+					spacing?: {
+						blockGap?: string | { top?: string; left?: string };
+					};
+				};
+		  }
 		| undefined;
-	const gap = blockGapCss( attributes?.style?.spacing?.blockGap );
+	const blockGap = attributes?.style?.spacing?.blockGap;
+	const gap = blockGapCss( blockGap );
+	const columnGap =
+		typeof blockGap === 'object' ? blockGapCss( blockGap.left ) : undefined;
 
-	return gap ? { '--newspack-rolling-coverage-gap': gap } : {};
+	return {
+		...( gap ? { '--newspack-rolling-coverage-gap': gap } : {} ),
+		...( columnGap
+			? { '--newspack-rolling-coverage-column-gap': columnGap }
+			: {} ),
+	};
+}
+
+/**
+ * Whether Block Visibility shows a block in every viewport.
+ *
+ * @param {Object} block The block.
+ * @return {boolean} Whether the block shows everywhere.
+ */
+function isShownEverywhere( block: { [ key: string ]: unknown } ): boolean {
+	const visibility = (
+		( block.attributes as { metadata?: unknown } | undefined )?.metadata as
+			| {
+					blockVisibility?:
+						boolean | { viewport?: Record< string, boolean > };
+			  }
+			| undefined
+	 )?.blockVisibility;
+
+	return (
+		visibility !== false &&
+		! Object.values(
+			( typeof visibility === 'object' && visibility.viewport ) || {}
+		).includes( false )
+	);
 }
 
 const FLEX_JUSTIFY: Record< string, string > = {
@@ -339,6 +417,7 @@ function groupPreviewParts( group?: { [ key: string ]: unknown } ): {
 			flexStyle && layout?.orientation
 				? `is-${ layout.orientation }`
 				: '',
+			flexStyle && layout?.flexWrap === 'nowrap' ? 'is-nowrap' : '',
 			gridStyle ? 'is-layout-grid' : '',
 			layout?.type === 'constrained' ? 'is-layout-constrained' : '',
 			attributes.className,
@@ -417,26 +496,138 @@ function chromePreviewStyle(
 }
 
 /**
- * The Feed group's own classes and styles, for the container a synced
- * layout's preview shows in place of the Feed.
+ * A color from a group's style as CSS: a `var:preset|color|slug` reference as
+ * its custom property, kebab-cased as core prints it, or any other value the
+ * browser accepts as a color.
+ *
+ * @param {unknown} value The style value.
+ * @return {string|null} The CSS value, or null when it isn't a color.
+ */
+function cssColor( value: unknown ): string | null {
+	if ( typeof value !== 'string' || ! value ) {
+		return null;
+	}
+
+	if ( value.startsWith( 'var:' ) ) {
+		const segments = value
+			.slice( 4 )
+			.split( '|' )
+			.map( ( segment ) =>
+				segment
+					.replace( /([a-z])([A-Z])/g, '$1-$2' )
+					.replace( /([A-Z])([A-Z][a-z])/g, '$1-$2' )
+					.replace( /([a-zA-Z])(\d)/g, '$1-$2' )
+					.replace( /(\d)([a-zA-Z])/g, '$1-$2' )
+					.replace( /[^a-zA-Z0-9]+/g, '-' )
+					.replace( /^-|-$/g, '' )
+					.toLowerCase()
+			);
+
+		return segments.every( ( segment ) => /^[a-z0-9-]+$/.test( segment ) )
+			? `var(--wp--${ segments.join( '--' ) })`
+			: null;
+	}
+
+	return CSS.supports( 'color', value ) ? value : null;
+}
+
+/**
+ * The link and heading colors a group sets for the blocks inside it, as the
+ * rules core's elements support prints for it on the site, scoped to the
+ * container a synced layout's preview shows in place of the group.
+ *
+ * @param {Object} group    The group.
+ * @param {string} selector The container's selector.
+ * @return {string} The CSS.
+ */
+function groupElementsCSS(
+	group: { [ key: string ]: unknown } | undefined,
+	selector: string
+): string {
+	const elements = (
+		( group?.attributes ?? {} ) as {
+			style?: {
+				elements?: Record<
+					string,
+					{
+						color?: { text?: string };
+						':hover'?: { color?: { text?: string } };
+					}
+				>;
+			};
+		}
+	 ).style?.elements;
+	const link = `${ selector } a:where(:not(.wp-element-button))`;
+	const rules: [ string, unknown ][] = [
+		[ link, elements?.link?.color?.text ],
+		[ `${ link }:hover`, elements?.link?.[ ':hover' ]?.color?.text ],
+		[
+			`${ selector } :is(h1, h2, h3, h4, h5, h6)`,
+			elements?.heading?.color?.text,
+		],
+	];
+
+	return rules
+		.map( ( [ rule, value ] ) => {
+			const color = cssColor( value );
+			return color ? `${ rule } { color: ${ color }; }` : '';
+		} )
+		.filter( Boolean )
+		.join( '\n' );
+}
+
+/**
+ * Whether the layout's Feed group is a ruled row, whose entries the site's
+ * stylesheet lines up in one element that scrolls.
  *
  * @param {Object} feed The layout's Feed group.
+ * @return {boolean} Whether it's a ruled row.
+ */
+function isRuledRow( feed: { [ key: string ]: unknown } | undefined ) {
+	const { className, layout } = ( feed?.attributes ?? {} ) as {
+		className?: string;
+		layout?: { type?: string; orientation?: string };
+	};
+
+	return (
+		( className ?? '' ).split( ' ' ).includes( RULED_FEED_CLASS ) &&
+		layout?.type === 'flex' &&
+		layout.orientation !== 'vertical'
+	);
+}
+
+/**
+ * The Feed group's own classes and styles, for the container a synced
+ * layout's preview shows in place of the Feed. A ruled Feed takes its gap
+ * from the block's stylesheet, which widens it to fit the rules.
+ *
+ * @param {Object} feed  The layout's Feed group.
+ * @param {string} scope The class FeedWrappersPreview scopes the Feed's
+ *                       element colors to.
  * @return {Object} The container's className and style.
  */
-function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
+function feedPreviewProps(
+	feed: { [ key: string ]: unknown } | undefined,
+	scope: string
+): {
 	className: string;
 	style: Record< string, unknown >;
 } {
 	const { classNames, style } = groupPreviewParts( feed );
+	const className = joinClassNames( [
+		'wp-block-group',
+		'newspack-rolling-coverage-feed',
+		scope,
+		...classNames,
+	] );
 
-	return {
-		className: joinClassNames( [
-			'wp-block-group',
-			'newspack-rolling-coverage-feed',
-			...classNames,
-		] ),
-		style,
-	};
+	if ( className.split( ' ' ).includes( RULED_FEED_CLASS ) ) {
+		const { gap, ...rest } = style;
+
+		return { className, style: rest };
+	}
+
+	return { className, style };
 }
 
 /**
@@ -446,19 +637,34 @@ function feedPreviewProps( feed?: { [ key: string ]: unknown } ): {
  * @param {Object}      props          Component props.
  * @param {Object[]}    props.path     The groups leading to the Feed, the Feed last.
  * @param {Object}      props.context  The coverage's block context.
+ * @param {string}      props.scope    The class the Feed's preview carries;
+ *                                     each wrapper's is suffixed with its depth.
  * @param {JSX.Element} props.children The Feed's preview.
  * @return {JSX.Element} The Feed's preview inside its wrappers.
  */
 function FeedWrappersPreview( {
 	path,
 	context,
+	scope,
 	children,
 }: {
 	path: TemplateBlocks;
 	context: Record< string, unknown >;
+	scope: string;
 	children: JSX.Element;
 } ): JSX.Element {
-	return path.slice( 0, -1 ).reduceRight( ( inner, wrapper, index ) => {
+	const css = path
+		.map( ( group, index ) =>
+			groupElementsCSS(
+				group,
+				index === path.length - 1
+					? `.${ scope }`
+					: `.${ scope }-${ index }`
+			)
+		)
+		.filter( Boolean )
+		.join( '\n' );
+	const tree = path.slice( 0, -1 ).reduceRight( ( inner, wrapper, index ) => {
 		const siblings = ( wrapper.innerBlocks ?? [] ) as TemplateBlocks;
 		const position = siblings.indexOf( path[ index + 1 ] );
 		const before = siblings.slice( 0, Math.max( position, 0 ) );
@@ -469,6 +675,7 @@ function FeedWrappersPreview( {
 			<div
 				className={ joinClassNames( [
 					'wp-block-group',
+					`${ scope }-${ index }`,
 					...classNames,
 				] ) }
 				style={ style }
@@ -487,6 +694,27 @@ function FeedWrappersPreview( {
 			</div>
 		);
 	}, children );
+
+	return (
+		<>
+			{ tree }
+			{ css && <style>{ css }</style> }
+		</>
+	);
+}
+
+/**
+ * Entries per page as the server renders it: 1 to PER_PAGE_MAX (100),
+ * 20 when unset.
+ *
+ * @param {number} value Stored or typed value.
+ * @return {number} The page size.
+ */
+function clampEntriesPerPage( value: number ): number {
+	return Math.min(
+		Math.max( 1, Number.isFinite( value ) ? Math.trunc( value ) : 20 ),
+		100
+	);
 }
 
 export default function Edit( {
@@ -499,8 +727,10 @@ export default function Edit( {
 		latestOnly,
 		latestCount,
 		allUpdatesLink,
+		allUpdatesLinkText,
 		pollInterval,
 		entriesPerPage,
+		olderEntries,
 		enableAds,
 		adsInterval,
 		hideWhenEnded,
@@ -512,6 +742,11 @@ export default function Edit( {
 		layoutId,
 		align,
 	} = attributes;
+	const pageSize = clampEntriesPerPage( entriesPerPage );
+	const previewScope = useInstanceId(
+		Edit,
+		'newspack-rolling-coverage-preview'
+	) as string;
 	const { currentPostType, currentPostId, patternCategories } = useSelect(
 		( select ) => {
 			const editor = select( editorStore ) as unknown as {
@@ -580,9 +815,14 @@ export default function Edit( {
 		isPreviewMode && ! coverageId && ! layoutId && innerBlockCount > 0;
 	const showsSamples = isLayoutPattern || isSamplePreview;
 	const [ isPickingLayout, setIsPickingLayout ] = useState( false );
+	const [ isPickerReady, setIsPickerReady ] = useState( false );
+	const isPickerLoading = isPickingLayout && ! isPickerReady;
 	const [ latestCountInput, setLatestCountInput ] = useState< string | null >(
 		null
 	);
+	const [ entriesPerPageInput, setEntriesPerPageInput ] = useState<
+		string | null
+	>( null );
 	const registry = useRegistry();
 	const isSynced = layoutId > 0 && ! isNested;
 	const defaultTemplate = useMemo( innerTemplate, [] );
@@ -606,11 +846,14 @@ export default function Edit( {
 			allowedBlocks: [],
 			templateLock: false,
 			layout: INNER_BLOCKS_LAYOUT,
+			renderAppender: false,
 		}
 	);
 
 	const [ search, setSearch ] = useState( '' );
+	const setSearchDebounced = useDebounce( setSearch, 300 );
 	const [ options, setOptions ] = useState< CoverageOption[] >( [] );
+	const [ loadedSearch, setLoadedSearch ] = useState< string | null >( null );
 	const [ currentCoverage, setCurrentCoverage ] =
 		useState< CoverageOption | null >( null );
 	const [ pendingCanonicalUrl, setPendingCanonicalUrl ] =
@@ -619,6 +862,7 @@ export default function Edit( {
 	const [ entryContexts, setEntryContexts ] = useState< EntryContext[] >(
 		[]
 	);
+	const [ hasMoreEntries, setHasMoreEntries ] = useState( false );
 	const [ entriesLoadedFor, setEntriesLoadedFor ] = useState( 0 );
 	const [ coverageLoadedFor, setCoverageLoadedFor ] = useState( 0 );
 	const [ isGenerating, setIsGenerating ] = useState( false );
@@ -837,12 +1081,12 @@ export default function Edit( {
 				.map( ( context ) => ( { ...context, pinned: false } ) );
 		}
 		return isSamplePreview
-			? allSampleContexts.slice( 0, entriesPerPage )
+			? allSampleContexts.slice( 0, pageSize )
 			: allSampleContexts;
 	}, [
 		allSampleContexts,
 		isSamplePreview,
-		entriesPerPage,
+		pageSize,
 		isCapped,
 		cappedCount,
 	] );
@@ -857,17 +1101,41 @@ export default function Edit( {
 		( entriesCoverageId > 0 && entriesLoadedFor !== entriesCoverageId ) ||
 		( showsSamples && sampleContexts.length === 0 ) ||
 		( isSynced && ! hasResolvedLayout );
-	const previewContexts =
-		showsSamples && entryContexts.length === 0
-			? sampleContexts
-			: entryContexts;
+	const showsSampleContexts = showsSamples && entryContexts.length === 0;
+	const previewContexts = showsSampleContexts
+		? sampleContexts
+		: entryContexts;
+	const previewHasMore =
+		! isCapped &&
+		olderEntries !== 'none' &&
+		( showsSampleContexts
+			? allSampleContexts.length > sampleContexts.length
+			: hasMoreEntries );
 	const { headerBlocks, footerBlocks, templateBlocks, blocksForEntry } =
 		useLayoutPreview(
 			isSynced ? feedItems( syncedBlocks ) : allBlocks,
 			previewContexts,
-			entriesPerPage,
-			isCapped
+			pageSize,
+			! previewHasMore
 		);
+	const loadMorePreview = useMemo(
+		() =>
+			olderEntries === 'button' &&
+			previewHasMore && (
+				<Disabled className="newspack-rolling-coverage-load-more">
+					<button
+						type="button"
+						className="wp-element-button wp-block-button__link"
+					>
+						{
+							/* translators: Button that loads older entries at the end of a coverage's feed. */
+							__( 'Load More', 'newspack-rolling-coverage' )
+						}
+					</button>
+				</Disabled>
+			),
+		[ olderEntries, previewHasMore ]
+	);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
 		[ templateBlocks ]
@@ -925,6 +1193,18 @@ export default function Edit( {
 	const isFollowHidden =
 		! ONESIGNAL_CONFIGURED || currentCoverage?.status === 'archived';
 	const isAllUpdatesHidden = ! isCapped || allUpdatesLink === false;
+	const isCheckUpdatesHidden =
+		isCapped || currentCoverage?.status === 'archived';
+	const checksOnRequest = useMemo( () => {
+		const parts = layoutParts(
+			isSynced ? feedItems( syncedBlocks ) : allBlocks
+		);
+
+		return holdsBlockType(
+			[ ...parts.header, ...parts.footer ],
+			CHECK_UPDATES_BLOCK_NAME
+		);
+	}, [ isSynced, syncedBlocks, allBlocks ] );
 	// An editable layout previews the pinned card against the pinned entry
 	// and the entry group against one that isn't pinned, and leaves out the
 	// one the coverage has no entry for, and "Read more" where the entry
@@ -953,6 +1233,53 @@ export default function Edit( {
 	);
 	const isCardHidden = hasBothKinds && ! pinnedContext;
 	const isEntryHidden = hasBothKinds && ! regularContext && !! pinnedContext;
+	// Core skips rendering a hidden block, filters included, so the previews
+	// follow the last block shown in every viewport.
+	const entryPreviewsAnchorId =
+		(
+			( templateBlocks.findLast( isShownEverywhere ) ??
+				templateBlocks.at( -1 ) ) as { clientId?: string } | undefined
+		 )?.clientId ?? null;
+	const isRow = isRuledRow( feedGroup );
+	const entryPreviewsAnchor = useMemo(
+		() =>
+			entryPreviewsAnchorId
+				? { clientId: entryPreviewsAnchorId, wrapsEntries: isRow }
+				: null,
+		[ entryPreviewsAnchorId, isRow ]
+	);
+	const entryPreviews = useMemo(
+		() => (
+			<>
+				{ previewContexts
+					.filter(
+						( context ) =>
+							context !== pinnedContext &&
+							context !== regularContext
+					)
+					.map( ( context ) => (
+						<BlockContextProvider
+							key={ context.postId }
+							value={ context }
+						>
+							<EntryBlockPreview
+								blocks={ blocksForEntry( context ) }
+								style={ previewPlacements.other }
+							/>
+						</BlockContextProvider>
+					) ) }
+				{ loadMorePreview }
+			</>
+		),
+		[
+			previewContexts,
+			pinnedContext,
+			regularContext,
+			blocksForEntry,
+			previewPlacements.other,
+			loadMorePreview,
+		]
+	);
 	const hidesCardBreakout = pinnedContext
 		? ! pinnedContext.hasBreakout
 		: false;
@@ -962,6 +1289,9 @@ export default function Edit( {
 	const hiddenIds = useMemo( () => {
 		const ids = [
 			...( isFollowHidden ? followBlockIds( allBlocks ) : [] ),
+			...( isCheckUpdatesHidden
+				? blockIdsOfType( allBlocks, CHECK_UPDATES_BLOCK_NAME )
+				: [] ),
 			...( isAllUpdatesHidden ? allUpdatesBlockIds( allBlocks ) : [] ),
 			...allBlocks
 				.filter(
@@ -986,6 +1316,7 @@ export default function Edit( {
 	}, [
 		allBlocks,
 		isFollowHidden,
+		isCheckUpdatesHidden,
 		isAllUpdatesHidden,
 		isCardHidden,
 		isEntryHidden,
@@ -1005,53 +1336,102 @@ export default function Edit( {
 			hiddenIds
 				.map(
 					( id ) =>
-						`.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ id }"] { display: none; }`
+						`.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ id }"]:not(.newspack-rolling-coverage-layout .block-editor-block-preview__live-content *) { display: none; }`
 				)
 				.join( '\n' ),
 		[ hiddenIds ]
 	);
 
+	const linkText = isSynced ? ( allUpdatesLinkText ?? '' ).trim() : '';
+	const layoutLinkText = useMemo(
+		() =>
+			isSynced && hasResolvedLayout
+				? allUpdatesTextOf( [ ...headerBlocks, ...footerBlocks ] )
+				: null,
+		[ isSynced, hasResolvedLayout, headerBlocks, footerBlocks ]
+	);
+
 	const syncedHeaderBlocks = useMemo( () => {
-		const blocks = isFollowHidden
+		let blocks = isFollowHidden
 			? withoutFollowButtons( headerBlocks )
 			: headerBlocks;
-		return isAllUpdatesHidden
-			? withoutAllUpdatesParagraph( blocks )
+		blocks = isCheckUpdatesHidden
+			? withoutCheckUpdatesButtons( blocks )
 			: blocks;
-	}, [ headerBlocks, isFollowHidden, isAllUpdatesHidden ] );
+		if ( isAllUpdatesHidden ) {
+			return withoutAllUpdatesParagraph( blocks );
+		}
+		return linkText ? withAllUpdatesText( blocks, linkText ) : blocks;
+	}, [
+		headerBlocks,
+		isFollowHidden,
+		isCheckUpdatesHidden,
+		isAllUpdatesHidden,
+		linkText,
+	] );
 	const syncedFooterBlocks = useMemo( () => {
-		const blocks = isFollowHidden
+		let blocks = isFollowHidden
 			? withoutFollowButtons( footerBlocks )
 			: footerBlocks;
-		return isAllUpdatesHidden
-			? withoutAllUpdatesParagraph( blocks )
+		blocks = isCheckUpdatesHidden
+			? withoutCheckUpdatesButtons( blocks )
 			: blocks;
-	}, [ footerBlocks, isFollowHidden, isAllUpdatesHidden ] );
+		if ( isAllUpdatesHidden ) {
+			return withoutAllUpdatesParagraph( blocks );
+		}
+		return linkText ? withAllUpdatesText( blocks, linkText ) : blocks;
+	}, [
+		footerBlocks,
+		isFollowHidden,
+		isCheckUpdatesHidden,
+		isAllUpdatesHidden,
+		linkText,
+	] );
 
 	const detach = useCallback( () => {
 		registry.batch( () => {
 			replaceInnerBlocks(
 				clientId,
-				syncedBlocks.map( ( block ) =>
+				( linkText
+					? withAllUpdatesText( syncedBlocks, linkText )
+					: syncedBlocks
+				).map( ( block ) =>
 					cloneBlock(
 						block as unknown as Parameters< typeof cloneBlock >[ 0 ]
 					)
 				),
 				false
 			);
-			setAttributes( { layoutId: 0 } );
+			setAttributes( { layoutId: 0, allUpdatesLinkText: '' } );
 		} );
 	}, [
 		registry,
 		syncedBlocks,
+		linkText,
 		clientId,
 		replaceInnerBlocks,
 		setAttributes,
 	] );
 
+	const closePicker = useCallback( () => {
+		setIsPickingLayout( false );
+		setIsPickerReady( false );
+	}, [] );
+
+	// Claims Escape before the editor canvas moves focus to its stop.
+	const closeLoadingPickerOnEscape = ( event: {
+		key: string;
+		preventDefault: () => void;
+	} ) => {
+		if ( isPickerLoading && event.key === 'Escape' ) {
+			event.preventDefault();
+			closePicker();
+		}
+	};
+
 	const applyLayout = useCallback(
 		( choice: LayoutChoice ) => {
-			setIsPickingLayout( false );
+			closePicker();
 
 			const syncedSlug = isSynced
 				? builtInLayoutSlugFor( layoutId )
@@ -1111,12 +1491,14 @@ export default function Edit( {
 				);
 				setAttributes( {
 					layoutId: 0,
+					allUpdatesLinkText: '',
 					...switchLayoutAttributes( layout.slug, replaced, align ),
 				} );
 			} );
 		},
 		[
 			align,
+			closePicker,
 			isSynced,
 			isLayoutMissing,
 			invalidateResolution,
@@ -1163,10 +1545,11 @@ export default function Edit( {
 		let cancelled = false;
 		if ( ! entriesCoverageId ) {
 			setEntryContexts( [] );
+			setHasMoreEntries( false );
 			setEntriesLoadedFor( 0 );
 			return;
 		}
-		const { getEntityRecord } = registry.resolveSelect(
+		const { getEntityRecord, getUser } = registry.resolveSelect(
 			coreStore
 		) as unknown as {
 			getEntityRecord: (
@@ -1174,16 +1557,24 @@ export default function Edit( {
 				name: string,
 				id: number
 			) => Promise< unknown >;
+			getUser: (
+				id: number,
+				query?: Record< string, string >
+			) => Promise< unknown >;
 		};
+		const perPage = isCapped ? cappedCount : pageSize;
+		// One entry past the page tells whether more would load.
 		fetchEntryPreviewContexts(
 			entriesCoverageId,
-			isCapped ? cappedCount : entriesPerPage,
+			isCapped ? perPage : perPage + 1,
 			isCapped
 		)
-			.then( ( contexts ) =>
-				// Entries are read before the preview shows, so it doesn't
-				// fill in piece by piece.
-				Promise.all(
+			.then( ( fetched ) => {
+				const contexts = fetched.slice( 0, perPage );
+
+				// Entries and their authors are read before the preview
+				// shows, so it doesn't fill in piece by piece.
+				return Promise.all(
 					contexts.map( ( context ) =>
 						getEntityRecord(
 							'postType',
@@ -1191,18 +1582,44 @@ export default function Edit( {
 							context.postId
 						).catch( () => undefined )
 					)
-				).then( () => contexts )
-			)
-			.then( ( contexts ) => {
+				)
+					.then( ( records ) => {
+						const authorIds = new Set< number >();
+						records.forEach( ( record ) => {
+							const author = ( record as { author?: number } )
+								?.author;
+							if ( author ) {
+								authorIds.add( author );
+							}
+						} );
+
+						// Post Author reads the view context; Post Author
+						// Name and Avatar read the default one.
+						return Promise.all(
+							[ ...authorIds ].flatMap( ( authorId ) => [
+								getUser( authorId ).catch( () => undefined ),
+								getUser( authorId, {
+									context: 'view',
+								} ).catch( () => undefined ),
+							] )
+						);
+					} )
+					.then( () => ( {
+						contexts,
+						hasMore: fetched.length > perPage,
+					} ) );
+			} )
+			.then( ( { contexts, hasMore } ) => {
 				if ( ! cancelled ) {
 					setEntryContexts( contexts );
+					setHasMoreEntries( hasMore );
 					setEntriesLoadedFor( entriesCoverageId );
 				}
 			} );
 		return () => {
 			cancelled = true;
 		};
-	}, [ entriesCoverageId, entriesPerPage, isCapped, cappedCount, registry ] );
+	}, [ entriesCoverageId, pageSize, isCapped, cappedCount, registry ] );
 
 	// Populate the combobox as the user searches.
 	useEffect( () => {
@@ -1226,6 +1643,7 @@ export default function Edit( {
 			}
 
 			setOptions( results );
+			setLoadedSearch( search );
 		} );
 
 		return () => {
@@ -1340,26 +1758,42 @@ export default function Edit( {
 		handleApplyCanonicalUrl,
 	] );
 
-	// Combobox for selecting the connected coverage.
-	const coverageCombobox = (
-		<ComboboxControl
-			__next40pxDefaultSize
-			label={ __( 'Coverage', 'newspack-rolling-coverage' ) }
-			hideLabelFromVision
-			value={ coverageId ? String( coverageId ) : '' }
-			options={ options }
-			placeholder={ __(
-				'Search for a coverage…',
-				'newspack-rolling-coverage'
-			) }
-			onChange={ ( value ) =>
-				setAttributes( {
-					coverageId: value ? parseInt( value, 10 ) : 0,
-				} )
-			}
-			onFilterValueChange={ setSearch }
-		/>
-	);
+	/**
+	 * Combobox for selecting the connected coverage, or its loading state
+	 * until the coverages arrive.
+	 *
+	 * @param {boolean} isSilent Whether the loading state skips its
+	 *                           announcement, for the second of two copies.
+	 */
+	const renderCoverageCombobox = ( isSilent = false ) =>
+		! isPreviewMode && loadedSearch === null ? (
+			<LoadingState
+				isSilent={ isSilent }
+				label={ __(
+					'Loading coverages…',
+					'newspack-rolling-coverage'
+				) }
+			/>
+		) : (
+			<ComboboxControl
+				__next40pxDefaultSize
+				label={ __( 'Coverage', 'newspack-rolling-coverage' ) }
+				hideLabelFromVision
+				value={ coverageId ? String( coverageId ) : '' }
+				options={ options }
+				placeholder={ __(
+					'Search for a coverage…',
+					'newspack-rolling-coverage'
+				) }
+				onChange={ ( value ) =>
+					setAttributes( {
+						coverageId: value ? parseInt( value, 10 ) : 0,
+					} )
+				}
+				onFilterValueChange={ setSearchDebounced }
+				isLoading={ ! isPreviewMode && loadedSearch !== search }
+			/>
+		);
 
 	const inspector = isLayoutPattern ? (
 		<InspectorControls>
@@ -1396,7 +1830,11 @@ export default function Edit( {
 				{ canChangeLayout && (
 					<Button
 						variant="secondary"
+						isBusy={ isPickerLoading }
+						accessibleWhenDisabled
+						disabled={ isPickerLoading }
 						onClick={ () => setIsPickingLayout( true ) }
+						onKeyDownCapture={ closeLoadingPickerOnEscape }
 					>
 						{ __( 'Change Layout', 'newspack-rolling-coverage' ) }
 					</Button>
@@ -1404,7 +1842,7 @@ export default function Edit( {
 			</PanelBody>
 			<PanelBody title={ __( 'Coverage', 'newspack-rolling-coverage' ) }>
 				<Stack direction="column" gap="lg">
-					{ coverageCombobox }
+					{ renderCoverageCombobox( ! coverageId ) }
 
 					{ coverageId ? (
 						<div>
@@ -1467,55 +1905,60 @@ export default function Edit( {
 			</PanelBody>
 
 			<PanelBody title={ __( 'Entries', 'newspack-rolling-coverage' ) }>
-				<ToggleGroupControl
-					__next40pxDefaultSize
-					isBlock
-					label={ _x(
-						'Show',
-						'which entries the feed shows',
-						'newspack-rolling-coverage'
-					) }
-					help={
-						latestOnly
-							? __(
-									'Only the most recent entries. Pinned entries aren’t kept at the top.',
-									'newspack-rolling-coverage'
-								)
-							: __(
-									'Every entry, loading more as readers scroll.',
-									'newspack-rolling-coverage'
-								)
-					}
-					value={ latestOnly ? 'latest' : 'all' }
-					onChange={ ( value ) =>
-						setAttributes( { latestOnly: value === 'latest' } )
-					}
-				>
-					<ToggleGroupControlOption
-						value="all"
+				{ ! ( isRow && latestOnly ) && (
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
 						label={ _x(
-							'All',
+							'Show',
 							'which entries the feed shows',
 							'newspack-rolling-coverage'
 						) }
-						aria-label={
-							/* translators: Screen reader name for the “All” option. Keep the word used to translate “All”. */
-							__( 'All entries', 'newspack-rolling-coverage' )
+						help={
+							latestOnly
+								? __(
+										'Only the most recent entries. Pinned entries aren’t kept at the top.',
+										'newspack-rolling-coverage'
+									)
+								: __(
+										'Every entry. Pinned entries stay at the top.',
+										'newspack-rolling-coverage'
+									)
 						}
-					/>
-					<ToggleGroupControlOption
-						value="latest"
-						label={ _x(
-							'Latest',
-							'which entries the feed shows',
-							'newspack-rolling-coverage'
-						) }
-						aria-label={
-							/* translators: Screen reader name for the “Latest” option. Keep the word used to translate “Latest”. */
-							__( 'Latest entries', 'newspack-rolling-coverage' )
+						value={ latestOnly ? 'latest' : 'all' }
+						onChange={ ( value ) =>
+							setAttributes( { latestOnly: value === 'latest' } )
 						}
-					/>
-				</ToggleGroupControl>
+					>
+						<ToggleGroupControlOption
+							value="all"
+							label={ _x(
+								'All',
+								'which entries the feed shows',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “All” option. Keep the word used to translate “All”. */
+								__( 'All entries', 'newspack-rolling-coverage' )
+							}
+						/>
+						<ToggleGroupControlOption
+							value="latest"
+							label={ _x(
+								'Latest',
+								'which entries the feed shows',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Latest” option. Keep the word used to translate “Latest”. */
+								__(
+									'Latest entries',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+					</ToggleGroupControl>
+				) }
 				{ latestOnly ? (
 					<>
 						<TextControl
@@ -1591,46 +2034,134 @@ export default function Edit( {
 								}
 							/>
 						</ToggleGroupControl>
+						{ allUpdatesLink !== false &&
+							layoutLinkText !== null && (
+								<TextControl
+									__next40pxDefaultSize
+									label={ __(
+										'Link text',
+										'newspack-rolling-coverage'
+									) }
+									help={
+										layoutLinkText
+											? sprintf(
+													/* translators: %s: the link text the shared layout sets, e.g. "See all entries". */
+													__(
+														'Leave empty to use the layout’s text, “%s”.',
+														'newspack-rolling-coverage'
+													),
+													layoutLinkText
+												)
+											: __(
+													'Leave empty to use the layout’s text.',
+													'newspack-rolling-coverage'
+												)
+									}
+									placeholder={ layoutLinkText }
+									value={ allUpdatesLinkText ?? '' }
+									onChange={ ( value: string ) =>
+										setAttributes( {
+											allUpdatesLinkText: value,
+										} )
+									}
+								/>
+							) }
 					</>
 				) : (
+					<>
+						<SelectControl
+							__next40pxDefaultSize
+							label={ __(
+								'Older entries',
+								'newspack-rolling-coverage'
+							) }
+							help={ OLDER_ENTRIES_HELP[ olderEntries ]?.() }
+							value={ olderEntries }
+							options={ [
+								{
+									value: 'scroll',
+									label: __(
+										'Load on scroll',
+										'newspack-rolling-coverage'
+									),
+								},
+								{
+									value: 'button',
+									label:
+										/* translators: “Load More” is the label of the button readers press. Keep the words used to translate it. */
+										__(
+											'Load More button',
+											'newspack-rolling-coverage'
+										),
+								},
+								{
+									value: 'none',
+									label: __(
+										'Don’t load',
+										'newspack-rolling-coverage'
+									),
+								},
+							] }
+							onChange={ ( value ) =>
+								setAttributes( { olderEntries: value } )
+							}
+						/>
+						<TextControl
+							__next40pxDefaultSize
+							type="number"
+							label={ __(
+								'Entries per page',
+								'newspack-rolling-coverage'
+							) }
+							help={
+								olderEntries === 'none'
+									? __(
+											'How many entries the feed shows.',
+											'newspack-rolling-coverage'
+										)
+									: __(
+											'How many entries show first, and how many each load of older entries adds.',
+											'newspack-rolling-coverage'
+										)
+							}
+							value={
+								entriesPerPageInput ?? String( entriesPerPage )
+							}
+							min={ 1 }
+							max={ 100 }
+							onChange={ ( value: string ) => {
+								setEntriesPerPageInput( value );
+								const parsed = parseInt( value, 10 );
+								if ( ! Number.isNaN( parsed ) ) {
+									setAttributes( {
+										entriesPerPage:
+											clampEntriesPerPage( parsed ),
+									} );
+								}
+							} }
+							onBlur={ () => setEntriesPerPageInput( null ) }
+						/>
+					</>
+				) }
+				{ ( latestOnly || ! checksOnRequest ) && (
 					<TextControl
 						__next40pxDefaultSize
 						type="number"
 						label={ __(
-							'Entries per page',
+							'Poll interval (seconds)',
 							'newspack-rolling-coverage'
 						) }
-						help={ __(
-							'Used for both the initial number of entries shown and the infinite-scroll page size.',
-							'newspack-rolling-coverage'
-						) }
-						value={ String( entriesPerPage ) }
+						value={ String( pollInterval ) }
 						min={ 1 }
-						max={ 100 }
 						onChange={ ( value: string ) =>
 							setAttributes( {
-								entriesPerPage: value
+								pollInterval: value
 									? parseInt( value, 10 )
-									: 20,
+									: 10,
 							} )
 						}
 					/>
 				) }
-				<TextControl
-					__next40pxDefaultSize
-					type="number"
-					label={ __(
-						'Poll interval (seconds)',
-						'newspack-rolling-coverage'
-					) }
-					value={ String( pollInterval ) }
-					min={ 1 }
-					onChange={ ( value: string ) =>
-						setAttributes( {
-							pollInterval: value ? parseInt( value, 10 ) : 10,
-						} )
-					}
-				/>
 			</PanelBody>
 
 			<PanelBody title={ STATUS_LABELS.archived } initialOpen={ false }>
@@ -2019,16 +2550,25 @@ export default function Edit( {
 								'Ads interval',
 								'newspack-rolling-coverage'
 							) }
-							help={ __(
-								'Show an ad after every N entries. Maximum 3 ads for the initial feed and load more; no cap for new entries.',
-								'newspack-rolling-coverage'
+							help={ sprintf(
+								/* translators: 1: the entry the first ad follows, 2: the entry the second ad follows, 3: the entry the third ad follows. */
+								__(
+									'Up to 3 ads, after entries %1$d, %2$d and %3$d. New entries that arrive while the page is open get one at this interval, with no limit.',
+									'newspack-rolling-coverage'
+								),
+								adsInterval,
+								adsInterval * 2,
+								adsInterval * 3
 							) }
 							value={ String( adsInterval ) }
 							min={ 1 }
 							onChange={ ( value: string ) =>
 								setAttributes( {
 									adsInterval: value
-										? parseInt( value, 10 )
+										? Math.max(
+												1,
+												parseInt( value, 10 ) || 1
+											)
 										: 4,
 								} )
 							}
@@ -2065,7 +2605,8 @@ export default function Edit( {
 				<LayoutPickerModal
 					currentLayoutId={ isSynced ? layoutId : 0 }
 					onSelect={ applyLayout }
-					onClose={ () => setIsPickingLayout( false ) }
+					onClose={ closePicker }
+					onReady={ () => setIsPickerReady( true ) }
 				/>
 			) }
 
@@ -2095,7 +2636,11 @@ export default function Edit( {
 							<Button
 								__next40pxDefaultSize
 								variant="primary"
+								isBusy={ isPickerLoading }
+								accessibleWhenDisabled
+								disabled={ isPickerLoading }
 								onClick={ () => setIsPickingLayout( true ) }
+								onKeyDownCapture={ closeLoadingPickerOnEscape }
 							>
 								{ __( 'Choose', 'newspack-rolling-coverage' ) }
 							</Button>
@@ -2148,8 +2693,14 @@ export default function Edit( {
 								<FeedWrappersPreview
 									path={ feedPath }
 									context={ coverageContext }
+									scope={ previewScope }
 								>
-									<div { ...feedPreviewProps( feedGroup ) }>
+									<div
+										{ ...feedPreviewProps(
+											feedGroup,
+											previewScope
+										) }
+									>
 										{ syncedHeaderBlocks.length > 0 && (
 											<BlockContextProvider
 												value={ coverageContext }
@@ -2212,6 +2763,7 @@ export default function Edit( {
 												</BlockContextProvider>
 											) }
 										</div>
+										{ loadMorePreview }
 										{ syncedFooterBlocks.length > 0 && (
 											<BlockContextProvider
 												value={ coverageContext }
@@ -2231,40 +2783,26 @@ export default function Edit( {
 								</FeedWrappersPreview>
 							) }
 							{ ! isSynced && (
-								<>
-									<PinnedEntryContext.Provider
-										value={ pinnedContext ?? null }
+								<PinnedEntryContext.Provider
+									value={ pinnedContext ?? null }
+								>
+									<EntryPreviewsAnchorContext.Provider
+										value={ entryPreviewsAnchor }
 									>
-										<BlockContextProvider
-											value={ {
-												...layoutContext,
-												...coverageContext,
-											} }
+										<EntryPreviewsContext.Provider
+											value={ entryPreviews }
 										>
-											<div { ...innerBlocksProps } />
-										</BlockContextProvider>
-									</PinnedEntryContext.Provider>
-									<div className="newspack-rolling-coverage-entries">
-										{ previewContexts
-											.filter(
-												( context ) =>
-													context !== pinnedContext &&
-													context !== regularContext
-											)
-											.map( ( context ) => (
-												<BlockContextProvider
-													key={ context.postId }
-													value={ context }
-												>
-													<EntryBlockPreview
-														blocks={ blocksForEntry(
-															context
-														) }
-													/>
-												</BlockContextProvider>
-											) ) }
-									</div>
-								</>
+											<BlockContextProvider
+												value={ {
+													...layoutContext,
+													...coverageContext,
+												} }
+											>
+												<div { ...innerBlocksProps } />
+											</BlockContextProvider>
+										</EntryPreviewsContext.Provider>
+									</EntryPreviewsAnchorContext.Provider>
+								</PinnedEntryContext.Provider>
 							) }
 						</>
 					) : (
@@ -2277,7 +2815,7 @@ export default function Edit( {
 							) }
 							isColumnLayout
 						>
-							{ coverageCombobox }
+							{ renderCoverageCombobox() }
 						</Placeholder>
 					) ) }
 			</div>

@@ -56,6 +56,9 @@ class Post_Type {
 	// Protected post-meta key recording the GMT time an entry first reached 'publish'.
 	const META_PUBLISHED_GMT = '_rolling_coverage_published_gmt';
 
+	// Protected post-meta key recording the GMT time an entry last left 'publish', which readers may still have on their pages.
+	const META_UNPUBLISHED_GMT = '_rolling_coverage_unpublished_gmt';
+
 	// Entries-view endpoint constants.
 	const PER_PAGE_MAX = 100;
 
@@ -81,6 +84,15 @@ class Post_Type {
 	 * author. WordPress maps this to Editor and above.
 	 */
 	const EDIT_ENTRIES_CAP = 'edit_others_posts';
+
+	/**
+	 * Taxonomies the entries list's Reassign drawer sets, keyed by the
+	 * request parameter that carries each.
+	 */
+	const DETAILS_TAXONOMIES = [
+		'categories' => 'category',
+		'tags'       => 'post_tag',
+	];
 
 	/**
 	 * Query var flagging that a query must be scoped to the entries the
@@ -236,6 +248,7 @@ class Post_Type {
 		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'on_save_post' ], 10, 2 );
 		add_filter( 'wp_insert_post_data', [ __CLASS__, 'normalize_entry_gmt_dates' ], 10, 2 );
 		add_action( 'transition_post_status', [ __CLASS__, 'record_entry_published_gmt' ], 10, 3 );
+		add_action( 'transition_post_status', [ __CLASS__, 'record_entry_unpublished' ], 10, 3 );
 		add_action( 'set_object_terms', [ __CLASS__, 'on_set_object_terms' ], 10, 6 );
 		add_action( 'trashed_post', [ __CLASS__, 'on_trash_post' ] );
 		add_action( 'before_delete_post', [ __CLASS__, 'on_delete_post' ] );
@@ -252,15 +265,22 @@ class Post_Type {
 			self::CPT_SLUG,
 			[
 				'labels'              => [
-					'name'          => __( 'Entries', 'newspack-rolling-coverage' ),
-					'singular_name' => __( 'Entry', 'newspack-rolling-coverage' ),
-					'add_new_item'  => __( 'Add Entry', 'newspack-rolling-coverage' ),
-					'edit_item'     => __( 'Edit Entry', 'newspack-rolling-coverage' ),
-					'new_item'      => __( 'New Entry', 'newspack-rolling-coverage' ),
-					'view_item'     => __( 'View Entry', 'newspack-rolling-coverage' ),
-					'search_items'  => __( 'Search Entries', 'newspack-rolling-coverage' ),
-					'not_found'     => __( 'No entries found.', 'newspack-rolling-coverage' ),
-					'all_items'     => __( 'All Entries', 'newspack-rolling-coverage' ),
+					'name'                     => __( 'Entries', 'newspack-rolling-coverage' ),
+					'singular_name'            => __( 'Entry', 'newspack-rolling-coverage' ),
+					'add_new_item'             => __( 'Add Entry', 'newspack-rolling-coverage' ),
+					'edit_item'                => __( 'Edit Entry', 'newspack-rolling-coverage' ),
+					'new_item'                 => __( 'New Entry', 'newspack-rolling-coverage' ),
+					'view_item'                => __( 'View Entry', 'newspack-rolling-coverage' ),
+					'view_items'               => __( 'View Entries', 'newspack-rolling-coverage' ),
+					'search_items'             => __( 'Search Entries', 'newspack-rolling-coverage' ),
+					'not_found'                => __( 'No entries found.', 'newspack-rolling-coverage' ),
+					'all_items'                => __( 'All Entries', 'newspack-rolling-coverage' ),
+					'item_published'           => __( 'Entry published.', 'newspack-rolling-coverage' ),
+					'item_published_privately' => __( 'Entry published privately.', 'newspack-rolling-coverage' ),
+					'item_reverted_to_draft'   => __( 'Entry reverted to draft.', 'newspack-rolling-coverage' ),
+					'item_scheduled'           => __( 'Entry scheduled.', 'newspack-rolling-coverage' ),
+					'item_updated'             => __( 'Entry updated.', 'newspack-rolling-coverage' ),
+					'item_trashed'             => __( 'Entry trashed.', 'newspack-rolling-coverage' ),
 				],
 				'description'         => __( 'Individual entries within a Rolling Coverage.', 'newspack-rolling-coverage' ),
 				'public'              => true,
@@ -289,7 +309,7 @@ class Post_Type {
 
 		// Post-meta for any chat-source adapter (Slack now, others in future).
 		$source_meta = [
-			// Entry origin — 'slack' for Slack-ingested entries vs 'wordpress' for admin-created; drives the Source column icon in DataViews.
+			// Entry origin: 'slack' for Slack-ingested entries, 'wordpress' for admin-created; drives the entries list's source marker and Source filter.
 			self::META_ENTRY_SOURCE      => [
 				'type'         => 'string',
 				'single'       => true,
@@ -615,6 +635,77 @@ class Post_Type {
 				],
 			]
 		);
+
+		register_rest_route(
+			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
+			'/entries/details',
+			[
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => [ __CLASS__, 'handle_bulk_edit_details' ],
+				'permission_callback' => [ __CLASS__, 'can_edit_details' ],
+				'args'                => [
+					'entry_ids'  => [
+						'required' => true,
+						'type'     => 'array',
+						'minItems' => 1,
+						'maxItems' => 100,
+						'items'    => [
+							'type'    => 'integer',
+							'minimum' => 1,
+						],
+					],
+					'author_id'  => [
+						'type'    => 'integer',
+						'minimum' => 1,
+					],
+					'categories' => self::term_changes_schema(),
+					'tags'       => self::term_changes_schema(),
+					'append'     => [
+						'type'    => 'boolean',
+						'default' => false,
+					],
+					'slug'       => [
+						'type'      => 'string',
+						'maxLength' => 200,
+					],
+					'date'       => [
+						'type'   => 'string',
+						'format' => 'date-time',
+					],
+				],
+			]
+		);
+	}
+
+	/**
+	 * Schema for the terms the Reassign request sets in one taxonomy:
+	 * existing terms by ID, and terms by name, found or created.
+	 *
+	 * @return array
+	 */
+	private static function term_changes_schema(): array {
+		return [
+			'type'                 => 'object',
+			'properties'           => [
+				'ids'   => [
+					'type'     => 'array',
+					'maxItems' => 100,
+					'items'    => [
+						'type'    => 'integer',
+						'minimum' => 1,
+					],
+				],
+				'names' => [
+					'type'     => 'array',
+					'maxItems' => 100,
+					'items'    => [
+						'type'      => 'string',
+						'maxLength' => 200,
+					],
+				],
+			],
+			'additionalProperties' => false,
+		];
 	}
 
 	/**
@@ -747,8 +838,22 @@ class Post_Type {
 	 *
 	 * Reads the stored HTML of every block, including lists and code blocks,
 	 * which `excerpt_remove_blocks()` would drop, without rendering it:
-	 * rendering could recurse through an embedded Rolling Coverage block. Line
-	 * breaks and block-level tags count as word boundaries.
+	 * rendering could recurse through an embedded Rolling Coverage block. See
+	 * get_html_summary() for how the text is read. Members-only blocks are
+	 * read too, so this is for text only editors see; text for readers comes
+	 * from Entry_Bindings::public_summary().
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @param int     $words Number of words to keep.
+	 * @return string
+	 */
+	public static function get_entry_summary( WP_Post $entry, int $words = 8 ): string {
+		return self::get_html_summary( $entry->post_content, $words );
+	}
+
+	/**
+	 * The first words of stored HTML as plain text. Line breaks and
+	 * block-level tags count as word boundaries.
 	 *
 	 * The result is decoded plain text, so text typed as `<b>` comes back as
 	 * `<b>`: escape it for any HTML context. Shortcodes are removed after
@@ -756,12 +861,12 @@ class Post_Type {
 	 * come back live wherever the summary is shown. Stripping repeats until
 	 * nothing changes, because one pass turns `[[tag]]` into a live `[tag]`.
 	 *
-	 * @param WP_Post $entry Entry post.
-	 * @param int     $words Number of words to keep.
+	 * @param string $html  Stored HTML, such as an entry's content.
+	 * @param int    $words Number of words to keep.
 	 * @return string
 	 */
-	public static function get_entry_summary( WP_Post $entry, int $words = 8 ): string {
-		$html = (string) preg_replace( '/<!--.*?-->/s', ' ', strip_shortcodes( $entry->post_content ) );
+	public static function get_html_summary( string $html, int $words = 8 ): string {
+		$html = (string) preg_replace( '/<!--.*?-->/s', ' ', strip_shortcodes( $html ) );
 		$html = (string) preg_replace( '/<(?:br|\/?(?:p|li|ul|ol|pre|blockquote|h[1-6]|div|figure|figcaption|tr|td|th))\b[^>]*>/i', ' $0 ', $html );
 		$text = wp_trim_words( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( $html ) ), $words, '…' );
 
@@ -978,22 +1083,39 @@ class Post_Type {
 	}
 
 	/**
-	 * Bump an entry's modified date so live feeds re-render it. This isn't an
-	 * edit, so the stored content is kept as it is: save filters would strip
-	 * HTML or block CSS the author could post but whoever triggers the touch
-	 * (or cron) can't.
+	 * Bump an entry's modified date so live feeds re-render it, saving any
+	 * other fields in `$changes` with it. The content isn't being edited, so
+	 * it's kept as stored: save filters would strip HTML or block CSS the
+	 * author could post but whoever triggers the touch (or cron) can't.
 	 *
-	 * @param int  $entry_id Entry post ID.
-	 * @param bool $wp_error Whether to return a WP_Error on failure.
+	 * The save re-applies the entry's tags. Unless `$changes` sets
+	 * `tags_input`, they are passed as the IDs the entry has now, since
+	 * `wp_update_post()` otherwise passes their names, which are looked up
+	 * by slug first and can land on a different tag.
+	 *
+	 * @param int   $entry_id Entry post ID.
+	 * @param bool  $wp_error Whether to return a WP_Error on failure.
+	 * @param array $changes  Other post fields to save, such as `post_author`. Content fields are ignored.
 	 * @return int|WP_Error The entry ID, 0 or a WP_Error on failure.
 	 */
-	public static function touch_entry( int $entry_id, bool $wp_error = false ) {
-		$keep_stored_content = static function ( $data, $postarr, $unsanitized_postarr ) use ( $entry_id, &$keep_stored_content ) {
+	public static function touch_entry( int $entry_id, bool $wp_error = false, array $changes = [] ) {
+		$content_fields = [ 'post_content', 'post_content_filtered', 'post_title', 'post_excerpt' ];
+		$changes        = array_diff_key( $changes, array_flip( $content_fields ) );
+
+		if ( ! isset( $changes['tags_input'] ) && is_object_in_taxonomy( (string) get_post_type( $entry_id ), 'post_tag' ) ) {
+			$tag_ids = wp_get_post_terms( $entry_id, 'post_tag', [ 'fields' => 'ids' ] );
+
+			if ( ! is_wp_error( $tag_ids ) ) {
+				$changes['tags_input'] = array_map( 'intval', $tag_ids );
+			}
+		}
+
+		$keep_stored_content = static function ( $data, $postarr, $unsanitized_postarr ) use ( $entry_id, $content_fields, &$keep_stored_content ) {
 			if ( $entry_id === (int) ( $postarr['ID'] ?? 0 ) ) {
 				// One save only: a hook that edits the entry during the touch still goes through kses.
 				remove_filter( 'wp_insert_post_data', $keep_stored_content, 5 );
 
-				foreach ( [ 'post_content', 'post_content_filtered', 'post_title', 'post_excerpt' ] as $field ) {
+				foreach ( $content_fields as $field ) {
 					if ( isset( $unsanitized_postarr[ $field ] ) ) {
 						$data[ $field ] = $unsanitized_postarr[ $field ];
 					}
@@ -1006,7 +1128,7 @@ class Post_Type {
 		add_filter( 'wp_insert_post_data', $keep_stored_content, 5, 3 );
 
 		try {
-			return wp_update_post( [ 'ID' => $entry_id ], $wp_error );
+			return wp_update_post( [ 'ID' => $entry_id ] + $changes, $wp_error );
 		} finally {
 			remove_filter( 'wp_insert_post_data', $keep_stored_content, 5 );
 		}
@@ -1620,6 +1742,7 @@ class Post_Type {
 		return [
 			'id'               => $post->ID,
 			'title'            => $post->post_title,
+			'slug'             => $post->post_name,
 			'summary'          => '' === trim( $post->post_title ) ? self::get_entry_summary( $post ) : '',
 			'date'             => mysql2date( 'c', $post->post_date, false ),
 			'modified'         => mysql2date( 'c', $post->post_modified, false ),
@@ -1666,10 +1789,11 @@ class Post_Type {
 
 		foreach ( $terms as $term ) {
 			$mapped[] = [
-				'id'   => $term->term_id,
-				'name' => $term->name,
-				'slug' => $term->slug,
-				'link' => get_term_link( $term ),
+				'id'     => $term->term_id,
+				'name'   => $term->name,
+				'slug'   => $term->slug,
+				'parent' => $term->parent,
+				'link'   => get_term_link( $term ),
 			];
 		}
 
@@ -1767,6 +1891,25 @@ class Post_Type {
 	}
 
 	/**
+	 * Record when an entry leaves 'publish', by trash or any other status, so
+	 * the reader poll can tell open pages to drop it once. Core keeps no such
+	 * record outside the trash, and without it the public poll couldn't tell
+	 * a withdrawn entry from a draft readers never saw, or a withdrawal from a
+	 * later edit to the withdrawn entry.
+	 *
+	 * @param string  $new_status New post status.
+	 * @param string  $old_status Previous post status.
+	 * @param WP_Post $post       Entry post object.
+	 */
+	public static function record_entry_unpublished( string $new_status, string $old_status, WP_Post $post ): void {
+		if ( 'publish' !== $old_status || 'publish' === $new_status || self::CPT_SLUG !== $post->post_type ) {
+			return;
+		}
+
+		update_post_meta( $post->ID, self::META_UNPUBLISHED_GMT, $post->post_modified_gmt );
+	}
+
+	/**
 	 * Returns the GMT time an entry was first published, falling back to the
 	 * post's created date for entries that predate the meta (or were inserted
 	 * directly as published).
@@ -1806,6 +1949,11 @@ class Post_Type {
 	 * endpoint's query runs. The deleted entry will not appear in the
 	 * `changed` set (it no longer exists), but the `last_modified` advance
 	 * prevents the short-circuit from hiding concurrent changes.
+	 *
+	 * The reader poll can't name a permanently deleted entry either, since it
+	 * finds removals by their post row. Open pages drop the entry when it's
+	 * trashed, which the admin always does first; a page that didn't poll in
+	 * between keeps it until reload.
 	 *
 	 * Fires on `before_delete_post` so term relationships are still available
 	 * for lookup.
@@ -2304,6 +2452,83 @@ class Post_Type {
 	}
 
 	/**
+	 * Permission check for changing entries' author: crediting an entry to
+	 * someone else needs the same capability as editing others' entries, and
+	 * Co-Authors Plus's own say on who may set bylines when it's on.
+	 *
+	 * @return bool
+	 */
+	public static function can_change_authors(): bool {
+		$coauthors_plus = self::coauthors_plus();
+
+		return current_user_can( self::EDIT_ENTRIES_CAP )
+			&& ( ! $coauthors_plus || $coauthors_plus->current_user_can_set_authors() );
+	}
+
+	/**
+	 * Whether the current user may set an entry's terms in a taxonomy.
+	 *
+	 * @param string $taxonomy Taxonomy slug.
+	 * @return bool
+	 */
+	public static function can_assign_terms( string $taxonomy ): bool {
+		$taxonomy_object = get_taxonomy( $taxonomy );
+
+		return $taxonomy_object
+			&& is_object_in_taxonomy( self::CPT_SLUG, $taxonomy )
+			&& current_user_can( $taxonomy_object->cap->assign_terms );
+	}
+
+	/**
+	 * Whether the current user may create terms in a taxonomy, by the rule
+	 * core's REST terms controller applies: categories and other
+	 * hierarchical taxonomies need `edit_terms`, tags only `assign_terms`.
+	 *
+	 * @param string $taxonomy Taxonomy slug.
+	 * @return bool
+	 */
+	public static function can_create_terms( string $taxonomy ): bool {
+		$taxonomy_object = get_taxonomy( $taxonomy );
+
+		if ( ! $taxonomy_object ) {
+			return false;
+		}
+
+		return current_user_can(
+			is_taxonomy_hierarchical( $taxonomy )
+				? $taxonomy_object->cap->edit_terms
+				: $taxonomy_object->cap->assign_terms
+		);
+	}
+
+	/**
+	 * Permission check for editing entries' details: the author needs
+	 * `can_change_authors()`, and each taxonomy sent needs its
+	 * `assign_terms` capability. Whether the user may edit each entry is
+	 * checked per entry in the handler.
+	 *
+	 * @param WP_REST_Request $request Request object.
+	 * @return bool
+	 */
+	public static function can_edit_details( WP_REST_Request $request ): bool {
+		if ( ! current_user_can( 'edit_posts' ) ) {
+			return false;
+		}
+
+		if ( null !== $request->get_param( 'author_id' ) && ! self::can_change_authors() ) {
+			return false;
+		}
+
+		foreach ( self::DETAILS_TAXONOMIES as $param => $taxonomy ) {
+			if ( null !== $request->get_param( $param ) && ! self::can_assign_terms( $taxonomy ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * Auth callback for post-meta registration: requires edit_post for
 	 * the specific post being modified.
 	 *
@@ -2398,6 +2623,578 @@ class Post_Type {
 			],
 			200
 		);
+	}
+
+	/**
+	 * REST handler: reassign entries, setting their author, categories and
+	 * tags, and for a single entry its slug and date.
+	 *
+	 * Only the details the request names change. The author replaces each
+	 * entry's author, and with Co-Authors Plus on for entries it also becomes
+	 * the only co-author. Otherwise the byline would keep the old author
+	 * while the entries list and the feed, which read `post_author`, show
+	 * the new one. Terms replace each entry's terms in that taxonomy, or,
+	 * with `append`, are added to them.
+	 *
+	 * It runs in three passes. The request is checked first, then every
+	 * entry (check_entry_details()), and only then is anything written: the
+	 * terms named but not found are created when at least one entry passed,
+	 * and only the entries that passed are changed (apply_entry_details()).
+	 * A rejected request, or one where every entry is refused, writes
+	 * nothing and creates no term, and a term this request created that
+	 * no entry ended up with is deleted again.
+	 *
+	 * The slug is sanitized and made unique by WordPress, so the result
+	 * reports the slug the entry ended up with. The date is the entry's
+	 * local publish date.
+	 *
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function handle_bulk_edit_details( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$entry_ids = array_values( array_unique( array_filter( array_map( 'intval', (array) $request->get_param( 'entry_ids' ) ) ) ) );
+		$author_id = $request->get_param( 'author_id' );
+		$slug      = $request->get_param( 'slug' );
+		$date      = $request->get_param( 'date' );
+
+		if ( empty( $entry_ids ) ) {
+			return new WP_Error(
+				'rolling_coverage_no_entry_ids',
+				__( 'No entry IDs provided.', 'newspack-rolling-coverage' ),
+				[ 'status' => 400 ]
+			);
+		}
+
+		if ( ( null !== $slug || null !== $date ) && count( $entry_ids ) > 1 ) {
+			return new WP_Error(
+				'rolling_coverage_single_entry_only',
+				__( 'The slug and date can only be changed one entry at a time.', 'newspack-rolling-coverage' ),
+				[ 'status' => 400 ]
+			);
+		}
+
+		$details = [
+			'author' => null,
+			'terms'  => [],
+			'append' => (bool) $request->get_param( 'append' ),
+			'slug'   => null === $slug ? null : sanitize_title( (string) $slug ),
+			'date'   => null,
+		];
+
+		if ( null !== $author_id ) {
+			$details['author'] = get_userdata( (int) $author_id );
+
+			if ( ! $details['author'] || ! user_can( $details['author'], 'edit_posts' ) ) {
+				return new WP_Error(
+					'rolling_coverage_invalid_author',
+					__( 'That person can’t be the author of an entry.', 'newspack-rolling-coverage' ),
+					[ 'status' => 400 ]
+				);
+			}
+		}
+
+		if ( null !== $date ) {
+			// Read without an offset, the date is in the site's time zone, as core's REST posts endpoint reads it.
+			$details['date'] = rest_get_date_with_gmt( (string) $date );
+
+			if ( ! $details['date'] ) {
+				return new WP_Error(
+					'rolling_coverage_invalid_date',
+					__( 'That date isn’t valid.', 'newspack-rolling-coverage' ),
+					[ 'status' => 400 ]
+				);
+			}
+		}
+
+		$term_changes = [];
+
+		foreach ( self::DETAILS_TAXONOMIES as $param => $taxonomy ) {
+			$changes = $request->get_param( $param );
+
+			if ( null === $changes ) {
+				continue;
+			}
+
+			$prepared = self::prepare_term_changes( (array) $changes, $taxonomy );
+
+			if ( is_wp_error( $prepared ) ) {
+				return $prepared;
+			}
+
+			$term_changes[ $taxonomy ] = $prepared;
+		}
+
+		if ( ! $details['author'] && empty( $term_changes ) && null === $details['slug'] && null === $details['date'] ) {
+			return new WP_Error(
+				'rolling_coverage_no_details',
+				__( 'Nothing to change.', 'newspack-rolling-coverage' ),
+				[ 'status' => 400 ]
+			);
+		}
+
+		_prime_post_caches( $entry_ids, true, true );
+
+		$results = [];
+		$passed  = [];
+
+		foreach ( $entry_ids as $entry_id ) {
+			$error = self::check_entry_details( $entry_id, $details );
+
+			if ( '' === $error ) {
+				$passed[] = $entry_id;
+				continue;
+			}
+
+			$results[ $entry_id ] = [
+				'entryId' => $entry_id,
+				'updated' => false,
+				'error'   => $error,
+			];
+		}
+
+		if ( $passed ) {
+			$created_terms = [];
+
+			foreach ( $term_changes as $taxonomy => $prepared ) {
+				$terms = self::create_terms( $prepared['create'], $taxonomy, $created_terms );
+
+				if ( is_wp_error( $terms ) ) {
+					self::delete_unused_terms( $created_terms );
+					return $terms;
+				}
+
+				$details['terms'][ $taxonomy ] = array_values( array_unique( array_merge( $prepared['ids'], $terms ) ) );
+			}
+
+			// The coverages' newest-entry times are refreshed once each after the
+			// loop instead of on every save. Any save can change them: it can
+			// publish a scheduled entry whose time has passed, with or without a
+			// new date.
+			$newest_entry_hook     = [ Newest_Entry::class, 'on_status_change' ];
+			$newest_entry_priority = has_action( 'transition_post_status', $newest_entry_hook );
+			$newest_entry_stale    = [];
+
+			if ( false !== $newest_entry_priority ) {
+				remove_action( 'transition_post_status', $newest_entry_hook, $newest_entry_priority );
+			}
+
+			$was_deferred = wp_defer_term_counting();
+
+			if ( ! $was_deferred ) {
+				wp_defer_term_counting( true );
+			}
+
+			try {
+				foreach ( $passed as $entry_id ) {
+					$status_before = get_post_status( $entry_id );
+
+					$results[ $entry_id ] = [ 'entryId' => $entry_id ] + self::apply_entry_details( $entry_id, $details );
+
+					if ( array_intersect( [ $status_before, get_post_status( $entry_id ) ], [ 'publish', 'future' ] ) ) {
+						$coverage_ids       = wp_get_post_terms( $entry_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
+						$newest_entry_stale = array_merge( $newest_entry_stale, is_wp_error( $coverage_ids ) ? [] : array_map( 'intval', $coverage_ids ) );
+					}
+				}
+			} finally {
+				if ( ! $was_deferred ) {
+					wp_defer_term_counting( false );
+				}
+
+				if ( false !== $newest_entry_priority ) {
+					add_action( 'transition_post_status', $newest_entry_hook, $newest_entry_priority, 3 );
+
+					foreach ( array_unique( $newest_entry_stale ) as $coverage_id ) {
+						Newest_Entry::refresh( $coverage_id );
+					}
+				}
+
+				self::delete_unused_terms( $created_terms );
+			}
+		}
+
+		$ordered = [];
+
+		foreach ( $entry_ids as $entry_id ) {
+			$ordered[] = $results[ $entry_id ];
+		}
+
+		return new WP_REST_Response( [ 'results' => $ordered ], 200 );
+	}
+
+	/**
+	 * Checks whether a Reassign request may change one entry, without
+	 * changing anything.
+	 *
+	 * The entry must exist and not be trashed, the user must be able to edit
+	 * it, and it must not be locked by Archive Mode. Dates follow
+	 * `wp_insert_post()`'s rule, which schedules an entry dated a minute or
+	 * more ahead and publishes a scheduled one dated less than that, on any
+	 * save: a published entry can't be moved that far ahead, since WordPress
+	 * would quietly schedule it, and saving a scheduled entry dated closer
+	 * than that publishes it, so it needs the right to publish. That covers a
+	 * scheduled entry whose time passed without cron publishing it, even
+	 * when the request sends no date.
+	 *
+	 * @param int   $entry_id Entry post ID.
+	 * @param array $details  The changes, as prepared by handle_bulk_edit_details().
+	 * @return string Why the entry is refused, or '' when it may be changed.
+	 */
+	private static function check_entry_details( int $entry_id, array $details ): string {
+		$post = get_post( $entry_id );
+
+		if ( ! $post || self::CPT_SLUG !== $post->post_type || 'trash' === $post->post_status ) {
+			return __( 'Entry not found.', 'newspack-rolling-coverage' );
+		}
+
+		if ( ! current_user_can( 'edit_post', $entry_id ) ) {
+			return __( 'You do not have permission to edit this entry.', 'newspack-rolling-coverage' );
+		}
+
+		if ( Archive_Mode::is_entry_archived( $entry_id ) ) {
+			return __( 'This entry is archived, so it can’t be edited.', 'newspack-rolling-coverage' );
+		}
+
+		if ( Archive_Mode::is_entry_locked( $entry_id ) ) {
+			return Archive_Mode::coverage_ended_error( 'rolling_coverage_entry_locked' )->get_error_message();
+		}
+
+		$date_gmt = $details['date'] ? $details['date'][1] : $post->post_date_gmt;
+		$ahead    = strtotime( $date_gmt . ' +0000' ) - time();
+
+		if ( $details['date'] && 'publish' === $post->post_status && $ahead >= MINUTE_IN_SECONDS ) {
+			return __( 'A published entry can’t have a date in the future.', 'newspack-rolling-coverage' );
+		}
+
+		if ( 'future' === $post->post_status && $ahead < MINUTE_IN_SECONDS && ! current_user_can( 'publish_post', $entry_id ) ) {
+			return __( 'Saving this entry would publish it, and you do not have permission to publish it.', 'newspack-rolling-coverage' );
+		}
+
+		return '';
+	}
+
+	/**
+	 * Applies the Reassign changes to one entry that check_entry_details()
+	 * passed.
+	 *
+	 * The co-author and the terms are written before the post is saved,
+	 * because the save's hooks need them: Co-Authors Plus reads `post_author`
+	 * back from its author terms on every save, and the save re-applies the
+	 * entry's categories and tags. If a later step fails, what was written
+	 * before it stays, and the entry is reported as failed.
+	 *
+	 * @param int   $entry_id Entry post ID.
+	 * @param array $details  {
+	 *     The changes, as prepared by handle_bulk_edit_details().
+	 *
+	 *     @type \WP_User|null $author The new author, or null to keep it.
+	 *     @type array         $terms  Term IDs to set, keyed by taxonomy.
+	 *     @type bool          $append Whether to add the terms rather than replace them.
+	 *     @type string|null   $slug   The sanitized slug, or null to keep it.
+	 *     @type string[]|null $date   The local and GMT dates, or null to keep them.
+	 * }
+	 * @return array{updated: bool, error?: string, slug?: string}
+	 */
+	private static function apply_entry_details( int $entry_id, array $details ): array {
+		$changes = [];
+
+		if ( $details['date'] ) {
+			$changes['post_date']     = $details['date'][0];
+			$changes['post_date_gmt'] = $details['date'][1];
+			$changes['edit_date']     = true;
+		}
+
+		if ( null !== $details['slug'] ) {
+			$changes['post_name'] = $details['slug'];
+		}
+
+		if ( $details['author'] ) {
+			if ( ! self::set_coauthor( $entry_id, $details['author'] ) ) {
+				return [
+					'updated' => false,
+					'error'   => __( 'Co-Authors Plus couldn’t credit this entry to that person.', 'newspack-rolling-coverage' ),
+				];
+			}
+
+			$changes['post_author'] = $details['author']->ID;
+		}
+
+		foreach ( $details['terms'] as $taxonomy => $ids ) {
+			$set = wp_set_post_terms( $entry_id, $ids, $taxonomy, $details['append'] );
+
+			if ( is_wp_error( $set ) ) {
+				return [
+					'updated' => false,
+					'error'   => $set->get_error_message(),
+				];
+			}
+		}
+
+		$updated = self::touch_entry( $entry_id, true, $changes );
+
+		if ( is_wp_error( $updated ) ) {
+			return [
+				'updated' => false,
+				'error'   => $updated->get_error_message(),
+			];
+		}
+
+		$post = get_post( $entry_id );
+
+		// A scheduled entry moved into the past was just published. The entries
+		// route settles its push notification in `rest_after_insert_*`, which
+		// this route never fires, so settle it here; it does nothing otherwise.
+		if ( $post instanceof WP_Post ) {
+			Push_Notifications::settle_rest_publish( $post );
+		}
+
+		$result = [ 'updated' => true ];
+
+		if ( null !== $details['slug'] ) {
+			$result['slug'] = get_post_field( 'post_name', $entry_id );
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Checks the terms a Reassign request sets in one taxonomy without
+	 * changing anything: every ID must be a term of the taxonomy, the user
+	 * must be able to assign each term found (`assign_term`), and names with
+	 * no term of exactly that name need permission to create terms.
+	 *
+	 * Names are matched by find_term_by_name(): by name, ignoring case, never
+	 * by slug.
+	 *
+	 * @param array  $changes  The request's `ids` and `names` for the taxonomy.
+	 * @param string $taxonomy Taxonomy slug.
+	 * @return array{ids: int[], create: string[]}|WP_Error Existing term IDs and the names to create.
+	 */
+	private static function prepare_term_changes( array $changes, string $taxonomy ): array|WP_Error {
+		$is_category = 'category' === $taxonomy;
+		$ids         = [];
+
+		foreach ( (array) ( $changes['ids'] ?? [] ) as $term_id ) {
+			$term = get_term( (int) $term_id, $taxonomy );
+
+			if ( ! $term instanceof \WP_Term ) {
+				return new WP_Error(
+					'rolling_coverage_invalid_term',
+					$is_category
+						? __( 'One of the chosen categories doesn’t exist.', 'newspack-rolling-coverage' )
+						: __( 'One of the chosen tags doesn’t exist.', 'newspack-rolling-coverage' ),
+					[ 'status' => 400 ]
+				);
+			}
+
+			$ids[] = (int) $term->term_id;
+		}
+
+		$create = [];
+
+		foreach ( (array) ( $changes['names'] ?? [] ) as $name ) {
+			$name = sanitize_text_field( (string) $name );
+
+			if ( '' === $name ) {
+				continue;
+			}
+
+			$existing = self::find_term_by_name( $name, $taxonomy );
+
+			if ( $existing ) {
+				$ids[] = $existing;
+				continue;
+			}
+
+			$create[ mb_strtolower( $name ) ] = $name;
+		}
+
+		$ids = array_values( array_unique( $ids ) );
+
+		foreach ( $ids as $term_id ) {
+			if ( ! current_user_can( 'assign_term', $term_id ) ) {
+				return new WP_Error(
+					'rolling_coverage_cannot_assign_term',
+					$is_category
+						? __( 'You don’t have permission to assign one of the chosen categories.', 'newspack-rolling-coverage' )
+						: __( 'You don’t have permission to assign one of the chosen tags.', 'newspack-rolling-coverage' ),
+					[ 'status' => 403 ]
+				);
+			}
+		}
+
+		if ( $create && ! self::can_create_terms( $taxonomy ) ) {
+			return new WP_Error(
+				'rolling_coverage_cannot_create_terms',
+				$is_category
+					? __( 'You don’t have permission to create categories.', 'newspack-rolling-coverage' )
+					: __( 'You don’t have permission to create tags.', 'newspack-rolling-coverage' ),
+				[ 'status' => 403 ]
+			);
+		}
+
+		return [
+			'ids'    => $ids,
+			'create' => array_values( $create ),
+		];
+	}
+
+	/**
+	 * The term of a taxonomy with exactly this name, matched as
+	 * `wp_insert_term()` matches names: by name, ignoring case, never by
+	 * slug, so "Apple" doesn't pick up "Apple Inc." whose slug is `apple`.
+	 * The database's collation also ignores accents, so candidates are
+	 * compared again here and "Cafe" doesn't pick up "Café". A typed name
+	 * stands for a new top-level term, so in a hierarchical taxonomy only
+	 * top-level terms match; a term under a parent is picked by ID.
+	 *
+	 * @param string $name     Sanitized term name.
+	 * @param string $taxonomy Taxonomy slug.
+	 * @return int The term's ID, or 0 when there is none.
+	 */
+	private static function find_term_by_name( string $name, string $taxonomy ): int {
+		$query = [
+			'taxonomy'               => $taxonomy,
+			'name'                   => $name,
+			'hide_empty'             => false,
+			'number'                 => 10,
+			'update_term_meta_cache' => false,
+		];
+
+		if ( is_taxonomy_hierarchical( $taxonomy ) ) {
+			$query['parent'] = 0;
+		}
+
+		$candidates = get_terms( $query );
+
+		if ( is_wp_error( $candidates ) ) {
+			return 0;
+		}
+
+		$stored_name = strtolower( wp_unslash( sanitize_term_field( 'name', $name, 0, $taxonomy, 'db' ) ) );
+
+		foreach ( $candidates as $candidate ) {
+			if ( $stored_name === strtolower( $candidate->name ) ) {
+				return (int) $candidate->term_id;
+			}
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Creates terms in a taxonomy, using the existing term when one by the
+	 * same name turns up in the meantime.
+	 *
+	 * @param string[] $names    Term names.
+	 * @param string   $taxonomy Taxonomy slug.
+	 * @param array    $created  Collects the IDs of the terms created, by taxonomy, including before a failure.
+	 * @return int[]|WP_Error The terms' IDs.
+	 */
+	private static function create_terms( array $names, string $taxonomy, array &$created ): array|WP_Error {
+		$ids = [];
+
+		foreach ( $names as $name ) {
+			$inserted = wp_insert_term( $name, $taxonomy );
+
+			if ( is_wp_error( $inserted ) ) {
+				$existing = (int) $inserted->get_error_data( 'term_exists' );
+
+				if ( $existing ) {
+					$ids[] = $existing;
+					continue;
+				}
+
+				return new WP_Error(
+					'rolling_coverage_term_not_created',
+					$inserted->get_error_message(),
+					[ 'status' => 400 ]
+				);
+			}
+
+			$ids[]                   = (int) $inserted['term_id'];
+			$created[ $taxonomy ][] = (int) $inserted['term_id'];
+		}
+
+		return $ids;
+	}
+
+	/**
+	 * Deletes terms a Reassign request created that no entry or other object
+	 * ended up with, such as when every entry failed to save.
+	 *
+	 * @param array $created Term IDs, by taxonomy.
+	 */
+	private static function delete_unused_terms( array $created ): void {
+		foreach ( $created as $taxonomy => $term_ids ) {
+			foreach ( $term_ids as $term_id ) {
+				$objects = get_objects_in_term( $term_id, $taxonomy );
+
+				if ( ! is_wp_error( $objects ) && empty( $objects ) ) {
+					wp_delete_term( $term_id, $taxonomy );
+				}
+			}
+		}
+	}
+
+	/**
+	 * Makes a user an entry's only co-author when Co-Authors Plus is on for
+	 * entries. It runs before the `post_author` update because Co-Authors
+	 * Plus re-reads `post_author` from the author terms on every save.
+	 * `add_coauthors()` also writes `post_author` itself, so `post_updated`
+	 * listeners see the new author on both sides of the save.
+	 *
+	 * Co-Authors Plus finds co-authors by nicename, and a guest author can
+	 * hold the same one as a user. The nicename is looked up first, and
+	 * nothing is written unless it leads to this user, so the entry is never
+	 * credited to someone else.
+	 *
+	 * @param int      $entry_id Entry post ID.
+	 * @param \WP_User $author   The new author.
+	 * @return bool False when Co-Authors Plus couldn't set the user.
+	 */
+	private static function set_coauthor( int $entry_id, \WP_User $author ): bool {
+		$coauthors_plus = self::coauthors_plus();
+
+		if ( ! $coauthors_plus ) {
+			return true;
+		}
+
+		$coauthor = $coauthors_plus->get_coauthor_by( 'user_nicename', $author->user_nicename );
+		$user_id  = 0;
+
+		if ( $coauthor instanceof \WP_User ) {
+			$user_id = (int) $coauthor->ID;
+		} elseif ( is_object( $coauthor ) && isset( $coauthor->wp_user ) && $coauthor->wp_user instanceof \WP_User ) {
+			$user_id = (int) $coauthor->wp_user->ID;
+		}
+
+		if ( $user_id !== (int) $author->ID ) {
+			return false;
+		}
+
+		return (bool) $coauthors_plus->add_coauthors( $entry_id, [ $author->user_nicename ] );
+	}
+
+	/**
+	 * Co-Authors Plus, when it's active and on for entries.
+	 *
+	 * @return object|null The plugin's main object, or null.
+	 */
+	public static function coauthors_plus(): ?object {
+		global $coauthors_plus;
+
+		if (
+			! is_object( $coauthors_plus )
+			|| ! method_exists( $coauthors_plus, 'is_post_type_enabled' )
+			|| ! method_exists( $coauthors_plus, 'current_user_can_set_authors' )
+			|| ! method_exists( $coauthors_plus, 'get_coauthor_by' )
+			|| ! method_exists( $coauthors_plus, 'add_coauthors' )
+			|| ! $coauthors_plus->is_post_type_enabled( self::CPT_SLUG )
+		) {
+			return null;
+		}
+
+		return $coauthors_plus;
 	}
 
 	/**

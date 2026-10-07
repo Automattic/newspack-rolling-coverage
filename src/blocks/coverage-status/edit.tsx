@@ -54,7 +54,6 @@ declare global {
 const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
 const VIEW_CONTEXT = { context: 'view' };
 const SAMPLE_AGE_MS = 2 * 60 * 1000;
-const DEFAULT_GAP_SLUG = '30';
 const INSERT_SOURCES = [ undefined, 'inserter_menu', 'quick_inserter' ];
 
 const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {
@@ -192,59 +191,40 @@ export default function Edit( {
 		}
 	}
 
-	const { justInserted, paletteSlugs, spacingSlugs, blockGapSupport } =
-		useSelect(
-			( select ) => {
-				const blockEditor = select( blockEditorStore ) as unknown as {
-					wasBlockJustInserted: (
-						id: string,
-						source?: string
-					) => boolean;
-					getSettings: () => {
-						colors?: { slug: string }[];
-						__experimentalFeatures?: {
-							color?: {
-								palette?: Record< string, { slug: string }[] >;
-							};
-							spacing?: {
-								blockGap?: boolean;
-								spacingSizes?: Record<
-									string,
-									{ slug: string }[]
-								>;
-							};
+	const { justInserted, paletteSlugs } = useSelect(
+		( select ) => {
+			const blockEditor = select( blockEditorStore ) as unknown as {
+				wasBlockJustInserted: (
+					id: string,
+					source?: string
+				) => boolean;
+				getSettings: () => {
+					colors?: { slug: string }[];
+					__experimentalFeatures?: {
+						color?: {
+							palette?: Record< string, { slug: string }[] >;
 						};
 					};
 				};
-				const settings = blockEditor.getSettings();
+			};
+			const settings = blockEditor.getSettings();
 
-				return {
-					justInserted: INSERT_SOURCES.some( ( source ) =>
-						blockEditor.wasBlockJustInserted( clientId, source )
-					),
-					paletteSlugs: [
-						...Object.values(
-							settings.__experimentalFeatures?.color?.palette ??
-								{}
-						).flat(),
-						...( settings.colors ?? [] ),
-					]
-						.map( ( color ) => color.slug )
-						.join( ',' ),
-					blockGapSupport:
-						settings.__experimentalFeatures?.spacing?.blockGap ??
-						false,
-					spacingSlugs: Object.values(
-						settings.__experimentalFeatures?.spacing
-							?.spacingSizes ?? {}
-					)
-						.flat()
-						.map( ( size ) => size.slug )
-						.join( ',' ),
-				};
-			},
-			[ clientId ]
-		);
+			return {
+				justInserted: INSERT_SOURCES.some( ( source ) =>
+					blockEditor.wasBlockJustInserted( clientId, source )
+				),
+				paletteSlugs: [
+					...Object.values(
+						settings.__experimentalFeatures?.color?.palette ?? {}
+					).flat(),
+					...( settings.colors ?? [] ),
+				]
+					.map( ( color ) => color.slug )
+					.join( ',' ),
+			};
+		},
+		[ clientId ]
+	);
 
 	const { __unstableMarkNextChangeAsNotPersistent } = useDispatch(
 		blockEditorStore.name
@@ -267,20 +247,6 @@ export default function Edit( {
 			defaults.textColor = color;
 		}
 
-		if (
-			blockGapSupport &&
-			spacingSlugs.split( ',' ).includes( DEFAULT_GAP_SLUG ) &&
-			! style?.spacing?.blockGap
-		) {
-			defaults.style = {
-				...style,
-				spacing: {
-					...style?.spacing,
-					blockGap: `var:preset|spacing|${ DEFAULT_GAP_SLUG }`,
-				},
-			};
-		}
-
 		if ( Object.keys( defaults ).length ) {
 			__unstableMarkNextChangeAsNotPersistent();
 			setAttributes( defaults );
@@ -288,8 +254,6 @@ export default function Edit( {
 	}, [
 		justInserted,
 		paletteSlugs,
-		spacingSlugs,
-		blockGapSupport,
 		__unstableMarkNextChangeAsNotPersistent,
 		textColor,
 		style,

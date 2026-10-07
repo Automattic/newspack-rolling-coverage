@@ -5,7 +5,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
-use Newspack_Rolling_Coverage\Entry_Bindings;
+use Newspack_Rolling_Coverage\Latest_Label;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Social_Sharing;
@@ -18,13 +18,6 @@ use Newspack_Rolling_Coverage\Taxonomy;
 class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 	const CONTROL_CLASS = 'newspack-rolling-coverage-new-entries';
-
-	/**
-	 * A customized "Jump to latest" button, as the editor saves it.
-	 */
-	const CUSTOM_LATEST_MARKUP = '<!-- wp:buttons {"className":"is-custom","layout":{"type":"flex","justifyContent":"center"}} --><div class="wp-block-buttons is-custom">'
-		. '<!-- wp:button {"backgroundColor":"accent","metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"latestUrl"}}}}} --><div class="wp-block-button"><a class="wp-block-button__link has-accent-background-color has-background wp-element-button">Back to live</a></div><!-- /wp:button -->'
-		. '</div><!-- /wp:buttons -->';
 
 	/**
 	 * An entry's blocks, as the editor saves them.
@@ -228,7 +221,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 			'style'   => null,
 			'text'    => '',
 			'live'    => null,
-			'marked'  => substr_count( $html, Entry_Bindings::LATEST_ATTRIBUTE ),
+			'marked'  => substr_count( $html, Rolling_Coverage_Block::LATEST_ATTRIBUTE ),
 			'newer'   => null,
 			'own'     => null,
 		];
@@ -245,7 +238,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$control['newer']   = $tags->get_attribute( 'data-newer-count' );
 
 		while ( $tags->next_tag( 'a' ) ) {
-			if ( null === $tags->get_attribute( Entry_Bindings::LATEST_ATTRIBUTE ) ) {
+			if ( null === $tags->get_attribute( Rolling_Coverage_Block::LATEST_ATTRIBUTE ) ) {
 				continue;
 			}
 
@@ -254,7 +247,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 			$control['style'] = $tags->get_attribute( 'style' );
 			$control['own']   = $tags->get_attribute( 'data-label' );
 
-			preg_match( '#<a\b[^>]*\b' . Entry_Bindings::LATEST_ATTRIBUTE . '\b[^>]*>([^<]*)</a>#', $html, $match );
+			preg_match( '#<a\b[^>]*\b' . Rolling_Coverage_Block::LATEST_ATTRIBUTE . '\b[^>]*>([^<]*)</a>#', $html, $match );
 
 			$control['text'] = html_entity_decode( $match[1] ?? '' );
 			break;
@@ -327,10 +320,10 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertFalse( $control['hidden'] );
 		$this->assertSame( get_permalink( $this->page_id ), $control['href'] );
 		$this->assertSame( '3', $control['newer'] );
-		$this->assertSame( '3 Newer Posts', $control['text'] );
+		$this->assertSame( '3 Newer Entries', $control['text'] );
 		$this->assertSame( 'Jump to Latest', $control['own'], 'The link keeps its own text for the view script.' );
-		$this->assertSame( 'wp-block-button__link has-base-color has-contrast-background-color has-text-color has-background wp-element-button', $control['link'] );
-		$this->assertSame( 'box-shadow:var(--wp--preset--shadow--elevation-1)', $control['style'] );
+		$this->assertSame( 'wp-block-button__link wp-element-button', $control['link'] );
+		$this->assertSame( 'box-shadow:var(--wp--preset--shadow--elevation-2)', $control['style'] );
 		$this->assertSame( get_permalink( $this->page_id ), $control['live'], 'The wrapper carries the live feed URL for the view script.' );
 		$this->assertSame( 1, $control['marked'], 'Only the link to the live feed is marked for the view script.' );
 		$this->assertContains( 'is-layout-flex', explode( ' ', $control['classes'] ) );
@@ -338,35 +331,68 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The default control takes its colors from the palette: Contrast and Base where the theme has both, else Dark Gray and White where it has both, else Contrast and Base.
+	 * The control takes the theme's button style alone: no palette color, whatever the palette holds.
 	 *
 	 * @dataProvider palettes
 	 *
-	 * @param string[] $slugs   The theme palette's slugs.
-	 * @param string   $classes The color classes the link carries.
+	 * @param string[] $slugs The theme palette's slugs.
 	 */
-	public function test_default_control_follows_the_palette( array $slugs, string $classes ) {
+	public function test_control_takes_no_palette_colors( array $slugs ) {
 		$this->use_palette( $slugs );
 
-		$this->assertSame(
-			'wp-block-button__link ' . $classes . ' has-text-color has-background wp-element-button',
-			$this->control( $this->render_with_shared( 'entry-3' ) )['link']
-		);
+		foreach ( [ 'entry-3', '' ] as $shared ) {
+			$this->assertSame( 'wp-block-button__link wp-element-button', $this->control( $this->render_with_shared( $shared ) )['link'] );
+		}
 	}
 
 	/**
-	 * Theme palettes and the default control's color classes.
+	 * Theme palettes, block theme and Newspack Theme style.
 	 *
 	 * @return array[]
 	 */
 	public static function palettes(): array {
 		return [
-			'contrast and base'                => [ [ 'accent', 'base', 'contrast' ], 'has-base-color has-contrast-background-color' ],
-			'both pairs'                       => [ [ 'base', 'contrast', 'dark-gray', 'white' ], 'has-base-color has-contrast-background-color' ],
-			'dark gray and white only'         => [ [ 'primary', 'dark-gray', 'medium-gray', 'white' ], 'has-white-color has-dark-gray-background-color' ],
-			'contrast without base, dark gray' => [ [ 'contrast', 'dark-gray' ], 'has-white-color has-dark-gray-background-color' ],
-			'neither'                          => [ [ 'primary', 'secondary' ], 'has-base-color has-contrast-background-color' ],
+			'contrast and base'        => [ [ 'accent', 'base', 'contrast' ] ],
+			'dark gray and white only' => [ [ 'primary', 'dark-gray', 'medium-gray', 'white' ] ],
 		];
+	}
+
+	/**
+	 * The control reads the site's label in both views; the shared view keeps it on the link when the count replaces it.
+	 */
+	public function test_control_shows_the_site_label() {
+		update_option( Latest_Label::OPTION_KEY, 'Back to live' );
+
+		$normal = $this->control( $this->render_with_shared( '' ) );
+		$shared = $this->control( $this->render_with_shared( 'entry-3' ) );
+
+		$this->assertSame( 'Back to live', $normal['text'] );
+		$this->assertNull( $normal['own'] );
+		$this->assertSame( '3 Newer Entries', $shared['text'] );
+		$this->assertSame( 'Back to live', $shared['own'] );
+	}
+
+	/**
+	 * A blank saved label falls back to "Jump to Latest".
+	 */
+	public function test_blank_site_label_falls_back_to_the_default() {
+		update_option( Latest_Label::OPTION_KEY, '   ' );
+
+		$this->assertSame( 'Jump to Latest', $this->control( $this->render_with_shared( '' ) )['text'] );
+		$this->assertSame( 'Jump to Latest', $this->control( $this->render_with_shared( 'entry-3' ) )['own'] );
+	}
+
+	/**
+	 * The site's label is escaped in the link and in the label kept for the view script.
+	 */
+	public function test_site_label_is_escaped() {
+		update_option( Latest_Label::OPTION_KEY, 'Q < A & "B"' );
+
+		$normal = $this->render_with_shared( '' );
+
+		$this->assertStringContainsString( '>Q &lt; A &amp; &quot;B&quot;</a>', $normal );
+		$this->assertSame( 'Q < A & "B"', $this->control( $normal )['text'] );
+		$this->assertSame( 'Q < A & "B"', $this->control( $this->render_with_shared( 'entry-3' ) )['own'] );
 	}
 
 	/**
@@ -389,7 +415,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 				[
 					'hidden' => false,
 					'newer'  => '3',
-					'text'   => '3 Newer Posts',
+					'text'   => '3 Newer Entries',
 					'own'    => 'Jump to Latest',
 				]
 			),
@@ -398,165 +424,29 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A layout's own "Jump to latest" button is the control, with its text and settings, in both views.
+	 * In a layout whose items sit in the Feed group, the control renders inside the Feed and never inside an entry.
 	 */
-	public function test_customized_latest_button_is_the_control() {
-		$layout = self::CUSTOM_LATEST_MARKUP . self::ENTRY_MARKUP;
-
-		$shared = $this->control( $this->render_layout_with_shared( 'entry-3', $layout ) );
-
-		$this->assertSame( 1, $shared['count'] );
-		$this->assertFalse( $shared['hidden'] );
-		$this->assertContains( 'is-custom', explode( ' ', $shared['classes'] ) );
-		$this->assertContains( self::CONTROL_CLASS, explode( ' ', $shared['classes'] ), 'The wrapper carries the control class even when the layout lost it.' );
-		$this->assertSame( '3 Newer Posts', $shared['text'], 'The count replaces the button\'s own text.' );
-		$this->assertSame( 'Back to live', $shared['own'] );
-		$this->assertSame( 'wp-block-button__link has-accent-background-color has-background wp-element-button', $shared['link'] );
-		$this->assertNull( $shared['style'] );
-		$this->assertSame( get_permalink( $this->page_id ), $shared['href'] );
-
-		$normal = $this->control( $this->render_layout_with_shared( '', $layout ) );
-
-		$this->assertTrue( $normal['hidden'] );
-		$this->assertSame( 'Back to live', $normal['text'] );
-	}
-
-	/**
-	 * In a layout whose items sit in the Feed group, the layout's "Jump to latest" button is the control, inside the Feed and never inside an entry.
-	 */
-	public function test_latest_button_in_the_feed_is_the_control() {
+	public function test_control_renders_inside_the_feed() {
 		$layout = '<!-- wp:group {"className":"newspack-rolling-coverage-feed","style":{"spacing":{"blockGap":"var:preset|spacing|40"}}} --><div class="wp-block-group newspack-rolling-coverage-feed">'
-			. self::CUSTOM_LATEST_MARKUP . self::ENTRY_MARKUP
+			. self::ENTRY_MARKUP
 			. '</div><!-- /wp:group -->';
 		$html   = $this->render_layout_with_shared( 'entry-3', $layout );
 		$shared = $this->control( $html );
 
 		$this->assertSame( 1, $shared['count'] );
-		$this->assertSame( 'Back to live', $shared['own'], "The layout's own button is the control." );
+		$this->assertSame( 'Jump to Latest', $shared['own'] );
 		$this->assertNotNull( $shared['live'] );
 		$this->assertMatchesRegularExpression( '/newspack-rolling-coverage-feed[^>]*>.*' . self::CONTROL_CLASS . '/s', $html, 'The control renders inside the Feed.' );
 
 		preg_match_all( '/<article .*?<\/article>/s', $html, $articles );
 
 		$this->assertNotEmpty( $articles[0] );
-		$this->assertStringNotContainsString( Entry_Bindings::LATEST_ATTRIBUTE, implode( '', $articles[0] ), 'No entry holds the button.' );
+		$this->assertStringNotContainsString( Rolling_Coverage_Block::LATEST_ATTRIBUTE, implode( '', $articles[0] ), 'No entry holds the control.' );
 
 		$wrapper = new WP_HTML_Tag_Processor( $html );
 		$wrapper->next_tag();
 
 		$this->assertSame( '--newspack-rolling-coverage-gap:var(--wp--preset--spacing--40)', $wrapper->get_attribute( 'style' ) );
-	}
-
-	/**
-	 * The "Jump to latest" button renders once above the feed, never inside an entry.
-	 */
-	public function test_latest_button_is_not_rendered_inside_entries() {
-		$html    = $this->render_layout_with_shared( 'entry-3', self::CUSTOM_LATEST_MARKUP . self::ENTRY_MARKUP );
-		$entries = substr( $html, (int) strpos( $html, 'class="newspack-rolling-coverage-entries"' ) );
-
-		$this->assertSame( $this->ids( 'entry-3', 'entry-2' ), $this->entry_ids_in( $entries ) );
-		$this->assertSame( 1, substr_count( $html, 'has-accent-background-color' ) );
-		$this->assertStringNotContainsString( 'has-accent-background-color', $entries );
-		$this->assertStringNotContainsString( 'wp-block-button', $entries );
-	}
-
-	/**
-	 * The "Jump to latest" buttons are told apart from every other Buttons block by their binding.
-	 */
-	public function test_latest_buttons_are_recognized_by_their_binding() {
-		$latest = parse_blocks( self::CUSTOM_LATEST_MARKUP )[0];
-		$follow = $latest;
-
-		$follow['innerBlocks'][0]['attrs']['metadata']['bindings']['url']['args']['key'] = 'followTag';
-
-		$this->assertTrue( Entry_Bindings::is_latest_buttons( $latest ) );
-		$this->assertFalse( Entry_Bindings::is_latest_buttons( $follow ) );
-		$this->assertFalse( Entry_Bindings::is_latest_buttons( $latest['innerBlocks'][0] ), 'The button alone is not the Buttons block.' );
-		$this->assertFalse( Entry_Bindings::is_latest_buttons( parse_blocks( '<!-- wp:buttons --><div class="wp-block-buttons"></div><!-- /wp:buttons -->' )[0] ) );
-	}
-
-	/**
-	 * A "Jump to latest" button pasted into the entry group renders in no entry, on the page or through the entries route.
-	 */
-	public function test_pasted_latest_button_never_renders_inside_an_entry() {
-		$layout = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
-			. '<!-- wp:post-title /-->' . self::CUSTOM_LATEST_MARKUP
-			. '</div><!-- /wp:group -->';
-
-		$html    = $this->render_layout_with_shared( 'entry-3', $layout );
-		$entries = substr( $html, (int) strpos( $html, 'class="newspack-rolling-coverage-entries"' ) );
-
-		$this->assertSame( $this->ids( 'entry-3', 'entry-2' ), $this->entry_ids_in( $entries ) );
-		$this->assertStringNotContainsString( 'Back to live', $entries );
-		$this->assertStringNotContainsString( 'wp-block-button', $entries );
-		$this->assertStringContainsString( 'has-contrast-background-color', $this->control( $html )['link'], 'The layout has no button of its own at the top, so the default one is the control.' );
-
-		$data = self::dispatch(
-			'GET',
-			'/coverages/' . $this->coverage_id . '/entries',
-			[
-				'before'       => get_post( $this->entries['entry-2'] )->post_date_gmt,
-				'per_page'     => 2,
-				'template_key' => $this->data_attribute( $html, 'template-key' ),
-			]
-		)->get_data();
-
-		$this->assertSame( $this->ids( 'entry-1' ), $this->entry_ids_in( $data['html'] ) );
-		$this->assertStringNotContainsString( 'Back to live', $data['html'] );
-		$this->assertStringNotContainsString( 'wp-block-button', $data['html'] );
-	}
-
-	/**
-	 * A layout's button that cannot link to the live feed gives way to the default control.
-	 *
-	 * @dataProvider unusable_latest_buttons
-	 *
-	 * @param string $button The button inside the layout's Buttons block, as the editor saves it.
-	 */
-	public function test_unusable_latest_button_falls_back_to_the_default_control( string $button ) {
-		$layout = '<!-- wp:buttons {"className":"is-custom"} --><div class="wp-block-buttons is-custom">' . $button . '</div><!-- /wp:buttons -->' . self::ENTRY_MARKUP;
-
-		$this->assertSame(
-			$this->control( $this->render_with_shared( 'entry-3' ) ),
-			$this->control( $this->render_layout_with_shared( 'entry-3', $layout ) )
-		);
-		$this->assertSame(
-			$this->control( $this->render_with_shared( '' ) ),
-			$this->control( $this->render_layout_with_shared( '', $layout ) )
-		);
-	}
-
-	/**
-	 * Latest-bound buttons the site cannot render as a link to the live feed.
-	 *
-	 * @return array[]
-	 */
-	public static function unusable_latest_buttons(): array {
-		$binding = '"metadata":{"bindings":{"url":{"source":"newspack-rolling-coverage/entry","args":{"key":"latestUrl"}}}}';
-
-		return [
-			'empty label'            => [ '<!-- wp:button {' . $binding . '} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button"></a></div><!-- /wp:button -->' ],
-			'button element, no URL' => [ '<!-- wp:button {"tagName":"button",' . $binding . '} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Back to live</button></div><!-- /wp:button -->' ],
-		];
-	}
-
-	/**
-	 * A button a publisher adds next to "Jump to latest" is left alone: only the bound link is marked for the view script.
-	 */
-	public function test_only_the_latest_link_is_marked_for_the_view_script() {
-		$layout = str_replace(
-			'<div class="wp-block-buttons is-custom">',
-			'<div class="wp-block-buttons is-custom"><!-- wp:button {"url":"https://example.com/"} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="https://example.com/">Elsewhere</a></div><!-- /wp:button -->',
-			self::CUSTOM_LATEST_MARKUP
-		) . self::ENTRY_MARKUP;
-
-		$html    = $this->render_layout_with_shared( 'entry-3', $layout );
-		$control = $this->control( $html );
-
-		$this->assertStringContainsString( '>Elsewhere</a>', $html );
-		$this->assertSame( 1, $control['marked'] );
-		$this->assertSame( '3 Newer Posts', $control['text'] );
-		$this->assertSame( get_permalink( $this->page_id ), $control['href'] );
 	}
 
 	/**
@@ -669,11 +559,11 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'data-view="entry"', $html );
 		$this->assertSame( '1', $control['newer'] );
-		$this->assertSame( '1 Newer Post', $control['text'] );
+		$this->assertSame( '1 Newer Entry', $control['text'] );
 	}
 
 	/**
-	 * Pinned entries are already on the page, so they are not counted as newer posts.
+	 * Pinned entries are already on the page, so they are not counted as newer entries.
 	 */
 	public function test_pinned_newer_entries_are_not_counted() {
 		Post_Type::pin_entry( $this->entries['entry-4'] );
@@ -704,33 +594,19 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 101, Rolling_Coverage_Block::NEWER_COUNT_CAP );
 		$this->assertSame( '101', $control['newer'], 'One past a hundred stands for "more than 100".' );
-		$this->assertSame( '100+ Newer Posts', $control['text'] );
-	}
-
-	/**
-	 * A label with inline formatting is left for the view script to replace.
-	 */
-	public function test_formatted_label_is_left_to_the_view_script() {
-		$layout = str_replace( '>Back to live</a>', '><strong>Back</strong> to live</a>', self::CUSTOM_LATEST_MARKUP ) . self::ENTRY_MARKUP;
-
-		$html = $this->render_layout_with_shared( 'entry-3', $layout );
-
-		$this->assertStringContainsString( '><strong>Back</strong> to live</a>', $html );
-		$this->assertStringNotContainsString( 'Newer Post', $html );
-		$this->assertSame( '3', $this->control( $html )['newer'] );
-		$this->assertNull( $this->control( $html )['own'], 'The untouched label is its own text.' );
+		$this->assertSame( '100+ Newer Entries', $control['text'] );
 	}
 
 	/**
 	 * The label is exact up to ten; from there "N+" reads as more than N.
 	 *
-	 * @dataProvider newer_posts_labels
+	 * @dataProvider newer_entries_labels
 	 *
 	 * @param int    $count How many entries are newer.
 	 * @param string $label The label the control shows.
 	 */
-	public function test_newer_posts_label_is_bucketed( int $count, string $label ) {
-		$this->assertSame( $label, Rolling_Coverage_Block::newer_posts_label( $count ) );
+	public function test_newer_entries_label_is_bucketed( int $count, string $label ) {
+		$this->assertSame( $label, Rolling_Coverage_Block::newer_entries_label( $count ) );
 	}
 
 	/**
@@ -738,18 +614,18 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	 *
 	 * @return array[]
 	 */
-	public static function newer_posts_labels(): array {
+	public static function newer_entries_labels(): array {
 		return [
 			[ 0, '' ],
-			[ 1, '1 Newer Post' ],
-			[ 9, '9 Newer Posts' ],
-			[ 10, '10 Newer Posts' ],
-			[ 11, '10+ Newer Posts' ],
-			[ 50, '10+ Newer Posts' ],
-			[ 51, '50+ Newer Posts' ],
-			[ 100, '50+ Newer Posts' ],
-			[ 101, '100+ Newer Posts' ],
-			[ 250, '100+ Newer Posts' ],
+			[ 1, '1 Newer Entry' ],
+			[ 9, '9 Newer Entries' ],
+			[ 10, '10 Newer Entries' ],
+			[ 11, '10+ Newer Entries' ],
+			[ 50, '10+ Newer Entries' ],
+			[ 51, '50+ Newer Entries' ],
+			[ 100, '50+ Newer Entries' ],
+			[ 101, '100+ Newer Entries' ],
+			[ 250, '100+ Newer Entries' ],
 		];
 	}
 
@@ -907,6 +783,19 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$entries_html = substr( $html, (int) strpos( $html, 'newspack-rolling-coverage-entries' ) );
 
 		$this->assertStringNotContainsString( 'wp-block-separator', $entries_html );
+	}
+
+	/**
+	 * A feed set not to load older entries opens at a shared entry with
+	 * nothing more to load, and neither the sentinel nor the button.
+	 */
+	public function test_shared_view_of_a_feed_that_loads_no_older_entries_has_nothing_more_to_load() {
+		$html = $this->render_layout_with_shared( 'entry-3', '', 0, [ 'olderEntries' => 'none' ] );
+
+		$this->assertStringContainsString( 'data-view="entry"', $html );
+		$this->assertStringContainsString( 'data-has-more="0"', $html );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-sentinel', $html );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-load-more', $html );
 	}
 
 	/**

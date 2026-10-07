@@ -31,7 +31,9 @@ import { buildPageUrl, createEntry, toEntry } from '../utils/entries-api';
 import { getCoverage } from '../utils/coverage-api';
 import { DataViewsWrapper } from './data-views-wrapper';
 import { QuickEditModal } from './quick-edit-modal';
+import { EntryDetailsDrawer } from './entry-details-drawer';
 import { SlackConnectionDrawer } from './slack-connection-drawer';
+import { PlacementsDrawer } from './placements-drawer';
 import { useConfirmDialog } from './confirm-dialog';
 import { getEntryActions } from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
@@ -114,6 +116,13 @@ function EntryView() {
 	const [ quickEditEntry, setQuickEditEntry ] = useState< Entry | null >(
 		null
 	);
+
+	const [ detailsItems, setDetailsItems ] = useState< Entry[] >( [] );
+	const [ isDetailsOpen, setIsDetailsOpen ] = useState( false );
+	const handleEditDetails = useCallback( ( items: Entry[] ) => {
+		setDetailsItems( items );
+		setIsDetailsOpen( true );
+	}, [] );
 
 	const handleActionPerformed = useCallback( () => {
 		refresh();
@@ -327,9 +336,16 @@ function EntryView() {
 				config,
 				handleQuickEdit,
 				requestConfirm,
-				handleActionPerformed
+				handleActionPerformed,
+				handleEditDetails
 			),
-		[ config, handleQuickEdit, requestConfirm, handleActionPerformed ]
+		[
+			config,
+			handleQuickEdit,
+			requestConfirm,
+			handleActionPerformed,
+			handleEditDetails,
+		]
 	);
 
 	const hasNoLiveEntries =
@@ -497,11 +513,9 @@ function EntryView() {
 		[ canShowSlack, slackChannelLabel, routeCoverage, isRefreshingSlack ]
 	);
 
-	const pageUrl = routeCoverage?.pageUrl ?? '';
-	const showViewPage =
-		! isFirstLoad &&
-		routeCoverage !== null &&
-		( pageUrl !== '' || ! isEmpty );
+	const showPlacements =
+		! isFirstLoad && ( routeCoverage?.placements ?? [] ).length > 0;
+	const [ isPlacementsOpen, setIsPlacementsOpen ] = useState( false );
 
 	const addEntryButton = useMemo(
 		() =>
@@ -538,59 +552,32 @@ function EntryView() {
 		[ isArchived, handleNewEntry, isCreatingEntry, statusLabels ]
 	);
 
-	const viewPageButton = useMemo(
-		() =>
-			pageUrl ? (
-				<Button
-					variant="secondary"
-					href={ pageUrl }
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					{ __( 'View Page', 'newspack-rolling-coverage' ) }
-					<VisuallyHidden>
-						{
-							/* translators: Accessibility text. */
-							__(
-								'(opens in a new tab)',
-								'newspack-rolling-coverage'
-							)
-						}
-					</VisuallyHidden>
-				</Button>
-			) : (
-				<Button
-					variant="secondary"
-					disabled
-					accessibleWhenDisabled
-					showTooltip
-					tooltipPosition="bottom"
-					label={ __( 'View Page', 'newspack-rolling-coverage' ) }
-					describedBy={ __(
-						'No published page shows this coverage yet. Add the Rolling Coverage block to a page and publish it.',
-						'newspack-rolling-coverage'
-					) }
-				>
-					{ __( 'View Page', 'newspack-rolling-coverage' ) }
-				</Button>
-			),
-		[ pageUrl ]
+	const placementsButton = useMemo(
+		() => (
+			<Button
+				variant="secondary"
+				onClick={ () => setIsPlacementsOpen( true ) }
+			>
+				{ __( 'Placements', 'newspack-rolling-coverage' ) }
+			</Button>
+		),
+		[]
 	);
 
 	const headerActions = useMemo(
 		() =>
-			showNewEntry || showSlackInHeader || showViewPage ? (
+			showNewEntry || showSlackInHeader || showPlacements ? (
 				<>
 					{ showSlackInHeader && slackButton }
-					{ showViewPage && viewPageButton }
+					{ showPlacements && placementsButton }
 					{ showNewEntry && addEntryButton }
 				</>
 			) : null,
 		[
 			showNewEntry,
 			showSlackInHeader,
-			showViewPage,
-			viewPageButton,
+			showPlacements,
+			placementsButton,
 			slackButton,
 			addEntryButton,
 		]
@@ -702,6 +689,17 @@ function EntryView() {
 					onSaved={ handleQuickEditSaved }
 				/>
 			) }
+			<EntryDetailsDrawer
+				isOpen={ isDetailsOpen }
+				items={ detailsItems }
+				onClose={ () => setIsDetailsOpen( false ) }
+				onChanged={ handleActionPerformed }
+			/>
+			<PlacementsDrawer
+				isOpen={ isPlacementsOpen }
+				coverage={ routeCoverage }
+				onClose={ () => setIsPlacementsOpen( false ) }
+			/>
 			{ canConnectSlack && (
 				<SlackConnectionDrawer
 					isOpen={ isSlackDrawerOpen }

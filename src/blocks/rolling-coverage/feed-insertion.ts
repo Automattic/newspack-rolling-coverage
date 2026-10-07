@@ -6,7 +6,12 @@ import { addFilter } from '@wordpress/hooks';
 /**
  * Internal dependencies
  */
-import { ALL_ALLOWED_BLOCKS, BLOCK_NAME, FOLLOW_BLOCK_NAME } from './layout';
+import {
+	ALL_ALLOWED_BLOCKS,
+	BLOCK_NAME,
+	CHECK_UPDATES_BLOCK_NAME,
+	FOLLOW_BLOCK_NAME,
+} from './layout';
 import {
 	STATUS_BLOCK_NAME,
 	feedPathOf,
@@ -17,7 +22,8 @@ import {
 
 /**
  * Limits the Feed group to the layout's block types, and keeps the Follow
- * Coverage block, which renders once at the top of the coverage, in the Feed
+ * Coverage and Check for Updates blocks, which render once at the coverage
+ * level, in the Feed
  * or in a coverage-level group inside it, such as a layout's footer, where
  * Rolling_Coverage_Block::layout_items() reads it. Inside an entry or the
  * pinned card, the site would render it in every entry or leave it out. The
@@ -69,7 +75,12 @@ function canInsertIntoFeed(
 		return false;
 	}
 
-	if ( blockType.name !== FOLLOW_BLOCK_NAME || ! rootClientId ) {
+	if (
+		! [ FOLLOW_BLOCK_NAME, CHECK_UPDATES_BLOCK_NAME ].includes(
+			blockType.name
+		) ||
+		! rootClientId
+	) {
 		return true;
 	}
 

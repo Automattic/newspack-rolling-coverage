@@ -6,6 +6,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Placements;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Taxonomy;
@@ -271,6 +272,8 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 			]
 		);
 
+		Placements::rebuild();
+
 		$this->assertSame( get_permalink( $newest_id ), self::get_coverage_via_rest( $coverage_id, 'view' )[ Taxonomy::PAGE_URL_REST_FIELD ], 'The newest published page should win over older and draft ones.' );
 		$this->assertSame( '', Taxonomy::get_coverage_page_url( $other_id ), 'A coverage no page embeds should have no URL.' );
 
@@ -280,6 +283,7 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 				'post_status' => 'draft',
 			]
 		);
+		Placements::rebuild();
 
 		$this->assertSame( get_permalink( $older_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'Unpublishing the newest page should hand over to the next one.' );
 	}
@@ -310,6 +314,8 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 			]
 		);
 
+		Placements::rebuild();
+
 		$this->assertSame( get_permalink( $page_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'A capped-only post should be skipped.' );
 
 		wp_update_post(
@@ -319,6 +325,8 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 			]
 		);
 
+		Placements::rebuild();
+
 		$this->assertSame( '', Taxonomy::get_coverage_page_url( $coverage_id ), 'With only capped blocks there is no page.' );
 
 		wp_update_post(
@@ -327,6 +335,8 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 				'post_content' => $capped . '<!-- wp:group --><div class="wp-block-group">' . $full . '</div><!-- /wp:group -->',
 			]
 		);
+
+		Placements::rebuild();
 
 		$this->assertSame( get_permalink( $only_capped_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'A post with a capped and an uncapped block is eligible.' );
 	}
@@ -378,47 +388,117 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	 * @return bool
 	 */
 	private static function clears_page_lookup( callable $action ): bool {
-		Taxonomy::rebuild_coverage_page_ids();
-		update_option( Taxonomy::PAGE_IDS_OPTION, [ 1 => 1 ], false );
+		update_option( Placements::OPTION, self::stored_map( [ 1 => 1 ] ), false );
+		delete_option( Placements::STALE_OPTION );
 
 		$action();
-		Taxonomy::rebuild_coverage_page_ids();
 
-		return [ 1 => 1 ] !== get_option( Taxonomy::PAGE_IDS_OPTION );
+		return false !== get_option( Placements::STALE_OPTION );
 	}
 
 	/**
-	 * Capped feeds look the page up on every front-end render, so readers keep
-	 * the stored map while a change is saved, and the request that made the
-	 * change, which is sure to see it, stores the new one when it ends.
+	 * A stored placements map holding only the given page lookup.
+	 *
+	 * @param array $pages Map of coverage ID => page ID.
+	 * @return array
 	 */
-	public function test_a_change_rebuilds_the_stored_page_lookup_once_the_request_ends() {
+	private static function stored_map( array $pages ): array {
+		return [
+			'pages'    => $pages,
+			'places'   => [],
+			'breakout' => [],
+			'patterns' => [],
+			'theme'    => get_stylesheet() . '@' . wp_get_theme()->get( 'Version' ),
+		];
+	}
+
+	/**
+	 * Capped feeds look the page up on every front-end render, so a save
+	 * never waits on the scan: it marks the map out of date and schedules one
+	 * rebuild as the request ends, readers keep the stored map until it runs,
+	 * and a change made while it runs leaves the map marked for the next one.
+	 */
+	public function test_a_change_schedules_one_rebuild_and_readers_keep_the_stored_map() {
 		$coverage_id = self::create_coverage();
-		Taxonomy::rebuild_coverage_page_ids();
-		update_option( Taxonomy::PAGE_IDS_OPTION, [], false );
-		remove_all_actions( 'shutdown' );
+		update_option( Placements::OPTION, self::stored_map( [] ), false );
+		delete_option( Placements::STALE_OPTION );
+		wp_clear_scheduled_hook( Placements::REBUILD_HOOK );
+		$block = '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->';
 
 		$page_id = self::factory()->post->create(
+			[
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_content' => $block,
+			]
+		);
+
+		$this->assertSame( '', Taxonomy::get_coverage_page_url( $coverage_id ), 'Readers keep the stored map until the rebuild runs.' );
+		$this->assertSame( 10, has_action( 'shutdown', [ Placements::class, 'schedule_rebuild' ] ), 'The rebuild is scheduled as the request ends.' );
+		$this->assertFalse( wp_next_scheduled( Placements::REBUILD_HOOK ), 'Not before.' );
+
+		Placements::schedule_rebuild();
+		Placements::schedule_rebuild();
+
+		$this->assertCount( 1, array_filter( _get_cron_array(), fn( $events ) => isset( $events[ Placements::REBUILD_HOOK ] ) ), 'One rebuild is scheduled.' );
+
+		do_action( Placements::REBUILD_HOOK );
+
+		$this->assertSame( [ $coverage_id => $page_id ], get_option( Placements::OPTION )['pages'] );
+		$this->assertFalse( get_option( Placements::STALE_OPTION ), 'The rebuild clears the mark.' );
+
+		Placements::flush();
+		$changed_mid_build = false;
+		$change_mid_build  = function ( $query ) use ( &$changed_mid_build ) {
+			if ( ! $changed_mid_build && str_contains( $query, 'ORDER BY post_date DESC' ) ) {
+				$changed_mid_build = true;
+				Placements::flush();
+			}
+			return $query;
+		};
+		add_filter( 'query', $change_mid_build );
+		do_action( Placements::REBUILD_HOOK );
+		remove_filter( 'query', $change_mid_build );
+
+		$this->assertTrue( $changed_mid_build );
+		$this->assertNotFalse( get_option( Placements::STALE_OPTION ), 'A change made during the rebuild keeps the map marked out of date.' );
+	}
+
+	/**
+	 * Without a stored map, the front end never builds one: it schedules a
+	 * build and has no page until it runs.
+	 */
+	public function test_the_front_end_schedules_a_missing_map_instead_of_building_it() {
+		$coverage_id = self::create_coverage();
+		$page_id     = self::factory()->post->create(
 			[
 				'post_type'    => 'page',
 				'post_status'  => 'publish',
 				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} /-->',
 			]
 		);
+		delete_option( Placements::OPTION );
+		delete_option( Placements::STALE_OPTION );
+		remove_all_actions( 'shutdown' );
 
-		$this->assertSame( [], get_option( Taxonomy::PAGE_IDS_OPTION ), 'Readers keep the stored map until the request ends.' );
-		$this->assertSame( get_permalink( $page_id ), Taxonomy::get_coverage_page_url( $coverage_id ), 'The request that made the change sees it straight away.' );
+		$this->assertSame( '', Taxonomy::get_coverage_page_url( $coverage_id ) );
+		$this->assertFalse( get_option( Placements::OPTION ), 'Nothing was built.' );
+		$this->assertSame( 10, has_action( 'shutdown', [ Placements::class, 'schedule_rebuild' ] ), 'A build is scheduled as the request ends.' );
 
-		wp_update_post(
-			[
-				'ID'         => $page_id,
-				'post_title' => 'Renamed',
-			]
-		);
-		update_option( Taxonomy::PAGE_IDS_OPTION, [], false );
-		do_action( 'shutdown' );
+		remove_all_actions( 'shutdown' );
+		Taxonomy::get_coverage_page_url( $coverage_id );
 
-		$this->assertSame( [ $coverage_id => $page_id ], get_option( Taxonomy::PAGE_IDS_OPTION ), 'The end of the request overwrites whatever a reader stored.' );
+		$this->assertFalse( has_action( 'shutdown', [ Placements::class, 'schedule_rebuild' ] ), 'Once per request.' );
+
+		Placements::flush();
+		remove_all_actions( 'shutdown' );
+		Taxonomy::get_coverage_page_url( $coverage_id );
+
+		$this->assertSame( 10, has_action( 'shutdown', [ Placements::class, 'schedule_rebuild' ] ), 'Even with an out-of-date mark left behind, for instance by a build that died.' );
+
+		Placements::rebuild();
+
+		$this->assertSame( get_permalink( $page_id ), Taxonomy::get_coverage_page_url( $coverage_id ) );
 	}
 
 	/**
@@ -499,7 +579,7 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 			),
 			'An approved comment on the page keeps the lookup.'
 		);
-		$this->assertFalse(
+		$this->assertTrue(
 			self::clears_page_lookup(
 				fn() => self::factory()->post->create(
 					[
@@ -508,7 +588,7 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 					]
 				)
 			),
-			'A page holding only a capped block keeps the lookup.'
+			'A capped block is a placement too, so a page holding one clears the lookup.'
 		);
 		$this->assertTrue(
 			self::clears_page_lookup(
@@ -532,7 +612,7 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 			),
 			'Removing the block clears the lookup.'
 		);
-		$this->assertTrue(
+		$this->assertFalse(
 			self::clears_page_lookup(
 				fn() => wp_update_post(
 					[
@@ -541,7 +621,29 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 					]
 				)
 			),
-			'Editing a page with the block clears the lookup.'
+			'Renaming a page with the block keeps the lookup; titles are read when listed.'
+		);
+		$this->assertTrue(
+			self::clears_page_lookup(
+				fn() => wp_update_post(
+					[
+						'ID'           => $host_id,
+						'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":2} /-->',
+					]
+				)
+			),
+			'Pointing the block at another coverage clears the lookup.'
+		);
+		$this->assertTrue(
+			self::clears_page_lookup(
+				fn() => wp_update_post(
+					[
+						'ID'        => $host_id,
+						'post_date' => '2020-01-01 10:00:00',
+					]
+				)
+			),
+			'Redating a page with the block clears the lookup, since the newest page wins.'
 		);
 		$this->assertTrue( self::clears_page_lookup( fn() => wp_trash_post( $host_id ) ), 'Trashing a page with the block clears the lookup.' );
 		$this->assertFalse( self::clears_page_lookup( fn() => wp_delete_post( $host_id, true ) ), 'Deleting a trashed page keeps the lookup.' );

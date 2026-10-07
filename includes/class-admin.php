@@ -57,6 +57,8 @@ class Admin {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_filter( 'admin_body_class', array( __CLASS__, 'add_body_class' ) );
 		add_filter( 'admin_title', array( __CLASS__, 'capture_admin_title_suffix' ), PHP_INT_MAX, 2 );
+		add_action( 'load-edit.php', array( __CLASS__, 'redirect_entry_list' ) );
+		add_action( 'enqueue_block_editor_assets', array( __CLASS__, 'enqueue_entry_editor' ) );
 		add_filter( 'custom_menu_order', '__return_true' );
 		// After Newspack's own wizard ordering, which runs at 11.
 		add_filter( 'menu_order', array( __CLASS__, 'menu_order' ), 12 );
@@ -102,7 +104,7 @@ class Admin {
 			self::MENU_SLUG,
 			__( 'AI', 'newspack-rolling-coverage' ),
 			__( 'AI', 'newspack-rolling-coverage' ),
-			'edit_others_posts',
+			'manage_options',
 			self::AI_MENU_SLUG,
 			[ __CLASS__, 'render_page' ]
 		);
@@ -173,6 +175,127 @@ class Admin {
 		}
 
 		return $is_block_editor;
+	}
+
+	/**
+	 * URL of the coverages screen, on a coverage's entries when given one.
+	 *
+	 * @param int      $coverage_id Coverage term ID, or 0 for All Coverages.
+	 * @param string[] $args        Query args for the page, before the route.
+	 * @return string
+	 */
+	public static function get_coverages_url( int $coverage_id = 0, array $args = [] ): string {
+		$url = add_query_arg( $args, admin_url( 'admin.php?page=' . self::MENU_SLUG ) );
+
+		return $url . '#/coverages' . ( $coverage_id > 0 ? '/' . $coverage_id : '' );
+	}
+
+	/**
+	 * URL of the screen to return to from an entry: its first coverage's
+	 * entries, or All Coverages when it has none.
+	 *
+	 * @param int      $post_id Entry ID.
+	 * @param string[] $args    Query args for the page, before the route.
+	 * @return string
+	 */
+	public static function get_entry_return_url( int $post_id, array $args = [] ): string {
+		$term_ids = wp_get_post_terms( $post_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
+
+		if ( is_wp_error( $term_ids ) || empty( $term_ids ) ) {
+			return self::get_coverages_url( 0, $args );
+		}
+
+		return self::get_coverages_url( (int) $term_ids[0], $args );
+	}
+
+	/**
+	 * Where to send a request for the entries list that core hides, or null
+	 * to leave the request alone.
+	 *
+	 * The editor links back to that list, and sends the user there after
+	 * trashing an entry, with the trashed ID in `ids`. Requests that carry an
+	 * `action` are list actions and are left alone.
+	 *
+	 * @param array $query Request query args.
+	 * @return string|null
+	 */
+	public static function get_entry_list_redirect( array $query ): ?string {
+		if ( ! isset( $query['post_type'] ) || Post_Type::CPT_SLUG !== $query['post_type'] ) {
+			return null;
+		}
+
+		foreach ( [ 'action', 'action2' ] as $key ) {
+			if ( isset( $query[ $key ] ) && '' !== $query[ $key ] && '-1' !== $query[ $key ] ) {
+				return null;
+			}
+		}
+
+		$ids  = isset( $query['ids'] ) && is_string( $query['ids'] ) ? absint( strtok( $query['ids'], ',' ) ) : 0;
+		$args = ! empty( $query['trashed'] ) ? [ 'rolling_coverage_trashed' => '1' ] : [];
+
+		return $ids > 0 ? self::get_entry_return_url( $ids, $args ) : self::get_coverages_url( 0, $args );
+	}
+
+	/**
+	 * Send the entries list that core hides to the coverages screen.
+	 */
+	public static function redirect_entry_list(): void {
+		if ( ! isset( $_SERVER['REQUEST_METHOD'] ) || 'GET' !== $_SERVER['REQUEST_METHOD'] ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Read-only navigation check; values are only compared and cast.
+		$target = self::get_entry_list_redirect( wp_unslash( $_GET ) );
+
+		if ( $target ) {
+			wp_safe_redirect( $target );
+			exit;
+		}
+	}
+
+	/**
+	 * Load the entry editor script on the entry edit screen.
+	 */
+	public static function enqueue_entry_editor(): void {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+
+		if ( ! $screen || Post_Type::CPT_SLUG !== $screen->post_type ) {
+			return;
+		}
+
+		$asset_file = NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/entry-editor.asset.php';
+
+		if ( ! file_exists( $asset_file ) ) {
+			return;
+		}
+
+		$asset = include $asset_file;
+
+		wp_enqueue_script(
+			'newspack-rolling-coverage-entry-editor',
+			NEWSPACK_ROLLING_COVERAGE_URL . 'dist/entry-editor.js',
+			$asset['dependencies'] ?? [],
+			$asset['version'],
+			[ 'in_footer' => true ]
+		);
+
+		wp_add_inline_script(
+			'newspack-rolling-coverage-entry-editor',
+			'window.newspackRollingCoverageEntryEditor = ' . wp_json_encode(
+				[
+					'coveragesUrl'      => self::get_coverages_url(),
+					'coverageRestBase'  => Taxonomy::REST_BASE,
+					'pushNotifications' => Push_Notifications::is_onesignal_configured(),
+				]
+			) . ';',
+			'before'
+		);
+
+		wp_set_script_translations(
+			'newspack-rolling-coverage-entry-editor',
+			'newspack-rolling-coverage',
+			NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'languages'
+		);
 	}
 
 	/**
@@ -299,6 +422,8 @@ class Admin {
 				'entriesView'   => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 				'aiSettings'    => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . AI_Settings::REST_ROUTE ) ),
 				'statusLabels'  => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Status_Labels::REST_ROUTE ) ),
+				'latestLabel'   => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Latest_Label::REST_ROUTE ) ),
+				'entryName'     => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Entry_Name::REST_ROUTE ) ),
 				'restNamespace' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/' ) ),
 				'posts'         => esc_url_raw( rest_url( 'wp/v2/posts' ) ),
 			),
@@ -306,9 +431,13 @@ class Admin {
 			'capabilities'         => array(
 				'canEditPosts'        => current_user_can( 'edit_posts' ),
 				'canEditEntries'      => current_user_can( Post_Type::EDIT_ENTRIES_CAP ),
+				'canChangeAuthors'    => Post_Type::can_change_authors(),
+				'canAssignCategories' => Post_Type::can_assign_terms( 'category' ),
+				'canCreateCategories' => Post_Type::can_create_terms( 'category' ),
+				'canAssignTags'       => Post_Type::can_assign_terms( 'post_tag' ),
+				'canCreateTags'       => Post_Type::can_create_terms( 'post_tag' ),
 				'canManageTerms'      => current_user_can( 'manage_categories' ),
 				'canManageOptions'    => current_user_can( 'manage_options' ),
-				'canManageAiSettings' => current_user_can( 'edit_others_posts' ),
 				'canManageSettings'   => Status_Labels::can_manage(),
 			),
 			'adminUrls'            => array(
@@ -330,11 +459,14 @@ class Admin {
 			'slack'                => array(
 				'isConfigured' => Slack_Config::is_configured(),
 			),
+			'pushNotifications'    => array(
+				'isConfigured' => Push_Notifications::is_onesignal_configured(),
+			),
 			'availableAdapters'    => array(
 				'slack' => __( 'Slack', 'newspack-rolling-coverage' ),
 			),
 			'blockEditorSettings'  => $block_editor_settings,
-			'aiSettings'           => AI_Settings::get_all(),
+			'aiSettings'           => AI_Settings::can_manage_settings() ? AI_Settings::get_all() : null,
 			'aiDefaultSettings'    => AI_Settings::get_defaults(),
 			'aiAvailable'          => AI_Service::is_available(),
 			'aiNeedsApproval'      => AI_Service::needs_connector_approval(),
@@ -342,6 +474,10 @@ class Admin {
 			'statusLabels'         => Status_Labels::get_all(),
 			'statusLabelDefaults'  => Status_Labels::get_defaults(),
 			'statusLabelMaxLength' => Status_Labels::MAX_LENGTH,
+			'latestLabelDefault'   => Latest_Label::get_default(),
+			'latestLabelMaxLength' => Latest_Label::MAX_LENGTH,
+			'entryNameDefaults'    => Entry_Name::get_defaults(),
+			'entryNameMaxLength'   => Entry_Name::MAX_LENGTH,
 		);
 	}
 }

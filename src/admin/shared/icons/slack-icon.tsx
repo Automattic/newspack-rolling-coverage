@@ -4,8 +4,8 @@
 import type { JSX } from 'react';
 
 /**
- * Renders the Slack logo as an inline SVG. Used in DataViews columns and
- * entry indicators to flag Slack-sourced entries.
+ * Renders the Slack logo as an inline SVG. Used to flag Slack-sourced entries,
+ * such as the source marker beside an entry's title in the entries list.
  *
  * @param {Object} props           Component props.
  * @param {number} [props.size=16] - The icon width/height in pixels.

@@ -1,7 +1,7 @@
 /**
  * WordPress dependencies
  */
-import { __, _n, sprintf } from '@wordpress/i18n';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -10,6 +10,17 @@ import './style.scss';
 import { trackEvent, isConfigEnabled, EVENTS } from './analytics';
 import { keepRelativeDatesCurrent } from '../shared/relative-dates';
 import { POLL_EVENT } from '../shared/poll-event';
+import {
+	entriesAddedButtonLabel,
+	entriesAddedLabel,
+	loadingLatestLabel,
+	loadMoreFailedLabel,
+	newEntriesLabel,
+	newerEntriesLabel,
+	noNewEntriesLabel,
+	readEntryName,
+	showingLatestLabel,
+} from './entry-name';
 import type { PollEventDetail } from '../shared/poll-event';
 import type {
 	AdSlot,
@@ -20,6 +31,16 @@ import type {
 } from './types';
 
 const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
+
+// How long the Check for Updates button shows the result of a check.
+const CHECK_MESSAGE_MS = 3000;
+
+/**
+ * How a poll ended: with a reply it applied, a failed request, a reload of
+ * the page, or not at all because another poll was running or the page was
+ * hidden.
+ */
+type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 
 const STICKY_CARD_SELECTOR =
 	'.newspack-rolling-coverage-pinned-card.is-position-sticky';
@@ -69,6 +90,10 @@ let entriesCredentials: RequestCredentials = isConfigEnabled(
 )
 	? 'same-origin'
 	: 'omit';
+
+// Each running feed's cleanup(), by its outer wrapper element, so the page can
+// stop a feed that leaves it.
+const feedStops = new WeakMap< HTMLElement, () => void >();
 
 /**
  * cssEscape polyfill for older browsers.
@@ -169,50 +194,81 @@ function parseElement( html: string ): HTMLElement | null {
 }
 
 /**
- * The label of the control on a feed opened at a shared entry: the number of
- * newer entries, exact up to ten and from there the round number it has
- * passed, e.g. "10+ Newer Posts" for 11 to 50. Mirrors
- * Rolling_Coverage_Block::newer_posts_label().
+ * The elements in a block that match a selector, leaving out those of a feed
+ * nested in one of its entries. A nested feed uses the same classes and, for
+ * the same coverage, the same entry IDs. It comes before the block's later
+ * entries and its sentinel, so a plain query can return its elements instead
+ * of the block's own.
  *
- * @param {number} count How many entries are newer.
- * @return {string} The label, or an empty string when there are none.
+ * @param {HTMLElement} block    The block's outer wrapper element.
+ * @param {string}      selector Selector to match.
+ * @param {HTMLElement} [within] Part of the block to look in; all of it by default.
+ * @return {HTMLElement[]} The block's own matching elements, in document order.
  */
-function newerPostsLabel( count: number ): string {
-	if ( count < 1 ) {
-		return '';
+function ownElements(
+	block: HTMLElement,
+	selector: string,
+	within: HTMLElement = block
+): HTMLElement[] {
+	return Array.from(
+		within.querySelectorAll< HTMLElement >( selector )
+	).filter( ( element ) => element.closest( BLOCK_SELECTOR ) === block );
+}
+
+/**
+ * The first of a block's own elements that match a selector (see
+ * ownElements()).
+ *
+ * @param {HTMLElement} block    The block's outer wrapper element.
+ * @param {string}      selector Selector to match.
+ * @param {HTMLElement} [within] Part of the block to look in; all of it by default.
+ * @return {HTMLElement | null} The element, or null if the block has none of its own.
+ */
+function ownElement(
+	block: HTMLElement,
+	selector: string,
+	within: HTMLElement = block
+): HTMLElement | null {
+	return ownElements( block, selector, within )[ 0 ] ?? null;
+}
+
+/**
+ * The feeds in a node, the node itself included, in document order.
+ *
+ * @param {Node} node Node to look in.
+ * @return {HTMLElement[]} The feeds' outer wrapper elements.
+ */
+function feedsIn( node: Node ): HTMLElement[] {
+	if ( ! ( node instanceof HTMLElement ) ) {
+		return [];
 	}
 
-	if ( count <= 10 ) {
-		return sprintf(
-			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
-			_n(
-				'%d Newer Post',
-				'%d Newer Posts',
-				count,
-				'newspack-rolling-coverage'
-			),
-			count
+	const feeds = Array.from(
+		node.querySelectorAll< HTMLElement >( BLOCK_SELECTOR )
+	);
+
+	return node.matches( BLOCK_SELECTOR ) ? [ node, ...feeds ] : feeds;
+}
+
+/**
+ * Moves focus to an element that takes none of its own, such as an entry,
+ * making it focusable until it loses focus.
+ *
+ * @param {HTMLElement} element   The element to focus.
+ * @param {Object}      [options] Focus options.
+ * @return {void}
+ */
+function focusFromScript( element: HTMLElement, options?: FocusOptions ): void {
+	if ( ! element.hasAttribute( 'tabindex' ) ) {
+		element.setAttribute( 'tabindex', '-1' );
+		element.addEventListener(
+			'blur',
+			() => element.removeAttribute( 'tabindex' ),
+			{ once: true }
 		);
 	}
 
-	let floor = 10;
-
-	if ( count > 100 ) {
-		floor = 100;
-	} else if ( count > 50 ) {
-		floor = 50;
-	}
-
-	return sprintf(
-		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
-		_n(
-			'%d+ Newer Post',
-			'%d+ Newer Posts',
-			floor,
-			'newspack-rolling-coverage'
-		),
-		floor
-	);
+	element.focus( options );
 }
 
 /**
@@ -317,7 +373,7 @@ async function fetchEntries( url: string ): Promise< Response > {
 }
 
 /**
- * Sets up polling and infinite scroll for a single block instance.
+ * Sets up polling and the loading of older entries for a single block instance.
  *
  * @param {HTMLElement} root The block's outer wrapper element.
  * @return {void}
@@ -329,7 +385,8 @@ function initBlock( root: HTMLElement ): void {
 	root.dataset.rcInitialized = '1';
 
 	const restUrl = root.dataset.restUrl;
-	const entriesListEl = root.querySelector< HTMLElement >(
+	const entriesListEl = ownElement(
+		root,
 		'.newspack-rolling-coverage-entries'
 	);
 
@@ -343,24 +400,46 @@ function initBlock( root: HTMLElement ): void {
 	const stopRelativeDates = keepRelativeDatesCurrent( root, entriesList );
 
 	const pollInterval = parseInt( root.dataset.pollInterval || '10', 10 );
+	const entryName = readEntryName( root );
 	const entriesPerPage = parseInt( root.dataset.entriesPerPage || '20', 10 );
 	const templateKey = root.dataset.templateKey || '';
 	const hostPostId = root.dataset.hostPostId || '0';
-	const sentinel = root.querySelector< HTMLElement >(
-		'.newspack-rolling-coverage-sentinel'
+	const sentinel = ownElement( root, '.newspack-rolling-coverage-sentinel' );
+	const loadMoreControl = ownElement(
+		root,
+		'.newspack-rolling-coverage-load-more'
 	);
-	const newEntriesControl = root.querySelector< HTMLElement >(
+	const loadMoreButton =
+		loadMoreControl?.querySelector< HTMLButtonElement >( 'button' ) ?? null;
+	const loadMoreLabel = loadMoreButton?.textContent ?? '';
+	const newEntriesControl = ownElement(
+		root,
 		'.newspack-rolling-coverage-new-entries'
 	);
 	const newEntriesLink =
 		newEntriesControl?.querySelector< HTMLElement >( '[data-rc-latest]' ) ??
 		null;
-	const statusEl = root.querySelector< HTMLElement >(
-		'.newspack-rolling-coverage-status'
+	const statusEl = ownElement( root, '.newspack-rolling-coverage-status' );
+	const checkControls = ownElements(
+		root,
+		'.newspack-rolling-coverage-check-updates'
+	);
+	const checkButtons = checkControls.flatMap(
+		( control ) =>
+			control.querySelector< HTMLButtonElement >( 'button' ) ?? []
+	);
+	// Each button's own label, as the layout sets it.
+	const checkLabels = new Map(
+		checkButtons.map( ( button ) => [ button, button.textContent ?? '' ] )
 	);
 
 	const status = root.dataset.status || 'active';
 	const isEntryView = root.dataset.view === 'entry';
+	// The feed checks for new entries only when the reader asks.
+	const checksOnRequest = root.dataset.newEntries === 'button';
+
+	// A Lite Site page renders entries as text, so it asks for them that way.
+	const isLite = root.dataset.lite === '1';
 
 	const coverageId = root.dataset.coverageId || '0';
 
@@ -375,6 +454,17 @@ function initBlock( root: HTMLElement ): void {
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
 	let polledCount = 0;
+
+	// The coverage status the last poll reported.
+	let polledStatus = status;
+
+	// When the reader last checked for new entries, in milliseconds.
+	let lastCheckAt = 0;
+	let checkLabelTimeoutId: ReturnType< typeof setTimeout > | null = null;
+	let isChecking = false;
+
+	// How many new entries have been added to the page since it loaded.
+	let insertedCount = 0;
 
 	// Whether a poll request is in flight. At most one poll is in flight or
 	// scheduled at a time, so tab switches and back/forward navigation can't
@@ -397,6 +487,11 @@ function initBlock( root: HTMLElement ): void {
 	// entry ID. A cached load-more reply can predate them while the cursor has
 	// already moved past them, so loadMore() applies them as the entries arrive.
 	const offPageUpdates = new Map< string, string >();
+
+	// Entries the poll reported taken down. One that comes back shows on
+	// reload, not before: polls, load more and a capped feed's whole replies
+	// all leave it out, cached load-more replies from before the removal too.
+	const removedEntryIds = new Set< string >();
 
 	const countedEntryIds = new Set< string >();
 
@@ -426,11 +521,13 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		const label = canCount
-			? newerPostsLabel( newerCount + countedEntryIds.size )
+			? newerEntriesLabel( newerCount + countedEntryIds.size, entryName )
 			: '';
+		const text = label || ownLabel;
 
-		if ( label || ! canCount ) {
-			newEntriesLink.textContent = label || ownLabel;
+		// Writing only a change keeps a label holding markup as the server rendered it.
+		if ( newEntriesLink.textContent !== text ) {
+			newEntriesLink.textContent = text;
 		}
 	}
 
@@ -511,7 +608,7 @@ function initBlock( root: HTMLElement ): void {
 	function schedulePoll(): void {
 		cancelPoll();
 
-		if ( isPolling || document.hidden ) {
+		if ( checksOnRequest || isPolling || document.hidden ) {
 			return;
 		}
 
@@ -620,9 +717,13 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		entriesList
-			.querySelector( '.newspack-rolling-coverage-entries__empty' )
-			?.remove();
+		insertedCount += entries.length;
+
+		ownElement(
+			root,
+			'.newspack-rolling-coverage-entries__empty',
+			entriesList
+		)?.remove();
 
 		const fragment = document.createDocumentFragment();
 		const adSlotsToDisplay: AdSlot[] = [];
@@ -644,18 +745,7 @@ function initBlock( root: HTMLElement ): void {
 
 		const shown = Math.min( entries.length, latestCap || entries.length );
 
-		announce(
-			sprintf(
-				/* translators: %d: number of new coverage entries just added. */
-				_n(
-					'%d new post added',
-					'%d new posts added',
-					shown,
-					'newspack-rolling-coverage'
-				),
-				shown
-			)
-		);
+		announce( entriesAddedLabel( shown, entryName ) );
 
 		if ( adSlotsToDisplay.length > 0 ) {
 			displayAdSlots( adSlotsToDisplay );
@@ -663,28 +753,77 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Label for the control that tells the reader new entries are waiting.
+	 * Swaps a capped feed's entries for the newest ones a poll sent whole,
+	 * leaving out entries taken down, in this reply or earlier, and keeping
+	 * the arrival of those it already showed.
 	 *
-	 * @param {number} count How many new entries are waiting.
-	 * @return {string} The label.
+	 * @param {PollEntry[]} entries Removals, then the newest entries, newest first.
+	 * @return {void}
 	 */
-	function newEntriesLabel( count: number ): string {
-		return sprintf(
-			/* translators: %d: number of new coverage entries waiting to be shown. */
-			_n(
-				'%d New Post',
-				'%d New Posts',
-				count,
-				'newspack-rolling-coverage'
-			),
-			count
+	function replaceEntries( entries: PollEntry[] ): void {
+		entries.forEach( ( entry ) => {
+			if ( entry.type === 'remove' && isSafeEntryId( entry.id ) ) {
+				removedEntryIds.add( String( entry.id ) );
+			}
+		} );
+
+		const shownEntries = ownElements(
+			root,
+			':scope > [data-entry-id]',
+			entriesList
 		);
+		const arrivals = new Map(
+			shownEntries.map( ( el ) => [
+				el.dataset.entryId,
+				el.dataset.arrival,
+			] )
+		);
+		const fragment = document.createDocumentFragment();
+
+		entries
+			.filter(
+				( entry ) =>
+					entry.type !== 'remove' &&
+					isSafeEntryId( entry.id ) &&
+					! removedEntryIds.has( String( entry.id ) )
+			)
+			.slice( 0, latestCap || entries.length )
+			.forEach( ( entry ) => {
+				const el = parseElement( sanitizeHtml( entry.html ) );
+
+				if ( ! el ) {
+					return;
+				}
+
+				if ( arrivals.has( String( entry.id ) ) ) {
+					el.dataset.arrival = arrivals.get( String( entry.id ) );
+				}
+
+				observeEntry( el );
+				fragment.appendChild( el );
+			} );
+
+		shownEntries.forEach( ( el ) => {
+			unobserveEntry( el );
+			el.remove();
+		} );
+
+		if ( fragment.childElementCount > 0 ) {
+			ownElement(
+				root,
+				'.newspack-rolling-coverage-entries__empty',
+				entriesList
+			)?.remove();
+		}
+
+		entriesList.appendChild( fragment );
+		dropLastSeparator();
 	}
 
 	/**
 	 * Adds entries to the pending queue.
 	 *
-	 * Updates the "X New Posts" control label and visibility.
+	 * Updates the "X New Entries" control label and visibility.
 	 *
 	 * @param {PendingEntry[]} newEntries Newly published entries.
 	 * @return {void}
@@ -696,7 +835,7 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
-		const label = newEntriesLabel( pendingNewEntries.length );
+		const label = newEntriesLabel( pendingNewEntries.length, entryName );
 
 		newEntriesLink.textContent = label;
 		newEntriesControl.hidden = false;
@@ -713,6 +852,57 @@ function initBlock( root: HTMLElement ): void {
 		const entries = pendingNewEntries;
 		pendingNewEntries = [];
 		return entries;
+	}
+
+	/**
+	 * Takes an entry that was taken down off the page and out of the new
+	 * entries waiting to be shown, the count of newer entries and the edits
+	 * kept for load more.
+	 *
+	 * @param {string} entryId Entry ID.
+	 * @return {void}
+	 */
+	function removeEntry( entryId: string ): void {
+		const existing = ownElement(
+			root,
+			`[data-entry-id="${ entryId }"]`,
+			entriesList
+		);
+
+		if ( existing ) {
+			unobserveEntry( existing );
+			linkedObserver?.unobserve( existing );
+			existing.remove();
+			dropLastSeparator();
+		}
+
+		const waiting = pendingNewEntries.length;
+
+		pendingNewEntries = pendingNewEntries.filter(
+			( { el } ) => el.dataset.entryId !== entryId
+		);
+
+		if (
+			pendingNewEntries.length !== waiting &&
+			newEntriesControl &&
+			newEntriesLink
+		) {
+			if ( pendingNewEntries.length > 0 ) {
+				newEntriesLink.textContent = newEntriesLabel(
+					pendingNewEntries.length,
+					entryName
+				);
+			} else {
+				newEntriesControl.hidden = true;
+			}
+		}
+
+		if ( countedEntryIds.delete( entryId ) ) {
+			showNewerCount();
+		}
+
+		offPageUpdates.delete( entryId );
+		removedEntryIds.add( entryId );
 	}
 
 	const cleanupFns: Array< () => void > = [];
@@ -738,8 +928,11 @@ function initBlock( root: HTMLElement ): void {
 		entrySeenObserver?.disconnect();
 		cleanupFns.forEach( ( fn ) => fn() );
 		cleanupFns.length = 0;
+		feedStops.delete( root );
 		delete root.dataset.rcInitialized;
 	}
+
+	feedStops.set( root, cleanup );
 
 	/**
 	 * Where the page scrolls to show the top of the block.
@@ -764,7 +957,7 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {void}
 	 */
 	function fadeLinkedOutline(): void {
-		const linked = entriesList.querySelector( '[data-linked]' );
+		const linked = ownElement( root, '[data-linked]', entriesList );
 
 		if (
 			! linked ||
@@ -1179,7 +1372,14 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		(
-			[ 'cursor', 'before', 'hasMore', 'templateKey', 'status' ] as const
+			[
+				'cursor',
+				'before',
+				'hasMore',
+				'templateKey',
+				'status',
+				'entryName',
+			] as const
 		 ).forEach( ( key ) => {
 			root.dataset[ key ] = live.dataset[ key ] ?? '';
 		} );
@@ -1217,9 +1417,7 @@ function initBlock( root: HTMLElement ): void {
 	 */
 	async function jumpToLatest( url: string ): Promise< void > {
 		setJumping( true );
-		announce(
-			__( 'Loading the latest posts…', 'newspack-rolling-coverage' )
-		);
+		announce( loadingLatestLabel( entryName ) );
 
 		const fetched = await fetchLiveBlock( url );
 
@@ -1247,19 +1445,8 @@ function initBlock( root: HTMLElement ): void {
 			try {
 				showLiveBlock( fetched.live, fetched.url );
 				window.scrollTo( { top: blockTopY(), behavior } );
-				entriesList.setAttribute( 'tabindex', '-1' );
-				entriesList.addEventListener(
-					'blur',
-					() => entriesList.removeAttribute( 'tabindex' ),
-					{ once: true }
-				);
-				entriesList.focus( { preventScroll: true } );
-				announce(
-					__(
-						'Showing the latest posts.',
-						'newspack-rolling-coverage'
-					)
-				);
+				focusFromScript( entriesList, { preventScroll: true } );
+				announce( showingLatestLabel( entryName ) );
 			} catch {
 				navigate();
 			}
@@ -1376,7 +1563,7 @@ function initBlock( root: HTMLElement ): void {
 			const showsControl =
 				newEntriesControl && ! newEntriesControl.hidden;
 			const bars =
-				showsControl || root.querySelector( STICKY_CARD_SELECTOR )
+				showsControl || ownElement( root, STICKY_CARD_SELECTOR )
 					? topBarsBottom( root )
 					: 0;
 
@@ -1405,9 +1592,7 @@ function initBlock( root: HTMLElement ): void {
 			// A malformed escape is matched as written.
 		}
 
-		const target = id
-			? root.querySelector( `#${ cssEscape( id ) }` )
-			: null;
+		const target = id ? ownElement( root, `#${ cssEscape( id ) }` ) : null;
 		// Core pads the root's scroll area by the admin bar's height.
 		const scrollPadding =
 			parseFloat(
@@ -1447,7 +1632,8 @@ function initBlock( root: HTMLElement ): void {
 	 * Applies a poll response to the entry list.
 	 *
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
-	 * on the page for loadMore(). Inserts or queues newly published entries
+	 * on the page for loadMore(). Drops entries taken down, and leaves one
+	 * that comes back for reload. Inserts or queues newly published entries
 	 * based on the reader's scroll position. When the feed opens at a shared
 	 * entry, new entries are added to the control's count instead of inserted.
 	 * A capped feed inserts new entries at once, whatever the scroll position,
@@ -1464,8 +1650,19 @@ function initBlock( root: HTMLElement ): void {
 				return;
 			}
 
-			const existing = entriesList.querySelector< HTMLElement >(
-				`[data-entry-id="${ entry.id }"]`
+			if ( entry.type === 'remove' ) {
+				removeEntry( String( entry.id ) );
+				return;
+			}
+
+			if ( removedEntryIds.has( String( entry.id ) ) ) {
+				return;
+			}
+
+			const existing = ownElement(
+				root,
+				`[data-entry-id="${ entry.id }"]`,
+				entriesList
 			);
 
 			const template = document.createElement( 'template' );
@@ -1536,13 +1733,13 @@ function initBlock( root: HTMLElement ): void {
 
 			if ( canCount && countedEntryIds.size !== countedBefore ) {
 				showNewerCount();
-				announce( newEntriesLabel( countedEntryIds.size ) );
+				announce( newEntriesLabel( countedEntryIds.size, entryName ) );
 			}
 
 			return;
 		}
 
-		if ( ! latestCap && isScrolledPastTop() ) {
+		if ( ! latestCap && ! checksOnRequest && isScrolledPastTop() ) {
 			queueNewEntries( newEntries );
 		} else {
 			insertNewEntries( newEntries );
@@ -1790,15 +1987,16 @@ function initBlock( root: HTMLElement ): void {
 	 * across poll batches. Takes the place of a poll already scheduled, and
 	 * does nothing while another poll is in flight or the page is hidden.
 	 *
-	 * @return {Promise<void>} Resolves when the poll response has been handled.
+	 * @return {Promise<PollOutcome>} How the poll ended.
 	 */
-	async function poll(): Promise< void > {
+	async function poll(): Promise< PollOutcome > {
 		if ( ! cursor || isPolling || document.hidden ) {
-			return;
+			return 'skipped';
 		}
 
 		cancelPoll();
 		isPolling = true;
+		let outcome: PollOutcome = 'failed';
 
 		try {
 			const url = new URL( restBaseUrl );
@@ -1811,7 +2009,19 @@ function initBlock( root: HTMLElement ): void {
 				url.searchParams.set( 'latest', String( latestCap ) );
 			} else {
 				url.searchParams.set( 'host_post_id', hostPostId );
-				url.searchParams.set( 'polled_count', polledCount.toString() );
+
+				// A lite page shows no ads either, so it leaves out the ad
+				// count and its readers share one cached reply too.
+				if ( ! isLite ) {
+					url.searchParams.set(
+						'polled_count',
+						polledCount.toString()
+					);
+				}
+			}
+
+			if ( isLite ) {
+				url.searchParams.set( 'lite', '1' );
 			}
 
 			const response = await fetchEntries( url.toString() );
@@ -1820,12 +2030,14 @@ function initBlock( root: HTMLElement ): void {
 
 				// The block was cleaned up meanwhile, so this reply is no longer its own.
 				if ( isDisposed ) {
-					return;
+					return 'skipped';
 				}
 
 				minPollInterval = Number( data.minPollInterval ) || 0;
+				outcome = 'ok';
 
 				if ( typeof data.status === 'string' ) {
+					polledStatus = data.status;
 					document.dispatchEvent(
 						new CustomEvent< PollEventDetail >( POLL_EVENT, {
 							detail: {
@@ -1845,7 +2057,7 @@ function initBlock( root: HTMLElement ): void {
 				) {
 					cleanup();
 					root.remove();
-					return;
+					return outcome;
 				}
 
 				if ( data.overflow && isEntryView ) {
@@ -1854,21 +2066,24 @@ function initBlock( root: HTMLElement ): void {
 					// same cursor: polling ends here, and with it the count.
 					canCount = false;
 					showNewerCount();
-					return;
+					return outcome;
 				}
 
 				// A capped feed shares its page with other content, so it never
-				// reloads it; its polls send the newest entries instead.
+				// reloads it; its polls send the newest entries instead. A reader
+				// who asked for updates gets the reload whatever the guard says.
 				if (
 					data.overflow &&
 					! latestCap &&
-					shouldReloadForOverflow()
+					( checksOnRequest || shouldReloadForOverflow() )
 				) {
 					window.location.reload();
-					return;
+					return 'reloading';
 				}
 
-				if ( data.entries.length > 0 ) {
+				if ( data.replace ) {
+					replaceEntries( data.entries );
+				} else if ( data.entries.length > 0 ) {
 					applyPollResponse( data.entries );
 				}
 				cursor = data.cursor || cursor;
@@ -1893,6 +2108,8 @@ function initBlock( root: HTMLElement ): void {
 		if ( ! isDisposed ) {
 			schedulePoll();
 		}
+
+		return outcome;
 	}
 
 	/**
@@ -1925,18 +2142,65 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Marks the Load More button busy while a page loads, or ready again, and
+	 * hides it once no more entries can load.
+	 *
+	 * @param {boolean} busy Whether a page is loading.
+	 * @return {void}
+	 */
+	function setLoadMoreBusy( busy: boolean ): void {
+		if ( ! loadMoreControl || ! loadMoreButton ) {
+			return;
+		}
+
+		loadMoreControl.hidden = ! hasMore;
+
+		if ( busy ) {
+			// A repeat failure only announces again if the region changes.
+			announce( '' );
+			loadMoreButton.textContent = __(
+				'Loading…',
+				'newspack-rolling-coverage'
+			);
+			loadMoreButton.setAttribute( 'aria-busy', 'true' );
+			// Unlike disabled, keeps focus on the button, for a retry.
+			loadMoreButton.setAttribute( 'aria-disabled', 'true' );
+		} else {
+			loadMoreButton.textContent = loadMoreLabel;
+			loadMoreButton.removeAttribute( 'aria-busy' );
+			loadMoreButton.removeAttribute( 'aria-disabled' );
+		}
+	}
+
+	/**
+	 * Tells the reader that pressing Load More failed. A feed that loads on
+	 * scroll stays silent.
+	 *
+	 * @return {void}
+	 */
+	function announceLoadMoreFailure(): void {
+		if ( loadMoreButton ) {
+			announce( loadMoreFailedLabel( entryName ) );
+		}
+	}
+
+	/**
 	 * Loads and appends the next page of older entries.
 	 *
 	 * Sends the backlog position so ad placement stays stable across load-more
 	 * pages.
 	 *
-	 * @return {Promise<void>} Resolves when the next page has been handled.
+	 * @return {Promise<HTMLElement | null>} The first entry appended, or null if none was.
 	 */
-	async function loadMore(): Promise< void > {
+	async function loadMore(): Promise< HTMLElement | null > {
 		if ( isLoadingMore || ! hasMore || ! before ) {
-			return;
+			return null;
 		}
 		isLoadingMore = true;
+		setLoadMoreBusy( true );
+
+		let firstAppended: HTMLElement | null = null;
+		const pageBefore = before;
 
 		try {
 			const url = new URL( restBaseUrl );
@@ -1955,13 +2219,17 @@ function initBlock( root: HTMLElement ): void {
 				url.searchParams.set( 'skip_pinned', '1' );
 			}
 
+			if ( isLite ) {
+				url.searchParams.set( 'lite', '1' );
+			}
+
 			const response = await fetchEntries( url.toString() );
 			if ( response.ok ) {
 				const data: PageResponse = await response.json();
 
 				// The block was cleaned up meanwhile, so this reply is no longer its own.
 				if ( isDisposed ) {
-					return;
+					return null;
 				}
 
 				if ( data.count > 0 ) {
@@ -1970,7 +2238,7 @@ function initBlock( root: HTMLElement ): void {
 					// Count how many entries were appended so the next page's offset can be correct.
 					let appended = 0;
 
-					// Defensive: never append an entry that is already in the list.
+					// Never append an entry that is already in the list, or one taken down since.
 					Array.from( fragment.children ).forEach( ( child ) => {
 						if (
 							! ( child instanceof HTMLElement ) ||
@@ -1979,17 +2247,25 @@ function initBlock( root: HTMLElement ): void {
 							return;
 						}
 
-						const existing = entriesList.querySelector(
+						const existing = ownElement(
+							root,
 							`[data-entry-id="${ cssEscape(
 								child.dataset.entryId
-							) }"]`
+							) }"]`,
+							entriesList
 						);
-						if ( existing ) {
+						if (
+							existing ||
+							removedEntryIds.has( child.dataset.entryId )
+						) {
 							child.remove();
 							return;
 						}
 
-						observeEntry( applyOffPageUpdate( child ) );
+						const entry = applyOffPageUpdate( child );
+
+						observeEntry( entry );
+						firstAppended ??= entry;
 						appended++;
 					} );
 
@@ -2003,23 +2279,269 @@ function initBlock( root: HTMLElement ): void {
 				before = data.before || '';
 				dropLastSeparator();
 			} else {
-				hasMore = false;
+				// The reader can try the button again; the sentinel would
+				// ask again each time it comes into view.
+				if ( ! loadMoreButton ) {
+					hasMore = false;
+				}
 
 				trackPollError( 'load_more' );
+				announceLoadMoreFailure();
 			}
 		} catch ( error ) {
 			trackPollError( 'load_more' );
+			announceLoadMoreFailure();
 
-			// Leave hasMore as-is; retried if the sentinel intersects again.
+			// Leave hasMore as-is, so the sentinel or the button can try again.
 			console.error( error ); // eslint-disable-line no-console
 		} finally {
 			isLoadingMore = false;
+
+			if ( ! isDisposed ) {
+				setLoadMoreBusy( false );
+			}
 		}
+
+		// A page that adds nothing, its entries all taken down or already
+		// shown, leaves the reader with nothing new: the sentinel stays in
+		// view, where its observer won't fire again, and a press of the
+		// button shows nothing. Load the next one instead.
+		if (
+			! firstAppended &&
+			! isDisposed &&
+			hasMore &&
+			before !== pageBefore
+		) {
+			return loadMore();
+		}
+
+		return firstAppended;
 	}
 
-	entriesList
-		.querySelectorAll< HTMLElement >( '[data-entry-id]' )
-		.forEach( observeEntry );
+	if ( loadMoreButton ) {
+		const onLoadMoreClick = async () => {
+			if ( isLoadingMore ) {
+				return;
+			}
+
+			const firstAppended = await loadMore();
+			const active = loadMoreButton.ownerDocument.activeElement;
+
+			// Leaves focus where the reader moved it while the page loaded.
+			if (
+				isDisposed ||
+				( active &&
+					active !== loadMoreButton &&
+					active !== document.body )
+			) {
+				return;
+			}
+
+			// Focus would fall to the page with the button hidden.
+			const entries = hasMore
+				? []
+				: ownElements( root, ':scope > [data-entry-id]', entriesList );
+			const target = firstAppended ?? entries[ entries.length - 1 ];
+
+			if ( target ) {
+				focusFromScript( target );
+			}
+		};
+
+		loadMoreButton.addEventListener( 'click', onLoadMoreClick );
+		cleanupFns.push( () => {
+			loadMoreButton.removeEventListener( 'click', onLoadMoreClick );
+			setLoadMoreBusy( false );
+		} );
+		setLoadMoreBusy( false );
+	}
+
+	ownElements( root, '[data-entry-id]', entriesList ).forEach( observeEntry );
+
+	/**
+	 * Shows a message on the Check for Updates buttons for a few seconds, then
+	 * their own labels again.
+	 *
+	 * @param {string} label The message.
+	 * @return {void}
+	 */
+	function flashCheckLabel( label: string ): void {
+		if ( checkLabelTimeoutId !== null ) {
+			clearTimeout( checkLabelTimeoutId );
+		}
+
+		checkButtons.forEach( ( button ) => {
+			button.textContent = label;
+		} );
+		checkLabelTimeoutId = setTimeout( () => {
+			checkLabelTimeoutId = null;
+			checkButtons.forEach( ( button ) => {
+				button.textContent = checkLabels.get( button ) ?? '';
+			} );
+		}, CHECK_MESSAGE_MS );
+	}
+
+	/**
+	 * Marks the Check for Updates buttons busy while a check runs, or ready
+	 * again.
+	 *
+	 * @param {boolean} busy Whether a check is running.
+	 * @return {void}
+	 */
+	function setCheckBusy( busy: boolean ): void {
+		isChecking = busy;
+
+		if ( busy ) {
+			if ( checkLabelTimeoutId !== null ) {
+				clearTimeout( checkLabelTimeoutId );
+				checkLabelTimeoutId = null;
+			}
+
+			// A repeat result only announces again if the region changes.
+			announce( '' );
+		}
+
+		checkButtons.forEach( ( button ) => {
+			if ( busy ) {
+				button.textContent =
+					/* translators: Shown on the Check for Updates button while a check runs. */
+					__( 'Checking…', 'newspack-rolling-coverage' );
+				button.setAttribute( 'aria-busy', 'true' );
+				// Unlike disabled, keeps focus on the button.
+				button.setAttribute( 'aria-disabled', 'true' );
+			} else {
+				button.textContent = checkLabels.get( button ) ?? '';
+				button.removeAttribute( 'aria-busy' );
+				button.removeAttribute( 'aria-disabled' );
+			}
+		} );
+	}
+
+	if (
+		checksOnRequest &&
+		checkButtons.length > 0 &&
+		cursor &&
+		status !== 'archived' &&
+		! isEntryView
+	) {
+		const onCheckClick = async () => {
+			if ( isChecking ) {
+				return;
+			}
+
+			setCheckBusy( true );
+
+			// Repeated clicks wait out the site's minimum poll interval.
+			const wait = lastCheckAt + minPollInterval * 1000 - Date.now();
+
+			if ( wait > 0 ) {
+				await new Promise( ( resolve ) => setTimeout( resolve, wait ) );
+			}
+
+			if ( isDisposed ) {
+				return;
+			}
+
+			// A poll skips a hidden page, so a check waits for the reader to return.
+			if ( document.hidden ) {
+				await new Promise< void >( ( resolve ) => {
+					const onShow = () => {
+						if ( ! document.hidden ) {
+							document.removeEventListener(
+								'visibilitychange',
+								onShow
+							);
+							resolve();
+						}
+					};
+
+					document.addEventListener( 'visibilitychange', onShow );
+				} );
+			}
+
+			if ( isDisposed ) {
+				return;
+			}
+
+			const insertedBefore = insertedCount;
+			const outcome = await poll();
+
+			lastCheckAt = Date.now();
+
+			// A reload is on its way, so the buttons stay busy until it lands.
+			if ( isDisposed || outcome === 'reloading' ) {
+				return;
+			}
+
+			setCheckBusy( false );
+
+			if ( outcome === 'failed' ) {
+				flashCheckLabel(
+					/* translators: Shown briefly on the Check for Updates button when a check fails. */
+					__( 'Couldn’t Check', 'newspack-rolling-coverage' )
+				);
+				announce(
+					__(
+						'Couldn’t check for updates. Try again.',
+						'newspack-rolling-coverage'
+					)
+				);
+				return;
+			}
+
+			if ( outcome === 'skipped' ) {
+				return;
+			}
+
+			// An ended coverage gets no new entries; a paused one may resume.
+			if ( polledStatus === 'archived' ) {
+				if (
+					checkButtons.some(
+						( button ) =>
+							button.ownerDocument.activeElement === button
+					)
+				) {
+					focusFromScript( entriesList, { preventScroll: true } );
+				}
+
+				checkControls.forEach( ( control ) => {
+					control.hidden = true;
+				} );
+				return;
+			}
+
+			const added = insertedCount - insertedBefore;
+
+			// New entries land at the top, out of sight of a button further down.
+			if ( added > 0 ) {
+				flashCheckLabel( entriesAddedButtonLabel( added, entryName ) );
+			} else {
+				const label = noNewEntriesLabel( entryName );
+
+				flashCheckLabel( label );
+				announce( label );
+			}
+		};
+
+		checkButtons.forEach( ( button ) =>
+			button.addEventListener( 'click', onCheckClick )
+		);
+		cleanupFns.push( () => {
+			checkButtons.forEach( ( button ) =>
+				button.removeEventListener( 'click', onCheckClick )
+			);
+
+			if ( checkLabelTimeoutId !== null ) {
+				clearTimeout( checkLabelTimeoutId );
+				checkLabelTimeoutId = null;
+			}
+
+			setCheckBusy( false );
+		} );
+		checkControls.forEach( ( control ) => {
+			control.hidden = false;
+		} );
+	}
 
 	if ( cursor && status === 'active' ) {
 		schedulePoll();
@@ -2029,7 +2551,7 @@ function initBlock( root: HTMLElement ): void {
 	const onVisibilityChange = () => {
 		if ( document.hidden ) {
 			cancelPoll();
-		} else if ( cursor && status === 'active' ) {
+		} else if ( cursor && status === 'active' && ! checksOnRequest ) {
 			poll();
 		}
 	};
@@ -2083,8 +2605,7 @@ function initBlock( root: HTMLElement ): void {
 		ifBarsMoved = false,
 		measuredBars?: number
 	): void {
-		const cards =
-			root.querySelectorAll< HTMLElement >( STICKY_CARD_SELECTOR );
+		const cards = ownElements( root, STICKY_CARD_SELECTOR );
 
 		if ( cards.length === 0 ) {
 			return;
@@ -2142,8 +2663,8 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {void}
 	 */
 	function watchStickyCards(): void {
-		root.querySelectorAll< HTMLElement >( STICKY_CARD_SELECTOR ).forEach(
-			( card ) => stickyCardObserver?.observe( card )
+		ownElements( root, STICKY_CARD_SELECTOR ).forEach( ( card ) =>
+			stickyCardObserver?.observe( card )
 		);
 		fitStickyCards();
 	}
@@ -2232,6 +2753,32 @@ function initBlock( root: HTMLElement ): void {
 		stickyCardObserver?.disconnect();
 	} );
 
+	// Chrome leaves a link focused from the keyboard partly outside a line that scrolls sideways when some of it already shows. The entry, not the link, is what the line snaps to.
+	const revealFocused = ( event: FocusEvent ) => {
+		const target = event.target;
+
+		if (
+			! ( target instanceof Element ) ||
+			target === entriesList ||
+			! target.matches( ':focus-visible' ) ||
+			getComputedStyle( entriesList ).overflowX === 'visible'
+		) {
+			return;
+		}
+
+		let entry: Element = target;
+
+		while ( entry.parentElement && entry.parentElement !== entriesList ) {
+			entry = entry.parentElement;
+		}
+
+		entry.scrollIntoView( { block: 'nearest', inline: 'nearest' } );
+	};
+	entriesList.addEventListener( 'focusin', revealFocused );
+	cleanupFns.push( () =>
+		entriesList.removeEventListener( 'focusin', revealFocused )
+	);
+
 	if ( sentinel && hasMore ) {
 		const observer = new IntersectionObserver( ( entries ) => {
 			entries.forEach( ( entry ) => {
@@ -2250,3 +2797,29 @@ function initBlock( root: HTMLElement ): void {
 }
 
 document.querySelectorAll< HTMLElement >( BLOCK_SELECTOR ).forEach( initBlock );
+
+// Feeds can sit in an entry's content, so they also reach the page after load,
+// in entries a poll, load more or the jump to the live feed brings in, and
+// leave it in entries those replace or drop, or with a feed that hides once its
+// coverage ends. A feed runs only while it's in the page: one that arrives
+// starts, and one that leaves stops. Records arrive once the changes are done,
+// so what counts is where each feed ended up: one moved within the page keeps
+// running.
+new MutationObserver( ( records ) => {
+	records.forEach( ( { addedNodes, removedNodes } ) => {
+		removedNodes.forEach( ( node ) =>
+			feedsIn( node ).forEach( ( feed ) => {
+				if ( ! feed.isConnected ) {
+					feedStops.get( feed )?.();
+				}
+			} )
+		);
+		addedNodes.forEach( ( node ) =>
+			feedsIn( node ).forEach( ( feed ) => {
+				if ( feed.isConnected ) {
+					initBlock( feed );
+				}
+			} )
+		);
+	} );
+} ).observe( document.body, { childList: true, subtree: true } );

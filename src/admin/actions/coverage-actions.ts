@@ -24,6 +24,7 @@ import { notifySuccess, notifyError, pluralize } from '../utils/notices';
  * @param {(coverage: Coverage) => void} onEdit              Callback to open the edit modal.
  * @param {(coverage: Coverage) => void} onSlackConnect      Callback to open the Slack connection drawer.
  * @param {RequestConfirm}               requestConfirm      Opens the view's confirmation dialog.
+ * @param {(coverage: Coverage) => void} onViewPlacements    Callback to open the drawer listing the coverage's placements.
  *
  * @return {Action<Coverage>[]} Array of DataViews actions for coverages.
  */
@@ -33,7 +34,8 @@ function getCoverageActions(
 	onNavigateToEntries: ( coverage: Coverage ) => void,
 	onEdit: ( coverage: Coverage ) => void,
 	onSlackConnect: ( coverage: Coverage ) => void,
-	requestConfirm: RequestConfirm
+	requestConfirm: RequestConfirm,
+	onViewPlacements: ( coverage: Coverage ) => void
 ): Action< Coverage >[] {
 	const restNamespace = config.restBaseUrls.restNamespace;
 
@@ -65,12 +67,13 @@ function getCoverageActions(
 			},
 		},
 		{
-			id: 'view-page',
-			label: __( 'View Page', 'newspack-rolling-coverage' ),
-			isEligible: ( coverage: Coverage ) => Boolean( coverage.pageUrl ),
+			id: 'placements',
+			label: __( 'Placements', 'newspack-rolling-coverage' ),
+			isEligible: ( coverage: Coverage ) =>
+				( coverage.placements ?? [] ).length > 0,
 			callback: ( items: Coverage[] ) => {
-				if ( items.length === 1 && items[ 0 ].pageUrl ) {
-					window.open( items[ 0 ].pageUrl, '_blank', 'noopener=yes' );
+				if ( items.length === 1 ) {
+					onViewPlacements( items[ 0 ] );
 				}
 			},
 		},

@@ -2,6 +2,8 @@
  * WordPress dependencies
  */
 import apiFetch from '@wordpress/api-fetch';
+import { store as coreStore } from '@wordpress/core-data';
+import { dispatch } from '@wordpress/data';
 
 /**
  * Internal dependencies
@@ -21,6 +23,9 @@ import type {
 	AdminConfig,
 	BulkRestoreResult,
 	BulkRestoreEntryResult,
+	EntryDetailsChanges,
+	EntryDetailsEntryResult,
+	EntryDetailsResult,
 } from '../types';
 
 const SYNC_INTERVAL_MS = 10000;
@@ -72,7 +77,7 @@ function toEntry( row: EntryViewRow ): Entry {
 		date_gmt: row.date,
 		modified: row.modified,
 		modified_gmt: row.modified,
-		slug: '',
+		slug: row.slug,
 		status: row.status,
 		type: 'rolling_cov_entry',
 		link: '',
@@ -400,6 +405,36 @@ async function bulkRestoreEntries(
 }
 
 /**
+ * Reassigns entries in a single request: their author, categories or
+ * tags, and for a single entry its slug or date. Only the details in
+ * `changes` are saved.
+ *
+ * @param {string}              restNamespace - REST namespace URL.
+ * @param {number[]}            entryIds      - Entry post IDs.
+ * @param {EntryDetailsChanges} changes       - The details to save.
+ * @return {Promise<EntryDetailsResult>} Result with per-entry outcomes or error.
+ */
+async function editEntriesDetails(
+	restNamespace: string,
+	entryIds: number[],
+	changes: EntryDetailsChanges
+): Promise< EntryDetailsResult > {
+	try {
+		const response = await apiFetch< {
+			results: EntryDetailsEntryResult[];
+		} >( {
+			url: `${ restNamespace }entries/details`,
+			method: 'POST',
+			data: { entry_ids: entryIds, ...changes },
+		} );
+
+		return { success: true, results: response.results };
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
+/**
  * Toggles the pinned status of an entry.
  *
  * @param {string} restNamespace - REST namespace URL (from config.restBaseUrls.restNamespace).
@@ -590,10 +625,67 @@ async function runArchiveBulk(
 	return { failed, succeeded: failed.length === 0 };
 }
 
+/**
+ * Publishes a single entry or moves it to draft. Goes through the core
+ * entries route so WordPress checks the user's publish and edit
+ * capabilities, and the status hooks behind reader feeds and push
+ * notifications run as they do for a save in the editor.
+ *
+ * @param {AdminConfig}         config Admin config providing the entries REST base.
+ * @param {Entry}               entry  The entry row being operated on.
+ * @param {'publish' | 'draft'} status The status to set.
+ * @return {Promise<ApiResult>} Result indicating success or failure.
+ */
+async function setEntryStatus(
+	config: AdminConfig,
+	entry: Entry,
+	status: 'publish' | 'draft'
+): Promise< ApiResult > {
+	try {
+		const saved = await apiFetch( {
+			path: `/wp/v2/${ config.restBase.entries }/${ entry.id }`,
+			method: 'POST',
+			data: { status },
+		} );
+		// Quick Edit opens entries from core-data's cache, which this request
+		// bypasses. Store the saved entry so Quick Edit shows its new status.
+		dispatch( coreStore ).receiveEntityRecords(
+			'postType',
+			config.postType,
+			[ saved ]
+		);
+		return { success: true };
+	} catch ( error ) {
+		return { success: false, error: handleApiError( error as Error ) };
+	}
+}
+
+/**
+ * Runs a bulk publish or move to draft against the supplied entries,
+ * aggregating per-item results.
+ *
+ * @param {AdminConfig}         config Admin config providing the entries REST base.
+ * @param {Entry[]}             items  The selected entry rows.
+ * @param {'publish' | 'draft'} status The status to set.
+ * @return {Promise<{ failed: ApiResult[], succeeded: boolean }>} Aggregated outcome.
+ */
+async function runStatusBulk(
+	config: AdminConfig,
+	items: Entry[],
+	status: 'publish' | 'draft'
+): Promise< { failed: ApiResult[]; succeeded: boolean } > {
+	const results = await Promise.all(
+		items.map( ( entry ) => setEntryStatus( config, entry, status ) )
+	);
+	const failed = results.filter( ( r ) => ! r.success );
+	return { failed, succeeded: failed.length === 0 };
+}
+
 export {
 	createEntry,
 	togglePinEntry,
 	bulkRestoreEntries,
+	editEntriesDetails,
 	hasBreakout,
 	hasTrashedBreakout,
 	isEntryArchived,
@@ -610,4 +702,6 @@ export {
 	SYNC_INTERVAL_MS,
 	setEntryArchived,
 	runArchiveBulk,
+	setEntryStatus,
+	runStatusBulk,
 };

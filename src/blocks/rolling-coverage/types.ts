@@ -26,6 +26,7 @@ interface RollingCoverageAttributes {
 	coverageId: number;
 	pollInterval: number;
 	entriesPerPage: number;
+	olderEntries: 'scroll' | 'button' | 'none';
 	enableAds: boolean;
 	adsInterval: number;
 	archivedNoticeShow: boolean;
@@ -37,6 +38,7 @@ interface RollingCoverageAttributes {
 	latestOnly: boolean;
 	latestCount: number;
 	allUpdatesLink: boolean;
+	allUpdatesLinkText: string;
 	hideWhenEnded: boolean;
 	align?: string;
 	[ key: string ]: unknown;
@@ -83,6 +85,7 @@ interface BlockConfig {
 	layoutCategoryId: number;
 	entryPostType: string;
 	showAvatars: boolean;
+	entryPlural: string;
 	sampleAvatarUrls?: Record< string, string >;
 }
 
@@ -123,24 +126,28 @@ interface EntryContext {
 }
 
 /**
- * A single entry in a poll response.
+ * A single entry in a poll response. A removal names an entry taken down
+ * since the cursor and carries no markup.
  */
 interface PollEntry {
 	id: number;
 	html: string;
-	type: 'insert' | 'update';
+	type: 'insert' | 'update' | 'remove';
 	adHtml: string | null;
 	adSlot: AdSlot | null;
 }
 
 /**
- * REST response containing newly-published or edited entries.
+ * REST response containing newly-published, edited or removed entries.
+ * With `replace`, sent only to a capped feed, the entries are the removals,
+ * then the feed's newest entries, whole and in order.
  */
 interface PollResponse {
 	entries: PollEntry[];
 	cursor: string;
 	overflow: boolean;
 	polledCount: number;
+	replace?: boolean;
 	minPollInterval: number;
 	status?: string;
 	newestEntry?: string | null;

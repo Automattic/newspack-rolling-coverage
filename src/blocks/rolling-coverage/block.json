@@ -4,7 +4,7 @@
 	"name": "newspack-rolling-coverage/rolling-coverage",
 	"title": "Rolling Coverage",
 	"category": "newspack",
-	"description": "Displays the live entries of a rolling coverage, with polling for new entries and infinite scroll for older ones.",
+	"description": "Displays the live entries of a rolling coverage, polling for new entries and loading older ones as readers ask for them.",
 	"textdomain": "newspack-rolling-coverage",
 	"attributes": {
 		"coverageId": {
@@ -18,6 +18,11 @@
 		"entriesPerPage": {
 			"type": "number",
 			"default": 20
+		},
+		"olderEntries": {
+			"type": "string",
+			"enum": [ "scroll", "button", "none" ],
+			"default": "scroll"
 		},
 		"enableAds": {
 			"type": "boolean",
@@ -62,6 +67,10 @@
 		"allUpdatesLink": {
 			"type": "boolean",
 			"default": true
+		},
+		"allUpdatesLinkText": {
+			"type": "string",
+			"default": ""
 		},
 		"hideWhenEnded": {
 			"type": "boolean",

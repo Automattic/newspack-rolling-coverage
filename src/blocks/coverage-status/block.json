@@ -61,6 +61,11 @@
 		"spacing": {
 			"margin": true,
 			"blockGap": true
+		},
+		"__experimentalStyle": {
+			"spacing": {
+				"blockGap": "var:preset|spacing|20"
+			}
 		}
 	},
 	"editorScript": "file:./index.js",

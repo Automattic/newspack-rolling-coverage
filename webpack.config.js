@@ -5,6 +5,7 @@ const { getWebpackEntryPoints } = require( '@wordpress/scripts/utils' );
 const config = getWebpackConfig( {
 	entry: {
 		admin: path.resolve( __dirname, 'src/admin/index.tsx' ),
+		'entry-editor': path.resolve( __dirname, 'src/entry-editor/index.tsx' ),
 		...getWebpackEntryPoints( 'script' )(),
 	},
 } );

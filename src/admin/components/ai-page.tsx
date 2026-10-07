@@ -189,8 +189,7 @@ function AIPage() {
 		config.aiDefaultSettings,
 	] );
 
-	const canEdit = config.capabilities.canManageAiSettings;
-	const aiEnabled = config.aiAvailable && canEdit;
+	const aiEnabled = config.aiAvailable;
 	const maxLen = config.aiMaxPromptLength ?? 2000;
 	const takeawaysPromptLen = settings.key_takeaways_prompt.length;
 	const takeawaysPromptOver = takeawaysPromptLen > maxLen;

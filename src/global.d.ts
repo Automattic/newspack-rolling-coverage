@@ -30,6 +30,14 @@ declare module '@wordpress/block-editor' {
 
 	export const BlockInspector: ComponentType;
 
+	export const __experimentalPublishDateTimePicker: ComponentType< {
+		title?: string;
+		currentDate?: string | null;
+		onChange?: ( date: string | null ) => void;
+		onClose?: () => void;
+		is12Hour?: boolean;
+	} >;
+
 	export const BlockList: ComponentType< {
 		className?: string;
 		layout?: Record< string, unknown >;
@@ -117,4 +125,8 @@ declare module '@wordpress/block-editor' {
 // files.
 declare module '@wordpress/block-library' {
 	export function registerCoreBlocks(): void;
+}
+
+declare module '@wordpress/edit-post' {
+	export const __experimentalMainDashboardButton: unknown;
 }

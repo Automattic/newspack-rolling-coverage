@@ -1,0 +1,29 @@
+@use "~@wordpress/base-styles/variables" as wp-vars;
+
+.newspack-rolling-coverage-placements,
+.newspack-rolling-coverage-placement__blocks {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.newspack-rolling-coverage-placement,
+.newspack-rolling-coverage-placement__blocks > li,
+.newspack-rolling-coverage-placement__details,
+.newspack-rolling-coverage-placement__details dd {
+	margin: 0;
+}
+
+.newspack-rolling-coverage-placement {
+
+	&__title {
+		font-weight: wp-vars.$font-weight-medium;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	&__view {
+		flex-shrink: 0;
+		white-space: nowrap;
+	}
+}
