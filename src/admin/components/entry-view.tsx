@@ -34,7 +34,6 @@ import { QuickEditModal } from './quick-edit-modal';
 import { EntryDetailsDrawer } from './entry-details-drawer';
 import { SlackConnectionDrawer } from './slack-connection-drawer';
 import { PlacementsDrawer } from './placements-drawer';
-import { getPlacementsLink } from '../utils/placements';
 import { useConfirmDialog } from './confirm-dialog';
 import { getEntryActions } from '../actions/entry-actions';
 import { getEntryNoticeMessage } from '../utils/notices';
@@ -514,10 +513,8 @@ function EntryView() {
 		[ canShowSlack, slackChannelLabel, routeCoverage, isRefreshingSlack ]
 	);
 
-	const placementsLink = getPlacementsLink( routeCoverage );
-	const placementsKind = placementsLink.kind;
-	const pageUrl = placementsLink.kind === 'link' ? placementsLink.url : '';
-	const showViewPage = ! isFirstLoad && placementsKind !== 'none';
+	const showViewPage =
+		! isFirstLoad && ( routeCoverage?.placements ?? [] ).length > 0;
 	const [ isPlacementsOpen, setIsPlacementsOpen ] = useState( false );
 
 	const addEntryButton = useMemo(
@@ -556,34 +553,15 @@ function EntryView() {
 	);
 
 	const viewPageButton = useMemo(
-		() =>
-			placementsKind === 'link' ? (
-				<Button
-					variant="secondary"
-					href={ pageUrl }
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					{ __( 'View Page', 'newspack-rolling-coverage' ) }
-					<VisuallyHidden>
-						{
-							/* translators: Accessibility text. */
-							__(
-								'(opens in a new tab)',
-								'newspack-rolling-coverage'
-							)
-						}
-					</VisuallyHidden>
-				</Button>
-			) : (
-				<Button
-					variant="secondary"
-					onClick={ () => setIsPlacementsOpen( true ) }
-				>
-					{ __( 'View Pages', 'newspack-rolling-coverage' ) }
-				</Button>
-			),
-		[ placementsKind, pageUrl ]
+		() => (
+			<Button
+				variant="secondary"
+				onClick={ () => setIsPlacementsOpen( true ) }
+			>
+				{ __( 'View Pages', 'newspack-rolling-coverage' ) }
+			</Button>
+		),
+		[]
 	);
 
 	const headerActions = useMemo(

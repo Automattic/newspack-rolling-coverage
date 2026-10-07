@@ -14,7 +14,6 @@ import {
 	runCoverageBulk,
 } from '../utils/coverage-api';
 import { notifySuccess, notifyError, pluralize } from '../utils/notices';
-import { getPlacementsLink } from '../utils/placements';
 
 /**
  * Returns DataViews action definitions for coverage rows.
@@ -68,22 +67,10 @@ function getCoverageActions(
 			},
 		},
 		{
-			id: 'view-page',
-			label: __( 'View Page', 'newspack-rolling-coverage' ),
-			isEligible: ( coverage: Coverage ) =>
-				getPlacementsLink( coverage ).kind === 'link',
-			callback: ( items: Coverage[] ) => {
-				const link = getPlacementsLink( items[ 0 ] ?? null );
-				if ( items.length === 1 && link.kind === 'link' ) {
-					window.open( link.url, '_blank', 'noopener=yes' );
-				}
-			},
-		},
-		{
 			id: 'view-pages',
 			label: __( 'View Pages', 'newspack-rolling-coverage' ),
 			isEligible: ( coverage: Coverage ) =>
-				getPlacementsLink( coverage ).kind === 'drawer',
+				( coverage.placements ?? [] ).length > 0,
 			callback: ( items: Coverage[] ) => {
 				if ( items.length === 1 ) {
 					onViewPages( items[ 0 ] );
