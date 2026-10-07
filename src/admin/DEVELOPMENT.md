@@ -28,6 +28,39 @@ Until a source has them, its entries show the WordPress marker, yet "Source is W
 
 The server needs no change beyond the ingest path writing the slug to the meta. The entries endpoint's `source` and `source_exclude` filters accept any slug, with `wordpress` special-cased to include entries that have no meta.
 
+## Reassign
+
+The entries list's **Reassign** action opens `EntryDetailsDrawer` (`src/admin/components/entry-details-drawer.tsx`), a Newspack `Drawer` that edits an entry's author, categories and tags, and for a single entry its slug and date. It is a row action and, with `supportsBulk`, a bulk action, so it also shows in the bulk-actions bar. It is offered when `config.capabilities.canChangeAuthors` is true (Editors and above, and whoever Co-Authors Plus lets set bylines when it is on for entries), for entries that aren't trashed or locked by Archive Mode (`isEntryLocked()`). The drawer is mounted under the same condition.
+
+### Fields
+
+| Field | One entry | Several entries |
+| --- | --- | --- |
+| Author | Starts with the entry's author. | Starts with the author they share, or empty. |
+| Categories | Starts with the entry's categories. The save sets exactly what the field shows. | Starts empty. What is picked is added to every entry; nothing is removed. |
+| Tags | Same as Categories. | Same as Categories. |
+| Slug | Starts with the entry's slug (`post_name`). | Not shown. |
+| Date | Starts with the entry's publish date, in the site's time zone. | Not shown. |
+
+- **Author** is a `ComboboxControl` of site users who can write posts (`who: 'authors'`). The person picked replaces the entry's author and, with Co-Authors Plus on for entries, all its co-authors.
+- **Categories** and **Tags** are `TermTokenField`s (`src/admin/components/term-token-field.tsx`), a `FormTokenField` suggesting the site's existing terms, most used first, and searching as the user types. Each shows only when the user can assign that taxonomy's terms (`canAssignCategories`, `canAssignTags`). A name that matches no term becomes a new term, created on save, only when the user can create terms there (`canCreateCategories`, `canCreateTags`); otherwise only existing terms are accepted. Creating follows core's REST rule: categories need `edit_terms` (`manage_categories`), tags only `assign_terms` (`edit_posts`).
+- **Slug** is a `TextControl`. The server sanitizes it and WordPress makes it unique (for a draft, only once it is published), so the saved slug can differ from the one typed; when it does, the success notice names it.
+- **Date** is core's `DateTimePicker`, with a 12-hour clock when the site's time format shows AM/PM, and the week starting on the site's day. The row's date carries the site's offset, so the drawer formats it in the site's time zone (`getEntryDate()`) rather than cutting it down. The picker works in the browser's time zone with no offset, so its value is read back through its local parts (`toLocalDateTime()`), never sliced from an ISO string, which would shift it by the browser's offset. A published entry can't be dated in the future; the server refuses it rather than let WordPress turn the entry into a scheduled one.
+
+Save stays disabled until a field changes, and only changed fields are sent. Leaving with unsaved changes asks first (the `Drawer`'s `isDirty`). Saving shows a busy state, keeps the drawer open with an error notice when nothing was saved, and otherwise closes it with a success notice, plus an error notice for any entries that failed. Quick Edit's cached copy of each saved entry is invalidated, and so is the no-search term query when terms were created, so they are suggested next time.
+
+### Endpoint
+
+`POST /newspack-rolling-coverage/v1/entries/details` (`Post_Type::handle_bulk_edit_details()`), with `entry_ids` (1 to 100) and any of `author_id`, `categories` and `tags` (each `{ ids: number[], names: string[] }`), `slug`, `date` (the site's local time, `YYYY-MM-DDTHH:mm:ss`), and `append`. The drawer sends `append` for several entries, so terms are added rather than replacing each entry's own.
+
+- The permission callback (`can_edit_details()`) needs `edit_posts`, plus `can_change_authors()` when `author_id` is sent and `assign_terms` for each taxonomy sent. So an author can set the terms of their own entries through it, though the action isn't offered to them.
+- The whole request is rejected (nothing changes and no term is created) when it changes nothing, names an author who can't write posts, sends a term ID from another taxonomy, names new terms the user can't create, has an invalid date, or sets a slug or date on more than one entry.
+- Named terms are matched to existing ones the way core matches names (`term_exists()`), after `sanitize_text_field()`; the rest are created.
+- Each entry is then checked on its own: it must exist and not be trashed, the user must be able to `edit_post` it, and it must not be locked by Archive Mode. A published entry given a future date is refused, and so is a scheduled entry moved into the past (which publishes it) when the user can't `publish_post` it. A refused entry is left as it was. Its terms are set first (`wp_set_post_terms()`), then the author, slug and date are saved with `touch_entry()`, which keeps the content as stored and bumps the modified date so live feeds re-render.
+- The response lists each entry's `entryId`, `updated` and, on failure, `error`, plus the saved `slug` when one was sent.
+
+Tests: `tests/test-entry-details.php` and `tests/test-entry-author.php`.
+
 ## Placements: View Page and View Pages
 
 A coverage's placements are every published place where the plugin's blocks show it. The coverage header and the All Coverages row actions use them to send editors to those places.
