@@ -12,7 +12,7 @@ import {
 import { Button, VisuallyHidden } from '@wordpress/components';
 import { postContent } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
-import { useDispatch } from '@wordpress/data';
+import { useDispatch, useRegistry } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import apiFetch from '@wordpress/api-fetch';
 import { store as noticesStore } from '@wordpress/notices';
@@ -278,18 +278,26 @@ function EntryView() {
 		refreshKey,
 	} );
 
+	const registry = useRegistry();
 	const { clearEntityRecordEdits } = useDispatch( coreStore );
 
 	// Quick Edit clears an entry's edits when it closes, so edits an entry
 	// carries when it opens came through the page's shared undo history:
 	// another entry's Undo or Redo reached this one. Starting from the saved
-	// entry keeps Save to what is typed in this Quick Edit.
+	// entry keeps Save to what is typed in this Quick Edit. Clearing throws
+	// until core-data has loaded the post type's config, and an entry has no
+	// edits before then, so only an entry with edits is cleared.
 	const handleQuickEdit = useCallback(
 		( entry: Entry ) => {
-			clearEntityRecordEdits( 'postType', config.postType, entry.id );
+			const edits = registry
+				.select( coreStore )
+				.getEntityRecordEdits( 'postType', config.postType, entry.id );
+			if ( edits ) {
+				clearEntityRecordEdits( 'postType', config.postType, entry.id );
+			}
 			setQuickEditEntry( entry );
 		},
-		[ clearEntityRecordEdits, config.postType ]
+		[ registry, clearEntityRecordEdits, config.postType ]
 	);
 
 	const handleQuickEditSaved = useCallback( () => {
