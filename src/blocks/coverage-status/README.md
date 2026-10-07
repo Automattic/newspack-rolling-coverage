@@ -35,7 +35,7 @@ All settings are in the Settings panel.
 | When ended | Show, Hide | Hide removes the block from the site once the coverage ends. The editor shows a notice when this applies. Show is the default. |
 | Dot | Show, Hide | Turns the dot on the Live badge on or off. Paused and Ended badges have no dot. Show is the default. |
 
-Site-wide labels are set in Rolling Coverage > All Coverages, under the Settings button. Each label can be up to 40 characters. A label set on a block overrides the site-wide one.
+Editors and administrators set the site-wide labels in Rolling Coverage > All Coverages: select Settings, then Coverage Status. Each label can be up to 40 characters. A label set on a block overrides the site-wide one.
 
 ## Styling
 
@@ -48,6 +48,8 @@ Site-wide labels are set in Rolling Coverage > All Coverages, under the Settings
 A badge that reads Live, Paused, or Ended, and optionally the "Updated … ago" text. Live badges pulse when the dot is on.
 
 The badge changes without a page reload, but only when a Rolling Coverage block for the same coverage is on the same page. A Custom block pointing to a coverage that isn't on the page keeps the status it had when the page loaded. The "Updated … ago" text counts up once a minute either way.
+
+On Lite Site's text-only pages, the badge shows the status from when the page was saved for Lite Site, and "Updated … ago" doesn't appear.
 
 ## Limits
 
