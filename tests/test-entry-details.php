@@ -651,4 +651,192 @@ class Test_Entry_Details extends Rolling_Coverage_TestCase {
 			'The error should say the coverage ended.'
 		);
 	}
+
+	/**
+	 * Create a scheduled entry whose time has passed without cron publishing
+	 * it, which any save publishes.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return int Entry post ID.
+	 */
+	private static function create_missed_schedule_entry( $coverage_id ) {
+		global $wpdb;
+
+		$entry_id = self::create_entry(
+			$coverage_id,
+			[
+				'post_status' => 'future',
+				'post_date'   => wp_date( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ),
+			]
+		);
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->posts,
+			[
+				'post_date'     => '2026-03-01 09:00:00',
+				'post_date_gmt' => '2026-03-01 09:00:00',
+			],
+			[ 'ID' => $entry_id ]
+		);
+		clean_post_cache( $entry_id );
+
+		return $entry_id;
+	}
+
+	/**
+	 * Saving a scheduled entry whose time has passed publishes it, so even a
+	 * request that sends no date needs the right to publish it.
+	 */
+	public function test_needs_publish_rights_for_a_missed_schedule_entry_without_a_date() {
+		$tag      = self::factory()->tag->create( [ 'name' => 'Election' ] );
+		$entry_id = self::create_missed_schedule_entry( self::create_coverage() );
+		$deny     = function ( $caps, $cap, $user_id, $args ) use ( $entry_id ) {
+			return 'publish_post' === $cap && (int) ( $args[0] ?? 0 ) === $entry_id ? [ 'do_not_allow' ] : $caps;
+		};
+
+		add_filter( 'map_meta_cap', $deny, 10, 4 );
+		try {
+			$results = self::edit_details( [ $entry_id ], [ 'tags' => [ 'ids' => [ $tag ] ] ] )->get_data()['results'];
+		} finally {
+			remove_filter( 'map_meta_cap', $deny, 10 );
+		}
+
+		$this->assertFalse( $results[0]['updated'], 'The entry should be refused.' );
+		$this->assertSame( 'future', get_post_status( $entry_id ), 'The entry should stay scheduled.' );
+		$this->assertSame( [], self::term_ids( $entry_id, 'post_tag' ), 'The entry should get no tag.' );
+	}
+
+	/**
+	 * When a request publishes a missed-schedule entry without a new date,
+	 * its coverage's newest-entry time is refreshed once, after the saves,
+	 * and the per-save hook is put back.
+	 */
+	public function test_refreshes_the_newest_entry_once_and_restores_the_hook() {
+		$coverage_id = self::create_coverage();
+		$tag         = self::factory()->tag->create( [ 'name' => 'Election' ] );
+		$entry_id    = self::create_missed_schedule_entry( $coverage_id );
+		$hook        = [ Newspack_Rolling_Coverage\Newest_Entry::class, 'on_status_change' ];
+		Newspack_Rolling_Coverage\Newest_Entry::refresh( $coverage_id );
+		$refreshes   = 0;
+		$count       = function ( $check, $object_id, $meta_key ) use ( $coverage_id, &$refreshes ) {
+			if ( $coverage_id === (int) $object_id && Newspack_Rolling_Coverage\Newest_Entry::META_KEY === $meta_key ) {
+				++$refreshes;
+			}
+			return $check;
+		};
+
+		add_filter( 'update_term_metadata', $count, 10, 3 );
+		try {
+			$results = self::edit_details( [ $entry_id ], [ 'tags' => [ 'ids' => [ $tag ] ] ] )->get_data()['results'];
+		} finally {
+			remove_filter( 'update_term_metadata', $count, 10 );
+		}
+
+		$this->assertTrue( $results[0]['updated'], 'The entry should be updated.' );
+		$this->assertSame( 'publish', get_post_status( $entry_id ), 'The save should publish the entry.' );
+		$this->assertSame( 1, $refreshes, 'The coverage should be refreshed once.' );
+		$this->assertNotSame( '', (string) get_term_meta( $coverage_id, Newspack_Rolling_Coverage\Newest_Entry::META_KEY, true ), 'The coverage should have a newest-entry time.' );
+		$this->assertSame( 20, has_action( 'transition_post_status', $hook ), 'The hook should be put back at its priority.' );
+	}
+
+	/**
+	 * Publishing a scheduled entry through this route settles its push
+	 * notification as the core entries route does: the send scheduled a
+	 * minute out is replaced by one due now.
+	 */
+	public function test_settles_the_push_notification_of_an_entry_it_publishes() {
+		self::configure_onesignal();
+		$keep_cron_offline = static function ( $cron_request ) {
+			$cron_request['url'] = 'http://0.0.0.0:1/';
+			return $cron_request;
+		};
+		$tag               = self::factory()->tag->create( [ 'name' => 'Election' ] );
+		$entry_id          = self::create_missed_schedule_entry( self::create_coverage() );
+		update_post_meta( $entry_id, Newspack_Rolling_Coverage\Push_Notifications::NOTIFY_META_KEY, true );
+
+		add_filter( 'cron_request', $keep_cron_offline );
+		try {
+			self::edit_details( [ $entry_id ], [ 'tags' => [ 'ids' => [ $tag ] ] ] );
+		} finally {
+			remove_filter( 'cron_request', $keep_cron_offline );
+		}
+
+		$scheduled_at = wp_next_scheduled( Newspack_Rolling_Coverage\Push_Notifications::SEND_HOOK, [ $entry_id ] );
+
+		$this->assertSame( 'publish', get_post_status( $entry_id ), 'The entry should be published.' );
+		$this->assertIsInt( $scheduled_at, 'A send should be scheduled.' );
+		$this->assertLessThanOrEqual( time(), $scheduled_at, 'The send should be due now, not a minute out.' );
+	}
+
+	/**
+	 * Term counting is deferred during the saves, and the counts are right
+	 * once the request ends.
+	 */
+	public function test_counts_terms_after_a_bulk_append() {
+		$coverage_id = self::create_coverage();
+		$tag         = self::factory()->tag->create( [ 'name' => 'Election' ] );
+		$entry_ids   = [ self::create_entry( $coverage_id ), self::create_entry( $coverage_id ) ];
+
+		self::edit_details(
+			$entry_ids,
+			[
+				'tags'   => [ 'ids' => [ $tag ] ],
+				'append' => true,
+			]
+		);
+
+		clean_term_cache( $tag, 'post_tag' );
+		$this->assertSame( 2, (int) get_term( $tag, 'post_tag' )->count, 'The tag should count both entries.' );
+		$this->assertFalse( wp_defer_term_counting(), 'Counting should no longer be deferred.' );
+	}
+
+	/**
+	 * When counting was already deferred, the request leaves it deferred.
+	 */
+	public function test_keeps_term_counting_deferred_when_it_already_was() {
+		$tag      = self::factory()->tag->create( [ 'name' => 'Election' ] );
+		$entry_id = self::create_entry( self::create_coverage() );
+
+		wp_defer_term_counting( true );
+		try {
+			self::edit_details( [ $entry_id ], [ 'tags' => [ 'ids' => [ $tag ] ] ] );
+			$still_deferred = wp_defer_term_counting();
+		} finally {
+			wp_defer_term_counting( false );
+		}
+
+		$this->assertTrue( $still_deferred, 'Counting should still be deferred.' );
+	}
+
+	/**
+	 * The database matches names regardless of accents, but WordPress
+	 * doesn't, so "Cafe" gets a tag of its own rather than "Café".
+	 */
+	public function test_does_not_match_a_name_with_different_accents() {
+		$cafe_accented = self::factory()->tag->create( [ 'name' => 'Café' ] );
+		$entry_id      = self::create_entry( self::create_coverage() );
+
+		self::edit_details( [ $entry_id ], [ 'tags' => [ 'names' => [ 'Cafe' ] ] ] );
+
+		$tags = wp_get_post_terms( $entry_id, 'post_tag' );
+
+		$this->assertCount( 1, $tags, 'The entry should get one tag.' );
+		$this->assertNotSame( $cafe_accented, $tags[0]->term_id, 'The entry should not get "Café".' );
+		$this->assertSame( 'Cafe', $tags[0]->name, 'A tag named "Cafe" should be created.' );
+	}
+
+	/**
+	 * Saving the entry keeps its tags by ID. Re-applied by name, a tag whose
+	 * name slugs to another tag's slug would be swapped for that tag.
+	 */
+	public function test_keeps_a_tag_whose_name_slugs_to_another_tag() {
+		self::factory()->tag->create( [ 'name' => 'Writers Room' ] );
+		$apostrophe = self::factory()->tag->create( [ 'name' => "Writers' Room" ] );
+		$news       = self::factory()->category->create( [ 'name' => 'News' ] );
+		$entry_id   = self::create_entry( self::create_coverage() );
+		wp_set_post_terms( $entry_id, [ $apostrophe ], 'post_tag' );
+
+		self::edit_details( [ $entry_id ], [ 'categories' => [ 'ids' => [ $news ] ] ] );
+
+		$this->assertSame( [ $apostrophe ], self::term_ids( $entry_id, 'post_tag' ), 'The entry should keep its tag.' );
+	}
 }

@@ -1088,6 +1088,11 @@ class Post_Type {
 	 * it's kept as stored: save filters would strip HTML or block CSS the
 	 * author could post but whoever triggers the touch (or cron) can't.
 	 *
+	 * The save re-applies the entry's tags. Unless `$changes` sets
+	 * `tags_input`, they are passed as the IDs the entry has now, since
+	 * `wp_update_post()` otherwise passes their names, which are looked up
+	 * by slug first and can land on a different tag.
+	 *
 	 * @param int   $entry_id Entry post ID.
 	 * @param bool  $wp_error Whether to return a WP_Error on failure.
 	 * @param array $changes  Other post fields to save, such as `post_author`. Content fields are ignored.
@@ -1096,6 +1101,14 @@ class Post_Type {
 	public static function touch_entry( int $entry_id, bool $wp_error = false, array $changes = [] ) {
 		$content_fields = [ 'post_content', 'post_content_filtered', 'post_title', 'post_excerpt' ];
 		$changes        = array_diff_key( $changes, array_flip( $content_fields ) );
+
+		if ( ! isset( $changes['tags_input'] ) && is_object_in_taxonomy( (string) get_post_type( $entry_id ), 'post_tag' ) ) {
+			$tag_ids = wp_get_post_terms( $entry_id, 'post_tag', [ 'fields' => 'ids' ] );
+
+			if ( ! is_wp_error( $tag_ids ) ) {
+				$changes['tags_input'] = array_map( 'intval', $tag_ids );
+			}
+		}
 
 		$keep_stored_content = static function ( $data, $postarr, $unsanitized_postarr ) use ( $entry_id, $content_fields, &$keep_stored_content ) {
 			if ( $entry_id === (int) ( $postarr['ID'] ?? 0 ) ) {
@@ -2628,7 +2641,8 @@ class Post_Type {
 	 * terms named but not found are created when at least one entry passed,
 	 * and only the entries that passed are changed (apply_entry_details()).
 	 * A rejected request, or one where every entry is refused, writes
-	 * nothing and creates no term.
+	 * nothing and creates no term, and a term this request created that
+	 * no entry ended up with is deleted again.
 	 *
 	 * The slug is sanitized and made unique by WordPress, so the result
 	 * reports the slug the entry ended up with. The date is the entry's
@@ -2739,37 +2753,62 @@ class Post_Type {
 		}
 
 		if ( $passed ) {
-			foreach ( $term_changes as $taxonomy => $prepared ) {
-				$created = self::create_terms( $prepared['create'], $taxonomy );
+			$created_terms = [];
 
-				if ( is_wp_error( $created ) ) {
-					return $created;
+			foreach ( $term_changes as $taxonomy => $prepared ) {
+				$terms = self::create_terms( $prepared['create'], $taxonomy, $created_terms );
+
+				if ( is_wp_error( $terms ) ) {
+					self::delete_unused_terms( $created_terms );
+					return $terms;
 				}
 
-				$details['terms'][ $taxonomy ] = array_values( array_unique( array_merge( $prepared['ids'], $created ) ) );
+				$details['terms'][ $taxonomy ] = array_values( array_unique( array_merge( $prepared['ids'], $terms ) ) );
 			}
 
-			// Without a new date, no entry's status or publish date changes, so
-			// the coverages' newest-entry times can't either; skip refreshing them per entry.
+			// The coverages' newest-entry times are refreshed once each after the
+			// loop instead of on every save. Any save can change them: it can
+			// publish a scheduled entry whose time has passed, with or without a
+			// new date.
 			$newest_entry_hook     = [ Newest_Entry::class, 'on_status_change' ];
-			$newest_entry_priority = null === $details['date'] ? has_action( 'transition_post_status', $newest_entry_hook ) : false;
+			$newest_entry_priority = has_action( 'transition_post_status', $newest_entry_hook );
+			$newest_entry_stale    = [];
 
 			if ( false !== $newest_entry_priority ) {
 				remove_action( 'transition_post_status', $newest_entry_hook, $newest_entry_priority );
 			}
 
-			wp_defer_term_counting( true );
+			$was_deferred = wp_defer_term_counting();
+
+			if ( ! $was_deferred ) {
+				wp_defer_term_counting( true );
+			}
 
 			try {
 				foreach ( $passed as $entry_id ) {
+					$status_before = get_post_status( $entry_id );
+
 					$results[ $entry_id ] = [ 'entryId' => $entry_id ] + self::apply_entry_details( $entry_id, $details );
+
+					if ( array_intersect( [ $status_before, get_post_status( $entry_id ) ], [ 'publish', 'future' ] ) ) {
+						$coverage_ids       = wp_get_post_terms( $entry_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
+						$newest_entry_stale = array_merge( $newest_entry_stale, is_wp_error( $coverage_ids ) ? [] : array_map( 'intval', $coverage_ids ) );
+					}
 				}
 			} finally {
-				wp_defer_term_counting( false );
+				if ( ! $was_deferred ) {
+					wp_defer_term_counting( false );
+				}
 
 				if ( false !== $newest_entry_priority ) {
 					add_action( 'transition_post_status', $newest_entry_hook, $newest_entry_priority, 3 );
+
+					foreach ( array_unique( $newest_entry_stale ) as $coverage_id ) {
+						Newest_Entry::refresh( $coverage_id );
+					}
 				}
+
+				self::delete_unused_terms( $created_terms );
 			}
 		}
 
@@ -2787,12 +2826,14 @@ class Post_Type {
 	 * changing anything.
 	 *
 	 * The entry must exist and not be trashed, the user must be able to edit
-	 * it, and it must not be locked by Archive Mode. A new date follows
+	 * it, and it must not be locked by Archive Mode. Dates follow
 	 * `wp_insert_post()`'s rule, which schedules an entry dated a minute or
-	 * more ahead and publishes a scheduled one dated less than that: a
-	 * published entry can't be moved that far ahead, since WordPress would
-	 * quietly schedule it, and a scheduled entry moved closer than that needs
-	 * the right to publish it.
+	 * more ahead and publishes a scheduled one dated less than that, on any
+	 * save: a published entry can't be moved that far ahead, since WordPress
+	 * would quietly schedule it, and saving a scheduled entry dated closer
+	 * than that publishes it, so it needs the right to publish. That covers a
+	 * scheduled entry whose time passed without cron publishing it, even
+	 * when the request sends no date.
 	 *
 	 * @param int   $entry_id Entry post ID.
 	 * @param array $details  The changes, as prepared by handle_bulk_edit_details().
@@ -2817,16 +2858,15 @@ class Post_Type {
 			return Archive_Mode::coverage_ended_error( 'rolling_coverage_entry_locked' )->get_error_message();
 		}
 
-		if ( $details['date'] ) {
-			$ahead = strtotime( $details['date'][1] . ' +0000' ) - time();
+		$date_gmt = $details['date'] ? $details['date'][1] : $post->post_date_gmt;
+		$ahead    = strtotime( $date_gmt . ' +0000' ) - time();
 
-			if ( 'publish' === $post->post_status && $ahead >= MINUTE_IN_SECONDS ) {
-				return __( 'A published entry can’t have a date in the future.', 'newspack-rolling-coverage' );
-			}
+		if ( $details['date'] && 'publish' === $post->post_status && $ahead >= MINUTE_IN_SECONDS ) {
+			return __( 'A published entry can’t have a date in the future.', 'newspack-rolling-coverage' );
+		}
 
-			if ( 'future' === $post->post_status && $ahead < MINUTE_IN_SECONDS && ! current_user_can( 'publish_post', $entry_id ) ) {
-				return __( 'You do not have permission to publish this entry.', 'newspack-rolling-coverage' );
-			}
+		if ( 'future' === $post->post_status && $ahead < MINUTE_IN_SECONDS && ! current_user_can( 'publish_post', $entry_id ) ) {
+			return __( 'Saving this entry would publish it, and you do not have permission to publish it.', 'newspack-rolling-coverage' );
 		}
 
 		return '';
@@ -2922,10 +2962,8 @@ class Post_Type {
 	 * must be able to assign each term found (`assign_term`), and names with
 	 * no term of exactly that name need permission to create terms.
 	 *
-	 * Names are matched by name only, not slug, so "Apple" never picks up a
-	 * term named "Apple Inc." whose slug is `apple`. A named term is a new
-	 * top-level one, so in a hierarchical taxonomy only top-level terms
-	 * match; a term under a parent is picked by ID.
+	 * Names are matched by find_term_by_name(): by name, ignoring case, never
+	 * by slug.
 	 *
 	 * @param array  $changes  The request's `ids` and `names` for the taxonomy.
 	 * @param string $taxonomy Taxonomy slug.
@@ -2960,23 +2998,10 @@ class Post_Type {
 				continue;
 			}
 
-			$query = [
-				'taxonomy'               => $taxonomy,
-				'name'                   => $name,
-				'hide_empty'             => false,
-				'number'                 => 1,
-				'fields'                 => 'ids',
-				'update_term_meta_cache' => false,
-			];
+			$existing = self::find_term_by_name( $name, $taxonomy );
 
-			if ( is_taxonomy_hierarchical( $taxonomy ) ) {
-				$query['parent'] = 0;
-			}
-
-			$existing = get_terms( $query );
-
-			if ( ! is_wp_error( $existing ) && $existing ) {
-				$ids[] = (int) $existing[0];
+			if ( $existing ) {
+				$ids[] = $existing;
 				continue;
 			}
 
@@ -3014,21 +3039,65 @@ class Post_Type {
 	}
 
 	/**
+	 * The term of a taxonomy with exactly this name, matched as
+	 * `wp_insert_term()` matches names: by name, ignoring case, never by
+	 * slug, so "Apple" doesn't pick up "Apple Inc." whose slug is `apple`.
+	 * The database's collation also ignores accents, so candidates are
+	 * compared again here and "Cafe" doesn't pick up "Café". A typed name
+	 * stands for a new top-level term, so in a hierarchical taxonomy only
+	 * top-level terms match; a term under a parent is picked by ID.
+	 *
+	 * @param string $name     Sanitized term name.
+	 * @param string $taxonomy Taxonomy slug.
+	 * @return int The term's ID, or 0 when there is none.
+	 */
+	private static function find_term_by_name( string $name, string $taxonomy ): int {
+		$query = [
+			'taxonomy'               => $taxonomy,
+			'name'                   => $name,
+			'hide_empty'             => false,
+			'number'                 => 10,
+			'update_term_meta_cache' => false,
+		];
+
+		if ( is_taxonomy_hierarchical( $taxonomy ) ) {
+			$query['parent'] = 0;
+		}
+
+		$candidates = get_terms( $query );
+
+		if ( is_wp_error( $candidates ) ) {
+			return 0;
+		}
+
+		$stored_name = strtolower( wp_unslash( sanitize_term_field( 'name', $name, 0, $taxonomy, 'db' ) ) );
+
+		foreach ( $candidates as $candidate ) {
+			if ( $stored_name === strtolower( $candidate->name ) ) {
+				return (int) $candidate->term_id;
+			}
+		}
+
+		return 0;
+	}
+
+	/**
 	 * Creates terms in a taxonomy, using the existing term when one by the
 	 * same name turns up in the meantime.
 	 *
 	 * @param string[] $names    Term names.
 	 * @param string   $taxonomy Taxonomy slug.
+	 * @param array    $created  Collects the IDs of the terms created, by taxonomy, including before a failure.
 	 * @return int[]|WP_Error The terms' IDs.
 	 */
-	private static function create_terms( array $names, string $taxonomy ): array|WP_Error {
+	private static function create_terms( array $names, string $taxonomy, array &$created ): array|WP_Error {
 		$ids = [];
 
 		foreach ( $names as $name ) {
-			$created = wp_insert_term( $name, $taxonomy );
+			$inserted = wp_insert_term( $name, $taxonomy );
 
-			if ( is_wp_error( $created ) ) {
-				$existing = (int) $created->get_error_data( 'term_exists' );
+			if ( is_wp_error( $inserted ) ) {
+				$existing = (int) $inserted->get_error_data( 'term_exists' );
 
 				if ( $existing ) {
 					$ids[] = $existing;
@@ -3037,15 +3106,34 @@ class Post_Type {
 
 				return new WP_Error(
 					'rolling_coverage_term_not_created',
-					$created->get_error_message(),
+					$inserted->get_error_message(),
 					[ 'status' => 400 ]
 				);
 			}
 
-			$ids[] = (int) $created['term_id'];
+			$ids[]                   = (int) $inserted['term_id'];
+			$created[ $taxonomy ][] = (int) $inserted['term_id'];
 		}
 
 		return $ids;
+	}
+
+	/**
+	 * Deletes terms a Reassign request created that no entry or other object
+	 * ended up with, such as when every entry failed to save.
+	 *
+	 * @param array $created Term IDs, by taxonomy.
+	 */
+	private static function delete_unused_terms( array $created ): void {
+		foreach ( $created as $taxonomy => $term_ids ) {
+			foreach ( $term_ids as $term_id ) {
+				$objects = get_objects_in_term( $term_id, $taxonomy );
+
+				if ( ! is_wp_error( $objects ) && empty( $objects ) ) {
+					wp_delete_term( $term_id, $taxonomy );
+				}
+			}
+		}
 	}
 
 	/**
