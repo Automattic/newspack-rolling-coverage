@@ -627,11 +627,6 @@ interface BlockEditorSelectors {
 	getBlockSelectionStart: () => string | null | undefined;
 }
 
-/** Actions on the preferences store. */
-interface PreferencesActions {
-	set: ( scope: string, name: string, value: unknown ) => void;
-}
-
 /** Selectors from the editor store, typed for the sub-registry. */
 type EditorSelectors = {
 	__unstableIsEditorReady?: () => boolean;
@@ -805,6 +800,5 @@ export type {
 	EditorSelectors,
 	CoreSelectors,
 	BlockEditorSelectors,
-	PreferencesActions,
 	TogglePinResult,
 };

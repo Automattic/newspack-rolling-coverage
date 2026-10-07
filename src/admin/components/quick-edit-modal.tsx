@@ -28,7 +28,6 @@ import {
 } from '@wordpress/data';
 import type { StoreDescriptor } from '@wordpress/data';
 import { SnackbarNotices, store as noticesStore } from '@wordpress/notices';
-import { store as preferencesStore } from '@wordpress/preferences';
 import { __ } from '@wordpress/i18n';
 
 /**
@@ -36,13 +35,10 @@ import { __ } from '@wordpress/i18n';
  */
 import { useAdminContext } from '../hooks/useAdminContext';
 import { ensureEditorInitialized } from '../utils/block-registration';
+import { quickEditPreferencesStore } from '../utils/quick-edit-preferences';
 import { QuickEditSaveBar } from './quick-edit-save-bar';
 import { QuickEditToolbar } from './quick-edit-toolbar';
-import type {
-	QuickEditModalProps,
-	EntityRecord,
-	PreferencesActions,
-} from '../types';
+import type { QuickEditModalProps, EntityRecord } from '../types';
 
 /**
  * Gives the editor its own preferences store, with the block toolbar pinned.
@@ -54,13 +50,14 @@ import type {
  * every page that loads `wp-preferences`, so a write there reaches
  * `localStorage` at once and the user's saved preferences a few seconds
  * later, pinning the toolbar in their real post editor. A child registry
- * with its own `core/preferences` instance shadows the page's; the editor's
- * preference reads resolve to it, while core-data and notices still fall
- * through to the page. The trade-off: the user's saved
- * post-editor preferences (hidden block types, icon labels, focus mode,
- * caret behavior) do not apply inside Quick Edit, and the few editor
- * controls that write preferences (the link control's Advanced drawer, the
- * distraction-free shortcut) write to this throwaway store instead.
+ * with an in-memory `core/preferences` store (`quickEditPreferencesStore`)
+ * shadows the page's; the editor's preference reads and writes resolve to
+ * it, while core-data and notices still fall through to the page. The
+ * trade-off: the user's saved post-editor preferences (hidden block types,
+ * icon labels, focus mode, caret behavior) do not apply inside Quick Edit,
+ * and the few editor controls that write preferences (the link control's
+ * Advanced drawer, the distraction-free shortcut) write to this throwaway
+ * store instead.
  */
 function useQuickEditRegistry() {
 	const parent = useRegistry();
@@ -72,10 +69,10 @@ function useQuickEditRegistry() {
 		// editor throws on mount.
 		child.register( blockEditorStore as unknown as StoreDescriptor );
 		child.register( editorStore );
-		child.register( preferencesStore );
-		(
-			child.dispatch( preferencesStore ) as unknown as PreferencesActions
-		 ).set( 'core', 'fixedToolbar', true );
+		child.register( quickEditPreferencesStore );
+		child
+			.dispatch( quickEditPreferencesStore )
+			.set( 'core', 'fixedToolbar', true );
 		return child;
 	} );
 	return registry;
