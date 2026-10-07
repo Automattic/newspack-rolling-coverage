@@ -12,7 +12,7 @@ import { Drawer } from 'newspack-components/dist/esm/drawer';
 import type { Placement, PlacementsDrawerProps } from '../types';
 
 /**
- * One place that shows the coverage: its title, its type, the blocks it
+ * One place that shows the coverage: its type, its title, the blocks it
  * shows the coverage with, and links to view and edit it.
  *
  * @param {Object}    props             Component props.
@@ -49,80 +49,66 @@ function PlacementRow( {
 					gap="lg"
 					className="newspack-rolling-coverage-placement__details"
 				>
-					<Text variant="heading-md">{ title }</Text>
-					<Stack
-						render={ <dl /> }
-						direction="column"
-						gap="lg"
-						className="newspack-rolling-coverage-placement__fields"
-					>
+					<Stack direction="column" gap="xs">
 						{ ( type || isMain ) && (
-							<Stack direction="column" gap="sm">
-								<Field.VisualLabel render={ <dt /> }>
-									{ __(
-										'Type',
-										'newspack-rolling-coverage'
-									) }
-								</Field.VisualLabel>
-								<Text render={ <dd /> }>
-									{ type && isMain ? (
-										<>
-											<span aria-hidden="true">
-												{ sprintf(
-													/* translators: %s: what the place is, such as Page */
-													_x(
-														'%s · Main',
-														'visible label of the main page',
-														'newspack-rolling-coverage'
-													),
-													type
-												) }
-											</span>
-											<VisuallyHidden render={ <span /> }>
-												{ sprintf(
-													/* translators: %s: what the place is, such as Page */
-													__(
-														'%s, Main page',
-														'newspack-rolling-coverage'
-													),
-													type
-												) }
-											</VisuallyHidden>
-										</>
-									) : (
-										type || mainPage
-									) }
-								</Text>
-							</Stack>
+							<Text>
+								{ type && isMain ? (
+									<>
+										<span aria-hidden="true">
+											{ sprintf(
+												/* translators: %s: what the place is, such as Page */
+												_x(
+													'%s · Main',
+													'visible label of the main page',
+													'newspack-rolling-coverage'
+												),
+												type
+											) }
+										</span>
+										<VisuallyHidden render={ <span /> }>
+											{ sprintf(
+												/* translators: %s: what the place is, such as Page */
+												__(
+													'%s, Main page',
+													'newspack-rolling-coverage'
+												),
+												type
+											) }
+										</VisuallyHidden>
+									</>
+								) : (
+									type || mainPage
+								) }
+							</Text>
 						) }
-						{ blocks.length > 0 && (
-							<Stack direction="column" gap="sm">
-								<Field.VisualLabel render={ <dt /> }>
-									{ __(
-										'Blocks',
-										'newspack-rolling-coverage'
-									) }
-								</Field.VisualLabel>
-								<dd>
-									<Stack
-										render={ <ul /> }
-										direction="column"
-										gap="xs"
-										className="newspack-rolling-coverage-placement__blocks"
-									>
-										{ blocks.map( ( block ) => (
-											<Text
-												key={ block }
-												render={ <li /> }
-											>
-												{ block }
-											</Text>
-										) ) }
-									</Stack>
-								</dd>
-							</Stack>
-						) }
+						<Text variant="heading-md">{ title }</Text>
 					</Stack>
+					{ blocks.length > 0 && (
+						<Stack
+							render={ <dl /> }
+							direction="column"
+							gap="sm"
+							className="newspack-rolling-coverage-placement__fields"
+						>
+							<Field.VisualLabel render={ <dt /> }>
+								{ __( 'Blocks', 'newspack-rolling-coverage' ) }
+							</Field.VisualLabel>
+							<dd>
+								<Stack
+									render={ <ul /> }
+									direction="column"
+									gap="xs"
+									className="newspack-rolling-coverage-placement__blocks"
+								>
+									{ blocks.map( ( block ) => (
+										<Text key={ block } render={ <li /> }>
+											{ block }
+										</Text>
+									) ) }
+								</Stack>
+							</dd>
+						</Stack>
+					) }
 				</Stack>
 				{ ( viewUrl || editUrl ) && (
 					<Stack
