@@ -148,6 +148,15 @@ $quick-edit-footer-clearance: 72px;
 	.block-editor-block-toolbar {
 		border: 0;
 	}
+
+	.block-editor-block-contextual-toolbar .block-editor-block-toolbar {
+		overflow: visible;
+	}
+
+	.block-editor-block-toolbar .components-toolbar-group,
+	.block-editor-block-toolbar .components-toolbar {
+		margin-block: 0;
+	}
 }
 
 .newspack-rolling-coverage-quick-edit__settings {
