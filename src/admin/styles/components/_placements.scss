@@ -6,7 +6,9 @@
 }
 
 .newspack-rolling-coverage-placement,
-.newspack-rolling-coverage-placement__blocks > li {
+.newspack-rolling-coverage-placement__blocks > li,
+.newspack-rolling-coverage-placement__fields,
+.newspack-rolling-coverage-placement__fields dd {
 	margin: 0;
 }
 
