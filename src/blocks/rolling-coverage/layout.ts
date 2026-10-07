@@ -63,7 +63,7 @@ export const BLOCK_NAME = metadata.name;
 
 export { FOLLOW_BLOCK_NAME, CHECK_UPDATES_BLOCK_NAME };
 
-type PaletteColor = { slug: string; color?: string };
+type PaletteColor = { slug: string };
 
 /**
  * Every color in the editor's palette: the theme's, core's default and the

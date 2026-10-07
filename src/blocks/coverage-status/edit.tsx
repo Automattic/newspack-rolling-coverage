@@ -58,17 +58,28 @@ const INSERT_SOURCES = [ undefined, 'inserter_menu', 'quick_inserter' ];
 
 /**
  * The color the picker shows for a badge background: a theme color's palette
- * swatch, or the stored color itself.
+ * swatch, else the plain color its variables fall back to, or the stored
+ * color itself.
  *
- * @param {string} color    Stored background: 'accent', 'base' or a hex color.
- * @param {string} swatches The accent and base swatches, comma-separated.
+ * @param {string} color        Stored background: 'accent', 'base' or a hex color.
+ * @param {string} accentSwatch The palette's accent (or primary) color.
+ * @param {string} baseSwatch   The palette's base (or white) color.
  * @return {string|undefined} The color to show.
  */
-function themeSwatch( color: string | undefined, swatches: string ) {
-	const [ accent, base ] = swatches.split( ',' );
-	const swatch = { accent, base }[ color ?? '' ];
+function themeSwatch(
+	color: string | undefined,
+	accentSwatch: string,
+	baseSwatch: string
+) {
+	if ( color === 'accent' ) {
+		return accentSwatch || '#003da5';
+	}
 
-	return swatch === undefined ? color : swatch || undefined;
+	if ( color === 'base' ) {
+		return baseSwatch || '#ffffff';
+	}
+
+	return color;
 }
 
 const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {
@@ -206,7 +217,7 @@ export default function Edit( {
 		}
 	}
 
-	const { justInserted, paletteSlugs, themeSwatches } = useSelect(
+	const { justInserted, paletteSlugs, accentSwatch, baseSwatch } = useSelect(
 		( select ) => {
 			const blockEditor = select( blockEditorStore ) as unknown as {
 				wasBlockJustInserted: (
@@ -248,11 +259,9 @@ export default function Edit( {
 				paletteSlugs: palette
 					.map( ( color ) => color.slug )
 					.join( ',' ),
-				// The sidebar can't resolve the canvas's preset variables, so a theme color shows as its palette swatch.
-				themeSwatches: `${ swatch( 'accent', 'primary' ) },${ swatch(
-					'base',
-					'white'
-				) }`,
+				// The picker needs a literal color to show and mark as selected, so a theme color shows as its palette swatch.
+				accentSwatch: swatch( 'accent', 'primary' ),
+				baseSwatch: swatch( 'base', 'white' ),
 			};
 		},
 		[ clientId ]
@@ -584,7 +593,8 @@ export default function Edit( {
 							label: field,
 							colorValue: themeSwatch(
 								backgroundColors?.[ key ],
-								themeSwatches
+								accentSwatch,
+								baseSwatch
 							),
 							onColorChange: ( value?: string ) =>
 								setBackground( key, value ),
