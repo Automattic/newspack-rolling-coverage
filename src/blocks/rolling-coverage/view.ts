@@ -128,11 +128,14 @@ function cssDeclarations( css: string ): string[][] {
 }
 
 /**
- * Strips <script> tags and on* event handler attributes from an HTML
- * string as a defense-in-depth measure against XSS. The HTML is
- * already sanitized server-side by WordPress's block rendering pipeline
- * (including KSES), but this prevents execution if a compromised or
- * unfiltered-html account injected inline scripts.
+ * Removes scripts and other active content from an entry's HTML before it is
+ * inserted into the page. Entries come from this site's own REST route, whose
+ * output WordPress sanitizes server side (KSES), so this is a second line
+ * against markup an account with unfiltered_html could otherwise get to run.
+ *
+ * Ad markup is not passed through here: it carries the iframe or script the ad
+ * needs, which this would strip, and it comes from the same origin once
+ * initBlock() has checked the feed's REST URL.
  *
  * @param {string} html Raw HTML from the REST API.
  * @return {string} Sanitized HTML safe for DOM insertion.
@@ -140,19 +143,54 @@ function cssDeclarations( css: string ): string[][] {
 function sanitizeHtml( html: string ): string {
 	const doc = new DOMParser().parseFromString( html, 'text/html' );
 
-	// Remove all <script> elements.
-	doc.querySelectorAll( 'script' ).forEach( ( el ) => el.remove() );
+	// Elements that run or embed active content.
+	doc.querySelectorAll( 'script, object, embed' ).forEach( ( el ) =>
+		el.remove()
+	);
 
-	// Remove all on* event handler attributes.
 	doc.querySelectorAll( '*' ).forEach( ( el ) => {
 		Array.from( el.attributes ).forEach( ( attr ) => {
-			if ( attr.name.startsWith( 'on' ) ) {
+			const name = attr.name.toLowerCase();
+
+			// on* event handlers, and an iframe's inline srcdoc document.
+			if ( name.startsWith( 'on' ) || name === 'srcdoc' ) {
 				el.removeAttribute( attr.name );
+				return;
+			}
+
+			// A javascript: URL. Spaces and control characters are dropped
+			// first because the browser ignores them when it reads the scheme.
+			if ( name === 'href' || name === 'src' ) {
+				const value = attr.value
+					.replace( /[\u0000- ]/g, '' )
+					.toLowerCase();
+
+				if ( value.startsWith( 'javascript:' ) ) {
+					el.removeAttribute( attr.name );
+				}
 			}
 		} );
 	} );
 
 	return doc.body.innerHTML;
+}
+
+/**
+ * Whether a URL resolves to the page's own origin. A malformed URL is treated
+ * as off-origin.
+ *
+ * @param {string} url URL, absolute or relative to the page.
+ * @return {boolean} True when the URL is same-origin with the page.
+ */
+function isSameOrigin( url: string ): boolean {
+	try {
+		return (
+			new URL( url, window.location.href ).origin ===
+			window.location.origin
+		);
+	} catch {
+		return false;
+	}
 }
 
 /**
@@ -391,6 +429,14 @@ function initBlock( root: HTMLElement ): void {
 	);
 
 	if ( ! restUrl || ! entriesListEl ) {
+		return;
+	}
+
+	// The feed's REST URL comes from the block's markup, which an author
+	// without unfiltered_html can still set. Honour it only when it points at
+	// this site, so a planted root can't make the page fetch entries from
+	// another origin and insert the reply.
+	if ( ! isSameOrigin( restUrl ) ) {
 		return;
 	}
 
@@ -1713,6 +1759,9 @@ function initBlock( root: HTMLElement ): void {
 				return;
 			}
 
+			// Ad markup is inserted as served: it comes from this origin (the
+			// feed's REST URL is checked in initBlock) and needs the iframe or
+			// script the ad ships with, which sanitizeHtml would strip.
 			const adEl = entry.adHtml ? parseElement( entry.adHtml ) : null;
 
 			newEntries.push( { el: entryEl, adSlot: entry.adSlot, adEl } );
@@ -2233,7 +2282,7 @@ function initBlock( root: HTMLElement ): void {
 				}
 
 				if ( data.count > 0 ) {
-					const fragment = parseFragment( data.html );
+					const fragment = parseFragment( sanitizeHtml( data.html ) );
 
 					// Count how many entries were appended so the next page's offset can be correct.
 					let appended = 0;
