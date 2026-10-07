@@ -6,6 +6,7 @@ import {
 	useMemo,
 	useEffect,
 	useLayoutEffect,
+	useRef,
 	useState,
 	useCallback,
 } from '@wordpress/element';
@@ -197,6 +198,23 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 	const isRecordLoaded = ! isResolving && !! typedRecord;
 	const isReady = isRecordLoaded && isEditorReady;
 
+	// While loading, the header's Close button is the frame's only tab stop,
+	// and the header unmounts once the editor is ready. If that button had
+	// focus, it would fall to the page behind the dialog, so it goes back to
+	// the frame, where the Modal puts it on mount.
+	const modalRef = useRef< HTMLDivElement >( null );
+	useLayoutEffect( () => {
+		if ( ! isReady ) {
+			return;
+		}
+		const frame = modalRef.current?.querySelector< HTMLElement >(
+			'.components-modal__frame'
+		);
+		if ( frame && ! frame.contains( frame.ownerDocument.activeElement ) ) {
+			frame.focus();
+		}
+	}, [ isReady ] );
+
 	// Until the editor is ready there is nothing of ours to click, so the
 	// Modal keeps its own header and close button: an entry that never
 	// resolves (deleted, or no longer editable) must still be closable.
@@ -213,6 +231,7 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 	return (
 		<>
 			<Modal
+				ref={ modalRef }
 				{ ...modalProps }
 				className={ classnames( modalProps.className, {
 					'is-ready': isReady,
