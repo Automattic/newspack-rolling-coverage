@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-07T10:27:13+00:00\n"
+"POT-Creation-Date: 2026-10-07T10:53:29+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -86,7 +86,7 @@ msgstr ""
 #: includes/blocks/class-rolling-coverage-block.php:3982
 #: includes/blocks/class-rolling-coverage-block.php:4112
 #: includes/blocks/class-rolling-coverage-block.php:4123
-#: includes/class-post-type.php:1083
+#: includes/class-post-type.php:1149
 #: includes/class-taxonomy.php:347
 msgid "Coverage not found."
 msgstr ""
@@ -112,7 +112,7 @@ msgid "Generates key takeaways from the published entries of a rolling coverage.
 msgstr ""
 
 #: includes/blocks/class-block-icons.php:43
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Pin"
 msgstr ""
 
@@ -406,7 +406,7 @@ msgid "Meta"
 msgstr ""
 
 #: includes/blocks/class-rolling-coverage-block.php:2903
-#: includes/class-post-type.php:260
+#: includes/class-post-type.php:269
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "Entry"
 msgstr ""
@@ -485,9 +485,9 @@ msgstr ""
 msgid "AI"
 msgstr ""
 
-#: includes/class-admin.php:463
+#: includes/class-admin.php:466
 #: dist/admin.js:215
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Slack"
 msgstr ""
 
@@ -513,9 +513,9 @@ msgstr ""
 
 #: includes/class-archive-mode.php:268
 #: includes/class-breakout.php:238
-#: includes/class-post-type.php:1013
-#: includes/class-post-type.php:2536
-#: includes/class-post-type.php:2674
+#: includes/class-post-type.php:1066
+#: includes/class-post-type.php:2846
+#: includes/class-post-type.php:3251
 msgid "Entry not found."
 msgstr ""
 
@@ -557,7 +557,7 @@ msgstr ""
 
 #: includes/class-placements.php:392
 #: dist/admin.js:213
-#: dist/admin.js:222
+#: dist/admin.js:228
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "(no title)"
 msgstr ""
@@ -570,9 +570,9 @@ msgstr ""
 #: dist/admin.js:209
 #: dist/admin.js:210
 #: dist/admin.js:215
-#: dist/admin.js:222
-#: dist/admin.js:234
-#: dist/admin.js:237
+#: dist/admin.js:228
+#: dist/admin.js:240
+#: dist/admin.js:243
 msgid "Status"
 msgstr ""
 
@@ -597,124 +597,168 @@ msgstr ""
 msgid "Template, on this coverage’s breakout posts"
 msgstr ""
 
-#: includes/class-post-type.php:259
+#: includes/class-post-type.php:268
 #: dist/admin.js:215
 #: dist/admin.js:216
 #: dist/blocks/rolling-coverage/index.js:4
 msgid "Entries"
 msgstr ""
 
-#: includes/class-post-type.php:261
-#: dist/admin.js:229
-#: dist/admin.js:230
+#: includes/class-post-type.php:270
+#: dist/admin.js:235
+#: dist/admin.js:236
 msgid "Add Entry"
 msgstr ""
 
-#: includes/class-post-type.php:262
+#: includes/class-post-type.php:271
 msgid "Edit Entry"
 msgstr ""
 
-#: includes/class-post-type.php:263
+#: includes/class-post-type.php:272
 msgid "New Entry"
 msgstr ""
 
-#: includes/class-post-type.php:264
+#: includes/class-post-type.php:273
 msgid "View Entry"
 msgstr ""
 
-#: includes/class-post-type.php:265
+#: includes/class-post-type.php:274
 msgid "View Entries"
 msgstr ""
 
-#: includes/class-post-type.php:266
+#: includes/class-post-type.php:275
 msgid "Search Entries"
 msgstr ""
 
-#: includes/class-post-type.php:267
+#: includes/class-post-type.php:276
 msgid "No entries found."
 msgstr ""
 
-#: includes/class-post-type.php:268
+#: includes/class-post-type.php:277
 msgid "All Entries"
 msgstr ""
 
-#: includes/class-post-type.php:269
-#: dist/admin.js:226
+#: includes/class-post-type.php:278
+#: dist/admin.js:232
 msgid "Entry published."
 msgstr ""
 
-#: includes/class-post-type.php:270
+#: includes/class-post-type.php:279
 msgid "Entry published privately."
 msgstr ""
 
-#: includes/class-post-type.php:271
+#: includes/class-post-type.php:280
 msgid "Entry reverted to draft."
 msgstr ""
 
-#: includes/class-post-type.php:272
+#: includes/class-post-type.php:281
 msgid "Entry scheduled."
 msgstr ""
 
-#: includes/class-post-type.php:273
+#: includes/class-post-type.php:282
 msgid "Entry updated."
 msgstr ""
 
-#: includes/class-post-type.php:274
+#: includes/class-post-type.php:283
 #: dist/admin.js:215
-#: dist/admin.js:227
+#: dist/admin.js:233
 msgid "Entry trashed."
 msgstr ""
 
-#: includes/class-post-type.php:276
+#: includes/class-post-type.php:285
 msgid "Individual entries within a Rolling Coverage."
 msgstr ""
 
-#: includes/class-post-type.php:2448
-#: includes/class-post-type.php:2514
+#: includes/class-post-type.php:2579
+#: includes/class-post-type.php:2663
 msgid "No entry IDs provided."
 msgstr ""
 
-#: includes/class-post-type.php:2464
+#: includes/class-post-type.php:2595
 msgid "You do not have permission to restore this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2522
-msgid "That person can’t be the author of an entry."
-msgstr ""
-
-#: includes/class-post-type.php:2545
-msgid "You do not have permission to edit this entry."
-msgstr ""
-
-#: includes/class-post-type.php:2554
-msgid "This entry is archived, so its author can’t change."
-msgstr ""
-
-#: includes/class-post-type.php:2563
-msgid "Co-Authors Plus couldn’t credit this entry to that person."
-msgstr ""
-
-#: includes/class-post-type.php:2643
-msgid "An editor needs to restore the coverage before this entry can be restored."
-msgstr ""
-
-#: includes/class-post-type.php:2682
-msgid "Entry is not in trash."
+#: includes/class-post-type.php:2671
+msgid "The slug and date can only be changed one entry at a time."
 msgstr ""
 
 #: includes/class-post-type.php:2690
+msgid "That person can’t be the author of an entry."
+msgstr ""
+
+#: includes/class-post-type.php:2703
+msgid "That date isn’t valid."
+msgstr ""
+
+#: includes/class-post-type.php:2730
+msgid "Nothing to change."
+msgstr ""
+
+#: includes/class-post-type.php:2850
+msgid "You do not have permission to edit this entry."
+msgstr ""
+
+#: includes/class-post-type.php:2854
+msgid "This entry is archived, so it can’t be edited."
+msgstr ""
+
+#: includes/class-post-type.php:2865
+msgid "A published entry can’t have a date in the future."
+msgstr ""
+
+#: includes/class-post-type.php:2869
+msgid "Saving this entry would publish it, and you do not have permission to publish it."
+msgstr ""
+
+#: includes/class-post-type.php:2914
+msgid "Co-Authors Plus couldn’t credit this entry to that person."
+msgstr ""
+
+#: includes/class-post-type.php:2983
+msgid "One of the chosen categories doesn’t exist."
+msgstr ""
+
+#: includes/class-post-type.php:2984
+msgid "One of the chosen tags doesn’t exist."
+msgstr ""
+
+#: includes/class-post-type.php:3018
+msgid "You don’t have permission to assign one of the chosen categories."
+msgstr ""
+
+#: includes/class-post-type.php:3019
+msgid "You don’t have permission to assign one of the chosen tags."
+msgstr ""
+
+#: includes/class-post-type.php:3029
+msgid "You don’t have permission to create categories."
+msgstr ""
+
+#: includes/class-post-type.php:3030
+msgid "You don’t have permission to create tags."
+msgstr ""
+
+#: includes/class-post-type.php:3220
+msgid "An editor needs to restore the coverage before this entry can be restored."
+msgstr ""
+
+#: includes/class-post-type.php:3259
+msgid "Entry is not in trash."
+msgstr ""
+
+#: includes/class-post-type.php:3267
 msgid "This entry is archived, so it can’t be restored."
 msgstr ""
 
-#: includes/class-post-type.php:2741
+#: includes/class-post-type.php:3318
 msgid "This entry's coverage was deleted. An editor needs to restore it."
 msgstr ""
 
-#: includes/class-post-type.php:2763
+#: includes/class-post-type.php:3340
 msgid "This entry has no coverage context to restore to."
 msgstr ""
 
-#: includes/class-post-type.php:2821
+#: includes/class-post-type.php:3398
 msgid "Failed to restore entry."
 msgstr ""
 
@@ -881,8 +925,8 @@ msgstr ""
 #: dist/admin.js:211
 #: dist/admin.js:215
 #: dist/admin.js:218
-#: dist/admin.js:219
-#: dist/admin.js:221
+#: dist/admin.js:224
+#: dist/admin.js:227
 msgid "Cancel"
 msgstr ""
 
@@ -906,7 +950,7 @@ msgid "Channel unlinked successfully."
 msgstr ""
 
 #: includes/slack/class-slack-webhook-controller.php:1074
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "(unknown)"
 msgstr ""
 
@@ -972,7 +1016,7 @@ msgid "Settings"
 msgstr ""
 
 #: dist/admin.js:4
-#: dist/admin.js:234
+#: dist/admin.js:240
 #: dist/blocks/coverage-follow/index.js:1
 #: dist/blocks/coverage-follow/index.js:3
 #: dist/blocks/coverage-status/index.js:1
@@ -1055,9 +1099,9 @@ msgstr ""
 #: dist/admin.js:209
 #: dist/admin.js:215
 #: dist/admin.js:218
-#: dist/admin.js:221
-#: dist/admin.js:233
-#: dist/admin.js:237
+#: dist/admin.js:227
+#: dist/admin.js:239
+#: dist/admin.js:243
 msgid "Save"
 msgstr ""
 
@@ -1066,32 +1110,32 @@ msgid "Add"
 msgstr ""
 
 #: dist/admin.js:209
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Published"
 msgstr ""
 
 #: dist/admin.js:209
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Draft"
 msgstr ""
 
 #: dist/admin.js:209
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Pending"
 msgstr ""
 
 #: dist/admin.js:209
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Scheduled"
 msgstr ""
 
 #: dist/admin.js:209
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Private"
 msgstr ""
 
 #: dist/admin.js:209
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Trashed"
 msgstr ""
 
@@ -1102,8 +1146,8 @@ msgid "%1$s +%2$d"
 msgstr ""
 
 #: dist/admin.js:210
-#: dist/admin.js:222
-#: dist/admin.js:225
+#: dist/admin.js:228
+#: dist/admin.js:231
 msgid "Archived"
 msgstr ""
 
@@ -1112,14 +1156,14 @@ msgid "Not archived"
 msgstr ""
 
 #: dist/admin.js:210
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "Connected"
 msgstr ""
 
 #: dist/admin.js:210
 #: dist/admin.js:211
-#: dist/admin.js:234
-#: dist/admin.js:237
+#: dist/admin.js:240
+#: dist/admin.js:243
 msgid "Channel"
 msgstr ""
 
@@ -1132,29 +1176,29 @@ msgid "New messages posted in this channel are added to this coverage as entries
 msgstr ""
 
 #: dist/admin.js:210
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "Channel ID"
 msgstr ""
 
 #: dist/admin.js:210
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "Last Sync"
 msgstr ""
 
 #: dist/admin.js:210
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "Never"
 msgstr ""
 
 #: dist/admin.js:210
 #: dist/admin.js:211
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "Auto-publish"
 msgstr ""
 
 #. translators: %s: Slack channel name, or its ID when the name is unknown.
 #: dist/admin.js:211
-#: dist/admin.js:235
+#: dist/admin.js:241
 #, js-format
 msgid "Auto-publish entries from %s"
 msgstr ""
@@ -1180,7 +1224,7 @@ msgid "Failed to load auto-publish setting."
 msgstr ""
 
 #: dist/admin.js:211
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Failed to update auto-publish setting."
 msgstr ""
 
@@ -1189,7 +1233,7 @@ msgid "Could not connect to Slack."
 msgstr ""
 
 #: dist/admin.js:211
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Failed to disconnect."
 msgstr ""
 
@@ -1198,9 +1242,9 @@ msgid "Close"
 msgstr ""
 
 #: dist/admin.js:211
-#: dist/admin.js:234
-#: dist/admin.js:235
-#: dist/admin.js:238
+#: dist/admin.js:240
+#: dist/admin.js:241
+#: dist/admin.js:244
 msgid "Disconnect"
 msgstr ""
 
@@ -1215,13 +1259,13 @@ msgstr ""
 
 #: dist/admin.js:213
 #: dist/admin.js:216
-#: dist/admin.js:225
+#: dist/admin.js:231
 msgid "Edit"
 msgstr ""
 
 #: dist/admin.js:213
 #: dist/admin.js:216
-#: dist/admin.js:231
+#: dist/admin.js:237
 msgid "View Pages"
 msgstr ""
 
@@ -1315,8 +1359,8 @@ msgstr ""
 #: dist/admin.js:215
 #: dist/admin.js:216
 #: dist/admin.js:217
-#: dist/admin.js:226
-#: dist/admin.js:227
+#: dist/admin.js:232
+#: dist/admin.js:233
 msgid "Trash"
 msgstr ""
 
@@ -1331,12 +1375,12 @@ msgid "Connect %s to a Slack channel"
 msgstr ""
 
 #: dist/admin.js:216
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Created"
 msgstr ""
 
 #: dist/admin.js:216
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Modified"
 msgstr ""
 
@@ -1345,7 +1389,7 @@ msgid "Failed to load coverages."
 msgstr ""
 
 #: dist/admin.js:216
-#: dist/admin.js:230
+#: dist/admin.js:236
 msgid "View Page"
 msgstr ""
 
@@ -1382,7 +1426,7 @@ msgid "Coverages trashed."
 msgstr ""
 
 #: dist/admin.js:217
-#: dist/admin.js:227
+#: dist/admin.js:233
 msgid "Restore"
 msgstr ""
 
@@ -1400,8 +1444,8 @@ msgstr ""
 
 #: dist/admin.js:217
 #: dist/admin.js:218
-#: dist/admin.js:227
-#: dist/admin.js:228
+#: dist/admin.js:233
+#: dist/admin.js:234
 msgid "Delete Permanently"
 msgstr ""
 
@@ -1454,7 +1498,7 @@ msgid "Failed to save entry."
 msgstr ""
 
 #: dist/admin.js:218
-#: dist/admin.js:225
+#: dist/admin.js:231
 msgid "Quick Edit"
 msgstr ""
 
@@ -1466,819 +1510,916 @@ msgstr ""
 msgid "You have unsaved changes. Are you sure you want to close and discard them?"
 msgstr ""
 
-#: dist/admin.js:218
-msgid "The person you choose replaces this entry’s current author."
+#. translators: 1: category name, 2: its parent category's name, or the path of its ancestors.
+#: dist/admin.js:219
+#, js-format
+msgctxt "term with parent"
+msgid "%1$s (%2$s)"
+msgstr ""
+
+#. translators: 1: a category's ancestors, 2: the next category down the path.
+#: dist/admin.js:220
+#, js-format
+msgctxt "category path"
+msgid "%1$s › %2$s"
+msgstr ""
+
+#: dist/admin.js:220
+msgid "When the entry was published, which sets its place in the coverage. A published entry can’t be dated in the future."
+msgstr ""
+
+#: dist/admin.js:220
+#: dist/admin.js:221
+msgid "Date"
+msgstr ""
+
+#. translators: %s: the entry's date and time.
+#: dist/admin.js:221
+#, js-format
+msgid "Change date: %s"
 msgstr ""
 
 #. translators: %d: number of entries.
-#: dist/admin.js:219
+#: dist/admin.js:222
 #, js-format
 msgid "The person you choose replaces the current author of %d entry."
 msgid_plural "The person you choose replaces the current author of all %d entries."
 msgstr[0] ""
 msgstr[1] ""
 
-#: dist/admin.js:219
-#: dist/admin.js:226
-msgid "Change Author"
+#: dist/admin.js:222
+msgid "The person you choose replaces this entry’s current author."
 msgstr ""
 
-#: dist/admin.js:219
 #: dist/admin.js:222
+#: dist/admin.js:232
+msgid "Reassign"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "You can’t change the author, categories or tags of these entries."
+msgstr ""
+
+#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Author"
 msgstr ""
 
-#: dist/admin.js:219
-#: dist/admin.js:220
-msgid "Failed to change the author."
-msgstr ""
-
-#: dist/admin.js:219
-msgid "Author changed."
+#: dist/admin.js:222
+#: dist/admin.js:231
+msgid "Categories"
 msgstr ""
 
 #. translators: %d: number of entries.
-#: dist/admin.js:220
+#: dist/admin.js:223
 #, js-format
-msgid "Author changed for %d entry."
-msgid_plural "Author changed for %d entries."
+msgid "The categories you choose are added to %d entry. Its current categories stay."
+msgid_plural "The categories you choose are added to all %d entries. Their current categories stay."
+msgstr[0] ""
+msgstr[1] ""
+
+#: dist/admin.js:223
+msgid "Category added."
+msgstr ""
+
+#: dist/admin.js:223
+msgid "Category removed."
+msgstr ""
+
+#: dist/admin.js:223
+msgid "Remove category"
+msgstr ""
+
+#: dist/admin.js:223
+msgid "Choose an existing category."
+msgstr ""
+
+#: dist/admin.js:223
+#: dist/admin.js:231
+msgid "Tags"
+msgstr ""
+
+#. translators: %d: number of entries.
+#: dist/admin.js:224
+#, js-format
+msgid "The tags you choose are added to %d entry. Its current tags stay."
+msgid_plural "The tags you choose are added to all %d entries. Their current tags stay."
+msgstr[0] ""
+msgstr[1] ""
+
+#: dist/admin.js:224
+msgid "Tag added."
+msgstr ""
+
+#: dist/admin.js:224
+msgid "Tag removed."
+msgstr ""
+
+#: dist/admin.js:224
+msgid "Remove tag"
+msgstr ""
+
+#: dist/admin.js:224
+msgid "Choose an existing tag."
+msgstr ""
+
+#: dist/admin.js:224
+msgid "Slug"
+msgstr ""
+
+#: dist/admin.js:224
+msgid "The last part of the entry’s address."
+msgstr ""
+
+#: dist/admin.js:224
+#: dist/admin.js:226
+msgid "Failed to save the changes."
+msgstr ""
+
+#. translators: %s: the entry's slug.
+#: dist/admin.js:225
+#, js-format
+msgid "Changes saved. The slug is now “%s”."
+msgstr ""
+
+#: dist/admin.js:225
+msgid "Changes saved."
+msgstr ""
+
+#. translators: %d: number of entries.
+#: dist/admin.js:226
+#, js-format
+msgid "Changes saved for %d entry."
+msgid_plural "Changes saved for %d entries."
 msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of entries.
-#: dist/admin.js:221
+#: dist/admin.js:227
 #, js-format
-msgid "Couldn’t change the author of %d entry."
-msgid_plural "Couldn’t change the author of %d entries."
+msgid "Couldn’t save the changes to %d entry."
+msgid_plural "Couldn’t save the changes to %d entries."
 msgstr[0] ""
 msgstr[1] ""
 
-#: dist/admin.js:221
+#: dist/admin.js:227
 msgid "Confirm"
 msgstr ""
 
-#: dist/admin.js:221
+#: dist/admin.js:227
 msgid "This entry is archived, are you sure you want to edit it?"
 msgstr ""
 
 #. translators: %s: The coverage's status, e.g. "Paused" or "Ended".
-#: dist/admin.js:222
+#: dist/admin.js:228
 #, js-format
 msgid "This entry’s coverage is set to “%s”. Edit it anyway?"
 msgstr ""
 
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Are you sure you want to edit this entry?"
 msgstr ""
 
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "None"
 msgstr ""
 
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Post ID"
 msgstr ""
 
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Title"
 msgstr ""
 
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Pinned, from Slack"
 msgstr ""
 
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Pinned, from WordPress"
 msgstr ""
 
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "From Slack"
 msgstr ""
 
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "From WordPress"
 msgstr ""
 
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "Source"
 msgstr ""
 
-#: dist/admin.js:222
+#: dist/admin.js:228
 msgid "WordPress"
 msgstr ""
 
 #. translators: %s: date the entry was archived.
-#: dist/admin.js:225
+#: dist/admin.js:231
 #, js-format
 msgid "Archived on %s. This entry can't be pinned, trashed, or given a new breakout post. Unarchive it to allow those actions."
 msgstr ""
 
-#: dist/admin.js:225
-msgid "Categories"
-msgstr ""
-
-#: dist/admin.js:225
-msgid "Tags"
-msgstr ""
-
-#: dist/admin.js:225
+#: dist/admin.js:231
 msgid "Breakout"
 msgstr ""
 
-#: dist/admin.js:225
+#: dist/admin.js:231
 msgid "Failed to create entry"
 msgstr ""
 
-#: dist/admin.js:225
-#: dist/admin.js:226
+#: dist/admin.js:231
+#: dist/admin.js:232
 msgid "Publish"
 msgstr ""
 
-#: dist/admin.js:225
+#: dist/admin.js:231
 msgid "Publish this entry?"
 msgstr ""
 
 #. translators: %d: number of entries.
-#: dist/admin.js:226
+#: dist/admin.js:232
 #, js-format
 msgid "Publish %d entry?"
 msgid_plural "Publish %d entries?"
 msgstr[0] ""
 msgstr[1] ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Readers with the coverage open see published entries within seconds. Entries set to notify followers also send a push notification."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Readers with the coverage open see published entries within seconds."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Failed to publish entry."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Entries published."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Move to Draft"
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Failed to move entry to draft."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Entry moved to draft."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Entries moved to draft."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Create Breakout Post"
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Breakout post created."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Failed to create breakout post."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Restore Breakout Post"
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Breakout post restored."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Failed to restore breakout post."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Permanently Delete Breakout Post"
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Breakout post permanently deleted."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Failed to permanently delete breakout post."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Archive"
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Entry archived."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Entries archived."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Failed to archive entry."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Unarchive"
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Entry unarchived."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Entries unarchived."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Failed to unarchive entry."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Entry pinned."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Failed to pin entry."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Unpin"
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Entry unpinned."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Failed to unpin entry."
 msgstr ""
 
-#: dist/admin.js:226
+#: dist/admin.js:232
 msgid "Trash this entry?"
 msgstr ""
 
 #. translators: %d: number of entries.
-#: dist/admin.js:227
+#: dist/admin.js:233
 #, js-format
 msgid "Trash %d entry?"
 msgid_plural "Trash %d entries?"
 msgstr[0] ""
 msgstr[1] ""
 
-#: dist/admin.js:227
+#: dist/admin.js:233
 msgid "Failed to trash entry."
 msgstr ""
 
-#: dist/admin.js:227
+#: dist/admin.js:233
 msgid "Entries trashed."
 msgstr ""
 
-#: dist/admin.js:227
+#: dist/admin.js:233
 msgid "Entry restored. A recovery coverage was created."
 msgstr ""
 
-#: dist/admin.js:227
+#: dist/admin.js:233
 msgid "Entries restored. Recovery coverages were created where needed."
 msgstr ""
 
-#: dist/admin.js:227
+#: dist/admin.js:233
 msgid "Entry restored."
 msgstr ""
 
-#: dist/admin.js:227
+#: dist/admin.js:233
 msgid "Entries restored."
 msgstr ""
 
-#: dist/admin.js:227
+#: dist/admin.js:233
 msgid "Failed to restore some entries."
 msgstr ""
 
-#: dist/admin.js:227
+#: dist/admin.js:233
 msgid "Failed to restore entries."
 msgstr ""
 
-#: dist/admin.js:227
+#: dist/admin.js:233
 msgid "Permanently delete this entry?"
 msgstr ""
 
 #. translators: %d: number of entries.
-#: dist/admin.js:228
+#: dist/admin.js:234
 #, js-format
 msgid "Permanently delete %d entry?"
 msgid_plural "Permanently delete %d entries?"
 msgstr[0] ""
 msgstr[1] ""
 
-#: dist/admin.js:228
+#: dist/admin.js:234
 msgid "This cannot be undone."
 msgstr ""
 
-#: dist/admin.js:228
+#: dist/admin.js:234
 msgid "Failed to delete entry."
 msgstr ""
 
-#: dist/admin.js:228
+#: dist/admin.js:234
 msgid "Entry permanently deleted."
 msgstr ""
 
-#: dist/admin.js:228
+#: dist/admin.js:234
 msgid "Entries permanently deleted."
 msgstr ""
 
 #. translators: Read by screen readers before the linked Slack channel's name.
-#: dist/admin.js:229
+#: dist/admin.js:235
 msgid "Slack channel:"
 msgstr ""
 
-#: dist/admin.js:229
+#: dist/admin.js:235
 msgid "Connect Slack"
 msgstr ""
 
 #. translators: 1: The coverage's status, e.g. "Ended". 2: The status that allows new entries, e.g. "Live".
-#: dist/admin.js:230
+#: dist/admin.js:236
 #, js-format
 msgid "This coverage is set to “%1$s”. Set it to “%2$s” to add entries."
 msgstr ""
 
 #. translators: Accessibility text.
-#: dist/admin.js:231
+#: dist/admin.js:237
 msgid "(opens in a new tab)"
 msgstr ""
 
 #. translators: %d: number of updates.
-#: dist/admin.js:232
+#: dist/admin.js:238
 #, js-format
 msgid "%d updates in the last 10s"
 msgstr ""
 
-#: dist/admin.js:232
+#: dist/admin.js:238
 #: dist/blocks/rolling-coverage/index.js:22
 msgid "Fetching entries…"
 msgstr ""
 
-#: dist/admin.js:232
+#: dist/admin.js:238
 msgid "No entries yet"
 msgstr ""
 
-#: dist/admin.js:232
+#: dist/admin.js:238
 msgid "Entries are the short updates readers follow in this coverage, newest first."
 msgstr ""
 
 #. translators: <a> wraps the link to the Connector Approvals screen.
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "Rolling Coverage is waiting for AI connector approval. Approve it under <a>Tools → Connector Approvals</a> before these prompts take effect."
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "AI features are not available on this site. An administrator must enable the AI plugin and configure a provider before these prompts take effect."
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "Failed to load AI settings."
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "AI settings saved."
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "Failed to save AI settings."
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "Reset to defaults?"
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "The Key Takeaways prompt goes back to the default text and is saved straight away. The current prompt can’t be recovered."
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "Reset"
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "Failed to reset AI settings."
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "Prompts reset to defaults."
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "More actions"
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "Reset to Defaults"
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "The prompt exceeds the maximum length. Shorten the text to stay within the limit."
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "Key Takeaways"
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "The instruction the AI follows when it sums up a coverage in a short list of key takeaways for readers."
 msgstr ""
 
-#: dist/admin.js:233
+#: dist/admin.js:239
 msgid "Prompt"
 msgstr ""
 
 #. translators: 1: prompt placeholder token, 2: character count, 3: max character count
-#: dist/admin.js:234
+#: dist/admin.js:240
 #, js-format
 msgid "Use %1$s where the maximum number of takeaways should go. Keep it short: the AI already has the coverage entries. (%2$d / %3$d characters)"
 msgstr ""
 
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "No chat-source adapters are configured yet."
 msgstr ""
 
-#: dist/admin.js:234
-#: dist/admin.js:236
+#: dist/admin.js:240
+#: dist/admin.js:242
 msgid "Bot User OAuth Token"
 msgstr ""
 
-#: dist/admin.js:234
-#: dist/admin.js:236
+#: dist/admin.js:240
+#: dist/admin.js:242
 msgid "Starts with xoxb-"
 msgstr ""
 
-#: dist/admin.js:234
-#: dist/admin.js:236
+#: dist/admin.js:240
+#: dist/admin.js:242
 msgid "Signing Secret"
 msgstr ""
 
-#: dist/admin.js:234
-#: dist/admin.js:236
+#: dist/admin.js:240
+#: dist/admin.js:242
 msgid "32-character hex string"
 msgstr ""
 
-#: dist/admin.js:234
-#: dist/admin.js:235
+#: dist/admin.js:240
+#: dist/admin.js:241
 msgid "Ignore Prefix"
 msgstr ""
 
-#: dist/admin.js:234
-#: dist/admin.js:235
+#: dist/admin.js:240
+#: dist/admin.js:241
 msgid "Messages starting with this prefix are ignored during ingestion, and so are the replies in their threads."
 msgstr ""
 
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "Manifest copied to clipboard."
 msgstr ""
 
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "Could not copy the manifest."
 msgstr ""
 
-#: dist/admin.js:234
+#: dist/admin.js:240
 #: dist/blocks/rolling-coverage/index.js:19
 #: dist/blocks/share/view.js:1
 msgid "Copied!"
 msgstr ""
 
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "Copy Manifest"
 msgstr ""
 
-#: dist/admin.js:234
-#: dist/admin.js:237
+#: dist/admin.js:240
+#: dist/admin.js:243
 msgid "Connection Status"
 msgstr ""
 
-#: dist/admin.js:234
-#: dist/admin.js:237
+#: dist/admin.js:240
+#: dist/admin.js:243
 msgid "Workspace"
 msgstr ""
 
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "Workspace ID"
 msgstr ""
 
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "Bot token"
 msgstr ""
 
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "Slack bot user ID"
 msgstr ""
 
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "(deleted)"
 msgstr ""
 
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "On"
 msgstr ""
 
-#: dist/admin.js:234
+#: dist/admin.js:240
 msgid "Off"
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "No channels linked yet"
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Link a Slack channel to a coverage from the All Coverages list."
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Disconnect channel"
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Disconnect this channel from its coverage? Its messages will stop becoming entries."
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Fetching channels…"
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "User ID"
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Username"
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Display name"
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Email"
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Roles"
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "No WordPress bot user found."
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Ingestion"
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Choose which Slack messages become entries."
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Bot User"
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "This WordPress user is created automatically and is the author of every entry ingested from Slack. Change its display name or avatar from its WordPress profile."
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Return to the Slack connection after editing the bot user."
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Back to Slack Connection"
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Edit User"
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Connect to Slack"
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Turn messages in a Slack channel into rolling coverage entries."
 msgstr ""
 
-#: dist/admin.js:235
+#: dist/admin.js:241
 msgid "Create a Slack app"
 msgstr ""
 
 #. translators: <a> wraps the link to Slack's app creation page.
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "Create a new app from a manifest at <a>api.slack.com/apps</a>"
 msgstr ""
 
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "Paste the app manifest"
 msgstr ""
 
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "Copy the manifest and paste it into Slack when it asks for one."
 msgstr ""
 
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "Hide Manifest"
 msgstr ""
 
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "Show Manifest"
 msgstr ""
 
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "App Manifest"
 msgstr ""
 
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "Install the app"
 msgstr ""
 
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "Install the new app to your Slack workspace."
 msgstr ""
 
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "Add the app credentials"
 msgstr ""
 
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "Copy the Bot User OAuth Token from OAuth & Permissions and the Signing Secret from Basic Information, then paste them here."
 msgstr ""
 
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "Verify & Connect"
 msgstr ""
 
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "Error"
 msgstr ""
 
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "Warning"
 msgstr ""
 
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "Success"
 msgstr ""
 
-#: dist/admin.js:236
+#: dist/admin.js:242
 msgid "Info"
 msgstr ""
 
 #. translators: Monitor event time format, see https://www.php.net/manual/datetime.format.php
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "M j, Y g:i:s a"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Message timestamp"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Entry ID"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Coverage ID"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Reason"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Error code"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Error message"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Sending workspace ID"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Connected workspace ID"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Ignore prefix"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Request timestamp"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Seconds since the request was signed"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Signature prefix"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Request body length"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Data"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Level"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "Time"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "The monitor could not be started. Reload the page to try again."
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Event"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Starting the monitor…"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "No events yet"
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Events appear here while this page is open. Post in a linked Slack channel or run a slash command to see activity."
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Failed to load channels."
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Failed to load Slack settings."
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Channel disconnected."
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Failed to disconnect the channel."
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Connection failed."
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Settings saved."
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "Failed to save settings."
 msgstr ""
 
-#: dist/admin.js:237
+#: dist/admin.js:243
 msgid "(connected)"
 msgstr ""
 
 #. translators: <a> wraps the link to the site's Slack apps, <code> wraps the name of a Slack permission.
-#: dist/admin.js:238
+#: dist/admin.js:244
 msgid "Images posted in Slack are left out of entries, because the Slack app is not allowed to read files. At <a>api.slack.com/apps</a>, open the app, add the <code>files:read</code> scope under OAuth & Permissions, and reinstall the app to your workspace."
 msgstr ""
 
-#: dist/admin.js:238
+#: dist/admin.js:244
 msgid "The Slack settings could not be loaded. Reload the page to try again."
 msgstr ""
 
-#: dist/admin.js:238
+#: dist/admin.js:244
 msgid "Fetching settings…"
 msgstr ""
 
-#: dist/admin.js:238
+#: dist/admin.js:244
 msgid "Disconnect Slack"
 msgstr ""
 
-#: dist/admin.js:238
+#: dist/admin.js:244
 msgid "Are you sure you want to disconnect Slack? All channel mappings will be removed."
 msgstr ""
 
