@@ -46,7 +46,7 @@ In the built-in layouts, each entry has a "Read more" link to its breakout post 
 
 A `core/button` bound to the `newspack-rolling-coverage/entry` source with the key `breakoutUrl` or `shareUrl` works the same way (see the entry bindings above). A share button renders as the link icon alone (`Entry_Bindings::show_share_icon()`), and `share-preview.tsx` marks it in the editor so `editor.scss` previews it the same way.
 
-The Share block's view script, `src/blocks/share/view.ts`, handles the clicks. `render_block()` enqueues it with every feed, and it listens on each feed for `[data-rc-share]` and the Share block's button: it opens the device's share sheet where there is one, and otherwise copies the link and says "Link copied." in a Newspack UI snackbar, or in the feed's status region without Newspack UI.
+The Share block's view script, `src/blocks/share/view.ts`, handles the clicks. `render_block()` enqueues it with every feed, and it listens on each feed present at load for `[data-rc-share]` and the Share block's button: it opens the device's share sheet where there is one, and otherwise copies the link and says "Link copied." in a Newspack UI snackbar, or without Newspack UI in the status region of the button's feed. Since a feed can sit inside another feed's entry, a tap reaches every feed around the button, and only the closest feed with listeners handles it. A feed added after load has no listeners, so the closest feed around it that was there at load handles its buttons, and announces in its own region when the button's feed is capped. Like `ownElement()` in the feed's view script, its lookups skip a nested feed's elements, so the shared title never comes from a nested feed's entry.
 
 ### The Share and Breakout Post Link blocks
 
