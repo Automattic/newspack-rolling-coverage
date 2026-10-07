@@ -177,6 +177,14 @@ Until a source has them, its entries show the WordPress marker, yet "Source is W
 
 The server needs no change beyond the ingest path writing the slug to the meta. The entries endpoint's `source` and `source_exclude` filters accept any slug, with `wordpress` special-cased to include entries that have no meta.
 
+## Slack webhooks on a password-protected site
+
+Slack sends events, slash commands and interactions to three REST routes, `rolling-coverage/v1/slack/events`, `/slack/commands` and `/slack/interactions` (`Slack_Webhook_Controller::WEBHOOK_ROUTES`), registered once Slack is configured. Each checks Slack's signature in its permission callback and answers an unsigned request with a 401.
+
+The [Password Protected](https://wordpress.org/plugins/password-protected/) plugin refuses REST requests from visitors who haven't entered the site password, unless its "Allow REST API" setting is on. Slack can't enter the password, so `Slack_Webhook_Controller::filter_password_protected_is_active()` turns that protection off for the webhook routes alone, on the plugin's `password_protected_is_active` filter at priority 100. Everything else stays protected, the Slack admin routes included. The route is the one WordPress parsed from the request URL (the `rest_route` query var, whether the URL uses `/wp-json/` or `?rest_route=`), compared without regard to case or a trailing slash, as the REST API matches routes.
+
+Tests: `tests/test-slack-webhook.php`, against a stand-in for the plugin's REST gate in `tests/mocks/class-password-protected.php`.
+
 ## Placements
 
 A coverage's placements are every published place where the plugin's blocks show it. The coverage header and the All Coverages row actions use them to send editors to those places.

@@ -51,6 +51,8 @@ class Slack {
 
 		add_action( 'rest_api_init', [ self::get_webhook_controller(), 'register_webhook_routes' ] );
 		add_action( 'delete_' . Taxonomy::TAXONOMY_SLUG, [ Slack_Config::class, 'on_term_deleted' ], 10, 1 );
+		// Late, so a filter that turns protection back on can't lock Slack out.
+		add_filter( 'password_protected_is_active', [ Slack_Webhook_Controller::class, 'filter_password_protected_is_active' ], 100 );
 	}
 
 	/**
