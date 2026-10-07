@@ -37,6 +37,8 @@ import { __ } from '@wordpress/i18n';
  */
 import { useAdminContext } from '../hooks/useAdminContext';
 import { ensureEditorInitialized } from '../utils/block-registration';
+import { createEntry, deleteEntry } from '../utils/entries-api';
+import { ErrorNotice } from '../shared/error-notice';
 import { LoadingState } from '../shared/loading-state';
 import { ConfirmModal } from './confirm-modal';
 import { quickEditPreferencesStore } from '../utils/quick-edit-preferences';
@@ -102,6 +104,17 @@ function EditorReadySignal( { onReady }: { onReady: () => void } ) {
  * row on top, the canvas, Cancel and Save at the bottom. The WordPress
  * `Modal` header is hidden once the editor is ready; every control is ours.
  *
+ * With `entryId` null it adds a new entry to `coverageId` instead, titled
+ * "Add Entry". The editor needs a post to work on before anything is saved,
+ * so the modal first asks the plugin's route for an empty auto-draft in the
+ * coverage, as `post-new.php` does for a post, then opens it like any entry.
+ * The footer offers Save Draft and Publish (or Submit for Review); the first
+ * successful save closes the modal, since the entry now exists in the list,
+ * and the editor's own save snackbar shows on the page. Cancel deletes the
+ * auto-draft, which is still empty on the server; one left behind another
+ * way (the tab closed, say) is deleted by core's auto-draft cleanup a week
+ * later.
+ *
  * - Save notices render inside the modal through `SnackbarNotices` from
  *   `@wordpress/notices`, which replaces `EditorSnackbars` (deprecated in
  *   WordPress 7.0, removed in 7.2). Its class name is what positions the
@@ -127,12 +140,22 @@ function EditorReadySignal( { onReady }: { onReady: () => void } ) {
  *
  * @param {QuickEditModalProps} props Component props.
  */
-function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
+function QuickEditModal( {
+	entryId,
+	coverageId,
+	onClose,
+	onSaved,
+}: QuickEditModalProps ) {
 	const config = useAdminContext();
+	const isNew = entryId === null;
+	const [ newEntryId, setNewEntryId ] = useState< number | null >( null );
+	const [ createError, setCreateError ] = useState< string | null >( null );
+	const recordId = entryId ?? newEntryId;
 	const { record, isResolving, hasEdits } = useEntityRecord(
 		'postType',
 		config.postType,
-		entryId
+		recordId ?? 0,
+		{ enabled: recordId !== null }
 	);
 	const typedRecord = record as EntityRecord | null;
 	const [ showCloseConfirm, setShowCloseConfirm ] = useState( false );
@@ -146,17 +169,59 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 		ensureEditorInitialized();
 	}, [] );
 
+	// A new entry is started once per opening. The request is not cancelled
+	// on close: an auto-draft nobody opens is cleaned up by core.
+	const hasStartedEntryRef = useRef( false );
+	useEffect( () => {
+		if (
+			! isNew ||
+			coverageId === undefined ||
+			hasStartedEntryRef.current
+		) {
+			return;
+		}
+		hasStartedEntryRef.current = true;
+		createEntry( config.restBaseUrls.restNamespace, coverageId ).then(
+			( result ) => {
+				if ( result.success && result.id ) {
+					setNewEntryId( result.id );
+				} else {
+					setCreateError(
+						result.error ||
+							__(
+								'Failed to create entry',
+								'newspack-rolling-coverage'
+							)
+					);
+				}
+			}
+		);
+	}, [ isNew, coverageId, config.restBaseUrls.restNamespace ] );
+
 	const editorRegistry = useQuickEditRegistry();
 
+	// A new entry that was never saved is still an empty auto-draft on the
+	// server, whatever was typed: its first successful save closes the modal
+	// through `handleSaved` instead. So cancelling deletes it rather than
+	// leaving it for core's weekly cleanup. Nothing waits on the request, and
+	// a refusal (the coverage ended meanwhile, say) leaves it to core.
+	const isUnsavedNewEntry =
+		isNew && ( ! typedRecord || typedRecord.status === 'auto-draft' );
 	const handleClose = useCallback( () => {
 		removeAllNotices( 'snackbar' );
-		clearEntityRecordEdits( 'postType', config.postType, entryId );
+		if ( recordId !== null ) {
+			clearEntityRecordEdits( 'postType', config.postType, recordId );
+		}
+		if ( isUnsavedNewEntry && recordId !== null ) {
+			deleteEntry( config, recordId, true );
+		}
 		onClose();
 	}, [
 		removeAllNotices,
 		clearEntityRecordEdits,
-		config.postType,
-		entryId,
+		config,
+		isUnsavedNewEntry,
+		recordId,
 		onClose,
 	] );
 
@@ -167,6 +232,17 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 		}
 		handleClose();
 	}, [ hasEdits, handleClose ] );
+
+	// An existing entry stays open after a save; a new one is in the list
+	// now, so the modal closes. The editor's own "Draft saved." or "Entry
+	// published." snackbar arrives a tick after the save finishes and then
+	// shows on the page, so unlike Cancel this leaves the notices alone.
+	const handleSaved = useCallback( () => {
+		if ( isNew ) {
+			onClose();
+		}
+		onSaved();
+	}, [ isNew, onClose, onSaved ] );
 
 	const settings = useMemo(
 		() =>
@@ -184,8 +260,12 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 		? { type: 'constrained' }
 		: undefined;
 
+	const title = isNew
+		? __( 'Add Entry', 'newspack-rolling-coverage' )
+		: __( 'Quick Edit', 'newspack-rolling-coverage' );
+
 	const modalProps = {
-		contentLabel: __( 'Quick Edit', 'newspack-rolling-coverage' ),
+		contentLabel: title,
 		shouldCloseOnClickOutside: false,
 		shouldCloseOnEsc: false,
 		isDismissible: false,
@@ -214,13 +294,32 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 		}
 	}, [ isReady ] );
 
+	// A new entry opens with the caret in its title, as the post editor opens
+	// a new post. `PostTitle` focuses itself only while nothing has focus, and
+	// the frame has it by the time the title mounts in the canvas, so the
+	// title's own focus method is called as it mounts instead. Once only:
+	// `PostTitle` builds that handle anew on every render, so this ref is
+	// called again on each keystroke, and focusing then would pull the caret
+	// back out of the paragraph Enter moved it to.
+	const hasFocusedNewEntryTitleRef = useRef( false );
+	const focusNewEntryTitle = useCallback(
+		( postTitle: { focus: () => void } | null ) => {
+			if ( isNew && postTitle && ! hasFocusedNewEntryTitleRef.current ) {
+				hasFocusedNewEntryTitleRef.current = true;
+				postTitle.focus();
+			}
+		},
+		[ isNew ]
+	);
+
 	// Until the editor is ready there is nothing of ours to click, so the
 	// Modal keeps its own header and close button: an entry that never
-	// resolves (deleted, or no longer editable) must still be closable.
+	// resolves (deleted, or no longer editable), or a new entry that could
+	// not be started, must still be closable.
 	const loadingModalProps = isReady
 		? {}
 		: {
-				title: __( 'Quick Edit', 'newspack-rolling-coverage' ),
+				title,
 				__experimentalHideHeader: false,
 				isDismissible: true,
 				shouldCloseOnEsc: true,
@@ -240,12 +339,23 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 			>
 				{ ! isReady && (
 					<div className="newspack-rolling-coverage-quick-edit__loading">
-						<LoadingState
-							label={ __(
-								'Fetching entry…',
-								'newspack-rolling-coverage'
-							) }
-						/>
+						{ createError ? (
+							<ErrorNotice message={ createError } />
+						) : (
+							<LoadingState
+								label={
+									isNew
+										? __(
+												'Preparing entry…',
+												'newspack-rolling-coverage'
+											)
+										: __(
+												'Fetching entry…',
+												'newspack-rolling-coverage'
+											)
+								}
+							/>
+						) }
 					</div>
 				) }
 				{ isRecordLoaded && (
@@ -264,7 +374,7 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 									<div
 										className={ `editor-visual-editor__post-title-wrapper${ layoutClassName }` }
 									>
-										<PostTitle />
+										<PostTitle ref={ focusNewEntryTitle } />
 									</div>
 									<BlockList
 										className={ `wp-block-post-content${ layoutClassName }` }
@@ -274,8 +384,9 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 							</div>
 							<div className="newspack-rolling-coverage-quick-edit__footer">
 								<QuickEditSaveBar
+									isNew={ isNew }
 									onClose={ handleRequestClose }
-									onSaved={ onSaved }
+									onSaved={ handleSaved }
 								/>
 							</div>
 							<SnackbarNotices className="components-editor-notices__snackbar" />

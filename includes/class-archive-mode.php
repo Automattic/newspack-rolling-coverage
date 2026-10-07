@@ -206,7 +206,10 @@ class Archive_Mode {
 	 * Blocks REST requests from adding entries to archived coverages.
 	 *
 	 * Existing coverage assignments are ignored, allowing entries to be saved
-	 * without changing their current archived coverage.
+	 * without changing their current archived coverage. An auto-draft is the
+	 * exception: Quick Edit assigns its coverage when the entry is started,
+	 * before anything is saved (`Post_Type::handle_create_entry()`), and its
+	 * first save is what adds the entry, so that coverage counts as new.
 	 *
 	 * @param \stdClass       $prepared_post Post object about to be inserted.
 	 * @param WP_REST_Request $request       Request object.
@@ -214,20 +217,34 @@ class Archive_Mode {
 	 */
 	public static function block_rest_writes( $prepared_post, WP_REST_Request $request ) {
 		$requested_coverages = wp_parse_id_list( $request[ Taxonomy::REST_BASE ] ?? [] );
+		$is_auto_draft       = self::is_auto_draft( $prepared_post );
 
-		if ( empty( $requested_coverages ) ) {
+		if ( empty( $requested_coverages ) && ! $is_auto_draft ) {
 			return $prepared_post;
 		}
 
-		$new_coverages = array_diff( $requested_coverages, self::get_existing_coverage_ids( $prepared_post ) );
+		$existing_coverages = self::get_existing_coverage_ids( $prepared_post );
+		$new_coverages      = $is_auto_draft
+			? array_unique( array_merge( $requested_coverages, $existing_coverages ) )
+			: array_diff( $requested_coverages, $existing_coverages );
 
 		foreach ( $new_coverages as $coverage_id ) {
-			if ( self::is_coverage_archived( $coverage_id ) ) {
+			if ( self::is_coverage_archived( (int) $coverage_id ) ) {
 				return self::archived_error();
 			}
 		}
 
 		return $prepared_post;
+	}
+
+	/**
+	 * Whether a post about to be saved is still an auto-draft.
+	 *
+	 * @param \stdClass $prepared_post Post object about to be inserted.
+	 * @return bool
+	 */
+	private static function is_auto_draft( $prepared_post ): bool {
+		return ! empty( $prepared_post->ID ) && 'auto-draft' === get_post_status( (int) $prepared_post->ID );
 	}
 
 	/**

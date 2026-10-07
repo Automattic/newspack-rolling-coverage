@@ -31,32 +31,24 @@ import type {
 const SYNC_INTERVAL_MS = 10000;
 
 /**
- * Creates a draft entry assigned to a coverage term, returning the new
- * post ID so the caller can redirect to the classic editor.
+ * Starts a new entry in a coverage for Quick Edit to open: an empty
+ * auto-draft, which the first save turns into a draft or publishes.
  *
- * @param {string} restBaseEntries  - Full REST URL for the entries collection (from config.restBaseUrls.entries).
- * @param {string} coverageRestBase - The coverage taxonomy REST base slug (from config.restBase.coverages), used as the POST body key.
- * @param {number} coverageId       - The coverage term ID to assign.
- * @return {Promise<CreateEntryResult>} Result indicating success (with post ID) or failure.
+ * @param {string} restNamespace - REST namespace URL (from config.restBaseUrls.restNamespace).
+ * @param {number} coverageId    - The coverage term ID the entry is added to.
+ * @return {Promise<CreateEntryResult>} Result with the new entry's ID, or the error.
  */
 async function createEntry(
-	restBaseEntries: string,
-	coverageRestBase: string,
+	restNamespace: string,
 	coverageId: number
 ): Promise< CreateEntryResult > {
 	try {
-		const data: Record< string, unknown > = {
-			status: 'draft',
-		};
-		data[ coverageRestBase ] = [ coverageId ];
-
-		const post = await apiFetch< { id: number } >( {
-			url: restBaseEntries,
+		const entry = await apiFetch< { id: number } >( {
+			url: `${ restNamespace }coverages/${ coverageId }/entries`,
 			method: 'POST',
-			data,
 		} );
 
-		return { success: true, id: post.id };
+		return { success: true, id: entry.id };
 	} catch ( error ) {
 		return { success: false, error: handleApiError( error as Error ) };
 	}
@@ -527,22 +519,24 @@ function getEntryEditWarning( entry: Entry ): EntryEditWarning {
 /**
  * Sends a DELETE request for a single entry, returning a normalised
  * ApiResult. When `force` is truthy the entry is permanently deleted;
- * otherwise it is moved to the trash.
+ * otherwise it is moved to the trash. Quick Edit also uses it, with
+ * `force`, to drop the auto-draft of a new entry cancelled before its
+ * first save.
  *
- * @param {AdminConfig} config Admin config providing the entries REST base.
- * @param {Entry}       entry  The entry row being operated on.
- * @param {boolean}     force  Whether to bypass the trash (permanent delete).
+ * @param {AdminConfig} config  Admin config providing the entries REST base.
+ * @param {number}      entryId The entry being deleted.
+ * @param {boolean}     force   Whether to bypass the trash (permanent delete).
  * @return {Promise<ApiResult>} Result indicating success or failure.
  */
 async function deleteEntry(
 	config: AdminConfig,
-	entry: Entry,
+	entryId: number,
 	force: boolean
 ): Promise< ApiResult > {
 	const query = force ? '?force=true' : '';
 	try {
 		await apiFetch( {
-			path: `/wp/v2/${ config.restBase.entries }/${ entry.id }${ query }`,
+			path: `/wp/v2/${ config.restBase.entries }/${ entryId }${ query }`,
 			method: 'DELETE',
 		} );
 		return { success: true };
@@ -570,7 +564,7 @@ async function runEntryBulk(
 	force: boolean
 ): Promise< { failed: ApiResult[]; succeeded: boolean } > {
 	const results = await Promise.all(
-		items.map( ( entry ) => deleteEntry( config, entry, force ) )
+		items.map( ( entry ) => deleteEntry( config, entry.id, force ) )
 	);
 	const failed = results.filter( ( r ) => ! r.success );
 	return { failed, succeeded: failed.length === 0 };
