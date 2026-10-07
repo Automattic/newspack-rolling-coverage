@@ -6,7 +6,7 @@
  */
 
 /**
- * The entries list's Edit Details drawer can credit one person with every
+ * The entries list's Reassign drawer can credit one person with every
  * selected entry. It is an editor's job, checked per entry, and keeps
  * Co-Authors Plus in step so the byline and the list agree.
  */

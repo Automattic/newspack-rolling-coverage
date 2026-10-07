@@ -1,15 +1,16 @@
 <?php
 /**
- * Tests for editing the categories and tags of entries from the entries list.
+ * Tests for reassigning entries from the entries list.
  *
  * @package Newspack_Rolling_Coverage
  */
 
 /**
- * The entries list's Edit Details drawer sets the author, categories and
- * tags of one or more entries. With one entry the terms sent replace its
- * own; with several they are added to each. Only the details named change.
- * The author side is covered by Test_Entry_Author.
+ * The entries list's Reassign drawer sets the author, categories and tags
+ * of one or more entries, and the slug and date of a single entry. With one
+ * entry the terms sent replace its own; with several they are added to
+ * each. Only the details named change. The author side is covered by
+ * Test_Entry_Author.
  */
 class Test_Entry_Details extends Rolling_Coverage_TestCase {
 
@@ -22,7 +23,7 @@ class Test_Entry_Details extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Send an Edit Details request.
+	 * Send a Reassign request.
 	 *
 	 * @param int[] $entry_ids Entry post IDs.
 	 * @param array $details   Other request parameters.
@@ -294,5 +295,103 @@ class Test_Entry_Details extends Rolling_Coverage_TestCase {
 			'Only the author\'s own entry should be updated.'
 		);
 		$this->assertSame( [], self::term_ids( $others, 'post_tag' ), 'The other author\'s entry should get no tag.' );
+	}
+
+	/**
+	 * The slug is sanitized like any post slug, and the result reports the
+	 * slug the entry ended up with.
+	 */
+	public function test_sanitizes_the_slug() {
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_title' => 'Polls close' ] );
+
+		$results = self::edit_details( [ $entry_id ], [ 'slug' => 'Polls Close <b>Now</b>!' ] )->get_data()['results'];
+
+		$this->assertTrue( $results[0]['updated'], 'The entry should be reported as updated.' );
+		$this->assertSame( 'polls-close-now', get_post_field( 'post_name', $entry_id ), 'The slug should be sanitized.' );
+		$this->assertSame( 'polls-close-now', $results[0]['slug'], 'The result should report the stored slug.' );
+	}
+
+	/**
+	 * A slug another entry already has is made unique, and the result
+	 * reports the slug the entry got instead of the one sent.
+	 */
+	public function test_makes_the_slug_unique() {
+		$coverage_id = self::create_coverage();
+		$first       = self::create_entry( $coverage_id, [ 'post_name' => 'polls-close' ] );
+		$second      = self::create_entry( $coverage_id, [ 'post_name' => 'results' ] );
+
+		$results = self::edit_details( [ $second ], [ 'slug' => 'polls-close' ] )->get_data()['results'];
+
+		$this->assertSame( 'polls-close', get_post_field( 'post_name', $first ), 'The first entry should keep its slug.' );
+		$this->assertNotSame( 'polls-close', get_post_field( 'post_name', $second ), 'The second entry should not share the slug.' );
+		$this->assertSame( get_post_field( 'post_name', $second ), $results[0]['slug'], 'The result should report the unique slug.' );
+	}
+
+	/**
+	 * The date sets the entry's local publish date, and its GMT date with it.
+	 */
+	public function test_sets_the_date() {
+		update_option( 'timezone_string', 'Europe/London' );
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_date' => '2026-03-01 09:00:00' ] );
+
+		$results = self::edit_details( [ $entry_id ], [ 'date' => '2026-07-01T08:30:00' ] )->get_data()['results'];
+
+		$this->assertTrue( $results[0]['updated'], 'The entry should be reported as updated.' );
+		$this->assertSame( '2026-07-01 08:30:00', get_post_field( 'post_date', $entry_id ), 'The local date should be the one sent.' );
+		$this->assertSame( '2026-07-01 07:30:00', get_post_field( 'post_date_gmt', $entry_id ), 'The GMT date should follow the site time zone.' );
+		$this->assertSame( 'publish', get_post_status( $entry_id ), 'The entry should stay published.' );
+	}
+
+	/**
+	 * Moving a published entry into the future would quietly schedule it,
+	 * so it is refused, along with the rest of the changes to that entry.
+	 */
+	public function test_refuses_a_future_date_for_a_published_entry() {
+		$tag      = self::factory()->tag->create( [ 'name' => 'Election' ] );
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_date' => '2026-03-01 09:00:00' ] );
+
+		$results = self::edit_details(
+			[ $entry_id ],
+			[
+				'date' => wp_date( 'Y-m-d\TH:i:s', time() + DAY_IN_SECONDS ),
+				'tags' => [ 'ids' => [ $tag ] ],
+			]
+		)->get_data()['results'];
+
+		$this->assertFalse( $results[0]['updated'], 'The entry should be reported as failed.' );
+		$this->assertNotEmpty( $results[0]['error'], 'The failure should say why.' );
+		$this->assertSame( 'publish', get_post_status( $entry_id ), 'The entry should stay published.' );
+		$this->assertSame( '2026-03-01 09:00:00', get_post_field( 'post_date', $entry_id ), 'The entry should keep its date.' );
+		$this->assertSame( [], self::term_ids( $entry_id, 'post_tag' ), 'The entry should get no tag.' );
+	}
+
+	/**
+	 * A draft can take a future date, and stays a draft.
+	 */
+	public function test_a_draft_can_take_a_future_date() {
+		$future   = wp_date( 'Y-m-d\TH:i:s', time() + DAY_IN_SECONDS );
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_status' => 'draft' ] );
+
+		$results = self::edit_details( [ $entry_id ], [ 'date' => $future ] )->get_data()['results'];
+
+		$this->assertTrue( $results[0]['updated'], 'The entry should be reported as updated.' );
+		$this->assertSame( str_replace( 'T', ' ', $future ), get_post_field( 'post_date', $entry_id ), 'The draft should take the date.' );
+		$this->assertSame( 'draft', get_post_status( $entry_id ), 'The entry should stay a draft.' );
+	}
+
+	/**
+	 * The slug and date belong to one entry, so a request that sets them on
+	 * several is rejected before anything changes.
+	 */
+	public function test_rejects_a_slug_or_date_for_several_entries() {
+		$coverage_id = self::create_coverage();
+		$entry_ids   = [ self::create_entry( $coverage_id ), self::create_entry( $coverage_id ) ];
+
+		$with_slug = self::edit_details( $entry_ids, [ 'slug' => 'polls-close' ] );
+		$with_date = self::edit_details( $entry_ids, [ 'date' => '2020-01-01T00:00:00' ] );
+
+		$this->assertSame( 400, $with_slug->get_status(), 'A slug for several entries should be rejected.' );
+		$this->assertSame( 400, $with_date->get_status(), 'A date for several entries should be rejected.' );
+		$this->assertNotSame( 'polls-close', get_post_field( 'post_name', $entry_ids[0] ), 'No entry should take the slug.' );
 	}
 }
