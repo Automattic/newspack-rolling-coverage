@@ -261,6 +261,8 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 			<ConfirmDialog
 				isOpen={ showCloseConfirm }
 				size="small"
+				title={ __( 'Discard Changes?', 'newspack-rolling-coverage' ) }
+				__experimentalHideHeader={ false }
 				onConfirm={ () => {
 					setShowCloseConfirm( false );
 					handleClose();
