@@ -12,8 +12,8 @@ const COPIED_STATE_MS = 2000;
 
 // A share button's events reach every feed holding it. Only the closest feed
 // with listeners handles each one, so the link is shared or copied once. A
-// feed added after page load gets no listeners, and the feed holding it
-// handles its buttons.
+// feed added after page load gets no listeners, so the closest feed around it
+// that was there at load handles its buttons.
 const handledEvents = new WeakSet< Event >();
 
 type NewspackUI = {
@@ -101,6 +101,28 @@ async function copyText(
 }
 
 /**
+ * The first element in a feed that matches a selector, leaving out those of a
+ * feed nested in one of its entries, which repeats the same classes. The
+ * feed's own view script follows the same rule (ownElement() there).
+ *
+ * @param {HTMLElement} feed     The feed's outer wrapper element.
+ * @param {string}      selector Selector to match.
+ * @param {HTMLElement} [within] Part of the feed to look in; all of it by default.
+ * @return {HTMLElement | null} The element, or null if the feed has none of its own.
+ */
+function ownElement(
+	feed: HTMLElement,
+	selector: string,
+	within: HTMLElement = feed
+): HTMLElement | null {
+	return (
+		Array.from( within.querySelectorAll< HTMLElement >( selector ) ).find(
+			( element ) => element.closest( BLOCK_SELECTOR ) === feed
+		) ?? null
+	);
+}
+
+/**
  * Sets up share-button click handling for a single rolling-coverage
  * block instance. Uses event delegation on the container so buttons
  * injected by polling/pagination are handled without re-binding.
@@ -126,6 +148,8 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
+		// Not always root: a feed added after load has no listeners of its own.
+		const ownFeed = button.closest< HTMLElement >( BLOCK_SELECTOR ) ?? root;
 		const shareData: ShareData = {
 			url,
 			title:
@@ -155,13 +179,12 @@ function initBlock( root: HTMLElement ): void {
 		const createNotice = ( window as Window & { newspackUI?: NewspackUI } )
 			.newspackUI?.notices?.createNotice;
 		// The snackbar announces itself, so the status region stays empty.
-		// Only the feed's own region counts: a capped feed renders none, and
-		// the first match would then be a nested feed's.
+		// Otherwise the button's feed announces the copy, or the feed handling
+		// the tap when the button's feed is capped and renders no region.
 		const status = createNotice
 			? null
-			: Array.from( root.querySelectorAll( STATUS_SELECTOR ) ).find(
-					( region ) => region.closest( BLOCK_SELECTOR ) === root
-				);
+			: ( ownElement( ownFeed, STATUS_SELECTOR ) ??
+				ownElement( root, STATUS_SELECTOR ) );
 		const notify = ( message: string ) => {
 			if ( createNotice ) {
 				showSnackbar( createNotice, message );
