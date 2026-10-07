@@ -1,6 +1,132 @@
 # Admin screens: development notes
 
-The plugin's admin screens live in `src/admin/`: the coverages list, each coverage's entries list, Quick Edit, the Settings modal, and the Slack and AI pages. The entries list is a DataViews table; its fields are defined in `src/admin/fields/entries.tsx`.
+The plugin's admin screens live in `src/admin/`: the coverages list, each coverage's entries list, Quick Edit, the Settings modal, and the Slack and AI pages. The entries list is a DataViews table; its fields are defined in `src/admin/fields/entries.tsx`. What the plugin adds to the entry editor lives in `src/entry-editor/`.
+
+## Screens and routes
+
+`Admin` (`includes/class-admin.php`) adds the Rolling Coverage menu with three pages: All Coverages (`edit_posts`), Slack Connection (`manage_options`) and AI (`edit_others_posts`). Each page renders the same root element and loads the `admin` bundle, a React app with a hash router (`src/admin/app.tsx`). The page sets the route the app starts on.
+
+| Route | Screen |
+| --- | --- |
+| `#/coverages` | All Coverages (`coverage-view.tsx`) |
+| `#/coverages/<id>` | A coverage's entries (`entry-view.tsx`) |
+| `#/connection/<tab>` | Slack Connection (`slack-settings-page.tsx`), with its tabs in `src/admin/utils/slack-tabs.ts` |
+| `#/ai` | AI prompt settings (`ai-page.tsx`) |
+
+The app reads its config from `window.newspackRollingCoverageAdmin` (`Admin::get_script_data()`): REST URLs, labels, editor settings and a `capabilities` object. The capabilities only decide what the app shows; every route checks permissions again.
+
+| Capability | Check | Gates |
+| --- | --- | --- |
+| `canEditPosts` | `edit_posts` | Add Entry |
+| `canEditEntries` | `edit_others_posts` | Most entry actions, on any entry |
+| `canChangeAuthors` | `Post_Type::can_change_authors()` | Change Author |
+| `canManageTerms` | `manage_categories` | Add Coverage, and editing and trashing coverages |
+| `canManageOptions` | `manage_options` | Slack connections |
+| `canManageAiSettings` | `edit_others_posts` | Editing the AI prompts |
+| `canManageSettings` | `edit_others_posts` | The Settings modal |
+
+The admin pages load the block editor's assets so Quick Edit can run a block editor. `Newspack\Blocks::enqueue_block_editor_assets` is unhooked while they load, since newspack-plugin's editor UI crashes inside Quick Edit's `EditorProvider`.
+
+## All Coverages
+
+The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Status, Canonical URL and Advertising. Status options are named after the site's status labels.
+
+Row actions live in `src/admin/actions/coverage-actions.ts`:
+
+| Action | Shown | Does |
+| --- | --- | --- |
+| Edit | `canManageTerms`, coverage not trashed | Opens the coverage drawer. |
+| Entries | Always | Opens the coverage's entries. |
+| View Page, View Pages | The coverage has placements | See [Placements](#placements-view-page-and-view-pages). |
+| Slack Connection | `canManageOptions`, once Slack is configured | Opens `SlackConnectionDrawer`. |
+| Trash | `canManageTerms`, coverage not trashed | Confirms, then `POST rolling-coverage/v1/coverages/<id>/trash`. The coverage's status becomes `trash`, and its entries are hidden on the site until it is restored. |
+| Restore | `canManageTerms`, coverage trashed | `POST rolling-coverage/v1/coverages/<id>/restore`. |
+| Delete Permanently | `canManageTerms`, coverage trashed | Confirms, then `DELETE rolling-coverage/v1/coverages/<id>`. Its entries are deleted too, apart from any already in the trash. |
+
+The routes live in `Taxonomy` (`includes/class-taxonomy.php`).
+
+## Settings
+
+`SettingsModal` (`settings-modal.tsx`) opens from the All Coverages header for users with `edit_others_posts`. It has three tabs, each saving one option through its own route:
+
+| Tab | Fields | Route |
+| --- | --- | --- |
+| Entry Name | Singular, Plural | `rolling-coverage/v1/settings/entry-name` |
+| Coverage Status | Live label, Paused label, Ended label | `rolling-coverage/v1/settings/status-labels` |
+| Jump to Latest | Button label | `rolling-coverage/v1/settings/latest-label` |
+
+The modal loads all three when it opens and saves only the ones that changed. It refuses an entry name with one word and not the other before sending anything. A failed save switches to that tab and shows the error. Closing with unsaved changes asks to discard them.
+
+The options, their limits and what reads them are documented with the blocks: the entry name and the Jump to Latest label in `src/blocks/rolling-coverage/DEVELOPMENT.md`, the status labels in `src/blocks/coverage-status/DEVELOPMENT.md`.
+
+## A coverage's entries
+
+`EntryView` (`entry-view.tsx`) lists one coverage's entries. Its header holds the Slack channel button ("Connect Slack", or the connected channel's name), View Page or View Pages, and Add Entry. Add Entry creates a draft entry in the coverage through the core entries route and opens it in the block editor. On an ended coverage, Add Entry stays disabled, with a tooltip saying which status allows new entries; on a trashed coverage it is hidden.
+
+### Data and live sync
+
+The list reads `GET rolling-coverage/v1/coverages/<id>/entries-view` (`Post_Type::get_entries_view()`, `edit_posts`), which pages, sorts, searches and filters on the server. Below Editor, users who can publish (Authors) see their own entries and everyone's published and scheduled ones, and others (Contributors) see only their own (`Post_Type::entry_visibility_scope()`, applied by `author_scope_where()`). Each row carries the current user's `can_edit` (`edit_post`), `can_publish` (`publish_post`) and `is_own`, so the list can offer exactly what WordPress allows. The list opens without trashed entries (Status is not Trashed).
+
+`useEntries` (`src/admin/hooks/useEntries.ts`) then polls the same route with a `since` cursor every 10 seconds (`SYNC_INTERVAL_MS`), and pauses while the tab is hidden. It merges the changed rows and shows a snackbar for each change, or one "N updates in the last 10s" snackbar for more than five. When too many entries changed for one response (`overflow`), it reloads the page.
+
+The empty state replaces the table and its filters, so it shows only when the coverage has no entries at all, trashed ones included: the Trashed filter is the only way back to them.
+
+### Row actions
+
+Row actions live in `src/admin/actions/entry-actions.ts`. Editors and above (`canEditEntries`) can act on any entry. Below that, the row's own capabilities decide: Authors act on their own entries, Contributors on their own drafts.
+
+An entry is locked when it is archived or its coverage has ended (`isEntryLocked()` in `entries-api.ts`). A locked entry offers no status, author, pin or breakout actions.
+
+| Action | Bulk | Shown | Does |
+| --- | --- | --- | --- |
+| Quick Edit | No | The user can edit the entry | Opens [Quick Edit](#quick-edit). |
+| Edit | No | The user can edit the entry | Opens the entry in the block editor in a new tab. |
+| Publish | Yes | Draft or pending, not locked, the user can publish it | Confirms, then publishes. See below. |
+| Move to Draft | Yes | Published, pending or private, not locked, the user can edit it | Moves it to draft at once. See below. |
+| Create Breakout Post | No | Editors, not locked, no breakout post yet | `POST rolling-coverage/v1/entries/<id>/breakout` (`Breakout`). |
+| Restore Breakout Post, Permanently Delete Breakout Post | No | Editors, not locked, the breakout post is in the trash | Through the core posts route. |
+| Change Author | Yes | `canChangeAuthors`, not trashed, not locked | Opens the [Change Author](#change-author) drawer. |
+| Archive, Unarchive | Yes | Editors; Archive on a published entry; the coverage hasn't ended | `POST rolling-coverage/v1/entries/<id>/archive` (`Archive_Mode`). |
+| Pin, Unpin | No | Editors, not locked | `POST rolling-coverage/v1/entries/<id>/pin`. |
+| Trash | Yes | Not trashed, not locked; Editors, or the author of an entry they can publish | Confirms, then `DELETE` on the core entries route. |
+| Restore | Yes | Trashed, the user can edit it | `POST rolling-coverage/v1/entries/restore`, in one request for all of them. An entry whose coverage no longer exists comes back in a recovery coverage, shared by entries from the same coverage. |
+| Delete Permanently | Yes | Editors, trashed | Confirms, then `DELETE` on the core entries route with `force`. |
+
+Quick Edit and Edit ask for confirmation first on an archived entry, or one whose coverage is paused or ended, naming the coverage's status as the site labels it.
+
+Confirmations go through `useConfirmDialog()` (`confirm-dialog.tsx`), an `AlertDialog` from `@wordpress/ui`. When every item of a bulk action fails, `onConfirm` returns `{ error }` and the dialog stays open with the error. When only some fail, the dialog closes, the list refreshes and the first error shows as a snackbar, so a retry doesn't resend the items that went through.
+
+### Publish and Move to Draft
+
+`setEntryStatus()` (`entries-api.ts`) saves `status` through the core entries route, one request per entry, rather than a route of its own. WordPress then checks the user's publish and edit capabilities, and the status hooks run as they do for a save in the editor: open feeds pick up the change on their next poll, and an entry opted in to notify followers sends its push notification on the next cron run, as REST publishes do (see "How notifications are sent" in `src/blocks/coverage-follow/DEVELOPMENT.md`).
+
+- **Publish** confirms first, since readers can't unsee an entry published by mistake. When OneSignal is configured, the confirmation says that entries set to notify followers send a push notification: the list doesn't show which entries are, and Slack entries opt in on their own.
+- **Move to Draft** runs at once, since publishing again undoes it.
+- **Scheduled entries** get neither action. Publishing one now would also need its date moved to now, so they are left to the editor.
+
+Each saved entry is written to core-data's cache (`receiveEntityRecords()`), which the request bypasses, so Quick Edit opens it with its new status.
+
+### Change Author
+
+`ChangeAuthorDrawer` (`change-author-drawer.tsx`) is a Newspack `Drawer` that gives every selected entry one new author. Its Author combobox lists users who can be authors (`who: 'authors'`, 100 at a time, searched by name as the user types) and starts on the entries' author when they all share one. Save is enabled once a different user is picked.
+
+It sends `POST rolling-coverage/v1/entries/author` with `entry_ids` (1 to 100) and `author_id`. `Post_Type::handle_bulk_change_author()`:
+
+- Needs `Post_Type::can_change_authors()`: `edit_others_posts`, and, when Co-Authors Plus is on for entries, its `current_user_can_set_authors()`.
+- Refuses an author who can't `edit_posts`.
+- Skips, with an error, each entry that is missing, trashed, not editable by the user, or locked by Archive Mode.
+- With Co-Authors Plus on for entries, makes the user the entry's only co-author first (`set_coauthor()`), since Co-Authors Plus reads `post_author` back from its author terms on every save.
+- Saves `post_author` through `Post_Type::touch_entry()`, which also bumps the modified date so open feeds re-render the entry, and keeps the content as stored.
+
+It answers 200 with `{ results: [ { entryId, updated, error } ] }`, whether or not some entries failed. The drawer shows one snackbar for the entries that changed and another for those that didn't, invalidates core-data's cached records of the changed entries so Quick Edit shows the new author, and refreshes the list.
+
+## Quick Edit
+
+`QuickEditModal` (`quick-edit-modal.tsx`) edits one entry in a full-screen modal without leaving the list. It holds a block editor (`EditorProvider` with `BlockCanvas`, the post title and the block list) and the block inspector in a sidebar, which the header's Settings button toggles. There are no document settings, so status, date, author and coverage are changed elsewhere. The header's Cancel and Save (`quick-edit-save-bar.tsx`) close the modal and call the editor's `savePost()`.
+
+- **Unsaved edits.** Closing with unsaved edits asks to discard them. Escape, a click outside and the modal's close button are all off, so every close goes through that check. Edits are read from core-data (`useEntityRecord().hasEdits`), since the editor store lives in the provider's sub-registry, out of reach of selectors outside it.
+- **Nesting.** `EditorProvider` stays inside the modal, so the editor's own modals (keyboard shortcuts, pattern rename and duplicate, the media editor) nest in it rather than closing it. Cancel and Save sit outside the provider, so `EditorRegistryBridge` hands them its sub-registry.
+- **Setup.** The admin page isn't a post editor screen, so core blocks are registered on first open (`ensureEditorInitialized()`), and the editor settings come from `get_block_editor_settings()` in the script data, with template mode off.
 
 ## Entry sources
 
@@ -121,7 +247,11 @@ Tests: `tests/test-placements.php`, plus the page lookup and its rebuild in `tes
 
 Entries are managed in the coverages screen, not in core's entries list, which stays registered but hidden (`show_in_menu` is false). Two exits from the editor point at that list, so both are redirected:
 
-- The back button. Core hardcodes its link to `edit.php?post_type=rolling_cov_entry` and shows it only when nothing else fills the slot. `src/entry-editor/back-to-coverage.tsx` fills it with `__experimentalMainDashboardButton` from `@wordpress/edit-post`, the one API for replacing it. It links to `#/coverages/<id>` for the entry's first coverage as currently edited (the first ID in the taxonomy's REST attribute), or `#/coverages` when it has none. It renders only where core's own button does: fullscreen mode at a medium viewport or wider. `coveragesUrl` already ends in `#/coverages`, so the entry's route is that URL plus `/<id>`; `Admin::get_coverages_url()` builds the same URLs server side, so change both together. The two editor registrations (back button, Push Notifications panel) are separate plugins so one failing can't unmount the other.
+- The back button. Core hardcodes its link to `edit.php?post_type=rolling_cov_entry` and shows it only when nothing else fills the slot. `src/entry-editor/back-to-coverage.tsx` fills it with `__experimentalMainDashboardButton` from `@wordpress/edit-post`, the one API for replacing it. It links to `#/coverages/<id>` for the entry's first coverage as currently edited (the first ID in the taxonomy's REST attribute), or `#/coverages` when it has none. Its label, read by screen readers and shown as a tooltip, is "Back to Coverage", or "Back to All Coverages" when the entry has no coverage. It renders only where core's own button does: fullscreen mode at a medium viewport or wider. `coveragesUrl` already ends in `#/coverages`, so the entry's route is that URL plus `/<id>`; `Admin::get_coverages_url()` builds the same URLs server side, so change both together. The two editor registrations (back button, Push Notifications panel) are separate plugins so one failing can't unmount the other.
 - The redirect after trashing. Core sends the editor to `edit.php?trashed=1&post_type=…&ids=<id>`. `Admin::redirect_entry_list()` (on `load-edit.php`) sends any plain GET for the entries list to the screen above, using `ids` to find the trashed entry's coverage. Requests carrying an `action` are left alone. After a trash it adds `rolling_coverage_trashed=1` to the page URL (not `trashed`, which core strips from admin URLs before the script runs); the admin app (`announceTrashedEntry()`) shows the "Entry trashed." snackbar for it and removes the arg with `history.replaceState`. There is no Undo: restoring would need the already-loaded list to refresh.
 
 `Admin::enqueue_entry_editor()` loads the `entry-editor` bundle on the entry editor and passes it `window.newspackRollingCoverageEntryEditor` (the coverages URL, the taxonomy's REST base, and whether the Push Notifications panel applies).
+
+The bundle's other registration, the Push Notifications panel, is described in `src/blocks/coverage-follow/DEVELOPMENT.md`.
+
+The entry post type registers core's `item_*` labels (`Post_Type::register()`), so the editor's notices name an entry, as in "Entry published." and "Entry updated.", rather than a post.
