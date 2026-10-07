@@ -463,7 +463,7 @@ class Admin {
 				'slack' => __( 'Slack', 'newspack-rolling-coverage' ),
 			),
 			'blockEditorSettings'  => $block_editor_settings,
-			'aiSettings'           => AI_Settings::get_all(),
+			'aiSettings'           => AI_Settings::can_manage_settings() ? AI_Settings::get_all() : null,
 			'aiDefaultSettings'    => AI_Settings::get_defaults(),
 			'aiAvailable'          => AI_Service::is_available(),
 			'aiNeedsApproval'      => AI_Service::needs_connector_approval(),
