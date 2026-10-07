@@ -56,6 +56,21 @@ const VIEW_CONTEXT = { context: 'view' };
 const SAMPLE_AGE_MS = 2 * 60 * 1000;
 const INSERT_SOURCES = [ undefined, 'inserter_menu', 'quick_inserter' ];
 
+/**
+ * The color the picker shows for a badge background: a theme color's palette
+ * swatch, or the stored color itself.
+ *
+ * @param {string} color    Stored background: 'accent', 'base' or a hex color.
+ * @param {string} swatches The accent and base swatches, comma-separated.
+ * @return {string|undefined} The color to show.
+ */
+function themeSwatch( color: string | undefined, swatches: string ) {
+	const [ accent, base ] = swatches.split( ',' );
+	const swatch = { accent, base }[ color ?? '' ];
+
+	return swatch === undefined ? color : swatch || undefined;
+}
+
 const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {
 	sourceEntryField: 'rolling_coverage_source_entry',
 	statusLabels: {
@@ -191,7 +206,7 @@ export default function Edit( {
 		}
 	}
 
-	const { justInserted, paletteSlugs } = useSelect(
+	const { justInserted, paletteSlugs, themeSwatches } = useSelect(
 		( select ) => {
 			const blockEditor = select( blockEditorStore ) as unknown as {
 				wasBlockJustInserted: (
@@ -199,28 +214,45 @@ export default function Edit( {
 					source?: string
 				) => boolean;
 				getSettings: () => {
-					colors?: { slug: string }[];
+					colors?: { slug: string; color: string }[];
 					__experimentalFeatures?: {
 						color?: {
-							palette?: Record< string, { slug: string }[] >;
+							palette?: Record<
+								string,
+								{ slug: string; color: string }[]
+							>;
 						};
 					};
 				};
 			};
 			const settings = blockEditor.getSettings();
+			const palette = [
+				...Object.values(
+					settings.__experimentalFeatures?.color?.palette ?? {}
+				).flat(),
+				...( settings.colors ?? [] ),
+			];
+			const swatch = ( ...slugs: string[] ) =>
+				slugs
+					.map(
+						( slug ) =>
+							palette.find( ( color ) => color.slug === slug )
+								?.color
+					)
+					.find( Boolean ) ?? '';
 
 			return {
 				justInserted: INSERT_SOURCES.some( ( source ) =>
 					blockEditor.wasBlockJustInserted( clientId, source )
 				),
-				paletteSlugs: [
-					...Object.values(
-						settings.__experimentalFeatures?.color?.palette ?? {}
-					).flat(),
-					...( settings.colors ?? [] ),
-				]
+				paletteSlugs: palette
 					.map( ( color ) => color.slug )
 					.join( ',' ),
+				// The sidebar can't resolve the canvas's preset variables, so a theme color shows as its palette swatch.
+				themeSwatches: `${ swatch( 'accent', 'primary' ) },${ swatch(
+					'base',
+					'white'
+				) }`,
 			};
 		},
 		[ clientId ]
@@ -550,7 +582,10 @@ export default function Edit( {
 					settings={ Object.entries( BACKGROUND_FIELDS ).map(
 						( [ key, field ] ) => ( {
 							label: field,
-							colorValue: backgroundColors?.[ key ],
+							colorValue: themeSwatch(
+								backgroundColors?.[ key ],
+								themeSwatches
+							),
 							onColorChange: ( value?: string ) =>
 								setBackground( key, value ),
 							resetAllFilter: () => ( {

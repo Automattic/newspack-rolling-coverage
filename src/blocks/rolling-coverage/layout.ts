@@ -56,7 +56,6 @@ import {
 	isPinnedCard,
 	forEntryKind,
 } from './template';
-import { normalizeColor } from '../shared/apca';
 import { SHOW_AVATARS } from './config';
 import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
@@ -97,16 +96,6 @@ function palette(): PaletteColor[] {
  */
 function paletteSlugs(): string[] {
 	return palette().map( ( color ) => color.slug );
-}
-
-/**
- * The value of a palette color, if the palette has it.
- *
- * @param {string} slug The color's slug.
- * @return {string|undefined} The color.
- */
-function paletteColor( slug: string ): string | undefined {
-	return palette().find( ( color ) => color.slug === slug )?.color;
 }
 
 /**
@@ -296,24 +285,19 @@ export function digestInnerTemplate(): TemplateItem[] {
  * The Flash layout's inner-blocks template: a full-width bar on the site's
  * accent color holding, at the theme's wide width, the coverage's status,
  * the newest entry's time and text, then a link to the coverage page on the
- * right, side by side at every width. The Live badge takes the page's
- * background color (Base on block themes, White on the classic Newspack
- * Theme) as it is when the layout is picked.
+ * right, side by side at every width. The Live badge takes the theme's page
+ * background and text colors, so it follows the theme's style variations.
  *
  * @return {TemplateItem[]} The template.
  */
 export function flashInnerTemplate(): TemplateItem[] {
-	const base = normalizeColor(
-		paletteColor( 'base' ) ?? paletteColor( 'white' ) ?? ''
-	);
-
 	return [
 		flashBar(
 			feedTemplate(
 				[
 					[
 						STATUS_BLOCK_NAME,
-						base ? { backgroundColors: { active: base } } : {},
+						{ backgroundColors: { active: 'base' } },
 					],
 					...flashEntryTemplate(),
 					allUpdatesLink(),
@@ -331,23 +315,18 @@ export function flashInnerTemplate(): TemplateItem[] {
  * The Alert layout's inner-blocks template: a box on the pinned entry's
  * background holding the coverage's status, its name on one line, cut short
  * to fit, and a link to the coverage page, side by side at every width. It
- * shows no entries. The Live badge takes the site's accent color (Accent on
- * the Newspack Block Theme, Primary on the classic Newspack Theme) as it is
- * when the layout is picked.
+ * shows no entries. The Live badge takes the theme's accent color and the
+ * text color made for it, so it follows the theme's style variations.
  *
  * @return {TemplateItem[]} The template.
  */
 export function alertInnerTemplate(): TemplateItem[] {
-	const accent = normalizeColor(
-		paletteColor( 'accent' ) ?? paletteColor( 'primary' ) ?? ''
-	);
-
 	return [
 		feedTemplate(
 			[
 				[
 					STATUS_BLOCK_NAME,
-					accent ? { backgroundColors: { active: accent } } : {},
+					{ backgroundColors: { active: 'accent' } },
 				],
 				coverageNameHeading( 'small', {
 					className: 'newspack-rolling-coverage-name',
