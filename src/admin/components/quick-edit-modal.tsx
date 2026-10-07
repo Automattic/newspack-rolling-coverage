@@ -10,12 +10,7 @@ import {
 	useState,
 	useCallback,
 } from '@wordpress/element';
-import {
-	Modal,
-	Popover,
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
-	__experimentalConfirmDialog as ConfirmDialog,
-} from '@wordpress/components';
+import { Modal, Popover } from '@wordpress/components';
 import {
 	BlockCanvas,
 	BlockList,
@@ -43,6 +38,7 @@ import { __ } from '@wordpress/i18n';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { ensureEditorInitialized } from '../utils/block-registration';
 import { LoadingState } from '../shared/loading-state';
+import { ConfirmModal } from './confirm-modal';
 import { quickEditPreferencesStore } from '../utils/quick-edit-preferences';
 import { QuickEditSaveBar } from './quick-edit-save-bar';
 import { QuickEditToolbar } from './quick-edit-toolbar';
@@ -112,10 +108,13 @@ function EditorReadySignal( { onReady }: { onReady: () => void } ) {
  *   snackbar above the footer.
  * - Closing is guarded when unsaved edits exist (detected via
  *   `useEntityRecord().hasEdits`, backed by core-data's
- *   `hasEditsForEntityRecord`). A `ConfirmDialog` prompts before
- *   discarding. The editor store's `isEditedPostDirty` selector is
- *   intentionally not used because `EditorProvider` runs in a sub-registry
- *   whose editor store is invisible to selectors outside the provider.
+ *   `hasEditsForEntityRecord`). A small `Modal` around `ConfirmModal` asks
+ *   before discarding, as the edit-anyway confirm does. Core's
+ *   `ConfirmDialog` is not used: showing its title also shows its header's
+ *   close button, and Enter on that button confirms the discard. The editor
+ *   store's `isEditedPostDirty` selector is intentionally not used because
+ *   `EditorProvider` runs in a sub-registry whose editor store is invisible
+ *   to selectors outside the provider.
  * - The Modal's own close paths (dismiss button, Escape, click outside) are
  *   off so its exit animation can't fire before the guard intercepts.
  *   Cancel in the footer goes through the guard instead.
@@ -285,26 +284,29 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 					</RegistryProvider>
 				) }
 			</Modal>
-			<ConfirmDialog
-				isOpen={ showCloseConfirm }
-				size="small"
-				title={ __( 'Discard Changes?', 'newspack-rolling-coverage' ) }
-				__experimentalHideHeader={ false }
-				onConfirm={ () => {
-					setShowCloseConfirm( false );
-					handleClose();
-				} }
-				onCancel={ () => setShowCloseConfirm( false ) }
-				confirmButtonText={ __(
-					'Discard Changes',
-					'newspack-rolling-coverage'
-				) }
-			>
-				{ __(
-					'You have unsaved changes. Are you sure you want to close and discard them?',
-					'newspack-rolling-coverage'
-				) }
-			</ConfirmDialog>
+			{ showCloseConfirm && (
+				<Modal
+					title={ __(
+						'Discard Changes?',
+						'newspack-rolling-coverage'
+					) }
+					size="small"
+					onRequestClose={ () => setShowCloseConfirm( false ) }
+				>
+					<ConfirmModal
+						message={ __(
+							'You have unsaved changes. Are you sure you want to close and discard them?',
+							'newspack-rolling-coverage'
+						) }
+						confirmLabel={ __(
+							'Discard Changes',
+							'newspack-rolling-coverage'
+						) }
+						onConfirm={ async () => handleClose() }
+						onClose={ () => setShowCloseConfirm( false ) }
+					/>
+				</Modal>
+			) }
 		</>
 	);
 }
