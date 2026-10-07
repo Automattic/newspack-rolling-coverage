@@ -481,7 +481,13 @@ function chromePreviewStyle(
 	}
 
 	if ( layout?.selfStretch === 'fill' ) {
-		return { flexGrow: 1, minWidth: 0 };
+		return String(
+			( attributes as { className?: string } | null )?.className ?? ''
+		)
+			.split( ' ' )
+			.includes( 'newspack-rolling-coverage-name' )
+			? { flexGrow: 1, minWidth: 0 }
+			: { flexGrow: 1 };
 	}
 
 	if ( layout?.selfStretch === 'fixed' && layout.flexSize ) {

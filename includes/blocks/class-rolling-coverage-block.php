@@ -1276,7 +1276,7 @@ class Rolling_Coverage_Block {
 			$has_more = $page['has_more'];
 		}
 
-		$older_entries = self::older_entries( $attributes );
+		$older_entries = $template ? self::older_entries( $attributes ) : 'none';
 
 		if ( 'none' === $older_entries ) {
 			$has_more = false;
@@ -1289,7 +1289,6 @@ class Rolling_Coverage_Block {
 		$lead_pinned_id = 0;
 		$follows_lead   = false;
 
-		// A layout without an entry template shows none, so its entries aren't rendered.
 		foreach ( $template ? $posts : [] as $entry ) {
 			$entry_index++;
 			$is_pinned     = ! $is_capped && Post_Type::is_pinned( $entry->ID );

@@ -2082,12 +2082,12 @@ function initBlock( root: HTMLElement ): void {
 					return 'reloading';
 				}
 
-				if ( ! showsEntries ) {
-					// The layout shows no entries; polls only keep the status current.
-				} else if ( data.replace ) {
-					replaceEntries( data.entries );
-				} else if ( data.entries.length > 0 ) {
-					applyPollResponse( data.entries );
+				if ( showsEntries ) {
+					if ( data.replace ) {
+						replaceEntries( data.entries );
+					} else if ( data.entries.length > 0 ) {
+						applyPollResponse( data.entries );
+					}
 				}
 				cursor = data.cursor || cursor;
 				polledCount = data.polledCount ?? polledCount;
