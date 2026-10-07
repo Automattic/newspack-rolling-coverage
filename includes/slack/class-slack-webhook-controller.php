@@ -1554,7 +1554,8 @@ class Slack_Webhook_Controller {
 
 		// 3. The entry's author: the WordPress user mapped to the message
 		// author's Slack member ID or handle, or the bot user.
-		$author_id = Slack_Author_Resolver::resolve_author_id( $user_id, $user_info );
+		$author    = Slack_Author_Resolver::resolve_author( $user_id, $user_info );
+		$author_id = $author['user_id'];
 
 		// 4. Build the normalized payload.
 		$source_payload = new Source_Event_Payload(
@@ -1629,6 +1630,7 @@ class Slack_Webhook_Controller {
 				'post_id' => (int) $post_id,
 				'channel' => $channel_id,
 				'status'  => $auto_publish ? 'publish' : 'draft',
+				'author'  => $author['matched_by'],
 			] 
 		);
 	}

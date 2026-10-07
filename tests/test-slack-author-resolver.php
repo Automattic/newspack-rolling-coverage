@@ -33,13 +33,27 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 	 *
 	 * @param string $display_name Display name.
 	 * @param string $name         Username.
+	 * @param string $real_name    Full name.
 	 * @return array
 	 */
-	private static function slack_user( string $display_name, string $name = 'someone' ): array {
+	private static function slack_user( string $display_name, string $name = 'someone', string $real_name = '' ): array {
 		return [
 			'name'    => $name,
-			'profile' => [ 'display_name' => $display_name ],
+			'profile' => [
+				'display_name' => $display_name,
+				'real_name'    => $real_name,
+			],
 		];
+	}
+
+	/**
+	 * The user credited with a message from the test member ID.
+	 *
+	 * @param array|WP_Error $user_info The author's `users.info` profile.
+	 * @return int User ID.
+	 */
+	private static function resolve( $user_info ): int {
+		return Slack_Author_Resolver::resolve_author( self::MEMBER_ID, $user_info )['user_id'];
 	}
 
 	/**
@@ -73,7 +87,7 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 	public function test_credits_the_user_with_the_matching_display_name() {
 		$user_id = self::mapped_user( 'Riley Sample' );
 
-		$this->assertSame( $user_id, Slack_Author_Resolver::resolve_author_id( self::MEMBER_ID, self::slack_user( 'Riley Sample' ) ) );
+		$this->assertSame( $user_id, self::resolve( self::slack_user( 'Riley Sample' ) ) );
 	}
 
 	/**
@@ -82,16 +96,19 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 	public function test_match_ignores_case_and_the_at_sign() {
 		$user_id = self::mapped_user( 'riley.sample' );
 
-		$this->assertSame( $user_id, Slack_Author_Resolver::resolve_author_id( self::MEMBER_ID, self::slack_user( '@Riley.Sample' ) ) );
+		$this->assertSame( $user_id, self::resolve( self::slack_user( '@Riley.Sample' ) ) );
 	}
 
 	/**
-	 * With no display name, Slack shows the username as the handle.
+	 * With no display name, Slack shows the full name, so it is tried next,
+	 * and the legacy username after it.
 	 */
-	public function test_falls_back_to_the_slack_username() {
-		$user_id = self::mapped_user( 'rsample' );
+	public function test_falls_back_to_the_full_name_then_the_username() {
+		$by_username  = self::mapped_user( 'rsample' );
+		$by_full_name = self::mapped_user( 'Riley Sample' );
 
-		$this->assertSame( $user_id, Slack_Author_Resolver::resolve_author_id( self::MEMBER_ID, self::slack_user( '', 'rsample' ) ) );
+		$this->assertSame( $by_full_name, self::resolve( self::slack_user( '', 'rsample', 'Riley Sample' ) ), 'The full name should win over the username.' );
+		$this->assertSame( $by_username, self::resolve( self::slack_user( '', 'rsample' ) ), 'The username should match when nothing else does.' );
 	}
 
 	/**
@@ -101,7 +118,7 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 		self::mapped_user( 'rsample' );
 		$by_display_name = self::mapped_user( 'Riley Sample' );
 
-		$this->assertSame( $by_display_name, Slack_Author_Resolver::resolve_author_id( self::MEMBER_ID, self::slack_user( 'Riley Sample', 'rsample' ) ) );
+		$this->assertSame( $by_display_name, self::resolve( self::slack_user( 'Riley Sample', 'rsample' ) ) );
 	}
 
 	/**
@@ -111,7 +128,7 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 	public function test_credits_the_user_with_the_matching_member_id() {
 		$user_id = self::mapped_user( self::MEMBER_ID );
 
-		$this->assertSame( $user_id, Slack_Author_Resolver::resolve_author_id( self::MEMBER_ID, new WP_Error( 'http_request_failed' ) ) );
+		$this->assertSame( $user_id, self::resolve( new WP_Error( 'http_request_failed' ) ) );
 	}
 
 	/**
@@ -121,7 +138,34 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 		self::mapped_user( 'Riley Sample' );
 		$by_member_id = self::mapped_user( self::MEMBER_ID );
 
-		$this->assertSame( $by_member_id, Slack_Author_Resolver::resolve_author_id( self::MEMBER_ID, self::slack_user( 'Riley Sample' ) ) );
+		$this->assertSame( $by_member_id, self::resolve( self::slack_user( 'Riley Sample' ) ) );
+	}
+
+	/**
+	 * A Slack name is free text, so one set to a colleague's member ID must
+	 * not credit the message to that colleague.
+	 *
+	 * @dataProvider data_names_shaped_like_a_member_id
+	 *
+	 * @param array $user_info The impersonator's `users.info` profile.
+	 */
+	public function test_name_shaped_like_a_member_id_does_not_match_it( array $user_info ) {
+		self::mapped_user( 'U0COLLEAGUE1' );
+
+		$this->assertSame( Slack_Config::get_or_create_bot_user_id(), self::resolve( $user_info ) );
+	}
+
+	/**
+	 * Profiles whose names copy a colleague's member ID.
+	 *
+	 * @return array
+	 */
+	public function data_names_shaped_like_a_member_id() {
+		return [
+			'display name' => [ self::slack_user( 'U0COLLEAGUE1' ) ],
+			'full name'    => [ self::slack_user( '', 'someone', 'U0COLLEAGUE1' ) ],
+			'username'     => [ self::slack_user( '', 'U0COLLEAGUE1' ) ],
+		];
 	}
 
 	/**
@@ -131,7 +175,7 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 	public function test_member_id_matches_only_exactly() {
 		self::mapped_user( strtolower( self::MEMBER_ID ) );
 
-		$this->assertSame( Slack_Config::get_or_create_bot_user_id(), Slack_Author_Resolver::resolve_author_id( self::MEMBER_ID, self::slack_user( 'Riley Sample' ) ) );
+		$this->assertSame( Slack_Config::get_or_create_bot_user_id(), self::resolve( self::slack_user( 'Riley Sample' ) ) );
 	}
 
 	/**
@@ -158,6 +202,7 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 			'lowercase'          => [ 'u012ab3cde', false ],
 			'other prefix'       => [ 'C012AB3CDE', false ],
 			'too short'          => [ 'U012', false ],
+			'no digits'          => [ 'WALTERWHITE', false ],
 			'handle'             => [ 'Umberto', false ],
 		];
 	}
@@ -168,7 +213,7 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 	public function test_unmapped_handle_goes_to_the_bot_user() {
 		self::mapped_user( 'Someone Else' );
 
-		$this->assertSame( Slack_Config::get_or_create_bot_user_id(), Slack_Author_Resolver::resolve_author_id( self::MEMBER_ID, self::slack_user( 'Riley Sample' ) ) );
+		$this->assertSame( Slack_Config::get_or_create_bot_user_id(), self::resolve( self::slack_user( 'Riley Sample' ) ) );
 	}
 
 	/**
@@ -177,8 +222,8 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 	public function test_failed_lookup_goes_to_the_bot_user() {
 		self::mapped_user( 'Riley Sample' );
 
-		$this->assertSame( Slack_Config::get_or_create_bot_user_id(), Slack_Author_Resolver::resolve_author_id( self::MEMBER_ID, new WP_Error( 'http_request_failed' ) ) );
-		$this->assertSame( Slack_Config::get_or_create_bot_user_id(), Slack_Author_Resolver::resolve_author_id( self::MEMBER_ID, [] ) );
+		$this->assertSame( Slack_Config::get_or_create_bot_user_id(), self::resolve( new WP_Error( 'http_request_failed' ) ) );
+		$this->assertSame( Slack_Config::get_or_create_bot_user_id(), self::resolve( [] ) );
 	}
 
 	/**
@@ -187,7 +232,7 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 	public function test_user_who_cannot_write_entries_is_not_credited() {
 		self::mapped_user( 'Riley Sample', 'subscriber' );
 
-		$this->assertSame( Slack_Config::get_or_create_bot_user_id(), Slack_Author_Resolver::resolve_author_id( self::MEMBER_ID, self::slack_user( 'Riley Sample' ) ) );
+		$this->assertSame( Slack_Config::get_or_create_bot_user_id(), self::resolve( self::slack_user( 'Riley Sample' ) ) );
 	}
 
 	/**
@@ -228,6 +273,18 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 		$this->assertSame( '', get_user_meta( $user_id, Slack_Author_Resolver::META_SLACK_HANDLE, true ), 'The handle should not be saved.' );
 		$this->assertContains( 'rolling_coverage_slack_handle_taken', $errors->get_error_codes(), 'The profile should show an error.' );
 		$this->assertSame( 'Riley Sample', get_user_meta( $owner, Slack_Author_Resolver::META_SLACK_HANDLE, true ), 'The other user should keep the handle.' );
+	}
+
+	/**
+	 * A value held by someone who can't be credited doesn't block anyone.
+	 */
+	public function test_profile_ignores_a_value_held_by_someone_who_cannot_be_credited() {
+		self::mapped_user( 'Riley Sample', 'subscriber' );
+		$user_id = self::log_in_as( 'author' );
+
+		self::save_profile( $user_id, 'Riley Sample' );
+
+		$this->assertSame( 'Riley Sample', get_user_meta( $user_id, Slack_Author_Resolver::META_SLACK_HANDLE, true ) );
 	}
 
 	/**
@@ -272,5 +329,21 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'Slack handle', $html );
 		$this->assertStringContainsString( 'value="Riley Sample"', $html );
 		$this->assertStringContainsString( 'Copy member ID', $html, 'The section should say how to find a member ID.' );
+	}
+
+	/**
+	 * Users who can't write entries can't be credited, so they don't get the
+	 * section, and a submitted value is ignored.
+	 */
+	public function test_profile_leaves_out_users_who_cannot_write_entries() {
+		$user_id = self::log_in_as( 'subscriber' );
+
+		ob_start();
+		Slack_Author_Resolver::render_profile_section( get_userdata( $user_id ) );
+		$html = ob_get_clean();
+		self::save_profile( $user_id, 'Riley Sample' );
+
+		$this->assertSame( '', $html, 'The section should not show.' );
+		$this->assertSame( '', get_user_meta( $user_id, Slack_Author_Resolver::META_SLACK_HANDLE, true ), 'The value should not be saved.' );
 	}
 }
