@@ -3,18 +3,22 @@
  */
 import { useLayoutEffect, useMemo, useState } from '@wordpress/element';
 import {
+	BaseControl,
+	Button,
 	ComboboxControl,
-	DateTimePicker,
+	Dropdown,
 	Notice,
 	TextControl,
 } from '@wordpress/components';
-import { useDebounce } from '@wordpress/compose';
+// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+import { __experimentalPublishDateTimePicker as PublishDateTimePicker } from '@wordpress/block-editor';
+import { useDebounce, useInstanceId } from '@wordpress/compose';
 import { store as coreStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
-import { date as formatDate, getSettings } from '@wordpress/date';
+import { date as formatDate, format, getSettings } from '@wordpress/date';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, _n, sprintf } from '@wordpress/i18n';
-import { Fieldset, Stack } from '@wordpress/ui';
+import { Stack } from '@wordpress/ui';
 import { Drawer } from 'newspack-components/dist/esm/drawer';
 
 /**
@@ -100,6 +104,83 @@ function isTwelveHourClock() {
 			.split( '' )
 			.reverse()
 			.join( '' )
+	);
+}
+
+/**
+ * The entry's date as a row of the drawer, opening the date picker in a
+ * popover beside the drawer, as the post editor does for a post's date.
+ *
+ * @param {Object}                    props          Component props.
+ * @param {string}                    props.value    The date, as `YYYY-MM-DDTHH:mm:ss` in the site's time zone.
+ * @param {( value: string ) => void} props.onChange Called with the picked date.
+ */
+function EntryDateField( {
+	value,
+	onChange,
+}: {
+	value: string;
+	onChange: ( value: string ) => void;
+} ) {
+	const id = useInstanceId( EntryDateField, 'entry-date-field' ) as string;
+	const [ anchor, setAnchor ] = useState< HTMLElement | null >( null );
+	const popoverProps = useMemo(
+		() => ( {
+			anchor,
+			placement: 'left-start' as const,
+			offset: 36,
+			shift: true,
+		} ),
+		[ anchor ]
+	);
+	const label = value ? format( getSettings().formats.datetime, value ) : '';
+
+	return (
+		<div ref={ setAnchor }>
+			<BaseControl
+				__nextHasNoMarginBottom
+				id={ id }
+				label={ __( 'Date', 'newspack-rolling-coverage' ) }
+				help={ __(
+					'When the entry was published, which sets its place in the coverage. A published entry can’t be dated in the future.',
+					'newspack-rolling-coverage'
+				) }
+			>
+				<Dropdown
+					popoverProps={ popoverProps }
+					focusOnMount
+					renderToggle={ ( { onToggle, isOpen } ) => (
+						<Button
+							__next40pxDefaultSize
+							id={ id }
+							variant="secondary"
+							onClick={ onToggle }
+							aria-expanded={ isOpen }
+						>
+							{ label }
+						</Button>
+					) }
+					renderContent={ ( { onClose } ) => (
+						<PublishDateTimePicker
+							title={ __( 'Date', 'newspack-rolling-coverage' ) }
+							currentDate={ value || null }
+							onChange={ ( picked: string | null ) =>
+								onChange(
+									picked
+										? toLocalDateTime( picked )
+										: formatDate(
+												'Y-m-d\\TH:i:s',
+												new Date()
+											)
+								)
+							}
+							is12Hour={ isTwelveHourClock() }
+							onClose={ onClose }
+						/>
+					) }
+				/>
+			</BaseControl>
+		</div>
 	);
 }
 
@@ -581,32 +662,10 @@ function EntryDetailsDrawer( {
 						/>
 					) }
 					{ ! isBulk && (
-						<Fieldset.Root>
-							<Fieldset.Legend>
-								{ __( 'Date', 'newspack-rolling-coverage' ) }
-							</Fieldset.Legend>
-							<DateTimePicker
-								currentDate={ entryDate || null }
-								onChange={ ( value ) => {
-									if ( value ) {
-										setEntryDate(
-											toLocalDateTime( value )
-										);
-									}
-								} }
-								is12Hour={ isTwelveHourClock() }
-								startOfWeek={
-									getSettings().l10n.startOfWeek as
-										0 | 1 | 2 | 3 | 4 | 5 | 6
-								}
-							/>
-							<Fieldset.Description>
-								{ __(
-									'When the entry was published, which sets its place in the coverage. A published entry can’t be dated in the future.',
-									'newspack-rolling-coverage'
-								) }
-							</Fieldset.Description>
-						</Fieldset.Root>
+						<EntryDateField
+							value={ entryDate }
+							onChange={ setEntryDate }
+						/>
 					) }
 				</Stack>
 			</Drawer.Content>
