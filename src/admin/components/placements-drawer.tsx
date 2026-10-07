@@ -84,11 +84,24 @@ function PlacementRow( {
 							) }
 						</Text>
 					) }
-					{ blocks.map( ( block ) => (
-						<Text key={ block } variant="body-sm">
-							{ block }
-						</Text>
-					) ) }
+					{ blocks.length > 0 && (
+						<Stack
+							render={ <ul /> }
+							direction="column"
+							gap="xs"
+							className="newspack-rolling-coverage-placement__blocks"
+						>
+							{ blocks.map( ( block ) => (
+								<Text
+									key={ block }
+									render={ <li /> }
+									variant="body-sm"
+								>
+									{ block }
+								</Text>
+							) ) }
+						</Stack>
+					) }
 				</Stack>
 				{ ( viewUrl || editUrl ) && (
 					<Stack

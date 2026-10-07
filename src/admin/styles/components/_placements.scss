@@ -1,11 +1,16 @@
-.newspack-rolling-coverage-placements {
+.newspack-rolling-coverage-placements,
+.newspack-rolling-coverage-placement__blocks {
 	list-style: none;
 	margin: 0;
 	padding: 0;
 }
 
-.newspack-rolling-coverage-placement {
+.newspack-rolling-coverage-placement,
+.newspack-rolling-coverage-placement__blocks > li {
 	margin: 0;
+}
+
+.newspack-rolling-coverage-placement {
 
 	&__details {
 		min-width: 0;

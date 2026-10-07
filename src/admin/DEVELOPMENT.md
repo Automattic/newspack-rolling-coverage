@@ -180,12 +180,12 @@ A coverage's placements are every published place where the plugin's blocks show
 
 `Placements` (`includes/class-placements.php`) looks for three blocks:
 
-- **Rolling Coverage**, by its `coverageId`. It is listed with its layout in brackets: the shared layout's title when `layoutId` points at a published pattern (Ticker, Flash, or a custom layout's title), or "Detached" when the block has inner blocks of its own. A capped feed (`latestOnly`) adds how many entries it shows, as in "Rolling Coverage (Ticker, latest 5)". A block with no layout of either kind, or whose layout is no longer published, renders the built-in default, so it takes the default layout's title (Bulletin), or shows only its cap in brackets, if any, when that pattern is gone too. A layout counts only while the site can render it: a published pattern that still holds a Rolling Coverage block. One without a title reads "Untitled layout". Blocks that read the same on one place, such as two Ticker feeds, are listed once.
+- **Rolling Coverage**, by its `coverageId`. It is listed with its layout in brackets: the shared layout's title when `layoutId` points at a published pattern (Ticker, Flash, or a custom layout's title), or "Detached" when the block has inner blocks of its own. A capped feed (`latestOnly`) adds how many entries it shows, as in "Rolling Coverage (Ticker, latest 5)". A block with no layout of either kind, or whose layout has nothing the site can render (unpublished, gone, or without a Rolling Coverage block holding inner blocks), renders the built-in Bulletin template, so it reads "Rolling Coverage (Bulletin)", whatever the Bulletin pattern is now called. A layout without a title reads "Untitled layout". Layout titles are looked up once per layout and request. Blocks that read the same on one place, such as two Ticker feeds, are listed once.
 - **Coverage Status** and **Follow Coverage**, listed by their block names. Custom (`coverageId > 0`) counts for the chosen coverage while it exists and isn't trashed; otherwise the block is Automatic, as it is on the site.
 
 Blocks inside a Rolling Coverage block are part of its layout and show its coverage, so they are not listed on their own. The Check for Updates block only lives there.
 
-The map stores each block as a tag (`feed:<layout>:<count>`, `status` or `follow`), and the REST field turns them into the labels above, feeds that show every entry first, then capped feeds, Coverage Status and Follow Coverage.
+The map stores each block as a tag (`feed:<layout>:<count>`, `status` or `follow`), in the order rows list them: feeds that show every entry first, then capped feeds, Coverage Status and Follow Coverage. The REST field turns the tags into the labels above.
 
 The places it looks in, all published and for the active theme:
 

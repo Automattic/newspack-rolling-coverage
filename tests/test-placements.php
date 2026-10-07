@@ -6,7 +6,6 @@
  */
 
 use Newspack_Rolling_Coverage\Breakout;
-use Newspack_Rolling_Coverage\Layout;
 use Newspack_Rolling_Coverage\Placements;
 use Newspack_Rolling_Coverage\Taxonomy;
 
@@ -52,6 +51,15 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 	 */
 	private static function feed( int $coverage_id, array $attrs = [] ): string {
 		return '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( array_merge( [ 'coverageId' => $coverage_id ], $attrs ) ) . ' /-->';
+	}
+
+	/**
+	 * A layout pattern's content: a Rolling Coverage block holding the layout.
+	 *
+	 * @return string
+	 */
+	private static function layout(): string {
+		return '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":0} --><!-- wp:paragraph --><p>Entry</p><!-- /wp:paragraph --><!-- /wp:newspack-rolling-coverage/rolling-coverage -->';
 	}
 
 	/**
@@ -187,14 +195,14 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A Rolling Coverage block is listed with its shared layout's name,
-	 * Detached when it has its own copy of a layout, or the default layout's
-	 * name when it has no usable one, and with how many entries it shows
-	 * when capped.
+	 * Detached when it has its own copy of a layout, or Bulletin, the
+	 * built-in template it renders, when it has no usable layout, and with
+	 * how many entries it shows when capped.
 	 */
 	public function test_feeds_are_listed_with_their_layout_and_cap() {
 		$coverage_id = self::create_coverage();
-		$flash_id    = self::pattern( 'Flash', '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":0} /-->' );
-		$stream_id   = self::pattern( 'Stream', '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":0} /-->' );
+		$flash_id    = self::pattern( 'Flash', self::layout() );
+		$stream_id   = self::pattern( 'Stream', self::layout() );
 		$draft_id    = self::factory()->post->create(
 			[
 				'post_type'   => 'wp_block',
@@ -202,6 +210,8 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 				'post_title'  => 'Draft layout',
 			]
 		);
+		$empty_id    = self::pattern( 'Empty', '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":0} /-->' );
+		$untitled_id = self::pattern( '', self::layout() );
 		$page_id     = self::publish( self::feed( $coverage_id, [ 'layoutId' => $stream_id ] ), [ 'post_type' => 'page' ] );
 		$home_id     = self::publish(
 			self::feed(
@@ -215,24 +225,20 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$detached_id = self::publish( '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . ',"latestOnly":true,"latestCount":3} --><!-- wp:paragraph --><p>Entry</p><!-- /wp:paragraph --><!-- /wp:newspack-rolling-coverage/rolling-coverage -->' );
 		$default_id  = self::publish( '<!-- wp:group -->' . self::feed( $coverage_id, [ 'latestOnly' => true ] ) . '<!-- /wp:group -->' );
 		$missing_id  = self::publish( self::feed( $coverage_id, [ 'layoutId' => $draft_id ] ) );
+		$emptied_id  = self::publish( self::feed( $coverage_id, [ 'layoutId' => $empty_id ] ) );
+		$nameless_id = self::publish( self::feed( $coverage_id, [ 'layoutId' => $untitled_id ] ) );
 
 		$this->assertSame(
 			[
-				'post:' . $missing_id  => [ 'Rolling Coverage' ],
-				'post:' . $default_id  => [ 'Rolling Coverage (latest 5)' ],
+				'post:' . $nameless_id => [ 'Rolling Coverage (Untitled layout)' ],
+				'post:' . $emptied_id  => [ 'Rolling Coverage (Bulletin)' ],
+				'post:' . $missing_id  => [ 'Rolling Coverage (Bulletin)' ],
+				'post:' . $default_id  => [ 'Rolling Coverage (Bulletin, latest 5)' ],
 				'post:' . $detached_id => [ 'Rolling Coverage (Detached, latest 3)' ],
 				'post:' . $home_id     => [ 'Rolling Coverage (Flash, latest 5)' ],
 				'post:' . $page_id     => [ 'Rolling Coverage (Stream)' ],
 			],
 			self::blocks( $coverage_id )
-		);
-
-		update_option( Layout::option_name( 'default' ), self::pattern( 'Bulletin', '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":0} /-->' ) );
-
-		$this->assertSame(
-			[ 'Rolling Coverage (Bulletin)', 'Rolling Coverage (Bulletin, latest 5)' ],
-			[ self::blocks( $coverage_id )[ 'post:' . $missing_id ][0], self::blocks( $coverage_id )[ 'post:' . $default_id ][0] ],
-			'A block without a usable layout renders the default one.'
 		);
 		$this->assertSame( [], Placements::for_coverage( self::create_coverage() ), 'A coverage nothing shows has no placements.' );
 	}
@@ -273,7 +279,7 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 
 		$this->assertSame(
 			[
-				'post:' . $page_id         => [ 'Rolling Coverage', 'Coverage Status', 'Follow Coverage' ],
+				'post:' . $page_id         => [ 'Rolling Coverage (Bulletin)', 'Coverage Status', 'Follow Coverage' ],
 				'post:' . $sidebar_post_id => [ 'Coverage Status', 'Follow Coverage' ],
 			],
 			self::blocks( $coverage_id ),
@@ -309,8 +315,7 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 	 */
 	public function test_a_row_lists_its_blocks_in_order_once() {
 		$coverage_id = self::create_coverage();
-		$bulletin_id = self::pattern( 'Bulletin', '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":0} /-->' );
-		update_option( Layout::option_name( 'default' ), $bulletin_id );
+		$bulletin_id = self::pattern( 'Bulletin', self::layout() );
 
 		$page_id = self::publish(
 			self::follow( $coverage_id ) . self::status( $coverage_id ) . self::feed( $coverage_id, [ 'latestOnly' => true ] ) . self::feed( $coverage_id ) . self::feed( $coverage_id, [ 'layoutId' => $bulletin_id ] )
@@ -346,7 +351,7 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$coverage_id = self::create_coverage();
 		$page_id     = self::publish( self::status() . self::feed( $trashed_id ) . self::feed( $coverage_id ) );
 
-		$this->assertSame( [ 'post:' . $page_id => [ 'Rolling Coverage', 'Coverage Status' ] ], self::blocks( $coverage_id ) );
+		$this->assertSame( [ 'post:' . $page_id => [ 'Rolling Coverage (Bulletin)', 'Coverage Status' ] ], self::blocks( $coverage_id ) );
 	}
 
 	/**
@@ -363,7 +368,7 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		update_term_meta( $chosen_id, Taxonomy::STATUS_META_KEY, 'trash' );
 
 		$this->assertSame( [], self::blocks( $chosen_id ) );
-		$this->assertSame( [ 'post:' . $page_id => [ 'Rolling Coverage', 'Coverage Status' ] ], self::blocks( $coverage_id ) );
+		$this->assertSame( [ 'post:' . $page_id => [ 'Rolling Coverage (Bulletin)', 'Coverage Status' ] ], self::blocks( $coverage_id ) );
 	}
 
 	/**
@@ -405,9 +410,9 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$header     = $rows[ 'wp_template_part:' . $theme . '//header' ];
 		$archive    = $rows[ 'wp_template:' . $theme . '//archive' ];
 
-		$this->assertSame( [ 'Front Page', 'Template', [ 'Rolling Coverage' ], home_url( '/' ) ], [ $front_page['title'], $front_page['type'], $front_page['blocks'], $front_page['viewUrl'] ] );
+		$this->assertSame( [ 'Front Page', 'Template', [ 'Rolling Coverage (Bulletin)' ], home_url( '/' ) ], [ $front_page['title'], $front_page['type'], $front_page['blocks'], $front_page['viewUrl'] ] );
 		$this->assertSame( admin_url( 'site-editor.php?p=/wp_template/' . rawurlencode( $theme . '//front-page' ) . '&canvas=edit' ), $front_page['editUrl'] );
-		$this->assertSame( [ 'Header', 'Template part', [ 'Rolling Coverage (latest 5)' ], '' ], [ $header['title'], $header['type'], $header['blocks'], $header['viewUrl'] ] );
+		$this->assertSame( [ 'Header', 'Template part', [ 'Rolling Coverage (Bulletin, latest 5)' ], '' ], [ $header['title'], $header['type'], $header['blocks'], $header['viewUrl'] ] );
 		$this->assertSame( [ 'Coverage Status' ], $archive['blocks'] );
 
 		self::log_in_as( 'editor' );
@@ -455,7 +460,7 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$rows = self::rows( $coverage_id );
 
 		$this->assertSame( [ 'wp_block:' . $box_id ], array_keys( $rows ), 'The post holds no block of its own, so the pattern is the place.' );
-		$this->assertSame( [ 'Storm box', 'Pattern', [ 'Rolling Coverage (latest 5)', 'Coverage Status' ], '' ], [ $rows[ 'wp_block:' . $box_id ]['title'], $rows[ 'wp_block:' . $box_id ]['type'], $rows[ 'wp_block:' . $box_id ]['blocks'], $rows[ 'wp_block:' . $box_id ]['viewUrl'] ] );
+		$this->assertSame( [ 'Storm box', 'Pattern', [ 'Rolling Coverage (Bulletin, latest 5)', 'Coverage Status' ], '' ], [ $rows[ 'wp_block:' . $box_id ]['title'], $rows[ 'wp_block:' . $box_id ]['type'], $rows[ 'wp_block:' . $box_id ]['blocks'], $rows[ 'wp_block:' . $box_id ]['viewUrl'] ] );
 		$this->assertSame( get_edit_post_link( $box_id, 'raw' ), $rows[ 'wp_block:' . $box_id ]['editUrl'], 'On a classic theme a pattern opens in the block editor.' );
 
 		wp_update_post(
@@ -477,7 +482,7 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$header_id   = self::pattern( 'Live header', self::status() . self::follow() );
 		$page_id     = self::publish( self::ref( $header_id ) . self::feed( $coverage_id ) );
 
-		$this->assertSame( [ 'post:' . $page_id => [ 'Rolling Coverage', 'Coverage Status', 'Follow Coverage' ] ], self::blocks( $coverage_id ) );
+		$this->assertSame( [ 'post:' . $page_id => [ 'Rolling Coverage (Bulletin)', 'Coverage Status', 'Follow Coverage' ] ], self::blocks( $coverage_id ) );
 	}
 
 	/**
@@ -513,7 +518,7 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$row = self::rows( $coverage_id )[ 'widget_area:' . self::SIDEBAR_ID ] ?? null;
 
 		$this->assertNotNull( $row );
-		$this->assertSame( [ 'Right Sidebar', 'Widget area', [ 'Rolling Coverage (latest 5)', 'Follow Coverage' ], '', admin_url( 'widgets.php' ) ], [ $row['title'], $row['type'], $row['blocks'], $row['viewUrl'], $row['editUrl'] ] );
+		$this->assertSame( [ 'Right Sidebar', 'Widget area', [ 'Rolling Coverage (Bulletin, latest 5)', 'Follow Coverage' ], '', admin_url( 'widgets.php' ) ], [ $row['title'], $row['type'], $row['blocks'], $row['viewUrl'], $row['editUrl'] ] );
 		$this->assertCount( 1, Placements::for_coverage( $coverage_id ), 'An inactive widget is not a place.' );
 	}
 
@@ -776,6 +781,62 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 				)
 			),
 			'Turning the capped feed into a full one.'
+		);
+		$this->assertTrue(
+			self::clears_map(
+				fn() => wp_update_post(
+					[
+						'ID'           => $article_id,
+						'post_content' => self::feed( $coverage_id, [ 'layoutId' => $other_id ] ),
+					]
+				)
+			),
+			'Changing the feed\'s layout.'
+		);
+		$this->assertTrue(
+			self::clears_map(
+				fn() => wp_update_post(
+					[
+						'ID'           => $article_id,
+						'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} --><!-- wp:paragraph --><p>Entry</p><!-- /wp:paragraph --><!-- /wp:newspack-rolling-coverage/rolling-coverage -->',
+					]
+				)
+			),
+			'Detaching the feed\'s layout.'
+		);
+		$this->assertTrue(
+			self::clears_map(
+				fn() => wp_update_post(
+					[
+						'ID'           => $article_id,
+						'post_content' => self::feed(
+							$coverage_id,
+							[
+								'latestOnly'  => true,
+								'latestCount' => 3,
+							]
+						) . self::feed( $coverage_id ),
+					]
+				)
+			),
+			'Adding a capped feed next to the full one.'
+		);
+		$this->assertTrue(
+			self::clears_map(
+				fn() => wp_update_post(
+					[
+						'ID'           => $article_id,
+						'post_content' => self::feed(
+							$coverage_id,
+							[
+								'latestOnly'  => true,
+								'latestCount' => 4,
+							]
+						) . self::feed( $coverage_id ),
+					]
+				)
+			),
+			'Changing how many entries a capped feed shows.'
 		);
 		$this->assertFalse(
 			self::clears_map(

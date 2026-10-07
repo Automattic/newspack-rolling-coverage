@@ -68,7 +68,7 @@ class Placements {
 	// block's tag is feed:<layout>:<count>, its layout being a layout ID,
 	// detached, or empty when it has neither, and its count how many entries
 	// it shows, 0 for all of them. A block without a usable layout renders
-	// the built-in default, so it is labeled with that.
+	// the built-in Bulletin template, so it is labeled with that.
 	const TAG_FEED   = 'feed';
 	const TAG_STATUS = 'status';
 	const TAG_FOLLOW = 'follow';
@@ -83,6 +83,13 @@ class Placements {
 	 * @var array<int,array<int,WP_Post>>
 	 */
 	private static $breakout_posts = [];
+
+	/**
+	 * Layout titles worked out this request, keyed by blog ID and layout ID.
+	 *
+	 * @var array<int,array<int,string>>
+	 */
+	private static $layout_titles = [];
 
 	/**
 	 * Sites whose map this request has already checked or rebuilt since its
@@ -143,8 +150,9 @@ class Placements {
 							'title'    => [ 'type' => 'string' ],
 							'type'     => [ 'type' => 'string' ],
 							'blocks'   => [
-								'type'  => 'array',
-								'items' => [ 'type' => 'string' ],
+								'description' => __( 'Translated labels of the blocks that show the coverage there.', 'newspack-rolling-coverage' ),
+								'type'        => 'array',
+								'items'       => [ 'type' => 'string' ],
 							],
 							'viewUrl'  => [ 'type' => 'string' ],
 							'editUrl'  => [ 'type' => 'string' ],
@@ -228,14 +236,13 @@ class Placements {
 	public static function for_coverage( int $coverage_id ): array {
 		self::ensure_fresh();
 
-		$map            = self::get_map();
-		$rows           = [];
-		$default_layout = self::layout_title( Layout::get_layout_id( 'default' ) );
+		$map  = self::get_map();
+		$rows = [];
 
 		self::prime( $map['places'][ $coverage_id ] ?? [] );
 
 		foreach ( $map['places'][ $coverage_id ] ?? [] as $place ) {
-			$row = self::resolve( $place, $default_layout );
+			$row = self::resolve( $place );
 
 			if ( $row ) {
 				$rows[] = $row;
@@ -246,7 +253,7 @@ class Placements {
 
 		if ( $breakout_post ) {
 			foreach ( $map['breakout'] as $place ) {
-				$row = self::resolve( $place, $default_layout );
+				$row = self::resolve( $place );
 
 				if ( $row ) {
 					$row['id']       = 'breakout:' . $row['id'];
@@ -322,25 +329,15 @@ class Placements {
 	/**
 	 * Turns a stored place into a row, or null when it is no longer published.
 	 *
-	 * @param array  $place          Stored place.
-	 * @param string $default_layout The default layout's title, or an empty string.
+	 * @param array $place Stored place.
 	 * @return array|null
 	 */
-	private static function resolve( array $place, string $default_layout ): ?array {
+	private static function resolve( array $place ): ?array {
 		$row = [
 			'id'       => $place['type'] . ':' . $place['id'],
 			'title'    => '',
 			'type'     => '',
-			'blocks'   => array_values(
-				array_unique(
-					array_map(
-						function ( string $tag ) use ( $default_layout ): string {
-							return self::tag_label( $tag, $default_layout );
-						},
-						$place['tags']
-					)
-				)
-			),
+			'blocks'   => array_values( array_unique( array_map( [ __CLASS__, 'tag_label' ], $place['tags'] ) ) ),
 			'viewUrl'  => '',
 			'editUrl'  => '',
 			'isMain'   => false,
@@ -445,11 +442,10 @@ class Placements {
 	 * The label shown for a block tag: the block's name, and for a Rolling
 	 * Coverage block its layout and, when capped, how many entries it shows.
 	 *
-	 * @param string $tag            Stored tag: feed:<layout>:<count>, status or follow.
-	 * @param string $default_layout The default layout's title, or an empty string.
+	 * @param string $tag Stored tag: feed:<layout>:<count>, status or follow.
 	 * @return string
 	 */
-	private static function tag_label( string $tag, string $default_layout ): string {
+	private static function tag_label( string $tag ): string {
 		if ( self::TAG_STATUS === $tag ) {
 			return __( 'Coverage Status', 'newspack-rolling-coverage' );
 		}
@@ -461,8 +457,8 @@ class Placements {
 		[ $layout, $count ] = self::parse_feed_tag( $tag );
 
 		$name   = __( 'Rolling Coverage', 'newspack-rolling-coverage' );
-		$layout = self::LAYOUT_DETACHED === $layout ? __( 'Detached', 'newspack-rolling-coverage' ) : self::layout_title( (int) $layout );
-		$layout = '' === $layout ? $default_layout : $layout;
+		$layout = self::LAYOUT_DETACHED === $layout ? _x( 'Detached', 'layout', 'newspack-rolling-coverage' ) : self::layout_title( (int) $layout );
+		$layout = '' === $layout ? Layout::get_title( 'default' ) : $layout;
 
 		if ( '' !== $layout && $count > 0 ) {
 			/* translators: 1: block name, 2: layout name, 3: how many entries the block shows */
@@ -495,20 +491,28 @@ class Placements {
 	}
 
 	/**
-	 * A shared layout's name, or an empty string when the site can't render
-	 * the layout, as Layout::inject_layout() decides.
+	 * A shared layout's name, or an empty string when the layout has no
+	 * blocks the site can render, so the block renders the built-in default.
+	 * Worked out once per layout and request until the next change.
 	 *
 	 * @param int $layout_id Layout (wp_block) ID.
 	 * @return string
 	 */
 	private static function layout_title( int $layout_id ): string {
-		if ( null === Layout::get_layout_blocks( $layout_id ) ) {
-			return '';
+		$blog_id = get_current_blog_id();
+
+		if ( ! isset( self::$layout_titles[ $blog_id ][ $layout_id ] ) ) {
+			$title = '';
+
+			if ( ! empty( Layout::get_layout_blocks( $layout_id ) ) ) {
+				$title = html_entity_decode( wp_strip_all_tags( get_the_title( $layout_id ) ), ENT_QUOTES, 'UTF-8' );
+				$title = '' === $title ? __( 'Untitled layout', 'newspack-rolling-coverage' ) : $title;
+			}
+
+			self::$layout_titles[ $blog_id ][ $layout_id ] = $title;
 		}
 
-		$title = html_entity_decode( wp_strip_all_tags( get_the_title( $layout_id ) ), ENT_QUOTES, 'UTF-8' );
-
-		return '' === $title ? __( 'Untitled layout', 'newspack-rolling-coverage' ) : $title;
+		return self::$layout_titles[ $blog_id ][ $layout_id ];
 	}
 
 	/**
@@ -784,7 +788,7 @@ class Placements {
 	public static function flush(): void {
 		$blog_id = get_current_blog_id();
 
-		unset( self::$breakout_posts[ $blog_id ], self::$fresh[ $blog_id ], self::$queued[ $blog_id ] );
+		unset( self::$breakout_posts[ $blog_id ], self::$layout_titles[ $blog_id ], self::$fresh[ $blog_id ], self::$queued[ $blog_id ] );
 		self::write_option( self::STALE_OPTION, uniqid( '', true ) );
 		self::queue_rebuild();
 	}
