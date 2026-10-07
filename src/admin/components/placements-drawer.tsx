@@ -1,7 +1,14 @@
 /**
  * External dependencies
  */
-import { Field, Link, Stack, Text, VisuallyHidden } from '@wordpress/ui';
+import {
+	Field,
+	Link,
+	Stack,
+	Text,
+	Tooltip,
+	VisuallyHidden,
+} from '@wordpress/ui';
 import { __, _x, sprintf } from '@wordpress/i18n';
 import Divider from 'newspack-components/dist/esm/divider';
 import { Drawer } from 'newspack-components/dist/esm/drawer';
@@ -12,8 +19,8 @@ import { Drawer } from 'newspack-components/dist/esm/drawer';
 import type { Placement, PlacementsDrawerProps } from '../types';
 
 /**
- * One place that shows the coverage: its type, its title, the blocks it
- * shows the coverage with, and links to view and edit it.
+ * One place that shows the coverage: its type, its title linking to its
+ * editor, the blocks it shows the coverage with, and a link to view it.
  *
  * @param {Object}    props             Component props.
  * @param {Placement} props.placement   The place.
@@ -86,39 +93,50 @@ function PlacementRow( {
 						align="baseline"
 						gap="lg"
 					>
-						<Text className="newspack-rolling-coverage-placement__title">
-							{ title }
-						</Text>
-						{ ( viewUrl || editUrl ) && (
-							<Stack
-								direction="row"
-								gap="md"
-								align="baseline"
-								className="newspack-rolling-coverage-placement__links"
+						{ editUrl ? (
+							<Tooltip.Root>
+								<Tooltip.Trigger
+									render={
+										<Link
+											href={ editUrl }
+											tone="neutral"
+											className="newspack-rolling-coverage-placement__title"
+											aria-label={ sprintf(
+												/* translators: %s: title of the place */
+												__(
+													'Open %s in the editor',
+													'newspack-rolling-coverage'
+												),
+												title
+											) }
+										/>
+									}
+								>
+									{ title }
+								</Tooltip.Trigger>
+								<Tooltip.Popup>
+									{ __(
+										'Open in the editor',
+										'newspack-rolling-coverage'
+									) }
+								</Tooltip.Popup>
+							</Tooltip.Root>
+						) : (
+							<Text className="newspack-rolling-coverage-placement__title">
+								{ title }
+							</Text>
+						) }
+						{ viewUrl && (
+							<Link
+								href={ viewUrl }
+								openInNewTab
+								className="newspack-rolling-coverage-placement__view"
 							>
-								{ viewUrl && (
-									<Link href={ viewUrl } openInNewTab>
-										{ __(
-											'View',
-											'newspack-rolling-coverage'
-										) }
-										<VisuallyHidden render={ <span /> }>
-											{ ` ${ title }` }
-										</VisuallyHidden>
-									</Link>
-								) }
-								{ editUrl && (
-									<Link href={ editUrl }>
-										{ __(
-											'Edit',
-											'newspack-rolling-coverage'
-										) }
-										<VisuallyHidden render={ <span /> }>
-											{ ` ${ title }` }
-										</VisuallyHidden>
-									</Link>
-								) }
-							</Stack>
+								{ __( 'View', 'newspack-rolling-coverage' ) }
+								<VisuallyHidden render={ <span /> }>
+									{ ` ${ title }` }
+								</VisuallyHidden>
+							</Link>
 						) }
 					</Stack>
 				</Stack>
