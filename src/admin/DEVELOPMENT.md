@@ -180,6 +180,19 @@ The entries list has no Source column. The source shows as a marker before the t
 
 The `source` field stays defined, with no `render` and `enableHiding: false`. DataViews builds filters from every field, whether or not it's shown, so Source is offered under **Add filter** but never as a column.
 
+## Slack authors
+
+An entry ingested from Slack is credited to the WordPress user whose Slack member ID or handle matches the message's author, and to the Slack bot user (`Slack_Config::get_or_create_bot_user_id()`) when nobody's does. The value is set in the **Rolling Coverage** section of the profile and user edit screens, in its **Slack handle** field, and stored in the `rolling_coverage_slack_handle` user meta (`Slack_Author_Resolver::META_SLACK_HANDLE`). The field's description says how to find a member ID in Slack (Profile, then the More menu, then **Copy member ID**).
+
+- A value that is uppercase letters and digits starting with `U` or `W` (`Slack_Author_Resolver::is_member_id()`) is a member ID; anything else is a handle. Values are stored trimmed and without a leading `@`. Saving a value another user already has is refused with an error on the profile screen, so a message never has two people it could be credited to.
+- At ingest, `Slack_Author_Resolver::resolve_author_id()` tries the author's member ID, which comes with the message, then their Slack display name, then their Slack username. A member ID matches only exactly; a handle matches ignoring case, as the database collation does. Only users who can `edit_posts` are credited.
+- Handles need Slack's `users.info` lookup (1s budget on the webhook); when it fails, only a member ID can match, and otherwise the entry goes to the bot user.
+- Images uploaded with the message are owned by the same user as the entry.
+
+Slack display names are not unique, and anyone in the workspace can change theirs to match someone's handle, so a handle tells who posted only as far as the channel's members can be trusted to use their own names. A member ID can't be taken this way, which is why it is tried first and why the field recommends it.
+
+Tests: `tests/test-slack-author-resolver.php`, and the end-to-end cases in `tests/test-slack-webhook.php`.
+
 ## Adding a source
 
 The taxonomy already anticipates other chat platforms (Beeper, WhatsApp, Telegram). A new source needs each of these:

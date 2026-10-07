@@ -1552,8 +1552,9 @@ class Slack_Webhook_Controller {
 		// 2. Content processing.
 		$content = $content_processor->process( $text, is_array( $event['blocks'] ?? null ) ? $event['blocks'] : [] );
 
-		// 3. Bot user resolution.
-		$bot_user_id = Slack_Author_Resolver::get_slack_bot_user_id();
+		// 3. The entry's author: the WordPress user mapped to the message
+		// author's Slack member ID or handle, or the bot user.
+		$author_id = Slack_Author_Resolver::resolve_author_id( $user_id, $user_info );
 
 		// 4. Build the normalized payload.
 		$source_payload = new Source_Event_Payload(
@@ -1580,13 +1581,13 @@ class Slack_Webhook_Controller {
 		// 6. Call the generic ingestion service. Uploaded images are imported
 		// from inside it, once the message is known not to be a redelivery.
 		$files          = is_array( $event['files'] ?? null ) ? $event['files'] : [];
-		$media_importer = new Slack_Media_Importer( $api_client, $bot_user_id );
+		$media_importer = new Slack_Media_Importer( $api_client, $author_id );
 
 		$post_id = Entry_Ingestion_Service::ingest(
 			$source_payload,
 			$term_id,
 			$auto_publish,
-			$bot_user_id,
+			$author_id,
 			$provenance_meta,
 			static fn( callable $keep_lock ): string => $media_importer->import( $files, $keep_lock )
 		);
