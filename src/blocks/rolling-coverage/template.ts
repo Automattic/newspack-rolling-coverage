@@ -1388,7 +1388,7 @@ const FLASH_BAR_STYLE = {
 };
 
 const ALERT_FEED_STYLE = {
-	border: { color: ACCENT, width: '1px', style: 'solid' },
+	color: { background: PINNED_BACKGROUND },
 	spacing: { padding: 'var:preset|spacing|30' },
 };
 
@@ -3290,7 +3290,6 @@ export {
 	flashBar,
 	FLASH_FEED_LAYOUT,
 	ALERT_FEED_STYLE,
-	themeFontSize,
 	tickerEntryTemplate,
 	tickerHeader,
 	TICKER_FEED_LAYOUT,
