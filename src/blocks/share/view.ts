@@ -150,13 +150,15 @@ function initBlock( root: HTMLElement ): void {
 
 		// Not always root: a feed added after load has no listeners of its own.
 		const ownFeed = button.closest< HTMLElement >( BLOCK_SELECTOR ) ?? root;
+		const entry = button.closest< HTMLElement >( 'article' );
+		// A layout without titles, such as Stream, would otherwise share the
+		// title of the first entry in a feed nested in this entry's content.
+		const title = entry
+			? ownElement( ownFeed, '.wp-block-post-title', entry )
+			: null;
 		const shareData: ShareData = {
 			url,
-			title:
-				button
-					.closest( 'article' )
-					?.querySelector( '.wp-block-post-title' )
-					?.textContent?.trim() || document.title,
+			title: title?.textContent?.trim() || document.title,
 		};
 
 		if ( navigator.share && navigator.canShare?.( shareData ) !== false ) {
