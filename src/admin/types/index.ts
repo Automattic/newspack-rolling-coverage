@@ -19,13 +19,11 @@ interface AdminConfig {
 	adminTitleSuffix: string;
 	availableAdapters?: Record< string, string >;
 	restBase: {
-		coverages: string;
 		entries: string;
 		slack: string;
 	};
 	restBaseUrls: {
 		coverages: string;
-		entries: string;
 		slack: string;
 		breakout: string;
 		entriesView: string;
@@ -53,7 +51,6 @@ interface AdminConfig {
 	adminUrls: {
 		coverages: string;
 		editEntry: string;
-		newEntry: string;
 		editUser: string;
 		editTerm: string;
 		connectorApprovals: string;

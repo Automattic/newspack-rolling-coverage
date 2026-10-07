@@ -37,7 +37,7 @@ import { __ } from '@wordpress/i18n';
  */
 import { useAdminContext } from '../hooks/useAdminContext';
 import { ensureEditorInitialized } from '../utils/block-registration';
-import { createEntry } from '../utils/entries-api';
+import { createEntry, deleteEntry } from '../utils/entries-api';
 import { ErrorNotice } from '../shared/error-notice';
 import { LoadingState } from '../shared/loading-state';
 import { ConfirmModal } from './confirm-modal';
@@ -110,8 +110,10 @@ function EditorReadySignal( { onReady }: { onReady: () => void } ) {
  * coverage, as `post-new.php` does for a post, then opens it like any entry.
  * The footer offers Save Draft and Publish (or Submit for Review); the first
  * successful save closes the modal, since the entry now exists in the list,
- * and the editor's own save snackbar shows on the page. An auto-draft that
- * is never saved is deleted by core's auto-draft cleanup a week later.
+ * and the editor's own save snackbar shows on the page. Cancel deletes the
+ * auto-draft, which is still empty on the server; one left behind another
+ * way (the tab closed, say) is deleted by core's auto-draft cleanup a week
+ * later.
  *
  * - Save notices render inside the modal through `SnackbarNotices` from
  *   `@wordpress/notices`, which replaces `EditorSnackbars` (deprecated in
@@ -198,16 +200,27 @@ function QuickEditModal( {
 
 	const editorRegistry = useQuickEditRegistry();
 
+	// A new entry that was never saved is still an empty auto-draft on the
+	// server, whatever was typed: its first successful save closes the modal
+	// through `handleSaved` instead. So cancelling deletes it rather than
+	// leaving it for core's weekly cleanup. Nothing waits on the request, and
+	// a refusal (the coverage ended meanwhile, say) leaves it to core.
+	const isUnsavedNewEntry =
+		isNew && ( ! typedRecord || typedRecord.status === 'auto-draft' );
 	const handleClose = useCallback( () => {
 		removeAllNotices( 'snackbar' );
 		if ( recordId !== null ) {
 			clearEntityRecordEdits( 'postType', config.postType, recordId );
 		}
+		if ( isUnsavedNewEntry && recordId !== null ) {
+			deleteEntry( config, recordId, true );
+		}
 		onClose();
 	}, [
 		removeAllNotices,
 		clearEntityRecordEdits,
-		config.postType,
+		config,
+		isUnsavedNewEntry,
 		recordId,
 		onClose,
 	] );

@@ -426,9 +426,12 @@ function EntryView() {
 
 	// Moving to another coverage (for example with the browser's Back button)
 	// keeps this view mounted, so a drawer left open would still show the
-	// previous coverage's channel.
+	// previous coverage's channel, and a Quick Edit left open would save its
+	// entry into the previous coverage.
 	useEffect( () => {
 		setIsSlackDrawerOpen( false );
+		setQuickEditEntry( null );
+		setIsAddingEntry( false );
 	}, [ numericCoverageId ] );
 	const slackChannelLabel = routeCoverage
 		? getSlackChannelLabel( routeCoverage )

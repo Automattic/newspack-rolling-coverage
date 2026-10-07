@@ -18,6 +18,9 @@ import type {
 	CoreSelectors,
 } from '../types';
 
+/** The failed-save notice, so the next save can remove it. */
+const SAVE_ERROR_NOTICE_ID = 'newspack-rolling-coverage-quick-edit-save-error';
+
 /**
  * Cancel and Save buttons for the Quick Edit footer. A new entry gets Save
  * Draft and Publish instead of Save, or Submit for Review in place of
@@ -36,6 +39,10 @@ import type {
  * `didPostSaveRequestFail()`. All store reads go through `useSelect` so
  * they resolve in the `EditorProvider` sub-registry. On failure an error
  * snackbar is dispatched for `SnackbarNotices` to render inside the modal.
+ * It carries a fixed ID, so the next save removes it: a new entry's first
+ * successful save closes the modal without clearing the page's snackbars,
+ * as the editor's own success notice is on its way, and an error left from
+ * an earlier attempt would otherwise show on the page beside it.
  *
  * @param {QuickEditSaveBarProps} props Component props.
  */
@@ -45,7 +52,7 @@ function QuickEditSaveBar( {
 	onSaved,
 }: QuickEditSaveBarProps ) {
 	const { savePost, editPost } = useDispatch( editorStore );
-	const { createErrorNotice } = useDispatch( noticesStore );
+	const { createErrorNotice, removeNotice } = useDispatch( noticesStore );
 
 	const {
 		isEditorReady,
@@ -90,7 +97,11 @@ function QuickEditSaveBar( {
 							'Failed to save entry.',
 							'newspack-rolling-coverage'
 						),
-					{ type: 'snackbar', explicitDismiss: true }
+					{
+						id: SAVE_ERROR_NOTICE_ID,
+						type: 'snackbar',
+						explicitDismiss: true,
+					}
 				);
 			} else {
 				onSaved();
@@ -103,13 +114,14 @@ function QuickEditSaveBar( {
 
 	const handleSave = useCallback(
 		async ( status?: string ) => {
+			removeNotice( SAVE_ERROR_NOTICE_ID );
 			if ( status ) {
 				setSavingStatus( status );
 				editPost( { status }, { undoIgnore: true } );
 			}
 			await savePost();
 		},
-		[ editPost, savePost ]
+		[ editPost, removeNotice, savePost ]
 	);
 
 	const publishStatus = canPublish ? 'publish' : 'pending';

@@ -762,23 +762,17 @@ class Post_Type {
 	 */
 	public static function handle_create_entry( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$coverage_id = (int) $request->get_param( 'coverage_id' );
-		$coverage    = get_term( $coverage_id, Taxonomy::TAXONOMY_SLUG );
+		$coverage    = Taxonomy::get_coverage_term( $coverage_id );
 
-		if ( ! $coverage instanceof \WP_Term ) {
-			return new WP_Error(
-				'rolling_coverage_coverage_not_found',
-				__( 'Coverage not found.', 'newspack-rolling-coverage' ),
-				[ 'status' => 404 ]
-			);
+		if ( is_wp_error( $coverage ) ) {
+			return $coverage;
 		}
 
-		$status = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
-
-		if ( Taxonomy::STATUS_ARCHIVED === $status ) {
+		if ( Archive_Mode::is_coverage_archived( $coverage_id ) ) {
 			return Archive_Mode::archived_error();
 		}
 
-		if ( 'trash' === $status ) {
+		if ( 'trash' === get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ) ) {
 			return new WP_Error(
 				'rolling_coverage_coverage_trashed',
 				__( 'This coverage is in the trash. Restore it before adding entries.', 'newspack-rolling-coverage' ),
@@ -1915,15 +1909,13 @@ class Post_Type {
 	 * saves. This hook covers the remaining statuses that the admin sync
 	 * endpoint polls, including the restore-to-draft case. Publish and trash
 	 * are skipped to avoid duplicating the block's writer and the trash hook
-	 * respectively. An auto-draft, which Quick Edit creates before the entry
-	 * is first saved, is not entry activity: the list never shows one, and
-	 * its modified GMT date is still the zero date.
+	 * respectively.
 	 *
 	 * @param int     $post_id Entry post ID.
 	 * @param WP_Post $post    Entry post object.
 	 */
 	public static function on_save_post( int $post_id, WP_Post $post ): void {
-		if ( in_array( $post->post_status, [ 'publish', 'trash', 'auto-draft' ], true ) ) {
+		if ( 'publish' === $post->post_status || 'trash' === $post->post_status ) {
 			return;
 		}
 
@@ -2077,8 +2069,7 @@ class Post_Type {
 	public static function on_delete_post( $post_id ) {
 		$post = get_post( $post_id );
 
-		// An auto-draft never reached a list, so core's cleanup deleting it changes nothing.
-		if ( ! $post instanceof WP_Post || self::CPT_SLUG !== $post->post_type || 'auto-draft' === $post->post_status ) {
+		if ( ! $post instanceof WP_Post || self::CPT_SLUG !== $post->post_type ) {
 			return;
 		}
 
@@ -2111,10 +2102,20 @@ class Post_Type {
 	 * Update the last-modified term meta for every coverage term assigned to
 	 * the given entry post.
 	 *
+	 * An auto-draft, which Quick Edit creates before the entry is first
+	 * saved, is not entry activity: the list never shows one, its modified
+	 * GMT date is still the zero date, and core's cleanup deleting one that
+	 * was never saved changes nothing. Every hook that marks activity in a
+	 * coverage funnels through here, so an auto-draft is left out once.
+	 *
 	 * @param int    $post_id  Entry post ID.
 	 * @param string $modified GMT timestamp in Y-m-d H:i:s format to store.
 	 */
 	private static function update_coverage_last_modified( int $post_id, string $modified ): void {
+		if ( 'auto-draft' === get_post_status( $post_id ) ) {
+			return;
+		}
+
 		$term_ids = wp_get_post_terms( $post_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
 
 		if ( is_wp_error( $term_ids ) || empty( $term_ids ) ) {
@@ -2150,9 +2151,8 @@ class Post_Type {
 			return;
 		}
 
-		// Don't sync during trash — the term relationship may be gone. An
-		// auto-draft is not an entry yet (see on_save_post()).
-		if ( in_array( $post->post_status, [ 'trash', 'auto-draft' ], true ) ) {
+		// Don't sync during trash — the term relationship may be gone.
+		if ( 'trash' === $post->post_status ) {
 			return;
 		}
 

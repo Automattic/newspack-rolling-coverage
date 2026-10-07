@@ -519,22 +519,24 @@ function getEntryEditWarning( entry: Entry ): EntryEditWarning {
 /**
  * Sends a DELETE request for a single entry, returning a normalised
  * ApiResult. When `force` is truthy the entry is permanently deleted;
- * otherwise it is moved to the trash.
+ * otherwise it is moved to the trash. Quick Edit also uses it, with
+ * `force`, to drop the auto-draft of a new entry cancelled before its
+ * first save.
  *
- * @param {AdminConfig} config Admin config providing the entries REST base.
- * @param {Entry}       entry  The entry row being operated on.
- * @param {boolean}     force  Whether to bypass the trash (permanent delete).
+ * @param {AdminConfig} config  Admin config providing the entries REST base.
+ * @param {number}      entryId The entry being deleted.
+ * @param {boolean}     force   Whether to bypass the trash (permanent delete).
  * @return {Promise<ApiResult>} Result indicating success or failure.
  */
 async function deleteEntry(
 	config: AdminConfig,
-	entry: Entry,
+	entryId: number,
 	force: boolean
 ): Promise< ApiResult > {
 	const query = force ? '?force=true' : '';
 	try {
 		await apiFetch( {
-			path: `/wp/v2/${ config.restBase.entries }/${ entry.id }${ query }`,
+			path: `/wp/v2/${ config.restBase.entries }/${ entryId }${ query }`,
 			method: 'DELETE',
 		} );
 		return { success: true };
@@ -562,7 +564,7 @@ async function runEntryBulk(
 	force: boolean
 ): Promise< { failed: ApiResult[]; succeeded: boolean } > {
 	const results = await Promise.all(
-		items.map( ( entry ) => deleteEntry( config, entry, force ) )
+		items.map( ( entry ) => deleteEntry( config, entry.id, force ) )
 	);
 	const failed = results.filter( ( r ) => ! r.success );
 	return { failed, succeeded: failed.length === 0 };

@@ -410,13 +410,11 @@ class Admin {
 			'adminTitleSuffix'     => self::$admin_title_suffix,
 			'supportsHandoff'      => class_exists( '\Newspack\Handoff_Banner' ),
 			'restBase'             => array(
-				'coverages' => Taxonomy::REST_BASE,
-				'entries'   => Post_Type::REST_BASE,
-				'slack'     => Slack::REST_NAMESPACE,
+				'entries' => Post_Type::REST_BASE,
+				'slack'   => Slack::REST_NAMESPACE,
 			),
 			'restBaseUrls'         => array(
 				'coverages'     => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
-				'entries'       => esc_url_raw( rest_url( 'wp/v2/' . Post_Type::REST_BASE ) ),
 				'slack'         => esc_url_raw( rest_url( Slack::REST_NAMESPACE . '/' ) ),
 				'breakout'      => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/entries' ) ),
 				'entriesView'   => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
@@ -443,7 +441,6 @@ class Admin {
 			'adminUrls'            => array(
 				'coverages'          => admin_url( 'admin.php?page=' . self::MENU_SLUG ),
 				'editEntry'          => admin_url( 'post.php?action=edit' ),
-				'newEntry'           => admin_url( 'post-new.php?post_type=' . Post_Type::CPT_SLUG ),
 				'editTerm'           => admin_url( 'term.php?taxonomy=' . Taxonomy::TAXONOMY_SLUG ),
 				'editUser'           => admin_url( 'user-edit.php' ),
 				'connectorApprovals' => AI_Service::get_connector_approvals_url(),

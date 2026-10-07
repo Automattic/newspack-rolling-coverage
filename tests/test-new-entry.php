@@ -225,4 +225,62 @@ class Test_New_Entry extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'publish', $saved->post_status );
 		$this->assertStringStartsWith( gmdate( 'Y' ), $saved->post_date_gmt, 'The entry should be dated when it was published.' );
 	}
+
+	/**
+	 * A coverage that ends while the modal is open takes no new entries
+	 * either: the first save is refused as the route refuses a start, and the
+	 * auto-draft stays one.
+	 */
+	public function test_first_save_is_refused_once_the_coverage_has_ended() {
+		self::log_in_as( 'editor' );
+		$coverage_id = self::create_coverage();
+		$entry_id    = self::start_entry( $coverage_id )->get_data()['id'];
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$response = self::save_entry(
+			$entry_id,
+			[
+				'status' => 'publish',
+				'title'  => 'Too late',
+			]
+		);
+
+		$this->assertSame( 403, $response->get_status() );
+		$this->assertSame( 'rolling_coverage_entry_locked', $response->get_data()['code'] );
+		$this->assertSame( 'auto-draft', get_post( $entry_id )->post_status, 'The refused save should leave the auto-draft as it was.' );
+	}
+
+	/**
+	 * Quick Edit deletes the auto-draft when a new entry is cancelled before
+	 * its first save, through the core route, which the person who started
+	 * it can do, however low their role.
+	 */
+	public function test_the_person_who_started_the_entry_can_delete_it_before_saving() {
+		self::log_in_as( 'contributor' );
+		$entry_id = self::start_entry( self::create_coverage() )->get_data()['id'];
+
+		$request = new WP_REST_Request( 'DELETE', '/wp/v2/' . Post_Type::REST_BASE . "/{$entry_id}" );
+		$request->set_param( 'force', true );
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status(), 'The author should be able to delete the auto-draft.' );
+		$this->assertNull( get_post( $entry_id ), 'The auto-draft should be gone, not trashed.' );
+	}
+
+	/**
+	 * Deleting an auto-draft, as Cancel does and as core's weekly cleanup does
+	 * for one that was never saved, is not activity in its coverage either.
+	 */
+	public function test_deleting_an_abandoned_auto_draft_is_not_entry_activity() {
+		self::log_in_as( 'editor' );
+		$coverage_id   = self::create_coverage();
+		$entry_id      = self::start_entry( $coverage_id )->get_data()['id'];
+		$last_modified = '2026-01-01 12:00:00';
+		update_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, $last_modified );
+
+		wp_delete_post( $entry_id, true );
+
+		$this->assertNull( get_post( $entry_id ) );
+		$this->assertSame( $last_modified, get_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true ), 'Deleting an auto-draft should not count as activity in the coverage.' );
+	}
 }
