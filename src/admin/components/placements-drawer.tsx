@@ -1,8 +1,9 @@
 /**
  * External dependencies
  */
-import { Badge, Link, Stack, Text, VisuallyHidden } from '@wordpress/ui';
-import { __ } from '@wordpress/i18n';
+import { Link, Stack, Text, VisuallyHidden } from '@wordpress/ui';
+import { __, _x } from '@wordpress/i18n';
+import Divider from 'newspack-components/dist/esm/divider';
 import { Drawer } from 'newspack-components/dist/esm/drawer';
 
 /**
@@ -14,15 +15,28 @@ import type { Placement, PlacementsDrawerProps } from '../types';
  * One place that shows the coverage: its title, what it is, the blocks it
  * shows the coverage with, and links to view and edit it.
  *
- * @param {Object}    props           Component props.
- * @param {Placement} props.placement The place.
+ * @param {Object}    props             Component props.
+ * @param {Placement} props.placement   The place.
+ * @param {boolean}   props.isSeparated Whether a divider sets it apart from the row above.
  */
-function PlacementRow( { placement }: { placement: Placement } ) {
-	const { title, type, tags, viewUrl, editUrl, isMain } = placement;
-	const hasBadges = isMain || tags.length > 0;
+function PlacementRow( {
+	placement,
+	isSeparated,
+}: {
+	placement: Placement;
+	isSeparated: boolean;
+} ) {
+	const { title, type, blocks, viewUrl, editUrl, isMain } = placement;
+	const mainPage = __( 'Main page', 'newspack-rolling-coverage' );
 
 	return (
-		<li className="newspack-rolling-coverage-placement">
+		<Stack
+			render={ <li /> }
+			direction="column"
+			gap="lg"
+			className="newspack-rolling-coverage-placement"
+		>
+			{ isSeparated && <Divider marginTop={ 0 } marginBottom={ 0 } /> }
 			<Stack direction="row" justify="space-between" gap="lg">
 				<Stack
 					direction="column"
@@ -30,29 +44,33 @@ function PlacementRow( { placement }: { placement: Placement } ) {
 					className="newspack-rolling-coverage-placement__details"
 				>
 					<Text variant="heading-md">{ title }</Text>
-					{ type && (
+					{ ( type || isMain ) && (
 						<Text
 							variant="body-sm"
 							className="newspack-rolling-coverage-detail-help"
 						>
 							{ type }
+							{ type && isMain && (
+								<>
+									<span aria-hidden="true">
+										{ ' · ' }
+										{ _x(
+											'Main',
+											'main page, shown after what the place is, such as Page',
+											'newspack-rolling-coverage'
+										) }
+									</span>
+									<VisuallyHidden>{ `, ${ mainPage }` }</VisuallyHidden>
+								</>
+							) }
+							{ ! type && isMain && mainPage }
 						</Text>
 					) }
-					{ hasBadges && (
-						<Stack direction="row" gap="xs" wrap="wrap">
-							{ isMain && (
-								<Badge intent="informational">
-									{ __(
-										'Main page',
-										'newspack-rolling-coverage'
-									) }
-								</Badge>
-							) }
-							{ tags.map( ( tag ) => (
-								<Badge key={ tag }>{ tag }</Badge>
-							) ) }
-						</Stack>
-					) }
+					{ blocks.map( ( block ) => (
+						<Text key={ block } variant="body-sm">
+							{ block }
+						</Text>
+					) ) }
 				</Stack>
 				{ ( viewUrl || editUrl ) && (
 					<Stack
@@ -76,7 +94,7 @@ function PlacementRow( { placement }: { placement: Placement } ) {
 					</Stack>
 				) }
 			</Stack>
-		</li>
+		</Stack>
 	);
 }
 
@@ -102,14 +120,22 @@ function PlacementsDrawer( {
 				<Drawer.CloseIcon />
 			</Drawer.Header>
 			<Drawer.Content>
-				<ul className="newspack-rolling-coverage-placements">
-					{ ( coverage?.placements ?? [] ).map( ( placement ) => (
-						<PlacementRow
-							key={ placement.id }
-							placement={ placement }
-						/>
-					) ) }
-				</ul>
+				<Stack
+					render={ <ul /> }
+					direction="column"
+					gap="lg"
+					className="newspack-rolling-coverage-placements"
+				>
+					{ ( coverage?.placements ?? [] ).map(
+						( placement, index ) => (
+							<PlacementRow
+								key={ placement.id }
+								placement={ placement }
+								isSeparated={ index > 0 }
+							/>
+						)
+					) }
+				</Stack>
 			</Drawer.Content>
 		</Drawer.Root>
 	);

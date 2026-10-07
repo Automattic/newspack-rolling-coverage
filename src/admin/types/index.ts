@@ -117,7 +117,7 @@ interface Placement {
 	id: string;
 	title: string;
 	type: string;
-	tags: string[];
+	blocks: string[];
 	viewUrl: string;
 	editUrl: string;
 	isMain: boolean;

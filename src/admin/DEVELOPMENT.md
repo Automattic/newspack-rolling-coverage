@@ -180,10 +180,12 @@ A coverage's placements are every published place where the plugin's blocks show
 
 `Placements` (`includes/class-placements.php`) looks for three blocks:
 
-- **Rolling Coverage**, by its `coverageId`. A full feed is tagged "Full"; a capped one (`latestOnly`) takes the name of its layout's pattern (Flash, Ticker, Wire, Digest, or a custom layout's title), or "Latest" when it has a detached layout of its own.
-- **Coverage Status** and **Follow Coverage**, tagged "Status" and "Follow". Custom (`coverageId > 0`) counts for the chosen coverage while it exists and isn't trashed; otherwise the block is Automatic, as it is on the site.
+- **Rolling Coverage**, by its `coverageId`. It is listed with its layout in brackets: the shared layout's title when `layoutId` points at a published pattern (Ticker, Flash, or a custom layout's title), or "Detached" when the block has inner blocks of its own. A capped feed (`latestOnly`) adds how many entries it shows, as in "Rolling Coverage (Ticker, latest 5)". A block with no layout of either kind, or whose layout is no longer published, renders the built-in default, so it takes the default layout's title (Bulletin), or no brackets when that pattern is gone too.
+- **Coverage Status** and **Follow Coverage**, listed by their block names. Custom (`coverageId > 0`) counts for the chosen coverage while it exists and isn't trashed; otherwise the block is Automatic, as it is on the site.
 
-Blocks inside a Rolling Coverage block are part of its layout and show its coverage, so they add no tags. The Check for Updates block only lives there.
+Blocks inside a Rolling Coverage block are part of its layout and show its coverage, so they are not listed on their own. The Check for Updates block only lives there.
+
+The map stores each block as a tag (`feed:<layout>:<count>`, `status` or `follow`), and the REST field turns them into the labels above, feeds that show every entry first, then capped feeds, Coverage Status and Follow Coverage.
 
 The places it looks in, all published and for the active theme:
 
@@ -201,7 +203,7 @@ Edit links only show for users who can edit that place.
 
 An Automatic block shows the coverage of the page being viewed (see `src/blocks/coverage-status/DEVELOPMENT.md`), so where it counts depends on where it sits:
 
-- **In a post's own content**, or in a synced pattern the post uses, it shows the post's first uncapped feed, or a breakout post's coverage. Its tag joins that post's row, so a page with a feed and an Automatic Status block is one row tagged "Full" and "Status".
+- **In a post's own content**, or in a synced pattern the post uses, it shows the post's first uncapped feed, or a breakout post's coverage. It joins that post's row, so a page with a feed and an Automatic Status block is one row listing "Rolling Coverage (Stream)" and "Coverage Status".
 - **In a template, template part or widget area**, it shows the coverage on single posts. The rows only cover breakout posts: the single post template (the first of `single-post`, `single`, `singular` and `index` the theme has), the template parts it holds, and every widget area with an Automatic block are each listed once, as "…, on this coverage's breakout posts", for coverages with at least one published breakout post. View opens the newest one. Each breakout post isn't listed on its own. The check looks at the `MAX_BREAKOUT_POSTS` (500) newest entries that have a published breakout post, so a coverage whose only breakout posts are older than that gets no breakout rows.
 - **In a synced pattern's row**, it doesn't count, since it shows whichever page uses the pattern.
 
@@ -230,7 +232,7 @@ A rebuild holds a lock: the `rolling_coverage_placements_lock` row, inserted onl
 
 #### What marks it out of date
 
-- **Posts and patterns:** a save that changes what a published post or synced pattern contributes: the coverages and tags its blocks show, its Automatic blocks, its uncapped feeds, the patterns and template parts it uses, its post type, password or date (which orders the rows and picks `page_id()`). A new title, or an edit to the text around a capped feed, keeps the map. Publishing, unpublishing or permanently deleting a post that holds one of the blocks, or uses a pattern in the stored set, marks it too.
+- **Posts and patterns:** a save that changes what a published post or synced pattern contributes: the coverages its blocks show, and each block's layout and cap, its Automatic blocks, its uncapped feeds, the patterns and template parts it uses, its post type, password or date (which orders the rows and picks `page_id()`). A new title, or an edit to the text around a capped feed, keeps the map. Publishing, unpublishing or permanently deleting a post that holds one of the blocks, or uses a pattern in the stored set, marks it too.
 - **Templates and template parts:** any save, status change or deletion, whatever they hold. They are saved rarely, and which of them a breakout post renders with depends on their slugs and the parts they hold; deleting a customization hands the slug back to the theme's file.
 - **Widgets:** any change to `widget_block` or `sidebars_widgets`.
 - **Themes and plugins:** `after_switch_theme`, and `upgrader_process_complete` for theme and plugin updates (not translations).
@@ -245,7 +247,7 @@ Not tracked: theme files edited without an update, and a breakout post's entry b
 
 ### REST field
 
-`placements` on the coverage term, for users who can `edit_posts` (others get an empty list), in both the `view` and `edit` contexts. It is only worked out when the request names it in `_fields`; otherwise it is an empty list, so the block editor's coverage lookups stay cheap. The coverages list (`useCoverages.ts`) and the single coverage fetch (`getCoverage()` in `src/admin/utils/coverage-api.ts`) both name it. Each row has `id`, `title`, `type` (what the place is, such as "Page" or "Template part"), `tags`, `viewUrl`, `editUrl`, `isMain` and `breakout`.
+`placements` on the coverage term, for users who can `edit_posts` (others get an empty list), in both the `view` and `edit` contexts. It is only worked out when the request names it in `_fields`; otherwise it is an empty list, so the block editor's coverage lookups stay cheap. The coverages list (`useCoverages.ts`) and the single coverage fetch (`getCoverage()` in `src/admin/utils/coverage-api.ts`) both name it. Each row has `id`, `title`, `type` (what the place is, such as "Page" or "Template part"), `blocks` (the labels above), `viewUrl`, `editUrl`, `isMain` and `breakout`.
 
 The older `pageUrl` field stays: the canonical URL, or else the newest post with an uncapped feed, read from the stored map as it is.
 
@@ -255,7 +257,7 @@ The older `pageUrl` field stays: the canonical URL, or else the newest post with
 
 - **No placements:** no button and no row action.
 - **One placement with a View link:** "View Page", a link that opens it in a new tab. A breakout row is the exception: its View link is only the newest of many breakout posts, so it opens the drawer.
-- **Anything else:** "View Pages", which opens `PlacementsDrawer` (`src/admin/components/placements-drawer.tsx`), a Newspack `Drawer` listing every row with its tags and View and Edit links. A single place without a page of its own, such as a template part, also opens the drawer, so its Edit link is reachable.
+- **Anything else:** "View Pages", which opens `PlacementsDrawer` (`src/admin/components/placements-drawer.tsx`), a Newspack `Drawer` listing every row: its title, what it is, the blocks it shows the coverage with (one per line), and View and Edit links. The main page reads "Page · Main" (screen readers hear "Page, Main page"), or "Main page" on the canonical URL's own row. Rows are a WP UI `Stack` with a 16px gap, separated by a Newspack `Divider`. A single place without a page of its own, such as a template part, also opens the drawer, so its Edit link is reachable.
 
 The header button lives in `entry-view.tsx`; the row actions (`view-page`, `view-pages`) in `src/admin/actions/coverage-actions.ts`.
 
