@@ -160,15 +160,18 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Stand in for Co-Authors Plus, recording what it's asked to do.
+	 * Stand in for Co-Authors Plus, recording what it's asked to do. Like the
+	 * real plugin, add_coauthors() writes `post_author` for the co-author it
+	 * finds by nicename, so a wrong lookup would show on the entry.
 	 *
-	 * @param bool $enabled  Whether it's on for entries.
-	 * @param bool $can_set  Whether the current user may set bylines.
-	 * @param bool $sets     What add_coauthors() returns.
+	 * @param bool        $enabled      Whether it's on for entries.
+	 * @param bool        $can_set      Whether the current user may set bylines.
+	 * @param bool        $sets         What add_coauthors() returns.
+	 * @param string|null $guest_holder Nicename a guest author holds, so it is found instead of the user.
 	 * @return object The stand-in, also set as the global.
 	 */
-	private static function fake_coauthors_plus( $enabled = true, $can_set = true, $sets = true ) {
-		$GLOBALS['coauthors_plus'] = new class( $enabled, $can_set, $sets ) {
+	private static function fake_coauthors_plus( $enabled = true, $can_set = true, $sets = true, $guest_holder = null ) {
+		$GLOBALS['coauthors_plus'] = new class( $enabled, $can_set, $sets, $guest_holder ) {
 			/**
 			 * Calls to add_coauthors(), with the entry's author at the time.
 			 *
@@ -179,11 +182,32 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 			/**
 			 * Set up the answers.
 			 *
-			 * @param bool $enabled Whether it's on for entries.
-			 * @param bool $can_set Whether the current user may set bylines.
-			 * @param bool $sets    What add_coauthors() returns.
+			 * @param bool        $enabled      Whether it's on for entries.
+			 * @param bool        $can_set      Whether the current user may set bylines.
+			 * @param bool        $sets         What add_coauthors() returns.
+			 * @param string|null $guest_holder Nicename a guest author holds.
 			 */
-			public function __construct( private bool $enabled, private bool $can_set, private bool $sets ) {}
+			public function __construct( private bool $enabled, private bool $can_set, private bool $sets, private ?string $guest_holder ) {}
+
+			/**
+			 * Finds a co-author by nicename: the guest author holding it, if
+			 * any, otherwise the user.
+			 *
+			 * @param string $key   Field to search by.
+			 * @param string $value Value to search for.
+			 * @return object|false
+			 */
+			public function get_coauthor_by( $key, $value ) {
+				if ( $value === $this->guest_holder ) {
+					return (object) [
+						'ID'            => 999999,
+						'user_nicename' => $value,
+						'type'          => 'guest-author',
+					];
+				}
+
+				return get_user_by( 'slug', $value );
+			}
 
 			/**
 			 * Whether Co-Authors Plus is on for a post type.
@@ -211,8 +235,19 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 			 * @return bool
 			 */
 			public function add_coauthors( $post_id, $coauthors ) {
+				global $wpdb;
+
 				$this->calls[] = [ $post_id, $coauthors, (int) get_post_field( 'post_author', $post_id ) ];
-				return $this->sets;
+
+				if ( ! $this->sets ) {
+					return false;
+				}
+
+				$coauthor = $this->get_coauthor_by( 'user_nicename', $coauthors[0] );
+				$wpdb->update( $wpdb->posts, [ 'post_author' => (int) $coauthor->ID ], [ 'ID' => $post_id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				clean_post_cache( $post_id );
+
+				return true;
 			}
 		};
 
@@ -355,5 +390,23 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( '<iframe', $content, 'The administrator should be able to post the iframe.' );
 		$this->assertSame( $new_author, (int) get_post_field( 'post_author', $entry_id ), 'The entry should have the new author.' );
 		$this->assertSame( $content, get_post_field( 'post_content', $entry_id ), 'The content should be kept as stored.' );
+	}
+
+	/**
+	 * When the new author's nicename leads Co-Authors Plus to a guest author
+	 * instead, nothing is written, so the entry is never credited to the
+	 * guest author.
+	 */
+	public function test_refuses_a_nicename_that_leads_to_a_guest_author() {
+		$old_author     = self::factory()->user->create( [ 'role' => 'author' ] );
+		$new_author     = self::factory()->user->create( [ 'role' => 'author' ] );
+		$entry_id       = self::create_entry( self::create_coverage(), [ 'post_author' => $old_author ] );
+		$coauthors_plus = self::fake_coauthors_plus( true, true, true, get_userdata( $new_author )->user_nicename );
+
+		$results = self::change_author( $entry_id, $new_author )->get_data()['results'];
+
+		$this->assertFalse( $results[0]['updated'], 'The entry should be reported as failed.' );
+		$this->assertSame( [], $coauthors_plus->calls, 'Co-Authors Plus should not be asked to set co-authors.' );
+		$this->assertSame( $old_author, (int) get_post_field( 'post_author', $entry_id ), 'The entry should keep its author.' );
 	}
 }

@@ -195,24 +195,119 @@ class Test_Entry_Details extends Rolling_Coverage_TestCase {
 
 	/**
 	 * Without the capability to assign a taxonomy's terms, a request that
-	 * sets them is refused.
+	 * sets them is refused before anything changes: the entry keeps its
+	 * tags, and a tag named in the request isn't created.
 	 */
 	public function test_refuses_terms_the_user_cannot_assign() {
+		$kept     = self::factory()->tag->create( [ 'name' => 'Polls' ] );
 		$tag      = self::factory()->tag->create( [ 'name' => 'Election' ] );
 		$entry_id = self::create_entry( self::create_coverage() );
-		$deny     = function ( $caps, $cap ) {
+		wp_set_post_terms( $entry_id, [ $kept ], 'post_tag' );
+		$deny = function ( $caps, $cap ) {
 			return 'assign_post_tags' === $cap ? [ 'do_not_allow' ] : $caps;
 		};
 
 		add_filter( 'map_meta_cap', $deny, 10, 2 );
 		try {
-			$response = self::edit_details( [ $entry_id ], [ 'tags' => [ 'ids' => [ $tag ] ] ] );
+			$response = self::edit_details(
+				[ $entry_id ],
+				[
+					'tags' => [
+						'ids'   => [ $tag ],
+						'names' => [ 'Recount' ],
+					],
+				]
+			);
 		} finally {
 			remove_filter( 'map_meta_cap', $deny, 10 );
 		}
 
 		$this->assertSame( 403, $response->get_status(), 'The request should be refused.' );
-		$this->assertSame( [], self::term_ids( $entry_id, 'post_tag' ), 'The entry should get no tag.' );
+		$this->assertSame( [ $kept ], self::term_ids( $entry_id, 'post_tag' ), 'The entry should keep its tags.' );
+		$this->assertFalse( get_term_by( 'name', 'Recount', 'post_tag' ), 'No tag should be created.' );
+	}
+
+	/**
+	 * Each term is checked with `assign_term`, as core's REST API checks it,
+	 * so a site can keep one term from being assigned.
+	 */
+	public function test_refuses_a_term_the_user_cannot_assign() {
+		$allowed  = self::factory()->category->create( [ 'name' => 'News' ] );
+		$guarded  = self::factory()->category->create( [ 'name' => 'Sponsored' ] );
+		$entry_id = self::create_entry( self::create_coverage() );
+		$deny     = function ( $caps, $cap, $user_id, $args ) use ( $guarded ) {
+			return 'assign_term' === $cap && (int) ( $args[0] ?? 0 ) === $guarded ? [ 'do_not_allow' ] : $caps;
+		};
+
+		add_filter( 'map_meta_cap', $deny, 10, 4 );
+		try {
+			$refused = self::edit_details( [ $entry_id ], [ 'categories' => [ 'ids' => [ $allowed, $guarded ] ] ] );
+			$allowed_only = self::edit_details( [ $entry_id ], [ 'categories' => [ 'ids' => [ $allowed ] ] ] );
+		} finally {
+			remove_filter( 'map_meta_cap', $deny, 10 );
+		}
+
+		$this->assertSame( 403, $refused->get_status(), 'A request with the guarded category should be refused.' );
+		$this->assertSame( 200, $allowed_only->get_status(), 'A request without it should succeed.' );
+		$this->assertSame( [ $allowed ], self::term_ids( $entry_id, 'category' ), 'Only the allowed category should be set.' );
+	}
+
+	/**
+	 * Categories with the same name under different parents are told apart
+	 * by ID, and a name typed as a new category only matches a top-level
+	 * one, so it never lands on a same-named child.
+	 */
+	public function test_tells_same_name_categories_apart() {
+		$sport       = self::factory()->category->create( [ 'name' => 'Sport' ] );
+		$news        = self::factory()->category->create( [ 'name' => 'News' ] );
+		$sport_local = self::factory()->category->create(
+			[
+				'name'   => 'Local',
+				'parent' => $sport,
+			]
+		);
+		$news_local  = self::factory()->category->create(
+			[
+				'name'   => 'Local',
+				'parent' => $news,
+			]
+		);
+		$entry_id    = self::create_entry( self::create_coverage() );
+		wp_set_post_terms( $entry_id, [ $sport_local ], 'category' );
+
+		self::edit_details( [ $entry_id ], [ 'categories' => [ 'ids' => [ $news_local ] ] ] );
+
+		$this->assertSame( [ $news_local ], self::term_ids( $entry_id, 'category' ), 'The category picked by ID should replace the other "Local".' );
+
+		self::edit_details( [ $entry_id ], [ 'categories' => [ 'names' => [ 'Local' ] ] ] );
+
+		$named = get_term( self::term_ids( $entry_id, 'category' )[0], 'category' );
+
+		$this->assertNotContains( $named->term_id, [ $sport_local, $news_local ], 'A typed name should not pick a child category.' );
+		$this->assertSame( 'Local', $named->name, 'A new top-level "Local" should be created.' );
+		$this->assertSame( 0, (int) $named->parent, 'The new category should be top-level.' );
+	}
+
+	/**
+	 * A typed name matches a term by its name only, never by a slug that
+	 * happens to match, so "Apple" doesn't pick up "Apple Inc.".
+	 */
+	public function test_matches_typed_names_by_name_not_slug() {
+		$apple_inc = self::factory()->tag->create(
+			[
+				'name' => 'Apple Inc.',
+				'slug' => 'apple',
+			]
+		);
+		$entry_id  = self::create_entry( self::create_coverage() );
+
+		self::edit_details( [ $entry_id ], [ 'tags' => [ 'names' => [ 'Apple' ] ] ] );
+
+		$tags = wp_get_post_terms( $entry_id, 'post_tag' );
+
+		$this->assertCount( 1, $tags, 'The entry should get one tag.' );
+		$this->assertNotSame( $apple_inc, $tags[0]->term_id, 'The entry should not get "Apple Inc.".' );
+		$this->assertSame( 'Apple', $tags[0]->name, 'A tag named "Apple" should be created.' );
 	}
 
 	/**
@@ -392,6 +487,168 @@ class Test_Entry_Details extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 400, $with_slug->get_status(), 'A slug for several entries should be rejected.' );
 		$this->assertSame( 400, $with_date->get_status(), 'A date for several entries should be rejected.' );
-		$this->assertNotSame( 'polls-close', get_post_field( 'post_name', $entry_ids[0] ), 'No entry should take the slug.' );
+		foreach ( $entry_ids as $entry_id ) {
+			$this->assertNotSame( 'polls-close', get_post_field( 'post_name', $entry_id ), 'No entry should take the slug.' );
+			$this->assertNotSame( '2020-01-01 00:00:00', get_post_field( 'post_date', $entry_id ), 'No entry should take the date.' );
+		}
+	}
+
+	/**
+	 * Without `append`, the terms sent replace each selected entry's own.
+	 */
+	public function test_replaces_the_terms_of_every_entry_without_append() {
+		$news        = self::factory()->category->create( [ 'name' => 'News' ] );
+		$sport       = self::factory()->category->create( [ 'name' => 'Sport' ] );
+		$live        = self::factory()->category->create( [ 'name' => 'Live' ] );
+		$coverage_id = self::create_coverage();
+		$first       = self::create_entry( $coverage_id );
+		$second      = self::create_entry( $coverage_id );
+		wp_set_post_terms( $first, [ $news ], 'category' );
+		wp_set_post_terms( $second, [ $sport ], 'category' );
+
+		self::edit_details( [ $first, $second ], [ 'categories' => [ 'ids' => [ $live ] ] ] );
+
+		$this->assertSame( [ $live ], self::term_ids( $first, 'category' ), 'The first entry should have only the new category.' );
+		$this->assertSame( [ $live ], self::term_ids( $second, 'category' ), 'The second entry should have only the new category.' );
+	}
+
+	/**
+	 * The result only carries a slug when the request set one.
+	 */
+	public function test_leaves_the_slug_out_of_the_result_when_not_sent() {
+		$tag      = self::factory()->tag->create( [ 'name' => 'Election' ] );
+		$entry_id = self::create_entry( self::create_coverage() );
+
+		$results = self::edit_details( [ $entry_id ], [ 'tags' => [ 'ids' => [ $tag ] ] ] )->get_data()['results'];
+
+		$this->assertTrue( $results[0]['updated'], 'The entry should be reported as updated.' );
+		$this->assertArrayNotHasKey( 'slug', $results[0], 'The result should carry no slug.' );
+	}
+
+	/**
+	 * A date that can't be read is rejected.
+	 */
+	public function test_rejects_an_invalid_date() {
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_date' => '2026-03-01 09:00:00' ] );
+
+		$response = self::edit_details( [ $entry_id ], [ 'date' => 'next Tuesday' ] );
+
+		$this->assertSame( 400, $response->get_status(), 'The date should be rejected.' );
+		$this->assertSame( '2026-03-01 09:00:00', get_post_field( 'post_date', $entry_id ), 'The entry should keep its date.' );
+	}
+
+	/**
+	 * WordPress only schedules a post dated a minute or more ahead, so a
+	 * published entry may be dated less than that ahead and stays published.
+	 */
+	public function test_accepts_a_date_less_than_a_minute_ahead_for_a_published_entry() {
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_date' => '2026-03-01 09:00:00' ] );
+		$soon     = wp_date( 'Y-m-d\TH:i:s', time() + MINUTE_IN_SECONDS - 1 );
+
+		$results = self::edit_details( [ $entry_id ], [ 'date' => $soon ] )->get_data()['results'];
+
+		$this->assertTrue( $results[0]['updated'], 'The entry should be reported as updated.' );
+		$this->assertSame( str_replace( 'T', ' ', $soon ), get_post_field( 'post_date', $entry_id ), 'The entry should take the date.' );
+		$this->assertSame( 'publish', get_post_status( $entry_id ), 'The entry should stay published.' );
+	}
+
+	/**
+	 * Moving a scheduled entry into the past publishes it, so it needs the
+	 * right to publish that entry.
+	 */
+	public function test_publishes_a_scheduled_entry_moved_into_the_past_only_with_publish_rights() {
+		$coverage_id = self::create_coverage();
+		$future_date = wp_date( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS );
+		$allowed     = self::create_entry(
+			$coverage_id,
+			[
+				'post_status' => 'future',
+				'post_date'   => $future_date,
+			]
+		);
+		$denied      = self::create_entry(
+			$coverage_id,
+			[
+				'post_status' => 'future',
+				'post_date'   => $future_date,
+			]
+		);
+		$deny        = function ( $caps, $cap, $user_id, $args ) use ( $denied ) {
+			return 'publish_post' === $cap && (int) ( $args[0] ?? 0 ) === $denied ? [ 'do_not_allow' ] : $caps;
+		};
+
+		$published = self::edit_details( [ $allowed ], [ 'date' => '2026-03-01T09:00:00' ] )->get_data()['results'];
+
+		add_filter( 'map_meta_cap', $deny, 10, 4 );
+		try {
+			$refused = self::edit_details( [ $denied ], [ 'date' => '2026-03-01T09:00:00' ] )->get_data()['results'];
+		} finally {
+			remove_filter( 'map_meta_cap', $deny, 10 );
+		}
+
+		$this->assertTrue( $published[0]['updated'], 'The entry the editor can publish should be updated.' );
+		$this->assertSame( 'publish', get_post_status( $allowed ), 'It should be published.' );
+		$this->assertFalse( $refused[0]['updated'], 'The entry the editor can\'t publish should be refused.' );
+		$this->assertSame( 'future', get_post_status( $denied ), 'It should stay scheduled.' );
+		$this->assertSame( $future_date, get_post_field( 'post_date', $denied ), 'It should keep its date.' );
+	}
+
+	/**
+	 * Terms named in a request are only created once an entry is going to
+	 * get them: not when the only entry is refused for its date.
+	 */
+	public function test_creates_no_terms_when_the_only_entry_is_refused() {
+		$entry_id = self::create_entry( self::create_coverage(), [ 'post_date' => '2026-03-01 09:00:00' ] );
+
+		$results = self::edit_details(
+			[ $entry_id ],
+			[
+				'date' => wp_date( 'Y-m-d\TH:i:s', time() + DAY_IN_SECONDS ),
+				'tags' => [ 'names' => [ 'Recount' ] ],
+			]
+		)->get_data()['results'];
+
+		$this->assertFalse( $results[0]['updated'], 'The entry should be refused.' );
+		$this->assertFalse( get_term_by( 'name', 'Recount', 'post_tag' ), 'No tag should be created.' );
+	}
+
+	/**
+	 * Nor are they created when every selected entry is archived.
+	 */
+	public function test_creates_no_terms_when_every_entry_is_archived() {
+		$coverage_id = self::create_coverage();
+		$entry_ids   = [ self::create_entry( $coverage_id ), self::create_entry( $coverage_id ) ];
+		foreach ( $entry_ids as $entry_id ) {
+			update_post_meta( $entry_id, Newspack_Rolling_Coverage\Archive_Mode::ENTRY_ARCHIVED_META_KEY, time() );
+		}
+
+		$results = self::edit_details(
+			$entry_ids,
+			[
+				'categories' => [ 'names' => [ 'Opinion' ] ],
+				'append'     => true,
+			]
+		)->get_data()['results'];
+
+		$this->assertSame( [ false, false ], wp_list_pluck( $results, 'updated' ), 'Both entries should be refused.' );
+		$this->assertFalse( get_term_by( 'name', 'Opinion', 'category' ), 'No category should be created.' );
+	}
+
+	/**
+	 * An entry locked because its coverage ended says so, rather than
+	 * calling the entry archived.
+	 */
+	public function test_explains_a_lock_from_an_ended_coverage() {
+		$tag      = self::factory()->tag->create( [ 'name' => 'Election' ] );
+		$entry_id = self::create_entry( self::create_coverage( Newspack_Rolling_Coverage\Taxonomy::STATUS_ARCHIVED ) );
+
+		$results = self::edit_details( [ $entry_id ], [ 'tags' => [ 'ids' => [ $tag ] ] ] )->get_data()['results'];
+
+		$this->assertFalse( $results[0]['updated'], 'The entry should be refused.' );
+		$this->assertSame(
+			Newspack_Rolling_Coverage\Archive_Mode::coverage_ended_error( 'rolling_coverage_entry_locked' )->get_error_message(),
+			$results[0]['error'],
+			'The error should say the coverage ended.'
+		);
 	}
 }
