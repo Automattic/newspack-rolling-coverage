@@ -1,14 +1,13 @@
 /**
  * External dependencies
  */
-import { Dropdown, ToolbarButton, ToolbarItem } from '@wordpress/components';
+import { Dropdown, ToolbarButton } from '@wordpress/components';
 import {
 	Inserter,
 	NavigableToolbar,
 	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
 	__experimentalListView as ListView,
 } from '@wordpress/block-editor';
-import { EditorHistoryRedo, EditorHistoryUndo } from '@wordpress/editor';
 import { listView, plus } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
 
@@ -16,6 +15,7 @@ import { __ } from '@wordpress/i18n';
  * Internal dependencies
  */
 import { QuickEditBlockToolbar } from './quick-edit-block-toolbar';
+import { QuickEditHistory } from './quick-edit-history';
 import { QuickEditInspector } from './quick-edit-inspector';
 
 /**
@@ -29,8 +29,8 @@ import { QuickEditInspector } from './quick-edit-inspector';
  * `BlockNavigationDropdown` does the same but logs a deprecation warning on
  * every mount.
  *
- * Renders inside `EditorProvider`: undo and redo read the editor store from
- * its sub-registry.
+ * Renders inside `EditorProvider`: undo, redo and the block toolbar read the
+ * editor's stores from its sub-registry.
  */
 function QuickEditToolbar() {
 	return (
@@ -62,22 +62,7 @@ function QuickEditToolbar() {
 						/>
 					) }
 				/>
-				<ToolbarItem>
-					{ ( toolbarItemProps ) => (
-						<EditorHistoryUndo
-							{ ...toolbarItemProps }
-							size="compact"
-						/>
-					) }
-				</ToolbarItem>
-				<ToolbarItem>
-					{ ( toolbarItemProps ) => (
-						<EditorHistoryRedo
-							{ ...toolbarItemProps }
-							size="compact"
-						/>
-					) }
-				</ToolbarItem>
+				<QuickEditHistory />
 				<Dropdown
 					contentClassName="newspack-rolling-coverage-quick-edit__list-view"
 					popoverProps={ { placement: 'bottom-start' } }

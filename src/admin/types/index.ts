@@ -630,6 +630,9 @@ interface BlockEditorSelectors {
 /** Selectors from the editor store, typed for the sub-registry. */
 type EditorSelectors = {
 	__unstableIsEditorReady?: () => boolean;
+	hasEditorUndo: () => boolean;
+	hasEditorRedo: () => boolean;
+	isEditedPostDirty: () => boolean;
 	isSavingPost: () => boolean;
 	didPostSaveRequestFail: () => boolean;
 	getCurrentPostType: () => string;
