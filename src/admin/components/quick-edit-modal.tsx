@@ -260,6 +260,7 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 			</Modal>
 			<ConfirmDialog
 				isOpen={ showCloseConfirm }
+				size="small"
 				onConfirm={ () => {
 					setShowCloseConfirm( false );
 					handleClose();
