@@ -90,7 +90,7 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 		display: contents;
 	}
 
-	.newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical) > .newspack-rolling-coverage-entries:not(:has(> :not(:empty))) {
+	.newspack-rolling-coverage-feed > .newspack-rolling-coverage-entries:not(:has(> :not(:empty))) {
 		display: none;
 	}
 
@@ -221,10 +221,10 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 
 :where(.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical)) > :where(.newspack-rolling-coverage-all-updates) {
 	flex-shrink: 0;
-	white-space: nowrap;
+	max-width: 50%;
 }
 
-:where(.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical)) > :where(.wp-block-heading) {
+:where(.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical)) > :where(.newspack-rolling-coverage-name) {
 	min-width: 0;
 	overflow: hidden;
 	white-space: nowrap;

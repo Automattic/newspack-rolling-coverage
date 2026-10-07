@@ -61,6 +61,20 @@
 	display: none;
 }
 
+.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical) > .newspack-rolling-coverage-entry {
+
+	> .newspack-rolling-coverage-name {
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+
+	&:has(> .newspack-rolling-coverage-all-updates) {
+		flex-shrink: 0;
+		max-width: 50%;
+	}
+}
+
 .newspack-rolling-coverage-feed > .wp-block-separator:is(.is-style-wide, .is-style-dots) {
 	width: 100%;
 }

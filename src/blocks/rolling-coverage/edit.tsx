@@ -481,7 +481,7 @@ function chromePreviewStyle(
 	}
 
 	if ( layout?.selfStretch === 'fill' ) {
-		return { flexGrow: 1 };
+		return { flexGrow: 1, minWidth: 0 };
 	}
 
 	if ( layout?.selfStretch === 'fixed' && layout.flexSize ) {
@@ -1147,6 +1147,7 @@ export default function Edit( {
 		( context ) => context.pinned
 	);
 	const showsPin = Boolean( leadPinContext );
+	const showsEntries = templateBlocks.length > 0;
 	const previewPlacements = useMemo(
 		() => ( {
 			lead: entryPreviewPlacement(
@@ -1913,7 +1914,7 @@ export default function Edit( {
 			</PanelBody>
 
 			<PanelBody title={ __( 'Entries', 'newspack-rolling-coverage' ) }>
-				{ ! ( isRow && latestOnly ) && (
+				{ ! ( ( isRow || ! showsEntries ) && latestOnly ) && (
 					<ToggleGroupControl
 						__next40pxDefaultSize
 						isBlock
@@ -1969,30 +1970,34 @@ export default function Edit( {
 				) }
 				{ latestOnly ? (
 					<>
-						<TextControl
-							__next40pxDefaultSize
-							type="number"
-							label={ __(
-								'Number of entries',
-								'newspack-rolling-coverage'
-							) }
-							value={ latestCountInput ?? String( latestCount ) }
-							min={ 1 }
-							max={ 100 }
-							onChange={ ( value: string ) => {
-								setLatestCountInput( value );
-								const parsed = parseInt( value, 10 );
-								if ( ! Number.isNaN( parsed ) ) {
-									setAttributes( {
-										latestCount: Math.min(
-											Math.max( parsed, 1 ),
-											100
-										),
-									} );
+						{ showsEntries && (
+							<TextControl
+								__next40pxDefaultSize
+								type="number"
+								label={ __(
+									'Number of entries',
+									'newspack-rolling-coverage'
+								) }
+								value={
+									latestCountInput ?? String( latestCount )
 								}
-							} }
-							onBlur={ () => setLatestCountInput( null ) }
-						/>
+								min={ 1 }
+								max={ 100 }
+								onChange={ ( value: string ) => {
+									setLatestCountInput( value );
+									const parsed = parseInt( value, 10 );
+									if ( ! Number.isNaN( parsed ) ) {
+										setAttributes( {
+											latestCount: Math.min(
+												Math.max( parsed, 1 ),
+												100
+											),
+										} );
+									}
+								} }
+								onBlur={ () => setLatestCountInput( null ) }
+							/>
+						) }
 						<ToggleGroupControl
 							__next40pxDefaultSize
 							isBlock
@@ -2686,6 +2691,7 @@ export default function Edit( {
 									</Notice>
 								) }
 							{ ! isLayoutPattern &&
+								showsEntries &&
 								previewContexts.length === 0 && (
 									<Notice
 										status="info"

@@ -343,7 +343,10 @@ export function alertInnerTemplate(): TemplateItem[] {
 				[ STATUS_BLOCK_NAME, {} ],
 				coverageNameHeading(
 					themeFontSize( themeFontSizeSlugs(), 'medium', 'normal' ),
-					{ style: { layout: { selfStretch: 'fill' } } }
+					{
+						className: 'newspack-rolling-coverage-name',
+						style: { layout: { selfStretch: 'fill' } },
+					}
 				),
 				allUpdatesLink(),
 			],
