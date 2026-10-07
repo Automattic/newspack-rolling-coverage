@@ -215,6 +215,10 @@ $quick-edit-footer-clearance: 72px;
 	min-height: 240px;
 	padding: 0 wp-vars.$grid-unit-20;
 	overflow: auto;
+
+	iframe[name="editor-canvas"] {
+		background-color: transparent;
+	}
 }
 
 .newspack-rolling-coverage-quick-edit__footer {
