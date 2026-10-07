@@ -417,7 +417,7 @@ function getEntryActions(
 			label: __( 'Reassign', 'newspack-rolling-coverage' ),
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
-				config.capabilities.canChangeAuthors &&
+				canEditRow( entry ) &&
 				entry.status !== 'trash' &&
 				! isEntryLocked( entry ),
 			callback: ( items: Entry[] ) => onEditDetails( items ),

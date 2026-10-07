@@ -711,14 +711,12 @@ function EntryView() {
 					onSaved={ handleQuickEditSaved }
 				/>
 			) }
-			{ config.capabilities.canChangeAuthors && (
-				<EntryDetailsDrawer
-					isOpen={ isDetailsOpen }
-					items={ detailsItems }
-					onClose={ () => setIsDetailsOpen( false ) }
-					onChanged={ handleActionPerformed }
-				/>
-			) }
+			<EntryDetailsDrawer
+				isOpen={ isDetailsOpen }
+				items={ detailsItems }
+				onClose={ () => setIsDetailsOpen( false ) }
+				onChanged={ handleActionPerformed }
+			/>
 			<PlacementsDrawer
 				isOpen={ isPlacementsOpen }
 				coverage={ routeCoverage }

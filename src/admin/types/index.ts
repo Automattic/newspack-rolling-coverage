@@ -199,6 +199,7 @@ interface Entry {
 				id: number;
 				name: string;
 				slug: string;
+				parent?: number;
 				taxonomy: string;
 				link: string;
 			} >
@@ -321,6 +322,8 @@ interface BulkRestoreResult extends ApiResult {
 interface PickedTerm {
 	id: number;
 	name: string;
+	/** The parent term's ID, in a hierarchical taxonomy; 0 for none. */
+	parent?: number;
 }
 
 /**
@@ -698,9 +701,16 @@ interface EntryViewRow {
 		id: number;
 		name: string;
 		slug: string;
+		parent: number;
 		link: string;
 	} >;
-	tags: Array< { id: number; name: string; slug: string; link: string } >;
+	tags: Array< {
+		id: number;
+		name: string;
+		slug: string;
+		parent: number;
+		link: string;
+	} >;
 	breakout_post_id: number;
 	breakout_status: PostStatus | null;
 	/** Whether the current user may edit this entry (core `edit_post` meta cap). */

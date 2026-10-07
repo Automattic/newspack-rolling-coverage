@@ -15,10 +15,16 @@ import { __experimentalPublishDateTimePicker as PublishDateTimePicker } from '@w
 import { useDebounce, useInstanceId } from '@wordpress/compose';
 import { store as coreStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
-import { date as formatDate, format, getSettings } from '@wordpress/date';
+import {
+	date as formatDate,
+	dateI18n,
+	getDate,
+	getSettings,
+} from '@wordpress/date';
 import { decodeEntities } from '@wordpress/html-entities';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { Stack } from '@wordpress/ui';
+import { safeDecodeURIComponent } from '@wordpress/url';
 import { Drawer } from 'newspack-components/dist/esm/drawer';
 
 /**
@@ -56,6 +62,7 @@ function getEntryTerms( entry: Entry | undefined, taxonomy: string ) {
 		.map( ( term ) => ( {
 			id: term.id,
 			name: decodeEntities( term.name ),
+			parent: term.parent ?? 0,
 		} ) );
 }
 
@@ -72,22 +79,22 @@ function getEntryDate( entry: Entry | undefined ) {
 }
 
 /**
- * The date picker's value as the server takes it. The picker works in the
- * browser's time zone with no offset, so the value is read back through its
- * local parts, never cut from an ISO string, which would shift it by the
- * browser's offset.
+ * The date picker's value as the server takes it: the site's local date
+ * and time, with no offset. The picker already gives that; a value with an
+ * offset is formatted in the site's time zone. With no value (the picker's
+ * Now), it's the current time in the site's time zone, as the post editor's
+ * Now sets it.
  *
- * @param {string} value The picker's value.
+ * @param {string|null} picked The picker's value.
  * @return {string} The date, as `YYYY-MM-DDTHH:mm:ss`.
  */
-function toLocalDateTime( value: string ) {
-	const picked = new Date( value );
-	const pad = ( part: number ) => String( part ).padStart( 2, '0' );
-	return `${ picked.getFullYear() }-${ pad( picked.getMonth() + 1 ) }-${ pad(
-		picked.getDate()
-	) }T${ pad( picked.getHours() ) }:${ pad( picked.getMinutes() ) }:${ pad(
-		picked.getSeconds()
-	) }`;
+function toSiteDateTime( picked: string | null ) {
+	if ( ! picked ) {
+		return formatDate( 'Y-m-d\\TH:i:s', new Date() );
+	}
+	return /(?:Z|[+-]\d{2}:?\d{2})$/i.test( picked )
+		? formatDate( 'Y-m-d\\TH:i:s', picked )
+		: picked;
 }
 
 /**
@@ -123,6 +130,7 @@ function EntryDateField( {
 	onChange: ( value: string ) => void;
 } ) {
 	const id = useInstanceId( EntryDateField, 'entry-date-field' ) as string;
+	const helpId = `${ id }__help`;
 	const [ anchor, setAnchor ] = useState< HTMLElement | null >( null );
 	const popoverProps = useMemo(
 		() => ( {
@@ -133,19 +141,23 @@ function EntryDateField( {
 		} ),
 		[ anchor ]
 	);
-	const label = value ? format( getSettings().formats.datetime, value ) : '';
+	const label = value
+		? dateI18n( getSettings().formats.datetime, getDate( value ) )
+		: '';
 
 	return (
 		<div ref={ setAnchor }>
 			<BaseControl
 				__nextHasNoMarginBottom
 				id={ id }
-				label={ __( 'Date', 'newspack-rolling-coverage' ) }
 				help={ __(
 					'When the entry was published, which sets its place in the coverage. A published entry can’t be dated in the future.',
 					'newspack-rolling-coverage'
 				) }
 			>
+				<BaseControl.VisualLabel>
+					{ __( 'Date', 'newspack-rolling-coverage' ) }
+				</BaseControl.VisualLabel>
 				<Dropdown
 					className="newspack-rolling-coverage-entry-date"
 					popoverProps={ popoverProps }
@@ -153,11 +165,19 @@ function EntryDateField( {
 					renderToggle={ ( { onToggle, isOpen } ) => (
 						<Button
 							__next40pxDefaultSize
-							id={ id }
 							className="newspack-rolling-coverage-entry-date__toggle"
 							variant="secondary"
 							onClick={ onToggle }
 							aria-expanded={ isOpen }
+							aria-label={ sprintf(
+								/* translators: %s: the entry's date and time. */
+								__(
+									'Change date: %s',
+									'newspack-rolling-coverage'
+								),
+								label
+							) }
+							aria-describedby={ helpId }
 						>
 							{ label }
 						</Button>
@@ -167,14 +187,7 @@ function EntryDateField( {
 							title={ __( 'Date', 'newspack-rolling-coverage' ) }
 							currentDate={ value || null }
 							onChange={ ( picked: string | null ) =>
-								onChange(
-									picked
-										? toLocalDateTime( picked )
-										: formatDate(
-												'Y-m-d\\TH:i:s',
-												new Date()
-											)
-								)
+								onChange( toSiteDateTime( picked ) )
 							}
 							is12Hour={ isTwelveHourClock() }
 							onClose={ onClose }
@@ -223,7 +236,8 @@ const toTermChanges = ( terms: PickedTerm[] ): EntryTermChanges => ( {
 
 /**
  * Reassigns one or more entries: their author, categories and tags, and
- * for a single entry its slug and date.
+ * for a single entry its slug and date. Author shows only to users who can
+ * change authors, and each taxonomy only to users who can assign its terms.
  *
  * With one entry, the fields start with its own details and the save
  * sets exactly what they show. With several, Author starts empty unless
@@ -244,6 +258,7 @@ function EntryDetailsDrawer( {
 }: EntryDetailsDrawerProps ) {
 	const config = useAdminContext();
 	const {
+		canChangeAuthors,
 		canAssignCategories,
 		canCreateCategories,
 		canAssignTags,
@@ -269,7 +284,10 @@ function EntryDetailsDrawer( {
 		() => ( isBulk ? [] : getEntryTerms( items[ 0 ], 'post_tag' ) ),
 		[ items, isBulk ]
 	);
-	const initialSlug = isBulk ? '' : ( items[ 0 ]?.slug ?? '' );
+	// Slugs with non-Latin characters are stored percent-encoded.
+	const initialSlug = isBulk
+		? ''
+		: safeDecodeURIComponent( items[ 0 ]?.slug ?? '' );
 	const initialDate = useMemo(
 		() => ( isBulk ? '' : getEntryDate( items[ 0 ] ) ),
 		[ items, isBulk ]
@@ -289,7 +307,10 @@ function EntryDetailsDrawer( {
 	const [ slug, setSlug ] = useState( initialSlug );
 	const [ entryDate, setEntryDate ] = useState( initialDate );
 	const authorId = picked?.id;
-	const isAuthorDirty = Boolean( authorId ) && authorId !== sharedAuthor?.id;
+	const isAuthorDirty =
+		canChangeAuthors &&
+		Boolean( authorId ) &&
+		authorId !== sharedAuthor?.id;
 	const isCategoriesDirty =
 		canAssignCategories && ! isSameTerms( categories, initialCategories );
 	const isTagsDirty = canAssignTags && ! isSameTerms( tags, initialTags );
@@ -352,7 +373,7 @@ function EntryDetailsDrawer( {
 
 	const { authors, isLoading } = useSelect(
 		( select ) => {
-			if ( ! isOpen ) {
+			if ( ! isOpen || ! canChangeAuthors ) {
 				return { authors: null, isLoading: false };
 			}
 			const query = search
@@ -365,7 +386,7 @@ function EntryDetailsDrawer( {
 				isLoading: isResolving( 'getUsers', [ query ] ),
 			};
 		},
-		[ isOpen, search ]
+		[ isOpen, canChangeAuthors, search ]
 	);
 
 	const options = useMemo( () => {
@@ -456,8 +477,21 @@ function EntryDetailsDrawer( {
 			}
 		} );
 
-		const savedSlug = updated[ 0 ].slug;
-		if ( isSlugDirty && savedSlug !== undefined && savedSlug !== slug ) {
+		// WordPress only makes a slug unique when the entry is published or
+		// scheduled, so a draft's slug isn't final yet.
+		const savedSlug =
+			updated[ 0 ].slug !== undefined
+				? safeDecodeURIComponent( updated[ 0 ].slug )
+				: undefined;
+		const isSlugFinal = ! [ 'draft', 'pending' ].includes(
+			items[ 0 ]?.status ?? ''
+		);
+		if (
+			isSlugDirty &&
+			isSlugFinal &&
+			savedSlug !== undefined &&
+			savedSlug !== slug
+		) {
 			notifySuccess(
 				sprintf(
 					/* translators: %s: the entry's slug. */
@@ -538,34 +572,40 @@ function EntryDetailsDrawer( {
 							{ error }
 						</Notice>
 					) }
-					<ComboboxControl
-						__next40pxDefaultSize
-						__nextHasNoMarginBottom
-						label={ __( 'Author', 'newspack-rolling-coverage' ) }
-						help={ authorHelp }
-						options={ options }
-						value={ authorId ? String( authorId ) : null }
-						onChange={ ( value ) => {
-							const option = options.find(
-								( o ) => o.value === value
-							);
-							setPicked(
-								option
-									? {
-											id: Number( option.value ),
-											name: option.label,
-										}
-									: undefined
-							);
-						} }
-						onFilterValueChange={ onFilterValueChange }
-						isLoading={ isLoading }
-						allowReset={ false }
-					/>
+					{ canChangeAuthors && (
+						<ComboboxControl
+							__next40pxDefaultSize
+							__nextHasNoMarginBottom
+							label={ __(
+								'Author',
+								'newspack-rolling-coverage'
+							) }
+							help={ authorHelp }
+							options={ options }
+							value={ authorId ? String( authorId ) : null }
+							onChange={ ( value ) => {
+								const option = options.find(
+									( o ) => o.value === value
+								);
+								setPicked(
+									option
+										? {
+												id: Number( option.value ),
+												name: option.label,
+											}
+										: undefined
+								);
+							} }
+							onFilterValueChange={ onFilterValueChange }
+							isLoading={ isLoading }
+							allowReset={ false }
+						/>
+					) }
 					{ canAssignCategories && (
 						<TermTokenField
 							isOpen={ isOpen }
 							taxonomy="category"
+							isHierarchical
 							label={ __(
 								'Categories',
 								'newspack-rolling-coverage'
@@ -611,6 +651,7 @@ function EntryDetailsDrawer( {
 						<TermTokenField
 							isOpen={ isOpen }
 							taxonomy="post_tag"
+							isHierarchical={ false }
 							label={ __( 'Tags', 'newspack-rolling-coverage' ) }
 							help={
 								isBulk
