@@ -17,8 +17,8 @@ import type { PickedTerm } from '../types';
 const MAX_SUGGESTIONS = 100;
 
 /**
- * The query for a taxonomy's suggestions with no search typed, most used
- * first. The drawer invalidates it after creating terms.
+ * The query for a taxonomy's suggestions, most used first; a search adds
+ * `search` to it.
  */
 const TERMS_QUERY = {
 	per_page: MAX_SUGGESTIONS,
@@ -49,6 +49,40 @@ interface TermTokenFieldProps {
 
 const EMPTY: PickedTerm[] = [];
 
+// Every suggestion query run, by taxonomy, so a save that creates terms can
+// invalidate them all, searches included.
+const usedQueries = new Map<
+	string,
+	Map< string, Record< string, unknown > >
+>();
+
+/**
+ * The suggestion queries the field has run for a taxonomy.
+ *
+ * @param {string} taxonomy Taxonomy slug.
+ * @return {Object[]} The queries, as passed to `getEntityRecords`.
+ */
+function getTermQueries( taxonomy: string ): Record< string, unknown >[] {
+	return [ ...( usedQueries.get( taxonomy )?.values() ?? [] ) ];
+}
+
+/**
+ * Records a suggestion query for getTermQueries().
+ *
+ * @param {string} taxonomy Taxonomy slug.
+ * @param {Object} query    The query.
+ * @return {Object} The query.
+ */
+function trackQuery< T extends Record< string, unknown > >(
+	taxonomy: string,
+	query: T
+): T {
+	const queries = usedQueries.get( taxonomy ) ?? new Map();
+	queries.set( JSON.stringify( query ), query );
+	usedQueries.set( taxonomy, queries );
+	return query;
+}
+
 const toKey = ( label: string ) => label.trim().toLowerCase();
 
 /**
@@ -56,10 +90,11 @@ const toKey = ( label: string ) => label.trim().toLowerCase();
  * the most used first and searching as the user types.
  *
  * Terms are told apart by ID. In a hierarchical taxonomy, a term with a
- * parent is labeled with the parent's name, such as "Local (Sport)", so two
- * terms with the same name under different parents stay distinct. A label
- * that matches no term is kept as a new term (`id` 0) when `canCreate` is
- * true, and refused otherwise.
+ * parent is labeled with the parent's name, such as "Local (Sport)", or
+ * with its whole path, such as "Local (News › Sport)", when that label is
+ * shared. A term whose label can't yet be told apart from another's isn't
+ * suggested until it can. A label that matches no term is kept as a new
+ * term (`id` 0) when `canCreate` is true, and refused otherwise.
  *
  * @param {TermTokenFieldProps} props Component props.
  */
@@ -89,10 +124,10 @@ function TermTokenField( {
 				? ( select( coreStore ).getEntityRecords(
 						'taxonomy',
 						taxonomy,
-						{
+						trackQuery( taxonomy, {
 							...TERMS_QUERY,
 							...( search ? { search } : {} ),
-						}
+						} )
 					) as PickedTerm[] | null )
 				: null,
 		[ isOpen, taxonomy, search ]
@@ -151,34 +186,121 @@ function TermTokenField( {
 		}
 	} );
 
-	const labelOf = ( term: PickedTerm ) => {
-		const parent = term.parent
-			? known.current.get( term.parent )
-			: undefined;
-		return parent
-			? sprintf(
-					/* translators: 1: category name, 2: its parent category's name. */
-					_x(
-						'%1$s (%2$s)',
-						'term with parent',
-						'newspack-rolling-coverage'
-					),
-					term.name,
-					parent.name
-				)
-			: term.name;
+	const withParent = ( name: string, parentName: string ) =>
+		sprintf(
+			/* translators: 1: category name, 2: its parent category's name, or the path of its ancestors. */
+			_x(
+				'%1$s (%2$s)',
+				'term with parent',
+				'newspack-rolling-coverage'
+			),
+			name,
+			parentName
+		);
+
+	// "Local (Sport)", or null while the parent hasn't loaded.
+	const shortLabel = ( term: PickedTerm ): string | null => {
+		if ( ! isHierarchical || ! term.parent ) {
+			return term.name;
+		}
+		const parent = known.current.get( term.parent );
+		return parent ? withParent( term.name, parent.name ) : null;
 	};
 
-	const suggestions = ( found ?? EMPTY ).map( ( term ) =>
-		labelOf( known.current.get( term.id ) ?? term )
-	);
+	// "Local (News › Sport)", or null until every ancestor has loaded.
+	const fullLabel = ( term: PickedTerm ): string | null => {
+		if ( ! isHierarchical || ! term.parent ) {
+			return term.name;
+		}
+		const path: string[] = [];
+		const seen = new Set< number >();
+		let parentId = term.parent;
+		while ( parentId && ! seen.has( parentId ) ) {
+			seen.add( parentId );
+			const parent = known.current.get( parentId );
+			if ( ! parent ) {
+				return null;
+			}
+			path.unshift( parent.name );
+			parentId = parent.parent ?? 0;
+		}
+		return withParent(
+			term.name,
+			path.reduce( ( ancestors, name ) =>
+				sprintf(
+					/* translators: 1: a category's ancestors, 2: the next category down the path. */
+					_x(
+						'%1$s › %2$s',
+						'category path',
+						'newspack-rolling-coverage'
+					),
+					ancestors,
+					name
+				)
+			)
+		);
+	};
+
+	const countLabels = ( labels: ( string | null )[] ) => {
+		const counts = new Map< string, number >();
+		labels.forEach( ( text ) => {
+			if ( text !== null ) {
+				counts.set(
+					toKey( text ),
+					( counts.get( toKey( text ) ) ?? 0 ) + 1
+				);
+			}
+		} );
+		return counts;
+	};
+
+	// Each known term's label, or null when it can't yet be told apart from
+	// another term: its ancestors haven't loaded, or even its full path is
+	// shared. Such a term isn't suggested or matched until it can be.
+	const knownTerms = [ ...known.current.values() ];
+	const shortCounts = countLabels( knownTerms.map( shortLabel ) );
+	const labels = new Map< number, string | null >();
+	knownTerms.forEach( ( term ) => {
+		const short = shortLabel( term );
+		labels.set(
+			term.id,
+			short !== null && shortCounts.get( toKey( short ) ) === 1
+				? short
+				: fullLabel( term )
+		);
+	} );
+	const counts = countLabels( [ ...labels.values() ] );
+	labels.forEach( ( text, id ) => {
+		if ( text !== null && counts.get( toKey( text ) ) !== 1 ) {
+			labels.set( id, null );
+		}
+	} );
 
 	const byLabel = new Map< string, PickedTerm >();
-	known.current.forEach( ( term ) =>
-		byLabel.set( toKey( labelOf( term ) ), term )
-	);
+	knownTerms.forEach( ( term ) => {
+		const text = labels.get( term.id );
+		if ( text ) {
+			byLabel.set( toKey( text ), term );
+		}
+	} );
+
+	const displayLabel = ( term: PickedTerm ) =>
+		( term.id ? labels.get( term.id ) : null ) ??
+		shortLabel( term ) ??
+		term.name;
+
+	const suggestions = ( found ?? EMPTY ).flatMap( ( term ) => {
+		const text = labels.get( term.id );
+		return text ? [ text ] : [];
+	} );
 
 	const handleChange = ( tokens: ( string | { value: string } )[] ) => {
+		// Tokens already in the field map back to the terms they show first,
+		// whatever the labels resolve to now.
+		const current = new Map< string, PickedTerm >();
+		value.forEach( ( term ) =>
+			current.set( toKey( displayLabel( term ) ), term )
+		);
 		const picked = new Map< string, PickedTerm >();
 		tokens.forEach( ( token ) => {
 			const text = ( typeof token === 'string' ? token : token.value )
@@ -187,9 +309,15 @@ function TermTokenField( {
 			if ( ! text ) {
 				return;
 			}
-			const term = byLabel.get( toKey( text ) );
+			const term =
+				current.get( toKey( text ) ) ?? byLabel.get( toKey( text ) );
 			if ( term ) {
-				picked.set( `id:${ term.id }`, term );
+				picked.set(
+					term.id
+						? `id:${ term.id }`
+						: `name:${ toKey( term.name ) }`,
+					term
+				);
 			} else if ( canCreate ) {
 				picked.set( `name:${ toKey( text ) }`, { id: 0, name: text } );
 			}
@@ -210,7 +338,7 @@ function TermTokenField( {
 			}
 			label={ label }
 			help={ help }
-			value={ value.map( labelOf ) }
+			value={ value.map( displayLabel ) }
 			suggestions={ suggestions }
 			maxSuggestions={ MAX_SUGGESTIONS }
 			onChange={ handleChange }
@@ -220,4 +348,4 @@ function TermTokenField( {
 	);
 }
 
-export { TermTokenField, TERMS_QUERY };
+export { TermTokenField, getTermQueries };

@@ -33,7 +33,7 @@ import { Drawer } from 'newspack-components/dist/esm/drawer';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { editEntriesDetails } from '../utils/entries-api';
 import { notifyError, notifySuccess } from '../utils/notices';
-import { TermTokenField, TERMS_QUERY } from './term-token-field';
+import { TermTokenField, getTermQueries } from './term-token-field';
 import type {
 	Entry,
 	EntryDetailsChanges,
@@ -265,6 +265,8 @@ function EntryDetailsDrawer( {
 		canCreateTags,
 	} = config.capabilities;
 	const isBulk = items.length > 1;
+	const hasFields =
+		! isBulk || canChangeAuthors || canAssignCategories || canAssignTags;
 
 	const sharedAuthor = useMemo( () => {
 		const first = items[ 0 ]?._embedded?.author?.[ 0 ];
@@ -461,7 +463,7 @@ function EntryDetailsDrawer( {
 				entryId,
 			] )
 		);
-		// So terms created by this save are suggested next time.
+		// So terms created by this save are suggested next time, in searches too.
 		(
 			[
 				[ 'category', changes.categories ],
@@ -469,11 +471,13 @@ function EntryDetailsDrawer( {
 			] as const
 		 ).forEach( ( [ taxonomy, termChanges ] ) => {
 			if ( termChanges?.names.length ) {
-				invalidateResolution( 'getEntityRecords', [
-					'taxonomy',
-					taxonomy,
-					TERMS_QUERY,
-				] );
+				getTermQueries( taxonomy ).forEach( ( query ) =>
+					invalidateResolution( 'getEntityRecords', [
+						'taxonomy',
+						taxonomy,
+						query,
+					] )
+				);
 			}
 		} );
 
@@ -570,6 +574,14 @@ function EntryDetailsDrawer( {
 							politeness="assertive"
 						>
 							{ error }
+						</Notice>
+					) }
+					{ ! hasFields && (
+						<Notice status="info" isDismissible={ false }>
+							{ __(
+								'You can’t change the author, categories or tags of these entries.',
+								'newspack-rolling-coverage'
+							) }
 						</Notice>
 					) }
 					{ canChangeAuthors && (
