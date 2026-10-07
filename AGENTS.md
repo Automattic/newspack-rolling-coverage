@@ -18,8 +18,8 @@ Newspack Rolling Coverage is a liveblog plugin. It provides:
 - A React/TypeScript admin app for managing coverages and entries.
 - Integrations: Slack ingestion, OneSignal push, Newspack Ads, WordPress AI.
 
-See `README.md` for the full technical reference (indexed from
-`.github/CONTRIBUTING.md`) and `readme.txt` for the end-user overview.
+See `.github/CONTRIBUTING.md` for the full technical reference, `README.md` for
+installation and development, and `readme.txt` for the end-user overview.
 
 ## Conventions
 
