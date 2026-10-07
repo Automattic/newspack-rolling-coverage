@@ -37,9 +37,15 @@ import type { BlockEditorSelectors } from '../types';
  * Safari, and Firefox on macOS, do not focus a clicked button at all; the
  * blur check would then see focus on `body` and close the popover just
  * before the click reopened it.
+ *
+ * The popover is placed the way core's `Dropdown` places the toolbar's other
+ * popovers: anchored to a wrapper as tall as a block toolbar button, 13px
+ * below it. Anchored to the smaller gear itself, it would open higher than
+ * the block library, the document overview and the block's options menu.
  */
 function QuickEditInspector() {
 	const [ isOpen, setIsOpen ] = useState( false );
+	const anchorRef = useRef< HTMLDivElement >( null );
 	const buttonRef = useRef< HTMLButtonElement >( null );
 	const hasBlockSelection = useSelect(
 		( select ) =>
@@ -75,21 +81,29 @@ function QuickEditInspector() {
 
 	return (
 		<>
-			<Button
-				ref={ buttonRef }
-				icon={ cog }
-				label={ __( 'Settings', 'newspack-rolling-coverage' ) }
-				size="compact"
-				isPressed={ isOpen }
-				aria-expanded={ isOpen }
-				disabled={ ! hasBlockSelection }
-				accessibleWhenDisabled
-				onMouseDown={ ( event: MouseEvent ) => event.preventDefault() }
-				onClick={ () => setIsOpen( ( prev ) => ! prev ) }
-			/>
+			<div
+				ref={ anchorRef }
+				className="newspack-rolling-coverage-quick-edit__inspector-toggle"
+			>
+				<Button
+					ref={ buttonRef }
+					icon={ cog }
+					label={ __( 'Settings', 'newspack-rolling-coverage' ) }
+					size="compact"
+					isPressed={ isOpen }
+					aria-expanded={ isOpen }
+					disabled={ ! hasBlockSelection }
+					accessibleWhenDisabled
+					onMouseDown={ ( event: MouseEvent ) =>
+						event.preventDefault()
+					}
+					onClick={ () => setIsOpen( ( prev ) => ! prev ) }
+				/>
+			</div>
 			{ isOpen && (
 				<Popover
-					anchor={ buttonRef.current }
+					anchor={ anchorRef.current }
+					offset={ 13 }
 					placement="bottom-end"
 					className="newspack-rolling-coverage-quick-edit__inspector"
 					focusOnMount="firstElement"

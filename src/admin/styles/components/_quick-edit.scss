@@ -99,6 +99,18 @@ $quick-edit-footer-clearance: 72px;
 	}
 }
 
+// Every toolbar popover opens at one height. Core's `Dropdown` anchors its
+// popover to the wrapper around its toggle, and the block toolbar's menus sit
+// in wrappers as tall as a block toolbar button. The 32px document tools and
+// the gear get wrappers that tall too (see quick-edit-inspector.tsx), or their
+// popovers would open higher, over the row's border.
+.newspack-rolling-coverage-quick-edit__document-tools > .components-dropdown,
+.newspack-rolling-coverage-quick-edit__inspector-toggle {
+	display: inline-flex;
+	align-items: center;
+	height: wp-vars.$block-toolbar-height;
+}
+
 // The "+" turns into an "x" while the library is open, as in core.
 .newspack-rolling-coverage-quick-edit__inserter-toggle.components-button {
 
