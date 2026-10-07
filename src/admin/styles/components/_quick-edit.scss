@@ -130,12 +130,15 @@ $quick-edit-footer-clearance: 72px;
 	}
 }
 
-// Pinned block toolbar. It never shrinks below its content: a row too narrow
-// for it scrolls as a whole, otherwise core's toolbar (a horizontal scroller
-// below 782px) would hide its last controls. The `block-toolbar` popover slot
-// sits outside the wrapper because `is-collapsed` hides the wrapper outright,
-// and an open format or resize popover rendered inside would vanish
-// with it (see quick-edit-block-toolbar.tsx).
+// Pinned block toolbar. Core's rules for this toolbar make it scroll inside
+// itself, pull its groups and parent selector 1px past its top and bottom
+// edges, and draw a line under it. In this row they would clip the groups,
+// add a second scrollbar and leave a stray line, so they are reset below,
+// and the wrapper never shrinks below its content: a row too narrow for the
+// toolbar scrolls as a whole. The `block-toolbar` popover slot sits outside
+// the wrapper because `is-collapsed` hides the wrapper outright, and an open
+// format or resize popover rendered inside would vanish with it (see
+// quick-edit-block-toolbar.tsx).
 .newspack-rolling-coverage-quick-edit__block-toolbar {
 	display: flex;
 	flex: 1 0 auto;
@@ -162,7 +165,7 @@ $quick-edit-footer-clearance: 72px;
 
 	.block-editor-block-toolbar .components-toolbar-group,
 	.block-editor-block-toolbar .components-toolbar,
-	.block-editor-block-parent-selector {
+	.block-editor-block-toolbar .block-editor-block-parent-selector {
 		margin-block: 0;
 	}
 }
