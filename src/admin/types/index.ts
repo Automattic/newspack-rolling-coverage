@@ -632,6 +632,7 @@ type EditorSelectors = {
 	__unstableIsEditorReady?: () => boolean;
 	isSavingPost: () => boolean;
 	didPostSaveRequestFail: () => boolean;
+	isEditedPostDirty: () => boolean;
 	getCurrentPostType: () => string;
 	getCurrentPostId: () => number;
 };

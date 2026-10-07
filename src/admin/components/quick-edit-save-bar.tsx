@@ -33,14 +33,15 @@ function QuickEditSaveBar( { onClose, onSaved }: QuickEditSaveBarProps ) {
 	const { savePost } = useDispatch( editorStore );
 	const { createErrorNotice } = useDispatch( noticesStore );
 
-	const { isEditorReady, isSavingPost, didFail, lastSaveError } = useSelect(
-		( registry ) => {
+	const { isEditorReady, isDirty, isSavingPost, didFail, lastSaveError } =
+		useSelect( ( registry ) => {
 			const editor = registry(
 				editorStore
 			) as unknown as EditorSelectors;
 			const core = registry( coreStore ) as unknown as CoreSelectors;
 			return {
 				isEditorReady: editor.__unstableIsEditorReady?.() ?? false,
+				isDirty: editor.isEditedPostDirty(),
 				isSavingPost: editor.isSavingPost(),
 				didFail: editor.didPostSaveRequestFail(),
 				lastSaveError: core.getLastEntitySaveError(
@@ -49,9 +50,7 @@ function QuickEditSaveBar( { onClose, onSaved }: QuickEditSaveBarProps ) {
 					editor.getCurrentPostId()
 				),
 			};
-		},
-		[]
-	);
+		}, [] );
 
 	const wasSavingRef = useRef( false );
 
@@ -94,7 +93,7 @@ function QuickEditSaveBar( { onClose, onSaved }: QuickEditSaveBarProps ) {
 				variant="primary"
 				onClick={ handleSave }
 				isBusy={ isSavingPost }
-				disabled={ isSavingPost || ! isEditorReady }
+				disabled={ isSavingPost || ! isEditorReady || ! isDirty }
 				size="compact"
 			>
 				{ __( 'Save', 'newspack-rolling-coverage' ) }
