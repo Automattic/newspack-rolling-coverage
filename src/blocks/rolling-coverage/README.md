@@ -145,6 +145,12 @@ Entries posted from Slack follow the same rules:
 
 To give readers more than "Photo" or "Gallery", add a description to the image in Slack before you post it, or write a line of text with the images.
 
+### Lite Site pages
+
+On sites with the Lite Site plugin, a feed keeps updating on the text-only copy of the page too: new entries arrive, and older ones load, as the block is set. Each entry shows as text, with its time, a "Pinned" label when it's pinned, its title and its content, whatever the layout shows on the full page. Ads, Share, and Follow Coverage don't appear there. The coverage name, the Coverage Status badge (without "Updated … ago"), and the link to the coverage page still show.
+
+This needs a recent version of Lite Site. With an older one, the lite page shows the entries as they were when the page was saved for Lite Site, and doesn't update.
+
 ### Live blog markup
 
 A block that shows all entries counts as the coverage's live feed on its page, including the live blog markup search engines read. A block set to Latest never does.

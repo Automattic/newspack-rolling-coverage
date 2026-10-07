@@ -27,6 +27,8 @@ The block adds no markup of its own and has no class name support (`className` a
 - **`should_render( $status )`.** OneSignal is configured (`Push_Notifications::is_onesignal_configured()`) and the coverage is not archived.
 - **Context for the button.** `add_coverage_context()` runs on `render_block_context` and hands the coverage ID and status to the blocks inside a Follow Coverage block, and to no other block.
 
+On a Lite Site page (`Lite_Feed::is_lite_render()`), `render_block()` returns nothing, since a lite page has neither the follow script nor a push provider.
+
 The button's markup comes from `Entry_Bindings`:
 
 - `get_value()` resolves `followTag` to `coverage_{id}` (`Push_Notifications::follow_tag()`), or to nothing when `should_render()` fails.

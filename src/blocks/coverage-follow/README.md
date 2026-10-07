@@ -43,6 +43,7 @@ The button is part of the block and rebuilds itself when the editor reloads, so 
 - If the reader has blocked notifications, the button returns to Follow and a message appears: "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 - If something fails, the button returns to its previous state and a message appears: "Something went wrong. Please try again."
 - Once the coverage ends, the button no longer appears when the page loads.
+- The button doesn't appear on Lite Site's text-only pages.
 
 ## Sending notifications
 
