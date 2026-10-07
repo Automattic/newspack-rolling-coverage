@@ -25,9 +25,9 @@ import { QuickEditInspector } from './quick-edit-inspector';
  *
  * The inserter opens the block library in a popover under the "+" rather
  * than a sidebar, and inserts after the selected block or at the end of the
- * entry. The document overview is `ListView` in a plain `Dropdown`; core's
- * `BlockNavigationDropdown` does the same but logs a deprecation warning on
- * every mount.
+ * entry. The document overview is `ListView` in a plain `Dropdown`, the
+ * pairing core points to as the replacement for its deprecated
+ * `BlockNavigationDropdown`.
  *
  * Renders inside `EditorProvider`: undo, redo and the block toolbar read the
  * editor's stores from its sub-registry.

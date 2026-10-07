@@ -74,9 +74,10 @@ $quick-edit-footer-clearance: 72px;
 // Document tools at the post editor header's size. Core's toolbar styles make
 // every button 48px and draw its pressed and focus states on an inset
 // `::before`, so the primary "+" would fill the row as a large blue square.
-// The header (`.editor-document-tools`, whose stylesheet this page does not
-// load) shrinks them to 32px, the size of the gear and the chevron, and moves
-// those states onto the button. The frame class outranks core's toolbar rules.
+// The post editor header shrinks them to 32px, the size of the gear and the
+// chevron, and moves those states onto the button; its rules are on this page
+// but scoped to `.editor-document-tools` classes this toolbar doesn't use, so
+// they're repeated here. The frame class outranks core's toolbar rules.
 .components-modal__frame.newspack-rolling-coverage-quick-edit .newspack-rolling-coverage-quick-edit__document-tools {
 
 	> .components-button.has-icon,

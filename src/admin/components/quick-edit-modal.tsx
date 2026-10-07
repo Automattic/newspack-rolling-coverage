@@ -54,16 +54,15 @@ import type { QuickEditModalProps, EntityRecord } from '../types';
  * switch for the floating per-block toolbar. The page's preferences store
  * cannot carry it: WordPress core installs the user's persistence layer on
  * every page that loads `wp-preferences`, so a write there reaches
- * `localStorage` at once and the user's saved preferences a few seconds
- * later, pinning the toolbar in their real post editor. A child registry
- * with an in-memory `core/preferences` store (`quickEditPreferencesStore`)
- * shadows the page's; the editor's preference reads and writes resolve to
- * it, while core-data and notices still fall through to the page. The
- * trade-off: the user's saved post-editor preferences (hidden block types,
- * icon labels, focus mode, caret behavior) do not apply inside Quick Edit,
- * and the few editor controls that write preferences (the link control's
- * Advanced drawer, the distraction-free shortcut) write to this throwaway
- * store instead.
+ * `localStorage` and the user's saved preferences at once, pinning the
+ * toolbar in their real post editor. A child registry with an in-memory
+ * `core/preferences` store (`quickEditPreferencesStore`) shadows the page's;
+ * the editor's preference reads and writes resolve to it, while core-data
+ * and notices still fall through to the page. The trade-off: the user's
+ * saved post-editor preferences (hidden block types, icon labels, focus
+ * mode, caret behavior) do not apply inside Quick Edit, and editor controls
+ * that write preferences, such as the link control's Advanced drawer, write
+ * to this throwaway store instead.
  */
 function useQuickEditRegistry() {
 	const parent = useRegistry();
