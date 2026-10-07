@@ -64,11 +64,17 @@ class Placements {
 	const TYPE_PATTERN       = 'wp_block';
 	const TYPE_WIDGET_AREA   = 'widget_area';
 
-	// Block tags, before they are turned into labels.
-	const TAG_FULL   = 'full';
-	const TAG_LATEST = 'latest';
+	// Block tags, before they are turned into labels. A Rolling Coverage
+	// block's tag is feed:<layout>:<count>, its layout being a layout ID,
+	// detached, or empty when it has neither, and its count how many entries
+	// it shows, 0 for all of them. A block without a usable layout renders
+	// the built-in Bulletin template, so it is labeled with that.
+	const TAG_FEED   = 'feed';
 	const TAG_STATUS = 'status';
 	const TAG_FOLLOW = 'follow';
+
+	// A feed's layout when the block has its own copy of a layout.
+	const LAYOUT_DETACHED = 'detached';
 
 	/**
 	 * The newest published breakout post of each coverage, worked out once
@@ -77,6 +83,13 @@ class Placements {
 	 * @var array<int,array<int,WP_Post>>
 	 */
 	private static $breakout_posts = [];
+
+	/**
+	 * Layout titles worked out this request, keyed by blog ID and layout ID.
+	 *
+	 * @var array<int,array<int,string>>
+	 */
+	private static $layout_titles = [];
 
 	/**
 	 * Sites whose map this request has already checked or rebuilt since its
@@ -136,9 +149,10 @@ class Placements {
 							'id'       => [ 'type' => 'string' ],
 							'title'    => [ 'type' => 'string' ],
 							'type'     => [ 'type' => 'string' ],
-							'tags'     => [
-								'type'  => 'array',
-								'items' => [ 'type' => 'string' ],
+							'blocks'   => [
+								'description' => __( 'Translated labels of the blocks that show the coverage there.', 'newspack-rolling-coverage' ),
+								'type'        => 'array',
+								'items'       => [ 'type' => 'string' ],
 							],
 							'viewUrl'  => [ 'type' => 'string' ],
 							'editUrl'  => [ 'type' => 'string' ],
@@ -217,7 +231,7 @@ class Placements {
 	 * since only the admin reads this.
 	 *
 	 * @param int $coverage_id Coverage term ID.
-	 * @return array[] Rows with id, title, type, tags, viewUrl, editUrl, isMain and breakout.
+	 * @return array[] Rows with id, title, type, blocks, viewUrl, editUrl, isMain and breakout.
 	 */
 	public static function for_coverage( int $coverage_id ): array {
 		self::ensure_fresh();
@@ -243,7 +257,6 @@ class Placements {
 
 				if ( $row ) {
 					$row['id']       = 'breakout:' . $row['id'];
-					$row['type']     = self::breakout_type_label( $place['type'] );
 					$row['viewUrl']  = (string) get_permalink( $breakout_post );
 					$row['breakout'] = true;
 					$rows[]          = $row;
@@ -286,7 +299,7 @@ class Placements {
 				'id'       => 'canonical',
 				'title'    => untrailingslashit( (string) preg_replace( '#^https?://#i', '', $canonical_url ) ),
 				'type'     => '',
-				'tags'     => [],
+				'blocks'   => [],
 				'viewUrl'  => $canonical_url,
 				'editUrl'  => '',
 				'isMain'   => true,
@@ -323,7 +336,7 @@ class Placements {
 			'id'       => $place['type'] . ':' . $place['id'],
 			'title'    => '',
 			'type'     => '',
-			'tags'     => array_map( [ __CLASS__, 'tag_label' ], $place['tags'] ),
+			'blocks'   => array_values( array_unique( array_map( [ __CLASS__, 'tag_label' ], $place['tags'] ) ) ),
 			'viewUrl'  => '',
 			'editUrl'  => '',
 			'isMain'   => false,
@@ -340,7 +353,7 @@ class Placements {
 
 				$post_type      = get_post_type_object( $post->post_type );
 				$row['title']   = self::post_title( $post );
-				$row['type']    = $post_type ? $post_type->labels->singular_name : '';
+				$row['type']    = $post_type ? $post_type->labels->singular_name : $post->post_type;
 				$row['viewUrl'] = (string) get_permalink( $post );
 				$row['editUrl'] = (string) get_edit_post_link( $post, 'raw' );
 				break;
@@ -425,49 +438,80 @@ class Placements {
 	}
 
 	/**
-	 * The label shown for a block tag.
+	 * The label shown for a block tag: the block's name, and for a Rolling
+	 * Coverage block its layout and, when capped, how many entries it shows.
 	 *
-	 * @param string $tag Stored tag: full, latest:<layout ID>, status or follow.
+	 * @param string $tag Stored tag: feed:<layout>:<count>, status or follow.
 	 * @return string
 	 */
 	private static function tag_label( string $tag ): string {
-		if ( self::TAG_FULL === $tag ) {
-			return __( 'Full', 'newspack-rolling-coverage' );
-		}
-
 		if ( self::TAG_STATUS === $tag ) {
-			return __( 'Status', 'newspack-rolling-coverage' );
+			return __( 'Coverage Status', 'newspack-rolling-coverage' );
 		}
 
 		if ( self::TAG_FOLLOW === $tag ) {
-			return __( 'Follow', 'newspack-rolling-coverage' );
+			return __( 'Follow Coverage', 'newspack-rolling-coverage' );
 		}
 
-		$layout = get_post( (int) substr( $tag, strlen( self::TAG_LATEST ) + 1 ) );
+		[ $layout, $count ] = self::parse_feed_tag( $tag );
 
-		if ( $layout instanceof WP_Post && 'wp_block' === $layout->post_type && 'publish' === $layout->post_status && '' !== $layout->post_title ) {
-			return html_entity_decode( wp_strip_all_tags( $layout->post_title ), ENT_QUOTES, 'UTF-8' );
+		$name   = __( 'Rolling Coverage', 'newspack-rolling-coverage' );
+		$layout = self::LAYOUT_DETACHED === $layout ? _x( 'Detached', 'layout', 'newspack-rolling-coverage' ) : self::layout_title( (int) $layout );
+		$layout = '' === $layout ? Layout::get_title( 'default' ) : $layout;
+
+		if ( '' !== $layout && $count > 0 ) {
+			/* translators: 1: block name, 2: layout name, 3: how many entries the block shows */
+			return sprintf( _n( '%1$s (%2$s, latest %3$s)', '%1$s (%2$s, latest %3$s)', $count, 'newspack-rolling-coverage' ), $name, $layout, number_format_i18n( $count ) );
 		}
 
-		return __( 'Latest', 'newspack-rolling-coverage' );
+		if ( '' !== $layout ) {
+			/* translators: 1: block name, 2: layout name */
+			return sprintf( _x( '%1$s (%2$s)', 'block and its layout', 'newspack-rolling-coverage' ), $name, $layout );
+		}
+
+		if ( $count > 0 ) {
+			/* translators: 1: block name, 2: how many entries the block shows */
+			return sprintf( _n( '%1$s (latest %2$s)', '%1$s (latest %2$s)', $count, 'newspack-rolling-coverage' ), $name, number_format_i18n( $count ) );
+		}
+
+		return $name;
 	}
 
 	/**
-	 * What a row that shows a coverage on its breakout posts is.
+	 * A feed tag's layout and count.
 	 *
-	 * @param string $type Place type.
+	 * @param string $tag Feed tag.
+	 * @return array{0: string, 1: int} Layout (ID, detached, or empty) and count.
+	 */
+	private static function parse_feed_tag( string $tag ): array {
+		$parts = array_pad( explode( ':', $tag, 3 ), 3, '' );
+
+		return [ $parts[1], (int) $parts[2] ];
+	}
+
+	/**
+	 * A shared layout's name, or an empty string when the layout has no
+	 * blocks the site can render, so the block renders the built-in default.
+	 * Worked out once per layout and request until the next change.
+	 *
+	 * @param int $layout_id Layout (wp_block) ID.
 	 * @return string
 	 */
-	private static function breakout_type_label( string $type ): string {
-		if ( self::TYPE_TEMPLATE_PART === $type ) {
-			return __( 'Template part, on this coverage’s breakout posts', 'newspack-rolling-coverage' );
+	private static function layout_title( int $layout_id ): string {
+		$blog_id = get_current_blog_id();
+
+		if ( ! isset( self::$layout_titles[ $blog_id ][ $layout_id ] ) ) {
+			$title = '';
+
+			if ( ! empty( Layout::get_layout_blocks( $layout_id ) ) ) {
+				$title = html_entity_decode( wp_strip_all_tags( get_the_title( $layout_id ) ), ENT_QUOTES, 'UTF-8' );
+				$title = '' === $title ? __( 'Untitled layout', 'newspack-rolling-coverage' ) : $title;
+			}
+
+			self::$layout_titles[ $blog_id ][ $layout_id ] = $title;
 		}
 
-		if ( self::TYPE_WIDGET_AREA === $type ) {
-			return __( 'Widget area, on this coverage’s breakout posts', 'newspack-rolling-coverage' );
-		}
-
-		return __( 'Template, on this coverage’s breakout posts', 'newspack-rolling-coverage' );
+		return self::$layout_titles[ $blog_id ][ $layout_id ];
 	}
 
 	/**
@@ -484,8 +528,8 @@ class Placements {
 			}
 
 			foreach ( $place['tags'] as $tag ) {
-				if ( 0 === strpos( $tag, self::TAG_LATEST . ':' ) ) {
-					$ids[] = (int) substr( $tag, strlen( self::TAG_LATEST ) + 1 );
+				if ( 0 === strpos( $tag, self::TAG_FEED . ':' ) ) {
+					$ids[] = (int) self::parse_feed_tag( $tag )[0];
 				}
 			}
 		}
@@ -725,7 +769,7 @@ class Placements {
 	public static function flush(): void {
 		$blog_id = get_current_blog_id();
 
-		unset( self::$breakout_posts[ $blog_id ], self::$fresh[ $blog_id ], self::$queued[ $blog_id ] );
+		unset( self::$breakout_posts[ $blog_id ], self::$layout_titles[ $blog_id ], self::$fresh[ $blog_id ], self::$queued[ $blog_id ] );
 		self::write_option( self::STALE_OPTION, uniqid( '', true ) );
 		self::queue_rebuild();
 	}
@@ -1139,7 +1183,7 @@ class Placements {
 						'tags' => array_keys( $tags ),
 					];
 
-					if ( isset( $tags[ self::TAG_FULL ] ) && ! isset( $map['pages'][ $coverage_id ] ) ) {
+					if ( self::has_uncapped_feed( array_keys( $tags ) ) && ! isset( $map['pages'][ $coverage_id ] ) ) {
 						$map['pages'][ $coverage_id ] = $post_id;
 					}
 				}
@@ -1207,22 +1251,39 @@ class Placements {
 	}
 
 	/**
-	 * Orders tags as the row shows them: feeds first, then Status and Follow.
+	 * Whether one of the tags is a feed that shows every entry.
+	 *
+	 * @param string[] $tags Tags.
+	 * @return bool
+	 */
+	private static function has_uncapped_feed( array $tags ): bool {
+		foreach ( $tags as $tag ) {
+			if ( 0 === strpos( $tag, self::TAG_FEED . ':' ) && 0 === self::parse_feed_tag( $tag )[1] ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Orders tags as the row shows them: feeds that show every entry, capped
+	 * feeds, then Status and Follow.
 	 *
 	 * @param string[] $tags Tags.
 	 * @return string[]
 	 */
 	private static function sort_tags( array $tags ): array {
 		$rank = function ( string $tag ): int {
-			if ( self::TAG_FULL === $tag ) {
-				return 0;
-			}
-
 			if ( self::TAG_STATUS === $tag ) {
 				return 2;
 			}
 
-			return self::TAG_FOLLOW === $tag ? 3 : 1;
+			if ( self::TAG_FOLLOW === $tag ) {
+				return 3;
+			}
+
+			return self::has_uncapped_feed( [ $tag ] ) ? 0 : 1;
 		};
 
 		usort(
@@ -1604,7 +1665,9 @@ class Placements {
 				$coverage_id = (int) ( $attrs['coverageId'] ?? 0 );
 
 				if ( ! $in_pattern && $coverage_id > 0 ) {
-					$tag = empty( $attrs['latestOnly'] ) ? self::TAG_FULL : self::TAG_LATEST . ':' . (int) ( $attrs['layoutId'] ?? 0 );
+					$layout_id = (int) ( $attrs['layoutId'] ?? 0 );
+					$layout    = $layout_id > 0 ? (string) $layout_id : ( empty( $block['innerBlocks'] ) ? '' : self::LAYOUT_DETACHED );
+					$tag       = implode( ':', [ self::TAG_FEED, $layout, Rolling_Coverage_Block::latest_count( $attrs ) ] );
 					self::add_tags( $found['coverages'], $coverage_id, [ $tag ] );
 				}
 
