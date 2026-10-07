@@ -53,7 +53,7 @@ A notification goes out when an entry is published and one of these is true:
 
 Only readers who followed that coverage are notified. The notification links to the entry on the coverage's canonical URL, so the coverage needs one. If it doesn't, the Push Notifications panel warns you and no notification is sent. An entry notifies once.
 
-An entry that goes live from a schedule, or is published outside the editor (for example with Quick Edit), notifies at once. An entry published from the entry editor or from Slack notifies on the site's next scheduled-task run. The plugin's entries list doesn't publish entries.
+An entry that goes live from a schedule notifies at once. An entry published from the entry editor, with Publish in a coverage's entries list, or from Slack notifies on the site's next scheduled-task run.
 
 ## Limits
 
