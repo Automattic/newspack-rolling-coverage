@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-07T18:15:33+00:00\n"
+"POT-Creation-Date: 2026-10-07T22:15:29+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -87,8 +87,8 @@ msgstr ""
 #: includes/blocks/class-rolling-coverage-block.php:3986
 #: includes/blocks/class-rolling-coverage-block.php:4116
 #: includes/blocks/class-rolling-coverage-block.php:4127
-#: includes/class-post-type.php:1149
-#: includes/class-taxonomy.php:347
+#: includes/class-post-type.php:1250
+#: includes/class-taxonomy.php:348
 msgid "Coverage not found."
 msgstr ""
 
@@ -492,7 +492,7 @@ msgstr ""
 msgid "AI"
 msgstr ""
 
-#: includes/class-admin.php:466
+#: includes/class-admin.php:463
 #: dist/admin.js:219
 #: dist/admin.js:232
 msgid "Slack"
@@ -518,19 +518,19 @@ msgstr ""
 msgid "This entry can’t be added to a coverage set to “%s”."
 msgstr ""
 
-#: includes/class-archive-mode.php:268
+#: includes/class-archive-mode.php:285
 #: includes/class-breakout.php:238
-#: includes/class-post-type.php:1066
-#: includes/class-post-type.php:2846
-#: includes/class-post-type.php:3251
+#: includes/class-post-type.php:1167
+#: includes/class-post-type.php:2962
+#: includes/class-post-type.php:3367
 msgid "Entry not found."
 msgstr ""
 
-#: includes/class-archive-mode.php:292
+#: includes/class-archive-mode.php:309
 msgid "Only published entries can be archived."
 msgstr ""
 
-#: includes/class-archive-mode.php:309
+#: includes/class-archive-mode.php:326
 msgid "Failed to update entry."
 msgstr ""
 
@@ -622,6 +622,7 @@ msgid "Entries"
 msgstr ""
 
 #: includes/class-post-type.php:270
+#: dist/admin.js:222
 #: dist/admin.js:239
 #: dist/admin.js:240
 msgid "Add Entry"
@@ -686,104 +687,108 @@ msgstr ""
 msgid "Individual entries within a Rolling Coverage."
 msgstr ""
 
-#: includes/class-post-type.php:2579
-#: includes/class-post-type.php:2663
+#: includes/class-post-type.php:778
+msgid "This coverage is in the trash. Restore it before adding entries."
+msgstr ""
+
+#: includes/class-post-type.php:2695
+#: includes/class-post-type.php:2779
 msgid "No entry IDs provided."
 msgstr ""
 
-#: includes/class-post-type.php:2595
+#: includes/class-post-type.php:2711
 msgid "You do not have permission to restore this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2671
+#: includes/class-post-type.php:2787
 msgid "The slug and date can only be changed one entry at a time."
 msgstr ""
 
-#: includes/class-post-type.php:2690
+#: includes/class-post-type.php:2806
 msgid "That person can’t be the author of an entry."
 msgstr ""
 
-#: includes/class-post-type.php:2703
+#: includes/class-post-type.php:2819
 msgid "That date isn’t valid."
 msgstr ""
 
-#: includes/class-post-type.php:2730
+#: includes/class-post-type.php:2846
 msgid "Nothing to change."
 msgstr ""
 
-#: includes/class-post-type.php:2850
+#: includes/class-post-type.php:2966
 msgid "You do not have permission to edit this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2854
+#: includes/class-post-type.php:2970
 msgid "This entry is archived, so it can’t be edited."
 msgstr ""
 
-#: includes/class-post-type.php:2865
+#: includes/class-post-type.php:2981
 msgid "A published entry can’t have a date in the future."
 msgstr ""
 
-#: includes/class-post-type.php:2869
+#: includes/class-post-type.php:2985
 msgid "Saving this entry would publish it, and you do not have permission to publish it."
 msgstr ""
 
-#: includes/class-post-type.php:2914
+#: includes/class-post-type.php:3030
 msgid "Co-Authors Plus couldn’t credit this entry to that person."
 msgstr ""
 
-#: includes/class-post-type.php:2983
+#: includes/class-post-type.php:3099
 msgid "One of the chosen categories doesn’t exist."
 msgstr ""
 
-#: includes/class-post-type.php:2984
+#: includes/class-post-type.php:3100
 msgid "One of the chosen tags doesn’t exist."
 msgstr ""
 
-#: includes/class-post-type.php:3018
+#: includes/class-post-type.php:3134
 msgid "You don’t have permission to assign one of the chosen categories."
 msgstr ""
 
-#: includes/class-post-type.php:3019
+#: includes/class-post-type.php:3135
 msgid "You don’t have permission to assign one of the chosen tags."
 msgstr ""
 
-#: includes/class-post-type.php:3029
+#: includes/class-post-type.php:3145
 msgid "You don’t have permission to create categories."
 msgstr ""
 
-#: includes/class-post-type.php:3030
+#: includes/class-post-type.php:3146
 msgid "You don’t have permission to create tags."
 msgstr ""
 
-#: includes/class-post-type.php:3220
+#: includes/class-post-type.php:3336
 msgid "An editor needs to restore the coverage before this entry can be restored."
 msgstr ""
 
-#: includes/class-post-type.php:3259
+#: includes/class-post-type.php:3375
 msgid "Entry is not in trash."
 msgstr ""
 
-#: includes/class-post-type.php:3267
+#: includes/class-post-type.php:3383
 msgid "This entry is archived, so it can’t be restored."
 msgstr ""
 
-#: includes/class-post-type.php:3318
+#: includes/class-post-type.php:3434
 msgid "This entry's coverage was deleted. An editor needs to restore it."
 msgstr ""
 
-#: includes/class-post-type.php:3340
+#: includes/class-post-type.php:3456
 msgid "This entry has no coverage context to restore to."
 msgstr ""
 
-#: includes/class-post-type.php:3398
+#: includes/class-post-type.php:3514
 msgid "Failed to restore entry."
 msgstr ""
 
-#: includes/class-taxonomy.php:472
+#: includes/class-taxonomy.php:473
 msgid "Coverage is not in trash."
 msgstr ""
 
-#: includes/class-taxonomy.php:511
+#: includes/class-taxonomy.php:512
 msgid "Coverage could not be deleted."
 msgstr ""
 
@@ -1555,6 +1560,20 @@ msgid "Failed to save entry."
 msgstr ""
 
 #: dist/admin.js:222
+msgid "Save Draft"
+msgstr ""
+
+#: dist/admin.js:222
+#: dist/admin.js:235
+#: dist/admin.js:236
+msgid "Publish"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Submit for Review"
+msgstr ""
+
+#: dist/admin.js:222
 msgid "Show block tools"
 msgstr ""
 
@@ -1587,8 +1606,16 @@ msgid "Document Overview"
 msgstr ""
 
 #: dist/admin.js:222
+msgid "Failed to create entry"
+msgstr ""
+
+#: dist/admin.js:222
 #: dist/admin.js:235
 msgid "Quick Edit"
+msgstr ""
+
+#: dist/admin.js:222
+msgid "Preparing entry…"
 msgstr ""
 
 #: dist/admin.js:222
@@ -1817,15 +1844,6 @@ msgstr ""
 
 #: dist/admin.js:235
 msgid "Breakout"
-msgstr ""
-
-#: dist/admin.js:235
-msgid "Failed to create entry"
-msgstr ""
-
-#: dist/admin.js:235
-#: dist/admin.js:236
-msgid "Publish"
 msgstr ""
 
 #: dist/admin.js:235
