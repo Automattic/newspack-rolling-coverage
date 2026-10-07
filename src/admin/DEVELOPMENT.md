@@ -29,7 +29,7 @@ The admin pages load the block editor's assets so Quick Edit can run a block edi
 
 ## All Coverages
 
-The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Status, Canonical URL and Advertising. Status options are named after the site's status labels.
+The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels.
 
 Row actions live in `src/admin/actions/coverage-actions.ts`:
 
@@ -41,7 +41,7 @@ Row actions live in `src/admin/actions/coverage-actions.ts`:
 | Slack Connection | `canManageOptions`, once Slack is configured | Opens `SlackConnectionDrawer`. |
 | Trash | `canManageTerms`, coverage not trashed | Confirms, then `POST rolling-coverage/v1/coverages/<id>/trash`. The coverage's status becomes `trash`, and its entries are hidden on the site until it is restored. |
 | Restore | `canManageTerms`, coverage trashed | `POST rolling-coverage/v1/coverages/<id>/restore`. |
-| Delete Permanently | `canManageTerms`, coverage trashed | Confirms, then `DELETE rolling-coverage/v1/coverages/<id>`. Its entries are deleted too, apart from any already in the trash. |
+| Delete Permanently | `canManageTerms`, coverage trashed | Confirms, then `DELETE rolling-coverage/v1/coverages/<id>`. Its entries are deleted too, apart from any already in the trash, by a cleanup cron event a minute later, in batches of 50. |
 
 The routes live in `Taxonomy` (`includes/class-taxonomy.php`).
 
@@ -89,7 +89,7 @@ An entry is locked when it is archived or its coverage has ended (`isEntryLocked
 | Archive, Unarchive | Yes | Editors; Archive on a published entry; the coverage hasn't ended | `POST rolling-coverage/v1/entries/<id>/archive` (`Archive_Mode`). |
 | Pin, Unpin | No | Editors, not locked | `POST rolling-coverage/v1/entries/<id>/pin`. |
 | Trash | Yes | Not trashed, not locked; Editors, or the author of an entry they can publish | Confirms, then `DELETE` on the core entries route. |
-| Restore | Yes | Trashed, the user can edit it | `POST rolling-coverage/v1/entries/restore`, in one request for all of them. An entry whose coverage no longer exists comes back in a recovery coverage, shared by entries from the same coverage. |
+| Restore | Yes | Trashed, the user can edit it | `POST rolling-coverage/v1/entries/restore`, in one request for all of them. An entry whose coverage no longer exists comes back in a recovery coverage, shared by entries from the same coverage; creating or reusing it needs `manage_categories`, so without it the entry stays in the trash with an error. Archived entries, and entries locked because their coverage ended, can't be restored. |
 | Delete Permanently | Yes | Editors, trashed | Confirms, then `DELETE` on the core entries route with `force`. |
 
 Quick Edit and Edit ask for confirmation first on an archived entry, or one whose coverage is paused or ended, naming the coverage's status as the site labels it.
@@ -124,7 +124,7 @@ Tests: `tests/test-entry-author.php`. The entries-view route is covered by `test
 
 ## Quick Edit
 
-`QuickEditModal` (`quick-edit-modal.tsx`) edits one entry in a full-screen modal without leaving the list. It holds a block editor (`EditorProvider` with `BlockCanvas`, the post title and the block list) and the block inspector in a sidebar, which the header's Settings button toggles. There are no document settings, so status, date, author and coverage are changed elsewhere. The header's Cancel and Save (`quick-edit-save-bar.tsx`) close the modal and call the editor's `savePost()`.
+`QuickEditModal` (`quick-edit-modal.tsx`) edits one entry in a full-screen modal without leaving the list. It holds a block editor (`EditorProvider` with `BlockCanvas`, the post title and the block list) and the block inspector in a sidebar, which the header's Settings button toggles. There are no document settings, so status, date, author and coverage are changed elsewhere. In the header (`quick-edit-save-bar.tsx`), Cancel closes the modal, asking first when there are edits, and Save calls the editor's `savePost()`, keeps the modal open and refreshes the list.
 
 - **Unsaved edits.** Closing with unsaved edits asks to discard them. Escape, a click outside and the modal's close button are all off, so every close goes through that check. Edits are read from core-data (`useEntityRecord().hasEdits`), since the editor store lives in the provider's sub-registry, out of reach of selectors outside it.
 - **Nesting.** `EditorProvider` stays inside the modal, so the editor's own modals (keyboard shortcuts, pattern rename and duplicate, the media editor) nest in it rather than closing it. Cancel and Save sit outside the provider, so `EditorRegistryBridge` hands them its sub-registry.

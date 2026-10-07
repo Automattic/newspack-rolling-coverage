@@ -150,7 +150,7 @@ To give readers more than "Photo" or "Gallery", add a description to the image i
 
 On sites with the Lite Site plugin, a feed keeps updating on the text-only copy of the page too: new entries arrive, and older ones load, as the block is set. Each entry shows as text, with its time, a "Pinned" label when it's pinned, its title and its content, whatever the layout shows on the full page. Ads, Share, and Follow Coverage don't appear there. The coverage name, the Coverage Status badge (without "Updated … ago"), and the link to the coverage page still show.
 
-This needs a recent version of Lite Site. With an older one, the lite page shows the entries as they were when the page was saved for Lite Site, and doesn't update.
+This needs a Lite Site release after 0.1.0. With 0.1.0 or older, the lite page shows the entries as they were when the page was saved for Lite Site: new entries don't arrive, and older ones don't load.
 
 ### Live blog markup
 

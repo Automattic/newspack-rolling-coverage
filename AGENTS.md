@@ -40,7 +40,7 @@ npm run fix:js       # Auto-fix JS (also format:scss, fix:php)
 
 - CI runs `lint:js`, PHPCS and PHPUnit. It does not run `typecheck` or `lint:scss`, so those two only catch errors when you run them.
 - `npm run lint` runs Stylelint, ESLint, PHPCS and `typecheck` in that order and stops at the first failure. Run each one on its own to see every result.
-- PHPCS checks PHP compatibility against `testVersion 7.2-` in `phpcs.xml` and rejects typed properties, so don't use them. Its ruleset doesn't recognize every newer feature, and the code already uses PHP 8.0 syntax such as union types and arrow functions.
+- PHPCS checks PHP compatibility against `testVersion 7.2-` in `phpcs.xml` and rejects typed properties, so don't use them. Its ruleset doesn't recognize every newer feature, and the code already uses PHP 8.0 union types and PHP 7.4 arrow functions.
 
 Tests:
 
