@@ -217,7 +217,16 @@ export default function Edit( {
 		}
 	}
 
-	const { justInserted, paletteSlugs, accentSwatch, baseSwatch } = useSelect(
+	const {
+		justInserted,
+		paletteSlugs,
+		accentSwatch,
+		baseSwatch,
+		accentPreset,
+		accentPair,
+		basePreset,
+		basePair,
+	} = useSelect(
 		( select ) => {
 			const blockEditor = select( blockEditorStore ) as unknown as {
 				wasBlockJustInserted: (
@@ -237,10 +246,10 @@ export default function Edit( {
 				};
 			};
 			const settings = blockEditor.getSettings();
+			const origins =
+				settings.__experimentalFeatures?.color?.palette ?? {};
 			const palette = [
-				...Object.values(
-					settings.__experimentalFeatures?.color?.palette ?? {}
-				).flat(),
+				...Object.values( origins ).flat(),
 				...( settings.colors ?? [] ),
 			];
 			const swatch = ( ...slugs: string[] ) =>
@@ -249,6 +258,15 @@ export default function Edit( {
 						( slug ) =>
 							palette.find( ( color ) => color.slug === slug )
 								?.color
+					)
+					.find( Boolean ) ?? '';
+			const preset = ( slug: string ) =>
+				[ 'custom', 'theme' ]
+					.map(
+						( origin ) =>
+							origins[ origin ]?.find(
+								( color ) => color.slug === slug
+							)?.color
 					)
 					.find( Boolean ) ?? '';
 
@@ -262,6 +280,10 @@ export default function Edit( {
 				// The picker needs a literal color to show and mark as selected, so a theme color shows as its palette swatch.
 				accentSwatch: swatch( 'accent', 'primary' ),
 				baseSwatch: swatch( 'base', 'white' ),
+				accentPreset: preset( 'accent' ),
+				accentPair: preset( 'accent-contrast' ),
+				basePreset: preset( 'base' ),
+				basePair: preset( 'contrast' ),
 			};
 		},
 		[ clientId ]
@@ -615,7 +637,12 @@ export default function Edit( {
 						status,
 						showDot !== false
 					) }` }
-					style={ badgeStyleObject( backgroundColors?.[ status ] ) }
+					style={ badgeStyleObject( backgroundColors?.[ status ], {
+						accent: accentPreset,
+						'accent-contrast': accentPair,
+						base: basePreset,
+						contrast: basePair,
+					} ) }
 				>
 					{ label }
 				</span>

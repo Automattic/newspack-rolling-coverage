@@ -36,18 +36,21 @@ class Coverage_Status_Block {
 	];
 
 	/**
-	 * Theme colors a badge background can name instead of a hex color, each
-	 * with the theme's text color made for it: the block theme's preset, then
-	 * the classic Newspack Theme's custom property, then a plain value. They
-	 * follow the theme's style variations, which a stored hex can't.
+	 * Theme colors a badge background can name instead of a hex color, keyed
+	 * by the block theme's palette slug: the block theme's preset, then the
+	 * classic Newspack Theme's custom property, then a plain value. They
+	 * follow the theme's style variations, which a stored hex can't. `pair`
+	 * is the palette slug of the text color the theme designed for it.
 	 */
 	const THEME_COLORS = [
 		'accent' => [
 			'background' => 'var(--wp--preset--color--accent, var(--newspack-theme-color-primary, #003da5))',
+			'pair'       => 'accent-contrast',
 			'text'       => 'var(--wp--preset--color--accent-contrast, var(--wp--preset--color--base, var(--newspack-theme-color-against-primary, #fff)))',
 		],
 		'base'   => [
 			'background' => 'var(--wp--preset--color--base, var(--newspack-theme-color-bg-body, #fff))',
+			'pair'       => 'contrast',
 			'text'       => 'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, #111))',
 		],
 	];
@@ -202,9 +205,11 @@ class Coverage_Status_Block {
 	}
 
 	/**
-	 * Inline badge style for a custom background: the color, its text color
-	 * (the theme's pair for a THEME_COLORS name, else picked by APCA), and a
-	 * dot color that stays visible on it.
+	 * Inline badge style for a custom background: the color, its text color,
+	 * and a dot color that stays visible on it. A THEME_COLORS name keeps the
+	 * theme's paired text when the palette has it; otherwise APCA picks the
+	 * text against the palette's hex, so a light accent with no pair still
+	 * gets dark text. With neither, the paired variable's fallbacks apply.
 	 *
 	 * @param string $color Background color: a THEME_COLORS name, or any form Apca::normalize() accepts.
 	 * @return string The style, or '' when the color is unset or invalid.
@@ -213,6 +218,11 @@ class Coverage_Status_Block {
 		if ( isset( self::THEME_COLORS[ $color ] ) ) {
 			$background = self::THEME_COLORS[ $color ]['background'];
 			$text       = self::THEME_COLORS[ $color ]['text'];
+			$preset     = Apca::normalize( self::palette_color( $color ) );
+
+			if ( '' !== $preset && '' === self::palette_color( self::THEME_COLORS[ $color ]['pair'] ) ) {
+				$text = Apca::text_color( $preset );
+			}
 		} else {
 			$background = Apca::normalize( $color );
 
@@ -224,6 +234,27 @@ class Coverage_Status_Block {
 		}
 
 		return sprintf( 'background:%1$s;color:%2$s;--newspack-ui-badge-dot-color:color-mix(in srgb, %2$s 60%%, %1$s)', $background, $text );
+	}
+
+	/**
+	 * A palette color's current value, the site's own before the theme's,
+	 * as the preset variable resolves. It reflects the active style variation.
+	 *
+	 * @param string $slug Palette slug.
+	 * @return string The color, or '' when the palette has no such slug.
+	 */
+	private static function palette_color( string $slug ): string {
+		$palette = wp_get_global_settings( [ 'color', 'palette' ] );
+
+		foreach ( [ 'custom', 'theme' ] as $origin ) {
+			foreach ( (array) ( $palette[ $origin ] ?? [] ) as $entry ) {
+				if ( is_array( $entry ) && $slug === ( $entry['slug'] ?? null ) && is_string( $entry['color'] ?? null ) && '' !== $entry['color'] ) {
+					return $entry['color'];
+				}
+			}
+		}
+
+		return '';
 	}
 
 	/**
