@@ -45,51 +45,45 @@ function PlacementRow( {
 			) }
 			<Stack direction="row" justify="space-between" gap="lg">
 				<Stack
+					render={ <dl /> }
 					direction="column"
 					gap="lg"
 					className="newspack-rolling-coverage-placement__details"
 				>
-					<Stack direction="column" gap="xs">
-						{ ( type || isMain ) && (
-							<Text>
-								{ type && isMain ? (
-									<>
-										<span aria-hidden="true">
-											{ sprintf(
-												/* translators: %s: what the place is, such as Page */
-												_x(
-													'%s · Main',
-													'visible label of the main page',
-													'newspack-rolling-coverage'
-												),
-												type
-											) }
-										</span>
-										<VisuallyHidden render={ <span /> }>
-											{ sprintf(
-												/* translators: %s: what the place is, such as Page */
-												__(
-													'%s, Main page',
-													'newspack-rolling-coverage'
-												),
-												type
-											) }
-										</VisuallyHidden>
-									</>
-								) : (
-									type || mainPage
-								) }
-							</Text>
-						) }
-						<Text variant="heading-md">{ title }</Text>
+					<Stack direction="column" gap="sm">
+						<Field.VisualLabel render={ <dt /> }>
+							{ type && isMain ? (
+								<>
+									<span aria-hidden="true">
+										{ sprintf(
+											/* translators: %s: what the place is, such as Page */
+											_x(
+												'%s · Main',
+												'visible label of the main page',
+												'newspack-rolling-coverage'
+											),
+											type
+										) }
+									</span>
+									<VisuallyHidden render={ <span /> }>
+										{ sprintf(
+											/* translators: %s: what the place is, such as Page */
+											__(
+												'%s, Main page',
+												'newspack-rolling-coverage'
+											),
+											type
+										) }
+									</VisuallyHidden>
+								</>
+							) : (
+								type || mainPage
+							) }
+						</Field.VisualLabel>
+						<Text render={ <dd /> }>{ title }</Text>
 					</Stack>
 					{ blocks.length > 0 && (
-						<Stack
-							render={ <dl /> }
-							direction="column"
-							gap="sm"
-							className="newspack-rolling-coverage-placement__fields"
-						>
+						<Stack direction="column" gap="sm">
 							<Field.VisualLabel render={ <dt /> }>
 								{ __( 'Blocks', 'newspack-rolling-coverage' ) }
 							</Field.VisualLabel>
