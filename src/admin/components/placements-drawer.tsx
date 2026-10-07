@@ -19,6 +19,67 @@ import { Drawer } from 'newspack-components/dist/esm/drawer';
 import type { Placement, PlacementsDrawerProps } from '../types';
 
 /**
+ * What a place is, such as Page, marked when it is the coverage's main
+ * page or shows the coverage on its breakout posts. The short visible
+ * form is hidden from screen readers, which read the full one.
+ *
+ * @param {Object}    props           Component props.
+ * @param {Placement} props.placement The place.
+ */
+function PlacementType( { placement }: { placement: Placement } ) {
+	const { type, isMain, breakout } = placement;
+
+	if ( ! type ) {
+		return <>{ __( 'Main page', 'newspack-rolling-coverage' ) }</>;
+	}
+
+	if ( ! isMain && ! breakout ) {
+		return <>{ type }</>;
+	}
+
+	const visible = isMain
+		? sprintf(
+				/* translators: %s: what the place is, such as Page */
+				_x(
+					'%s · Main',
+					'visible label of the main page',
+					'newspack-rolling-coverage'
+				),
+				type
+			)
+		: sprintf(
+				/* translators: %s: what the place is, such as Template part */
+				_x(
+					'%s · Breakout posts',
+					'visible label of a place shown on breakout posts',
+					'newspack-rolling-coverage'
+				),
+				type
+			);
+	const spoken = isMain
+		? sprintf(
+				/* translators: %s: what the place is, such as Page */
+				__( '%s, Main page', 'newspack-rolling-coverage' ),
+				type
+			)
+		: sprintf(
+				/* translators: %s: what the place is, such as Template part */
+				__(
+					'%s, on this coverage’s breakout posts',
+					'newspack-rolling-coverage'
+				),
+				type
+			);
+
+	return (
+		<>
+			<span aria-hidden="true">{ visible }</span>
+			<VisuallyHidden render={ <span /> }>{ spoken }</VisuallyHidden>
+		</>
+	);
+}
+
+/**
  * One place that shows the coverage: its type, its title linking to its
  * editor, the blocks it shows the coverage with, and a link to view it.
  *
@@ -33,8 +94,7 @@ function PlacementRow( {
 	placement: Placement;
 	isSeparated: boolean;
 } ) {
-	const { title, type, blocks, viewUrl, editUrl, isMain } = placement;
-	const mainPage = __( 'Main page', 'newspack-rolling-coverage' );
+	const { title, blocks, viewUrl, editUrl } = placement;
 
 	return (
 		<Stack
@@ -58,33 +118,7 @@ function PlacementRow( {
 			>
 				<Stack direction="column" gap="sm">
 					<Field.VisualLabel render={ <dt /> }>
-						{ type && isMain ? (
-							<>
-								<span aria-hidden="true">
-									{ sprintf(
-										/* translators: %s: what the place is, such as Page */
-										_x(
-											'%s · Main',
-											'visible label of the main page',
-											'newspack-rolling-coverage'
-										),
-										type
-									) }
-								</span>
-								<VisuallyHidden render={ <span /> }>
-									{ sprintf(
-										/* translators: %s: what the place is, such as Page */
-										__(
-											'%s, Main page',
-											'newspack-rolling-coverage'
-										),
-										type
-									) }
-								</VisuallyHidden>
-							</>
-						) : (
-							type || mainPage
-						) }
+						<PlacementType placement={ placement } />
 					</Field.VisualLabel>
 					<Stack
 						render={ <dd /> }
@@ -101,18 +135,16 @@ function PlacementRow( {
 											href={ editUrl }
 											tone="neutral"
 											className="newspack-rolling-coverage-placement__title"
-											aria-label={ sprintf(
-												/* translators: %s: title of the place */
-												__(
-													'Open %s in the editor',
-													'newspack-rolling-coverage'
-												),
-												title
-											) }
 										/>
 									}
 								>
 									{ title }
+									<VisuallyHidden render={ <span /> }>
+										{ ` ${ __(
+											'(opens in the editor)',
+											'newspack-rolling-coverage'
+										) }` }
+									</VisuallyHidden>
 								</Tooltip.Trigger>
 								<Tooltip.Popup>
 									{ __(
@@ -148,6 +180,7 @@ function PlacementRow( {
 						<dd>
 							<Stack
 								render={ <ul /> }
+								role="list"
 								direction="column"
 								gap="xs"
 								className="newspack-rolling-coverage-placement__blocks"
@@ -167,8 +200,7 @@ function PlacementRow( {
 }
 
 /**
- * Lists every published place that shows a coverage, the main page first,
- * for a coverage shown in more than one place.
+ * Lists every published place that shows a coverage, the main page first.
  *
  * Stays mounted so the drawer can play its slide-out.
  *
@@ -190,6 +222,7 @@ function PlacementsDrawer( {
 			<Drawer.Content>
 				<Stack
 					render={ <ul /> }
+					role="list"
 					direction="column"
 					gap="lg"
 					className="newspack-rolling-coverage-placements"

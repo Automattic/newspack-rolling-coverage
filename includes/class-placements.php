@@ -257,7 +257,6 @@ class Placements {
 
 				if ( $row ) {
 					$row['id']       = 'breakout:' . $row['id'];
-					$row['type']     = self::breakout_type_label( $place['type'] );
 					$row['viewUrl']  = (string) get_permalink( $breakout_post );
 					$row['breakout'] = true;
 					$rows[]          = $row;
@@ -354,7 +353,7 @@ class Placements {
 
 				$post_type      = get_post_type_object( $post->post_type );
 				$row['title']   = self::post_title( $post );
-				$row['type']    = $post_type ? $post_type->labels->singular_name : '';
+				$row['type']    = $post_type ? $post_type->labels->singular_name : $post->post_type;
 				$row['viewUrl'] = (string) get_permalink( $post );
 				$row['editUrl'] = (string) get_edit_post_link( $post, 'raw' );
 				break;
@@ -513,24 +512,6 @@ class Placements {
 		}
 
 		return self::$layout_titles[ $blog_id ][ $layout_id ];
-	}
-
-	/**
-	 * What a row that shows a coverage on its breakout posts is.
-	 *
-	 * @param string $type Place type.
-	 * @return string
-	 */
-	private static function breakout_type_label( string $type ): string {
-		if ( self::TYPE_TEMPLATE_PART === $type ) {
-			return __( 'Template part, on this coverage’s breakout posts', 'newspack-rolling-coverage' );
-		}
-
-		if ( self::TYPE_WIDGET_AREA === $type ) {
-			return __( 'Widget area, on this coverage’s breakout posts', 'newspack-rolling-coverage' );
-		}
-
-		return __( 'Template, on this coverage’s breakout posts', 'newspack-rolling-coverage' );
 	}
 
 	/**

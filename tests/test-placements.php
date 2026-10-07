@@ -549,7 +549,7 @@ class Test_Placements extends Rolling_Coverage_TestCase {
 		$single = $rows[ 'breakout:wp_template:' . $theme . '//single' ];
 
 		$this->assertTrue( $single['breakout'] );
-		$this->assertSame( [ 'Single Posts', 'Template, on this coverage’s breakout posts', [ 'Coverage Status' ], get_permalink( $newest_id ) ], [ $single['title'], $single['type'], $single['blocks'], $single['viewUrl'] ] );
+		$this->assertSame( [ 'Single Posts', 'Template', [ 'Coverage Status' ], get_permalink( $newest_id ) ], [ $single['title'], $single['type'], $single['blocks'], $single['viewUrl'] ] );
 		$this->assertSame( [], Placements::for_coverage( $other_id ), 'A coverage without a public breakout post gets no row.' );
 	}
 

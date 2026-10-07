@@ -197,14 +197,14 @@ The places it looks in, all published and for the active theme:
 | Synced patterns (`wp_block`) that published content uses, directly or through other patterns | The pattern's title | None | On block themes, the Site Editor for users who can edit the theme; otherwise the block editor |
 | Widget areas with block widgets, for registered areas only | The area's name | None | The Widgets screen |
 
-Edit links only show for users who can edit that place.
+The title links to the Edit destination only for users who can edit that place; otherwise it is plain text.
 
 ### Automatic Status and Follow Coverage blocks
 
 An Automatic block shows the coverage of the page being viewed (see `src/blocks/coverage-status/DEVELOPMENT.md`), so where it counts depends on where it sits:
 
 - **In a post's own content**, or in a synced pattern the post uses, it shows the post's first uncapped feed, or a breakout post's coverage. It joins that post's row, so a page with a feed and an Automatic Status block is one row listing "Rolling Coverage (Stream)" and "Coverage Status".
-- **In a template, template part or widget area**, it shows the coverage on single posts. The rows only cover breakout posts: the single post template (the first of `single-post`, `single`, `singular` and `index` the theme has), the template parts it holds, and every widget area with an Automatic block are each listed once, as "…, on this coverage's breakout posts", for coverages with at least one published breakout post. View opens the newest one. Each breakout post isn't listed on its own. The check looks at the `MAX_BREAKOUT_POSTS` (500) newest entries that have a published breakout post, so a coverage whose only breakout posts are older than that gets no breakout rows.
+- **In a template, template part or widget area**, it shows the coverage on single posts. The rows only cover breakout posts: the single post template (the first of `single-post`, `single`, `singular` and `index` the theme has), the template parts it holds, and every widget area with an Automatic block are each listed once, with their type reading "Template · Breakout posts" (screen readers hear "Template, on this coverage's breakout posts"), for coverages with at least one published breakout post. View opens the newest one. Each breakout post isn't listed on its own. The check looks at the `MAX_BREAKOUT_POSTS` (500) newest entries that have a published breakout post, so a coverage whose only breakout posts are older than that gets no breakout rows.
 - **In a synced pattern's row**, it doesn't count, since it shows whichever page uses the pattern.
 
 An Automatic block in other templates, such as the page template, isn't listed.
@@ -253,7 +253,7 @@ The older `pageUrl` field stays: the canonical URL, or else the newest post with
 
 ### The button
 
-A coverage with at least one placement gets a "Placements" button in its header and a "Placements" row action, however many places there are. Both open `PlacementsDrawer` (`src/admin/components/placements-drawer.tsx`), a Newspack `Drawer` listing every row as a description list. Each entry is a WP UI `Field.VisualLabel` over its value in a `Stack` with an 8px gap, as form fields lay out: the place's type over its title, with View beside the title, then "Blocks" over one block per line. The title links to the place's editor when the user can edit it, with an "Open in the editor" tooltip and an "Open … in the editor" accessible name; otherwise it is plain text. The main page's type reads "Page · Main" (screen readers hear "Page, Main page"), or "Main page" on the canonical URL's own row. Rows are a WP UI `Stack` with a 16px gap, separated by a Newspack `Divider`.
+A coverage with at least one placement gets a "Placements" button in its header and a "Placements" row action, however many places there are. Both open `PlacementsDrawer` (`src/admin/components/placements-drawer.tsx`), a Newspack `Drawer` listing every row as a description list. Each entry is a WP UI `Field.VisualLabel` over its value in a `Stack` with an 8px gap, as form fields lay out: the place's type over its title, with View beside the title, then "Blocks" over one block per line. The title links to the place's editor when the user can edit it, with an "Open in the editor" tooltip, and screen readers hear the title followed by "(opens in the editor)"; otherwise it is plain text. Labels show in capitals. The main page's type reads "Page · Main" (screen readers hear "Page, Main page"), or "Main page" on the canonical URL's own row. A post whose post type is no longer registered shows the post type's name as stored. Rows are a WP UI `Stack` with a 16px gap, separated by a Newspack `Divider`.
 
 The header button lives in `entry-view.tsx`; the row action (`placements`) in `src/admin/actions/coverage-actions.ts`.
 
