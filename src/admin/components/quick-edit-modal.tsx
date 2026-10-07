@@ -1,7 +1,13 @@
 /**
  * External dependencies
  */
-import { useMemo, useEffect, useState, useCallback } from '@wordpress/element';
+import {
+	useMemo,
+	useEffect,
+	useLayoutEffect,
+	useState,
+	useCallback,
+} from '@wordpress/element';
 import {
 	Modal,
 	Popover,
@@ -79,10 +85,25 @@ function useQuickEditRegistry() {
 }
 
 /**
+ * Reports that the editor is ready to show. `EditorProvider` renders nothing
+ * until its setup requests finish, so this mounts exactly then; a layout
+ * effect lets the spinner go before the editor's first frame is painted.
+ *
+ * @param {Object}     props         Component props.
+ * @param {() => void} props.onReady Called when the editor is ready.
+ */
+function EditorReadySignal( { onReady }: { onReady: () => void } ) {
+	useLayoutEffect( () => {
+		onReady();
+	}, [ onReady ] );
+	return null;
+}
+
+/**
  * Quick-edits an entry's title and content in the block editor without
  * leaving the entries list, laid out like P2's comment editor: one toolbar
  * row on top, the canvas, Cancel and Save at the bottom. The WordPress
- * `Modal` header is hidden once the record loads; every control is ours.
+ * `Modal` header is hidden once the editor is ready; every control is ours.
  *
  * - Save notices render inside the modal through `SnackbarNotices` from
  *   `@wordpress/notices`, which replaces `EditorSnackbars` (deprecated in
@@ -115,6 +136,8 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 	);
 	const typedRecord = record as EntityRecord | null;
 	const [ showCloseConfirm, setShowCloseConfirm ] = useState( false );
+	const [ isEditorReady, setIsEditorReady ] = useState( false );
+	const handleEditorReady = useCallback( () => setIsEditorReady( true ), [] );
 
 	const { removeAllNotices } = useDispatch( noticesStore );
 	const { clearEntityRecordEdits } = useDispatch( coreStore );
@@ -171,59 +194,69 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 		overlayClassName: 'newspack-rolling-coverage-quick-edit-overlay',
 	};
 
-	// While the record loads there is nothing of ours to click, so this
-	// render keeps the Modal's own header and close button: an entry that
-	// never resolves (deleted, or no longer editable) must still be
-	// closable.
-	if ( isResolving || ! typedRecord ) {
-		return (
-			<Modal
-				{ ...modalProps }
-				title={ __( 'Quick Edit', 'newspack-rolling-coverage' ) }
-				__experimentalHideHeader={ false }
-				isDismissible
-				shouldCloseOnEsc
-				onRequestClose={ onClose }
-			>
-				<div className="newspack-rolling-coverage-quick-edit__loading">
-					<Spinner />
-				</div>
-			</Modal>
-		);
-	}
+	const isRecordLoaded = ! isResolving && !! typedRecord;
+	const isReady = isRecordLoaded && isEditorReady;
+
+	// Until the editor is ready there is nothing of ours to click, so the
+	// Modal keeps its own header and close button: an entry that never
+	// resolves (deleted, or no longer editable) must still be closable.
+	const loadingModalProps = isReady
+		? {}
+		: {
+				title: __( 'Quick Edit', 'newspack-rolling-coverage' ),
+				__experimentalHideHeader: false,
+				isDismissible: true,
+				shouldCloseOnEsc: true,
+				onRequestClose: onClose,
+			};
 
 	return (
 		<>
-			<Modal { ...modalProps } onRequestClose={ handleRequestClose }>
-				<RegistryProvider value={ editorRegistry }>
-					<EditorProvider post={ typedRecord } settings={ settings }>
-						<QuickEditToolbar />
-						<div className="newspack-rolling-coverage-quick-edit__canvas">
-							<BlockCanvas
-								height="100%"
-								styles={ settings.styles as unknown[] }
-							>
-								<div
-									className={ `editor-visual-editor__post-title-wrapper${ layoutClassName }` }
+			<Modal
+				{ ...modalProps }
+				onRequestClose={ handleRequestClose }
+				{ ...loadingModalProps }
+			>
+				{ ! isReady && (
+					<div className="newspack-rolling-coverage-quick-edit__loading">
+						<Spinner />
+					</div>
+				) }
+				{ isRecordLoaded && (
+					<RegistryProvider value={ editorRegistry }>
+						<EditorProvider
+							post={ typedRecord }
+							settings={ settings }
+						>
+							<EditorReadySignal onReady={ handleEditorReady } />
+							<QuickEditToolbar />
+							<div className="newspack-rolling-coverage-quick-edit__canvas">
+								<BlockCanvas
+									height="100%"
+									styles={ settings.styles as unknown[] }
 								>
-									<PostTitle />
-								</div>
-								<BlockList
-									className={ `wp-block-post-content${ layoutClassName }` }
-									layout={ blockListLayout }
+									<div
+										className={ `editor-visual-editor__post-title-wrapper${ layoutClassName }` }
+									>
+										<PostTitle />
+									</div>
+									<BlockList
+										className={ `wp-block-post-content${ layoutClassName }` }
+										layout={ blockListLayout }
+									/>
+								</BlockCanvas>
+							</div>
+							<div className="newspack-rolling-coverage-quick-edit__footer">
+								<QuickEditSaveBar
+									onClose={ handleRequestClose }
+									onSaved={ onSaved }
 								/>
-							</BlockCanvas>
-						</div>
-						<div className="newspack-rolling-coverage-quick-edit__footer">
-							<QuickEditSaveBar
-								onClose={ handleRequestClose }
-								onSaved={ onSaved }
-							/>
-						</div>
-						<SnackbarNotices className="components-editor-notices__snackbar" />
-						<Popover.Slot />
-					</EditorProvider>
-				</RegistryProvider>
+							</div>
+							<SnackbarNotices className="components-editor-notices__snackbar" />
+							<Popover.Slot />
+						</EditorProvider>
+					</RegistryProvider>
+				) }
 			</Modal>
 			<ConfirmDialog
 				isOpen={ showCloseConfirm }
