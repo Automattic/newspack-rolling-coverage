@@ -538,11 +538,22 @@ interface SlackConnectionDrawerProps {
 	onClose: () => void;
 	onSaved: () => void;
 }
-interface QuickEditModalProps {
-	entryId: number;
+type QuickEditModalProps = {
 	onClose: () => void;
+	/** Called after each save. A new entry's first save also closes the modal. */
 	onSaved: () => void;
-}
+} & (
+	| {
+			/** The entry to edit. */
+			entryId: number;
+			coverageId?: never;
+	  }
+	| {
+			/** No entry yet: a new one is added to `coverageId`. */
+			entryId: null;
+			coverageId: number;
+	  }
+);
 
 interface ErrorNoticeProps {
 	message?: string | null;
@@ -647,6 +658,8 @@ interface SettingField {
 	help?: string;
 }
 interface QuickEditSaveBarProps {
+	/** Whether the entry is new, which offers Save Draft and Publish instead of Save. */
+	isNew: boolean;
 	onClose: () => void;
 	onSaved: () => void;
 }
@@ -657,6 +670,8 @@ interface EntityRecord {
 	title?: { raw?: string };
 	content?: { raw?: string };
 	status?: string;
+	/** REST links; the REST API adds `wp:action-publish` only for users who can publish. */
+	_links?: Record< string, unknown[] >;
 }
 
 /** Selectors from the block editor store that Quick Edit's toolbar reads. */
@@ -670,8 +685,10 @@ type EditorSelectors = {
 	hasEditorUndo: () => boolean;
 	hasEditorRedo: () => boolean;
 	isEditedPostDirty: () => boolean;
+	isEditedPostSaveable: () => boolean;
 	isSavingPost: () => boolean;
 	didPostSaveRequestFail: () => boolean;
+	getCurrentPost: () => EntityRecord;
 	getCurrentPostType: () => string;
 	getCurrentPostId: () => number;
 };

@@ -62,7 +62,7 @@ The options, their limits and what reads them are documented with the blocks: th
 
 ## A coverage's entries
 
-`EntryView` (`entry-view.tsx`) lists one coverage's entries. Its header holds the Slack channel button ("Connect Slack", or the connected channel's name), Placements, and Add Entry. Add Entry creates a draft entry in the coverage through the core entries route and opens it in the block editor. On an ended coverage, Add Entry stays disabled, with a tooltip saying which status allows new entries; on a trashed coverage it is hidden.
+`EntryView` (`entry-view.tsx`) lists one coverage's entries. Its header holds the Slack channel button ("Connect Slack", or the connected channel's name), Placements, and Add Entry. Add Entry opens [Quick Edit](#quick-edit) on a new entry in the coverage, without leaving the list. On an ended coverage, Add Entry stays disabled, with a tooltip saying which status allows new entries; on a trashed coverage it is hidden.
 
 ### Data and live sync
 
@@ -141,6 +141,23 @@ Tests: `tests/test-entry-details.php` and `tests/test-entry-author.php`. The ent
 ## Quick Edit
 
 Quick Edit (`src/admin/components/quick-edit-modal.tsx`) opens an entry in the block editor inside a centered modal laid out like P2's comment editor: one toolbar row on top, the canvas, Cancel and Save at the bottom. Once the editor is ready (the entry has loaded and the editor's own setup requests have finished) the WordPress `Modal` header is hidden, so every control in it is ours. Until then the Modal keeps its own header, close button and a "Fetching entry…" loading state, so an entry that never loads can still be closed and the frame is never blank. The toolbar, canvas and footer then fade in; the fade is a keyframe animation, not a transition, because the editor mounts already ready and a transition would have no frame to start from. There are no document settings, so status, date, author and coverage are changed elsewhere. Save calls the editor's `savePost()`, keeps the modal open and refreshes the list.
+
+### Adding an entry
+
+Add Entry opens the same modal with no entry yet, titled "Add Entry". The editor needs a post to work on before anything is saved, so the modal first asks `POST rolling-coverage/v1/coverages/<id>/entries` (`Post_Type::handle_create_entry()`, the entry post type's `create_posts`, which contributors have) for an empty auto-draft credited to the user and assigned to the coverage, as `post-new.php` does for a post, showing "Preparing entry…" meanwhile; an error shows in the modal in its place. It then loads the auto-draft through the core entries route like any entry and opens with the caret in the title, as the post editor opens a new post: `PostTitle` focuses itself only while nothing has focus, and the Modal has focused its frame by then, so the modal calls the title's own focus method as it mounts.
+
+The footer offers Save Draft and Publish, or Submit for Review in place of Publish for users the REST API gives no `wp:action-publish` link (contributors), both disabled until the entry has a title or some content. Each sets the status it saves right before saving, so a status left behind by a failed save never rides along, and saves through the editor's `savePost()`, so the core entries route applies the user's capabilities and the status hooks run as for a save in the editor (feeds, push notifications). The first successful save closes the modal, since the entry is in the list now, and refreshes the list; the editor's own save snackbar ("Draft saved." with View Preview, or "Entry published." with View Entry) arrives a tick later and shows on the page, so this close leaves the notices alone, unlike Cancel. Cancel with nothing typed closes at once; with edits it asks to discard them, as for an existing entry.
+
+An auto-draft is not an entry yet, on either side:
+
+- The list never shows one: the entries-view route only ever queries the statuses in `Post_Type::ALLOWED_STATUSES`, and the coverage's count leaves it out.
+- It is not coverage activity: `on_save_post()`, `on_set_object_terms()` and `on_delete_post()` leave the coverage's last-modified time alone for it.
+- Its dates float until it is first saved. `normalize_entry_gmt_dates()` leaves an auto-draft's zero GMT dates in place, so core's `$clear_date` rule dates the entry at its first save, as a draft or published, rather than at the moment the modal opened; from then on the entry keeps its date across publish like any other.
+- One that is never saved is deleted after a week by core's daily `wp_scheduled_auto_draft_delete` event, which the route schedules as `post-new.php` does.
+
+The route refuses an ended coverage with Archive Mode's "can't be added" error, a trashed coverage with `rolling_coverage_coverage_trashed`, and an unknown one with a 404.
+
+Tests: `tests/test-new-entry.php`.
 
 - **The block toolbar is pinned to the toolbar row** (`quick-edit-block-toolbar.tsx`), the way the post editor's Top Toolbar mode pins it. `EditorProvider` ignores `hasFixedToolbar` in its settings and reads the `core.fixedToolbar` preference, so the modal wraps the editor in a child data registry with its own `core/preferences` store where that flag is `true`. The page's own preferences store is off limits: WordPress core attaches the user's persistence layer to it on every page that loads `wp-preferences`, so a write there would pin the toolbar in the user's real post editor at once. A second instance of core's store would leak too: every instance saves through one shared persistence layer, and each save writes that instance's whole state over the user's saved preferences. So the child registry's `core/preferences` is an in-memory stand-in (`utils/quick-edit-preferences.ts`) that never saves. The trade-off is that the user's saved post-editor preferences (hidden block types, icon labels, focus mode, caret behavior) do not apply inside Quick Edit, and editor controls that write preferences, such as the link control's Advanced drawer, write to this throwaway store instead.
 - **The block inspector is a popover under the gear** (`quick-edit-inspector.tsx`), not a sidebar. The gear is disabled until a block is selected. The popover closes when the selection goes away or focus leaves it, except when focus lands on the gear or in another popover: the color and font-size controls inside the inspector open their pickers that way. The gear cancels its own `mousedown` so a click never moves focus; Safari would otherwise close and reopen the popover in one click.

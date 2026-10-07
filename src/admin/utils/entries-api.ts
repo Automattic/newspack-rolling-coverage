@@ -31,32 +31,24 @@ import type {
 const SYNC_INTERVAL_MS = 10000;
 
 /**
- * Creates a draft entry assigned to a coverage term, returning the new
- * post ID so the caller can redirect to the classic editor.
+ * Starts a new entry in a coverage for Quick Edit to open: an empty
+ * auto-draft, which the first save turns into a draft or publishes.
  *
- * @param {string} restBaseEntries  - Full REST URL for the entries collection (from config.restBaseUrls.entries).
- * @param {string} coverageRestBase - The coverage taxonomy REST base slug (from config.restBase.coverages), used as the POST body key.
- * @param {number} coverageId       - The coverage term ID to assign.
- * @return {Promise<CreateEntryResult>} Result indicating success (with post ID) or failure.
+ * @param {string} restNamespace - REST namespace URL (from config.restBaseUrls.restNamespace).
+ * @param {number} coverageId    - The coverage term ID the entry is added to.
+ * @return {Promise<CreateEntryResult>} Result with the new entry's ID, or the error.
  */
 async function createEntry(
-	restBaseEntries: string,
-	coverageRestBase: string,
+	restNamespace: string,
 	coverageId: number
 ): Promise< CreateEntryResult > {
 	try {
-		const data: Record< string, unknown > = {
-			status: 'draft',
-		};
-		data[ coverageRestBase ] = [ coverageId ];
-
-		const post = await apiFetch< { id: number } >( {
-			url: restBaseEntries,
+		const entry = await apiFetch< { id: number } >( {
+			url: `${ restNamespace }coverages/${ coverageId }/entries`,
 			method: 'POST',
-			data,
 		} );
 
-		return { success: true, id: post.id };
+		return { success: true, id: entry.id };
 	} catch ( error ) {
 		return { success: false, error: handleApiError( error as Error ) };
 	}

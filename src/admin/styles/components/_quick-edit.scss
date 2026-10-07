@@ -37,11 +37,13 @@ $quick-edit-footer-clearance: 72px;
 	}
 }
 
+// Also holds the error when a new entry could not be started.
 .newspack-rolling-coverage-quick-edit__loading {
 	display: flex;
 	flex: 1;
 	align-items: center;
 	justify-content: center;
+	padding: wp-vars.$grid-unit-20;
 }
 
 // Toolbar row. It scrolls sideways on narrow viewports instead of hiding
