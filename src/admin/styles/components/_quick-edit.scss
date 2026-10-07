@@ -87,12 +87,15 @@ $quick-edit-footer-clearance: 72px;
 // below 782px) would hide its last controls. The `block-toolbar` popover slot
 // sits outside the wrapper because `is-collapsed` hides the wrapper outright,
 // and an open format or resize popover rendered inside would vanish
-// with it (see quick-edit-block-toolbar.tsx).
+// with it (see quick-edit-block-toolbar.tsx). Core's toolbar keeps its
+// natural height and the row centers it. Stretched to the row's height, its
+// groups grow but their buttons stay at the top, so the icons sit above the
+// rest of the row; and its wrapper's bottom shadow, which the row's border
+// hid at full height, would show mid-row.
 .newspack-rolling-coverage-quick-edit__block-toolbar {
 	display: flex;
 	flex: 1 0 auto;
 	align-items: center;
-	height: 100%;
 	padding-inline-start: wp-vars.$grid-unit-10;
 	border-inline-start: wp-vars.$border-width solid wp-colors.$gray-300;
 
@@ -100,8 +103,11 @@ $quick-edit-footer-clearance: 72px;
 		display: none;
 	}
 
+	.block-editor-block-contextual-toolbar {
+		box-shadow: none;
+	}
+
 	.block-editor-block-toolbar {
-		height: $quick-edit-toolbar-height;
 		border: 0;
 	}
 }
