@@ -88,7 +88,7 @@ function useQuickEditRegistry() {
 /**
  * Reports that the editor is ready to show. `EditorProvider` renders nothing
  * until its setup requests finish, so this mounts exactly then; a layout
- * effect lets the spinner go before the editor's first frame is painted.
+ * effect lets the loading state go before the editor's first frame is painted.
  *
  * @param {Object}     props         Component props.
  * @param {() => void} props.onReady Called when the editor is ready.
