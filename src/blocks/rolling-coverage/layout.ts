@@ -332,8 +332,8 @@ export function flashInnerTemplate(): TemplateItem[] {
  * light gray holding the coverage's status, its name on one line, cut short
  * to fit, and a link to the coverage page, side by side at every width. It
  * shows no entries. The Live badge takes the site's accent color (Accent on
- * block themes, Primary on the classic Newspack Theme) as it is when the
- * layout is picked.
+ * the Newspack Block Theme, Primary on the classic Newspack Theme) as it is
+ * when the layout is picked.
  *
  * @return {TemplateItem[]} The template.
  */
