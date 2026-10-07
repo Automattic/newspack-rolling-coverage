@@ -4,7 +4,7 @@ The plugin's admin screens live in `src/admin/`: the coverages list, each covera
 
 ## Screens and routes
 
-`Admin` (`includes/class-admin.php`) adds the Rolling Coverage menu with three pages: All Coverages (`edit_posts`), Slack Connection (`manage_options`) and AI (`edit_others_posts`). Each page renders the same root element and loads the `admin` bundle, a React app with a hash router (`src/admin/app.tsx`). The page sets the route the app starts on.
+`Admin` (`includes/class-admin.php`) adds the Rolling Coverage menu with three pages: All Coverages (`edit_posts`), Slack Connection (`manage_options`) and AI (`manage_options`), so only administrators see and change the AI prompts; the settings route checks the same. Each page renders the same root element and loads the `admin` bundle, a React app with a hash router (`src/admin/app.tsx`). The page sets the route the app starts on.
 
 | Route | Screen |
 | --- | --- |
@@ -22,7 +22,6 @@ The app reads its config from `window.newspackRollingCoverageAdmin` (`Admin::get
 | `canChangeAuthors` | `Post_Type::can_change_authors()` | Change Author |
 | `canManageTerms` | `manage_categories` | Add Coverage, and editing and trashing coverages |
 | `canManageOptions` | `manage_options` | Slack connections |
-| `canManageAiSettings` | `edit_others_posts` | Editing the AI prompts |
 | `canManageSettings` | `edit_others_posts` | The Settings modal |
 
 The admin pages load the block editor's assets so Quick Edit can run a block editor. `Newspack\Blocks::enqueue_block_editor_assets` is unhooked while they load, since newspack-plugin's editor UI crashes inside Quick Edit's `EditorProvider`.

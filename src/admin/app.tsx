@@ -97,7 +97,16 @@ function App() {
 							path="/coverages/:coverageId"
 							element={ <EntryView /> }
 						/>
-						<Route path="/ai" element={ <AIPage /> } />
+						<Route
+							path="/ai"
+							element={
+								config.capabilities.canManageOptions ? (
+									<AIPage />
+								) : (
+									<Navigate to="/coverages" replace />
+								)
+							}
+						/>
 						<Route
 							path="*"
 							element={ <Navigate to="/coverages" replace /> }
