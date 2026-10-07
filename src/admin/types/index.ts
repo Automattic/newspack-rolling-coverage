@@ -649,7 +649,6 @@ interface SettingField {
 interface QuickEditSaveBarProps {
 	onClose: () => void;
 	onSaved: () => void;
-	children?: ReactNode;
 }
 
 interface EntityRecord {
@@ -660,9 +659,17 @@ interface EntityRecord {
 	status?: string;
 }
 
+/** Selectors from the block editor store that Quick Edit's toolbar reads. */
+interface BlockEditorSelectors {
+	getBlockSelectionStart: () => string | null | undefined;
+}
+
 /** Selectors from the editor store, typed for the sub-registry. */
 type EditorSelectors = {
 	__unstableIsEditorReady?: () => boolean;
+	hasEditorUndo: () => boolean;
+	hasEditorRedo: () => boolean;
+	isEditedPostDirty: () => boolean;
 	isSavingPost: () => boolean;
 	didPostSaveRequestFail: () => boolean;
 	getCurrentPostType: () => string;
@@ -844,5 +851,6 @@ export type {
 	EntityRecord,
 	EditorSelectors,
 	CoreSelectors,
+	BlockEditorSelectors,
 	TogglePinResult,
 };

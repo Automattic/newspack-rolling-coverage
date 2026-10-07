@@ -19,33 +19,29 @@ import type {
 } from '../types';
 
 /**
- * Cancel and Save buttons for the Quick Edit modal header, with any
- * children placed between them.
+ * Cancel and Save buttons for the Quick Edit footer.
  *
  * `savePost()` never rejects on failure, so the result is detected by
  * watching `isSavingPost` transition to `false` and then reading
  * `didPostSaveRequestFail()`. All store reads go through `useSelect` so
  * they resolve in the `EditorProvider` sub-registry. On failure an error
- * snackbar is dispatched for `EditorSnackbars` to render inside the modal.
+ * snackbar is dispatched for `SnackbarNotices` to render inside the modal.
  *
  * @param {QuickEditSaveBarProps} props Component props.
  */
-function QuickEditSaveBar( {
-	onClose,
-	onSaved,
-	children,
-}: QuickEditSaveBarProps ) {
+function QuickEditSaveBar( { onClose, onSaved }: QuickEditSaveBarProps ) {
 	const { savePost } = useDispatch( editorStore );
 	const { createErrorNotice } = useDispatch( noticesStore );
 
-	const { isEditorReady, isSavingPost, didFail, lastSaveError } = useSelect(
-		( registry ) => {
+	const { isEditorReady, isDirty, isSavingPost, didFail, lastSaveError } =
+		useSelect( ( registry ) => {
 			const editor = registry(
 				editorStore
 			) as unknown as EditorSelectors;
 			const core = registry( coreStore ) as unknown as CoreSelectors;
 			return {
 				isEditorReady: editor.__unstableIsEditorReady?.() ?? false,
+				isDirty: editor.isEditedPostDirty(),
 				isSavingPost: editor.isSavingPost(),
 				didFail: editor.didPostSaveRequestFail(),
 				lastSaveError: core.getLastEntitySaveError(
@@ -54,9 +50,7 @@ function QuickEditSaveBar( {
 					editor.getCurrentPostId()
 				),
 			};
-		},
-		[]
-	);
+		}, [] );
 
 	const wasSavingRef = useRef( false );
 
@@ -95,12 +89,12 @@ function QuickEditSaveBar( {
 			>
 				{ __( 'Cancel', 'newspack-rolling-coverage' ) }
 			</Button>
-			{ children }
 			<Button
 				variant="primary"
 				onClick={ handleSave }
 				isBusy={ isSavingPost }
-				disabled={ isSavingPost || ! isEditorReady }
+				disabled={ isSavingPost || ! isEditorReady || ! isDirty }
+				accessibleWhenDisabled
 				size="compact"
 			>
 				{ __( 'Save', 'newspack-rolling-coverage' ) }

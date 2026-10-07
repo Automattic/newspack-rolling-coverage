@@ -1,74 +1,129 @@
 /**
  * External dependencies
  */
-import { useMemo, useEffect, useState, useCallback } from '@wordpress/element';
+import classnames from 'classnames';
 import {
-	Modal,
-	Spinner,
-	Button,
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
-	__experimentalConfirmDialog as ConfirmDialog,
-} from '@wordpress/components';
+	useMemo,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+	useCallback,
+} from '@wordpress/element';
+import { Modal, Popover } from '@wordpress/components';
 import {
 	BlockCanvas,
-	BlockInspector,
 	BlockList,
+	store as blockEditorStore,
 } from '@wordpress/block-editor';
-import { EditorProvider, EditorSnackbars, PostTitle } from '@wordpress/editor';
+import {
+	EditorProvider,
+	PostTitle,
+	store as editorStore,
+} from '@wordpress/editor';
 import { useEntityRecord, store as coreStore } from '@wordpress/core-data';
-import { RegistryProvider, useDispatch, useRegistry } from '@wordpress/data';
-import { store as noticesStore } from '@wordpress/notices';
-import { drawerLeft, drawerRight } from '@wordpress/icons';
-import { __, isRTL } from '@wordpress/i18n';
-import { Stack } from '@wordpress/ui';
+import {
+	createRegistry,
+	RegistryProvider,
+	useDispatch,
+	useRegistry,
+} from '@wordpress/data';
+import type { StoreDescriptor } from '@wordpress/data';
+import { SnackbarNotices, store as noticesStore } from '@wordpress/notices';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
 import { useAdminContext } from '../hooks/useAdminContext';
 import { ensureEditorInitialized } from '../utils/block-registration';
+import { LoadingState } from '../shared/loading-state';
+import { ConfirmModal } from './confirm-modal';
+import { quickEditPreferencesStore } from '../utils/quick-edit-preferences';
 import { QuickEditSaveBar } from './quick-edit-save-bar';
+import { QuickEditToolbar } from './quick-edit-toolbar';
 import type { QuickEditModalProps, EntityRecord } from '../types';
 
 /**
- * Reports the registry it renders in, so UI outside `EditorProvider` can use
- * the editor's sub-registry.
+ * Gives the editor its own preferences store, with the block toolbar pinned.
  *
- * @param {Object}   props            Component props.
- * @param {Function} props.onRegistry Called with the current registry.
+ * `EditorProvider` ignores `hasFixedToolbar` in its settings and reads the
+ * `core.fixedToolbar` preference instead, so the preference is the only
+ * switch for the floating per-block toolbar. The page's preferences store
+ * cannot carry it: WordPress core installs the user's persistence layer on
+ * every page that loads `wp-preferences`, so a write there reaches
+ * `localStorage` and the user's saved preferences at once, pinning the
+ * toolbar in their real post editor. A child registry with an in-memory
+ * `core/preferences` store (`quickEditPreferencesStore`) shadows the page's;
+ * the editor's preference reads and writes resolve to it, while core-data
+ * and notices still fall through to the page. The trade-off: the user's
+ * saved post-editor preferences (hidden block types, icon labels, focus
+ * mode, caret behavior) do not apply inside Quick Edit, and editor controls
+ * that write preferences, such as the link control's Advanced drawer, write
+ * to this throwaway store instead.
  */
-function EditorRegistryBridge( {
-	onRegistry,
-}: {
-	onRegistry: ( registry: ReturnType< typeof useRegistry > ) => void;
-} ) {
-	const registry = useRegistry();
-	useEffect( () => {
-		onRegistry( registry );
-	}, [ registry, onRegistry ] );
+function useQuickEditRegistry() {
+	const parent = useRegistry();
+	const [ registry ] = useState( () => {
+		const child = createRegistry( {}, parent );
+		// `EditorProvider` re-creates both editor stores in its own
+		// sub-registry, which copies their private selectors and actions from
+		// this registry only, never from the page. Without these two here the
+		// editor throws on mount.
+		child.register( blockEditorStore as unknown as StoreDescriptor );
+		child.register( editorStore );
+		child.register( quickEditPreferencesStore );
+		child
+			.dispatch( quickEditPreferencesStore )
+			.set( 'core', 'fixedToolbar', true );
+		return child;
+	} );
+	return registry;
+}
+
+/**
+ * Reports that the editor is ready to show. `EditorProvider` renders nothing
+ * until its setup requests finish, so this mounts exactly then; a layout
+ * effect lets the loading state go before the editor's first frame is painted.
+ *
+ * @param {Object}     props         Component props.
+ * @param {() => void} props.onReady Called when the editor is ready.
+ */
+function EditorReadySignal( { onReady }: { onReady: () => void } ) {
+	useLayoutEffect( () => {
+		onReady();
+	}, [ onReady ] );
 	return null;
 }
 
 /**
- * Renders a modal containing the WordPress post editor for quick-editing
- * an entry's title and content without leaving the admin page.
+ * Quick-edits an entry's title and content in the block editor without
+ * leaving the entries list, laid out like P2's comment editor: one toolbar
+ * row on top, the canvas, Cancel and Save at the bottom. The WordPress
+ * `Modal` header is hidden once the editor is ready; every control is ours.
  *
- * - Editor notices (success/error snackbars) are rendered inside the
- *   `EditorProvider` via `<EditorSnackbars />`.
+ * - Save notices render inside the modal through `SnackbarNotices` from
+ *   `@wordpress/notices`, which replaces `EditorSnackbars` (deprecated in
+ *   WordPress 7.0, removed in 7.2). Its class name is what positions the
+ *   snackbar above the footer.
  * - Closing is guarded when unsaved edits exist (detected via
  *   `useEntityRecord().hasEdits`, backed by core-data's
- *   `hasEditsForEntityRecord`). A `ConfirmDialog` prompts before
- *   discarding. The editor store's `isEditedPostDirty` selector is
- *   intentionally not used because `EditorProvider` runs in a sub-registry
- *   whose editor store is invisible to selectors outside the provider.
- * - The built-in Modal close button is disabled (`isDismissible={ false }`)
- *   to prevent the exit animation from firing before the guard can
- *   intercept. Cancel in the header goes through the guard instead.
+ *   `hasEditsForEntityRecord`). A small `Modal` around `ConfirmModal` asks
+ *   before discarding, as the edit-anyway confirm does. Core's
+ *   `ConfirmDialog` is not used: showing its title also shows its header's
+ *   close button, and Enter on that button confirms the discard. The editor
+ *   store's `isEditedPostDirty` selector is intentionally not used because
+ *   `EditorProvider` runs in a sub-registry whose editor store is invisible
+ *   to selectors outside the provider.
+ * - The Modal's own close paths (dismiss button, Escape, click outside) are
+ *   off so its exit animation can't fire before the guard intercepts.
+ *   Cancel in the footer goes through the guard instead.
  * - `EditorProvider` stays inside the Modal: its own helper modals
- *   (keyboard shortcuts, pattern rename and duplicate, media editor) must
- *   nest in this one, or opening them closes Quick Edit. The header's Cancel
- *   and Save sit outside the provider, so `EditorRegistryBridge` hands them
- *   the editor's sub-registry.
+ *   (media editor, pattern rename and duplicate) must
+ *   nest in this one, or opening them closes Quick Edit.
+ * - The `Popover.Slot` inside the provider keeps the toolbar's popovers
+ *   (block library, document overview, inspector) within the modal frame
+ *   and its focus trap instead of the body-level fallback container.
  *
  * @param {QuickEditModalProps} props Component props.
  */
@@ -80,11 +135,9 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 		entryId
 	);
 	const typedRecord = record as EntityRecord | null;
-	const [ isSidebarOpen, setIsSidebarOpen ] = useState( true );
 	const [ showCloseConfirm, setShowCloseConfirm ] = useState( false );
-	const [ editorRegistry, setEditorRegistry ] = useState< ReturnType<
-		typeof useRegistry
-	> | null >( null );
+	const [ isEditorReady, setIsEditorReady ] = useState( false );
+	const handleEditorReady = useCallback( () => setIsEditorReady( true ), [] );
 
 	const { removeAllNotices } = useDispatch( noticesStore );
 	const { clearEntityRecordEdits } = useDispatch( coreStore );
@@ -92,6 +145,8 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 	useEffect( () => {
 		ensureEditorInitialized();
 	}, [] );
+
+	const editorRegistry = useQuickEditRegistry();
 
 	const handleClose = useCallback( () => {
 		removeAllNotices( 'snackbar' );
@@ -129,64 +184,79 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 		? { type: 'constrained' }
 		: undefined;
 
-	if ( isResolving || ! typedRecord ) {
-		return (
-			<Modal
-				title={ __( 'Quick Edit', 'newspack-rolling-coverage' ) }
-				onRequestClose={ onClose }
-				className="newspack-rolling-coverage-quick-edit"
-				overlayClassName="newspack-rolling-coverage-quick-edit-overlay"
-				isFullScreen
-			>
-				<Spinner />
-			</Modal>
-		);
-	}
+	const modalProps = {
+		contentLabel: __( 'Quick Edit', 'newspack-rolling-coverage' ),
+		shouldCloseOnClickOutside: false,
+		shouldCloseOnEsc: false,
+		isDismissible: false,
+		__experimentalHideHeader: true,
+		className: 'newspack-rolling-coverage-quick-edit',
+		overlayClassName: 'newspack-rolling-coverage-quick-edit-overlay',
+	};
 
-	const sidebarToggle = (
-		<Button
-			icon={ isRTL() ? drawerLeft : drawerRight }
-			label={ __( 'Settings', 'newspack-rolling-coverage' ) }
-			isPressed={ isSidebarOpen }
-			onClick={ () => setIsSidebarOpen( ( prev ) => ! prev ) }
-			size="compact"
-		/>
-	);
+	const isRecordLoaded = ! isResolving && !! typedRecord;
+	const isReady = isRecordLoaded && isEditorReady;
+
+	// While loading, the header's Close button is the frame's only tab stop,
+	// and the header unmounts once the editor is ready. If that button had
+	// focus, it would fall to the page behind the dialog, so it goes back to
+	// the frame, where the Modal puts it on mount.
+	const modalRef = useRef< HTMLDivElement >( null );
+	useLayoutEffect( () => {
+		if ( ! isReady ) {
+			return;
+		}
+		const frame = modalRef.current?.querySelector< HTMLElement >(
+			'.components-modal__frame'
+		);
+		if ( frame && ! frame.contains( frame.ownerDocument.activeElement ) ) {
+			frame.focus();
+		}
+	}, [ isReady ] );
+
+	// Until the editor is ready there is nothing of ours to click, so the
+	// Modal keeps its own header and close button: an entry that never
+	// resolves (deleted, or no longer editable) must still be closable.
+	const loadingModalProps = isReady
+		? {}
+		: {
+				title: __( 'Quick Edit', 'newspack-rolling-coverage' ),
+				__experimentalHideHeader: false,
+				isDismissible: true,
+				shouldCloseOnEsc: true,
+				onRequestClose: onClose,
+			};
 
 	return (
 		<>
 			<Modal
-				title={ __( 'Quick Edit', 'newspack-rolling-coverage' ) }
+				ref={ modalRef }
+				{ ...modalProps }
+				className={ classnames( modalProps.className, {
+					'is-ready': isReady,
+				} ) }
 				onRequestClose={ handleRequestClose }
-				shouldCloseOnClickOutside={ false }
-				shouldCloseOnEsc={ false }
-				isDismissible={ false }
-				headerActions={
-					<Stack direction="row" gap="sm" align="center">
-						{ editorRegistry ? (
-							<RegistryProvider value={ editorRegistry }>
-								<QuickEditSaveBar
-									onClose={ handleRequestClose }
-									onSaved={ onSaved }
-								>
-									{ sidebarToggle }
-								</QuickEditSaveBar>
-							</RegistryProvider>
-						) : (
-							sidebarToggle
-						) }
-					</Stack>
-				}
-				className="newspack-rolling-coverage-quick-edit"
-				overlayClassName="newspack-rolling-coverage-quick-edit-overlay"
-				isFullScreen
+				{ ...loadingModalProps }
 			>
-				<EditorProvider post={ typedRecord } settings={ settings }>
-					<EditorRegistryBridge onRegistry={ setEditorRegistry } />
-					<EditorSnackbars />
-					<div className="newspack-rolling-coverage-quick-edit-layout">
-						<div className="newspack-rolling-coverage-quick-edit-main">
-							<div className="newspack-rolling-coverage-quick-edit-canvas">
+				{ ! isReady && (
+					<div className="newspack-rolling-coverage-quick-edit__loading">
+						<LoadingState
+							label={ __(
+								'Fetching entry…',
+								'newspack-rolling-coverage'
+							) }
+						/>
+					</div>
+				) }
+				{ isRecordLoaded && (
+					<RegistryProvider value={ editorRegistry }>
+						<EditorProvider
+							post={ typedRecord }
+							settings={ settings }
+						>
+							<EditorReadySignal onReady={ handleEditorReady } />
+							<QuickEditToolbar />
+							<div className="newspack-rolling-coverage-quick-edit__canvas">
 								<BlockCanvas
 									height="100%"
 									styles={ settings.styles as unknown[] }
@@ -202,32 +272,41 @@ function QuickEditModal( { entryId, onClose, onSaved }: QuickEditModalProps ) {
 									/>
 								</BlockCanvas>
 							</div>
-						</div>
-						{ isSidebarOpen && (
-							<aside className="newspack-rolling-coverage-quick-edit-sidebar">
-								<BlockInspector />
-							</aside>
-						) }
-					</div>
-				</EditorProvider>
+							<div className="newspack-rolling-coverage-quick-edit__footer">
+								<QuickEditSaveBar
+									onClose={ handleRequestClose }
+									onSaved={ onSaved }
+								/>
+							</div>
+							<SnackbarNotices className="components-editor-notices__snackbar" />
+							<Popover.Slot />
+						</EditorProvider>
+					</RegistryProvider>
+				) }
 			</Modal>
-			<ConfirmDialog
-				isOpen={ showCloseConfirm }
-				onConfirm={ () => {
-					setShowCloseConfirm( false );
-					handleClose();
-				} }
-				onCancel={ () => setShowCloseConfirm( false ) }
-				confirmButtonText={ __(
-					'Discard Changes',
-					'newspack-rolling-coverage'
-				) }
-			>
-				{ __(
-					'You have unsaved changes. Are you sure you want to close and discard them?',
-					'newspack-rolling-coverage'
-				) }
-			</ConfirmDialog>
+			{ showCloseConfirm && (
+				<Modal
+					title={ __(
+						'Discard Changes?',
+						'newspack-rolling-coverage'
+					) }
+					size="small"
+					onRequestClose={ () => setShowCloseConfirm( false ) }
+				>
+					<ConfirmModal
+						message={ __(
+							'You have unsaved changes. Are you sure you want to close and discard them?',
+							'newspack-rolling-coverage'
+						) }
+						confirmLabel={ __(
+							'Discard Changes',
+							'newspack-rolling-coverage'
+						) }
+						onConfirm={ async () => handleClose() }
+						onClose={ () => setShowCloseConfirm( false ) }
+					/>
+				</Modal>
+			) }
 		</>
 	);
 }

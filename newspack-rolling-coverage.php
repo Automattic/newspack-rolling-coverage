@@ -3,6 +3,7 @@
  * Plugin Name: Newspack Rolling Coverage
  * Description: Live blog and rolling coverage of ongoing news events.
  * Version: 0.1.0
+ * Requires at least: 7.0
  * Author: Automattic
  * Author URI: https://newspack.com/
  * License: GPL3

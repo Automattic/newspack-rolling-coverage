@@ -1,71 +1,291 @@
+@use "~@wordpress/base-styles/breakpoints" as wp-breakpoints;
 @use "~@wordpress/base-styles/colors" as wp-colors;
+@use "~@wordpress/base-styles/mixins" as wp-mixins;
 @use "~@wordpress/base-styles/variables" as wp-vars;
 @use "~@wordpress/base-styles/z-index" as wp-z;
 
-.newspack-rolling-coverage-quick-edit-overlay .components-modal__children-container {
-	display: flex;
-	width: 100%;
-	min-height: 0;
+$quick-edit-toolbar-height: wp-vars.$block-toolbar-height + wp-vars.$border-width;
+$quick-edit-inspector-width: 280px;
+$quick-edit-list-view-width: 350px;
+$quick-edit-footer-clearance: 72px;
+
+// The WordPress Modal header is hidden, so its padding goes too; our toolbar,
+// canvas and footer stack in a column and the canvas takes what is left. On
+// small screens core's bottom-sheet layout (full width, content height) is
+// kept; from the small breakpoint up the frame is a centered dialog the size
+// of a generous comment box, released from core's 70%-of-viewport cap.
+.components-modal__frame.newspack-rolling-coverage-quick-edit {
+
+	.components-modal__content {
+		display: flex;
+		flex-direction: column;
+		padding: 0;
+		overflow: hidden;
+	}
+
+	.components-modal__children-container {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		min-height: 0;
+	}
+
+	@media (min-width: wp-breakpoints.$break-small) {
+		width: min(840px, calc(100vw - #{wp-vars.$grid-unit-40}));
+		height: min(90vh, 720px);
+		max-height: none;
+	}
 }
 
-.newspack-rolling-coverage-quick-edit-layout {
+.newspack-rolling-coverage-quick-edit__loading {
 	display: flex;
 	flex: 1;
-	min-height: 0;
-	border: wp-vars.$border-width solid wp-colors.$gray-300;
+	align-items: center;
+	justify-content: center;
 }
 
-.newspack-rolling-coverage-quick-edit-main {
-	flex: 1;
-	min-width: 0;
+// Toolbar row. It scrolls sideways on narrow viewports instead of hiding
+// controls.
+.newspack-rolling-coverage-quick-edit__toolbar {
 	display: flex;
-	flex-direction: column;
-}
-
-.newspack-rolling-coverage-quick-edit-canvas {
-	flex: 1;
-	padding: 0 wp-vars.$grid-unit-20 wp-vars.$grid-unit-20;
-	overflow: auto;
-}
-
-.newspack-rolling-coverage-quick-edit-sidebar {
-	width: wp-vars.$sidebar-width;
 	flex-shrink: 0;
-	overflow-y: auto;
-	box-shadow: -1 * wp-vars.$border-width 0 0 0 wp-colors.$gray-300;
+	align-items: center;
+	gap: wp-vars.$grid-unit-10;
+	height: $quick-edit-toolbar-height;
+	padding-block: 0;
+	padding-inline: wp-vars.$grid-unit-20 wp-vars.$grid-unit-10;
+	border-bottom: wp-vars.$border-width solid wp-colors.$gray-300;
+	overflow-x: auto;
+	// Scrolling sideways would otherwise make the row scroll vertically too
+	// once a classic scrollbar takes room from the toolbar's height.
+	overflow-y: hidden;
+
+	// The `block-toolbar` popover slot is an empty flex item in this row;
+	// left as a box it would take a second gap before the chevron.
+	> .popover-slot {
+		display: contents;
+	}
+}
+
+.newspack-rolling-coverage-quick-edit__document-tools {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	gap: wp-vars.$grid-unit-10;
+}
+
+// Document tools at the post editor header's size. Core's toolbar styles make
+// every button 48px and draw its pressed and focus states on an inset
+// `::before`, so the primary "+" would fill the row as a large blue square.
+// The post editor header shrinks them to 32px, the size of the gear and the
+// chevron, and moves those states onto the button; its rules are on this page
+// but scoped to `.editor-document-tools` classes this toolbar doesn't use, so
+// they're repeated here. The frame class outranks core's toolbar rules.
+.components-modal__frame.newspack-rolling-coverage-quick-edit .newspack-rolling-coverage-quick-edit__document-tools {
+
+	> .components-button.has-icon,
+	> .components-dropdown > .components-button.has-icon {
+		height: wp-vars.$button-size-compact;
+		min-width: wp-vars.$button-size-compact;
+		padding: wp-vars.$grid-unit-05;
+
+		&.is-pressed {
+			background: wp-colors.$gray-900;
+		}
+
+		&:focus:not(:active) {
+			outline: var(--wp-admin-border-width-focus) solid var(--wp-admin-theme-color);
+			outline-offset: var(--wp-admin-border-width-focus);
+		}
+
+		&::before {
+			display: none;
+		}
+	}
+}
+
+// Every toolbar popover opens at one height. Core's `Dropdown` anchors its
+// popover to the wrapper around its toggle, and the block toolbar's menus sit
+// in wrappers as tall as a block toolbar button. The 32px document tools and
+// the gear get wrappers that tall too (see quick-edit-inspector.tsx), or their
+// popovers would open higher, over the row's border.
+.newspack-rolling-coverage-quick-edit__document-tools > .components-dropdown,
+.newspack-rolling-coverage-quick-edit__inspector-toggle {
+	display: inline-flex;
+	align-items: center;
+	height: wp-vars.$block-toolbar-height;
+}
+
+// The "+" turns into an "x" while the library is open, as in core.
+.newspack-rolling-coverage-quick-edit__inserter-toggle.components-button {
+
+	svg {
+		transition: transform cubic-bezier(0.165, 0.84, 0.44, 1) 0.2s;
+
+		@include wp-mixins.reduce-motion("transition");
+	}
+
+	&.is-pressed svg {
+		transform: rotate(45deg);
+	}
+}
+
+// Pinned block toolbar. Core's rules for this toolbar make it scroll inside
+// itself, pull its groups and parent selector 1px past its top and bottom
+// edges, and draw a line under it. In this row they would clip the groups,
+// add a second scrollbar and leave a stray line, so they are reset below,
+// and the wrapper never shrinks below its content: a row too narrow for the
+// toolbar scrolls as a whole. The `block-toolbar` popover slot sits outside
+// the wrapper because `is-collapsed` hides the wrapper outright, and an open
+// format or resize popover rendered inside would vanish with it (see
+// quick-edit-block-toolbar.tsx).
+.newspack-rolling-coverage-quick-edit__block-toolbar {
+	display: flex;
+	flex: 1 0 auto;
+	align-items: center;
+	align-self: stretch;
+	padding-inline-start: wp-vars.$grid-unit-10;
+	border-inline-start: wp-vars.$border-width solid wp-colors.$gray-300;
+
+	&.is-collapsed {
+		display: none;
+	}
+
+	.block-editor-block-contextual-toolbar.is-unstyled {
+		box-shadow: none;
+	}
+
+	.block-editor-block-toolbar {
+		border: 0;
+	}
+
+	.block-editor-block-contextual-toolbar .block-editor-block-toolbar {
+		overflow: visible;
+	}
+
+	.block-editor-block-toolbar .components-toolbar-group,
+	.block-editor-block-toolbar .components-toolbar,
+	.block-editor-block-toolbar .block-editor-block-parent-selector {
+		margin-block: 0;
+	}
+}
+
+.newspack-rolling-coverage-quick-edit__settings {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	margin-inline-start: auto;
+}
+
+// Popovers opened from the toolbar. Popover sizes and scrolls the content box
+// itself (inline `max-height` and `overflow` from its size middleware), so
+// only width and padding are set here.
+.newspack-rolling-coverage-quick-edit__inspector .components-popover__content {
+	width: $quick-edit-inspector-width;
+	padding: wp-vars.$grid-unit-20 0 0;
+
+	.block-editor-inspector-popover-header {
+		padding: 0 wp-vars.$grid-unit-20;
+	}
 
 	.block-editor-block-inspector {
 		width: 100%;
 	}
 }
 
-// Make the inserter popover wider so blocks are visible properly.
-.block-editor-inserter__quick-inserter {
-	width: 480px;
-	max-width: 480px;
+// `Dropdown` puts `contentClassName` on the popover root, which has no width
+// of its own; the content box inside is what shrink-wraps, so it gets the
+// width.
+.newspack-rolling-coverage-quick-edit__list-view .components-popover__content {
+	width: $quick-edit-list-view-width;
+	min-height: 100px;
+	padding: wp-vars.$grid-unit-10;
 }
 
-.toplevel_page_rolling-coverage .block-editor-inserter__quick-inserter-expand {
-	display: none;
+// Core pulls a list view placed anywhere inside a modal up and out to meet the
+// modal's padding (`.components-modal__content .block-editor-list-view-tree`).
+// This one sits in a popover with padding of its own, where that pull clips
+// the first row, so it stays in place.
+.components-popover.newspack-rolling-coverage-quick-edit__list-view .block-editor-list-view-tree {
+	width: 100%;
+	margin: 0;
 }
 
-.toplevel_page_rolling-coverage .components-popover__fallback-container {
-	position: relative;
-}
-
-body.toplevel_page_rolling-coverage.modal-open .components-popover__fallback-container {
-	position: relative;
-}
-
-body.toplevel_page_rolling-coverage.modal-open .components-popover__content {
+// newspack-components' Modal styles hide every popover's content while
+// `body.modal-open` is set and show it again only inside a `.newspack-drawer`
+// frame. This modal is not a drawer, so its popovers need the same release.
+// The frame class keeps this more specific than the blanket rule, which
+// newspack-blocks' editor stylesheet prints too, so print order cannot flip
+// it.
+.components-modal__frame.newspack-rolling-coverage-quick-edit .components-popover__content {
 	opacity: 1;
 }
 
+// The in-canvas quick inserter's "Browse all" opens the full editor's
+// inserter sidebar, which Quick Edit has no counterpart for, so the button
+// would do nothing here.
+.components-modal__frame.newspack-rolling-coverage-quick-edit .block-editor-inserter__quick-inserter-expand {
+	display: none;
+}
+
+// Canvas and footer. The canvas minimum is for small screens, where the frame
+// has no fixed height and the iframe takes the canvas's height. From the small
+// breakpoint up the frame's own height sizes the canvas, and a minimum there
+// would push Cancel and Save out of a short viewport.
+.newspack-rolling-coverage-quick-edit__canvas {
+	flex: 1;
+	min-height: 240px;
+	padding: 0 wp-vars.$grid-unit-20;
+	overflow: auto;
+
+	@media (min-width: wp-breakpoints.$break-small) {
+		min-height: 0;
+	}
+
+	iframe[name="editor-canvas"] {
+		background-color: transparent;
+	}
+}
+
+.newspack-rolling-coverage-quick-edit__footer {
+	display: flex;
+	flex-shrink: 0;
+	justify-content: flex-end;
+	gap: wp-vars.$grid-unit-10;
+	padding: wp-vars.$grid-unit-15 wp-vars.$grid-unit-20;
+	border-top: wp-vars.$border-width solid wp-colors.$gray-300;
+}
+
 .newspack-rolling-coverage-quick-edit .components-editor-notices__snackbar {
-	bottom: wp-vars.$grid-unit-20;
-	left: 50%;
 	position: absolute;
-	transform: translateX(-50%);
+	bottom: $quick-edit-footer-clearance;
+	left: 50%;
 	width: auto;
+	transform: translateX(-50%);
 	z-index: wp-z.z-index(".components-snackbar-list");
+}
+
+.newspack-rolling-coverage-quick-edit__toolbar,
+.newspack-rolling-coverage-quick-edit__canvas,
+.newspack-rolling-coverage-quick-edit__footer {
+	opacity: 0;
+
+	.newspack-rolling-coverage-quick-edit.is-ready & {
+		opacity: 1;
+
+		@media not (prefers-reduced-motion) {
+			animation: newspack-rolling-coverage-quick-edit-fade-in 0.2s ease-out;
+		}
+	}
+}
+
+@keyframes newspack-rolling-coverage-quick-edit-fade-in {
+
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
 }
