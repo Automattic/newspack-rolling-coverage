@@ -86,6 +86,15 @@ class Post_Type {
 	const EDIT_ENTRIES_CAP = 'edit_others_posts';
 
 	/**
+	 * Taxonomies the entries list's Edit Details drawer sets, keyed by the
+	 * request parameter that carries each.
+	 */
+	const DETAILS_TAXONOMIES = [
+		'categories' => 'category',
+		'tags'       => 'post_tag',
+	];
+
+	/**
 	 * Query var flagging that a query must be scoped to the entries the
 	 * current user may see. Value is the scope: 'author' (own entries plus
 	 * others' published), 'own' (own entries only), 'editable' (own entries
@@ -629,13 +638,13 @@ class Post_Type {
 
 		register_rest_route(
 			NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE,
-			'/entries/author',
+			'/entries/details',
 			[
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => [ __CLASS__, 'handle_bulk_change_author' ],
-				'permission_callback' => [ __CLASS__, 'can_change_authors' ],
+				'callback'            => [ __CLASS__, 'handle_bulk_edit_details' ],
+				'permission_callback' => [ __CLASS__, 'can_edit_details' ],
 				'args'                => [
-					'entry_ids' => [
+					'entry_ids'  => [
 						'required' => true,
 						'type'     => 'array',
 						'minItems' => 1,
@@ -645,14 +654,50 @@ class Post_Type {
 							'minimum' => 1,
 						],
 					],
-					'author_id' => [
-						'required' => true,
-						'type'     => 'integer',
-						'minimum'  => 1,
+					'author_id'  => [
+						'type'    => 'integer',
+						'minimum' => 1,
+					],
+					'categories' => self::term_changes_schema(),
+					'tags'       => self::term_changes_schema(),
+					'append'     => [
+						'type'    => 'boolean',
+						'default' => false,
 					],
 				],
 			]
 		);
+	}
+
+	/**
+	 * Schema for the terms the Edit Details request sets in one taxonomy:
+	 * existing terms by ID, and terms by name, found or created.
+	 *
+	 * @return array
+	 */
+	private static function term_changes_schema(): array {
+		return [
+			'type'                 => 'object',
+			'properties'           => [
+				'ids'   => [
+					'type'     => 'array',
+					'maxItems' => 100,
+					'items'    => [
+						'type'    => 'integer',
+						'minimum' => 1,
+					],
+				],
+				'names' => [
+					'type'     => 'array',
+					'maxItems' => 100,
+					'items'    => [
+						'type'      => 'string',
+						'maxLength' => 200,
+					],
+				],
+			],
+			'additionalProperties' => false,
+		];
 	}
 
 	/**
@@ -2398,6 +2443,69 @@ class Post_Type {
 	}
 
 	/**
+	 * Whether the current user may set an entry's terms in a taxonomy.
+	 *
+	 * @param string $taxonomy Taxonomy slug.
+	 * @return bool
+	 */
+	public static function can_assign_terms( string $taxonomy ): bool {
+		$taxonomy_object = get_taxonomy( $taxonomy );
+
+		return $taxonomy_object
+			&& is_object_in_taxonomy( self::CPT_SLUG, $taxonomy )
+			&& current_user_can( $taxonomy_object->cap->assign_terms );
+	}
+
+	/**
+	 * Whether the current user may create terms in a taxonomy, by the rule
+	 * core's REST terms controller applies: categories and other
+	 * hierarchical taxonomies need `edit_terms`, tags only `assign_terms`.
+	 *
+	 * @param string $taxonomy Taxonomy slug.
+	 * @return bool
+	 */
+	public static function can_create_terms( string $taxonomy ): bool {
+		$taxonomy_object = get_taxonomy( $taxonomy );
+
+		if ( ! $taxonomy_object ) {
+			return false;
+		}
+
+		return current_user_can(
+			is_taxonomy_hierarchical( $taxonomy )
+				? $taxonomy_object->cap->edit_terms
+				: $taxonomy_object->cap->assign_terms
+		);
+	}
+
+	/**
+	 * Permission check for editing entries' details: the author needs
+	 * `can_change_authors()`, and each taxonomy sent needs its
+	 * `assign_terms` capability. Whether the user may edit each entry is
+	 * checked per entry in the handler.
+	 *
+	 * @param WP_REST_Request $request Request object.
+	 * @return bool
+	 */
+	public static function can_edit_details( WP_REST_Request $request ): bool {
+		if ( ! current_user_can( 'edit_posts' ) ) {
+			return false;
+		}
+
+		if ( null !== $request->get_param( 'author_id' ) && ! self::can_change_authors() ) {
+			return false;
+		}
+
+		foreach ( self::DETAILS_TAXONOMIES as $param => $taxonomy ) {
+			if ( null !== $request->get_param( $param ) && ! self::can_assign_terms( $taxonomy ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * Auth callback for post-meta registration: requires edit_post for
 	 * the specific post being modified.
 	 *
@@ -2495,18 +2603,26 @@ class Post_Type {
 	}
 
 	/**
-	 * REST handler: make one user the author of several entries.
+	 * REST handler: set the author, categories and tags of several entries.
 	 *
-	 * With Co-Authors Plus on for entries, the user also becomes each entry's
-	 * only co-author. Otherwise its byline would keep the old author while
-	 * the entries list and the feed, which read `post_author`, show the new one.
+	 * Only the details the request names change. The author replaces each
+	 * entry's author, and with Co-Authors Plus on for entries it also becomes
+	 * the only co-author. Otherwise the byline would keep the old author
+	 * while the entries list and the feed, which read `post_author`, show
+	 * the new one. Terms replace each entry's terms in that taxonomy, or,
+	 * with `append`, are added to them.
+	 *
+	 * Terms named rather than given by ID are matched to existing ones as
+	 * core matches names, and the rest are created. Everything is checked
+	 * before any term is created, so a rejected request creates none.
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
 	 */
-	public static function handle_bulk_change_author( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+	public static function handle_bulk_edit_details( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$entry_ids = array_unique( array_filter( array_map( 'intval', (array) $request->get_param( 'entry_ids' ) ) ) );
-		$author    = get_userdata( (int) $request->get_param( 'author_id' ) );
+		$author_id = $request->get_param( 'author_id' );
+		$append    = (bool) $request->get_param( 'append' );
 
 		if ( empty( $entry_ids ) ) {
 			return new WP_Error(
@@ -2516,70 +2632,227 @@ class Post_Type {
 			);
 		}
 
-		if ( ! $author || ! user_can( $author, 'edit_posts' ) ) {
+		$author = null;
+
+		if ( null !== $author_id ) {
+			$author = get_userdata( (int) $author_id );
+
+			if ( ! $author || ! user_can( $author, 'edit_posts' ) ) {
+				return new WP_Error(
+					'rolling_coverage_invalid_author',
+					__( 'That person can’t be the author of an entry.', 'newspack-rolling-coverage' ),
+					[ 'status' => 400 ]
+				);
+			}
+		}
+
+		$term_changes = [];
+
+		foreach ( self::DETAILS_TAXONOMIES as $param => $taxonomy ) {
+			$changes = $request->get_param( $param );
+
+			if ( null === $changes ) {
+				continue;
+			}
+
+			$prepared = self::prepare_term_changes( (array) $changes, $taxonomy );
+
+			if ( is_wp_error( $prepared ) ) {
+				return $prepared;
+			}
+
+			$term_changes[ $taxonomy ] = $prepared;
+		}
+
+		if ( ! $author && empty( $term_changes ) ) {
 			return new WP_Error(
-				'rolling_coverage_invalid_author',
-				__( 'That person can’t be the author of an entry.', 'newspack-rolling-coverage' ),
+				'rolling_coverage_no_details',
+				__( 'Nothing to change.', 'newspack-rolling-coverage' ),
 				[ 'status' => 400 ]
 			);
+		}
+
+		$term_ids = [];
+
+		foreach ( $term_changes as $taxonomy => $prepared ) {
+			$created = self::create_terms( $prepared['create'], $taxonomy );
+
+			if ( is_wp_error( $created ) ) {
+				return $created;
+			}
+
+			$term_ids[ $taxonomy ] = array_values( array_unique( array_merge( $prepared['ids'], $created ) ) );
 		}
 
 		$results = [];
 
 		foreach ( $entry_ids as $entry_id ) {
-			$post = get_post( $entry_id );
-
-			if ( ! $post || self::CPT_SLUG !== $post->post_type || 'trash' === $post->post_status ) {
-				$results[] = [
-					'entryId' => $entry_id,
-					'updated' => false,
-					'error'   => __( 'Entry not found.', 'newspack-rolling-coverage' ),
-				];
-				continue;
-			}
-
-			if ( ! current_user_can( 'edit_post', $entry_id ) ) {
-				$results[] = [
-					'entryId' => $entry_id,
-					'updated' => false,
-					'error'   => __( 'You do not have permission to edit this entry.', 'newspack-rolling-coverage' ),
-				];
-				continue;
-			}
-
-			if ( Archive_Mode::is_entry_locked( $entry_id ) ) {
-				$results[] = [
-					'entryId' => $entry_id,
-					'updated' => false,
-					'error'   => __( 'This entry is archived, so its author can’t change.', 'newspack-rolling-coverage' ),
-				];
-				continue;
-			}
-
-			if ( ! self::set_coauthor( $entry_id, $author ) ) {
-				$results[] = [
-					'entryId' => $entry_id,
-					'updated' => false,
-					'error'   => __( 'Co-Authors Plus couldn’t credit this entry to that person.', 'newspack-rolling-coverage' ),
-				];
-				continue;
-			}
-
-			$updated = self::touch_entry( $entry_id, true, [ 'post_author' => $author->ID ] );
-
-			$results[] = is_wp_error( $updated )
-				? [
-					'entryId' => $entry_id,
-					'updated' => false,
-					'error'   => $updated->get_error_message(),
-				]
-				: [
-					'entryId' => $entry_id,
-					'updated' => true,
-				];
+			$results[] = [ 'entryId' => $entry_id ] + self::edit_entry_details( $entry_id, $author, $term_ids, $append );
 		}
 
 		return new WP_REST_Response( [ 'results' => $results ], 200 );
+	}
+
+	/**
+	 * Applies the Edit Details changes to one entry.
+	 *
+	 * @param int           $entry_id Entry post ID.
+	 * @param \WP_User|null $author   The new author, or null to keep it.
+	 * @param array         $term_ids Term IDs to set, keyed by taxonomy.
+	 * @param bool          $append   Whether to add the terms rather than replace them.
+	 * @return array{updated: bool, error?: string}
+	 */
+	private static function edit_entry_details( int $entry_id, ?\WP_User $author, array $term_ids, bool $append ): array {
+		$post = get_post( $entry_id );
+
+		if ( ! $post || self::CPT_SLUG !== $post->post_type || 'trash' === $post->post_status ) {
+			return [
+				'updated' => false,
+				'error'   => __( 'Entry not found.', 'newspack-rolling-coverage' ),
+			];
+		}
+
+		if ( ! current_user_can( 'edit_post', $entry_id ) ) {
+			return [
+				'updated' => false,
+				'error'   => __( 'You do not have permission to edit this entry.', 'newspack-rolling-coverage' ),
+			];
+		}
+
+		if ( Archive_Mode::is_entry_locked( $entry_id ) ) {
+			return [
+				'updated' => false,
+				'error'   => __( 'This entry is archived, so it can’t be edited.', 'newspack-rolling-coverage' ),
+			];
+		}
+
+		if ( $author && ! self::set_coauthor( $entry_id, $author ) ) {
+			return [
+				'updated' => false,
+				'error'   => __( 'Co-Authors Plus couldn’t credit this entry to that person.', 'newspack-rolling-coverage' ),
+			];
+		}
+
+		// Terms go first so the save that follows, and its hooks, see them.
+		foreach ( $term_ids as $taxonomy => $ids ) {
+			$set = wp_set_post_terms( $entry_id, $ids, $taxonomy, $append );
+
+			if ( is_wp_error( $set ) ) {
+				return [
+					'updated' => false,
+					'error'   => $set->get_error_message(),
+				];
+			}
+		}
+
+		$updated = self::touch_entry( $entry_id, true, $author ? [ 'post_author' => $author->ID ] : [] );
+
+		if ( is_wp_error( $updated ) ) {
+			return [
+				'updated' => false,
+				'error'   => $updated->get_error_message(),
+			];
+		}
+
+		return [ 'updated' => true ];
+	}
+
+	/**
+	 * Checks the terms an Edit Details request sets in one taxonomy without
+	 * changing anything: every ID must be a term of the taxonomy, and names
+	 * with no matching term need permission to create terms.
+	 *
+	 * @param array  $changes  The request's `ids` and `names` for the taxonomy.
+	 * @param string $taxonomy Taxonomy slug.
+	 * @return array{ids: int[], create: string[]}|WP_Error Existing term IDs and the names to create.
+	 */
+	private static function prepare_term_changes( array $changes, string $taxonomy ): array|WP_Error {
+		$ids = [];
+
+		foreach ( (array) ( $changes['ids'] ?? [] ) as $term_id ) {
+			$term = get_term( (int) $term_id, $taxonomy );
+
+			if ( ! $term instanceof \WP_Term ) {
+				return new WP_Error(
+					'rolling_coverage_invalid_term',
+					'category' === $taxonomy
+						? __( 'One of the chosen categories doesn’t exist.', 'newspack-rolling-coverage' )
+						: __( 'One of the chosen tags doesn’t exist.', 'newspack-rolling-coverage' ),
+					[ 'status' => 400 ]
+				);
+			}
+
+			$ids[] = (int) $term->term_id;
+		}
+
+		$create = [];
+
+		foreach ( (array) ( $changes['names'] ?? [] ) as $name ) {
+			$name = sanitize_text_field( (string) $name );
+
+			if ( '' === $name ) {
+				continue;
+			}
+
+			$existing = term_exists( $name, $taxonomy );
+
+			if ( $existing ) {
+				$ids[] = (int) $existing['term_id'];
+				continue;
+			}
+
+			$create[ mb_strtolower( $name ) ] = $name;
+		}
+
+		if ( $create && ! self::can_create_terms( $taxonomy ) ) {
+			return new WP_Error(
+				'rolling_coverage_cannot_create_terms',
+				'category' === $taxonomy
+					? __( 'You don’t have permission to create categories.', 'newspack-rolling-coverage' )
+					: __( 'You don’t have permission to create tags.', 'newspack-rolling-coverage' ),
+				[ 'status' => 403 ]
+			);
+		}
+
+		return [
+			'ids'    => array_values( array_unique( $ids ) ),
+			'create' => array_values( $create ),
+		];
+	}
+
+	/**
+	 * Creates terms in a taxonomy, using the existing term when one by the
+	 * same name turns up in the meantime.
+	 *
+	 * @param string[] $names    Term names.
+	 * @param string   $taxonomy Taxonomy slug.
+	 * @return int[]|WP_Error The terms' IDs.
+	 */
+	private static function create_terms( array $names, string $taxonomy ): array|WP_Error {
+		$ids = [];
+
+		foreach ( $names as $name ) {
+			$created = wp_insert_term( $name, $taxonomy );
+
+			if ( is_wp_error( $created ) ) {
+				$existing = (int) $created->get_error_data( 'term_exists' );
+
+				if ( $existing ) {
+					$ids[] = $existing;
+					continue;
+				}
+
+				return new WP_Error(
+					'rolling_coverage_term_not_created',
+					$created->get_error_message(),
+					[ 'status' => 400 ]
+				);
+			}
+
+			$ids[] = (int) $created['term_id'];
+		}
+
+		return $ids;
 	}
 
 	/**

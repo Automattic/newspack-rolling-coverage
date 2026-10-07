@@ -6,7 +6,7 @@
  */
 
 /**
- * The entries list's Change Author action credits one person with every
+ * The entries list's Edit Details drawer can credit one person with every
  * selected entry. It is an editor's job, checked per entry, and keeps
  * Co-Authors Plus in step so the byline and the list agree.
  */
@@ -50,7 +50,7 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 
 		$response = self::dispatch(
 			'POST',
-			'/entries/author',
+			'/entries/details',
 			[
 				'entry_ids' => $entry_ids,
 				'author_id' => $new_author,
@@ -76,7 +76,7 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 
 		$response = self::dispatch(
 			'POST',
-			'/entries/author',
+			'/entries/details',
 			[
 				'entry_ids' => [ $entry_id ],
 				'author_id' => $other_id,
@@ -98,7 +98,7 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 
 		$response = self::dispatch(
 			'POST',
-			'/entries/author',
+			'/entries/details',
 			[
 				'entry_ids' => [ $entry_id ],
 				'author_id' => $subscriber,
@@ -139,7 +139,7 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 
 		$results = self::dispatch(
 			'POST',
-			'/entries/author',
+			'/entries/details',
 			[
 				'entry_ids' => [ $entry_id, $trashed_id, $post_id ],
 				'author_id' => $new_author,
@@ -229,7 +229,7 @@ class Test_Entry_Author extends Rolling_Coverage_TestCase {
 	private static function change_author( $entry_id, $author_id ) {
 		return self::dispatch(
 			'POST',
-			'/entries/author',
+			'/entries/details',
 			[
 				'entry_ids' => [ $entry_id ],
 				'author_id' => $author_id,
