@@ -157,7 +157,8 @@ const CONTRAST =
 	'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, #111))';
 const BORDER_COLOR =
 	'var(--wp--preset--color--base-3, var(--newspack-theme-color-border, #ddd))';
-const PINNED_BACKGROUND = 'var(--wp--custom--color--neutral-5, #f7f7f7)';
+const PINNED_BACKGROUND =
+	'var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f7f7f7))';
 
 /**
  * The corner radius of the Stream layout's pinned card.

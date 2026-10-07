@@ -125,7 +125,7 @@ The Lite Site plugin serves cached, text-only copies of posts. It renders a post
 
 ## Styling policy
 
-A layout's look comes from block settings in its template: colors, typography, spacing and borders, using theme presets with fallbacks. Publishers can then change them in the editor, and the pattern carries them to every synced block. Keep the plugin's CSS structural:
+A layout's look comes from block settings in its template: colors, typography, spacing and borders, using theme presets with fallbacks. Publishers can then change them in the editor, and the pattern carries them to every synced block. A color names the block theme's palette preset first, then the classic Newspack Theme's custom property, then, where one is safe, a plain value, as in `var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f7f7f7))`. It then follows the theme's style variations, dark ones included; a fixed step like `--wp--custom--color--neutral-5` doesn't change between variations. Keep the plugin's CSS structural:
 
 - `style.scss` (built to `view.css`, loaded on the front end and in the editor) holds structural rules only. Rules that size items use `:where()` so block settings win.
 - `editor.scss` covers editor-only UI.
