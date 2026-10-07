@@ -9,6 +9,7 @@ use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Coverage_Follow_Block;
 use Newspack_Rolling_Coverage\Coverage_Status_Block;
 use Newspack_Rolling_Coverage\Entry_Bindings;
+use Newspack_Rolling_Coverage\Placements;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
@@ -1678,6 +1679,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 			]
 		);
 
+		Placements::rebuild();
 		$html = self::render_capped_coverage( $coverage_id );
 
 		$this->assertStringContainsString( '<a href="' . esc_url( get_permalink( $host_id ) ) . '">See all updates</a>', $html );
@@ -1749,11 +1751,10 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Looking up the coverage page scans post content, so a capped feed whose
-	 * layout has no "See all updates" paragraph, or holds it only inside the
-	 * entries, never runs it.
+	 * Looking up the coverage page reads the stored map, so rendering a
+	 * capped feed never scans post content, with or without the link.
 	 */
-	public function test_all_updates_lookup_runs_only_for_a_layout_with_the_link() {
+	public function test_all_updates_lookup_never_scans_post_content() {
 		$coverage_id = self::create_coverage();
 		self::create_entry( $coverage_id );
 		self::factory()->post->create(
@@ -1762,6 +1763,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 				'post_content' => '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( [ 'coverageId' => $coverage_id ] ) . ' /-->',
 			]
 		);
+		Placements::rebuild();
 		$scans = 0;
 		$count = static function ( $query ) use ( &$scans ) {
 			if ( str_contains( $query, 'post_content LIKE' ) ) {
@@ -1774,12 +1776,10 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$entry_group = '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">' . self::ALL_UPDATES_MARKUP . '</div><!-- /wp:group -->';
 		self::render_capped_coverage( $coverage_id, [], self::BUTTONS_MARKUP );
 		self::render_capped_coverage( $coverage_id, [], $entry_group );
-		$without = $scans;
-		$html    = self::render_capped_coverage( $coverage_id );
+		$html = self::render_capped_coverage( $coverage_id );
 		remove_filter( 'query', $count );
 
-		$this->assertSame( 0, $without );
-		$this->assertSame( 1, $scans );
+		$this->assertSame( 0, $scans );
 		$this->assertStringContainsString( 'See all updates', $html );
 	}
 
@@ -1792,6 +1792,52 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
 
 		$this->assertStringNotContainsString( 'See all updates', self::render_capped_coverage( $coverage_id, [ 'allUpdatesLink' => false ] ) );
+	}
+
+	/**
+	 * A shared layout's link reads the block's own link text, escaped.
+	 */
+	public function test_all_updates_reads_the_blocks_link_text() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+
+		$html = self::render_capped_coverage(
+			$coverage_id,
+			[
+				'layoutId'           => 123,
+				'allUpdatesLinkText' => ' Follow <b>the</b> storm ',
+			]
+		);
+
+		$this->assertStringContainsString( '<a href="https://example.org/storm-coverage/">Follow &lt;b&gt;the&lt;/b&gt; storm</a>', $html );
+		$this->assertStringNotContainsString( 'See all updates', $html );
+	}
+
+	/**
+	 * Blank link text, or a detached layout, keeps the layout's own text.
+	 */
+	public function test_all_updates_keeps_the_layouts_text() {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		update_term_meta( $coverage_id, Taxonomy::CANONICAL_URL_META_KEY, 'https://example.org/storm-coverage/' );
+
+		$this->assertStringContainsString(
+			'<a href="https://example.org/storm-coverage/">See all updates</a>',
+			self::render_capped_coverage(
+				$coverage_id,
+				[
+					'layoutId'           => 123,
+					'allUpdatesLinkText' => '  ',
+				]
+			),
+			'Blank link text should keep the layout\'s.'
+		);
+		$this->assertStringContainsString(
+			'<a href="https://example.org/storm-coverage/">See all updates</a>',
+			self::render_capped_coverage( $coverage_id, [ 'allUpdatesLinkText' => 'Follow the storm' ] ),
+			'A detached layout should keep its own text.'
+		);
 	}
 
 	/**

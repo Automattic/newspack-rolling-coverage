@@ -38,6 +38,7 @@ interface RollingCoverageAttributes {
 	latestOnly: boolean;
 	latestCount: number;
 	allUpdatesLink: boolean;
+	allUpdatesLinkText: string;
 	hideWhenEnded: boolean;
 	align?: string;
 	[ key: string ]: unknown;
@@ -84,6 +85,7 @@ interface BlockConfig {
 	layoutCategoryId: number;
 	entryPostType: string;
 	showAvatars: boolean;
+	entryPlural: string;
 	sampleAvatarUrls?: Record< string, string >;
 }
 

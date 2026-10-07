@@ -1,7 +1,9 @@
 @use "base";
 @use "components/modal";
+@use "components/checkbox";
 @use "components/dataviews";
 @use "components/slack";
+@use "components/placements";
 @use "components/quick-edit";
 @use "components/snackbar";
 @use "components/ai-settings";

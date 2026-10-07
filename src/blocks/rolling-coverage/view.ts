@@ -438,6 +438,9 @@ function initBlock( root: HTMLElement ): void {
 	// The feed checks for new entries only when the reader asks.
 	const checksOnRequest = root.dataset.newEntries === 'button';
 
+	// A Lite Site page renders entries as text, so it asks for them that way.
+	const isLite = root.dataset.lite === '1';
+
 	const coverageId = root.dataset.coverageId || '0';
 
 	let cursor = root.dataset.cursor || '';
@@ -2006,7 +2009,19 @@ function initBlock( root: HTMLElement ): void {
 				url.searchParams.set( 'latest', String( latestCap ) );
 			} else {
 				url.searchParams.set( 'host_post_id', hostPostId );
-				url.searchParams.set( 'polled_count', polledCount.toString() );
+
+				// A lite page shows no ads either, so it leaves out the ad
+				// count and its readers share one cached reply too.
+				if ( ! isLite ) {
+					url.searchParams.set(
+						'polled_count',
+						polledCount.toString()
+					);
+				}
+			}
+
+			if ( isLite ) {
+				url.searchParams.set( 'lite', '1' );
 			}
 
 			const response = await fetchEntries( url.toString() );
@@ -2202,6 +2217,10 @@ function initBlock( root: HTMLElement ): void {
 
 			if ( isEntryView ) {
 				url.searchParams.set( 'skip_pinned', '1' );
+			}
+
+			if ( isLite ) {
+				url.searchParams.set( 'lite', '1' );
 			}
 
 			const response = await fetchEntries( url.toString() );

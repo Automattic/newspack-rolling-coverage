@@ -155,3 +155,7 @@ declare module '@wordpress/block-editor' {
 declare module '@wordpress/block-library' {
 	export function registerCoreBlocks(): void;
 }
+
+declare module '@wordpress/edit-post' {
+	export const __experimentalMainDashboardButton: unknown;
+}

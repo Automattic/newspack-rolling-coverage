@@ -3,11 +3,12 @@
  */
 import { getSettings } from '@wordpress/date';
 import { escapeHTML } from '@wordpress/escape-html';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
+import { ENTRY_PLURAL } from './config';
 import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
 import type { TemplateItem } from './types';
@@ -295,8 +296,25 @@ function shareLink(): TemplateItem {
 }
 
 /**
- * The "See all updates" link to the coverage page, shown once by a capped
- * feed.
+ * The text a new layout's link to the coverage page starts with, in the
+ * site's own plural for entries when it sets one.
+ *
+ * @return {string} The link text.
+ */
+function allUpdatesText(): string {
+	if ( ! ENTRY_PLURAL ) {
+		return __( 'See all entries', 'newspack-rolling-coverage' );
+	}
+
+	return sprintf(
+		/* translators: %s: the site's name for several coverage entries, as it reads mid-sentence, e.g. "updates". */
+		__( 'See all %s', 'newspack-rolling-coverage' ),
+		ENTRY_PLURAL
+	);
+}
+
+/**
+ * The link to the coverage page, shown once by a capped feed.
  *
  * @param {Object} attributes Extra paragraph settings, such as its alignment.
  * @return {TemplateItem} The paragraph.
@@ -308,13 +326,9 @@ function allUpdatesLink(
 		'core/paragraph',
 		{
 			className: `use-header-font ${ ALL_UPDATES_CLASS }`,
-			content: placeholderLink(
-				__( 'See all updates', 'newspack-rolling-coverage' )
-			),
+			content: placeholderLink( allUpdatesText() ),
 			fontSize: 'small',
-			metadata: {
-				name: __( 'See all updates', 'newspack-rolling-coverage' ),
-			},
+			metadata: { name: allUpdatesText() },
 			...attributes,
 		},
 	];
@@ -2003,7 +2017,7 @@ function isCoverageNameHeading( block: {
  * @param {Object} block            The block.
  * @param {string} block.name       Block name.
  * @param {Object} block.attributes Block attributes.
- * @return {boolean} Whether it's the "See all updates" paragraph.
+ * @return {boolean} Whether it's the all-updates paragraph.
  */
 function isAllUpdatesParagraph( block: {
 	name: string;
@@ -2021,7 +2035,7 @@ function isAllUpdatesParagraph( block: {
 /**
  * Whether a block belongs to the coverage rather than to each entry, so it
  * renders once: the Follow Coverage block, the Coverage Status block, a
- * heading bound to the coverage's name, the "See all updates" paragraph, or
+ * heading bound to the coverage's name, the all-updates paragraph, or
  * a block holding one at any depth, mirroring
  * Entry_Bindings::is_coverage_item(). The pinned card and the entry group
  * always belong to each entry, whatever they hold.
@@ -2218,7 +2232,7 @@ function followBlockIds(
 }
 
 /**
- * The blocks without the "See all updates" paragraph, at any depth, as the
+ * The blocks without the all-updates paragraph, at any depth, as the
  * site renders them where the link has nothing to show.
  *
  * @param {Object[]} blocks The blocks.
@@ -2231,7 +2245,79 @@ function withoutAllUpdatesParagraph<
 }
 
 /**
- * The client IDs of the "See all updates" paragraphs among the blocks, at
+ * The blocks with each all-updates paragraph reading the text, at any
+ * depth, as the site renders a shared layout with the block's own link text
+ * (Entry_Bindings::link_all_updates()).
+ *
+ * @param {Object[]} blocks The blocks.
+ * @param {string}   text   The link text.
+ * @return {Object[]} The blocks.
+ */
+function withAllUpdatesText<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[], text: string ): T[] {
+	return blocks.map( ( block ) => {
+		if ( isAllUpdatesParagraph( block ) ) {
+			return {
+				...block,
+				attributes: {
+					...( block.attributes as Record< string, unknown > ),
+					content: placeholderLink( text ),
+				},
+			};
+		}
+
+		return Array.isArray( block.innerBlocks ) && block.innerBlocks.length
+			? {
+					...block,
+					innerBlocks: withAllUpdatesText(
+						block.innerBlocks as T[],
+						text
+					),
+				}
+			: block;
+	} );
+}
+
+/**
+ * The text of the first all-updates paragraph among the blocks, at any
+ * depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {string|null} The text, or null without the paragraph.
+ */
+function allUpdatesTextOf(
+	blocks: { name: string; [ key: string ]: unknown }[]
+): string | null {
+	for ( const block of blocks ) {
+		if ( isAllUpdatesParagraph( block ) ) {
+			const content = ( block.attributes as Record< string, unknown > )
+				?.content;
+
+			return (
+				new DOMParser().parseFromString(
+					String( content ?? '' ),
+					'text/html'
+				).body.textContent ?? ''
+			).trim();
+		}
+
+		const text = allUpdatesTextOf(
+			Array.isArray( block.innerBlocks )
+				? ( block.innerBlocks as typeof blocks )
+				: []
+		);
+
+		if ( text !== null ) {
+			return text;
+		}
+	}
+
+	return null;
+}
+
+/**
+ * The client IDs of the all-updates paragraphs among the blocks, at
  * any depth.
  *
  * @param {Object[]} blocks The blocks.
@@ -3226,6 +3312,8 @@ export {
 	allUpdatesLink,
 	allUpdatesBlockIds,
 	withoutAllUpdatesParagraph,
+	withAllUpdatesText,
+	allUpdatesTextOf,
 	emptiedGroupIds,
 	withoutPinnedRow,
 	withoutBreakoutLink,

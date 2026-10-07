@@ -174,7 +174,10 @@ class Coverage_Status_Block {
 			esc_html( $labels[ $status ] )
 		);
 
-		if ( ! empty( $attributes['showLastUpdated'] ) ) {
+		// A lite page strips the span that hides "Updated" and never runs the
+		// script that keeps it current, so there the badge stands alone, as a
+		// snapshot like the rest of the page.
+		if ( ! empty( $attributes['showLastUpdated'] ) && ! Lite_Feed::is_lite_render() ) {
 			$html .= ' ' . self::render_last_updated( $coverage_id, $status );
 		}
 

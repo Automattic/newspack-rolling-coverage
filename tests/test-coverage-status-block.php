@@ -447,6 +447,53 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Lite Site strips the span that hides "Updated" and never runs the view
+	 * script that keeps it current, so on a lite page a status block shows
+	 * its badge alone, where a full page shows the line. That holds for a
+	 * feed's status block and for a standalone one that names its coverage,
+	 * which shows on any page.
+	 *
+	 * @dataProvider data_live_and_ended_statuses
+	 *
+	 * @param string $status Coverage status.
+	 * @param string $badge  The badge's text for that status.
+	 */
+	public function test_lite_page_shows_the_badge_without_last_updated( string $status, string $badge ) {
+		require_once __DIR__ . '/mocks/class-lite-site.php';
+
+		$coverage_id = self::create_coverage( $status );
+		self::create_entry( $coverage_id, [ 'post_date' => '2026-01-01 12:00:00' ] );
+		$feed  = self::flash_feed( $coverage_id, [ 'showLastUpdated' => true ] );
+		$named = '<!-- wp:newspack-rolling-coverage/coverage-status {"showLastUpdated":true,"coverageId":' . $coverage_id . '} /-->';
+		$this->go_to( home_url( '/' ) );
+
+		$full_page  = do_blocks( $feed );
+		$full_named = do_blocks( $named );
+		$lite_page  = \Newspack_Lite_Site\Lite_Site::clean_content( $feed );
+		$lite_named = \Newspack_Lite_Site\Lite_Site::clean_content( $named );
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-updated', $full_page, 'A full page has the line.' );
+		$this->assertStringContainsString( 'newspack-rolling-coverage-updated', $full_named, 'So does a standalone block that names its coverage.' );
+		$this->assertSame( [ $coverage_id ], self::followed_coverages( $lite_page ), 'A lite page keeps the feed\'s status block.' );
+		$this->assertStringContainsString( '>' . $badge . '<', $lite_page, 'It keeps the badge.' );
+		$this->assertStringNotContainsString( 'Updated', $lite_page );
+		$this->assertStringNotContainsString( 'Updated', $lite_named, 'A standalone block that names its coverage leaves the line out on a lite page.' );
+		$this->assertStringContainsString( '>' . $badge . '<', $lite_named, 'But keeps its badge.' );
+	}
+
+	/**
+	 * A live and an ended coverage, with their badges' text.
+	 *
+	 * @return array[]
+	 */
+	public function data_live_and_ended_statuses(): array {
+		return [
+			'live'  => [ Taxonomy::STATUS_ACTIVE, 'Live' ],
+			'ended' => [ Taxonomy::STATUS_ARCHIVED, 'Ended' ],
+		];
+	}
+
+	/**
 	 * GET a coverage term through the REST API as an editor.
 	 *
 	 * @param int $coverage_id Coverage term ID.
@@ -603,10 +650,11 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	 * A capped Rolling Coverage block shaped like Flash: a status block, then
 	 * the entry, among the coverage-level blocks of its Feed.
 	 *
-	 * @param int $coverage_id Coverage term ID.
+	 * @param int   $coverage_id       Coverage term ID.
+	 * @param array $status_attributes The status block's attributes.
 	 * @return string
 	 */
-	private static function flash_feed( int $coverage_id ): string {
+	private static function flash_feed( int $coverage_id, array $status_attributes = [] ): string {
 		$attributes = [
 			'coverageId'  => $coverage_id,
 			'latestOnly'  => true,
@@ -615,7 +663,7 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 
 		return '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->'
 			. '<!-- wp:group {"className":"newspack-rolling-coverage-feed","layout":{"type":"flex"}} --><div class="wp-block-group newspack-rolling-coverage-feed">'
-			. '<!-- wp:newspack-rolling-coverage/coverage-status /-->'
+			. '<!-- wp:newspack-rolling-coverage/coverage-status ' . ( $status_attributes ? wp_json_encode( $status_attributes ) . ' ' : '' ) . '/-->'
 			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry"><!-- wp:post-title /--></div><!-- /wp:group -->'
 			. '</div><!-- /wp:group -->'
 			. '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->';

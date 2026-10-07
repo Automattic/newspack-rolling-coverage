@@ -84,6 +84,8 @@ import {
 	allUpdatesBlockIds,
 	emptiedGroupIds,
 	withoutAllUpdatesParagraph,
+	withAllUpdatesText,
+	allUpdatesTextOf,
 	isPinnedCard,
 	isRegularEntry,
 	forEntryKind,
@@ -725,6 +727,7 @@ export default function Edit( {
 		latestOnly,
 		latestCount,
 		allUpdatesLink,
+		allUpdatesLinkText,
 		pollInterval,
 		entriesPerPage,
 		olderEntries,
@@ -1339,6 +1342,15 @@ export default function Edit( {
 		[ hiddenIds ]
 	);
 
+	const linkText = isSynced ? ( allUpdatesLinkText ?? '' ).trim() : '';
+	const layoutLinkText = useMemo(
+		() =>
+			isSynced && hasResolvedLayout
+				? allUpdatesTextOf( [ ...headerBlocks, ...footerBlocks ] )
+				: null,
+		[ isSynced, hasResolvedLayout, headerBlocks, footerBlocks ]
+	);
+
 	const syncedHeaderBlocks = useMemo( () => {
 		let blocks = isFollowHidden
 			? withoutFollowButtons( headerBlocks )
@@ -1346,14 +1358,16 @@ export default function Edit( {
 		blocks = isCheckUpdatesHidden
 			? withoutCheckUpdatesButtons( blocks )
 			: blocks;
-		return isAllUpdatesHidden
-			? withoutAllUpdatesParagraph( blocks )
-			: blocks;
+		if ( isAllUpdatesHidden ) {
+			return withoutAllUpdatesParagraph( blocks );
+		}
+		return linkText ? withAllUpdatesText( blocks, linkText ) : blocks;
 	}, [
 		headerBlocks,
 		isFollowHidden,
 		isCheckUpdatesHidden,
 		isAllUpdatesHidden,
+		linkText,
 	] );
 	const syncedFooterBlocks = useMemo( () => {
 		let blocks = isFollowHidden
@@ -1362,32 +1376,38 @@ export default function Edit( {
 		blocks = isCheckUpdatesHidden
 			? withoutCheckUpdatesButtons( blocks )
 			: blocks;
-		return isAllUpdatesHidden
-			? withoutAllUpdatesParagraph( blocks )
-			: blocks;
+		if ( isAllUpdatesHidden ) {
+			return withoutAllUpdatesParagraph( blocks );
+		}
+		return linkText ? withAllUpdatesText( blocks, linkText ) : blocks;
 	}, [
 		footerBlocks,
 		isFollowHidden,
 		isCheckUpdatesHidden,
 		isAllUpdatesHidden,
+		linkText,
 	] );
 
 	const detach = useCallback( () => {
 		registry.batch( () => {
 			replaceInnerBlocks(
 				clientId,
-				syncedBlocks.map( ( block ) =>
+				( linkText
+					? withAllUpdatesText( syncedBlocks, linkText )
+					: syncedBlocks
+				).map( ( block ) =>
 					cloneBlock(
 						block as unknown as Parameters< typeof cloneBlock >[ 0 ]
 					)
 				),
 				false
 			);
-			setAttributes( { layoutId: 0 } );
+			setAttributes( { layoutId: 0, allUpdatesLinkText: '' } );
 		} );
 	}, [
 		registry,
 		syncedBlocks,
+		linkText,
 		clientId,
 		replaceInnerBlocks,
 		setAttributes,
@@ -1471,6 +1491,7 @@ export default function Edit( {
 				);
 				setAttributes( {
 					layoutId: 0,
+					allUpdatesLinkText: '',
 					...switchLayoutAttributes( layout.slug, replaced, align ),
 				} );
 			} );
@@ -2013,6 +2034,38 @@ export default function Edit( {
 								}
 							/>
 						</ToggleGroupControl>
+						{ allUpdatesLink !== false &&
+							layoutLinkText !== null && (
+								<TextControl
+									__next40pxDefaultSize
+									label={ __(
+										'Link text',
+										'newspack-rolling-coverage'
+									) }
+									help={
+										layoutLinkText
+											? sprintf(
+													/* translators: %s: the link text the shared layout sets, e.g. "See all entries". */
+													__(
+														'Leave empty to use the layout’s text, “%s”.',
+														'newspack-rolling-coverage'
+													),
+													layoutLinkText
+												)
+											: __(
+													'Leave empty to use the layout’s text.',
+													'newspack-rolling-coverage'
+												)
+									}
+									placeholder={ layoutLinkText }
+									value={ allUpdatesLinkText ?? '' }
+									onChange={ ( value: string ) =>
+										setAttributes( {
+											allUpdatesLinkText: value,
+										} )
+									}
+								/>
+							) }
 					</>
 				) : (
 					<>
