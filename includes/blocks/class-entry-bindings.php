@@ -210,8 +210,8 @@ class Entry_Bindings {
 	 * An untitled entry's opening words as its title, for a Post Title
 	 * carrying ENTRY_LINK_CLASS inside an entry: its excerpt when it has one,
 	 * else the start of its text. The title then renders and links as one of
-	 * the entry's own would (see link_title_to_breakout()). A
-	 * password-protected entry keeps its empty title.
+	 * the entry's own would (see link_title_to_breakout()). A restricted
+	 * entry (see is_restricted()) keeps its empty title.
 	 *
 	 * Only that block's own lookup gets the words: has_title() in
 	 * Rolling_Coverage_Block::render_entry() and every other caller during the
@@ -305,7 +305,7 @@ class Entry_Bindings {
 	 * whoever loads the page first, and cache the result for everyone. The
 	 * call builds the entry's teaser, which Newspack caches. It reports no
 	 * gate while WooCommerce Memberships is active, as Newspack's gates stand
-	 * down then.
+	 * down then, nor on Newspack before 6.53.0, which doesn't have it.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return bool
@@ -319,6 +319,7 @@ class Entry_Bindings {
 			return false;
 		}
 
+		// A gate that shows no free preview gives an empty teaser, so only null means ungated.
 		return null !== \Newspack\Content_Gate::get_teaser_outside_article( $entry );
 	}
 

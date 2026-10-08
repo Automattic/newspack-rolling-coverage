@@ -244,16 +244,18 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Password-protected and gated entries, titled or not.
+	 * Password-protected and gated entries, titled or not, with the title
+	 * each is announced under; null stands for the coverage name.
 	 *
-	 * @return array<string,array{string,string}>
+	 * @return array<string,array{string,string,string|null}>
 	 */
 	public function restricted_entries(): array {
 		return [
-			'titled, password-protected'   => [ 'password', 'Count update' ],
-			'untitled, password-protected' => [ 'password', '' ],
-			'titled, gated'                => [ 'gate', 'Count update' ],
-			'untitled, gated'              => [ 'gate', '' ],
+			'titled, password-protected'     => [ 'password', 'Count update', 'Protected: Count update' ],
+			'untitled, password-protected'   => [ 'password', '', null ],
+			'titled, gated'                  => [ 'gate', 'Count update', 'Count update' ],
+			'untitled, gated'                => [ 'gate', '', null ],
+			'untitled, gated with no teaser' => [ 'gate with no teaser', '', null ],
 		];
 	}
 
@@ -265,10 +267,11 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	 *
 	 * @dataProvider restricted_entries
 	 *
-	 * @param string $restriction 'password' or 'gate'.
-	 * @param string $title       Entry title.
+	 * @param string      $restriction    'password', 'gate', or 'gate with no teaser'.
+	 * @param string      $title          Entry title.
+	 * @param string|null $expected_title Notification title, or null for the coverage name.
 	 */
-	public function test_restricted_entry_is_announced_without_its_text( string $restriction, string $title ) {
+	public function test_restricted_entry_is_announced_without_its_text( string $restriction, string $title, ?string $expected_title ) {
 		$coverage_id = self::create_coverage_with_canonical_url();
 		$entry_id    = self::create_entry(
 			$coverage_id,
@@ -283,6 +286,9 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		if ( 'gate' === $restriction ) {
 			$this->gate_entry( $entry_id );
 		}
+		if ( 'gate with no teaser' === $restriction ) {
+			$this->gate_entry( $entry_id, '' );
+		}
 		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
 
 		wp_publish_post( $entry_id );
@@ -290,7 +296,7 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		$sent_notifications = self::get_sent_notifications();
 
 		$this->assertCount( 1, $sent_notifications );
-		$this->assertStringContainsString( '' !== $title ? $title : get_term( $coverage_id )->name, $sent_notifications[0]['title'] );
+		$this->assertSame( $expected_title ?? get_term( $coverage_id )->name, $sent_notifications[0]['title'] );
 		$this->assertSame( 'Read the latest update.', $sent_notifications[0]['content'] );
 	}
 
@@ -433,10 +439,31 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A photo posted on its own has no words to announce. It is not opted in,
-	 * since followers would get a notification with an empty message.
+	 * Image-only Slack entries, without and with a content gate.
+	 *
+	 * @return array<string,array{bool}>
 	 */
-	public function test_slack_entry_holding_only_an_image_is_not_opted_in() {
+	public function image_only_slack_entries(): array {
+		return [
+			'open'  => [ false ],
+			'gated' => [ true ],
+		];
+	}
+
+	/**
+	 * A photo posted on its own has no words to announce, whether or not a
+	 * gate covers it. It is not opted in, since followers would get a
+	 * notification with nothing of the entry in it.
+	 *
+	 * @dataProvider image_only_slack_entries
+	 *
+	 * @param bool $gated Whether a content gate covers the entry as it's ingested.
+	 */
+	public function test_slack_entry_holding_only_an_image_is_not_opted_in( bool $gated ) {
+		if ( $gated ) {
+			add_action( 'newspack_rolling_coverage_entry_ingested', fn( $entry_id ) => $this->gate_entry( $entry_id ), 9 );
+		}
+
 		$entry_id = self::ingest_slack_message(
 			self::create_coverage_with_canonical_url(),
 			true,

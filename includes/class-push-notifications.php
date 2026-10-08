@@ -281,8 +281,8 @@ class Push_Notifications {
 
 		$post = get_post( $post_id );
 
-		// An entry holding only an image has no words for the notification to carry.
-		if ( ! $post instanceof WP_Post || '' === self::build_notification_content( $post ) ) {
+		// An entry holding only an image has nothing to announce, restricted or not.
+		if ( ! $post instanceof WP_Post || '' === self::get_entry_words( $post ) ) {
 			return;
 		}
 
@@ -445,12 +445,12 @@ class Push_Notifications {
 			return false;
 		}
 
-		$content = self::build_notification_content( $entry );
-
-		// An untitled entry with no words everyone may read has nothing to announce, and nothing members-only may stand in.
-		if ( '' === $content && '' === trim( wp_strip_all_tags( $entry->post_title ) ) ) {
+		// An untitled entry with no words outside its members-only blocks has nothing to announce, restricted or not.
+		if ( '' === trim( wp_strip_all_tags( $entry->post_title ) ) && '' === self::get_entry_words( $entry ) ) {
 			return false;
 		}
+
+		$content = self::build_notification_content( $entry );
 
 		$title = self::build_notification_title( $entry, $coverage_id );
 
@@ -499,23 +499,36 @@ class Push_Notifications {
 	}
 
 	/**
-	 * Builds the notification body text from a short excerpt of the entry's
-	 * written content, leaving out anything members-only: a notification
-	 * reaches every follower. A restricted entry (see
-	 * Entry_Bindings::is_restricted()) gets a neutral line instead, so
-	 * followers still hear about it and meet the gate or password on the
-	 * site.
+	 * Builds the notification body text from the entry's words (see
+	 * get_entry_words()): a notification reaches every follower. A
+	 * restricted entry (see Entry_Bindings::is_restricted()) gets a neutral
+	 * line instead, so followers still hear about it and meet the gate or
+	 * password on the site.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return string Notification body text.
 	 */
 	private static function build_notification_content( WP_Post $entry ): string {
 		if ( Entry_Bindings::is_restricted( $entry ) ) {
+			/* translators: Push notification text sent in place of a new entry's words when readers need access to read it, such as a subscription or a password. */
 			return __( 'Read the latest update.', 'newspack-rolling-coverage' );
 		}
 
+		return self::get_entry_words( $entry );
+	}
+
+	/**
+	 * The entry's hand-written excerpt, else its opening words without the
+	 * blocks Newspack hides from the public, cut to 15 words. Read for a
+	 * restricted entry too, but only to decide whether it has anything to
+	 * announce: build_notification_content() never sends them.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return string Plain text.
+	 */
+	private static function get_entry_words( WP_Post $entry ): string {
 		if ( ! has_excerpt( $entry ) ) {
-			return Entry_Bindings::public_summary( $entry, 15 );
+			return Post_Type::get_html_summary( Entry_Bindings::public_content( $entry ), 15 );
 		}
 
 		return wp_trim_words( html_entity_decode( get_the_excerpt( $entry ), ENT_QUOTES, 'UTF-8' ), 15, '…' );
