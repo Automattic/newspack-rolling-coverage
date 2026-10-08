@@ -133,18 +133,18 @@ function cssDeclarations( css: string ): string[][] {
 		.filter( ( [ property, value ] ) => property && value );
 }
 
-// Attributes whose value the browser loads or navigates to, the only places a
-// data: URL can render a document.
+// The attributes where a data: URL could open a document: frame sources and
+// link or form targets. Other URL attributes, like srcset, only load images.
 const URL_ATTRIBUTES = [ 'href', 'src', 'xlink:href', 'action', 'formaction' ];
 
 /**
  * Removes active content from an HTML fragment before it is inserted into the
  * page: scripts, object/embed, base, http-equiv meta and SVG animate and set
  * elements, inline event handlers, an iframe's srcdoc, javascript: and
- * vbscript: URLs in any attribute, and data: URLs where the browser would load
- * or navigate to them. Every fragment a feed inserts client-side passes
- * through here — entries and ad markup alike, from a poll, load more or the
- * jump to the live feed. The fetches accept only same-origin replies of the
+ * vbscript: URLs in any attribute, and data: URLs in the attributes listed in
+ * URL_ATTRIBUTES. Every fragment a feed inserts client-side passes through
+ * here — entries and ad markup alike, from a poll, load more or the jump to
+ * the live feed. The fetches accept only same-origin replies of the
  * type the feed expects, so this is a second line behind them against markup
  * an account without unfiltered_html could plant. A provider's ad placeholder
  * survives it; the ad's own script loads the creative later.
