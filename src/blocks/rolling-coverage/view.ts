@@ -133,32 +133,85 @@ function cssDeclarations( css: string ): string[][] {
 		.filter( ( [ property, value ] ) => property && value );
 }
 
+// The attributes where a data: URL could open a document: frame sources and
+// link or form targets. Other URL attributes, like srcset, only load images.
+const URL_ATTRIBUTES = [ 'href', 'src', 'xlink:href', 'action', 'formaction' ];
+
 /**
- * Strips <script> tags and on* event handler attributes from an HTML
- * string as a defense-in-depth measure against XSS. The HTML is
- * already sanitized server-side by WordPress's block rendering pipeline
- * (including KSES), but this prevents execution if a compromised or
- * unfiltered-html account injected inline scripts.
+ * Removes active content from an HTML fragment before it is inserted into the
+ * page: scripts, object/embed, base, http-equiv meta and SVG animate and set
+ * elements, inline event handlers, an iframe's srcdoc, javascript: and
+ * vbscript: URLs in any attribute, and data: URLs in the attributes listed in
+ * URL_ATTRIBUTES. Every fragment a feed inserts client-side passes through
+ * here — entries and ad markup alike, from a poll, load more or the jump to
+ * the live feed. The fetches accept only same-origin replies of the
+ * type the feed expects, so this is a second line behind them against markup
+ * an account without unfiltered_html could plant. A provider's ad placeholder
+ * survives it; the ad's own script loads the creative later.
  *
- * @param {string} html Raw HTML from the REST API.
+ * @param {string} html Raw HTML a feed inserts: a REST reply, or the live feed page.
  * @return {string} Sanitized HTML safe for DOM insertion.
  */
 function sanitizeHtml( html: string ): string {
 	const doc = new DOMParser().parseFromString( html, 'text/html' );
 
-	// Remove all <script> elements.
-	doc.querySelectorAll( 'script' ).forEach( ( el ) => el.remove() );
+	// Elements that run or embed active content, or act on the page once
+	// inserted: base re-points relative links, an http-equiv meta can redirect,
+	// and SVG animation can set a link's href to a javascript: URL.
+	doc.querySelectorAll(
+		'script, object, embed, base, meta[http-equiv], animate, set'
+	).forEach( ( el ) => el.remove() );
 
-	// Remove all on* event handler attributes.
 	doc.querySelectorAll( '*' ).forEach( ( el ) => {
 		Array.from( el.attributes ).forEach( ( attr ) => {
-			if ( attr.name.startsWith( 'on' ) ) {
+			const name = attr.name.toLowerCase();
+
+			// on* event handlers, and an iframe's inline srcdoc document.
+			if ( name.startsWith( 'on' ) || name === 'srcdoc' ) {
+				el.removeAttribute( attr.name );
+				return;
+			}
+
+			// The scheme as the browser's URL parser reads it: leading spaces
+			// and control characters trimmed, tabs and line breaks dropped.
+			const value = attr.value
+				.replace( /^[\u0000- ]+/, '' )
+				.replace( /[\t\n\r]/g, '' )
+				.toLowerCase();
+
+			// javascript: and vbscript: go from any attribute, which also covers
+			// a data-* value a script later uses as a link. data: goes only from
+			// URL attributes, so an alt text or caption that opens with "Data:"
+			// survives.
+			if (
+				/^(?:javascript|vbscript):/.test( value ) ||
+				( value.startsWith( 'data:' ) &&
+					URL_ATTRIBUTES.includes( name ) )
+			) {
 				el.removeAttribute( attr.name );
 			}
 		} );
 	} );
 
 	return doc.body.innerHTML;
+}
+
+/**
+ * Whether a URL resolves to the page's own origin. A malformed URL is treated
+ * as off-origin.
+ *
+ * @param {string} url URL, absolute or relative to the page.
+ * @return {boolean} True when the URL is same-origin with the page.
+ */
+function isSameOrigin( url: string ): boolean {
+	try {
+		return (
+			new URL( url, window.location.href ).origin ===
+			window.location.origin
+		);
+	} catch {
+		return false;
+	}
 }
 
 /**
@@ -361,21 +414,33 @@ function topBarsBottom( block: HTMLElement ): number {
  * on the page keeps, so entries keep loading there at the cost of the shared
  * reply.
  *
+ * The reply is dropped when a redirect carried the request to another origin,
+ * so the feed stays on this site as initBlock() required of its URL, and when
+ * a successful reply isn't JSON: the entries route always answers in JSON, so
+ * a same-origin file such as an upload can't stand in for it.
+ *
  * @param {string} url Entries URL.
- * @return {Promise<Response>} The reply, from the repeated request if the first was refused.
+ * @return {Promise<Response>} The reply, or a failed one when it came from another origin or isn't JSON.
  */
 async function fetchEntries( url: string ): Promise< Response > {
 	const credentials = entriesCredentials;
-	const response = await fetch( url, { credentials } );
+	let response = await fetch( url, { credentials } );
 	const isRefused = response.status === 401 || response.status === 403;
 
-	if ( credentials !== 'omit' || ! isRefused ) {
-		return response;
+	if ( credentials === 'omit' && isRefused ) {
+		entriesCredentials = 'same-origin';
+		response = await fetch( url, { credentials: entriesCredentials } );
 	}
 
-	entriesCredentials = 'same-origin';
+	const isJson = ( response.headers.get( 'content-type' ) ?? '' )
+		.toLowerCase()
+		.includes( 'json' );
 
-	return fetch( url, { credentials: entriesCredentials } );
+	if ( ! isSameOrigin( response.url ) || ( response.ok && ! isJson ) ) {
+		return new Response( null, { status: 502 } );
+	}
+
+	return response;
 }
 
 /**
@@ -397,6 +462,21 @@ function initBlock( root: HTMLElement ): void {
 	);
 
 	if ( ! restUrl || ! entriesListEl ) {
+		return;
+	}
+
+	// The feed's REST URL comes from the block's markup, which an author
+	// without unfiltered_html can still set. Honour it only when it points at
+	// this site, so a planted root can't make the page fetch entries from
+	// another origin and insert the reply. A page served from a host other
+	// than the REST URL's, such as an alias domain nothing redirects, stays a
+	// static first page; the warning says why.
+	if ( ! isSameOrigin( restUrl ) ) {
+		// eslint-disable-next-line no-console
+		console.warn(
+			'Rolling Coverage: not starting a feed whose REST URL is on another origin.',
+			restUrl
+		);
 		return;
 	}
 
@@ -1380,8 +1460,13 @@ function initBlock( root: HTMLElement ): void {
 
 		try {
 			const response = await fetch( url, { signal: controller.signal } );
+			// Only a page can hold the live feed; a same-origin file such as
+			// an upload is left to the link.
+			const isHtml = ( response.headers.get( 'content-type' ) ?? '' )
+				.toLowerCase()
+				.includes( 'text/html' );
 			const doc = new DOMParser().parseFromString(
-				response.ok ? await response.text() : '',
+				response.ok && isHtml ? await response.text() : '',
 				'text/html'
 			);
 			const live = findBlockIn( doc );
@@ -1428,13 +1513,13 @@ function initBlock( root: HTMLElement ): void {
 			'.newspack-rolling-coverage-new-entries'
 		);
 		const control = liveControl
-			? parseElement( liveControl.outerHTML )
+			? parseElement( sanitizeHtml( liveControl.outerHTML ) )
 			: null;
 
 		cleanup();
 
 		entriesList.replaceChildren(
-			parseFragment( liveEntries?.innerHTML ?? '' )
+			parseFragment( sanitizeHtml( liveEntries?.innerHTML ?? '' ) )
 		);
 
 		if ( control ) {
@@ -1783,7 +1868,9 @@ function initBlock( root: HTMLElement ): void {
 				return;
 			}
 
-			const adEl = entry.adHtml ? parseElement( entry.adHtml ) : null;
+			const adEl = entry.adHtml
+				? parseElement( sanitizeHtml( entry.adHtml ) )
+				: null;
 
 			newEntries.push( { el: entryEl, adSlot: entry.adSlot, adEl } );
 		} );
@@ -2329,7 +2416,7 @@ function initBlock( root: HTMLElement ): void {
 				}
 
 				if ( data.count > 0 ) {
-					const fragment = parseFragment( data.html );
+					const fragment = parseFragment( sanitizeHtml( data.html ) );
 
 					// Count how many entries were appended so the next page's offset can be correct.
 					let appended = 0;
