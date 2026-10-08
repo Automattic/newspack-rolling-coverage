@@ -1,7 +1,11 @@
 /**
  * WordPress dependencies
  */
-import { InspectorControls, useBlockProps } from '@wordpress/block-editor';
+import {
+	InspectorControls,
+	useBlockProps,
+	store as blockEditorStore,
+} from '@wordpress/block-editor';
 import { Notice, PanelBody } from '@wordpress/components';
 import { store as coreStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
@@ -17,6 +21,7 @@ import { nextCheckLabel } from '../rolling-coverage/entry-name';
 import type { UpdateTimerAttributes } from './types';
 
 interface UpdateTimerConfig {
+	minPollInterval: number;
 	sourceEntryField: string;
 	statusMetaKey: string;
 	taxonomySlug: string;
@@ -30,10 +35,12 @@ declare global {
 
 const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
 const VIEW_CONTEXT = { context: 'view' };
-const PREVIEW_SECONDS = 7;
+const FEED_BLOCK_NAME = 'newspack-rolling-coverage/rolling-coverage';
+const DEFAULT_POLL_INTERVAL = 10;
 const PREVIEW_OFFSET = 30;
 
 const config: UpdateTimerConfig = window.newspackUpdateTimerBlock ?? {
+	minPollInterval: 0,
 	sourceEntryField: 'rolling_coverage_source_entry',
 	statusMetaKey: 'rolling_coverage_status',
 	taxonomySlug: 'rolling_coverage',
@@ -44,15 +51,18 @@ const config: UpdateTimerConfig = window.newspackUpdateTimerBlock ?? {
  * Coverage panel outside a Rolling Coverage block.
  *
  * @param {Object}   props               Block props.
+ * @param {string}   props.clientId      Block client ID.
  * @param {Object}   props.attributes    Block attributes.
  * @param {Function} props.setAttributes Attribute setter.
  * @param {Object}   props.context       Block context.
  */
 export default function Edit( {
+	clientId,
 	attributes,
 	setAttributes,
 	context,
 }: {
+	clientId: string;
 	attributes: UpdateTimerAttributes;
 	setAttributes: ( attrs: Partial< UpdateTimerAttributes > ) => void;
 	context?: Record< string, unknown >;
@@ -74,6 +84,43 @@ export default function Edit( {
 		statusMetaKey: config.statusMetaKey,
 		sourceEntryField: config.sourceEntryField,
 	} );
+
+	const pollInterval = useSelect(
+		( select ) => {
+			const blockEditor = select( blockEditorStore ) as unknown as {
+				getBlockParentsByBlockName: (
+					id: string,
+					name: string,
+					ascending?: boolean
+				) => string[];
+				getBlocksByName: ( name: string ) => string[];
+				getBlockAttributes: (
+					id: string
+				) => Record< string, unknown > | null;
+			};
+			const [ parent ] = blockEditor.getBlockParentsByBlockName(
+				clientId,
+				FEED_BLOCK_NAME,
+				true
+			);
+			const feeds = (
+				parent
+					? [ parent ]
+					: blockEditor.getBlocksByName( FEED_BLOCK_NAME )
+			)
+				.map( ( id ) => blockEditor.getBlockAttributes( id ) )
+				.filter(
+					( attrs ) =>
+						attrs &&
+						( parent || Number( attrs.coverageId ) === followed )
+				);
+			const feed =
+				feeds.find( ( attrs ) => ! attrs?.latestOnly ) ?? feeds[ 0 ];
+
+			return Number( feed?.pollInterval ) || DEFAULT_POLL_INTERVAL;
+		},
+		[ clientId, followed ]
+	);
 
 	const hasEnded = useSelect(
 		( select ) => {
@@ -187,7 +234,9 @@ export default function Edit( {
 					/>
 				</svg>
 				<span className="newspack-rolling-coverage-update-timer__text">
-					{ nextCheckLabel( PREVIEW_SECONDS ) }
+					{ nextCheckLabel(
+						Math.max( pollInterval, config.minPollInterval )
+					) }
 				</span>
 			</div>
 		</>

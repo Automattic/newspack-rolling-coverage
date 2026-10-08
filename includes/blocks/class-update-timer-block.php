@@ -60,6 +60,7 @@ class Update_Timer_Block {
 				$handle,
 				'newspackUpdateTimerBlock',
 				[
+					'minPollInterval'  => Rolling_Coverage_Block::get_min_poll_interval(),
 					'sourceEntryField' => Breakout::BREAKOUT_SOURCE_ENTRY_FIELD,
 					'statusMetaKey'    => Taxonomy::STATUS_META_KEY,
 					'taxonomySlug'     => Taxonomy::TAXONOMY_SLUG,
