@@ -362,21 +362,3 @@ export function newEntriesFoundLabel(
 		count
 	);
 }
-
-/**
- * The Update Timer's text, for a moment, after a check found nothing new.
- *
- * @param {EntryName|null} name The site's name for entries.
- * @return {string} The text.
- */
-export function noNewEntriesFoundLabel( name: EntryName | null ): string {
-	if ( name ) {
-		return sprintf(
-			/* translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence. */
-			__( 'No new %s', 'newspack-rolling-coverage' ),
-			name.plural
-		);
-	}
-
-	return __( 'No new entries', 'newspack-rolling-coverage' );
-}

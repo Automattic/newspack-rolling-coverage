@@ -12,7 +12,7 @@ The block has no polling of its own. It follows the Rolling Coverage feed's chec
 
 - **Which feed.** `chooseFeed()` takes the enclosing feed when its `data-coverage-id` matches the timer's. Otherwise it keeps the feed it follows while that one isn't `idle` or capped (`data-latest`), else takes the first non-`idle` feed on the page for the coverage without `data-latest` (as the server's Automatic mode skips capped feeds), then any non-`idle` one. It re-chooses on every check event, so a timer moves to another feed when its own goes idle or leaves the page, and a switch clears the previous feed's result. A detached timer stops its tick.
 - **Load order.** On load each timer reads its feed's root attributes, so it doesn't matter which view script runs first.
-- **States.** The timer copies the feed's state to its own `data-check-state` and is hidden while `idle`. `checking` shows "Checking…". `waiting` ticks the text every 250ms; a result carried by the report replaces the countdown text for three seconds.
+- **States.** The timer copies the feed's state to its own `data-check-state` and is hidden while `idle`. `checking` shows "Checking…". `waiting` ticks the text every 250ms; a result carried by the report replaces the countdown text for three seconds when it brought entries or failed; a check that found nothing shows no result.
 
 ## The spinner
 
@@ -20,7 +20,7 @@ It copies the Newspack UI loading spinner rather than using it, since the plugin
 
 ## Labels
 
-`nextCheckLabel()`, `newEntriesFoundLabel()` and `noNewEntriesFoundLabel()` in `src/blocks/rolling-coverage/entry-name.ts`. The entry name comes from the followed feed's `data-entry-name`, so the block needs no setting of its own.
+`nextCheckLabel()` and `newEntriesFoundLabel()` in `src/blocks/rolling-coverage/entry-name.ts`. The entry name comes from the followed feed's `data-entry-name`, so the block needs no setting of its own.
 
 ## Editor preview
 

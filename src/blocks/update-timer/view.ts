@@ -15,7 +15,6 @@ import {
 import {
 	nextCheckLabel,
 	newEntriesFoundLabel,
-	noNewEntriesFoundLabel,
 	readEntryName,
 } from '../rolling-coverage/entry-name';
 import './style.scss';
@@ -104,22 +103,21 @@ function chooseFeed( timer: HTMLElement, state: TimerState ): void {
 }
 
 /**
- * The text for a check's result.
+ * The text for a check's result, or nothing when the check found nothing
+ * new: readers see that in the feed, so the countdown carries on.
  *
  * @param {CheckResult} result What the check found.
  * @param {HTMLElement} feed   The feed that ran it, which carries the entry name.
- * @return {string} The text.
+ * @return {string} The text, or an empty string.
  */
 function resultLabel( result: CheckResult, feed: HTMLElement ): string {
 	if ( result.outcome === 'failed' ) {
 		return __( 'Couldn’t check', 'newspack-rolling-coverage' );
 	}
 
-	const name = readEntryName( feed );
-
 	return result.added > 0
-		? newEntriesFoundLabel( result.added, name )
-		: noNewEntriesFoundLabel( name );
+		? newEntriesFoundLabel( result.added, readEntryName( feed ) )
+		: '';
 }
 
 /**
@@ -216,7 +214,7 @@ document.addEventListener( CHECK_EVENT, ( event ) => {
 
 		if ( state.feed === detail.feed && detail.result ) {
 			state.resultText = resultLabel( detail.result, detail.feed );
-			state.resultUntil = Date.now() + RESULT_MS;
+			state.resultUntil = state.resultText ? Date.now() + RESULT_MS : 0;
 		}
 
 		render( timer );
