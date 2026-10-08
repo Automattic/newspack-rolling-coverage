@@ -2,7 +2,7 @@
  * WordPress dependencies
  */
 import { registerBlockType } from '@wordpress/blocks';
-import { update } from '@wordpress/icons';
+import { time } from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -15,7 +15,7 @@ import type { UpdateTimerAttributes } from './types';
 
 registerBlockType< UpdateTimerAttributes >( metadata, {
 	category: getBlockCategory(),
-	icon: blockIcon( update ),
+	icon: blockIcon( time ),
 	edit: Edit,
 	save: () => null,
 } );
