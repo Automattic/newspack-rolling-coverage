@@ -325,3 +325,58 @@ export function nextCheckLabel( seconds: number ): string {
 		seconds
 	);
 }
+
+/**
+ * The Update Timer's text, for a moment, after a check brought entries.
+ *
+ * @param {number}         count How many entries arrived.
+ * @param {EntryName|null} name  The site's name for entries.
+ * @return {string} The text.
+ */
+export function newEntriesFoundLabel(
+	count: number,
+	name: EntryName | null
+): string {
+	if ( name ) {
+		return sprintf(
+			/* translators: 1: number of new coverage entries a check found. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
+			_n(
+				'%1$d new %2$s',
+				'%1$d new %2$s',
+				count,
+				'newspack-rolling-coverage'
+			),
+			count,
+			count === 1 ? name.singular : name.plural
+		);
+	}
+
+	return sprintf(
+		/* translators: %d: number of new coverage entries a check found. */
+		_n(
+			'%d new entry',
+			'%d new entries',
+			count,
+			'newspack-rolling-coverage'
+		),
+		count
+	);
+}
+
+/**
+ * The Update Timer's text, for a moment, after a check found nothing new.
+ *
+ * @param {EntryName|null} name The site's name for entries.
+ * @return {string} The text.
+ */
+export function noNewEntriesFoundLabel( name: EntryName | null ): string {
+	if ( name ) {
+		return sprintf(
+			/* translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence. */
+			__( 'No new %s', 'newspack-rolling-coverage' ),
+			name.plural
+		);
+	}
+
+	return __( 'No new entries', 'newspack-rolling-coverage' );
+}
