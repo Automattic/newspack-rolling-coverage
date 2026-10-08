@@ -1109,11 +1109,10 @@ class Entry_Bindings {
 	/**
 	 * Whether a parsed block belongs to the coverage rather than to each
 	 * entry, so it renders once: the Follow Coverage block, the Check for
-	 * Updates block, the Coverage Status block, the Update Timer block, a heading bound to the
-	 * coverage's name, the all-updates paragraph, or a block holding
-	 * one at any depth. The pinned
-	 * card and the entry group always belong to each entry, whatever they
-	 * hold.
+	 * Updates block, the Coverage Status block, the Update Timer block, a
+	 * heading bound to the coverage's name, the all-updates paragraph, or a
+	 * block holding one at any depth. The pinned card and the entry group
+	 * always belong to each entry, whatever they hold.
 	 *
 	 * @param array $parsed_block Parsed block.
 	 * @return bool

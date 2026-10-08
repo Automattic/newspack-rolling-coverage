@@ -163,8 +163,9 @@ class Test_Update_Timer_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Nothing without a coverage, or once it has ended; a paused coverage
-	 * keeps it, since the feed counts down again when it resumes.
+	 * Nothing without a coverage, or once it has ended. A paused coverage still
+	 * renders the hidden markup, so the page has it ready; it shows on a later
+	 * render once the coverage is live.
 	 */
 	public function test_renders_nothing_without_a_live_or_paused_coverage() {
 		$this->go_to( home_url( '/' ) );
