@@ -66,9 +66,10 @@ function stateOf( timer: HTMLElement ): TimerState {
 }
 
 /**
- * Picks the feed a timer follows: the one around it, else the one it
- * already follows while that is still counting down, else the first feed
- * for its coverage on the page that is.
+ * Picks the feed a timer follows: the one around it when it is for the same
+ * coverage, else the one it already follows while that isn't idle, else the
+ * first feed for its coverage on the page that isn't idle, preferring an
+ * uncapped one as the server's Automatic mode does.
  *
  * @param {HTMLElement} timer The timer's wrapper.
  * @param {TimerState}  state Its state.
@@ -77,7 +78,7 @@ function stateOf( timer: HTMLElement ): TimerState {
 function chooseFeed( timer: HTMLElement, state: TimerState ): void {
 	const own = timer.parentElement?.closest< HTMLElement >( FEED_SELECTOR );
 
-	if ( own ) {
+	if ( own && own.dataset.coverageId === timer.dataset.coverageId ) {
 		state.feed = own;
 		return;
 	}
@@ -86,14 +87,18 @@ function chooseFeed( timer: HTMLElement, state: TimerState ): void {
 		return;
 	}
 
+	const candidates = Array.from(
+		document.querySelectorAll< HTMLElement >( FEED_SELECTOR )
+	).filter(
+		( feed ) =>
+			feed.dataset.coverageId === timer.dataset.coverageId &&
+			readCheck( feed ).state !== 'idle'
+	);
+
 	state.feed =
-		Array.from(
-			document.querySelectorAll< HTMLElement >( FEED_SELECTOR )
-		).find(
-			( feed ) =>
-				feed.dataset.coverageId === timer.dataset.coverageId &&
-				readCheck( feed ).state !== 'idle'
-		) ?? null;
+		candidates.find( ( feed ) => ! feed.dataset.latest ) ??
+		candidates[ 0 ] ??
+		null;
 }
 
 /**
@@ -180,6 +185,11 @@ function render( timer: HTMLElement ): void {
 	}
 
 	const tick = () => {
+		if ( ! timer.isConnected ) {
+			stopTick( state );
+			return;
+		}
+
 		const label =
 			Date.now() < state.resultUntil
 				? state.resultText
@@ -195,9 +205,10 @@ function render( timer: HTMLElement ): void {
 		}
 
 		if ( reducedMotion.matches ) {
+			const step = interval >= 1000 ? 100000 / interval : 0;
+
 			circle.style.strokeDashoffset = String(
-				Math.floor( progress() / ( 100000 / interval ) ) *
-					( 100000 / interval )
+				step > 0 ? Math.floor( progress() / step ) * step : progress()
 			);
 		}
 	};
@@ -222,6 +233,11 @@ document.addEventListener( CHECK_EVENT, ( event ) => {
 
 		if ( state.feed !== detail.feed && state.feed === before ) {
 			return;
+		}
+
+		if ( state.feed !== before ) {
+			state.resultText = '';
+			state.resultUntil = 0;
 		}
 
 		if ( state.feed === detail.feed && detail.result ) {

@@ -1143,8 +1143,8 @@ class Rolling_Coverage_Block {
 		$previous_post_id   = self::$host_post_id;
 		self::$host_post_id = (int) get_the_ID();
 
-		// Preload so polled entries' blocks are styled and work even if none appeared on initial render. Those include the photos Slack messages add, and Follow and Status blocks placed in an entry or in a feed nested in one.
-		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon', 'core/image', 'core/gallery', Coverage_Status_Block::BLOCK_NAME ] as $entry_block_name ) {
+		// Preload so polled entries' blocks are styled and work even if none appeared on initial render. Those include the photos Slack messages add, and Follow, Status and Update Timer blocks placed in an entry or in a feed nested in one.
+		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon', 'core/image', 'core/gallery', Coverage_Status_Block::BLOCK_NAME, Update_Timer_Block::BLOCK_NAME ] as $entry_block_name ) {
 			$entry_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $entry_block_name );
 
 			foreach ( $entry_block_type ? $entry_block_type->style_handles : [] as $style_handle ) {
@@ -1154,7 +1154,7 @@ class Rolling_Coverage_Block {
 
 		self::enqueue_template_block_styles( ! empty( $block->parsed_block['innerBlocks'] ) ? $block->parsed_block['innerBlocks'] : self::default_entry_template() );
 
-		$scripted_block_names = [ 'newspack-rolling-coverage/share', Coverage_Status_Block::BLOCK_NAME ];
+		$scripted_block_names = [ 'newspack-rolling-coverage/share', Coverage_Status_Block::BLOCK_NAME, Update_Timer_Block::BLOCK_NAME ];
 
 		// Follow renders nothing until OneSignal is set up.
 		if ( Push_Notifications::is_onesignal_configured() ) {

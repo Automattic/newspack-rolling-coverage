@@ -2076,6 +2076,7 @@ function initBlock( root: HTMLElement ): void {
 		let outcome: PollOutcome = 'failed';
 		const arrivedBefore = arrivedCount;
 		let isStopped = false;
+		let canReport = showsEntries;
 
 		reportCheck( 'checking' );
 
@@ -2117,6 +2118,7 @@ function initBlock( root: HTMLElement ): void {
 
 				minPollInterval = Number( data.minPollInterval ) || 0;
 				outcome = 'ok';
+				canReport = canReport && ! data.overflow;
 
 				if ( typeof data.status === 'string' ) {
 					polledStatus = data.status;
@@ -2149,10 +2151,6 @@ function initBlock( root: HTMLElement ): void {
 					canCount = false;
 					showNewerCount();
 					isStopped = true;
-					checkResult = {
-						outcome: 'ok',
-						added: arrivedCount - arrivedBefore,
-					};
 					reportCheck( 'idle' );
 					return outcome;
 				}
@@ -2197,10 +2195,12 @@ function initBlock( root: HTMLElement ): void {
 			if ( isStopped || isDisposed ) {
 				checkResult = undefined;
 			} else if ( outcome === 'ok' ) {
-				checkResult = {
-					outcome: 'ok',
-					added: arrivedCount - arrivedBefore,
-				};
+				checkResult = canReport
+					? {
+							outcome: 'ok',
+							added: arrivedCount - arrivedBefore,
+						}
+					: undefined;
 			} else if ( outcome === 'failed' ) {
 				checkResult = { outcome: 'failed' };
 			}
