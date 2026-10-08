@@ -521,7 +521,9 @@ class Push_Notifications {
 	 * The entry's hand-written excerpt, else its opening words without the
 	 * blocks Newspack hides from the public, cut to 15 words. Read for a
 	 * restricted entry too, but only to decide whether it has anything to
-	 * announce: build_notification_content() never sends them.
+	 * announce: build_notification_content() never sends them. A
+	 * password-protected entry with an excerpt gets core's "protected post"
+	 * placeholder instead, so it counts as having words.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return string Plain text.

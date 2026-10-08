@@ -272,10 +272,9 @@ class Entry_Bindings {
 	/**
 	 * The first words of what everyone may read of an entry: its content
 	 * without the blocks Newspack hides from the public, or nothing for a
-	 * restricted entry (see is_restricted()). For text shown or sent outside
-	 * the entry itself, such as a share link's name, a push notification or a
-	 * breakout post's title. Decoded plain text, as
-	 * Post_Type::get_html_summary() gives it.
+	 * restricted entry (see is_restricted()). For text shown outside the
+	 * entry itself, such as a share link's name or a breakout post's title.
+	 * Decoded plain text, as Post_Type::get_html_summary() gives it.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @param int     $words Number of words to keep.
