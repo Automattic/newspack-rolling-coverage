@@ -129,6 +129,10 @@ An entry pinned in the coverage stays at the top of the feed with a "Pinned" lab
 
 Feeds set to Latest ignore pinning and show the newest entries only.
 
+### Share
+
+Selecting Share on an entry opens the device's share sheet with a link to that entry. Where the browser has no share sheet, Share copies the link instead and confirms with "Link copied." A feed placed inside another feed's entry shares its own entries the same way.
+
 ### Photo, video, and other media entries
 
 An entry that holds only a photo, gallery, video, audio clip, or embed has no words of its own, so it is described by its media instead: Photo, Gallery, Video, Audio, or Embed. When the media has a caption, the caption follows, for example "Photo: Crowds at the finish line". A photo without a caption uses its alt text. A gallery without a caption uses the caption or alt text of its first image that has one.
