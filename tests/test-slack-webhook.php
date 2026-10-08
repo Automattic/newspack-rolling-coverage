@@ -10,6 +10,7 @@ use Newspack_Rolling_Coverage\Entry_Ingestion_Service;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Slack;
 use Newspack_Rolling_Coverage\Slack_API_Client;
+use Newspack_Rolling_Coverage\Slack_Author_Resolver;
 use Newspack_Rolling_Coverage\Slack_Config;
 use Newspack_Rolling_Coverage\Slack_Ingestion_Service;
 use Newspack_Rolling_Coverage\Slack_Media_Importer;
@@ -654,6 +655,53 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'slack', get_post_meta( $entry->ID, Post_Type::META_ENTRY_SOURCE, true ), 'The entry should be marked as coming from Slack.' );
 		$this->assertSame( 'Riley Sample', get_post_meta( $entry->ID, Post_Type::META_SLACK_AUTHOR_NAME, true ), 'The Slack author name should be recorded.' );
 		$this->assertSame( '1767225600.000100', Slack_Config::get_channel_settings( self::CHANNEL_ID )['last_sync_ts'], 'The channel should remember the last message it ingested.' );
+	}
+
+	/**
+	 * A message from a Slack handle mapped to a WordPress user is credited
+	 * to that user, images included, instead of the bot user.
+	 */
+	public function test_message_from_a_mapped_handle_is_credited_to_that_user() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$author_id = self::factory()->user->create( [ 'role' => 'author' ] );
+		update_user_meta( $author_id, Slack_Author_Resolver::META_SLACK_HANDLE, 'Riley Sample' );
+
+		self::controller()->handle_event( self::webhook_request( self::message_event_body( [ 'files' => [ self::slack_file() ] ] ) ) );
+		$entries = self::get_coverage_entries( $coverage_id );
+
+		$this->assertCount( 1, $entries, 'The message should create one entry.' );
+		$this->assertSame( $author_id, (int) $entries[0]->post_author, 'The mapped user should own the entry.' );
+
+		$images = get_posts(
+			[
+				'post_type'   => 'attachment',
+				'post_parent' => $entries[0]->ID,
+				'post_status' => 'inherit',
+			]
+		);
+
+		$this->assertNotEmpty( $images, 'The image should be attached to the entry.' );
+		$this->assertSame( $author_id, (int) $images[0]->post_author, 'The mapped user should own the image.' );
+	}
+
+	/**
+	 * A message from a member ID mapped to a WordPress user is credited to
+	 * that user.
+	 */
+	public function test_message_from_a_mapped_member_id_is_credited_to_that_user() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$author_id = self::factory()->user->create( [ 'role' => 'author' ] );
+		update_user_meta( $author_id, Slack_Author_Resolver::META_SLACK_HANDLE, 'U0REPORTER' );
+
+		self::controller()->handle_event( self::webhook_request( self::message_event_body() ) );
+		$entries = self::get_coverage_entries( $coverage_id );
+
+		$this->assertCount( 1, $entries, 'The message should create one entry.' );
+		$this->assertSame( $author_id, (int) $entries[0]->post_author, 'The mapped user should own the entry.' );
 	}
 
 	/**
