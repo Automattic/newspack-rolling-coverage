@@ -15,7 +15,6 @@ interface CheckEventDetail {
 	feed: HTMLElement;
 	state: CheckState;
 	nextCheckAt?: number;
-	interval?: number;
 	result?: CheckResult;
 }
 
@@ -23,19 +22,17 @@ interface CheckEventDetail {
  * Reads a feed's check state from its root.
  *
  * @param {HTMLElement} feed The feed's root.
- * @return {Object} The state, and when waiting, when the next check is due and the interval, in milliseconds.
+ * @return {Object} The state, and when waiting, when the next check is due, in milliseconds.
  */
 function readCheck( feed: HTMLElement ): {
 	state: CheckState;
 	nextCheckAt: number;
-	interval: number;
 } {
 	const state = feed.dataset.checkState;
 
 	return {
 		state: state === 'waiting' || state === 'checking' ? state : 'idle',
 		nextCheckAt: Number( feed.dataset.nextCheckAt ) || 0,
-		interval: Number( feed.dataset.checkInterval ) || 0,
 	};
 }
 
