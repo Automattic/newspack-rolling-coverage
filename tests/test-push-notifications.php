@@ -215,7 +215,7 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	/**
 	 * An untitled entry's notification text leaves out what Newspack hides
 	 * from the public, as every follower receives it. An entry with nothing
-	 * else to say, or a password-protected one, isn't announced.
+	 * else to say isn't announced.
 	 */
 	public function test_untitled_entry_is_announced_without_members_only_text() {
 		$this->use_block_visibility_stub();
@@ -231,15 +231,8 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		);
 		$mixed_id    = $entry( self::members_only_paragraph( 'Members hear the result first.' ) . '<!-- wp:paragraph --><p>Doors open at 7pm.</p><!-- /wp:paragraph -->' );
 		$hidden_id   = $entry( self::members_only_paragraph( 'Members hear the result first.' ) );
-		$secret_id   = $entry( '<!-- wp:paragraph --><p>The result is in.</p><!-- /wp:paragraph -->' );
-		wp_update_post(
-			[
-				'ID'            => $secret_id,
-				'post_password' => 'secret',
-			]
-		);
 
-		foreach ( [ $mixed_id, $hidden_id, $secret_id ] as $entry_id ) {
+		foreach ( [ $mixed_id, $hidden_id ] as $entry_id ) {
 			update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
 			wp_publish_post( $entry_id );
 		}
@@ -251,20 +244,45 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A titled password-protected entry is announced by its title alone: its
-	 * hand-written excerpt is protected text too.
+	 * Password-protected and gated entries, titled or not.
+	 *
+	 * @return array<string,array{string,string}>
 	 */
-	public function test_protected_entry_is_announced_without_its_excerpt() {
-		$entry_id = self::create_entry(
-			self::create_coverage_with_canonical_url(),
+	public function restricted_entries(): array {
+		return [
+			'titled, password-protected'   => [ 'password', 'Count update' ],
+			'untitled, password-protected' => [ 'password', '' ],
+			'titled, gated'                => [ 'gate', 'Count update' ],
+			'untitled, gated'              => [ 'gate', '' ],
+		];
+	}
+
+	/**
+	 * An entry a signed-out reader can't read is still announced, with a
+	 * neutral line in place of its text, its hand-written excerpt included:
+	 * the notification reaches every follower. An untitled one goes out
+	 * under the coverage name.
+	 *
+	 * @dataProvider restricted_entries
+	 *
+	 * @param string $restriction 'password' or 'gate'.
+	 * @param string $title       Entry title.
+	 */
+	public function test_restricted_entry_is_announced_without_its_text( string $restriction, string $title ) {
+		$coverage_id = self::create_coverage_with_canonical_url();
+		$entry_id    = self::create_entry(
+			$coverage_id,
 			[
 				'post_status'   => 'draft',
-				'post_title'    => 'Count update',
+				'post_title'    => $title,
 				'post_excerpt'  => 'The result is in.',
-				'post_password' => 'secret',
+				'post_password' => 'password' === $restriction ? 'secret' : '',
 				'post_content'  => '<!-- wp:paragraph --><p>The result is in.</p><!-- /wp:paragraph -->',
 			]
 		);
+		if ( 'gate' === $restriction ) {
+			$this->gate_entry( $entry_id );
+		}
 		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
 
 		wp_publish_post( $entry_id );
@@ -272,7 +290,8 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		$sent_notifications = self::get_sent_notifications();
 
 		$this->assertCount( 1, $sent_notifications );
-		$this->assertSame( '', $sent_notifications[0]['content'] );
+		$this->assertStringContainsString( '' !== $title ? $title : get_term( $coverage_id )->name, $sent_notifications[0]['title'] );
+		$this->assertSame( 'Read the latest update.', $sent_notifications[0]['content'] );
 	}
 
 	/**

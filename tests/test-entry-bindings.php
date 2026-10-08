@@ -322,6 +322,26 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An untitled entry behind a content gate is shared by the button's text
+	 * alone: its opening words are the gate's to give away.
+	 */
+	public function test_share_name_of_a_gated_entry_holds_none_of_its_words() {
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_title'   => '',
+				'post_content' => '<!-- wp:paragraph --><p>The result is in.</p><!-- /wp:paragraph -->',
+			]
+		);
+		$this->gate_entry( $entry_id );
+
+		$html = self::render( $entry_id );
+
+		$this->assertStringContainsString( 'aria-label="Share"', $html );
+		$this->assertStringNotContainsString( 'The result is in', $html );
+	}
+
+	/**
 	 * The public summary of a password-protected entry is empty, whoever
 	 * asks: an editor holding the password included.
 	 */

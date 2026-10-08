@@ -262,6 +262,24 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Put an entry behind a content gate, through the stand-in for Newspack's
+	 * Content_Gate. Skips the test when the real one is loaded.
+	 *
+	 * @param int $entry_id Entry post ID.
+	 */
+	protected function gate_entry( int $entry_id ): void {
+		if ( ! class_exists( '\\Newspack\\Content_Gate' ) ) {
+			require_once __DIR__ . '/stubs/class-content-gate.php';
+		}
+
+		if ( ! defined( '\\Newspack\\Content_Gate::IS_TEST_STUB' ) ) {
+			$this->markTestSkipped( 'Newspack is loaded; its gates are tested there.' );
+		}
+
+		update_post_meta( $entry_id, \Newspack\Content_Gate::GATED_META, 1 );
+	}
+
+	/**
 	 * A block Newspack hides from the public, as the Block_Visibility
 	 * stand-in marks it.
 	 *

@@ -54,6 +54,8 @@ A notification goes out when an entry is published and one of these is true:
 
 Only readers who followed that coverage are notified. The notification links to the entry on the coverage's canonical URL, so the coverage needs one. If it doesn't, the Push Notifications panel warns you and no notification is sent. An entry notifies once.
 
+The notification shows the entry's title, or the coverage name for an untitled entry, and the entry's first words. It leaves out content shown only to signed-in readers. An entry behind a content gate or a password is announced without any of its text: the notification says "Read the latest update."
+
 An entry that goes live from a schedule notifies at once. An entry published from the entry editor, with Publish in a coverage's entries list, or from Slack notifies on the site's next scheduled-task run.
 
 ## Limits

@@ -246,14 +246,14 @@ class Entry_Bindings {
 	 * with no words outside its media, such as a lone photo, is described by
 	 * its first media block instead (see get_media_title()). Both read the
 	 * entry without the blocks Newspack hides from the public (see
-	 * public_content()). A password protected entry, or a post that isn't an
-	 * entry, has none.
+	 * public_content()). A restricted entry (see is_restricted()), or a post
+	 * that isn't an entry, has none.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return string
 	 */
 	public static function get_fallback_title( WP_Post $entry ): string {
-		if ( Post_Type::CPT_SLUG !== $entry->post_type || post_password_required( $entry ) ) {
+		if ( Post_Type::CPT_SLUG !== $entry->post_type || self::is_restricted( $entry ) ) {
 			return '';
 		}
 
@@ -272,21 +272,54 @@ class Entry_Bindings {
 	/**
 	 * The first words of what everyone may read of an entry: its content
 	 * without the blocks Newspack hides from the public, or nothing for a
-	 * password-protected entry. For text shown or sent outside the entry
-	 * itself, such as a share link's name, a push notification or a breakout
-	 * post's title. Decoded plain text, as Post_Type::get_html_summary()
-	 * gives it.
+	 * restricted entry (see is_restricted()). For text shown or sent outside
+	 * the entry itself, such as a share link's name, a push notification or a
+	 * breakout post's title. Decoded plain text, as
+	 * Post_Type::get_html_summary() gives it.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @param int     $words Number of words to keep.
 	 * @return string
 	 */
 	public static function public_summary( WP_Post $entry, int $words = 8 ): string {
-		if ( '' !== $entry->post_password ) {
+		if ( self::is_restricted( $entry ) ) {
 			return '';
 		}
 
 		return Post_Type::get_html_summary( self::public_content( $entry ), $words );
+	}
+
+	/**
+	 * Whether a reader who isn't signed in is kept from an entry's text: it's
+	 * password protected, or a Newspack content gate covers it. Text built
+	 * from an entry for everyone, such as a share link's name, a push
+	 * notification or the page's schema, leaves a restricted entry's words
+	 * out, its hand-written excerpt included.
+	 *
+	 * The answer must be the same for every reader, since that text is cached
+	 * and sent to all. Content_Gate::get_teaser_outside_article() is the one
+	 * public call that answers so: it judges a gate as Newspack does for a
+	 * post listed outside its own article, for a signed-out reader and without
+	 * passes granted to one request, such as an institution's IP range. Asking
+	 * Content_Restriction_Control directly would grant those passes to
+	 * whoever loads the page first, and cache the result for everyone. The
+	 * call builds the entry's teaser, which Newspack caches. It reports no
+	 * gate while WooCommerce Memberships is active, as Newspack's gates stand
+	 * down then.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return bool
+	 */
+	public static function is_restricted( WP_Post $entry ): bool {
+		if ( '' !== $entry->post_password ) {
+			return true;
+		}
+
+		if ( ! class_exists( '\Newspack\Content_Gate' ) || ! method_exists( '\Newspack\Content_Gate', 'get_teaser_outside_article' ) ) {
+			return false;
+		}
+
+		return null !== \Newspack\Content_Gate::get_teaser_outside_article( $entry );
 	}
 
 	/**

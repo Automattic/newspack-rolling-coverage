@@ -477,16 +477,16 @@ class Push_Notifications {
 	/**
 	 * Builds the notification title from the entry's own title, falling back
 	 * to the coverage name, then the site name, if the entry is untitled.
+	 * Whether it's untitled is read from the stored title: core gives an
+	 * untitled password-protected entry the title "Protected: ".
 	 *
 	 * @param WP_Post $entry       Entry post.
 	 * @param int     $coverage_id Coverage term id.
 	 * @return string Notification title text.
 	 */
 	private static function build_notification_title( WP_Post $entry, int $coverage_id ): string {
-		$entry_title = wp_strip_all_tags( get_the_title( $entry ) );
-
-		if ( '' !== trim( $entry_title ) ) {
-			return $entry_title;
+		if ( '' !== trim( wp_strip_all_tags( $entry->post_title ) ) ) {
+			return wp_strip_all_tags( get_the_title( $entry ) );
 		}
 
 		$coverage_name = get_term_field( 'name', $coverage_id, Taxonomy::TAXONOMY_SLUG );
@@ -500,15 +500,18 @@ class Push_Notifications {
 
 	/**
 	 * Builds the notification body text from a short excerpt of the entry's
-	 * written content, leaving out anything members-only or password
-	 * protected: a notification reaches every follower.
+	 * written content, leaving out anything members-only: a notification
+	 * reaches every follower. A restricted entry (see
+	 * Entry_Bindings::is_restricted()) gets a neutral line instead, so
+	 * followers still hear about it and meet the gate or password on the
+	 * site.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return string Notification body text.
 	 */
 	private static function build_notification_content( WP_Post $entry ): string {
-		if ( '' !== $entry->post_password ) {
-			return '';
+		if ( Entry_Bindings::is_restricted( $entry ) ) {
+			return __( 'Read the latest update.', 'newspack-rolling-coverage' );
 		}
 
 		if ( ! has_excerpt( $entry ) ) {
