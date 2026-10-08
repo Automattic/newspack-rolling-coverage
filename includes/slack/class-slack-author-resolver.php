@@ -240,6 +240,8 @@ class Slack_Author_Resolver {
 			return;
 		}
 
-		update_user_meta( $user_id, self::META_SLACK_HANDLE, $handle );
+		// update_user_meta() unslashes what it stores; slash the value so a
+		// backslash in it is stored as checked above.
+		update_user_meta( $user_id, self::META_SLACK_HANDLE, wp_slash( $handle ) );
 	}
 }

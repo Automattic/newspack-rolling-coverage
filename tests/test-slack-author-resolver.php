@@ -261,6 +261,18 @@ class Test_Slack_Author_Resolver extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A backslash in the value is stored as typed, so the stored value is
+	 * the one the duplicate check compared.
+	 */
+	public function test_profile_keeps_a_backslash() {
+		$user_id = self::log_in_as( 'author' );
+
+		self::save_profile( $user_id, 'Riley\\ Sample' );
+
+		$this->assertSame( 'Riley\\ Sample', get_user_meta( $user_id, Slack_Author_Resolver::META_SLACK_HANDLE, true ) );
+	}
+
+	/**
 	 * Emptying the field removes the mapping.
 	 */
 	public function test_profile_clears_the_handle() {
