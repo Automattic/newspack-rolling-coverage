@@ -370,9 +370,10 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 
 	/**
 	 * The metadata is cached in the object cache, never as a database
-	 * transient. Its key carries the `terms`/`users` cache salts, which are
-	 * per-request when no persistent object cache is installed; a transient
-	 * would then write a new wp_options row on every page view.
+	 * transient. Its key carries the schema group's own `last_changed` stamp,
+	 * which only moves when something the schema shows changes — not with the
+	 * site's writes at large; a transient would also write a new wp_options
+	 * row per rotated key when no persistent object cache is installed.
 	 */
 	public function test_the_metadata_is_not_cached_as_a_database_transient() {
 		global $wpdb;
@@ -401,7 +402,7 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 'Original Name', $this->render_scripts( $host_id )[0]['headline'] );
 
-		// A rename bumps term last_changed but not the coverage's last-modified meta.
+		// A rename bumps the schema group's stamp, not the coverage's last-modified meta.
 		wp_update_term( $coverage_id, Taxonomy::TAXONOMY_SLUG, [ 'name' => 'Renamed Coverage' ] );
 
 		$this->assertSame( 'Renamed Coverage', $this->render_scripts( $host_id )[0]['headline'] );
@@ -426,7 +427,7 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 		$urls_before = array_column( $this->render_scripts( $host_id )[0]['liveBlogUpdate'], 'url' );
 		$this->assertCount( 2, $urls_before );
 
-		// A term-relationship change bumps terms last_changed.
+		// A term-relationship change on the coverage taxonomy bumps the stamp.
 		wp_set_object_terms( $older_id, [ $other_id ], Taxonomy::TAXONOMY_SLUG );
 
 		$updates_after = $this->render_scripts( $host_id )[0]['liveBlogUpdate'];
@@ -453,7 +454,7 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 'Original Author', $this->render_scripts( $host_id )[0]['liveBlogUpdate'][0]['author']['name'] );
 
-		// A user rename bumps users last_changed but no post or term cache.
+		// A user rename bumps the stamp, but a user-meta write alone does not.
 		wp_update_user(
 			[
 				'ID'           => $author_id,
@@ -462,6 +463,57 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertSame( 'Renamed Author', $this->render_scripts( $host_id )[0]['liveBlogUpdate'][0]['author']['name'] );
+	}
+
+	/**
+	 * Term relationship changes outside the coverage taxonomy never reach the
+	 * schema, so they don't rotate the stamp either.
+	 */
+	public function test_term_assignment_to_other_taxonomies_do_not_rotate_the_cache_key() {
+		$coverage_id = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		$entry_id    = $this->create_dated_entry( $coverage_id, '2026-09-02 10:00:00' );
+
+		$this->render_scripts( $host_id );
+
+		$stamp_before = wp_cache_get_last_changed( Schema::CACHE_GROUP );
+		$terms_before = wp_cache_get_last_changed( 'terms' );
+
+		$category_id = self::factory()->category->create( [ 'name' => 'Unrelated' ] );
+		wp_set_object_terms( $entry_id, [ $category_id ], 'category' );
+
+		$this->assertNotSame( $terms_before, wp_cache_get_last_changed( 'terms' ), 'Test sanity: the terms salt moved.' );
+		$this->assertSame( $stamp_before, wp_cache_get_last_changed( Schema::CACHE_GROUP ), 'An unrelated term assignment must not rotate the metadata cache key.' );
+	}
+
+	/**
+	 * Deleting an author rotates the stamp even though nothing else records
+	 * it: their entries' authors are reassigned through a direct query, so no
+	 * other hook covers the change.
+	 */
+	public function test_deleting_an_author_refreshes_the_cached_author() {
+		$author_id   = self::factory()->user->create(
+			[
+				'display_name' => 'Original Author',
+				'role'         => 'author',
+			]
+		);
+		$reassign_id = self::factory()->user->create(
+			[
+				'display_name' => 'Reassigned Author',
+				'role'         => 'author',
+			]
+		);
+
+		$coverage_id = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		$this->create_dated_entry( $coverage_id, '2026-09-02 10:00:00', 'publish', $author_id );
+
+		$this->assertSame( 'Original Author', $this->render_scripts( $host_id )[0]['liveBlogUpdate'][0]['author']['name'] );
+
+		wp_delete_user( $author_id, $reassign_id );
+
+		$this->assertSame( 'Reassigned Author', $this->render_scripts( $host_id )[0]['liveBlogUpdate'][0]['author']['name'] );
 	}
 
 	/**
@@ -565,6 +617,114 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	private function render_scripts( int $post_id ): array {
 		$this->go_to( get_permalink( $post_id ) );
 
+		ob_start();
+		Schema::print_schema();
+		$html = ob_get_clean();
+
+		preg_match_all( '#<script type="application/ld\+json">(.*?)</script>#s', $html, $matches );
+
+		return array_map(
+			function ( $json ) {
+				return json_decode( $json, true );
+			},
+			$matches[1]
+		);
+	}
+
+	/**
+	 * Within one request, a second look at the page is served from the cache,
+	 * and each change the schema shows — term rename, entry move, author
+	 * rename — rotates the stamp and forces a rebuild on the next look, while
+	 * a user-meta write on passive reader activity does not.
+	 */
+	public function test_the_cached_metadata_is_reused_and_rebuilt_only_when_its_inputs_change() {
+		$author_id = self::factory()->user->create(
+			[
+				// An apostrophe, so a name comparison against the magic-quoted
+				// `$userdata` the profile_update hook carries would look changed.
+				'display_name' => "O'Brien",
+				'role'         => 'author',
+			]
+		);
+
+		$coverage_id = self::create_coverage( '', [ 'name' => 'Original Name' ] );
+		$other_id    = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		$this->create_dated_entry( $coverage_id, '2026-09-03 10:00:00', 'publish', $author_id );
+		$older_id = $this->create_dated_entry( $coverage_id, '2026-09-02 10:00:00' );
+
+		$this->go_to( get_permalink( $host_id ) );
+
+		$builds = 0;
+		add_filter(
+			'newspack_rolling_coverage_schema_metadata',
+			function ( $metadata ) use ( &$builds ) {
+				$builds++;
+				return $metadata;
+			}
+		);
+
+		$this->assertSame( 'Original Name', $this->print_scripts()[0]['headline'], 'First look builds.' );
+
+		$this->assertSame( 'Original Name', $this->print_scripts()[0]['headline'], 'Second look is served from the cache.' );
+		$this->assertSame( 1, $builds, 'The second look must reuse the cached metadata.' );
+
+		// Passive reader activity writes user meta — nothing the schema shows.
+		$users_before = wp_cache_get_last_changed( 'users' );
+		update_user_meta( $author_id, 'newspack_reader_activity', 'x' );
+
+		$this->print_scripts();
+
+		$this->assertNotSame( $users_before, wp_cache_get_last_changed( 'users' ), 'Test sanity: the users salt moved.' );
+		$this->assertSame( 1, $builds, 'A user-meta write must not rebuild the cached metadata.' );
+
+		// Renaming the coverage changes the headline.
+		wp_update_term( $coverage_id, Taxonomy::TAXONOMY_SLUG, [ 'name' => 'Renamed Coverage' ] );
+
+		$this->assertSame( 'Renamed Coverage', $this->print_scripts()[0]['headline'], 'A rename rebuilds.' );
+		$this->assertSame( 2, $builds );
+
+		// Moving an entry out changes the liveBlogUpdate list.
+		$updates_before = count( $this->print_scripts()[0]['liveBlogUpdate'] );
+		wp_set_object_terms( $older_id, [ $other_id ], Taxonomy::TAXONOMY_SLUG );
+
+		$this->assertCount( $updates_before - 1, $this->print_scripts()[0]['liveBlogUpdate'], 'An entry move rebuilds.' );
+		$this->assertSame( 3, $builds );
+
+		// Renaming the author changes the author in liveBlogUpdate.
+		wp_update_user(
+			[
+				'ID'           => $author_id,
+				'display_name' => "O'Renamed",
+			]
+		);
+
+		$this->assertSame( "O'Renamed", $this->print_scripts()[0]['liveBlogUpdate'][0]['author']['name'], 'An author rename rebuilds.' );
+		$this->assertSame( 4, $builds );
+
+		// A user update that touches neither the headline, the list, nor a name.
+		// The comparison must read stored data: a name with an apostrophe would
+		// look changed against the magic-quoted values the hook carries.
+		wp_update_user(
+			[
+				'ID'          => $author_id,
+				'description' => 'New bio',
+			]
+		);
+
+		$this->print_scripts();
+
+		$this->assertSame( 4, $builds, 'A user update without a name change must not rebuild the cached metadata.' );
+	}
+
+	/**
+	 * Print the standalone scripts for the post already navigated to, without
+	 * `go_to()`, which resets the object cache and would mask what the cache
+	 * actually serves.
+	 *
+	 * @return array[] Decoded JSON-LD objects.
+	 */
+	private function print_scripts(): array {
 		ob_start();
 		Schema::print_schema();
 		$html = ob_get_clean();
