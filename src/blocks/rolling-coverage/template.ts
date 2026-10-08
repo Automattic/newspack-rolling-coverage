@@ -149,6 +149,12 @@ const CHECK_UPDATES_BLOCK_NAME = 'newspack-rolling-coverage/check-updates';
  */
 const STATUS_BLOCK_NAME = 'newspack-rolling-coverage/coverage-status';
 
+/**
+ * The Update Timer block, which counts down to the feed's next check once
+ * when it sits among the layout's coverage-level blocks.
+ */
+const UPDATE_TIMER_BLOCK_NAME = 'newspack-rolling-coverage/update-timer';
+
 const ACCENT =
 	'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
 const ACCENT_CONTRAST =
@@ -2045,9 +2051,9 @@ function isAllUpdatesParagraph( block: {
 
 /**
  * Whether a block belongs to the coverage rather than to each entry, so it
- * renders once: the Follow Coverage block, the Coverage Status block, a
- * heading bound to the coverage's name, the all-updates paragraph, or
- * a block holding one at any depth, mirroring
+ * renders once: the Follow Coverage block, the Coverage Status block, the
+ * Update Timer block, a heading bound to the coverage's name, the
+ * all-updates paragraph, or a block holding one at any depth, mirroring
  * Entry_Bindings::is_coverage_item(). The pinned card and the entry group
  * always belong to each entry, whatever they hold.
  *
@@ -2072,6 +2078,7 @@ function isCoverageItem( block: {
 		typed.name === FOLLOW_BLOCK_NAME ||
 		typed.name === CHECK_UPDATES_BLOCK_NAME ||
 		block.name === STATUS_BLOCK_NAME ||
+		typed.name === UPDATE_TIMER_BLOCK_NAME ||
 		isCoverageNameHeading( typed ) ||
 		isAllUpdatesParagraph( typed ) ||
 		( Array.isArray( block.innerBlocks ) &&
@@ -3307,6 +3314,7 @@ export {
 	FOLLOW_BLOCK_NAME,
 	CHECK_UPDATES_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
+	UPDATE_TIMER_BLOCK_NAME,
 	holdsBlockType,
 	blockIdsOfType,
 	withoutCheckUpdatesButtons,

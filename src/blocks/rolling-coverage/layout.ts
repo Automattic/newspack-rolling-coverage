@@ -39,6 +39,7 @@ import {
 	FOLLOW_BLOCK_NAME,
 	CHECK_UPDATES_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
+	UPDATE_TIMER_BLOCK_NAME,
 	feedTemplate,
 	layoutParts,
 	withoutPinnedRow,
@@ -61,7 +62,7 @@ import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
 export const BLOCK_NAME = metadata.name;
 
-export { FOLLOW_BLOCK_NAME, CHECK_UPDATES_BLOCK_NAME };
+export { FOLLOW_BLOCK_NAME, CHECK_UPDATES_BLOCK_NAME, UPDATE_TIMER_BLOCK_NAME };
 
 type PaletteColor = { slug: string };
 
@@ -349,6 +350,7 @@ export const ALL_ALLOWED_BLOCKS = [
 	FOLLOW_BLOCK_NAME,
 	CHECK_UPDATES_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
+	UPDATE_TIMER_BLOCK_NAME,
 ];
 
 /**

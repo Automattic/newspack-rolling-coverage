@@ -311,3 +311,17 @@ export function loadMoreFailedLabel( name: EntryName | null ): string {
 		'newspack-rolling-coverage'
 	);
 }
+
+/**
+ * The Update Timer's text while it counts down to the next check.
+ *
+ * @param {number} seconds Whole seconds until the check.
+ * @return {string} The text.
+ */
+export function nextCheckLabel( seconds: number ): string {
+	return sprintf(
+		/* translators: %d: seconds until the page next checks for new coverage entries. */
+		__( 'Next check in %ds', 'newspack-rolling-coverage' ),
+		seconds
+	);
+}
