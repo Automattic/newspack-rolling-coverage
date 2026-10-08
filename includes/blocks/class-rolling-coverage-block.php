@@ -3634,15 +3634,17 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Set an entry up as the current post the way a loop sets up its posts,
-	 * so plugins that treat a post in a loop as part of a listing treat the
-	 * feed's entries that way too.
+	 * Set up an entry's post data the way a loop sets up its posts, so
+	 * plugins that treat a post in a loop as part of a listing treat the
+	 * feed's entries that way too. Callers make the entry the global post
+	 * first.
 	 *
-	 * Newspack's content gate is why: it puts its teaser in place of a gated
-	 * post's body only for a post set up in a loop, and takes a post that is
-	 * only set up for a REST read, whose body it leaves alone. Entries reach
-	 * every reader alike, through cached pages and public, cached REST
-	 * replies, so a gated entry has to render as its teaser everywhere.
+	 * Newspack's content gate is why. For any post but the article being
+	 * read, it puts its teaser in place of a gated post's body only when the
+	 * post is set up in a loop; set up any other way, the post keeps its
+	 * body. Entries reach every reader alike, through cached pages and
+	 * public, cached REST replies, so a gated entry has to render as its
+	 * teaser.
 	 *
 	 * The loop is the feed's own rather than the main query, whose loop state
 	 * belongs to the page.

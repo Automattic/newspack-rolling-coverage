@@ -126,7 +126,9 @@ Readers see entries called "entries" by default. To call them something else, su
 
 ### Entries behind a content gate
 
-When a Newspack content gate covers entries, for example by post type or by category, each gated entry shows only its free preview in the feed, without the gate's prompt. Every reader sees the preview, including readers the gate lets through: the feed is the same for everyone, like other lists of posts on the site. This holds for new and older entries as they arrive, and on Lite Site pages.
+When a Newspack content gate covers entries, each gated entry shows only its free preview in the feed, without the gate's prompt. Every reader sees the preview, including readers the gate lets through, because the feed is the same for everyone. This holds for new and older entries as they arrive, and on Lite Site pages. Readers the gate lets through can read the whole entry where it has a page of its own: its breakout post, or the entry's own page when the coverage has no Canonical URL.
+
+A gate can cover entries through its Post types rule, through a category or tag an entry carries, or by having only exclusion rules. To keep entries whole, add a Post types rule to the gate, set it to Exclude, and check Entries.
 
 ### Pinned entries
 
