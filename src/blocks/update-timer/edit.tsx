@@ -6,11 +6,18 @@ import {
 	useBlockProps,
 	store as blockEditorStore,
 } from '@wordpress/block-editor';
-import { Notice, PanelBody } from '@wordpress/components';
+import {
+	Notice,
+	PanelBody,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalToggleGroupControl as ToggleGroupControl,
+	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis
+	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
+} from '@wordpress/components';
 import { store as coreStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
 import { useState } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, _x } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -67,7 +74,7 @@ export default function Edit( {
 	setAttributes: ( attrs: Partial< UpdateTimerAttributes > ) => void;
 	context?: Record< string, unknown >;
 } ) {
-	const { coverageId } = attributes;
+	const { coverageId, showSpinner } = attributes;
 	const [ customChosen, setCustomChosen ] = useState( false );
 
 	const {
@@ -221,22 +228,74 @@ export default function Edit( {
 						) }
 					</PanelBody>
 				) }
+				<PanelBody
+					title={ __( 'Settings', 'newspack-rolling-coverage' ) }
+				>
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
+						label={ __( 'Spinner', 'newspack-rolling-coverage' ) }
+						value={ showSpinner === false ? 'hide' : 'show' }
+						onChange={ ( value ) =>
+							setAttributes( {
+								showSpinner: value === 'show',
+							} )
+						}
+						help={ __(
+							'Turns beside the countdown. Hidden for readers who ask their device for reduced motion.',
+							'newspack-rolling-coverage'
+						) }
+					>
+						<ToggleGroupControlOption
+							value="show"
+							label={ _x(
+								'Show',
+								'spinner',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+								__(
+									'Show spinner',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+						<ToggleGroupControlOption
+							value="hide"
+							label={ _x(
+								'Hide',
+								'spinner',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+								__(
+									'Hide spinner',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+					</ToggleGroupControl>
+				</PanelBody>
 			</InspectorControls>
 			<div { ...blockProps }>
-				<svg
-					className="newspack-rolling-coverage-update-timer__spinner"
-					viewBox="0 0 18 18"
-					aria-hidden="true"
-					focusable="false"
-				>
-					<circle
-						cx="9"
-						cy="9"
-						r="8.25"
-						pathLength={ 100 }
-						strokeWidth="1.5"
-					/>
-				</svg>
+				{ showSpinner !== false && (
+					<svg
+						className="newspack-rolling-coverage-update-timer__spinner"
+						viewBox="0 0 18 18"
+						aria-hidden="true"
+						focusable="false"
+					>
+						<circle
+							cx="9"
+							cy="9"
+							r="8.25"
+							pathLength={ 100 }
+							strokeWidth="1.5"
+						/>
+					</svg>
+				) }
 				<span className="newspack-rolling-coverage-update-timer__text">
 					{ nextCheckLabel(
 						Math.max(

@@ -129,6 +129,17 @@ class Test_Update_Timer_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Hiding the spinner leaves the text on its own.
+	 */
+	public function test_hides_the_spinner_when_asked() {
+		$coverage_id = self::create_coverage();
+		$html        = $this->render( [ 'showSpinner' => false ], self::page( self::feed( $coverage_id ) ) );
+
+		$this->assertStringNotContainsString( '<svg', $html );
+		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-update-timer__text"></span>', $html );
+	}
+
+	/**
 	 * With no choice made, it follows the first feed on the page.
 	 */
 	public function test_follows_the_first_feed() {

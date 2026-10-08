@@ -88,9 +88,12 @@ class Update_Timer_Block {
 			return '';
 		}
 
+		$spinner = false === ( $attributes['showSpinner'] ?? true ) ? '' : '<svg class="newspack-rolling-coverage-update-timer__spinner" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><circle cx="9" cy="9" r="8.25" pathLength="100" stroke-width="1.5"></circle></svg>';
+
 		return sprintf(
-			'<div %s hidden><svg class="newspack-rolling-coverage-update-timer__spinner" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><circle cx="9" cy="9" r="8.25" pathLength="100" stroke-width="1.5"></circle></svg><span class="newspack-rolling-coverage-update-timer__text"></span></div>',
-			get_block_wrapper_attributes( [ 'data-coverage-id' => $coverage_id ] )
+			'<div %s hidden>%s<span class="newspack-rolling-coverage-update-timer__text"></span></div>',
+			get_block_wrapper_attributes( [ 'data-coverage-id' => $coverage_id ] ),
+			$spinner
 		);
 	}
 }

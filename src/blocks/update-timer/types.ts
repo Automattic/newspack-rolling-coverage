@@ -3,4 +3,5 @@
  */
 export type UpdateTimerAttributes = {
 	coverageId: number;
+	showSpinner: boolean;
 };

@@ -16,7 +16,7 @@ The block has no polling of its own. It follows the Rolling Coverage feed's chec
 
 ## The spinner
 
-It copies the Newspack UI loading spinner rather than using it, since the plugin runs without Newspack: `currentcolor`, stroke 1.5 of 18, no track, a half arc rotating every 900ms. It turns whenever the timer shows, in the editor too; only the text follows the feed's state. With `prefers-reduced-motion: reduce` it stays still.
+It copies the Newspack UI loading spinner rather than using it, since the plugin runs without Newspack: `currentcolor`, stroke 1.5 of 18, no track, a half arc rotating every 900ms. It turns whenever the timer shows, in the editor too; only the text follows the feed's state. The `showSpinner` attribute (Settings > Spinner, default `true`) leaves the SVG out of the render and the preview when `false`. With `prefers-reduced-motion: reduce` the stylesheet hides it, since a spinner that runs for as long as the coverage is live can't otherwise be paused.
 
 ## Labels
 
