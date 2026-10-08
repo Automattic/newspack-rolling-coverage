@@ -3634,6 +3634,28 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Set an entry up as the current post the way a loop sets up its posts,
+	 * so plugins that treat a post in a loop as part of a listing treat the
+	 * feed's entries that way too.
+	 *
+	 * Newspack's content gate is why: it puts its teaser in place of a gated
+	 * post's body only for a post set up in a loop, and takes a post that is
+	 * only set up for a REST read, whose body it leaves alone. Entries reach
+	 * every reader alike, through cached pages and public, cached REST
+	 * replies, so a gated entry has to render as its teaser everywhere.
+	 *
+	 * The loop is the feed's own rather than the main query, whose loop state
+	 * belongs to the page.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 */
+	public static function setup_entry_postdata( WP_Post $entry ): void {
+		$loop              = new WP_Query();
+		$loop->in_the_loop = true;
+		$loop->setup_postdata( $entry );
+	}
+
+	/**
 	 * Renders a single entry against the supplied per-entry template.
 	 *
 	 * @global WP_Post $post Global post object, temporarily swapped to the
@@ -3703,7 +3725,7 @@ class Rolling_Coverage_Block {
 		$was_ignoring_pinning   = self::$ignoring_pinning;
 		$post                   = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		self::$ignoring_pinning = $is_capped;
-		setup_postdata( $entry );
+		self::setup_entry_postdata( $entry );
 
 		$is_archived = Archive_Mode::is_entry_archived( $entry->ID );
 		if ( $is_archived ) {

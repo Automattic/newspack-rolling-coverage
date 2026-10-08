@@ -124,6 +124,10 @@ The new entries count and Jump to Latest show on the same button. It sits at the
 
 Readers see entries called "entries" by default. To call them something else, such as "updates", go to Rolling Coverage > All Coverages, select Settings, and set Singular and Plural under Entry Name, each as it reads mid-sentence ("update", "updates"). Both are needed, up to 30 characters each. The name then shows in the counts ("3 New Updates", "1 Newer Update"), the empty feed ("No updates yet."), the share button's label for screen readers, the text a new layout's link to the coverage page starts with ("See all updates", which layouts already in use keep as they are), the notice above an out-of-date entry and the feed's screen reader announcements. On English-language sites the counts capitalize each word, as buttons do; other languages keep the words as typed. Leave both empty to go back to "entry" and "entries".
 
+### Entries behind a content gate
+
+When a Newspack content gate covers entries, for example by post type or by category, each gated entry shows only its free preview in the feed, without the gate's prompt. Every reader sees the preview, including readers the gate lets through: the feed is the same for everyone, like other lists of posts on the site. This holds for new and older entries as they arrive, and on Lite Site pages.
+
 ### Pinned entries
 
 An entry pinned in the coverage stays at the top of the feed with a "Pinned" label, whatever its date. Some layouts keep the pinned entry in view while the reader scrolls.
