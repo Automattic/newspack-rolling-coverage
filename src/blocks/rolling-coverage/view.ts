@@ -130,15 +130,15 @@ function cssDeclarations( css: string ): string[][] {
 /**
  * Removes active content from an HTML fragment before it is inserted into the
  * page: scripts, object/embed, inline event handlers, an iframe's srcdoc, and
- * javascript: URLs. Every fragment a feed inserts client-side passes through
- * here — entries and ad markup alike, from a poll, load more or the jump to
- * the live feed. The feed's REST URL is same-origin (initBlock), but that
- * alone doesn't prove the reply is the plugin's own KSES'd output, so this is
- * the line that neutralises markup an account without unfiltered_html could
- * plant. A provider's ad placeholder survives it; the ad's own script loads
- * the creative later.
+ * javascript:, vbscript: and data: URLs. Every fragment a feed inserts
+ * client-side passes through here — entries and ad markup alike, from a poll,
+ * load more or the jump to the live feed. The feed's REST URL is same-origin
+ * (initBlock), but that alone doesn't prove the reply is the plugin's own
+ * KSES'd output, so this is the line that neutralises markup an account
+ * without unfiltered_html could plant. A provider's ad placeholder survives
+ * it; the ad's own script loads the creative later.
  *
- * @param {string} html Raw HTML from the REST API.
+ * @param {string} html Raw HTML a feed inserts: a REST reply, or the live feed page.
  * @return {string} Sanitized HTML safe for DOM insertion.
  */
 function sanitizeHtml( html: string ): string {
@@ -159,14 +159,16 @@ function sanitizeHtml( html: string ): string {
 				return;
 			}
 
-			// A javascript: URL. Spaces and control characters are dropped
+			// Active-content URL schemes. data: is included because a
+			// data:text/html frame executes and KSES omits it from the
+			// protocols it allows; spaces and control characters are stripped
 			// first because the browser ignores them when it reads the scheme.
 			if ( name === 'href' || name === 'src' ) {
 				const value = attr.value
 					.replace( /[\u0000- ]/g, '' )
 					.toLowerCase();
 
-				if ( value.startsWith( 'javascript:' ) ) {
+				if ( /^(?:javascript|vbscript|data):/.test( value ) ) {
 					el.removeAttribute( attr.name );
 				}
 			}
@@ -394,21 +396,28 @@ function topBarsBottom( block: HTMLElement ): number {
  * on the page keeps, so entries keep loading there at the cost of the shared
  * reply.
  *
+ * The same-origin URL can still be redirected to another origin, whose reply
+ * would otherwise be inserted as if it were the feed's; such a reply is dropped
+ * so the feed stays on this site, as initBlock() required of its URL.
+ *
  * @param {string} url Entries URL.
- * @return {Promise<Response>} The reply, from the repeated request if the first was refused.
+ * @return {Promise<Response>} The reply, or a failed one when it came from another origin.
  */
 async function fetchEntries( url: string ): Promise< Response > {
 	const credentials = entriesCredentials;
-	const response = await fetch( url, { credentials } );
+	let response = await fetch( url, { credentials } );
 	const isRefused = response.status === 401 || response.status === 403;
 
-	if ( credentials !== 'omit' || ! isRefused ) {
-		return response;
+	if ( credentials === 'omit' && isRefused ) {
+		entriesCredentials = 'same-origin';
+		response = await fetch( url, { credentials: entriesCredentials } );
 	}
 
-	entriesCredentials = 'same-origin';
+	if ( ! isSameOrigin( response.url ) ) {
+		return new Response( null, { status: 502 } );
+	}
 
-	return fetch( url, { credentials: entriesCredentials } );
+	return response;
 }
 
 /**
