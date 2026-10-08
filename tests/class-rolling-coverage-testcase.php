@@ -303,18 +303,22 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	 * @param int    $coverage_id Coverage term ID.
 	 * @param string $date        GMT date.
 	 * @param string $status      Post status.
+	 * @param int    $author_id   Optional. Post author user ID.
 	 * @return int Entry post ID.
 	 */
-	protected static function create_dated_entry( int $coverage_id, string $date, string $status = 'publish' ): int {
-		return self::create_entry(
-			$coverage_id,
-			[
-				'post_status'   => $status,
-				'post_content'  => 'Update at ' . $date,
-				'post_date'     => $date,
-				'post_date_gmt' => $date,
-			]
-		);
+	protected static function create_dated_entry( int $coverage_id, string $date, string $status = 'publish', int $author_id = 0 ): int {
+		$args = [
+			'post_status'   => $status,
+			'post_content'  => 'Update at ' . $date,
+			'post_date'     => $date,
+			'post_date_gmt' => $date,
+		];
+
+		if ( $author_id > 0 ) {
+			$args['post_author'] = $author_id;
+		}
+
+		return self::create_entry( $coverage_id, $args );
 	}
 
 	/**

@@ -11,10 +11,14 @@ $quick-edit-footer-clearance: 72px;
 
 // The WordPress Modal header is hidden, so its padding goes too; our toolbar,
 // canvas and footer stack in a column and the canvas takes what is left. On
-// small screens core's bottom-sheet layout (full width, content height) is
-// kept; from the small breakpoint up the frame is a centered dialog the size
-// of a generous comment box, released from core's 70%-of-viewport cap.
+// small screens core's full-width bottom sheet fills the overlay up to core's
+// own cap, which leaves a strip of the page showing above it. The height is a
+// share of the fixed overlay rather than a viewport unit: `vh` is taller than
+// the visible area while mobile browser bars show, and `dvh` resizes as they
+// slide away. From the small breakpoint up the frame is a centered dialog the
+// size of a generous comment box, released from core's 70%-of-viewport cap.
 .components-modal__frame.newspack-rolling-coverage-quick-edit {
+	height: 100%;
 
 	.components-modal__content {
 		display: flex;
@@ -230,19 +234,13 @@ $quick-edit-footer-clearance: 72px;
 	display: none;
 }
 
-// Canvas and footer. The canvas minimum is for small screens, where the frame
-// has no fixed height and the iframe takes the canvas's height. From the small
-// breakpoint up the frame's own height sizes the canvas, and a minimum there
-// would push Cancel and Save out of a short viewport.
+// Canvas and footer. The frame's height sizes the canvas at every width; a
+// minimum here would push Cancel and Save out of a short viewport.
 .newspack-rolling-coverage-quick-edit__canvas {
 	flex: 1;
-	min-height: 240px;
+	min-height: 0;
 	padding: 0 wp-vars.$grid-unit-20;
 	overflow: auto;
-
-	@media (min-width: wp-breakpoints.$break-small) {
-		min-height: 0;
-	}
 
 	iframe[name="editor-canvas"] {
 		background-color: transparent;

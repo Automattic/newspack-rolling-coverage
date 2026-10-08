@@ -11,6 +11,12 @@ import { trackEvent, isConfigEnabled, EVENTS } from './analytics';
 import { keepRelativeDatesCurrent } from '../shared/relative-dates';
 import { POLL_EVENT } from '../shared/poll-event';
 import {
+	CHECK_EVENT,
+	type CheckEventDetail,
+	type CheckResult,
+	type CheckState,
+} from '../shared/check-event';
+import {
 	entriesAddedButtonLabel,
 	entriesAddedLabel,
 	loadingLatestLabel,
@@ -521,6 +527,12 @@ function initBlock( root: HTMLElement ): void {
 	// How many new entries have been added to the page since it loaded.
 	let insertedCount = 0;
 
+	// How many new entries polls have brought, shown or waiting to be.
+	let arrivedCount = 0;
+
+	// What the last poll found, for the next check report.
+	let checkResult: CheckResult | undefined;
+
 	// Whether a poll request is in flight. At most one poll is in flight or
 	// scheduled at a time, so tab switches and back/forward navigation can't
 	// start a second chain of polls.
@@ -653,6 +665,50 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Tells the page where the feed's check for new entries stands, on its
+	 * root and through CHECK_EVENT. A feed that checks only when asked, or
+	 * whose coverage isn't live, reports idle: it isn't counting down to
+	 * anything a reader can wait for.
+	 *
+	 * @param {CheckState} state            The state.
+	 * @param {Object}     next             When waiting, when the next check is due.
+	 * @param {number}     next.nextCheckAt When the next check is due, in epoch milliseconds.
+	 * @return {void}
+	 */
+	function reportCheck(
+		state: CheckState,
+		next?: { nextCheckAt: number }
+	): void {
+		const shown =
+			isDisposed || checksOnRequest || polledStatus !== 'active'
+				? 'idle'
+				: state;
+		const detail: CheckEventDetail = {
+			coverageId: Number( coverageId ),
+			feed: root,
+			state: shown,
+		};
+
+		root.dataset.checkState = shown;
+
+		if ( shown === 'waiting' && next ) {
+			root.dataset.nextCheckAt = String( next.nextCheckAt );
+			detail.nextCheckAt = next.nextCheckAt;
+		} else {
+			delete root.dataset.nextCheckAt;
+		}
+
+		if ( shown !== 'checking' && checkResult ) {
+			detail.result = checkResult;
+			checkResult = undefined;
+		}
+
+		document.dispatchEvent(
+			new CustomEvent< CheckEventDetail >( CHECK_EVENT, { detail } )
+		);
+	}
+
+	/**
 	 * Schedules the next poll, at the block's interval or the site's minimum,
 	 * whichever is longer, in place of any poll already scheduled. Schedules
 	 * none while a poll is in flight, as that poll schedules the next, or
@@ -664,13 +720,19 @@ function initBlock( root: HTMLElement ): void {
 		cancelPoll();
 
 		if ( checksOnRequest || isPolling || document.hidden ) {
+			if ( ! isPolling ) {
+				reportCheck( 'idle' );
+			}
+
 			return;
 		}
 
-		pollTimeoutId = setTimeout(
-			poll,
-			Math.max( pollInterval, minPollInterval ) * 1000
-		);
+		const interval = Math.max( pollInterval, minPollInterval ) * 1000;
+
+		pollTimeoutId = setTimeout( poll, interval );
+		reportCheck( 'waiting', {
+			nextCheckAt: Date.now() + interval,
+		} );
 	}
 
 	/**
@@ -835,28 +897,34 @@ function initBlock( root: HTMLElement ): void {
 		);
 		const fragment = document.createDocumentFragment();
 
-		entries
+		const kept = entries
 			.filter(
 				( entry ) =>
 					entry.type !== 'remove' &&
 					isSafeEntryId( entry.id ) &&
 					! removedEntryIds.has( String( entry.id ) )
 			)
-			.slice( 0, latestCap || entries.length )
-			.forEach( ( entry ) => {
-				const el = parseElement( sanitizeHtml( entry.html ) );
+			.slice( 0, latestCap || entries.length );
+		const firstShown = kept.findIndex( ( entry ) =>
+			arrivals.has( String( entry.id ) )
+		);
 
-				if ( ! el ) {
-					return;
-				}
+		arrivedCount += firstShown === -1 ? kept.length : firstShown;
 
-				if ( arrivals.has( String( entry.id ) ) ) {
-					el.dataset.arrival = arrivals.get( String( entry.id ) );
-				}
+		kept.forEach( ( entry ) => {
+			const el = parseElement( sanitizeHtml( entry.html ) );
 
-				observeEntry( el );
-				fragment.appendChild( el );
-			} );
+			if ( ! el ) {
+				return;
+			}
+
+			if ( arrivals.has( String( entry.id ) ) ) {
+				el.dataset.arrival = arrivals.get( String( entry.id ) );
+			}
+
+			observeEntry( el );
+			fragment.appendChild( el );
+		} );
 
 		shownEntries.forEach( ( el ) => {
 			unobserveEntry( el );
@@ -979,6 +1047,7 @@ function initBlock( root: HTMLElement ): void {
 	function cleanup(): void {
 		isDisposed = true;
 		cancelPoll();
+		reportCheck( 'idle' );
 		stopRelativeDates();
 		entrySeenObserver?.disconnect();
 		cleanupFns.forEach( ( fn ) => fn() );
@@ -1779,6 +1848,8 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
+		arrivedCount += newEntries.length;
+
 		if ( isEntryView ) {
 			const countedBefore = countedEntryIds.size;
 
@@ -2054,6 +2125,11 @@ function initBlock( root: HTMLElement ): void {
 		cancelPoll();
 		isPolling = true;
 		let outcome: PollOutcome = 'failed';
+		const arrivedBefore = arrivedCount;
+		let isStopped = false;
+		let canReport = showsEntries;
+
+		reportCheck( 'checking' );
 
 		try {
 			const url = new URL( restBaseUrl );
@@ -2087,11 +2163,13 @@ function initBlock( root: HTMLElement ): void {
 
 				// The block was cleaned up meanwhile, so this reply is no longer its own.
 				if ( isDisposed ) {
-					return 'skipped';
+					outcome = 'skipped';
+					return outcome;
 				}
 
 				minPollInterval = Number( data.minPollInterval ) || 0;
 				outcome = 'ok';
+				canReport = canReport && ! data.overflow;
 
 				if ( typeof data.status === 'string' ) {
 					polledStatus = data.status;
@@ -2123,6 +2201,8 @@ function initBlock( root: HTMLElement ): void {
 					// same cursor: polling ends here, and with it the count.
 					canCount = false;
 					showNewerCount();
+					isStopped = true;
+					reportCheck( 'idle' );
 					return outcome;
 				}
 
@@ -2162,6 +2242,19 @@ function initBlock( root: HTMLElement ): void {
 			console.error( error ); // eslint-disable-line no-console
 		} finally {
 			isPolling = false;
+
+			if ( isStopped || isDisposed ) {
+				checkResult = undefined;
+			} else if ( outcome === 'ok' ) {
+				checkResult = canReport
+					? {
+							outcome: 'ok',
+							added: arrivedCount - arrivedBefore,
+						}
+					: undefined;
+			} else if ( outcome === 'failed' ) {
+				checkResult = { outcome: 'failed' };
+			}
 		}
 
 		if ( ! isDisposed ) {
@@ -2610,6 +2703,7 @@ function initBlock( root: HTMLElement ): void {
 	const onVisibilityChange = () => {
 		if ( document.hidden ) {
 			cancelPoll();
+			reportCheck( 'idle' );
 		} else if ( cursor && status === 'active' && ! checksOnRequest ) {
 			poll();
 		}
