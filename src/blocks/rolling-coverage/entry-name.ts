@@ -320,7 +320,7 @@ export function loadMoreFailedLabel( name: EntryName | null ): string {
  */
 export function nextCheckLabel( seconds: number ): string {
 	return sprintf(
-		/* translators: %d: seconds until the page next checks for new coverage entries. */
+		/* translators: %d: seconds until the page next checks for new coverage entries; the trailing "s" abbreviates seconds. */
 		__( 'Next check in %ds', 'newspack-rolling-coverage' ),
 		seconds
 	);

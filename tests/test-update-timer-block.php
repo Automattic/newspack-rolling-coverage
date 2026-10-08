@@ -114,15 +114,15 @@ class Test_Update_Timer_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * It renders hidden, with the ring and an empty text, for the script to
+	 * It renders hidden, with the spinner and an empty text, for the script to
 	 * show once a feed is counting down.
 	 */
-	public function test_renders_hidden_with_the_ring() {
+	public function test_renders_hidden_with_the_spinner() {
 		$coverage_id = self::create_coverage();
 		$html        = $this->render( [], self::page( self::feed( $coverage_id ) ) );
 
 		$this->assertMatchesRegularExpression( '/<div [^>]*data-coverage-id="' . $coverage_id . '"[^>]* hidden>/', $html );
-		$this->assertStringContainsString( 'class="newspack-rolling-coverage-update-timer__ring"', $html );
+		$this->assertStringContainsString( 'class="newspack-rolling-coverage-update-timer__spinner"', $html );
 		$this->assertStringContainsString( 'aria-hidden="true"', $html );
 		$this->assertStringContainsString( '<circle', $html );
 		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-update-timer__text"></span>', $html );

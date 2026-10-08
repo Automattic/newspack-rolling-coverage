@@ -2534,18 +2534,21 @@ class Rolling_Coverage_Block {
 		}
 
 		// The Follow button needs its own script and a push provider, neither
-		// of which a lite page has. Dropping it here, before it renders, also
-		// collapses a group that only it filled, which the block's own lite
-		// guard can't do.
+		// of which a lite page has. The Update Timer has nothing to follow on a
+		// lite page or in a feed that checks on request. Dropping them here,
+		// before they render, also collapses a group that only one of them
+		// filled, which the blocks' own guards can't do.
 		$can_follow = ! Lite_Feed::is_lite_render() && Coverage_Follow_Block::should_render( $status );
+		$hide_timer = $checks_on_request || Lite_Feed::is_lite_render();
 
 		$blocks = self::map_template_blocks(
 			$blocks,
-			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow, $checks_on_request ) {
+			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow, $checks_on_request, $hide_timer ) {
 				if (
 					( '' === $all_updates_url && Entry_Bindings::is_all_updates_paragraph( $block ) ) ||
 					( ! $can_follow && Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
 					( ! $checks_on_request && Check_Updates_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
+					( $hide_timer && Update_Timer_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
 					( 'core/group' === ( $block['blockName'] ?? '' ) && empty( $block['innerBlocks'] ) && ! empty( $original['innerBlocks'] ) )
 				) {
 					return [];

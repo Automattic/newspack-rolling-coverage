@@ -46,8 +46,9 @@ const config: UpdateTimerConfig = window.newspackUpdateTimerBlock ?? {
 };
 
 /**
- * Editor for the Update Timer block: a still of the countdown, and the
- * Coverage panel outside a Rolling Coverage block.
+ * Editor for the Update Timer block: the countdown at the feed's full
+ * interval beside the turning spinner, and the Coverage panel outside a
+ * Rolling Coverage block.
  *
  * @param {Object}   props               Block props.
  * @param {string}   props.clientId      Block client ID.
@@ -118,7 +119,10 @@ export default function Edit( {
 			const feed =
 				feeds.find( ( attrs ) => ! attrs?.latestOnly ) ?? feeds[ 0 ];
 
-			return Number( feed?.pollInterval ) || DEFAULT_POLL_INTERVAL;
+			return Math.max(
+				1,
+				Number( feed?.pollInterval ) || DEFAULT_POLL_INTERVAL
+			);
 		},
 		[ clientId, followed ]
 	);
@@ -220,7 +224,7 @@ export default function Edit( {
 			</InspectorControls>
 			<div { ...blockProps }>
 				<svg
-					className="newspack-rolling-coverage-update-timer__ring"
+					className="newspack-rolling-coverage-update-timer__spinner"
 					viewBox="0 0 18 18"
 					aria-hidden="true"
 					focusable="false"
@@ -235,7 +239,10 @@ export default function Edit( {
 				</svg>
 				<span className="newspack-rolling-coverage-update-timer__text">
 					{ nextCheckLabel(
-						Math.max( pollInterval, config.minPollInterval )
+						Math.max(
+							pollInterval,
+							Number( config.minPollInterval ) || 0
+						)
 					) }
 				</span>
 			</div>

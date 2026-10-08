@@ -8,7 +8,7 @@
 	}
 }
 
-.newspack-rolling-coverage-update-timer__ring {
+.newspack-rolling-coverage-update-timer__spinner {
 	animation: newspack-rolling-coverage-update-timer-spin 900ms linear infinite;
 	flex: none;
 	height: 1.125em;
@@ -23,7 +23,7 @@
 
 @media (prefers-reduced-motion: reduce) {
 
-	.newspack-rolling-coverage-update-timer__ring {
+	.newspack-rolling-coverage-update-timer__spinner {
 		animation: none;
 	}
 }

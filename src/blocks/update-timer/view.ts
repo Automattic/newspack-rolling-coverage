@@ -64,9 +64,9 @@ function stateOf( timer: HTMLElement ): TimerState {
 
 /**
  * Picks the feed a timer follows: the one around it when it is for the same
- * coverage, else the one it already follows while that isn't idle, else the
- * first feed for its coverage on the page that isn't idle, preferring an
- * uncapped one as the server's Automatic mode does.
+ * coverage, else the one it already follows while that isn't idle and isn't
+ * capped, else the first feed for its coverage on the page that isn't idle,
+ * preferring an uncapped one as the server's Automatic mode does.
  *
  * @param {HTMLElement} timer The timer's wrapper.
  * @param {TimerState}  state Its state.
@@ -145,7 +145,7 @@ function render( timer: HTMLElement ): void {
 	const state = stateOf( timer );
 	const check = state.feed?.isConnected
 		? readCheck( state.feed )
-		: { state: 'idle' as const, nextCheckAt: 0, interval: 0 };
+		: { state: 'idle' as const, nextCheckAt: 0 };
 	const text = timer.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-update-timer__text'
 	);
@@ -159,6 +159,8 @@ function render( timer: HTMLElement ): void {
 	}
 
 	if ( check.state === 'checking' ) {
+		state.resultText = '';
+		state.resultUntil = 0;
 		text.textContent = __( 'Checking…', 'newspack-rolling-coverage' );
 		return;
 	}

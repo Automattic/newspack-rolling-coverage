@@ -4,7 +4,7 @@
 	"name": "newspack-rolling-coverage/update-timer",
 	"title": "Update Timer",
 	"category": "newspack",
-	"description": "Counts down to the next check for new entries of a live coverage on the page, and shows what each check found.",
+	"description": "Counts down to the next check for new entries of a live coverage on the page, and shows when a check brings new entries.",
 	"textdomain": "newspack-rolling-coverage",
 	"usesContext": [
 		"postId",
