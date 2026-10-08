@@ -7,6 +7,8 @@ Shows whether a coverage is Live, Paused, or Ended, as a small badge. It can als
 - **Next to a headline.** Add it to a page or template, beside the title or in a header, so readers see at a glance whether the story is still moving.
 - **Inside a Rolling Coverage block.** Add it to the block's layout. It shows that block's coverage, and the Coverage panel is hidden.
 
+To show readers when the page next checks for new entries, add an [Update Timer](../update-timer/README.md) next to the badge.
+
 The block is in the inserter's Newspack category, or Rolling Coverage on sites without Newspack.
 
 ## Which coverage it shows
