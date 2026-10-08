@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests that every path renders entries as posts set up in a loop.
+ * Tests that the feed renders entries as posts set up in a loop.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -14,7 +14,9 @@ use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
  * Rolling_Coverage_Block::setup_entry_postdata()). A path that set an entry
  * up any other way would send a gated entry in full to every reader. The
  * suite runs without Newspack, so these tests hold the feed to its half of
- * that contract: each entry reaches `the_post` in a loop.
+ * that contract: each entry reaches `the_post` in a loop, and lite pages,
+ * which print the entry's post_content rather than run its content filters,
+ * read it only after that, when the gate has put its teaser there.
  */
 class Test_Gated_Entries extends Rolling_Coverage_TestCase {
 
@@ -22,6 +24,11 @@ class Test_Gated_Entries extends Rolling_Coverage_TestCase {
 	 * Content the Lite Site stand-in's filter swaps for the feed.
 	 */
 	const FEED_PLACEHOLDER = 'ROLLING_COVERAGE_FEED';
+
+	/**
+	 * What the stand-in for the gate puts in place of the entry's body.
+	 */
+	const TEASER = 'Teaser text';
 
 	/**
 	 * Coverage under test.
@@ -45,8 +52,8 @@ class Test_Gated_Entries extends Rolling_Coverage_TestCase {
 	private $entry_setups = [];
 
 	/**
-	 * A coverage with one entry, an anonymous reader, and a record of how
-	 * the entry is set up.
+	 * A coverage with one entry, an anonymous reader, and a stand-in for the
+	 * gate.
 	 */
 	public function set_up() {
 		parent::set_up();
@@ -62,18 +69,26 @@ class Test_Gated_Entries extends Rolling_Coverage_TestCase {
 			]
 		);
 
-		add_action( 'the_post', [ $this, 'record_entry_setup' ], 10, 2 );
+		add_action( 'the_post', [ $this, 'withhold_entry_in_loops' ], 10, 2 );
 	}
 
 	/**
-	 * Record whether the entry was set up in a loop.
+	 * Record whether the entry was set up in a loop and, when it was, put the
+	 * teaser in its post_content, as Newspack's content gate does for a gated
+	 * post.
 	 *
 	 * @param WP_Post  $post  Post set up.
 	 * @param WP_Query $query Query that set it up.
 	 */
-	public function record_entry_setup( $post, $query ) {
-		if ( $this->entry_id === $post->ID ) {
-			$this->entry_setups[] = (bool) $query->in_the_loop;
+	public function withhold_entry_in_loops( $post, $query ) {
+		if ( $this->entry_id !== $post->ID ) {
+			return;
+		}
+
+		$this->entry_setups[] = (bool) $query->in_the_loop;
+
+		if ( $query->in_the_loop ) {
+			$post->post_content = '<p>' . self::TEASER . '</p>';
 		}
 	}
 
@@ -101,18 +116,22 @@ class Test_Gated_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Every way an entry reaches a reader.
+	 * Each path the feed renders entries on, with the body it shows. Full
+	 * pages show the stored body: core's Post Content block reads the post
+	 * data set up before `the_post`, and Newspack substitutes its teaser in
+	 * the content filters, which the stand-in leaves alone. Lite pages show
+	 * the post_content the stand-in rewrote.
 	 *
 	 * @return array[]
 	 */
 	public function data_render_paths(): array {
 		return [
-			'page'           => [ 'page' ],
-			'poll'           => [ 'poll' ],
-			'load more'      => [ 'load_more' ],
-			'lite page'      => [ 'lite_page' ],
-			'lite poll'      => [ 'lite_poll' ],
-			'lite load more' => [ 'lite_load_more' ],
+			'page'           => [ 'page', 'Entry text' ],
+			'poll'           => [ 'poll', 'Entry text' ],
+			'load more'      => [ 'load_more', 'Entry text' ],
+			'lite page'      => [ 'lite_page', self::TEASER ],
+			'lite poll'      => [ 'lite_poll', self::TEASER ],
+			'lite load more' => [ 'lite_load_more', self::TEASER ],
 		];
 	}
 
@@ -159,16 +178,18 @@ class Test_Gated_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Each path sets the entry up in a loop.
+	 * Each path sets the entry up in a loop, and lite pages read its body
+	 * after that.
 	 *
 	 * @dataProvider data_render_paths
 	 *
 	 * @param string $path How the entry reaches the reader.
+	 * @param string $body The body the path should show.
 	 */
-	public function test_entries_render_as_loop_posts( string $path ) {
+	public function test_entries_render_as_loop_posts( string $path, string $body ) {
 		$html = $this->render_along( $path );
 
-		$this->assertStringContainsString( 'Entry text', $html, 'The entry should render.' );
+		$this->assertStringContainsString( $body, $html, 'The entry should render with the body its path reads.' );
 		$this->assertNotEmpty( $this->entry_setups, 'The entry should be set up as the current post.' );
 		$this->assertNotContains( false, $this->entry_setups, 'The entry should only be set up in a loop.' );
 	}
