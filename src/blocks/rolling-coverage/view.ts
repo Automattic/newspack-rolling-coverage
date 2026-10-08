@@ -133,16 +133,21 @@ function cssDeclarations( css: string ): string[][] {
 		.filter( ( [ property, value ] ) => property && value );
 }
 
+// Attributes whose value the browser loads or navigates to, the only places a
+// data: URL can render a document.
+const URL_ATTRIBUTES = [ 'href', 'src', 'xlink:href', 'action', 'formaction' ];
+
 /**
  * Removes active content from an HTML fragment before it is inserted into the
- * page: scripts, object/embed, inline event handlers, an iframe's srcdoc, and
- * javascript:, vbscript: and data: URLs. Every fragment a feed inserts
- * client-side passes through here — entries and ad markup alike, from a poll,
- * load more or the jump to the live feed. The feed's REST URL is same-origin
- * (initBlock), but that alone doesn't prove the reply is the plugin's own
- * KSES'd output, so this is the line that neutralises markup an account
- * without unfiltered_html could plant. A provider's ad placeholder survives
- * it; the ad's own script loads the creative later.
+ * page: scripts, object/embed, base, http-equiv meta and SVG animate and set
+ * elements, inline event handlers, an iframe's srcdoc, javascript: and
+ * vbscript: URLs in any attribute, and data: URLs where the browser would load
+ * or navigate to them. Every fragment a feed inserts client-side passes
+ * through here — entries and ad markup alike, from a poll, load more or the
+ * jump to the live feed. The fetches accept only same-origin replies of the
+ * type the feed expects, so this is a second line behind them against markup
+ * an account without unfiltered_html could plant. A provider's ad placeholder
+ * survives it; the ad's own script loads the creative later.
  *
  * @param {string} html Raw HTML a feed inserts: a REST reply, or the live feed page.
  * @return {string} Sanitized HTML safe for DOM insertion.
@@ -150,10 +155,12 @@ function cssDeclarations( css: string ): string[][] {
 function sanitizeHtml( html: string ): string {
 	const doc = new DOMParser().parseFromString( html, 'text/html' );
 
-	// Elements that run or embed active content.
-	doc.querySelectorAll( 'script, object, embed' ).forEach( ( el ) =>
-		el.remove()
-	);
+	// Elements that run or embed active content, or act on the page once
+	// inserted: base re-points relative links, an http-equiv meta can redirect,
+	// and SVG animation can set a link's href to a javascript: URL.
+	doc.querySelectorAll(
+		'script, object, embed, base, meta[http-equiv], animate, set'
+	).forEach( ( el ) => el.remove() );
 
 	doc.querySelectorAll( '*' ).forEach( ( el ) => {
 		Array.from( el.attributes ).forEach( ( attr ) => {
@@ -165,15 +172,22 @@ function sanitizeHtml( html: string ): string {
 				return;
 			}
 
-			// An active-content URL scheme in any attribute that carries a URL
-			// — href, src, action, formaction, xlink:href and the like — so the
-			// test is on the value, not a list of names. data: is included
-			// because a data:text/html frame executes and KSES omits it from
-			// its protocols; spaces and control characters are stripped first
-			// because the browser ignores them when it reads the scheme.
-			const value = attr.value.replace( /[\u0000- ]/g, '' ).toLowerCase();
+			// The scheme as the browser's URL parser reads it: leading spaces
+			// and control characters trimmed, tabs and line breaks dropped.
+			const value = attr.value
+				.replace( /^[\u0000- ]+/, '' )
+				.replace( /[\t\n\r]/g, '' )
+				.toLowerCase();
 
-			if ( /^(?:javascript|vbscript|data):/.test( value ) ) {
+			// javascript: and vbscript: go from any attribute, which also covers
+			// a data-* value a script later uses as a link. data: goes only from
+			// URL attributes, so an alt text or caption that opens with "Data:"
+			// survives.
+			if (
+				/^(?:javascript|vbscript):/.test( value ) ||
+				( value.startsWith( 'data:' ) &&
+					URL_ATTRIBUTES.includes( name ) )
+			) {
 				el.removeAttribute( attr.name );
 			}
 		} );
@@ -400,12 +414,13 @@ function topBarsBottom( block: HTMLElement ): number {
  * on the page keeps, so entries keep loading there at the cost of the shared
  * reply.
  *
- * The same-origin URL can still be redirected to another origin, whose reply
- * would otherwise be inserted as if it were the feed's; such a reply is dropped
- * so the feed stays on this site, as initBlock() required of its URL.
+ * The reply is dropped when a redirect carried the request to another origin,
+ * so the feed stays on this site as initBlock() required of its URL, and when
+ * a successful reply isn't JSON: the entries route always answers in JSON, so
+ * a same-origin file such as an upload can't stand in for it.
  *
  * @param {string} url Entries URL.
- * @return {Promise<Response>} The reply, or a failed one when it came from another origin.
+ * @return {Promise<Response>} The reply, or a failed one when it came from another origin or isn't JSON.
  */
 async function fetchEntries( url: string ): Promise< Response > {
 	const credentials = entriesCredentials;
@@ -417,7 +432,11 @@ async function fetchEntries( url: string ): Promise< Response > {
 		response = await fetch( url, { credentials: entriesCredentials } );
 	}
 
-	if ( ! isSameOrigin( response.url ) ) {
+	const isJson = ( response.headers.get( 'content-type' ) ?? '' )
+		.toLowerCase()
+		.includes( 'json' );
+
+	if ( ! isSameOrigin( response.url ) || ( response.ok && ! isJson ) ) {
 		return new Response( null, { status: 502 } );
 	}
 
@@ -449,8 +468,15 @@ function initBlock( root: HTMLElement ): void {
 	// The feed's REST URL comes from the block's markup, which an author
 	// without unfiltered_html can still set. Honour it only when it points at
 	// this site, so a planted root can't make the page fetch entries from
-	// another origin and insert the reply.
+	// another origin and insert the reply. A page served from a host other
+	// than the REST URL's, such as an alias domain nothing redirects, stays a
+	// static first page; the warning says why.
 	if ( ! isSameOrigin( restUrl ) ) {
+		// eslint-disable-next-line no-console
+		console.warn(
+			'Rolling Coverage: not starting a feed whose REST URL is on another origin.',
+			restUrl
+		);
 		return;
 	}
 
@@ -1434,8 +1460,13 @@ function initBlock( root: HTMLElement ): void {
 
 		try {
 			const response = await fetch( url, { signal: controller.signal } );
+			// Only a page can hold the live feed; a same-origin file such as
+			// an upload is left to the link.
+			const isHtml = ( response.headers.get( 'content-type' ) ?? '' )
+				.toLowerCase()
+				.includes( 'text/html' );
 			const doc = new DOMParser().parseFromString(
-				response.ok ? await response.text() : '',
+				response.ok && isHtml ? await response.text() : '',
 				'text/html'
 			);
 			const live = findBlockIn( doc );
