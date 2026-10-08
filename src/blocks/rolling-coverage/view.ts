@@ -848,32 +848,34 @@ function initBlock( root: HTMLElement ): void {
 		);
 		const fragment = document.createDocumentFragment();
 
-		entries
+		const kept = entries
 			.filter(
 				( entry ) =>
 					entry.type !== 'remove' &&
 					isSafeEntryId( entry.id ) &&
 					! removedEntryIds.has( String( entry.id ) )
 			)
-			.slice( 0, latestCap || entries.length )
-			.forEach( ( entry ) => {
-				const el = parseElement( sanitizeHtml( entry.html ) );
+			.slice( 0, latestCap || entries.length );
+		const firstShown = kept.findIndex( ( entry ) =>
+			arrivals.has( String( entry.id ) )
+		);
 
-				if ( ! el ) {
-					return;
-				}
+		arrivedCount += firstShown === -1 ? kept.length : firstShown;
 
-				if ( ! arrivals.has( String( entry.id ) ) ) {
-					arrivedCount++;
-				}
+		kept.forEach( ( entry ) => {
+			const el = parseElement( sanitizeHtml( entry.html ) );
 
-				if ( arrivals.has( String( entry.id ) ) ) {
-					el.dataset.arrival = arrivals.get( String( entry.id ) );
-				}
+			if ( ! el ) {
+				return;
+			}
 
-				observeEntry( el );
-				fragment.appendChild( el );
-			} );
+			if ( arrivals.has( String( entry.id ) ) ) {
+				el.dataset.arrival = arrivals.get( String( entry.id ) );
+			}
+
+			observeEntry( el );
+			fragment.appendChild( el );
+		} );
 
 		shownEntries.forEach( ( el ) => {
 			unobserveEntry( el );
@@ -2073,6 +2075,7 @@ function initBlock( root: HTMLElement ): void {
 		isPolling = true;
 		let outcome: PollOutcome = 'failed';
 		const arrivedBefore = arrivedCount;
+		let isStopped = false;
 
 		reportCheck( 'checking' );
 
@@ -2108,7 +2111,8 @@ function initBlock( root: HTMLElement ): void {
 
 				// The block was cleaned up meanwhile, so this reply is no longer its own.
 				if ( isDisposed ) {
-					return 'skipped';
+					outcome = 'skipped';
+					return outcome;
 				}
 
 				minPollInterval = Number( data.minPollInterval ) || 0;
@@ -2144,6 +2148,11 @@ function initBlock( root: HTMLElement ): void {
 					// same cursor: polling ends here, and with it the count.
 					canCount = false;
 					showNewerCount();
+					isStopped = true;
+					checkResult = {
+						outcome: 'ok',
+						added: arrivedCount - arrivedBefore,
+					};
 					reportCheck( 'idle' );
 					return outcome;
 				}
@@ -2185,7 +2194,9 @@ function initBlock( root: HTMLElement ): void {
 		} finally {
 			isPolling = false;
 
-			if ( outcome === 'ok' ) {
+			if ( isStopped || isDisposed ) {
+				checkResult = undefined;
+			} else if ( outcome === 'ok' ) {
 				checkResult = {
 					outcome: 'ok',
 					added: arrivedCount - arrivedBefore,
