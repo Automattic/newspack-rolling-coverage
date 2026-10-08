@@ -1143,8 +1143,8 @@ class Rolling_Coverage_Block {
 		$previous_post_id   = self::$host_post_id;
 		self::$host_post_id = (int) get_the_ID();
 
-		// Preload so polled entries' blocks are styled and work even if none appeared on initial render. Those include the photos Slack messages add, and Follow and Status blocks placed in an entry or in a feed nested in one.
-		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon', 'core/image', 'core/gallery', Coverage_Status_Block::BLOCK_NAME ] as $entry_block_name ) {
+		// Preload so polled entries' blocks are styled and work even if none appeared on initial render. Those include the photos Slack messages add, and Follow, Status and Update Timer blocks placed in an entry or in a feed nested in one.
+		foreach ( [ 'core/buttons', 'core/button', 'core/separator', 'core/icon', 'core/image', 'core/gallery', Coverage_Status_Block::BLOCK_NAME, Update_Timer_Block::BLOCK_NAME ] as $entry_block_name ) {
 			$entry_block_type = WP_Block_Type_Registry::get_instance()->get_registered( $entry_block_name );
 
 			foreach ( $entry_block_type ? $entry_block_type->style_handles : [] as $style_handle ) {
@@ -1154,7 +1154,7 @@ class Rolling_Coverage_Block {
 
 		self::enqueue_template_block_styles( ! empty( $block->parsed_block['innerBlocks'] ) ? $block->parsed_block['innerBlocks'] : self::default_entry_template() );
 
-		$scripted_block_names = [ 'newspack-rolling-coverage/share', Coverage_Status_Block::BLOCK_NAME ];
+		$scripted_block_names = [ 'newspack-rolling-coverage/share', Coverage_Status_Block::BLOCK_NAME, Update_Timer_Block::BLOCK_NAME ];
 
 		// Follow renders nothing until OneSignal is set up.
 		if ( Push_Notifications::is_onesignal_configured() ) {
@@ -2534,18 +2534,21 @@ class Rolling_Coverage_Block {
 		}
 
 		// The Follow button needs its own script and a push provider, neither
-		// of which a lite page has. Dropping it here, before it renders, also
-		// collapses a group that only it filled, which the block's own lite
-		// guard can't do.
+		// of which a lite page has. The Update Timer has nothing to follow on a
+		// lite page or in a feed that checks on request. Dropping them here,
+		// before they render, also collapses a group that only one of them
+		// filled, which the blocks' own guards can't do.
 		$can_follow = ! Lite_Feed::is_lite_render() && Coverage_Follow_Block::should_render( $status );
+		$hide_timer = $checks_on_request || Lite_Feed::is_lite_render();
 
 		$blocks = self::map_template_blocks(
 			$blocks,
-			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow, $checks_on_request ) {
+			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow, $checks_on_request, $hide_timer ) {
 				if (
 					( '' === $all_updates_url && Entry_Bindings::is_all_updates_paragraph( $block ) ) ||
 					( ! $can_follow && Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
 					( ! $checks_on_request && Check_Updates_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
+					( $hide_timer && Update_Timer_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
 					( 'core/group' === ( $block['blockName'] ?? '' ) && empty( $block['innerBlocks'] ) && ! empty( $original['innerBlocks'] ) )
 				) {
 					return [];

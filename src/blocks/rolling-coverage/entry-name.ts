@@ -311,3 +311,54 @@ export function loadMoreFailedLabel( name: EntryName | null ): string {
 		'newspack-rolling-coverage'
 	);
 }
+
+/**
+ * The Update Timer's text while it counts down to the next check.
+ *
+ * @param {number} seconds Whole seconds until the check.
+ * @return {string} The text.
+ */
+export function nextCheckLabel( seconds: number ): string {
+	return sprintf(
+		/* translators: %d: seconds until the page next checks for new coverage entries; the trailing "s" abbreviates seconds. */
+		__( 'Next check in %ds', 'newspack-rolling-coverage' ),
+		seconds
+	);
+}
+
+/**
+ * The Update Timer's text, for a moment, after a check brought entries.
+ *
+ * @param {number}         count How many entries arrived.
+ * @param {EntryName|null} name  The site's name for entries.
+ * @return {string} The text.
+ */
+export function newEntriesFoundLabel(
+	count: number,
+	name: EntryName | null
+): string {
+	if ( name ) {
+		return sprintf(
+			/* translators: 1: number of new coverage entries a check found. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
+			_n(
+				'%1$d new %2$s',
+				'%1$d new %2$s',
+				count,
+				'newspack-rolling-coverage'
+			),
+			count,
+			count === 1 ? name.singular : name.plural
+		);
+	}
+
+	return sprintf(
+		/* translators: %d: number of new coverage entries a check found. */
+		_n(
+			'%d new entry',
+			'%d new entries',
+			count,
+			'newspack-rolling-coverage'
+		),
+		count
+	);
+}

@@ -1,0 +1,46 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "newspack-rolling-coverage/update-timer",
+	"title": "Update Timer",
+	"category": "newspack",
+	"description": "Counts down to the next check for new entries of a live coverage on the page, and shows when a check brings new entries.",
+	"textdomain": "newspack-rolling-coverage",
+	"usesContext": [
+		"postId",
+		"postType",
+		"newspack-rolling-coverage/coverageId"
+	],
+	"attributes": {
+		"coverageId": {
+			"type": "number",
+			"default": 0
+		},
+		"showSpinner": {
+			"type": "boolean",
+			"default": true
+		}
+	},
+	"supports": {
+		"html": false,
+		"reusable": false,
+		"color": {
+			"text": true,
+			"background": false,
+			"link": false,
+			"__experimentalDefaultControls": {
+				"text": true
+			}
+		},
+		"typography": {
+			"fontSize": true,
+			"lineHeight": true
+		},
+		"spacing": {
+			"margin": true
+		}
+	},
+	"editorScript": "file:./index.js",
+	"viewScript": "file:./view.js",
+	"style": "file:./view.css"
+}
