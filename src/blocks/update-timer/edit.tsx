@@ -112,7 +112,9 @@ export default function Edit( {
 				.filter(
 					( attrs ) =>
 						attrs &&
-						( parent || Number( attrs.coverageId ) === followed )
+						( parent ||
+							( followed > 0 &&
+								Number( attrs.coverageId ) === followed ) )
 				);
 			const feed =
 				feeds.find( ( attrs ) => ! attrs?.latestOnly ) ?? feeds[ 0 ];
