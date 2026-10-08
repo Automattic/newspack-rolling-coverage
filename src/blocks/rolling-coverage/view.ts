@@ -159,18 +159,16 @@ function sanitizeHtml( html: string ): string {
 				return;
 			}
 
-			// Active-content URL schemes. data: is included because a
-			// data:text/html frame executes and KSES omits it from the
-			// protocols it allows; spaces and control characters are stripped
-			// first because the browser ignores them when it reads the scheme.
-			if ( name === 'href' || name === 'src' ) {
-				const value = attr.value
-					.replace( /[\u0000- ]/g, '' )
-					.toLowerCase();
+			// An active-content URL scheme in any attribute that carries a URL
+			// — href, src, action, formaction, xlink:href and the like — so the
+			// test is on the value, not a list of names. data: is included
+			// because a data:text/html frame executes and KSES omits it from
+			// its protocols; spaces and control characters are stripped first
+			// because the browser ignores them when it reads the scheme.
+			const value = attr.value.replace( /[\u0000- ]/g, '' ).toLowerCase();
 
-				if ( /^(?:javascript|vbscript|data):/.test( value ) ) {
-					el.removeAttribute( attr.name );
-				}
+			if ( /^(?:javascript|vbscript|data):/.test( value ) ) {
+				el.removeAttribute( attr.name );
 			}
 		} );
 	} );
