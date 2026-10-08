@@ -1,7 +1,7 @@
 .wp-block-newspack-rolling-coverage-update-timer {
 	align-items: center;
 	display: flex;
-	gap: 0.5em;
+	gap: var(--wp--preset--spacing--20, 0.5em);
 
 	&[hidden] {
 		display: none;

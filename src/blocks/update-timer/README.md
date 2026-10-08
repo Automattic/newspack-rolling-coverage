@@ -33,7 +33,7 @@ It doesn't appear on Lite Site's text-only pages.
 
 ## Styling
 
-The spinner and the text take the block's text color. Typography settings change the text size, and the spinner scales with it. The Dimensions settings control margin.
+The spinner and the text take the block's text color. Typography settings change the text size, and the spinner scales with it. The space between them follows the theme's small spacing step. The Dimensions settings control margin.
 
 ## What readers see
 
