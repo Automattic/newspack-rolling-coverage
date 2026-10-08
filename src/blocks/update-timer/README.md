@@ -29,8 +29,6 @@ It stays hidden while there is nothing to count down to:
 - The reader has switched to another tab. When they come back, the page checks at once and the timer shows it.
 - There is no Rolling Coverage block for its coverage on the page.
 
-Inside an Alert layout, or beside any feed that shows no entries, the timer goes straight back to the countdown after each check, without a result line.
-
 It doesn't appear on Lite Site's text-only pages.
 
 ## Styling
@@ -41,5 +39,6 @@ The ring and the text take the block's text color. Typography settings change th
 
 - The seconds count down once a second. The ring drains smoothly, or in one-second steps for readers who ask their device for reduced motion. While a check runs, the ring doesn't spin for those readers.
 - "Entries" follows the entry name set in Rolling Coverage > All Coverages > Settings, for example "2 new updates".
+- Inside an Alert layout, or beside any feed that shows no entries, the timer shows no count after a check: it goes straight back to the countdown, unless the check fails.
 - Screen readers don't hear the countdown. The Rolling Coverage block already announces new entries.
 - If the site sets a minimum poll interval longer than the block's Poll interval, the timer counts down the longer one, as the page does.

@@ -26,11 +26,10 @@ import {
  * Coverage, Check for Updates and Update Timer blocks, which render once at
  * the coverage level, in the Feed or in a coverage-level group inside it,
  * such as a layout's footer, where Rolling_Coverage_Block::layout_items()
- * reads it. Inside an entry or the
- * pinned card, the site would render it in every entry or leave it out. The
- * groups wrapping the Feed take no coverage status either: the site renders
- * them outside the coverage, so only the Feed and its coverage-level groups
- * can hold it.
+ * reads it. Inside an entry or the pinned card, the site would render it in
+ * every entry or leave it out. The groups wrapping the Feed take no coverage
+ * status either: the site renders them outside the coverage, so only the Feed
+ * and its coverage-level groups can hold it.
  *
  * @param {boolean} canInsert                            Whether the block can be inserted so far.
  * @param {Object}  blockType                            The block type being inserted.

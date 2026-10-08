@@ -83,7 +83,11 @@ function chooseFeed( timer: HTMLElement, state: TimerState ): void {
 		return;
 	}
 
-	if ( state.feed?.isConnected && readCheck( state.feed ).state !== 'idle' ) {
+	if (
+		state.feed?.isConnected &&
+		! state.feed.dataset.latest &&
+		readCheck( state.feed ).state !== 'idle'
+	) {
 		return;
 	}
 
