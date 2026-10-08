@@ -37,7 +37,6 @@ const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
 const VIEW_CONTEXT = { context: 'view' };
 const FEED_BLOCK_NAME = 'newspack-rolling-coverage/rolling-coverage';
 const DEFAULT_POLL_INTERVAL = 10;
-const PREVIEW_OFFSET = 30;
 
 const config: UpdateTimerConfig = window.newspackUpdateTimerBlock ?? {
 	minPollInterval: 0,
@@ -232,7 +231,6 @@ export default function Edit( {
 						r="8.25"
 						pathLength={ 100 }
 						strokeWidth="1.5"
-						style={ { strokeDashoffset: PREVIEW_OFFSET } }
 					/>
 				</svg>
 				<span className="newspack-rolling-coverage-update-timer__text">

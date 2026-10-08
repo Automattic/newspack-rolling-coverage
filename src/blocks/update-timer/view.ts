@@ -26,8 +26,6 @@ const FEED_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 const RESULT_MS = 3000;
 const TICK_MS = 250;
 
-const reducedMotion = window.matchMedia( '(prefers-reduced-motion: reduce)' );
-
 interface TimerState {
 	feed: HTMLElement | null;
 	tickId: ReturnType< typeof setInterval > | null;
@@ -139,8 +137,8 @@ function stopTick( state: TimerState ): void {
 
 /**
  * Draws a timer from its feed's state: hidden while the feed isn't counting
- * down, the spinner while it checks, and otherwise the ring draining to the
- * next check with the seconds left, or the last result for a moment.
+ * down, "Checking…" while it checks, and otherwise the seconds to the next
+ * check, or the last result for a moment. The spinner turns throughout.
  *
  * @param {HTMLElement} timer The timer's wrapper.
  * @return {void}
@@ -150,7 +148,6 @@ function render( timer: HTMLElement ): void {
 	const check = state.feed?.isConnected
 		? readCheck( state.feed )
 		: { state: 'idle' as const, nextCheckAt: 0, interval: 0 };
-	const circle = timer.querySelector< SVGCircleElement >( 'circle' );
 	const text = timer.querySelector< HTMLElement >(
 		'.newspack-rolling-coverage-update-timer__text'
 	);
@@ -159,35 +156,16 @@ function render( timer: HTMLElement ): void {
 	timer.dataset.checkState = check.state;
 	timer.hidden = check.state === 'idle';
 
-	if ( ! circle || ! text || check.state === 'idle' ) {
+	if ( ! text || check.state === 'idle' ) {
 		return;
 	}
 
 	if ( check.state === 'checking' ) {
-		circle.style.transition = '';
-		circle.style.strokeDashoffset = '';
 		text.textContent = __( 'Checking…', 'newspack-rolling-coverage' );
 		return;
 	}
 
-	const { nextCheckAt, interval } = check;
-	const progress = () =>
-		interval > 0
-			? 100 * ( 1 - Math.max( 0, nextCheckAt - Date.now() ) / interval )
-			: 100;
-
-	circle.style.transition = 'none';
-	circle.style.strokeDashoffset = String( progress() );
-
-	if ( ! reducedMotion.matches ) {
-		circle.getBoundingClientRect();
-		circle.style.transition = `stroke-dashoffset ${ Math.max(
-			0,
-			nextCheckAt - Date.now()
-		) }ms linear`;
-		circle.style.strokeDashoffset = '100';
-	}
-
+	const { nextCheckAt } = check;
 	const tick = () => {
 		if ( ! timer.isConnected ) {
 			stopTick( state );
@@ -206,14 +184,6 @@ function render( timer: HTMLElement ): void {
 
 		if ( text.textContent !== label ) {
 			text.textContent = label;
-		}
-
-		if ( reducedMotion.matches ) {
-			const step = interval >= 1000 ? 100000 / interval : 0;
-
-			circle.style.strokeDashoffset = String(
-				step > 0 ? Math.floor( progress() / step ) * step : progress()
-			);
 		}
 	};
 
