@@ -411,6 +411,155 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A theme color name renders the theme's color variables and the text
+	 * color the theme pairs with it, so the badge follows style variations.
+	 */
+	public function test_theme_color_backgrounds_use_the_theme_pair() {
+		$page_id = self::page( self::feed( self::create_coverage() ) );
+
+		$this->set_palette( [] );
+
+		$html = $this->render(
+			[
+				'backgroundColors' => [
+					'active'   => 'accent',
+					'archived' => 'base',
+				],
+			],
+			$page_id
+		);
+
+		$accent = Coverage_Status_Block::THEME_COLORS['accent'];
+		$base   = Coverage_Status_Block::THEME_COLORS['base'];
+
+		$this->assertStringContainsString( 'style="background:' . $accent['background'] . ';color:' . $accent['text'] . ';--newspack-ui-badge-dot-color:color-mix(in srgb, ' . $accent['text'] . ' 60%, ' . $accent['background'] . ')">Live</span>', $html );
+		$this->assertStringContainsString( 'data-style-archived="background:' . $base['background'] . ';color:' . $base['text'] . ';', $html );
+	}
+
+	/**
+	 * When the palette has a hex for a theme color, the text is black or
+	 * white by APCA against it, so a light accent gets dark text. The
+	 * background stays the theme's variables.
+	 */
+	public function test_theme_color_text_follows_the_palette() {
+		$page_id = self::page( self::feed( self::create_coverage() ) );
+
+		$this->set_palette(
+			[
+				[
+					'slug'  => 'accent',
+					'color' => '#cfcabe',
+				],
+				[
+					'slug'  => 'base',
+					'color' => '#111111',
+				],
+			]
+		);
+
+		$html = $this->render(
+			[
+				'backgroundColors' => [
+					'active'   => 'accent',
+					'archived' => 'base',
+				],
+			],
+			$page_id
+		);
+
+		$accent = Coverage_Status_Block::THEME_COLORS['accent']['background'];
+		$base   = Coverage_Status_Block::THEME_COLORS['base']['background'];
+
+		$this->assertStringContainsString( 'style="background:' . $accent . ';color:#000000;--newspack-ui-badge-dot-color:color-mix(in srgb, #000000 60%, ' . $accent . ')">Live</span>', $html );
+		$this->assertStringContainsString( 'data-style-archived="background:' . $base . ';color:#ffffff;', $html );
+	}
+
+	/**
+	 * A theme that defines the paired text color keeps it, rather than plain
+	 * black or white.
+	 */
+	public function test_theme_color_text_keeps_a_paired_palette_color() {
+		$page_id = self::page( self::feed( self::create_coverage() ) );
+
+		$this->set_palette(
+			[
+				[
+					'slug'  => 'base',
+					'color' => '#1b1b1b',
+				],
+				[
+					'slug'  => 'contrast',
+					'color' => '#efe9df',
+				],
+			]
+		);
+
+		$html = $this->render( [ 'backgroundColors' => [ 'active' => 'base' ] ], $page_id );
+
+		$this->assertStringContainsString( ';color:' . Coverage_Status_Block::THEME_COLORS['base']['text'] . ';', $html );
+	}
+
+	/**
+	 * The site's own palette color wins over the theme's for the same slug,
+	 * as it does for the preset variable.
+	 */
+	public function test_theme_color_text_prefers_the_custom_palette() {
+		$page_id = self::page( self::feed( self::create_coverage() ) );
+
+		$this->set_palette(
+			[
+				[
+					'slug'  => 'accent',
+					'color' => '#cfcabe',
+				],
+			],
+			[
+				[
+					'slug'  => 'accent',
+					'color' => '#1e1e1e',
+				],
+			]
+		);
+
+		$html = $this->render( [ 'backgroundColors' => [ 'active' => 'accent' ] ], $page_id );
+
+		$this->assertStringContainsString( ';color:#ffffff;', $html );
+	}
+
+	/**
+	 * Replaces the theme's palette, and optionally the site's own, for one
+	 * test.
+	 *
+	 * @param array $theme  Theme palette entries.
+	 * @param array $custom Site palette entries.
+	 */
+	private function set_palette( array $theme, array $custom = [] ): void {
+		$theme_filter  = static function ( $data ) use ( $theme ) {
+			return $data->update_with( self::palette_json( $theme ) );
+		};
+		$custom_filter = static function ( $data ) use ( $custom ) {
+			return $custom ? $data->update_with( self::palette_json( $custom ) ) : $data;
+		};
+
+		add_filter( 'wp_theme_json_data_theme', $theme_filter );
+		add_filter( 'wp_theme_json_data_user', $custom_filter );
+		wp_clean_theme_json_cache();
+	}
+
+	/**
+	 * A theme.json fragment holding a palette.
+	 *
+	 * @param array $entries Palette entries.
+	 * @return array
+	 */
+	private static function palette_json( array $entries ): array {
+		return [
+			'version'  => WP_Theme_JSON::LATEST_SCHEMA,
+			'settings' => [ 'color' => [ 'palette' => $entries ] ],
+		];
+	}
+
+	/**
 	 * "Updated" is off by default.
 	 */
 	public function test_last_updated_is_off_by_default() {

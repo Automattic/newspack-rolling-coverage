@@ -7,6 +7,8 @@ Shows whether a coverage is Live, Paused, or Ended, as a small badge. It can als
 - **Next to a headline.** Add it to a page or template, beside the title or in a header, so readers see at a glance whether the story is still moving.
 - **Inside a Rolling Coverage block.** Add it to the block's layout. It shows that block's coverage, and the Coverage panel is hidden.
 
+To show readers when the page next checks for new entries, add an [Update Timer](../update-timer/README.md) next to the badge.
+
 The block is in the inserter's Newspack category, or Rolling Coverage on sites without Newspack.
 
 ## Which coverage it shows
@@ -35,11 +37,11 @@ All settings are in the Settings panel.
 | When ended | Show, Hide | Hide removes the block from the site once the coverage ends. The editor shows a notice when this applies. Show is the default. |
 | Dot | Show, Hide | Turns the dot on the Live badge on or off. Paused and Ended badges have no dot. Show is the default. |
 
-Site-wide labels are set in Rolling Coverage > All Coverages, under the Settings button. Each label can be up to 40 characters. A label set on a block overrides the site-wide one.
+Editors and administrators set the site-wide labels in Rolling Coverage > All Coverages: select Settings, then Coverage Status. Each label can be up to 40 characters. A label set on a block overrides the site-wide one.
 
 ## Styling
 
-- **Badge colors.** In the Styles tab, under Color, set Live background, Paused background, and Ended background. The text color is chosen automatically for contrast.
+- **Badge colors.** In the Styles tab, under Color, set Live background, Paused background, and Ended background. The text color is chosen automatically for contrast. The Flash and Alert layouts color the Live badge with the theme's own colors, which follow the theme's style variations; picking a color here replaces that with the color you pick.
 - **Text color.** The Text color setting changes the "Updated … ago" text. New blocks start with a muted color from the theme palette when it has one.
 - **Spacing.** The Dimensions settings control margin. On themes that support block spacing, they also control the gap between the badge and the "Updated … ago" text, which defaults to the theme's small spacing step. Other themes, including the Newspack Theme, use WordPress's standard gap.
 
@@ -47,7 +49,9 @@ Site-wide labels are set in Rolling Coverage > All Coverages, under the Settings
 
 A badge that reads Live, Paused, or Ended, and optionally the "Updated … ago" text. Live badges pulse when the dot is on.
 
-The badge changes without a page reload, but only when a Rolling Coverage block for the same coverage is on the same page. A Custom block pointing to a coverage that isn't on the page keeps the status it had when the page loaded. The "Updated … ago" text counts up once a minute either way.
+The badge changes without a page reload, but only when a Rolling Coverage block for the same coverage is on the same page. A Rolling Coverage block stops checking once it sees the coverage end, so a coverage reopened after that can keep reading Ended until the page reloads. A Custom block pointing to a coverage that isn't on the page keeps the status it had when the page loaded. The "Updated … ago" text counts up once a minute either way.
+
+On Lite Site's text-only pages, the badge shows the status from when the page was saved for Lite Site, and "Updated … ago" doesn't appear.
 
 ## Limits
 

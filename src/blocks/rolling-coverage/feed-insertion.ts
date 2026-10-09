@@ -11,6 +11,7 @@ import {
 	BLOCK_NAME,
 	CHECK_UPDATES_BLOCK_NAME,
 	FOLLOW_BLOCK_NAME,
+	UPDATE_TIMER_BLOCK_NAME,
 } from './layout';
 import {
 	STATUS_BLOCK_NAME,
@@ -22,14 +23,13 @@ import {
 
 /**
  * Limits the Feed group to the layout's block types, and keeps the Follow
- * Coverage and Check for Updates blocks, which render once at the coverage
- * level, in the Feed
- * or in a coverage-level group inside it, such as a layout's footer, where
- * Rolling_Coverage_Block::layout_items() reads it. Inside an entry or the
- * pinned card, the site would render it in every entry or leave it out. The
- * groups wrapping the Feed take no coverage status either: the site renders
- * them outside the coverage, so only the Feed and its coverage-level groups
- * can hold it.
+ * Coverage, Check for Updates and Update Timer blocks, which render once at
+ * the coverage level, in the Feed or in a coverage-level group inside it,
+ * such as a layout's footer, where Rolling_Coverage_Block::layout_items()
+ * reads it. Inside an entry or the pinned card, the site would render it in
+ * every entry or leave it out. The groups wrapping the Feed take no coverage
+ * status either: the site renders them outside the coverage, so only the Feed
+ * and its coverage-level groups can hold it.
  *
  * @param {boolean} canInsert                            Whether the block can be inserted so far.
  * @param {Object}  blockType                            The block type being inserted.
@@ -76,9 +76,11 @@ function canInsertIntoFeed(
 	}
 
 	if (
-		! [ FOLLOW_BLOCK_NAME, CHECK_UPDATES_BLOCK_NAME ].includes(
-			blockType.name
-		) ||
+		! [
+			FOLLOW_BLOCK_NAME,
+			CHECK_UPDATES_BLOCK_NAME,
+			UPDATE_TIMER_BLOCK_NAME,
+		].includes( blockType.name ) ||
 		! rootClientId
 	) {
 		return true;

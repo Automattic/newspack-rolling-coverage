@@ -29,9 +29,10 @@ A layout is how the feed looks: spacing, colors, type, and which parts each entr
 | Split | The full feed at wide width, with the pinned entry's summary in a column beside the entries. | A coverage page that leads with a pinned summary, such as "What we know", beside the feed. |
 | Wire | A narrow list of the five latest entries, ending in a link to the coverage page. | A sidebar or another narrow column. |
 | Digest | A bordered box with the coverage name, the three latest entries next to their times, and a link to the coverage page. | A sidebar, or a box inside a related story that links to the main coverage. |
-| Flash | A full-width bar in the site's accent color with the latest entry, its time, and a link to the coverage page, side by side at every width. The entry keeps to one line, cut short to fit, and phones hide the time. Picking Flash sets the Live badge's background to the page's background color as it is then: Base on block themes, White on the classic Newspack Theme. Change it under the Coverage Status block's Color settings. Hides when the coverage ends. | The site header, so a major breaking story shows on every page. |
+| Flash | A full-width bar in the site's accent color with the latest entry, its time, and a link to the coverage page, side by side at every width. The bar always stays one line. With one entry, it takes all the room; with two, each takes half; with three or more, each takes a third and the rest are hidden. Each entry keeps to one line, cut short to fit. Flash shows at most three entries at a time, whatever Number of entries or Show is set to. With Show set to Latest, "See all entries" leads to the rest. At 782px wide and below it shows one entry, and on small phones (480px and below) it also hides the time. The Live badge takes the theme's page background and text colors, and follows the theme's style variations. Change it under the Coverage Status block's Color settings. Hides when the coverage ends. | The site header, so a major breaking story shows on every page. |
+| Alert | A box on the theme's secondary background color, like a pinned entry's (a light gray, or a dark gray on dark style variations), holding the coverage's status, its name, and a link to the coverage page on the right, side by side at every width. It shows no entries. The name keeps to one line, cut short to fit. The Live badge takes the theme's accent color (Primary on the classic Newspack Theme) with the text color the theme pairs with it, and follows the theme's style variations. Change it under the Coverage Status block's Color settings. Hides when the coverage ends. | Inside a related story, to point readers to the live coverage without repeating its updates. |
 
-Ticker, Wire, Digest, and Flash show only the latest entries. They set Show to Latest and a matching Number of entries when you pick them. You can change either afterward, except Show on Ticker: its headlines run on one line, which has no room for pinned entries or older pages, so the setting is hidden while it's set to Latest.
+Ticker, Wire, Digest, and Flash show only the latest entries. They set Show to Latest and a matching Number of entries when you pick them. Alert shows no entries, but sets Show to Latest too, since the link to the coverage page only shows with Latest. You can change either afterward, except Show on Ticker and Alert: Ticker's headlines run on one line, which has no room for pinned entries or older pages, and Alert has no entries to show, so the setting is hidden while it's set to Latest. Alert hides Number of entries too.
 
 The first time someone who can publish picks a built-in layout, the site saves it as a shared layout. Every story using it then follows that one copy. A Contributor who picks one before that gets a copy for that story only. See [Edit, detach, and change a layout](#edit-detach-and-change-a-layout).
 
@@ -64,7 +65,7 @@ Says whether the block uses the shared layout or its own detached copy.
 | Show | All shows every entry, one page at a time. Latest shows only the most recent entries. |
 | Older entries | With Show set to All: what happens after the first page. Load on scroll (default) loads the next page as readers reach the end of the feed. Load More button shows a Load More button below the entries; each press adds a page, and the button goes away once every entry is shown. Don’t load shows the first page only. |
 | Number of entries | With Show set to Latest: how many entries to show, from 1 to 100. |
-| Link to all updates | With Show set to Latest, in layouts that have one (Ticker, Wire, Digest, Flash): Show or Hide the link to the coverage page. The link is hidden on the coverage page itself. It starts as "See all entries", or "See all" followed by the site's plural name for entries ("See all updates"). It is an ordinary paragraph, so you can reword it. |
+| Link to all updates | With Show set to Latest, in layouts that have one (Ticker, Wire, Digest, Flash, Alert): Show or Hide the link to the coverage page. The link is hidden on the coverage page itself. It starts as "See all entries", or "See all" followed by the site's plural name for entries ("See all updates"). It is an ordinary paragraph, so you can reword it. |
 | Link text | With Link to all updates set to Show, in a shared layout that has the link: this block's own wording for it, such as "Follow the storm". Leave it empty to use the layout's text, which shows in the field and below it. The layout stays shared, so later changes to it still reach this block. Detaching the layout writes the wording into the detached copy. |
 | Entries per page | With Show set to All: how many entries show first, and how many each load of older entries adds. From 1 to 100. Default 20. |
 | Poll interval (seconds) | Hidden when Show is set to All and the layout holds a [Check for Updates](../check-updates/README.md) block. How often the page checks for new entries. Default 10. The site can set a longer minimum, which wins over a shorter value here. |
@@ -84,9 +85,11 @@ The panel title shows the site's label for an ended coverage ("Ended" unless the
 
 Notice appears only when When ended is set to Show. Notice text and Link appear only when Notice is set to Show, and URL and Link text only when Link is set to Show.
 
+Readers who already have the page open when the coverage ends see the notice at the page's next check for updates, and the page stops checking. The notice uses the settings from when the page loaded, so a change to its text or URL reaches those readers only after a reload, and so does a breakout post published after the notice appears.
+
 ### AI
 
-Appears when AI is set up on the site. Generate Key Takeaways writes a summary of the coverage's entries into Generated Output. Copy copies it. Editors and administrators set the prompts under Rolling Coverage > AI.
+Appears when AI is set up on the site. Generate Key Takeaways writes a summary of the coverage's entries into Generated Output. Copy copies it. Administrators set the prompts under Rolling Coverage > AI.
 
 ### Ads
 
@@ -108,9 +111,11 @@ Alignment and the HTML anchor are in the block toolbar and the Advanced section 
 The page checks for new entries every poll interval. It stops while the tab is in the background and checks again when the reader returns.
 
 - If the reader is at the top, new entries appear at once.
-- If the reader has scrolled down, the page does not move. A button shows the count (for example "3 New Entries"). Selecting it brings the new entries in. Edited entries update in place.
+- If the reader has scrolled down, the page does not move. A button shows the count (for example "3 New Entries"). Selecting it brings the new entries in. Edited entries update in place, and new entries waiting behind the button come in with their latest edits.
+- An entry that is unpublished, for example moved to draft or trashed, disappears from the page.
 - To have the page check only when readers ask, add a [Check for Updates](../check-updates/README.md) block to the layout. The page then makes no background checks, which suits readers on slow or metered connections.
 - Older entries load as the reader scrolls to the end, or with the Load More button, depending on Older entries. The button takes the theme's button style. If a load fails, the button stays so the reader can try again.
+- A tab left open for a long time, or a page served from a cache, after the feed's layout or settings changed many times reloads when new or older entries arrive, so they show in the feed's own layout. If the reload lands on the same cached copy, it tries again a minute later.
 - A paused or ended coverage does not check for new entries on its own. With a Check for Updates block, readers can still check a paused coverage.
 - Times follow the site's time format.
 
@@ -122,18 +127,42 @@ The new entries count and Jump to Latest show on the same button. It sits at the
 
 Readers see entries called "entries" by default. To call them something else, such as "updates", go to Rolling Coverage > All Coverages, select Settings, and set Singular and Plural under Entry Name, each as it reads mid-sentence ("update", "updates"). Both are needed, up to 30 characters each. The name then shows in the counts ("3 New Updates", "1 Newer Update"), the empty feed ("No updates yet."), the share button's label for screen readers, the text a new layout's link to the coverage page starts with ("See all updates", which layouts already in use keep as they are), the notice above an out-of-date entry and the feed's screen reader announcements. On English-language sites the counts capitalize each word, as buttons do; other languages keep the words as typed. Leave both empty to go back to "entry" and "entries".
 
+### Entries behind a content gate
+
+When a Newspack content gate covers entries, each gated entry shows only its free preview in the feed, without the gate's prompt. Every reader sees the preview, including readers the gate lets through, because the feed is the same for everyone. This holds for new and older entries as they arrive, on Lite Site pages, and in the RSS item of the post or page holding the feed. Readers the gate lets through can read the whole entry where it has a page of its own: its breakout post, or the entry's own page when the coverage has no Canonical URL.
+
+In RSS, gated entries follow the gate's feed setting. They show in full when Restrict content in feeds is turned off (Audience > Access Control > Advanced Settings), or in a custom RSS feed whose Restricted articles in this feed is set to Include restricted articles in full. With Remove restricted articles from the feed, the post holding the feed stays in the RSS feed unless a gate covers it too, and its gated entries show their free preview.
+
+A gate can cover entries through its Post types rule, through a category or tag an entry carries, or by having only exclusion rules. To keep entries whole, use the gate's Post types rule:
+
+- Set to Include: leave Entries unchecked.
+- Set to Exclude: check Entries.
+- Not turned on: turn it on, set it to Exclude, uncheck Posts, and check Entries.
+
+A gate set to Match any rule, with its Post types rule set to Include, can still cover entries through a category or tag they carry.
+
 ### Pinned entries
 
-An entry pinned in the coverage stays at the top of the feed with a "Pinned" label, whatever its date. Some layouts keep the pinned entry in view while the reader scrolls.
+An entry pinned in the coverage stays at the top of the feed with a "Pinned" label, whatever its date. Some layouts keep the pinned entry in view while the reader scrolls. When an entry is unpinned, pages already open move it back to its place by date at their next check. If that place is further down than the reader has loaded, the entry shows up there once older entries load. With Older entries set to Don’t load, it goes to the end of the feed instead.
 
 Feeds set to Latest ignore pinning and show the newest entries only.
 
+### Share
+
+Selecting Share on an entry opens the device's share sheet with a link to that entry. Where the browser has no share sheet, Share copies the link instead and confirms with "Link copied." A feed placed inside another feed's entry shares its own entries the same way.
+
+### What compact layouts show of an entry
+
+Layouts that show a short excerpt of each entry, such as Wire, Digest, and Flash, take it from the entry's text when no excerpt was written for it: every block with words, including lists, headings, and quotes, cut to the length the layout's excerpt allows. Photos, videos, audio, and embeds add nothing to it, so a caption or an embedded link never reads as the entry's words. Neither do blocks hidden with Hide block, or the labels of buttons, file downloads, and other controls.
+
+Ticker gives an entry without a title a headline made of the opening words of its first block with words, so a heading or an opening line stands alone. A block that ends with a colon, such as "Roads closed as of 4pm:" over a list, reads on into what follows it. An excerpt written for the entry is used instead when there is one.
+
 ### Photo, video, and other media entries
 
-An entry that holds only a photo, gallery, video, audio clip, or embed has no words of its own, so it is described by its media instead: Photo, Gallery, Video, Audio, or Embed. When the media has a caption, the caption follows, for example "Photo: Crowds at the finish line". A photo without a caption uses its alt text. A gallery without a caption uses the caption or alt text of its first image that has one.
+An entry that holds only a photo, gallery, video, audio clip, or embed has no words of its own, so it is described by its media instead: Photo, Gallery, Video, Audio, or Embed. When the media has a caption, the caption follows, for example "Photo: Crowds at the finish line". A photo without a caption uses its alt text. A gallery without a caption uses the caption or alt text of its first image that has one. An embed without a caption says what it embeds: a published post on this site, such as the entry's breakout post, is named by that post's title, and anything else by the site it comes from, for example "Embed from x.com".
 
 - Layouts that show a short excerpt of each entry, such as Wire, Digest, and Flash, show this description as the excerpt, under the entry's title when it has one.
-- Ticker, which gives an entry without a title a headline made of its first words, uses this description as the headline.
+- Ticker uses this description as the headline of an entry without a title.
 
 An entry with any text of its own, or with an excerpt written for it, shows that text as usual.
 
@@ -144,6 +173,12 @@ Entries posted from Slack follow the same rules:
 - Several images become a gallery. Posted without text, the entry reads "Gallery: " followed by the first description among its images, or only "Gallery" when none has one.
 
 To give readers more than "Photo" or "Gallery", add a description to the image in Slack before you post it, or write a line of text with the images.
+
+### Lite Site pages
+
+On sites with the Lite Site plugin, a feed keeps updating on the text-only copy of the page too: new entries arrive, and older ones load, as the block is set. Each entry shows as text, with its time, a "Pinned" label when it's pinned, its title and its content, whatever the layout shows on the full page. Ads, Share, and Follow Coverage don't appear there. The coverage name, the Coverage Status badge (without "Updated … ago"), and the link to the coverage page still show.
+
+This needs a Lite Site release after 0.1.0. With 0.1.0 or older, the lite page shows the entries as they were when the page was saved for Lite Site: new entries don't arrive, and older ones don't load.
 
 ### Live blog markup
 
@@ -190,10 +225,10 @@ To start from a built-in layout instead, open the Rolling Coverage category in P
 
 ### Use it
 
-In a story, add or select a Rolling Coverage block, open "Choose a layout" (Choose, or Change Layout in the Layout panel) and pick your layout. It is listed after Flash. If it isn't listed, reload the story's editor.
+In a story, add or select a Rolling Coverage block, open "Choose a layout" (Choose, or Change Layout in the Layout panel) and pick your layout. It is listed after Alert. If it isn't listed, reload the story's editor.
 
 Things to know:
 
-- Picking a built-in layout also changes block settings: Ticker, Wire, Digest, and Flash set Show to Latest and Number of entries; Ticker, Split, and Flash set the alignment; Ticker and Flash set When ended to Hide. A custom layout, including a copy of a built-in one, changes none of them, and the block keeps its current values. Set them on the block in the story.
+- Picking a built-in layout also changes block settings: Ticker, Wire, Digest, Flash, and Alert set Show to Latest and Number of entries; Ticker, Split, and Flash set the alignment; Ticker, Flash, and Alert set When ended to Hide. A custom layout, including a copy of a built-in one, changes none of them, and the block keeps its current values. Set them on the block in the story.
 - Read more links to the entry's breakout post and only shows on entries that have one. Share links to the entry itself. Both are parts of an entry in the built-in layouts. To remove Share, delete it. Read more is locked: select it, open Options (⋮) > Unlock, clear Lock removal, select Apply, then delete it.
 - Follow Coverage is not part of the built-in layouts.

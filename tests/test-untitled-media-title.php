@@ -94,7 +94,7 @@ https://example.com/media
 			'video embed'       => [ $embed( 'youtube', 'video' ), 'Video' ],
 			'other video embed' => [ $embed( 'example', 'video' ), 'Video' ],
 			'audio embed'       => [ $embed( 'spotify', 'rich' ), 'Audio' ],
-			'other embed'       => [ $embed( 'twitter', 'rich' ), 'Embed' ],
+			'other embed'       => [ $embed( 'twitter', 'rich' ), 'Embed from example.com' ],
 			'photo embed'       => [ $embed( 'flickr', 'photo' ), 'Photo' ],
 			'spaces only'       => [ '<!-- wp:paragraph --><p>&nbsp; &nbsp; &nbsp;</p><!-- /wp:paragraph --><!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt=""/></figure><!-- /wp:image -->', 'Photo' ],
 			'image cover'       => [ '<!-- wp:cover {"url":"https://example.com/a.jpg","dimRatio":50} --><div class="wp-block-cover"><img class="wp-block-cover__image-background" alt="" src="https://example.com/a.jpg"/><span class="wp-block-cover__background has-background-dim"></span><div class="wp-block-cover__inner-container"><!-- wp:paragraph --><p></p><!-- /wp:paragraph --></div></div><!-- /wp:cover -->', 'Photo' ],
@@ -145,12 +145,12 @@ https://example.com/media
 
 	/**
 	 * An entry with words outside its media keeps its opening words as its
-	 * title and core's excerpt.
+	 * title and excerpt; the photo's caption isn't among them.
 	 */
 	public function test_entry_with_text_keeps_its_opening_words() {
 		$entry_id = self::create_untitled_entry( '<!-- wp:paragraph --><p>Crews are clearing the road.</p><!-- /wp:paragraph -->' . self::CAPTIONED_IMAGE );
 
-		$this->assertSame( 'Crews are clearing the road. Crowds at the finish & line', Entry_Bindings::get_fallback_title( get_post( $entry_id ) ) );
+		$this->assertSame( 'Crews are clearing the road.', Entry_Bindings::get_fallback_title( get_post( $entry_id ) ) );
 		$this->assertSame( 'Crews are clearing the road.', self::excerpt( $entry_id ) );
 	}
 

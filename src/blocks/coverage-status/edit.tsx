@@ -56,6 +56,32 @@ const VIEW_CONTEXT = { context: 'view' };
 const SAMPLE_AGE_MS = 2 * 60 * 1000;
 const INSERT_SOURCES = [ undefined, 'inserter_menu', 'quick_inserter' ];
 
+/**
+ * The color the picker shows for a badge background: a theme color's palette
+ * swatch, else the plain color its variables fall back to, or the stored
+ * color itself.
+ *
+ * @param {string} color        Stored background: 'accent', 'base' or a hex color.
+ * @param {string} accentSwatch The palette's accent (or primary) color.
+ * @param {string} baseSwatch   The palette's base (or white) color.
+ * @return {string|undefined} The color to show.
+ */
+function themeSwatch(
+	color: string | undefined,
+	accentSwatch: string,
+	baseSwatch: string
+) {
+	if ( color === 'accent' ) {
+		return accentSwatch || '#003da5';
+	}
+
+	if ( color === 'base' ) {
+		return baseSwatch || '#ffffff';
+	}
+
+	return color;
+}
+
 const config: CoverageStatusConfig = window.newspackCoverageStatusBlock ?? {
 	sourceEntryField: 'rolling_coverage_source_entry',
 	statusLabels: {
@@ -191,7 +217,16 @@ export default function Edit( {
 		}
 	}
 
-	const { justInserted, paletteSlugs } = useSelect(
+	const {
+		justInserted,
+		paletteSlugs,
+		accentSwatch,
+		baseSwatch,
+		accentPreset,
+		accentPair,
+		basePreset,
+		basePair,
+	} = useSelect(
 		( select ) => {
 			const blockEditor = select( blockEditorStore ) as unknown as {
 				wasBlockJustInserted: (
@@ -199,28 +234,56 @@ export default function Edit( {
 					source?: string
 				) => boolean;
 				getSettings: () => {
-					colors?: { slug: string }[];
+					colors?: { slug: string; color: string }[];
 					__experimentalFeatures?: {
 						color?: {
-							palette?: Record< string, { slug: string }[] >;
+							palette?: Record<
+								string,
+								{ slug: string; color: string }[]
+							>;
 						};
 					};
 				};
 			};
 			const settings = blockEditor.getSettings();
+			const origins =
+				settings.__experimentalFeatures?.color?.palette ?? {};
+			const palette = [
+				...Object.values( origins ).flat(),
+				...( settings.colors ?? [] ),
+			];
+			const swatch = ( ...slugs: string[] ) =>
+				slugs
+					.map(
+						( slug ) =>
+							palette.find( ( color ) => color.slug === slug )
+								?.color
+					)
+					.find( Boolean ) ?? '';
+			const preset = ( slug: string ) =>
+				[ 'custom', 'theme' ]
+					.map(
+						( origin ) =>
+							origins[ origin ]?.find(
+								( color ) => color.slug === slug
+							)?.color
+					)
+					.find( Boolean ) ?? '';
 
 			return {
 				justInserted: INSERT_SOURCES.some( ( source ) =>
 					blockEditor.wasBlockJustInserted( clientId, source )
 				),
-				paletteSlugs: [
-					...Object.values(
-						settings.__experimentalFeatures?.color?.palette ?? {}
-					).flat(),
-					...( settings.colors ?? [] ),
-				]
+				paletteSlugs: palette
 					.map( ( color ) => color.slug )
 					.join( ',' ),
+				// The picker needs a literal color to show and mark as selected, so a theme color shows as its palette swatch.
+				accentSwatch: swatch( 'accent', 'primary' ),
+				baseSwatch: swatch( 'base', 'white' ),
+				accentPreset: preset( 'accent' ),
+				accentPair: preset( 'accent-contrast' ),
+				basePreset: preset( 'base' ),
+				basePair: preset( 'contrast' ),
 			};
 		},
 		[ clientId ]
@@ -550,7 +613,11 @@ export default function Edit( {
 					settings={ Object.entries( BACKGROUND_FIELDS ).map(
 						( [ key, field ] ) => ( {
 							label: field,
-							colorValue: backgroundColors?.[ key ],
+							colorValue: themeSwatch(
+								backgroundColors?.[ key ],
+								accentSwatch,
+								baseSwatch
+							),
 							onColorChange: ( value?: string ) =>
 								setBackground( key, value ),
 							resetAllFilter: () => ( {
@@ -570,7 +637,12 @@ export default function Edit( {
 						status,
 						showDot !== false
 					) }` }
-					style={ badgeStyleObject( backgroundColors?.[ status ] ) }
+					style={ badgeStyleObject( backgroundColors?.[ status ], {
+						accent: accentPreset,
+						'accent-contrast': accentPair,
+						base: basePreset,
+						contrast: basePair,
+					} ) }
 				>
 					{ label }
 				</span>

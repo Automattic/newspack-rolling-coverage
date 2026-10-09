@@ -129,7 +129,7 @@ function IngestionSettingsTab( {
 						heading={ 2 }
 						title={ __( 'Bot User', 'newspack-rolling-coverage' ) }
 						description={ __(
-							'This WordPress user is created automatically and is the author of every entry ingested from Slack. Change its display name or avatar from its WordPress profile.',
+							"This WordPress user is created automatically. Entries ingested from Slack are credited to it, unless the person who posted them has added their Slack handle or member ID to their WordPress profile. Change the bot user's display name or avatar from its WordPress profile.",
 							'newspack-rolling-coverage'
 						) }
 					/>

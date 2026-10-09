@@ -266,7 +266,7 @@ class Lite_Feed {
 		}
 
 		return sprintf(
-			'<article class="%1$s-entry" data-entry-id="%2$d" data-arrival="%3$s"%4$s><p class="%1$s-entry-meta">%5$s</p>%6$s%7$s%8$s</article>',
+			'<article class="%1$s-entry" data-entry-id="%2$d" data-arrival="%3$s" data-date-gmt="%9$s"%4$s><p class="%1$s-entry-meta">%5$s</p>%6$s%7$s%8$s</article>',
 			Rolling_Coverage_Block::MARKUP_PREFIX,
 			$entry->ID,
 			esc_attr( $arrival ),
@@ -274,7 +274,8 @@ class Lite_Feed {
 			$meta,
 			Rolling_Coverage_Block::has_title( $entry ) ? '<h3>' . esc_html( get_the_title( $entry ) ) . '</h3>' : '',
 			Archive_Mode::is_entry_archived( $entry->ID ) ? \Newspack_Lite_Site\Lite_Site::clean_content( Rolling_Coverage_Block::render_archived_entry_notice() ) : '',
-			self::render_body( $entry )
+			self::render_body( $entry ),
+			esc_attr( $entry->post_date_gmt )
 		);
 	}
 
@@ -288,7 +289,11 @@ class Lite_Feed {
 	 * A protected entry gets a notice in place of its body, whatever the
 	 * reader's postpass cookie, and blocks Newspack shows only to signed-in
 	 * readers are left out, whoever is signed in: Lite Site caches the page
-	 * for every reader, and lite polls and load more are public.
+	 * for every reader, and lite polls and load more are public. For the same
+	 * reason an entry a Newspack content gate covers shows its teaser. The
+	 * body is read only after the entry is set up as a loop post, because
+	 * that's when the gate puts the teaser in its post_content (see
+	 * Rolling_Coverage_Block::setup_entry_postdata()).
 	 *
 	 * An entry's content can hold a feed of its own coverage, which lists the
 	 * entry again. Its body then renders only the first time, as core's Post
@@ -315,7 +320,7 @@ class Lite_Feed {
 
 		$previous_post = $post;
 		$post          = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-		setup_postdata( $entry );
+		Rolling_Coverage_Block::setup_entry_postdata( $entry );
 
 		self::$rendering_bodies[ $entry->ID ] = true;
 

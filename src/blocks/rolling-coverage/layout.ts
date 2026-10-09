@@ -24,6 +24,7 @@ import {
 	flashEntryTemplate,
 	flashBar,
 	FLASH_FEED_LAYOUT,
+	ALERT_FEED_STYLE,
 	tickerEntryTemplate,
 	tickerHeader,
 	TICKER_FEED_LAYOUT,
@@ -38,6 +39,7 @@ import {
 	FOLLOW_BLOCK_NAME,
 	CHECK_UPDATES_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
+	UPDATE_TIMER_BLOCK_NAME,
 	feedTemplate,
 	layoutParts,
 	withoutPinnedRow,
@@ -55,15 +57,14 @@ import {
 	isPinnedCard,
 	forEntryKind,
 } from './template';
-import { normalizeColor } from '../shared/apca';
 import { SHOW_AVATARS } from './config';
 import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
 export const BLOCK_NAME = metadata.name;
 
-export { FOLLOW_BLOCK_NAME, CHECK_UPDATES_BLOCK_NAME };
+export { FOLLOW_BLOCK_NAME, CHECK_UPDATES_BLOCK_NAME, UPDATE_TIMER_BLOCK_NAME };
 
-type PaletteColor = { slug: string; color?: string };
+type PaletteColor = { slug: string };
 
 /**
  * Every color in the editor's palette: the theme's, core's default and the
@@ -96,16 +97,6 @@ function palette(): PaletteColor[] {
  */
 function paletteSlugs(): string[] {
 	return palette().map( ( color ) => color.slug );
-}
-
-/**
- * The value of a palette color, if the palette has it.
- *
- * @param {string} slug The color's slug.
- * @return {string|undefined} The color.
- */
-function paletteColor( slug: string ): string | undefined {
-	return palette().find( ( color ) => color.slug === slug )?.color;
 }
 
 /**
@@ -295,24 +286,19 @@ export function digestInnerTemplate(): TemplateItem[] {
  * The Flash layout's inner-blocks template: a full-width bar on the site's
  * accent color holding, at the theme's wide width, the coverage's status,
  * the newest entry's time and text, then a link to the coverage page on the
- * right, side by side at every width. The Live badge takes the page's
- * background color (Base on block themes, White on the classic Newspack
- * Theme) as it is when the layout is picked.
+ * right, side by side at every width. The Live badge takes the theme's page
+ * background and text colors, so it follows the theme's style variations.
  *
  * @return {TemplateItem[]} The template.
  */
 export function flashInnerTemplate(): TemplateItem[] {
-	const base = normalizeColor(
-		paletteColor( 'base' ) ?? paletteColor( 'white' ) ?? ''
-	);
-
 	return [
 		flashBar(
 			feedTemplate(
 				[
 					[
 						STATUS_BLOCK_NAME,
-						base ? { backgroundColors: { active: base } } : {},
+						{ backgroundColors: { active: 'base' } },
 					],
 					...flashEntryTemplate(),
 					allUpdatesLink(),
@@ -327,6 +313,36 @@ export function flashInnerTemplate(): TemplateItem[] {
 }
 
 /**
+ * The Alert layout's inner-blocks template: a box on the pinned entry's
+ * background holding the coverage's status, its name on one line, cut short
+ * to fit, and a link to the coverage page, side by side at every width. It
+ * shows no entries. The Live badge takes the theme's accent color and the
+ * text color made for it, so it follows the theme's style variations.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function alertInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			[
+				[
+					STATUS_BLOCK_NAME,
+					{ backgroundColors: { active: 'accent' } },
+				],
+				coverageNameHeading( 'small', {
+					className: 'newspack-rolling-coverage-name',
+					style: { layout: { selfStretch: 'fill' } },
+				} ),
+				allUpdatesLink(),
+			],
+			'var:preset|spacing|30',
+			ALERT_FEED_STYLE,
+			FLASH_FEED_LAYOUT
+		),
+	];
+}
+
+/**
  * All block types allowed inside the Feed group.
  */
 export const ALL_ALLOWED_BLOCKS = [
@@ -334,6 +350,7 @@ export const ALL_ALLOWED_BLOCKS = [
 	FOLLOW_BLOCK_NAME,
 	CHECK_UPDATES_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
+	UPDATE_TIMER_BLOCK_NAME,
 ];
 
 /**

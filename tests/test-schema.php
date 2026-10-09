@@ -8,6 +8,7 @@
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Schema;
+use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
  * A page with a coverage should describe itself as one liveblog with one
@@ -99,7 +100,8 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	/**
 	 * The live blog's updates hold only what everyone may read, whoever loads
 	 * the page first: members-only text stays out of an entry's body and an
-	 * untitled entry's headline, and a password-protected entry is left out.
+	 * untitled entry's headline, and password-protected and gated entries are
+	 * left out.
 	 */
 	public function test_updates_leave_out_text_hidden_from_the_public() {
 		$this->use_block_visibility_stub();
@@ -124,6 +126,7 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 				'post_password' => 'secret',
 			]
 		);
+		$this->gate_entry( $entry( [ 'post_content' => '<!-- wp:paragraph --><p>Turnout beat every forecast.</p><!-- /wp:paragraph -->' ] ) );
 
 		$article = apply_filters(
 			'wpseo_schema_article',
@@ -136,10 +139,11 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 		);
 		$schema  = (string) wp_json_encode( $article['liveBlogUpdate'] );
 
-		$this->assertCount( 1, $article['liveBlogUpdate'], 'The protected entry should be left out.' );
+		$this->assertCount( 1, $article['liveBlogUpdate'], 'The protected and gated entries should be left out.' );
 		$this->assertSame( 'Doors open at 7pm.', $article['liveBlogUpdate'][0]['headline'] );
 		$this->assertStringNotContainsString( 'Members hear', $schema );
 		$this->assertStringNotContainsString( 'The result is in', $schema );
+		$this->assertStringNotContainsString( 'Turnout', $schema );
 	}
 
 	/**
@@ -204,39 +208,36 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An entry published on schedule keeps the modified date of its last edit,
-	 * so the page is dated by when the entry went live.
+	 * An entry published on schedule dates the page from when it went live.
 	 */
 	public function test_a_scheduled_entry_counts_from_when_it_goes_live() {
 		$coverage_id = self::create_coverage();
 		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
-		$entry_id    = $this->create_scheduled_entry( $coverage_id, '2026-09-02 09:00:00', '2026-09-02 10:00:00' );
+		$entry_id    = self::create_scheduled_entry( $coverage_id, '2026-09-02 09:00:00', '2026-09-02 10:00:00' );
 
 		$this->assertSame( 'future', get_post_status( $entry_id ) );
 		$this->assertSame( '2026-09-01 10:00:00', get_the_modified_date( 'Y-m-d H:i:s', $host_id ), 'A scheduled entry is not a change readers see.' );
 
 		wp_publish_post( $entry_id );
 
-		$this->assertSame( '2026-09-02 10:00:00', get_the_modified_date( 'Y-m-d H:i:s', $host_id ) );
+		$this->assertSame( get_post( $entry_id )->post_modified_gmt, get_the_modified_date( 'Y-m-d H:i:s', $host_id ) );
 	}
 
 	/**
-	 * The standalone script is cached, and a scheduled entry going live leaves
-	 * the coverage's own last-modified marker where it was, so the cache has
-	 * to follow the newest entry to pick it up, whether or not the page's own
-	 * date is the later one.
+	 * The standalone script is cached, and picks up a scheduled entry going
+	 * live, whether the page's own date was the later one before or not. The
+	 * page is then dated from when the entry went live.
 	 *
 	 * @dataProvider data_page_dates_around_a_scheduled_entry
 	 *
 	 * @param string $page_date           The page's own date.
 	 * @param string $date_before_go_live The `dateModified` expected before the entry goes live.
-	 * @param string $date_after_go_live  The `dateModified` expected after.
 	 */
-	public function test_the_standalone_script_picks_up_a_scheduled_entry_going_live( string $page_date, string $date_before_go_live, string $date_after_go_live ) {
+	public function test_the_standalone_script_picks_up_a_scheduled_entry_going_live( string $page_date, string $date_before_go_live ) {
 		$coverage_id = self::create_coverage();
 		$host_id     = $this->create_host_post( [ $coverage_id ], $page_date );
 		$this->create_dated_entry( $coverage_id, '2026-09-02 08:00:00' );
-		$entry_id = $this->create_scheduled_entry( $coverage_id, '2026-09-02 09:00:00', '2026-09-02 10:00:00' );
+		$entry_id = self::create_scheduled_entry( $coverage_id, '2026-09-02 09:00:00', '2026-09-02 10:00:00' );
 
 		// The save that schedules an entry leaves the marker at the entry's edit time.
 		update_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, '2026-09-02 09:00:00' );
@@ -247,10 +248,9 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 
 		$after = $this->render_scripts( $host_id )[0];
 
-		$this->assertSame( '2026-09-02 09:00:00', get_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true ), 'Going live should leave the marker where it was.' );
 		$this->assertSame( $date_before_go_live, $before['dateModified'] );
 		$this->assertCount( 1, $before['liveBlogUpdate'] );
-		$this->assertSame( $date_after_go_live, $after['dateModified'] );
+		$this->assertSame( get_post_datetime( $entry_id, 'modified', 'gmt' )->format( 'c' ), $after['dateModified'] );
 		$this->assertCount( 2, $after['liveBlogUpdate'] );
 	}
 
@@ -261,8 +261,8 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	 */
 	public function data_page_dates_around_a_scheduled_entry(): array {
 		return [
-			'page older than its entries' => [ '2026-09-01 10:00:00', '2026-09-02T08:00:00+00:00', '2026-09-02T10:00:00+00:00' ],
-			'page newer than its entries' => [ '2026-09-05 10:00:00', '2026-09-05T10:00:00+00:00', '2026-09-05T10:00:00+00:00' ],
+			'page older than its entries' => [ '2026-09-01 10:00:00', '2026-09-02T08:00:00+00:00' ],
+			'page newer than its entries' => [ '2026-09-05 10:00:00', '2026-09-05T10:00:00+00:00' ],
 		];
 	}
 
@@ -414,6 +414,154 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The metadata is cached in the object cache, never as a database
+	 * transient. Its key carries the schema group's own `last_changed` stamp,
+	 * which only moves when something the schema shows changes — not with the
+	 * site's writes at large; a transient would also write a new wp_options
+	 * row per rotated key when no persistent object cache is installed.
+	 */
+	public function test_the_metadata_is_not_cached_as_a_database_transient() {
+		global $wpdb;
+
+		$coverage_id = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		$this->create_dated_entry( $coverage_id, '2026-09-02 10:00:00' );
+
+		$this->render_scripts( $host_id );
+
+		$transient_rows = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			"SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE '_transient_nrc_%' OR option_name LIKE '_transient_timeout_nrc_%'"
+		);
+
+		$this->assertSame( 0, $transient_rows, 'The schema metadata must not be stored as a database transient.' );
+	}
+
+	/**
+	 * The cached metadata is keyed off changes the coverage's own last-modified
+	 * meta never records. Renaming the coverage changes the headline it emits.
+	 */
+	public function test_renaming_the_coverage_refreshes_the_cached_headline() {
+		$coverage_id = self::create_coverage( '', [ 'name' => 'Original Name' ] );
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		$this->create_dated_entry( $coverage_id, '2026-09-02 10:00:00' );
+
+		$this->assertSame( 'Original Name', $this->render_scripts( $host_id )[0]['headline'] );
+
+		// A rename bumps the schema group's stamp, not the coverage's last-modified meta.
+		wp_update_term( $coverage_id, Taxonomy::TAXONOMY_SLUG, [ 'name' => 'Renamed Coverage' ] );
+
+		$this->assertSame( 'Renamed Coverage', $this->render_scripts( $host_id )[0]['headline'] );
+	}
+
+	/**
+	 * Moving a published entry out of the coverage changes which entries the
+	 * liveBlogUpdate lists, without moving the coverage's last-modified meta.
+	 *
+	 * The moved entry is deliberately not the newest one: moving the newest
+	 * would also move the "latest entry date" in the key and mask whether the
+	 * term-relationship change invalidated the cache on its own.
+	 */
+	public function test_moving_an_entry_out_of_the_coverage_refreshes_the_cached_updates() {
+		$coverage_id = self::create_coverage();
+		$other_id    = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+
+		$newest_id = $this->create_dated_entry( $coverage_id, '2026-09-03 10:00:00' );
+		$older_id  = $this->create_dated_entry( $coverage_id, '2026-09-02 10:00:00' );
+
+		$urls_before = array_column( $this->render_scripts( $host_id )[0]['liveBlogUpdate'], 'url' );
+		$this->assertCount( 2, $urls_before );
+
+		// A term-relationship change on the coverage taxonomy bumps the stamp.
+		wp_set_object_terms( $older_id, [ $other_id ], Taxonomy::TAXONOMY_SLUG );
+
+		$updates_after = $this->render_scripts( $host_id )[0]['liveBlogUpdate'];
+		$this->assertCount( 1, $updates_after );
+		$this->assertStringContainsString( 'entry-' . $newest_id, $updates_after[0]['url'] );
+		$this->assertStringNotContainsString( 'entry-' . $older_id, $updates_after[0]['url'] );
+	}
+
+	/**
+	 * Renaming an entry's author changes the author emitted in the schema,
+	 * which bumps the users cache salt but no post or term cache.
+	 */
+	public function test_renaming_an_author_refreshes_the_cached_author() {
+		$author_id = self::factory()->user->create(
+			[
+				'display_name' => 'Original Author',
+				'role'         => 'author',
+			]
+		);
+
+		$coverage_id = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		$this->create_dated_entry( $coverage_id, '2026-09-02 10:00:00', 'publish', $author_id );
+
+		$this->assertSame( 'Original Author', $this->render_scripts( $host_id )[0]['liveBlogUpdate'][0]['author']['name'] );
+
+		// A user rename bumps the stamp, but a user-meta write alone does not.
+		wp_update_user(
+			[
+				'ID'           => $author_id,
+				'display_name' => 'Renamed Author',
+			]
+		);
+
+		$this->assertSame( 'Renamed Author', $this->render_scripts( $host_id )[0]['liveBlogUpdate'][0]['author']['name'] );
+	}
+
+	/**
+	 * Term relationship changes outside the coverage taxonomy never reach the
+	 * schema, so they don't rotate the stamp either.
+	 */
+	public function test_term_assignment_to_other_taxonomies_do_not_rotate_the_cache_key() {
+		$coverage_id = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		$entry_id    = $this->create_dated_entry( $coverage_id, '2026-09-02 10:00:00' );
+
+		$this->render_scripts( $host_id );
+
+		$stamp_before = wp_cache_get_last_changed( Schema::CACHE_GROUP );
+		$terms_before = wp_cache_get_last_changed( 'terms' );
+
+		$category_id = self::factory()->category->create( [ 'name' => 'Unrelated' ] );
+		wp_set_object_terms( $entry_id, [ $category_id ], 'category' );
+
+		$this->assertNotSame( $terms_before, wp_cache_get_last_changed( 'terms' ), 'Test sanity: the terms salt moved.' );
+		$this->assertSame( $stamp_before, wp_cache_get_last_changed( Schema::CACHE_GROUP ), 'An unrelated term assignment must not rotate the metadata cache key.' );
+	}
+
+	/**
+	 * Deleting an author rotates the stamp even though nothing else records
+	 * it: their entries' authors are reassigned through a direct query, so no
+	 * other hook covers the change.
+	 */
+	public function test_deleting_an_author_refreshes_the_cached_author() {
+		$author_id   = self::factory()->user->create(
+			[
+				'display_name' => 'Original Author',
+				'role'         => 'author',
+			]
+		);
+		$reassign_id = self::factory()->user->create(
+			[
+				'display_name' => 'Reassigned Author',
+				'role'         => 'author',
+			]
+		);
+
+		$coverage_id = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		$this->create_dated_entry( $coverage_id, '2026-09-02 10:00:00', 'publish', $author_id );
+
+		$this->assertSame( 'Original Author', $this->render_scripts( $host_id )[0]['liveBlogUpdate'][0]['author']['name'] );
+
+		wp_delete_user( $author_id, $reassign_id );
+
+		$this->assertSame( 'Reassigned Author', $this->render_scripts( $host_id )[0]['liveBlogUpdate'][0]['author']['name'] );
+	}
+
+	/**
 	 * Create a published post embedding the given coverages.
 	 *
 	 * @param int[]  $coverage_ids Coverage term IDs, one block each.
@@ -437,38 +585,6 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 				$args
 			)
 		);
-	}
-
-	/**
-	 * Create an entry whose scheduled time has come but which cron hasn't
-	 * published yet: last edited at `$edited`, set to go live at `$goes_live`.
-	 *
-	 * Core refuses to schedule an entry in the past, so it is scheduled ahead
-	 * and its dates are then moved back.
-	 *
-	 * @param int    $coverage_id Coverage term ID.
-	 * @param string $edited      GMT date of its last edit.
-	 * @param string $goes_live   GMT date it is scheduled for.
-	 * @return int Entry post ID.
-	 */
-	private function create_scheduled_entry( int $coverage_id, string $edited, string $goes_live ): int {
-		global $wpdb;
-
-		$entry_id = self::create_dated_entry( $coverage_id, gmdate( 'Y-m-d H:i:s', time() + HOUR_IN_SECONDS ), 'future' );
-
-		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			$wpdb->posts,
-			[
-				'post_modified'     => $edited,
-				'post_modified_gmt' => $edited,
-				'post_date'         => $goes_live,
-				'post_date_gmt'     => $goes_live,
-			],
-			[ 'ID' => $entry_id ]
-		);
-		clean_post_cache( $entry_id );
-
-		return $entry_id;
 	}
 
 	/**
@@ -514,6 +630,114 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	private function render_scripts( int $post_id ): array {
 		$this->go_to( get_permalink( $post_id ) );
 
+		ob_start();
+		Schema::print_schema();
+		$html = ob_get_clean();
+
+		preg_match_all( '#<script type="application/ld\+json">(.*?)</script>#s', $html, $matches );
+
+		return array_map(
+			function ( $json ) {
+				return json_decode( $json, true );
+			},
+			$matches[1]
+		);
+	}
+
+	/**
+	 * Within one request, a second look at the page is served from the cache,
+	 * and each change the schema shows — term rename, entry move, author
+	 * rename — rotates the stamp and forces a rebuild on the next look, while
+	 * a user-meta write on passive reader activity does not.
+	 */
+	public function test_the_cached_metadata_is_reused_and_rebuilt_only_when_its_inputs_change() {
+		$author_id = self::factory()->user->create(
+			[
+				// An apostrophe, so a name comparison against the magic-quoted
+				// `$userdata` the profile_update hook carries would look changed.
+				'display_name' => "O'Brien",
+				'role'         => 'author',
+			]
+		);
+
+		$coverage_id = self::create_coverage( '', [ 'name' => 'Original Name' ] );
+		$other_id    = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		$this->create_dated_entry( $coverage_id, '2026-09-03 10:00:00', 'publish', $author_id );
+		$older_id = $this->create_dated_entry( $coverage_id, '2026-09-02 10:00:00' );
+
+		$this->go_to( get_permalink( $host_id ) );
+
+		$builds = 0;
+		add_filter(
+			'newspack_rolling_coverage_schema_metadata',
+			function ( $metadata ) use ( &$builds ) {
+				$builds++;
+				return $metadata;
+			}
+		);
+
+		$this->assertSame( 'Original Name', $this->print_scripts()[0]['headline'], 'First look builds.' );
+
+		$this->assertSame( 'Original Name', $this->print_scripts()[0]['headline'], 'Second look is served from the cache.' );
+		$this->assertSame( 1, $builds, 'The second look must reuse the cached metadata.' );
+
+		// Passive reader activity writes user meta — nothing the schema shows.
+		$users_before = wp_cache_get_last_changed( 'users' );
+		update_user_meta( $author_id, 'newspack_reader_activity', 'x' );
+
+		$this->print_scripts();
+
+		$this->assertNotSame( $users_before, wp_cache_get_last_changed( 'users' ), 'Test sanity: the users salt moved.' );
+		$this->assertSame( 1, $builds, 'A user-meta write must not rebuild the cached metadata.' );
+
+		// Renaming the coverage changes the headline.
+		wp_update_term( $coverage_id, Taxonomy::TAXONOMY_SLUG, [ 'name' => 'Renamed Coverage' ] );
+
+		$this->assertSame( 'Renamed Coverage', $this->print_scripts()[0]['headline'], 'A rename rebuilds.' );
+		$this->assertSame( 2, $builds );
+
+		// Moving an entry out changes the liveBlogUpdate list.
+		$updates_before = count( $this->print_scripts()[0]['liveBlogUpdate'] );
+		wp_set_object_terms( $older_id, [ $other_id ], Taxonomy::TAXONOMY_SLUG );
+
+		$this->assertCount( $updates_before - 1, $this->print_scripts()[0]['liveBlogUpdate'], 'An entry move rebuilds.' );
+		$this->assertSame( 3, $builds );
+
+		// Renaming the author changes the author in liveBlogUpdate.
+		wp_update_user(
+			[
+				'ID'           => $author_id,
+				'display_name' => "O'Renamed",
+			]
+		);
+
+		$this->assertSame( "O'Renamed", $this->print_scripts()[0]['liveBlogUpdate'][0]['author']['name'], 'An author rename rebuilds.' );
+		$this->assertSame( 4, $builds );
+
+		// A user update that touches neither the headline, the list, nor a name.
+		// The comparison must read stored data: a name with an apostrophe would
+		// look changed against the magic-quoted values the hook carries.
+		wp_update_user(
+			[
+				'ID'          => $author_id,
+				'description' => 'New bio',
+			]
+		);
+
+		$this->print_scripts();
+
+		$this->assertSame( 4, $builds, 'A user update without a name change must not rebuild the cached metadata.' );
+	}
+
+	/**
+	 * Print the standalone scripts for the post already navigated to, without
+	 * `go_to()`, which resets the object cache and would mask what the cache
+	 * actually serves.
+	 *
+	 * @return array[] Decoded JSON-LD objects.
+	 */
+	private function print_scripts(): array {
 		ob_start();
 		Schema::print_schema();
 		$html = ob_get_clean();

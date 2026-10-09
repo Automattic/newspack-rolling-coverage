@@ -31,6 +31,9 @@ The block holds a standard Button block. Style it, change its text, and set its 
 Because the page doesn't check on its own, these update only when a reader presses the button:
 
 - A Coverage Status block beside the feed.
+- The notice at the top of the feed when the coverage ends.
 - The feed's Hide when ended setting.
+
+An [Update Timer](../update-timer/README.md) block for the coverage stays hidden, as there is no check to count down to.
 
 On a shared entry's page, the button appears once the reader jumps to the live feed, and the count of newer entries stays as the page loaded it.

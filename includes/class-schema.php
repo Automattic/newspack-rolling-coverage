@@ -13,6 +13,7 @@ use DateTimeZone;
 use WP_Post;
 use WP_Query;
 use WP_Term;
+use WP_User;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -35,6 +36,16 @@ defined( 'ABSPATH' ) || exit;
 class Schema {
 
 	const BLOCK_NAME = 'newspack-rolling-coverage/rolling-coverage';
+
+	/**
+	 * Object cache group for the built LiveBlogPosting metadata, with its own
+	 * `last_changed` stamp (see bump_last_changed()). The stamp rotates the
+	 * key only when something the schema shows changes: a coverage rename, an
+	 * entry joining or leaving a coverage, or an author name change. The whole
+	 * group must never be backed by a database transient, or every rotated key
+	 * would write a fresh wp_options row.
+	 */
+	const CACHE_GROUP = 'newspack_rolling_coverage_schema';
 
 	/**
 	 * Coverage merged into Yoast's Article, by host post ID, so print_schema()
@@ -69,6 +80,71 @@ class Schema {
 		add_filter( 'wp_sitemaps_posts_entry', [ __CLASS__, 'set_core_sitemap_lastmod' ], 10, 2 );
 		add_filter( 'get_the_modified_date', [ __CLASS__, 'filter_the_modified_date' ], 10, 3 );
 		add_filter( 'get_the_modified_time', [ __CLASS__, 'filter_the_modified_time' ], 10, 3 );
+		add_action( 'edited_' . Taxonomy::TAXONOMY_SLUG, [ __CLASS__, 'bump_last_changed' ] );
+		add_action( 'set_object_terms', [ __CLASS__, 'bump_last_changed_on_term_assignment' ], 10, 4 );
+		add_action( 'profile_update', [ __CLASS__, 'bump_last_changed_on_profile_update' ], 10, 2 );
+		add_action( 'deleted_user', [ __CLASS__, 'bump_last_changed' ] );
+	}
+
+	/**
+	 * Rotates the metadata cache key when something the schema shows changes.
+	 *
+	 * Every cached value is keyed on the group's `last_changed` stamp, minted
+	 * on first read per request when no persistent object cache is installed.
+	 * The stamp only moves through this method and its wrappers below, so the
+	 * key stays stable, and reused across views, however much else happens on
+	 * the site.
+	 *
+	 * Fired from:
+	 * - `edited_{taxonomy}` — a coverage rename changes the `headline`.
+	 * - `deleted_user` — a user's posts are reassigned or deleted by direct
+	 *   query, so no other hook covers it.
+	 */
+	public static function bump_last_changed() {
+		wp_cache_set_last_changed( self::CACHE_GROUP );
+	}
+
+	/**
+	 * Rotates the metadata cache key when an entry joins or leaves a coverage,
+	 * which changes the `liveBlogUpdate` list.
+	 *
+	 * Fires on `set_object_terms`, after the relationship change, for the
+	 * coverage taxonomy only.
+	 *
+	 * @param int    $object_id Object ID.
+	 * @param array  $terms     Array of object term IDs or slugs.
+	 * @param array  $tt_ids    Array of term taxonomy IDs.
+	 * @param string $taxonomy  Taxonomy slug.
+	 */
+	public static function bump_last_changed_on_term_assignment( $object_id, $terms, $tt_ids, $taxonomy ) {
+		if ( Taxonomy::TAXONOMY_SLUG === $taxonomy ) {
+			self::bump_last_changed();
+		}
+	}
+
+	/**
+	 * Rotates the metadata cache key when an author's name changes, which
+	 * changes the `author` of their entries in `liveBlogUpdate`.
+	 *
+	 * Fires on `profile_update` and compares the author's stored name before
+	 * and after the update. It reads the stored user rather than the hook's
+	 * `$userdata`, which wp_update_user() passes magic-quoted: a name like
+	 * O'Brien would otherwise read as changed on every user write, rebuilding
+	 * the metadata on each of them.
+	 *
+	 * @param int          $user_id       User ID.
+	 * @param WP_User|null $old_user_data Object containing user's data prior to the update.
+	 */
+	public static function bump_last_changed_on_profile_update( $user_id, $old_user_data ) {
+		$new_user = get_userdata( (int) $user_id );
+
+		if ( ! $old_user_data instanceof WP_User || ! $new_user instanceof WP_User ) {
+			return;
+		}
+
+		if ( $old_user_data->display_name !== $new_user->display_name || $old_user_data->user_nicename !== $new_user->user_nicename ) {
+			self::bump_last_changed();
+		}
 	}
 
 	/**
@@ -503,13 +579,17 @@ class Schema {
 		$last_modified = get_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true );
 		$end_time      = get_term_meta( $coverage_id, Taxonomy::END_TIME_META_KEY, true );
 
-		// The newest entry's date is part of the key because a scheduled entry
-		// going live changes what the page shows without moving the coverage's
-		// last-modified meta.
+		// The newest entry's date is part of the key because it dates the script.
 		$latest_entry_date = self::get_latest_entry_date( $coverage_id );
-		$cache_key         = 'nrc_' . $coverage_id . '_' . md5( $post->ID . '|' . $post->post_modified_gmt . '|' . $entries_per_page . '|' . $status . '|' . $last_modified . '|' . $end_time . '|' . ( null === $latest_entry_date ? '' : $latest_entry_date->getTimestamp() ) );
 
-		$cached_metadata = get_transient( $cache_key );
+		// The group's last_changed stamp invalidates the key on coverage rename,
+		// entry move and author rename; all other inputs are persisted, so the
+		// key stays stable.
+		$cache_key = 'nrc_' . $coverage_id . '_' . md5(
+			$post->ID . '|' . $post->post_modified_gmt . '|' . $entries_per_page . '|' . $status . '|' . $last_modified . '|' . $end_time . '|' . ( null === $latest_entry_date ? '' : $latest_entry_date->getTimestamp() ) . '|' . wp_cache_get_last_changed( self::CACHE_GROUP )
+		);
+
+		$cached_metadata = wp_cache_get( $cache_key, self::CACHE_GROUP );
 		if ( false !== $cached_metadata ) {
 			return $cached_metadata;
 		}
@@ -559,7 +639,9 @@ class Schema {
 		 */
 		$metadata = apply_filters( 'newspack_rolling_coverage_schema_metadata', $metadata, $coverage_id, $post );
 
-		set_transient( $cache_key, $metadata, WEEK_IN_SECONDS );
+		// A week's TTL bounds how long a stale entry can be served if a cache
+		// salt somehow fails to move; the versioned key is the usual path.
+		wp_cache_set( $cache_key, $metadata, self::CACHE_GROUP, WEEK_IN_SECONDS );
 
 		return $metadata;
 	}
@@ -587,9 +669,7 @@ class Schema {
 	 * Returns when a coverage's published entries last changed.
 	 *
 	 * The coverage's last-modified term meta isn't used here because draft,
-	 * pending and private entry saves move it too. The newest entry by publish
-	 * date counts as well as the newest by edit: an entry published on schedule
-	 * keeps the modified date of its last edit, from before it went live.
+	 * pending and private entry saves move it too.
 	 *
 	 * The date comes back in UTC, like the dates Yoast prints beside it.
 	 *
@@ -597,39 +677,31 @@ class Schema {
 	 * @return DateTimeImmutable|null Latest change, or null when the coverage has no published entries.
 	 */
 	private static function get_latest_entry_date( int $coverage_id ): ?DateTimeImmutable {
-		$dates = [];
-
-		foreach ( [ 'modified', 'date' ] as $field ) {
-			$query = new WP_Query(
-				[
-					'post_type'                   => Post_Type::CPT_SLUG,
-					'post_status'                 => 'publish',
-					'tax_query'                   => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-						[
-							'taxonomy' => Taxonomy::TAXONOMY_SLUG,
-							'field'    => 'term_id',
-							'terms'    => $coverage_id,
-						],
+		$query = new WP_Query(
+			[
+				'post_type'                   => Post_Type::CPT_SLUG,
+				'post_status'                 => 'publish',
+				'tax_query'                   => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+					[
+						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
+						'field'    => 'term_id',
+						'terms'    => $coverage_id,
 					],
-					'orderby'                     => $field,
-					'order'                       => 'DESC',
-					'posts_per_page'              => 1,
-					'no_found_rows'               => true,
-					'ignore_sticky_posts'         => true,
-					'update_post_meta_cache'      => false,
-					'update_post_term_cache'      => false,
-					Post_Type::SKIP_PIN_ORDER_VAR => true,
-				]
-			);
+				],
+				'orderby'                     => 'modified',
+				'order'                       => 'DESC',
+				'posts_per_page'              => 1,
+				'no_found_rows'               => true,
+				'ignore_sticky_posts'         => true,
+				'update_post_meta_cache'      => false,
+				'update_post_term_cache'      => false,
+				Post_Type::SKIP_PIN_ORDER_VAR => true,
+			]
+		);
 
-			if ( ! empty( $query->posts ) ) {
-				$dates[] = self::get_own_date( $query->posts[0] );
-			}
-		}
+		$date = empty( $query->posts ) ? null : self::get_own_date( $query->posts[0] );
 
-		$dates = array_filter( $dates );
-
-		return empty( $dates ) ? null : max( $dates )->setTimezone( new DateTimeZone( 'UTC' ) );
+		return null === $date ? null : $date->setTimezone( new DateTimeZone( 'UTC' ) );
 	}
 
 	/**
@@ -664,6 +736,11 @@ class Schema {
 		$updates = [];
 
 		foreach ( $query->posts as $entry ) {
+			// The query leaves out password-protected entries; gated ones are left out here.
+			if ( Entry_Bindings::is_restricted( $entry ) ) {
+				continue;
+			}
+
 			$update = self::build_entry_update( $entry, $permalink );
 			if ( null !== $update ) {
 				$updates[] = $update;
@@ -683,7 +760,7 @@ class Schema {
 	 * @return array|null BlogPosting array, or null to skip the entry.
 	 */
 	private static function build_entry_update( WP_Post $entry, string $permalink ): ?array {
-		// The schema is cached for every visitor, so it holds only what everyone may read. Protected entries never get here (build_updates()).
+		// The schema is cached for every visitor, so it holds only what everyone may read. Restricted entries never get here (build_updates()).
 		// Replace tags with spaces to preserve word boundaries, decode entities,
 		// then collapse whitespace so headline/articleBody read as clean prose.
 		$article_body = preg_replace( '/<[^>]+>/', ' ', do_blocks( Entry_Bindings::public_content( $entry ) ) );

@@ -20,6 +20,7 @@ import {
 	wireInnerTemplate,
 	digestInnerTemplate,
 	flashInnerTemplate,
+	alertInnerTemplate,
 } from './layout';
 import type { TemplateItem } from './types';
 
@@ -35,7 +36,8 @@ export type BuiltInLayoutSlug =
 	| 'split'
 	| 'wire'
 	| 'digest'
-	| 'flash';
+	| 'flash'
+	| 'alert';
 
 export type BuiltInLayout = {
 	slug: BuiltInLayoutSlug;
@@ -123,6 +125,13 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			hidesWhenEnded: true,
 			align: 'full',
 			previewWidth: 1400,
+		},
+		{
+			slug: 'alert',
+			title: _x( 'Alert', 'layout name', 'newspack-rolling-coverage' ),
+			template: alertInnerTemplate,
+			latest: 1,
+			hidesWhenEnded: true,
 		},
 	];
 }

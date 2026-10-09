@@ -43,6 +43,7 @@ The button is part of the block and rebuilds itself when the editor reloads, so 
 - If the reader has blocked notifications, the button returns to Follow and a message appears: "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 - If something fails, the button returns to its previous state and a message appears: "Something went wrong. Please try again."
 - Once the coverage ends, the button no longer appears when the page loads.
+- The button doesn't appear on Lite Site's text-only pages.
 
 ## Sending notifications
 
@@ -53,7 +54,9 @@ A notification goes out when an entry is published and one of these is true:
 
 Only readers who followed that coverage are notified. The notification links to the entry on the coverage's canonical URL, so the coverage needs one. If it doesn't, the Push Notifications panel warns you and no notification is sent. An entry notifies once.
 
-An entry that goes live from a schedule, or is published outside the editor (for example with Quick Edit), notifies at once. An entry published from the entry editor or from Slack notifies on the site's next scheduled-task run. The plugin's entries list doesn't publish entries.
+The notification shows the entry's title, or the coverage name for an untitled entry, and the entry's excerpt or first words, leaving out content shown only to signed-in readers. An entry behind a content gate or a password shows "Read the latest update." in place of its words.
+
+An entry that goes live from a schedule notifies at once. An entry published from the entry editor, with Publish in a coverage's entries list, or from Slack notifies on the site's next scheduled-task run.
 
 ## Limits
 

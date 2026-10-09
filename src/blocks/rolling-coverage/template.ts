@@ -149,6 +149,12 @@ const CHECK_UPDATES_BLOCK_NAME = 'newspack-rolling-coverage/check-updates';
  */
 const STATUS_BLOCK_NAME = 'newspack-rolling-coverage/coverage-status';
 
+/**
+ * The Update Timer block, which counts down to the feed's next check once
+ * when it sits among the layout's coverage-level blocks.
+ */
+const UPDATE_TIMER_BLOCK_NAME = 'newspack-rolling-coverage/update-timer';
+
 const ACCENT =
 	'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
 const ACCENT_CONTRAST =
@@ -157,7 +163,8 @@ const CONTRAST =
 	'var(--wp--preset--color--contrast, var(--newspack-theme-color-text-main, #111))';
 const BORDER_COLOR =
 	'var(--wp--preset--color--base-3, var(--newspack-theme-color-border, #ddd))';
-const PINNED_BACKGROUND = 'var(--wp--custom--color--neutral-5, #f7f7f7)';
+const PINNED_BACKGROUND =
+	'var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f7f7f7))';
 
 /**
  * The corner radius of the Stream layout's pinned card.
@@ -1232,15 +1239,20 @@ const DIGEST_FEED_STYLE = {
 
 /**
  * The coverage's name as a heading, bound so it follows the coverage, as
- * the Digest layout's header and in the Ticker layout's.
+ * the Digest layout's header, in the Ticker layout's and in the Alert box.
  *
- * @param {string} fontSize The heading's font size preset.
+ * @param {string} fontSize   The heading's font size preset.
+ * @param {Object} attributes More attributes for the heading.
  * @return {TemplateItem} The heading.
  */
-function coverageNameHeading( fontSize = 'large' ): TemplateItem {
+function coverageNameHeading(
+	fontSize = 'large',
+	attributes: Record< string, unknown > = {}
+): TemplateItem {
 	return [
 		'core/heading',
 		{
+			...attributes,
 			level: 3,
 			fontSize,
 			content: __( 'Live Coverage', 'newspack-rolling-coverage' ),
@@ -1380,6 +1392,11 @@ const FLASH_BAR_STYLE = {
 			right: 'var:preset|spacing|30',
 		},
 	},
+};
+
+const ALERT_FEED_STYLE = {
+	color: { background: PINNED_BACKGROUND },
+	spacing: { padding: 'var:preset|spacing|30' },
 };
 
 const FLASH_FEED_LAYOUT = {
@@ -2034,9 +2051,9 @@ function isAllUpdatesParagraph( block: {
 
 /**
  * Whether a block belongs to the coverage rather than to each entry, so it
- * renders once: the Follow Coverage block, the Coverage Status block, a
- * heading bound to the coverage's name, the all-updates paragraph, or
- * a block holding one at any depth, mirroring
+ * renders once: the Follow Coverage block, the Coverage Status block, the
+ * Update Timer block, a heading bound to the coverage's name, the
+ * all-updates paragraph, or a block holding one at any depth, mirroring
  * Entry_Bindings::is_coverage_item(). The pinned card and the entry group
  * always belong to each entry, whatever they hold.
  *
@@ -2061,6 +2078,7 @@ function isCoverageItem( block: {
 		typed.name === FOLLOW_BLOCK_NAME ||
 		typed.name === CHECK_UPDATES_BLOCK_NAME ||
 		block.name === STATUS_BLOCK_NAME ||
+		typed.name === UPDATE_TIMER_BLOCK_NAME ||
 		isCoverageNameHeading( typed ) ||
 		isAllUpdatesParagraph( typed ) ||
 		( Array.isArray( block.innerBlocks ) &&
@@ -3279,6 +3297,7 @@ export {
 	flashEntryTemplate,
 	flashBar,
 	FLASH_FEED_LAYOUT,
+	ALERT_FEED_STYLE,
 	tickerEntryTemplate,
 	tickerHeader,
 	TICKER_FEED_LAYOUT,
@@ -3295,6 +3314,7 @@ export {
 	FOLLOW_BLOCK_NAME,
 	CHECK_UPDATES_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
+	UPDATE_TIMER_BLOCK_NAME,
 	holdsBlockType,
 	blockIdsOfType,
 	withoutCheckUpdatesButtons,

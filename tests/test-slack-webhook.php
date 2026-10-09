@@ -10,6 +10,7 @@ use Newspack_Rolling_Coverage\Entry_Ingestion_Service;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Slack;
 use Newspack_Rolling_Coverage\Slack_API_Client;
+use Newspack_Rolling_Coverage\Slack_Author_Resolver;
 use Newspack_Rolling_Coverage\Slack_Config;
 use Newspack_Rolling_Coverage\Slack_Ingestion_Service;
 use Newspack_Rolling_Coverage\Slack_Media_Importer;
@@ -125,11 +126,13 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Drop the REST server so routes a test registered do not outlive it. The
-	 * core test case restores hooks between tests, but keeps the server.
+	 * Drop the REST server so routes a test registered do not outlive it, and
+	 * the route a test said WordPress is serving. The core test case restores
+	 * hooks between tests, but keeps both.
 	 */
 	public function tear_down() {
 		$GLOBALS['wp_rest_server'] = null;
+		unset( $GLOBALS['wp']->query_vars['rest_route'] );
 		$this->remove_added_uploads();
 		parent::tear_down();
 	}
@@ -530,6 +533,90 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Turn on the Password Protected plugin with Slack configured, and have
+	 * WordPress serve the given route.
+	 *
+	 * @param string $route REST route, or '' for a request that isn't a REST one.
+	 */
+	private static function serve_on_a_password_protected_site( $route ) {
+		require_once __DIR__ . '/mocks/class-password-protected.php';
+		new Password_Protected();
+		update_option( 'password_protected_status', 1 );
+		self::configure_slack();
+		Slack::register_conditional_hooks();
+		$GLOBALS['wp']->query_vars['rest_route'] = $route;
+	}
+
+	/**
+	 * Webhook routes as WordPress parses them from the request URL.
+	 *
+	 * @return array[]
+	 */
+	public function webhook_rest_route_provider() {
+		return [
+			'events'                     => [ '/rolling-coverage/v1/slack/events' ],
+			'commands'                   => [ '/rolling-coverage/v1/slack/commands' ],
+			'interactions'               => [ '/rolling-coverage/v1/slack/interactions' ],
+			'other case, trailing slash' => [ '/rolling-coverage/v1/Slack/Events/' ],
+		];
+	}
+
+	/**
+	 * On a site the Password Protected plugin protects, Slack's requests
+	 * reach the webhook routes, which then check their signature.
+	 *
+	 * @dataProvider webhook_rest_route_provider
+	 *
+	 * @param string $route REST route.
+	 */
+	public function test_password_protected_site_lets_slack_reach_the_webhook_routes( $route ) {
+		self::serve_on_a_password_protected_site( $route );
+
+		$this->assertNotWPError( rest_get_server()->check_authentication() );
+	}
+
+	/**
+	 * A filter at the default priority that turns protection on doesn't lock
+	 * Slack out of the webhook routes.
+	 */
+	public function test_password_protected_site_lets_slack_in_past_other_filters() {
+		self::serve_on_a_password_protected_site( '/rolling-coverage/v1/slack/events' );
+		add_filter( 'password_protected_is_active', '__return_true' );
+
+		$this->assertNotWPError( rest_get_server()->check_authentication() );
+	}
+
+	/**
+	 * Requests that aren't for a webhook route.
+	 *
+	 * @return array[]
+	 */
+	public function other_request_provider() {
+		return [
+			'core route'           => [ '/wp/v2/posts' ],
+			'Slack admin route'    => [ '/rolling-coverage/v1/slack/settings' ],
+			'path below a webhook' => [ '/rolling-coverage/v1/slack/events/extra' ],
+			'not a REST request'   => [ '' ],
+		];
+	}
+
+	/**
+	 * The Password Protected plugin keeps protecting everything else.
+	 *
+	 * @dataProvider other_request_provider
+	 *
+	 * @param string $route REST route, or ''.
+	 */
+	public function test_password_protected_site_keeps_other_requests_protected( $route ) {
+		self::serve_on_a_password_protected_site( $route );
+
+		$refusal = rest_get_server()->check_authentication();
+
+		$this->assertWPError( $refusal, 'Password Protected should refuse the request.' );
+		$this->assertSame( 'rest_cannot_access', $refusal->get_error_code() );
+	}
+
+	/**
 	 * Slack's endpoint verification handshake echoes the challenge back.
 	 */
 	public function test_answers_the_url_verification_challenge() {
@@ -568,6 +655,53 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'slack', get_post_meta( $entry->ID, Post_Type::META_ENTRY_SOURCE, true ), 'The entry should be marked as coming from Slack.' );
 		$this->assertSame( 'Riley Sample', get_post_meta( $entry->ID, Post_Type::META_SLACK_AUTHOR_NAME, true ), 'The Slack author name should be recorded.' );
 		$this->assertSame( '1767225600.000100', Slack_Config::get_channel_settings( self::CHANNEL_ID )['last_sync_ts'], 'The channel should remember the last message it ingested.' );
+	}
+
+	/**
+	 * A message from a Slack handle mapped to a WordPress user is credited
+	 * to that user, images included, instead of the bot user.
+	 */
+	public function test_message_from_a_mapped_handle_is_credited_to_that_user() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$author_id = self::factory()->user->create( [ 'role' => 'author' ] );
+		update_user_meta( $author_id, Slack_Author_Resolver::META_SLACK_HANDLE, 'Riley Sample' );
+
+		self::controller()->handle_event( self::webhook_request( self::message_event_body( [ 'files' => [ self::slack_file() ] ] ) ) );
+		$entries = self::get_coverage_entries( $coverage_id );
+
+		$this->assertCount( 1, $entries, 'The message should create one entry.' );
+		$this->assertSame( $author_id, (int) $entries[0]->post_author, 'The mapped user should own the entry.' );
+
+		$images = get_posts(
+			[
+				'post_type'   => 'attachment',
+				'post_parent' => $entries[0]->ID,
+				'post_status' => 'inherit',
+			]
+		);
+
+		$this->assertNotEmpty( $images, 'The image should be attached to the entry.' );
+		$this->assertSame( $author_id, (int) $images[0]->post_author, 'The mapped user should own the image.' );
+	}
+
+	/**
+	 * A message from a member ID mapped to a WordPress user is credited to
+	 * that user.
+	 */
+	public function test_message_from_a_mapped_member_id_is_credited_to_that_user() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel( self::CHANNEL_ID, [ 'term_id' => $coverage_id ] );
+		$author_id = self::factory()->user->create( [ 'role' => 'author' ] );
+		update_user_meta( $author_id, Slack_Author_Resolver::META_SLACK_HANDLE, 'U0REPORTER' );
+
+		self::controller()->handle_event( self::webhook_request( self::message_event_body() ) );
+		$entries = self::get_coverage_entries( $coverage_id );
+
+		$this->assertCount( 1, $entries, 'The message should create one entry.' );
+		$this->assertSame( $author_id, (int) $entries[0]->post_author, 'The mapped user should own the entry.' );
 	}
 
 	/**

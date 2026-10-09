@@ -33,10 +33,12 @@ class Slack {
 	}
 
 	/**
-	 * Register always-on admin REST routes and the bot user's avatar.
+	 * Register always-on admin REST routes, the bot user's avatar and the
+	 * Slack handle field on user profiles.
 	 */
 	public static function register_hooks(): void {
 		add_action( 'rest_api_init', [ self::get_webhook_controller(), 'register_admin_routes' ] );
+		Slack_Author_Resolver::init();
 		// After Simple Local Avatars, so the bundled avatar replaces its fallback but not an uploaded avatar.
 		add_filter( 'pre_get_avatar_data', [ Slack_Config::class, 'filter_bot_avatar' ], 20, 2 );
 	}
@@ -51,6 +53,8 @@ class Slack {
 
 		add_action( 'rest_api_init', [ self::get_webhook_controller(), 'register_webhook_routes' ] );
 		add_action( 'delete_' . Taxonomy::TAXONOMY_SLUG, [ Slack_Config::class, 'on_term_deleted' ], 10, 1 );
+		// After filters at the default priority, so none of those can turn protection back on for the webhook.
+		add_filter( 'password_protected_is_active', [ Slack_Webhook_Controller::class, 'filter_password_protected_is_active' ], 100 );
 	}
 
 	/**

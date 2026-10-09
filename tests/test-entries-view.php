@@ -413,6 +413,24 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A scheduled entry is reported as published when cron publishes it,
+	 * even when the list syncs from a change made after it was scheduled.
+	 */
+	public function test_sync_reports_a_scheduled_entry_cron_publishes() {
+		$scheduled_id = self::create_scheduled_entry( $this->coverage_id, '2026-01-01 11:00:00', '2026-01-01 12:00:00' );
+
+		// Published after the scheduling save, so the list syncs from here.
+		$cursor_entry_id = $this->create_entry_at( '2026-01-01 11:30:00' );
+		$cursor          = "{$cursor_entry_id}:2026-01-01 11:30:00";
+
+		check_and_publish_future_post( $scheduled_id );
+
+		$changed = $this->get_entries_view( [ 'since' => $cursor ] )->get_data()['changed'];
+
+		$this->assertSame( [ $scheduled_id => 'publish' ], wp_list_pluck( $changed, 'status', 'id' ) );
+	}
+
+	/**
 	 * When nothing changed the client keeps its cursor.
 	 */
 	public function test_sync_returns_the_same_cursor_when_nothing_changed() {

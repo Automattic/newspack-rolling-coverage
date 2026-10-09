@@ -360,6 +360,16 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An untitled entry behind a content gate doesn't show its opening words.
+	 */
+	public function test_gated_untitled_entry_shows_no_opening_words() {
+		[ , $entry_id ] = self::create_untitled_entry();
+		$this->gate_entry( $entry_id );
+
+		$this->assertStringNotContainsString( 'Traffic', self::render_title( $entry_id, self::TITLE_MARKUP ) );
+	}
+
+	/**
 	 * The editor preview gets an untitled entry's opening words, as the site
 	 * shows them, and none for a titled entry.
 	 */

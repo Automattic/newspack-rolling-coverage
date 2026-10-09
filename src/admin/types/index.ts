@@ -16,18 +16,14 @@ import type { View, ViewTable, Field, Action } from '@wordpress/dataviews';
 
 interface AdminConfig {
 	page: string;
-	/** Whether Co-Authors Plus is on for entries. */
-	hasCoauthors: boolean;
 	adminTitleSuffix: string;
 	availableAdapters?: Record< string, string >;
 	restBase: {
-		coverages: string;
 		entries: string;
 		slack: string;
 	};
 	restBaseUrls: {
 		coverages: string;
-		entries: string;
 		slack: string;
 		breakout: string;
 		entriesView: string;
@@ -43,16 +39,18 @@ interface AdminConfig {
 		canEditPosts: boolean;
 		canEditEntries: boolean;
 		canChangeAuthors: boolean;
+		canAssignCategories: boolean;
+		canCreateCategories: boolean;
+		canAssignTags: boolean;
+		canCreateTags: boolean;
 		canManageTerms: boolean;
 		canManageOptions: boolean;
-		canManageAiSettings: boolean;
 		canManageSettings: boolean;
 	};
 	supportsHandoff: boolean;
 	adminUrls: {
 		coverages: string;
 		editEntry: string;
-		newEntry: string;
 		editUser: string;
 		editTerm: string;
 		connectorApprovals: string;
@@ -65,7 +63,7 @@ interface AdminConfig {
 		canonicalUrlKey: string;
 		adsDisabledKey: string;
 	};
-	aiSettings: AiSettings;
+	aiSettings: AiSettings | null;
 	aiDefaultSettings: AiSettings;
 	aiAvailable: boolean;
 	/** True when AI is unavailable only because the plugin isn't approved for a connector. */
@@ -116,7 +114,7 @@ interface Placement {
 	id: string;
 	title: string;
 	type: string;
-	tags: string[];
+	blocks: string[];
 	viewUrl: string;
 	editUrl: string;
 	isMain: boolean;
@@ -198,6 +196,7 @@ interface Entry {
 				id: number;
 				name: string;
 				slug: string;
+				parent?: number;
 				taxonomy: string;
 				link: string;
 			} >
@@ -313,21 +312,56 @@ interface BulkRestoreResult extends ApiResult {
 	results?: BulkRestoreEntryResult[];
 }
 
-interface ChangeAuthorEntryResult {
+/**
+ * A term picked in the Reassign drawer. New terms, which the server
+ * creates on save, have an `id` of 0.
+ */
+interface PickedTerm {
+	id: number;
+	name: string;
+	/** The parent term's ID, in a hierarchical taxonomy; 0 for none. */
+	parent?: number;
+}
+
+/**
+ * The terms a Reassign save sets in one taxonomy: existing terms by
+ * ID, and terms by name, which the server finds or creates.
+ */
+interface EntryTermChanges {
+	ids: number[];
+	names: string[];
+}
+
+/**
+ * The details a Reassign save changes. Only the keys present are saved.
+ * With `append`, terms are added to each entry's own instead of replacing
+ * them. `slug` and `date` (the site's local time, `YYYY-MM-DDTHH:mm:ss`)
+ * apply to a single entry only.
+ */
+interface EntryDetailsChanges {
+	author_id?: number;
+	categories?: EntryTermChanges;
+	tags?: EntryTermChanges;
+	slug?: string;
+	date?: string;
+	append?: boolean;
+}
+
+interface EntryDetailsEntryResult {
 	entryId: number;
 	updated: boolean;
 	error?: string;
+	/** The slug the entry ended up with, when the save set one. */
+	slug?: string;
 }
 
-interface ChangeAuthorResult extends ApiResult {
-	results?: ChangeAuthorEntryResult[];
+interface EntryDetailsResult extends ApiResult {
+	results?: EntryDetailsEntryResult[];
 }
 
-interface ChangeAuthorDrawerProps {
+interface EntryDetailsDrawerProps {
 	isOpen: boolean;
 	items: Entry[];
-	restNamespace: string;
-	postType: string;
 	onClose: () => void;
 	onChanged?: () => void;
 }
@@ -501,11 +535,22 @@ interface SlackConnectionDrawerProps {
 	onClose: () => void;
 	onSaved: () => void;
 }
-interface QuickEditModalProps {
-	entryId: number;
+type QuickEditModalProps = {
 	onClose: () => void;
+	/** Called after each save. A new entry's first save also closes the modal. */
 	onSaved: () => void;
-}
+} & (
+	| {
+			/** The entry to edit. */
+			entryId: number;
+			coverageId?: never;
+	  }
+	| {
+			/** No entry yet: a new one is added to `coverageId`. */
+			entryId: null;
+			coverageId: number;
+	  }
+);
 
 interface ErrorNoticeProps {
 	message?: string | null;
@@ -610,9 +655,10 @@ interface SettingField {
 	help?: string;
 }
 interface QuickEditSaveBarProps {
+	/** Whether the entry is new, which offers Save Draft and Publish instead of Save. */
+	isNew: boolean;
 	onClose: () => void;
 	onSaved: () => void;
-	children?: ReactNode;
 }
 
 interface EntityRecord {
@@ -621,13 +667,25 @@ interface EntityRecord {
 	title?: { raw?: string };
 	content?: { raw?: string };
 	status?: string;
+	/** REST links; the REST API adds `wp:action-publish` only for users who can publish. */
+	_links?: Record< string, unknown[] >;
+}
+
+/** Selectors from the block editor store that Quick Edit's toolbar reads. */
+interface BlockEditorSelectors {
+	getBlockSelectionStart: () => string | null | undefined;
 }
 
 /** Selectors from the editor store, typed for the sub-registry. */
 type EditorSelectors = {
 	__unstableIsEditorReady?: () => boolean;
+	hasEditorUndo: () => boolean;
+	hasEditorRedo: () => boolean;
+	isEditedPostDirty: () => boolean;
+	isEditedPostSaveable: () => boolean;
 	isSavingPost: () => boolean;
 	didPostSaveRequestFail: () => boolean;
+	getCurrentPost: () => EntityRecord;
 	getCurrentPostType: () => string;
 	getCurrentPostId: () => number;
 };
@@ -644,6 +702,8 @@ type CoreSelectors = {
 interface EntryViewRow {
 	id: number;
 	title: string;
+	/** The entry's slug (`post_name`); empty for a draft that has none yet. */
+	slug: string;
 	/** First words of the content when the entry has no title, else ''. */
 	summary: string;
 	date: string;
@@ -662,9 +722,16 @@ interface EntryViewRow {
 		id: number;
 		name: string;
 		slug: string;
+		parent: number;
 		link: string;
 	} >;
-	tags: Array< { id: number; name: string; slug: string; link: string } >;
+	tags: Array< {
+		id: number;
+		name: string;
+		slug: string;
+		parent: number;
+		link: string;
+	} >;
 	breakout_post_id: number;
 	breakout_status: PostStatus | null;
 	/** Whether the current user may edit this entry (core `edit_post` meta cap). */
@@ -753,9 +820,12 @@ export type {
 	SaveCoverageData,
 	BulkRestoreEntryResult,
 	BulkRestoreResult,
-	ChangeAuthorEntryResult,
-	ChangeAuthorResult,
-	ChangeAuthorDrawerProps,
+	PickedTerm,
+	EntryTermChanges,
+	EntryDetailsChanges,
+	EntryDetailsEntryResult,
+	EntryDetailsResult,
+	EntryDetailsDrawerProps,
 	Placement,
 	PlacementsDrawerProps,
 	AiSettings,
@@ -795,5 +865,6 @@ export type {
 	EntityRecord,
 	EditorSelectors,
 	CoreSelectors,
+	BlockEditorSelectors,
 	TogglePinResult,
 };

@@ -17,6 +17,18 @@ class Slack_Webhook_Controller {
 	const CHANNEL_ID_PATTERN = '[CG][A-Z0-9]+';
 
 	/**
+	 * Webhook routes, relative to the REST namespace, and the methods that
+	 * handle them. Slack sends every request to one of these.
+	 *
+	 * @var array<string, string>
+	 */
+	const WEBHOOK_ROUTES = [
+		'/slack/events'       => 'handle_event',
+		'/slack/commands'     => 'handle_command',
+		'/slack/interactions' => 'handle_interaction',
+	];
+
+	/**
 	 * Seconds into handling a message after which mentioned users are no
 	 * longer looked up from the Slack API. The lookups run inside the webhook
 	 * request, which Slack retries when it takes longer than three seconds.
@@ -252,37 +264,65 @@ class Slack_Webhook_Controller {
 	 * @return void
 	 */
 	public function register_webhook_routes(): void {
-		$namespace = Slack::REST_NAMESPACE;
+		foreach ( self::WEBHOOK_ROUTES as $route => $handler ) {
+			register_rest_route(
+				Slack::REST_NAMESPACE,
+				$route,
+				[
+					'methods'             => 'POST',
+					'callback'            => [ $this, $handler ],
+					'permission_callback' => [ $this, 'verify_webhook_signature' ],
+				]
+			);
+		}
+	}
 
-		register_rest_route(
-			$namespace,
-			'/slack/events',
-			[
-				'methods'             => 'POST',
-				'callback'            => [ $this, 'handle_event' ],
-				'permission_callback' => [ $this, 'verify_webhook_signature' ],
-			]
-		);
+	/**
+	 * Whether WordPress is serving one of the webhook routes.
+	 *
+	 * Reads the route WordPress parsed from the request URL, so it answers
+	 * false until the request is parsed. The REST API checks authentication
+	 * after that. Routes compare without regard to case or a trailing slash,
+	 * as the REST API matches them.
+	 *
+	 * @return bool
+	 */
+	public static function is_webhook_request(): bool {
+		global $wp;
 
-		register_rest_route(
-			$namespace,
-			'/slack/commands',
-			[
-				'methods'             => 'POST',
-				'callback'            => [ $this, 'handle_command' ],
-				'permission_callback' => [ $this, 'verify_webhook_signature' ],
-			]
-		);
+		$route = $wp instanceof \WP ? ( $wp->query_vars['rest_route'] ?? '' ) : '';
 
-		register_rest_route(
-			$namespace,
-			'/slack/interactions',
-			[
-				'methods'             => 'POST',
-				'callback'            => [ $this, 'handle_interaction' ],
-				'permission_callback' => [ $this, 'verify_webhook_signature' ],
-			]
-		);
+		if ( ! is_string( $route ) || '' === $route ) {
+			return false;
+		}
+
+		$route = untrailingslashit( $route );
+
+		foreach ( array_keys( self::WEBHOOK_ROUTES ) as $webhook_route ) {
+			if ( 0 === strcasecmp( '/' . Slack::REST_NAMESPACE . $webhook_route, $route ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Lift the Password Protected plugin's protection from the webhook routes.
+	 *
+	 * Password Protected refuses REST requests from visitors who haven't
+	 * entered the site password, unless its "Allow REST API" setting is on.
+	 * Slack can't enter the password, so every webhook request would be
+	 * refused with a 401 before its signature is checked. The webhook routes
+	 * check that signature on every request, so lifting protection from them
+	 * lets Slack in and still refuses anyone else. The rest of the site stays
+	 * protected.
+	 *
+	 * @param bool $is_active Whether Password Protected protects the request.
+	 * @return bool
+	 */
+	public static function filter_password_protected_is_active( $is_active ) {
+		return self::is_webhook_request() ? false : $is_active;
 	}
 
 	/**
@@ -1512,8 +1552,10 @@ class Slack_Webhook_Controller {
 		// 2. Content processing.
 		$content = $content_processor->process( $text, is_array( $event['blocks'] ?? null ) ? $event['blocks'] : [] );
 
-		// 3. Bot user resolution.
-		$bot_user_id = Slack_Author_Resolver::get_slack_bot_user_id();
+		// 3. The entry's author: the WordPress user mapped to the message
+		// author's Slack member ID or handle, or the bot user.
+		$author    = Slack_Author_Resolver::resolve_author( $user_id, $user_info );
+		$author_id = $author['user_id'];
 
 		// 4. Build the normalized payload.
 		$source_payload = new Source_Event_Payload(
@@ -1540,13 +1582,13 @@ class Slack_Webhook_Controller {
 		// 6. Call the generic ingestion service. Uploaded images are imported
 		// from inside it, once the message is known not to be a redelivery.
 		$files          = is_array( $event['files'] ?? null ) ? $event['files'] : [];
-		$media_importer = new Slack_Media_Importer( $api_client, $bot_user_id );
+		$media_importer = new Slack_Media_Importer( $api_client, $author_id );
 
 		$post_id = Entry_Ingestion_Service::ingest(
 			$source_payload,
 			$term_id,
 			$auto_publish,
-			$bot_user_id,
+			$author_id,
 			$provenance_meta,
 			static fn( callable $keep_lock ): string => $media_importer->import( $files, $keep_lock )
 		);
@@ -1588,6 +1630,7 @@ class Slack_Webhook_Controller {
 				'post_id' => (int) $post_id,
 				'channel' => $channel_id,
 				'status'  => $auto_publish ? 'publish' : 'draft',
+				'author'  => $author['matched_by'],
 			] 
 		);
 	}

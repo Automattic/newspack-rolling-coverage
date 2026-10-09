@@ -45,7 +45,7 @@ class Entry_Ingestion_Service {
 	 * @param Source_Event_Payload $payload         Normalized event.
 	 * @param int                  $term_id         Resolved rolling coverage term id.
 	 * @param bool                 $auto_publish    Whether to insert as 'publish' or 'draft'.
-	 * @param int                  $bot_user_id     WP user id to assign as post_author.
+	 * @param int                  $author_id       WP user id to assign as post_author.
 	 * @param array<string, mixed> $provenance_meta Platform-specific meta keyed by meta_key.
 	 * @param callable|null        $render_media    Returns block markup for the event's
 	 *                                              media, added after the content. Only
@@ -64,7 +64,7 @@ class Entry_Ingestion_Service {
 		Source_Event_Payload $payload,
 		int $term_id,
 		bool $auto_publish,
-		int $bot_user_id,
+		int $author_id,
 		array $provenance_meta,
 		?callable $render_media = null
 	) {
@@ -93,7 +93,7 @@ class Entry_Ingestion_Service {
 				return 0;
 			}
 
-			if ( $bot_user_id <= 0 ) {
+			if ( $author_id <= 0 ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( 'Source ingestion: bot user unavailable, skipping entry.' );
 				return 0;
@@ -121,7 +121,7 @@ class Entry_Ingestion_Service {
 				'post_type'    => Post_Type::CPT_SLUG,
 				'post_title'   => '',
 				'post_content' => wp_slash( $content ),
-				'post_author'  => $bot_user_id,
+				'post_author'  => $author_id,
 				'post_status'  => $auto_publish ? 'publish' : 'draft',
 			];
 

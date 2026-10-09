@@ -8,7 +8,7 @@ For how publishers use the block, see `README.md` in this directory.
 
 - `coverageId`: 0 for Automatic, or a chosen coverage (Custom).
 - `labels`: per-status text overrides, keyed `active`, `paused`, `archived`.
-- `backgroundColors`: per-status badge backgrounds, same keys.
+- `backgroundColors`: per-status badge backgrounds, same keys. Each is a hex color or a theme color name (`accent`, `base`).
 - `showDot`: the dot (and pulse, while live) on the badge. Default on.
 - `showLastUpdated`: the "Updated 2 minutes ago" text. Default off.
 - `hideWhenEnded`: render nothing once the coverage ends.
@@ -45,11 +45,19 @@ Site-wide labels live in the `rolling_coverage_status_labels` option, managed by
 
 ## Background colors and text contrast
 
-A custom background must be a hex color. `Apca::normalize()` accepts `#rgb`, `#rgba`, `#rrggbb` and `#rrggbbaa`, drops any alpha, and returns an empty string for anything else, which leaves the badge's default style. This keeps the value safe for an inline style.
+A custom background is a theme color name or a hex color.
 
-The text color is never chosen by the publisher. `Apca::text_color()` (`includes/blocks/class-apca.php`) picks black or white, whichever has the higher APCA contrast against the background. `badge_style()` then sets the background, that text color, and a dot color mixed from the two so the dot stays visible.
+A theme color name (`THEME_COLORS`: `accent`, `base`, the block theme's palette slugs) renders its background as the theme's color variables: the block theme's preset, then the classic Newspack Theme's custom property, then a plain value, so the badge follows the theme's style variations, dark ones included. A stored hex can't: it keeps the color the palette had when it was saved. Built-in layouts that color the badge use these names (Flash `base`, Alert `accent`).
 
-`src/blocks/shared/apca.ts` ports the same algorithm and constants for the editor preview (`badgeStyleObject()` in `src/blocks/shared/status-badges.ts`). The two must agree, or the editor shows a different text color from the site; change them together. `tests/test-apca.php` checks the PHP side against reference values.
+The text is the theme's paired variable from `THEME_COLORS` (`accent` with `accent-contrast`, else `base`, as the block theme's buttons do; `base` with `contrast`) whenever the palette defines that pair, so the badge keeps the text color the theme designed. When it doesn't, `palette_color()` reads the slug's current color from `wp_get_global_settings()`, the site's custom palette before the theme's, as the preset variable resolves. That includes the active style variation, which lives in the site's global styles. `Apca::text_color()` then picks black or white against it, as for a hex background, so a theme with a light accent and no `accent-contrast` (Twenty Twenty-Four, for one) still gets dark text. The Newspack Block Theme prints `accent-contrast` as CSS rather than a palette color, so its accent badge takes this path too, with the same APCA pick the theme makes. The text is picked per page render, so after a variation switch it follows from the next page load, like the theme's own buttons. When the palette has neither the pair nor a hex for the slug (the classic Newspack Theme has no `accent` or `base` presets; a palette value such as `var()` or `rgb()` isn't read), the paired variable's fallbacks apply.
+
+The editor's color picker needs a literal color to show and mark as selected, so it shows a theme color as its palette swatch, or the plain fallback when the palette has none (`themeSwatch()` in `edit.tsx`); picking any color there stores a hex. The preview reads the same palette slugs and their pairs from the editor settings, custom before theme, and passes them to `badgeStyleObject()`, so its text matches the site.
+
+A hex background goes through `Apca::normalize()`, which accepts `#rgb`, `#rgba`, `#rrggbb` and `#rrggbbaa`, drops any alpha, and returns an empty string for anything else, which leaves the badge's default style. This keeps the value safe for an inline style.
+
+The text color is never chosen by the publisher. For a hex background, `Apca::text_color()` (`includes/blocks/class-apca.php`) picks black or white, whichever has the higher APCA contrast against the background. `badge_style()` then sets the background, that text color, and a dot color mixed from the two so the dot stays visible.
+
+`src/blocks/shared/apca.ts` ports the same algorithm and constants for the editor preview (`badgeStyleObject()` in `src/blocks/shared/status-badges.ts`, which also mirrors `THEME_COLORS`). The two must agree, or the editor shows a different text color from the site; change them together. `tests/test-apca.php` checks the PHP side against reference values.
 
 The badge classes per status are `Coverage_Status_Block::BADGE_CLASSES`, mirrored by `BADGE_CLASSES` in `status-badges.ts`.
 
@@ -59,7 +67,7 @@ The block never fetches on its own. `view.ts` listens for the `newspack-rolling-
 
 To make that swap possible, the server prints every status's label as `data-label-{status}` and every custom style as `data-style-{status}` on the wrapper.
 
-Without a polling Rolling Coverage block for the same coverage on the page, the badge stays as rendered. Only the relative "Updated" time refreshes, once a minute (`REFRESH_INTERVAL_MS` in `src/blocks/shared/relative-dates.ts`). The Rolling Coverage block only polls while the coverage was live when the page rendered, so a page rendered while paused will not show the coverage going live until it reloads.
+Without a polling Rolling Coverage block for the same coverage on the page, the badge stays as rendered. Only the relative "Updated" time refreshes, once a minute (`REFRESH_INTERVAL_MS` in `src/blocks/shared/relative-dates.ts`). The Rolling Coverage block only polls while the coverage was live when the page rendered, so a page rendered while paused will not show the coverage going live until it reloads. It also stops once a poll reports the coverage `archived`, so once every feed for the coverage on the page has stopped, a reopen shows only after the page reloads.
 
 ## Newest entry
 
@@ -68,6 +76,8 @@ The "Updated" time reads `Newest_Entry::get()` and `get_iso()` (`includes/class-
 `Coverage_Status_Block::register_rest_fields()` adds a read-only `newestEntry` field (ISO 8601 or null) to the coverage term's REST record, so the editor preview shows the same time as the site. It returns null for users without `edit_posts`. Poll responses carry the same value.
 
 The "Updated" text renders hidden unless the coverage is live and has an entry, so the view script only has to show it and fill in the time.
+
+On a Lite Site page (`Lite_Feed::is_lite_render()`), `render_block()` leaves the "Updated" text out: Lite Site strips the markup that hides it and never runs the script that keeps it current. The badge is a snapshot, like the rest of the page. See "Lite Site pages" in `src/blocks/rolling-coverage/DEVELOPMENT.md`.
 
 ## Hide when ended
 

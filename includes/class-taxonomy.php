@@ -210,15 +210,12 @@ class Taxonomy {
 					return current_user_can( 'manage_options' );
 				},
 			],
-			// Boolean flag to disable ads on the coverage page; manage_options-gated via auth_callback.
+			// Boolean flag to disable ads on the coverage page. No auth_callback: whoever can edit the coverage can change it, as with the status.
 			self::ADS_DISABLED_META_KEY                    => [
-				'show_in_rest'  => true,
-				'single'        => true,
-				'type'          => 'boolean',
-				'default'       => false,
-				'auth_callback' => function () {
-					return current_user_can( 'manage_options' );
-				},
+				'show_in_rest' => true,
+				'single'       => true,
+				'type'         => 'boolean',
+				'default'      => false,
 			],
 		];
 
@@ -333,12 +330,13 @@ class Taxonomy {
 	}
 
 	/**
-	 * Get a coverage term by ID, returning a WP_Error if not found.
+	 * Get a coverage term by ID, returning a WP_Error if not found. Shared by
+	 * the coverage routes and `Post_Type::handle_create_entry()`.
 	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return \WP_Term|\WP_Error Term object on success, error on not found.
 	 */
-	private static function get_coverage_term( int $coverage_id ): \WP_Term|\WP_Error {
+	public static function get_coverage_term( int $coverage_id ): \WP_Term|\WP_Error {
 		$term = get_term( $coverage_id, self::TAXONOMY_SLUG );
 
 		if ( ! $term || is_wp_error( $term ) ) {

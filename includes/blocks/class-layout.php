@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Layout {
 
-	const BUILT_IN_SLUGS = [ 'default', 'stream', 'rail', 'clock', 'margin', 'minute', 'byline', 'ticker', 'split', 'wire', 'digest', 'flash' ];
+	const BUILT_IN_SLUGS = [ 'default', 'stream', 'rail', 'clock', 'margin', 'minute', 'byline', 'ticker', 'split', 'wire', 'digest', 'flash', 'alert' ];
 
 	const SLUG_META_KEY = '_rolling_coverage_layout';
 
@@ -421,7 +421,7 @@ class Layout {
 	 * @param string $slug Built-in layout slug.
 	 * @return string
 	 */
-	private static function get_title( string $slug ): string {
+	public static function get_title( string $slug ): string {
 		return match ( $slug ) {
 			'default' => _x( 'Bulletin', 'layout name', 'newspack-rolling-coverage' ),
 			'stream'  => _x( 'Stream', 'layout name', 'newspack-rolling-coverage' ),
@@ -435,6 +435,7 @@ class Layout {
 			'wire'    => _x( 'Wire', 'layout name', 'newspack-rolling-coverage' ),
 			'digest'  => _x( 'Digest', 'layout name', 'newspack-rolling-coverage' ),
 			'flash'   => _x( 'Flash', 'layout name', 'newspack-rolling-coverage' ),
+			'alert'   => _x( 'Alert', 'layout name', 'newspack-rolling-coverage' ),
 		};
 	}
 

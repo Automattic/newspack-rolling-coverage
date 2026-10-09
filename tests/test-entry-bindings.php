@@ -322,6 +322,65 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Untitled entries a gate covers: one with words, and a lone captioned
+	 * photo, which would otherwise be named by its media title.
+	 *
+	 * @return array<string,array{string,string}>
+	 */
+	public function gated_untitled_entries(): array {
+		return [
+			'text'  => [ '<!-- wp:paragraph --><p>The result is in.</p><!-- /wp:paragraph -->', 'The result is in' ],
+			'photo' => [ '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.test/count.jpg" alt=""/><figcaption class="wp-element-caption">Counting the ballots</figcaption></figure><!-- /wp:image -->', 'Counting' ],
+		];
+	}
+
+	/**
+	 * An untitled entry behind a content gate is shared by the button's text
+	 * alone: its opening words, or its photo's caption, are the gate's to
+	 * give away.
+	 *
+	 * @dataProvider gated_untitled_entries
+	 *
+	 * @param string $content  Entry content.
+	 * @param string $withheld Text that must not name the share link.
+	 */
+	public function test_share_name_of_a_gated_entry_holds_none_of_its_words( string $content, string $withheld ) {
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_title'   => '',
+				'post_content' => $content,
+			]
+		);
+		$this->gate_entry( $entry_id );
+
+		$html = self::render( $entry_id );
+
+		$this->assertStringContainsString( 'aria-label="Share"', $html );
+		$this->assertStringNotContainsString( $withheld, $html );
+	}
+
+	/**
+	 * A WooCommerce Memberships rule restricts an entry for every reader,
+	 * including one a `wc_memberships_is_post_public` callback lets through,
+	 * such as Newspack's newsletter-link access, since what's built from the
+	 * entry is cached for all. An entry an admin marked public isn't
+	 * restricted.
+	 */
+	public function test_membership_rule_restricts_an_entry_whoever_asks() {
+		$this->use_wc_memberships_stub();
+		$coverage_id   = self::create_coverage();
+		$restricted_id = self::create_entry( $coverage_id );
+		$public_id     = self::create_entry( $coverage_id );
+		$GLOBALS['newspack_rolling_coverage_restricted_posts'] = [ $restricted_id, $public_id ];
+		$GLOBALS['newspack_rolling_coverage_public_posts']     = [ $public_id ];
+		add_filter( 'wc_memberships_is_post_public', '__return_true' );
+
+		$this->assertTrue( Entry_Bindings::is_restricted( get_post( $restricted_id ) ) );
+		$this->assertFalse( Entry_Bindings::is_restricted( get_post( $public_id ) ) );
+	}
+
+	/**
 	 * The public summary of a password-protected entry is empty, whoever
 	 * asks: an editor holding the password included.
 	 */
@@ -1061,21 +1120,91 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A coverage that isn't archived shows no notice.
+	 * A coverage that hasn't ended carries its notice only in the wrapper's
+	 * data attributes, for the view script to build when a poll reports the
+	 * end. Markup no script runs on, such as a syndication feed or an email,
+	 * shows no notice once tags are stripped. The link's URL is the block's;
+	 * without one the poll brings the breakout post, which may only be
+	 * published at the end.
 	 */
-	public function test_archived_notice_is_hidden_until_the_coverage_is_archived() {
-		$coverage_id = self::create_coverage();
-		$attributes  = [
-			'coverageId'            => $coverage_id,
-			'archivedNotice'        => 'Coverage ended',
-			'archivedNoticeLinkUrl' => 'https://example.com/story',
+	public function test_archived_notice_is_held_in_data_until_the_coverage_is_archived() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ACTIVE, [ 'name' => 'Polls & results' ] );
+		self::add_breakout( self::create_entry( $coverage_id ), 'publish' );
+
+		$attributes = [
+			'coverageId'              => $coverage_id,
+			'archivedNoticeLinkLabel' => 'Follow <em>the</em> story',
 		];
 
-		$this->assertStringNotContainsString( 'archived-notice', self::render_feed_block( $attributes ), 'An active coverage has no notice.' );
+		$html = self::render_feed_block( $attributes );
+
+		$this->assertStringContainsString( 'data-ended-notice="Coverage of “Polls &amp; results” has concluded and this feed is now archived."', $html, 'The default text names the coverage.' );
+		$this->assertStringContainsString( 'data-ended-notice-link="Follow &lt;em&gt;the&lt;/em&gt; story"', $html );
+		$this->assertStringNotContainsString( 'data-ended-notice-url', $html, 'The breakout post comes with the poll.' );
+		$this->assertStringNotContainsString( 'archived-notice', $html, 'No notice markup.' );
+		$this->assertStringNotContainsString( 'has concluded', wp_strip_all_tags( $html ), 'No notice text outside the tags.' );
 
 		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
 
-		$this->assertStringNotContainsString( 'archived-notice', self::render_feed_block( $attributes ), 'Nor does a paused one.' );
+		$this->assertStringContainsString( 'data-ended-notice-link="Follow &lt;em&gt;the&lt;/em&gt; story"', self::render_feed_block( $attributes ), 'A paused coverage holds it too.' );
+
+		$attributes['archivedNotice']        = "Coverage ended.\nThanks for following.";
+		$attributes['archivedNoticeLinkUrl'] = 'https://example.test/story?a=1&b=2';
+
+		$html = self::render_feed_block( $attributes );
+
+		$this->assertStringContainsString( "data-ended-notice=\"Coverage ended.\nThanks for following.\"", $html, "The block's text, line breaks kept." );
+		$this->assertStringContainsString( 'data-ended-notice-url="https://example.test/story?a=1&amp;b=2"', $html, "The block's URL." );
+
+		$attributes['archivedNoticeLinkUrl'] = 'javascript:alert(1)';
+
+		$this->assertStringNotContainsString( 'data-ended-notice-link', self::render_feed_block( $attributes ), 'A rejected URL: no link, as once ended.' );
+
+		$attributes['archivedNoticeShowLink'] = false;
+		$attributes['archivedNoticeLinkUrl']  = '';
+
+		$this->assertStringNotContainsString( 'data-ended-notice-link', self::render_feed_block( $attributes ), 'The link turned off: no link.' );
+	}
+
+	/**
+	 * A coverage that hasn't ended holds no notice when the block won't show
+	 * one once it ends: the notice is off, or the block hides itself.
+	 */
+	public function test_archived_notice_is_not_held_when_it_wont_show() {
+		$coverage_id = self::create_coverage();
+
+		$this->assertStringNotContainsString(
+			'data-ended-notice',
+			self::render_feed_block(
+				[
+					'coverageId'         => $coverage_id,
+					'archivedNoticeShow' => false,
+				]
+			),
+			'The notice turned off.'
+		);
+
+		$this->assertStringNotContainsString(
+			'data-ended-notice',
+			self::render_feed_block(
+				[
+					'coverageId'    => $coverage_id,
+					'hideWhenEnded' => true,
+				]
+			),
+			'The block hides itself.'
+		);
+	}
+
+	/**
+	 * An archived coverage renders its notice, not the data to build one.
+	 */
+	public function test_archived_coverage_holds_no_notice_data() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		$html        = self::render_feed_block( [ 'coverageId' => $coverage_id ] );
+
+		$this->assertStringContainsString( 'class="newspack-rolling-coverage-archived-notice"', $html );
+		$this->assertStringNotContainsString( 'data-ended-notice', $html );
 	}
 
 	/**

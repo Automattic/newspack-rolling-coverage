@@ -1,208 +1,48 @@
-# AI Agent Instructions
+# AI agent instructions
 
-Guidance for AI coding agents working in this repository. Tool-specific files
-(`CLAUDE.md`, `.github/copilot-instructions.md`) reference this file.
+Guidance for AI coding agents working in this repository. `CLAUDE.md` points here.
 
-This file covers what is specific to `newspack-rolling-coverage`. Where a shared
-workspace `AGENTS.md` exists (e.g. `../../AGENTS.md`), shared conventions
-(Docker, the `n` script, coding standards, git rules) live there and take
-precedence.
+## Keep the docs in step with the code
 
-## Overview
+A change that alters how something works updates its docs in the same pull request. The docs describe the plugin as it is, so a doc left behind describes behavior that no longer exists.
 
-Newspack Rolling Coverage is a liveblog plugin. It provides:
+- **Blocks** (`src/blocks/<block>/`) have two docs:
+  - `README.md` is for publishers: what the block does and how to use it in the editor. Update it when a setting, option, label or visible behavior changes.
+  - `DEVELOPMENT.md` is for developers: attributes, rendering, REST routes, and why the code is built the way it is. Update it when the structure or a contract changes.
+  - The inner blocks `share` and `breakout-post-link` have no docs of their own; they are covered under "Share and Read more" in `src/blocks/rolling-coverage/DEVELOPMENT.md`.
+- **Admin screens and the entry editor** (`src/admin/`, `src/entry-editor/`) share `src/admin/DEVELOPMENT.md`. Update the section for what you changed, or add one.
+- **PHP in `includes/`** updates the docs of the feature it serves: a block's docs for `includes/blocks/`, `src/admin/DEVELOPMENT.md` for everything else.
+- Describe the end state, not the history of the change. Rewrite or remove sentences the change makes untrue instead of appending to them.
+- Quote UI labels exactly as they appear on screen.
 
-- A `rolling_coverage` taxonomy (one term per news event).
-- A `rolling_cov_entry` custom post type (individual updates in the feed).
-- Six Gutenberg blocks for rendering the feed and its supporting UI.
-- A React/TypeScript admin app for managing coverages and entries.
-- Integrations: Slack ingestion, OneSignal push, Newspack Ads, WordPress AI.
+## Build, lint and test
 
-See `.github/CONTRIBUTING.md` for the full technical reference, `README.md` for
-installation and development, and `readme.txt` for the end-user overview.
-
-## Conventions
-
-**File structure**
-
-```
-newspack-rolling-coverage/
-├── newspack-rolling-coverage.php   # Main plugin file with header and bootstrap
-├── includes/                       # PHP classes: class-<slug>.php (also in ai/, blocks/, slack/, sources/)
-├── src/
-│   ├── admin/                      # React/TypeScript admin app
-│   ├── blocks/<slug>/              # block.json, index.tsx, edit.tsx, view.ts
-│   └── entry-editor/               # Entry editor script
-├── dist/                           # Compiled assets (gitignored)
-├── tests/                          # PHPUnit suite
-├── composer.json
-├── package.json
-└── phpunit.xml.dist
-```
-
-**Naming** — All PHP lives in the `Newspack_Rolling_Coverage` namespace. Classes
-are namespaced files named `class-<slug>.php`; subdirectories use the same
-namespace (`includes/ai/`, `includes/slack/`, `includes/blocks/`,
-`includes/sources/`).
-
-**Standards** — PHP: WordPress + VIP coding standards (`phpcs.xml`), with
-docblocks on every class, method, and property. JS/TS: ESLint; SCSS: Stylelint;
-both via `newspack-scripts`.
-
-**PHP** — Feature classes use the static `init()` pattern and register hooks
-there. REST route callbacks and permission callbacks are static methods.
-
-**Frontend**
-
-- Admin app: React function components in TypeScript (`src/admin/`), hash-based
-  routing (`react-router` v7), `@wordpress/components` and `@wordpress/dataviews`.
-- API calls go through `src/admin/utils/*-api.ts` using `@wordpress/api-fetch`.
-- Blocks: `block.json` + `index.tsx` (registration), `edit.tsx` (editor), and
-  `view.ts` (frontend) when the block needs frontend behavior (the
-  `breakout-post-link` block has no `view.ts`). Server render callbacks
-  live in `includes/blocks/`.
-- Dynamic blocks return `null` or `<InnerBlocks.Content />` from `save`.
-- SCSS styles are colocated per component; shared admin styles live in
-  `src/admin/styles/`.
-
-**Commits** — Conventional commits (`<type>(<scope>): <subject>`). Subject on
-one line, max 72 chars, no body; `Co-Authored-By` trailers after a blank line.
-`feat` triggers a minor release and `fix` a patch release via semantic-release,
-so use those only for publisher-visible change; otherwise `chore`, `ci`, `docs`,
-`test`, `refactor`, `perf`, `build`, `style`, `revert`. Never commit unless
-explicitly asked.
-
-### New PHP classes
-
-```php
-<?php
-/**
- * Feature description.
- *
- * @package Newspack_Rolling_Coverage
- */
-
-namespace Newspack_Rolling_Coverage;
-
-defined( 'ABSPATH' ) || exit;
-
-class My_Feature {
-
-	/**
-	 * Initialize hooks.
-	 */
-	public static function init() {
-		add_action( 'init', [ __CLASS__, 'register_things' ] );
-	}
-}
-```
-
-Then:
-
-1. Add `My_Feature::init();` to `Initializer::includes()`
-   (`includes/class-initializer.php`).
-2. Run `composer dump-autoload`.
-3. Run `npm run lint`.
-
-## Key commands
+The plugin uses npm (not pnpm) and Composer.
 
 ```bash
-npm run build             # Production webpack build (cleans dist first)
-npm run watch             # Watch mode
-npm run lint              # SCSS + JS + PHP + TypeScript
-npm run lint:php          # PHPCS only
-npm run typecheck         # tsc --noEmit
-composer dump-autoload    # Rebuild the classmap after adding a PHP file
+npm ci && composer install   # Install dependencies
+npm run build                # Build dist/ (never committed)
+npm run watch                # Rebuild on change
 ```
 
-### Testing
+- Composer autoloads `includes/` with a classmap. After adding a PHP class file, run `composer dump-autoload`, or the site and PHPUnit won't find the class.
+- Change dependencies with the npm that ships with the Node version in `.nvmrc` (npm 11 at the time of writing). Older npm versions rewrite `package-lock.json`.
+
+Lint before pushing:
 
 ```bash
-npm run test:php          # ./vendor/bin/phpunit
-bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1 latest  # install WP test lib
+npm run lint:js      # ESLint and Prettier
+npm run typecheck    # TypeScript; ESLint and the build don't catch type errors
+npm run lint:scss    # Stylelint
+npm run lint:php     # PHPCS with this repo's phpcs.xml
+npm run fix:js       # Auto-fix JS (also format:scss, fix:php)
 ```
 
-- Tests extend `Rolling_Coverage_TestCase` (`tests/class-rolling-coverage-testcase.php`)
-  which re-registers the CPT, taxonomy, and meta because WordPress unregisters
-  them between tests.
-- Use the `create_coverage()` / `create_entry()` / `log_in_as()` / `dispatch()`
-  helpers in the base class.
-- Mocks: `tests/mocks/newspack-theme.php`, `tests/mocks/onesignal.php`,
-  `tests/mocks/newspack-ads.php`, `tests/mocks/class-simple-local-avatars.php`,
-  `tests/mocks/class-lite-site.php`; stub `tests/stubs/class-block-visibility.php`.
-- Slack outbound HTTP is mocked with the `pre_http_request` filter.
+- CI runs `lint:js`, PHPCS and PHPUnit. It does not run `typecheck` or `lint:scss`, so those two only catch errors when you run them.
+- `npm run lint` runs Stylelint, ESLint, PHPCS and `typecheck` in that order and stops at the first failure. Run each one on its own to see every result.
+- PHPCS checks PHP compatibility against `testVersion 7.2-` in `phpcs.xml` and rejects typed properties, so don't use them. Its ruleset doesn't recognize every newer feature, and the code already uses PHP 8.0 union types and PHP 7.4 arrow functions.
 
-## Common gotchas
+Tests:
 
-- **Composer uses a `classmap`, not PSR-4.** Every PHP file under `includes/` is
-  auto-discovered, but the map is static. After adding a file, run
-  `composer dump-autoload`.
-- **New feature classes must be registered in `Initializer::includes()`**
-  (`includes/class-initializer.php`). The autoloader alone does not wire a class
-  into the lifecycle.
-- **`npm run lint` runs SCSS, JS, PHP, and TypeScript.** For PHP alone use
-  `npm run lint:php`; for types alone use `npm run typecheck`.
-- **`@wordpress/dataviews` is imported from `@wordpress/dataviews/wp`** in the
-  admin app.
-- **There are no JS unit tests.** `npm test` is an intentional no-op
-  (`echo 'No JS unit tests in this repository.'`). PHP tests are authoritative.
-- **Block entries are auto-discovered from `block.json`** by
-  `getWebpackEntryPoints('script')()`; only the admin app (`src/admin/index.tsx`)
-  and the entry editor script (`src/entry-editor/index.tsx`) are hardcoded
-  webpack entries.
-- **REST namespace is shared.** `NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE`
-  (`rolling-coverage/v1`) is used by both the core plugin routes and the Slack
-  integration (`Slack::REST_NAMESPACE` has the same string).
-- **Sensitive meta is gated on read, not by `auth_callback`.** On entry post
-  meta (`Post_Type`), `auth_callback` is absent, so WordPress gates writes via
-  the post's `edit_post` capability and does **not** gate reads. The actual read
-  protection is `filter_rest_response()`, which strips `Post_Type::RESTRICTED_META`
-  in the non-`edit` context. On term meta (`Taxonomy`), both mechanisms are used:
-  `auth_callback` gates writes (`manage_options`) and `filter_rest_response()`
-  strips restricted keys on read.
-- **Pin ordering is global.** `orderby_pinned_first()` runs on `posts_orderby`
-  for any `rolling_cov_entry` query. Opt out with the
-  `rolling_coverage_skip_pin_order` query var (the frontend feed and sync cursor
-  deliberately do).
-- **Archive mode locks entries.** Entries in archived coverages cannot be
-  deleted, restored, pinned, or broken out, and cannot be assigned *into* an
-  archived coverage. Removing an entry from an archived coverage is still
-  possible server-side (only blocked client-side). Check
-  `Archive_Mode::is_entry_locked()` before adding new mutations.
-- **`.distignore`, not `.gitignore`, controls the distributable.** Sources,
-  tests, tooling, and developer docs are excluded; compiled `dist/`, `includes/`,
-  `languages/`, and production `vendor/` ship.
-
-## Recipes
-
-### Add a REST route
-
-1. Create or extend a class with a static `register_routes()` method.
-2. Hook it to `rest_api_init` in the class `init()`.
-3. Use `NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE` and provide
-   `permission_callback`, `args`, and sanitize/validate callbacks.
-4. Add tests in `tests/` using the base class `dispatch()` helper.
-
-### Add a block
-
-1. Create `src/blocks/<slug>/` with `block.json`, `index.tsx`, `edit.tsx`, and
-   `view.ts` as needed.
-2. Add a server class in `includes/blocks/` and register it in `Initializer`.
-3. Run `npm run build`; the block is auto-discovered from `block.json`.
-
-### Add a chat source adapter
-
-1. Produce a `Source_Event_Payload` and call
-   `Entry_Ingestion_Service::ingest()`, which handles dedup, the mutex, and
-   assignment.
-2. Reuse `Post_Type::META_ENTRY_SOURCE` and `Post_Type::META_SOURCE_REF` for the
-   platform slug and canonical dedup key.
-3. Register admin routes with `manage_options` permission and webhook routes
-   behind signature verification.
-
-## Pull requests
-
-- PR bodies follow the repository template (`.github/PULL_REQUEST_TEMPLATE.md`).
-- Releases run through `semantic-release` (`newspack-scripts`) on the `release`
-  branch; `alpha`, `hotfix/*`, and `epic/*` are prereleases; `trunk` is
-  development only.
+- **PHP:** PHPUnit tests live in `tests/`. `npm run test:php` needs a WordPress test install, which `bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version]` sets up. Inside the Newspack workspace, run the workspace's `n test-php` from this directory instead.
+- **JS:** there are no JS unit tests.
