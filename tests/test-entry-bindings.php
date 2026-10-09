@@ -186,18 +186,28 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A title whose text holds a link of its own isn't wrapped in another,
-	 * and a title rendered as a paragraph is linked like a heading.
+	 * whether it links to the entry or to a published breakout post, and a
+	 * title rendered as a paragraph is linked like a heading.
 	 */
 	public function test_titles_with_their_own_link_stay_as_they_are() {
 		$coverage_id = self::create_coverage();
 		$with_link   = self::create_entry( $coverage_id, [ 'post_title' => 'See <a href="https://example.com/">the map</a>' ] );
+		$broken_out  = self::create_entry( $coverage_id, [ 'post_title' => 'Map published' ] );
 		$paragraph   = self::create_entry( $coverage_id, [ 'post_title' => 'Repair plan announced' ] );
 		$breakout_id = self::add_breakout( $paragraph, 'publish', [ 'post_title' => 'Repair plan announced' ] );
+		self::add_breakout( $broken_out, 'publish', [ 'post_title' => 'The map' ] );
 
 		$html = Rolling_Coverage_Block::render_entry( get_post( $with_link ), parse_blocks( '<!-- wp:post-title {"className":"newspack-rolling-coverage-entry-link"} /-->' ) );
 
 		$this->assertStringContainsString( 'href="https://example.com/"', $html, "The title's own link should be kept." );
 		$this->assertSame( 1, substr_count( $html, '<a ' ), 'No second link should be added.' );
+
+		add_filter( 'the_title', fn( $title ) => in_array( $title, [ 'The map', 'See the map' ], true ) ? 'See <a href="https://example.com/">the map</a>' : $title, 30 );
+
+		$html = Rolling_Coverage_Block::render_entry( get_post( $broken_out ), parse_blocks( '<!-- wp:post-title /-->' ) );
+
+		$this->assertStringContainsString( 'href="https://example.com/"', $html, "A breakout title's own link should be kept." );
+		$this->assertSame( 1, substr_count( $html, '<a ' ), 'No link to the breakout should be added around it.' );
 
 		$this->assertStringContainsString(
 			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Repair plan announced</a></p>',

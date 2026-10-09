@@ -25,6 +25,11 @@ defined( 'ABSPATH' ) || exit;
 class Breakout_Card {
 
 	/**
+	 * Object cache group for breakout posts' generated summaries.
+	 */
+	const CACHE_GROUP = 'newspack_rolling_coverage_breakout_card';
+
+	/**
 	 * The cards of the entries rendering now, by entry ID, each with whether
 	 * the template it renders through holds a Post Title.
 	 *
@@ -41,17 +46,18 @@ class Breakout_Card {
 
 	/**
 	 * The card an entry shows for its published breakout post: the post's
-	 * link, its title and its summary, as plain text. The summary is the
-	 * post's excerpt, hand-written or generated, and empty for a password
-	 * protected post. Null while the entry has no published breakout post.
+	 * ID, link, title and summary, as plain text (see summary()). Null while
+	 * the entry has no published breakout post.
 	 *
-	 * The summary renders the post's content, so this is worked out before
-	 * the entry renders, while the entry-only filters are not active.
+	 * The summary renders the post's content, so callers ask for it before
+	 * the entry renders, and only when the entry's template shows it.
 	 *
-	 * @param int $entry_id Entry post ID.
-	 * @return array{url: string, title: string, summary: string}|null
+	 * @param int  $entry_id     Entry post ID.
+	 * @param bool $with_summary Whether to work out the summary; the card's
+	 *                           summary is empty without it.
+	 * @return array{post_id: int, url: string, title: string, summary: string}|null
 	 */
-	public static function for_entry( int $entry_id ): ?array {
+	public static function for_entry( int $entry_id, bool $with_summary = true ): ?array {
 		$url  = Breakout::get_published_breakout_url( $entry_id );
 		$post = null !== $url ? get_post( Breakout::get_existing_breakout_id( $entry_id ) ) : null;
 
@@ -61,16 +67,22 @@ class Breakout_Card {
 
 		// Not get_the_title(), which starts a password-protected post's title with "Protected:".
 		return [
+			'post_id' => $post->ID,
 			'url'     => $url,
 			'title'   => self::plain_text( apply_filters( 'the_title', $post->post_title, $post->ID ) ),
-			'summary' => self::summary( $post ),
+			'summary' => $with_summary ? self::summary( $post ) : '',
 		];
 	}
 
 	/**
-	 * A breakout post's summary: its excerpt as plain text, or nothing for a
-	 * password protected post. A post whose excerpt leads back to its own
-	 * summary, such as through a feed in its content, gets nothing there.
+	 * A breakout post's summary, as plain text: nothing for a password
+	 * protected post, only its hand-written excerpt for a restricted one
+	 * (see is_restricted()), and its excerpt, hand-written or generated, for
+	 * any other. A post whose excerpt leads back to its own summary, such as
+	 * through a feed in its content, gets nothing there.
+	 *
+	 * The generated summary is cached by the post's ID and modified time, so
+	 * an edit to the post makes a new one.
 	 *
 	 * @param WP_Post $post Breakout post.
 	 * @return string
@@ -80,19 +92,94 @@ class Breakout_Card {
 			return '';
 		}
 
-		self::$summarizing[ $post->ID ] = true;
+		if ( self::is_restricted( $post ) ) {
+			return self::plain_text( $post->post_excerpt );
+		}
+
+		$key     = $post->ID . ':' . $post->post_modified_gmt;
+		$found   = false;
+		$summary = wp_cache_get( $key, self::CACHE_GROUP, false, $found );
+
+		if ( $found && is_string( $summary ) ) {
+			return $summary;
+		}
+
+		$summary = self::generate_summary( $post );
+		wp_cache_set( $key, $summary, self::CACHE_GROUP );
+
+		return $summary;
+	}
+
+	/**
+	 * Whether readers who aren't signed in are kept from a breakout post's
+	 * text, whoever is reading: a Newspack content gate or a WooCommerce
+	 * Memberships rule covers it (see Entry_Bindings::is_withheld()), or a
+	 * `newspack_post_has_restrictions` callback says it's restricted. The
+	 * answer can't depend on the reader, since the summary is cached and
+	 * polls render it for everyone. Newspack's own excerpt filter stands
+	 * down during REST requests, such as polls and load more, so the
+	 * generated excerpt would hold the post's full text there.
+	 *
+	 * @param WP_Post $post Breakout post.
+	 * @return bool
+	 */
+	private static function is_restricted( WP_Post $post ): bool {
+		return Entry_Bindings::is_withheld( $post ) || (bool) apply_filters( 'newspack_post_has_restrictions', false, $post->ID );
+	}
+
+	/**
+	 * A breakout post's excerpt as plain text, worked out with the post as
+	 * the global post, as it is on its own page, and with a plain ellipsis
+	 * in place of any "Continue reading" link a theme adds.
+	 *
+	 * @global WP_Post $post Global post object, swapped to the breakout post
+	 *                       and restored afterwards.
+	 *
+	 * @param WP_Post $breakout Breakout post.
+	 * @return string
+	 */
+	private static function generate_summary( WP_Post $breakout ): string {
+		global $post;
+
+		$previous_post = $post;
+		$post          = $breakout; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		setup_postdata( $breakout );
+
+		$adds_more                          = false === has_filter( 'excerpt_more', [ __CLASS__, 'summary_more' ] );
+		self::$summarizing[ $breakout->ID ] = true;
+
+		if ( $adds_more ) {
+			add_filter( 'excerpt_more', [ __CLASS__, 'summary_more' ], PHP_INT_MAX );
+		}
 
 		try {
-			return self::plain_text( get_the_excerpt( $post ) );
+			return self::plain_text( get_the_excerpt( $breakout ) );
 		} finally {
-			unset( self::$summarizing[ $post->ID ] );
+			if ( $adds_more ) {
+				remove_filter( 'excerpt_more', [ __CLASS__, 'summary_more' ], PHP_INT_MAX );
+			}
+
+			unset( self::$summarizing[ $breakout->ID ] );
+			$post = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			setup_postdata( $previous_post );
 		}
 	}
 
 	/**
+	 * What ends a cut summary.
+	 *
+	 * @return string
+	 */
+	public static function summary_more(): string {
+		return '&hellip;';
+	}
+
+	/**
 	 * Render an entry as its card, with the card's filters active for that
-	 * entry alone. A feed nested in the entry renders its own entries as
-	 * they are, and the filters stay until the outermost card is done.
+	 * entry alone. Each filter acts only for a card's own blocks, so other
+	 * entries rendering meanwhile, such as those of a feed in a breakout
+	 * post whose summary is worked out, keep their own text. The filters
+	 * stay until the outermost card is done.
 	 *
 	 * @param int      $entry_id        Entry post ID.
 	 * @param array    $card            The entry's card (see for_entry()).
@@ -106,8 +193,10 @@ class Breakout_Card {
 
 		if ( ! self::$rendering ) {
 			add_filter( 'the_title', [ __CLASS__, 'filter_title' ], 20, 2 );
+			add_filter( 'get_the_excerpt', [ __CLASS__, 'filter_excerpt' ], 9, 2 );
 			add_filter( 'get_the_excerpt', [ __CLASS__, 'filter_excerpt' ], 20, 2 );
-			add_filter( 'render_block_core/post-excerpt', [ __CLASS__, 'drop_empty_excerpt' ], 10, 3 );
+			add_filter( 'the_content', [ __CLASS__, 'stand_in_content' ], PHP_INT_MIN );
+			add_filter( 'render_block_core/post-excerpt', [ __CLASS__, 'render_excerpt' ], 10, 3 );
 			add_filter( 'render_block_core/post-content', [ __CLASS__, 'render_content' ], 9, 3 );
 		}
 
@@ -124,8 +213,10 @@ class Breakout_Card {
 
 			if ( ! self::$rendering ) {
 				remove_filter( 'the_title', [ __CLASS__, 'filter_title' ], 20 );
+				remove_filter( 'get_the_excerpt', [ __CLASS__, 'filter_excerpt' ], 9 );
 				remove_filter( 'get_the_excerpt', [ __CLASS__, 'filter_excerpt' ], 20 );
-				remove_filter( 'render_block_core/post-excerpt', [ __CLASS__, 'drop_empty_excerpt' ], 10 );
+				remove_filter( 'the_content', [ __CLASS__, 'stand_in_content' ], PHP_INT_MIN );
+				remove_filter( 'render_block_core/post-excerpt', [ __CLASS__, 'render_excerpt' ], 10 );
 				remove_filter( 'render_block_core/post-content', [ __CLASS__, 'render_content' ], 9 );
 			}
 		}
@@ -135,7 +226,9 @@ class Breakout_Card {
 	 * The breakout post's title for a card's Post Title. Only that block's
 	 * own lookup gets it, read from the block whose render callback is
 	 * running, so anything else reading the entry's title during its render,
-	 * such as Share's accessible name, keeps the entry's.
+	 * such as Share's accessible name, keeps the entry's. A post without a
+	 * title leaves the title as it is, such as Ticker's opening words for an
+	 * untitled entry (see Entry_Bindings::untitled_fallback_title()).
 	 *
 	 * Parameters stay untyped because this runs for every title on the site
 	 * while a card renders, after other plugins' filters that may hand on
@@ -148,13 +241,15 @@ class Breakout_Card {
 	public static function filter_title( $title, $post_id = 0 ) {
 		$card = self::card_for_block( 'core/post-title', (int) $post_id );
 
-		return null !== $card ? esc_html( $card['title'] ) : $title;
+		return null !== $card && '' !== $card['title'] ? esc_html( $card['title'] ) : $title;
 	}
 
 	/**
 	 * What a card's Post Excerpt shows: the breakout post's summary, or in
 	 * a template without a Post Title, the post's title, so the card still
 	 * names it. Only that block's own lookup gets it, as in filter_title().
+	 * Hooked before core's excerpt filter too, so core doesn't build an
+	 * excerpt from the entry's content only for it to be replaced.
 	 *
 	 * Parameters stay untyped because this runs for every excerpt on the
 	 * site while a card renders, after other plugins' filters that may hand
@@ -172,8 +267,11 @@ class Breakout_Card {
 	}
 
 	/**
-	 * Render nothing for a card's Post Excerpt when it has nothing to show,
-	 * such as the summary of a password protected post under its title.
+	 * A card's Post Excerpt once rendered: nothing when it has nothing to
+	 * show, such as the summary of a password protected post under its
+	 * title. For a password protected entry, core never asks the excerpt
+	 * filters and says there is no excerpt, so the card's text takes that
+	 * message's place, cut to the block's length as core cuts it.
 	 *
 	 * Parameters stay untyped because this runs for every excerpt block on
 	 * the site while a card renders, after other plugins' filters that may
@@ -184,18 +282,62 @@ class Breakout_Card {
 	 * @param WP_Block $instance      Block instance.
 	 * @return string
 	 */
-	public static function drop_empty_excerpt( $block_content, $block, $instance ) {
+	public static function render_excerpt( $block_content, $block, $instance ) {
 		$card = self::card_for_instance( $instance );
 
-		return null !== $card && '' === self::excerpt_text( $card ) ? '' : $block_content;
+		if ( null === $card || ! is_string( $block_content ) ) {
+			return $block_content;
+		}
+
+		$text = self::excerpt_text( $card );
+
+		if ( '' === $text ) {
+			return '';
+		}
+
+		if ( ! post_password_required( (int) ( $instance->context['postId'] ?? 0 ) ) ) {
+			return $block_content;
+		}
+
+		$excerpt = esc_html( $text );
+		$length  = $instance->attributes['excerptLength'] ?? null;
+
+		if ( isset( $length ) ) {
+			$excerpt = wp_trim_words( $excerpt, (int) $length );
+		}
+
+		return (string) preg_replace_callback(
+			'#(<p class="wp-block-post-excerpt__excerpt">).*?((?:\s<a class="wp-block-post-excerpt__more-link".*?</a>)?\s*</p>)#s',
+			static fn( $parts ) => $parts[1] . $excerpt . $parts[2],
+			$block_content,
+			1
+		);
 	}
 
 	/**
-	 * A card's Post Content: the breakout post's summary in place of the
-	 * entry's blocks, inside the block's own wrapper, so its classes and
-	 * styles still apply. In a template without a Post Title, the post's
-	 * title comes first, linked to the post. Runs before the archived
-	 * entry's notice is added (see Rolling_Coverage_Block::render_entry()).
+	 * What a card's Post Content renders in place of the entry's content,
+	 * so the entry's own blocks never render. The block wraps it and adds
+	 * its classes and styles as it would for the entry's content. Runs
+	 * before every other content filter, which then get the card's content
+	 * (see render_content()).
+	 *
+	 * Parameters stay untyped because this runs for all content on the site
+	 * while a card renders, and other plugins may apply the filter to
+	 * unexpected types.
+	 *
+	 * @param string $content Content.
+	 * @return string
+	 */
+	public static function stand_in_content( $content ) {
+		$card = self::card_for_block( 'core/post-content', (int) get_the_ID() );
+
+		return null !== $card ? self::content_html( $card ) : $content;
+	}
+
+	/**
+	 * A card's Post Content: the card's content (see content_html()) inside
+	 * the block's own wrapper, so its classes and styles still apply, and
+	 * whatever other content filters added to it, such as ads, dropped.
 	 *
 	 * Parameters stay untyped because this runs for every post content block
 	 * on the site while a card renders, after other plugins' filters that
@@ -213,15 +355,7 @@ class Breakout_Card {
 			return $block_content;
 		}
 
-		$html = '';
-
-		if ( ! $card['has_title_block'] && '' !== $card['title'] ) {
-			$html .= sprintf( '<p><strong><a href="%s">%s</a></strong></p>', esc_url( $card['url'] ), esc_html( $card['title'] ) );
-		}
-
-		if ( '' !== $card['summary'] ) {
-			$html .= '<p>' . esc_html( $card['summary'] ) . '</p>';
-		}
+		$html = self::content_html( $card );
 
 		if ( '' === $html ) {
 			return '';
@@ -235,8 +369,32 @@ class Breakout_Card {
 	}
 
 	/**
+	 * The HTML a card's Post Content holds: the breakout post's summary as a
+	 * paragraph, after, in a template without a Post Title, a paragraph
+	 * holding the post's title, linked to the post. Empty when the card has
+	 * neither to show.
+	 *
+	 * @param array $card A rendering card.
+	 * @return string
+	 */
+	private static function content_html( array $card ): string {
+		$html = '';
+
+		if ( ! $card['has_title_block'] && '' !== $card['title'] ) {
+			$html .= sprintf( '<p><strong><a href="%s">%s</a></strong></p>', esc_url( $card['url'] ), esc_html( $card['title'] ) );
+		}
+
+		if ( '' !== $card['summary'] ) {
+			$html .= '<p>' . esc_html( $card['summary'] ) . '</p>';
+		}
+
+		return $html;
+	}
+
+	/**
 	 * Wrap a card's content as core's Post Content block wraps its own, for
-	 * an entry whose content renders nothing, such as one with a title alone.
+	 * a Post Content that rendered nothing, such as when a content filter
+	 * emptied it.
 	 *
 	 * @param string $html  The card's content.
 	 * @param array  $block Parsed Post Content block.

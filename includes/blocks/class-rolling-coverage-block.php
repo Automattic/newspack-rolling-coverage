@@ -3139,13 +3139,7 @@ class Rolling_Coverage_Block {
 	 * @return bool
 	 */
 	public static function holds_post_title( array $blocks ): bool {
-		foreach ( $blocks as $block ) {
-			if ( is_array( $block ) && ( 'core/post-title' === ( $block['blockName'] ?? '' ) || self::holds_post_title( $block['innerBlocks'] ?? [] ) ) ) {
-				return true;
-			}
-		}
-
-		return false;
+		return self::holds_block( $blocks, static fn( array $block ) => 'core/post-title' === ( $block['blockName'] ?? '' ) );
 	}
 
 	/**
@@ -3636,7 +3630,9 @@ class Rolling_Coverage_Block {
 	/**
 	 * Renders a single entry against the supplied per-entry template. An
 	 * entry whose breakout post is published renders as a card for that post
-	 * (see Breakout_Card), titled whether or not the entry is.
+	 * (see Breakout_Card), titled when the post is, whether or not the entry
+	 * is, and without the archived entry's notice, which speaks of the
+	 * entry's own text.
 	 *
 	 * @global WP_Post $post Global post object, temporarily swapped to the
 	 *                       entry for the duration of this render and
@@ -3671,7 +3667,7 @@ class Rolling_Coverage_Block {
 	 */
 	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', bool $is_last = false, bool $is_linked = false, bool $is_capped = false, array $feed_layout = [], int $coverage_id = 0, ?int $lead_pinned_id = null, array $column_rule = [] ): string {
 		$is_pinned = ! $is_capped && Post_Type::is_pinned( $entry->ID );
-		$card      = Breakout_Card::for_entry( $entry->ID );
+		$card      = Breakout_Card::for_entry( $entry->ID, self::holds_block( $template, static fn( array $block ) => in_array( $block['blockName'] ?? '', [ 'core/post-content', 'core/post-excerpt' ], true ) ) );
 
 		[ $template, $cell_classes, $leads_column ] = self::place_in_grid(
 			$template,
@@ -3696,7 +3692,7 @@ class Rolling_Coverage_Block {
 			$is_last
 		);
 
-		if ( null !== $card ? '' === $card['title'] : ! self::has_title( $entry ) ) {
+		if ( ( null === $card || '' === $card['title'] ) && ! self::has_title( $entry ) ) {
 			$template = self::with_centered_title_rows( $template );
 		}
 
@@ -3708,7 +3704,7 @@ class Rolling_Coverage_Block {
 		self::$ignoring_pinning = $is_capped;
 		setup_postdata( $entry );
 
-		$is_archived = Archive_Mode::is_entry_archived( $entry->ID );
+		$is_archived = null === $card && Archive_Mode::is_entry_archived( $entry->ID );
 		if ( $is_archived ) {
 			add_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );
 		}

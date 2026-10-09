@@ -136,15 +136,16 @@ Selecting Share on an entry opens the device's share sheet with a link to that e
 
 ### Entries with a breakout post
 
-An entry made into a post with Create Breakout Post shows as usual until that post is published. From then on, every layout shows the entry as a card for the post, in the layout's own style:
+An entry made into a post with "Create Breakout Post" shows as usual until that post is published. From then on, every layout shows the entry as a card for the post, in the layout's own style:
 
-- Where the layout shows the entry's title, it shows the post's title, linked to the post.
+- Where the layout shows the entry's title, it shows the post's title, linked to the post. A post without a title keeps the entry's title, still linked to the post.
 - Where the layout shows the entry's content or excerpt, it shows the post's excerpt instead: the excerpt written for the post, or else its opening words.
 - Layouts without a title name the post another way: Stream and Minute show the post's title, linked, above its excerpt, and Flash shows the post's title.
 - A password-protected post shows only its title.
-- The entry's time, author, "Pinned" label, Read more, and Share stay as they are. Read more links to the post, and Share to the entry.
+- A post behind a content gate or a membership restriction shows its title and the excerpt written for it, or its title alone when it has none, so none of its text reaches readers who don't have access. To show more of such a post in the feed, write an excerpt for it.
+- The entry's time, author, "Pinned" label, Read more, and Share stay as they are. Read more links to the post, and Share to the entry. An archived entry doesn't show the note that it's out of date, since its card shows the post rather than the entry's original text.
 
-Changes to the post's title, excerpt, or content reach open pages the next time they check for new entries. If the post is unpublished or deleted, the entry shows its own title and content again. The entry itself is never changed.
+Changes to the post's title, excerpt, content, password, or permalink reach open pages the next time they check for new entries. If the post is unpublished or deleted, the entry shows its own title and content again. The entry itself is never changed.
 
 ### What compact layouts show of an entry
 
@@ -171,7 +172,7 @@ To give readers more than "Photo" or "Gallery", add a description to the image i
 
 ### Lite Site pages
 
-On sites with the Lite Site plugin, a feed keeps updating on the text-only copy of the page too: new entries arrive, and older ones load, as the block is set. Each entry shows as text, with its time, a "Pinned" label when it's pinned, its title and its content, whatever the layout shows on the full page. An entry whose breakout post is published shows the post's title, linked to it, and the post's excerpt instead. Ads, Share, and Follow Coverage don't appear there. The coverage name, the Coverage Status badge (without "Updated … ago"), and the link to the coverage page still show.
+On sites with the Lite Site plugin, a feed keeps updating on the text-only copy of the page too: new entries arrive, and older ones load, as the block is set. Each entry shows as text, with its time, a "Pinned" label when it's pinned, its title and its content, whatever the layout shows on the full page. An entry whose breakout post is published shows the post's title, linked to the post's own lite page, and the post's excerpt instead. Ads, Share, and Follow Coverage don't appear there. The coverage name, the Coverage Status badge (without "Updated … ago"), and the link to the coverage page still show.
 
 This needs a Lite Site release after 0.1.0. With 0.1.0 or older, the lite page shows the entries as they were when the page was saved for Lite Site: new entries don't arrive, and older ones don't load.
 

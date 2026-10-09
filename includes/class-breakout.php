@@ -363,8 +363,9 @@ class Breakout {
 
 	/**
 	 * Touches the source entry when a published breakout post's title,
-	 * excerpt, content or password changes while it stays published, so
-	 * active readers get the entry's card for it again on the next poll.
+	 * excerpt, content, password, slug or date changes while it stays
+	 * published, so active readers get the entry's card for it, and its
+	 * link, again on the next poll.
 	 * Revisions and autosaves are posts of their own type, so they never
 	 * reach it.
 	 *
@@ -377,7 +378,7 @@ class Breakout {
 			return;
 		}
 
-		foreach ( [ 'post_title', 'post_excerpt', 'post_content', 'post_password' ] as $field ) {
+		foreach ( [ 'post_title', 'post_excerpt', 'post_content', 'post_password', 'post_name', 'post_date' ] as $field ) {
 			if ( $post_after->$field !== $post_before->$field ) {
 				self::touch_source_entry( $post_id );
 				return;

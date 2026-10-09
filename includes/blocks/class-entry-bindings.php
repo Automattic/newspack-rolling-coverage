@@ -420,10 +420,11 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Whether the entry is restricted for readers who aren't members: by
-	 * Newspack's content gate outside the entry's own page, or by a
-	 * WooCommerce Memberships rule. Both restrict through `the_content`,
+	 * Whether a post, such as an entry, is restricted for readers who aren't
+	 * members: by Newspack's content gate outside the post's own page, or by
+	 * a WooCommerce Memberships rule. Both restrict through `the_content`,
 	 * which core's generated excerpt reads and entry_excerpt() doesn't.
+	 * Breakout_Card asks it of breakout posts too.
 	 *
 	 * The answer is the same for every reader, since is_restricted() feeds
 	 * text that is cached and sent to all. For the gate, that's why this asks
@@ -438,10 +439,10 @@ class Entry_Bindings {
 	 * gates stand down while WooCommerce Memberships is active. For
 	 * Memberships, see is_restricted_by_membership_rule().
 	 *
-	 * @param WP_Post $post The entry.
+	 * @param WP_Post $post The post.
 	 * @return bool
 	 */
-	private static function is_withheld( WP_Post $post ): bool {
+	public static function is_withheld( WP_Post $post ): bool {
 		if ( self::is_restricted_by_membership_rule( $post ) ) {
 			return true;
 		}

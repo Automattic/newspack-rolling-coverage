@@ -9,7 +9,9 @@ use Newspack_Rolling_Coverage\Archive_Mode;
 use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Breakout_Card;
 use Newspack_Rolling_Coverage\Lite_Feed;
+use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
+use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
  * Once an entry's breakout post is published, every layout shows the entry
@@ -160,7 +162,8 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A post without a hand-written excerpt is summed up by WordPress's
-	 * generated one, at the site's excerpt length.
+	 * generated one, at the site's excerpt length, ending in an ellipsis
+	 * rather than a theme's "Continue reading" link.
 	 */
 	public function test_summary_is_the_generated_excerpt_at_the_site_length() {
 		[ $entry_id ] = self::create_breakout(
@@ -171,10 +174,86 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 			]
 		);
 		add_filter( 'excerpt_length', fn() => 4, 999 );
+		add_filter( 'excerpt_more', fn() => ' <a href="#">Continue reading</a>' );
 
 		$html = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP );
 
-		$this->assertStringContainsString( '<p>Alpha beta gamma delta […]</p>', $html );
+		$this->assertStringContainsString( '<p>Alpha beta gamma delta…</p>', $html );
+		$this->assertStringNotContainsString( 'Continue reading', $html );
+	}
+
+	/**
+	 * The summary is built with the post as the global post, so content
+	 * filters reading it act on the post, and the page's own global post is
+	 * back once the entry renders.
+	 */
+	public function test_summary_is_built_with_the_post_as_the_global_post() {
+		[ $entry_id, $breakout_id ] = self::create_breakout( 'publish', [ 'post_excerpt' => '' ] );
+		$host_id                    = self::factory()->post->create();
+		$GLOBALS['post']            = get_post( $host_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		$seen                       = [];
+		add_filter(
+			'the_content',
+			static function ( $content ) use ( &$seen ) {
+				$seen[] = get_the_ID();
+				return $content;
+			}
+		);
+
+		self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP );
+
+		$this->assertContains( $breakout_id, $seen );
+		$this->assertNotContains( $host_id, $seen );
+		$this->assertSame( $host_id, get_the_ID() );
+	}
+
+	/**
+	 * The summary is worked out only for a template that shows it, and only
+	 * once while the post is unchanged. The entry's own content never
+	 * renders, and its Post Content keeps its layout classes.
+	 */
+	public function test_summary_is_worked_out_lazily_and_cached() {
+		[ $entry_id, $breakout_id ] = self::create_breakout( 'publish', [ 'post_excerpt' => '' ] );
+		$rendered                   = [];
+		add_filter(
+			'the_content',
+			static function ( $content ) use ( &$rendered ) {
+				$rendered[] = get_the_ID();
+				return $content;
+			}
+		);
+
+		self::render( $entry_id, self::TITLE_MARKUP );
+
+		$this->assertSame( [], $rendered, 'A template without content or excerpt works out no summary.' );
+
+		$html = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP . self::WIRE_EXCERPT_MARKUP );
+		$html = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP . self::WIRE_EXCERPT_MARKUP );
+
+		$this->assertSame( 1, count( array_keys( $rendered, $breakout_id, true ) ), 'The summary is cached.' );
+		$this->assertStringContainsString( 'The whole post.', $html );
+		$this->assertMatchesRegularExpression( '#<div class="[^"]*wp-block-post-content[^"]*is-layout-flow[^"]*"><p>The whole post.</p></div>#', $html );
+	}
+
+	/**
+	 * The entry's own blocks never render under a card, for its content or
+	 * for an excerpt built from them.
+	 */
+	public function test_the_entry_content_never_renders() {
+		[ $entry_id ] = self::create_breakout( 'publish', [], [ 'post_excerpt' => '' ] );
+		$rendered     = '';
+		add_filter(
+			'render_block_core/paragraph',
+			static function ( $content ) use ( &$rendered ) {
+				$rendered .= $content;
+				return $content;
+			}
+		);
+
+		self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP . self::WIRE_EXCERPT_MARKUP );
+		self::render( $entry_id, self::FLASH_EXCERPT_MARKUP );
+
+		$this->assertStringNotContainsString( self::ENTRY_TEXT, $rendered );
 	}
 
 	/**
@@ -197,6 +276,216 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		$untitled = self::render( $entry_id, self::CONTENT_MARKUP );
 
 		$this->assertStringContainsString( '><p><strong><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Post &amp; headline</a></strong></p></div>', $untitled );
+	}
+
+	/**
+	 * A post a content gate or a membership rule restricts, or that a
+	 * Newspack restriction callback reports, is summed up by its
+	 * hand-written excerpt alone, never by an excerpt built from its text.
+	 */
+	public function test_restricted_post_is_summed_up_by_its_written_excerpt_alone() {
+		$this->use_content_gate_stub();
+		$this->use_wc_memberships_stub();
+		$body = '<!-- wp:paragraph --><p>The paywalled body.</p><!-- /wp:paragraph -->';
+
+		[ $gated_entry, $gated ] = self::create_breakout(
+			'publish',
+			[
+				'post_excerpt' => '',
+				'post_content' => $body,
+			]
+		);
+		$this->gate_entry( $gated );
+
+		[ $member_entry, $member ] = self::create_breakout(
+			'publish',
+			[
+				'post_excerpt' => '',
+				'post_content' => $body,
+			]
+		);
+		$GLOBALS['newspack_rolling_coverage_restricted_posts'][] = $member;
+
+		[ $flagged_entry, $flagged ] = self::create_breakout(
+			'publish',
+			[
+				'post_excerpt' => '',
+				'post_content' => $body,
+			]
+		);
+		add_filter( 'newspack_post_has_restrictions', fn( $restricted, $post_id ) => $restricted || $flagged === $post_id, 10, 2 );
+
+		foreach ( [ $gated_entry, $member_entry, $flagged_entry ] as $entry_id ) {
+			$html = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP . self::WIRE_EXCERPT_MARKUP );
+
+			$this->assertStringContainsString( 'Post &amp; headline</a></h4>', $html );
+			$this->assertStringNotContainsString( 'paywalled', $html );
+			$this->assertStringNotContainsString( 'wp-block-post-content', $html );
+			$this->assertStringNotContainsString( 'wp-block-post-excerpt', $html );
+		}
+
+		wp_update_post(
+			[
+				'ID'           => $gated,
+				'post_excerpt' => 'What the <em>gated</em> post sums up.',
+			]
+		);
+
+		$html = self::render( $gated_entry, self::TITLE_MARKUP . self::CONTENT_MARKUP );
+
+		$this->assertStringContainsString( '<p>What the gated post sums up.</p></div>', $html );
+		$this->assertStringNotContainsString( 'paywalled', $html );
+	}
+
+	/**
+	 * Polls render entries in a REST request, where Newspack's excerpt
+	 * filter stands down, and a restricted post's text stays out there too.
+	 */
+	public function test_restricted_post_text_stays_out_of_polls() {
+		$this->use_content_gate_stub();
+		[ $entry_id, $breakout_id ] = self::create_breakout(
+			'publish',
+			[
+				'post_excerpt' => '',
+				'post_content' => '<!-- wp:paragraph --><p>The paywalled body.</p><!-- /wp:paragraph -->',
+			]
+		);
+		$this->gate_entry( $breakout_id );
+		$coverage_id = wp_get_object_terms( $entry_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] )[0];
+		$attributes  = [ 'coverageId' => $coverage_id ];
+		$block       = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . self::TITLE_MARKUP . self::CONTENT_MARKUP . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+		$page        = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		$this->assertSame( 1, preg_match( '/data-template-key="([^"]*)"/', $page, $template_key ) );
+
+		$data = self::dispatch(
+			'GET',
+			'/coverages/' . $coverage_id . '/entries',
+			[
+				'before'       => '2099-01-01 00:00:00',
+				'template_key' => $template_key[1],
+			]
+		)->get_data();
+
+		$this->assertStringContainsString( 'Post &amp; headline</a></h4>', $data['html'] );
+		$this->assertStringNotContainsString( 'paywalled', $data['html'] );
+		$this->assertStringNotContainsString( 'paywalled', $page );
+	}
+
+	/**
+	 * A password protected entry whose post isn't protected still shows the
+	 * post's summary in its excerpt, not WordPress's protected post notice.
+	 */
+	public function test_protected_entry_shows_the_summary_in_its_excerpt() {
+		[ $entry_id ] = self::create_breakout( 'publish', [], [ 'post_password' => 'secret' ] );
+
+		$titled   = self::render( $entry_id, self::TITLE_MARKUP . self::WIRE_EXCERPT_MARKUP );
+		$untitled = self::render( $entry_id, self::FLASH_EXCERPT_MARKUP );
+
+		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">What the post sums up. </p>', $titled );
+		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">Post &amp; headline </p>', $untitled );
+		$this->assertStringNotContainsString( 'protected', $titled . $untitled );
+	}
+
+	/**
+	 * A post without a title leaves the entry's title as it is: the entry's
+	 * own, or for an untitled entry in a title that falls back to its
+	 * opening words, those words, linked to the post.
+	 */
+	public function test_untitled_post_keeps_the_entry_title() {
+		[ $entry_id, $breakout_id ] = self::create_breakout( 'publish', [ 'post_title' => '' ] );
+		$url                        = esc_url( get_permalink( $breakout_id ) );
+
+		$html = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP );
+
+		$this->assertStringContainsString( '<a href="' . $url . '">Entry headline</a></h4>', $html );
+		$this->assertStringContainsString( '<p>What the post sums up.</p></div>', $html );
+
+		[ $untitled_entry, $untitled_breakout ] = self::create_breakout(
+			'publish',
+			[ 'post_title' => '' ],
+			[
+				'post_title'   => '',
+				'post_excerpt' => '',
+			]
+		);
+
+		$html = self::render( $untitled_entry, '<!-- wp:post-title {"level":4,"className":"newspack-rolling-coverage-entry-link"} /-->' );
+
+		$this->assertMatchesRegularExpression( '#<a href="' . preg_quote( esc_url( get_permalink( $untitled_breakout ) ), '#' ) . '"[^>]*>What the entry said\.</a></h4>#', $html );
+	}
+
+	/**
+	 * A pinned entry's card keeps "Read more", linked to the post.
+	 */
+	public function test_pinned_card_keeps_read_more() {
+		[ $entry_id, $breakout_id ] = self::create_breakout();
+		Post_Type::pin_entry( $entry_id );
+		$markup = '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">'
+			. self::TITLE_MARKUP . self::CONTENT_MARKUP . self::READ_MORE_MARKUP
+			. '</div><!-- /wp:group -->';
+
+		$html = self::render( $entry_id, $markup );
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-pinned-card', $html );
+		$this->assertStringContainsString( 'Post &amp; headline</a></h4>', $html );
+		$this->assertStringContainsString( '<p>What the post sums up.</p></div>', $html );
+		$this->assertStringContainsString( '<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Read more</a>', $html );
+	}
+
+	/**
+	 * A feed in an entry's content renders its own entries as cards, while
+	 * the entry holding it keeps its own title and text.
+	 */
+	public function test_feed_nested_in_an_entry_renders_its_entries_as_cards() {
+		[ $inner_entry ] = self::create_breakout();
+		$coverage_id     = wp_get_object_terms( $inner_entry, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] )[0];
+		$outer_entry     = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_title'   => 'Outer headline',
+				'post_content' => '<!-- wp:paragraph --><p>The outer text.</p><!-- /wp:paragraph -->'
+					. '<!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $coverage_id . '} -->' . self::TITLE_MARKUP . self::CONTENT_MARKUP . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->',
+			]
+		);
+
+		$html = self::render( $outer_entry, self::TITLE_MARKUP . self::CONTENT_MARKUP );
+
+		$this->assertStringContainsString( '>Outer headline</h4>', $html );
+		$this->assertStringContainsString( 'The outer text.', $html );
+		$this->assertStringContainsString( 'Post &amp; headline</a></h4>', $html );
+		$this->assertStringContainsString( '<p>What the post sums up.</p></div>', $html );
+		$this->assertStringNotContainsString( self::ENTRY_TEXT, $html );
+	}
+
+	/**
+	 * The card's filters go even when the entry's render fails.
+	 */
+	public function test_filters_go_when_a_render_fails() {
+		[ $entry_id ] = self::create_breakout();
+		$card         = Breakout_Card::for_entry( $entry_id );
+
+		try {
+			Breakout_Card::render(
+				$entry_id,
+				$card,
+				true,
+				static function () {
+					throw new RuntimeException( 'Render failed.' );
+				}
+			);
+			$this->fail( 'The failure should reach the caller.' );
+		} catch ( RuntimeException $e ) {
+			$this->assertSame( 'Render failed.', $e->getMessage() );
+		}
+
+		foreach ( [ 'the_title', 'get_the_excerpt', 'the_content', 'render_block_core/post-excerpt', 'render_block_core/post-content' ] as $hook ) {
+			$this->assertFalse( has_filter( $hook, [ Breakout_Card::class, 'filter_title' ] ) );
+			$this->assertFalse( has_filter( $hook, [ Breakout_Card::class, 'filter_excerpt' ] ) );
+			$this->assertFalse( has_filter( $hook, [ Breakout_Card::class, 'stand_in_content' ] ) );
+			$this->assertFalse( has_filter( $hook, [ Breakout_Card::class, 'render_excerpt' ] ) );
+			$this->assertFalse( has_filter( $hook, [ Breakout_Card::class, 'render_content' ] ) );
+		}
 	}
 
 	/**
@@ -262,20 +551,27 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An archived entry's card keeps the archived notice above the summary.
+	 * An archived entry's card shows the summary without the archived
+	 * notice, which speaks of the entry's own text, on full and lite pages.
 	 */
-	public function test_archived_entry_card_keeps_the_notice() {
+	public function test_archived_entry_card_drops_the_notice() {
+		require_once __DIR__ . '/mocks/class-lite-site.php';
 		[ $entry_id ] = self::create_breakout();
 		update_post_meta( $entry_id, Archive_Mode::ENTRY_ARCHIVED_META_KEY, time() );
 
 		$html = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP );
+		$lite = Lite_Feed::render_entry( get_post( $entry_id ), 'initial' );
 
-		$this->assertMatchesRegularExpression( '#<p class="newspack-rolling-coverage-entry-archived-notice">.*</p><div [^>]*><p>What the post sums up\.</p></div>#s', $html );
+		$this->assertMatchesRegularExpression( '#<div [^>]*><p>What the post sums up\.</p></div>#', $html );
+		$this->assertStringNotContainsString( 'archived', $html );
 		$this->assertStringNotContainsString( self::ENTRY_TEXT, $html );
+		$this->assertStringContainsString( 'What the post sums up.', $lite );
+		$this->assertStringNotContainsString( 'archived', $lite );
 	}
 
 	/**
-	 * A lite page shows the post's title, linked to it, and its summary.
+	 * A lite page shows the post's title, linked to its lite page, and its
+	 * summary. A post type without lite pages links to the post.
 	 */
 	public function test_lite_entry_shows_the_post_title_and_summary() {
 		require_once __DIR__ . '/mocks/class-lite-site.php';
@@ -283,20 +579,24 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 		$html = Lite_Feed::render_entry( get_post( $entry_id ), 'initial' );
 
-		$this->assertStringContainsString( '</p><h3><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Post &amp; headline</a></h3><p>What the post sums up.</p></article>', $html );
+		$this->assertStringContainsString( '</p><h3><a href="' . esc_url( home_url( '/lite/' . $breakout_id ) ) . '">Post &amp; headline</a></h3><p>What the post sums up.</p></article>', $html );
 		$this->assertStringNotContainsString( 'Entry headline', $html );
 		$this->assertStringNotContainsString( self::ENTRY_TEXT, $html );
+
+		add_filter( 'newspack_lite_site_supported_post_types', fn() => [ 'page' ] );
+
+		$this->assertStringContainsString( '<h3><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">', Lite_Feed::render_entry( get_post( $entry_id ), 'initial' ) );
 	}
 
 	/**
-	 * Editing a published post's title, excerpt or content touches its
-	 * entry, so open pages get the new card; other edits, and edits to a
-	 * draft, don't.
+	 * Editing a published post's title, excerpt, content, password or slug
+	 * touches its entry, so open pages get the new card; other edits, and
+	 * edits to a draft, don't.
 	 */
 	public function test_editing_the_published_post_touches_the_entry() {
 		[ $entry_id, $breakout_id ] = self::create_breakout();
 
-		foreach ( [ 'post_title', 'post_excerpt', 'post_content' ] as $field ) {
+		foreach ( [ 'post_title', 'post_excerpt', 'post_content', 'post_password', 'post_name' ] as $field ) {
 			self::backdate_modified( $entry_id );
 			wp_update_post(
 				[
