@@ -152,6 +152,57 @@ class Test_Author_Settings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A group the layout left empty is the layout's own, so Author on Hide
+	 * keeps it.
+	 */
+	public function test_hiding_the_author_keeps_a_group_the_layout_left_empty() {
+		$markup = self::LINKS_MARKUP . '<!-- wp:group {"className":"spacer"} --><div class="wp-block-group spacer"></div><!-- /wp:group -->';
+
+		$html = self::render_block(
+			[
+				'coverageId' => self::create_signed_coverage(),
+				'showAuthor' => false,
+			],
+			$markup
+		);
+
+		$this->assertStringNotContainsString( 'wp-block-post-author-name', $html );
+		$this->assertStringContainsString( 'wp-block-group spacer', $html, 'The empty spacer should stay.' );
+	}
+
+	/**
+	 * With Avatar Display off, the Slack bot's entry drops its name too, and
+	 * the group that held the avatar and name goes.
+	 */
+	public function test_a_slack_bot_entry_with_avatars_off_leaves_no_empty_group() {
+		update_option( 'show_avatars', 0 );
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id, [ 'post_author' => Slack_Config::get_or_create_bot_user_id() ] );
+
+		$html = self::render_block( [ 'coverageId' => $coverage_id ], self::LINKS_MARKUP );
+
+		$this->assertStringNotContainsString( 'wp-block-post-author-name', $html );
+		$this->assertSame( [ 1, 0 ], self::groups( $html ) );
+	}
+
+	/**
+	 * Author on Hide carried into a layout with an avatar but no name, which
+	 * offers no Author setting, leaves Avatar to decide.
+	 */
+	public function test_hiding_the_author_keeps_the_avatar_of_a_layout_without_a_name() {
+		$html = self::render_block(
+			[
+				'coverageId' => self::create_signed_coverage(),
+				'showAuthor' => false,
+				'showAvatar' => true,
+			],
+			'<!-- wp:avatar {"size":24} /--><!-- wp:paragraph --><p>Share</p><!-- /wp:paragraph -->'
+		);
+
+		$this->assertStringContainsString( 'wp-block-avatar', $html );
+	}
+
+	/**
 	 * Entries a poll or load more brings in follow the block's settings.
 	 *
 	 * @dataProvider data_settings

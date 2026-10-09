@@ -1244,6 +1244,7 @@ class Rolling_Coverage_Block {
 		$feed_layout  = (array) ( $feed['attrs']['layout'] ?? [] );
 		$template     = self::with_author_settings( self::get_entry_template( $block ), $attributes );
 		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval, $latest_count, $feed_layout );
+		$template     = self::with_avatar_display( $template );
 		$unplaced     = 'grid' === ( $feed_layout['type'] ?? '' ) ? self::without_grid_placements( $template ) : $template;
 		$column_rules = $is_capped ? [] : self::column_rules( $template, $feed_layout );
 
@@ -1277,6 +1278,8 @@ class Rolling_Coverage_Block {
 			$posts    = array_merge( self::query_pinned_entries( $coverage_id ), $page['posts'] );
 			$has_more = $page['has_more'];
 		}
+
+		update_post_author_caches( $posts );
 
 		$older_entries = $template ? self::older_entries( $attributes ) : 'none';
 
@@ -2975,32 +2978,18 @@ class Rolling_Coverage_Block {
 	 * breakout link to show also drops any bottom margin set on its last
 	 * block, and as the last entry, a card that closes the template drops any
 	 * set below it, so the card's padding is even and nothing trails the list.
-	 * With avatars turned off, avatars go, with any column holding only one.
-	 * An entry the Slack bot wrote drops its author's avatar and name but
-	 * keeps such a column, so its text lines up with the other entries. Either
-	 * way a group left empty goes (see without_author_blocks()). A card or
-	 * entry group set to stick takes its position under a stable class (see
-	 * with_stable_position()).
+	 * A card or entry group set to stick takes its position under a stable
+	 * class (see with_stable_position()).
 	 *
 	 * @param array[] $template     Parsed template blocks.
 	 * @param bool    $is_pinned    Whether the entry is pinned.
 	 * @param bool    $has_breakout Whether a pinned entry has a published
 	 *                              breakout; only read for pinned entries.
 	 * @param bool    $is_last      Whether the entry is the last one to load.
-	 * @param bool    $hides_byline Whether the entry hides its author, as one
-	 *                              the Slack bot wrote does.
 	 * @return array[]
 	 */
-	public static function shape_entry_template( array $template, bool $is_pinned, bool $has_breakout, bool $is_last, bool $hides_byline = false ): array {
+	public static function shape_entry_template( array $template, bool $is_pinned, bool $has_breakout, bool $is_last ): array {
 		$template = self::for_entry_kind( $template, $is_pinned );
-
-		if ( ! get_option( 'show_avatars' ) ) {
-			$template = self::without_author_blocks( $template, false, true );
-		}
-
-		if ( $hides_byline ) {
-			$template = self::without_author_blocks( $template, true, false );
-		}
 
 		if ( ( $is_pinned && self::has_pinned_card( $template ) ) || $is_last ) {
 			$template = self::without_closing_separator( $template );
@@ -3046,7 +3035,9 @@ class Rolling_Coverage_Block {
 	 * The entry template as the block's Author and Avatar settings show it:
 	 * without the author's avatar and name when Author is on Hide, or without
 	 * the avatar when Avatar is, along with the columns that held only an
-	 * avatar and the groups left empty (see without_author_blocks()). Applied
+	 * avatar and the groups left empty (see without_author_blocks()). Author
+	 * only applies to a template holding the author's name, as only such a
+	 * layout offers the setting; otherwise Avatar decides alone. Applied
 	 * before the template is stored, so polls, load more and the jump to the
 	 * latest entries render it the same way.
 	 *
@@ -3055,7 +3046,9 @@ class Rolling_Coverage_Block {
 	 * @return array[]
 	 */
 	private static function with_author_settings( array $template, array $attributes ): array {
-		if ( false === ( $attributes['showAuthor'] ?? true ) ) {
+		$holds_name = self::holds_block( $template, static fn( array $block ) => 'core/post-author-name' === ( $block['blockName'] ?? '' ) );
+
+		if ( false === ( $attributes['showAuthor'] ?? true ) && $holds_name ) {
 			return self::without_author_blocks( $template, true, true );
 		}
 
@@ -3064,6 +3057,29 @@ class Rolling_Coverage_Block {
 		}
 
 		return $template;
+	}
+
+	/**
+	 * The entry template as the site's Avatar Display shows it: with avatars
+	 * turned off, without avatars or the columns that held only one. The same
+	 * for every entry, so applied once per request, after the template is
+	 * stored, since the setting can change while a stored config lives on.
+	 *
+	 * @param array[] $template Parsed template blocks.
+	 * @return array[]
+	 */
+	private static function with_avatar_display( array $template ): array {
+		return get_option( 'show_avatars' ) ? $template : self::without_author_blocks( $template, false, true );
+	}
+
+	/**
+	 * Whether a parsed block is the author's avatar or name.
+	 *
+	 * @param array $block Parsed block.
+	 * @return bool
+	 */
+	private static function is_author_block( array $block ): bool {
+		return in_array( $block['blockName'] ?? '', [ 'core/avatar', 'core/post-author-name' ], true );
 	}
 
 	/**
@@ -3743,9 +3759,13 @@ class Rolling_Coverage_Block {
 			self::drop_fixed_template_dates( $template ),
 			$is_pinned,
 			$is_pinned && null !== Breakout::get_published_breakout_url( $entry->ID ),
-			$is_last,
-			self::is_bot_authored( $entry->ID )
+			$is_last
 		);
+
+		// The author lookup is skipped for a template with no byline to hide.
+		if ( self::holds_block( $template, static fn( array $block ) => self::is_author_block( $block ) ) && self::is_bot_authored( $entry->ID ) ) {
+			$template = self::without_author_blocks( $template, true, false );
+		}
 
 		if ( ! self::has_title( $entry ) ) {
 			$template = self::with_centered_title_rows( $template );
@@ -4197,7 +4217,7 @@ class Rolling_Coverage_Block {
 		$base_args = self::coverage_entries_args( $term_id );
 
 		$config           = self::load_block_config( $term_id, $template_key );
-		$template         = $config['template'];
+		$template         = self::with_avatar_display( $config['template'] );
 		$latest_count     = self::latest_count( $config );
 		$latest_count     = $latest_count ? $latest_count : self::requested_latest_count( $params );
 		$is_capped        = $latest_count > 0;
@@ -4276,6 +4296,7 @@ class Rolling_Coverage_Block {
 
 			$changes = array_merge( ( new WP_Query( $args ) )->posts, $removed );
 			usort( $changes, static fn( WP_Post $a, WP_Post $b ) => strcmp( self::post_modified_gmt( $b ), self::post_modified_gmt( $a ) ) );
+			update_post_author_caches( $changes );
 
 			$is_cursor_entry = static fn( WP_Post $entry ) => $entry->ID === $cursor_id && self::post_modified_gmt( $entry ) === $cursor_modified;
 
@@ -4406,6 +4427,8 @@ class Rolling_Coverage_Block {
 			$has_more = count( $query->posts ) > $per_page;
 		}
 
+		update_post_author_caches( $posts );
+
 		$html        = '';
 		$ad_slots    = [];
 		$entry_index = 0;
@@ -4487,8 +4510,11 @@ class Rolling_Coverage_Block {
 		$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
 
 		$entries = array_map( static fn( WP_Post $entry ) => self::removal( $entry ), $removed );
+		$posts   = ( new WP_Query( $args ) )->posts;
 
-		foreach ( ( new WP_Query( $args ) )->posts as $entry ) {
+		update_post_author_caches( $posts );
+
+		foreach ( $posts as $entry ) {
 			$entries[] = [
 				'id'     => $entry->ID,
 				'html'   => $is_lite ? Lite_Feed::render_entry( $entry, 'poll', true ) : self::render_entry( $entry, $template, 'poll', is_capped: true, feed_layout: $feed_layout, coverage_id: $term_id ),

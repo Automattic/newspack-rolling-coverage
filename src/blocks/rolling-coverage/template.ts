@@ -3381,7 +3381,8 @@ function withoutByline< T extends { name: string; [ key: string ]: unknown } >(
  * The template as the block's Author and Avatar settings show it, mirroring
  * Rolling_Coverage_Block::with_author_settings(): without the author's
  * avatar and name when Author is on Hide, or without the avatar when Avatar
- * is, with the columns that held only an avatar.
+ * is, with the columns that held only an avatar. Author only applies to a
+ * template holding the author's name, as only such a layout offers it.
  *
  * @param {Object[]} blocks     The template blocks.
  * @param {boolean}  showAuthor The block's Author setting.
@@ -3391,7 +3392,7 @@ function withoutByline< T extends { name: string; [ key: string ]: unknown } >(
 function withAuthorSettings<
 	T extends { name: string; [ key: string ]: unknown },
 >( blocks: T[], showAuthor: boolean, showAvatar: boolean ): T[] {
-	if ( ! showAuthor ) {
+	if ( ! showAuthor && holdsBlockType( blocks, 'core/post-author-name' ) ) {
 		return withoutAuthorBlocks( blocks, true, true );
 	}
 
