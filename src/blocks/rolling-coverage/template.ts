@@ -107,6 +107,12 @@ const REGULAR_ENTRY_CLASS = 'newspack-rolling-coverage-regular-entry';
 const DEFAULT_ENTRY_GAP = 'var:preset|spacing|20';
 
 /**
+ * Class of the group holding a byline's author name and date, whose
+ * stylesheet rule aligns the two on their baseline.
+ */
+const BYLINE_TEXT_CLASS = 'newspack-rolling-coverage-byline-text';
+
+/**
  * Class of the paragraph that links to the entry's breakout post, mirroring
  * Entry_Bindings::READ_MORE_CLASS.
  */
@@ -554,15 +560,33 @@ function streamEntryBlocks(
 					'core/avatar',
 					{ size: 24, style: { border: { radius: '50%' } } },
 				],
-				authorName( '700' ),
 				[
-					'core/post-date',
+					'core/group',
 					{
-						...POST_DATE_ATTRIBUTES,
-						format: 'human-diff',
-						fontSize: 'small',
-						...mutedDateColor( slugs ),
+						className: BYLINE_TEXT_CLASS,
+						layout: { type: 'flex', flexWrap: 'nowrap' },
+						style: {
+							spacing: { blockGap: 'var:preset|spacing|20' },
+						},
+						metadata: {
+							name: __(
+								'Author + Date',
+								'newspack-rolling-coverage'
+							),
+						},
 					},
+					[
+						authorName( '700' ),
+						[
+							'core/post-date',
+							{
+								...POST_DATE_ATTRIBUTES,
+								format: 'human-diff',
+								fontSize: 'small',
+								...mutedDateColor( slugs ),
+							},
+						],
+					],
 				],
 			],
 		],
@@ -1126,6 +1150,7 @@ function bylineRow( slugs: string[], isPinned: boolean ): TemplateItem {
 				[
 					'core/group',
 					{
+						className: BYLINE_TEXT_CLASS,
 						layout: { type: 'flex', flexWrap: 'nowrap' },
 						style: {
 							spacing: { blockGap: 'var:preset|spacing|20' },
