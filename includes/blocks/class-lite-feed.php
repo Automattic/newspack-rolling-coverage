@@ -288,7 +288,11 @@ class Lite_Feed {
 	 * A protected entry gets a notice in place of its body, whatever the
 	 * reader's postpass cookie, and blocks Newspack shows only to signed-in
 	 * readers are left out, whoever is signed in: Lite Site caches the page
-	 * for every reader, and lite polls and load more are public.
+	 * for every reader, and lite polls and load more are public. For the same
+	 * reason an entry a Newspack content gate covers shows its teaser. The
+	 * body is read only after the entry is set up as a loop post, because
+	 * that's when the gate puts the teaser in its post_content (see
+	 * Rolling_Coverage_Block::setup_entry_postdata()).
 	 *
 	 * An entry's content can hold a feed of its own coverage, which lists the
 	 * entry again. Its body then renders only the first time, as core's Post
@@ -315,7 +319,7 @@ class Lite_Feed {
 
 		$previous_post = $post;
 		$post          = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-		setup_postdata( $entry );
+		Rolling_Coverage_Block::setup_entry_postdata( $entry );
 
 		self::$rendering_bodies[ $entry->ID ] = true;
 

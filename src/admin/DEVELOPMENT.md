@@ -30,7 +30,7 @@ The admin pages load the block editor's assets so Quick Edit can run a block edi
 
 ## All Coverages
 
-The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Coverage added." for a new coverage; a failed one keeps it open with the error.
+The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Coverage added." for a new coverage; a failed one keeps it open with the error. The drawer saves through the core terms route and sends every field each time, so each meta key it sends must be writable by anyone who can edit a coverage. A stricter `auth_callback` on one of them fails those users' saves after the other fields are already written.
 
 Row actions live in `src/admin/actions/coverage-actions.ts`:
 
@@ -68,7 +68,7 @@ The options, their limits and what reads them are documented with the blocks: th
 
 The list reads `GET rolling-coverage/v1/coverages/<id>/entries-view` (`Post_Type::get_entries_view()`, `edit_posts`), which pages, sorts, searches and filters on the server. Below Editor, users who can publish (Authors) see their own entries and everyone's published and scheduled ones, and others (Contributors) see only their own (`Post_Type::entry_visibility_scope()`, applied by `author_scope_where()`). Each row carries the current user's `can_edit` (`edit_post`), `can_publish` (`publish_post`) and `is_own`, so the list can offer exactly what WordPress allows. The list opens without trashed entries (Status is not Trashed).
 
-`useEntries` (`src/admin/hooks/useEntries.ts`) then polls the same route with a `since` cursor every 10 seconds (`SYNC_INTERVAL_MS`), and pauses while the tab is hidden. It merges the changed rows and shows a snackbar for each change, or one "N updates in the last 10s" snackbar for more than five. When too many entries changed for one response (`overflow`), it reloads the page.
+`useEntries` (`src/admin/hooks/useEntries.ts`) then polls the same route with a `since` cursor every 10 seconds (`SYNC_INTERVAL_MS`), and pauses while the tab is hidden. The route finds changes by modified date, which moves when cron publishes a scheduled entry too (`Post_Type::stamp_publish_modified_gmt()`). It merges the changed rows and shows a snackbar for each change, or one "N updates in the last 10s" snackbar for more than five. When too many entries changed for one response (`overflow`), it reloads the page.
 
 The empty state replaces the table and its filters, so it shows only when the coverage has no entries at all, trashed ones included: the Trashed filter is the only way back to them.
 

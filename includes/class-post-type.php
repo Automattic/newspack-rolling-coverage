@@ -247,6 +247,8 @@ class Post_Type {
 		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'on_save_post' ], 10, 2 );
 		add_filter( 'wp_insert_post_data', [ __CLASS__, 'normalize_entry_gmt_dates' ], 10, 2 );
+		// Before Rolling_Coverage_Block::update_coverage_last_modified() at priority 10, which copies the stamped date into the coverage.
+		add_action( 'transition_post_status', [ __CLASS__, 'stamp_publish_modified_gmt' ], 5, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'record_entry_published_gmt' ], 10, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'record_entry_unpublished' ], 10, 3 );
 		add_action( 'set_object_terms', [ __CLASS__, 'on_set_object_terms' ], 10, 6 );
@@ -2009,6 +2011,48 @@ class Post_Type {
 		}
 
 		return $data;
+	}
+
+	/**
+	 * Give an entry that goes out a modified date no older than that moment.
+	 *
+	 * Cron publishes a scheduled entry with wp_publish_post(), which changes
+	 * only its status and leaves the modified date at the scheduling save.
+	 * Open pages and the admin list find changes by modified date, from a
+	 * cursor that may be past that save by the time the entry goes out, so
+	 * neither would show it until reloaded. Saves through wp_update_post()
+	 * already carry the current time and are left alone.
+	 *
+	 * @param string  $new_status New post status.
+	 * @param string  $old_status Previous post status.
+	 * @param WP_Post $post       Entry post object, updated in place for later callbacks.
+	 */
+	public static function stamp_publish_modified_gmt( string $new_status, string $old_status, WP_Post $post ): void {
+		// Direct inserts keep the date they were given, like a backdated import.
+		if ( 'publish' !== $new_status || in_array( $old_status, [ 'publish', 'new' ], true ) || self::CPT_SLUG !== $post->post_type ) {
+			return;
+		}
+
+		$now_gmt = current_time( 'mysql', true );
+
+		if ( $post->post_modified_gmt >= $now_gmt ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$post->post_modified     = get_date_from_gmt( $now_gmt );
+		$post->post_modified_gmt = $now_gmt;
+
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->posts,
+			[
+				'post_modified'     => $post->post_modified,
+				'post_modified_gmt' => $post->post_modified_gmt,
+			],
+			[ 'ID' => $post->ID ]
+		);
+		clean_post_cache( $post->ID );
 	}
 
 	/**

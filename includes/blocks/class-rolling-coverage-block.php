@@ -237,6 +237,7 @@ class Rolling_Coverage_Block {
 		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
 		add_filter( 'render_block_core/columns', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
 		add_filter( 'render_block_core/buttons', [ __CLASS__, 'drop_empty_entry_buttons' ], 10, 1 );
+		add_filter( 'the_content', [ __CLASS__, 'withhold_gated_entry' ], 999 );
 	}
 
 	/**
@@ -3774,6 +3775,104 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Set up an entry's post data the way a loop sets up its posts, so
+	 * plugins that treat a post in a loop as part of a listing treat the
+	 * feed's entries that way too. Callers make the entry the global post
+	 * first.
+	 *
+	 * Newspack's content gate is why. For any post but the article being
+	 * read, it puts its teaser in place of a gated post's body only when the
+	 * post is set up in a loop; set up any other way, the post keeps its
+	 * body. Entries reach every reader alike, through cached pages and
+	 * public, cached REST replies, so a gated entry has to render as its
+	 * teaser.
+	 *
+	 * The loop is the feed's own rather than the main query, whose loop state
+	 * belongs to the page. Where the gate stands aside, loop or not,
+	 * withhold_gated_entry() covers the rendered content.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 */
+	public static function setup_entry_postdata( WP_Post $entry ): void {
+		$loop              = new WP_Query();
+		$loop->in_the_loop = true;
+		$loop->setup_postdata( $entry );
+	}
+
+	/**
+	 * A gated entry's teaser in place of its rendered content, wherever the
+	 * block renders it.
+	 *
+	 * Where Newspack's content gate runs, the loop setup (see
+	 * setup_entry_postdata()) is enough, and this hands back the teaser the
+	 * gate already put in place. It matters where the gate stands aside for
+	 * the whole request: WooCommerce's account, cart and checkout pages, which
+	 * a feed placed site-wide renders on too, and syndication feeds, which the
+	 * gate leaves to its feed setting. That setting judges each feed item, the
+	 * host post, not the entries its feed lists, so entry_teaser() applies it
+	 * to entries.
+	 *
+	 * The teaser is the one Newspack lists the entry with for a signed-out
+	 * reader, since the feed is the same for everyone. It replaces the
+	 * rendered content rather than the entry's post_content because core's
+	 * Post Excerpt block reads the entry by ID, not through the post set up.
+	 * Priority 999 is where Newspack swaps a gated post's content, after the
+	 * content filters, so the finished teaser isn't run through them again.
+	 *
+	 * @param string $content The entry's rendered content.
+	 * @return string
+	 */
+	public static function withhold_gated_entry( $content ) {
+		if ( 0 === self::$entry_render_depth ) {
+			return $content;
+		}
+
+		$entry = get_post();
+
+		if ( ! $entry instanceof WP_Post || Post_Type::CPT_SLUG !== $entry->post_type ) {
+			return $content;
+		}
+
+		$teaser = self::entry_teaser( $entry );
+
+		return null === $teaser ? $content : $teaser;
+	}
+
+	/**
+	 * What the feed shows of a gated entry: Newspack's listing teaser, or null
+	 * for an entry no gate covers. In a syndication feed it follows the gate's
+	 * feed setting too: null when the site or the feed includes restricted
+	 * articles in full. A feed set to remove restricted articles keeps the
+	 * host post unless a gate covers it too, so its gated entries show their
+	 * teasers there. Newspack before 6.53.0 has no listing teaser, so entries
+	 * stay whole.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return string|null
+	 */
+	private static function entry_teaser( WP_Post $entry ): ?string {
+		if ( ! class_exists( '\Newspack\Content_Gate' ) || ! method_exists( '\Newspack\Content_Gate', 'get_teaser_outside_article' ) ) {
+			return null;
+		}
+
+		if (
+			is_feed() &&
+			class_exists( '\Newspack\Content_Gate_Advanced_Settings' ) &&
+			method_exists( '\Newspack\Content_Gate_Advanced_Settings', 'get_feed_restriction_mode' ) &&
+			'off' === \Newspack\Content_Gate_Advanced_Settings::get_feed_restriction_mode(
+				[
+					'query' => $GLOBALS['wp_query'] ?? null,
+					'post'  => $entry,
+				]
+			)
+		) {
+			return null;
+		}
+
+		return \Newspack\Content_Gate::get_teaser_outside_article( $entry );
+	}
+
+	/**
 	 * Renders a single entry against the supplied per-entry template.
 	 *
 	 * @global WP_Post $post Global post object, temporarily swapped to the
@@ -3843,7 +3942,7 @@ class Rolling_Coverage_Block {
 		$was_ignoring_pinning   = self::$ignoring_pinning;
 		$post                   = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		self::$ignoring_pinning = $is_capped;
-		setup_postdata( $entry );
+		self::setup_entry_postdata( $entry );
 
 		$is_archived = Archive_Mode::is_entry_archived( $entry->ID );
 		if ( $is_archived ) {

@@ -374,6 +374,24 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A scheduled entry reaches open pages as new when cron publishes it,
+	 * even when the page polls from a change made after it was scheduled.
+	 */
+	public function test_scheduled_entry_polls_as_an_insert_when_cron_publishes_it() {
+		$scheduled_id = self::create_scheduled_entry( $this->coverage_id, '2026-01-01 11:00:00', '2026-01-01 12:00:00' );
+
+		// Published after the scheduling save, so open pages poll from here.
+		$cursor_entry_id = $this->create_entry_at( '2026-01-01 11:30:00' );
+		$cursor          = "{$cursor_entry_id}:2026-01-01 11:30:00";
+
+		check_and_publish_future_post( $scheduled_id );
+
+		$poll = $this->get_feed( [ 'cursor' => $cursor ] )->get_data();
+
+		$this->assertSame( [ $scheduled_id => 'insert' ], wp_list_pluck( $poll['entries'], 'type', 'id' ) );
+	}
+
+	/**
 	 * Entries published after the poll cursor, one count for each kind of
 	 * poll response: nothing new, new entries, and a burst over the cap.
 	 *
