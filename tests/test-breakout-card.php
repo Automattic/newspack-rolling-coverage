@@ -281,9 +281,10 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	/**
 	 * A post a content gate or a membership rule restricts, or that a
 	 * Newspack restriction callback reports, is summed up by its
-	 * hand-written excerpt alone, never by an excerpt built from its text.
+	 * hand-written excerpt, else by its gate's free preview, never by an
+	 * excerpt built from its text.
 	 */
-	public function test_restricted_post_is_summed_up_by_its_written_excerpt_alone() {
+	public function test_restricted_post_is_summed_up_by_its_written_excerpt_or_free_preview() {
 		$this->use_content_gate_stub();
 		$this->use_wc_memberships_stub();
 		$body = '<!-- wp:paragraph --><p>The paywalled body.</p><!-- /wp:paragraph -->';
@@ -295,7 +296,16 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 				'post_content' => $body,
 			]
 		);
-		$this->gate_entry( $gated );
+		$this->gate_entry( $gated, '<p>The free opening, which every reader sees before the gate.</p>' );
+
+		[ $previewless_entry, $previewless ] = self::create_breakout(
+			'publish',
+			[
+				'post_excerpt' => '',
+				'post_content' => $body,
+			]
+		);
+		$this->gate_entry( $previewless, '' );
 
 		[ $member_entry, $member ] = self::create_breakout(
 			'publish',
@@ -315,7 +325,18 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		);
 		add_filter( 'newspack_post_has_restrictions', fn( $restricted, $post_id ) => $restricted || $flagged === $post_id, 10, 2 );
 
-		foreach ( [ $gated_entry, $member_entry, $flagged_entry ] as $entry_id ) {
+		$html = self::render( $gated_entry, self::TITLE_MARKUP . self::CONTENT_MARKUP );
+
+		$this->assertStringContainsString( '<p>The free opening, which every reader sees before the gate.</p></div>', $html );
+		$this->assertStringNotContainsString( 'paywalled', $html );
+
+		add_filter( 'excerpt_length', fn() => 3 );
+		$html = self::render( $gated_entry, self::TITLE_MARKUP . self::CONTENT_MARKUP );
+		remove_all_filters( 'excerpt_length' );
+
+		$this->assertStringContainsString( '<p>The free opening,…</p></div>', $html );
+
+		foreach ( [ $previewless_entry, $member_entry, $flagged_entry ] as $entry_id ) {
 			$html = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP . self::WIRE_EXCERPT_MARKUP );
 
 			$this->assertStringContainsString( 'Post &amp; headline</a></h4>', $html );

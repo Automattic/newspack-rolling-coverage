@@ -76,9 +76,9 @@ class Breakout_Card {
 
 	/**
 	 * A breakout post's summary, as plain text: nothing for a password
-	 * protected post, only its hand-written excerpt for a restricted one
-	 * (see is_restricted()), and its excerpt, hand-written or generated, for
-	 * any other. A post whose excerpt leads back to its own summary, such as
+	 * protected post; for a restricted one (see is_restricted()), its
+	 * hand-written excerpt, else its content gate's free preview; and its
+	 * excerpt, hand-written or generated, for any other. A post whose excerpt leads back to its own summary, such as
 	 * through a feed in its content, gets nothing there.
 	 *
 	 * The generated summary is cached by the post's ID and modified time, so
@@ -93,7 +93,9 @@ class Breakout_Card {
 		}
 
 		if ( self::is_restricted( $post ) ) {
-			return self::plain_text( $post->post_excerpt );
+			$excerpt = self::plain_text( $post->post_excerpt );
+
+			return '' !== $excerpt ? $excerpt : self::teaser_summary( $post );
 		}
 
 		$key     = $post->ID . ':' . $post->post_modified_gmt;
@@ -108,6 +110,31 @@ class Breakout_Card {
 		wp_cache_set( $key, $summary, self::CACHE_GROUP );
 
 		return $summary;
+	}
+
+	/**
+	 * A restricted breakout post's summary without a hand-written excerpt:
+	 * the free preview its Newspack content gate shows every reader, cut to
+	 * the `excerpt_length` filter's length, or nothing when the gate has no
+	 * free preview or something else restricts the post. Newspack gives no
+	 * teaser while WooCommerce Memberships is active, so a Memberships rule
+	 * leaves the summary empty.
+	 *
+	 * @param WP_Post $post Breakout post.
+	 * @return string
+	 */
+	private static function teaser_summary( WP_Post $post ): string {
+		if ( ! class_exists( '\Newspack\Content_Gate' ) || ! method_exists( '\Newspack\Content_Gate', 'get_teaser_outside_article' ) ) {
+			return '';
+		}
+
+		$teaser = \Newspack\Content_Gate::get_teaser_outside_article( $post );
+
+		if ( null === $teaser ) {
+			return '';
+		}
+
+		return self::plain_text( wp_trim_words( $teaser, (int) apply_filters( 'excerpt_length', 55 ), '&hellip;' ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 	}
 
 	/**
