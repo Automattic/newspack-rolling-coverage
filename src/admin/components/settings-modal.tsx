@@ -29,7 +29,7 @@ import type { ApiResult, EntryName, StatusLabels } from '../types';
 const EMPTY_LABELS: StatusLabels = { active: '', paused: '', archived: '' };
 const EMPTY_NAME: EntryName = { singular: '', plural: '' };
 
-type SettingsTab = 'entry-name' | 'status' | 'latest' | 'breakout';
+type SettingsTab = 'labels' | 'status';
 
 /**
  * Site-wide settings for Rolling Coverage: the Coverage Status block's default
@@ -61,7 +61,7 @@ function SettingsModal( {
 	const [ entryName, setEntryName ] = useState< EntryName >( EMPTY_NAME );
 	const [ savedEntryName, setSavedEntryName ] =
 		useState< EntryName >( EMPTY_NAME );
-	const [ tab, setTab ] = useState< SettingsTab >( 'entry-name' );
+	const [ tab, setTab ] = useState< SettingsTab >( 'labels' );
 	const [ isLoaded, setIsLoaded ] = useState( false );
 	const [ isSaving, setIsSaving ] = useState( false );
 	const [ error, setError ] = useState< string | null >( null );
@@ -162,7 +162,7 @@ function SettingsModal( {
 			isEntryNameDirty &&
 			! entryName.singular.trim() !== ! entryName.plural.trim()
 		) {
-			setTab( 'entry-name' );
+			setTab( 'labels' );
 			setErrorAttempt( ( attempt ) => attempt + 1 );
 			setError(
 				__(
@@ -231,10 +231,10 @@ function SettingsModal( {
 		const results: Array<
 			[ SettingsTab, ( ApiResult & { data?: unknown } ) | null ]
 		> = [
-			[ 'entry-name', nameResult ],
+			[ 'labels', nameResult ],
 			[ 'status', labelsResult ],
-			[ 'latest', latestResult ],
-			[ 'breakout', breakoutResult ],
+			[ 'labels', latestResult ],
+			[ 'labels', breakoutResult ],
 		];
 		const failedEntry = results.find(
 			( [ , result ] ) => result && ! result.data
@@ -317,9 +317,9 @@ function SettingsModal( {
 							align={ isWide ? 'flex-start' : undefined }
 						>
 							<Tabs.List className="newspack-rolling-coverage-settings__tabs">
-								<Tabs.Tab value="entry-name">
+								<Tabs.Tab value="labels">
 									{ __(
-										'Entry Name',
+										'Labels',
 										'newspack-rolling-coverage'
 									) }
 								</Tabs.Tab>
@@ -329,71 +329,152 @@ function SettingsModal( {
 										'newspack-rolling-coverage'
 									) }
 								</Tabs.Tab>
-								<Tabs.Tab value="latest">
-									{ __(
-										'Jump to Latest',
-										'newspack-rolling-coverage'
-									) }
-								</Tabs.Tab>
-								<Tabs.Tab value="breakout">
-									{ __(
-										'Full Story',
-										'newspack-rolling-coverage'
-									) }
-								</Tabs.Tab>
 							</Tabs.List>
 							<div className="newspack-rolling-coverage-settings__panels">
-								<Tabs.Panel value="entry-name" keepMounted>
+								<Tabs.Panel value="labels" keepMounted>
 									<Stack direction="column" gap="xl">
-										<Text render={ <p /> }>
-											{ __(
-												'Set what readers see entries called, written as they read mid-sentence, for example “update” and “updates”. Leave both empty to use “entry” and “entries”.',
-												'newspack-rolling-coverage'
-											) }
-										</Text>
-										<TextControl
-											__next40pxDefaultSize
-											label={ __(
-												'Singular',
-												'newspack-rolling-coverage'
-											) }
-											placeholder={
-												config.entryNameDefaults
-													.singular
-											}
-											maxLength={
-												config.entryNameMaxLength
-											}
-											value={ entryName.singular }
-											disabled={ ! isLoaded || isSaving }
-											onChange={ ( value: string ) =>
-												setEntryName( ( prev ) => ( {
-													...prev,
-													singular: value,
-												} ) )
-											}
-										/>
-										<TextControl
-											__next40pxDefaultSize
-											label={ __(
-												'Plural',
-												'newspack-rolling-coverage'
-											) }
-											placeholder={
-												config.entryNameDefaults.plural
-											}
-											maxLength={
-												config.entryNameMaxLength
-											}
-											value={ entryName.plural }
-											disabled={ ! isLoaded || isSaving }
-											onChange={ ( value: string ) =>
-												setEntryName( ( prev ) => ( {
-													...prev,
-													plural: value,
-												} ) )
-											}
-										/>
+										<Stack direction="column" gap="md">
+											<Text
+												variant="heading-md"
+												// eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop.
+												render={ <h3 /> }
+											>
+												{ __(
+													'Entry Name',
+													'newspack-rolling-coverage'
+												) }
+											</Text>
+											<Text render={ <p /> }>
+												{ __(
+													'Set what readers see entries called, written as they read mid-sentence, for example “update” and “updates”. Leave both empty to use “entry” and “entries”.',
+													'newspack-rolling-coverage'
+												) }
+											</Text>
+											<TextControl
+												__next40pxDefaultSize
+												label={ __(
+													'Singular',
+													'newspack-rolling-coverage'
+												) }
+												placeholder={
+													config.entryNameDefaults
+														.singular
+												}
+												maxLength={
+													config.entryNameMaxLength
+												}
+												value={ entryName.singular }
+												disabled={
+													! isLoaded || isSaving
+												}
+												onChange={ ( value: string ) =>
+													setEntryName(
+														( prev ) => ( {
+															...prev,
+															singular: value,
+														} )
+													)
+												}
+											/>
+											<TextControl
+												__next40pxDefaultSize
+												label={ __(
+													'Plural',
+													'newspack-rolling-coverage'
+												) }
+												placeholder={
+													config.entryNameDefaults
+														.plural
+												}
+												maxLength={
+													config.entryNameMaxLength
+												}
+												value={ entryName.plural }
+												disabled={
+													! isLoaded || isSaving
+												}
+												onChange={ ( value: string ) =>
+													setEntryName(
+														( prev ) => ( {
+															...prev,
+															plural: value,
+														} )
+													)
+												}
+											/>
+										</Stack>
+										<Stack direction="column" gap="md">
+											<Text
+												variant="heading-md"
+												// eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop.
+												render={ <h3 /> }
+											>
+												{ __(
+													'Jump to Latest',
+													'newspack-rolling-coverage'
+												) }
+											</Text>
+											<Text render={ <p /> }>
+												{ __(
+													'Set the text of the button that takes readers back to the live feed. When it can, the button counts the new entries instead.',
+													'newspack-rolling-coverage'
+												) }
+											</Text>
+											<TextControl
+												__next40pxDefaultSize
+												label={ __(
+													'Button label',
+													'newspack-rolling-coverage'
+												) }
+												placeholder={
+													config.latestLabelDefault
+												}
+												maxLength={
+													config.latestLabelMaxLength
+												}
+												value={ latestLabel }
+												disabled={
+													! isLoaded || isSaving
+												}
+												onChange={ setLatestLabel }
+											/>
+										</Stack>
+										<Stack direction="column" gap="md">
+											<Text
+												variant="heading-md"
+												// eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop.
+												render={ <h3 /> }
+											>
+												{ __(
+													'Full Story',
+													'newspack-rolling-coverage'
+												) }
+											</Text>
+											<Text render={ <p /> }>
+												{ __(
+													'Set the label that marks an entry once its full story is published. Leave empty to use “Full story”.',
+													'newspack-rolling-coverage'
+												) }
+											</Text>
+											<TextControl
+												__next40pxDefaultSize
+												label={ __(
+													'Full story label',
+													'newspack-rolling-coverage'
+												) }
+												placeholder={
+													config.breakoutLabelDefault
+												}
+												maxLength={
+													config.breakoutLabelMaxLength
+												}
+												value={ breakoutLabel }
+												disabled={
+													! isLoaded || isSaving
+												}
+												onChange={ setBreakoutLabel }
+											/>
+										</Stack>
 									</Stack>
 								</Tabs.Panel>
 								<Tabs.Panel value="status" keepMounted>
@@ -429,58 +510,6 @@ function SettingsModal( {
 												}
 											/>
 										) ) }
-									</Stack>
-								</Tabs.Panel>
-								<Tabs.Panel value="latest" keepMounted>
-									<Stack direction="column" gap="xl">
-										<Text render={ <p /> }>
-											{ __(
-												'Set the text of the button that takes readers back to the live feed. When it can, the button counts the new entries instead.',
-												'newspack-rolling-coverage'
-											) }
-										</Text>
-										<TextControl
-											__next40pxDefaultSize
-											label={ __(
-												'Button label',
-												'newspack-rolling-coverage'
-											) }
-											placeholder={
-												config.latestLabelDefault
-											}
-											maxLength={
-												config.latestLabelMaxLength
-											}
-											value={ latestLabel }
-											disabled={ ! isLoaded || isSaving }
-											onChange={ setLatestLabel }
-										/>
-									</Stack>
-								</Tabs.Panel>
-								<Tabs.Panel value="breakout" keepMounted>
-									<Stack direction="column" gap="xl">
-										<Text render={ <p /> }>
-											{ __(
-												'Set the label that marks an entry once its full story is published. Leave empty to use “Full story”.',
-												'newspack-rolling-coverage'
-											) }
-										</Text>
-										<TextControl
-											__next40pxDefaultSize
-											label={ __(
-												'Full story label',
-												'newspack-rolling-coverage'
-											) }
-											placeholder={
-												config.breakoutLabelDefault
-											}
-											maxLength={
-												config.breakoutLabelMaxLength
-											}
-											value={ breakoutLabel }
-											disabled={ ! isLoaded || isSaving }
-											onChange={ setBreakoutLabel }
-										/>
 									</Stack>
 								</Tabs.Panel>
 							</div>
