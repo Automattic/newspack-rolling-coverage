@@ -1206,13 +1206,11 @@ export default function Edit( {
 	const isAllUpdatesHidden = ! isCapped || allUpdatesLink === false;
 	const isCheckUpdatesHidden =
 		isCapped || currentCoverage?.status === 'archived';
-	// Byline is led by the author, so it offers only the Avatar setting.
-	const offersAuthor =
-		! ( isSynced && builtInLayoutSlugFor( layoutId ) === 'byline' ) &&
-		holdsBlockType( templateBlocks, 'core/post-author-name' );
-	const offersAvatar =
-		( ! offersAuthor || showAuthor !== false ) &&
-		holdsBlockType( templateBlocks, 'core/avatar' );
+	const offersAuthor = holdsBlockType(
+		templateBlocks,
+		'core/post-author-name'
+	);
+	const offersAvatar = holdsBlockType( templateBlocks, 'core/avatar' );
 	const checksOnRequest = useMemo( () => {
 		const parts = layoutParts(
 			isSynced ? feedItems( syncedBlocks ) : allBlocks
@@ -2185,8 +2183,8 @@ export default function Edit( {
 						__next40pxDefaultSize
 						isBlock
 						label={ _x(
-							'Author',
-							'whether entries show their author',
+							'Author name',
+							'whether entries show their author’s name',
 							'newspack-rolling-coverage'
 						) }
 						value={ showAuthor !== false ? 'show' : 'hide' }
@@ -2198,24 +2196,30 @@ export default function Edit( {
 							value="show"
 							label={ _x(
 								'Show',
-								'entry author',
+								'entry author name',
 								'newspack-rolling-coverage'
 							) }
 							aria-label={
 								/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
-								__( 'Show author', 'newspack-rolling-coverage' )
+								__(
+									'Show author name',
+									'newspack-rolling-coverage'
+								)
 							}
 						/>
 						<ToggleGroupControlOption
 							value="hide"
 							label={ _x(
 								'Hide',
-								'entry author',
+								'entry author name',
 								'newspack-rolling-coverage'
 							) }
 							aria-label={
 								/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
-								__( 'Hide author', 'newspack-rolling-coverage' )
+								__(
+									'Hide author name',
+									'newspack-rolling-coverage'
+								)
 							}
 						/>
 					</ToggleGroupControl>

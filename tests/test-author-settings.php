@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for the block's Author and Avatar settings.
+ * Tests for the block's Author name and Avatar settings.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -9,10 +9,10 @@ use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Slack_Config;
 
 /**
- * Author on Hide drops the author's avatar and name from every entry, Avatar
- * on Hide only the avatar, and the Slack bot's entries drop both. A group
- * left empty goes with them, so it takes no gap in its row, and the stored
- * config carries the result to polls and load more.
+ * Author name on Hide drops the author's name from every entry, Avatar on
+ * Hide the avatar, each on its own, and the Slack bot's entries drop both. A
+ * group left empty goes with them, so it takes no gap in its row, and the
+ * stored config carries the result to polls and load more.
  */
 class Test_Author_Settings extends Rolling_Coverage_TestCase {
 
@@ -84,29 +84,63 @@ class Test_Author_Settings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Author on Hide drops the avatar, the name and the group that held them,
-	 * leaving the rest of the links row.
+	 * Author name on Hide drops only the name: the author group keeps the
+	 * avatar, with no empty group left in the row.
 	 */
-	public function test_hiding_the_author_drops_the_avatar_the_name_and_their_group() {
+	public function test_hiding_the_name_keeps_the_avatar() {
+		$html = self::render_block(
+			[
+				'coverageId' => self::create_signed_coverage(),
+				'showAuthor' => false,
+			],
+			self::LINKS_MARKUP
+		);
+
+		$this->assertStringNotContainsString( 'wp-block-post-author-name', $html );
+		$this->assertStringContainsString( 'wp-block-avatar', $html );
+		$this->assertSame( [ 2, 0 ], self::groups( $html ), 'The author group still holds the avatar.' );
+	}
+
+	/**
+	 * With both on Hide, the author group goes, leaving the rest of the links
+	 * row and no empty group.
+	 */
+	public function test_hiding_the_name_and_the_avatar_drops_their_group() {
 		$coverage_id = self::create_signed_coverage();
 
-		$shown = self::render_block( [ 'coverageId' => $coverage_id ], self::LINKS_MARKUP );
-
-		$this->assertStringContainsString( 'Jane Reporter', $shown );
-		$this->assertSame( [ 2, 0 ], self::groups( $shown ) );
+		$this->assertSame( [ 2, 0 ], self::groups( self::render_block( [ 'coverageId' => $coverage_id ], self::LINKS_MARKUP ) ) );
 
 		$html = self::render_block(
 			[
 				'coverageId' => $coverage_id,
 				'showAuthor' => false,
+				'showAvatar' => false,
 			],
 			self::LINKS_MARKUP
 		);
 
 		$this->assertStringNotContainsString( 'wp-block-avatar', $html );
 		$this->assertStringNotContainsString( 'wp-block-post-author-name', $html );
-		$this->assertSame( [ 1, 0 ], self::groups( $html ), 'Only the links row should be left, with no empty group in it.' );
+		$this->assertSame( [ 1, 0 ], self::groups( $html ), 'Only the links row should be left.' );
 		$this->assertStringContainsString( 'Share', $html );
+	}
+
+	/**
+	 * Byline with the name hidden keeps its avatar column and the date.
+	 */
+	public function test_hiding_the_name_keeps_bylines_avatar_column_and_date() {
+		$row = self::render_block(
+			[
+				'coverageId' => self::create_signed_coverage(),
+				'showAuthor' => false,
+			],
+			self::ROW_MARKUP
+		);
+
+		$this->assertStringNotContainsString( 'wp-block-post-author-name', $row );
+		$this->assertStringContainsString( 'wp-block-avatar', $row );
+		$this->assertStringContainsString( 'wp-block-post-date', $row );
+		$this->assertSame( 2, self::count_columns( $row ) );
 	}
 
 	/**
@@ -122,7 +156,7 @@ class Test_Author_Settings extends Rolling_Coverage_TestCase {
 		$html = self::render_block( $attributes, self::LINKS_MARKUP );
 
 		$this->assertStringNotContainsString( 'wp-block-avatar', $html );
-		$this->assertStringContainsString( 'Jane Reporter', $html );
+		$this->assertStringContainsString( 'wp-block-post-author-name', $html );
 		$this->assertSame( [ 2, 0 ], self::groups( $html ), 'The author group still holds the name.' );
 
 		$this->assertSame( 2, self::count_columns( self::render_block( [ 'coverageId' => $coverage_id ], self::ROW_MARKUP ) ) );
@@ -152,16 +186,17 @@ class Test_Author_Settings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A group the layout left empty is the layout's own, so Author on Hide
-	 * keeps it.
+	 * A group the layout left empty is the layout's own, so hiding the name
+	 * and the avatar keeps it.
 	 */
-	public function test_hiding_the_author_keeps_a_group_the_layout_left_empty() {
+	public function test_hiding_the_byline_keeps_a_group_the_layout_left_empty() {
 		$markup = self::LINKS_MARKUP . '<!-- wp:group {"className":"spacer"} --><div class="wp-block-group spacer"></div><!-- /wp:group -->';
 
 		$html = self::render_block(
 			[
 				'coverageId' => self::create_signed_coverage(),
 				'showAuthor' => false,
+				'showAvatar' => false,
 			],
 			$markup
 		);
@@ -183,23 +218,6 @@ class Test_Author_Settings extends Rolling_Coverage_TestCase {
 
 		$this->assertStringNotContainsString( 'wp-block-post-author-name', $html );
 		$this->assertSame( [ 1, 0 ], self::groups( $html ) );
-	}
-
-	/**
-	 * Author on Hide carried into a layout with an avatar but no name, which
-	 * offers no Author setting, leaves Avatar to decide.
-	 */
-	public function test_hiding_the_author_keeps_the_avatar_of_a_layout_without_a_name() {
-		$html = self::render_block(
-			[
-				'coverageId' => self::create_signed_coverage(),
-				'showAuthor' => false,
-				'showAvatar' => true,
-			],
-			'<!-- wp:avatar {"size":24} /--><!-- wp:paragraph --><p>Share</p><!-- /wp:paragraph -->'
-		);
-
-		$this->assertStringContainsString( 'wp-block-avatar', $html );
 	}
 
 	/**
@@ -254,10 +272,11 @@ class Test_Author_Settings extends Rolling_Coverage_TestCase {
 	 *
 	 * @dataProvider data_settings
 	 *
-	 * @param array $settings  The block's Author and Avatar settings.
-	 * @param bool  $shows_name Whether the entry should show its author's name.
+	 * @param array $settings     The block's Author name and Avatar settings.
+	 * @param bool  $shows_name   Whether the entry should show its author's name.
+	 * @param bool  $shows_avatar Whether the entry should show its author's avatar.
 	 */
-	public function test_polled_entries_follow_the_settings( array $settings, bool $shows_name ) {
+	public function test_polled_entries_follow_the_settings( array $settings, bool $shows_name, bool $shows_avatar ) {
 		$coverage_id = self::create_coverage();
 		$author_id   = self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] );
 		self::create_entry(
@@ -297,20 +316,28 @@ class Test_Author_Settings extends Rolling_Coverage_TestCase {
 		$older = Rolling_Coverage_Block::get_entries( $request )->get_data()['html'];
 
 		$this->assertStringContainsString( 'data-entry-id', $older, 'The older entry should load.' );
-		$this->assertStringNotContainsString( 'wp-block-avatar', $older );
-		$this->assertSame( $shows_name, false !== strpos( $older, 'Jane Reporter' ) );
+		$this->assertSame( $shows_name, false !== strpos( $older, 'wp-block-post-author-name' ) );
+		$this->assertSame( $shows_avatar, false !== strpos( $older, 'wp-block-avatar' ) );
 		$this->assertSame( 0, self::groups( $older )[1], 'No group should be left empty.' );
 	}
 
 	/**
-	 * The settings that hide the avatar, and whether the name stays.
+	 * Settings that hide the name, the avatar or both, and what stays.
 	 *
 	 * @return array[]
 	 */
 	public function data_settings(): array {
 		return [
-			'author hidden' => [ [ 'showAuthor' => false ], false ],
-			'avatar hidden' => [ [ 'showAvatar' => false ], true ],
+			'name hidden'   => [ [ 'showAuthor' => false ], false, true ],
+			'avatar hidden' => [ [ 'showAvatar' => false ], true, false ],
+			'both hidden'   => [
+				[
+					'showAuthor' => false,
+					'showAvatar' => false,
+				],
+				false,
+				false,
+			],
 		];
 	}
 }

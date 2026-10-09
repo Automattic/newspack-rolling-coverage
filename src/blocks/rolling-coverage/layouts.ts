@@ -47,7 +47,6 @@ export type BuiltInLayout = {
 	hidesWhenEnded?: boolean;
 	align?: string;
 	hidesAvatar?: boolean;
-	keepsAuthor?: boolean;
 	previewWidth?: number;
 };
 
@@ -95,7 +94,6 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			slug: 'byline',
 			title: _x( 'Byline', 'layout name', 'newspack-rolling-coverage' ),
 			template: bylineInnerTemplate,
-			keepsAuthor: true,
 		},
 		{
 			slug: 'ticker',
@@ -166,8 +164,7 @@ export function builtInLayoutSlugFor(
 /**
  * The cap attributes a built-in layout sets when it is picked, its
  * alignment, capped or not, and whether its entries show the author's
- * avatar. Byline, whose entries are led by their byline, offers no Author
- * setting, so it shows the author again.
+ * avatar.
  *
  * @param {BuiltInLayoutSlug} slug The layout's slug.
  * @return {Object} The attributes to set.
@@ -178,13 +175,8 @@ export function layoutCapAttributes( slug: BuiltInLayoutSlug ): {
 	hideWhenEnded: boolean;
 	align?: string;
 	showAvatar: boolean;
-	showAuthor?: boolean;
 } {
 	const layout = getBuiltInLayouts().find( ( item ) => item.slug === slug );
-	const author = {
-		showAvatar: ! layout?.hidesAvatar,
-		...( layout?.keepsAuthor ? { showAuthor: true } : {} ),
-	};
 
 	if ( layout?.latest ) {
 		return {
@@ -192,7 +184,7 @@ export function layoutCapAttributes( slug: BuiltInLayoutSlug ): {
 			latestCount: layout.latest,
 			hideWhenEnded: !! layout.hidesWhenEnded,
 			...( layout.align ? { align: layout.align } : {} ),
-			...author,
+			showAvatar: ! layout.hidesAvatar,
 		};
 	}
 
@@ -200,7 +192,7 @@ export function layoutCapAttributes( slug: BuiltInLayoutSlug ): {
 		latestOnly: false,
 		hideWhenEnded: false,
 		...( layout?.align ? { align: layout.align } : {} ),
-		...author,
+		showAvatar: ! layout?.hidesAvatar,
 	};
 }
 

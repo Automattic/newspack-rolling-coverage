@@ -2271,12 +2271,12 @@ function blockIdsOfType(
 }
 
 /**
- * The client IDs of the blocks the Author and Avatar settings leave out of an
- * entry template (see withAuthorSettings()), at any depth, so an editable
- * layout hides them as the site does.
+ * The client IDs of the blocks the Author name and Avatar settings leave out
+ * of an entry template (see withAuthorSettings()), at any depth, so an
+ * editable layout hides them as the site does.
  *
  * @param {Object[]} blocks     The template blocks.
- * @param {boolean}  showAuthor The block's Author setting.
+ * @param {boolean}  showAuthor The block's Author name setting.
  * @param {boolean}  showAvatar The block's Avatar setting.
  * @return {string[]} Client IDs.
  */
@@ -3291,34 +3291,39 @@ function withEntryLinkTitleText<
 }
 
 /**
- * The template without its avatars, and its author names too when asked,
- * mirroring Rolling_Coverage_Block::without_author_blocks(). A group they
- * leave empty goes, as it would still take a gap in its row. A column holding
- * only an avatar goes too, unless kept so the entry's text lines up with the
+ * The template without its author names, its avatars, or both, mirroring
+ * Rolling_Coverage_Block::without_author_blocks(). A group they leave empty
+ * goes, as it would still take a gap in its row. A column holding only an
+ * avatar goes when asked, or stays so the entry's text lines up with the
  * others.
  *
- * @param {Object[]} blocks             The template blocks.
- * @param {boolean}  dropsName          Whether author names go too.
- * @param {boolean}  dropsAvatarColumns Whether avatar-only columns go.
+ * @param {Object[]} blocks              The template blocks.
+ * @param {Object}   drops               What goes.
+ * @param {boolean}  drops.name          Whether author names go.
+ * @param {boolean}  drops.avatars       Whether avatars go.
+ * @param {boolean}  drops.avatarColumns Whether avatar-only columns go.
  * @return {Object[]} The blocks without them.
  */
 function withoutAuthorBlocks<
 	T extends { name: string; [ key: string ]: unknown },
->( blocks: T[], dropsName: boolean, dropsAvatarColumns: boolean ): T[] {
+>(
+	blocks: T[],
+	drops: { name: boolean; avatars: boolean; avatarColumns: boolean }
+): T[] {
 	return blocks.flatMap( ( block ): T[] => {
 		const innerBlocks = Array.isArray( block.innerBlocks )
 			? ( block.innerBlocks as T[] )
 			: null;
 
 		if (
-			block.name === 'core/avatar' ||
-			( dropsName && block.name === 'core/post-author-name' )
+			( drops.avatars && block.name === 'core/avatar' ) ||
+			( drops.name && block.name === 'core/post-author-name' )
 		) {
 			return [];
 		}
 
 		if (
-			dropsAvatarColumns &&
+			drops.avatarColumns &&
 			block.name === 'core/column' &&
 			innerBlocks?.length === 1 &&
 			innerBlocks[ 0 ].name === 'core/avatar'
@@ -3330,11 +3335,7 @@ function withoutAuthorBlocks<
 			return [ block ];
 		}
 
-		const kept = withoutAuthorBlocks(
-			innerBlocks,
-			dropsName,
-			dropsAvatarColumns
-		);
+		const kept = withoutAuthorBlocks( innerBlocks, drops );
 
 		if (
 			block.name === 'core/group' &&
@@ -3351,8 +3352,7 @@ function withoutAuthorBlocks<
 /**
  * The template without avatars, or the columns that hold only one, as the
  * site renders it with avatars turned off (see
- * Rolling_Coverage_Block::with_avatar_display()) or the block's Avatar
- * setting on Hide.
+ * Rolling_Coverage_Block::with_avatar_display()).
  *
  * @param {Object[]} blocks The template blocks.
  * @return {Object[]} The blocks without avatars.
@@ -3360,7 +3360,11 @@ function withoutAuthorBlocks<
 function withoutAvatarColumns<
 	T extends { name: string; [ key: string ]: unknown },
 >( blocks: T[] ): T[] {
-	return withoutAuthorBlocks( blocks, false, true );
+	return withoutAuthorBlocks( blocks, {
+		name: false,
+		avatars: true,
+		avatarColumns: true,
+	} );
 }
 
 /**
@@ -3374,29 +3378,36 @@ function withoutAvatarColumns<
 function withoutByline< T extends { name: string; [ key: string ]: unknown } >(
 	blocks: T[]
 ): T[] {
-	return withoutAuthorBlocks( blocks, true, false );
+	return withoutAuthorBlocks( blocks, {
+		name: true,
+		avatars: true,
+		avatarColumns: false,
+	} );
 }
 
 /**
- * The template as the block's Author and Avatar settings show it, mirroring
- * Rolling_Coverage_Block::with_author_settings(): without the author's
- * avatar and name when Author is on Hide, or without the avatar when Avatar
- * is, with the columns that held only an avatar. Author only applies to a
- * template holding the author's name, as only such a layout offers it.
+ * The template as the block's Author name and Avatar settings show it, each
+ * on its own, mirroring Rolling_Coverage_Block::with_author_settings():
+ * without the author's name when Author name is on Hide, and without the
+ * avatar, with the columns that held only one, when Avatar is.
  *
  * @param {Object[]} blocks     The template blocks.
- * @param {boolean}  showAuthor The block's Author setting.
+ * @param {boolean}  showAuthor The block's Author name setting.
  * @param {boolean}  showAvatar The block's Avatar setting.
  * @return {Object[]} The blocks as the settings show them.
  */
 function withAuthorSettings<
 	T extends { name: string; [ key: string ]: unknown },
 >( blocks: T[], showAuthor: boolean, showAvatar: boolean ): T[] {
-	if ( ! showAuthor && holdsBlockType( blocks, 'core/post-author-name' ) ) {
-		return withoutAuthorBlocks( blocks, true, true );
+	if ( showAuthor && showAvatar ) {
+		return blocks;
 	}
 
-	return showAvatar ? blocks : withoutAvatarColumns( blocks );
+	return withoutAuthorBlocks( blocks, {
+		name: ! showAuthor,
+		avatars: ! showAvatar,
+		avatarColumns: ! showAvatar,
+	} );
 }
 
 /**

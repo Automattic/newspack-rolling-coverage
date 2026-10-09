@@ -3032,31 +3032,27 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The entry template as the block's Author and Avatar settings show it:
-	 * without the author's avatar and name when Author is on Hide, or without
-	 * the avatar when Avatar is, along with the columns that held only an
-	 * avatar and the groups left empty (see without_author_blocks()). Author
-	 * only applies to a template holding the author's name, as only such a
-	 * layout offers the setting; otherwise Avatar decides alone. Applied
-	 * before the template is stored, so polls, load more and the jump to the
-	 * latest entries render it the same way.
+	 * The entry template as the block's Author name and Avatar settings show
+	 * it, each on its own: without the author's name when Author name is on
+	 * Hide, and without the avatar, along with the columns that held only
+	 * one, when Avatar is. Groups left empty go too (see
+	 * without_author_blocks()). Applied before the template is stored, so
+	 * polls, load more and the jump to the latest entries render it the same
+	 * way.
 	 *
 	 * @param array[] $template   Parsed template blocks.
 	 * @param array   $attributes Block attributes.
 	 * @return array[]
 	 */
 	private static function with_author_settings( array $template, array $attributes ): array {
-		$holds_name = self::holds_block( $template, static fn( array $block ) => 'core/post-author-name' === ( $block['blockName'] ?? '' ) );
+		$hides_name   = false === ( $attributes['showAuthor'] ?? true );
+		$hides_avatar = false === ( $attributes['showAvatar'] ?? true );
 
-		if ( false === ( $attributes['showAuthor'] ?? true ) && $holds_name ) {
-			return self::without_author_blocks( $template, true, true );
+		if ( ! $hides_name && ! $hides_avatar ) {
+			return $template;
 		}
 
-		if ( false === ( $attributes['showAvatar'] ?? true ) ) {
-			return self::without_author_blocks( $template, false, true );
-		}
-
-		return $template;
+		return self::without_author_blocks( $template, $hides_name, $hides_avatar, $hides_avatar );
 	}
 
 	/**
@@ -3069,7 +3065,7 @@ class Rolling_Coverage_Block {
 	 * @return array[]
 	 */
 	private static function with_avatar_display( array $template ): array {
-		return get_option( 'show_avatars' ) ? $template : self::without_author_blocks( $template, false, true );
+		return get_option( 'show_avatars' ) ? $template : self::without_author_blocks( $template, false, true, true );
 	}
 
 	/**
@@ -3100,26 +3096,27 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The template without its avatars, and its author names too when asked.
-	 * A group they leave empty goes, since it would still take a Block spacing
-	 * gap in its row; a group that was empty already stays. A column holding
-	 * only an avatar goes too, unless it's kept so the entry's text lines up
-	 * with the other entries.
+	 * The template without its author names, its avatars, or both. A group
+	 * they leave empty goes, since it would still take a Block spacing gap in
+	 * its row; a group that was empty already stays. A column holding only an
+	 * avatar goes when asked, or stays so the entry's text lines up with the
+	 * other entries.
 	 *
 	 * @param array[] $template             Parsed template blocks.
-	 * @param bool    $drops_name           Whether author names go too.
+	 * @param bool    $drops_name           Whether author names go.
+	 * @param bool    $drops_avatars        Whether avatars go.
 	 * @param bool    $drops_avatar_columns Whether columns holding only an
 	 *                                      avatar go.
 	 * @return array[]
 	 */
-	private static function without_author_blocks( array $template, bool $drops_name, bool $drops_avatar_columns ): array {
+	private static function without_author_blocks( array $template, bool $drops_name, bool $drops_avatars, bool $drops_avatar_columns ): array {
 		return self::map_template_blocks(
 			$template,
-			static function ( array $block, array $original ) use ( $drops_name, $drops_avatar_columns ) {
+			static function ( array $block, array $original ) use ( $drops_name, $drops_avatars, $drops_avatar_columns ) {
 				$name  = $block['blockName'] ?? '';
 				$inner = $original['innerBlocks'] ?? [];
 
-				if ( 'core/avatar' === $name || ( $drops_name && 'core/post-author-name' === $name ) ) {
+				if ( ( $drops_avatars && 'core/avatar' === $name ) || ( $drops_name && 'core/post-author-name' === $name ) ) {
 					return [];
 				}
 
@@ -3781,7 +3778,7 @@ class Rolling_Coverage_Block {
 
 		// The author lookup is skipped for a template with no byline to hide.
 		if ( self::holds_block( $template, static fn( array $block ) => self::is_author_block( $block ) ) && self::is_bot_authored( $entry->ID ) ) {
-			$template = self::without_author_blocks( $template, true, false );
+			$template = self::without_author_blocks( $template, true, true, false );
 		}
 
 		if ( ! self::has_title( $entry ) ) {
