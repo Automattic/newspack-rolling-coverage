@@ -335,8 +335,8 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * How many entries a capped feed shows, as an entries request states it:
-	 * the page's own count, so a page whose stored config has been pruned
-	 * still polls capped. 0 when the request states no positive count.
+	 * the page's own count, which keeps a Lite page, or one with an empty
+	 * key, capped without a stored config. 0 when the request states no positive count.
 	 *
 	 * @param array $params Request parameters.
 	 * @return int
@@ -3924,7 +3924,7 @@ class Rolling_Coverage_Block {
 						'default' => 0,
 					],
 					'latest'       => [
-						'description' => __( 'How many entries a capped feed shows, so its requests stay capped without a stored config.', 'newspack-rolling-coverage' ),
+						'description' => __( 'How many entries a capped feed shows, so a Lite or empty-key request stays capped without a stored config.', 'newspack-rolling-coverage' ),
 						'type'        => 'integer',
 						'minimum'     => 1,
 					],

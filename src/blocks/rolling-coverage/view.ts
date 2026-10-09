@@ -2142,8 +2142,9 @@ function initBlock( root: HTMLElement ): void {
 	 * Decides whether a reply saying the server no longer stores this feed's
 	 * template reloads the page now. The fresh render stores the template
 	 * again, but a page cache can serve back the copy that sent the old key,
-	 * so each page reloads for a key once per session. Without session
-	 * storage there is no record of a reload, so the page never reloads.
+	 * so a repeat reload for the same page and key waits until
+	 * OVERFLOW_RELOAD_RETRY_MS has passed. Without session storage there is
+	 * no record of a reload, so the page never reloads.
 	 *
 	 * @return {boolean} True if the page should reload now.
 	 */
@@ -2151,11 +2152,18 @@ function initBlock( root: HTMLElement ): void {
 		const storageKey = `newspack-rolling-coverage-stale-template-reload-${ coverageId }-${ templateKey }-${ window.location.pathname }${ window.location.search }`;
 
 		try {
-			if ( window.sessionStorage.getItem( storageKey ) ) {
+			const lastReload = Number(
+				window.sessionStorage.getItem( storageKey )
+			);
+
+			if (
+				lastReload &&
+				Date.now() - lastReload < OVERFLOW_RELOAD_RETRY_MS
+			) {
 				return false;
 			}
 
-			window.sessionStorage.setItem( storageKey, '1' );
+			window.sessionStorage.setItem( storageKey, String( Date.now() ) );
 
 			return true;
 		} catch {
@@ -2421,6 +2429,7 @@ function initBlock( root: HTMLElement ): void {
 		setLoadMoreBusy( true );
 
 		let firstAppended: HTMLElement | null = null;
+		let isReloading = false;
 		const pageBefore = before;
 
 		try {
@@ -2455,6 +2464,7 @@ function initBlock( root: HTMLElement ): void {
 
 				if ( data.staleTemplate ) {
 					if ( shouldReloadForStaleTemplate() ) {
+						isReloading = true;
 						window.location.reload();
 					} else {
 						if ( ! loadMoreButton ) {
@@ -2530,10 +2540,12 @@ function initBlock( root: HTMLElement ): void {
 			// Leave hasMore as-is, so the sentinel or the button can try again.
 			console.error( error ); // eslint-disable-line no-console
 		} finally {
-			isLoadingMore = false;
+			if ( ! isReloading ) {
+				isLoadingMore = false;
 
-			if ( ! isDisposed ) {
-				setLoadMoreBusy( false );
+				if ( ! isDisposed ) {
+					setLoadMoreBusy( false );
+				}
 			}
 		}
 
