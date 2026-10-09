@@ -59,9 +59,10 @@ class Breakout_Card {
 			return null;
 		}
 
+		// Not get_the_title(), which starts a password-protected post's title with "Protected:".
 		return [
 			'url'     => $url,
-			'title'   => self::plain_text( get_the_title( $post ) ),
+			'title'   => self::plain_text( apply_filters( 'the_title', $post->post_title, $post->ID ) ),
 			'summary' => self::summary( $post ),
 		];
 	}

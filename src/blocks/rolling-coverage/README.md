@@ -141,7 +141,7 @@ An entry made into a post with Create Breakout Post shows as usual until that po
 - Where the layout shows the entry's title, it shows the post's title, linked to the post.
 - Where the layout shows the entry's content or excerpt, it shows the post's excerpt instead: the excerpt written for the post, or else its opening words.
 - Layouts without a title name the post another way: Stream and Minute show the post's title, linked, above its excerpt, and Flash shows the post's title.
-- A password-protected post shows only its title, which WordPress starts with "Protected:".
+- A password-protected post shows only its title.
 - The entry's time, author, "Pinned" label, Read more, and Share stay as they are. Read more links to the post, and Share to the entry.
 
 Changes to the post's title, excerpt, or content reach open pages the next time they check for new entries. If the post is unpublished or deleted, the entry shows its own title and content again. The entry itself is never changed.

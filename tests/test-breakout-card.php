@@ -178,8 +178,8 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A password protected post gets its title, marked protected as
-	 * WordPress lists it, and no summary: the content and excerpt render
+	 * A password protected post gets its title, without WordPress's
+	 * "Protected:" prefix, and no summary: the content and excerpt render
 	 * nothing under the title, and say only the title without one.
 	 */
 	public function test_protected_post_shows_its_title_alone() {
@@ -187,7 +187,8 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 		$titled = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP . self::WIRE_EXCERPT_MARKUP );
 
-		$this->assertStringContainsString( '>Protected: Post &amp; headline</a></h4>', $titled );
+		$this->assertStringContainsString( '>Post &amp; headline</a></h4>', $titled );
+		$this->assertStringNotContainsString( 'Protected:', $titled );
 		$this->assertStringNotContainsString( 'sums up', $titled );
 		$this->assertStringNotContainsString( 'wp-block-post-content', $titled );
 		$this->assertStringNotContainsString( 'wp-block-post-excerpt', $titled );
@@ -195,7 +196,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 		$untitled = self::render( $entry_id, self::CONTENT_MARKUP );
 
-		$this->assertStringContainsString( '><p><strong><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Protected: Post &amp; headline</a></strong></p></div>', $untitled );
+		$this->assertStringContainsString( '><p><strong><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Post &amp; headline</a></strong></p></div>', $untitled );
 	}
 
 	/**
