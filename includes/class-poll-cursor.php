@@ -14,7 +14,9 @@ defined( 'ABSPATH' ) || exit;
 /**
  * A poll cursor: the second of the newest change a page holds, the entries
  * it holds as saved in that second, and the coverage's change marker when it
- * took its copy. A poll sends only the changes the page is missing.
+ * took its copy. A poll sends only the changes the page is missing. Entries a
+ * page leaves out by design count as held, whether load more brings them in
+ * or the page never shows them.
  *
  * Entries saved in the same second don't become visible in ID order: the
  * entries list publishes a selection in parallel requests. So neither the
@@ -103,18 +105,22 @@ class Poll_Cursor {
 
 	/**
 	 * The cursor for a page showing these entries, taken when the coverage
-	 * carried this marker.
+	 * carried this marker. It starts at `$since`, the coverage's newest change
+	 * before the page read its entries, unless the page shows a newer one.
+	 * Every change up to then is on the page or where the feed lists it below
+	 * the page, so none of them is new to it.
 	 *
 	 * @param WP_Post[] $entries Entries on the page.
 	 * @param string    $marker  The coverage's change marker, read before the entries were.
+	 * @param string    $since   GMT `Y-m-d H:i:s` of the coverage's newest change, read before the entries were, or '' for none.
 	 * @return self
 	 */
-	public static function for_entries( array $entries, string $marker ): self {
-		if ( ! $entries ) {
+	public static function for_entries( array $entries, string $marker, string $since = '' ): self {
+		if ( ! $entries && '' === $since ) {
 			return new self( gmdate( 'Y-m-d H:i:s' ), [], $marker );
 		}
 
-		return ( new self( '' ) )->advance( $entries, $marker );
+		return ( new self( $since ) )->advance( $entries, $marker );
 	}
 
 	/**
