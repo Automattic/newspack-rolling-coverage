@@ -2139,6 +2139,31 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Decides whether a reply saying the server no longer stores this feed's
+	 * template reloads the page now. The fresh render stores the template
+	 * again, but a page cache can serve back the copy that sent the old key,
+	 * so each page reloads for a key once per session. Without session
+	 * storage there is no record of a reload, so the page never reloads.
+	 *
+	 * @return {boolean} True if the page should reload now.
+	 */
+	function shouldReloadForStaleTemplate(): boolean {
+		const storageKey = `newspack-rolling-coverage-stale-template-reload-${ coverageId }-${ templateKey }-${ window.location.pathname }${ window.location.search }`;
+
+		try {
+			if ( window.sessionStorage.getItem( storageKey ) ) {
+				return false;
+			}
+
+			window.sessionStorage.setItem( storageKey, '1' );
+
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
 	 * Polls for new and edited entries.
 	 *
 	 * Fetches entries modified at or after the cursor and applies them. Also
@@ -2224,6 +2249,19 @@ function initBlock( root: HTMLElement ): void {
 					cleanup();
 					root.remove();
 					return outcome;
+				}
+
+				// The reply carries no entries and keeps the cursor, so a page
+				// that has already reloaded for it keeps polling, its checks
+				// failing, until the template is stored again.
+				if ( data.staleTemplate && showsEntries ) {
+					if ( shouldReloadForStaleTemplate() ) {
+						canReport = false;
+						window.location.reload();
+						return 'reloading';
+					}
+
+					outcome = 'failed';
 				}
 
 				if ( data.overflow && isEntryView ) {
@@ -2412,6 +2450,20 @@ function initBlock( root: HTMLElement ): void {
 
 				// The block was cleaned up meanwhile, so this reply is no longer its own.
 				if ( isDisposed ) {
+					return null;
+				}
+
+				if ( data.staleTemplate ) {
+					if ( shouldReloadForStaleTemplate() ) {
+						window.location.reload();
+					} else {
+						if ( ! loadMoreButton ) {
+							hasMore = false;
+						}
+
+						announceLoadMoreFailure();
+					}
+
 					return null;
 				}
 

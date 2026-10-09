@@ -113,6 +113,7 @@ The page checks for new entries every poll interval. It stops while the tab is i
 - An entry that is unpublished, for example moved to draft or trashed, disappears from the page.
 - To have the page check only when readers ask, add a [Check for Updates](../check-updates/README.md) block to the layout. The page then makes no background checks, which suits readers on slow or metered connections.
 - Older entries load as the reader scrolls to the end, or with the Load More button, depending on Older entries. The button takes the theme's button style. If a load fails, the button stays so the reader can try again.
+- A page served from a cache long after the feed's layout or settings changed many times reloads once when new or older entries arrive, so they show in the feed's own layout.
 - A paused or ended coverage does not check for new entries on its own. With a Check for Updates block, readers can still check a paused coverage.
 - Times follow the site's time format.
 

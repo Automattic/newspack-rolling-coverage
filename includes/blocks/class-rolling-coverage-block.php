@@ -64,11 +64,13 @@ class Rolling_Coverage_Block {
 	const TEMPLATE_OPTION_PREFIX = 'rc_tpl_';
 
 	/**
-	 * How many stored block configs to keep per coverage.
+	 * How many stored block configs to keep per coverage: far more than one
+	 * coverage shows at once, so configs in use stay stored while those of
+	 * edited layouts age out. A page whose config is gone reloads.
 	 *
 	 * @var int
 	 */
-	const CONFIGS_KEPT = 5;
+	const CONFIGS_KEPT = 50;
 
 	const PINNED_CARD_CLASS = 'newspack-rolling-coverage-pinned-card';
 
@@ -3572,14 +3574,13 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Loads a persisted block config (entry template + ad settings) by
-	 * coverage ID and hash key, falling back to defaults if the option is
-	 * missing.
+	 * coverage ID and hash key. An empty key loads the defaults.
 	 *
 	 * @param int    $coverage_id  Coverage term ID.
 	 * @param string $template_key Hash returned by persist_block_config().
-	 * @return array{template: array[], adsEnabled: bool, adsInterval: int, latestOnly?: bool, latestCount?: int, feedLayout?: array}
+	 * @return array{template: array[], adsEnabled: bool, adsInterval: int, latestOnly?: bool, latestCount?: int, feedLayout?: array}|null Null when the key names no config stored for the coverage, pruned or never stored.
 	 */
-	private static function load_block_config( int $coverage_id, string $template_key ): array {
+	private static function load_block_config( int $coverage_id, string $template_key ): ?array {
 		$defaults = [
 			'template'    => self::default_entry_template(),
 			'adsEnabled'  => true,
@@ -3594,7 +3595,7 @@ class Rolling_Coverage_Block {
 		$config     = get_option( $option_key );
 
 		if ( ! is_array( $config ) || ! isset( $config['template'] ) ) {
-			return $defaults;
+			return null;
 		}
 
 		return wp_parse_args( $config, $defaults );
@@ -4093,6 +4094,12 @@ class Rolling_Coverage_Block {
 	 * poll brings the removals and its newest entries with `replace`, for the
 	 * page to swap in for its own.
 	 *
+	 * A `template_key` that names no config stored for the coverage, pruned
+	 * or never stored, gets `staleTemplate` and no entries, for the page to
+	 * reload, rather than entries in the default template. A lite page,
+	 * whose entries don't use the template, and a request with no key are
+	 * served as usual.
+	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
 	 */
@@ -4142,7 +4149,8 @@ class Rolling_Coverage_Block {
 
 		$base_args = self::coverage_entries_args( $term_id );
 
-		$config           = self::load_block_config( $term_id, $template_key );
+		$stored_config    = self::load_block_config( $term_id, $template_key );
+		$config           = $stored_config ?? self::load_block_config( $term_id, '' );
 		$template         = $config['template'];
 		$latest_count     = self::latest_count( $config );
 		$latest_count     = $latest_count ? $latest_count : self::requested_latest_count( $params );
@@ -4163,6 +4171,9 @@ class Rolling_Coverage_Block {
 			$ads_enabled = false;
 		}
 
+		// Lite entries don't use the template.
+		$is_stale_template = null === $stored_config && ! $is_lite;
+
 		// Forward/polling branch: entries modified or taken down at or after the cursor, newest first.
 		if ( $cursor ) {
 			$cursor_parts    = explode( ':', $cursor, 2 );
@@ -4179,6 +4190,18 @@ class Rolling_Coverage_Block {
 						'cursor'      => $cursor,
 						'overflow'    => false,
 						'polledCount' => max( 0, (int) ( $params['polled_count'] ?? 0 ) ),
+					],
+					$term_id
+				);
+			}
+
+			if ( $is_stale_template ) {
+				return self::poll_response(
+					[
+						'entries'       => [],
+						'cursor'        => $cursor,
+						'overflow'      => false,
+						'staleTemplate' => true,
 					],
 					$term_id
 				);
@@ -4319,6 +4342,24 @@ class Rolling_Coverage_Block {
 					'adSlots' => [],
 				]
 			);
+		}
+
+		if ( $is_stale_template ) {
+			$response = new WP_REST_Response(
+				[
+					'html'          => '',
+					'before'        => $before,
+					'hasMore'       => true,
+					'count'         => 0,
+					'adSlots'       => [],
+					'staleTemplate' => true,
+				]
+			);
+
+			// The reload stores the config again, after which this same request succeeds.
+			$response->set_headers( wp_get_nocache_headers() );
+
+			return $response;
 		}
 
 		$args = array_merge(
