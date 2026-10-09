@@ -1303,6 +1303,31 @@ class Rolling_Coverage_Block {
 			$has_more = false;
 		}
 
+		$before = '';
+
+		if ( $posts ) {
+			$last_entry = $posts[ count( $posts ) - 1 ];
+
+			// A page ending on a pinned entry shows only pinned entries, in pin
+			// order, so no entry's date marks where its load more starts.
+			$before = ! $is_capped && Post_Type::is_pinned( $last_entry->ID ) ? self::load_more_top_bound() : self::load_more_bound( $last_entry );
+		}
+
+		// Taken before the entries render, so it holds what the page's query
+		// found: an entry published while the page renders reaches it by poll.
+		// A feed opened at a shared entry takes its cursor after them instead
+		// (coverage_cursor()).
+		if ( ! $shared_entry ) {
+			$cursor = Poll_Cursor::for_entries( $posts, $change_marker, $newest_change );
+
+			// A full page leaves out the entries the feed lists below its bound,
+			// which its polls must not report as new, up to the page of held
+			// entries a poll makes room for.
+			if ( '' !== $before && count( $query->posts ) >= ( $is_capped ? $entries_per_page : $entries_per_page + 1 ) ) {
+				$cursor = $cursor->holding( self::listed_below( $coverage_id, $cursor->modified, $before, self::PER_PAGE_MAX - count( $cursor->ids ) ) );
+			}
+		}
+
 		$entries_html   = '';
 		$entry_index    = 0;
 		$shows_pinned   = false;
@@ -1332,29 +1357,8 @@ class Rolling_Coverage_Block {
 
 		wp_reset_postdata();
 
-		$before = '';
-
-		if ( $posts ) {
-			$last_entry = $posts[ count( $posts ) - 1 ];
-
-			// A page ending on a pinned entry shows only pinned entries, in pin
-			// order, so no entry's date marks where its load more starts. One
-			// that loads nothing more keeps its last entry's bound, so its
-			// cursor holds back no entry published while it renders.
-			$before = $has_more && ! $is_capped && Post_Type::is_pinned( $last_entry->ID ) ? self::load_more_top_bound() : self::load_more_bound( $last_entry );
-		}
-
 		if ( $shared_entry ) {
 			$cursor = self::coverage_cursor( $coverage_id, $change_marker );
-		} else {
-			$cursor = Poll_Cursor::for_entries( $posts, $change_marker, $newest_change );
-
-			// A full page leaves out the entries the feed lists below its bound,
-			// which its polls must not report as new, up to the page of held
-			// entries a poll makes room for.
-			if ( '' !== $before && count( $query->posts ) >= ( $is_capped ? $entries_per_page : $entries_per_page + 1 ) ) {
-				$cursor = $cursor->holding( self::listed_below( $coverage_id, $cursor->modified, $before, self::PER_PAGE_MAX - count( $cursor->ids ) ) );
-			}
 		}
 
 		if ( $posts && ! $shows_pinned && ! $is_capped ) {
@@ -1720,11 +1724,8 @@ class Rolling_Coverage_Block {
 	/**
 	 * Up to `$limit` entries saved in a second that load more lists after a
 	 * page's bound, nearest first: left for load more to bring in, or past a
-	 * capped page's end. Any listed above the bound and missing from the page
-	 * were published after the page's query, and still need to reach it by
-	 * poll. Nothing lists above a top bound (load_more_top_bound()), so an
-	 * entry published in that second after the page's query is held too, and
-	 * arrives by load more.
+	 * capped page's end. Read it right after the page's query: an entry
+	 * published later isn't one the page left out, and reaches it by poll.
 	 *
 	 * @param int    $coverage_id Coverage term ID.
 	 * @param string $second      GMT `Y-m-d H:i:s` the entries were saved in.

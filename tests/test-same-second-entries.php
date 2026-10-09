@@ -302,16 +302,41 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Entries a page of pinned entries leaves out from its cursor's second
-	 * aren't new to it: load more brings them in.
+	 * Older entries settings for a page of pinned entries.
+	 *
+	 * @return array[]
 	 */
-	public function test_entries_a_page_of_pinned_entries_leaves_out_are_not_new() {
+	public function older_entries_provider() {
+		return [
+			'loads more'    => [ 'scroll' ],
+			'loads no more' => [ 'none' ],
+		];
+	}
+
+	/**
+	 * Entries a page of pinned entries leaves out from its cursor's second
+	 * aren't new to it, whether load more brings them in or the page never
+	 * shows them.
+	 *
+	 * @dataProvider older_entries_provider
+	 *
+	 * @param string $older_entries The block's olderEntries setting.
+	 */
+	public function test_entries_a_page_of_pinned_entries_leaves_out_are_not_new( $older_entries ) {
 		$pinned_id = $this->create_entry_at( '2026-01-01 08:00:00' );
 
 		Post_Type::pin_entry( $pinned_id );
 		$this->create_entry_at( self::SECOND );
 
-		$cursor = self::data_attribute( $this->render_feed( [ 'entriesPerPage' => 1 ] ), 'cursor' );
+		$cursor = self::data_attribute(
+			$this->render_feed(
+				[
+					'entriesPerPage' => 1,
+					'olderEntries'   => $older_entries,
+				]
+			),
+			'cursor'
+		);
 
 		$later_id = $this->create_entry_at( '2026-01-01 13:00:00' );
 
@@ -319,9 +344,10 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A page of pinned entries that loads no older entries holds back nothing
-	 * it can't show: an entry published in its cursor's second while it
-	 * renders reaches it by poll.
+	 * An entry published in a page's cursor's second while the page renders
+	 * reaches it by poll, even on a page of pinned entries that loads no
+	 * older entries, whose cursor holds every entry its query found in that
+	 * second.
 	 */
 	public function test_entry_published_while_a_pinned_page_without_load_more_renders_reaches_it() {
 		$pinned_id = $this->create_entry_at( '2026-01-01 08:00:00' );
@@ -349,7 +375,7 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 		remove_filter( 'render_block', $publish );
 
 		$this->assertGreaterThan( 0, $published_id, 'An entry should be published while the page renders.' );
-		$this->assertSame( 'insert', wp_list_pluck( $this->get_feed( [ 'cursor' => $cursor ] )['entries'], 'type', 'id' )[ $published_id ] ?? null );
+		$this->assertSame( [ $published_id => 'insert' ], wp_list_pluck( $this->get_feed( [ 'cursor' => $cursor ] )['entries'], 'type', 'id' ) );
 	}
 
 	/**
