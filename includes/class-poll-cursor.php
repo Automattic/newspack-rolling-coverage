@@ -28,7 +28,8 @@ defined( 'ABSPATH' ) || exit;
  * which every change replaces, can.
  *
  * As a string: `{ids}:{Y-m-d H:i:s}@{marker}`, the IDs comma-separated, or
- * `0` for none. Clients pass it back as they got it.
+ * `0` for none, and the marker empty before the coverage's first change.
+ * Clients pass it back as they got it.
  */
 class Poll_Cursor {
 
@@ -50,20 +51,22 @@ class Poll_Cursor {
 	public $ids;
 
 	/**
-	 * The coverage's change marker when the page took its copy; '' if unknown.
+	 * The coverage's change marker when the page took its copy: '' before
+	 * the coverage's first change, or null for a cursor from before markers
+	 * existed, which is never current.
 	 *
-	 * @var string
+	 * @var string|null
 	 */
 	public $marker;
 
 	/**
 	 * Constructor.
 	 *
-	 * @param string $modified GMT `Y-m-d H:i:s` of the newest change the page holds.
-	 * @param int[]  $ids      Entries the page holds as saved in that second.
-	 * @param string $marker   The coverage's change marker when the page took its copy.
+	 * @param string      $modified GMT `Y-m-d H:i:s` of the newest change the page holds.
+	 * @param int[]       $ids      Entries the page holds as saved in that second.
+	 * @param string|null $marker   The coverage's change marker when the page took its copy.
 	 */
-	public function __construct( string $modified, array $ids = [], string $marker = '' ) {
+	public function __construct( string $modified, array $ids = [], ?string $marker = null ) {
 		$ids = array_unique( array_filter( array_map( 'intval', $ids ), static fn( int $id ) => $id > 0 ) );
 		sort( $ids );
 
@@ -73,15 +76,14 @@ class Poll_Cursor {
 	}
 
 	/**
-	 * Reads a cursor a page sent. A cursor without a marker, such as one
-	 * from before markers existed, is never current, so its first poll
-	 * looks for changes.
+	 * Reads a cursor a page sent. A cursor with no `@`, from before markers
+	 * existed, is never current, so its first poll looks for changes.
 	 *
 	 * @param string $cursor Cursor string.
 	 * @return self
 	 */
 	public static function parse( string $cursor ): self {
-		$marker = '';
+		$marker = null;
 		$at     = strrpos( $cursor, '@' );
 
 		if ( false !== $at ) {
@@ -151,7 +153,7 @@ class Poll_Cursor {
 	 * @return bool
 	 */
 	public function is_current( string $marker ): bool {
-		return '' !== $this->marker && $this->marker === $marker;
+		return null !== $this->marker && $this->marker === $marker;
 	}
 
 	/**
@@ -183,7 +185,7 @@ class Poll_Cursor {
 	 * @return string
 	 */
 	public function __toString(): string {
-		return ( $this->ids ? implode( ',', $this->ids ) : '0' ) . ':' . $this->modified . ( '' === $this->marker ? '' : '@' . $this->marker );
+		return ( $this->ids ? implode( ',', $this->ids ) : '0' ) . ':' . $this->modified . ( null === $this->marker ? '' : '@' . $this->marker );
 	}
 
 	/**

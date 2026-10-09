@@ -211,13 +211,12 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A poll queries no entries until something in the coverage changes, so
-	 * idle polls stay cheap.
+	 * How many entry queries a poll runs.
+	 *
+	 * @param string $cursor Cursor the page sends.
+	 * @return int
 	 */
-	public function test_poll_queries_no_entries_until_the_coverage_changes() {
-		$this->create_entry_at( self::SECOND );
-
-		$cursor  = self::data_attribute( $this->render_feed(), 'cursor' );
+	private function entry_queries_in_poll( $cursor ) {
 		$queries = 0;
 		$count   = static function ( WP_Query $query ) use ( &$queries ) {
 			if ( Post_Type::CPT_SLUG === $query->get( 'post_type' ) ) {
@@ -226,15 +225,41 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 		};
 
 		add_action( 'pre_get_posts', $count );
-
 		$this->get_feed( [ 'cursor' => $cursor ] );
+		remove_action( 'pre_get_posts', $count );
 
-		$this->assertSame( 0, $queries, 'Nothing changed since the page rendered.' );
+		return $queries;
+	}
+
+	/**
+	 * A poll queries no entries until something in the coverage changes, so
+	 * idle polls stay cheap.
+	 */
+	public function test_poll_queries_no_entries_until_the_coverage_changes() {
+		$this->create_entry_at( self::SECOND );
+
+		$cursor = self::data_attribute( $this->render_feed(), 'cursor' );
+
+		$this->assertSame( 0, $this->entry_queries_in_poll( $cursor ), 'Nothing changed since the page rendered.' );
 
 		$this->create_entry_at( self::SECOND, [ 'post_status' => 'draft' ] );
-		$this->get_feed( [ 'cursor' => $cursor ] );
 
-		$this->assertGreaterThan( 0, $queries, 'A change should send the poll looking.' );
+		$this->assertGreaterThan( 0, $this->entry_queries_in_poll( $cursor ), 'A change should send the poll looking.' );
+	}
+
+	/**
+	 * A coverage that hasn't changed since change markers existed polls idle
+	 * too, while a cursor from before markers looks for changes.
+	 */
+	public function test_coverage_without_a_change_marker_polls_idle() {
+		$entry_id = $this->create_entry_at( self::SECOND );
+
+		delete_term_meta( $this->coverage_id, Poll_Cursor::MARKER_META_KEY );
+
+		$cursor = self::data_attribute( $this->render_feed(), 'cursor' );
+
+		$this->assertSame( 0, $this->entry_queries_in_poll( $cursor ), 'Nothing changed since the page rendered.' );
+		$this->assertGreaterThan( 0, $this->entry_queries_in_poll( $entry_id . ':' . self::SECOND ), 'A cursor from before markers should look for changes.' );
 	}
 
 	/**
