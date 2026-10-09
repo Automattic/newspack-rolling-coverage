@@ -232,6 +232,20 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A page's cursor holds no more entries than a poll makes room for, even
+	 * when more than a page of them share its newest second.
+	 */
+	public function test_page_cursor_holds_no_more_than_a_poll_makes_room_for() {
+		for ( $i = 0; $i <= Rolling_Coverage_Block::PER_PAGE_MAX + 1; $i++ ) {
+			$this->create_entry_at( self::SECOND );
+		}
+
+		$cursor = Poll_Cursor::parse( self::data_attribute( $this->render_feed( [ 'entriesPerPage' => 1 ] ), 'cursor' ) );
+
+		$this->assertCount( Rolling_Coverage_Block::PER_PAGE_MAX, $cursor->ids );
+	}
+
+	/**
 	 * A poll queries no entries until something readers see changes, so idle
 	 * polls stay cheap and a draft save keeps open pages on the same poll URL.
 	 */

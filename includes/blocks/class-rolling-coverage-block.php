@@ -1335,9 +1335,10 @@ class Rolling_Coverage_Block {
 		} else {
 			$cursor = Poll_Cursor::for_entries( $posts, $change_marker );
 
-			// A full page leaves entries out, which its polls must not report as new.
+			// A full page leaves entries out, which its polls must not report as
+			// new, up to the page of held entries a poll makes room for.
 			if ( count( $query->posts ) >= ( $is_capped ? $entries_per_page : $entries_per_page + 1 ) ) {
-				$cursor = $cursor->holding( self::listed_below( $coverage_id, $cursor->modified, $posts[ count( $posts ) - 1 ] ) );
+				$cursor = $cursor->holding( self::listed_below( $coverage_id, $cursor->modified, $posts[ count( $posts ) - 1 ], self::PER_PAGE_MAX - count( $cursor->ids ) ) );
 			}
 		}
 
@@ -1671,7 +1672,8 @@ class Rolling_Coverage_Block {
 							'inclusive' => true,
 						],
 					],
-					'posts_per_page' => -1,
+					// The page of held entries a poll makes room for.
+					'posts_per_page' => self::PER_PAGE_MAX,
 					'fields'         => 'ids',
 				]
 			)
@@ -1681,17 +1683,25 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Entries saved in a second that the feed lists below a page's last
-	 * entry. The page leaves them out by design; any listed above that entry
-	 * can only have been published after the page's query, and still need to
-	 * reach it.
+	 * Up to `$limit` entries saved in a second that the feed lists below a
+	 * page's last entry, nearest first. The page leaves them out by design.
+	 * When the page ends on an unpinned entry, any listed above it can only
+	 * have been published after the page's query, and still need to reach
+	 * it. A page showing only pinned entries leaves out unpinned ones by pin
+	 * order rather than date, so some of those aren't returned and arrive as
+	 * new.
 	 *
 	 * @param int     $coverage_id Coverage term ID.
 	 * @param string  $second      GMT `Y-m-d H:i:s` the entries were saved in.
 	 * @param WP_Post $last        The last entry on the page.
+	 * @param int     $limit       How many to return at most.
 	 * @return int[]
 	 */
-	private static function listed_below( int $coverage_id, string $second, WP_Post $last ): array {
+	private static function listed_below( int $coverage_id, string $second, WP_Post $last, int $limit ): array {
+		if ( $limit < 1 ) {
+			return [];
+		}
+
 		$saved_in = self::gmt_date_bound( $second );
 
 		return ( new WP_Query(
@@ -1712,7 +1722,8 @@ class Rolling_Coverage_Block {
 						],
 					],
 					self::LOAD_MORE_BOUND_VAR     => [ $last->post_date_gmt, $last->ID ],
-					'posts_per_page'              => -1,
+					'orderby'                     => self::FEED_ORDER,
+					'posts_per_page'              => $limit,
 					'fields'                      => 'ids',
 					Post_Type::SKIP_PIN_ORDER_VAR => true,
 				]
