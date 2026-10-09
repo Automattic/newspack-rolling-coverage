@@ -128,7 +128,7 @@ Readers see entries called "entries" by default. To call them something else, su
 
 When a Newspack content gate covers entries, each gated entry shows only its free preview in the feed, without the gate's prompt. Every reader sees the preview, including readers the gate lets through, because the feed is the same for everyone. This holds for new and older entries as they arrive, on Lite Site pages, and in the RSS item of the post or page holding the feed. Readers the gate lets through can read the whole entry where it has a page of its own: its breakout post, or the entry's own page when the coverage has no Canonical URL.
 
-In RSS, gated entries follow the gate's feed setting. They show in full when Restrict content in feeds is turned off (Audience > Access Control > Advanced Settings), or in a custom RSS feed whose Restricted articles in this feed is set to Include restricted articles in full. With Remove restricted articles from the feed, the post holding the feed stays in the feed unless a gate covers it too, and its gated entries show their free preview.
+In RSS, gated entries follow the gate's feed setting. They show in full when Restrict content in feeds is turned off (Audience > Access Control > Advanced Settings), or in a custom RSS feed whose Restricted articles in this feed is set to Include restricted articles in full. With Remove restricted articles from the feed, the post holding the feed stays in the RSS feed unless a gate covers it too, and its gated entries show their free preview.
 
 A gate can cover entries through its Post types rule, through a category or tag an entry carries, or by having only exclusion rules. To keep entries whole, use the gate's Post types rule:
 
