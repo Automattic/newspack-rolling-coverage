@@ -106,6 +106,7 @@ import {
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
 	ONESIGNAL_CONFIGURED,
+	SHOW_AVATARS,
 	STATUS_LABELS,
 } from './config';
 import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
@@ -1210,7 +1211,8 @@ export default function Edit( {
 		templateBlocks,
 		'core/post-author-name'
 	);
-	const offersAvatar = holdsBlockType( templateBlocks, 'core/avatar' );
+	const offersAvatar =
+		SHOW_AVATARS && holdsBlockType( templateBlocks, 'core/avatar' );
 	const checksOnRequest = useMemo( () => {
 		const parts = layoutParts(
 			isSynced ? feedItems( syncedBlocks ) : allBlocks
@@ -2187,6 +2189,10 @@ export default function Edit( {
 							'whether entries show their author’s name',
 							'newspack-rolling-coverage'
 						) }
+						help={ __(
+							'The name each author chose under “Display name publicly as” in their profile.',
+							'newspack-rolling-coverage'
+						) }
 						value={ showAuthor !== false ? 'show' : 'hide' }
 						onChange={ ( value ) =>
 							setAttributes( { showAuthor: value === 'show' } )
@@ -2229,12 +2235,12 @@ export default function Edit( {
 						__next40pxDefaultSize
 						isBlock
 						label={ _x(
-							'Avatar',
+							'Author avatar',
 							'whether entries show their author’s photo',
 							'newspack-rolling-coverage'
 						) }
 						help={ __(
-							'Photos follow Avatar Display under Settings > Discussion.',
+							'Each author’s profile picture, from their profile or Gravatar.',
 							'newspack-rolling-coverage'
 						) }
 						value={ showAvatar !== false ? 'show' : 'hide' }
@@ -2251,7 +2257,10 @@ export default function Edit( {
 							) }
 							aria-label={
 								/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
-								__( 'Show avatar', 'newspack-rolling-coverage' )
+								__(
+									'Show author avatar',
+									'newspack-rolling-coverage'
+								)
 							}
 						/>
 						<ToggleGroupControlOption
@@ -2263,7 +2272,10 @@ export default function Edit( {
 							) }
 							aria-label={
 								/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
-								__( 'Hide avatar', 'newspack-rolling-coverage' )
+								__(
+									'Hide author avatar',
+									'newspack-rolling-coverage'
+								)
 							}
 						/>
 					</ToggleGroupControl>
