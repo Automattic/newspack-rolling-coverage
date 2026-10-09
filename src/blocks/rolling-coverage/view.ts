@@ -630,6 +630,10 @@ function initBlock( root: HTMLElement ): void {
 	const newerCount =
 		parseInt( newEntriesControl?.dataset.newerCount || '0', 10 ) || 0;
 
+	// Entries in that count the page now shows pinned, which a fresh page
+	// leaves out of it.
+	const pinnedCountedIds = new Set< string >();
+
 	// The control's own text: the server keeps it on the link when it writes
 	// the count in its place.
 	const ownLabel =
@@ -640,9 +644,9 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Shows on the control how many entries are newer than the shared entry:
-	 * those the page was rendered with plus those the poll has counted since.
-	 * With none, or once the poll can no longer count, the control shows its
-	 * own text.
+	 * those the page was rendered with, less the ones it now shows pinned,
+	 * plus those the poll has counted since. With none, or once the poll can
+	 * no longer count, the control shows its own text.
 	 *
 	 * @return {void}
 	 */
@@ -652,7 +656,10 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		const label = canCount
-			? newerEntriesLabel( newerCount + countedEntryIds.size, entryName )
+			? newerEntriesLabel(
+					newerCount - pinnedCountedIds.size + countedEntryIds.size,
+					entryName
+			  )
 			: '';
 		const text = label || ownLabel;
 
@@ -923,17 +930,16 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Moves an entry unpinned while the page is open to where a fresh page
-	 * would list it. When that is below load more's bound, it leaves the
-	 * page until load more brings it there. A feed opened at a shared entry
-	 * counts it among the newer entries instead when it is dated in a later
-	 * second than the shared entry, as its query and count split them
-	 * (Rolling_Coverage_Block::count_newer_entries()).
+	 * Whether a feed opened at a shared entry counts an entry among the newer
+	 * ones when it isn't pinned: dated in a later second than the shared
+	 * entry, as its query and count split them
+	 * (Rolling_Coverage_Block::count_newer_entries()). False on any other
+	 * feed, and for entries without dates to compare.
 	 *
-	 * @param {HTMLElement} entry The unpinned entry.
-	 * @return {boolean} Whether the entry stays on the page.
+	 * @param {HTMLElement} entry The entry.
+	 * @return {boolean} Whether the entry is newer than the shared entry.
 	 */
-	function placeUnpinnedEntry( entry: HTMLElement ): boolean {
+	function isNewerThanShared( entry: HTMLElement ): boolean {
 		const date = entry.dataset.dateGmt;
 		const sharedDate = isEntryView
 			? entriesList.querySelector< HTMLElement >(
@@ -941,13 +947,28 @@ function initBlock( root: HTMLElement ): void {
 				)?.dataset.dateGmt
 			: undefined;
 
-		if (
-			date &&
-			sharedDate &&
-			date > sharedDate &&
-			entry.dataset.entryId
-		) {
-			countedEntryIds.add( entry.dataset.entryId );
+		return !! date && !! sharedDate && date > sharedDate;
+	}
+
+	/**
+	 * Moves an entry unpinned while the page is open to where a fresh page
+	 * would list it. When that is below load more's bound, it leaves the
+	 * page until load more brings it there. A feed opened at a shared entry
+	 * counts it among the newer entries instead when it is newer than the
+	 * shared entry (see isNewerThanShared()).
+	 *
+	 * @param {HTMLElement} entry The unpinned entry.
+	 * @return {boolean} Whether the entry stays on the page.
+	 */
+	function placeUnpinnedEntry( entry: HTMLElement ): boolean {
+		const date = entry.dataset.dateGmt;
+
+		if ( isNewerThanShared( entry ) && entry.dataset.entryId ) {
+			// One the page rendered counted is back in that count.
+			if ( ! pinnedCountedIds.delete( entry.dataset.entryId ) ) {
+				countedEntryIds.add( entry.dataset.entryId );
+			}
+
 			showNewerCount();
 			return false;
 		}
@@ -2070,6 +2091,16 @@ function initBlock( root: HTMLElement ): void {
 				}
 
 				if ( entryEl?.hasAttribute( 'data-pinned' ) ) {
+					// Unless a poll counted it since, a shared view counted an
+					// entry newer than the shared one when it rendered.
+					if (
+						isNewerThanShared( entryEl ) &&
+						! countedEntryIds.has( String( entry.id ) )
+					) {
+						pinnedCountedIds.add( String( entry.id ) );
+						showNewerCount();
+					}
+
 					showPinnedEntry( entryEl );
 					return;
 				}
