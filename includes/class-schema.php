@@ -748,6 +748,11 @@ class Schema {
 		$updates = [];
 
 		foreach ( $query->posts as $entry ) {
+			// The query leaves out password-protected entries; gated ones are left out here.
+			if ( Entry_Bindings::is_restricted( $entry ) ) {
+				continue;
+			}
+
 			$update = self::build_entry_update( $entry, $permalink );
 			if ( null !== $update ) {
 				$updates[] = $update;
@@ -767,7 +772,7 @@ class Schema {
 	 * @return array|null BlogPosting array, or null to skip the entry.
 	 */
 	private static function build_entry_update( WP_Post $entry, string $permalink ): ?array {
-		// The schema is cached for every visitor, so it holds only what everyone may read. Protected entries never get here (build_updates()).
+		// The schema is cached for every visitor, so it holds only what everyone may read. Restricted entries never get here (build_updates()).
 		// Replace tags with spaces to preserve word boundaries, decode entities,
 		// then collapse whitespace so headline/articleBody read as clean prose.
 		$article_body = preg_replace( '/<[^>]+>/', ' ', do_blocks( Entry_Bindings::public_content( $entry ) ) );

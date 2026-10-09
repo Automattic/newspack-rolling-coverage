@@ -26,12 +26,21 @@ class Content_Gate {
 	public static $withheld = [];
 
 	/**
+	 * Teasers of withheld posts, by post ID; a withheld post missing here
+	 * shows "The teaser.", and an empty one stands for a gate with no free
+	 * preview.
+	 *
+	 * @var array<int,string>
+	 */
+	public static $teasers = [];
+
+	/**
 	 * The teaser of a withheld post, or null for a post readers may see.
 	 *
 	 * @param \WP_Post $post Post object.
 	 * @return string|null
 	 */
 	public static function get_teaser_outside_article( $post ) {
-		return in_array( (int) $post->ID, self::$withheld, true ) ? 'The teaser.' : null;
+		return in_array( (int) $post->ID, self::$withheld, true ) ? ( self::$teasers[ (int) $post->ID ] ?? 'The teaser.' ) : null;
 	}
 }
