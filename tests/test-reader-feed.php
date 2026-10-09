@@ -111,7 +111,6 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$this->create_entry_at( '2026-01-01 12:05:00', [ 'post_status' => 'draft' ] );
 		$this->create_entry_at( '2026-01-01 12:06:00', [ 'post_status' => 'private' ] );
 
-		// Created last so the coverage's last-modified ends at this entry's date.
 		$published_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
 
 		$poll = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_data();
@@ -344,7 +343,7 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	public function test_draft_published_after_the_cursor_polls_as_an_insert() {
 		$draft_id = $this->create_entry_at( '2026-01-01 12:00:00', [ 'post_status' => 'draft' ] );
 
-		// Save first so the coverage's last-modified moves past the cursor.
+		// Publishing leaves the modified date alone, so save first to move it past the cursor.
 		wp_update_post( [ 'ID' => $draft_id ] );
 
 		$cursor = '0:2026-01-01 12:30:00';

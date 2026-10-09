@@ -273,8 +273,8 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A coverage that hasn't changed since change markers existed polls idle
-	 * too, while a cursor from before markers looks for changes.
+	 * A coverage with no change marker yet polls idle too, while a cursor
+	 * with no `@` looks for changes.
 	 */
 	public function test_coverage_without_a_change_marker_polls_idle() {
 		$entry_id = $this->create_entry_at( self::SECOND );
@@ -284,7 +284,7 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 		$cursor = self::data_attribute( $this->render_feed(), 'cursor' );
 
 		$this->assertSame( 0, $this->entry_queries_in_poll( $cursor ), 'Nothing changed since the page rendered.' );
-		$this->assertGreaterThan( 0, $this->entry_queries_in_poll( $entry_id . ':' . self::SECOND ), 'A cursor from before markers should look for changes.' );
+		$this->assertGreaterThan( 0, $this->entry_queries_in_poll( $entry_id . ':' . self::SECOND ), 'A cursor with no `@` should look for changes.' );
 	}
 
 	/**

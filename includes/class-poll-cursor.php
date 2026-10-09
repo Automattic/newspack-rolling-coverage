@@ -20,10 +20,11 @@ defined( 'ABSPATH' ) || exit;
  * entries list publishes a selection in parallel requests. So neither the
  * second alone nor the second and one entry ID can tell the entries a page
  * holds from ones saved in that second after it polled; the cursor names
- * them all. Saving an entry again within the second the page holds it in is
- * picked up on its next save, and so is a save stamped in the second before
- * the cursor's that only becomes visible after it, which parallel requests
- * straddling a second boundary can produce.
+ * them all. An entry saved again within the second the page holds it in
+ * reaches the page once something readers can see changes after it, and so
+ * does a save stamped in the second before the cursor's that only becomes
+ * visible after it, which parallel requests straddling a second boundary can
+ * produce.
  *
  * The coverage's last-modified time stays put through saves within one
  * second, so it can't tell an idle poll that nothing changed. The marker,
@@ -54,8 +55,8 @@ class Poll_Cursor {
 
 	/**
 	 * The coverage's change marker when the page took its copy: '' before
-	 * the coverage's first change, or null for a cursor from before markers
-	 * existed, which is never current.
+	 * the coverage's first change, or null for a cursor with no `@`, which is
+	 * never current.
 	 *
 	 * @var string|null
 	 */
@@ -78,8 +79,8 @@ class Poll_Cursor {
 	}
 
 	/**
-	 * Reads a cursor a page sent. A cursor with no `@`, from before markers
-	 * existed, is never current, so its first poll looks for changes.
+	 * Reads a cursor a page sent. A cursor with no `@` is never current, so
+	 * its first poll looks for changes.
 	 *
 	 * @param string $cursor Cursor string.
 	 * @return self
