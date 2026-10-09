@@ -562,8 +562,12 @@ function initBlock( root: HTMLElement ): void {
 	// The coverage status the last poll reported.
 	let polledStatus = status;
 
-	// The ended notice built when a poll reported the end.
-	let endedNotice: HTMLElement | null = null;
+	// The feed's ended notice. One may already be there when the jump to the
+	// live feed runs initBlock() again, and a second would stack on it.
+	let endedNotice = ownElement(
+		root,
+		'.newspack-rolling-coverage-archived-notice'
+	);
 
 	// When the reader last checked for new entries, in milliseconds.
 	let lastCheckAt = 0;
@@ -2217,8 +2221,12 @@ function initBlock( root: HTMLElement ): void {
 		const label = root.dataset.endedNoticeLink;
 		const url = root.dataset.endedNoticeUrl ?? breakoutUrl ?? '';
 
+		// What screen readers hear: the line breaks aren't text, so the lines
+		// would otherwise run together.
+		const spoken = text.split( /\r\n|\r|\n/ );
+
 		notice.className = 'newspack-rolling-coverage-archived-notice';
-		text.split( /\r\n|\r|\n/ ).forEach( ( line, index ) => {
+		spoken.forEach( ( line, index ) => {
 			if ( index > 0 ) {
 				notice.append( document.createElement( 'br' ) );
 			}
@@ -2235,11 +2243,12 @@ function initBlock( root: HTMLElement ): void {
 			link.href = url;
 			link.textContent = label;
 			notice.append( ' ', link );
+			spoken.push( label );
 		}
 
 		entriesList.parentElement?.prepend( notice );
 		endedNotice = notice;
-		announce( notice.textContent ?? '' );
+		announce( spoken.join( ' ' ) );
 	}
 
 	/**
