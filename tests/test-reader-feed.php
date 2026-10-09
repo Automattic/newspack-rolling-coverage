@@ -25,11 +25,25 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	private $coverage_id;
 
 	/**
-	 * Create the coverage. Requests are anonymous throughout.
+	 * Key of the default config, stored for the test coverage.
+	 *
+	 * @var string
+	 */
+	private $template_key;
+
+	/**
+	 * Create the coverage and store the default config for it. Requests are
+	 * anonymous throughout.
 	 */
 	public function set_up() {
 		parent::set_up();
 		$this->coverage_id = self::create_coverage();
+		$load              = new ReflectionMethod( Rolling_Coverage_Block::class, 'load_block_config' );
+		$persist           = new ReflectionMethod( Rolling_Coverage_Block::class, 'persist_block_config' );
+		$load->setAccessible( true );
+		$persist->setAccessible( true );
+		$defaults           = $load->invoke( null, $this->coverage_id, '' );
+		$this->template_key = $persist->invoke( null, $this->coverage_id, $defaults['template'], $defaults['adsEnabled'], $defaults['adsInterval'] );
 		wp_set_current_user( 0 );
 	}
 
@@ -40,7 +54,7 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	 * @return WP_REST_Response
 	 */
 	private function get_feed( array $params ) {
-		return self::dispatch( 'GET', "/coverages/{$this->coverage_id}/entries", array_merge( [ 'template_key' => 'test' ], $params ) );
+		return self::dispatch( 'GET', "/coverages/{$this->coverage_id}/entries", array_merge( [ 'template_key' => $this->template_key ], $params ) );
 	}
 
 	/**
@@ -720,10 +734,7 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 
 		$this->create_entry_at( '2026-01-01 10:00:00' );
 
-		$capped = [
-			'template_key' => 'pruned',
-			'latest'       => 1,
-		];
+		$capped = [ 'latest' => 1 ];
 
 		$this->assertArrayNotHasKey( 'replace', $this->get_feed( array_merge( $capped, [ 'cursor' => '0:2026-01-01 00:00:00' ] ) )->get_data() );
 
@@ -769,9 +780,8 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 
 		$poll = $this->get_feed(
 			[
-				'cursor'       => "{$first_entry_id}:{$taken_down}",
-				'template_key' => 'pruned',
-				'latest'       => 1,
+				'cursor' => "{$first_entry_id}:{$taken_down}",
+				'latest' => 1,
 			]
 		)->get_data();
 
@@ -799,10 +809,7 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		);
 		$edited = get_post( $entry_ids[0] );
 
-		$poll = [
-			'cursor'       => '0:2026-01-01 00:00:00',
-			'template_key' => 'pruned',
-		];
+		$poll = [ 'cursor' => '0:2026-01-01 00:00:00' ];
 
 		$this->assertTrue( $this->get_feed( $poll )->get_data()['overflow'], 'Uncapped, the burst should overflow.' );
 
@@ -816,11 +823,11 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A page whose stored config is gone, pruned after newer layouts, still
-	 * polls capped when it sends how many entries it shows: no pinned card,
-	 * no ad. Without the count, the same poll falls back to the defaults.
+	 * A page that sends how many entries it shows polls capped whatever its
+	 * stored config says: no pinned card, no ad. Without the count, the same
+	 * poll follows the config.
 	 */
-	public function test_capped_poll_without_a_stored_config_stays_capped() {
+	public function test_capped_poll_stays_capped_by_its_count() {
 		self::enable_ad_placement();
 
 		$entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
@@ -828,7 +835,6 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 
 		$poll     = [
 			'cursor'       => '0:2026-01-01 00:00:00',
-			'template_key' => 'pruned',
 			'polled_count' => 3,
 		];
 		$uncapped = $this->get_feed( $poll )->get_data()['entries'];
@@ -851,14 +857,19 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	public function test_capped_load_more_without_a_stored_config_returns_nothing() {
 		$this->create_entry_at( '2026-01-01 11:00:00' );
 
-		$page = [
-			'before'       => '2026-01-01 12:00:00',
-			'template_key' => 'pruned',
-		];
+		$page = [ 'before' => '2026-01-01 12:00:00' ];
 
 		$this->assertSame( 1, $this->get_feed( $page )->get_data()['count'] );
 
-		$capped = $this->get_feed( array_merge( $page, [ 'latest' => 3 ] ) )->get_data();
+		$capped = $this->get_feed(
+			array_merge(
+				$page,
+				[
+					'template_key' => 'pruned',
+					'latest'       => 3,
+				]
+			)
+		)->get_data();
 
 		$this->assertSame( '', $capped['html'] );
 		$this->assertSame( 0, $capped['count'] );
@@ -880,5 +891,107 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertSame( 400, $response->get_status() );
+	}
+
+	/**
+	 * A poll with a key the coverage no longer stores, pruned or never
+	 * stored, gets no entries in the default template: it asks the page to
+	 * reload and keeps the cursor, capped or not. The stored key still polls.
+	 */
+	public function test_poll_with_a_pruned_key_asks_the_page_to_reload() {
+		$entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+		$cursor   = '0:2026-01-01 00:00:00';
+
+		foreach ( [ [], [ 'latest' => 3 ] ] as $cap ) {
+			$poll = $this->get_feed(
+				array_merge(
+					[
+						'cursor'       => $cursor,
+						'template_key' => 'pruned',
+					],
+					$cap
+				)
+			)->get_data();
+
+			$this->assertTrue( $poll['staleTemplate'] );
+			$this->assertSame( [], $poll['entries'] );
+			$this->assertSame( $cursor, $poll['cursor'] );
+			$this->assertFalse( $poll['overflow'] );
+		}
+
+		$stored = $this->get_feed( [ 'cursor' => $cursor ] )->get_data();
+
+		$this->assertArrayNotHasKey( 'staleTemplate', $stored );
+		$this->assertSame( [ $entry_id ], wp_list_pluck( $stored['entries'], 'id' ) );
+	}
+
+	/**
+	 * A poll with nothing new to render answers as usual whatever its key, so
+	 * a page reloads only when entries would arrive in the wrong template.
+	 */
+	public function test_poll_with_a_pruned_key_and_no_changes_answers_as_usual() {
+		$this->create_entry_at( '2026-01-01 12:00:00' );
+
+		$poll = $this->get_feed(
+			[
+				'cursor'       => '0:2026-01-02 00:00:00',
+				'template_key' => 'pruned',
+			]
+		)->get_data();
+
+		$this->assertArrayNotHasKey( 'staleTemplate', $poll );
+	}
+
+	/**
+	 * Load more with a key the coverage no longer stores asks the page to
+	 * reload and sends no entries, and no cache may keep that reply. The
+	 * stored key still loads.
+	 */
+	public function test_load_more_with_a_pruned_key_asks_the_page_to_reload() {
+		$this->create_entry_at( '2026-01-01 11:00:00' );
+
+		$response = $this->get_feed(
+			[
+				'before'       => '2026-01-01 12:00:00',
+				'template_key' => 'pruned',
+			]
+		);
+		$page     = $response->get_data();
+
+		$this->assertTrue( $page['staleTemplate'] );
+		$this->assertSame( '', $page['html'] );
+		$this->assertSame( 0, $page['count'] );
+		$this->assertStringContainsString( 'no-store', $response->get_headers()['Cache-Control'] ?? '' );
+
+		$stored = $this->get_feed( [ 'before' => '2026-01-01 12:00:00' ] )->get_data();
+
+		$this->assertArrayNotHasKey( 'staleTemplate', $stored );
+		$this->assertSame( 1, $stored['count'] );
+	}
+
+	/**
+	 * A request without a key gets entries in the default template, as before
+	 * pages carried one.
+	 */
+	public function test_requests_without_a_key_get_the_default_template() {
+		$this->create_entry_at( '2026-01-01 11:00:00' );
+
+		$poll = $this->get_feed(
+			[
+				'cursor'       => '0:2026-01-01 00:00:00',
+				'template_key' => '',
+			]
+		)->get_data();
+		$page = $this->get_feed(
+			[
+				'before'       => '2026-01-01 12:00:00',
+				'template_key' => '',
+			]
+		)->get_data();
+
+		$this->assertArrayNotHasKey( 'staleTemplate', $poll );
+		$this->assertCount( 1, $poll['entries'] );
+		$this->assertArrayNotHasKey( 'staleTemplate', $page );
+		$this->assertSame( 1, $page['count'] );
 	}
 }
