@@ -1339,11 +1339,11 @@ class Rolling_Coverage_Block {
 
 			// A page ending on a pinned entry shows only pinned entries, in pin
 			// order, so no entry's date marks where it stops.
-			$before = ! $is_capped && Post_Type::is_pinned( $last_entry->ID ) ? self::load_more_top_bound( $coverage_id ) : self::load_more_bound( $last_entry );
+			$before = ! $is_capped && Post_Type::is_pinned( $last_entry->ID ) ? self::load_more_top_bound() : self::load_more_bound( $last_entry );
 		}
 
 		if ( $shared_entry ) {
-			$cursor = self::coverage_cursor( $coverage_id, $change_marker, $newest_change );
+			$cursor = self::coverage_cursor( $coverage_id, $change_marker );
 		} else {
 			$cursor = Poll_Cursor::for_entries( $posts, $change_marker, $newest_change );
 
@@ -1649,12 +1649,18 @@ class Rolling_Coverage_Block {
 	 * polls from here, so entries published before the page was rendered are
 	 * not reported as new.
 	 *
-	 * @param int    $coverage_id   Coverage term ID.
-	 * @param string $marker        The coverage's change marker, read before its entries.
-	 * @param string $newest_change The coverage's newest change (newest_change()), read before its entries.
+	 * The render reads it after the entries, close to where it counts the
+	 * entries newer than the shared one: an entry published between the two
+	 * reads is counted on the page and again by the poll, so the reads stay
+	 * close together.
+	 *
+	 * @param int    $coverage_id Coverage term ID.
+	 * @param string $marker      The coverage's change marker, read before its entries.
 	 * @return Poll_Cursor
 	 */
-	private static function coverage_cursor( int $coverage_id, string $marker, string $newest_change ): Poll_Cursor {
+	private static function coverage_cursor( int $coverage_id, string $marker ): Poll_Cursor {
+		$newest_change = self::newest_change( $coverage_id );
+
 		if ( '' === $newest_change ) {
 			return Poll_Cursor::for_entries( [], $marker );
 		}
@@ -1711,9 +1717,11 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Up to `$limit` entries saved in a second that load more lists after a
-	 * page's bound, nearest first. The page leaves them out by design. Any
-	 * listed above the bound and missing from the page can only have been
-	 * published after the page's query, and still need to reach it.
+	 * page's bound, nearest first, for load more to bring in. Any listed above
+	 * the bound and missing from the page were published after the page's
+	 * query, and still need to reach it by poll. Nothing lists above a top
+	 * bound (load_more_top_bound()), so an entry published in that second
+	 * after the page's query is held too, and arrives by load more.
 	 *
 	 * @param int    $coverage_id Coverage term ID.
 	 * @param string $second      GMT `Y-m-d H:i:s` the entries were saved in.
@@ -3987,29 +3995,21 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Where load more starts for a page that shows only pinned entries: above
-	 * every entry, as a bare date one second past the newest entry's. The
-	 * page lists its pinned entries in pin order, so it can leave out entries
-	 * dated after its last one. Load more lists them all by date, and the view
-	 * script skips the pinned entries the page already shows.
+	 * every entry. The page lists its pinned entries in pin order, so it can
+	 * leave out entries dated after its last one. Load more lists them all by
+	 * date, and the view script skips the pinned entries the page already
+	 * shows.
 	 *
-	 * @param int $coverage_id Coverage term ID.
-	 * @return string The bound, or '' when the coverage has no entries.
+	 * A bare date a minute past the render is above every published entry:
+	 * WordPress schedules a post dated a minute or more ahead rather than
+	 * publishing it. Taking the newest entry's date instead would pick it by
+	 * the local time FEED_ORDER sorts on, which can miss the newest GMT date
+	 * in the hour a DST change repeats.
+	 *
+	 * @return string
 	 */
-	private static function load_more_top_bound( int $coverage_id ): string {
-		$newest = ( new WP_Query(
-			array_merge(
-				self::coverage_entries_args( $coverage_id ),
-				[
-					'orderby'                     => self::FEED_ORDER,
-					'posts_per_page'              => 1,
-					'update_post_meta_cache'      => false,
-					'update_post_term_cache'      => false,
-					Post_Type::SKIP_PIN_ORDER_VAR => true,
-				]
-			)
-		) )->posts[0] ?? null;
-
-		return $newest instanceof WP_Post ? gmdate( 'Y-m-d H:i:s', strtotime( self::post_date_gmt( $newest ) . ' UTC' ) + 1 ) : '';
+	private static function load_more_top_bound(): string {
+		return gmdate( 'Y-m-d H:i:s', time() + MINUTE_IN_SECONDS );
 	}
 
 	/**

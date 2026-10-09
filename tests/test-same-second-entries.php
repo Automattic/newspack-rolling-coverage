@@ -471,6 +471,23 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Load more from a page of pinned entries starts above the newest entry by
+	 * GMT, even where local time sorts it below another, as in the hour a DST
+	 * change repeats.
+	 */
+	public function test_load_more_from_a_page_of_pinned_entries_starts_above_a_repeated_hour() {
+		$pinned_id      = $this->create_entry_at( '2026-01-01 00:30:00' );
+		$local_later_id = $this->create_entry_at( '2026-01-01 01:50:00', [ 'post_date_gmt' => '2026-01-01 05:50:00' ] );
+		$gmt_later_id   = $this->create_entry_at( '2026-01-01 01:10:00', [ 'post_date_gmt' => '2026-01-01 06:10:00' ] );
+
+		Post_Type::pin_entry( $pinned_id );
+
+		// One reply holds them all, so later bounds, which share the local
+		// sort, don't come into it.
+		$this->assertEqualsCanonicalizing( [ $pinned_id, $local_later_id, $gmt_later_id ], $this->load_all( $this->render_feed( [ 'entriesPerPage' => 1 ] ), 3 ) );
+	}
+
+	/**
 	 * The coverage's change marker moves only once what the poll reads about
 	 * the change is saved: a poll that takes the new marker without the
 	 * change would never look for it again.

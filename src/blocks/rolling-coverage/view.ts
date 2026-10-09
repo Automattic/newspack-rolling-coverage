@@ -2418,9 +2418,6 @@ function initBlock( root: HTMLElement ): void {
 				if ( data.count > 0 ) {
 					const fragment = parseFragment( sanitizeHtml( data.html ) );
 
-					// Count how many entries were appended so the next page's offset can be correct.
-					let appended = 0;
-
 					// Never append an entry that is already in the list, or one taken down since.
 					Array.from( fragment.children ).forEach( ( child ) => {
 						if (
@@ -2449,11 +2446,15 @@ function initBlock( root: HTMLElement ): void {
 
 						observeEntry( entry );
 						firstAppended ??= entry;
-						appended++;
 					} );
 
 					entriesList.appendChild( fragment );
-					backlogOffset += appended;
+
+					// The server numbers ad positions over every entry in a reply,
+					// including the ones dropped here as already shown, so the next
+					// request starts past all of them. Counting only the appended
+					// entries would reuse positions and repeat their ads.
+					backlogOffset += data.count;
 				}
 				if ( data.adSlots && data.adSlots.length > 0 ) {
 					displayAdSlots( data.adSlots );
