@@ -1328,8 +1328,10 @@ class Post_Type {
 	/**
 	 * Page mode: one paginated page of entries.
 	 *
-	 * The sync cursor is formed as "{id}:{modified_gmt}" matching the
-	 * reader-facing polling strategy, so same-second entries are not lost.
+	 * The sync cursor is "{id}:{modified_gmt}", the most recently modified
+	 * entry. Sync mode holds back another entry saved in that second until a
+	 * change in a later second, and skips a re-save of the cursor's own entry
+	 * within it.
 	 *
 	 * @param int   $term_id Coverage term ID.
 	 * @param array $params  Resolved parameters.

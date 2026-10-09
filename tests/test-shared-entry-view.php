@@ -898,6 +898,27 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The shared view's cursor holds no more entries from the coverage's
+	 * newest second than a poll makes room for.
+	 */
+	public function test_shared_view_cursor_holds_no_more_than_a_poll_makes_room_for() {
+		for ( $i = 0; $i <= Rolling_Coverage_Block::PER_PAGE_MAX; $i++ ) {
+			self::create_entry(
+				$this->coverage_id,
+				[
+					'post_date' => '2026-01-01 10:07:00',
+					'post_name' => 'burst-' . $i,
+				]
+			);
+		}
+
+		$html = $this->render_with_shared( 'entry-2' );
+
+		$this->assertStringContainsString( 'data-view="entry"', $html, 'The page should open at the shared entry.' );
+		$this->assertCount( Rolling_Coverage_Block::PER_PAGE_MAX, Poll_Cursor::parse( $this->data_attribute( $html, 'cursor' ) )->ids );
+	}
+
+	/**
 	 * The shared view's cursor holds every entry saved in the coverage's
 	 * newest second, so none of them is reported as new.
 	 */

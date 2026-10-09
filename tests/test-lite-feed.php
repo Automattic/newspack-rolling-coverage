@@ -569,8 +569,11 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 			]
 		);
 
-		$entries      = $this->get_lite_feed( [ 'cursor' => '0:2025-12-31 00:00:00' ] )->get_data()['entries'];
+		$poll         = $this->get_lite_feed( [ 'cursor' => '0:2025-12-31 00:00:00' ] )->get_data();
+		$entries      = $poll['entries'];
 		$allowed_html = apply_filters( 'newspack_lite_site_allowed_html', [ 'div' => [ 'class' => true ] ] );
+
+		$this->assertArrayNotHasKey( 'staleTemplate', $poll, 'Lite entries need no stored template.' );
 
 		$this->assertCount( 1, $entries );
 		$this->assertSame( $entry_id, $entries[0]['id'] );
@@ -593,6 +596,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$page = $this->get_lite_feed( [ 'before' => '2026-01-02 00:00:00' ] )->get_data();
 
+		$this->assertArrayNotHasKey( 'staleTemplate', $page, 'Lite entries need no stored template.' );
 		$this->assertSame( 1, $page['count'] );
 		$this->assertSame( Lite_Feed::render_entry( get_post( $entry_id ), 'load_more' ), $page['html'] );
 	}
@@ -750,7 +754,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 			'GET',
 			"/coverages/{$this->coverage_id}/entries",
 			[
-				'template_key' => 'test',
+				'template_key' => '',
 				'cursor'       => '0:2025-12-31 00:00:00',
 			]
 		)->get_data()['entries'];
