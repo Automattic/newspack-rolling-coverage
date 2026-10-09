@@ -303,6 +303,26 @@ class Entry_Bindings {
 	}
 
 	/**
+	 * What everyone may call an entry that has no title: its public summary,
+	 * else its media title, so a lone photo is still told apart from the
+	 * next entry; nothing for a password-protected entry. For a share link's
+	 * accessible name and a breakout post's title.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @param int     $words Number of words to keep.
+	 * @return string Decoded plain text.
+	 */
+	public static function public_name( WP_Post $entry, int $words = 8 ): string {
+		if ( '' !== $entry->post_password ) {
+			return '';
+		}
+
+		$summary = self::public_summary( $entry, $words );
+
+		return '' !== $summary ? $summary : self::get_media_title( parse_blocks( self::public_content( $entry ) ) );
+	}
+
+	/**
 	 * An entry's content without the blocks Newspack hides from readers who
 	 * aren't signed in, so text and media meant for members are never shown
 	 * to everyone in its title or excerpt. The content as stored when
@@ -402,8 +422,9 @@ class Entry_Bindings {
 
 	/**
 	 * Whether a parsed block was hidden with the editor's Hide block, which
-	 * stores `metadata.blockVisibility` as false. Visibility by viewport,
-	 * stored as an object, still shows the block somewhere.
+	 * stores `metadata.blockVisibility` as false, the one form core renders
+	 * nowhere. Visibility by viewport, stored as an object, is left as core
+	 * leaves it.
 	 *
 	 * @param array $block Parsed block.
 	 * @return bool
@@ -526,7 +547,7 @@ class Entry_Bindings {
 	 * since they belong to the media. Empty for content with words, or
 	 * without media.
 	 *
-	 * @param array $blocks An entry's parsed content, as public_content() gives it.
+	 * @param array $blocks An entry's public_content(), parsed.
 	 * @return string Plain text.
 	 */
 	private static function get_media_title( array $blocks ): string {
@@ -658,9 +679,10 @@ class Entry_Bindings {
 	/**
 	 * The ID of the post a URL on this site points to, or 0. Core's lookup
 	 * runs the rewrite rules and a query each time, and an embed-only entry
-	 * asks on every render, so the answer is kept in the object cache for a
-	 * while: a post's ID never changes, and whether readers can open it is
-	 * checked afresh each time.
+	 * asks on every render, so the answer, a miss included, is kept in the
+	 * object cache for an hour. A post published or renamed meanwhile keeps
+	 * its old answer that long; whether readers can open it is checked
+	 * afresh each time.
 	 *
 	 * @param string $url The URL.
 	 * @return int
@@ -932,7 +954,7 @@ class Entry_Bindings {
 
 		$title = self::plain_text( get_the_title( $entry ) );
 
-		return '' !== $title ? $title : self::public_summary( $entry );
+		return '' !== $title ? $title : self::public_name( $entry );
 	}
 
 	/**

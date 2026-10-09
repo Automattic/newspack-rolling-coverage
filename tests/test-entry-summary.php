@@ -219,9 +219,9 @@ class Test_Entry_Summary extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The words everyone may read, for share names and push notifications,
-	 * leave media out the same way, so a media-only entry has none; its
-	 * breakout post is titled after its media instead.
+	 * The words everyone may read, for push notifications, leave media out
+	 * the same way, so a media-only entry has none; its Share link and its
+	 * breakout post are named after its media instead.
 	 */
 	public function test_public_summary_reads_the_same_words() {
 		$text_id  = self::create_untitled_entry( '<!-- wp:paragraph --><p>Our full report is now up.</p><!-- /wp:paragraph -->' . self::embed( 'https://example.com/2026/10/09/full-time/' ) );
@@ -229,6 +229,7 @@ class Test_Entry_Summary extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 'Our full report is now up.', Entry_Bindings::public_summary( get_post( $text_id ) ) );
 		$this->assertSame( '', Entry_Bindings::public_summary( get_post( $photo_id ) ) );
+		$this->assertSame( 'Photo: Crews on the quay', Entry_Bindings::public_name( get_post( $photo_id ) ) );
 
 		self::log_in_as( 'editor' );
 		$response = rest_do_request( new WP_REST_Request( 'POST', '/' . NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/entries/' . $photo_id . '/breakout' ) );
