@@ -30,7 +30,7 @@ The admin pages load the block editor's assets so Quick Edit can run a block edi
 
 ## All Coverages
 
-The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. It saves through the core terms route and sends every field each time, changed or not. Core refuses the whole request when the user can't write one of the meta keys, so none of them carries an `auth_callback` stricter than editing the coverage.
+The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. The drawer saves through the core terms route and sends every field each time, so each meta key it sends must be writable by anyone who can edit a coverage. A stricter `auth_callback` on one of them fails those users' saves after the other fields are already written.
 
 Row actions live in `src/admin/actions/coverage-actions.ts`:
 

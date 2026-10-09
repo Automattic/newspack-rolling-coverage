@@ -232,10 +232,11 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Editors pause coverages from the coverage drawer, which sends
-	 * Advertising with the edit even when it is unchanged.
+	 * The coverage drawer sends Advertising with every save, even when it is
+	 * unchanged. This coverage has no stored Advertising value, so core checks
+	 * the permission for it, and an Editor's pause must not fail over it.
 	 */
-	public function test_editors_can_pause_a_coverage() {
+	public function test_an_unchanged_advertising_flag_does_not_fail_an_editors_save() {
 		self::log_in_as( 'editor' );
 		$coverage_id = self::create_coverage();
 
