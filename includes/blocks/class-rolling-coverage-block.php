@@ -1723,9 +1723,10 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Up to `$limit` entries saved in a second that load more lists after a
-	 * page's bound, nearest first: left for load more to bring in, or past a
-	 * capped page's end. Read it right after the page's query: an entry
-	 * published later isn't one the page left out, and reaches it by poll.
+	 * page's bound, nearest first. The page leaves them out by design: load
+	 * more brings them in, or the page never shows them. Read it right after
+	 * the page's query: an entry published later isn't one the page left out,
+	 * and reaches it by poll.
 	 *
 	 * @param int    $coverage_id Coverage term ID.
 	 * @param string $second      GMT `Y-m-d H:i:s` the entries were saved in.

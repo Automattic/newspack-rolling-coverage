@@ -15,8 +15,8 @@ defined( 'ABSPATH' ) || exit;
  * A poll cursor: the second of the newest change a page holds, the entries
  * it holds as saved in that second, and the coverage's change marker when it
  * took its copy. A poll sends only the changes the page is missing. Entries a
- * page leaves out by design, for load more to bring in or past its cap,
- * count as held.
+ * page leaves out by design count as held, whether load more brings them in
+ * or the page never shows them.
  *
  * Entries saved in the same second don't become visible in ID order: the
  * entries list publishes a selection in parallel requests. So neither the
