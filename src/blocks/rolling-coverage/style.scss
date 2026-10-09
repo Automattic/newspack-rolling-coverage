@@ -168,12 +168,12 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	.newspack-rolling-coverage-breakout-label {
 		color: var(--wp--preset--color--accent, var(--newspack-theme-color-primary, currentcolor));
 		font-weight: 700;
+	}
 
-		&:not(.newspack-rolling-coverage-breakout-label--prefix) {
-			display: block;
-			margin-bottom: 0.25rem;
-			font-size: var(--wp--preset--font-size--small, 0.875rem);
-		}
+	:where(.wp-block-post-title) > .newspack-rolling-coverage-breakout-label:not(.newspack-rolling-coverage-breakout-label--prefix) {
+		display: block;
+		margin-bottom: 0.25rem;
+		font-size: var(--wp--preset--font-size--small, 0.875rem);
 	}
 }
 

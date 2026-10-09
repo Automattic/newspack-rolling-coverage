@@ -1364,7 +1364,7 @@ class Entry_Bindings {
 	 * @param array $parsed_block Parsed block.
 	 * @return bool
 	 */
-	private static function is_pinned_label( array $parsed_block ): bool {
+	public static function is_pinned_label( array $parsed_block ): bool {
 		$class_name = $parsed_block['attrs']['className'] ?? '';
 
 		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&

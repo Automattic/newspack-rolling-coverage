@@ -54,6 +54,34 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	const KICKER = '<span class="use-header-font newspack-rolling-coverage-breakout-label">Full story</span> ';
 
 	/**
+	 * The Full story label as an entry's row, or in its Pinned row.
+	 */
+	const LABEL_ROW = '<p class="use-header-font newspack-rolling-coverage-breakout-label has-small-font-size wp-block-paragraph">Full story</p>';
+
+	/**
+	 * The opening of an entry group, with the inner container classic
+	 * themes add.
+	 */
+	const GROUP_OPENING = '[^"]*"[^>]*>(?:<div class="wp-block-group__inner-container[^"]*">)?';
+
+	/**
+	 * The separator between the Pinned label and the Full story label.
+	 */
+	const LABEL_SEPARATOR = '<span class="use-header-font newspack-rolling-coverage-breakout-label-separator has-small-font-size" aria-hidden="true">/</span>';
+
+	/**
+	 * The pinned row: the Pinned label in a flex row with no gap of its own.
+	 */
+	const PINNED_ROW_MARKUP = '<!-- wp:group {"layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"center"},"style":{"spacing":{"blockGap":"0"}}} --><div class="wp-block-group">'
+		. '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-pinned-label","fontSize":"small"} --><p class="use-header-font newspack-rolling-coverage-pinned-label has-small-font-size">Pinned</p><!-- /wp:paragraph -->'
+		. '</div><!-- /wp:group -->';
+
+	/**
+	 * A byline row, as some Stream patterns open their entries with.
+	 */
+	const BYLINE_MARKUP = '<!-- wp:group {"className":"byline-row","layout":{"type":"flex","flexWrap":"nowrap"}} --><div class="wp-block-group byline-row"><!-- wp:post-date /--></div><!-- /wp:group -->';
+
+	/**
 	 * The Full story label leading a title on the same line.
 	 */
 	const PREFIX = '<span class="use-header-font newspack-rolling-coverage-breakout-label newspack-rolling-coverage-breakout-label--prefix">Full story:</span> ';
@@ -139,16 +167,92 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A Stream or Minute style template: a pinned card and an entry group,
+	 * neither with a Post Title, the card opening with the pinned row.
+	 *
+	 * @param string $opening What opens each group before its content, such
+	 *                        as Stream's byline row.
+	 * @return string
+	 */
+	private static function untitled_markup( string $opening = '' ): string {
+		return '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">'
+			. self::PINNED_ROW_MARKUP . $opening . self::CONTENT_MARKUP
+			. '</div><!-- /wp:group -->'
+			. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry">'
+			. $opening . self::CONTENT_MARKUP
+			. '</div><!-- /wp:group -->';
+	}
+
+	/**
 	 * A layout without a title names the post in the content, linked, then
-	 * gives its summary.
+	 * gives its summary, with the Full story label as a row before it.
 	 */
 	public function test_untitled_layout_names_the_post_in_the_content() {
 		[ $entry_id, $breakout_id ] = self::create_breakout();
 
 		$html = self::render( $entry_id, self::CONTENT_MARKUP );
 
-		$this->assertStringContainsString( '><p>' . self::KICKER . '<strong><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Post &amp; headline</a></strong></p><p>What the post sums up.</p></div>', $html );
+		$this->assertMatchesRegularExpression( '#<article [^>]*>' . preg_quote( self::LABEL_ROW, '#' ) . '<div class="[^"]*wp-block-post-content[^"]*"><p><strong><a href="' . preg_quote( esc_url( get_permalink( $breakout_id ) ), '#' ) . '">Post &amp; headline</a></strong></p><p>What the post sums up\.</p></div>#', $html );
+		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-breakout-label' ) );
 		$this->assertStringNotContainsString( self::ENTRY_TEXT, $html );
+	}
+
+	/**
+	 * In Stream and Minute, an entry that isn't pinned opens with the Full
+	 * story label, above the byline row where there is one, as a row of the
+	 * entry group, which spaces it with its gap.
+	 */
+	public function test_untitled_layouts_open_the_entry_with_the_label() {
+		[ $entry_id ] = self::create_breakout();
+
+		$stream = self::render( $entry_id, self::untitled_markup( self::BYLINE_MARKUP ) );
+		$minute = self::render( $entry_id, self::untitled_markup() );
+
+		$this->assertMatchesRegularExpression( '#<div class="[^"]*newspack-rolling-coverage-regular-entry' . self::GROUP_OPENING . preg_quote( self::LABEL_ROW, '#' ) . '<div class="[^"]*byline-row#', $stream );
+		$this->assertMatchesRegularExpression( '#<div class="[^"]*newspack-rolling-coverage-regular-entry' . self::GROUP_OPENING . preg_quote( self::LABEL_ROW, '#' ) . '<div class="[^"]*wp-block-post-content[^"]*"><p><strong><a href=#', $minute );
+
+		foreach ( [ $stream, $minute ] as $html ) {
+			$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-breakout-label' ) );
+			$this->assertStringNotContainsString( 'Pinned', $html );
+			$this->assertStringNotContainsString( self::LABEL_SEPARATOR, $html );
+		}
+	}
+
+	/**
+	 * In Stream and Minute, a pinned entry's Full story label joins its
+	 * Pinned row, after a slash hidden from screen readers, rather than
+	 * taking a row of its own.
+	 */
+	public function test_untitled_layouts_put_a_pinned_label_in_the_pinned_row() {
+		[ $entry_id ] = self::create_breakout();
+		Post_Type::pin_entry( $entry_id );
+
+		$stream = self::render( $entry_id, self::untitled_markup( self::BYLINE_MARKUP ) );
+		$minute = self::render( $entry_id, self::untitled_markup() );
+
+		foreach ( [ $stream, $minute ] as $html ) {
+			$this->assertMatchesRegularExpression( '#<div class="[^"]*newspack-rolling-coverage-pinned-card' . self::GROUP_OPENING . '<div class="[^"]*is-layout-flex[^"]*"><p class="[^"]*newspack-rolling-coverage-pinned-label[^"]*">Pinned</p>' . preg_quote( self::LABEL_SEPARATOR . self::LABEL_ROW, '#' ) . '</div>#', $html );
+			$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-breakout-label ' ) );
+			$this->assertStringContainsString( '<p><strong><a href=', $html );
+			$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-status', $html );
+		}
+	}
+
+	/**
+	 * A pinned entry whose template has no Pinned row is announced as
+	 * pinned to screen readers, then opens with the Full story label.
+	 */
+	public function test_pinned_untitled_entry_without_a_pinned_row_opens_with_the_label() {
+		[ $entry_id ] = self::create_breakout();
+		Post_Type::pin_entry( $entry_id );
+		$markup = '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-card"} --><div class="wp-block-group newspack-rolling-coverage-pinned-card">'
+			. self::CONTENT_MARKUP
+			. '</div><!-- /wp:group -->';
+
+		$html = self::render( $entry_id, $markup );
+
+		$this->assertMatchesRegularExpression( '#<article [^>]*><span class="newspack-rolling-coverage-pinned-status">Pinned</span><div class="[^"]*newspack-rolling-coverage-pinned-card' . self::GROUP_OPENING . preg_quote( self::LABEL_ROW, '#' ) . '<div class="[^"]*wp-block-post-content#', $html );
+		$this->assertStringNotContainsString( self::LABEL_SEPARATOR, $html );
 	}
 
 	/**
@@ -250,7 +354,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		$lite     = Lite_Feed::render_entry( get_post( $entry_id ), 'initial' );
 
 		$this->assertStringContainsString( 'breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <a href=', $titled );
-		$this->assertStringContainsString( 'breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <strong>', $untitled );
+		$this->assertStringContainsString( 'breakout-label has-small-font-size wp-block-paragraph">Q &lt; A &amp; &quot;B&quot;</p>', $untitled );
 		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> Post', $flash );
 		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> <a href=', $ticker );
 		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</p><h3>', $lite );
@@ -280,7 +384,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		$lite     = Lite_Feed::render_entry( get_post( $entry_id ), 'initial' );
 
 		$this->assertStringContainsString( 'breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <a href=', $titled );
-		$this->assertStringContainsString( 'breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <strong>', $untitled );
+		$this->assertStringContainsString( 'breakout-label has-small-font-size wp-block-paragraph">Q &lt; A &amp; &quot;B&quot;</p>', $untitled );
 		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> Post', $flash );
 		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> <a href=', $ticker );
 		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</p><h3>', $lite );
@@ -496,7 +600,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 		$untitled = self::render( $entry_id, self::CONTENT_MARKUP );
 
-		$this->assertStringContainsString( '><p>' . self::KICKER . '<strong><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Post &amp; headline</a></strong></p><p>' . self::ENTRY_TEXT . '</p></div>', $untitled );
+		$this->assertStringContainsString( '><p><strong><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Post &amp; headline</a></strong></p><p>' . self::ENTRY_TEXT . '</p></div>', $untitled );
 
 		$this->gate_entry( $entry_id );
 		$restricted = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP . self::WIRE_EXCERPT_MARKUP );

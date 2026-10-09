@@ -2597,6 +2597,56 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * A card's template with the Full story label placed, when the template
+	 * names the post in its Post Content because it has no Post Title, as
+	 * Stream and Minute do (see Breakout_Card::content_html()). On a pinned
+	 * entry whose template shows the pinned label, the label follows it in
+	 * its row, after a separator (Breakout_Card::pinned_label_blocks()).
+	 * Otherwise it opens the entry group, or the template when there is
+	 * none, as a row of its own (Breakout_Card::label_block()), so the
+	 * group's block gap spaces it and screen readers read it before the
+	 * content. A template with a Post Title, or showing no Post Content,
+	 * places its label elsewhere (see Breakout_Card).
+	 *
+	 * @param array[] $template  Shaped template blocks.
+	 * @param array   $card      The entry's card (see Breakout_Card::for_entry()).
+	 * @param bool    $is_pinned Whether the entry shows as pinned.
+	 * @return array[]
+	 */
+	private static function with_breakout_label( array $template, array $card, bool $is_pinned ): array {
+		if ( '' === $card['title'] || self::holds_post_title( $template ) || ! self::holds_block( $template, static fn( array $block ) => 'core/post-content' === ( $block['blockName'] ?? '' ) ) ) {
+			return $template;
+		}
+
+		if ( $is_pinned && Entry_Bindings::has_pinned_label( $template ) ) {
+			$label_blocks = Breakout_Card::pinned_label_blocks( $card );
+
+			return self::map_template_blocks(
+				$template,
+				static fn( array $block ) => Entry_Bindings::is_pinned_label( $block ) ? array_merge( [ $block ], $label_blocks ) : [ $block ]
+			);
+		}
+
+		$label  = Breakout_Card::label_block( $card );
+		$placed = false;
+
+		$template = self::map_template_blocks(
+			$template,
+			static function ( array $block ) use ( $label, &$placed ) {
+				if ( $placed || ! self::is_entry_group( $block ) ) {
+					return [ $block ];
+				}
+
+				$placed = true;
+
+				return [ self::sync_inner_content( $block, array_merge( [ $label ], $block['innerBlocks'] ?? [] ) ) ];
+			}
+		);
+
+		return $placed ? $template : array_merge( [ $label ], $template );
+	}
+
+	/**
 	 * Whether blocks hold a block matching a test, at any depth.
 	 *
 	 * @param array[]  $blocks   Parsed blocks.
@@ -3696,6 +3746,10 @@ class Rolling_Coverage_Block {
 			$is_pinned && null !== $card,
 			$is_last
 		);
+
+		if ( null !== $card ) {
+			$template = self::with_breakout_label( $template, $card, $is_pinned );
+		}
 
 		if ( ( null === $card || '' === $card['title'] ) && ! self::has_title( $entry ) ) {
 			$template = self::with_centered_title_rows( $template );

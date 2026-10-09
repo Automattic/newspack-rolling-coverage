@@ -18,9 +18,11 @@ defined( 'ABSPATH' ) || exit;
  * for that post, in the layout's own style: the entry's Post Title shows the
  * post's title, and its Post Content and Post Excerpt show the post's
  * summary in place of the entry's own text. Layouts without a Post Title
- * name the post in the content or the excerpt instead. Wherever the card
- * names the post, its Full story label (Breakout_Label::for_post()) comes
- * first.
+ * name the post in the content or the excerpt instead. Its Full story label
+ * (Breakout_Label::for_post()) comes before the post's title: in the
+ * heading, leading the excerpt, or, for a title named in the content, as
+ * the entry's first row or after its Pinned label (see
+ * Rolling_Coverage_Block::with_breakout_label()).
  * Everything else in the entry, such as its date, byline, Read more and
  * Share, renders as usual, and the entry's stored content is never changed.
  */
@@ -40,8 +42,9 @@ class Breakout_Card {
 	const NO_EXCERPT = '<!-- newspack-rolling-coverage-no-excerpt -->';
 
 	/**
-	 * Class of the Full story label, on its own line above the title, or
-	 * with LABEL_PREFIX_CLASS, leading a one-line title.
+	 * Class of the Full story label: on its own line above the title, as
+	 * an entry's first row, after its Pinned label, or with
+	 * LABEL_PREFIX_CLASS, leading a one-line title.
 	 */
 	const LABEL_CLASS = 'newspack-rolling-coverage-breakout-label';
 
@@ -49,6 +52,12 @@ class Breakout_Card {
 	 * Class of a Full story label that leads its title on the same line.
 	 */
 	const LABEL_PREFIX_CLASS = 'newspack-rolling-coverage-breakout-label--prefix';
+
+	/**
+	 * Class of the separator between an entry's Pinned label and the Full
+	 * story label after it.
+	 */
+	const LABEL_SEPARATOR_CLASS = 'newspack-rolling-coverage-breakout-label-separator';
 
 	/**
 	 * The cards of the entries rendering now, by entry ID, each with whether
@@ -363,6 +372,54 @@ class Breakout_Card {
 	}
 
 	/**
+	 * A card's Full story label as a parsed paragraph at the small font size,
+	 * for an entry whose template names the post in its Post Content: the
+	 * entry's first row, or a pinned entry's after its Pinned label (see
+	 * Rolling_Coverage_Block::with_breakout_label()).
+	 *
+	 * @param array $card The entry's card (see for_entry()).
+	 * @return array Parsed-block-shaped array.
+	 */
+	public static function label_block( array $card ): array {
+		$class_name = 'use-header-font ' . self::LABEL_CLASS;
+		$html       = sprintf( '<p class="%s has-small-font-size">%s</p>', esc_attr( $class_name ), esc_html( Breakout_Label::for_post( (int) $card['post_id'] ) ) );
+
+		return [
+			'blockName'    => 'core/paragraph',
+			'attrs'        => [
+				'className' => $class_name,
+				'fontSize'  => 'small',
+			],
+			'innerBlocks'  => [],
+			'innerHTML'    => $html,
+			'innerContent' => [ $html ],
+		];
+	}
+
+	/**
+	 * What follows a pinned entry's Pinned label in its row: a slash, hidden
+	 * from screen readers, which read the two labels apart, then the Full
+	 * story label (see label_block()). The row's gap spaces them.
+	 *
+	 * @param array $card The entry's card (see for_entry()).
+	 * @return array[] Parsed-block-shaped arrays.
+	 */
+	public static function pinned_label_blocks( array $card ): array {
+		$separator = sprintf( '<span class="use-header-font %s has-small-font-size" aria-hidden="true">/</span>', self::LABEL_SEPARATOR_CLASS );
+
+		return [
+			[
+				'blockName'    => null,
+				'attrs'        => [],
+				'innerBlocks'  => [],
+				'innerHTML'    => $separator,
+				'innerContent' => [ $separator ],
+			],
+			self::label_block( $card ),
+		];
+	}
+
+	/**
 	 * A card's Full story label as a plain paragraph, for a lite page.
 	 *
 	 * @param array $card The entry's card (see for_entry()).
@@ -533,9 +590,10 @@ class Breakout_Card {
 
 	/**
 	 * The HTML a card's Post Content holds: the breakout post's summary as a
-	 * paragraph, after, in a template without a Post Title, a paragraph
-	 * holding the Full story label on a line of its own above the post's
-	 * title, linked to the post. Empty when the card has neither to show.
+	 * paragraph, after, in a template without a Post Title, the post's title
+	 * in bold, linked to the post. The Full story label is placed apart (see
+	 * Rolling_Coverage_Block::with_breakout_label()). Empty when the card has
+	 * neither to show.
 	 *
 	 * @param array $card A rendering card.
 	 * @return string
@@ -544,7 +602,7 @@ class Breakout_Card {
 		$html = '';
 
 		if ( ! $card['has_title_block'] && '' !== $card['title'] ) {
-			$html .= sprintf( '<p>%s<strong><a href="%s">%s</a></strong></p>', self::label_html( $card ), esc_url( $card['url'] ), esc_html( $card['title'] ) );
+			$html .= sprintf( '<p><strong><a href="%s">%s</a></strong></p>', esc_url( $card['url'] ), esc_html( $card['title'] ) );
 		}
 
 		if ( '' !== $card['summary'] ) {
