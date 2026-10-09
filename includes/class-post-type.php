@@ -247,7 +247,7 @@ class Post_Type {
 		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'on_save_post' ], 10, 2 );
 		add_filter( 'wp_insert_post_data', [ __CLASS__, 'normalize_entry_gmt_dates' ], 10, 2 );
-		// Before Rolling_Coverage_Block::update_coverage_last_modified() at priority 10, which copies the stamped date into the coverage.
+		// Before Rolling_Coverage_Block::update_coverage_last_modified() and record_entry_published_gmt() at priority 10, which copy the stamped date.
 		add_action( 'transition_post_status', [ __CLASS__, 'stamp_publish_modified_gmt' ], 5, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'record_entry_published_gmt' ], 10, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'record_entry_unpublished' ], 10, 3 );
@@ -2063,9 +2063,17 @@ class Post_Type {
 	 * publish moment lets the feed still treat a draft published long after it
 	 * was ingested as new.
 	 *
+	 * The moment is the second stamp_publish_modified_gmt() just gave the
+	 * entry's modified date, which poll and sync cursors take from it. A
+	 * second clock reading can land in the next second, and the entry's next
+	 * edit would then count as new for a cursor that already holds it. An
+	 * entry created already scheduled has its go-live date as its modified
+	 * date, which the stamp leaves in place if the entry is published early,
+	 * so the clock caps the moment.
+	 *
 	 * @param string  $new_status New post status.
 	 * @param string  $old_status Previous post status.
-	 * @param WP_Post $post       Entry post object.
+	 * @param WP_Post $post       Entry post object, as stamp_publish_modified_gmt() left it.
 	 */
 	public static function record_entry_published_gmt( string $new_status, string $old_status, WP_Post $post ): void {
 		// Skip direct inserts, so they fall back to their own post_date_gmt.
@@ -2081,7 +2089,7 @@ class Post_Type {
 			return;
 		}
 
-		update_post_meta( $post->ID, self::META_PUBLISHED_GMT, gmdate( 'Y-m-d H:i:s' ) );
+		update_post_meta( $post->ID, self::META_PUBLISHED_GMT, min( $post->post_modified_gmt, gmdate( 'Y-m-d H:i:s' ) ) );
 	}
 
 	/**

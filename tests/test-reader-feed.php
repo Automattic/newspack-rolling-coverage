@@ -414,6 +414,91 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The ways an entry saved before it goes out is published: from a draft,
+	 * and by cron at its scheduled time.
+	 *
+	 * @return array[]
+	 */
+	public function going_out_provider() {
+		return [
+			'a published draft' => [ 'draft' ],
+			'a scheduled entry' => [ 'future' ],
+		];
+	}
+
+	/**
+	 * A page that got an entry as new gets its next edit as an update, even
+	 * when the clock moves to the next second while the entry goes out. Its
+	 * publish time decides that and its modified date sets the page's cursor,
+	 * so both have to name the same second; otherwise a page holding the
+	 * entry behind the new-entries control counts it twice.
+	 *
+	 * @dataProvider going_out_provider
+	 *
+	 * @param string $status The entry's status before it goes out.
+	 */
+	public function test_edit_polls_as_an_update_when_going_out_spans_a_second( $status ) {
+		$cursor_entry_id = $this->create_entry_at( '2026-01-01 11:30:00' );
+		$entry_id        = 'future' === $status
+			? self::create_scheduled_entry( $this->coverage_id, '2026-01-01 11:00:00', '2026-01-01 11:45:00' )
+			: $this->create_entry_at( '2026-01-01 11:00:00', [ 'post_status' => 'draft' ] );
+		$stamped         = '2026-01-01 12:00:00';
+
+		// Between stamp_publish_modified_gmt() and record_entry_published_gmt(),
+		// move the stamp to a second the clock has left behind.
+		$move_stamp_back = static function ( $new_status, $old_status, $post ) use ( $entry_id, $stamped ) {
+			global $wpdb;
+
+			if ( $entry_id !== $post->ID ) {
+				return;
+			}
+
+			$post->post_modified     = $stamped;
+			$post->post_modified_gmt = $stamped;
+
+			$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->posts,
+				[
+					'post_modified'     => $stamped,
+					'post_modified_gmt' => $stamped,
+				],
+				[ 'ID' => $entry_id ]
+			);
+			clean_post_cache( $entry_id );
+		};
+
+		add_action( 'transition_post_status', $move_stamp_back, 6, 3 );
+
+		if ( 'future' === $status ) {
+			check_and_publish_future_post( $entry_id );
+		} else {
+			wp_update_post(
+				[
+					'ID'          => $entry_id,
+					'post_status' => 'publish',
+				]
+			);
+		}
+
+		remove_action( 'transition_post_status', $move_stamp_back, 6 );
+
+		$first = $this->get_feed( [ 'cursor' => "{$cursor_entry_id}:2026-01-01 11:30:00" ] )->get_data();
+
+		$this->assertSame( [ $entry_id => 'insert' ], wp_list_pluck( $first['entries'], 'type', 'id' ), 'The first poll should send the entry as new.' );
+
+		wp_update_post(
+			[
+				'ID'         => $entry_id,
+				'post_title' => 'Retitled',
+			]
+		);
+
+		$second = $this->get_feed( [ 'cursor' => $first['cursor'] ] )->get_data();
+
+		$this->assertSame( [ $entry_id => 'update' ], wp_list_pluck( $second['entries'], 'type', 'id' ), 'The next poll should send the edit as an update.' );
+	}
+
+	/**
 	 * Entries published after the poll cursor, one count for each kind of
 	 * poll response: nothing new, new entries, and a burst over the cap.
 	 *
