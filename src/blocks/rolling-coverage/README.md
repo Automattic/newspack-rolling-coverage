@@ -85,6 +85,8 @@ The panel title shows the site's label for an ended coverage ("Ended" unless the
 
 Notice appears only when When ended is set to Show. Notice text and Link appear only when Notice is set to Show, and URL and Link text only when Link is set to Show.
 
+Readers who already have the page open when the coverage ends see the notice at the page's next check for updates, and the page stops checking. On a Lite Site page, the notice appears only after a reload.
+
 ### AI
 
 Appears when AI is set up on the site. Generate Key Takeaways writes a summary of the coverage's entries into Generated Output. Copy copies it. Administrators set the prompts under Rolling Coverage > AI.

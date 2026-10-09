@@ -5,6 +5,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Taxonomy;
@@ -597,6 +598,29 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$this->assertSame( [], $idle['entries'], 'Nothing changed since the cursor.' );
 		$this->assertSame( 'archived', $idle['status'], 'An idle poll still reports a status change.' );
 		$this->assertSame( '2026-01-01T12:00:00+00:00', $idle['newestEntry'] );
+	}
+
+	/**
+	 * A poll that reports the coverage ended carries its latest published
+	 * breakout post, which the ended notice of a page rendered while it was
+	 * live links to. Polls of a live coverage leave it out.
+	 */
+	public function test_poll_reports_the_latest_breakout_once_the_coverage_ends() {
+		$entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+		$cursor   = '0:2026-01-01 00:00:00';
+
+		update_term_meta( $this->coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$this->assertNull( $this->get_feed( [ 'cursor' => $cursor ] )->get_data()['latestBreakoutUrl'], 'Ended without a breakout post: none.' );
+
+		$breakout_id = self::factory()->post->create( [ 'post_status' => 'publish' ] );
+		update_post_meta( $entry_id, Breakout::ENTRY_BREAKOUT_POST_ID_META, $breakout_id );
+
+		$this->assertSame( get_permalink( $breakout_id ), $this->get_feed( [ 'cursor' => $cursor ] )->get_data()['latestBreakoutUrl'] );
+
+		update_term_meta( $this->coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ACTIVE );
+
+		$this->assertArrayNotHasKey( 'latestBreakoutUrl', $this->get_feed( [ 'cursor' => $cursor ] )->get_data(), 'A live coverage: left out.' );
 	}
 
 	/**

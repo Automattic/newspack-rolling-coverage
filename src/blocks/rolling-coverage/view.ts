@@ -215,6 +215,23 @@ function isSameOrigin( url: string ): boolean {
 }
 
 /**
+ * Whether a URL is a web address, one with an http or https scheme. A
+ * malformed URL is not.
+ *
+ * @param {string} url URL, absolute or relative to the page.
+ * @return {boolean} True when the URL can be linked.
+ */
+function isWebUrl( url: string ): boolean {
+	try {
+		return [ 'http:', 'https:' ].includes(
+			new URL( url, window.location.href ).protocol
+		);
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Validates that a value is a finite positive integer, safe for use
  * in CSS selectors and DOM operations.
  *
@@ -506,6 +523,11 @@ function initBlock( root: HTMLElement ): void {
 		newEntriesControl?.querySelector< HTMLElement >( '[data-rc-latest]' ) ??
 		null;
 	const statusEl = ownElement( root, '.newspack-rolling-coverage-status' );
+	// On a page rendered before the coverage ended, held hidden until a poll reports the end.
+	const endedNotice = ownElement(
+		root,
+		'.newspack-rolling-coverage-archived-notice'
+	);
 	const checkControls = ownElements(
 		root,
 		'.newspack-rolling-coverage-check-updates'
@@ -738,14 +760,20 @@ function initBlock( root: HTMLElement ): void {
 	 * Schedules the next poll, at the block's interval or the site's minimum,
 	 * whichever is longer, in place of any poll already scheduled. Schedules
 	 * none while a poll is in flight, as that poll schedules the next, or
-	 * while the page is hidden, as showing it polls at once.
+	 * while the page is hidden, as showing it polls at once, or once the
+	 * coverage has ended, as it gets no new entries.
 	 *
 	 * @return {void}
 	 */
 	function schedulePoll(): void {
 		cancelPoll();
 
-		if ( checksOnRequest || isPolling || document.hidden ) {
+		if (
+			checksOnRequest ||
+			isPolling ||
+			document.hidden ||
+			polledStatus === 'archived'
+		) {
 			if ( ! isPolling ) {
 				reportCheck( 'idle' );
 			}
@@ -2172,17 +2200,54 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Shows the ended notice the page holds hidden, as a fresh render of the
+	 * ended coverage shows it, and announces it. A notice that links to the
+	 * coverage's latest breakout post carries only the link's text, since
+	 * that post is known only once the coverage ends: the poll reporting the
+	 * end brings it.
+	 *
+	 * @param {string | null} [breakoutUrl] The latest breakout post's URL, from the poll.
+	 * @return {void}
+	 */
+	function showEndedNotice( breakoutUrl?: string | null ): void {
+		if ( ! endedNotice?.hidden ) {
+			return;
+		}
+
+		const label = endedNotice.dataset.linkLabel;
+
+		if ( label && breakoutUrl && isWebUrl( breakoutUrl ) ) {
+			const link = document.createElement( 'a' );
+
+			link.className = 'newspack-rolling-coverage-archived-notice__link';
+			link.href = breakoutUrl;
+			link.textContent = label;
+			endedNotice.append( ' ', link );
+		}
+
+		delete endedNotice.dataset.linkLabel;
+		endedNotice.hidden = false;
+		announce( endedNotice.textContent ?? '' );
+	}
+
+	/**
 	 * Polls for new and edited entries.
 	 *
 	 * Fetches entries modified at or after the cursor and applies them. Also
 	 * passes the running ad counter so the server can continue the interval
 	 * across poll batches. Takes the place of a poll already scheduled, and
-	 * does nothing while another poll is in flight or the page is hidden.
+	 * does nothing while another poll is in flight or the page is hidden, or
+	 * once the coverage has ended.
 	 *
 	 * @return {Promise<PollOutcome>} How the poll ended.
 	 */
 	async function poll(): Promise< PollOutcome > {
-		if ( ! cursor || isPolling || document.hidden ) {
+		if (
+			! cursor ||
+			isPolling ||
+			document.hidden ||
+			polledStatus === 'archived'
+		) {
 			return 'skipped';
 		}
 
@@ -2305,6 +2370,11 @@ function initBlock( root: HTMLElement ): void {
 				cursor = data.cursor || cursor;
 				polledCount = data.polledCount ?? polledCount;
 				isForwardPollHealthy = true;
+
+				// Last, so its announcement isn't replaced by the entries'.
+				if ( data.status === 'archived' ) {
+					showEndedNotice( data.latestBreakoutUrl );
+				}
 			} else if ( isForwardPollHealthy ) {
 				trackPollError( 'poll' );
 				isForwardPollHealthy = false;

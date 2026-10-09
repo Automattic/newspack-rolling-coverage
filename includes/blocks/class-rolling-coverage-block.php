@@ -1422,6 +1422,15 @@ class Rolling_Coverage_Block {
 			? trim( $attributes['allUpdatesLinkText'] )
 			: '';
 
+		// A page rendered before the coverage ends holds the notice hidden, for
+		// the view script to show when a poll reports the end. A lite page
+		// doesn't: Lite Site strips the hidden attribute where it can't keep
+		// the feed's markup, which would show it.
+		$is_archived     = Taxonomy::STATUS_ARCHIVED === $status;
+		$archived_notice = $is_archived || ( empty( $attributes['hideWhenEnded'] ) && ! $is_lite )
+			? self::render_archived_notice( $attributes, $coverage_id, $is_archived )
+			: '';
+
 		try {
 			$items_html = sprintf(
 				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%9$s%7$s%6$s',
@@ -1429,7 +1438,7 @@ class Rolling_Coverage_Block {
 				$entries_html,
 				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text ),
 				$is_capped ? '' : self::render_new_entries_control( (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
-				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
+				$archived_notice,
 				'scroll' === $older_entries ? sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ) : '',
 				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text ),
 				// A capped feed can sit on every page, where announcing each new entry would be noise.
@@ -2615,11 +2624,17 @@ class Rolling_Coverage_Block {
 	 * has none. Unless the block turns the link off, a link follows to the
 	 * block's URL or, without one, to the coverage's latest breakout post.
 	 *
+	 * Before the coverage ends, the notice renders hidden. Its breakout post
+	 * isn't known yet, so the notice carries the link's text in
+	 * `data-link-label` instead, for the view script to link the breakout
+	 * post the poll reporting the end brings.
+	 *
 	 * @param array $attributes  Block attributes.
 	 * @param int   $coverage_id Coverage term ID.
+	 * @param bool  $is_archived Whether the coverage has ended.
 	 * @return string Rendered HTML.
 	 */
-	private static function render_archived_notice( array $attributes, int $coverage_id ): string {
+	private static function render_archived_notice( array $attributes, int $coverage_id, bool $is_archived = true ): string {
 		if ( ! (bool) ( $attributes['archivedNoticeShow'] ?? true ) ) {
 			return '';
 		}
@@ -2628,23 +2643,31 @@ class Rolling_Coverage_Block {
 		$show_link = (bool) ( $attributes['archivedNoticeShowLink'] ?? true );
 		$url       = $show_link ? trim( (string) ( $attributes['archivedNoticeLinkUrl'] ?? '' ) ) : '';
 		$label     = trim( (string) ( $attributes['archivedNoticeLinkLabel'] ?? '' ) );
+		$label     = '' !== $label ? $label : __( 'Read more', 'newspack-rolling-coverage' );
+
+		$notice_attributes = $is_archived ? '' : ' hidden';
 
 		if ( $show_link && '' === $url ) {
-			$url = (string) self::latest_breakout_url( $coverage_id );
+			if ( $is_archived ) {
+				$url = (string) self::latest_breakout_url( $coverage_id );
+			} else {
+				$notice_attributes .= sprintf( ' data-link-label="%s"', esc_attr( $label ) );
+			}
 		}
 
 		$link = '' !== $url ? esc_url( $url ) : '';
 
 		return sprintf(
-			'<p class="%s-archived-notice">%s%s</p>',
+			'<p class="%s-archived-notice"%s>%s%s</p>',
 			self::MARKUP_PREFIX,
+			$notice_attributes,
 			nl2br( esc_html( '' !== $text ? $text : self::default_archived_notice( $coverage_id ) ), false ),
 			'' !== $link
 				? sprintf(
 					' <a class="%s-archived-notice__link" href="%s">%s</a>',
 					self::MARKUP_PREFIX,
 					$link,
-					esc_html( '' !== $label ? $label : __( 'Read more', 'newspack-rolling-coverage' ) )
+					esc_html( $label )
 				)
 				: ''
 		);
@@ -4561,7 +4584,9 @@ class Rolling_Coverage_Block {
 	 * drops below POLL_MAX_AGE.
 	 *
 	 * It also carries the coverage's status and newest entry date for the
-	 * Coverage Status block.
+	 * Coverage Status block. Once the coverage has ended, it carries the
+	 * latest breakout post's URL too, or null, for the ended notice of a page
+	 * rendered before then, which links to it.
 	 *
 	 * @param array $data        Poll response body.
 	 * @param int   $coverage_id Coverage term ID.
@@ -4572,6 +4597,10 @@ class Rolling_Coverage_Block {
 		$data['newestEntry']     = Newest_Entry::get_iso( $coverage_id );
 		$min_poll_interval       = self::get_min_poll_interval();
 		$data['minPollInterval'] = $min_poll_interval;
+
+		if ( Taxonomy::STATUS_ARCHIVED === $data['status'] ) {
+			$data['latestBreakoutUrl'] = self::latest_breakout_url( $coverage_id );
+		}
 
 		$response = new WP_REST_Response( $data );
 		$response->header( 'Cache-Control', 'public, max-age=' . max( self::POLL_MAX_AGE, intdiv( $min_poll_interval, 2 ) ) );

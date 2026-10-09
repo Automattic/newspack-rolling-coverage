@@ -348,6 +348,22 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A lite page of a live coverage holds no hidden ended notice, as a full
+	 * page does: a Lite Site that can't keep the feed's markup strips its
+	 * `hidden` attribute and would show it. Once ended, the notice renders.
+	 */
+	public function test_lite_page_holds_no_ended_notice_until_the_coverage_ends() {
+		self::create_entry( $this->coverage_id );
+
+		$this->assertStringContainsString( 'archived-notice', $this->render_block_html(), 'A full page holds it.' );
+		$this->assertStringNotContainsString( 'archived-notice', $this->render_lite_page(), 'A lite page does not.' );
+
+		update_term_meta( $this->coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$this->assertStringContainsString( 'archived-notice', $this->render_lite_page(), 'Ended, a lite page shows it.' );
+	}
+
+	/**
 	 * The Follow button needs its own script and a push provider, neither of
 	 * which a lite page has.
 	 */

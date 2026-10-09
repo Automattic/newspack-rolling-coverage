@@ -154,6 +154,7 @@ interface PollResponse {
 	minPollInterval: number;
 	status?: string;
 	newestEntry?: string | null;
+	latestBreakoutUrl?: string | null;
 }
 
 /**
