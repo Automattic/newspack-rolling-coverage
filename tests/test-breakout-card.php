@@ -161,11 +161,11 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A post without a hand-written excerpt is summed up by WordPress's
-	 * generated one, at the site's excerpt length, ending in an ellipsis
-	 * rather than a theme's "Continue reading" link.
+	 * A post without a hand-written excerpt is summed up by its opening
+	 * words, at the site's excerpt length, ending in an ellipsis rather than
+	 * a theme's "Continue reading" link.
 	 */
-	public function test_summary_is_the_generated_excerpt_at_the_site_length() {
+	public function test_summary_is_the_opening_words_at_the_site_length() {
 		[ $entry_id ] = self::create_breakout(
 			'publish',
 			[
@@ -183,56 +183,80 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The summary is built with the post as the global post, so content
-	 * filters reading it act on the post, and the page's own global post is
-	 * back once the entry renders.
+	 * The summary holds only what every reader may see, whoever renders
+	 * first: a members-only block never reaches it, even when a member's
+	 * render would show that block, and a block shown to everyone stays in
+	 * it even when hidden from the reader rendering first.
 	 */
-	public function test_summary_is_built_with_the_post_as_the_global_post() {
-		[ $entry_id, $breakout_id ] = self::create_breakout( 'publish', [ 'post_excerpt' => '' ] );
-		$host_id                    = self::factory()->post->create();
-		$GLOBALS['post']            = get_post( $host_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-		$seen                       = [];
-		add_filter(
-			'the_content',
-			static function ( $content ) use ( &$seen ) {
-				$seen[] = get_the_ID();
-				return $content;
-			}
+	public function test_summary_holds_only_what_every_reader_sees() {
+		$this->use_block_visibility_stub();
+		[ $entry_id ] = self::create_breakout(
+			'publish',
+			[
+				'post_excerpt' => '',
+				'post_content' => '<!-- wp:paragraph --><p>Everyone reads this.</p><!-- /wp:paragraph -->'
+					. self::members_only_paragraph( 'Members read this.' )
+					. '<!-- wp:paragraph --><p>Visitors read this too.</p><!-- /wp:paragraph -->',
+			]
 		);
+		$as_member = static fn( $content ) => is_string( $content ) && str_contains( $content, 'Visitors read' ) ? '' : $content;
+		add_filter( 'render_block_core/paragraph', $as_member );
 
-		self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP );
+		$first = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP );
 
-		$this->assertContains( $breakout_id, $seen );
-		$this->assertNotContains( $host_id, $seen );
-		$this->assertSame( $host_id, get_the_ID() );
+		remove_filter( 'render_block_core/paragraph', $as_member );
+		$later = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP );
+
+		foreach ( [ $first, $later ] as $html ) {
+			$this->assertStringContainsString( '<p>Everyone reads this. Visitors read this too.</p></div>', $html );
+			$this->assertStringNotContainsString( 'Members read', $html );
+		}
 	}
 
 	/**
 	 * The summary is worked out only for a template that shows it, and only
-	 * once while the post is unchanged. The entry's own content never
-	 * renders, and its Post Content keeps its layout classes.
+	 * once while the post is unchanged and the excerpt length stays the
+	 * same. The entry's own content never renders, and its Post Content
+	 * keeps its layout classes.
 	 */
 	public function test_summary_is_worked_out_lazily_and_cached() {
-		[ $entry_id, $breakout_id ] = self::create_breakout( 'publish', [ 'post_excerpt' => '' ] );
-		$rendered                   = [];
+		global $wpdb;
+
+		[ $entry_id, $breakout_id ] = self::create_breakout(
+			'publish',
+			[
+				'post_excerpt' => '',
+				'post_content' => '<!-- wp:paragraph --><p>The whole post.</p><!-- /wp:paragraph -->',
+			]
+		);
+		$asked = 0;
 		add_filter(
-			'the_content',
-			static function ( $content ) use ( &$rendered ) {
-				$rendered[] = get_the_ID();
-				return $content;
+			'excerpt_length',
+			static function ( $length ) use ( &$asked ) {
+				++$asked;
+				return $length;
 			}
 		);
 
 		self::render( $entry_id, self::TITLE_MARKUP );
 
-		$this->assertSame( [], $rendered, 'A template without content or excerpt works out no summary.' );
+		$this->assertSame( 0, $asked, 'A template without content or excerpt works out no summary.' );
 
 		$html = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP . self::WIRE_EXCERPT_MARKUP );
-		$html = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP . self::WIRE_EXCERPT_MARKUP );
 
-		$this->assertSame( 1, count( array_keys( $rendered, $breakout_id, true ) ), 'The summary is cached.' );
-		$this->assertStringContainsString( 'The whole post.', $html );
 		$this->assertMatchesRegularExpression( '#<div class="[^"]*wp-block-post-content[^"]*is-layout-flow[^"]*"><p>The whole post.</p></div>#', $html );
+
+		$wpdb->update( $wpdb->posts, [ 'post_content' => '<!-- wp:paragraph --><p>Rewritten without a new modified time.</p><!-- /wp:paragraph -->' ], [ 'ID' => $breakout_id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		clean_post_cache( $breakout_id );
+
+		$html = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP );
+
+		$this->assertStringContainsString( '<p>The whole post.</p></div>', $html, 'The summary is cached.' );
+
+		add_filter( 'excerpt_length', fn() => 2, 999 );
+		$html = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP );
+
+		$this->assertStringContainsString( '<p>Rewritten without…</p></div>', $html, 'Another excerpt length gets its own summary.' );
 	}
 
 	/**
@@ -276,6 +300,54 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		$untitled = self::render( $entry_id, self::CONTENT_MARKUP );
 
 		$this->assertStringContainsString( '><p><strong><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Post &amp; headline</a></strong></p></div>', $untitled );
+	}
+
+	/**
+	 * A card with nothing for its Post Excerpt to show, such as a password
+	 * protected post's under its title, never has core build an excerpt
+	 * from the entry's content, which would render the entry's blocks only
+	 * for them to be thrown away.
+	 */
+	public function test_empty_card_excerpt_never_renders_the_entry() {
+		[ $entry_id ] = self::create_breakout( 'publish', [ 'post_password' => 'secret' ], [ 'post_excerpt' => '' ] );
+		$rendered     = 0;
+		add_filter(
+			'render_block_core/paragraph',
+			static function ( $content ) use ( &$rendered ) {
+				$rendered += is_string( $content ) && str_contains( $content, self::ENTRY_TEXT ) ? 1 : 0;
+				return $content;
+			}
+		);
+
+		$html = self::render( $entry_id, self::TITLE_MARKUP . self::WIRE_EXCERPT_MARKUP );
+
+		$this->assertSame( 0, $rendered );
+		$this->assertStringNotContainsString( 'wp-block-post-excerpt', $html );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-no-excerpt', $html );
+	}
+
+	/**
+	 * A free preview that Newspack's overlay gate ends in "[…]" ends in a
+	 * plain ellipsis in the summary, cut or not.
+	 */
+	public function test_free_preview_ends_in_a_plain_ellipsis() {
+		$this->use_content_gate_stub();
+
+		foreach ( [ ' [&hellip;]', ' […]' ] as $marker ) {
+			[ $entry_id, $breakout_id ] = self::create_breakout( 'publish', [ 'post_excerpt' => '' ] );
+			$this->gate_entry( $breakout_id, '<p>The free opening.</p><p>Its second paragraph' . $marker . '</p>' );
+
+			$html = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP );
+
+			$this->assertStringContainsString( '<p>The free opening. Its second paragraph…</p></div>', $html );
+
+			add_filter( 'excerpt_length', fn() => 3 );
+			$html = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP );
+			remove_all_filters( 'excerpt_length' );
+
+			$this->assertStringContainsString( '<p>The free opening.…</p></div>', $html );
+			$this->assertStringNotContainsString( '[', $html );
+		}
 	}
 
 	/**
@@ -503,6 +575,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		foreach ( [ 'the_title', 'get_the_excerpt', 'the_content', 'render_block_core/post-excerpt', 'render_block_core/post-content' ] as $hook ) {
 			$this->assertFalse( has_filter( $hook, [ Breakout_Card::class, 'filter_title' ] ) );
 			$this->assertFalse( has_filter( $hook, [ Breakout_Card::class, 'filter_excerpt' ] ) );
+			$this->assertFalse( has_filter( $hook, [ Breakout_Card::class, 'hold_excerpt' ] ) );
 			$this->assertFalse( has_filter( $hook, [ Breakout_Card::class, 'stand_in_content' ] ) );
 			$this->assertFalse( has_filter( $hook, [ Breakout_Card::class, 'render_excerpt' ] ) );
 			$this->assertFalse( has_filter( $hook, [ Breakout_Card::class, 'render_content' ] ) );

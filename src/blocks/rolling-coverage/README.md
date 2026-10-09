@@ -139,7 +139,7 @@ Selecting Share on an entry opens the device's share sheet with a link to that e
 An entry made into a post with "Create Breakout Post" shows as usual until that post is published. From then on, every layout shows the entry as a card for the post, in the layout's own style:
 
 - Where the layout shows the entry's title, it shows the post's title, linked to the post. A post without a title keeps the entry's title, still linked to the post.
-- Where the layout shows the entry's content or excerpt, it shows the post's excerpt instead: the excerpt written for the post, or else its opening words.
+- Where the layout shows the entry's content or excerpt, it shows the post's excerpt instead: the excerpt written for the post, or else its opening words. Blocks set to show only to some readers are left out of those words, so every reader sees the same excerpt.
 - Layouts without a title name the post another way: Stream and Minute show the post's title, linked, above its excerpt, and Flash shows the post's title.
 - A password-protected post shows only its title.
 - A post behind a content gate or a membership restriction shows its title and the excerpt written for it. Without one, it shows the opening the content gate lets every reader see, or its title alone when the gate shows none, so none of its restricted text reaches readers who don't have access. To choose what such a post shows in the feed, write an excerpt for it.

@@ -30,6 +30,14 @@ class Breakout_Card {
 	const CACHE_GROUP = 'newspack_rolling_coverage_breakout_card';
 
 	/**
+	 * What a card's excerpt holds between hold_excerpt() and
+	 * filter_excerpt() when it has nothing to show, so core's excerpt filter
+	 * sees an excerpt and builds none from the entry's content. A comment,
+	 * so it shows nothing should it ever be printed.
+	 */
+	const NO_EXCERPT = '<!-- newspack-rolling-coverage-no-excerpt -->';
+
+	/**
 	 * The cards of the entries rendering now, by entry ID, each with whether
 	 * the template it renders through holds a Post Title.
 	 *
@@ -49,8 +57,9 @@ class Breakout_Card {
 	 * ID, link, title and summary, as plain text (see summary()). Null while
 	 * the entry has no published breakout post.
 	 *
-	 * The summary renders the post's content, so callers ask for it before
-	 * the entry renders, and only when the entry's template shows it.
+	 * Working out the summary reads the post's content, and a gated post's
+	 * free preview can render it, so callers ask for it before the entry
+	 * renders, and only when the entry's template shows it.
 	 *
 	 * @param int  $entry_id     Entry post ID.
 	 * @param bool $with_summary Whether to work out the summary; the card's
@@ -76,13 +85,12 @@ class Breakout_Card {
 
 	/**
 	 * A breakout post's summary, as plain text: nothing for a password
-	 * protected post; for a restricted one (see is_restricted()), its
-	 * hand-written excerpt, else its content gate's free preview; and its
-	 * excerpt, hand-written or generated, for any other. A post whose excerpt leads back to its own summary, such as
-	 * through a feed in its content, gets nothing there.
-	 *
-	 * The generated summary is cached by the post's ID and modified time, so
-	 * an edit to the post makes a new one.
+	 * protected post; its hand-written excerpt when it has one; for a
+	 * restricted post (see is_restricted()), its content gate's free
+	 * preview; and for any other, its opening words, read from what every
+	 * reader may see (see public_summary()). A post whose summary leads back
+	 * to its own, such as through a feed in its free preview, gets nothing
+	 * there.
 	 *
 	 * @param WP_Post $post Breakout post.
 	 * @return string
@@ -92,13 +100,38 @@ class Breakout_Card {
 			return '';
 		}
 
-		if ( self::is_restricted( $post ) ) {
-			$excerpt = self::plain_text( $post->post_excerpt );
+		$excerpt = self::plain_text( $post->post_excerpt );
 
-			return '' !== $excerpt ? $excerpt : self::teaser_summary( $post );
+		if ( '' !== $excerpt ) {
+			return $excerpt;
 		}
 
-		$key     = $post->ID . ':' . $post->post_modified_gmt;
+		self::$summarizing[ $post->ID ] = true;
+
+		try {
+			return self::is_restricted( $post ) ? self::teaser_summary( $post ) : self::public_summary( $post );
+		} finally {
+			unset( self::$summarizing[ $post->ID ] );
+		}
+	}
+
+	/**
+	 * A breakout post's opening words, cut to the `excerpt_length` filter's
+	 * length and ending in an ellipsis when cut, read from its stored blocks
+	 * without those Newspack hides from readers who aren't signed in
+	 * (Entry_Bindings::public_summary()). Nothing is rendered, so the
+	 * summary is the same whoever reads first, which matters since it's
+	 * cached for everyone.
+	 *
+	 * Cached by the post's ID, its modified time and the length, so an edit
+	 * makes a new key and a context asking for another length gets its own.
+	 *
+	 * @param WP_Post $post Breakout post.
+	 * @return string
+	 */
+	private static function public_summary( WP_Post $post ): string {
+		$length  = self::excerpt_length();
+		$key     = $post->ID . ':' . $post->post_modified_gmt . ':' . $length;
 		$found   = false;
 		$summary = wp_cache_get( $key, self::CACHE_GROUP, false, $found );
 
@@ -106,7 +139,7 @@ class Breakout_Card {
 			return $summary;
 		}
 
-		$summary = self::generate_summary( $post );
+		$summary = Entry_Bindings::public_summary( $post, $length );
 		wp_cache_set( $key, $summary, self::CACHE_GROUP );
 
 		return $summary;
@@ -115,10 +148,11 @@ class Breakout_Card {
 	/**
 	 * A restricted breakout post's summary without a hand-written excerpt:
 	 * the free preview its Newspack content gate shows every reader, cut to
-	 * the `excerpt_length` filter's length, or nothing when the gate has no
-	 * free preview or something else restricts the post. Newspack gives no
-	 * teaser while WooCommerce Memberships is active, so a Memberships rule
-	 * leaves the summary empty.
+	 * the `excerpt_length` filter's length (Post_Type::get_html_excerpt()),
+	 * or nothing when the gate has no free preview or something else
+	 * restricts the post. The " [&hellip;]" Newspack's overlay gate ends the
+	 * preview with gives way to a plain ellipsis. Newspack gives no teaser while WooCommerce Memberships is
+	 * active, so a Memberships rule leaves the summary empty.
 	 *
 	 * @param WP_Post $post Breakout post.
 	 * @return string
@@ -134,7 +168,24 @@ class Breakout_Card {
 			return '';
 		}
 
-		return self::plain_text( wp_trim_words( $teaser, (int) apply_filters( 'excerpt_length', 55 ), '&hellip;' ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+		$teaser  = (string) preg_replace( '#\s*\[(?:&hellip;|&\#8230;|&\#x2026;|\x{2026})\](?=(?:\s|</[a-z][a-z0-9]*>)*$)#iu', '', $teaser, 1, $marked );
+		$summary = Post_Type::get_html_excerpt( $teaser, self::excerpt_length(), '&hellip;' );
+
+		if ( $marked > 0 && '' !== $summary && '&hellip;' !== substr( $summary, -8 ) ) {
+			$summary .= '&hellip;';
+		}
+
+		return self::plain_text( $summary );
+	}
+
+	/**
+	 * The number of words a summary keeps: the `excerpt_length` filter's
+	 * value, core's translatable 55 by default.
+	 *
+	 * @return int
+	 */
+	private static function excerpt_length(): int {
+		return max( 1, (int) apply_filters( 'excerpt_length', (int) _x( '55', 'excerpt_length' ) ) ); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain, WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's own filter and default, translated with core.
 	}
 
 	/**
@@ -142,10 +193,8 @@ class Breakout_Card {
 	 * text, whoever is reading: a Newspack content gate or a WooCommerce
 	 * Memberships rule covers it (see Entry_Bindings::is_withheld()), or a
 	 * `newspack_post_has_restrictions` callback says it's restricted. The
-	 * answer can't depend on the reader, since the summary is cached and
-	 * polls render it for everyone. Newspack's own excerpt filter stands
-	 * down during REST requests, such as polls and load more, so the
-	 * generated excerpt would hold the post's full text there.
+	 * answer can't depend on the reader, since polls render the summary for
+	 * everyone.
 	 *
 	 * @param WP_Post $post Breakout post.
 	 * @return bool
@@ -155,58 +204,10 @@ class Breakout_Card {
 	}
 
 	/**
-	 * A breakout post's excerpt as plain text, worked out with the post as
-	 * the global post, as it is on its own page, and with a plain ellipsis
-	 * in place of any "Continue reading" link a theme adds.
-	 *
-	 * @global WP_Post $post Global post object, swapped to the breakout post
-	 *                       and restored afterwards.
-	 *
-	 * @param WP_Post $breakout Breakout post.
-	 * @return string
-	 */
-	private static function generate_summary( WP_Post $breakout ): string {
-		global $post;
-
-		$previous_post = $post;
-		$post          = $breakout; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-		setup_postdata( $breakout );
-
-		$adds_more                          = false === has_filter( 'excerpt_more', [ __CLASS__, 'summary_more' ] );
-		self::$summarizing[ $breakout->ID ] = true;
-
-		if ( $adds_more ) {
-			add_filter( 'excerpt_more', [ __CLASS__, 'summary_more' ], PHP_INT_MAX );
-		}
-
-		try {
-			return self::plain_text( get_the_excerpt( $breakout ) );
-		} finally {
-			if ( $adds_more ) {
-				remove_filter( 'excerpt_more', [ __CLASS__, 'summary_more' ], PHP_INT_MAX );
-			}
-
-			unset( self::$summarizing[ $breakout->ID ] );
-			$post = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-			setup_postdata( $previous_post );
-		}
-	}
-
-	/**
-	 * What ends a cut summary.
-	 *
-	 * @return string
-	 */
-	public static function summary_more(): string {
-		return '&hellip;';
-	}
-
-	/**
 	 * Render an entry as its card, with the card's filters active for that
 	 * entry alone. Each filter acts only for a card's own blocks, so other
-	 * entries rendering meanwhile, such as those of a feed in a breakout
-	 * post whose summary is worked out, keep their own text. The filters
-	 * stay until the outermost card is done.
+	 * entries rendering meanwhile keep their own text. The filters stay
+	 * until the outermost card is done.
 	 *
 	 * @param int      $entry_id        Entry post ID.
 	 * @param array    $card            The entry's card (see for_entry()).
@@ -220,7 +221,7 @@ class Breakout_Card {
 
 		if ( ! self::$rendering ) {
 			add_filter( 'the_title', [ __CLASS__, 'filter_title' ], 20, 2 );
-			add_filter( 'get_the_excerpt', [ __CLASS__, 'filter_excerpt' ], 9, 2 );
+			add_filter( 'get_the_excerpt', [ __CLASS__, 'hold_excerpt' ], 9, 2 );
 			add_filter( 'get_the_excerpt', [ __CLASS__, 'filter_excerpt' ], 20, 2 );
 			add_filter( 'the_content', [ __CLASS__, 'stand_in_content' ], PHP_INT_MIN );
 			add_filter( 'render_block_core/post-excerpt', [ __CLASS__, 'render_excerpt' ], 10, 3 );
@@ -240,7 +241,7 @@ class Breakout_Card {
 
 			if ( ! self::$rendering ) {
 				remove_filter( 'the_title', [ __CLASS__, 'filter_title' ], 20 );
-				remove_filter( 'get_the_excerpt', [ __CLASS__, 'filter_excerpt' ], 9 );
+				remove_filter( 'get_the_excerpt', [ __CLASS__, 'hold_excerpt' ], 9 );
 				remove_filter( 'get_the_excerpt', [ __CLASS__, 'filter_excerpt' ], 20 );
 				remove_filter( 'the_content', [ __CLASS__, 'stand_in_content' ], PHP_INT_MIN );
 				remove_filter( 'render_block_core/post-excerpt', [ __CLASS__, 'render_excerpt' ], 10 );
@@ -275,8 +276,7 @@ class Breakout_Card {
 	 * What a card's Post Excerpt shows: the breakout post's summary, or in
 	 * a template without a Post Title, the post's title, so the card still
 	 * names it. Only that block's own lookup gets it, as in filter_title().
-	 * Hooked before core's excerpt filter too, so core doesn't build an
-	 * excerpt from the entry's content only for it to be replaced.
+	 * Runs after the other excerpt filters, replacing what they built.
 	 *
 	 * Parameters stay untyped because this runs for every excerpt on the
 	 * site while a card renders, after other plugins' filters that may hand
@@ -291,6 +291,31 @@ class Breakout_Card {
 		$card    = self::card_for_block( 'core/post-excerpt', $post_id );
 
 		return null !== $card ? esc_html( self::excerpt_text( $card ) ) : $excerpt;
+	}
+
+	/**
+	 * What a card's Post Excerpt holds before core's excerpt filter: its text
+	 * (see filter_excerpt()), or NO_EXCERPT when it has none, so core never
+	 * builds an excerpt from the entry's content, rendering its blocks, only
+	 * for it to be thrown away.
+	 *
+	 * Parameters stay untyped, as in filter_excerpt().
+	 *
+	 * @param string           $excerpt The excerpt.
+	 * @param WP_Post|int|null $post    The post.
+	 * @return string
+	 */
+	public static function hold_excerpt( $excerpt, $post = null ) {
+		$post_id = $post instanceof WP_Post ? $post->ID : (int) $post;
+		$card    = self::card_for_block( 'core/post-excerpt', $post_id );
+
+		if ( null === $card ) {
+			return $excerpt;
+		}
+
+		$text = self::excerpt_text( $card );
+
+		return '' !== $text ? esc_html( $text ) : self::NO_EXCERPT;
 	}
 
 	/**

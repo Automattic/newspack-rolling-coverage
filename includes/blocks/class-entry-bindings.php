@@ -288,10 +288,11 @@ class Entry_Bindings {
 	 * the public, or nothing for a restricted entry (see is_restricted()) or
 	 * one with no words outside its media. For text shown or sent outside
 	 * the entry itself, such as a share link's name, a push notification or
-	 * a breakout post's title. Decoded plain text, as
+	 * a breakout post's title. Reads any post the same way, so
+	 * Breakout_Card sums up a breakout post with it. Decoded plain text, as
 	 * Post_Type::get_html_summary() gives it.
 	 *
-	 * @param WP_Post $entry Entry post.
+	 * @param WP_Post $entry Entry post, or another post.
 	 * @param int     $words Number of words to keep.
 	 * @return string
 	 */
