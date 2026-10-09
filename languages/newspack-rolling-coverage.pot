@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-09T21:42:32+00:00\n"
+"POT-Creation-Date: 2026-10-09T22:34:14+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -528,8 +528,8 @@ msgstr ""
 #: includes/class-archive-mode.php:285
 #: includes/class-breakout.php:238
 #: includes/class-post-type.php:1211
-#: includes/class-post-type.php:3059
-#: includes/class-post-type.php:3464
+#: includes/class-post-type.php:3067
+#: includes/class-post-type.php:3472
 msgid "Entry not found."
 msgstr ""
 
@@ -699,96 +699,96 @@ msgstr ""
 msgid "This coverage is in the trash. Restore it before adding entries."
 msgstr ""
 
-#: includes/class-post-type.php:2792
-#: includes/class-post-type.php:2876
+#: includes/class-post-type.php:2800
+#: includes/class-post-type.php:2884
 msgid "No entry IDs provided."
 msgstr ""
 
-#: includes/class-post-type.php:2808
+#: includes/class-post-type.php:2816
 msgid "You do not have permission to restore this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2884
+#: includes/class-post-type.php:2892
 msgid "The slug and date can only be changed one entry at a time."
 msgstr ""
 
-#: includes/class-post-type.php:2903
+#: includes/class-post-type.php:2911
 msgid "That person can’t be the author of an entry."
 msgstr ""
 
-#: includes/class-post-type.php:2916
+#: includes/class-post-type.php:2924
 msgid "That date isn’t valid."
 msgstr ""
 
-#: includes/class-post-type.php:2943
+#: includes/class-post-type.php:2951
 msgid "Nothing to change."
 msgstr ""
 
-#: includes/class-post-type.php:3063
+#: includes/class-post-type.php:3071
 msgid "You do not have permission to edit this entry."
 msgstr ""
 
-#: includes/class-post-type.php:3067
+#: includes/class-post-type.php:3075
 msgid "This entry is archived, so it can’t be edited."
 msgstr ""
 
-#: includes/class-post-type.php:3078
+#: includes/class-post-type.php:3086
 msgid "A published entry can’t have a date in the future."
 msgstr ""
 
-#: includes/class-post-type.php:3082
+#: includes/class-post-type.php:3090
 msgid "Saving this entry would publish it, and you do not have permission to publish it."
 msgstr ""
 
-#: includes/class-post-type.php:3127
+#: includes/class-post-type.php:3135
 msgid "Co-Authors Plus couldn’t credit this entry to that person."
 msgstr ""
 
-#: includes/class-post-type.php:3196
+#: includes/class-post-type.php:3204
 msgid "One of the chosen categories doesn’t exist."
 msgstr ""
 
-#: includes/class-post-type.php:3197
+#: includes/class-post-type.php:3205
 msgid "One of the chosen tags doesn’t exist."
 msgstr ""
 
-#: includes/class-post-type.php:3231
+#: includes/class-post-type.php:3239
 msgid "You don’t have permission to assign one of the chosen categories."
 msgstr ""
 
-#: includes/class-post-type.php:3232
+#: includes/class-post-type.php:3240
 msgid "You don’t have permission to assign one of the chosen tags."
 msgstr ""
 
-#: includes/class-post-type.php:3242
+#: includes/class-post-type.php:3250
 msgid "You don’t have permission to create categories."
 msgstr ""
 
-#: includes/class-post-type.php:3243
+#: includes/class-post-type.php:3251
 msgid "You don’t have permission to create tags."
 msgstr ""
 
-#: includes/class-post-type.php:3433
+#: includes/class-post-type.php:3441
 msgid "An editor needs to restore the coverage before this entry can be restored."
 msgstr ""
 
-#: includes/class-post-type.php:3472
+#: includes/class-post-type.php:3480
 msgid "Entry is not in trash."
 msgstr ""
 
-#: includes/class-post-type.php:3480
+#: includes/class-post-type.php:3488
 msgid "This entry is archived, so it can’t be restored."
 msgstr ""
 
-#: includes/class-post-type.php:3531
+#: includes/class-post-type.php:3539
 msgid "This entry's coverage was deleted. An editor needs to restore it."
 msgstr ""
 
-#: includes/class-post-type.php:3553
+#: includes/class-post-type.php:3561
 msgid "This entry has no coverage context to restore to."
 msgstr ""
 
-#: includes/class-post-type.php:3611
+#: includes/class-post-type.php:3619
 msgid "Failed to restore entry."
 msgstr ""
 
