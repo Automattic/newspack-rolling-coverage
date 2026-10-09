@@ -1025,6 +1025,18 @@ function initBlock( root: HTMLElement ): void {
 			dropLastSeparator();
 		}
 
+		forgetOffPageEntry( entryId );
+		removedEntryIds.add( entryId );
+	}
+
+	/**
+	 * Takes an entry the list doesn't show out of the new entries waiting to
+	 * be shown, the count of newer entries and the edits kept for load more.
+	 *
+	 * @param {string} entryId Entry ID.
+	 * @return {void}
+	 */
+	function forgetOffPageEntry( entryId: string ): void {
 		const waiting = pendingNewEntries.length;
 
 		pendingNewEntries = pendingNewEntries.filter(
@@ -1051,7 +1063,34 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		offPageUpdates.delete( entryId );
-		removedEntryIds.add( entryId );
+	}
+
+	/**
+	 * Shows a newly pinned entry the list doesn't show where a fresh page
+	 * lists it: below the pinned entries, whatever its date. It can be older
+	 * than the entries loaded, waiting behind the new-entries control, or
+	 * newer than the shared entry. Load more then skips it as an entry
+	 * already shown.
+	 *
+	 * @param {HTMLElement} el The pinned entry, as the poll sent it.
+	 * @return {void}
+	 */
+	function showPinnedEntry( el: HTMLElement ): void {
+		forgetOffPageEntry( el.dataset.entryId ?? '' );
+
+		// The poll sends an edit with no arrival, as the page keeps the arrival
+		// of the copy it replaces. This entry had no copy on the page.
+		el.dataset.arrival = 'poll';
+
+		ownElement(
+			root,
+			'.newspack-rolling-coverage-entries__empty',
+			entriesList
+		)?.remove();
+
+		entriesList.insertBefore( el, firstUnpinnedEntry() );
+		observeEntry( el );
+		dropLastSeparator();
 	}
 
 	const cleanupFns: Array< () => void > = [];
@@ -1787,12 +1826,14 @@ function initBlock( root: HTMLElement ): void {
 	 * Applies a poll response to the entry list.
 	 *
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
-	 * on the page for loadMore(). Drops entries taken down, and leaves one
-	 * that comes back for reload. Inserts or queues newly published entries
-	 * based on the reader's scroll position. When the feed opens at a shared
-	 * entry, new entries are added to the control's count instead of inserted.
-	 * A capped feed inserts new entries at once, whatever the scroll position,
-	 * and ignores edits to entries it doesn't show.
+	 * on the page for loadMore(), except an edit that pins one, which shows
+	 * it with the pinned entries at once (see showPinnedEntry()). Drops
+	 * entries taken down, and leaves one that comes back for reload. Inserts
+	 * or queues newly published entries based on the reader's scroll
+	 * position. When the feed opens at a shared entry, new entries are added
+	 * to the control's count instead of inserted. A capped feed inserts new
+	 * entries at once, whatever the scroll position, and ignores edits to
+	 * entries it doesn't show, pins included.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
@@ -1826,6 +1867,11 @@ function initBlock( root: HTMLElement ): void {
 
 			if ( entry.type === 'update' && ! existing ) {
 				if ( latestCap ) {
+					return;
+				}
+
+				if ( entryEl?.hasAttribute( 'data-pinned' ) ) {
+					showPinnedEntry( entryEl );
 					return;
 				}
 

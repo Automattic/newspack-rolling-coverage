@@ -728,6 +728,44 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An entry pinned after a page rendered without it reaches the page's
+	 * next poll as an edit, marked pinned and with no arrival. That's all the
+	 * view script has to go on to show it with the pinned entries and record
+	 * how it arrived (see showPinnedEntry() in view.ts).
+	 */
+	public function test_poll_sends_an_entry_pinned_off_the_page_as_a_pinned_edit() {
+		$older_id   = $this->create_entry_at( '2026-01-01 11:00:00' );
+		$newer_id   = $this->create_entry_at( '2026-01-01 12:00:00' );
+		$attributes = [
+			'coverageId'     => $this->coverage_id,
+			'entriesPerPage' => 1,
+		];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		preg_match( '/data-cursor="([^"]+)"/', $html, $cursor );
+		preg_match( '/data-template-key="([^"]+)"/', $html, $template_key );
+		preg_match_all( '/data-entry-id="(\d+)"/', $html, $shown );
+		$this->assertSame( [ (string) $newer_id ], $shown[1], 'The page should show only the newer entry.' );
+
+		self::log_in_as( 'editor' );
+		self::dispatch( 'POST', "/entries/{$older_id}/pin" );
+		wp_set_current_user( 0 );
+
+		$entries = $this->get_feed(
+			[
+				'cursor'       => $cursor[1],
+				'template_key' => $template_key[1],
+			]
+		)->get_data()['entries'];
+
+		$this->assertSame( [ $older_id ], wp_list_pluck( $entries, 'id' ) );
+		$this->assertSame( 'update', $entries[0]['type'] );
+		$this->assertStringContainsString( 'data-pinned', $entries[0]['html'] );
+		$this->assertStringContainsString( 'data-arrival=""', $entries[0]['html'] );
+	}
+
+	/**
 	 * Polled entries of a capped feed carry no anchor id, like its first
 	 * render, so links to an entry never land on the capped feed.
 	 */
