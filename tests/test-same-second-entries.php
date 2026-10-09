@@ -30,11 +30,25 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	private $coverage_id;
 
 	/**
-	 * Create the coverage. Requests are anonymous throughout.
+	 * Key of the default config, stored for the test coverage.
+	 *
+	 * @var string
+	 */
+	private $template_key;
+
+	/**
+	 * Create the coverage and store the default config for it. Requests are
+	 * anonymous throughout.
 	 */
 	public function set_up() {
 		parent::set_up();
 		$this->coverage_id = self::create_coverage();
+		$load              = new ReflectionMethod( Rolling_Coverage_Block::class, 'load_block_config' );
+		$persist           = new ReflectionMethod( Rolling_Coverage_Block::class, 'persist_block_config' );
+		$load->setAccessible( true );
+		$persist->setAccessible( true );
+		$defaults           = $load->invoke( null, $this->coverage_id, '' );
+		$this->template_key = $persist->invoke( null, $this->coverage_id, $defaults['template'], $defaults['adsEnabled'], $defaults['adsInterval'] );
 		wp_set_current_user( 0 );
 	}
 
@@ -45,7 +59,7 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	 * @return array Response data.
 	 */
 	private function get_feed( array $params ) {
-		return self::dispatch( 'GET', "/coverages/{$this->coverage_id}/entries", array_merge( [ 'template_key' => 'test' ], $params ) )->get_data();
+		return self::dispatch( 'GET', "/coverages/{$this->coverage_id}/entries", array_merge( [ 'template_key' => $this->template_key ], $params ) )->get_data();
 	}
 
 	/**

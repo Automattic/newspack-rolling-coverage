@@ -322,6 +322,65 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Untitled entries a gate covers: one with words, and a lone captioned
+	 * photo, which would otherwise be named by its media title.
+	 *
+	 * @return array<string,array{string,string}>
+	 */
+	public function gated_untitled_entries(): array {
+		return [
+			'text'  => [ '<!-- wp:paragraph --><p>The result is in.</p><!-- /wp:paragraph -->', 'The result is in' ],
+			'photo' => [ '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.test/count.jpg" alt=""/><figcaption class="wp-element-caption">Counting the ballots</figcaption></figure><!-- /wp:image -->', 'Counting' ],
+		];
+	}
+
+	/**
+	 * An untitled entry behind a content gate is shared by the button's text
+	 * alone: its opening words, or its photo's caption, are the gate's to
+	 * give away.
+	 *
+	 * @dataProvider gated_untitled_entries
+	 *
+	 * @param string $content  Entry content.
+	 * @param string $withheld Text that must not name the share link.
+	 */
+	public function test_share_name_of_a_gated_entry_holds_none_of_its_words( string $content, string $withheld ) {
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_title'   => '',
+				'post_content' => $content,
+			]
+		);
+		$this->gate_entry( $entry_id );
+
+		$html = self::render( $entry_id );
+
+		$this->assertStringContainsString( 'aria-label="Share"', $html );
+		$this->assertStringNotContainsString( $withheld, $html );
+	}
+
+	/**
+	 * A WooCommerce Memberships rule restricts an entry for every reader,
+	 * including one a `wc_memberships_is_post_public` callback lets through,
+	 * such as Newspack's newsletter-link access, since what's built from the
+	 * entry is cached for all. An entry an admin marked public isn't
+	 * restricted.
+	 */
+	public function test_membership_rule_restricts_an_entry_whoever_asks() {
+		$this->use_wc_memberships_stub();
+		$coverage_id   = self::create_coverage();
+		$restricted_id = self::create_entry( $coverage_id );
+		$public_id     = self::create_entry( $coverage_id );
+		$GLOBALS['newspack_rolling_coverage_restricted_posts'] = [ $restricted_id, $public_id ];
+		$GLOBALS['newspack_rolling_coverage_public_posts']     = [ $public_id ];
+		add_filter( 'wc_memberships_is_post_public', '__return_true' );
+
+		$this->assertTrue( Entry_Bindings::is_restricted( get_post( $restricted_id ) ) );
+		$this->assertFalse( Entry_Bindings::is_restricted( get_post( $public_id ) ) );
+	}
+
+	/**
 	 * The public summary of a password-protected entry is empty, whoever
 	 * asks: an editor holding the password included.
 	 */
