@@ -630,8 +630,8 @@ function initBlock( root: HTMLElement ): void {
 	const newerCount =
 		parseInt( newEntriesControl?.dataset.newerCount || '0', 10 ) || 0;
 
-	// Entries in that count the page now shows pinned, which a fresh page
-	// leaves out of it.
+	// Entries in that count the page has since shown pinned, kept when one is
+	// then taken down: a fresh page leaves both out of the count.
 	const pinnedCountedIds = new Set< string >();
 
 	// The control's own text: the server keeps it on the link when it writes
@@ -644,9 +644,9 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Shows on the control how many entries are newer than the shared entry:
-	 * those the page was rendered with, less the ones it now shows pinned,
-	 * plus those the poll has counted since. With none, or once the poll can
-	 * no longer count, the control shows its own text.
+	 * those the page was rendered with, less the ones it has since shown
+	 * pinned, plus those the poll has counted since. With none, or once the
+	 * poll can no longer count, the control shows its own text.
 	 *
 	 * @return {void}
 	 */
@@ -655,11 +655,13 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
+		// Past a hundred, the rendered count is where the server stopped
+		// counting (Rolling_Coverage_Block::NEWER_COUNT_CAP), not how many
+		// there are, so pinning one of them leaves it as it is.
+		const rendered =
+			newerCount > 100 ? newerCount : newerCount - pinnedCountedIds.size;
 		const label = canCount
-			? newerEntriesLabel(
-					newerCount - pinnedCountedIds.size + countedEntryIds.size,
-					entryName
-				)
+			? newerEntriesLabel( rendered + countedEntryIds.size, entryName )
 			: '';
 		const text = label || ownLabel;
 
@@ -2101,7 +2103,9 @@ function initBlock( root: HTMLElement ): void {
 
 				if ( entryEl?.hasAttribute( 'data-pinned' ) ) {
 					// Unless a poll counted it since, a shared view counted an
-					// entry newer than the shared one when it rendered.
+					// entry newer than the shared one when it rendered, if it
+					// was published then. One restored since can't be told
+					// apart, and comes off a count it was never in.
 					if (
 						isNewerThanShared( entryEl ) &&
 						! countedEntryIds.has( String( entry.id ) )
