@@ -303,6 +303,24 @@ function shareLink(): TemplateItem {
 }
 
 /**
+ * The entry author's name. Bold where it leads its row; regular weight
+ * beside the links, so it never outweighs the entry's time.
+ *
+ * @param {string} fontWeight The name's font weight.
+ * @return {TemplateItem} The Post Author Name block.
+ */
+function authorName( fontWeight: '400' | '700' ): TemplateItem {
+	return [
+		'core/post-author-name',
+		{
+			className: 'use-header-font',
+			fontSize: 'small',
+			style: { typography: { fontWeight } },
+		},
+	];
+}
+
+/**
  * The text a new layout's link to the coverage page starts with, in the
  * site's own plural for entries when it sets one.
  *
@@ -477,9 +495,9 @@ function bulletinEntryTemplate( sizes: string[] ): TemplateItem[] {
 }
 
 /**
- * What a Stream entry shows: no title, the content set larger, then a row
- * with the relative date, "Read more" and "Share". The pinned card's also
- * carry the pinned row.
+ * What a Stream entry shows: no title, the author's avatar, name and the
+ * relative date above the content, which is set larger, then "Read more"
+ * and "Share". The pinned card's also carry the pinned row, first.
  *
  * @param {string[]} slugs    The palette's color slugs.
  * @param {string[]} sizes    The theme's font size slugs.
@@ -492,6 +510,34 @@ function streamEntryBlocks(
 	isPinned: boolean
 ): TemplateItem[] {
 	const blocks: TemplateItem[] = [
+		[
+			'core/group',
+			{
+				layout: {
+					type: 'flex',
+					flexWrap: 'wrap',
+					verticalAlignment: 'center',
+				},
+				style: { spacing: { blockGap: 'var:preset|spacing|20' } },
+				metadata: { name: __( 'Byline', 'newspack-rolling-coverage' ) },
+			},
+			[
+				[
+					'core/avatar',
+					{ size: 24, style: { border: { radius: '50%' } } },
+				],
+				authorName( '700' ),
+				[
+					'core/post-date',
+					{
+						...POST_DATE_ATTRIBUTES,
+						format: 'human-diff',
+						fontSize: 'small',
+						...mutedDateColor( slugs ),
+					},
+				],
+			],
+		],
 		postContent( themeFontSize( sizes, 'medium', 'normal' ) ),
 		[
 			'core/group',
@@ -506,19 +552,7 @@ function streamEntryBlocks(
 					name: __( 'Footer', 'newspack-rolling-coverage' ),
 				},
 			},
-			[
-				[
-					'core/post-date',
-					{
-						...POST_DATE_ATTRIBUTES,
-						format: 'human-diff',
-						fontSize: 'small',
-						...mutedDateColor( slugs ),
-					},
-				],
-				readMoreLink(),
-				shareLink(),
-			],
+			[ readMoreLink(), shareLink() ],
 		],
 	];
 
@@ -578,7 +612,8 @@ function streamEntryTemplate(
 
 /**
  * A Rail entry's row: the time, or on the pinned card the pin icon, in a
- * narrow column, then the entry beside a vertical rule. The entry is a
+ * narrow column, then the entry beside a vertical rule, signed with the
+ * author's name beside its links. The entry is a
  * vertical flex group, so its spacing also applies on the Newspack Theme
  * (see Rolling_Coverage_Block::apply_entry_block_gap()). The pinned card's
  * rule is in the accent color and its entry sits on a tinted panel. With no
@@ -615,7 +650,7 @@ function railRow( isPinned: boolean ): TemplateItem {
 	const entry: TemplateItem[] = [
 		[ 'core/post-title', { level: 4 } ],
 		postContent(),
-		linksRow( [ readMoreLink(), shareLink() ] ),
+		linksRow( [ authorName( '400' ), readMoreLink(), shareLink() ] ),
 	];
 
 	return [
@@ -786,7 +821,8 @@ function ruledRow(
 /**
  * A Clock entry's row: the time set large in a narrow column with the
  * relative date below it, or on the pinned card the pinned row in the
- * accent color, then the title, content and links beside it.
+ * accent color, then the title, content, and the author's name with the
+ * links beside it.
  *
  * @param {string[]} slugs    The palette's color slugs.
  * @param {string[]} sizes    The theme's font size slugs.
@@ -841,7 +877,11 @@ function clockRow(
 				stack( __( 'Entry', 'newspack-rolling-coverage' ), [
 					[ 'core/post-title', { level: 4 } ],
 					postContent(),
-					linksRow( [ readMoreLink(), shareLink() ] ),
+					linksRow( [
+						authorName( '400' ),
+						readMoreLink(),
+						shareLink(),
+					] ),
 				] ),
 			],
 		],
@@ -850,7 +890,7 @@ function clockRow(
 
 /**
  * A Margin entry's row: the time, or on the pinned card the pinned row,
- * the title and the links in a margin column, and the content in the wider
+ * the title, and the author's name with the links in a margin column, and the content in the wider
  * column beside it. The pinned card is ruled off with a heavier rule.
  *
  * @param {boolean} isPinned Whether the row is the pinned card's.
@@ -886,7 +926,11 @@ function marginRow( isPinned: boolean ): TemplateItem {
 					stack( __( 'Summary', 'newspack-rolling-coverage' ), [
 						marker,
 						[ 'core/post-title', { level: 4 } ],
-						linksRow( [ readMoreLink(), shareLink() ] ),
+						linksRow( [
+							authorName( '400' ),
+							readMoreLink(),
+							shareLink(),
+						] ),
 					] ),
 				],
 			],
@@ -1072,14 +1116,7 @@ function bylineRow( slugs: string[], isPinned: boolean ): TemplateItem {
 						},
 					},
 					[
-						[
-							'core/post-author-name',
-							{
-								className: 'use-header-font',
-								fontSize: 'small',
-								style: { typography: { fontWeight: '700' } },
-							},
-						],
+						authorName( '700' ),
 						[
 							'core/post-date',
 							{
@@ -1633,8 +1670,9 @@ const SPLIT_STACKED_PLACEMENT = { layout: { columnStart: 1, columnSpan: 1 } };
  * holds the grid's first column down the feed's full length and sticks as
  * the reader scrolls where the theme supports it, ruled off with a heavier
  * rule; above the entries on tablets and phones. Each entry spans the other
- * two columns, the time it was posted beside the title, content and links,
- * or above them on phones. The site places each entry's article where its
+ * two columns, the time it was posted beside the title, content, and the
+ * author's name with the links, or above them on phones. The summary is
+ * signed the same way. The site places each entry's article where its
  * group says (see Rolling_Coverage_Block::place_in_grid()).
  *
  * @return {TemplateItem[]} The template.
@@ -1689,7 +1727,11 @@ function splitEntryTemplate(): TemplateItem[] {
 				pinnedRow( ACCENT ),
 				[ 'core/post-title', { level: 4 } ],
 				postContent(),
-				linksRow( [ readMoreLink(), shareLink() ] ),
+				linksRow( [
+					authorName( '400' ),
+					readMoreLink(),
+					shareLink(),
+				] ),
 			],
 		],
 		[
@@ -1779,6 +1821,7 @@ function splitEntryTemplate(): TemplateItem[] {
 										[ 'core/post-title', { level: 4 } ],
 										postContent(),
 										linksRow( [
+											authorName( '400' ),
 											readMoreLink(),
 											shareLink(),
 										] ),
