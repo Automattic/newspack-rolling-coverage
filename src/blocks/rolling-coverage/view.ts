@@ -837,9 +837,27 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * The first unpinned entry the feed lists below an entry: dated
-	 * earlier, or in the same second with a lower ID, as
-	 * Rolling_Coverage_Block::FEED_ORDER lists them. Without dates to
+	 * Whether load more lists an entry below a point in the feed: dated in an
+	 * earlier GMT second, or in the same second with a lower ID, the order its
+	 * bound follows (Rolling_Coverage_Block::load_more_bound()).
+	 *
+	 * @param {string} date   The entry's GMT date.
+	 * @param {number} id     The entry's ID.
+	 * @param {string} atDate The point's GMT date.
+	 * @param {number} atId   The point's ID, or 0 for the whole of its second.
+	 * @return {boolean} Whether the entry lists below the point.
+	 */
+	function listsBelow(
+		date: string,
+		id: number,
+		atDate: string,
+		atId: number
+	): boolean {
+		return date < atDate || ( date === atDate && id < atId );
+	}
+
+	/**
+	 * The first unpinned entry listed below an entry. Without dates to
 	 * compare, as on a page cached before entries carried them, the entry
 	 * goes above the first unpinned entry it can't compare with.
 	 *
@@ -862,9 +880,12 @@ function initBlock( root: HTMLElement ): void {
 					other !== entry &&
 					( ! date ||
 						! otherDate ||
-						otherDate < date ||
-						( otherDate === date &&
-							Number( other.dataset.entryId ) < id ) )
+						listsBelow(
+							otherDate,
+							Number( other.dataset.entryId ),
+							date,
+							id
+						) )
 				);
 			} ) ?? null
 		);
@@ -872,8 +893,8 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Moves an entry unpinned while the page is open to where a fresh page
-	 * would list it. When that is below the last entry loaded and more can
-	 * load, it leaves the page until load more brings it there.
+	 * would list it. When that is below load more's bound, it leaves the
+	 * page until load more brings it there.
 	 *
 	 * @param {HTMLElement} entry The unpinned entry.
 	 * @return {boolean} Whether the entry stays on the page.
@@ -886,7 +907,26 @@ function initBlock( root: HTMLElement ): void {
 			return true;
 		}
 
-		if ( hasMore ) {
+		// Load more continues below its bound, which sits lower than the last
+		// entry shown when a page of older entries ended on a pinned entry the
+		// list already held. An entry taken off the page above the bound
+		// would never load again.
+		const date = entry.dataset.dateGmt;
+		const [ , boundId = '0', boundDate = before ] =
+			/^(\d+):(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/.exec( before ) ??
+			[];
+
+		if (
+			hasMore &&
+			date &&
+			boundDate &&
+			listsBelow(
+				date,
+				Number( entry.dataset.entryId ),
+				boundDate,
+				Number( boundId )
+			)
+		) {
 			return false;
 		}
 
