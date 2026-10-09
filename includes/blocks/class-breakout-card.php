@@ -98,7 +98,7 @@ class Breakout_Card {
 		$summary = self::summary( $post );
 		$entry   = '' === $summary ? get_post( $entry_id ) : null;
 
-		return $entry instanceof WP_Post ? self::plain_text( Entry_Bindings::public_summary( $entry, self::excerpt_length() ) ) : $summary;
+		return $entry instanceof WP_Post ? Entry_Bindings::public_summary( $entry, self::excerpt_length() ) : $summary;
 	}
 
 	/**
