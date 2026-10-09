@@ -120,6 +120,33 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An entry a poll sent as new comes back as an edit when it changes. The
+	 * page may still hold it behind the new-entries control, so the view
+	 * script keeps that edit until the entry is shown (see
+	 * takePendingEntries() in view.ts).
+	 */
+	public function test_poll_sends_an_edit_to_an_entry_it_sent_as_new_as_an_update() {
+		$cursor_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+		$new_entry_id    = $this->create_entry_at( '2026-01-01 12:05:00' );
+
+		$first = $this->get_feed( [ 'cursor' => "{$cursor_entry_id}:2026-01-01 12:00:00" ] )->get_data();
+
+		$this->assertSame( [ $new_entry_id => 'insert' ], wp_list_pluck( $first['entries'], 'type', 'id' ), 'The first poll should send the entry as new.' );
+
+		wp_update_post(
+			[
+				'ID'         => $new_entry_id,
+				'post_title' => 'Retitled',
+			]
+		);
+
+		$second = $this->get_feed( [ 'cursor' => $first['cursor'] ] )->get_data();
+
+		$this->assertSame( [ $new_entry_id => 'update' ], wp_list_pluck( $second['entries'], 'type', 'id' ), 'The next poll should send the edit as an update.' );
+		$this->assertStringContainsString( 'Retitled', $second['entries'][0]['html'] );
+	}
+
+	/**
 	 * Drafts are never served, by polling or by paging.
 	 */
 	public function test_unpublished_entries_are_never_served() {
