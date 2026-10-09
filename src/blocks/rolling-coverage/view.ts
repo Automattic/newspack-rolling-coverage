@@ -2830,7 +2830,10 @@ function initBlock( root: HTMLElement ): void {
 							button.ownerDocument.activeElement === button
 					)
 				) {
-					focusFromScript( entriesList, { preventScroll: true } );
+					// The notice says what changed, so it is read as focus lands.
+					focusFromScript( endedNotice ?? entriesList, {
+						preventScroll: true,
+					} );
 				}
 
 				checkControls.forEach( ( control ) => {
