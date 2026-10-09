@@ -20,6 +20,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * A breakout post is a standard `post` cloned from a rolling coverage entry.
  * The entry stores a forward link to it (self::ENTRY_BREAKOUT_POST_ID_META).
+ * Once the post is published, feeds show the entry as a card for it (see
+ * Breakout_Card).
  */
 class Breakout {
 
@@ -45,6 +47,7 @@ class Breakout {
 		add_action( 'before_delete_post', [ __CLASS__, 'cleanup_on_breakout_delete' ] );
 		add_action( 'transition_post_status', [ __CLASS__, 'sync_breakout_status_to_entry' ], 10, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'on_breakout_post_status_change' ], 10, 3 );
+		add_action( 'post_updated', [ __CLASS__, 'on_breakout_post_updated' ], 10, 3 );
 	}
 
 	/**
@@ -342,8 +345,8 @@ class Breakout {
 
 	/**
 	 * Touches the source entry when its breakout post is published or stops
-	 * being published, so the polling endpoint re-renders the entry (its title
-	 * link and "Read more" come and go with the breakout) and delivers it to
+	 * being published, so the polling endpoint re-renders the entry (it turns
+	 * into a card for the post, or back into its own text) and delivers it to
 	 * active readers on the next poll cycle.
 	 *
 	 * @param string  $new_status Incoming post status.
@@ -356,6 +359,30 @@ class Breakout {
 		}
 
 		self::touch_source_entry( $post->ID );
+	}
+
+	/**
+	 * Touches the source entry when a published breakout post's title,
+	 * excerpt, content or password changes while it stays published, so
+	 * active readers get the entry's card for it again on the next poll.
+	 * Revisions and autosaves are posts of their own type, so they never
+	 * reach it.
+	 *
+	 * @param int     $post_id     Post ID.
+	 * @param WP_Post $post_after  Post object after the update.
+	 * @param WP_Post $post_before Post object before the update.
+	 */
+	public static function on_breakout_post_updated( int $post_id, WP_Post $post_after, WP_Post $post_before ): void {
+		if ( 'post' !== $post_after->post_type || 'publish' !== $post_after->post_status || 'publish' !== $post_before->post_status ) {
+			return;
+		}
+
+		foreach ( [ 'post_title', 'post_excerpt', 'post_content', 'post_password' ] as $field ) {
+			if ( $post_after->$field !== $post_before->$field ) {
+				self::touch_source_entry( $post_id );
+				return;
+			}
+		}
 	}
 
 	/**

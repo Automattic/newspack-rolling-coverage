@@ -3138,7 +3138,7 @@ class Rolling_Coverage_Block {
 	 * @param array[] $blocks Parsed blocks.
 	 * @return bool
 	 */
-	private static function holds_post_title( array $blocks ): bool {
+	public static function holds_post_title( array $blocks ): bool {
 		foreach ( $blocks as $block ) {
 			if ( is_array( $block ) && ( 'core/post-title' === ( $block['blockName'] ?? '' ) || self::holds_post_title( $block['innerBlocks'] ?? [] ) ) ) {
 				return true;
@@ -3634,7 +3634,9 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Renders a single entry against the supplied per-entry template.
+	 * Renders a single entry against the supplied per-entry template. An
+	 * entry whose breakout post is published renders as a card for that post
+	 * (see Breakout_Card), titled whether or not the entry is.
 	 *
 	 * @global WP_Post $post Global post object, temporarily swapped to the
 	 *                       entry for the duration of this render and
@@ -3669,6 +3671,7 @@ class Rolling_Coverage_Block {
 	 */
 	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', bool $is_last = false, bool $is_linked = false, bool $is_capped = false, array $feed_layout = [], int $coverage_id = 0, ?int $lead_pinned_id = null, array $column_rule = [] ): string {
 		$is_pinned = ! $is_capped && Post_Type::is_pinned( $entry->ID );
+		$card      = Breakout_Card::for_entry( $entry->ID );
 
 		[ $template, $cell_classes, $leads_column ] = self::place_in_grid(
 			$template,
@@ -3689,11 +3692,11 @@ class Rolling_Coverage_Block {
 		$template = self::shape_entry_template(
 			self::drop_fixed_template_dates( $template ),
 			$is_pinned,
-			$is_pinned && null !== Breakout::get_published_breakout_url( $entry->ID ),
+			$is_pinned && null !== $card,
 			$is_last
 		);
 
-		if ( ! self::has_title( $entry ) ) {
+		if ( null !== $card ? '' === $card['title'] : ! self::has_title( $entry ) ) {
 			$template = self::with_centered_title_rows( $template );
 		}
 
@@ -3710,22 +3713,26 @@ class Rolling_Coverage_Block {
 			add_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );
 		}
 
+		$render = fn() => self::render_as_entry(
+			fn() => ( new WP_Block(
+				[
+					'blockName'    => null,
+					'attrs'        => [],
+					'innerBlocks'  => $template,
+					'innerHTML'    => '',
+					'innerContent' => array_fill( 0, count( $template ), null ),
+				],
+				[
+					'postId'   => $entry->ID,
+					'postType' => $entry->post_type,
+				]
+			) )->render( [ 'dynamic' => false ] )
+		);
+
 		try {
-			$entry_content = self::render_as_entry(
-				fn() => ( new WP_Block(
-					[
-						'blockName'    => null,
-						'attrs'        => [],
-						'innerBlocks'  => $template,
-						'innerHTML'    => '',
-						'innerContent' => array_fill( 0, count( $template ), null ),
-					],
-					[
-						'postId'   => $entry->ID,
-						'postType' => $entry->post_type,
-					]
-				) )->render( [ 'dynamic' => false ] )
-			);
+			$entry_content = null !== $card
+				? Breakout_Card::render( $entry->ID, $card, self::holds_post_title( $template ), $render )
+				: $render();
 		} finally {
 			if ( $is_archived ) {
 				remove_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );

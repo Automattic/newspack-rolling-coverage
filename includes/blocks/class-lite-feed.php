@@ -235,7 +235,9 @@ class Lite_Feed {
 	/**
 	 * Render an entry as text: its time, whether it is pinned, its title and
 	 * its body, which Lite Site cleans like the rest of the page, or a notice
-	 * in place of a protected entry's body.
+	 * in place of a protected entry's body. An entry whose breakout post is
+	 * published shows that post's title, linked to it, and its summary
+	 * instead (see Breakout_Card::for_entry()).
 	 *
 	 * Built from the entry alone, not the block's layout, and carrying the
 	 * attributes the view script uses to place and replace entries. Layouts
@@ -265,6 +267,16 @@ class Lite_Feed {
 			$meta .= ' &middot; ' . esc_html__( 'Pinned', 'newspack-rolling-coverage' );
 		}
 
+		$card = Breakout_Card::for_entry( $entry->ID );
+
+		if ( null !== $card ) {
+			$title = '' !== $card['title'] ? sprintf( '<h3><a href="%s">%s</a></h3>', esc_url( $card['url'] ), esc_html( $card['title'] ) ) : '';
+			$body  = '' !== $card['summary'] ? '<p>' . esc_html( $card['summary'] ) . '</p>' : '';
+		} else {
+			$title = Rolling_Coverage_Block::has_title( $entry ) ? '<h3>' . esc_html( get_the_title( $entry ) ) . '</h3>' : '';
+			$body  = self::render_body( $entry );
+		}
+
 		return sprintf(
 			'<article class="%1$s-entry" data-entry-id="%2$d" data-arrival="%3$s"%4$s><p class="%1$s-entry-meta">%5$s</p>%6$s%7$s%8$s</article>',
 			Rolling_Coverage_Block::MARKUP_PREFIX,
@@ -272,9 +284,9 @@ class Lite_Feed {
 			esc_attr( $arrival ),
 			$is_pinned ? ' data-pinned' : '',
 			$meta,
-			Rolling_Coverage_Block::has_title( $entry ) ? '<h3>' . esc_html( get_the_title( $entry ) ) . '</h3>' : '',
+			$title,
 			Archive_Mode::is_entry_archived( $entry->ID ) ? \Newspack_Lite_Site\Lite_Site::clean_content( Rolling_Coverage_Block::render_archived_entry_notice() ) : '',
-			self::render_body( $entry )
+			$body
 		);
 	}
 
