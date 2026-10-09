@@ -2082,8 +2082,9 @@ function initBlock( root: HTMLElement ): void {
 				( { el } ) => el.dataset.entryId === String( entry.id )
 			);
 
-			// A poll can send an entry waiting behind the control as new again,
-			// as when it is taken down and published again between two polls.
+			// A poll can send an entry waiting behind the control as new again:
+			// one with no recorded publish time, such as one created straight
+			// into publish, taken down and published again between two polls.
 			// The new copy takes its place in the queue, keeping its ad and
 			// arrival, so the entry is counted and shown once.
 			if ( waitingIndex !== -1 ) {
