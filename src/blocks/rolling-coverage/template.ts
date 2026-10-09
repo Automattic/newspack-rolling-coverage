@@ -1774,7 +1774,8 @@ function splitEntryTemplate(): TemplateItem[] {
 				pinnedRow( ACCENT ),
 				[ 'core/post-title', { level: 4 } ],
 				postContent(),
-				linksRow( [ authorGroup(), readMoreLink(), shareLink() ] ),
+				readMoreLink(),
+				linksRow( [ authorGroup(), shareLink() ] ),
 			],
 		],
 		[
@@ -1863,9 +1864,9 @@ function splitEntryTemplate(): TemplateItem[] {
 									[
 										[ 'core/post-title', { level: 4 } ],
 										postContent(),
+										readMoreLink(),
 										linksRow( [
 											authorGroup(),
-											readMoreLink(),
 											shareLink(),
 										] ),
 									]
