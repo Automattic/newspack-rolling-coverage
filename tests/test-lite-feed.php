@@ -118,16 +118,19 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertSame(
-			'<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="initial"><p class="newspack-rolling-coverage-entry-meta"><time datetime="2026-01-01T12:00:00+00:00">12:00 pm</time></p><h3>Bridge reopens</h3><p class="wp-block-paragraph">Traffic is <strong>moving</strong>.</p></article>',
+			'<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="initial" data-date-gmt="2026-01-01 12:00:00"><p class="newspack-rolling-coverage-entry-meta"><time datetime="2026-01-01T12:00:00+00:00">12:00 pm</time></p><h3>Bridge reopens</h3><p class="wp-block-paragraph">Traffic is <strong>moving</strong>.</p></article>',
 			Lite_Feed::render_entry( get_post( $entry_id ), 'initial' )
 		);
 	}
 
 	/**
-	 * Pinned entries say so and carry the attribute the view script places
-	 * them by, and an individually archived entry keeps its notice.
+	 * Pinned entries say so and carry the attributes the view script places
+	 * them by, their date in GMT among them, and an individually archived
+	 * entry keeps its notice.
 	 */
 	public function test_pinned_and_archived_entries_say_so() {
+		update_option( 'timezone_string', 'America/New_York' );
+
 		$entry_id = self::create_entry(
 			$this->coverage_id,
 			[
@@ -140,7 +143,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$html = Lite_Feed::render_entry( get_post( $entry_id ), 'poll' );
 
-		$this->assertStringStartsWith( '<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="poll" data-pinned>', $html );
+		$this->assertStringStartsWith( '<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="poll" data-date-gmt="2026-01-01 13:00:00" data-pinned>', $html );
 		$this->assertStringContainsString( '8:00 am</time> &middot; Pinned</p>', $html );
 		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-entry-archived-notice">', $html );
 	}

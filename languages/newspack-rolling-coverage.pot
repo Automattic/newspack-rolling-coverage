@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-09T21:20:01+00:00\n"
+"POT-Creation-Date: 2026-10-09T21:42:32+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -85,9 +85,9 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:461
-#: includes/blocks/class-rolling-coverage-block.php:4361
-#: includes/blocks/class-rolling-coverage-block.php:4496
-#: includes/blocks/class-rolling-coverage-block.php:4507
+#: includes/blocks/class-rolling-coverage-block.php:4367
+#: includes/blocks/class-rolling-coverage-block.php:4502
+#: includes/blocks/class-rolling-coverage-block.php:4513
 #: includes/class-post-type.php:1294
 #: includes/class-taxonomy.php:345
 msgid "Coverage not found."
@@ -325,12 +325,12 @@ msgstr ""
 #: includes/blocks/class-lite-feed.php:265
 #: includes/blocks/class-rolling-coverage-block.php:3678
 #: includes/blocks/class-rolling-coverage-block.php:3690
-#: includes/blocks/class-rolling-coverage-block.php:4049
+#: includes/blocks/class-rolling-coverage-block.php:4054
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned"
 msgstr ""
 
-#: includes/blocks/class-lite-feed.php:310
+#: includes/blocks/class-lite-feed.php:311
 msgid "This content is password protected."
 msgstr ""
 
@@ -431,24 +431,24 @@ msgid "Pinned Entry"
 msgstr ""
 
 #. translators: 1: the site's own name for one coverage entry, as it reads mid-sentence; its grammatical gender is unknown. 2: the same name for several entries.
-#: includes/blocks/class-rolling-coverage-block.php:4082
+#: includes/blocks/class-rolling-coverage-block.php:4088
 #, php-format
 msgid "This %1$s is now out of date compared to newer %2$s, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4088
+#: includes/blocks/class-rolling-coverage-block.php:4094
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4298
+#: includes/blocks/class-rolling-coverage-block.php:4304
 msgid "How many entries a capped feed shows, so a Lite or empty-key request stays capped without a stored config."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4303
+#: includes/blocks/class-rolling-coverage-block.php:4309
 msgid "Whether a Lite Site page asks, so entries come as text, as that page renders them."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4515
+#: includes/blocks/class-rolling-coverage-block.php:4521
 msgid "Either cursor or before must be provided."
 msgstr ""
 

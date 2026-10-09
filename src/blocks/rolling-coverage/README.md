@@ -143,7 +143,7 @@ A gate set to Match any rule, with its Post types rule set to Include, can still
 
 ### Pinned entries
 
-An entry pinned in the coverage stays at the top of the feed with a "Pinned" label, whatever its date. Some layouts keep the pinned entry in view while the reader scrolls. When an entry is pinned, pages already open show it with the other pinned entries at their next check.
+An entry pinned in the coverage stays at the top of the feed with a "Pinned" label, whatever its date. Some layouts keep the pinned entry in view while the reader scrolls. When an entry is pinned, pages already open show it with the other pinned entries at their next check. When an entry is unpinned, pages already open move it back to its place by date at their next check. If that place is further down than the reader has loaded, the entry shows up there once older entries load. With Older entries set to Don’t load, it goes to the end of the feed instead.
 
 Feeds set to Latest ignore pinning and show the newest entries only.
 
