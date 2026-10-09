@@ -1,6 +1,7 @@
 <?php
 /**
- * Tests for entries saved in the same second, as polls and load more see them.
+ * Tests for entries saved in the same second, and entries a page leaves out,
+ * as polls and load more see them.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -13,7 +14,9 @@ use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
  * Slack bursts and publishing a selection from the entries list save several
  * entries in one second, in no particular ID order. A page that already shows
  * some of them gets the rest by poll, as new entries, and load more continues
- * through them without skipping any.
+ * through them without skipping any. Entries a page leaves out by design,
+ * below a full page or past a cap, aren't new to it, and load more reaches
+ * every one it can bring in.
  */
 class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 
@@ -74,17 +77,14 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Publish a draft as if in the given second: `wp_publish_post()` keeps the
-	 * draft's modified date, and the plugin stamps the publish time with the
-	 * clock, which a test can't hold still.
+	 * Stamp an entry as saved in the given second: WordPress stamps a save
+	 * with the clock, which a test can't hold still.
 	 *
-	 * @param int    $entry_id Draft entry ID.
+	 * @param int    $entry_id Entry ID.
 	 * @param string $second   GMT `Y-m-d H:i:s`.
 	 */
-	private function publish_in( $entry_id, $second ) {
+	private function save_in( $entry_id, $second ) {
 		global $wpdb;
-
-		wp_publish_post( $entry_id );
 
 		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->posts,
@@ -95,6 +95,19 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 			[ 'ID' => $entry_id ]
 		);
 		clean_post_cache( $entry_id );
+	}
+
+	/**
+	 * Publish a draft as if in the given second: the plugin stamps its
+	 * modified date and publish time with the clock.
+	 *
+	 * @param int    $entry_id Draft entry ID.
+	 * @param string $second   GMT `Y-m-d H:i:s`.
+	 */
+	private function publish_in( $entry_id, $second ) {
+		wp_publish_post( $entry_id );
+
+		$this->save_in( $entry_id, $second );
 		update_post_meta( $entry_id, Post_Type::META_PUBLISHED_GMT, $second );
 	}
 
@@ -134,6 +147,35 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 		preg_match_all( '/data-entry-id="(\d+)"/', $html, $matches );
 
 		return array_map( 'intval', $matches[1] );
+	}
+
+	/**
+	 * Every entry a reader reaches from a rendered feed by loading more until
+	 * there's no more, in order. Like the view script, it appends only the
+	 * entries the page doesn't show yet.
+	 *
+	 * @param string $html     Rendered feed.
+	 * @param int    $per_page Entries per page.
+	 * @return int[]
+	 */
+	private function load_all( $html, $per_page ) {
+		$shown  = self::entry_ids_in( $html );
+		$before = self::data_attribute( $html, 'before' );
+
+		while ( $before ) {
+			$page = $this->get_feed(
+				[
+					'before'       => $before,
+					'per_page'     => $per_page,
+					'template_key' => self::data_attribute( $html, 'template-key' ),
+				]
+			);
+
+			$shown  = array_merge( $shown, array_diff( self::entry_ids_in( $page['html'] ), $shown ) );
+			$before = $page['hasMore'] ? $page['before'] : '';
+		}
+
+		return $shown;
 	}
 
 	/**
@@ -223,6 +265,132 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 		$later_id = $this->create_entry_at( self::SECOND );
 
 		$this->assertSame( [ $later_id => 'insert' ], wp_list_pluck( $this->get_feed( array_merge( $params, [ 'cursor' => $cursor ] ) )['entries'], 'type', 'id' ) );
+	}
+
+	/**
+	 * An older draft published after the newest change a page shows, but
+	 * before the page renders, sits where its date lists it, below the page,
+	 * so it isn't new to the page.
+	 *
+	 * @dataProvider full_page_provider
+	 *
+	 * @param array $attributes Block attributes besides the coverage.
+	 * @param array $params     Poll parameters the page sends.
+	 */
+	public function test_older_entry_published_before_a_page_renders_is_not_new_to_it( $attributes, $params ) {
+		$this->create_entry_at( self::SECOND );
+		$older_draft_id = $this->create_entry_at( '2026-01-01 08:00:00', [ 'post_status' => 'draft' ] );
+
+		$this->publish_in( $older_draft_id, '2026-01-01 12:30:00' );
+
+		$cursor = self::data_attribute( $this->render_feed( $attributes ), 'cursor' );
+
+		$later_id = $this->create_entry_at( '2026-01-01 13:00:00' );
+
+		$this->assertSame( [ $later_id => 'insert' ], wp_list_pluck( $this->get_feed( array_merge( $params, [ 'cursor' => $cursor ] ) )['entries'], 'type', 'id' ) );
+	}
+
+	/**
+	 * Saves to more than a poll's worth of entries a page leaves out, made
+	 * after the newest change it shows but before it renders, don't overflow
+	 * its polls, which would reload it.
+	 *
+	 * @dataProvider full_page_provider
+	 *
+	 * @param array $attributes Block attributes besides the coverage.
+	 * @param array $params     Poll parameters the page sends.
+	 */
+	public function test_saves_to_entries_a_page_leaves_out_before_it_renders_dont_overflow_its_polls( $attributes, $params ) {
+		$this->create_entry_at( self::SECOND );
+
+		for ( $i = 0; $i <= Rolling_Coverage_Block::POLL_CAP; $i++ ) {
+			$this->save_in( $this->create_entry_at( '2026-01-01 08:00:00' ), gmdate( 'Y-m-d H:i:s', strtotime( '2026-01-01 12:30:00 UTC' ) + $i ) );
+		}
+
+		$cursor = self::data_attribute( $this->render_feed( $attributes ), 'cursor' );
+
+		$later_id = $this->create_entry_at( '2026-01-01 13:00:00' );
+		$poll     = $this->get_feed( array_merge( $params, [ 'cursor' => $cursor ] ) );
+
+		$this->assertFalse( $poll['overflow'] );
+		$this->assertSame( [ $later_id => 'insert' ], wp_list_pluck( $poll['entries'], 'type', 'id' ) );
+	}
+
+	/**
+	 * Older entries settings for a page of pinned entries.
+	 *
+	 * @return array[]
+	 */
+	public function older_entries_provider() {
+		return [
+			'loads more'    => [ 'scroll' ],
+			'loads no more' => [ 'none' ],
+		];
+	}
+
+	/**
+	 * Entries a page of pinned entries leaves out from its cursor's second
+	 * aren't new to it, whether load more brings them in or the page never
+	 * shows them.
+	 *
+	 * @dataProvider older_entries_provider
+	 *
+	 * @param string $older_entries The block's olderEntries setting.
+	 */
+	public function test_entries_a_page_of_pinned_entries_leaves_out_are_not_new( $older_entries ) {
+		$pinned_id = $this->create_entry_at( '2026-01-01 08:00:00' );
+
+		Post_Type::pin_entry( $pinned_id );
+		$this->create_entry_at( self::SECOND );
+
+		$cursor = self::data_attribute(
+			$this->render_feed(
+				[
+					'entriesPerPage' => 1,
+					'olderEntries'   => $older_entries,
+				]
+			),
+			'cursor'
+		);
+
+		$later_id = $this->create_entry_at( '2026-01-01 13:00:00' );
+
+		$this->assertSame( [ $later_id => 'insert' ], wp_list_pluck( $this->get_feed( [ 'cursor' => $cursor ] )['entries'], 'type', 'id' ) );
+	}
+
+	/**
+	 * An entry published in a page's cursor's second while the page renders
+	 * reaches it by poll, even on a page of pinned entries that loads no
+	 * older entries, whose cursor holds every entry its query found in that
+	 * second.
+	 */
+	public function test_entry_published_while_a_pinned_page_without_load_more_renders_reaches_it() {
+		$pinned_id = $this->create_entry_at( '2026-01-01 08:00:00' );
+
+		Post_Type::pin_entry( $pinned_id );
+		$this->create_entry_at( self::SECOND );
+
+		$published_id = 0;
+		$publish      = function ( $block_content ) use ( &$published_id ) {
+			$published_id = $published_id ? $published_id : $this->create_entry_at( self::SECOND );
+
+			return $block_content;
+		};
+
+		add_filter( 'render_block', $publish );
+		$cursor = self::data_attribute(
+			$this->render_feed(
+				[
+					'entriesPerPage' => 1,
+					'olderEntries'   => 'none',
+				]
+			),
+			'cursor'
+		);
+		remove_filter( 'render_block', $publish );
+
+		$this->assertGreaterThan( 0, $published_id, 'An entry should be published while the page renders.' );
+		$this->assertSame( [ $published_id => 'insert' ], wp_list_pluck( $this->get_feed( [ 'cursor' => $cursor ] )['entries'], 'type', 'id' ) );
 	}
 
 	/**
@@ -357,24 +525,41 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 		$second_id = $this->create_entry_at( self::SECOND );
 		$third_id  = $this->create_entry_at( self::SECOND );
 
-		$html   = $this->render_feed( [ 'entriesPerPage' => 1 ] );
-		$shown  = self::entry_ids_in( $html );
-		$before = self::data_attribute( $html, 'before' );
+		$this->assertSame( [ $third_id, $second_id, $first_id, $older_id ], $this->load_all( $this->render_feed( [ 'entriesPerPage' => 1 ] ), 1 ) );
+	}
 
-		while ( $before ) {
-			$page = $this->get_feed(
-				[
-					'before'       => $before,
-					'per_page'     => 1,
-					'template_key' => self::data_attribute( $html, 'template-key' ),
-				]
-			);
+	/**
+	 * Load more from a page showing only pinned entries, which lists them in
+	 * pin order, reaches every entry the page leaves out, those dated after
+	 * its last one included.
+	 */
+	public function test_load_more_from_a_page_of_pinned_entries_reaches_every_entry() {
+		$shown_pin_id = $this->create_entry_at( '2026-01-01 08:00:00' );
+		$newer_pin_id = $this->create_entry_at( '2026-01-01 10:00:00' );
+		$newest_id    = $this->create_entry_at( self::SECOND );
+		$oldest_id    = $this->create_entry_at( '2026-01-01 07:00:00' );
 
-			$shown  = array_merge( $shown, self::entry_ids_in( $page['html'] ) );
-			$before = $page['hasMore'] ? $page['before'] : '';
-		}
+		Post_Type::pin_entry( $shown_pin_id );
+		Post_Type::pin_entry( $newer_pin_id );
 
-		$this->assertSame( [ $third_id, $second_id, $first_id, $older_id ], $shown );
+		$this->assertSame( [ $shown_pin_id, $newest_id, $newer_pin_id, $oldest_id ], $this->load_all( $this->render_feed( [ 'entriesPerPage' => 1 ] ), 1 ) );
+	}
+
+	/**
+	 * Load more from a page of pinned entries starts above the newest entry by
+	 * GMT, even where local time sorts it below another, as in the hour a DST
+	 * change repeats.
+	 */
+	public function test_load_more_from_a_page_of_pinned_entries_starts_above_a_repeated_hour() {
+		$pinned_id      = $this->create_entry_at( '2026-01-01 00:30:00' );
+		$local_later_id = $this->create_entry_at( '2026-01-01 01:50:00', [ 'post_date_gmt' => '2026-01-01 05:50:00' ] );
+		$gmt_later_id   = $this->create_entry_at( '2026-01-01 01:10:00', [ 'post_date_gmt' => '2026-01-01 06:10:00' ] );
+
+		Post_Type::pin_entry( $pinned_id );
+
+		// One reply holds them all, so later bounds, which share the local
+		// sort, don't come into it.
+		$this->assertEqualsCanonicalizing( [ $pinned_id, $local_later_id, $gmt_later_id ], $this->load_all( $this->render_feed( [ 'entriesPerPage' => 1 ] ), 3 ) );
 	}
 
 	/**
