@@ -19,7 +19,8 @@ A layout is how the feed looks: spacing, colors, type, and which parts each entr
 | Layout | What it looks like | Best for |
 | --- | --- | --- |
 | Bulletin | The default. Entries stacked with their time, title, content, and links. | Most live blogs. |
-| Stream | Like Bulletin, with more space between entries without titles, each headed by its author's photo, name, and how long ago it was posted. | Fast-moving events with many short updates without titles, such as a press conference or a court hearing. |
+| Stream | Like Bulletin, with more space between entries without titles. | Fast-moving events with many short updates without titles, such as a press conference or a court hearing. |
+| Voices | Like Stream, with each entry headed by its author's photo, name, and how long ago it was posted. | Several reporters filing short updates, such as a newsroom live chat or a debate night. |
 | Rail | Entries hang off a timeline, each signed by its author beside its links. | Events where the order of updates and the gaps between them matter, such as a storm moving through. |
 | Clock | Each entry starts with the time it was posted and is signed by its author beside its links. | Coverage where the time of each update is the point, such as election results or travel delays. |
 | Margin | Each entry split into a margin and its content. The margin holds the time, the title, and the author beside the links. | Coverage with headlines readers scan down the side, such as a long-running story. |
@@ -32,7 +33,7 @@ A layout is how the feed looks: spacing, colors, type, and which parts each entr
 | Flash | A full-width bar in the site's accent color with the latest entry, its time, and a link to the coverage page, side by side at every width. The entry keeps to one line, cut short to fit, and phones hide the time. The Live badge takes the theme's page background and text colors, and follows the theme's style variations. Change it under the Coverage Status block's Color settings. Hides when the coverage ends. | The site header, so a major breaking story shows on every page. |
 | Alert | A box on the theme's secondary background color, like a pinned entry's (a light gray, or a dark gray on dark style variations), holding the coverage's status, its name, and a link to the coverage page on the right, side by side at every width. It shows no entries. The name keeps to one line, cut short to fit. The Live badge takes the theme's accent color (Primary on the classic Newspack Theme) with the text color the theme pairs with it, and follows the theme's style variations. Change it under the Coverage Status block's Color settings. Hides when the coverage ends. | Inside a related story, to point readers to the live coverage without repeating its updates. |
 
-Stream, Rail, Clock, Margin, Split, and Byline show each entry's author. An entry the Slack bot posted shows no author until it is reassigned to a reporter. Author photos follow Avatar Display under Settings > Discussion.
+Voices, Rail, Clock, Margin, Split, and Byline show each entry's author. An entry the Slack bot posted shows no author until it is reassigned to a reporter. Author photos follow Avatar Display under Settings > Discussion.
 
 Ticker, Wire, Digest, and Flash show only the latest entries. They set Show to Latest and a matching Number of entries when you pick them. Alert shows no entries, but sets Show to Latest too, since the link to the coverage page only shows with Latest. You can change either afterward, except Show on Ticker and Alert: Ticker's headlines run on one line, which has no room for pinned entries or older pages, and Alert has no entries to show, so the setting is hidden while it's set to Latest. Alert hides Number of entries too.
 

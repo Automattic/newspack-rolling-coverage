@@ -559,6 +559,7 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	 */
 	public function data_built_in_layouts(): array {
 		return [
+			'voices' => [ 'voices', 'Voices' ],
 			'clock'  => [ 'clock', 'Clock' ],
 			'margin' => [ 'margin', 'Margin' ],
 			'minute' => [ 'minute', 'Minute' ],

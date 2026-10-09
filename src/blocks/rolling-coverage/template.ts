@@ -495,9 +495,9 @@ function bulletinEntryTemplate( sizes: string[] ): TemplateItem[] {
 }
 
 /**
- * What a Stream entry shows: no title, the author's avatar, name and the
- * relative date above the content, which is set larger, then "Read more"
- * and "Share". The pinned card's also carry the pinned row, first.
+ * What a Stream entry shows: no title, the content set larger, then a row
+ * with the relative date, "Read more" and "Share". The pinned card's also
+ * carry the pinned row.
  *
  * @param {string[]} slugs    The palette's color slugs.
  * @param {string[]} sizes    The theme's font size slugs.
@@ -505,6 +505,56 @@ function bulletinEntryTemplate( sizes: string[] ): TemplateItem[] {
  * @return {TemplateItem[]} The entry's blocks.
  */
 function streamEntryBlocks(
+	slugs: string[],
+	sizes: string[],
+	isPinned: boolean
+): TemplateItem[] {
+	const blocks: TemplateItem[] = [
+		postContent( themeFontSize( sizes, 'medium', 'normal' ) ),
+		[
+			'core/group',
+			{
+				layout: {
+					type: 'flex',
+					flexWrap: 'wrap',
+					verticalAlignment: 'center',
+				},
+				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
+				metadata: {
+					name: __( 'Footer', 'newspack-rolling-coverage' ),
+				},
+			},
+			[
+				[
+					'core/post-date',
+					{
+						...POST_DATE_ATTRIBUTES,
+						format: 'human-diff',
+						fontSize: 'small',
+						...mutedDateColor( slugs ),
+					},
+				],
+				readMoreLink(),
+				shareLink(),
+			],
+		],
+	];
+
+	return isPinned ? [ PINNED_ROW, ...blocks ] : blocks;
+}
+
+/**
+ * What a Voices entry shows: Stream's entry, signed above the content with
+ * the author's avatar, name and the relative date, which leave the footer
+ * to "Read more" and "Share". The pinned card's also carry the pinned row,
+ * first.
+ *
+ * @param {string[]} slugs    The palette's color slugs.
+ * @param {string[]} sizes    The theme's font size slugs.
+ * @param {boolean}  isPinned Whether the blocks are the pinned card's.
+ * @return {TemplateItem[]} The entry's blocks.
+ */
+function voicesEntryBlocks(
 	slugs: string[],
 	sizes: string[],
 	isPinned: boolean
@@ -560,16 +610,15 @@ function streamEntryBlocks(
 }
 
 /**
- * The Stream layout's per-entry template: untitled entries spaced apart with
- * no separator, and the pinned entry in a bordered card.
+ * A per-entry template of untitled entries spaced apart with no separator,
+ * and the pinned entry in a bordered card.
  *
- * @param {string[]} slugs The palette's color slugs.
- * @param {string[]} sizes The theme's font size slugs.
+ * @param {Function} blocks Returns an entry's blocks, given whether they're
+ *                          the pinned card's.
  * @return {TemplateItem[]} The template.
  */
-function streamEntryTemplate(
-	slugs: string[],
-	sizes: string[]
+function cardedEntryTemplate(
+	blocks: ( isPinned: boolean ) => TemplateItem[]
 ): TemplateItem[] {
 	return [
 		[
@@ -593,7 +642,7 @@ function streamEntryTemplate(
 					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			streamEntryBlocks( slugs, sizes, true ),
+			blocks( true ),
 		],
 		[
 			'core/group',
@@ -605,9 +654,41 @@ function streamEntryTemplate(
 					name: __( 'Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			streamEntryBlocks( slugs, sizes, false ),
+			blocks( false ),
 		],
 	];
+}
+
+/**
+ * The Stream layout's per-entry template.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @param {string[]} sizes The theme's font size slugs.
+ * @return {TemplateItem[]} The template.
+ */
+function streamEntryTemplate(
+	slugs: string[],
+	sizes: string[]
+): TemplateItem[] {
+	return cardedEntryTemplate( ( isPinned ) =>
+		streamEntryBlocks( slugs, sizes, isPinned )
+	);
+}
+
+/**
+ * The Voices layout's per-entry template: Stream's, with each entry signed.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @param {string[]} sizes The theme's font size slugs.
+ * @return {TemplateItem[]} The template.
+ */
+function voicesEntryTemplate(
+	slugs: string[],
+	sizes: string[]
+): TemplateItem[] {
+	return cardedEntryTemplate( ( isPinned ) =>
+		voicesEntryBlocks( slugs, sizes, isPinned )
+	);
 }
 
 /**
@@ -3329,6 +3410,7 @@ const ENTRY_ALLOWED_BLOCKS = [
 export {
 	bulletinEntryTemplate,
 	streamEntryTemplate,
+	voicesEntryTemplate,
 	railEntryTemplate,
 	clockEntryTemplate,
 	marginEntryTemplate,

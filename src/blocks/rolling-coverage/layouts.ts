@@ -10,6 +10,7 @@ import { getLayoutId } from './utils';
 import {
 	innerTemplate,
 	streamInnerTemplate,
+	voicesInnerTemplate,
 	railInnerTemplate,
 	clockInnerTemplate,
 	marginInnerTemplate,
@@ -27,6 +28,7 @@ import type { TemplateItem } from './types';
 export type BuiltInLayoutSlug =
 	| 'default'
 	| 'stream'
+	| 'voices'
 	| 'rail'
 	| 'clock'
 	| 'margin'
@@ -65,6 +67,11 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			slug: 'stream',
 			title: _x( 'Stream', 'layout name', 'newspack-rolling-coverage' ),
 			template: streamInnerTemplate,
+		},
+		{
+			slug: 'voices',
+			title: _x( 'Voices', 'layout name', 'newspack-rolling-coverage' ),
+			template: voicesInnerTemplate,
 		},
 		{
 			slug: 'rail',

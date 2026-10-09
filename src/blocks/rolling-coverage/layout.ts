@@ -12,6 +12,7 @@ import metadata from './block.json';
 import {
 	bulletinEntryTemplate,
 	streamEntryTemplate,
+	voicesEntryTemplate,
 	railEntryTemplate,
 	clockEntryTemplate,
 	marginEntryTemplate,
@@ -142,6 +143,21 @@ export function streamInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
 			streamEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
+			'var:preset|spacing|60'
+		),
+	];
+}
+
+/**
+ * The Voices layout's inner-blocks template: Stream's Feed group, with each
+ * entry signed by its author.
+ *
+ * @return {TemplateItem[]} The template.
+ */
+export function voicesInnerTemplate(): TemplateItem[] {
+	return [
+		feedTemplate(
+			voicesEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
 			'var:preset|spacing|60'
 		),
 	];
