@@ -286,6 +286,28 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * However many entries a cursor names, a poll loads at most a page of
+	 * them beyond the cap: the cursor comes from the request.
+	 */
+	public function test_poll_loads_at_most_a_page_beyond_the_cap_for_held_entries() {
+		$this->create_entry_at( self::SECOND );
+
+		$limits = [];
+		$record = static function ( WP_Query $query ) use ( &$limits ) {
+			if ( Post_Type::CPT_SLUG === $query->get( 'post_type' ) ) {
+				$limits[] = (int) $query->get( 'posts_per_page' );
+			}
+		};
+
+		add_action( 'pre_get_posts', $record );
+		$this->get_feed( [ 'cursor' => implode( ',', range( 1000, 3000 ) ) . ':' . self::SECOND ] );
+		remove_action( 'pre_get_posts', $record );
+
+		$this->assertNotEmpty( $limits );
+		$this->assertLessThanOrEqual( Rolling_Coverage_Block::POLL_CAP + 1 + Rolling_Coverage_Block::PER_PAGE_MAX, max( $limits ) );
+	}
+
+	/**
 	 * Load more continues through the entries that share a second with the
 	 * last one shown, and then past it.
 	 */

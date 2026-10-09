@@ -4305,8 +4305,10 @@ class Rolling_Coverage_Block {
 						'modified' => 'DESC',
 						'ID'       => 'DESC',
 					],
-					// One past the cap to detect overflow, plus the entries the page holds, which are left out below.
-					'posts_per_page' => self::POLL_CAP + 1 + count( $poll_cursor->ids ),
+					// One past the cap to detect overflow, plus room for the entries the page
+					// holds, which are left out below; a page's worth at most, since the
+					// cursor comes from the request.
+					'posts_per_page' => self::POLL_CAP + 1 + min( count( $poll_cursor->ids ), self::PER_PAGE_MAX ),
 				]
 			);
 
