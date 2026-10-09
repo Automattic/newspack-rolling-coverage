@@ -274,7 +274,9 @@ function CoverageDrawer( {
 					variant="primary"
 					onClick={ handleSave }
 					isBusy={ isSaving }
-					disabled={ isSaving || ! isValid }
+					disabled={
+						isSaving || ! isValid || ( isEditing && ! isDirty )
+					}
 				>
 					{ isEditing
 						? __( 'Save', 'newspack-rolling-coverage' )

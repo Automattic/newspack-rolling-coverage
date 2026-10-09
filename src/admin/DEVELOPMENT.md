@@ -30,7 +30,7 @@ The admin pages load the block editor's assets so Quick Edit can run a block edi
 
 ## All Coverages
 
-The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Coverage added." for a new coverage; a failed one keeps it open with the error.
+The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Coverage added." for a new coverage; a failed one keeps it open with the error.
 
 Row actions live in `src/admin/actions/coverage-actions.ts`:
 
