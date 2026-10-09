@@ -1000,7 +1000,7 @@ export default function Edit( {
 					| {
 							status?: string;
 							content?: { raw?: string } | string;
-							title?: { rendered?: string } | string;
+							title?: { raw?: string } | string;
 					  }
 					| undefined;
 				hasFinishedResolution: (
@@ -1063,7 +1063,7 @@ export default function Edit( {
 		? decodeEntities(
 				( typeof layoutRecord?.title === 'string'
 					? layoutRecord.title
-					: layoutRecord?.title?.rendered ) ?? ''
+					: layoutRecord?.title?.raw ) ?? ''
 			).trim()
 		: '';
 	let layoutDescription:

@@ -18,7 +18,7 @@ class Test_Author_Settings extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A links row led by the author's avatar and name in a group of their own,
-	 * as Rail, Clock, Margin and Split have it.
+	 * as Rail, Clock and Split have it.
 	 */
 	const LINKS_MARKUP = '<!-- wp:group {"metadata":{"name":"Links"},"layout":{"type":"flex"}} --><div class="wp-block-group">'
 		. '<!-- wp:group {"metadata":{"name":"Author"},"layout":{"type":"flex","flexWrap":"nowrap"}} --><div class="wp-block-group">'
