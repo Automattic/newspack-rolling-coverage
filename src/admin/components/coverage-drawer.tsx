@@ -19,6 +19,7 @@ import { Drawer } from 'newspack-components/dist/esm/drawer';
  */
 import { ErrorNotice } from '../shared/error-notice';
 import { saveCoverage } from '../utils/coverage-api';
+import { notifySuccess } from '../utils/notices';
 import { useAdminContext } from '../hooks/useAdminContext';
 import { useStatusLabels } from '../utils/status-labels';
 import type {
@@ -225,6 +226,11 @@ function CoverageDrawer( {
 		setIsSaving( false );
 
 		if ( result.success ) {
+			notifySuccess(
+				isEditing
+					? __( 'Changes saved.', 'newspack-rolling-coverage' )
+					: __( 'Coverage added.', 'newspack-rolling-coverage' )
+			);
 			onSaved();
 			onClose();
 		} else {
