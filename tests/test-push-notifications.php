@@ -247,8 +247,9 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Password-protected and gated entries, titled or not, with the title
-	 * each is announced under; null stands for the coverage name.
+	 * Password-protected, gated and members-only entries, titled or not,
+	 * with the title each is announced under; null stands for the coverage
+	 * name.
 	 *
 	 * @return array<string,array{string,string,string|null}>
 	 */
@@ -259,6 +260,7 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 			'titled, gated'                  => [ 'gate', 'Count update', 'Count update' ],
 			'untitled, gated'                => [ 'gate', '', null ],
 			'untitled, gated with no teaser' => [ 'gate with no teaser', '', null ],
+			'untitled, members only'         => [ 'membership', '', null ],
 		];
 	}
 
@@ -270,7 +272,7 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	 *
 	 * @dataProvider restricted_entries
 	 *
-	 * @param string      $restriction    'password', 'gate', or 'gate with no teaser'.
+	 * @param string      $restriction    'password', 'gate', 'gate with no teaser' or 'membership'.
 	 * @param string      $title          Entry title.
 	 * @param string|null $expected_title Notification title, or null for the coverage name.
 	 */
@@ -291,6 +293,10 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		}
 		if ( 'gate with no teaser' === $restriction ) {
 			$this->gate_entry( $entry_id, '' );
+		}
+		if ( 'membership' === $restriction ) {
+			$this->use_wc_memberships_stub();
+			$GLOBALS['newspack_rolling_coverage_restricted_posts'] = [ $entry_id ];
 		}
 		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
 

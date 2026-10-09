@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-08T13:12:00+00:00\n"
+"POT-Creation-Date: 2026-10-09T11:08:46+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -88,7 +88,7 @@ msgstr ""
 #: includes/blocks/class-rolling-coverage-block.php:3989
 #: includes/blocks/class-rolling-coverage-block.php:4119
 #: includes/blocks/class-rolling-coverage-block.php:4130
-#: includes/class-post-type.php:1250
+#: includes/class-post-type.php:1292
 #: includes/class-taxonomy.php:348
 msgid "Coverage not found."
 msgstr ""
@@ -145,55 +145,61 @@ msgstr ""
 msgid "Updated %s"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:115
+#: includes/blocks/class-entry-bindings.php:126
 msgid "Rolling Coverage Entry"
 msgstr ""
 
 #. translators: 1: kind of media, e.g. "Photo" or "Video", 2: its caption or description.
-#: includes/blocks/class-entry-bindings.php:413
+#: includes/blocks/class-entry-bindings.php:584
 #, php-format
 msgctxt "media label and caption"
 msgid "%1$s: %2$s"
 msgstr ""
 
+#. translators: %s: the host name of the site an embed comes from, e.g. "x.com". Stands in for the title and excerpt of an entry whose only content is that embed.
+#: includes/blocks/class-entry-bindings.php:691
+#, php-format
+msgid "Embed from %s"
+msgstr ""
+
 #. translators: Stands in for the title and excerpt of an entry whose only content is a photo, alone or before the photo's caption.
-#: includes/blocks/class-entry-bindings.php:496
+#: includes/blocks/class-entry-bindings.php:730
 msgid "Photo"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a gallery of photos, alone or before the gallery's caption.
-#: includes/blocks/class-entry-bindings.php:498
+#: includes/blocks/class-entry-bindings.php:732
 msgid "Gallery"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a video, alone or before the video's caption.
-#: includes/blocks/class-entry-bindings.php:500
+#: includes/blocks/class-entry-bindings.php:734
 msgid "Video"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is an audio clip, alone or before the clip's caption.
-#: includes/blocks/class-entry-bindings.php:502
+#: includes/blocks/class-entry-bindings.php:736
 msgid "Audio"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is embedded from another site, such as a social media post, alone or before the embed's caption.
-#: includes/blocks/class-entry-bindings.php:504
+#: includes/blocks/class-entry-bindings.php:738
 msgid "Embed"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:665
+#: includes/blocks/class-entry-bindings.php:899
 msgid "Following"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:666
+#: includes/blocks/class-entry-bindings.php:900
 msgid "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:667
+#: includes/blocks/class-entry-bindings.php:901
 msgid "Something went wrong. Please try again."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:714
+#: includes/blocks/class-entry-bindings.php:948
 #: includes/blocks/class-rolling-coverage-block.php:2785
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
@@ -203,7 +209,7 @@ msgid "Share"
 msgstr ""
 
 #. translators: 1: share button text, e.g. "Share", 2: entry title or its first words.
-#: includes/blocks/class-entry-bindings.php:719
+#: includes/blocks/class-entry-bindings.php:953
 #, php-format
 msgid "%1$s: %2$s"
 msgstr ""
@@ -521,9 +527,9 @@ msgstr ""
 
 #: includes/class-archive-mode.php:285
 #: includes/class-breakout.php:238
-#: includes/class-post-type.php:1167
-#: includes/class-post-type.php:2962
-#: includes/class-post-type.php:3367
+#: includes/class-post-type.php:1209
+#: includes/class-post-type.php:3004
+#: includes/class-post-type.php:3409
 msgid "Entry not found."
 msgstr ""
 
@@ -692,96 +698,96 @@ msgstr ""
 msgid "This coverage is in the trash. Restore it before adding entries."
 msgstr ""
 
-#: includes/class-post-type.php:2695
-#: includes/class-post-type.php:2779
+#: includes/class-post-type.php:2737
+#: includes/class-post-type.php:2821
 msgid "No entry IDs provided."
 msgstr ""
 
-#: includes/class-post-type.php:2711
+#: includes/class-post-type.php:2753
 msgid "You do not have permission to restore this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2787
+#: includes/class-post-type.php:2829
 msgid "The slug and date can only be changed one entry at a time."
 msgstr ""
 
-#: includes/class-post-type.php:2806
+#: includes/class-post-type.php:2848
 msgid "That person can’t be the author of an entry."
 msgstr ""
 
-#: includes/class-post-type.php:2819
+#: includes/class-post-type.php:2861
 msgid "That date isn’t valid."
 msgstr ""
 
-#: includes/class-post-type.php:2846
+#: includes/class-post-type.php:2888
 msgid "Nothing to change."
 msgstr ""
 
-#: includes/class-post-type.php:2966
+#: includes/class-post-type.php:3008
 msgid "You do not have permission to edit this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2970
+#: includes/class-post-type.php:3012
 msgid "This entry is archived, so it can’t be edited."
 msgstr ""
 
-#: includes/class-post-type.php:2981
+#: includes/class-post-type.php:3023
 msgid "A published entry can’t have a date in the future."
 msgstr ""
 
-#: includes/class-post-type.php:2985
+#: includes/class-post-type.php:3027
 msgid "Saving this entry would publish it, and you do not have permission to publish it."
 msgstr ""
 
-#: includes/class-post-type.php:3030
+#: includes/class-post-type.php:3072
 msgid "Co-Authors Plus couldn’t credit this entry to that person."
 msgstr ""
 
-#: includes/class-post-type.php:3099
+#: includes/class-post-type.php:3141
 msgid "One of the chosen categories doesn’t exist."
 msgstr ""
 
-#: includes/class-post-type.php:3100
+#: includes/class-post-type.php:3142
 msgid "One of the chosen tags doesn’t exist."
 msgstr ""
 
-#: includes/class-post-type.php:3134
+#: includes/class-post-type.php:3176
 msgid "You don’t have permission to assign one of the chosen categories."
 msgstr ""
 
-#: includes/class-post-type.php:3135
+#: includes/class-post-type.php:3177
 msgid "You don’t have permission to assign one of the chosen tags."
 msgstr ""
 
-#: includes/class-post-type.php:3145
+#: includes/class-post-type.php:3187
 msgid "You don’t have permission to create categories."
 msgstr ""
 
-#: includes/class-post-type.php:3146
+#: includes/class-post-type.php:3188
 msgid "You don’t have permission to create tags."
 msgstr ""
 
-#: includes/class-post-type.php:3336
+#: includes/class-post-type.php:3378
 msgid "An editor needs to restore the coverage before this entry can be restored."
 msgstr ""
 
-#: includes/class-post-type.php:3375
+#: includes/class-post-type.php:3417
 msgid "Entry is not in trash."
 msgstr ""
 
-#: includes/class-post-type.php:3383
+#: includes/class-post-type.php:3425
 msgid "This entry is archived, so it can’t be restored."
 msgstr ""
 
-#: includes/class-post-type.php:3434
+#: includes/class-post-type.php:3476
 msgid "This entry's coverage was deleted. An editor needs to restore it."
 msgstr ""
 
-#: includes/class-post-type.php:3456
+#: includes/class-post-type.php:3498
 msgid "This entry has no coverage context to restore to."
 msgstr ""
 
-#: includes/class-post-type.php:3514
+#: includes/class-post-type.php:3556
 msgid "Failed to restore entry."
 msgstr ""
 

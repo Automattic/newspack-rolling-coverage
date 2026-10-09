@@ -282,7 +282,7 @@ class Push_Notifications {
 		$post = get_post( $post_id );
 
 		// An entry holding only an image has nothing to announce, restricted or not.
-		if ( ! $post instanceof WP_Post || '' === self::get_entry_words( $post ) ) {
+		if ( ! $post instanceof WP_Post || ! self::has_words( $post ) ) {
 			return;
 		}
 
@@ -445,8 +445,8 @@ class Push_Notifications {
 			return false;
 		}
 
-		// An untitled entry with no words outside its members-only blocks has nothing to announce, restricted or not.
-		if ( '' === trim( wp_strip_all_tags( $entry->post_title ) ) && '' === self::get_entry_words( $entry ) ) {
+		// An untitled entry with no words of its own has nothing to announce, restricted or not.
+		if ( '' === trim( wp_strip_all_tags( $entry->post_title ) ) && ! self::has_words( $entry ) ) {
 			return false;
 		}
 
@@ -499,11 +499,12 @@ class Push_Notifications {
 	}
 
 	/**
-	 * Builds the notification body text from the entry's words (see
-	 * get_entry_words()): a notification reaches every follower. A
-	 * restricted entry (see Entry_Bindings::is_restricted()) gets a neutral
-	 * line instead, so followers still hear about it and meet the gate or
-	 * password on the site.
+	 * Builds the notification body text from a short excerpt of the entry's
+	 * written content, leaving out anything members-only: a notification
+	 * reaches every follower. A restricted entry (see
+	 * Entry_Bindings::is_restricted()) gets a neutral line instead, so
+	 * followers still hear about it and meet the gate or password on the
+	 * site.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return string Notification body text.
@@ -514,26 +515,24 @@ class Push_Notifications {
 			return __( 'Read the latest update.', 'newspack-rolling-coverage' );
 		}
 
-		return self::get_entry_words( $entry );
-	}
-
-	/**
-	 * The entry's hand-written excerpt, else its opening words without the
-	 * blocks Newspack hides from the public, cut to 15 words. Read for a
-	 * restricted entry too, but only to decide whether it has anything to
-	 * announce: build_notification_content() never sends them. A
-	 * password-protected entry with an excerpt gets core's "protected post"
-	 * placeholder instead, so it counts as having words.
-	 *
-	 * @param WP_Post $entry Entry post.
-	 * @return string Plain text.
-	 */
-	private static function get_entry_words( WP_Post $entry ): string {
 		if ( ! has_excerpt( $entry ) ) {
-			return Post_Type::get_html_summary( Entry_Bindings::public_content( $entry ), 15 );
+			return Entry_Bindings::public_summary( $entry, 15 );
 		}
 
 		return wp_trim_words( html_entity_decode( get_the_excerpt( $entry ), ENT_QUOTES, 'UTF-8' ), 15, '…' );
+	}
+
+	/**
+	 * Whether the entry has anything to announce: a hand-written excerpt, or
+	 * words of its own outside its media and members-only blocks. Asked of a
+	 * restricted entry too, whose words build_notification_content() never
+	 * sends.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return bool
+	 */
+	private static function has_words( WP_Post $entry ): bool {
+		return '' !== trim( wp_strip_all_tags( $entry->post_excerpt ) ) || Entry_Bindings::has_words_of_its_own( $entry );
 	}
 
 	/**
