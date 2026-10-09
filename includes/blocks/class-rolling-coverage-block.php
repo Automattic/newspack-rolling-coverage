@@ -1332,7 +1332,15 @@ class Rolling_Coverage_Block {
 
 		wp_reset_postdata();
 
-		$before = ! empty( $posts ) ? self::load_more_bound( $posts[ count( $posts ) - 1 ] ) : '';
+		$before = '';
+
+		if ( $posts ) {
+			$last_entry = $posts[ count( $posts ) - 1 ];
+
+			// A page ending on a pinned entry shows only pinned entries, in pin
+			// order, so no entry's date marks where it stops.
+			$before = ! $is_capped && Post_Type::is_pinned( $last_entry->ID ) ? self::load_more_top_bound( $coverage_id ) : self::load_more_bound( $last_entry );
+		}
 
 		if ( $shared_entry ) {
 			$cursor = self::coverage_cursor( $coverage_id, $change_marker, $newest_change );
@@ -3975,6 +3983,33 @@ class Rolling_Coverage_Block {
 	 */
 	private static function load_more_bound( WP_Post $entry ): string {
 		return $entry->ID . ':' . self::post_date_gmt( $entry );
+	}
+
+	/**
+	 * Where load more starts for a page that shows only pinned entries: above
+	 * every entry, as a bare date one second past the newest entry's. The
+	 * page lists its pinned entries in pin order, so it can leave out entries
+	 * dated after its last one. Load more lists them all by date, and the view
+	 * script skips the pinned entries the page already shows.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return string The bound, or '' when the coverage has no entries.
+	 */
+	private static function load_more_top_bound( int $coverage_id ): string {
+		$newest = ( new WP_Query(
+			array_merge(
+				self::coverage_entries_args( $coverage_id ),
+				[
+					'orderby'                     => self::FEED_ORDER,
+					'posts_per_page'              => 1,
+					'update_post_meta_cache'      => false,
+					'update_post_term_cache'      => false,
+					Post_Type::SKIP_PIN_ORDER_VAR => true,
+				]
+			)
+		) )->posts[0] ?? null;
+
+		return $newest instanceof WP_Post ? gmdate( 'Y-m-d H:i:s', strtotime( self::post_date_gmt( $newest ) . ' UTC' ) + 1 ) : '';
 	}
 
 	/**

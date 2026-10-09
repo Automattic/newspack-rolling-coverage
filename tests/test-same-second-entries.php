@@ -15,7 +15,8 @@ use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
  * entries in one second, in no particular ID order. A page that already shows
  * some of them gets the rest by poll, as new entries, and load more continues
  * through them without skipping any. Entries a page leaves out by design,
- * below a full page or past a cap, aren't new to it.
+ * below a full page or past a cap, aren't new to it, and load more reaches
+ * every one it can bring in.
  */
 class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 
@@ -131,6 +132,35 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 		preg_match_all( '/data-entry-id="(\d+)"/', $html, $matches );
 
 		return array_map( 'intval', $matches[1] );
+	}
+
+	/**
+	 * Every entry a reader reaches from a rendered feed by loading more until
+	 * there's no more, in order. Like the view script, it appends only the
+	 * entries the page doesn't show yet.
+	 *
+	 * @param string $html     Rendered feed.
+	 * @param int    $per_page Entries per page.
+	 * @return int[]
+	 */
+	private function load_all( $html, $per_page ) {
+		$shown  = self::entry_ids_in( $html );
+		$before = self::data_attribute( $html, 'before' );
+
+		while ( $before ) {
+			$page = $this->get_feed(
+				[
+					'before'       => $before,
+					'per_page'     => $per_page,
+					'template_key' => self::data_attribute( $html, 'template-key' ),
+				]
+			);
+
+			$shown  = array_merge( $shown, array_diff( self::entry_ids_in( $page['html'] ), $shown ) );
+			$before = $page['hasMore'] ? $page['before'] : '';
+		}
+
+		return $shown;
 	}
 
 	/**
@@ -272,6 +302,23 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Entries a page of pinned entries leaves out from its cursor's second
+	 * aren't new to it: load more brings them in.
+	 */
+	public function test_entries_a_page_of_pinned_entries_leaves_out_are_not_new() {
+		$pinned_id = $this->create_entry_at( '2026-01-01 08:00:00' );
+
+		Post_Type::pin_entry( $pinned_id );
+		$this->create_entry_at( self::SECOND );
+
+		$cursor = self::data_attribute( $this->render_feed( [ 'entriesPerPage' => 1 ] ), 'cursor' );
+
+		$later_id = $this->create_entry_at( '2026-01-01 13:00:00' );
+
+		$this->assertSame( [ $later_id => 'insert' ], wp_list_pluck( $this->get_feed( [ 'cursor' => $cursor ] )['entries'], 'type', 'id' ) );
+	}
+
+	/**
 	 * How many entry queries a poll runs.
 	 *
 	 * @param string $cursor Cursor the page sends.
@@ -403,24 +450,24 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 		$second_id = $this->create_entry_at( self::SECOND );
 		$third_id  = $this->create_entry_at( self::SECOND );
 
-		$html   = $this->render_feed( [ 'entriesPerPage' => 1 ] );
-		$shown  = self::entry_ids_in( $html );
-		$before = self::data_attribute( $html, 'before' );
+		$this->assertSame( [ $third_id, $second_id, $first_id, $older_id ], $this->load_all( $this->render_feed( [ 'entriesPerPage' => 1 ] ), 1 ) );
+	}
 
-		while ( $before ) {
-			$page = $this->get_feed(
-				[
-					'before'       => $before,
-					'per_page'     => 1,
-					'template_key' => self::data_attribute( $html, 'template-key' ),
-				]
-			);
+	/**
+	 * Load more from a page showing only pinned entries, which lists them in
+	 * pin order, reaches every entry the page leaves out, those dated after
+	 * its last one included.
+	 */
+	public function test_load_more_from_a_page_of_pinned_entries_reaches_every_entry() {
+		$shown_pin_id = $this->create_entry_at( '2026-01-01 08:00:00' );
+		$newer_pin_id = $this->create_entry_at( '2026-01-01 10:00:00' );
+		$newest_id    = $this->create_entry_at( self::SECOND );
+		$oldest_id    = $this->create_entry_at( '2026-01-01 07:00:00' );
 
-			$shown  = array_merge( $shown, self::entry_ids_in( $page['html'] ) );
-			$before = $page['hasMore'] ? $page['before'] : '';
-		}
+		Post_Type::pin_entry( $shown_pin_id );
+		Post_Type::pin_entry( $newer_pin_id );
 
-		$this->assertSame( [ $third_id, $second_id, $first_id, $older_id ], $shown );
+		$this->assertSame( [ $shown_pin_id, $newest_id, $newer_pin_id, $oldest_id ], $this->load_all( $this->render_feed( [ 'entriesPerPage' => 1 ] ), 1 ) );
 	}
 
 	/**
