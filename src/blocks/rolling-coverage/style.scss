@@ -304,6 +304,7 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	flex-direction: row;
 	flex-wrap: nowrap;
 	gap: var(--nrc-row-gap);
+	overflow: hidden;
 	overflow: clip;
 
 	&:has(> :nth-child(2)) {
