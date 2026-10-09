@@ -604,7 +604,8 @@ function initBlock( root: HTMLElement ): void {
 	// entry ID: entries load more hasn't brought, and new ones waiting
 	// behind the new-entries control. No later poll sends them again, and a
 	// cached load-more reply or a queued entry can predate them, so loadMore()
-	// and takePendingEntries() apply them as the entries arrive.
+	// and takePendingEntries() apply them as the entries arrive. A poll that
+	// sends the entry as new again drops its edit (see applyPollResponse()).
 	const offPageUpdates = new Map< string, string >();
 
 	// Entries the poll reported taken down. One that comes back shows on
@@ -1904,6 +1905,10 @@ function initBlock( root: HTMLElement ): void {
 
 				return;
 			}
+
+			// It comes as saved now, so an edit kept from before it was taken
+			// down and published again is out of date.
+			offPageUpdates.delete( String( entry.id ) );
 
 			const adEl = entry.adHtml
 				? parseElement( sanitizeHtml( entry.adHtml ) )
