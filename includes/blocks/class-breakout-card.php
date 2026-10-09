@@ -482,7 +482,8 @@ class Breakout_Card {
 	 * filters and says there is no excerpt, so the card's text takes that
 	 * message's place, cut to the block's length as core cuts it. An excerpt
 	 * showing the post's title, a one-liner like Flash's, has the Full story
-	 * label lead it on the same line, outside the words the block counts.
+	 * label and the title in bold lead the summary on the same line, outside
+	 * the words the block counts; with no summary it is the title alone.
 	 *
 	 * Parameters stay untyped because this runs for every excerpt block on
 	 * the site while a card renders, after other plugins' filters that may
@@ -526,9 +527,20 @@ class Breakout_Card {
 			return $block_content;
 		}
 
+		$lead = self::label_html( $card, true ) . '<strong>' . esc_html( $card['title'] ) . '</strong>';
+
+		if ( '' === $card['summary'] ) {
+			return (string) preg_replace_callback(
+				'#(<p\b[^>]*\bclass="(?:[^"]*\s)?wp-block-post-excerpt__excerpt(?:\s[^"]*)?"[^>]*>).*?((?:\s<a class="wp-block-post-excerpt__more-link".*?</a>)?\s*</p>)#s',
+				static fn( $parts ) => $parts[1] . $lead . $parts[2],
+				$block_content,
+				1
+			);
+		}
+
 		return (string) preg_replace_callback(
 			'#<p\b[^>]*\bclass="(?:[^"]*\s)?wp-block-post-excerpt__excerpt(?:\s[^"]*)?"[^>]*>#',
-			static fn( $parts ) => $parts[0] . self::label_html( $card, true ),
+			static fn( $parts ) => $parts[0] . $lead . ' ',
 			$block_content,
 			1
 		);
@@ -644,7 +656,7 @@ class Breakout_Card {
 	 * @return string
 	 */
 	private static function excerpt_text( array $card ): string {
-		return self::excerpt_shows_title( $card ) ? $card['title'] : $card['summary'];
+		return self::excerpt_shows_title( $card ) && '' === $card['summary'] ? $card['title'] : $card['summary'];
 	}
 
 	/**

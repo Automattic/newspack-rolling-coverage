@@ -273,15 +273,51 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An excerpt-only layout, like Flash, shows the post's title.
+	 * An excerpt-only layout, like Flash, shows the label, the post's title
+	 * in bold and the summary.
 	 */
-	public function test_excerpt_only_layout_shows_the_post_title() {
+	public function test_excerpt_only_layout_shows_the_post_title_and_summary() {
 		[ $entry_id ] = self::create_breakout();
 
 		$html = self::render( $entry_id, self::FLASH_EXCERPT_MARKUP );
 
-		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">' . self::PREFIX . 'Post &amp; headline', $html );
-		$this->assertStringNotContainsString( 'sums up', $html );
+		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">' . self::PREFIX . '<strong>Post &amp; headline</strong> What the post sums up.', $html );
+	}
+
+	/**
+	 * Without a summary, Flash's line is the label and the title alone, and
+	 * the block's length never cuts them.
+	 */
+	public function test_excerpt_only_layout_without_a_summary_shows_the_title_alone() {
+		[ $entry_id ] = self::create_breakout(
+			'publish',
+			[
+				'post_excerpt' => '',
+				'post_content' => '',
+			],
+			[ 'post_content' => '' ]
+		);
+
+		$html = self::render( $entry_id, '<!-- wp:post-excerpt {"excerptLength":1,"moreText":""} /-->' );
+
+		$this->assertMatchesRegularExpression( '#wp-block-post-excerpt__excerpt">' . preg_quote( self::PREFIX, '#' ) . '<strong>Post &amp; headline</strong>\s*</p>#', $html );
+	}
+
+	/**
+	 * Flash's title and summary are escaped.
+	 */
+	public function test_excerpt_only_layout_escapes_title_and_summary() {
+		[ $entry_id ] = self::create_breakout(
+			'publish',
+			[
+				'post_title'   => 'Fish & chips',
+				'post_excerpt' => 'Salt & vinegar.',
+			]
+		);
+
+		$html = self::render( $entry_id, self::FLASH_EXCERPT_MARKUP );
+
+		$this->assertStringContainsString( '<strong>Fish &amp; chips</strong> Salt &amp; vinegar.', $html );
 	}
 
 	/**
@@ -319,7 +355,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		$flash  = self::render( $entry_id, '<!-- wp:post-excerpt {"excerptLength":2,"moreText":""} /-->' );
 
 		$this->assertMatchesRegularExpression( '#<h4 class="[^"]*newspack-rolling-coverage-entry-link[^"]*">' . preg_quote( self::PREFIX, '#' ) . '<a href="' . preg_quote( esc_url( get_permalink( $breakout_id ) ), '#' ) . '"[^>]*>Post &amp; headline</a></h4>#', $ticker );
-		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">' . self::PREFIX . 'Post &amp;&hellip; </p>', $flash );
+		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">' . self::PREFIX . '<strong>Post &amp; headline</strong> What the&hellip; </p>', $flash );
 		$this->assertStringNotContainsString( 'breakout-label">Full story</span>', $ticker . $flash, 'One-liners carry no label on a line of its own.' );
 	}
 
@@ -334,7 +370,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		$html = self::render( $entry_id, '<!-- wp:post-excerpt {"excerptLength":2,"moreText":""} /-->' );
 		remove_filter( 'render_block_core/post-excerpt', $filter, 5 );
 
-		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt extra">' . self::PREFIX . 'Post', $html );
+		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt extra">' . self::PREFIX . '<strong>Post', $html );
 	}
 
 	/**
@@ -372,7 +408,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <a href=', $titled );
 		$this->assertStringContainsString( 'breakout-label has-small-font-size wp-block-paragraph">Q &lt; A &amp; &quot;B&quot;</p>', $untitled );
-		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> Post', $flash );
+		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> <strong>Post', $flash );
 		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> <a href=', $ticker );
 		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</p><h3>', $lite );
 		$this->assertStringNotContainsString( 'Full story', $titled . $untitled . $flash . $ticker . $lite );
@@ -402,7 +438,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <a href=', $titled );
 		$this->assertStringContainsString( 'breakout-label has-small-font-size wp-block-paragraph">Q &lt; A &amp; &quot;B&quot;</p>', $untitled );
-		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> Post', $flash );
+		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> <strong>Post', $flash );
 		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> <a href=', $ticker );
 		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</p><h3>', $lite );
 		$this->assertStringNotContainsString( 'Site label', $titled . $untitled . $flash . $ticker . $lite );
@@ -413,7 +449,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		delete_post_meta( $breakout_id, Breakout_Label::POST_META_KEY );
 
 		$this->assertStringContainsString( 'breakout-label">Site label</span> <a href=', self::render( $entry_id, self::TITLE_MARKUP ) );
-		$this->assertStringContainsString( 'breakout-label--prefix">Site label:</span> Post', self::render( $entry_id, self::FLASH_EXCERPT_MARKUP ) );
+		$this->assertStringContainsString( 'breakout-label--prefix">Site label:</span> <strong>Post', self::render( $entry_id, self::FLASH_EXCERPT_MARKUP ) );
 
 		delete_option( Breakout_Label::OPTION_KEY );
 
@@ -803,7 +839,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		$untitled = self::render( $entry_id, self::FLASH_EXCERPT_MARKUP );
 
 		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">What the post sums up. </p>', $titled );
-		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">' . self::PREFIX . 'Post &amp; headline </p>', $untitled );
+		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">' . self::PREFIX . '<strong>Post &amp; headline</strong> What the post sums up. </p>', $untitled );
 		$this->assertStringNotContainsString( 'protected', $titled . $untitled );
 	}
 
