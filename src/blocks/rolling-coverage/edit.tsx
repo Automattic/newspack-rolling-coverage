@@ -1266,13 +1266,14 @@ export default function Edit( {
 			( templateBlocks.findLast( isShownEverywhere ) ??
 				templateBlocks.at( -1 ) ) as { clientId?: string } | undefined
 		 )?.clientId ?? null;
-	const isRow = isRuledRow( feedGroup ) || isOneLineRow( feedGroup );
+	const isRow = isRuledRow( feedGroup );
+	const wrapsEntries = isRow || isOneLineRow( feedGroup );
 	const entryPreviewsAnchor = useMemo(
 		() =>
 			entryPreviewsAnchorId
-				? { clientId: entryPreviewsAnchorId, wrapsEntries: isRow }
+				? { clientId: entryPreviewsAnchorId, wrapsEntries }
 				: null,
-		[ entryPreviewsAnchorId, isRow ]
+		[ entryPreviewsAnchorId, wrapsEntries ]
 	);
 	const entryPreviews = useMemo(
 		() => (
