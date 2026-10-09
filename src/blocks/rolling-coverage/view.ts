@@ -1096,8 +1096,8 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Shows a newly pinned entry the list doesn't show where a fresh page
-	 * lists it: below the pinned entries, whatever its date. It can be older
+	 * Shows a pinned entry the list doesn't show where a fresh page lists
+	 * it: below the pinned entries, whatever its date. It can be older
 	 * than the entries loaded, waiting behind the new-entries control, or
 	 * newer than the shared entry. Load more then skips it as an entry
 	 * already shown.
@@ -1108,8 +1108,9 @@ function initBlock( root: HTMLElement ): void {
 	function showPinnedEntry( el: HTMLElement ): void {
 		forgetOffPageEntry( el.dataset.entryId ?? '' );
 
-		// The poll sends an edit with no arrival, as the page keeps the arrival
-		// of the copy it replaces. This entry had no copy on the page.
+		// Without an arrival, the seen event would count the entry as part of
+		// the first render. The poll sends an edit with none, as the page keeps
+		// the arrival of the copy it replaces, and this entry had no copy.
 		el.dataset.arrival = 'poll';
 
 		ownElement(
@@ -1857,8 +1858,8 @@ function initBlock( root: HTMLElement ): void {
 	 * Applies a poll response to the entry list.
 	 *
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
-	 * on the page for loadMore(), except an edit that pins one, which shows
-	 * it with the pinned entries at once (see showPinnedEntry()). Drops
+	 * on the page for loadMore(), except edits to pinned ones, which show
+	 * them with the pinned entries at once (see showPinnedEntry()). Drops
 	 * entries taken down, and leaves one that comes back for reload. Inserts
 	 * or queues newly published entries based on the reader's scroll
 	 * position. When the feed opens at a shared entry, new entries are added
