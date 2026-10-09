@@ -10,10 +10,6 @@
 	max-width: wp-breakpoints.$break-medium - wp-vars.$grid-unit-20 * 2;
 }
 
-.newspack-rolling-coverage-settings__panels .newspack-rolling-coverage-settings__intro {
-	gap: var(--wpds-dimension-padding-xs, 4px);
-}
-
 .newspack-rolling-coverage-settings__description {
 	color: var(--wpds-color-foreground-content-neutral-weak, #{wp-colors.$gray-700});
 }
