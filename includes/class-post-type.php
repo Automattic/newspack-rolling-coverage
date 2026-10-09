@@ -2141,8 +2141,8 @@ class Post_Type {
 	}
 
 	/**
-	 * Update the last-modified term meta for every coverage term assigned to
-	 * the given entry post.
+	 * Update the last-modified term meta and change marker for every
+	 * coverage term assigned to the given entry post.
 	 *
 	 * An auto-draft, which Quick Edit creates before the entry is first
 	 * saved, is not entry activity: the list never shows one, its modified
@@ -2166,6 +2166,7 @@ class Post_Type {
 
 		foreach ( $term_ids as $term_id ) {
 			update_term_meta( (int) $term_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, $modified );
+			Poll_Cursor::mark_changed( (int) $term_id );
 		}
 	}
 

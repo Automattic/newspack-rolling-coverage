@@ -7,6 +7,7 @@
 
 use Newspack_Rolling_Coverage\Archive_Mode;
 use Newspack_Rolling_Coverage\Lite_Feed;
+use Newspack_Rolling_Coverage\Poll_Cursor;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Social_Sharing;
@@ -284,7 +285,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'data-lite="1"', $html );
 		$this->assertStringContainsString( 'data-coverage-id="' . $this->coverage_id . '"', $html );
-		$this->assertStringContainsString( 'data-cursor="' . $entry_id . ':2026-01-01 12:00:00"', $html );
+		$this->assertStringContainsString( 'data-cursor="' . $entry_id . ':2026-01-01 12:00:00@' . Poll_Cursor::get_marker( $this->coverage_id ) . '"', $html );
 		$this->assertStringContainsString( 'data-status="active"', $html );
 		$this->assertMatchesRegularExpression( '#data-rest-url="[^"]*coverages/' . $this->coverage_id . '/entries"#', $html );
 		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-status" role="status" aria-live="polite"></div>', $html );

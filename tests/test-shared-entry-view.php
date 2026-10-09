@@ -6,6 +6,7 @@
  */
 
 use Newspack_Rolling_Coverage\Latest_Label;
+use Newspack_Rolling_Coverage\Poll_Cursor;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Social_Sharing;
@@ -744,7 +745,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( $this->ids( 'entry-3', 'entry-4', 'entry-2' ), $this->entry_ids_in( $html ) );
 		$this->assertStringContainsString( 'data-has-more="1"', $html );
-		$this->assertSame( get_post( $this->entries['entry-2'] )->post_date_gmt, $this->data_attribute( $html, 'before' ) );
+		$this->assertSame( $this->entries['entry-2'] . ':' . get_post( $this->entries['entry-2'] )->post_date_gmt, $this->data_attribute( $html, 'before' ) );
 	}
 
 	/**
@@ -871,7 +872,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$cursor = $this->data_attribute( $html, 'cursor' );
 		$latest = get_post( $this->entries['entry-6'] );
 
-		$this->assertSame( $latest->ID . ':' . $latest->post_modified_gmt, $cursor );
+		$this->assertSame( $latest->ID . ':' . $latest->post_modified_gmt . '@' . Poll_Cursor::get_marker( $this->coverage_id ), $cursor );
 
 		$params = [
 			'cursor'       => $cursor,
@@ -894,6 +895,35 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$this->assertCount( 1, $entries );
 		$this->assertSame( 'insert', $entries[0]['type'] );
+	}
+
+	/**
+	 * The shared view's cursor holds every entry saved in the coverage's
+	 * newest second, so none of them is reported as new.
+	 */
+	public function test_shared_view_holds_every_entry_from_the_newest_second() {
+		self::create_entry(
+			$this->coverage_id,
+			[
+				'post_date' => get_post( $this->entries['entry-6'] )->post_date,
+				'post_name' => 'entry-6-twin',
+			]
+		);
+
+		$html = $this->render_with_shared( 'entry-2' );
+
+		Poll_Cursor::mark_changed( $this->coverage_id );
+
+		$poll = self::dispatch(
+			'GET',
+			'/coverages/' . $this->coverage_id . '/entries',
+			[
+				'cursor'       => $this->data_attribute( $html, 'cursor' ),
+				'template_key' => $this->data_attribute( $html, 'template-key' ),
+			]
+		)->get_data();
+
+		$this->assertSame( [], $poll['entries'] );
 	}
 
 	/**
