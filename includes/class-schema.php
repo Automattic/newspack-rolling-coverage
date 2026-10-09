@@ -669,10 +669,7 @@ class Schema {
 	 * Returns when a coverage's published entries last changed.
 	 *
 	 * The coverage's last-modified term meta isn't used here because draft,
-	 * pending and private entry saves move it too. The newest entry by publish
-	 * date counts as well as the newest by edit: entries that went live on
-	 * schedule under earlier versions kept the modified date of the save that
-	 * scheduled them.
+	 * pending and private entry saves move it too.
 	 *
 	 * The date comes back in UTC, like the dates Yoast prints beside it.
 	 *
@@ -680,39 +677,31 @@ class Schema {
 	 * @return DateTimeImmutable|null Latest change, or null when the coverage has no published entries.
 	 */
 	private static function get_latest_entry_date( int $coverage_id ): ?DateTimeImmutable {
-		$dates = [];
-
-		foreach ( [ 'modified', 'date' ] as $field ) {
-			$query = new WP_Query(
-				[
-					'post_type'                   => Post_Type::CPT_SLUG,
-					'post_status'                 => 'publish',
-					'tax_query'                   => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
-						[
-							'taxonomy' => Taxonomy::TAXONOMY_SLUG,
-							'field'    => 'term_id',
-							'terms'    => $coverage_id,
-						],
+		$query = new WP_Query(
+			[
+				'post_type'                   => Post_Type::CPT_SLUG,
+				'post_status'                 => 'publish',
+				'tax_query'                   => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+					[
+						'taxonomy' => Taxonomy::TAXONOMY_SLUG,
+						'field'    => 'term_id',
+						'terms'    => $coverage_id,
 					],
-					'orderby'                     => $field,
-					'order'                       => 'DESC',
-					'posts_per_page'              => 1,
-					'no_found_rows'               => true,
-					'ignore_sticky_posts'         => true,
-					'update_post_meta_cache'      => false,
-					'update_post_term_cache'      => false,
-					Post_Type::SKIP_PIN_ORDER_VAR => true,
-				]
-			);
+				],
+				'orderby'                     => 'modified',
+				'order'                       => 'DESC',
+				'posts_per_page'              => 1,
+				'no_found_rows'               => true,
+				'ignore_sticky_posts'         => true,
+				'update_post_meta_cache'      => false,
+				'update_post_term_cache'      => false,
+				Post_Type::SKIP_PIN_ORDER_VAR => true,
+			]
+		);
 
-			if ( ! empty( $query->posts ) ) {
-				$dates[] = self::get_own_date( $query->posts[0] );
-			}
-		}
+		$date = empty( $query->posts ) ? null : self::get_own_date( $query->posts[0] );
 
-		$dates = array_filter( $dates );
-
-		return empty( $dates ) ? null : max( $dates )->setTimezone( new DateTimeZone( 'UTC' ) );
+		return null === $date ? null : $date->setTimezone( new DateTimeZone( 'UTC' ) );
 	}
 
 	/**

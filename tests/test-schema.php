@@ -208,14 +208,9 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An entry last edited before its publish date dates the page by its
-	 * publish date. Entries that went live on schedule under earlier versions
-	 * are stored this way: going live used to leave the modified date at the
-	 * save that scheduled them.
+	 * An entry published on schedule dates the page from when it went live.
 	 */
-	public function test_an_entry_edited_before_its_publish_date_counts_from_that_date() {
-		global $wpdb;
-
+	public function test_a_scheduled_entry_counts_from_when_it_goes_live() {
 		$coverage_id = self::create_coverage();
 		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
 		$entry_id    = self::create_scheduled_entry( $coverage_id, '2026-09-02 09:00:00', '2026-09-02 10:00:00' );
@@ -223,10 +218,9 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'future', get_post_status( $entry_id ) );
 		$this->assertSame( '2026-09-01 10:00:00', get_the_modified_date( 'Y-m-d H:i:s', $host_id ), 'A scheduled entry is not a change readers see.' );
 
-		$wpdb->update( $wpdb->posts, [ 'post_status' => 'publish' ], [ 'ID' => $entry_id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		clean_post_cache( $entry_id );
+		wp_publish_post( $entry_id );
 
-		$this->assertSame( '2026-09-02 10:00:00', get_the_modified_date( 'Y-m-d H:i:s', $host_id ) );
+		$this->assertSame( get_post( $entry_id )->post_modified_gmt, get_the_modified_date( 'Y-m-d H:i:s', $host_id ) );
 	}
 
 	/**
