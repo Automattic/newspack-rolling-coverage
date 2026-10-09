@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-09T11:08:46+00:00\n"
+"POT-Creation-Date: 2026-10-09T13:46:42+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -150,56 +150,56 @@ msgid "Rolling Coverage Entry"
 msgstr ""
 
 #. translators: 1: kind of media, e.g. "Photo" or "Video", 2: its caption or description.
-#: includes/blocks/class-entry-bindings.php:584
+#: includes/blocks/class-entry-bindings.php:660
 #, php-format
 msgctxt "media label and caption"
 msgid "%1$s: %2$s"
 msgstr ""
 
 #. translators: %s: the host name of the site an embed comes from, e.g. "x.com". Stands in for the title and excerpt of an entry whose only content is that embed.
-#: includes/blocks/class-entry-bindings.php:691
+#: includes/blocks/class-entry-bindings.php:767
 #, php-format
 msgid "Embed from %s"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a photo, alone or before the photo's caption.
-#: includes/blocks/class-entry-bindings.php:730
+#: includes/blocks/class-entry-bindings.php:806
 msgid "Photo"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a gallery of photos, alone or before the gallery's caption.
-#: includes/blocks/class-entry-bindings.php:732
+#: includes/blocks/class-entry-bindings.php:808
 msgid "Gallery"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a video, alone or before the video's caption.
-#: includes/blocks/class-entry-bindings.php:734
+#: includes/blocks/class-entry-bindings.php:810
 msgid "Video"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is an audio clip, alone or before the clip's caption.
-#: includes/blocks/class-entry-bindings.php:736
+#: includes/blocks/class-entry-bindings.php:812
 msgid "Audio"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is embedded from another site, such as a social media post, alone or before the embed's caption.
-#: includes/blocks/class-entry-bindings.php:738
+#: includes/blocks/class-entry-bindings.php:814
 msgid "Embed"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:899
+#: includes/blocks/class-entry-bindings.php:975
 msgid "Following"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:900
+#: includes/blocks/class-entry-bindings.php:976
 msgid "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:901
+#: includes/blocks/class-entry-bindings.php:977
 msgid "Something went wrong. Please try again."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:948
+#: includes/blocks/class-entry-bindings.php:1024
 #: includes/blocks/class-rolling-coverage-block.php:2785
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
@@ -209,7 +209,7 @@ msgid "Share"
 msgstr ""
 
 #. translators: 1: share button text, e.g. "Share", 2: entry title or its first words.
-#: includes/blocks/class-entry-bindings.php:953
+#: includes/blocks/class-entry-bindings.php:1029
 #, php-format
 msgid "%1$s: %2$s"
 msgstr ""
@@ -789,6 +789,11 @@ msgstr ""
 
 #: includes/class-post-type.php:3556
 msgid "Failed to restore entry."
+msgstr ""
+
+#. translators: Push notification text sent in place of a new entry's words when readers need access to read it, such as a subscription or a password.
+#: includes/class-push-notifications.php:515
+msgid "Read the latest update."
 msgstr ""
 
 #: includes/class-taxonomy.php:473
