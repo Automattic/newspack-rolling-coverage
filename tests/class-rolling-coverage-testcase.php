@@ -262,6 +262,41 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Load the stand-in for Newspack's Content_Gate, which withholds the
+	 * posts listed in its `$withheld`, and skip the test when the real one
+	 * is loaded.
+	 */
+	protected function use_content_gate_stub(): void {
+		if ( ! class_exists( '\\Newspack\\Content_Gate' ) ) {
+			require_once __DIR__ . '/stubs/class-content-gate.php';
+		}
+
+		if ( ! defined( '\\Newspack\\Content_Gate::IS_TEST_STUB' ) ) {
+			$this->markTestSkipped( 'Newspack is loaded; its content gate is tested there.' );
+		}
+
+		\Newspack\Content_Gate::$withheld = [];
+	}
+
+	/**
+	 * Load the stand-in for WooCommerce Memberships' restriction check,
+	 * which restricts the posts listed in
+	 * `$GLOBALS['newspack_rolling_coverage_restricted_posts']`, and skip
+	 * the test when the real plugin is loaded.
+	 */
+	protected function use_wc_memberships_stub(): void {
+		if ( ! function_exists( 'wc_memberships_is_post_content_restricted' ) ) {
+			require_once __DIR__ . '/stubs/wc-memberships-functions.php';
+		}
+
+		if ( ! defined( 'NEWSPACK_ROLLING_COVERAGE_WC_MEMBERSHIPS_STUB' ) ) {
+			$this->markTestSkipped( 'WooCommerce Memberships is loaded; its restriction is tested there.' );
+		}
+
+		$GLOBALS['newspack_rolling_coverage_restricted_posts'] = [];
+	}
+
+	/**
 	 * A block Newspack hides from the public, as the Block_Visibility
 	 * stand-in marks it.
 	 *
