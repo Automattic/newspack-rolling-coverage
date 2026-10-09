@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for the block's Author name and Avatar settings.
+ * Tests for the block's Author name and Author avatar settings.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -9,8 +9,8 @@ use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Slack_Config;
 
 /**
- * Author name on Hide drops the author's name from every entry, Avatar on
- * Hide the avatar, each on its own, and the Slack bot's entries drop both. A
+ * Author name on Hide drops the author's name from every entry, Author
+ * avatar on Hide the avatar, each on its own, and the Slack bot's entries drop both. A
  * group left empty goes with them, so it takes no gap in its row, and the
  * stored config carries the result to polls and load more.
  */
@@ -144,7 +144,7 @@ class Test_Author_Settings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Avatar on Hide drops only the avatar, and Byline's avatar column with it.
+	 * Author avatar on Hide drops only the avatar, and Byline's avatar column with it.
 	 */
 	public function test_hiding_the_avatar_keeps_the_name() {
 		$coverage_id = self::create_signed_coverage();
@@ -272,7 +272,7 @@ class Test_Author_Settings extends Rolling_Coverage_TestCase {
 	 *
 	 * @dataProvider data_settings
 	 *
-	 * @param array $settings     The block's Author name and Avatar settings.
+	 * @param array $settings     The block's Author name and Author avatar settings.
 	 * @param bool  $shows_name   Whether the entry should show its author's name.
 	 * @param bool  $shows_avatar Whether the entry should show its author's avatar.
 	 */

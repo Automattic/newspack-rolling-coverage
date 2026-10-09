@@ -3032,10 +3032,10 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The entry template as the block's Author name and Avatar settings show
-	 * it, each on its own: without the author's name when Author name is on
-	 * Hide, and without the avatar, along with the columns that held only
-	 * one, when Avatar is. Groups left empty go too (see
+	 * The entry template as the block's Author name and Author avatar
+	 * settings show it, each on its own: without the author's name when
+	 * Author name is on Hide, and without the avatar, along with the columns
+	 * that held only one, when Author avatar is. Groups left empty go too (see
 	 * without_author_blocks()). Applied before the template is stored, so
 	 * polls, load more and the jump to the latest entries render it the same
 	 * way.

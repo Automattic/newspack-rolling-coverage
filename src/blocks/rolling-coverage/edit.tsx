@@ -42,6 +42,7 @@ import {
 	ToolbarButton,
 } from '@wordpress/components';
 import {
+	createInterpolateElement,
 	useState,
 	useEffect,
 	useCallback,
@@ -996,7 +997,11 @@ export default function Edit( {
 					id: number,
 					query?: object
 				) =>
-					| { status?: string; content?: { raw?: string } | string }
+					| {
+							status?: string;
+							content?: { raw?: string } | string;
+							title?: { rendered?: string } | string;
+					  }
 					| undefined;
 				hasFinishedResolution: (
 					selector: string,
@@ -1054,6 +1059,33 @@ export default function Edit( {
 			: null;
 	}, [ layoutRecord ] );
 	const isLayoutMissing = isSynced && hasResolvedLayout && ! layoutBlocks;
+	const layoutTitle = layoutBlocks
+		? decodeEntities(
+				( typeof layoutRecord?.title === 'string'
+					? layoutRecord.title
+					: layoutRecord?.title?.rendered ) ?? ''
+			).trim()
+		: '';
+	let layoutDescription:
+		ReturnType< typeof createInterpolateElement > | string = __(
+		'Uses its own layout, detached from the shared one.',
+		'newspack-rolling-coverage'
+	);
+	if ( isSynced ) {
+		layoutDescription = layoutTitle
+			? createInterpolateElement(
+					/* translators: <name /> is the shared layout's name, such as "Rail". */
+					__(
+						'Uses the shared <name /> layout. Changes to it apply to every story that uses it.',
+						'newspack-rolling-coverage'
+					),
+					{ name: <strong>{ layoutTitle }</strong> }
+				)
+			: __(
+					'Uses the shared layout. Changes to it apply to every story that uses it.',
+					'newspack-rolling-coverage'
+				);
+	}
 	const isChoosing =
 		! isLayoutPattern &&
 		! isNested &&
@@ -1849,17 +1881,7 @@ export default function Edit( {
 	) : (
 		<InspectorControls>
 			<PanelBody title={ __( 'Layout', 'newspack-rolling-coverage' ) }>
-				<p>
-					{ isSynced
-						? __(
-								'Uses the shared layout. Changes to it apply to every story that uses it.',
-								'newspack-rolling-coverage'
-							)
-						: __(
-								'Uses its own layout, detached from the shared one.',
-								'newspack-rolling-coverage'
-							) }
-				</p>
+				<p>{ layoutDescription }</p>
 				{ canChangeLayout && (
 					<Button
 						variant="secondary"

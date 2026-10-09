@@ -914,8 +914,8 @@ function clockRow(
 
 /**
  * A Margin entry's row: the time, or on the pinned card the pinned row,
- * the title, and the author's avatar and name with the links in a margin
- * column, and the content in the wider column beside it. The pinned card is
+ * the title, the author's avatar and name, then the links, stacked in a
+ * margin column, and the content in the wider column beside it. The pinned card is
  * ruled off with a heavier rule.
  *
  * @param {boolean} isPinned Whether the row is the pinned card's.
@@ -951,11 +951,8 @@ function marginRow( isPinned: boolean ): TemplateItem {
 					stack( __( 'Summary', 'newspack-rolling-coverage' ), [
 						marker,
 						[ 'core/post-title', { level: 4 } ],
-						linksRow( [
-							authorGroup(),
-							readMoreLink(),
-							shareLink(),
-						] ),
+						authorGroup(),
+						linksRow( [ readMoreLink(), shareLink() ] ),
 					] ),
 				],
 			],
@@ -2271,13 +2268,13 @@ function blockIdsOfType(
 }
 
 /**
- * The client IDs of the blocks the Author name and Avatar settings leave out
- * of an entry template (see withAuthorSettings()), at any depth, so an
- * editable layout hides them as the site does.
+ * The client IDs of the blocks the Author name and Author avatar settings
+ * leave out of an entry template (see withAuthorSettings()), at any depth,
+ * so an editable layout hides them as the site does.
  *
  * @param {Object[]} blocks     The template blocks.
  * @param {boolean}  showAuthor The block's Author name setting.
- * @param {boolean}  showAvatar The block's Avatar setting.
+ * @param {boolean}  showAvatar The block's Author avatar setting.
  * @return {string[]} Client IDs.
  */
 function hiddenAuthorBlockIds(
@@ -3386,14 +3383,15 @@ function withoutByline< T extends { name: string; [ key: string ]: unknown } >(
 }
 
 /**
- * The template as the block's Author name and Avatar settings show it, each
- * on its own, mirroring Rolling_Coverage_Block::with_author_settings():
- * without the author's name when Author name is on Hide, and without the
- * avatar, with the columns that held only one, when Avatar is.
+ * The template as the block's Author name and Author avatar settings show
+ * it, each on its own, mirroring
+ * Rolling_Coverage_Block::with_author_settings(): without the author's name
+ * when Author name is on Hide, and without the avatar, with the columns
+ * that held only one, when Author avatar is.
  *
  * @param {Object[]} blocks     The template blocks.
  * @param {boolean}  showAuthor The block's Author name setting.
- * @param {boolean}  showAvatar The block's Avatar setting.
+ * @param {boolean}  showAvatar The block's Author avatar setting.
  * @return {Object[]} The blocks as the settings show them.
  */
 function withAuthorSettings<

@@ -415,7 +415,7 @@ function withoutBylines(
  * @param {EntryContext[]} entryContexts       The entries being previewed.
  * @param {number}         entriesPerPage      Entries loaded per page.
  * @param {boolean}        isLastPage          Whether no more entries load after those previewed, as in a capped feed.
- * @param {Object}         settings            The block's Author name and Avatar settings.
+ * @param {Object}         settings            The block's Author name and Author avatar settings.
  * @param {boolean}        settings.showAuthor Whether entries show their author's name.
  * @param {boolean}        settings.showAvatar Whether entries show their author's avatar.
  * @return {Object} The header, footer and per-entry template blocks, and a getter for one entry's preview blocks.
