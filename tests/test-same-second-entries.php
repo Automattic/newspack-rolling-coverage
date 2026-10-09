@@ -232,19 +232,30 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A poll queries no entries until something in the coverage changes, so
-	 * idle polls stay cheap.
+	 * A poll queries no entries until something readers see changes, so idle
+	 * polls stay cheap and a draft save keeps open pages on the same poll URL.
 	 */
-	public function test_poll_queries_no_entries_until_the_coverage_changes() {
+	public function test_poll_queries_no_entries_until_a_published_entry_changes() {
 		$this->create_entry_at( self::SECOND );
 
 		$cursor = self::data_attribute( $this->render_feed(), 'cursor' );
 
 		$this->assertSame( 0, $this->entry_queries_in_poll( $cursor ), 'Nothing changed since the page rendered.' );
 
-		$this->create_entry_at( self::SECOND, [ 'post_status' => 'draft' ] );
+		$draft_id = $this->create_entry_at( self::SECOND, [ 'post_status' => 'draft' ] );
 
-		$this->assertGreaterThan( 0, $this->entry_queries_in_poll( $cursor ), 'A change should send the poll looking.' );
+		wp_update_post(
+			[
+				'ID'           => $draft_id,
+				'post_content' => 'Still a draft.',
+			]
+		);
+
+		$this->assertSame( 0, $this->entry_queries_in_poll( $cursor ), 'Readers see no drafts.' );
+
+		$this->create_entry_at( self::SECOND );
+
+		$this->assertGreaterThan( 0, $this->entry_queries_in_poll( $cursor ), 'A published entry should send the poll looking.' );
 	}
 
 	/**

@@ -2141,8 +2141,11 @@ class Post_Type {
 	}
 
 	/**
-	 * Update the last-modified term meta and change marker for every
-	 * coverage term assigned to the given entry post.
+	 * Update the last-modified term meta for every coverage term assigned to
+	 * the given entry post, and the change marker when the entry is
+	 * published. Readers see published entries only, so a draft save leaves
+	 * open pages polling the same URL; the block's status-change writer marks
+	 * an entry that leaves publish.
 	 *
 	 * An auto-draft, which Quick Edit creates before the entry is first
 	 * saved, is not entry activity: the list never shows one, its modified
@@ -2154,7 +2157,9 @@ class Post_Type {
 	 * @param string $modified GMT timestamp in Y-m-d H:i:s format to store.
 	 */
 	private static function update_coverage_last_modified( int $post_id, string $modified ): void {
-		if ( 'auto-draft' === get_post_status( $post_id ) ) {
+		$status = get_post_status( $post_id );
+
+		if ( 'auto-draft' === $status ) {
 			return;
 		}
 
@@ -2166,7 +2171,10 @@ class Post_Type {
 
 		foreach ( $term_ids as $term_id ) {
 			update_term_meta( (int) $term_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, $modified );
-			Poll_Cursor::mark_changed( (int) $term_id );
+
+			if ( 'publish' === $status ) {
+				Poll_Cursor::mark_changed( (int) $term_id );
+			}
 		}
 	}
 

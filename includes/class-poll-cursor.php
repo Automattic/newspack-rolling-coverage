@@ -33,7 +33,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Poll_Cursor {
 
-	// Term meta replaced on every change to a coverage's entries.
+	// Term meta replaced on every change to a coverage's entries that readers can see.
 	const MARKER_META_KEY = 'rolling_coverage_change_marker';
 
 	/**
