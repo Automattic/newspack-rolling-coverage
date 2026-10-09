@@ -53,7 +53,8 @@ const STICKY_CARD_SELECTOR =
 
 // Where an entry's closing separator sits: at the end of the entry, of its
 // entry group, or of the group's inner container. The server leaves it off
-// the last entry (Rolling_Coverage_Block::shape_entry_template()).
+// the last entry and off a pinned card
+// (Rolling_Coverage_Block::shape_entry_template()).
 const SEPARATOR_PARENTS = [
 	':scope',
 	':scope > .newspack-rolling-coverage-regular-entry:last-child',
@@ -960,8 +961,14 @@ function initBlock( root: HTMLElement ): void {
 		entriesList.appendChild( entry );
 
 		// The last entry was rendered without its closing separator, which
-		// the entry now below it brings.
-		if ( last && ! last.querySelector( CLOSING_SEPARATOR ) ) {
+		// the entry now below it brings, unless it is a pinned card.
+		if (
+			last &&
+			! last.querySelector( CLOSING_SEPARATOR ) &&
+			! last.querySelector(
+				':scope > .newspack-rolling-coverage-pinned-card'
+			)
+		) {
 			for ( const parent of SEPARATOR_PARENTS ) {
 				const separator = entry.querySelector(
 					`${ parent } > .wp-block-separator:last-child`
