@@ -141,8 +141,8 @@ An entry made into a post with "Create Breakout Post" shows as usual until that 
 - Where the layout shows the entry's title, it shows the post's title, linked to the post. A post without a title keeps the entry's title, still linked to the post.
 - Where the layout shows the entry's content or excerpt, it shows the post's excerpt instead: the excerpt written for the post, or else its opening words. Blocks set to show only to some readers are left out of those words, so every reader sees the same excerpt.
 - Layouts without a title name the post another way: Stream and Minute show the post's title, linked, above its excerpt, and Flash shows the post's title.
-- A password-protected post shows only its title.
-- A post behind a content gate or a membership restriction shows its title and the excerpt written for it. Without one, it shows the opening the content gate lets every reader see, or its title alone when the gate shows none, so none of its restricted text reaches readers who don't have access. To choose what such a post shows in the feed, write an excerpt for it.
+- A password-protected post shows its title over the entry's own text, shortened, since readers could already see that text in the feed.
+- A post behind a content gate or a membership restriction shows its title and the excerpt written for it. Without one, it shows the opening the content gate lets every reader see, or the entry's own text when the gate shows none, so none of its restricted text reaches readers who don't have access. To choose what such a post shows in the feed, write an excerpt for it.
 - The entry's time, author, "Pinned" label, Read more, and Share stay as they are. Read more links to the post, and Share to the entry. An archived entry doesn't show the note that it's out of date, since its card shows the post rather than the entry's original text.
 
 Changes to the post's title, excerpt, content, password, or permalink reach open pages the next time they check for new entries. If the post is unpublished or deleted, the entry shows its own title and content again. The entry itself is never changed.

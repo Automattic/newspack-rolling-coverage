@@ -282,35 +282,44 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A password protected post gets its title, without WordPress's
-	 * "Protected:" prefix, and no summary: the content and excerpt render
-	 * nothing under the title, and say only the title without one.
+	 * "Protected:" prefix, over the entry's own words, which readers could
+	 * already see, since the post gives no summary. An entry that is itself
+	 * restricted gives none either, and the card shows the title alone.
 	 */
-	public function test_protected_post_shows_its_title_alone() {
-		[ $entry_id, $breakout_id ] = self::create_breakout( 'publish', [ 'post_password' => 'secret' ] );
+	public function test_protected_post_shows_its_title_over_the_entry_words() {
+		[ $entry_id, $breakout_id ] = self::create_breakout( 'publish', [ 'post_password' => 'secret' ], [ 'post_excerpt' => '' ] );
 
 		$titled = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP . self::WIRE_EXCERPT_MARKUP );
 
 		$this->assertStringContainsString( '>Post &amp; headline</a></h4>', $titled );
 		$this->assertStringNotContainsString( 'Protected:', $titled );
 		$this->assertStringNotContainsString( 'sums up', $titled );
-		$this->assertStringNotContainsString( 'wp-block-post-content', $titled );
-		$this->assertStringNotContainsString( 'wp-block-post-excerpt', $titled );
-		$this->assertStringNotContainsString( self::ENTRY_TEXT, $titled );
+		$this->assertStringContainsString( '<p>' . self::ENTRY_TEXT . '</p></div>', $titled );
+		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">' . self::ENTRY_TEXT, $titled );
 
 		$untitled = self::render( $entry_id, self::CONTENT_MARKUP );
 
-		$this->assertStringContainsString( '><p><strong><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Post &amp; headline</a></strong></p></div>', $untitled );
+		$this->assertStringContainsString( '><p><strong><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Post &amp; headline</a></strong></p><p>' . self::ENTRY_TEXT . '</p></div>', $untitled );
+
+		$this->gate_entry( $entry_id );
+		$restricted = self::render( $entry_id, self::TITLE_MARKUP . self::CONTENT_MARKUP . self::WIRE_EXCERPT_MARKUP );
+
+		$this->assertStringContainsString( '>Post &amp; headline</a></h4>', $restricted );
+		$this->assertStringNotContainsString( self::ENTRY_TEXT, $restricted );
+		$this->assertStringNotContainsString( 'wp-block-post-content', $restricted );
+		$this->assertStringNotContainsString( 'wp-block-post-excerpt', $restricted );
 	}
 
 	/**
 	 * A card with nothing for its Post Excerpt to show, such as a password
-	 * protected post's under its title, never has core build an excerpt
+	 * protected post's over a restricted entry, never has core build an excerpt
 	 * from the entry's content, which would render the entry's blocks only
 	 * for them to be thrown away.
 	 */
 	public function test_empty_card_excerpt_never_renders_the_entry() {
 		[ $entry_id ] = self::create_breakout( 'publish', [ 'post_password' => 'secret' ], [ 'post_excerpt' => '' ] );
-		$rendered     = 0;
+		$this->gate_entry( $entry_id );
+		$rendered = 0;
 		add_filter(
 			'render_block_core/paragraph',
 			static function ( $content ) use ( &$rendered ) {
@@ -353,8 +362,8 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	/**
 	 * A post a content gate or a membership rule restricts, or that a
 	 * Newspack restriction callback reports, is summed up by its
-	 * hand-written excerpt, else by its gate's free preview, never by an
-	 * excerpt built from its text.
+	 * hand-written excerpt, else by its gate's free preview, else by the
+	 * entry's own words, never by an excerpt built from its text.
 	 */
 	public function test_restricted_post_is_summed_up_by_its_written_excerpt_or_free_preview() {
 		$this->use_content_gate_stub();
@@ -413,8 +422,8 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 			$this->assertStringContainsString( 'Post &amp; headline</a></h4>', $html );
 			$this->assertStringNotContainsString( 'paywalled', $html );
-			$this->assertStringNotContainsString( 'wp-block-post-content', $html );
-			$this->assertStringNotContainsString( 'wp-block-post-excerpt', $html );
+			$this->assertStringContainsString( '<p>' . self::ENTRY_TEXT . '</p></div>', $html );
+			$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">' . self::ENTRY_TEXT, $html );
 		}
 
 		wp_update_post(

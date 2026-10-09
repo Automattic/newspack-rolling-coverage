@@ -79,8 +79,26 @@ class Breakout_Card {
 			'post_id' => $post->ID,
 			'url'     => $url,
 			'title'   => self::plain_text( apply_filters( 'the_title', $post->post_title, $post->ID ) ),
-			'summary' => $with_summary ? self::summary( $post ) : '',
+			'summary' => $with_summary ? self::summary_or_entry_words( $post, $entry_id ) : '',
 		];
+	}
+
+	/**
+	 * The breakout post's summary (see summary()), or when the post has none
+	 * to give, such as a password-protected post or a gated one with no free
+	 * preview, the entry's own opening words, which readers could already
+	 * see in the feed, so a card never shows a title over an empty space.
+	 * A restricted entry gives none (see Entry_Bindings::public_summary()).
+	 *
+	 * @param WP_Post $post     Breakout post.
+	 * @param int     $entry_id Entry post ID.
+	 * @return string
+	 */
+	private static function summary_or_entry_words( WP_Post $post, int $entry_id ): string {
+		$summary = self::summary( $post );
+		$entry   = '' === $summary ? get_post( $entry_id ) : null;
+
+		return $entry instanceof WP_Post ? self::plain_text( Entry_Bindings::public_summary( $entry, self::excerpt_length() ) ) : $summary;
 	}
 
 	/**
