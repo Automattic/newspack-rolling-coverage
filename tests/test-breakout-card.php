@@ -1018,5 +1018,6 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 		$wpdb->update( $wpdb->posts, [ 'post_modified_gmt' => '2026-01-01 12:00:00' ], [ 'ID' => $entry_id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		clean_post_cache( $entry_id );
+		( new ReflectionProperty( Breakout::class, 'touched' ) )->setValue( null, [] );
 	}
 }

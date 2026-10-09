@@ -338,7 +338,7 @@ function SettingsModal( {
 												<Text
 													variant="heading-lg"
 													// eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop.
-													render={ <h3 /> }
+													render={ <h2 /> }
 												>
 													{ __(
 														'Entry Name',
@@ -413,7 +413,7 @@ function SettingsModal( {
 												<Text
 													variant="heading-lg"
 													// eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop.
-													render={ <h3 /> }
+													render={ <h2 /> }
 												>
 													{ __(
 														'Jump to Latest',
@@ -454,7 +454,7 @@ function SettingsModal( {
 												<Text
 													variant="heading-lg"
 													// eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop.
-													render={ <h3 /> }
+													render={ <h2 /> }
 												>
 													{ __(
 														'Full Story',
@@ -498,7 +498,7 @@ function SettingsModal( {
 											<Text
 												variant="heading-lg"
 												// eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop.
-												render={ <h3 /> }
+												render={ <h2 /> }
 											>
 												{ __(
 													'Coverage Status',

@@ -66,7 +66,9 @@ class Breakout_Label {
 				'default'           => '',
 				'show_in_rest'      => [
 					'schema' => [
-						'context' => [ 'edit' ],
+						'context'     => [ 'edit' ],
+						'maxLength'   => self::MAX_LENGTH,
+						'description' => __( 'Label of the Full story link on the entry.', 'newspack-rolling-coverage' ),
 					],
 				],
 				'sanitize_callback' => [ __CLASS__, 'sanitize_label' ],
@@ -121,6 +123,8 @@ class Breakout_Label {
 					'args'                => [
 						'label' => [
 							'type'              => 'string',
+							'maxLength'         => self::MAX_LENGTH,
+							'description'       => __( 'Site-wide label of the Full story link.', 'newspack-rolling-coverage' ),
 							'required'          => false,
 							'validate_callback' => 'rest_validate_request_arg',
 							'sanitize_callback' => [ __CLASS__, 'sanitize_label' ],

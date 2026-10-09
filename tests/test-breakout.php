@@ -5,7 +5,9 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Admin;
 use Newspack_Rolling_Coverage\Breakout;
+use Newspack_Rolling_Coverage\Breakout_Label;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Taxonomy;
 
@@ -264,6 +266,95 @@ class Test_Breakout extends Rolling_Coverage_TestCase {
 		wp_trash_post( $breakout_id );
 
 		$this->assertSame( $content, get_post( $entry_id )->post_content );
+	}
+
+	/**
+	 * A save that changes a field and the label of a published breakout
+	 * touches the entry once.
+	 */
+	public function test_changing_a_field_and_the_label_together_touches_the_entry_once() {
+		self::log_in_as( 'editor' );
+		$entry_id    = self::create_entry( self::create_coverage(), [ 'post_date' => '2026-01-01 12:00:00' ] );
+		$breakout_id = self::break_out( $entry_id )->get_data()['breakoutPostId'];
+
+		wp_publish_post( $breakout_id );
+
+		( new ReflectionProperty( Breakout::class, 'touched' ) )->setValue( null, [] );
+
+		$touches = 0;
+		$count   = static function ( $post_id ) use ( $entry_id, &$touches ) {
+			if ( $post_id === $entry_id ) {
+				++$touches;
+			}
+		};
+
+		add_action( 'post_updated', $count );
+
+		wp_update_post(
+			[
+				'ID'         => $breakout_id,
+				'post_title' => 'A new headline',
+			]
+		);
+		update_post_meta( $breakout_id, Breakout_Label::POST_META_KEY, 'Read on' );
+
+		remove_action( 'post_updated', $count );
+
+		$this->assertSame( 1, $touches, 'The entry should be touched once for the whole save.' );
+	}
+
+	/**
+	 * Deleting meta by key passes post ID 0, which must not touch anything.
+	 */
+	public function test_label_meta_hook_ignores_post_id_zero() {
+		$touches = 0;
+		$count   = static function () use ( &$touches ) {
+			++$touches;
+		};
+
+		add_action( 'post_updated', $count );
+		Breakout::on_breakout_label_changed( 1, 0, Breakout_Label::POST_META_KEY );
+		remove_action( 'post_updated', $count );
+
+		$this->assertSame( 0, $touches );
+	}
+
+	/**
+	 * The breakout editor loads on a breakout post's edit screen only.
+	 */
+	public function test_breakout_editor_enqueues_only_on_a_breakout_post() {
+		self::log_in_as( 'editor' );
+		$entry_id    = self::create_entry( self::create_coverage() );
+		$breakout_id = self::break_out( $entry_id )->get_data()['breakoutPostId'];
+		$ordinary_id = self::factory()->post->create();
+		$asset_file  = NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/breakout-editor.asset.php';
+		$handle      = 'newspack-rolling-coverage-breakout-editor';
+		$created     = false;
+
+		if ( ! file_exists( $asset_file ) ) {
+			wp_mkdir_p( dirname( $asset_file ) );
+			file_put_contents( $asset_file, "<?php return [ 'dependencies' => [], 'version' => '1' ];" ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPressVIPMinimum.Functions.RestrictedFunctions.file_ops_file_put_contents
+			$created = true;
+		}
+
+		set_current_screen( 'post' );
+
+		$GLOBALS['post'] = get_post( $ordinary_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+		Admin::enqueue_breakout_editor();
+		$on_ordinary = wp_script_is( $handle, 'enqueued' );
+
+		$GLOBALS['post'] = get_post( $breakout_id ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+		Admin::enqueue_breakout_editor();
+		$on_breakout = wp_script_is( $handle, 'enqueued' );
+
+		wp_dequeue_script( $handle );
+
+		if ( $created ) {
+			unlink( $asset_file ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.file_ops_unlink, WordPress.WP.AlternativeFunctions
+		}
+
+		$this->assertFalse( $on_ordinary, 'An ordinary post should not load the breakout editor.' );
+		$this->assertTrue( $on_breakout, 'A breakout post should load the breakout editor.' );
 	}
 
 	/**

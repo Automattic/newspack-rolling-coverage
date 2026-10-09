@@ -1291,6 +1291,10 @@ class Rolling_Coverage_Block {
 		$lead_pinned_id = 0;
 		$follows_lead   = false;
 
+		if ( $template ) {
+			self::prime_breakout_posts( $posts );
+		}
+
 		foreach ( $template ? $posts : [] as $entry ) {
 			$entry_index++;
 			$is_pinned     = ! $is_capped && Post_Type::is_pinned( $entry->ID );
@@ -4028,12 +4032,35 @@ class Rolling_Coverage_Block {
 		_prime_post_caches(
 			array_filter( array_map( fn( $id ) => (int) get_post_meta( $id, Breakout::ENTRY_BREAKOUT_POST_ID_META, true ), $query->posts ) ),
 			true,
-			false
+			true
 		);
 
 		$entries = array_map( fn( $id ) => self::map_entry_preview( $id, $latest_only ), $query->posts );
 
 		return new WP_REST_Response( $entries );
+	}
+
+	/**
+	 * Load the published breakout posts of entries, with their meta, in one
+	 * go, so each card's lookups hit the cache. Does nothing for entries
+	 * without a breakout.
+	 *
+	 * @param WP_Post[] $entries Entries about to render.
+	 */
+	private static function prime_breakout_posts( array $entries ): void {
+		$ids = [];
+
+		foreach ( $entries as $entry ) {
+			$id = (int) get_post_meta( $entry->ID, Breakout::ENTRY_BREAKOUT_POST_ID_META, true );
+
+			if ( $id ) {
+				$ids[] = $id;
+			}
+		}
+
+		if ( $ids ) {
+			_prime_post_caches( array_unique( $ids ), false, true );
+		}
 	}
 
 	/**
@@ -4280,6 +4307,8 @@ class Rolling_Coverage_Block {
 			$polled_count = max( 0, (int) ( $params['polled_count'] ?? 0 ) );
 			$new_entry_count = 0;
 
+			self::prime_breakout_posts( $changes );
+
 			foreach ( $changes as $entry ) {
 				if ( $is_cursor_entry( $entry ) ) {
 					continue;
@@ -4400,6 +4429,8 @@ class Rolling_Coverage_Block {
 		$ad_slots    = [];
 		$entry_index = 0;
 
+		self::prime_breakout_posts( $posts );
+
 		foreach ( $posts as $entry ) {
 			$entry_index++;
 			$html .= $is_lite ? Lite_Feed::render_entry( $entry, 'load_more' ) : self::render_entry( $entry, $template, 'load_more', is_last: ! $has_more && count( $posts ) === $entry_index, feed_layout: $feed_layout, coverage_id: $term_id );
@@ -4478,7 +4509,11 @@ class Rolling_Coverage_Block {
 
 		$entries = array_map( static fn( WP_Post $entry ) => self::removal( $entry ), $removed );
 
-		foreach ( ( new WP_Query( $args ) )->posts as $entry ) {
+		$burst_entries = ( new WP_Query( $args ) )->posts;
+
+		self::prime_breakout_posts( $burst_entries );
+
+		foreach ( $burst_entries as $entry ) {
 			$entries[] = [
 				'id'     => $entry->ID,
 				'html'   => $is_lite ? Lite_Feed::render_entry( $entry, 'poll', true ) : self::render_entry( $entry, $template, 'poll', is_capped: true, feed_layout: $feed_layout, coverage_id: $term_id ),

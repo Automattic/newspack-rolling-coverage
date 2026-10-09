@@ -62,7 +62,7 @@ class Test_Breakout_Label extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A saved label is trimmed, stripped of markup and capped in characters,
+	 * A saved label is trimmed and stripped of markup, one over the cap is refused,
 	 * not bytes, and becomes the label cards show.
 	 */
 	public function test_saving_the_label() {
@@ -75,6 +75,11 @@ class Test_Breakout_Label extends Rolling_Coverage_TestCase {
 		$this->assertSame( [ 'label' => 'Written up' ], self::read()->get_data() );
 
 		$response = self::save( [ 'label' => str_repeat( 'é', Breakout_Label::MAX_LENGTH + 10 ) ] );
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'Written up', Breakout_Label::get() );
+
+		$response = self::save( [ 'label' => str_repeat( 'é', Breakout_Label::MAX_LENGTH ) ] );
 
 		$this->assertSame( str_repeat( 'é', Breakout_Label::MAX_LENGTH ), $response->get_data()['label'] );
 	}

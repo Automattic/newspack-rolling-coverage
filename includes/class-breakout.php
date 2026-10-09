@@ -46,6 +46,13 @@ class Breakout {
 	private static $deleting = [];
 
 	/**
+	 * Entries touched by the update hooks in this request, by entry ID.
+	 *
+	 * @var bool[]
+	 */
+	private static $touched = [];
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -392,7 +399,7 @@ class Breakout {
 
 		foreach ( [ 'post_title', 'post_excerpt', 'post_content', 'post_password', 'post_name', 'post_date' ] as $field ) {
 			if ( $post_after->$field !== $post_before->$field ) {
-				self::touch_source_entry( $post_id );
+				self::touch_source_entry_once( $post_id );
 				return;
 			}
 		}
@@ -414,7 +421,7 @@ class Breakout {
 	 * @param string    $meta_key Meta key.
 	 */
 	public static function on_breakout_label_changed( $meta_id, $post_id, $meta_key ): void {
-		if ( Breakout_Label::POST_META_KEY !== $meta_key || isset( self::$deleting[ (int) $post_id ] ) ) {
+		if ( Breakout_Label::POST_META_KEY !== $meta_key || (int) $post_id < 1 || isset( self::$deleting[ (int) $post_id ] ) ) {
 			return;
 		}
 
@@ -424,7 +431,7 @@ class Breakout {
 			return;
 		}
 
-		self::touch_source_entry( $post->ID );
+		self::touch_source_entry_once( $post->ID );
 	}
 
 	/**
@@ -434,6 +441,25 @@ class Breakout {
 	 */
 	public static function forget_deleted_post( $post_id ): void {
 		unset( self::$deleting[ (int) $post_id ] );
+	}
+
+	/**
+	 * Touch the source entry unless an update hook already did in this
+	 * request, so a save that changes a post field and its label touches
+	 * it once.
+	 *
+	 * @param int $breakout_id Breakout post ID.
+	 */
+	private static function touch_source_entry_once( int $breakout_id ): void {
+		$entry_id = (int) get_post_meta( $breakout_id, self::BREAKOUT_SOURCE_ENTRY_META, true );
+
+		if ( ! $entry_id || isset( self::$touched[ $entry_id ] ) ) {
+			return;
+		}
+
+		self::$touched[ $entry_id ] = true;
+
+		self::touch_source_entry( $breakout_id );
 	}
 
 	/**
