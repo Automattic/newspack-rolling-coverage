@@ -603,6 +603,25 @@ function isRuledRow( feed: { [ key: string ]: unknown } | undefined ) {
 }
 
 /**
+ * Whether the layout's Feed group is a horizontal row set not to wrap, whose
+ * entries the site's stylesheet lines up on one line.
+ *
+ * @param {Object} feed The layout's Feed group.
+ * @return {boolean} Whether it's a one-line row.
+ */
+function isOneLineRow( feed: { [ key: string ]: unknown } | undefined ) {
+	const { layout } = ( feed?.attributes ?? {} ) as {
+		layout?: { type?: string; orientation?: string; flexWrap?: string };
+	};
+
+	return (
+		layout?.type === 'flex' &&
+		layout.orientation !== 'vertical' &&
+		layout.flexWrap === 'nowrap'
+	);
+}
+
+/**
  * The Feed group's own classes and styles, for the container a synced
  * layout's preview shows in place of the Feed. A ruled Feed takes its gap
  * from the block's stylesheet, which widens it to fit the rules.
@@ -1247,7 +1266,7 @@ export default function Edit( {
 			( templateBlocks.findLast( isShownEverywhere ) ??
 				templateBlocks.at( -1 ) ) as { clientId?: string } | undefined
 		 )?.clientId ?? null;
-	const isRow = isRuledRow( feedGroup );
+	const isRow = isRuledRow( feedGroup ) || isOneLineRow( feedGroup );
 	const entryPreviewsAnchor = useMemo(
 		() =>
 			entryPreviewsAnchorId
