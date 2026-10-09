@@ -229,6 +229,23 @@ function isSameOrigin( url: string ): boolean {
 }
 
 /**
+ * Whether a URL is a web address, one with an http or https scheme. A
+ * malformed URL is not.
+ *
+ * @param {string} url URL, absolute or relative to the page.
+ * @return {boolean} True when the URL can be linked.
+ */
+function isWebUrl( url: string ): boolean {
+	try {
+		return [ 'http:', 'https:' ].includes(
+			new URL( url, window.location.href ).protocol
+		);
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Validates that a value is a finite positive integer, safe for use
  * in CSS selectors and DOM operations.
  *
@@ -559,6 +576,13 @@ function initBlock( root: HTMLElement ): void {
 	// The coverage status the last poll reported.
 	let polledStatus = status;
 
+	// The feed's ended notice: the one rendered for an ended coverage, or one
+	// a poll built before the jump to the live feed ran initBlock() again.
+	let endedNotice = ownElement(
+		root,
+		'.newspack-rolling-coverage-archived-notice'
+	);
+
 	// When the reader last checked for new entries, in milliseconds.
 	let lastCheckAt = 0;
 	let checkLabelTimeoutId: ReturnType< typeof setTimeout > | null = null;
@@ -752,14 +776,20 @@ function initBlock( root: HTMLElement ): void {
 	 * Schedules the next poll, at the block's interval or the site's minimum,
 	 * whichever is longer, in place of any poll already scheduled. Schedules
 	 * none while a poll is in flight, as that poll schedules the next, or
-	 * while the page is hidden, as showing it polls at once.
+	 * while the page is hidden, as showing it polls at once, or once the
+	 * coverage has ended: a reopen or a later edit shows on reload.
 	 *
 	 * @return {void}
 	 */
 	function schedulePoll(): void {
 		cancelPoll();
 
-		if ( checksOnRequest || isPolling || document.hidden ) {
+		if (
+			checksOnRequest ||
+			isPolling ||
+			document.hidden ||
+			polledStatus === 'archived'
+		) {
 			if ( ! isPolling ) {
 				reportCheck( 'idle' );
 			}
@@ -1578,11 +1608,11 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Whether a fetched block can replace the shared view in place. It can't
-	 * when it is itself a shared view, when the coverage's status has changed
-	 * since this page rendered, as the Follow button and archived notice
-	 * depend on it, when it holds ads, which need the page's own ad setup to
-	 * run, or when its entries hold scripts or interactive blocks, which would
-	 * never start.
+	 * when it is itself a shared view; when the coverage's status has changed
+	 * since this page rendered, by the fetched page's account or a poll's, as
+	 * the Follow button and the ended notice depend on it; when it holds ads,
+	 * which need the page's own ad setup to run; or when its entries hold
+	 * scripts or interactive blocks, which would never start.
 	 *
 	 * @param {HTMLElement | null} live The fetched block.
 	 * @return {boolean} True if the block can be shown in place.
@@ -1597,6 +1627,7 @@ function initBlock( root: HTMLElement ): void {
 			!! liveEntries &&
 			live.dataset.view !== 'entry' &&
 			live.dataset.status === root.dataset.status &&
+			polledStatus === status &&
 			! live.querySelector( '.newspack_global_ad' ) &&
 			! liveEntries.querySelector( 'script, [data-wp-interactive]' ) &&
 			!! live.querySelector(
@@ -2340,17 +2371,73 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Builds the ended notice from the wrapper's data, where a fresh render
+	 * of the ended coverage puts it, first in the Feed, and announces it. A
+	 * link without a URL of its own goes to the latest breakout post the
+	 * poll reporting the end brings.
+	 *
+	 * @param {string | null} [breakoutUrl] The latest breakout post's URL, from the poll.
+	 * @return {void}
+	 */
+	function showEndedNotice( breakoutUrl?: string | null ): void {
+		const text = root.dataset.endedNotice;
+
+		if ( ! text || endedNotice ) {
+			return;
+		}
+
+		const notice = document.createElement( 'p' );
+		const label = root.dataset.endedNoticeLink;
+		const url = root.dataset.endedNoticeUrl ?? breakoutUrl ?? '';
+
+		// What screen readers hear: the line breaks aren't text, so the lines
+		// would otherwise run together.
+		const spoken = text.split( /\r\n|\r|\n/ );
+
+		notice.className = 'newspack-rolling-coverage-archived-notice';
+		spoken.forEach( ( line, index ) => {
+			if ( index > 0 ) {
+				notice.append( document.createElement( 'br' ) );
+			}
+
+			notice.append( line );
+		} );
+
+		// The block's own URL is checked too: the wrapper's data attributes can
+		// come from markup an author without unfiltered_html wrote.
+		if ( label && url && isWebUrl( url ) ) {
+			const link = document.createElement( 'a' );
+
+			link.className = 'newspack-rolling-coverage-archived-notice__link';
+			link.href = url;
+			link.textContent = label;
+			notice.append( ' ', link );
+			spoken.push( label );
+		}
+
+		entriesList.parentElement?.prepend( notice );
+		endedNotice = notice;
+		announce( spoken.join( ' ' ) );
+	}
+
+	/**
 	 * Polls for new and edited entries.
 	 *
 	 * Fetches entries modified at or after the cursor and applies them. Also
 	 * passes the running ad counter so the server can continue the interval
 	 * across poll batches. Takes the place of a poll already scheduled, and
-	 * does nothing while another poll is in flight or the page is hidden.
+	 * does nothing while another poll is in flight or the page is hidden, or
+	 * once the coverage has ended.
 	 *
 	 * @return {Promise<PollOutcome>} How the poll ended.
 	 */
 	async function poll(): Promise< PollOutcome > {
-		if ( ! cursor || isPolling || document.hidden ) {
+		if (
+			! cursor ||
+			isPolling ||
+			document.hidden ||
+			polledStatus === 'archived'
+		) {
 			return 'skipped';
 		}
 
@@ -2473,6 +2560,11 @@ function initBlock( root: HTMLElement ): void {
 				cursor = data.cursor || cursor;
 				polledCount = data.polledCount ?? polledCount;
 				isForwardPollHealthy = true;
+
+				// Last, so its announcement isn't replaced by the entries'.
+				if ( data.status === 'archived' ) {
+					showEndedNotice( data.latestBreakoutUrl );
+				}
 			} else if ( isForwardPollHealthy ) {
 				trackPollError( 'poll' );
 				isForwardPollHealthy = false;
@@ -2911,6 +3003,28 @@ function initBlock( root: HTMLElement ): void {
 
 			setCheckBusy( false );
 
+			// An ended coverage gets no new entries; a paused one may resume.
+			// Before the failed check: a reply can report the end and still count
+			// as a failed check, and the buttons would stay with nothing to check.
+			if ( polledStatus === 'archived' ) {
+				if (
+					checkButtons.some(
+						( button ) =>
+							button.ownerDocument.activeElement === button
+					)
+				) {
+					// The notice says what changed, so it is read as focus lands.
+					focusFromScript( endedNotice ?? entriesList, {
+						preventScroll: true,
+					} );
+				}
+
+				checkControls.forEach( ( control ) => {
+					control.hidden = true;
+				} );
+				return;
+			}
+
 			if ( outcome === 'failed' ) {
 				flashCheckLabel(
 					/* translators: Shown briefly on the Check for Updates button when a check fails. */
@@ -2926,23 +3040,6 @@ function initBlock( root: HTMLElement ): void {
 			}
 
 			if ( outcome === 'skipped' ) {
-				return;
-			}
-
-			// An ended coverage gets no new entries; a paused one may resume.
-			if ( polledStatus === 'archived' ) {
-				if (
-					checkButtons.some(
-						( button ) =>
-							button.ownerDocument.activeElement === button
-					)
-				) {
-					focusFromScript( entriesList, { preventScroll: true } );
-				}
-
-				checkControls.forEach( ( control ) => {
-					control.hidden = true;
-				} );
 				return;
 			}
 

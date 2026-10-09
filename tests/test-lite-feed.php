@@ -352,6 +352,21 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A lite page keeps the data the view script builds the ended notice from,
+	 * as Lite Site keeps the feed wrapper's data attributes, and shows no
+	 * notice text while the coverage is live.
+	 */
+	public function test_lite_page_keeps_the_ended_notice_data() {
+		self::create_entry( $this->coverage_id );
+
+		$html = $this->render_lite_page( [ 'archivedNotice' => 'Coverage ended.' ] );
+
+		$this->assertStringContainsString( 'data-ended-notice="Coverage ended."', $html );
+		$this->assertStringContainsString( 'data-ended-notice-link="Read more"', $html );
+		$this->assertStringNotContainsString( 'Coverage ended.', wp_strip_all_tags( $html ), 'No notice text outside the tags.' );
+	}
+
+	/**
 	 * The Follow button needs its own script and a push provider, neither of
 	 * which a lite page has.
 	 */

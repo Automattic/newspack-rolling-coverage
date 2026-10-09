@@ -1120,21 +1120,91 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A coverage that isn't archived shows no notice.
+	 * A coverage that hasn't ended carries its notice only in the wrapper's
+	 * data attributes, for the view script to build when a poll reports the
+	 * end. Markup no script runs on, such as a syndication feed or an email,
+	 * shows no notice once tags are stripped. The link's URL is the block's;
+	 * without one the poll brings the breakout post, which may only be
+	 * published at the end.
 	 */
-	public function test_archived_notice_is_hidden_until_the_coverage_is_archived() {
-		$coverage_id = self::create_coverage();
-		$attributes  = [
-			'coverageId'            => $coverage_id,
-			'archivedNotice'        => 'Coverage ended',
-			'archivedNoticeLinkUrl' => 'https://example.com/story',
+	public function test_archived_notice_is_held_in_data_until_the_coverage_is_archived() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ACTIVE, [ 'name' => 'Polls & results' ] );
+		self::add_breakout( self::create_entry( $coverage_id ), 'publish' );
+
+		$attributes = [
+			'coverageId'              => $coverage_id,
+			'archivedNoticeLinkLabel' => 'Follow <em>the</em> story',
 		];
 
-		$this->assertStringNotContainsString( 'archived-notice', self::render_feed_block( $attributes ), 'An active coverage has no notice.' );
+		$html = self::render_feed_block( $attributes );
+
+		$this->assertStringContainsString( 'data-ended-notice="Coverage of “Polls &amp; results” has concluded and this feed is now archived."', $html, 'The default text names the coverage.' );
+		$this->assertStringContainsString( 'data-ended-notice-link="Follow &lt;em&gt;the&lt;/em&gt; story"', $html );
+		$this->assertStringNotContainsString( 'data-ended-notice-url', $html, 'The breakout post comes with the poll.' );
+		$this->assertStringNotContainsString( 'archived-notice', $html, 'No notice markup.' );
+		$this->assertStringNotContainsString( 'has concluded', wp_strip_all_tags( $html ), 'No notice text outside the tags.' );
 
 		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
 
-		$this->assertStringNotContainsString( 'archived-notice', self::render_feed_block( $attributes ), 'Nor does a paused one.' );
+		$this->assertStringContainsString( 'data-ended-notice-link="Follow &lt;em&gt;the&lt;/em&gt; story"', self::render_feed_block( $attributes ), 'A paused coverage holds it too.' );
+
+		$attributes['archivedNotice']        = "Coverage ended.\nThanks for following.";
+		$attributes['archivedNoticeLinkUrl'] = 'https://example.test/story?a=1&b=2';
+
+		$html = self::render_feed_block( $attributes );
+
+		$this->assertStringContainsString( "data-ended-notice=\"Coverage ended.\nThanks for following.\"", $html, "The block's text, line breaks kept." );
+		$this->assertStringContainsString( 'data-ended-notice-url="https://example.test/story?a=1&amp;b=2"', $html, "The block's URL." );
+
+		$attributes['archivedNoticeLinkUrl'] = 'javascript:alert(1)';
+
+		$this->assertStringNotContainsString( 'data-ended-notice-link', self::render_feed_block( $attributes ), 'A rejected URL: no link, as once ended.' );
+
+		$attributes['archivedNoticeShowLink'] = false;
+		$attributes['archivedNoticeLinkUrl']  = '';
+
+		$this->assertStringNotContainsString( 'data-ended-notice-link', self::render_feed_block( $attributes ), 'The link turned off: no link.' );
+	}
+
+	/**
+	 * A coverage that hasn't ended holds no notice when the block won't show
+	 * one once it ends: the notice is off, or the block hides itself.
+	 */
+	public function test_archived_notice_is_not_held_when_it_wont_show() {
+		$coverage_id = self::create_coverage();
+
+		$this->assertStringNotContainsString(
+			'data-ended-notice',
+			self::render_feed_block(
+				[
+					'coverageId'         => $coverage_id,
+					'archivedNoticeShow' => false,
+				]
+			),
+			'The notice turned off.'
+		);
+
+		$this->assertStringNotContainsString(
+			'data-ended-notice',
+			self::render_feed_block(
+				[
+					'coverageId'    => $coverage_id,
+					'hideWhenEnded' => true,
+				]
+			),
+			'The block hides itself.'
+		);
+	}
+
+	/**
+	 * An archived coverage renders its notice, not the data to build one.
+	 */
+	public function test_archived_coverage_holds_no_notice_data() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ARCHIVED );
+		$html        = self::render_feed_block( [ 'coverageId' => $coverage_id ] );
+
+		$this->assertStringContainsString( 'class="newspack-rolling-coverage-archived-notice"', $html );
+		$this->assertStringNotContainsString( 'data-ended-notice', $html );
 	}
 
 	/**
