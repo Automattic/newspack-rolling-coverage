@@ -51,6 +51,19 @@ type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 const STICKY_CARD_SELECTOR =
 	'.newspack-rolling-coverage-pinned-card.is-position-sticky';
 
+// Where an entry's closing separator sits: at the end of the entry, of its
+// entry group, or of the group's inner container. The server leaves it off
+// the last entry (Rolling_Coverage_Block::shape_entry_template()).
+const SEPARATOR_PARENTS = [
+	':scope',
+	':scope > .newspack-rolling-coverage-regular-entry:last-child',
+	':scope > .newspack-rolling-coverage-regular-entry:last-child > .wp-block-group__inner-container',
+];
+
+const CLOSING_SEPARATOR = SEPARATOR_PARENTS.map(
+	( parent ) => `${ parent } > .wp-block-separator:last-child`
+).join( ', ' );
+
 // How long an overflow holds back another reload into the same cursor. The
 // reload can land on a page cache copy from before the burst, which overflows
 // again on its next poll; without the wait the reader would reload on every
@@ -821,6 +834,90 @@ function initBlock( root: HTMLElement ): void {
 				)
 			).find( ( entry ) => entry !== except ) ?? null
 		);
+	}
+
+	/**
+	 * The first unpinned entry the feed lists below an entry: published
+	 * earlier, or in the same second with a lower ID, as
+	 * Rolling_Coverage_Block::FEED_ORDER lists them. Without publish times to
+	 * compare, as on a page cached before entries carried them, the entry
+	 * goes above the first unpinned entry it can't compare with.
+	 *
+	 * @param {HTMLElement} entry The entry to place.
+	 * @return {HTMLElement|null} The entry below, or null if the page shows none.
+	 */
+	function unpinnedEntryBelow( entry: HTMLElement ): HTMLElement | null {
+		const published = entry.dataset.published;
+		const id = Number( entry.dataset.entryId );
+
+		return (
+			Array.from(
+				entriesList.querySelectorAll< HTMLElement >(
+					':scope > [data-entry-id]:not([data-pinned])'
+				)
+			).find( ( other ) => {
+				const otherPublished = other.dataset.published;
+
+				return (
+					other !== entry &&
+					( ! published ||
+						! otherPublished ||
+						otherPublished < published ||
+						( otherPublished === published &&
+							Number( other.dataset.entryId ) < id ) )
+				);
+			} ) ?? null
+		);
+	}
+
+	/**
+	 * Moves an entry unpinned while the page is open to where a fresh page
+	 * would list it. When that is below the last entry loaded and more can
+	 * load, it leaves the page until load more brings it there.
+	 *
+	 * @param {HTMLElement} entry The unpinned entry.
+	 * @return {boolean} Whether the entry stays on the page.
+	 */
+	function placeUnpinnedEntry( entry: HTMLElement ): boolean {
+		const below = unpinnedEntryBelow( entry );
+
+		if ( below ) {
+			entriesList.insertBefore( entry, below );
+			return true;
+		}
+
+		if ( hasMore ) {
+			return false;
+		}
+
+		const entries = Array.from(
+			entriesList.querySelectorAll< HTMLElement >(
+				':scope > [data-entry-id]'
+			)
+		).filter( ( other ) => other !== entry );
+		const last = entries[ entries.length - 1 ];
+
+		entriesList.appendChild( entry );
+
+		// The last entry was rendered without its closing separator, which
+		// the entry now below it brings.
+		if ( last && ! last.querySelector( CLOSING_SEPARATOR ) ) {
+			for ( const parent of SEPARATOR_PARENTS ) {
+				const separator = entry.querySelector(
+					`${ parent } > .wp-block-separator:last-child`
+				);
+
+				if ( separator ) {
+					( parent === ':scope'
+						? last
+						: last.querySelector( parent )
+					)?.append( separator );
+					break;
+				}
+			}
+		}
+
+		return true;
 	}
 
 	/**
@@ -1787,7 +1884,9 @@ function initBlock( root: HTMLElement ): void {
 	 * Applies a poll response to the entry list.
 	 *
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
-	 * on the page for loadMore(). Drops entries taken down, and leaves one
+	 * on the page for loadMore(). Moves a newly pinned entry below the pinned
+	 * ones, and a newly unpinned one to its place by date (see
+	 * placeUnpinnedEntry()). Drops entries taken down, and leaves one
 	 * that comes back for reload. Inserts or queues newly published entries
 	 * based on the reader's scroll position. When the feed opens at a shared
 	 * entry, new entries are added to the control's count instead of inserted.
@@ -1856,10 +1955,16 @@ function initBlock( root: HTMLElement ): void {
 					existing.hasAttribute( 'data-pinned' ) !==
 					entryEl.hasAttribute( 'data-pinned' )
 				) {
-					entriesList.insertBefore(
-						entryEl,
-						firstUnpinnedEntry( entryEl )
-					);
+					if ( entryEl.hasAttribute( 'data-pinned' ) ) {
+						entriesList.insertBefore(
+							entryEl,
+							firstUnpinnedEntry( entryEl )
+						);
+					} else if ( ! placeUnpinnedEntry( entryEl ) ) {
+						linkedObserver?.unobserve( entryEl );
+						entryEl.remove();
+						return;
+					}
 				}
 
 				observeEntry( entryEl );
@@ -1924,13 +2029,7 @@ function initBlock( root: HTMLElement ): void {
 
 		const last = entries[ entries.length - 1 ];
 
-		last?.querySelector(
-			[
-				':scope > .wp-block-separator:last-child',
-				':scope > .newspack-rolling-coverage-regular-entry:last-child > .wp-block-separator:last-child',
-				':scope > .newspack-rolling-coverage-regular-entry:last-child > .wp-block-group__inner-container > .wp-block-separator:last-child',
-			].join( ', ' )
-		)?.remove();
+		last?.querySelector( CLOSING_SEPARATOR )?.remove();
 		last?.querySelector< HTMLElement >(
 			':scope > .newspack-rolling-coverage-pinned-card:last-child'
 		)?.style.removeProperty( 'margin-bottom' );

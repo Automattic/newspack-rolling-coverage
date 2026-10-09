@@ -3840,6 +3840,10 @@ class Rolling_Coverage_Block {
 	/**
 	 * Renders a single entry against the supplied per-entry template.
 	 *
+	 * The entry carries the GMT second it was published in (data-published),
+	 * the date load more pages by, so the view script can put an entry
+	 * unpinned while the page is open where the feed lists it.
+	 *
 	 * @global WP_Post $post Global post object, temporarily swapped to the
 	 *                       entry for the duration of this render and
 	 *                       restored to its previous value afterwards.
@@ -3947,7 +3951,7 @@ class Rolling_Coverage_Block {
 		$post_classes = implode( ' ', get_post_class( array_merge( [ self::MARKUP_PREFIX . '-entry', 'wp-block-post' ], $cell_classes ), $entry ) );
 
 		$html = sprintf(
-			'<article%1$s class="%3$s" data-entry-id="%2$d" data-entry-slug="%6$s" data-arrival="%5$s"%7$s%8$s%9$s>%4$s</article>',
+			'<article%1$s class="%3$s" data-entry-id="%2$d" data-entry-slug="%6$s" data-arrival="%5$s" data-published="%10$s"%7$s%8$s%9$s>%4$s</article>',
 			$is_capped ? '' : sprintf( ' id="%s-entry-%d"', self::MARKUP_PREFIX, $entry->ID ),
 			$entry->ID,
 			esc_attr( $post_classes ),
@@ -3956,7 +3960,8 @@ class Rolling_Coverage_Block {
 			esc_attr( $entry->post_name ),
 			$is_pinned ? ' data-pinned' : '',
 			$is_linked ? ' data-linked' : '',
-			( $leads_column ? ' data-leads-column' : '' ) . ( $heads_column ? ' data-heads-column' : '' )
+			( $leads_column ? ' data-leads-column' : '' ) . ( $heads_column ? ' data-heads-column' : '' ),
+			esc_attr( self::post_date_gmt( $entry ) )
 		);
 
 		return $html;

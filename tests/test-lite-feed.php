@@ -118,7 +118,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertSame(
-			'<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="initial"><p class="newspack-rolling-coverage-entry-meta"><time datetime="2026-01-01T12:00:00+00:00">12:00 pm</time></p><h3>Bridge reopens</h3><p class="wp-block-paragraph">Traffic is <strong>moving</strong>.</p></article>',
+			'<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="initial" data-published="2026-01-01 12:00:00"><p class="newspack-rolling-coverage-entry-meta"><time datetime="2026-01-01T12:00:00+00:00">12:00 pm</time></p><h3>Bridge reopens</h3><p class="wp-block-paragraph">Traffic is <strong>moving</strong>.</p></article>',
 			Lite_Feed::render_entry( get_post( $entry_id ), 'initial' )
 		);
 	}
@@ -140,7 +140,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$html = Lite_Feed::render_entry( get_post( $entry_id ), 'poll' );
 
-		$this->assertStringStartsWith( '<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="poll" data-pinned>', $html );
+		$this->assertStringStartsWith( '<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="poll" data-published="2026-01-01 08:00:00" data-pinned>', $html );
 		$this->assertStringContainsString( '8:00 am</time> &middot; Pinned</p>', $html );
 		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-entry-archived-notice">', $html );
 	}
