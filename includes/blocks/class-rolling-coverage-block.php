@@ -1376,6 +1376,8 @@ class Rolling_Coverage_Block {
 
 		if ( ! empty( $attributes['hideWhenEnded'] ) ) {
 			$wrapper_data['data-hide-when-ended'] = 'true';
+		} elseif ( Taxonomy::STATUS_ARCHIVED !== $status ) {
+			$wrapper_data = array_merge( $wrapper_data, self::ended_notice_data( $attributes, $coverage_id ) );
 		}
 
 		if ( $checks_on_request ) {
@@ -1422,15 +1424,6 @@ class Rolling_Coverage_Block {
 			? trim( $attributes['allUpdatesLinkText'] )
 			: '';
 
-		// A page rendered before the coverage ends holds the notice hidden, for
-		// the view script to show when a poll reports the end. A lite page
-		// doesn't: Lite Site strips the hidden attribute where it can't keep
-		// the feed's markup, which would show it.
-		$is_archived     = Taxonomy::STATUS_ARCHIVED === $status;
-		$archived_notice = $is_archived || ( empty( $attributes['hideWhenEnded'] ) && ! $is_lite )
-			? self::render_archived_notice( $attributes, $coverage_id, $is_archived )
-			: '';
-
 		try {
 			$items_html = sprintf(
 				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%9$s%7$s%6$s',
@@ -1438,7 +1431,7 @@ class Rolling_Coverage_Block {
 				$entries_html,
 				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text ),
 				$is_capped ? '' : self::render_new_entries_control( (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
-				$archived_notice,
+				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
 				'scroll' === $older_entries ? sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ) : '',
 				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text ),
 				// A capped feed can sit on every page, where announcing each new entry would be noise.
@@ -2624,53 +2617,107 @@ class Rolling_Coverage_Block {
 	 * has none. Unless the block turns the link off, a link follows to the
 	 * block's URL or, without one, to the coverage's latest breakout post.
 	 *
-	 * Before the coverage ends, the notice renders hidden. Its breakout post
-	 * isn't known yet, so the notice carries the link's text in
-	 * `data-link-label` instead, for the view script to link the breakout
-	 * post the poll reporting the end brings.
-	 *
 	 * @param array $attributes  Block attributes.
 	 * @param int   $coverage_id Coverage term ID.
-	 * @param bool  $is_archived Whether the coverage has ended.
 	 * @return string Rendered HTML.
 	 */
-	private static function render_archived_notice( array $attributes, int $coverage_id, bool $is_archived = true ): string {
+	private static function render_archived_notice( array $attributes, int $coverage_id ): string {
 		if ( ! (bool) ( $attributes['archivedNoticeShow'] ?? true ) ) {
 			return '';
 		}
 
-		$text      = trim( (string) ( $attributes['archivedNotice'] ?? '' ) );
 		$show_link = (bool) ( $attributes['archivedNoticeShowLink'] ?? true );
 		$url       = $show_link ? trim( (string) ( $attributes['archivedNoticeLinkUrl'] ?? '' ) ) : '';
-		$label     = trim( (string) ( $attributes['archivedNoticeLinkLabel'] ?? '' ) );
-		$label     = '' !== $label ? $label : __( 'Read more', 'newspack-rolling-coverage' );
-
-		$notice_attributes = $is_archived ? '' : ' hidden';
 
 		if ( $show_link && '' === $url ) {
-			if ( $is_archived ) {
-				$url = (string) self::latest_breakout_url( $coverage_id );
-			} else {
-				$notice_attributes .= sprintf( ' data-link-label="%s"', esc_attr( $label ) );
-			}
+			$url = (string) self::latest_breakout_url( $coverage_id );
 		}
 
 		$link = '' !== $url ? esc_url( $url ) : '';
 
 		return sprintf(
-			'<p class="%s-archived-notice"%s>%s%s</p>',
+			'<p class="%s-archived-notice">%s%s</p>',
 			self::MARKUP_PREFIX,
-			$notice_attributes,
-			nl2br( esc_html( '' !== $text ? $text : self::default_archived_notice( $coverage_id ) ), false ),
+			nl2br( esc_html( self::archived_notice_text( $attributes, $coverage_id ) ), false ),
 			'' !== $link
 				? sprintf(
 					' <a class="%s-archived-notice__link" href="%s">%s</a>',
 					self::MARKUP_PREFIX,
 					$link,
-					esc_html( $label )
+					esc_html( self::archived_notice_link_label( $attributes ) )
 				)
 				: ''
 		);
+	}
+
+	/**
+	 * The ended notice of a coverage that hasn't ended, as data attributes on
+	 * the block's wrapper, unless the block turns the notice off. The view
+	 * script builds the notice from them when a poll reports the end. Held as
+	 * markup, even hidden, its text would show wherever the page is read
+	 * without a browser or with attributes dropped: a syndication feed, an
+	 * email, a copy cleaned to text.
+	 *
+	 * The link carries the block's URL, or none: the breakout post it goes to
+	 * without one may be published at the end, so the poll reporting the end
+	 * brings it.
+	 *
+	 * @param array $attributes  Block attributes.
+	 * @param int   $coverage_id Coverage term ID.
+	 * @return string[] Data attributes, by name.
+	 */
+	private static function ended_notice_data( array $attributes, int $coverage_id ): array {
+		if ( ! (bool) ( $attributes['archivedNoticeShow'] ?? true ) ) {
+			return [];
+		}
+
+		$data = [ 'data-ended-notice' => self::archived_notice_text( $attributes, $coverage_id ) ];
+
+		if ( ! (bool) ( $attributes['archivedNoticeShowLink'] ?? true ) ) {
+			return $data;
+		}
+
+		$url = trim( (string) ( $attributes['archivedNoticeLinkUrl'] ?? '' ) );
+
+		if ( '' !== $url ) {
+			$url = esc_url_raw( $url );
+
+			// As on an ended coverage, a URL esc_url() rejects means no link.
+			if ( '' === $url ) {
+				return $data;
+			}
+
+			$data['data-ended-notice-url'] = $url;
+		}
+
+		$data['data-ended-notice-link'] = self::archived_notice_link_label( $attributes );
+
+		return $data;
+	}
+
+	/**
+	 * The ended notice's text: the block's, or the default naming the coverage.
+	 *
+	 * @param array $attributes  Block attributes.
+	 * @param int   $coverage_id Coverage term ID.
+	 * @return string
+	 */
+	private static function archived_notice_text( array $attributes, int $coverage_id ): string {
+		$text = trim( (string) ( $attributes['archivedNotice'] ?? '' ) );
+
+		return '' !== $text ? $text : self::default_archived_notice( $coverage_id );
+	}
+
+	/**
+	 * The ended notice link's text: the block's, or "Read more".
+	 *
+	 * @param array $attributes Block attributes.
+	 * @return string
+	 */
+	private static function archived_notice_link_label( array $attributes ): string {
+		$label = trim( (string) ( $attributes['archivedNoticeLinkLabel'] ?? '' ) );
+
+		return '' !== $label ? $label : __( 'Read more', 'newspack-rolling-coverage' );
 	}
 
 	/**

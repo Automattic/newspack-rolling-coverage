@@ -523,11 +523,6 @@ function initBlock( root: HTMLElement ): void {
 		newEntriesControl?.querySelector< HTMLElement >( '[data-rc-latest]' ) ??
 		null;
 	const statusEl = ownElement( root, '.newspack-rolling-coverage-status' );
-	// On a page rendered before the coverage ended, held hidden until a poll reports the end.
-	const endedNotice = ownElement(
-		root,
-		'.newspack-rolling-coverage-archived-notice'
-	);
 	const checkControls = ownElements(
 		root,
 		'.newspack-rolling-coverage-check-updates'
@@ -566,6 +561,9 @@ function initBlock( root: HTMLElement ): void {
 
 	// The coverage status the last poll reported.
 	let polledStatus = status;
+
+	// The ended notice built when a poll reported the end.
+	let endedNotice: HTMLElement | null = null;
 
 	// When the reader last checked for new entries, in milliseconds.
 	let lastCheckAt = 0;
@@ -2200,34 +2198,48 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Shows the ended notice the page holds hidden, as a fresh render of the
-	 * ended coverage shows it, and announces it. A notice that links to the
-	 * coverage's latest breakout post carries only the link's text, since
-	 * that post is known only once the coverage ends: the poll reporting the
-	 * end brings it.
+	 * Builds the ended notice from the wrapper's data, where a fresh render
+	 * of the ended coverage puts it, first in the Feed, and announces it. A
+	 * link without a URL of its own goes to the latest breakout post the
+	 * poll reporting the end brings.
 	 *
 	 * @param {string | null} [breakoutUrl] The latest breakout post's URL, from the poll.
 	 * @return {void}
 	 */
 	function showEndedNotice( breakoutUrl?: string | null ): void {
-		if ( ! endedNotice?.hidden ) {
+		const text = root.dataset.endedNotice;
+
+		if ( ! text || endedNotice ) {
 			return;
 		}
 
-		const label = endedNotice.dataset.linkLabel;
+		const notice = document.createElement( 'p' );
+		const label = root.dataset.endedNoticeLink;
+		const url = root.dataset.endedNoticeUrl ?? breakoutUrl ?? '';
 
-		if ( label && breakoutUrl && isWebUrl( breakoutUrl ) ) {
+		notice.className = 'newspack-rolling-coverage-archived-notice';
+		text.split( /\r\n|\r|\n/ ).forEach( ( line, index ) => {
+			if ( index > 0 ) {
+				notice.append( document.createElement( 'br' ) );
+			}
+
+			notice.append( line );
+		} );
+
+		// The block's own URL is checked too: the wrapper's data attributes can
+		// come from markup an author without unfiltered_html wrote.
+		if ( label && url && isWebUrl( url ) ) {
 			const link = document.createElement( 'a' );
 
 			link.className = 'newspack-rolling-coverage-archived-notice__link';
-			link.href = breakoutUrl;
+			link.href = url;
 			link.textContent = label;
-			endedNotice.append( ' ', link );
+			notice.append( ' ', link );
 		}
 
-		delete endedNotice.dataset.linkLabel;
-		endedNotice.hidden = false;
-		announce( endedNotice.textContent ?? '' );
+		entriesList.parentElement?.prepend( notice );
+		endedNotice = notice;
+		announce( notice.textContent ?? '' );
 	}
 
 	/**

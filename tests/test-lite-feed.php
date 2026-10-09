@@ -348,19 +348,18 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A lite page of a live coverage holds no hidden ended notice, as a full
-	 * page does: a Lite Site that can't keep the feed's markup strips its
-	 * `hidden` attribute and would show it. Once ended, the notice renders.
+	 * A lite page keeps the data the view script builds the ended notice from,
+	 * as Lite Site keeps the feed wrapper's data attributes, and shows no
+	 * notice text while the coverage is live.
 	 */
-	public function test_lite_page_holds_no_ended_notice_until_the_coverage_ends() {
+	public function test_lite_page_keeps_the_ended_notice_data() {
 		self::create_entry( $this->coverage_id );
 
-		$this->assertStringContainsString( 'archived-notice', $this->render_block_html(), 'A full page holds it.' );
-		$this->assertStringNotContainsString( 'archived-notice', $this->render_lite_page(), 'A lite page does not.' );
+		$html = $this->render_lite_page( [ 'archivedNotice' => 'Coverage ended.' ] );
 
-		update_term_meta( $this->coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
-
-		$this->assertStringContainsString( 'archived-notice', $this->render_lite_page(), 'Ended, a lite page shows it.' );
+		$this->assertStringContainsString( 'data-ended-notice="Coverage ended."', $html );
+		$this->assertStringContainsString( 'data-ended-notice-link="Read more"', $html );
+		$this->assertStringNotContainsString( 'Coverage ended.', wp_strip_all_tags( $html ), 'No notice text outside the tags.' );
 	}
 
 	/**
