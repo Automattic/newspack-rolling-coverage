@@ -1862,9 +1862,10 @@ function initBlock( root: HTMLElement ): void {
 	 * entries taken down, and leaves one that comes back for reload. Inserts
 	 * or queues newly published entries based on the reader's scroll
 	 * position. When the feed opens at a shared entry, new entries are added
-	 * to the control's count instead of inserted. A capped feed inserts new
-	 * entries at once, whatever the scroll position, and ignores edits to
-	 * entries it doesn't show, pins included.
+	 * to the control's count instead of inserted, except pinned ones, which
+	 * join the pinned entries. A capped feed inserts new entries at once,
+	 * whatever the scroll position, and ignores edits to entries it doesn't
+	 * show, pins included.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
@@ -1962,7 +1963,11 @@ function initBlock( root: HTMLElement ): void {
 			const countedBefore = countedEntryIds.size;
 
 			newEntries.forEach( ( { el } ) => {
-				if ( el.dataset.entryId ) {
+				// Pinned before it went live: a fresh page lists it with the
+				// pinned entries and leaves it out of the count.
+				if ( el.hasAttribute( 'data-pinned' ) ) {
+					showPinnedEntry( el );
+				} else if ( el.dataset.entryId ) {
 					countedEntryIds.add( el.dataset.entryId );
 				}
 			} );
