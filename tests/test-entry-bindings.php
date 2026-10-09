@@ -361,6 +361,26 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A WooCommerce Memberships rule restricts an entry for every reader,
+	 * including one a `wc_memberships_is_post_public` callback lets through,
+	 * such as Newspack's newsletter-link access, since what's built from the
+	 * entry is cached for all. An entry an admin marked public isn't
+	 * restricted.
+	 */
+	public function test_membership_rule_restricts_an_entry_whoever_asks() {
+		$this->use_wc_memberships_stub();
+		$coverage_id   = self::create_coverage();
+		$restricted_id = self::create_entry( $coverage_id );
+		$public_id     = self::create_entry( $coverage_id );
+		$GLOBALS['newspack_rolling_coverage_restricted_posts'] = [ $restricted_id, $public_id ];
+		$GLOBALS['newspack_rolling_coverage_public_posts']     = [ $public_id ];
+		add_filter( 'wc_memberships_is_post_public', '__return_true' );
+
+		$this->assertTrue( Entry_Bindings::is_restricted( get_post( $restricted_id ) ) );
+		$this->assertFalse( Entry_Bindings::is_restricted( get_post( $public_id ) ) );
+	}
+
+	/**
 	 * The public summary of a password-protected entry is empty, whoever
 	 * asks: an editor holding the password included.
 	 */

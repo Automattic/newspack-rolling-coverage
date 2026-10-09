@@ -111,6 +111,7 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 
 		if ( defined( 'NEWSPACK_ROLLING_COVERAGE_WC_MEMBERSHIPS_STUB' ) ) {
 			$GLOBALS['newspack_rolling_coverage_restricted_posts'] = [];
+			$GLOBALS['newspack_rolling_coverage_public_posts']     = [];
 		}
 
 		if ( null !== $this->previous_error_log ) {
@@ -309,8 +310,9 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	/**
 	 * Load the stand-in for WooCommerce Memberships' restriction check,
 	 * which restricts the posts listed in
-	 * `$GLOBALS['newspack_rolling_coverage_restricted_posts']`, and skip
-	 * the test when the real plugin is loaded.
+	 * `$GLOBALS['newspack_rolling_coverage_restricted_posts']` unless they
+	 * are also in `$GLOBALS['newspack_rolling_coverage_public_posts']`, and
+	 * skip the test when the real plugin is loaded.
 	 */
 	protected function use_wc_memberships_stub(): void {
 		if ( ! function_exists( 'wc_memberships_is_post_content_restricted' ) ) {
@@ -322,6 +324,7 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		}
 
 		$GLOBALS['newspack_rolling_coverage_restricted_posts'] = [];
+		$GLOBALS['newspack_rolling_coverage_public_posts']     = [];
 	}
 
 	/**

@@ -435,19 +435,50 @@ class Entry_Bindings {
 	 * answer for everyone. The call builds the entry's teaser, which Newspack
 	 * caches; a gate with no free preview gives an empty one, so only null
 	 * means ungated. Newspack before 6.53.0 doesn't have the call, and its
-	 * gates stand down while WooCommerce Memberships is active.
+	 * gates stand down while WooCommerce Memberships is active. For
+	 * Memberships, see is_restricted_by_membership_rule().
 	 *
 	 * @param WP_Post $post The entry.
 	 * @return bool
 	 */
 	private static function is_withheld( WP_Post $post ): bool {
-		if ( function_exists( 'wc_memberships_is_post_content_restricted' ) && wc_memberships_is_post_content_restricted( $post->ID ) ) {
+		if ( self::is_restricted_by_membership_rule( $post ) ) {
 			return true;
 		}
 
 		return class_exists( '\Newspack\Content_Gate' ) &&
 			method_exists( '\Newspack\Content_Gate', 'get_teaser_outside_article' ) &&
 			null !== \Newspack\Content_Gate::get_teaser_outside_article( $post );
+	}
+
+	/**
+	 * Whether a WooCommerce Memberships rule restricts the entry and no admin
+	 * marked it public, read from Memberships' rules and its list of public
+	 * posts. wc_memberships_is_post_content_restricted() ends in the
+	 * `wc_memberships_is_post_public` filter, which answers for one reader:
+	 * Newspack's newsletter-link access says "public" to anyone carrying its
+	 * bypass cookie, and that reader's answer would be cached for everyone.
+	 * Leaving the filter out errs toward keeping an entry's words out.
+	 *
+	 * @param WP_Post $post The entry.
+	 * @return bool
+	 */
+	private static function is_restricted_by_membership_rule( WP_Post $post ): bool {
+		if ( ! function_exists( 'wc_memberships' ) ) {
+			return false;
+		}
+
+		$memberships  = wc_memberships();
+		$rules        = is_object( $memberships ) && method_exists( $memberships, 'get_rules_instance' ) ? $memberships->get_rules_instance() : null;
+		$restrictions = is_object( $memberships ) && method_exists( $memberships, 'get_restrictions_instance' ) ? $memberships->get_restrictions_instance() : null;
+
+		if ( ! is_object( $rules ) || ! method_exists( $rules, 'get_post_content_restriction_rules' ) || empty( $rules->get_post_content_restriction_rules( $post->ID ) ) ) {
+			return false;
+		}
+
+		$public_posts = is_object( $restrictions ) && method_exists( $restrictions, 'get_public_posts' ) ? (array) $restrictions->get_public_posts( $post->post_type ) : [];
+
+		return ! in_array( (int) $post->ID, array_map( 'intval', $public_posts ), true );
 	}
 
 	/**

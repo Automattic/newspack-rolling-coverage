@@ -26,8 +26,8 @@ class Content_Gate {
 	public static $withheld = [];
 
 	/**
-	 * Teasers of withheld posts that show something other than "The
-	 * teaser.", by post ID; an empty one stands for a gate with no free
+	 * Teasers of withheld posts, by post ID; a withheld post missing here
+	 * shows "The teaser.", and an empty one stands for a gate with no free
 	 * preview.
 	 *
 	 * @var array<int,string>

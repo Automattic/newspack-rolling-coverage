@@ -247,9 +247,9 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Password-protected, gated and members-only entries, titled or not,
-	 * with the title each is announced under; null stands for the coverage
-	 * name.
+	 * Password-protected, gated and Memberships-restricted entries, titled
+	 * or not, with the title each is announced under; null stands for the
+	 * coverage name.
 	 *
 	 * @return array<string,array{string,string,string|null}>
 	 */
@@ -260,7 +260,7 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 			'titled, gated'                  => [ 'gate', 'Count update', 'Count update' ],
 			'untitled, gated'                => [ 'gate', '', null ],
 			'untitled, gated with no teaser' => [ 'gate with no teaser', '', null ],
-			'untitled, members only'         => [ 'membership', '', null ],
+			'untitled, Memberships rule'     => [ 'membership', '', null ],
 		];
 	}
 
