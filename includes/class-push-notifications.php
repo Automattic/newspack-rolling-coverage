@@ -281,8 +281,8 @@ class Push_Notifications {
 
 		$post = get_post( $post_id );
 
-		// An entry holding only an image has no words for the notification to carry.
-		if ( ! $post instanceof WP_Post || '' === self::build_notification_content( $post ) ) {
+		// An entry holding only an image has nothing to announce, restricted or not.
+		if ( ! $post instanceof WP_Post || ! self::has_words( $post ) ) {
 			return;
 		}
 
@@ -445,12 +445,12 @@ class Push_Notifications {
 			return false;
 		}
 
-		$content = self::build_notification_content( $entry );
-
-		// An untitled entry with no words everyone may read has nothing to announce, and nothing members-only may stand in.
-		if ( '' === $content && '' === trim( wp_strip_all_tags( $entry->post_title ) ) ) {
+		// An untitled entry with no words of its own has nothing to announce, restricted or not.
+		if ( '' === trim( wp_strip_all_tags( $entry->post_title ) ) && ! self::has_words( $entry ) ) {
 			return false;
 		}
+
+		$content = self::build_notification_content( $entry );
 
 		$title = self::build_notification_title( $entry, $coverage_id );
 
@@ -477,16 +477,16 @@ class Push_Notifications {
 	/**
 	 * Builds the notification title from the entry's own title, falling back
 	 * to the coverage name, then the site name, if the entry is untitled.
+	 * Whether it's untitled is read from the stored title: core gives an
+	 * untitled password-protected entry the title "Protected: ".
 	 *
 	 * @param WP_Post $entry       Entry post.
 	 * @param int     $coverage_id Coverage term id.
 	 * @return string Notification title text.
 	 */
 	private static function build_notification_title( WP_Post $entry, int $coverage_id ): string {
-		$entry_title = wp_strip_all_tags( get_the_title( $entry ) );
-
-		if ( '' !== trim( $entry_title ) ) {
-			return $entry_title;
+		if ( '' !== trim( wp_strip_all_tags( $entry->post_title ) ) ) {
+			return wp_strip_all_tags( get_the_title( $entry ) );
 		}
 
 		$coverage_name = get_term_field( 'name', $coverage_id, Taxonomy::TAXONOMY_SLUG );
@@ -500,15 +500,19 @@ class Push_Notifications {
 
 	/**
 	 * Builds the notification body text from a short excerpt of the entry's
-	 * written content, leaving out anything members-only or password
-	 * protected: a notification reaches every follower.
+	 * written content, leaving out anything members-only: a notification
+	 * reaches every follower. A restricted entry (see
+	 * Entry_Bindings::is_restricted()) gets a neutral line instead, so
+	 * followers still hear about it and meet the gate or password on the
+	 * site.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return string Notification body text.
 	 */
 	private static function build_notification_content( WP_Post $entry ): string {
-		if ( '' !== $entry->post_password ) {
-			return '';
+		if ( Entry_Bindings::is_restricted( $entry ) ) {
+			/* translators: Push notification text sent in place of a new entry's words when readers need access to read it, such as a subscription or a password. */
+			return __( 'Read the latest update.', 'newspack-rolling-coverage' );
 		}
 
 		if ( ! has_excerpt( $entry ) ) {
@@ -516,6 +520,19 @@ class Push_Notifications {
 		}
 
 		return wp_trim_words( html_entity_decode( get_the_excerpt( $entry ), ENT_QUOTES, 'UTF-8' ), 15, '…' );
+	}
+
+	/**
+	 * Whether the entry has anything to announce: a hand-written excerpt, or
+	 * words of its own outside its media and members-only blocks. Asked of a
+	 * restricted entry too, whose words build_notification_content() never
+	 * sends.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return bool
+	 */
+	private static function has_words( WP_Post $entry ): bool {
+		return '' !== trim( wp_strip_all_tags( $entry->post_excerpt ) ) || Entry_Bindings::has_words_of_its_own( $entry );
 	}
 
 	/**

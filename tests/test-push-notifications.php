@@ -215,7 +215,8 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	/**
 	 * An untitled entry's notification text leaves out what Newspack hides
 	 * from the public, as every follower receives it. An entry with nothing
-	 * else to say, or a password-protected one, isn't announced.
+	 * else to say isn't announced, even behind a gate, whose notification
+	 * would otherwise carry a neutral line.
 	 */
 	public function test_untitled_entry_is_announced_without_members_only_text() {
 		$this->use_block_visibility_stub();
@@ -231,15 +232,10 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		);
 		$mixed_id    = $entry( self::members_only_paragraph( 'Members hear the result first.' ) . '<!-- wp:paragraph --><p>Doors open at 7pm.</p><!-- /wp:paragraph -->' );
 		$hidden_id   = $entry( self::members_only_paragraph( 'Members hear the result first.' ) );
-		$secret_id   = $entry( '<!-- wp:paragraph --><p>The result is in.</p><!-- /wp:paragraph -->' );
-		wp_update_post(
-			[
-				'ID'            => $secret_id,
-				'post_password' => 'secret',
-			]
-		);
+		$photo_id    = $entry( '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.test/queue.jpg" alt=""/></figure><!-- /wp:image -->' );
+		$this->gate_entry( $photo_id );
 
-		foreach ( [ $mixed_id, $hidden_id, $secret_id ] as $entry_id ) {
+		foreach ( [ $mixed_id, $hidden_id, $photo_id ] as $entry_id ) {
 			update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
 			wp_publish_post( $entry_id );
 		}
@@ -251,20 +247,57 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A titled password-protected entry is announced by its title alone: its
-	 * hand-written excerpt is protected text too.
+	 * Password-protected, gated and Memberships-restricted entries, titled
+	 * or not, with the title each is announced under; null stands for the
+	 * coverage name.
+	 *
+	 * @return array<string,array{string,string,string|null}>
 	 */
-	public function test_protected_entry_is_announced_without_its_excerpt() {
-		$entry_id = self::create_entry(
-			self::create_coverage_with_canonical_url(),
+	public function restricted_entries(): array {
+		return [
+			'titled, password-protected'     => [ 'password', 'Count update', 'Protected: Count update' ],
+			'untitled, password-protected'   => [ 'password', '', null ],
+			'titled, gated'                  => [ 'gate', 'Count update', 'Count update' ],
+			'untitled, gated'                => [ 'gate', '', null ],
+			'untitled, gated with no teaser' => [ 'gate with no teaser', '', null ],
+			'untitled, Memberships rule'     => [ 'membership', '', null ],
+		];
+	}
+
+	/**
+	 * An entry a signed-out reader can't read is still announced, with a
+	 * neutral line in place of its text, its hand-written excerpt included:
+	 * the notification reaches every follower. An untitled one goes out
+	 * under the coverage name.
+	 *
+	 * @dataProvider restricted_entries
+	 *
+	 * @param string      $restriction    'password', 'gate', 'gate with no teaser' or 'membership'.
+	 * @param string      $title          Entry title.
+	 * @param string|null $expected_title Notification title, or null for the coverage name.
+	 */
+	public function test_restricted_entry_is_announced_without_its_text( string $restriction, string $title, ?string $expected_title ) {
+		$coverage_id = self::create_coverage_with_canonical_url();
+		$entry_id    = self::create_entry(
+			$coverage_id,
 			[
 				'post_status'   => 'draft',
-				'post_title'    => 'Count update',
+				'post_title'    => $title,
 				'post_excerpt'  => 'The result is in.',
-				'post_password' => 'secret',
+				'post_password' => 'password' === $restriction ? 'secret' : '',
 				'post_content'  => '<!-- wp:paragraph --><p>The result is in.</p><!-- /wp:paragraph -->',
 			]
 		);
+		if ( 'gate' === $restriction ) {
+			$this->gate_entry( $entry_id );
+		}
+		if ( 'gate with no teaser' === $restriction ) {
+			$this->gate_entry( $entry_id, '' );
+		}
+		if ( 'membership' === $restriction ) {
+			$this->use_wc_memberships_stub();
+			$GLOBALS['newspack_rolling_coverage_restricted_posts'] = [ $entry_id ];
+		}
 		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
 
 		wp_publish_post( $entry_id );
@@ -272,7 +305,8 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		$sent_notifications = self::get_sent_notifications();
 
 		$this->assertCount( 1, $sent_notifications );
-		$this->assertSame( '', $sent_notifications[0]['content'] );
+		$this->assertSame( $expected_title ?? get_term( $coverage_id )->name, $sent_notifications[0]['title'] );
+		$this->assertSame( 'Read the latest update.', $sent_notifications[0]['content'] );
 	}
 
 	/**
@@ -414,10 +448,31 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A photo posted on its own has no words to announce. It is not opted in,
-	 * since followers would get a notification with an empty message.
+	 * Image-only Slack entries, without and with a content gate.
+	 *
+	 * @return array<string,array{bool}>
 	 */
-	public function test_slack_entry_holding_only_an_image_is_not_opted_in() {
+	public function image_only_slack_entries(): array {
+		return [
+			'open'  => [ false ],
+			'gated' => [ true ],
+		];
+	}
+
+	/**
+	 * A photo posted on its own has no words to announce, whether or not a
+	 * gate covers it. It is not opted in, since followers would get a
+	 * notification with nothing of the entry in it.
+	 *
+	 * @dataProvider image_only_slack_entries
+	 *
+	 * @param bool $gated Whether a content gate covers the entry as it's ingested.
+	 */
+	public function test_slack_entry_holding_only_an_image_is_not_opted_in( bool $gated ) {
+		if ( $gated ) {
+			add_action( 'newspack_rolling_coverage_entry_ingested', fn( $entry_id ) => $this->gate_entry( $entry_id ), 9 );
+		}
+
 		$entry_id = self::ingest_slack_message(
 			self::create_coverage_with_canonical_url(),
 			true,

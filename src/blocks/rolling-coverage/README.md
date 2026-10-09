@@ -146,12 +146,18 @@ Feeds set to Latest ignore pinning and show the newest entries only.
 
 Selecting Share on an entry opens the device's share sheet with a link to that entry. Where the browser has no share sheet, Share copies the link instead and confirms with "Link copied." A feed placed inside another feed's entry shares its own entries the same way.
 
+### What compact layouts show of an entry
+
+Layouts that show a short excerpt of each entry, such as Wire, Digest, and Flash, take it from the entry's text when no excerpt was written for it: every block with words, including lists, headings, and quotes, cut to the length the layout's excerpt allows. Photos, videos, audio, and embeds add nothing to it, so a caption or an embedded link never reads as the entry's words. Neither do blocks hidden with Hide block, or the labels of buttons, file downloads, and other controls.
+
+Ticker gives an entry without a title a headline made of the opening words of its first block with words, so a heading or an opening line stands alone. A block that ends with a colon, such as "Roads closed as of 4pm:" over a list, reads on into what follows it. An excerpt written for the entry is used instead when there is one.
+
 ### Photo, video, and other media entries
 
-An entry that holds only a photo, gallery, video, audio clip, or embed has no words of its own, so it is described by its media instead: Photo, Gallery, Video, Audio, or Embed. When the media has a caption, the caption follows, for example "Photo: Crowds at the finish line". A photo without a caption uses its alt text. A gallery without a caption uses the caption or alt text of its first image that has one.
+An entry that holds only a photo, gallery, video, audio clip, or embed has no words of its own, so it is described by its media instead: Photo, Gallery, Video, Audio, or Embed. When the media has a caption, the caption follows, for example "Photo: Crowds at the finish line". A photo without a caption uses its alt text. A gallery without a caption uses the caption or alt text of its first image that has one. An embed without a caption says what it embeds: a published post on this site, such as the entry's breakout post, is named by that post's title, and anything else by the site it comes from, for example "Embed from x.com".
 
 - Layouts that show a short excerpt of each entry, such as Wire, Digest, and Flash, show this description as the excerpt, under the entry's title when it has one.
-- Ticker, which gives an entry without a title a headline made of its first words, uses this description as the headline.
+- Ticker uses this description as the headline of an entry without a title.
 
 An entry with any text of its own, or with an excerpt written for it, shows that text as usual.
 

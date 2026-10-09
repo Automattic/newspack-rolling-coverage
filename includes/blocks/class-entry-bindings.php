@@ -90,6 +90,17 @@ class Entry_Bindings {
 	const AUDIO_EMBED_PROVIDERS = [ 'mixcloud', 'pocket-casts', 'reverbnation', 'soundcloud', 'spotify' ];
 
 	/**
+	 * Blocks whose text is a control's label rather than the entry's words,
+	 * left out of its excerpt and headline (see is_wordless()).
+	 */
+	const CONTROL_BLOCKS = [ 'core/buttons', 'core/button', 'core/file', 'core/social-links', 'core/social-link', 'core/search', 'core/navigation' ];
+
+	/**
+	 * Object cache group for the post IDs embed URLs on this site resolve to.
+	 */
+	const URL_CACHE_GROUP = 'newspack_rolling_coverage_url_post_id';
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
@@ -102,7 +113,7 @@ class Entry_Bindings {
 		add_filter( 'render_block_core/group', [ __CLASS__, 'filter_pinned_group' ], 10, 2 );
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'link_title_to_breakout' ], 10, 3 );
 		add_filter( 'the_title', [ __CLASS__, 'untitled_fallback_title' ], 10, 2 );
-		add_filter( 'get_the_excerpt', [ __CLASS__, 'media_excerpt' ], 11, 2 );
+		add_filter( 'get_the_excerpt', [ __CLASS__, 'entry_excerpt' ], 11, 2 );
 	}
 
 	/**
@@ -210,8 +221,8 @@ class Entry_Bindings {
 	 * An untitled entry's opening words as its title, for a Post Title
 	 * carrying ENTRY_LINK_CLASS inside an entry: its excerpt when it has one,
 	 * else the start of its text. The title then renders and links as one of
-	 * the entry's own would (see link_title_to_breakout()). A
-	 * password-protected entry keeps its empty title.
+	 * the entry's own would (see link_title_to_breakout()). A restricted
+	 * entry (see is_restricted()) keeps its empty title.
 	 *
 	 * Only that block's own lookup gets the words: has_title() in
 	 * Rolling_Coverage_Block::render_entry() and every other caller during the
@@ -241,19 +252,21 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * The opening words an untitled entry shows as its title: its excerpt
-	 * when it has one, else the start of its text, as plain text. An entry
-	 * with no words outside its media, such as a lone photo, is described by
-	 * its first media block instead (see get_media_title()). Both read the
-	 * entry without the blocks Newspack hides from the public (see
-	 * public_content()). A password protected entry, or a post that isn't an
-	 * entry, has none.
+	 * The headline an untitled entry shows as its title: its excerpt when it
+	 * has one, else the opening words of its first block with words, as
+	 * plain text, so a heading or an opening line stands alone rather than
+	 * running into the text after it. An entry with no words outside its
+	 * media, such as a lone photo, is described by its first media block
+	 * instead (see get_media_title()). Both read the entry without the
+	 * blocks Newspack hides from the public (see public_content()). A
+	 * restricted entry (see is_restricted()), or a post that isn't an entry,
+	 * has none.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return string
 	 */
 	public static function get_fallback_title( WP_Post $entry ): string {
-		if ( Post_Type::CPT_SLUG !== $entry->post_type || post_password_required( $entry ) ) {
+		if ( Post_Type::CPT_SLUG !== $entry->post_type || self::is_restricted( $entry ) ) {
 			return '';
 		}
 
@@ -263,30 +276,81 @@ class Entry_Bindings {
 			return html_entity_decode( wp_trim_words( $excerpt, self::UNTITLED_FALLBACK_WORDS, '…' ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 		}
 
-		$content     = self::public_content( $entry );
-		$media_title = self::get_media_title( $content );
+		$blocks      = parse_blocks( self::public_content( $entry ) );
+		$media_title = self::get_media_title( $blocks );
 
-		return '' !== $media_title ? $media_title : Post_Type::get_html_summary( $content, self::UNTITLED_FALLBACK_WORDS );
+		return '' !== $media_title ? $media_title : Post_Type::get_html_summary( self::headline_html( $blocks ), self::UNTITLED_FALLBACK_WORDS );
 	}
 
 	/**
-	 * The first words of what everyone may read of an entry: its content
-	 * without the blocks Newspack hides from the public, or nothing for a
-	 * password-protected entry. For text shown or sent outside the entry
-	 * itself, such as a share link's name, a push notification or a breakout
-	 * post's title. Decoded plain text, as Post_Type::get_html_summary()
-	 * gives it.
+	 * The first words of what everyone may read of an entry: the words of
+	 * its blocks outside their media, without the blocks Newspack hides from
+	 * the public, or nothing for a restricted entry (see is_restricted()) or
+	 * one with no words outside its media. For text shown or sent outside
+	 * the entry itself, such as a share link's name, a push notification or
+	 * a breakout post's title. Decoded plain text, as
+	 * Post_Type::get_html_summary() gives it.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @param int     $words Number of words to keep.
 	 * @return string
 	 */
 	public static function public_summary( WP_Post $entry, int $words = 8 ): string {
-		if ( '' !== $entry->post_password ) {
+		if ( self::is_restricted( $entry ) ) {
 			return '';
 		}
 
-		return Post_Type::get_html_summary( self::public_content( $entry ), $words );
+		return Post_Type::get_html_summary( self::words_html( parse_blocks( self::public_content( $entry ) ) ), $words );
+	}
+
+	/**
+	 * Whether an entry has words of its own outside its media and the blocks
+	 * Newspack hides from the public, whether or not it's restricted. It
+	 * gives none of them away, so it can be asked of a restricted entry, as
+	 * push notifications do to decide whether an untitled entry has anything
+	 * to announce.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return bool
+	 */
+	public static function has_words_of_its_own( WP_Post $entry ): bool {
+		return self::has_visible_text( self::words_html( parse_blocks( self::public_content( $entry ) ) ) );
+	}
+
+	/**
+	 * What everyone may call an entry that has no title: its public summary,
+	 * else its media title, so a lone photo is still told apart from the
+	 * next entry; nothing for a restricted entry (see is_restricted()). For a
+	 * share link's accessible name and a breakout post's title.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @param int     $words Number of words to keep.
+	 * @return string Decoded plain text.
+	 */
+	public static function public_name( WP_Post $entry, int $words = 8 ): string {
+		if ( self::is_restricted( $entry ) ) {
+			return '';
+		}
+
+		$summary = self::public_summary( $entry, $words );
+
+		return '' !== $summary ? $summary : self::get_media_title( parse_blocks( self::public_content( $entry ) ) );
+	}
+
+	/**
+	 * Whether a reader who isn't signed in is kept from an entry's text: it's
+	 * password protected, a Newspack content gate covers it, or a WooCommerce
+	 * Memberships rule restricts it (see is_withheld()). Text built from an
+	 * entry for everyone, such as a share link's name, a push notification
+	 * or the page's schema, leaves a restricted entry's words out, its
+	 * hand-written excerpt included. The answer is the same for every
+	 * reader, since that text is cached and sent to all.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return bool
+	 */
+	public static function is_restricted( WP_Post $entry ): bool {
+		return '' !== $entry->post_password || self::is_withheld( $entry );
 	}
 
 	/**
@@ -307,11 +371,17 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * An entry's media title as its excerpt when it has no words outside its
-	 * media, such as a lone photo, and no excerpt of its own: core generates
-	 * none for it, as it leaves media out. Runs after core's
-	 * wp_trim_excerpt(), so it reaches core's Post Excerpt block on the site
-	 * and the excerpt the editor previews (Post_Type::get_editor_excerpt()).
+	 * The excerpt of an entry without one of its own: the words of its
+	 * blocks outside its media, cut to the site's excerpt length, or its
+	 * media title when it has no words outside its media, such as a lone
+	 * photo. Core's generated excerpt drops a list whose items are blocks,
+	 * and a lone media block gives it nothing, so this replaces it. Runs
+	 * after core's wp_trim_excerpt(), so it reaches core's Post Excerpt
+	 * block on the site and the excerpt the editor previews
+	 * (Post_Type::get_editor_excerpt()). An entry Newspack's content gate
+	 * withholds, or WooCommerce Memberships restricts, keeps the excerpt the
+	 * filters before this one built, since those read the content through
+	 * the restriction that `the_content` applies.
 	 *
 	 * Parameters stay untyped because this runs for every excerpt on the
 	 * site, after other plugins' filters that may hand on unexpected types.
@@ -320,7 +390,7 @@ class Entry_Bindings {
 	 * @param WP_Post|int|null $post    The post.
 	 * @return string
 	 */
-	public static function media_excerpt( $excerpt, $post = null ) {
+	public static function entry_excerpt( $excerpt, $post = null ) {
 		$post = get_post( $post );
 
 		if (
@@ -328,15 +398,194 @@ class Entry_Bindings {
 			! $post instanceof WP_Post ||
 			Post_Type::CPT_SLUG !== $post->post_type ||
 			'' !== trim( $post->post_excerpt ) ||
-			self::has_visible_text( $excerpt ) ||
-			post_password_required( $post )
+			post_password_required( $post ) ||
+			self::is_withheld( $post )
 		) {
 			return $excerpt;
 		}
 
-		$media_title = self::get_media_title( self::public_content( $post ) );
+		$blocks = parse_blocks( self::public_content( $post ) );
+		$words  = self::words_html( $blocks );
+
+		if ( self::has_visible_text( $words ) ) {
+			$length = (int) apply_filters( 'excerpt_length', (int) _x( '55', 'excerpt_length' ) ); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain -- Core's own default, translated with core.
+			$more   = (string) apply_filters( 'excerpt_more', ' [&hellip;]' );
+
+			return Post_Type::get_html_excerpt( $words, max( 1, $length ), $more );
+		}
+
+		$media_title = self::get_media_title( $blocks );
 
 		return '' !== $media_title ? htmlspecialchars( $media_title, ENT_NOQUOTES, 'UTF-8' ) : $excerpt;
+	}
+
+	/**
+	 * Whether the entry is restricted for readers who aren't members: by
+	 * Newspack's content gate outside the entry's own page, or by a
+	 * WooCommerce Memberships rule. Both restrict through `the_content`,
+	 * which core's generated excerpt reads and entry_excerpt() doesn't.
+	 *
+	 * The answer is the same for every reader, since is_restricted() feeds
+	 * text that is cached and sent to all. For the gate, that's why this asks
+	 * Content_Gate::get_teaser_outside_article(): it judges a gate as Newspack
+	 * does for a post listed outside its own article, for a signed-out reader
+	 * and without passes granted to one request, such as an institution's IP
+	 * range. Asking Content_Restriction_Control directly would grant those
+	 * passes to whoever loads the page first, and the schema would cache that
+	 * answer for everyone. The call builds the entry's teaser, which Newspack
+	 * caches; a gate with no free preview gives an empty one, so only null
+	 * means ungated. Newspack before 6.53.0 doesn't have the call, and its
+	 * gates stand down while WooCommerce Memberships is active. For
+	 * Memberships, see is_restricted_by_membership_rule().
+	 *
+	 * @param WP_Post $post The entry.
+	 * @return bool
+	 */
+	private static function is_withheld( WP_Post $post ): bool {
+		if ( self::is_restricted_by_membership_rule( $post ) ) {
+			return true;
+		}
+
+		return class_exists( '\Newspack\Content_Gate' ) &&
+			method_exists( '\Newspack\Content_Gate', 'get_teaser_outside_article' ) &&
+			null !== \Newspack\Content_Gate::get_teaser_outside_article( $post );
+	}
+
+	/**
+	 * Whether a WooCommerce Memberships rule restricts the entry and no admin
+	 * marked it public, read from Memberships' rules and its list of public
+	 * posts. wc_memberships_is_post_content_restricted() ends in the
+	 * `wc_memberships_is_post_public` filter, which answers for one reader:
+	 * Newspack's newsletter-link access says "public" to anyone carrying its
+	 * bypass cookie, and that reader's answer would be cached for everyone.
+	 * Leaving the filter out errs toward keeping an entry's words out.
+	 *
+	 * @param WP_Post $post The entry.
+	 * @return bool
+	 */
+	private static function is_restricted_by_membership_rule( WP_Post $post ): bool {
+		if ( ! function_exists( 'wc_memberships' ) ) {
+			return false;
+		}
+
+		$memberships  = wc_memberships();
+		$rules        = is_object( $memberships ) && method_exists( $memberships, 'get_rules_instance' ) ? $memberships->get_rules_instance() : null;
+		$restrictions = is_object( $memberships ) && method_exists( $memberships, 'get_restrictions_instance' ) ? $memberships->get_restrictions_instance() : null;
+
+		if ( ! is_object( $rules ) || ! method_exists( $rules, 'get_post_content_restriction_rules' ) || empty( $rules->get_post_content_restriction_rules( $post->ID ) ) ) {
+			return false;
+		}
+
+		// Asked for every post type, as Memberships' own is_post_public() asks: asked for one on a cold cache, Memberships 1.29.1 answers with nothing and keeps that type's list in place of the whole map for the rest of the request.
+		$public_posts = is_object( $restrictions ) && method_exists( $restrictions, 'get_public_posts' ) ? (array) $restrictions->get_public_posts() : [];
+		$entry_posts  = isset( $public_posts[ $post->post_type ] ) ? (array) $public_posts[ $post->post_type ] : [];
+
+		return ! in_array( (int) $post->ID, array_map( 'intval', $entry_posts ), true );
+	}
+
+	/**
+	 * Whether a parsed block adds nothing to an entry's words: a block an
+	 * editor hid with Hide block, which core leaves out of everything it
+	 * renders, or a control such as a button, a file's download link or a
+	 * search form, whose text is a label rather than the entry's words.
+	 *
+	 * @param array $block Parsed block.
+	 * @return bool
+	 */
+	private static function is_wordless( array $block ): bool {
+		return self::is_hidden( $block ) || in_array( $block['blockName'] ?? '', self::CONTROL_BLOCKS, true );
+	}
+
+	/**
+	 * Whether a parsed block was hidden with the editor's Hide block, which
+	 * stores `metadata.blockVisibility` as false, the one form core renders
+	 * nowhere. Visibility by viewport, stored as an object, is left as core
+	 * leaves it.
+	 *
+	 * @param array $block Parsed block.
+	 * @return bool
+	 */
+	private static function is_hidden( array $block ): bool {
+		return false === ( $block['attrs']['metadata']['blockVisibility'] ?? null );
+	}
+
+	/**
+	 * The stored HTML of the parsed blocks without their media blocks, at
+	 * any depth, so a photo's caption or an embed's URL never reads as the
+	 * entry's words, and without hidden blocks and controls (see
+	 * is_wordless()).
+	 *
+	 * @param array $blocks Parsed blocks.
+	 * @return string
+	 */
+	private static function words_html( array $blocks ): string {
+		$html = '';
+
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) || self::is_wordless( $block ) || '' !== self::media_kind( $block ) ) {
+				continue;
+			}
+
+			$index = 0;
+
+			foreach ( $block['innerContent'] ?? [] as $chunk ) {
+				if ( is_string( $chunk ) ) {
+					$html .= $chunk;
+					continue;
+				}
+
+				$inner = $block['innerBlocks'][ $index++ ] ?? null;
+				$html .= is_array( $inner ) ? ' ' . self::words_html( [ $inner ] ) . ' ' : '';
+			}
+		}
+
+		return $html;
+	}
+
+	/**
+	 * The stored HTML of the first block with words among the parsed blocks:
+	 * a block with text of its own, or a list, taken whole without its
+	 * media; a wrapper such as a group is looked into. A block that ends
+	 * with a colon announces what follows, so the blocks after it read on
+	 * from there rather than leaving the colon on its own. Empty when none
+	 * has words.
+	 *
+	 * @param array $blocks Parsed blocks.
+	 * @return string
+	 */
+	private static function headline_html( array $blocks ): string {
+		foreach ( $blocks as $index => $block ) {
+			if ( ! is_array( $block ) || self::is_wordless( $block ) || '' !== self::media_kind( $block ) ) {
+				continue;
+			}
+
+			$own  = implode( ' ', array_filter( $block['innerContent'] ?? [], 'is_string' ) );
+			$html = 'core/list' === ( $block['blockName'] ?? '' ) || self::has_visible_text( $own )
+				? self::words_html( [ $block ] )
+				: self::headline_html( $block['innerBlocks'] ?? [] );
+
+			if ( '' === $html ) {
+				continue;
+			}
+
+			return self::ends_with_colon( $html ) ? $html . ' ' . self::words_html( array_slice( $blocks, $index + 1 ) ) : $html;
+		}
+
+		return '';
+	}
+
+	/**
+	 * Whether stored HTML's text ends with a colon, in its ASCII or fullwidth
+	 * form, once its shortcodes and trailing spaces (non-breaking ones
+	 * included) are gone, as the summary leaves them out.
+	 *
+	 * @param string $html Stored HTML.
+	 * @return bool
+	 */
+	private static function ends_with_colon( string $html ): bool {
+		$text = html_entity_decode( wp_strip_all_tags( strip_shortcodes( $html ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+
+		return 1 === preg_match( '/[:\x{FF1A}][\s\x{00A0}]*$/u', $text );
 	}
 
 	/**
@@ -350,7 +599,7 @@ class Entry_Bindings {
 	 */
 	private static function has_words( array $blocks ): bool {
 		foreach ( $blocks as $block ) {
-			if ( ! is_array( $block ) || '' !== self::media_kind( $block ) ) {
+			if ( ! is_array( $block ) || self::is_wordless( $block ) || '' !== self::media_kind( $block ) ) {
 				continue;
 			}
 
@@ -386,15 +635,13 @@ class Entry_Bindings {
 	 * from its first media block: what the media is, e.g. "Photo", followed
 	 * by its caption, else an image's alt text, e.g. "Photo: Crowds at the
 	 * finish line". Captions and text over a cover don't count as words,
-	 * since core leaves those blocks out of the excerpt it generates. Empty
-	 * for content with words, or without media.
+	 * since they belong to the media. Empty for content with words, or
+	 * without media.
 	 *
-	 * @param string $content An entry's content, as public_content() gives it.
+	 * @param array $blocks An entry's public_content(), parsed.
 	 * @return string Plain text.
 	 */
-	private static function get_media_title( string $content ): string {
-		$blocks = parse_blocks( $content );
-
+	private static function get_media_title( array $blocks ): string {
 		if ( self::has_words( $blocks ) ) {
 			return '';
 		}
@@ -405,8 +652,8 @@ class Entry_Bindings {
 			return '';
 		}
 
-		$label       = self::media_label( self::media_kind( $block ) );
 		$description = Post_Type::get_html_summary( self::media_description( $block ), self::UNTITLED_FALLBACK_WORDS );
+		$label       = '' === $description ? self::media_name( $block ) : self::media_label( self::media_kind( $block ) );
 
 		return '' !== $description
 			/* translators: 1: kind of media, e.g. "Photo" or "Video", 2: its caption or description. */
@@ -423,7 +670,7 @@ class Entry_Bindings {
 	 */
 	private static function first_media_block( array $blocks ): ?array {
 		foreach ( $blocks as $block ) {
-			if ( ! is_array( $block ) ) {
+			if ( ! is_array( $block ) || self::is_hidden( $block ) ) {
 				continue;
 			}
 
@@ -482,6 +729,69 @@ class Entry_Bindings {
 			default:
 				return '';
 		}
+	}
+
+	/**
+	 * What a media block without a caption is called: an embed of a titled
+	 * post on this site that readers can open is called by that post's
+	 * title, any other embed names the site it comes from, and the rest take
+	 * their kind's label. The title is read raw, not through `the_title`:
+	 * that filter runs untitled_fallback_title(), which could come back here
+	 * without end for two untitled entries that embed each other.
+	 *
+	 * @param array $block Parsed media block.
+	 * @return string Plain text.
+	 */
+	private static function media_name( array $block ): string {
+		$kind = self::media_kind( $block );
+
+		if ( 'embed' !== $kind ) {
+			return self::media_label( $kind );
+		}
+
+		$url     = (string) ( $block['attrs']['url'] ?? '' );
+		$post_id = '' !== $url ? self::url_to_post_id( $url ) : 0;
+		$title   = $post_id && is_post_publicly_viewable( $post_id ) ? Post_Type::get_html_summary( (string) get_post_field( 'post_title', $post_id, 'raw' ), self::UNTITLED_FALLBACK_WORDS ) : '';
+
+		if ( '' !== $title ) {
+			return $title;
+		}
+
+		$host = (string) wp_parse_url( $url, PHP_URL_HOST );
+
+		if ( '' === $host ) {
+			return self::media_label( $kind );
+		}
+
+		/* translators: %s: the host name of the site an embed comes from, e.g. "x.com". Stands in for the title and excerpt of an entry whose only content is that embed. */
+		return sprintf( __( 'Embed from %s', 'newspack-rolling-coverage' ), preg_replace( '/^www\./i', '', $host ) );
+	}
+
+	/**
+	 * The ID of the post a URL on this site points to, or 0. Core's lookup
+	 * runs the rewrite rules and a query each time, and an embed-only entry
+	 * asks on every render, so the answer, a miss included, is kept in the
+	 * object cache for an hour. A post published or renamed meanwhile keeps
+	 * its old answer that long; whether readers can open it is checked
+	 * afresh each time.
+	 *
+	 * @param string $url The URL.
+	 * @return int
+	 */
+	private static function url_to_post_id( string $url ): int {
+		if ( function_exists( 'wpcom_vip_url_to_postid' ) ) {
+			return (int) wpcom_vip_url_to_postid( $url );
+		}
+
+		$key     = md5( $url );
+		$post_id = wp_cache_get( $key, self::URL_CACHE_GROUP );
+
+		if ( false === $post_id ) {
+			$post_id = url_to_postid( $url ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.url_to_postid_url_to_postid -- Cached here; the VIP helper is used where it exists.
+			wp_cache_set( $key, $post_id, self::URL_CACHE_GROUP, HOUR_IN_SECONDS );
+		}
+
+		return (int) $post_id;
 	}
 
 	/**
@@ -735,7 +1045,7 @@ class Entry_Bindings {
 
 		$title = self::plain_text( get_the_title( $entry ) );
 
-		return '' !== $title ? $title : self::public_summary( $entry );
+		return '' !== $title ? $title : self::public_name( $entry );
 	}
 
 	/**

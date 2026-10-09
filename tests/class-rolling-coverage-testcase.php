@@ -20,8 +20,9 @@ use Newspack_Rolling_Coverage\Taxonomy;
  * The plugin keeps its state in posts, terms and options, all of which the
  * core test case rolls back. Its tear_down() resets the rest, which would
  * otherwise outlast the test: the ad unit a test gave the feed placement,
- * any lite feed it served, the blocks it registered and the error logging
- * it silenced.
+ * any lite feed it served, the blocks it registered, the entries it put
+ * behind the gate and membership stand-ins and the error logging it
+ * silenced.
  */
 abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 
@@ -73,9 +74,9 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 
 	/**
 	 * Restore error logging if the test silenced it, take away any ad unit
-	 * the test gave the feed placement, and forget any lite feed the test
-	 * served, which would otherwise last for the rest of the run, as it lasts
-	 * for the rest of a request.
+	 * the test gave the feed placement, forget any lite feed the test served
+	 * and the entries it gated, which would otherwise last for the rest of
+	 * the run, as they last for the rest of a request.
 	 */
 	public function tear_down() {
 		if ( class_exists( \Newspack_Ads\Placements::class ) ) {
@@ -101,6 +102,16 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		if ( $this->registered_check_updates_block ) {
 			unregister_block_type( Check_Updates_Block::BLOCK_NAME );
 			$this->registered_check_updates_block = false;
+		}
+
+		if ( defined( '\\Newspack\\Content_Gate::IS_TEST_STUB' ) ) {
+			\Newspack\Content_Gate::$withheld = [];
+			\Newspack\Content_Gate::$teasers  = [];
+		}
+
+		if ( defined( 'NEWSPACK_ROLLING_COVERAGE_WC_MEMBERSHIPS_STUB' ) ) {
+			$GLOBALS['newspack_rolling_coverage_restricted_posts'] = [];
+			$GLOBALS['newspack_rolling_coverage_public_posts']     = [];
 		}
 
 		if ( null !== $this->previous_error_log ) {
@@ -259,6 +270,61 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		if ( ! defined( '\\Newspack\\Block_Visibility::IS_TEST_STUB' ) ) {
 			$this->markTestSkipped( 'Newspack is loaded; its visibility rules are tested there.' );
 		}
+	}
+
+	/**
+	 * Load the stand-in for Newspack's Content_Gate, which withholds the
+	 * posts listed in its `$withheld`, and skip the test when the real one
+	 * is loaded.
+	 */
+	protected function use_content_gate_stub(): void {
+		if ( ! class_exists( '\\Newspack\\Content_Gate' ) ) {
+			require_once __DIR__ . '/stubs/class-content-gate.php';
+		}
+
+		if ( ! defined( '\\Newspack\\Content_Gate::IS_TEST_STUB' ) ) {
+			$this->markTestSkipped( 'Newspack is loaded; its content gate is tested there.' );
+		}
+
+		\Newspack\Content_Gate::$withheld = [];
+		\Newspack\Content_Gate::$teasers  = [];
+	}
+
+	/**
+	 * Put an entry behind a content gate, through the stand-in for Newspack's
+	 * Content_Gate. Skips the test when the real one is loaded.
+	 *
+	 * @param int    $entry_id Entry post ID.
+	 * @param string $teaser   What the gate shows of the entry; empty for a
+	 *                         gate with no free preview.
+	 */
+	protected function gate_entry( int $entry_id, string $teaser = 'The teaser.' ): void {
+		if ( ! defined( '\\Newspack\\Content_Gate::IS_TEST_STUB' ) ) {
+			$this->use_content_gate_stub();
+		}
+
+		\Newspack\Content_Gate::$withheld[]           = $entry_id;
+		\Newspack\Content_Gate::$teasers[ $entry_id ] = $teaser;
+	}
+
+	/**
+	 * Load the stand-in for WooCommerce Memberships' restriction check,
+	 * which restricts the posts listed in
+	 * `$GLOBALS['newspack_rolling_coverage_restricted_posts']` unless they
+	 * are also in `$GLOBALS['newspack_rolling_coverage_public_posts']`, and
+	 * skip the test when the real plugin is loaded.
+	 */
+	protected function use_wc_memberships_stub(): void {
+		if ( ! function_exists( 'wc_memberships_is_post_content_restricted' ) ) {
+			require_once __DIR__ . '/stubs/wc-memberships-functions.php';
+		}
+
+		if ( ! defined( 'NEWSPACK_ROLLING_COVERAGE_WC_MEMBERSHIPS_STUB' ) ) {
+			$this->markTestSkipped( 'WooCommerce Memberships is loaded; its restriction is tested there.' );
+		}
+
+		$GLOBALS['newspack_rolling_coverage_restricted_posts'] = [];
+		$GLOBALS['newspack_rolling_coverage_public_posts']     = [];
 	}
 
 	/**

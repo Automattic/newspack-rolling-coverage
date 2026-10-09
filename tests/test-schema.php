@@ -100,7 +100,8 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	/**
 	 * The live blog's updates hold only what everyone may read, whoever loads
 	 * the page first: members-only text stays out of an entry's body and an
-	 * untitled entry's headline, and a password-protected entry is left out.
+	 * untitled entry's headline, and password-protected and gated entries are
+	 * left out.
 	 */
 	public function test_updates_leave_out_text_hidden_from_the_public() {
 		$this->use_block_visibility_stub();
@@ -125,6 +126,7 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 				'post_password' => 'secret',
 			]
 		);
+		$this->gate_entry( $entry( [ 'post_content' => '<!-- wp:paragraph --><p>Turnout beat every forecast.</p><!-- /wp:paragraph -->' ] ) );
 
 		$article = apply_filters(
 			'wpseo_schema_article',
@@ -137,10 +139,11 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 		);
 		$schema  = (string) wp_json_encode( $article['liveBlogUpdate'] );
 
-		$this->assertCount( 1, $article['liveBlogUpdate'], 'The protected entry should be left out.' );
+		$this->assertCount( 1, $article['liveBlogUpdate'], 'The protected and gated entries should be left out.' );
 		$this->assertSame( 'Doors open at 7pm.', $article['liveBlogUpdate'][0]['headline'] );
 		$this->assertStringNotContainsString( 'Members hear', $schema );
 		$this->assertStringNotContainsString( 'The result is in', $schema );
+		$this->assertStringNotContainsString( 'Turnout', $schema );
 	}
 
 	/**
