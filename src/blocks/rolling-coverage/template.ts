@@ -2274,7 +2274,7 @@ function blockIdsOfType(
  *
  * @param {Object[]} blocks     The template blocks.
  * @param {boolean}  showAuthor The block's Author name setting.
- * @param {boolean}  showAvatar The block's Author avatar setting.
+ * @param {boolean}  showAvatar Whether avatars show: the block's Author avatar setting and the site's Avatar Display.
  * @return {string[]} Client IDs.
  */
 function hiddenAuthorBlockIds(
