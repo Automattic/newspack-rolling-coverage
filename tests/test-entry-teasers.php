@@ -31,6 +31,13 @@ class Test_Entry_Teasers extends Rolling_Coverage_TestCase {
 	private $coverage_id;
 
 	/**
+	 * Its entry behind the gate.
+	 *
+	 * @var int
+	 */
+	private $gated_id;
+
+	/**
 	 * A coverage with a gated entry and an open one.
 	 */
 	public function set_up() {
@@ -45,7 +52,7 @@ class Test_Entry_Teasers extends Rolling_Coverage_TestCase {
 		}
 
 		$this->coverage_id = self::create_coverage();
-		$gated_id          = self::create_entry(
+		$this->gated_id    = self::create_entry(
 			$this->coverage_id,
 			[
 				'post_date'    => '2026-01-01 12:00:00',
@@ -61,7 +68,7 @@ class Test_Entry_Teasers extends Rolling_Coverage_TestCase {
 				'post_content' => '<!-- wp:paragraph --><p>Open body</p><!-- /wp:paragraph -->',
 			]
 		);
-		$this->gate_entry( $gated_id, self::TEASER );
+		$this->gate_entry( $this->gated_id, self::TEASER );
 	}
 
 	/**
@@ -142,5 +149,20 @@ class Test_Entry_Teasers extends Rolling_Coverage_TestCase {
 		if ( $is_feed ) {
 			$this->assertSame( $GLOBALS['wp_query'], end( \Newspack\Content_Gate_Advanced_Settings::$contexts )['query'] );
 		}
+	}
+
+	/**
+	 * The swap is the feed's alone: a gated entry's own page, where readers
+	 * the gate lets through read the whole entry, is left to the gate.
+	 */
+	public function test_a_gated_entry_keeps_its_body_on_its_own_page() {
+		$this->go_to( get_permalink( $this->gated_id ) );
+		$this->assertTrue( is_singular() );
+
+		the_post();
+		$content = apply_filters( 'the_content', get_the_content() );
+
+		$this->assertStringContainsString( 'Gated body', $content );
+		$this->assertStringNotContainsString( 'Teaser text', $content );
 	}
 }
