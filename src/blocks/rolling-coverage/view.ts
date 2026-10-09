@@ -2552,7 +2552,8 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Loads and appends the next page of older entries.
+	 * Loads and appends the next page of older entries. An entry pinned since
+	 * the page rendered joins the pinned entries instead.
 	 *
 	 * Sends the backlog position so ad placement stays stable across load-more
 	 * pages.
@@ -2660,6 +2661,17 @@ function initBlock( root: HTMLElement ): void {
 						const entry = applyOffPageUpdate( child );
 
 						observeEntry( entry );
+
+						// Pinned since the page rendered, before a poll could
+						// show it: it comes at its date, and a fresh page lists
+						// it with the pinned entries. Its ad goes, as a dropped
+						// entry's does.
+						if ( entry.hasAttribute( 'data-pinned' ) ) {
+							entriesList.insertBefore( entry, firstUnpinnedEntry() );
+							droppedEntry = true;
+							return;
+						}
+
 						firstAppended ??= entry;
 					} );
 
