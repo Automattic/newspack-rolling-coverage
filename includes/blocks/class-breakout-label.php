@@ -16,7 +16,8 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The label a broken-out entry's card shows with the title of its published
  * post (see Breakout_Card), so readers can tell a written-up story from an
- * ordinary update: the site's own label, or the built-in one.
+ * ordinary update: the post's own label, else the site's, else the built-in
+ * one.
  */
 class Breakout_Label {
 
@@ -24,6 +25,11 @@ class Breakout_Label {
 	 * Option holding the site's label.
 	 */
 	const OPTION_KEY = 'rolling_coverage_breakout_label';
+
+	/**
+	 * Post meta holding a breakout post's own label.
+	 */
+	const POST_META_KEY = 'rolling_coverage_breakout_label';
 
 	/**
 	 * REST route for reading and saving the label.
@@ -39,7 +45,60 @@ class Breakout_Label {
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
+		add_action( 'init', [ __CLASS__, 'register_meta' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
+		add_filter( 'add_post_metadata', [ __CLASS__, 'delete_empty_post_label' ], 10, 4 );
+		add_filter( 'update_post_metadata', [ __CLASS__, 'delete_empty_post_label' ], 10, 4 );
+	}
+
+	/**
+	 * Register a post's own label for the REST API, so the block editor's
+	 * Rolling Coverage panel can set it on a breakout post. Sanitized like
+	 * the site's label.
+	 */
+	public static function register_meta(): void {
+		register_post_meta(
+			'post',
+			self::POST_META_KEY,
+			[
+				'type'              => 'string',
+				'single'            => true,
+				'default'           => '',
+				'show_in_rest'      => [
+					'schema' => [
+						'context' => [ 'edit' ],
+					],
+				],
+				'sanitize_callback' => [ __CLASS__, 'sanitize_label' ],
+				'auth_callback'     => [ Post_Type::class, 'can_edit_post_meta' ],
+			]
+		);
+	}
+
+	/**
+	 * Delete a post's label instead of saving an empty one, so a post
+	 * without a label of its own stores none. The block editor sends a
+	 * post's registered meta back on save, and an empty row added then
+	 * would refresh open pages for nothing (see
+	 * Breakout::on_breakout_label_changed()). The value is already
+	 * sanitized here.
+	 *
+	 * Parameters stay untyped because this runs for every post meta write.
+	 *
+	 * @param mixed  $check      Null to let the write go ahead.
+	 * @param int    $post_id    Post ID.
+	 * @param string $meta_key   Meta key.
+	 * @param mixed  $meta_value Sanitized meta value.
+	 * @return mixed
+	 */
+	public static function delete_empty_post_label( $check, $post_id, $meta_key, $meta_value ) {
+		if ( null !== $check || self::POST_META_KEY !== $meta_key || '' !== $meta_value ) {
+			return $check;
+		}
+
+		delete_post_meta( (int) $post_id, self::POST_META_KEY );
+
+		return true;
 	}
 
 	/**
@@ -124,6 +183,31 @@ class Breakout_Label {
 		$saved = self::get_saved();
 
 		return '' !== $saved ? $saved : self::get_default();
+	}
+
+	/**
+	 * A post's own label, or an empty string when it sets none.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function get_post_label( int $post_id ): string {
+		$label = get_post_meta( $post_id, self::POST_META_KEY, true );
+
+		return is_string( $label ) ? trim( $label ) : '';
+	}
+
+	/**
+	 * The label a breakout post's card shows: the post's own, else the one
+	 * every card shows (see get()).
+	 *
+	 * @param int $post_id Breakout post ID.
+	 * @return string
+	 */
+	public static function for_post( int $post_id ): string {
+		$label = self::get_post_label( $post_id );
+
+		return '' !== $label ? $label : self::get();
 	}
 
 	/**

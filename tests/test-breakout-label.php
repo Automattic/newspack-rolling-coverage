@@ -173,4 +173,122 @@ class Test_Breakout_Label extends Rolling_Coverage_TestCase {
 			'blank' => [ '  ' ],
 		];
 	}
+
+	/**
+	 * Save a post's own label through core's posts route.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param mixed $label   The label sent.
+	 * @return WP_REST_Response
+	 */
+	private static function save_post_label( int $post_id, $label ) {
+		$request = new WP_REST_Request( 'POST', '/wp/v2/posts/' . $post_id );
+		$request->set_param( 'meta', [ Breakout_Label::POST_META_KEY => $label ] );
+
+		return rest_get_server()->dispatch( $request );
+	}
+
+	/**
+	 * A post's own label is registered for the REST API, read in the edit
+	 * context and saved by whoever can edit the post, sanitized like the
+	 * site's label.
+	 */
+	public function test_post_label_is_saved_through_rest() {
+		$post_id = self::factory()->post->create();
+
+		$response = self::save_post_label( $post_id, '  Written <b>up</b> & "more" ' );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'Written up & "more"', get_post_meta( $post_id, Breakout_Label::POST_META_KEY, true ) );
+		$this->assertSame( 'Written up & "more"', Breakout_Label::get_post_label( $post_id ) );
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/posts/' . $post_id );
+		$request->set_param( 'context', 'edit' );
+
+		$this->assertSame( 'Written up & "more"', rest_get_server()->dispatch( $request )->get_data()['meta'][ Breakout_Label::POST_META_KEY ] );
+	}
+
+	/**
+	 * A user who can't edit the post can't set its label, through REST or
+	 * as a custom field.
+	 */
+	public function test_post_label_needs_a_user_who_can_edit_the_post() {
+		$post_id = self::factory()->post->create( [ 'post_author' => get_current_user_id() ] );
+		$author  = self::factory()->user->create( [ 'role' => 'author' ] );
+		wp_set_current_user( $author );
+
+		$this->assertFalse( current_user_can( 'edit_post_meta', $post_id, Breakout_Label::POST_META_KEY ) );
+		$this->assertSame( 403, self::save_post_label( $post_id, 'Analysis' )->get_status() );
+		$this->assertFalse( metadata_exists( 'post', $post_id, Breakout_Label::POST_META_KEY ) );
+
+		$own_post = self::factory()->post->create( [ 'post_author' => $author ] );
+
+		$this->assertTrue( current_user_can( 'edit_post_meta', $own_post, Breakout_Label::POST_META_KEY ) );
+		$this->assertSame( 200, self::save_post_label( $own_post, 'Analysis' )->get_status() );
+		$this->assertSame( 'Analysis', Breakout_Label::get_post_label( $own_post ) );
+	}
+
+	/**
+	 * A post's label is capped at the site label's length, in characters,
+	 * and keeps a lone "<" or "&" as typed.
+	 */
+	public function test_post_label_is_capped_and_kept_as_typed() {
+		$post_id = self::factory()->post->create();
+
+		update_post_meta( $post_id, Breakout_Label::POST_META_KEY, str_repeat( 'é', Breakout_Label::MAX_LENGTH + 10 ) );
+
+		$this->assertSame( str_repeat( 'é', Breakout_Label::MAX_LENGTH ), get_post_meta( $post_id, Breakout_Label::POST_META_KEY, true ) );
+
+		update_post_meta( $post_id, Breakout_Label::POST_META_KEY, 'Q < A & B' );
+
+		$this->assertSame( 'Q < A & B', Breakout_Label::get_post_label( $post_id ) );
+	}
+
+	/**
+	 * An empty label, or one of spaces, is never stored: saving one removes
+	 * the post's label, and the post falls back to the site's.
+	 *
+	 * @dataProvider empty_labels
+	 *
+	 * @param string $label The label saved.
+	 */
+	public function test_empty_post_label_is_not_stored( string $label ) {
+		$post_id = self::factory()->post->create();
+		update_option( Breakout_Label::OPTION_KEY, 'Site label' );
+
+		$this->assertSame( 200, self::save_post_label( $post_id, $label )->get_status() );
+		$this->assertFalse( metadata_exists( 'post', $post_id, Breakout_Label::POST_META_KEY ), 'A post without a label stores none.' );
+
+		update_post_meta( $post_id, Breakout_Label::POST_META_KEY, 'Analysis' );
+
+		$this->assertSame( 'Analysis', Breakout_Label::for_post( $post_id ) );
+
+		$this->assertSame( 200, self::save_post_label( $post_id, $label )->get_status() );
+		$this->assertFalse( metadata_exists( 'post', $post_id, Breakout_Label::POST_META_KEY ), 'Clearing the label deletes it.' );
+		$this->assertSame( 'Site label', Breakout_Label::for_post( $post_id ) );
+
+		add_post_meta( $post_id, Breakout_Label::POST_META_KEY, $label );
+
+		$this->assertFalse( metadata_exists( 'post', $post_id, Breakout_Label::POST_META_KEY ) );
+	}
+
+	/**
+	 * A post's label wins over the site's, which wins over the built-in
+	 * one; other posts keep the site's.
+	 */
+	public function test_post_label_precedence() {
+		$post_id = self::factory()->post->create();
+		$other   = self::factory()->post->create();
+
+		$this->assertSame( 'Full story', Breakout_Label::for_post( $post_id ) );
+
+		update_option( Breakout_Label::OPTION_KEY, 'Site label' );
+
+		$this->assertSame( 'Site label', Breakout_Label::for_post( $post_id ) );
+
+		update_post_meta( $post_id, Breakout_Label::POST_META_KEY, 'Analysis' );
+
+		$this->assertSame( 'Analysis', Breakout_Label::for_post( $post_id ) );
+		$this->assertSame( 'Site label', Breakout_Label::for_post( $other ) );
+	}
 }

@@ -59,6 +59,7 @@ class Admin {
 		add_filter( 'admin_title', array( __CLASS__, 'capture_admin_title_suffix' ), PHP_INT_MAX, 2 );
 		add_action( 'load-edit.php', array( __CLASS__, 'redirect_entry_list' ) );
 		add_action( 'enqueue_block_editor_assets', array( __CLASS__, 'enqueue_entry_editor' ) );
+		add_action( 'enqueue_block_editor_assets', array( __CLASS__, 'enqueue_breakout_editor' ) );
 		add_filter( 'custom_menu_order', '__return_true' );
 		// After Newspack's own wizard ordering, which runs at 11.
 		add_filter( 'menu_order', array( __CLASS__, 'menu_order' ), 12 );
@@ -251,6 +252,59 @@ class Admin {
 			wp_safe_redirect( $target );
 			exit;
 		}
+	}
+
+	/**
+	 * Load the breakout editor script when the post being edited is a
+	 * breakout post (it links back to the entry it was broken out from), for
+	 * its Rolling Coverage panel. The panel's placeholder is the label every
+	 * other card shows (Breakout_Label::get()).
+	 */
+	public static function enqueue_breakout_editor(): void {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$post   = get_post();
+
+		if ( ! $screen || 'post' !== $screen->post_type || ! $post instanceof \WP_Post || 'post' !== $post->post_type ) {
+			return;
+		}
+
+		if ( ! (int) get_post_meta( $post->ID, Breakout::BREAKOUT_SOURCE_ENTRY_META, true ) ) {
+			return;
+		}
+
+		$asset_file = NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/breakout-editor.asset.php';
+
+		if ( ! file_exists( $asset_file ) ) {
+			return;
+		}
+
+		$asset = include $asset_file;
+
+		wp_enqueue_script(
+			'newspack-rolling-coverage-breakout-editor',
+			NEWSPACK_ROLLING_COVERAGE_URL . 'dist/breakout-editor.js',
+			$asset['dependencies'] ?? [],
+			$asset['version'],
+			[ 'in_footer' => true ]
+		);
+
+		wp_add_inline_script(
+			'newspack-rolling-coverage-breakout-editor',
+			'window.newspackRollingCoverageBreakoutEditor = ' . wp_json_encode(
+				[
+					'metaKey'   => Breakout_Label::POST_META_KEY,
+					'siteLabel' => Breakout_Label::get(),
+					'maxLength' => Breakout_Label::MAX_LENGTH,
+				]
+			) . ';',
+			'before'
+		);
+
+		wp_set_script_translations(
+			'newspack-rolling-coverage-breakout-editor',
+			'newspack-rolling-coverage',
+			NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'languages'
+		);
 	}
 
 	/**

@@ -19,7 +19,8 @@ defined( 'ABSPATH' ) || exit;
  * post's title, and its Post Content and Post Excerpt show the post's
  * summary in place of the entry's own text. Layouts without a Post Title
  * name the post in the content or the excerpt instead. Wherever the card
- * names the post, the site's Full story label (Breakout_Label) comes first.
+ * names the post, its Full story label (Breakout_Label::for_post()) comes
+ * first.
  * Everything else in the entry, such as its date, byline, Read more and
  * Share, renders as usual, and the entry's stored content is never changed.
  */
@@ -334,19 +335,20 @@ class Breakout_Card {
 			return $block_content;
 		}
 
-		return $parts[1] . self::label_html( Entry_Bindings::is_entry_link_title( $block ) ) . $parts[3];
+		return $parts[1] . self::label_html( $card, Entry_Bindings::is_entry_link_title( $block ) ) . $parts[3];
 	}
 
 	/**
-	 * The Full story label as HTML, followed by a space, so the text reads
-	 * apart from the title after it wherever it's read without styles.
+	 * A card's Full story label as HTML, followed by a space, so the text
+	 * reads apart from the title after it wherever it's read without styles.
 	 *
-	 * @param bool $is_prefix Whether the label leads its title on the same
-	 *                        line rather than sitting above it.
+	 * @param array $card      A rendering card.
+	 * @param bool  $is_prefix Whether the label leads its title on the same
+	 *                         line rather than sitting above it.
 	 * @return string
 	 */
-	private static function label_html( bool $is_prefix = false ): string {
-		$label = Breakout_Label::get();
+	private static function label_html( array $card, bool $is_prefix = false ): string {
+		$label = Breakout_Label::for_post( (int) $card['post_id'] );
 
 		if ( $is_prefix ) {
 			/* translators: %s: the Full story label, leading the title of a broken-out entry's published post on the same line. */
@@ -361,12 +363,13 @@ class Breakout_Card {
 	}
 
 	/**
-	 * The Full story label as a plain paragraph, for a lite page.
+	 * A card's Full story label as a plain paragraph, for a lite page.
 	 *
+	 * @param array $card The entry's card (see for_entry()).
 	 * @return string
 	 */
-	public static function lite_label_html(): string {
-		return sprintf( '<p class="%s">%s</p>', esc_attr( self::LABEL_CLASS ), esc_html( Breakout_Label::get() ) );
+	public static function lite_label_html( array $card ): string {
+		return sprintf( '<p class="%s">%s</p>', esc_attr( self::LABEL_CLASS ), esc_html( Breakout_Label::for_post( (int) $card['post_id'] ) ) );
 	}
 
 	/**
@@ -468,7 +471,7 @@ class Breakout_Card {
 
 		return (string) preg_replace_callback(
 			'#<p\b[^>]*\bclass="(?:[^"]*\s)?wp-block-post-excerpt__excerpt(?:\s[^"]*)?"[^>]*>#',
-			static fn( $parts ) => $parts[0] . self::label_html( true ),
+			static fn( $parts ) => $parts[0] . self::label_html( $card, true ),
 			$block_content,
 			1
 		);
@@ -541,7 +544,7 @@ class Breakout_Card {
 		$html = '';
 
 		if ( ! $card['has_title_block'] && '' !== $card['title'] ) {
-			$html .= sprintf( '<p>%s<strong><a href="%s">%s</a></strong></p>', self::label_html(), esc_url( $card['url'] ), esc_html( $card['title'] ) );
+			$html .= sprintf( '<p>%s<strong><a href="%s">%s</a></strong></p>', self::label_html( $card ), esc_url( $card['url'] ), esc_html( $card['title'] ) );
 		}
 
 		if ( '' !== $card['summary'] ) {

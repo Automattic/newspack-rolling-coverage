@@ -262,6 +262,44 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A breakout post's own label, escaped, takes the site's place in every
+	 * place a card shows it, full and lite. Cards for other posts keep the
+	 * site's, and the post goes back to the site's once its own is removed.
+	 */
+	public function test_cards_show_the_post_label_over_the_site_label() {
+		require_once __DIR__ . '/mocks/class-lite-site.php';
+		[ $entry_id, $breakout_id ] = self::create_breakout();
+		[ $other_entry ]            = self::create_breakout();
+		update_option( Breakout_Label::OPTION_KEY, 'Site label' );
+		update_post_meta( $breakout_id, Breakout_Label::POST_META_KEY, 'Q < A & "B"' );
+
+		$titled   = self::render( $entry_id, self::TITLE_MARKUP );
+		$untitled = self::render( $entry_id, self::CONTENT_MARKUP );
+		$flash    = self::render( $entry_id, self::FLASH_EXCERPT_MARKUP );
+		$ticker   = self::render( $entry_id, self::TICKER_TITLE_MARKUP );
+		$lite     = Lite_Feed::render_entry( get_post( $entry_id ), 'initial' );
+
+		$this->assertStringContainsString( 'breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <a href=', $titled );
+		$this->assertStringContainsString( 'breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <strong>', $untitled );
+		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> Post', $flash );
+		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> <a href=', $ticker );
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</p><h3>', $lite );
+		$this->assertStringNotContainsString( 'Site label', $titled . $untitled . $flash . $ticker . $lite );
+
+		$this->assertStringContainsString( 'breakout-label">Site label</span> <a href=', self::render( $other_entry, self::TITLE_MARKUP ), 'Another post keeps the site label.' );
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Site label</p><h3>', Lite_Feed::render_entry( get_post( $other_entry ), 'initial' ) );
+
+		delete_post_meta( $breakout_id, Breakout_Label::POST_META_KEY );
+
+		$this->assertStringContainsString( 'breakout-label">Site label</span> <a href=', self::render( $entry_id, self::TITLE_MARKUP ) );
+		$this->assertStringContainsString( 'breakout-label--prefix">Site label:</span> Post', self::render( $entry_id, self::FLASH_EXCERPT_MARKUP ) );
+
+		delete_option( Breakout_Label::OPTION_KEY );
+
+		$this->assertStringContainsString( self::KICKER, self::render( $entry_id, self::TITLE_MARKUP ) );
+	}
+
+	/**
 	 * Only a card carries the label: not an entry whose post is a draft,
 	 * not an entry without a breakout post, and not a card whose title
 	 * renders nothing. A lite card without a title has none either.
@@ -908,6 +946,65 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertSame( 1, $touches, 'Publishing with an edit touches the entry once, for the publish.' );
+	}
+
+	/**
+	 * Setting, changing or removing a published post's own label touches its
+	 * entry, through REST or not, so open pages get the new label; saving
+	 * the same label, an empty one on a post without one, or a draft's
+	 * label doesn't. Deleting a labeled post touches the entry once, even
+	 * when its label goes before its link to the entry.
+	 */
+	public function test_changing_the_post_label_touches_the_entry() {
+		[ $entry_id, $breakout_id ] = self::create_breakout();
+		$touched                    = static fn() => '2026-01-01 12:00:00' !== get_post( $entry_id )->post_modified_gmt;
+
+		self::backdate_modified( $entry_id );
+		update_post_meta( $breakout_id, Breakout_Label::POST_META_KEY, 'Analysis' );
+		$this->assertTrue( $touched(), 'Setting the label touches the entry.' );
+
+		self::backdate_modified( $entry_id );
+		update_post_meta( $breakout_id, Breakout_Label::POST_META_KEY, 'Analysis' );
+		$this->assertFalse( $touched(), 'Saving the same label leaves the entry alone.' );
+
+		self::backdate_modified( $entry_id );
+		update_post_meta( $breakout_id, Breakout_Label::POST_META_KEY, 'Explainer' );
+		$this->assertTrue( $touched(), 'Changing the label touches the entry.' );
+
+		self::backdate_modified( $entry_id );
+		delete_post_meta( $breakout_id, Breakout_Label::POST_META_KEY );
+		$this->assertTrue( $touched(), 'Removing the label touches the entry.' );
+
+		self::backdate_modified( $entry_id );
+		update_post_meta( $breakout_id, Breakout_Label::POST_META_KEY, '' );
+		$this->assertFalse( $touched(), 'An empty label on a post without one leaves the entry alone.' );
+
+		self::log_in_as( 'editor' );
+		self::backdate_modified( $entry_id );
+		$request = new WP_REST_Request( 'POST', '/wp/v2/posts/' . $breakout_id );
+		$request->set_param( 'meta', [ Breakout_Label::POST_META_KEY => 'Analysis' ] );
+		$this->assertSame( 200, rest_get_server()->dispatch( $request )->get_status() );
+		$this->assertTrue( $touched(), 'Saving the label from the editor touches the entry.' );
+
+		[ $draft_entry_id, $draft_id ] = self::create_breakout( 'draft' );
+		self::backdate_modified( $draft_entry_id );
+		update_post_meta( $draft_id, Breakout_Label::POST_META_KEY, 'Analysis' );
+		delete_post_meta( $draft_id, Breakout_Label::POST_META_KEY );
+
+		$this->assertSame( '2026-01-01 12:00:00', get_post( $draft_entry_id )->post_modified_gmt, 'A draft\'s label leaves the entry alone.' );
+
+		delete_post_meta( $breakout_id, Breakout::BREAKOUT_SOURCE_ENTRY_META );
+		update_post_meta( $breakout_id, Breakout::BREAKOUT_SOURCE_ENTRY_META, $entry_id );
+		$touches = 0;
+		add_action(
+			'post_updated',
+			static function ( $post_id ) use ( $entry_id, &$touches ) {
+				$touches += $entry_id === $post_id ? 1 : 0;
+			}
+		);
+		wp_delete_post( $breakout_id, true );
+
+		$this->assertSame( 1, $touches, 'Deleting a labeled post touches the entry once.' );
 	}
 
 	/**

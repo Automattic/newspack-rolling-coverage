@@ -276,7 +276,7 @@ class Lite_Feed {
 		$card = Breakout_Card::for_entry( $entry->ID );
 
 		if ( null !== $card ) {
-			$title = '' !== $card['title'] ? Breakout_Card::lite_label_html() . sprintf( '<h3><a href="%s">%s</a></h3>', esc_url( self::card_url( $card ) ), esc_html( $card['title'] ) ) : '';
+			$title = '' !== $card['title'] ? Breakout_Card::lite_label_html( $card ) . sprintf( '<h3><a href="%s">%s</a></h3>', esc_url( self::card_url( $card ) ), esc_html( $card['title'] ) ) : '';
 			$body  = '' !== $card['summary'] ? '<p>' . esc_html( $card['summary'] ) . '</p>' : '';
 		} else {
 			$title = Rolling_Coverage_Block::has_title( $entry ) ? '<h3>' . esc_html( get_the_title( $entry ) ) . '</h3>' : '';
