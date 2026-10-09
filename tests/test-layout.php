@@ -341,6 +341,34 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A coverage shown in a dozen feeds at once (pages, widgets, capped
+	 * feeds), rendered over and over in any order, keeps every feed's config.
+	 */
+	public function test_a_dozen_feeds_of_one_coverage_all_keep_their_configs() {
+		$coverage_id = self::create_coverage();
+		$persist     = new ReflectionMethod( Rolling_Coverage_Block::class, 'persist_block_config' );
+		$load        = new ReflectionMethod( Rolling_Coverage_Block::class, 'load_block_config' );
+		$persist->setAccessible( true );
+		$load->setAccessible( true );
+
+		$templates = [];
+		for ( $i = 0; $i < 12; $i++ ) {
+			$templates[] = parse_blocks( '<!-- wp:paragraph --><p>Feed ' . $i . '</p><!-- /wp:paragraph -->' );
+		}
+
+		$keys = [];
+		for ( $view = 0; $view < 5; $view++ ) {
+			foreach ( $view % 2 ? array_reverse( $templates, true ) : $templates as $i => $template ) {
+				$keys[ $i ] = $persist->invoke( null, $coverage_id, $template, true, 4, $i % 3 ? 0 : 3 );
+			}
+		}
+
+		foreach ( $keys as $i => $key ) {
+			$this->assertSame( $templates[ $i ], $load->invoke( null, $coverage_id, $key )['template'] ?? null, "Feed {$i} lost its config." );
+		}
+	}
+
+	/**
 	 * A layoutId pointing at nothing renders the built-in layout.
 	 */
 	public function test_missing_pattern_falls_back_to_the_default_layout() {
