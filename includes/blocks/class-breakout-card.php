@@ -125,6 +125,9 @@ class Breakout_Card {
 	 *
 	 * Cached by the post's ID, its modified time and the length, so an edit
 	 * makes a new key and a context asking for another length gets its own.
+	 * Which blocks Newspack hides also depends on its gates and Reader
+	 * Activation, which can change without an edit, so a summary lasts an
+	 * hour.
 	 *
 	 * @param WP_Post $post Breakout post.
 	 * @return string
@@ -140,7 +143,7 @@ class Breakout_Card {
 		}
 
 		$summary = Entry_Bindings::public_summary( $post, $length );
-		wp_cache_set( $key, $summary, self::CACHE_GROUP );
+		wp_cache_set( $key, $summary, self::CACHE_GROUP, HOUR_IN_SECONDS );
 
 		return $summary;
 	}
@@ -151,8 +154,9 @@ class Breakout_Card {
 	 * the `excerpt_length` filter's length (Post_Type::get_html_excerpt()),
 	 * or nothing when the gate has no free preview or something else
 	 * restricts the post. The " [&hellip;]" Newspack's overlay gate ends the
-	 * preview with gives way to a plain ellipsis. Newspack gives no teaser while WooCommerce Memberships is
-	 * active, so a Memberships rule leaves the summary empty.
+	 * preview with gives way to a plain ellipsis. Newspack gives no teaser
+	 * while WooCommerce Memberships is active, so a Memberships rule leaves
+	 * the summary empty.
 	 *
 	 * @param WP_Post $post Breakout post.
 	 * @return string
