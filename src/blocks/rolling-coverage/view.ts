@@ -2418,26 +2418,40 @@ function initBlock( root: HTMLElement ): void {
 				if ( data.count > 0 ) {
 					const fragment = parseFragment( sanitizeHtml( data.html ) );
 
-					// Never append an entry that is already in the list, or one taken down since.
+					// Whether the reply's last entry so far was dropped.
+					let droppedEntry = false;
+
+					// Never append an entry that is already in the list, waiting
+					// behind the new-entries control, or taken down since.
 					Array.from( fragment.children ).forEach( ( child ) => {
 						if (
 							! ( child instanceof HTMLElement ) ||
 							! child.dataset.entryId
 						) {
+							// An ad after a dropped entry fills a position the page
+							// already has, and can land beside another ad.
+							if ( droppedEntry ) {
+								child.remove();
+							}
+
 							return;
 						}
 
+						const entryId = child.dataset.entryId;
 						const existing = ownElement(
 							root,
-							`[data-entry-id="${ cssEscape(
-								child.dataset.entryId
-							) }"]`,
+							`[data-entry-id="${ cssEscape( entryId ) }"]`,
 							entriesList
 						);
-						if (
-							existing ||
-							removedEntryIds.has( child.dataset.entryId )
-						) {
+
+						droppedEntry =
+							!! existing ||
+							removedEntryIds.has( entryId ) ||
+							pendingNewEntries.some(
+								( { el } ) => el.dataset.entryId === entryId
+							);
+
+						if ( droppedEntry ) {
 							child.remove();
 							return;
 						}
@@ -2457,7 +2471,12 @@ function initBlock( root: HTMLElement ): void {
 					backlogOffset += data.count;
 				}
 				if ( data.adSlots && data.adSlots.length > 0 ) {
-					displayAdSlots( data.adSlots );
+					// Only the ads that made it onto the page.
+					displayAdSlots(
+						data.adSlots.filter( ( adSlot ) =>
+							document.getElementById( adSlot.containerId )
+						)
+					);
 				}
 				hasMore = data.hasMore;
 				before = data.before || '';

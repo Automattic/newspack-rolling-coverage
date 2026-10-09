@@ -1717,11 +1717,12 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Up to `$limit` entries saved in a second that load more lists after a
-	 * page's bound, nearest first, for load more to bring in. Any listed above
-	 * the bound and missing from the page were published after the page's
-	 * query, and still need to reach it by poll. Nothing lists above a top
-	 * bound (load_more_top_bound()), so an entry published in that second
-	 * after the page's query is held too, and arrives by load more.
+	 * page's bound, nearest first: left for load more to bring in, or past a
+	 * capped page's end. Any listed above the bound and missing from the page
+	 * were published after the page's query, and still need to reach it by
+	 * poll. Nothing lists above a top bound (load_more_top_bound()), so an
+	 * entry published in that second after the page's query is held too, and
+	 * arrives by load more.
 	 *
 	 * @param int    $coverage_id Coverage term ID.
 	 * @param string $second      GMT `Y-m-d H:i:s` the entries were saved in.
