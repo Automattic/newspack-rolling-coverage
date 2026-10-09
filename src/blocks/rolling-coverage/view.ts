@@ -759,7 +759,7 @@ function initBlock( root: HTMLElement ): void {
 	 * whichever is longer, in place of any poll already scheduled. Schedules
 	 * none while a poll is in flight, as that poll schedules the next, or
 	 * while the page is hidden, as showing it polls at once, or once the
-	 * coverage has ended, as it gets no new entries.
+	 * coverage has ended: a reopen or a later edit shows on reload.
 	 *
 	 * @return {void}
 	 */
