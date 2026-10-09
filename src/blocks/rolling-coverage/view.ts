@@ -1061,8 +1061,8 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Inserts entries above the newest unpinned entry, below any pinned
-	 * entries, removing the "no entries yet" placeholder if it's still
-	 * present.
+	 * entries, pinned ones first, removing the "no entries yet" placeholder
+	 * if it's still present.
 	 *
 	 * Removes the "no entries yet" placeholder, starts observing each entry
 	 * for coverage_entry_seen, and displays any associated ad slots.
@@ -1086,7 +1086,16 @@ function initBlock( root: HTMLElement ): void {
 		const fragment = document.createDocumentFragment();
 		const adSlotsToDisplay: AdSlot[] = [];
 
-		entries.forEach( ( { el, adSlot, adEl } ) => {
+		// An entry pinned by the time it arrived goes with the pinned entries,
+		// above newer ones that came with it or after it, as a fresh page lists
+		// it.
+		const isPinned = ( { el }: PendingEntry ) =>
+			el.hasAttribute( 'data-pinned' );
+
+		[
+			...entries.filter( isPinned ),
+			...entries.filter( ( entry ) => ! isPinned( entry ) ),
+		].forEach( ( { el, adSlot, adEl } ) => {
 			fragment.appendChild( el );
 			observeEntry( el );
 			if ( adEl ) {
