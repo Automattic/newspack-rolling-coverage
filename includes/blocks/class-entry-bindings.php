@@ -221,8 +221,8 @@ class Entry_Bindings {
 	 * An untitled entry's opening words as its title, for a Post Title
 	 * carrying ENTRY_LINK_CLASS inside an entry: its excerpt when it has one,
 	 * else the start of its text. The title then renders and links as one of
-	 * the entry's own would (see link_title_to_breakout()). A
-	 * password-protected entry keeps its empty title.
+	 * the entry's own would (see link_title_to_breakout()). A restricted
+	 * entry (see is_restricted()) keeps its empty title.
 	 *
 	 * Only that block's own lookup gets the words: has_title() in
 	 * Rolling_Coverage_Block::render_entry() and every other caller during the
@@ -259,13 +259,14 @@ class Entry_Bindings {
 	 * media, such as a lone photo, is described by its first media block
 	 * instead (see get_media_title()). Both read the entry without the
 	 * blocks Newspack hides from the public (see public_content()). A
-	 * password protected entry, or a post that isn't an entry, has none.
+	 * restricted entry (see is_restricted()), or a post that isn't an entry,
+	 * has none.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return string
 	 */
 	public static function get_fallback_title( WP_Post $entry ): string {
-		if ( Post_Type::CPT_SLUG !== $entry->post_type || post_password_required( $entry ) ) {
+		if ( Post_Type::CPT_SLUG !== $entry->post_type || self::is_restricted( $entry ) ) {
 			return '';
 		}
 
@@ -284,18 +285,18 @@ class Entry_Bindings {
 	/**
 	 * The first words of what everyone may read of an entry: the words of
 	 * its blocks outside their media, without the blocks Newspack hides from
-	 * the public, or nothing for a password-protected entry or one with no
-	 * words outside its media. For text shown or sent outside the entry
-	 * itself, such as a share link's name, a push notification or a breakout
-	 * post's title. Decoded plain text, as Post_Type::get_html_summary()
-	 * gives it.
+	 * the public, or nothing for a restricted entry (see is_restricted()) or
+	 * one with no words outside its media. For text shown or sent outside
+	 * the entry itself, such as a share link's name, a push notification or
+	 * a breakout post's title. Decoded plain text, as
+	 * Post_Type::get_html_summary() gives it.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @param int     $words Number of words to keep.
 	 * @return string
 	 */
 	public static function public_summary( WP_Post $entry, int $words = 8 ): string {
-		if ( '' !== $entry->post_password ) {
+		if ( self::is_restricted( $entry ) ) {
 			return '';
 		}
 
@@ -303,23 +304,53 @@ class Entry_Bindings {
 	}
 
 	/**
+	 * Whether an entry has words of its own outside its media and the blocks
+	 * Newspack hides from the public, whether or not it's restricted. It
+	 * gives none of them away, so it can be asked of a restricted entry, as
+	 * push notifications do to decide whether an untitled entry has anything
+	 * to announce.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return bool
+	 */
+	public static function has_words_of_its_own( WP_Post $entry ): bool {
+		return self::has_visible_text( self::words_html( parse_blocks( self::public_content( $entry ) ) ) );
+	}
+
+	/**
 	 * What everyone may call an entry that has no title: its public summary,
 	 * else its media title, so a lone photo is still told apart from the
-	 * next entry; nothing for a password-protected entry. For a share link's
-	 * accessible name and a breakout post's title.
+	 * next entry; nothing for a restricted entry (see is_restricted()). For a
+	 * share link's accessible name and a breakout post's title.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @param int     $words Number of words to keep.
 	 * @return string Decoded plain text.
 	 */
 	public static function public_name( WP_Post $entry, int $words = 8 ): string {
-		if ( '' !== $entry->post_password ) {
+		if ( self::is_restricted( $entry ) ) {
 			return '';
 		}
 
 		$summary = self::public_summary( $entry, $words );
 
 		return '' !== $summary ? $summary : self::get_media_title( parse_blocks( self::public_content( $entry ) ) );
+	}
+
+	/**
+	 * Whether a reader who isn't signed in is kept from an entry's text: it's
+	 * password protected, a Newspack content gate covers it, or a WooCommerce
+	 * Memberships rule restricts it (see is_withheld()). Text built from an
+	 * entry for everyone, such as a share link's name, a push notification
+	 * or the page's schema, leaves a restricted entry's words out, its
+	 * hand-written excerpt included. The answer is the same for every
+	 * reader, since that text is cached and sent to all.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return bool
+	 */
+	public static function is_restricted( WP_Post $entry ): bool {
+		return '' !== $entry->post_password || self::is_withheld( $entry );
 	}
 
 	/**
@@ -392,19 +423,64 @@ class Entry_Bindings {
 	 * Whether the entry is restricted for readers who aren't members: by
 	 * Newspack's content gate outside the entry's own page, or by a
 	 * WooCommerce Memberships rule. Both restrict through `the_content`,
-	 * which core's generated excerpt reads and this one doesn't.
+	 * which core's generated excerpt reads and entry_excerpt() doesn't.
+	 *
+	 * The answer is the same for every reader, since is_restricted() feeds
+	 * text that is cached and sent to all. For the gate, that's why this asks
+	 * Content_Gate::get_teaser_outside_article(): it judges a gate as Newspack
+	 * does for a post listed outside its own article, for a signed-out reader
+	 * and without passes granted to one request, such as an institution's IP
+	 * range. Asking Content_Restriction_Control directly would grant those
+	 * passes to whoever loads the page first, and the schema would cache that
+	 * answer for everyone. The call builds the entry's teaser, which Newspack
+	 * caches; a gate with no free preview gives an empty one, so only null
+	 * means ungated. Newspack before 6.53.0 doesn't have the call, and its
+	 * gates stand down while WooCommerce Memberships is active. For
+	 * Memberships, see is_restricted_by_membership_rule().
 	 *
 	 * @param WP_Post $post The entry.
 	 * @return bool
 	 */
 	private static function is_withheld( WP_Post $post ): bool {
-		if ( function_exists( 'wc_memberships_is_post_content_restricted' ) && wc_memberships_is_post_content_restricted( $post->ID ) ) {
+		if ( self::is_restricted_by_membership_rule( $post ) ) {
 			return true;
 		}
 
 		return class_exists( '\Newspack\Content_Gate' ) &&
 			method_exists( '\Newspack\Content_Gate', 'get_teaser_outside_article' ) &&
 			null !== \Newspack\Content_Gate::get_teaser_outside_article( $post );
+	}
+
+	/**
+	 * Whether a WooCommerce Memberships rule restricts the entry and no admin
+	 * marked it public, read from Memberships' rules and its list of public
+	 * posts. wc_memberships_is_post_content_restricted() ends in the
+	 * `wc_memberships_is_post_public` filter, which answers for one reader:
+	 * Newspack's newsletter-link access says "public" to anyone carrying its
+	 * bypass cookie, and that reader's answer would be cached for everyone.
+	 * Leaving the filter out errs toward keeping an entry's words out.
+	 *
+	 * @param WP_Post $post The entry.
+	 * @return bool
+	 */
+	private static function is_restricted_by_membership_rule( WP_Post $post ): bool {
+		if ( ! function_exists( 'wc_memberships' ) ) {
+			return false;
+		}
+
+		$memberships  = wc_memberships();
+		$rules        = is_object( $memberships ) && method_exists( $memberships, 'get_rules_instance' ) ? $memberships->get_rules_instance() : null;
+		$restrictions = is_object( $memberships ) && method_exists( $memberships, 'get_restrictions_instance' ) ? $memberships->get_restrictions_instance() : null;
+
+		if ( ! is_object( $rules ) || ! method_exists( $rules, 'get_post_content_restriction_rules' ) || empty( $rules->get_post_content_restriction_rules( $post->ID ) ) ) {
+			return false;
+		}
+
+		// Asked for every post type, as Memberships' own is_post_public() asks: asked for one on a cold cache, Memberships 1.29.1 answers with nothing and keeps that type's list in place of the whole map for the rest of the request.
+		$public_posts = is_object( $restrictions ) && method_exists( $restrictions, 'get_public_posts' ) ? (array) $restrictions->get_public_posts() : [];
+		$entry_posts  = isset( $public_posts[ $post->post_type ] ) ? (array) $public_posts[ $post->post_type ] : [];
+
+		return ! in_array( (int) $post->ID, array_map( 'intval', $entry_posts ), true );
 	}
 
 	/**
