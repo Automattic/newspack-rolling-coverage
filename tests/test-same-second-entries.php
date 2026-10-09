@@ -1,6 +1,7 @@
 <?php
 /**
- * Tests for entries saved in the same second, as polls and load more see them.
+ * Tests for entries saved in the same second, and entries a page leaves out,
+ * as polls and load more see them.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -13,7 +14,8 @@ use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
  * Slack bursts and publishing a selection from the entries list save several
  * entries in one second, in no particular ID order. A page that already shows
  * some of them gets the rest by poll, as new entries, and load more continues
- * through them without skipping any.
+ * through them without skipping any. Entries a page leaves out by design,
+ * below a full page or past a cap, aren't new to it.
  */
 class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 
@@ -60,16 +62,14 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Publish a draft as if in the given second: WordPress stamps the save
+	 * Stamp an entry as saved in the given second: WordPress stamps a save
 	 * with the clock, which a test can't hold still.
 	 *
-	 * @param int    $entry_id Draft entry ID.
+	 * @param int    $entry_id Entry ID.
 	 * @param string $second   GMT `Y-m-d H:i:s`.
 	 */
-	private function publish_in( $entry_id, $second ) {
+	private function save_in( $entry_id, $second ) {
 		global $wpdb;
-
-		wp_publish_post( $entry_id );
 
 		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->posts,
@@ -80,6 +80,18 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 			[ 'ID' => $entry_id ]
 		);
 		clean_post_cache( $entry_id );
+	}
+
+	/**
+	 * Publish a draft as if in the given second.
+	 *
+	 * @param int    $entry_id Draft entry ID.
+	 * @param string $second   GMT `Y-m-d H:i:s`.
+	 */
+	private function publish_in( $entry_id, $second ) {
+		wp_publish_post( $entry_id );
+
+		$this->save_in( $entry_id, $second );
 		update_post_meta( $entry_id, Post_Type::META_PUBLISHED_GMT, $second );
 	}
 
@@ -208,6 +220,55 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 		$later_id = $this->create_entry_at( self::SECOND );
 
 		$this->assertSame( [ $later_id => 'insert' ], wp_list_pluck( $this->get_feed( array_merge( $params, [ 'cursor' => $cursor ] ) )['entries'], 'type', 'id' ) );
+	}
+
+	/**
+	 * An older draft published after the newest change a page shows, but
+	 * before the page renders, sits where its date lists it, below the page,
+	 * so it isn't new to the page.
+	 *
+	 * @dataProvider full_page_provider
+	 *
+	 * @param array $attributes Block attributes besides the coverage.
+	 * @param array $params     Poll parameters the page sends.
+	 */
+	public function test_older_entry_published_before_a_page_renders_is_not_new_to_it( $attributes, $params ) {
+		$this->create_entry_at( self::SECOND );
+		$older_draft_id = $this->create_entry_at( '2026-01-01 08:00:00', [ 'post_status' => 'draft' ] );
+
+		$this->publish_in( $older_draft_id, '2026-01-01 12:30:00' );
+
+		$cursor = self::data_attribute( $this->render_feed( $attributes ), 'cursor' );
+
+		$later_id = $this->create_entry_at( '2026-01-01 13:00:00' );
+
+		$this->assertSame( [ $later_id => 'insert' ], wp_list_pluck( $this->get_feed( array_merge( $params, [ 'cursor' => $cursor ] ) )['entries'], 'type', 'id' ) );
+	}
+
+	/**
+	 * Saves to more than a poll's worth of entries a page leaves out, made
+	 * after the newest change it shows but before it renders, don't overflow
+	 * its polls, which would reload it.
+	 *
+	 * @dataProvider full_page_provider
+	 *
+	 * @param array $attributes Block attributes besides the coverage.
+	 * @param array $params     Poll parameters the page sends.
+	 */
+	public function test_saves_to_entries_a_page_leaves_out_before_it_renders_dont_overflow_its_polls( $attributes, $params ) {
+		$this->create_entry_at( self::SECOND );
+
+		for ( $i = 0; $i <= Rolling_Coverage_Block::POLL_CAP; $i++ ) {
+			$this->save_in( $this->create_entry_at( '2026-01-01 08:00:00' ), gmdate( 'Y-m-d H:i:s', strtotime( '2026-01-01 12:30:00 UTC' ) + $i ) );
+		}
+
+		$cursor = self::data_attribute( $this->render_feed( $attributes ), 'cursor' );
+
+		$later_id = $this->create_entry_at( '2026-01-01 13:00:00' );
+		$poll     = $this->get_feed( array_merge( $params, [ 'cursor' => $cursor ] ) );
+
+		$this->assertFalse( $poll['overflow'] );
+		$this->assertSame( [ $later_id => 'insert' ], wp_list_pluck( $poll['entries'], 'type', 'id' ) );
 	}
 
 	/**

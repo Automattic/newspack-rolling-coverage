@@ -1242,6 +1242,10 @@ class Rolling_Coverage_Block {
 
 		$change_marker = Poll_Cursor::get_marker( $coverage_id );
 
+		// Read before the entries, like the marker: a change that lands in
+		// between then reaches the page by poll rather than passing for seen.
+		$newest_change = self::newest_change( $coverage_id );
+
 		$query_args = array_merge(
 			self::coverage_entries_args( $coverage_id ),
 			[
@@ -1331,14 +1335,15 @@ class Rolling_Coverage_Block {
 		$before = ! empty( $posts ) ? self::load_more_bound( $posts[ count( $posts ) - 1 ] ) : '';
 
 		if ( $shared_entry ) {
-			$cursor = self::coverage_cursor( $coverage_id, $change_marker );
+			$cursor = self::coverage_cursor( $coverage_id, $change_marker, $newest_change );
 		} else {
-			$cursor = Poll_Cursor::for_entries( $posts, $change_marker );
+			$cursor = Poll_Cursor::for_entries( $posts, $change_marker, $newest_change );
 
-			// A full page leaves entries out, which its polls must not report as
-			// new, up to the page of held entries a poll makes room for.
-			if ( count( $query->posts ) >= ( $is_capped ? $entries_per_page : $entries_per_page + 1 ) ) {
-				$cursor = $cursor->holding( self::listed_below( $coverage_id, $cursor->modified, $posts[ count( $posts ) - 1 ], self::PER_PAGE_MAX - count( $cursor->ids ) ) );
+			// A full page leaves out the entries the feed lists below its bound,
+			// which its polls must not report as new, up to the page of held
+			// entries a poll makes room for.
+			if ( '' !== $before && count( $query->posts ) >= ( $is_capped ? $entries_per_page : $entries_per_page + 1 ) ) {
+				$cursor = $cursor->holding( self::listed_below( $coverage_id, $cursor->modified, $before, self::PER_PAGE_MAX - count( $cursor->ids ) ) );
 			}
 		}
 
@@ -1636,35 +1641,22 @@ class Rolling_Coverage_Block {
 	 * polls from here, so entries published before the page was rendered are
 	 * not reported as new.
 	 *
-	 * @param int    $coverage_id Coverage term ID.
-	 * @param string $marker      The coverage's change marker, read before its entries.
+	 * @param int    $coverage_id   Coverage term ID.
+	 * @param string $marker        The coverage's change marker, read before its entries.
+	 * @param string $newest_change The coverage's newest change (newest_change()), read before its entries.
 	 * @return Poll_Cursor
 	 */
-	private static function coverage_cursor( int $coverage_id, string $marker ): Poll_Cursor {
-		$args = array_merge(
-			self::coverage_entries_args( $coverage_id ),
-			[
-				'orderby'                     => 'modified',
-				'order'                       => 'DESC',
-				'posts_per_page'              => 1,
-				'update_post_meta_cache'      => false,
-				'update_post_term_cache'      => false,
-				Post_Type::SKIP_PIN_ORDER_VAR => true,
-			]
-		);
-
-		$newest = ( new WP_Query( $args ) )->posts[0] ?? null;
-
-		if ( ! $newest instanceof WP_Post ) {
+	private static function coverage_cursor( int $coverage_id, string $marker, string $newest_change ): Poll_Cursor {
+		if ( '' === $newest_change ) {
 			return Poll_Cursor::for_entries( [], $marker );
 		}
 
-		$second = self::gmt_date_bound( $newest->post_modified_gmt );
+		$second = self::gmt_date_bound( $newest_change );
 		$ids    = ( new WP_Query(
 			array_merge(
-				$args,
+				self::coverage_entries_args( $coverage_id ),
 				[
-					'date_query'     => [
+					'date_query'                  => [
 						[
 							'column'    => 'post_modified_gmt',
 							'after'     => $second,
@@ -1672,57 +1664,79 @@ class Rolling_Coverage_Block {
 							'inclusive' => true,
 						],
 					],
+					'orderby'                     => 'modified',
+					'order'                       => 'DESC',
 					// The page of held entries a poll makes room for.
-					'posts_per_page' => self::PER_PAGE_MAX,
-					'fields'         => 'ids',
+					'posts_per_page'              => self::PER_PAGE_MAX,
+					'fields'                      => 'ids',
+					Post_Type::SKIP_PIN_ORDER_VAR => true,
 				]
 			)
 		) )->posts;
 
-		return new Poll_Cursor( $newest->post_modified_gmt, $ids, $marker );
+		return new Poll_Cursor( $newest_change, $ids, $marker );
 	}
 
 	/**
-	 * Up to `$limit` entries saved in a second that the feed lists below a
-	 * page's last entry, nearest first. The page leaves them out by design.
-	 * When the page ends on an unpinned entry, any listed above it can only
-	 * have been published after the page's query, and still need to reach
-	 * it. A page showing only pinned entries leaves out unpinned ones by pin
-	 * order rather than date, so some of those aren't returned and arrive as
-	 * new.
+	 * When a coverage's published entries last changed.
 	 *
-	 * @param int     $coverage_id Coverage term ID.
-	 * @param string  $second      GMT `Y-m-d H:i:s` the entries were saved in.
-	 * @param WP_Post $last        The last entry on the page.
-	 * @param int     $limit       How many to return at most.
+	 * @param int $coverage_id Coverage term ID.
+	 * @return string GMT `Y-m-d H:i:s` of the newest save, or '' when it has none.
+	 */
+	private static function newest_change( int $coverage_id ): string {
+		$newest = ( new WP_Query(
+			array_merge(
+				self::coverage_entries_args( $coverage_id ),
+				[
+					'orderby'                     => 'modified',
+					'order'                       => 'DESC',
+					'posts_per_page'              => 1,
+					'update_post_meta_cache'      => false,
+					'update_post_term_cache'      => false,
+					Post_Type::SKIP_PIN_ORDER_VAR => true,
+				]
+			)
+		) )->posts[0] ?? null;
+
+		return $newest instanceof WP_Post ? $newest->post_modified_gmt : '';
+	}
+
+	/**
+	 * Up to `$limit` entries saved in a second that load more lists after a
+	 * page's bound, nearest first. The page leaves them out by design. Any
+	 * listed above the bound and missing from the page can only have been
+	 * published after the page's query, and still need to reach it.
+	 *
+	 * @param int    $coverage_id Coverage term ID.
+	 * @param string $second      GMT `Y-m-d H:i:s` the entries were saved in.
+	 * @param string $before      The page's load-more bound.
+	 * @param int    $limit       How many to return at most.
 	 * @return int[]
 	 */
-	private static function listed_below( int $coverage_id, string $second, WP_Post $last, int $limit ): array {
+	private static function listed_below( int $coverage_id, string $second, string $before, int $limit ): array {
 		if ( $limit < 1 ) {
 			return [];
 		}
 
 		$saved_in = self::gmt_date_bound( $second );
+		$below    = self::load_more_args( $before );
 
 		return ( new WP_Query(
 			array_merge(
 				self::coverage_entries_args( $coverage_id ),
+				$below,
 				[
-					'date_query'                  => [
+					'date_query'                  => array_merge(
 						[
-							'column'    => 'post_modified_gmt',
-							'after'     => $saved_in,
-							'before'    => $saved_in,
-							'inclusive' => true,
+							[
+								'column'    => 'post_modified_gmt',
+								'after'     => $saved_in,
+								'before'    => $saved_in,
+								'inclusive' => true,
+							],
 						],
-						[
-							'column'    => 'post_date_gmt',
-							'before'    => self::gmt_date_bound( $last->post_date_gmt ),
-							'inclusive' => true,
-						],
-					],
-					self::LOAD_MORE_BOUND_VAR     => [ $last->post_date_gmt, $last->ID ],
-					'orderby'                     => self::FEED_ORDER,
+						$below['date_query']
+					),
 					'posts_per_page'              => $limit,
 					'fields'                      => 'ids',
 					Post_Type::SKIP_PIN_ORDER_VAR => true,
@@ -3979,6 +3993,30 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Query arguments for the entries load more lists after a bound, in
+	 * FEED_ORDER. The render uses them too, to hold the entries a page leaves
+	 * out in its cursor, so the two agree on where a page stops.
+	 *
+	 * @param string $before Load-more bound.
+	 * @return array WP_Query arguments.
+	 */
+	private static function load_more_args( string $before ): array {
+		[ $before_gmt, $before_id ] = self::parse_load_more_bound( $before );
+
+		return [
+			'date_query'              => [
+				[
+					'column'    => 'post_date_gmt',
+					'before'    => self::gmt_date_bound( $before_gmt ),
+					'inclusive' => $before_id > 0,
+				],
+			],
+			'orderby'                 => self::FEED_ORDER,
+			self::LOAD_MORE_BOUND_VAR => $before_id > 0 ? [ $before_gmt, $before_id ] : null,
+		];
+	}
+
+	/**
 	 * Leaves out of a load-more query the entries published in its bound's
 	 * second that FEED_ORDER lists at or above the bound's entry, which the
 	 * page already shows.
@@ -4432,22 +4470,7 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		[ $before_gmt, $before_id ] = self::parse_load_more_bound( (string) $before );
-
-		$args = array_merge(
-			$base_args,
-			[
-				'date_query'              => [
-					[
-						'column'    => 'post_date_gmt',
-						'before'    => self::gmt_date_bound( $before_gmt ),
-						'inclusive' => $before_id > 0,
-					],
-				],
-				'orderby'                 => self::FEED_ORDER,
-				self::LOAD_MORE_BOUND_VAR => $before_id > 0 ? [ $before_gmt, $before_id ] : null,
-			]
-		);
+		$args = array_merge( $base_args, self::load_more_args( (string) $before ) );
 
 		$entry_offset = max( 0, (int) ( $params['entry_offset'] ?? 0 ) );
 
