@@ -382,6 +382,13 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 		add_action( 'added_term_meta', $record, 10, 3 );
 		add_action( 'updated_term_meta', $record, 10, 3 );
 
+		// Registered again, so they run last at their priority: the marker
+		// writer has to come after them by priority, not by load order.
+		foreach ( [ 'record_entry_published_gmt', 'record_entry_unpublished' ] as $recorder ) {
+			remove_action( 'transition_post_status', [ Post_Type::class, $recorder ], 10 );
+			add_action( 'transition_post_status', [ Post_Type::class, $recorder ], 10, 3 );
+		}
+
 		wp_publish_post( $entry_id );
 
 		$this->assertNotEmpty( $recorded );
