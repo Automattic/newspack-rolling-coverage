@@ -659,7 +659,7 @@ function initBlock( root: HTMLElement ): void {
 			? newerEntriesLabel(
 					newerCount - pinnedCountedIds.size + countedEntryIds.size,
 					entryName
-			  )
+				)
 			: '';
 		const text = label || ownLabel;
 
@@ -981,9 +981,9 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		// Load more continues below its bound, which sits lower than the last
-		// entry shown when a page of older entries ended on a pinned entry the
-		// list already held. An entry taken off the page above the bound
-		// would never load again.
+		// entry shown when a page of older entries ended on a pinned entry,
+		// one the list already held or one it moved up to the pinned entries.
+		// An entry taken off the page above the bound would never load again.
 		const [ , boundId = '0', boundDate = before ] =
 			/^(\d+):(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/.exec( before ) ??
 			[];
@@ -2178,7 +2178,7 @@ function initBlock( root: HTMLElement ): void {
 			const countedBefore = countedEntryIds.size;
 
 			newEntries.forEach( ( { el } ) => {
-				// Pinned before it went live: a fresh page lists it with the
+				// Pinned by the time it arrived: a fresh page lists it with the
 				// pinned entries and leaves it out of the count.
 				if ( el.hasAttribute( 'data-pinned' ) ) {
 					showPinnedEntry( el );
@@ -2766,8 +2766,8 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Loads and appends the next page of older entries. An entry pinned since
-	 * the page rendered joins the pinned entries instead.
+	 * Loads and appends the next page of older entries. A pinned entry the
+	 * page doesn't show yet joins the pinned entries instead.
 	 *
 	 * Sends the backlog position so ad placement stays stable across load-more
 	 * pages.
@@ -2877,9 +2877,10 @@ function initBlock( root: HTMLElement ): void {
 						observeEntry( entry );
 
 						// Pinned since the page rendered, before a poll could
-						// show it: it comes at its date, and a fresh page lists
-						// it with the pinned entries. Its ad goes, as a dropped
-						// entry's does.
+						// show it, or left out of a first page full of pinned
+						// entries: it comes at its date, and goes with the
+						// pinned entries, as a fresh page orders it. Its ad
+						// goes, as a dropped entry's does.
 						if ( entry.hasAttribute( 'data-pinned' ) ) {
 							entriesList.insertBefore(
 								entry,
