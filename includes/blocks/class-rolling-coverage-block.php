@@ -865,7 +865,9 @@ class Rolling_Coverage_Block {
 	/**
 	 * Hides an entry's avatar and author name while the Slack bot is its
 	 * author. The rule keys on the author, so an entry an editor reassigns
-	 * to a reporter shows that reporter.
+	 * to a reporter shows that reporter. render_entry() already drops them
+	 * from the template (see shape_entry_template()); this catches any that
+	 * reach the entry another way, such as blocks in its own content.
 	 *
 	 * @param string   $block_content Rendered block.
 	 * @param array    $block         Parsed block.
@@ -1240,7 +1242,7 @@ class Rolling_Coverage_Block {
 
 		$feed         = self::feed_group( $block );
 		$feed_layout  = (array) ( $feed['attrs']['layout'] ?? [] );
-		$template     = self::get_entry_template( $block );
+		$template     = self::with_author_settings( self::get_entry_template( $block ), $attributes );
 		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval, $latest_count, $feed_layout );
 		$unplaced     = 'grid' === ( $feed_layout['type'] ?? '' ) ? self::without_grid_placements( $template ) : $template;
 		$column_rules = $is_capped ? [] : self::column_rules( $template, $feed_layout );
@@ -2973,7 +2975,10 @@ class Rolling_Coverage_Block {
 	 * breakout link to show also drops any bottom margin set on its last
 	 * block, and as the last entry, a card that closes the template drops any
 	 * set below it, so the card's padding is even and nothing trails the list.
-	 * With avatars turned off, a column holding only an avatar goes. A card or
+	 * With avatars turned off, avatars go, with any column holding only one.
+	 * An entry the Slack bot wrote drops its author's avatar and name but
+	 * keeps such a column, so its text lines up with the other entries. Either
+	 * way a group left empty goes (see without_author_blocks()). A card or
 	 * entry group set to stick takes its position under a stable class (see
 	 * with_stable_position()).
 	 *
@@ -2982,13 +2987,19 @@ class Rolling_Coverage_Block {
 	 * @param bool    $has_breakout Whether a pinned entry has a published
 	 *                              breakout; only read for pinned entries.
 	 * @param bool    $is_last      Whether the entry is the last one to load.
+	 * @param bool    $hides_byline Whether the entry hides its author, as one
+	 *                              the Slack bot wrote does.
 	 * @return array[]
 	 */
-	public static function shape_entry_template( array $template, bool $is_pinned, bool $has_breakout, bool $is_last ): array {
+	public static function shape_entry_template( array $template, bool $is_pinned, bool $has_breakout, bool $is_last, bool $hides_byline = false ): array {
 		$template = self::for_entry_kind( $template, $is_pinned );
 
 		if ( ! get_option( 'show_avatars' ) ) {
-			$template = self::without_avatar_columns( $template );
+			$template = self::without_author_blocks( $template, false, true );
+		}
+
+		if ( $hides_byline ) {
+			$template = self::without_author_blocks( $template, true, false );
 		}
 
 		if ( ( $is_pinned && self::has_pinned_card( $template ) ) || $is_last ) {
@@ -3032,22 +3043,64 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The template without the columns that hold only an avatar.
+	 * The entry template as the block's Author and Avatar settings show it:
+	 * without the author's avatar and name when Author is on Hide, or without
+	 * the avatar when Avatar is, along with the columns that held only an
+	 * avatar and the groups left empty (see without_author_blocks()). Applied
+	 * before the template is stored, so polls, load more and the jump to the
+	 * latest entries render it the same way.
 	 *
-	 * @param array[] $template Parsed template blocks.
+	 * @param array[] $template   Parsed template blocks.
+	 * @param array   $attributes Block attributes.
 	 * @return array[]
 	 */
-	private static function without_avatar_columns( array $template ): array {
+	private static function with_author_settings( array $template, array $attributes ): array {
+		if ( false === ( $attributes['showAuthor'] ?? true ) ) {
+			return self::without_author_blocks( $template, true, true );
+		}
+
+		if ( false === ( $attributes['showAvatar'] ?? true ) ) {
+			return self::without_author_blocks( $template, false, true );
+		}
+
+		return $template;
+	}
+
+	/**
+	 * The template without its avatars, and its author names too when asked.
+	 * A group they leave empty goes, since it would still take a Block spacing
+	 * gap in its row; a group that was empty already stays. A column holding
+	 * only an avatar goes too, unless it's kept so the entry's text lines up
+	 * with the other entries.
+	 *
+	 * @param array[] $template             Parsed template blocks.
+	 * @param bool    $drops_name           Whether author names go too.
+	 * @param bool    $drops_avatar_columns Whether columns holding only an
+	 *                                      avatar go.
+	 * @return array[]
+	 */
+	private static function without_author_blocks( array $template, bool $drops_name, bool $drops_avatar_columns ): array {
 		return self::map_template_blocks(
 			$template,
-			static function ( array $block ) {
-				$inner = $block['innerBlocks'] ?? [];
+			static function ( array $block, array $original ) use ( $drops_name, $drops_avatar_columns ) {
+				$name  = $block['blockName'] ?? '';
+				$inner = $original['innerBlocks'] ?? [];
 
-				$is_avatar_column = 'core/column' === ( $block['blockName'] ?? '' )
+				if ( 'core/avatar' === $name || ( $drops_name && 'core/post-author-name' === $name ) ) {
+					return [];
+				}
+
+				$is_avatar_column = 'core/column' === $name
 					&& 1 === count( $inner )
 					&& 'core/avatar' === ( $inner[0]['blockName'] ?? '' );
 
-				return $is_avatar_column ? [] : [ $block ];
+				if ( $drops_avatar_columns && $is_avatar_column ) {
+					return [];
+				}
+
+				$is_emptied_group = 'core/group' === $name && $inner && empty( $block['innerBlocks'] );
+
+				return $is_emptied_group ? [] : [ $block ];
 			}
 		);
 	}
@@ -3690,7 +3743,8 @@ class Rolling_Coverage_Block {
 			self::drop_fixed_template_dates( $template ),
 			$is_pinned,
 			$is_pinned && null !== Breakout::get_published_breakout_url( $entry->ID ),
-			$is_last
+			$is_last,
+			self::is_bot_authored( $entry->ID )
 		);
 
 		if ( ! self::has_title( $entry ) ) {

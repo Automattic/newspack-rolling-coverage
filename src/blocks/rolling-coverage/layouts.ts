@@ -10,7 +10,6 @@ import { getLayoutId } from './utils';
 import {
 	innerTemplate,
 	streamInnerTemplate,
-	voicesInnerTemplate,
 	railInnerTemplate,
 	clockInnerTemplate,
 	marginInnerTemplate,
@@ -28,7 +27,6 @@ import type { TemplateItem } from './types';
 export type BuiltInLayoutSlug =
 	| 'default'
 	| 'stream'
-	| 'voices'
 	| 'rail'
 	| 'clock'
 	| 'margin'
@@ -48,6 +46,8 @@ export type BuiltInLayout = {
 	latest?: number;
 	hidesWhenEnded?: boolean;
 	align?: string;
+	hidesAvatar?: boolean;
+	keepsAuthor?: boolean;
 	previewWidth?: number;
 };
 
@@ -69,24 +69,22 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			template: streamInnerTemplate,
 		},
 		{
-			slug: 'voices',
-			title: _x( 'Voices', 'layout name', 'newspack-rolling-coverage' ),
-			template: voicesInnerTemplate,
-		},
-		{
 			slug: 'rail',
 			title: _x( 'Rail', 'layout name', 'newspack-rolling-coverage' ),
 			template: railInnerTemplate,
+			hidesAvatar: true,
 		},
 		{
 			slug: 'clock',
 			title: _x( 'Clock', 'layout name', 'newspack-rolling-coverage' ),
 			template: clockInnerTemplate,
+			hidesAvatar: true,
 		},
 		{
 			slug: 'margin',
 			title: _x( 'Margin', 'layout name', 'newspack-rolling-coverage' ),
 			template: marginInnerTemplate,
+			hidesAvatar: true,
 		},
 		{
 			slug: 'minute',
@@ -97,6 +95,7 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			slug: 'byline',
 			title: _x( 'Byline', 'layout name', 'newspack-rolling-coverage' ),
 			template: bylineInnerTemplate,
+			keepsAuthor: true,
 		},
 		{
 			slug: 'ticker',
@@ -111,6 +110,7 @@ export function getBuiltInLayouts(): BuiltInLayout[] {
 			title: _x( 'Split', 'layout name', 'newspack-rolling-coverage' ),
 			template: splitInnerTemplate,
 			align: 'wide',
+			hidesAvatar: true,
 		},
 		{
 			slug: 'wire',
@@ -164,8 +164,10 @@ export function builtInLayoutSlugFor(
 }
 
 /**
- * The cap attributes a built-in layout sets when it is picked, and its
- * alignment, capped or not.
+ * The cap attributes a built-in layout sets when it is picked, its
+ * alignment, capped or not, and whether its entries show the author's
+ * avatar. Byline, whose entries are led by their byline, offers no Author
+ * setting, so it shows the author again.
  *
  * @param {BuiltInLayoutSlug} slug The layout's slug.
  * @return {Object} The attributes to set.
@@ -175,8 +177,14 @@ export function layoutCapAttributes( slug: BuiltInLayoutSlug ): {
 	latestCount?: number;
 	hideWhenEnded: boolean;
 	align?: string;
+	showAvatar: boolean;
+	showAuthor?: boolean;
 } {
 	const layout = getBuiltInLayouts().find( ( item ) => item.slug === slug );
+	const author = {
+		showAvatar: ! layout?.hidesAvatar,
+		...( layout?.keepsAuthor ? { showAuthor: true } : {} ),
+	};
 
 	if ( layout?.latest ) {
 		return {
@@ -184,6 +192,7 @@ export function layoutCapAttributes( slug: BuiltInLayoutSlug ): {
 			latestCount: layout.latest,
 			hideWhenEnded: !! layout.hidesWhenEnded,
 			...( layout.align ? { align: layout.align } : {} ),
+			...author,
 		};
 	}
 
@@ -191,13 +200,14 @@ export function layoutCapAttributes( slug: BuiltInLayoutSlug ): {
 		latestOnly: false,
 		hideWhenEnded: false,
 		...( layout?.align ? { align: layout.align } : {} ),
+		...author,
 	};
 }
 
 /**
  * The attributes a built-in layout sets when picked in place of another: its
- * cap, and its alignment. A layout that sets neither clears the values a
- * replaced layout set, while values chosen by hand stay.
+ * cap, its alignment, and its avatar. A layout that sets none of them clears
+ * the values a replaced layout set, while values chosen by hand stay.
  *
  * @param {BuiltInLayoutSlug}   slug         The picked layout's slug.
  * @param {BuiltInLayoutSlug[]} replaced     The built-in layouts that may have set the block's current values.
@@ -221,6 +231,13 @@ export function switchLayoutAttributes(
 	) {
 		delete attributes.latestOnly;
 		delete attributes.hideWhenEnded;
+	}
+
+	if (
+		attributes.showAvatar &&
+		! replacedLayouts.some( ( layout ) => layout.hidesAvatar )
+	) {
+		delete attributes.showAvatar;
 	}
 
 	if ( attributes.align || ! currentAlign ) {

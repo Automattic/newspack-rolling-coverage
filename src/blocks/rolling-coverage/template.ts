@@ -321,6 +321,34 @@ function authorName( fontWeight: '400' | '700' ): TemplateItem {
 }
 
 /**
+ * The entry author's avatar and name, side by side, to lead a links row. They
+ * share a group so the row's wider gap falls between the author and the links.
+ *
+ * @return {TemplateItem} The group.
+ */
+function authorGroup(): TemplateItem {
+	return [
+		'core/group',
+		{
+			layout: {
+				type: 'flex',
+				flexWrap: 'nowrap',
+				verticalAlignment: 'center',
+			},
+			style: { spacing: { blockGap: 'var:preset|spacing|20' } },
+			metadata: { name: __( 'Author', 'newspack-rolling-coverage' ) },
+		},
+		[
+			[
+				'core/avatar',
+				{ size: 24, style: { border: { radius: '50%' } } },
+			],
+			authorName( '400' ),
+		],
+	];
+}
+
+/**
  * The text a new layout's link to the coverage page starts with, in the
  * site's own plural for entries when it sets one.
  *
@@ -495,9 +523,9 @@ function bulletinEntryTemplate( sizes: string[] ): TemplateItem[] {
 }
 
 /**
- * What a Stream entry shows: no title, the content set larger, then a row
- * with the relative date, "Read more" and "Share". The pinned card's also
- * carry the pinned row.
+ * What a Stream entry shows: no title, the author's avatar, name and the
+ * relative date above the content, which is set larger, then "Read more"
+ * and "Share". The pinned card's also carry the pinned row, first.
  *
  * @param {string[]} slugs    The palette's color slugs.
  * @param {string[]} sizes    The theme's font size slugs.
@@ -505,56 +533,6 @@ function bulletinEntryTemplate( sizes: string[] ): TemplateItem[] {
  * @return {TemplateItem[]} The entry's blocks.
  */
 function streamEntryBlocks(
-	slugs: string[],
-	sizes: string[],
-	isPinned: boolean
-): TemplateItem[] {
-	const blocks: TemplateItem[] = [
-		postContent( themeFontSize( sizes, 'medium', 'normal' ) ),
-		[
-			'core/group',
-			{
-				layout: {
-					type: 'flex',
-					flexWrap: 'wrap',
-					verticalAlignment: 'center',
-				},
-				style: { spacing: { blockGap: 'var:preset|spacing|30' } },
-				metadata: {
-					name: __( 'Footer', 'newspack-rolling-coverage' ),
-				},
-			},
-			[
-				[
-					'core/post-date',
-					{
-						...POST_DATE_ATTRIBUTES,
-						format: 'human-diff',
-						fontSize: 'small',
-						...mutedDateColor( slugs ),
-					},
-				],
-				readMoreLink(),
-				shareLink(),
-			],
-		],
-	];
-
-	return isPinned ? [ PINNED_ROW, ...blocks ] : blocks;
-}
-
-/**
- * What a Voices entry shows: Stream's entry, signed above the content with
- * the author's avatar, name and the relative date, which leave the footer
- * to "Read more" and "Share". The pinned card's also carry the pinned row,
- * first.
- *
- * @param {string[]} slugs    The palette's color slugs.
- * @param {string[]} sizes    The theme's font size slugs.
- * @param {boolean}  isPinned Whether the blocks are the pinned card's.
- * @return {TemplateItem[]} The entry's blocks.
- */
-function voicesEntryBlocks(
 	slugs: string[],
 	sizes: string[],
 	isPinned: boolean
@@ -610,15 +588,16 @@ function voicesEntryBlocks(
 }
 
 /**
- * A per-entry template of untitled entries spaced apart with no separator,
- * and the pinned entry in a bordered card.
+ * The Stream layout's per-entry template: untitled entries spaced apart with
+ * no separator, and the pinned entry in a bordered card.
  *
- * @param {Function} blocks Returns an entry's blocks, given whether they're
- *                          the pinned card's.
+ * @param {string[]} slugs The palette's color slugs.
+ * @param {string[]} sizes The theme's font size slugs.
  * @return {TemplateItem[]} The template.
  */
-function cardedEntryTemplate(
-	blocks: ( isPinned: boolean ) => TemplateItem[]
+function streamEntryTemplate(
+	slugs: string[],
+	sizes: string[]
 ): TemplateItem[] {
 	return [
 		[
@@ -642,7 +621,7 @@ function cardedEntryTemplate(
 					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			blocks( true ),
+			streamEntryBlocks( slugs, sizes, true ),
 		],
 		[
 			'core/group',
@@ -654,48 +633,16 @@ function cardedEntryTemplate(
 					name: __( 'Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			blocks( false ),
+			streamEntryBlocks( slugs, sizes, false ),
 		],
 	];
 }
 
 /**
- * The Stream layout's per-entry template.
- *
- * @param {string[]} slugs The palette's color slugs.
- * @param {string[]} sizes The theme's font size slugs.
- * @return {TemplateItem[]} The template.
- */
-function streamEntryTemplate(
-	slugs: string[],
-	sizes: string[]
-): TemplateItem[] {
-	return cardedEntryTemplate( ( isPinned ) =>
-		streamEntryBlocks( slugs, sizes, isPinned )
-	);
-}
-
-/**
- * The Voices layout's per-entry template: Stream's, with each entry signed.
- *
- * @param {string[]} slugs The palette's color slugs.
- * @param {string[]} sizes The theme's font size slugs.
- * @return {TemplateItem[]} The template.
- */
-function voicesEntryTemplate(
-	slugs: string[],
-	sizes: string[]
-): TemplateItem[] {
-	return cardedEntryTemplate( ( isPinned ) =>
-		voicesEntryBlocks( slugs, sizes, isPinned )
-	);
-}
-
-/**
  * A Rail entry's row: the time, or on the pinned card the pin icon, in a
  * narrow column, then the entry beside a vertical rule, signed with the
- * author's name beside its links. The entry is a vertical flex group, so
- * its spacing also applies on the Newspack Theme (see
+ * author's avatar and name beside its links. The entry is a vertical flex
+ * group, so its spacing also applies on the Newspack Theme (see
  * Rolling_Coverage_Block::apply_entry_block_gap()). The pinned card's rule
  * is in the accent color and its entry sits on a tinted panel. With no
  * pinned label, the site announces the entry as pinned itself (see
@@ -731,7 +678,7 @@ function railRow( isPinned: boolean ): TemplateItem {
 	const entry: TemplateItem[] = [
 		[ 'core/post-title', { level: 4 } ],
 		postContent(),
-		linksRow( [ authorName( '400' ), readMoreLink(), shareLink() ] ),
+		linksRow( [ authorGroup(), readMoreLink(), shareLink() ] ),
 	];
 
 	return [
@@ -902,8 +849,8 @@ function ruledRow(
 /**
  * A Clock entry's row: the time set large in a narrow column with the
  * relative date below it, or on the pinned card the pinned row in the
- * accent color, then the title, content, and the author's name with the
- * links beside it.
+ * accent color, then the title, content, and the author's avatar and name
+ * with the links beside it.
  *
  * @param {string[]} slugs    The palette's color slugs.
  * @param {string[]} sizes    The theme's font size slugs.
@@ -958,11 +905,7 @@ function clockRow(
 				stack( __( 'Entry', 'newspack-rolling-coverage' ), [
 					[ 'core/post-title', { level: 4 } ],
 					postContent(),
-					linksRow( [
-						authorName( '400' ),
-						readMoreLink(),
-						shareLink(),
-					] ),
+					linksRow( [ authorGroup(), readMoreLink(), shareLink() ] ),
 				] ),
 			],
 		],
@@ -971,9 +914,9 @@ function clockRow(
 
 /**
  * A Margin entry's row: the time, or on the pinned card the pinned row,
- * the title, and the author's name with the links in a margin column, and
- * the content in the wider column beside it. The pinned card is ruled off
- * with a heavier rule.
+ * the title, and the author's avatar and name with the links in a margin
+ * column, and the content in the wider column beside it. The pinned card is
+ * ruled off with a heavier rule.
  *
  * @param {boolean} isPinned Whether the row is the pinned card's.
  * @return {TemplateItem} The row.
@@ -1009,7 +952,7 @@ function marginRow( isPinned: boolean ): TemplateItem {
 						marker,
 						[ 'core/post-title', { level: 4 } ],
 						linksRow( [
-							authorName( '400' ),
+							authorGroup(),
 							readMoreLink(),
 							shareLink(),
 						] ),
@@ -1753,9 +1696,9 @@ const SPLIT_STACKED_PLACEMENT = { layout: { columnStart: 1, columnSpan: 1 } };
  * the reader scrolls where the theme supports it, ruled off with a heavier
  * rule; above the entries on tablets and phones. Each entry spans the other
  * two columns, the time it was posted beside the title, content, and the
- * author's name with the links, or above them on phones. The summary is
- * signed the same way. The site places each entry's article where its
- * group says (see Rolling_Coverage_Block::place_in_grid()).
+ * author's avatar and name with the links, or above them on phones. The
+ * summary is signed the same way. The site places each entry's article
+ * where its group says (see Rolling_Coverage_Block::place_in_grid()).
  *
  * @return {TemplateItem[]} The template.
  */
@@ -1809,11 +1752,7 @@ function splitEntryTemplate(): TemplateItem[] {
 				pinnedRow( ACCENT ),
 				[ 'core/post-title', { level: 4 } ],
 				postContent(),
-				linksRow( [
-					authorName( '400' ),
-					readMoreLink(),
-					shareLink(),
-				] ),
+				linksRow( [ authorGroup(), readMoreLink(), shareLink() ] ),
 			],
 		],
 		[
@@ -1903,7 +1842,7 @@ function splitEntryTemplate(): TemplateItem[] {
 										[ 'core/post-title', { level: 4 } ],
 										postContent(),
 										linksRow( [
-											authorName( '400' ),
+											authorGroup(),
 											readMoreLink(),
 											shareLink(),
 										] ),
@@ -2329,6 +2268,37 @@ function blockIdsOfType(
 					name
 				)
 	);
+}
+
+/**
+ * The client IDs of the blocks the Author and Avatar settings leave out of an
+ * entry template (see withAuthorSettings()), at any depth, so an editable
+ * layout hides them as the site does.
+ *
+ * @param {Object[]} blocks     The template blocks.
+ * @param {boolean}  showAuthor The block's Author setting.
+ * @param {boolean}  showAvatar The block's Avatar setting.
+ * @return {string[]} Client IDs.
+ */
+function hiddenAuthorBlockIds(
+	blocks: { name: string; [ key: string ]: unknown }[],
+	showAuthor: boolean,
+	showAvatar: boolean
+): string[] {
+	const idsOf = ( items: typeof blocks ): string[] =>
+		items.flatMap( ( block ) => [
+			block.clientId as string,
+			...idsOf(
+				Array.isArray( block.innerBlocks )
+					? ( block.innerBlocks as typeof blocks )
+					: []
+			),
+		] );
+	const kept = new Set(
+		idsOf( withAuthorSettings( blocks, showAuthor, showAvatar ) )
+	);
+
+	return idsOf( blocks ).filter( ( id ) => ! kept.has( id ) );
 }
 
 /**
@@ -3321,10 +3291,68 @@ function withEntryLinkTitleText<
 }
 
 /**
- * The template as the site renders it with avatars turned off: without the
- * columns that hold only an avatar, mirroring
- * Rolling_Coverage_Block::without_avatar_columns(), or any other avatar,
- * which renders nothing (see Rolling_Coverage_Block::size_entry_avatar()).
+ * The template without its avatars, and its author names too when asked,
+ * mirroring Rolling_Coverage_Block::without_author_blocks(). A group they
+ * leave empty goes, as it would still take a gap in its row. A column holding
+ * only an avatar goes too, unless kept so the entry's text lines up with the
+ * others.
+ *
+ * @param {Object[]} blocks             The template blocks.
+ * @param {boolean}  dropsName          Whether author names go too.
+ * @param {boolean}  dropsAvatarColumns Whether avatar-only columns go.
+ * @return {Object[]} The blocks without them.
+ */
+function withoutAuthorBlocks<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[], dropsName: boolean, dropsAvatarColumns: boolean ): T[] {
+	return blocks.flatMap( ( block ): T[] => {
+		const innerBlocks = Array.isArray( block.innerBlocks )
+			? ( block.innerBlocks as T[] )
+			: null;
+
+		if (
+			block.name === 'core/avatar' ||
+			( dropsName && block.name === 'core/post-author-name' )
+		) {
+			return [];
+		}
+
+		if (
+			dropsAvatarColumns &&
+			block.name === 'core/column' &&
+			innerBlocks?.length === 1 &&
+			innerBlocks[ 0 ].name === 'core/avatar'
+		) {
+			return [];
+		}
+
+		if ( ! innerBlocks ) {
+			return [ block ];
+		}
+
+		const kept = withoutAuthorBlocks(
+			innerBlocks,
+			dropsName,
+			dropsAvatarColumns
+		);
+
+		if (
+			block.name === 'core/group' &&
+			innerBlocks.length > 0 &&
+			kept.length === 0
+		) {
+			return [];
+		}
+
+		return [ { ...block, innerBlocks: kept } ];
+	} );
+}
+
+/**
+ * The template without avatars, or the columns that hold only one, as the
+ * site renders it with avatars turned off (see
+ * Rolling_Coverage_Block::shape_entry_template()) or the block's Avatar
+ * setting on Hide.
  *
  * @param {Object[]} blocks The template blocks.
  * @return {Object[]} The blocks without avatars.
@@ -3332,33 +3360,12 @@ function withEntryLinkTitleText<
 function withoutAvatarColumns<
 	T extends { name: string; [ key: string ]: unknown },
 >( blocks: T[] ): T[] {
-	return blocks
-		.filter( ( block ) => {
-			const innerBlocks = Array.isArray( block.innerBlocks )
-				? ( block.innerBlocks as T[] )
-				: [];
-			const isAvatarColumn =
-				block.name === 'core/column' &&
-				innerBlocks.length === 1 &&
-				innerBlocks[ 0 ].name === 'core/avatar';
-
-			return block.name !== 'core/avatar' && ! isAvatarColumn;
-		} )
-		.map( ( block ) =>
-			Array.isArray( block.innerBlocks )
-				? {
-						...block,
-						innerBlocks: withoutAvatarColumns(
-							block.innerBlocks as T[]
-						),
-					}
-				: block
-		);
+	return withoutAuthorBlocks( blocks, false, true );
 }
 
 /**
  * The template without the author's avatar and name, as an entry the Slack
- * bot wrote renders, mirroring Rolling_Coverage_Block::hide_slack_bot_byline().
+ * bot wrote renders (see Rolling_Coverage_Block::shape_entry_template()).
  * The avatar's column stays, so the entry's text lines up with the others.
  *
  * @param {Object[]} blocks The template blocks.
@@ -3367,20 +3374,28 @@ function withoutAvatarColumns<
 function withoutByline< T extends { name: string; [ key: string ]: unknown } >(
 	blocks: T[]
 ): T[] {
-	return blocks
-		.filter(
-			( block ) =>
-				block.name !== 'core/avatar' &&
-				block.name !== 'core/post-author-name'
-		)
-		.map( ( block ) =>
-			Array.isArray( block.innerBlocks )
-				? {
-						...block,
-						innerBlocks: withoutByline( block.innerBlocks as T[] ),
-					}
-				: block
-		);
+	return withoutAuthorBlocks( blocks, true, false );
+}
+
+/**
+ * The template as the block's Author and Avatar settings show it, mirroring
+ * Rolling_Coverage_Block::with_author_settings(): without the author's
+ * avatar and name when Author is on Hide, or without the avatar when Avatar
+ * is, with the columns that held only an avatar.
+ *
+ * @param {Object[]} blocks     The template blocks.
+ * @param {boolean}  showAuthor The block's Author setting.
+ * @param {boolean}  showAvatar The block's Avatar setting.
+ * @return {Object[]} The blocks as the settings show them.
+ */
+function withAuthorSettings<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[], showAuthor: boolean, showAvatar: boolean ): T[] {
+	if ( ! showAuthor ) {
+		return withoutAuthorBlocks( blocks, true, true );
+	}
+
+	return showAvatar ? blocks : withoutAvatarColumns( blocks );
 }
 
 /**
@@ -3410,7 +3425,6 @@ const ENTRY_ALLOWED_BLOCKS = [
 export {
 	bulletinEntryTemplate,
 	streamEntryTemplate,
-	voicesEntryTemplate,
 	railEntryTemplate,
 	clockEntryTemplate,
 	marginEntryTemplate,
@@ -3477,4 +3491,6 @@ export {
 	withEntryLinkTitleText,
 	withoutAvatarColumns,
 	withoutByline,
+	withAuthorSettings,
+	hiddenAuthorBlockIds,
 };

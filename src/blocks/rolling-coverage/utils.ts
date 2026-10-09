@@ -38,7 +38,6 @@ import type { BuiltInLayoutSlug } from './layouts';
 const layoutIds: Record< BuiltInLayoutSlug, number > = {
 	default: Number( LAYOUT_IDS.default ) || 0,
 	stream: Number( LAYOUT_IDS.stream ) || 0,
-	voices: Number( LAYOUT_IDS.voices ) || 0,
 	rail: Number( LAYOUT_IDS.rail ) || 0,
 	clock: Number( LAYOUT_IDS.clock ) || 0,
 	margin: Number( LAYOUT_IDS.margin ) || 0,
