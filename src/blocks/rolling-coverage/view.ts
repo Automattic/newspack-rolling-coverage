@@ -894,12 +894,33 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Moves an entry unpinned while the page is open to where a fresh page
 	 * would list it. When that is below load more's bound, it leaves the
-	 * page until load more brings it there.
+	 * page until load more brings it there. A feed opened at a shared entry
+	 * counts it among the newer entries instead when it is dated in a later
+	 * second than the shared entry, as its query and count split them
+	 * (Rolling_Coverage_Block::count_newer_entries()).
 	 *
 	 * @param {HTMLElement} entry The unpinned entry.
 	 * @return {boolean} Whether the entry stays on the page.
 	 */
 	function placeUnpinnedEntry( entry: HTMLElement ): boolean {
+		const date = entry.dataset.dateGmt;
+		const sharedDate = isEntryView
+			? entriesList.querySelector< HTMLElement >(
+					':scope > [data-linked]'
+				)?.dataset.dateGmt
+			: undefined;
+
+		if (
+			date &&
+			sharedDate &&
+			date > sharedDate &&
+			entry.dataset.entryId
+		) {
+			countedEntryIds.add( entry.dataset.entryId );
+			showNewerCount();
+			return false;
+		}
+
 		const below = unpinnedEntryBelow( entry );
 
 		if ( below ) {
@@ -911,7 +932,6 @@ function initBlock( root: HTMLElement ): void {
 		// entry shown when a page of older entries ended on a pinned entry the
 		// list already held. An entry taken off the page above the bound
 		// would never load again.
-		const date = entry.dataset.dateGmt;
 		const [ , boundId = '0', boundDate = before ] =
 			/^(\d+):(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/.exec( before ) ??
 			[];
