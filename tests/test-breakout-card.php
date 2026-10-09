@@ -67,7 +67,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	/**
 	 * The separator between the Pinned label and the Full story label.
 	 */
-	const LABEL_SEPARATOR = '<span class="use-header-font newspack-rolling-coverage-breakout-label-separator has-small-font-size" aria-hidden="true">/</span>';
+	const LABEL_SEPARATOR = '<span class="use-header-font newspack-rolling-coverage-breakout-label-separator has-small-font-size" aria-hidden="true">&bull;</span>';
 
 	/**
 	 * The pinned row: the Pinned label in a flex row with no gap of its own.

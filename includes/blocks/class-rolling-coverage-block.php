@@ -2739,6 +2739,7 @@ class Rolling_Coverage_Block {
 
 					if ( 'core/group' === ( $block['blockName'] ?? '' ) && self::holds_pinned_label_row( $block ) ) {
 						$block['attrs']['layout']['flexWrap'] = 'wrap';
+						$block['attrs']['style']['spacing']['blockGap'] = '0.25em';
 					}
 
 					return [ $block ];

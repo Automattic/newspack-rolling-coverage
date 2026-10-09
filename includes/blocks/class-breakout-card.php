@@ -405,7 +405,7 @@ class Breakout_Card {
 	 * @return array[] Parsed-block-shaped arrays.
 	 */
 	public static function pinned_label_blocks( array $card ): array {
-		$separator = sprintf( '<span class="use-header-font %s has-small-font-size" aria-hidden="true">/</span>', self::LABEL_SEPARATOR_CLASS );
+		$separator = sprintf( '<span class="use-header-font %s has-small-font-size" aria-hidden="true">&bull;</span>', self::LABEL_SEPARATOR_CLASS );
 
 		return [
 			[
