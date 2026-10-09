@@ -2673,7 +2673,10 @@ function initBlock( root: HTMLElement ): void {
 						// it with the pinned entries. Its ad goes, as a dropped
 						// entry's does.
 						if ( entry.hasAttribute( 'data-pinned' ) ) {
-							entriesList.insertBefore( entry, firstUnpinnedEntry() );
+							entriesList.insertBefore(
+								entry,
+								firstUnpinnedEntry()
+							);
 							droppedEntry = true;
 							return;
 						}
