@@ -967,10 +967,49 @@ class Post_Type {
 	 * @return string
 	 */
 	public static function get_html_summary( string $html, int $words = 8 ): string {
+		return self::decode_text( wp_trim_words( self::encoded_text( $html ), $words, '…' ) );
+	}
+
+	/**
+	 * The first words of stored HTML as an HTML excerpt: cut to `$words`,
+	 * ending in `$more` when cut, escaped for HTML like the excerpt core
+	 * generates. Read as get_html_summary() reads, so lists and the other
+	 * blocks `excerpt_remove_blocks()` drops count.
+	 *
+	 * @param string $html  Stored HTML, such as an entry's content.
+	 * @param int    $words Number of words to keep.
+	 * @param string $more  HTML to end a cut excerpt with.
+	 * @return string
+	 */
+	public static function get_html_excerpt( string $html, int $words, string $more ): string {
+		$marker = "\u{E000}";
+		$text   = self::decode_text( wp_trim_words( self::encoded_text( $html ), $words, $marker ) );
+
+		return str_replace( $marker, $more, htmlspecialchars( $text, ENT_NOQUOTES, 'UTF-8' ) );
+	}
+
+	/**
+	 * Stored HTML as still-encoded text: comments and tags gone, block-level
+	 * tags and line breaks turned into word boundaries, whitespace collapsed.
+	 *
+	 * @param string $html Stored HTML.
+	 * @return string
+	 */
+	private static function encoded_text( string $html ): string {
 		$html = (string) preg_replace( '/<!--.*?-->/s', ' ', strip_shortcodes( $html ) );
 		$html = (string) preg_replace( '/<(?:br|\/?(?:p|li|ul|ol|pre|blockquote|h[1-6]|div|figure|figcaption|tr|td|th))\b[^>]*>/i', ' $0 ', $html );
-		$text = wp_trim_words( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( $html ) ), $words, '…' );
 
+		return (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( $html ) );
+	}
+
+	/**
+	 * Encoded text as decoded plain text, with the shortcodes decoding
+	 * brings back removed.
+	 *
+	 * @param string $text Encoded text, from encoded_text().
+	 * @return string
+	 */
+	private static function decode_text( string $text ): string {
 		$text = html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 
 		do {

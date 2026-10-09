@@ -102,7 +102,7 @@ class Entry_Bindings {
 		add_filter( 'render_block_core/group', [ __CLASS__, 'filter_pinned_group' ], 10, 2 );
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'link_title_to_breakout' ], 10, 3 );
 		add_filter( 'the_title', [ __CLASS__, 'untitled_fallback_title' ], 10, 2 );
-		add_filter( 'get_the_excerpt', [ __CLASS__, 'media_excerpt' ], 11, 2 );
+		add_filter( 'get_the_excerpt', [ __CLASS__, 'entry_excerpt' ], 11, 2 );
 	}
 
 	/**
@@ -241,13 +241,14 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * The opening words an untitled entry shows as its title: its excerpt
-	 * when it has one, else the start of its text, as plain text. An entry
-	 * with no words outside its media, such as a lone photo, is described by
-	 * its first media block instead (see get_media_title()). Both read the
-	 * entry without the blocks Newspack hides from the public (see
-	 * public_content()). A password protected entry, or a post that isn't an
-	 * entry, has none.
+	 * The headline an untitled entry shows as its title: its excerpt when it
+	 * has one, else the opening words of its first block with words, as
+	 * plain text, so a heading or an opening line stands alone rather than
+	 * running into the text after it. An entry with no words outside its
+	 * media, such as a lone photo, is described by its first media block
+	 * instead (see get_media_title()). Both read the entry without the
+	 * blocks Newspack hides from the public (see public_content()). A
+	 * password protected entry, or a post that isn't an entry, has none.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return string
@@ -266,7 +267,7 @@ class Entry_Bindings {
 		$content     = self::public_content( $entry );
 		$media_title = self::get_media_title( $content );
 
-		return '' !== $media_title ? $media_title : Post_Type::get_html_summary( $content, self::UNTITLED_FALLBACK_WORDS );
+		return '' !== $media_title ? $media_title : Post_Type::get_html_summary( self::headline_html( parse_blocks( $content ) ), self::UNTITLED_FALLBACK_WORDS );
 	}
 
 	/**
@@ -307,11 +308,15 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * An entry's media title as its excerpt when it has no words outside its
-	 * media, such as a lone photo, and no excerpt of its own: core generates
-	 * none for it, as it leaves media out. Runs after core's
-	 * wp_trim_excerpt(), so it reaches core's Post Excerpt block on the site
-	 * and the excerpt the editor previews (Post_Type::get_editor_excerpt()).
+	 * The excerpt of an entry without one of its own: the words of its
+	 * blocks outside its media, cut to the site's excerpt length, or its
+	 * media title when it has no words outside its media, such as a lone
+	 * photo. Core's generated excerpt drops a list whose items are blocks,
+	 * and a lone media block gives it nothing, so this replaces it. Runs
+	 * after core's wp_trim_excerpt(), so it reaches core's Post Excerpt
+	 * block on the site and the excerpt the editor previews
+	 * (Post_Type::get_editor_excerpt()). An entry Newspack's content gate
+	 * withholds keeps the excerpt the gate built from its teaser.
 	 *
 	 * Parameters stay untyped because this runs for every excerpt on the
 	 * site, after other plugins' filters that may hand on unexpected types.
@@ -320,7 +325,7 @@ class Entry_Bindings {
 	 * @param WP_Post|int|null $post    The post.
 	 * @return string
 	 */
-	public static function media_excerpt( $excerpt, $post = null ) {
+	public static function entry_excerpt( $excerpt, $post = null ) {
 		$post = get_post( $post );
 
 		if (
@@ -328,15 +333,101 @@ class Entry_Bindings {
 			! $post instanceof WP_Post ||
 			Post_Type::CPT_SLUG !== $post->post_type ||
 			'' !== trim( $post->post_excerpt ) ||
-			self::has_visible_text( $excerpt ) ||
-			post_password_required( $post )
+			post_password_required( $post ) ||
+			self::is_withheld( $post )
 		) {
 			return $excerpt;
 		}
 
-		$media_title = self::get_media_title( self::public_content( $post ) );
+		$content = self::public_content( $post );
+		$words   = self::words_html( parse_blocks( $content ) );
+
+		if ( self::has_visible_text( $words ) ) {
+			$length = (int) apply_filters( 'excerpt_length', 55 );
+			$more   = (string) apply_filters( 'excerpt_more', ' [&hellip;]' );
+
+			return Post_Type::get_html_excerpt( $words, max( 1, $length ), $more );
+		}
+
+		$media_title = self::get_media_title( $content );
 
 		return '' !== $media_title ? htmlspecialchars( $media_title, ENT_NOQUOTES, 'UTF-8' ) : $excerpt;
+	}
+
+	/**
+	 * Whether Newspack's content gate withholds the entry outside its own
+	 * page, in which case its excerpt comes from the gate's teaser.
+	 *
+	 * @param WP_Post $post The entry.
+	 * @return bool
+	 */
+	private static function is_withheld( WP_Post $post ): bool {
+		return class_exists( '\Newspack\Content_Gate' ) &&
+			method_exists( '\Newspack\Content_Gate', 'get_teaser_outside_article' ) &&
+			null !== \Newspack\Content_Gate::get_teaser_outside_article( $post );
+	}
+
+	/**
+	 * The stored HTML of the parsed blocks without their media blocks, at
+	 * any depth, so a photo's caption or an embed's URL never reads as the
+	 * entry's words.
+	 *
+	 * @param array $blocks Parsed blocks.
+	 * @return string
+	 */
+	private static function words_html( array $blocks ): string {
+		$html = '';
+
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) || '' !== self::media_kind( $block ) ) {
+				continue;
+			}
+
+			$index = 0;
+
+			foreach ( $block['innerContent'] ?? [] as $chunk ) {
+				if ( is_string( $chunk ) ) {
+					$html .= $chunk;
+					continue;
+				}
+
+				$inner = $block['innerBlocks'][ $index++ ] ?? null;
+				$html .= is_array( $inner ) ? ' ' . self::words_html( [ $inner ] ) . ' ' : '';
+			}
+		}
+
+		return $html;
+	}
+
+	/**
+	 * The stored HTML of the first block with words among the parsed blocks:
+	 * a block with text of its own, or a list, taken whole without its
+	 * media; a wrapper such as a group is looked into. Empty when none has
+	 * words.
+	 *
+	 * @param array $blocks Parsed blocks.
+	 * @return string
+	 */
+	private static function headline_html( array $blocks ): string {
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) || '' !== self::media_kind( $block ) ) {
+				continue;
+			}
+
+			$own = implode( ' ', array_filter( $block['innerContent'] ?? [], 'is_string' ) );
+
+			if ( 'core/list' === ( $block['blockName'] ?? '' ) || self::has_visible_text( $own ) ) {
+				return self::words_html( [ $block ] );
+			}
+
+			$inner = self::headline_html( $block['innerBlocks'] ?? [] );
+
+			if ( '' !== $inner ) {
+				return $inner;
+			}
+		}
+
+		return '';
 	}
 
 	/**
@@ -405,8 +496,8 @@ class Entry_Bindings {
 			return '';
 		}
 
-		$label       = self::media_label( self::media_kind( $block ) );
 		$description = Post_Type::get_html_summary( self::media_description( $block ), self::UNTITLED_FALLBACK_WORDS );
+		$label       = '' === $description ? self::media_name( $block ) : self::media_label( self::media_kind( $block ) );
 
 		return '' !== $description
 			/* translators: 1: kind of media, e.g. "Photo" or "Video", 2: its caption or description. */
@@ -482,6 +573,43 @@ class Entry_Bindings {
 			default:
 				return '';
 		}
+	}
+
+	/**
+	 * What a media block without a caption is called: an embed of a post on
+	 * this site that readers can open is called by that post's title, any
+	 * other embed names the site it comes from, and the rest take their
+	 * kind's label.
+	 *
+	 * @param array $block Parsed media block.
+	 * @return string Plain text.
+	 */
+	private static function media_name( array $block ): string {
+		$kind = self::media_kind( $block );
+
+		if ( 'embed' !== $kind ) {
+			return self::media_label( $kind );
+		}
+
+		$url     = (string) ( $block['attrs']['url'] ?? '' );
+		$post_id = 0;
+
+		if ( '' !== $url ) {
+			$post_id = function_exists( 'wpcom_vip_url_to_postid' ) ? wpcom_vip_url_to_postid( $url ) : url_to_postid( $url ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.url_to_postid_url_to_postid
+		}
+
+		if ( $post_id && is_post_publicly_viewable( $post_id ) ) {
+			return Post_Type::get_html_summary( get_the_title( $post_id ), self::UNTITLED_FALLBACK_WORDS );
+		}
+
+		$host = (string) wp_parse_url( $url, PHP_URL_HOST );
+
+		if ( '' === $host ) {
+			return self::media_label( $kind );
+		}
+
+		/* translators: %s: the host name of the site an embed comes from, e.g. "x.com". Stands in for the title and excerpt of an entry whose only content is that embed. */
+		return sprintf( __( 'Embed from %s', 'newspack-rolling-coverage' ), preg_replace( '/^www\./i', '', $host ) );
 	}
 
 	/**
