@@ -313,23 +313,23 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Every entry carries the GMT second it was published in, the time load
-	 * more pages by, whichever way it reaches the page: the view script
-	 * places an entry unpinned while the page is open by it.
+	 * Every entry carries its date in GMT, the date load more pages by,
+	 * whichever way it reaches the page: the view script places an entry
+	 * unpinned while the page is open by it.
 	 */
-	public function test_entries_carry_their_publish_time_in_gmt() {
+	public function test_entries_carry_their_date_in_gmt() {
 		update_option( 'timezone_string', 'America/New_York' );
 
 		$this->create_entry_at( '2026-01-01 07:00:00' );
-		$published = 'data-published="2026-01-01 12:00:00"';
+		$date_gmt = 'data-date-gmt="2026-01-01 12:00:00"';
 
 		$page      = $this->render_block();
 		$poll      = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_data();
 		$load_more = $this->get_feed( [ 'before' => '2026-01-02 00:00:00' ] )->get_data();
 
-		$this->assertStringContainsString( $published, $page, 'The page should carry it.' );
-		$this->assertStringContainsString( $published, $poll['entries'][0]['html'], 'A poll should carry it.' );
-		$this->assertStringContainsString( $published, $load_more['html'], 'Load more should carry it.' );
+		$this->assertStringContainsString( $date_gmt, $page, 'The page should carry it.' );
+		$this->assertStringContainsString( $date_gmt, $poll['entries'][0]['html'], 'A poll should carry it.' );
+		$this->assertStringContainsString( $date_gmt, $load_more['html'], 'Load more should carry it.' );
 	}
 
 	/**

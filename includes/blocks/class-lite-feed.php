@@ -266,7 +266,7 @@ class Lite_Feed {
 		}
 
 		return sprintf(
-			'<article class="%1$s-entry" data-entry-id="%2$d" data-arrival="%3$s" data-published="%9$s"%4$s><p class="%1$s-entry-meta">%5$s</p>%6$s%7$s%8$s</article>',
+			'<article class="%1$s-entry" data-entry-id="%2$d" data-arrival="%3$s" data-date-gmt="%9$s"%4$s><p class="%1$s-entry-meta">%5$s</p>%6$s%7$s%8$s</article>',
 			Rolling_Coverage_Block::MARKUP_PREFIX,
 			$entry->ID,
 			esc_attr( $arrival ),

@@ -837,9 +837,9 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * The first unpinned entry the feed lists below an entry: published
+	 * The first unpinned entry the feed lists below an entry: dated
 	 * earlier, or in the same second with a lower ID, as
-	 * Rolling_Coverage_Block::FEED_ORDER lists them. Without publish times to
+	 * Rolling_Coverage_Block::FEED_ORDER lists them. Without dates to
 	 * compare, as on a page cached before entries carried them, the entry
 	 * goes above the first unpinned entry it can't compare with.
 	 *
@@ -847,7 +847,7 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {HTMLElement|null} The entry below, or null if the page shows none.
 	 */
 	function unpinnedEntryBelow( entry: HTMLElement ): HTMLElement | null {
-		const published = entry.dataset.published;
+		const date = entry.dataset.dateGmt;
 		const id = Number( entry.dataset.entryId );
 
 		return (
@@ -856,14 +856,14 @@ function initBlock( root: HTMLElement ): void {
 					':scope > [data-entry-id]:not([data-pinned])'
 				)
 			).find( ( other ) => {
-				const otherPublished = other.dataset.published;
+				const otherDate = other.dataset.dateGmt;
 
 				return (
 					other !== entry &&
-					( ! published ||
-						! otherPublished ||
-						otherPublished < published ||
-						( otherPublished === published &&
+					( ! date ||
+						! otherDate ||
+						otherDate < date ||
+						( otherDate === date &&
 							Number( other.dataset.entryId ) < id ) )
 				);
 			} ) ?? null
