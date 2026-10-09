@@ -1632,9 +1632,10 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Poll cursor for a whole coverage: the published entries saved in the
-	 * second of its most recent save, up to the page a poll makes room for. A
-	 * feed that starts at a shared entry polls from here, so entries published
-	 * before the page was rendered are not reported as new.
+	 * second its newest published entry was last saved in, up to the
+	 * `PER_PAGE_MAX` a poll makes room for. A feed that starts at a shared
+	 * entry polls from here, so entries published before the page was
+	 * rendered are not reported as new.
 	 *
 	 * @param int    $coverage_id Coverage term ID.
 	 * @param string $marker      The coverage's change marker, read before its entries.

@@ -21,11 +21,12 @@ defined( 'ABSPATH' ) || exit;
  * second alone nor the second and one entry ID can tell the entries a page
  * holds from ones saved in that second after it polled; the cursor names
  * them all. On an uncapped feed, an entry saved again within the second the
- * page holds it in arrives with its next save in a later second, as does a
- * save stamped in the second before the cursor's that only becomes visible
+ * page holds it in arrives with its next save in a later second, as does an
+ * edit stamped in the second before the cursor's that only becomes visible
  * after it, which parallel requests straddling a second boundary can produce.
- * One taken down within that second can stay on the page until reload. A
- * capped feed's whole-list reply after another removal brings either.
+ * One taken down within the held second can stay on the page until reload,
+ * and a new entry stamped in the earlier second can stay off it. A capped
+ * feed's whole-list reply after another removal or a burst brings either.
  *
  * The coverage's last-modified time stays put through saves within one
  * second, so it can't tell an idle poll that nothing changed. The marker,
