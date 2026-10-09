@@ -313,6 +313,50 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 	}
 }
 
+.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled) > .newspack-rolling-coverage-entries {
+	--nrc-row-gap: var(--newspack-rolling-coverage-column-gap, #{$feed-gap});
+	--nrc-visible-entries: 1;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	gap: var(--nrc-row-gap);
+	overflow: hidden;
+	overflow: clip;
+
+	&:has(> :nth-child(2)) {
+		--nrc-visible-entries: 2;
+	}
+
+	&:has(> :nth-child(3)) {
+		--nrc-visible-entries: 3;
+	}
+
+	> * {
+		flex: 0 0 calc((100% - (var(--nrc-visible-entries) - 1) * var(--nrc-row-gap)) / var(--nrc-visible-entries));
+		min-width: 0;
+	}
+
+	> :nth-child(n+4) {
+		visibility: hidden;
+	}
+
+	:focus-visible {
+		outline-offset: -2px;
+	}
+
+	@media (max-width: 782px) {
+
+		&,
+		&:has(> :nth-child(2)),
+		&:has(> :nth-child(3)) {
+			--nrc-visible-entries: 1;
+		}
+
+		> :nth-child(n+2) {
+			visibility: hidden;
+		}
+	}
+}
+
 @property --newspack-rolling-coverage-fade-start {
 	syntax: "<length>";
 	inherits: false;

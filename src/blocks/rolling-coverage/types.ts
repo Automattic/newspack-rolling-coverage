@@ -140,7 +140,9 @@ interface PollEntry {
 /**
  * REST response containing newly-published, edited or removed entries.
  * With `replace`, sent only to a capped feed, the entries are the removals,
- * then the feed's newest entries, whole and in order.
+ * then the feed's newest entries, whole and in order. With `staleTemplate`,
+ * the server no longer stores the page's template, so it sends no entries
+ * and the page reloads.
  */
 interface PollResponse {
 	entries: PollEntry[];
@@ -148,6 +150,7 @@ interface PollResponse {
 	overflow: boolean;
 	polledCount: number;
 	replace?: boolean;
+	staleTemplate?: boolean;
 	minPollInterval: number;
 	status?: string;
 	newestEntry?: string | null;
@@ -182,6 +185,7 @@ interface PageResponse {
 	hasMore: boolean;
 	count: number;
 	adSlots: AdSlot[];
+	staleTemplate?: boolean;
 }
 
 /**
