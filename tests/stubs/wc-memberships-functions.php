@@ -79,13 +79,19 @@ function wc_memberships() {
 				return new class() {
 
 					/**
-					 * IDs of the posts an admin marked public.
+					 * IDs of the posts an admin marked public, by post type, for
+					 * every type. Asked for one type, it answers with nothing, as
+					 * Memberships 1.29.1 does when its cache is cold.
 					 *
-					 * @param string $which_post_type Post type, unused.
-					 * @return int[]
+					 * @param string|null $which_post_type Post type, or 'any'.
+					 * @return array
 					 */
-					public function get_public_posts( $which_post_type = 'any' ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable -- Matches Memberships' signature.
-						return $GLOBALS['newspack_rolling_coverage_public_posts'];
+					public function get_public_posts( $which_post_type = 'any' ) {
+						if ( ! in_array( $which_post_type, [ null, 'any', 'all' ], true ) ) {
+							return [];
+						}
+
+						return [ \Newspack_Rolling_Coverage\Post_Type::CPT_SLUG => $GLOBALS['newspack_rolling_coverage_public_posts'] ];
 					}
 				};
 			}

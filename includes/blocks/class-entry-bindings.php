@@ -476,9 +476,11 @@ class Entry_Bindings {
 			return false;
 		}
 
-		$public_posts = is_object( $restrictions ) && method_exists( $restrictions, 'get_public_posts' ) ? (array) $restrictions->get_public_posts( $post->post_type ) : [];
+		// Asked for every post type, as Memberships' own is_post_public() asks: asked for one on a cold cache, Memberships 1.29.1 answers with nothing and keeps that type's list in place of the whole map for the rest of the request.
+		$public_posts = is_object( $restrictions ) && method_exists( $restrictions, 'get_public_posts' ) ? (array) $restrictions->get_public_posts() : [];
+		$entry_posts  = isset( $public_posts[ $post->post_type ] ) ? (array) $public_posts[ $post->post_type ] : [];
 
-		return ! in_array( (int) $post->ID, array_map( 'intval', $public_posts ), true );
+		return ! in_array( (int) $post->ID, array_map( 'intval', $entry_posts ), true );
 	}
 
 	/**
