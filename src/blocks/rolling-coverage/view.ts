@@ -648,8 +648,9 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Shows on the control how many entries are newer than the shared entry:
 	 * those the page was rendered with, less the ones it has since shown
-	 * pinned, plus those the poll has counted since. With none, or once the
-	 * poll can no longer count, the control shows its own text.
+	 * pinned while that count is a hundred or fewer, plus those the poll has
+	 * counted since. With none, or once the poll can no longer count, the
+	 * control shows its own text.
 	 *
 	 * @return {void}
 	 */
@@ -1264,7 +1265,7 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Takes an entry the list doesn't show out of the new entries waiting to
-	 * be shown, the count of newer entries and the edits kept for load more.
+	 * be shown, the count of newer entries and the edits kept until it arrives.
 	 *
 	 * @param {string} entryId Entry ID.
 	 * @return {void}
@@ -2111,8 +2112,9 @@ function initBlock( root: HTMLElement ): void {
 				if ( entryEl?.hasAttribute( 'data-pinned' ) ) {
 					// Unless a poll counted it since, a shared view counted an
 					// entry newer than the shared one when it rendered, if it
-					// was published then. One restored since can't be told
-					// apart, and comes off a count it was never in.
+					// was published and dated as it is now. One restored or
+					// re-dated since can't be told apart, so its pin can take
+					// it off a count it was never in, or leave it in one.
 					if (
 						isNewerThanShared( entryEl ) &&
 						! countedEntryIds.has( String( entry.id ) )
