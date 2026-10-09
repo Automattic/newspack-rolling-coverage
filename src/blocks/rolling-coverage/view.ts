@@ -615,8 +615,11 @@ function initBlock( root: HTMLElement ): void {
 	let isForwardPollHealthy = true;
 
 	// Edits the poll delivered for entries not yet on the page, latest HTML by
-	// entry ID. A cached load-more reply can predate them while the cursor has
-	// already moved past them, so loadMore() applies them as the entries arrive.
+	// entry ID: entries load more hasn't brought, and new ones waiting
+	// behind the new-entries control. No later poll sends them again, and a
+	// cached load-more reply or a queued entry can predate them, so loadMore()
+	// and takePendingEntries() apply them as the entries arrive. A poll that
+	// sends the entry as new again drops its edit (see applyPollResponse()).
 	const offPageUpdates = new Map< string, string >();
 
 	// Entries the poll reported taken down. One that comes back shows on
@@ -1219,12 +1222,16 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Gets the pending entries and clears the queue.
+	 * Gets the pending entries, with the edits the poll delivered while they
+	 * waited, and clears the queue.
 	 *
 	 * @return {PendingEntry[]} The entries that were pending.
 	 */
 	function takePendingEntries(): PendingEntry[] {
-		const entries = pendingNewEntries;
+		const entries = pendingNewEntries.map( ( entry ) => ( {
+			...entry,
+			el: applyOffPageUpdate( entry.el ),
+		} ) );
 		pendingNewEntries = [];
 		return entries;
 	}
@@ -1232,7 +1239,7 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Takes an entry that was taken down off the page and out of the new
 	 * entries waiting to be shown, the count of newer entries and the edits
-	 * kept for load more.
+	 * kept until it arrives.
 	 *
 	 * @param {string} entryId Entry ID.
 	 * @return {void}
@@ -2054,7 +2061,7 @@ function initBlock( root: HTMLElement ): void {
 	 * Applies a poll response to the entry list.
 	 *
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
-	 * on the page for loadMore(), except edits to pinned ones, which show
+	 * on the page until they arrive, except edits to pinned ones, which show
 	 * them with the pinned entries at once (see showPinnedEntry()). Moves a
 	 * newly pinned entry it shows below the pinned ones, and a newly unpinned
 	 * one to its place by date (see placeUnpinnedEntry()). Drops entries
@@ -2164,6 +2171,10 @@ function initBlock( root: HTMLElement ): void {
 
 				return;
 			}
+
+			// It comes as saved now, so an edit kept from before it was taken
+			// down and published again is out of date.
+			offPageUpdates.delete( String( entry.id ) );
 
 			const adEl = entry.adHtml
 				? parseElement( sanitizeHtml( entry.adHtml ) )
@@ -2698,11 +2709,13 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Swaps an entry from a load-more reply for the edit the poll delivered
-	 * while it was off the page, if there is one, keeping the entry's arrival.
+	 * Swaps an entry arriving from a load-more reply or the new-entries queue
+	 * for the edit the poll delivered while it was off the page, if there is
+	 * one, keeping the entry's arrival.
 	 *
-	 * @param {HTMLElement} el Entry element from the load-more reply.
-	 * @return {HTMLElement} The element that now stands in the reply.
+	 * @param {HTMLElement} el Entry element arriving.
+	 * @return {HTMLElement} The element to show in its place, swapped into the
+	 *                       reply when it came in one.
 	 */
 	function applyOffPageUpdate( el: HTMLElement ): HTMLElement {
 		const entryId = el.dataset.entryId;
