@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-09T15:51:21+00:00\n"
+"POT-Creation-Date: 2026-10-09T18:12:41+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -85,11 +85,11 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:461
-#: includes/blocks/class-rolling-coverage-block.php:3990
-#: includes/blocks/class-rolling-coverage-block.php:4126
-#: includes/blocks/class-rolling-coverage-block.php:4137
-#: includes/class-post-type.php:1292
-#: includes/class-taxonomy.php:348
+#: includes/blocks/class-rolling-coverage-block.php:4213
+#: includes/blocks/class-rolling-coverage-block.php:4348
+#: includes/blocks/class-rolling-coverage-block.php:4359
+#: includes/class-post-type.php:1294
+#: includes/class-taxonomy.php:345
 msgid "Coverage not found."
 msgstr ""
 
@@ -200,7 +200,7 @@ msgid "Something went wrong. Please try again."
 msgstr ""
 
 #: includes/blocks/class-entry-bindings.php:1024
-#: includes/blocks/class-rolling-coverage-block.php:2787
+#: includes/blocks/class-rolling-coverage-block.php:2892
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/share/index.js:1
@@ -323,28 +323,28 @@ msgid "Alert"
 msgstr ""
 
 #: includes/blocks/class-lite-feed.php:265
-#: includes/blocks/class-rolling-coverage-block.php:3468
-#: includes/blocks/class-rolling-coverage-block.php:3480
-#: includes/blocks/class-rolling-coverage-block.php:3741
+#: includes/blocks/class-rolling-coverage-block.php:3573
+#: includes/blocks/class-rolling-coverage-block.php:3585
+#: includes/blocks/class-rolling-coverage-block.php:3944
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned"
 msgstr ""
 
-#: includes/blocks/class-lite-feed.php:306
+#: includes/blocks/class-lite-feed.php:310
 msgid "This content is password protected."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1186
+#: includes/blocks/class-rolling-coverage-block.php:1204
 #: dist/blocks/rolling-coverage/index.js:22
 msgid "Select a coverage to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1212
+#: includes/blocks/class-rolling-coverage-block.php:1230
 msgid "This coverage is no longer available."
 msgstr ""
 
 #. translators: 1: number of coverage entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as a button label shows it.
-#: includes/blocks/class-rolling-coverage-block.php:1689
+#: includes/blocks/class-rolling-coverage-block.php:1794
 #: dist/blocks/rolling-coverage/view.js:4
 #, php-format,js-format
 msgid "%1$d Newer %2$s"
@@ -353,7 +353,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of coverage entries newer than the one shown, from 1 to 10.
-#: includes/blocks/class-rolling-coverage-block.php:1693
+#: includes/blocks/class-rolling-coverage-block.php:1798
 #: dist/blocks/rolling-coverage/view.js:5
 #, php-format,js-format
 msgid "%d Newer Entry"
@@ -362,7 +362,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: 1: a round number the count of newer coverage entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as a button label shows it.
-#: includes/blocks/class-rolling-coverage-block.php:1708
+#: includes/blocks/class-rolling-coverage-block.php:1813
 #: dist/blocks/rolling-coverage/view.js:6
 #, php-format,js-format
 msgid "%1$d+ Newer %2$s"
@@ -371,7 +371,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100.
-#: includes/blocks/class-rolling-coverage-block.php:1712
+#: includes/blocks/class-rolling-coverage-block.php:1817
 #: dist/blocks/rolling-coverage/view.js:7
 #, php-format,js-format
 msgid "%d+ Newer Entry"
@@ -380,75 +380,75 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence; its grammatical gender is unknown.
-#: includes/blocks/class-rolling-coverage-block.php:1726
+#: includes/blocks/class-rolling-coverage-block.php:1831
 #, php-format
 msgid "No %s yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1729
+#: includes/blocks/class-rolling-coverage-block.php:1834
 msgid "No entries yet."
 msgstr ""
 
 #. translators: Button that loads older entries at the end of a coverage's feed.
-#: includes/blocks/class-rolling-coverage-block.php:1837
+#: includes/blocks/class-rolling-coverage-block.php:1942
 #: dist/blocks/rolling-coverage/index.js:4
 msgid "Load More"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2647
-#: includes/blocks/class-rolling-coverage-block.php:2828
+#: includes/blocks/class-rolling-coverage-block.php:2752
+#: includes/blocks/class-rolling-coverage-block.php:2933
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/rolling-coverage/index.js:19
 msgid "Read more"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2665
+#: includes/blocks/class-rolling-coverage-block.php:2770
 #: dist/blocks/rolling-coverage/index.js:17
 msgid "Coverage of this news event has concluded and this feed is now archived."
 msgstr ""
 
 #. translators: %s: Coverage name.
-#: includes/blocks/class-rolling-coverage-block.php:2669
+#: includes/blocks/class-rolling-coverage-block.php:2774
 #: dist/blocks/rolling-coverage/index.js:17
 #, php-format,js-format
 msgid "Coverage of “%s” has concluded and this feed is now archived."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2800
+#: includes/blocks/class-rolling-coverage-block.php:2905
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "Meta"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2912
-#: includes/class-post-type.php:269
+#: includes/blocks/class-rolling-coverage-block.php:3017
+#: includes/class-post-type.php:271
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "Entry"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2960
+#: includes/blocks/class-rolling-coverage-block.php:3065
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "Pinned Entry"
 msgstr ""
 
 #. translators: 1: the site's own name for one coverage entry, as it reads mid-sentence; its grammatical gender is unknown. 2: the same name for several entries.
-#: includes/blocks/class-rolling-coverage-block.php:3774
+#: includes/blocks/class-rolling-coverage-block.php:3977
 #, php-format
 msgid "This %1$s is now out of date compared to newer %2$s, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3780
+#: includes/blocks/class-rolling-coverage-block.php:3983
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3927
+#: includes/blocks/class-rolling-coverage-block.php:4150
 msgid "How many entries a capped feed shows, so a Lite or empty-key request stays capped without a stored config."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3932
+#: includes/blocks/class-rolling-coverage-block.php:4155
 msgid "Whether a Lite Site page asks, so entries come as text, as that page renders them."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4145
+#: includes/blocks/class-rolling-coverage-block.php:4367
 msgid "Either cursor or before must be provided."
 msgstr ""
 
@@ -527,9 +527,9 @@ msgstr ""
 
 #: includes/class-archive-mode.php:285
 #: includes/class-breakout.php:238
-#: includes/class-post-type.php:1209
-#: includes/class-post-type.php:3004
-#: includes/class-post-type.php:3409
+#: includes/class-post-type.php:1211
+#: includes/class-post-type.php:3059
+#: includes/class-post-type.php:3464
 msgid "Entry not found."
 msgstr ""
 
@@ -622,173 +622,173 @@ msgstr[1] ""
 msgid "Untitled layout"
 msgstr ""
 
-#: includes/class-post-type.php:268
+#: includes/class-post-type.php:270
 #: dist/admin.js:219
 #: dist/admin.js:220
 #: dist/blocks/rolling-coverage/index.js:4
 msgid "Entries"
 msgstr ""
 
-#: includes/class-post-type.php:270
+#: includes/class-post-type.php:272
 #: dist/admin.js:222
 #: dist/admin.js:239
 #: dist/admin.js:240
 msgid "Add Entry"
 msgstr ""
 
-#: includes/class-post-type.php:271
+#: includes/class-post-type.php:273
 msgid "Edit Entry"
 msgstr ""
 
-#: includes/class-post-type.php:272
+#: includes/class-post-type.php:274
 msgid "New Entry"
 msgstr ""
 
-#: includes/class-post-type.php:273
+#: includes/class-post-type.php:275
 msgid "View Entry"
 msgstr ""
 
-#: includes/class-post-type.php:274
+#: includes/class-post-type.php:276
 msgid "View Entries"
 msgstr ""
 
-#: includes/class-post-type.php:275
+#: includes/class-post-type.php:277
 msgid "Search Entries"
 msgstr ""
 
-#: includes/class-post-type.php:276
+#: includes/class-post-type.php:278
 msgid "No entries found."
 msgstr ""
 
-#: includes/class-post-type.php:277
+#: includes/class-post-type.php:279
 msgid "All Entries"
 msgstr ""
 
-#: includes/class-post-type.php:278
+#: includes/class-post-type.php:280
 #: dist/admin.js:236
 msgid "Entry published."
 msgstr ""
 
-#: includes/class-post-type.php:279
+#: includes/class-post-type.php:281
 msgid "Entry published privately."
 msgstr ""
 
-#: includes/class-post-type.php:280
+#: includes/class-post-type.php:282
 msgid "Entry reverted to draft."
 msgstr ""
 
-#: includes/class-post-type.php:281
+#: includes/class-post-type.php:283
 msgid "Entry scheduled."
 msgstr ""
 
-#: includes/class-post-type.php:282
+#: includes/class-post-type.php:284
 msgid "Entry updated."
 msgstr ""
 
-#: includes/class-post-type.php:283
+#: includes/class-post-type.php:285
 #: dist/admin.js:211
 #: dist/admin.js:237
 msgid "Entry trashed."
 msgstr ""
 
-#: includes/class-post-type.php:285
+#: includes/class-post-type.php:287
 msgid "Individual entries within a Rolling Coverage."
 msgstr ""
 
-#: includes/class-post-type.php:778
+#: includes/class-post-type.php:780
 msgid "This coverage is in the trash. Restore it before adding entries."
 msgstr ""
 
-#: includes/class-post-type.php:2737
-#: includes/class-post-type.php:2821
+#: includes/class-post-type.php:2792
+#: includes/class-post-type.php:2876
 msgid "No entry IDs provided."
 msgstr ""
 
-#: includes/class-post-type.php:2753
+#: includes/class-post-type.php:2808
 msgid "You do not have permission to restore this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2829
+#: includes/class-post-type.php:2884
 msgid "The slug and date can only be changed one entry at a time."
 msgstr ""
 
-#: includes/class-post-type.php:2848
+#: includes/class-post-type.php:2903
 msgid "That person can’t be the author of an entry."
 msgstr ""
 
-#: includes/class-post-type.php:2861
+#: includes/class-post-type.php:2916
 msgid "That date isn’t valid."
 msgstr ""
 
-#: includes/class-post-type.php:2888
+#: includes/class-post-type.php:2943
 msgid "Nothing to change."
 msgstr ""
 
-#: includes/class-post-type.php:3008
+#: includes/class-post-type.php:3063
 msgid "You do not have permission to edit this entry."
 msgstr ""
 
-#: includes/class-post-type.php:3012
+#: includes/class-post-type.php:3067
 msgid "This entry is archived, so it can’t be edited."
 msgstr ""
 
-#: includes/class-post-type.php:3023
+#: includes/class-post-type.php:3078
 msgid "A published entry can’t have a date in the future."
 msgstr ""
 
-#: includes/class-post-type.php:3027
+#: includes/class-post-type.php:3082
 msgid "Saving this entry would publish it, and you do not have permission to publish it."
 msgstr ""
 
-#: includes/class-post-type.php:3072
+#: includes/class-post-type.php:3127
 msgid "Co-Authors Plus couldn’t credit this entry to that person."
 msgstr ""
 
-#: includes/class-post-type.php:3141
+#: includes/class-post-type.php:3196
 msgid "One of the chosen categories doesn’t exist."
 msgstr ""
 
-#: includes/class-post-type.php:3142
+#: includes/class-post-type.php:3197
 msgid "One of the chosen tags doesn’t exist."
 msgstr ""
 
-#: includes/class-post-type.php:3176
+#: includes/class-post-type.php:3231
 msgid "You don’t have permission to assign one of the chosen categories."
 msgstr ""
 
-#: includes/class-post-type.php:3177
+#: includes/class-post-type.php:3232
 msgid "You don’t have permission to assign one of the chosen tags."
 msgstr ""
 
-#: includes/class-post-type.php:3187
+#: includes/class-post-type.php:3242
 msgid "You don’t have permission to create categories."
 msgstr ""
 
-#: includes/class-post-type.php:3188
+#: includes/class-post-type.php:3243
 msgid "You don’t have permission to create tags."
 msgstr ""
 
-#: includes/class-post-type.php:3378
+#: includes/class-post-type.php:3433
 msgid "An editor needs to restore the coverage before this entry can be restored."
 msgstr ""
 
-#: includes/class-post-type.php:3417
+#: includes/class-post-type.php:3472
 msgid "Entry is not in trash."
 msgstr ""
 
-#: includes/class-post-type.php:3425
+#: includes/class-post-type.php:3480
 msgid "This entry is archived, so it can’t be restored."
 msgstr ""
 
-#: includes/class-post-type.php:3476
+#: includes/class-post-type.php:3531
 msgid "This entry's coverage was deleted. An editor needs to restore it."
 msgstr ""
 
-#: includes/class-post-type.php:3498
+#: includes/class-post-type.php:3553
 msgid "This entry has no coverage context to restore to."
 msgstr ""
 
-#: includes/class-post-type.php:3556
+#: includes/class-post-type.php:3611
 msgid "Failed to restore entry."
 msgstr ""
 
@@ -797,11 +797,11 @@ msgstr ""
 msgid "Read the latest update."
 msgstr ""
 
-#: includes/class-taxonomy.php:473
+#: includes/class-taxonomy.php:470
 msgid "Coverage is not in trash."
 msgstr ""
 
-#: includes/class-taxonomy.php:512
+#: includes/class-taxonomy.php:509
 msgid "Coverage could not be deleted."
 msgstr ""
 
