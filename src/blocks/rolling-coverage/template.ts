@@ -613,10 +613,10 @@ function streamEntryTemplate(
 /**
  * A Rail entry's row: the time, or on the pinned card the pin icon, in a
  * narrow column, then the entry beside a vertical rule, signed with the
- * author's name beside its links. The entry is a
- * vertical flex group, so its spacing also applies on the Newspack Theme
- * (see Rolling_Coverage_Block::apply_entry_block_gap()). The pinned card's
- * rule is in the accent color and its entry sits on a tinted panel. With no
+ * author's name beside its links. The entry is a vertical flex group, so
+ * its spacing also applies on the Newspack Theme (see
+ * Rolling_Coverage_Block::apply_entry_block_gap()). The pinned card's rule
+ * is in the accent color and its entry sits on a tinted panel. With no
  * pinned label, the site announces the entry as pinned itself (see
  * Rolling_Coverage_Block::render_entry()).
  *
@@ -890,8 +890,9 @@ function clockRow(
 
 /**
  * A Margin entry's row: the time, or on the pinned card the pinned row,
- * the title, and the author's name with the links in a margin column, and the content in the wider
- * column beside it. The pinned card is ruled off with a heavier rule.
+ * the title, and the author's name with the links in a margin column, and
+ * the content in the wider column beside it. The pinned card is ruled off
+ * with a heavier rule.
  *
  * @param {boolean} isPinned Whether the row is the pinned card's.
  * @return {TemplateItem} The row.
