@@ -239,6 +239,23 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The Pinned row wraps once the Full story label joins it, so a long
+	 * label can't overflow a narrow column, and the label is added once
+	 * however many Pinned labels the template holds.
+	 */
+	public function test_pinned_row_wraps_and_places_the_label_once() {
+		[ $entry_id ] = self::create_breakout();
+		Post_Type::pin_entry( $entry_id );
+
+		$html = self::render( $entry_id, str_replace( self::PINNED_ROW_MARKUP, self::PINNED_ROW_MARKUP . self::PINNED_ROW_MARKUP, self::untitled_markup() ) );
+
+		$this->assertSame( 1, substr_count( $html, 'newspack-rolling-coverage-breakout-label ' ) );
+		$this->assertSame( 1, substr_count( $html, 'breakout-label-separator' ) );
+		$this->assertMatchesRegularExpression( '#<div class="wp-block-group is-layout-flex[^"]*"><p class="[^"]*pinned-label[^"]*">Pinned</p><span#', $html );
+		$this->assertSame( 1, substr_count( $html, 'is-nowrap' ) );
+	}
+
+	/**
 	 * A pinned entry whose template has no Pinned row is announced as
 	 * pinned to screen readers, then opens with the Full story label.
 	 */

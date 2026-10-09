@@ -2621,9 +2621,23 @@ class Rolling_Coverage_Block {
 		if ( $is_pinned && Entry_Bindings::has_pinned_label( $template ) ) {
 			$label_blocks = Breakout_Card::pinned_label_blocks( $card );
 
+			$placed = false;
+
 			return self::map_template_blocks(
 				$template,
-				static fn( array $block ) => Entry_Bindings::is_pinned_label( $block ) ? array_merge( [ $block ], $label_blocks ) : [ $block ]
+				static function ( array $block ) use ( $label_blocks, &$placed ) {
+					if ( ! $placed && Entry_Bindings::is_pinned_label( $block ) ) {
+						$placed = true;
+
+						return array_merge( [ $block ], $label_blocks );
+					}
+
+					if ( 'core/group' === ( $block['blockName'] ?? '' ) && self::holds_pinned_label_row( $block ) ) {
+						$block['attrs']['layout']['flexWrap'] = 'wrap';
+					}
+
+					return [ $block ];
+				}
 			);
 		}
 
@@ -2644,6 +2658,23 @@ class Rolling_Coverage_Block {
 		);
 
 		return $placed ? $template : array_merge( [ $label ], $template );
+	}
+
+	/**
+	 * Whether a group directly holds a Full story label added to a pinned
+	 * row (see Breakout_Card::pinned_label_blocks()).
+	 *
+	 * @param array $group Parsed group block.
+	 * @return bool
+	 */
+	private static function holds_pinned_label_row( array $group ): bool {
+		foreach ( $group['innerBlocks'] ?? [] as $inner_block ) {
+			if ( is_array( $inner_block ) && is_string( $inner_block['innerHTML'] ?? null ) && false !== strpos( $inner_block['innerHTML'], Breakout_Card::LABEL_SEPARATOR_CLASS ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
