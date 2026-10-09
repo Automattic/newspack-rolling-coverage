@@ -1,6 +1,6 @@
 # Admin screens: development notes
 
-The plugin's admin screens live in `src/admin/`: the coverages list, each coverage's entries list, Quick Edit, the Settings modal, and the Slack and AI pages. The entries list is a DataViews table; its fields are defined in `src/admin/fields/entries.tsx`. What the plugin adds to the entry editor lives in `src/entry-editor/`.
+The plugin's admin screens live in `src/admin/`: the coverages list, each coverage's entries list, Quick Edit, the Settings modal, and the Slack and AI pages. The entries list is a DataViews table; its fields are defined in `src/admin/fields/entries.tsx`. What the plugin adds to the entry editor lives in `src/entry-editor/`, and what it adds to a breakout post's editor in `src/breakout-editor/`.
 
 ## Screens and routes
 
@@ -324,3 +324,9 @@ Tests: `tests/test-entry-editor-navigation.php`.
 The bundle's other registration, the Push Notifications panel, is described in `src/blocks/coverage-follow/DEVELOPMENT.md`.
 
 The entry post type registers core's `item_*` labels (`Post_Type::register()`), so the editor's notices name an entry, as in "Entry published." and "Entry updated.", rather than a post.
+
+## The breakout post editor
+
+`Admin::enqueue_breakout_editor()`, on `enqueue_block_editor_assets`, loads the `breakout-editor` bundle (`src/breakout-editor/index.tsx`) when the screen and the post being edited are a `post` that links back to the entry it was broken out from (`Breakout::BREAKOUT_SOURCE_ENTRY_META`), and only once the bundle is built. It passes `window.newspackRollingCoverageBreakoutEditor`: the post meta key (`Breakout_Label::POST_META_KEY`), the label every other card shows (`Breakout_Label::get()`) and the length cap (`Breakout_Label::MAX_LENGTH`), and sets the script's translations.
+
+The bundle registers a "Rolling Coverage" panel in the post's settings sidebar holding a "Full story label" field, the post's own label for its card. The field's placeholder is the site's label, and its help text says "Shown above this story in the coverage feed. Leave empty to use “%s”." with that label. The meta, its precedence over the site's label and how a change reaches open pages are documented under "Full story label" in `src/blocks/rolling-coverage/DEVELOPMENT.md`.
