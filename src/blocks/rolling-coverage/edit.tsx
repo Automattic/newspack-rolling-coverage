@@ -1363,7 +1363,7 @@ export default function Edit( {
 			...hiddenAuthorBlockIds(
 				layoutParts( allBlocks ).template,
 				showAuthor !== false,
-				showAvatar !== false
+				SHOW_AVATARS && showAvatar !== false
 			),
 		];
 
