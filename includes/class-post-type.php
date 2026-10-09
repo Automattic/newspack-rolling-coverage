@@ -982,10 +982,11 @@ class Post_Type {
 	 * @return string
 	 */
 	public static function get_html_excerpt( string $html, int $words, string $more ): string {
-		$marker = "\u{E000}";
-		$text   = self::decode_text( wp_trim_words( self::encoded_text( $html ), $words, $marker ) );
+		$text    = self::encoded_text( $html );
+		$trimmed = wp_trim_words( $text, $words, '' );
+		$cut     = wp_trim_words( $text, $words + 1, '' ) !== $trimmed;
 
-		return str_replace( $marker, $more, htmlspecialchars( $text, ENT_NOQUOTES, 'UTF-8' ) );
+		return htmlspecialchars( self::decode_text( $trimmed ), ENT_NOQUOTES, 'UTF-8' ) . ( $cut ? $more : '' );
 	}
 
 	/**

@@ -90,6 +90,17 @@ class Entry_Bindings {
 	const AUDIO_EMBED_PROVIDERS = [ 'mixcloud', 'pocket-casts', 'reverbnation', 'soundcloud', 'spotify' ];
 
 	/**
+	 * Blocks whose text is a control's label rather than the entry's words,
+	 * left out of its excerpt and headline (see is_wordless()).
+	 */
+	const CONTROL_BLOCKS = [ 'core/buttons', 'core/button', 'core/file', 'core/social-links', 'core/social-link', 'core/search', 'core/navigation' ];
+
+	/**
+	 * Object cache group for the post IDs embed URLs on this site resolve to.
+	 */
+	const URL_CACHE_GROUP = 'newspack_rolling_coverage_url_post_id';
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init(): void {
@@ -264,16 +275,17 @@ class Entry_Bindings {
 			return html_entity_decode( wp_trim_words( $excerpt, self::UNTITLED_FALLBACK_WORDS, '…' ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 		}
 
-		$content     = self::public_content( $entry );
-		$media_title = self::get_media_title( $content );
+		$blocks      = parse_blocks( self::public_content( $entry ) );
+		$media_title = self::get_media_title( $blocks );
 
-		return '' !== $media_title ? $media_title : Post_Type::get_html_summary( self::headline_html( parse_blocks( $content ) ), self::UNTITLED_FALLBACK_WORDS );
+		return '' !== $media_title ? $media_title : Post_Type::get_html_summary( self::headline_html( $blocks ), self::UNTITLED_FALLBACK_WORDS );
 	}
 
 	/**
-	 * The first words of what everyone may read of an entry: its content
-	 * without the blocks Newspack hides from the public, or nothing for a
-	 * password-protected entry. For text shown or sent outside the entry
+	 * The first words of what everyone may read of an entry: the words of
+	 * its blocks outside their media, without the blocks Newspack hides from
+	 * the public, or nothing for a password-protected entry or one with no
+	 * words outside its media. For text shown or sent outside the entry
 	 * itself, such as a share link's name, a push notification or a breakout
 	 * post's title. Decoded plain text, as Post_Type::get_html_summary()
 	 * gives it.
@@ -287,7 +299,7 @@ class Entry_Bindings {
 			return '';
 		}
 
-		return Post_Type::get_html_summary( self::public_content( $entry ), $words );
+		return Post_Type::get_html_summary( self::words_html( parse_blocks( self::public_content( $entry ) ) ), $words );
 	}
 
 	/**
@@ -316,7 +328,9 @@ class Entry_Bindings {
 	 * after core's wp_trim_excerpt(), so it reaches core's Post Excerpt
 	 * block on the site and the excerpt the editor previews
 	 * (Post_Type::get_editor_excerpt()). An entry Newspack's content gate
-	 * withholds keeps the excerpt the gate built from its teaser.
+	 * withholds, or WooCommerce Memberships restricts, keeps the excerpt the
+	 * filters before this one built, since those read the content through
+	 * the restriction that `the_content` applies.
 	 *
 	 * Parameters stay untyped because this runs for every excerpt on the
 	 * site, after other plugins' filters that may hand on unexpected types.
@@ -339,38 +353,70 @@ class Entry_Bindings {
 			return $excerpt;
 		}
 
-		$content = self::public_content( $post );
-		$words   = self::words_html( parse_blocks( $content ) );
+		$blocks = parse_blocks( self::public_content( $post ) );
+		$words  = self::words_html( $blocks );
 
 		if ( self::has_visible_text( $words ) ) {
-			$length = (int) apply_filters( 'excerpt_length', 55 );
+			$length = (int) apply_filters( 'excerpt_length', (int) _x( '55', 'excerpt_length' ) ); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain -- Core's own default, translated with core.
 			$more   = (string) apply_filters( 'excerpt_more', ' [&hellip;]' );
 
 			return Post_Type::get_html_excerpt( $words, max( 1, $length ), $more );
 		}
 
-		$media_title = self::get_media_title( $content );
+		$media_title = self::get_media_title( $blocks );
 
 		return '' !== $media_title ? htmlspecialchars( $media_title, ENT_NOQUOTES, 'UTF-8' ) : $excerpt;
 	}
 
 	/**
-	 * Whether Newspack's content gate withholds the entry outside its own
-	 * page, in which case its excerpt comes from the gate's teaser.
+	 * Whether the entry is restricted for readers who aren't members: by
+	 * Newspack's content gate outside the entry's own page, or by a
+	 * WooCommerce Memberships rule. Both restrict through `the_content`,
+	 * which core's generated excerpt reads and this one doesn't.
 	 *
 	 * @param WP_Post $post The entry.
 	 * @return bool
 	 */
 	private static function is_withheld( WP_Post $post ): bool {
+		if ( function_exists( 'wc_memberships_is_post_content_restricted' ) && wc_memberships_is_post_content_restricted( $post->ID ) ) {
+			return true;
+		}
+
 		return class_exists( '\Newspack\Content_Gate' ) &&
 			method_exists( '\Newspack\Content_Gate', 'get_teaser_outside_article' ) &&
 			null !== \Newspack\Content_Gate::get_teaser_outside_article( $post );
 	}
 
 	/**
+	 * Whether a parsed block adds nothing to an entry's words: a block an
+	 * editor hid with Hide block, which core leaves out of everything it
+	 * renders, or a control such as a button, a file's download link or a
+	 * search form, whose text is a label rather than the entry's words.
+	 *
+	 * @param array $block Parsed block.
+	 * @return bool
+	 */
+	private static function is_wordless( array $block ): bool {
+		return self::is_hidden( $block ) || in_array( $block['blockName'] ?? '', self::CONTROL_BLOCKS, true );
+	}
+
+	/**
+	 * Whether a parsed block was hidden with the editor's Hide block, which
+	 * stores `metadata.blockVisibility` as false. Visibility by viewport,
+	 * stored as an object, still shows the block somewhere.
+	 *
+	 * @param array $block Parsed block.
+	 * @return bool
+	 */
+	private static function is_hidden( array $block ): bool {
+		return false === ( $block['attrs']['metadata']['blockVisibility'] ?? null );
+	}
+
+	/**
 	 * The stored HTML of the parsed blocks without their media blocks, at
 	 * any depth, so a photo's caption or an embed's URL never reads as the
-	 * entry's words.
+	 * entry's words, and without hidden blocks and controls (see
+	 * is_wordless()).
 	 *
 	 * @param array $blocks Parsed blocks.
 	 * @return string
@@ -379,7 +425,7 @@ class Entry_Bindings {
 		$html = '';
 
 		foreach ( $blocks as $block ) {
-			if ( ! is_array( $block ) || '' !== self::media_kind( $block ) ) {
+			if ( ! is_array( $block ) || self::is_wordless( $block ) || '' !== self::media_kind( $block ) ) {
 				continue;
 			}
 
@@ -410,7 +456,7 @@ class Entry_Bindings {
 	 */
 	private static function headline_html( array $blocks ): string {
 		foreach ( $blocks as $block ) {
-			if ( ! is_array( $block ) || '' !== self::media_kind( $block ) ) {
+			if ( ! is_array( $block ) || self::is_wordless( $block ) || '' !== self::media_kind( $block ) ) {
 				continue;
 			}
 
@@ -441,7 +487,7 @@ class Entry_Bindings {
 	 */
 	private static function has_words( array $blocks ): bool {
 		foreach ( $blocks as $block ) {
-			if ( ! is_array( $block ) || '' !== self::media_kind( $block ) ) {
+			if ( ! is_array( $block ) || self::is_wordless( $block ) || '' !== self::media_kind( $block ) ) {
 				continue;
 			}
 
@@ -477,15 +523,13 @@ class Entry_Bindings {
 	 * from its first media block: what the media is, e.g. "Photo", followed
 	 * by its caption, else an image's alt text, e.g. "Photo: Crowds at the
 	 * finish line". Captions and text over a cover don't count as words,
-	 * since core leaves those blocks out of the excerpt it generates. Empty
-	 * for content with words, or without media.
+	 * since they belong to the media. Empty for content with words, or
+	 * without media.
 	 *
-	 * @param string $content An entry's content, as public_content() gives it.
+	 * @param array $blocks An entry's parsed content, as public_content() gives it.
 	 * @return string Plain text.
 	 */
-	private static function get_media_title( string $content ): string {
-		$blocks = parse_blocks( $content );
-
+	private static function get_media_title( array $blocks ): string {
 		if ( self::has_words( $blocks ) ) {
 			return '';
 		}
@@ -514,7 +558,7 @@ class Entry_Bindings {
 	 */
 	private static function first_media_block( array $blocks ): ?array {
 		foreach ( $blocks as $block ) {
-			if ( ! is_array( $block ) ) {
+			if ( ! is_array( $block ) || self::is_hidden( $block ) ) {
 				continue;
 			}
 
@@ -576,10 +620,12 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * What a media block without a caption is called: an embed of a post on
-	 * this site that readers can open is called by that post's title, any
-	 * other embed names the site it comes from, and the rest take their
-	 * kind's label.
+	 * What a media block without a caption is called: an embed of a titled
+	 * post on this site that readers can open is called by that post's
+	 * title, any other embed names the site it comes from, and the rest take
+	 * their kind's label. The title is read raw, not through `the_title`:
+	 * that filter runs untitled_fallback_title(), which could come back here
+	 * without end for two untitled entries that embed each other.
 	 *
 	 * @param array $block Parsed media block.
 	 * @return string Plain text.
@@ -592,14 +638,11 @@ class Entry_Bindings {
 		}
 
 		$url     = (string) ( $block['attrs']['url'] ?? '' );
-		$post_id = 0;
+		$post_id = '' !== $url ? self::url_to_post_id( $url ) : 0;
+		$title   = $post_id && is_post_publicly_viewable( $post_id ) ? Post_Type::get_html_summary( (string) get_post_field( 'post_title', $post_id, 'raw' ), self::UNTITLED_FALLBACK_WORDS ) : '';
 
-		if ( '' !== $url ) {
-			$post_id = function_exists( 'wpcom_vip_url_to_postid' ) ? wpcom_vip_url_to_postid( $url ) : url_to_postid( $url ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.url_to_postid_url_to_postid
-		}
-
-		if ( $post_id && is_post_publicly_viewable( $post_id ) ) {
-			return Post_Type::get_html_summary( get_the_title( $post_id ), self::UNTITLED_FALLBACK_WORDS );
+		if ( '' !== $title ) {
+			return $title;
 		}
 
 		$host = (string) wp_parse_url( $url, PHP_URL_HOST );
@@ -610,6 +653,32 @@ class Entry_Bindings {
 
 		/* translators: %s: the host name of the site an embed comes from, e.g. "x.com". Stands in for the title and excerpt of an entry whose only content is that embed. */
 		return sprintf( __( 'Embed from %s', 'newspack-rolling-coverage' ), preg_replace( '/^www\./i', '', $host ) );
+	}
+
+	/**
+	 * The ID of the post a URL on this site points to, or 0. Core's lookup
+	 * runs the rewrite rules and a query each time, and an embed-only entry
+	 * asks on every render, so the answer is kept in the object cache for a
+	 * while: a post's ID never changes, and whether readers can open it is
+	 * checked afresh each time.
+	 *
+	 * @param string $url The URL.
+	 * @return int
+	 */
+	private static function url_to_post_id( string $url ): int {
+		if ( function_exists( 'wpcom_vip_url_to_postid' ) ) {
+			return (int) wpcom_vip_url_to_postid( $url );
+		}
+
+		$key     = md5( $url );
+		$post_id = wp_cache_get( $key, self::URL_CACHE_GROUP );
+
+		if ( false === $post_id ) {
+			$post_id = url_to_postid( $url ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.url_to_postid_url_to_postid -- Cached here; the VIP helper is used where it exists.
+			wp_cache_set( $key, $post_id, self::URL_CACHE_GROUP, HOUR_IN_SECONDS );
+		}
+
+		return (int) $post_id;
 	}
 
 	/**

@@ -248,9 +248,10 @@ class Breakout {
 			);
 		}
 
-		$title = $entry->post_title
+		$summary = Entry_Bindings::public_summary( $entry, 10 );
+		$title   = $entry->post_title
 			? $entry->post_title
-			: htmlspecialchars( Entry_Bindings::public_summary( $entry, 10 ), ENT_NOQUOTES, 'UTF-8' );
+			: htmlspecialchars( '' !== $summary ? $summary : Entry_Bindings::get_fallback_title( $entry ), ENT_NOQUOTES, 'UTF-8' );
 
 		$new_post_id = wp_insert_post(
 			wp_slash(

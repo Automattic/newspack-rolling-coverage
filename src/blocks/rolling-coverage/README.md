@@ -136,7 +136,7 @@ Selecting Share on an entry opens the device's share sheet with a link to that e
 
 ### What compact layouts show of an entry
 
-Layouts that show a short excerpt of each entry, such as Wire, Digest, and Flash, take it from the entry's text when no excerpt was written for it: every block with words, including lists, headings, and quotes, cut to the site's excerpt length. Photos, videos, audio, and embeds add nothing to it, so a caption or an embedded link never reads as the entry's words.
+Layouts that show a short excerpt of each entry, such as Wire, Digest, and Flash, take it from the entry's text when no excerpt was written for it: every block with words, including lists, headings, and quotes, cut to the length the layout's excerpt allows. Photos, videos, audio, and embeds add nothing to it, so a caption or an embedded link never reads as the entry's words. Neither do blocks hidden with Hide block, or the labels of buttons, file downloads, and other controls.
 
 Ticker gives an entry without a title a headline made of the opening words of its first block with words, so a heading or an opening line stands alone. An excerpt written for the entry is used instead when there is one.
 
