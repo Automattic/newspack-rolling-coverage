@@ -21,11 +21,13 @@ defined( 'ABSPATH' ) || exit;
  * second alone nor the second and one entry ID can tell the entries a page
  * holds from ones saved in that second after it polled; the cursor names
  * them all. Saving an entry again within the second the page holds it in is
- * picked up on its next save.
+ * picked up on its next save, and so is a save stamped in the second before
+ * the cursor's that only becomes visible after it, which parallel requests
+ * straddling a second boundary can produce.
  *
  * The coverage's last-modified time stays put through saves within one
  * second, so it can't tell an idle poll that nothing changed. The marker,
- * which every change replaces, can.
+ * which every change readers can see replaces, can.
  *
  * As a string: `{ids}:{Y-m-d H:i:s}@{marker}`, the IDs comma-separated, or
  * `0` for none, and the marker empty before the coverage's first change.

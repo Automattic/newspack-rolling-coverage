@@ -4200,7 +4200,7 @@ class Rolling_Coverage_Block {
 	 *
 	 * A capped feed, as its stored config or a positive `latest` count says,
 	 * polls entries as unpinned and without ads, and loads no more. After a
-	 * removal later than the cursor's second, or a burst past POLL_CAP, its
+	 * removal the page doesn't hold, or a burst past POLL_CAP, its
 	 * poll brings the removals and its newest entries with `replace`, for the
 	 * page to swap in for its own.
 	 *
