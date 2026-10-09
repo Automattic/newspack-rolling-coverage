@@ -203,6 +203,53 @@ class Test_Author_Settings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Load more follows Avatar Display as it is when the entries load, so
+	 * turning avatars off drops the avatar column from a page stored with it.
+	 */
+	public function test_loaded_entries_drop_the_avatar_column_when_avatars_are_off() {
+		$coverage_id = self::create_coverage();
+		$author_id   = self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] );
+		self::create_entry(
+			$coverage_id,
+			[
+				'post_author' => $author_id,
+				'post_date'   => '2026-01-01 10:00:00',
+			]
+		);
+		self::create_entry(
+			$coverage_id,
+			[
+				'post_author' => $author_id,
+				'post_date'   => '2026-01-01 11:00:00',
+			]
+		);
+
+		$html = self::render_block(
+			[
+				'coverageId'     => $coverage_id,
+				'entriesPerPage' => 1,
+			],
+			self::ROW_MARKUP
+		);
+
+		$this->assertSame( 2, self::count_columns( $html ) );
+
+		preg_match( '/data-template-key="([^"]+)"/', $html, $matches );
+		update_option( 'show_avatars', 0 );
+
+		$request = new WP_REST_Request( 'GET' );
+		$request->set_param( 'term_id', $coverage_id );
+		$request->set_param( 'template_key', $matches[1] );
+		$request->set_param( 'per_page', 1 );
+		$request->set_param( 'before', '2026-01-01 11:00:00' );
+
+		$older = Rolling_Coverage_Block::get_entries( $request )->get_data()['html'];
+
+		$this->assertStringContainsString( 'Jane Reporter', $older, 'The older entry should load.' );
+		$this->assertSame( 1, self::count_columns( $older ), 'The column that held only the avatar should go.' );
+	}
+
+	/**
 	 * Entries a poll or load more brings in follow the block's settings.
 	 *
 	 * @dataProvider data_settings

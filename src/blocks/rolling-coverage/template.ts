@@ -3351,7 +3351,7 @@ function withoutAuthorBlocks<
 /**
  * The template without avatars, or the columns that hold only one, as the
  * site renders it with avatars turned off (see
- * Rolling_Coverage_Block::shape_entry_template()) or the block's Avatar
+ * Rolling_Coverage_Block::with_avatar_display()) or the block's Avatar
  * setting on Hide.
  *
  * @param {Object[]} blocks The template blocks.
@@ -3365,7 +3365,7 @@ function withoutAvatarColumns<
 
 /**
  * The template without the author's avatar and name, as an entry the Slack
- * bot wrote renders (see Rolling_Coverage_Block::shape_entry_template()).
+ * bot wrote renders (see Rolling_Coverage_Block::render_entry()).
  * The avatar's column stays, so the entry's text lines up with the others.
  *
  * @param {Object[]} blocks The template blocks.

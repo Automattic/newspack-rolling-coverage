@@ -866,8 +866,8 @@ class Rolling_Coverage_Block {
 	 * Hides an entry's avatar and author name while the Slack bot is its
 	 * author. The rule keys on the author, so an entry an editor reassigns
 	 * to a reporter shows that reporter. render_entry() already drops them
-	 * from the template (see shape_entry_template()); this catches any that
-	 * reach the entry another way, such as blocks in its own content.
+	 * from the template; this catches any that reach the entry another way,
+	 * such as blocks in its own content.
 	 *
 	 * @param string   $block_content Rendered block.
 	 * @param array    $block         Parsed block.
@@ -1279,7 +1279,7 @@ class Rolling_Coverage_Block {
 			$has_more = $page['has_more'];
 		}
 
-		update_post_author_caches( $posts );
+		self::prime_author_caches( $posts, $template, $is_lite );
 
 		$older_entries = $template ? self::older_entries( $attributes ) : 'none';
 
@@ -3073,6 +3073,23 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Loads the authors of a page of entries in one query, when the entries
+	 * render a byline that reads them: a lite page renders entries as text,
+	 * and a template without author blocks never looks the author up.
+	 *
+	 * @param WP_Post[] $posts    Entries about to render.
+	 * @param array[]   $template Per-entry template.
+	 * @param bool      $is_lite  Whether the entries render for a lite page.
+	 */
+	private static function prime_author_caches( array $posts, array $template, bool $is_lite ): void {
+		if ( $is_lite || ! self::holds_block( $template, static fn( array $block ) => self::is_author_block( $block ) ) ) {
+			return;
+		}
+
+		update_post_author_caches( $posts );
+	}
+
+	/**
 	 * Whether a parsed block is the author's avatar or name.
 	 *
 	 * @param array $block Parsed block.
@@ -4296,7 +4313,7 @@ class Rolling_Coverage_Block {
 
 			$changes = array_merge( ( new WP_Query( $args ) )->posts, $removed );
 			usort( $changes, static fn( WP_Post $a, WP_Post $b ) => strcmp( self::post_modified_gmt( $b ), self::post_modified_gmt( $a ) ) );
-			update_post_author_caches( $changes );
+			self::prime_author_caches( $changes, $template, $is_lite );
 
 			$is_cursor_entry = static fn( WP_Post $entry ) => $entry->ID === $cursor_id && self::post_modified_gmt( $entry ) === $cursor_modified;
 
@@ -4427,7 +4444,7 @@ class Rolling_Coverage_Block {
 			$has_more = count( $query->posts ) > $per_page;
 		}
 
-		update_post_author_caches( $posts );
+		self::prime_author_caches( $posts, $template, $is_lite );
 
 		$html        = '';
 		$ad_slots    = [];
@@ -4512,7 +4529,7 @@ class Rolling_Coverage_Block {
 		$entries = array_map( static fn( WP_Post $entry ) => self::removal( $entry ), $removed );
 		$posts   = ( new WP_Query( $args ) )->posts;
 
-		update_post_author_caches( $posts );
+		self::prime_author_caches( $posts, $template, $is_lite );
 
 		foreach ( $posts as $entry ) {
 			$entries[] = [

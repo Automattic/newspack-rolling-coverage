@@ -71,7 +71,7 @@ Says whether the block uses the shared layout or its own detached copy.
 | Link text | With Link to all updates set to Show, in a shared layout that has the link: this block's own wording for it, such as "Follow the storm". Leave it empty to use the layout's text, which shows in the field and below it. The layout stays shared, so later changes to it still reach this block. Detaching the layout writes the wording into the detached copy. |
 | Entries per page | With Show set to All: how many entries show first, and how many each load of older entries adds. From 1 to 100. Default 20. |
 | Author | In layouts that show the author's name, except the shared Byline layout: Show or Hide each entry's author's name and photo. Default Show. |
-| Avatar | In layouts that show the author's photo, with Author set to Show: Show or Hide the photo. Picking Rail, Clock, Margin, or Split sets it to Hide, and switching from one of them to a built-in layout not in that list sets it back to Show. Photos follow Avatar Display under Settings > Discussion. |
+| Avatar | In layouts that show the author's photo, with Author set to Show, or where the layout doesn't offer Author (the shared Byline layout, or a layout with a photo but no name): Show or Hide the photo. Picking Rail, Clock, Margin, or Split sets it to Hide, and switching from one of them to a built-in layout not in that list sets it back to Show. Photos follow Avatar Display under Settings > Discussion. |
 | Poll interval (seconds) | Hidden when Show is set to All and the layout holds a [Check for Updates](../check-updates/README.md) block. How often the page checks for new entries. Default 10. The site can set a longer minimum, which wins over a shorter value here. |
 
 ### Ended
