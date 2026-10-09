@@ -1,6 +1,6 @@
 # Admin screens: development notes
 
-The plugin's admin screens live in `src/admin/`: the coverages list, each coverage's entries list, Quick Edit, the Settings modal, and the Slack and AI pages. The entries list is a DataViews table; its fields are defined in `src/admin/fields/entries.tsx`. What the plugin adds to the entry editor lives in `src/entry-editor/`.
+The plugin's admin screens live in `src/admin/`: the coverages list, each coverage's entries list, Quick Edit, the Settings modal, and the Slack and AI pages. The entries list is a DataViews table; its fields are defined in `src/admin/fields/entries.tsx`. What the plugin adds to the entry editor lives in `src/entry-editor/`, and what it adds to a breakout post's editor in `src/breakout-editor/`.
 
 ## Screens and routes
 
@@ -48,17 +48,18 @@ The routes live in `Taxonomy` (`includes/class-taxonomy.php`).
 
 ## Settings
 
-`SettingsModal` (`settings-modal.tsx`) opens from the All Coverages header for users with `edit_others_posts`. It has three tabs, each saving one option through its own route:
+`SettingsModal` (`settings-modal.tsx`) opens from the All Coverages header for users with `edit_others_posts`. It has two tabs. Labels groups the three things readers see named, each under a heading of its own; Coverage Status holds the status labels. Each group saves one option through its own route:
 
-| Tab | Fields | Route |
-| --- | --- | --- |
-| Entry Name | Singular, Plural | `rolling-coverage/v1/settings/entry-name` |
-| Coverage Status | Live label, Paused label, Ended label | `rolling-coverage/v1/settings/status-labels` |
-| Jump to Latest | Button label | `rolling-coverage/v1/settings/latest-label` |
+| Tab | Group | Fields | Route |
+| --- | --- | --- | --- |
+| Labels | Entry Name | Singular, Plural | `rolling-coverage/v1/settings/entry-name` |
+| Labels | Jump to Latest | Button label | `rolling-coverage/v1/settings/latest-label` |
+| Labels | Full Story | Full story label | `rolling-coverage/v1/settings/breakout-label` |
+| Coverage Status | | Live label, Paused label, Ended label | `rolling-coverage/v1/settings/status-labels` |
 
-The modal loads all three when it opens and saves only the ones that changed. It refuses an entry name with one word and not the other before sending anything. A failed save switches to that tab and shows the error. Closing with unsaved changes asks to discard them.
+The modal loads all four when it opens and saves only the ones that changed. The two single-label groups share `fetchLabelSetting()` and `saveLabelSetting()` (`src/admin/utils/label-setting-api.ts`). It refuses an entry name with one word and not the other before sending anything. A failed save switches to the tab holding it and shows the error. Closing with unsaved changes asks to discard them.
 
-The options, their limits and what reads them are documented with the blocks: the entry name and the Jump to Latest label in `src/blocks/rolling-coverage/DEVELOPMENT.md`, the status labels in `src/blocks/coverage-status/DEVELOPMENT.md`.
+The options, their limits and what reads them are documented with the blocks: the entry name, the Jump to Latest label and the Full story label in `src/blocks/rolling-coverage/DEVELOPMENT.md`, the status labels in `src/blocks/coverage-status/DEVELOPMENT.md`.
 
 ## A coverage's entries
 
@@ -323,3 +324,9 @@ Tests: `tests/test-entry-editor-navigation.php`.
 The bundle's other registration, the Push Notifications panel, is described in `src/blocks/coverage-follow/DEVELOPMENT.md`.
 
 The entry post type registers core's `item_*` labels (`Post_Type::register()`), so the editor's notices name an entry, as in "Entry published." and "Entry updated.", rather than a post.
+
+## The breakout post editor
+
+`Admin::enqueue_breakout_editor()`, on `enqueue_block_editor_assets`, loads the `breakout-editor` bundle (`src/breakout-editor/index.tsx`) when the screen and the post being edited are a `post` that links back to the entry it was broken out from (`Breakout::BREAKOUT_SOURCE_ENTRY_META`), and only once the bundle is built. It passes `window.newspackRollingCoverageBreakoutEditor`: the post meta key (`Breakout_Label::POST_META_KEY`), the label every other card shows (`Breakout_Label::get()`) and the length cap (`Breakout_Label::MAX_LENGTH`), and sets the script's translations.
+
+The bundle registers a "Rolling Coverage" panel in the post's settings sidebar holding a "Full story label" field, the post's own label for its card. The field's placeholder is the site's label, and its help text says "Shown above this story in the coverage feed. Leave empty to use “%s”." with that label. The meta, its precedence over the site's label and how a change reaches open pages are documented under "Full story label" in `src/blocks/rolling-coverage/DEVELOPMENT.md`.

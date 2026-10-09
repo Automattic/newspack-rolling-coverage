@@ -288,10 +288,11 @@ class Entry_Bindings {
 	 * the public, or nothing for a restricted entry (see is_restricted()) or
 	 * one with no words outside its media. For text shown or sent outside
 	 * the entry itself, such as a share link's name, a push notification or
-	 * a breakout post's title. Decoded plain text, as
+	 * a breakout post's title. Reads any post the same way, so
+	 * Breakout_Card sums up a breakout post with it. Decoded plain text, as
 	 * Post_Type::get_html_summary() gives it.
 	 *
-	 * @param WP_Post $entry Entry post.
+	 * @param WP_Post $entry Entry post, or another post.
 	 * @param int     $words Number of words to keep.
 	 * @return string
 	 */
@@ -420,10 +421,11 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Whether the entry is restricted for readers who aren't members: by
-	 * Newspack's content gate outside the entry's own page, or by a
-	 * WooCommerce Memberships rule. Both restrict through `the_content`,
+	 * Whether a post, such as an entry, is restricted for readers who aren't
+	 * members: by Newspack's content gate outside the post's own page, or by
+	 * a WooCommerce Memberships rule. Both restrict through `the_content`,
 	 * which core's generated excerpt reads and entry_excerpt() doesn't.
+	 * Breakout_Card asks it of breakout posts too.
 	 *
 	 * The answer is the same for every reader, since is_restricted() feeds
 	 * text that is cached and sent to all. For the gate, that's why this asks
@@ -438,10 +440,10 @@ class Entry_Bindings {
 	 * gates stand down while WooCommerce Memberships is active. For
 	 * Memberships, see is_restricted_by_membership_rule().
 	 *
-	 * @param WP_Post $post The entry.
+	 * @param WP_Post $post The post.
 	 * @return bool
 	 */
-	private static function is_withheld( WP_Post $post ): bool {
+	public static function is_withheld( WP_Post $post ): bool {
 		if ( self::is_restricted_by_membership_rule( $post ) ) {
 			return true;
 		}
@@ -1362,7 +1364,7 @@ class Entry_Bindings {
 	 * @param array $parsed_block Parsed block.
 	 * @return bool
 	 */
-	private static function is_pinned_label( array $parsed_block ): bool {
+	public static function is_pinned_label( array $parsed_block ): bool {
 		$class_name = $parsed_block['attrs']['className'] ?? '';
 
 		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&

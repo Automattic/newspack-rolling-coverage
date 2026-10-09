@@ -1309,6 +1309,10 @@ class Rolling_Coverage_Block {
 		$lead_pinned_id = 0;
 		$follows_lead   = false;
 
+		if ( $template ) {
+			self::prime_breakout_posts( $posts );
+		}
+
 		foreach ( $template ? $posts : [] as $entry ) {
 			$entry_index++;
 			$is_pinned     = ! $is_capped && Post_Type::is_pinned( $entry->ID );
@@ -2698,6 +2702,88 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * A card's template with the Full story label placed, when the template
+	 * names the post in its Post Content because it has no Post Title, as
+	 * Stream and Minute do (see Breakout_Card::content_html()). On a pinned
+	 * entry whose template shows the pinned label, the label follows it in
+	 * its row, after a separator (Breakout_Card::pinned_label_blocks()).
+	 * Otherwise it opens the entry group, or the template when there is
+	 * none, as a row of its own (Breakout_Card::label_block()), so the
+	 * group's block gap spaces it and screen readers read it before the
+	 * content. A template with a Post Title, or showing no Post Content,
+	 * places its label elsewhere (see Breakout_Card).
+	 *
+	 * @param array[] $template  Shaped template blocks.
+	 * @param array   $card      The entry's card (see Breakout_Card::for_entry()).
+	 * @param bool    $is_pinned Whether the entry shows as pinned.
+	 * @return array[]
+	 */
+	private static function with_breakout_label( array $template, array $card, bool $is_pinned ): array {
+		if ( '' === $card['title'] || self::holds_post_title( $template ) || ! self::holds_block( $template, static fn( array $block ) => 'core/post-content' === ( $block['blockName'] ?? '' ) ) ) {
+			return $template;
+		}
+
+		if ( $is_pinned && Entry_Bindings::has_pinned_label( $template ) ) {
+			$label_blocks = Breakout_Card::pinned_label_blocks( $card );
+
+			$placed = false;
+
+			return self::map_template_blocks(
+				$template,
+				static function ( array $block ) use ( $label_blocks, &$placed ) {
+					if ( ! $placed && Entry_Bindings::is_pinned_label( $block ) ) {
+						$placed = true;
+
+						return array_merge( [ $block ], $label_blocks );
+					}
+
+					if ( 'core/group' === ( $block['blockName'] ?? '' ) && self::holds_pinned_label_row( $block ) ) {
+						$block['attrs']['layout']['flexWrap'] = 'wrap';
+						$block['attrs']['style']['spacing']['blockGap'] = '0.25em';
+					}
+
+					return [ $block ];
+				}
+			);
+		}
+
+		$label  = Breakout_Card::label_block( $card );
+		$placed = false;
+
+		$template = self::map_template_blocks(
+			$template,
+			static function ( array $block ) use ( $label, &$placed ) {
+				if ( $placed || ! self::is_entry_group( $block ) ) {
+					return [ $block ];
+				}
+
+				$placed = true;
+
+				return [ self::sync_inner_content( $block, array_merge( [ $label ], $block['innerBlocks'] ?? [] ) ) ];
+			}
+		);
+
+		return $placed ? $template : array_merge( [ $label ], $template );
+	}
+
+	/**
+	 * Whether a group directly holds a Full story label added to a pinned
+	 * row (see Breakout_Card::pinned_label_blocks()).
+	 *
+	 * @param array $group Parsed group block.
+	 * @return bool
+	 */
+	private static function holds_pinned_label_row( array $group ): bool {
+		foreach ( $group['innerBlocks'] ?? [] as $inner_block ) {
+			if ( is_array( $inner_block ) && is_string( $inner_block['innerHTML'] ?? null ) && false !== strpos( $inner_block['innerHTML'], Breakout_Card::LABEL_SEPARATOR_CLASS ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Whether blocks hold a block matching a test, at any depth.
 	 *
 	 * @param array[]  $blocks   Parsed blocks.
@@ -3245,14 +3331,8 @@ class Rolling_Coverage_Block {
 	 * @param array[] $blocks Parsed blocks.
 	 * @return bool
 	 */
-	private static function holds_post_title( array $blocks ): bool {
-		foreach ( $blocks as $block ) {
-			if ( is_array( $block ) && ( 'core/post-title' === ( $block['blockName'] ?? '' ) || self::holds_post_title( $block['innerBlocks'] ?? [] ) ) ) {
-				return true;
-			}
-		}
-
-		return false;
+	public static function holds_post_title( array $blocks ): bool {
+		return self::holds_block( $blocks, static fn( array $block ) => 'core/post-title' === ( $block['blockName'] ?? '' ) );
 	}
 
 	/**
@@ -3838,7 +3918,11 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Renders a single entry against the supplied per-entry template.
+	 * Renders a single entry against the supplied per-entry template. An
+	 * entry whose breakout post is published renders as a card for that post
+	 * (see Breakout_Card), titled when the post is, whether or not the entry
+	 * is, and without the archived entry's notice, which speaks of the
+	 * entry's own text.
 	 *
 	 * @global WP_Post $post Global post object, temporarily swapped to the
 	 *                       entry for the duration of this render and
@@ -3873,6 +3957,7 @@ class Rolling_Coverage_Block {
 	 */
 	public static function render_entry( WP_Post $entry, array $template, string $arrival = 'initial', bool $is_last = false, bool $is_linked = false, bool $is_capped = false, array $feed_layout = [], int $coverage_id = 0, ?int $lead_pinned_id = null, array $column_rule = [] ): string {
 		$is_pinned = ! $is_capped && Post_Type::is_pinned( $entry->ID );
+		$card      = Breakout_Card::for_entry( $entry->ID, self::holds_block( $template, static fn( array $block ) => in_array( $block['blockName'] ?? '', [ 'core/post-content', 'core/post-excerpt' ], true ) ) );
 
 		[ $template, $cell_classes, $leads_column ] = self::place_in_grid(
 			$template,
@@ -3893,11 +3978,15 @@ class Rolling_Coverage_Block {
 		$template = self::shape_entry_template(
 			self::drop_fixed_template_dates( $template ),
 			$is_pinned,
-			$is_pinned && null !== Breakout::get_published_breakout_url( $entry->ID ),
+			$is_pinned && null !== $card,
 			$is_last
 		);
 
-		if ( ! self::has_title( $entry ) ) {
+		if ( null !== $card ) {
+			$template = self::with_breakout_label( $template, $card, $is_pinned );
+		}
+
+		if ( ( null === $card || '' === $card['title'] ) && ! self::has_title( $entry ) ) {
 			$template = self::with_centered_title_rows( $template );
 		}
 
@@ -3909,27 +3998,31 @@ class Rolling_Coverage_Block {
 		self::$ignoring_pinning = $is_capped;
 		self::setup_entry_postdata( $entry );
 
-		$is_archived = Archive_Mode::is_entry_archived( $entry->ID );
+		$is_archived = null === $card && Archive_Mode::is_entry_archived( $entry->ID );
 		if ( $is_archived ) {
 			add_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );
 		}
 
+		$render = fn() => self::render_as_entry(
+			fn() => ( new WP_Block(
+				[
+					'blockName'    => null,
+					'attrs'        => [],
+					'innerBlocks'  => $template,
+					'innerHTML'    => '',
+					'innerContent' => array_fill( 0, count( $template ), null ),
+				],
+				[
+					'postId'   => $entry->ID,
+					'postType' => $entry->post_type,
+				]
+			) )->render( [ 'dynamic' => false ] )
+		);
+
 		try {
-			$entry_content = self::render_as_entry(
-				fn() => ( new WP_Block(
-					[
-						'blockName'    => null,
-						'attrs'        => [],
-						'innerBlocks'  => $template,
-						'innerHTML'    => '',
-						'innerContent' => array_fill( 0, count( $template ), null ),
-					],
-					[
-						'postId'   => $entry->ID,
-						'postType' => $entry->post_type,
-					]
-				) )->render( [ 'dynamic' => false ] )
-			);
+			$entry_content = null !== $card
+				? Breakout_Card::render( $entry->ID, $card, self::holds_post_title( $template ), $render )
+				: $render();
 		} finally {
 			if ( $is_archived ) {
 				remove_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );
@@ -4247,12 +4340,35 @@ class Rolling_Coverage_Block {
 		_prime_post_caches(
 			array_filter( array_map( fn( $id ) => (int) get_post_meta( $id, Breakout::ENTRY_BREAKOUT_POST_ID_META, true ), $query->posts ) ),
 			true,
-			false
+			true
 		);
 
 		$entries = array_map( fn( $id ) => self::map_entry_preview( $id, $latest_only ), $query->posts );
 
 		return new WP_REST_Response( $entries );
+	}
+
+	/**
+	 * Load the published breakout posts of entries, with their meta, in one
+	 * go, so each card's lookups hit the cache. Does nothing for entries
+	 * without a breakout.
+	 *
+	 * @param WP_Post[] $entries Entries about to render.
+	 */
+	private static function prime_breakout_posts( array $entries ): void {
+		$ids = [];
+
+		foreach ( $entries as $entry ) {
+			$id = (int) get_post_meta( $entry->ID, Breakout::ENTRY_BREAKOUT_POST_ID_META, true );
+
+			if ( $id ) {
+				$ids[] = $id;
+			}
+		}
+
+		if ( $ids ) {
+			_prime_post_caches( array_unique( $ids ), false, true );
+		}
 	}
 
 	/**
@@ -4497,6 +4613,8 @@ class Rolling_Coverage_Block {
 			$polled_count    = max( 0, (int) ( $params['polled_count'] ?? 0 ) );
 			$new_entry_count = 0;
 
+			self::prime_breakout_posts( $changes );
+
 			foreach ( $changes as $entry ) {
 				if ( 'publish' !== $entry->post_status ) {
 					$entries[] = self::removal( $entry );
@@ -4610,6 +4728,8 @@ class Rolling_Coverage_Block {
 		$ad_slots    = [];
 		$entry_index = 0;
 
+		self::prime_breakout_posts( $posts );
+
 		foreach ( $posts as $entry ) {
 			$entry_index++;
 			$html .= $is_lite ? Lite_Feed::render_entry( $entry, 'load_more' ) : self::render_entry( $entry, $template, 'load_more', is_last: ! $has_more && count( $posts ) === $entry_index, feed_layout: $feed_layout, coverage_id: $term_id );
@@ -4687,7 +4807,11 @@ class Rolling_Coverage_Block {
 
 		$entries = array_map( static fn( WP_Post $entry ) => self::removal( $entry ), $removed );
 
-		foreach ( ( new WP_Query( $args ) )->posts as $entry ) {
+		$burst_entries = ( new WP_Query( $args ) )->posts;
+
+		self::prime_breakout_posts( $burst_entries );
+
+		foreach ( $burst_entries as $entry ) {
 			$entries[] = [
 				'id'     => $entry->ID,
 				'html'   => $is_lite ? Lite_Feed::render_entry( $entry, 'poll', true ) : self::render_entry( $entry, $template, 'poll', is_capped: true, feed_layout: $feed_layout, coverage_id: $term_id ),

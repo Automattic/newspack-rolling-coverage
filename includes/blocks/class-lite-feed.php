@@ -77,6 +77,11 @@ class Lite_Feed {
 		.newspack-rolling-coverage-entry h3 {
 			margin: 0 0 0.5rem;
 		}
+		.newspack-rolling-coverage-breakout-label {
+			margin: 0;
+			font-size: 0.875em;
+			font-weight: 700;
+		}
 	';
 
 	/**
@@ -235,7 +240,10 @@ class Lite_Feed {
 	/**
 	 * Render an entry as text: its time, whether it is pinned, its title and
 	 * its body, which Lite Site cleans like the rest of the page, or a notice
-	 * in place of a protected entry's body.
+	 * in place of a protected entry's body. An entry whose breakout post is
+	 * published shows that post's title under the Full story label, linked to
+	 * its lite page (see card_url()), and its summary instead (see
+	 * Breakout_Card::for_entry()), without the archived entry's notice.
 	 *
 	 * Built from the entry alone, not the block's layout, and carrying the
 	 * attributes the view script uses to place and replace entries. Layouts
@@ -265,6 +273,16 @@ class Lite_Feed {
 			$meta .= ' &middot; ' . esc_html__( 'Pinned', 'newspack-rolling-coverage' );
 		}
 
+		$card = Breakout_Card::for_entry( $entry->ID );
+
+		if ( null !== $card ) {
+			$title = '' !== $card['title'] ? Breakout_Card::lite_label_html( $card ) . sprintf( '<h3><a href="%s">%s</a></h3>', esc_url( self::card_url( $card ) ), esc_html( $card['title'] ) ) : '';
+			$body  = '' !== $card['summary'] ? '<p>' . esc_html( $card['summary'] ) . '</p>' : '';
+		} else {
+			$title = Rolling_Coverage_Block::has_title( $entry ) ? '<h3>' . esc_html( get_the_title( $entry ) ) . '</h3>' : '';
+			$body  = self::render_body( $entry );
+		}
+
 		return sprintf(
 			'<article class="%1$s-entry" data-entry-id="%2$d" data-arrival="%3$s"%4$s><p class="%1$s-entry-meta">%5$s</p>%6$s%7$s%8$s</article>',
 			Rolling_Coverage_Block::MARKUP_PREFIX,
@@ -272,10 +290,35 @@ class Lite_Feed {
 			esc_attr( $arrival ),
 			$is_pinned ? ' data-pinned' : '',
 			$meta,
-			Rolling_Coverage_Block::has_title( $entry ) ? '<h3>' . esc_html( get_the_title( $entry ) ) . '</h3>' : '',
-			Archive_Mode::is_entry_archived( $entry->ID ) ? \Newspack_Lite_Site\Lite_Site::clean_content( Rolling_Coverage_Block::render_archived_entry_notice() ) : '',
-			self::render_body( $entry )
+			$title,
+			null === $card && Archive_Mode::is_entry_archived( $entry->ID ) ? \Newspack_Lite_Site\Lite_Site::clean_content( Rolling_Coverage_Block::render_archived_entry_notice() ) : '',
+			$body
 		);
+	}
+
+	/**
+	 * Where a card's title links on a lite page: the breakout post's lite
+	 * page when Lite Site serves one for the post's type, else its
+	 * permalink.
+	 *
+	 * @param array $card The entry's card (see Breakout_Card::for_entry()).
+	 * @return string
+	 */
+	private static function card_url( array $card ): string {
+		$lite_site = '\Newspack_Lite_Site\Lite_Site';
+		$post      = get_post( $card['post_id'] );
+
+		if ( ! $post instanceof WP_Post || ! method_exists( $lite_site, 'get_lite_page_url' ) ) {
+			return $card['url'];
+		}
+
+		if ( method_exists( $lite_site, 'get_supported_post_types' ) && ! in_array( $post->post_type, (array) $lite_site::get_supported_post_types(), true ) ) {
+			return $card['url'];
+		}
+
+		$url = (string) $lite_site::get_lite_page_url( $post );
+
+		return '' !== $url ? $url : $card['url'];
 	}
 
 	/**

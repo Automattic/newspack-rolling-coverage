@@ -50,6 +50,7 @@ class Initializer {
 		AI_Settings::init();
 		Status_Labels::init();
 		Latest_Label::init();
+		Breakout_Label::init();
 		Entry_Name::init();
 		Abilities::init();
 		Schema::init();

@@ -214,13 +214,18 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 			'The entry on the coverage page.'
 		);
 
-		$breakout_id = self::factory()->post->create( [ 'post_status' => 'publish' ] );
+		$breakout_id = self::factory()->post->create(
+			[
+				'post_status' => 'publish',
+				'post_title'  => 'Bridge closed for repairs',
+			]
+		);
 		update_post_meta( $entry_id, Breakout::ENTRY_BREAKOUT_POST_ID_META, $breakout_id );
 
 		$this->assertStringContainsString(
-			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Bridge closed</a></h4>',
+			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Bridge closed for repairs</a></h4>',
 			self::render_title( $entry_id, $title ),
-			'A published breakout wins.'
+			'A published breakout wins, with its own title.'
 		);
 	}
 
@@ -261,8 +266,9 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 
 	/**
 	 * An untitled entry's marked title shows its excerpt's first fifteen
-	 * words, linked as a title would be: to the entry on the coverage page,
-	 * then to the breakout once it's published.
+	 * words, linked as a title would be, to the entry on the coverage page.
+	 * Once the breakout is published, it shows the breakout's title, linked
+	 * to it.
 	 */
 	public function test_untitled_entry_link_title_shows_its_opening_words_linked() {
 		[ , $entry_id ] = self::create_untitled_entry();
@@ -273,11 +279,16 @@ class Test_Ticker extends Rolling_Coverage_TestCase {
 			self::render_title( $entry_id, self::TITLE_MARKUP )
 		);
 
-		$breakout_id = self::factory()->post->create( [ 'post_status' => 'publish' ] );
+		$breakout_id = self::factory()->post->create(
+			[
+				'post_status' => 'publish',
+				'post_title'  => 'Bridge inspection under way',
+			]
+		);
 		update_post_meta( $entry_id, Breakout::ENTRY_BREAKOUT_POST_ID_META, $breakout_id );
 
 		$this->assertStringContainsString(
-			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '" target="_self" >' . $words . '</a></h4>',
+			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '" target="_self" >Bridge inspection under way</a></h4>',
 			self::render_title( $entry_id, self::TITLE_MARKUP )
 		);
 	}

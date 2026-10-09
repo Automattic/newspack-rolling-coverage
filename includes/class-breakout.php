@@ -20,6 +20,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * A breakout post is a standard `post` cloned from a rolling coverage entry.
  * The entry stores a forward link to it (self::ENTRY_BREAKOUT_POST_ID_META).
+ * Once the post is published, feeds show the entry as a card for it (see
+ * Breakout_Card).
  */
 class Breakout {
 
@@ -36,6 +38,21 @@ class Breakout {
 	const BREAKOUT_STATUS_FIELD = 'rolling_coverage_breakout_status';
 
 	/**
+	 * Breakout posts being deleted, by post ID, so deleting their meta
+	 * doesn't touch the entry again (see cleanup_on_breakout_delete()).
+	 *
+	 * @var true[]
+	 */
+	private static $deleting = [];
+
+	/**
+	 * Entries touched by the update hooks in this request, by entry ID.
+	 *
+	 * @var bool[]
+	 */
+	private static $touched = [];
+
+	/**
 	 * Initialize hooks.
 	 */
 	public static function init() {
@@ -45,6 +62,11 @@ class Breakout {
 		add_action( 'before_delete_post', [ __CLASS__, 'cleanup_on_breakout_delete' ] );
 		add_action( 'transition_post_status', [ __CLASS__, 'sync_breakout_status_to_entry' ], 10, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'on_breakout_post_status_change' ], 10, 3 );
+		add_action( 'post_updated', [ __CLASS__, 'on_breakout_post_updated' ], 10, 3 );
+		add_action( 'added_post_meta', [ __CLASS__, 'on_breakout_label_changed' ], 10, 3 );
+		add_action( 'updated_post_meta', [ __CLASS__, 'on_breakout_label_changed' ], 10, 3 );
+		add_action( 'deleted_post_meta', [ __CLASS__, 'on_breakout_label_changed' ], 10, 3 );
+		add_action( 'deleted_post', [ __CLASS__, 'forget_deleted_post' ] );
 	}
 
 	/**
@@ -342,8 +364,8 @@ class Breakout {
 
 	/**
 	 * Touches the source entry when its breakout post is published or stops
-	 * being published, so the polling endpoint re-renders the entry (its title
-	 * link and "Read more" come and go with the breakout) and delivers it to
+	 * being published, so the polling endpoint re-renders the entry (it turns
+	 * into a card for the post, or back into its own text) and delivers it to
 	 * active readers on the next poll cycle.
 	 *
 	 * @param string  $new_status Incoming post status.
@@ -356,6 +378,88 @@ class Breakout {
 		}
 
 		self::touch_source_entry( $post->ID );
+	}
+
+	/**
+	 * Touches the source entry when a published breakout post's title,
+	 * excerpt, content, password, slug or date changes while it stays
+	 * published, so active readers get the entry's card for it, and its
+	 * link, again on the next poll.
+	 * Revisions and autosaves are posts of their own type, so they never
+	 * reach it.
+	 *
+	 * @param int     $post_id     Post ID.
+	 * @param WP_Post $post_after  Post object after the update.
+	 * @param WP_Post $post_before Post object before the update.
+	 */
+	public static function on_breakout_post_updated( int $post_id, WP_Post $post_after, WP_Post $post_before ): void {
+		if ( 'post' !== $post_after->post_type || 'publish' !== $post_after->post_status || 'publish' !== $post_before->post_status ) {
+			return;
+		}
+
+		foreach ( [ 'post_title', 'post_excerpt', 'post_content', 'post_password', 'post_name', 'post_date' ] as $field ) {
+			if ( $post_after->$field !== $post_before->$field ) {
+				self::touch_source_entry_once( $post_id );
+				return;
+			}
+		}
+	}
+
+	/**
+	 * Touches the source entry when a published breakout post's own Full
+	 * story label (Breakout_Label::POST_META_KEY) is set, changed or
+	 * removed, so active readers get the entry's card with its new label on
+	 * the next poll. Saving meta through the REST API changes no post field,
+	 * so on_breakout_post_updated() never sees it. Core fires none of these
+	 * actions when a value is saved unchanged, and an empty label is never
+	 * stored (Breakout_Label::delete_empty_post_label()).
+	 *
+	 * Parameters stay untyped because this runs for every post meta write.
+	 *
+	 * @param int|int[] $meta_id  Meta ID, or IDs when deleted.
+	 * @param int       $post_id  Post ID.
+	 * @param string    $meta_key Meta key.
+	 */
+	public static function on_breakout_label_changed( $meta_id, $post_id, $meta_key ): void {
+		if ( Breakout_Label::POST_META_KEY !== $meta_key || (int) $post_id < 1 || isset( self::$deleting[ (int) $post_id ] ) ) {
+			return;
+		}
+
+		$post = get_post( (int) $post_id );
+
+		if ( ! $post instanceof WP_Post || 'post' !== $post->post_type || 'publish' !== $post->post_status ) {
+			return;
+		}
+
+		self::touch_source_entry_once( $post->ID );
+	}
+
+	/**
+	 * Forget a breakout post once it's deleted (see cleanup_on_breakout_delete()).
+	 *
+	 * @param int $post_id Deleted post ID.
+	 */
+	public static function forget_deleted_post( $post_id ): void {
+		unset( self::$deleting[ (int) $post_id ] );
+	}
+
+	/**
+	 * Touch the source entry unless an update hook already did in this
+	 * request, so a save that changes a post field and its label touches
+	 * it once.
+	 *
+	 * @param int $breakout_id Breakout post ID.
+	 */
+	private static function touch_source_entry_once( int $breakout_id ): void {
+		$entry_id = (int) get_post_meta( $breakout_id, self::BREAKOUT_SOURCE_ENTRY_META, true );
+
+		if ( ! $entry_id || isset( self::$touched[ $entry_id ] ) ) {
+			return;
+		}
+
+		self::$touched[ $entry_id ] = true;
+
+		self::touch_source_entry( $breakout_id );
 	}
 
 	/**
@@ -374,7 +478,9 @@ class Breakout {
 	/**
 	 * Clean up the source entry's breakout meta when its breakout post is
 	 * permanently deleted, so a new breakout can be created afterward. A
-	 * published breakout deleted outright also refreshes the entry for readers.
+	 * published breakout deleted outright also refreshes the entry for
+	 * readers, once: deleting its meta afterward touches nothing (see
+	 * on_breakout_label_changed()).
 	 *
 	 * Reads the source entry from the breakout post's reverse link
 	 * (self::BREAKOUT_SOURCE_ENTRY_META).
@@ -387,6 +493,8 @@ class Breakout {
 		if ( ! $entry_id ) {
 			return;
 		}
+
+		self::$deleting[ $post_id ] = true;
 
 		delete_post_meta( $entry_id, self::ENTRY_BREAKOUT_POST_ID_META );
 		delete_post_meta( $entry_id, self::BREAKOUT_STATUS_FIELD );
