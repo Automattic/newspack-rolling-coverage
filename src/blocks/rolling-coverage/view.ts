@@ -562,8 +562,8 @@ function initBlock( root: HTMLElement ): void {
 	// The coverage status the last poll reported.
 	let polledStatus = status;
 
-	// The feed's ended notice. One may already be there when the jump to the
-	// live feed runs initBlock() again, and a second would stack on it.
+	// The feed's ended notice: the one rendered for an ended coverage, or one
+	// a poll built before the jump to the live feed ran initBlock() again.
 	let endedNotice = ownElement(
 		root,
 		'.newspack-rolling-coverage-archived-notice'
@@ -1444,11 +1444,11 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Whether a fetched block can replace the shared view in place. It can't
-	 * when it is itself a shared view, when the coverage's status has changed
-	 * since this page rendered, as the Follow button and archived notice
-	 * depend on it, when it holds ads, which need the page's own ad setup to
-	 * run, or when its entries hold scripts or interactive blocks, which would
-	 * never start.
+	 * when it is itself a shared view; when the coverage's status has changed
+	 * since this page rendered, by the fetched page's account or a poll's, as
+	 * the Follow button and the ended notice depend on it; when it holds ads,
+	 * which need the page's own ad setup to run; or when its entries hold
+	 * scripts or interactive blocks, which would never start.
 	 *
 	 * @param {HTMLElement | null} live The fetched block.
 	 * @return {boolean} True if the block can be shown in place.
@@ -1463,6 +1463,7 @@ function initBlock( root: HTMLElement ): void {
 			!! liveEntries &&
 			live.dataset.view !== 'entry' &&
 			live.dataset.status === root.dataset.status &&
+			polledStatus === status &&
 			! live.querySelector( '.newspack_global_ad' ) &&
 			! liveEntries.querySelector( 'script, [data-wp-interactive]' ) &&
 			!! live.querySelector(
