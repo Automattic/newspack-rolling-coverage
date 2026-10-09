@@ -247,7 +247,7 @@ class Post_Type {
 		add_filter( 'rest_prepare_' . self::CPT_SLUG, [ __CLASS__, 'filter_rest_response' ], 10, 3 );
 		add_action( 'save_post_' . self::CPT_SLUG, [ __CLASS__, 'on_save_post' ], 10, 2 );
 		add_filter( 'wp_insert_post_data', [ __CLASS__, 'normalize_entry_gmt_dates' ], 10, 2 );
-		// Before the coverage last-modified writers at priority 10, which read the stamped date.
+		// Before Rolling_Coverage_Block::update_coverage_last_modified() at priority 10, which copies the stamped date into the coverage.
 		add_action( 'transition_post_status', [ __CLASS__, 'stamp_publish_modified_gmt' ], 5, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'record_entry_published_gmt' ], 10, 3 );
 		add_action( 'transition_post_status', [ __CLASS__, 'record_entry_unpublished' ], 10, 3 );
@@ -2039,7 +2039,7 @@ class Post_Type {
 
 		global $wpdb;
 
-		$post->post_modified     = current_time( 'mysql' );
+		$post->post_modified     = get_date_from_gmt( $now_gmt );
 		$post->post_modified_gmt = $now_gmt;
 
 		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
