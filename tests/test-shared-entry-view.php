@@ -912,9 +912,10 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 			);
 		}
 
-		$cursor = Poll_Cursor::parse( $this->data_attribute( $this->render_with_shared( 'entry-2' ), 'cursor' ) );
+		$html = $this->render_with_shared( 'entry-2' );
 
-		$this->assertCount( Rolling_Coverage_Block::PER_PAGE_MAX, $cursor->ids );
+		$this->assertStringContainsString( 'data-view="entry"', $html, 'The page should open at the shared entry.' );
+		$this->assertCount( Rolling_Coverage_Block::PER_PAGE_MAX, Poll_Cursor::parse( $this->data_attribute( $html, 'cursor' ) )->ids );
 	}
 
 	/**
