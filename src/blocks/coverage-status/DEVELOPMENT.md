@@ -67,7 +67,7 @@ The block never fetches on its own. `view.ts` listens for the `newspack-rolling-
 
 To make that swap possible, the server prints every status's label as `data-label-{status}` and every custom style as `data-style-{status}` on the wrapper.
 
-Without a polling Rolling Coverage block for the same coverage on the page, the badge stays as rendered. Only the relative "Updated" time refreshes, once a minute (`REFRESH_INTERVAL_MS` in `src/blocks/shared/relative-dates.ts`). The Rolling Coverage block only polls while the coverage was live when the page rendered, so a page rendered while paused will not show the coverage going live until it reloads.
+Without a polling Rolling Coverage block for the same coverage on the page, the badge stays as rendered. Only the relative "Updated" time refreshes, once a minute (`REFRESH_INTERVAL_MS` in `src/blocks/shared/relative-dates.ts`). The Rolling Coverage block only polls while the coverage was live when the page rendered, so a page rendered while paused will not show the coverage going live until it reloads. It also stops once a poll reports the coverage `archived`, so a badge that turned Ended stays Ended through a reopen until the page reloads.
 
 ## Newest entry
 

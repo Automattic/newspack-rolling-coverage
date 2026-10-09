@@ -85,7 +85,7 @@ The panel title shows the site's label for an ended coverage ("Ended" unless the
 
 Notice appears only when When ended is set to Show. Notice text and Link appear only when Notice is set to Show, and URL and Link text only when Link is set to Show.
 
-Readers who already have the page open when the coverage ends see the notice at the page's next check for updates, and the page stops checking.
+Readers who already have the page open when the coverage ends see the notice at the page's next check for updates, and the page stops checking. The notice uses the settings from when the page loaded, so a change to its text or URL reaches those readers only after a reload, and so does a breakout post published after the coverage ends.
 
 ### AI
 

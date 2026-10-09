@@ -49,7 +49,7 @@ Editors and administrators set the site-wide labels in Rolling Coverage > All Co
 
 A badge that reads Live, Paused, or Ended, and optionally the "Updated … ago" text. Live badges pulse when the dot is on.
 
-The badge changes without a page reload, but only when a Rolling Coverage block for the same coverage is on the same page. A Custom block pointing to a coverage that isn't on the page keeps the status it had when the page loaded. The "Updated … ago" text counts up once a minute either way.
+The badge changes without a page reload, but only when a Rolling Coverage block for the same coverage is on the same page. Once it reads Ended, it stays that way until the page reloads, even if the coverage is reopened. A Custom block pointing to a coverage that isn't on the page keeps the status it had when the page loaded. The "Updated … ago" text counts up once a minute either way.
 
 On Lite Site's text-only pages, the badge shows the status from when the page was saved for Lite Site, and "Updated … ago" doesn't appear.
 
