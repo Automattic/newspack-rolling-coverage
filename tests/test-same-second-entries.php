@@ -319,6 +319,40 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A page of pinned entries that loads no older entries holds back nothing
+	 * it can't show: an entry published in its cursor's second while it
+	 * renders reaches it by poll.
+	 */
+	public function test_entry_published_while_a_pinned_page_without_load_more_renders_reaches_it() {
+		$pinned_id = $this->create_entry_at( '2026-01-01 08:00:00' );
+
+		Post_Type::pin_entry( $pinned_id );
+		$this->create_entry_at( self::SECOND );
+
+		$published_id = 0;
+		$publish      = function ( $block_content ) use ( &$published_id ) {
+			$published_id = $published_id ? $published_id : $this->create_entry_at( self::SECOND );
+
+			return $block_content;
+		};
+
+		add_filter( 'render_block', $publish );
+		$cursor = self::data_attribute(
+			$this->render_feed(
+				[
+					'entriesPerPage' => 1,
+					'olderEntries'   => 'none',
+				]
+			),
+			'cursor'
+		);
+		remove_filter( 'render_block', $publish );
+
+		$this->assertGreaterThan( 0, $published_id, 'An entry should be published while the page renders.' );
+		$this->assertSame( 'insert', wp_list_pluck( $this->get_feed( [ 'cursor' => $cursor ] )['entries'], 'type', 'id' )[ $published_id ] ?? null );
+	}
+
+	/**
 	 * How many entry queries a poll runs.
 	 *
 	 * @param string $cursor Cursor the page sends.

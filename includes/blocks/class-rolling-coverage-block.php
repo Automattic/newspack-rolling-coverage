@@ -1338,8 +1338,10 @@ class Rolling_Coverage_Block {
 			$last_entry = $posts[ count( $posts ) - 1 ];
 
 			// A page ending on a pinned entry shows only pinned entries, in pin
-			// order, so no entry's date marks where it stops.
-			$before = ! $is_capped && Post_Type::is_pinned( $last_entry->ID ) ? self::load_more_top_bound() : self::load_more_bound( $last_entry );
+			// order, so no entry's date marks where its load more starts. One
+			// that loads nothing more keeps its last entry's bound, so its
+			// cursor holds back no entry published while it renders.
+			$before = $has_more && ! $is_capped && Post_Type::is_pinned( $last_entry->ID ) ? self::load_more_top_bound() : self::load_more_bound( $last_entry );
 		}
 
 		if ( $shared_entry ) {

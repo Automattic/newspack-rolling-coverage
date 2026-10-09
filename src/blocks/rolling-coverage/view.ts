@@ -2428,8 +2428,9 @@ function initBlock( root: HTMLElement ): void {
 							! ( child instanceof HTMLElement ) ||
 							! child.dataset.entryId
 						) {
-							// An ad after a dropped entry fills a position the page
-							// already has, and can land beside another ad.
+							// An ad after a dropped entry would follow a different
+							// entry than the one it was placed after, and can land
+							// beside another ad.
 							if ( droppedEntry ) {
 								child.remove();
 							}
