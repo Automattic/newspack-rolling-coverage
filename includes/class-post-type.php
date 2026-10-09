@@ -991,7 +991,9 @@ class Post_Type {
 
 	/**
 	 * Stored HTML as still-encoded text: comments and tags gone, block-level
-	 * tags and line breaks turned into word boundaries, whitespace collapsed.
+	 * tags and line breaks turned into word boundaries, whitespace collapsed
+	 * to single spaces, non-breaking spaces included, since plain text has
+	 * no lines to keep from breaking.
 	 *
 	 * @param string $html Stored HTML.
 	 * @return string
@@ -1000,7 +1002,7 @@ class Post_Type {
 		$html = (string) preg_replace( '/<!--.*?-->/s', ' ', strip_shortcodes( $html ) );
 		$html = (string) preg_replace( '/<(?:br|\/?(?:p|li|ul|ol|pre|blockquote|h[1-6]|div|figure|figcaption|tr|td|th))\b[^>]*>/i', ' $0 ', $html );
 
-		return (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( $html ) );
+		return (string) preg_replace( '/(?:\s|&nbsp;|&#0*160;|&#[xX]0*[aA]0;|\x{00A0})+/u', ' ', wp_strip_all_tags( $html ) );
 	}
 
 	/**

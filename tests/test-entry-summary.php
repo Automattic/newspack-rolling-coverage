@@ -77,6 +77,18 @@ class Test_Entry_Summary extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A trailing non-breaking space, which the editor sometimes stores, or
+	 * a fullwidth colon still ends the block with a colon.
+	 */
+	public function test_colon_is_seen_past_trailing_space_and_in_fullwidth_form() {
+		$spaced_id    = self::create_untitled_entry( '<!-- wp:paragraph --><p>Closures tonight:&nbsp;</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>Coast Road.</p><!-- /wp:paragraph -->' );
+		$fullwidth_id = self::create_untitled_entry( '<!-- wp:paragraph --><p>今夜の通行止め：</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>Coast Road.</p><!-- /wp:paragraph -->' );
+
+		$this->assertSame( 'Closures tonight: Coast Road.', Entry_Bindings::get_fallback_title( get_post( $spaced_id ) ) );
+		$this->assertSame( '今夜の通行止め： Coast Road.', Entry_Bindings::get_fallback_title( get_post( $fullwidth_id ) ) );
+	}
+
+	/**
 	 * The site shows the same words in a title and an excerpt block.
 	 */
 	public function test_the_site_shows_the_headline_and_the_whole_excerpt() {

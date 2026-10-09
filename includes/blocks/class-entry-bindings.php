@@ -499,15 +499,17 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Whether stored HTML's text ends with a colon.
+	 * Whether stored HTML's text ends with a colon, in its ASCII or fullwidth
+	 * form, once its shortcodes and trailing spaces (non-breaking ones
+	 * included) are gone, as the summary leaves them out.
 	 *
 	 * @param string $html Stored HTML.
 	 * @return bool
 	 */
 	private static function ends_with_colon( string $html ): bool {
-		$text = rtrim( html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+		$text = html_entity_decode( wp_strip_all_tags( strip_shortcodes( $html ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 
-		return ':' === substr( $text, -1 );
+		return 1 === preg_match( '/[:\x{FF1A}][\s\x{00A0}]*$/u', $text );
 	}
 
 	/**
