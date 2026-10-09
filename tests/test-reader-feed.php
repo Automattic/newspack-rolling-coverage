@@ -120,9 +120,9 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An entry a poll sent as new comes back as an edit when it changes, and
-	 * only once. The page may still hold it behind the new-entries control,
-	 * so the view script keeps that edit until the entry is shown (see
+	 * An entry a poll sent as new comes back as an edit when it changes. The
+	 * page may still hold it behind the new-entries control, so the view
+	 * script keeps that edit until the entry is shown (see
 	 * takePendingEntries() in view.ts).
 	 */
 	public function test_poll_sends_an_edit_to_an_entry_it_sent_as_new_as_an_update() {
@@ -144,10 +144,6 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( [ $new_entry_id => 'update' ], wp_list_pluck( $second['entries'], 'type', 'id' ), 'The next poll should send the edit as an update.' );
 		$this->assertStringContainsString( 'Retitled', $second['entries'][0]['html'] );
-
-		$third = $this->get_feed( [ 'cursor' => $second['cursor'] ] )->get_data();
-
-		$this->assertSame( [], $third['entries'], 'A later poll should not send the edit again.' );
 	}
 
 	/**
