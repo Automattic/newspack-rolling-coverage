@@ -1328,8 +1328,18 @@ class Rolling_Coverage_Block {
 
 		wp_reset_postdata();
 
-		$cursor = $shared_entry ? self::coverage_cursor( $coverage_id, $change_marker ) : Poll_Cursor::for_entries( $posts, $change_marker );
 		$before = ! empty( $posts ) ? self::load_more_bound( $posts[ count( $posts ) - 1 ] ) : '';
+
+		if ( $shared_entry ) {
+			$cursor = self::coverage_cursor( $coverage_id, $change_marker );
+		} else {
+			$cursor = Poll_Cursor::for_entries( $posts, $change_marker );
+
+			// A full page leaves entries out, which its polls must not report as new.
+			if ( count( $query->posts ) >= ( $is_capped ? $entries_per_page : $entries_per_page + 1 ) ) {
+				$cursor = $cursor->holding( self::listed_below( $coverage_id, $cursor->modified, $posts[ count( $posts ) - 1 ] ) );
+			}
+		}
 
 		if ( $posts && ! $shows_pinned && ! $is_capped ) {
 			self::store_template_layout_styles( self::pinned_cards( $unplaced ) );
@@ -1668,6 +1678,46 @@ class Rolling_Coverage_Block {
 		) )->posts;
 
 		return new Poll_Cursor( $newest->post_modified_gmt, $ids, $marker );
+	}
+
+	/**
+	 * Entries saved in a second that the feed lists below a page's last
+	 * entry. The page leaves them out by design; any listed above that entry
+	 * can only have been published after the page's query, and still need to
+	 * reach it.
+	 *
+	 * @param int     $coverage_id Coverage term ID.
+	 * @param string  $second      GMT `Y-m-d H:i:s` the entries were saved in.
+	 * @param WP_Post $last        The last entry on the page.
+	 * @return int[]
+	 */
+	private static function listed_below( int $coverage_id, string $second, WP_Post $last ): array {
+		$saved_in = self::gmt_date_bound( $second );
+
+		return ( new WP_Query(
+			array_merge(
+				self::coverage_entries_args( $coverage_id ),
+				[
+					'date_query'                  => [
+						[
+							'column'    => 'post_modified_gmt',
+							'after'     => $saved_in,
+							'before'    => $saved_in,
+							'inclusive' => true,
+						],
+						[
+							'column'    => 'post_date_gmt',
+							'before'    => self::gmt_date_bound( $last->post_date_gmt ),
+							'inclusive' => true,
+						],
+					],
+					self::LOAD_MORE_BOUND_VAR     => [ $last->post_date_gmt, $last->ID ],
+					'posts_per_page'              => -1,
+					'fields'                      => 'ids',
+					Post_Type::SKIP_PIN_ORDER_VAR => true,
+				]
+			)
+		) )->posts;
 	}
 
 	/**

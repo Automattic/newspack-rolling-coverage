@@ -135,6 +135,16 @@ class Poll_Cursor {
 	}
 
 	/**
+	 * The cursor also holding these entries from its second.
+	 *
+	 * @param int[] $ids Entries saved in the cursor's second.
+	 * @return self
+	 */
+	public function holding( array $ids ): self {
+		return new self( $this->modified, array_merge( $this->ids, $ids ), $this->marker );
+	}
+
+	/**
 	 * Whether nothing has changed in the coverage since the page took its copy.
 	 *
 	 * @param string $marker The coverage's change marker now.

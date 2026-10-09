@@ -168,6 +168,49 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Pages that leave entries out: a capped feed, and a full page with more
+	 * to load.
+	 *
+	 * @return array[]
+	 */
+	public function full_page_provider() {
+		return [
+			'capped feed' => [
+				[
+					'latestOnly'  => true,
+					'latestCount' => 1,
+				],
+				[ 'latest' => 1 ],
+			],
+			'full page'   => [ [ 'entriesPerPage' => 1 ], [] ],
+		];
+	}
+
+	/**
+	 * Entries from a page's newest second that the page leaves out aren't
+	 * new to it, including an older draft published in that second; an entry
+	 * published in that second after the page is.
+	 *
+	 * @dataProvider full_page_provider
+	 *
+	 * @param array $attributes Block attributes besides the coverage.
+	 * @param array $params     Poll parameters the page sends.
+	 */
+	public function test_entries_a_page_leaves_out_of_its_newest_second_are_not_new( $attributes, $params ) {
+		$older_draft_id = $this->create_entry_at( '2026-01-01 08:00:00', [ 'post_status' => 'draft' ] );
+
+		$this->publish_in( $older_draft_id, self::SECOND );
+		$this->create_entry_at( self::SECOND );
+		$this->create_entry_at( self::SECOND );
+
+		$cursor = self::data_attribute( $this->render_feed( $attributes ), 'cursor' );
+
+		$later_id = $this->create_entry_at( self::SECOND );
+
+		$this->assertSame( [ $later_id => 'insert' ], wp_list_pluck( $this->get_feed( array_merge( $params, [ 'cursor' => $cursor ] ) )['entries'], 'type', 'id' ) );
+	}
+
+	/**
 	 * A poll queries no entries until something in the coverage changes, so
 	 * idle polls stay cheap.
 	 */
