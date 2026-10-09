@@ -461,7 +461,7 @@ function SettingsModal( {
 									<Stack direction="column" gap="xl">
 										<Text render={ <p /> }>
 											{ __(
-												'Set the label above a broken-out entry once its full story is published. Leave empty to use “Full story”.',
+												'Set the label that marks an entry once its full story is published. Leave empty to use “Full story”.',
 												'newspack-rolling-coverage'
 											) }
 										</Text>

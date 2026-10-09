@@ -101,6 +101,21 @@ async function copyText(
 }
 
 /**
+ * A post title's words, without the Full story label a breakout card puts
+ * in the heading.
+ *
+ * @param {HTMLElement} heading The post title element.
+ * @return {string} The title.
+ */
+function titleWithoutLabel( heading: HTMLElement ): string {
+	const clone = heading.cloneNode( true ) as HTMLElement;
+	clone
+		.querySelectorAll( '.newspack-rolling-coverage-breakout-label' )
+		.forEach( ( label ) => label.remove() );
+	return clone.textContent?.trim() ?? '';
+}
+
+/**
  * The first element in a feed that matches a selector, leaving out those of a
  * feed nested in one of its entries, which repeats the same classes. The
  * feed's own view script follows the same rule (ownElement() there).
@@ -156,9 +171,10 @@ function initBlock( root: HTMLElement ): void {
 		const title = entry
 			? ownElement( ownFeed, '.wp-block-post-title', entry )
 			: null;
+		const titleText = title ? titleWithoutLabel( title ) : '';
 		const shareData: ShareData = {
 			url,
-			title: title?.textContent?.trim() || document.title,
+			title: titleText || document.title,
 		};
 
 		if ( navigator.share && navigator.canShare?.( shareData ) !== false ) {

@@ -330,7 +330,7 @@ class Breakout_Card {
 	public static function label_title( $block_content, $block, $instance ) {
 		$card = self::card_for_instance( $instance );
 
-		if ( null === $card || ! is_string( $block_content ) || ! is_array( $block ) || ! preg_match( '#^(\s*<([a-z][a-z0-9]*)\b[^>]*>)(.*</\2>\s*)$#is', $block_content, $parts ) ) {
+		if ( null === $card || '' === $card['title'] || ! is_string( $block_content ) || ! is_array( $block ) || ! preg_match( '#^(\s*<([a-z][a-z0-9]*)\b[^>]*>)(.*</\2>\s*)$#is', $block_content, $parts ) ) {
 			return $block_content;
 		}
 
@@ -436,7 +436,7 @@ class Breakout_Card {
 	public static function render_excerpt( $block_content, $block, $instance ) {
 		$card = self::card_for_instance( $instance );
 
-		if ( null === $card || ! is_string( $block_content ) ) {
+		if ( null === $card || '' === $card['title'] || ! is_string( $block_content ) ) {
 			return $block_content;
 		}
 
@@ -455,7 +455,7 @@ class Breakout_Card {
 			}
 
 			$block_content = (string) preg_replace_callback(
-				'#(<p class="wp-block-post-excerpt__excerpt">).*?((?:\s<a class="wp-block-post-excerpt__more-link".*?</a>)?\s*</p>)#s',
+				'#(<p\b[^>]*\bclass="(?:[^"]*\s)?wp-block-post-excerpt__excerpt(?:\s[^"]*)?"[^>]*>).*?((?:\s<a class="wp-block-post-excerpt__more-link".*?</a>)?\s*</p>)#s',
 				static fn( $parts ) => $parts[1] . $excerpt . $parts[2],
 				$block_content,
 				1
@@ -467,7 +467,7 @@ class Breakout_Card {
 		}
 
 		return (string) preg_replace_callback(
-			'#<p class="wp-block-post-excerpt__excerpt">#',
+			'#<p\b[^>]*\bclass="(?:[^"]*\s)?wp-block-post-excerpt__excerpt(?:\s[^"]*)?"[^>]*>#',
 			static fn( $parts ) => $parts[0] . self::label_html( true ),
 			$block_content,
 			1

@@ -203,6 +203,20 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Flash's excerpt takes the label however many classes its paragraph has.
+	 */
+	public function test_excerpt_with_extra_classes_takes_the_label() {
+		[ $entry_id ] = self::create_breakout();
+
+		$filter = static fn( $block_content ) => str_replace( '<p class="wp-block-post-excerpt__excerpt">', '<p id="x" class="has-small-font-size wp-block-post-excerpt__excerpt extra">', $block_content );
+		add_filter( 'render_block_core/post-excerpt', $filter, 5 );
+		$html = self::render( $entry_id, '<!-- wp:post-excerpt {"excerptLength":2,"moreText":""} /-->' );
+		remove_filter( 'render_block_core/post-excerpt', $filter, 5 );
+
+		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt extra">' . self::PREFIX . 'Post', $html );
+	}
+
+	/**
 	 * A pinned card keeps its Pinned label and shows the Full story label
 	 * too.
 	 */
@@ -647,6 +661,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( '<a href="' . $url . '">Entry headline</a></h4>', $html );
 		$this->assertStringContainsString( '<p>What the post sums up.</p></div>', $html );
+		$this->assertStringNotContainsString( 'breakout-label', $html, 'A card without a title of its own leaves the heading unlabeled.' );
 
 		[ $untitled_entry, $untitled_breakout ] = self::create_breakout(
 			'publish',
