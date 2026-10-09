@@ -48,6 +48,16 @@ class Rolling_Coverage_Block {
 	// Max number of entries returned per page.
 	const PER_PAGE_MAX = 100;
 
+	// Feed order: newest first, and entries published in the same second in
+	// a fixed order, so load more can continue from the last one shown.
+	const FEED_ORDER = [
+		'date' => 'DESC',
+		'ID'   => 'DESC',
+	];
+
+	// Query var holding the `[ post_date_gmt, ID ]` load more continues after.
+	const LOAD_MORE_BOUND_VAR = 'rolling_coverage_load_more_bound';
+
 	// Newer entries a feed opened at a shared entry counts up to: one past a hundred, which reads as "more than 100".
 	const NEWER_COUNT_CAP = 101;
 
@@ -216,7 +226,9 @@ class Rolling_Coverage_Block {
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'localize_frontend_config' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
-		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 10, 3 );
+		// After Post_Type records publish and takedown times at priority 10, which polls read.
+		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 11, 3 );
+		add_filter( 'posts_where', [ __CLASS__, 'load_more_bound_where' ], 10, 2 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'size_entry_avatar' ], 10, 2 );
@@ -225,6 +237,7 @@ class Rolling_Coverage_Block {
 		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
 		add_filter( 'render_block_core/columns', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
 		add_filter( 'render_block_core/buttons', [ __CLASS__, 'drop_empty_entry_buttons' ], 10, 1 );
+		add_filter( 'the_content', [ __CLASS__, 'withhold_gated_entry' ], 999 );
 	}
 
 	/**
@@ -929,8 +942,12 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Updates the coverage's last-modified term meta when an entry's status
-	 * changes to or from 'publish', and on saves while already published.
+	 * Updates the coverage's last-modified term meta and change marker when
+	 * an entry's status changes to or from 'publish', and on saves while
+	 * already published.
+	 *
+	 * Runs after Post_Type records publish and takedown times: a poll that
+	 * reads the new marker before them holds the change back.
 	 *
 	 * @param string  $new_status New post status.
 	 * @param string  $old_status Previous post status.
@@ -955,6 +972,7 @@ class Rolling_Coverage_Block {
 
 		foreach ( $term_ids as $term_id ) {
 			update_term_meta( (int) $term_id, self::LAST_MODIFIED_META_KEY, $modified );
+			Poll_Cursor::mark_changed( (int) $term_id );
 		}
 	}
 
@@ -1225,11 +1243,12 @@ class Rolling_Coverage_Block {
 			$ads_enabled = false;
 		}
 
+		$change_marker = Poll_Cursor::get_marker( $coverage_id );
+
 		$query_args = array_merge(
 			self::coverage_entries_args( $coverage_id ),
 			[
-				'orderby'        => 'date',
-				'order'          => 'DESC',
+				'orderby'        => self::FEED_ORDER,
 				'posts_per_page' => $is_capped ? $entries_per_page : $entries_per_page + 1,
 			]
 		);
@@ -1267,8 +1286,7 @@ class Rolling_Coverage_Block {
 								'inclusive' => true,
 							],
 						],
-						'orderby'    => 'date',
-						'order'      => 'DESC',
+						'orderby'    => self::FEED_ORDER,
 					]
 				),
 				$entries_per_page
@@ -1313,8 +1331,19 @@ class Rolling_Coverage_Block {
 
 		wp_reset_postdata();
 
-		$cursor     = $shared_entry ? self::coverage_cursor( $coverage_id ) : self::latest_cursor( $posts );
-		$oldest_gmt = ! empty( $posts ) ? self::post_date_gmt( $posts[ count( $posts ) - 1 ] ) : '';
+		$before = ! empty( $posts ) ? self::load_more_bound( $posts[ count( $posts ) - 1 ] ) : '';
+
+		if ( $shared_entry ) {
+			$cursor = self::coverage_cursor( $coverage_id, $change_marker );
+		} else {
+			$cursor = Poll_Cursor::for_entries( $posts, $change_marker );
+
+			// A full page leaves entries out, which its polls must not report as
+			// new, up to the page of held entries a poll makes room for.
+			if ( count( $query->posts ) >= ( $is_capped ? $entries_per_page : $entries_per_page + 1 ) ) {
+				$cursor = $cursor->holding( self::listed_below( $coverage_id, $cursor->modified, $posts[ count( $posts ) - 1 ], self::PER_PAGE_MAX - count( $cursor->ids ) ) );
+			}
+		}
 
 		if ( $posts && ! $shows_pinned && ! $is_capped ) {
 			self::store_template_layout_styles( self::pinned_cards( $unplaced ) );
@@ -1347,8 +1376,8 @@ class Rolling_Coverage_Block {
 			'data-coverage-id'      => $coverage_id,
 			'data-poll-interval'    => $poll_interval,
 			'data-entries-per-page' => $entries_per_page,
-			'data-cursor'           => $cursor,
-			'data-before'           => $oldest_gmt,
+			'data-cursor'           => (string) $cursor,
+			'data-before'           => $before,
 			'data-has-more'         => $has_more ? '1' : '0',
 			'data-status'           => $status,
 			'data-template-key'     => $template_key,
@@ -1607,29 +1636,105 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Poll cursor for a whole coverage: its most recently modified published
-	 * entry. A feed that starts at a shared entry polls from here, so entries
-	 * published before the page was rendered are not reported as new.
+	 * Poll cursor for a whole coverage: the published entries saved in the
+	 * second of its most recently modified published entry, up to the
+	 * `PER_PAGE_MAX` a poll makes room for. A feed that starts at a shared
+	 * entry polls from here, so entries published before the page was
+	 * rendered are not reported as new.
 	 *
-	 * @param int $coverage_id Coverage term ID.
-	 * @return string Cursor in "{id}:{modified_gmt}" format.
+	 * @param int    $coverage_id Coverage term ID.
+	 * @param string $marker      The coverage's change marker, read before its entries.
+	 * @return Poll_Cursor
 	 */
-	private static function coverage_cursor( int $coverage_id ): string {
-		$query = new WP_Query(
+	private static function coverage_cursor( int $coverage_id, string $marker ): Poll_Cursor {
+		$args = array_merge(
+			self::coverage_entries_args( $coverage_id ),
+			[
+				'orderby'                     => 'modified',
+				'order'                       => 'DESC',
+				'posts_per_page'              => 1,
+				'update_post_meta_cache'      => false,
+				'update_post_term_cache'      => false,
+				Post_Type::SKIP_PIN_ORDER_VAR => true,
+			]
+		);
+
+		$newest = ( new WP_Query( $args ) )->posts[0] ?? null;
+
+		if ( ! $newest instanceof WP_Post ) {
+			return Poll_Cursor::for_entries( [], $marker );
+		}
+
+		$second = self::gmt_date_bound( $newest->post_modified_gmt );
+		$ids    = ( new WP_Query(
+			array_merge(
+				$args,
+				[
+					'date_query'     => [
+						[
+							'column'    => 'post_modified_gmt',
+							'after'     => $second,
+							'before'    => $second,
+							'inclusive' => true,
+						],
+					],
+					// The page of held entries a poll makes room for.
+					'posts_per_page' => self::PER_PAGE_MAX,
+					'fields'         => 'ids',
+				]
+			)
+		) )->posts;
+
+		return new Poll_Cursor( $newest->post_modified_gmt, $ids, $marker );
+	}
+
+	/**
+	 * Up to `$limit` entries saved in a second that the feed lists below a
+	 * page's last entry, nearest first. The page leaves them out by design.
+	 * When the page ends on an unpinned entry, any listed above it can only
+	 * have been published after the page's query, and still need to reach
+	 * it. A page showing only pinned entries leaves out unpinned ones by pin
+	 * order rather than date, so some of those aren't returned and arrive as
+	 * new.
+	 *
+	 * @param int     $coverage_id Coverage term ID.
+	 * @param string  $second      GMT `Y-m-d H:i:s` the entries were saved in.
+	 * @param WP_Post $last        The last entry on the page.
+	 * @param int     $limit       How many to return at most.
+	 * @return int[]
+	 */
+	private static function listed_below( int $coverage_id, string $second, WP_Post $last, int $limit ): array {
+		if ( $limit < 1 ) {
+			return [];
+		}
+
+		$saved_in = self::gmt_date_bound( $second );
+
+		return ( new WP_Query(
 			array_merge(
 				self::coverage_entries_args( $coverage_id ),
 				[
-					'orderby'                     => 'modified',
-					'order'                       => 'DESC',
-					'posts_per_page'              => 1,
-					'update_post_meta_cache'      => false,
-					'update_post_term_cache'      => false,
+					'date_query'                  => [
+						[
+							'column'    => 'post_modified_gmt',
+							'after'     => $saved_in,
+							'before'    => $saved_in,
+							'inclusive' => true,
+						],
+						[
+							'column'    => 'post_date_gmt',
+							'before'    => self::gmt_date_bound( $last->post_date_gmt ),
+							'inclusive' => true,
+						],
+					],
+					self::LOAD_MORE_BOUND_VAR     => [ $last->post_date_gmt, $last->ID ],
+					'orderby'                     => self::FEED_ORDER,
+					'posts_per_page'              => $limit,
+					'fields'                      => 'ids',
 					Post_Type::SKIP_PIN_ORDER_VAR => true,
 				]
 			)
-		);
-
-		return self::latest_cursor( $query->posts );
+		) )->posts;
 	}
 
 	/**
@@ -3705,6 +3810,104 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Set up an entry's post data the way a loop sets up its posts, so
+	 * plugins that treat a post in a loop as part of a listing treat the
+	 * feed's entries that way too. Callers make the entry the global post
+	 * first.
+	 *
+	 * Newspack's content gate is why. For any post but the article being
+	 * read, it puts its teaser in place of a gated post's body only when the
+	 * post is set up in a loop; set up any other way, the post keeps its
+	 * body. Entries reach every reader alike, through cached pages and
+	 * public, cached REST replies, so a gated entry has to render as its
+	 * teaser.
+	 *
+	 * The loop is the feed's own rather than the main query, whose loop state
+	 * belongs to the page. Where the gate stands aside, loop or not,
+	 * withhold_gated_entry() covers the rendered content.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 */
+	public static function setup_entry_postdata( WP_Post $entry ): void {
+		$loop              = new WP_Query();
+		$loop->in_the_loop = true;
+		$loop->setup_postdata( $entry );
+	}
+
+	/**
+	 * A gated entry's teaser in place of its rendered content, wherever the
+	 * block renders it.
+	 *
+	 * Where Newspack's content gate runs, the loop setup (see
+	 * setup_entry_postdata()) is enough, and this hands back the teaser the
+	 * gate already put in place. It matters where the gate stands aside for
+	 * the whole request: WooCommerce's account, cart and checkout pages, which
+	 * a feed placed site-wide renders on too, and syndication feeds, which the
+	 * gate leaves to its feed setting. That setting judges each feed item, the
+	 * host post, not the entries its feed lists, so entry_teaser() applies it
+	 * to entries.
+	 *
+	 * The teaser is the one Newspack lists the entry with for a signed-out
+	 * reader, since the feed is the same for everyone. It replaces the
+	 * rendered content rather than the entry's post_content because core's
+	 * Post Excerpt block reads the entry by ID, not through the post set up.
+	 * Priority 999 is where Newspack swaps a gated post's content, after the
+	 * content filters, so the finished teaser isn't run through them again.
+	 *
+	 * @param string $content The entry's rendered content.
+	 * @return string
+	 */
+	public static function withhold_gated_entry( $content ) {
+		if ( 0 === self::$entry_render_depth ) {
+			return $content;
+		}
+
+		$entry = get_post();
+
+		if ( ! $entry instanceof WP_Post || Post_Type::CPT_SLUG !== $entry->post_type ) {
+			return $content;
+		}
+
+		$teaser = self::entry_teaser( $entry );
+
+		return null === $teaser ? $content : $teaser;
+	}
+
+	/**
+	 * What the feed shows of a gated entry: Newspack's listing teaser, or null
+	 * for an entry no gate covers. In a syndication feed it follows the gate's
+	 * feed setting too: null when the site or the feed includes restricted
+	 * articles in full. A feed set to remove restricted articles keeps the
+	 * host post unless a gate covers it too, so its gated entries show their
+	 * teasers there. Newspack before 6.53.0 has no listing teaser, so entries
+	 * stay whole.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return string|null
+	 */
+	private static function entry_teaser( WP_Post $entry ): ?string {
+		if ( ! class_exists( '\Newspack\Content_Gate' ) || ! method_exists( '\Newspack\Content_Gate', 'get_teaser_outside_article' ) ) {
+			return null;
+		}
+
+		if (
+			is_feed() &&
+			class_exists( '\Newspack\Content_Gate_Advanced_Settings' ) &&
+			method_exists( '\Newspack\Content_Gate_Advanced_Settings', 'get_feed_restriction_mode' ) &&
+			'off' === \Newspack\Content_Gate_Advanced_Settings::get_feed_restriction_mode(
+				[
+					'query' => $GLOBALS['wp_query'] ?? null,
+					'post'  => $entry,
+				]
+			)
+		) {
+			return null;
+		}
+
+		return \Newspack\Content_Gate::get_teaser_outside_article( $entry );
+	}
+
+	/**
 	 * Renders a single entry against the supplied per-entry template.
 	 *
 	 * @global WP_Post $post Global post object, temporarily swapped to the
@@ -3774,7 +3977,7 @@ class Rolling_Coverage_Block {
 		$was_ignoring_pinning   = self::$ignoring_pinning;
 		$post                   = $entry; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		self::$ignoring_pinning = $is_capped;
-		setup_postdata( $entry );
+		self::setup_entry_postdata( $entry );
 
 		$is_archived = Archive_Mode::is_entry_archived( $entry->ID );
 		if ( $is_archived ) {
@@ -3922,29 +4125,49 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Poll cursor for a set of entries: "{id}:{modified_gmt}".
-	 * Falls back to "0:{current_time}" when there are none.
+	 * Where load more continues after an entry: `{id}:{post_date_gmt}`.
 	 *
-	 * @param WP_Post[] $posts Entry post objects.
-	 * @return string Cursor in "{id}:{modified_gmt}" format.
+	 * @param WP_Post $entry The last entry shown.
+	 * @return string
 	 */
-	private static function latest_cursor( array $posts ): string {
-		$latest_post     = null;
-		$latest_modified = '';
+	private static function load_more_bound( WP_Post $entry ): string {
+		return $entry->ID . ':' . self::post_date_gmt( $entry );
+	}
 
-		foreach ( $posts as $post ) {
-			$modified = self::post_modified_gmt( $post );
-			if ( '' === $latest_modified || $modified > $latest_modified ) {
-				$latest_modified = $modified;
-				$latest_post     = $post;
-			}
+	/**
+	 * Reads a load-more bound. A bare date, with no entry, continues below
+	 * the whole of its second.
+	 *
+	 * @param string $before Bound the page sent.
+	 * @return array{0: string, 1: int} The date, and the entry ID that ties in its second continue below, or 0.
+	 */
+	private static function parse_load_more_bound( string $before ): array {
+		if ( preg_match( '/^(\d+):(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/', $before, $parts ) ) {
+			return [ $parts[2], (int) $parts[1] ];
 		}
 
-		if ( null === $latest_post ) {
-			return '0:' . gmdate( 'Y-m-d H:i:s' );
+		return [ $before, 0 ];
+	}
+
+	/**
+	 * Leaves out of a load-more query the entries published in its bound's
+	 * second that FEED_ORDER lists at or above the bound's entry, which the
+	 * page already shows.
+	 *
+	 * @param string   $where WHERE clause.
+	 * @param WP_Query $query The query.
+	 * @return string
+	 */
+	public static function load_more_bound_where( string $where, WP_Query $query ): string {
+		$bound = $query->get( self::LOAD_MORE_BOUND_VAR );
+
+		if ( ! is_array( $bound ) ) {
+			return $where;
 		}
 
-		return $latest_post->ID . ':' . $latest_modified;
+		global $wpdb;
+
+		return $where . $wpdb->prepare( " AND NOT ( {$wpdb->posts}.post_date_gmt = %s AND {$wpdb->posts}.ID >= %d )", $bound[0], $bound[1] );
 	}
 
 	/**
@@ -4075,8 +4298,7 @@ class Rolling_Coverage_Block {
 					'terms'    => $term_id,
 				],
 			],
-			'orderby'             => 'date',
-			'order'               => 'DESC',
+			'orderby'             => self::FEED_ORDER,
 			'posts_per_page'      => $per_page,
 			'no_found_rows'       => true,
 			'ignore_sticky_posts' => true,
@@ -4142,14 +4364,14 @@ class Rolling_Coverage_Block {
 	/**
 	 * REST callback: returns pre-rendered HTML for either direction.
 	 *
-	 * - `cursor` (forward/polling): entries modified at or after the cursor
-	 *   timestamp, including new entries and edits, and entries taken down
-	 *   since it, named for the page to drop. If the result exceeds
-	 *   POLL_CAP, the response is flagged `overflow` so the client can reload.
-	 *   Sends a short Cache-Control and the site's minimum poll interval; see
+	 * - `cursor` (forward/polling): the changes the page is missing (see
+	 *   Poll_Cursor), new entries and edits, and entries taken down, named for
+	 *   the page to drop. If the result exceeds POLL_CAP, the response is
+	 *   flagged `overflow` so the client can reload. Sends a short
+	 *   Cache-Control and the site's minimum poll interval; see
 	 *   poll_response().
-	 * - `before` (backward/pagination): entries published before the given
-	 *   date, DESC order, capped at the request's per_page (entriesPerPage).
+	 * - `before` (backward/pagination): entries listed after the bound's
+	 *   entry in FEED_ORDER, capped at the request's per_page (entriesPerPage).
 	 *   Sends no Cache-Control, so it keeps the page cache's default lifetime,
 	 *   the same as the page it extends: rendering a page of entries costs
 	 *   more than answering an idle poll. A cached copy can predate an edit
@@ -4160,7 +4382,7 @@ class Rolling_Coverage_Block {
 	 *
 	 * A capped feed, as its stored config or a positive `latest` count says,
 	 * polls entries as unpinned and without ads, and loads no more. After a
-	 * removal later than the cursor's second, or a burst past POLL_CAP, its
+	 * removal the page doesn't hold, or a burst past POLL_CAP, its
 	 * poll brings the removals and its newest entries with `replace`, for the
 	 * page to swap in for its own.
 	 *
@@ -4244,16 +4466,12 @@ class Rolling_Coverage_Block {
 		// Lite entries don't use the template.
 		$is_stale_template = null === $stored_config && ! $is_lite;
 
-		// Forward/polling branch: entries modified or taken down at or after the cursor, newest first.
+		// Forward/polling branch: the changes the page is missing, newest first.
 		if ( $cursor ) {
-			$cursor_parts    = explode( ':', $cursor, 2 );
-			$cursor_id       = (int) ( $cursor_parts[0] ?? 0 );
-			$cursor_modified = $cursor_parts[1] ?? '';
+			$marker      = Poll_Cursor::get_marker( $term_id );
+			$poll_cursor = Poll_Cursor::parse( (string) $cursor );
 
-			// Skip WP_Query entirely when the coverage has not changed since the cursor.
-			$last_modified = get_term_meta( $term_id, self::LAST_MODIFIED_META_KEY, true );
-
-			if ( $last_modified && $last_modified <= $cursor_modified ) {
+			if ( $poll_cursor->is_current( $marker ) ) {
 				return self::poll_response(
 					[
 						'entries'     => [],
@@ -4283,20 +4501,25 @@ class Rolling_Coverage_Block {
 					'date_query'     => [
 						[
 							'column'    => 'post_modified_gmt',
-							'after'     => self::gmt_date_bound( $cursor_modified ),
+							'after'     => self::gmt_date_bound( $poll_cursor->modified ),
 							'inclusive' => true,
 						],
 					],
-					'orderby'        => 'modified',
-					'order'          => 'DESC',
-					'posts_per_page' => self::POLL_CAP + 1, // Request one extra post to detect poll overflow.
+					'orderby'        => [
+						'modified' => 'DESC',
+						'ID'       => 'DESC',
+					],
+					// One past the cap to detect overflow, plus room for the entries the page
+					// holds, which are left out below; a page's worth at most, since the
+					// cursor comes from the request.
+					'posts_per_page' => self::POLL_CAP + 1 + min( count( $poll_cursor->ids ), self::PER_PAGE_MAX ),
 				]
 			);
 
 			$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
 
 			// Entries taken down since the cursor, which open pages may still show.
-			$removed = ( new WP_Query(
+			$taken_down = ( new WP_Query(
 				array_merge(
 					$args,
 					[
@@ -4304,7 +4527,7 @@ class Rolling_Coverage_Block {
 						'meta_query'  => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 							[
 								'key'     => Post_Type::META_UNPUBLISHED_GMT,
-								'value'   => $cursor_modified,
+								'value'   => $poll_cursor->modified,
 								'compare' => '>=',
 								'type'    => 'DATETIME',
 							],
@@ -4313,15 +4536,16 @@ class Rolling_Coverage_Block {
 				)
 			) )->posts;
 
-			$changes = array_merge( ( new WP_Query( $args ) )->posts, $removed );
+			$changes = array_values( array_filter( array_merge( ( new WP_Query( $args ) )->posts, $taken_down ), static fn( WP_Post $entry ) => ! $poll_cursor->holds( $entry ) ) );
 			usort( $changes, static fn( WP_Post $a, WP_Post $b ) => strcmp( self::post_modified_gmt( $b ), self::post_modified_gmt( $a ) ) );
 
-			$is_cursor_entry = static fn( WP_Post $entry ) => $entry->ID === $cursor_id && self::post_modified_gmt( $entry ) === $cursor_modified;
+			$removed    = array_values( array_filter( $changes, static fn( WP_Post $entry ) => 'publish' !== $entry->post_status ) );
+			$new_cursor = (string) $poll_cursor->advance( $changes, $marker );
 
 			// Signal the client to refresh when the poll result reaches the cap.
 			if ( count( $changes ) > self::POLL_CAP ) {
 				if ( $is_capped ) {
-					return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $is_lite, $feed_layout, $removed );
+					return self::capped_burst_response( $term_id, $template, $latest_count, $new_cursor, $params, $is_lite, $feed_layout, $removed );
 				}
 
 				return self::poll_response(
@@ -4334,36 +4558,23 @@ class Rolling_Coverage_Block {
 				);
 			}
 
-			// A capped feed can't load an entry to take a removed one's place. One
-			// taken down in the cursor's own second comes as a plain removal: it
-			// may share that second with the cursor entry, so the whole feed sent
-			// for it would come again on every poll from that cursor.
-			if ( $is_capped && array_filter( $removed, static fn( WP_Post $entry ) => get_post_meta( $entry->ID, Post_Type::META_UNPUBLISHED_GMT, true ) > $cursor_modified ) ) {
-				return self::capped_burst_response( $term_id, $template, $latest_count, $changes[0], $params, $is_lite, $feed_layout, $removed );
+			// A capped feed can't load an entry to take a removed one's place.
+			if ( $is_capped && $removed ) {
+				return self::capped_burst_response( $term_id, $template, $latest_count, $new_cursor, $params, $is_lite, $feed_layout, $removed );
 			}
 
-			$entries    = [];
-			$new_cursor = $cursor;
-			$polled_count = max( 0, (int) ( $params['polled_count'] ?? 0 ) );
+			$entries         = [];
+			$polled_count    = max( 0, (int) ( $params['polled_count'] ?? 0 ) );
 			$new_entry_count = 0;
 
 			foreach ( $changes as $entry ) {
-				if ( $is_cursor_entry( $entry ) ) {
-					continue;
-				}
-
-				if ( empty( $entries ) ) {
-					$new_cursor = $entry->ID . ':' . self::post_modified_gmt( $entry );
-				}
-
 				if ( 'publish' !== $entry->post_status ) {
 					$entries[] = self::removal( $entry );
 
 					continue;
 				}
 
-				// Counts only if first published after the poll cursor.
-				$is_new_entry = Post_Type::get_entry_published_gmt( $entry ) > $cursor_modified;
+				$is_new_entry = $poll_cursor->is_new( $entry );
 				$ad_slot      = null;
 				$ad_html      = null;
 
@@ -4432,18 +4643,20 @@ class Rolling_Coverage_Block {
 			return $response;
 		}
 
+		[ $before_gmt, $before_id ] = self::parse_load_more_bound( (string) $before );
+
 		$args = array_merge(
 			$base_args,
 			[
-				'date_query' => [
+				'date_query'              => [
 					[
 						'column'    => 'post_date_gmt',
-						'before'    => self::gmt_date_bound( (string) $before ),
-						'inclusive' => false,
+						'before'    => self::gmt_date_bound( $before_gmt ),
+						'inclusive' => $before_id > 0,
 					],
 				],
-				'orderby'    => 'date',
-				'order'      => 'DESC',
+				'orderby'                 => self::FEED_ORDER,
+				self::LOAD_MORE_BOUND_VAR => $before_id > 0 ? [ $before_gmt, $before_id ] : null,
 			]
 		);
 
@@ -4482,7 +4695,7 @@ class Rolling_Coverage_Block {
 		wp_reset_postdata();
 
 		$next_before = ! empty( $posts )
-			? self::post_date_gmt( $posts[ count( $posts ) - 1 ] )
+			? self::load_more_bound( $posts[ count( $posts ) - 1 ] )
 			: null;
 
 		return new WP_REST_Response(
@@ -4517,25 +4730,24 @@ class Rolling_Coverage_Block {
 	 * piecemeal, or after an entry was taken down, which leaves a place only
 	 * the server can fill: rather than reload the page hosting it, the
 	 * removals and the newest entries by date come whole, for the page to
-	 * swap in for its own, with the cursor at the most recent change. A lite
-	 * page gets the entries as text, like its other polls.
+	 * swap in for its own, with the cursor past every change. A lite page
+	 * gets the entries as text, like its other polls.
 	 *
-	 * @param int       $term_id       Coverage term ID.
-	 * @param array[]   $template      Per-entry template.
-	 * @param int       $latest_count  How many entries the feed shows.
-	 * @param WP_Post   $last_modified The most recently modified entry.
-	 * @param array     $params        Request parameters.
-	 * @param bool      $is_lite       Whether a lite page asks.
-	 * @param array     $feed_layout   The Feed group's layout.
-	 * @param WP_Post[] $removed       Entries taken down since the cursor.
+	 * @param int       $term_id      Coverage term ID.
+	 * @param array[]   $template     Per-entry template.
+	 * @param int       $latest_count How many entries the feed shows.
+	 * @param string    $cursor       The cursor once the page holds the changes.
+	 * @param array     $params       Request parameters.
+	 * @param bool      $is_lite      Whether a lite page asks.
+	 * @param array     $feed_layout  The Feed group's layout.
+	 * @param WP_Post[] $removed      Entries taken down that the page may still show.
 	 * @return WP_REST_Response
 	 */
-	private static function capped_burst_response( int $term_id, array $template, int $latest_count, WP_Post $last_modified, array $params, bool $is_lite, array $feed_layout = [], array $removed = [] ): WP_REST_Response {
+	private static function capped_burst_response( int $term_id, array $template, int $latest_count, string $cursor, array $params, bool $is_lite, array $feed_layout = [], array $removed = [] ): WP_REST_Response {
 		$args = array_merge(
 			self::coverage_entries_args( $term_id ),
 			[
-				'orderby'        => 'date',
-				'order'          => 'DESC',
+				'orderby'        => self::FEED_ORDER,
 				// Twice the count, up to a page of load more: a page leaves out entries it dropped, which come back on reload, and still fills its places.
 				'posts_per_page' => min( 2 * $latest_count, self::PER_PAGE_MAX ),
 			]
@@ -4559,7 +4771,7 @@ class Rolling_Coverage_Block {
 		return self::poll_response(
 			[
 				'entries'     => $entries,
-				'cursor'      => $last_modified->ID . ':' . self::post_modified_gmt( $last_modified ),
+				'cursor'      => $cursor,
 				'overflow'    => false,
 				'polledCount' => max( 0, (int) ( $params['polled_count'] ?? 0 ) ),
 				'replace'     => true,
