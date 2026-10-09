@@ -334,7 +334,10 @@ function SettingsModal( {
 								<Tabs.Panel value="labels" keepMounted>
 									<Stack direction="column" gap="xl">
 										<Stack direction="column" gap="lg">
-											<Stack direction="column" gap="sm">
+											<Stack
+												direction="column"
+												className="newspack-rolling-coverage-settings__intro"
+											>
 												<Text
 													variant="heading-lg"
 													// eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop.
@@ -409,7 +412,10 @@ function SettingsModal( {
 											/>
 										</Stack>
 										<Stack direction="column" gap="lg">
-											<Stack direction="column" gap="sm">
+											<Stack
+												direction="column"
+												className="newspack-rolling-coverage-settings__intro"
+											>
 												<Text
 													variant="heading-lg"
 													// eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop.
@@ -450,7 +456,10 @@ function SettingsModal( {
 											/>
 										</Stack>
 										<Stack direction="column" gap="lg">
-											<Stack direction="column" gap="sm">
+											<Stack
+												direction="column"
+												className="newspack-rolling-coverage-settings__intro"
+											>
 												<Text
 													variant="heading-lg"
 													// eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop.
@@ -494,7 +503,10 @@ function SettingsModal( {
 								</Tabs.Panel>
 								<Tabs.Panel value="status" keepMounted>
 									<Stack direction="column" gap="lg">
-										<Stack direction="column" gap="sm">
+										<Stack
+											direction="column"
+											className="newspack-rolling-coverage-settings__intro"
+										>
 											<Text
 												variant="heading-lg"
 												// eslint-disable-next-line jsx-a11y/heading-has-content -- content is supplied via the Text children through @wordpress/ui's render prop.
