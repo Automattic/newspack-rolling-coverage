@@ -54,13 +54,26 @@ class Test_Entry_Summary extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A list's items count in the excerpt, which core's generated excerpt
-	 * leaves out, and the headline stops at the end of the first block.
+	 * leaves out, and the headline, whose first block ends with a colon,
+	 * reads on into the list.
 	 */
 	public function test_list_items_count_in_the_excerpt() {
 		$entry_id = self::create_untitled_entry( self::LIST_ENTRY );
 
 		$this->assertSame( 'Roads closed as of 4pm: Coast Road between Gull Point and the lighthouse Station Road at the railway bridge', get_the_excerpt( $entry_id ) );
-		$this->assertSame( 'Roads closed as of 4pm:', Entry_Bindings::get_fallback_title( get_post( $entry_id ) ) );
+		$this->assertSame( 'Roads closed as of 4pm: Coast Road between Gull Point and the lighthouse Station Road…', Entry_Bindings::get_fallback_title( get_post( $entry_id ) ) );
+	}
+
+	/**
+	 * A heading that ends with a colon reads on too, through a wrapper's
+	 * end, while a plain heading stands alone.
+	 */
+	public function test_headline_reads_on_past_a_colon() {
+		$colon_id = self::create_untitled_entry( '<!-- wp:group --><div class="wp-block-group"><!-- wp:heading {"level":3} --><h3 class="wp-block-heading">Closures tonight:</h3><!-- /wp:heading --></div><!-- /wp:group --><!-- wp:paragraph --><p>Coast Road and Station Road.</p><!-- /wp:paragraph -->' );
+		$plain_id = self::create_untitled_entry( '<!-- wp:heading {"level":3} --><h3 class="wp-block-heading">Closures tonight</h3><!-- /wp:heading --><!-- wp:paragraph --><p>Coast Road and Station Road.</p><!-- /wp:paragraph -->' );
+
+		$this->assertSame( 'Closures tonight: Coast Road and Station Road.', Entry_Bindings::get_fallback_title( get_post( $colon_id ) ) );
+		$this->assertSame( 'Closures tonight', Entry_Bindings::get_fallback_title( get_post( $plain_id ) ) );
 	}
 
 	/**
@@ -71,7 +84,7 @@ class Test_Entry_Summary extends Rolling_Coverage_TestCase {
 
 		$html = Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( self::TITLE_MARKUP . self::EXCERPT_MARKUP ) );
 
-		$this->assertStringContainsString( '>Roads closed as of 4pm:</a></h4>', $html );
+		$this->assertStringContainsString( '>Roads closed as of 4pm: Coast Road between Gull Point and the lighthouse Station Road…</a></h4>', $html );
 		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">Roads closed as of 4pm: Coast Road between Gull Point and the lighthouse Station Road at the railway bridge', $html );
 	}
 

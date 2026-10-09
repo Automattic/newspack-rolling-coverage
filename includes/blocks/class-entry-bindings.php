@@ -469,32 +469,45 @@ class Entry_Bindings {
 	/**
 	 * The stored HTML of the first block with words among the parsed blocks:
 	 * a block with text of its own, or a list, taken whole without its
-	 * media; a wrapper such as a group is looked into. Empty when none has
-	 * words.
+	 * media; a wrapper such as a group is looked into. A block that ends
+	 * with a colon announces what follows, so the blocks after it read on
+	 * from there rather than leaving the colon on its own. Empty when none
+	 * has words.
 	 *
 	 * @param array $blocks Parsed blocks.
 	 * @return string
 	 */
 	private static function headline_html( array $blocks ): string {
-		foreach ( $blocks as $block ) {
+		foreach ( $blocks as $index => $block ) {
 			if ( ! is_array( $block ) || self::is_wordless( $block ) || '' !== self::media_kind( $block ) ) {
 				continue;
 			}
 
-			$own = implode( ' ', array_filter( $block['innerContent'] ?? [], 'is_string' ) );
+			$own  = implode( ' ', array_filter( $block['innerContent'] ?? [], 'is_string' ) );
+			$html = 'core/list' === ( $block['blockName'] ?? '' ) || self::has_visible_text( $own )
+				? self::words_html( [ $block ] )
+				: self::headline_html( $block['innerBlocks'] ?? [] );
 
-			if ( 'core/list' === ( $block['blockName'] ?? '' ) || self::has_visible_text( $own ) ) {
-				return self::words_html( [ $block ] );
+			if ( '' === $html ) {
+				continue;
 			}
 
-			$inner = self::headline_html( $block['innerBlocks'] ?? [] );
-
-			if ( '' !== $inner ) {
-				return $inner;
-			}
+			return self::ends_with_colon( $html ) ? $html . ' ' . self::words_html( array_slice( $blocks, $index + 1 ) ) : $html;
 		}
 
 		return '';
+	}
+
+	/**
+	 * Whether stored HTML's text ends with a colon.
+	 *
+	 * @param string $html Stored HTML.
+	 * @return bool
+	 */
+	private static function ends_with_colon( string $html ): bool {
+		$text = rtrim( html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+
+		return ':' === substr( $text, -1 );
 	}
 
 	/**
