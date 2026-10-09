@@ -2804,25 +2804,9 @@ function initBlock( root: HTMLElement ): void {
 
 			setCheckBusy( false );
 
-			if ( outcome === 'failed' ) {
-				flashCheckLabel(
-					/* translators: Shown briefly on the Check for Updates button when a check fails. */
-					__( 'Couldn’t Check', 'newspack-rolling-coverage' )
-				);
-				announce(
-					__(
-						'Couldn’t check for updates. Try again.',
-						'newspack-rolling-coverage'
-					)
-				);
-				return;
-			}
-
-			if ( outcome === 'skipped' ) {
-				return;
-			}
-
 			// An ended coverage gets no new entries; a paused one may resume.
+			// Before the failed check: a reply can report the end and still count
+			// as a failed check, and the buttons would stay with nothing to check.
 			if ( polledStatus === 'archived' ) {
 				if (
 					checkButtons.some(
@@ -2839,6 +2823,24 @@ function initBlock( root: HTMLElement ): void {
 				checkControls.forEach( ( control ) => {
 					control.hidden = true;
 				} );
+				return;
+			}
+
+			if ( outcome === 'failed' ) {
+				flashCheckLabel(
+					/* translators: Shown briefly on the Check for Updates button when a check fails. */
+					__( 'Couldn’t Check', 'newspack-rolling-coverage' )
+				);
+				announce(
+					__(
+						'Couldn’t check for updates. Try again.',
+						'newspack-rolling-coverage'
+					)
+				);
+				return;
+			}
+
+			if ( outcome === 'skipped' ) {
 				return;
 			}
 
