@@ -18,9 +18,10 @@ defined( 'ABSPATH' ) || exit;
  * for that post, in the layout's own style: the entry's Post Title shows the
  * post's title, and its Post Content and Post Excerpt show the post's
  * summary in place of the entry's own text. Layouts without a Post Title
- * name the post in the content or the excerpt instead. Everything else in
- * the entry, such as its date, byline, Read more and Share, renders as
- * usual, and the entry's stored content is never changed.
+ * name the post in the content or the excerpt instead. Wherever the card
+ * names the post, the site's Full story label (Breakout_Label) comes first.
+ * Everything else in the entry, such as its date, byline, Read more and
+ * Share, renders as usual, and the entry's stored content is never changed.
  */
 class Breakout_Card {
 
@@ -36,6 +37,17 @@ class Breakout_Card {
 	 * so it shows nothing should it ever be printed.
 	 */
 	const NO_EXCERPT = '<!-- newspack-rolling-coverage-no-excerpt -->';
+
+	/**
+	 * Class of the Full story label, on its own line above the title, or
+	 * with LABEL_PREFIX_CLASS, leading a one-line title.
+	 */
+	const LABEL_CLASS = 'newspack-rolling-coverage-breakout-label';
+
+	/**
+	 * Class of a Full story label that leads its title on the same line.
+	 */
+	const LABEL_PREFIX_CLASS = 'newspack-rolling-coverage-breakout-label--prefix';
 
 	/**
 	 * The cards of the entries rendering now, by entry ID, each with whether
@@ -248,6 +260,7 @@ class Breakout_Card {
 			add_filter( 'the_content', [ __CLASS__, 'stand_in_content' ], PHP_INT_MIN );
 			add_filter( 'render_block_core/post-excerpt', [ __CLASS__, 'render_excerpt' ], 10, 3 );
 			add_filter( 'render_block_core/post-content', [ __CLASS__, 'render_content' ], 9, 3 );
+			add_filter( 'render_block_core/post-title', [ __CLASS__, 'label_title' ], 11, 3 );
 		}
 
 		self::$rendering[ $entry_id ] = $card + [ 'has_title_block' => $has_title_block ];
@@ -268,6 +281,7 @@ class Breakout_Card {
 				remove_filter( 'the_content', [ __CLASS__, 'stand_in_content' ], PHP_INT_MIN );
 				remove_filter( 'render_block_core/post-excerpt', [ __CLASS__, 'render_excerpt' ], 10 );
 				remove_filter( 'render_block_core/post-content', [ __CLASS__, 'render_content' ], 9 );
+				remove_filter( 'render_block_core/post-title', [ __CLASS__, 'label_title' ], 11 );
 			}
 		}
 	}
@@ -292,6 +306,67 @@ class Breakout_Card {
 		$card = self::card_for_block( 'core/post-title', (int) $post_id );
 
 		return null !== $card && '' !== $card['title'] ? esc_html( $card['title'] ) : $title;
+	}
+
+	/**
+	 * A card's Post Title, once rendered and linked to the post (see
+	 * Entry_Bindings::link_title_to_breakout()), with the Full story label
+	 * inside the heading, before the link, so it stays with the title in
+	 * every layout, screen readers read it before the title, and the link's
+	 * name stays the title. A title carrying Entry_Bindings::ENTRY_LINK_CLASS,
+	 * Ticker's one-line headline, has the label lead it on the same line;
+	 * any other has it on a line of its own above. A title that renders
+	 * nothing gets none.
+	 *
+	 * Parameters stay untyped because this runs for every post title on the
+	 * site while a card renders, after other plugins' filters that may hand
+	 * on unexpected types.
+	 *
+	 * @param string   $block_content Rendered title.
+	 * @param array    $block         Parsed block.
+	 * @param WP_Block $instance      Block instance.
+	 * @return string
+	 */
+	public static function label_title( $block_content, $block, $instance ) {
+		$card = self::card_for_instance( $instance );
+
+		if ( null === $card || ! is_string( $block_content ) || ! is_array( $block ) || ! preg_match( '#^(\s*<([a-z][a-z0-9]*)\b[^>]*>)(.*</\2>\s*)$#is', $block_content, $parts ) ) {
+			return $block_content;
+		}
+
+		return $parts[1] . self::label_html( Entry_Bindings::is_entry_link_title( $block ) ) . $parts[3];
+	}
+
+	/**
+	 * The Full story label as HTML, followed by a space, so the text reads
+	 * apart from the title after it wherever it's read without styles.
+	 *
+	 * @param bool $is_prefix Whether the label leads its title on the same
+	 *                        line rather than sitting above it.
+	 * @return string
+	 */
+	private static function label_html( bool $is_prefix = false ): string {
+		$label = Breakout_Label::get();
+
+		if ( $is_prefix ) {
+			/* translators: %s: the Full story label, leading the title of a broken-out entry's published post on the same line. */
+			$label = sprintf( __( '%s:', 'newspack-rolling-coverage' ), $label );
+		}
+
+		return sprintf(
+			'<span class="%s">%s</span> ',
+			esc_attr( 'use-header-font ' . self::LABEL_CLASS . ( $is_prefix ? ' ' . self::LABEL_PREFIX_CLASS : '' ) ),
+			esc_html( $label )
+		);
+	}
+
+	/**
+	 * The Full story label as a plain paragraph, for a lite page.
+	 *
+	 * @return string
+	 */
+	public static function lite_label_html(): string {
+		return sprintf( '<p class="%s">%s</p>', esc_attr( self::LABEL_CLASS ), esc_html( Breakout_Label::get() ) );
 	}
 
 	/**
@@ -345,7 +420,9 @@ class Breakout_Card {
 	 * show, such as the summary of a password protected post under its
 	 * title. For a password protected entry, core never asks the excerpt
 	 * filters and says there is no excerpt, so the card's text takes that
-	 * message's place, cut to the block's length as core cuts it.
+	 * message's place, cut to the block's length as core cuts it. An excerpt
+	 * showing the post's title, a one-liner like Flash's, has the Full story
+	 * label lead it on the same line, outside the words the block counts.
 	 *
 	 * Parameters stay untyped because this runs for every excerpt block on
 	 * the site while a card renders, after other plugins' filters that may
@@ -369,20 +446,29 @@ class Breakout_Card {
 			return '';
 		}
 
-		if ( ! post_password_required( (int) ( $instance->context['postId'] ?? 0 ) ) ) {
+		if ( post_password_required( (int) ( $instance->context['postId'] ?? 0 ) ) ) {
+			$excerpt = esc_html( $text );
+			$length  = $instance->attributes['excerptLength'] ?? null;
+
+			if ( isset( $length ) ) {
+				$excerpt = wp_trim_words( $excerpt, (int) $length );
+			}
+
+			$block_content = (string) preg_replace_callback(
+				'#(<p class="wp-block-post-excerpt__excerpt">).*?((?:\s<a class="wp-block-post-excerpt__more-link".*?</a>)?\s*</p>)#s',
+				static fn( $parts ) => $parts[1] . $excerpt . $parts[2],
+				$block_content,
+				1
+			);
+		}
+
+		if ( ! self::excerpt_shows_title( $card ) ) {
 			return $block_content;
 		}
 
-		$excerpt = esc_html( $text );
-		$length  = $instance->attributes['excerptLength'] ?? null;
-
-		if ( isset( $length ) ) {
-			$excerpt = wp_trim_words( $excerpt, (int) $length );
-		}
-
 		return (string) preg_replace_callback(
-			'#(<p class="wp-block-post-excerpt__excerpt">).*?((?:\s<a class="wp-block-post-excerpt__more-link".*?</a>)?\s*</p>)#s',
-			static fn( $parts ) => $parts[1] . $excerpt . $parts[2],
+			'#<p class="wp-block-post-excerpt__excerpt">#',
+			static fn( $parts ) => $parts[0] . self::label_html( true ),
 			$block_content,
 			1
 		);
@@ -445,8 +531,8 @@ class Breakout_Card {
 	/**
 	 * The HTML a card's Post Content holds: the breakout post's summary as a
 	 * paragraph, after, in a template without a Post Title, a paragraph
-	 * holding the post's title, linked to the post. Empty when the card has
-	 * neither to show.
+	 * holding the Full story label on a line of its own above the post's
+	 * title, linked to the post. Empty when the card has neither to show.
 	 *
 	 * @param array $card A rendering card.
 	 * @return string
@@ -455,7 +541,7 @@ class Breakout_Card {
 		$html = '';
 
 		if ( ! $card['has_title_block'] && '' !== $card['title'] ) {
-			$html .= sprintf( '<p><strong><a href="%s">%s</a></strong></p>', esc_url( $card['url'] ), esc_html( $card['title'] ) );
+			$html .= sprintf( '<p>%s<strong><a href="%s">%s</a></strong></p>', self::label_html(), esc_url( $card['url'] ), esc_html( $card['title'] ) );
 		}
 
 		if ( '' !== $card['summary'] ) {
@@ -497,7 +583,18 @@ class Breakout_Card {
 	 * @return string
 	 */
 	private static function excerpt_text( array $card ): string {
-		return $card['has_title_block'] || '' === $card['title'] ? $card['summary'] : $card['title'];
+		return self::excerpt_shows_title( $card ) ? $card['title'] : $card['summary'];
+	}
+
+	/**
+	 * Whether a card's Post Excerpt shows the post's title: in a template
+	 * without a Post Title, when the post has one.
+	 *
+	 * @param array $card A rendering card.
+	 * @return bool
+	 */
+	private static function excerpt_shows_title( array $card ): bool {
+		return ! $card['has_title_block'] && '' !== $card['title'];
 	}
 
 	/**

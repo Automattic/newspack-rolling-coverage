@@ -31,6 +31,7 @@ interface AdminConfig {
 		aiSettings: string;
 		statusLabels: string;
 		latestLabel: string;
+		breakoutLabel: string;
 		entryName: string;
 		posts: string;
 	};
@@ -74,6 +75,8 @@ interface AdminConfig {
 	statusLabelMaxLength: number;
 	latestLabelDefault: string;
 	latestLabelMaxLength: number;
+	breakoutLabelDefault: string;
+	breakoutLabelMaxLength: number;
 	entryNameDefaults: EntryName;
 	entryNameMaxLength: number;
 	slack: {
@@ -476,14 +479,15 @@ interface StatusLabelsResult extends ApiResult {
 }
 
 /**
- * The "Jump to Latest" control's text, empty where the site sets none.
+ * One of the site's labels, such as the "Jump to Latest" button's text,
+ * empty where the site sets none.
  */
-interface LatestLabel {
+interface LabelSetting {
 	label: string;
 }
 
-interface LatestLabelResult extends ApiResult {
-	data?: LatestLabel;
+interface LabelSettingResult extends ApiResult {
+	data?: LabelSetting;
 }
 
 /**
@@ -787,8 +791,8 @@ export type {
 	AdminConfig,
 	StatusLabels,
 	StatusLabelsResult,
-	LatestLabel,
-	LatestLabelResult,
+	LabelSetting,
+	LabelSettingResult,
 	EntryName,
 	EntryNameResult,
 	Context,

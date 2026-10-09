@@ -406,14 +406,14 @@ class Admin {
 		);
 
 		return array(
-			'page'                 => $page,
-			'adminTitleSuffix'     => self::$admin_title_suffix,
-			'supportsHandoff'      => class_exists( '\Newspack\Handoff_Banner' ),
-			'restBase'             => array(
+			'page'                   => $page,
+			'adminTitleSuffix'       => self::$admin_title_suffix,
+			'supportsHandoff'        => class_exists( '\Newspack\Handoff_Banner' ),
+			'restBase'               => array(
 				'entries' => Post_Type::REST_BASE,
 				'slack'   => Slack::REST_NAMESPACE,
 			),
-			'restBaseUrls'         => array(
+			'restBaseUrls'           => array(
 				'coverages'     => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
 				'slack'         => esc_url_raw( rest_url( Slack::REST_NAMESPACE . '/' ) ),
 				'breakout'      => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/entries' ) ),
@@ -421,12 +421,13 @@ class Admin {
 				'aiSettings'    => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . AI_Settings::REST_ROUTE ) ),
 				'statusLabels'  => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Status_Labels::REST_ROUTE ) ),
 				'latestLabel'   => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Latest_Label::REST_ROUTE ) ),
+				'breakoutLabel' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Breakout_Label::REST_ROUTE ) ),
 				'entryName'     => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Entry_Name::REST_ROUTE ) ),
 				'restNamespace' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/' ) ),
 				'posts'         => esc_url_raw( rest_url( 'wp/v2/posts' ) ),
 			),
-			'nonce'                => wp_create_nonce( 'wp_rest' ),
-			'capabilities'         => array(
+			'nonce'                  => wp_create_nonce( 'wp_rest' ),
+			'capabilities'           => array(
 				'canEditPosts'        => current_user_can( 'edit_posts' ),
 				'canEditEntries'      => current_user_can( Post_Type::EDIT_ENTRIES_CAP ),
 				'canChangeAuthors'    => Post_Type::can_change_authors(),
@@ -438,43 +439,45 @@ class Admin {
 				'canManageOptions'    => current_user_can( 'manage_options' ),
 				'canManageSettings'   => Status_Labels::can_manage(),
 			),
-			'adminUrls'            => array(
+			'adminUrls'              => array(
 				'coverages'          => admin_url( 'admin.php?page=' . self::MENU_SLUG ),
 				'editEntry'          => admin_url( 'post.php?action=edit' ),
 				'editTerm'           => admin_url( 'term.php?taxonomy=' . Taxonomy::TAXONOMY_SLUG ),
 				'editUser'           => admin_url( 'user-edit.php' ),
 				'connectorApprovals' => AI_Service::get_connector_approvals_url(),
 			),
-			'postType'             => Post_Type::CPT_SLUG,
-			'taxonomy'             => Taxonomy::TAXONOMY_SLUG,
-			'taxMeta'              => array(
+			'postType'               => Post_Type::CPT_SLUG,
+			'taxonomy'               => Taxonomy::TAXONOMY_SLUG,
+			'taxMeta'                => array(
 				'statusKey'       => Taxonomy::STATUS_META_KEY,
 				'lastModifiedKey' => Rolling_Coverage_Block::LAST_MODIFIED_META_KEY,
 				'canonicalUrlKey' => Taxonomy::CANONICAL_URL_META_KEY,
 				'adsDisabledKey'  => Taxonomy::ADS_DISABLED_META_KEY,
 			),
-			'slack'                => array(
+			'slack'                  => array(
 				'isConfigured' => Slack_Config::is_configured(),
 			),
-			'pushNotifications'    => array(
+			'pushNotifications'      => array(
 				'isConfigured' => Push_Notifications::is_onesignal_configured(),
 			),
-			'availableAdapters'    => array(
+			'availableAdapters'      => array(
 				'slack' => __( 'Slack', 'newspack-rolling-coverage' ),
 			),
-			'blockEditorSettings'  => $block_editor_settings,
-			'aiSettings'           => AI_Settings::can_manage_settings() ? AI_Settings::get_all() : null,
-			'aiDefaultSettings'    => AI_Settings::get_defaults(),
-			'aiAvailable'          => AI_Service::is_available(),
-			'aiNeedsApproval'      => AI_Service::needs_connector_approval(),
-			'aiMaxPromptLength'    => AI_Service::MAX_PROMPT_LENGTH,
-			'statusLabels'         => Status_Labels::get_all(),
-			'statusLabelDefaults'  => Status_Labels::get_defaults(),
-			'statusLabelMaxLength' => Status_Labels::MAX_LENGTH,
-			'latestLabelDefault'   => Latest_Label::get_default(),
-			'latestLabelMaxLength' => Latest_Label::MAX_LENGTH,
-			'entryNameDefaults'    => Entry_Name::get_defaults(),
-			'entryNameMaxLength'   => Entry_Name::MAX_LENGTH,
+			'blockEditorSettings'    => $block_editor_settings,
+			'aiSettings'             => AI_Settings::can_manage_settings() ? AI_Settings::get_all() : null,
+			'aiDefaultSettings'      => AI_Settings::get_defaults(),
+			'aiAvailable'            => AI_Service::is_available(),
+			'aiNeedsApproval'        => AI_Service::needs_connector_approval(),
+			'aiMaxPromptLength'      => AI_Service::MAX_PROMPT_LENGTH,
+			'statusLabels'           => Status_Labels::get_all(),
+			'statusLabelDefaults'    => Status_Labels::get_defaults(),
+			'statusLabelMaxLength'   => Status_Labels::MAX_LENGTH,
+			'latestLabelDefault'     => Latest_Label::get_default(),
+			'latestLabelMaxLength'   => Latest_Label::MAX_LENGTH,
+			'breakoutLabelDefault'   => Breakout_Label::get_default(),
+			'breakoutLabelMaxLength' => Breakout_Label::MAX_LENGTH,
+			'entryNameDefaults'      => Entry_Name::get_defaults(),
+			'entryNameMaxLength'     => Entry_Name::MAX_LENGTH,
 		);
 	}
 }

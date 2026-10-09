@@ -48,17 +48,18 @@ The routes live in `Taxonomy` (`includes/class-taxonomy.php`).
 
 ## Settings
 
-`SettingsModal` (`settings-modal.tsx`) opens from the All Coverages header for users with `edit_others_posts`. It has three tabs, each saving one option through its own route:
+`SettingsModal` (`settings-modal.tsx`) opens from the All Coverages header for users with `edit_others_posts`. It has four tabs, each saving one option through its own route:
 
 | Tab | Fields | Route |
 | --- | --- | --- |
 | Entry Name | Singular, Plural | `rolling-coverage/v1/settings/entry-name` |
 | Coverage Status | Live label, Paused label, Ended label | `rolling-coverage/v1/settings/status-labels` |
 | Jump to Latest | Button label | `rolling-coverage/v1/settings/latest-label` |
+| Full Story | Full story label | `rolling-coverage/v1/settings/breakout-label` |
 
-The modal loads all three when it opens and saves only the ones that changed. It refuses an entry name with one word and not the other before sending anything. A failed save switches to that tab and shows the error. Closing with unsaved changes asks to discard them.
+The modal loads all four when it opens and saves only the ones that changed. The two single-label tabs share `fetchLabelSetting()` and `saveLabelSetting()` (`src/admin/utils/label-setting-api.ts`). It refuses an entry name with one word and not the other before sending anything. A failed save switches to that tab and shows the error. Closing with unsaved changes asks to discard them.
 
-The options, their limits and what reads them are documented with the blocks: the entry name and the Jump to Latest label in `src/blocks/rolling-coverage/DEVELOPMENT.md`, the status labels in `src/blocks/coverage-status/DEVELOPMENT.md`.
+The options, their limits and what reads them are documented with the blocks: the entry name, the Jump to Latest label and the Full story label in `src/blocks/rolling-coverage/DEVELOPMENT.md`, the status labels in `src/blocks/coverage-status/DEVELOPMENT.md`.
 
 ## A coverage's entries
 

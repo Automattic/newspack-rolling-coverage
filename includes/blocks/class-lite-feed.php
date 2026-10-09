@@ -77,6 +77,11 @@ class Lite_Feed {
 		.newspack-rolling-coverage-entry h3 {
 			margin: 0 0 0.5rem;
 		}
+		.newspack-rolling-coverage-breakout-label {
+			margin: 0;
+			font-size: 0.875em;
+			font-weight: 700;
+		}
 	';
 
 	/**
@@ -236,9 +241,9 @@ class Lite_Feed {
 	 * Render an entry as text: its time, whether it is pinned, its title and
 	 * its body, which Lite Site cleans like the rest of the page, or a notice
 	 * in place of a protected entry's body. An entry whose breakout post is
-	 * published shows that post's title, linked to its lite page (see
-	 * card_url()), and its summary instead (see Breakout_Card::for_entry()),
-	 * without the archived entry's notice.
+	 * published shows that post's title under the Full story label, linked to
+	 * its lite page (see card_url()), and its summary instead (see
+	 * Breakout_Card::for_entry()), without the archived entry's notice.
 	 *
 	 * Built from the entry alone, not the block's layout, and carrying the
 	 * attributes the view script uses to place and replace entries. Layouts
@@ -271,7 +276,7 @@ class Lite_Feed {
 		$card = Breakout_Card::for_entry( $entry->ID );
 
 		if ( null !== $card ) {
-			$title = '' !== $card['title'] ? sprintf( '<h3><a href="%s">%s</a></h3>', esc_url( self::card_url( $card ) ), esc_html( $card['title'] ) ) : '';
+			$title = '' !== $card['title'] ? Breakout_Card::lite_label_html() . sprintf( '<h3><a href="%s">%s</a></h3>', esc_url( self::card_url( $card ) ), esc_html( $card['title'] ) ) : '';
 			$body  = '' !== $card['summary'] ? '<p>' . esc_html( $card['summary'] ) . '</p>' : '';
 		} else {
 			$title = Rolling_Coverage_Block::has_title( $entry ) ? '<h3>' . esc_html( get_the_title( $entry ) ) . '</h3>' : '';
