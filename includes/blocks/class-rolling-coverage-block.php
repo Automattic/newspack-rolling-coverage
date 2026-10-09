@@ -223,6 +223,7 @@ class Rolling_Coverage_Block {
 		add_filter( 'render_block_core/group', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
 		add_filter( 'render_block_core/columns', [ __CLASS__, 'apply_entry_block_gap' ], 10, 3 );
 		add_filter( 'render_block_core/buttons', [ __CLASS__, 'drop_empty_entry_buttons' ], 10, 1 );
+		add_filter( 'the_content', [ __CLASS__, 'withhold_gated_entry_in_feed' ], 999 );
 	}
 
 	/**
@@ -3647,7 +3648,8 @@ class Rolling_Coverage_Block {
 	 * teaser.
 	 *
 	 * The loop is the feed's own rather than the main query, whose loop state
-	 * belongs to the page.
+	 * belongs to the page. In a syndication feed the gate stands aside,
+	 * loop or not; withhold_gated_entry_in_feed() covers that case.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 */
@@ -3655,6 +3657,71 @@ class Rolling_Coverage_Block {
 		$loop              = new WP_Query();
 		$loop->in_the_loop = true;
 		$loop->setup_postdata( $entry );
+	}
+
+	/**
+	 * A gated entry's teaser in place of its body when the block renders
+	 * inside a syndication feed, such as a host post's RSS item.
+	 *
+	 * Newspack's content gate leaves feeds to its feed setting, which judges
+	 * each feed item: the host post, not the entries its feed lists. This
+	 * applies that setting to entries: the teaser, unless the site or the
+	 * feed includes restricted articles in full. A feed set to remove
+	 * restricted articles still lists the host post, so its gated entries
+	 * show their teasers.
+	 *
+	 * The teaser is the one Newspack lists the entry with for a signed-out
+	 * reader, since feeds are cached for everyone. It replaces the rendered
+	 * content rather than the entry's post_content because core's Post
+	 * Excerpt block reads the entry by ID, not through the post set up.
+	 *
+	 * @param string $content The entry's rendered content.
+	 * @return string
+	 */
+	public static function withhold_gated_entry_in_feed( $content ) {
+		if ( 0 === self::$entry_render_depth || ! is_feed() ) {
+			return $content;
+		}
+
+		$entry = get_post();
+
+		if ( ! $entry instanceof WP_Post || Post_Type::CPT_SLUG !== $entry->post_type ) {
+			return $content;
+		}
+
+		$teaser = self::feed_teaser( $entry );
+
+		return null === $teaser ? $content : $teaser;
+	}
+
+	/**
+	 * What the current syndication feed shows of a gated entry: Newspack's
+	 * listing teaser, or null for an entry no gate covers or a feed that
+	 * includes restricted articles in full. Newspack before 6.53.0 has no
+	 * listing teaser, so its feeds keep entries whole.
+	 *
+	 * @param WP_Post $entry Entry post.
+	 * @return string|null
+	 */
+	private static function feed_teaser( WP_Post $entry ): ?string {
+		if ( ! class_exists( '\Newspack\Content_Gate' ) || ! method_exists( '\Newspack\Content_Gate', 'get_teaser_outside_article' ) ) {
+			return null;
+		}
+
+		if (
+			class_exists( '\Newspack\Content_Gate_Advanced_Settings' ) &&
+			method_exists( '\Newspack\Content_Gate_Advanced_Settings', 'get_feed_restriction_mode' ) &&
+			'off' === \Newspack\Content_Gate_Advanced_Settings::get_feed_restriction_mode(
+				[
+					'query' => $GLOBALS['wp_query'] ?? null,
+					'post'  => $entry,
+				]
+			)
+		) {
+			return null;
+		}
+
+		return \Newspack\Content_Gate::get_teaser_outside_article( $entry );
 	}
 
 	/**
