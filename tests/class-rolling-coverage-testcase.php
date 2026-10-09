@@ -13,6 +13,7 @@ use Newspack_Rolling_Coverage\Coverage_Status_Block;
 use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
+use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
@@ -54,6 +55,13 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	 * @var bool
 	 */
 	private $registered_check_updates_block = false;
+
+	/**
+	 * Whether the test registered the Rolling Coverage block itself.
+	 *
+	 * @var bool
+	 */
+	private $registered_feed_block = false;
 
 	/**
 	 * Register the plugin's post and term meta again before every test.
@@ -104,6 +112,11 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		if ( $this->registered_check_updates_block ) {
 			unregister_block_type( Check_Updates_Block::BLOCK_NAME );
 			$this->registered_check_updates_block = false;
+		}
+
+		if ( $this->registered_feed_block ) {
+			unregister_block_type( Rolling_Coverage_Block::BLOCK_NAME );
+			$this->registered_feed_block = false;
 		}
 
 		if ( defined( '\\Newspack\\Content_Gate::IS_TEST_STUB' ) ) {
@@ -239,6 +252,20 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 			array_merge( Check_Updates_Block::block_type_args(), [ 'uses_context' => $metadata['usesContext'] ] )
 		);
 		$this->registered_check_updates_block = true;
+	}
+
+	/**
+	 * Register the Rolling Coverage block for the rest of the test when the
+	 * build isn't there, so a feed parsed from content reaches its render
+	 * callback instead of rendering its layout against the host post.
+	 */
+	protected function register_feed_block() {
+		if ( WP_Block_Type_Registry::get_instance()->is_registered( Rolling_Coverage_Block::BLOCK_NAME ) ) {
+			return;
+		}
+
+		register_block_type( Rolling_Coverage_Block::BLOCK_NAME, Rolling_Coverage_Block::block_type_args() );
+		$this->registered_feed_block = true;
 	}
 
 	/**

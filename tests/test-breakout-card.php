@@ -738,6 +738,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	 * the entry holding it keeps its own title and text.
 	 */
 	public function test_feed_nested_in_an_entry_renders_its_entries_as_cards() {
+		$this->register_feed_block();
 		[ $inner_entry ] = self::create_breakout();
 		$coverage_id     = wp_get_object_terms( $inner_entry, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] )[0];
 		$outer_entry     = self::create_entry(
