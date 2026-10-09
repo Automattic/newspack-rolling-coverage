@@ -98,9 +98,8 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Publish a draft as if in the given second: `wp_publish_post()` keeps the
-	 * draft's modified date, and the plugin stamps the publish time with the
-	 * clock.
+	 * Publish a draft as if in the given second: the plugin stamps its
+	 * modified date and publish time with the clock.
 	 *
 	 * @param int    $entry_id Draft entry ID.
 	 * @param string $second   GMT `Y-m-d H:i:s`.
