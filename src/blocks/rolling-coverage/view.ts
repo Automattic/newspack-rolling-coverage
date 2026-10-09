@@ -51,6 +51,20 @@ type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 const STICKY_CARD_SELECTOR =
 	'.newspack-rolling-coverage-pinned-card.is-position-sticky';
 
+// Where an entry's closing separator sits: at the end of the entry, of its
+// entry group, or of the group's inner container. The server leaves it off
+// the last entry and off a pinned card
+// (Rolling_Coverage_Block::shape_entry_template()).
+const SEPARATOR_PARENTS = [
+	':scope',
+	':scope > .newspack-rolling-coverage-regular-entry:last-child',
+	':scope > .newspack-rolling-coverage-regular-entry:last-child > .wp-block-group__inner-container',
+];
+
+const CLOSING_SEPARATOR = SEPARATOR_PARENTS.map(
+	( parent ) => `${ parent } > .wp-block-separator:last-child`
+).join( ', ' );
+
 // How long an overflow holds back another reload into the same cursor. The
 // reload can land on a page cache copy from before the burst, which overflows
 // again on its next poll; without the wait the reader would reload on every
@@ -854,6 +868,156 @@ function initBlock( root: HTMLElement ): void {
 				)
 			).find( ( entry ) => entry !== except ) ?? null
 		);
+	}
+
+	/**
+	 * Whether load more lists an entry below a point in the feed: dated in an
+	 * earlier GMT second, or in the same second with a lower ID, the order its
+	 * bound follows (Rolling_Coverage_Block::load_more_bound()).
+	 *
+	 * @param {string} date   The entry's GMT date.
+	 * @param {number} id     The entry's ID.
+	 * @param {string} atDate The point's GMT date.
+	 * @param {number} atId   The point's ID, or 0 for the whole of its second.
+	 * @return {boolean} Whether the entry lists below the point.
+	 */
+	function listsBelow(
+		date: string,
+		id: number,
+		atDate: string,
+		atId: number
+	): boolean {
+		return date < atDate || ( date === atDate && id < atId );
+	}
+
+	/**
+	 * The first unpinned entry listed below an entry. Without dates to
+	 * compare, as on a page cached before entries carried them, the entry
+	 * goes above the first unpinned entry it can't compare with.
+	 *
+	 * @param {HTMLElement} entry The entry to place.
+	 * @return {HTMLElement|null} The entry below, or null if the page shows none.
+	 */
+	function unpinnedEntryBelow( entry: HTMLElement ): HTMLElement | null {
+		const date = entry.dataset.dateGmt;
+		const id = Number( entry.dataset.entryId );
+
+		return (
+			Array.from(
+				entriesList.querySelectorAll< HTMLElement >(
+					':scope > [data-entry-id]:not([data-pinned])'
+				)
+			).find( ( other ) => {
+				const otherDate = other.dataset.dateGmt;
+
+				return (
+					other !== entry &&
+					( ! date ||
+						! otherDate ||
+						listsBelow(
+							otherDate,
+							Number( other.dataset.entryId ),
+							date,
+							id
+						) )
+				);
+			} ) ?? null
+		);
+	}
+
+	/**
+	 * Moves an entry unpinned while the page is open to where a fresh page
+	 * would list it. When that is below load more's bound, it leaves the
+	 * page until load more brings it there. A feed opened at a shared entry
+	 * counts it among the newer entries instead when it is dated in a later
+	 * second than the shared entry, as its query and count split them
+	 * (Rolling_Coverage_Block::count_newer_entries()).
+	 *
+	 * @param {HTMLElement} entry The unpinned entry.
+	 * @return {boolean} Whether the entry stays on the page.
+	 */
+	function placeUnpinnedEntry( entry: HTMLElement ): boolean {
+		const date = entry.dataset.dateGmt;
+		const sharedDate = isEntryView
+			? entriesList.querySelector< HTMLElement >(
+					':scope > [data-linked]'
+				)?.dataset.dateGmt
+			: undefined;
+
+		if (
+			date &&
+			sharedDate &&
+			date > sharedDate &&
+			entry.dataset.entryId
+		) {
+			countedEntryIds.add( entry.dataset.entryId );
+			showNewerCount();
+			return false;
+		}
+
+		const below = unpinnedEntryBelow( entry );
+
+		if ( below ) {
+			entriesList.insertBefore( entry, below );
+			return true;
+		}
+
+		// Load more continues below its bound, which sits lower than the last
+		// entry shown when a page of older entries ended on a pinned entry the
+		// list already held. An entry taken off the page above the bound
+		// would never load again.
+		const [ , boundId = '0', boundDate = before ] =
+			/^(\d+):(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/.exec( before ) ??
+			[];
+
+		if (
+			hasMore &&
+			date &&
+			boundDate &&
+			listsBelow(
+				date,
+				Number( entry.dataset.entryId ),
+				boundDate,
+				Number( boundId )
+			)
+		) {
+			return false;
+		}
+
+		const entries = Array.from(
+			entriesList.querySelectorAll< HTMLElement >(
+				':scope > [data-entry-id]'
+			)
+		).filter( ( other ) => other !== entry );
+		const last = entries[ entries.length - 1 ];
+
+		entriesList.appendChild( entry );
+
+		// The last entry was rendered without its closing separator, which
+		// the entry now below it brings, unless it is a pinned card.
+		if (
+			last &&
+			! last.querySelector( CLOSING_SEPARATOR ) &&
+			! last.querySelector(
+				':scope > .newspack-rolling-coverage-pinned-card'
+			)
+		) {
+			for ( const parent of SEPARATOR_PARENTS ) {
+				const separator = entry.querySelector(
+					`${ parent } > .wp-block-separator:last-child`
+				);
+
+				if ( separator ) {
+					( parent === ':scope'
+						? last
+						: last.querySelector( parent )
+					)?.append( separator );
+					break;
+				}
+			}
+		}
+
+		return true;
 	}
 
 	/**
@@ -1825,7 +1989,9 @@ function initBlock( root: HTMLElement ): void {
 	 * Applies a poll response to the entry list.
 	 *
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
-	 * on the page until they arrive. Drops entries taken down, and leaves one
+	 * on the page until they arrive. Moves a newly pinned entry below the
+	 * pinned ones, and a newly unpinned one to its place by date (see
+	 * placeUnpinnedEntry()). Drops entries taken down, and leaves one
 	 * that comes back for reload. Inserts or queues newly published entries
 	 * based on the reader's scroll position. When the feed opens at a shared
 	 * entry, new entries are added to the control's count instead of inserted.
@@ -1894,10 +2060,18 @@ function initBlock( root: HTMLElement ): void {
 					existing.hasAttribute( 'data-pinned' ) !==
 					entryEl.hasAttribute( 'data-pinned' )
 				) {
-					entriesList.insertBefore(
-						entryEl,
-						firstUnpinnedEntry( entryEl )
-					);
+					if ( entryEl.hasAttribute( 'data-pinned' ) ) {
+						entriesList.insertBefore(
+							entryEl,
+							firstUnpinnedEntry( entryEl )
+						);
+					} else if ( ! placeUnpinnedEntry( entryEl ) ) {
+						// A load-more reply cached before the unpin still has it pinned.
+						offPageUpdates.set( String( entry.id ), entry.html );
+						linkedObserver?.unobserve( entryEl );
+						entryEl.remove();
+						return;
+					}
 				}
 
 				observeEntry( entryEl );
@@ -1966,13 +2140,7 @@ function initBlock( root: HTMLElement ): void {
 
 		const last = entries[ entries.length - 1 ];
 
-		last?.querySelector(
-			[
-				':scope > .wp-block-separator:last-child',
-				':scope > .newspack-rolling-coverage-regular-entry:last-child > .wp-block-separator:last-child',
-				':scope > .newspack-rolling-coverage-regular-entry:last-child > .wp-block-group__inner-container > .wp-block-separator:last-child',
-			].join( ', ' )
-		)?.remove();
+		last?.querySelector( CLOSING_SEPARATOR )?.remove();
 		last?.querySelector< HTMLElement >(
 			':scope > .newspack-rolling-coverage-pinned-card:last-child'
 		)?.style.removeProperty( 'margin-bottom' );
