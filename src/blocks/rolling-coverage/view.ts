@@ -2001,6 +2001,8 @@ function initBlock( root: HTMLElement ): void {
 							firstUnpinnedEntry( entryEl )
 						);
 					} else if ( ! placeUnpinnedEntry( entryEl ) ) {
+						// A load-more reply cached before the unpin still has it pinned.
+						offPageUpdates.set( String( entry.id ), entry.html );
 						linkedObserver?.unobserve( entryEl );
 						entryEl.remove();
 						return;
