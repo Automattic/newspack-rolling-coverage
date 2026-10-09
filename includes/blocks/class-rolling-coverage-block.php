@@ -224,7 +224,8 @@ class Rolling_Coverage_Block {
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'localize_frontend_config' ] );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
 		add_action( 'delete_term', [ __CLASS__, 'delete_coverage_template_options' ], 10, 3 );
-		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 10, 3 );
+		// After Post_Type records publish and takedown times at priority 10, which polls read.
+		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 11, 3 );
 		add_filter( 'posts_where', [ __CLASS__, 'load_more_bound_where' ], 10, 2 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
@@ -942,8 +943,7 @@ class Rolling_Coverage_Block {
 	 * an entry's status changes to or from 'publish', and on saves while
 	 * already published.
 	 *
-	 * Post_Type registers its publish and takedown records on this hook at
-	 * the same priority first. They must stay ahead of this: a poll that
+	 * Runs after Post_Type records publish and takedown times: a poll that
 	 * reads the new marker before them holds the change back.
 	 *
 	 * @param string  $new_status New post status.
