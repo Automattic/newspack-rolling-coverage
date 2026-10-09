@@ -95,7 +95,7 @@ It also stores the entry template, with the ad and cap settings, in an option na
 
 REST routes, in the `rolling-coverage/v1` namespace (`register_routes()`):
 
-- `GET /coverages/{id}/entries` is public. With `cursor`, it is a forward poll for new and edited entries, and for entries taken down since the cursor, which it names for the page to drop (`Post_Type::record_entry_unpublished()` records when an entry leaves `publish`). With `before`, it returns the next page of older entries. `template_key` is required. Capped feeds send `latest`, so their requests stay capped without a stored config. Lite pages send `lite` (see Lite Site pages).
+- `GET /coverages/{id}/entries` is public. With `cursor`, it is a forward poll for new and edited entries, and for entries taken down since the cursor, which it names for the page to drop (`Post_Type::record_entry_unpublished()` records when an entry leaves `publish`). It finds them by modified date. Core's `wp_publish_post()`, which cron uses for scheduled entries, changes only the status, so `Post_Type::stamp_publish_modified_gmt()` moves an entry's modified date to the moment it goes out. With `before`, it returns the next page of older entries. `template_key` is required. Capped feeds send `latest`, so their requests stay capped without a stored config. Lite pages send `lite` (see Lite Site pages).
 - `GET /coverages/{id}/entries-preview` needs `edit_posts`. It returns entry IDs for the editor's preview.
 - `POST /layouts/{slug}`: see Layouts.
 

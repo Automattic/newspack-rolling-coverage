@@ -579,9 +579,7 @@ class Schema {
 		$last_modified = get_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true );
 		$end_time      = get_term_meta( $coverage_id, Taxonomy::END_TIME_META_KEY, true );
 
-		// The newest entry's date is part of the key because a scheduled entry
-		// going live changes what the page shows without moving the coverage's
-		// last-modified meta.
+		// The newest entry's date is part of the key because it dates the script.
 		$latest_entry_date = self::get_latest_entry_date( $coverage_id );
 
 		// The group's last_changed stamp invalidates the key on coverage rename,
@@ -672,8 +670,9 @@ class Schema {
 	 *
 	 * The coverage's last-modified term meta isn't used here because draft,
 	 * pending and private entry saves move it too. The newest entry by publish
-	 * date counts as well as the newest by edit: an entry published on schedule
-	 * keeps the modified date of its last edit, from before it went live.
+	 * date counts as well as the newest by edit: entries that went live on
+	 * schedule under earlier versions kept the modified date of the save that
+	 * scheduled them.
 	 *
 	 * The date comes back in UTC, like the dates Yoast prints beside it.
 	 *
