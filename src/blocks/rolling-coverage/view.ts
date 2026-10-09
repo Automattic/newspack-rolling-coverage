@@ -601,7 +601,7 @@ function initBlock( root: HTMLElement ): void {
 	let isForwardPollHealthy = true;
 
 	// Edits the poll delivered for entries not yet on the page, latest HTML by
-	// entry ID: older entries load more hasn't brought, and new ones waiting
+	// entry ID: entries load more hasn't brought, and new ones waiting
 	// behind the new-entries control. No later poll sends them again, and a
 	// cached load-more reply or a queued entry can predate them, so loadMore()
 	// and takePendingEntries() apply them as the entries arrive.
@@ -1042,7 +1042,7 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Takes an entry that was taken down off the page and out of the new
 	 * entries waiting to be shown, the count of newer entries and the edits
-	 * kept for load more.
+	 * kept until it arrives.
 	 *
 	 * @param {string} entryId Entry ID.
 	 * @return {void}

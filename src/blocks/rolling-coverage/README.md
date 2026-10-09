@@ -111,7 +111,7 @@ Alignment and the HTML anchor are in the block toolbar and the Advanced section 
 The page checks for new entries every poll interval. It stops while the tab is in the background and checks again when the reader returns.
 
 - If the reader is at the top, new entries appear at once.
-- If the reader has scrolled down, the page does not move. A button shows the count (for example "3 New Entries"). Selecting it brings the new entries in, with any edits made while they waited. Edited entries update in place.
+- If the reader has scrolled down, the page does not move. A button shows the count (for example "3 New Entries"). Selecting it brings the new entries in. Edited entries update in place, and new entries waiting behind the button come in with their latest edits.
 - An entry that is unpublished, for example moved to draft or trashed, disappears from the page.
 - To have the page check only when readers ask, add a [Check for Updates](../check-updates/README.md) block to the layout. The page then makes no background checks, which suits readers on slow or metered connections.
 - Older entries load as the reader scrolls to the end, or with the Load More button, depending on Older entries. The button takes the theme's button style. If a load fails, the button stays so the reader can try again.
