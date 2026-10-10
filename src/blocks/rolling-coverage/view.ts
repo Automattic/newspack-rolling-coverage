@@ -2668,13 +2668,13 @@ function initBlock( root: HTMLElement ): void {
 	 * can't serve it. Null when a request fails, or when the block was
 	 * cleaned up meanwhile.
 	 *
-	 * A shared request answered with a 400, or with anything but a shared
-	 * reply, comes from a server without shared polling, such as a build
-	 * from before it. The page then polls its cursor from this poll on, as
-	 * it does once a reply says the site turned shared polling off. Any
-	 * other failure is a failed poll, and the next one asks the shared URL
-	 * again: a second request would only add to the load of a struggling
-	 * server.
+	 * A shared request answered with a 400, or with a JSON reply that isn't
+	 * a shared reply, comes from a server without shared polling, such as a
+	 * build from before it. The page then polls its cursor from this poll
+	 * on, as it does once a reply says the site turned shared polling off.
+	 * Any other failure is a failed poll, and the next one asks the shared
+	 * URL again: a second request would only add to the load of a
+	 * struggling server.
 	 *
 	 * @return {Promise<PollResponse|null>} Reply to apply.
 	 */
