@@ -1993,8 +1993,9 @@ function initBlock( root: HTMLElement ): void {
 	 * pinned ones, and a newly unpinned one to its place by date (see
 	 * placeUnpinnedEntry()). Drops entries taken down, and leaves one
 	 * that comes back for reload. Inserts or queues newly published entries
-	 * based on the reader's scroll position. When the feed opens at a shared
-	 * entry, new entries are added to the control's count instead of inserted.
+	 * based on the reader's scroll position, and swaps one already queued for
+	 * its new copy. When the feed opens at a shared entry, new entries are
+	 * added to the control's count instead of inserted.
 	 * A capped feed inserts new entries at once, whatever the scroll position,
 	 * and ignores edits to entries it doesn't show.
 	 *
@@ -2083,6 +2084,24 @@ function initBlock( root: HTMLElement ): void {
 			// It comes as saved now, so an edit kept from before it was taken
 			// down and published again is out of date.
 			offPageUpdates.delete( String( entry.id ) );
+
+			const waitingIndex = pendingNewEntries.findIndex(
+				( { el } ) => el.dataset.entryId === String( entry.id )
+			);
+
+			// A poll can send an entry waiting behind the control as new again:
+			// one with no recorded publish time, such as one created straight
+			// into publish, taken down and published again between two polls.
+			// The new copy takes its place in the queue, keeping its ad and
+			// arrival, so the entry is counted and shown once.
+			if ( waitingIndex !== -1 ) {
+				const waiting = pendingNewEntries[ waitingIndex ];
+
+				entryEl.dataset.arrival = waiting.el.dataset.arrival;
+				pendingNewEntries[ waitingIndex ] = { ...waiting, el: entryEl };
+
+				return;
+			}
 
 			const adEl = entry.adHtml
 				? parseElement( sanitizeHtml( entry.adHtml ) )
