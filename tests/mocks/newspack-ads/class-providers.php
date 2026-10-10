@@ -9,7 +9,8 @@ namespace Newspack_Ads;
 
 if ( ! class_exists( Providers::class ) ) {
 	/**
-	 * Prints a marker in place of a provider's ad code.
+	 * Prints a marker in place of a provider's ad code, with the placement's
+	 * own container id, as a provider prints it.
 	 */
 	class Providers {
 
@@ -32,7 +33,7 @@ if ( ! class_exists( Providers::class ) ) {
 		 * @param array  $placement_data Placement data.
 		 */
 		public static function render_placement_ad_code( $ad_unit_id, $provider_id, $placement_key, $hook_key, $placement_data ) { // phpcs:ignore VariableAnalysis.CodeAnalysis.VariableAnalysis.UnusedVariable
-			echo '<div class="test-ad-code"></div>';
+			printf( '<div class="test-ad-code" id="%s"></div>', esc_attr( $placement_data['id'] ?? '' ) );
 		}
 	}
 }

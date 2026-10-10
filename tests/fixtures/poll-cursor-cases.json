@@ -1,0 +1,14 @@
+[
+	{ "case": "published after the position", "cursorModified": "2026-01-01 12:00:00", "held": false, "type": "entry", "modified": "2026-01-01 12:00:05", "published": "2026-01-01 12:00:05", "expected": "new" },
+	{ "case": "edited after the position, published before it", "cursorModified": "2026-01-01 12:00:00", "held": false, "type": "entry", "modified": "2026-01-01 12:00:05", "published": "2026-01-01 11:00:00", "expected": "edit" },
+	{ "case": "changed before the position", "cursorModified": "2026-01-01 12:00:00", "held": false, "type": "entry", "modified": "2026-01-01 11:59:59", "published": "2026-01-01 11:59:59", "expected": "skip" },
+	{ "case": "same second, held", "cursorModified": "2026-01-01 12:00:00", "held": true, "type": "entry", "modified": "2026-01-01 12:00:00", "published": "2026-01-01 12:00:00", "expected": "skip" },
+	{ "case": "same second, not held, published that second", "cursorModified": "2026-01-01 12:00:00", "held": false, "type": "entry", "modified": "2026-01-01 12:00:00", "published": "2026-01-01 12:00:00", "expected": "new" },
+	{ "case": "same second, not held, published earlier", "cursorModified": "2026-01-01 12:00:00", "held": false, "type": "entry", "modified": "2026-01-01 12:00:00", "published": "2026-01-01 11:00:00", "expected": "edit" },
+	{ "case": "edited later, published in the held second", "cursorModified": "2026-01-01 12:00:00", "held": true, "type": "entry", "modified": "2026-01-01 12:00:09", "published": "2026-01-01 12:00:00", "expected": "edit" },
+	{ "case": "edited later, published in the position's second but not held", "cursorModified": "2026-01-01 12:00:00", "held": false, "type": "entry", "modified": "2026-01-01 12:00:09", "published": "2026-01-01 12:00:00", "expected": "new" },
+	{ "case": "taken down after the position", "cursorModified": "2026-01-01 12:00:00", "held": false, "type": "remove", "modified": "2026-01-01 12:00:05", "unpublished": "2026-01-01 12:00:05", "expected": "remove" },
+	{ "case": "taken down before the position, edited after", "cursorModified": "2026-01-01 12:00:00", "held": false, "type": "remove", "modified": "2026-01-01 12:00:05", "unpublished": "2026-01-01 11:00:00", "expected": "skip" },
+	{ "case": "taken down in the held second", "cursorModified": "2026-01-01 12:00:00", "held": true, "type": "remove", "modified": "2026-01-01 12:00:00", "unpublished": "2026-01-01 12:00:00", "expected": "skip" },
+	{ "case": "taken down in the position's second, not held", "cursorModified": "2026-01-01 12:00:00", "held": false, "type": "remove", "modified": "2026-01-01 12:00:00", "unpublished": "2026-01-01 12:00:00", "expected": "remove" }
+]

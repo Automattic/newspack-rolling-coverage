@@ -159,6 +159,41 @@ interface PollResponse {
 }
 
 /**
+ * A change in a shared poll reply. Entries carry when they were first
+ * published, for the page to tell new entries from edits; removals carry
+ * when they were taken down.
+ */
+interface SharedPollChange {
+	id: number;
+	type: 'entry' | 'remove';
+	modified: string;
+	published?: string;
+	unpublished?: string;
+	html?: string;
+	adHtml?: string | null;
+	adSlot?: AdSlot | null;
+}
+
+/**
+ * Reply to a shared poll: the coverage's current cursor and every change
+ * since `since`, newest first. With `sharedPolling: false` the site has
+ * turned shared polling off and the page polls its cursor from then on.
+ */
+interface SharedPollResponse {
+	since: string;
+	cursor: string;
+	changes: SharedPollChange[];
+	overflow: boolean;
+	adsInterval?: number;
+	staleTemplate?: boolean;
+	sharedPolling?: boolean;
+	minPollInterval: number;
+	status?: string;
+	newestEntry?: string | null;
+	latestBreakoutUrl?: string | null;
+}
+
+/**
  * A single GPT ad slot: container ID, ad unit path, sizes, targeting, and
  * the bounds/fixed-height data needed to size it against its real container.
  */
@@ -224,6 +259,8 @@ export type {
 	EntryContext,
 	PollEntry,
 	PollResponse,
+	SharedPollChange,
+	SharedPollResponse,
 	AdSlot,
 	PageResponse,
 	PendingEntry,
