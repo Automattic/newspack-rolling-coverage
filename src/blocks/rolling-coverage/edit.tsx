@@ -109,6 +109,7 @@ import {
 	STATUS_LABELS,
 } from './config';
 import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
+import metadata from './block.json';
 import { useSampleEntries } from './samples';
 import EntryBlockPreview from './components/entry-block-preview';
 import LoadingState from './components/loading-state';
@@ -2196,7 +2197,7 @@ export default function Edit( {
 						help={
 							MIN_POLL_INTERVAL > 0
 								? sprintf(
-										/* translators: %d: The fewest seconds this site waits between checks for new entries. */
+										/* translators: %d: The fewest seconds this site waits between checks for new entries. "this": the Poll interval setting above. */
 										_n(
 											'This site waits at least %d second between checks, even when this is set lower.',
 											'This site waits at least %d seconds between checks, even when this is set lower.',
@@ -2211,7 +2212,7 @@ export default function Edit( {
 							setAttributes( {
 								pollInterval: value
 									? parseInt( value, 10 )
-									: 30,
+									: metadata.attributes.pollInterval.default,
 							} )
 						}
 					/>
