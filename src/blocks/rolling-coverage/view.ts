@@ -619,7 +619,9 @@ function initBlock( root: HTMLElement ): void {
 	// behind the new-entries control. No later poll sends them again, and a
 	// cached load-more reply or a queued entry can predate them, so loadMore()
 	// and takePendingEntries() apply them as the entries arrive. A poll that
-	// sends the entry as new again drops its edit (see applyPollResponse()).
+	// sends the entry as new again drops its edit, and a feed opened at a
+	// shared entry keeps that new copy instead while load more has yet to
+	// bring the entry (see applyPollResponse()).
 	const offPageUpdates = new Map< string, string >();
 
 	// Entries the poll reported taken down. One that comes back shows on
@@ -926,11 +928,25 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Moves an entry unpinned while the page is open to where a fresh page
-	 * would list it. When that is below load more's bound, it leaves the
-	 * page until load more brings it there. A feed opened at a shared entry
-	 * counts it among the newer entries instead when it is dated in a later
-	 * second than the shared entry, as its query and count split them
+	 * The GMT date of the shared entry, in a feed opened at one.
+	 *
+	 * @return {string|undefined} The date, or undefined in the normal view or on a page cached before entries carried dates.
+	 */
+	function sharedEntryDate(): string | undefined {
+		return isEntryView
+			? entriesList.querySelector< HTMLElement >(
+					':scope > [data-linked]'
+				)?.dataset.dateGmt
+			: undefined;
+	}
+
+	/**
+	 * Moves an unpinned entry to where a fresh page would list it: one
+	 * unpinned while the page is open, or one a feed opened at a shared entry
+	 * gets as new. When that is below load more's bound, it leaves the page
+	 * until load more brings it there. A feed opened at a shared entry counts
+	 * it among the newer entries instead when it is dated in a later second
+	 * than the shared entry, as its query and count split them
 	 * (Rolling_Coverage_Block::count_newer_entries()).
 	 *
 	 * @param {HTMLElement} entry The unpinned entry.
@@ -938,11 +954,7 @@ function initBlock( root: HTMLElement ): void {
 	 */
 	function placeUnpinnedEntry( entry: HTMLElement ): boolean {
 		const date = entry.dataset.dateGmt;
-		const sharedDate = isEntryView
-			? entriesList.querySelector< HTMLElement >(
-					':scope > [data-linked]'
-				)?.dataset.dateGmt
-			: undefined;
+		const sharedDate = sharedEntryDate();
 
 		if (
 			date &&
@@ -1994,10 +2006,10 @@ function initBlock( root: HTMLElement ): void {
 	 * placeUnpinnedEntry()). Drops entries taken down, and leaves one
 	 * that comes back for reload. Inserts or queues newly published entries
 	 * based on the reader's scroll position, and swaps one already queued for
-	 * its new copy. When the feed opens at a shared entry, new entries are
-	 * added to the control's count instead of inserted.
-	 * A capped feed inserts new entries at once, whatever the scroll position,
-	 * and ignores edits to entries it doesn't show.
+	 * its new copy. When the feed opens at a shared entry, new entries dated
+	 * after it are added to the control's count instead, and older ones are
+	 * placed by date. A capped feed inserts new entries at once, whatever the
+	 * scroll position, and ignores edits to entries it doesn't show.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
@@ -2118,11 +2130,38 @@ function initBlock( root: HTMLElement ): void {
 
 		if ( isEntryView ) {
 			const countedBefore = countedEntryIds.size;
+			const sharedDate = sharedEntryDate();
 
 			newEntries.forEach( ( { el } ) => {
-				if ( el.dataset.entryId ) {
-					countedEntryIds.add( el.dataset.entryId );
+				const entryId = el.dataset.entryId;
+				const date = el.dataset.dateGmt;
+
+				if ( ! entryId ) {
+					return;
 				}
+
+				// An entry dated no later than the shared one isn't newer, such
+				// as an older entry taken down and published again between two
+				// polls. It goes where a fresh page lists it, or waits for load
+				// more with this copy, since a cached load-more reply can
+				// predate it.
+				if (
+					date &&
+					sharedDate &&
+					date <= sharedDate &&
+					! el.hasAttribute( 'data-pinned' )
+				) {
+					if ( placeUnpinnedEntry( el ) ) {
+						observeEntry( el );
+						dropLastSeparator();
+					} else {
+						offPageUpdates.set( entryId, el.outerHTML );
+					}
+
+					return;
+				}
+
+				countedEntryIds.add( entryId );
 			} );
 
 			if ( canCount && countedEntryIds.size !== countedBefore ) {
