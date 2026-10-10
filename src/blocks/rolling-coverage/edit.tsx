@@ -42,6 +42,7 @@ import {
 	ToolbarButton,
 } from '@wordpress/components';
 import {
+	createInterpolateElement,
 	useState,
 	useEffect,
 	useCallback,
@@ -94,6 +95,7 @@ import {
 	withoutCheckUpdatesButtons,
 	blockIdsOfType,
 	holdsBlockType,
+	hiddenAuthorBlockIds,
 	layoutParts,
 	CHECK_UPDATES_BLOCK_NAME,
 	entryPreviewPlacement,
@@ -105,6 +107,7 @@ import {
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
 	ONESIGNAL_CONFIGURED,
+	SHOW_AVATARS,
 	STATUS_LABELS,
 } from './config';
 import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
@@ -759,6 +762,8 @@ export default function Edit( {
 		enableAds,
 		adsInterval,
 		hideWhenEnded,
+		showAuthor,
+		showAvatar,
 		archivedNoticeShow,
 		archivedNotice,
 		archivedNoticeShowLink,
@@ -1011,7 +1016,11 @@ export default function Edit( {
 					id: number,
 					query?: object
 				) =>
-					| { status?: string; content?: { raw?: string } | string }
+					| {
+							status?: string;
+							content?: { raw?: string } | string;
+							title?: { raw?: string } | string;
+					  }
 					| undefined;
 				hasFinishedResolution: (
 					selector: string,
@@ -1069,6 +1078,33 @@ export default function Edit( {
 			: null;
 	}, [ layoutRecord ] );
 	const isLayoutMissing = isSynced && hasResolvedLayout && ! layoutBlocks;
+	const layoutTitle = layoutBlocks
+		? decodeEntities(
+				( typeof layoutRecord?.title === 'string'
+					? layoutRecord.title
+					: layoutRecord?.title?.raw ) ?? ''
+			).trim()
+		: '';
+	let layoutDescription:
+		ReturnType< typeof createInterpolateElement > | string = __(
+		'Uses its own layout, detached from the shared one.',
+		'newspack-rolling-coverage'
+	);
+	if ( isSynced ) {
+		layoutDescription = layoutTitle
+			? createInterpolateElement(
+					/* translators: <name /> is the shared layout's name, such as "Rail". */
+					__(
+						'Uses the shared <name /> layout. Changes to it apply to every story that uses it.',
+						'newspack-rolling-coverage'
+					),
+					{ name: <strong>{ layoutTitle }</strong> }
+				)
+			: __(
+					'Uses the shared layout. Changes to it apply to every story that uses it.',
+					'newspack-rolling-coverage'
+				);
+	}
 	const isChoosing =
 		! isLayoutPattern &&
 		! isNested &&
@@ -1141,7 +1177,8 @@ export default function Edit( {
 			isSynced ? feedItems( syncedBlocks ) : allBlocks,
 			previewContexts,
 			pageSize,
-			! previewHasMore
+			! previewHasMore,
+			{ showAuthor, showAvatar }
 		);
 	const loadMorePreview = useMemo(
 		() =>
@@ -1221,6 +1258,12 @@ export default function Edit( {
 	const isAllUpdatesHidden = ! isCapped || allUpdatesLink === false;
 	const isCheckUpdatesHidden =
 		isCapped || currentCoverage?.status === 'archived';
+	const offersAuthor = holdsBlockType(
+		templateBlocks,
+		'core/post-author-name'
+	);
+	const offersAvatar =
+		SHOW_AVATARS && holdsBlockType( templateBlocks, 'core/avatar' );
 	const checksOnRequest = useMemo( () => {
 		const parts = layoutParts(
 			isSynced ? feedItems( syncedBlocks ) : allBlocks
@@ -1337,6 +1380,11 @@ export default function Edit( {
 						: hidesEntryBreakout
 				)
 			),
+			...hiddenAuthorBlockIds(
+				layoutParts( allBlocks ).template,
+				showAuthor !== false,
+				SHOW_AVATARS && showAvatar !== false
+			),
 		];
 
 		return [ ...ids, ...emptiedGroupIds( allBlocks, ids ) ];
@@ -1350,6 +1398,8 @@ export default function Edit( {
 		pinnedContext,
 		hidesCardBreakout,
 		hidesEntryBreakout,
+		showAuthor,
+		showAvatar,
 	] );
 	const hiddenKey = hiddenIds.join( ',' );
 	useEffect( () => {
@@ -1851,17 +1901,7 @@ export default function Edit( {
 	) : (
 		<InspectorControls>
 			<PanelBody title={ __( 'Layout', 'newspack-rolling-coverage' ) }>
-				<p>
-					{ isSynced
-						? __(
-								'Uses the shared layout. Changes to it apply to every story that uses it.',
-								'newspack-rolling-coverage'
-							)
-						: __(
-								'Uses its own layout, detached from the shared one.',
-								'newspack-rolling-coverage'
-							) }
-				</p>
+				<p>{ layoutDescription }</p>
 				{ canChangeLayout && (
 					<Button
 						variant="secondary"
@@ -2181,6 +2221,106 @@ export default function Edit( {
 							onBlur={ () => setEntriesPerPageInput( null ) }
 						/>
 					</>
+				) }
+				{ offersAuthor && (
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
+						label={ _x(
+							'Author name',
+							'whether entries show their author’s name',
+							'newspack-rolling-coverage'
+						) }
+						help={ __(
+							'The name each author chose under “Display name publicly as” in their profile.',
+							'newspack-rolling-coverage'
+						) }
+						value={ showAuthor !== false ? 'show' : 'hide' }
+						onChange={ ( value ) =>
+							setAttributes( { showAuthor: value === 'show' } )
+						}
+					>
+						<ToggleGroupControlOption
+							value="show"
+							label={ _x(
+								'Show',
+								'entry author name',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+								__(
+									'Show author name',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+						<ToggleGroupControlOption
+							value="hide"
+							label={ _x(
+								'Hide',
+								'entry author name',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+								__(
+									'Hide author name',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+					</ToggleGroupControl>
+				) }
+				{ offersAvatar && (
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
+						label={ _x(
+							'Author avatar',
+							'whether entries show their author’s photo',
+							'newspack-rolling-coverage'
+						) }
+						help={ __(
+							'Each author’s profile picture, from their profile or Gravatar.',
+							'newspack-rolling-coverage'
+						) }
+						value={ showAvatar !== false ? 'show' : 'hide' }
+						onChange={ ( value ) =>
+							setAttributes( { showAvatar: value === 'show' } )
+						}
+					>
+						<ToggleGroupControlOption
+							value="show"
+							label={ _x(
+								'Show',
+								'entry author avatar',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+								__(
+									'Show author avatar',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+						<ToggleGroupControlOption
+							value="hide"
+							label={ _x(
+								'Hide',
+								'entry author avatar',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+								__(
+									'Hide author avatar',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+					</ToggleGroupControl>
 				) }
 				{ ( latestOnly || ! checksOnRequest ) && (
 					<TextControl
