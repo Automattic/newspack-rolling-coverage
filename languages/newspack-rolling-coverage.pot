@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-09T22:34:14+00:00\n"
+"POT-Creation-Date: 2026-10-10T14:35:07+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -50,7 +50,7 @@ msgid "Abilities for managing and generating content from rolling coverage entri
 msgstr ""
 
 #: includes/ai/class-abilities.php:75
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "Generate Key Takeaways"
 msgstr ""
 
@@ -85,9 +85,9 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:461
-#: includes/blocks/class-rolling-coverage-block.php:4367
-#: includes/blocks/class-rolling-coverage-block.php:4502
-#: includes/blocks/class-rolling-coverage-block.php:4513
+#: includes/blocks/class-rolling-coverage-block.php:4368
+#: includes/blocks/class-rolling-coverage-block.php:4503
+#: includes/blocks/class-rolling-coverage-block.php:4514
 #: includes/class-post-type.php:1294
 #: includes/class-taxonomy.php:345
 msgid "Coverage not found."
@@ -119,7 +119,7 @@ msgid "Pin"
 msgstr ""
 
 #: includes/blocks/class-block-icons.php:51
-#: dist/blocks/rolling-coverage/index.js:17
+#: dist/blocks/rolling-coverage/index.js:18
 msgid "Link"
 msgstr ""
 
@@ -200,7 +200,7 @@ msgid "Something went wrong. Please try again."
 msgstr ""
 
 #: includes/blocks/class-entry-bindings.php:1024
-#: includes/blocks/class-rolling-coverage-block.php:2997
+#: includes/blocks/class-rolling-coverage-block.php:2998
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/share/index.js:1
@@ -323,9 +323,9 @@ msgid "Alert"
 msgstr ""
 
 #: includes/blocks/class-lite-feed.php:265
-#: includes/blocks/class-rolling-coverage-block.php:3678
-#: includes/blocks/class-rolling-coverage-block.php:3690
-#: includes/blocks/class-rolling-coverage-block.php:4054
+#: includes/blocks/class-rolling-coverage-block.php:3679
+#: includes/blocks/class-rolling-coverage-block.php:3691
+#: includes/blocks/class-rolling-coverage-block.php:4055
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned"
 msgstr ""
@@ -334,17 +334,17 @@ msgstr ""
 msgid "This content is password protected."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1204
-#: dist/blocks/rolling-coverage/index.js:22
+#: includes/blocks/class-rolling-coverage-block.php:1205
+#: dist/blocks/rolling-coverage/index.js:23
 msgid "Select a coverage to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1230
+#: includes/blocks/class-rolling-coverage-block.php:1231
 msgid "This coverage is no longer available."
 msgstr ""
 
 #. translators: 1: number of coverage entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as a button label shows it.
-#: includes/blocks/class-rolling-coverage-block.php:1831
+#: includes/blocks/class-rolling-coverage-block.php:1832
 #: dist/blocks/rolling-coverage/view.js:4
 #, php-format,js-format
 msgid "%1$d Newer %2$s"
@@ -353,7 +353,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of coverage entries newer than the one shown, from 1 to 10.
-#: includes/blocks/class-rolling-coverage-block.php:1835
+#: includes/blocks/class-rolling-coverage-block.php:1836
 #: dist/blocks/rolling-coverage/view.js:5
 #, php-format,js-format
 msgid "%d Newer Entry"
@@ -362,7 +362,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: 1: a round number the count of newer coverage entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as a button label shows it.
-#: includes/blocks/class-rolling-coverage-block.php:1850
+#: includes/blocks/class-rolling-coverage-block.php:1851
 #: dist/blocks/rolling-coverage/view.js:6
 #, php-format,js-format
 msgid "%1$d+ Newer %2$s"
@@ -371,7 +371,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100.
-#: includes/blocks/class-rolling-coverage-block.php:1854
+#: includes/blocks/class-rolling-coverage-block.php:1855
 #: dist/blocks/rolling-coverage/view.js:7
 #, php-format,js-format
 msgid "%d+ Newer Entry"
@@ -380,75 +380,75 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence; its grammatical gender is unknown.
-#: includes/blocks/class-rolling-coverage-block.php:1868
+#: includes/blocks/class-rolling-coverage-block.php:1869
 #, php-format
 msgid "No %s yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1871
+#: includes/blocks/class-rolling-coverage-block.php:1872
 msgid "No entries yet."
 msgstr ""
 
 #. translators: Button that loads older entries at the end of a coverage's feed.
-#: includes/blocks/class-rolling-coverage-block.php:1979
+#: includes/blocks/class-rolling-coverage-block.php:1980
 #: dist/blocks/rolling-coverage/index.js:4
 msgid "Load More"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2860
-#: includes/blocks/class-rolling-coverage-block.php:3038
+#: includes/blocks/class-rolling-coverage-block.php:2861
+#: includes/blocks/class-rolling-coverage-block.php:3039
 #: dist/blocks/rolling-coverage/index.js:1
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "Read more"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2875
-#: dist/blocks/rolling-coverage/index.js:17
+#: includes/blocks/class-rolling-coverage-block.php:2876
+#: dist/blocks/rolling-coverage/index.js:18
 msgid "Coverage of this news event has concluded and this feed is now archived."
 msgstr ""
 
 #. translators: %s: Coverage name.
-#: includes/blocks/class-rolling-coverage-block.php:2879
-#: dist/blocks/rolling-coverage/index.js:17
+#: includes/blocks/class-rolling-coverage-block.php:2880
+#: dist/blocks/rolling-coverage/index.js:18
 #, php-format,js-format
 msgid "Coverage of “%s” has concluded and this feed is now archived."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3010
+#: includes/blocks/class-rolling-coverage-block.php:3011
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "Meta"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3122
+#: includes/blocks/class-rolling-coverage-block.php:3123
 #: includes/class-post-type.php:271
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "Entry"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3170
+#: includes/blocks/class-rolling-coverage-block.php:3171
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "Pinned Entry"
 msgstr ""
 
 #. translators: 1: the site's own name for one coverage entry, as it reads mid-sentence; its grammatical gender is unknown. 2: the same name for several entries.
-#: includes/blocks/class-rolling-coverage-block.php:4088
+#: includes/blocks/class-rolling-coverage-block.php:4089
 #, php-format
 msgid "This %1$s is now out of date compared to newer %2$s, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4094
+#: includes/blocks/class-rolling-coverage-block.php:4095
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4304
+#: includes/blocks/class-rolling-coverage-block.php:4305
 msgid "How many entries a capped feed shows, so a Lite or empty-key request stays capped without a stored config."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4309
+#: includes/blocks/class-rolling-coverage-block.php:4310
 msgid "Whether a Lite Site page asks, so entries come as text, as that page renders them."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4521
+#: includes/blocks/class-rolling-coverage-block.php:4522
 msgid "Either cursor or before must be provided."
 msgstr ""
 
@@ -495,7 +495,7 @@ msgstr ""
 #: includes/class-admin.php:105
 #: includes/class-admin.php:106
 #: dist/admin.js:4
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "AI"
 msgstr ""
 
@@ -1141,7 +1141,7 @@ msgid "The page readers land on when they open a link to one of this coverage's 
 msgstr ""
 
 #: dist/admin.js:211
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "Advertising"
 msgstr ""
 
@@ -1150,13 +1150,13 @@ msgid "Disable ads for this coverage, useful for emergency or other sensitive ne
 msgstr ""
 
 #: dist/admin.js:211
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgctxt "advertising"
 msgid "Enabled"
 msgstr ""
 
 #: dist/admin.js:211
-#: dist/blocks/rolling-coverage/index.js:20
+#: dist/blocks/rolling-coverage/index.js:21
 msgctxt "advertising"
 msgid "Disabled"
 msgstr ""
@@ -2110,7 +2110,7 @@ msgid "%d updates in the last 10s"
 msgstr ""
 
 #: dist/admin.js:241
-#: dist/blocks/rolling-coverage/index.js:22
+#: dist/blocks/rolling-coverage/index.js:23
 msgid "Fetching entries…"
 msgstr ""
 
@@ -2236,7 +2236,7 @@ msgid "Could not copy the manifest."
 msgstr ""
 
 #: dist/admin.js:243
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 #: dist/blocks/share/view.js:1
 msgid "Copied!"
 msgstr ""
@@ -2738,31 +2738,31 @@ msgid "Hide last updated"
 msgstr ""
 
 #: dist/blocks/coverage-status/index.js:7
-#: dist/blocks/rolling-coverage/index.js:10
+#: dist/blocks/rolling-coverage/index.js:11
 msgid "When ended"
 msgstr ""
 
 #: dist/blocks/coverage-status/index.js:7
-#: dist/blocks/rolling-coverage/index.js:11
+#: dist/blocks/rolling-coverage/index.js:12
 msgctxt "when ended"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
 #: dist/blocks/coverage-status/index.js:8
-#: dist/blocks/rolling-coverage/index.js:12
+#: dist/blocks/rolling-coverage/index.js:13
 msgid "Show when ended"
 msgstr ""
 
 #: dist/blocks/coverage-status/index.js:8
-#: dist/blocks/rolling-coverage/index.js:12
+#: dist/blocks/rolling-coverage/index.js:13
 msgctxt "when ended"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
 #: dist/blocks/coverage-status/index.js:9
-#: dist/blocks/rolling-coverage/index.js:13
+#: dist/blocks/rolling-coverage/index.js:14
 msgid "Hide when ended"
 msgstr ""
 
@@ -3039,7 +3039,7 @@ msgid "Hide link to all updates"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:8
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "Link text"
 msgstr ""
 
@@ -3086,155 +3086,163 @@ msgstr ""
 msgid "Poll interval (seconds)"
 msgstr ""
 
-#. translators: %s: The status that ends a coverage, e.g. "Ended". “Hide” is the option above; keep the word used to translate it.
+#. translators: %d: The fewest seconds this site waits between checks for new entries.
 #: dist/blocks/rolling-coverage/index.js:11
+#, js-format
+msgid "This site waits at least %d second between checks, even when this is set lower."
+msgid_plural "This site waits at least %d seconds between checks, even when this is set lower."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %s: The status that ends a coverage, e.g. "Ended". “Hide” is the option above; keep the word used to translate it.
+#: dist/blocks/rolling-coverage/index.js:12
 #, js-format
 msgid "Hide removes the whole block once the coverage’s status is set to “%s” in All Coverages."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:13
+#: dist/blocks/rolling-coverage/index.js:14
 msgid "Notice"
 msgstr ""
 
 #. translators: %s: The status that ends a coverage, e.g. "Ended".
-#: dist/blocks/rolling-coverage/index.js:14
+#: dist/blocks/rolling-coverage/index.js:15
 #, js-format
 msgid "Tells readers the coverage has ended. Shown at the top of the feed once its status is set to “%s” in All Coverages."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:14
+#: dist/blocks/rolling-coverage/index.js:15
 msgctxt "ended notice"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
-#: dist/blocks/rolling-coverage/index.js:15
+#: dist/blocks/rolling-coverage/index.js:16
 msgid "Show notice"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:15
+#: dist/blocks/rolling-coverage/index.js:16
 msgctxt "ended notice"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
-#: dist/blocks/rolling-coverage/index.js:16
+#: dist/blocks/rolling-coverage/index.js:17
 msgid "Hide notice"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:16
+#: dist/blocks/rolling-coverage/index.js:17
 msgid "Notice text"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:17
+#: dist/blocks/rolling-coverage/index.js:18
 msgid "Points readers to where the story continues."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:17
+#: dist/blocks/rolling-coverage/index.js:18
 msgctxt "ended notice link"
 msgid "Show"
 msgstr ""
 
 #. translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”.
-#: dist/blocks/rolling-coverage/index.js:18
+#: dist/blocks/rolling-coverage/index.js:19
 msgid "Show link"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:18
+#: dist/blocks/rolling-coverage/index.js:19
 msgctxt "ended notice link"
 msgid "Hide"
 msgstr ""
 
 #. translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”.
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "Hide link"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "URL"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "When empty, links to the coverage's latest breakout post, if there is one."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "Generate a summary of key takeaways from this coverage's entries. Prompts are configured by site administrators on the AI settings page."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "Generated Output"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "Copy"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "Ads"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "Ads are disabled for this coverage. Enable them in the coverage settings to configure ad settings here."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "Enable and configure the Rolling Coverage: Entry placement in Newspack Ads to show ads."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "Not shown while the feed shows only the latest entries."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:19
+#: dist/blocks/rolling-coverage/index.js:20
 msgid "Shows ads at a regular interval in the feed."
 msgstr ""
 
 #. translators: Screen reader name for the “Enabled” option. Keep the word used to translate “Enabled”.
-#: dist/blocks/rolling-coverage/index.js:20
+#: dist/blocks/rolling-coverage/index.js:21
 msgid "Advertising enabled"
 msgstr ""
 
 #. translators: Screen reader name for the “Disabled” option. Keep the word used to translate “Disabled”.
-#: dist/blocks/rolling-coverage/index.js:21
+#: dist/blocks/rolling-coverage/index.js:22
 msgid "Advertising disabled"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:21
+#: dist/blocks/rolling-coverage/index.js:22
 msgid "Ads interval"
 msgstr ""
 
 #. translators: 1: the entry the first ad follows, 2: the entry the second ad follows, 3: the entry the third ad follows.
-#: dist/blocks/rolling-coverage/index.js:22
+#: dist/blocks/rolling-coverage/index.js:23
 #, js-format
 msgid "Up to 3 ads, after entries %1$d, %2$d and %3$d. New entries that arrive while the page is open get one at this interval, with no limit."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:22
+#: dist/blocks/rolling-coverage/index.js:23
 msgid "Edit Layout"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:22
+#: dist/blocks/rolling-coverage/index.js:23
 msgid "Detach"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:22
+#: dist/blocks/rolling-coverage/index.js:23
 msgid "Choose a layout for the coverage's entries."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:22
+#: dist/blocks/rolling-coverage/index.js:23
 msgid "Choose"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:22
+#: dist/blocks/rolling-coverage/index.js:23
 msgid "This coverage has been trashed and is no longer available. Select a different coverage or restore it from the Rolling Coverage admin."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:22
+#: dist/blocks/rolling-coverage/index.js:23
 msgid "This feed is hidden on the site because the coverage has ended."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/index.js:22
+#: dist/blocks/rolling-coverage/index.js:23
 msgid "No published entries yet — showing the template only. Add entries to this coverage to preview real content here."
 msgstr ""
 
