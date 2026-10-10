@@ -988,8 +988,9 @@ function initBlock( root: HTMLElement ): void {
 
 		// Load more continues below its bound, which sits lower than the last
 		// entry shown when a page of older entries ended on a pinned entry,
-		// one the list already held or one it moved up to the pinned entries.
-		// An entry taken off the page above the bound would never load again.
+		// one the list already held or one a poll has since moved up to the
+		// pinned entries. An entry taken off the page above the bound would
+		// never load again.
 		const [ , boundId = '0', boundDate = before ] =
 			/^(\d+):(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/.exec( before ) ??
 			[];
@@ -2150,22 +2151,29 @@ function initBlock( root: HTMLElement ): void {
 
 				existing.replaceWith( entryEl );
 
+				const unpinnedAbove = entryEl.hasAttribute( 'data-pinned' )
+					? firstUnpinnedEntry( entryEl )
+					: null;
+
+				// A pinned entry belongs above every unpinned one. One load
+				// more brought pinned sits at its date until a poll sends it:
+				// the reply may come from a cache that predates an unpin, so
+				// only the poll's copy is trusted to move it.
 				if (
-					existing.hasAttribute( 'data-pinned' ) !==
-					entryEl.hasAttribute( 'data-pinned' )
+					unpinnedAbove?.compareDocumentPosition( entryEl ) ===
+					Node.DOCUMENT_POSITION_FOLLOWING
 				) {
-					if ( entryEl.hasAttribute( 'data-pinned' ) ) {
-						entriesList.insertBefore(
-							entryEl,
-							firstUnpinnedEntry( entryEl )
-						);
-					} else if ( ! placeUnpinnedEntry( entryEl ) ) {
-						// A load-more reply cached before the unpin still has it pinned.
-						offPageUpdates.set( String( entry.id ), entry.html );
-						linkedObserver?.unobserve( entryEl );
-						entryEl.remove();
-						return;
-					}
+					entriesList.insertBefore( entryEl, unpinnedAbove );
+				} else if (
+					existing.hasAttribute( 'data-pinned' ) &&
+					! entryEl.hasAttribute( 'data-pinned' ) &&
+					! placeUnpinnedEntry( entryEl )
+				) {
+					// A load-more reply cached before the unpin still has it pinned.
+					offPageUpdates.set( String( entry.id ), entry.html );
+					linkedObserver?.unobserve( entryEl );
+					entryEl.remove();
+					return;
 				}
 
 				observeEntry( entryEl );
@@ -2785,8 +2793,7 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Loads and appends the next page of older entries. A pinned entry the
-	 * page doesn't show yet joins the pinned entries instead.
+	 * Loads and appends the next page of older entries.
 	 *
 	 * Sends the backlog position so ad placement stays stable across load-more
 	 * pages.
@@ -2894,21 +2901,6 @@ function initBlock( root: HTMLElement ): void {
 						const entry = applyOffPageUpdate( child );
 
 						observeEntry( entry );
-
-						// Pinned since the page rendered, before a poll could
-						// show it, or left out of a first page full of pinned
-						// entries: it comes at its date, and goes with the
-						// pinned entries, as a fresh page orders it. Its ad
-						// goes, as a dropped entry's does.
-						if ( entry.hasAttribute( 'data-pinned' ) ) {
-							entriesList.insertBefore(
-								entry,
-								firstUnpinnedEntry()
-							);
-							droppedEntry = true;
-							return;
-						}
-
 						firstAppended ??= entry;
 					} );
 
