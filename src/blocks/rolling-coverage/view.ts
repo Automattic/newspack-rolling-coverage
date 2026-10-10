@@ -516,7 +516,7 @@ function initBlock( root: HTMLElement ): void {
 
 	const stopRelativeDates = keepRelativeDatesCurrent( root, entriesList );
 
-	const pollInterval = parseInt( root.dataset.pollInterval || '10', 10 );
+	const pollInterval = parseInt( root.dataset.pollInterval || '30', 10 );
 	const entryName = readEntryName( root );
 	const entriesPerPage = parseInt( root.dataset.entriesPerPage || '20', 10 );
 	const templateKey = root.dataset.templateKey || '';

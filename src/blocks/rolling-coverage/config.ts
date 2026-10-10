@@ -47,6 +47,9 @@ const {
 	sampleAvatarUrls: SAMPLE_AVATAR_URLS,
 } = config;
 
+// wp_localize_script() sends numbers as strings.
+const MIN_POLL_INTERVAL = Number( config.minPollInterval ) || 0;
+
 export {
 	COVERAGES_REST_BASE,
 	STATUS_META_KEY,
@@ -58,6 +61,7 @@ export {
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
 	CANONICAL_URL_META_KEY,
 	ONESIGNAL_CONFIGURED,
+	MIN_POLL_INTERVAL,
 	STATUS_LABELS,
 	LAYOUT_IDS,
 	LAYOUTS_REST_BASE,

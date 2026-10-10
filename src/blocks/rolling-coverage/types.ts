@@ -70,6 +70,7 @@ interface BlockConfig {
 	statusMetaKey: string;
 	canonicalUrlMetaKey: string;
 	onesignalConfigured: boolean;
+	minPollInterval: number;
 	statusLabels: Record< string, string >;
 	adsDisabledMetaKey: string;
 	entriesPreviewRestBase: string;

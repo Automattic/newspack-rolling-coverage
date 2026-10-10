@@ -43,7 +43,7 @@ declare global {
 const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
 const VIEW_CONTEXT = { context: 'view' };
 const FEED_BLOCK_NAME = 'newspack-rolling-coverage/rolling-coverage';
-const DEFAULT_POLL_INTERVAL = 10;
+const DEFAULT_POLL_INTERVAL = 30;
 
 const config: UpdateTimerConfig = window.newspackUpdateTimerBlock ?? {
 	minPollInterval: 0,

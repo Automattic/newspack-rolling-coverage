@@ -712,7 +712,22 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$html = $this->render_block();
 
 		$this->assertStringContainsString( 'data-min-poll-interval="60"', $html );
-		$this->assertStringContainsString( 'data-poll-interval="10"', $html, 'The block should keep its own interval.' );
+		$this->assertStringContainsString( 'data-poll-interval="30"', $html, 'The block should keep its own interval.' );
+	}
+
+	/**
+	 * A block with no Poll interval of its own polls every 30 seconds, the
+	 * default the editor shows. Each new entry sends every open page to a new
+	 * poll URL, and the first requests for it all reach the site, so a
+	 * shorter default means a larger burst per entry.
+	 */
+	public function test_block_polls_every_30_seconds_by_default() {
+		$this->create_entry_at( '2026-01-01 12:00:00' );
+
+		$block_json = wp_json_file_decode( dirname( __DIR__ ) . '/src/blocks/rolling-coverage/block.json', [ 'associative' => true ] );
+
+		$this->assertSame( 30, $block_json['attributes']['pollInterval']['default'] );
+		$this->assertStringContainsString( 'data-poll-interval="30"', $this->render_block(), 'A block saved without the attribute should poll at the editor default.' );
 	}
 
 	/**
