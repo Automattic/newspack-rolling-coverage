@@ -107,11 +107,13 @@ class Test_Shared_Poll extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The server's rules for a change against a page's position: today's
-	 * cursor query skips what changed before the position or that the
-	 * position holds, names a takedown only when it came after the
-	 * position, and calls an entry new when it was first published after
-	 * it. The page script applies the same file of cases.
+	 * The server's rules for a change against a page's position, as a real
+	 * cursor poll from that position applies them: it skips what changed
+	 * before the position or that the position holds, sends a takedown only
+	 * when it came in the position's second or later, and calls an entry
+	 * new when it was first published after the position, or in its second
+	 * without the position holding it. The page script applies the same
+	 * file of cases.
 	 *
 	 * @dataProvider cursor_case_provider
 	 *
@@ -137,16 +139,22 @@ class Test_Shared_Poll extends Rolling_Coverage_TestCase {
 		$wpdb->update( $wpdb->posts, [ 'post_modified_gmt' => $case['modified'] ], [ 'ID' => $id ] ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		clean_post_cache( $id );
 
-		$entry    = get_post( $id );
-		$position = new Poll_Cursor( $case['cursorModified'], $case['held'] ? [ $id ] : [], 'm' );
-
-		if ( $entry->post_modified_gmt < $position->modified || $position->holds( $entry ) ) {
-			$outcome = 'skip';
-		} elseif ( 'remove' === $case['type'] ) {
-			$outcome = get_post_meta( $id, Post_Type::META_UNPUBLISHED_GMT, true ) < $position->modified ? 'skip' : 'remove';
-		} else {
-			$outcome = $position->is_new( $entry ) ? 'new' : 'edit';
-		}
+		// No `@marker`, so the poll always looks for changes; no `latest`, so
+		// a takedown comes as a removal rather than a capped feed's burst.
+		$poll    = self::dispatch(
+			'GET',
+			"/coverages/{$this->coverage_id}/entries",
+			[
+				'template_key' => $this->template_key,
+				'cursor'       => ( $case['held'] ? $id : 0 ) . ':' . $case['cursorModified'],
+			]
+		)->get_data();
+		$change  = wp_list_filter( $poll['entries'], [ 'id' => $id ] );
+		$outcome = $change ? [
+			'insert' => 'new',
+			'update' => 'edit',
+			'remove' => 'remove',
+		][ reset( $change )['type'] ] : 'skip';
 
 		$this->assertSame( $case['expected'], $outcome );
 	}

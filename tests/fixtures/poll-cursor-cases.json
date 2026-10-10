@@ -9,5 +9,6 @@
 	{ "case": "edited later, published in the position's second but not held", "cursorModified": "2026-01-01 12:00:00", "held": false, "type": "entry", "modified": "2026-01-01 12:00:09", "published": "2026-01-01 12:00:00", "expected": "new" },
 	{ "case": "taken down after the position", "cursorModified": "2026-01-01 12:00:00", "held": false, "type": "remove", "modified": "2026-01-01 12:00:05", "unpublished": "2026-01-01 12:00:05", "expected": "remove" },
 	{ "case": "taken down before the position, edited after", "cursorModified": "2026-01-01 12:00:00", "held": false, "type": "remove", "modified": "2026-01-01 12:00:05", "unpublished": "2026-01-01 11:00:00", "expected": "skip" },
-	{ "case": "taken down in the held second", "cursorModified": "2026-01-01 12:00:00", "held": true, "type": "remove", "modified": "2026-01-01 12:00:00", "unpublished": "2026-01-01 12:00:00", "expected": "skip" }
+	{ "case": "taken down in the held second", "cursorModified": "2026-01-01 12:00:00", "held": true, "type": "remove", "modified": "2026-01-01 12:00:00", "unpublished": "2026-01-01 12:00:00", "expected": "skip" },
+	{ "case": "taken down in the position's second, not held", "cursorModified": "2026-01-01 12:00:00", "held": false, "type": "remove", "modified": "2026-01-01 12:00:00", "unpublished": "2026-01-01 12:00:00", "expected": "remove" }
 ]
