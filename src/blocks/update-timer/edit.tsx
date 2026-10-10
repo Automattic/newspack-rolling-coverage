@@ -25,6 +25,7 @@ import { __, _x } from '@wordpress/i18n';
 import CoverageChoice from '../shared/coverage-choice';
 import { useBlockCoverage } from '../shared/block-coverage';
 import { nextCheckLabel } from '../rolling-coverage/entry-name';
+import feedMetadata from '../rolling-coverage/block.json';
 import type { UpdateTimerAttributes } from './types';
 
 interface UpdateTimerConfig {
@@ -43,7 +44,7 @@ declare global {
 const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
 const VIEW_CONTEXT = { context: 'view' };
 const FEED_BLOCK_NAME = 'newspack-rolling-coverage/rolling-coverage';
-const DEFAULT_POLL_INTERVAL = 30;
+const DEFAULT_POLL_INTERVAL = feedMetadata.attributes.pollInterval.default;
 
 const config: UpdateTimerConfig = window.newspackUpdateTimerBlock ?? {
 	minPollInterval: 0,

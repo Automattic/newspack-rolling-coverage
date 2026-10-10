@@ -109,6 +109,7 @@ import {
 	STATUS_LABELS,
 } from './config';
 import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
+import metadata from './block.json';
 import { useSampleEntries } from './samples';
 import EntryBlockPreview from './components/entry-block-preview';
 import LoadingState from './components/loading-state';
@@ -2211,7 +2212,7 @@ export default function Edit( {
 							setAttributes( {
 								pollInterval: value
 									? parseInt( value, 10 )
-									: 30,
+									: metadata.attributes.pollInterval.default,
 							} )
 						}
 					/>
