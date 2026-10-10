@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-10T14:35:07+00:00\n"
+"POT-Creation-Date: 2026-10-10T14:48:39+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -1897,11 +1897,11 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: dist/admin.js:236
-msgid "Readers with the coverage open see published entries within seconds. Entries set to notify followers also send a push notification."
+msgid "Readers with the coverage open see published entries the next time their page checks for new entries. Entries set to notify followers also send a push notification."
 msgstr ""
 
 #: dist/admin.js:236
-msgid "Readers with the coverage open see published entries within seconds."
+msgid "Readers with the coverage open see published entries the next time their page checks for new entries."
 msgstr ""
 
 #: dist/admin.js:236
@@ -3086,7 +3086,7 @@ msgstr ""
 msgid "Poll interval (seconds)"
 msgstr ""
 
-#. translators: %d: The fewest seconds this site waits between checks for new entries.
+#. translators: %d: The fewest seconds this site waits between checks for new entries. "this": the Poll interval setting above.
 #: dist/blocks/rolling-coverage/index.js:11
 #, js-format
 msgid "This site waits at least %d second between checks, even when this is set lower."
