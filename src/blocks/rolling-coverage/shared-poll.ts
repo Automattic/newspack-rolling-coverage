@@ -3,9 +3,13 @@
  * keeps answering right after a change. The reply carries the coverage's
  * recent changes, and each page picks what it is missing by the rules a
  * cursor poll applies on the server (`Poll_Cursor::holds()` and
- * `Poll_Cursor::is_new()`, plus the cursor query's date bounds). Both copies
- * are checked against tests/fixtures/poll-cursor-cases.json; change them
- * together.
+ * `Poll_Cursor::is_new()`, plus the cursor query's date bounds); change both
+ * copies together. PHPUnit runs the server's rules against the cases in
+ * tests/fixtures/poll-cursor-cases.json (tests/test-shared-poll.php, which CI
+ * runs). This copy is checked against the same file by
+ * tests/js/shared-poll-check.ts, which CI doesn't run; run it by hand from
+ * the repository root with
+ * `node --experimental-strip-types tests/js/shared-poll-check.ts`.
  */
 
 /**
