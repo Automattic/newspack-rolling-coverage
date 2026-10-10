@@ -4877,6 +4877,8 @@ class Rolling_Coverage_Block {
 
 		/**
 		 * Filters the minimum seconds between a reader's polls for new entries.
+		 * Newspack Manager holds its sites to a 30-second minimum through this
+		 * filter, so renaming it drops that floor.
 		 *
 		 * @param mixed $interval Seconds. Anything but a positive number means no minimum.
 		 */
