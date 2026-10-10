@@ -21,6 +21,7 @@ import { readFileSync } from 'node:fs';
 
 import {
 	classifyChange,
+	isSharedReply,
 	laterCursor,
 	parseCursor,
 	readSharedReply,
@@ -251,5 +252,37 @@ check( 'parse', parseCursor( '9,3:2026-01-01 12:05:00@x' ), {
 	ids: [ 3, 9 ],
 	marker: 'x',
 } );
+
+// What the page reads as a shared reply. Anything else, such as the 400 a
+// server without shared polling answers the shared URL with, sends the page
+// to cursor polling. A stale template's reply has an empty cursor and is
+// still one, so the page reloads rather than leaving shared polling.
+check( 'shared reply: a reply', isSharedReply( reply( {} ) ), true );
+check(
+	'shared reply: stale template',
+	isSharedReply( reply( { since: '', cursor: '', staleTemplate: true } ) ),
+	true
+);
+(
+	[
+		[ 'empty object', {} ],
+		[ 'null', null ],
+		[ 'string', 'recent' ],
+		[ 'no changes', { cursor: '' } ],
+		[ 'no cursor', { changes: [] } ],
+		[ 'changes not a list', { changes: {}, cursor: '' } ],
+		[ 'cursor not a string', { changes: [], cursor: null } ],
+		[
+			'missing-cursor error',
+			{
+				code: 'rolling_coverage_missing_cursor',
+				message: 'Either cursor or before must be provided.',
+				data: { status: 400 },
+			},
+		],
+	] as const
+ ).forEach( ( [ name, body ] ) =>
+	check( `shared reply: ${ name }`, isSharedReply( body ), false )
+);
 
 process.exit( failed ? 1 : 0 );

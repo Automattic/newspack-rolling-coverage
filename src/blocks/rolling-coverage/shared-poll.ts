@@ -144,6 +144,24 @@ export function laterCursor( own: string, reply: string ): string {
 }
 
 /**
+ * Whether the body of a reply to the shared URL is a shared reply. A server
+ * without shared polling, such as a build from before it, answers the
+ * shared URL with something else, and the page then polls its cursor.
+ *
+ * @param {unknown} body The reply's body, parsed from JSON.
+ * @return {boolean} True for a shared reply.
+ */
+export function isSharedReply( body: unknown ): body is SharedPollResponse {
+	if ( typeof body !== 'object' || body === null ) {
+		return false;
+	}
+
+	const reply = body as { changes?: unknown; cursor?: unknown };
+
+	return Array.isArray( reply.changes ) && typeof reply.cursor === 'string';
+}
+
+/**
  * Turns a shared reply into the reply a cursor poll from the page would
  * have got, or null when the page needs its own cursor reply: it is behind
  * the window, the window overflowed, or a capped feed lost an entry, which

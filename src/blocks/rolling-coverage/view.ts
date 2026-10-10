@@ -27,7 +27,7 @@ import {
 	readEntryName,
 	showingLatestLabel,
 } from './entry-name';
-import { readSharedReply } from './shared-poll';
+import { isSharedReply, readSharedReply } from './shared-poll';
 import type { PollEventDetail } from '../shared/poll-event';
 import type {
 	AdSlot,
@@ -35,7 +35,6 @@ import type {
 	PollEntry,
 	PollResponse,
 	PageResponse,
-	SharedPollResponse,
 } from './types';
 
 const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
@@ -566,7 +565,7 @@ function initBlock( root: HTMLElement ): void {
 	let cursor = root.dataset.cursor || '';
 
 	// Polls ask the URL every reader of the page shares, until a reply says
-	// the site turned that off.
+	// the site turned that off or comes from a server without it.
 	let sharedPolling = root.dataset.poll === 'shared';
 	let before = root.dataset.before || '';
 	let hasMore = root.dataset.hasMore === '1';
@@ -1792,8 +1791,8 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Turns the shared view into the live feed: takes over the live block's
-	 * entries, cursors, status and control, then starts the block again on
-	 * the same element, as a freshly loaded normal view.
+	 * entries, cursors, status, polling mode and control, then starts the
+	 * block again on the same element, as a freshly loaded normal view.
 	 *
 	 * @param {HTMLElement} live The live block, from the fetched page.
 	 * @param {string}      url  The live feed's URL.
@@ -1820,6 +1819,8 @@ function initBlock( root: HTMLElement ): void {
 			newEntriesControl?.replaceWith( control );
 		}
 
+		// An attribute the live block doesn't carry goes too: without
+		// `data-poll`, the live feed polls its cursor.
 		(
 			[
 				'cursor',
@@ -1828,9 +1829,16 @@ function initBlock( root: HTMLElement ): void {
 				'templateKey',
 				'status',
 				'entryName',
+				'poll',
 			] as const
 		 ).forEach( ( key ) => {
-			root.dataset[ key ] = live.dataset[ key ] ?? '';
+			const value = live.dataset[ key ];
+
+			if ( value === undefined ) {
+				delete root.dataset[ key ];
+			} else {
+				root.dataset[ key ] = value;
+			}
 		} );
 		delete root.dataset.view;
 
@@ -2657,7 +2665,16 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Fetches the reply a poll applies: the shared reply, read against the
 	 * page's cursor, or the page's own cursor reply when the shared one
-	 * can't serve it. Null when a request fails.
+	 * can't serve it. Null when a request fails, or when the block was
+	 * cleaned up meanwhile.
+	 *
+	 * A shared request answered with a 400, or with anything but a shared
+	 * reply, comes from a server without shared polling, such as a build
+	 * from before it. The page then polls its cursor from this poll on, as
+	 * it does once a reply says the site turned shared polling off. Any
+	 * other failure is a failed poll, and the next one asks the shared URL
+	 * again: a second request would only add to the load of a struggling
+	 * server.
 	 *
 	 * @return {Promise<PollResponse|null>} Reply to apply.
 	 */
@@ -2665,14 +2682,24 @@ function initBlock( root: HTMLElement ): void {
 		if ( sharedPolling ) {
 			const response = await fetchEntries( pollUrl( true ) );
 
-			if ( ! response.ok ) {
+			if ( ! response.ok && response.status !== 400 ) {
 				return null;
 			}
 
-			const shared: SharedPollResponse = await response.json();
+			const shared: unknown = response.ok
+				? await response.json().catch( () => null )
+				: null;
 
-			if ( shared.sharedPolling === false ) {
+			// The block was cleaned up meanwhile, and its root may already
+			// belong to the run that replaced it.
+			if ( isDisposed ) {
+				return null;
+			}
+
+			if ( ! isSharedReply( shared ) || shared.sharedPolling === false ) {
 				sharedPolling = false;
+				// So a run started again on this root polls the same way.
+				delete root.dataset.poll;
 			} else {
 				const reply = readSharedReply( shared, {
 					cursor,
@@ -2722,13 +2749,15 @@ function initBlock( root: HTMLElement ): void {
 
 		try {
 			const data = await fetchPollReply();
-			if ( data ) {
-				// The block was cleaned up meanwhile, so this reply is no longer its own.
-				if ( isDisposed ) {
-					outcome = 'skipped';
-					return outcome;
-				}
 
+			// The block was cleaned up meanwhile, so this poll, and its reply or
+			// failure, are no longer its own.
+			if ( isDisposed ) {
+				outcome = 'skipped';
+				return outcome;
+			}
+
+			if ( data ) {
 				minPollInterval = Number( data.minPollInterval ) || 0;
 				outcome = 'ok';
 				canReport = canReport && ! data.overflow;
