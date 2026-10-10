@@ -5096,7 +5096,8 @@ class Rolling_Coverage_Block {
 		/**
 		 * Whether pages poll the shared URL. Define it as false to send them
 		 * back to polling their own cursor; pages already open switch on
-		 * their next poll.
+		 * their next poll. The string 'false', which `wp config set` writes
+		 * without `--raw`, counts as false too.
 		 *
 		 * @constant NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING
 		 * @type     bool
@@ -5105,14 +5106,15 @@ class Rolling_Coverage_Block {
 		 *
 		 * @example define( 'NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING', false );
 		 */
-		$enabled = defined( 'NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING' ) ? (bool) NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING : true;
+		$enabled = defined( 'NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING' ) ? wp_validate_boolean( NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING ) : true;
 
 		/**
-		 * Filters whether pages poll the shared URL.
+		 * Filters whether pages poll the shared URL. The string 'false'
+		 * counts as false.
 		 *
 		 * @param bool $enabled Whether shared polling is on.
 		 */
-		return (bool) apply_filters( 'newspack_rolling_coverage_shared_polling', $enabled );
+		return wp_validate_boolean( apply_filters( 'newspack_rolling_coverage_shared_polling', $enabled ) );
 	}
 
 	/**

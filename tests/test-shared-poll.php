@@ -112,8 +112,8 @@ class Test_Shared_Poll extends Rolling_Coverage_TestCase {
 	 * before the position or that the position holds, sends a takedown only
 	 * when it came in the position's second or later, and calls an entry
 	 * new when it was first published after the position, or in its second
-	 * without the position holding it. The page script applies the same
-	 * file of cases.
+	 * without the position holding it. tests/js/shared-poll-check.ts checks
+	 * the page's copy of the rules against the same file.
 	 *
 	 * @dataProvider cursor_case_provider
 	 *
@@ -298,6 +298,19 @@ class Test_Shared_Poll extends Rolling_Coverage_TestCase {
 
 		$this->assertFalse( $data['sharedPolling'] );
 		$this->assertSame( [], $data['changes'] );
+	}
+
+	/**
+	 * The switch reads the string 'false' as off, as `wp config set` writes
+	 * the constant without `--raw`. The constant can't change within a test
+	 * run, so the filter carries the string here.
+	 */
+	public function test_switch_reads_the_string_false_as_off() {
+		add_filter( 'newspack_rolling_coverage_shared_polling', static fn() => 'false' );
+		$this->entry_at( $this->minutes_ago( 1 ) );
+
+		$this->assertStringNotContainsString( 'data-poll=', $this->render_feed() );
+		$this->assertFalse( $this->share()->get_data()['sharedPolling'] );
 	}
 
 	/**
