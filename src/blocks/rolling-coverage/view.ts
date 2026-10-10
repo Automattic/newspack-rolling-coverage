@@ -27,6 +27,7 @@ import {
 	readEntryName,
 	showingLatestLabel,
 } from './entry-name';
+import { readSharedReply } from './shared-poll';
 import type { PollEventDetail } from '../shared/poll-event';
 import type {
 	AdSlot,
@@ -34,6 +35,7 @@ import type {
 	PollEntry,
 	PollResponse,
 	PageResponse,
+	SharedPollResponse,
 } from './types';
 
 const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
@@ -562,6 +564,10 @@ function initBlock( root: HTMLElement ): void {
 	const coverageId = root.dataset.coverageId || '0';
 
 	let cursor = root.dataset.cursor || '';
+
+	// Polls ask the URL every reader of the page shares, until a reply says
+	// the site turned that off.
+	let sharedPolling = root.dataset.poll === 'shared';
 	let before = root.dataset.before || '';
 	let hasMore = root.dataset.hasMore === '1';
 	const latestCap = parseInt( root.dataset.latest || '0', 10 ) || 0;
@@ -2118,6 +2124,16 @@ function initBlock( root: HTMLElement ): void {
 			template.innerHTML = sanitizeHtml( entry.html );
 			const entryEl = template.content.firstElementChild as HTMLElement;
 
+			// A shared reply leaves the arrival to the page, which knows the
+			// entry is new to it.
+			if (
+				entry.type === 'insert' &&
+				entryEl &&
+				! entryEl.dataset.arrival
+			) {
+				entryEl.dataset.arrival = 'poll';
+			}
+
 			if ( entry.type === 'update' && ! existing ) {
 				if ( latestCap ) {
 					return;
@@ -2599,13 +2615,89 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * The URL a poll asks. A shared poll leaves out the cursor and the ad
+	 * count, so every reader of the page asks the same URL and the edge cache
+	 * can answer it right after a change.
+	 *
+	 * @param {boolean} shared Whether to ask the shared URL.
+	 * @return {string} Poll URL.
+	 */
+	function pollUrl( shared: boolean ): string {
+		const url = new URL( restBaseUrl );
+
+		if ( shared ) {
+			url.searchParams.set( 'recent', '1' );
+		} else {
+			url.searchParams.set( 'cursor', cursor );
+		}
+
+		url.searchParams.set( 'template_key', templateKey );
+
+		// A capped feed shows no Share or ads, so it leaves out the page
+		// and ad count; every page holding it then shares one cached reply.
+		if ( latestCap ) {
+			url.searchParams.set( 'latest', String( latestCap ) );
+		} else {
+			url.searchParams.set( 'host_post_id', hostPostId );
+
+			// A lite page shows no ads either, so it leaves out the ad
+			// count and its readers share one cached reply too.
+			if ( ! isLite && ! shared ) {
+				url.searchParams.set( 'polled_count', polledCount.toString() );
+			}
+		}
+
+		if ( isLite ) {
+			url.searchParams.set( 'lite', '1' );
+		}
+
+		return url.toString();
+	}
+
+	/**
+	 * Fetches the reply a poll applies: the shared reply, read against the
+	 * page's cursor, or the page's own cursor reply when the shared one
+	 * can't serve it. Null when a request fails.
+	 *
+	 * @return {Promise<PollResponse|null>} Reply to apply.
+	 */
+	async function fetchPollReply(): Promise< PollResponse | null > {
+		if ( sharedPolling ) {
+			const response = await fetchEntries( pollUrl( true ) );
+
+			if ( ! response.ok ) {
+				return null;
+			}
+
+			const shared: SharedPollResponse = await response.json();
+
+			if ( shared.sharedPolling === false ) {
+				sharedPolling = false;
+			} else {
+				const reply = readSharedReply( shared, {
+					cursor,
+					polledCount,
+					isCapped: latestCap > 0,
+				} );
+
+				if ( reply ) {
+					return reply;
+				}
+			}
+		}
+
+		const response = await fetchEntries( pollUrl( false ) );
+
+		return response.ok ? response.json() : null;
+	}
+
+	/**
 	 * Polls for new and edited entries.
 	 *
-	 * Fetches entries modified at or after the cursor and applies them. Also
-	 * passes the running ad counter so the server can continue the interval
-	 * across poll batches. Takes the place of a poll already scheduled, and
-	 * does nothing while another poll is in flight or the page is hidden, or
-	 * once the coverage has ended.
+	 * Fetches the changes the page is missing, from the shared URL or the
+	 * page's own cursor, and applies them. Takes the place of a poll already
+	 * scheduled, and does nothing while another poll is in flight or the page
+	 * is hidden, or once the coverage has ended.
 	 *
 	 * @return {Promise<PollOutcome>} How the poll ended.
 	 */
@@ -2629,35 +2721,8 @@ function initBlock( root: HTMLElement ): void {
 		reportCheck( 'checking' );
 
 		try {
-			const url = new URL( restBaseUrl );
-			url.searchParams.set( 'cursor', cursor );
-			url.searchParams.set( 'template_key', templateKey );
-
-			// A capped feed shows no Share or ads, so it leaves out the page
-			// and ad count; every page holding it then shares one cached reply.
-			if ( latestCap ) {
-				url.searchParams.set( 'latest', String( latestCap ) );
-			} else {
-				url.searchParams.set( 'host_post_id', hostPostId );
-
-				// A lite page shows no ads either, so it leaves out the ad
-				// count and its readers share one cached reply too.
-				if ( ! isLite ) {
-					url.searchParams.set(
-						'polled_count',
-						polledCount.toString()
-					);
-				}
-			}
-
-			if ( isLite ) {
-				url.searchParams.set( 'lite', '1' );
-			}
-
-			const response = await fetchEntries( url.toString() );
-			if ( response.ok ) {
-				const data: PollResponse = await response.json();
-
+			const data = await fetchPollReply();
+			if ( data ) {
 				// The block was cleaned up meanwhile, so this reply is no longer its own.
 				if ( isDisposed ) {
 					outcome = 'skipped';
