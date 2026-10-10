@@ -1,14 +1,18 @@
 /**
- * Checks the page's copy of the cursor rules, in
- * src/blocks/rolling-coverage/shared-poll.ts, against the cases in
- * tests/fixtures/poll-cursor-cases.json, which PHPUnit checks the server's
- * rules against (tests/test-shared-poll.php), and how the page reads a
- * shared reply. CI doesn't run it. Run it by hand from the repository root,
- * with Node 22.6 or later:
+ * PHPUnit checks the server's cursor rules against the cases in
+ * tests/fixtures/poll-cursor-cases.json (tests/test-shared-poll.php). This
+ * script checks the page's copy of those rules, in
+ * src/blocks/rolling-coverage/shared-poll.ts, against the same cases, and
+ * checks how the page reads a shared reply.
+ *
+ * CI doesn't run it. Run it by hand from the repository root:
  *
  *     node --experimental-strip-types tests/js/shared-poll-check.ts
  *
- * It prints a line per check and exits non-zero when any check fails.
+ * It needs a Node version with `--experimental-strip-types` and ES module
+ * syntax detection, as package.json sets no module type; it has run on
+ * Node 22.23.2 and 23.0.0. It prints a line per check and exits non-zero
+ * when any check fails.
  */
 
 /* eslint-disable no-console */
@@ -122,13 +126,15 @@ const at = (
 	isCapped = false
 ): SharedPollState => ( { cursor, polledCount, isCapped } );
 
-// A reply with the page's own marker: nothing to apply.
+// A reply with the page's own marker: nothing to apply. It overflows, so
+// only the marker keeps the page from its own cursor request.
 check(
 	'quiet',
 	readSharedReply(
 		reply( {
 			cursor: '5:2026-01-01 12:00:00@a',
 			changes: [ entry( 5, '2026-01-01 12:00:00' ) ],
+			overflow: true,
 		} ),
 		at( '5:2026-01-01 12:00:00@a' )
 	)?.entries,
@@ -200,7 +206,7 @@ check(
 );
 
 // Every `adsInterval`th new entry keeps its placement, counting on from the
-// page's own count.
+// page's own count. An edit, entry 4, gets none and doesn't count.
 const ad = ( id: number ) => ( {
 	adHtml: `<div id="ad-${ id }"></div>`,
 	adSlot: null,
@@ -212,6 +218,7 @@ const withAds = readSharedReply(
 		changes: [
 			entry( 12, '2026-01-01 12:09:00', '2026-01-01 12:09:00', ad( 12 ) ),
 			entry( 11, '2026-01-01 12:08:00', '2026-01-01 12:08:00', ad( 11 ) ),
+			entry( 4, '2026-01-01 12:07:30', '2026-01-01 10:00:00', ad( 4 ) ),
 			entry( 10, '2026-01-01 12:07:00', '2026-01-01 12:07:00', ad( 10 ) ),
 		],
 	} ),
@@ -219,8 +226,13 @@ const withAds = readSharedReply(
 );
 check(
 	'ads: placed',
-	withAds?.entries.map( ( e ) => e.adHtml ),
-	[ '<div id="ad-12"></div>', null, '<div id="ad-10"></div>' ]
+	withAds?.entries.map( ( e ) => [ e.id, e.type, e.adHtml ] ),
+	[
+		[ 12, 'insert', '<div id="ad-12"></div>' ],
+		[ 11, 'insert', null ],
+		[ 4, 'update', null ],
+		[ 10, 'insert', '<div id="ad-10"></div>' ],
+	]
 );
 check( 'ads: count', withAds?.polledCount, 0 );
 
