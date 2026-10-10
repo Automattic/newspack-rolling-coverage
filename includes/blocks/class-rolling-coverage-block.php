@@ -1031,6 +1031,7 @@ class Rolling_Coverage_Block {
 					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
 					'canonicalUrlMetaKey'         => Taxonomy::CANONICAL_URL_META_KEY,
 					'onesignalConfigured'         => Push_Notifications::is_onesignal_configured(),
+					'minPollInterval'             => self::get_min_poll_interval(),
 					'statusLabels'                => Status_Labels::get_all(),
 					'layoutIds'                   => array_combine(
 						Layout::BUILT_IN_SLUGS,
@@ -1206,7 +1207,7 @@ class Rolling_Coverage_Block {
 		}
 
 		$entries_per_page = $is_capped ? $latest_count : min( max( 1, (int) ( $attributes['entriesPerPage'] ?? 20 ) ), self::PER_PAGE_MAX );
-		$poll_interval    = max( 1, (int) ( $attributes['pollInterval'] ?? 10 ) );
+		$poll_interval    = max( 1, (int) ( $attributes['pollInterval'] ?? 30 ) );
 		$ads_interval     = max( 1, (int) ( $attributes['adsInterval'] ?? 4 ) );
 		$status           = get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true );
 		$status           = $status ? $status : 'active';
