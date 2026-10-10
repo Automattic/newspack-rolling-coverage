@@ -333,4 +333,76 @@ class Test_Shared_Poll extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'data-arrival=""', $this->share()->get_data()['changes'][0]['html'] );
 	}
+
+	/**
+	 * Store a config with ads on or off, and use its key.
+	 *
+	 * @param int  $interval    Entries between ads.
+	 * @param bool $ads_enabled Whether the block shows ads.
+	 */
+	private function use_ads( $interval, $ads_enabled = true ) {
+		self::enable_ad_placement();
+		$load    = new ReflectionMethod( Rolling_Coverage_Block::class, 'load_block_config' );
+		$persist = new ReflectionMethod( Rolling_Coverage_Block::class, 'persist_block_config' );
+		$load->setAccessible( true );
+		$persist->setAccessible( true );
+		$defaults           = $load->invoke( null, $this->coverage_id, '' );
+		$this->template_key = $persist->invoke( null, $this->coverage_id, $defaults['template'], $ads_enabled, $interval );
+	}
+
+	/**
+	 * A block with ads off carries no placements, even where ads could run.
+	 */
+	public function test_feeds_without_ads_carry_no_ad_placements() {
+		$this->use_ads( 1, false );
+		$this->entry_at( $this->minutes_ago( 1 ) );
+
+		$data = $this->share()->get_data();
+
+		$this->assertArrayNotHasKey( 'adsInterval', $data );
+		$this->assertArrayNotHasKey( 'adHtml', $data['changes'][0] );
+	}
+
+	/**
+	 * Lite pages carry no ads, as their polls never do.
+	 */
+	public function test_lite_pages_carry_no_ad_placements() {
+		require_once __DIR__ . '/mocks/class-lite-site.php';
+		$this->use_ads( 1 );
+		$this->entry_at( $this->minutes_ago( 1 ) );
+
+		$data = $this->share( [ 'lite' => 1 ] )->get_data();
+
+		$this->assertArrayNotHasKey( 'adsInterval', $data );
+		$this->assertArrayNotHasKey( 'adHtml', $data['changes'][0] );
+	}
+
+	/**
+	 * With ads on, every entry carries a placement of its own, and the reply
+	 * the interval, for the page to place one after every Nth entry new to it.
+	 */
+	public function test_each_entry_carries_its_own_ad_placement() {
+		$this->use_ads( 2 );
+		$this->entry_at( $this->minutes_ago( 2 ) );
+		$this->entry_at( $this->minutes_ago( 1 ) );
+
+		$data = $this->share()->get_data();
+
+		$this->assertSame( 2, $data['adsInterval'] );
+		$this->assertCount( 2, array_filter( array_column( $data['changes'], 'adHtml' ) ) );
+		$this->assertNotSame( $data['changes'][0]['adHtml'], $data['changes'][1]['adHtml'], 'Each placement needs its own container id.' );
+	}
+
+	/**
+	 * Capped feeds carry no ads, as their polls never do.
+	 */
+	public function test_capped_feeds_carry_no_ad_placements() {
+		$this->use_ads( 1 );
+		$this->entry_at( $this->minutes_ago( 1 ) );
+
+		$data = $this->share( [ 'latest' => 2 ] )->get_data();
+
+		$this->assertArrayNotHasKey( 'adsInterval', $data );
+		$this->assertArrayNotHasKey( 'adHtml', $data['changes'][0] );
+	}
 }

@@ -4462,7 +4462,8 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * REST callback: returns pre-rendered HTML for either direction.
+	 * REST callback: returns pre-rendered HTML for a poll or a page of entries,
+	 * by the first of these the request sets:
 	 *
 	 * - `cursor` (forward/polling): the changes the page is missing (see
 	 *   Poll_Cursor), new entries and edits, and entries taken down, named for
@@ -4470,6 +4471,11 @@ class Rolling_Coverage_Block {
 	 *   flagged `overflow` so the client can reload. Sends a short
 	 *   Cache-Control and the site's minimum poll interval; see
 	 *   poll_response().
+	 * - `recent` (shared polling): the same reply for every reader of the
+	 *   page, the coverage's current cursor and its changes in the shared
+	 *   window, for each page to apply what it is missing by the rules a
+	 *   cursor poll uses; see shared_poll_response(). Cached like a cursor
+	 *   poll.
 	 * - `before` (backward/pagination): entries listed after the bound's
 	 *   entry in FEED_ORDER, capped at the request's per_page (entriesPerPage).
 	 *   Sends no Cache-Control, so it keeps the page cache's default lifetime,
@@ -4535,7 +4541,7 @@ class Rolling_Coverage_Block {
 		if ( ! $cursor && ! $before && ! $recent ) {
 			return new WP_Error(
 				'rolling_coverage_missing_cursor',
-				__( 'Either cursor or before must be provided.', 'newspack-rolling-coverage' ),
+				__( 'One of cursor, before or recent must be provided.', 'newspack-rolling-coverage' ),
 				[ 'status' => 400 ]
 			);
 		}
@@ -4679,7 +4685,7 @@ class Rolling_Coverage_Block {
 		// Shared poll: one URL for every reader of the page, answered with the
 		// coverage's recent changes.
 		if ( $recent ) {
-			return self::shared_poll_response( $term_id, $template, $is_capped, $is_lite, $feed_layout, $is_stale_template );
+			return self::shared_poll_response( $term_id, $template, $is_capped, $is_lite, $ads_enabled, $ads_interval, $feed_layout, $is_stale_template );
 		}
 
 		if ( $is_capped ) {
@@ -4949,11 +4955,13 @@ class Rolling_Coverage_Block {
 	 * @param array $template          Per-entry template.
 	 * @param bool  $is_capped         Whether the feed shows a fixed count.
 	 * @param bool  $is_lite           Whether a lite page asks.
+	 * @param bool  $ads_enabled       Whether the feed shows ads.
+	 * @param int   $ads_interval      Entries between ads.
 	 * @param array $feed_layout       The Feed group's layout.
 	 * @param bool  $is_stale_template Whether the request's key names no stored config.
 	 * @return WP_REST_Response
 	 */
-	private static function shared_poll_response( int $term_id, array $template, bool $is_capped, bool $is_lite, array $feed_layout, bool $is_stale_template ): WP_REST_Response {
+	private static function shared_poll_response( int $term_id, array $template, bool $is_capped, bool $is_lite, bool $ads_enabled, int $ads_interval, array $feed_layout, bool $is_stale_template ): WP_REST_Response {
 		$empty = [
 			'since'    => '',
 			'cursor'   => '',
@@ -5003,25 +5011,38 @@ class Rolling_Coverage_Block {
 				continue;
 			}
 
-			$items[] = [
+			$item = [
 				'id'        => $entry->ID,
 				'type'      => 'entry',
 				'modified'  => $entry->post_modified_gmt,
 				'published' => Post_Type::get_entry_published_gmt( $entry ),
 				'html'      => $is_lite ? Lite_Feed::render_entry( $entry, '', $is_capped ) : self::render_entry( $entry, $template, '', is_capped: $is_capped, feed_layout: $feed_layout, coverage_id: $term_id ),
 			];
+
+			// The page doesn't share which entries are new to it, so each one
+			// carries a placement, and the page uses every Nth.
+			if ( $ads_enabled ) {
+				$placement      = Ads::render_placement();
+				$item['adHtml'] = $placement['html'] ? self::place_ad_in_grid( $placement['html'], $template, $feed_layout ) : null;
+				$item['adSlot'] = $placement['html'] ? ( $placement['slots'][0] ?? null ) : null;
+			}
+
+			$items[] = $item;
 		}
 		wp_reset_postdata();
 
-		return self::poll_response(
-			[
-				'since'    => $since,
-				'cursor'   => $cursor,
-				'changes'  => $items,
-				'overflow' => false,
-			],
-			$term_id
-		);
+		$data = [
+			'since'    => $since,
+			'cursor'   => $cursor,
+			'changes'  => $items,
+			'overflow' => false,
+		];
+
+		if ( $ads_enabled ) {
+			$data['adsInterval'] = $ads_interval;
+		}
+
+		return self::poll_response( $data, $term_id );
 	}
 
 	/**
