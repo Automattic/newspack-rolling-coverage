@@ -198,11 +198,11 @@ function getEntryActions(
 					// entries from Slack opt in on their own, so say it can happen.
 					description: config.pushNotifications.isConfigured
 						? __(
-								'Readers with the coverage open see published entries within seconds. Entries set to notify followers also send a push notification.',
+								'Readers with the coverage open see published entries the next time their page checks for new entries. Entries set to notify followers also send a push notification.',
 								'newspack-rolling-coverage'
 							)
 						: __(
-								'Readers with the coverage open see published entries within seconds.',
+								'Readers with the coverage open see published entries the next time their page checks for new entries.',
 								'newspack-rolling-coverage'
 							),
 					confirmLabel: __( 'Publish', 'newspack-rolling-coverage' ),
