@@ -2196,7 +2196,7 @@ export default function Edit( {
 						help={
 							MIN_POLL_INTERVAL > 0
 								? sprintf(
-										/* translators: %d: The fewest seconds this site waits between checks for new entries. */
+										/* translators: %d: The fewest seconds this site waits between checks for new entries. "this": the Poll interval setting above. */
 										_n(
 											'This site waits at least %d second between checks, even when this is set lower.',
 											'This site waits at least %d seconds between checks, even when this is set lower.',
