@@ -1454,6 +1454,11 @@ class Rolling_Coverage_Block {
 			$wrapper_data['data-min-poll-interval'] = $min_poll_interval;
 		}
 
+		// Every reader of the page polls the same URL, so the edge can answer right after a change.
+		if ( self::is_shared_polling() ) {
+			$wrapper_data['data-poll'] = 'shared';
+		}
+
 		// Ads need their page's own setup, so the view script never swaps such a feed in place.
 		if ( $ads_enabled && Ads::is_placement_enabled() ) {
 			$wrapper_data['data-ads'] = '1';
@@ -4885,6 +4890,39 @@ class Rolling_Coverage_Block {
 		$interval = apply_filters( 'newspack_rolling_coverage_min_poll_interval', $interval );
 
 		return is_numeric( $interval ) ? max( 0, (int) $interval ) : 0;
+	}
+
+	/**
+	 * Whether open pages poll one URL shared by every reader of the page.
+	 *
+	 * A shared poll URL is one the edge cache keeps answering right after a
+	 * change; a page's own cursor URL is new to the cache after every change.
+	 * Turned off, new pages poll their cursor and shared replies tell pages
+	 * already open to switch, on their next poll.
+	 *
+	 * @return bool
+	 */
+	public static function is_shared_polling(): bool {
+		/**
+		 * Whether pages poll the shared URL. Define it as false to send them
+		 * back to polling their own cursor; pages already open switch on
+		 * their next poll.
+		 *
+		 * @constant NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING
+		 * @type     bool
+		 * @default  true
+		 * @status   draft
+		 *
+		 * @example define( 'NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING', false );
+		 */
+		$enabled = defined( 'NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING' ) ? (bool) NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING : true;
+
+		/**
+		 * Filters whether pages poll the shared URL.
+		 *
+		 * @param bool $enabled Whether shared polling is on.
+		 */
+		return (bool) apply_filters( 'newspack_rolling_coverage_shared_polling', $enabled );
 	}
 
 	/**

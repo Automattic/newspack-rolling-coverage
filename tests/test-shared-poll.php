@@ -158,4 +158,24 @@ class Test_Shared_Poll extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( $case['expected'], $outcome );
 	}
+
+	/**
+	 * With shared polling on, which is the default, the page tells its
+	 * script to poll the shared URL.
+	 */
+	public function test_page_polls_the_shared_url_by_default() {
+		$this->entry_at( $this->minutes_ago( 1 ) );
+
+		$this->assertStringContainsString( 'data-poll="shared"', $this->render_feed() );
+	}
+
+	/**
+	 * Turned off, the page polls its own cursor as before.
+	 */
+	public function test_switch_sends_new_pages_to_cursor_polling() {
+		add_filter( 'newspack_rolling_coverage_shared_polling', '__return_false' );
+		$this->entry_at( $this->minutes_ago( 1 ) );
+
+		$this->assertStringNotContainsString( 'data-poll=', $this->render_feed() );
+	}
 }
