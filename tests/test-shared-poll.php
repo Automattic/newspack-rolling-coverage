@@ -413,6 +413,31 @@ class Test_Shared_Poll extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Only an entry first published in the window can be new to a page that
+	 * applies the reply, whose position is at or after the window's start,
+	 * so only those carry a placement. An edit to an older entry would carry
+	 * one no page uses.
+	 */
+	public function test_only_entries_published_in_the_window_carry_ad_placements() {
+		$this->use_ads( 1 );
+		$edited = $this->entry_at( $this->minutes_ago( 20 ) );
+		$this->entry_at( $this->minutes_ago( 10 ) );
+		$new = $this->entry_at( $this->minutes_ago( 1 ) );
+		wp_update_post(
+			[
+				'ID'           => $edited,
+				'post_content' => 'Edited.',
+			]
+		);
+
+		$changes = array_column( $this->share()->get_data()['changes'], null, 'id' );
+
+		$this->assertArrayHasKey( $edited, $changes );
+		$this->assertArrayNotHasKey( 'adHtml', $changes[ $edited ] );
+		$this->assertNotEmpty( $changes[ $new ]['adHtml'] );
+	}
+
+	/**
 	 * Makes a change the way a request already under way sees it. The
 	 * request read the posts and terms last-changed times while WordPress
 	 * loaded, before the change, so its queries find their cached results

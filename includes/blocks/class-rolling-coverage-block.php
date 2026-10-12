@@ -5151,8 +5151,10 @@ class Rolling_Coverage_Block {
 			];
 
 			// The page doesn't share which entries are new to it, so each one
-			// carries a placement, and the page uses every Nth.
-			if ( $ads_enabled ) {
+			// that can be carries a placement, and the page uses every Nth. A
+			// page applies the reply only from a position at or after `since`,
+			// so an entry first published before it is an edit to every page.
+			if ( $ads_enabled && $item['published'] >= $since ) {
 				$placement      = Ads::render_placement();
 				$item['adHtml'] = $placement['html'] ? self::place_ad_in_grid( $placement['html'], $template, $feed_layout ) : null;
 				$item['adSlot'] = $placement['html'] ? ( $placement['slots'][0] ?? null ) : null;
