@@ -1564,9 +1564,12 @@ class Rolling_Coverage_Block {
 	 * The coverage's marker is one of them, and marker_where() writes it into
 	 * the SQL, so a cached result is kept per marker: by WordPress, which
 	 * keys a query's result on its query vars, and by caches that key it on
-	 * the SQL. A request reads what invalidates those results while
-	 * WordPress loads, and the marker later, so an entry published in
-	 * between would otherwise reach it as a new marker over the entries
+	 * the SQL. A request reads what invalidates those results earlier than
+	 * the marker: WordPress keeps the last-changed times from the request's
+	 * first post query, which plugins often run while WordPress loads, and
+	 * the Advanced Post Cache reads its cache generation as it loads. An
+	 * entry published in between would otherwise reach the request as a new
+	 * marker over the entries
 	 * cached before the entry: the page adopts the marker, takes every later
 	 * reply as unchanged, and misses the entry until the coverage changes
 	 * again. Keyed on the marker, the entries are never older than the
@@ -4370,9 +4373,9 @@ class Rolling_Coverage_Block {
 	 * Writes a coverage's marker into its entry queries' SQL, as a comment,
 	 * for caches that key a query's result on its SQL alone, such as the
 	 * Advanced Post Cache that WordPress.com and Atomic sites run. It reads
-	 * its cache generation while WordPress loads, as WordPress reads its
-	 * last-changed times, so it needs the marker in the SQL to keep a result
-	 * per marker (see coverage_entries_args()).
+	 * its cache generation while WordPress loads, before the marker, so it
+	 * needs the marker in the SQL to keep a result per marker (see
+	 * coverage_entries_args()).
 	 *
 	 * @param string   $where WHERE clause.
 	 * @param WP_Query $query The query.

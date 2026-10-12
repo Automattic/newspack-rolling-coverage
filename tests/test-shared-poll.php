@@ -439,8 +439,8 @@ class Test_Shared_Poll extends Rolling_Coverage_TestCase {
 
 	/**
 	 * Makes a change the way a request already under way sees it. The
-	 * request read the posts and terms last-changed times while WordPress
-	 * loaded, before the change, so its queries find their cached results
+	 * request read the posts and terms last-changed times at an earlier
+	 * query, before the change, so its queries find their cached results
 	 * under those times; it reads the coverage's marker later, after the
 	 * change moved it.
 	 *
