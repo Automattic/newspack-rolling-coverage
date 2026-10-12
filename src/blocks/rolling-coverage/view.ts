@@ -2678,10 +2678,14 @@ function initBlock( root: HTMLElement ): void {
 	 * a failed poll, and the next one asks the shared URL again: a second
 	 * request would only add to the load of a struggling server.
 	 *
+	 * A poll that sends credentials skips the caches anyway, so the shared
+	 * reply would only cost the server its whole window; the page's cursor
+	 * costs it one marker read while nothing changes.
+	 *
 	 * @return {Promise<PollResponse|null>} Reply to apply.
 	 */
 	async function fetchPollReply(): Promise< PollResponse | null > {
-		if ( sharedPolling ) {
+		if ( sharedPolling && entriesCredentials === 'omit' ) {
 			const response = await fetchEntries( pollUrl( true ) );
 
 			if ( ! response.ok && response.status !== 400 ) {
