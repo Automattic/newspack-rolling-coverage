@@ -53,6 +53,7 @@ import {
 	withEntryLinkTitleText,
 	withoutAvatarColumns,
 	withoutByline,
+	withAuthorSettings,
 	hasPinnedCard,
 	isPinnedCard,
 	forEntryKind,
@@ -410,17 +411,24 @@ function withoutBylines(
  * the entries (see layoutParts()), and the per-entry blocks, shaped per entry
  * the way the site renders each entry.
  *
- * @param {Object[]}       allBlocks      The layout's top-level blocks.
- * @param {EntryContext[]} entryContexts  The entries being previewed.
- * @param {number}         entriesPerPage Entries loaded per page.
- * @param {boolean}        isLastPage     Whether no more entries load after those previewed, as in a capped feed.
+ * @param {Object[]}       allBlocks           The layout's top-level blocks.
+ * @param {EntryContext[]} entryContexts       The entries being previewed.
+ * @param {number}         entriesPerPage      Entries loaded per page.
+ * @param {boolean}        isLastPage          Whether no more entries load after those previewed, as in a capped feed.
+ * @param {Object}         settings            The block's Author name and Author avatar settings.
+ * @param {boolean}        settings.showAuthor Whether entries show their author's name.
+ * @param {boolean}        settings.showAvatar Whether entries show their author's avatar.
  * @return {Object} The header, footer and per-entry template blocks, and a getter for one entry's preview blocks.
  */
 export function useLayoutPreview(
 	allBlocks: TemplateBlocks,
 	entryContexts: EntryContext[],
 	entriesPerPage: number,
-	isLastPage = false
+	isLastPage = false,
+	{
+		showAuthor = true,
+		showAvatar = true,
+	}: { showAuthor?: boolean; showAvatar?: boolean } = {}
 ): {
 	headerBlocks: TemplateBlocks;
 	footerBlocks: TemplateBlocks;
@@ -440,9 +448,13 @@ export function useLayoutPreview(
 		( context ) => context.hidesByline
 	);
 	const previewTemplates = useMemo( () => {
-		const entryBlocks = SHOW_AVATARS
-			? templateBlocks
-			: withoutAvatarColumns( templateBlocks );
+		const entryBlocks = withAuthorSettings(
+			SHOW_AVATARS
+				? templateBlocks
+				: withoutAvatarColumns( templateBlocks ),
+			showAuthor,
+			showAvatar
+		);
 		const pinnedBlocks = forEntryKind( entryBlocks, true );
 		const hasCard = hasPinnedCard( pinnedBlocks );
 		const pinned = hasCard
@@ -487,7 +499,7 @@ export function useLayoutPreview(
 				? withoutBylines( untitled )
 				: undefined,
 		};
-	}, [ templateBlocks, hasBotEntry ] );
+	}, [ templateBlocks, hasBotEntry, showAuthor, showAvatar ] );
 
 	// The last entry drops its separator once no more entries would load
 	// (see Rolling_Coverage_Block::shape_entry_template()).

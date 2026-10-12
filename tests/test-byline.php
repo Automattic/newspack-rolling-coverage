@@ -112,12 +112,15 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	 * Turning avatars off removes the column that holds only the avatar.
 	 */
 	public function test_the_avatar_column_goes_when_avatars_are_off() {
-		$author_id = self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] );
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id, [ 'post_author' => self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] ) ] );
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$block      = new WP_Block( parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . self::ROW_MARKUP . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0] );
 
-		$this->assertSame( 2, self::count_columns( self::render( $author_id, self::ROW_MARKUP ) ) );
+		$this->assertSame( 2, self::count_columns( Rolling_Coverage_Block::render_block( $attributes, '', $block ) ) );
 
 		update_option( 'show_avatars', 0 );
-		$html = self::render( $author_id, self::ROW_MARKUP );
+		$html = Rolling_Coverage_Block::render_block( $attributes, '', $block );
 
 		$this->assertSame( 1, self::count_columns( $html ) );
 		$this->assertStringContainsString( 'Jane Reporter', $html );

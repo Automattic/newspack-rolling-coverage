@@ -75,6 +75,14 @@
 		"hideWhenEnded": {
 			"type": "boolean",
 			"default": false
+		},
+		"showAuthor": {
+			"type": "boolean",
+			"default": true
+		},
+		"showAvatar": {
+			"type": "boolean",
+			"default": true
 		}
 	},
 	"supports": {
