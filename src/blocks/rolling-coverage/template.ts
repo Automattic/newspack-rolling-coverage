@@ -290,6 +290,28 @@ function readMoreLink(
 }
 
 /**
+ * The entry's content with "Read more" right below it, a line apart, so the
+ * link reads as the end of the entry rather than part of the byline below.
+ *
+ * @return {TemplateItem} The group.
+ */
+function contentWithReadMore(): TemplateItem {
+	return [
+		'core/group',
+		{
+			layout: {
+				type: 'flex',
+				orientation: 'vertical',
+				justifyContent: 'stretch',
+			},
+			style: { spacing: { blockGap: '0px' } },
+			metadata: { name: __( 'Text', 'newspack-rolling-coverage' ) },
+		},
+		[ postContent(), readMoreLink() ],
+	];
+}
+
+/**
  * The "Share" link to the entry's share URL.
  *
  * @return {TemplateItem} The paragraph.
@@ -664,13 +686,13 @@ function streamEntryTemplate(
 
 /**
  * A Rail entry's row: the time, or on the pinned card the pin icon, in a
- * narrow column, then the entry beside a vertical rule, signed with the
- * author's avatar and name beside its links. The entry is a vertical flex
- * group, so its spacing also applies on the Newspack Theme (see
- * Rolling_Coverage_Block::apply_entry_block_gap()). The pinned card's rule
- * is in the accent color and its entry sits on a tinted panel. With no
- * pinned label, the site announces the entry as pinned itself (see
- * Rolling_Coverage_Block::render_entry()).
+ * narrow column, then the entry beside a vertical rule: "Read more" right
+ * below the content, then the author's avatar and name beside Share. The
+ * entry is a vertical flex group, so its spacing also applies on the
+ * Newspack Theme (see Rolling_Coverage_Block::apply_entry_block_gap()).
+ * The pinned card's rule is in the accent color and its entry sits on a
+ * tinted panel. With no pinned label, the site announces the entry as
+ * pinned itself (see Rolling_Coverage_Block::render_entry()).
  *
  * @param {boolean} isPinned Whether the row is the pinned card's.
  * @return {TemplateItem} The row.
@@ -701,8 +723,8 @@ function railRow( isPinned: boolean ): TemplateItem {
 			];
 	const entry: TemplateItem[] = [
 		[ 'core/post-title', { level: 4 } ],
-		postContent(),
-		linksRow( [ authorGroup(), readMoreLink(), shareLink() ] ),
+		contentWithReadMore(),
+		linksRow( [ authorGroup(), shareLink() ] ),
 	];
 
 	return [
@@ -873,8 +895,8 @@ function ruledRow(
 /**
  * A Clock entry's row: the time set large in a narrow column with the
  * relative date below it, or on the pinned card the pinned row in the
- * accent color, then the title, content, and the author's avatar and name
- * with the links beside it.
+ * accent color, then the title, content, "Read more", and the author's
+ * avatar and name with Share beside it.
  *
  * @param {string[]} slugs    The palette's color slugs.
  * @param {string[]} sizes    The theme's font size slugs.
@@ -928,8 +950,8 @@ function clockRow(
 			[
 				stack( __( 'Entry', 'newspack-rolling-coverage' ), [
 					[ 'core/post-title', { level: 4 } ],
-					postContent(),
-					linksRow( [ authorGroup(), readMoreLink(), shareLink() ] ),
+					contentWithReadMore(),
+					linksRow( [ authorGroup(), shareLink() ] ),
 				] ),
 			],
 		],
@@ -1773,8 +1795,7 @@ function splitEntryTemplate(): TemplateItem[] {
 			[
 				pinnedRow( ACCENT ),
 				[ 'core/post-title', { level: 4 } ],
-				postContent(),
-				readMoreLink(),
+				contentWithReadMore(),
 				linksRow( [ authorGroup(), shareLink() ] ),
 			],
 		],
@@ -1863,8 +1884,7 @@ function splitEntryTemplate(): TemplateItem[] {
 									__( 'Entry', 'newspack-rolling-coverage' ),
 									[
 										[ 'core/post-title', { level: 4 } ],
-										postContent(),
-										readMoreLink(),
+										contentWithReadMore(),
 										linksRow( [
 											authorGroup(),
 											shareLink(),
