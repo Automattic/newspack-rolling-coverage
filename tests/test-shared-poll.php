@@ -485,6 +485,34 @@ class Test_Shared_Poll extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Caches outside WordPress's own key query results on their SQL alone,
+	 * such as the Advanced Post Cache that WordPress.com and Atomic sites
+	 * run. The marker is in the SQL, so they keep a result per marker too.
+	 */
+	public function test_entry_queries_carry_the_marker_in_their_sql() {
+		$this->entry_at( $this->minutes_ago( 10 ) );
+		Poll_Cursor::mark_changed( $this->coverage_id );
+		$marker  = Poll_Cursor::get_marker( $this->coverage_id );
+		$queries = [];
+		$capture = static function ( $sql, $query ) use ( &$queries ) {
+			if ( Post_Type::CPT_SLUG === $query->get( 'post_type' ) ) {
+				$queries[] = $sql;
+			}
+			return $sql;
+		};
+
+		add_filter( 'posts_request', $capture, 10, 2 );
+		$this->share();
+		$this->render_feed();
+		remove_filter( 'posts_request', $capture, 10 );
+
+		$this->assertNotEmpty( $queries );
+		foreach ( $queries as $sql ) {
+			$this->assertStringContainsString( $marker, $sql );
+		}
+	}
+
+	/**
 	 * And for the page itself, whose cursor starts its polls: a page given
 	 * the marker a publish moved lists the entry it published.
 	 */

@@ -234,6 +234,7 @@ class Rolling_Coverage_Block {
 		// After Post_Type records publish and takedown times at priority 10, which polls read.
 		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 11, 3 );
 		add_filter( 'posts_where', [ __CLASS__, 'load_more_bound_where' ], 10, 2 );
+		add_filter( 'posts_where', [ __CLASS__, 'marker_where' ], 10, 2 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'size_entry_avatar' ], 10, 2 );
@@ -1555,14 +1556,16 @@ class Rolling_Coverage_Block {
 	/**
 	 * Query arguments shared by every query for a coverage's published entries.
 	 *
-	 * The coverage's marker is one of them, so WordPress keeps each query's
-	 * cached result per marker. A request reads the posts last-changed time
-	 * that keys those results while WordPress loads, and the marker later,
-	 * so an entry published in between would otherwise reach it as a new
-	 * marker over the entries cached before the entry: the page adopts the
-	 * marker, takes every later reply as unchanged, and misses the entry
-	 * until the coverage changes again. Keyed on the marker, the entries are
-	 * never older than the marker they go out with.
+	 * The coverage's marker is one of them, and marker_where() writes it into
+	 * the SQL, so a cached result is kept per marker: by WordPress, which
+	 * keys a query's result on its query vars, and by caches that key it on
+	 * the SQL. A request reads what invalidates those results while
+	 * WordPress loads, and the marker later, so an entry published in
+	 * between would otherwise reach it as a new marker over the entries
+	 * cached before the entry: the page adopts the marker, takes every later
+	 * reply as unchanged, and misses the entry until the coverage changes
+	 * again. Keyed on the marker, the entries are never older than the
+	 * marker they go out with.
 	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return array WP_Query arguments.
@@ -4273,6 +4276,28 @@ class Rolling_Coverage_Block {
 		global $wpdb;
 
 		return $where . $wpdb->prepare( " AND NOT ( {$wpdb->posts}.post_date_gmt = %s AND {$wpdb->posts}.ID >= %d )", $bound[0], $bound[1] );
+	}
+
+	/**
+	 * Writes a coverage's marker into its entry queries' SQL, as a comment,
+	 * for caches that key a query's result on its SQL alone, such as the
+	 * Advanced Post Cache that WordPress.com and Atomic sites run. It reads
+	 * its cache generation while WordPress loads, as WordPress reads its
+	 * last-changed times, so it needs the marker in the SQL to keep a result
+	 * per marker (see coverage_entries_args()).
+	 *
+	 * @param string   $where WHERE clause.
+	 * @param WP_Query $query The query.
+	 * @return string
+	 */
+	public static function marker_where( string $where, WP_Query $query ): string {
+		$marker = (string) $query->get( Poll_Cursor::MARKER_QUERY_VAR );
+
+		if ( '' === $marker ) {
+			return $where;
+		}
+
+		return $where . ' /* ' . Poll_Cursor::MARKER_QUERY_VAR . ' ' . absint( $marker ) . ' */';
 	}
 
 	/**
