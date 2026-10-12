@@ -292,7 +292,9 @@ function readMoreLink(
 /**
  * The "Read more" button to the entry's breakout post, its link bound to
  * it, locked against removal. The site drops it, and the Buttons block
- * around it, when the entry has no published breakout post.
+ * around it, when the entry has no published breakout post. Its bottom
+ * margin adds to the entry's block spacing, so the byline below sits about
+ * as far from it as the content above.
  *
  * @return {TemplateItem} The Buttons block.
  */
@@ -301,6 +303,9 @@ function readMoreButton(): TemplateItem {
 		'core/buttons',
 		{
 			lock: LOCKED,
+			style: {
+				spacing: { margin: { bottom: 'var:preset|spacing|40' } },
+			},
 			metadata: {
 				name: __( 'Read more', 'newspack-rolling-coverage' ),
 			},
