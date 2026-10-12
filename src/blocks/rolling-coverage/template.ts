@@ -315,6 +315,7 @@ function readMoreButton(): TemplateItem {
 				'core/button',
 				{
 					text: __( 'Read more', 'newspack-rolling-coverage' ),
+					lock: LOCKED,
 					metadata: {
 						bindings: {
 							url: {
