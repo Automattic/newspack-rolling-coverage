@@ -7,9 +7,8 @@
  * copies together. PHPUnit runs the server's rules against the cases in
  * tests/fixtures/poll-cursor-cases.json (tests/test-shared-poll.php, which CI
  * runs). This copy is checked against the same file by
- * tests/js/shared-poll-check.ts, which CI doesn't run; run it by hand from
- * the repository root with
- * `node --experimental-strip-types tests/js/shared-poll-check.ts`.
+ * tests/js/shared-poll-check.ts, which is the repository's `npm test` and
+ * which CI also runs.
  */
 
 /**

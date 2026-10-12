@@ -19,7 +19,7 @@
 		"start": "npm ci && npm run watch",
 		"watch": "npm run clean && newspack-scripts wp-scripts start",
 		"typecheck": "tsc --noEmit",
-		"test": "echo 'No JS unit tests in this repository.'",
+		"test": "node --experimental-strip-types tests/js/shared-poll-check.ts",
 		"lint": "npm run lint:scss && npm run lint:js && npm run lint:php && npm run typecheck",
 		"lint:js": "newspack-scripts wp-scripts lint-js '**/{src,includes}/**/*.{js,jsx,ts,tsx}'",
 		"lint:js:staged": "newspack-scripts wp-scripts lint-js --ext .js,.jsx,.ts,.tsx",

@@ -5,7 +5,8 @@
  * src/blocks/rolling-coverage/shared-poll.ts, against the same cases, and
  * checks how the page reads a shared reply.
  *
- * CI doesn't run it. Run it by hand from the repository root:
+ * It is the repository's `npm test`, which CI runs. To run it alone from
+ * the repository root:
  *
  *     node --experimental-strip-types tests/js/shared-poll-check.ts
  *

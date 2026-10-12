@@ -38,11 +38,11 @@ npm run lint:php     # PHPCS with this repo's phpcs.xml
 npm run fix:js       # Auto-fix JS (also format:scss, fix:php)
 ```
 
-- CI runs `lint:js`, PHPCS and PHPUnit. It does not run `typecheck` or `lint:scss`, so those two only catch errors when you run them.
+- CI runs `lint:js`, `npm test`, PHPCS and PHPUnit. It does not run `typecheck` or `lint:scss`, so those two only catch errors when you run them.
 - `npm run lint` runs Stylelint, ESLint, PHPCS and `typecheck` in that order and stops at the first failure. Run each one on its own to see every result.
 - PHPCS checks PHP compatibility against `testVersion 7.2-` in `phpcs.xml` and rejects typed properties, so don't use them. Its ruleset doesn't recognize every newer feature, and the code already uses PHP 8.0 union types and PHP 7.4 arrow functions.
 
 Tests:
 
 - **PHP:** PHPUnit tests live in `tests/`. `npm run test:php` needs a WordPress test install, which `bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version]` sets up. Inside the Newspack workspace, run the workspace's `n test-php` from this directory instead.
-- **JS:** there are no JS unit tests.
+- **JS:** `npm test` runs `tests/js/shared-poll-check.ts`, which checks the view script's copy of the poll cursor rules against `tests/fixtures/poll-cursor-cases.json`, the cases PHPUnit checks the server's copy against. There is no JS test runner.
