@@ -290,8 +290,43 @@ function readMoreLink(
 }
 
 /**
- * The entry's content with "Read more" right below it, a line apart, so the
- * link reads as the end of the entry rather than part of the byline below.
+ * The "Read more" button to the entry's breakout post, its link bound to
+ * it, locked against removal. The site drops it, and the Buttons block
+ * around it, when the entry has no published breakout post.
+ *
+ * @return {TemplateItem} The Buttons block.
+ */
+function readMoreButton(): TemplateItem {
+	return [
+		'core/buttons',
+		{
+			lock: LOCKED,
+			metadata: {
+				name: __( 'Read more', 'newspack-rolling-coverage' ),
+			},
+		},
+		[
+			[
+				'core/button',
+				{
+					text: __( 'Read more', 'newspack-rolling-coverage' ),
+					metadata: {
+						bindings: {
+							url: {
+								source: ENTRY_BINDINGS_SOURCE,
+								args: { key: 'breakoutUrl' },
+							},
+						},
+					},
+				},
+			],
+		],
+	];
+}
+
+/**
+ * The entry's content with a "Read more" button below it, which closes the
+ * entry rather than reading as part of the byline below.
  *
  * @return {TemplateItem} The group.
  */
@@ -304,10 +339,10 @@ function contentWithReadMore(): TemplateItem {
 				orientation: 'vertical',
 				justifyContent: 'stretch',
 			},
-			style: { spacing: { blockGap: '0px' } },
+			style: { spacing: { blockGap: 'var:preset|spacing|50' } },
 			metadata: { name: __( 'Text', 'newspack-rolling-coverage' ) },
 		},
-		[ postContent(), readMoreLink() ],
+		[ postContent(), readMoreButton() ],
 	];
 }
 
@@ -686,8 +721,8 @@ function streamEntryTemplate(
 
 /**
  * A Rail entry's row: the time, or on the pinned card the pin icon, in a
- * narrow column, then the entry beside a vertical rule: "Read more" right
- * below the content, then the author's avatar and name beside Share. The
+ * narrow column, then the entry beside a vertical rule: a "Read more"
+ * button below the content, then the author's avatar and name beside Share. The
  * entry is a vertical flex group, so its spacing also applies on the
  * Newspack Theme (see Rolling_Coverage_Block::apply_entry_block_gap()).
  * The pinned card's rule is in the accent color and its entry sits on a
@@ -895,8 +930,8 @@ function ruledRow(
 /**
  * A Clock entry's row: the time set large in a narrow column with the
  * relative date below it, or on the pinned card the pinned row in the
- * accent color, then the title, content, "Read more", and the author's
- * avatar and name with Share beside it.
+ * accent color, then the title, content, a "Read more" button, and the
+ * author's avatar and name with Share beside it.
  *
  * @param {string[]} slugs    The palette's color slugs.
  * @param {string[]} sizes    The theme's font size slugs.
