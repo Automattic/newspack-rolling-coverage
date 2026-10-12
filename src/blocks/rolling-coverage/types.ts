@@ -179,7 +179,8 @@ interface SharedPollChange {
 /**
  * Reply to a shared poll: the coverage's current cursor and every change
  * since `since`, newest first. With `sharedPolling: false` the site has
- * turned shared polling off and the page polls its cursor from then on.
+ * turned shared polling off, and the page polls its cursor until a later
+ * shared request gets a shared reply.
  */
 interface SharedPollResponse {
 	since: string;

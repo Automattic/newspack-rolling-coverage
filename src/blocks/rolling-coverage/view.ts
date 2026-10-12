@@ -72,10 +72,11 @@ const CLOSING_SEPARATOR = SEPARATOR_PARENTS.map(
 // poll until that copy expires.
 const OVERFLOW_RELOAD_RETRY_MS = 60 * 1000;
 
-// How long a page that left shared polling waits before it asks the shared URL
-// again. After a quiet spell the CDN answers with its expired copy, however
-// old, so the reply that sent the page to its cursor can predate the site
-// turning shared polling back on; the request also refreshes that copy.
+// How long a page polling its cursor waits before it asks the shared URL: one
+// that left shared polling, or one rendered without it. After a quiet spell the
+// CDN answers with its expired copy, however old, so the reply that sent the
+// page to its cursor can predate the site turning shared polling back on, as
+// can a page cache copy of the page itself.
 const SHARED_POLL_RETRY_MS = 60 * 1000;
 
 // How long the jump to the live feed waits for the page before it navigates instead.
@@ -571,11 +572,12 @@ function initBlock( root: HTMLElement ): void {
 	let cursor = root.dataset.cursor || '';
 
 	// From when polls ask the URL every reader of the page shares, in
-	// milliseconds: from the start on a page rendered for it, never on one
-	// rendered without it. A reply that says the site turned that off, or that
-	// comes from a server without it, moves this a retry interval ahead.
+	// milliseconds: from the start on a page rendered for it, a retry interval
+	// on for one rendered without it. A retry, and a reply that says the site
+	// turned that off or that comes from a server without it, move this a retry
+	// interval ahead; a shared reply to a retry brings it back to the start.
 	let sharedPollAt =
-		root.dataset.poll === 'shared' ? 0 : Number.POSITIVE_INFINITY;
+		root.dataset.poll === 'shared' ? 0 : Date.now() + SHARED_POLL_RETRY_MS;
 	let before = root.dataset.before || '';
 	let hasMore = root.dataset.hasMore === '1';
 	const latestCap = parseInt( root.dataset.latest || '0', 10 ) || 0;
@@ -2681,14 +2683,14 @@ function initBlock( root: HTMLElement ): void {
 	 * shared reply, comes from a server without shared polling, such as a
 	 * build from before it. The page then polls its cursor from this poll
 	 * on, as it does once a reply says the site turned shared polling off,
-	 * and asks the shared URL again after SHARED_POLL_RETRY_MS; a shared
-	 * reply then takes it back. A body that can't be read counts as such a
-	 * reply: the page can't tell a dropped connection from a server printing
-	 * output ahead of its JSON, and its cursor keeps entries coming either
-	 * way. Any other failure is a failed poll, and the next one asks the
-	 * shared URL again, or, after a failed retry, the cursor until the next
-	 * retry: a second request would only add to the load of a struggling
-	 * server.
+	 * and asks the shared URL again after SHARED_POLL_RETRY_MS, as a page
+	 * rendered without shared polling does; a shared reply takes it back. A
+	 * body that can't be read counts as such a reply: the page can't tell a
+	 * dropped connection from a server printing output ahead of its JSON,
+	 * and its cursor keeps entries coming either way. Any other failure is
+	 * a failed poll, and the next one asks the shared URL again, or, after
+	 * a failed retry, the cursor until the next retry: a second request
+	 * would only add to the load of a struggling server.
 	 *
 	 * Once the page sends credentials, its polls ask for its cursor. For a
 	 * user who can edit posts, the login cookie makes the page cache and the
@@ -2703,13 +2705,15 @@ function initBlock( root: HTMLElement ): void {
 	async function fetchPollReply(): Promise< PollResponse | null > {
 		if ( Date.now() >= sharedPollAt && entriesCredentials === 'omit' ) {
 			const isRetry = sharedPollAt > 0;
+
+			// Set before the request, so a retry that fails waits too.
+			if ( isRetry ) {
+				sharedPollAt = Date.now() + SHARED_POLL_RETRY_MS;
+			}
+
 			const response = await fetchEntries( pollUrl( true ) );
 
 			if ( ! response.ok && response.status !== 400 ) {
-				if ( isRetry ) {
-					sharedPollAt = Date.now() + SHARED_POLL_RETRY_MS;
-				}
-
 				return null;
 			}
 
