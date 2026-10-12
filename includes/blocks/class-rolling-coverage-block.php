@@ -1555,22 +1555,32 @@ class Rolling_Coverage_Block {
 	/**
 	 * Query arguments shared by every query for a coverage's published entries.
 	 *
+	 * The coverage's marker is one of them, so WordPress keeps each query's
+	 * cached result per marker. A request reads the posts last-changed time
+	 * that keys those results while WordPress loads, and the marker later,
+	 * so an entry published in between would otherwise reach it as a new
+	 * marker over the entries cached before the entry: the page adopts the
+	 * marker, takes every later reply as unchanged, and misses the entry
+	 * until the coverage changes again. Keyed on the marker, the entries are
+	 * never older than the marker they go out with.
+	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return array WP_Query arguments.
 	 */
 	private static function coverage_entries_args( int $coverage_id ): array {
 		return [
-			'post_type'           => Post_Type::CPT_SLUG,
-			'post_status'         => 'publish',
-			'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+			'post_type'                   => Post_Type::CPT_SLUG,
+			'post_status'                 => 'publish',
+			'tax_query'                   => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 				[
 					'taxonomy' => Taxonomy::TAXONOMY_SLUG,
 					'field'    => 'term_id',
 					'terms'    => $coverage_id,
 				],
 			],
-			'no_found_rows'       => true,
-			'ignore_sticky_posts' => true,
+			'no_found_rows'               => true,
+			'ignore_sticky_posts'         => true,
+			Poll_Cursor::MARKER_QUERY_VAR => Poll_Cursor::get_marker( $coverage_id ),
 		];
 	}
 

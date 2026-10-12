@@ -418,4 +418,88 @@ class Test_Shared_Poll extends Rolling_Coverage_TestCase {
 		$this->assertArrayNotHasKey( 'adsInterval', $data );
 		$this->assertArrayNotHasKey( 'adHtml', $data['changes'][0] );
 	}
+
+	/**
+	 * Makes a change the way a request already under way sees it. The
+	 * request read the posts and terms last-changed times while WordPress
+	 * loaded, before the change, so its queries find their cached results
+	 * under those times; it reads the coverage's marker later, after the
+	 * change moved it.
+	 *
+	 * @param callable $change Makes the change.
+	 * @return mixed What the change returns.
+	 */
+	private function change_mid_request( callable $change ) {
+		$posts  = wp_cache_get_last_changed( 'posts' );
+		$terms  = wp_cache_get_last_changed( 'terms' );
+		$result = $change();
+
+		wp_cache_set( 'last_changed', $posts, 'posts' );
+		wp_cache_set( 'last_changed', $terms, 'terms' );
+
+		return $result;
+	}
+
+	/**
+	 * A reply carrying the marker a publish moved carries the entry it
+	 * published. Pages adopt the reply's marker, so a reply without the
+	 * entry would have them take every later reply as unchanged and miss
+	 * the entry until the coverage changes again.
+	 */
+	public function test_shared_reply_with_a_new_marker_carries_its_change() {
+		$this->entry_at( $this->minutes_ago( 10 ) );
+		$this->share();
+
+		$new  = $this->change_mid_request( fn() => $this->entry_at( gmdate( 'Y-m-d H:i:s' ) ) );
+		$data = $this->share()->get_data();
+
+		$this->assertStringEndsWith( '@' . Poll_Cursor::get_marker( $this->coverage_id ), $data['cursor'] );
+		$this->assertContains( $new, array_column( $data['changes'], 'id' ) );
+	}
+
+	/**
+	 * The same holds for a page's own cursor poll, which answers a cursor
+	 * carrying the current marker without looking at the entries.
+	 */
+	public function test_cursor_reply_with_a_new_marker_carries_its_change() {
+		$this->entry_at( $this->minutes_ago( 10 ) );
+		$cursor = $this->share()->get_data()['cursor'];
+		$poll   = fn() => self::dispatch(
+			'GET',
+			"/coverages/{$this->coverage_id}/entries",
+			[
+				'cursor'       => $cursor,
+				'template_key' => $this->template_key,
+			]
+		)->get_data();
+
+		// Past the page's marker, so its poll looks at the entries and caches what it finds.
+		Poll_Cursor::mark_changed( $this->coverage_id );
+		$poll();
+
+		$new  = $this->change_mid_request( fn() => $this->entry_at( gmdate( 'Y-m-d H:i:s' ) ) );
+		$data = $poll();
+
+		$this->assertStringEndsWith( '@' . Poll_Cursor::get_marker( $this->coverage_id ), $data['cursor'] );
+		$this->assertContains( $new, array_column( $data['entries'], 'id' ) );
+	}
+
+	/**
+	 * And for the page itself, whose cursor starts its polls: a page given
+	 * the marker a publish moved lists the entry it published.
+	 */
+	public function test_render_with_a_new_marker_lists_its_change() {
+		$this->entry_at( $this->minutes_ago( 10 ) );
+
+		// The first render stores the block's config, which moves the terms
+		// last-changed time; the second queries as every later page does.
+		$this->render_feed();
+		$this->render_feed();
+
+		$new  = $this->change_mid_request( fn() => $this->entry_at( gmdate( 'Y-m-d H:i:s' ) ) );
+		$html = $this->render_feed();
+
+		$this->assertStringContainsString( '@' . Poll_Cursor::get_marker( $this->coverage_id ) . '"', $html );
+		$this->assertStringContainsString( 'data-entry-id="' . $new . '"', $html );
+	}
 }

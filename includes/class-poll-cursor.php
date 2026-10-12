@@ -43,6 +43,9 @@ class Poll_Cursor {
 	// Term meta replaced on every change to a coverage's entries that readers can see.
 	const MARKER_META_KEY = 'rolling_coverage_change_marker';
 
+	// Query var carrying the marker into a coverage's entry queries, so their cached results are kept per marker.
+	const MARKER_QUERY_VAR = 'rolling_coverage_change_marker';
+
 	/**
 	 * GMT `Y-m-d H:i:s` of the newest change the page holds.
 	 *
