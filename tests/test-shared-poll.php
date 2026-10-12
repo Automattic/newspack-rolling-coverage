@@ -170,13 +170,36 @@ class Test_Shared_Poll extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Turned off, the page polls its own cursor as before.
+	 * Values that turn the switch off: false, and the string 'false' that
+	 * `wp config set` writes for the constant without `--raw`. The constant
+	 * can't change within a test run, so the filter carries them.
+	 *
+	 * @return array[]
 	 */
-	public function test_switch_sends_new_pages_to_cursor_polling() {
-		add_filter( 'newspack_rolling_coverage_shared_polling', '__return_false' );
+	public function switch_off_provider() {
+		return [
+			'boolean' => [ false ],
+			'string'  => [ 'false' ],
+		];
+	}
+
+	/**
+	 * Turned off, new pages poll their own cursor, and the reply tells pages
+	 * already open to do the same.
+	 *
+	 * @dataProvider switch_off_provider
+	 *
+	 * @param mixed $value What the switch returns.
+	 */
+	public function test_switch_off_moves_pages_to_cursor_polling( $value ) {
+		add_filter( 'newspack_rolling_coverage_shared_polling', static fn() => $value );
 		$this->entry_at( $this->minutes_ago( 1 ) );
 
+		$data = $this->share()->get_data();
+
 		$this->assertStringNotContainsString( 'data-poll=', $this->render_feed() );
+		$this->assertFalse( $data['sharedPolling'] );
+		$this->assertSame( [], $data['changes'] );
 	}
 
 	/**
@@ -288,32 +311,6 @@ class Test_Shared_Poll extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Turned off, the reply tells pages already open to poll their cursor.
-	 */
-	public function test_switch_tells_open_pages_to_poll_their_cursor() {
-		add_filter( 'newspack_rolling_coverage_shared_polling', '__return_false' );
-		$this->entry_at( $this->minutes_ago( 1 ) );
-
-		$data = $this->share()->get_data();
-
-		$this->assertFalse( $data['sharedPolling'] );
-		$this->assertSame( [], $data['changes'] );
-	}
-
-	/**
-	 * The switch reads the string 'false' as off, as `wp config set` writes
-	 * the constant without `--raw`. The constant can't change within a test
-	 * run, so the filter carries the string here.
-	 */
-	public function test_switch_reads_the_string_false_as_off() {
-		add_filter( 'newspack_rolling_coverage_shared_polling', static fn() => 'false' );
-		$this->entry_at( $this->minutes_ago( 1 ) );
-
-		$this->assertStringNotContainsString( 'data-poll=', $this->render_feed() );
-		$this->assertFalse( $this->share()->get_data()['sharedPolling'] );
-	}
-
-	/**
 	 * A key the coverage no longer stores asks the page to reload, as a
 	 * cursor poll does.
 	 */
@@ -364,27 +361,36 @@ class Test_Shared_Poll extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A block with ads off carries no placements, even where ads could run.
+	 * Feeds whose polls never carry ads: a block with ads off, even where
+	 * ads could run, a lite page and a capped feed.
+	 *
+	 * @return array[]
 	 */
-	public function test_feeds_without_ads_carry_no_ad_placements() {
-		$this->use_ads( 1, false );
-		$this->entry_at( $this->minutes_ago( 1 ) );
-
-		$data = $this->share()->get_data();
-
-		$this->assertArrayNotHasKey( 'adsInterval', $data );
-		$this->assertArrayNotHasKey( 'adHtml', $data['changes'][0] );
+	public function feeds_without_ads_provider() {
+		return [
+			'ads off' => [ false, [] ],
+			'lite'    => [ true, [ 'lite' => 1 ] ],
+			'capped'  => [ true, [ 'latest' => 2 ] ],
+		];
 	}
 
 	/**
-	 * Lite pages carry no ads, as their polls never do.
+	 * Those feeds carry no placements in shared replies either.
+	 *
+	 * @dataProvider feeds_without_ads_provider
+	 *
+	 * @param bool  $ads_enabled The block's ads setting.
+	 * @param array $params      Extra request parameters.
 	 */
-	public function test_lite_pages_carry_no_ad_placements() {
-		require_once __DIR__ . '/mocks/class-lite-site.php';
-		$this->use_ads( 1 );
+	public function test_feeds_without_ads_carry_no_ad_placements( $ads_enabled, $params ) {
+		if ( isset( $params['lite'] ) ) {
+			require_once __DIR__ . '/mocks/class-lite-site.php';
+		}
+
+		$this->use_ads( 1, $ads_enabled );
 		$this->entry_at( $this->minutes_ago( 1 ) );
 
-		$data = $this->share( [ 'lite' => 1 ] )->get_data();
+		$data = $this->share( $params )->get_data();
 
 		$this->assertArrayNotHasKey( 'adsInterval', $data );
 		$this->assertArrayNotHasKey( 'adHtml', $data['changes'][0] );
@@ -404,19 +410,6 @@ class Test_Shared_Poll extends Rolling_Coverage_TestCase {
 		$this->assertSame( 2, $data['adsInterval'] );
 		$this->assertCount( 2, array_filter( array_column( $data['changes'], 'adHtml' ) ) );
 		$this->assertNotSame( $data['changes'][0]['adHtml'], $data['changes'][1]['adHtml'], 'Each placement needs its own container id.' );
-	}
-
-	/**
-	 * Capped feeds carry no ads, as their polls never do.
-	 */
-	public function test_capped_feeds_carry_no_ad_placements() {
-		$this->use_ads( 1 );
-		$this->entry_at( $this->minutes_ago( 1 ) );
-
-		$data = $this->share( [ 'latest' => 2 ] )->get_data();
-
-		$this->assertArrayNotHasKey( 'adsInterval', $data );
-		$this->assertArrayNotHasKey( 'adHtml', $data['changes'][0] );
 	}
 
 	/**
