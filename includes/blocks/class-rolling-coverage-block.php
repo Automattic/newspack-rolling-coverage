@@ -1569,11 +1569,10 @@ class Rolling_Coverage_Block {
 	 * first post query, which plugins often run while WordPress loads, and
 	 * the Advanced Post Cache reads its cache generation as it loads. An
 	 * entry published in between would otherwise reach the request as a new
-	 * marker over the entries
-	 * cached before the entry: the page adopts the marker, takes every later
-	 * reply as unchanged, and misses the entry until the coverage changes
-	 * again. Keyed on the marker, the entries are never older than the
-	 * marker they go out with.
+	 * marker over the entries cached before the entry: the page adopts the
+	 * marker, takes every later reply as unchanged, and misses the entry
+	 * until the coverage changes again. Keyed on the marker, the entries are
+	 * never older than the marker they go out with.
 	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return array WP_Query arguments.
