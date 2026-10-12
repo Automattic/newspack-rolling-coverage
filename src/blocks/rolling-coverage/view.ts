@@ -2678,12 +2678,13 @@ function initBlock( root: HTMLElement ): void {
 	 * a failed poll, and the next one asks the shared URL again: a second
 	 * request would only add to the load of a struggling server.
 	 *
-	 * A poll that sends credentials polls the cursor. For a user who can
-	 * edit posts, the login cookie makes both caches skip the request, so
-	 * the shared reply would only cost the server its whole window, where
-	 * the page's cursor costs it one marker read while nothing changes. A
-	 * page that took credentials after a refusal (see fetchEntries()) gives
-	 * up the shared reply too, even where its requests could be cached.
+	 * Once the page sends credentials, its polls ask for its cursor. For a
+	 * user who can edit posts, the login cookie makes the page cache and the
+	 * CDN skip the request, so the shared reply would only cost the server
+	 * its whole window, where the page's cursor costs it one marker read
+	 * while nothing changes. A page that takes credentials after a refusal
+	 * (see fetchEntries()) gives up the shared reply from its next poll on,
+	 * even where its requests could be cached.
 	 *
 	 * @return {Promise<PollResponse|null>} Reply to apply.
 	 */
