@@ -5038,13 +5038,15 @@ class Rolling_Coverage_Block {
 	 * cutoff, so the window always holds the change before the recent ones,
 	 * and a page that saw it can apply the reply after any quiet stretch.
 	 * Only published entries are looked at; a takedown after that entry is in
-	 * the window anyway, which only makes it longer.
+	 * the window anyway, which only makes it longer. The cutoff falls on the
+	 * minute, which also only makes it longer, so refreshes within a minute
+	 * share this query's cached result while the coverage doesn't change.
 	 *
 	 * @param int $term_id Coverage term ID.
 	 * @return string GMT `Y-m-d H:i:s`, or '' when no entry predates the cutoff.
 	 */
 	private static function shared_window_start( int $term_id ): string {
-		$cutoff = gmdate( 'Y-m-d H:i:s', time() - max( self::SHARED_WINDOW, 4 * self::get_min_poll_interval() ) );
+		$cutoff = gmdate( 'Y-m-d H:i:00', time() - max( self::SHARED_WINDOW, 4 * self::get_min_poll_interval() ) );
 
 		$last_before = ( new WP_Query(
 			array_merge(
