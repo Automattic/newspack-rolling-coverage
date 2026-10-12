@@ -5042,7 +5042,7 @@ class Rolling_Coverage_Block {
 	 * Only published entries are looked at; a takedown after that entry is in
 	 * the window anyway, which only makes it longer. The cutoff falls on the
 	 * minute, which also only makes it longer, so refreshes within a minute
-	 * share this query's cached result while the coverage doesn't change.
+	 * can share this query's cached result.
 	 *
 	 * @param int $term_id Coverage term ID.
 	 * @return string GMT `Y-m-d H:i:s`, or '' when no entry predates the cutoff.
