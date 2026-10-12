@@ -32,6 +32,22 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Create or update a coverage through the core terms route, as the
+	 * coverage drawer does.
+	 *
+	 * @param array    $meta        Term meta to send.
+	 * @param int|null $coverage_id Coverage to update, or null to create one.
+	 * @return WP_REST_Response
+	 */
+	private static function save_coverage_via_rest( array $meta, $coverage_id = null ) {
+		$path    = '/wp/v2/' . Taxonomy::REST_BASE . ( $coverage_id ? '/' . $coverage_id : '' );
+		$request = new WP_REST_Request( 'POST', $path );
+		$request->set_param( 'name', 'Election night' );
+		$request->set_param( 'meta', $meta );
+		return rest_get_server()->dispatch( $request );
+	}
+
+	/**
 	 * Canonical URLs feed push-notification links, so only URLs on this site
 	 * are stored.
 	 */
@@ -194,6 +210,47 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 403, $response->get_status(), 'The request should be refused.' );
 		$this->assertSame( Taxonomy::STATUS_ACTIVE, get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ), 'The coverage should stay active.' );
+	}
+
+	/**
+	 * Editors add coverages from the coverage drawer, which sends every
+	 * field, Advertising included.
+	 */
+	public function test_editors_can_add_a_coverage_with_ads_turned_off() {
+		self::log_in_as( 'editor' );
+
+		$response = self::save_coverage_via_rest(
+			[
+				Taxonomy::STATUS_META_KEY        => Taxonomy::STATUS_ACTIVE,
+				Taxonomy::CANONICAL_URL_META_KEY => '',
+				Taxonomy::ADS_DISABLED_META_KEY  => true,
+			]
+		);
+
+		$this->assertSame( 201, $response->get_status(), 'The coverage should be created.' );
+		$this->assertTrue( (bool) get_term_meta( $response->get_data()['id'], Taxonomy::ADS_DISABLED_META_KEY, true ), 'Ads should be turned off for the coverage.' );
+	}
+
+	/**
+	 * The coverage drawer sends Advertising with every save, even when it is
+	 * unchanged. This coverage has no stored Advertising value, so core checks
+	 * the permission for it, and an Editor's pause must not fail over it.
+	 */
+	public function test_an_unchanged_advertising_flag_does_not_fail_an_editors_save() {
+		self::log_in_as( 'editor' );
+		$coverage_id = self::create_coverage();
+
+		$response = self::save_coverage_via_rest(
+			[
+				Taxonomy::STATUS_META_KEY        => Taxonomy::STATUS_PAUSED,
+				Taxonomy::CANONICAL_URL_META_KEY => '',
+				Taxonomy::ADS_DISABLED_META_KEY  => false,
+			],
+			$coverage_id
+		);
+
+		$this->assertSame( 200, $response->get_status(), 'The edit should be saved.' );
+		$this->assertSame( Taxonomy::STATUS_PAUSED, get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ), 'The coverage should be paused.' );
 	}
 
 	/**

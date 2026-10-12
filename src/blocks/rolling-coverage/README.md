@@ -72,7 +72,7 @@ Says whether the block uses a shared layout, naming it (such as "Uses the shared
 | Entries per page | With Show set to All: how many entries show first, and how many each load of older entries adds. From 1 to 100. Default 20. |
 | Author name | In layouts that show the author's name: Show or Hide each entry's author's name, the one they chose under "Display name publicly as" in their profile. Default Show. |
 | Author avatar | In layouts that show the author's profile picture, while Avatar Display is on under Settings > Discussion: Show or Hide the picture, whatever Author name is set to. Picking Rail, Clock, Margin, or Split sets it to Hide, and switching from one of them to a built-in layout not in that list sets it back to Show. |
-| Poll interval (seconds) | Hidden when Show is set to All and the layout holds a [Check for Updates](../check-updates/README.md) block. How often the page checks for new entries. Default 10. The site can set a longer minimum, which wins over a shorter value here. |
+| Poll interval (seconds) | Hidden when Show is set to All and the layout holds a [Check for Updates](../check-updates/README.md) block. How often the page checks for new entries. Default 30. The site can set a longer minimum, which wins over a shorter value here; the setting then says how long the site waits. |
 
 ### Ended
 
@@ -88,6 +88,8 @@ The panel title shows the site's label for an ended coverage ("Ended" unless the
 | Link text | The link's wording. When empty, "Read more". |
 
 Notice appears only when When ended is set to Show. Notice text and Link appear only when Notice is set to Show, and URL and Link text only when Link is set to Show.
+
+Readers who already have the page open when the coverage ends see the notice at the page's next check for updates, and the page stops checking. The notice uses the settings from when the page loaded, so a change to its text or URL reaches those readers only after a reload, and so does a breakout post published after the notice appears.
 
 ### AI
 
@@ -113,7 +115,7 @@ Alignment and the HTML anchor are in the block toolbar and the Advanced section 
 The page checks for new entries every poll interval. It stops while the tab is in the background and checks again when the reader returns.
 
 - If the reader is at the top, new entries appear at once.
-- If the reader has scrolled down, the page does not move. A button shows the count (for example "3 New Entries"). Selecting it brings the new entries in. Edited entries update in place.
+- If the reader has scrolled down, the page does not move. A button shows the count (for example "3 New Entries"). Selecting it brings the new entries in. Edited entries update in place, and new entries waiting behind the button come in with their latest edits.
 - An entry that is unpublished, for example moved to draft or trashed, disappears from the page.
 - To have the page check only when readers ask, add a [Check for Updates](../check-updates/README.md) block to the layout. The page then makes no background checks, which suits readers on slow or metered connections.
 - Older entries load as the reader scrolls to the end, or with the Load More button, depending on Older entries. The button takes the theme's button style. If a load fails, the button stays so the reader can try again.
@@ -129,9 +131,23 @@ The new entries count and Jump to Latest show on the same button. It sits at the
 
 Readers see entries called "entries" by default. To call them something else, such as "updates", go to Rolling Coverage > All Coverages, select Settings, and set Singular and Plural under Entry Name, each as it reads mid-sentence ("update", "updates"). Both are needed, up to 30 characters each. The name then shows in the counts ("3 New Updates", "1 Newer Update"), the empty feed ("No updates yet."), the share button's label for screen readers, the text a new layout's link to the coverage page starts with ("See all updates", which layouts already in use keep as they are), the notice above an out-of-date entry and the feed's screen reader announcements. On English-language sites the counts capitalize each word, as buttons do; other languages keep the words as typed. Leave both empty to go back to "entry" and "entries".
 
+### Entries behind a content gate
+
+When a Newspack content gate covers entries, each gated entry shows only its free preview in the feed, without the gate's prompt. Every reader sees the preview, including readers the gate lets through, because the feed is the same for everyone. This holds for new and older entries as they arrive, on Lite Site pages, and in the RSS item of the post or page holding the feed. Readers the gate lets through can read the whole entry where it has a page of its own: its breakout post, or the entry's own page when the coverage has no Canonical URL.
+
+In RSS, gated entries follow the gate's feed setting. They show in full when Restrict content in feeds is turned off (Audience > Access Control > Advanced Settings), or in a custom RSS feed whose Restricted articles in this feed is set to Include restricted articles in full. With Remove restricted articles from the feed, the post holding the feed stays in the RSS feed unless a gate covers it too, and its gated entries show their free preview.
+
+A gate can cover entries through its Post types rule, through a category or tag an entry carries, or by having only exclusion rules. To keep entries whole, use the gate's Post types rule:
+
+- Set to Include: leave Entries unchecked.
+- Set to Exclude: check Entries.
+- Not turned on: turn it on, set it to Exclude, uncheck Posts, and check Entries.
+
+A gate set to Match any rule, with its Post types rule set to Include, can still cover entries through a category or tag they carry.
+
 ### Pinned entries
 
-An entry pinned in the coverage stays at the top of the feed with a "Pinned" label, whatever its date. Some layouts keep the pinned entry in view while the reader scrolls.
+An entry pinned in the coverage stays at the top of the feed with a "Pinned" label, whatever its date. Some layouts keep the pinned entry in view while the reader scrolls. When an entry is pinned, pages already open show it with the other pinned entries at their next check. When an entry is unpinned, pages already open move it back to its place by date at their next check. If that place is further down than the reader has loaded, the entry shows up there once older entries load. With Older entries set to Don’t load, it goes to the end of the feed instead.
 
 Feeds set to Latest ignore pinning and show the newest entries only.
 

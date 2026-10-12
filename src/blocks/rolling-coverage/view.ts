@@ -51,6 +51,20 @@ type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 const STICKY_CARD_SELECTOR =
 	'.newspack-rolling-coverage-pinned-card.is-position-sticky';
 
+// Where an entry's closing separator sits: at the end of the entry, of its
+// entry group, or of the group's inner container. The server leaves it off
+// the last entry and off a pinned card
+// (Rolling_Coverage_Block::shape_entry_template()).
+const SEPARATOR_PARENTS = [
+	':scope',
+	':scope > .newspack-rolling-coverage-regular-entry:last-child',
+	':scope > .newspack-rolling-coverage-regular-entry:last-child > .wp-block-group__inner-container',
+];
+
+const CLOSING_SEPARATOR = SEPARATOR_PARENTS.map(
+	( parent ) => `${ parent } > .wp-block-separator:last-child`
+).join( ', ' );
+
 // How long an overflow holds back another reload into the same cursor. The
 // reload can land on a page cache copy from before the burst, which overflows
 // again on its next poll; without the wait the reader would reload on every
@@ -208,6 +222,23 @@ function isSameOrigin( url: string ): boolean {
 		return (
 			new URL( url, window.location.href ).origin ===
 			window.location.origin
+		);
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Whether a URL is a web address, one with an http or https scheme. A
+ * malformed URL is not.
+ *
+ * @param {string} url URL, absolute or relative to the page.
+ * @return {boolean} True when the URL can be linked.
+ */
+function isWebUrl( url: string ): boolean {
+	try {
+		return [ 'http:', 'https:' ].includes(
+			new URL( url, window.location.href ).protocol
 		);
 	} catch {
 		return false;
@@ -485,7 +516,7 @@ function initBlock( root: HTMLElement ): void {
 
 	const stopRelativeDates = keepRelativeDatesCurrent( root, entriesList );
 
-	const pollInterval = parseInt( root.dataset.pollInterval || '10', 10 );
+	const pollInterval = parseInt( root.dataset.pollInterval || '30', 10 );
 	const entryName = readEntryName( root );
 	const entriesPerPage = parseInt( root.dataset.entriesPerPage || '20', 10 );
 	const templateKey = root.dataset.templateKey || '';
@@ -545,6 +576,13 @@ function initBlock( root: HTMLElement ): void {
 	// The coverage status the last poll reported.
 	let polledStatus = status;
 
+	// The feed's ended notice: the one rendered for an ended coverage, or one
+	// a poll built before the jump to the live feed ran initBlock() again.
+	let endedNotice = ownElement(
+		root,
+		'.newspack-rolling-coverage-archived-notice'
+	);
+
 	// When the reader last checked for new entries, in milliseconds.
 	let lastCheckAt = 0;
 	let checkLabelTimeoutId: ReturnType< typeof setTimeout > | null = null;
@@ -577,8 +615,13 @@ function initBlock( root: HTMLElement ): void {
 	let isForwardPollHealthy = true;
 
 	// Edits the poll delivered for entries not yet on the page, latest HTML by
-	// entry ID. A cached load-more reply can predate them while the cursor has
-	// already moved past them, so loadMore() applies them as the entries arrive.
+	// entry ID: entries load more hasn't brought, and new ones waiting
+	// behind the new-entries control. No later poll sends them again, and a
+	// cached load-more reply or a queued entry can predate them, so loadMore()
+	// and takePendingEntries() apply them as the entries arrive. A poll that
+	// sends the entry as new again drops its edit, and a feed opened at a
+	// shared entry keeps that new copy instead while load more has yet to
+	// bring the entry (see applyPollResponse()).
 	const offPageUpdates = new Map< string, string >();
 
 	// Entries the poll reported taken down. One that comes back shows on
@@ -592,6 +635,10 @@ function initBlock( root: HTMLElement ): void {
 	const newerCount =
 		parseInt( newEntriesControl?.dataset.newerCount || '0', 10 ) || 0;
 
+	// Entries in that count the page has since shown pinned, kept when one is
+	// then taken down: a fresh page leaves both out of the count.
+	const pinnedCountedIds = new Set< string >();
+
 	// The control's own text: the server keeps it on the link when it writes
 	// the count in its place.
 	const ownLabel =
@@ -602,9 +649,10 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Shows on the control how many entries are newer than the shared entry:
-	 * those the page was rendered with plus those the poll has counted since.
-	 * With none, or once the poll can no longer count, the control shows its
-	 * own text.
+	 * those the page was rendered with, less the ones it has since shown
+	 * pinned while that count is a hundred or fewer, plus those the poll has
+	 * counted since. With none, or once the poll can no longer count, the
+	 * control shows its own text.
 	 *
 	 * @return {void}
 	 */
@@ -613,8 +661,13 @@ function initBlock( root: HTMLElement ): void {
 			return;
 		}
 
+		// Past a hundred, the rendered count is where the server stopped
+		// counting (Rolling_Coverage_Block::NEWER_COUNT_CAP), not how many
+		// there are, so pinning one of them leaves it as it is.
+		const rendered =
+			newerCount > 100 ? newerCount : newerCount - pinnedCountedIds.size;
 		const label = canCount
-			? newerEntriesLabel( newerCount + countedEntryIds.size, entryName )
+			? newerEntriesLabel( rendered + countedEntryIds.size, entryName )
 			: '';
 		const text = label || ownLabel;
 
@@ -738,14 +791,20 @@ function initBlock( root: HTMLElement ): void {
 	 * Schedules the next poll, at the block's interval or the site's minimum,
 	 * whichever is longer, in place of any poll already scheduled. Schedules
 	 * none while a poll is in flight, as that poll schedules the next, or
-	 * while the page is hidden, as showing it polls at once.
+	 * while the page is hidden, as showing it polls at once, or once the
+	 * coverage has ended: a reopen or a later edit shows on reload.
 	 *
 	 * @return {void}
 	 */
 	function schedulePoll(): void {
 		cancelPoll();
 
-		if ( checksOnRequest || isPolling || document.hidden ) {
+		if (
+			checksOnRequest ||
+			isPolling ||
+			document.hidden ||
+			polledStatus === 'archived'
+		) {
 			if ( ! isPolling ) {
 				reportCheck( 'idle' );
 			}
@@ -824,6 +883,181 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Whether load more lists an entry below a point in the feed: dated in an
+	 * earlier GMT second, or in the same second with a lower ID, the order its
+	 * bound follows (Rolling_Coverage_Block::load_more_bound()).
+	 *
+	 * @param {string} date   The entry's GMT date.
+	 * @param {number} id     The entry's ID.
+	 * @param {string} atDate The point's GMT date.
+	 * @param {number} atId   The point's ID, or 0 for the whole of its second.
+	 * @return {boolean} Whether the entry lists below the point.
+	 */
+	function listsBelow(
+		date: string,
+		id: number,
+		atDate: string,
+		atId: number
+	): boolean {
+		return date < atDate || ( date === atDate && id < atId );
+	}
+
+	/**
+	 * The first unpinned entry listed below an entry. Without dates to
+	 * compare, as on a page cached before entries carried them, the entry
+	 * goes above the first unpinned entry it can't compare with.
+	 *
+	 * @param {HTMLElement} entry The entry to place.
+	 * @return {HTMLElement|null} The entry below, or null if the page shows none.
+	 */
+	function unpinnedEntryBelow( entry: HTMLElement ): HTMLElement | null {
+		const date = entry.dataset.dateGmt;
+		const id = Number( entry.dataset.entryId );
+
+		return (
+			Array.from(
+				entriesList.querySelectorAll< HTMLElement >(
+					':scope > [data-entry-id]:not([data-pinned])'
+				)
+			).find( ( other ) => {
+				const otherDate = other.dataset.dateGmt;
+
+				return (
+					other !== entry &&
+					( ! date ||
+						! otherDate ||
+						listsBelow(
+							otherDate,
+							Number( other.dataset.entryId ),
+							date,
+							id
+						) )
+				);
+			} ) ?? null
+		);
+	}
+
+	/**
+	 * The GMT date of the shared entry, in a feed opened at one.
+	 *
+	 * @return {string|undefined} The date, or undefined in the normal view or on a page cached before entries carried dates.
+	 */
+	function sharedEntryDate(): string | undefined {
+		return isEntryView
+			? entriesList.querySelector< HTMLElement >(
+					':scope > [data-linked]'
+				)?.dataset.dateGmt
+			: undefined;
+	}
+
+	/**
+	 * Whether a feed opened at a shared entry counts an entry among the newer
+	 * ones when it isn't pinned: dated in a later second than the shared
+	 * entry, as its query and count split them
+	 * (Rolling_Coverage_Block::count_newer_entries()). False on any other
+	 * feed, and for entries without dates to compare.
+	 *
+	 * @param {HTMLElement} entry The entry.
+	 * @return {boolean} Whether the entry is newer than the shared entry.
+	 */
+	function isNewerThanShared( entry: HTMLElement ): boolean {
+		const date = entry.dataset.dateGmt;
+		const sharedDate = sharedEntryDate();
+
+		return !! date && !! sharedDate && date > sharedDate;
+	}
+
+	/**
+	 * Moves an unpinned entry to where a fresh page would list it: one
+	 * unpinned while the page is open, or one a feed opened at a shared entry
+	 * gets as new. When that is below load more's bound, it leaves the page
+	 * until load more brings it there. A feed opened at a shared entry counts
+	 * it among the newer entries instead when it is newer than the shared
+	 * entry (see isNewerThanShared()).
+	 *
+	 * @param {HTMLElement} entry The unpinned entry.
+	 * @return {boolean} Whether the entry stays on the page.
+	 */
+	function placeUnpinnedEntry( entry: HTMLElement ): boolean {
+		const date = entry.dataset.dateGmt;
+
+		if ( isNewerThanShared( entry ) && entry.dataset.entryId ) {
+			// One the page rendered counted is back in that count.
+			if ( ! pinnedCountedIds.delete( entry.dataset.entryId ) ) {
+				countedEntryIds.add( entry.dataset.entryId );
+			}
+
+			showNewerCount();
+			return false;
+		}
+
+		const below = unpinnedEntryBelow( entry );
+
+		if ( below ) {
+			entriesList.insertBefore( entry, below );
+			return true;
+		}
+
+		// Load more continues below its bound, which sits lower than the last
+		// entry shown when a page of older entries ended on a pinned entry,
+		// one the list already held or one a poll has since moved up to the
+		// pinned entries. An entry taken off the page above the bound would
+		// never load again.
+		const [ , boundId = '0', boundDate = before ] =
+			/^(\d+):(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/.exec( before ) ??
+			[];
+
+		if (
+			hasMore &&
+			date &&
+			boundDate &&
+			listsBelow(
+				date,
+				Number( entry.dataset.entryId ),
+				boundDate,
+				Number( boundId )
+			)
+		) {
+			return false;
+		}
+
+		const entries = Array.from(
+			entriesList.querySelectorAll< HTMLElement >(
+				':scope > [data-entry-id]'
+			)
+		).filter( ( other ) => other !== entry );
+		const last = entries[ entries.length - 1 ];
+
+		entriesList.appendChild( entry );
+
+		// The last entry was rendered without its closing separator, which
+		// the entry now below it brings, unless it is a pinned card.
+		if (
+			last &&
+			! last.querySelector( CLOSING_SEPARATOR ) &&
+			! last.querySelector(
+				':scope > .newspack-rolling-coverage-pinned-card'
+			)
+		) {
+			for ( const parent of SEPARATOR_PARENTS ) {
+				const separator = entry.querySelector(
+					`${ parent } > .wp-block-separator:last-child`
+				);
+
+				if ( separator ) {
+					( parent === ':scope'
+						? last
+						: last.querySelector( parent )
+					)?.append( separator );
+					break;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * Removes the oldest entries beyond the cap of a capped feed, and stops
 	 * watching them for being seen.
 	 *
@@ -846,8 +1080,8 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Inserts entries above the newest unpinned entry, below any pinned
-	 * entries, removing the "no entries yet" placeholder if it's still
-	 * present.
+	 * entries, pinned ones first, removing the "no entries yet" placeholder
+	 * if it's still present.
 	 *
 	 * Removes the "no entries yet" placeholder, starts observing each entry
 	 * for coverage_entry_seen, and displays any associated ad slots.
@@ -871,7 +1105,16 @@ function initBlock( root: HTMLElement ): void {
 		const fragment = document.createDocumentFragment();
 		const adSlotsToDisplay: AdSlot[] = [];
 
-		entries.forEach( ( { el, adSlot, adEl } ) => {
+		// An entry pinned by the time it arrived goes with the pinned entries,
+		// above newer ones that came with it or after it, as a fresh page lists
+		// it.
+		const isPinned = ( { el }: PendingEntry ) =>
+			el.hasAttribute( 'data-pinned' );
+
+		[
+			...entries.filter( isPinned ),
+			...entries.filter( ( entry ) => ! isPinned( entry ) ),
+		].forEach( ( { el, adSlot, adEl } ) => {
 			fragment.appendChild( el );
 			observeEntry( el );
 			if ( adEl ) {
@@ -993,12 +1236,16 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Gets the pending entries and clears the queue.
+	 * Gets the pending entries, with the edits the poll delivered while they
+	 * waited, and clears the queue.
 	 *
 	 * @return {PendingEntry[]} The entries that were pending.
 	 */
 	function takePendingEntries(): PendingEntry[] {
-		const entries = pendingNewEntries;
+		const entries = pendingNewEntries.map( ( entry ) => ( {
+			...entry,
+			el: applyOffPageUpdate( entry.el ),
+		} ) );
 		pendingNewEntries = [];
 		return entries;
 	}
@@ -1006,7 +1253,7 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Takes an entry that was taken down off the page and out of the new
 	 * entries waiting to be shown, the count of newer entries and the edits
-	 * kept for load more.
+	 * kept until it arrives.
 	 *
 	 * @param {string} entryId Entry ID.
 	 * @return {void}
@@ -1025,6 +1272,18 @@ function initBlock( root: HTMLElement ): void {
 			dropLastSeparator();
 		}
 
+		forgetOffPageEntry( entryId );
+		removedEntryIds.add( entryId );
+	}
+
+	/**
+	 * Takes an entry the list doesn't show out of the new entries waiting to
+	 * be shown, the count of newer entries and the edits kept until it arrives.
+	 *
+	 * @param {string} entryId Entry ID.
+	 * @return {void}
+	 */
+	function forgetOffPageEntry( entryId: string ): void {
 		const waiting = pendingNewEntries.length;
 
 		pendingNewEntries = pendingNewEntries.filter(
@@ -1051,7 +1310,35 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		offPageUpdates.delete( entryId );
-		removedEntryIds.add( entryId );
+	}
+
+	/**
+	 * Shows a pinned entry the list doesn't show where a fresh page lists
+	 * it: below the pinned entries, whatever its date. It can be older
+	 * than the entries loaded, waiting behind the new-entries control, or
+	 * newer than the shared entry. Load more then skips it as an entry
+	 * already shown.
+	 *
+	 * @param {HTMLElement} el The pinned entry, as the poll sent it.
+	 * @return {void}
+	 */
+	function showPinnedEntry( el: HTMLElement ): void {
+		forgetOffPageEntry( el.dataset.entryId ?? '' );
+
+		// Without an arrival, the seen event would count the entry as part of
+		// the first render. The poll sends an edit with none, as the page keeps
+		// the arrival of the copy it replaces, and this entry had no copy.
+		el.dataset.arrival = 'poll';
+
+		ownElement(
+			root,
+			'.newspack-rolling-coverage-entries__empty',
+			entriesList
+		)?.remove();
+
+		entriesList.insertBefore( el, firstUnpinnedEntry() );
+		observeEntry( el );
+		dropLastSeparator();
 	}
 
 	const cleanupFns: Array< () => void > = [];
@@ -1414,11 +1701,11 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Whether a fetched block can replace the shared view in place. It can't
-	 * when it is itself a shared view, when the coverage's status has changed
-	 * since this page rendered, as the Follow button and archived notice
-	 * depend on it, when it holds ads, which need the page's own ad setup to
-	 * run, or when its entries hold scripts or interactive blocks, which would
-	 * never start.
+	 * when it is itself a shared view; when the coverage's status has changed
+	 * since this page rendered, by the fetched page's account or a poll's, as
+	 * the Follow button and the ended notice depend on it; when it holds ads,
+	 * which need the page's own ad setup to run; or when its entries hold
+	 * scripts or interactive blocks, which would never start.
 	 *
 	 * @param {HTMLElement | null} live The fetched block.
 	 * @return {boolean} True if the block can be shown in place.
@@ -1433,6 +1720,7 @@ function initBlock( root: HTMLElement ): void {
 			!! liveEntries &&
 			live.dataset.view !== 'entry' &&
 			live.dataset.status === root.dataset.status &&
+			polledStatus === status &&
 			! live.querySelector( '.newspack_global_ad' ) &&
 			! liveEntries.querySelector( 'script, [data-wp-interactive]' ) &&
 			!! live.querySelector(
@@ -1787,12 +2075,18 @@ function initBlock( root: HTMLElement ): void {
 	 * Applies a poll response to the entry list.
 	 *
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
-	 * on the page for loadMore(). Drops entries taken down, and leaves one
-	 * that comes back for reload. Inserts or queues newly published entries
-	 * based on the reader's scroll position. When the feed opens at a shared
-	 * entry, new entries are added to the control's count instead of inserted.
-	 * A capped feed inserts new entries at once, whatever the scroll position,
-	 * and ignores edits to entries it doesn't show.
+	 * on the page until they arrive, except edits to pinned ones, which show
+	 * them with the pinned entries at once (see showPinnedEntry()). Moves a
+	 * newly pinned entry it shows below the pinned ones, and a newly unpinned
+	 * one to its place by date (see placeUnpinnedEntry()). Drops entries
+	 * taken down, and leaves one that comes back for reload. Inserts or
+	 * queues newly published entries based on the reader's scroll position,
+	 * and swaps one already queued for its new copy. When the feed opens at a
+	 * shared entry, new entries dated after it are added to the control's
+	 * count instead, older ones are placed by date, and pinned ones join the
+	 * pinned entries. A capped feed inserts new entries at once, whatever the
+	 * scroll position, and ignores edits to entries it doesn't show, pins
+	 * included.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
@@ -1829,6 +2123,24 @@ function initBlock( root: HTMLElement ): void {
 					return;
 				}
 
+				if ( entryEl?.hasAttribute( 'data-pinned' ) ) {
+					// Unless a poll counted it since, a shared view counted an
+					// entry newer than the shared one when it rendered, if it
+					// was published and dated as it is now. One restored or
+					// re-dated since can't be told apart, so its pin can take
+					// it off a count it was never in, or leave it in one.
+					if (
+						isNewerThanShared( entryEl ) &&
+						! countedEntryIds.has( String( entry.id ) )
+					) {
+						pinnedCountedIds.add( String( entry.id ) );
+						showNewerCount();
+					}
+
+					showPinnedEntry( entryEl );
+					return;
+				}
+
 				offPageUpdates.set( String( entry.id ), entry.html );
 				return;
 			}
@@ -1852,18 +2164,55 @@ function initBlock( root: HTMLElement ): void {
 
 				existing.replaceWith( entryEl );
 
+				const unpinnedAbove = entryEl.hasAttribute( 'data-pinned' )
+					? firstUnpinnedEntry( entryEl )
+					: null;
+
+				// A pinned entry belongs above every unpinned one. One load
+				// more brought pinned sits at its date until a poll sends it:
+				// the reply may come from a cache that predates an unpin, so
+				// only the poll's copy is trusted to move it.
 				if (
-					existing.hasAttribute( 'data-pinned' ) !==
-					entryEl.hasAttribute( 'data-pinned' )
+					unpinnedAbove?.compareDocumentPosition( entryEl ) ===
+					Node.DOCUMENT_POSITION_FOLLOWING
 				) {
-					entriesList.insertBefore(
-						entryEl,
-						firstUnpinnedEntry( entryEl )
-					);
+					entriesList.insertBefore( entryEl, unpinnedAbove );
+				} else if (
+					existing.hasAttribute( 'data-pinned' ) &&
+					! entryEl.hasAttribute( 'data-pinned' ) &&
+					! placeUnpinnedEntry( entryEl )
+				) {
+					// A load-more reply cached before the unpin still has it pinned.
+					offPageUpdates.set( String( entry.id ), entry.html );
+					linkedObserver?.unobserve( entryEl );
+					entryEl.remove();
+					return;
 				}
 
 				observeEntry( entryEl );
 				dropLastSeparator();
+
+				return;
+			}
+
+			// It comes as saved now, so an edit kept from before it was taken
+			// down and published again is out of date.
+			offPageUpdates.delete( String( entry.id ) );
+
+			const waitingIndex = pendingNewEntries.findIndex(
+				( { el } ) => el.dataset.entryId === String( entry.id )
+			);
+
+			// A poll can send an entry waiting behind the control as new again:
+			// one with no recorded publish time, such as one created straight
+			// into publish, taken down and published again between two polls.
+			// The new copy takes its place in the queue, keeping its ad and
+			// arrival, so the entry is counted and shown once.
+			if ( waitingIndex !== -1 ) {
+				const waiting = pendingNewEntries[ waitingIndex ];
+
+				entryEl.dataset.arrival = waiting.el.dataset.arrival;
+				pendingNewEntries[ waitingIndex ] = { ...waiting, el: entryEl };
 
 				return;
 			}
@@ -1883,11 +2232,45 @@ function initBlock( root: HTMLElement ): void {
 
 		if ( isEntryView ) {
 			const countedBefore = countedEntryIds.size;
+			const sharedDate = sharedEntryDate();
 
 			newEntries.forEach( ( { el } ) => {
-				if ( el.dataset.entryId ) {
-					countedEntryIds.add( el.dataset.entryId );
+				const entryId = el.dataset.entryId;
+				const date = el.dataset.dateGmt;
+
+				if ( ! entryId ) {
+					return;
 				}
+
+				// Pinned by the time it arrived: a fresh page lists it with the
+				// pinned entries and leaves it out of the count.
+				if ( el.hasAttribute( 'data-pinned' ) ) {
+					showPinnedEntry( el );
+					return;
+				}
+
+				// An entry dated no later than the shared one isn't newer, such
+				// as an older entry taken down and published again between two
+				// polls. It goes where a fresh page lists it, or waits for load
+				// more with this copy, since a cached load-more reply can
+				// predate it.
+				if (
+					date &&
+					sharedDate &&
+					date <= sharedDate &&
+					! el.hasAttribute( 'data-pinned' )
+				) {
+					if ( placeUnpinnedEntry( el ) ) {
+						observeEntry( el );
+						dropLastSeparator();
+					} else {
+						offPageUpdates.set( entryId, el.outerHTML );
+					}
+
+					return;
+				}
+
+				countedEntryIds.add( entryId );
 			} );
 
 			if ( canCount && countedEntryIds.size !== countedBefore ) {
@@ -1924,13 +2307,7 @@ function initBlock( root: HTMLElement ): void {
 
 		const last = entries[ entries.length - 1 ];
 
-		last?.querySelector(
-			[
-				':scope > .wp-block-separator:last-child',
-				':scope > .newspack-rolling-coverage-regular-entry:last-child > .wp-block-separator:last-child',
-				':scope > .newspack-rolling-coverage-regular-entry:last-child > .wp-block-group__inner-container > .wp-block-separator:last-child',
-			].join( ', ' )
-		)?.remove();
+		last?.querySelector( CLOSING_SEPARATOR )?.remove();
 		last?.querySelector< HTMLElement >(
 			':scope > .newspack-rolling-coverage-pinned-card:last-child'
 		)?.style.removeProperty( 'margin-bottom' );
@@ -2172,17 +2549,73 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Builds the ended notice from the wrapper's data, where a fresh render
+	 * of the ended coverage puts it, first in the Feed, and announces it. A
+	 * link without a URL of its own goes to the latest breakout post the
+	 * poll reporting the end brings.
+	 *
+	 * @param {string | null} [breakoutUrl] The latest breakout post's URL, from the poll.
+	 * @return {void}
+	 */
+	function showEndedNotice( breakoutUrl?: string | null ): void {
+		const text = root.dataset.endedNotice;
+
+		if ( ! text || endedNotice ) {
+			return;
+		}
+
+		const notice = document.createElement( 'p' );
+		const label = root.dataset.endedNoticeLink;
+		const url = root.dataset.endedNoticeUrl ?? breakoutUrl ?? '';
+
+		// What screen readers hear: the line breaks aren't text, so the lines
+		// would otherwise run together.
+		const spoken = text.split( /\r\n|\r|\n/ );
+
+		notice.className = 'newspack-rolling-coverage-archived-notice';
+		spoken.forEach( ( line, index ) => {
+			if ( index > 0 ) {
+				notice.append( document.createElement( 'br' ) );
+			}
+
+			notice.append( line );
+		} );
+
+		// The block's own URL is checked too: the wrapper's data attributes can
+		// come from markup an author without unfiltered_html wrote.
+		if ( label && url && isWebUrl( url ) ) {
+			const link = document.createElement( 'a' );
+
+			link.className = 'newspack-rolling-coverage-archived-notice__link';
+			link.href = url;
+			link.textContent = label;
+			notice.append( ' ', link );
+			spoken.push( label );
+		}
+
+		entriesList.parentElement?.prepend( notice );
+		endedNotice = notice;
+		announce( spoken.join( ' ' ) );
+	}
+
+	/**
 	 * Polls for new and edited entries.
 	 *
 	 * Fetches entries modified at or after the cursor and applies them. Also
 	 * passes the running ad counter so the server can continue the interval
 	 * across poll batches. Takes the place of a poll already scheduled, and
-	 * does nothing while another poll is in flight or the page is hidden.
+	 * does nothing while another poll is in flight or the page is hidden, or
+	 * once the coverage has ended.
 	 *
 	 * @return {Promise<PollOutcome>} How the poll ended.
 	 */
 	async function poll(): Promise< PollOutcome > {
-		if ( ! cursor || isPolling || document.hidden ) {
+		if (
+			! cursor ||
+			isPolling ||
+			document.hidden ||
+			polledStatus === 'archived'
+		) {
 			return 'skipped';
 		}
 
@@ -2305,6 +2738,11 @@ function initBlock( root: HTMLElement ): void {
 				cursor = data.cursor || cursor;
 				polledCount = data.polledCount ?? polledCount;
 				isForwardPollHealthy = true;
+
+				// Last, so its announcement isn't replaced by the entries'.
+				if ( data.status === 'archived' ) {
+					showEndedNotice( data.latestBreakoutUrl );
+				}
 			} else if ( isForwardPollHealthy ) {
 				trackPollError( 'poll' );
 				isForwardPollHealthy = false;
@@ -2342,11 +2780,13 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Swaps an entry from a load-more reply for the edit the poll delivered
-	 * while it was off the page, if there is one, keeping the entry's arrival.
+	 * Swaps an entry arriving from a load-more reply or the new-entries queue
+	 * for the edit the poll delivered while it was off the page, if there is
+	 * one, keeping the entry's arrival.
 	 *
-	 * @param {HTMLElement} el Entry element from the load-more reply.
-	 * @return {HTMLElement} The element that now stands in the reply.
+	 * @param {HTMLElement} el Entry element arriving.
+	 * @return {HTMLElement} The element to show in its place, swapped into the
+	 *                       reply when it came in one.
 	 */
 	function applyOffPageUpdate( el: HTMLElement ): HTMLElement {
 		const entryId = el.dataset.entryId;
@@ -2480,29 +2920,41 @@ function initBlock( root: HTMLElement ): void {
 				if ( data.count > 0 ) {
 					const fragment = parseFragment( sanitizeHtml( data.html ) );
 
-					// Count how many entries were appended so the next page's offset can be correct.
-					let appended = 0;
+					// Whether the reply's last entry so far was dropped.
+					let droppedEntry = false;
 
-					// Never append an entry that is already in the list, or one taken down since.
+					// Never append an entry that is already in the list, waiting
+					// behind the new-entries control, or taken down since.
 					Array.from( fragment.children ).forEach( ( child ) => {
 						if (
 							! ( child instanceof HTMLElement ) ||
 							! child.dataset.entryId
 						) {
+							// An ad after a dropped entry would follow a different
+							// entry than the one it was placed after, and can land
+							// beside another ad.
+							if ( droppedEntry ) {
+								child.remove();
+							}
+
 							return;
 						}
 
+						const entryId = child.dataset.entryId;
 						const existing = ownElement(
 							root,
-							`[data-entry-id="${ cssEscape(
-								child.dataset.entryId
-							) }"]`,
+							`[data-entry-id="${ cssEscape( entryId ) }"]`,
 							entriesList
 						);
-						if (
-							existing ||
-							removedEntryIds.has( child.dataset.entryId )
-						) {
+
+						droppedEntry =
+							!! existing ||
+							removedEntryIds.has( entryId ) ||
+							pendingNewEntries.some(
+								( { el } ) => el.dataset.entryId === entryId
+							);
+
+						if ( droppedEntry ) {
 							child.remove();
 							return;
 						}
@@ -2511,14 +2963,23 @@ function initBlock( root: HTMLElement ): void {
 
 						observeEntry( entry );
 						firstAppended ??= entry;
-						appended++;
 					} );
 
 					entriesList.appendChild( fragment );
-					backlogOffset += appended;
+
+					// The server numbers ad positions over every entry in a reply,
+					// including the ones dropped here as already shown, so the next
+					// request starts past all of them. Counting only the appended
+					// entries would reuse positions and repeat their ads.
+					backlogOffset += data.count;
 				}
 				if ( data.adSlots && data.adSlots.length > 0 ) {
-					displayAdSlots( data.adSlots );
+					// Only the ads that made it onto the page.
+					displayAdSlots(
+						data.adSlots.filter( ( adSlot ) =>
+							document.getElementById( adSlot.containerId )
+						)
+					);
 				}
 				hasMore = data.hasMore;
 				before = data.before || '';
@@ -2722,6 +3183,28 @@ function initBlock( root: HTMLElement ): void {
 
 			setCheckBusy( false );
 
+			// An ended coverage gets no new entries; a paused one may resume.
+			// Before the failed check: a reply can report the end and still count
+			// as a failed check, and the buttons would stay with nothing to check.
+			if ( polledStatus === 'archived' ) {
+				if (
+					checkButtons.some(
+						( button ) =>
+							button.ownerDocument.activeElement === button
+					)
+				) {
+					// The notice says what changed, so it is read as focus lands.
+					focusFromScript( endedNotice ?? entriesList, {
+						preventScroll: true,
+					} );
+				}
+
+				checkControls.forEach( ( control ) => {
+					control.hidden = true;
+				} );
+				return;
+			}
+
 			if ( outcome === 'failed' ) {
 				flashCheckLabel(
 					/* translators: Shown briefly on the Check for Updates button when a check fails. */
@@ -2737,23 +3220,6 @@ function initBlock( root: HTMLElement ): void {
 			}
 
 			if ( outcome === 'skipped' ) {
-				return;
-			}
-
-			// An ended coverage gets no new entries; a paused one may resume.
-			if ( polledStatus === 'archived' ) {
-				if (
-					checkButtons.some(
-						( button ) =>
-							button.ownerDocument.activeElement === button
-					)
-				) {
-					focusFromScript( entriesList, { preventScroll: true } );
-				}
-
-				checkControls.forEach( ( control ) => {
-					control.hidden = true;
-				} );
 				return;
 			}
 

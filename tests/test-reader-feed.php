@@ -5,6 +5,8 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Breakout;
+use Newspack_Rolling_Coverage\Poll_Cursor;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Taxonomy;
@@ -75,6 +77,18 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The cursor of a page holding these entries as saved in this second,
+	 * taken now.
+	 *
+	 * @param int[]  $entry_ids Entries the page holds.
+	 * @param string $modified  GMT `Y-m-d H:i:s` of their save.
+	 * @return string
+	 */
+	private function cursor_holding( array $entry_ids, $modified ) {
+		return (string) new Poll_Cursor( $modified, $entry_ids, Poll_Cursor::get_marker( $this->coverage_id ) );
+	}
+
+	/**
 	 * A poll returns entries published after the cursor as inserts and
 	 * entries edited after it as updates, and moves the cursor to the most
 	 * recent change. The entry the cursor points at is not sent again.
@@ -102,7 +116,34 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 			wp_list_pluck( $poll['entries'], 'type', 'id' ),
 			'The edited entry should be an update and the later one an insert.'
 		);
-		$this->assertSame( $earlier_entry_id . ':' . get_post( $earlier_entry_id )->post_modified_gmt, $poll['cursor'], 'The cursor should move to the most recent change.' );
+		$this->assertSame( $this->cursor_holding( [ $earlier_entry_id ], get_post( $earlier_entry_id )->post_modified_gmt ), $poll['cursor'], 'The cursor should move to the most recent change.' );
+	}
+
+	/**
+	 * An entry a poll sent as new comes back as an edit when it changes. The
+	 * page may still hold it behind the new-entries control, so the view
+	 * script keeps that edit until the entry is shown (see
+	 * takePendingEntries() in view.ts).
+	 */
+	public function test_poll_sends_an_edit_to_an_entry_it_sent_as_new_as_an_update() {
+		$cursor_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+		$new_entry_id    = $this->create_entry_at( '2026-01-01 12:05:00' );
+
+		$first = $this->get_feed( [ 'cursor' => "{$cursor_entry_id}:2026-01-01 12:00:00" ] )->get_data();
+
+		$this->assertSame( [ $new_entry_id => 'insert' ], wp_list_pluck( $first['entries'], 'type', 'id' ), 'The first poll should send the entry as new.' );
+
+		wp_update_post(
+			[
+				'ID'         => $new_entry_id,
+				'post_title' => 'Retitled',
+			]
+		);
+
+		$second = $this->get_feed( [ 'cursor' => $first['cursor'] ] )->get_data();
+
+		$this->assertSame( [ $new_entry_id => 'update' ], wp_list_pluck( $second['entries'], 'type', 'id' ), 'The next poll should send the edit as an update.' );
+		$this->assertStringContainsString( 'Retitled', $second['entries'][0]['html'] );
 	}
 
 	/**
@@ -112,7 +153,6 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$this->create_entry_at( '2026-01-01 12:05:00', [ 'post_status' => 'draft' ] );
 		$this->create_entry_at( '2026-01-01 12:06:00', [ 'post_status' => 'private' ] );
 
-		// Created last so the coverage's last-modified ends at this entry's date.
 		$published_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
 
 		$poll = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_data();
@@ -138,12 +178,11 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( [ $trashed_entry_id => 'remove' ], wp_list_pluck( $poll['entries'], 'type', 'id' ) );
 		$this->assertSame( '', $poll['entries'][0]['html'], 'A removal carries no markup.' );
-		$this->assertSame( $trashed_entry_id . ':' . get_post( $trashed_entry_id )->post_modified_gmt, $poll['cursor'], 'The cursor should move past the removal.' );
+		$this->assertSame( $this->cursor_holding( [ $trashed_entry_id ], get_post( $trashed_entry_id )->post_modified_gmt ), $poll['cursor'], 'The cursor should move past the removal.' );
 		$this->assertArrayNotHasKey( 'replace', $poll, 'An uncapped feed is never sent whole.' );
 
-		// The coverage's last change a second later, so the next poll runs its queries instead of stopping at the unchanged coverage.
-		[ , $taken_down ] = explode( ':', $poll['cursor'], 2 );
-		update_term_meta( $this->coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, gmdate( 'Y-m-d H:i:s', strtotime( $taken_down ) + 1 ) );
+		// Another change, so the next poll looks for changes instead of stopping at an unchanged coverage.
+		Poll_Cursor::mark_changed( $this->coverage_id );
 
 		$this->assertSame( [], $this->get_feed( [ 'cursor' => $poll['cursor'] ] )->get_data()['entries'], 'The removal should be sent once.' );
 	}
@@ -197,7 +236,7 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$poll = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_data();
 
 		$this->assertSame( [], $poll['entries'] );
-		$this->assertSame( '0:2026-01-01 00:00:00', $poll['cursor'] );
+		$this->assertSame( $this->cursor_holding( [], '2026-01-01 00:00:00' ), $poll['cursor'] );
 	}
 
 	/**
@@ -221,7 +260,7 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$poll = $this->get_feed( [ 'cursor' => '0:2026-01-01 13:00:00' ] )->get_data();
 
 		$this->assertSame( [], $poll['entries'] );
-		$this->assertSame( '0:2026-01-01 13:00:00', $poll['cursor'] );
+		$this->assertSame( $this->cursor_holding( [], '2026-01-01 13:00:00' ), $poll['cursor'] );
 	}
 
 	/**
@@ -280,8 +319,8 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * "Load more" returns the entries before a date, newest first, and the
-	 * date to continue from.
+	 * "Load more" returns the entries before a date, newest first, and where
+	 * to continue from.
 	 */
 	public function test_load_more_pages_backwards_from_a_date() {
 		$oldest_entry_id = $this->create_entry_at( '2026-01-01 10:00:00' );
@@ -298,7 +337,27 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'data-entry-id="' . $middle_entry_id . '"', $first_page['html'], 'The newest entry before the date should come first.' );
 		$this->assertStringNotContainsString( 'data-entry-id="' . $oldest_entry_id . '"', $first_page['html'], 'The page size should be respected.' );
 		$this->assertTrue( $first_page['hasMore'], 'A full page should report that more may follow.' );
-		$this->assertSame( '2026-01-01 11:00:00', $first_page['before'], 'The next page should continue from the last entry served.' );
+		$this->assertSame( $middle_entry_id . ':2026-01-01 11:00:00', $first_page['before'], 'The next page should continue from the last entry served.' );
+	}
+
+	/**
+	 * Every entry carries its date in GMT, the date load more pages by,
+	 * whichever way it reaches the page: the view script places an entry
+	 * unpinned while the page is open by it.
+	 */
+	public function test_entries_carry_their_date_in_gmt() {
+		update_option( 'timezone_string', 'America/New_York' );
+
+		$this->create_entry_at( '2026-01-01 07:00:00' );
+		$date_gmt = 'data-date-gmt="2026-01-01 12:00:00"';
+
+		$page      = $this->render_block();
+		$poll      = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_data();
+		$load_more = $this->get_feed( [ 'before' => '2026-01-02 00:00:00' ] )->get_data();
+
+		$this->assertStringContainsString( $date_gmt, $page, 'The page should carry it.' );
+		$this->assertStringContainsString( $date_gmt, $poll['entries'][0]['html'], 'A poll should carry it.' );
+		$this->assertStringContainsString( $date_gmt, $load_more['html'], 'Load more should carry it.' );
 	}
 
 	/**
@@ -346,7 +405,8 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	public function test_draft_published_after_the_cursor_polls_as_an_insert() {
 		$draft_id = $this->create_entry_at( '2026-01-01 12:00:00', [ 'post_status' => 'draft' ] );
 
-		// Save first so the coverage's last-modified moves past the cursor.
+		// Save first, so the draft's modified date passes the cursor without
+		// stamp_publish_modified_gmt() and only META_PUBLISHED_GMT decides that it polls as an insert.
 		wp_update_post( [ 'ID' => $draft_id ] );
 
 		$cursor = '0:2026-01-01 12:30:00';
@@ -360,6 +420,109 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 			wp_list_pluck( $poll['entries'], 'type', 'id' ),
 			'A draft first published after the cursor polls as an insert; this fails if META_PUBLISHED_GMT is dropped.'
 		);
+	}
+
+	/**
+	 * A scheduled entry reaches open pages as new when cron publishes it,
+	 * even when the page polls from a change made after it was scheduled.
+	 */
+	public function test_scheduled_entry_polls_as_an_insert_when_cron_publishes_it() {
+		$scheduled_id = self::create_scheduled_entry( $this->coverage_id, '2026-01-01 11:00:00', '2026-01-01 12:00:00' );
+
+		// Published after the scheduling save, so open pages poll from here.
+		$cursor_entry_id = $this->create_entry_at( '2026-01-01 11:30:00' );
+		$cursor          = "{$cursor_entry_id}:2026-01-01 11:30:00";
+
+		check_and_publish_future_post( $scheduled_id );
+
+		$poll = $this->get_feed( [ 'cursor' => $cursor ] )->get_data();
+
+		$this->assertSame( [ $scheduled_id => 'insert' ], wp_list_pluck( $poll['entries'], 'type', 'id' ) );
+	}
+
+	/**
+	 * The ways an entry saved before it goes out is published: from a draft,
+	 * and by cron at its scheduled time.
+	 *
+	 * @return array[]
+	 */
+	public function going_out_provider() {
+		return [
+			'a published draft' => [ 'draft' ],
+			'a scheduled entry' => [ 'future' ],
+		];
+	}
+
+	/**
+	 * A page that got an entry as new gets its next edit as an update, even
+	 * when the clock moves to the next second while the entry goes out. Its
+	 * publish time decides that and its modified date sets the page's cursor,
+	 * so both have to name the same second; otherwise a page holding the
+	 * entry behind the new-entries control counts it twice.
+	 *
+	 * @dataProvider going_out_provider
+	 *
+	 * @param string $status The entry's status before it goes out.
+	 */
+	public function test_edit_polls_as_an_update_when_going_out_spans_a_second( $status ) {
+		$cursor_entry_id = $this->create_entry_at( '2026-01-01 11:30:00' );
+		$entry_id        = 'future' === $status
+			? self::create_scheduled_entry( $this->coverage_id, '2026-01-01 11:00:00', '2026-01-01 11:45:00' )
+			: $this->create_entry_at( '2026-01-01 11:00:00', [ 'post_status' => 'draft' ] );
+		$stamped         = '2026-01-01 12:00:00';
+
+		// Between stamp_publish_modified_gmt() and record_entry_published_gmt(),
+		// move the stamp to a second the clock has left behind.
+		$move_stamp_back = static function ( $new_status, $old_status, $post ) use ( $entry_id, $stamped ) {
+			global $wpdb;
+
+			if ( $entry_id !== $post->ID ) {
+				return;
+			}
+
+			$post->post_modified     = $stamped;
+			$post->post_modified_gmt = $stamped;
+
+			$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->posts,
+				[
+					'post_modified'     => $stamped,
+					'post_modified_gmt' => $stamped,
+				],
+				[ 'ID' => $entry_id ]
+			);
+			clean_post_cache( $entry_id );
+		};
+
+		add_action( 'transition_post_status', $move_stamp_back, 6, 3 );
+
+		if ( 'future' === $status ) {
+			check_and_publish_future_post( $entry_id );
+		} else {
+			wp_update_post(
+				[
+					'ID'          => $entry_id,
+					'post_status' => 'publish',
+				]
+			);
+		}
+
+		remove_action( 'transition_post_status', $move_stamp_back, 6 );
+
+		$first = $this->get_feed( [ 'cursor' => "{$cursor_entry_id}:2026-01-01 11:30:00" ] )->get_data();
+
+		$this->assertSame( [ $entry_id => 'insert' ], wp_list_pluck( $first['entries'], 'type', 'id' ), 'The first poll should send the entry as new.' );
+
+		wp_update_post(
+			[
+				'ID'         => $entry_id,
+				'post_title' => 'Retitled',
+			]
+		);
+
+		$second = $this->get_feed( [ 'cursor' => $first['cursor'] ] )->get_data();
+
+		$this->assertSame( [ $entry_id => 'update' ], wp_list_pluck( $second['entries'], 'type', 'id' ), 'The next poll should send the edit as an update.' );
 	}
 
 	/**
@@ -549,7 +712,22 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$html = $this->render_block();
 
 		$this->assertStringContainsString( 'data-min-poll-interval="60"', $html );
-		$this->assertStringContainsString( 'data-poll-interval="10"', $html, 'The block should keep its own interval.' );
+		$this->assertStringContainsString( 'data-poll-interval="30"', $html, 'The block should keep its own interval.' );
+	}
+
+	/**
+	 * A block with no Poll interval of its own polls every 30 seconds, the
+	 * default the editor shows. Each new entry sends every open page to a new
+	 * poll URL, and the first requests for it all reach the site, so a
+	 * shorter default means a larger burst per entry.
+	 */
+	public function test_block_polls_every_30_seconds_by_default() {
+		$this->create_entry_at( '2026-01-01 12:00:00' );
+
+		$block_json = wp_json_file_decode( dirname( __DIR__ ) . '/src/blocks/rolling-coverage/block.json', [ 'associative' => true ] );
+
+		$this->assertSame( 30, $block_json['attributes']['pollInterval']['default'] );
+		$this->assertStringContainsString( 'data-poll-interval="30"', $this->render_block(), 'A block saved without the attribute should poll at the editor default.' );
 	}
 
 	/**
@@ -580,7 +758,7 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	 * so a status block on the page can follow along.
 	 */
 	public function test_poll_reports_the_status_and_newest_entry() {
-		$entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+		$this->create_entry_at( '2026-01-01 12:00:00' );
 
 		$poll = $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_data();
 
@@ -589,14 +767,34 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 
 		update_term_meta( $this->coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
 
-		$modified = get_post( $entry_id )->post_modified_gmt;
-		update_term_meta( $this->coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, $modified );
-
-		$idle = $this->get_feed( [ 'cursor' => $entry_id . ':' . $modified ] )->get_data();
+		$idle = $this->get_feed( [ 'cursor' => $poll['cursor'] ] )->get_data();
 
 		$this->assertSame( [], $idle['entries'], 'Nothing changed since the cursor.' );
 		$this->assertSame( 'archived', $idle['status'], 'An idle poll still reports a status change.' );
 		$this->assertSame( '2026-01-01T12:00:00+00:00', $idle['newestEntry'] );
+	}
+
+	/**
+	 * A poll that reports the coverage ended carries its latest published
+	 * breakout post, which the ended notice of a page rendered while it was
+	 * live links to. Polls of a live coverage leave it out.
+	 */
+	public function test_poll_reports_the_latest_breakout_once_the_coverage_ends() {
+		$entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+		$cursor   = '0:2026-01-01 00:00:00';
+
+		update_term_meta( $this->coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		$this->assertNull( $this->get_feed( [ 'cursor' => $cursor ] )->get_data()['latestBreakoutUrl'], 'Ended without a breakout post: none.' );
+
+		$breakout_id = self::factory()->post->create( [ 'post_status' => 'publish' ] );
+		update_post_meta( $entry_id, Breakout::ENTRY_BREAKOUT_POST_ID_META, $breakout_id );
+
+		$this->assertSame( get_permalink( $breakout_id ), $this->get_feed( [ 'cursor' => $cursor ] )->get_data()['latestBreakoutUrl'] );
+
+		update_term_meta( $this->coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ACTIVE );
+
+		$this->assertArrayNotHasKey( 'latestBreakoutUrl', $this->get_feed( [ 'cursor' => $cursor ] )->get_data(), 'A live coverage: left out.' );
 	}
 
 	/**
@@ -702,6 +900,43 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An entry pinned after a page rendered without it reaches the page's
+	 * next poll as an edit, marked pinned: the poll goes by publish time, not
+	 * by what the page holds. That mark is all the view script has to go on
+	 * to show it with the pinned entries (see showPinnedEntry() in view.ts).
+	 */
+	public function test_poll_sends_an_entry_pinned_off_the_page_as_a_pinned_edit() {
+		$older_id   = $this->create_entry_at( '2026-01-01 11:00:00' );
+		$newer_id   = $this->create_entry_at( '2026-01-01 12:00:00' );
+		$attributes = [
+			'coverageId'     => $this->coverage_id,
+			'entriesPerPage' => 1,
+		];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		preg_match( '/data-cursor="([^"]+)"/', $html, $cursor );
+		preg_match( '/data-template-key="([^"]+)"/', $html, $template_key );
+		preg_match_all( '/data-entry-id="(\d+)"/', $html, $shown );
+		$this->assertSame( [ (string) $newer_id ], $shown[1], 'The page should show only the newer entry.' );
+
+		self::log_in_as( 'editor' );
+		self::dispatch( 'POST', "/entries/{$older_id}/pin" );
+		wp_set_current_user( 0 );
+
+		$entries = $this->get_feed(
+			[
+				'cursor'       => $cursor[1],
+				'template_key' => $template_key[1],
+			]
+		)->get_data()['entries'];
+
+		$this->assertSame( [ $older_id ], wp_list_pluck( $entries, 'id' ) );
+		$this->assertSame( 'update', $entries[0]['type'] );
+		$this->assertStringContainsString( 'data-pinned', $entries[0]['html'] );
+	}
+
+	/**
 	 * Polled entries of a capped feed carry no anchor id, like its first
 	 * render, so links to an entry never land on the capped feed.
 	 */
@@ -751,16 +986,15 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 			],
 			wp_list_pluck( $poll['entries'], 'type', 'id' )
 		);
-		$this->assertSame( $newest_entry_id . ':' . get_post( $newest_entry_id )->post_modified_gmt, $poll['cursor'] );
+		$this->assertSame( $this->cursor_holding( [ $newest_entry_id ], get_post( $newest_entry_id )->post_modified_gmt ), $poll['cursor'] );
 	}
 
 	/**
-	 * Two entries taken down in the same second share it, but the cursor can
-	 * name only one. A capped feed gets the other as a plain removal rather
-	 * than its whole list, which would come again on every poll from that
-	 * cursor.
+	 * An entry taken down in the second of one the page already dropped
+	 * brings a capped feed's newest entries whole too, and only once: the
+	 * cursor then holds both removals.
 	 */
-	public function test_capped_poll_sends_a_same_second_removal_as_a_removal() {
+	public function test_capped_poll_sends_a_same_second_removal_once() {
 		global $wpdb;
 
 		$first_entry_id  = $this->create_entry_at( '2026-01-01 11:30:00' );
@@ -775,18 +1009,16 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		clean_post_cache( $second_entry_id );
 		update_post_meta( $second_entry_id, Post_Type::META_UNPUBLISHED_GMT, $taken_down );
 
-		// The coverage's last change a second later, as the trash handler's own clock can record it.
-		update_term_meta( $this->coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, gmdate( 'Y-m-d H:i:s', strtotime( $taken_down ) + 1 ) );
+		$capped = [ 'latest' => 1 ];
+		$poll   = $this->get_feed( array_merge( $capped, [ 'cursor' => "{$first_entry_id}:{$taken_down}" ] ) )->get_data();
 
-		$poll = $this->get_feed(
-			[
-				'cursor' => "{$first_entry_id}:{$taken_down}",
-				'latest' => 1,
-			]
-		)->get_data();
-
-		$this->assertArrayNotHasKey( 'replace', $poll );
+		$this->assertTrue( $poll['replace'] );
 		$this->assertSame( [ $second_entry_id => 'remove' ], wp_list_pluck( $poll['entries'], 'type', 'id' ) );
+		$this->assertSame( $this->cursor_holding( [ $first_entry_id, $second_entry_id ], $taken_down ), $poll['cursor'] );
+
+		Poll_Cursor::mark_changed( $this->coverage_id );
+
+		$this->assertSame( [], $this->get_feed( array_merge( $capped, [ 'cursor' => $poll['cursor'] ] ) )->get_data()['entries'] );
 	}
 
 	/**
@@ -819,7 +1051,7 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$this->assertTrue( $capped['replace'] );
 		$this->assertSame( array_slice( array_reverse( $entry_ids ), 0, 6 ), wp_list_pluck( $capped['entries'], 'id' ) );
 		$this->assertSame( array_fill( 0, 6, 'insert' ), wp_list_pluck( $capped['entries'], 'type' ) );
-		$this->assertSame( $edited->ID . ':' . $edited->post_modified_gmt, $capped['cursor'] );
+		$this->assertSame( $this->cursor_holding( [ $edited->ID ], $edited->post_modified_gmt ), $capped['cursor'] );
 	}
 
 	/**
@@ -934,7 +1166,7 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 
 		$poll = $this->get_feed(
 			[
-				'cursor'       => '0:2026-01-02 00:00:00',
+				'cursor'       => $this->get_feed( [ 'cursor' => '0:2026-01-01 00:00:00' ] )->get_data()['cursor'],
 				'template_key' => 'pruned',
 			]
 		)->get_data();

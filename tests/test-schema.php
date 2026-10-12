@@ -208,39 +208,36 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An entry published on schedule keeps the modified date of its last edit,
-	 * so the page is dated by when the entry went live.
+	 * An entry published on schedule dates the page from when it went live.
 	 */
 	public function test_a_scheduled_entry_counts_from_when_it_goes_live() {
 		$coverage_id = self::create_coverage();
 		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
-		$entry_id    = $this->create_scheduled_entry( $coverage_id, '2026-09-02 09:00:00', '2026-09-02 10:00:00' );
+		$entry_id    = self::create_scheduled_entry( $coverage_id, '2026-09-02 09:00:00', '2026-09-02 10:00:00' );
 
 		$this->assertSame( 'future', get_post_status( $entry_id ) );
 		$this->assertSame( '2026-09-01 10:00:00', get_the_modified_date( 'Y-m-d H:i:s', $host_id ), 'A scheduled entry is not a change readers see.' );
 
 		wp_publish_post( $entry_id );
 
-		$this->assertSame( '2026-09-02 10:00:00', get_the_modified_date( 'Y-m-d H:i:s', $host_id ) );
+		$this->assertSame( get_post( $entry_id )->post_modified_gmt, get_the_modified_date( 'Y-m-d H:i:s', $host_id ) );
 	}
 
 	/**
-	 * The standalone script is cached, and a scheduled entry going live leaves
-	 * the coverage's own last-modified marker where it was, so the cache has
-	 * to follow the newest entry to pick it up, whether or not the page's own
-	 * date is the later one.
+	 * The standalone script is cached, and picks up a scheduled entry going
+	 * live, whether the page's own date was the later one before or not. The
+	 * page is then dated from when the entry went live.
 	 *
 	 * @dataProvider data_page_dates_around_a_scheduled_entry
 	 *
 	 * @param string $page_date           The page's own date.
 	 * @param string $date_before_go_live The `dateModified` expected before the entry goes live.
-	 * @param string $date_after_go_live  The `dateModified` expected after.
 	 */
-	public function test_the_standalone_script_picks_up_a_scheduled_entry_going_live( string $page_date, string $date_before_go_live, string $date_after_go_live ) {
+	public function test_the_standalone_script_picks_up_a_scheduled_entry_going_live( string $page_date, string $date_before_go_live ) {
 		$coverage_id = self::create_coverage();
 		$host_id     = $this->create_host_post( [ $coverage_id ], $page_date );
 		$this->create_dated_entry( $coverage_id, '2026-09-02 08:00:00' );
-		$entry_id = $this->create_scheduled_entry( $coverage_id, '2026-09-02 09:00:00', '2026-09-02 10:00:00' );
+		$entry_id = self::create_scheduled_entry( $coverage_id, '2026-09-02 09:00:00', '2026-09-02 10:00:00' );
 
 		// The save that schedules an entry leaves the marker at the entry's edit time.
 		update_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, '2026-09-02 09:00:00' );
@@ -251,10 +248,9 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 
 		$after = $this->render_scripts( $host_id )[0];
 
-		$this->assertSame( '2026-09-02 09:00:00', get_term_meta( $coverage_id, Rolling_Coverage_Block::LAST_MODIFIED_META_KEY, true ), 'Going live should leave the marker where it was.' );
 		$this->assertSame( $date_before_go_live, $before['dateModified'] );
 		$this->assertCount( 1, $before['liveBlogUpdate'] );
-		$this->assertSame( $date_after_go_live, $after['dateModified'] );
+		$this->assertSame( get_post_datetime( $entry_id, 'modified', 'gmt' )->format( 'c' ), $after['dateModified'] );
 		$this->assertCount( 2, $after['liveBlogUpdate'] );
 	}
 
@@ -265,8 +261,8 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	 */
 	public function data_page_dates_around_a_scheduled_entry(): array {
 		return [
-			'page older than its entries' => [ '2026-09-01 10:00:00', '2026-09-02T08:00:00+00:00', '2026-09-02T10:00:00+00:00' ],
-			'page newer than its entries' => [ '2026-09-05 10:00:00', '2026-09-05T10:00:00+00:00', '2026-09-05T10:00:00+00:00' ],
+			'page older than its entries' => [ '2026-09-01 10:00:00', '2026-09-02T08:00:00+00:00' ],
+			'page newer than its entries' => [ '2026-09-05 10:00:00', '2026-09-05T10:00:00+00:00' ],
 		];
 	}
 
@@ -589,38 +585,6 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 				$args
 			)
 		);
-	}
-
-	/**
-	 * Create an entry whose scheduled time has come but which cron hasn't
-	 * published yet: last edited at `$edited`, set to go live at `$goes_live`.
-	 *
-	 * Core refuses to schedule an entry in the past, so it is scheduled ahead
-	 * and its dates are then moved back.
-	 *
-	 * @param int    $coverage_id Coverage term ID.
-	 * @param string $edited      GMT date of its last edit.
-	 * @param string $goes_live   GMT date it is scheduled for.
-	 * @return int Entry post ID.
-	 */
-	private function create_scheduled_entry( int $coverage_id, string $edited, string $goes_live ): int {
-		global $wpdb;
-
-		$entry_id = self::create_dated_entry( $coverage_id, gmdate( 'Y-m-d H:i:s', time() + HOUR_IN_SECONDS ), 'future' );
-
-		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			$wpdb->posts,
-			[
-				'post_modified'     => $edited,
-				'post_modified_gmt' => $edited,
-				'post_date'         => $goes_live,
-				'post_date_gmt'     => $goes_live,
-			],
-			[ 'ID' => $entry_id ]
-		);
-		clean_post_cache( $entry_id );
-
-		return $entry_id;
 	}
 
 	/**

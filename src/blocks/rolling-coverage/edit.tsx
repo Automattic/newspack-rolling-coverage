@@ -54,7 +54,7 @@ import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as editorStore } from '@wordpress/editor';
 import { decodeEntities } from '@wordpress/html-entities';
-import { __, _x, sprintf } from '@wordpress/i18n';
+import { __, _n, _x, sprintf } from '@wordpress/i18n';
 import { copy as copyIcon, check } from '@wordpress/icons';
 import { Stack } from '@wordpress/ui';
 
@@ -107,10 +107,12 @@ import {
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
 	ONESIGNAL_CONFIGURED,
+	MIN_POLL_INTERVAL,
 	SHOW_AVATARS,
 	STATUS_LABELS,
 } from './config';
 import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
+import metadata from './block.json';
 import { useSampleEntries } from './samples';
 import EntryBlockPreview from './components/entry-block-preview';
 import LoadingState from './components/loading-state';
@@ -2331,12 +2333,26 @@ export default function Edit( {
 							'newspack-rolling-coverage'
 						) }
 						value={ String( pollInterval ) }
-						min={ 1 }
+						min={ Math.max( 1, MIN_POLL_INTERVAL ) }
+						help={
+							MIN_POLL_INTERVAL > 0
+								? sprintf(
+										/* translators: %d: The fewest seconds this site waits between checks for new entries. "this": the Poll interval setting above. */
+										_n(
+											'This site waits at least %d second between checks, even when this is set lower.',
+											'This site waits at least %d seconds between checks, even when this is set lower.',
+											MIN_POLL_INTERVAL,
+											'newspack-rolling-coverage'
+										),
+										MIN_POLL_INTERVAL
+									)
+								: undefined
+						}
 						onChange={ ( value: string ) =>
 							setAttributes( {
 								pollInterval: value
 									? parseInt( value, 10 )
-									: 10,
+									: metadata.attributes.pollInterval.default,
 							} )
 						}
 					/>

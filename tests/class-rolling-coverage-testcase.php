@@ -388,6 +388,38 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Create an entry whose scheduled time has come but which cron hasn't
+	 * published yet: last edited at `$edited`, set to go live at `$goes_live`.
+	 *
+	 * Core refuses to schedule an entry in the past, so it is scheduled ahead
+	 * and its dates are then moved back.
+	 *
+	 * @param int    $coverage_id Coverage term ID.
+	 * @param string $edited      GMT date of its last edit.
+	 * @param string $goes_live   GMT date it is scheduled for.
+	 * @return int Entry post ID.
+	 */
+	protected static function create_scheduled_entry( int $coverage_id, string $edited, string $goes_live ): int {
+		global $wpdb;
+
+		$entry_id = self::create_dated_entry( $coverage_id, gmdate( 'Y-m-d H:i:s', time() + HOUR_IN_SECONDS ), 'future' );
+
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->posts,
+			[
+				'post_modified'     => $edited,
+				'post_modified_gmt' => $edited,
+				'post_date'         => $goes_live,
+				'post_date_gmt'     => $goes_live,
+			],
+			[ 'ID' => $entry_id ]
+		);
+		clean_post_cache( $entry_id );
+
+		return $entry_id;
+	}
+
+	/**
 	 * Log in as a freshly created user with the given role.
 	 *
 	 * @param string $role Role slug.

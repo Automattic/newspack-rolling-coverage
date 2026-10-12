@@ -7,6 +7,7 @@
 
 use Newspack_Rolling_Coverage\Archive_Mode;
 use Newspack_Rolling_Coverage\Lite_Feed;
+use Newspack_Rolling_Coverage\Poll_Cursor;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Social_Sharing;
@@ -117,16 +118,19 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertSame(
-			'<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="initial"><p class="newspack-rolling-coverage-entry-meta"><time datetime="2026-01-01T12:00:00+00:00">12:00 pm</time></p><h3>Bridge reopens</h3><p class="wp-block-paragraph">Traffic is <strong>moving</strong>.</p></article>',
+			'<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="initial" data-date-gmt="2026-01-01 12:00:00"><p class="newspack-rolling-coverage-entry-meta"><time datetime="2026-01-01T12:00:00+00:00">12:00 pm</time></p><h3>Bridge reopens</h3><p class="wp-block-paragraph">Traffic is <strong>moving</strong>.</p></article>',
 			Lite_Feed::render_entry( get_post( $entry_id ), 'initial' )
 		);
 	}
 
 	/**
-	 * Pinned entries say so and carry the attribute the view script places
-	 * them by, and an individually archived entry keeps its notice.
+	 * Pinned entries say so and carry the attributes the view script places
+	 * them by, their date in GMT among them, and an individually archived
+	 * entry keeps its notice.
 	 */
 	public function test_pinned_and_archived_entries_say_so() {
+		update_option( 'timezone_string', 'America/New_York' );
+
 		$entry_id = self::create_entry(
 			$this->coverage_id,
 			[
@@ -139,7 +143,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$html = Lite_Feed::render_entry( get_post( $entry_id ), 'poll' );
 
-		$this->assertStringStartsWith( '<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="poll" data-pinned>', $html );
+		$this->assertStringStartsWith( '<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="poll" data-date-gmt="2026-01-01 13:00:00" data-pinned>', $html );
 		$this->assertStringContainsString( '8:00 am</time> &middot; Pinned</p>', $html );
 		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-entry-archived-notice">', $html );
 	}
@@ -284,7 +288,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'data-lite="1"', $html );
 		$this->assertStringContainsString( 'data-coverage-id="' . $this->coverage_id . '"', $html );
-		$this->assertStringContainsString( 'data-cursor="' . $entry_id . ':2026-01-01 12:00:00"', $html );
+		$this->assertStringContainsString( 'data-cursor="' . $entry_id . ':2026-01-01 12:00:00@' . Poll_Cursor::get_marker( $this->coverage_id ) . '"', $html );
 		$this->assertStringContainsString( 'data-status="active"', $html );
 		$this->assertMatchesRegularExpression( '#data-rest-url="[^"]*coverages/' . $this->coverage_id . '/entries"#', $html );
 		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-status" role="status" aria-live="polite"></div>', $html );
@@ -345,6 +349,21 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'Out of date.', $entry );
 		$this->assertStringNotContainsString( '<img', $entry, 'The notice loses what a lite page strips.' );
 		$this->assertStringContainsString( $entry, $this->render_lite_page(), 'A poll sends the notice the page shows.' );
+	}
+
+	/**
+	 * A lite page keeps the data the view script builds the ended notice from,
+	 * as Lite Site keeps the feed wrapper's data attributes, and shows no
+	 * notice text while the coverage is live.
+	 */
+	public function test_lite_page_keeps_the_ended_notice_data() {
+		self::create_entry( $this->coverage_id );
+
+		$html = $this->render_lite_page( [ 'archivedNotice' => 'Coverage ended.' ] );
+
+		$this->assertStringContainsString( 'data-ended-notice="Coverage ended."', $html );
+		$this->assertStringContainsString( 'data-ended-notice-link="Read more"', $html );
+		$this->assertStringNotContainsString( 'Coverage ended.', wp_strip_all_tags( $html ), 'No notice text outside the tags.' );
 	}
 
 	/**
