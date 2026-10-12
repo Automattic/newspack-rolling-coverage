@@ -40,6 +40,8 @@ interface RollingCoverageAttributes {
 	allUpdatesLink: boolean;
 	allUpdatesLinkText: string;
 	hideWhenEnded: boolean;
+	showAuthor: boolean;
+	showAvatar: boolean;
 	align?: string;
 	[ key: string ]: unknown;
 }
