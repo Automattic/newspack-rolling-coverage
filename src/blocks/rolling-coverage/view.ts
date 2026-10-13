@@ -41,6 +41,13 @@ const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 // How long the Check for Updates button shows the result of a check.
 const CHECK_MESSAGE_MS = 3000;
 
+const MOTION_QUERY = '(prefers-reduced-motion: no-preference)';
+
+// Matches the new-entries control's fade-out in style.scss.
+const NEW_ENTRIES_FADE_MS = 120;
+
+const FADE_CLEANUP_MS = 500;
+
 /**
  * How a poll ended: with a reply it applied, a failed request, a reload of
  * the page, or not at all because another poll was running or the page was
@@ -536,6 +543,7 @@ function initBlock( root: HTMLElement ): void {
 	const newEntriesLink =
 		newEntriesControl?.querySelector< HTMLElement >( '[data-rc-latest]' ) ??
 		null;
+	let newEntriesHideTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	const statusEl = ownElement( root, '.newspack-rolling-coverage-status' );
 	const checkControls = ownElements(
 		root,
@@ -1079,6 +1087,80 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Fades elements in, with opacity only, so the text never moves.
+	 *
+	 * @param {Element[]} elements    Elements that were just added.
+	 * @param {string}    [className] Class that runs the fade, `is-entering` by default.
+	 * @return {void}
+	 */
+	function fadeIn( elements: Element[], className = 'is-entering' ): void {
+		if ( ! window.matchMedia( MOTION_QUERY ).matches ) {
+			return;
+		}
+
+		elements.forEach( ( element ) => {
+			const clear = () => element.classList.remove( className );
+
+			element.classList.add( className );
+			element.addEventListener(
+				'animationend',
+				( event ) => {
+					if ( event.target === element ) {
+						clear();
+					}
+				},
+				{ once: true }
+			);
+			// The animation never ends on an element that isn't rendered.
+			setTimeout( clear, FADE_CLEANUP_MS );
+		} );
+	}
+
+	/**
+	 * Stops a pending fade-out of the new-entries control.
+	 *
+	 * @return {void}
+	 */
+	function cancelNewEntriesHide(): void {
+		if ( newEntriesHideTimeoutId !== null ) {
+			clearTimeout( newEntriesHideTimeoutId );
+			newEntriesHideTimeoutId = null;
+		}
+
+		newEntriesControl?.classList.remove( 'is-leaving' );
+	}
+
+	/**
+	 * Hides the new-entries control, fading it out first unless the reader
+	 * prefers reduced motion.
+	 *
+	 * @return {void}
+	 */
+	function hideNewEntriesControl(): void {
+		if ( ! newEntriesControl || newEntriesControl.hidden ) {
+			return;
+		}
+
+		if ( ! window.matchMedia( MOTION_QUERY ).matches ) {
+			cancelNewEntriesHide();
+			newEntriesControl.hidden = true;
+			return;
+		}
+
+		if ( newEntriesHideTimeoutId !== null ) {
+			return;
+		}
+
+		const control = newEntriesControl;
+
+		control.classList.add( 'is-leaving' );
+		newEntriesHideTimeoutId = setTimeout( () => {
+			cancelNewEntriesHide();
+			control.hidden = true;
+		}, NEW_ENTRIES_FADE_MS );
+	}
+
+	/**
 	 * Inserts entries above the newest unpinned entry, below any pinned
 	 * entries, pinned ones first, removing the "no entries yet" placeholder
 	 * if it's still present.
@@ -1125,7 +1207,12 @@ function initBlock( root: HTMLElement ): void {
 			}
 		} );
 
+		const insertedEls = Array.from( fragment.children );
+
 		entriesList.insertBefore( fragment, firstUnpinnedEntry() );
+		fadeIn(
+			insertedEls.filter( ( el ) => el.matches( '[data-entry-id]' ) )
+		);
 		trimToLatestCap();
 		dropLastSeparator();
 
@@ -1230,6 +1317,7 @@ function initBlock( root: HTMLElement ): void {
 		const label = newEntriesLabel( pendingNewEntries.length, entryName );
 
 		newEntriesLink.textContent = label;
+		cancelNewEntriesHide();
 		newEntriesControl.hidden = false;
 		placeControl();
 		announce( label );
@@ -1301,7 +1389,7 @@ function initBlock( root: HTMLElement ): void {
 					entryName
 				);
 			} else {
-				newEntriesControl.hidden = true;
+				hideNewEntriesControl();
 			}
 		}
 
@@ -1950,7 +2038,7 @@ function initBlock( root: HTMLElement ): void {
 			}
 
 			const entries = takePendingEntries();
-			newEntriesControl.hidden = true;
+			hideNewEntriesControl();
 
 			const targetY = blockTopY();
 
@@ -1987,10 +2075,7 @@ function initBlock( root: HTMLElement ): void {
 
 		const entries = takePendingEntries();
 
-		if ( newEntriesControl ) {
-			newEntriesControl.hidden = true;
-		}
-
+		hideNewEntriesControl();
 		insertNewEntries( entries );
 	}
 
@@ -2163,6 +2248,7 @@ function initBlock( root: HTMLElement ): void {
 				}
 
 				existing.replaceWith( entryEl );
+				fadeIn( [ entryEl ], 'is-updated' );
 
 				const unpinnedAbove = entryEl.hasAttribute( 'data-pinned' )
 					? firstUnpinnedEntry( entryEl )
@@ -2594,6 +2680,7 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		entriesList.parentElement?.prepend( notice );
+		fadeIn( [ notice ] );
 		endedNotice = notice;
 		announce( spoken.join( ' ' ) );
 	}
@@ -2869,6 +2956,7 @@ function initBlock( root: HTMLElement ): void {
 		setLoadMoreBusy( true );
 
 		let firstAppended: HTMLElement | null = null;
+		const appended: HTMLElement[] = [];
 		let isReloading = false;
 		const pageBefore = before;
 
@@ -2962,10 +3050,12 @@ function initBlock( root: HTMLElement ): void {
 						const entry = applyOffPageUpdate( child );
 
 						observeEntry( entry );
+						appended.push( entry );
 						firstAppended ??= entry;
 					} );
 
 					entriesList.appendChild( fragment );
+					fadeIn( appended );
 
 					// The server numbers ad positions over every entry in a reply,
 					// including the ones dropped here as already shown, so the next

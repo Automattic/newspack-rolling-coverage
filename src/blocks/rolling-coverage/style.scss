@@ -37,6 +37,10 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 		border: 0;
 	}
 
+	:is(.newspack-rolling-coverage-load-more, .newspack-rolling-coverage-check-updates) button[aria-busy="true"] {
+		opacity: 0.7;
+	}
+
 	.newspack-rolling-coverage-new-entries {
 		position: fixed;
 		z-index: 100;
@@ -525,6 +529,71 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 
 	html {
 		scroll-behavior: auto;
+	}
+}
+
+@keyframes newspack-rolling-coverage-fade-in {
+
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes newspack-rolling-coverage-fade-out {
+
+	from {
+		opacity: 1;
+	}
+
+	to {
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+
+	.wp-block-newspack-rolling-coverage-rolling-coverage {
+
+		.newspack-rolling-coverage-entry.is-entering {
+			animation: newspack-rolling-coverage-fade-in 200ms ease-out;
+		}
+
+		.newspack-rolling-coverage-entry.is-updated {
+			animation: newspack-rolling-coverage-fade-in 150ms ease-out;
+		}
+
+		.newspack-rolling-coverage-archived-notice.is-entering {
+			animation: newspack-rolling-coverage-fade-in 250ms ease-out;
+		}
+
+		.newspack-rolling-coverage-new-entries.is-leaving {
+			pointer-events: none;
+			animation: newspack-rolling-coverage-fade-out 120ms ease-out forwards;
+		}
+	}
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+
+	.wp-block-newspack-rolling-coverage-rolling-coverage {
+
+		[data-rc-share],
+		button.newspack-rolling-coverage-share-link,
+		button[data-rc-follow] {
+			transition: transform 160ms ease-out;
+
+			&:active {
+				transform: scale(0.97);
+			}
+		}
+
+		a[data-rc-share]:not(.wp-block-button__link) {
+			display: inline-block;
+		}
 	}
 }
 
