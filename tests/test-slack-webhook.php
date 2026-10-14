@@ -106,6 +106,21 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	private $during_file_request = null;
 
 	/**
+	 * Reactions the code under test asked Slack to add or remove: the
+	 * method (`reactions.add` or `reactions.remove`) and the request body.
+	 *
+	 * @var array[]
+	 */
+	private $reaction_requests = [];
+
+	/**
+	 * Error code Slack answers reaction requests with, or '' when they work.
+	 *
+	 * @var string
+	 */
+	private $reaction_failure = '';
+
+	/**
 	 * Answer every outbound HTTP request as the Slack API would, and every
 	 * file download with a PNG.
 	 */
@@ -118,6 +133,8 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->history_response_seconds = 0.0;
 		$this->file_requests            = [];
 		$this->token_scopes             = null;
+		$this->reaction_requests        = [];
+		$this->reaction_failure         = '';
 		$this->file_response            = [
 			'type' => 'image/png',
 			'body' => base64_decode( self::PNG ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Test fixture.
@@ -140,7 +157,8 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	/**
 	 * Stand in for the Slack API: a file download answers with the file
 	 * response, `conversations.history` answers from the channel's messages,
-	 * and every other method with a `users.info` payload.
+	 * reaction requests are recorded, and every other method answers with a
+	 * `users.info` payload.
 	 *
 	 * @param false|array $response    Short-circuit value.
 	 * @param array       $parsed_args Request arguments.
@@ -179,6 +197,24 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		}
 
 		parse_str( (string) wp_parse_url( $url, PHP_URL_QUERY ), $query );
+
+		if ( false !== strpos( $url, '/reactions.' ) ) {
+			$this->reaction_requests[] = [
+				'method' => basename( (string) wp_parse_url( $url, PHP_URL_PATH ) ),
+				'body'   => json_decode( (string) $parsed_args['body'], true ),
+			];
+
+			if ( '' !== $this->reaction_failure ) {
+				return $this->slack_api_response(
+					[
+						'ok'    => false,
+						'error' => $this->reaction_failure,
+					]
+				);
+			}
+
+			return $this->slack_api_response( [] );
+		}
 
 		if ( false !== strpos( $url, 'conversations.history' ) ) {
 			if ( 'timeout' === $this->history_failure ) {
@@ -1592,5 +1628,138 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		self::controller()->get_settings( new WP_REST_Request( 'GET', '/rolling-coverage/v1/slack/settings' ) );
 
 		$this->assertSame( [], $this->outbound_requests );
+	}
+
+	/**
+	 * Link the test channel to a new coverage with the given publish mode.
+	 *
+	 * @param string $publish_mode One of Slack_Config::PUBLISH_MODES.
+	 * @return int Coverage term ID.
+	 */
+	private static function link_channel( $publish_mode ) {
+		self::configure_slack();
+		$coverage_id = self::create_coverage();
+		Slack_Config::update_channel(
+			self::CHANNEL_ID,
+			[
+				'term_id'      => $coverage_id,
+				'publish_mode' => $publish_mode,
+			]
+		);
+
+		return $coverage_id;
+	}
+
+	/**
+	 * Messages and replies whose entries wait for a reaction.
+	 *
+	 * @return array[]
+	 */
+	public function waiting_message_provider() {
+		return [
+			'message'      => [ self::message_event_body() ],
+			'thread reply' => [ self::thread_reply_event_body() ],
+		];
+	}
+
+	/**
+	 * In an Emoji trigger channel a message waits for its reaction. Nothing
+	 * about it is looked up, not even the thread a reply is in.
+	 *
+	 * @dataProvider waiting_message_provider
+	 *
+	 * @param string $body Event body.
+	 */
+	public function test_message_in_an_emoji_trigger_channel_waits_for_a_reaction( $body ) {
+		$coverage_id = self::link_channel( Slack_Config::PUBLISH_MODE_REACTION );
+
+		$response = self::controller()->handle_event( self::webhook_request( $body ) );
+
+		$this->assertSame( 200, $response->get_status(), 'Slack should get a 200.' );
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ), 'No entry should be created.' );
+		$this->assertSame( [], $this->outbound_requests, 'Slack should not be called.' );
+	}
+
+	/**
+	 * Publish modes and the status their channel's messages get.
+	 *
+	 * @return array[]
+	 */
+	public function message_publish_mode_provider() {
+		return [
+			'Auto-publish' => [ Slack_Config::PUBLISH_MODE_PUBLISH, 'publish', 'large_green_circle' ],
+			'Draft'        => [ Slack_Config::PUBLISH_MODE_DRAFT, 'draft', 'large_yellow_circle' ],
+		];
+	}
+
+	/**
+	 * A message gets the status its channel's publish mode sets, and the bot
+	 * reacts to it once its entry is saved, so the reporter sees it made it in.
+	 *
+	 * @dataProvider message_publish_mode_provider
+	 *
+	 * @param string $publish_mode    Channel publish mode.
+	 * @param string $expected_status Entry status.
+	 * @param string $expected_emoji  Reaction the bot adds.
+	 */
+	public function test_message_follows_its_channels_publish_mode( $publish_mode, $expected_status, $expected_emoji ) {
+		$coverage_id = self::link_channel( $publish_mode );
+
+		self::controller()->handle_event( self::webhook_request( self::message_event_body() ) );
+
+		$this->assertSame( [ $expected_status ], wp_list_pluck( self::get_coverage_entries( $coverage_id ), 'post_status' ), 'The entry should have the status the mode sets.' );
+		$this->assertSame(
+			[
+				[
+					'method' => 'reactions.add',
+					'body'   => [
+						'channel'   => self::CHANNEL_ID,
+						'timestamp' => self::MESSAGE_TS,
+						'name'      => $expected_emoji,
+					],
+				],
+			],
+			$this->reaction_requests,
+			'The bot should react once to the message.'
+		);
+	}
+
+	/**
+	 * A redelivered message gets no second reaction, since no second entry
+	 * is saved.
+	 */
+	public function test_bot_reacts_once_to_a_redelivered_message() {
+		$this->silence_error_log();
+		self::link_channel( Slack_Config::PUBLISH_MODE_DRAFT );
+
+		self::controller()->handle_event( self::webhook_request( self::message_event_body() ) );
+		self::controller()->handle_event( self::webhook_request( self::message_event_body() ) );
+
+		$this->assertCount( 1, $this->reaction_requests );
+	}
+
+	/**
+	 * The entry matters more than the reaction: when Slack refuses the
+	 * reaction, as for an app without the reactions:write scope, the entry
+	 * is kept and Slack still gets a 200.
+	 */
+	public function test_entry_is_kept_when_the_bot_cannot_react() {
+		$coverage_id            = self::link_channel( Slack_Config::PUBLISH_MODE_DRAFT );
+		$this->reaction_failure = 'missing_scope';
+
+		$response = self::controller()->handle_event( self::webhook_request( self::message_event_body() ) );
+
+		$this->assertSame( 200, $response->get_status(), 'Slack should get a 200.' );
+		$this->assertCount( 1, self::get_coverage_entries( $coverage_id ), 'The entry should be saved.' );
+	}
+
+	/**
+	 * Reacting with an emoji the bot already added counts as done.
+	 */
+	public function test_an_existing_reaction_counts_as_added() {
+		self::configure_slack();
+		$this->reaction_failure = 'already_reacted';
+
+		$this->assertTrue( ( new Slack_API_Client() )->add_reaction( self::CHANNEL_ID, self::MESSAGE_TS, 'large_green_circle' ) );
 	}
 }

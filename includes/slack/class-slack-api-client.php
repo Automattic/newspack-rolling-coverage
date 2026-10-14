@@ -66,6 +66,34 @@ class Slack_API_Client {
 	}
 
 	/**
+	 * React to a message as the bot. An emoji the bot already added counts
+	 * as done. Runs inside the webhook request, so it uses the short timeout.
+	 *
+	 * @param string $channel_id Slack channel ID.
+	 * @param string $ts         Message timestamp.
+	 * @param string $name       Emoji name, without colons.
+	 * @return bool|\WP_Error True once the message carries the reaction.
+	 */
+	public function add_reaction( string $channel_id, string $ts, string $name ): bool|\WP_Error {
+		$result = $this->request(
+			'reactions.add',
+			[
+				'channel'   => $channel_id,
+				'timestamp' => $ts,
+				'name'      => $name,
+			],
+			'POST',
+			self::WEBHOOK_TIMEOUT
+		);
+
+		if ( is_wp_error( $result ) && 'already_reacted' !== $result->get_error_message() ) {
+			return $result;
+		}
+
+		return true;
+	}
+
+	/**
 	 * Get user info from Slack, with a 5-minute transient cache.
 	 *
 	 * @param string $user_id Slack user ID.

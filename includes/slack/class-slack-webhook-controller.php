@@ -866,7 +866,23 @@ class Slack_Webhook_Controller {
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
-			// 3. A message with the ignore prefix opts its whole thread out,
+			$publish_mode = Slack_Config::resolve_publish_mode( $channel_settings );
+
+			// 3. In an Emoji trigger channel a message waits for its reaction,
+			// which reads the message again, so nothing is looked up now.
+			if ( Slack_Config::PUBLISH_MODE_REACTION === $publish_mode ) {
+				Slack_Monitor::log(
+					'info',
+					'Message left for a reaction (Emoji trigger channel)',
+					[
+						'channel' => $channel_id,
+						'ts'      => $ts,
+					]
+				);
+				return new \WP_REST_Response( [ 'ok' => true ], 200 );
+			}
+
+			// 4. A message with the ignore prefix opts its whole thread out,
 			// so a reply under it is skipped too. The reply event does not
 			// carry the message its thread starts from, so that is read from
 			// Slack.
@@ -913,7 +929,7 @@ class Slack_Webhook_Controller {
 				}
 			}
 
-			// 4. Process this message inline. Its lookups use a 1s timeout, so
+			// 5. Process this message inline. Its lookups use a 1s timeout, so
 			// a text message is answered inside Slack's 3-second limit. One
 			// with images can take longer: Slack then redelivers it, and the
 			// ingestion service skips the copy.
@@ -933,7 +949,7 @@ class Slack_Webhook_Controller {
 					'channel_id'   => $channel_id,
 					'ts'           => $ts,
 					'user_id'      => $user_id,
-					'auto_publish' => Slack_Config::PUBLISH_MODE_PUBLISH === Slack_Config::resolve_publish_mode( $channel_settings ),
+					'auto_publish' => Slack_Config::PUBLISH_MODE_PUBLISH === $publish_mode,
 					'started'      => $started,
 				]
 			);
@@ -1619,9 +1635,13 @@ class Slack_Webhook_Controller {
 			return;
 		}
 
-		// 7. Adapter-specific side effects: image attachment, last_sync_ts update.
+		// 7. Adapter-specific side effects: image attachment, last_sync_ts
+		// update, and the bot's reaction, so the reporter sees the message
+		// made it in. The reaction is set once and not kept in step with
+		// later changes in WordPress.
 		$media_importer->attach_to( (int) $post_id );
 		Slack_Config::update_channel( $channel_id, [ 'last_sync_ts' => $ts ] );
+		self::react( $api_client, $channel_id, $ts, $auto_publish ? Slack_Config::BOT_PUBLISHED_REACTION : Slack_Config::BOT_DRAFT_REACTION );
 
 		Slack_Monitor::log(
 			'success',
@@ -1633,5 +1653,33 @@ class Slack_Webhook_Controller {
 				'author'  => $author['matched_by'],
 			] 
 		);
+	}
+
+	/**
+	 * React to a message as the bot. A failure, such as an app installed
+	 * without the reactions:write scope, is logged and goes no further: the
+	 * entry matters more than the reaction.
+	 *
+	 * @param Slack_API_Client $api_client Slack API client.
+	 * @param string           $channel_id Slack channel ID.
+	 * @param string           $ts         Message timestamp.
+	 * @param string           $name       Emoji name.
+	 * @return void
+	 */
+	private static function react( Slack_API_Client $api_client, string $channel_id, string $ts, string $name ): void {
+		$result = $api_client->add_reaction( $channel_id, $ts, $name );
+
+		if ( is_wp_error( $result ) ) {
+			Slack_Monitor::log(
+				'warning',
+				'Could not react to the message',
+				[
+					'channel'  => $channel_id,
+					'ts'       => $ts,
+					'reaction' => $name,
+					'error'    => $result->get_error_message(),
+				]
+			);
+		}
 	}
 }
