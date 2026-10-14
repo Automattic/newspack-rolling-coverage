@@ -39,6 +39,7 @@ The button is part of the block and rebuilds itself when the editor reloads, so 
 ## What readers see
 
 - The button reads Follow, then Following after they follow.
+- In a Rolling Coverage feed, the button shrinks slightly while it is pressed with a mouse, unless the reader's device is set to reduce motion.
 - The browser asks for permission to send notifications the first time.
 - If the reader has blocked notifications, the button returns to Follow and a message appears: "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 - If something fails, the button returns to its previous state and a message appears: "Something went wrong. Please try again."
