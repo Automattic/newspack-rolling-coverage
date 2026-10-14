@@ -15,12 +15,16 @@ defined( 'ABSPATH' ) || exit;
 class Slack_Ingestion_Service {
 
 	/**
-	 * Drops bot messages, edited/deleted messages, and channel join/leave events.
+	 * Drops bot messages, edited/deleted messages, channel join/leave events,
+	 * and, unless told otherwise, messages that start with the ignore prefix.
 	 *
-	 * @param array $event Slack event payload.
+	 * @param array $event               Slack event payload, or a message read from Slack.
+	 * @param bool  $honor_ignore_prefix Whether the ignore prefix skips the message. A
+	 *                                   reaction in an Emoji trigger channel is the
+	 *                                   opt-in itself, so it passes false.
 	 * @return bool True if the message should be skipped.
 	 */
-	public static function should_filter_message( array $event ): bool {
+	public static function should_filter_message( array $event, bool $honor_ignore_prefix = true ): bool {
 		$subtype = (string) ( $event['subtype'] ?? '' );
 		$bot_id  = (string) ( $event['bot_id'] ?? '' );
 		$text    = (string) ( $event['text'] ?? '' );
@@ -37,7 +41,7 @@ class Slack_Ingestion_Service {
 			return true;
 		}
 
-		return self::has_ignore_prefix( $text );
+		return $honor_ignore_prefix && self::has_ignore_prefix( $text );
 	}
 
 	/**

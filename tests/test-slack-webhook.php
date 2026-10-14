@@ -31,6 +31,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	const BOT_TOKEN      = 'xoxb-000000-test';
 	const CHANNEL_ID     = 'C0TESTCHAN';
 	const MESSAGE_TS     = '1767225600.000100';
+	const REPLY_TS       = '1767225700.000200';
 
 	/**
 	 * A 1x1 PNG, base64-encoded: the smallest file WordPress accepts as an image.
@@ -157,8 +158,9 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	/**
 	 * Stand in for the Slack API: a file download answers with the file
 	 * response, `conversations.history` answers from the channel's messages,
-	 * reaction requests are recorded, and every other method answers with a
-	 * `users.info` payload.
+	 * `conversations.replies` answers with a message and, for a reply, its
+	 * thread's first message, reaction requests are recorded, and every
+	 * other method answers with a `users.info` payload.
 	 *
 	 * @param false|array $response    Short-circuit value.
 	 * @param array       $parsed_args Request arguments.
@@ -214,6 +216,45 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 			}
 
 			return $this->slack_api_response( [] );
+		}
+
+		if ( false !== strpos( $url, 'conversations.replies' ) ) {
+			if ( 'timeout' === $this->history_failure ) {
+				return new WP_Error( 'http_request_failed', 'Operation timed out' );
+			}
+
+			if ( '' !== $this->history_failure ) {
+				return $this->slack_api_response(
+					[
+						'ok'    => false,
+						'error' => $this->history_failure,
+					]
+				);
+			}
+
+			$ts = (string) ( $query['ts'] ?? '' );
+
+			if ( ! isset( $this->channel_messages[ $ts ] ) ) {
+				return $this->slack_api_response(
+					[
+						'ok'    => false,
+						'error' => 'thread_not_found',
+					]
+				);
+			}
+
+			$as_message = static fn( $message_ts, $message ) => [ 'ts' => (string) $message_ts ] + ( is_array( $message ) ? $message : [ 'text' => $message ] );
+			$message    = $as_message( $ts, $this->channel_messages[ $ts ] );
+			$messages   = [ $message ];
+			$thread_ts  = (string) ( $message['thread_ts'] ?? '' );
+
+			// A reply comes after the message its thread starts from, so the
+			// code under test has to pick the one it asked for.
+			if ( '' !== $thread_ts && $thread_ts !== $ts && isset( $this->channel_messages[ $thread_ts ] ) ) {
+				array_unshift( $messages, $as_message( $thread_ts, $this->channel_messages[ $thread_ts ] ) );
+			}
+
+			return $this->slack_api_response( [ 'messages' => $messages ] );
 		}
 
 		if ( false !== strpos( $url, 'conversations.history' ) ) {
@@ -1761,5 +1802,370 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->reaction_failure = 'already_reacted';
 
 		$this->assertTrue( ( new Slack_API_Client() )->add_reaction( self::CHANNEL_ID, self::MESSAGE_TS, 'large_green_circle' ) );
+	}
+
+	/**
+	 * Build the body of a `reaction_added` event on the default message.
+	 *
+	 * @param array $event_overrides Event fields to override.
+	 * @return string JSON body.
+	 */
+	private static function reaction_event_body( array $event_overrides = [] ) {
+		return wp_json_encode(
+			[
+				'type'  => 'event_callback',
+				'event' => array_merge(
+					[
+						'type'      => 'reaction_added',
+						'user'      => 'U0EDITOR',
+						'reaction'  => 'mega',
+						'item_user' => 'U0REPORTER',
+						'item'      => [
+							'type'    => 'message',
+							'channel' => self::CHANNEL_ID,
+							'ts'      => self::MESSAGE_TS,
+						],
+						'event_ts'  => '1767225660.000300',
+					],
+					$event_overrides
+				),
+			]
+		);
+	}
+
+	/**
+	 * Link the test channel in Emoji trigger mode, with the default message
+	 * in its history.
+	 *
+	 * @return int Coverage term ID.
+	 */
+	private function link_emoji_trigger_channel() {
+		$coverage_id            = self::link_channel( Slack_Config::PUBLISH_MODE_REACTION );
+		$this->channel_messages = [
+			self::MESSAGE_TS => [
+				'user' => 'U0REPORTER',
+				'text' => 'Polls have closed across the county.',
+			],
+		];
+
+		return $coverage_id;
+	}
+
+	/**
+	 * Deliver a reaction event.
+	 *
+	 * @param array $event_overrides Event fields to override.
+	 * @return WP_REST_Response
+	 */
+	private static function react_to_message( array $event_overrides = [] ) {
+		return self::controller()->handle_event( self::webhook_request( self::reaction_event_body( $event_overrides ) ) );
+	}
+
+	/**
+	 * The publish emoji publishes the message as it reads when the reaction
+	 * arrives, and the bot confirms with its own reaction.
+	 */
+	public function test_publish_emoji_publishes_the_message() {
+		$coverage_id = $this->link_emoji_trigger_channel();
+
+		$response = self::react_to_message();
+		$entries  = self::get_coverage_entries( $coverage_id );
+
+		$this->assertSame( 200, $response->get_status(), 'Slack should get a 200.' );
+		$this->assertSame( [ 'publish' ], wp_list_pluck( $entries, 'post_status' ), 'One published entry should be created.' );
+		$this->assertStringContainsString( 'Polls have closed across the county.', $entries[0]->post_content, 'The message text should be the entry content.' );
+		$this->assertSame( 'Riley Sample', get_post_meta( $entries[0]->ID, Post_Type::META_SLACK_AUTHOR_NAME, true ), 'The message author, not the person reacting, should be credited.' );
+		$this->assertSame( [ 'large_green_circle' ], array_column( array_column( $this->reaction_requests, 'body' ), 'name' ), 'The bot should react green.' );
+	}
+
+	/**
+	 * The draft emoji saves the message as a draft.
+	 */
+	public function test_draft_emoji_saves_the_message_as_a_draft() {
+		$coverage_id = $this->link_emoji_trigger_channel();
+
+		self::react_to_message( [ 'reaction' => 'memo' ] );
+
+		$this->assertSame( [ 'draft' ], wp_list_pluck( self::get_coverage_entries( $coverage_id ), 'post_status' ) );
+		$this->assertSame( [ 'large_yellow_circle' ], array_column( array_column( $this->reaction_requests, 'body' ), 'name' ) );
+	}
+
+	/**
+	 * The newsroom's own emoji trigger, in any skin tone.
+	 */
+	public function test_newsrooms_own_emoji_trigger_in_any_skin_tone() {
+		$coverage_id = $this->link_emoji_trigger_channel();
+		Slack_Config::set_reactions( 'thumbsup', 'pencil2' );
+
+		self::react_to_message( [ 'reaction' => 'thumbsup::skin-tone-3' ] );
+
+		$this->assertSame( [ 'publish' ], wp_list_pluck( self::get_coverage_entries( $coverage_id ), 'post_status' ) );
+	}
+
+	/**
+	 * Reactions that never create an entry.
+	 *
+	 * @return array[]
+	 */
+	public function ignored_reaction_provider() {
+		return [
+			'another emoji'           => [ [ 'reaction' => 'eyes' ], Slack_Config::PUBLISH_MODE_REACTION ],
+			'the bot\'s own reaction' => [ [ 'user' => 'U0BOT' ], Slack_Config::PUBLISH_MODE_REACTION ],
+			'reaction on a file'      => [
+				[
+					'item' => [
+						'type' => 'file',
+						'file' => 'F0PHOTO',
+					],
+				],
+				Slack_Config::PUBLISH_MODE_REACTION,
+			],
+			'channel set to Draft'    => [ [], Slack_Config::PUBLISH_MODE_DRAFT ],
+			'unlinked channel'        => [
+				[
+					'item' => [
+						'type'    => 'message',
+						'channel' => 'C0ELSEWHERE',
+						'ts'      => self::MESSAGE_TS,
+					],
+				],
+				Slack_Config::PUBLISH_MODE_REACTION,
+			],
+		];
+	}
+
+	/**
+	 * Slack sends every reaction in the bot's channels; anything that is not
+	 * a trigger emoji on a message in an Emoji trigger channel is dropped
+	 * without calling Slack.
+	 *
+	 * @dataProvider ignored_reaction_provider
+	 *
+	 * @param array  $event_overrides Event fields to override.
+	 * @param string $publish_mode    Publish mode of the linked channel.
+	 */
+	public function test_other_reactions_are_dropped_without_calling_slack( array $event_overrides, $publish_mode ) {
+		$coverage_id            = self::link_channel( $publish_mode );
+		$this->channel_messages = [
+			self::MESSAGE_TS => [
+				'user' => 'U0REPORTER',
+				'text' => 'Polls have closed.',
+			],
+		];
+		Slack_Config::update_settings( [ 'slack_bot_user_id' => 'U0BOT' ] );
+
+		$response = self::react_to_message( $event_overrides );
+
+		$this->assertSame( 200, $response->get_status(), 'Slack should get a 200.' );
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ), 'No entry should be created.' );
+		$this->assertSame( [], $this->outbound_requests, 'Slack should not be called.' );
+	}
+
+	/**
+	 * The reaction is the opt-in, so the ignore prefix doesn't apply.
+	 */
+	public function test_reacted_message_is_published_despite_the_ignore_prefix() {
+		$coverage_id = $this->link_emoji_trigger_channel();
+		$this->channel_messages[ self::MESSAGE_TS ]['text'] = '~~ Polls have closed.';
+
+		self::react_to_message();
+
+		$this->assertCount( 1, self::get_coverage_entries( $coverage_id ) );
+	}
+
+	/**
+	 * A reacted message posted by a bot is not an entry.
+	 */
+	public function test_reacted_bot_message_creates_no_entry() {
+		$coverage_id = $this->link_emoji_trigger_channel();
+		$this->channel_messages[ self::MESSAGE_TS ]['bot_id'] = 'B0OTHER';
+
+		self::react_to_message();
+
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ) );
+	}
+
+	/**
+	 * The publish emoji publishes the draft the draft emoji saved, keeping
+	 * its content and date as publishing from the editor would, and the bot
+	 * swaps its yellow reaction for green.
+	 */
+	public function test_publish_emoji_publishes_a_draft_saved_from_the_same_message() {
+		global $wpdb;
+
+		$coverage_id = $this->link_emoji_trigger_channel();
+		self::react_to_message( [ 'reaction' => 'memo' ] );
+		$entry_id = self::get_coverage_entries( $coverage_id )[0]->ID;
+
+		// An editor added an embed to the draft, and it was saved an hour ago.
+		$an_hour_ago = gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS );
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test setup.
+			$wpdb->posts,
+			[
+				'post_date'     => get_date_from_gmt( $an_hour_ago ),
+				'post_date_gmt' => $an_hour_ago,
+				'post_content'  => '<p>Polls have closed.</p><iframe src="https://example.test/embed"></iframe>',
+			],
+			[ 'ID' => $entry_id ]
+		);
+		clean_post_cache( $entry_id );
+
+		self::react_to_message();
+		$entries = self::get_coverage_entries( $coverage_id );
+
+		$this->assertSame( [ $entry_id ], wp_list_pluck( $entries, 'ID' ), 'The draft should be the only entry.' );
+		$this->assertSame( 'publish', $entries[0]->post_status, 'The draft should be published.' );
+		$this->assertSame( $an_hour_ago, $entries[0]->post_date_gmt, 'The entry should keep the date the draft was created.' );
+		$this->assertStringContainsString( '<iframe src="https://example.test/embed"></iframe>', $entries[0]->post_content, 'Markup an editor added should be kept.' );
+		$this->assertSame(
+			[ 'reactions.add:large_yellow_circle', 'reactions.add:large_green_circle', 'reactions.remove:large_yellow_circle' ],
+			array_map( fn( $request ) => $request['method'] . ':' . $request['body']['name'], $this->reaction_requests ),
+			'The bot should swap yellow for green.'
+		);
+	}
+
+	/**
+	 * A reaction never unpublishes: the draft emoji on a published entry
+	 * changes nothing.
+	 */
+	public function test_draft_emoji_leaves_a_published_entry_alone() {
+		$coverage_id = $this->link_emoji_trigger_channel();
+		self::react_to_message();
+
+		self::react_to_message( [ 'reaction' => 'memo' ] );
+
+		$this->assertSame( [ 'publish' ], wp_list_pluck( self::get_coverage_entries( $coverage_id ), 'post_status' ) );
+		$this->assertCount( 1, $this->reaction_requests, 'The bot should not react again.' );
+	}
+
+	/**
+	 * Slack redelivering the reaction, or a second person adding it, makes
+	 * no second entry and no second bot reaction.
+	 */
+	public function test_repeated_publish_emoji_makes_one_entry() {
+		$this->silence_error_log();
+		$coverage_id = $this->link_emoji_trigger_channel();
+
+		self::react_to_message();
+		self::react_to_message( [ 'user' => 'U0SECONDEDITOR' ] );
+
+		$this->assertCount( 1, self::get_coverage_entries( $coverage_id ), 'One entry should be created.' );
+		$this->assertCount( 1, $this->reaction_requests, 'The bot should react once.' );
+	}
+
+	/**
+	 * A coverage that has ended takes no new entries, and its drafts are not
+	 * published from Slack.
+	 */
+	public function test_reactions_change_nothing_once_the_coverage_has_ended() {
+		$this->silence_error_log();
+		$coverage_id = $this->link_emoji_trigger_channel();
+		self::react_to_message( [ 'reaction' => 'memo' ] );
+		$this->channel_messages[ self::REPLY_TS ] = [
+			'user' => 'U0REPORTER',
+			'text' => 'Turnout was 62%.',
+		];
+		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+
+		self::react_to_message();
+		self::react_to_message(
+			[
+				'item' => [
+					'type'    => 'message',
+					'channel' => self::CHANNEL_ID,
+					'ts'      => self::REPLY_TS,
+				],
+			]
+		);
+
+		$this->assertSame( [ 'draft' ], wp_list_pluck( self::get_coverage_entries( $coverage_id ), 'post_status' ), 'The draft should stay a draft, and no entry should be added.' );
+	}
+
+	/**
+	 * A reacted thread reply becomes a child of the entry for the message
+	 * its thread starts from, even though Slack lists that message first.
+	 */
+	public function test_reacted_thread_reply_is_a_child_of_its_threads_entry() {
+		$coverage_id            = $this->link_emoji_trigger_channel();
+		$this->channel_messages = [
+			self::MESSAGE_TS => [
+				'user'        => 'U0REPORTER',
+				'text'        => 'Polls have closed across the county.',
+				'thread_ts'   => self::MESSAGE_TS,
+				'reply_count' => 1,
+			],
+			self::REPLY_TS   => [
+				'user'      => 'U0REPORTER',
+				'text'      => 'Turnout was 62%.',
+				'thread_ts' => self::MESSAGE_TS,
+			],
+		];
+
+		self::react_to_message();
+		$parent_id = self::get_coverage_entries( $coverage_id )[0]->ID;
+		self::react_to_message(
+			[
+				'item' => [
+					'type'    => 'message',
+					'channel' => self::CHANNEL_ID,
+					'ts'      => self::REPLY_TS,
+				],
+			]
+		);
+		$entries = wp_list_pluck( self::get_coverage_entries( $coverage_id ), 'post_parent', 'ID' );
+		unset( $entries[ $parent_id ] );
+		$reply_id = (int) array_key_first( $entries );
+
+		$this->assertSame( [ $parent_id ], array_values( $entries ), 'The reply should be a child of the thread entry.' );
+		$this->assertStringContainsString( 'Turnout was 62%.', get_post( $reply_id )->post_content, 'The reply, not the thread\'s first message, should be the content.' );
+		$this->assertSame( '', get_post_meta( $parent_id, Post_Type::META_SLACK_THREAD_TS, true ), 'The thread\'s first message should not record itself as its thread.' );
+		$this->assertSame( self::MESSAGE_TS, get_post_meta( $reply_id, Post_Type::META_SLACK_THREAD_TS, true ), 'The reply should record its thread.' );
+	}
+
+	/**
+	 * Ways reading the reacted message can fail, and whether Slack should
+	 * send the reaction again.
+	 *
+	 * @return array[]
+	 */
+	public function reacted_message_failure_provider() {
+		return [
+			'Slack timed out'      => [ 'timeout', 503 ],
+			'Slack rate limited'   => [ 'ratelimited', 503 ],
+			'channel not readable' => [ 'channel_not_found', 200 ],
+		];
+	}
+
+	/**
+	 * When the reacted message can't be read, a temporary failure asks Slack
+	 * to send the reaction again, and any other failure gives up on it.
+	 *
+	 * @dataProvider reacted_message_failure_provider
+	 *
+	 * @param string $failure         How reading fails.
+	 * @param int    $expected_status Status Slack gets.
+	 */
+	public function test_reaction_when_the_message_cannot_be_read( $failure, $expected_status ) {
+		$this->silence_error_log();
+		$coverage_id           = $this->link_emoji_trigger_channel();
+		$this->history_failure = $failure;
+
+		$response = self::react_to_message();
+
+		$this->assertSame( $expected_status, $response->get_status() );
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ) );
+	}
+
+	/**
+	 * A message deleted before its reaction arrives creates nothing.
+	 */
+	public function test_reaction_on_a_deleted_message_creates_no_entry() {
+		$coverage_id            = $this->link_emoji_trigger_channel();
+		$this->channel_messages = [];
+
+		$response = self::react_to_message();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ) );
 	}
 }

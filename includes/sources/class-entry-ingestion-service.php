@@ -183,7 +183,7 @@ class Entry_Ingestion_Service {
 	 * @param int    $term_id    Term id.
 	 * @return int Entry post id, or 0 when there is none.
 	 */
-	private static function find_entry_id( string $source_ref, int $term_id ): int {
+	public static function find_entry_id( string $source_ref, int $term_id ): int {
 		$posts = get_posts(
 			[
 				'post_type'      => Post_Type::CPT_SLUG,

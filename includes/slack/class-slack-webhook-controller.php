@@ -957,6 +957,10 @@ class Slack_Webhook_Controller {
 			return new \WP_REST_Response( [ 'ok' => true ], 200 );
 		}
 
+		if ( 'reaction_added' === $event_type ) {
+			return $this->handle_reaction( $event );
+		}
+
 		if ( 'member_joined_channel' === $event_type ) {
 			$settings     = Slack_Config::get_settings();
 			$slack_bot_id = (string) ( $settings['slack_bot_user_id'] ?? '' );
@@ -972,6 +976,179 @@ class Slack_Webhook_Controller {
 		}
 
 		return new \WP_REST_Response( [ 'ok' => true ], 200 );
+	}
+
+	/**
+	 * Turn a reaction into an entry in a channel set to Emoji trigger: the
+	 * publish emoji publishes the message, the draft emoji saves it as a
+	 * draft, and the publish emoji on a message saved as a draft publishes
+	 * that draft. Anything else changes nothing; a reaction never
+	 * unpublishes, and removing one does nothing.
+	 *
+	 * Slack sends every reaction in the bot's channels, so anything that is
+	 * not a trigger emoji in such a channel is dropped before Slack is
+	 * called. The message is read when the reaction arrives, so edits made
+	 * before it are included.
+	 *
+	 * @param array $event Slack `reaction_added` event.
+	 * @return \WP_REST_Response Response.
+	 */
+	private function handle_reaction( array $event ): \WP_REST_Response {
+		$started    = microtime( true );
+		$item       = is_array( $event['item'] ?? null ) ? $event['item'] : [];
+		$channel_id = (string) ( $item['channel'] ?? '' );
+		$ts         = (string) ( $item['ts'] ?? '' );
+		$status     = self::reaction_status( (string) ( $event['reaction'] ?? '' ) );
+		$bot_id     = (string) ( Slack_Config::get_settings()['slack_bot_user_id'] ?? '' );
+		$ok         = new \WP_REST_Response( [ 'ok' => true ], 200 );
+
+		if ( 'message' !== ( $item['type'] ?? '' ) || '' === $channel_id || '' === $ts || null === $status ) {
+			return $ok;
+		}
+
+		// The bot's own reactions confirm entries and must never make one.
+		if ( '' !== $bot_id && (string) ( $event['user'] ?? '' ) === $bot_id ) {
+			return $ok;
+		}
+
+		$channel_settings = Slack_Config::get_channel_settings( $channel_id );
+		$term_id          = (int) ( $channel_settings['term_id'] ?? 0 );
+
+		if ( null === $channel_settings || $term_id <= 0 || Slack_Config::PUBLISH_MODE_REACTION !== Slack_Config::resolve_publish_mode( $channel_settings ) ) {
+			return $ok;
+		}
+
+		$context = [
+			'channel' => $channel_id,
+			'ts'      => $ts,
+			'status'  => $status,
+		];
+
+		Slack_Monitor::log( 'info', 'Trigger reaction received', $context );
+
+		$entry_id = Entry_Ingestion_Service::find_entry_id( $ts, $term_id );
+
+		if ( $entry_id > 0 ) {
+			if ( 'publish' === $status ) {
+				$this->publish_draft_entry( $entry_id, $term_id, $channel_id, $ts );
+			}
+
+			return $ok;
+		}
+
+		$message = $this->api_client->get_message_or_reply( $channel_id, $ts, Slack_API_Client::WEBHOOK_TIMEOUT );
+
+		if ( is_wp_error( $message ) ) {
+			$is_resend_wanted = Slack_API_Client::is_temporary_error( $message );
+
+			Slack_Monitor::log(
+				'warning',
+				'Reacted message ' . ( $is_resend_wanted ? 'left for Slack to resend' : 'skipped' ) . ' (it could not be read)',
+				$context + [ 'error' => $message->get_error_message() ]
+			);
+
+			return $is_resend_wanted ? new \WP_REST_Response( [ 'ok' => false ], 503 ) : $ok;
+		}
+
+		$user_id = (string) ( $message['user'] ?? '' );
+
+		if ( '' === $user_id || Slack_Ingestion_Service::should_filter_message( $message, false ) ) {
+			Slack_Monitor::log( 'info', 'Reacted message filtered (bot/edit/join-leave)', $context );
+			return $ok;
+		}
+
+		// The message that starts a thread carries its own timestamp as its
+		// thread; a message event doesn't, and the entry should match one.
+		if ( (string) ( $message['thread_ts'] ?? '' ) === $ts ) {
+			unset( $message['thread_ts'] );
+		}
+
+		self::process_ingest_payload(
+			[
+				'event'        => $message,
+				'term_id'      => $term_id,
+				'channel_id'   => $channel_id,
+				'ts'           => $ts,
+				'user_id'      => $user_id,
+				'auto_publish' => 'publish' === $status,
+				'started'      => $started,
+			]
+		);
+
+		return $ok;
+	}
+
+	/**
+	 * The entry status a reaction asks for in a channel set to Emoji trigger.
+	 *
+	 * @param string $reaction Emoji name as Slack sends it, with any skin tone.
+	 * @return string|null 'publish', 'draft', or null for any other emoji.
+	 */
+	private static function reaction_status( string $reaction ): ?string {
+		// Slack sends a skin tone as a suffix, as in `thumbsup::skin-tone-2`.
+		$name = (string) preg_replace( '/::skin-tone-\d+$/', '', $reaction );
+
+		if ( Slack_Config::get_publish_reaction() === $name ) {
+			return 'publish';
+		}
+
+		if ( Slack_Config::get_draft_reaction() === $name ) {
+			return 'draft';
+		}
+
+		return null;
+	}
+
+	/**
+	 * Publish a message's draft entry after someone reacts to it with the
+	 * publish emoji, and swap the bot's draft reaction for the published one.
+	 * Any other entry is left as it is.
+	 *
+	 * Only the status changes, through wp_publish_post(). A save through
+	 * wp_update_post() would run the content through kses, since the webhook
+	 * has no user, and strip markup an editor added to the draft. The entry
+	 * keeps the date the draft was created, as when it is published from
+	 * the editor.
+	 *
+	 * @param int    $entry_id   Entry post ID.
+	 * @param int    $term_id    Coverage term ID.
+	 * @param string $channel_id Slack channel ID.
+	 * @param string $ts         Message timestamp.
+	 * @return void
+	 */
+	private function publish_draft_entry( int $entry_id, int $term_id, string $channel_id, string $ts ): void {
+		if ( 'draft' !== get_post_status( $entry_id ) ) {
+			return;
+		}
+
+		if ( Archive_Mode::is_coverage_archived( $term_id ) ) {
+			Slack_Monitor::log( 'info', 'Draft not published (coverage archived)', [ 'post_id' => $entry_id ] );
+			return;
+		}
+
+		wp_publish_post( $entry_id );
+
+		if ( 'publish' !== get_post_status( $entry_id ) ) {
+			Slack_Monitor::log( 'error', 'Draft could not be published', [ 'post_id' => $entry_id ] );
+			return;
+		}
+
+		Slack_Monitor::log( 'success', 'Draft published from a reaction', [ 'post_id' => $entry_id ] );
+		self::react( $this->api_client, $channel_id, $ts, Slack_Config::BOT_PUBLISHED_REACTION );
+
+		$removed = $this->api_client->remove_reaction( $channel_id, $ts, Slack_Config::BOT_DRAFT_REACTION );
+
+		if ( is_wp_error( $removed ) ) {
+			Slack_Monitor::log(
+				'warning',
+				'Could not remove the bot\'s draft reaction',
+				[
+					'channel' => $channel_id,
+					'ts'      => $ts,
+					'error'   => $removed->get_error_message(),
+				]
+			);
+		}
 	}
 
 	/**
