@@ -1,12 +1,8 @@
 /**
  * External dependencies
  */
-import {
-	TextControl,
-	ToggleControl,
-	VisuallyHidden,
-} from '@wordpress/components';
-import { Stack, Text } from '@wordpress/ui';
+import { TextControl } from '@wordpress/components';
+import { Stack } from '@wordpress/ui';
 import { createInterpolateElement } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
@@ -15,19 +11,20 @@ import { __ } from '@wordpress/i18n';
  */
 import type { ConnectChannelFormProps } from '../../../types';
 import { ErrorNotice } from '../../../shared/error-notice';
+import { PublishModeSelect } from '../publish-mode-select';
 
 /**
  * Renders the body of the Slack connection drawer when no channel is yet
  * connected: the labelled channel input with its instructions as help text,
- * the labelled auto-publish toggle, and any error notice.
+ * the Publish Mode dropdown, and any error notice.
  *
  * @param {ConnectChannelFormProps} props Component props.
  */
 function ConnectChannelForm( {
 	channel,
 	onChannelChange,
-	autopublish,
-	onAutopublishChange,
+	publishMode,
+	onPublishModeChange,
 	isConnecting,
 	error,
 }: ConnectChannelFormProps ) {
@@ -50,29 +47,12 @@ function ConnectChannelForm( {
 				) }
 				disabled={ isConnecting }
 			/>
-			<Stack direction="column" gap="sm" align="flex-start">
-				<Text variant="heading-sm" aria-hidden="true">
-					{ __( 'Auto-publish', 'newspack-rolling-coverage' ) }
-				</Text>
-				<ToggleControl
-					className="newspack-rolling-coverage-autopublish-toggle"
-					label={
-						<VisuallyHidden>
-							{ __(
-								'Auto-publish entries',
-								'newspack-rolling-coverage'
-							) }
-						</VisuallyHidden>
-					}
-					help={ __(
-						"Publishes messages as soon as they're posted in Slack. When off, messages are saved as drafts for an editor or administrator to publish.",
-						'newspack-rolling-coverage'
-					) }
-					checked={ autopublish }
-					onChange={ onAutopublishChange }
-					disabled={ isConnecting }
-				/>
-			</Stack>
+			<PublishModeSelect
+				label={ __( 'Publish Mode', 'newspack-rolling-coverage' ) }
+				value={ publishMode }
+				onChange={ onPublishModeChange }
+				disabled={ isConnecting }
+			/>
 			<ErrorNotice message={ error } />
 		</Stack>
 	);

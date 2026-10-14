@@ -1,7 +1,7 @@
 /**
  * External dependencies.
  */
-import { Button, ToggleControl, VisuallyHidden } from '@wordpress/components';
+import { Button, VisuallyHidden } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 import { decodeEntities } from '@wordpress/html-entities';
 
@@ -9,19 +9,24 @@ import { decodeEntities } from '@wordpress/html-entities';
  * Internal dependencies.
  */
 import { formatSlackChannel, safeFormatSlackTimestamp } from '../utils/fields';
-import type { Field, ViewState, ChannelRow } from '../types';
+import { getPublishModeOptions } from '../utils/publish-modes';
+import { PublishModeSelect } from '../components/slack/publish-mode-select';
+import type { Field, ViewState, ChannelRow, PublishMode } from '../types';
 
 /**
  * Field definitions for the Slack channel mappings DataViews table.
  *
- * @param {(channelId: string, autopublish: boolean) => void} onAutopublishChange Turns auto-publish on or off for a channel.
- * @param {Set<string>}                                       updatingChannelIds  Channels whose auto-publish change is in flight.
- * @param {(channel: ChannelRow) => void}                     onDisconnect        Asks to disconnect a channel.
- * @param {string}                                            coveragesUrl        Admin URL of the All Coverages page.
+ * @param {(channelId: string, publishMode: PublishMode) => void} onPublishModeChange Sets a channel's publish mode.
+ * @param {Set<string>}                                            updatingChannelIds  Channels whose publish mode change is in flight.
+ * @param {(channel: ChannelRow) => void}                          onDisconnect        Asks to disconnect a channel.
+ * @param {string}                                                 coveragesUrl        Admin URL of the All Coverages page.
  * @return {Field< ChannelRow >[]} Field definitions for the channel table.
  */
 function getChannelFields(
-	onAutopublishChange: ( channelId: string, autopublish: boolean ) => void,
+	onPublishModeChange: (
+		channelId: string,
+		publishMode: PublishMode
+	) => void,
 	updatingChannelIds: Set< string >,
 	onDisconnect: ( channel: ChannelRow ) => void,
 	coveragesUrl: string
@@ -78,37 +83,28 @@ function getChannelFields(
 					: __( 'Never', 'newspack-rolling-coverage' ),
 		},
 		{
-			id: 'autopublish',
+			id: 'publish_mode',
 			type: 'text',
-			label: __( 'Auto-publish', 'newspack-rolling-coverage' ),
+			label: __( 'Publish Mode', 'newspack-rolling-coverage' ),
 			enableSorting: true,
-			elements: [
-				{ value: 'on', label: __( 'On', 'newspack-rolling-coverage' ) },
-				{
-					value: 'off',
-					label: __( 'Off', 'newspack-rolling-coverage' ),
-				},
-			],
+			elements: getPublishModeOptions(),
 			filterBy: { operators: [ 'is' ] },
-			getValue: ( { item } ) => ( item.autopublish ? 'on' : 'off' ),
+			getValue: ( { item } ) => item.publish_mode,
 			render: ( { item } ) => (
-				<ToggleControl
-					label={
-						<VisuallyHidden>
-							{ sprintf(
-								/* translators: %s: Slack channel name, or its ID when the name is unknown. */
-								__(
-									'Auto-publish entries from %s',
-									'newspack-rolling-coverage'
-								),
-								item.channel_name || item.channel_id
-							) }
-						</VisuallyHidden>
-					}
-					checked={ item.autopublish }
+				<PublishModeSelect
+					isCompact
+					label={ sprintf(
+						/* translators: %s: Slack channel name, or its ID when the name is unknown. */
+						__(
+							'Publish mode for %s',
+							'newspack-rolling-coverage'
+						),
+						item.channel_name || item.channel_id
+					) }
+					value={ item.publish_mode }
 					disabled={ updatingChannelIds.has( item.channel_id ) }
 					onChange={ ( next ) =>
-						onAutopublishChange( item.channel_id, next )
+						onPublishModeChange( item.channel_id, next )
 					}
 				/>
 			),
@@ -144,7 +140,7 @@ const CHANNEL_FIELD_ORDER = [
 	'channel_id',
 	'term_name',
 	'last_sync_ts',
-	'autopublish',
+	'publish_mode',
 	'disconnect',
 ];
 
@@ -169,7 +165,7 @@ const defaultChannelView: ViewState = {
 	sort: { field: 'channel_name', direction: 'asc' },
 	search: '',
 	filters: [],
-	fields: [ 'term_name', 'last_sync_ts', 'autopublish', 'disconnect' ],
+	fields: [ 'term_name', 'last_sync_ts', 'publish_mode', 'disconnect' ],
 	titleField: 'channel_name',
 	layout: {},
 };

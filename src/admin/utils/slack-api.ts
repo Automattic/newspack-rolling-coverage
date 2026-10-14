@@ -10,6 +10,7 @@ import { handleApiError } from './api-error';
 import type {
 	ApiResult,
 	ChannelMapping,
+	PublishMode,
 	SlackChannelsResult,
 	SlackConnectResult,
 	SlackMonitorLogEntry,
@@ -21,17 +22,17 @@ import type {
 /**
  * Connects a coverage term to a Slack channel.
  *
- * @param {string}  namespace   REST namespace string from config.restBase.slack.
- * @param {number}  termId      The coverage term ID.
- * @param {string}  channel     Channel name or ID (e.g. '#general' or 'C12345678').
- * @param {boolean} autopublish Whether to auto-publish ingested entries.
+ * @param {string}      namespace   REST namespace string from config.restBase.slack.
+ * @param {number}      termId      The coverage term ID.
+ * @param {string}      channel     Channel name or ID (e.g. '#general' or 'C12345678').
+ * @param {PublishMode} publishMode What the channel does with its messages.
  * @return {Promise<SlackConnectResult>} Result indicating success or failure.
  */
 async function connectSlackChannel(
 	namespace: string,
 	termId: number,
 	channel: string,
-	autopublish: boolean
+	publishMode: PublishMode
 ): Promise< SlackConnectResult > {
 	try {
 		const raw = ( await apiFetch( {
@@ -40,7 +41,7 @@ async function connectSlackChannel(
 			data: {
 				term_id: termId,
 				channel,
-				autopublish,
+				publish_mode: publishMode,
 			},
 		} ) ) as {
 			ok: boolean;
@@ -85,18 +86,18 @@ async function disconnectSlackChannel(
 }
 
 /**
- * Fetches the current settings (autopublish) for an already-linked channel.
+ * Fetches the publish mode and last sync of an already-linked channel.
  *
  * @param {string} namespace REST namespace string from config.restBase.slack.
  * @param {string} channelId Slack channel ID.
- * @return {Promise<{ success: boolean, autopublish?: boolean, error?: string }>} Result.
+ * @return {Promise<{ success: boolean, publishMode?: PublishMode, lastSyncTs?: string, error?: string }>} Result.
  */
 async function getSlackChannelSettings(
 	namespace: string,
 	channelId: string
 ): Promise< {
 	success: boolean;
-	autopublish?: boolean;
+	publishMode?: PublishMode;
 	lastSyncTs?: string;
 	error?: string;
 } > {
@@ -105,13 +106,13 @@ async function getSlackChannelSettings(
 			path: `${ namespace }/slack/channel/${ channelId }`,
 		} ) ) as {
 			ok: boolean;
-			autopublish?: boolean;
+			publish_mode?: PublishMode;
 			last_sync_ts?: string;
 		};
 
 		return {
 			success: true,
-			autopublish: result.autopublish,
+			publishMode: result.publish_mode,
 			lastSyncTs: result.last_sync_ts,
 		};
 	} catch ( error ) {
@@ -120,24 +121,24 @@ async function getSlackChannelSettings(
 }
 
 /**
- * Updates settings for an already-linked Slack channel (e.g. toggling
- * autopublish) without re-running the connect flow.
+ * Sets the publish mode of an already-linked Slack channel without
+ * re-running the connect flow.
  *
- * @param {string}  namespace   REST namespace string from config.restBase.slack.
- * @param {string}  channelId   Slack channel ID.
- * @param {boolean} autopublish Whether to auto-publish ingested entries.
+ * @param {string}      namespace   REST namespace string from config.restBase.slack.
+ * @param {string}      channelId   Slack channel ID.
+ * @param {PublishMode} publishMode What the channel does with its messages.
  * @return {Promise<ApiResult>} Result indicating success or failure.
  */
 async function updateSlackChannelSettings(
 	namespace: string,
 	channelId: string,
-	autopublish: boolean
+	publishMode: PublishMode
 ): Promise< ApiResult > {
 	try {
 		await apiFetch( {
 			path: `${ namespace }/slack/channel/${ channelId }`,
 			method: 'POST',
-			data: { autopublish },
+			data: { publish_mode: publishMode },
 		} );
 		return { success: true };
 	} catch ( error ) {
@@ -200,23 +201,49 @@ async function disconnectSlack( namespace: string ): Promise< ApiResult > {
 }
 
 /**
- * Saves Slack ingestion settings (currently the ignore_prefix).
+ * Saves the Slack ingestion settings.
  *
- * @param {string} namespace    REST namespace string from config.restBase.slack.
- * @param {string} ignorePrefix The message ignore prefix.
- * @return {Promise<ApiResult & { ignorePrefix?: string }>} Result, with the prefix as the server stored it.
+ * @param {string} namespace                REST namespace string from config.restBase.slack.
+ * @param {Object} settings                 Settings to save.
+ * @param {string} settings.ignorePrefix    The message ignore prefix.
+ * @param {string} settings.publishReaction Emoji name that publishes a message.
+ * @param {string} settings.draftReaction   Emoji name that saves a message as a draft.
+ * @return {Promise} Result, with the values as the server stored them.
  */
 async function saveSlackSettings(
 	namespace: string,
-	ignorePrefix: string
-): Promise< ApiResult & { ignorePrefix?: string } > {
+	settings: {
+		ignorePrefix: string;
+		publishReaction: string;
+		draftReaction: string;
+	}
+): Promise<
+	ApiResult & {
+		ignorePrefix?: string;
+		publishReaction?: string;
+		draftReaction?: string;
+	}
+> {
 	try {
-		const response = await apiFetch< { ignore_prefix?: string } >( {
+		const response = await apiFetch< {
+			ignore_prefix?: string;
+			publish_reaction?: string;
+			draft_reaction?: string;
+		} >( {
 			path: `${ namespace }/slack/settings`,
 			method: 'POST',
-			data: { ignore_prefix: ignorePrefix },
+			data: {
+				ignore_prefix: settings.ignorePrefix,
+				publish_reaction: settings.publishReaction,
+				draft_reaction: settings.draftReaction,
+			},
 		} );
-		return { success: true, ignorePrefix: response?.ignore_prefix };
+		return {
+			success: true,
+			ignorePrefix: response?.ignore_prefix,
+			publishReaction: response?.publish_reaction,
+			draftReaction: response?.draft_reaction,
+		};
 	} catch ( error ) {
 		return { success: false, error: handleApiError( error ) };
 	}
