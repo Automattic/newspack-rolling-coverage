@@ -117,9 +117,10 @@ class Rolling_Coverage_Block {
 	const FEED_CLASS = 'newspack-rolling-coverage-feed';
 
 	/**
-	 * Class of an entry placed in a grid Feed by the entry group's placement
-	 * while the pinned card carries one of its own: it takes the full row
-	 * while no pinned entry shows (see place_in_grid()).
+	 * Class of an entry, ad or Load more button placed in a grid Feed by the
+	 * entry group's placement while the pinned card or Pinned group carries
+	 * one of its own: it takes the full row while no pinned entry shows (see
+	 * place_in_grid() and place_beside_entries()).
 	 */
 	const BESIDE_PINNED_CLASS = 'newspack-rolling-coverage-entry-beside-pinned';
 
@@ -1363,6 +1364,7 @@ class Rolling_Coverage_Block {
 		$follows_lead            = false;
 		$stack                   = $is_capped || $is_lite ? null : self::pinned_stack( $template );
 		$stack_html              = '';
+		$column_headed           = false;
 
 		if ( $template ) {
 			self::prime_breakout_posts( $posts );
@@ -1383,7 +1385,8 @@ class Rolling_Coverage_Block {
 			}
 
 			if ( $stack ) {
-				$follows_lead = $column_rules && ! $in_stack && '' !== $stack_html && '' === $entries_html;
+				$follows_lead  = $column_rules && ! $in_stack && '' !== $stack_html && ! $column_headed;
+				$column_headed = $column_headed || ! $in_stack;
 			}
 
 			$entry_html = $is_lite
@@ -1398,7 +1401,8 @@ class Rolling_Coverage_Block {
 
 			$follows_lead = $column_rules && $entry->ID === $lead_pinned_id;
 
-			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
+			// Positions count every entry, as load more's do, but the Pinned group holds no ad.
+			if ( $ads_enabled && ! $in_stack && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
 				$entries_html .= self::place_beside_entries( Ads::render_placement()['html'], $template, $feed_layout );
 			}
 		}
@@ -1550,7 +1554,7 @@ class Rolling_Coverage_Block {
 				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text ),
 				// A capped feed can sit on every page, where announcing each new entry would be noise.
 				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX ),
-				'button' === $older_entries ? self::place_beside_entries( self::render_load_more_button(), $template, $feed_layout ) : ''
+				'button' === $older_entries ? self::with_load_more_inset( self::place_beside_entries( self::render_load_more_button(), $template, $feed_layout ), $template ) : ''
 			);
 
 			return sprintf(
@@ -2296,6 +2300,85 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * How far in from the entries' columns the Load more button starts, so it
+	 * lines up with the entries' text whatever the layout sets: the width of
+	 * the first column of the entry group's first Columns block, plus the
+	 * space between its columns. Empty in a layout without a Pinned group, or
+	 * where that column sets no width.
+	 *
+	 * @param array[] $template Parsed template blocks.
+	 * @return string A CSS length, or an empty string.
+	 */
+	private static function load_more_inset( array $template ): string {
+		if ( ! self::pinned_stack( $template ) ) {
+			return '';
+		}
+
+		$entry = current( array_filter( $template, static fn( $block ) => is_array( $block ) && self::is_regular_entry( $block ) ) );
+		$row   = $entry ? self::first_block_named( $entry['innerBlocks'] ?? [], 'core/columns' ) : null;
+		$width = (string) ( $row['innerBlocks'][0]['attrs']['width'] ?? '' );
+
+		if ( '' === $width ) {
+			return '';
+		}
+
+		$gap   = $row['attrs']['style']['spacing']['blockGap'] ?? null;
+		$gap   = (string) ( is_array( $gap ) ? ( $gap['left'] ?? '' ) : $gap );
+		$inset = 'calc(' . $width . ' + ' . ( '' !== $gap ? self::spacing_css_value( $gap ) : 'var(--wp--style--block-gap, 2em)' ) . ')';
+
+		return preg_match( '/^[\w\s.%()+*\/,-]+$/', $inset ) ? $inset : '';
+	}
+
+	/**
+	 * The first block with the given name among parsed blocks, at any depth.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @param string  $name   Block name.
+	 * @return array|null
+	 */
+	private static function first_block_named( array $blocks, string $name ): ?array {
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) ) {
+				continue;
+			}
+
+			if ( $name === ( $block['blockName'] ?? '' ) ) {
+				return $block;
+			}
+
+			$found = self::first_block_named( is_array( $block['innerBlocks'] ?? null ) ? $block['innerBlocks'] : [], $name );
+
+			if ( $found ) {
+				return $found;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * The Load more button starting where the entries' text does on desktop
+	 * (see load_more_inset() and style.scss).
+	 *
+	 * @param string  $html     The button's HTML.
+	 * @param array[] $template Parsed template blocks.
+	 * @return string
+	 */
+	private static function with_load_more_inset( string $html, array $template ): string {
+		$inset     = self::load_more_inset( $template );
+		$processor = new WP_HTML_Tag_Processor( $html );
+
+		if ( '' === $inset || ! $processor->next_tag() ) {
+			return $html;
+		}
+
+		$style = trim( (string) $processor->get_attribute( 'style' ), " \t\n\r;" );
+		$processor->set_attribute( 'style', ( '' !== $style ? $style . ';' : '' ) . '--' . self::MARKUP_PREFIX . '-load-more-inset:' . $inset );
+
+		return $processor->get_updated_html();
+	}
+
+	/**
 	 * The Pinned group around the pinned entries' articles, rendered by core
 	 * so its own settings apply, placed in a grid Feed where it says, as
 	 * place_in_grid() places an article, and set to stick under a stable
@@ -2319,7 +2402,14 @@ class Rolling_Coverage_Block {
 			$shell['innerHTML']    = $content[0] . end( $content );
 			$shell['innerContent'] = [ $content[0], self::FEED_ITEMS_PLACEHOLDER, end( $content ) ];
 
-			$rendered = self::render_around( $shell, $html );
+			// Counted as coverage blocks, so the classic theme's Block spacing applies.
+			++self::$coverage_render_depth;
+
+			try {
+				$rendered = self::render_around( $shell, $html );
+			} finally {
+				--self::$coverage_render_depth;
+			}
 		}
 
 		$rendered   = $rendered ?? '<div class="' . esc_attr( self::PINNED_STACK_CLASS ) . '">' . $html . '</div>';
@@ -2482,9 +2572,9 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The grid placements of the template's top-level pinned card, entry
-	 * group and Full Story Entry group (see grid_placement()), null for a
-	 * group the template doesn't hold.
+	 * The grid placements of the template's top-level pinned card, or its
+	 * Pinned group where it has one, entry group and Full Story Entry group
+	 * (see grid_placement()), null for a group the template doesn't hold.
 	 *
 	 * @param array[] $template Parsed template blocks.
 	 * @return array{card: array|null, entry: array|null, breakout: array|null}
@@ -2686,7 +2776,7 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * A pinned card or entry group set to stick, or to stay fixed, with the
+	 * A pinned card, entry group or Pinned group set to stick, or to stay fixed, with the
 	 * position styles core would give it under a class that depends only on
 	 * the position, in place of the class core makes unique to each render.
 	 * An entry the poll renders again, such as an edited summary, then keeps
@@ -2698,7 +2788,7 @@ class Rolling_Coverage_Block {
 	 * or the admin bar's until it measures them. As with core, a position
 	 * type the theme doesn't support renders nothing.
 	 *
-	 * @param array $group Parsed pinned card or entry group.
+	 * @param array $group Parsed pinned card, entry group or Pinned group.
 	 * @return array
 	 */
 	private static function with_stable_position( array $group ): array {

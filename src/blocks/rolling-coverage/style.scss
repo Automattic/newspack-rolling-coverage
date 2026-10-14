@@ -600,6 +600,13 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 	text-align: start;
 }
 
+@media (min-width: 782px) {
+
+	.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-grid > .newspack-rolling-coverage-load-more {
+		margin-left: var(--newspack-rolling-coverage-load-more-inset, 0);
+	}
+}
+
 :where(.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex:not(.is-vertical) > .newspack-rolling-coverage-load-more) {
 	flex-basis: 100%;
 }

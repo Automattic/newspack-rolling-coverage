@@ -89,6 +89,7 @@ import {
 	isPinnedCard,
 	isPinnedStack,
 	pinnedStackGroups,
+	loadMoreInset,
 	PINNED_STACK_CLASS,
 	isRegularEntry,
 	isBreakoutEntry,
@@ -1249,13 +1250,21 @@ export default function Edit( {
 		} ),
 		[ templateBlocks, feedLayout, showsPin ]
 	);
-	const loadMorePlacement = useMemo(
-		() =>
-			previewPlacements.other
-				? { ...previewPlacements.other, textAlign: 'start' as const }
-				: undefined,
-		[ previewPlacements.other ]
-	);
+	const loadMorePlacement = useMemo( () => {
+		if ( ! previewPlacements.other ) {
+			return undefined;
+		}
+
+		const inset = loadMoreInset( templateBlocks );
+
+		return {
+			...previewPlacements.other,
+			textAlign: 'start' as const,
+			...( inset
+				? { '--newspack-rolling-coverage-load-more-inset': inset }
+				: {} ),
+		};
+	}, [ previewPlacements.other, templateBlocks ] );
 	const loadMorePreview = useMemo(
 		() =>
 			olderEntries === 'button' &&

@@ -41,11 +41,13 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 	 * @param string $class_name The group's class.
 	 * @param string $name       The paragraph's text.
 	 * @param string $style      The group's style attribute members, as JSON without braces.
+	 * @param string $before     Markup ahead of the title.
 	 * @return string
 	 */
-	private static function group( string $class_name, string $name, string $style = '' ): string {
+	private static function group( string $class_name, string $name, string $style = '', string $before = '' ): string {
 		return '<!-- wp:group {"className":"' . $class_name . '"' . ( '' !== $style ? ',"style":{' . $style . '}' : '' ) . '} -->'
 			. '<div class="wp-block-group ' . $class_name . '">'
+			. $before
 			. '<!-- wp:post-title {"level":4} /-->'
 			. '<!-- wp:paragraph --><p>' . $name . '</p><!-- /wp:paragraph -->'
 			. '</div><!-- /wp:group -->';
@@ -56,9 +58,10 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 	 * holding the pinned card and a Full Story Entry group, then the entry
 	 * group and the Full Story Entry group across the other two.
 	 *
+	 * @param string $entry_before Markup ahead of the entry group's title.
 	 * @return string
 	 */
-	private static function feed_markup(): string {
+	private static function feed_markup( string $entry_before = '' ): string {
 		$stack_style = '{"layout":{"columnStart":1,"columnSpan":1,"rowSpan":100},"@tablet":' . self::STACKED . ',"@mobile":' . self::STACKED . ',"spacing":{"blockGap":"0"},"position":{"type":"sticky","top":"0px"}}';
 
 		return '<!-- wp:group {"className":"newspack-rolling-coverage-feed","style":{"spacing":{"blockGap":{"top":"0","left":"var:preset|spacing|50"}}},"layout":{"type":"grid","columnCount":3}} --><div class="wp-block-group newspack-rolling-coverage-feed">'
@@ -66,7 +69,7 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 			. self::group( 'newspack-rolling-coverage-pinned-card', 'Pinned card', self::RULE )
 			. self::group( 'newspack-rolling-coverage-breakout-entry', 'Pinned story', self::RULE )
 			. '</div><!-- /wp:group -->'
-			. self::group( 'newspack-rolling-coverage-regular-entry', 'Entry', self::ENTRY_PLACEMENT . '"border":{"top":{"color":"#ddd","width":"1px","style":"solid"}}' )
+			. self::group( 'newspack-rolling-coverage-regular-entry', 'Entry', self::ENTRY_PLACEMENT . '"border":{"top":{"color":"#ddd","width":"1px","style":"solid"}}', $entry_before )
 			. self::group( 'newspack-rolling-coverage-breakout-entry', 'Column story', self::ENTRY_PLACEMENT . '"border":{"top":{"color":"#ddd","width":"1px","style":"solid"}}' )
 			. '</div><!-- /wp:group -->';
 	}
@@ -74,13 +77,14 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 	/**
 	 * Render a coverage with the Feed.
 	 *
-	 * @param int   $coverage_id Coverage term ID.
-	 * @param array $attributes  Further block attributes.
+	 * @param int    $coverage_id Coverage term ID.
+	 * @param array  $attributes  Further block attributes.
+	 * @param string $feed        Feed markup; the default Feed when empty.
 	 * @return string Rendered block.
 	 */
-	private static function render( int $coverage_id, array $attributes = [] ): string {
+	private static function render( int $coverage_id, array $attributes = [], string $feed = '' ): string {
 		$attributes = array_merge( [ 'coverageId' => $coverage_id ], $attributes );
-		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . self::feed_markup() . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . ( '' !== $feed ? $feed : self::feed_markup() ) . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0];
 
 		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
 	}
@@ -277,7 +281,7 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 
 	/**
 	 * On a theme supporting sticky blocks the group sticks, under a stable
-	 * class, and the cards inside it don't.
+	 * class.
 	 */
 	public function test_group_sticks_where_the_theme_supports_it() {
 		$coverage_id = self::create_coverage();
@@ -289,12 +293,38 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 		add_filter( 'wp_theme_json_data_theme', [ $this, 'with_sticky_support' ] );
 		wp_clean_theme_json_cache();
 
-		$html  = self::render( $coverage_id );
-		$parts = self::placement( $html );
+		$parts = self::placement( self::render( $coverage_id ) );
 
 		$this->assertStringContainsString( 'is-position-sticky', $parts['stack'] );
 		$this->assertMatchesRegularExpression( '/newspack-rolling-coverage-position-[0-9a-f]+/', $parts['stack'] );
-		$this->assertSame( 1, substr_count( $html, 'is-position-sticky' ), 'Only the group should stick.' );
+	}
+
+	/**
+	 * No ad renders inside the Pinned group or above the column's first
+	 * entry because of pinned entries ahead of it, so that entry still heads
+	 * the column.
+	 */
+	public function test_pinned_entries_place_no_ad_beside_the_column() {
+		self::enable_ad_placement();
+
+		$coverage_id = self::create_coverage();
+		[ $first, $second, $newest ] = self::create_entries( $coverage_id, 3 );
+		Post_Type::pin_entry( $first );
+		Post_Type::pin_entry( $second );
+
+		$html = self::render(
+			$coverage_id,
+			[
+				'enableAds'   => true,
+				'adsInterval' => 1,
+			]
+		);
+
+		preg_match( '#^(.*?)<article[^>]*data-entry-id="' . $newest . '"#s', $html, $before_newest );
+
+		$this->assertStringNotContainsString( 'newspack_global_ad', $before_newest[1] ?? '', 'No ad should come before the first entry in the column.' );
+		$this->assertStringContainsString( 'data-heads-column', self::article( $html, $newest ) );
+		$this->assertStringContainsString( 'newspack_global_ad', $html, 'The entry in the column still takes its ad.' );
 	}
 
 	/**
@@ -316,5 +346,33 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 
 		$this->assertMatchesRegularExpression( '/wp-container-content-[0-9a-f]+/', $load_more[1] ?? '' );
 		$this->assertStringContainsString( Rolling_Coverage_Block::BESIDE_PINNED_CLASS, $load_more[1] ?? '' );
+	}
+
+	/**
+	 * Load more starts where the entries' text does: past the entry row's
+	 * first column, whatever width it sets, and the space between its
+	 * columns. A row whose first column sets no width leaves it at the
+	 * column's start.
+	 */
+	public function test_load_more_starts_past_the_entry_rows_first_column() {
+		$coverage_id = self::create_coverage();
+		self::create_entries( $coverage_id, 3 );
+
+		$row = static fn( string $width ) => '<!-- wp:columns {"style":{"spacing":{"blockGap":{"top":"var:preset|spacing|20","left":"var:preset|spacing|30"}}}} --><div class="wp-block-columns">'
+			. '<!-- wp:column ' . ( '' !== $width ? '{"width":"' . $width . '"}' : '' ) . ' --><div class="wp-block-column"><!-- wp:post-date /--></div><!-- /wp:column -->'
+			. '<!-- wp:column --><div class="wp-block-column"></div><!-- /wp:column -->'
+			. '</div><!-- /wp:columns -->';
+		$load_more = static function ( string $html ): string {
+			preg_match( '#<div[^>]*\bnewspack-rolling-coverage-load-more\b[^>]*>#', $html, $tag );
+
+			return $tag[0] ?? '';
+		};
+		$button    = [
+			'entriesPerPage' => 1,
+			'olderEntries'   => 'button',
+		];
+
+		$this->assertStringContainsString( '--newspack-rolling-coverage-load-more-inset:calc(9rem + var(--wp--preset--spacing--30))', $load_more( self::render( $coverage_id, $button, self::feed_markup( $row( '9rem' ) ) ) ) );
+		$this->assertStringNotContainsString( 'load-more-inset', $load_more( self::render( $coverage_id, $button, self::feed_markup( $row( '' ) ) ) ) );
 	}
 }

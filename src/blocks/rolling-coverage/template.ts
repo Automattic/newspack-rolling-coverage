@@ -11,6 +11,7 @@ import { __, sprintf } from '@wordpress/i18n';
 import { ENTRY_PLURAL } from './config';
 import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
+import { blockGapCss } from './spacing';
 import type { TemplateItem } from './types';
 
 /**
@@ -2945,6 +2946,8 @@ function splitPinnedStack( slugs: string[] ): TemplateItem {
 		{
 			className: PINNED_STACK_CLASS,
 			lock: LOCKED_IN_PLACE,
+			// The site renders only the groups it holds, once per pinned entry.
+			allowedBlocks: [],
 			layout: vertical,
 			style: {
 				layout: {
@@ -4163,7 +4166,8 @@ function isPinnedStack( block: {
 }
 
 /**
- * The groups a template's Pinned group holds, or none without one.
+ * The entry groups a template's Pinned group holds, or none without one,
+ * mirroring Rolling_Coverage_Block::pinned_stack_groups().
  *
  * @param {Object[]} blocks The template's top-level blocks.
  * @return {Object[]} The groups.
@@ -4173,8 +4177,84 @@ function pinnedStackGroups< T extends { name: string } >( blocks: T[] ): T[] {
 		( T & { innerBlocks?: unknown } ) | undefined;
 
 	return Array.isArray( pinnedGroup?.innerBlocks )
-		? ( pinnedGroup.innerBlocks as T[] )
+		? ( pinnedGroup.innerBlocks as T[] ).filter(
+				( block ) =>
+					isPinnedCard( block ) ||
+					isRegularEntry( block ) ||
+					isBreakoutEntry( block )
+			)
 		: [];
+}
+
+type InsetBlock = {
+	name: string;
+	attributes?: Record< string, unknown >;
+	innerBlocks?: unknown;
+};
+
+/**
+ * The first block with the given name among blocks, at any depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @param {string}   name   Block name.
+ * @return {Object|undefined} The block.
+ */
+function firstBlockNamed(
+	blocks: InsetBlock[],
+	name: string
+): InsetBlock | undefined {
+	for ( const block of blocks ) {
+		if ( block.name === name ) {
+			return block;
+		}
+
+		const found = Array.isArray( block.innerBlocks )
+			? firstBlockNamed( block.innerBlocks as InsetBlock[], name )
+			: undefined;
+
+		if ( found ) {
+			return found;
+		}
+	}
+
+	return undefined;
+}
+
+/**
+ * How far in from the entries' columns the Load more button starts, mirroring
+ * Rolling_Coverage_Block::load_more_inset(): the width of the first column of
+ * the entry group's first Columns block plus the space between its columns.
+ *
+ * @param {Object[]} template The layout's per-entry blocks.
+ * @return {string|undefined} A CSS length, or undefined.
+ */
+function loadMoreInset( template: InsetBlock[] ): string | undefined {
+	if ( ! template.some( isPinnedStack ) ) {
+		return undefined;
+	}
+
+	const entry = template.find( isRegularEntry );
+	const row = Array.isArray( entry?.innerBlocks )
+		? firstBlockNamed( entry.innerBlocks as InsetBlock[], 'core/columns' )
+		: undefined;
+	const columns = Array.isArray( row?.innerBlocks )
+		? ( row.innerBlocks as InsetBlock[] )
+		: [];
+	const width = columns[ 0 ]?.attributes?.width;
+
+	if ( typeof width !== 'string' || width === '' ) {
+		return undefined;
+	}
+
+	const gap = (
+		row?.attributes?.style as
+			{ spacing?: { blockGap?: string | { left?: string } } } | undefined
+	 )?.spacing?.blockGap;
+	const left = typeof gap === 'object' ? gap.left : gap;
+
+	return `calc(${ width } + ${
+		blockGapCss( left ) ?? 'var(--wp--style--block-gap, 2em)'
+	})`;
 }
 
 /**
@@ -4895,6 +4975,7 @@ export {
 	hasPinnedCard,
 	isPinnedStack,
 	pinnedStackGroups,
+	loadMoreInset,
 	PINNED_STACK_CLASS,
 	isPinnedCard,
 	isRegularEntry,

@@ -58,7 +58,7 @@ type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 
 const PINNED_STACK = '.newspack-rolling-coverage-pinned-stack';
 
-const STICKY_CARD_SELECTOR = `:is(.newspack-rolling-coverage-pinned-card, ${ PINNED_STACK }).is-position-sticky`;
+const STICKY_CARD_SELECTOR = `.newspack-rolling-coverage-pinned-card.is-position-sticky, ${ PINNED_STACK }.is-position-sticky:has(> [data-entry-id])`;
 
 const SHOWN_ENTRIES = `:scope > [data-entry-id], :scope > ${ PINNED_STACK } > [data-entry-id]`;
 
@@ -887,7 +887,10 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {boolean} True if the reader has scrolled past the first entry.
 	 */
 	function isScrolledPastTop(): boolean {
-		const firstEntry = entriesList.firstElementChild;
+		// The Pinned group spans the feed and sticks, so it never scrolls past.
+		const firstEntry = Array.from( entriesList.children ).find(
+			( child ) => ! child.matches( PINNED_STACK )
+		);
 		return !! firstEntry && firstEntry.getBoundingClientRect().bottom < 0;
 	}
 
@@ -996,9 +999,7 @@ function initBlock( root: HTMLElement ): void {
 	 */
 	function sharedEntryDate(): string | undefined {
 		return isEntryView
-			? entriesList.querySelector< HTMLElement >(
-					':scope > [data-linked]'
-				)?.dataset.dateGmt
+			? ownElement( root, '[data-linked]', entriesList )?.dataset.dateGmt
 			: undefined;
 	}
 
@@ -1245,7 +1246,7 @@ function initBlock( root: HTMLElement ): void {
 			...entries.filter( isPinned ),
 			...entries.filter( ( entry ) => ! isPinned( entry ) ),
 		].forEach( ( { el, adSlot, adEl } ) => {
-			( pinnedStack && isPinned( { el } as PendingEntry )
+			( pinnedStack && el.hasAttribute( 'data-pinned' )
 				? pinnedFragment
 				: fragment
 			).appendChild( el );
@@ -3679,8 +3680,8 @@ function initBlock( root: HTMLElement ): void {
 			':scope > [data-heads-column]'
 		);
 		const lead =
-			pinnedStack?.querySelector( ':scope > [data-entry-id]' ) &&
-			pinnedStack
+			pinnedStack &&
+			pinnedStack.querySelector( ':scope > [data-entry-id]' )
 				? pinnedStack
 				: entriesList.querySelector( ':scope > [data-leads-column]' );
 		let head = lead?.nextElementSibling ?? null;
