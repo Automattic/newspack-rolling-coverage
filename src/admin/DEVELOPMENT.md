@@ -215,6 +215,35 @@ Until a source has them, its entries show the WordPress marker, yet "Source is W
 
 The server needs no change beyond the ingest path writing the slug to the meta. The entries endpoint's `source` and `source_exclude` filters accept any slug, with `wordpress` special-cased to include entries that have no meta.
 
+## Slack publish modes
+
+Each linked channel has a publish mode, set from the **Publish Mode** dropdown in the Slack connection drawer and the Channels table, and stored as `publish_mode` in the channel's entry in the channel map (`Slack_Config::OPTION_CHANNEL_MAP`):
+
+| Publish Mode | `publish_mode` | A message posted in the channel |
+| --- | --- | --- |
+| Auto-publish | `publish` | Is published right away. |
+| Draft | `draft` | Is saved as a draft. Channels connected with `/rolling-coverage-connect` start here. |
+| Emoji trigger | `reaction` | Waits for a reaction: the publish emoji publishes it, the draft emoji saves it as a draft. |
+
+Channels linked before publish modes stored only an `autopublish` flag. `Slack_Config::resolve_publish_mode()` reads it as Auto-publish or Draft, so nothing is migrated.
+
+### Emoji trigger
+
+- The two emoji are site-wide: **Publish Emoji** and **Draft Emoji** in the Slack page's Settings tab, `mega` and `memo` by default. They are stored lowercase without colons and must differ. A skin-tone variant of either counts.
+- Slack sends every reaction in the bot's channels to the events route as `reaction_added`. `Slack_Webhook_Controller::handle_reaction()` drops the bot's own reactions, channels in other modes and other emoji before calling Slack. It then reads the message with `conversations.replies` (`Slack_API_Client::get_message_or_reply()`), since a reaction doesn't say which thread its message is in and `conversations.history` lists top-level messages only.
+- The entry is the message as it reads when the reaction arrives. The ignore prefix doesn't apply, since the reaction is the opt-in. A message event in an Emoji trigger channel returns before any Slack call.
+- When the message already has an entry, the publish emoji publishes it if it is a draft and its coverage hasn't ended, with `wp_publish_post()` so only the status changes: a `wp_update_post()` save would run the content through kses, as the webhook has no user. The entry keeps the date the draft was created, as when it is published from the editor. Any other reaction on a message with an entry changes nothing, and removing a reaction does nothing (the app doesn't subscribe to `reaction_removed`).
+
+### The bot's reaction
+
+When the bot creates an entry, in any mode, it reacts to the message with `large_green_circle` (published) or `large_yellow_circle` (draft). Publishing a draft with the publish emoji adds the green one and removes the bot's yellow one. The reaction is set at that moment only: changes made later in WordPress don't update it. A reaction Slack refuses is logged in the Monitor tab and doesn't stop the entry.
+
+### Permissions
+
+Reactions need the `reactions:read` and `reactions:write` scopes and the `reaction_added` event, all in the manifest that Copy Manifest produces. `GET slack/settings` reports `can_use_reactions: false` when Slack's `x-oauth-scopes` header lacks either scope, and the Slack page then shows a warning asking for the manifest to be updated and the app reinstalled. Until then, Auto-publish and Draft channels keep working without the bot's reaction, and Emoji trigger channels add nothing.
+
+Tests: `tests/test-slack-webhook.php`, `tests/test-slack-config.php`.
+
 ## Slack webhooks on a password-protected site
 
 Slack sends events, slash commands and interactions to three REST routes, `rolling-coverage/v1/slack/events`, `/slack/commands` and `/slack/interactions` (`Slack_Webhook_Controller::WEBHOOK_ROUTES`), registered once Slack is configured. Each checks Slack's signature in its permission callback and answers an unsigned request with a 401.
