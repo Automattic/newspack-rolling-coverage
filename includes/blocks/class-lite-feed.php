@@ -125,7 +125,7 @@ class Lite_Feed {
 	 * whose feed markup Lite Site kept. Lite Site cleans the content before
 	 * the head, so by then it has.
 	 *
-	 * Where it couldn't keep that markup, the Load More and Check for Updates
+	 * Where it couldn't keep that markup, the Load more and Check for updates
 	 * controls lose their hidden attribute, and no script prints to run
 	 * them, so they are hidden.
 	 */

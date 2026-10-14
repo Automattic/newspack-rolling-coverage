@@ -1324,7 +1324,7 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Adds entries to the pending queue.
 	 *
-	 * Updates the "X New Entries" control label and visibility.
+	 * Updates the "X new entries" control label and visibility.
 	 *
 	 * @param {PendingEntry[]} newEntries Newly published entries.
 	 * @return {void}
@@ -3034,7 +3034,7 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Marks the Load More button busy while a page loads, or ready again, and
+	 * Marks the Load more button busy while a page loads, or ready again, and
 	 * hides it once no more entries can load.
 	 *
 	 * @param {boolean} busy Whether a page is loading.
@@ -3065,7 +3065,7 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Tells the reader that pressing Load More failed. A feed that loads on
+	 * Tells the reader that pressing Load more failed. A feed that loads on
 	 * scroll stays silent.
 	 *
 	 * @return {void}
@@ -3293,7 +3293,7 @@ function initBlock( root: HTMLElement ): void {
 	ownElements( root, '[data-entry-id]', entriesList ).forEach( observeEntry );
 
 	/**
-	 * Shows a message on the Check for Updates buttons for a few seconds, then
+	 * Shows a message on the Check for updates buttons for a few seconds, then
 	 * their own labels again.
 	 *
 	 * @param {string} label The message.
@@ -3316,7 +3316,7 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Marks the Check for Updates buttons busy while a check runs, or ready
+	 * Marks the Check for updates buttons busy while a check runs, or ready
 	 * again.
 	 *
 	 * @param {boolean} busy Whether a check is running.

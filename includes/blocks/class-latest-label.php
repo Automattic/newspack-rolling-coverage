@@ -1,6 +1,6 @@
 <?php
 /**
- * Site-wide label for the "Jump to Latest" control.
+ * Site-wide label for the "Jump to latest" control.
  *
  * @package Newspack_Rolling_Coverage
  */

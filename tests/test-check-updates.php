@@ -19,7 +19,7 @@ class Test_Check_Updates extends Rolling_Coverage_TestCase {
 	/**
 	 * The block's markup, as the editor saves it.
 	 */
-	const CHECK_UPDATES_MARKUP = '<!-- wp:newspack-rolling-coverage/check-updates --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"tagName":"button"} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Check for Updates</button></div><!-- /wp:button --></div><!-- /wp:buttons --><!-- /wp:newspack-rolling-coverage/check-updates -->';
+	const CHECK_UPDATES_MARKUP = '<!-- wp:newspack-rolling-coverage/check-updates --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"tagName":"button"} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Check for updates</button></div><!-- /wp:button --></div><!-- /wp:buttons --><!-- /wp:newspack-rolling-coverage/check-updates -->';
 
 	/**
 	 * Block types this test registered.
@@ -116,7 +116,7 @@ class Test_Check_Updates extends Rolling_Coverage_TestCase {
 	 * @return int
 	 */
 	private static function check_buttons_in( string $html ): int {
-		return preg_match_all( '/<div class="[^"]*\bnewspack-rolling-coverage-check-updates\b[^"]*" hidden>.*?<button[^>]*>Check for Updates<\/button>/s', $html );
+		return preg_match_all( '/<div class="[^"]*\bnewspack-rolling-coverage-check-updates\b[^"]*" hidden>.*?<button[^>]*>Check for updates<\/button>/s', $html );
 	}
 
 	/**

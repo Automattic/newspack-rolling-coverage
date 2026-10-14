@@ -34,7 +34,7 @@ type SettingsTab = 'labels' | 'status';
 /**
  * Site-wide settings for Rolling Coverage: the Coverage Status block's default
  * labels, used by every block that doesn't set its own, the text of the
- * "Jump to Latest" button every feed shows, the label over a broken-out
+ * "Jump to latest" button every feed shows, the label over a broken-out
  * entry's full story, and what readers see entries called. It opens once
  * the settings have loaded, so its fields never fill in after it shows.
  *

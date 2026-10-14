@@ -79,7 +79,7 @@ class Test_Older_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The Load More button takes the sentinel's place, styled as the theme
+	 * The Load more button takes the sentinel's place, styled as the theme
 	 * styles buttons, right after the entries and above the blocks below
 	 * them. It renders hidden, for the view script to show while more
 	 * entries remain, so a page without the script never offers it.

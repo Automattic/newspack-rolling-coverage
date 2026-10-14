@@ -10,7 +10,7 @@ import { handleApiError } from './api-error';
 import type { LabelSetting, LabelSettingResult } from '../types';
 
 /**
- * Fetches one of the site's labels, such as the "Jump to Latest" button's.
+ * Fetches one of the site's labels, such as the "Jump to latest" button's.
  *
  * @param {string} restUrl Full REST URL for the label's endpoint.
  * @return {Promise<LabelSettingResult>} Result with the label on success or an error on failure.

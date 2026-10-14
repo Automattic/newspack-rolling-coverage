@@ -1953,7 +1953,7 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The control fixed above the feed: a button, styled as the theme styles
-	 * buttons, labeled with the site's "Jump to Latest" text (see
+	 * buttons, labeled with the site's "Jump to latest" text (see
 	 * Latest_Label). It links to the live feed, so it works without the view
 	 * script, and its wrapper carries that URL for the script. In the normal
 	 * view it is hidden until the view script reveals it when new entries
@@ -2028,7 +2028,7 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The "Jump to Latest" control as a parsed Buttons block holding one
+	 * The "Jump to latest" control as a parsed Buttons block holding one
 	 * button: a link to the live feed with the theme's Elevation 2 shadow,
 	 * marked for the view script, and otherwise styled as the theme styles
 	 * buttons.

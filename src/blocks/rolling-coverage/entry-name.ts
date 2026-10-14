@@ -37,9 +37,10 @@ export function readEntryName( root: HTMLElement ): EntryName | null {
 }
 
 /**
- * The control's label while new entries wait to be shown.
+ * The count of new entries: the control's label while they wait to be
+ * shown, and the Update Timer's text for a moment after a check brings them.
  *
- * @param {number}         count How many new entries are waiting.
+ * @param {number}         count How many new entries there are.
  * @param {EntryName|null} name  The site's name for entries.
  * @return {string} The label.
  */
@@ -49,7 +50,7 @@ export function newEntriesLabel(
 ): string {
 	if ( name ) {
 		return sprintf(
-			/* translators: 1: number of new coverage entries waiting to be shown. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
+			/* translators: 1: number of new coverage entries, waiting to be shown or just found by a check. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
 			_n(
 				'%1$d new %2$s',
 				'%1$d new %2$s',
@@ -62,7 +63,7 @@ export function newEntriesLabel(
 	}
 
 	return sprintf(
-		/* translators: %d: number of new coverage entries waiting to be shown. */
+		/* translators: %d: number of new coverage entries, waiting to be shown or just found by a check. */
 		_n(
 			'%d new entry',
 			'%d new entries',
@@ -283,7 +284,7 @@ export function showingLatestLabel( name: EntryName | null ): string {
 }
 
 /**
- * Announced when pressing the Load More button fails to load older entries.
+ * Announced when pressing the Load more button fails to load older entries.
  *
  * @param {EntryName|null} name The site's name for entries.
  * @return {string} The announcement.
@@ -317,42 +318,5 @@ export function nextCheckLabel( seconds: number ): string {
 		/* translators: %d: seconds until the page next checks for new coverage entries; the trailing "s" abbreviates seconds. */
 		__( 'Next check in %ds', 'newspack-rolling-coverage' ),
 		seconds
-	);
-}
-
-/**
- * The Update Timer's text, for a moment, after a check brought entries.
- *
- * @param {number}         count How many entries arrived.
- * @param {EntryName|null} name  The site's name for entries.
- * @return {string} The text.
- */
-export function newEntriesFoundLabel(
-	count: number,
-	name: EntryName | null
-): string {
-	if ( name ) {
-		return sprintf(
-			/* translators: 1: number of new coverage entries a check found. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
-			_n(
-				'%1$d new %2$s',
-				'%1$d new %2$s',
-				count,
-				'newspack-rolling-coverage'
-			),
-			count,
-			count === 1 ? name.singular : name.plural
-		);
-	}
-
-	return sprintf(
-		/* translators: %d: number of new coverage entries a check found. */
-		_n(
-			'%d new entry',
-			'%d new entries',
-			count,
-			'newspack-rolling-coverage'
-		),
-		count
 	);
 }
