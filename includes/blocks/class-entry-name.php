@@ -149,38 +149,6 @@ class Entry_Name {
 	}
 
 	/**
-	 * The site's word for a count of entries as a button shows it, or an
-	 * empty string when the site sets none.
-	 *
-	 * @param int $count How many entries the label speaks of.
-	 * @return string
-	 */
-	public static function title_word( int $count ): string {
-		return self::title_case( self::word( $count ) );
-	}
-
-	/**
-	 * Capitalizes each all-lowercase word where the site's language writes
-	 * button labels in title case, leaving words with capitals of their own,
-	 * such as "iPhone", as typed. Elsewhere the words stay as typed: most
-	 * languages use sentence case, and some capitalize every noun already.
-	 *
-	 * @param string $text Text as it reads mid-sentence.
-	 * @return string
-	 */
-	public static function title_case( string $text ): string {
-		if ( ! str_starts_with( determine_locale(), 'en' ) ) {
-			return $text;
-		}
-
-		return (string) preg_replace_callback(
-			'/(^|\s)(\p{Ll})(?=\p{Ll}*(?:\s|$))/u',
-			static fn( array $matches ): string => $matches[1] . mb_strtoupper( $matches[2] ),
-			$text
-		);
-	}
-
-	/**
 	 * The words for the view script to build its labels with, as JSON, or an
 	 * empty string when the site sets none.
 	 *
@@ -195,10 +163,8 @@ class Entry_Name {
 
 		return (string) wp_json_encode(
 			[
-				'singular'      => $saved['singular'],
-				'plural'        => $saved['plural'],
-				'singularTitle' => self::title_case( $saved['singular'] ),
-				'pluralTitle'   => self::title_case( $saved['plural'] ),
+				'singular' => $saved['singular'],
+				'plural'   => $saved['plural'],
 			]
 		);
 	}

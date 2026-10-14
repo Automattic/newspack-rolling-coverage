@@ -3434,7 +3434,7 @@ function initBlock( root: HTMLElement ): void {
 			if ( outcome === 'failed' ) {
 				flashCheckLabel(
 					/* translators: Shown briefly on the Check for Updates button when a check fails. */
-					__( 'Couldn’t Check', 'newspack-rolling-coverage' )
+					__( 'Couldn’t check', 'newspack-rolling-coverage' )
 				);
 				announce(
 					__(

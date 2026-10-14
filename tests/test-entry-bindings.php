@@ -487,7 +487,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$html = self::render_coverage_with_follow( $coverage_id );
 
 		$this->assertSame( 1, substr_count( $html, 'data-rc-follow' ), 'The follow button should render once.' );
-		$this->assertSame( 4, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button, the Jump to Latest control and one row per entry should render, so entries hold no follow button.' );
+		$this->assertSame( 4, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button, the Jump to latest control and one row per entry should render, so entries hold no follow button.' );
 		$this->assertStringContainsString( 'data-tag="' . esc_attr( Push_Notifications::follow_tag( $coverage_id ) ) . '"', $html );
 	}
 
@@ -568,7 +568,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertSame( 1, substr_count( $html, 'data-rc-follow' ), 'The follow button should render once.' );
 		$this->assertStringContainsString( 'data-tag="' . esc_attr( Push_Notifications::follow_tag( $coverage_id ) ) . '"', $html );
 		$this->assertSame( 2, substr_count( $html, 'data-rc-share' ), 'Each entry should still render its own buttons.' );
-		$this->assertSame( 4, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button, the Jump to Latest control and one row per entry should render.' );
+		$this->assertSame( 4, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button, the Jump to latest control and one row per entry should render.' );
 	}
 
 	/**
@@ -646,12 +646,12 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'Coverage header', $html );
 		$this->assertStringNotContainsString( 'data-rc-follow', $html );
-		$this->assertSame( 2, substr_count( $html, 'class="wp-block-buttons' ), 'Only the Jump to Latest control and the entry row should render.' );
+		$this->assertSame( 2, substr_count( $html, 'class="wp-block-buttons' ), 'Only the Jump to latest control and the entry row should render.' );
 	}
 
 	/**
 	 * The coverage renders its parts in order: the archived notice, the
-	 * blocks above the entries, the live region, "Jump to Latest", the
+	 * blocks above the entries, the live region, "Jump to latest", the
 	 * entries, the blocks below them and the sentinel.
 	 */
 	public function test_coverage_level_blocks_render_around_the_entries_in_order() {

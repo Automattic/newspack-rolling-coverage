@@ -741,7 +741,7 @@ class Test_Full_Story_Entry extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( Rolling_Coverage_Block::BREAKOUT_ENTRY_CLASS, $html );
 		$this->assertStringContainsString( Breakout_Card::BOX_CLASS, $html );
 		$this->assertStringContainsString( '<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Post &amp; headline</a></h3>', $html );
-		$this->assertMatchesRegularExpression( '#<a (?=[^>]*class="wp-block-button__link)(?=[^>]*href="' . preg_quote( esc_url( get_permalink( $breakout_id ) ), '#' ) . '")[^>]*>Read More</a>#', $html );
+		$this->assertMatchesRegularExpression( '#<a (?=[^>]*class="wp-block-button__link)(?=[^>]*href="' . preg_quote( esc_url( get_permalink( $breakout_id ) ), '#' ) . '")[^>]*>Read more</a>#', $html );
 		$this->assertStringNotContainsString( self::ENTRY_TEXT, $html );
 	}
 }

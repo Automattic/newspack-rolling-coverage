@@ -133,7 +133,7 @@ class Test_Entry_Name extends Rolling_Coverage_TestCase {
 		);
 		$this->assertSame( '', Entry_Name::word( 1 ) );
 		$this->assertSame( '', Entry_Name::for_script() );
-		$this->assertSame( '3 Newer Entries', Rolling_Coverage_Block::newer_entries_label( 3 ) );
+		$this->assertSame( '3 newer entries', Rolling_Coverage_Block::newer_entries_label( 3 ) );
 		$this->assertSame( 'Share this entry', self::call_private( Share_Block::class, 'aria_label' ) );
 	}
 
@@ -257,34 +257,24 @@ class Test_Entry_Name extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The words read as typed mid-sentence; English button labels capitalize
-	 * each word.
+	 * Labels use the words as typed, buttons included, since reader-facing
+	 * text is in sentence case.
 	 */
-	public function test_button_labels_use_title_case_in_english() {
+	public function test_labels_use_the_words_as_typed() {
 		self::set_name( 'live update', 'live updates' );
 
 		$this->assertSame( 'live update', Entry_Name::word( 1 ) );
 		$this->assertSame( 'live updates', Entry_Name::word( 0 ) );
-		$this->assertSame( 'Live Updates', Entry_Name::title_word( 3 ) );
-		$this->assertSame( '1 Newer Live Update', Rolling_Coverage_Block::newer_entries_label( 1 ) );
-		$this->assertSame( '3 Newer Live Updates', Rolling_Coverage_Block::newer_entries_label( 3 ) );
-		$this->assertSame( '50+ Newer Live Updates', Rolling_Coverage_Block::newer_entries_label( 60 ) );
+		$this->assertSame( '1 newer live update', Rolling_Coverage_Block::newer_entries_label( 1 ) );
+		$this->assertSame( '3 newer live updates', Rolling_Coverage_Block::newer_entries_label( 3 ) );
+		$this->assertSame( '50+ newer live updates', Rolling_Coverage_Block::newer_entries_label( 60 ) );
 		$this->assertSame(
 			[
-				'singular'      => 'live update',
-				'plural'        => 'live updates',
-				'singularTitle' => 'Live Update',
-				'pluralTitle'   => 'Live Updates',
+				'singular' => 'live update',
+				'plural'   => 'live updates',
 			],
 			json_decode( Entry_Name::for_script(), true )
 		);
-	}
-
-	/**
-	 * Title case leaves a word with capitals of its own as typed.
-	 */
-	public function test_words_with_their_own_capitals_stay_as_typed() {
-		$this->assertSame( 'iPhone Alert', Entry_Name::title_case( 'iPhone alert' ) );
 	}
 
 	/**
@@ -299,19 +289,6 @@ class Test_Entry_Name extends Rolling_Coverage_TestCase {
 
 		self::set_name( 'update', '' );
 		$this->assertSame( '', Entry_Name::word( 2 ) );
-	}
-
-	/**
-	 * Other languages keep the words as typed in button labels.
-	 */
-	public function test_other_languages_keep_the_words_as_typed() {
-		self::set_name( 'mise à jour', 'mises à jour' );
-		$locale = static fn() => 'fr_FR';
-		add_filter( 'determine_locale', $locale );
-
-		$this->assertSame( 'mises à jour', Entry_Name::title_word( 2 ) );
-
-		remove_filter( 'determine_locale', $locale );
 	}
 
 	/**

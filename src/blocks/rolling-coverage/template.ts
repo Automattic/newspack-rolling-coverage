@@ -548,7 +548,7 @@ function fullStoryFooter( links: TemplateItem ): TemplateItem {
 }
 
 /**
- * A "Read More" button linking to the breakout post, in the accent color
+ * A "Read more" button linking to the breakout post, in the accent color
  * with the text color the theme pairs with it, as Bulletin's pinned card.
  *
  * @return {TemplateItem} The Buttons block.
@@ -561,7 +561,7 @@ function fullStoryReadMore(): TemplateItem {
 			[
 				'core/button',
 				{
-					text: __( 'Read More', 'newspack-rolling-coverage' ),
+					text: __( 'Read more', 'newspack-rolling-coverage' ),
 					style: {
 						color: { background: ACCENT, text: ACCENT_CONTRAST },
 					},
@@ -1028,7 +1028,7 @@ function bulletinEntryBlocks( isPinned: boolean ): TemplateItem[] {
  * A Bulletin Full Story Entry's box, on a light gray panel with no border: a
  * row of the pin, shown only for a pinned entry, with the Pinned label for
  * screen readers only, the label, the time and "Share", then the post's
- * title, at the entries' title size, its summary and a "Read More" button,
+ * title, at the entries' title size, its summary and a "Read more" button,
  * with its image to their right, stacked on phones.
  *
  * @param {string[]} slugs The palette's color slugs.
@@ -1776,7 +1776,7 @@ function clockRow(
  * ruled off with a heavier rule. A Full Story Entry is ruled off as heavily
  * in the accent color, with the time and the breakout post's title in the
  * margin, and the Full story label, small like the Pinned label, its image,
- * cropped to 16:9, its summary and a Read More button in the content's place.
+ * cropped to 16:9, its summary and a Read more button in the content's place.
  * It takes pinned entries too, with the Pinned label above the time.
  *
  * @param {string[]}  slugs The palette's color slugs.
@@ -2293,7 +2293,7 @@ function coverageNameHeading(
 			...attributes,
 			level: 3,
 			fontSize,
-			content: __( 'Live Coverage', 'newspack-rolling-coverage' ),
+			content: __( 'Live coverage', 'newspack-rolling-coverage' ),
 			metadata: {
 				name: __( 'Coverage Name', 'newspack-rolling-coverage' ),
 				bindings: {

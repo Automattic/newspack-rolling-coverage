@@ -170,9 +170,9 @@ const OLDER_ENTRIES_HELP: Record< string, () => string > = {
 			'newspack-rolling-coverage'
 		),
 	button: () =>
-		/* translators: “Load More” is the label of the button readers press. Keep the words used to translate it. */
+		/* translators: “Load more” is the label of the button readers press. Keep the words used to translate it. */
 		__(
-			'Readers load more entries with a Load More button.',
+			'Readers load more entries with a “Load more” button.',
 			'newspack-rolling-coverage'
 		),
 	none: () =>
@@ -1203,7 +1203,7 @@ export default function Edit( {
 					>
 						{
 							/* translators: Button that loads older entries at the end of a coverage's feed. */
-							__( 'Load More', 'newspack-rolling-coverage' )
+							__( 'Load more', 'newspack-rolling-coverage' )
 						}
 					</button>
 				</Disabled>
@@ -2262,9 +2262,9 @@ export default function Edit( {
 								{
 									value: 'button',
 									label:
-										/* translators: “Load More” is the label of the button readers press. Keep the words used to translate it. */
+										/* translators: “Load more” is the label of the button readers press. Keep the words used to translate it. */
 										__(
-											'Load More button',
+											'“Load more” button',
 											'newspack-rolling-coverage'
 										),
 								},
