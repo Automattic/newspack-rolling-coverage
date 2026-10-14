@@ -6,6 +6,7 @@
  */
 
 use Newspack_Rolling_Coverage\Layout;
+use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 
 /**
@@ -383,6 +384,38 @@ class Test_Layout extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertStringContainsString( 'data-rc-share', $html );
+	}
+
+	/**
+	 * The built-in layout shows an entry's time in the site's time format,
+	 * not the one its markup was saved with, while the pinned card keeps its
+	 * relative date.
+	 */
+	public function test_default_layout_follows_the_site_time_format() {
+		update_option( 'time_format', 'H:i' );
+		$coverage_id = self::create_coverage();
+		self::create_entry(
+			$coverage_id,
+			[
+				'post_date'     => '2026-01-02 15:10:00',
+				'post_date_gmt' => '2026-01-02 15:10:00',
+			]
+		);
+		Post_Type::pin_entry(
+			self::create_entry(
+				$coverage_id,
+				[
+					'post_date'     => '2026-01-02 14:05:00',
+					'post_date_gmt' => '2026-01-02 14:05:00',
+				]
+			)
+		);
+
+		$html = self::render_story( [ 'coverageId' => $coverage_id ] );
+
+		$this->assertStringContainsString( '>15:10</time>', $html );
+		$this->assertStringNotContainsString( '3:10 pm', $html );
+		$this->assertStringNotContainsString( '>14:05</time>', $html, 'The pinned card shows a relative date.' );
 	}
 
 	/**

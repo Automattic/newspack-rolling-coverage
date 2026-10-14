@@ -152,13 +152,6 @@ class Rolling_Coverage_Block {
 	 */
 	const DEFAULT_ENTRY_GAP = 'var:preset|spacing|20';
 
-	/**
-	 * The fallback pinned card's background and text colors: the theme's
-	 * accent and its contrast color.
-	 */
-	const ACCENT          = 'var(--wp--preset--color--accent, var(--newspack-theme-color-primary))';
-	const ACCENT_CONTRAST = 'var(--wp--preset--color--accent-contrast, var(--wp--preset--color--base, var(--newspack-theme-color-against-primary)))';
-
 	// Term meta key storing the coverage's latest entry modified timestamp.
 	const LAST_MODIFIED_META_KEY = 'rolling_coverage_last_modified';
 
@@ -3019,219 +3012,64 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The hardcoded fallback per-entry template, the Bulletin layout's: the
-	 * pinned card, which a pinned entry shows, and the entry group, which
-	 * every other entry shows, closed by a separator.
+	 * The Bulletin layout's per-entry template: the blocks inside its Feed
+	 * group.
 	 *
 	 * @return array[] Array of parsed-block-shaped arrays.
 	 */
-	private static function default_entry_template() {
-		$separator_html = '<hr class="wp-block-separator has-alpha-channel-opacity is-style-wide"/>';
-		$separator      = [
-			'blockName'    => 'core/separator',
-			'attrs'        => [ 'className' => 'is-style-wide' ],
-			'innerBlocks'  => [],
-			'innerHTML'    => $separator_html,
-			'innerContent' => [ $separator_html ],
-		];
-
-		return [
-			self::pinned_card_block( self::default_entry_blocks( true ) ),
-			self::regular_entry_block( array_merge( self::default_entry_blocks( false ), [ $separator ] ) ),
-		];
+	private static function default_entry_template(): array {
+		return self::default_layout_blocks()[0]['innerBlocks'] ?? [];
 	}
 
 	/**
-	 * What an entry shows by default: a row with the time and "Share", or on
-	 * the pinned card the pinned row and the relative date, then a large
-	 * title and the content.
+	 * The Bulletin layout, which a block without a layout of its own renders:
+	 * the Feed group holding the pinned card, the entry and the Full Story
+	 * Entry. `bulletin-layout.html` is the editor's serialization of
+	 * Bulletin's inner-blocks template (`innerTemplate()` in `layout.ts`), so
+	 * a change to one needs the other regenerated. Its words are translated here
+	 * and its times follow the site's time format, as the editor's do.
 	 *
-	 * @param bool $is_pinned Whether the blocks are the pinned card's.
-	 * @return array[] Array of parsed-block-shaped arrays.
+	 * @return array[] Parsed blocks.
 	 */
-	private static function default_entry_blocks( bool $is_pinned ): array {
-		$time_format = get_option( 'time_format' );
-		$meta_blocks = $is_pinned
-			? [
-				self::pinned_row_block(),
-				self::post_block(
-					'core/post-date',
-					[
-						'format'   => 'human-diff',
-						'fontSize' => 'small',
-						'style'    => [ 'color' => [ 'text' => self::ACCENT_CONTRAST ] ],
-					]
-				),
-			]
-			: [
-				self::post_block(
-					'core/post-date',
-					[
-						'format'   => $time_format ? $time_format : 'g:i a',
-						'fontSize' => 'small',
-					]
-				),
-				self::link_paragraph_block( Entry_Bindings::SHARE_CLASS, __( 'Share', 'newspack-rolling-coverage' ) ),
-			];
-
-		return [
+	public static function default_layout_blocks(): array {
+		$markup = strtr(
+			(string) file_get_contents( __DIR__ . '/bulletin-layout.html' ),
 			[
-				'blockName'    => 'core/group',
-				'attrs'        => [
-					'layout'   => [
-						'type'              => 'flex',
-						'flexWrap'          => 'wrap',
-						'verticalAlignment' => 'center',
-					],
-					'style'    => [ 'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ] ],
-					'metadata' => [ 'name' => __( 'Meta', 'newspack-rolling-coverage' ) ],
-				],
-				'innerBlocks'  => $meta_blocks,
-				'innerHTML'    => '<div class="wp-block-group"></div>',
-				'innerContent' => [ '<div class="wp-block-group">', null, null, '</div>' ],
-			],
-			self::post_block(
-				'core/post-title',
-				[
-					'level'    => 3,
-					'fontSize' => 'large',
-				]
-			),
-			self::post_block(
-				'core/post-content',
-				[
-					'style' => [
-						'spacing' => [
-							'padding' => [
-								'top'    => '0',
-								'right'  => '0',
-								'bottom' => '0',
-								'left'   => '0',
-							],
-						],
-					],
-				]
-			),
-		];
-	}
-
-	/**
-	 * A parsed post block, such as Post Date, which renders from its attributes
-	 * alone.
-	 *
-	 * @param string $name  Block name.
-	 * @param array  $attrs Block attributes.
-	 * @return array Parsed-block-shaped array.
-	 */
-	private static function post_block( string $name, array $attrs ): array {
-		return [
-			'blockName'    => $name,
-			'attrs'        => $attrs,
-			'innerBlocks'  => [],
-			'innerHTML'    => '',
-			'innerContent' => [],
-		];
-	}
-
-	/**
-	 * A parsed paragraph holding a placeholder link, which the site points at
-	 * the entry's link (see Entry_Bindings::link_paragraph()).
-	 *
-	 * @param string $class_name The paragraph's class.
-	 * @param string $text       The link's text.
-	 * @return array Parsed-block-shaped array.
-	 */
-	private static function link_paragraph_block( string $class_name, string $text ): array {
-		$html = sprintf(
-			'<p class="use-header-font %s has-small-font-size"><a href="#">%s</a></p>',
-			esc_attr( $class_name ),
-			esc_html( $text )
+				'{{share}}'      => esc_html__( 'Share', 'newspack-rolling-coverage' ),
+				'{{pinned}}'     => esc_html__( 'Pinned', 'newspack-rolling-coverage' ),
+				'{{full_story}}' => esc_html__( 'Full story', 'newspack-rolling-coverage' ),
+				'{{read_more}}'  => esc_html__( 'Read More', 'newspack-rolling-coverage' ),
+			]
 		);
-
-		return [
-			'blockName'    => 'core/paragraph',
-			'attrs'        => [
-				'className' => 'use-header-font ' . $class_name,
-				'fontSize'  => 'small',
-			],
-			'innerBlocks'  => [],
-			'innerHTML'    => $html,
-			'innerContent' => [ $html ],
-		];
-	}
-
-	/**
-	 * A parsed entry group: a group holding what an entry that isn't pinned
-	 * shows, with none of the pinned card's look.
-	 *
-	 * @param array[] $inner_blocks Parsed blocks inside the group.
-	 * @return array Parsed-block-shaped array.
-	 */
-	private static function regular_entry_block( array $inner_blocks ): array {
-		$style = [
-			'spacing' => [ 'blockGap' => 'var:preset|spacing|30' ],
-		];
-		$open  = '<div class="wp-block-group ' . esc_attr( self::REGULAR_ENTRY_CLASS ) . '">';
-
-		return [
-			'blockName'    => 'core/group',
-			'attrs'        => [
-				'className' => self::REGULAR_ENTRY_CLASS,
-				'style'     => $style,
-				'metadata'  => [ 'name' => __( 'Entry', 'newspack-rolling-coverage' ) ],
-			],
-			'innerBlocks'  => $inner_blocks,
-			'innerHTML'    => $open . '</div>',
-			'innerContent' => array_merge( [ $open ], array_fill( 0, count( $inner_blocks ), null ), [ '</div>' ] ),
-		];
-	}
-
-	/**
-	 * A parsed pinned card: a group set in the accent color, with its text,
-	 * links and headings in the accent's contrast color, holding the given
-	 * blocks.
-	 *
-	 * @param array[] $inner_blocks Parsed blocks inside the card.
-	 * @return array Parsed-block-shaped array.
-	 */
-	private static function pinned_card_block( array $inner_blocks ): array {
-		$style  = [
-			'color'    => [
-				'background' => self::ACCENT,
-				'text'       => self::ACCENT_CONTRAST,
-			],
-			'elements' => [
-				'link'    => [ 'color' => [ 'text' => self::ACCENT_CONTRAST ] ],
-				'heading' => [ 'color' => [ 'text' => self::ACCENT_CONTRAST ] ],
-			],
-			'spacing'  => [
-				'padding'  => [
-					'top'    => 'var:preset|spacing|50',
-					'right'  => 'var:preset|spacing|50',
-					'bottom' => 'var:preset|spacing|50',
-					'left'   => 'var:preset|spacing|50',
-				],
-				'blockGap' => 'var:preset|spacing|30',
-			],
-		];
-		$styles = wp_style_engine_get_styles( $style );
-		$open   = sprintf(
-			'<div class="%s" style="%s">',
-			esc_attr( trim( 'wp-block-group ' . self::PINNED_CARD_CLASS . ' ' . ( $styles['classnames'] ?? '' ) ) ),
-			esc_attr( $styles['css'] ?? '' )
+		$blocks = array_values(
+			array_filter(
+				parse_blocks( $markup ),
+				static fn( $block ) => ! empty( $block['blockName'] )
+			)
 		);
+		$format = get_option( 'time_format' );
 
-		return [
-			'blockName'    => 'core/group',
-			'attrs'        => [
-				'className' => self::PINNED_CARD_CLASS,
-				'style'     => $style,
-				'metadata'  => [ 'name' => __( 'Pinned Entry', 'newspack-rolling-coverage' ) ],
-			],
-			'innerBlocks'  => $inner_blocks,
-			'innerHTML'    => $open . '</div>',
-			'innerContent' => array_merge( [ $open ], array_fill( 0, count( $inner_blocks ), null ), [ '</div>' ] ),
-		];
+		return self::with_time_format( $blocks, $format ? (string) $format : 'g:i a' );
+	}
+
+	/**
+	 * The blocks with every Post Date that shows a time, rather than a
+	 * relative date, in the given format.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @param string  $format A PHP date format.
+	 * @return array[] Parsed blocks.
+	 */
+	private static function with_time_format( array $blocks, string $format ): array {
+		foreach ( $blocks as $index => $block ) {
+			if ( 'core/post-date' === $block['blockName'] && 'human-diff' !== ( $block['attrs']['format'] ?? '' ) ) {
+				$blocks[ $index ]['attrs']['format'] = $format;
+			}
+
+			$blocks[ $index ]['innerBlocks'] = self::with_time_format( $block['innerBlocks'] ?? [], $format );
+		}
+
+		return $blocks;
 	}
 
 	/**
@@ -3903,58 +3741,6 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * A parsed row of the pin icon and the pinned label, shown only on pinned
-	 * entries.
-	 *
-	 * @return array Parsed-block-shaped array.
-	 */
-	private static function pinned_row_block(): array {
-		$label_html = sprintf(
-			'<p class="use-header-font %s has-small-font-size" style="font-weight:700">%s</p>',
-			Entry_Bindings::PINNED_LABEL_CLASS,
-			esc_html__( 'Pinned', 'newspack-rolling-coverage' )
-		);
-
-		return [
-			'blockName'    => 'core/group',
-			'attrs'        => [
-				'layout'   => [
-					'type'              => 'flex',
-					'flexWrap'          => 'nowrap',
-					'verticalAlignment' => 'center',
-				],
-				'style'    => [ 'spacing' => [ 'blockGap' => '0' ] ],
-				'metadata' => [ 'name' => __( 'Pinned', 'newspack-rolling-coverage' ) ],
-			],
-			'innerBlocks'  => [
-				[
-					'blockName'    => 'core/icon',
-					'attrs'        => [
-						'icon'  => Block_Icons::PIN,
-						'style' => [ 'dimensions' => [ 'width' => '24px' ] ],
-					],
-					'innerBlocks'  => [],
-					'innerHTML'    => '',
-					'innerContent' => [],
-				],
-				[
-					'blockName'    => 'core/paragraph',
-					'attrs'        => [
-						'className' => 'use-header-font ' . Entry_Bindings::PINNED_LABEL_CLASS,
-						'fontSize'  => 'small',
-						'style'     => [ 'typography' => [ 'fontWeight' => '700' ] ],
-					],
-					'innerBlocks'  => [],
-					'innerHTML'    => $label_html,
-					'innerContent' => [ $label_html ],
-				],
-			],
-			'innerHTML'    => '<div class="wp-block-group"></div>',
-			'innerContent' => [ '<div class="wp-block-group">', null, null, '</div>' ],
-		];
-	}
-
-	/**
 	 * Stores the entry template plus the block's ad settings in the options
 	 * table and returns a hash key identifying that exact combination. A
 	 * capped feed's config also holds how many entries it shows, and a grid
@@ -4029,13 +3815,12 @@ class Rolling_Coverage_Block {
 	 */
 	private static function load_block_config( int $coverage_id, string $template_key ): ?array {
 		$defaults = [
-			'template'    => self::default_entry_template(),
 			'adsEnabled'  => true,
 			'adsInterval' => 4,
 		];
 
 		if ( ! $template_key ) {
-			return $defaults;
+			return array_merge( [ 'template' => self::default_entry_template() ], $defaults );
 		}
 
 		$option_key = self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $template_key;
