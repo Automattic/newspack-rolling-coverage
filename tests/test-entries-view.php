@@ -99,6 +99,19 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Pinned entries list newest first, whatever order they were pinned in.
+	 */
+	public function test_pinned_entries_are_listed_newest_first() {
+		$older_pinned_id = $this->create_entry_at( '2026-01-01 10:00:00' );
+		$newer_pinned_id = $this->create_entry_at( '2026-01-01 11:00:00' );
+		$newest_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
+		Post_Type::pin_entry( $older_pinned_id );
+		Post_Type::pin_entry( $newer_pinned_id );
+
+		$this->assertSame( [ $newer_pinned_id, $older_pinned_id, $newest_entry_id ], $this->get_listed_entry_ids() );
+	}
+
+	/**
 	 * Entries written in the editor before the source meta existed have no
 	 * meta row. The source filters count them as editor entries.
 	 */

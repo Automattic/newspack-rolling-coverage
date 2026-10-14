@@ -1693,8 +1693,7 @@ class Rolling_Coverage_Block {
 				self::coverage_entries_args( $coverage_id ),
 				[
 					'post__in'       => $pinned_ids,
-					'orderby'        => 'date',
-					'order'          => 'DESC',
+					'orderby'        => self::FEED_ORDER,
 					'posts_per_page' => count( $pinned_ids ),
 				]
 			)
@@ -2721,14 +2720,12 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The first pinned entry of a coverage shown as the pinned card, in the
-	 * order the live feed shows pinned entries: the order they were pinned
-	 * in (see Post_Type::orderby_pinned_first()). Where the template's Full
-	 * Story Entry takes pinned entries (see is_full_story()), pinned entries
-	 * with a published breakout post render through it and are skipped. The
-	 * view script puts an entry pinned while the page is open after the
-	 * pinned entries already there, so the first stays first. Looked up once
-	 * per request for each site, coverage, set of pinned entries and kind of
-	 * template, since a poll asks for every pinned entry it renders.
+	 * order the live feed shows pinned entries: newest first (see
+	 * Post_Type::orderby_pinned_first()). Where the template's Full Story
+	 * Entry takes pinned entries (see is_full_story()), pinned entries with
+	 * a published breakout post render through it and are skipped. Looked up
+	 * once per request for each site, coverage, set of pinned entries and
+	 * kind of template, since a poll asks for every pinned entry it renders.
 	 *
 	 * @param int     $coverage_id Coverage term ID.
 	 * @param array[] $template    Parsed template blocks.
@@ -2755,7 +2752,7 @@ class Rolling_Coverage_Block {
 				self::coverage_entries_args( $coverage_id ),
 				[
 					'post__in'                    => $pinned_ids,
-					'orderby'                     => 'post__in',
+					'orderby'                     => self::FEED_ORDER,
 					'posts_per_page'              => $skips_full_stories ? count( $pinned_ids ) : 1,
 					'fields'                      => 'ids',
 					Post_Type::SKIP_PIN_ORDER_VAR => true,
@@ -4468,8 +4465,8 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Where load more starts for a page that shows only pinned entries: above
-	 * every entry. The page lists its pinned entries in pin order, so it can
-	 * leave out entries dated after its last one. Load more lists them all by
+	 * every entry. The page lists its pinned entries first, so it can leave
+	 * out entries dated after its last one. Load more lists them all by
 	 * date, and the view script skips the pinned entries the page already
 	 * shows.
 	 *

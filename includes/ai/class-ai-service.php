@@ -528,7 +528,7 @@ class AI_Service {
 			);
 		}
 
-		// Sort pinned entries first, preserving pin order.
+		// Sort pinned entries first, newest first like the feed.
 		$entries = self::sort_pinned_first( $entries );
 
 		$parts = [];
@@ -554,8 +554,9 @@ class AI_Service {
 	}
 
 	/**
-	 * Sort entries so pinned ones appear first, preserving pin order.
-	 * Done in PHP because get_posts() sets suppress_filters = true.
+	 * Sort entries so pinned ones appear first, each group keeping the
+	 * order the entries came in. Done in PHP because get_posts() sets
+	 * suppress_filters = true.
 	 *
 	 * @param WP_Post[] $entries Entries from get_posts().
 	 * @return WP_Post[] Sorted entries, pinned first.
@@ -573,15 +574,13 @@ class AI_Service {
 
 		foreach ( $entries as $entry ) {
 			if ( isset( $pinned_map[ $entry->ID ] ) ) {
-				$pinned[ $pinned_map[ $entry->ID ] ] = $entry;
+				$pinned[] = $entry;
 			} else {
 				$unpinned[] = $entry;
 			}
 		}
 
-		ksort( $pinned );
-
-		return array_merge( array_values( $pinned ), $unpinned );
+		return array_merge( $pinned, $unpinned );
 	}
 
 	/**

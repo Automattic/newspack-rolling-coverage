@@ -33,7 +33,7 @@ class Post_Type {
 	// REST field name for the entry's coverage term's status.
 	const COVERAGE_STATUS_REST_FIELD = 'coverageStatus';
 
-	// Option key for the ordered list of pinned entry IDs. Autoloaded array of post IDs in pin order. Isolates pinned state to this CPT, avoiding pollution of the global sticky_posts option.
+	// Option key for the pinned entry IDs. Autoloaded array of post IDs. Isolates pinned state to this CPT, avoiding pollution of the global sticky_posts option.
 	const PINNED_OPTION_KEY = 'rolling_coverage_pinned_entries';
 
 	// Query var used to opt out of pinned-first ordering for a specific query.
@@ -890,7 +890,7 @@ class Post_Type {
 	}
 
 	/**
-	 * Get the ordered list of pinned entry IDs.
+	 * Get the pinned entry IDs.
 	 *
 	 * @return int[]
 	 */
@@ -1060,7 +1060,9 @@ class Post_Type {
 	}
 
 	/**
-	 * Rewrites the ORDER BY clause to sort pinned entries first.
+	 * Rewrites the ORDER BY clause to sort pinned entries first. Pinned and
+	 * unpinned entries each keep the query's own order, so feeds list pinned
+	 * entries newest first.
 	 *
 	 * Registered globally on posts_orderby. Guarded by a post_type check
 	 * so non-CPT queries pass through untouched. Queries that need to
@@ -1089,7 +1091,7 @@ class Post_Type {
 		global $wpdb;
 		$ids_list = implode( ',', $pinned_ids );
 
-		$pinned_order = "CASE WHEN {$wpdb->posts}.ID IN ({$ids_list}) THEN 0 ELSE 1 END, FIELD({$wpdb->posts}.ID, {$ids_list})";
+		$pinned_order = "CASE WHEN {$wpdb->posts}.ID IN ({$ids_list}) THEN 0 ELSE 1 END";
 
 		return '' === $orderby ? $pinned_order : $pinned_order . ', ' . $orderby;
 	}

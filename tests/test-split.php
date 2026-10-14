@@ -308,23 +308,24 @@ class Test_Split extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Only the first pinned entry takes the pinned card's placement: a later
-	 * one heads the entries beside it, keeping the card's look.
+	 * Only the newest pinned entry takes the pinned card's placement, whatever
+	 * order the entries were pinned in: an older one heads the entries beside
+	 * it, keeping the card's look.
 	 */
-	public function test_later_pinned_entry_takes_the_entry_groups_placement() {
+	public function test_older_pinned_entry_takes_the_entry_groups_placement() {
 		$coverage_id = self::create_coverage();
-		[ $first_pin, $second_pin, $newest_id ] = self::create_entries( $coverage_id );
-		Post_Type::pin_entry( $first_pin );
-		Post_Type::pin_entry( $second_pin );
+		[ $older_pin, $newer_pin, $newest_id ] = self::create_entries( $coverage_id );
+		Post_Type::pin_entry( $older_pin );
+		Post_Type::pin_entry( $newer_pin );
 
 		$html    = self::render_split( $coverage_id );
 		$classes = self::article_classes( $html );
 		$entry   = self::cell_class( $classes[ $newest_id ] );
 
-		$this->assertSame( [ $first_pin, $second_pin, $newest_id ], array_keys( $classes ), 'Pinned entries should come first, in the order they were pinned.' );
-		$this->assertNotSame( $entry, self::cell_class( $classes[ $first_pin ] ), 'The first pin should take the card placement.' );
-		$this->assertSame( $entry, self::cell_class( $classes[ $second_pin ] ), "The second pin should take the entry group's placement." );
-		$this->assertContains( Rolling_Coverage_Block::BESIDE_PINNED_CLASS, $classes[ $second_pin ] );
+		$this->assertSame( [ $newer_pin, $older_pin, $newest_id ], array_keys( $classes ), 'Pinned entries should come first, newest first.' );
+		$this->assertNotSame( $entry, self::cell_class( $classes[ $newer_pin ] ), 'The newer pin should take the card placement.' );
+		$this->assertSame( $entry, self::cell_class( $classes[ $older_pin ] ), "The older pin should take the entry group's placement." );
+		$this->assertContains( Rolling_Coverage_Block::BESIDE_PINNED_CLASS, $classes[ $older_pin ] );
 		$this->assertSame( 2, substr_count( $html, 'class="wp-block-group newspack-rolling-coverage-pinned-card' ), 'Both pins should keep the pinned card.' );
 	}
 
@@ -393,17 +394,17 @@ class Test_Split extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The lead pinned entry is the first of the coverage the feed shows: an
-	 * entry filed under two coverages, pinned second in one but first in the
-	 * other, heads the entries beside the card in the first.
+	 * The lead pinned entry is the newest of the coverage the feed shows: an
+	 * entry filed under two coverages, with a newer pinned entry in one but
+	 * not the other, heads the entries beside the card in the first.
 	 */
 	public function test_lead_pinned_entry_is_decided_per_coverage() {
 		$coverage_id = self::create_coverage();
 		$other_id    = self::create_coverage();
-		[ $first_pin, $shared_pin ] = self::create_entries( $coverage_id );
+		[ $shared_pin, $first_pin ] = self::create_entries( $coverage_id );
 		wp_set_object_terms( $shared_pin, [ $coverage_id, $other_id ], Taxonomy::TAXONOMY_SLUG );
-		Post_Type::pin_entry( $first_pin );
 		Post_Type::pin_entry( $shared_pin );
+		Post_Type::pin_entry( $first_pin );
 
 		$html         = self::render_split( $coverage_id );
 		$classes      = self::article_classes( $html );
@@ -413,11 +414,11 @@ class Test_Split extends Rolling_Coverage_TestCase {
 		$other_polled = self::article_classes( implode( '', wp_list_pluck( self::poll( $other_id, $other_html )['entries'], 'html' ) ) );
 		$card         = self::cell_class( $classes[ $first_pin ] );
 
-		$this->assertNotSame( $card, self::cell_class( $classes[ $shared_pin ] ), "The second pin should take the entry group's placement." );
+		$this->assertNotSame( $card, self::cell_class( $classes[ $shared_pin ] ), "The older pin should take the entry group's placement." );
 		$this->assertContains( Rolling_Coverage_Block::BESIDE_PINNED_CLASS, $classes[ $shared_pin ] );
 		$this->assertSame( self::cell_class( $classes[ $shared_pin ] ), self::cell_class( $polled[ $shared_pin ] ), 'A poll should place it the same way.' );
 		$this->assertSame( $card, self::cell_class( $polled[ $first_pin ] ), 'A poll should keep the lead.' );
-		$this->assertSame( $card, self::cell_class( $other[ $shared_pin ] ), 'It should lead the coverage it is pinned first in.' );
+		$this->assertSame( $card, self::cell_class( $other[ $shared_pin ] ), 'It should lead the coverage where it is the newest pin.' );
 		$this->assertSame( $card, self::cell_class( $other_polled[ $shared_pin ] ), 'A poll of that coverage should keep it as the lead.' );
 	}
 
@@ -545,20 +546,20 @@ class Test_Split extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A second pin heading the entries beside the card already has the
+	 * An older pin heading the entries beside the card already has the
 	 * card's look, and is left as it is.
 	 */
-	public function test_second_pin_heading_the_column_is_untouched() {
+	public function test_older_pin_heading_the_column_is_untouched() {
 		$coverage_id = self::create_coverage();
-		[ $first_pin, $second_pin, $newest_id ] = self::create_entries( $coverage_id );
-		Post_Type::pin_entry( $first_pin );
-		Post_Type::pin_entry( $second_pin );
+		[ $older_pin, $newer_pin, $newest_id ] = self::create_entries( $coverage_id );
+		Post_Type::pin_entry( $older_pin );
+		Post_Type::pin_entry( $newer_pin );
 
 		$html   = self::render_split( $coverage_id );
 		$styles = self::entry_group_styles( $html );
 		$marks  = self::article_marks( $html );
 
-		$this->assertSame( [], $marks[ $second_pin ] );
+		$this->assertSame( [], $marks[ $older_pin ] );
 		$this->assertSame( [], $marks[ $newest_id ] );
 		$this->assertSame( self::rule_of( self::ENTRY_RULE ), self::rule_of( $styles[ $newest_id ] ) );
 		$this->assertStringNotContainsString( 'data-heads-column', $html );
