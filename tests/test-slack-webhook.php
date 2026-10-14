@@ -2477,13 +2477,30 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The publish emoji publishes a draft another request saved, and the bot
-	 * reacted to, while this one read the message.
+	 * Whether the bot's reaction shows on the message by the time it is read:
+	 * the draft emoji's request saves the entry before it reacts.
+	 *
+	 * @return array[]
 	 */
-	public function test_publish_emoji_publishes_a_draft_saved_meanwhile() {
+	public function draft_saved_meanwhile_provider() {
+		return [
+			'bot has not reacted yet' => [ false ],
+			'bot has reacted'         => [ true ],
+		];
+	}
+
+	/**
+	 * The publish emoji publishes a draft another request saved while this
+	 * one read the message, whether or not the bot's reaction to it shows yet.
+	 *
+	 * @dataProvider draft_saved_meanwhile_provider
+	 *
+	 * @param bool $has_bot_reaction Whether the bot's reaction is on the message.
+	 */
+	public function test_publish_emoji_publishes_a_draft_saved_meanwhile( $has_bot_reaction ) {
 		$coverage_id = $this->link_emoji_trigger_channel();
 		Slack_Config::update_settings( [ 'slack_bot_user_id' => 'U0BOT' ] );
-		$this->during_message_read = function () use ( $coverage_id ) {
+		$this->during_message_read = function () use ( $coverage_id, $has_bot_reaction ) {
 			self::create_entry(
 				$coverage_id,
 				[
@@ -2491,13 +2508,16 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 					'meta_input'  => [ Post_Type::META_SOURCE_REF => self::MESSAGE_TS ],
 				]
 			);
-			$this->channel_messages[ self::MESSAGE_TS ]['reactions'] = [
-				[
-					'name'  => 'large_yellow_circle',
-					'users' => [ 'U0BOT' ],
-					'count' => 1,
-				],
-			];
+
+			if ( $has_bot_reaction ) {
+				$this->channel_messages[ self::MESSAGE_TS ]['reactions'] = [
+					[
+						'name'  => 'large_yellow_circle',
+						'users' => [ 'U0BOT' ],
+						'count' => 1,
+					],
+				];
+			}
 		};
 
 		self::react_to_message();
