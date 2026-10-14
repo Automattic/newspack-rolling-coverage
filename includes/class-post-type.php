@@ -1036,7 +1036,7 @@ class Post_Type {
 	}
 
 	/**
-	 * Add an entry ID to the pinned list (append = newest pin).
+	 * Add an entry ID to the pinned list.
 	 *
 	 * @param int $entry_id Entry post ID.
 	 */

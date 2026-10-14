@@ -1334,8 +1334,9 @@ class Rolling_Coverage_Block {
 		if ( $posts ) {
 			$last_entry = $posts[ count( $posts ) - 1 ];
 
-			// A page ending on a pinned entry shows only pinned entries, in pin
-			// order, so no entry's date marks where its load more starts.
+			// A page ending on a pinned entry shows only pinned entries, which
+			// list above newer unpinned ones, so no entry's date marks where its
+			// load more starts.
 			$before = ! $is_capped && Post_Type::is_pinned( $last_entry->ID ) ? self::load_more_top_bound() : self::load_more_bound( $last_entry );
 		}
 

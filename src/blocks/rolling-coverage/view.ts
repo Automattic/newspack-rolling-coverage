@@ -1273,9 +1273,9 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Inserts entries above the newest unpinned entry, below any pinned
-	 * entries, pinned ones first, removing the "no entries yet" placeholder
-	 * if it's still present.
+	 * Inserts unpinned entries above the newest unpinned entry, and pinned
+	 * ones among the pinned entries by date (see insertPinned()), removing
+	 * the "no entries yet" placeholder if it's still present.
 	 *
 	 * Removes the "no entries yet" placeholder, starts observing each entry
 	 * for coverage_entry_seen, and displays any associated ad slots.

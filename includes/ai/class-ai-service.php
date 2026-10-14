@@ -515,8 +515,10 @@ class AI_Service {
 			$coverage_id,
 			[
 				'posts_per_page' => self::MAX_PROMPT_ENTRIES,
-				'orderby'        => 'date',
-				'order'          => 'DESC',
+				'orderby'        => [
+					'date' => 'DESC',
+					'ID'   => 'DESC',
+				],
 			]
 		);
 
