@@ -79,7 +79,7 @@ class Test_Older_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The Load More button takes the sentinel's place, styled as the theme
+	 * The Load more button takes the sentinel's place, styled as the theme
 	 * styles buttons, right after the entries and above the blocks below
 	 * them. It renders hidden, for the view script to show while more
 	 * entries remain, so a page without the script never offers it.
@@ -97,7 +97,7 @@ class Test_Older_Entries extends Rolling_Coverage_TestCase {
 
 		$this->assertStringNotContainsString( 'newspack-rolling-coverage-sentinel', $html );
 		$this->assertStringContainsString( 'data-has-more="1"', $html );
-		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-load-more" hidden><button type="button" class="wp-element-button wp-block-button__link">Load More</button></div>', $html );
+		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-load-more" hidden><button type="button" class="wp-element-button wp-block-button__link">Load more</button></div>', $html );
 
 		$entries   = strpos( $html, 'class="newspack-rolling-coverage-entries"' );
 		$load_more = strpos( $html, 'newspack-rolling-coverage-load-more' );

@@ -40,7 +40,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	 * template.
 	 */
 	const CHECK_UPDATES_LAYOUT = '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">'
-		. '<!-- wp:newspack-rolling-coverage/check-updates --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"tagName":"button"} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Check for Updates</button></div><!-- /wp:button --></div><!-- /wp:buttons --><!-- /wp:newspack-rolling-coverage/check-updates -->'
+		. '<!-- wp:newspack-rolling-coverage/check-updates --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"tagName":"button"} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Check for updates</button></div><!-- /wp:button --></div><!-- /wp:buttons --><!-- /wp:newspack-rolling-coverage/check-updates -->'
 		. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry"><!-- wp:post-title /--></div><!-- /wp:group -->'
 		. '</div><!-- /wp:group -->';
 
@@ -392,7 +392,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'data-new-entries="button"', $html );
 		$this->assertMatchesRegularExpression( '/<div class="[^"]*newspack-rolling-coverage-check-updates[^"]*" hidden>/', $html );
-		$this->assertMatchesRegularExpression( '/<button type="button" class="[^"]+">Check for Updates<\/button>/', $html );
+		$this->assertMatchesRegularExpression( '/<button type="button" class="[^"]+">Check for updates<\/button>/', $html );
 	}
 
 	/**
@@ -1014,8 +1014,8 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	 * styles and view script rely on: the styles would fix a new-posts
 	 * control that lost its hidden attribute to the screen for good, and the
 	 * script would find no settings to poll with. A page whose feed was
-	 * cleaned that way gets neither, only a rule hiding the Load More and
-	 * Check for Updates controls, which lost their hidden attribute too and
+	 * cleaned that way gets neither, only a rule hiding the Load more and
+	 * Check for updates controls, which lost their hidden attribute too and
 	 * have nothing to run them.
 	 */
 	public function test_only_the_controls_nothing_runs_are_hidden_when_lite_site_cannot_keep_the_feed_markup() {
@@ -1043,8 +1043,8 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( '.newspack-rolling-coverage-new-entries[hidden]', $styles );
 		$this->assertStringContainsString( '.newspack-rolling-coverage-status', $styles );
-		$this->assertStringNotContainsString( '.newspack-rolling-coverage-load-more', $styles, 'The view script shows and hides the Load More control.' );
-		$this->assertStringNotContainsString( '.newspack-rolling-coverage-check-updates', $styles, 'And the Check for Updates control.' );
+		$this->assertStringNotContainsString( '.newspack-rolling-coverage-load-more', $styles, 'The view script shows and hides the Load more control.' );
+		$this->assertStringNotContainsString( '.newspack-rolling-coverage-check-updates', $styles, 'And the Check for updates control.' );
 		$this->assertStringNotContainsString( '<', $styles, 'Nothing can close the style element early.' );
 	}
 }

@@ -479,7 +479,7 @@ interface StatusLabelsResult extends ApiResult {
 }
 
 /**
- * One of the site's labels, such as the "Jump to Latest" button's text,
+ * One of the site's labels, such as the "Jump to latest" button's text,
  * empty where the site sets none.
  */
 interface LabelSetting {

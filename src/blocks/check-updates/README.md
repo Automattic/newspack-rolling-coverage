@@ -22,11 +22,11 @@ The block holds a standard Button block. Style it, change its text, and set its 
 ## What readers see
 
 - Pressing the button checks for new entries. While it runs, the button reads "Checking…" and dims slightly.
-- New entries appear at the top of the feed, below any pinned entries, and edits and removals apply at the same time. The button reads how many arrived for a few seconds, for example "2 Entries Added", and screen readers hear "2 new entries added".
-- When nothing is new, the button reads "No New Entries" for a few seconds. When the check fails, it reads "Couldn't Check", and screen readers hear "Couldn't check for updates. Try again."
+- New entries appear at the top of the feed, below any pinned entries, and edits and removals apply at the same time. The button reads how many arrived for a few seconds, for example "2 entries added", and screen readers hear "2 new entries added".
+- When nothing is new, the button reads "No new entries" for a few seconds. When the check fails, it reads "Couldn’t check", and screen readers hear "Couldn’t check for updates. Try again."
 - After a large burst of changes, the page reloads to show them all.
 - If the site sets a minimum poll interval, a second press waits until it has passed. A press in a background tab runs once the tab is back in view.
-- "Entries" follows the entry name set in Rolling Coverage > All Coverages > Settings, for example "No New Updates".
+- "Entries" follows the entry name set in Rolling Coverage > All Coverages > Settings, for example "No new updates".
 
 Because the page doesn't check on its own, these update only when a reader presses the button:
 

@@ -1857,7 +1857,7 @@ class Rolling_Coverage_Block {
 	/**
 	 * The label of the control on a feed opened at a shared entry: the number
 	 * of newer entries, exact up to ten and from there the round number it
-	 * has passed, e.g. "10+ Newer Entries" for 11 to 50, in the site's own
+	 * has passed, e.g. "10+ newer entries" for 11 to 50, in the site's own
 	 * name for entries when it sets one. Empty when there are none, as the
 	 * control then keeps its own text. The view script builds the same
 	 * labels.
@@ -1871,15 +1871,15 @@ class Rolling_Coverage_Block {
 		}
 
 		if ( $count <= 10 ) {
-			$word = Entry_Name::title_word( $count );
+			$word = Entry_Name::word( $count );
 
 			if ( '' !== $word ) {
-				/* translators: 1: number of coverage entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as a button label shows it. */
-				return sprintf( _n( '%1$d Newer %2$s', '%1$d Newer %2$s', $count, 'newspack-rolling-coverage' ), $count, $word );
+				/* translators: 1: number of coverage entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
+				return sprintf( _n( '%1$d newer %2$s', '%1$d newer %2$s', $count, 'newspack-rolling-coverage' ), $count, $word );
 			}
 
 			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
-			return sprintf( _n( '%d Newer Entry', '%d Newer Entries', $count, 'newspack-rolling-coverage' ), $count );
+			return sprintf( _n( '%d newer entry', '%d newer entries', $count, 'newspack-rolling-coverage' ), $count );
 		}
 
 		$floor = 10;
@@ -1890,15 +1890,15 @@ class Rolling_Coverage_Block {
 			$floor = 50;
 		}
 
-		$word = Entry_Name::title_word( $floor );
+		$word = Entry_Name::word( $floor );
 
 		if ( '' !== $word ) {
-			/* translators: 1: a round number the count of newer coverage entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as a button label shows it. */
-			return sprintf( _n( '%1$d+ Newer %2$s', '%1$d+ Newer %2$s', $floor, 'newspack-rolling-coverage' ), $floor, $word );
+			/* translators: 1: a round number the count of newer coverage entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as it reads mid-sentence. */
+			return sprintf( _n( '%1$d+ newer %2$s', '%1$d+ newer %2$s', $floor, 'newspack-rolling-coverage' ), $floor, $word );
 		}
 
 		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
-		return sprintf( _n( '%d+ Newer Entry', '%d+ Newer Entries', $floor, 'newspack-rolling-coverage' ), $floor );
+		return sprintf( _n( '%d+ newer entry', '%d+ newer entries', $floor, 'newspack-rolling-coverage' ), $floor );
 	}
 
 	/**
@@ -1953,7 +1953,7 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The control fixed above the feed: a button, styled as the theme styles
-	 * buttons, labeled with the site's "Jump to Latest" text (see
+	 * buttons, labeled with the site's "Jump to latest" text (see
 	 * Latest_Label). It links to the live feed, so it works without the view
 	 * script, and its wrapper carries that URL for the script. In the normal
 	 * view it is hidden until the view script reveals it when new entries
@@ -2023,12 +2023,12 @@ class Rolling_Coverage_Block {
 			'<div class="%1$s-load-more" hidden><button type="button" class="wp-element-button wp-block-button__link">%2$s</button></div>',
 			self::MARKUP_PREFIX,
 			/* translators: Button that loads older entries at the end of a coverage's feed. */
-			esc_html__( 'Load More', 'newspack-rolling-coverage' )
+			esc_html__( 'Load more', 'newspack-rolling-coverage' )
 		);
 	}
 
 	/**
-	 * The "Jump to Latest" control as a parsed Buttons block holding one
+	 * The "Jump to latest" control as a parsed Buttons block holding one
 	 * button: a link to the live feed with the theme's Elevation 2 shadow,
 	 * marked for the view script, and otherwise styled as the theme styles
 	 * buttons.
@@ -3038,7 +3038,7 @@ class Rolling_Coverage_Block {
 				'{{share}}'      => esc_html__( 'Share', 'newspack-rolling-coverage' ),
 				'{{pinned}}'     => esc_html__( 'Pinned', 'newspack-rolling-coverage' ),
 				'{{full_story}}' => esc_html__( 'Full story', 'newspack-rolling-coverage' ),
-				'{{read_more}}'  => esc_html__( 'Read More', 'newspack-rolling-coverage' ),
+				'{{read_more}}'  => esc_html__( 'Read more', 'newspack-rolling-coverage' ),
 			]
 		);
 		$blocks = array_values(

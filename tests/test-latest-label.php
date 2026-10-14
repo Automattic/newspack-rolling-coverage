@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for the site-wide "Jump to Latest" label.
+ * Tests for the site-wide "Jump to latest" label.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -9,7 +9,7 @@ use Newspack_Rolling_Coverage\Latest_Label;
 
 /**
  * A site can set the text of the control that takes readers to the live
- * feed; an empty label falls back to "Jump to Latest".
+ * feed; an empty label falls back to "Jump to latest".
  */
 class Test_Latest_Label extends Rolling_Coverage_TestCase {
 
@@ -47,12 +47,12 @@ class Test_Latest_Label extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Without a saved label the control reads "Jump to Latest", and the
+	 * Without a saved label the control reads "Jump to latest", and the
 	 * route reports no label of the site's own.
 	 */
 	public function test_default_label() {
-		$this->assertSame( 'Jump to Latest', Latest_Label::get_default() );
-		$this->assertSame( 'Jump to Latest', Latest_Label::get() );
+		$this->assertSame( 'Jump to latest', Latest_Label::get_default() );
+		$this->assertSame( 'Jump to latest', Latest_Label::get() );
 		$this->assertSame( '', Latest_Label::get_saved() );
 
 		$response = self::read();
@@ -112,7 +112,7 @@ class Test_Latest_Label extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( [ 'label' => '' ], $response->get_data() );
 		$this->assertFalse( get_option( Latest_Label::OPTION_KEY ), 'The option should be deleted.' );
-		$this->assertSame( 'Jump to Latest', Latest_Label::get() );
+		$this->assertSame( 'Jump to latest', Latest_Label::get() );
 	}
 
 	/**
@@ -159,7 +159,7 @@ class Test_Latest_Label extends Rolling_Coverage_TestCase {
 		update_option( Latest_Label::OPTION_KEY, $value );
 
 		$this->assertSame( '', Latest_Label::get_saved() );
-		$this->assertSame( 'Jump to Latest', Latest_Label::get() );
+		$this->assertSame( 'Jump to latest', Latest_Label::get() );
 	}
 
 	/**

@@ -20,7 +20,7 @@ It copies the Newspack UI loading spinner rather than using it, since the plugin
 
 ## Labels
 
-`nextCheckLabel()` and `newEntriesFoundLabel()` in `src/blocks/rolling-coverage/entry-name.ts`. The entry name comes from the followed feed's `data-entry-name`, so the block needs no setting of its own.
+`nextCheckLabel()` and `newEntriesLabel()` in `src/blocks/rolling-coverage/entry-name.ts`. The entry name comes from the followed feed's `data-entry-name`, so the block needs no setting of its own.
 
 ## Editor preview
 

@@ -5,14 +5,11 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 
 /**
  * The site's own name for entries, as Entry_Name::for_script() writes it to
- * the block wrapper: each word as it reads mid-sentence, and as a button
- * label shows it.
+ * the block wrapper: each word as it reads mid-sentence.
  */
 export interface EntryName {
 	singular: string;
 	plural: string;
-	singularTitle: string;
-	pluralTitle: string;
 }
 
 /**
@@ -29,12 +26,9 @@ export function readEntryName( root: HTMLElement ): EntryName | null {
 	try {
 		const name = JSON.parse( root.dataset.entryName ) as EntryName;
 
-		return [
-			name.singular,
-			name.plural,
-			name.singularTitle,
-			name.pluralTitle,
-		].every( ( word ) => typeof word === 'string' && word !== '' )
+		return [ name.singular, name.plural ].every(
+			( word ) => typeof word === 'string' && word !== ''
+		)
 			? name
 			: null;
 	} catch {
@@ -43,9 +37,10 @@ export function readEntryName( root: HTMLElement ): EntryName | null {
 }
 
 /**
- * The control's label while new entries wait to be shown.
+ * The count of new entries: the control's label while they wait to be
+ * shown, and the Update Timer's text for a moment after a check brings them.
  *
- * @param {number}         count How many new entries are waiting.
+ * @param {number}         count How many new entries there are.
  * @param {EntryName|null} name  The site's name for entries.
  * @return {string} The label.
  */
@@ -55,23 +50,23 @@ export function newEntriesLabel(
 ): string {
 	if ( name ) {
 		return sprintf(
-			/* translators: 1: number of new coverage entries waiting to be shown. 2: the site's own name for entries, singular or plural to match the number, as a button label shows it. */
+			/* translators: 1: number of new coverage entries, waiting to be shown or just found by a check. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
 			_n(
-				'%1$d New %2$s',
-				'%1$d New %2$s',
+				'%1$d new %2$s',
+				'%1$d new %2$s',
 				count,
 				'newspack-rolling-coverage'
 			),
 			count,
-			count === 1 ? name.singularTitle : name.pluralTitle
+			count === 1 ? name.singular : name.plural
 		);
 	}
 
 	return sprintf(
-		/* translators: %d: number of new coverage entries waiting to be shown. */
+		/* translators: %d: number of new coverage entries, waiting to be shown or just found by a check. */
 		_n(
-			'%d New Entry',
-			'%d New Entries',
+			'%d new entry',
+			'%d new entries',
 			count,
 			'newspack-rolling-coverage'
 		),
@@ -93,23 +88,23 @@ export function entriesAddedButtonLabel(
 ): string {
 	if ( name ) {
 		return sprintf(
-			/* translators: 1: number of coverage entries a check just added. 2: the site's own name for entries, singular or plural to match the number, as a button label shows it. */
+			/* translators: 1: number of coverage entries a check just added. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
 			_n(
-				'%1$d %2$s Added',
-				'%1$d %2$s Added',
+				'%1$d %2$s added',
+				'%1$d %2$s added',
 				count,
 				'newspack-rolling-coverage'
 			),
 			count,
-			count === 1 ? name.singularTitle : name.pluralTitle
+			count === 1 ? name.singular : name.plural
 		);
 	}
 
 	return sprintf(
 		/* translators: %d: number of coverage entries a check just added. */
 		_n(
-			'%d Entry Added',
-			'%d Entries Added',
+			'%d entry added',
+			'%d entries added',
 			count,
 			'newspack-rolling-coverage'
 		),
@@ -127,19 +122,19 @@ export function entriesAddedButtonLabel(
 export function noNewEntriesLabel( name: EntryName | null ): string {
 	if ( name ) {
 		return sprintf(
-			/* translators: %s: the site's own name for coverage entries, plural, as a button label shows it. */
-			__( 'No New %s', 'newspack-rolling-coverage' ),
-			name.pluralTitle
+			/* translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence. */
+			__( 'No new %s', 'newspack-rolling-coverage' ),
+			name.plural
 		);
 	}
 
-	return __( 'No New Entries', 'newspack-rolling-coverage' );
+	return __( 'No new entries', 'newspack-rolling-coverage' );
 }
 
 /**
  * The label of the control on a feed opened at a shared entry: the number of
  * newer entries, exact up to ten and from there the round number it has
- * passed, e.g. "10+ Newer Entries" for 11 to 50. Mirrors
+ * passed, e.g. "10+ newer entries" for 11 to 50. Mirrors
  * Rolling_Coverage_Block::newer_entries_label().
  *
  * @param {number}         count How many entries are newer.
@@ -157,23 +152,23 @@ export function newerEntriesLabel(
 	if ( count <= 10 ) {
 		if ( name ) {
 			return sprintf(
-				/* translators: 1: number of coverage entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as a button label shows it. */
+				/* translators: 1: number of coverage entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
 				_n(
-					'%1$d Newer %2$s',
-					'%1$d Newer %2$s',
+					'%1$d newer %2$s',
+					'%1$d newer %2$s',
 					count,
 					'newspack-rolling-coverage'
 				),
 				count,
-				count === 1 ? name.singularTitle : name.pluralTitle
+				count === 1 ? name.singular : name.plural
 			);
 		}
 
 		return sprintf(
 			/* translators: %d: number of coverage entries newer than the one shown, from 1 to 10. */
 			_n(
-				'%d Newer Entry',
-				'%d Newer Entries',
+				'%d newer entry',
+				'%d newer entries',
 				count,
 				'newspack-rolling-coverage'
 			),
@@ -191,23 +186,23 @@ export function newerEntriesLabel(
 
 	if ( name ) {
 		return sprintf(
-			/* translators: 1: a round number the count of newer coverage entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as a button label shows it. */
+			/* translators: 1: a round number the count of newer coverage entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as it reads mid-sentence. */
 			_n(
-				'%1$d+ Newer %2$s',
-				'%1$d+ Newer %2$s',
+				'%1$d+ newer %2$s',
+				'%1$d+ newer %2$s',
 				floor,
 				'newspack-rolling-coverage'
 			),
 			floor,
-			name.pluralTitle
+			name.plural
 		);
 	}
 
 	return sprintf(
 		/* translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100. */
 		_n(
-			'%d+ Newer Entry',
-			'%d+ Newer Entries',
+			'%d+ newer entry',
+			'%d+ newer entries',
 			floor,
 			'newspack-rolling-coverage'
 		),
@@ -289,7 +284,7 @@ export function showingLatestLabel( name: EntryName | null ): string {
 }
 
 /**
- * Announced when pressing the Load More button fails to load older entries.
+ * Announced when pressing the Load more button fails to load older entries.
  *
  * @param {EntryName|null} name The site's name for entries.
  * @return {string} The announcement.
@@ -323,42 +318,5 @@ export function nextCheckLabel( seconds: number ): string {
 		/* translators: %d: seconds until the page next checks for new coverage entries; the trailing "s" abbreviates seconds. */
 		__( 'Next check in %ds', 'newspack-rolling-coverage' ),
 		seconds
-	);
-}
-
-/**
- * The Update Timer's text, for a moment, after a check brought entries.
- *
- * @param {number}         count How many entries arrived.
- * @param {EntryName|null} name  The site's name for entries.
- * @return {string} The text.
- */
-export function newEntriesFoundLabel(
-	count: number,
-	name: EntryName | null
-): string {
-	if ( name ) {
-		return sprintf(
-			/* translators: 1: number of new coverage entries a check found. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence. */
-			_n(
-				'%1$d new %2$s',
-				'%1$d new %2$s',
-				count,
-				'newspack-rolling-coverage'
-			),
-			count,
-			count === 1 ? name.singular : name.plural
-		);
-	}
-
-	return sprintf(
-		/* translators: %d: number of new coverage entries a check found. */
-		_n(
-			'%d new entry',
-			'%d new entries',
-			count,
-			'newspack-rolling-coverage'
-		),
-		count
 	);
 }

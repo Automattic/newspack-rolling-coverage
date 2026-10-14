@@ -30,12 +30,12 @@ The block has no attributes. `customClassName` and `reusable` are off. `ancestor
 In `src/blocks/rolling-coverage/view.ts`, a feed with `data-new-entries="button"` (`checksOnRequest`):
 
 - Never schedules a poll (`schedulePoll()` returns early), nor polls when the tab shows.
-- Inserts polled entries at once, rather than queueing them behind the "N New Entries" control.
+- Inserts polled entries at once, rather than queueing them behind the "N new entries" control.
 - Reveals every copy of the block in the feed and runs one `poll()` per press, whichever copy is pressed; the copies share the busy state and messages, each keeping its own label. `poll()` returns a `PollOutcome`: `ok`, `failed`, `reloading` or `skipped`.
-- Reads `insertedCount` before and after: the buttons read "N Entries Added" or "No New Entries" for a few seconds; not "N New Entries", which is the auto-mode control's call to action. An overflow always reloads in this mode, bypassing the 60-second guard, and the button stays busy until the page goes. A `staleTemplate` reply keeps its once-per-session guard here too, and when it doesn't reload, the press reads as a failed check.
+- Reads `insertedCount` before and after: the buttons read "N entries added" or "No new entries" for a few seconds; not "N new entries", which is the auto-mode control's call to action. An overflow always reloads in this mode, bypassing the 60-second guard, and the button stays busy until the page goes. A `staleTemplate` reply keeps its once-per-session guard here too, and when it doesn't reload, the press reads as a failed check.
 - Waits out `minPollInterval` between presses, and for a hidden tab to show.
 - Hides the blocks once a poll reports the coverage `archived`, not `paused`, which can resume, even when that reply also counts as a failed check. If a button had focus, it moves to the ended notice, or to the entries when the feed shows none.
-- Leaves the block hidden in a shared-entry view. After Jump to Latest swaps in the live feed, `initBlock()` runs again and reveals it.
+- Leaves the block hidden in a shared-entry view. After Jump to latest swaps in the live feed, `initBlock()` runs again and reveals it.
 
 With no polls, Coverage Status blocks (`POLL_EVENT`), the ended notice and `hideWhenEnded` update only on a press, and a shared view's newer count stays as rendered.
 

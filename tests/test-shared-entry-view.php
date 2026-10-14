@@ -321,8 +321,8 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertFalse( $control['hidden'] );
 		$this->assertSame( get_permalink( $this->page_id ), $control['href'] );
 		$this->assertSame( '3', $control['newer'] );
-		$this->assertSame( '3 Newer Entries', $control['text'] );
-		$this->assertSame( 'Jump to Latest', $control['own'], 'The link keeps its own text for the view script.' );
+		$this->assertSame( '3 newer entries', $control['text'] );
+		$this->assertSame( 'Jump to latest', $control['own'], 'The link keeps its own text for the view script.' );
 		$this->assertSame( 'wp-block-button__link wp-element-button', $control['link'] );
 		$this->assertSame( 'box-shadow:var(--wp--preset--shadow--elevation-2)', $control['style'] );
 		$this->assertSame( get_permalink( $this->page_id ), $control['live'], 'The wrapper carries the live feed URL for the view script.' );
@@ -369,18 +369,18 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 'Back to live', $normal['text'] );
 		$this->assertNull( $normal['own'] );
-		$this->assertSame( '3 Newer Entries', $shared['text'] );
+		$this->assertSame( '3 newer entries', $shared['text'] );
 		$this->assertSame( 'Back to live', $shared['own'] );
 	}
 
 	/**
-	 * A blank saved label falls back to "Jump to Latest".
+	 * A blank saved label falls back to "Jump to latest".
 	 */
 	public function test_blank_site_label_falls_back_to_the_default() {
 		update_option( Latest_Label::OPTION_KEY, '   ' );
 
-		$this->assertSame( 'Jump to Latest', $this->control( $this->render_with_shared( '' ) )['text'] );
-		$this->assertSame( 'Jump to Latest', $this->control( $this->render_with_shared( 'entry-3' ) )['own'] );
+		$this->assertSame( 'Jump to latest', $this->control( $this->render_with_shared( '' ) )['text'] );
+		$this->assertSame( 'Jump to latest', $this->control( $this->render_with_shared( 'entry-3' ) )['own'] );
 	}
 
 	/**
@@ -406,7 +406,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$this->assertTrue( $normal['hidden'] );
 		$this->assertSame( 1, $normal['count'] );
 		$this->assertSame( get_permalink( $this->page_id ), $normal['href'] );
-		$this->assertSame( 'Jump to Latest', $normal['text'] );
+		$this->assertSame( 'Jump to latest', $normal['text'] );
 		$this->assertNull( $normal['newer'], 'Only the shared view counts newer entries.' );
 		$this->assertNull( $normal['own'] );
 		$this->assertSame(
@@ -416,8 +416,8 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 				[
 					'hidden' => false,
 					'newer'  => '3',
-					'text'   => '3 Newer Entries',
-					'own'    => 'Jump to Latest',
+					'text'   => '3 newer entries',
+					'own'    => 'Jump to latest',
 				]
 			),
 			'Both views render the one control; only its visibility and the shared view\'s count differ.'
@@ -435,7 +435,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$shared = $this->control( $html );
 
 		$this->assertSame( 1, $shared['count'] );
-		$this->assertSame( 'Jump to Latest', $shared['own'] );
+		$this->assertSame( 'Jump to latest', $shared['own'] );
 		$this->assertNotNull( $shared['live'] );
 		$this->assertMatchesRegularExpression( '/newspack-rolling-coverage-feed[^>]*>.*' . self::CONTROL_CLASS . '/s', $html, 'The control renders inside the Feed.' );
 
@@ -560,7 +560,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'data-view="entry"', $html );
 		$this->assertSame( '1', $control['newer'] );
-		$this->assertSame( '1 Newer Entry', $control['text'] );
+		$this->assertSame( '1 newer entry', $control['text'] );
 	}
 
 	/**
@@ -595,7 +595,7 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 101, Rolling_Coverage_Block::NEWER_COUNT_CAP );
 		$this->assertSame( '101', $control['newer'], 'One past a hundred stands for "more than 100".' );
-		$this->assertSame( '100+ Newer Entries', $control['text'] );
+		$this->assertSame( '100+ newer entries', $control['text'] );
 	}
 
 	/**
@@ -618,15 +618,15 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 	public static function newer_entries_labels(): array {
 		return [
 			[ 0, '' ],
-			[ 1, '1 Newer Entry' ],
-			[ 9, '9 Newer Entries' ],
-			[ 10, '10 Newer Entries' ],
-			[ 11, '10+ Newer Entries' ],
-			[ 50, '10+ Newer Entries' ],
-			[ 51, '50+ Newer Entries' ],
-			[ 100, '50+ Newer Entries' ],
-			[ 101, '100+ Newer Entries' ],
-			[ 250, '100+ Newer Entries' ],
+			[ 1, '1 newer entry' ],
+			[ 9, '9 newer entries' ],
+			[ 10, '10 newer entries' ],
+			[ 11, '10+ newer entries' ],
+			[ 50, '10+ newer entries' ],
+			[ 51, '50+ newer entries' ],
+			[ 100, '50+ newer entries' ],
+			[ 101, '100+ newer entries' ],
+			[ 250, '100+ newer entries' ],
 		];
 	}
 
