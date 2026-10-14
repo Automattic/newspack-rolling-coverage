@@ -56,8 +56,11 @@ const FADE_CLEANUP_MS = 500;
  */
 type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 
-const STICKY_CARD_SELECTOR =
-	'.newspack-rolling-coverage-pinned-card.is-position-sticky';
+const PINNED_STACK = '.newspack-rolling-coverage-pinned-stack';
+
+const STICKY_CARD_SELECTOR = `:is(.newspack-rolling-coverage-pinned-card, ${ PINNED_STACK }).is-position-sticky`;
+
+const SHOWN_ENTRIES = `:scope > [data-entry-id], :scope > ${ PINNED_STACK } > [data-entry-id]`;
 
 const ENTRY_GROUP =
 	':is(.newspack-rolling-coverage-regular-entry, .newspack-rolling-coverage-breakout-entry)';
@@ -532,6 +535,27 @@ function initBlock( root: HTMLElement ): void {
 	const entriesList: HTMLElement = entriesListEl;
 	const restBaseUrl: string = restUrl;
 
+	// Rendered empty while no entry is pinned, so a pin has somewhere to go
+	// (Rolling_Coverage_Block::render_pinned_stack()).
+	const pinnedStack = ownElement(
+		root,
+		`:scope > ${ PINNED_STACK }`,
+		entriesList
+	);
+
+	/**
+	 * The block's sticky pinned cards, and its Pinned group while it holds an
+	 * entry: an empty one is hidden, so it has nothing to fit.
+	 *
+	 * @return {HTMLElement[]} The elements.
+	 */
+	const stickyCards = (): HTMLElement[] =>
+		ownElements( root, STICKY_CARD_SELECTOR ).filter(
+			( card ) =>
+				card !== pinnedStack ||
+				!! card.querySelector( ':scope > [data-entry-id]' )
+		);
+
 	const stopRelativeDates = keepRelativeDatesCurrent( root, entriesList );
 
 	const pollInterval = parseInt( root.dataset.pollInterval || '30', 10 );
@@ -633,9 +657,7 @@ function initBlock( root: HTMLElement ): void {
 	// poll brings the current value, so an open page follows it both ways.
 	let minPollInterval =
 		parseInt( root.dataset.minPollInterval || '0', 10 ) || 0;
-	let backlogOffset = entriesList.querySelectorAll(
-		':scope > [data-entry-id]'
-	).length;
+	let backlogOffset = entriesList.querySelectorAll( SHOWN_ENTRIES ).length;
 
 	// Tracks forward-poll health so a sustained outage reports one error per
 	// episode (healthy->failing transition) instead of one per failed interval.
@@ -878,7 +900,10 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {boolean} True if the reader has scrolled past the first entry.
 	 */
 	function isScrolledPastTop(): boolean {
-		const firstEntry = entriesList.firstElementChild;
+		// The Pinned group spans the feed and sticks, so it never scrolls past.
+		const firstEntry = Array.from( entriesList.children ).find(
+			( child ) => ! child.matches( PINNED_STACK )
+		);
 		return !! firstEntry && firstEntry.getBoundingClientRect().bottom < 0;
 	}
 
@@ -890,6 +915,22 @@ function initBlock( root: HTMLElement ): void {
 	function announce( message: string ): void {
 		if ( statusEl ) {
 			statusEl.textContent = message;
+		}
+	}
+
+	/**
+	 * Puts a pinned entry after the pinned entries the list shows: at the
+	 * end of the Pinned group, or above the first unpinned entry in a layout
+	 * without one.
+	 *
+	 * @param {Node} el The pinned entry, or a fragment of pinned entries.
+	 * @return {void}
+	 */
+	function insertPinned( el: Node ): void {
+		if ( pinnedStack ) {
+			pinnedStack.append( el );
+		} else {
+			entriesList.insertBefore( el, firstUnpinnedEntry() );
 		}
 	}
 
@@ -971,9 +1012,7 @@ function initBlock( root: HTMLElement ): void {
 	 */
 	function sharedEntryDate(): string | undefined {
 		return isEntryView
-			? entriesList.querySelector< HTMLElement >(
-					':scope > [data-linked]'
-				)?.dataset.dateGmt
+			? ownElement( root, '[data-linked]', entriesList )?.dataset.dateGmt
 			: undefined;
 	}
 
@@ -1207,6 +1246,7 @@ function initBlock( root: HTMLElement ): void {
 		)?.remove();
 
 		const fragment = document.createDocumentFragment();
+		const pinnedFragment = document.createDocumentFragment();
 		const adSlotsToDisplay: AdSlot[] = [];
 
 		// An entry pinned by the time it arrived goes with the pinned entries,
@@ -1218,8 +1258,13 @@ function initBlock( root: HTMLElement ): void {
 		[
 			...entries.filter( isPinned ),
 			...entries.filter( ( entry ) => ! isPinned( entry ) ),
-		].forEach( ( { el, adSlot, adEl } ) => {
-			fragment.appendChild( el );
+		].forEach( ( { el, adSlot, adEl: ad } ) => {
+			const isStacked =
+				!! pinnedStack && el.hasAttribute( 'data-pinned' );
+			// The Pinned group holds no ad, as the page renders it.
+			const adEl = isStacked ? null : ad;
+
+			( isStacked ? pinnedFragment : fragment ).appendChild( el );
 			observeEntry( el );
 			if ( adEl ) {
 				fragment.appendChild( adEl );
@@ -1229,8 +1274,12 @@ function initBlock( root: HTMLElement ): void {
 			}
 		} );
 
-		const insertedEls = Array.from( fragment.children );
+		const insertedEls = [
+			...Array.from( pinnedFragment.children ),
+			...Array.from( fragment.children ),
+		];
 
+		insertPinned( pinnedFragment );
 		entriesList.insertBefore( fragment, firstUnpinnedEntry() );
 		fadeIn(
 			insertedEls.filter( ( el ) => el.matches( '[data-entry-id]' ) )
@@ -1446,7 +1495,7 @@ function initBlock( root: HTMLElement ): void {
 			entriesList
 		)?.remove();
 
-		entriesList.insertBefore( el, firstUnpinnedEntry() );
+		insertPinned( el );
 		observeEntry( el );
 		dropLastSeparator();
 	}
@@ -2122,7 +2171,7 @@ function initBlock( root: HTMLElement ): void {
 			const showsControl =
 				newEntriesControl && ! newEntriesControl.hidden;
 			const bars =
-				showsControl || ownElement( root, STICKY_CARD_SELECTOR )
+				showsControl || stickyCards().length > 0
 					? topBarsBottom( root )
 					: 0;
 
@@ -2295,11 +2344,16 @@ function initBlock( root: HTMLElement ): void {
 					? firstUnpinnedEntry( entryEl )
 					: null;
 
-				// A pinned entry belongs above every unpinned one. One load
-				// more brought pinned sits at its date until a poll sends it:
-				// the reply may come from a cache that predates an unpin, so
-				// only the poll's copy is trusted to move it.
-				if (
+				// A pinned entry belongs above every unpinned one, in the
+				// Pinned group where the layout has one. One load more
+				// brought pinned sits at its date until a poll sends it: the
+				// reply may come from a cache that predates an unpin, so only
+				// the poll's copy is trusted to move it.
+				if ( pinnedStack && entryEl.hasAttribute( 'data-pinned' ) ) {
+					if ( entryEl.parentElement !== pinnedStack ) {
+						pinnedStack.append( entryEl );
+					}
+				} else if (
 					unpinnedAbove?.compareDocumentPosition( entryEl ) ===
 					Node.DOCUMENT_POSITION_FOLLOWING
 				) {
@@ -3274,7 +3328,7 @@ function initBlock( root: HTMLElement ): void {
 			// Focus would fall to the page with the button hidden.
 			const entries = hasMore
 				? []
-				: ownElements( root, ':scope > [data-entry-id]', entriesList );
+				: ownElements( root, SHOWN_ENTRIES, entriesList );
 			const target = firstAppended ?? entries[ entries.length - 1 ];
 
 			if ( target ) {
@@ -3530,12 +3584,12 @@ function initBlock( root: HTMLElement ): void {
 	let stickyCardsBars = -1;
 
 	/**
-	 * Sticks each sticky pinned card its own offset below the bars fixed or
-	 * stuck at the top of the viewport, such as the admin bar and a sticky
-	 * site header, or below the admin bar alone until any are measured. Lets
-	 * a card taller than the viewport below that top scroll with the page,
-	 * so its end isn't hidden until the feed ends, and makes it sticky again
-	 * once it fits.
+	 * Sticks each sticky pinned card, and each sticky Pinned group, its own
+	 * offset below the bars fixed or stuck at the top of the viewport, such
+	 * as the admin bar and a sticky site header, or below the admin bar alone
+	 * until any are measured. One taller than the viewport below that top
+	 * scrolls with the page until its foot shows, then sticks by its foot, so
+	 * its end isn't hidden until the feed ends.
 	 *
 	 * @param {boolean} [ifBarsMoved]  Whether to leave the cards as they are while the bars haven't moved.
 	 * @param {number}  [measuredBars] The bars' bottom, when the caller already measured it this frame.
@@ -3545,7 +3599,7 @@ function initBlock( root: HTMLElement ): void {
 		ifBarsMoved = false,
 		measuredBars?: number
 	): void {
-		const cards = ownElements( root, STICKY_CARD_SELECTOR );
+		const cards = stickyCards();
 
 		if ( cards.length === 0 ) {
 			return;
@@ -3571,15 +3625,13 @@ function initBlock( root: HTMLElement ): void {
 				);
 			}
 
-			const top = parseFloat( window.getComputedStyle( card ).top ) || 0;
+			card.style.removeProperty( 'top' );
 
-			if (
-				card.getBoundingClientRect().height >
-				window.innerHeight - top
-			) {
-				card.style.position = 'static';
-			} else {
-				card.style.removeProperty( 'position' );
+			const top = parseFloat( window.getComputedStyle( card ).top ) || 0;
+			const height = card.getBoundingClientRect().height;
+
+			if ( height > window.innerHeight - top ) {
+				card.style.top = `${ window.innerHeight - height }px`;
 			}
 		} );
 	}
@@ -3603,7 +3655,7 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {void}
 	 */
 	function watchStickyCards(): void {
-		ownElements( root, STICKY_CARD_SELECTOR ).forEach( ( card ) =>
+		stickyCards().forEach( ( card ) =>
 			stickyCardObserver?.observe( card )
 		);
 		fitStickyCards();
@@ -3615,7 +3667,8 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Moves the pinned card's top border onto the entry heading the entries
-	 * beside the card, the first after the card's own entry, when another
+	 * beside the card, the first after the card's own entry or after the
+	 * Pinned group while it shows pinned entries, when another
 	 * entry comes to head them, giving the entry that headed them its own
 	 * back: its entry group's, or its Full Story Entry group's. A pinned
 	 * entry heading them already has the card's look, and is left as it is
@@ -3641,9 +3694,12 @@ function initBlock( root: HTMLElement ): void {
 		const ruled = entriesList.querySelector< HTMLElement >(
 			':scope > [data-heads-column]'
 		);
-		let head =
-			entriesList.querySelector( ':scope > [data-leads-column]' )
-				?.nextElementSibling ?? null;
+		const lead =
+			pinnedStack &&
+			pinnedStack.querySelector( ':scope > [data-entry-id]' )
+				? pinnedStack
+				: entriesList.querySelector( ':scope > [data-leads-column]' );
+		let head = lead?.nextElementSibling ?? null;
 
 		while ( head && ! head.matches( '[data-entry-id]' ) ) {
 			head = head.nextElementSibling;
@@ -3693,6 +3749,10 @@ function initBlock( root: HTMLElement ): void {
 		placeColumnRule();
 	} );
 	entriesListObserver.observe( entriesList, { childList: true } );
+
+	if ( pinnedStack ) {
+		entriesListObserver.observe( pinnedStack, { childList: true } );
+	}
 	watchStickyCards();
 	placeColumnRule();
 	on( window, 'resize', () => fitStickyCards() );

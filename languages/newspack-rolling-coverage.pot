@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-14T15:40:30+00:00\n"
+"POT-Creation-Date: 2026-10-14T18:26:30+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -86,9 +86,9 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:461
-#: includes/blocks/class-rolling-coverage-block.php:4447
-#: includes/blocks/class-rolling-coverage-block.php:4647
-#: includes/blocks/class-rolling-coverage-block.php:4658
+#: includes/blocks/class-rolling-coverage-block.php:4685
+#: includes/blocks/class-rolling-coverage-block.php:4885
+#: includes/blocks/class-rolling-coverage-block.php:4896
 #: includes/class-post-type.php:1294
 #: includes/class-taxonomy.php:345
 msgid "Coverage not found."
@@ -139,7 +139,7 @@ msgid "Site-wide label of the Full story link."
 msgstr ""
 
 #: includes/blocks/class-breakout-label.php:167
-#: includes/blocks/class-rolling-coverage-block.php:3040
+#: includes/blocks/class-rolling-coverage-block.php:3198
 #: dist/blocks/coverage-follow/index.js:3
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/rolling-coverage/index.js:2
@@ -147,8 +147,8 @@ msgid "Full story"
 msgstr ""
 
 #: includes/blocks/class-breakout-post-link-block.php:66
-#: includes/blocks/class-rolling-coverage-block.php:2930
-#: includes/blocks/class-rolling-coverage-block.php:3041
+#: includes/blocks/class-rolling-coverage-block.php:3088
+#: includes/blocks/class-rolling-coverage-block.php:3199
 #: dist/blocks/breakout-post-link/index.js:1
 #: dist/blocks/rolling-coverage/index.js:2
 #: dist/blocks/rolling-coverage/index.js:25
@@ -227,7 +227,7 @@ msgid "Something went wrong. Please try again."
 msgstr ""
 
 #: includes/blocks/class-entry-bindings.php:1032
-#: includes/blocks/class-rolling-coverage-block.php:3038
+#: includes/blocks/class-rolling-coverage-block.php:3196
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/share/index.js:1
@@ -349,9 +349,10 @@ msgid "Alert"
 msgstr ""
 
 #: includes/blocks/class-lite-feed.php:293
-#: includes/blocks/class-rolling-coverage-block.php:3039
-#: includes/blocks/class-rolling-coverage-block.php:4107
+#: includes/blocks/class-rolling-coverage-block.php:3197
+#: includes/blocks/class-rolling-coverage-block.php:4345
 #: dist/blocks/rolling-coverage/index.js:1
+#: dist/blocks/rolling-coverage/index.js:2
 msgid "Pinned"
 msgstr ""
 
@@ -359,17 +360,17 @@ msgstr ""
 msgid "This content is password protected."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1214
+#: includes/blocks/class-rolling-coverage-block.php:1224
 #: dist/blocks/rolling-coverage/index.js:28
 msgid "Select a coverage to display its entries."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1240
+#: includes/blocks/class-rolling-coverage-block.php:1250
 msgid "This coverage is no longer available."
 msgstr ""
 
 #. translators: 1: number of coverage entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence.
-#: includes/blocks/class-rolling-coverage-block.php:1878
+#: includes/blocks/class-rolling-coverage-block.php:1915
 #: dist/blocks/rolling-coverage/view.js:4
 #, php-format,js-format
 msgid "%1$d newer %2$s"
@@ -378,7 +379,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of coverage entries newer than the one shown, from 1 to 10.
-#: includes/blocks/class-rolling-coverage-block.php:1882
+#: includes/blocks/class-rolling-coverage-block.php:1919
 #: dist/blocks/rolling-coverage/view.js:5
 #, php-format,js-format
 msgid "%d newer entry"
@@ -387,7 +388,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: 1: a round number the count of newer coverage entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as it reads mid-sentence.
-#: includes/blocks/class-rolling-coverage-block.php:1897
+#: includes/blocks/class-rolling-coverage-block.php:1934
 #: dist/blocks/rolling-coverage/view.js:6
 #, php-format,js-format
 msgid "%1$d+ newer %2$s"
@@ -396,7 +397,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100.
-#: includes/blocks/class-rolling-coverage-block.php:1901
+#: includes/blocks/class-rolling-coverage-block.php:1938
 #: dist/blocks/rolling-coverage/view.js:7
 #, php-format,js-format
 msgid "%d+ newer entry"
@@ -405,56 +406,56 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence; its grammatical gender is unknown.
-#: includes/blocks/class-rolling-coverage-block.php:1915
+#: includes/blocks/class-rolling-coverage-block.php:1952
 #, php-format
 msgid "No %s yet."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:1918
+#: includes/blocks/class-rolling-coverage-block.php:1955
 msgid "No entries yet."
 msgstr ""
 
 #. translators: Button that loads older entries at the end of a coverage's feed.
-#: includes/blocks/class-rolling-coverage-block.php:2026
+#: includes/blocks/class-rolling-coverage-block.php:2063
 #: dist/blocks/rolling-coverage/index.js:5
 msgid "Load more"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:2945
+#: includes/blocks/class-rolling-coverage-block.php:3103
 #: dist/blocks/rolling-coverage/index.js:23
 msgid "Coverage of this news event has concluded and this feed is now archived."
 msgstr ""
 
 #. translators: %s: Coverage name.
-#: includes/blocks/class-rolling-coverage-block.php:2949
+#: includes/blocks/class-rolling-coverage-block.php:3107
 #: dist/blocks/rolling-coverage/index.js:23
 #, php-format,js-format
 msgid "Coverage of “%s” has concluded and this feed is now archived."
 msgstr ""
 
 #. translators: 1: the site's own name for one coverage entry, as it reads mid-sentence; its grammatical gender is unknown. 2: the same name for several entries.
-#: includes/blocks/class-rolling-coverage-block.php:4141
+#: includes/blocks/class-rolling-coverage-block.php:4379
 #, php-format
 msgid "This %1$s is now out of date compared to newer %2$s, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4147
+#: includes/blocks/class-rolling-coverage-block.php:4385
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4379
+#: includes/blocks/class-rolling-coverage-block.php:4617
 msgid "How many entries a capped feed shows, so a Lite or empty-key request stays capped without a stored config."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4384
+#: includes/blocks/class-rolling-coverage-block.php:4622
 msgid "Whether a Lite Site page asks, so entries come as text, as that page renders them."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4389
+#: includes/blocks/class-rolling-coverage-block.php:4627
 msgid "Whether a page asks for the coverage's recent changes rather than those after its own cursor, so every reader of the page asks the same URL."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4666
+#: includes/blocks/class-rolling-coverage-block.php:4904
 msgid "One of cursor, before or recent must be provided."
 msgstr ""
 
@@ -2914,15 +2915,19 @@ msgid "Coverage Name"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:2
-msgid "Dates"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:2
 msgid "Body"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:2
+msgid "Pinned Full Story"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:2
 msgid "Feed"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:2
+msgid "Dates"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:2
@@ -2951,6 +2956,22 @@ msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "Two goals from Bree Kowalski and a stoppage-time save from Petra Halvorsen. The champions' first meeting with Fresno Verde since the final ended the way the final did."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:2
+msgid "Match report"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:2
+msgid "Riverbend settle the rematch with two set pieces and a late save."
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:2
+msgid "Riverbend 2, Fresno Verde 1: the rematch goes the same way"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:2
+msgid "Kowalski's double and Halvorsen's late save keep Riverbend top. Fresno Verde had the better of the first half and nothing to show for it."
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:2
