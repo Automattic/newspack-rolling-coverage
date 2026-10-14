@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-14T14:46:43+00:00\n"
+"POT-Creation-Date: 2026-10-14T14:57:00+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -86,9 +86,9 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:461
-#: includes/blocks/class-rolling-coverage-block.php:4679
-#: includes/blocks/class-rolling-coverage-block.php:4879
-#: includes/blocks/class-rolling-coverage-block.php:4890
+#: includes/blocks/class-rolling-coverage-block.php:4662
+#: includes/blocks/class-rolling-coverage-block.php:4862
+#: includes/blocks/class-rolling-coverage-block.php:4873
 #: includes/class-post-type.php:1294
 #: includes/class-taxonomy.php:345
 msgid "Coverage not found."
@@ -346,9 +346,9 @@ msgid "Alert"
 msgstr ""
 
 #: includes/blocks/class-lite-feed.php:293
-#: includes/blocks/class-rolling-coverage-block.php:3932
-#: includes/blocks/class-rolling-coverage-block.php:3944
-#: includes/blocks/class-rolling-coverage-block.php:4339
+#: includes/blocks/class-rolling-coverage-block.php:3915
+#: includes/blocks/class-rolling-coverage-block.php:3927
+#: includes/blocks/class-rolling-coverage-block.php:4322
 #: dist/blocks/rolling-coverage/index.js:1
 msgid "Pinned"
 msgstr ""
@@ -440,40 +440,40 @@ msgstr ""
 msgid "Meta"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3198
+#: includes/blocks/class-rolling-coverage-block.php:3181
 #: includes/class-post-type.php:271
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "Entry"
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:3246
+#: includes/blocks/class-rolling-coverage-block.php:3229
 #: dist/blocks/rolling-coverage/index.js:2
 msgid "Pinned Entry"
 msgstr ""
 
 #. translators: 1: the site's own name for one coverage entry, as it reads mid-sentence; its grammatical gender is unknown. 2: the same name for several entries.
-#: includes/blocks/class-rolling-coverage-block.php:4373
+#: includes/blocks/class-rolling-coverage-block.php:4356
 #, php-format
 msgid "This %1$s is now out of date compared to newer %2$s, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4379
+#: includes/blocks/class-rolling-coverage-block.php:4362
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4611
+#: includes/blocks/class-rolling-coverage-block.php:4594
 msgid "How many entries a capped feed shows, so a Lite or empty-key request stays capped without a stored config."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4616
+#: includes/blocks/class-rolling-coverage-block.php:4599
 msgid "Whether a Lite Site page asks, so entries come as text, as that page renders them."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4621
+#: includes/blocks/class-rolling-coverage-block.php:4604
 msgid "Whether a page asks for the coverage's recent changes rather than those after its own cursor, so every reader of the page asks the same URL."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4898
+#: includes/blocks/class-rolling-coverage-block.php:4881
 msgid "One of cursor, before or recent must be provided."
 msgstr ""
 
