@@ -188,6 +188,21 @@ class Test_Full_Story_Entry extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Render a coverage's block that has no layout of its own, through the
+	 * render_block_data filter, as core does.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return string
+	 */
+	private static function render_block_without_layout( int $coverage_id ): string {
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$parsed     = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$block      = apply_filters( 'render_block_data', $parsed, $parsed, null );
+
+		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+	}
+
+	/**
 	 * Fetch a coverage's editor preview, as an editor.
 	 *
 	 * @param int $coverage_id Coverage term ID.
@@ -711,5 +726,43 @@ class Test_Full_Story_Entry extends Rolling_Coverage_TestCase {
 		$this->assertNotSame( 0, $entries[ $published ]['breakout']['imageId'] );
 		$this->assertNull( $entries[ $drafted ]['breakout'] );
 		$this->assertNull( $entries[ $none ]['breakout'] );
+	}
+
+	/**
+	 * A block without a layout of its own renders Bulletin's, so an entry
+	 * whose post is published shows as Bulletin's Full Story Entry.
+	 */
+	public function test_block_without_a_layout_renders_bulletins_full_story_entry() {
+		$coverage_id      = self::create_coverage();
+		[ , $breakout_id ] = self::create_breakout( 'publish', [], [], $coverage_id );
+
+		$html = self::render_block_without_layout( $coverage_id );
+
+		$this->assertStringContainsString( Rolling_Coverage_Block::BREAKOUT_ENTRY_CLASS, $html );
+		$this->assertStringContainsString( Breakout_Card::BOX_CLASS, $html );
+		$this->assertStringContainsString( '<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Post &amp; headline</a></h3>', $html );
+		$this->assertStringContainsString( 'Read More', $html );
+		$this->assertStringNotContainsString( self::ENTRY_TEXT, $html );
+	}
+
+	/**
+	 * The built-in Bulletin layout shows an entry's time in the site's time
+	 * format, not the one its markup was saved with.
+	 */
+	public function test_block_without_a_layout_follows_the_site_time_format() {
+		update_option( 'time_format', 'H:i' );
+		$coverage_id = self::create_coverage();
+		self::create_entry(
+			$coverage_id,
+			[
+				'post_date'     => '2026-01-02 14:05:00',
+				'post_date_gmt' => '2026-01-02 14:05:00',
+			]
+		);
+
+		$html = self::render_block_without_layout( $coverage_id );
+
+		$this->assertStringContainsString( '>14:05</time>', $html );
+		$this->assertStringNotContainsString( '2:05 pm', $html );
 	}
 }

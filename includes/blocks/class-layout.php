@@ -97,8 +97,9 @@ class Layout {
 	/**
 	 * Swaps a synced block's inner blocks for its pattern's before core builds
 	 * the block, so everything that reads the block's inner blocks sees the
-	 * shared layout. An unusable pattern leaves no inner blocks, which renders
-	 * the built-in default layout.
+	 * shared layout. A block without a layout of its own, one with no inner
+	 * blocks or whose pattern no longer resolves, gets the Bulletin layout
+	 * (`Rolling_Coverage_Block::default_layout_blocks()`).
 	 *
 	 * Untyped: the filter runs for every block, and another callback may
 	 * hand it something that isn't a block.
@@ -113,15 +114,17 @@ class Layout {
 
 		$layout_id = (int) ( $parsed_block['attrs']['layoutId'] ?? 0 );
 
-		if ( $layout_id <= 0 ) {
-			if ( ! empty( $parsed_block['innerBlocks'] ) ) {
-				$parsed_block['innerBlocks'] = self::detach_nested_blocks( $parsed_block['innerBlocks'] );
-			}
+		if ( $layout_id <= 0 && ! empty( $parsed_block['innerBlocks'] ) ) {
+			$parsed_block['innerBlocks'] = self::detach_nested_blocks( $parsed_block['innerBlocks'] );
 
 			return $parsed_block;
 		}
 
-		$inner_blocks = self::get_layout_blocks( $layout_id ) ?? [];
+		$inner_blocks = $layout_id > 0 ? self::get_layout_blocks( $layout_id ) : null;
+
+		if ( ! $inner_blocks ) {
+			$inner_blocks = Rolling_Coverage_Block::default_layout_blocks();
+		}
 
 		$parsed_block['innerBlocks']  = $inner_blocks;
 		$parsed_block['innerHTML']    = '';
