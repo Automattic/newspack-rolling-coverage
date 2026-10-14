@@ -138,6 +138,14 @@ const BREAKOUT_ENTRY_CLASS = 'newspack-rolling-coverage-breakout-entry';
 const BREAKOUT_BOX_CLASS = 'newspack-rolling-coverage-breakout-box';
 
 /**
+ * Class of the group that holds a layout's pinned entries one under another,
+ * the pinned card for each pinned entry and the Full Story Entry group inside
+ * it for each pinned Full Story entry, mirroring
+ * Rolling_Coverage_Block::PINNED_STACK_CLASS.
+ */
+const PINNED_STACK_CLASS = 'newspack-rolling-coverage-pinned-stack';
+
+/**
  * Which part of a per-entry template a row builds: the pinned card, the entry
  * group or the Full Story Entry group.
  */
@@ -230,6 +238,16 @@ const PINNED_BACKGROUND =
 	'var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f7f7f7))';
 
 /**
+ * A quiet "Read more" button's colors: the light gray the theme gives
+ * secondary surfaces, with its darker muted text, which keeps 4.5:1 on it
+ * in every style variation.
+ */
+const MUTED_BUTTON_BACKGROUND =
+	'var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f0f0f0))';
+const MUTED_BUTTON_TEXT =
+	'var(--wp--preset--color--contrast-2, var(--newspack-theme-color-text-light, #5d5d5d))';
+
+/**
  * A light tint of the readable accent, defined in style.scss.
  */
 const ACCENT_TINT = 'var(--newspack-rolling-coverage-accent-tint)';
@@ -246,7 +264,7 @@ const CARD_RADIUS = '0.5rem';
 const RADIUS_MEDIUM = 'var(--wp--custom--border--radius-medium, 0.375rem)';
 
 /**
- * The Full Story Entry's card in Byline and Split: rounded, spaced from the
+ * The Full Story Entry's card in Byline: rounded, spaced from the
  * byline and links around it, with the arrow beside its label, room around
  * its image, cropped to 16:9 so its height is known before it loads, and a
  * small summary in the entry text's color.
@@ -549,21 +567,43 @@ function fullStoryFooter( links: TemplateItem ): TemplateItem {
 
 /**
  * A "Read more" button linking to the breakout post, in the accent color
- * with the text color the theme pairs with it, as Bulletin's pinned card.
+ * with the text color the theme pairs with it, as Bulletin's pinned card, or
+ * quiet in gray where the entry sits on the page's own background.
  *
+ * @param {Object}  [options]              How the button looks.
+ * @param {boolean} [options.muted]        Whether it's the quiet gray button.
+ *                                         Default false.
+ * @param {Object}  [options.space]        The space above and below it, on
+ *                                         top of its group's gap.
+ * @param {string}  [options.space.top]    The space above it.
+ * @param {string}  [options.space.bottom] The space below it.
  * @return {TemplateItem} The Buttons block.
  */
-function fullStoryReadMore(): TemplateItem {
+function fullStoryReadMore( {
+	muted = false,
+	space,
+}: {
+	muted?: boolean;
+	space?: { top?: string; bottom?: string };
+} = {} ): TemplateItem {
 	return [
 		'core/buttons',
-		{ metadata: { name: __( 'Read More', 'newspack-rolling-coverage' ) } },
+		{
+			...( space ? { style: { spacing: { margin: space } } } : {} ),
+			metadata: { name: __( 'Read More', 'newspack-rolling-coverage' ) },
+		},
 		[
 			[
 				'core/button',
 				{
 					text: __( 'Read more', 'newspack-rolling-coverage' ),
 					style: {
-						color: { background: ACCENT, text: ACCENT_CONTRAST },
+						color: muted
+							? {
+									background: MUTED_BUTTON_BACKGROUND,
+									text: MUTED_BUTTON_TEXT,
+								}
+							: { background: ACCENT, text: ACCENT_CONTRAST },
 					},
 					metadata: {
 						name: __( 'Read More', 'newspack-rolling-coverage' ),
@@ -899,15 +939,18 @@ function fullStoryLabelRow(): TemplateItem {
 
 /**
  * The Full Story Entry group, which shows an entry whose breakout post is
- * published in place of the entry group.
+ * published in place of the entry group, or in place of the pinned card
+ * inside a layout's Pinned group.
  *
  * @param {TemplateItem[]} blocks       The group's blocks.
  * @param {Object}         [attributes] Extra group settings, such as its style.
+ * @param {string}         [name]       The group's name in the editor.
  * @return {TemplateItem} The group.
  */
 function fullStoryGroup(
 	blocks: TemplateItem[],
-	attributes: Record< string, unknown > = {}
+	attributes: Record< string, unknown > = {},
+	name: string = __( 'Full Story Entry', 'newspack-rolling-coverage' )
 ): TemplateItem {
 	return [
 		'core/group',
@@ -915,9 +958,7 @@ function fullStoryGroup(
 			className: BREAKOUT_ENTRY_CLASS,
 			lock: LOCKED_IN_PLACE,
 			...attributes,
-			metadata: {
-				name: __( 'Full Story Entry', 'newspack-rolling-coverage' ),
-			},
+			metadata: { name },
 		},
 		blocks,
 	];
@@ -1847,7 +1888,7 @@ function marginRow( slugs: string[], kind: EntryKind ): TemplateItem {
 									fullStoryExcerpt( slugs, {
 										asEntries: true,
 									} ),
-									fullStoryReadMore(),
+									fullStoryReadMore( { muted: true } ),
 								],
 								'var:preset|spacing|30'
 							)
@@ -2182,7 +2223,7 @@ function bylineEntryTemplate( slugs: string[] ): TemplateItem[] {
  * The Wire layout's per-entry template: the time, headline and a short
  * excerpt, ruled off from the entry above. The pinned card matches the
  * regular entry, since a capped feed ignores pinning. A Full Story Entry
- * shows the time above Byline's and Split's card, without the image, its
+ * shows the time above Byline's card, without the image, its
  * title at the entries' size and its blocks spaced like an entry's.
  *
  * @param {string[]} slugs The palette's color slugs.
@@ -2671,17 +2712,17 @@ function tickerEntryTemplate( slugs: string[] ): TemplateItem[] {
 }
 
 /**
- * How many columns the Split layout's grid has on desktop: the summary in
- * the first, the entries across the other two.
+ * How many columns the Split layout's grid has on desktop: the pinned
+ * entries in the first, the entries across the other two.
  */
 const SPLIT_COLUMNS = 3;
 
 /**
- * How many rows the Split layout's summary spans, one per entry beside it,
+ * How many rows the Split layout's Pinned group spans, one per entry beside it,
  * enough for a full page (Rolling_Coverage_Block::PER_PAGE_MAX). Infinite
  * scroll appends further pages and each ad takes a row, so a long feed can
- * pass the span: updates past it continue in their column and the summary
- * column ends there.
+ * pass the span: updates past it continue in their column and the Pinned
+ * group's column ends there.
  */
 const SPLIT_SUMMARY_ROWS = 100;
 
@@ -2703,7 +2744,7 @@ const SPLIT_FEED_STYLE = {
 
 /**
  * The Split layout's Feed spacing: space between the columns and none
- * between the rows, since the summary spans many rows that would each add
+ * between the rows, since the Pinned group spans many rows that would each add
  * it. The entries space themselves with their padding.
  */
 const SPLIT_FEED_GAP = { top: '0', left: 'var:preset|spacing|50' };
@@ -2715,12 +2756,42 @@ const SPLIT_FEED_GAP = { top: '0', left: 'var:preset|spacing|50' };
 const SPLIT_STACKED_PLACEMENT = { layout: { columnStart: 1, columnSpan: 1 } };
 
 /**
+ * A Split full story's blocks, in the entries' columns and in the Pinned
+ * group alike: the label, the title, the image cropped to 16:9 so its height
+ * is known before it loads, the summary set like the entry text, a quiet
+ * "Read more" button with more room below it than above, and the author and
+ * Share. No box: the label and the button set it apart.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @return {TemplateItem[]} The blocks.
+ */
+function splitFullStoryBlocks( slugs: string[] ): TemplateItem[] {
+	return [
+		fullStoryLabel(),
+		fullStoryTitle( 4 ),
+		fullStoryImage( {
+			aspectRatio: '16/9',
+			margin: 'var:preset|spacing|20',
+		} ),
+		fullStoryExcerpt( slugs, { asEntries: true } ),
+		fullStoryReadMore( {
+			muted: true,
+			space: {
+				top: 'var:preset|spacing|20',
+				bottom: 'var:preset|spacing|30',
+			},
+		} ),
+		linksRow( [ authorGroup(), shareLink() ] ),
+	];
+}
+
+/**
  * A Split entry's group: placed in the grid's other two columns, ruled off
  * from the entry above, the time it was posted beside the title, content,
  * and the author's avatar and name with the links, or above them on phones.
- * A Full Story Entry shows the breakout post's box in place of the title
- * and content, and the pinned row above its time, so it takes pinned
- * entries too.
+ * A Full Story Entry shows the breakout post beside its time instead (see
+ * splitFullStoryBlocks()). Pinned entries show in the Pinned group instead
+ * (see splitPinnedStack()).
  *
  * @param {string[]} slugs       The palette's color slugs.
  * @param {boolean}  isFullStory Whether the group is the Full Story Entry group.
@@ -2751,17 +2822,6 @@ function splitEntryGroup(
 			},
 		},
 	};
-	const date: TemplateItem = [
-		'core/post-date',
-		{
-			...POST_DATE_ATTRIBUTES,
-			format: siteTimeFormat(),
-			fontSize: 'small',
-			style: {
-				typography: { fontWeight: '700' },
-			},
-		},
-	];
 	const row: TemplateItem = [
 		'core/columns',
 		{
@@ -2788,16 +2848,17 @@ function splitEntryGroup(
 					},
 				},
 				[
-					isFullStory
-						? stack(
-								__( 'Dates', 'newspack-rolling-coverage' ),
-								[
-									pinnedRow( { color: READABLE_ACCENT } ),
-									date,
-								],
-								'var:preset|spacing|20'
-							)
-						: date,
+					[
+						'core/post-date',
+						{
+							...POST_DATE_ATTRIBUTES,
+							format: siteTimeFormat(),
+							fontSize: 'small',
+							style: {
+								typography: { fontWeight: '700' },
+							},
+						},
+					],
 				],
 			],
 			[
@@ -2808,25 +2869,16 @@ function splitEntryGroup(
 					},
 				},
 				[
-					stack( __( 'Entry', 'newspack-rolling-coverage' ), [
-						...( isFullStory
-							? [
-									columnFullStoryBox( slugs, {
-										...BYLINE_CARD,
-										boxMargin: {
-											bottom: BYLINE_CARD.boxMargin,
-										},
-									} ),
-								]
+					stack(
+						__( 'Entry', 'newspack-rolling-coverage' ),
+						isFullStory
+							? splitFullStoryBlocks( slugs )
 							: [
-									[
-										'core/post-title',
-										{ level: 4 },
-									] as TemplateItem,
+									[ 'core/post-title', { level: 4 } ],
 									postContent(),
-								] ),
-						linksRow( [ authorGroup(), shareLink() ] ),
-					] ),
+									linksRow( [ authorGroup(), shareLink() ] ),
+								]
+					),
 				],
 			],
 		],
@@ -2850,12 +2902,99 @@ function splitEntryGroup(
 }
 
 /**
- * The Split layout's per-entry template. The pinned entry, the summary,
- * holds the grid's first column down the feed's full length and sticks as
- * the reader scrolls where the theme supports it, ruled off with a heavier
- * rule; above the entries on tablets and phones. Each entry spans the other
- * two columns (see splitEntryGroup()). The summary is signed the same way.
- * The site places each entry's article where its group says (see
+ * A pinned entry's look in Split's Pinned group: headed by the same heavy
+ * rule as the column, with the same space above and below its content, so
+ * the rule between two pinned entries sits halfway. Nothing shows it's
+ * pinned, as the column says it; the pinned row is there for screen readers.
+ */
+const SPLIT_PINNED_STYLE = {
+	border: { top: { color: CONTRAST, width: '3px', style: 'solid' } },
+	spacing: {
+		blockGap: DEFAULT_ENTRY_GAP,
+		padding: {
+			top: 'var:preset|spacing|40',
+			bottom: 'var:preset|spacing|40',
+		},
+	},
+};
+
+/**
+ * Split's Pinned group: the column beside the entries that holds every
+ * pinned entry, one under another, as the pinned card or, for a pinned Full
+ * Story entry, the Full Story Entry group inside it (see
+ * Rolling_Coverage_Block::for_entry_kind()). It spans the feed's full length
+ * and sticks as the reader scrolls where the theme supports it, by its foot
+ * once it's taller than the viewport (see view.ts); above the entries on
+ * tablets and phones.
+ *
+ * @param {string[]} slugs The palette's color slugs.
+ * @return {TemplateItem} The group.
+ */
+function splitPinnedStack( slugs: string[] ): TemplateItem {
+	const vertical = {
+		type: 'flex',
+		orientation: 'vertical',
+		justifyContent: 'stretch',
+	};
+	const stacked = {
+		layout: { ...SPLIT_STACKED_PLACEMENT.layout, rowSpan: 1 },
+	};
+
+	return [
+		'core/group',
+		{
+			className: PINNED_STACK_CLASS,
+			lock: LOCKED_IN_PLACE,
+			layout: vertical,
+			style: {
+				layout: {
+					columnStart: 1,
+					columnSpan: 1,
+					rowSpan: SPLIT_SUMMARY_ROWS,
+				},
+				'@tablet': stacked,
+				'@mobile': stacked,
+				spacing: { blockGap: '0' },
+				position: { type: 'sticky', top: '0px' },
+			},
+			metadata: { name: __( 'Pinned', 'newspack-rolling-coverage' ) },
+		},
+		[
+			[
+				'core/group',
+				{
+					className: PINNED_CARD_CLASS,
+					lock: LOCKED_IN_PLACE,
+					layout: vertical,
+					style: SPLIT_PINNED_STYLE,
+					metadata: {
+						name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
+					},
+				},
+				[
+					pinnedRow( { icon: false, hidden: true } ),
+					[ 'core/post-title', { level: 4 } ],
+					postContent(),
+					linksRow( [ authorGroup(), shareLink() ] ),
+				],
+			],
+			fullStoryGroup(
+				[
+					pinnedRow( { icon: false, hidden: true } ),
+					...splitFullStoryBlocks( slugs ),
+				],
+				{ layout: vertical, style: SPLIT_PINNED_STYLE },
+				__( 'Pinned Full Story', 'newspack-rolling-coverage' )
+			),
+		],
+	];
+}
+
+/**
+ * The Split layout's per-entry template: the Pinned group in the grid's
+ * first column (see splitPinnedStack()), and each entry spanning the other
+ * two (see splitEntryGroup()). The site places each entry's article where its
+ * group says, and the Pinned group around the pinned entries' articles (see
  * Rolling_Coverage_Block::place_in_grid()).
  *
  * @param {string[]} slugs The palette's color slugs.
@@ -2863,57 +3002,7 @@ function splitEntryGroup(
  */
 function splitEntryTemplate( slugs: string[] ): TemplateItem[] {
 	return [
-		[
-			'core/group',
-			{
-				className: PINNED_CARD_CLASS,
-				lock: LOCKED_IN_PLACE,
-				layout: {
-					type: 'flex',
-					orientation: 'vertical',
-					justifyContent: 'stretch',
-				},
-				style: {
-					layout: {
-						columnStart: 1,
-						columnSpan: 1,
-						rowSpan: SPLIT_SUMMARY_ROWS,
-					},
-					'@tablet': {
-						layout: {
-							...SPLIT_STACKED_PLACEMENT.layout,
-							rowSpan: 1,
-						},
-					},
-					'@mobile': {
-						layout: {
-							...SPLIT_STACKED_PLACEMENT.layout,
-							rowSpan: 1,
-						},
-					},
-					border: {
-						top: { color: CONTRAST, width: '3px', style: 'solid' },
-					},
-					spacing: {
-						blockGap: DEFAULT_ENTRY_GAP,
-						padding: {
-							top: 'var:preset|spacing|40',
-							bottom: 'var:preset|spacing|50',
-						},
-					},
-					position: { type: 'sticky', top: '0px' },
-				},
-				metadata: {
-					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
-				},
-			},
-			[
-				pinnedRow( { color: READABLE_ACCENT } ),
-				[ 'core/post-title', { level: 4 } ],
-				postContent(),
-				linksRow( [ authorGroup(), shareLink() ] ),
-			],
-		],
+		splitPinnedStack( slugs ),
 		splitEntryGroup( slugs, false ),
 		splitEntryGroup( slugs, true ),
 	];
@@ -3008,12 +3097,15 @@ function withColumnRule< T extends { name: string; [ key: string ]: unknown } >(
 	template: { name: string; attributes?: Record< string, unknown > }[],
 	feedLayout: Record< string, unknown > | undefined
 ): T[] {
-	const card = template.find( isPinnedCard );
+	const pinnedGroup = template.find( isPinnedStack );
+	const card = pinnedGroup
+		? pinnedStackGroups( template ).find( isPinnedCard )
+		: template.find( isPinnedCard );
 	const top = topBorder( card );
 
 	if (
 		feedLayout?.type !== 'grid' ||
-		! hasGridPlacement( card ) ||
+		! hasGridPlacement( pinnedGroup ?? card ) ||
 		! template.some( isRegularEntry ) ||
 		Object.keys( top ).length === 0
 	) {
@@ -3080,7 +3172,9 @@ function entryPreviewPlacement(
 			block?.attributes?.style as
 				{ layout?: Record< string, string | number > } | undefined
 		 )?.layout;
-	const card = placementOf( template.find( isPinnedCard ) );
+	const cardBlock =
+		template.find( isPinnedStack ) ?? template.find( isPinnedCard );
+	const card = placementOf( cardBlock );
 	const entry = placementOf( template.find( isRegularEntry ) );
 	const breakout = placementOf( template.find( isBreakoutEntry ) );
 	let placement = entry;
@@ -3095,11 +3189,7 @@ function entryPreviewPlacement(
 		return undefined;
 	}
 
-	if (
-		placement !== card &&
-		hasGridPlacement( template.find( isPinnedCard ) ) &&
-		! showsPin
-	) {
+	if ( placement !== card && hasGridPlacement( cardBlock ) && ! showsPin ) {
 		return { gridColumn: '1 / -1' };
 	}
 
@@ -3197,9 +3287,9 @@ function isAllUpdatesParagraph( block: {
  * renders once: the Follow Coverage block, the Coverage Status block, the
  * Update Timer block, a heading bound to the coverage's name, the
  * all-updates paragraph, or a block holding one at any depth, mirroring
- * Entry_Bindings::is_coverage_item(). The pinned card, the entry group and
- * the Full Story Entry group always belong to each entry, whatever they
- * hold.
+ * Entry_Bindings::is_coverage_item(). The Pinned group, the pinned card, the
+ * entry group and the Full Story Entry group always belong to each entry,
+ * whatever they hold.
  *
  * @param {Object} block      The block.
  * @param {string} block.name Block name.
@@ -3215,6 +3305,7 @@ function isCoverageItem( block: {
 	};
 
 	if (
+		isPinnedStack( typed ) ||
 		isPinnedCard( typed ) ||
 		isRegularEntry( typed ) ||
 		isBreakoutEntry( typed )
@@ -3807,9 +3898,10 @@ function holdsPinnedRow(
 }
 
 /**
- * Whether a template's Full Story Entry takes pinned entries too: a Full
- * Story Entry group among its top-level blocks holds the pinned row,
- * mirroring Rolling_Coverage_Block::full_story_takes_pinned().
+ * Whether a template's Full Story Entry takes pinned entries too: its
+ * Pinned group holds a Full Story Entry group, or a Full Story Entry group
+ * among its top-level blocks holds the pinned row, mirroring
+ * Rolling_Coverage_Block::full_story_takes_pinned().
  *
  * @param {Object[]} blocks The template's top-level blocks.
  * @return {boolean} Whether pinned entries with a published breakout post show as Full Story entries.
@@ -3821,11 +3913,14 @@ function fullStoryTakesPinned(
 		innerBlocks?: unknown;
 	}[]
 ): boolean {
-	return blocks.some(
-		( block ) =>
-			isBreakoutEntry( block ) &&
-			Array.isArray( block.innerBlocks ) &&
-			holdsPinnedRow( block.innerBlocks )
+	return (
+		pinnedStackGroups( blocks ).some( isBreakoutEntry ) ||
+		blocks.some(
+			( block ) =>
+				isBreakoutEntry( block ) &&
+				Array.isArray( block.innerBlocks ) &&
+				holdsPinnedRow( block.innerBlocks )
+		)
 	);
 }
 
@@ -4046,6 +4141,43 @@ function withLinkedTitle<
 }
 
 /**
+ * Whether a block is the Pinned group, mirroring
+ * Rolling_Coverage_Block::is_pinned_stack().
+ *
+ * @param {Object} block            The block.
+ * @param {string} block.name       Block name.
+ * @param {Object} block.attributes Block attributes.
+ * @return {boolean} Whether it's the Pinned group.
+ */
+function isPinnedStack( block: {
+	name: string;
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const className = block.attributes?.className;
+
+	return (
+		block.name === 'core/group' &&
+		typeof className === 'string' &&
+		className.split( ' ' ).includes( PINNED_STACK_CLASS )
+	);
+}
+
+/**
+ * The groups a template's Pinned group holds, or none without one.
+ *
+ * @param {Object[]} blocks The template's top-level blocks.
+ * @return {Object[]} The groups.
+ */
+function pinnedStackGroups< T extends { name: string } >( blocks: T[] ): T[] {
+	const pinnedGroup = blocks.find( isPinnedStack ) as
+		( T & { innerBlocks?: unknown } ) | undefined;
+
+	return Array.isArray( pinnedGroup?.innerBlocks )
+		? ( pinnedGroup.innerBlocks as T[] )
+		: [];
+}
+
+/**
  * Whether a block is the pinned card, mirroring
  * Rolling_Coverage_Block::is_pinned_card().
  *
@@ -4118,7 +4250,9 @@ function isBreakoutEntry( block: {
  * entry shows the template without it. Then, where it holds both the pinned
  * card and the entry group, a pinned entry shows the card alone, every other
  * entry the entry group alone. A template missing either is returned as it
- * is.
+ * is. In a template with the Pinned group, a pinned entry keeps the group
+ * the Pinned group holds for its kind instead, and every other entry leaves
+ * the Pinned group out.
  *
  * @param {Object[]} blocks        The template's top-level blocks.
  * @param {boolean}  isPinned      Whether the entry is pinned.
@@ -4129,6 +4263,19 @@ function isBreakoutEntry( block: {
 function forEntryKind<
 	T extends { name: string; attributes?: Record< string, unknown > },
 >( blocks: T[], isPinned: boolean, isFullStory = false ): T[] {
+	if ( blocks.some( isPinnedStack ) ) {
+		if ( isPinned ) {
+			const groups = pinnedStackGroups( blocks );
+			const breakouts = groups.filter( isBreakoutEntry );
+
+			return isFullStory && breakouts.length
+				? breakouts
+				: groups.filter( ( block ) => ! isBreakoutEntry( block ) );
+		}
+
+		blocks = blocks.filter( ( block ) => ! isPinnedStack( block ) );
+	}
+
 	if ( isFullStory && blocks.some( isBreakoutEntry ) ) {
 		return blocks.filter(
 			( block ) => ! isPinnedCard( block ) && ! isRegularEntry( block )
@@ -4746,6 +4893,9 @@ export {
 	breakoutBlockIds,
 	withLinkedTitle,
 	hasPinnedCard,
+	isPinnedStack,
+	pinnedStackGroups,
+	PINNED_STACK_CLASS,
 	isPinnedCard,
 	isRegularEntry,
 	isBreakoutEntry,

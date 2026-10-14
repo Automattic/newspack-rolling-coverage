@@ -10,7 +10,7 @@ import { addFilter } from '@wordpress/hooks';
  * Internal dependencies
  */
 import { breakoutPreviewFor } from './breakout-previews';
-import { isBreakoutEntry } from './template';
+import { isBreakoutEntry, isPinnedStack } from './template';
 import type { EntryContext } from './types';
 
 /**
@@ -18,6 +18,19 @@ import type { EntryContext } from './types';
  * set by the Rolling Coverage block around its inner blocks.
  */
 const FullStoryEntryContext = createContext< EntryContext | null >( null );
+
+/**
+ * The pinned entry an editable layout previews the Full Story Entry group in
+ * its Pinned group against.
+ */
+export const PinnedFullStoryEntryContext = createContext< EntryContext | null >(
+	null
+);
+
+/**
+ * Whether a block sits inside the Pinned group.
+ */
+const InsidePinnedStack = createContext( false );
 
 /**
  * Whether a block sits inside a Full Story Entry group.
@@ -38,7 +51,7 @@ const NO_CONTEXT = {};
 
 /**
  * Previews the Full Story Entry group against the entry the layout shows it
- * for, and its Post Title, Post Excerpt and Post Featured Image against the
+ * for, the one in the Pinned group against a pinned entry, and its Post Title, Post Excerpt and Post Featured Image against the
  * record standing in for that entry's breakout post (see
  * breakout-previews.ts). A post without a title leaves the entry's own, as
  * on the site. `queryId` keeps the stand-in read-only, as in a Query Loop.
@@ -51,13 +64,29 @@ const withFullStoryEntryContext = createHigherOrderComponent(
 			context?: Record< string, unknown >;
 		} ) => {
 			const fullStoryEntry = useContext( FullStoryEntryContext );
+			const pinnedFullStoryEntry = useContext(
+				PinnedFullStoryEntryContext
+			);
 			const isInside = useContext( InsideFullStoryEntry );
+			const isInsideStack = useContext( InsidePinnedStack );
+
+			if ( isPinnedStack( props ) ) {
+				return (
+					<InsidePinnedStack.Provider value>
+						<BlockEdit { ...props } />
+					</InsidePinnedStack.Provider>
+				);
+			}
 
 			if ( isBreakoutEntry( props ) ) {
 				return (
 					<InsideFullStoryEntry.Provider value>
 						<BlockContextProvider
-							value={ fullStoryEntry ?? NO_CONTEXT }
+							value={
+								( isInsideStack
+									? pinnedFullStoryEntry
+									: fullStoryEntry ) ?? NO_CONTEXT
+							}
 						>
 							<BlockEdit { ...props } />
 						</BlockContextProvider>

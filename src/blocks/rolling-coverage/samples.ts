@@ -56,6 +56,7 @@ type Sample = {
 	hasBreakout?: boolean;
 	hasImage?: boolean;
 	breakout?: BreakoutPreview;
+	forPinnedGroup?: boolean;
 };
 
 /**
@@ -89,7 +90,8 @@ function openingWords( content: string ): string {
 
 /**
  * One live coverage of a match, newest first, with an entry for each way an
- * entry can render.
+ * entry can render. The pinned Full Story entry is for layouts with a Pinned
+ * group, the only ones that show it apart from the other Full Story entries.
  */
 function getSamples(): Sample[] {
 	return [
@@ -107,6 +109,32 @@ function getSamples(): Sample[] {
 			),
 			pinned: true,
 			hasBreakout: true,
+		},
+		{
+			id: -106,
+			authorId: -902,
+			minutesAgo: 70,
+			title: __( 'Match report', 'newspack-rolling-coverage' ),
+			content: __(
+				'Riverbend settle the rematch with two set pieces and a late save.',
+				'newspack-rolling-coverage'
+			),
+			pinned: true,
+			hasBreakout: true,
+			breakout: {
+				title: __(
+					'Riverbend 2, Fresno Verde 1: the rematch goes the same way',
+					'newspack-rolling-coverage'
+				),
+				summary: __(
+					"Kowalski's double and Halvorsen's late save keep Riverbend top. Fresno Verde had the better of the first half and nothing to show for it.",
+					'newspack-rolling-coverage'
+				),
+				url: '#',
+				label: '',
+				imageId: BREAKOUT_IMAGE_ID,
+			},
+			forPinnedGroup: true,
 		},
 		{
 			id: -102,
@@ -317,10 +345,15 @@ function loadSampleRecords(): void {
  * The sample entries' block contexts, loading their records the first time.
  * Empty until the records are in the data store.
  *
- * @param {boolean} enabled Whether the block is previewing samples.
+ * @param {boolean} enabled          Whether the block is previewing samples.
+ * @param {boolean} [hasPinnedGroup] Whether the layout has a Pinned group,
+ *                                   which takes the pinned Full Story sample.
  * @return {EntryContext[]} Sample entry contexts, newest first.
  */
-export function useSampleEntries( enabled: boolean ): EntryContext[] {
+export function useSampleEntries(
+	enabled: boolean,
+	hasPinnedGroup = false
+): EntryContext[] {
 	const [ contexts, setContexts ] = useState< EntryContext[] >( [] );
 
 	useEffect( () => {
@@ -332,20 +365,26 @@ export function useSampleEntries( enabled: boolean ): EntryContext[] {
 		loadSampleRecords();
 
 		setContexts(
-			getSamples().map( ( sample ) => ( {
-				postId: sample.id,
-				postType: ENTRY_POST_TYPE,
-				queryId: 0,
-				pinned: Boolean( sample.pinned ),
-				hasBreakout: Boolean( sample.hasBreakout ),
-				hasTitle: '' !== sample.title,
-				hidesByline: false,
-				fallbackTitle:
-					'' === sample.title ? openingWords( sample.content ) : '',
-				breakout: sample.breakout ?? null,
-			} ) )
+			getSamples()
+				.filter(
+					( sample ) => hasPinnedGroup || ! sample.forPinnedGroup
+				)
+				.map( ( sample ) => ( {
+					postId: sample.id,
+					postType: ENTRY_POST_TYPE,
+					queryId: 0,
+					pinned: Boolean( sample.pinned ),
+					hasBreakout: Boolean( sample.hasBreakout ),
+					hasTitle: '' !== sample.title,
+					hidesByline: false,
+					fallbackTitle:
+						'' === sample.title
+							? openingWords( sample.content )
+							: '',
+					breakout: sample.breakout ?? null,
+				} ) )
 		);
-	}, [ enabled ] );
+	}, [ enabled, hasPinnedGroup ] );
 
 	return contexts;
 }
