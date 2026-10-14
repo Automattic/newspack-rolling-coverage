@@ -17,11 +17,7 @@ import { EmptyState } from 'newspack-components/dist/esm/empty-state';
 /**
  * Internal dependencies
  */
-import type {
-	ChannelsTabProps,
-	ChannelRow,
-	PublishMode,
-} from '../../../types';
+import type { ChannelsTabProps, ChannelRow, PublishMode } from '../../../types';
 import { DataViewsWrapper } from '../../data-views-wrapper';
 import { useAdminContext } from '../../../hooks/useAdminContext';
 import { LoadingState } from '../../../shared/loading-state';

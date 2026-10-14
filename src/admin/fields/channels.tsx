@@ -17,9 +17,9 @@ import type { Field, ViewState, ChannelRow, PublishMode } from '../types';
  * Field definitions for the Slack channel mappings DataViews table.
  *
  * @param {(channelId: string, publishMode: PublishMode) => void} onPublishModeChange Sets a channel's publish mode.
- * @param {Set<string>}                                            updatingChannelIds  Channels whose publish mode change is in flight.
- * @param {(channel: ChannelRow) => void}                          onDisconnect        Asks to disconnect a channel.
- * @param {string}                                                 coveragesUrl        Admin URL of the All Coverages page.
+ * @param {Set<string>}                                           updatingChannelIds  Channels whose publish mode change is in flight.
+ * @param {(channel: ChannelRow) => void}                         onDisconnect        Asks to disconnect a channel.
+ * @param {string}                                                coveragesUrl        Admin URL of the All Coverages page.
  * @return {Field< ChannelRow >[]} Field definitions for the channel table.
  */
 function getChannelFields(
