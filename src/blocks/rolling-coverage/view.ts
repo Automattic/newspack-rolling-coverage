@@ -58,7 +58,7 @@ type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 
 const PINNED_STACK = '.newspack-rolling-coverage-pinned-stack';
 
-const STICKY_CARD_SELECTOR = `.newspack-rolling-coverage-pinned-card.is-position-sticky, ${ PINNED_STACK }.is-position-sticky:has(> [data-entry-id])`;
+const STICKY_CARD_SELECTOR = `:is(.newspack-rolling-coverage-pinned-card, ${ PINNED_STACK }).is-position-sticky`;
 
 const SHOWN_ENTRIES = `:scope > [data-entry-id], :scope > ${ PINNED_STACK } > [data-entry-id]`;
 
@@ -542,6 +542,19 @@ function initBlock( root: HTMLElement ): void {
 		`:scope > ${ PINNED_STACK }`,
 		entriesList
 	);
+
+	/**
+	 * The block's sticky pinned cards, and its Pinned group while it holds an
+	 * entry: an empty one is hidden, so it has nothing to fit.
+	 *
+	 * @return {HTMLElement[]} The elements.
+	 */
+	const stickyCards = (): HTMLElement[] =>
+		ownElements( root, STICKY_CARD_SELECTOR ).filter(
+			( card ) =>
+				card !== pinnedStack ||
+				!! card.querySelector( ':scope > [data-entry-id]' )
+		);
 
 	const stopRelativeDates = keepRelativeDatesCurrent( root, entriesList );
 
@@ -1245,11 +1258,13 @@ function initBlock( root: HTMLElement ): void {
 		[
 			...entries.filter( isPinned ),
 			...entries.filter( ( entry ) => ! isPinned( entry ) ),
-		].forEach( ( { el, adSlot, adEl } ) => {
-			( pinnedStack && el.hasAttribute( 'data-pinned' )
-				? pinnedFragment
-				: fragment
-			).appendChild( el );
+		].forEach( ( { el, adSlot, adEl: ad } ) => {
+			const isStacked =
+				!! pinnedStack && el.hasAttribute( 'data-pinned' );
+			// The Pinned group holds no ad, as the page renders it.
+			const adEl = isStacked ? null : ad;
+
+			( isStacked ? pinnedFragment : fragment ).appendChild( el );
 			observeEntry( el );
 			if ( adEl ) {
 				fragment.appendChild( adEl );
@@ -2156,7 +2171,7 @@ function initBlock( root: HTMLElement ): void {
 			const showsControl =
 				newEntriesControl && ! newEntriesControl.hidden;
 			const bars =
-				showsControl || ownElement( root, STICKY_CARD_SELECTOR )
+				showsControl || stickyCards().length > 0
 					? topBarsBottom( root )
 					: 0;
 
@@ -3584,7 +3599,7 @@ function initBlock( root: HTMLElement ): void {
 		ifBarsMoved = false,
 		measuredBars?: number
 	): void {
-		const cards = ownElements( root, STICKY_CARD_SELECTOR );
+		const cards = stickyCards();
 
 		if ( cards.length === 0 ) {
 			return;
@@ -3640,7 +3655,7 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {void}
 	 */
 	function watchStickyCards(): void {
-		ownElements( root, STICKY_CARD_SELECTOR ).forEach( ( card ) =>
+		stickyCards().forEach( ( card ) =>
 			stickyCardObserver?.observe( card )
 		);
 		fitStickyCards();
