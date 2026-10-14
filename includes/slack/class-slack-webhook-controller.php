@@ -1102,11 +1102,19 @@ class Slack_Webhook_Controller {
 			return $is_resend_wanted ? new \WP_REST_Response( [ 'ok' => false ], 503 ) : $ok;
 		}
 
-		// The bot reacts to every message it makes an entry from. With no
-		// entry found above, that entry was deleted for good, or made for a
+		// The bot reacts to every message it makes an entry from. The draft
+		// emoji's request may have saved one, and reacted, since the lookup
+		// above; otherwise that entry was deleted for good, or made for a
 		// coverage the channel was linked to before, so it isn't made again.
 		if ( self::carries_bot_reaction( $message, $bot_id ) ) {
-			Slack_Monitor::log( 'info', 'Reacted message skipped (it had an entry before)', $context );
+			$entry_id = Entry_Ingestion_Service::find_entry_id( $ts, $term_id, true );
+
+			if ( $entry_id > 0 && 'publish' === $status ) {
+				$this->publish_draft_entry( $entry_id, $channel_id, $ts );
+			} elseif ( 0 === $entry_id ) {
+				Slack_Monitor::log( 'info', 'Reacted message skipped (it had an entry before)', $context );
+			}
+
 			return $ok;
 		}
 

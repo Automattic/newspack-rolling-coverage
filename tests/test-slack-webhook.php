@@ -2477,12 +2477,13 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The publish emoji publishes a draft another request saved while this
-	 * one read the message.
+	 * The publish emoji publishes a draft another request saved, and the bot
+	 * reacted to, while this one read the message.
 	 */
 	public function test_publish_emoji_publishes_a_draft_saved_meanwhile() {
-		$coverage_id               = $this->link_emoji_trigger_channel();
-		$this->during_message_read = static function () use ( $coverage_id ) {
+		$coverage_id = $this->link_emoji_trigger_channel();
+		Slack_Config::update_settings( [ 'slack_bot_user_id' => 'U0BOT' ] );
+		$this->during_message_read = function () use ( $coverage_id ) {
 			self::create_entry(
 				$coverage_id,
 				[
@@ -2490,6 +2491,13 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 					'meta_input'  => [ Post_Type::META_SOURCE_REF => self::MESSAGE_TS ],
 				]
 			);
+			$this->channel_messages[ self::MESSAGE_TS ]['reactions'] = [
+				[
+					'name'  => 'large_yellow_circle',
+					'users' => [ 'U0BOT' ],
+					'count' => 1,
+				],
+			];
 		};
 
 		self::react_to_message();
@@ -2622,9 +2630,9 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Emoji trigger is refused while Slack says the app can't read
-	 * reactions, so a channel is never told to react when its reactions
-	 * can't reach the site.
+	 * Emoji trigger is refused while Slack reports the app can't read
+	 * reactions, so the channel isn't told to react to messages the site
+	 * would never hear about.
 	 */
 	public function test_emoji_trigger_is_refused_while_the_app_cannot_read_reactions() {
 		self::link_channel( Slack_Config::PUBLISH_MODE_DRAFT );
