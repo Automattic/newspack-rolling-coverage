@@ -681,6 +681,8 @@ function fullStoryExcerpt(
 	];
 }
 
+type BoxMargin = string | { top?: string; bottom?: string };
+
 /**
  * The box a Full Story Entry shows the breakout post in, by default outlined
  * and tinted in the readable accent. The post's title links the whole box
@@ -695,7 +697,8 @@ function fullStoryExcerpt(
  *                                              border. Default true.
  * @param {string}         [options.background] Its background color. Default
  *                                              the accent tint.
- * @param {string}         [options.margin]     The space above and below it.
+ * @param {string|Object}  [options.margin]     The space above and below it,
+ *                                              or `{ top, bottom }`.
  * @return {TemplateItem} The group.
  */
 function fullStoryBox(
@@ -713,7 +716,7 @@ function fullStoryBox(
 		radius?: string;
 		outlined?: boolean;
 		background?: string;
-		margin?: string;
+		margin?: BoxMargin;
 	} = {}
 ): TemplateItem {
 	return [
@@ -749,7 +752,12 @@ function fullStoryBox(
 						left: inset,
 					},
 					...( margin
-						? { margin: { top: margin, bottom: margin } }
+						? {
+								margin:
+									typeof margin === 'string'
+										? { top: margin, bottom: margin }
+										: margin,
+							}
 						: {} ),
 					blockGap: gap,
 				},
@@ -780,8 +788,8 @@ function fullStoryBox(
  * @param {string}         [options.excerptSize] The summary's font size preset,
  *                                               where it takes the entry
  *                                               text's color but not its size.
- * @param {string}         [options.boxMargin]   The space above and below the
- *                                               box.
+ * @param {string|Object}  [options.boxMargin]   The space above and below the
+ *                                               box, or `{ top, bottom }`.
  * @param {string}         [options.boxRadius]   The box's corner radius.
  * @param {boolean}        [options.labelArrow]  Whether the arrow follows the
  *                                               label.
@@ -814,7 +822,7 @@ function columnFullStoryBox(
 		imageMargin?: string;
 		imageRatio?: string;
 		excerptSize?: string;
-		boxMargin?: string;
+		boxMargin?: BoxMargin;
 		boxRadius?: string;
 		labelArrow?: boolean;
 		titleSize?: string;
@@ -2774,7 +2782,7 @@ function splitEntryGroup(
 			[
 				'core/column',
 				{
-					width: '5.5rem',
+					width: '7rem',
 					metadata: {
 						name: __( 'Time', 'newspack-rolling-coverage' ),
 					},
@@ -2802,7 +2810,14 @@ function splitEntryGroup(
 				[
 					stack( __( 'Entry', 'newspack-rolling-coverage' ), [
 						...( isFullStory
-							? [ columnFullStoryBox( slugs, BYLINE_CARD ) ]
+							? [
+									columnFullStoryBox( slugs, {
+										...BYLINE_CARD,
+										boxMargin: {
+											bottom: BYLINE_CARD.boxMargin,
+										},
+									} ),
+								]
 							: [
 									[
 										'core/post-title',
