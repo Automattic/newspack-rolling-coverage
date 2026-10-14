@@ -1099,18 +1099,18 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		elements.forEach( ( element ) => {
-			const clear = () => element.classList.remove( className );
+			const onAnimationEnd = ( event: Event ) => {
+				if ( event.target === element ) {
+					clear();
+				}
+			};
+			const clear = () => {
+				element.classList.remove( className );
+				element.removeEventListener( 'animationend', onAnimationEnd );
+			};
 
 			element.classList.add( className );
-			element.addEventListener(
-				'animationend',
-				( event ) => {
-					if ( event.target === element ) {
-						clear();
-					}
-				},
-				{ once: true }
-			);
+			element.addEventListener( 'animationend', onAnimationEnd );
 			// The animation never ends on an element that isn't rendered.
 			setTimeout( clear, FADE_CLEANUP_MS );
 		} );

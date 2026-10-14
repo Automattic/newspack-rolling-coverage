@@ -49,7 +49,6 @@ $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 		margin: 0;
 		white-space: nowrap;
 		transform: translateX(-50%);
-		animation: newspack-rolling-coverage-pop-in 0.25s ease-out;
 
 		&[hidden] {
 			display: none;
@@ -543,6 +542,17 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 	}
 }
 
+@keyframes newspack-rolling-coverage-refresh {
+
+	from {
+		opacity: 0.5;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
 @keyframes newspack-rolling-coverage-fade-out {
 
 	from {
@@ -558,12 +568,16 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 
 	.wp-block-newspack-rolling-coverage-rolling-coverage {
 
+		.newspack-rolling-coverage-new-entries {
+			animation: newspack-rolling-coverage-pop-in 0.25s ease-out;
+		}
+
 		.newspack-rolling-coverage-entry.is-entering {
 			animation: newspack-rolling-coverage-fade-in 200ms ease-out;
 		}
 
 		.newspack-rolling-coverage-entry.is-updated {
-			animation: newspack-rolling-coverage-fade-in 150ms ease-out;
+			animation: newspack-rolling-coverage-refresh 150ms ease-out;
 		}
 
 		.newspack-rolling-coverage-archived-notice.is-entering {
@@ -581,18 +595,14 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 
 	.wp-block-newspack-rolling-coverage-rolling-coverage {
 
-		[data-rc-share],
+		[data-rc-share].wp-block-button__link,
 		button.newspack-rolling-coverage-share-link,
 		button[data-rc-follow] {
-			transition: transform 160ms ease-out;
 
 			&:active {
 				transform: scale(0.97);
+				transition: transform 160ms ease-out;
 			}
-		}
-
-		a[data-rc-share]:not(.wp-block-button__link) {
-			display: inline-block;
 		}
 	}
 }
