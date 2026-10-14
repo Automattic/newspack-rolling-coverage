@@ -58,14 +58,17 @@ type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 const STICKY_CARD_SELECTOR =
 	'.newspack-rolling-coverage-pinned-card.is-position-sticky';
 
+const ENTRY_GROUP =
+	':is(.newspack-rolling-coverage-regular-entry, .newspack-rolling-coverage-breakout-entry)';
+
 // Where an entry's closing separator sits: at the end of the entry, of its
-// entry group, or of the group's inner container. The server leaves it off
-// the last entry and off a pinned card
+// entry group or Full Story Entry group, or of the group's inner container.
+// The server leaves it off the last entry and off a pinned card
 // (Rolling_Coverage_Block::shape_entry_template()).
 const SEPARATOR_PARENTS = [
 	':scope',
-	':scope > .newspack-rolling-coverage-regular-entry:last-child',
-	':scope > .newspack-rolling-coverage-regular-entry:last-child > .wp-block-group__inner-container',
+	`:scope > ${ ENTRY_GROUP }:last-child`,
+	`:scope > ${ ENTRY_GROUP }:last-child > .wp-block-group__inner-container`,
 ];
 
 const CLOSING_SEPARATOR = SEPARATOR_PARENTS.map(
@@ -1039,7 +1042,9 @@ function initBlock( root: HTMLElement ): void {
 		entriesList.appendChild( entry );
 
 		// The last entry was rendered without its closing separator, which
-		// the entry now below it brings, unless it is a pinned card.
+		// the entry now below it brings, unless it is a pinned card. One
+		// entry can be a Full Story entry and the other not, so the
+		// separator goes where the last entry's own group would hold it.
 		if (
 			last &&
 			! last.querySelector( CLOSING_SEPARATOR ) &&
@@ -1055,7 +1060,8 @@ function initBlock( root: HTMLElement ): void {
 				if ( separator ) {
 					( parent === ':scope'
 						? last
-						: last.querySelector( parent )
+						: ( last.querySelector( SEPARATOR_PARENTS[ 2 ] ) ??
+							last.querySelector( SEPARATOR_PARENTS[ 1 ] ) )
 					)?.append( separator );
 					break;
 				}
@@ -3475,13 +3481,15 @@ function initBlock( root: HTMLElement ): void {
 
 	const columnRule = cssDeclarations( root.dataset.columnRule ?? '' );
 	const entryRule = cssDeclarations( root.dataset.entryRule ?? '' );
+	const breakoutRule = cssDeclarations( root.dataset.breakoutRule ?? '' );
 
 	/**
 	 * Moves the pinned card's top border onto the entry heading the entries
 	 * beside the card, the first after the card's own entry, when another
 	 * entry comes to head them, giving the entry that headed them its own
-	 * back. A pinned entry heading them already has the card's look, and is
-	 * left as it is (see Rolling_Coverage_Block::column_rules()).
+	 * back: its entry group's, or its Full Story Entry group's. A pinned
+	 * entry heading them already has the card's look, and is left as it is
+	 * (see Rolling_Coverage_Block::column_rules()).
 	 *
 	 * @return {void}
 	 */
@@ -3492,8 +3500,14 @@ function initBlock( root: HTMLElement ): void {
 
 		const entryGroupOf = ( entry: Element | null ) =>
 			entry?.querySelector< HTMLElement >(
-				':scope > .newspack-rolling-coverage-regular-entry'
+				`:scope > ${ ENTRY_GROUP }`
 			) ?? null;
+		const ownRuleOf = ( entry: HTMLElement ) =>
+			entryGroupOf( entry )?.classList.contains(
+				'newspack-rolling-coverage-breakout-entry'
+			)
+				? breakoutRule
+				: entryRule;
 		const ruled = entriesList.querySelector< HTMLElement >(
 			':scope > [data-heads-column]'
 		);
@@ -3532,12 +3546,12 @@ function initBlock( root: HTMLElement ): void {
 		};
 
 		if ( ruled ) {
-			swapRule( ruled, columnRule, entryRule );
+			swapRule( ruled, columnRule, ownRuleOf( ruled ) );
 			delete ruled.dataset.headsColumn;
 		}
 
 		if ( next ) {
-			swapRule( next, entryRule, columnRule );
+			swapRule( next, ownRuleOf( next ), columnRule );
 			next.dataset.headsColumn = '';
 		}
 	}

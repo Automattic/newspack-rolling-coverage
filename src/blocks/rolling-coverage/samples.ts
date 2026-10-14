@@ -11,8 +11,9 @@ import { __, _x } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
+import { receiveBreakoutPreviews } from './breakout-previews';
 import { ENTRY_POST_TYPE, SAMPLE_AVATAR_URLS, SHOW_AVATARS } from './config';
-import type { EntryContext } from './types';
+import type { BreakoutPreview, EntryContext } from './types';
 
 const AUTHORS = [
 	{ id: -900, name: 'Marisol Quinn', slug: 'marisol-quinn', initials: 'MQ' },
@@ -25,6 +26,7 @@ const AUTHORS = [
 	{ id: -902, name: 'Ines Okafor', slug: 'ines-okafor', initials: 'IO' },
 ];
 const IMAGE_ID = -800;
+const BREAKOUT_IMAGE_ID = -801;
 
 /**
  * How many opening words an untitled entry's headline keeps, as
@@ -38,6 +40,12 @@ const SAMPLE_IMAGE =
 		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675"><rect width="1200" height="675" fill="#dcdcde"/><g fill="none" stroke="#f6f7f7" stroke-width="6"><rect x="60" y="60" width="1080" height="555"/><line x1="600" y1="60" x2="600" y2="615"/><circle cx="600" cy="337.5" r="90"/><rect x="60" y="197.5" width="165" height="280"/><rect x="975" y="197.5" width="165" height="280"/></g></svg>'
 	);
 
+const SAMPLE_BREAKOUT_IMAGE =
+	'data:image/svg+xml,' +
+	encodeURIComponent(
+		'<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#c3c4c7"/><g fill="none" stroke="#f6f7f7" stroke-width="6"><rect x="300" y="260" width="600" height="300"/><path d="M300 260l-120 380h840l-120-380"/><path d="M400 260v300M500 260v300M600 260v300M700 260v300M800 260v300M300 360h600M300 460h600"/><circle cx="600" cy="690" r="40"/></g></svg>'
+	);
+
 type Sample = {
 	id: number;
 	authorId: number;
@@ -47,6 +55,7 @@ type Sample = {
 	pinned?: boolean;
 	hasBreakout?: boolean;
 	hasImage?: boolean;
+	breakout?: BreakoutPreview;
 };
 
 /**
@@ -123,6 +132,19 @@ function getSamples(): Sample[] {
 			),
 			hasImage: true,
 			hasBreakout: true,
+			breakout: {
+				title: __(
+					'How Riverbend turned a training-ground corner into the winner',
+					'newspack-rolling-coverage'
+				),
+				summary: __(
+					'Riverbend rehearsed the near-post flick all week, and it took Fresno Verde apart twice. Bree Kowalski and Sonia Aguilar talk us through the routine that settled the rematch.',
+					'newspack-rolling-coverage'
+				),
+				url: '#',
+				label: '',
+				imageId: BREAKOUT_IMAGE_ID,
+			},
 		},
 		{
 			id: -104,
@@ -213,15 +235,29 @@ function loadSampleRecords(): void {
 				mime_type: 'image/svg+xml',
 				media_details: { sizes: {} },
 			},
+			{
+				id: BREAKOUT_IMAGE_ID,
+				type: 'attachment',
+				source_url: SAMPLE_BREAKOUT_IMAGE,
+				alt_text: __(
+					'Illustration of a soccer goal',
+					'newspack-rolling-coverage'
+				),
+				media_type: 'image',
+				mime_type: 'image/svg+xml',
+				media_details: { sizes: {} },
+			},
 		],
 		{ context: 'view' }
 	);
-	core.finishResolution( 'getEntityRecord', [
-		'postType',
-		'attachment',
-		IMAGE_ID,
-		{ context: 'view' },
-	] );
+	[ IMAGE_ID, BREAKOUT_IMAGE_ID ].forEach( ( id ) =>
+		core.finishResolution( 'getEntityRecord', [
+			'postType',
+			'attachment',
+			id,
+			{ context: 'view' },
+		] )
+	);
 
 	const now = Date.now();
 	const records = getSamples().map( ( sample ) => {
@@ -254,6 +290,12 @@ function loadSampleRecords(): void {
 	} );
 
 	core.receiveEntityRecords( 'postType', ENTRY_POST_TYPE, records );
+	receiveBreakoutPreviews(
+		getSamples().map( ( sample ) => ( {
+			postId: sample.id,
+			breakout: sample.breakout,
+		} ) )
+	);
 	records.forEach( ( record ) => {
 		core.finishResolution( 'getEntityRecord', [
 			'postType',
@@ -300,6 +342,7 @@ export function useSampleEntries( enabled: boolean ): EntryContext[] {
 				hidesByline: false,
 				fallbackTitle:
 					'' === sample.title ? openingWords( sample.content ) : '',
+				breakout: sample.breakout ?? null,
 			} ) )
 		);
 	}, [ enabled ] );

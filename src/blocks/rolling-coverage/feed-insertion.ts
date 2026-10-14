@@ -16,6 +16,7 @@ import {
 import {
 	STATUS_BLOCK_NAME,
 	feedPathOf,
+	isBreakoutEntry,
 	isFeedGroup,
 	isPinnedCard,
 	isRegularEntry,
@@ -105,7 +106,12 @@ function canInsertIntoFeed(
 	];
 
 	for ( const block of chain ) {
-		if ( ! block || isRegularEntry( block ) || isPinnedCard( block ) ) {
+		if (
+			! block ||
+			isRegularEntry( block ) ||
+			isPinnedCard( block ) ||
+			isBreakoutEntry( block )
+		) {
 			return false;
 		}
 

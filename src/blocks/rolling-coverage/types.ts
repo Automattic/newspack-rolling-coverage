@@ -90,6 +90,7 @@ interface BlockConfig {
 	showAvatars: boolean;
 	entryPlural: string;
 	sampleAvatarUrls?: Record< string, string >;
+	breakoutLabel?: string;
 }
 
 /**
@@ -114,8 +115,23 @@ type EventParams = Record< string, unknown >;
 type EventName = ( typeof EVENTS )[ keyof typeof EVENTS ];
 
 /**
+ * What the editor's Full Story Entry preview shows for an entry's published
+ * breakout post, as plain text, from the entries preview route (see
+ * Rolling_Coverage_Block::breakout_preview()). `imageId` is 0 for a post
+ * without a featured image.
+ */
+interface BreakoutPreview {
+	title: string;
+	summary: string;
+	url: string;
+	label: string;
+	imageId: number;
+}
+
+/**
  * Block context for a single real entry, used by the editor's per-entry
- * template preview (see edit.tsx).
+ * template preview (see edit.tsx). `breakout` describes its published
+ * breakout post, null without one.
  */
 interface EntryContext {
 	postId: number;
@@ -126,6 +142,7 @@ interface EntryContext {
 	hasTitle?: boolean;
 	hidesByline?: boolean;
 	fallbackTitle?: string;
+	breakout?: BreakoutPreview | null;
 }
 
 /**
@@ -223,6 +240,7 @@ export type {
 	FrontendConfig,
 	EventParams,
 	EventName,
+	BreakoutPreview,
 	EntryContext,
 	PollEntry,
 	PollResponse,
