@@ -76,7 +76,6 @@ import {
 	getLayoutId,
 	getLayoutCategoryId,
 	createLayout,
-	PREVIEW_COVERAGE_ID,
 } from './utils';
 import {
 	feedPathOf,
@@ -89,8 +88,12 @@ import {
 	allUpdatesTextOf,
 	isPinnedCard,
 	isRegularEntry,
+	isBreakoutEntry,
 	forEntryKind,
 	breakoutBlockIds,
+	featuredImageBlockIds,
+	fullStoryTakesPinned,
+	pinnedRowBlockIds,
 	withoutFollowButtons,
 	withoutCheckUpdatesButtons,
 	blockIdsOfType,
@@ -127,12 +130,19 @@ import {
 	type BuiltInLayoutSlug,
 } from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
+import FullStoryEntryContext from './full-story-entry-context';
+import { receiveBreakoutPreviews } from './breakout-previews';
 import {
 	EntryPreviewsAnchorContext,
 	EntryPreviewsContext,
 } from './entry-previews';
 import { blockGapCss } from './spacing';
-import { BLOCK_NAME, innerTemplate, useLayoutPreview } from './layout';
+import {
+	BLOCK_NAME,
+	innerTemplate,
+	isFullStoryContext,
+	useLayoutPreview,
+} from './layout';
 import type {
 	CoverageOption,
 	ApplyNotice,
@@ -1153,9 +1163,9 @@ export default function Edit( {
 		isCapped,
 		cappedCount,
 	] );
-	const entriesCoverageId = isChoosing
-		? 0
-		: coverageId || ( isLayoutPattern ? PREVIEW_COVERAGE_ID : 0 );
+	// A layout edited on its own previews the sample entries, whatever story
+	// it was opened from, so it shows every kind of entry.
+	const entriesCoverageId = isChoosing ? 0 : coverageId;
 	const isLoading =
 		needsDefaultLayout ||
 		( ! isChoosing &&
@@ -1205,10 +1215,13 @@ export default function Edit( {
 		[ templateBlocks ]
 	);
 	// In a grid Feed, each entry's preview takes the cell the site places its
-	// article in, the first pinned entry the pinned card's. Kept between
+	// article in, the first pinned entry shown as the pinned card the card's
+	// and a Full Story entry the Full Story Entry group's. Kept between
 	// renders, so the previews don't render again for a new style object.
+	const takesPinned = fullStoryTakesPinned( templateBlocks );
 	const leadPinContext = previewContexts.find(
-		( context ) => context.pinned
+		( context ) =>
+			context.pinned && ! isFullStoryContext( context, takesPinned )
 	);
 	const showsPin = Boolean( leadPinContext );
 	const showsEntries = templateBlocks.length > 0;
@@ -1226,9 +1239,25 @@ export default function Edit( {
 				false,
 				showsPin
 			),
+			fullStory: entryPreviewPlacement(
+				templateBlocks,
+				feedLayout,
+				false,
+				showsPin,
+				true
+			),
 		} ),
 		[ templateBlocks, feedLayout, showsPin ]
 	);
+	const previewPlacementFor = ( context: EntryContext ) => {
+		if ( context === leadPinContext ) {
+			return previewPlacements.lead;
+		}
+
+		return isFullStoryContext( context, takesPinned )
+			? previewPlacements.fullStory
+			: previewPlacements.other;
+	};
 	// The entry after the lead pin heads the entries beside the card, and
 	// carries the card's top border too.
 	const columnHeadContext = leadPinContext
@@ -1276,16 +1305,25 @@ export default function Edit( {
 			CHECK_UPDATES_BLOCK_NAME
 		);
 	}, [ isSynced, syncedBlocks, allBlocks ] );
-	// An editable layout previews the pinned card against the pinned entry
-	// and the entry group against one that isn't pinned, and leaves out the
-	// one the coverage has no entry for, and "Read more" where the entry
-	// previewed has no breakout post.
+	// An editable layout previews the pinned card against a pinned entry
+	// shown as the card, the Full Story Entry group against a Full Story
+	// entry (see isFullStoryContext()), and the entry group against one that
+	// is neither. It leaves out the ones the coverage has no entry for,
+	// "Read more" where the entry previewed has no breakout post, and the
+	// Full Story Entry's pinned row where its entry isn't pinned. The sample
+	// entries have one of each.
 	const hasBothKinds =
 		allBlocks.some( isPinnedCard ) && allBlocks.some( isRegularEntry );
+	const hasFullStory = allBlocks.some( isBreakoutEntry );
+	const entryKindContexts = hasFullStory
+		? previewContexts.filter(
+				( context ) => ! isFullStoryContext( context, takesPinned )
+			)
+		: previewContexts;
 	const pinnedContext = hasBothKinds
-		? previewContexts.find( ( context ) => context.pinned )
+		? entryKindContexts.find( ( context ) => context.pinned )
 		: undefined;
-	const unpinnedContexts = previewContexts.filter(
+	const unpinnedContexts = entryKindContexts.filter(
 		( context ) => ! context.pinned
 	);
 	const titledContexts = unpinnedContexts.filter(
@@ -1295,7 +1333,15 @@ export default function Edit( {
 		? ( titledContexts.find( ( context ) => context.hasBreakout ) ??
 			titledContexts[ 0 ] ??
 			unpinnedContexts[ 0 ] )
-		: previewContexts[ 0 ];
+		: entryKindContexts[ 0 ];
+	const fullStoryContexts = hasFullStory
+		? previewContexts.filter( ( context ) =>
+				isFullStoryContext( context, takesPinned )
+			)
+		: [];
+	const fullStoryContext =
+		fullStoryContexts.find( ( context ) => context.breakout?.title ) ??
+		fullStoryContexts[ 0 ];
 	const layoutContext =
 		regularContext ?? pinnedContext ?? NEUTRAL_ENTRY_CONTEXT;
 	const coverageContext = useMemo(
@@ -1303,7 +1349,14 @@ export default function Edit( {
 		[ entriesCoverageId ]
 	);
 	const isCardHidden = hasBothKinds && ! pinnedContext;
-	const isEntryHidden = hasBothKinds && ! regularContext && !! pinnedContext;
+	const isEntryHidden =
+		( hasBothKinds || hasFullStory ) &&
+		! regularContext &&
+		!! ( pinnedContext || fullStoryContext );
+	const isFullStoryHidden = hasFullStory && ! fullStoryContext;
+	const hidesFullStoryImage =
+		!! fullStoryContext && ! fullStoryContext.breakout?.imageId;
+	const hidesFullStoryPin = !! fullStoryContext && ! fullStoryContext.pinned;
 	// Core skips rendering a hidden block, filters included, so the previews
 	// follow the last block shown in every viewport.
 	const entryPreviewsAnchorId =
@@ -1327,7 +1380,8 @@ export default function Edit( {
 					.filter(
 						( context ) =>
 							context !== pinnedContext &&
-							context !== regularContext
+							context !== regularContext &&
+							context !== fullStoryContext
 					)
 					.map( ( context ) => (
 						<BlockContextProvider
@@ -1336,7 +1390,11 @@ export default function Edit( {
 						>
 							<EntryBlockPreview
 								blocks={ blocksForEntry( context ) }
-								style={ previewPlacements.other }
+								style={
+									isFullStoryContext( context, takesPinned )
+										? previewPlacements.fullStory
+										: previewPlacements.other
+								}
 							/>
 						</BlockContextProvider>
 					) ) }
@@ -1347,8 +1405,11 @@ export default function Edit( {
 			previewContexts,
 			pinnedContext,
 			regularContext,
+			fullStoryContext,
 			blocksForEntry,
+			takesPinned,
 			previewPlacements.other,
+			previewPlacements.fullStory,
 			loadMorePreview,
 		]
 	);
@@ -1369,6 +1430,7 @@ export default function Edit( {
 				.filter(
 					( block, index ) =>
 						( isCardHidden && isPinnedCard( block ) ) ||
+						( isFullStoryHidden && isBreakoutEntry( block ) ) ||
 						( isEntryHidden &&
 							( isRegularEntry( block ) ||
 								( block.name === 'core/separator' &&
@@ -1376,12 +1438,22 @@ export default function Edit( {
 				)
 				.map( ( block ) => block.clientId as string ),
 			...breakoutBlockIds(
-				allBlocks.filter( ( block ) =>
-					pinnedContext && isPinnedCard( block )
+				allBlocks.filter( ( block ) => {
+					if ( isBreakoutEntry( block ) ) {
+						return false;
+					}
+
+					return pinnedContext && isPinnedCard( block )
 						? hidesCardBreakout
-						: hidesEntryBreakout
-				)
+						: hidesEntryBreakout;
+				} )
 			),
+			...( hidesFullStoryImage
+				? featuredImageBlockIds( allBlocks.filter( isBreakoutEntry ) )
+				: [] ),
+			...( hidesFullStoryPin
+				? pinnedRowBlockIds( allBlocks.filter( isBreakoutEntry ) )
+				: [] ),
 			...hiddenAuthorBlockIds(
 				layoutParts( allBlocks ).template,
 				showAuthor !== false,
@@ -1397,6 +1469,9 @@ export default function Edit( {
 		isAllUpdatesHidden,
 		isCardHidden,
 		isEntryHidden,
+		isFullStoryHidden,
+		hidesFullStoryImage,
+		hidesFullStoryPin,
 		pinnedContext,
 		hidesCardBreakout,
 		hidesEntryBreakout,
@@ -1642,7 +1717,8 @@ export default function Edit( {
 			getEntityRecord: (
 				kind: string,
 				name: string,
-				id: number
+				id: number,
+				query?: Record< string, string >
 			) => Promise< unknown >;
 			getUser: (
 				id: number,
@@ -1659,8 +1735,24 @@ export default function Edit( {
 			.then( ( fetched ) => {
 				const contexts = fetched.slice( 0, perPage );
 
-				// Entries and their authors are read before the preview
-				// shows, so it doesn't fill in piece by piece.
+				receiveBreakoutPreviews( contexts );
+
+				// Entries, their authors and their breakout posts' images
+				// are read before the preview shows, so it doesn't fill in
+				// piece by piece.
+				const images = Promise.all(
+					contexts.map( ( { breakout } ) =>
+						breakout?.imageId
+							? getEntityRecord(
+									'postType',
+									'attachment',
+									breakout.imageId,
+									{ context: 'view' }
+								).catch( () => undefined )
+							: undefined
+					)
+				);
+
 				return Promise.all(
 					contexts.map( ( context ) =>
 						getEntityRecord(
@@ -1691,6 +1783,7 @@ export default function Edit( {
 							] )
 						);
 					} )
+					.then( () => images )
 					.then( () => ( {
 						contexts,
 						hasMore: fetched.length > perPage,
@@ -2783,7 +2876,7 @@ export default function Edit( {
 					{ canEditLayout && (
 						<ToolbarButton
 							{ ...{
-								href: getLayoutEditUrl( layoutId, coverageId ),
+								href: getLayoutEditUrl( layoutId ),
 								target: '_blank',
 							} }
 						>
@@ -2935,12 +3028,9 @@ export default function Edit( {
 																				context
 																			)
 																}
-																style={
-																	context ===
-																	leadPinContext
-																		? previewPlacements.lead
-																		: previewPlacements.other
-																}
+																style={ previewPlacementFor(
+																	context
+																) }
 															/>
 														</BlockContextProvider>
 													)
@@ -2988,22 +3078,28 @@ export default function Edit( {
 								<PinnedEntryContext.Provider
 									value={ pinnedContext ?? null }
 								>
-									<EntryPreviewsAnchorContext.Provider
-										value={ entryPreviewsAnchor }
+									<FullStoryEntryContext.Provider
+										value={ fullStoryContext ?? null }
 									>
-										<EntryPreviewsContext.Provider
-											value={ entryPreviews }
+										<EntryPreviewsAnchorContext.Provider
+											value={ entryPreviewsAnchor }
 										>
-											<BlockContextProvider
-												value={ {
-													...layoutContext,
-													...coverageContext,
-												} }
+											<EntryPreviewsContext.Provider
+												value={ entryPreviews }
 											>
-												<div { ...innerBlocksProps } />
-											</BlockContextProvider>
-										</EntryPreviewsContext.Provider>
-									</EntryPreviewsAnchorContext.Provider>
+												<BlockContextProvider
+													value={ {
+														...layoutContext,
+														...coverageContext,
+													} }
+												>
+													<div
+														{ ...innerBlocksProps }
+													/>
+												</BlockContextProvider>
+											</EntryPreviewsContext.Provider>
+										</EntryPreviewsAnchorContext.Provider>
+									</FullStoryEntryContext.Provider>
 								</PinnedEntryContext.Provider>
 							) }
 						</>

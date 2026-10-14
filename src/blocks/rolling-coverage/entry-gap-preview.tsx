@@ -8,11 +8,11 @@ import { addFilter } from '@wordpress/hooks';
  * Internal dependencies
  */
 import { blockGapCss } from './spacing';
-import { isPinnedCard, isRegularEntry } from './template';
+import { isBreakoutEntry, isPinnedCard, isRegularEntry } from './template';
 
 /**
- * Gives the pinned card and the entry group the space between their blocks
- * that editor.scss reads, as the server lays them out from their own Block
+ * Gives the pinned card, the entry group and the Full Story Entry group the
+ * space between their blocks that editor.scss reads, as the server lays them out from their own Block
  * spacing (see Rolling_Coverage_Block::entry_layout_class()).
  */
 const withEntryGapPreview = createHigherOrderComponent(
@@ -25,7 +25,9 @@ const withEntryGapPreview = createHigherOrderComponent(
 			wrapperProps?: { style?: Record< string, string > };
 		} ) => {
 			const gap =
-				( isPinnedCard( props ) || isRegularEntry( props ) ) &&
+				( isPinnedCard( props ) ||
+					isRegularEntry( props ) ||
+					isBreakoutEntry( props ) ) &&
 				blockGapCss( props.attributes?.style?.spacing?.blockGap );
 
 			if ( ! gap ) {

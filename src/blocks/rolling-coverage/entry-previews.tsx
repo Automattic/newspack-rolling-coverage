@@ -9,6 +9,7 @@ import { addFilter } from '@wordpress/hooks';
 /**
  * Internal dependencies
  */
+import FullStoryEntryContext from './full-story-entry-context';
 import PinnedEntryContext from './pinned-entry-context';
 
 /**
@@ -31,10 +32,11 @@ export const EntryPreviewsAnchorContext = createContext< {
 export const EntryPreviewsContext = createContext< ReactNode >( null );
 
 /**
- * The entry previews, without the anchor or pinned entry context: a preview
- * renders copies of the template's blocks, client IDs included, so it would
- * otherwise render the previews again inside itself and show its pinned
- * card against the lead pinned entry.
+ * The entry previews, without the anchor, pinned entry or Full Story entry
+ * context: a preview renders copies of the template's blocks, client IDs
+ * included, so it would otherwise render the previews again inside itself
+ * and show its pinned card and Full Story Entry group against the entries
+ * the editable layout shows them for.
  */
 function EntryPreviews() {
 	const previews = useContext( EntryPreviewsContext );
@@ -42,7 +44,9 @@ function EntryPreviews() {
 	return (
 		<EntryPreviewsAnchorContext.Provider value={ null }>
 			<PinnedEntryContext.Provider value={ null }>
-				{ previews }
+				<FullStoryEntryContext.Provider value={ null }>
+					{ previews }
+				</FullStoryEntryContext.Provider>
 			</PinnedEntryContext.Provider>
 		</EntryPreviewsAnchorContext.Provider>
 	);

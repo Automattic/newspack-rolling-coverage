@@ -2,6 +2,7 @@
  * WordPress dependencies
  */
 import { registerBlockBindingsSource } from '@wordpress/blocks';
+import { __ } from '@wordpress/i18n';
 
 const ENTRY_BINDINGS_SOURCE = 'newspack-rolling-coverage/entry';
 const COVERAGE_ID_CONTEXT = 'newspack-rolling-coverage/coverageId';
@@ -23,9 +24,23 @@ interface BindingsArgs {
 }
 
 /**
+ * The site's Full story label, which the editor shows for every breakout
+ * post, from the Rolling Coverage block's config where this bundle has it.
+ *
+ * @return {string} The label.
+ */
+function breakoutLabel(): string {
+	return (
+		window.newspackRollingCoverageBlock?.breakoutLabel ||
+		__( 'Full story', 'newspack-rolling-coverage' )
+	);
+}
+
+/**
  * Mirrors Entry_Bindings::get_value() in the editor. Entry values are
  * resolved per entry on the server, so the editor leaves them empty; only the
- * coverage's name is read, from the coverage in context.
+ * coverage's name is read, from the coverage in context, and the Full story
+ * label shows the site's own.
  */
 registerBlockBindingsSource( {
 	name: ENTRY_BINDINGS_SOURCE,
@@ -35,6 +50,10 @@ registerBlockBindingsSource( {
 
 		return Object.fromEntries(
 			Object.entries( bindings ).map( ( [ attribute, binding ] ) => {
+				if ( binding?.args?.key === 'breakoutLabel' ) {
+					return [ attribute, breakoutLabel() ];
+				}
+
 				if ( binding?.args?.key !== 'coverageName' || ! coverageId ) {
 					return [ attribute, '' ];
 				}

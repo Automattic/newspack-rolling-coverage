@@ -59,6 +59,7 @@ class Admin {
 		add_filter( 'admin_title', array( __CLASS__, 'capture_admin_title_suffix' ), PHP_INT_MAX, 2 );
 		add_action( 'load-edit.php', array( __CLASS__, 'redirect_entry_list' ) );
 		add_action( 'enqueue_block_editor_assets', array( __CLASS__, 'enqueue_entry_editor' ) );
+		add_action( 'enqueue_block_editor_assets', array( __CLASS__, 'enqueue_breakout_editor' ) );
 		add_filter( 'custom_menu_order', '__return_true' );
 		// After Newspack's own wizard ordering, which runs at 11.
 		add_filter( 'menu_order', array( __CLASS__, 'menu_order' ), 12 );
@@ -254,6 +255,59 @@ class Admin {
 	}
 
 	/**
+	 * Load the breakout editor script when the post being edited is a
+	 * breakout post (it links back to the entry it was broken out from), for
+	 * its Rolling Coverage panel. The panel's placeholder is the label every
+	 * other card shows (Breakout_Label::get()).
+	 */
+	public static function enqueue_breakout_editor(): void {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$post   = get_post();
+
+		if ( ! $screen || 'post' !== $screen->post_type || ! $post instanceof \WP_Post || 'post' !== $post->post_type ) {
+			return;
+		}
+
+		if ( ! (int) get_post_meta( $post->ID, Breakout::BREAKOUT_SOURCE_ENTRY_META, true ) ) {
+			return;
+		}
+
+		$asset_file = NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'dist/breakout-editor.asset.php';
+
+		if ( ! file_exists( $asset_file ) ) {
+			return;
+		}
+
+		$asset = include $asset_file;
+
+		wp_enqueue_script(
+			'newspack-rolling-coverage-breakout-editor',
+			NEWSPACK_ROLLING_COVERAGE_URL . 'dist/breakout-editor.js',
+			$asset['dependencies'] ?? [],
+			$asset['version'],
+			[ 'in_footer' => true ]
+		);
+
+		wp_add_inline_script(
+			'newspack-rolling-coverage-breakout-editor',
+			'window.newspackRollingCoverageBreakoutEditor = ' . wp_json_encode(
+				[
+					'metaKey'   => Breakout_Label::POST_META_KEY,
+					'siteLabel' => Breakout_Label::get(),
+					'maxLength' => Breakout_Label::MAX_LENGTH,
+				]
+			) . ';',
+			'before'
+		);
+
+		wp_set_script_translations(
+			'newspack-rolling-coverage-breakout-editor',
+			'newspack-rolling-coverage',
+			NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'languages'
+		);
+	}
+
+	/**
 	 * Load the entry editor script on the entry edit screen.
 	 */
 	public static function enqueue_entry_editor(): void {
@@ -406,14 +460,14 @@ class Admin {
 		);
 
 		return array(
-			'page'                 => $page,
-			'adminTitleSuffix'     => self::$admin_title_suffix,
-			'supportsHandoff'      => class_exists( '\Newspack\Handoff_Banner' ),
-			'restBase'             => array(
+			'page'                   => $page,
+			'adminTitleSuffix'       => self::$admin_title_suffix,
+			'supportsHandoff'        => class_exists( '\Newspack\Handoff_Banner' ),
+			'restBase'               => array(
 				'entries' => Post_Type::REST_BASE,
 				'slack'   => Slack::REST_NAMESPACE,
 			),
-			'restBaseUrls'         => array(
+			'restBaseUrls'           => array(
 				'coverages'     => esc_url_raw( rest_url( 'wp/v2/' . Taxonomy::REST_BASE ) ),
 				'slack'         => esc_url_raw( rest_url( Slack::REST_NAMESPACE . '/' ) ),
 				'breakout'      => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/entries' ) ),
@@ -421,12 +475,13 @@ class Admin {
 				'aiSettings'    => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . AI_Settings::REST_ROUTE ) ),
 				'statusLabels'  => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Status_Labels::REST_ROUTE ) ),
 				'latestLabel'   => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Latest_Label::REST_ROUTE ) ),
+				'breakoutLabel' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Breakout_Label::REST_ROUTE ) ),
 				'entryName'     => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . Entry_Name::REST_ROUTE ) ),
 				'restNamespace' => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/' ) ),
 				'posts'         => esc_url_raw( rest_url( 'wp/v2/posts' ) ),
 			),
-			'nonce'                => wp_create_nonce( 'wp_rest' ),
-			'capabilities'         => array(
+			'nonce'                  => wp_create_nonce( 'wp_rest' ),
+			'capabilities'           => array(
 				'canEditPosts'        => current_user_can( 'edit_posts' ),
 				'canEditEntries'      => current_user_can( Post_Type::EDIT_ENTRIES_CAP ),
 				'canChangeAuthors'    => Post_Type::can_change_authors(),
@@ -438,43 +493,45 @@ class Admin {
 				'canManageOptions'    => current_user_can( 'manage_options' ),
 				'canManageSettings'   => Status_Labels::can_manage(),
 			),
-			'adminUrls'            => array(
+			'adminUrls'              => array(
 				'coverages'          => admin_url( 'admin.php?page=' . self::MENU_SLUG ),
 				'editEntry'          => admin_url( 'post.php?action=edit' ),
 				'editTerm'           => admin_url( 'term.php?taxonomy=' . Taxonomy::TAXONOMY_SLUG ),
 				'editUser'           => admin_url( 'user-edit.php' ),
 				'connectorApprovals' => AI_Service::get_connector_approvals_url(),
 			),
-			'postType'             => Post_Type::CPT_SLUG,
-			'taxonomy'             => Taxonomy::TAXONOMY_SLUG,
-			'taxMeta'              => array(
+			'postType'               => Post_Type::CPT_SLUG,
+			'taxonomy'               => Taxonomy::TAXONOMY_SLUG,
+			'taxMeta'                => array(
 				'statusKey'       => Taxonomy::STATUS_META_KEY,
 				'lastModifiedKey' => Rolling_Coverage_Block::LAST_MODIFIED_META_KEY,
 				'canonicalUrlKey' => Taxonomy::CANONICAL_URL_META_KEY,
 				'adsDisabledKey'  => Taxonomy::ADS_DISABLED_META_KEY,
 			),
-			'slack'                => array(
+			'slack'                  => array(
 				'isConfigured' => Slack_Config::is_configured(),
 			),
-			'pushNotifications'    => array(
+			'pushNotifications'      => array(
 				'isConfigured' => Push_Notifications::is_onesignal_configured(),
 			),
-			'availableAdapters'    => array(
+			'availableAdapters'      => array(
 				'slack' => __( 'Slack', 'newspack-rolling-coverage' ),
 			),
-			'blockEditorSettings'  => $block_editor_settings,
-			'aiSettings'           => AI_Settings::can_manage_settings() ? AI_Settings::get_all() : null,
-			'aiDefaultSettings'    => AI_Settings::get_defaults(),
-			'aiAvailable'          => AI_Service::is_available(),
-			'aiNeedsApproval'      => AI_Service::needs_connector_approval(),
-			'aiMaxPromptLength'    => AI_Service::MAX_PROMPT_LENGTH,
-			'statusLabels'         => Status_Labels::get_all(),
-			'statusLabelDefaults'  => Status_Labels::get_defaults(),
-			'statusLabelMaxLength' => Status_Labels::MAX_LENGTH,
-			'latestLabelDefault'   => Latest_Label::get_default(),
-			'latestLabelMaxLength' => Latest_Label::MAX_LENGTH,
-			'entryNameDefaults'    => Entry_Name::get_defaults(),
-			'entryNameMaxLength'   => Entry_Name::MAX_LENGTH,
+			'blockEditorSettings'    => $block_editor_settings,
+			'aiSettings'             => AI_Settings::can_manage_settings() ? AI_Settings::get_all() : null,
+			'aiDefaultSettings'      => AI_Settings::get_defaults(),
+			'aiAvailable'            => AI_Service::is_available(),
+			'aiNeedsApproval'        => AI_Service::needs_connector_approval(),
+			'aiMaxPromptLength'      => AI_Service::MAX_PROMPT_LENGTH,
+			'statusLabels'           => Status_Labels::get_all(),
+			'statusLabelDefaults'    => Status_Labels::get_defaults(),
+			'statusLabelMaxLength'   => Status_Labels::MAX_LENGTH,
+			'latestLabelDefault'     => Latest_Label::get_default(),
+			'latestLabelMaxLength'   => Latest_Label::MAX_LENGTH,
+			'breakoutLabelDefault'   => Breakout_Label::get_default(),
+			'breakoutLabelMaxLength' => Breakout_Label::MAX_LENGTH,
+			'entryNameDefaults'      => Entry_Name::get_defaults(),
+			'entryNameMaxLength'     => Entry_Name::MAX_LENGTH,
 		);
 	}
 }
