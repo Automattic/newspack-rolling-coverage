@@ -623,7 +623,8 @@ class Test_Full_Story_Entry extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A Post Featured Image set to link points at the post, named by its
-	 * title.
+	 * title, without a second stop on the post for keyboard and screen
+	 * reader users.
 	 */
 	public function test_linked_image_points_at_the_post() {
 		[ $entry_id, $breakout_id ] = self::create_breakout();
@@ -631,8 +632,10 @@ class Test_Full_Story_Entry extends Rolling_Coverage_TestCase {
 
 		$html = self::render( $entry_id, self::template( self::full_story_group( '<!-- wp:post-featured-image {"isLink":true} /-->' . self::TITLE_MARKUP ) ) );
 
-		$this->assertMatchesRegularExpression( '#<a href="' . preg_quote( esc_url( get_permalink( $breakout_id ) ), '#' ) . '"[^>]*><img [^>]*alt="Post &amp; headline"#', $html );
+		$this->assertMatchesRegularExpression( '#<a [^>]*\bhref="' . preg_quote( esc_url( get_permalink( $breakout_id ) ), '#' ) . '"[^>]*><img [^>]*alt="Post &amp; headline"#', $html );
 		$this->assertStringNotContainsString( 'alt="Entry headline"', $html );
+		$this->assertMatchesRegularExpression( '#<a [^>]*\btabindex="-1"[^>]*><img #', $html, 'The image link is no second tab stop on the post.' );
+		$this->assertMatchesRegularExpression( '#<a [^>]*\baria-hidden="true"[^>]*><img #', $html, 'Screen readers meet the post once, through the title.' );
 		$this->assertStringNotContainsString( get_permalink( $entry_id ), $html );
 	}
 

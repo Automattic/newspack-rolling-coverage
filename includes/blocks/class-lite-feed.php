@@ -238,12 +238,32 @@ class Lite_Feed {
 	}
 
 	/**
+	 * What a lite card links to the post with when the post has no title:
+	 * the entry's title, else what everyone may call the entry, else the
+	 * post's Full story label, so the card always leads to the post.
+	 *
+	 * @param WP_Post $entry Entry post object.
+	 * @param array   $card  The entry's card (see Breakout_Card::for_entry()).
+	 * @return string Plain text.
+	 */
+	private static function untitled_card_name( WP_Post $entry, array $card ): string {
+		if ( Rolling_Coverage_Block::has_title( $entry ) ) {
+			return get_the_title( $entry );
+		}
+
+		$name = Entry_Bindings::public_name( $entry );
+
+		return '' !== $name ? $name : Breakout_Label::for_post( (int) $card['post_id'] );
+	}
+
+	/**
 	 * Render an entry as text: its time, whether it is pinned, its title and
 	 * its body, which Lite Site cleans like the rest of the page, or a notice
 	 * in place of a protected entry's body. An entry whose breakout post is
 	 * published shows that post's title under the Full story label, linked to
 	 * its lite page (see card_url()), and its summary instead (see
-	 * Breakout_Card::for_entry()), without the archived entry's notice.
+	 * Breakout_Card::for_entry()), without the archived entry's notice. A
+	 * post without a title is linked by the entry's name instead.
 	 *
 	 * Built from the entry alone, not the block's layout, and carrying the
 	 * attributes the view script uses to place and replace entries. Layouts
@@ -276,7 +296,9 @@ class Lite_Feed {
 		$card = Breakout_Card::for_entry( $entry->ID );
 
 		if ( null !== $card ) {
-			$title = '' !== $card['title'] ? Breakout_Card::lite_label_html( $card ) . sprintf( '<h3><a href="%s">%s</a></h3>', esc_url( self::card_url( $card ) ), esc_html( $card['title'] ) ) : '';
+			$title = '' !== $card['title']
+				? Breakout_Card::lite_label_html( $card ) . sprintf( '<h3><a href="%s">%s</a></h3>', esc_url( self::card_url( $card ) ), esc_html( $card['title'] ) )
+				: sprintf( '<h3><a href="%s">%s</a></h3>', esc_url( self::card_url( $card ) ), esc_html( self::untitled_card_name( $entry, $card ) ) );
 			$body  = '' !== $card['summary'] ? '<p>' . esc_html( $card['summary'] ) . '</p>' : '';
 		} else {
 			$title = Rolling_Coverage_Block::has_title( $entry ) ? '<h3>' . esc_html( get_the_title( $entry ) ) . '</h3>' : '';

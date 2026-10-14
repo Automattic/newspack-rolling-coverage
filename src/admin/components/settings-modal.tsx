@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from '@wordpress/element';
 import { useViewportMatch } from '@wordpress/compose';
 import { Button, Notice, TextControl } from '@wordpress/components';
 import { Stack, Tabs, Text } from '@wordpress/ui';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import Modal from 'newspack-components/dist/esm/modal';
 
 /**
@@ -465,9 +465,13 @@ function SettingsModal( {
 													render={ <p /> }
 													className="newspack-rolling-coverage-settings__description"
 												>
-													{ __(
-														'Set the label shown on an entry once its breakout post is published. Each breakout post can set its own in the post editor. Leave empty to use “Full story”.',
-														'newspack-rolling-coverage'
+													{ sprintf(
+														/* translators: %s: the default Full story label. */
+														__(
+															'Set the label shown on an entry once its breakout post is published. Each breakout post can set its own in the post editor. Leave empty to use “%s”.',
+															'newspack-rolling-coverage'
+														),
+														config.breakoutLabelDefault
 													) }
 												</Text>
 											</Stack>

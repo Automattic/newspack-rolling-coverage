@@ -54,11 +54,6 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	const PREFIX = '<span class="newspack-rolling-coverage-breakout-label newspack-rolling-coverage-breakout-label--prefix">Full story:</span> ';
 
 	/**
-	 * The Full story label on its own line above a title.
-	 */
-	const HEADING_LABEL = '<span class="use-header-font newspack-rolling-coverage-breakout-label">Full story</span> ';
-
-	/**
 	 * Create an entry and its breakout post, linked both ways.
 	 *
 	 * @param string $status     The breakout post's status.
@@ -215,13 +210,13 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	 * headline's link, and Flash's excerpt leads with it on the same line,
 	 * outside the words the excerpt counts.
 	 */
-	public function test_one_line_cards_lead_with_the_label() {
+	public function test_one_line_cards_carry_the_label() {
 		[ $entry_id, $breakout_id ] = self::create_breakout();
 
 		$ticker = self::render( $entry_id, self::TICKER_TITLE_MARKUP );
 		$flash  = self::render( $entry_id, '<!-- wp:post-excerpt {"excerptLength":2,"moreText":""} /-->' );
 
-		$this->assertMatchesRegularExpression( '#<h4 class="[^"]*newspack-rolling-coverage-entry-link[^"]*">' . preg_quote( self::HEADING_LABEL, '#' ) . '<a href="' . preg_quote( esc_url( get_permalink( $breakout_id ) ), '#' ) . '"[^>]*>Post &amp; headline</a></h4>#', $ticker );
+		$this->assertMatchesRegularExpression( '#<h4 class="[^"]*newspack-rolling-coverage-entry-link[^"]*">' . preg_quote( self::KICKER, '#' ) . '<a href="' . preg_quote( esc_url( get_permalink( $breakout_id ) ), '#' ) . '"[^>]*>Post &amp; headline</a></h4>#', $ticker );
 		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">' . self::PREFIX . '<strong>Post &amp; headline</strong> What the&hellip; </p>', $flash );
 		$this->assertStringNotContainsString( 'breakout-label">Full story</span>', $flash, 'Flash carries no label on a line of its own.' );
 	}
@@ -327,6 +322,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		$this->assertStringNotContainsString( 'breakout-label', Lite_Feed::render_entry( get_post( $draft_entry ), 'initial' ) );
 		$this->assertStringNotContainsString( 'breakout-label', self::render( $untitled_entry, self::TITLE_MARKUP . self::FLASH_EXCERPT_MARKUP ) );
 		$this->assertStringNotContainsString( 'breakout-label', Lite_Feed::render_entry( get_post( $untitled_entry ), 'initial' ) );
+		$this->assertStringContainsString( '<h3><a href="', Lite_Feed::render_entry( get_post( $untitled_entry ), 'initial' ), 'A lite card for a post without a title still links to the post.' );
 
 		[ $card_entry ] = self::create_breakout();
 		$meanwhile      = '';
@@ -672,7 +668,8 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A password protected entry whose post isn't protected still shows the
-	 * post's summary in its excerpt, not WordPress's protected post notice.
+	 * post's summary in its excerpt, titled or not, not WordPress's protected
+	 * post notice.
 	 */
 	public function test_protected_entry_shows_the_summary_in_its_excerpt() {
 		[ $entry_id ] = self::create_breakout( 'publish', [], [ 'post_password' => 'secret' ] );
@@ -683,6 +680,13 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">What the post sums up. </p>', $titled );
 		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">' . self::PREFIX . '<strong>Post &amp; headline</strong> What the post sums up. </p>', $untitled );
 		$this->assertStringNotContainsString( 'protected', $titled . $untitled );
+
+		[ $untitled_entry ] = self::create_breakout( 'publish', [ 'post_title' => '' ], [ 'post_password' => 'secret' ] );
+
+		$untitled_post = self::render( $untitled_entry, self::TITLE_MARKUP . self::WIRE_EXCERPT_MARKUP );
+
+		$this->assertStringContainsString( 'wp-block-post-excerpt__excerpt">What the post sums up. </p>', $untitled_post );
+		$this->assertStringNotContainsString( 'protected', $untitled_post );
 	}
 
 	/**

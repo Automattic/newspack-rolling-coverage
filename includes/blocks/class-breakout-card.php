@@ -350,7 +350,10 @@ class Breakout_Card {
 	 * A Full Story Entry's Post Featured Image, once rendered: one set to
 	 * link points at the breakout post, named by the post's title, or by its
 	 * Full story label when it has none, in place of the entry's link and
-	 * title that core gives it.
+	 * title that core gives it. The card always links to the post elsewhere,
+	 * through its title, the entry's title or its label, so the image's link
+	 * is left out of the tab order and hidden from screen readers, rather
+	 * than a second stop on the same post.
 	 *
 	 * Parameters stay untyped because this runs for every featured image
 	 * block on the site while a card renders, after other plugins' filters
@@ -375,6 +378,8 @@ class Breakout_Card {
 		}
 
 		$image->set_attribute( 'href', $card['url'] );
+		$image->set_attribute( 'tabindex', '-1' );
+		$image->set_attribute( 'aria-hidden', 'true' );
 
 		if ( $image->next_tag( 'img' ) ) {
 			$image->set_attribute( 'alt', '' !== $card['title'] ? $card['title'] : Breakout_Label::for_post( (int) $card['post_id'] ) );
@@ -410,9 +415,8 @@ class Breakout_Card {
 	 * Entry_Bindings::link_title_to_breakout()), with the Full story label
 	 * inside the heading, before the link, so it stays with the title in
 	 * every layout, screen readers read it before the title, and the link's
-	 * name stays the title. A title carrying Entry_Bindings::ENTRY_LINK_CLASS,
-	 * Ticker's one-line headline, has the label lead it on the same line;
-	 * any other has it on a line of its own above. A title that renders
+	 * name stays the title. The label sits on a line of its own above the
+	 * title, Ticker's one-line headline included. A title that renders
 	 * nothing gets none, and neither does a Full Story Entry's, whose label
 	 * is a block of its own.
 	 *
@@ -517,15 +521,27 @@ class Breakout_Card {
 	}
 
 	/**
+	 * Whether a card's Post Excerpt is rendering for this post, so its
+	 * excerpt is the card's (see hold_excerpt()) and the entry's own excerpt
+	 * filters can stand down.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function holds_excerpt( int $post_id ): bool {
+		return null !== self::card_for_block( 'core/post-excerpt', $post_id );
+	}
+
+	/**
 	 * A card's Post Excerpt once rendered: nothing when it has nothing to
 	 * show, such as the summary of a password protected post under its
 	 * title. For a password protected entry, core never asks the excerpt
 	 * filters and says there is no excerpt, so the card's text takes that
 	 * message's place, cut to the block's length as core cuts it. An excerpt
-	 * showing the post's title, a one-liner like Flash's, has the Full story
-	 * label (not in a Full Story Entry) and the title in bold lead the
-	 * summary on the same line, outside the words the block counts; with no
-	 * summary it is the title alone.
+	 * showing the post's title, a one-liner in a custom layout, has the
+	 * Full story label (not in a Full Story Entry) and the title in bold lead
+	 * the summary on the same line, outside the words the block counts; with
+	 * no summary it is the title alone.
 	 *
 	 * Parameters stay untyped because this runs for every excerpt block on
 	 * the site while a card renders, after other plugins' filters that may
@@ -539,7 +555,7 @@ class Breakout_Card {
 	public static function render_excerpt( $block_content, $block, $instance ) {
 		$card = self::card_for_instance( $instance );
 
-		if ( null === $card || '' === $card['title'] || ! is_string( $block_content ) ) {
+		if ( null === $card || ! is_string( $block_content ) ) {
 			return $block_content;
 		}
 

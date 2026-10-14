@@ -1223,7 +1223,7 @@ export default function Edit( {
 		( context ) =>
 			context.pinned && ! isFullStoryContext( context, takesPinned )
 	);
-	const showsPin = previewContexts.some( ( context ) => context.pinned );
+	const showsPin = Boolean( leadPinContext );
 	const showsEntries = templateBlocks.length > 0;
 	const previewPlacements = useMemo(
 		() => ( {

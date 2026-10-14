@@ -4658,7 +4658,7 @@ class Rolling_Coverage_Block {
 		update_meta_cache( 'post', $query->posts );
 		_prime_post_caches( $query->posts, false, false );
 		update_post_author_caches( array_map( 'get_post', $query->posts ) );
-		self::prime_breakout_posts( array_filter( array_map( 'get_post', $query->posts ) ), true );
+		self::prime_breakout_posts( array_filter( array_map( 'get_post', $query->posts ) ) );
 
 		$entries = array_map( fn( $id ) => self::map_entry_preview( $id, $latest_only ), $query->posts );
 
@@ -4666,15 +4666,15 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Load the published breakout posts of entries, with their meta, and
-	 * then their featured images, in one go each, so each card's lookups hit
-	 * the cache. Does nothing for entries without a breakout.
+	 * Load the published breakout posts of entries, with their meta and
+	 * terms, and then their featured images, in one go each, so each card's
+	 * lookups hit the cache: permalinks with a category in them, and the
+	 * content gate summarizing a post, read the terms. Does nothing for
+	 * entries without a breakout.
 	 *
 	 * @param WP_Post[] $entries Entries about to render.
-	 * @param bool      $terms   Whether to load the posts' terms too, which
-	 *                           the content gate reads to summarize a post.
 	 */
-	private static function prime_breakout_posts( array $entries, bool $terms = false ): void {
+	private static function prime_breakout_posts( array $entries ): void {
 		$ids = [];
 
 		foreach ( $entries as $entry ) {
@@ -4690,7 +4690,7 @@ class Rolling_Coverage_Block {
 		}
 
 		$ids = array_unique( $ids );
-		_prime_post_caches( $ids, $terms, true );
+		_prime_post_caches( $ids, true, true );
 
 		$thumbnail_ids = array_filter( array_map( static fn( $id ) => (int) get_post_meta( $id, '_thumbnail_id', true ), $ids ) );
 

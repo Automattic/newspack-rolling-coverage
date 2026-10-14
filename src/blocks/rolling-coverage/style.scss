@@ -104,7 +104,7 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 		grid-column: 1 / -1;
 	}
 
-	.newspack-rolling-coverage-feed:not(:has([data-pinned])) .newspack-rolling-coverage-entry-beside-pinned {
+	.newspack-rolling-coverage-feed:not(:has(.newspack-rolling-coverage-pinned-card)) .newspack-rolling-coverage-entry-beside-pinned {
 		grid-column: 1 / -1;
 	}
 

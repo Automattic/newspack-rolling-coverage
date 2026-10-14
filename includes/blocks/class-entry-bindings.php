@@ -386,7 +386,8 @@ class Entry_Bindings {
 	 * (Post_Type::get_editor_excerpt()). An entry Newspack's content gate
 	 * withholds, or WooCommerce Memberships restricts, keeps the excerpt the
 	 * filters before this one built, since those read the content through
-	 * the restriction that `the_content` applies.
+	 * the restriction that `the_content` applies. A card's excerpt
+	 * (Breakout_Card::holds_excerpt()) stays the card's.
 	 *
 	 * Parameters stay untyped because this runs for every excerpt on the
 	 * site, after other plugins' filters that may hand on unexpected types.
@@ -403,6 +404,7 @@ class Entry_Bindings {
 			! $post instanceof WP_Post ||
 			Post_Type::CPT_SLUG !== $post->post_type ||
 			'' !== trim( $post->post_excerpt ) ||
+			Breakout_Card::holds_excerpt( $post->ID ) ||
 			post_password_required( $post ) ||
 			self::is_withheld( $post )
 		) {
