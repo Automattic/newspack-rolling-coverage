@@ -46,6 +46,11 @@ class Slack_Config {
 	const BOT_PUBLISHED_REACTION = 'large_green_circle';
 	const BOT_DRAFT_REACTION     = 'large_yellow_circle';
 
+	/**
+	 * Scopes the Slack app needs to receive reactions and add its own.
+	 */
+	const REACTION_SCOPES = [ 'reactions:read', 'reactions:write' ];
+
 	// Term-meta keys live on Taxonomy as the single source of truth; reuse
 	// them here for convenient access from the channel map operations below.
 	const TERM_META_CHANNEL_ID   = Taxonomy::META_SLACK_CHANNEL_ID;
@@ -373,6 +378,22 @@ class Slack_Config {
 		}
 
 		return empty( $channel_settings['autopublish'] ) ? self::PUBLISH_MODE_DRAFT : self::PUBLISH_MODE_PUBLISH;
+	}
+
+	/**
+	 * The channel map fields that store a publish mode. The legacy
+	 * auto-publish flag is kept in step, so a release that reads only the
+	 * flag doesn't publish every message in a channel set to Draft or Emoji
+	 * trigger.
+	 *
+	 * @param string $publish_mode One of self::PUBLISH_MODES.
+	 * @return array<string, mixed> Fields to merge into the channel's entry.
+	 */
+	public static function publish_mode_fields( string $publish_mode ): array {
+		return [
+			'publish_mode' => $publish_mode,
+			'autopublish'  => self::PUBLISH_MODE_PUBLISH === $publish_mode,
+		];
 	}
 
 	/**

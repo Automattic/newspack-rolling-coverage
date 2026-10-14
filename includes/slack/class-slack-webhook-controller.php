@@ -89,6 +89,7 @@ class Slack_Webhook_Controller {
 			'term_select_required'   => __( 'Please select a coverage.', 'newspack-rolling-coverage' ),
 			'term_not_found'         => __( 'Selected coverage no longer exists.', 'newspack-rolling-coverage' ),
 			'invalid_publish_mode'   => __( 'Choose a publish mode: Auto-publish, Draft or Emoji trigger.', 'newspack-rolling-coverage' ),
+			'reactions_not_granted'  => __( "The Slack app isn't allowed to read reactions yet. Update its manifest and reinstall it, as the warning on the Slack Connection page explains, then choose Emoji trigger again.", 'newspack-rolling-coverage' ),
 			// Credentials errors.
 			'missing_credentials'    => __( 'A bot token and signing secret are both required.', 'newspack-rolling-coverage' ),
 			'invalid_token'          => __( 'The bot token is invalid. It must start with xoxb-.', 'newspack-rolling-coverage' ),
@@ -491,7 +492,7 @@ class Slack_Webhook_Controller {
 		// Only a definite "no" is reported: unknown scopes are not a problem to act on.
 		$scopes                        = $this->api_client->get_granted_scopes();
 		$settings['can_read_files']    = null === $scopes || in_array( 'files:read', $scopes, true );
-		$settings['can_use_reactions'] = null === $scopes || [] === array_diff( [ 'reactions:read', 'reactions:write' ], $scopes );
+		$settings['can_use_reactions'] = null === $scopes || [] === array_diff( Slack_Config::REACTION_SCOPES, $scopes );
 
 		$bot_user_id = (int) ( $settings['bot_user_id'] ?? 0 );
 
@@ -648,6 +649,10 @@ class Slack_Webhook_Controller {
 			return self::rest_error( 'invalid_publish_mode' );
 		}
 
+		if ( Slack_Config::PUBLISH_MODE_REACTION === $publish_mode && $this->app_cannot_read_reactions() ) {
+			return self::rest_error( 'reactions_not_granted' );
+		}
+
 		if ( $term_id <= 0 || ! term_exists( $term_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			return self::rest_error( 'invalid_term' );
 		}
@@ -783,7 +788,13 @@ class Slack_Webhook_Controller {
 			return self::rest_error( 'invalid_publish_mode' );
 		}
 
-		Slack_Config::update_channel( $channel_id, [ 'publish_mode' => $publish_mode ] );
+		// A channel told to react while its reactions can't reach the site
+		// would publish nothing, so Emoji trigger waits for the permissions.
+		if ( Slack_Config::PUBLISH_MODE_REACTION === $publish_mode && $this->app_cannot_read_reactions() ) {
+			return self::rest_error( 'reactions_not_granted' );
+		}
+
+		Slack_Config::update_channel( $channel_id, Slack_Config::publish_mode_fields( $publish_mode ) );
 
 		$this->api_client->post_message(
 			$channel_id,
@@ -1091,10 +1102,18 @@ class Slack_Webhook_Controller {
 			return $is_resend_wanted ? new \WP_REST_Response( [ 'ok' => false ], 503 ) : $ok;
 		}
 
+		// The bot reacts to every message it makes an entry from. With no
+		// entry found above, that entry was deleted for good, or made for a
+		// coverage the channel was linked to before, so it isn't made again.
+		if ( self::carries_bot_reaction( $message, $bot_id ) ) {
+			Slack_Monitor::log( 'info', 'Reacted message skipped (it had an entry before)', $context );
+			return $ok;
+		}
+
 		$user_id = (string) ( $message['user'] ?? '' );
 
 		if ( '' === $user_id || Slack_Ingestion_Service::should_filter_message( $message, false ) ) {
-			Slack_Monitor::log( 'info', 'Reacted message filtered (bot/edit/join-leave)', $context );
+			Slack_Monitor::log( 'info', 'Reacted message filtered (bot, join/leave, or no author)', $context );
 			return $ok;
 		}
 
@@ -1136,6 +1155,44 @@ class Slack_Webhook_Controller {
 	}
 
 	/**
+	 * Whether the bot has already reacted to a message, which it does once
+	 * an entry is made from it.
+	 *
+	 * @param array  $message Message read from Slack.
+	 * @param string $bot_id  The bot's Slack user ID, or '' when unknown.
+	 * @return bool
+	 */
+	private static function carries_bot_reaction( array $message, string $bot_id ): bool {
+		if ( '' === $bot_id ) {
+			return false;
+		}
+
+		foreach ( (array) ( $message['reactions'] ?? [] ) as $reaction ) {
+			if (
+				is_array( $reaction )
+				&& in_array( (string) ( $reaction['name'] ?? '' ), [ Slack_Config::BOT_PUBLISHED_REACTION, Slack_Config::BOT_DRAFT_REACTION ], true )
+				&& in_array( $bot_id, (array) ( $reaction['users'] ?? [] ), true )
+			) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Whether Slack says the app lacks a scope reactions need. Unknown scopes
+	 * don't count, as when Slack can't be reached.
+	 *
+	 * @return bool
+	 */
+	private function app_cannot_read_reactions(): bool {
+		$scopes = $this->api_client->get_granted_scopes();
+
+		return null !== $scopes && [] !== array_diff( Slack_Config::REACTION_SCOPES, $scopes );
+	}
+
+	/**
 	 * The entry status a reaction asks for in a channel set to Emoji trigger.
 	 *
 	 * @param string $reaction Emoji name as Slack sends it, with any skin tone.
@@ -1159,11 +1216,12 @@ class Slack_Webhook_Controller {
 	/**
 	 * Publish a message's draft entry after someone reacts to it with the
 	 * publish emoji, and swap the bot's draft reaction for the published one.
-	 * Any other entry is left as it is.
+	 * Only a draft that never went out is published: an entry an editor took
+	 * down, an archived one, or one dated ahead stays as it is.
 	 *
-	 * Only the status changes, through wp_publish_post(). A save through
-	 * wp_update_post() would run the content through kses, since the webhook
-	 * has no user, and strip markup an editor added to the draft. The entry
+	 * Publishing through wp_publish_post() doesn't save the content again. A
+	 * save through wp_update_post() would run it through kses, since the
+	 * webhook has no user, and strip markup an editor added to the draft. The entry
 	 * keeps the date the draft was created, as when it is published from
 	 * the editor.
 	 *
@@ -1187,6 +1245,20 @@ class Slack_Webhook_Controller {
 			return;
 		}
 
+		// An entry an editor took down stays down, however many people add
+		// the publish emoji afterwards.
+		if ( metadata_exists( 'post', $entry_id, Post_Type::META_UNPUBLISHED_GMT ) ) {
+			Slack_Monitor::log( 'info', 'Draft not published (it was taken down)', [ 'post_id' => $entry_id ] );
+			return;
+		}
+
+		// Core schedules a post dated ahead rather than publishing it, which
+		// wp_publish_post() can't do, so such a draft waits for an editor.
+		if ( strtotime( $post->post_date_gmt . ' UTC' ) - time() >= MINUTE_IN_SECONDS ) {
+			Slack_Monitor::log( 'info', 'Draft not published (dated ahead)', [ 'post_id' => $entry_id ] );
+			return;
+		}
+
 		// A draft has no slug yet. Core gives a post one when it is saved as
 		// published, but wp_publish_post() changes only the status, and the
 		// entry's share and notification links need the slug.
@@ -1205,6 +1277,12 @@ class Slack_Webhook_Controller {
 			Slack_Monitor::log( 'error', 'Draft could not be published', [ 'post_id' => $entry_id ] );
 			return;
 		}
+
+		// The webhook is a REST request, so the publish scheduled the
+		// notification a minute out, for routes that write the opt-in after
+		// the status. Ingestion wrote this one already, so the send moves to
+		// the next cron run, as the entries route's does.
+		Push_Notifications::settle_rest_publish( get_post( $entry_id ) );
 
 		Slack_Monitor::log( 'success', 'Draft published from a reaction', [ 'post_id' => $entry_id ] );
 		self::react( $this->api_client, $channel_id, $ts, Slack_Config::BOT_PUBLISHED_REACTION );
@@ -1687,9 +1765,8 @@ class Slack_Webhook_Controller {
 			[
 				'channel_name' => $channel_name,
 				'term_id'      => $term_id,
-				'publish_mode' => $publish_mode,
 				'last_sync_ts' => '',
-			]
+			] + Slack_Config::publish_mode_fields( $publish_mode )
 		);
 		update_term_meta( $term_id, Slack_Config::TERM_META_CHANNEL_ID, $channel_id );
 		update_term_meta( $term_id, Slack_Config::TERM_META_CHANNEL_NAME, $channel_name );

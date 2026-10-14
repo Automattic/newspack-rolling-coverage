@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 class Slack_Ingestion_Service {
 
 	/**
-	 * Drops bot messages, edited/deleted messages, channel join/leave events,
+	 * Drops bot messages, edit and delete events, channel join/leave events,
 	 * and, unless told otherwise, messages that start with the ignore prefix.
 	 *
 	 * @param array $event               Slack event payload, or a message read from Slack.

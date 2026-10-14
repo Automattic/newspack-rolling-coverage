@@ -225,15 +225,16 @@ Each linked channel has a publish mode, set from the **Publish Mode** dropdown i
 | Draft | `draft` | Is saved as a draft. Channels connected with `/rolling-coverage-connect` start here. |
 | Emoji trigger | `reaction` | Waits for a reaction: the publish emoji publishes it, the draft emoji saves it as a draft. |
 
-Channels linked before publish modes stored only an `autopublish` flag. `Slack_Config::resolve_publish_mode()` reads it as Auto-publish or Draft, so nothing is migrated.
+Channels linked before publish modes stored only an `autopublish` flag. `Slack_Config::resolve_publish_mode()` reads it as Auto-publish or Draft, so nothing is migrated. Saving a mode writes the flag in step (`Slack_Config::publish_mode_fields()`), so a rollback to a release that reads only the flag doesn't publish every message in a Draft or Emoji trigger channel.
 
 ### Emoji trigger
 
 - The two emoji are site-wide: **Publish Emoji** and **Draft Emoji** in the Slack page's Settings tab, `mega` and `memo` by default. They are stored lowercase without colons and must differ. A skin-tone variant of either counts.
 - Slack sends every reaction in the bot's channels to the events route as `reaction_added`. `Slack_Webhook_Controller::handle_reaction()` drops the bot's own reactions, channels in other modes and other emoji before calling Slack. It then reads the message with `conversations.replies` (`Slack_API_Client::get_message_or_reply()`), since a reaction doesn't say which thread its message is in and `conversations.history` lists top-level messages only.
 - The entry is the message as it reads when the reaction arrives. The ignore prefix doesn't apply, since the reaction is the opt-in. A message event in an Emoji trigger channel returns before any Slack call.
-- When the message already has an entry, the publish emoji publishes it if it is a draft and neither it nor its coverage is archived (`Archive_Mode::is_entry_locked()`). It uses `wp_publish_post()` so only the status changes: a `wp_update_post()` save would run the content through kses, as the webhook has no user. Because `wp_publish_post()` doesn't name the post, the draft gets the slug core gives a post saved as published (its ID, for an untitled entry) first, so its share and notification links work. The entry keeps the date the draft was created, as when it is published from the editor.
-- A trashed entry counts as the message's entry, so a later reaction, such as a colleague adding the same emoji, doesn't bring it back. Any other reaction on a message with an entry changes nothing, and removing a reaction does nothing (the app doesn't subscribe to `reaction_removed`).
+- When the message already has an entry, the publish emoji publishes it only if it is a draft that never went out. A draft an editor took down (`Post_Type::META_UNPUBLISHED_GMT`), an archived one or one in a coverage that has ended (`Archive_Mode::is_entry_locked()`), and one dated a minute or more ahead stay as they are.
+- Publishing uses `wp_publish_post()`, which doesn't save the content again: a `wp_update_post()` save would run it through kses, as the webhook has no user. Because `wp_publish_post()` doesn't name the post, the draft gets the slug core gives a post saved as published (its ID, for an untitled entry) first, so its share and notification links work. The entry keeps the date the draft was created, as when it is published from the editor. When the entry is opted in to notify followers, the send goes out on the next cron run (`Push_Notifications::settle_rest_publish()`), not a minute later.
+- A trashed entry counts as the message's entry, so a later reaction, such as a colleague adding the same emoji, doesn't bring it back. A message that carries the bot's own reaction but has no entry in this coverage had one before, deleted for good or made for a coverage the channel was linked to earlier, so it isn't added again. Any other reaction on a message with an entry changes nothing, and removing a reaction does nothing (the app doesn't subscribe to `reaction_removed`).
 - The publish emoji can arrive while the draft emoji's entry is still being saved. The handler then answers 503, so Slack sends the reaction again and it publishes the draft once it exists; when the draft was saved after its lookup, it publishes it straight away.
 
 ### The bot's reaction
@@ -242,7 +243,7 @@ When the bot creates an entry, in any mode, it reacts to the message with `large
 
 ### Permissions
 
-Reactions need the `reactions:read` and `reactions:write` scopes and the `reaction_added` event, all in the manifest that Copy Manifest produces. `GET slack/settings` reports `can_use_reactions: false` when Slack's `x-oauth-scopes` header lacks either scope, and the Slack page then shows a warning asking for the manifest to be updated and the app reinstalled. Until then, Auto-publish and Draft channels keep working without the bot's reaction, and Emoji trigger channels add nothing.
+Reactions need the `reactions:read` and `reactions:write` scopes and the `reaction_added` event, all in the manifest that Copy Manifest produces. `GET slack/settings` reports `can_use_reactions: false` when Slack's `x-oauth-scopes` header lacks either scope, and the Slack page then shows a warning asking for the manifest to be updated and the app reinstalled. Until then, choosing Emoji trigger is refused with that instruction (`reactions_not_granted`), so a channel is never told to react while its reactions can't reach the site; Auto-publish and Draft channels keep working without the bot's reaction. When Slack can't report the scopes, nothing is refused.
 
 Tests: `tests/test-slack-webhook.php`, `tests/test-slack-config.php`.
 

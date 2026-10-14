@@ -9,6 +9,7 @@
 use Newspack_Rolling_Coverage\Archive_Mode;
 use Newspack_Rolling_Coverage\Entry_Ingestion_Service;
 use Newspack_Rolling_Coverage\Post_Type;
+use Newspack_Rolling_Coverage\Push_Notifications;
 use Newspack_Rolling_Coverage\Slack;
 use Newspack_Rolling_Coverage\Slack_API_Client;
 use Newspack_Rolling_Coverage\Slack_Author_Resolver;
@@ -188,6 +189,18 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	 */
 	public function mock_slack_api( $response, $parsed_args, $url ) {
 		$this->outbound_requests[] = $url;
+
+		// A notification due now spawns cron; that request goes nowhere.
+		if ( false !== strpos( $url, 'wp-cron.php' ) ) {
+			return [
+				'headers'  => [],
+				'response' => [
+					'code'    => 200,
+					'message' => 'OK',
+				],
+				'body'     => '',
+			];
+		}
 
 		if ( 'slack.com' !== wp_parse_url( $url, PHP_URL_HOST ) ) {
 			$this->file_requests[] = [
@@ -1832,6 +1845,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 200, $response->get_status(), 'Slack should get a 200.' );
 		$this->assertCount( 1, self::get_coverage_entries( $coverage_id ), 'The entry should be saved.' );
+		$this->assertCount( 1, $this->reaction_requests, 'The bot should have tried to react.' );
 	}
 
 	/**
@@ -2512,5 +2526,155 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		self::react_to_message();
 
 		$this->assertSame( 'draft', get_post_status( $entry_id ) );
+	}
+
+	/**
+	 * An entry an editor took down to draft stays down: a later publish
+	 * emoji on its message, as from a colleague agreeing, doesn't put it
+	 * back.
+	 */
+	public function test_publish_emoji_leaves_an_entry_taken_down_to_draft_alone() {
+		$coverage_id = $this->link_emoji_trigger_channel();
+		self::react_to_message();
+		$entry_id = self::get_coverage_entries( $coverage_id )[0]->ID;
+		wp_update_post(
+			[
+				'ID'          => $entry_id,
+				'post_status' => 'draft',
+			]
+		);
+
+		self::react_to_message( [ 'user' => 'U0SECONDEDITOR' ] );
+
+		$this->assertSame( 'draft', get_post_status( $entry_id ), 'The entry should stay a draft.' );
+		$this->assertCount( 1, $this->reaction_requests, 'The bot should not react again.' );
+	}
+
+	/**
+	 * A draft dated ahead isn't published from Slack, since it would go live
+	 * with a date in the future.
+	 */
+	public function test_publish_emoji_leaves_a_draft_dated_ahead_alone() {
+		global $wpdb;
+
+		$coverage_id = $this->link_emoji_trigger_channel();
+		self::react_to_message( [ 'reaction' => 'memo' ] );
+		$entry_id    = self::get_coverage_entries( $coverage_id )[0]->ID;
+		$an_hour_out = gmdate( 'Y-m-d H:i:s', time() + HOUR_IN_SECONDS );
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Test setup.
+			$wpdb->posts,
+			[
+				'post_date'     => get_date_from_gmt( $an_hour_out ),
+				'post_date_gmt' => $an_hour_out,
+			],
+			[ 'ID' => $entry_id ]
+		);
+		clean_post_cache( $entry_id );
+
+		self::react_to_message();
+
+		$this->assertSame( 'draft', get_post_status( $entry_id ) );
+	}
+
+	/**
+	 * A channel linked before publish modes keeps its legacy auto-publish
+	 * flag in step with its new mode, so a release that reads only the flag
+	 * doesn't publish every message in a channel now set to Emoji trigger.
+	 */
+	public function test_changing_a_legacy_channels_mode_keeps_its_autopublish_flag_in_step() {
+		Slack_Config::update_channel(
+			self::CHANNEL_ID,
+			[
+				'term_id'     => self::create_coverage(),
+				'autopublish' => true,
+			]
+		);
+
+		self::controller()->update_channel_settings( self::channel_settings_request( 'POST', [ 'publish_mode' => 'reaction' ] ) );
+
+		$this->assertFalse( Slack_Config::get_channel_settings( self::CHANNEL_ID )['autopublish'] );
+	}
+
+	/**
+	 * A draft published with the publish emoji notifies followers on the
+	 * next cron run, as an entry published straight from Slack does, rather
+	 * than a minute later.
+	 */
+	public function test_draft_published_by_emoji_notifies_followers_without_waiting() {
+		require_once __DIR__ . '/mocks/onesignal.php';
+		update_option(
+			'OneSignalWPSetting',
+			[
+				'app_id'           => 'test-app-id',
+				'app_rest_api_key' => 'test-rest-api-key',
+			]
+		);
+		// The webhook is a REST request, which defers notifications.
+		add_filter( 'wp_is_rest_endpoint', '__return_true' );
+		$coverage_id = $this->link_emoji_trigger_channel();
+		self::react_to_message( [ 'reaction' => 'memo' ] );
+		$entry_id = self::get_coverage_entries( $coverage_id )[0]->ID;
+
+		self::react_to_message();
+
+		$this->assertNotFalse( wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'The send should be scheduled.' );
+		$this->assertLessThanOrEqual( time(), wp_next_scheduled( Push_Notifications::SEND_HOOK, [ $entry_id ] ), 'The send should not wait.' );
+	}
+
+	/**
+	 * Emoji trigger is refused while Slack says the app can't read
+	 * reactions, so a channel is never told to react when its reactions
+	 * can't reach the site.
+	 */
+	public function test_emoji_trigger_is_refused_while_the_app_cannot_read_reactions() {
+		self::link_channel( Slack_Config::PUBLISH_MODE_DRAFT );
+		$this->token_scopes = 'channels:history,chat:write,files:read';
+
+		$response = self::controller()->update_channel_settings( self::channel_settings_request( 'POST', [ 'publish_mode' => 'reaction' ] ) );
+
+		$this->assertSame( 400, $response->get_status(), 'The change should be refused.' );
+		$this->assertSame( 'draft', Slack_Config::get_channel_settings( self::CHANNEL_ID )['publish_mode'], 'The stored mode should be kept.' );
+		$this->assertSame( [], $this->posted_messages, 'The channel should not be told to react.' );
+	}
+
+	/**
+	 * Connecting a channel in Emoji trigger mode is refused the same way.
+	 */
+	public function test_connecting_in_emoji_trigger_mode_is_refused_while_the_app_cannot_read_reactions() {
+		self::configure_slack();
+		$this->token_scopes = 'channels:history,chat:write,files:read';
+		$request            = new WP_REST_Request( 'POST', '/rolling-coverage/v1/slack/connect' );
+		$request->set_param( 'term_id', self::create_coverage() );
+		$request->set_param( 'channel', self::CHANNEL_ID );
+		$request->set_param( 'publish_mode', 'reaction' );
+
+		$this->assertSame( 400, self::controller()->connect_channel( $request )->get_status() );
+		$this->assertNull( Slack_Config::get_channel_settings( self::CHANNEL_ID ) );
+	}
+
+	/**
+	 * A message the bot already reacted to had an entry, so finding none now
+	 * means an editor deleted it for good: a later reaction doesn't add the
+	 * message again.
+	 */
+	public function test_message_the_bot_already_reacted_to_is_not_added_again() {
+		$coverage_id = $this->link_emoji_trigger_channel();
+		Slack_Config::update_settings( [ 'slack_bot_user_id' => 'U0BOT' ] );
+		$this->channel_messages[ self::MESSAGE_TS ]['reactions'] = [
+			[
+				'name'  => 'large_green_circle',
+				'users' => [ 'U0BOT' ],
+				'count' => 1,
+			],
+			[
+				'name'  => 'mega',
+				'users' => [ 'U0EDITOR' ],
+				'count' => 1,
+			],
+		];
+
+		self::react_to_message();
+
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ) );
 	}
 }
