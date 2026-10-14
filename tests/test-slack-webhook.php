@@ -2316,4 +2316,106 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
 		$this->assertStringEndsWith( 'New messages are saved as drafts.', $text );
 	}
+
+	/**
+	 * Scopes Slack can report for the bot token, and whether the settings
+	 * should say the app can react to messages.
+	 *
+	 * @return array[]
+	 */
+	public function reaction_scopes_provider() {
+		return [
+			'app installed before reactions'        => [ 'channels:history,files:read,chat:write', false ],
+			'app that can only read them'           => [ 'channels:history,reactions:read', false ],
+			'app with both reaction scopes'         => [ 'reactions:read,files:read,reactions:write', true ],
+			'scopes unknown, as when Slack is down' => [ null, true ],
+		];
+	}
+
+	/**
+	 * The settings say when the Slack app lacks the scopes reactions need,
+	 * so the admin can ask for the app to be updated.
+	 *
+	 * @dataProvider reaction_scopes_provider
+	 *
+	 * @param string|null $scopes            Scopes Slack reports for the token.
+	 * @param bool        $can_use_reactions Whether the settings should say the app can react.
+	 */
+	public function test_settings_say_whether_the_app_can_use_reactions( $scopes, $can_use_reactions ) {
+		self::configure_slack();
+		$this->token_scopes = $scopes;
+
+		$settings = self::controller()->get_settings( new WP_REST_Request( 'GET', '/rolling-coverage/v1/slack/settings' ) )->get_data();
+
+		$this->assertSame( $can_use_reactions, $settings['can_use_reactions'] );
+		$this->assertSame( 'mega', $settings['publish_reaction'], 'The publish emoji should be reported.' );
+		$this->assertSame( 'memo', $settings['draft_reaction'], 'The draft emoji should be reported.' );
+	}
+
+	/**
+	 * Build a request that saves the Slack settings.
+	 *
+	 * @param array $params Request parameters.
+	 * @return WP_REST_Request
+	 */
+	private static function save_settings_request( array $params ) {
+		$request = new WP_REST_Request( 'POST', '/rolling-coverage/v1/slack/settings' );
+
+		foreach ( $params as $key => $value ) {
+			$request->set_param( $key, $value );
+		}
+
+		return $request;
+	}
+
+	/**
+	 * The trigger emoji are saved with the ignore prefix, and saving again
+	 * with only the emoji changed works.
+	 */
+	public function test_settings_save_the_trigger_emoji() {
+		self::controller()->save_settings(
+			self::save_settings_request(
+				[
+					'ignore_prefix'    => '~~',
+					'publish_reaction' => 'mega',
+					'draft_reaction'   => 'memo',
+				]
+			)
+		);
+
+		$response = self::controller()->save_settings(
+			self::save_settings_request(
+				[
+					'ignore_prefix'    => '~~',
+					'publish_reaction' => ':Rocket:',
+					'draft_reaction'   => 'pencil2',
+				]
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status(), 'Saving with the same prefix should work.' );
+		$this->assertSame( 'rocket', $response->get_data()['publish_reaction'], 'The stored name should be returned.' );
+		$this->assertSame( 'rocket', Slack_Config::get_publish_reaction() );
+		$this->assertSame( 'pencil2', Slack_Config::get_draft_reaction() );
+	}
+
+	/**
+	 * Unusable emoji are refused before anything is stored, the new prefix
+	 * included.
+	 */
+	public function test_settings_refuse_unusable_trigger_emoji() {
+		$response = self::controller()->save_settings(
+			self::save_settings_request(
+				[
+					'ignore_prefix'    => '##',
+					'publish_reaction' => 'mega',
+					'draft_reaction'   => ':mega:',
+				]
+			)
+		);
+
+		$this->assertSame( 400, $response->get_status(), 'The request should be refused.' );
+		$this->assertSame( '~~', Slack_Config::get_ignore_prefix(), 'The prefix should be unchanged.' );
+		$this->assertSame( 'memo', Slack_Config::get_draft_reaction(), 'The draft emoji should be unchanged.' );
+	}
 }

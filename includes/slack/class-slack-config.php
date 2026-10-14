@@ -183,14 +183,16 @@ class Slack_Config {
 	 * Validate and store the ignore prefix in settings.
 	 *
 	 * @param string $prefix Ignore prefix (must match ^[\x21-\x7E]{1,10}$).
-	 * @return bool True on success.
+	 * @return bool True when the prefix is valid and stored, including when it already was.
 	 */
 	public static function set_ignore_prefix( string $prefix ): bool {
 		if ( ! preg_match( '/^[\x21-\x7E]{1,' . self::MAX_PREFIX_LENGTH . '}$/', $prefix ) ) {
 			return false;
 		}
 
-		return self::update_settings( [ 'ignore_prefix' => $prefix ] );
+		self::update_settings( [ 'ignore_prefix' => $prefix ] );
+
+		return true;
 	}
 
 	/**

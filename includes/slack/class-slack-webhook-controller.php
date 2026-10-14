@@ -100,6 +100,7 @@ class Slack_Webhook_Controller {
 			'account_inactive'       => __( 'The Slack workspace account is inactive.', 'newspack-rolling-coverage' ),
 			// Settings errors.
 			'invalid_prefix'         => __( 'The ignore prefix must be 1-10 printable characters.', 'newspack-rolling-coverage' ),
+			'invalid_reactions'      => __( 'Use two different emoji names for publishing and drafts, such as mega and memo.', 'newspack-rolling-coverage' ),
 			// Configuration / transport.
 			'slack_not_configured'   => __( 'Slack integration is not configured. Please set up the bot token in Slack settings.', 'newspack-rolling-coverage' ),
 			'slack_transport_error'  => __( 'Could not reach Slack. Please try again.', 'newspack-rolling-coverage' ),
@@ -484,8 +485,13 @@ class Slack_Webhook_Controller {
 		$settings = Slack_Config::get_settings();
 		$settings['masked_token'] = Slack_Config::get_masked_bot_token();
 
+		$settings['publish_reaction'] = Slack_Config::get_publish_reaction();
+		$settings['draft_reaction']   = Slack_Config::get_draft_reaction();
+
 		// Only a definite "no" is reported: unknown scopes are not a problem to act on.
-		$settings['can_read_files'] = false !== $this->api_client->can_read_files();
+		$scopes                        = $this->api_client->get_granted_scopes();
+		$settings['can_read_files']    = null === $scopes || in_array( 'files:read', $scopes, true );
+		$settings['can_use_reactions'] = null === $scopes || [] === array_diff( [ 'reactions:read', 'reactions:write' ], $scopes );
 
 		$bot_user_id = (int) ( $settings['bot_user_id'] ?? 0 );
 
@@ -508,28 +514,47 @@ class Slack_Webhook_Controller {
 	}
 
 	/**
-	 * POST /slack/settings — save settings (ignore_prefix).
+	 * POST /slack/settings — save settings (ignore_prefix, publish_reaction, draft_reaction).
+	 *
+	 * Everything is checked before anything is stored, so a refused request
+	 * changes nothing.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response Response.
 	 */
 	public function save_settings( \WP_REST_Request $request ): \WP_REST_Response {
-		$ignore_prefix = sanitize_text_field( (string) $request->get_param( 'ignore_prefix' ) );
+		$ignore_prefix    = sanitize_text_field( (string) $request->get_param( 'ignore_prefix' ) );
+		$publish_reaction = sanitize_text_field( (string) ( $request->get_param( 'publish_reaction' ) ?? Slack_Config::get_publish_reaction() ) );
+		$draft_reaction   = sanitize_text_field( (string) ( $request->get_param( 'draft_reaction' ) ?? Slack_Config::get_draft_reaction() ) );
+
+		if ( ! Slack_Config::are_valid_reactions( $publish_reaction, $draft_reaction ) ) {
+			Slack_Monitor::log(
+				'warning',
+				'Invalid trigger emoji rejected',
+				[
+					'publish_reaction' => $publish_reaction,
+					'draft_reaction'   => $draft_reaction,
+				]
+			);
+			return self::rest_error( 'invalid_reactions' );
+		}
 
 		if ( ! Slack_Config::set_ignore_prefix( $ignore_prefix ) ) {
 			Slack_Monitor::log( 'warning', 'Invalid ignore prefix rejected', [ 'prefix' => $ignore_prefix ] );
 			return self::rest_error( 'invalid_prefix' );
 		}
 
-		Slack_Monitor::log( 'info', 'Settings saved', [ 'ignore_prefix' => $ignore_prefix ] );
+		Slack_Config::set_reactions( $publish_reaction, $draft_reaction );
 
-		return new \WP_REST_Response(
-			[
-				'ok'            => true,
-				'ignore_prefix' => Slack_Config::get_ignore_prefix(),
-			],
-			200
-		);
+		$saved = [
+			'ignore_prefix'    => Slack_Config::get_ignore_prefix(),
+			'publish_reaction' => Slack_Config::get_publish_reaction(),
+			'draft_reaction'   => Slack_Config::get_draft_reaction(),
+		];
+
+		Slack_Monitor::log( 'info', 'Settings saved', $saved );
+
+		return new \WP_REST_Response( [ 'ok' => true ] + $saved, 200 );
 	}
 
 	/**

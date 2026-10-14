@@ -374,4 +374,14 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 'mega', Slack_Config::get_publish_reaction() );
 	}
+
+	/**
+	 * Saving the prefix that is already stored succeeds, so the settings can
+	 * be saved when only the emoji changed.
+	 */
+	public function test_saving_the_stored_ignore_prefix_again_succeeds() {
+		Slack_Config::set_ignore_prefix( '##' );
+
+		$this->assertTrue( Slack_Config::set_ignore_prefix( '##' ) );
+	}
 }

@@ -393,15 +393,15 @@ class Slack_API_Client {
 	}
 
 	/**
-	 * Whether the Slack app may download uploaded files.
+	 * The scopes Slack granted the bot token.
 	 *
 	 * Slack lists a token's scopes in the `x-oauth-scopes` header of every API
-	 * response. An app installed before images were imported lacks
-	 * `files:read` until the scope is added and the app is reinstalled.
+	 * response. An app installed before a feature needed a scope lacks it
+	 * until the scope is added and the app is reinstalled.
 	 *
-	 * @return bool|null Null when Slack did not report the scopes.
+	 * @return string[]|null Null when there is no token or Slack did not report the scopes.
 	 */
-	public function can_read_files(): ?bool {
+	public function get_granted_scopes(): ?array {
 		$token = Slack_Config::get_bot_token();
 
 		if ( '' === $token ) {
@@ -421,7 +421,7 @@ class Slack_API_Client {
 			return null;
 		}
 
-		return in_array( 'files:read', array_map( 'trim', explode( ',', $scopes ) ), true );
+		return array_map( 'trim', explode( ',', $scopes ) );
 	}
 
 	/**
