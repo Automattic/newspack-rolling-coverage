@@ -87,6 +87,10 @@ import {
 	withAllUpdatesText,
 	allUpdatesTextOf,
 	isPinnedCard,
+	isPinnedStack,
+	pinnedStackGroups,
+	loadMoreInset,
+	PINNED_STACK_CLASS,
 	isRegularEntry,
 	isBreakoutEntry,
 	forEntryKind,
@@ -130,11 +134,14 @@ import {
 	type BuiltInLayoutSlug,
 } from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
-import FullStoryEntryContext from './full-story-entry-context';
+import FullStoryEntryContext, {
+	PinnedFullStoryEntryContext,
+} from './full-story-entry-context';
 import { receiveBreakoutPreviews } from './breakout-previews';
 import {
 	EntryPreviewsAnchorContext,
 	EntryPreviewsContext,
+	PinnedPreviewsContext,
 } from './entry-previews';
 import { blockGapCss } from './spacing';
 import {
@@ -1146,7 +1153,12 @@ export default function Edit( {
 		style: feedGapStyle( feedGroup ),
 	} );
 
-	const allSampleContexts = useSampleEntries( showsSamples );
+	const allSampleContexts = useSampleEntries(
+		showsSamples,
+		( isSynced ? feedItems( syncedBlocks ) : allBlocks ).some(
+			isPinnedStack
+		)
+	);
 	const sampleContexts = useMemo( () => {
 		if ( isCapped ) {
 			return allSampleContexts
@@ -1192,38 +1204,27 @@ export default function Edit( {
 			! previewHasMore,
 			{ showAuthor, showAvatar }
 		);
-	const loadMorePreview = useMemo(
-		() =>
-			olderEntries === 'button' &&
-			previewHasMore && (
-				<Disabled className="newspack-rolling-coverage-load-more">
-					<button
-						type="button"
-						className="wp-element-button wp-block-button__link"
-					>
-						{
-							/* translators: Button that loads older entries at the end of a coverage's feed. */
-							__( 'Load more', 'newspack-rolling-coverage' )
-						}
-					</button>
-				</Disabled>
-			),
-		[ olderEntries, previewHasMore ]
-	);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
 		[ templateBlocks ]
 	);
 	// In a grid Feed, each entry's preview takes the cell the site places its
 	// article in, the first pinned entry shown as the pinned card the card's
-	// and a Full Story entry the Full Story Entry group's. Kept between
+	// and a Full Story entry the Full Story Entry group's. With the Pinned
+	// group, every pinned entry previews inside it, in its cell. Kept between
 	// renders, so the previews don't render again for a new style object.
 	const takesPinned = fullStoryTakesPinned( templateBlocks );
-	const leadPinContext = previewContexts.find(
-		( context ) =>
-			context.pinned && ! isFullStoryContext( context, takesPinned )
-	);
-	const showsPin = Boolean( leadPinContext );
+	const stacksPinned = templateBlocks.some( isPinnedStack );
+	const leadPinContext = stacksPinned
+		? undefined
+		: previewContexts.find(
+				( context ) =>
+					context.pinned &&
+					! isFullStoryContext( context, takesPinned )
+			);
+	const showsPin = stacksPinned
+		? previewContexts.some( ( context ) => context.pinned )
+		: Boolean( leadPinContext );
 	const showsEntries = templateBlocks.length > 0;
 	const previewPlacements = useMemo(
 		() => ( {
@@ -1249,6 +1250,42 @@ export default function Edit( {
 		} ),
 		[ templateBlocks, feedLayout, showsPin ]
 	);
+	const loadMorePlacement = useMemo( () => {
+		if ( ! previewPlacements.other ) {
+			return undefined;
+		}
+
+		const inset = loadMoreInset( templateBlocks );
+
+		return {
+			...previewPlacements.other,
+			textAlign: 'start' as const,
+			...( inset
+				? { '--newspack-rolling-coverage-load-more-inset': inset }
+				: {} ),
+		};
+	}, [ previewPlacements.other, templateBlocks ] );
+	const loadMorePreview = useMemo(
+		() =>
+			olderEntries === 'button' &&
+			previewHasMore && (
+				<Disabled
+					className="newspack-rolling-coverage-load-more"
+					style={ loadMorePlacement }
+				>
+					<button
+						type="button"
+						className="wp-element-button wp-block-button__link"
+					>
+						{
+							/* translators: Button that loads older entries at the end of a coverage's feed. */
+							__( 'Load more', 'newspack-rolling-coverage' )
+						}
+					</button>
+				</Disabled>
+			),
+		[ olderEntries, previewHasMore, loadMorePlacement ]
+	);
 	const previewPlacementFor = ( context: EntryContext ) => {
 		if ( context === leadPinContext ) {
 			return previewPlacements.lead;
@@ -1258,11 +1295,18 @@ export default function Edit( {
 			? previewPlacements.fullStory
 			: previewPlacements.other;
 	};
-	// The entry after the lead pin heads the entries beside the card, and
-	// carries the card's top border too.
-	const columnHeadContext = leadPinContext
-		? previewContexts[ previewContexts.indexOf( leadPinContext ) + 1 ]
-		: undefined;
+	// The entry after the lead pin, or after the Pinned group's entries,
+	// heads the entries beside them, and carries the card's top border too.
+	let columnHeadContext: EntryContext | undefined;
+
+	if ( stacksPinned ) {
+		columnHeadContext = showsPin
+			? previewContexts.find( ( context ) => ! context.pinned )
+			: undefined;
+	} else if ( leadPinContext ) {
+		columnHeadContext =
+			previewContexts[ previewContexts.indexOf( leadPinContext ) + 1 ];
+	}
 	const columnHeadBlocks = useMemo(
 		() =>
 			columnHeadContext && ! columnHeadContext.pinned
@@ -1273,6 +1317,30 @@ export default function Edit( {
 					)
 				: undefined,
 		[ columnHeadContext, blocksForEntry, templateBlocks, feedLayout ]
+	);
+	const pinnedStackStyle = useMemo(
+		() => ( {
+			...previewPlacements.lead,
+			display: 'flex',
+			flexDirection: 'column' as const,
+		} ),
+		[ previewPlacements.lead ]
+	);
+	const renderSyncedPreview = ( context: EntryContext ) => (
+		<BlockContextProvider key={ context.postId } value={ context }>
+			<EntryBlockPreview
+				blocks={
+					context === columnHeadContext && columnHeadBlocks
+						? columnHeadBlocks
+						: blocksForEntry( context )
+				}
+				style={
+					stacksPinned && context.pinned
+						? undefined
+						: previewPlacementFor( context )
+				}
+			/>
+		</BlockContextProvider>
 	);
 
 	const { setBlockEditingMode, unsetBlockEditingMode } = useDispatch(
@@ -1312,9 +1380,16 @@ export default function Edit( {
 	// "Read more" where the entry previewed has no breakout post, and the
 	// Full Story Entry's pinned row where its entry isn't pinned. The sample
 	// entries have one of each.
+	const pinnedGroups = pinnedStackGroups( allBlocks );
+	const entryGroupBlocks = [
+		...allBlocks.filter( ( block ) => ! isPinnedStack( block ) ),
+		...pinnedGroups,
+	];
 	const hasBothKinds =
-		allBlocks.some( isPinnedCard ) && allBlocks.some( isRegularEntry );
-	const hasFullStory = allBlocks.some( isBreakoutEntry );
+		entryGroupBlocks.some( isPinnedCard ) &&
+		entryGroupBlocks.some( isRegularEntry );
+	const hasFullStory = entryGroupBlocks.some( isBreakoutEntry );
+	const hasPinnedFullStory = pinnedGroups.some( isBreakoutEntry );
 	const entryKindContexts = hasFullStory
 		? previewContexts.filter(
 				( context ) => ! isFullStoryContext( context, takesPinned )
@@ -1335,13 +1410,24 @@ export default function Edit( {
 			unpinnedContexts[ 0 ] )
 		: entryKindContexts[ 0 ];
 	const fullStoryContexts = hasFullStory
-		? previewContexts.filter( ( context ) =>
-				isFullStoryContext( context, takesPinned )
+		? previewContexts.filter(
+				( context ) =>
+					isFullStoryContext( context, takesPinned ) &&
+					! ( hasPinnedFullStory && context.pinned )
 			)
 		: [];
 	const fullStoryContext =
 		fullStoryContexts.find( ( context ) => context.breakout?.title ) ??
 		fullStoryContexts[ 0 ];
+	const pinnedFullStoryContexts = hasPinnedFullStory
+		? previewContexts.filter(
+				( context ) => context.pinned && Boolean( context.breakout )
+			)
+		: [];
+	const pinnedFullStoryContext =
+		pinnedFullStoryContexts.find(
+			( context ) => context.breakout?.title
+		) ?? pinnedFullStoryContexts[ 0 ];
 	const layoutContext =
 		regularContext ?? pinnedContext ?? NEUTRAL_ENTRY_CONTEXT;
 	const coverageContext = useMemo(
@@ -1354,8 +1440,12 @@ export default function Edit( {
 		! regularContext &&
 		!! ( pinnedContext || fullStoryContext );
 	const isFullStoryHidden = hasFullStory && ! fullStoryContext;
+	const isPinnedFullStoryHidden =
+		hasPinnedFullStory && ! pinnedFullStoryContext;
 	const hidesFullStoryImage =
 		!! fullStoryContext && ! fullStoryContext.breakout?.imageId;
+	const hidesPinnedFullStoryImage =
+		!! pinnedFullStoryContext && ! pinnedFullStoryContext.breakout?.imageId;
 	const hidesFullStoryPin = !! fullStoryContext && ! fullStoryContext.pinned;
 	// Core skips rendering a hidden block, filters included, so the previews
 	// follow the last block shown in every viewport.
@@ -1366,12 +1456,54 @@ export default function Edit( {
 		 )?.clientId ?? null;
 	const isRow = isRuledRow( feedGroup );
 	const wrapsEntries = isRow || isOneLineRow( feedGroup );
+	// Pinned entries beyond the editable ones preview inside the Pinned group,
+	// as the site stacks them.
+	const pinnedPreviewsAnchorId =
+		( stacksPinned &&
+			( pinnedGroups.at( -1 ) as { clientId?: string } | undefined )
+				?.clientId ) ||
+		null;
 	const entryPreviewsAnchor = useMemo(
 		() =>
 			entryPreviewsAnchorId
-				? { clientId: entryPreviewsAnchorId, wrapsEntries }
+				? {
+						clientId: entryPreviewsAnchorId,
+						wrapsEntries,
+						pinnedClientId: pinnedPreviewsAnchorId,
+					}
 				: null,
-		[ entryPreviewsAnchorId, wrapsEntries ]
+		[ entryPreviewsAnchorId, wrapsEntries, pinnedPreviewsAnchorId ]
+	);
+	const pinnedPreviews = useMemo(
+		() =>
+			stacksPinned
+				? previewContexts
+						.filter(
+							( context ) =>
+								context.pinned &&
+								! [
+									pinnedContext,
+									pinnedFullStoryContext,
+								].includes( context )
+						)
+						.map( ( context ) => (
+							<BlockContextProvider
+								key={ context.postId }
+								value={ context }
+							>
+								<EntryBlockPreview
+									blocks={ blocksForEntry( context ) }
+								/>
+							</BlockContextProvider>
+						) )
+				: null,
+		[
+			stacksPinned,
+			previewContexts,
+			pinnedContext,
+			pinnedFullStoryContext,
+			blocksForEntry,
+		]
 	);
 	const entryPreviews = useMemo(
 		() => (
@@ -1379,9 +1511,13 @@ export default function Edit( {
 				{ previewContexts
 					.filter(
 						( context ) =>
-							context !== pinnedContext &&
-							context !== regularContext &&
-							context !== fullStoryContext
+							! [
+								pinnedContext,
+								regularContext,
+								fullStoryContext,
+								pinnedFullStoryContext,
+							].includes( context ) &&
+							! ( stacksPinned && context.pinned )
 					)
 					.map( ( context ) => (
 						<BlockContextProvider
@@ -1406,6 +1542,8 @@ export default function Edit( {
 			pinnedContext,
 			regularContext,
 			fullStoryContext,
+			pinnedFullStoryContext,
+			stacksPinned,
 			blocksForEntry,
 			takesPinned,
 			previewPlacements.other,
@@ -1426,6 +1564,13 @@ export default function Edit( {
 				? blockIdsOfType( allBlocks, CHECK_UPDATES_BLOCK_NAME )
 				: [] ),
 			...( isAllUpdatesHidden ? allUpdatesBlockIds( allBlocks ) : [] ),
+			...pinnedGroups
+				.filter(
+					( block ) =>
+						( isCardHidden && isPinnedCard( block ) ) ||
+						( isPinnedFullStoryHidden && isBreakoutEntry( block ) )
+				)
+				.map( ( block ) => block.clientId as string ),
 			...allBlocks
 				.filter(
 					( block, index ) =>
@@ -1438,7 +1583,7 @@ export default function Edit( {
 				)
 				.map( ( block ) => block.clientId as string ),
 			...breakoutBlockIds(
-				allBlocks.filter( ( block ) => {
+				entryGroupBlocks.filter( ( block ) => {
 					if ( isBreakoutEntry( block ) ) {
 						return false;
 					}
@@ -1450,6 +1595,11 @@ export default function Edit( {
 			),
 			...( hidesFullStoryImage
 				? featuredImageBlockIds( allBlocks.filter( isBreakoutEntry ) )
+				: [] ),
+			...( hidesPinnedFullStoryImage
+				? featuredImageBlockIds(
+						pinnedGroups.filter( isBreakoutEntry )
+					)
 				: [] ),
 			...( hidesFullStoryPin
 				? pinnedRowBlockIds( allBlocks.filter( isBreakoutEntry ) )
@@ -1470,7 +1620,9 @@ export default function Edit( {
 		isCardHidden,
 		isEntryHidden,
 		isFullStoryHidden,
+		isPinnedFullStoryHidden,
 		hidesFullStoryImage,
+		hidesPinnedFullStoryImage,
 		hidesFullStoryPin,
 		pinnedContext,
 		hidesCardBreakout,
@@ -3010,31 +3162,39 @@ export default function Edit( {
 										) }
 										<div className="newspack-rolling-coverage-entries">
 											{ previewContexts.length > 0 ? (
-												previewContexts.map(
-													( context ) => (
-														<BlockContextProvider
-															key={
-																context.postId
-															}
-															value={ context }
-														>
-															<EntryBlockPreview
-																blocks={
-																	context ===
-																		columnHeadContext &&
-																	columnHeadBlocks
-																		? columnHeadBlocks
-																		: blocksForEntry(
-																				context
-																			)
+												<>
+													{ stacksPinned &&
+														showsPin && (
+															<div
+																className={
+																	PINNED_STACK_CLASS
 																}
-																style={ previewPlacementFor(
-																	context
-																) }
-															/>
-														</BlockContextProvider>
-													)
-												)
+																style={
+																	pinnedStackStyle
+																}
+															>
+																{ previewContexts
+																	.filter(
+																		(
+																			context
+																		) =>
+																			context.pinned
+																	)
+																	.map(
+																		renderSyncedPreview
+																	) }
+															</div>
+														) }
+													{ previewContexts
+														.filter(
+															( context ) =>
+																! stacksPinned ||
+																! context.pinned
+														)
+														.map(
+															renderSyncedPreview
+														) }
+												</>
 											) : (
 												<BlockContextProvider
 													value={
@@ -3081,24 +3241,34 @@ export default function Edit( {
 									<FullStoryEntryContext.Provider
 										value={ fullStoryContext ?? null }
 									>
-										<EntryPreviewsAnchorContext.Provider
-											value={ entryPreviewsAnchor }
+										<PinnedFullStoryEntryContext.Provider
+											value={
+												pinnedFullStoryContext ?? null
+											}
 										>
-											<EntryPreviewsContext.Provider
-												value={ entryPreviews }
+											<EntryPreviewsAnchorContext.Provider
+												value={ entryPreviewsAnchor }
 											>
-												<BlockContextProvider
-													value={ {
-														...layoutContext,
-														...coverageContext,
-													} }
+												<EntryPreviewsContext.Provider
+													value={ entryPreviews }
 												>
-													<div
-														{ ...innerBlocksProps }
-													/>
-												</BlockContextProvider>
-											</EntryPreviewsContext.Provider>
-										</EntryPreviewsAnchorContext.Provider>
+													<PinnedPreviewsContext.Provider
+														value={ pinnedPreviews }
+													>
+														<BlockContextProvider
+															value={ {
+																...layoutContext,
+																...coverageContext,
+															} }
+														>
+															<div
+																{ ...innerBlocksProps }
+															/>
+														</BlockContextProvider>
+													</PinnedPreviewsContext.Provider>
+												</EntryPreviewsContext.Provider>
+											</EntryPreviewsAnchorContext.Provider>
+										</PinnedFullStoryEntryContext.Provider>
 									</FullStoryEntryContext.Provider>
 								</PinnedEntryContext.Provider>
 							) }

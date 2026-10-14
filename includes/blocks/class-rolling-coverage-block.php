@@ -102,15 +102,25 @@ class Rolling_Coverage_Block {
 	const BREAKOUT_ENTRY_CLASS = 'newspack-rolling-coverage-breakout-entry';
 
 	/**
+	 * Class of the Pinned group, which holds the template for pinned entries:
+	 * the pinned card, and a Full Story Entry group for pinned entries whose
+	 * breakout post is published. It renders once, around every pinned
+	 * entry's article, so the pinned entries stack in its place (see
+	 * render_pinned_stack()).
+	 */
+	const PINNED_STACK_CLASS = 'newspack-rolling-coverage-pinned-stack';
+
+	/**
 	 * Class of the layout's Feed group, which holds everything the coverage
 	 * shows.
 	 */
 	const FEED_CLASS = 'newspack-rolling-coverage-feed';
 
 	/**
-	 * Class of an entry placed in a grid Feed by the entry group's placement
-	 * while the pinned card carries one of its own: it takes the full row
-	 * while no pinned entry shows (see place_in_grid()).
+	 * Class of an entry, ad or Load more button placed in a grid Feed by the
+	 * entry group's placement while the pinned card or Pinned group carries
+	 * one of its own: it takes the full row while no pinned entry shows (see
+	 * place_in_grid() and place_beside_entries()).
 	 */
 	const BESIDE_PINNED_CLASS = 'newspack-rolling-coverage-entry-beside-pinned';
 
@@ -1344,13 +1354,17 @@ class Rolling_Coverage_Block {
 			}
 		}
 
-		$entries_html     = '';
-		$entry_index      = 0;
-		$shows_pinned     = false;
-		$shows_regular    = false;
-		$shows_full_story = false;
-		$lead_pinned_id   = 0;
-		$follows_lead     = false;
+		$entries_html            = '';
+		$entry_index             = 0;
+		$shows_pinned            = false;
+		$shows_regular           = false;
+		$shows_full_story        = false;
+		$shows_pinned_full_story = false;
+		$lead_pinned_id          = 0;
+		$follows_lead            = false;
+		$stack                   = $is_capped || $is_lite ? null : self::pinned_stack( $template );
+		$stack_html              = '';
+		$column_headed           = false;
 
 		if ( $template ) {
 			self::prime_breakout_posts( $posts );
@@ -1358,23 +1372,38 @@ class Rolling_Coverage_Block {
 
 		foreach ( $template ? $posts : [] as $entry ) {
 			$entry_index++;
-			$is_pinned        = ! $is_capped && Post_Type::is_pinned( $entry->ID );
-			$is_full_story    = self::is_full_story( $entry, $template, $is_pinned );
-			$shows_pinned     = $shows_pinned || ( $is_pinned && ! $is_full_story );
-			$shows_regular    = $shows_regular || ( ! $is_pinned && ! $is_full_story );
-			$shows_full_story = $shows_full_story || $is_full_story;
+			$is_pinned               = ! $is_capped && Post_Type::is_pinned( $entry->ID );
+			$is_full_story           = self::is_full_story( $entry, $template, $is_pinned );
+			$in_stack                = $stack && $is_pinned;
+			$shows_pinned            = $shows_pinned || ( $is_pinned && ! $is_full_story );
+			$shows_regular           = $shows_regular || ( ! $is_pinned && ! $is_full_story );
+			$shows_full_story        = $shows_full_story || ( $is_full_story && ! $in_stack );
+			$shows_pinned_full_story = $shows_pinned_full_story || ( $is_full_story && $in_stack );
 
 			if ( $is_pinned && ! $is_full_story && ! $lead_pinned_id ) {
 				$lead_pinned_id = $entry->ID;
 			}
 
-			$entries_html .= $is_lite
+			if ( $stack ) {
+				$follows_lead  = $column_rules && ! $in_stack && '' !== $stack_html && ! $column_headed;
+				$column_headed = $column_headed || ! $in_stack;
+			}
+
+			$entry_html = $is_lite
 				? Lite_Feed::render_entry( $entry, 'initial', $is_capped )
 				: self::render_entry( $entry, $template, 'initial', is_last: ! $has_more && count( $posts ) === $entry_index, is_linked: $linked_entry && $linked_entry->ID === $entry->ID, is_capped: $is_capped, feed_layout: $feed_layout, coverage_id: $coverage_id, lead_pinned_id: $lead_pinned_id, column_rule: $follows_lead ? $column_rules['top'] : [] );
-			$follows_lead  = $column_rules && $entry->ID === $lead_pinned_id;
 
-			if ( $ads_enabled && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
-				$entries_html .= self::place_ad_in_grid( Ads::render_placement()['html'], $template, $feed_layout );
+			if ( $in_stack ) {
+				$stack_html .= $entry_html;
+			} else {
+				$entries_html .= $entry_html;
+			}
+
+			$follows_lead = $column_rules && $entry->ID === $lead_pinned_id;
+
+			// Positions count every entry, as load more's do, but the Pinned group holds no ad.
+			if ( $ads_enabled && ! $in_stack && Ads::is_capped_ad_position( $entry_index, $ads_interval ) ) {
+				$entries_html .= self::place_beside_entries( Ads::render_placement()['html'], $template, $feed_layout );
 			}
 		}
 
@@ -1396,6 +1425,10 @@ class Rolling_Coverage_Block {
 			self::store_template_layout_styles( array_filter( $unplaced, static fn( $block ) => is_array( $block ) && self::is_breakout_entry( $block ) ) );
 		}
 
+		if ( $posts && $stack && ! $shows_pinned_full_story ) {
+			self::store_template_layout_styles( array_filter( self::pinned_stack_groups( $unplaced ), [ __CLASS__, 'is_breakout_entry' ] ) );
+		}
+
 		$title_rows = self::title_rows( $unplaced );
 
 		if ( $title_rows ) {
@@ -1411,6 +1444,10 @@ class Rolling_Coverage_Block {
 				self::MARKUP_PREFIX,
 				esc_html( self::no_entries_text() )
 			);
+		}
+
+		if ( $stack ) {
+			$entries_html = self::render_pinned_stack( $stack, $feed_layout, $stack_html ) . $entries_html;
 		}
 
 		$layout_parts      = self::layout_parts( $block );
@@ -1517,7 +1554,7 @@ class Rolling_Coverage_Block {
 				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text ),
 				// A capped feed can sit on every page, where announcing each new entry would be noise.
 				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX ),
-				'button' === $older_entries ? self::render_load_more_button() : ''
+				'button' === $older_entries ? self::with_load_more_inset( self::place_beside_entries( self::render_load_more_button(), $template, $feed_layout ), $template ) : ''
 			);
 
 			return sprintf(
@@ -2137,10 +2174,8 @@ class Rolling_Coverage_Block {
 	 * @param array[] $template Parsed template blocks.
 	 */
 	private static function store_entry_layout_styles( array $template ): void {
-		foreach ( $template as $block ) {
-			if ( is_array( $block ) && self::is_entry_group( $block ) ) {
-				self::with_entry_layout( self::with_stable_position( $block ) );
-			}
+		foreach ( self::entry_groups( $template ) as $block ) {
+			self::with_entry_layout( self::with_stable_position( $block ) );
 		}
 	}
 
@@ -2203,7 +2238,7 @@ class Rolling_Coverage_Block {
 			return [ $template, [], false ];
 		}
 
-		$leads = $is_pinned && $placements['card'] && $is_lead();
+		$leads = $is_pinned && $placements['card'] && ! self::pinned_stack( $template ) && $is_lead();
 
 		return [
 			self::without_grid_placements( $template ),
@@ -2238,17 +2273,18 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Places an ad between entries in a grid Feed as an unpinned entry is
-	 * placed, so it fills the entries' columns rather than one free cell.
-	 * Outside a grid Feed whose groups carry placements, the ad is left as
-	 * it is.
+	 * Places an ad between entries, or the Load more button after them, in a
+	 * grid Feed as an unpinned entry is placed, so it fills the entries'
+	 * columns rather than one free cell or the full row beside the pinned
+	 * entries. Outside a grid Feed whose groups carry placements, the HTML is
+	 * left as it is.
 	 *
-	 * @param string  $html        The ad's HTML.
+	 * @param string  $html        The ad's or the button's HTML.
 	 * @param array[] $template    Parsed template blocks.
 	 * @param array   $feed_layout The Feed group's layout.
 	 * @return string
 	 */
-	private static function place_ad_in_grid( string $html, array $template, array $feed_layout ): string {
+	private static function place_beside_entries( string $html, array $template, array $feed_layout ): string {
 		$classes   = 'grid' === ( $feed_layout['type'] ?? '' ) ? self::grid_cell_classes( self::template_grid_placements( $template ), $feed_layout, false ) : [];
 		$processor = new WP_HTML_Tag_Processor( $html );
 
@@ -2259,6 +2295,132 @@ class Rolling_Coverage_Block {
 		foreach ( $classes as $class ) {
 			$processor->add_class( $class );
 		}
+
+		return $processor->get_updated_html();
+	}
+
+	/**
+	 * How far in from the entries' columns the Load more button starts, so it
+	 * lines up with the entries' text whatever the layout sets: the width of
+	 * the first column of the entry group's first Columns block, plus the
+	 * space between its columns. Empty in a layout without a Pinned group, or
+	 * where that column sets no width.
+	 *
+	 * @param array[] $template Parsed template blocks.
+	 * @return string A CSS length, or an empty string.
+	 */
+	private static function load_more_inset( array $template ): string {
+		if ( ! self::pinned_stack( $template ) ) {
+			return '';
+		}
+
+		$entry = current( array_filter( $template, static fn( $block ) => is_array( $block ) && self::is_regular_entry( $block ) ) );
+		$row   = $entry ? self::first_block_named( $entry['innerBlocks'] ?? [], 'core/columns' ) : null;
+		$width = (string) ( $row['innerBlocks'][0]['attrs']['width'] ?? '' );
+
+		if ( '' === $width ) {
+			return '';
+		}
+
+		$gap   = $row['attrs']['style']['spacing']['blockGap'] ?? null;
+		$gap   = (string) ( is_array( $gap ) ? ( $gap['left'] ?? '' ) : $gap );
+		$inset = 'calc(' . $width . ' + ' . ( '' !== $gap ? self::spacing_css_value( $gap ) : 'var(--wp--style--block-gap, 2em)' ) . ')';
+
+		return preg_match( '/^[\w\s.%()+*\/,-]+$/', $inset ) ? $inset : '';
+	}
+
+	/**
+	 * The first block with the given name among parsed blocks, at any depth.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @param string  $name   Block name.
+	 * @return array|null
+	 */
+	private static function first_block_named( array $blocks, string $name ): ?array {
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) ) {
+				continue;
+			}
+
+			if ( $name === ( $block['blockName'] ?? '' ) ) {
+				return $block;
+			}
+
+			$found = self::first_block_named( is_array( $block['innerBlocks'] ?? null ) ? $block['innerBlocks'] : [], $name );
+
+			if ( $found ) {
+				return $found;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * The Load more button starting where the entries' text does on desktop
+	 * (see load_more_inset() and style.scss).
+	 *
+	 * @param string  $html     The button's HTML.
+	 * @param array[] $template Parsed template blocks.
+	 * @return string
+	 */
+	private static function with_load_more_inset( string $html, array $template ): string {
+		$inset     = self::load_more_inset( $template );
+		$processor = new WP_HTML_Tag_Processor( $html );
+
+		if ( '' === $inset || ! $processor->next_tag() ) {
+			return $html;
+		}
+
+		$style = trim( (string) $processor->get_attribute( 'style' ), " \t\n\r;" );
+		$processor->set_attribute( 'style', ( '' !== $style ? $style . ';' : '' ) . '--' . self::MARKUP_PREFIX . '-load-more-inset:' . $inset );
+
+		return $processor->get_updated_html();
+	}
+
+	/**
+	 * The Pinned group around the pinned entries' articles, rendered by core
+	 * so its own settings apply, placed in a grid Feed where it says, as
+	 * place_in_grid() places an article, and set to stick under a stable
+	 * class (see with_stable_position()). It renders even with no pinned
+	 * entry to show, so an entry pinned while the page is open has a place
+	 * to go; the stylesheet hides it while it's empty.
+	 *
+	 * @param array  $stack       Parsed Pinned group.
+	 * @param array  $feed_layout The Feed group's layout.
+	 * @param string $html        The pinned entries' articles.
+	 * @return string
+	 */
+	private static function render_pinned_stack( array $stack, array $feed_layout, string $html ): string {
+		$placement = 'grid' === ( $feed_layout['type'] ?? '' ) ? self::grid_placement( $stack ) : [];
+		$shell     = self::with_stable_position( self::without_grid_placements( [ $stack ] )[0] );
+		$content   = array_values( array_filter( $shell['innerContent'] ?? [], 'is_string' ) );
+		$rendered  = null;
+
+		if ( count( $content ) >= 2 ) {
+			$shell['innerBlocks']  = [];
+			$shell['innerHTML']    = $content[0] . end( $content );
+			$shell['innerContent'] = [ $content[0], self::FEED_ITEMS_PLACEHOLDER, end( $content ) ];
+
+			// Counted as coverage blocks, so the classic theme's Block spacing applies.
+			++self::$coverage_render_depth;
+
+			try {
+				$rendered = self::render_around( $shell, $html );
+			} finally {
+				--self::$coverage_render_depth;
+			}
+		}
+
+		$rendered   = $rendered ?? '<div class="' . esc_attr( self::PINNED_STACK_CLASS ) . '">' . $html . '</div>';
+		$cell_class = $placement ? self::grid_cell_class( $placement, $feed_layout ) : '';
+		$processor  = new WP_HTML_Tag_Processor( $rendered );
+
+		if ( '' === $cell_class || ! $processor->next_tag() ) {
+			return $rendered;
+		}
+
+		$processor->add_class( $cell_class );
 
 		return $processor->get_updated_html();
 	}
@@ -2289,11 +2451,7 @@ class Rolling_Coverage_Block {
 
 		$tops = [];
 
-		foreach ( $template as $block ) {
-			if ( ! is_array( $block ) || ! self::is_entry_group( $block ) ) {
-				continue;
-			}
-
+		foreach ( self::entry_groups( $template ) as $block ) {
 			$kind = self::is_pinned_card( $block ) ? 'card' : ( self::is_breakout_entry( $block ) ? 'breakout' : 'entry' );
 
 			if ( ! isset( $tops[ $kind ] ) ) {
@@ -2414,9 +2572,9 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The grid placements of the template's top-level pinned card, entry
-	 * group and Full Story Entry group (see grid_placement()), null for a
-	 * group the template doesn't hold.
+	 * The grid placements of the template's top-level pinned card, or its
+	 * Pinned group where it has one, entry group and Full Story Entry group
+	 * (see grid_placement()), null for a group the template doesn't hold.
 	 *
 	 * @param array[] $template Parsed template blocks.
 	 * @return array{card: array|null, entry: array|null, breakout: array|null}
@@ -2433,7 +2591,7 @@ class Rolling_Coverage_Block {
 				continue;
 			}
 
-			if ( null === $placements['card'] && self::is_pinned_card( $block ) ) {
+			if ( null === $placements['card'] && ( self::is_pinned_stack( $block ) || self::is_pinned_card( $block ) ) ) {
 				$placements['card'] = self::grid_placement( $block );
 			} elseif ( null === $placements['entry'] && self::is_regular_entry( $block ) ) {
 				$placements['entry'] = self::grid_placement( $block );
@@ -2499,7 +2657,7 @@ class Rolling_Coverage_Block {
 		};
 
 		foreach ( $template as $index => $block ) {
-			if ( ! is_array( $block ) || ! self::is_entry_group( $block ) || ! is_array( $block['attrs']['style'] ?? null ) ) {
+			if ( ! is_array( $block ) || ! ( self::is_entry_group( $block ) || self::is_pinned_stack( $block ) ) || ! is_array( $block['attrs']['style'] ?? null ) ) {
 				continue;
 			}
 
@@ -2618,7 +2776,7 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * A pinned card or entry group set to stick, or to stay fixed, with the
+	 * A pinned card, entry group or Pinned group set to stick, or to stay fixed, with the
 	 * position styles core would give it under a class that depends only on
 	 * the position, in place of the class core makes unique to each render.
 	 * An entry the poll renders again, such as an edited summary, then keeps
@@ -2630,7 +2788,7 @@ class Rolling_Coverage_Block {
 	 * or the admin bar's until it measures them. As with core, a position
 	 * type the theme doesn't support renders nothing.
 	 *
-	 * @param array $group Parsed pinned card or entry group.
+	 * @param array $group Parsed pinned card, entry group or Pinned group.
 	 * @return array
 	 */
 	private static function with_stable_position( array $group ): array {
@@ -3466,7 +3624,9 @@ class Rolling_Coverage_Block {
 	 * drops them. Then, where the top-level blocks hold both the pinned card
 	 * and the entry group, a pinned entry keeps the card alone, every other
 	 * entry the entry group alone. A template missing either is left as it
-	 * is.
+	 * is. In a template with the Pinned group, a pinned entry keeps the group
+	 * the Pinned group holds for its kind instead, and every other entry
+	 * leaves the Pinned group out.
 	 *
 	 * @param array[] $template      Parsed template blocks.
 	 * @param bool    $is_pinned     Whether the entry is pinned.
@@ -3475,6 +3635,17 @@ class Rolling_Coverage_Block {
 	 * @return array[]
 	 */
 	private static function for_entry_kind( array $template, bool $is_pinned, bool $is_full_story = false ): array {
+		if ( self::pinned_stack( $template ) ) {
+			if ( $is_pinned ) {
+				$groups    = self::pinned_stack_groups( $template );
+				$breakouts = array_filter( $groups, [ __CLASS__, 'is_breakout_entry' ] );
+
+				return array_values( $is_full_story && $breakouts ? $breakouts : array_diff_key( $groups, $breakouts ) );
+			}
+
+			$template = array_values( array_filter( $template, static fn( $block ) => ! is_array( $block ) || ! self::is_pinned_stack( $block ) ) );
+		}
+
 		$cards     = array_filter( $template, static fn( $block ) => is_array( $block ) && self::is_pinned_card( $block ) );
 		$entries   = array_filter( $template, static fn( $block ) => is_array( $block ) && self::is_regular_entry( $block ) );
 		$breakouts = array_filter( $template, static fn( $block ) => is_array( $block ) && self::is_breakout_entry( $block ) );
@@ -3534,14 +3705,21 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Whether the template's Full Story Entry takes pinned entries too: a
-	 * Full Story Entry group among its top-level blocks holds the pinned row
-	 * (see Entry_Bindings::has_pinned_row()).
+	 * Whether the template's Full Story Entry takes pinned entries too: its
+	 * Pinned group holds a Full Story Entry group, or a Full Story Entry
+	 * group among its top-level blocks holds the pinned row (see
+	 * Entry_Bindings::has_pinned_row()).
 	 *
 	 * @param array[] $template Parsed template blocks.
 	 * @return bool
 	 */
 	private static function full_story_takes_pinned( array $template ): bool {
+		foreach ( self::pinned_stack_groups( $template ) as $block ) {
+			if ( is_array( $block ) && self::is_breakout_entry( $block ) ) {
+				return true;
+			}
+		}
+
 		foreach ( $template as $block ) {
 			if ( is_array( $block ) && self::is_breakout_entry( $block ) && is_array( $block['innerBlocks'] ?? null ) && Entry_Bindings::has_pinned_row( $block['innerBlocks'] ) ) {
 				return true;
@@ -3552,12 +3730,14 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Whether an entry renders through the template's Full Story Entry
-	 * group: the template holds the group at its top level, the entry's
-	 * breakout post is published, and the entry isn't pinned or the group
-	 * takes pinned entries too (see full_story_takes_pinned()). Every other
-	 * entry renders as the pinned card or the entry group, a published
-	 * breakout post's links and all.
+	 * Whether an entry renders through a Full Story Entry group: its
+	 * breakout post is published, and the template has a group for it. A
+	 * pinned entry in a template with the Pinned group takes the Full Story
+	 * Entry group the Pinned group holds; any other entry takes the
+	 * template's top-level one, a pinned entry only where that group takes
+	 * pinned entries too (see full_story_takes_pinned()). Every other entry
+	 * renders as the pinned card or the entry group, a published breakout
+	 * post's links and all.
 	 *
 	 * @param WP_Post $entry     Entry.
 	 * @param array[] $template  Parsed template blocks.
@@ -3565,9 +3745,13 @@ class Rolling_Coverage_Block {
 	 * @return bool
 	 */
 	public static function is_full_story( WP_Post $entry, array $template, bool $is_pinned ): bool {
-		return self::has_breakout_entry( $template )
-			&& ( ! $is_pinned || self::full_story_takes_pinned( $template ) )
-			&& null !== Breakout::get_published_breakout_url( $entry->ID );
+		if ( $is_pinned && self::pinned_stack( $template ) ) {
+			$has_group = (bool) array_filter( self::pinned_stack_groups( $template ), [ __CLASS__, 'is_breakout_entry' ] );
+		} else {
+			$has_group = self::has_breakout_entry( $template ) && ( ! $is_pinned || self::full_story_takes_pinned( $template ) );
+		}
+
+		return $has_group && null !== Breakout::get_published_breakout_url( $entry->ID );
 	}
 
 	/**
@@ -3590,6 +3774,60 @@ class Rolling_Coverage_Block {
 	private static function is_pinned_card( array $block ): bool {
 		return 'core/group' === ( $block['blockName'] ?? '' ) &&
 			in_array( self::PINNED_CARD_CLASS, explode( ' ', (string) ( $block['attrs']['className'] ?? '' ) ), true );
+	}
+
+	/**
+	 * Whether a parsed block is the Pinned group.
+	 *
+	 * @param array $block Parsed block.
+	 * @return bool
+	 */
+	private static function is_pinned_stack( array $block ): bool {
+		return 'core/group' === ( $block['blockName'] ?? '' ) &&
+			in_array( self::PINNED_STACK_CLASS, explode( ' ', (string) ( $block['attrs']['className'] ?? '' ) ), true );
+	}
+
+	/**
+	 * The template's Pinned group, among its top-level blocks.
+	 *
+	 * @param array[] $template Parsed template blocks.
+	 * @return array|null The group, or null when the template has none.
+	 */
+	private static function pinned_stack( array $template ): ?array {
+		foreach ( $template as $block ) {
+			if ( is_array( $block ) && self::is_pinned_stack( $block ) ) {
+				return $block;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * The pinned card and Full Story Entry groups the template's Pinned group
+	 * holds.
+	 *
+	 * @param array[] $template Parsed template blocks.
+	 * @return array[]
+	 */
+	private static function pinned_stack_groups( array $template ): array {
+		$stack = self::pinned_stack( $template );
+
+		return array_values( array_filter( is_array( $stack['innerBlocks'] ?? null ) ? $stack['innerBlocks'] : [], static fn( $block ) => is_array( $block ) && self::is_entry_group( $block ) ) );
+	}
+
+	/**
+	 * Every group of the template that renders per entry: its top-level
+	 * ones, then those its Pinned group holds.
+	 *
+	 * @param array[] $template Parsed template blocks.
+	 * @return array[]
+	 */
+	private static function entry_groups( array $template ): array {
+		return array_merge(
+			array_values( array_filter( $template, static fn( $block ) => is_array( $block ) && self::is_entry_group( $block ) ) ),
+			self::pinned_stack_groups( $template )
+		);
 	}
 
 	/**
@@ -4778,7 +5016,7 @@ class Rolling_Coverage_Block {
 					if ( $ads_enabled && 0 === ( $polled_count + $new_entry_count ) % $ads_interval ) {
 						$placement = Ads::render_placement();
 						if ( $placement['html'] ) {
-							$ad_html = self::place_ad_in_grid( $placement['html'], $template, $feed_layout );
+							$ad_html = self::place_beside_entries( $placement['html'], $template, $feed_layout );
 							$ad_slot = $placement['slots'][0] ?? null;
 						}
 					}
@@ -4876,7 +5114,7 @@ class Rolling_Coverage_Block {
 			$position = $entry_offset + $entry_index;
 			if ( $ads_enabled && Ads::is_capped_ad_position( $position, $ads_interval ) ) {
 				$placement = Ads::render_placement();
-				$html     .= self::place_ad_in_grid( $placement['html'], $template, $feed_layout );
+				$html     .= self::place_beside_entries( $placement['html'], $template, $feed_layout );
 				$ad_slots  = array_merge( $ad_slots, $placement['slots'] );
 			}
 		}
@@ -5162,7 +5400,7 @@ class Rolling_Coverage_Block {
 			// so an entry first published before it is an edit to every page.
 			if ( $ads_enabled && $item['published'] >= $since ) {
 				$placement      = Ads::render_placement();
-				$item['adHtml'] = $placement['html'] ? self::place_ad_in_grid( $placement['html'], $template, $feed_layout ) : null;
+				$item['adHtml'] = $placement['html'] ? self::place_beside_entries( $placement['html'], $template, $feed_layout ) : null;
 				$item['adSlot'] = $placement['html'] ? ( $placement['slots'][0] ?? null ) : null;
 			}
 

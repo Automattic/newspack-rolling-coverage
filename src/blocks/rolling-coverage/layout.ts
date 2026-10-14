@@ -58,6 +58,7 @@ import {
 	hasPinnedCard,
 	isPinnedCard,
 	isBreakoutEntry,
+	pinnedStackGroups,
 	forEntryKind,
 	withoutFeaturedImage,
 } from './template';
@@ -534,7 +535,10 @@ export function useLayoutPreview(
 			footerBlocks: footer,
 		};
 	}, [ allBlocks ] );
-	const hasFullStory = templateBlocks.some( isBreakoutEntry );
+	const hasFullStory = [
+		...templateBlocks,
+		...pinnedStackGroups( templateBlocks ),
+	].some( isBreakoutEntry );
 	const takesPinned = fullStoryTakesPinned( templateBlocks );
 	const hasBotEntry = entryContexts.some(
 		( context ) => context.hidesByline
@@ -562,8 +566,12 @@ export function useLayoutPreview(
 			fullStoryBlocks &&
 			withLinkedTitle( withoutPinnedRow( fullStoryBlocks ) );
 		const pinnedFullStory =
-			fullStoryBlocks && takesPinned
-				? withLinkedTitle( fullStoryBlocks )
+			hasFullStory && takesPinned
+				? withLinkedTitle(
+						withoutPinnedCard(
+							forEntryKind( entryBlocks, true, true )
+						)
+					)
 				: undefined;
 
 		const asUntitled = ( blocks: TemplateBlocks ) =>
