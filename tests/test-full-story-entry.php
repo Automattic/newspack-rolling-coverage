@@ -744,5 +744,4 @@ class Test_Full_Story_Entry extends Rolling_Coverage_TestCase {
 		$this->assertMatchesRegularExpression( '#<a (?=[^>]*class="wp-block-button__link)(?=[^>]*href="' . preg_quote( esc_url( get_permalink( $breakout_id ) ), '#' ) . '")[^>]*>Read More</a>#', $html );
 		$this->assertStringNotContainsString( self::ENTRY_TEXT, $html );
 	}
-
 }
