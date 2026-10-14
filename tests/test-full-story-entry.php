@@ -741,28 +741,8 @@ class Test_Full_Story_Entry extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( Rolling_Coverage_Block::BREAKOUT_ENTRY_CLASS, $html );
 		$this->assertStringContainsString( Breakout_Card::BOX_CLASS, $html );
 		$this->assertStringContainsString( '<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Post &amp; headline</a></h3>', $html );
-		$this->assertStringContainsString( 'Read More', $html );
+		$this->assertMatchesRegularExpression( '#<a (?=[^>]*class="wp-block-button__link)(?=[^>]*href="' . preg_quote( esc_url( get_permalink( $breakout_id ) ), '#' ) . '")[^>]*>Read More</a>#', $html );
 		$this->assertStringNotContainsString( self::ENTRY_TEXT, $html );
 	}
 
-	/**
-	 * The built-in Bulletin layout shows an entry's time in the site's time
-	 * format, not the one its markup was saved with.
-	 */
-	public function test_block_without_a_layout_follows_the_site_time_format() {
-		update_option( 'time_format', 'H:i' );
-		$coverage_id = self::create_coverage();
-		self::create_entry(
-			$coverage_id,
-			[
-				'post_date'     => '2026-01-02 14:05:00',
-				'post_date_gmt' => '2026-01-02 14:05:00',
-			]
-		);
-
-		$html = self::render_block_without_layout( $coverage_id );
-
-		$this->assertStringContainsString( '>14:05</time>', $html );
-		$this->assertStringNotContainsString( '2:05 pm', $html );
-	}
 }

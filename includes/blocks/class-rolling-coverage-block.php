@@ -3017,7 +3017,7 @@ class Rolling_Coverage_Block {
 	 *
 	 * @return array[] Array of parsed-block-shaped arrays.
 	 */
-	private static function default_entry_template() {
+	private static function default_entry_template(): array {
 		return self::default_layout_blocks()[0]['innerBlocks'] ?? [];
 	}
 
@@ -3025,8 +3025,8 @@ class Rolling_Coverage_Block {
 	 * The Bulletin layout, which a block without a layout of its own renders:
 	 * the Feed group holding the pinned card, the entry and the Full Story
 	 * Entry. `bulletin-layout.html` is the editor's serialization of
-	 * Bulletin's template (`bulletinEntryTemplate()` in `template.ts`), so a
-	 * change to one needs the other regenerated. Its words are translated here
+	 * Bulletin's inner-blocks template (`innerTemplate()` in `layout.ts`), so
+	 * a change to one needs the other regenerated. Its words are translated here
 	 * and its times follow the site's time format, as the editor's do.
 	 *
 	 * @return array[] Parsed blocks.
@@ -3815,13 +3815,12 @@ class Rolling_Coverage_Block {
 	 */
 	private static function load_block_config( int $coverage_id, string $template_key ): ?array {
 		$defaults = [
-			'template'    => self::default_entry_template(),
 			'adsEnabled'  => true,
 			'adsInterval' => 4,
 		];
 
 		if ( ! $template_key ) {
-			return $defaults;
+			return array_merge( [ 'template' => self::default_entry_template() ], $defaults );
 		}
 
 		$option_key = self::TEMPLATE_OPTION_PREFIX . $coverage_id . '_' . $template_key;
