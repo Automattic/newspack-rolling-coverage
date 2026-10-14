@@ -466,7 +466,7 @@ function SettingsModal( {
 													className="newspack-rolling-coverage-settings__description"
 												>
 													{ __(
-														'Set the label that marks an entry once its full story is published. Leave empty to use “Full story”.',
+														'Set the label shown on an entry once its breakout post is published. Each breakout post can set its own in the post editor. Leave empty to use “Full story”.',
 														'newspack-rolling-coverage'
 													) }
 												</Text>
