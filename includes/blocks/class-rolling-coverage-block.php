@@ -45,6 +45,11 @@ class Rolling_Coverage_Block {
 	// interval raises it; see get_min_poll_interval().
 	const POLL_MAX_AGE = 5;
 
+	// Seconds a shared poll's window reaches back at least. A page needs a
+	// reply that still holds a change for its poll interval plus up to twice
+	// the reply's cache lifetime; slower pages take their cursor path.
+	const SHARED_WINDOW = 300;
+
 	// Max number of entries returned per page.
 	const PER_PAGE_MAX = 100;
 
@@ -229,6 +234,7 @@ class Rolling_Coverage_Block {
 		// After Post_Type records publish and takedown times at priority 10, which polls read.
 		add_action( 'transition_post_status', [ __CLASS__, 'update_coverage_last_modified' ], 11, 3 );
 		add_filter( 'posts_where', [ __CLASS__, 'load_more_bound_where' ], 10, 2 );
+		add_filter( 'posts_where', [ __CLASS__, 'marker_where' ], 10, 2 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'size_entry_avatar' ], 10, 2 );
@@ -1459,6 +1465,11 @@ class Rolling_Coverage_Block {
 			$wrapper_data['data-min-poll-interval'] = $min_poll_interval;
 		}
 
+		// Every reader of the page polls the same URL, so the edge can answer right after a change.
+		if ( self::is_shared_polling() ) {
+			$wrapper_data['data-poll'] = 'shared';
+		}
+
 		// Ads need their page's own setup, so the view script never swaps such a feed in place.
 		if ( $ads_enabled && Ads::is_placement_enabled() ) {
 			$wrapper_data['data-ads'] = '1';
@@ -1550,22 +1561,36 @@ class Rolling_Coverage_Block {
 	/**
 	 * Query arguments shared by every query for a coverage's published entries.
 	 *
+	 * The coverage's marker is one of them, and marker_where() writes it into
+	 * the SQL, so a cached result is kept per marker: by WordPress, which
+	 * keys a query's result on its query vars, and by caches that key it on
+	 * the SQL. A request reads what invalidates those results earlier than
+	 * the marker: WordPress keeps the last-changed times from the request's
+	 * first post query, which plugins often run while WordPress loads, and
+	 * the Advanced Post Cache reads its cache generation as it loads. An
+	 * entry published in between would otherwise reach the request as a new
+	 * marker over the entries cached before the entry: the page adopts the
+	 * marker, takes every later reply as unchanged, and misses the entry
+	 * until the coverage changes again. Keyed on the marker, the entries are
+	 * never older than the marker they go out with.
+	 *
 	 * @param int $coverage_id Coverage term ID.
 	 * @return array WP_Query arguments.
 	 */
 	private static function coverage_entries_args( int $coverage_id ): array {
 		return [
-			'post_type'           => Post_Type::CPT_SLUG,
-			'post_status'         => 'publish',
-			'tax_query'           => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+			'post_type'                   => Post_Type::CPT_SLUG,
+			'post_status'                 => 'publish',
+			'tax_query'                   => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 				[
 					'taxonomy' => Taxonomy::TAXONOMY_SLUG,
 					'field'    => 'term_id',
 					'terms'    => $coverage_id,
 				],
 			],
-			'no_found_rows'       => true,
-			'ignore_sticky_posts' => true,
+			'no_found_rows'               => true,
+			'ignore_sticky_posts'         => true,
+			Poll_Cursor::MARKER_QUERY_VAR => Poll_Cursor::get_marker( $coverage_id ),
 		];
 	}
 
@@ -4344,6 +4369,28 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Writes a coverage's marker into its entry queries' SQL, as a comment,
+	 * for caches that key a query's result on its SQL alone, such as the
+	 * Advanced Post Cache that WordPress.com and Atomic sites run. It reads
+	 * its cache generation while WordPress loads, before the marker, so it
+	 * needs the marker in the SQL to keep a result per marker (see
+	 * coverage_entries_args()).
+	 *
+	 * @param string   $where WHERE clause.
+	 * @param WP_Query $query The query.
+	 * @return string
+	 */
+	public static function marker_where( string $where, WP_Query $query ): string {
+		$marker = (string) $query->get( Poll_Cursor::MARKER_QUERY_VAR );
+
+		if ( '' === $marker ) {
+			return $where;
+		}
+
+		return $where . ' /* ' . Poll_Cursor::MARKER_QUERY_VAR . ' ' . absint( $marker ) . ' */';
+	}
+
+	/**
 	 * Register the dedicated REST route used for both polling (cursor) and
 	 * pagination (before), plus the lightweight editor-only preview route
 	 * (see get_entries_preview()).
@@ -4396,6 +4443,11 @@ class Rolling_Coverage_Block {
 					],
 					'lite'         => [
 						'description' => __( 'Whether a Lite Site page asks, so entries come as text, as that page renders them.', 'newspack-rolling-coverage' ),
+						'type'        => 'boolean',
+						'default'     => false,
+					],
+					'recent'       => [
+						'description' => __( 'Whether a page asks for the coverage\'s recent changes rather than those after its own cursor, so every reader of the page asks the same URL.', 'newspack-rolling-coverage' ),
 						'type'        => 'boolean',
 						'default'     => false,
 					],
@@ -4535,7 +4587,8 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * REST callback: returns pre-rendered HTML for either direction.
+	 * REST callback: returns pre-rendered HTML for a poll or a page of entries,
+	 * by the first of these the request sets:
 	 *
 	 * - `cursor` (forward/polling): the changes the page is missing (see
 	 *   Poll_Cursor), new entries and edits, and entries taken down, named for
@@ -4543,6 +4596,11 @@ class Rolling_Coverage_Block {
 	 *   flagged `overflow` so the client can reload. Sends a short
 	 *   Cache-Control and the site's minimum poll interval; see
 	 *   poll_response().
+	 * - `recent` (shared polling): the same reply for every reader of the
+	 *   page, the coverage's current cursor and its changes in the shared
+	 *   window, for each page to apply what it is missing by the rules a
+	 *   cursor poll uses; see shared_poll_response(). Cached like a cursor
+	 *   poll.
 	 * - `before` (backward/pagination): entries listed after the bound's
 	 *   entry in FEED_ORDER, capped at the request's per_page (entriesPerPage).
 	 *   Sends no Cache-Control, so it keeps the page cache's default lifetime,
@@ -4574,6 +4632,7 @@ class Rolling_Coverage_Block {
 		$template_key = (string) ( $params['template_key'] ?? '' );
 		$cursor       = $params['cursor'] ?? '';
 		$before       = $params['before'] ?? '';
+		$recent       = rest_sanitize_boolean( $params['recent'] ?? false );
 		$per_page     = min( max( 1, (int) ( $params['per_page'] ?? 20 ) ), self::PER_PAGE_MAX );
 
 		// Set the host post ID so share-link blocks rendered during this REST request can build correct share URLs.
@@ -4604,10 +4663,10 @@ class Rolling_Coverage_Block {
 			);
 		}
 
-		if ( ! $cursor && ! $before ) {
+		if ( ! $cursor && ! $before && ! $recent ) {
 			return new WP_Error(
 				'rolling_coverage_missing_cursor',
-				__( 'Either cursor or before must be provided.', 'newspack-rolling-coverage' ),
+				__( 'One of cursor, before or recent must be provided.', 'newspack-rolling-coverage' ),
 				[ 'status' => 400 ]
 			);
 		}
@@ -4668,49 +4727,11 @@ class Rolling_Coverage_Block {
 				);
 			}
 
-			$args = array_merge(
-				$base_args,
-				[
-					'date_query'     => [
-						[
-							'column'    => 'post_modified_gmt',
-							'after'     => self::gmt_date_bound( $poll_cursor->modified ),
-							'inclusive' => true,
-						],
-					],
-					'orderby'        => [
-						'modified' => 'DESC',
-						'ID'       => 'DESC',
-					],
-					// One past the cap to detect overflow, plus room for the entries the page
-					// holds, which are left out below; a page's worth at most, since the
-					// cursor comes from the request.
-					'posts_per_page' => self::POLL_CAP + 1 + min( count( $poll_cursor->ids ), self::PER_PAGE_MAX ),
-				]
-			);
-
-			$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
-
-			// Entries taken down since the cursor, which open pages may still show.
-			$taken_down = ( new WP_Query(
-				array_merge(
-					$args,
-					[
-						'post_status' => array_values( array_diff( Post_Type::ALLOWED_STATUSES, [ 'publish' ] ) ),
-						'meta_query'  => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-							[
-								'key'     => Post_Type::META_UNPUBLISHED_GMT,
-								'value'   => $poll_cursor->modified,
-								'compare' => '>=',
-								'type'    => 'DATETIME',
-							],
-						],
-					]
-				)
-			) )->posts;
-
-			$changes = array_values( array_filter( array_merge( ( new WP_Query( $args ) )->posts, $taken_down ), static fn( WP_Post $entry ) => ! $poll_cursor->holds( $entry ) ) );
-			usort( $changes, static fn( WP_Post $a, WP_Post $b ) => strcmp( self::post_modified_gmt( $b ), self::post_modified_gmt( $a ) ) );
+			// One past the cap to detect overflow, plus room for the entries the page
+			// holds, which are left out below; a page's worth at most, since the
+			// cursor comes from the request.
+			$limit   = self::POLL_CAP + 1 + min( count( $poll_cursor->ids ), self::PER_PAGE_MAX );
+			$changes = array_values( array_filter( self::changes_since( $term_id, $poll_cursor->modified, $limit ), static fn( WP_Post $entry ) => ! $poll_cursor->holds( $entry ) ) );
 			self::prime_author_caches( $changes, $template, $is_lite );
 
 			$removed    = array_values( array_filter( $changes, static fn( WP_Post $entry ) => 'publish' !== $entry->post_status ) );
@@ -4785,6 +4806,12 @@ class Rolling_Coverage_Block {
 				],
 				$term_id
 			);
+		}
+
+		// Shared poll: one URL for every reader of the page, answered with the
+		// coverage's recent changes.
+		if ( $recent ) {
+			return self::shared_poll_response( $term_id, $template, $is_capped, $is_lite, $ads_enabled, $ads_interval, $feed_layout, $is_stale_template );
 		}
 
 		if ( $is_capped ) {
@@ -4945,6 +4972,217 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Every change to a coverage's entries at or after a time, newest first:
+	 * published entries saved since, and entries taken down since. What a
+	 * poll from a cursor at that time reports, before the entries it holds
+	 * are left out.
+	 *
+	 * @param int    $term_id Coverage term ID.
+	 * @param string $since   GMT `Y-m-d H:i:s`, or '' for every change.
+	 * @param int    $limit   Most entries each of the two queries returns.
+	 * @return WP_Post[]
+	 */
+	private static function changes_since( int $term_id, string $since, int $limit ): array {
+		$args = array_merge(
+			self::coverage_entries_args( $term_id ),
+			[
+				'orderby'        => [
+					'modified' => 'DESC',
+					'ID'       => 'DESC',
+				],
+				'posts_per_page' => $limit,
+			]
+		);
+
+		$args[ Post_Type::SKIP_PIN_ORDER_VAR ] = true;
+
+		$unpublished = [
+			'key'     => Post_Type::META_UNPUBLISHED_GMT,
+			'compare' => 'EXISTS',
+		];
+
+		if ( '' !== $since ) {
+			$args['date_query'] = [
+				[
+					'column'    => 'post_modified_gmt',
+					'after'     => self::gmt_date_bound( $since ),
+					'inclusive' => true,
+				],
+			];
+
+			$unpublished = [
+				'key'     => Post_Type::META_UNPUBLISHED_GMT,
+				'value'   => $since,
+				'compare' => '>=',
+				'type'    => 'DATETIME',
+			];
+		}
+
+		// Entries taken down since, which open pages may still show.
+		$taken_down = ( new WP_Query(
+			array_merge(
+				$args,
+				[
+					'post_status' => array_values( array_diff( Post_Type::ALLOWED_STATUSES, [ 'publish' ] ) ),
+					'meta_query'  => [ $unpublished ], // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				]
+			)
+		) )->posts;
+
+		$changes = array_merge( ( new WP_Query( $args ) )->posts, $taken_down );
+		usort( $changes, static fn( WP_Post $a, WP_Post $b ) => strcmp( self::post_modified_gmt( $b ), self::post_modified_gmt( $a ) ) ?: $b->ID <=> $a->ID ); // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
+
+		return $changes;
+	}
+
+	/**
+	 * Where a shared poll's window starts: the newest change older than the
+	 * cutoff, so the window always holds the change before the recent ones,
+	 * and a page that saw it can apply the reply after any quiet stretch.
+	 * Only published entries are looked at; a takedown after that entry is in
+	 * the window anyway, which only makes it longer. The cutoff falls on the
+	 * minute, which also only makes it longer, so refreshes within a minute
+	 * can share this query's cached result.
+	 *
+	 * @param int $term_id Coverage term ID.
+	 * @return string GMT `Y-m-d H:i:s`, or '' when no entry predates the cutoff.
+	 */
+	private static function shared_window_start( int $term_id ): string {
+		$cutoff = gmdate( 'Y-m-d H:i:00', time() - max( self::SHARED_WINDOW, 4 * self::get_min_poll_interval() ) );
+
+		$last_before = ( new WP_Query(
+			array_merge(
+				self::coverage_entries_args( $term_id ),
+				[
+					'date_query'                  => [
+						[
+							'column'    => 'post_modified_gmt',
+							'before'    => self::gmt_date_bound( $cutoff ),
+							'inclusive' => false,
+						],
+					],
+					'orderby'                     => 'modified',
+					'order'                       => 'DESC',
+					'posts_per_page'              => 1,
+					'update_post_meta_cache'      => false,
+					'update_post_term_cache'      => false,
+					Post_Type::SKIP_PIN_ORDER_VAR => true,
+				]
+			)
+		) )->posts[0] ?? null;
+
+		return $last_before instanceof WP_Post ? $last_before->post_modified_gmt : '';
+	}
+
+	/**
+	 * The reply to a shared poll: the coverage's current cursor and every
+	 * change in the window, newest first, for each page to apply what it is
+	 * missing by the same rules a cursor poll uses. Every reader of a page
+	 * asks the same URL, so the edge cache keeps answering right after a
+	 * change instead of sending every page to a URL it has never stored.
+	 *
+	 * Entries carry when they were first published, for the page to tell new
+	 * entries from edits, and no arrival, which the page sets.
+	 *
+	 * @param int   $term_id           Coverage term ID.
+	 * @param array $template          Per-entry template.
+	 * @param bool  $is_capped         Whether the feed shows a fixed count.
+	 * @param bool  $is_lite           Whether a lite page asks.
+	 * @param bool  $ads_enabled       Whether the feed shows ads.
+	 * @param int   $ads_interval      Entries between ads.
+	 * @param array $feed_layout       The Feed group's layout.
+	 * @param bool  $is_stale_template Whether the request's key names no stored config.
+	 * @return WP_REST_Response
+	 */
+	private static function shared_poll_response( int $term_id, array $template, bool $is_capped, bool $is_lite, bool $ads_enabled, int $ads_interval, array $feed_layout, bool $is_stale_template ): WP_REST_Response {
+		$empty = [
+			'since'    => '',
+			'cursor'   => '',
+			'changes'  => [],
+			'overflow' => false,
+		];
+
+		if ( ! self::is_shared_polling() ) {
+			return self::poll_response( array_merge( $empty, [ 'sharedPolling' => false ] ), $term_id );
+		}
+
+		if ( $is_stale_template ) {
+			return self::poll_response( array_merge( $empty, [ 'staleTemplate' => true ] ), $term_id );
+		}
+
+		// Read before the entries, as a cursor poll does: a change landing
+		// between the reads moves the marker again, so pages look once more.
+		$marker  = Poll_Cursor::get_marker( $term_id );
+		$since   = self::shared_window_start( $term_id );
+		$changes = self::changes_since( $term_id, $since, self::POLL_CAP + 1 );
+		$cursor  = (string) Poll_Cursor::for_entries( $changes, $marker, $since );
+
+		if ( count( $changes ) > self::POLL_CAP ) {
+			return self::poll_response(
+				array_merge(
+					$empty,
+					[
+						'since'    => $since,
+						'cursor'   => $cursor,
+						'overflow' => true,
+					]
+				),
+				$term_id
+			);
+		}
+
+		self::prime_author_caches( $changes, $template, $is_lite );
+
+		$items = [];
+
+		foreach ( $changes as $entry ) {
+			if ( 'publish' !== $entry->post_status ) {
+				$items[] = [
+					'id'          => $entry->ID,
+					'type'        => 'remove',
+					'modified'    => $entry->post_modified_gmt,
+					'unpublished' => (string) get_post_meta( $entry->ID, Post_Type::META_UNPUBLISHED_GMT, true ),
+				];
+				continue;
+			}
+
+			$item = [
+				'id'        => $entry->ID,
+				'type'      => 'entry',
+				'modified'  => $entry->post_modified_gmt,
+				'published' => Post_Type::get_entry_published_gmt( $entry ),
+				'html'      => $is_lite ? Lite_Feed::render_entry( $entry, '', $is_capped ) : self::render_entry( $entry, $template, '', is_capped: $is_capped, feed_layout: $feed_layout, coverage_id: $term_id ),
+			];
+
+			// The page doesn't share which entries are new to it, so each one
+			// that can be carries a placement, and the page uses every Nth. A
+			// page applies the reply only from a position at or after `since`,
+			// so an entry first published before it is an edit to every page.
+			if ( $ads_enabled && $item['published'] >= $since ) {
+				$placement      = Ads::render_placement();
+				$item['adHtml'] = $placement['html'] ? self::place_ad_in_grid( $placement['html'], $template, $feed_layout ) : null;
+				$item['adSlot'] = $placement['html'] ? ( $placement['slots'][0] ?? null ) : null;
+			}
+
+			$items[] = $item;
+		}
+		wp_reset_postdata();
+
+		$data = [
+			'since'    => $since,
+			'cursor'   => $cursor,
+			'changes'  => $items,
+			'overflow' => false,
+		];
+
+		if ( $ads_enabled ) {
+			$data['adsInterval'] = $ads_interval;
+		}
+
+		return self::poll_response( $data, $term_id );
+	}
+
+	/**
 	 * The slowest pace the site lets readers' pages poll at, in seconds.
 	 *
 	 * A safety valve for a site under load. Every block polls at this
@@ -4979,6 +5217,41 @@ class Rolling_Coverage_Block {
 		$interval = apply_filters( 'newspack_rolling_coverage_min_poll_interval', $interval );
 
 		return is_numeric( $interval ) ? max( 0, (int) $interval ) : 0;
+	}
+
+	/**
+	 * Whether open pages poll one URL shared by every reader of the page.
+	 *
+	 * A shared poll URL is one the edge cache keeps answering right after a
+	 * change; a page's own cursor URL is new to the cache after every change.
+	 * Turned off, new pages poll their cursor and shared replies tell pages
+	 * already open to switch, on their next poll.
+	 *
+	 * @return bool
+	 */
+	public static function is_shared_polling(): bool {
+		/**
+		 * Whether pages poll the shared URL. Define it as false to send them
+		 * back to polling their own cursor; pages already open switch on
+		 * their next poll. The string 'false', which `wp config set` writes
+		 * without `--raw`, counts as false too.
+		 *
+		 * @constant NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING
+		 * @type     bool
+		 * @default  true
+		 * @status   draft
+		 *
+		 * @example define( 'NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING', false );
+		 */
+		$enabled = defined( 'NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING' ) ? wp_validate_boolean( NEWSPACK_ROLLING_COVERAGE_SHARED_POLLING ) : true;
+
+		/**
+		 * Filters whether pages poll the shared URL. The string 'false'
+		 * counts as false.
+		 *
+		 * @param bool $enabled Whether shared polling is on.
+		 */
+		return wp_validate_boolean( apply_filters( 'newspack_rolling_coverage_shared_polling', $enabled ) );
 	}
 
 	/**
