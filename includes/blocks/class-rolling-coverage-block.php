@@ -3094,7 +3094,7 @@ class Rolling_Coverage_Block {
 				'core/post-title',
 				[
 					'level'    => 3,
-					'fontSize' => $is_pinned ? self::theme_font_size( 'x-large', 'huge' ) : 'large',
+					'fontSize' => 'large',
 				]
 			),
 			self::post_block(
@@ -3113,23 +3113,6 @@ class Rolling_Coverage_Block {
 				]
 			),
 		];
-	}
-
-	/**
-	 * A font size preset the theme defines: the preferred slug where the
-	 * theme has it, else its fallback. The Newspack Theme names its sizes
-	 * Normal and Huge where block themes have Medium and X-Large.
-	 *
-	 * @param string $preferred The preferred slug.
-	 * @param string $fallback  The slug to use where the theme lacks it.
-	 * @return string
-	 */
-	private static function theme_font_size( string $preferred, string $fallback ): string {
-		$origins = wp_get_global_settings( [ 'typography', 'fontSizes' ] );
-		$theme   = is_array( $origins ) && is_array( $origins['theme'] ?? null ) ? $origins['theme'] : [];
-		$sizes   = array_column( array_filter( $theme, 'is_array' ), 'slug' );
-
-		return ! in_array( $preferred, $sizes, true ) && in_array( $fallback, $sizes, true ) ? $fallback : $preferred;
 	}
 
 	/**
