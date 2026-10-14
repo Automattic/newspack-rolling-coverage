@@ -88,6 +88,7 @@ class Slack_Webhook_Controller {
 			'invalid_channel'        => __( 'That channel could not be used. Try a channel ID like C12345678 or a channel name like #general.', 'newspack-rolling-coverage' ),
 			'term_select_required'   => __( 'Please select a coverage.', 'newspack-rolling-coverage' ),
 			'term_not_found'         => __( 'Selected coverage no longer exists.', 'newspack-rolling-coverage' ),
+			'invalid_publish_mode'   => __( 'Choose a publish mode: Auto-publish, Draft or Emoji trigger.', 'newspack-rolling-coverage' ),
 			// Credentials errors.
 			'missing_credentials'    => __( 'A bot token and signing secret are both required.', 'newspack-rolling-coverage' ),
 			'invalid_token'          => __( 'The bot token is invalid. It must start with xoxb-.', 'newspack-rolling-coverage' ),
@@ -577,6 +578,10 @@ class Slack_Webhook_Controller {
 				? $term_names[ $term_id ]
 				: '';
 
+			// Channels linked before publish modes stored only an auto-publish flag.
+			$entry['publish_mode'] = Slack_Config::resolve_publish_mode( $data );
+			unset( $entry['autopublish'] );
+
 			$channels[] = $entry;
 		}
 
@@ -610,9 +615,13 @@ class Slack_Webhook_Controller {
 	 */
 	public function connect_channel( \WP_REST_Request $request ): \WP_REST_Response {
 		Slack_Monitor::log( 'info', 'Admin channel connect requested' );
-		$term_id     = (int) $request->get_param( 'term_id' );
-		$channel     = sanitize_text_field( (string) $request->get_param( 'channel' ) );
-		$autopublish = (bool) $request->get_param( 'autopublish' );
+		$term_id      = (int) $request->get_param( 'term_id' );
+		$channel      = sanitize_text_field( (string) $request->get_param( 'channel' ) );
+		$publish_mode = (string) ( $request->get_param( 'publish_mode' ) ?? Slack_Config::PUBLISH_MODE_DRAFT );
+
+		if ( ! Slack_Config::is_publish_mode( $publish_mode ) ) {
+			return self::rest_error( 'invalid_publish_mode' );
+		}
 
 		if ( $term_id <= 0 || ! term_exists( $term_id, Taxonomy::TAXONOMY_SLUG ) ) {
 			return self::rest_error( 'invalid_term' );
@@ -667,7 +676,7 @@ class Slack_Webhook_Controller {
 			return self::rest_error( 'channel_already_linked' );
 		}
 
-		$this->link_channel_to_term( $term_id, $channel_id, $channel_name, $autopublish );
+		$this->link_channel_to_term( $term_id, $channel_id, $channel_name, $publish_mode );
 
 		return new \WP_REST_Response(
 			[
@@ -701,7 +710,7 @@ class Slack_Webhook_Controller {
 	/**
 	 * GET /slack/channel/(?P<id>[CG][A-Z0-9]+) — get a single channel's settings.
 	 *
-	 * Returns the channel's autopublish state and the timestamp of the last
+	 * Returns the channel's publish mode and the timestamp of the last
 	 * message it ingested. The Slack connection drawer shows both when a
 	 * channel is already linked.
 	 *
@@ -720,7 +729,7 @@ class Slack_Webhook_Controller {
 			[
 				'ok'           => true,
 				'channel_id'   => $channel_id,
-				'autopublish'  => (bool) ( $settings['autopublish'] ?? false ),
+				'publish_mode' => Slack_Config::resolve_publish_mode( $settings ),
 				'last_sync_ts' => (string) ( $settings['last_sync_ts'] ?? '' ),
 			],
 			200
@@ -730,34 +739,41 @@ class Slack_Webhook_Controller {
 	/**
 	 * POST /slack/channel/(?P<id>[CG][A-Z0-9]+) — update channel settings.
 	 *
-	 * Currently supports toggling `autopublish` for an already-linked channel.
+	 * Sets the publish mode of an already-linked channel, and tells the
+	 * channel what now happens to its messages.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response Response.
 	 */
 	public function update_channel_settings( \WP_REST_Request $request ): \WP_REST_Response {
-		$channel_id  = sanitize_text_field( (string) $request->get_param( 'id' ) );
-		$autopublish = (bool) $request->get_param( 'autopublish' );
-		$settings    = Slack_Config::get_channel_settings( $channel_id );
+		$channel_id   = sanitize_text_field( (string) $request->get_param( 'id' ) );
+		$publish_mode = (string) $request->get_param( 'publish_mode' );
+		$settings     = Slack_Config::get_channel_settings( $channel_id );
 
 		if ( null === $settings ) {
 			return self::rest_error( 'invalid_channel' );
 		}
 
-		Slack_Config::update_channel( $channel_id, [ 'autopublish' => $autopublish ] );
+		if ( ! Slack_Config::is_publish_mode( $publish_mode ) ) {
+			return self::rest_error( 'invalid_publish_mode' );
+		}
 
-		// Announce the auto-publish change in the channel so editors see the new ingestion behaviour.
+		Slack_Config::update_channel( $channel_id, [ 'publish_mode' => $publish_mode ] );
+
 		$this->api_client->post_message(
 			$channel_id,
-			$autopublish
-				? __( '🔔 Auto-publish is now enabled for this channel — new entries publish immediately.', 'newspack-rolling-coverage' )
-				: __( '🔕 Auto-publish is now disabled for this channel — new entries are saved as drafts.', 'newspack-rolling-coverage' )
+			sprintf(
+				/* translators: 1: publish mode name, 2: what happens to messages posted in the channel */
+				__( 'Publish mode is now %1$s. %2$s', 'newspack-rolling-coverage' ),
+				self::publish_mode_label( $publish_mode ),
+				self::describe_publish_mode( $publish_mode )
+			)
 		);
 
 		return new \WP_REST_Response(
 			[
-				'ok'          => true,
-				'autopublish' => $autopublish,
+				'ok'           => true,
+				'publish_mode' => $publish_mode,
 			],
 			200
 		);
@@ -1302,21 +1318,16 @@ class Slack_Webhook_Controller {
 			return $this->ephemeral( __( 'This channel is not connected to any coverage.', 'newspack-rolling-coverage' ) );
 		}
 
-		$term_id     = (int) ( $settings['term_id'] ?? 0 );
-		$term        = $term_id > 0 ? get_term( $term_id, Taxonomy::TAXONOMY_SLUG ) : null;
-		$term_name   = ( $term && ! is_wp_error( $term ) ) ? $term->name : __( '(unknown)', 'newspack-rolling-coverage' );
-		$autopublish = (bool) ( $settings['autopublish'] ?? false );
-
-		$status_text = $autopublish
-			? __( 'autopublish enabled', 'newspack-rolling-coverage' )
-			: __( 'autopublish disabled', 'newspack-rolling-coverage' );
+		$term_id   = (int) ( $settings['term_id'] ?? 0 );
+		$term      = $term_id > 0 ? get_term( $term_id, Taxonomy::TAXONOMY_SLUG ) : null;
+		$term_name = ( $term && ! is_wp_error( $term ) ) ? $term->name : __( '(unknown)', 'newspack-rolling-coverage' );
 
 		return $this->ephemeral(
 			sprintf(
-				/* translators: 1: term name, 2: autopublish status */
-				__( 'Connected to "%1$s" — %2$s.', 'newspack-rolling-coverage' ),
+				/* translators: 1: coverage name, 2: what happens to messages posted in the channel */
+				__( 'Connected to "%1$s". %2$s', 'newspack-rolling-coverage' ),
 				$term_name,
-				$status_text
+				self::describe_publish_mode( Slack_Config::resolve_publish_mode( $settings ) )
 			)
 		);
 	}
@@ -1458,9 +1469,10 @@ class Slack_Webhook_Controller {
 		$channel_name = $this->api_client->get_channel_name( $channel_id );
 
 		// link_channel_to_term posts the connection announcement to the channel
-		// (with the coverage name + auto-publish state), so no separate
-		// chat.postMessage is needed here.
-		$this->link_channel_to_term( $term_id, $channel_id, $channel_name, false );
+		// (with the coverage name and what happens to its messages), so no
+		// separate chat.postMessage is needed here. A channel connected from
+		// Slack starts in Draft.
+		$this->link_channel_to_term( $term_id, $channel_id, $channel_name, Slack_Config::PUBLISH_MODE_DRAFT );
 
 		return new \WP_REST_Response( [ 'response_action' => 'clear' ], 200 );
 	}
@@ -1552,6 +1564,46 @@ class Slack_Webhook_Controller {
 	}
 
 	/**
+	 * A publish mode's name, as the admin shows it.
+	 *
+	 * @param string $publish_mode One of Slack_Config::PUBLISH_MODES.
+	 * @return string
+	 */
+	private static function publish_mode_label( string $publish_mode ): string {
+		switch ( $publish_mode ) {
+			case Slack_Config::PUBLISH_MODE_PUBLISH:
+				return __( 'Auto-publish', 'newspack-rolling-coverage' );
+			case Slack_Config::PUBLISH_MODE_REACTION:
+				return __( 'Emoji trigger', 'newspack-rolling-coverage' );
+			default:
+				return __( 'Draft', 'newspack-rolling-coverage' );
+		}
+	}
+
+	/**
+	 * What happens to a channel's messages in a publish mode, for messages
+	 * the bot posts in Slack.
+	 *
+	 * @param string $publish_mode One of Slack_Config::PUBLISH_MODES.
+	 * @return string
+	 */
+	private static function describe_publish_mode( string $publish_mode ): string {
+		switch ( $publish_mode ) {
+			case Slack_Config::PUBLISH_MODE_PUBLISH:
+				return __( 'New messages are published right away.', 'newspack-rolling-coverage' );
+			case Slack_Config::PUBLISH_MODE_REACTION:
+				return sprintf(
+					/* translators: 1: emoji name that publishes a message, 2: emoji name that saves it as a draft */
+					__( 'React to a message with :%1$s: to publish it, or :%2$s: to save it as a draft.', 'newspack-rolling-coverage' ),
+					Slack_Config::get_publish_reaction(),
+					Slack_Config::get_draft_reaction()
+				);
+			default:
+				return __( 'New messages are saved as drafts.', 'newspack-rolling-coverage' );
+		}
+	}
+
+	/**
 	 * Link a Slack channel to a rolling coverage term.
 	 *
 	 * Centralizes the channel-map update, term-meta writes, and linked action
@@ -1569,16 +1621,16 @@ class Slack_Webhook_Controller {
 	 * @param int    $term_id      Term ID.
 	 * @param string $channel_id   Slack channel ID.
 	 * @param string $channel_name Slack channel name.
-	 * @param bool   $autopublish  Whether autopublish is enabled for the channel.
+	 * @param string $publish_mode One of Slack_Config::PUBLISH_MODES.
 	 * @return void
 	 */
-	private function link_channel_to_term( int $term_id, string $channel_id, string $channel_name, bool $autopublish ): void {
+	private function link_channel_to_term( int $term_id, string $channel_id, string $channel_name, string $publish_mode ): void {
 		Slack_Config::update_channel(
 			$channel_id,
 			[
 				'channel_name' => $channel_name,
 				'term_id'      => $term_id,
-				'autopublish'  => $autopublish,
+				'publish_mode' => $publish_mode,
 				'last_sync_ts' => '',
 			]
 		);
@@ -1600,22 +1652,24 @@ class Slack_Webhook_Controller {
 		do_action( 'rolling_coverage_slack_channel_linked', $channel_id, $term_id );
 
 		// Announce the connection in the channel, referencing the linked coverage
-		// by name and the auto-publish state (mirrors /rolling-coverage-status).
-		$term_name   = $this->get_term_name( $term_id );
-		$status_text = $autopublish
-			? __( 'auto-publish is enabled', 'newspack-rolling-coverage' )
-			: __( 'auto-publish is disabled', 'newspack-rolling-coverage' );
+		// by name and what happens to its messages (mirrors /rolling-coverage-status).
+		$term_name = $this->get_term_name( $term_id );
+		$mode_text = self::describe_publish_mode( $publish_mode );
 
 		$this->api_client->post_message(
 			$channel_id,
 			'' !== $term_name
 				? sprintf(
-					/* translators: 1: coverage name, 2: auto-publish status */
-					__( '✅ This channel is now connected to the "%1$s" coverage. %2$s.', 'newspack-rolling-coverage' ),
+					/* translators: 1: coverage name, 2: what happens to messages posted in the channel */
+					__( '✅ This channel is now connected to the "%1$s" coverage. %2$s', 'newspack-rolling-coverage' ),
 					$term_name,
-					$status_text
+					$mode_text
 				)
-				: __( '✅ This channel is now connected to rolling coverage.', 'newspack-rolling-coverage' )
+				: sprintf(
+					/* translators: %s: what happens to messages posted in the channel */
+					__( '✅ This channel is now connected to rolling coverage. %s', 'newspack-rolling-coverage' ),
+					$mode_text
+				)
 		);
 	}
 

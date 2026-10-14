@@ -122,6 +122,13 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	private $reaction_failure = '';
 
 	/**
+	 * Texts of the messages the bot posted to channels.
+	 *
+	 * @var string[]
+	 */
+	private $posted_messages = [];
+
+	/**
 	 * Answer every outbound HTTP request as the Slack API would, and every
 	 * file download with a PNG.
 	 */
@@ -136,6 +143,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->token_scopes             = null;
 		$this->reaction_requests        = [];
 		$this->reaction_failure         = '';
+		$this->posted_messages          = [];
 		$this->file_response            = [
 			'type' => 'image/png',
 			'body' => base64_decode( self::PNG ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Test fixture.
@@ -159,8 +167,9 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	 * Stand in for the Slack API: a file download answers with the file
 	 * response, `conversations.history` answers from the channel's messages,
 	 * `conversations.replies` answers with a message and, for a reply, its
-	 * thread's first message, reaction requests are recorded, and every
-	 * other method answers with a `users.info` payload.
+	 * thread's first message, `conversations.info` describes a channel the
+	 * bot is in, reaction requests and posted messages are recorded, and
+	 * every other method answers with a `users.info` payload.
 	 *
 	 * @param false|array $response    Short-circuit value.
 	 * @param array       $parsed_args Request arguments.
@@ -216,6 +225,23 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 			}
 
 			return $this->slack_api_response( [] );
+		}
+
+		if ( false !== strpos( $url, 'chat.postMessage' ) ) {
+			$this->posted_messages[] = (string) ( json_decode( (string) $parsed_args['body'], true )['text'] ?? '' );
+			return $this->slack_api_response( [] );
+		}
+
+		if ( false !== strpos( $url, 'conversations.info' ) ) {
+			return $this->slack_api_response(
+				[
+					'channel' => [
+						'id'        => (string) ( $query['channel'] ?? '' ),
+						'name'      => 'election-desk',
+						'is_member' => true,
+					],
+				]
+			);
 		}
 
 		if ( false !== strpos( $url, 'conversations.replies' ) ) {
@@ -935,8 +961,8 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A linked channel's settings report when it last ingested a message, so
-	 * the connection drawer can show it.
+	 * A linked channel's settings report its publish mode and when it last
+	 * ingested a message, so the connection drawer can show them.
 	 */
 	public function test_channel_settings_include_the_last_sync() {
 		$coverage_id = self::create_coverage();
@@ -953,7 +979,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
 		$data = self::controller()->get_channel_settings( $request )->get_data();
 
-		$this->assertTrue( $data['autopublish'], 'The stored autopublish setting should be returned.' );
+		$this->assertSame( 'publish', $data['publish_mode'], 'A channel linked before publish modes should report its auto-publish setting as a mode.' );
 		$this->assertSame( '1767225600.000100', $data['last_sync_ts'], 'The last ingested message timestamp should be returned.' );
 	}
 
@@ -2167,5 +2193,127 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertSame( [], self::get_coverage_entries( $coverage_id ) );
+	}
+
+	/**
+	 * Build a request to a channel's settings route.
+	 *
+	 * @param string $method HTTP method.
+	 * @param array  $params Request parameters.
+	 * @return WP_REST_Request
+	 */
+	private static function channel_settings_request( $method, array $params = [] ) {
+		$request = new WP_REST_Request( $method, '/rolling-coverage/v1/slack/channel/' . self::CHANNEL_ID );
+		$request->set_param( 'id', self::CHANNEL_ID );
+
+		foreach ( $params as $key => $value ) {
+			$request->set_param( $key, $value );
+		}
+
+		return $request;
+	}
+
+	/**
+	 * Changing a channel's publish mode stores it and tells the channel what
+	 * now happens to its messages, naming the emoji in Emoji trigger mode.
+	 */
+	public function test_channel_publish_mode_can_be_changed() {
+		self::link_channel( Slack_Config::PUBLISH_MODE_DRAFT );
+
+		$response = self::controller()->update_channel_settings( self::channel_settings_request( 'POST', [ 'publish_mode' => 'reaction' ] ) );
+
+		$this->assertSame( 'reaction', $response->get_data()['publish_mode'], 'The new mode should be returned.' );
+		$this->assertSame( 'reaction', Slack_Config::get_channel_settings( self::CHANNEL_ID )['publish_mode'], 'The new mode should be stored.' );
+		$this->assertSame( [ 'Publish mode is now Emoji trigger. React to a message with :mega: to publish it, or :memo: to save it as a draft.' ], $this->posted_messages, 'The channel should be told.' );
+	}
+
+	/**
+	 * An unknown publish mode is refused and the stored one kept.
+	 */
+	public function test_unknown_publish_mode_is_refused() {
+		self::link_channel( Slack_Config::PUBLISH_MODE_DRAFT );
+
+		$response = self::controller()->update_channel_settings( self::channel_settings_request( 'POST', [ 'publish_mode' => 'sometimes' ] ) );
+
+		$this->assertSame( 400, $response->get_status(), 'The request should be refused.' );
+		$this->assertSame( 'draft', Slack_Config::get_channel_settings( self::CHANNEL_ID )['publish_mode'], 'The stored mode should be kept.' );
+		$this->assertSame( [], $this->posted_messages, 'The channel should not be told anything.' );
+	}
+
+	/**
+	 * The channel list reports each channel's publish mode, including for
+	 * channels linked before publish modes.
+	 */
+	public function test_channel_list_reports_each_channels_publish_mode() {
+		Slack_Config::update_channel(
+			self::CHANNEL_ID,
+			[
+				'term_id'     => self::create_coverage(),
+				'autopublish' => true,
+			]
+		);
+		Slack_Config::update_channel(
+			'C0EMOJI',
+			[
+				'term_id'      => self::create_coverage(),
+				'publish_mode' => 'reaction',
+			]
+		);
+
+		$rows = array_column( self::controller()->list_channels( new WP_REST_Request( 'GET', '/rolling-coverage/v1/slack/channels' ) )->get_data(), null, 'channel_id' );
+
+		$this->assertSame( 'publish', $rows[ self::CHANNEL_ID ]['publish_mode'] );
+		$this->assertArrayNotHasKey( 'autopublish', $rows[ self::CHANNEL_ID ], 'The legacy flag should not be reported.' );
+		$this->assertSame( 'reaction', $rows['C0EMOJI']['publish_mode'] );
+	}
+
+	/**
+	 * Connecting a channel from the admin stores the chosen publish mode and
+	 * says in the channel what happens to its messages.
+	 */
+	public function test_connecting_a_channel_stores_its_publish_mode() {
+		self::configure_slack();
+		$coverage_id = self::create_coverage( '', [ 'name' => 'Election Night' ] );
+		$request     = new WP_REST_Request( 'POST', '/rolling-coverage/v1/slack/connect' );
+		$request->set_param( 'term_id', $coverage_id );
+		$request->set_param( 'channel', self::CHANNEL_ID );
+		$request->set_param( 'publish_mode', 'publish' );
+
+		$response = self::controller()->connect_channel( $request );
+
+		$this->assertSame( 200, $response->get_status(), 'The channel should connect.' );
+		$this->assertSame( 'publish', Slack_Config::get_channel_settings( self::CHANNEL_ID )['publish_mode'], 'The mode should be stored.' );
+		$this->assertSame( [ '✅ This channel is now connected to the "Election Night" coverage. New messages are published right away.' ], $this->posted_messages );
+	}
+
+	/**
+	 * Connecting with an unknown publish mode is refused.
+	 */
+	public function test_connecting_with_an_unknown_publish_mode_is_refused() {
+		self::configure_slack();
+		$request = new WP_REST_Request( 'POST', '/rolling-coverage/v1/slack/connect' );
+		$request->set_param( 'term_id', self::create_coverage() );
+		$request->set_param( 'channel', self::CHANNEL_ID );
+		$request->set_param( 'publish_mode', 'sometimes' );
+
+		$this->assertSame( 400, self::controller()->connect_channel( $request )->get_status() );
+		$this->assertNull( Slack_Config::get_channel_settings( self::CHANNEL_ID ) );
+	}
+
+	/**
+	 * /rolling-coverage-status says what happens to the channel's messages.
+	 */
+	public function test_status_command_describes_the_publish_mode() {
+		self::link_channel( Slack_Config::PUBLISH_MODE_DRAFT );
+		$body = http_build_query(
+			[
+				'command'    => '/rolling-coverage-status',
+				'channel_id' => self::CHANNEL_ID,
+			]
+		);
+
+		$text = self::controller()->handle_command( self::webhook_request( $body, true, 'commands' ) )->get_data()['text'];
+
+		$this->assertStringEndsWith( 'New messages are saved as drafts.', $text );
 	}
 }
