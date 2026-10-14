@@ -239,14 +239,11 @@ const PINNED_BACKGROUND =
 	'var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f7f7f7))';
 
 /**
- * A quiet "Read more" button's colors: the light gray the theme gives
- * secondary surfaces, with its darker muted text, which keeps 4.5:1 on it
- * in every style variation.
+ * A quiet "Read more" button's background: the light gray the theme gives
+ * secondary surfaces. Its text takes the theme's text color.
  */
 const MUTED_BUTTON_BACKGROUND =
 	'var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f0f0f0))';
-const MUTED_BUTTON_TEXT =
-	'var(--wp--preset--color--contrast-2, var(--newspack-theme-color-text-light, #5d5d5d))';
 
 /**
  * A light tint of the readable accent, defined in style.scss.
@@ -602,7 +599,7 @@ function fullStoryReadMore( {
 						color: muted
 							? {
 									background: MUTED_BUTTON_BACKGROUND,
-									text: MUTED_BUTTON_TEXT,
+									text: CONTRAST,
 								}
 							: { background: ACCENT, text: ACCENT_CONTRAST },
 					},
