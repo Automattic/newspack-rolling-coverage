@@ -1067,11 +1067,11 @@ class Slack_Webhook_Controller {
 
 		Slack_Monitor::log( 'info', 'Trigger reaction received', $context );
 
-		$entry_id = Entry_Ingestion_Service::find_entry_id( $ts, $term_id );
+		$entry_id = Entry_Ingestion_Service::find_entry_id( $ts, $term_id, true );
 
 		if ( $entry_id > 0 ) {
 			if ( 'publish' === $status ) {
-				$this->publish_draft_entry( $entry_id, $term_id, $channel_id, $ts );
+				$this->publish_draft_entry( $entry_id, $channel_id, $ts );
 			}
 
 			return $ok;
@@ -1104,7 +1104,7 @@ class Slack_Webhook_Controller {
 			unset( $message['thread_ts'] );
 		}
 
-		self::process_ingest_payload(
+		$result = self::process_ingest_payload(
 			[
 				'event'        => $message,
 				'term_id'      => $term_id,
@@ -1115,6 +1115,22 @@ class Slack_Webhook_Controller {
 				'started'      => $started,
 			]
 		);
+
+		// The draft emoji's entry may still be being saved by another
+		// request, or have been saved since the lookup above. The publish
+		// emoji must not be lost either way: Slack sends the reaction again
+		// in the first case, and the draft is published now in the second.
+		if ( 'publish' === $status && Entry_Ingestion_Service::SKIP_IN_PROGRESS === $result ) {
+			return new \WP_REST_Response( [ 'ok' => false ], 503 );
+		}
+
+		if ( 'publish' === $status && 0 === $result ) {
+			$entry_id = Entry_Ingestion_Service::find_entry_id( $ts, $term_id );
+
+			if ( $entry_id > 0 ) {
+				$this->publish_draft_entry( $entry_id, $channel_id, $ts );
+			}
+		}
 
 		return $ok;
 	}
@@ -1152,19 +1168,35 @@ class Slack_Webhook_Controller {
 	 * the editor.
 	 *
 	 * @param int    $entry_id   Entry post ID.
-	 * @param int    $term_id    Coverage term ID.
 	 * @param string $channel_id Slack channel ID.
 	 * @param string $ts         Message timestamp.
 	 * @return void
 	 */
-	private function publish_draft_entry( int $entry_id, int $term_id, string $channel_id, string $ts ): void {
-		if ( 'draft' !== get_post_status( $entry_id ) ) {
+	private function publish_draft_entry( int $entry_id, string $channel_id, string $ts ): void {
+		global $wpdb;
+
+		$post = get_post( $entry_id );
+
+		if ( ! $post || 'draft' !== $post->post_status ) {
 			return;
 		}
 
-		if ( Archive_Mode::is_coverage_archived( $term_id ) ) {
-			Slack_Monitor::log( 'info', 'Draft not published (coverage archived)', [ 'post_id' => $entry_id ] );
+		// An archived entry, or one in a coverage that has ended, stays as it is.
+		if ( Archive_Mode::is_entry_locked( $entry_id ) ) {
+			Slack_Monitor::log( 'info', 'Draft not published (archived)', [ 'post_id' => $entry_id ] );
 			return;
+		}
+
+		// A draft has no slug yet. Core gives a post one when it is saved as
+		// published, but wp_publish_post() changes only the status, and the
+		// entry's share and notification links need the slug.
+		if ( '' === $post->post_name ) {
+			$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->posts,
+				[ 'post_name' => wp_unique_post_slug( sanitize_title( $post->post_title, (string) $entry_id ), $entry_id, 'publish', $post->post_type, $post->post_parent ) ],
+				[ 'ID' => $entry_id ]
+			);
+			clean_post_cache( $entry_id );
 		}
 
 		wp_publish_post( $entry_id );
@@ -1769,9 +1801,10 @@ class Slack_Webhook_Controller {
 	 * content processing, image import, and DB writes.
 	 *
 	 * @param array $payload Pre-validated payload with event + resolved IDs.
-	 * @return void
+	 * @return int|\WP_Error What Entry_Ingestion_Service::ingest() returned: the entry ID, 0 or
+	 *                       a skip code when no entry was saved, or an error.
 	 */
-	protected static function process_ingest_payload( array $payload ): void {
+	protected static function process_ingest_payload( array $payload ): int|\WP_Error {
 		$started      = (float) ( $payload['started'] ?? microtime( true ) );
 		$event        = $payload['event'] ?? [];
 		$term_id      = (int) ( $payload['term_id'] ?? 0 );
@@ -1783,7 +1816,7 @@ class Slack_Webhook_Controller {
 		if ( $term_id <= 0 || '' === $channel_id || '' === $ts || '' === $user_id ) {
 			Slack_Monitor::log( 'warning', 'Ingestion: invalid payload' );
 			error_log( 'Slack ingestion: invalid payload, skipping.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			return;
+			return 0;
 		}
 
 		$text      = (string) ( $event['text'] ?? '' );
@@ -1888,7 +1921,7 @@ class Slack_Webhook_Controller {
 				Slack_Monitor::log( 'info', 'Ingestion: entry not created (duplicate, empty content, or bot user unavailable)', [ 'ts' => $ts ] );
 				error_log( 'Slack ingestion: entry not created for ts ' . $ts . ' (skipped by ingest service: duplicate, empty content, or bot user unavailable). Check preceding log entries for the reason.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			}
-			return;
+			return $post_id;
 		}
 
 		// 7. Adapter-specific side effects: image attachment, last_sync_ts
@@ -1909,6 +1942,8 @@ class Slack_Webhook_Controller {
 				'author'  => $author['matched_by'],
 			] 
 		);
+
+		return (int) $post_id;
 	}
 
 	/**

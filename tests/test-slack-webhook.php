@@ -6,6 +6,7 @@
  * @package Newspack_Rolling_Coverage
  */
 
+use Newspack_Rolling_Coverage\Archive_Mode;
 use Newspack_Rolling_Coverage\Entry_Ingestion_Service;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Slack;
@@ -129,6 +130,14 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	private $posted_messages = [];
 
 	/**
+	 * Runs when a reacted message is read, to stand in for what another
+	 * request does meanwhile.
+	 *
+	 * @var callable|null
+	 */
+	private $during_message_read = null;
+
+	/**
 	 * Answer every outbound HTTP request as the Slack API would, and every
 	 * file download with a PNG.
 	 */
@@ -144,6 +153,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->reaction_requests        = [];
 		$this->reaction_failure         = '';
 		$this->posted_messages          = [];
+		$this->during_message_read      = null;
 		$this->file_response            = [
 			'type' => 'image/png',
 			'body' => base64_decode( self::PNG ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Test fixture.
@@ -256,6 +266,10 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 						'error' => $this->history_failure,
 					]
 				);
+			}
+
+			if ( null !== $this->during_message_read ) {
+				( $this->during_message_read )();
 			}
 
 			$ts = (string) ( $query['ts'] ?? '' );
@@ -2417,5 +2431,86 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		$this->assertSame( 400, $response->get_status(), 'The request should be refused.' );
 		$this->assertSame( '~~', Slack_Config::get_ignore_prefix(), 'The prefix should be unchanged.' );
 		$this->assertSame( 'memo', Slack_Config::get_draft_reaction(), 'The draft emoji should be unchanged.' );
+	}
+
+	/**
+	 * A draft published with the publish emoji gets a slug, as one saved as
+	 * published does, so its share and push notification links work.
+	 */
+	public function test_draft_published_by_the_publish_emoji_gets_a_slug() {
+		$coverage_id = $this->link_emoji_trigger_channel();
+		self::react_to_message( [ 'reaction' => 'memo' ] );
+		$entry_id = self::get_coverage_entries( $coverage_id )[0]->ID;
+
+		self::react_to_message();
+
+		$this->assertSame( (string) $entry_id, get_post( $entry_id )->post_name, 'An untitled entry should be named after its ID, as core names it.' );
+	}
+
+	/**
+	 * The publish emoji that arrives while the draft emoji's entry is still
+	 * being saved asks Slack to send it again, so it publishes that draft
+	 * once it exists instead of being lost.
+	 */
+	public function test_publish_emoji_waits_for_a_draft_still_being_saved() {
+		$coverage_id = $this->link_emoji_trigger_channel();
+		add_option( Entry_Ingestion_Service::MUTEX_PREFIX . md5( 'slack:' . self::MESSAGE_TS ), time(), '', false );
+
+		$response = self::react_to_message();
+
+		$this->assertSame( 503, $response->get_status(), 'Slack should send the reaction again.' );
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ), 'No second entry should be started.' );
+	}
+
+	/**
+	 * The publish emoji publishes a draft another request saved while this
+	 * one read the message.
+	 */
+	public function test_publish_emoji_publishes_a_draft_saved_meanwhile() {
+		$coverage_id               = $this->link_emoji_trigger_channel();
+		$this->during_message_read = static function () use ( $coverage_id ) {
+			self::create_entry(
+				$coverage_id,
+				[
+					'post_status' => 'draft',
+					'meta_input'  => [ Post_Type::META_SOURCE_REF => self::MESSAGE_TS ],
+				]
+			);
+		};
+
+		self::react_to_message();
+
+		$this->assertSame( [ 'publish' ], wp_list_pluck( self::get_coverage_entries( $coverage_id ), 'post_status' ) );
+	}
+
+	/**
+	 * An entry an editor trashed stays gone: a later reaction on its
+	 * message, as when a colleague adds the same emoji to agree, doesn't
+	 * bring it back.
+	 */
+	public function test_reaction_does_not_bring_back_a_trashed_entry() {
+		$coverage_id = $this->link_emoji_trigger_channel();
+		self::react_to_message();
+		$entry_id = self::get_coverage_entries( $coverage_id )[0]->ID;
+		wp_trash_post( $entry_id );
+
+		self::react_to_message( [ 'user' => 'U0SECONDEDITOR' ] );
+
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ), 'No entry should be created.' );
+		$this->assertSame( 'trash', get_post_status( $entry_id ), 'The entry should stay in the trash.' );
+	}
+
+	/**
+	 * A draft archived on its own is not published from Slack.
+	 */
+	public function test_publish_emoji_leaves_an_archived_draft_alone() {
+		$coverage_id = $this->link_emoji_trigger_channel();
+		self::react_to_message( [ 'reaction' => 'memo' ] );
+		$entry_id = self::get_coverage_entries( $coverage_id )[0]->ID;
+		update_post_meta( $entry_id, Archive_Mode::ENTRY_ARCHIVED_META_KEY, time() );
+
+		self::react_to_message();
+
+		$this->assertSame( 'draft', get_post_status( $entry_id ) );
 	}
 }

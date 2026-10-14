@@ -124,7 +124,7 @@ function IngestionSettingsTab( {
 						value={ ignorePrefix }
 						onChange={ setIgnorePrefix }
 						help={ __(
-							'Messages starting with this prefix are ignored during ingestion, and so are the replies in their threads.',
+							'In Auto-publish and Draft channels, messages starting with this prefix are ignored during ingestion, and so are the replies in their threads. In Emoji trigger channels, a reaction adds the message anyway.',
 							'newspack-rolling-coverage'
 						) }
 					/>
