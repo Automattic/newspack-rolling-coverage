@@ -933,7 +933,7 @@ class Slack_Webhook_Controller {
 					'channel_id'   => $channel_id,
 					'ts'           => $ts,
 					'user_id'      => $user_id,
-					'auto_publish' => Slack_Config::is_autopublish_enabled( $channel_id ),
+					'auto_publish' => Slack_Config::PUBLISH_MODE_PUBLISH === Slack_Config::resolve_publish_mode( $channel_settings ),
 					'started'      => $started,
 				]
 			);
