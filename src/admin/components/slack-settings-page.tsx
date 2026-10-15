@@ -54,6 +54,10 @@ function SlackSettingsPage() {
 		setSigningSecret,
 		ignorePrefix,
 		setIgnorePrefix,
+		publishReaction,
+		setPublishReaction,
+		draftReaction,
+		setDraftReaction,
 		isSettingsDirty,
 		channels,
 		hasLoadedChannels,
@@ -67,7 +71,7 @@ function SlackSettingsPage() {
 		editUserUrl,
 		isConfigured,
 		handleUnlinkChannel,
-		handleAutopublishChange,
+		handlePublishModeChange,
 		handleVerify,
 		handleDisconnect,
 		handleSaveSettings,
@@ -188,7 +192,7 @@ function SlackSettingsPage() {
 						channels={ channels }
 						hasLoadedChannels={ hasLoadedChannels }
 						onUnlink={ handleUnlinkChannel }
-						onAutopublishChange={ handleAutopublishChange }
+						onPublishModeChange={ handlePublishModeChange }
 						onHeaderChange={ setChannelsHeader }
 					/>
 				);
@@ -214,6 +218,10 @@ function SlackSettingsPage() {
 					<IngestionSettingsTab
 						ignorePrefix={ ignorePrefix }
 						setIgnorePrefix={ setIgnorePrefix }
+						publishReaction={ publishReaction }
+						setPublishReaction={ setPublishReaction }
+						draftReaction={ draftReaction }
+						setDraftReaction={ setDraftReaction }
 						workspaceInfo={ workspaceInfo }
 						editUserUrl={ editUserUrl }
 					/>
@@ -258,6 +266,24 @@ function SlackSettingsPage() {
 								</ExternalLink>
 							),
 							code: <code />,
+						}
+					) }
+				</Notice>
+			) }
+			{ workspaceInfo?.can_use_reactions === false && (
+				<Notice status="warning" isDismissible={ false }>
+					{ createInterpolateElement(
+						/* translators: <a> wraps the link to the site's Slack apps. */
+						__(
+							"The bot can't react to messages, and channels set to Emoji trigger add no entries, because the Slack app is missing permissions. Open Connection Status and copy the manifest, then at <a>api.slack.com/apps</a> open the app, paste it under App Manifest, and reinstall the app to your workspace.",
+							'newspack-rolling-coverage'
+						),
+						{
+							a: (
+								<ExternalLink href="https://api.slack.com/apps">
+									{ null }
+								</ExternalLink>
+							),
 						}
 					) }
 				</Notice>

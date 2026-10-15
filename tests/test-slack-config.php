@@ -275,4 +275,113 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 		$this->assertNull( Slack_Config::find_linked_term_id( 'C0DELETED' ), "The deleted coverage's channel should be unlinked." );
 		$this->assertSame( $other_coverage_id, Slack_Config::find_linked_term_id( 'C0OTHER' ), 'The other link should be kept.' );
 	}
+
+	/**
+	 * Channel settings and the publish mode they mean. Channels linked
+	 * before publish modes stored only whether they auto-publish.
+	 *
+	 * @return array[]
+	 */
+	public function publish_mode_provider() {
+		return [
+			'linked before publish modes, auto-publish on' => [ [ 'autopublish' => true ], 'publish' ],
+			'linked before publish modes, auto-publish off' => [ [ 'autopublish' => false ], 'draft' ],
+			'no setting at all'                            => [ [], 'draft' ],
+			'publish mode stored'                          => [
+				[
+					'publish_mode' => 'reaction',
+					'autopublish'  => true,
+				],
+				'reaction',
+			],
+			'unknown publish mode stored'                  => [
+				[
+					'publish_mode' => 'sometimes',
+					'autopublish'  => true,
+				],
+				'publish',
+			],
+		];
+	}
+
+	/**
+	 * A channel's publish mode is the stored one, or what its legacy
+	 * auto-publish flag meant.
+	 *
+	 * @dataProvider publish_mode_provider
+	 *
+	 * @param array  $channel_settings The channel's entry in the channel map.
+	 * @param string $expected         Publish mode it should resolve to.
+	 */
+	public function test_resolves_a_channels_publish_mode( array $channel_settings, $expected ) {
+		$this->assertSame( $expected, Slack_Config::resolve_publish_mode( $channel_settings ) );
+	}
+
+	/**
+	 * The trigger emoji default to mega and memo.
+	 */
+	public function test_trigger_emoji_default_to_mega_and_memo() {
+		$this->assertSame( 'mega', Slack_Config::get_publish_reaction() );
+		$this->assertSame( 'memo', Slack_Config::get_draft_reaction() );
+	}
+
+	/**
+	 * Emoji names are stored as Slack sends them in a reaction: lowercase,
+	 * without the colons people type around them.
+	 */
+	public function test_trigger_emoji_are_stored_without_colons_in_lowercase() {
+		$this->assertTrue( Slack_Config::set_reactions( ' :Rocket: ', 'pencil2' ) );
+		$this->assertSame( 'rocket', Slack_Config::get_publish_reaction() );
+		$this->assertSame( 'pencil2', Slack_Config::get_draft_reaction() );
+	}
+
+	/**
+	 * Pairs of emoji names that can't be stored.
+	 *
+	 * @return array[]
+	 */
+	public function invalid_reactions_provider() {
+		return [
+			'the same emoji twice'           => [ 'mega', 'mega' ],
+			'the same emoji once normalized' => [ ':mega:', 'MEGA' ],
+			'empty publish emoji'            => [ '', 'memo' ],
+			'empty draft emoji'              => [ 'mega', '::' ],
+			'name with a space'              => [ 'big news', 'memo' ],
+			'name with an inner colon'       => [ 'mega', 'memo:draft' ],
+		];
+	}
+
+	/**
+	 * An invalid pair stores nothing.
+	 *
+	 * @dataProvider invalid_reactions_provider
+	 *
+	 * @param string $publish_reaction Publish emoji name.
+	 * @param string $draft_reaction   Draft emoji name.
+	 */
+	public function test_refuses_unusable_trigger_emoji( $publish_reaction, $draft_reaction ) {
+		$this->assertFalse( Slack_Config::are_valid_reactions( $publish_reaction, $draft_reaction ), 'The pair should be invalid.' );
+		$this->assertFalse( Slack_Config::set_reactions( $publish_reaction, $draft_reaction ), 'The pair should be refused.' );
+		$this->assertSame( 'mega', Slack_Config::get_publish_reaction(), 'The publish emoji should be unchanged.' );
+		$this->assertSame( 'memo', Slack_Config::get_draft_reaction(), 'The draft emoji should be unchanged.' );
+	}
+
+	/**
+	 * A stored emoji name that is no longer usable reads as the default.
+	 */
+	public function test_unusable_stored_trigger_emoji_falls_back_to_the_default() {
+		Slack_Config::update_settings( [ 'publish_reaction' => 'not valid!' ] );
+
+		$this->assertSame( 'mega', Slack_Config::get_publish_reaction() );
+	}
+
+	/**
+	 * Saving the prefix that is already stored succeeds, so the settings can
+	 * be saved when only the emoji changed.
+	 */
+	public function test_saving_the_stored_ignore_prefix_again_succeeds() {
+		Slack_Config::set_ignore_prefix( '##' );
+
+		$this->assertTrue( Slack_Config::set_ignore_prefix( '##' ) );
+	}
 }

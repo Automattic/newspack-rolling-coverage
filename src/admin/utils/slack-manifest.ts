@@ -55,6 +55,8 @@ function buildSlackManifest( restUrl: string ): string {
 						'groups:read',
 						'chat:write',
 						'files:read',
+						'reactions:read',
+						'reactions:write',
 						'users:read',
 						'commands',
 					],
@@ -66,6 +68,7 @@ function buildSlackManifest( restUrl: string ): string {
 					bot_events: [
 						'message.channels',
 						'message.groups',
+						'reaction_added',
 						'member_joined_channel',
 					],
 				},
