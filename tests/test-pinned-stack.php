@@ -18,6 +18,11 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 
 	const STACKED = '{"layout":{"columnStart":1,"columnSpan":1,"rowSpan":1}}';
 
+	/**
+	 * A Load More block, as the editor saves it.
+	 */
+	const LOAD_MORE = '<!-- wp:newspack-rolling-coverage/load-more --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"tagName":"button"} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Load more</button></div><!-- /wp:button --></div><!-- /wp:buttons --><!-- /wp:newspack-rolling-coverage/load-more -->';
+
 	const ENTRY_STACKED = '{"layout":{"columnStart":1,"columnSpan":1}}';
 
 	const ENTRY_PLACEMENT = '"layout":{"columnStart":2,"columnSpan":2},"@tablet":' . self::ENTRY_STACKED . ',"@mobile":' . self::ENTRY_STACKED . ',';
@@ -344,6 +349,35 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 
 		preg_match( '#<div class="([^"]*newspack-rolling-coverage-load-more[^"]*)"#', $html, $load_more );
 
+		$this->assertMatchesRegularExpression( '/wp-container-content-[0-9a-f]+/', $load_more[1] ?? '' );
+		$this->assertStringContainsString( Rolling_Coverage_Block::BESIDE_PINNED_CLASS, $load_more[1] ?? '' );
+	}
+
+	/**
+	 * A layout's Load More block takes the entries' placement too, as the
+	 * feed's own button does.
+	 */
+	public function test_load_more_block_sits_in_the_entries_columns() {
+		$this->register_load_more_block();
+
+		$coverage_id = self::create_coverage();
+		self::create_entries( $coverage_id, 3 );
+
+		$closing = '</div><!-- /wp:group -->';
+		$feed    = self::feed_markup();
+		$feed    = substr_replace( $feed, self::LOAD_MORE . $closing, strrpos( $feed, $closing ), strlen( $closing ) );
+		$html    = self::render(
+			$coverage_id,
+			[
+				'entriesPerPage' => 1,
+				'olderEntries'   => 'button',
+			],
+			$feed
+		);
+
+		preg_match( '#<div class="([^"]*newspack-rolling-coverage-load-more[^"]*)"#', $html, $load_more );
+
+		$this->assertStringContainsString( 'wp-block-newspack-rolling-coverage-load-more', $load_more[1] ?? '' );
 		$this->assertMatchesRegularExpression( '/wp-container-content-[0-9a-f]+/', $load_more[1] ?? '' );
 		$this->assertStringContainsString( Rolling_Coverage_Block::BESIDE_PINNED_CLASS, $load_more[1] ?? '' );
 	}

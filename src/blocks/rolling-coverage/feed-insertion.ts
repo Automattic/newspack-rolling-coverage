@@ -11,6 +11,7 @@ import {
 	BLOCK_NAME,
 	CHECK_UPDATES_BLOCK_NAME,
 	FOLLOW_BLOCK_NAME,
+	LOAD_MORE_BLOCK_NAME,
 	UPDATE_TIMER_BLOCK_NAME,
 } from './layout';
 import {
@@ -80,6 +81,7 @@ function canInsertIntoFeed(
 		! [
 			FOLLOW_BLOCK_NAME,
 			CHECK_UPDATES_BLOCK_NAME,
+			LOAD_MORE_BLOCK_NAME,
 			UPDATE_TIMER_BLOCK_NAME,
 		].includes( blockType.name ) ||
 		! rootClientId

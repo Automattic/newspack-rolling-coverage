@@ -1452,6 +1452,10 @@ class Rolling_Coverage_Block {
 
 		$layout_parts      = self::layout_parts( $block );
 		$checks_on_request = self::checks_on_request( $attributes, $layout_parts, $status );
+		$holds_load_more   = self::holds_block(
+			array_merge( $layout_parts['header'], $layout_parts['footer'] ),
+			static fn( array $block ): bool => Load_More_Block::BLOCK_NAME === ( $block['blockName'] ?? '' )
+		);
 		$wrapper_data = [
 			'data-coverage-id'      => $coverage_id,
 			'data-poll-interval'    => $poll_interval,
@@ -1547,14 +1551,14 @@ class Rolling_Coverage_Block {
 				'%5$s%3$s%8$s%4$s<div class="%1$s-entries">%2$s</div>%9$s%7$s%6$s',
 				self::MARKUP_PREFIX,
 				$entries_html,
-				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text ),
+				self::render_coverage_blocks( $layout_parts['header'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text, 'button' === $older_entries, $template ),
 				$is_capped ? '' : self::render_new_entries_control( (bool) $shared_entry, $shared_entry ? self::count_newer_entries( $coverage_id, $shared_entry ) : 0 ),
 				Taxonomy::STATUS_ARCHIVED === $status ? self::render_archived_notice( $attributes, $coverage_id ) : '',
 				'scroll' === $older_entries ? sprintf( '<div class="%s-sentinel" aria-hidden="true"></div>', self::MARKUP_PREFIX ) : '',
-				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text ),
+				self::render_coverage_blocks( $layout_parts['footer'], $coverage_id, $status, $all_updates_url, $feed_layout, $checks_on_request, $all_updates_link_text, 'button' === $older_entries, $template ),
 				// A capped feed can sit on every page, where announcing each new entry would be noise.
 				$is_capped ? '' : sprintf( '<div class="%s-status" role="status" aria-live="polite"></div>', self::MARKUP_PREFIX ),
-				'button' === $older_entries ? self::with_load_more_inset( self::place_beside_entries( self::render_load_more_button(), $template, $feed_layout ), $template ) : ''
+				'button' === $older_entries && ! $holds_load_more ? self::with_load_more_inset( self::place_beside_entries( self::render_load_more_button(), $template, $feed_layout ), $template ) : ''
 			);
 
 			return sprintf(
@@ -2273,11 +2277,10 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Places an ad between entries, or the Load more button after them, in a
-	 * grid Feed as an unpinned entry is placed, so it fills the entries'
-	 * columns rather than one free cell or the full row beside the pinned
-	 * entries. Outside a grid Feed whose groups carry placements, the HTML is
-	 * left as it is.
+	 * Places an ad between entries, or a Load more button, in a grid Feed as
+	 * an unpinned entry is placed, so it fills the entries' columns rather
+	 * than one free cell or the full row beside the pinned entries. Outside a
+	 * grid Feed whose groups carry placements, the HTML is left as it is.
 	 *
 	 * @param string  $html        The ad's or the button's HTML.
 	 * @param array[] $template    Parsed template blocks.
@@ -2301,32 +2304,63 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * How far in from the entries' columns the Load more button starts, so it
-	 * lines up with the entries' text whatever the layout sets: the width of
-	 * the first column of the entry group's first Columns block, plus the
-	 * space between its columns. Empty in a layout without a Pinned group, or
-	 * where that column sets no width.
+	 * lines up with the entries' text whatever the layout sets: past the
+	 * first column of the entry group's first Columns block, the space
+	 * between its columns, and the second column's own inline-start border
+	 * and padding. Columns that all set percentage widths overflow by their
+	 * gaps and shrink in proportion, so the first one ends short of its width.
+	 *
+	 * Null without a regular entry, a Columns block or a first column width,
+	 * or for a value that isn't a plain length.
 	 *
 	 * @param array[] $template Parsed template blocks.
-	 * @return string A CSS length, or an empty string.
+	 * @return array{inset: string, stacks: bool}|null The inset as a CSS length, and whether the row stacks on phones.
 	 */
-	private static function load_more_inset( array $template ): string {
-		if ( ! self::pinned_stack( $template ) ) {
-			return '';
-		}
-
-		$entry = current( array_filter( $template, static fn( $block ) => is_array( $block ) && self::is_regular_entry( $block ) ) );
-		$row   = $entry ? self::first_block_named( $entry['innerBlocks'] ?? [], 'core/columns' ) : null;
-		$width = (string) ( $row['innerBlocks'][0]['attrs']['width'] ?? '' );
+	private static function load_more_inset( array $template ): ?array {
+		$entry   = current( array_filter( $template, static fn( $block ) => is_array( $block ) && self::is_regular_entry( $block ) ) );
+		$row     = $entry ? self::first_block_named( $entry['innerBlocks'] ?? [], 'core/columns' ) : null;
+		$columns = array_values( array_filter( (array) ( $row['innerBlocks'] ?? [] ), 'is_array' ) );
+		$width   = (string) ( $columns[0]['attrs']['width'] ?? '' );
 
 		if ( '' === $width ) {
-			return '';
+			return null;
 		}
 
-		$gap   = $row['attrs']['style']['spacing']['blockGap'] ?? null;
-		$gap   = (string) ( is_array( $gap ) ? ( $gap['left'] ?? '' ) : $gap );
-		$inset = 'calc(' . $width . ' + ' . ( '' !== $gap ? self::spacing_css_value( $gap ) : 'var(--wp--style--block-gap, 2em)' ) . ')';
+		$gap    = $row['attrs']['style']['spacing']['blockGap'] ?? null;
+		$gap    = (string) ( is_array( $gap ) ? ( $gap['left'] ?? '' ) : $gap );
+		$gap    = '' !== $gap ? self::gap_css_value( $gap ) : 'var(--wp--style--block-gap, 2em)';
+		$parts  = [ $width, $gap ];
+		$shrink = '';
+		$widths = array_map( static fn( array $column ): string => (string) ( $column['attrs']['width'] ?? '' ), $columns );
 
-		return preg_match( '/^[\w\s.%()+*\/,-]+$/', $inset ) ? $inset : '';
+		if ( count( $widths ) > 1 && count( preg_grep( '/^\d+(\.\d+)?%$/', $widths ) ) === count( $widths ) ) {
+			$total = array_sum( array_map( 'floatval', $widths ) );
+
+			if ( $total > 0 ) {
+				$shrink = ' - max(0px, ' . $total . '% - 100% + ' . ( count( $widths ) - 1 ) . ' * ' . $gap . ') * ' . round( (float) $width / $total, 4 );
+			}
+		}
+
+		$text_style = (array) ( $columns[1]['attrs']['style'] ?? [] );
+		$padding    = (string) ( $text_style['spacing']['padding']['left'] ?? '' );
+		$border     = (string) ( $text_style['border']['left']['width'] ?? $text_style['border']['width'] ?? '' );
+
+		foreach ( [ $border, $padding ] as $length ) {
+			if ( '' !== $length ) {
+				$parts[] = self::gap_css_value( $length );
+			}
+		}
+
+		$inset = 'calc(' . implode( ' + ', $parts ) . $shrink . ')';
+
+		if ( ! preg_match( '/^[\w\s.%()+*\/,-]+$/', $inset ) || false !== strpos( $inset, '/*' ) ) {
+			return null;
+		}
+
+		return [
+			'inset'  => $inset,
+			'stacks' => false !== ( $row['attrs']['isStackedOnMobile'] ?? true ),
+		];
 	}
 
 	/**
@@ -2357,8 +2391,9 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The Load more button starting where the entries' text does on desktop
-	 * (see load_more_inset() and style.scss).
+	 * The Load more button starting where the entries' text does (see
+	 * load_more_inset() and style.scss): on phones too where the entry row
+	 * stays side by side.
 	 *
 	 * @param string  $html     The button's HTML.
 	 * @param array[] $template Parsed template blocks.
@@ -2368,14 +2403,34 @@ class Rolling_Coverage_Block {
 		$inset     = self::load_more_inset( $template );
 		$processor = new WP_HTML_Tag_Processor( $html );
 
-		if ( '' === $inset || ! $processor->next_tag() ) {
+		if ( ! $inset || ! $processor->next_tag() ) {
 			return $html;
 		}
 
+		$declarations = [ '--' . self::MARKUP_PREFIX . '-load-more-inset:' . $inset['inset'] ];
+
+		if ( ! $inset['stacks'] ) {
+			$declarations[] = '--' . self::MARKUP_PREFIX . '-load-more-inset-narrow:' . $inset['inset'];
+		}
+
 		$style = trim( (string) $processor->get_attribute( 'style' ), " \t\n\r;" );
-		$processor->set_attribute( 'style', ( '' !== $style ? $style . ';' : '' ) . '--' . self::MARKUP_PREFIX . '-load-more-inset:' . $inset );
+		$processor->set_attribute( 'style', ( '' !== $style ? $style . ';' : '' ) . implode( ';', $declarations ) );
 
 		return $processor->get_updated_html();
+	}
+
+	/**
+	 * Whether a Load More block's button sits at the inline start, where the
+	 * entries' text starts: its Buttons block justifies its content left, as
+	 * it does unless set otherwise.
+	 *
+	 * @param array $block Parsed Load More block.
+	 * @return bool
+	 */
+	private static function starts_at_inline_start( array $block ): bool {
+		$buttons = self::first_block_named( $block['innerBlocks'] ?? [], 'core/buttons' );
+
+		return 'left' === ( $buttons['attrs']['layout']['justifyContent'] ?? 'left' );
 	}
 
 	/**
@@ -2883,13 +2938,16 @@ class Rolling_Coverage_Block {
 	 * Renders coverage-level blocks once, with the coverage in their context
 	 * so the Follow Coverage block follows it. A Follow Coverage block that
 	 * can't render, e.g. on an archived coverage, leaves nothing behind, as
-	 * does a Check for Updates block in a feed that checks on its own, and a
-	 * group left empty once they and the all-updates paragraph drop
-	 * out. The blocks render outside the Feed group, so they're
-	 * handed its layout, as core hands a parent's layout to its inner blocks:
-	 * core then treats a grid Feed with a column count and no minimum column
-	 * width as fixed-column, and adds no container query resetting the span
-	 * of a block spanning it.
+	 * does a Check for Updates block in a feed that checks on its own, a
+	 * Load More block in a feed that doesn't load older entries with a
+	 * button, and a group left empty once they and the all-updates paragraph
+	 * drop out. A top-level Load More block takes the entries' placement, and
+	 * their text's inset unless its button is centered or set at the end, as
+	 * the feed's own button does. The blocks render outside the Feed group,
+	 * so they're handed its layout, as core hands a parent's layout to its
+	 * inner blocks: core then treats a grid Feed with a column count and no
+	 * minimum column width as fixed-column, and adds no container query
+	 * resetting the span of a block spanning it.
 	 *
 	 * @param array[] $blocks          Parsed coverage-level blocks.
 	 * @param int     $coverage_id     Coverage term id.
@@ -2898,9 +2956,11 @@ class Rolling_Coverage_Block {
 	 * @param array   $parent_layout   The Feed group's layout.
 	 * @param bool    $checks_on_request Whether the feed checks for new entries only when asked.
 	 * @param string  $all_updates_link_text The block's own text for the all-updates link; empty keeps the layout's.
+	 * @param bool    $loads_on_request Whether the feed loads older entries when a reader presses a button.
+	 * @param array[] $template        Parsed template blocks, for the Load More block's placement and inset.
 	 * @return string Rendered HTML, or an empty string.
 	 */
-	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '', array $parent_layout = [], bool $checks_on_request = false, string $all_updates_link_text = '' ): string {
+	private static function render_coverage_blocks( array $blocks, int $coverage_id, string $status, string $all_updates_url = '', array $parent_layout = [], bool $checks_on_request = false, string $all_updates_link_text = '', bool $loads_on_request = false, array $template = [] ): string {
 		if ( ! $blocks ) {
 			return '';
 		}
@@ -2915,11 +2975,12 @@ class Rolling_Coverage_Block {
 
 		$blocks = self::map_template_blocks(
 			$blocks,
-			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow, $checks_on_request, $hide_timer ) {
+			static function ( array $block, array $original ) use ( $all_updates_url, $can_follow, $checks_on_request, $hide_timer, $loads_on_request ) {
 				if (
 					( '' === $all_updates_url && Entry_Bindings::is_all_updates_paragraph( $block ) ) ||
 					( ! $can_follow && Coverage_Follow_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
 					( ! $checks_on_request && Check_Updates_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
+					( ! $loads_on_request && Load_More_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
 					( $hide_timer && Update_Timer_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) ||
 					( 'core/group' === ( $block['blockName'] ?? '' ) && empty( $block['innerBlocks'] ) && ! empty( $original['innerBlocks'] ) )
 				) {
@@ -2950,7 +3011,17 @@ class Rolling_Coverage_Block {
 			return implode(
 				'',
 				array_map(
-					static fn( array $block ) => render_block( $parent_layout ? array_merge( $block, [ 'parentLayout' => $parent_layout ] ) : $block ),
+					static function ( array $block ) use ( $parent_layout, $template ): string {
+						$html = render_block( $parent_layout ? array_merge( $block, [ 'parentLayout' => $parent_layout ] ) : $block );
+
+						if ( Load_More_Block::BLOCK_NAME !== ( $block['blockName'] ?? '' ) || ! $template ) {
+							return $html;
+						}
+
+						$html = self::place_beside_entries( $html, $template, $parent_layout );
+
+						return self::starts_at_inline_start( $block ) ? self::with_load_more_inset( $html, $template ) : $html;
+					},
 					$blocks
 				)
 			);
@@ -3171,12 +3242,20 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The Bulletin layout's per-entry template: the blocks inside its Feed
-	 * group.
+	 * group, less its coverage-level blocks, such as Load More, which only
+	 * render once, around the entries. It serves a block whose layout leaves
+	 * the Feed empty; a block without a layout of its own gets the whole
+	 * Bulletin layout (Layout::inject_layout()).
 	 *
 	 * @return array[] Array of parsed-block-shaped arrays.
 	 */
 	private static function default_entry_template(): array {
-		return self::default_layout_blocks()[0]['innerBlocks'] ?? [];
+		return array_values(
+			array_filter(
+				self::default_layout_blocks()[0]['innerBlocks'] ?? [],
+				static fn( $block ) => is_array( $block ) && ! Entry_Bindings::is_coverage_item( $block )
+			)
+		);
 	}
 
 	/**
@@ -3197,6 +3276,7 @@ class Rolling_Coverage_Block {
 				'{{pinned}}'     => esc_html__( 'Pinned', 'newspack-rolling-coverage' ),
 				'{{full_story}}' => esc_html__( 'Full story', 'newspack-rolling-coverage' ),
 				'{{read_more}}'  => esc_html__( 'Read more', 'newspack-rolling-coverage' ),
+				'{{load_more}}'  => esc_html__( 'Load more', 'newspack-rolling-coverage' ),
 			]
 		);
 		$blocks = array_values(

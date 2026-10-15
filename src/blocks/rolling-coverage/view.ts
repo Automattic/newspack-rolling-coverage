@@ -570,7 +570,10 @@ function initBlock( root: HTMLElement ): void {
 	);
 	const loadMoreButton =
 		loadMoreControl?.querySelector< HTMLButtonElement >( 'button' ) ?? null;
-	const loadMoreLabel = loadMoreButton?.textContent ?? '';
+	// The label is the block's rich text, so keep its formatting to restore.
+	const loadMoreLabel = Array.from( loadMoreButton?.childNodes ?? [] ).map(
+		( node ) => node.cloneNode( true )
+	);
 	const newEntriesControl = ownElement(
 		root,
 		'.newspack-rolling-coverage-new-entries'
@@ -3112,7 +3115,9 @@ function initBlock( root: HTMLElement ): void {
 			// Unlike disabled, keeps focus on the button, for a retry.
 			loadMoreButton.setAttribute( 'aria-disabled', 'true' );
 		} else {
-			loadMoreButton.textContent = loadMoreLabel;
+			loadMoreButton.replaceChildren(
+				...loadMoreLabel.map( ( node ) => node.cloneNode( true ) )
+			);
 			loadMoreButton.removeAttribute( 'aria-busy' );
 			loadMoreButton.removeAttribute( 'aria-disabled' );
 		}
