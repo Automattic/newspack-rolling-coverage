@@ -25,7 +25,7 @@ The block holds a standard Buttons block with one button. Style the button, chan
 Each built-in layout sets these to suit it:
 
 - Stream centers the button.
-- Every other layout puts it on the left, where the entries' text starts: past the time in Rail, Clock and Split, past the avatar in Byline, and under the summaries in Margin. On phones, where Clock, Margin and Split stack their columns, it moves to the left edge; Rail and Byline keep their columns side by side, so the button stays in line with the text.
+- Every other layout puts it on the left, where the entries' text starts: past the time in Rail, Clock and Split, past the avatar in Byline, and in line with the entry text in Margin. On phones, where Clock, Margin and Split stack their columns, it moves to the left edge; Rail and Byline keep their columns side by side, so the button stays in line with the text.
 - Rail and Minute add space above the button, so it sits as far below the last entry as in the other layouts.
 
 A button centered or set to the right keeps that place rather than lining up with the entries' text.

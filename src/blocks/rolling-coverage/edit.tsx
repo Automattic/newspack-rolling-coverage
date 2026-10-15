@@ -102,7 +102,6 @@ import {
 	withoutFollowButtons,
 	withoutCheckUpdatesButtons,
 	withoutLoadMoreButtons,
-	blocksOfType,
 	blockIdsOfType,
 	holdsBlockType,
 	hiddenAuthorBlockIds,
@@ -1278,7 +1277,8 @@ export default function Edit( {
 	}, [ isSynced, syncedBlocks, allBlocks ] );
 	const loadMorePreview = useMemo(
 		() =>
-			! isLoadMoreHidden &&
+			olderEntries === 'button' &&
+			previewHasMore &&
 			! holdsLoadMore && (
 				<Disabled
 					className="newspack-rolling-coverage-load-more"
@@ -1295,7 +1295,7 @@ export default function Edit( {
 					</button>
 				</Disabled>
 			),
-		[ isLoadMoreHidden, holdsLoadMore, loadMorePlacement ]
+		[ olderEntries, previewHasMore, holdsLoadMore, loadMorePlacement ]
 	);
 	const previewPlacementFor = ( context: EntryContext ) => {
 		if ( context === leadPinContext ) {
@@ -1653,28 +1653,37 @@ export default function Edit( {
 	}, [ hiddenKey, setBlockEditingMode, unsetBlockEditingMode ] );
 
 	const loadMoreCss = useMemo( () => {
-		const declarations = Object.entries( {
-			...( previewPlacements.other?.gridColumn
-				? { 'grid-column': previewPlacements.other.gridColumn }
-				: {} ),
-			...loadMoreInsetProps,
-		} );
-
-		if ( isSynced || ! declarations.length ) {
+		if ( isSynced ) {
 			return '';
 		}
 
-		const css = declarations
-			.map( ( [ property, value ] ) => `${ property }: ${ value };` )
-			.join( ' ' );
+		const parts = layoutParts( allBlocks );
+		const gridColumn = /^[\w\s/-]+$/.test(
+			previewPlacements.other?.gridColumn ?? ''
+		)
+			? previewPlacements.other?.gridColumn
+			: undefined;
 
-		return blocksOfType( allBlocks, LOAD_MORE_BLOCK_NAME )
-			.filter( startsAtInlineStart )
+		return [ ...parts.header, ...parts.footer ]
+			.filter( ( block ) => block.name === LOAD_MORE_BLOCK_NAME )
 			.map( ( block ) => {
+				const declarations = Object.entries( {
+					...( gridColumn ? { 'grid-column': gridColumn } : {} ),
+					...( startsAtInlineStart( block )
+						? loadMoreInsetProps
+						: {} ),
+				} )
+					.map(
+						( [ property, value ] ) => `${ property }: ${ value };`
+					)
+					.join( ' ' );
 				const selector = `.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ block.clientId }"]`;
 
-				return `${ selector } { ${ css } margin-inline-start: var(--newspack-rolling-coverage-load-more-inset-narrow, 0); } @media (min-width: 782px) { ${ selector } { margin-inline-start: var(--newspack-rolling-coverage-load-more-inset, 0); } }`;
+				return declarations
+					? `${ selector } { ${ declarations } margin-inline-start: var(--newspack-rolling-coverage-load-more-inset-narrow, 0); } @media (min-width: 782px) { ${ selector } { margin-inline-start: var(--newspack-rolling-coverage-load-more-inset, 0); } }`
+					: '';
 			} )
+			.filter( Boolean )
 			.join( '\n' );
 	}, [ isSynced, allBlocks, previewPlacements.other, loadMoreInsetProps ] );
 	const layoutCss = useMemo(

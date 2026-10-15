@@ -3442,29 +3442,6 @@ function withoutLoadMoreButtons<
 }
 
 /**
- * The blocks of a type among the blocks, at any depth.
- *
- * @param {Object[]} blocks The blocks.
- * @param {string}   name   Block type name.
- * @return {Object[]} The blocks.
- */
-function blocksOfType< T extends { name: string; [ key: string ]: unknown } >(
-	blocks: T[],
-	name: string
-): T[] {
-	return blocks.flatMap( ( block ) =>
-		block.name === name
-			? [ block ]
-			: blocksOfType(
-					Array.isArray( block.innerBlocks )
-						? ( block.innerBlocks as T[] )
-						: [],
-					name
-				)
-	);
-}
-
-/**
  * The client IDs of the blocks of a type among the blocks, at any depth.
  *
  * @param {Object[]} blocks The blocks.
@@ -4344,7 +4321,9 @@ function loadMoreInset(
 		);
 
 		if ( total > 0 ) {
-			shrink = ` - max(0px, ${ total }% - 100% + ${ gapCss }) * ${
+			shrink = ` - max(0px, ${ total }% - 100% + ${
+				widths.length - 1
+			} * ${ gapCss }) * ${
 				Math.round( ( parseFloat( width ) / total ) * 10000 ) / 10000
 			}`;
 		}
@@ -4367,8 +4346,15 @@ function loadMoreInset(
 		}
 	} );
 
+	const inset = `calc(${ parts.join( ' + ' ) }${ shrink })`;
+
+	// The site drops anything else, and the editor writes it into a style tag.
+	if ( ! /^[\w\s.%()+*\/,-]+$/.test( inset ) ) {
+		return undefined;
+	}
+
 	return {
-		inset: `calc(${ parts.join( ' + ' ) }${ shrink })`,
+		inset,
 		stacks: row?.attributes?.isStackedOnMobile !== false,
 	};
 }
@@ -5142,7 +5128,6 @@ export {
 	loadMoreInsetStyle,
 	startsAtInlineStart,
 	withoutLoadMoreButtons,
-	blocksOfType,
 	PINNED_STACK_CLASS,
 	isPinnedCard,
 	isRegularEntry,

@@ -26,12 +26,13 @@ class Test_Load_More extends Rolling_Coverage_TestCase {
 	 * The block's markup, as the editor saves it.
 	 *
 	 * @param string $justify The Buttons block's justification; empty for the default.
+	 * @param string $label   The button's text.
 	 * @return string
 	 */
-	private static function load_more_markup( string $justify = '' ): string {
+	private static function load_more_markup( string $justify = '', string $label = 'Load more' ): string {
 		$attributes = '' !== $justify ? ' {"layout":{"type":"flex","justifyContent":"' . $justify . '"}}' : '';
 
-		return '<!-- wp:newspack-rolling-coverage/load-more --><!-- wp:buttons' . $attributes . ' --><div class="wp-block-buttons"><!-- wp:button {"tagName":"button"} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Load more</button></div><!-- /wp:button --></div><!-- /wp:buttons --><!-- /wp:newspack-rolling-coverage/load-more -->';
+		return '<!-- wp:newspack-rolling-coverage/load-more --><!-- wp:buttons' . $attributes . ' --><div class="wp-block-buttons"><!-- wp:button {"tagName":"button"} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">' . $label . '</button></div><!-- /wp:button --></div><!-- /wp:buttons --><!-- /wp:newspack-rolling-coverage/load-more -->';
 	}
 
 	/**
@@ -113,7 +114,6 @@ class Test_Load_More extends Rolling_Coverage_TestCase {
 		$this->assertCount( 1, $tags );
 		$this->assertStringContainsString( ' hidden', $tags[0] );
 		$this->assertStringContainsString( 'wp-block-newspack-rolling-coverage-load-more', $tags[0] );
-		$this->assertStringNotContainsString( 'wp-element-button wp-block-button__link">Load more', $html, 'The feed shouldn\'t add its own button.' );
 		$this->assertGreaterThan( strpos( $html, 'class="newspack-rolling-coverage-entries"' ), strpos( $html, $tags[0] ) );
 	}
 
@@ -134,6 +134,17 @@ class Test_Load_More extends Rolling_Coverage_TestCase {
 		] as $attributes ) {
 			$this->assertSame( [], self::load_more_tags( self::render_layout( $attributes, $layout ) ), wp_json_encode( $attributes ) );
 		}
+	}
+
+	/**
+	 * A button left without text still gives readers something to press,
+	 * since core renders nothing for it and the feed's own button stays off.
+	 */
+	public function test_button_left_without_text_still_renders_one() {
+		$html = self::render_layout( [ 'olderEntries' => 'button' ], self::feed_markup( '<!-- wp:post-title /-->', self::load_more_markup( '', '' ) ) );
+
+		$this->assertCount( 1, self::load_more_tags( $html ) );
+		$this->assertMatchesRegularExpression( '#\bnewspack-rolling-coverage-load-more\b[^>]*>\s*<button type="button"[^>]*>Load more</button>#', $html );
 	}
 
 	/**
@@ -192,7 +203,7 @@ class Test_Load_More extends Rolling_Coverage_TestCase {
 		$tag  = self::load_more_tags( self::render_layout( [ 'olderEntries' => 'button' ], self::feed_markup( $row, self::load_more_markup() ) ) )[0] ?? '';
 		$gap  = 'var(--wp--preset--spacing--50)';
 
-		$this->assertStringContainsString( '--newspack-rolling-coverage-load-more-inset:calc(25% + ' . $gap . ' - max(0px, 100% - 100% + ' . $gap . ') * 0.25)', $tag );
+		$this->assertStringContainsString( '--newspack-rolling-coverage-load-more-inset:calc(25% + ' . $gap . ' - max(0px, 100% - 100% + 1 * ' . $gap . ') * 0.25)', $tag );
 	}
 
 	/**
