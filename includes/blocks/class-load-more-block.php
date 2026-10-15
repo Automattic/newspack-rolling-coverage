@@ -59,10 +59,12 @@ class Load_More_Block {
 	/**
 	 * Server-side render callback: the block's button, hidden for the feed's
 	 * view script to show while older entries remain, so a page without the
-	 * script never shows a button that does nothing. A button left without
-	 * text renders nothing in core, so the block falls back to one reading
-	 * "Load more", or readers would have no way to load older entries.
-	 * Outside a Rolling Coverage block, where no coverage reaches it, nothing.
+	 * script never shows a button that does nothing. Where the inner blocks
+	 * leave no <button> to press, as when the label is left empty (core then
+	 * renders nothing for it), one reading "Load more" goes inside the Buttons
+	 * block where it rendered, keeping its justification and margin, or on its
+	 * own, or readers would have no way to load older entries. Outside a Rolling Coverage block, where no
+	 * coverage reaches it, nothing.
 	 *
 	 * @param array    $attributes Block attributes (unused).
 	 * @param string   $content    Rendered inner blocks.
@@ -77,10 +79,12 @@ class Load_More_Block {
 		$processor = new WP_HTML_Tag_Processor( $content );
 
 		if ( ! $processor->next_tag( 'button' ) ) {
-			$content = sprintf(
+			$button  = sprintf(
 				'<button type="button" class="wp-element-button wp-block-button__link">%s</button>',
 				esc_html__( 'Load more', 'newspack-rolling-coverage' )
 			);
+			$wrapped = preg_replace( '/<div\b[^>]*\bwp-block-buttons\b[^>]*>/', '$0' . $button, $content, 1, $count );
+			$content = $count ? $wrapped : $button;
 		}
 
 		return sprintf(

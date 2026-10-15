@@ -102,6 +102,8 @@ import {
 	withoutFollowButtons,
 	withoutCheckUpdatesButtons,
 	withoutLoadMoreButtons,
+	withAuthorSettings,
+	withoutAvatarColumns,
 	blockIdsOfType,
 	holdsBlockType,
 	hiddenAuthorBlockIds,
@@ -1253,9 +1255,19 @@ export default function Edit( {
 		} ),
 		[ templateBlocks, feedLayout, showsPin ]
 	);
+	// Measured on the entries as they show, without a dropped avatar column.
 	const loadMoreInsetProps = useMemo(
-		() => loadMoreInsetStyle( templateBlocks ),
-		[ templateBlocks ]
+		() =>
+			loadMoreInsetStyle(
+				withAuthorSettings(
+					SHOW_AVATARS
+						? templateBlocks
+						: withoutAvatarColumns( templateBlocks ),
+					showAuthor !== false,
+					showAvatar !== false
+				)
+			),
+		[ templateBlocks, showAuthor, showAvatar ]
 	);
 	const loadMorePlacement = useMemo(
 		() => ( { ...previewPlacements.other, ...loadMoreInsetProps } ),
@@ -1297,6 +1309,26 @@ export default function Edit( {
 			),
 		[ olderEntries, previewHasMore, holdsLoadMore, loadMorePlacement ]
 	);
+	const renderSyncedChromeItem = ( item: TemplateBlocks, index: number ) =>
+		item[ 0 ]?.name === LOAD_MORE_BLOCK_NAME ? (
+			<EntryBlockPreview
+				key={ index }
+				blocks={ item }
+				className="newspack-rolling-coverage-load-more"
+				style={ {
+					...previewPlacements.other,
+					...( startsAtInlineStart( item[ 0 ] )
+						? loadMoreInsetProps
+						: {} ),
+				} }
+			/>
+		) : (
+			<EntryBlockPreview
+				key={ index }
+				blocks={ item }
+				style={ chromePreviewStyle( item, feedLayout ) }
+			/>
+		);
 	const previewPlacementFor = ( context: EntryContext ) => {
 		if ( context === leadPinContext ) {
 			return previewPlacements.lead;
@@ -3203,16 +3235,7 @@ export default function Edit( {
 												value={ coverageContext }
 											>
 												{ syncedHeaderItems.map(
-													( item, index ) => (
-														<EntryBlockPreview
-															key={ index }
-															blocks={ item }
-															style={ chromePreviewStyle(
-																item,
-																feedLayout
-															) }
-														/>
-													)
+													renderSyncedChromeItem
 												) }
 											</BlockContextProvider>
 										) }
@@ -3274,32 +3297,7 @@ export default function Edit( {
 												value={ coverageContext }
 											>
 												{ syncedFooterItems.map(
-													( item, index ) =>
-														item[ 0 ]?.name ===
-														LOAD_MORE_BLOCK_NAME ? (
-															<EntryBlockPreview
-																key={ index }
-																blocks={ item }
-																className="newspack-rolling-coverage-load-more"
-																style={ {
-																	...previewPlacements.other,
-																	...( startsAtInlineStart(
-																		item[ 0 ]
-																	)
-																		? loadMoreInsetProps
-																		: {} ),
-																} }
-															/>
-														) : (
-															<EntryBlockPreview
-																key={ index }
-																blocks={ item }
-																style={ chromePreviewStyle(
-																	item,
-																	feedLayout
-																) }
-															/>
-														)
+													renderSyncedChromeItem
 												) }
 											</BlockContextProvider>
 										) }

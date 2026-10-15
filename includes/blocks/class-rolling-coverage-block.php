@@ -2277,11 +2277,10 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Places an ad between entries, or a Load more button, in a
-	 * grid Feed as an unpinned entry is placed, so it fills the entries'
-	 * columns rather than one free cell or the full row beside the pinned
-	 * entries. Outside a grid Feed whose groups carry placements, the HTML is
-	 * left as it is.
+	 * Places an ad between entries, or a Load more button, in a grid Feed as
+	 * an unpinned entry is placed, so it fills the entries' columns rather
+	 * than one free cell or the full row beside the pinned entries. Outside a
+	 * grid Feed whose groups carry placements, the HTML is left as it is.
 	 *
 	 * @param string  $html        The ad's or the button's HTML.
 	 * @param array[] $template    Parsed template blocks.
@@ -2311,16 +2310,11 @@ class Rolling_Coverage_Block {
 	 * and padding. Columns that all set percentage widths overflow by their
 	 * gaps and shrink in proportion, so the first one ends short of its width.
 	 *
+	 * Null without a regular entry, a Columns block or a first column width,
+	 * or for a value that isn't a plain length.
+	 *
 	 * @param array[] $template Parsed template blocks.
-	 * @return array{inset: string, stacks: bool}|null The inset as a CSS
-	 *                                                  length, and whether the
-	 *                                                  row stacks on phones;
-	 *                                                  null without a regular
-	 *                                                  entry, a Columns block,
-	 *                                                  or a first column
-	 *                                                  width, or for a value
-	 *                                                  that isn't a plain
-	 *                                                  length.
+	 * @return array{inset: string, stacks: bool}|null The inset as a CSS length, and whether the row stacks on phones.
 	 */
 	private static function load_more_inset( array $template ): ?array {
 		$entry   = current( array_filter( $template, static fn( $block ) => is_array( $block ) && self::is_regular_entry( $block ) ) );
@@ -2359,7 +2353,7 @@ class Rolling_Coverage_Block {
 
 		$inset = 'calc(' . implode( ' + ', $parts ) . $shrink . ')';
 
-		if ( ! preg_match( '/^[\w\s.%()+*\/,-]+$/', $inset ) ) {
+		if ( ! preg_match( '/^[\w\s.%()+*\/,-]+$/', $inset ) || false !== strpos( $inset, '/*' ) ) {
 			return null;
 		}
 
@@ -2949,11 +2943,11 @@ class Rolling_Coverage_Block {
 	 * button, and a group left empty once they and the all-updates paragraph
 	 * drop out. A top-level Load More block takes the entries' placement, and
 	 * their text's inset unless its button is centered or set at the end, as
-	 * the feed's own button does. The blocks render outside the Feed group, so they're
-	 * handed its layout, as core hands a parent's layout to its inner blocks:
-	 * core then treats a grid Feed with a column count and no minimum column
-	 * width as fixed-column, and adds no container query resetting the span
-	 * of a block spanning it.
+	 * the feed's own button does. The blocks render outside the Feed group,
+	 * so they're handed its layout, as core hands a parent's layout to its
+	 * inner blocks: core then treats a grid Feed with a column count and no
+	 * minimum column width as fixed-column, and adds no container query
+	 * resetting the span of a block spanning it.
 	 *
 	 * @param array[] $blocks          Parsed coverage-level blocks.
 	 * @param int     $coverage_id     Coverage term id.

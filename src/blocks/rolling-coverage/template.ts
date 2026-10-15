@@ -4349,7 +4349,7 @@ function loadMoreInset(
 	const inset = `calc(${ parts.join( ' + ' ) }${ shrink })`;
 
 	// The site drops anything else, and the editor writes it into a style tag.
-	if ( ! /^[\w\s.%()+*\/,-]+$/.test( inset ) ) {
+	if ( ! /^[\w\s.%()+*\/,-]+$/.test( inset ) || inset.includes( '/*' ) ) {
 		return undefined;
 	}
 

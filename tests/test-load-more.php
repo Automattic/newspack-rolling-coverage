@@ -144,7 +144,7 @@ class Test_Load_More extends Rolling_Coverage_TestCase {
 		$html = self::render_layout( [ 'olderEntries' => 'button' ], self::feed_markup( '<!-- wp:post-title /-->', self::load_more_markup( '', '' ) ) );
 
 		$this->assertCount( 1, self::load_more_tags( $html ) );
-		$this->assertMatchesRegularExpression( '#\bnewspack-rolling-coverage-load-more\b[^>]*>\s*<button type="button"[^>]*>Load more</button>#', $html );
+		$this->assertMatchesRegularExpression( '#\bnewspack-rolling-coverage-load-more\b[^>]*>\s*(<div class="[^"]*\bwp-block-buttons\b[^"]*"[^>]*>\s*)?<button type="button"[^>]*>Load more</button>#', $html );
 	}
 
 	/**
