@@ -89,7 +89,8 @@ import {
 	isPinnedCard,
 	isPinnedStack,
 	pinnedStackGroups,
-	loadMoreInset,
+	loadMoreInsetStyle,
+	startsAtInlineStart,
 	PINNED_STACK_CLASS,
 	isRegularEntry,
 	isBreakoutEntry,
@@ -100,11 +101,14 @@ import {
 	pinnedRowBlockIds,
 	withoutFollowButtons,
 	withoutCheckUpdatesButtons,
+	withoutLoadMoreButtons,
+	blocksOfType,
 	blockIdsOfType,
 	holdsBlockType,
 	hiddenAuthorBlockIds,
 	layoutParts,
 	CHECK_UPDATES_BLOCK_NAME,
+	LOAD_MORE_BLOCK_NAME,
 	entryPreviewPlacement,
 	withColumnRule,
 	RULED_FEED_CLASS,
@@ -1250,25 +1254,32 @@ export default function Edit( {
 		} ),
 		[ templateBlocks, feedLayout, showsPin ]
 	);
-	const loadMorePlacement = useMemo( () => {
-		if ( ! previewPlacements.other ) {
-			return undefined;
-		}
+	const loadMoreInsetProps = useMemo(
+		() => loadMoreInsetStyle( templateBlocks ),
+		[ templateBlocks ]
+	);
+	const loadMorePlacement = useMemo(
+		() => ( { ...previewPlacements.other, ...loadMoreInsetProps } ),
+		[ previewPlacements.other, loadMoreInsetProps ]
+	);
+	// The layout pattern editor shows it for publishers to style; a feed shows
+	// it where the site does.
+	const isLoadMoreHidden =
+		! isLayoutPattern && ( olderEntries !== 'button' || ! previewHasMore );
+	const holdsLoadMore = useMemo( () => {
+		const parts = layoutParts(
+			isSynced ? feedItems( syncedBlocks ) : allBlocks
+		);
 
-		const inset = loadMoreInset( templateBlocks );
-
-		return {
-			...previewPlacements.other,
-			textAlign: 'start' as const,
-			...( inset
-				? { '--newspack-rolling-coverage-load-more-inset': inset }
-				: {} ),
-		};
-	}, [ previewPlacements.other, templateBlocks ] );
+		return holdsBlockType(
+			[ ...parts.header, ...parts.footer ],
+			LOAD_MORE_BLOCK_NAME
+		);
+	}, [ isSynced, syncedBlocks, allBlocks ] );
 	const loadMorePreview = useMemo(
 		() =>
-			olderEntries === 'button' &&
-			previewHasMore && (
+			! isLoadMoreHidden &&
+			! holdsLoadMore && (
 				<Disabled
 					className="newspack-rolling-coverage-load-more"
 					style={ loadMorePlacement }
@@ -1284,7 +1295,7 @@ export default function Edit( {
 					</button>
 				</Disabled>
 			),
-		[ olderEntries, previewHasMore, loadMorePlacement ]
+		[ isLoadMoreHidden, holdsLoadMore, loadMorePlacement ]
 	);
 	const previewPlacementFor = ( context: EntryContext ) => {
 		if ( context === leadPinContext ) {
@@ -1563,6 +1574,9 @@ export default function Edit( {
 			...( isCheckUpdatesHidden
 				? blockIdsOfType( allBlocks, CHECK_UPDATES_BLOCK_NAME )
 				: [] ),
+			...( isLoadMoreHidden
+				? blockIdsOfType( allBlocks, LOAD_MORE_BLOCK_NAME )
+				: [] ),
 			...( isAllUpdatesHidden ? allUpdatesBlockIds( allBlocks ) : [] ),
 			...pinnedGroups
 				.filter(
@@ -1616,6 +1630,7 @@ export default function Edit( {
 		allBlocks,
 		isFollowHidden,
 		isCheckUpdatesHidden,
+		isLoadMoreHidden,
 		isAllUpdatesHidden,
 		isCardHidden,
 		isEntryHidden,
@@ -1637,15 +1652,43 @@ export default function Edit( {
 		return () => ids.forEach( ( id ) => unsetBlockEditingMode( id ) );
 	}, [ hiddenKey, setBlockEditingMode, unsetBlockEditingMode ] );
 
+	const loadMoreCss = useMemo( () => {
+		const declarations = Object.entries( {
+			...( previewPlacements.other?.gridColumn
+				? { 'grid-column': previewPlacements.other.gridColumn }
+				: {} ),
+			...loadMoreInsetProps,
+		} );
+
+		if ( isSynced || ! declarations.length ) {
+			return '';
+		}
+
+		const css = declarations
+			.map( ( [ property, value ] ) => `${ property }: ${ value };` )
+			.join( ' ' );
+
+		return blocksOfType( allBlocks, LOAD_MORE_BLOCK_NAME )
+			.filter( startsAtInlineStart )
+			.map( ( block ) => {
+				const selector = `.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ block.clientId }"]`;
+
+				return `${ selector } { ${ css } margin-inline-start: var(--newspack-rolling-coverage-load-more-inset-narrow, 0); } @media (min-width: 782px) { ${ selector } { margin-inline-start: var(--newspack-rolling-coverage-load-more-inset, 0); } }`;
+			} )
+			.join( '\n' );
+	}, [ isSynced, allBlocks, previewPlacements.other, loadMoreInsetProps ] );
 	const layoutCss = useMemo(
 		() =>
-			hiddenIds
-				.map(
+			[
+				...hiddenIds.map(
 					( id ) =>
 						`.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ id }"]:not(.newspack-rolling-coverage-layout .block-editor-block-preview__live-content *) { display: none; }`
-				)
+				),
+				loadMoreCss,
+			]
+				.filter( Boolean )
 				.join( '\n' ),
-		[ hiddenIds ]
+		[ hiddenIds, loadMoreCss ]
 	);
 
 	const linkText = isSynced ? ( allUpdatesLinkText ?? '' ).trim() : '';
@@ -1664,6 +1707,7 @@ export default function Edit( {
 		blocks = isCheckUpdatesHidden
 			? withoutCheckUpdatesButtons( blocks )
 			: blocks;
+		blocks = isLoadMoreHidden ? withoutLoadMoreButtons( blocks ) : blocks;
 		if ( isAllUpdatesHidden ) {
 			return withoutAllUpdatesParagraph( blocks );
 		}
@@ -1672,6 +1716,7 @@ export default function Edit( {
 		headerBlocks,
 		isFollowHidden,
 		isCheckUpdatesHidden,
+		isLoadMoreHidden,
 		isAllUpdatesHidden,
 		linkText,
 	] );
@@ -1682,6 +1727,7 @@ export default function Edit( {
 		blocks = isCheckUpdatesHidden
 			? withoutCheckUpdatesButtons( blocks )
 			: blocks;
+		blocks = isLoadMoreHidden ? withoutLoadMoreButtons( blocks ) : blocks;
 		if ( isAllUpdatesHidden ) {
 			return withoutAllUpdatesParagraph( blocks );
 		}
@@ -1690,6 +1736,7 @@ export default function Edit( {
 		footerBlocks,
 		isFollowHidden,
 		isCheckUpdatesHidden,
+		isLoadMoreHidden,
 		isAllUpdatesHidden,
 		linkText,
 	] );
@@ -3218,16 +3265,32 @@ export default function Edit( {
 												value={ coverageContext }
 											>
 												{ syncedFooterItems.map(
-													( item, index ) => (
-														<EntryBlockPreview
-															key={ index }
-															blocks={ item }
-															style={ chromePreviewStyle(
-																item,
-																feedLayout
-															) }
-														/>
-													)
+													( item, index ) =>
+														item[ 0 ]?.name ===
+														LOAD_MORE_BLOCK_NAME ? (
+															<EntryBlockPreview
+																key={ index }
+																blocks={ item }
+																className="newspack-rolling-coverage-load-more"
+																style={ {
+																	...previewPlacements.other,
+																	...( startsAtInlineStart(
+																		item[ 0 ]
+																	)
+																		? loadMoreInsetProps
+																		: {} ),
+																} }
+															/>
+														) : (
+															<EntryBlockPreview
+																key={ index }
+																blocks={ item }
+																style={ chromePreviewStyle(
+																	item,
+																	feedLayout
+																) }
+															/>
+														)
 												) }
 											</BlockContextProvider>
 										) }

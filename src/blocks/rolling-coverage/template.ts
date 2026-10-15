@@ -12,6 +12,7 @@ import { ENTRY_PLURAL } from './config';
 import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
 import { blockGapCss } from './spacing';
+import { loadMoreButtonsTemplate } from '../shared/load-more-buttons';
 import type { TemplateItem } from './types';
 
 /**
@@ -212,6 +213,7 @@ const FOLLOW_BLOCK_NAME = 'newspack-rolling-coverage/coverage-follow';
  * blocks and makes the feed check for new entries only when readers ask.
  */
 const CHECK_UPDATES_BLOCK_NAME = 'newspack-rolling-coverage/check-updates';
+const LOAD_MORE_BLOCK_NAME = 'newspack-rolling-coverage/load-more';
 
 /**
  * The Coverage Status block, which shows the coverage's status once when it
@@ -3316,6 +3318,7 @@ function isCoverageItem( block: {
 	return (
 		typed.name === FOLLOW_BLOCK_NAME ||
 		typed.name === CHECK_UPDATES_BLOCK_NAME ||
+		typed.name === LOAD_MORE_BLOCK_NAME ||
 		block.name === STATUS_BLOCK_NAME ||
 		typed.name === UPDATE_TIMER_BLOCK_NAME ||
 		isCoverageNameHeading( typed ) ||
@@ -3419,6 +3422,45 @@ function withoutCheckUpdatesButtons<
 	return withoutBlocks(
 		blocks,
 		( block ) => block.name === CHECK_UPDATES_BLOCK_NAME
+	);
+}
+
+/**
+ * The blocks without their Load More blocks, at any depth, as the site
+ * renders them where the feed doesn't load older entries with a button.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {Object[]} The blocks without Load More blocks.
+ */
+function withoutLoadMoreButtons<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return withoutBlocks(
+		blocks,
+		( block ) => block.name === LOAD_MORE_BLOCK_NAME
+	);
+}
+
+/**
+ * The blocks of a type among the blocks, at any depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @param {string}   name   Block type name.
+ * @return {Object[]} The blocks.
+ */
+function blocksOfType< T extends { name: string; [ key: string ]: unknown } >(
+	blocks: T[],
+	name: string
+): T[] {
+	return blocks.flatMap( ( block ) =>
+		block.name === name
+			? [ block ]
+			: blocksOfType(
+					Array.isArray( block.innerBlocks )
+						? ( block.innerBlocks as T[] )
+						: [],
+					name
+				)
 	);
 }
 
@@ -3667,6 +3709,39 @@ function emptiedGroupIds(
 	blocks.filter( isCoverageItem ).forEach( isHidden );
 
 	return emptied;
+}
+
+/**
+ * The Load More block, which shows the feed's Load more button where the
+ * layout places it.
+ *
+ * @param {Object} buttons Settings for its Buttons block, such as its
+ *                         justification or margin.
+ * @return {Array} The template item.
+ */
+function loadMoreBlock(
+	buttons: Record< string, unknown > = {}
+): TemplateItem {
+	return [ LOAD_MORE_BLOCK_NAME, {}, [ loadMoreButtonsTemplate( buttons ) ] ];
+}
+
+/**
+ * Settings for a Load More block's Buttons block that leave a full
+ * spacing-50 above the button in a Feed whose Block spacing is smaller.
+ *
+ * @param {string} gap The Feed's Block spacing preset slug, such as `30`.
+ * @return {Object} The settings.
+ */
+function loadMoreTopUp( gap: string ): Record< string, unknown > {
+	return {
+		style: {
+			spacing: {
+				margin: {
+					top: `calc(var(--wp--preset--spacing--50) - var(--wp--preset--spacing--${ gap }))`,
+				},
+			},
+		},
+	};
 }
 
 /**
@@ -4219,17 +4294,18 @@ function firstBlockNamed(
 
 /**
  * How far in from the entries' columns the Load more button starts, mirroring
- * Rolling_Coverage_Block::load_more_inset(): the width of the first column of
- * the entry group's first Columns block plus the space between its columns.
+ * Rolling_Coverage_Block::load_more_inset(): past the first column of the
+ * entry group's first Columns block, the space between its columns, and the
+ * second column's own inline-start border and padding, less what columns
+ * that all set percentage widths shrink by to fit the gap.
  *
  * @param {Object[]} template The layout's per-entry blocks.
- * @return {string|undefined} A CSS length, or undefined.
+ * @return {Object|undefined} The inset as a CSS length, and whether the row
+ *                            stacks on phones; undefined without one.
  */
-function loadMoreInset( template: InsetBlock[] ): string | undefined {
-	if ( ! template.some( isPinnedStack ) ) {
-		return undefined;
-	}
-
+function loadMoreInset(
+	template: InsetBlock[]
+): { inset: string; stacks: boolean } | undefined {
 	const entry = template.find( isRegularEntry );
 	const row = Array.isArray( entry?.innerBlocks )
 		? firstBlockNamed( entry.innerBlocks as InsetBlock[], 'core/columns' )
@@ -4248,10 +4324,97 @@ function loadMoreInset( template: InsetBlock[] ): string | undefined {
 			{ spacing?: { blockGap?: string | { left?: string } } } | undefined
 	 )?.spacing?.blockGap;
 	const left = typeof gap === 'object' ? gap.left : gap;
+	// A unitless 0 isn't a length in calc().
+	const lengthCss = ( value?: string ) =>
+		value === '0' ? '0px' : blockGapCss( value );
+	const gapCss = lengthCss( left ) ?? 'var(--wp--style--block-gap, 2em)';
+	const parts = [ width, gapCss ];
+	const widths = columns.map( ( column ) =>
+		String( column.attributes?.width ?? '' )
+	);
+	let shrink = '';
 
-	return `calc(${ width } + ${
-		blockGapCss( left ) ?? 'var(--wp--style--block-gap, 2em)'
-	})`;
+	if (
+		widths.length > 1 &&
+		widths.every( ( value ) => /^\d+(\.\d+)?%$/.test( value ) )
+	) {
+		const total = widths.reduce(
+			( sum, value ) => sum + parseFloat( value ),
+			0
+		);
+
+		if ( total > 0 ) {
+			shrink = ` - max(0px, ${ total }% - 100% + ${ gapCss }) * ${
+				Math.round( ( parseFloat( width ) / total ) * 10000 ) / 10000
+			}`;
+		}
+	}
+
+	const textStyle = columns[ 1 ]?.attributes?.style as
+		| {
+				spacing?: { padding?: { left?: string } };
+				border?: { width?: string; left?: { width?: string } };
+		  }
+		| undefined;
+	const border = textStyle?.border?.left?.width ?? textStyle?.border?.width;
+	const padding = textStyle?.spacing?.padding?.left;
+
+	[ border, padding ].forEach( ( length ) => {
+		const css = lengthCss( length );
+
+		if ( css ) {
+			parts.push( css );
+		}
+	} );
+
+	return {
+		inset: `calc(${ parts.join( ' + ' ) }${ shrink })`,
+		stacks: row?.attributes?.isStackedOnMobile !== false,
+	};
+}
+
+/**
+ * The CSS custom properties that start the Load more button where the
+ * entries' text does (see loadMoreInset() and style.scss).
+ *
+ * @param {Object[]} template The layout's per-entry blocks.
+ * @return {Object} The properties, empty without an inset.
+ */
+function loadMoreInsetStyle(
+	template: InsetBlock[]
+): Record< string, string > {
+	const inset = loadMoreInset( template );
+
+	if ( ! inset ) {
+		return {};
+	}
+
+	return {
+		'--newspack-rolling-coverage-load-more-inset': inset.inset,
+		...( inset.stacks
+			? {}
+			: {
+					'--newspack-rolling-coverage-load-more-inset-narrow':
+						inset.inset,
+				} ),
+	};
+}
+
+/**
+ * Whether a Load More block's button sits at the inline start, mirroring
+ * Rolling_Coverage_Block::starts_at_inline_start().
+ *
+ * @param {Object} block The Load More block.
+ * @return {boolean} Whether its Buttons block justifies its content left.
+ */
+function startsAtInlineStart( block: InsetBlock ): boolean {
+	const buttons = Array.isArray( block.innerBlocks )
+		? firstBlockNamed( block.innerBlocks as InsetBlock[], 'core/buttons' )
+		: undefined;
+	const layout = buttons?.attributes?.layout as
+		{ justifyContent?: string } | undefined;
+
+	return ( layout?.justifyContent ?? 'left' ) === 'left';
 }
 
 /**
@@ -4941,6 +5104,9 @@ export {
 	ACCENT_TINT,
 	FOLLOW_BLOCK_NAME,
 	CHECK_UPDATES_BLOCK_NAME,
+	LOAD_MORE_BLOCK_NAME,
+	loadMoreBlock,
+	loadMoreTopUp,
 	STATUS_BLOCK_NAME,
 	UPDATE_TIMER_BLOCK_NAME,
 	holdsBlockType,
@@ -4973,6 +5139,10 @@ export {
 	isPinnedStack,
 	pinnedStackGroups,
 	loadMoreInset,
+	loadMoreInsetStyle,
+	startsAtInlineStart,
+	withoutLoadMoreButtons,
+	blocksOfType,
 	PINNED_STACK_CLASS,
 	isPinnedCard,
 	isRegularEntry,

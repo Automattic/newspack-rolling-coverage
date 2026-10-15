@@ -16,21 +16,24 @@ import type { TemplateBlocks } from '../types';
  * A static rendering of the per-entry template's current blocks for one real
  * entry.
  *
- * @param {Object}   props        Component props.
- * @param {Object[]} props.blocks The current per-entry template blocks.
- * @param {Object}   props.style  The container's inline style.
+ * @param {Object}   props           Component props.
+ * @param {Object[]} props.blocks    The current per-entry template blocks.
+ * @param {string}   props.className The container's class; an entry's by default.
+ * @param {Object}   props.style     The container's inline style.
  */
 function EntryBlockPreview( {
 	blocks,
+	className = 'newspack-rolling-coverage-entry wp-block-post',
 	style,
 }: {
 	blocks: TemplateBlocks;
+	className?: string;
 	style?: Record< string, string | number >;
 } ) {
 	const blockPreviewProps = useBlockPreview( {
 		blocks,
 		props: {
-			className: 'newspack-rolling-coverage-entry wp-block-post',
+			className,
 			...( style ? { style } : {} ),
 		},
 	} );

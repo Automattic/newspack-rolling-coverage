@@ -1508,6 +1508,7 @@ class Entry_Bindings {
 		if (
 			Coverage_Follow_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			Check_Updates_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
+			Load_More_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			Coverage_Status_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			Update_Timer_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			self::is_coverage_name_heading( $parsed_block ) ||
