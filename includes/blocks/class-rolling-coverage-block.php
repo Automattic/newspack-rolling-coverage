@@ -2781,7 +2781,8 @@ class Rolling_Coverage_Block {
 	 * Entry takes pinned entries (see is_full_story()), pinned entries with
 	 * a published breakout post render through it and are skipped. Looked up
 	 * once per request for each site, coverage, set of pinned entries and
-	 * kind of template, since a poll asks for every pinned entry it renders.
+	 * kind of template, since a poll asks for every pinned entry it renders,
+	 * so an edit later in the same request doesn't change it.
 	 *
 	 * @param int     $coverage_id Coverage term ID.
 	 * @param array[] $template    Parsed template blocks.

@@ -530,7 +530,6 @@ class AI_Service {
 			);
 		}
 
-		// Sort pinned entries first, most recently edited first like the feed.
 		$entries = self::sort_pinned_first( $entries );
 
 		$parts = [];

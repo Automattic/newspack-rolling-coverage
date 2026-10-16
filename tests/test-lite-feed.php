@@ -125,8 +125,8 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 	/**
 	 * Pinned entries say so and carry the attributes the view script places
-	 * them by, their date in GMT among them, and an individually archived
-	 * entry keeps its notice.
+	 * them by, their date and last edit in GMT among them, and an
+	 * individually archived entry keeps its notice.
 	 */
 	public function test_pinned_and_archived_entries_say_so() {
 		update_option( 'timezone_string', 'America/New_York' );
@@ -140,10 +140,11 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		);
 		Post_Type::pin_entry( $entry_id );
 		update_post_meta( $entry_id, Archive_Mode::ENTRY_ARCHIVED_META_KEY, time() );
+		self::set_entry_modified( $entry_id, '2026-01-02 09:30:00' );
 
 		$html = Lite_Feed::render_entry( get_post( $entry_id ), 'poll' );
 
-		$this->assertStringStartsWith( '<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="poll" data-date-gmt="2026-01-01 13:00:00" data-pinned>', $html );
+		$this->assertStringStartsWith( '<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="poll" data-date-gmt="2026-01-01 13:00:00" data-pinned data-modified-gmt="2026-01-02 09:30:00">', $html );
 		$this->assertStringContainsString( '8:00 am</time> &middot; Pinned</p>', $html );
 		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-entry-archived-notice">', $html );
 	}

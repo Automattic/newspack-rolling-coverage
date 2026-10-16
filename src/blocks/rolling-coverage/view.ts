@@ -930,12 +930,30 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {void}
 	 */
 	function insertPinned( el: HTMLElement ): void {
-		const below = pinnedEntryBelow( el, topPinnedEntries( el ) );
+		const others = topPinnedEntries( el );
+		const below = pinnedEntryBelow( el, others );
 		const shown = topPinnedEntries();
 		const index = shown.indexOf( el );
 
-		// Already in place: moving it would leave an ad that follows it behind.
-		if ( index !== -1 && ( shown[ index + 1 ] ?? null ) === below ) {
+		if ( index !== -1 ) {
+			if ( ( shown[ index + 1 ] ?? null ) === below ) {
+				return;
+			}
+
+			// The pinned entries trade places rather than one moving, so the
+			// ads between them stay where the page rendered them.
+			const ordered = [ ...others ];
+			ordered.splice(
+				below ? ordered.indexOf( below ) : ordered.length,
+				0,
+				el
+			);
+			const places = shown.map( ( entry ) => {
+				const place = document.createComment( '' );
+				entry.before( place );
+				return place;
+			} );
+			ordered.forEach( ( entry, i ) => places[ i ].replaceWith( entry ) );
 			return;
 		}
 

@@ -99,30 +99,17 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Pinned entries not edited since they were published list newest first,
-	 * whatever order they were pinned in.
-	 */
-	public function test_unedited_pinned_entries_are_listed_newest_first() {
-		$older_pinned_id = $this->create_entry_at( '2026-01-01 10:00:00' );
-		$newer_pinned_id = $this->create_entry_at( '2026-01-01 11:00:00' );
-		$newest_entry_id = $this->create_entry_at( '2026-01-01 12:00:00' );
-		Post_Type::pin_entry( $older_pinned_id );
-		Post_Type::pin_entry( $newer_pinned_id );
-
-		$this->assertSame( [ $newer_pinned_id, $older_pinned_id, $newest_entry_id ], $this->get_listed_entry_ids() );
-	}
-
-	/**
-	 * Pinned entries list most recently edited first, whatever their date,
-	 * while unpinned entries keep listing by date.
+	 * Pinned entries list most recently edited first, whatever their date or
+	 * the order they were pinned in, while unpinned entries keep listing by
+	 * date.
 	 */
 	public function test_pinned_entries_are_listed_most_recently_edited_first() {
 		$edited_pinned_id   = $this->create_entry_at( '2026-01-01 10:00:00' );
 		$unedited_pinned_id = $this->create_entry_at( '2026-01-01 11:00:00' );
 		$edited_entry_id    = $this->create_entry_at( '2026-01-01 12:00:00' );
 		$newest_entry_id    = $this->create_entry_at( '2026-01-01 13:00:00' );
-		Post_Type::pin_entry( $edited_pinned_id );
 		Post_Type::pin_entry( $unedited_pinned_id );
+		Post_Type::pin_entry( $edited_pinned_id );
 		self::set_entry_modified( $edited_pinned_id, '2026-01-01 14:00:00' );
 		self::set_entry_modified( $edited_entry_id, '2026-01-01 15:00:00' );
 

@@ -1225,7 +1225,7 @@ class Post_Type {
 			self::pin_entry( $entry_id );
 		}
 
-		// Bump post_modified so live feeds re-render the entry with its pinned row.
+		// Bump post_modified so live feeds re-render the entry with its pinned row, and list it first among pinned entries.
 		self::touch_entry( $entry_id );
 
 		return new WP_REST_Response( [ 'pinned' => ! $is_pinned ], 200 );
