@@ -32,9 +32,16 @@ class Lite_Feed {
 	const CONTENT_FILTER = 'newspack_lite_site_post_content';
 
 	/**
-	 * The few styles the feed needs on a lite page, which prints no block
-	 * styles: the status region is for screen readers only, the new-posts
-	 * control floats at the top of the screen, and entries are set apart.
+	 * The feed's one style on a lite page, which prints no block styles,
+	 * whatever the block's layout: each entry's time and pinned state sit in
+	 * a narrow column beside it, or above it on small screens, with a rule
+	 * between entries. The title rules match the heading an entry opens
+	 * with, its title or, without one, its body's first heading, so the
+	 * headings further into its body keep Lite Site's look. The status region is for screen readers only, the
+	 * new-posts control floats at the top of the screen, the buttons match
+	 * Lite Site's own, and the Coverage Status badge matches its liveblog
+	 * badge. The accent is Lite Site's primary color (see print_styles()).
+	 * A long time or label wraps within its column.
 	 */
 	const STYLES = '
 		.newspack-rolling-coverage-status {
@@ -65,22 +72,90 @@ class Lite_Feed {
 			text-decoration: none;
 			white-space: nowrap;
 		}
+		.newspack-rolling-coverage-entry {
+			padding: 1rem 0;
+		}
 		.newspack-rolling-coverage-entry + .newspack-rolling-coverage-entry {
-			margin-top: 1.5rem;
-			padding-top: 1.5rem;
 			border-top: 1px solid #ddd;
 		}
 		.newspack-rolling-coverage-entry-meta {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0 0.5rem;
 			margin: 0 0 0.25rem;
 			font-size: 0.875em;
+			font-weight: 700;
+			overflow-wrap: anywhere;
 		}
-		.newspack-rolling-coverage-entry h3 {
+		.newspack-rolling-coverage-entry-meta p {
+			margin: 0;
+		}
+		.newspack-rolling-coverage-entry-pinned,
+		.newspack-rolling-coverage-breakout-label {
+			color: var(--newspack-rolling-coverage-lite-accent, inherit);
+		}
+		.newspack-rolling-coverage-entry-content > :first-child {
+			margin-top: 0;
+		}
+		.newspack-rolling-coverage-entry-content > :last-child {
+			margin-bottom: 0;
+		}
+		.newspack-rolling-coverage-entry-content > h3:first-child,
+		.newspack-rolling-coverage-breakout-label + h3 {
 			margin: 0 0 0.5rem;
+			font-size: 1.125em;
+			line-height: 1.3;
+		}
+		.newspack-rolling-coverage-entry-content > h3:first-child + *,
+		.newspack-rolling-coverage-breakout-label + h3 + * {
+			margin-top: 0;
+		}
+		.newspack-rolling-coverage-entry-content > h3:first-child a,
+		.newspack-rolling-coverage-breakout-label + h3 a {
+			color: inherit;
 		}
 		.newspack-rolling-coverage-breakout-label {
-			margin: 0;
+			margin: 0 0 0.25rem;
 			font-size: 0.875em;
 			font-weight: 700;
+		}
+		@media (min-width: 37.5rem) {
+			.newspack-rolling-coverage-entry {
+				display: grid;
+				grid-template-columns: 5.5rem minmax(0, 1fr);
+				gap: 1.5rem;
+				align-items: baseline;
+			}
+			.newspack-rolling-coverage-entry-meta {
+				flex-direction: column;
+				margin: 0;
+			}
+		}
+		.newspack-rolling-coverage-load-more,
+		.newspack-rolling-coverage-check-updates {
+			margin: 1rem 0;
+		}
+		.newspack-rolling-coverage-load-more button,
+		.newspack-rolling-coverage-check-updates button {
+			padding: 0.375rem 0.75rem;
+			border: 1px solid currentcolor;
+			background: transparent;
+			color: inherit;
+			font-family: inherit;
+			cursor: pointer;
+		}
+		.wp-block-newspack-rolling-coverage-coverage-status {
+			display: inline-block;
+			padding: 0.25rem 0.5rem;
+			background: #767676;
+			color: #fff;
+			font-size: 0.75rem;
+			font-weight: 700;
+			text-transform: uppercase;
+		}
+		.wp-block-newspack-rolling-coverage-coverage-status[data-status="active"] {
+			background: var(--newspack-rolling-coverage-lite-badge, #000);
+			color: var(--newspack-rolling-coverage-lite-badge-text, #fff);
 		}
 	';
 
@@ -131,6 +206,19 @@ class Lite_Feed {
 	 */
 	public static function print_styles(): void {
 		if ( self::$keeps_feed_markup ) {
+			$accent = self::accent_color();
+
+			if ( '' !== $accent ) {
+				$label = Readable_Accent::pick( [ $accent => $accent ], '#ffffff' );
+
+				printf(
+					':root { %s--newspack-rolling-coverage-lite-badge: %s; --newspack-rolling-coverage-lite-badge-text: %s; }',
+					'currentcolor' === $label ? '' : '--newspack-rolling-coverage-lite-accent: ' . esc_html( $label ) . '; ',
+					esc_html( $accent ),
+					esc_html( Apca::text_color( $accent ) )
+				);
+			}
+
 			echo self::STYLES; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static CSS.
 			return;
 		}
@@ -138,6 +226,27 @@ class Lite_Feed {
 		if ( self::$has_feed ) {
 			echo '.newspack-rolling-coverage-load-more, .newspack-rolling-coverage-check-updates { display: none; }';
 		}
+	}
+
+	/**
+	 * Lite Site's primary color, which it gives its links and rules, as a
+	 * lowercase `#rrggbb`; empty when it has none, which it gives as
+	 * `currentcolor`, so the feed's accents fall back to their own.
+	 *
+	 * The Live badge takes it as its background, with black or white text,
+	 * whichever reads better. The labels take it only where it reads well on
+	 * the white lite page (Readable_Accent::pick()), else the text color.
+	 *
+	 * @return string
+	 */
+	private static function accent_color(): string {
+		$lite_site = '\Newspack_Lite_Site\Lite_Site';
+
+		if ( ! method_exists( $lite_site, 'get_primary_color' ) ) {
+			return '';
+		}
+
+		return Apca::normalize( (string) $lite_site::get_primary_color() );
 	}
 
 	/**
@@ -257,9 +366,10 @@ class Lite_Feed {
 	}
 
 	/**
-	 * Render an entry as text: its time, whether it is pinned, its title and
-	 * its body, which Lite Site cleans like the rest of the page, or a notice
-	 * in place of a protected entry's body. An entry whose breakout post is
+	 * Render an entry as text: its time and whether it is pinned, set beside
+	 * the rest (see STYLES), then its title and its body, which Lite Site
+	 * cleans like the rest of the page, or a notice in place of a protected
+	 * entry's body. An entry whose breakout post is
 	 * published shows that post's title under the Full story label, linked to
 	 * its lite page (see card_url()), and its summary instead (see
 	 * Breakout_Card::for_entry()), without the archived entry's notice. A
@@ -284,13 +394,13 @@ class Lite_Feed {
 		$is_pinned   = ! $is_capped && Post_Type::is_pinned( $entry->ID );
 		$time_format = get_option( 'time_format' );
 		$meta        = sprintf(
-			'<time datetime="%s">%s</time>',
+			'<p><time datetime="%s">%s</time></p>',
 			esc_attr( get_the_date( 'c', $entry ) ),
 			esc_html( get_the_date( $time_format ? $time_format : 'g:i a', $entry ) )
 		);
 
 		if ( $is_pinned ) {
-			$meta .= ' &middot; ' . esc_html__( 'Pinned', 'newspack-rolling-coverage' );
+			$meta .= sprintf( '<p class="%s-entry-pinned">%s</p>', Rolling_Coverage_Block::MARKUP_PREFIX, esc_html__( 'Pinned', 'newspack-rolling-coverage' ) );
 		}
 
 		$card = Breakout_Card::for_entry( $entry->ID );
@@ -306,7 +416,7 @@ class Lite_Feed {
 		}
 
 		return sprintf(
-			'<article class="%1$s-entry" data-entry-id="%2$d" data-arrival="%3$s" data-date-gmt="%9$s"%4$s><p class="%1$s-entry-meta">%5$s</p>%6$s%7$s%8$s</article>',
+			'<article class="%1$s-entry" data-entry-id="%2$d" data-arrival="%3$s" data-date-gmt="%9$s"%4$s><div class="%1$s-entry-meta">%5$s</div><div class="%1$s-entry-content">%6$s%7$s%8$s</div></article>',
 			Rolling_Coverage_Block::MARKUP_PREFIX,
 			$entry->ID,
 			esc_attr( $arrival ),
