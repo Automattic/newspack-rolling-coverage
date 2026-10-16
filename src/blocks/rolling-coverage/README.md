@@ -65,7 +65,7 @@ Says whether the block uses a shared layout, naming it (such as "Uses the shared
 | Setting | What it does |
 | --- | --- |
 | Show | All shows every entry, one page at a time. Latest shows only the most recent entries. |
-| Older entries | With Show set to All: what happens after the first page. Load on scroll (default) loads the next page as readers reach the end of the feed. “Load more” button shows a Load more button below the entries; each press adds a page, and the button goes away once every entry is shown. Don’t load shows the first page only. |
+| Older entries | With Show set to All: what happens after the first page. Load on scroll (default) loads the next page as readers reach the end of the feed. “Load more” button shows a Load more button below the entries, where the layout's [Load More](../load-more/README.md) block sits; each press adds a page, and the button goes away once every entry is shown. Don’t load shows the first page only. |
 | Number of entries | With Show set to Latest: how many entries to show, from 1 to 100. |
 | Link to all updates | With Show set to Latest, in layouts that have one (Ticker, Wire, Digest, Flash, Alert): Show or Hide the link to the coverage page. The link is hidden on the coverage page itself. It starts as "See all entries", or "See all" followed by the site's plural name for entries ("See all updates"). It is an ordinary paragraph, so you can reword it. |
 | Link text | With Link to all updates set to Show, in a shared layout that has the link: this block's own wording for it, such as "Follow the storm". Leave it empty to use the layout's text, which shows in the field and below it. The layout stays shared, so later changes to it still reach this block. Detaching the layout writes the wording into the detached copy. |
@@ -119,7 +119,7 @@ The page checks for new entries every poll interval. It stops while the tab is i
 - New entries fade in as they appear, and so do older entries as they load. Readers whose device is set to reduce motion see them without the fade.
 - An entry that is unpublished, for example moved to draft or trashed, disappears from the page.
 - To have the page check only when readers ask, add a [Check for Updates](../check-updates/README.md) block to the layout. The page then makes no background checks, which suits readers on slow or metered connections.
-- Older entries load as the reader scrolls to the end, or with the Load more button, depending on Older entries. The button takes the theme's button style and dims slightly while a page loads. If a load fails, the button stays so the reader can try again.
+- Older entries load as the reader scrolls to the end, or with the Load more button, depending on Older entries. The button takes the theme's button style and dims slightly while a page loads. If a load fails, the button stays so the reader can try again. Stream centers it; the other layouts line it up with the entries' text. To restyle or move it, edit the layout's [Load More](../load-more/README.md) block.
 - A tab left open for a long time, or a page served from a cache, after the feed's layout or settings changed many times reloads when new or older entries arrive, so they show in the feed's own layout. If the reload lands on the same cached copy, it tries again a minute later.
 - A paused or ended coverage does not check for new entries on its own. With a Check for Updates block, readers can still check a paused coverage.
 - Times follow the site's time format.

@@ -1,9 +1,8 @@
 /**
  * External dependencies
  */
-import { ToggleControl, VisuallyHidden } from '@wordpress/components';
 import { Badge, Stack, Text } from '@wordpress/ui';
-import { __, sprintf } from '@wordpress/i18n';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -15,12 +14,13 @@ import {
 } from '../../../utils/fields';
 import { DetailRow } from '../../detail-row';
 import { ErrorNotice } from '../../../shared/error-notice';
+import { PublishModeSelect } from '../publish-mode-select';
 
 /**
  * Renders the body of the Slack connection drawer when the coverage is
  * already connected to a channel: the connection status, the channel name
- * with help text, the channel ID, last sync and inline auto-publish toggle in the Channels
- * table's order, and any error notice.
+ * with help text, the channel ID, last sync and the Publish Mode dropdown in the
+ * Channels table's order, and any error notice.
  *
  * @param {ConnectedChannelViewProps} props Component props.
  */
@@ -28,9 +28,9 @@ function ConnectedChannelView( {
 	channelName,
 	channelId,
 	lastSyncTs,
-	autopublish,
-	onAutopublishChange,
-	isUpdatingAutopublish,
+	publishMode,
+	onPublishModeChange,
+	isUpdatingPublishMode,
 	error,
 }: ConnectedChannelViewProps ) {
 	return (
@@ -50,7 +50,7 @@ function ConnectedChannelView( {
 					className="newspack-rolling-coverage-detail-help"
 				>
 					{ __(
-						'New messages posted in this channel are added to this coverage as entries.',
+						'Messages posted in this channel become entries in this coverage, as the publish mode below sets.',
 						'newspack-rolling-coverage'
 					) }
 				</Text>
@@ -71,33 +71,12 @@ function ConnectedChannelView( {
 					</span>
 				</DetailRow>
 			) }
-			<Stack direction="column" gap="sm" align="flex-start">
-				<Text variant="heading-sm" aria-hidden="true">
-					{ __( 'Auto-publish', 'newspack-rolling-coverage' ) }
-				</Text>
-				<ToggleControl
-					className="newspack-rolling-coverage-autopublish-toggle"
-					label={
-						<VisuallyHidden>
-							{ sprintf(
-								/* translators: %s: Slack channel name, or its ID when the name is unknown. */
-								__(
-									'Auto-publish entries from %s',
-									'newspack-rolling-coverage'
-								),
-								channelName || channelId
-							) }
-						</VisuallyHidden>
-					}
-					help={ __(
-						"Publishes messages as soon as they're posted in Slack. When off, messages are saved as drafts for an editor or administrator to publish.",
-						'newspack-rolling-coverage'
-					) }
-					checked={ autopublish }
-					onChange={ onAutopublishChange }
-					disabled={ isUpdatingAutopublish || lastSyncTs === null }
-				/>
-			</Stack>
+			<PublishModeSelect
+				label={ __( 'Publish Mode', 'newspack-rolling-coverage' ) }
+				value={ publishMode }
+				onChange={ onPublishModeChange }
+				disabled={ isUpdatingPublishMode || lastSyncTs === null }
+			/>
 			<ErrorNotice message={ error } />
 		</Stack>
 	);

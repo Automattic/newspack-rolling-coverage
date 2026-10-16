@@ -38,6 +38,9 @@ import {
 	ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_BLOCK_NAME,
 	CHECK_UPDATES_BLOCK_NAME,
+	LOAD_MORE_BLOCK_NAME,
+	loadMoreBlock,
+	loadMoreTopUp,
 	STATUS_BLOCK_NAME,
 	UPDATE_TIMER_BLOCK_NAME,
 	feedTemplate,
@@ -67,7 +70,12 @@ import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
 export const BLOCK_NAME = metadata.name;
 
-export { FOLLOW_BLOCK_NAME, CHECK_UPDATES_BLOCK_NAME, UPDATE_TIMER_BLOCK_NAME };
+export {
+	FOLLOW_BLOCK_NAME,
+	CHECK_UPDATES_BLOCK_NAME,
+	LOAD_MORE_BLOCK_NAME,
+	UPDATE_TIMER_BLOCK_NAME,
+};
 
 type PaletteColor = { slug: string };
 
@@ -134,7 +142,12 @@ function themeFontSizeSlugs(): string[] {
  * @return {TemplateItem[]} The template.
  */
 export function innerTemplate(): TemplateItem[] {
-	return [ feedTemplate( bulletinEntryTemplate( paletteSlugs() ) ) ];
+	return [
+		feedTemplate( [
+			...bulletinEntryTemplate( paletteSlugs() ),
+			loadMoreBlock(),
+		] ),
+	];
 }
 
 /**
@@ -145,9 +158,12 @@ export function innerTemplate(): TemplateItem[] {
  */
 export function streamInnerTemplate(): TemplateItem[] {
 	return [
-		feedTemplate(
-			streamEntryTemplate( paletteSlugs(), themeFontSizeSlugs() )
-		),
+		feedTemplate( [
+			...streamEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
+			loadMoreBlock( {
+				layout: { type: 'flex', justifyContent: 'center' },
+			} ),
+		] ),
 	];
 }
 
@@ -160,7 +176,10 @@ export function streamInnerTemplate(): TemplateItem[] {
 export function railInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
-			railEntryTemplate( paletteSlugs() ),
+			[
+				...railEntryTemplate( paletteSlugs() ),
+				loadMoreBlock( loadMoreTopUp( '40' ) ),
+			],
 			'var:preset|spacing|40'
 		),
 	];
@@ -174,9 +193,10 @@ export function railInnerTemplate(): TemplateItem[] {
  */
 export function clockInnerTemplate(): TemplateItem[] {
 	return [
-		feedTemplate(
-			clockEntryTemplate( paletteSlugs(), themeFontSizeSlugs() )
-		),
+		feedTemplate( [
+			...clockEntryTemplate( paletteSlugs(), themeFontSizeSlugs() ),
+			loadMoreBlock(),
+		] ),
 	];
 }
 
@@ -187,7 +207,12 @@ export function clockInnerTemplate(): TemplateItem[] {
  * @return {TemplateItem[]} The template.
  */
 export function marginInnerTemplate(): TemplateItem[] {
-	return [ feedTemplate( marginEntryTemplate( paletteSlugs() ) ) ];
+	return [
+		feedTemplate( [
+			...marginEntryTemplate( paletteSlugs() ),
+			loadMoreBlock(),
+		] ),
+	];
 }
 
 /**
@@ -199,7 +224,10 @@ export function marginInnerTemplate(): TemplateItem[] {
 export function minuteInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
-			minuteEntryTemplate( paletteSlugs() ),
+			[
+				...minuteEntryTemplate( paletteSlugs() ),
+				loadMoreBlock( loadMoreTopUp( '30' ) ),
+			],
 			'var:preset|spacing|30'
 		),
 	];
@@ -212,7 +240,12 @@ export function minuteInnerTemplate(): TemplateItem[] {
  * @return {TemplateItem[]} The template.
  */
 export function bylineInnerTemplate(): TemplateItem[] {
-	return [ feedTemplate( bylineEntryTemplate( paletteSlugs() ) ) ];
+	return [
+		feedTemplate( [
+			...bylineEntryTemplate( paletteSlugs() ),
+			loadMoreBlock(),
+		] ),
+	];
 }
 
 /**
@@ -248,7 +281,7 @@ export function tickerInnerTemplate(): TemplateItem[] {
 export function splitInnerTemplate(): TemplateItem[] {
 	return [
 		feedTemplate(
-			splitEntryTemplate( paletteSlugs() ),
+			[ ...splitEntryTemplate( paletteSlugs() ), loadMoreBlock() ],
 			SPLIT_FEED_GAP,
 			SPLIT_FEED_STYLE,
 			SPLIT_FEED_LAYOUT,
@@ -363,6 +396,7 @@ export const ALL_ALLOWED_BLOCKS = [
 	...ENTRY_ALLOWED_BLOCKS,
 	FOLLOW_BLOCK_NAME,
 	CHECK_UPDATES_BLOCK_NAME,
+	LOAD_MORE_BLOCK_NAME,
 	STATUS_BLOCK_NAME,
 	UPDATE_TIMER_BLOCK_NAME,
 ];

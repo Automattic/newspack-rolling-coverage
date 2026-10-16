@@ -13,7 +13,7 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import type { Coverage } from '../types';
+import type { Coverage, PublishMode } from '../types';
 import { useAdminContext } from './useAdminContext';
 import {
 	connectSlackChannel,
@@ -26,8 +26,9 @@ import {
  * Manages Slack channel connection state and operations for a coverage term.
  *
  * Derives the current channel ID and name from the coverage meta, fetches the
- * stored autopublish setting and last sync each time the drawer opens connected, and exposes
- * async handlers for connecting, disconnecting, and toggling autopublish.
+ * stored publish mode and last sync each time the drawer opens connected, and
+ * exposes async handlers for connecting, disconnecting, and changing the
+ * publish mode.
  * Callers are notified of successful mutations via the `onSaved` callback and
  * may close the drawer via the `onClose` callback.
  *
@@ -53,11 +54,11 @@ function useSlackConnection(
 	);
 
 	const [ channel, setChannel ] = useState( '' );
-	const [ autopublish, setAutopublish ] = useState( false );
+	const [ publishMode, setPublishMode ] = useState< PublishMode >( 'draft' );
 	const [ lastSyncTs, setLastSyncTs ] = useState< string | null >( null );
 	const [ isConnecting, setIsConnecting ] = useState( false );
 	const [ isDisconnecting, setIsDisconnecting ] = useState( false );
-	const [ isUpdatingAutopublish, setIsUpdatingAutopublish ] =
+	const [ isUpdatingPublishMode, setIsUpdatingPublishMode ] =
 		useState( false );
 	const [ error, setError ] = useState< string | null >( null );
 
@@ -70,17 +71,17 @@ function useSlackConnection(
 		if ( isOpen ) {
 			sessionRef.current++;
 			setChannel( '' );
-			setAutopublish( false );
+			setPublishMode( 'draft' );
 			setLastSyncTs( null );
 			setIsConnecting( false );
 			setIsDisconnecting( false );
-			setIsUpdatingAutopublish( false );
+			setIsUpdatingPublishMode( false );
 			setError( null );
 		}
 	}, [ isOpen ] );
 
-	// When the drawer opens in connected mode, fetch the stored autopublish
-	// state and last sync. The toggle stays locked until they arrive.
+	// When the drawer opens in connected mode, fetch the stored publish mode
+	// and last sync. The dropdown stays locked until they arrive.
 	useEffect( () => {
 		if ( ! isOpen || ! channelId ) {
 			return;
@@ -97,13 +98,13 @@ function useSlackConnection(
 					setError(
 						result.error ||
 							__(
-								'Failed to load auto-publish setting.',
+								'Failed to load the publish mode.',
 								'newspack-rolling-coverage'
 							)
 					);
 					return;
 				}
-				setAutopublish( Boolean( result.autopublish ) );
+				setPublishMode( result.publishMode ?? 'draft' );
 				setLastSyncTs( result.lastSyncTs ?? '' );
 			}
 		);
@@ -113,12 +114,13 @@ function useSlackConnection(
 		};
 	}, [ isOpen, channelId, restBase.slack ] );
 
-	const handleAutopublishChange = useCallback(
-		async ( next: boolean ) => {
+	const handlePublishModeChange = useCallback(
+		async ( next: PublishMode ) => {
 			const session = sessionRef.current;
-			setAutopublish( next );
+			const previous = publishMode;
+			setPublishMode( next );
 			setError( null );
-			setIsUpdatingAutopublish( true );
+			setIsUpdatingPublishMode( true );
 
 			const result = await updateSlackChannelSettings(
 				restBase.slack,
@@ -131,20 +133,20 @@ function useSlackConnection(
 			}
 
 			if ( ! result.success ) {
-				// Revert the toggle on failure.
-				setAutopublish( ! next );
+				// Put the dropdown back on failure.
+				setPublishMode( previous );
 				setError(
 					result.error ||
 						__(
-							'Failed to update auto-publish setting.',
+							'Failed to update the publish mode.',
 							'newspack-rolling-coverage'
 						)
 				);
 			}
 
-			setIsUpdatingAutopublish( false );
+			setIsUpdatingPublishMode( false );
 		},
-		[ restBase.slack, channelId ]
+		[ restBase.slack, channelId, publishMode ]
 	);
 
 	const handleConnect = useCallback( async () => {
@@ -160,7 +162,7 @@ function useSlackConnection(
 			restBase.slack,
 			coverage.id,
 			channel.trim(),
-			autopublish
+			publishMode
 		);
 
 		if ( session !== sessionRef.current ) {
@@ -186,7 +188,7 @@ function useSlackConnection(
 		}
 
 		setIsConnecting( false );
-	}, [ coverage, channel, autopublish, restBase.slack, onSaved, onClose ] );
+	}, [ coverage, channel, publishMode, restBase.slack, onSaved, onClose ] );
 
 	const handleDisconnect = useCallback( async () => {
 		if ( ! coverage ) {
@@ -227,16 +229,16 @@ function useSlackConnection(
 		channelName,
 		channel,
 		setChannel,
-		autopublish,
-		setAutopublish,
+		publishMode,
+		setPublishMode,
 		lastSyncTs,
 		isConnecting,
 		isDisconnecting,
-		isUpdatingAutopublish,
+		isUpdatingPublishMode,
 		error,
 		handleConnect,
 		handleDisconnect,
-		handleAutopublishChange,
+		handlePublishModeChange,
 	};
 }
 

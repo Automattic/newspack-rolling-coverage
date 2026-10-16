@@ -66,6 +66,62 @@ class Slack_API_Client {
 	}
 
 	/**
+	 * React to a message as the bot. An emoji the bot already added counts
+	 * as done. Runs inside the webhook request, so it uses the short timeout.
+	 *
+	 * @param string $channel_id Slack channel ID.
+	 * @param string $ts         Message timestamp.
+	 * @param string $name       Emoji name, without colons.
+	 * @return bool|\WP_Error True once the message carries the reaction.
+	 */
+	public function add_reaction( string $channel_id, string $ts, string $name ): bool|\WP_Error {
+		$result = $this->request(
+			'reactions.add',
+			[
+				'channel'   => $channel_id,
+				'timestamp' => $ts,
+				'name'      => $name,
+			],
+			'POST',
+			self::WEBHOOK_TIMEOUT
+		);
+
+		if ( is_wp_error( $result ) && 'already_reacted' !== $result->get_error_message() ) {
+			return $result;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Remove one of the bot's reactions from a message. A reaction that is
+	 * not there counts as removed.
+	 *
+	 * @param string $channel_id Slack channel ID.
+	 * @param string $ts         Message timestamp.
+	 * @param string $name       Emoji name, without colons.
+	 * @return bool|\WP_Error True once the message no longer carries the bot's reaction.
+	 */
+	public function remove_reaction( string $channel_id, string $ts, string $name ): bool|\WP_Error {
+		$result = $this->request(
+			'reactions.remove',
+			[
+				'channel'   => $channel_id,
+				'timestamp' => $ts,
+				'name'      => $name,
+			],
+			'POST',
+			self::WEBHOOK_TIMEOUT
+		);
+
+		if ( is_wp_error( $result ) && 'no_reaction' !== $result->get_error_message() ) {
+			return $result;
+		}
+
+		return true;
+	}
+
+	/**
 	 * Get user info from Slack, with a 5-minute transient cache.
 	 *
 	 * @param string $user_id Slack user ID.
@@ -202,6 +258,49 @@ class Slack_API_Client {
 	}
 
 	/**
+	 * Read one message that may be a reply in a thread.
+	 *
+	 * A reaction names only the message's channel and timestamp, and
+	 * `conversations.history` lists top-level messages only, so the message
+	 * is read with `conversations.replies`, which takes the timestamp of any
+	 * message. Its answer can include the message the thread starts from,
+	 * so the message asked for is picked out by its timestamp.
+	 *
+	 * @param string $channel_id Slack channel ID.
+	 * @param string $ts         Message timestamp.
+	 * @param int    $timeout    Optional request timeout in seconds. Defaults to self::TIMEOUT.
+	 * @return array|\WP_Error The message, or a `slack_api_error` with `message_not_found` once it is gone.
+	 */
+	public function get_message_or_reply( string $channel_id, string $ts, int $timeout = self::TIMEOUT ): array|\WP_Error {
+		$result = $this->request(
+			'conversations.replies',
+			[
+				'channel'   => $channel_id,
+				'ts'        => $ts,
+				'oldest'    => $ts,
+				'latest'    => $ts,
+				'inclusive' => 'true',
+			],
+			'GET',
+			$timeout
+		);
+
+		if ( is_wp_error( $result ) ) {
+			return 'thread_not_found' === $result->get_error_message()
+				? new \WP_Error( 'slack_api_error', 'message_not_found' )
+				: $result;
+		}
+
+		foreach ( (array) ( $result['messages'] ?? [] ) as $message ) {
+			if ( is_array( $message ) && $ts === (string) ( $message['ts'] ?? '' ) && 'tombstone' !== ( $message['subtype'] ?? '' ) ) {
+				return $message;
+			}
+		}
+
+		return new \WP_Error( 'slack_api_error', 'message_not_found' );
+	}
+
+	/**
 	 * Whether a failed call may succeed when tried again: Slack gave no
 	 * usable answer, or answered that it is rate limiting or failing.
 	 *
@@ -294,15 +393,15 @@ class Slack_API_Client {
 	}
 
 	/**
-	 * Whether the Slack app may download uploaded files.
+	 * The scopes Slack granted the bot token.
 	 *
 	 * Slack lists a token's scopes in the `x-oauth-scopes` header of every API
-	 * response. An app installed before images were imported lacks
-	 * `files:read` until the scope is added and the app is reinstalled.
+	 * response. An app installed before a feature needed a scope lacks it
+	 * until the scope is added and the app is reinstalled.
 	 *
-	 * @return bool|null Null when Slack did not report the scopes.
+	 * @return string[]|null Null when there is no token or Slack did not report the scopes.
 	 */
-	public function can_read_files(): ?bool {
+	public function get_granted_scopes(): ?array {
 		$token = Slack_Config::get_bot_token();
 
 		if ( '' === $token ) {
@@ -322,7 +421,7 @@ class Slack_API_Client {
 			return null;
 		}
 
-		return in_array( 'files:read', array_map( 'trim', explode( ',', $scopes ) ), true );
+		return array_map( 'trim', explode( ',', $scopes ) );
 	}
 
 	/**

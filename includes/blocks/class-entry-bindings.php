@@ -1491,9 +1491,9 @@ class Entry_Bindings {
 	/**
 	 * Whether a parsed block belongs to the coverage rather than to each
 	 * entry, so it renders once: the Follow Coverage block, the Check for
-	 * Updates block, the Coverage Status block, the Update Timer block, a
-	 * heading bound to the coverage's name, the all-updates paragraph, or a
-	 * block holding one at any depth. The pinned card, the entry group and
+	 * Updates block, the Load More block, the Coverage Status block, the
+	 * Update Timer block, a heading bound to the coverage's name, the
+	 * all-updates paragraph, or a block holding one at any depth. The pinned card, the entry group and
 	 * the Full Story Entry group always belong to each entry, whatever they
 	 * hold.
 	 *
@@ -1508,6 +1508,7 @@ class Entry_Bindings {
 		if (
 			Coverage_Follow_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			Check_Updates_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
+			Load_More_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			Coverage_Status_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			Update_Timer_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			self::is_coverage_name_heading( $parsed_block ) ||

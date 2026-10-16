@@ -22,18 +22,27 @@ import { BotUserSection } from './bot-user-section';
 import { useAdminContext } from '../../../hooks/useAdminContext';
 
 /**
- * Renders the Settings tab: the message ignore prefix and the WordPress bot
+ * Renders the Settings tab: the message ignore prefix, the emoji that publish
+ * or draft a message in channels set to Emoji trigger, and the WordPress bot
  * user that authors ingested entries. Saving happens from the page header.
  *
- * @param {Object}                   props                 - Component props.
- * @param {string}                   props.ignorePrefix    - The ignore-prefix setting value.
- * @param {(v: string) => void}      props.setIgnorePrefix - Ignore prefix setter.
- * @param {SlackSettingsInfo | null} props.workspaceInfo   - Fetched workspace settings, or null.
- * @param {string}                   props.editUserUrl     - Base admin URL for editing a WordPress user.
+ * @param {Object}                   props                    - Component props.
+ * @param {string}                   props.ignorePrefix       - The ignore-prefix setting value.
+ * @param {(v: string) => void}      props.setIgnorePrefix    - Ignore prefix setter.
+ * @param {string}                   props.publishReaction    - Emoji name that publishes a message.
+ * @param {(v: string) => void}      props.setPublishReaction - Publish emoji setter.
+ * @param {string}                   props.draftReaction      - Emoji name that saves a message as a draft.
+ * @param {(v: string) => void}      props.setDraftReaction   - Draft emoji setter.
+ * @param {SlackSettingsInfo | null} props.workspaceInfo      - Fetched workspace settings, or null.
+ * @param {string}                   props.editUserUrl        - Base admin URL for editing a WordPress user.
  */
 function IngestionSettingsTab( {
 	ignorePrefix,
 	setIgnorePrefix,
+	publishReaction,
+	setPublishReaction,
+	draftReaction,
+	setDraftReaction,
 	workspaceInfo,
 	editUserUrl,
 }: IngestionSettingsTabProps ) {
@@ -115,7 +124,31 @@ function IngestionSettingsTab( {
 						value={ ignorePrefix }
 						onChange={ setIgnorePrefix }
 						help={ __(
-							'Messages starting with this prefix are ignored during ingestion, and so are the replies in their threads.',
+							'In Auto-publish and Draft channels, messages starting with this prefix are ignored during ingestion, and so are the replies in their threads. In Emoji trigger channels, a reaction adds the message anyway.',
+							'newspack-rolling-coverage'
+						) }
+					/>
+					<TextControl
+						label={ __(
+							'Publish Emoji',
+							'newspack-rolling-coverage'
+						) }
+						value={ publishReaction }
+						onChange={ setPublishReaction }
+						help={ __(
+							'In channels set to Emoji trigger, reacting to a message with this emoji publishes it. Enter the emoji name, such as mega.',
+							'newspack-rolling-coverage'
+						) }
+					/>
+					<TextControl
+						label={ __(
+							'Draft Emoji',
+							'newspack-rolling-coverage'
+						) }
+						value={ draftReaction }
+						onChange={ setDraftReaction }
+						help={ __(
+							'In channels set to Emoji trigger, reacting to a message with this emoji saves it as a draft. Enter the emoji name, such as memo.',
 							'newspack-rolling-coverage'
 						) }
 					/>

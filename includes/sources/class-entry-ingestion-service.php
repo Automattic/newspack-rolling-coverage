@@ -179,15 +179,18 @@ class Entry_Ingestion_Service {
 	/**
 	 * Find the entry for the given source_ref + term.
 	 *
-	 * @param string $source_ref Platform-native message id.
-	 * @param int    $term_id    Term id.
+	 * @param string $source_ref    Platform-native message id.
+	 * @param int    $term_id       Term id.
+	 * @param bool   $include_trash Whether a trashed entry counts. A reaction
+	 *                              can arrive long after an editor trashed the
+	 *                              entry, and must not bring it back.
 	 * @return int Entry post id, or 0 when there is none.
 	 */
-	private static function find_entry_id( string $source_ref, int $term_id ): int {
+	public static function find_entry_id( string $source_ref, int $term_id, bool $include_trash = false ): int {
 		$posts = get_posts(
 			[
 				'post_type'      => Post_Type::CPT_SLUG,
-				'post_status'    => 'any',
+				'post_status'    => $include_trash ? [ 'any', 'trash' ] : 'any',
 				'posts_per_page' => 1,
 				'fields'         => 'ids',
 				// A cached answer cannot see an entry another request saved since.

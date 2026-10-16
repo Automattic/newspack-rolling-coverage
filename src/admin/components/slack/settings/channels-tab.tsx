@@ -17,7 +17,7 @@ import { EmptyState } from 'newspack-components/dist/esm/empty-state';
 /**
  * Internal dependencies
  */
-import type { ChannelsTabProps, ChannelRow } from '../../../types';
+import type { ChannelsTabProps, ChannelRow, PublishMode } from '../../../types';
 import { DataViewsWrapper } from '../../data-views-wrapper';
 import { useAdminContext } from '../../../hooks/useAdminContext';
 import { LoadingState } from '../../../shared/loading-state';
@@ -31,7 +31,7 @@ import { ConfirmModal } from '../../confirm-modal';
 
 /**
  * Renders the Channel Mappings tab: a DataViews list of the Slack channels
- * linked to coverages, with an auto-publish toggle and a Disconnect button
+ * linked to coverages, with a Publish Mode dropdown and a Disconnect button
  * on each row.
  *
  * @param {ChannelsTabProps} props                Component props.
@@ -41,24 +41,24 @@ function ChannelsTab( {
 	channels,
 	hasLoadedChannels,
 	onUnlink,
-	onAutopublishChange,
+	onPublishModeChange,
 	onHeaderChange,
 }: ChannelsTabProps ) {
 	const [ view, setView ] = useState< View >( defaultChannelView );
 	const [ updatingChannelIds, setUpdatingChannelIds ] = useState<
 		Set< string >
 	>( () => new Set() );
-	const handleAutopublishChange = useCallback(
-		async ( channelId: string, autopublish: boolean ) => {
+	const handlePublishModeChange = useCallback(
+		async ( channelId: string, publishMode: PublishMode ) => {
 			setUpdatingChannelIds( ( ids ) => new Set( ids ).add( channelId ) );
-			await onAutopublishChange( channelId, autopublish );
+			await onPublishModeChange( channelId, publishMode );
 			setUpdatingChannelIds( ( ids ) => {
 				const next = new Set( ids );
 				next.delete( channelId );
 				return next;
 			} );
 		},
-		[ onAutopublishChange ]
+		[ onPublishModeChange ]
 	);
 	const containerRef = useRef< HTMLDivElement | null >( null );
 
@@ -100,12 +100,12 @@ function ChannelsTab( {
 	const fields = useMemo(
 		() =>
 			getChannelFields(
-				handleAutopublishChange,
+				handlePublishModeChange,
 				updatingChannelIds,
 				setChannelToDisconnect,
 				adminUrls.coverages
 			),
-		[ handleAutopublishChange, updatingChannelIds, adminUrls.coverages ]
+		[ handlePublishModeChange, updatingChannelIds, adminUrls.coverages ]
 	);
 
 	const rows = useMemo< ChannelRow[] >(

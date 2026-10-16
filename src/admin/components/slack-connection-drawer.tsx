@@ -16,8 +16,8 @@ import { ConnectChannelForm } from './slack/connection-drawer/connect-channel-fo
 /**
  * Drawer for connecting or disconnecting a coverage term to a Slack channel.
  * Detects connected vs. disconnected mode based on the term's slack channel
- * meta. In connected mode, fetches the current autopublish setting from the
- * channel map and lets the admin toggle it inline. Stays mounted so the
+ * meta. In connected mode, fetches the current publish mode from the
+ * channel map and lets the admin change it inline. Stays mounted so the
  * drawer can play its exit animation.
  *
  * @param {SlackConnectionDrawerProps} props Component props.
@@ -33,16 +33,16 @@ function SlackConnectionDrawer( {
 		channelName,
 		channel,
 		setChannel,
-		autopublish,
-		setAutopublish,
+		publishMode,
+		setPublishMode,
 		lastSyncTs,
 		isConnecting,
 		isDisconnecting,
-		isUpdatingAutopublish,
+		isUpdatingPublishMode,
 		error,
 		handleConnect,
 		handleDisconnect,
-		handleAutopublishChange,
+		handlePublishModeChange,
 	} = useSlackConnection( isOpen, coverage, onSaved, onClose );
 
 	const isBusy = isConnecting || isDisconnecting;
@@ -69,17 +69,17 @@ function SlackConnectionDrawer( {
 						channelName={ channelName }
 						channelId={ channelId }
 						lastSyncTs={ lastSyncTs }
-						autopublish={ autopublish }
-						onAutopublishChange={ handleAutopublishChange }
-						isUpdatingAutopublish={ isUpdatingAutopublish }
+						publishMode={ publishMode }
+						onPublishModeChange={ handlePublishModeChange }
+						isUpdatingPublishMode={ isUpdatingPublishMode }
 						error={ error }
 					/>
 				) : (
 					<ConnectChannelForm
 						channel={ channel }
 						onChannelChange={ setChannel }
-						autopublish={ autopublish }
-						onAutopublishChange={ setAutopublish }
+						publishMode={ publishMode }
+						onPublishModeChange={ setPublishMode }
 						isConnecting={ isConnecting }
 						error={ error }
 					/>

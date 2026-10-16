@@ -8,6 +8,7 @@
 use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Breakout_Label;
 use Newspack_Rolling_Coverage\Check_Updates_Block;
+use Newspack_Rolling_Coverage\Load_More_Block;
 use Newspack_Rolling_Coverage\Coverage_Follow_Block;
 use Newspack_Rolling_Coverage\Coverage_Status_Block;
 use Newspack_Rolling_Coverage\Lite_Feed;
@@ -55,6 +56,13 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	 * @var bool
 	 */
 	private $registered_check_updates_block = false;
+
+	/**
+	 * Whether the test registered the Load More block itself.
+	 *
+	 * @var bool
+	 */
+	private $registered_load_more_block = false;
 
 	/**
 	 * Whether the test registered the Rolling Coverage block itself.
@@ -112,6 +120,11 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		if ( $this->registered_check_updates_block ) {
 			unregister_block_type( Check_Updates_Block::BLOCK_NAME );
 			$this->registered_check_updates_block = false;
+		}
+
+		if ( $this->registered_load_more_block ) {
+			unregister_block_type( Load_More_Block::BLOCK_NAME );
+			$this->registered_load_more_block = false;
 		}
 
 		if ( $this->registered_feed_block ) {
@@ -252,6 +265,24 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 			array_merge( Check_Updates_Block::block_type_args(), [ 'uses_context' => $metadata['usesContext'] ] )
 		);
 		$this->registered_check_updates_block = true;
+	}
+
+	/**
+	 * Register the Load More block from its metadata for the rest of the test
+	 * when the build isn't there, so the coverage reaches its render callback.
+	 */
+	protected function register_load_more_block() {
+		if ( WP_Block_Type_Registry::get_instance()->is_registered( Load_More_Block::BLOCK_NAME ) ) {
+			return;
+		}
+
+		$metadata = wp_json_file_decode( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'src/blocks/load-more/block.json', [ 'associative' => true ] );
+
+		register_block_type(
+			Load_More_Block::BLOCK_NAME,
+			array_merge( Load_More_Block::block_type_args(), [ 'uses_context' => $metadata['usesContext'] ] )
+		);
+		$this->registered_load_more_block = true;
 	}
 
 	/**
