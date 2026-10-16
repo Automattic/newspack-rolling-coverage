@@ -767,8 +767,8 @@ class Test_Shared_Entry_View extends Rolling_Coverage_TestCase {
 		$html = $this->render_with_shared( 'entry-2' );
 
 		$this->assertStringContainsString( 'data-view="entry"', $html );
-		$this->assertSame( $this->ids( 'entry-5', 'entry-6', 'entry-2', 'entry-1' ), $this->entry_ids_in( $html ) );
-		$this->assertSame( $this->ids( 'entry-5', 'entry-6' ), $this->entry_ids_in( $this->render_with_shared( '' ) ), 'The live feed.' );
+		$this->assertSame( $this->ids( 'entry-6', 'entry-5', 'entry-2', 'entry-1' ), $this->entry_ids_in( $html ) );
+		$this->assertSame( $this->ids( 'entry-6', 'entry-5' ), $this->entry_ids_in( $this->render_with_shared( '' ) ), 'The live feed.' );
 		$this->assertSame( $this->ids( 'entry-2' ), $this->linked_ids( $html ) );
 	}
 

@@ -128,6 +128,28 @@ class Test_Split extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An attribute of an entry's article.
+	 *
+	 * @param string $html     Rendered entries.
+	 * @param int    $entry_id Entry post ID.
+	 * @param string $name     Attribute name.
+	 * @return string|null The attribute's value, or null when the article lacks it.
+	 */
+	private static function article_attribute( string $html, int $entry_id, string $name ): ?string {
+		$processor = new WP_HTML_Tag_Processor( $html );
+
+		while ( $processor->next_tag( 'article' ) ) {
+			if ( $entry_id === (int) $processor->get_attribute( 'data-entry-id' ) ) {
+				$value = $processor->get_attribute( $name );
+
+				return is_string( $value ) ? $value : null;
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * The column markers each entry's article carries, by entry ID.
 	 *
 	 * @param string $html Rendered entries.
@@ -308,23 +330,24 @@ class Test_Split extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Only the first pinned entry takes the pinned card's placement: a later
-	 * one heads the entries beside it, keeping the card's look.
+	 * Of pinned entries not edited since they were published, only the newest
+	 * takes the pinned card's placement, whatever order they were pinned in:
+	 * an older one heads the entries beside it, keeping the card's look.
 	 */
-	public function test_later_pinned_entry_takes_the_entry_groups_placement() {
+	public function test_older_pinned_entry_takes_the_entry_groups_placement() {
 		$coverage_id = self::create_coverage();
-		[ $first_pin, $second_pin, $newest_id ] = self::create_entries( $coverage_id );
-		Post_Type::pin_entry( $first_pin );
-		Post_Type::pin_entry( $second_pin );
+		[ $older_pin, $newer_pin, $newest_id ] = self::create_entries( $coverage_id );
+		Post_Type::pin_entry( $older_pin );
+		Post_Type::pin_entry( $newer_pin );
 
 		$html    = self::render_split( $coverage_id );
 		$classes = self::article_classes( $html );
 		$entry   = self::cell_class( $classes[ $newest_id ] );
 
-		$this->assertSame( [ $first_pin, $second_pin, $newest_id ], array_keys( $classes ), 'Pinned entries should come first, in the order they were pinned.' );
-		$this->assertNotSame( $entry, self::cell_class( $classes[ $first_pin ] ), 'The first pin should take the card placement.' );
-		$this->assertSame( $entry, self::cell_class( $classes[ $second_pin ] ), "The second pin should take the entry group's placement." );
-		$this->assertContains( Rolling_Coverage_Block::BESIDE_PINNED_CLASS, $classes[ $second_pin ] );
+		$this->assertSame( [ $newer_pin, $older_pin, $newest_id ], array_keys( $classes ), 'Unedited pinned entries should come first, newest first.' );
+		$this->assertNotSame( $entry, self::cell_class( $classes[ $newer_pin ] ), 'The newer pin should take the card placement.' );
+		$this->assertSame( $entry, self::cell_class( $classes[ $older_pin ] ), "The older pin should take the entry group's placement." );
+		$this->assertContains( Rolling_Coverage_Block::BESIDE_PINNED_CLASS, $classes[ $older_pin ] );
 		$this->assertSame( 2, substr_count( $html, 'class="wp-block-group newspack-rolling-coverage-pinned-card' ), 'Both pins should keep the pinned card.' );
 	}
 
@@ -393,17 +416,46 @@ class Test_Split extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The lead pinned entry is the first of the coverage the feed shows: an
-	 * entry filed under two coverages, pinned second in one but first in the
-	 * other, heads the entries beside the card in the first.
+	 * An older pinned entry edited since takes the pinned card's placement
+	 * from a newer one, whatever order they were pinned in, in the render and
+	 * in a poll, and every pinned entry carries its last edit for the view
+	 * script, which keeps them in that order as polls bring edits.
+	 */
+	public function test_most_recently_edited_pin_takes_the_card_placement() {
+		$coverage_id = self::create_coverage();
+		[ $edited_pin, $newer_pin, $newest_id ] = self::create_entries( $coverage_id );
+		Post_Type::pin_entry( $newer_pin );
+		Post_Type::pin_entry( $edited_pin );
+		self::set_entry_modified( $edited_pin, gmdate( 'Y-m-d H:i:s' ) );
+
+		$html    = self::render_split( $coverage_id );
+		$classes = self::article_classes( $html );
+		$polled  = self::article_classes( implode( '', wp_list_pluck( self::poll( $coverage_id, $html )['entries'], 'html' ) ) );
+		$entry   = self::cell_class( $classes[ $newest_id ] );
+
+		$this->assertSame( [ $edited_pin, $newer_pin, $newest_id ], array_keys( $classes ), 'The edited pin should come first.' );
+		$this->assertNotSame( $entry, self::cell_class( $classes[ $edited_pin ] ), 'The edited pin should take the card placement.' );
+		$this->assertSame( $entry, self::cell_class( $classes[ $newer_pin ] ), "The newer pin should take the entry group's placement." );
+		$this->assertSame( self::cell_class( $classes[ $edited_pin ] ), self::cell_class( $polled[ $edited_pin ] ), 'A poll should keep the edited pin as the lead.' );
+		$this->assertSame( $entry, self::cell_class( $polled[ $newer_pin ] ), 'A poll should place the newer pin beside it.' );
+		$this->assertSame( get_post( $edited_pin )->post_modified_gmt, self::article_attribute( $html, $edited_pin, 'data-modified-gmt' ) );
+		$this->assertSame( get_post( $newer_pin )->post_modified_gmt, self::article_attribute( $html, $newer_pin, 'data-modified-gmt' ) );
+		$this->assertNull( self::article_attribute( $html, $newest_id, 'data-modified-gmt' ), 'An unpinned entry has no use for it.' );
+	}
+
+	/**
+	 * The lead pinned entry is the most recently edited of the coverage the
+	 * feed shows: an entry filed under two coverages, with a pinned entry
+	 * edited more recently in one but not the other, heads the entries beside
+	 * the card in the first.
 	 */
 	public function test_lead_pinned_entry_is_decided_per_coverage() {
 		$coverage_id = self::create_coverage();
 		$other_id    = self::create_coverage();
-		[ $first_pin, $shared_pin ] = self::create_entries( $coverage_id );
+		[ $shared_pin, $first_pin ] = self::create_entries( $coverage_id );
 		wp_set_object_terms( $shared_pin, [ $coverage_id, $other_id ], Taxonomy::TAXONOMY_SLUG );
-		Post_Type::pin_entry( $first_pin );
 		Post_Type::pin_entry( $shared_pin );
+		Post_Type::pin_entry( $first_pin );
 
 		$html         = self::render_split( $coverage_id );
 		$classes      = self::article_classes( $html );
@@ -413,11 +465,11 @@ class Test_Split extends Rolling_Coverage_TestCase {
 		$other_polled = self::article_classes( implode( '', wp_list_pluck( self::poll( $other_id, $other_html )['entries'], 'html' ) ) );
 		$card         = self::cell_class( $classes[ $first_pin ] );
 
-		$this->assertNotSame( $card, self::cell_class( $classes[ $shared_pin ] ), "The second pin should take the entry group's placement." );
+		$this->assertNotSame( $card, self::cell_class( $classes[ $shared_pin ] ), "The older pin should take the entry group's placement." );
 		$this->assertContains( Rolling_Coverage_Block::BESIDE_PINNED_CLASS, $classes[ $shared_pin ] );
 		$this->assertSame( self::cell_class( $classes[ $shared_pin ] ), self::cell_class( $polled[ $shared_pin ] ), 'A poll should place it the same way.' );
 		$this->assertSame( $card, self::cell_class( $polled[ $first_pin ] ), 'A poll should keep the lead.' );
-		$this->assertSame( $card, self::cell_class( $other[ $shared_pin ] ), 'It should lead the coverage it is pinned first in.' );
+		$this->assertSame( $card, self::cell_class( $other[ $shared_pin ] ), 'It should lead the coverage where it is the most recently edited pin.' );
 		$this->assertSame( $card, self::cell_class( $other_polled[ $shared_pin ] ), 'A poll of that coverage should keep it as the lead.' );
 	}
 
@@ -545,20 +597,20 @@ class Test_Split extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A second pin heading the entries beside the card already has the
+	 * An older pin heading the entries beside the card already has the
 	 * card's look, and is left as it is.
 	 */
-	public function test_second_pin_heading_the_column_is_untouched() {
+	public function test_older_pin_heading_the_column_is_untouched() {
 		$coverage_id = self::create_coverage();
-		[ $first_pin, $second_pin, $newest_id ] = self::create_entries( $coverage_id );
-		Post_Type::pin_entry( $first_pin );
-		Post_Type::pin_entry( $second_pin );
+		[ $older_pin, $newer_pin, $newest_id ] = self::create_entries( $coverage_id );
+		Post_Type::pin_entry( $older_pin );
+		Post_Type::pin_entry( $newer_pin );
 
 		$html   = self::render_split( $coverage_id );
 		$styles = self::entry_group_styles( $html );
 		$marks  = self::article_marks( $html );
 
-		$this->assertSame( [], $marks[ $second_pin ] );
+		$this->assertSame( [], $marks[ $older_pin ] );
 		$this->assertSame( [], $marks[ $newest_id ] );
 		$this->assertSame( self::rule_of( self::ENTRY_RULE ), self::rule_of( $styles[ $newest_id ] ) );
 		$this->assertStringNotContainsString( 'data-heads-column', $html );

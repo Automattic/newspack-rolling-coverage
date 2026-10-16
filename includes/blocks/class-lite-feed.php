@@ -310,7 +310,7 @@ class Lite_Feed {
 			Rolling_Coverage_Block::MARKUP_PREFIX,
 			$entry->ID,
 			esc_attr( $arrival ),
-			$is_pinned ? ' data-pinned' : '',
+			$is_pinned ? sprintf( ' data-pinned data-modified-gmt="%s"', esc_attr( $entry->post_modified_gmt ) ) : '',
 			$meta,
 			$title,
 			null === $card && Archive_Mode::is_entry_archived( $entry->ID ) ? \Newspack_Lite_Site\Lite_Site::clean_content( Rolling_Coverage_Block::render_archived_entry_notice() ) : '',

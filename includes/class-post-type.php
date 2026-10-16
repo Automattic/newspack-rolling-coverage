@@ -33,7 +33,7 @@ class Post_Type {
 	// REST field name for the entry's coverage term's status.
 	const COVERAGE_STATUS_REST_FIELD = 'coverageStatus';
 
-	// Option key for the ordered list of pinned entry IDs. Autoloaded array of post IDs in pin order. Isolates pinned state to this CPT, avoiding pollution of the global sticky_posts option.
+	// Option key for the pinned entry IDs. Autoloaded array of post IDs. Isolates pinned state to this CPT, avoiding pollution of the global sticky_posts option.
 	const PINNED_OPTION_KEY = 'rolling_coverage_pinned_entries';
 
 	// Query var used to opt out of pinned-first ordering for a specific query.
@@ -890,7 +890,7 @@ class Post_Type {
 	}
 
 	/**
-	 * Get the ordered list of pinned entry IDs.
+	 * Get the pinned entry IDs.
 	 *
 	 * @return int[]
 	 */
@@ -1036,7 +1036,7 @@ class Post_Type {
 	}
 
 	/**
-	 * Add an entry ID to the pinned list (append = newest pin).
+	 * Add an entry ID to the pinned list.
 	 *
 	 * @param int $entry_id Entry post ID.
 	 */
@@ -1060,7 +1060,11 @@ class Post_Type {
 	}
 
 	/**
-	 * Rewrites the ORDER BY clause to sort pinned entries first.
+	 * Rewrites the ORDER BY clause to sort pinned entries first, the most
+	 * recently edited first: a pinned entry is often a summary kept up to
+	 * date, and pinning counts as an edit (see handle_toggle_pin()). Pinned
+	 * entries edited in the same second, and unpinned entries, keep the
+	 * query's own order.
 	 *
 	 * Registered globally on posts_orderby. Guarded by a post_type check
 	 * so non-CPT queries pass through untouched. Queries that need to
@@ -1089,7 +1093,7 @@ class Post_Type {
 		global $wpdb;
 		$ids_list = implode( ',', $pinned_ids );
 
-		$pinned_order = "CASE WHEN {$wpdb->posts}.ID IN ({$ids_list}) THEN 0 ELSE 1 END, FIELD({$wpdb->posts}.ID, {$ids_list})";
+		$pinned_order = "CASE WHEN {$wpdb->posts}.ID IN ({$ids_list}) THEN 0 ELSE 1 END, CASE WHEN {$wpdb->posts}.ID IN ({$ids_list}) THEN {$wpdb->posts}.post_modified_gmt END DESC";
 
 		return '' === $orderby ? $pinned_order : $pinned_order . ', ' . $orderby;
 	}
@@ -1221,7 +1225,7 @@ class Post_Type {
 			self::pin_entry( $entry_id );
 		}
 
-		// Bump post_modified so live feeds re-render the entry with its pinned row.
+		// Bump post_modified so live feeds re-render the entry with its pinned row, and list it first among pinned entries.
 		self::touch_entry( $entry_id );
 
 		return new WP_REST_Response( [ 'pinned' => ! $is_pinned ], 200 );

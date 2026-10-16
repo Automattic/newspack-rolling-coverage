@@ -529,20 +529,20 @@ class Test_Same_Second_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Load more from a page showing only pinned entries, which lists them in
-	 * pin order, reaches every entry the page leaves out, those dated after
-	 * its last one included.
+	 * Load more from a page showing only pinned entries, which lists them
+	 * first, reaches every entry the page leaves out, those dated after its
+	 * last one included.
 	 */
 	public function test_load_more_from_a_page_of_pinned_entries_reaches_every_entry() {
-		$shown_pin_id = $this->create_entry_at( '2026-01-01 08:00:00' );
-		$newer_pin_id = $this->create_entry_at( '2026-01-01 10:00:00' );
+		$older_pin_id = $this->create_entry_at( '2026-01-01 08:00:00' );
+		$shown_pin_id = $this->create_entry_at( '2026-01-01 10:00:00' );
 		$newest_id    = $this->create_entry_at( self::SECOND );
 		$oldest_id    = $this->create_entry_at( '2026-01-01 07:00:00' );
 
+		Post_Type::pin_entry( $older_pin_id );
 		Post_Type::pin_entry( $shown_pin_id );
-		Post_Type::pin_entry( $newer_pin_id );
 
-		$this->assertSame( [ $shown_pin_id, $newest_id, $newer_pin_id, $oldest_id ], $this->load_all( $this->render_feed( [ 'entriesPerPage' => 1 ] ), 1 ) );
+		$this->assertSame( [ $shown_pin_id, $newest_id, $older_pin_id, $oldest_id ], $this->load_all( $this->render_feed( [ 'entriesPerPage' => 1 ] ), 1 ) );
 	}
 
 	/**

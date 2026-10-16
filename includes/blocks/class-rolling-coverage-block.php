@@ -1334,8 +1334,9 @@ class Rolling_Coverage_Block {
 		if ( $posts ) {
 			$last_entry = $posts[ count( $posts ) - 1 ];
 
-			// A page ending on a pinned entry shows only pinned entries, in pin
-			// order, so no entry's date marks where its load more starts.
+			// A page ending on a pinned entry shows only pinned entries, which
+			// list above newer unpinned ones, so no entry's date marks where its
+			// load more starts.
 			$before = ! $is_capped && Post_Type::is_pinned( $last_entry->ID ) ? self::load_more_top_bound() : self::load_more_bound( $last_entry );
 		}
 
@@ -1697,8 +1698,7 @@ class Rolling_Coverage_Block {
 				self::coverage_entries_args( $coverage_id ),
 				[
 					'post__in'       => $pinned_ids,
-					'orderby'        => 'date',
-					'order'          => 'DESC',
+					'orderby'        => self::FEED_ORDER,
 					'posts_per_page' => count( $pinned_ids ),
 				]
 			)
@@ -2776,14 +2776,13 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The first pinned entry of a coverage shown as the pinned card, in the
-	 * order the live feed shows pinned entries: the order they were pinned
-	 * in (see Post_Type::orderby_pinned_first()). Where the template's Full
-	 * Story Entry takes pinned entries (see is_full_story()), pinned entries
-	 * with a published breakout post render through it and are skipped. The
-	 * view script puts an entry pinned while the page is open after the
-	 * pinned entries already there, so the first stays first. Looked up once
-	 * per request for each site, coverage, set of pinned entries and kind of
-	 * template, since a poll asks for every pinned entry it renders.
+	 * order the live feed shows pinned entries: most recently edited first
+	 * (see Post_Type::orderby_pinned_first()). Where the template's Full Story
+	 * Entry takes pinned entries (see is_full_story()), pinned entries with
+	 * a published breakout post render through it and are skipped. Looked up
+	 * once per request for each site, coverage, set of pinned entries and
+	 * kind of template, since a poll asks for every pinned entry it renders,
+	 * so an edit later in the same request doesn't change it.
 	 *
 	 * @param int     $coverage_id Coverage term ID.
 	 * @param array[] $template    Parsed template blocks.
@@ -2809,11 +2808,10 @@ class Rolling_Coverage_Block {
 			array_merge(
 				self::coverage_entries_args( $coverage_id ),
 				[
-					'post__in'                    => $pinned_ids,
-					'orderby'                     => 'post__in',
-					'posts_per_page'              => $skips_full_stories ? count( $pinned_ids ) : 1,
-					'fields'                      => 'ids',
-					Post_Type::SKIP_PIN_ORDER_VAR => true,
+					'post__in'       => $pinned_ids,
+					'orderby'        => self::FEED_ORDER,
+					'posts_per_page' => $skips_full_stories ? count( $pinned_ids ) : 1,
+					'fields'         => 'ids',
 				]
 			)
 		);
@@ -4299,7 +4297,10 @@ class Rolling_Coverage_Block {
 	 * The entry carries its date in GMT (data-date-gmt), the date load more
 	 * pages by rather than the moment it went out
 	 * (Post_Type::get_entry_published_gmt()), so the view script can put an
-	 * entry unpinned while the page is open where load more lists it.
+	 * entry unpinned while the page is open where load more lists it. A
+	 * pinned entry also carries its last edit in GMT (data-modified-gmt), so
+	 * the view script can keep pinned entries in the order a fresh page
+	 * lists them as polls bring edits.
 	 *
 	 * @global WP_Post $post Global post object, temporarily swapped to the
 	 *                       entry for the duration of this render and
@@ -4435,7 +4436,7 @@ class Rolling_Coverage_Block {
 			$entry_content,
 			esc_attr( $arrival ),
 			esc_attr( $entry->post_name ),
-			$is_pinned ? ' data-pinned' : '',
+			$is_pinned ? sprintf( ' data-pinned data-modified-gmt="%s"', esc_attr( self::post_modified_gmt( $entry ) ) ) : '',
 			$is_linked ? ' data-linked' : '',
 			( $leads_column ? ' data-leads-column' : '' ) . ( $heads_column ? ' data-heads-column' : '' ),
 			esc_attr( self::post_date_gmt( $entry ) )
@@ -4548,8 +4549,8 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * Where load more starts for a page that shows only pinned entries: above
-	 * every entry. The page lists its pinned entries in pin order, so it can
-	 * leave out entries dated after its last one. Load more lists them all by
+	 * every entry. The page lists its pinned entries first, so it can leave
+	 * out entries dated after its last one. Load more lists them all by
 	 * date, and the view script skips the pinned entries the page already
 	 * shows.
 	 *

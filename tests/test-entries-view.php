@@ -99,6 +99,39 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Pinned entries list most recently edited first, whatever their date or
+	 * the order they were pinned in, while unpinned entries keep listing by
+	 * date.
+	 */
+	public function test_pinned_entries_are_listed_most_recently_edited_first() {
+		$edited_pinned_id   = $this->create_entry_at( '2026-01-01 10:00:00' );
+		$unedited_pinned_id = $this->create_entry_at( '2026-01-01 11:00:00' );
+		$edited_entry_id    = $this->create_entry_at( '2026-01-01 12:00:00' );
+		$newest_entry_id    = $this->create_entry_at( '2026-01-01 13:00:00' );
+		Post_Type::pin_entry( $unedited_pinned_id );
+		Post_Type::pin_entry( $edited_pinned_id );
+		self::set_entry_modified( $edited_pinned_id, '2026-01-01 14:00:00' );
+		self::set_entry_modified( $edited_entry_id, '2026-01-01 15:00:00' );
+
+		$this->assertSame( [ $edited_pinned_id, $unedited_pinned_id, $newest_entry_id, $edited_entry_id ], $this->get_listed_entry_ids() );
+	}
+
+	/**
+	 * Pinning counts as an edit, so an entry pinned last lists first.
+	 */
+	public function test_entry_pinned_last_is_listed_first() {
+		$older_entry_id  = $this->create_entry_at( '2026-01-01 10:00:00' );
+		$newer_pinned_id = $this->create_entry_at( '2026-01-01 11:00:00' );
+		Post_Type::pin_entry( $newer_pinned_id );
+
+		$pin_request = new WP_REST_Request( 'POST' );
+		$pin_request->set_param( 'entry_id', $older_entry_id );
+		Post_Type::handle_toggle_pin( $pin_request );
+
+		$this->assertSame( [ $older_entry_id, $newer_pinned_id ], $this->get_listed_entry_ids() );
+	}
+
+	/**
 	 * Entries written in the editor before the source meta existed have no
 	 * meta row. The source filters count them as editor entries.
 	 */

@@ -922,19 +922,69 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Puts a pinned entry after the pinned entries the list shows: at the
-	 * end of the Pinned group, or above the first unpinned entry in a layout
-	 * without one.
+	 * Puts a pinned entry among the pinned entries the list shows, most
+	 * recently edited first, as a fresh page lists them: in the Pinned group,
+	 * or above the first unpinned entry in a layout without one.
 	 *
-	 * @param {Node} el The pinned entry, or a fragment of pinned entries.
+	 * @param {HTMLElement} el The pinned entry.
 	 * @return {void}
 	 */
-	function insertPinned( el: Node ): void {
-		if ( pinnedStack ) {
+	function insertPinned( el: HTMLElement ): void {
+		const others = topPinnedEntries( el );
+		const below = pinnedEntryBelow( el, others );
+		const shown = topPinnedEntries();
+		const index = shown.indexOf( el );
+
+		if ( index !== -1 ) {
+			if ( ( shown[ index + 1 ] ?? null ) === below ) {
+				return;
+			}
+
+			// The pinned entries trade places rather than one moving, so the
+			// ads between them stay where the page rendered them.
+			const ordered = [ ...others ];
+			ordered.splice(
+				below ? ordered.indexOf( below ) : ordered.length,
+				0,
+				el
+			);
+			const places = shown.map( ( entry ) => {
+				const place = document.createComment( '' );
+				entry.before( place );
+				return place;
+			} );
+			ordered.forEach( ( entry, i ) => places[ i ].replaceWith( entry ) );
+			return;
+		}
+
+		if ( below ) {
+			below.before( el );
+		} else if ( pinnedStack ) {
 			pinnedStack.append( el );
 		} else {
-			entriesList.insertBefore( el, firstUnpinnedEntry() );
+			entriesList.insertBefore( el, firstUnpinnedEntry( el ) );
 		}
+	}
+
+	/**
+	 * The pinned entries at the top of the list: the Pinned group's, or
+	 * those above the first unpinned entry in a layout without one.
+	 *
+	 * @param {HTMLElement} [except] Entry to leave out.
+	 * @return {HTMLElement[]} The entries, in list order.
+	 */
+	function topPinnedEntries( except?: HTMLElement ): HTMLElement[] {
+		const entries = Array.from(
+			( pinnedStack ?? entriesList ).querySelectorAll< HTMLElement >(
+				':scope > [data-entry-id]'
+			)
+		);
+		const firstUnpinned = pinnedStack ? null : firstUnpinnedEntry( except );
+		const end = firstUnpinned ? entries.indexOf( firstUnpinned ) : -1;
+
+		return ( end === -1 ? entries : entries.slice( 0, end ) ).filter(
+			( entry ) => entry !== except
+		);
 	}
 
 	/**
@@ -982,15 +1032,34 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {HTMLElement|null} The entry below, or null if the page shows none.
 	 */
 	function unpinnedEntryBelow( entry: HTMLElement ): HTMLElement | null {
-		const date = entry.dataset.dateGmt;
-		const id = Number( entry.dataset.entryId );
-
-		return (
+		return entryBelow(
+			entry,
 			Array.from(
 				entriesList.querySelectorAll< HTMLElement >(
 					':scope > [data-entry-id]:not([data-pinned])'
 				)
-			).find( ( other ) => {
+			)
+		);
+	}
+
+	/**
+	 * The first of some entries, in list order, listed below an entry.
+	 * Without dates to compare, as on a page cached before entries carried
+	 * them, the entry goes above the first one it can't compare with.
+	 *
+	 * @param {HTMLElement}   entry  The entry to place.
+	 * @param {HTMLElement[]} others The entries to place it among.
+	 * @return {HTMLElement|null} The entry below, or null if none lists below it.
+	 */
+	function entryBelow(
+		entry: HTMLElement,
+		others: HTMLElement[]
+	): HTMLElement | null {
+		const date = entry.dataset.dateGmt;
+		const id = Number( entry.dataset.entryId );
+
+		return (
+			others.find( ( other ) => {
 				const otherDate = other.dataset.dateGmt;
 
 				return (
@@ -1003,6 +1072,44 @@ function initBlock( root: HTMLElement ): void {
 							date,
 							id
 						) )
+				);
+			} ) ?? null
+		);
+	}
+
+	/**
+	 * The first of some pinned entries, in list order, listed below a pinned
+	 * entry: last edited in an earlier GMT second, or in the same second and
+	 * listed below it by date (Post_Type::orderby_pinned_first()). Without
+	 * edit times to compare, as on a page cached before pinned entries
+	 * carried them, the entry goes above the first one it can't compare with.
+	 *
+	 * @param {HTMLElement}   entry  The pinned entry to place.
+	 * @param {HTMLElement[]} others The pinned entries to place it among.
+	 * @return {HTMLElement|null} The entry below, or null if none lists below it.
+	 */
+	function pinnedEntryBelow(
+		entry: HTMLElement,
+		others: HTMLElement[]
+	): HTMLElement | null {
+		const modified = entry.dataset.modifiedGmt;
+
+		return (
+			others.find( ( other ) => {
+				const otherModified = other.dataset.modifiedGmt;
+
+				if ( other === entry ) {
+					return false;
+				}
+
+				if ( ! modified || ! otherModified ) {
+					return true;
+				}
+
+				return (
+					otherModified < modified ||
+					( otherModified === modified &&
+						entryBelow( entry, [ other ] ) === other )
 				);
 			} ) ?? null
 		);
@@ -1225,9 +1332,9 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Inserts entries above the newest unpinned entry, below any pinned
-	 * entries, pinned ones first, removing the "no entries yet" placeholder
-	 * if it's still present.
+	 * Inserts unpinned entries above the newest unpinned entry, and pinned
+	 * ones among the pinned entries (see insertPinned()), removing
+	 * the "no entries yet" placeholder if it's still present.
 	 *
 	 * Removes the "no entries yet" placeholder, starts observing each entry
 	 * for coverage_entry_seen, and displays any associated ad slots.
@@ -1249,40 +1356,37 @@ function initBlock( root: HTMLElement ): void {
 		)?.remove();
 
 		const fragment = document.createDocumentFragment();
-		const pinnedFragment = document.createDocumentFragment();
+		const pinnedEls: HTMLElement[] = [];
 		const adSlotsToDisplay: AdSlot[] = [];
 
 		// An entry pinned by the time it arrived goes with the pinned entries,
-		// above newer ones that came with it or after it, as a fresh page lists
-		// it.
-		const isPinned = ( { el }: PendingEntry ) =>
-			el.hasAttribute( 'data-pinned' );
-
-		[
-			...entries.filter( isPinned ),
-			...entries.filter( ( entry ) => ! isPinned( entry ) ),
-		].forEach( ( { el, adSlot, adEl: ad } ) => {
-			const isStacked =
-				!! pinnedStack && el.hasAttribute( 'data-pinned' );
+		// above newer unpinned ones that came with it or after it, as a fresh
+		// page lists it.
+		entries.forEach( ( { el, adSlot, adEl: ad } ) => {
+			const isPinned = el.hasAttribute( 'data-pinned' );
 			// The Pinned group holds no ad, as the page renders it.
-			const adEl = isStacked ? null : ad;
+			const adEl = isPinned && pinnedStack ? null : ad;
 
-			( isStacked ? pinnedFragment : fragment ).appendChild( el );
 			observeEntry( el );
-			if ( adEl ) {
-				fragment.appendChild( adEl );
-				if ( adSlot ) {
-					adSlotsToDisplay.push( adSlot );
-				}
+
+			if ( isPinned ) {
+				pinnedEls.push( el );
+				insertPinned( el );
+				el.after( ...( adEl ? [ adEl ] : [] ) );
+			} else {
+				fragment.append( el, ...( adEl ? [ adEl ] : [] ) );
+			}
+
+			if ( adEl && adSlot ) {
+				adSlotsToDisplay.push( adSlot );
 			}
 		} );
 
 		const insertedEls = [
-			...Array.from( pinnedFragment.children ),
+			...pinnedEls,
 			...Array.from( fragment.children ),
 		];
 
-		insertPinned( pinnedFragment );
 		entriesList.insertBefore( fragment, firstUnpinnedEntry() );
 		fadeIn(
 			insertedEls.filter( ( el ) => el.matches( '[data-entry-id]' ) )
@@ -1476,9 +1580,9 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Shows a pinned entry the list doesn't show where a fresh page lists
-	 * it: below the pinned entries, whatever its date. It can be older
-	 * than the entries loaded, waiting behind the new-entries control, or
-	 * newer than the shared entry. Load more then skips it as an entry
+	 * it: among the pinned entries, most recently edited first. It can be
+	 * older than the entries loaded, waiting behind the new-entries control,
+	 * or newer than the shared entry. Load more then skips it as an entry
 	 * already shown.
 	 *
 	 * @param {HTMLElement} el The pinned entry, as the poll sent it.
@@ -2245,7 +2349,7 @@ function initBlock( root: HTMLElement ): void {
 	 * Replaces edited entries immediately, and keeps edits to entries not yet
 	 * on the page until they arrive, except edits to pinned ones, which show
 	 * them with the pinned entries at once (see showPinnedEntry()). Moves a
-	 * newly pinned entry it shows below the pinned ones, and a newly unpinned
+	 * newly pinned entry it shows among the pinned ones, and a newly unpinned
 	 * one to its place by date (see placeUnpinnedEntry()). Drops entries
 	 * taken down, and leaves one that comes back for reload. Inserts or
 	 * queues newly published entries based on the reader's scroll position,
@@ -2343,24 +2447,14 @@ function initBlock( root: HTMLElement ): void {
 				existing.replaceWith( entryEl );
 				fadeIn( [ entryEl ], 'is-updated' );
 
-				const unpinnedAbove = entryEl.hasAttribute( 'data-pinned' )
-					? firstUnpinnedEntry( entryEl )
-					: null;
-
 				// A pinned entry belongs above every unpinned one, in the
-				// Pinned group where the layout has one. One load more
-				// brought pinned sits at its date until a poll sends it: the
-				// reply may come from a cache that predates an unpin, so only
-				// the poll's copy is trusted to move it.
-				if ( pinnedStack && entryEl.hasAttribute( 'data-pinned' ) ) {
-					if ( entryEl.parentElement !== pinnedStack ) {
-						pinnedStack.append( entryEl );
-					}
-				} else if (
-					unpinnedAbove?.compareDocumentPosition( entryEl ) ===
-					Node.DOCUMENT_POSITION_FOLLOWING
-				) {
-					entriesList.insertBefore( entryEl, unpinnedAbove );
+				// Pinned group where the layout has one, most recently edited
+				// first among the pinned entries, so an edit moves it to the
+				// top. One load more brought pinned sits at its date until a
+				// poll sends it: the reply may come from a cache that predates
+				// an unpin, so only the poll's copy is trusted to move it.
+				if ( entryEl.hasAttribute( 'data-pinned' ) ) {
+					insertPinned( entryEl );
 				} else if (
 					existing.hasAttribute( 'data-pinned' ) &&
 					! entryEl.hasAttribute( 'data-pinned' ) &&

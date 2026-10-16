@@ -11,8 +11,8 @@ use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 
 /**
  * A grid Feed whose Pinned group holds the pinned card and a Full Story
- * Entry group renders every pinned entry inside the group, in pin order,
- * and every other entry beside it.
+ * Entry group renders every pinned entry inside the group, most recently
+ * edited first, and every other entry beside it.
  */
 class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 
@@ -181,23 +181,24 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Every pinned entry renders inside the Pinned group, in pin order, which
-	 * takes the first column for the feed's length, and the entry after them
-	 * heads the column beside it, with the card's rule.
+	 * Every pinned entry renders inside the Pinned group, most recently edited
+	 * first (unedited here, so newest first) whatever order they were pinned
+	 * in, which takes the first column for the feed's length, and the entry
+	 * after them heads the column beside it, with the card's rule.
 	 */
 	public function test_pinned_entries_stack_in_the_pinned_group() {
 		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
 		$coverage_id = self::create_coverage();
 		[ $first, $second, $third, $newest ] = self::create_entries( $coverage_id, 4 );
-		Post_Type::pin_entry( $second );
 		Post_Type::pin_entry( $first );
+		Post_Type::pin_entry( $second );
 
 		$html  = self::render( $coverage_id );
 		$parts = self::placement( $html );
 
 		preg_match( '/wp-container-content-[0-9a-f]+/', $parts['stack'], $cell );
 
-		$this->assertSame( [ $second, $first ], $parts['inside'], 'Pinned entries should stack in the order they were pinned.' );
+		$this->assertSame( [ $second, $first ], $parts['inside'], 'Unedited pinned entries should stack newest first.' );
 		$this->assertSame( [ $newest, $third ], $parts['outside'], 'Other entries should follow the group, newest first.' );
 		$this->assertNotEmpty( $cell, 'The group should take its placement.' );
 		$this->assertStringContainsString( '.' . $cell[0] . '{grid-column:1 / span 1;grid-row:span 100;}', wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] ) );
