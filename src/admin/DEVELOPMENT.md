@@ -32,7 +32,7 @@ The admin pages load the block editor's assets so Quick Edit can run a block edi
 
 Selecting rows in All Coverages or a coverage's entries shows DataViews' bulk actions in the list's footer, which stays at the bottom of the window while the list scrolls. Other plugins (newspack-blocks, newspack-listings, newspack-popups, newspack-manager) load an older DataViews stylesheet on these screens that gives `.dataviews-wrapper` `overflow: auto`. That makes the wrapper the footer's scroll container, and since the wrapper is as tall as its rows, the footer would sit after the last row. `_dataviews.scss` sets `overflow: visible` back on the plugin's screens.
 
-Below 782px, DataViews shows only the bulk actions that have an `icon`, as icon buttons. Every bulk action has one, so a new bulk action needs one too or it won't show on phones. `_dataviews.scss` hides the icon and shows the action's label as text, on a row of its own under the selection count. When the labels don't fit, the row scrolls sideways, fading on the side with more to see, and Cancel stays at its end. The icons show nowhere else.
+At 782px and below, DataViews shows only the bulk actions that have an `icon`, as icon buttons. Every bulk action has one, so a new bulk action needs one too or it won't show on phones. `_dataviews.scss` hides the icon and shows the action's label as text, on a row of its own under the selection count. When the labels don't fit, the row scrolls sideways, fading on the side with more to see, and Cancel stays at its end. The styles find Cancel as the row's last button, which is where DataViews 19.1 renders it; check that after a DataViews upgrade. The icons show nowhere else.
 
 ## All Coverages
 

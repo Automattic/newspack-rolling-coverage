@@ -90,9 +90,9 @@
 }
 
 $bulk-cancel-room: wp-vars.$button-size-compact + wp-vars.$grid-unit-05;
-$bulk-fade: "transparent, #000 var(--newspack-rolling-coverage-bulk-fade-start), #000 calc(100% - #{$bulk-cancel-room} - var(--newspack-rolling-coverage-bulk-fade-end)), transparent calc(100% - #{$bulk-cancel-room}), #000 calc(100% - #{$bulk-cancel-room})";
+$bulk-fade: "transparent, #000 var(--newspack-rolling-coverage-bulk-fade-start), #000 calc(100% - #{$bulk-cancel-room} - var(--newspack-rolling-coverage-bulk-fade-end)), transparent calc(100% - #{$bulk-cancel-room}), transparent calc(100% - #{wp-vars.$button-size-compact}), #000 calc(100% - #{wp-vars.$button-size-compact})";
 
-@media not all and (min-width: #{wp-breakpoints.$break-medium}) {
+@media (max-width: #{wp-breakpoints.$break-medium}) {
 
 	.newspack-rolling-coverage-admin {
 
@@ -102,6 +102,7 @@ $bulk-fade: "transparent, #000 var(--newspack-rolling-coverage-bulk-fade-start),
 
 		.dataviews-bulk-actions-footer__container {
 			flex-wrap: wrap;
+			min-width: 0;
 			background-color: inherit;
 		}
 
@@ -111,6 +112,7 @@ $bulk-fade: "transparent, #000 var(--newspack-rolling-coverage-bulk-fade-start),
 			margin-inline-start: -1 * wp-vars.$grid-unit-15;
 			overflow-x: auto;
 			overscroll-behavior-inline: none;
+			scroll-padding-inline: wp-vars.$grid-unit-40 calc(#{$bulk-cancel-room} + #{wp-vars.$grid-unit-40});
 			background-color: inherit;
 			scrollbar-width: none;
 
@@ -124,6 +126,10 @@ $bulk-fade: "transparent, #000 var(--newspack-rolling-coverage-bulk-fade-start),
 
 			> .components-button {
 				flex-shrink: 0;
+
+				&:focus {
+					outline-offset: calc(-1 * var(--wpds-border-width-focus, var(--wp-admin-border-width-focus, 2px)));
+				}
 			}
 
 			> .components-button.has-icon:not(:last-child) {
@@ -157,7 +163,7 @@ $bulk-fade: "transparent, #000 var(--newspack-rolling-coverage-bulk-fade-start),
 				newspack-rolling-coverage-bulk-fade-start linear both,
 				newspack-rolling-coverage-bulk-fade-end linear both;
 			animation-timeline: scroll(self inline);
-			animation-range: 0 var(--newspack-rolling-coverage-bulk-fade), calc(100% - var(--newspack-rolling-coverage-bulk-fade)) 100%;
+			animation-range: 0 #{wp-vars.$grid-unit-10}, calc(100% - #{wp-vars.$grid-unit-10}) 100%;
 
 			&:dir(rtl) {
 				mask-image: linear-gradient(to left, #{$bulk-fade});
