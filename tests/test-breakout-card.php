@@ -853,7 +853,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 		$html = Lite_Feed::render_entry( get_post( $entry_id ), 'initial' );
 
-		$this->assertStringContainsString( '</p><p class="newspack-rolling-coverage-breakout-label">Full story</p><h3><a href="' . esc_url( home_url( '/lite/' . $breakout_id ) ) . '">Post &amp; headline</a></h3><p>What the post sums up.</p></article>', $html );
+		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-entry-content"><p class="newspack-rolling-coverage-breakout-label">Full story</p><h3><a href="' . esc_url( home_url( '/lite/' . $breakout_id ) ) . '">Post &amp; headline</a></h3><p>What the post sums up.</p></div></article>', $html );
 		$this->assertStringNotContainsString( 'Entry headline', $html );
 		$this->assertStringNotContainsString( self::ENTRY_TEXT, $html );
 

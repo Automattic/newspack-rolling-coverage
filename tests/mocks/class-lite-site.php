@@ -56,6 +56,23 @@ class Lite_Site {
 	];
 
 	/**
+	 * What get_primary_color() returns, which the real plugin reads from its
+	 * settings or the theme, or gives as `currentcolor` when it finds none.
+	 *
+	 * @var string
+	 */
+	public static $primary_color = 'currentcolor';
+
+	/**
+	 * The color lite pages give links and rules.
+	 *
+	 * @return string
+	 */
+	public static function get_primary_color() {
+		return self::$primary_color;
+	}
+
+	/**
 	 * The post types that have lite pages, as the real plugin's, filterable.
 	 *
 	 * @return string[]
