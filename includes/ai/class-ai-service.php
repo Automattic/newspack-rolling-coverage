@@ -530,7 +530,7 @@ class AI_Service {
 			);
 		}
 
-		// Sort pinned entries first, newest first like the feed.
+		// Sort pinned entries first, most recently edited first like the feed.
 		$entries = self::sort_pinned_first( $entries );
 
 		$parts = [];
@@ -556,9 +556,10 @@ class AI_Service {
 	}
 
 	/**
-	 * Sort entries so pinned ones appear first, each group keeping the
-	 * order the entries came in. Done in PHP because get_posts() sets
-	 * suppress_filters = true.
+	 * Sort entries so pinned ones appear first, most recently edited first
+	 * as Post_Type::orderby_pinned_first() lists them, ties and unpinned
+	 * entries keeping the order they came in. Done in PHP because
+	 * get_posts() sets suppress_filters = true.
 	 *
 	 * @param WP_Post[] $entries Entries from get_posts().
 	 * @return WP_Post[] Sorted entries, pinned first.
@@ -581,6 +582,8 @@ class AI_Service {
 				$unpinned[] = $entry;
 			}
 		}
+
+		usort( $pinned, static fn( WP_Post $a, WP_Post $b ) => strcmp( $b->post_modified_gmt, $a->post_modified_gmt ) );
 
 		return array_merge( $pinned, $unpinned );
 	}

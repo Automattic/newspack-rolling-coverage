@@ -1060,9 +1060,11 @@ class Post_Type {
 	}
 
 	/**
-	 * Rewrites the ORDER BY clause to sort pinned entries first. Pinned and
-	 * unpinned entries each keep the query's own order, so feeds list pinned
-	 * entries newest first.
+	 * Rewrites the ORDER BY clause to sort pinned entries first, the most
+	 * recently edited first: a pinned entry is often a summary kept up to
+	 * date, and pinning counts as an edit (see handle_toggle_pin()). Pinned
+	 * entries edited in the same second, and unpinned entries, keep the
+	 * query's own order.
 	 *
 	 * Registered globally on posts_orderby. Guarded by a post_type check
 	 * so non-CPT queries pass through untouched. Queries that need to
@@ -1091,7 +1093,7 @@ class Post_Type {
 		global $wpdb;
 		$ids_list = implode( ',', $pinned_ids );
 
-		$pinned_order = "CASE WHEN {$wpdb->posts}.ID IN ({$ids_list}) THEN 0 ELSE 1 END";
+		$pinned_order = "CASE WHEN {$wpdb->posts}.ID IN ({$ids_list}) THEN 0 ELSE 1 END, CASE WHEN {$wpdb->posts}.ID IN ({$ids_list}) THEN {$wpdb->posts}.post_modified_gmt END DESC";
 
 		return '' === $orderby ? $pinned_order : $pinned_order . ', ' . $orderby;
 	}

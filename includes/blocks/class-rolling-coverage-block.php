@@ -2776,8 +2776,8 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * The first pinned entry of a coverage shown as the pinned card, in the
-	 * order the live feed shows pinned entries: newest first (see
-	 * Post_Type::orderby_pinned_first()). Where the template's Full Story
+	 * order the live feed shows pinned entries: most recently edited first
+	 * (see Post_Type::orderby_pinned_first()). Where the template's Full Story
 	 * Entry takes pinned entries (see is_full_story()), pinned entries with
 	 * a published breakout post render through it and are skipped. Looked up
 	 * once per request for each site, coverage, set of pinned entries and
@@ -2807,11 +2807,10 @@ class Rolling_Coverage_Block {
 			array_merge(
 				self::coverage_entries_args( $coverage_id ),
 				[
-					'post__in'                    => $pinned_ids,
-					'orderby'                     => self::FEED_ORDER,
-					'posts_per_page'              => $skips_full_stories ? count( $pinned_ids ) : 1,
-					'fields'                      => 'ids',
-					Post_Type::SKIP_PIN_ORDER_VAR => true,
+					'post__in'       => $pinned_ids,
+					'orderby'        => self::FEED_ORDER,
+					'posts_per_page' => $skips_full_stories ? count( $pinned_ids ) : 1,
+					'fields'         => 'ids',
 				]
 			)
 		);
@@ -4297,7 +4296,10 @@ class Rolling_Coverage_Block {
 	 * The entry carries its date in GMT (data-date-gmt), the date load more
 	 * pages by rather than the moment it went out
 	 * (Post_Type::get_entry_published_gmt()), so the view script can put an
-	 * entry unpinned while the page is open where load more lists it.
+	 * entry unpinned while the page is open where load more lists it. A
+	 * pinned entry also carries its last edit in GMT (data-modified-gmt), so
+	 * the view script can keep pinned entries in the order a fresh page
+	 * lists them as polls bring edits.
 	 *
 	 * @global WP_Post $post Global post object, temporarily swapped to the
 	 *                       entry for the duration of this render and
@@ -4433,7 +4435,7 @@ class Rolling_Coverage_Block {
 			$entry_content,
 			esc_attr( $arrival ),
 			esc_attr( $entry->post_name ),
-			$is_pinned ? ' data-pinned' : '',
+			$is_pinned ? sprintf( ' data-pinned data-modified-gmt="%s"', esc_attr( self::post_modified_gmt( $entry ) ) ) : '',
 			$is_linked ? ' data-linked' : '',
 			( $leads_column ? ' data-leads-column' : '' ) . ( $heads_column ? ' data-heads-column' : '' ),
 			esc_attr( self::post_date_gmt( $entry ) )

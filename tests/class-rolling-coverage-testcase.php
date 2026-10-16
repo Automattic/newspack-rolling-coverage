@@ -424,6 +424,27 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Set when an entry was last edited, as an edit after it was published
+	 * would.
+	 *
+	 * @param int    $entry_id Entry post ID.
+	 * @param string $date     GMT date, `Y-m-d H:i:s`. The test site runs on UTC.
+	 */
+	protected static function set_entry_modified( int $entry_id, string $date ): void {
+		global $wpdb;
+
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->posts,
+			[
+				'post_modified'     => $date,
+				'post_modified_gmt' => $date,
+			],
+			[ 'ID' => $entry_id ]
+		);
+		clean_post_cache( $entry_id );
+	}
+
+	/**
 	 * Create an entry whose publish and modified dates are both `$date`.
 	 *
 	 * @param int    $coverage_id Coverage term ID.

@@ -922,15 +922,15 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Puts a pinned entry among the pinned entries the list shows, by date,
-	 * newest first, as a fresh page lists them: in the Pinned group, or above
-	 * the first unpinned entry in a layout without one.
+	 * Puts a pinned entry among the pinned entries the list shows, most
+	 * recently edited first, as a fresh page lists them: in the Pinned group,
+	 * or above the first unpinned entry in a layout without one.
 	 *
 	 * @param {HTMLElement} el The pinned entry.
 	 * @return {void}
 	 */
 	function insertPinned( el: HTMLElement ): void {
-		const below = entryBelow( el, topPinnedEntries( el ) );
+		const below = pinnedEntryBelow( el, topPinnedEntries( el ) );
 		const shown = topPinnedEntries();
 		const index = shown.indexOf( el );
 
@@ -1054,6 +1054,44 @@ function initBlock( root: HTMLElement ): void {
 							date,
 							id
 						) )
+				);
+			} ) ?? null
+		);
+	}
+
+	/**
+	 * The first of some pinned entries, in list order, listed below a pinned
+	 * entry: last edited in an earlier GMT second, or in the same second and
+	 * listed below it by date (Post_Type::orderby_pinned_first()). Without
+	 * edit times to compare, as on a page cached before pinned entries
+	 * carried them, the entry goes above the first one it can't compare with.
+	 *
+	 * @param {HTMLElement}   entry  The pinned entry to place.
+	 * @param {HTMLElement[]} others The pinned entries to place it among.
+	 * @return {HTMLElement|null} The entry below, or null if none lists below it.
+	 */
+	function pinnedEntryBelow(
+		entry: HTMLElement,
+		others: HTMLElement[]
+	): HTMLElement | null {
+		const modified = entry.dataset.modifiedGmt;
+
+		return (
+			others.find( ( other ) => {
+				const otherModified = other.dataset.modifiedGmt;
+
+				if ( other === entry ) {
+					return false;
+				}
+
+				if ( ! modified || ! otherModified ) {
+					return true;
+				}
+
+				return (
+					otherModified < modified ||
+					( otherModified === modified &&
+						entryBelow( entry, [ other ] ) === other )
 				);
 			} ) ?? null
 		);
@@ -1277,7 +1315,7 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Inserts unpinned entries above the newest unpinned entry, and pinned
-	 * ones among the pinned entries by date (see insertPinned()), removing
+	 * ones among the pinned entries (see insertPinned()), removing
 	 * the "no entries yet" placeholder if it's still present.
 	 *
 	 * Removes the "no entries yet" placeholder, starts observing each entry
@@ -1524,9 +1562,9 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Shows a pinned entry the list doesn't show where a fresh page lists
-	 * it: among the pinned entries, by date. It can be older
-	 * than the entries loaded, waiting behind the new-entries control, or
-	 * newer than the shared entry. Load more then skips it as an entry
+	 * it: among the pinned entries, most recently edited first. It can be
+	 * older than the entries loaded, waiting behind the new-entries control,
+	 * or newer than the shared entry. Load more then skips it as an entry
 	 * already shown.
 	 *
 	 * @param {HTMLElement} el The pinned entry, as the poll sent it.
@@ -2392,11 +2430,11 @@ function initBlock( root: HTMLElement ): void {
 				fadeIn( [ entryEl ], 'is-updated' );
 
 				// A pinned entry belongs above every unpinned one, in the
-				// Pinned group where the layout has one, by date among the
-				// pinned entries, so an edit to its date moves it. One load
-				// more brought pinned sits at its date until a poll sends it:
-				// the reply may come from a cache that predates an unpin, so
-				// only the poll's copy is trusted to move it.
+				// Pinned group where the layout has one, most recently edited
+				// first among the pinned entries, so an edit moves it to the
+				// top. One load more brought pinned sits at its date until a
+				// poll sends it: the reply may come from a cache that predates
+				// an unpin, so only the poll's copy is trusted to move it.
 				if ( entryEl.hasAttribute( 'data-pinned' ) ) {
 					insertPinned( entryEl );
 				} else if (

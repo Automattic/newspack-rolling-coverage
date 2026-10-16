@@ -128,6 +128,28 @@ class Test_Split extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An attribute of an entry's article.
+	 *
+	 * @param string $html     Rendered entries.
+	 * @param int    $entry_id Entry post ID.
+	 * @param string $name     Attribute name.
+	 * @return string|null The attribute's value, or null when the article lacks it.
+	 */
+	private static function article_attribute( string $html, int $entry_id, string $name ): ?string {
+		$processor = new WP_HTML_Tag_Processor( $html );
+
+		while ( $processor->next_tag( 'article' ) ) {
+			if ( $entry_id === (int) $processor->get_attribute( 'data-entry-id' ) ) {
+				$value = $processor->get_attribute( $name );
+
+				return is_string( $value ) ? $value : null;
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * The column markers each entry's article carries, by entry ID.
 	 *
 	 * @param string $html Rendered entries.
@@ -391,6 +413,30 @@ class Test_Split extends Rolling_Coverage_TestCase {
 
 		$this->assertNotSame( '', $card, 'The polled pinned entry should carry a child layout class.' );
 		$this->assertStringContainsString( '.' . $card . '{grid-column:1 / span 1;grid-row:span 100;}', $css, "The pinned card's placement should be stored with no pinned entry shown." );
+	}
+
+	/**
+	 * An older pinned entry edited since takes the pinned card's placement
+	 * from a newer one, and every pinned entry carries its last edit for the
+	 * view script, which keeps them in that order as polls bring edits.
+	 */
+	public function test_most_recently_edited_pin_takes_the_card_placement() {
+		$coverage_id = self::create_coverage();
+		[ $edited_pin, $newer_pin, $newest_id ] = self::create_entries( $coverage_id );
+		Post_Type::pin_entry( $edited_pin );
+		Post_Type::pin_entry( $newer_pin );
+		self::set_entry_modified( $edited_pin, gmdate( 'Y-m-d H:i:s' ) );
+
+		$html    = self::render_split( $coverage_id );
+		$classes = self::article_classes( $html );
+		$entry   = self::cell_class( $classes[ $newest_id ] );
+
+		$this->assertSame( [ $edited_pin, $newer_pin, $newest_id ], array_keys( $classes ), 'The edited pin should come first.' );
+		$this->assertNotSame( $entry, self::cell_class( $classes[ $edited_pin ] ), 'The edited pin should take the card placement.' );
+		$this->assertSame( $entry, self::cell_class( $classes[ $newer_pin ] ), "The newer pin should take the entry group's placement." );
+		$this->assertSame( get_post( $edited_pin )->post_modified_gmt, self::article_attribute( $html, $edited_pin, 'data-modified-gmt' ) );
+		$this->assertSame( get_post( $newer_pin )->post_modified_gmt, self::article_attribute( $html, $newer_pin, 'data-modified-gmt' ) );
+		$this->assertNull( self::article_attribute( $html, $newest_id, 'data-modified-gmt' ), 'An unpinned entry has no use for it.' );
 	}
 
 	/**
