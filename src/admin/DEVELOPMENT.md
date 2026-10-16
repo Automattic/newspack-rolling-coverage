@@ -28,6 +28,12 @@ The app reads its config from `window.newspackRollingCoverageAdmin` (`Admin::get
 
 The admin pages load the block editor's assets so Quick Edit can run a block editor. `Newspack\Blocks::enqueue_block_editor_assets` is unhooked while they load, since newspack-plugin's editor UI crashes inside Quick Edit's `EditorProvider`.
 
+## Bulk actions
+
+Selecting rows in All Coverages or a coverage's entries shows DataViews' bulk actions in the list's footer, which stays at the bottom of the window while the list scrolls. Other plugins (newspack-blocks, newspack-listings, newspack-popups, newspack-manager) load an older DataViews stylesheet on these screens that gives `.dataviews-wrapper` `overflow: auto`. That makes the wrapper the footer's scroll container, and since the wrapper is as tall as its rows, the footer would sit after the last row. `_dataviews.scss` sets `overflow: visible` back on the plugin's screens.
+
+Below 782px, DataViews shows only the bulk actions that have an `icon`, as icon buttons. Every bulk action has one, so a new bulk action needs one too or it won't show on phones. `_dataviews.scss` hides the icon and shows the action's label as text, on a row of its own under the selection count. When the labels don't fit, the row scrolls sideways, fading on the side with more to see, and Cancel stays at its end. The icons show nowhere else.
+
 ## All Coverages
 
 The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Coverage added." for a new coverage; a failed one keeps it open with the error. The drawer saves through the core terms route and sends every field each time, so each meta key it sends must be writable by anyone who can edit a coverage. A stricter `auth_callback` on one of them fails those users' saves after the other fields are already written.

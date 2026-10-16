@@ -3,6 +3,14 @@
  */
 import { createElement } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
+import {
+	archive,
+	backup,
+	drafts,
+	postAuthor,
+	published,
+	trash,
+} from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -165,6 +173,7 @@ function getEntryActions(
 		{
 			id: 'publish-entry',
 			label: __( 'Publish', 'newspack-rolling-coverage' ),
+			icon: published,
 			supportsBulk: true,
 			// Scheduled entries are left to the editor: publishing one now
 			// would also need its date moved to now.
@@ -250,6 +259,7 @@ function getEntryActions(
 		{
 			id: 'draft-entry',
 			label: __( 'Move to Draft', 'newspack-rolling-coverage' ),
+			icon: drafts,
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				[ 'publish', 'pending', 'private' ].includes( entry.status ) &&
@@ -417,6 +427,7 @@ function getEntryActions(
 		{
 			id: 'reassign',
 			label: __( 'Reassign', 'newspack-rolling-coverage' ),
+			icon: postAuthor,
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				canEditRow( entry ) &&
@@ -427,6 +438,7 @@ function getEntryActions(
 		{
 			id: 'archive-entry',
 			label: __( 'Archive', 'newspack-rolling-coverage' ),
+			icon: archive,
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				config.capabilities.canEditEntries &&
@@ -469,6 +481,7 @@ function getEntryActions(
 		{
 			id: 'unarchive-entry',
 			label: __( 'Unarchive', 'newspack-rolling-coverage' ),
+			icon: backup,
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				config.capabilities.canEditEntries &&
@@ -574,6 +587,7 @@ function getEntryActions(
 		{
 			id: 'trash-entry',
 			label: __( 'Trash', 'newspack-rolling-coverage' ),
+			icon: trash,
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				entry.status !== 'trash' &&
@@ -641,6 +655,7 @@ function getEntryActions(
 		{
 			id: 'restore-entry',
 			label: __( 'Restore', 'newspack-rolling-coverage' ),
+			icon: backup,
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				canEditRow( entry ) && entry.status === 'trash',
@@ -715,6 +730,7 @@ function getEntryActions(
 		{
 			id: 'delete-entry',
 			label: __( 'Delete Permanently', 'newspack-rolling-coverage' ),
+			icon: trash,
 			supportsBulk: true,
 			isEligible: ( entry: Entry ) =>
 				config.capabilities.canEditEntries && entry.status === 'trash',
