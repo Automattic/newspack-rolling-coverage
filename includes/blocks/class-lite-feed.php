@@ -33,18 +33,20 @@ class Lite_Feed {
 
 	/**
 	 * The feed's one style on a lite page, which prints no block styles,
-	 * whatever the block's layout: each entry's time and pinned state sit in
-	 * a narrow column beside it, or above it on small screens, with a rule
-	 * between entries. The title rules match the heading an entry opens
-	 * with, its title or, without one, its body's first heading, so the
-	 * headings further into its body keep Lite Site's look. The status region is for screen readers only, the
+	 * whatever the block's layout, after Stream: each entry opens with a
+	 * small row holding its time, and a Full story entry's label at the far
+	 * end. Pinned and Full story entries are cards, and a rule separates two
+	 * other entries. Pinned is for screen readers only, as the card sets a
+	 * pinned entry apart. The status region is for screen readers only, the
 	 * new-posts control floats at the top of the screen, the buttons match
 	 * Lite Site's own, and the Coverage Status badge matches its liveblog
 	 * badge. The accent is Lite Site's primary color (see print_styles()).
-	 * A long time or label wraps within its column.
+	 * The title rules match the heading an entry opens with: its title or,
+	 * without one, its body's first heading.
 	 */
 	const STYLES = '
-		.newspack-rolling-coverage-status {
+		.newspack-rolling-coverage-status,
+		.newspack-rolling-coverage-entry-pinned {
 			position: absolute;
 			width: 1px;
 			height: 1px;
@@ -75,24 +77,48 @@ class Lite_Feed {
 		.newspack-rolling-coverage-entry {
 			padding: 1rem 0;
 		}
-		.newspack-rolling-coverage-entry + .newspack-rolling-coverage-entry {
+		.newspack-rolling-coverage-entry:not(:is([data-pinned], .newspack-rolling-coverage-entry--full-story)):first-child {
+			padding-top: 0;
+		}
+		.newspack-rolling-coverage-entry:not(:is([data-pinned], .newspack-rolling-coverage-entry--full-story)):last-child {
+			padding-bottom: 0;
+		}
+		.newspack-rolling-coverage-entry:not(:is([data-pinned], .newspack-rolling-coverage-entry--full-story)) + .newspack-rolling-coverage-entry:not(:is([data-pinned], .newspack-rolling-coverage-entry--full-story)) {
 			border-top: 1px solid #ddd;
+		}
+		.newspack-rolling-coverage-entry:is([data-pinned], .newspack-rolling-coverage-entry--full-story) {
+			padding: 1rem;
+			border: 1px solid;
+			border-radius: 0.375rem;
+		}
+		.newspack-rolling-coverage-entry:is([data-pinned], .newspack-rolling-coverage-entry--full-story) + .newspack-rolling-coverage-entry:is([data-pinned], .newspack-rolling-coverage-entry--full-story) {
+			margin-top: 1rem;
+		}
+		.newspack-rolling-coverage-entry.newspack-rolling-coverage-entry--full-story {
+			border-color: var(--newspack-rolling-coverage-lite-badge, currentcolor);
+			background: color-mix(in srgb, var(--newspack-rolling-coverage-lite-badge, currentcolor) 6%, transparent);
 		}
 		.newspack-rolling-coverage-entry-meta {
 			display: flex;
 			flex-wrap: wrap;
+			align-items: baseline;
 			gap: 0 0.5rem;
 			margin: 0 0 0.25rem;
 			font-size: 0.875em;
-			font-weight: 700;
-			overflow-wrap: anywhere;
 		}
 		.newspack-rolling-coverage-entry-meta p {
 			margin: 0;
 		}
-		.newspack-rolling-coverage-entry-pinned,
-		.newspack-rolling-coverage-breakout-label {
+		.newspack-rolling-coverage-entry-meta time {
+			opacity: 0.7;
+		}
+		.newspack-rolling-coverage-entry-meta .newspack-rolling-coverage-breakout-label {
+			margin-inline-start: auto;
 			color: var(--newspack-rolling-coverage-lite-accent, inherit);
+			font-weight: 700;
+		}
+		.newspack-rolling-coverage-breakout-label::after {
+			content: " \2192" / "";
 		}
 		.newspack-rolling-coverage-entry-content > :first-child {
 			margin-top: 0;
@@ -100,36 +126,19 @@ class Lite_Feed {
 		.newspack-rolling-coverage-entry-content > :last-child {
 			margin-bottom: 0;
 		}
-		.newspack-rolling-coverage-entry-content > h3:first-child,
-		.newspack-rolling-coverage-breakout-label + h3 {
+		.newspack-rolling-coverage-entry-content > h3:first-child {
 			margin: 0 0 0.5rem;
 			font-size: 1.125em;
 			line-height: 1.3;
 		}
-		.newspack-rolling-coverage-entry-content > h3:first-child + *,
-		.newspack-rolling-coverage-breakout-label + h3 + * {
+		.newspack-rolling-coverage-entry--full-story .newspack-rolling-coverage-entry-content > h3:first-child {
+			font-size: 1.25em;
+		}
+		.newspack-rolling-coverage-entry-content > h3:first-child + * {
 			margin-top: 0;
 		}
-		.newspack-rolling-coverage-entry-content > h3:first-child a,
-		.newspack-rolling-coverage-breakout-label + h3 a {
+		.newspack-rolling-coverage-entry-content > h3:first-child a {
 			color: inherit;
-		}
-		.newspack-rolling-coverage-breakout-label {
-			margin: 0 0 0.25rem;
-			font-size: 0.875em;
-			font-weight: 700;
-		}
-		@media (min-width: 37.5rem) {
-			.newspack-rolling-coverage-entry {
-				display: grid;
-				grid-template-columns: 5.5rem minmax(0, 1fr);
-				gap: 1.5rem;
-				align-items: baseline;
-			}
-			.newspack-rolling-coverage-entry-meta {
-				flex-direction: column;
-				margin: 0;
-			}
 		}
 		.newspack-rolling-coverage-load-more,
 		.newspack-rolling-coverage-check-updates {
@@ -366,14 +375,15 @@ class Lite_Feed {
 	}
 
 	/**
-	 * Render an entry as text: its time and whether it is pinned, set beside
-	 * the rest (see STYLES), then its title and its body, which Lite Site
-	 * cleans like the rest of the page, or a notice in place of a protected
-	 * entry's body. An entry whose breakout post is
-	 * published shows that post's title under the Full story label, linked to
-	 * its lite page (see card_url()), and its summary instead (see
-	 * Breakout_Card::for_entry()), without the archived entry's notice. A
-	 * post without a title is linked by the entry's name instead.
+	 * Render an entry as text: a row with its time and whether it is pinned,
+	 * then its title and its body, which Lite Site cleans like the rest of
+	 * the page, or a notice in place of a protected entry's body. An entry
+	 * whose breakout post is published is a Full story entry: the row ends
+	 * with the Full story label, and the post's title, linked to its lite
+	 * page (see card_url()), and its summary take the place of the entry's
+	 * (see Breakout_Card::for_entry()), without the archived entry's notice.
+	 * A post without a title is linked by the entry's name instead, without
+	 * the label.
 	 *
 	 * Built from the entry alone, not the block's layout, and carrying the
 	 * attributes the view script uses to place and replace entries. Layouts
@@ -406,9 +416,11 @@ class Lite_Feed {
 		$card = Breakout_Card::for_entry( $entry->ID );
 
 		if ( null !== $card ) {
-			$title = '' !== $card['title']
-				? Breakout_Card::lite_label_html( $card ) . sprintf( '<h3><a href="%s">%s</a></h3>', esc_url( self::card_url( $card ) ), esc_html( $card['title'] ) )
-				: sprintf( '<h3><a href="%s">%s</a></h3>', esc_url( self::card_url( $card ) ), esc_html( self::untitled_card_name( $entry, $card ) ) );
+			if ( '' !== $card['title'] ) {
+				$meta .= Breakout_Card::lite_label_html( $card );
+			}
+
+			$title = sprintf( '<h3><a href="%s">%s</a></h3>', esc_url( self::card_url( $card ) ), esc_html( '' !== $card['title'] ? $card['title'] : self::untitled_card_name( $entry, $card ) ) );
 			$body  = '' !== $card['summary'] ? '<p>' . esc_html( $card['summary'] ) . '</p>' : '';
 		} else {
 			$title = Rolling_Coverage_Block::has_title( $entry ) ? '<h3>' . esc_html( get_the_title( $entry ) ) . '</h3>' : '';
@@ -416,7 +428,7 @@ class Lite_Feed {
 		}
 
 		return sprintf(
-			'<article class="%1$s-entry" data-entry-id="%2$d" data-arrival="%3$s" data-date-gmt="%9$s"%4$s><div class="%1$s-entry-meta">%5$s</div><div class="%1$s-entry-content">%6$s%7$s%8$s</div></article>',
+			'<article class="%1$s-entry%10$s" data-entry-id="%2$d" data-arrival="%3$s" data-date-gmt="%9$s"%4$s><div class="%1$s-entry-meta">%5$s</div><div class="%1$s-entry-content">%6$s%7$s%8$s</div></article>',
 			Rolling_Coverage_Block::MARKUP_PREFIX,
 			$entry->ID,
 			esc_attr( $arrival ),
@@ -425,7 +437,8 @@ class Lite_Feed {
 			$title,
 			null === $card && Archive_Mode::is_entry_archived( $entry->ID ) ? \Newspack_Lite_Site\Lite_Site::clean_content( Rolling_Coverage_Block::render_archived_entry_notice() ) : '',
 			$body,
-			esc_attr( $entry->post_date_gmt )
+			esc_attr( $entry->post_date_gmt ),
+			null !== $card ? ' ' . Rolling_Coverage_Block::MARKUP_PREFIX . '-entry--full-story' : ''
 		);
 	}
 

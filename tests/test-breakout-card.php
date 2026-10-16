@@ -252,7 +252,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <a href=', $titled );
 		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> <strong>Post', $flash );
 		$this->assertStringContainsString( 'newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <a href=', $ticker );
-		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</p><h3>', $lite );
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</p></div><div class="newspack-rolling-coverage-entry-content"><h3>', $lite );
 		$this->assertStringNotContainsString( 'Full story', $titled . $flash . $ticker . $lite );
 
 		update_option( Breakout_Label::OPTION_KEY, '  ' );
@@ -280,11 +280,11 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <a href=', $titled );
 		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> <strong>Post', $flash );
 		$this->assertStringContainsString( 'newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <a href=', $ticker );
-		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</p><h3>', $lite );
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</p></div><div class="newspack-rolling-coverage-entry-content"><h3>', $lite );
 		$this->assertStringNotContainsString( 'Site label', $titled . $flash . $ticker . $lite );
 
 		$this->assertStringContainsString( 'breakout-label">Site label</span> <a href=', self::render( $other_entry, self::TITLE_MARKUP ), 'Another post keeps the site label.' );
-		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Site label</p><h3>', Lite_Feed::render_entry( get_post( $other_entry ), 'initial' ) );
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Site label</p></div><div class="newspack-rolling-coverage-entry-content"><h3>', Lite_Feed::render_entry( get_post( $other_entry ), 'initial' ) );
 
 		delete_post_meta( $breakout_id, Breakout_Label::POST_META_KEY );
 
@@ -844,7 +844,8 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A lite page shows the post's title, linked to its lite page, and its
+	 * A lite page shows a Full story entry, with the label at the end of its
+	 * top row, then the post's title, linked to its lite page, and its
 	 * summary. A post type without lite pages links to the post.
 	 */
 	public function test_lite_entry_shows_the_post_title_and_summary() {
@@ -853,7 +854,8 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 		$html = Lite_Feed::render_entry( get_post( $entry_id ), 'initial' );
 
-		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-entry-content"><p class="newspack-rolling-coverage-breakout-label">Full story</p><h3><a href="' . esc_url( home_url( '/lite/' . $breakout_id ) ) . '">Post &amp; headline</a></h3><p>What the post sums up.</p></div></article>', $html );
+		$this->assertStringStartsWith( '<article class="newspack-rolling-coverage-entry newspack-rolling-coverage-entry--full-story" ', $html );
+		$this->assertStringContainsString( '</time></p><p class="newspack-rolling-coverage-breakout-label">Full story</p></div><div class="newspack-rolling-coverage-entry-content"><h3><a href="' . esc_url( home_url( '/lite/' . $breakout_id ) ) . '">Post &amp; headline</a></h3><p>What the post sums up.</p></div></article>', $html );
 		$this->assertStringNotContainsString( 'Entry headline', $html );
 		$this->assertStringNotContainsString( self::ENTRY_TEXT, $html );
 
