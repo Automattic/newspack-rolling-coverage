@@ -2,6 +2,7 @@
  * External dependencies
  */
 import { __, _n, sprintf } from '@wordpress/i18n';
+import { backup, trash } from '@wordpress/icons';
 
 /**
  * Internal dependencies
@@ -97,6 +98,7 @@ function getCoverageActions(
 		{
 			id: 'trash-coverage',
 			label: __( 'Trash', 'newspack-rolling-coverage' ),
+			icon: trash,
 			supportsBulk: true,
 			isEligible: ( coverage: Coverage ) =>
 				canManage &&
@@ -176,6 +178,7 @@ function getCoverageActions(
 		{
 			id: 'restore-coverage',
 			label: __( 'Restore', 'newspack-rolling-coverage' ),
+			icon: backup,
 			supportsBulk: true,
 			isEligible: ( coverage: Coverage ) =>
 				canManage &&
@@ -215,6 +218,7 @@ function getCoverageActions(
 		{
 			id: 'delete-coverage',
 			label: __( 'Delete Permanently', 'newspack-rolling-coverage' ),
+			icon: trash,
 			supportsBulk: true,
 			isEligible: ( coverage: Coverage ) =>
 				canManage &&
