@@ -16,15 +16,16 @@ const TypedDataViews = DataViews as unknown as ComponentType<
 >;
 
 /**
- * Scrolls a bulk action that takes focus fully into its row. On narrow
+ * Scrolls a bulk action that takes keyboard focus fully into its row. On narrow
  * screens the row scrolls sideways under a fade and a pinned Cancel, and
  * browsers leave a mostly visible button where it is, half hidden.
  *
  * @param {FocusEvent<HTMLDivElement>} event The focus event.
  */
 function revealFocusedBulkAction( event: FocusEvent< HTMLDivElement > ) {
-	const target = event.target;
+	const target: Element = event.target;
 	if (
+		target.matches( ':focus-visible' ) &&
 		target.parentElement?.classList.contains(
 			'dataviews-bulk-actions-footer__action-buttons'
 		)
