@@ -1,6 +1,6 @@
 {
 	"name": "automattic/newspack-rolling-coverage",
-	"description": "Live blog and rolling coverage of ongoing news events for Newspack",
+	"description": "Liveblog and rolling coverage of ongoing news events for Newspack",
 	"type": "wordpress-plugin",
 	"license": "GPL-3.0",
 	"require-dev": {

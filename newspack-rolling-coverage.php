@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Newspack Rolling Coverage
- * Description: Live blog and rolling coverage of ongoing news events.
+ * Description: Liveblog and rolling coverage of ongoing news events.
  * Version: 0.1.0
  * Requires at least: 7.0
  * Author: Automattic

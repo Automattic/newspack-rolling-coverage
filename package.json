@@ -1,7 +1,7 @@
 {
 	"name": "newspack-rolling-coverage",
 	"version": "0.1.0",
-	"description": "Live blog and rolling coverage of ongoing news events for Newspack",
+	"description": "Liveblog and rolling coverage of ongoing news events for Newspack",
 	"license": "GPL-3.0",
 	"repository": {
 		"type": "git",

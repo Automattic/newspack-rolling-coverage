@@ -188,12 +188,12 @@ class Schema {
 	}
 
 	/**
-	 * Turns Yoast's Article into the page's live blog.
+	 * Turns Yoast's Article into the page's liveblog.
 	 *
 	 * Printed separately, the two would describe one URL as two articles that
 	 * disagree on when it last changed. Yoast's values win where both describe
 	 * the page (headline, publish date, main entity), since they match what
-	 * readers see. The live blog adds its coverage times and updates, and
+	 * readers see. The liveblog adds its coverage times and updates, and
 	 * dateModified becomes the page's, which also counts entry changes.
 	 *
 	 * @param array|mixed $data    Yoast's Article graph piece.
@@ -213,7 +213,7 @@ class Schema {
 
 		$metadata = $primary['metadata'];
 
-		// Keep Yoast's type (NewsArticle, for example) and add the live blog to it.
+		// Keep Yoast's type (NewsArticle, for example) and add the liveblog to it.
 		$data['@type'] = array_values( array_unique( array_merge( (array) ( $data['@type'] ?? [] ), [ 'LiveBlogPosting' ] ) ) );
 
 		foreach ( $metadata as $key => $value ) {
@@ -463,7 +463,7 @@ class Schema {
 	/**
 	 * Returns the first coverage on the page that has metadata to publish.
 	 *
-	 * Search engines read a page as a single live blog, so only this coverage
+	 * Search engines read a page as a single liveblog, so only this coverage
 	 * is merged into Yoast's Article. Any others keep their own script.
 	 *
 	 * @param WP_Post $post Host post.
@@ -507,7 +507,7 @@ class Schema {
 	/**
 	 * Collects the uncapped Rolling Coverage blocks embedded in a post, deduped
 	 * by coverage ID. A capped block shows a few entries and links to the
-	 * coverage page, so it doesn't make the post a live blog.
+	 * coverage page, so it doesn't make the post a liveblog.
 	 *
 	 * @param WP_Post $post Host post being rendered.
 	 * @return array<int,int> Map of coverage term id => entries-per-page attribute.
