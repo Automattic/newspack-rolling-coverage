@@ -11,6 +11,7 @@ use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Breakout_Label;
 use Newspack_Rolling_Coverage\Breakout_Card;
 use Newspack_Rolling_Coverage\Lite_Feed;
+use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Taxonomy;
 
@@ -252,7 +253,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <a href=', $titled );
 		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> <strong>Post', $flash );
 		$this->assertStringContainsString( 'newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <a href=', $ticker );
-		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</p><h3>', $lite );
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</p></div><div class="newspack-rolling-coverage-entry-content"><h3>', $lite );
 		$this->assertStringNotContainsString( 'Full story', $titled . $flash . $ticker . $lite );
 
 		update_option( Breakout_Label::OPTION_KEY, '  ' );
@@ -280,11 +281,11 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <a href=', $titled );
 		$this->assertStringContainsString( 'breakout-label--prefix">Q &lt; A &amp; &quot;B&quot;:</span> <strong>Post', $flash );
 		$this->assertStringContainsString( 'newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</span> <a href=', $ticker );
-		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</p><h3>', $lite );
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Q &lt; A &amp; &quot;B&quot;</p></div><div class="newspack-rolling-coverage-entry-content"><h3>', $lite );
 		$this->assertStringNotContainsString( 'Site label', $titled . $flash . $ticker . $lite );
 
 		$this->assertStringContainsString( 'breakout-label">Site label</span> <a href=', self::render( $other_entry, self::TITLE_MARKUP ), 'Another post keeps the site label.' );
-		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Site label</p><h3>', Lite_Feed::render_entry( get_post( $other_entry ), 'initial' ) );
+		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-breakout-label">Site label</p></div><div class="newspack-rolling-coverage-entry-content"><h3>', Lite_Feed::render_entry( get_post( $other_entry ), 'initial' ) );
 
 		delete_post_meta( $breakout_id, Breakout_Label::POST_META_KEY );
 
@@ -323,6 +324,7 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 		$this->assertStringNotContainsString( 'breakout-label', self::render( $untitled_entry, self::TITLE_MARKUP . self::FLASH_EXCERPT_MARKUP ) );
 		$this->assertStringNotContainsString( 'breakout-label', Lite_Feed::render_entry( get_post( $untitled_entry ), 'initial' ) );
 		$this->assertStringContainsString( '<h3><a href="', Lite_Feed::render_entry( get_post( $untitled_entry ), 'initial' ), 'A lite card for a post without a title still links to the post.' );
+		$this->assertStringStartsWith( '<article class="newspack-rolling-coverage-entry newspack-rolling-coverage-entry--full-story" ', Lite_Feed::render_entry( get_post( $untitled_entry ), 'initial' ), 'And is still a Full story card.' );
 
 		[ $card_entry ] = self::create_breakout();
 		$meanwhile      = '';
@@ -844,7 +846,8 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A lite page shows the post's title, linked to its lite page, and its
+	 * A lite page shows a Full story entry, with the label at the end of its
+	 * top row, then the post's title, linked to its lite page, and its
 	 * summary. A post type without lite pages links to the post.
 	 */
 	public function test_lite_entry_shows_the_post_title_and_summary() {
@@ -853,13 +856,33 @@ class Test_Breakout_Card extends Rolling_Coverage_TestCase {
 
 		$html = Lite_Feed::render_entry( get_post( $entry_id ), 'initial' );
 
-		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-entry-content"><p class="newspack-rolling-coverage-breakout-label">Full story</p><h3><a href="' . esc_url( home_url( '/lite/' . $breakout_id ) ) . '">Post &amp; headline</a></h3><p>What the post sums up.</p></div></article>', $html );
+		$this->assertStringStartsWith( '<article class="newspack-rolling-coverage-entry newspack-rolling-coverage-entry--full-story" ', $html );
+		$this->assertStringContainsString( '</time></p><p class="newspack-rolling-coverage-breakout-label">Full story</p></div><div class="newspack-rolling-coverage-entry-content"><h3><a href="' . esc_url( home_url( '/lite/' . $breakout_id ) ) . '">Post &amp; headline</a></h3><p>What the post sums up.</p></div></article>', $html );
 		$this->assertStringNotContainsString( 'Entry headline', $html );
 		$this->assertStringNotContainsString( self::ENTRY_TEXT, $html );
 
 		add_filter( 'newspack_lite_site_supported_post_types', fn() => [ 'page' ] );
 
 		$this->assertStringContainsString( '<h3><a href="' . esc_url( get_permalink( $breakout_id ) ) . '">', Lite_Feed::render_entry( get_post( $entry_id ), 'initial' ) );
+	}
+
+	/**
+	 * A pinned Full story entry is both a card and pinned: its row holds the
+	 * time, Pinned for screen readers, then the label. The lite page keeps
+	 * that markup through Lite Site's cleaning and the single template's.
+	 */
+	public function test_pinned_lite_entry_keeps_its_row_on_the_lite_page() {
+		require_once __DIR__ . '/mocks/class-lite-site.php';
+		[ $entry_id ] = self::create_breakout();
+		Post_Type::pin_entry( $entry_id );
+
+		$html = Lite_Feed::render_entry( get_post( $entry_id ), 'initial' );
+
+		$this->assertMatchesRegularExpression( '#^<article class="newspack-rolling-coverage-entry newspack-rolling-coverage-entry--full-story" [^>]* data-pinned #', $html );
+		$this->assertMatchesRegularExpression( '#<div class="newspack-rolling-coverage-entry-meta"><p><time [^>]*>[^<]*</time></p><p class="newspack-rolling-coverage-entry-pinned">Pinned</p><p class="newspack-rolling-coverage-breakout-label">Full story</p></div>#', $html );
+
+		Lite_Feed::add_feed();
+		$this->assertSame( $html, wp_kses_post( \Newspack_Lite_Site\Lite_Site::clean_content( $html ) ) );
 	}
 
 	/**
