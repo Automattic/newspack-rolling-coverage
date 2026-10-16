@@ -35,8 +35,9 @@ class Lite_Feed {
 	 * The feed's one style on a lite page, which prints no block styles,
 	 * whatever the block's layout: each entry's time and pinned state sit in
 	 * a narrow column beside it, or above it on small screens, with a rule
-	 * between entries. The title rules match only the entry's own title, so
-	 * headings in its body keep Lite Site's look. The status region is for screen readers only, the
+	 * between entries. The title rules match the heading an entry opens
+	 * with, its title or, without one, its body's first heading, so the
+	 * headings further into its body keep Lite Site's look. The status region is for screen readers only, the
 	 * new-posts control floats at the top of the screen, the buttons match
 	 * Lite Site's own, and the Coverage Status badge matches its liveblog
 	 * badge. The accent is Lite Site's primary color (see print_styles()).
@@ -109,6 +110,7 @@ class Lite_Feed {
 		.newspack-rolling-coverage-breakout-label + h3 + * {
 			margin-top: 0;
 		}
+		.newspack-rolling-coverage-entry-content > h3:first-child a,
 		.newspack-rolling-coverage-breakout-label + h3 a {
 			color: inherit;
 		}
