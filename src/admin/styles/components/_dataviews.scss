@@ -2,6 +2,10 @@
 @use "~@wordpress/base-styles/colors" as wp-colors;
 @use "~@wordpress/base-styles/variables" as wp-vars;
 
+.newspack-rolling-coverage-dataviews {
+	display: contents;
+}
+
 .newspack-rolling-coverage-admin {
 
 	.dataviews-wrapper {
@@ -89,8 +93,15 @@
 	initial-value: 0;
 }
 
+@property --newspack-rolling-coverage-bulk-cancel-gap {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0;
+}
+
 $bulk-cancel-room: wp-vars.$button-size-compact + wp-vars.$grid-unit-05;
-$bulk-fade: "transparent, #000 var(--newspack-rolling-coverage-bulk-fade-start), #000 calc(100% - #{$bulk-cancel-room} - var(--newspack-rolling-coverage-bulk-fade-end)), transparent calc(100% - #{$bulk-cancel-room}), transparent calc(100% - #{wp-vars.$button-size-compact}), #000 calc(100% - #{wp-vars.$button-size-compact})";
+$bulk-cancel-edge: "100% - #{wp-vars.$button-size-compact}";
+$bulk-fade: "transparent, #000 var(--newspack-rolling-coverage-bulk-fade-start), #000 calc(#{$bulk-cancel-edge} - var(--newspack-rolling-coverage-bulk-cancel-gap) - var(--newspack-rolling-coverage-bulk-fade-end)), transparent calc(#{$bulk-cancel-edge} - var(--newspack-rolling-coverage-bulk-cancel-gap)), transparent calc(#{$bulk-cancel-edge}), #000 calc(#{$bulk-cancel-edge})";
 
 @media (max-width: #{wp-breakpoints.$break-medium}) {
 
@@ -104,6 +115,10 @@ $bulk-fade: "transparent, #000 var(--newspack-rolling-coverage-bulk-fade-start),
 			flex-wrap: wrap;
 			min-width: 0;
 			background-color: inherit;
+		}
+
+		.dataviews-footer__content .dataviews-pagination {
+			flex-shrink: 0;
 		}
 
 		.dataviews-bulk-actions-footer__action-buttons {
@@ -187,9 +202,11 @@ $bulk-fade: "transparent, #000 var(--newspack-rolling-coverage-bulk-fade-start),
 
 	from {
 		--newspack-rolling-coverage-bulk-fade-end: var(--newspack-rolling-coverage-bulk-fade);
+		--newspack-rolling-coverage-bulk-cancel-gap: #{wp-vars.$grid-unit-05};
 	}
 
 	to {
 		--newspack-rolling-coverage-bulk-fade-end: 0;
+		--newspack-rolling-coverage-bulk-cancel-gap: #{wp-vars.$grid-unit-05};
 	}
 }
