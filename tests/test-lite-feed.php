@@ -107,7 +107,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An entry renders as its time, then its title and body beside it,
+	 * An entry renders as a row with its time, then its title and body,
 	 * without the layout.
 	 */
 	public function test_entry_renders_as_text_with_its_time_title_and_body() {
@@ -1055,17 +1055,18 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 	/**
 	 * The feed's accents take Lite Site's primary color, in any hex form: the
-	 * labels where it reads well on the white page, and the Live badge always,
-	 * with whichever text color reads better on it.
+	 * Live badge always, with whichever text color reads better on it, a Full
+	 * story card's background as a tint of it, and the Full story label and
+	 * the card's border where it reads well on that tint.
 	 */
 	public function test_styles_take_lite_sites_primary_color() {
 		self::serve_lite_feed();
 
 		\Newspack_Lite_Site\Lite_Site::$primary_color = '#003DA5';
-		$this->assertStringContainsString( ':root { --newspack-rolling-coverage-lite-accent: #003da5; --newspack-rolling-coverage-lite-badge: #003da5; --newspack-rolling-coverage-lite-badge-text: #ffffff; }', $this->print_lite_styles() );
+		$this->assertStringContainsString( ':root { --newspack-rolling-coverage-lite-accent: #003da5; --newspack-rolling-coverage-lite-badge: #003da5; --newspack-rolling-coverage-lite-badge-text: #ffffff; --newspack-rolling-coverage-lite-tint: #f0f3fa; }', $this->print_lite_styles() );
 
 		\Newspack_Lite_Site\Lite_Site::$primary_color = '#fd0';
-		$this->assertStringContainsString( ':root { --newspack-rolling-coverage-lite-badge: #ffdd00; --newspack-rolling-coverage-lite-badge-text: #000000; }', $this->print_lite_styles(), 'A light color leaves the labels in the text color and takes black text on the badge.' );
+		$this->assertStringContainsString( ':root { --newspack-rolling-coverage-lite-badge: #ffdd00; --newspack-rolling-coverage-lite-badge-text: #000000; --newspack-rolling-coverage-lite-tint: #fffdf0; }', $this->print_lite_styles(), 'A light color leaves the label and the card border in the text color, and takes black text on the badge.' );
 
 		foreach ( [ '', 'currentcolor', 'red; } body { display: none' ] as $color ) {
 			\Newspack_Lite_Site\Lite_Site::$primary_color = $color;

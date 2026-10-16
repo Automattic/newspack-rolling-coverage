@@ -36,8 +36,10 @@ class Lite_Feed {
 	 * whatever the block's layout, after Stream: each entry opens with a
 	 * small row holding its time, and a Full story entry's label at the far
 	 * end. Pinned and Full story entries are cards, and a rule separates two
-	 * other entries. Pinned is for screen readers only, as the card sets a
-	 * pinned entry apart. The status region is for screen readers only, the
+	 * other entries. A Full story card links to the post as a whole, as
+	 * Stream's does. Pinned is for screen readers only, as the card sets a
+	 * pinned entry apart. The selectors stay flat, without :is() or :not(),
+	 * so older browsers, common among lite readers, keep the cards. The status region is for screen readers only, the
 	 * new-posts control floats at the top of the screen, the buttons match
 	 * Lite Site's own, and the Coverage Status badge matches its liveblog
 	 * badge. The accent is Lite Site's primary color (see print_styles()).
@@ -50,7 +52,11 @@ class Lite_Feed {
 			position: absolute;
 			width: 1px;
 			height: 1px;
+			margin: -1px;
+			padding: 0;
 			overflow: hidden;
+			border: 0;
+			clip: rect(0 0 0 0);
 			clip-path: inset(50%);
 			white-space: nowrap;
 		}
@@ -77,26 +83,44 @@ class Lite_Feed {
 		.newspack-rolling-coverage-entry {
 			padding: 1rem 0;
 		}
-		.newspack-rolling-coverage-entry:not(:is([data-pinned], .newspack-rolling-coverage-entry--full-story)):first-child {
+		.newspack-rolling-coverage-entry:first-child {
 			padding-top: 0;
 		}
-		.newspack-rolling-coverage-entry:not(:is([data-pinned], .newspack-rolling-coverage-entry--full-story)):last-child {
+		.newspack-rolling-coverage-entry:last-child {
 			padding-bottom: 0;
 		}
-		.newspack-rolling-coverage-entry:not(:is([data-pinned], .newspack-rolling-coverage-entry--full-story)) + .newspack-rolling-coverage-entry:not(:is([data-pinned], .newspack-rolling-coverage-entry--full-story)) {
+		.newspack-rolling-coverage-entry + .newspack-rolling-coverage-entry {
 			border-top: 1px solid #ddd;
 		}
-		.newspack-rolling-coverage-entry:is([data-pinned], .newspack-rolling-coverage-entry--full-story) {
+		.newspack-rolling-coverage-entry[data-pinned],
+		.newspack-rolling-coverage-entry.newspack-rolling-coverage-entry--full-story {
 			padding: 1rem;
 			border: 1px solid;
 			border-radius: 0.375rem;
 		}
-		.newspack-rolling-coverage-entry:is([data-pinned], .newspack-rolling-coverage-entry--full-story) + .newspack-rolling-coverage-entry:is([data-pinned], .newspack-rolling-coverage-entry--full-story) {
-			margin-top: 1rem;
-		}
 		.newspack-rolling-coverage-entry.newspack-rolling-coverage-entry--full-story {
-			border-color: var(--newspack-rolling-coverage-lite-badge, currentcolor);
-			background: color-mix(in srgb, var(--newspack-rolling-coverage-lite-badge, currentcolor) 6%, transparent);
+			position: relative;
+			border-color: var(--newspack-rolling-coverage-lite-accent, currentcolor);
+			background: var(--newspack-rolling-coverage-lite-tint, #f0f0f0);
+		}
+		.newspack-rolling-coverage-entry[data-pinned] + .newspack-rolling-coverage-entry,
+		.newspack-rolling-coverage-entry.newspack-rolling-coverage-entry--full-story + .newspack-rolling-coverage-entry {
+			border-top-width: 0;
+		}
+		.newspack-rolling-coverage-entry[data-pinned] + .newspack-rolling-coverage-entry[data-pinned],
+		.newspack-rolling-coverage-entry[data-pinned] + .newspack-rolling-coverage-entry.newspack-rolling-coverage-entry--full-story,
+		.newspack-rolling-coverage-entry.newspack-rolling-coverage-entry--full-story + .newspack-rolling-coverage-entry[data-pinned],
+		.newspack-rolling-coverage-entry.newspack-rolling-coverage-entry--full-story + .newspack-rolling-coverage-entry.newspack-rolling-coverage-entry--full-story {
+			margin-top: 1rem;
+			border-top-width: 1px;
+		}
+		.newspack-rolling-coverage-entry.newspack-rolling-coverage-entry--full-story .newspack-rolling-coverage-entry-content > h3:first-child a::after {
+			content: "";
+			position: absolute;
+			top: 0;
+			right: 0;
+			bottom: 0;
+			left: 0;
 		}
 		.newspack-rolling-coverage-entry-meta {
 			display: flex;
@@ -105,6 +129,7 @@ class Lite_Feed {
 			gap: 0 0.5rem;
 			margin: 0 0 0.25rem;
 			font-size: 0.875em;
+			overflow-wrap: anywhere;
 		}
 		.newspack-rolling-coverage-entry-meta p {
 			margin: 0;
@@ -113,11 +138,13 @@ class Lite_Feed {
 			opacity: 0.7;
 		}
 		.newspack-rolling-coverage-entry-meta .newspack-rolling-coverage-breakout-label {
+			margin-left: auto;
 			margin-inline-start: auto;
 			color: var(--newspack-rolling-coverage-lite-accent, inherit);
 			font-weight: 700;
 		}
 		.newspack-rolling-coverage-breakout-label::after {
+			content: " \2192";
 			content: " \2192" / "";
 		}
 		.newspack-rolling-coverage-entry-content > :first-child {
@@ -131,7 +158,7 @@ class Lite_Feed {
 			font-size: 1.125em;
 			line-height: 1.3;
 		}
-		.newspack-rolling-coverage-entry--full-story .newspack-rolling-coverage-entry-content > h3:first-child {
+		.newspack-rolling-coverage-entry.newspack-rolling-coverage-entry--full-story .newspack-rolling-coverage-entry-content > h3:first-child {
 			font-size: 1.25em;
 		}
 		.newspack-rolling-coverage-entry-content > h3:first-child + * {
@@ -167,6 +194,11 @@ class Lite_Feed {
 			color: var(--newspack-rolling-coverage-lite-badge-text, #fff);
 		}
 	';
+
+	/**
+	 * How much of the accent a Full story card's background takes, in percent.
+	 */
+	const TINT_PERCENT = 6;
 
 	/**
 	 * Whether this request renders a feed for a lite page or answers a lite
@@ -218,13 +250,15 @@ class Lite_Feed {
 			$accent = self::accent_color();
 
 			if ( '' !== $accent ) {
-				$label = Readable_Accent::pick( [ $accent => $accent ], '#ffffff' );
+				$tint  = self::tint( $accent );
+				$label = Readable_Accent::pick( [ $accent => $accent ], $tint );
 
 				printf(
-					':root { %s--newspack-rolling-coverage-lite-badge: %s; --newspack-rolling-coverage-lite-badge-text: %s; }',
+					':root { %s--newspack-rolling-coverage-lite-badge: %s; --newspack-rolling-coverage-lite-badge-text: %s; --newspack-rolling-coverage-lite-tint: %s; }',
 					'currentcolor' === $label ? '' : '--newspack-rolling-coverage-lite-accent: ' . esc_html( $label ) . '; ',
 					esc_html( $accent ),
-					esc_html( Apca::text_color( $accent ) )
+					esc_html( Apca::text_color( $accent ) ),
+					esc_html( $tint )
 				);
 			}
 
@@ -243,8 +277,10 @@ class Lite_Feed {
 	 * `currentcolor`, so the feed's accents fall back to their own.
 	 *
 	 * The Live badge takes it as its background, with black or white text,
-	 * whichever reads better. The labels take it only where it reads well on
-	 * the white lite page (Readable_Accent::pick()), else the text color.
+	 * whichever reads better, and a Full story card a tint of it (tint()) as
+	 * its background. The Full story label and the card's border take it
+	 * only where it reads well on that tint (Readable_Accent::pick()), else
+	 * the text color.
 	 *
 	 * @return string
 	 */
@@ -256,6 +292,23 @@ class Lite_Feed {
 		}
 
 		return Apca::normalize( (string) $lite_site::get_primary_color() );
+	}
+
+	/**
+	 * A Full story card's background: the accent at TINT_PERCENT over the
+	 * white lite page, as a `#rrggbb`.
+	 *
+	 * @param string $accent Normalized `#rrggbb` accent.
+	 * @return string
+	 */
+	private static function tint( string $accent ): string {
+		$tint = '#';
+
+		foreach ( str_split( substr( $accent, 1 ), 2 ) as $channel ) {
+			$tint .= sprintf( '%02x', (int) round( 255 + ( hexdec( $channel ) - 255 ) * self::TINT_PERCENT / 100 ) );
+		}
+
+		return $tint;
 	}
 
 	/**
