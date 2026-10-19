@@ -286,8 +286,8 @@ class Rolling_Coverage_Block {
 	 * related posts, and the post's own placeholder stays empty.
 	 *
 	 * The callback is found on the hook rather than through
-	 * Jetpack_RelatedPosts::init(), which creates and hooks in the module on
-	 * a page it isn't running on.
+	 * Jetpack_RelatedPosts::init(), so the feed only reads what Jetpack
+	 * hooked and never constructs the module itself.
 	 *
 	 * @return callable Puts the held-back callbacks back.
 	 */
