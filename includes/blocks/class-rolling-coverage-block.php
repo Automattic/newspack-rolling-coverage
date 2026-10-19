@@ -267,12 +267,59 @@ class Rolling_Coverage_Block {
 	 */
 	public static function render_as_entry( callable $render ): string {
 		++self::$entry_render_depth;
+		$restore_related_posts = self::hold_back_related_posts();
 
 		try {
 			return (string) $render();
 		} finally {
+			$restore_related_posts();
 			--self::$entry_render_depth;
 		}
+	}
+
+	/**
+	 * Keeps Jetpack's Related Posts out of the entry about to render, and
+	 * returns what puts it back.
+	 *
+	 * On a classic theme, Jetpack adds its Related Posts placeholder to every
+	 * `the_content` on a single post's page, whichever post the content is
+	 * for, and its script fills the first placeholder on the page. Entries run
+	 * through `the_content` inside the host post's content, so without this
+	 * the feed's first entry, usually the pinned one, shows the host post's
+	 * related posts, and the post's own placeholder stays empty.
+	 *
+	 * The callback is found on the hook rather than through
+	 * Jetpack_RelatedPosts::init(), so the feed only reads what Jetpack
+	 * hooked and never constructs the module itself.
+	 *
+	 * @return callable Puts the held-back callbacks back.
+	 */
+	private static function hold_back_related_posts(): callable {
+		global $wp_filter;
+
+		$held_back = [];
+
+		if ( isset( $wp_filter['the_content'] ) && class_exists( 'Jetpack_RelatedPosts', false ) ) {
+			foreach ( $wp_filter['the_content']->callbacks as $priority => $callbacks ) {
+				foreach ( $callbacks as $callback ) {
+					$function = $callback['function'];
+
+					if ( is_array( $function ) && $function[0] instanceof \Jetpack_RelatedPosts && 'filter_add_target_to_dom' === $function[1] ) {
+						$held_back[] = [ $function, $priority, $callback['accepted_args'] ];
+					}
+				}
+			}
+		}
+
+		foreach ( $held_back as [ $function, $priority ] ) {
+			remove_filter( 'the_content', $function, $priority );
+		}
+
+		return static function () use ( $held_back ) {
+			foreach ( $held_back as [ $function, $priority, $accepted_args ] ) {
+				add_filter( 'the_content', $function, $priority, $accepted_args );
+			}
+		};
 	}
 
 	/**

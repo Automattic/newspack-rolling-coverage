@@ -771,7 +771,7 @@ class Schema {
 		// An entry that is only a title, such as a one-line Slack headline, is
 		// still an update: its title stands in for the body.
 		if ( '' === $article_body ) {
-			$article_body = trim( html_entity_decode( wp_strip_all_tags( $entry->post_title ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+			$article_body = trim( Post_Type::plain_title( $entry->post_title ) );
 		}
 
 		/**
@@ -786,8 +786,8 @@ class Schema {
 			return null;
 		}
 
-		$headline = get_the_title( $entry );
-		if ( '' === trim( wp_strip_all_tags( $headline ) ) ) {
+		$headline = Post_Type::plain_title( get_the_title( $entry ) );
+		if ( '' === trim( $headline ) ) {
 			$headline = wp_trim_words( $article_body, 10, '…' );
 		}
 

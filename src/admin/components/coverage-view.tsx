@@ -26,7 +26,7 @@ import { useAdminContext } from '../hooks/useAdminContext';
 import { useStatusLabels } from '../utils/status-labels';
 import { EmptyState } from 'newspack-components/dist/esm/empty-state';
 import { LoadingState } from '../shared/loading-state';
-import { activity } from 'newspack-icons';
+import { liveStreaming } from '../../shared/icons/live-streaming';
 import { useHeader } from '../hooks/useHeader';
 import type { Context, ContextExports, Coverage } from '../types';
 
@@ -233,7 +233,7 @@ function CoverageView() {
 			{ ! isFirstLoad && isEmpty && (
 				<EmptyState.Root>
 					<EmptyState.Header
-						icon={ activity }
+						icon={ liveStreaming }
 						title={ __(
 							'Get started with rolling coverage',
 							'newspack-rolling-coverage'
