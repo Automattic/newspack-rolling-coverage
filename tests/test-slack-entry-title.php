@@ -137,6 +137,18 @@ class Test_Slack_Entry_Title extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * When something empties an entry's excerpt, as a content gate with no
+	 * free preview does, the title stands in, though the entry has words.
+	 */
+	public function test_slack_title_stands_in_for_an_emptied_excerpt_where_no_title_shows() {
+		add_filter( 'get_the_excerpt', '__return_empty_string', 11 );
+
+		$html = Rolling_Coverage_Block::render_entry( self::entry( 'Polls closed', '<!-- wp:paragraph --><p>Ward 1 is counted.</p><!-- /wp:paragraph -->' ), parse_blocks( '<!-- wp:post-date /--><!-- wp:post-excerpt /-->' ) );
+
+		$this->assertStringContainsString( 'Polls closed', $html );
+	}
+
+	/**
 	 * A feed placed in the entry's content doesn't show the entry's title
 	 * above its own entries.
 	 */

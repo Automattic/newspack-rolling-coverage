@@ -4402,7 +4402,8 @@ class Rolling_Coverage_Block {
 
 		// A title from a Slack message is the first line the reporter typed,
 		// so a layout without titles shows it: above the content, or as the
-		// excerpt when the entry has no words of its own. Both filters act
+		// excerpt when the entry has no words of its own or its excerpt comes
+		// out empty, as behind a gate with no free preview. Both filters act
 		// only at this entry's own depth, so a feed placed in its content
 		// isn't headed by it.
 		$message_title = null === $card && ! self::holds_post_title( $template ) ? self::message_title( $entry ) : '';
@@ -4410,7 +4411,8 @@ class Rolling_Coverage_Block {
 		$title_heading = static fn( string $block_content ): string => self::$entry_render_depth === $own_depth
 			? sprintf( '<h%1$d class="wp-block-heading">%2$s</h%1$d>', self::MESSAGE_TITLE_HEADING_LEVEL, $message_title ) . $block_content
 			: $block_content;
-		$title_excerpt = static fn( $excerpt, $excerpt_post = null ) => self::$entry_render_depth === $own_depth && is_string( $excerpt ) && get_post( $excerpt_post ) instanceof WP_Post && get_post( $excerpt_post )->ID === $entry->ID && '' === trim( $entry->post_excerpt ) && ! Entry_Bindings::has_words_of_its_own( $entry )
+		$title_excerpt = static fn( $excerpt, $excerpt_post = null ) => self::$entry_render_depth === $own_depth && is_string( $excerpt ) && get_post( $excerpt_post ) instanceof WP_Post && get_post( $excerpt_post )->ID === $entry->ID
+			&& ( '' === trim( wp_strip_all_tags( $excerpt ) ) || ( '' === trim( $entry->post_excerpt ) && ! Entry_Bindings::has_words_of_its_own( $entry ) ) )
 			? $message_title
 			: $excerpt;
 
