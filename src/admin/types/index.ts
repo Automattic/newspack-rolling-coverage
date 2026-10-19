@@ -608,6 +608,8 @@ interface SlackSettingsInfo {
 	ignore_prefix: string;
 	publish_reaction: string;
 	draft_reaction: string;
+	/** Heading level a line starting with # gets in an entry, from 2 to 6. */
+	top_heading_level: number;
 	bot_user_id: number;
 	slack_bot_user_id?: string;
 	masked_token: string;
@@ -643,6 +645,8 @@ interface IngestionSettingsTabProps {
 	setPublishReaction: ( v: string ) => void;
 	draftReaction: string;
 	setDraftReaction: ( v: string ) => void;
+	topHeadingLevel: number;
+	setTopHeadingLevel: ( v: number ) => void;
 	workspaceInfo: SlackSettingsInfo | null;
 	editUserUrl: string;
 }

@@ -12,7 +12,8 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Converts a Slack message to block markup, keeping the formatting its author
  * used: paragraphs, line breaks, bold, italic, strikethrough, inline code,
- * links, lists, quotes, code blocks and emoji.
+ * links, lists, quotes, code blocks and emoji. Slack has no headings, so lines
+ * starting with #, ## or ### become headings, as in Markdown.
  */
 class Slack_Content_Processor {
 
@@ -40,6 +41,14 @@ class Slack_Content_Processor {
 	private $resolve_user;
 
 	/**
+	 * Heading level for a line starting with #. Each extra # is one level
+	 * lower.
+	 *
+	 * @var int
+	 */
+	private $top_heading_level;
+
+	/**
 	 * Display names resolved so far, keyed by Slack user ID.
 	 *
 	 * @var array<string, string>
@@ -64,11 +73,15 @@ class Slack_Content_Processor {
 	/**
 	 * Constructor.
 	 *
-	 * @param callable|null $resolve_user Receives a Slack user ID and returns
-	 *                                    its display name, or '' when unknown.
+	 * @param callable|null $resolve_user      Receives a Slack user ID and returns
+	 *                                         its display name, or '' when unknown.
+	 * @param int           $top_heading_level Heading level for a line starting
+	 *                                         with #, from 2 to 6. A Heading 1
+	 *                                         would compete with the page title.
 	 */
-	public function __construct( ?callable $resolve_user = null ) {
-		$this->resolve_user = $resolve_user;
+	public function __construct( ?callable $resolve_user = null, int $top_heading_level = Slack_Config::DEFAULT_TOP_HEADING_LEVEL ) {
+		$this->resolve_user      = $resolve_user;
+		$this->top_heading_level = max( 2, min( 6, $top_heading_level ) );
 	}
 
 	/**
@@ -198,7 +211,7 @@ class Slack_Content_Processor {
 						break;
 
 					case 'rich_text_section':
-						$output[] = $this->paragraphs( $this->render_inline( $element['elements'] ?? [] ) );
+						$output[] = $this->paragraphs_and_headings( $this->render_inline( $element['elements'] ?? [] ) );
 						break;
 				}
 
@@ -533,6 +546,58 @@ class Slack_Content_Processor {
 	}
 
 	/**
+	 * Split inline HTML into paragraph and heading blocks. Only top-level
+	 * text gets headings; quotes and list items keep a marked line as text.
+	 *
+	 * @param string $html Inline HTML with "\n" newlines.
+	 * @return string Block markup.
+	 */
+	private function paragraphs_and_headings( string $html ): string {
+		$output = [];
+		$lines  = [];
+
+		foreach ( explode( "\n", $html ) as $line ) {
+			$heading = $this->heading( $line );
+
+			if ( '' === $heading ) {
+				$lines[] = $line;
+				continue;
+			}
+
+			$output[] = $this->paragraphs( implode( "\n", $lines ) );
+			$output[] = $heading;
+			$lines    = [];
+		}
+
+		$output[] = $this->paragraphs( implode( "\n", $lines ) );
+
+		return implode( "\n\n", array_filter( $output, fn( $markup ) => '' !== $markup ) );
+	}
+
+	/**
+	 * A heading block for a line that starts with #, ## or ### and a space,
+	 * or '' for any other line.
+	 *
+	 * The marker may sit inside bold, italic or strikethrough covering the
+	 * whole line, and the heading keeps those styles. In inline code it is
+	 * text. A style that covers only the marker leaves the line as text, so
+	 * no empty tags are left behind.
+	 *
+	 * @param string $line One line of inline HTML.
+	 * @return string Block markup, or ''.
+	 */
+	private function heading( string $line ): string {
+		if ( ! preg_match( '/^[ \t]*((?:<(?:strong|em|s)>)*)(#{1,3})[ \t]++(?!<\/)(.+)$/', $line, $matches ) ) {
+			return '';
+		}
+
+		$level      = min( 6, $this->top_heading_level + strlen( $matches[2] ) - 1 );
+		$attributes = 2 === $level ? '' : ' ' . wp_json_encode( [ 'level' => $level ] );
+
+		return '<!-- wp:heading' . $attributes . " -->\n<h" . $level . ' class="wp-block-heading">' . rtrim( $matches[1] . $matches[3] ) . '</h' . $level . ">\n<!-- /wp:heading -->";
+	}
+
+	/**
 	 * Turn newlines into line breaks, dropping any whitespace around them.
 	 *
 	 * @param string $html Inline HTML.
@@ -544,8 +609,8 @@ class Slack_Content_Processor {
 
 	/**
 	 * Render mrkdwn text, for messages that arrive without rich-text blocks:
-	 * links, mentions, bold, italic, strikethrough, inline code, paragraphs
-	 * and line breaks.
+	 * links, mentions, bold, italic, strikethrough, inline code, headings,
+	 * paragraphs and line breaks.
 	 *
 	 * Links and inline code are set aside behind private-use placeholders
 	 * while the other styles are applied, so markers inside them are left
@@ -609,6 +674,6 @@ class Slack_Content_Processor {
 			$html
 		);
 
-		return $this->paragraphs( $html );
+		return $this->paragraphs_and_headings( $html );
 	}
 }

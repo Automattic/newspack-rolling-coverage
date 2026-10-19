@@ -2448,6 +2448,99 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The settings report the highest heading level, reading an unusable
+	 * stored one as the default.
+	 */
+	public function test_settings_report_the_highest_heading_level() {
+		Slack_Config::set_top_heading_level( 3 );
+
+		$settings = self::controller()->get_settings( new WP_REST_Request( 'GET', '/rolling-coverage/v1/slack/settings' ) )->get_data();
+
+		$this->assertSame( 3, $settings['top_heading_level'], 'The stored level should be reported.' );
+
+		Slack_Config::update_settings( [ 'top_heading_level' => 9 ] );
+
+		$settings = self::controller()->get_settings( new WP_REST_Request( 'GET', '/rolling-coverage/v1/slack/settings' ) )->get_data();
+
+		$this->assertSame( 4, $settings['top_heading_level'], 'An unusable level should be reported as the default.' );
+	}
+
+	/**
+	 * The highest heading level is saved with the other settings, and a
+	 * request without it leaves it as it was.
+	 */
+	public function test_settings_save_the_highest_heading_level() {
+		$response = self::controller()->save_settings(
+			self::save_settings_request(
+				[
+					'ignore_prefix'     => '~~',
+					'top_heading_level' => 2,
+				]
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 2, $response->get_data()['top_heading_level'], 'The stored level should be returned.' );
+		$this->assertSame( 2, Slack_Config::get_top_heading_level() );
+
+		self::controller()->save_settings( self::save_settings_request( [ 'ignore_prefix' => '##' ] ) );
+
+		$this->assertSame( 2, Slack_Config::get_top_heading_level(), 'Saving without a level should keep it.' );
+	}
+
+	/**
+	 * Values the highest heading level cannot take.
+	 *
+	 * @return array[]
+	 */
+	public function invalid_heading_level_param_provider() {
+		return [
+			'Heading 1'      => [ 1 ],
+			'Heading 7'      => [ 7 ],
+			'a fraction'     => [ '3.5' ],
+			'a tag name'     => [ 'h3' ],
+			'an empty value' => [ '' ],
+		];
+	}
+
+	/**
+	 * An unusable level is refused before anything is stored, the new
+	 * prefix included.
+	 *
+	 * @dataProvider invalid_heading_level_param_provider
+	 *
+	 * @param mixed $level Requested level.
+	 */
+	public function test_settings_refuse_an_unusable_heading_level( $level ) {
+		$response = self::controller()->save_settings(
+			self::save_settings_request(
+				[
+					'ignore_prefix'     => '##',
+					'top_heading_level' => $level,
+				]
+			)
+		);
+
+		$this->assertSame( 400, $response->get_status(), 'The request should be refused.' );
+		$this->assertSame( '~~', Slack_Config::get_ignore_prefix(), 'The prefix should be unchanged.' );
+		$this->assertSame( 4, Slack_Config::get_top_heading_level(), 'The level should be unchanged.' );
+	}
+
+	/**
+	 * A line starting with # in a message becomes a heading at the level
+	 * chosen in the settings.
+	 */
+	public function test_message_headings_use_the_highest_heading_level() {
+		Slack_Config::set_top_heading_level( 3 );
+
+		$coverage_id = self::deliver_to_linked_channel( [ 'text' => "# Results\nWard 1 is counted." ] );
+		$content     = self::get_coverage_entries( $coverage_id )[0]->post_content;
+
+		$this->assertStringContainsString( '<h3 class="wp-block-heading">Results</h3>', $content );
+		$this->assertStringContainsString( '<p>Ward 1 is counted.</p>', $content );
+	}
+
+	/**
 	 * A draft published with the publish emoji gets a slug, as one saved as
 	 * published does, so its share and push notification links work.
 	 */

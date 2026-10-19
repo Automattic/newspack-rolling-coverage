@@ -58,6 +58,8 @@ function SlackSettingsPage() {
 		setPublishReaction,
 		draftReaction,
 		setDraftReaction,
+		topHeadingLevel,
+		setTopHeadingLevel,
 		isSettingsDirty,
 		channels,
 		hasLoadedChannels,
@@ -222,6 +224,8 @@ function SlackSettingsPage() {
 						setPublishReaction={ setPublishReaction }
 						draftReaction={ draftReaction }
 						setDraftReaction={ setDraftReaction }
+						topHeadingLevel={ topHeadingLevel }
+						setTopHeadingLevel={ setTopHeadingLevel }
 						workspaceInfo={ workspaceInfo }
 						editUserUrl={ editUserUrl }
 					/>

@@ -40,6 +40,18 @@ class Slack_Config {
 	const DEFAULT_DRAFT_REACTION   = 'memo';
 
 	/**
+	 * Heading level a line starting with # gets in an entry. Heading 4 sits
+	 * below the Heading 3 the feed layouts give the coverage's name.
+	 */
+	const DEFAULT_TOP_HEADING_LEVEL = 4;
+
+	/**
+	 * Levels a line starting with # can get. A Heading 1 would compete with
+	 * the page title.
+	 */
+	const TOP_HEADING_LEVELS = [ 2, 3, 4, 5, 6 ];
+
+	/**
 	 * Reactions the bot adds to a message once it has an entry. Standard
 	 * emoji, so every workspace has them.
 	 */
@@ -63,13 +75,14 @@ class Slack_Config {
 	 */
 	private static function default_settings(): array {
 		return [
-			'connected'        => false,
-			'workspace_name'   => '',
-			'workspace_id'     => '',
-			'ignore_prefix'    => self::DEFAULT_IGNORE_PREFIX,
-			'publish_reaction' => self::DEFAULT_PUBLISH_REACTION,
-			'draft_reaction'   => self::DEFAULT_DRAFT_REACTION,
-			'bot_user_id'      => 0,
+			'connected'         => false,
+			'workspace_name'    => '',
+			'workspace_id'      => '',
+			'ignore_prefix'     => self::DEFAULT_IGNORE_PREFIX,
+			'publish_reaction'  => self::DEFAULT_PUBLISH_REACTION,
+			'draft_reaction'    => self::DEFAULT_DRAFT_REACTION,
+			'top_heading_level' => self::DEFAULT_TOP_HEADING_LEVEL,
+			'bot_user_id'       => 0,
 		];
 	}
 
@@ -277,6 +290,43 @@ class Slack_Config {
 				'draft_reaction'   => self::normalize_reaction_name( $draft_reaction ),
 			]
 		);
+
+		return true;
+	}
+
+	/**
+	 * The heading level a line starting with # gets in an entry.
+	 *
+	 * @return int One of self::TOP_HEADING_LEVELS.
+	 */
+	public static function get_top_heading_level(): int {
+		$level = self::get_settings()['top_heading_level'] ?? null;
+
+		return self::is_top_heading_level( $level ) ? $level : self::DEFAULT_TOP_HEADING_LEVEL;
+	}
+
+	/**
+	 * Whether a value is one of the levels a line starting with # can get.
+	 *
+	 * @param mixed $level Value to check.
+	 * @return bool
+	 */
+	public static function is_top_heading_level( $level ): bool {
+		return in_array( $level, self::TOP_HEADING_LEVELS, true );
+	}
+
+	/**
+	 * Store the heading level a line starting with # gets in an entry.
+	 *
+	 * @param int $level One of self::TOP_HEADING_LEVELS.
+	 * @return bool False, storing nothing, when the level is not one of them.
+	 */
+	public static function set_top_heading_level( int $level ): bool {
+		if ( ! self::is_top_heading_level( $level ) ) {
+			return false;
+		}
+
+		self::update_settings( [ 'top_heading_level' => $level ] );
 
 		return true;
 	}

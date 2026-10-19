@@ -253,6 +253,17 @@ Reactions need the `reactions:read` and `reactions:write` scopes and the `reacti
 
 Tests: `tests/test-slack-webhook.php`, `tests/test-slack-config.php`.
 
+## Slack message headings
+
+Slack has no headings, so `Slack_Content_Processor` turns a line that starts with `#`, `##` or `###` and a space into a heading block. `#` gets the level set in **Highest Heading** on the Slack page's Settings tab, stored as `top_heading_level` in `Slack_Config::OPTION_SETTINGS`. Each extra `#` is one level lower, down to Heading 6. The default, Heading 4, sits below the Heading 3 the feed layouts give the coverage's name. Heading 1 isn't offered, since it would compete with the page title.
+
+- The level applies when a message becomes an entry, like the rest of its formatting. Changing the setting leaves existing entries as they are.
+- Only top-level text gets headings. A marked line stays as text in a quote, a list item or a code block. It also stays as text when the marker is in inline code or has no space after it, as in a channel mention such as `#newsroom`.
+- Bold, italic or strikethrough covering the whole line carries over to the heading. A style that covers only the marker leaves the line as text.
+- The mrkdwn fallback, used for messages without rich-text blocks, makes headings the same way.
+
+Tests: `tests/test-slack-content-processor.php`, `tests/test-slack-config.php`, `tests/test-slack-webhook.php`.
+
 ## Slack webhooks on a password-protected site
 
 Slack sends events, slash commands and interactions to three REST routes, `rolling-coverage/v1/slack/events`, `/slack/commands` and `/slack/interactions` (`Slack_Webhook_Controller::WEBHOOK_ROUTES`), registered once Slack is configured. Each checks Slack's signature in its permission callback and answers an unsigned request with a 401.

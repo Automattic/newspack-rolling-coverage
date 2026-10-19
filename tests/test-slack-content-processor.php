@@ -561,4 +561,222 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( '<code>b* c</code>', $content, 'Code should keep its markers.' );
 		$this->assertStringNotContainsString( '<strong>', $content, 'A bold marker pair split by code should not produce bold.' );
 	}
+
+	/**
+	 * Headings in some block markup, as their level and inner HTML, with
+	 * the level read from the block's attributes the way the editor does.
+	 *
+	 * @param string $markup Block markup.
+	 * @return array[] One `[ level, html ]` pair per heading block.
+	 */
+	private static function headings( $markup ) {
+		$headings = array_filter( parse_blocks( $markup ), fn( $block ) => 'core/heading' === $block['blockName'] );
+
+		return array_values(
+			array_map(
+				fn( $block ) => [ $block['attrs']['level'] ?? 2, trim( $block['innerHTML'] ) ],
+				$headings
+			)
+		);
+	}
+
+	/**
+	 * Lines starting with #, ## or ### and a space become headings, one
+	 * level apart, starting at the level the processor is given.
+	 */
+	public function test_turns_marked_lines_into_headings() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
+		$content = $processor->process( '', self::rich_text( self::section( self::text( "# Results\n## Ward 1\n### Precinct A" ) ) ) );
+
+		$this->assertSame( [ 'core/heading', 'core/heading', 'core/heading' ], self::block_names( $content ) );
+		$this->assertSame(
+			[
+				[ 2, '<h2 class="wp-block-heading">Results</h2>' ],
+				[ 3, '<h3 class="wp-block-heading">Ward 1</h3>' ],
+				[ 4, '<h4 class="wp-block-heading">Precinct A</h4>' ],
+			],
+			self::headings( $content )
+		);
+		$this->assertStringContainsString( "<!-- wp:heading -->\n<h2", $content, 'Level 2 is the heading block default, so it needs no attribute.' );
+		$this->assertStringContainsString( "<!-- wp:heading {\"level\":3} -->\n<h3", $content );
+	}
+
+	/**
+	 * The highest heading level and the levels each marker gets from it.
+	 *
+	 * @return array[]
+	 */
+	public function heading_level_provider() {
+		return [
+			'Heading 2'                     => [ 2, [ 2, 3, 4 ] ],
+			'Heading 4'                     => [ 4, [ 4, 5, 6 ] ],
+			'Heading 5 stops at Heading 6'  => [ 5, [ 5, 6, 6 ] ],
+			'Heading 6 for every marker'    => [ 6, [ 6, 6, 6 ] ],
+			'never a Heading 1'             => [ 1, [ 2, 3, 4 ] ],
+			'nothing deeper than Heading 6' => [ 7, [ 6, 6, 6 ] ],
+		];
+	}
+
+	/**
+	 * # takes the highest level allowed, and each extra # goes one level
+	 * down, never past Heading 6 and never up to Heading 1.
+	 *
+	 * @dataProvider heading_level_provider
+	 *
+	 * @param int   $top_level Highest heading level given to the processor.
+	 * @param int[] $expected  Levels for #, ## and ###.
+	 */
+	public function test_heading_levels_start_at_the_highest_level( $top_level, $expected ) {
+		$processor = new Slack_Content_Processor( null, $top_level );
+
+		$content = $processor->process( '', self::rich_text( self::section( self::text( "# One\n## Two\n### Three" ) ) ) );
+
+		$this->assertSame( $expected, array_column( self::headings( $content ), 0 ) );
+	}
+
+	/**
+	 * Without a level, # is a Heading 4, below the Heading 3 the feed
+	 * layouts give the coverage's name.
+	 */
+	public function test_headings_start_at_heading_4_by_default() {
+		$processor = new Slack_Content_Processor();
+
+		$content = $processor->process( '', self::rich_text( self::section( self::text( '# Results' ) ) ) );
+
+		$this->assertSame( [ [ 4, '<h4 class="wp-block-heading">Results</h4>' ] ], self::headings( $content ) );
+	}
+
+	/**
+	 * A heading is one line: the lines before and after it are paragraphs,
+	 * with their line breaks.
+	 */
+	public function test_heading_splits_the_paragraph_around_it() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
+		$content = $processor->process( '', self::rich_text( self::section( self::text( "Polls have closed.\n# Results\nWard 1 is counted.\nWard 2 is next.\n\nMore soon." ) ) ) );
+		$blocks  = array_values( array_filter( parse_blocks( $content ), fn( $block ) => null !== $block['blockName'] ) );
+
+		$this->assertSame( [ 'core/paragraph', 'core/heading', 'core/paragraph', 'core/paragraph' ], wp_list_pluck( $blocks, 'blockName' ) );
+		$this->assertSame( '<p>Polls have closed.</p>', trim( $blocks[0]['innerHTML'] ) );
+		$this->assertSame( '<p>Ward 1 is counted.<br>Ward 2 is next.</p>', trim( $blocks[2]['innerHTML'] ) );
+		$this->assertSame( '<p>More soon.</p>', trim( $blocks[3]['innerHTML'] ) );
+	}
+
+	/**
+	 * Lines that only look like headings and the text they should keep.
+	 *
+	 * @return array[]
+	 */
+	public function not_a_heading_provider() {
+		return [
+			'no space after the marker' => [ [ self::text( '#1 priority is turnout' ) ], '<p>#1 priority is turnout</p>' ],
+			'four markers'              => [ [ self::text( '#### Too deep' ) ], '<p>#### Too deep</p>' ],
+			'a marker and nothing else' => [ [ self::text( '# ' ) ], '<p>#</p>' ],
+			'a marker mid-line'         => [ [ self::text( 'Ward 1 # Ward 2' ) ], '<p>Ward 1 # Ward 2</p>' ],
+			'a channel mention'         => [
+				[
+					[
+						'type'       => 'channel',
+						'channel_id' => 'C123ABC',
+					],
+					self::text( ' is busy' ),
+				],
+				'<p>#C123ABC is busy</p>',
+			],
+			'a marker in inline code'   => [ [ self::text( '# not a heading', [ 'code' => true ] ) ], '<p><code># not a heading</code></p>' ],
+			'only the marker styled'    => [ [ self::text( '# ', [ 'bold' => true ] ), self::text( 'Results' ) ], '<p><strong># </strong>Results</p>' ],
+		];
+	}
+
+	/**
+	 * A marker needs a space and some text after it, at the start of the
+	 * line and outside inline code.
+	 *
+	 * @dataProvider not_a_heading_provider
+	 *
+	 * @param array  $elements Inline elements of the section.
+	 * @param string $expected Paragraph the line should stay as.
+	 */
+	public function test_leaves_lines_that_are_not_headings_as_text( $elements, $expected ) {
+		$processor = new Slack_Content_Processor();
+
+		$content = $processor->process( '', self::rich_text( self::section( ...$elements ) ) );
+
+		$this->assertSame( [ 'core/paragraph' ], self::block_names( $content ) );
+		$this->assertStringContainsString( $expected, $content );
+	}
+
+	/**
+	 * A heading keeps the inline styles and links of its line, including a
+	 * style that covers the marker.
+	 */
+	public function test_headings_keep_inline_styles() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
+		$content = $processor->process(
+			'',
+			self::rich_text(
+				self::section(
+					self::text( '# Results are in', [ 'bold' => true ] ),
+					self::text( "\n## Turnout " ),
+					self::text( 'record', [ 'italic' => true ] ),
+					self::text( "\n### " ),
+					[
+						'type' => 'link',
+						'url'  => 'https://example.test/live',
+						'text' => 'Live updates',
+					]
+				)
+			)
+		);
+
+		$this->assertSame(
+			[
+				[ 2, '<h2 class="wp-block-heading"><strong>Results are in</strong></h2>' ],
+				[ 3, '<h3 class="wp-block-heading">Turnout <em>record</em></h3>' ],
+				[ 4, '<h4 class="wp-block-heading"><a href="https://example.test/live">Live updates</a></h4>' ],
+			],
+			self::headings( $content )
+		);
+	}
+
+	/**
+	 * Quotes, lists and code blocks keep a marked line as text.
+	 */
+	public function test_no_headings_in_quotes_lists_or_code() {
+		$processor = new Slack_Content_Processor();
+
+		$content = $processor->process(
+			'',
+			self::rich_text(
+				[
+					'type'     => 'rich_text_quote',
+					'elements' => [ self::text( '# Quoted' ) ],
+				],
+				self::list_of( 'bullet', 0, [ '# Listed' ] ),
+				[
+					'type'     => 'rich_text_preformatted',
+					'elements' => [ self::text( '# Code' ) ],
+				]
+			)
+		);
+
+		$this->assertSame( [], self::headings( $content ) );
+		$this->assertStringContainsString( '<p># Quoted</p>', $content );
+		$this->assertStringContainsString( '<li># Listed</li>', $content );
+		$this->assertStringContainsString( '<code># Code</code>', $content );
+	}
+
+	/**
+	 * The mrkdwn fallback turns marked lines into headings too.
+	 */
+	public function test_mrkdwn_fallback_makes_headings() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
+		$content = $processor->process( "# *Results*\nWard 1 is counted." );
+
+		$this->assertSame( [ 'core/heading', 'core/paragraph' ], self::block_names( $content ) );
+		$this->assertSame( [ [ 2, '<h2 class="wp-block-heading"><strong>Results</strong></h2>' ] ], self::headings( $content ) );
+	}
 }

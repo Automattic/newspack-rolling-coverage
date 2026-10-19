@@ -1,9 +1,9 @@
 /**
  * External dependencies
  */
-import { Button, TextControl } from '@wordpress/components';
+import { Button, SelectControl, TextControl } from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useRef } from '@wordpress/element';
 import type { MouseEvent } from 'react';
@@ -22,9 +22,16 @@ import { BotUserSection } from './bot-user-section';
 import { useAdminContext } from '../../../hooks/useAdminContext';
 
 /**
+ * Heading levels a line starting with # can get. A Heading 1 would compete
+ * with the page title. Mirrors Slack_Config::TOP_HEADING_LEVELS.
+ */
+const TOP_HEADING_LEVELS = [ 2, 3, 4, 5, 6 ];
+
+/**
  * Renders the Settings tab: the message ignore prefix, the emoji that publish
- * or draft a message in channels set to Emoji trigger, and the WordPress bot
- * user that authors ingested entries. Saving happens from the page header.
+ * or draft a message in channels set to Emoji trigger, the heading level for
+ * lines starting with #, and the WordPress bot user that authors ingested
+ * entries. Saving happens from the page header.
  *
  * @param {Object}                   props                    - Component props.
  * @param {string}                   props.ignorePrefix       - The ignore-prefix setting value.
@@ -33,6 +40,8 @@ import { useAdminContext } from '../../../hooks/useAdminContext';
  * @param {(v: string) => void}      props.setPublishReaction - Publish emoji setter.
  * @param {string}                   props.draftReaction      - Emoji name that saves a message as a draft.
  * @param {(v: string) => void}      props.setDraftReaction   - Draft emoji setter.
+ * @param {number}                   props.topHeadingLevel    - Heading level for a line starting with #.
+ * @param {(v: number) => void}      props.setTopHeadingLevel - Heading level setter.
  * @param {SlackSettingsInfo | null} props.workspaceInfo      - Fetched workspace settings, or null.
  * @param {string}                   props.editUserUrl        - Base admin URL for editing a WordPress user.
  */
@@ -43,6 +52,8 @@ function IngestionSettingsTab( {
 	setPublishReaction,
 	draftReaction,
 	setDraftReaction,
+	topHeadingLevel,
+	setTopHeadingLevel,
 	workspaceInfo,
 	editUserUrl,
 }: IngestionSettingsTabProps ) {
@@ -153,6 +164,41 @@ function IngestionSettingsTab( {
 						) }
 					/>
 				</Stack>
+			</Grid>
+			<Divider alignment="full-width" variant="tertiary" />
+			<Grid columns={ 2 } gutter={ 32 } noMargin>
+				<SectionHeader
+					noMargin
+					heading={ 2 }
+					title={ __( 'Formatting', 'newspack-rolling-coverage' ) }
+					description={ __(
+						'Choose how Slack messages are formatted in entries.',
+						'newspack-rolling-coverage'
+					) }
+				/>
+				<SelectControl
+					__next40pxDefaultSize
+					label={ __(
+						'Highest Heading',
+						'newspack-rolling-coverage'
+					) }
+					value={ String( topHeadingLevel ) }
+					options={ TOP_HEADING_LEVELS.map( ( level ) => ( {
+						value: String( level ),
+						label: sprintf(
+							/* translators: %d: heading level, from 2 to 6. */
+							__( 'Heading %d', 'newspack-rolling-coverage' ),
+							level
+						),
+					} ) ) }
+					onChange={ ( next ) =>
+						setTopHeadingLevel( Number( next ) )
+					}
+					help={ __(
+						'Lines in a Slack message that start with #, ## or ### and a space become headings. # gets this level, and each extra # one level lower, down to Heading 6.',
+						'newspack-rolling-coverage'
+					) }
+				/>
 			</Grid>
 			<Divider alignment="full-width" variant="tertiary" />
 			<Grid columns={ 2 } gutter={ 32 } noMargin>

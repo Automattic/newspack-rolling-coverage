@@ -208,6 +208,7 @@ async function disconnectSlack( namespace: string ): Promise< ApiResult > {
  * @param {string} settings.ignorePrefix    The message ignore prefix.
  * @param {string} settings.publishReaction Emoji name that publishes a message.
  * @param {string} settings.draftReaction   Emoji name that saves a message as a draft.
+ * @param {number} settings.topHeadingLevel Heading level for a line starting with #.
  * @return {Promise} Result, with the values as the server stored them.
  */
 async function saveSlackSettings(
@@ -216,12 +217,14 @@ async function saveSlackSettings(
 		ignorePrefix: string;
 		publishReaction: string;
 		draftReaction: string;
+		topHeadingLevel: number;
 	}
 ): Promise<
 	ApiResult & {
 		ignorePrefix?: string;
 		publishReaction?: string;
 		draftReaction?: string;
+		topHeadingLevel?: number;
 	}
 > {
 	try {
@@ -229,6 +232,7 @@ async function saveSlackSettings(
 			ignore_prefix?: string;
 			publish_reaction?: string;
 			draft_reaction?: string;
+			top_heading_level?: number;
 		} >( {
 			path: `${ namespace }/slack/settings`,
 			method: 'POST',
@@ -236,6 +240,7 @@ async function saveSlackSettings(
 				ignore_prefix: settings.ignorePrefix,
 				publish_reaction: settings.publishReaction,
 				draft_reaction: settings.draftReaction,
+				top_heading_level: settings.topHeadingLevel,
 			},
 		} );
 		return {
@@ -243,6 +248,7 @@ async function saveSlackSettings(
 			ignorePrefix: response?.ignore_prefix,
 			publishReaction: response?.publish_reaction,
 			draftReaction: response?.draft_reaction,
+			topHeadingLevel: response?.top_heading_level,
 		};
 	} catch ( error ) {
 		return { success: false, error: handleApiError( error ) };
