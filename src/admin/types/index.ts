@@ -608,7 +608,7 @@ interface SlackSettingsInfo {
 	ignore_prefix: string;
 	publish_reaction: string;
 	draft_reaction: string;
-	/** Heading level a line starting with # gets in an entry, from 2 to 6. */
+	/** Heading level a line starting with # gets in an entry, from 2 to 6, or 0 for off. */
 	top_heading_level: number;
 	bot_user_id: number;
 	slack_bot_user_id?: string;

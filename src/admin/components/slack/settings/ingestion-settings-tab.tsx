@@ -22,16 +22,16 @@ import { BotUserSection } from './bot-user-section';
 import { useAdminContext } from '../../../hooks/useAdminContext';
 
 /**
- * Heading levels a line starting with # can get. A Heading 1 would compete
- * with the page title. Mirrors Slack_Config::TOP_HEADING_LEVELS.
+ * Heading levels a line starting with # can get, after 0 for off. A Heading 1
+ * would compete with the page title. Mirrors Slack_Config::TOP_HEADING_LEVELS.
  */
-const TOP_HEADING_LEVELS = [ 2, 3, 4, 5, 6 ];
+const TOP_HEADING_LEVELS = [ 0, 2, 3, 4, 5, 6 ];
 
 /**
  * Renders the Settings tab: the message ignore prefix, the emoji that publish
  * or draft a message in channels set to Emoji trigger, the heading level for
- * lines starting with #, and the WordPress bot user that authors ingested
- * entries. Saving happens from the page header.
+ * lines starting with # (or off), and the WordPress bot user that authors
+ * ingested entries. Saving happens from the page header.
  *
  * @param {Object}                   props                    - Component props.
  * @param {string}                   props.ignorePrefix       - The ignore-prefix setting value.
@@ -40,7 +40,7 @@ const TOP_HEADING_LEVELS = [ 2, 3, 4, 5, 6 ];
  * @param {(v: string) => void}      props.setPublishReaction - Publish emoji setter.
  * @param {string}                   props.draftReaction      - Emoji name that saves a message as a draft.
  * @param {(v: string) => void}      props.setDraftReaction   - Draft emoji setter.
- * @param {number}                   props.topHeadingLevel    - Heading level for a line starting with #.
+ * @param {number}                   props.topHeadingLevel    - Heading level for a line starting with #, or 0 for off.
  * @param {(v: number) => void}      props.setTopHeadingLevel - Heading level setter.
  * @param {SlackSettingsInfo | null} props.workspaceInfo      - Fetched workspace settings, or null.
  * @param {string}                   props.editUserUrl        - Base admin URL for editing a WordPress user.
@@ -185,17 +185,23 @@ function IngestionSettingsTab( {
 					value={ String( topHeadingLevel ) }
 					options={ TOP_HEADING_LEVELS.map( ( level ) => ( {
 						value: String( level ),
-						label: sprintf(
-							/* translators: %d: heading level, from 2 to 6. */
-							__( 'Heading %d', 'newspack-rolling-coverage' ),
-							level
-						),
+						label:
+							0 === level
+								? __( 'Off', 'newspack-rolling-coverage' )
+								: sprintf(
+										/* translators: %d: heading level, from 2 to 6. */
+										__(
+											'Heading %d',
+											'newspack-rolling-coverage'
+										),
+										level
+									),
 					} ) ) }
 					onChange={ ( next ) =>
 						setTopHeadingLevel( Number( next ) )
 					}
 					help={ __(
-						'Lines in a Slack message that start with #, ## or ### and a space become headings. # gets this level, and each extra # one level lower, down to Heading 6.',
+						'When set, a first line that starts with # and a space becomes the entry title, and other lines that start with #, ## or ### become headings: # at this level, each extra # one level lower, down to Heading 6. Most feed layouts show entry titles as Heading 4. Entries already added keep their formatting.',
 						'newspack-rolling-coverage'
 					) }
 				/>

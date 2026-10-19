@@ -253,16 +253,18 @@ Reactions need the `reactions:read` and `reactions:write` scopes and the `reacti
 
 Tests: `tests/test-slack-webhook.php`, `tests/test-slack-config.php`.
 
-## Slack message headings
+## Slack message titles and headings
 
-Slack has no headings, so `Slack_Content_Processor` turns a line that starts with `#`, `##` or `###` and a space into a heading block. `#` gets the level set in **Highest Heading** on the Slack page's Settings tab, stored as `top_heading_level` in `Slack_Config::OPTION_SETTINGS`. Each extra `#` is one level lower, down to Heading 6. The default, Heading 4, sits below the Heading 3 the feed layouts give the coverage's name. Heading 1 isn't offered, since it would compete with the page title.
+Slack has no headings, so `Slack_Content_Processor` can turn lines that start with `#` into an entry title and headings. It does so once a site picks a level in **Highest Heading** on the Slack page's Settings tab, stored as `top_heading_level` in `Slack_Config::OPTION_SETTINGS`. The default, **Off** (`Slack_Config::HEADINGS_OFF`), leaves `#` lines as typed, so reporters who already write "# of precincts" don't see live entries change until a site opts in. Heading 1 isn't offered, since it would compete with the page title.
 
-- The level applies when a message becomes an entry, like the rest of its formatting. Changing the setting leaves existing entries as they are.
-- Only top-level text gets headings. A marked line stays as text in a quote, a list item or a code block. It also stays as text when the marker is in inline code or has no space after it, as in a channel mention such as `#newsroom`.
-- Bold, italic or strikethrough covering the whole line carries over to the heading. A style that covers only the marker leaves the line as text.
-- The mrkdwn fallback, used for messages without rich-text blocks, makes headings the same way.
+- A first line that starts with a single `#` and a space becomes the entry's title and is removed from the content, so the feed layout gives it the level entry titles have. The processor returns it from `get_title()`, and ingestion stores it from `Source_Event_Payload::$title`. A message that is only that line becomes a titled entry with no content. The title is plain text with `<`, `>` and `&` encoded, so the title filter WordPress runs on the webhook's save keeps text that looks like a tag, such as "Results <live>", instead of dropping it.
+- Any other line that starts with `#`, `##` or `###` and a space becomes a heading block. `#` gets the chosen level and each extra `#` is one level lower, down to Heading 6. Most feed layouts show entry titles as Heading 4; Bulletin and Lite Site use Heading 3.
+- The setting applies when a message becomes an entry, like the rest of its formatting. Changing it leaves existing entries as they are.
+- Only top-level text gets a title or headings. In rich text, a marked line stays as text in a quote, a list item or a code block. It also stays as text when the marker is in inline code, has no space after it (as in a channel mention such as `#newsroom`), or has no visible text after it.
+- Bold, italic or strikethrough covering the whole line carries over to a heading; the title is plain text. A style that covers only the marker leaves the line as text.
+- The mrkdwn fallback, used when a message's rich text renders nothing, makes titles and headings the same way. It has no code blocks, so a `#` line between ``` fences becomes a heading there.
 
-Tests: `tests/test-slack-content-processor.php`, `tests/test-slack-config.php`, `tests/test-slack-webhook.php`.
+Tests: `tests/test-slack-content-processor.php`, `tests/test-entry-ingestion-service.php`, `tests/test-slack-config.php`, `tests/test-slack-webhook.php`.
 
 ## Slack webhooks on a password-protected site
 

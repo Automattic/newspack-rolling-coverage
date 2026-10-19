@@ -1969,7 +1969,8 @@ class Slack_Webhook_Controller {
 			content_html: $content,
 			thread_ref: '' !== $thread_ts ? $thread_ts : null,
 			external_timestamp: (string) ( is_numeric( $ts ) ? gmdate( 'c', (int) ( (float) $ts ) ) : '' ),
-			raw_payload: $event
+			raw_payload: $event,
+			title: $content_processor->get_title()
 		);
 
 		// 5. Slack-specific provenance meta.

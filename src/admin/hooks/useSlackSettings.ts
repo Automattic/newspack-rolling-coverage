@@ -51,8 +51,8 @@ function useSlackSettings() {
 		useState( 'mega' );
 	const [ draftReaction, setDraftReaction ] = useState( 'memo' );
 	const [ savedDraftReaction, setSavedDraftReaction ] = useState( 'memo' );
-	const [ topHeadingLevel, setTopHeadingLevel ] = useState( 4 );
-	const [ savedTopHeadingLevel, setSavedTopHeadingLevel ] = useState( 4 );
+	const [ topHeadingLevel, setTopHeadingLevel ] = useState( 0 );
+	const [ savedTopHeadingLevel, setSavedTopHeadingLevel ] = useState( 0 );
 	const [ hasLoadedSettings, setHasLoadedSettings ] = useState( false );
 	const [ channels, setChannels ] = useState< ChannelMapping[] >( [] );
 	const [ hasLoadedChannels, setHasLoadedChannels ] = useState( false );

@@ -386,18 +386,22 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Lines starting with # become a Heading 4 until a level is chosen.
+	 * Headings are off until a site picks a level, so a message's # lines
+	 * stay as typed.
 	 */
-	public function test_top_heading_level_defaults_to_heading_4() {
-		$this->assertSame( 4, Slack_Config::get_top_heading_level() );
+	public function test_headings_are_off_by_default() {
+		$this->assertSame( Slack_Config::HEADINGS_OFF, Slack_Config::get_top_heading_level() );
 	}
 
 	/**
-	 * A level from Heading 2 to Heading 6 is stored.
+	 * A level from Heading 2 to Heading 6 is stored, and so is off.
 	 */
 	public function test_stores_a_top_heading_level() {
 		$this->assertTrue( Slack_Config::set_top_heading_level( 2 ) );
 		$this->assertSame( 2, Slack_Config::get_top_heading_level() );
+
+		$this->assertTrue( Slack_Config::set_top_heading_level( Slack_Config::HEADINGS_OFF ) );
+		$this->assertSame( Slack_Config::HEADINGS_OFF, Slack_Config::get_top_heading_level() );
 	}
 
 	/**
@@ -409,7 +413,6 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 		return [
 			'Heading 1'  => [ 1 ],
 			'Heading 7'  => [ 7 ],
-			'zero'       => [ 0 ],
 			'a negative' => [ -2 ],
 		];
 	}
@@ -436,10 +439,10 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 	public function test_unusable_stored_top_heading_level_falls_back_to_the_default() {
 		Slack_Config::update_settings( [ 'top_heading_level' => 1 ] );
 
-		$this->assertSame( 4, Slack_Config::get_top_heading_level(), 'A Heading 1 should fall back.' );
+		$this->assertSame( Slack_Config::HEADINGS_OFF, Slack_Config::get_top_heading_level(), 'A Heading 1 should fall back.' );
 
 		Slack_Config::update_settings( [ 'top_heading_level' => 'h3' ] );
 
-		$this->assertSame( 4, Slack_Config::get_top_heading_level(), 'A value that is not a number should fall back.' );
+		$this->assertSame( Slack_Config::HEADINGS_OFF, Slack_Config::get_top_heading_level(), 'A value that is not a number should fall back.' );
 	}
 }

@@ -40,16 +40,22 @@ class Slack_Config {
 	const DEFAULT_DRAFT_REACTION   = 'memo';
 
 	/**
-	 * Heading level a line starting with # gets in an entry. Heading 4 sits
-	 * below the Heading 3 the feed layouts give the coverage's name.
+	 * Highest Heading value that leaves # lines in messages as typed.
 	 */
-	const DEFAULT_TOP_HEADING_LEVEL = 4;
+	const HEADINGS_OFF = 0;
 
 	/**
-	 * Levels a line starting with # can get. A Heading 1 would compete with
-	 * the page title.
+	 * Headings stay off until a site picks a level, so reporters who already
+	 * start lines with #, as in "# of precincts", don't see live entries
+	 * change without notice.
 	 */
-	const TOP_HEADING_LEVELS = [ 2, 3, 4, 5, 6 ];
+	const DEFAULT_TOP_HEADING_LEVEL = self::HEADINGS_OFF;
+
+	/**
+	 * Levels a line starting with # can get, or off. A Heading 1 would
+	 * compete with the page title.
+	 */
+	const TOP_HEADING_LEVELS = [ self::HEADINGS_OFF, 2, 3, 4, 5, 6 ];
 
 	/**
 	 * Reactions the bot adds to a message once it has an entry. Standard
@@ -295,7 +301,8 @@ class Slack_Config {
 	}
 
 	/**
-	 * The heading level a line starting with # gets in an entry.
+	 * The heading level a line starting with # gets in an entry, or
+	 * self::HEADINGS_OFF.
 	 *
 	 * @return int One of self::TOP_HEADING_LEVELS.
 	 */
@@ -306,7 +313,8 @@ class Slack_Config {
 	}
 
 	/**
-	 * Whether a value is one of the levels a line starting with # can get.
+	 * Whether a value is one of the levels a line starting with # can get,
+	 * or off.
 	 *
 	 * @param mixed $level Value to check.
 	 * @return bool
@@ -316,7 +324,8 @@ class Slack_Config {
 	}
 
 	/**
-	 * Store the heading level a line starting with # gets in an entry.
+	 * Store the heading level a line starting with # gets in an entry, or
+	 * self::HEADINGS_OFF.
 	 *
 	 * @param int $level One of self::TOP_HEADING_LEVELS.
 	 * @return bool False, storing nothing, when the level is not one of them.

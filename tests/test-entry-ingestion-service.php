@@ -330,7 +330,8 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Entries from a chat source have no title; the message is the entry.
+	 * Without a title from the source, the entry has none; the message is
+	 * the entry.
 	 */
 	public function test_entry_has_no_title() {
 		$entry_id = self::ingest( self::payload(), self::create_coverage() );
@@ -380,5 +381,35 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 			],
 			$announced
 		);
+	}
+
+	/**
+	 * The entry takes the title the source gives, and HTML characters the
+	 * source left encoded survive the save.
+	 */
+	public function test_entry_takes_the_title_the_source_gives() {
+		$entry_id = self::ingest( self::payload( [ 'title' => 'Results &lt;live&gt; &amp; rising' ] ), self::create_coverage() );
+
+		$this->assertSame( 'Results &lt;live&gt; &amp; rising', get_post( $entry_id )->post_title );
+	}
+
+	/**
+	 * A message that is only a title is saved as a titled entry with no
+	 * content.
+	 */
+	public function test_saves_a_titled_entry_with_no_content() {
+		$entry_id = self::ingest(
+			self::payload(
+				[
+					'content_html' => '',
+					'title'        => 'Polls closed',
+				]
+			),
+			self::create_coverage()
+		);
+
+		$this->assertGreaterThan( 0, $entry_id, 'The entry should be saved.' );
+		$this->assertSame( 'Polls closed', get_post( $entry_id )->post_title );
+		$this->assertSame( '', get_post( $entry_id )->post_content );
 	}
 }

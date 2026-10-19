@@ -26,6 +26,8 @@ class Source_Event_Payload {
 	 * @param string|null $thread_ref           Platform-native thread id: the `source_ref` of the message the thread starts from.
 	 * @param string      $external_timestamp   ISO 8601 timestamp.
 	 * @param array       $raw_payload          Original platform-native payload.
+	 * @param string      $title                Entry title the message gives, or '' for none. Plain text,
+	 *                                          with `<`, `>` and `&` encoded.
 	 */
 	public function __construct(
 		public string $source,
@@ -37,6 +39,7 @@ class Source_Event_Payload {
 		public ?string $thread_ref,
 		public string $external_timestamp,
 		public array $raw_payload,
+		public string $title = '',
 	) {
 	}
 }

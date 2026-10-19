@@ -587,9 +587,9 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 	public function test_turns_marked_lines_into_headings() {
 		$processor = new Slack_Content_Processor( null, 2 );
 
-		$content = $processor->process( '', self::rich_text( self::section( self::text( "# Results\n## Ward 1\n### Precinct A" ) ) ) );
+		$content = $processor->process( '', self::rich_text( self::section( self::text( "Polls have closed.\n# Results\n## Ward 1\n### Precinct A" ) ) ) );
 
-		$this->assertSame( [ 'core/heading', 'core/heading', 'core/heading' ], self::block_names( $content ) );
+		$this->assertSame( [ 'core/paragraph', 'core/heading', 'core/heading', 'core/heading' ], self::block_names( $content ) );
 		$this->assertSame(
 			[
 				[ 2, '<h2 class="wp-block-heading">Results</h2>' ],
@@ -615,36 +615,40 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 			'Heading 6 for every marker'    => [ 6, [ 6, 6, 6 ] ],
 			'never a Heading 1'             => [ 1, [ 2, 3, 4 ] ],
 			'nothing deeper than Heading 6' => [ 7, [ 6, 6, 6 ] ],
+			'off'                           => [ 0, [] ],
 		];
 	}
 
 	/**
 	 * # takes the highest level allowed, and each extra # goes one level
-	 * down, never past Heading 6 and never up to Heading 1.
+	 * down, never past Heading 6 and never up to Heading 1. Off makes no
+	 * headings.
 	 *
 	 * @dataProvider heading_level_provider
 	 *
-	 * @param int   $top_level Highest heading level given to the processor.
+	 * @param int   $top_level Highest heading level given to the processor, or 0 for off.
 	 * @param int[] $expected  Levels for #, ## and ###.
 	 */
 	public function test_heading_levels_start_at_the_highest_level( $top_level, $expected ) {
 		$processor = new Slack_Content_Processor( null, $top_level );
 
-		$content = $processor->process( '', self::rich_text( self::section( self::text( "# One\n## Two\n### Three" ) ) ) );
+		$content = $processor->process( '', self::rich_text( self::section( self::text( "Update:\n# One\n## Two\n### Three" ) ) ) );
 
 		$this->assertSame( $expected, array_column( self::headings( $content ), 0 ) );
 	}
 
 	/**
-	 * Without a level, # is a Heading 4, below the Heading 3 the feed
-	 * layouts give the coverage's name.
+	 * Without a level, headings are off and a marked line stays as typed, so
+	 * reporters' existing use of # doesn't change until a site opts in.
 	 */
-	public function test_headings_start_at_heading_4_by_default() {
+	public function test_leaves_marked_lines_as_text_by_default() {
 		$processor = new Slack_Content_Processor();
 
-		$content = $processor->process( '', self::rich_text( self::section( self::text( '# Results' ) ) ) );
+		$content = $processor->process( '', self::rich_text( self::section( self::text( '# of precincts reporting: 45' ) ) ) );
 
-		$this->assertSame( [ [ 4, '<h4 class="wp-block-heading">Results</h4>' ] ], self::headings( $content ) );
+		$this->assertSame( [ 'core/paragraph' ], self::block_names( $content ) );
+		$this->assertStringContainsString( '<p># of precincts reporting: 45</p>', $content );
+		$this->assertSame( '', $processor->get_title(), 'The first line should not become a title either.' );
 	}
 
 	/**
@@ -686,12 +690,14 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 			],
 			'a marker in inline code'   => [ [ self::text( '# not a heading', [ 'code' => true ] ) ], '<p><code># not a heading</code></p>' ],
 			'only the marker styled'    => [ [ self::text( '# ', [ 'bold' => true ] ), self::text( 'Results' ) ], '<p><strong># </strong>Results</p>' ],
+			'a non-breaking space only' => [ [ self::text( "# \u{00A0}" ) ], '<p>#' ],
+			'styled spaces only'        => [ [ self::text( '# ' ), self::text( ' ', [ 'bold' => true ] ) ], '<p># <strong> </strong></p>' ],
 		];
 	}
 
 	/**
-	 * A marker needs a space and some text after it, at the start of the
-	 * line and outside inline code.
+	 * A marker needs a space and some visible text after it, at the start of
+	 * the line and outside inline code.
 	 *
 	 * @dataProvider not_a_heading_provider
 	 *
@@ -699,7 +705,7 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 	 * @param string $expected Paragraph the line should stay as.
 	 */
 	public function test_leaves_lines_that_are_not_headings_as_text( $elements, $expected ) {
-		$processor = new Slack_Content_Processor();
+		$processor = new Slack_Content_Processor( null, 2 );
 
 		$content = $processor->process( '', self::rich_text( self::section( ...$elements ) ) );
 
@@ -718,6 +724,7 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 			'',
 			self::rich_text(
 				self::section(
+					self::text( "Update:\n" ),
 					self::text( '# Results are in', [ 'bold' => true ] ),
 					self::text( "\n## Turnout " ),
 					self::text( 'record', [ 'italic' => true ] ),
@@ -745,7 +752,7 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 	 * Quotes, lists and code blocks keep a marked line as text.
 	 */
 	public function test_no_headings_in_quotes_lists_or_code() {
-		$processor = new Slack_Content_Processor();
+		$processor = new Slack_Content_Processor( null, 2 );
 
 		$content = $processor->process(
 			'',
@@ -774,9 +781,95 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 	public function test_mrkdwn_fallback_makes_headings() {
 		$processor = new Slack_Content_Processor( null, 2 );
 
+		$content = $processor->process( "Update:\n# *Results*\nWard 1 is counted." );
+
+		$this->assertSame( [ 'core/paragraph', 'core/heading', 'core/paragraph' ], self::block_names( $content ) );
+		$this->assertSame( [ [ 2, '<h2 class="wp-block-heading"><strong>Results</strong></h2>' ] ], self::headings( $content ) );
+	}
+
+	/**
+	 * In the mrkdwn fallback a link label's line breaks become spaces, as in
+	 * rich text, so a label can't end a paragraph or start a heading inside
+	 * the link.
+	 */
+	public function test_mrkdwn_link_labels_stay_on_one_line() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
+		$content = $processor->process( "<https://example.test/live|Live updates\n# Results>" );
+
+		$this->assertSame( [ 'core/paragraph' ], self::block_names( $content ) );
+		$this->assertStringContainsString( '<p><a href="https://example.test/live">Live updates # Results</a></p>', $content );
+	}
+
+	/**
+	 * A first line starting with a single # is the entry's title, taken out
+	 * of the content, so the feed layout gives it the level entry titles
+	 * have.
+	 */
+	public function test_first_line_with_one_marker_becomes_the_title() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
+		$content = $processor->process( '', self::rich_text( self::section( self::text( "# Results are in\nWard 1 is counted.\n# Ward 2" ) ) ) );
+
+		$this->assertSame( 'Results are in', $processor->get_title() );
+		$this->assertSame( [ 'core/paragraph', 'core/heading' ], self::block_names( $content ), 'Only the first line should become the title.' );
+		$this->assertStringNotContainsString( 'Results are in', $content );
+	}
+
+	/**
+	 * A first line starting with ## or ### stays a heading in the content.
+	 */
+	public function test_deeper_first_line_stays_a_heading() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
+		$content = $processor->process( '', self::rich_text( self::section( self::text( "## Ward 1\nCounted." ) ) ) );
+
+		$this->assertSame( '', $processor->get_title() );
+		$this->assertSame( [ [ 3, '<h3 class="wp-block-heading">Ward 1</h3>' ] ], self::headings( $content ) );
+	}
+
+	/**
+	 * The title is plain text. Characters HTML gives meaning to stay encoded,
+	 * as WordPress stores them in a title it filters on save.
+	 */
+	public function test_title_is_plain_text() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
+		$processor->process(
+			'',
+			self::rich_text(
+				self::section(
+					self::text( '# Polls\' close, turnout ' ),
+					self::text( '<50%', [ 'bold' => true ] ),
+					self::text( ' & [rising]' )
+				)
+			)
+		);
+
+		$this->assertSame( "Polls' close, turnout &lt;50% &amp; [rising]", $processor->get_title() );
+	}
+
+	/**
+	 * A message that is only a title has no content.
+	 */
+	public function test_title_only_message_has_no_content() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
+		$content = $processor->process( '', self::rich_text( self::section( self::text( '# Polls closed' ) ) ) );
+
+		$this->assertSame( 'Polls closed', $processor->get_title() );
+		$this->assertSame( '', $content );
+	}
+
+	/**
+	 * The mrkdwn fallback takes the title from its first line too.
+	 */
+	public function test_mrkdwn_fallback_takes_the_title() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
 		$content = $processor->process( "# *Results*\nWard 1 is counted." );
 
-		$this->assertSame( [ 'core/heading', 'core/paragraph' ], self::block_names( $content ) );
-		$this->assertSame( [ [ 2, '<h2 class="wp-block-heading"><strong>Results</strong></h2>' ] ], self::headings( $content ) );
+		$this->assertSame( 'Results', $processor->get_title() );
+		$this->assertSame( [ 'core/paragraph' ], self::block_names( $content ) );
 	}
 }

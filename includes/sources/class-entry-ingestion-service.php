@@ -111,7 +111,7 @@ class Entry_Ingestion_Service {
 				}
 			}
 
-			if ( '' === $content ) {
+			if ( '' === $content && '' === $payload->title ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( 'Source ingestion: empty content, skipping.' );
 				return 0;
@@ -119,7 +119,7 @@ class Entry_Ingestion_Service {
 
 			$postarr = [
 				'post_type'    => Post_Type::CPT_SLUG,
-				'post_title'   => '',
+				'post_title'   => $payload->title,
 				'post_content' => wp_slash( $content ),
 				'post_author'  => $author_id,
 				'post_status'  => $auto_publish ? 'publish' : 'draft',

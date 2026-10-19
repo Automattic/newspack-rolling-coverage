@@ -2462,7 +2462,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
 		$settings = self::controller()->get_settings( new WP_REST_Request( 'GET', '/rolling-coverage/v1/slack/settings' ) )->get_data();
 
-		$this->assertSame( 4, $settings['top_heading_level'], 'An unusable level should be reported as the default.' );
+		$this->assertSame( 0, $settings['top_heading_level'], 'An unusable level should be reported as the default, off.' );
 	}
 
 	/**
@@ -2486,6 +2486,17 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 		self::controller()->save_settings( self::save_settings_request( [ 'ignore_prefix' => '##' ] ) );
 
 		$this->assertSame( 2, Slack_Config::get_top_heading_level(), 'Saving without a level should keep it.' );
+
+		self::controller()->save_settings(
+			self::save_settings_request(
+				[
+					'ignore_prefix'     => '##',
+					'top_heading_level' => 0,
+				]
+			)
+		);
+
+		$this->assertSame( 0, Slack_Config::get_top_heading_level(), 'Headings should turn off again.' );
 	}
 
 	/**
@@ -2523,7 +2534,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 400, $response->get_status(), 'The request should be refused.' );
 		$this->assertSame( '~~', Slack_Config::get_ignore_prefix(), 'The prefix should be unchanged.' );
-		$this->assertSame( 4, Slack_Config::get_top_heading_level(), 'The level should be unchanged.' );
+		$this->assertSame( 0, Slack_Config::get_top_heading_level(), 'The level should be unchanged.' );
 	}
 
 	/**
@@ -2533,11 +2544,44 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	public function test_message_headings_use_the_highest_heading_level() {
 		Slack_Config::set_top_heading_level( 3 );
 
-		$coverage_id = self::deliver_to_linked_channel( [ 'text' => "# Results\nWard 1 is counted." ] );
+		$coverage_id = self::deliver_to_linked_channel( [ 'text' => "Polls have closed.\n# Results\nWard 1 is counted." ] );
 		$content     = self::get_coverage_entries( $coverage_id )[0]->post_content;
 
 		$this->assertStringContainsString( '<h3 class="wp-block-heading">Results</h3>', $content );
 		$this->assertStringContainsString( '<p>Ward 1 is counted.</p>', $content );
+	}
+
+	/**
+	 * Until a level is chosen, a message's # lines stay as typed and the
+	 * entry has no title.
+	 */
+	public function test_message_headings_are_off_by_default() {
+		$coverage_id = self::deliver_to_linked_channel( [ 'text' => '# of precincts reporting: 45' ] );
+		$entry       = self::get_coverage_entries( $coverage_id )[0];
+
+		$this->assertSame( '', $entry->post_title );
+		$this->assertStringContainsString( '<p># of precincts reporting: 45</p>', $entry->post_content );
+	}
+
+	/**
+	 * A first line starting with # is the entry's title, and a message that
+	 * is only that line becomes a titled entry with no content.
+	 */
+	public function test_first_line_with_one_marker_becomes_the_entry_title() {
+		Slack_Config::set_top_heading_level( 3 );
+
+		$coverage_id = self::deliver_to_linked_channel( [ 'text' => "# Results are in\nWard 1 is counted." ] );
+		$entry       = self::get_coverage_entries( $coverage_id )[0];
+
+		$this->assertSame( 'Results are in', $entry->post_title );
+		$this->assertStringContainsString( '<p>Ward 1 is counted.</p>', $entry->post_content );
+		$this->assertStringNotContainsString( 'wp:heading', $entry->post_content );
+
+		$coverage_id = self::deliver_to_linked_channel( [ 'text' => '# Polls closed' ] );
+		$entry       = self::get_coverage_entries( $coverage_id )[0];
+
+		$this->assertSame( 'Polls closed', $entry->post_title, 'A title-only message should still become an entry.' );
+		$this->assertSame( '', $entry->post_content );
 	}
 
 	/**

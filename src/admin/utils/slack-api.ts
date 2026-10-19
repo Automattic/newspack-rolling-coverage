@@ -208,7 +208,7 @@ async function disconnectSlack( namespace: string ): Promise< ApiResult > {
  * @param {string} settings.ignorePrefix    The message ignore prefix.
  * @param {string} settings.publishReaction Emoji name that publishes a message.
  * @param {string} settings.draftReaction   Emoji name that saves a message as a draft.
- * @param {number} settings.topHeadingLevel Heading level for a line starting with #.
+ * @param {number} settings.topHeadingLevel Heading level for a line starting with #, or 0 for off.
  * @return {Promise} Result, with the values as the server stored them.
  */
 async function saveSlackSettings(
