@@ -114,7 +114,6 @@ declare module 'newspack-components/dist/esm/empty-state' {
 declare module 'newspack-icons' {
 	import type { JSX } from 'react';
 
-	export const activity: JSX.Element;
 	export const newspack: JSX.Element;
 }
 
