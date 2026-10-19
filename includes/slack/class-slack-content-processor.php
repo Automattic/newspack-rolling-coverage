@@ -115,7 +115,9 @@ class Slack_Content_Processor {
 
 		$markup = $this->render_rich_text_blocks( $blocks );
 
-		if ( '' !== $markup ) {
+		// A message that is only a title has no markup, and its mrkdwn copy
+		// would give a lesser title (emoji names, dropped group mentions).
+		if ( '' !== $markup || '' !== $this->title ) {
 			return $markup;
 		}
 
@@ -127,6 +129,8 @@ class Slack_Content_Processor {
 	 * '' when it gave none. Plain text, with `<`, `>` and `&` encoded, so the
 	 * filter WordPress runs on the title when the webhook saves it keeps text
 	 * that looks like a tag, such as "Results <live>", instead of dropping it.
+	 * Square brackets are encoded too, as in the content, so a shortcode typed
+	 * in the title shows as text instead of running where the title is shown.
 	 *
 	 * @return string Title.
 	 */
@@ -621,7 +625,7 @@ class Slack_Content_Processor {
 		}
 
 		$text        = html_entity_decode( wp_strip_all_tags( $heading['html'] ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-		$this->title = htmlspecialchars( trim( $text ), ENT_NOQUOTES, 'UTF-8' );
+		$this->title = str_replace( [ '[', ']' ], [ '&#91;', '&#93;' ], htmlspecialchars( trim( $text ), ENT_NOQUOTES, 'UTF-8' ) );
 
 		return $lines[1] ?? '';
 	}

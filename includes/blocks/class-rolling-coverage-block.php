@@ -75,6 +75,9 @@ class Rolling_Coverage_Block {
 	// Word count cap for an archived entry's collapsed-content summary; CSS clips it to one line regardless.
 	const ARCHIVED_ENTRY_SUMMARY_WORD_CAP = 50;
 
+	// Level of a Slack entry's title in a layout that shows no titles: the level most layouts give entry titles.
+	const SLACK_TITLE_HEADING_LEVEL = 4;
+
 	// Option name prefix for persisted entry templates: rc_tpl_{coverage_id}_{hash}.
 	const TEMPLATE_OPTION_PREFIX = 'rc_tpl_';
 
@@ -3533,8 +3536,24 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Whether an entry has a title to show. Slack entries have none; the
-	 * message is the entry.
+	 * A Slack entry's title, escaped for display, or '' for an untitled entry
+	 * or one from anywhere else. Titles an editor wrote stay hidden in layouts
+	 * without titles, as those layouts intend.
+	 *
+	 * @param WP_Post $entry Entry post object.
+	 * @return string HTML.
+	 */
+	private static function slack_title( WP_Post $entry ): string {
+		if ( 'slack' !== get_post_meta( $entry->ID, Post_Type::META_ENTRY_SOURCE, true ) || ! self::has_title( $entry ) ) {
+			return '';
+		}
+
+		return esc_html( get_the_title( $entry ) );
+	}
+
+	/**
+	 * Whether an entry has a title to show. Most Slack entries have none, and
+	 * the message is the entry.
 	 *
 	 * @param WP_Post $entry Entry post object.
 	 * @return bool
@@ -4379,6 +4398,18 @@ class Rolling_Coverage_Block {
 			$template = self::with_centered_title_rows( $template );
 		}
 
+		// A Slack entry's title is the first line of the reporter's message,
+		// so a layout without titles shows it: above the content, or as the
+		// excerpt when the entry has no words of its own.
+		$slack_title   = null === $card && ! self::holds_post_title( $template ) ? self::slack_title( $entry ) : '';
+		$title_heading = static fn( string $block_content ): string => sprintf( '<h%1$d class="wp-block-heading">%2$s</h%1$d>', self::SLACK_TITLE_HEADING_LEVEL, $slack_title ) . $block_content;
+		$title_excerpt = static fn( $excerpt, $excerpt_post = null ) => is_string( $excerpt ) && '' === trim( wp_strip_all_tags( $excerpt ) ) && get_post( $excerpt_post ) instanceof WP_Post && get_post( $excerpt_post )->ID === $entry->ID ? $slack_title : $excerpt;
+
+		if ( '' !== $slack_title ) {
+			add_filter( 'render_block_core/post-content', $title_heading );
+			add_filter( 'get_the_excerpt', $title_excerpt, 12, 2 );
+		}
+
 		global $post;
 
 		$previous_post          = $post;
@@ -4415,6 +4446,11 @@ class Rolling_Coverage_Block {
 		} finally {
 			if ( $is_archived ) {
 				remove_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );
+			}
+
+			if ( '' !== $slack_title ) {
+				remove_filter( 'render_block_core/post-content', $title_heading );
+				remove_filter( 'get_the_excerpt', $title_excerpt, 12 );
 			}
 
 			$post                   = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited

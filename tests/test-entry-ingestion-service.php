@@ -385,12 +385,12 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 
 	/**
 	 * The entry takes the title the source gives, and HTML characters the
-	 * source left encoded survive the save.
+	 * source left encoded, and backslashes, survive the save.
 	 */
 	public function test_entry_takes_the_title_the_source_gives() {
-		$entry_id = self::ingest( self::payload( [ 'title' => 'Results &lt;live&gt; &amp; rising' ] ), self::create_coverage() );
+		$entry_id = self::ingest( self::payload( [ 'title' => 'Results &lt;live&gt; &amp; a 50\\50 race' ] ), self::create_coverage() );
 
-		$this->assertSame( 'Results &lt;live&gt; &amp; rising', get_post( $entry_id )->post_title );
+		$this->assertSame( 'Results &lt;live&gt; &amp; a 50\\50 race', get_post( $entry_id )->post_title );
 	}
 
 	/**

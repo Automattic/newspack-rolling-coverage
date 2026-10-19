@@ -3,7 +3,7 @@
  */
 import { Button, SelectControl, TextControl } from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _x, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useRef } from '@wordpress/element';
 import type { MouseEvent } from 'react';
@@ -187,7 +187,11 @@ function IngestionSettingsTab( {
 						value: String( level ),
 						label:
 							0 === level
-								? __( 'Off', 'newspack-rolling-coverage' )
+								? _x(
+										'Off',
+										'Highest Heading option: no titles or headings',
+										'newspack-rolling-coverage'
+									)
 								: sprintf(
 										/* translators: %d: heading level, from 2 to 6. */
 										__(

@@ -830,7 +830,8 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 
 	/**
 	 * The title is plain text. Characters HTML gives meaning to stay encoded,
-	 * as WordPress stores them in a title it filters on save.
+	 * as WordPress stores them in a title it filters on save, and so do
+	 * square brackets, so a shortcode typed in the title shows as text.
 	 */
 	public function test_title_is_plain_text() {
 		$processor = new Slack_Content_Processor( null, 2 );
@@ -846,7 +847,7 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 			)
 		);
 
-		$this->assertSame( "Polls' close, turnout &lt;50% &amp; [rising]", $processor->get_title() );
+		$this->assertSame( "Polls' close, turnout &lt;50% &amp; &#91;rising&#93;", $processor->get_title() );
 	}
 
 	/**
@@ -871,5 +872,30 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 'Results', $processor->get_title() );
 		$this->assertSame( [ 'core/paragraph' ], self::block_names( $content ) );
+	}
+
+	/**
+	 * A message that is only a title has no rich-text content, and the title
+	 * still comes from the rich text, not from Slack's mrkdwn copy of it.
+	 */
+	public function test_title_only_message_keeps_the_rich_text_title() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
+		$content = $processor->process(
+			'# Polls closed :tada:',
+			self::rich_text(
+				self::section(
+					self::text( '# Polls closed ' ),
+					[
+						'type'    => 'emoji',
+						'name'    => 'tada',
+						'unicode' => '1f389',
+					]
+				)
+			)
+		);
+
+		$this->assertSame( "Polls closed \u{1F389}", $processor->get_title() );
+		$this->assertSame( '', $content );
 	}
 }
