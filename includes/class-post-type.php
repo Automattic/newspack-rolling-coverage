@@ -974,7 +974,7 @@ class Post_Type {
 
 	/**
 	 * An entry's title as plain text: tags removed and entities decoded, so a
-	 * title stored as `Q&amp;A` reads `Q&A`. A `<` that opens no tag stays, as
+	 * title stored as `Q&amp;A` reads `Q&A`. A `<` that no `>` closes stays, as
 	 * sanitize_text_field() keeps it, rather than cutting the title short.
 	 * Escape the result for any HTML context.
 	 *

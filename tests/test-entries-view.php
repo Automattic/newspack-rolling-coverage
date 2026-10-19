@@ -370,8 +370,8 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The title filter finds a title by the text the list shows, whichever
-	 * way the title is stored.
+	 * The title filter finds a title by the text the list shows, however its
+	 * characters are encoded.
 	 *
 	 * @dataProvider stored_title_provider
 	 *
