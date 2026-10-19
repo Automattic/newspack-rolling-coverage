@@ -27,7 +27,9 @@ class Source_Event_Payload {
 	 * @param string      $external_timestamp   ISO 8601 timestamp.
 	 * @param array       $raw_payload          Original platform-native payload.
 	 * @param string      $title                Entry title the message gives, or '' for none. Plain text,
-	 *                                          with `<`, `>` and `&` encoded.
+	 *                                          with `<`, `>`, `&`, `[` and `]` encoded: layouts without
+	 *                                          titles show it, and encoded brackets keep a shortcode in
+	 *                                          it from running there.
 	 */
 	public function __construct(
 		public string $source,

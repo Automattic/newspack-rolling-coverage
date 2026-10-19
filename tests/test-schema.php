@@ -147,6 +147,37 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An entry that is only a title, such as a one-line Slack headline, is
+	 * still one of the live blog's updates, with its title as the body.
+	 */
+	public function test_title_only_entry_is_an_update() {
+		$coverage_id = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		self::create_entry(
+			$coverage_id,
+			[
+				'post_title'    => 'Polls closed',
+				'post_content'  => '',
+				'post_date'     => '2026-09-02 10:00:00',
+				'post_date_gmt' => '2026-09-02 10:00:00',
+			]
+		);
+
+		$article = apply_filters(
+			'wpseo_schema_article',
+			[
+				'@type'            => 'NewsArticle',
+				'@id'              => get_permalink( $host_id ) . '#article',
+				'mainEntityOfPage' => [ '@id' => get_permalink( $host_id ) ],
+			],
+			$this->yoast_context( $host_id )
+		);
+
+		$this->assertCount( 1, $article['liveBlogUpdate'] ?? [] );
+		$this->assertSame( 'Polls closed', $article['liveBlogUpdate'][0]['articleBody'] );
+	}
+
+	/**
 	 * Once the first coverage is merged into Yoast's Article, only the page's
 	 * other coverages are printed as their own scripts.
 	 */

@@ -3537,10 +3537,11 @@ class Rolling_Coverage_Block {
 
 	/**
 	 * An entry's title, escaped for display, when it came from its source
-	 * message, or ''. Titles an editor wrote stay hidden in layouts without
-	 * titles, as those layouts intend. Untitled is read from the stored
-	 * title, since core gives an untitled password-protected entry the title
-	 * "Protected: ".
+	 * message, or ''. A message title an editor later edits still counts. A
+	 * title an editor gives an entry whose message had none stays hidden in
+	 * layouts without titles, as those layouts intend. Untitled is read from
+	 * the stored title, since core gives an untitled password-protected entry
+	 * the title "Protected: ".
 	 *
 	 * @param WP_Post $entry Entry post object.
 	 * @return string HTML.
@@ -4405,7 +4406,9 @@ class Rolling_Coverage_Block {
 		// excerpt when the entry has no words of its own or its excerpt comes
 		// out empty, as behind a gate with no free preview. Both filters act
 		// only at this entry's own depth, so a feed placed in its content
-		// isn't headed by it.
+		// isn't headed by it. The heading goes on after an archived entry's
+		// notice and collapsed content wrap the content, so it sits above
+		// them, where a layout's own title would.
 		$message_title = null === $card && ! self::holds_post_title( $template ) ? self::message_title( $entry ) : '';
 		$own_depth     = self::$entry_render_depth + 1;
 		$title_heading = static fn( string $block_content ): string => self::$entry_render_depth === $own_depth
@@ -4417,7 +4420,7 @@ class Rolling_Coverage_Block {
 			: $excerpt;
 
 		if ( '' !== $message_title ) {
-			add_filter( 'render_block_core/post-content', $title_heading );
+			add_filter( 'render_block_core/post-content', $title_heading, 11 );
 			add_filter( 'get_the_excerpt', $title_excerpt, 12, 2 );
 		}
 
@@ -4460,7 +4463,7 @@ class Rolling_Coverage_Block {
 			}
 
 			if ( '' !== $message_title ) {
-				remove_filter( 'render_block_core/post-content', $title_heading );
+				remove_filter( 'render_block_core/post-content', $title_heading, 11 );
 				remove_filter( 'get_the_excerpt', $title_excerpt, 12 );
 			}
 

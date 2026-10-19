@@ -34,7 +34,7 @@ A layout is how the feed looks: spacing, colors, type, and which parts each entr
 
 Stream, Rail, Clock, Margin, Split, and Byline show each entry's author. Author name and Author avatar in the Entries panel show or hide the author's name and profile picture, each on its own, so an entry can show the picture without the name. Rail, Clock, Margin, and Split hide the picture when you pick them; Stream and Byline show it. An entry the Slack bot posted shows no author until it is reassigned to a reporter. With Avatar Display off under Settings > Discussion, no layout shows profile pictures and Author avatar isn't offered.
 
-Stream, Minute, and Flash don't show entry titles, except a title from the first line of a Slack message: Stream and Minute show it above the entry's text, and Flash shows it when the entry has no other text.
+Stream, Minute, and Flash don't show entry titles, except a title from the first line of a Slack message, which a site turns on with Highest Heading in the Slack settings: Stream and Minute show it above the entry's text, and Flash shows it when the entry has no other text. The editor's preview of these layouts doesn't show it.
 
 Ticker, Wire, Digest, and Flash show only the latest entries. They set Show to Latest and a matching Number of entries when you pick them. Alert shows no entries, but sets Show to Latest too, since the link to the coverage page only shows with Latest. You can change either afterward, except Show on Ticker and Alert: Ticker's headlines run on one line, which has no room for pinned entries or older pages, and Alert has no entries to show, so the setting is hidden while it's set to Latest. Alert hides Number of entries too.
 

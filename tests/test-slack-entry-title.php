@@ -20,12 +20,11 @@ class Test_Slack_Entry_Title extends Rolling_Coverage_TestCase {
 	 *
 	 * @param string $title        Entry title.
 	 * @param string $content      Entry content.
-	 * @param bool   $is_slack     Whether the entry came from Slack.
 	 * @param bool   $from_message Whether its title came from the message.
 	 * @param array  $args         More post fields.
 	 * @return WP_Post
 	 */
-	private static function entry( string $title, string $content, bool $is_slack = true, bool $from_message = true, array $args = [] ): WP_Post {
+	private static function entry( string $title, string $content, bool $from_message = true, array $args = [] ): WP_Post {
 		$entry_id = self::create_entry(
 			self::create_coverage(),
 			array_merge(
@@ -38,11 +37,9 @@ class Test_Slack_Entry_Title extends Rolling_Coverage_TestCase {
 			)
 		);
 
-		if ( $is_slack ) {
-			update_post_meta( $entry_id, Post_Type::META_ENTRY_SOURCE, 'slack' );
-		}
+		update_post_meta( $entry_id, Post_Type::META_ENTRY_SOURCE, 'slack' );
 
-		if ( $is_slack && $from_message ) {
+		if ( $from_message ) {
 			update_post_meta( $entry_id, Post_Type::META_TITLE_FROM_SOURCE, 1 );
 		}
 
@@ -67,15 +64,6 @@ class Test_Slack_Entry_Title extends Rolling_Coverage_TestCase {
 		$html = Rolling_Coverage_Block::render_entry( self::entry( 'Polls closed', '<!-- wp:paragraph --><p>Ward 1 is counted.</p><!-- /wp:paragraph -->' ), parse_blocks( '<!-- wp:post-title /--><!-- wp:post-content /-->' ) );
 
 		$this->assertSame( 1, substr_count( $html, 'Polls closed' ) );
-	}
-
-	/**
-	 * A title an editor wrote stays hidden in a layout without titles.
-	 */
-	public function test_editor_title_stays_hidden_where_no_title_shows() {
-		$html = Rolling_Coverage_Block::render_entry( self::entry( 'Editor headline', '<!-- wp:paragraph --><p>Ward 1 is counted.</p><!-- /wp:paragraph -->', false ), parse_blocks( '<!-- wp:post-content /-->' ) );
-
-		$this->assertStringNotContainsString( 'Editor headline', $html );
 	}
 
 	/**
@@ -106,11 +94,11 @@ class Test_Slack_Entry_Title extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A title an editor gave a Slack entry stays hidden in a layout without
-	 * titles, as it did before titles came from messages.
+	 * A title an editor gave an entry whose message had none stays hidden in
+	 * a layout without titles, as those layouts intend.
 	 */
 	public function test_editor_title_on_a_slack_entry_stays_hidden_where_no_title_shows() {
-		$html = Rolling_Coverage_Block::render_entry( self::entry( 'Editor headline', '<!-- wp:paragraph --><p>Ward 1 is counted.</p><!-- /wp:paragraph -->', true, false ), parse_blocks( '<!-- wp:post-content /-->' ) );
+		$html = Rolling_Coverage_Block::render_entry( self::entry( 'Editor headline', '<!-- wp:paragraph --><p>Ward 1 is counted.</p><!-- /wp:paragraph -->', false ), parse_blocks( '<!-- wp:post-content /-->' ) );
 
 		$this->assertStringNotContainsString( 'Editor headline', $html );
 	}
@@ -120,7 +108,7 @@ class Test_Slack_Entry_Title extends Rolling_Coverage_TestCase {
 	 * gives it the title "Protected: ".
 	 */
 	public function test_untitled_protected_entry_gets_no_heading() {
-		$html = Rolling_Coverage_Block::render_entry( self::entry( '', '<!-- wp:paragraph --><p>Ward 1 is counted.</p><!-- /wp:paragraph -->', true, true, [ 'post_password' => 'secret' ] ), parse_blocks( '<!-- wp:post-content /-->' ) );
+		$html = Rolling_Coverage_Block::render_entry( self::entry( '', '<!-- wp:paragraph --><p>Ward 1 is counted.</p><!-- /wp:paragraph -->', true, [ 'post_password' => 'secret' ] ), parse_blocks( '<!-- wp:post-content /-->' ) );
 
 		$this->assertStringNotContainsString( 'wp-block-heading', $html );
 	}
@@ -171,5 +159,19 @@ class Test_Slack_Entry_Title extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'Inner text.', $html, 'The nested feed should render.' );
 		$this->assertSame( 1, substr_count( $html, 'Outer title' ) );
+	}
+
+	/**
+	 * On an archived entry the title heads the entry, above the archived
+	 * notice and outside the collapsed content, where a layout's own title
+	 * would sit.
+	 */
+	public function test_message_title_heads_an_archived_entry() {
+		$entry = self::entry( 'Polls closed', '<!-- wp:paragraph --><p>' . str_repeat( 'Ward 1 is counted. ', 30 ) . '</p><!-- /wp:paragraph -->' );
+		update_post_meta( $entry->ID, Newspack_Rolling_Coverage\Archive_Mode::ENTRY_ARCHIVED_META_KEY, time() );
+
+		$html = Rolling_Coverage_Block::render_entry( $entry, parse_blocks( '<!-- wp:post-content /-->' ) );
+
+		$this->assertMatchesRegularExpression( '#<h4 class="wp-block-heading">Polls closed</h4><p class="newspack-rolling-coverage-entry-archived-notice">.*<details#s', $html );
 	}
 }

@@ -414,4 +414,22 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'Polls closed', get_post( $entry_id )->post_title );
 		$this->assertSame( '', get_post( $entry_id )->post_content );
 	}
+
+	/**
+	 * The title's marker is saved with the entry, so it is there before the
+	 * entry joins its coverage and polls can serve it.
+	 */
+	public function test_title_marker_is_saved_before_the_entry_joins_its_coverage() {
+		$marked_when_joined = null;
+		add_action(
+			'set_object_terms',
+			function ( $object_id ) use ( &$marked_when_joined ) {
+				$marked_when_joined = metadata_exists( 'post', $object_id, Post_Type::META_TITLE_FROM_SOURCE );
+			}
+		);
+
+		self::ingest( self::payload( [ 'title' => 'Polls closed' ] ), self::create_coverage() );
+
+		$this->assertTrue( $marked_when_joined );
+	}
 }

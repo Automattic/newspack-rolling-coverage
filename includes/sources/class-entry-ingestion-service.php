@@ -123,6 +123,9 @@ class Entry_Ingestion_Service {
 				'post_content' => wp_slash( $content ),
 				'post_author'  => $author_id,
 				'post_status'  => $auto_publish ? 'publish' : 'draft',
+				// Saved with the entry, so the marker is there before the entry
+				// joins its coverage and a poll can serve it.
+				'meta_input'   => '' !== $payload->title ? [ Post_Type::META_TITLE_FROM_SOURCE => 1 ] : [],
 			];
 
 			// A reply is a child of the entry for the message its thread starts
@@ -153,10 +156,6 @@ class Entry_Ingestion_Service {
 			// Canonical dedup key — must not duplicate, hence the unique flag.
 			add_post_meta( $post_id, Post_Type::META_SOURCE_REF, $payload->source_ref, true );
 			add_post_meta( $post_id, Post_Type::META_ENTRY_SOURCE, $payload->source );
-
-			if ( '' !== $payload->title ) {
-				add_post_meta( $post_id, Post_Type::META_TITLE_FROM_SOURCE, 1 );
-			}
 
 			foreach ( $provenance_meta as $meta_key => $meta_value ) {
 				if ( ! is_string( $meta_key ) || '' === $meta_key ) {

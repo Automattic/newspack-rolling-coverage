@@ -331,11 +331,14 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A titled entry is still announced when it has no words everyone may
-	 * read, such as a lone photo: its title is public.
+	 * read, such as a lone photo or a title-only Slack message: its title is
+	 * public. It goes out under the coverage name with its title as the text,
+	 * so the notification is never sent with an empty body.
 	 */
 	public function test_titled_entry_without_public_words_is_still_announced() {
-		$entry_id = self::create_entry(
-			self::create_coverage_with_canonical_url(),
+		$coverage_id = self::create_coverage_with_canonical_url();
+		$entry_id    = self::create_entry(
+			$coverage_id,
 			[
 				'post_status'  => 'draft',
 				'post_title'   => 'Crowds at the finish line',
@@ -350,7 +353,8 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		$sent_notifications = self::get_sent_notifications();
 
 		$this->assertCount( 1, $sent_notifications );
-		$this->assertSame( 'Crowds at the finish line', $sent_notifications[0]['title'] );
+		$this->assertSame( get_term( $coverage_id )->name, $sent_notifications[0]['title'] );
+		$this->assertSame( 'Crowds at the finish line', $sent_notifications[0]['content'] );
 	}
 
 	/**

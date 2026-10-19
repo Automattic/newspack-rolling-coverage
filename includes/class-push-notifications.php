@@ -454,6 +454,14 @@ class Push_Notifications {
 
 		$title = self::build_notification_title( $entry, $coverage_id );
 
+		// A titled entry with no words to show, such as a title-only Slack
+		// message, goes out under the coverage name with its title as the
+		// text, so the notification is never sent with an empty body.
+		if ( '' === trim( $content ) && '' !== trim( wp_strip_all_tags( $entry->post_title ) ) ) {
+			$content = $title;
+			$title   = self::coverage_or_site_name( $coverage_id );
+		}
+
 		self::$pending_url = $url;
 		self::$pending_tag = self::follow_tag( $coverage_id );
 
@@ -491,6 +499,16 @@ class Push_Notifications {
 			return html_entity_decode( wp_strip_all_tags( get_the_title( $entry ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 		}
 
+		return self::coverage_or_site_name( $coverage_id );
+	}
+
+	/**
+	 * The coverage's name, or the site's when the coverage has none.
+	 *
+	 * @param int $coverage_id Coverage term id.
+	 * @return string Name.
+	 */
+	private static function coverage_or_site_name( int $coverage_id ): string {
 		$coverage_name = get_term_field( 'name', $coverage_id, Taxonomy::TAXONOMY_SLUG );
 
 		if ( ! is_wp_error( $coverage_name ) && '' !== trim( (string) $coverage_name ) ) {
