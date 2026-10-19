@@ -59,13 +59,9 @@ import { copy as copyIcon, check } from '@wordpress/icons';
 import { Stack } from '@wordpress/ui';
 
 /**
- * External dependencies
- */
-import { activity } from 'newspack-icons';
-
-/**
  * Internal dependencies
  */
+import { liveStreaming } from '../../shared/icons/live-streaming';
 import {
 	searchCoverages,
 	getCoverage,
@@ -3149,7 +3145,7 @@ export default function Edit( {
 				) }
 				{ ! isLoading && needsLayout && (
 					<Placeholder
-						icon={ activity }
+						icon={ liveStreaming }
 						label="Rolling Coverage"
 						instructions={
 							isPreviewMode
@@ -3345,7 +3341,7 @@ export default function Edit( {
 						</>
 					) : (
 						<Placeholder
-							icon={ activity }
+							icon={ liveStreaming }
 							label="Rolling Coverage"
 							instructions={ __(
 								'Select a coverage to display its entries.',
