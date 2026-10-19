@@ -155,6 +155,8 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	 * @param string $headline     Expected headline.
 	 */
 	public function test_entry_headlines_are_plain_text( string $stored_title, string $headline ) {
+		// An editor may post unfiltered HTML, so kses leaves each title as given.
+		self::log_in_as( 'editor' );
 		$coverage_id = self::create_coverage();
 		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
 		self::create_entry(
@@ -177,8 +179,9 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	 */
 	public function entry_title_provider() {
 		return [
-			'stored with entities'               => [ '&#91;Live&#93; Q&amp;A: turnout &lt;40%', '[Live] Q&A: turnout <40%' ],
+			'stored with entities'               => [ '&#091;Live&#093; Q&amp;A: turnout &lt;40%', '[Live] Q&A: turnout <40%' ],
 			'typed by someone who may post HTML' => [ 'Q&A with <em>the mayor</em>', 'Q&A with the mayor' ],
+			'< that opens no tag'                => [ 'Turnout <40% by noon', 'Turnout <40% by noon' ],
 		];
 	}
 

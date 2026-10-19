@@ -338,17 +338,35 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 
 	/**
 	 * The list and its new-entry notices show titles as plain text, though a
-	 * title can be stored with characters encoded as entities.
+	 * title can be stored with characters encoded as entities, or with tags.
+	 *
+	 * @dataProvider plain_title_provider
+	 *
+	 * @param string $stored_title Title as stored.
+	 * @param string $plain_title  Title as the list should show it.
 	 */
-	public function test_titles_are_listed_as_plain_text() {
+	public function test_titles_are_listed_as_plain_text( $stored_title, $plain_title ) {
 		$cursor_entry_id = $this->create_entry_at( '2026-01-01 10:00:00' );
-		$entry_id        = $this->create_entry_at( '2026-01-01 11:00:00', [ 'post_title' => '&#91;Live&#93; Q&amp;A: turnout &lt;40%' ] );
+		$entry_id        = $this->create_entry_at( '2026-01-01 11:00:00', [ 'post_title' => $stored_title ] );
 
 		$listed = array_column( $this->get_entries_view()->get_data()['entries'], 'title', 'id' );
 		$synced = array_column( $this->get_entries_view( [ 'since' => "{$cursor_entry_id}:2026-01-01 10:00:00" ] )->get_data()['changed'], 'title', 'id' );
 
-		$this->assertSame( '[Live] Q&A: turnout <40%', $listed[ $entry_id ], 'The list should show the title as plain text.' );
-		$this->assertSame( '[Live] Q&A: turnout <40%', $synced[ $entry_id ], 'A new-entry notice should show the title as plain text.' );
+		$this->assertSame( $plain_title, $listed[ $entry_id ], 'The list should show the title as plain text.' );
+		$this->assertSame( $plain_title, $synced[ $entry_id ], 'A new-entry notice should show the title as plain text.' );
+	}
+
+	/**
+	 * Titles as stored, and as the list should show them.
+	 *
+	 * @return array[]
+	 */
+	public function plain_title_provider() {
+		return [
+			'stored with entities'   => [ '&#091;Live&#093; Q&amp;A: turnout &lt;40%', '[Live] Q&A: turnout <40%' ],
+			'with inline formatting' => [ 'Q&amp;A with <em>the mayor</em>', 'Q&A with the mayor' ],
+			'< that opens no tag'    => [ 'Turnout <40% by noon', 'Turnout <40% by noon' ],
+		];
 	}
 
 	/**
@@ -377,12 +395,12 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	 */
 	public function stored_title_provider() {
 		return [
-			'typed by someone who may post HTML'   => [ 'Fish & chips at noon', 'Fish & chips' ],
-			'typed by an author, as kses stores'   => [ 'The mayor\'s "fish &amp; chips"', 'mayor\'s "fish & chips"' ],
-			'< typed by someone who may post HTML' => [ 'Turnout <40% by noon', 'Turnout <40' ],
-			'< typed by an author'                 => [ 'Turnout &lt;40% by noon', 'Turnout <40' ],
-			'[ typed by an author'                 => [ '[Live] fish &amp; chips', '[Live] fish & chips' ],
-			'first line of a Slack message'        => [ '&#91;Live&#93; fish &amp; chips', '[Live] fish & chips' ],
+			'as typed, outside the visual editor'  => [ 'Fish & chips at noon', 'Fish & chips' ],
+			'< as typed'                           => [ 'Turnout <40% by noon', 'Turnout <40' ],
+			'in the editor, which encodes & and <' => [ 'Turnout > 40% &amp; rising', 'Turnout > 40% & rising' ],
+			'by an author, as kses stores'         => [ 'Mayor\'s turnout &gt; 40% &amp; rising', 'Mayor\'s turnout > 40% & rising' ],
+			'< by an author'                       => [ 'Turnout &lt;40% by noon', 'Turnout <40' ],
+			'from a Slack message, as kses stores' => [ '&#091;Live&#093; fish &amp; chips', '[Live] fish & chips' ],
 		];
 	}
 
