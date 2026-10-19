@@ -10,8 +10,7 @@ if ( ! class_exists( 'Jetpack_RelatedPosts' ) ) {
 	 * How the module places its list on a classic theme, as of Jetpack 16.1:
 	 * on a single post's page it adds a placeholder to the end of every
 	 * `the_content` the request runs, whichever post it is for, and its
-	 * script fills the first placeholder on the page. The real init() also
-	 * hooks a new instance in when none exists yet, as this one does.
+	 * script fills the first placeholder on the page.
 	 */
 	class Jetpack_RelatedPosts {
 
@@ -23,7 +22,7 @@ if ( ! class_exists( 'Jetpack_RelatedPosts' ) ) {
 		private static $instance = null;
 
 		/**
-		 * The module's instance, created and hooked in on first use.
+		 * The module's instance, created on first use.
 		 *
 		 * @return Jetpack_RelatedPosts
 		 */
@@ -36,14 +35,8 @@ if ( ! class_exists( 'Jetpack_RelatedPosts' ) ) {
 		}
 
 		/**
-		 * Hook in the way the module's constructor does.
-		 */
-		public function __construct() {
-			add_action( 'wp', [ $this, 'action_frontend_init' ] );
-		}
-
-		/**
-		 * Start placing the list on a single post's page.
+		 * Start placing the list on a single post's page, as the module does
+		 * on `wp`.
 		 */
 		public function action_frontend_init() {
 			if ( is_single() ) {
