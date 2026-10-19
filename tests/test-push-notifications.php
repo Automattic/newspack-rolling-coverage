@@ -332,12 +332,15 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	/**
 	 * A titled entry is still announced when it has no words everyone may
 	 * read, such as a lone photo or a title-only Slack message: its title is
-	 * public. It goes out under the coverage name with its title as the text,
-	 * so the notification is never sent with an empty body.
+	 * public. It goes out under the coverage name, as plain text, with its
+	 * title as the text, so the notification is never sent with an empty
+	 * body.
 	 */
 	public function test_titled_entry_without_public_words_is_still_announced() {
 		$coverage_id = self::create_coverage_with_canonical_url();
-		$entry_id    = self::create_entry(
+		wp_update_term( $coverage_id, Taxonomy::TAXONOMY_SLUG, [ 'name' => "Mayor's race & results" ] );
+
+		$entry_id = self::create_entry(
 			$coverage_id,
 			[
 				'post_status'  => 'draft',
@@ -353,7 +356,7 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		$sent_notifications = self::get_sent_notifications();
 
 		$this->assertCount( 1, $sent_notifications );
-		$this->assertSame( get_term( $coverage_id )->name, $sent_notifications[0]['title'] );
+		$this->assertSame( "Mayor\u{2019}s race & results", $sent_notifications[0]['title'] );
 		$this->assertSame( 'Crowds at the finish line', $sent_notifications[0]['content'] );
 	}
 

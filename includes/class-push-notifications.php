@@ -503,19 +503,18 @@ class Push_Notifications {
 	}
 
 	/**
-	 * The coverage's name, or the site's when the coverage has none.
+	 * The coverage's name, or the site's when the coverage has none, decoded
+	 * to plain text like the entry's title: WordPress hands both out encoded
+	 * for HTML.
 	 *
 	 * @param int $coverage_id Coverage term id.
 	 * @return string Name.
 	 */
 	private static function coverage_or_site_name( int $coverage_id ): string {
 		$coverage_name = get_term_field( 'name', $coverage_id, Taxonomy::TAXONOMY_SLUG );
+		$name          = ! is_wp_error( $coverage_name ) && '' !== trim( (string) $coverage_name ) ? (string) $coverage_name : get_bloginfo( 'name' );
 
-		if ( ! is_wp_error( $coverage_name ) && '' !== trim( (string) $coverage_name ) ) {
-			return $coverage_name;
-		}
-
-		return get_bloginfo( 'name' );
+		return html_entity_decode( $name, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 	}
 
 	/**
