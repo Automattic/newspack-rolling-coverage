@@ -4,15 +4,11 @@
 import { registerBlockType } from '@wordpress/blocks';
 
 /**
- * External dependencies
- */
-import { activity } from 'newspack-icons';
-
-/**
  * Internal dependencies
  */
 import { getBlockCategory } from '../shared/category';
 import { blockIcon } from '../shared/icon';
+import { liveStreaming } from '../../shared/icons/live-streaming';
 import metadata from './block.json';
 import Edit from './edit';
 import Save from './save';
@@ -27,7 +23,7 @@ import type { RollingCoverageAttributes } from './types';
 registerBlockType< RollingCoverageAttributes >( metadata.name, {
 	...metadata,
 	category: getBlockCategory(),
-	icon: blockIcon( activity ),
+	icon: blockIcon( liveStreaming ),
 	edit: Edit,
 	save: Save,
 } );
