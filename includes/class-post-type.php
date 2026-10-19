@@ -973,6 +973,19 @@ class Post_Type {
 	}
 
 	/**
+	 * An entry's title as plain text: tags removed and entities decoded, so a
+	 * title stored as `Q&amp;A` reads `Q&A`. A `<` that no `>` closes stays, as
+	 * sanitize_text_field() keeps it, rather than cutting the title short.
+	 * Escape the result for any HTML context.
+	 *
+	 * @param string $title Title as stored, or as the `the_title` filters return it.
+	 * @return string
+	 */
+	public static function plain_title( string $title ): string {
+		return html_entity_decode( wp_strip_all_tags( wp_pre_kses_less_than( $title ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	}
+
+	/**
 	 * The first words of stored HTML as an HTML excerpt: cut to `$words`,
 	 * ending in `$more` when cut, escaped for HTML like the excerpt core
 	 * generates. Read as get_html_summary() reads, so lists and the other
@@ -1881,6 +1894,9 @@ class Post_Type {
 	/**
 	 * Map a WP_Post into the EntryViewRow shape.
 	 *
+	 * The title and summary are plain text, which the list shows as text,
+	 * never as HTML.
+	 *
 	 * @param WP_Post $post Post object.
 	 * @return array
 	 */
@@ -1892,7 +1908,7 @@ class Post_Type {
 
 		return [
 			'id'               => $post->ID,
-			'title'            => $post->post_title,
+			'title'            => self::plain_title( $post->post_title ),
 			'slug'             => $post->post_name,
 			'summary'          => '' === trim( $post->post_title ) ? self::get_entry_summary( $post ) : '',
 			'date'             => mysql2date( 'c', $post->post_date, false ),
@@ -2297,10 +2313,19 @@ class Post_Type {
 		}
 
 		global $wpdb;
-		$like = '%' . $wpdb->esc_like( $title ) . '%';
+		// The list shows titles as plain text, but a title is stored with `&`,
+		// `<`, `>` and square brackets encoded or as typed, depending on where
+		// it was written: the editor's visual title field encodes `&` and `<`,
+		// kses `&`, `<` and `>`, and a title from a Slack message has its
+		// brackets encoded too, which kses pads to `&#091;` and `&#093;`. So
+		// the filter compares the stored title with those decoded (`&amp;`
+		// last, so `&amp;lt;` reads `&lt;`) against the filter text, decoded
+		// too, since sanitize_text_field() encodes a `<` in it.
+		$typed_like = '%' . $wpdb->esc_like( html_entity_decode( $title, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ) . '%';
 		// Untitled entries are listed by their first words, so match those too.
+		$like      = '%' . $wpdb->esc_like( $title ) . '%';
 		$html_like = '%' . $wpdb->esc_like( esc_html( $title ) ) . '%';
-		$where    .= $wpdb->prepare( " AND ( {$wpdb->posts}.post_title LIKE %s OR ( {$wpdb->posts}.post_title = '' AND ( {$wpdb->posts}.post_content LIKE %s OR {$wpdb->posts}.post_content LIKE %s ) ) )", $like, $like, $html_like );
+		$where    .= $wpdb->prepare( " AND ( REPLACE( REPLACE( REPLACE( REPLACE( REPLACE( {$wpdb->posts}.post_title, '&lt;', '<' ), '&gt;', '>' ), '&#091;', '[' ), '&#093;', ']' ), '&amp;', '&' ) LIKE %s OR ( {$wpdb->posts}.post_title = '' AND ( {$wpdb->posts}.post_content LIKE %s OR {$wpdb->posts}.post_content LIKE %s ) ) )", $typed_like, $like, $html_like );
 
 		return $where;
 	}

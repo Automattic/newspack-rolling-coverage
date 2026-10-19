@@ -73,6 +73,7 @@ function toEntry( row: EntryViewRow ): Entry {
 		status: row.status,
 		type: 'rolling_cov_entry',
 		link: '',
+		// Plain text, unlike the HTML core's `title.rendered` holds: show it as text.
 		title: { rendered: row.title },
 		summary: row.summary,
 		content: { rendered: '' },

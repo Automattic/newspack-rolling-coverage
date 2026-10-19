@@ -147,6 +147,45 @@ class Test_Schema extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * An entry's headline is plain text, as its body is.
+	 *
+	 * @dataProvider entry_title_provider
+	 *
+	 * @param string $stored_title Entry title as stored.
+	 * @param string $headline     Expected headline.
+	 */
+	public function test_entry_headlines_are_plain_text( string $stored_title, string $headline ) {
+		// An editor may post unfiltered HTML, so kses leaves each title as given.
+		self::log_in_as( 'editor' );
+		$coverage_id = self::create_coverage();
+		$host_id     = $this->create_host_post( [ $coverage_id ], '2026-09-01 10:00:00' );
+		self::create_entry(
+			$coverage_id,
+			[
+				'post_title'    => $stored_title,
+				'post_content'  => '<!-- wp:paragraph --><p>The mayor answers questions at noon.</p><!-- /wp:paragraph -->',
+				'post_date'     => '2026-09-02 10:00:00',
+				'post_date_gmt' => '2026-09-02 10:00:00',
+			]
+		);
+
+		$this->assertSame( $headline, $this->render_scripts( $host_id )[0]['liveBlogUpdate'][0]['headline'] );
+	}
+
+	/**
+	 * Entry titles as stored, and the headline each should give.
+	 *
+	 * @return array[]
+	 */
+	public function entry_title_provider() {
+		return [
+			'stored with entities'               => [ '&#091;Live&#093; Q&amp;A: turnout &lt;40%', '[Live] Q&A: turnout <40%' ],
+			'typed by someone who may post HTML' => [ 'Q&A with <em>the mayor</em>', 'Q&A with the mayor' ],
+			'< that opens no tag'                => [ 'Turnout <40% by noon', 'Turnout <40% by noon' ],
+		];
+	}
+
+	/**
 	 * Once the first coverage is merged into Yoast's Article, only the page's
 	 * other coverages are printed as their own scripts.
 	 */

@@ -780,8 +780,8 @@ class Schema {
 			return null;
 		}
 
-		$headline = get_the_title( $entry );
-		if ( '' === trim( wp_strip_all_tags( $headline ) ) ) {
+		$headline = Post_Type::plain_title( get_the_title( $entry ) );
+		if ( '' === trim( $headline ) ) {
 			$headline = wp_trim_words( $article_body, 10, '…' );
 		}
 

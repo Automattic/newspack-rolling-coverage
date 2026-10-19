@@ -142,7 +142,7 @@ Everything else that reads an entry's excerpt gets these words too, such as the 
 
 - The Share link's accessible name and a breakout post's title use the title, else `Entry_Bindings::public_name()`: `public_summary()`, the opening words of `public_content()` outside its media, else the media title, so a lone photo is still told apart. A restricted entry gets nothing.
 - Push notifications use the hand-written excerpt or `public_summary()`. A restricted entry is announced with "Read the latest update." in place of its words, under its title or the coverage name. An untitled entry with no hand-written excerpt and no words of its own, such as a lone photo or one whose text is all members-only, isn't announced, restricted or not.
-- The `LiveBlogPosting` schema, cached for every visitor, builds each update from `public_content()` and leaves restricted entries out.
+- The `LiveBlogPosting` schema, cached for every visitor, builds each update from `public_content()` and leaves restricted entries out. An update's headline is the entry's title, or its body's first ten words when it has none, as plain text like the body: tags removed and entities decoded (`Post_Type::plain_title()`).
 
 The entries list in the admin reads `Post_Type::get_entry_summary()`, which includes everything, as does the AI prompt, which editors send to the AI provider.
 

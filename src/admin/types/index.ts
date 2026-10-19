@@ -725,6 +725,7 @@ type CoreSelectors = {
 
 interface EntryViewRow {
 	id: number;
+	/** The entry's title as plain text: tags removed, entities decoded. */
 	title: string;
 	/** The entry's slug (`post_name`); empty for a draft that has none yet. */
 	slug: string;
