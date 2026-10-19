@@ -16,25 +16,34 @@ use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 class Test_Slack_Entry_Title extends Rolling_Coverage_TestCase {
 
 	/**
-	 * An entry, from Slack unless told otherwise.
+	 * A Slack entry whose title came from its message, unless told otherwise.
 	 *
-	 * @param string $title    Entry title.
-	 * @param string $content  Entry content.
-	 * @param bool   $is_slack Whether the entry came from Slack.
+	 * @param string $title        Entry title.
+	 * @param string $content      Entry content.
+	 * @param bool   $is_slack     Whether the entry came from Slack.
+	 * @param bool   $from_message Whether its title came from the message.
+	 * @param array  $args         More post fields.
 	 * @return WP_Post
 	 */
-	private static function entry( string $title, string $content, bool $is_slack = true ): WP_Post {
+	private static function entry( string $title, string $content, bool $is_slack = true, bool $from_message = true, array $args = [] ): WP_Post {
 		$entry_id = self::create_entry(
 			self::create_coverage(),
-			[
-				'post_title'   => $title,
-				'post_content' => $content,
-				'post_excerpt' => '',
-			]
+			array_merge(
+				[
+					'post_title'   => $title,
+					'post_content' => $content,
+					'post_excerpt' => '',
+				],
+				$args
+			)
 		);
 
 		if ( $is_slack ) {
 			update_post_meta( $entry_id, Post_Type::META_ENTRY_SOURCE, 'slack' );
+		}
+
+		if ( $is_slack && $from_message ) {
+			update_post_meta( $entry_id, Post_Type::META_TITLE_FROM_SOURCE, 1 );
 		}
 
 		return get_post( $entry_id );
@@ -94,5 +103,61 @@ class Test_Slack_Entry_Title extends Rolling_Coverage_TestCase {
 		$this->assertStringNotContainsString( 'SHORTCODE_RAN', $html );
 
 		remove_shortcode( 'rcprobe' );
+	}
+
+	/**
+	 * A title an editor gave a Slack entry stays hidden in a layout without
+	 * titles, as it did before titles came from messages.
+	 */
+	public function test_editor_title_on_a_slack_entry_stays_hidden_where_no_title_shows() {
+		$html = Rolling_Coverage_Block::render_entry( self::entry( 'Editor headline', '<!-- wp:paragraph --><p>Ward 1 is counted.</p><!-- /wp:paragraph -->', true, false ), parse_blocks( '<!-- wp:post-content /-->' ) );
+
+		$this->assertStringNotContainsString( 'Editor headline', $html );
+	}
+
+	/**
+	 * An untitled password-protected entry gets no heading, though core
+	 * gives it the title "Protected: ".
+	 */
+	public function test_untitled_protected_entry_gets_no_heading() {
+		$html = Rolling_Coverage_Block::render_entry( self::entry( '', '<!-- wp:paragraph --><p>Ward 1 is counted.</p><!-- /wp:paragraph -->', true, true, [ 'post_password' => 'secret' ] ), parse_blocks( '<!-- wp:post-content /-->' ) );
+
+		$this->assertStringNotContainsString( 'wp-block-heading', $html );
+	}
+
+	/**
+	 * A titled Slack entry holding only a photo shows its title as the
+	 * excerpt, not the photo's name.
+	 */
+	public function test_titled_slack_photo_entry_uses_its_title_as_the_excerpt_where_no_title_shows() {
+		$photo = '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.test/fire.jpg" alt=""/></figure><!-- /wp:image -->';
+		$html  = Rolling_Coverage_Block::render_entry( self::entry( 'Fire on Main St', $photo ), parse_blocks( '<!-- wp:post-date /--><!-- wp:post-excerpt /-->' ) );
+
+		$this->assertStringContainsString( 'Fire on Main St', $html );
+	}
+
+	/**
+	 * A feed placed in the entry's content doesn't show the entry's title
+	 * above its own entries.
+	 */
+	public function test_feed_nested_in_the_entry_does_not_get_its_title() {
+		$this->register_feed_block();
+		$inner_coverage = self::create_coverage();
+		self::create_entry(
+			$inner_coverage,
+			[
+				'post_title'   => '',
+				'post_content' => '<!-- wp:paragraph --><p>Inner text.</p><!-- /wp:paragraph -->',
+			]
+		);
+		$outer = self::entry(
+			'Outer title',
+			'<!-- wp:paragraph --><p>Outer text.</p><!-- /wp:paragraph --><!-- wp:newspack-rolling-coverage/rolling-coverage {"coverageId":' . $inner_coverage . '} --><!-- wp:post-content /--><!-- /wp:newspack-rolling-coverage/rolling-coverage -->'
+		);
+
+		$html = Rolling_Coverage_Block::render_entry( $outer, parse_blocks( '<!-- wp:post-content /-->' ) );
+
+		$this->assertStringContainsString( 'Inner text.', $html, 'The nested feed should render.' );
+		$this->assertSame( 1, substr_count( $html, 'Outer title' ) );
 	}
 }

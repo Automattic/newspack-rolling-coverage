@@ -337,6 +337,7 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 		$entry_id = self::ingest( self::payload(), self::create_coverage() );
 
 		$this->assertSame( '', get_post( $entry_id )->post_title );
+		$this->assertFalse( metadata_exists( 'post', $entry_id, Post_Type::META_TITLE_FROM_SOURCE ) );
 	}
 
 	/**
@@ -391,6 +392,7 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 		$entry_id = self::ingest( self::payload( [ 'title' => 'Results &lt;live&gt; &amp; a 50\\50 race' ] ), self::create_coverage() );
 
 		$this->assertSame( 'Results &lt;live&gt; &amp; a 50\\50 race', get_post( $entry_id )->post_title );
+		$this->assertNotEmpty( get_post_meta( $entry_id, Post_Type::META_TITLE_FROM_SOURCE, true ), 'The title should be marked as the message\'s own.' );
 	}
 
 	/**

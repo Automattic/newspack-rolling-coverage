@@ -488,7 +488,7 @@ class Push_Notifications {
 	 */
 	private static function build_notification_title( WP_Post $entry, int $coverage_id ): string {
 		if ( '' !== trim( wp_strip_all_tags( $entry->post_title ) ) ) {
-			return html_entity_decode( wp_strip_all_tags( get_the_title( $entry ) ), ENT_QUOTES, 'UTF-8' );
+			return html_entity_decode( wp_strip_all_tags( get_the_title( $entry ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 		}
 
 		$coverage_name = get_term_field( 'name', $coverage_id, Taxonomy::TAXONOMY_SLUG );

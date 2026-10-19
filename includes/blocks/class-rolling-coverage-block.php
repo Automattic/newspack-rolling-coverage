@@ -75,8 +75,8 @@ class Rolling_Coverage_Block {
 	// Word count cap for an archived entry's collapsed-content summary; CSS clips it to one line regardless.
 	const ARCHIVED_ENTRY_SUMMARY_WORD_CAP = 50;
 
-	// Level of a Slack entry's title in a layout that shows no titles: the level most layouts give entry titles.
-	const SLACK_TITLE_HEADING_LEVEL = 4;
+	// Level of a title from a Slack message in a layout that shows no titles: the level most layouts give entry titles.
+	const MESSAGE_TITLE_HEADING_LEVEL = 4;
 
 	// Option name prefix for persisted entry templates: rc_tpl_{coverage_id}_{hash}.
 	const TEMPLATE_OPTION_PREFIX = 'rc_tpl_';
@@ -3536,15 +3536,17 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * A Slack entry's title, escaped for display, or '' for an untitled entry
-	 * or one from anywhere else. Titles an editor wrote stay hidden in layouts
-	 * without titles, as those layouts intend.
+	 * An entry's title, escaped for display, when it came from its source
+	 * message, or ''. Titles an editor wrote stay hidden in layouts without
+	 * titles, as those layouts intend. Untitled is read from the stored
+	 * title, since core gives an untitled password-protected entry the title
+	 * "Protected: ".
 	 *
 	 * @param WP_Post $entry Entry post object.
 	 * @return string HTML.
 	 */
-	private static function slack_title( WP_Post $entry ): string {
-		if ( 'slack' !== get_post_meta( $entry->ID, Post_Type::META_ENTRY_SOURCE, true ) || ! self::has_title( $entry ) ) {
+	private static function message_title( WP_Post $entry ): string {
+		if ( '' === trim( wp_strip_all_tags( $entry->post_title ) ) || ! get_post_meta( $entry->ID, Post_Type::META_TITLE_FROM_SOURCE, true ) ) {
 			return '';
 		}
 
@@ -4398,14 +4400,21 @@ class Rolling_Coverage_Block {
 			$template = self::with_centered_title_rows( $template );
 		}
 
-		// A Slack entry's title is the first line of the reporter's message,
+		// A title from a Slack message is the first line the reporter typed,
 		// so a layout without titles shows it: above the content, or as the
-		// excerpt when the entry has no words of its own.
-		$slack_title   = null === $card && ! self::holds_post_title( $template ) ? self::slack_title( $entry ) : '';
-		$title_heading = static fn( string $block_content ): string => sprintf( '<h%1$d class="wp-block-heading">%2$s</h%1$d>', self::SLACK_TITLE_HEADING_LEVEL, $slack_title ) . $block_content;
-		$title_excerpt = static fn( $excerpt, $excerpt_post = null ) => is_string( $excerpt ) && '' === trim( wp_strip_all_tags( $excerpt ) ) && get_post( $excerpt_post ) instanceof WP_Post && get_post( $excerpt_post )->ID === $entry->ID ? $slack_title : $excerpt;
+		// excerpt when the entry has no words of its own. Both filters act
+		// only at this entry's own depth, so a feed placed in its content
+		// isn't headed by it.
+		$message_title = null === $card && ! self::holds_post_title( $template ) ? self::message_title( $entry ) : '';
+		$own_depth     = self::$entry_render_depth + 1;
+		$title_heading = static fn( string $block_content ): string => self::$entry_render_depth === $own_depth
+			? sprintf( '<h%1$d class="wp-block-heading">%2$s</h%1$d>', self::MESSAGE_TITLE_HEADING_LEVEL, $message_title ) . $block_content
+			: $block_content;
+		$title_excerpt = static fn( $excerpt, $excerpt_post = null ) => self::$entry_render_depth === $own_depth && is_string( $excerpt ) && get_post( $excerpt_post ) instanceof WP_Post && get_post( $excerpt_post )->ID === $entry->ID && '' === trim( $entry->post_excerpt ) && ! Entry_Bindings::has_words_of_its_own( $entry )
+			? $message_title
+			: $excerpt;
 
-		if ( '' !== $slack_title ) {
+		if ( '' !== $message_title ) {
 			add_filter( 'render_block_core/post-content', $title_heading );
 			add_filter( 'get_the_excerpt', $title_excerpt, 12, 2 );
 		}
@@ -4448,7 +4457,7 @@ class Rolling_Coverage_Block {
 				remove_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );
 			}
 
-			if ( '' !== $slack_title ) {
+			if ( '' !== $message_title ) {
 				remove_filter( 'render_block_core/post-content', $title_heading );
 				remove_filter( 'get_the_excerpt', $title_excerpt, 12 );
 			}

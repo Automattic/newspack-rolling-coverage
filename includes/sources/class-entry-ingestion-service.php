@@ -154,6 +154,10 @@ class Entry_Ingestion_Service {
 			add_post_meta( $post_id, Post_Type::META_SOURCE_REF, $payload->source_ref, true );
 			add_post_meta( $post_id, Post_Type::META_ENTRY_SOURCE, $payload->source );
 
+			if ( '' !== $payload->title ) {
+				add_post_meta( $post_id, Post_Type::META_TITLE_FROM_SOURCE, 1 );
+			}
+
 			foreach ( $provenance_meta as $meta_key => $meta_value ) {
 				if ( ! is_string( $meta_key ) || '' === $meta_key ) {
 					continue;

@@ -42,6 +42,9 @@ class Post_Type {
 	// Source related meta key for any chat-source adapter (Slack now, others in future).
 	const META_ENTRY_SOURCE = 'rolling_coverage_entry_source';
 
+	// Set when an entry's title came from its source message, such as a Slack message's first line, so layouts without titles show it. Titles editors write stay hidden there.
+	const META_TITLE_FROM_SOURCE = '_rolling_coverage_title_from_source';
+
 	// Slack integration post-meta keys.
 	const META_SLACK_TS          = 'rolling_coverage_slack_ts';
 	const META_SLACK_USER_ID     = 'rolling_coverage_slack_user_id';

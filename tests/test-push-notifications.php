@@ -319,14 +319,14 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 			self::create_coverage_with_canonical_url(),
 			[
 				'post_status' => 'draft',
-				'post_title'  => "Mayor's Q&amp;A on &lt;live&gt; results",
+				'post_title'  => "Mayor's Q&amp;A on &lt;live&gt; results &apos;26",
 			]
 		);
 		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
 
 		wp_publish_post( $entry_id );
 
-		$this->assertSame( "Mayor\u{2019}s Q&A on <live> results", self::get_sent_notifications()[0]['title'] );
+		$this->assertSame( "Mayor\u{2019}s Q&A on <live> results '26", self::get_sent_notifications()[0]['title'] );
 	}
 
 	/**
