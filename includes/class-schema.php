@@ -780,8 +780,8 @@ class Schema {
 			return null;
 		}
 
-		$headline = get_the_title( $entry );
-		if ( '' === trim( wp_strip_all_tags( $headline ) ) ) {
+		$headline = html_entity_decode( wp_strip_all_tags( get_the_title( $entry ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		if ( '' === trim( $headline ) ) {
 			$headline = wp_trim_words( $article_body, 10, '…' );
 		}
 

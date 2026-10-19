@@ -337,6 +337,56 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The list and its new-entry notices show titles as plain text, though a
+	 * title can be stored with characters encoded as entities.
+	 */
+	public function test_titles_are_listed_as_plain_text() {
+		$cursor_entry_id = $this->create_entry_at( '2026-01-01 10:00:00' );
+		$entry_id        = $this->create_entry_at( '2026-01-01 11:00:00', [ 'post_title' => '&#91;Live&#93; Q&amp;A: turnout &lt;40%' ] );
+
+		$listed = array_column( $this->get_entries_view()->get_data()['entries'], 'title', 'id' );
+		$synced = array_column( $this->get_entries_view( [ 'since' => "{$cursor_entry_id}:2026-01-01 10:00:00" ] )->get_data()['changed'], 'title', 'id' );
+
+		$this->assertSame( '[Live] Q&A: turnout <40%', $listed[ $entry_id ], 'The list should show the title as plain text.' );
+		$this->assertSame( '[Live] Q&A: turnout <40%', $synced[ $entry_id ], 'A new-entry notice should show the title as plain text.' );
+	}
+
+	/**
+	 * The title filter finds a title by the text the list shows, whichever
+	 * way the title is stored.
+	 *
+	 * @dataProvider stored_title_provider
+	 *
+	 * @param string $stored_title Title as stored.
+	 * @param string $search       Text typed in the filter.
+	 */
+	public function test_title_filter_matches_titles_stored_with_entities( $stored_title, $search ) {
+		$entry_id = $this->create_entry_at( '2026-01-01 10:00:00', [ 'post_title' => $stored_title ] );
+		$this->create_entry_at( '2026-01-01 11:00:00', [ 'post_title' => 'Polls close' ] );
+
+		$this->assertSame( [ $entry_id ], $this->get_listed_entry_ids( [ 'title' => $search ] ) );
+	}
+
+	/**
+	 * Titles as stored, and filter text that should find them.
+	 *
+	 * Each search goes on past its `&`: the match ignores case, so `Q&A`
+	 * alone would find `Q&amp;A` by accident.
+	 *
+	 * @return array[]
+	 */
+	public function stored_title_provider() {
+		return [
+			'typed by someone who may post HTML'   => [ 'Fish & chips at noon', 'Fish & chips' ],
+			'typed by an author, as kses stores'   => [ 'The mayor\'s "fish &amp; chips"', 'mayor\'s "fish & chips"' ],
+			'< typed by someone who may post HTML' => [ 'Turnout <40% by noon', 'Turnout <40' ],
+			'< typed by an author'                 => [ 'Turnout &lt;40% by noon', 'Turnout <40' ],
+			'[ typed by an author'                 => [ '[Live] fish &amp; chips', '[Live] fish & chips' ],
+			'first line of a Slack message'        => [ '&#91;Live&#93; fish &amp; chips', '[Live] fish & chips' ],
+		];
+	}
+
+	/**
 	 * The "on" date filter covers the whole calendar day in the site's
 	 * timezone, not the UTC day.
 	 */

@@ -1881,6 +1881,9 @@ class Post_Type {
 	/**
 	 * Map a WP_Post into the EntryViewRow shape.
 	 *
+	 * The title and summary are decoded plain text, which the list shows as
+	 * text, never as HTML.
+	 *
 	 * @param WP_Post $post Post object.
 	 * @return array
 	 */
@@ -1892,7 +1895,7 @@ class Post_Type {
 
 		return [
 			'id'               => $post->ID,
-			'title'            => $post->post_title,
+			'title'            => html_entity_decode( $post->post_title, ENT_QUOTES | ENT_HTML5, 'UTF-8' ),
 			'slug'             => $post->post_name,
 			'summary'          => '' === trim( $post->post_title ) ? self::get_entry_summary( $post ) : '',
 			'date'             => mysql2date( 'c', $post->post_date, false ),
@@ -2297,10 +2300,21 @@ class Post_Type {
 		}
 
 		global $wpdb;
-		$like = '%' . $wpdb->esc_like( $title ) . '%';
+		// The list shows titles decoded, so match a title in each form it can
+		// be stored in: as typed by someone who may post unfiltered HTML, with
+		// `&`, `<` and `>` encoded by kses for anyone else, and with square
+		// brackets encoded too for the first line of a Slack message. The
+		// filter text is decoded first, since sanitize_text_field() encodes a
+		// `<` in it.
+		$typed        = html_entity_decode( $title, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$encoded      = htmlspecialchars( $typed, ENT_NOQUOTES, 'UTF-8' );
+		$typed_like   = '%' . $wpdb->esc_like( $typed ) . '%';
+		$encoded_like = '%' . $wpdb->esc_like( $encoded ) . '%';
+		$slack_like   = '%' . $wpdb->esc_like( str_replace( [ '[', ']' ], [ '&#91;', '&#93;' ], $encoded ) ) . '%';
 		// Untitled entries are listed by their first words, so match those too.
+		$like      = '%' . $wpdb->esc_like( $title ) . '%';
 		$html_like = '%' . $wpdb->esc_like( esc_html( $title ) ) . '%';
-		$where    .= $wpdb->prepare( " AND ( {$wpdb->posts}.post_title LIKE %s OR ( {$wpdb->posts}.post_title = '' AND ( {$wpdb->posts}.post_content LIKE %s OR {$wpdb->posts}.post_content LIKE %s ) ) )", $like, $like, $html_like );
+		$where    .= $wpdb->prepare( " AND ( {$wpdb->posts}.post_title LIKE %s OR {$wpdb->posts}.post_title LIKE %s OR {$wpdb->posts}.post_title LIKE %s OR ( {$wpdb->posts}.post_title = '' AND ( {$wpdb->posts}.post_content LIKE %s OR {$wpdb->posts}.post_content LIKE %s ) ) )", $typed_like, $encoded_like, $slack_like, $like, $html_like );
 
 		return $where;
 	}
