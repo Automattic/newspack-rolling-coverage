@@ -57,6 +57,8 @@ The feed also sends analytics events as readers see entries and when a poll fail
 
 Connect a Slack channel to a coverage, from the Slack Connection page or with the `/rolling-coverage-connect` slash command, and its messages become entries. Each channel's Publish Mode publishes them right away, saves them as drafts, or waits for an emoji reaction. The Slack sections of [`src/admin/DEVELOPMENT.md`](../src/admin/DEVELOPMENT.md) cover which messages become entries, Publish Mode, how authors are matched, titles and headings, and webhooks. The rest:
 
+- **Ignore prefix** — in Auto-publish and Draft channels, messages beginning with a configurable prefix (default `~~`) are skipped.
+- **Content conversion** — the message's Slack rich text (or its `mrkdwn` as the fallback) is converted to Gutenberg blocks, with user/channel/link mentions turned into readable text. Images uploaded with a message are imported into the media library and added as image blocks; other uploads are left out.
 - **Slash commands** — `/rolling-coverage-connect`, `/rolling-coverage-unlink`, `/rolling-coverage-status`.
 - **Security** — every webhook request is authenticated with HMAC-SHA256 signature verification (timing-safe `hash_equals`) and a 5-minute replay window.
 - **Dedup** — a per-message mutex plus a unique source-reference meta key prevents duplicate entries on webhook retries.
