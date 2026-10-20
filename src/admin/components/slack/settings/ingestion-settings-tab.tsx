@@ -205,7 +205,7 @@ function IngestionSettingsTab( {
 						setTopHeadingLevel( Number( next ) )
 					}
 					help={ __(
-						'When set, a first line that starts with # and a space becomes the entry title, and other lines that start with #, ## or ### become headings: # at this level, each extra # one level lower, down to Heading 6. After a title, ## takes this level instead. Most feed layouts show entry titles as Heading 4. Entries already added keep their formatting.',
+						"When set, a first line that starts with # and a space becomes the entry title, and other lines that start with #, ## or ### become headings. A message's highest heading takes this level and the others follow it, one level lower per extra #, down to Heading 6. Most feed layouts show entry titles as Heading 4. Entries already added keep their formatting.",
 						'newspack-rolling-coverage'
 					) }
 				/>

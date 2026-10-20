@@ -59,6 +59,15 @@ class Slack_Content_Processor {
 	private $title = '';
 
 	/**
+	 * Headings of the message being processed, as `[ depth, html ]`. Their
+	 * levels depend on the message's shallowest heading, so they are placed
+	 * once the whole message is rendered.
+	 *
+	 * @var array[]
+	 */
+	private $headings = [];
+
+	/**
 	 * Display names resolved so far, keyed by Slack user ID.
 	 *
 	 * @var array<string, string>
@@ -111,6 +120,7 @@ class Slack_Content_Processor {
 	 */
 	public function process( string $text, array $blocks = [] ): string {
 		$this->title             = '';
+		$this->headings          = [];
 		$this->channel_names     = $this->labels( '/<#([A-Z0-9]+)\|([^>]+)>/', $text );
 		$this->usergroup_handles = $this->labels( '/<!subteam\^([A-Z0-9]+)\|([^>]+)>/', $text );
 
@@ -119,10 +129,10 @@ class Slack_Content_Processor {
 		// A message that is only a title has no markup, and its mrkdwn copy
 		// would give a lesser title (emoji names, dropped group mentions).
 		if ( '' !== $markup || '' !== $this->title ) {
-			return $markup;
+			return $this->place_headings( $markup );
 		}
 
-		return $this->render_mrkdwn( $text );
+		return $this->place_headings( $this->render_mrkdwn( $text ) );
 	}
 
 	/**
@@ -644,7 +654,8 @@ class Slack_Content_Processor {
 	 *
 	 * @param array $block    Header block.
 	 * @param bool  $is_first Whether it opens the message.
-	 * @return string Block markup, or '' when it is the title or empty.
+	 * @return string Block markup or a heading's placeholder, or '' when it is
+	 *                the title or empty.
 	 */
 	private function render_header( array $block, bool $is_first ): string {
 		$text = trim( (string) ( $block['text']['text'] ?? '' ) );
@@ -665,7 +676,7 @@ class Slack_Content_Processor {
 			return '';
 		}
 
-		return $this->heading_markup( $depth, $html );
+		return $this->heading_placeholder( $depth, $html );
 	}
 
 	/**
@@ -682,34 +693,60 @@ class Slack_Content_Processor {
 	}
 
 	/**
-	 * A heading block for a line that starts with #, ## or ### and a space,
-	 * or '' for any other line.
+	 * A heading's placeholder for a line that starts with #, ## or ### and a
+	 * space (see place_headings()), or '' for any other line.
 	 *
 	 * @param string $line One line of inline HTML.
-	 * @return string Block markup, or ''.
+	 * @return string Placeholder, or ''.
 	 */
 	private function heading( string $line ): string {
 		$heading = $this->parse_heading( $line );
 
-		return null === $heading ? '' : $this->heading_markup( $heading['depth'], $heading['html'] );
+		return null === $heading ? '' : $this->heading_placeholder( $heading['depth'], $heading['html'] );
 	}
 
 	/**
-	 * A heading block for a marker depth: # at the chosen level, each extra
-	 * # one level lower, down to Heading 6. Once the message's first line is
-	 * its title, the body's headings move up one, so ## takes the chosen
-	 * level and no level is skipped; a later # can go no higher than ##.
+	 * Hold a heading's place until the message's shallowest heading is
+	 * known. The placeholder is a comment, which escaped message text can't
+	 * contain.
 	 *
 	 * @param int    $depth Number of # marks, from 1 to 3.
 	 * @param string $html  Heading content.
+	 * @return string Placeholder.
+	 */
+	private function heading_placeholder( int $depth, string $html ): string {
+		$this->headings[] = [ $depth, $html ];
+
+		return '<!-- newspack-rolling-coverage-heading ' . ( count( $this->headings ) - 1 ) . ' -->';
+	}
+
+	/**
+	 * Replace heading placeholders with heading blocks. The message's
+	 * shallowest heading takes the chosen level and the others follow it,
+	 * one level lower per extra #, down to Heading 6, so no level is skipped
+	 * whichever marker the message starts with.
+	 *
+	 * @param string $markup Block markup with heading placeholders.
 	 * @return string Block markup.
 	 */
-	private function heading_markup( int $depth, string $html ): string {
-		$depth      = '' !== $this->title ? max( 1, $depth - 1 ) : $depth;
-		$level      = min( 6, $this->top_heading_level + $depth - 1 );
-		$attributes = 2 === $level ? '' : ' ' . wp_json_encode( [ 'level' => $level ] );
+	private function place_headings( string $markup ): string {
+		if ( [] === $this->headings ) {
+			return $markup;
+		}
 
-		return '<!-- wp:heading' . $attributes . " -->\n<h" . $level . ' class="wp-block-heading">' . $html . '</h' . $level . ">\n<!-- /wp:heading -->";
+		$shallowest = min( array_column( $this->headings, 0 ) );
+
+		return (string) preg_replace_callback(
+			'/<!-- newspack-rolling-coverage-heading (\d+) -->/',
+			function ( $matches ) use ( $shallowest ) {
+				[ $depth, $html ] = $this->headings[ (int) $matches[1] ];
+				$level            = min( 6, $this->top_heading_level + $depth - $shallowest );
+				$attributes       = 2 === $level ? '' : ' ' . wp_json_encode( [ 'level' => $level ] );
+
+				return '<!-- wp:heading' . $attributes . " -->\n<h" . $level . ' class="wp-block-heading">' . $html . '</h' . $level . ">\n<!-- /wp:heading -->";
+			},
+			$markup
+		);
 	}
 
 	/**

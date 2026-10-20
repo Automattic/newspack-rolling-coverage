@@ -825,7 +825,7 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 		$content = $processor->process( '', self::rich_text( self::section( self::text( "## Ward 1\nCounted." ) ) ) );
 
 		$this->assertSame( '', $processor->get_title() );
-		$this->assertSame( [ [ 3, '<h3 class="wp-block-heading">Ward 1</h3>' ] ], self::headings( $content ) );
+		$this->assertSame( [ [ 2, '<h2 class="wp-block-heading">Ward 1</h2>' ] ], self::headings( $content ) );
 	}
 
 	/**
@@ -990,16 +990,57 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Once the first line is the title, the body's headings start at the
-	 * highest level allowed: ## takes it and ### the next, so no level is
-	 * skipped. A # later in the body can go no higher, so it takes it too.
+	 * Messages and the heading levels their # lines should get with the
+	 * highest heading at Heading 4.
+	 *
+	 * @return array[]
 	 */
-	public function test_headings_after_a_title_start_at_the_highest_level() {
-		$processor = new Slack_Content_Processor( null, 2 );
+	public function relative_heading_level_provider() {
+		return [
+			'## then ###'                => [ "## Heading\n\nText, etc, etc\n\n### Sub heading\n\nText, etc etc", '', [ 4, 5 ] ],
+			'## between paragraphs'      => [ "Text text text\n\n## Heading\n\nText text text", '', [ 4 ] ],
+			'## and ### under a title'   => [ "# Heading 1\n## Heading 2\n### Heading 3", 'Heading 1', [ 4, 5 ] ],
+			'a # after ## under a title' => [ "# Title\n## Heading 2\n### Heading 3\n# Heading 1", 'Title', [ 5, 6, 4 ] ],
+			'# to ### with no title'     => [ "Update:\n# One\n## Two\n### Three", '', [ 4, 5, 6 ] ],
+		];
+	}
 
-		$content = $processor->process( '', self::rich_text( self::section( self::text( "# Heading 1\n## Heading 2\n### Heading 3\n# Heading 1 again" ) ) ) );
+	/**
+	 * A message's shallowest heading takes the highest level allowed and the
+	 * others follow it, one level lower per extra #, so no level is skipped,
+	 * whichever marker the message starts its headings with.
+	 *
+	 * @dataProvider relative_heading_level_provider
+	 *
+	 * @param string $text     Message text.
+	 * @param string $title    Expected title.
+	 * @param int[]  $expected Expected heading levels, in order.
+	 */
+	public function test_shallowest_heading_takes_the_highest_level( $text, $title, $expected ) {
+		$processor = new Slack_Content_Processor( null, 4 );
 
-		$this->assertSame( 'Heading 1', $processor->get_title() );
-		$this->assertSame( [ 2, 3, 2 ], array_column( self::headings( $content ), 0 ) );
+		$content = $processor->process( '', self::rich_text( self::section( self::text( $text ) ) ) );
+
+		$this->assertSame( $title, $processor->get_title() );
+		$this->assertSame( $expected, array_column( self::headings( $content ), 0 ) );
+	}
+
+	/**
+	 * Header blocks follow the same rule as # lines.
+	 */
+	public function test_shallowest_header_block_takes_the_highest_level() {
+		$processor = new Slack_Content_Processor( null, 4 );
+
+		$content = $processor->process(
+			'',
+			[
+				self::header( 'Heading', 2 ),
+				self::rich_text( self::section( self::text( 'Text, etc, etc' ) ) )[0],
+				self::header( 'Sub heading', 3 ),
+				self::rich_text( self::section( self::text( 'Text, etc etc' ) ) )[0],
+			]
+		);
+
+		$this->assertSame( [ 4, 5 ], array_column( self::headings( $content ), 0 ) );
 	}
 }
