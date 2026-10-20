@@ -17,11 +17,16 @@ interface SlackEventEnvelope {
 
 /**
  * Message subtypes a person writes: a plain message, one that shares a file,
- * and a thread reply also sent to the channel. Any other subtype is skipped,
- * as Slack adds new notices over time. Keep in step with
+ * a thread reply also sent to the channel, and a `/me` message. Any other
+ * subtype is skipped, as Slack adds new notices over time. Keep in step with
  * `Slack_Ingestion_Service::INGESTED_SUBTYPES`.
  */
-const INGESTED_SUBTYPES = [ '', 'file_share', 'thread_broadcast' ];
+const INGESTED_SUBTYPES = [
+	'',
+	'file_share',
+	'thread_broadcast',
+	'me_message',
+];
 
 /** Slack HMAC presence check (header existence only — full verification runs server-side in Slack_Signature_Verifier). */
 function verifySlackSignature( req?: Request ): boolean {

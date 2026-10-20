@@ -16,16 +16,16 @@ class Slack_Ingestion_Service {
 
 	/**
 	 * Message subtypes a person writes: a plain message, one that shares a
-	 * file, and a thread reply also sent to the channel. The others are
-	 * edits, deletions and the notices Slack posts in the channel, such as
-	 * someone joining or setting the channel's description. Slack adds new
-	 * notices over time, so a subtype not listed here is skipped. Keep in
-	 * step with `SlackAdapter::shouldIngest()` in
+	 * file, a thread reply also sent to the channel, and a `/me` message.
+	 * Anything else is a bot's post, an edit, a deletion or a notice Slack
+	 * posts in the channel, such as someone joining or setting the channel's
+	 * description. Slack adds new notices over time, so a subtype not listed
+	 * here is skipped. Keep in step with `SlackAdapter::shouldIngest()` in
 	 * `src/admin/utils/slack-adapter.ts`.
 	 *
 	 * @var string[]
 	 */
-	const INGESTED_SUBTYPES = [ '', 'file_share', 'thread_broadcast' ];
+	const INGESTED_SUBTYPES = [ '', 'file_share', 'thread_broadcast', 'me_message' ];
 
 	/**
 	 * Drops bot messages, edits, deletions and Slack's notices, and, unless

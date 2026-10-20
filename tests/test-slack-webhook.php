@@ -613,7 +613,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	/**
 	 * An ordinary message is ingested, including one that merely contains the
 	 * skip prefix somewhere after its first character, one that shares a
-	 * file, and a thread reply also sent to the channel.
+	 * file, a thread reply also sent to the channel, and a `/me` message.
 	 */
 	public function test_keeps_reporter_messages() {
 		$this->assertFalse( Slack_Ingestion_Service::should_filter_message( [ 'text' => 'Polls have closed.' ] ), 'A plain message should be kept.' );
@@ -638,6 +638,15 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 			),
 			'A thread reply also sent to the channel should be kept.'
 		);
+		$this->assertFalse(
+			Slack_Ingestion_Service::should_filter_message(
+				[
+					'subtype' => 'me_message',
+					'text'    => 'is outside the county clerk\'s office.',
+				]
+			),
+			'A /me message should be kept.'
+		);
 	}
 
 	/**
@@ -645,15 +654,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	 * entry, even in a channel that publishes its messages straight away.
 	 */
 	public function test_channel_description_notice_creates_no_entry() {
-		self::configure_slack();
-		$coverage_id = self::create_coverage();
-		Slack_Config::update_channel(
-			self::CHANNEL_ID,
-			[
-				'term_id'     => $coverage_id,
-				'autopublish' => true,
-			]
-		);
+		$coverage_id = self::link_channel( Slack_Config::PUBLISH_MODE_PUBLISH );
 
 		$response = self::controller()->handle_event( self::webhook_request( self::message_event_body( self::channel_description_message() ) ) );
 

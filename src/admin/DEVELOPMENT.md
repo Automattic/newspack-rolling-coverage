@@ -225,13 +225,14 @@ The server needs no change beyond the ingest path writing the slug to the meta. 
 
 ## Slack messages that become entries
 
-Only messages a person writes become entries. `Slack_Ingestion_Service::should_filter_message()` decides, for message events and for a message read again after a trigger emoji. It keeps three subtypes (`Slack_Ingestion_Service::INGESTED_SUBTYPES`):
+Only messages a person writes become entries. `Slack_Ingestion_Service::should_filter_message()` decides, for message events and for a message read again after a trigger emoji. It keeps four subtypes (`Slack_Ingestion_Service::INGESTED_SUBTYPES`):
 
 - no subtype, an ordinary message;
-- `file_share`, a message that shares images;
-- `thread_broadcast`, a thread reply also sent to the channel.
+- `file_share`, a message that shares files (only its images are imported);
+- `thread_broadcast`, a thread reply also sent to the channel;
+- `me_message`, a `/me` message.
 
-Every other subtype is skipped: edits, deletions, and the notices Slack posts in the channel, such as someone joining, setting the channel's description, or pinning a message. Slack adds notices over time, so a subtype missing from the list is skipped rather than published. This includes `/me` messages (`me_message`). A message with a `bot_id` is skipped whatever its subtype.
+Every other subtype is skipped: bots' posts, edits, deletions, and the notices Slack posts in the channel, such as someone joining, setting the channel's description, or pinning a message. Slack adds notices over time, so a subtype missing from the list is skipped rather than published. A message with a `bot_id` is skipped whatever its subtype. The Monitor tab's line for a skipped message records its subtype.
 
 `SlackAdapter::shouldIngest()` in `src/admin/utils/slack-adapter.ts` keeps its own copy of the list. Change both together.
 
