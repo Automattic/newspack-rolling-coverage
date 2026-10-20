@@ -696,13 +696,16 @@ class Slack_Content_Processor {
 
 	/**
 	 * A heading block for a marker depth: # at the chosen level, each extra
-	 * # one level lower, down to Heading 6.
+	 * # one level lower, down to Heading 6. Once the message's first line is
+	 * its title, the body's headings move up one, so ## takes the chosen
+	 * level and no level is skipped; a later # can go no higher than ##.
 	 *
 	 * @param int    $depth Number of # marks, from 1 to 3.
 	 * @param string $html  Heading content.
 	 * @return string Block markup.
 	 */
 	private function heading_markup( int $depth, string $html ): string {
+		$depth      = '' !== $this->title ? max( 1, $depth - 1 ) : $depth;
 		$level      = min( 6, $this->top_heading_level + $depth - 1 );
 		$attributes = 2 === $level ? '' : ' ' . wp_json_encode( [ 'level' => $level ] );
 

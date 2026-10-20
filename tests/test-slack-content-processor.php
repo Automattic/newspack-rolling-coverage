@@ -922,7 +922,7 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 	/**
 	 * Slack's composer can turn # lines into header blocks of their own.
 	 * They follow the same rules as # lines: a first level-1 header is the
-	 * title, and the others are headings at the chosen level.
+	 * title, and the others are headings, starting at the chosen level.
 	 */
 	public function test_header_blocks_become_the_title_and_headings() {
 		$processor = new Slack_Content_Processor( null, 2 );
@@ -940,8 +940,8 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 		$this->assertSame( 'Title', $processor->get_title() );
 		$this->assertSame(
 			[
-				[ 3, '<h3 class="wp-block-heading">Subtitle</h3>' ],
-				[ 4, '<h4 class="wp-block-heading">Heading 3</h4>' ],
+				[ 2, '<h2 class="wp-block-heading">Subtitle</h2>' ],
+				[ 3, '<h3 class="wp-block-heading">Heading 3</h3>' ],
 			],
 			self::headings( $content )
 		);
@@ -986,6 +986,20 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 		$content = $processor->process( '', [ self::header( 'Live [gallery] <b>now</b>', 1 ), self::header( 'Q&A [x]', 2 ) ] );
 
 		$this->assertSame( 'Live &#91;gallery&#93; &lt;b&gt;now&lt;/b&gt;', $processor->get_title() );
-		$this->assertStringContainsString( '<h3 class="wp-block-heading">Q&amp;A &#91;x&#93;</h3>', $content );
+		$this->assertStringContainsString( '<h2 class="wp-block-heading">Q&amp;A &#91;x&#93;</h2>', $content );
+	}
+
+	/**
+	 * Once the first line is the title, the body's headings start at the
+	 * highest level allowed: ## takes it and ### the next, so no level is
+	 * skipped. A # later in the body can go no higher, so it takes it too.
+	 */
+	public function test_headings_after_a_title_start_at_the_highest_level() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
+		$content = $processor->process( '', self::rich_text( self::section( self::text( "# Heading 1\n## Heading 2\n### Heading 3\n# Heading 1 again" ) ) ) );
+
+		$this->assertSame( 'Heading 1', $processor->get_title() );
+		$this->assertSame( [ 2, 3, 2 ], array_column( self::headings( $content ), 0 ) );
 	}
 }
