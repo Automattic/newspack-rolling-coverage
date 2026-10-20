@@ -82,9 +82,9 @@ When the OneSignal plugin is installed, configured, and v3-active, readers can f
 
 ### Social sharing and deep links
 
-- The share block shares or copies a link that includes `?rc_source={host_post_id}` so the entry can redirect back to the embedding page and scroll to the entry anchor.
-- Entries with a canonical URL redirect to the canonical coverage page with `#newspack-rolling-coverage-entry-{id}`.
-- Social crawlers receive the entry's own Open Graph tags (JS redirect), while visitors get a server-side 302.
+- **Share links.** The Share block shares the entry's permalink with `?rc_source={host_post_id}`, the page it was shared from. The entry page serves its own Open Graph tags to social crawlers, which don't run JavaScript, and a script sends visitors on to the host page.
+- **Plain permalinks.** When the entry's coverage has a canonical URL, a request for the entry's permalink without `rc_source` is redirected (302 by default) to that URL, for crawlers and visitors alike. Without a canonical URL, the entry page renders.
+- Both destinations carry `?rolling-coverage-entry={slug}` and the `#newspack-rolling-coverage-entry-{id}` anchor, so the feed opens at the entry.
 
 See [Share and Read more](../src/blocks/rolling-coverage/DEVELOPMENT.md#share-and-read-more).
 
@@ -186,12 +186,16 @@ Sensitive Slack/source meta (`RESTRICTED_META` in `Post_Type`) is stripped from 
 
 | Meta key | Description | REST |
 | :--- | :--- | :--- |
-| `rolling_coverage_source_entry_id` | Reverse link to the entry the post broke out of | — |
+| `rolling_coverage_source_entry_id` | Reverse link to the entry the post broke out of | edit only, read-only (as the REST field `rolling_coverage_source_entry`, not as meta; 0 unless the entry is publicly viewable) |
 | `rolling_coverage_breakout_label` | The post's own Full story label; empty uses the site's | edit only |
 
 ### User meta
 
 - `rolling_coverage_slack_handle` — the user's Slack member ID or handle, matched against Slack message authors. See [Slack authors](../src/admin/DEVELOPMENT.md#slack-authors).
+
+### Layout pattern meta
+
+- `_rolling_coverage_layout` — on each built-in layout's `wp_block` pattern, the layout's slug. When the `rolling_coverage_{slug}_layout_id` option is missing, the plugin finds the pattern by this key and repairs the option, so deleting it breaks that fallback.
 
 ## REST API
 
@@ -239,7 +243,18 @@ Namespace: **`rolling-coverage/v1`** (constant `NEWSPACK_ROLLING_COVERAGE_REST_N
 | POST | `/slack/commands` | Slack signature | Slash commands. |
 | POST | `/slack/interactions` | Slack signature | Interactive components. |
 
-Core WordPress routes are also used: `/wp/v2/rolling-coverage` (coverages) and `/wp/v2/rolling-coverage-entries` (entries, including trash/force delete).
+Core WordPress routes are also used: `/wp/v2/rolling-coverage` (coverages) and `/wp/v2/rolling-coverage-entries` (entries, including trash/force delete). The plugin adds these read-only fields to their responses:
+
+| Route | Field | Context | Value |
+| :--- | :--- | :--- | :--- |
+| Entries | `pinned` | view, edit | Whether the entry is pinned. |
+| Entries | `coverageStatus` | view, edit | The status of the entry's coverage. |
+| Entries | `rolling_coverage_breakout_status` | edit | The linked breakout post's status. |
+| Entries | `rolling_coverage_has_notifiable_coverage` | edit | Whether the entry's coverage has the canonical URL push notifications need. |
+| Coverages | `pageUrl` | view, edit | The coverage's page; empty without `edit_posts`. |
+| Coverages | `placements` | view, edit | Published places that show the coverage, the main page first. |
+| Coverages | `newestEntry` | view, edit | When the newest published entry went out (ISO 8601); null without `edit_posts`. |
+| Posts | `rolling_coverage_source_entry` | edit | The entry the post broke out of, or 0. |
 
 The `entries-view` endpoint accepts `page`, `per_page`, `orderby` (`date`\|`modified`), `order`, `search`, `status`, `status_exclude`, `source`, `source_exclude`, `author`, `title`, `post_id`, `breakout_status`, `breakout_status_exclude`, `archived`, `category_search`, `tag_search`, `date_filter`, `modified_filter`, and `since`. The sync cursor format is `{id}:{modified_gmt}`.
 
@@ -297,7 +312,7 @@ Each sets the default its filter starts from, so a filter callback still wins.
 - `rc_tpl_{coverage_id}_{hash}` (hashed block template/config for polling renders).
 - Transient `rolling_coverage_slack_user_{id}` (Slack user cache, 5 min).
 - Schema cache: object cache key `nrc_{coverage_id}_{hash}` in the `newspack_rolling_coverage_schema` group (1 week).
-- Object cache groups `newspack_rolling_coverage_breakout_card` (breakout posts' generated summaries) and `newspack_rolling_coverage_url_post_id` (the post IDs embed URLs on this site resolve to).
+- Object cache groups `newspack_rolling_coverage_breakout_card` (breakout posts' generated summaries), `newspack_rolling_coverage_url_post_id` (the post IDs embed URLs on this site resolve to), and `newspack-rolling-coverage-breakouts` (each coverage's latest published breakout post, for the ended notice's link).
 
 Useful query vars for developers on `WP_Query`:
 

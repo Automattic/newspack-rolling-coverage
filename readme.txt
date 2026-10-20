@@ -43,7 +43,7 @@ Setting a coverage's status to Ended stops the feed from checking for new entrie
 
 = Do readers need to reload the page to see new entries? =
 
-No. The coverage feed polls for new entries and inserts them automatically, and visitors who are scrolled back through the history continue to see their position.
+No. The feed checks for new entries and adds them as they arrive. On a feed that shows all entries, readers who have scrolled down keep their place and see a button with the number of new entries instead, and a Check for Updates block in the layout makes the feed check only when a reader presses it. A paused or ended coverage doesn't check on its own.
 
 = Can I summarize a coverage automatically? =
 
