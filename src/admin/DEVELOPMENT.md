@@ -279,6 +279,7 @@ Slack has no headings, so `Slack_Content_Processor` can turn lines that start wi
 - The setting applies when a message becomes an entry, like the rest of its formatting. Changing it leaves existing entries as they are.
 - Only top-level text gets a title or headings. In rich text, a marked line stays as text in a quote, a list item or a code block. It also stays as text when the marker is in inline code, has no space after it (as in a channel mention such as `#newsroom`), or has no visible text after it.
 - Bold, italic or strikethrough covering the whole line carries over to a heading; the title is plain text. A style that covers only the marker leaves the line as text.
+- Slack's composer can turn a `#`, `##` or `###` line into a `header` block of its own, with a `level` of 1 to 3, instead of sending the marker as text. Header blocks follow the same rules: a first level-1 header is the title, the others are headings. With headings Off, a header's text becomes a paragraph, so the line isn't lost.
 - The mrkdwn fallback, used when a message's rich text renders nothing, makes titles and headings the same way. It has no code blocks, so a `#` line between ``` fences becomes a heading there.
 
 Tests: `tests/test-slack-content-processor.php`, `tests/test-entry-ingestion-service.php`, `tests/test-slack-config.php`, `tests/test-slack-webhook.php`.

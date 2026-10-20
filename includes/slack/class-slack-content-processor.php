@@ -12,10 +12,11 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Converts a Slack message to block markup, keeping the formatting its author
  * used: paragraphs, line breaks, bold, italic, strikethrough, inline code,
- * links, lists, quotes, code blocks and emoji. Slack has no headings, so once
- * a site picks a heading level, lines starting with #, ## or ### become
- * headings, as in Markdown, and a first line starting with # becomes the
- * entry's title.
+ * links, lists, quotes, code blocks and emoji. Once a site picks a heading
+ * level, lines starting with #, ## or ### become headings, as in Markdown,
+ * and a first line starting with # becomes the entry's title. Slack's
+ * composer may send those lines as text or turn them into header blocks of
+ * their own; both follow the same rules.
  */
 class Slack_Content_Processor {
 
@@ -206,6 +207,12 @@ class Slack_Content_Processor {
 		$is_first = true;
 
 		foreach ( $blocks as $block ) {
+			if ( is_array( $block ) && 'header' === ( $block['type'] ?? '' ) ) {
+				$output[] = $this->render_header( $block, $is_first );
+				$is_first = false;
+				continue;
+			}
+
 			if ( ! is_array( $block ) || 'rich_text' !== ( $block['type'] ?? '' ) || ! is_array( $block['elements'] ?? null ) ) {
 				continue;
 			}
@@ -624,10 +631,54 @@ class Slack_Content_Processor {
 			return $html;
 		}
 
-		$text        = html_entity_decode( wp_strip_all_tags( $heading['html'] ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-		$this->title = str_replace( [ '[', ']' ], [ '&#91;', '&#93;' ], htmlspecialchars( trim( $text ), ENT_NOQUOTES, 'UTF-8' ) );
+		$this->title = $this->title_text( $heading['html'] );
 
 		return $lines[1] ?? '';
+	}
+
+	/**
+	 * Render a header block, which Slack's composer can make of a line typed
+	 * with #, ## or ###, by the same rules as a marked line: a first level-1
+	 * header is the title, the others are headings. With headings off, its
+	 * text is a paragraph, so the line isn't lost.
+	 *
+	 * @param array $block    Header block.
+	 * @param bool  $is_first Whether it opens the message.
+	 * @return string Block markup, or '' when it is the title or empty.
+	 */
+	private function render_header( array $block, bool $is_first ): string {
+		$text = trim( (string) ( $block['text']['text'] ?? '' ) );
+
+		if ( '' === $text ) {
+			return '';
+		}
+
+		$html  = $this->escape( $text );
+		$depth = max( 1, min( 3, (int) ( $block['level'] ?? 1 ) ) );
+
+		if ( Slack_Config::HEADINGS_OFF === $this->top_heading_level ) {
+			return $this->paragraphs( $html );
+		}
+
+		if ( $is_first && 1 === $depth ) {
+			$this->title = $this->title_text( $html );
+			return '';
+		}
+
+		return $this->heading_markup( $depth, $html );
+	}
+
+	/**
+	 * The entry title for a heading's inline HTML: plain text, with `<`, `>`,
+	 * `&` and square brackets encoded (see get_title()).
+	 *
+	 * @param string $html Inline HTML.
+	 * @return string Title.
+	 */
+	private function title_text( string $html ): string {
+		$text = html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+
+		return str_replace( [ '[', ']' ], [ '&#91;', '&#93;' ], htmlspecialchars( trim( $text ), ENT_NOQUOTES, 'UTF-8' ) );
 	}
 
 	/**
@@ -640,14 +691,22 @@ class Slack_Content_Processor {
 	private function heading( string $line ): string {
 		$heading = $this->parse_heading( $line );
 
-		if ( null === $heading ) {
-			return '';
-		}
+		return null === $heading ? '' : $this->heading_markup( $heading['depth'], $heading['html'] );
+	}
 
-		$level      = min( 6, $this->top_heading_level + $heading['depth'] - 1 );
+	/**
+	 * A heading block for a marker depth: # at the chosen level, each extra
+	 * # one level lower, down to Heading 6.
+	 *
+	 * @param int    $depth Number of # marks, from 1 to 3.
+	 * @param string $html  Heading content.
+	 * @return string Block markup.
+	 */
+	private function heading_markup( int $depth, string $html ): string {
+		$level      = min( 6, $this->top_heading_level + $depth - 1 );
 		$attributes = 2 === $level ? '' : ' ' . wp_json_encode( [ 'level' => $level ] );
 
-		return '<!-- wp:heading' . $attributes . " -->\n<h" . $level . ' class="wp-block-heading">' . $heading['html'] . '</h' . $level . ">\n<!-- /wp:heading -->";
+		return '<!-- wp:heading' . $attributes . " -->\n<h" . $level . ' class="wp-block-heading">' . $html . '</h' . $level . ">\n<!-- /wp:heading -->";
 	}
 
 	/**

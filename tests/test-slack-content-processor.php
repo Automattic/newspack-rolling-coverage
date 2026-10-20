@@ -898,4 +898,94 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 		$this->assertSame( "Polls closed \u{1F389}", $processor->get_title() );
 		$this->assertSame( '', $content );
 	}
+
+	/**
+	 * A header block, as Slack's composer sends a line it turned into a
+	 * heading.
+	 *
+	 * @param string $text  Header text.
+	 * @param int    $level Header level, 1 for #.
+	 * @return array
+	 */
+	private static function header( $text, $level ) {
+		return [
+			'type'  => 'header',
+			'text'  => [
+				'type'  => 'plain_text',
+				'text'  => $text,
+				'emoji' => true,
+			],
+			'level' => $level,
+		];
+	}
+
+	/**
+	 * Slack's composer can turn # lines into header blocks of their own.
+	 * They follow the same rules as # lines: a first level-1 header is the
+	 * title, and the others are headings at the chosen level.
+	 */
+	public function test_header_blocks_become_the_title_and_headings() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
+		$content = $processor->process(
+			"Title Subtitle Heading 3 \nText",
+			[
+				self::header( 'Title', 1 ),
+				self::header( 'Subtitle', 2 ),
+				self::header( 'Heading 3', 3 ),
+				self::rich_text( self::section( self::text( "\nText" ) ) )[0],
+			]
+		);
+
+		$this->assertSame( 'Title', $processor->get_title() );
+		$this->assertSame(
+			[
+				[ 3, '<h3 class="wp-block-heading">Subtitle</h3>' ],
+				[ 4, '<h4 class="wp-block-heading">Heading 3</h4>' ],
+			],
+			self::headings( $content )
+		);
+		$this->assertSame( [ 'core/heading', 'core/heading', 'core/paragraph' ], self::block_names( $content ) );
+		$this->assertStringContainsString( '<p>Text</p>', $content );
+	}
+
+	/**
+	 * A level-1 header after the message's text is a heading, not the title.
+	 */
+	public function test_header_block_after_text_is_a_heading() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
+		$content = $processor->process( 'Polls closed Results', [ self::rich_text( self::section( self::text( 'Polls closed.' ) ) )[0], self::header( 'Results', 1 ) ] );
+
+		$this->assertSame( '', $processor->get_title() );
+		$this->assertSame( [ [ 2, '<h2 class="wp-block-heading">Results</h2>' ] ], self::headings( $content ) );
+	}
+
+	/**
+	 * With headings off, header blocks keep their text as paragraphs rather
+	 * than disappearing.
+	 */
+	public function test_header_blocks_keep_their_text_when_headings_are_off() {
+		$processor = new Slack_Content_Processor();
+
+		$content = $processor->process( 'Title Text', [ self::header( 'Title', 1 ), self::header( 'Subtitle', 2 ), self::rich_text( self::section( self::text( 'Text' ) ) )[0] ] );
+
+		$this->assertSame( '', $processor->get_title() );
+		$this->assertSame( [ 'core/paragraph', 'core/paragraph', 'core/paragraph' ], self::block_names( $content ) );
+		$this->assertStringContainsString( '<p>Title</p>', $content );
+		$this->assertStringContainsString( '<p>Subtitle</p>', $content );
+	}
+
+	/**
+	 * A header's text is escaped like the rest of the message, square
+	 * brackets included, in a heading and in the title.
+	 */
+	public function test_header_block_text_is_escaped() {
+		$processor = new Slack_Content_Processor( null, 2 );
+
+		$content = $processor->process( '', [ self::header( 'Live [gallery] <b>now</b>', 1 ), self::header( 'Q&A [x]', 2 ) ] );
+
+		$this->assertSame( 'Live &#91;gallery&#93; &lt;b&gt;now&lt;/b&gt;', $processor->get_title() );
+		$this->assertStringContainsString( '<h3 class="wp-block-heading">Q&amp;A &#91;x&#93;</h3>', $content );
+	}
 }
