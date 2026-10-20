@@ -697,8 +697,8 @@ class Slack_Content_Processor {
 	 * level or higher; otherwise it stays a heading, since the message has
 	 * sections rather than one headline. The shallowest heading left takes
 	 * the chosen level and the others follow it, one level lower per extra
-	 * #, down to Heading 6, so no level is skipped whichever marker the
-	 * message starts with.
+	 * #, down to Heading 6, so no level is skipped whichever marker its
+	 * headings start with.
 	 *
 	 * @param string $markup Block markup with heading placeholders.
 	 * @return string Block markup.
