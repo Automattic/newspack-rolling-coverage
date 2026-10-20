@@ -75,7 +75,7 @@
 		"@wordpress/editor": "^15.2.0",
 		"@wordpress/element": "^8.7.0",
 		"@wordpress/i18n": "^6.30.0",
-		"@wordpress/icons": "^16.0.0",
+		"@wordpress/icons": "^18.0.0",
 		"@wordpress/notices": "^5.55.0",
 		"@wordpress/preferences": "^4.55.0",
 		"@wordpress/ui": "^0.24.0",
