@@ -899,7 +899,14 @@ class Slack_Webhook_Controller {
 
 			// 1. Filter — Slack-specific rules from Slack_Ingestion_Service.
 			if ( Slack_Ingestion_Service::should_filter_message( $event ) ) {
-				Slack_Monitor::log( 'info', 'Message filtered (bot/edit/delete/join-leave/ignore prefix)', [ 'channel' => $event['channel'] ?? '' ] );
+				Slack_Monitor::log(
+					'info',
+					'Message filtered (bot, edit, delete, Slack notice or ignore prefix)',
+					[
+						'channel' => $event['channel'] ?? '',
+						'subtype' => (string) ( $event['subtype'] ?? '' ),
+					]
+				);
 				return new \WP_REST_Response( [ 'ok' => true ], 200 );
 			}
 
@@ -1132,7 +1139,7 @@ class Slack_Webhook_Controller {
 		$user_id = (string) ( $message['user'] ?? '' );
 
 		if ( '' === $user_id || Slack_Ingestion_Service::should_filter_message( $message, false ) ) {
-			Slack_Monitor::log( 'info', 'Reacted message filtered (bot, join/leave, or no author)', $context );
+			Slack_Monitor::log( 'info', 'Reacted message filtered (bot, Slack notice or no author)', $context + [ 'subtype' => (string) ( $message['subtype'] ?? '' ) ] );
 			return $ok;
 		}
 

@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-19T18:49:17+00:00\n"
+"POT-Creation-Date: 2026-10-20T14:58:54+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -89,7 +89,7 @@ msgstr ""
 #: includes/blocks/class-rolling-coverage-block.php:4813
 #: includes/blocks/class-rolling-coverage-block.php:5013
 #: includes/blocks/class-rolling-coverage-block.php:5024
-#: includes/class-post-type.php:1298
+#: includes/class-post-type.php:1311
 #: includes/class-taxonomy.php:345
 msgid "Coverage not found."
 msgstr ""
@@ -538,9 +538,9 @@ msgstr ""
 
 #: includes/class-archive-mode.php:285
 #: includes/class-breakout.php:260
-#: includes/class-post-type.php:1215
-#: includes/class-post-type.php:3071
-#: includes/class-post-type.php:3476
+#: includes/class-post-type.php:1228
+#: includes/class-post-type.php:3096
+#: includes/class-post-type.php:3501
 msgid "Entry not found."
 msgstr ""
 
@@ -716,96 +716,96 @@ msgstr ""
 msgid "This coverage is in the trash. Restore it before adding entries."
 msgstr ""
 
-#: includes/class-post-type.php:2804
-#: includes/class-post-type.php:2888
+#: includes/class-post-type.php:2829
+#: includes/class-post-type.php:2913
 msgid "No entry IDs provided."
 msgstr ""
 
-#: includes/class-post-type.php:2820
+#: includes/class-post-type.php:2845
 msgid "You do not have permission to restore this entry."
 msgstr ""
 
-#: includes/class-post-type.php:2896
+#: includes/class-post-type.php:2921
 msgid "The slug and date can only be changed one entry at a time."
 msgstr ""
 
-#: includes/class-post-type.php:2915
+#: includes/class-post-type.php:2940
 msgid "That person can’t be the author of an entry."
 msgstr ""
 
-#: includes/class-post-type.php:2928
+#: includes/class-post-type.php:2953
 msgid "That date isn’t valid."
 msgstr ""
 
-#: includes/class-post-type.php:2955
+#: includes/class-post-type.php:2980
 msgid "Nothing to change."
 msgstr ""
 
-#: includes/class-post-type.php:3075
+#: includes/class-post-type.php:3100
 msgid "You do not have permission to edit this entry."
 msgstr ""
 
-#: includes/class-post-type.php:3079
+#: includes/class-post-type.php:3104
 msgid "This entry is archived, so it can’t be edited."
 msgstr ""
 
-#: includes/class-post-type.php:3090
+#: includes/class-post-type.php:3115
 msgid "A published entry can’t have a date in the future."
 msgstr ""
 
-#: includes/class-post-type.php:3094
+#: includes/class-post-type.php:3119
 msgid "Saving this entry would publish it, and you do not have permission to publish it."
 msgstr ""
 
-#: includes/class-post-type.php:3139
+#: includes/class-post-type.php:3164
 msgid "Co-Authors Plus couldn’t credit this entry to that person."
 msgstr ""
 
-#: includes/class-post-type.php:3208
+#: includes/class-post-type.php:3233
 msgid "One of the chosen categories doesn’t exist."
 msgstr ""
 
-#: includes/class-post-type.php:3209
+#: includes/class-post-type.php:3234
 msgid "One of the chosen tags doesn’t exist."
 msgstr ""
 
-#: includes/class-post-type.php:3243
+#: includes/class-post-type.php:3268
 msgid "You don’t have permission to assign one of the chosen categories."
 msgstr ""
 
-#: includes/class-post-type.php:3244
+#: includes/class-post-type.php:3269
 msgid "You don’t have permission to assign one of the chosen tags."
 msgstr ""
 
-#: includes/class-post-type.php:3254
+#: includes/class-post-type.php:3279
 msgid "You don’t have permission to create categories."
 msgstr ""
 
-#: includes/class-post-type.php:3255
+#: includes/class-post-type.php:3280
 msgid "You don’t have permission to create tags."
 msgstr ""
 
-#: includes/class-post-type.php:3445
+#: includes/class-post-type.php:3470
 msgid "An editor needs to restore the coverage before this entry can be restored."
 msgstr ""
 
-#: includes/class-post-type.php:3484
+#: includes/class-post-type.php:3509
 msgid "Entry is not in trash."
 msgstr ""
 
-#: includes/class-post-type.php:3492
+#: includes/class-post-type.php:3517
 msgid "This entry is archived, so it can’t be restored."
 msgstr ""
 
-#: includes/class-post-type.php:3543
+#: includes/class-post-type.php:3568
 msgid "This entry's coverage was deleted. An editor needs to restore it."
 msgstr ""
 
-#: includes/class-post-type.php:3565
+#: includes/class-post-type.php:3590
 msgid "This entry has no coverage context to restore to."
 msgstr ""
 
-#: includes/class-post-type.php:3623
+#: includes/class-post-type.php:3648
 msgid "Failed to restore entry."
 msgstr ""
 
@@ -970,37 +970,37 @@ msgstr ""
 msgid "Publish mode is now %1$s. %2$s"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1025
+#: includes/slack/class-slack-webhook-controller.php:1032
 msgid "👋 I'm now connected and will ingest messages for rolling coverage."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1347
+#: includes/slack/class-slack-webhook-controller.php:1354
 msgid "This command is not available for your workspace."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1360
+#: includes/slack/class-slack-webhook-controller.php:1367
 msgid "Unknown command."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1381
+#: includes/slack/class-slack-webhook-controller.php:1388
 msgid "Select a Rolling Coverage"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1389
+#: includes/slack/class-slack-webhook-controller.php:1396
 msgid "Type to search..."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1401
+#: includes/slack/class-slack-webhook-controller.php:1408
 msgid "Connect Channel"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1405
+#: includes/slack/class-slack-webhook-controller.php:1412
 #: dist/admin.js:212
 #: dist/admin.js:220
 msgid "Connect"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1409
+#: includes/slack/class-slack-webhook-controller.php:1416
 #: dist/admin.js:211
 #: dist/admin.js:212
 #: dist/admin.js:219
@@ -1009,86 +1009,86 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1417
+#: includes/slack/class-slack-webhook-controller.php:1424
 msgid "Failed to open the connect modal. Please try again."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1433
-#: includes/slack/class-slack-webhook-controller.php:1461
+#: includes/slack/class-slack-webhook-controller.php:1440
+#: includes/slack/class-slack-webhook-controller.php:1468
 msgid "This channel is not connected to any coverage."
 msgstr ""
 
 #. translators: 1: coverage name
-#: includes/slack/class-slack-webhook-controller.php:1444
+#: includes/slack/class-slack-webhook-controller.php:1451
 #, php-format
 msgid "Disconnected from \"%1$s\"."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1447
+#: includes/slack/class-slack-webhook-controller.php:1454
 msgid "Channel unlinked successfully."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1466
+#: includes/slack/class-slack-webhook-controller.php:1473
 #: dist/admin.js:243
 msgid "(unknown)"
 msgstr ""
 
 #. translators: 1: coverage name, 2: what happens to messages posted in the channel
-#: includes/slack/class-slack-webhook-controller.php:1471
+#: includes/slack/class-slack-webhook-controller.php:1478
 #, php-format
 msgid "Connected to \"%1$s\". %2$s"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1718
+#: includes/slack/class-slack-webhook-controller.php:1725
 #: dist/admin.js:212
 msgid "Auto-publish"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1720
+#: includes/slack/class-slack-webhook-controller.php:1727
 #: dist/admin.js:212
 msgid "Emoji trigger"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1722
+#: includes/slack/class-slack-webhook-controller.php:1729
 #: dist/admin.js:211
 #: dist/admin.js:212
 #: dist/admin.js:232
 msgid "Draft"
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1736
+#: includes/slack/class-slack-webhook-controller.php:1743
 msgid "New messages are published right away."
 msgstr ""
 
 #. translators: 1: emoji name that publishes a message, 2: emoji name that saves it as a draft
-#: includes/slack/class-slack-webhook-controller.php:1740
+#: includes/slack/class-slack-webhook-controller.php:1747
 #, php-format
 msgid "React to a message with :%1$s: to publish it, or :%2$s: to save it as a draft."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1745
+#: includes/slack/class-slack-webhook-controller.php:1752
 msgid "New messages are saved as drafts."
 msgstr ""
 
 #. translators: 1: coverage name, 2: what happens to messages posted in the channel
-#: includes/slack/class-slack-webhook-controller.php:1806
+#: includes/slack/class-slack-webhook-controller.php:1813
 #, php-format
 msgid "✅ This channel is now connected to the \"%1$s\" coverage. %2$s"
 msgstr ""
 
 #. translators: %s: what happens to messages posted in the channel
-#: includes/slack/class-slack-webhook-controller.php:1812
+#: includes/slack/class-slack-webhook-controller.php:1819
 #, php-format
 msgid "✅ This channel is now connected to rolling coverage. %s"
 msgstr ""
 
 #. translators: 1: coverage name
-#: includes/slack/class-slack-webhook-controller.php:1856
+#: includes/slack/class-slack-webhook-controller.php:1863
 #, php-format
 msgid "🔌 This channel is no longer connected to the \"%1$s\" coverage."
 msgstr ""
 
-#: includes/slack/class-slack-webhook-controller.php:1859
+#: includes/slack/class-slack-webhook-controller.php:1866
 msgid "🔌 This channel is no longer connected to rolling coverage."
 msgstr ""
 
