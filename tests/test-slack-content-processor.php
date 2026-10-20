@@ -802,14 +802,13 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A first line starting with a single # is the entry's title, taken out
-	 * of the content, so the feed layout gives it the level entry titles
-	 * have.
+	 * A first line starting with # is the entry's title, taken out of the
+	 * content, so the feed layout gives it the level entry titles have.
 	 */
 	public function test_first_line_with_one_marker_becomes_the_title() {
 		$processor = new Slack_Content_Processor( null, 2 );
 
-		$content = $processor->process( '', self::rich_text( self::section( self::text( "# Results are in\nWard 1 is counted.\n# Ward 2" ) ) ) );
+		$content = $processor->process( '', self::rich_text( self::section( self::text( "# Results are in\nWard 1 is counted.\n## Ward 2" ) ) ) );
 
 		$this->assertSame( 'Results are in', $processor->get_title() );
 		$this->assertSame( [ 'core/paragraph', 'core/heading' ], self::block_names( $content ), 'Only the first line should become the title.' );
@@ -817,15 +816,41 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A first line starting with ## or ### stays a heading in the content.
+	 * Messages whose first line is a heading, the title they should give,
+	 * and the levels of the headings left in the content, with the highest
+	 * heading at Heading 2.
+	 *
+	 * @return array[]
 	 */
-	public function test_deeper_first_line_stays_a_heading() {
+	public function first_line_title_provider() {
+		return [
+			'## alone'                   => [ "## Ward 1\nCounted.", 'Ward 1', [] ],
+			'### above a deeper heading' => [ "### Ward 1\nCounted.\n#### not a heading", 'Ward 1', [] ],
+			'## above ###'               => [ "## Ward 1\nCounted.\n### Precinct A", 'Ward 1', [ 2 ] ],
+			'## with another ##'         => [ "## Ward 1\nCounted.\n## Ward 2", '', [ 2, 2 ] ],
+			'## with a # below'          => [ "## Ward 1\nCounted.\n# Results", '', [ 3, 2 ] ],
+			'# with another #'           => [ "# Results\nCounted.\n# More results", '', [ 2, 2 ] ],
+		];
+	}
+
+	/**
+	 * A first line starting with #, ## or ### is the title when no other
+	 * heading in the message is at its level or higher. With a competing
+	 * heading, it stays a heading.
+	 *
+	 * @dataProvider first_line_title_provider
+	 *
+	 * @param string $text     Message text.
+	 * @param string $title    Expected title.
+	 * @param int[]  $expected Expected levels of the headings in the content.
+	 */
+	public function test_first_line_heading_is_the_title_without_competition( $text, $title, $expected ) {
 		$processor = new Slack_Content_Processor( null, 2 );
 
-		$content = $processor->process( '', self::rich_text( self::section( self::text( "## Ward 1\nCounted." ) ) ) );
+		$content = $processor->process( '', self::rich_text( self::section( self::text( $text ) ) ) );
 
-		$this->assertSame( '', $processor->get_title() );
-		$this->assertSame( [ [ 2, '<h2 class="wp-block-heading">Ward 1</h2>' ] ], self::headings( $content ) );
+		$this->assertSame( $title, $processor->get_title() );
+		$this->assertSame( $expected, array_column( self::headings( $content ), 0 ) );
 	}
 
 	/**
@@ -997,11 +1022,11 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 	 */
 	public function relative_heading_level_provider() {
 		return [
-			'## then ###'                => [ "## Heading\n\nText, etc, etc\n\n### Sub heading\n\nText, etc etc", '', [ 4, 5 ] ],
-			'## between paragraphs'      => [ "Text text text\n\n## Heading\n\nText text text", '', [ 4 ] ],
-			'## and ### under a title'   => [ "# Heading 1\n## Heading 2\n### Heading 3", 'Heading 1', [ 4, 5 ] ],
-			'a # after ## under a title' => [ "# Title\n## Heading 2\n### Heading 3\n# Heading 1", 'Title', [ 5, 6, 4 ] ],
-			'# to ### with no title'     => [ "Update:\n# One\n## Two\n### Three", '', [ 4, 5, 6 ] ],
+			'## then ### under a ## title' => [ "## Heading\n\nText, etc, etc\n\n### Sub heading\n\nText, etc etc", 'Heading', [ 4 ] ],
+			'## between paragraphs'        => [ "Text text text\n\n## Heading\n\nText text text", '', [ 4 ] ],
+			'## and ### under a title'     => [ "# Heading 1\n## Heading 2\n### Heading 3", 'Heading 1', [ 4, 5 ] ],
+			'# competing with a later #'   => [ "# Title\n## Heading 2\n### Heading 3\n# Heading 1", '', [ 4, 5, 6, 4 ] ],
+			'# to ### with no title'       => [ "Update:\n# One\n## Two\n### Three", '', [ 4, 5, 6 ] ],
 		];
 	}
 
@@ -1026,12 +1051,13 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Header blocks follow the same rule as # lines.
+	 * Header blocks follow the same rules as # lines: an opening header with
+	 * no competing header is the title, and the rest start at the highest
+	 * level.
 	 */
-	public function test_shallowest_header_block_takes_the_highest_level() {
-		$processor = new Slack_Content_Processor( null, 4 );
-
-		$content = $processor->process(
+	public function test_header_blocks_follow_the_title_and_level_rules() {
+		$sub_heading_below = new Slack_Content_Processor( null, 4 );
+		$content           = $sub_heading_below->process(
 			'',
 			[
 				self::header( 'Heading', 2 ),
@@ -1041,6 +1067,13 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 			]
 		);
 
-		$this->assertSame( [ 4, 5 ], array_column( self::headings( $content ), 0 ) );
+		$this->assertSame( 'Heading', $sub_heading_below->get_title() );
+		$this->assertSame( [ 4 ], array_column( self::headings( $content ), 0 ) );
+
+		$competing = new Slack_Content_Processor( null, 4 );
+		$content   = $competing->process( '', [ self::header( 'Ward 1', 2 ), self::header( 'Ward 2', 2 ) ] );
+
+		$this->assertSame( '', $competing->get_title() );
+		$this->assertSame( [ 4, 4 ], array_column( self::headings( $content ), 0 ) );
 	}
 }
