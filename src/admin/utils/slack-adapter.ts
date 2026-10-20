@@ -15,6 +15,14 @@ interface SlackEventEnvelope {
 	event?: Record< string, unknown >;
 }
 
+/**
+ * Message subtypes a person writes: a plain message, one that shares a file,
+ * and a thread reply also sent to the channel. Any other subtype is skipped,
+ * as Slack adds new notices over time. Keep in step with
+ * `Slack_Ingestion_Service::INGESTED_SUBTYPES`.
+ */
+const INGESTED_SUBTYPES = [ '', 'file_share', 'thread_broadcast' ];
+
 /** Slack HMAC presence check (header existence only — full verification runs server-side in Slack_Signature_Verifier). */
 function verifySlackSignature( req?: Request ): boolean {
 	if ( ! req || ! req.headers ) {
@@ -31,7 +39,7 @@ function verifySlackSignature( req?: Request ): boolean {
 
 /**
  * Slack chat-source adapter: verifies Slack webhook request headers, filters
- * out non-ingestable Slack events (bot messages, edits/deletes, joins/leaves),
+ * out non-ingestable Slack events (bot messages, edits/deletes, Slack notices),
  * and normalizes a Slack message event into a generic IncomingMessage.
  * Platform-specific provenance meta (Slack ts/channel/author) is written by the
  * PHP webhook controller, not by this adapter.
@@ -93,23 +101,7 @@ class SlackAdapter extends ChatSourceAdapter {
 		const subtype = String( event?.subtype ?? '' );
 		const botId = String( event?.bot_id ?? '' );
 
-		if ( 'bot_message' === subtype || '' !== botId ) {
-			return false;
-		}
-		if ( [ 'message_changed', 'message_deleted' ].includes( subtype ) ) {
-			return false;
-		}
-		if (
-			[
-				'channel_join',
-				'channel_leave',
-				'group_join',
-				'group_leave',
-			].includes( subtype )
-		) {
-			return false;
-		}
-		return true;
+		return '' === botId && INGESTED_SUBTYPES.includes( subtype );
 	}
 
 	ingest( raw: unknown ): IncomingMessage | null {
