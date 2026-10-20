@@ -2655,10 +2655,10 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A first line starting with # is the entry's title, and a message that
+	 * A message's opening heading is the entry's title, and a message that
 	 * is only that line becomes a titled entry with no content.
 	 */
-	public function test_first_line_with_one_marker_becomes_the_entry_title() {
+	public function test_opening_heading_becomes_the_entry_title() {
 		Slack_Config::set_top_heading_level( 3 );
 
 		$coverage_id = self::deliver_to_linked_channel( [ 'text' => "# Results are in\nWard 1 is counted." ] );

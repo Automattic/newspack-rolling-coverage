@@ -52,8 +52,8 @@ class Slack_Config {
 	const DEFAULT_TOP_HEADING_LEVEL = self::HEADINGS_OFF;
 
 	/**
-	 * Levels a line starting with # can get, or off. A Heading 1 would
-	 * compete with the page title.
+	 * Levels a message's shallowest heading can get, or off. A Heading 1
+	 * would compete with the page title.
 	 */
 	const TOP_HEADING_LEVELS = [ self::HEADINGS_OFF, 2, 3, 4, 5, 6 ];
 
@@ -301,7 +301,7 @@ class Slack_Config {
 	}
 
 	/**
-	 * The heading level a line starting with # gets in an entry, or
+	 * The heading level a message's shallowest heading gets in an entry, or
 	 * self::HEADINGS_OFF.
 	 *
 	 * @return int One of self::TOP_HEADING_LEVELS.
@@ -313,8 +313,8 @@ class Slack_Config {
 	}
 
 	/**
-	 * Whether a value is one of the levels a line starting with # can get,
-	 * or off.
+	 * Whether a value is one of the levels a message's shallowest heading
+	 * can get, or off.
 	 *
 	 * @param mixed $level Value to check.
 	 * @return bool
@@ -324,8 +324,8 @@ class Slack_Config {
 	}
 
 	/**
-	 * Store the heading level a line starting with # gets in an entry, or
-	 * self::HEADINGS_OFF.
+	 * Store the heading level a message's shallowest heading gets in an
+	 * entry, or self::HEADINGS_OFF.
 	 *
 	 * @param int $level One of self::TOP_HEADING_LEVELS.
 	 * @return bool False, storing nothing, when the level is not one of them.

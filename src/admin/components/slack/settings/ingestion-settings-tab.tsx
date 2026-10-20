@@ -22,16 +22,17 @@ import { BotUserSection } from './bot-user-section';
 import { useAdminContext } from '../../../hooks/useAdminContext';
 
 /**
- * Heading levels a line starting with # can get, after 0 for off. A Heading 1
- * would compete with the page title. Mirrors Slack_Config::TOP_HEADING_LEVELS.
+ * Heading levels a message's shallowest heading can get, after 0 for off. A
+ * Heading 1 would compete with the page title. Mirrors
+ * Slack_Config::TOP_HEADING_LEVELS.
  */
 const TOP_HEADING_LEVELS = [ 0, 2, 3, 4, 5, 6 ];
 
 /**
  * Renders the Settings tab: the message ignore prefix, the emoji that publish
- * or draft a message in channels set to Emoji trigger, the heading level for
- * lines starting with # (or off), and the WordPress bot user that authors
- * ingested entries. Saving happens from the page header.
+ * or draft a message in channels set to Emoji trigger, the Highest Heading
+ * for titles and headings typed with # (or Off), and the WordPress bot user
+ * that authors ingested entries. Saving happens from the page header.
  *
  * @param {Object}                   props                    - Component props.
  * @param {string}                   props.ignorePrefix       - The ignore-prefix setting value.
@@ -40,7 +41,7 @@ const TOP_HEADING_LEVELS = [ 0, 2, 3, 4, 5, 6 ];
  * @param {(v: string) => void}      props.setPublishReaction - Publish emoji setter.
  * @param {string}                   props.draftReaction      - Emoji name that saves a message as a draft.
  * @param {(v: string) => void}      props.setDraftReaction   - Draft emoji setter.
- * @param {number}                   props.topHeadingLevel    - Heading level for a line starting with #, or 0 for off.
+ * @param {number}                   props.topHeadingLevel    - Heading level a message's shallowest heading gets, or 0 for off.
  * @param {(v: number) => void}      props.setTopHeadingLevel - Heading level setter.
  * @param {SlackSettingsInfo | null} props.workspaceInfo      - Fetched workspace settings, or null.
  * @param {string}                   props.editUserUrl        - Base admin URL for editing a WordPress user.
@@ -205,7 +206,7 @@ function IngestionSettingsTab( {
 						setTopHeadingLevel( Number( next ) )
 					}
 					help={ __(
-						"When set, lines that start with #, ## or ### and a space become headings. A first line becomes the entry title instead when no other heading in the message is at its level or higher. A message's highest heading takes this level and the others follow it, one level lower per extra #, down to Heading 6. Most feed layouts show entry titles as Heading 4. Entries already added keep their formatting.",
+						"When set, lines that start with #, ## or ### and a space become headings. A marked first line becomes the entry title instead when no other heading in the message is at its level or higher. A message's highest heading takes this level and the others follow it, one level lower per extra #, down to Heading 6. Most feed layouts show entry titles as Heading 4, so Heading 5 or 6 keeps headings below them. Entries already added keep their formatting.",
 						'newspack-rolling-coverage'
 					) }
 				/>

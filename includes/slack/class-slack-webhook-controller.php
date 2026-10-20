@@ -102,7 +102,7 @@ class Slack_Webhook_Controller {
 			// Settings errors.
 			'invalid_prefix'         => __( 'The ignore prefix must be 1-10 printable characters.', 'newspack-rolling-coverage' ),
 			'invalid_reactions'      => __( 'Use two different emoji names for publishing and drafts, such as mega and memo.', 'newspack-rolling-coverage' ),
-			'invalid_heading_level'  => __( 'Choose a highest heading from Heading 2 to Heading 6.', 'newspack-rolling-coverage' ),
+			'invalid_heading_level'  => __( 'Set Highest Heading to Off or a level from Heading 2 to Heading 6.', 'newspack-rolling-coverage' ),
 			// Configuration / transport.
 			'slack_not_configured'   => __( 'Slack integration is not configured. Please set up the bot token in Slack settings.', 'newspack-rolling-coverage' ),
 			'slack_transport_error'  => __( 'Could not reach Slack. Please try again.', 'newspack-rolling-coverage' ),
