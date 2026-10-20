@@ -1,6 +1,6 @@
 === Newspack Rolling Coverage ===
 Contributors: automattic
-Requires at least: 6.9
+Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.0
 Stable tag: trunk
@@ -12,7 +12,7 @@ Liveblog and rolling coverage of ongoing news events, with real-time updates, Sl
 
 == Description ==
 
-Rolling Coverage publishes a continuous feed of short, timestamped entries for each developing story. Entries are authored from a few well-known tools and delivered to readers in real time without a page reload. Rolling Coverage Blocks can be placed in multiple spots across a site — a post, a sidebar, a homepage marquee — with each placement configurable to show readers a tailored view of the same coverage. Archive mode locks a coverage once an event concludes and optional AI-generated summaries help readers stay oriented as the story grows.
+Rolling Coverage publishes a continuous feed of short, timestamped entries for each developing story. Entries are authored from a few well-known tools and delivered to readers in real time without a page reload. Rolling Coverage Blocks can be placed in multiple spots across a site — a post, a sidebar, a homepage marquee — with each placement configurable to show readers a tailored view of the same coverage. Ending a coverage locks its entries once an event concludes, and optional AI-generated summaries help readers stay oriented as the story grows.
 
 For the full documentation, see the README in the GitHub repository: https://github.com/Automattic/newspack-rolling-coverage/blob/trunk/README.md
 
@@ -35,11 +35,11 @@ A coverage represents one ongoing news event. Entries are the individual updates
 
 = Can I publish entries from Slack? =
 
-Yes. Connect a Slack channel to a coverage under Rolling Coverage > Slack Connection, or use the `/rolling-coverage-connect` slash command from Slack. New messages in that channel can be ingested automatically, either published immediately or saved as drafts.
+Yes. Connect a Slack channel to a coverage under Rolling Coverage > Slack Connection, or use the `/rolling-coverage-connect` slash command from Slack. Each channel's Publish Mode decides what happens to new messages: they're published right away, saved as drafts, or wait for someone to react with an emoji.
 
-= What happens when I archive a coverage? =
+= What happens when a coverage ends? =
 
-Archiving freezes the feed and locks its entries from further editing, deleting, pinning, or reassignment. A notice is shown to readers, and the follow button is hidden. You can change the coverage status back to active at any time.
+Setting a coverage's status to Ended stops the feed from checking for new entries and locks its entries: they can't be trashed, pinned, reassigned, or turned into breakout posts, and no new entries can be added. Their text can still be edited. By default, a notice tells readers the coverage has ended, and the follow button is hidden. You can set the status back to Live at any time.
 
 = Do readers need to reload the page to see new entries? =
 
@@ -55,5 +55,4 @@ OneSignal. The feed's follow button and the per-entry notification option requir
 
 == Changelog ==
 
-= 0.1.0 =
-* Initial release.
+See https://github.com/Automattic/newspack-rolling-coverage/releases

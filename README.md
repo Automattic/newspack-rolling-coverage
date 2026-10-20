@@ -2,20 +2,20 @@
 
 | Detail | Value |
 | --- | --- |
-| Requires at least | ![WordPress](https://img.shields.io/badge/WordPress-6.9%2B-blue.svg) |
+| Requires at least | ![WordPress](https://img.shields.io/badge/WordPress-7.0%2B-blue.svg) |
 | Tested up to | ![WordPress](https://img.shields.io/badge/WordPress-7.0-blue.svg) |
 | Requires PHP | ![PHP](https://img.shields.io/badge/PHP-8.0%2B-blue.svg) |
 | Requires Node.js (to build) | ![Node.js](https://img.shields.io/badge/Node.js-LTS-blue.svg) |
 | License | ![License](https://img.shields.io/badge/License-GPLv3-blue.svg) |
 | Stable tag | [(see package.json)](package.json#L3) |
-| Changelog | [Changelog](CHANGELOG.md) |
+| Changelog | [Releases](https://github.com/Automattic/newspack-rolling-coverage/releases) |
 | Optional integrations | [Newspack Ads](https://github.com/Automattic/newspack-ads) (in-feed advertising), [OneSignal](https://wordpress.org/plugins/onesignal-free-web-push-notifications/) (follow/push notifications), [WordPress AI](https://github.com/WordPress/ai) plugin + a provider (AI key takeaways) |
 
 Liveblog and rolling coverage of ongoing news events for [Newspack](https://newspack.com/).
 
 Newsrooms need to move fast when news breaks. Rolling Coverage helps organizations publish near real-time updates for developing stories, sourcing entries from tools like Slack or from WordPress. Readers see critical updates as they happen, with no need to refresh, reload or pull down the page. Control stays with the editorial team: editors curate updates, pin vital information and turn major developments into standalone posts without pausing the live feed.
 
-Rolling Coverage publishes a continuous feed of short, timestamped entries for each developing story. Entries are authored from a few well-known tools and delivered to readers in real time without a page reload. Rolling Coverage Blocks can be placed in multiple spots across a site — a post, a sidebar, a homepage marquee — with each placement configurable to show readers a tailored view of the same coverage. Archive mode locks a coverage once an event concludes and optional AI-generated summaries help readers stay oriented as the story grows.
+Rolling Coverage publishes a continuous feed of short, timestamped entries for each developing story. Entries are authored from a few well-known tools and delivered to readers in real time without a page reload. Rolling Coverage Blocks can be placed in multiple spots across a site — a post, a sidebar, a homepage marquee — with each placement configurable to show readers a tailored view of the same coverage. Ending a coverage locks its entries once an event concludes, and optional AI-generated summaries help readers stay oriented as the story grows.
 
 For the technical reference (features, architecture, data model, REST API, and hooks) see [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md).
 
@@ -36,7 +36,7 @@ For local development:
 
 ```bash
 composer install
-npm install
+npm ci
 npm run build
 ```
 
@@ -73,7 +73,7 @@ The PHPUnit suite lives in `tests/` and runs against the WordPress test library.
 bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1 latest
 ```
 
-The suite covers ingestion, archiving, the entries REST/entries-view endpoints, restore/cleanup, the reader feed, Slack configuration/content/signature/webhook handling, push notifications, the taxonomy lifecycle, and theme FSE block integration. There are currently no JS unit tests (`npm test` is a no-op placeholder).
+The suite covers ingestion, archiving, the entries REST/entries-view endpoints, restore/cleanup, the reader feed, Slack configuration/content/signature/webhook handling, push notifications, the taxonomy lifecycle, and theme FSE block integration. `npm test` runs `tests/js/shared-poll-check.ts`, which checks the view script's copy of the poll cursor rules against `tests/fixtures/poll-cursor-cases.json`; CI runs it too.
 
 ## Release and versioning
 
