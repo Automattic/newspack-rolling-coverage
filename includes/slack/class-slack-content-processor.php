@@ -12,7 +12,11 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Converts a Slack message to block markup, keeping the formatting its author
  * used: paragraphs, line breaks, bold, italic, strikethrough, inline code,
- * links, lists, quotes, code blocks and emoji.
+ * links, lists, quotes, code blocks and emoji. Once a site picks a heading
+ * level, lines starting with #, ## or ### become headings, as in Markdown,
+ * and a message that opens with one can make it the entry's title. Slack's
+ * composer may send those lines as text or turn them into header blocks of
+ * their own; both follow the same rules.
  */
 class Slack_Content_Processor {
 
@@ -40,6 +44,30 @@ class Slack_Content_Processor {
 	private $resolve_user;
 
 	/**
+	 * Heading level a message's shallowest heading gets, or
+	 * Slack_Config::HEADINGS_OFF. Each extra # is one level lower.
+	 *
+	 * @var int
+	 */
+	private $top_heading_level;
+
+	/**
+	 * Title taken from the first line of the last message processed.
+	 *
+	 * @var string
+	 */
+	private $title = '';
+
+	/**
+	 * Headings of the message being processed, as `[ depth, html ]`. Their
+	 * levels depend on the message's shallowest heading, so they are placed
+	 * once the whole message is rendered.
+	 *
+	 * @var array[]
+	 */
+	private $headings = [];
+
+	/**
 	 * Display names resolved so far, keyed by Slack user ID.
 	 *
 	 * @var array<string, string>
@@ -64,11 +92,18 @@ class Slack_Content_Processor {
 	/**
 	 * Constructor.
 	 *
-	 * @param callable|null $resolve_user Receives a Slack user ID and returns
-	 *                                    its display name, or '' when unknown.
+	 * @param callable|null $resolve_user      Receives a Slack user ID and returns
+	 *                                         its display name, or '' when unknown.
+	 * @param int           $top_heading_level Heading level a message's
+	 *                                         shallowest heading gets, from 2
+	 *                                         to 6, or Slack_Config::HEADINGS_OFF
+	 *                                         to leave marked lines as typed. A
+	 *                                         Heading 1 would compete with the
+	 *                                         page title.
 	 */
-	public function __construct( ?callable $resolve_user = null ) {
-		$this->resolve_user = $resolve_user;
+	public function __construct( ?callable $resolve_user = null, int $top_heading_level = Slack_Config::DEFAULT_TOP_HEADING_LEVEL ) {
+		$this->resolve_user      = $resolve_user;
+		$this->top_heading_level = $top_heading_level <= Slack_Config::HEADINGS_OFF ? Slack_Config::HEADINGS_OFF : max( 2, min( 6, $top_heading_level ) );
 	}
 
 	/**
@@ -84,16 +119,36 @@ class Slack_Content_Processor {
 	 * @return string Block markup, or '' when the message has no content.
 	 */
 	public function process( string $text, array $blocks = [] ): string {
+		$this->title             = '';
+		$this->headings          = [];
 		$this->channel_names     = $this->labels( '/<#([A-Z0-9]+)\|([^>]+)>/', $text );
 		$this->usergroup_handles = $this->labels( '/<!subteam\^([A-Z0-9]+)\|([^>]+)>/', $text );
 
 		$markup = $this->render_rich_text_blocks( $blocks );
 
+		// A message that is only a title renders as the title's placeholder,
+		// so it keeps the rich-text title rather than the mrkdwn copy's, which
+		// spells emoji as names and drops group mentions.
 		if ( '' !== $markup ) {
-			return $markup;
+			return $this->place_headings( $markup );
 		}
 
-		return $this->render_mrkdwn( $text );
+		return $this->place_headings( $this->render_mrkdwn( $text ) );
+	}
+
+	/**
+	 * The entry title the last processed message gave in its first line (see
+	 * place_headings() for when that line is the title), or
+	 * '' when it gave none. Plain text, with `<`, `>` and `&` encoded, so the
+	 * filter WordPress runs on the title when the webhook saves it keeps text
+	 * that looks like a tag, such as "Results <live>", instead of dropping it.
+	 * Square brackets are encoded too, as in the content, so a shortcode typed
+	 * in the title shows as text instead of running where the title is shown.
+	 *
+	 * @return string Title.
+	 */
+	public function get_title(): string {
+		return $this->title;
 	}
 
 	/**
@@ -162,6 +217,11 @@ class Slack_Content_Processor {
 		$output = [];
 
 		foreach ( $blocks as $block ) {
+			if ( is_array( $block ) && 'header' === ( $block['type'] ?? '' ) ) {
+				$output[] = $this->render_header( $block );
+				continue;
+			}
+
 			if ( ! is_array( $block ) || 'rich_text' !== ( $block['type'] ?? '' ) || ! is_array( $block['elements'] ?? null ) ) {
 				continue;
 			}
@@ -198,7 +258,7 @@ class Slack_Content_Processor {
 						break;
 
 					case 'rich_text_section':
-						$output[] = $this->paragraphs( $this->render_inline( $element['elements'] ?? [] ) );
+						$output[] = $this->paragraphs_and_headings( $this->render_inline( $element['elements'] ?? [] ) );
 						break;
 				}
 
@@ -533,6 +593,191 @@ class Slack_Content_Processor {
 	}
 
 	/**
+	 * Split inline HTML into paragraph and heading blocks. Only top-level
+	 * text gets headings; quotes and list items keep a marked line as text.
+	 *
+	 * @param string $html Inline HTML with "\n" newlines.
+	 * @return string Block markup.
+	 */
+	private function paragraphs_and_headings( string $html ): string {
+		$output = [];
+		$lines  = [];
+
+		foreach ( explode( "\n", $html ) as $line ) {
+			$heading = $this->heading( $line );
+
+			if ( '' === $heading ) {
+				$lines[] = $line;
+				continue;
+			}
+
+			$output[] = $this->paragraphs( implode( "\n", $lines ) );
+			$output[] = $heading;
+			$lines    = [];
+		}
+
+		$output[] = $this->paragraphs( implode( "\n", $lines ) );
+
+		return implode( "\n\n", array_filter( $output, fn( $markup ) => '' !== $markup ) );
+	}
+
+	/**
+	 * Render a header block, which Slack's composer can make of a line typed
+	 * with #, ## or ###, as a heading by the same rules as a marked line,
+	 * the title rule included (see place_headings()). With headings off, its
+	 * text is a paragraph, so the line isn't lost.
+	 *
+	 * @param array $block Header block.
+	 * @return string Block markup or a heading's placeholder, or '' when it
+	 *                is empty.
+	 */
+	private function render_header( array $block ): string {
+		$text = trim( (string) ( $block['text']['text'] ?? '' ) );
+
+		if ( '' === $text ) {
+			return '';
+		}
+
+		$html  = $this->escape( $text );
+		$depth = max( 1, min( 3, (int) ( $block['level'] ?? 1 ) ) );
+
+		if ( Slack_Config::HEADINGS_OFF === $this->top_heading_level ) {
+			return $this->paragraphs( $html );
+		}
+
+		return $this->heading_placeholder( $depth, $html );
+	}
+
+	/**
+	 * The entry title for a heading's inline HTML: plain text, with `<`, `>`,
+	 * `&` and square brackets encoded (see get_title()).
+	 *
+	 * @param string $html Inline HTML.
+	 * @return string Title.
+	 */
+	private function title_text( string $html ): string {
+		$text = html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+
+		return str_replace( [ '[', ']' ], [ '&#91;', '&#93;' ], htmlspecialchars( trim( $text ), ENT_NOQUOTES, 'UTF-8' ) );
+	}
+
+	/**
+	 * A heading's placeholder for a line that starts with #, ## or ### and a
+	 * space (see place_headings()), or '' for any other line.
+	 *
+	 * @param string $line One line of inline HTML.
+	 * @return string Placeholder, or ''.
+	 */
+	private function heading( string $line ): string {
+		$heading = $this->parse_heading( $line );
+
+		return null === $heading ? '' : $this->heading_placeholder( $heading['depth'], $heading['html'] );
+	}
+
+	/**
+	 * Hold a heading's place until the message's shallowest heading is
+	 * known. The placeholder is a comment, which escaped message text can't
+	 * contain.
+	 *
+	 * @param int    $depth Number of # marks, from 1 to 3.
+	 * @param string $html  Heading content.
+	 * @return string Placeholder.
+	 */
+	private function heading_placeholder( int $depth, string $html ): string {
+		$this->headings[] = [ $depth, $html ];
+
+		return '<!-- newspack-rolling-coverage-heading ' . ( count( $this->headings ) - 1 ) . ' -->';
+	}
+
+	/**
+	 * Replace heading placeholders with heading blocks, and take the title.
+	 *
+	 * A message that opens with a heading, with nothing rendered above it,
+	 * uses it as its title when no other heading in the message is at its
+	 * level or higher; otherwise it stays a heading, since the message has
+	 * sections rather than one headline. The shallowest heading left takes
+	 * the chosen level and the others follow it, one level lower per extra
+	 * #, down to Heading 6, so no level is skipped whichever marker its
+	 * headings start with.
+	 *
+	 * @param string $markup Block markup with heading placeholders.
+	 * @return string Block markup.
+	 */
+	private function place_headings( string $markup ): string {
+		if ( [] === $this->headings ) {
+			return $markup;
+		}
+
+		$headings    = $this->headings;
+		$title_index = null;
+
+		if ( str_starts_with( $markup, '<!-- newspack-rolling-coverage-heading 0 -->' ) ) {
+			$opening   = $headings[0][0];
+			$competing = array_filter( array_slice( $headings, 1 ), fn( $heading ) => $heading[0] <= $opening );
+
+			if ( [] === $competing ) {
+				$title_index = 0;
+				$this->title = $this->title_text( $headings[0][1] );
+				unset( $headings[0] );
+			}
+		}
+
+		$shallowest = [] === $headings ? 1 : min( array_column( $headings, 0 ) );
+
+		$markup = (string) preg_replace_callback(
+			'/<!-- newspack-rolling-coverage-heading (\d+) -->/',
+			function ( $matches ) use ( $shallowest, $title_index ) {
+				if ( (int) $matches[1] === $title_index ) {
+					return '';
+				}
+
+				[ $depth, $html ] = $this->headings[ (int) $matches[1] ];
+				$level            = min( 6, $this->top_heading_level + $depth - $shallowest );
+				$attributes       = 2 === $level ? '' : ' ' . wp_json_encode( [ 'level' => $level ] );
+
+				return '<!-- wp:heading' . $attributes . " -->\n<h" . $level . ' class="wp-block-heading">' . $html . '</h' . $level . ">\n<!-- /wp:heading -->";
+			},
+			$markup
+		);
+
+		return null === $title_index ? $markup : ltrim( $markup );
+	}
+
+	/**
+	 * The marker depth and content of a line marked as a heading, or null
+	 * when headings are off or the line isn't one.
+	 *
+	 * The marker may sit inside bold, italic or strikethrough covering the
+	 * whole line, and the heading keeps those styles. In inline code it is
+	 * text. A style that covers only the marker, or a line with no visible
+	 * text after it, leaves the line as text, so no empty heading or empty
+	 * tags are made.
+	 *
+	 * @param string $line One line of inline HTML.
+	 * @return array{depth: int, html: string}|null
+	 */
+	private function parse_heading( string $line ): ?array {
+		if ( Slack_Config::HEADINGS_OFF === $this->top_heading_level ) {
+			return null;
+		}
+
+		if ( ! preg_match( '/^[ \t]*((?:<(?:strong|em|s)>)*)(#{1,3})[ \t]++(?!<\/)(.+)$/', $line, $matches ) ) {
+			return null;
+		}
+
+		$html = rtrim( $matches[1] . $matches[3] );
+
+		if ( ! preg_match( '/[^\s\x{00A0}]/u', wp_strip_all_tags( $html ) ) ) {
+			return null;
+		}
+
+		return [
+			'depth' => strlen( $matches[2] ),
+			'html'  => $html,
+		];
+	}
+
+	/**
 	 * Turn newlines into line breaks, dropping any whitespace around them.
 	 *
 	 * @param string $html Inline HTML.
@@ -544,8 +789,8 @@ class Slack_Content_Processor {
 
 	/**
 	 * Render mrkdwn text, for messages that arrive without rich-text blocks:
-	 * links, mentions, bold, italic, strikethrough, inline code, paragraphs
-	 * and line breaks.
+	 * links, mentions, bold, italic, strikethrough, inline code, headings,
+	 * paragraphs and line breaks.
 	 *
 	 * Links and inline code are set aside behind private-use placeholders
 	 * while the other styles are applied, so markers inside them are left
@@ -565,6 +810,8 @@ class Slack_Content_Processor {
 					? $matches[2]
 					: preg_replace( '/^mailto:/i', '', $matches[1] );
 
+				// One line, as in rich text, so the link can't span a paragraph or heading.
+				$label     = (string) preg_replace( '/\s+/', ' ', $label );
 				$stashed[] = $this->link( $matches[1], $this->escape( wp_specialchars_decode( $label ) ) );
 
 				return "\u{E000}" . ( count( $stashed ) - 1 ) . "\u{E001}";
@@ -609,6 +856,6 @@ class Slack_Content_Processor {
 			$html
 		);
 
-		return $this->paragraphs( $html );
+		return $this->paragraphs_and_headings( $html );
 	}
 }

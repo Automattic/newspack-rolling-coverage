@@ -51,6 +51,8 @@ function useSlackSettings() {
 		useState( 'mega' );
 	const [ draftReaction, setDraftReaction ] = useState( 'memo' );
 	const [ savedDraftReaction, setSavedDraftReaction ] = useState( 'memo' );
+	const [ topHeadingLevel, setTopHeadingLevel ] = useState( 0 );
+	const [ savedTopHeadingLevel, setSavedTopHeadingLevel ] = useState( 0 );
 	const [ hasLoadedSettings, setHasLoadedSettings ] = useState( false );
 	const [ channels, setChannels ] = useState< ChannelMapping[] >( [] );
 	const [ hasLoadedChannels, setHasLoadedChannels ] = useState( false );
@@ -156,6 +158,8 @@ function useSlackSettings() {
 			setSavedPublishReaction( result.settings.publish_reaction );
 			setDraftReaction( result.settings.draft_reaction );
 			setSavedDraftReaction( result.settings.draft_reaction );
+			setTopHeadingLevel( result.settings.top_heading_level );
+			setSavedTopHeadingLevel( result.settings.top_heading_level );
 		} );
 
 		return () => {
@@ -244,18 +248,23 @@ function useSlackSettings() {
 			ignorePrefix,
 			publishReaction,
 			draftReaction,
+			topHeadingLevel,
 		} );
 
 		if ( result.success ) {
 			const stored = result.ignorePrefix ?? ignorePrefix;
 			const storedPublish = result.publishReaction ?? publishReaction;
 			const storedDraft = result.draftReaction ?? draftReaction;
+			const storedHeadingLevel =
+				result.topHeadingLevel ?? topHeadingLevel;
 			setIgnorePrefix( stored );
 			setSavedIgnorePrefix( stored );
 			setPublishReaction( storedPublish );
 			setSavedPublishReaction( storedPublish );
 			setDraftReaction( storedDraft );
 			setSavedDraftReaction( storedDraft );
+			setTopHeadingLevel( storedHeadingLevel );
+			setSavedTopHeadingLevel( storedHeadingLevel );
 			setNotice( {
 				type: 'success',
 				message: __( 'Settings saved.', 'newspack-rolling-coverage' ),
@@ -273,7 +282,13 @@ function useSlackSettings() {
 		}
 
 		setIsSavingSettings( false );
-	}, [ namespace, ignorePrefix, publishReaction, draftReaction ] );
+	}, [
+		namespace,
+		ignorePrefix,
+		publishReaction,
+		draftReaction,
+		topHeadingLevel,
+	] );
 
 	const handlePublishModeChange = useCallback(
 		async ( channelId: string, publishMode: PublishMode ) => {
@@ -319,10 +334,13 @@ function useSlackSettings() {
 		setPublishReaction,
 		draftReaction,
 		setDraftReaction,
+		topHeadingLevel,
+		setTopHeadingLevel,
 		isSettingsDirty:
 			ignorePrefix !== savedIgnorePrefix ||
 			publishReaction !== savedPublishReaction ||
-			draftReaction !== savedDraftReaction,
+			draftReaction !== savedDraftReaction ||
+			topHeadingLevel !== savedTopHeadingLevel,
 		channels,
 		hasLoadedChannels,
 		hasLoadedSettings,

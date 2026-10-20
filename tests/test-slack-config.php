@@ -384,4 +384,65 @@ class Test_Slack_Config extends Rolling_Coverage_TestCase {
 
 		$this->assertTrue( Slack_Config::set_ignore_prefix( '##' ) );
 	}
+
+	/**
+	 * Headings are off until a site picks a level, so a message's # lines
+	 * stay as typed.
+	 */
+	public function test_headings_are_off_by_default() {
+		$this->assertSame( Slack_Config::HEADINGS_OFF, Slack_Config::get_top_heading_level() );
+	}
+
+	/**
+	 * A level from Heading 2 to Heading 6 is stored, and so is off.
+	 */
+	public function test_stores_a_top_heading_level() {
+		$this->assertTrue( Slack_Config::set_top_heading_level( 2 ) );
+		$this->assertSame( 2, Slack_Config::get_top_heading_level() );
+
+		$this->assertTrue( Slack_Config::set_top_heading_level( Slack_Config::HEADINGS_OFF ) );
+		$this->assertSame( Slack_Config::HEADINGS_OFF, Slack_Config::get_top_heading_level() );
+	}
+
+	/**
+	 * Levels that are not Heading 2 to Heading 6.
+	 *
+	 * @return array[]
+	 */
+	public function invalid_top_heading_level_provider() {
+		return [
+			'Heading 1'  => [ 1 ],
+			'Heading 7'  => [ 7 ],
+			'a negative' => [ -2 ],
+		];
+	}
+
+	/**
+	 * A Heading 1 would compete with the page title, and there is nothing
+	 * below Heading 6, so those levels store nothing.
+	 *
+	 * @dataProvider invalid_top_heading_level_provider
+	 *
+	 * @param int $level Heading level.
+	 */
+	public function test_refuses_unusable_top_heading_levels( $level ) {
+		Slack_Config::set_top_heading_level( 3 );
+
+		$this->assertFalse( Slack_Config::is_top_heading_level( $level ), 'The level should be invalid.' );
+		$this->assertFalse( Slack_Config::set_top_heading_level( $level ), 'The level should be refused.' );
+		$this->assertSame( 3, Slack_Config::get_top_heading_level(), 'The level should be unchanged.' );
+	}
+
+	/**
+	 * A stored level that is not usable reads as the default.
+	 */
+	public function test_unusable_stored_top_heading_level_falls_back_to_the_default() {
+		Slack_Config::update_settings( [ 'top_heading_level' => 1 ] );
+
+		$this->assertSame( Slack_Config::HEADINGS_OFF, Slack_Config::get_top_heading_level(), 'A Heading 1 should fall back.' );
+
+		Slack_Config::update_settings( [ 'top_heading_level' => 'h3' ] );
+
+		$this->assertSame( Slack_Config::HEADINGS_OFF, Slack_Config::get_top_heading_level(), 'A value that is not a number should fall back.' );
+	}
 }

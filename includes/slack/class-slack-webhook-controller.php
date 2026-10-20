@@ -102,6 +102,7 @@ class Slack_Webhook_Controller {
 			// Settings errors.
 			'invalid_prefix'         => __( 'The ignore prefix must be 1-10 printable characters.', 'newspack-rolling-coverage' ),
 			'invalid_reactions'      => __( 'Use two different emoji names for publishing and drafts, such as mega and memo.', 'newspack-rolling-coverage' ),
+			'invalid_heading_level'  => __( 'Set Highest Heading to Off or a level from Heading 2 to Heading 6.', 'newspack-rolling-coverage' ),
 			// Configuration / transport.
 			'slack_not_configured'   => __( 'Slack integration is not configured. Please set up the bot token in Slack settings.', 'newspack-rolling-coverage' ),
 			'slack_transport_error'  => __( 'Could not reach Slack. Please try again.', 'newspack-rolling-coverage' ),
@@ -486,8 +487,9 @@ class Slack_Webhook_Controller {
 		$settings = Slack_Config::get_settings();
 		$settings['masked_token'] = Slack_Config::get_masked_bot_token();
 
-		$settings['publish_reaction'] = Slack_Config::get_publish_reaction();
-		$settings['draft_reaction']   = Slack_Config::get_draft_reaction();
+		$settings['publish_reaction']  = Slack_Config::get_publish_reaction();
+		$settings['draft_reaction']    = Slack_Config::get_draft_reaction();
+		$settings['top_heading_level'] = Slack_Config::get_top_heading_level();
 
 		// Only a definite "no" is reported: unknown scopes are not a problem to act on.
 		$scopes                        = $this->api_client->get_granted_scopes();
@@ -515,7 +517,8 @@ class Slack_Webhook_Controller {
 	}
 
 	/**
-	 * POST /slack/settings — save settings (ignore_prefix, publish_reaction, draft_reaction).
+	 * POST /slack/settings — save settings (ignore_prefix, publish_reaction,
+	 * draft_reaction, top_heading_level).
 	 *
 	 * Everything is checked before anything is stored, so a refused request
 	 * changes nothing.
@@ -527,6 +530,12 @@ class Slack_Webhook_Controller {
 		$ignore_prefix    = sanitize_text_field( (string) $request->get_param( 'ignore_prefix' ) );
 		$publish_reaction = sanitize_text_field( (string) ( $request->get_param( 'publish_reaction' ) ?? Slack_Config::get_publish_reaction() ) );
 		$draft_reaction   = sanitize_text_field( (string) ( $request->get_param( 'draft_reaction' ) ?? Slack_Config::get_draft_reaction() ) );
+		$heading_level    = filter_var( $request->get_param( 'top_heading_level' ) ?? Slack_Config::get_top_heading_level(), FILTER_VALIDATE_INT );
+
+		if ( ! Slack_Config::is_top_heading_level( $heading_level ) ) {
+			Slack_Monitor::log( 'warning', 'Invalid highest heading rejected', [ 'top_heading_level' => $request->get_param( 'top_heading_level' ) ] );
+			return self::rest_error( 'invalid_heading_level' );
+		}
 
 		if ( ! Slack_Config::are_valid_reactions( $publish_reaction, $draft_reaction ) ) {
 			Slack_Monitor::log(
@@ -546,11 +555,13 @@ class Slack_Webhook_Controller {
 		}
 
 		Slack_Config::set_reactions( $publish_reaction, $draft_reaction );
+		Slack_Config::set_top_heading_level( $heading_level );
 
 		$saved = [
-			'ignore_prefix'    => Slack_Config::get_ignore_prefix(),
-			'publish_reaction' => Slack_Config::get_publish_reaction(),
-			'draft_reaction'   => Slack_Config::get_draft_reaction(),
+			'ignore_prefix'     => Slack_Config::get_ignore_prefix(),
+			'publish_reaction'  => Slack_Config::get_publish_reaction(),
+			'draft_reaction'    => Slack_Config::get_draft_reaction(),
+			'top_heading_level' => Slack_Config::get_top_heading_level(),
 		];
 
 		Slack_Monitor::log( 'info', 'Settings saved', $saved );
@@ -1943,7 +1954,8 @@ class Slack_Webhook_Controller {
 				}
 
 				return self::slack_display_name( $api_client->get_user_info( $mentioned_user_id, Slack_API_Client::WEBHOOK_TIMEOUT ) );
-			}
+			},
+			Slack_Config::get_top_heading_level()
 		);
 
 		// 2. Content processing.
@@ -1964,7 +1976,8 @@ class Slack_Webhook_Controller {
 			content_html: $content,
 			thread_ref: '' !== $thread_ts ? $thread_ts : null,
 			external_timestamp: (string) ( is_numeric( $ts ) ? gmdate( 'c', (int) ( (float) $ts ) ) : '' ),
-			raw_payload: $event
+			raw_payload: $event,
+			title: $content_processor->get_title()
 		);
 
 		// 5. Slack-specific provenance meta.

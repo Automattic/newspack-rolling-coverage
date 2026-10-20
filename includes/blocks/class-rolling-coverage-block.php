@@ -75,6 +75,9 @@ class Rolling_Coverage_Block {
 	// Word count cap for an archived entry's collapsed-content summary; CSS clips it to one line regardless.
 	const ARCHIVED_ENTRY_SUMMARY_WORD_CAP = 50;
 
+	// Level of a title from a Slack message in a layout that shows no titles: the level most layouts give entry titles.
+	const MESSAGE_TITLE_HEADING_LEVEL = 4;
+
 	// Option name prefix for persisted entry templates: rc_tpl_{coverage_id}_{hash}.
 	const TEMPLATE_OPTION_PREFIX = 'rc_tpl_';
 
@@ -3580,8 +3583,27 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Whether an entry has a title to show. Slack entries have none; the
-	 * message is the entry.
+	 * An entry's title, escaped for display, when it came from its source
+	 * message, or ''. A message title an editor later edits still counts. A
+	 * title an editor gives an entry whose message had none stays hidden in
+	 * layouts without titles, as those layouts intend. Untitled is read from
+	 * the stored title, since core gives an untitled password-protected entry
+	 * the title "Protected: ".
+	 *
+	 * @param WP_Post $entry Entry post object.
+	 * @return string HTML.
+	 */
+	private static function message_title( WP_Post $entry ): string {
+		if ( '' === trim( wp_strip_all_tags( $entry->post_title ) ) || ! get_post_meta( $entry->ID, Post_Type::META_TITLE_FROM_SOURCE, true ) ) {
+			return '';
+		}
+
+		return esc_html( get_the_title( $entry ) );
+	}
+
+	/**
+	 * Whether an entry has a title to show. Most Slack entries have none, and
+	 * the message is the entry.
 	 *
 	 * @param WP_Post $entry Entry post object.
 	 * @return bool
@@ -4426,6 +4448,29 @@ class Rolling_Coverage_Block {
 			$template = self::with_centered_title_rows( $template );
 		}
 
+		// A title from a Slack message is the first line the reporter typed,
+		// so a layout without titles shows it: above the content, or as the
+		// excerpt when the entry has no words of its own or its excerpt comes
+		// out empty, as behind a gate with no free preview. Both filters act
+		// only at this entry's own depth, so a feed placed in its content
+		// isn't headed by it. The heading goes on after an archived entry's
+		// notice and collapsed content wrap the content, so it sits above
+		// them, where a layout's own title would.
+		$message_title = null === $card && ! self::holds_post_title( $template ) ? self::message_title( $entry ) : '';
+		$own_depth     = self::$entry_render_depth + 1;
+		$title_heading = static fn( string $block_content ): string => self::$entry_render_depth === $own_depth
+			? sprintf( '<h%1$d class="wp-block-heading">%2$s</h%1$d>', self::MESSAGE_TITLE_HEADING_LEVEL, $message_title ) . $block_content
+			: $block_content;
+		$title_excerpt = static fn( $excerpt, $excerpt_post = null ) => self::$entry_render_depth === $own_depth && is_string( $excerpt ) && get_post( $excerpt_post ) instanceof WP_Post && get_post( $excerpt_post )->ID === $entry->ID
+			&& ( '' === trim( wp_strip_all_tags( $excerpt ) ) || ( '' === trim( $entry->post_excerpt ) && ! Entry_Bindings::has_words_of_its_own( $entry ) ) )
+			? $message_title
+			: $excerpt;
+
+		if ( '' !== $message_title ) {
+			add_filter( 'render_block_core/post-content', $title_heading, 11 );
+			add_filter( 'get_the_excerpt', $title_excerpt, 12, 2 );
+		}
+
 		global $post;
 
 		$previous_post          = $post;
@@ -4462,6 +4507,11 @@ class Rolling_Coverage_Block {
 		} finally {
 			if ( $is_archived ) {
 				remove_filter( 'render_block_core/post-content', [ __CLASS__, 'render_archived_entry_content' ] );
+			}
+
+			if ( '' !== $message_title ) {
+				remove_filter( 'render_block_core/post-content', $title_heading, 11 );
+				remove_filter( 'get_the_excerpt', $title_excerpt, 12 );
 			}
 
 			$post                   = $previous_post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited

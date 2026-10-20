@@ -111,7 +111,7 @@ class Entry_Ingestion_Service {
 				}
 			}
 
-			if ( '' === $content ) {
+			if ( '' === $content && '' === $payload->title ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( 'Source ingestion: empty content, skipping.' );
 				return 0;
@@ -119,10 +119,13 @@ class Entry_Ingestion_Service {
 
 			$postarr = [
 				'post_type'    => Post_Type::CPT_SLUG,
-				'post_title'   => '',
+				'post_title'   => wp_slash( $payload->title ),
 				'post_content' => wp_slash( $content ),
 				'post_author'  => $author_id,
 				'post_status'  => $auto_publish ? 'publish' : 'draft',
+				// Saved with the entry, so the marker is there before the entry
+				// joins its coverage and a poll can serve it.
+				'meta_input'   => '' !== $payload->title ? [ Post_Type::META_TITLE_FROM_SOURCE => 1 ] : [],
 			];
 
 			// A reply is a child of the entry for the message its thread starts
