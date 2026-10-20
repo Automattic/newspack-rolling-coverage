@@ -12,6 +12,7 @@ A change that alters how something works updates its docs in the same pull reque
   - The inner blocks `share` and `breakout-post-link` have no docs of their own; they are covered under "Share and Read more" in `src/blocks/rolling-coverage/DEVELOPMENT.md`.
 - **Admin screens and the entry editor** (`src/admin/`, `src/entry-editor/`) share `src/admin/DEVELOPMENT.md`. Update the section for what you changed, or add one.
 - **PHP in `includes/`** updates the docs of the feature it serves: a block's docs for `includes/blocks/`, `src/admin/DEVELOPMENT.md` for everything else.
+- **`.github/CONTRIBUTING.md`** is the plugin-wide reference: it lists every REST route, hook, constant, option, meta key, cron event and capability, and summarizes each feature with links to its docs. Update it when you add, rename or remove one of those, or when a feature it summarizes changes what it does.
 - Describe the end state, not the history of the change. Rewrite or remove sentences the change makes untrue instead of appending to them.
 - Quote UI labels exactly as they appear on screen.
 
