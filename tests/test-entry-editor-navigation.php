@@ -70,7 +70,7 @@ class Test_Entry_Editor_Navigation extends Rolling_Coverage_TestCase {
 	public function test_redirect_ignores_non_get_requests() {
 		add_filter(
 			'wp_redirect',
-			function () { // phpcs:ignore WordPressVIPMinimum.Hooks.AlwaysReturnInFilter.MissingReturnStatement -- Throws so a redirect fails the test.
+			function () { // phpcs:ignore WordPressVIPMinimum.Hooks.AlwaysReturnInFilter.TerminatingInsteadOfReturn -- Throws so a redirect fails the test.
 				throw new \Exception( 'redirected' );
 			}
 		);
