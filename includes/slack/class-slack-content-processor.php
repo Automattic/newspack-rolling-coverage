@@ -695,10 +695,10 @@ class Slack_Content_Processor {
 	 * A message that opens with a heading, with nothing rendered above it,
 	 * uses it as its title when no other heading in the message is at its
 	 * level or higher; otherwise it stays a heading, since the message has
-	 * sections rather than one headline. The
-	 * shallowest heading left takes the chosen level and the others follow
-	 * it, one level lower per extra #, down to Heading 6, so no level is
-	 * skipped whichever marker the message starts with.
+	 * sections rather than one headline. The shallowest heading left takes
+	 * the chosen level and the others follow it, one level lower per extra
+	 * #, down to Heading 6, so no level is skipped whichever marker the
+	 * message starts with.
 	 *
 	 * @param string $markup Block markup with heading placeholders.
 	 * @return string Block markup.

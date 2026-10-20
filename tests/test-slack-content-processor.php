@@ -859,6 +859,8 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 	 * can be its title.
 	 */
 	public function test_title_comes_from_the_heading_the_message_opens_with() {
+		// The carriage return keeps "# Intro" as text, though a first line
+		// read on its own after trimming would look like a heading.
 		$after_text = new Slack_Content_Processor( null, 2 );
 		$content    = $after_text->process( '', self::rich_text( self::section( self::text( "\r# Intro\nText\n## Section\nMore" ) ) ) );
 
