@@ -561,11 +561,46 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 			'member joining a private one' => [ [ 'subtype' => 'group_join' ] ],
 			'member leaving a private one' => [ [ 'subtype' => 'group_leave' ] ],
 			'message with the skip prefix' => [ [ 'text' => '~~ not for publication' ] ],
+			'channel description set'      => [ self::channel_description_message() ],
+			'channel topic set'            => [
+				[
+					'subtype' => 'channel_topic',
+					'text'    => '<@U0REPORTER> set the channel topic: Results',
+				],
+			],
+			'message pinned'               => [
+				[
+					'subtype' => 'pinned_item',
+					'text'    => '<@U0REPORTER> pinned a message to this channel.',
+				],
+			],
+			'subtype Slack adds later'     => [
+				[
+					'subtype' => 'channel_something_new',
+					'text'    => '<@U0REPORTER> did something new.',
+				],
+			],
 		];
 	}
 
 	/**
-	 * Bot traffic, edits, membership noise and opted-out messages are skipped.
+	 * The message Slack posts when someone sets the channel's description.
+	 * It has an author and text, as a reporter's message does.
+	 *
+	 * @return array
+	 */
+	private static function channel_description_message() {
+		return [
+			'subtype' => 'channel_purpose',
+			'user'    => 'U0REPORTER',
+			'text'    => '<@U0REPORTER> set the channel description: Live updates from election night.',
+			'purpose' => 'Live updates from election night.',
+		];
+	}
+
+	/**
+	 * Bot traffic, edits, Slack's notices about the channel and opted-out
+	 * messages are skipped.
 	 *
 	 * @dataProvider filtered_event_provider
 	 *
@@ -577,11 +612,54 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 
 	/**
 	 * An ordinary message is ingested, including one that merely contains the
-	 * skip prefix somewhere after its first character.
+	 * skip prefix somewhere after its first character, one that shares a
+	 * file, a thread reply also sent to the channel, and a `/me` message.
 	 */
 	public function test_keeps_reporter_messages() {
 		$this->assertFalse( Slack_Ingestion_Service::should_filter_message( [ 'text' => 'Polls have closed.' ] ), 'A plain message should be kept.' );
 		$this->assertFalse( Slack_Ingestion_Service::should_filter_message( [ 'text' => 'Turnout was ~~60%~~ 62%.' ] ), 'The skip prefix only counts at the start of the message.' );
+		$this->assertFalse(
+			Slack_Ingestion_Service::should_filter_message(
+				[
+					'subtype' => 'file_share',
+					'text'    => 'The line outside Hall A.',
+					'files'   => [ self::slack_file() ],
+				]
+			),
+			'A message sharing a file should be kept.'
+		);
+		$this->assertFalse(
+			Slack_Ingestion_Service::should_filter_message(
+				[
+					'subtype'   => 'thread_broadcast',
+					'text'      => 'The clerk confirmed it.',
+					'thread_ts' => self::MESSAGE_TS,
+				]
+			),
+			'A thread reply also sent to the channel should be kept.'
+		);
+		$this->assertFalse(
+			Slack_Ingestion_Service::should_filter_message(
+				[
+					'subtype' => 'me_message',
+					'text'    => 'is outside the county clerk\'s office.',
+				]
+			),
+			'A /me message should be kept.'
+		);
+	}
+
+	/**
+	 * Slack's notice that someone set the channel's description is not an
+	 * entry, even in a channel that publishes its messages straight away.
+	 */
+	public function test_channel_description_notice_creates_no_entry() {
+		$coverage_id = self::link_channel( Slack_Config::PUBLISH_MODE_PUBLISH );
+
+		$response = self::controller()->handle_event( self::webhook_request( self::message_event_body( self::channel_description_message() ) ) );
+
+		$this->assertSame( 200, $response->get_status(), 'Slack should still get a 200.' );
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ), 'No entry should be created.' );
 	}
 
 	/**
@@ -2033,6 +2111,19 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 	public function test_reacted_bot_message_creates_no_entry() {
 		$coverage_id = $this->link_emoji_trigger_channel();
 		$this->channel_messages[ self::MESSAGE_TS ]['bot_id'] = 'B0OTHER';
+
+		self::react_to_message();
+
+		$this->assertSame( [], self::get_coverage_entries( $coverage_id ) );
+	}
+
+	/**
+	 * A reaction on Slack's notice that someone set the channel's description
+	 * doesn't make the notice an entry.
+	 */
+	public function test_reacted_channel_description_notice_creates_no_entry() {
+		$coverage_id = $this->link_emoji_trigger_channel();
+		$this->channel_messages[ self::MESSAGE_TS ] = self::channel_description_message();
 
 		self::react_to_message();
 
