@@ -500,7 +500,7 @@ class Test_Slack_Webhook extends Rolling_Coverage_TestCase {
 			[
 				'post_type'   => 'attachment',
 				'post_status' => 'inherit',
-				'numberposts' => -1,
+				'numberposts' => -1, // phpcs:ignore WordPressVIPMinimum.Performance.NoPaging.posts_per_page_numberposts -- Tests count every copy the code under test added.
 			]
 		);
 	}
