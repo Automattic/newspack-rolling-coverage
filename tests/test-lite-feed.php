@@ -40,7 +40,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	 * template.
 	 */
 	const CHECK_UPDATES_LAYOUT = '<!-- wp:group {"className":"newspack-rolling-coverage-feed"} --><div class="wp-block-group newspack-rolling-coverage-feed">'
-		. '<!-- wp:newspack-rolling-coverage/check-updates --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"tagName":"button"} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Check for Updates</button></div><!-- /wp:button --></div><!-- /wp:buttons --><!-- /wp:newspack-rolling-coverage/check-updates -->'
+		. '<!-- wp:newspack-rolling-coverage/check-updates --><!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"tagName":"button"} --><div class="wp-block-button"><button type="button" class="wp-block-button__link wp-element-button">Check for updates</button></div><!-- /wp:button --></div><!-- /wp:buttons --><!-- /wp:newspack-rolling-coverage/check-updates -->'
 		. '<!-- wp:group {"className":"newspack-rolling-coverage-regular-entry"} --><div class="wp-block-group newspack-rolling-coverage-regular-entry"><!-- wp:post-title /--></div><!-- /wp:group -->'
 		. '</div><!-- /wp:group -->';
 
@@ -90,6 +90,8 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		set_query_var( Social_Sharing::ENTRY_QUERY_VAR, '' );
 		unset( $_COOKIE[ 'wp-postpass_' . COOKIEHASH ] ); // phpcs:ignore WordPressVIPMinimum.Variables.RestrictedVariables.cache_constraints___COOKIE -- Forgetting the test's postpass cookie.
 
+		\Newspack_Lite_Site\Lite_Site::$primary_color = 'currentcolor';
+
 		if ( $this->registered_block ) {
 			unregister_block_type( Rolling_Coverage_Block::BLOCK_NAME );
 			$this->registered_block = false;
@@ -105,7 +107,8 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An entry renders as its time, title and body, without the layout.
+	 * An entry renders as a row with its time, then its title and body,
+	 * without the layout.
 	 */
 	public function test_entry_renders_as_text_with_its_time_title_and_body() {
 		$entry_id = self::create_entry(
@@ -118,15 +121,15 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertSame(
-			'<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="initial" data-date-gmt="2026-01-01 12:00:00"><p class="newspack-rolling-coverage-entry-meta"><time datetime="2026-01-01T12:00:00+00:00">12:00 pm</time></p><h3>Bridge reopens</h3><p class="wp-block-paragraph">Traffic is <strong>moving</strong>.</p></article>',
+			'<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="initial" data-date-gmt="2026-01-01 12:00:00"><div class="newspack-rolling-coverage-entry-meta"><p><time datetime="2026-01-01T12:00:00+00:00">12:00 pm</time></p></div><div class="newspack-rolling-coverage-entry-content"><h3>Bridge reopens</h3><p class="wp-block-paragraph">Traffic is <strong>moving</strong>.</p></div></article>',
 			Lite_Feed::render_entry( get_post( $entry_id ), 'initial' )
 		);
 	}
 
 	/**
 	 * Pinned entries say so and carry the attributes the view script places
-	 * them by, their date in GMT among them, and an individually archived
-	 * entry keeps its notice.
+	 * them by, their date and last edit in GMT among them, and an
+	 * individually archived entry keeps its notice.
 	 */
 	public function test_pinned_and_archived_entries_say_so() {
 		update_option( 'timezone_string', 'America/New_York' );
@@ -140,11 +143,12 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 		);
 		Post_Type::pin_entry( $entry_id );
 		update_post_meta( $entry_id, Archive_Mode::ENTRY_ARCHIVED_META_KEY, time() );
+		self::set_entry_modified( $entry_id, '2026-01-02 09:30:00' );
 
 		$html = Lite_Feed::render_entry( get_post( $entry_id ), 'poll' );
 
-		$this->assertStringStartsWith( '<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="poll" data-date-gmt="2026-01-01 13:00:00" data-pinned>', $html );
-		$this->assertStringContainsString( '8:00 am</time> &middot; Pinned</p>', $html );
+		$this->assertStringStartsWith( '<article class="newspack-rolling-coverage-entry" data-entry-id="' . $entry_id . '" data-arrival="poll" data-date-gmt="2026-01-01 13:00:00" data-pinned data-modified-gmt="2026-01-02 09:30:00">', $html );
+		$this->assertStringContainsString( '<div class="newspack-rolling-coverage-entry-meta"><p><time datetime="2026-01-01T08:00:00-05:00">8:00 am</time></p><p class="newspack-rolling-coverage-entry-pinned">Pinned</p></div>', $html );
 		$this->assertStringContainsString( '<p class="newspack-rolling-coverage-entry-archived-notice">', $html );
 	}
 
@@ -392,7 +396,7 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'data-new-entries="button"', $html );
 		$this->assertMatchesRegularExpression( '/<div class="[^"]*newspack-rolling-coverage-check-updates[^"]*" hidden>/', $html );
-		$this->assertMatchesRegularExpression( '/<button type="button" class="[^"]+">Check for Updates<\/button>/', $html );
+		$this->assertMatchesRegularExpression( '/<button type="button" class="[^"]+">Check for updates<\/button>/', $html );
 	}
 
 	/**
@@ -1014,8 +1018,8 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	 * styles and view script rely on: the styles would fix a new-posts
 	 * control that lost its hidden attribute to the screen for good, and the
 	 * script would find no settings to poll with. A page whose feed was
-	 * cleaned that way gets neither, only a rule hiding the Load More and
-	 * Check for Updates controls, which lost their hidden attribute too and
+	 * cleaned that way gets neither, only a rule hiding the Load more and
+	 * Check for updates controls, which lost their hidden attribute too and
 	 * have nothing to run them.
 	 */
 	public function test_only_the_controls_nothing_runs_are_hidden_when_lite_site_cannot_keep_the_feed_markup() {
@@ -1032,8 +1036,8 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A page with a feed gets the few styles the feed needs, which print
-	 * inside Lite Site's style element.
+	 * A page with a feed gets the feed's one style, which prints inside Lite
+	 * Site's style element.
 	 */
 	public function test_styles_print_only_on_a_lite_page_with_a_feed() {
 		$this->assertSame( '', $this->print_lite_styles(), 'A lite page without a feed adds no styles.' );
@@ -1043,8 +1047,30 @@ class Test_Lite_Feed extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( '.newspack-rolling-coverage-new-entries[hidden]', $styles );
 		$this->assertStringContainsString( '.newspack-rolling-coverage-status', $styles );
-		$this->assertStringNotContainsString( '.newspack-rolling-coverage-load-more', $styles, 'The view script shows and hides the Load More control.' );
-		$this->assertStringNotContainsString( '.newspack-rolling-coverage-check-updates', $styles, 'And the Check for Updates control.' );
+		$this->assertStringContainsString( '.newspack-rolling-coverage-entry-meta', $styles );
+		$this->assertDoesNotMatchRegularExpression( '/-(load-more|check-updates)[^{]*\{[^}]*display/', $styles, 'The view script shows and hides the Load more and Check for updates controls.' );
+		$this->assertStringNotContainsString( ':root', $styles, 'Without a primary color, the accents fall back to their own.' );
 		$this->assertStringNotContainsString( '<', $styles, 'Nothing can close the style element early.' );
+	}
+
+	/**
+	 * The feed's accents take Lite Site's primary color, in any hex form: the
+	 * Live badge always, with whichever text color reads better on it, a Full
+	 * story card's background as a tint of it, and the Full story label and
+	 * the card's border where it reads well on that tint.
+	 */
+	public function test_styles_take_lite_sites_primary_color() {
+		self::serve_lite_feed();
+
+		\Newspack_Lite_Site\Lite_Site::$primary_color = '#003DA5';
+		$this->assertStringContainsString( ':root { --newspack-rolling-coverage-lite-accent: #003da5; --newspack-rolling-coverage-lite-badge: #003da5; --newspack-rolling-coverage-lite-badge-text: #ffffff; --newspack-rolling-coverage-lite-tint: #f0f3fa; }', $this->print_lite_styles() );
+
+		\Newspack_Lite_Site\Lite_Site::$primary_color = '#fd0';
+		$this->assertStringContainsString( ':root { --newspack-rolling-coverage-lite-badge: #ffdd00; --newspack-rolling-coverage-lite-badge-text: #000000; --newspack-rolling-coverage-lite-tint: #fffdf0; }', $this->print_lite_styles(), 'A light color leaves the label and the card border in the text color, and takes black text on the badge.' );
+
+		foreach ( [ '', 'currentcolor', 'red; } body { display: none' ] as $color ) {
+			\Newspack_Lite_Site\Lite_Site::$primary_color = $color;
+			$this->assertStringNotContainsString( ':root', $this->print_lite_styles(), 'Only a hex color sets the accents.' );
+		}
 	}
 }

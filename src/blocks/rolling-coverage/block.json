@@ -13,7 +13,7 @@
 		},
 		"pollInterval": {
 			"type": "number",
-			"default": 10
+			"default": 30
 		},
 		"entriesPerPage": {
 			"type": "number",
@@ -75,6 +75,14 @@
 		"hideWhenEnded": {
 			"type": "boolean",
 			"default": false
+		},
+		"showAuthor": {
+			"type": "boolean",
+			"default": true
+		},
+		"showAvatar": {
+			"type": "boolean",
+			"default": true
 		}
 	},
 	"supports": {

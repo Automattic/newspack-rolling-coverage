@@ -31,6 +31,7 @@ interface AdminConfig {
 		aiSettings: string;
 		statusLabels: string;
 		latestLabel: string;
+		breakoutLabel: string;
 		entryName: string;
 		posts: string;
 	};
@@ -74,6 +75,8 @@ interface AdminConfig {
 	statusLabelMaxLength: number;
 	latestLabelDefault: string;
 	latestLabelMaxLength: number;
+	breakoutLabelDefault: string;
+	breakoutLabelMaxLength: number;
 	entryNameDefaults: EntryName;
 	entryNameMaxLength: number;
 	slack: {
@@ -215,12 +218,15 @@ interface PaginationInfo {
 	totalPages: number;
 }
 
+/** What a linked Slack channel does with its messages. */
+type PublishMode = 'publish' | 'draft' | 'reaction';
+
 interface ChannelMapping {
 	channel_id: string;
 	channel_name: string;
 	term_id: number;
 	term_name: string;
-	autopublish: boolean;
+	publish_mode: PublishMode;
 	last_sync_ts: string;
 }
 
@@ -476,14 +482,15 @@ interface StatusLabelsResult extends ApiResult {
 }
 
 /**
- * The "Jump to Latest" control's text, empty where the site sets none.
+ * One of the site's labels, such as the "Jump to latest" button's text,
+ * empty where the site sets none.
  */
-interface LatestLabel {
+interface LabelSetting {
 	label: string;
 }
 
-interface LatestLabelResult extends ApiResult {
-	data?: LatestLabel;
+interface LabelSettingResult extends ApiResult {
+	data?: LabelSetting;
 }
 
 /**
@@ -561,19 +568,28 @@ interface ConnectedChannelViewProps {
 	channelName: string;
 	channelId: string;
 	lastSyncTs: string | null;
-	autopublish: boolean;
-	onAutopublishChange: ( value: boolean ) => void;
-	isUpdatingAutopublish: boolean;
+	publishMode: PublishMode;
+	onPublishModeChange: ( value: PublishMode ) => void;
+	isUpdatingPublishMode: boolean;
 	error?: string | null;
 }
 
 interface ConnectChannelFormProps {
 	channel: string;
 	onChannelChange: ( value: string ) => void;
-	autopublish: boolean;
-	onAutopublishChange: ( value: boolean ) => void;
+	publishMode: PublishMode;
+	onPublishModeChange: ( value: PublishMode ) => void;
 	isConnecting: boolean;
 	error?: string | null;
+}
+
+interface PublishModeSelectProps {
+	label: string;
+	value: PublishMode;
+	onChange: ( value: PublishMode ) => void;
+	disabled?: boolean;
+	/** Hides the label and help, for a table cell; screen readers still get the label. */
+	isCompact?: boolean;
 }
 
 interface SlackBotUserInfo {
@@ -590,11 +606,17 @@ interface SlackSettingsInfo {
 	workspace_name: string;
 	workspace_id: string;
 	ignore_prefix: string;
+	publish_reaction: string;
+	draft_reaction: string;
+	/** Heading level a message's shallowest heading gets in an entry, from 2 to 6, or 0 for off. */
+	top_heading_level: number;
 	bot_user_id: number;
 	slack_bot_user_id?: string;
 	masked_token: string;
 	/** False when the Slack app lacks the `files:read` scope that images need. */
 	can_read_files: boolean;
+	/** False when the Slack app lacks the `reactions:read` or `reactions:write` scope. */
+	can_use_reactions: boolean;
 	bot_user?: SlackBotUserInfo;
 }
 
@@ -619,6 +641,12 @@ interface ConnectSlackProps {
 interface IngestionSettingsTabProps {
 	ignorePrefix: string;
 	setIgnorePrefix: ( v: string ) => void;
+	publishReaction: string;
+	setPublishReaction: ( v: string ) => void;
+	draftReaction: string;
+	setDraftReaction: ( v: string ) => void;
+	topHeadingLevel: number;
+	setTopHeadingLevel: ( v: number ) => void;
 	workspaceInfo: SlackSettingsInfo | null;
 	editUserUrl: string;
 }
@@ -627,9 +655,9 @@ interface ChannelsTabProps {
 	channels: ChannelMapping[];
 	hasLoadedChannels: boolean;
 	onUnlink: ( channelId: string ) => Promise< boolean >;
-	onAutopublishChange: (
+	onPublishModeChange: (
 		channelId: string,
-		autopublish: boolean
+		publishMode: PublishMode
 	) => Promise< void >;
 	onHeaderChange: ( header: TabHeader ) => void;
 }
@@ -701,6 +729,7 @@ type CoreSelectors = {
 
 interface EntryViewRow {
 	id: number;
+	/** The entry's title as plain text: tags removed, entities decoded. */
 	title: string;
 	/** The entry's slug (`post_name`); empty for a draft that has none yet. */
 	slug: string;
@@ -787,8 +816,8 @@ export type {
 	AdminConfig,
 	StatusLabels,
 	StatusLabelsResult,
-	LatestLabel,
-	LatestLabelResult,
+	LabelSetting,
+	LabelSettingResult,
 	EntryName,
 	EntryNameResult,
 	Context,
@@ -808,6 +837,7 @@ export type {
 	ApiResult,
 	CreateEntryResult,
 	ChannelMapping,
+	PublishMode,
 	DataViewsWrapperProps,
 	CoverageDrawerProps,
 	CoverageFormData,
@@ -840,6 +870,7 @@ export type {
 	ErrorNoticeProps,
 	ConnectedChannelViewProps,
 	ConnectChannelFormProps,
+	PublishModeSelectProps,
 	ConnectionStatusDrawerProps,
 	ChannelsTabProps,
 	ChannelRow,

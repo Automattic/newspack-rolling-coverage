@@ -712,7 +712,22 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$html = $this->render_block();
 
 		$this->assertStringContainsString( 'data-min-poll-interval="60"', $html );
-		$this->assertStringContainsString( 'data-poll-interval="10"', $html, 'The block should keep its own interval.' );
+		$this->assertStringContainsString( 'data-poll-interval="30"', $html, 'The block should keep its own interval.' );
+	}
+
+	/**
+	 * A block with no Poll interval of its own polls every 30 seconds, the
+	 * default the editor shows. Each new entry sends every open page to a new
+	 * poll URL, and the first requests for it all reach the site, so a
+	 * shorter default means a larger burst per entry.
+	 */
+	public function test_block_polls_every_30_seconds_by_default() {
+		$this->create_entry_at( '2026-01-01 12:00:00' );
+
+		$block_json = wp_json_file_decode( dirname( __DIR__ ) . '/src/blocks/rolling-coverage/block.json', [ 'associative' => true ] );
+
+		$this->assertSame( 30, $block_json['attributes']['pollInterval']['default'] );
+		$this->assertStringContainsString( 'data-poll-interval="30"', $this->render_block(), 'A block saved without the attribute should poll at the editor default.' );
 	}
 
 	/**
@@ -882,6 +897,43 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 		$this->assertStringNotContainsString( 'newspack-rolling-coverage-pinned-card', $capped[0]['html'] );
 		$this->assertStringNotContainsString( 'Pinned', $capped[0]['html'] );
 		$this->assertNull( $capped[0]['adHtml'] );
+	}
+
+	/**
+	 * An entry pinned after a page rendered without it reaches the page's
+	 * next poll as an edit, marked pinned: the poll goes by publish time, not
+	 * by what the page holds. That mark is all the view script has to go on
+	 * to show it with the pinned entries (see showPinnedEntry() in view.ts).
+	 */
+	public function test_poll_sends_an_entry_pinned_off_the_page_as_a_pinned_edit() {
+		$older_id   = $this->create_entry_at( '2026-01-01 11:00:00' );
+		$newer_id   = $this->create_entry_at( '2026-01-01 12:00:00' );
+		$attributes = [
+			'coverageId'     => $this->coverage_id,
+			'entriesPerPage' => 1,
+		];
+		$block      = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$html       = Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+
+		preg_match( '/data-cursor="([^"]+)"/', $html, $cursor );
+		preg_match( '/data-template-key="([^"]+)"/', $html, $template_key );
+		preg_match_all( '/data-entry-id="(\d+)"/', $html, $shown );
+		$this->assertSame( [ (string) $newer_id ], $shown[1], 'The page should show only the newer entry.' );
+
+		self::log_in_as( 'editor' );
+		self::dispatch( 'POST', "/entries/{$older_id}/pin" );
+		wp_set_current_user( 0 );
+
+		$entries = $this->get_feed(
+			[
+				'cursor'       => $cursor[1],
+				'template_key' => $template_key[1],
+			]
+		)->get_data()['entries'];
+
+		$this->assertSame( [ $older_id ], wp_list_pluck( $entries, 'id' ) );
+		$this->assertSame( 'update', $entries[0]['type'] );
+		$this->assertStringContainsString( 'data-pinned', $entries[0]['html'] );
 	}
 
 	/**

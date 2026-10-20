@@ -25,6 +25,50 @@ class Slack_Config {
 	const BOT_USER_DISPLAY_NAME = 'Slack Bot';
 	const BOT_AVATAR_PATH       = 'assets/slack-bot-avatar.svg';
 
+	const PUBLISH_MODE_PUBLISH  = 'publish';
+	const PUBLISH_MODE_DRAFT    = 'draft';
+	const PUBLISH_MODE_REACTION = 'reaction';
+
+	/**
+	 * What a linked channel does with its messages: publish each one, save
+	 * each one as a draft, or wait for someone to react to it with the
+	 * publish or draft emoji.
+	 */
+	const PUBLISH_MODES = [ self::PUBLISH_MODE_PUBLISH, self::PUBLISH_MODE_DRAFT, self::PUBLISH_MODE_REACTION ];
+
+	const DEFAULT_PUBLISH_REACTION = 'mega';
+	const DEFAULT_DRAFT_REACTION   = 'memo';
+
+	/**
+	 * Highest Heading value that leaves # lines in messages as typed.
+	 */
+	const HEADINGS_OFF = 0;
+
+	/**
+	 * Headings stay off until a site picks a level, so reporters who already
+	 * start lines with #, as in "# of precincts", don't see live entries
+	 * change without notice.
+	 */
+	const DEFAULT_TOP_HEADING_LEVEL = self::HEADINGS_OFF;
+
+	/**
+	 * Levels a message's shallowest heading can get, or off. A Heading 1
+	 * would compete with the page title.
+	 */
+	const TOP_HEADING_LEVELS = [ self::HEADINGS_OFF, 2, 3, 4, 5, 6 ];
+
+	/**
+	 * Reactions the bot adds to a message once it has an entry. Standard
+	 * emoji, so every workspace has them.
+	 */
+	const BOT_PUBLISHED_REACTION = 'large_green_circle';
+	const BOT_DRAFT_REACTION     = 'large_yellow_circle';
+
+	/**
+	 * Scopes the Slack app needs to receive reactions and add its own.
+	 */
+	const REACTION_SCOPES = [ 'reactions:read', 'reactions:write' ];
+
 	// Term-meta keys live on Taxonomy as the single source of truth; reuse
 	// them here for convenient access from the channel map operations below.
 	const TERM_META_CHANNEL_ID   = Taxonomy::META_SLACK_CHANNEL_ID;
@@ -37,11 +81,14 @@ class Slack_Config {
 	 */
 	private static function default_settings(): array {
 		return [
-			'connected'      => false,
-			'workspace_name' => '',
-			'workspace_id'   => '',
-			'ignore_prefix'  => self::DEFAULT_IGNORE_PREFIX,
-			'bot_user_id'    => 0,
+			'connected'         => false,
+			'workspace_name'    => '',
+			'workspace_id'      => '',
+			'ignore_prefix'     => self::DEFAULT_IGNORE_PREFIX,
+			'publish_reaction'  => self::DEFAULT_PUBLISH_REACTION,
+			'draft_reaction'    => self::DEFAULT_DRAFT_REACTION,
+			'top_heading_level' => self::DEFAULT_TOP_HEADING_LEVEL,
+			'bot_user_id'       => 0,
 		];
 	}
 
@@ -160,14 +207,137 @@ class Slack_Config {
 	 * Validate and store the ignore prefix in settings.
 	 *
 	 * @param string $prefix Ignore prefix (must match ^[\x21-\x7E]{1,10}$).
-	 * @return bool True on success.
+	 * @return bool True when the prefix is valid and stored, including when it already was.
 	 */
 	public static function set_ignore_prefix( string $prefix ): bool {
 		if ( ! preg_match( '/^[\x21-\x7E]{1,' . self::MAX_PREFIX_LENGTH . '}$/', $prefix ) ) {
 			return false;
 		}
 
-		return self::update_settings( [ 'ignore_prefix' => $prefix ] );
+		self::update_settings( [ 'ignore_prefix' => $prefix ] );
+
+		return true;
+	}
+
+	/**
+	 * A Slack emoji name as Slack sends it in a reaction: lowercase, without
+	 * the colons people type around it.
+	 *
+	 * @param string $name Emoji name, with or without colons.
+	 * @return string The name, or '' when Slack would not accept it as one.
+	 */
+	public static function normalize_reaction_name( string $name ): string {
+		$name = strtolower( trim( trim( $name ), ':' ) );
+
+		return preg_match( '/^[a-z0-9_+\'-]{1,100}$/', $name ) ? $name : '';
+	}
+
+	/**
+	 * The emoji that publishes a message in a channel set to Emoji trigger.
+	 *
+	 * @return string Emoji name.
+	 */
+	public static function get_publish_reaction(): string {
+		return self::get_reaction_setting( 'publish_reaction', self::DEFAULT_PUBLISH_REACTION );
+	}
+
+	/**
+	 * The emoji that saves a message as a draft in a channel set to Emoji trigger.
+	 *
+	 * @return string Emoji name.
+	 */
+	public static function get_draft_reaction(): string {
+		return self::get_reaction_setting( 'draft_reaction', self::DEFAULT_DRAFT_REACTION );
+	}
+
+	/**
+	 * A stored emoji name, or the fallback when it is missing or unusable.
+	 *
+	 * @param string $key      Settings key.
+	 * @param string $fallback Default emoji name.
+	 * @return string Emoji name.
+	 */
+	private static function get_reaction_setting( string $key, string $fallback ): string {
+		$name = self::normalize_reaction_name( (string) ( self::get_settings()[ $key ] ?? '' ) );
+
+		return '' === $name ? $fallback : $name;
+	}
+
+	/**
+	 * Whether two emoji names can be the publish and draft emoji: both
+	 * valid, and different, so one reaction never means both.
+	 *
+	 * @param string $publish_reaction Emoji name that publishes a message.
+	 * @param string $draft_reaction   Emoji name that saves a message as a draft.
+	 * @return bool
+	 */
+	public static function are_valid_reactions( string $publish_reaction, string $draft_reaction ): bool {
+		$publish = self::normalize_reaction_name( $publish_reaction );
+		$draft   = self::normalize_reaction_name( $draft_reaction );
+
+		return '' !== $publish && '' !== $draft && $publish !== $draft;
+	}
+
+	/**
+	 * Store the publish and draft emoji.
+	 *
+	 * @param string $publish_reaction Emoji name that publishes a message.
+	 * @param string $draft_reaction   Emoji name that saves a message as a draft.
+	 * @return bool False, storing nothing, when the pair is not valid.
+	 */
+	public static function set_reactions( string $publish_reaction, string $draft_reaction ): bool {
+		if ( ! self::are_valid_reactions( $publish_reaction, $draft_reaction ) ) {
+			return false;
+		}
+
+		self::update_settings(
+			[
+				'publish_reaction' => self::normalize_reaction_name( $publish_reaction ),
+				'draft_reaction'   => self::normalize_reaction_name( $draft_reaction ),
+			]
+		);
+
+		return true;
+	}
+
+	/**
+	 * The heading level a message's shallowest heading gets in an entry, or
+	 * self::HEADINGS_OFF.
+	 *
+	 * @return int One of self::TOP_HEADING_LEVELS.
+	 */
+	public static function get_top_heading_level(): int {
+		$level = self::get_settings()['top_heading_level'] ?? null;
+
+		return self::is_top_heading_level( $level ) ? $level : self::DEFAULT_TOP_HEADING_LEVEL;
+	}
+
+	/**
+	 * Whether a value is one of the levels a message's shallowest heading
+	 * can get, or off.
+	 *
+	 * @param mixed $level Value to check.
+	 * @return bool
+	 */
+	public static function is_top_heading_level( $level ): bool {
+		return in_array( $level, self::TOP_HEADING_LEVELS, true );
+	}
+
+	/**
+	 * Store the heading level a message's shallowest heading gets in an
+	 * entry, or self::HEADINGS_OFF.
+	 *
+	 * @param int $level One of self::TOP_HEADING_LEVELS.
+	 * @return bool False, storing nothing, when the level is not one of them.
+	 */
+	public static function set_top_heading_level( int $level ): bool {
+		if ( ! self::is_top_heading_level( $level ) ) {
+			return false;
+		}
+
+		self::update_settings( [ 'top_heading_level' => $level ] );
+
+		return true;
 	}
 
 	/**
@@ -252,19 +422,47 @@ class Slack_Config {
 	}
 
 	/**
-	 * Check whether autopublish is enabled for a channel.
+	 * A linked channel's publish mode. Channels linked before publish modes
+	 * stored only whether they auto-publish, which reads as Auto-publish or
+	 * Draft, so they need no migration.
 	 *
-	 * @param string $channel_id Slack channel ID.
-	 * @return bool True if autopublish is enabled.
+	 * @param array $channel_settings The channel's entry in the channel map.
+	 * @return string One of self::PUBLISH_MODES.
 	 */
-	public static function is_autopublish_enabled( string $channel_id ): bool {
-		$settings = self::get_channel_settings( $channel_id );
+	public static function resolve_publish_mode( array $channel_settings ): string {
+		$mode = (string) ( $channel_settings['publish_mode'] ?? '' );
 
-		if ( null === $settings ) {
-			return false;
+		if ( self::is_publish_mode( $mode ) ) {
+			return $mode;
 		}
 
-		return (bool) ( $settings['autopublish'] ?? false );
+		return empty( $channel_settings['autopublish'] ) ? self::PUBLISH_MODE_DRAFT : self::PUBLISH_MODE_PUBLISH;
+	}
+
+	/**
+	 * The channel map fields that store a publish mode. The legacy
+	 * auto-publish flag is kept in step, so a release that reads only the
+	 * flag doesn't publish every message in a channel set to Draft or Emoji
+	 * trigger.
+	 *
+	 * @param string $publish_mode One of self::PUBLISH_MODES.
+	 * @return array<string, mixed> Fields to merge into the channel's entry.
+	 */
+	public static function publish_mode_fields( string $publish_mode ): array {
+		return [
+			'publish_mode' => $publish_mode,
+			'autopublish'  => self::PUBLISH_MODE_PUBLISH === $publish_mode,
+		];
+	}
+
+	/**
+	 * Whether a value is one of the publish modes.
+	 *
+	 * @param string $mode Value to check.
+	 * @return bool
+	 */
+	public static function is_publish_mode( string $mode ): bool {
+		return in_array( $mode, self::PUBLISH_MODES, true );
 	}
 
 	/**

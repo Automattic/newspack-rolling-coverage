@@ -99,6 +99,39 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Pinned entries list most recently edited first, whatever their date or
+	 * the order they were pinned in, while unpinned entries keep listing by
+	 * date.
+	 */
+	public function test_pinned_entries_are_listed_most_recently_edited_first() {
+		$edited_pinned_id   = $this->create_entry_at( '2026-01-01 10:00:00' );
+		$unedited_pinned_id = $this->create_entry_at( '2026-01-01 11:00:00' );
+		$edited_entry_id    = $this->create_entry_at( '2026-01-01 12:00:00' );
+		$newest_entry_id    = $this->create_entry_at( '2026-01-01 13:00:00' );
+		Post_Type::pin_entry( $unedited_pinned_id );
+		Post_Type::pin_entry( $edited_pinned_id );
+		self::set_entry_modified( $edited_pinned_id, '2026-01-01 14:00:00' );
+		self::set_entry_modified( $edited_entry_id, '2026-01-01 15:00:00' );
+
+		$this->assertSame( [ $edited_pinned_id, $unedited_pinned_id, $newest_entry_id, $edited_entry_id ], $this->get_listed_entry_ids() );
+	}
+
+	/**
+	 * Pinning counts as an edit, so an entry pinned last lists first.
+	 */
+	public function test_entry_pinned_last_is_listed_first() {
+		$older_entry_id  = $this->create_entry_at( '2026-01-01 10:00:00' );
+		$newer_pinned_id = $this->create_entry_at( '2026-01-01 11:00:00' );
+		Post_Type::pin_entry( $newer_pinned_id );
+
+		$pin_request = new WP_REST_Request( 'POST' );
+		$pin_request->set_param( 'entry_id', $older_entry_id );
+		Post_Type::handle_toggle_pin( $pin_request );
+
+		$this->assertSame( [ $older_entry_id, $newer_pinned_id ], $this->get_listed_entry_ids() );
+	}
+
+	/**
 	 * Entries written in the editor before the source meta existed have no
 	 * meta row. The source filters count them as editor entries.
 	 */
@@ -301,6 +334,74 @@ class Test_Entries_View extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertSame( [ $untitled_id ], $this->get_listed_entry_ids( [ 'title' => "don't expect" ] ) );
+	}
+
+	/**
+	 * The list and its new-entry notices show titles as plain text, though a
+	 * title can be stored with characters encoded as entities, or with tags.
+	 *
+	 * @dataProvider plain_title_provider
+	 *
+	 * @param string $stored_title Title as stored.
+	 * @param string $plain_title  Title as the list should show it.
+	 */
+	public function test_titles_are_listed_as_plain_text( $stored_title, $plain_title ) {
+		$cursor_entry_id = $this->create_entry_at( '2026-01-01 10:00:00' );
+		$entry_id        = $this->create_entry_at( '2026-01-01 11:00:00', [ 'post_title' => $stored_title ] );
+
+		$listed = array_column( $this->get_entries_view()->get_data()['entries'], 'title', 'id' );
+		$synced = array_column( $this->get_entries_view( [ 'since' => "{$cursor_entry_id}:2026-01-01 10:00:00" ] )->get_data()['changed'], 'title', 'id' );
+
+		$this->assertSame( $plain_title, $listed[ $entry_id ], 'The list should show the title as plain text.' );
+		$this->assertSame( $plain_title, $synced[ $entry_id ], 'A new-entry notice should show the title as plain text.' );
+	}
+
+	/**
+	 * Titles as stored, and as the list should show them.
+	 *
+	 * @return array[]
+	 */
+	public function plain_title_provider() {
+		return [
+			'stored with entities'   => [ '&#091;Live&#093; Q&amp;A: turnout &lt;40%', '[Live] Q&A: turnout <40%' ],
+			'with inline formatting' => [ 'Q&amp;A with <em>the mayor</em>', 'Q&A with the mayor' ],
+			'< that opens no tag'    => [ 'Turnout <40% by noon', 'Turnout <40% by noon' ],
+		];
+	}
+
+	/**
+	 * The title filter finds a title by the text the list shows, however its
+	 * characters are encoded.
+	 *
+	 * @dataProvider stored_title_provider
+	 *
+	 * @param string $stored_title Title as stored.
+	 * @param string $search       Text typed in the filter.
+	 */
+	public function test_title_filter_matches_titles_stored_with_entities( $stored_title, $search ) {
+		$entry_id = $this->create_entry_at( '2026-01-01 10:00:00', [ 'post_title' => $stored_title ] );
+		$this->create_entry_at( '2026-01-01 11:00:00', [ 'post_title' => 'Polls close' ] );
+
+		$this->assertSame( [ $entry_id ], $this->get_listed_entry_ids( [ 'title' => $search ] ) );
+	}
+
+	/**
+	 * Titles as stored, and filter text that should find them.
+	 *
+	 * Each search goes on past its `&`: the match ignores case, so `Q&A`
+	 * alone would find `Q&amp;A` by accident.
+	 *
+	 * @return array[]
+	 */
+	public function stored_title_provider() {
+		return [
+			'as typed, outside the visual editor'  => [ 'Fish & chips at noon', 'Fish & chips' ],
+			'< as typed'                           => [ 'Turnout <40% by noon', 'Turnout <40' ],
+			'in the editor, which encodes & and <' => [ 'Turnout > 40% &amp; rising', 'Turnout > 40% & rising' ],
+			'by an author, as kses stores'         => [ 'Mayor\'s turnout &gt; 40% &amp; rising', 'Mayor\'s turnout > 40% & rising' ],
+			'< by an author'                       => [ 'Turnout &lt;40% by noon', 'Turnout <40' ],
+			'from a Slack message, as kses stores' => [ '&#091;Live&#093; fish &amp; chips', '[Live] fish & chips' ],
+		];
 	}
 
 	/**

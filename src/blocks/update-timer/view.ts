@@ -13,8 +13,8 @@ import {
 	type CheckResult,
 } from '../shared/check-event';
 import {
+	newEntriesLabel,
 	nextCheckLabel,
-	newEntriesFoundLabel,
 	readEntryName,
 } from '../rolling-coverage/entry-name';
 import './style.scss';
@@ -116,7 +116,7 @@ function resultLabel( result: CheckResult, feed: HTMLElement ): string {
 	}
 
 	return result.added > 0
-		? newEntriesFoundLabel( result.added, readEntryName( feed ) )
+		? newEntriesLabel( result.added, readEntryName( feed ) )
 		: '';
 }
 

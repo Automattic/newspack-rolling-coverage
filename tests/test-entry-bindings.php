@@ -149,7 +149,8 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * An entry's title links to its breakout post once that post is published.
+	 * Once an entry's breakout post is published, the entry's title shows
+	 * the post's title, linked to it.
 	 */
 	public function test_the_title_links_to_the_published_breakout() {
 		$entry_id = self::create_entry( self::create_coverage(), [ 'post_title' => 'Repair plan announced' ] );
@@ -157,14 +158,14 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$this->assertStringNotContainsString( '<a ', Rolling_Coverage_Block::render_entry( get_post( $entry_id ), $title ), 'No breakout: a plain title.' );
 
-		$breakout_id = self::add_breakout( $entry_id, 'draft' );
+		$breakout_id = self::add_breakout( $entry_id, 'draft', [ 'post_title' => 'Repairs start on Monday' ] );
 
 		$this->assertStringNotContainsString( '<a ', Rolling_Coverage_Block::render_entry( get_post( $entry_id ), $title ), 'A draft breakout: a plain title.' );
 
 		wp_publish_post( $breakout_id );
 
 		$this->assertStringContainsString(
-			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Repair plan announced</a></h4>',
+			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Repairs start on Monday</a></h4>',
 			Rolling_Coverage_Block::render_entry( get_post( $entry_id ), $title ),
 			'A published breakout: the title links to it.'
 		);
@@ -185,19 +186,28 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A title whose text holds a link of its own isn't wrapped in another,
-	 * and a title rendered as a paragraph is linked like a heading.
+	 * whether it links to the entry or to a published breakout post, and a
+	 * title rendered as a paragraph is linked like a heading.
 	 */
 	public function test_titles_with_their_own_link_stay_as_they_are() {
 		$coverage_id = self::create_coverage();
 		$with_link   = self::create_entry( $coverage_id, [ 'post_title' => 'See <a href="https://example.com/">the map</a>' ] );
+		$broken_out  = self::create_entry( $coverage_id, [ 'post_title' => 'Map published' ] );
 		$paragraph   = self::create_entry( $coverage_id, [ 'post_title' => 'Repair plan announced' ] );
-		self::add_breakout( $with_link, 'publish' );
-		$breakout_id = self::add_breakout( $paragraph, 'publish' );
+		$breakout_id = self::add_breakout( $paragraph, 'publish', [ 'post_title' => 'Repair plan announced' ] );
+		self::add_breakout( $broken_out, 'publish', [ 'post_title' => 'The map' ] );
 
-		$html = Rolling_Coverage_Block::render_entry( get_post( $with_link ), parse_blocks( '<!-- wp:post-title /-->' ) );
+		$html = Rolling_Coverage_Block::render_entry( get_post( $with_link ), parse_blocks( '<!-- wp:post-title {"className":"newspack-rolling-coverage-entry-link"} /-->' ) );
 
 		$this->assertStringContainsString( 'href="https://example.com/"', $html, "The title's own link should be kept." );
 		$this->assertSame( 1, substr_count( $html, '<a ' ), 'No second link should be added.' );
+
+		add_filter( 'the_title', fn( $title ) => in_array( $title, [ 'The map', 'See the map' ], true ) ? 'See <a href="https://example.com/">the map</a>' : $title, 30 );
+
+		$html = Rolling_Coverage_Block::render_entry( get_post( $broken_out ), parse_blocks( '<!-- wp:post-title /-->' ) );
+
+		$this->assertStringContainsString( 'href="https://example.com/"', $html, "A breakout title's own link should be kept." );
+		$this->assertSame( 1, substr_count( $html, '<a ' ), 'No link to the breakout should be added around it.' );
 
 		$this->assertStringContainsString(
 			'<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Repair plan announced</a></p>',
@@ -477,7 +487,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$html = self::render_coverage_with_follow( $coverage_id );
 
 		$this->assertSame( 1, substr_count( $html, 'data-rc-follow' ), 'The follow button should render once.' );
-		$this->assertSame( 4, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button, the Jump to Latest control and one row per entry should render, so entries hold no follow button.' );
+		$this->assertSame( 4, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button, the Jump to latest control and one row per entry should render, so entries hold no follow button.' );
 		$this->assertStringContainsString( 'data-tag="' . esc_attr( Push_Notifications::follow_tag( $coverage_id ) ) . '"', $html );
 	}
 
@@ -558,7 +568,7 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertSame( 1, substr_count( $html, 'data-rc-follow' ), 'The follow button should render once.' );
 		$this->assertStringContainsString( 'data-tag="' . esc_attr( Push_Notifications::follow_tag( $coverage_id ) ) . '"', $html );
 		$this->assertSame( 2, substr_count( $html, 'data-rc-share' ), 'Each entry should still render its own buttons.' );
-		$this->assertSame( 4, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button, the Jump to Latest control and one row per entry should render.' );
+		$this->assertSame( 4, substr_count( $html, 'class="wp-block-buttons' ), 'Only the follow button, the Jump to latest control and one row per entry should render.' );
 	}
 
 	/**
@@ -636,12 +646,12 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 		$this->assertStringContainsString( 'Coverage header', $html );
 		$this->assertStringNotContainsString( 'data-rc-follow', $html );
-		$this->assertSame( 2, substr_count( $html, 'class="wp-block-buttons' ), 'Only the Jump to Latest control and the entry row should render.' );
+		$this->assertSame( 2, substr_count( $html, 'class="wp-block-buttons' ), 'Only the Jump to latest control and the entry row should render.' );
 	}
 
 	/**
 	 * The coverage renders its parts in order: the archived notice, the
-	 * blocks above the entries, the live region, "Jump to Latest", the
+	 * blocks above the entries, the live region, "Jump to latest", the
 	 * entries, the blocks below them and the sentinel.
 	 */
 	public function test_coverage_level_blocks_render_around_the_entries_in_order() {
@@ -1580,7 +1590,9 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A title-only entry in a time-column shape renders its time and nothing
-	 * empty.
+	 * empty, and once its breakout post is published, in a template without
+	 * a Full Story Entry, its Read more linked to the post, with the time in
+	 * its column.
 	 */
 	public function test_time_column_entry_without_content_renders() {
 		$entry_id = self::create_entry(
@@ -1606,8 +1618,10 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertStringNotContainsString( 'newspack-rolling-coverage-read-more', $html, 'No breakout: no Read more.' );
 
 		$breakout_id = self::add_breakout( $entry_id, 'publish' );
+		$html        = self::render_markup( $entry_id, $markup );
 
-		$this->assertStringContainsString( '<a href="' . esc_url( get_permalink( $breakout_id ) ) . '">Read more</a>', self::render_markup( $entry_id, $markup ) );
+		$this->assertMatchesRegularExpression( '#<div class="wp-block-column[^"]*" style="flex-basis:6rem"><div class="wp-block-post-date"><time#', $html );
+		$this->assertMatchesRegularExpression( '#<p class="[^"]*newspack-rolling-coverage-read-more[^"]*"><a href="' . preg_quote( esc_url( get_permalink( $breakout_id ) ), '#' ) . '">Read more</a></p>#', $html );
 	}
 
 	/**

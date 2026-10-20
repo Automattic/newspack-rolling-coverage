@@ -768,6 +768,12 @@ class Schema {
 		$article_body = preg_replace( '/\s+/', ' ', $article_body );
 		$article_body = trim( $article_body );
 
+		// An entry that is only a title, such as a one-line Slack headline, is
+		// still an update: its title stands in for the body.
+		if ( '' === $article_body ) {
+			$article_body = trim( Post_Type::plain_title( $entry->post_title ) );
+		}
+
 		/**
 		 * Filters an entry's article body before it's used in LiveBlogPosting schema.
 		 *
@@ -780,8 +786,8 @@ class Schema {
 			return null;
 		}
 
-		$headline = get_the_title( $entry );
-		if ( '' === trim( wp_strip_all_tags( $headline ) ) ) {
+		$headline = Post_Type::plain_title( get_the_title( $entry ) );
+		if ( '' === trim( $headline ) ) {
 			$headline = wp_trim_words( $article_body, 10, '…' );
 		}
 

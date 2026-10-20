@@ -611,7 +611,7 @@ class Test_Pinned_Card extends Rolling_Coverage_TestCase {
 
 	/**
 	 * A capped feed shows its newest entries by date, leaving out an older
-	 * pinned entry, with no infinite scroll, ads or "Jump to Latest"; the
+	 * pinned entry, with no infinite scroll, ads or "Jump to latest"; the
 	 * same block uncapped keeps all of them.
 	 */
 	public function test_capped_feed_shows_only_the_newest_entries() {

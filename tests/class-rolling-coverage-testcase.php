@@ -6,12 +6,15 @@
  */
 
 use Newspack_Rolling_Coverage\Breakout;
+use Newspack_Rolling_Coverage\Breakout_Label;
 use Newspack_Rolling_Coverage\Check_Updates_Block;
+use Newspack_Rolling_Coverage\Load_More_Block;
 use Newspack_Rolling_Coverage\Coverage_Follow_Block;
 use Newspack_Rolling_Coverage\Coverage_Status_Block;
 use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
+use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
@@ -55,6 +58,20 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	private $registered_check_updates_block = false;
 
 	/**
+	 * Whether the test registered the Load More block itself.
+	 *
+	 * @var bool
+	 */
+	private $registered_load_more_block = false;
+
+	/**
+	 * Whether the test registered the Rolling Coverage block itself.
+	 *
+	 * @var bool
+	 */
+	private $registered_feed_block = false;
+
+	/**
 	 * Register the plugin's post and term meta again before every test.
 	 *
 	 * The core test case unregisters every meta key when a test ends, and the
@@ -69,6 +86,7 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		Post_Type::register_meta();
 		Taxonomy::register();
 		Breakout::register_meta();
+		Breakout_Label::register_meta();
 		Push_Notifications::register_meta();
 	}
 
@@ -102,6 +120,16 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		if ( $this->registered_check_updates_block ) {
 			unregister_block_type( Check_Updates_Block::BLOCK_NAME );
 			$this->registered_check_updates_block = false;
+		}
+
+		if ( $this->registered_load_more_block ) {
+			unregister_block_type( Load_More_Block::BLOCK_NAME );
+			$this->registered_load_more_block = false;
+		}
+
+		if ( $this->registered_feed_block ) {
+			unregister_block_type( Rolling_Coverage_Block::BLOCK_NAME );
+			$this->registered_feed_block = false;
 		}
 
 		if ( defined( '\\Newspack\\Content_Gate::IS_TEST_STUB' ) ) {
@@ -240,6 +268,38 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Register the Load More block from its metadata for the rest of the test
+	 * when the build isn't there, so the coverage reaches its render callback.
+	 */
+	protected function register_load_more_block() {
+		if ( WP_Block_Type_Registry::get_instance()->is_registered( Load_More_Block::BLOCK_NAME ) ) {
+			return;
+		}
+
+		$metadata = wp_json_file_decode( NEWSPACK_ROLLING_COVERAGE_PLUGIN_DIR . 'src/blocks/load-more/block.json', [ 'associative' => true ] );
+
+		register_block_type(
+			Load_More_Block::BLOCK_NAME,
+			array_merge( Load_More_Block::block_type_args(), [ 'uses_context' => $metadata['usesContext'] ] )
+		);
+		$this->registered_load_more_block = true;
+	}
+
+	/**
+	 * Register the Rolling Coverage block for the rest of the test when the
+	 * build isn't there, so a feed parsed from content reaches its render
+	 * callback instead of rendering its layout against the host post.
+	 */
+	protected function register_feed_block() {
+		if ( WP_Block_Type_Registry::get_instance()->is_registered( Rolling_Coverage_Block::BLOCK_NAME ) ) {
+			return;
+		}
+
+		register_block_type( Rolling_Coverage_Block::BLOCK_NAME, Rolling_Coverage_Block::block_type_args() );
+		$this->registered_feed_block = true;
+	}
+
+	/**
 	 * Create a coverage term.
 	 *
 	 * @param string $status Coverage status. Left unset when empty, so the
@@ -361,6 +421,27 @@ abstract class Rolling_Coverage_TestCase extends WP_UnitTestCase {
 		}
 
 		return $entry_id;
+	}
+
+	/**
+	 * Set when an entry was last edited, as an edit after it was published
+	 * would.
+	 *
+	 * @param int    $entry_id Entry post ID.
+	 * @param string $date     GMT date, `Y-m-d H:i:s`. The test site runs on UTC.
+	 */
+	protected static function set_entry_modified( int $entry_id, string $date ): void {
+		global $wpdb;
+
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->posts,
+			[
+				'post_modified'     => $date,
+				'post_modified_gmt' => $date,
+			],
+			[ 'ID' => $entry_id ]
+		);
+		clean_post_cache( $entry_id );
 	}
 
 	/**

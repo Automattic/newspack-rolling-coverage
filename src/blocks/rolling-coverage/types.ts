@@ -40,6 +40,8 @@ interface RollingCoverageAttributes {
 	allUpdatesLink: boolean;
 	allUpdatesLinkText: string;
 	hideWhenEnded: boolean;
+	showAuthor: boolean;
+	showAvatar: boolean;
 	align?: string;
 	[ key: string ]: unknown;
 }
@@ -70,6 +72,7 @@ interface BlockConfig {
 	statusMetaKey: string;
 	canonicalUrlMetaKey: string;
 	onesignalConfigured: boolean;
+	minPollInterval: number;
 	statusLabels: Record< string, string >;
 	adsDisabledMetaKey: string;
 	entriesPreviewRestBase: string;
@@ -87,6 +90,7 @@ interface BlockConfig {
 	showAvatars: boolean;
 	entryPlural: string;
 	sampleAvatarUrls?: Record< string, string >;
+	breakoutLabel?: string;
 }
 
 /**
@@ -111,8 +115,23 @@ type EventParams = Record< string, unknown >;
 type EventName = ( typeof EVENTS )[ keyof typeof EVENTS ];
 
 /**
+ * What the editor's Full Story Entry preview shows for an entry's published
+ * breakout post, as plain text, from the entries preview route (see
+ * Rolling_Coverage_Block::breakout_preview()). `imageId` is 0 for a post
+ * without a featured image.
+ */
+interface BreakoutPreview {
+	title: string;
+	summary: string;
+	url: string;
+	label: string;
+	imageId: number;
+}
+
+/**
  * Block context for a single real entry, used by the editor's per-entry
- * template preview (see edit.tsx).
+ * template preview (see edit.tsx). `breakout` describes its published
+ * breakout post, null without one.
  */
 interface EntryContext {
 	postId: number;
@@ -123,6 +142,7 @@ interface EntryContext {
 	hasTitle?: boolean;
 	hidesByline?: boolean;
 	fallbackTitle?: string;
+	breakout?: BreakoutPreview | null;
 }
 
 /**
@@ -151,6 +171,42 @@ interface PollResponse {
 	polledCount: number;
 	replace?: boolean;
 	staleTemplate?: boolean;
+	minPollInterval: number;
+	status?: string;
+	newestEntry?: string | null;
+	latestBreakoutUrl?: string | null;
+}
+
+/**
+ * A change in a shared poll reply. Entries carry when they were first
+ * published, for the page to tell new entries from edits; removals carry
+ * when they were taken down.
+ */
+interface SharedPollChange {
+	id: number;
+	type: 'entry' | 'remove';
+	modified: string;
+	published?: string;
+	unpublished?: string;
+	html?: string;
+	adHtml?: string | null;
+	adSlot?: AdSlot | null;
+}
+
+/**
+ * Reply to a shared poll: the coverage's current cursor and every change
+ * since `since`, newest first. With `sharedPolling: false` the site has
+ * turned shared polling off, and the page polls its cursor until a later
+ * shared request gets a shared reply.
+ */
+interface SharedPollResponse {
+	since: string;
+	cursor: string;
+	changes: SharedPollChange[];
+	overflow: boolean;
+	adsInterval?: number;
+	staleTemplate?: boolean;
+	sharedPolling?: boolean;
 	minPollInterval: number;
 	status?: string;
 	newestEntry?: string | null;
@@ -220,9 +276,12 @@ export type {
 	FrontendConfig,
 	EventParams,
 	EventName,
+	BreakoutPreview,
 	EntryContext,
 	PollEntry,
 	PollResponse,
+	SharedPollChange,
+	SharedPollResponse,
 	AdSlot,
 	PageResponse,
 	PendingEntry,

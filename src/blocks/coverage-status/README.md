@@ -51,7 +51,7 @@ A badge that reads Live, Paused, or Ended, and optionally the "Updated … ago" 
 
 The badge changes without a page reload, but only when a Rolling Coverage block for the same coverage is on the same page. A Rolling Coverage block stops checking once it sees the coverage end, so a coverage reopened after that can keep reading Ended until the page reloads. A Custom block pointing to a coverage that isn't on the page keeps the status it had when the page loaded. The "Updated … ago" text counts up once a minute either way.
 
-On Lite Site's text-only pages, the badge shows the status from when the page was saved for Lite Site, and "Updated … ago" doesn't appear.
+On Lite Site's text-only pages, the badge shows the status from when the page was saved for Lite Site, and "Updated … ago" doesn't appear. On a page with a feed, with a Lite Site release after 0.1.0, it shows as a small badge: in Lite Site's primary color while live, gray when paused or ended.
 
 ## Limits
 

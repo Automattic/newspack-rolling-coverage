@@ -9,6 +9,9 @@ import { addFilter } from '@wordpress/hooks';
 /**
  * Internal dependencies
  */
+import FullStoryEntryContext, {
+	PinnedFullStoryEntryContext,
+} from './full-story-entry-context';
 import PinnedEntryContext from './pinned-entry-context';
 
 /**
@@ -22,6 +25,7 @@ import PinnedEntryContext from './pinned-entry-context';
 export const EntryPreviewsAnchorContext = createContext< {
 	clientId: string;
 	wrapsEntries: boolean;
+	pinnedClientId?: string | null;
 } | null >( null );
 
 /**
@@ -31,18 +35,31 @@ export const EntryPreviewsAnchorContext = createContext< {
 export const EntryPreviewsContext = createContext< ReactNode >( null );
 
 /**
- * The entry previews, without the anchor or pinned entry context: a preview
- * renders copies of the template's blocks, client IDs included, so it would
- * otherwise render the previews again inside itself and show its pinned
- * card against the lead pinned entry.
+ * The previews of the pinned entries an editable layout's Pinned group shows
+ * beside its editable ones, rendered after the group's last block (the
+ * anchor's `pinnedClientId`), inside it.
  */
-function EntryPreviews() {
-	const previews = useContext( EntryPreviewsContext );
+export const PinnedPreviewsContext = createContext< ReactNode >( null );
+
+/**
+ * The entry previews, without the anchor, pinned entry or Full Story entry
+ * context: a preview renders copies of the template's blocks, client IDs
+ * included, so it would otherwise render the previews again inside itself
+ * and show its pinned card and Full Story Entry group against the entries
+ * the editable layout shows them for.
+ */
+function EntryPreviews( { pinned = false }: { pinned?: boolean } ) {
+	const entries = useContext( EntryPreviewsContext );
+	const pinnedEntries = useContext( PinnedPreviewsContext );
 
 	return (
 		<EntryPreviewsAnchorContext.Provider value={ null }>
 			<PinnedEntryContext.Provider value={ null }>
-				{ previews }
+				<FullStoryEntryContext.Provider value={ null }>
+					<PinnedFullStoryEntryContext.Provider value={ null }>
+						{ pinned ? pinnedEntries : entries }
+					</PinnedFullStoryEntryContext.Provider>
+				</FullStoryEntryContext.Provider>
 			</PinnedEntryContext.Provider>
 		</EntryPreviewsAnchorContext.Provider>
 	);
@@ -56,6 +73,18 @@ function EntryPreviews() {
 const withEntryPreviews = createHigherOrderComponent(
 	( BlockListBlock ) => ( props: { clientId: string } ) => {
 		const anchor = useContext( EntryPreviewsAnchorContext );
+
+		if (
+			anchor?.pinnedClientId &&
+			anchor.pinnedClientId === props.clientId
+		) {
+			return (
+				<>
+					<BlockListBlock { ...props } />
+					<EntryPreviews pinned />
+				</>
+			);
+		}
 
 		if ( anchor?.clientId !== props.clientId ) {
 			return <BlockListBlock { ...props } />;

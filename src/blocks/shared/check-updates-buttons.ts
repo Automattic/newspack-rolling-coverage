@@ -24,7 +24,7 @@ const CHECK_UPDATES_BUTTONS_TEMPLATE: TemplateItem = [
 			'core/button',
 			{
 				tagName: 'button',
-				text: __( 'Check for Updates', 'newspack-rolling-coverage' ),
+				text: __( 'Check for updates', 'newspack-rolling-coverage' ),
 				metadata: {
 					name: __(
 						'Check for Updates',

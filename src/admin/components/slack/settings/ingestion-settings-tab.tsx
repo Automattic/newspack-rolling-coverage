@@ -1,9 +1,9 @@
 /**
  * External dependencies
  */
-import { Button, TextControl } from '@wordpress/components';
+import { Button, SelectControl, TextControl } from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
-import { __ } from '@wordpress/i18n';
+import { __, _x, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { useEffect, useRef } from '@wordpress/element';
 import type { MouseEvent } from 'react';
@@ -22,18 +22,39 @@ import { BotUserSection } from './bot-user-section';
 import { useAdminContext } from '../../../hooks/useAdminContext';
 
 /**
- * Renders the Settings tab: the message ignore prefix and the WordPress bot
- * user that authors ingested entries. Saving happens from the page header.
+ * Heading levels a message's shallowest heading can get, after 0 for off. A
+ * Heading 1 would compete with the page title. Mirrors
+ * Slack_Config::TOP_HEADING_LEVELS.
+ */
+const TOP_HEADING_LEVELS = [ 0, 2, 3, 4, 5, 6 ];
+
+/**
+ * Renders the Settings tab: the message ignore prefix, the emoji that publish
+ * or draft a message in channels set to Emoji trigger, the Highest Heading
+ * for titles and headings typed with # (or Off), and the WordPress bot user
+ * that authors ingested entries. Saving happens from the page header.
  *
- * @param {Object}                   props                 - Component props.
- * @param {string}                   props.ignorePrefix    - The ignore-prefix setting value.
- * @param {(v: string) => void}      props.setIgnorePrefix - Ignore prefix setter.
- * @param {SlackSettingsInfo | null} props.workspaceInfo   - Fetched workspace settings, or null.
- * @param {string}                   props.editUserUrl     - Base admin URL for editing a WordPress user.
+ * @param {Object}                   props                    - Component props.
+ * @param {string}                   props.ignorePrefix       - The ignore-prefix setting value.
+ * @param {(v: string) => void}      props.setIgnorePrefix    - Ignore prefix setter.
+ * @param {string}                   props.publishReaction    - Emoji name that publishes a message.
+ * @param {(v: string) => void}      props.setPublishReaction - Publish emoji setter.
+ * @param {string}                   props.draftReaction      - Emoji name that saves a message as a draft.
+ * @param {(v: string) => void}      props.setDraftReaction   - Draft emoji setter.
+ * @param {number}                   props.topHeadingLevel    - Heading level a message's shallowest heading gets, or 0 for off.
+ * @param {(v: number) => void}      props.setTopHeadingLevel - Heading level setter.
+ * @param {SlackSettingsInfo | null} props.workspaceInfo      - Fetched workspace settings, or null.
+ * @param {string}                   props.editUserUrl        - Base admin URL for editing a WordPress user.
  */
 function IngestionSettingsTab( {
 	ignorePrefix,
 	setIgnorePrefix,
+	publishReaction,
+	setPublishReaction,
+	draftReaction,
+	setDraftReaction,
+	topHeadingLevel,
+	setTopHeadingLevel,
 	workspaceInfo,
 	editUserUrl,
 }: IngestionSettingsTabProps ) {
@@ -115,11 +136,80 @@ function IngestionSettingsTab( {
 						value={ ignorePrefix }
 						onChange={ setIgnorePrefix }
 						help={ __(
-							'Messages starting with this prefix are ignored during ingestion, and so are the replies in their threads.',
+							'In Auto-publish and Draft channels, messages starting with this prefix are ignored during ingestion, and so are the replies in their threads. In Emoji trigger channels, a reaction adds the message anyway.',
+							'newspack-rolling-coverage'
+						) }
+					/>
+					<TextControl
+						label={ __(
+							'Publish Emoji',
+							'newspack-rolling-coverage'
+						) }
+						value={ publishReaction }
+						onChange={ setPublishReaction }
+						help={ __(
+							'In channels set to Emoji trigger, reacting to a message with this emoji publishes it. Enter the emoji name, such as mega.',
+							'newspack-rolling-coverage'
+						) }
+					/>
+					<TextControl
+						label={ __(
+							'Draft Emoji',
+							'newspack-rolling-coverage'
+						) }
+						value={ draftReaction }
+						onChange={ setDraftReaction }
+						help={ __(
+							'In channels set to Emoji trigger, reacting to a message with this emoji saves it as a draft. Enter the emoji name, such as memo.',
 							'newspack-rolling-coverage'
 						) }
 					/>
 				</Stack>
+			</Grid>
+			<Divider alignment="full-width" variant="tertiary" />
+			<Grid columns={ 2 } gutter={ 32 } noMargin>
+				<SectionHeader
+					noMargin
+					heading={ 2 }
+					title={ __( 'Formatting', 'newspack-rolling-coverage' ) }
+					description={ __(
+						'Choose how Slack messages are formatted in entries.',
+						'newspack-rolling-coverage'
+					) }
+				/>
+				<SelectControl
+					__next40pxDefaultSize
+					label={ __(
+						'Highest Heading',
+						'newspack-rolling-coverage'
+					) }
+					value={ String( topHeadingLevel ) }
+					options={ TOP_HEADING_LEVELS.map( ( level ) => ( {
+						value: String( level ),
+						label:
+							0 === level
+								? _x(
+										'Off',
+										'Highest Heading option: no titles or headings',
+										'newspack-rolling-coverage'
+									)
+								: sprintf(
+										/* translators: %d: heading level, from 2 to 6. */
+										__(
+											'Heading %d',
+											'newspack-rolling-coverage'
+										),
+										level
+									),
+					} ) ) }
+					onChange={ ( next ) =>
+						setTopHeadingLevel( Number( next ) )
+					}
+					help={ __(
+						"When set, lines that start with #, ## or ### and a space become headings. A marked first line becomes the entry title instead when no other heading in the message is at its level or higher. A message's highest heading takes this level and the others follow it, one level lower per extra #, down to Heading 6. Most feed layouts show entry titles as Heading 4, so Heading 5 or 6 keeps headings below them. Entries already added keep their formatting.",
+						'newspack-rolling-coverage'
+					) }
+				/>
 			</Grid>
 			<Divider alignment="full-width" variant="tertiary" />
 			<Grid columns={ 2 } gutter={ 32 } noMargin>

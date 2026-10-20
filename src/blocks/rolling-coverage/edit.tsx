@@ -42,6 +42,7 @@ import {
 	ToolbarButton,
 } from '@wordpress/components';
 import {
+	createInterpolateElement,
 	useState,
 	useEffect,
 	useCallback,
@@ -53,18 +54,14 @@ import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as editorStore } from '@wordpress/editor';
 import { decodeEntities } from '@wordpress/html-entities';
-import { __, _x, sprintf } from '@wordpress/i18n';
+import { __, _n, _x, sprintf } from '@wordpress/i18n';
 import { copy as copyIcon, check } from '@wordpress/icons';
 import { Stack } from '@wordpress/ui';
 
 /**
- * External dependencies
- */
-import { activity } from 'newspack-icons';
-
-/**
  * Internal dependencies
  */
+import { liveStreaming } from '../../shared/icons/live-streaming';
 import {
 	searchCoverages,
 	getCoverage,
@@ -75,7 +72,6 @@ import {
 	getLayoutId,
 	getLayoutCategoryId,
 	createLayout,
-	PREVIEW_COVERAGE_ID,
 } from './utils';
 import {
 	feedPathOf,
@@ -87,15 +83,29 @@ import {
 	withAllUpdatesText,
 	allUpdatesTextOf,
 	isPinnedCard,
+	isPinnedStack,
+	pinnedStackGroups,
+	loadMoreInsetStyle,
+	startsAtInlineStart,
+	PINNED_STACK_CLASS,
 	isRegularEntry,
+	isBreakoutEntry,
 	forEntryKind,
 	breakoutBlockIds,
+	featuredImageBlockIds,
+	fullStoryTakesPinned,
+	pinnedRowBlockIds,
 	withoutFollowButtons,
 	withoutCheckUpdatesButtons,
+	withoutLoadMoreButtons,
+	withAuthorSettings,
+	withoutAvatarColumns,
 	blockIdsOfType,
 	holdsBlockType,
+	hiddenAuthorBlockIds,
 	layoutParts,
 	CHECK_UPDATES_BLOCK_NAME,
+	LOAD_MORE_BLOCK_NAME,
 	entryPreviewPlacement,
 	withColumnRule,
 	RULED_FEED_CLASS,
@@ -105,9 +115,12 @@ import {
 	NEWSPACK_ADS_AVAILABLE,
 	NEWSPACK_ADS_PLACEMENT_ENABLED,
 	ONESIGNAL_CONFIGURED,
+	MIN_POLL_INTERVAL,
+	SHOW_AVATARS,
 	STATUS_LABELS,
 } from './config';
 import { COVERAGE_ID_CONTEXT } from '../shared/entry-bindings';
+import metadata from './block.json';
 import { useSampleEntries } from './samples';
 import EntryBlockPreview from './components/entry-block-preview';
 import LoadingState from './components/loading-state';
@@ -122,12 +135,22 @@ import {
 	type BuiltInLayoutSlug,
 } from './layouts';
 import PinnedEntryContext from './pinned-entry-context';
+import FullStoryEntryContext, {
+	PinnedFullStoryEntryContext,
+} from './full-story-entry-context';
+import { receiveBreakoutPreviews } from './breakout-previews';
 import {
 	EntryPreviewsAnchorContext,
 	EntryPreviewsContext,
+	PinnedPreviewsContext,
 } from './entry-previews';
 import { blockGapCss } from './spacing';
-import { BLOCK_NAME, innerTemplate, useLayoutPreview } from './layout';
+import {
+	BLOCK_NAME,
+	innerTemplate,
+	isFullStoryContext,
+	useLayoutPreview,
+} from './layout';
 import type {
 	CoverageOption,
 	ApplyNotice,
@@ -155,9 +178,9 @@ const OLDER_ENTRIES_HELP: Record< string, () => string > = {
 			'newspack-rolling-coverage'
 		),
 	button: () =>
-		/* translators: “Load More” is the label of the button readers press. Keep the words used to translate it. */
+		/* translators: “Load more” is the label of the button readers press. Keep the words used to translate it. */
 		__(
-			'Readers load more entries with a Load More button.',
+			'Readers load more entries with a “Load more” button.',
 			'newspack-rolling-coverage'
 		),
 	none: () =>
@@ -759,6 +782,8 @@ export default function Edit( {
 		enableAds,
 		adsInterval,
 		hideWhenEnded,
+		showAuthor,
+		showAvatar,
 		archivedNoticeShow,
 		archivedNotice,
 		archivedNoticeShowLink,
@@ -1011,7 +1036,11 @@ export default function Edit( {
 					id: number,
 					query?: object
 				) =>
-					| { status?: string; content?: { raw?: string } | string }
+					| {
+							status?: string;
+							content?: { raw?: string } | string;
+							title?: { raw?: string } | string;
+					  }
 					| undefined;
 				hasFinishedResolution: (
 					selector: string,
@@ -1069,6 +1098,33 @@ export default function Edit( {
 			: null;
 	}, [ layoutRecord ] );
 	const isLayoutMissing = isSynced && hasResolvedLayout && ! layoutBlocks;
+	const layoutTitle = layoutBlocks
+		? decodeEntities(
+				( typeof layoutRecord?.title === 'string'
+					? layoutRecord.title
+					: layoutRecord?.title?.raw ) ?? ''
+			).trim()
+		: '';
+	let layoutDescription:
+		ReturnType< typeof createInterpolateElement > | string = __(
+		'Uses its own layout, detached from the shared one.',
+		'newspack-rolling-coverage'
+	);
+	if ( isSynced ) {
+		layoutDescription = layoutTitle
+			? createInterpolateElement(
+					/* translators: <name /> is the shared layout's name, such as "Rail". */
+					__(
+						'Uses the shared <name /> layout. Changes to it apply to every story that uses it.',
+						'newspack-rolling-coverage'
+					),
+					{ name: <strong>{ layoutTitle }</strong> }
+				)
+			: __(
+					'Uses the shared layout. Changes to it apply to every story that uses it.',
+					'newspack-rolling-coverage'
+				);
+	}
 	const isChoosing =
 		! isLayoutPattern &&
 		! isNested &&
@@ -1098,7 +1154,12 @@ export default function Edit( {
 		style: feedGapStyle( feedGroup ),
 	} );
 
-	const allSampleContexts = useSampleEntries( showsSamples );
+	const allSampleContexts = useSampleEntries(
+		showsSamples,
+		( isSynced ? feedItems( syncedBlocks ) : allBlocks ).some(
+			isPinnedStack
+		)
+	);
 	const sampleContexts = useMemo( () => {
 		if ( isCapped ) {
 			return allSampleContexts
@@ -1115,9 +1176,9 @@ export default function Edit( {
 		isCapped,
 		cappedCount,
 	] );
-	const entriesCoverageId = isChoosing
-		? 0
-		: coverageId || ( isLayoutPattern ? PREVIEW_COVERAGE_ID : 0 );
+	// A layout edited on its own previews the sample entries, whatever story
+	// it was opened from, so it shows every kind of entry.
+	const entriesCoverageId = isChoosing ? 0 : coverageId;
 	const isLoading =
 		needsDefaultLayout ||
 		( ! isChoosing &&
@@ -1141,37 +1202,30 @@ export default function Edit( {
 			isSynced ? feedItems( syncedBlocks ) : allBlocks,
 			previewContexts,
 			pageSize,
-			! previewHasMore
+			! previewHasMore,
+			{ showAuthor, showAvatar }
 		);
-	const loadMorePreview = useMemo(
-		() =>
-			olderEntries === 'button' &&
-			previewHasMore && (
-				<Disabled className="newspack-rolling-coverage-load-more">
-					<button
-						type="button"
-						className="wp-element-button wp-block-button__link"
-					>
-						{
-							/* translators: Button that loads older entries at the end of a coverage's feed. */
-							__( 'Load More', 'newspack-rolling-coverage' )
-						}
-					</button>
-				</Disabled>
-			),
-		[ olderEntries, previewHasMore ]
-	);
 	const emptyPreviewBlocks = useMemo(
 		() => forEntryKind( templateBlocks, false ),
 		[ templateBlocks ]
 	);
 	// In a grid Feed, each entry's preview takes the cell the site places its
-	// article in, the first pinned entry the pinned card's. Kept between
+	// article in, the first pinned entry shown as the pinned card the card's
+	// and a Full Story entry the Full Story Entry group's. With the Pinned
+	// group, every pinned entry previews inside it, in its cell. Kept between
 	// renders, so the previews don't render again for a new style object.
-	const leadPinContext = previewContexts.find(
-		( context ) => context.pinned
-	);
-	const showsPin = Boolean( leadPinContext );
+	const takesPinned = fullStoryTakesPinned( templateBlocks );
+	const stacksPinned = templateBlocks.some( isPinnedStack );
+	const leadPinContext = stacksPinned
+		? undefined
+		: previewContexts.find(
+				( context ) =>
+					context.pinned &&
+					! isFullStoryContext( context, takesPinned )
+			);
+	const showsPin = stacksPinned
+		? previewContexts.some( ( context ) => context.pinned )
+		: Boolean( leadPinContext );
 	const showsEntries = templateBlocks.length > 0;
 	const previewPlacements = useMemo(
 		() => ( {
@@ -1187,14 +1241,111 @@ export default function Edit( {
 				false,
 				showsPin
 			),
+			fullStory: entryPreviewPlacement(
+				templateBlocks,
+				feedLayout,
+				false,
+				showsPin,
+				true
+			),
 		} ),
 		[ templateBlocks, feedLayout, showsPin ]
 	);
-	// The entry after the lead pin heads the entries beside the card, and
-	// carries the card's top border too.
-	const columnHeadContext = leadPinContext
-		? previewContexts[ previewContexts.indexOf( leadPinContext ) + 1 ]
-		: undefined;
+	// Measured on the entries as they show, without a dropped avatar column.
+	const loadMoreInsetProps = useMemo(
+		() =>
+			loadMoreInsetStyle(
+				withAuthorSettings(
+					SHOW_AVATARS
+						? templateBlocks
+						: withoutAvatarColumns( templateBlocks ),
+					showAuthor !== false,
+					showAvatar !== false
+				)
+			),
+		[ templateBlocks, showAuthor, showAvatar ]
+	);
+	const loadMorePlacement = useMemo(
+		() => ( { ...previewPlacements.other, ...loadMoreInsetProps } ),
+		[ previewPlacements.other, loadMoreInsetProps ]
+	);
+	// The layout pattern editor shows it for publishers to style; a feed shows
+	// it where the site does.
+	const isLoadMoreHidden =
+		! isLayoutPattern && ( olderEntries !== 'button' || ! previewHasMore );
+	const holdsLoadMore = useMemo( () => {
+		const parts = layoutParts(
+			isSynced ? feedItems( syncedBlocks ) : allBlocks
+		);
+
+		return holdsBlockType(
+			[ ...parts.header, ...parts.footer ],
+			LOAD_MORE_BLOCK_NAME
+		);
+	}, [ isSynced, syncedBlocks, allBlocks ] );
+	const loadMorePreview = useMemo(
+		() =>
+			olderEntries === 'button' &&
+			previewHasMore &&
+			! holdsLoadMore && (
+				<Disabled
+					className="newspack-rolling-coverage-load-more"
+					style={ loadMorePlacement }
+				>
+					<button
+						type="button"
+						className="wp-element-button wp-block-button__link"
+					>
+						{
+							/* translators: Button that loads older entries at the end of a coverage's feed. */
+							__( 'Load more', 'newspack-rolling-coverage' )
+						}
+					</button>
+				</Disabled>
+			),
+		[ olderEntries, previewHasMore, holdsLoadMore, loadMorePlacement ]
+	);
+	const renderSyncedChromeItem = ( item: TemplateBlocks, index: number ) =>
+		item[ 0 ]?.name === LOAD_MORE_BLOCK_NAME ? (
+			<EntryBlockPreview
+				key={ index }
+				blocks={ item }
+				className="newspack-rolling-coverage-load-more"
+				style={ {
+					...previewPlacements.other,
+					...( startsAtInlineStart( item[ 0 ] )
+						? loadMoreInsetProps
+						: {} ),
+				} }
+			/>
+		) : (
+			<EntryBlockPreview
+				key={ index }
+				blocks={ item }
+				style={ chromePreviewStyle( item, feedLayout ) }
+			/>
+		);
+	const previewPlacementFor = ( context: EntryContext ) => {
+		if ( context === leadPinContext ) {
+			return previewPlacements.lead;
+		}
+
+		return isFullStoryContext( context, takesPinned )
+			? previewPlacements.fullStory
+			: previewPlacements.other;
+	};
+	// The entry after the lead pin, or after the Pinned group's entries,
+	// heads the entries beside them, and carries the card's top border too.
+	let columnHeadContext: EntryContext | undefined;
+
+	if ( stacksPinned ) {
+		columnHeadContext = showsPin
+			? previewContexts.find( ( context ) => ! context.pinned )
+			: undefined;
+	} else if ( leadPinContext ) {
+		columnHeadContext =
+			previewContexts[ previewContexts.indexOf( leadPinContext ) + 1 ];
+	}
 	const columnHeadBlocks = useMemo(
 		() =>
 			columnHeadContext && ! columnHeadContext.pinned
@@ -1205,6 +1356,30 @@ export default function Edit( {
 					)
 				: undefined,
 		[ columnHeadContext, blocksForEntry, templateBlocks, feedLayout ]
+	);
+	const pinnedStackStyle = useMemo(
+		() => ( {
+			...previewPlacements.lead,
+			display: 'flex',
+			flexDirection: 'column' as const,
+		} ),
+		[ previewPlacements.lead ]
+	);
+	const renderSyncedPreview = ( context: EntryContext ) => (
+		<BlockContextProvider key={ context.postId } value={ context }>
+			<EntryBlockPreview
+				blocks={
+					context === columnHeadContext && columnHeadBlocks
+						? columnHeadBlocks
+						: blocksForEntry( context )
+				}
+				style={
+					stacksPinned && context.pinned
+						? undefined
+						: previewPlacementFor( context )
+				}
+			/>
+		</BlockContextProvider>
 	);
 
 	const { setBlockEditingMode, unsetBlockEditingMode } = useDispatch(
@@ -1221,6 +1396,12 @@ export default function Edit( {
 	const isAllUpdatesHidden = ! isCapped || allUpdatesLink === false;
 	const isCheckUpdatesHidden =
 		isCapped || currentCoverage?.status === 'archived';
+	const offersAuthor = holdsBlockType(
+		templateBlocks,
+		'core/post-author-name'
+	);
+	const offersAvatar =
+		SHOW_AVATARS && holdsBlockType( templateBlocks, 'core/avatar' );
 	const checksOnRequest = useMemo( () => {
 		const parts = layoutParts(
 			isSynced ? feedItems( syncedBlocks ) : allBlocks
@@ -1231,16 +1412,32 @@ export default function Edit( {
 			CHECK_UPDATES_BLOCK_NAME
 		);
 	}, [ isSynced, syncedBlocks, allBlocks ] );
-	// An editable layout previews the pinned card against the pinned entry
-	// and the entry group against one that isn't pinned, and leaves out the
-	// one the coverage has no entry for, and "Read more" where the entry
-	// previewed has no breakout post.
+	// An editable layout previews the pinned card against a pinned entry
+	// shown as the card, the Full Story Entry group against a Full Story
+	// entry (see isFullStoryContext()), and the entry group against one that
+	// is neither. It leaves out the ones the coverage has no entry for,
+	// "Read more" where the entry previewed has no breakout post, and the
+	// Full Story Entry's pinned row where its entry isn't pinned. The sample
+	// entries have one of each.
+	const pinnedGroups = pinnedStackGroups( allBlocks );
+	const entryGroupBlocks = [
+		...allBlocks.filter( ( block ) => ! isPinnedStack( block ) ),
+		...pinnedGroups,
+	];
 	const hasBothKinds =
-		allBlocks.some( isPinnedCard ) && allBlocks.some( isRegularEntry );
+		entryGroupBlocks.some( isPinnedCard ) &&
+		entryGroupBlocks.some( isRegularEntry );
+	const hasFullStory = entryGroupBlocks.some( isBreakoutEntry );
+	const hasPinnedFullStory = pinnedGroups.some( isBreakoutEntry );
+	const entryKindContexts = hasFullStory
+		? previewContexts.filter(
+				( context ) => ! isFullStoryContext( context, takesPinned )
+			)
+		: previewContexts;
 	const pinnedContext = hasBothKinds
-		? previewContexts.find( ( context ) => context.pinned )
+		? entryKindContexts.find( ( context ) => context.pinned )
 		: undefined;
-	const unpinnedContexts = previewContexts.filter(
+	const unpinnedContexts = entryKindContexts.filter(
 		( context ) => ! context.pinned
 	);
 	const titledContexts = unpinnedContexts.filter(
@@ -1250,7 +1447,26 @@ export default function Edit( {
 		? ( titledContexts.find( ( context ) => context.hasBreakout ) ??
 			titledContexts[ 0 ] ??
 			unpinnedContexts[ 0 ] )
-		: previewContexts[ 0 ];
+		: entryKindContexts[ 0 ];
+	const fullStoryContexts = hasFullStory
+		? previewContexts.filter(
+				( context ) =>
+					isFullStoryContext( context, takesPinned ) &&
+					! ( hasPinnedFullStory && context.pinned )
+			)
+		: [];
+	const fullStoryContext =
+		fullStoryContexts.find( ( context ) => context.breakout?.title ) ??
+		fullStoryContexts[ 0 ];
+	const pinnedFullStoryContexts = hasPinnedFullStory
+		? previewContexts.filter(
+				( context ) => context.pinned && Boolean( context.breakout )
+			)
+		: [];
+	const pinnedFullStoryContext =
+		pinnedFullStoryContexts.find(
+			( context ) => context.breakout?.title
+		) ?? pinnedFullStoryContexts[ 0 ];
 	const layoutContext =
 		regularContext ?? pinnedContext ?? NEUTRAL_ENTRY_CONTEXT;
 	const coverageContext = useMemo(
@@ -1258,7 +1474,18 @@ export default function Edit( {
 		[ entriesCoverageId ]
 	);
 	const isCardHidden = hasBothKinds && ! pinnedContext;
-	const isEntryHidden = hasBothKinds && ! regularContext && !! pinnedContext;
+	const isEntryHidden =
+		( hasBothKinds || hasFullStory ) &&
+		! regularContext &&
+		!! ( pinnedContext || fullStoryContext );
+	const isFullStoryHidden = hasFullStory && ! fullStoryContext;
+	const isPinnedFullStoryHidden =
+		hasPinnedFullStory && ! pinnedFullStoryContext;
+	const hidesFullStoryImage =
+		!! fullStoryContext && ! fullStoryContext.breakout?.imageId;
+	const hidesPinnedFullStoryImage =
+		!! pinnedFullStoryContext && ! pinnedFullStoryContext.breakout?.imageId;
+	const hidesFullStoryPin = !! fullStoryContext && ! fullStoryContext.pinned;
 	// Core skips rendering a hidden block, filters included, so the previews
 	// follow the last block shown in every viewport.
 	const entryPreviewsAnchorId =
@@ -1268,12 +1495,54 @@ export default function Edit( {
 		 )?.clientId ?? null;
 	const isRow = isRuledRow( feedGroup );
 	const wrapsEntries = isRow || isOneLineRow( feedGroup );
+	// Pinned entries beyond the editable ones preview inside the Pinned group,
+	// as the site stacks them.
+	const pinnedPreviewsAnchorId =
+		( stacksPinned &&
+			( pinnedGroups.at( -1 ) as { clientId?: string } | undefined )
+				?.clientId ) ||
+		null;
 	const entryPreviewsAnchor = useMemo(
 		() =>
 			entryPreviewsAnchorId
-				? { clientId: entryPreviewsAnchorId, wrapsEntries }
+				? {
+						clientId: entryPreviewsAnchorId,
+						wrapsEntries,
+						pinnedClientId: pinnedPreviewsAnchorId,
+					}
 				: null,
-		[ entryPreviewsAnchorId, wrapsEntries ]
+		[ entryPreviewsAnchorId, wrapsEntries, pinnedPreviewsAnchorId ]
+	);
+	const pinnedPreviews = useMemo(
+		() =>
+			stacksPinned
+				? previewContexts
+						.filter(
+							( context ) =>
+								context.pinned &&
+								! [
+									pinnedContext,
+									pinnedFullStoryContext,
+								].includes( context )
+						)
+						.map( ( context ) => (
+							<BlockContextProvider
+								key={ context.postId }
+								value={ context }
+							>
+								<EntryBlockPreview
+									blocks={ blocksForEntry( context ) }
+								/>
+							</BlockContextProvider>
+						) )
+				: null,
+		[
+			stacksPinned,
+			previewContexts,
+			pinnedContext,
+			pinnedFullStoryContext,
+			blocksForEntry,
+		]
 	);
 	const entryPreviews = useMemo(
 		() => (
@@ -1281,8 +1550,13 @@ export default function Edit( {
 				{ previewContexts
 					.filter(
 						( context ) =>
-							context !== pinnedContext &&
-							context !== regularContext
+							! [
+								pinnedContext,
+								regularContext,
+								fullStoryContext,
+								pinnedFullStoryContext,
+							].includes( context ) &&
+							! ( stacksPinned && context.pinned )
 					)
 					.map( ( context ) => (
 						<BlockContextProvider
@@ -1291,7 +1565,11 @@ export default function Edit( {
 						>
 							<EntryBlockPreview
 								blocks={ blocksForEntry( context ) }
-								style={ previewPlacements.other }
+								style={
+									isFullStoryContext( context, takesPinned )
+										? previewPlacements.fullStory
+										: previewPlacements.other
+								}
 							/>
 						</BlockContextProvider>
 					) ) }
@@ -1302,8 +1580,13 @@ export default function Edit( {
 			previewContexts,
 			pinnedContext,
 			regularContext,
+			fullStoryContext,
+			pinnedFullStoryContext,
+			stacksPinned,
 			blocksForEntry,
+			takesPinned,
 			previewPlacements.other,
+			previewPlacements.fullStory,
 			loadMorePreview,
 		]
 	);
@@ -1319,11 +1602,22 @@ export default function Edit( {
 			...( isCheckUpdatesHidden
 				? blockIdsOfType( allBlocks, CHECK_UPDATES_BLOCK_NAME )
 				: [] ),
+			...( isLoadMoreHidden
+				? blockIdsOfType( allBlocks, LOAD_MORE_BLOCK_NAME )
+				: [] ),
 			...( isAllUpdatesHidden ? allUpdatesBlockIds( allBlocks ) : [] ),
+			...pinnedGroups
+				.filter(
+					( block ) =>
+						( isCardHidden && isPinnedCard( block ) ) ||
+						( isPinnedFullStoryHidden && isBreakoutEntry( block ) )
+				)
+				.map( ( block ) => block.clientId as string ),
 			...allBlocks
 				.filter(
 					( block, index ) =>
 						( isCardHidden && isPinnedCard( block ) ) ||
+						( isFullStoryHidden && isBreakoutEntry( block ) ) ||
 						( isEntryHidden &&
 							( isRegularEntry( block ) ||
 								( block.name === 'core/separator' &&
@@ -1331,11 +1625,31 @@ export default function Edit( {
 				)
 				.map( ( block ) => block.clientId as string ),
 			...breakoutBlockIds(
-				allBlocks.filter( ( block ) =>
-					pinnedContext && isPinnedCard( block )
+				entryGroupBlocks.filter( ( block ) => {
+					if ( isBreakoutEntry( block ) ) {
+						return false;
+					}
+
+					return pinnedContext && isPinnedCard( block )
 						? hidesCardBreakout
-						: hidesEntryBreakout
-				)
+						: hidesEntryBreakout;
+				} )
+			),
+			...( hidesFullStoryImage
+				? featuredImageBlockIds( allBlocks.filter( isBreakoutEntry ) )
+				: [] ),
+			...( hidesPinnedFullStoryImage
+				? featuredImageBlockIds(
+						pinnedGroups.filter( isBreakoutEntry )
+					)
+				: [] ),
+			...( hidesFullStoryPin
+				? pinnedRowBlockIds( allBlocks.filter( isBreakoutEntry ) )
+				: [] ),
+			...hiddenAuthorBlockIds(
+				layoutParts( allBlocks ).template,
+				showAuthor !== false,
+				SHOW_AVATARS && showAvatar !== false
 			),
 		];
 
@@ -1344,12 +1658,20 @@ export default function Edit( {
 		allBlocks,
 		isFollowHidden,
 		isCheckUpdatesHidden,
+		isLoadMoreHidden,
 		isAllUpdatesHidden,
 		isCardHidden,
 		isEntryHidden,
+		isFullStoryHidden,
+		isPinnedFullStoryHidden,
+		hidesFullStoryImage,
+		hidesPinnedFullStoryImage,
+		hidesFullStoryPin,
 		pinnedContext,
 		hidesCardBreakout,
 		hidesEntryBreakout,
+		showAuthor,
+		showAvatar,
 	] );
 	const hiddenKey = hiddenIds.join( ',' );
 	useEffect( () => {
@@ -1358,15 +1680,52 @@ export default function Edit( {
 		return () => ids.forEach( ( id ) => unsetBlockEditingMode( id ) );
 	}, [ hiddenKey, setBlockEditingMode, unsetBlockEditingMode ] );
 
+	const loadMoreCss = useMemo( () => {
+		if ( isSynced ) {
+			return '';
+		}
+
+		const parts = layoutParts( allBlocks );
+		const gridColumn = /^[\w\s/-]+$/.test(
+			previewPlacements.other?.gridColumn ?? ''
+		)
+			? previewPlacements.other?.gridColumn
+			: undefined;
+
+		return [ ...parts.header, ...parts.footer ]
+			.filter( ( block ) => block.name === LOAD_MORE_BLOCK_NAME )
+			.map( ( block ) => {
+				const declarations = Object.entries( {
+					...( gridColumn ? { 'grid-column': gridColumn } : {} ),
+					...( startsAtInlineStart( block )
+						? loadMoreInsetProps
+						: {} ),
+				} )
+					.map(
+						( [ property, value ] ) => `${ property }: ${ value };`
+					)
+					.join( ' ' );
+				const selector = `.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ block.clientId }"]`;
+
+				return declarations
+					? `${ selector } { ${ declarations } margin-inline-start: var(--newspack-rolling-coverage-load-more-inset-narrow, 0); } @media (min-width: 782px) { ${ selector } { margin-inline-start: var(--newspack-rolling-coverage-load-more-inset, 0); } }`
+					: '';
+			} )
+			.filter( Boolean )
+			.join( '\n' );
+	}, [ isSynced, allBlocks, previewPlacements.other, loadMoreInsetProps ] );
 	const layoutCss = useMemo(
 		() =>
-			hiddenIds
-				.map(
+			[
+				...hiddenIds.map(
 					( id ) =>
 						`.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-layout [data-block="${ id }"]:not(.newspack-rolling-coverage-layout .block-editor-block-preview__live-content *) { display: none; }`
-				)
+				),
+				loadMoreCss,
+			]
+				.filter( Boolean )
 				.join( '\n' ),
-		[ hiddenIds ]
+		[ hiddenIds, loadMoreCss ]
 	);
 
 	const linkText = isSynced ? ( allUpdatesLinkText ?? '' ).trim() : '';
@@ -1385,6 +1744,7 @@ export default function Edit( {
 		blocks = isCheckUpdatesHidden
 			? withoutCheckUpdatesButtons( blocks )
 			: blocks;
+		blocks = isLoadMoreHidden ? withoutLoadMoreButtons( blocks ) : blocks;
 		if ( isAllUpdatesHidden ) {
 			return withoutAllUpdatesParagraph( blocks );
 		}
@@ -1393,6 +1753,7 @@ export default function Edit( {
 		headerBlocks,
 		isFollowHidden,
 		isCheckUpdatesHidden,
+		isLoadMoreHidden,
 		isAllUpdatesHidden,
 		linkText,
 	] );
@@ -1403,6 +1764,7 @@ export default function Edit( {
 		blocks = isCheckUpdatesHidden
 			? withoutCheckUpdatesButtons( blocks )
 			: blocks;
+		blocks = isLoadMoreHidden ? withoutLoadMoreButtons( blocks ) : blocks;
 		if ( isAllUpdatesHidden ) {
 			return withoutAllUpdatesParagraph( blocks );
 		}
@@ -1411,6 +1773,7 @@ export default function Edit( {
 		footerBlocks,
 		isFollowHidden,
 		isCheckUpdatesHidden,
+		isLoadMoreHidden,
 		isAllUpdatesHidden,
 		linkText,
 	] );
@@ -1590,7 +1953,8 @@ export default function Edit( {
 			getEntityRecord: (
 				kind: string,
 				name: string,
-				id: number
+				id: number,
+				query?: Record< string, string >
 			) => Promise< unknown >;
 			getUser: (
 				id: number,
@@ -1607,8 +1971,24 @@ export default function Edit( {
 			.then( ( fetched ) => {
 				const contexts = fetched.slice( 0, perPage );
 
-				// Entries and their authors are read before the preview
-				// shows, so it doesn't fill in piece by piece.
+				receiveBreakoutPreviews( contexts );
+
+				// Entries, their authors and their breakout posts' images
+				// are read before the preview shows, so it doesn't fill in
+				// piece by piece.
+				const images = Promise.all(
+					contexts.map( ( { breakout } ) =>
+						breakout?.imageId
+							? getEntityRecord(
+									'postType',
+									'attachment',
+									breakout.imageId,
+									{ context: 'view' }
+								).catch( () => undefined )
+							: undefined
+					)
+				);
+
 				return Promise.all(
 					contexts.map( ( context ) =>
 						getEntityRecord(
@@ -1639,6 +2019,7 @@ export default function Edit( {
 							] )
 						);
 					} )
+					.then( () => images )
 					.then( () => ( {
 						contexts,
 						hasMore: fetched.length > perPage,
@@ -1851,17 +2232,7 @@ export default function Edit( {
 	) : (
 		<InspectorControls>
 			<PanelBody title={ __( 'Layout', 'newspack-rolling-coverage' ) }>
-				<p>
-					{ isSynced
-						? __(
-								'Uses the shared layout. Changes to it apply to every story that uses it.',
-								'newspack-rolling-coverage'
-							)
-						: __(
-								'Uses its own layout, detached from the shared one.',
-								'newspack-rolling-coverage'
-							) }
-				</p>
+				<p>{ layoutDescription }</p>
 				{ canChangeLayout && (
 					<Button
 						variant="secondary"
@@ -2127,9 +2498,9 @@ export default function Edit( {
 								{
 									value: 'button',
 									label:
-										/* translators: “Load More” is the label of the button readers press. Keep the words used to translate it. */
+										/* translators: “Load more” is the label of the button readers press. Keep the words used to translate it. */
 										__(
-											'Load More button',
+											'“Load more” button',
 											'newspack-rolling-coverage'
 										),
 								},
@@ -2182,6 +2553,106 @@ export default function Edit( {
 						/>
 					</>
 				) }
+				{ offersAuthor && (
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
+						label={ _x(
+							'Author name',
+							'whether entries show their author’s name',
+							'newspack-rolling-coverage'
+						) }
+						help={ __(
+							'The name each author chose under “Display name publicly as” in their profile.',
+							'newspack-rolling-coverage'
+						) }
+						value={ showAuthor !== false ? 'show' : 'hide' }
+						onChange={ ( value ) =>
+							setAttributes( { showAuthor: value === 'show' } )
+						}
+					>
+						<ToggleGroupControlOption
+							value="show"
+							label={ _x(
+								'Show',
+								'entry author name',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+								__(
+									'Show author name',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+						<ToggleGroupControlOption
+							value="hide"
+							label={ _x(
+								'Hide',
+								'entry author name',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+								__(
+									'Hide author name',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+					</ToggleGroupControl>
+				) }
+				{ offersAvatar && (
+					<ToggleGroupControl
+						__next40pxDefaultSize
+						isBlock
+						label={ _x(
+							'Author avatar',
+							'whether entries show their author’s photo',
+							'newspack-rolling-coverage'
+						) }
+						help={ __(
+							'Each author’s profile picture, from their profile or Gravatar.',
+							'newspack-rolling-coverage'
+						) }
+						value={ showAvatar !== false ? 'show' : 'hide' }
+						onChange={ ( value ) =>
+							setAttributes( { showAvatar: value === 'show' } )
+						}
+					>
+						<ToggleGroupControlOption
+							value="show"
+							label={ _x(
+								'Show',
+								'entry author avatar',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
+								__(
+									'Show author avatar',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+						<ToggleGroupControlOption
+							value="hide"
+							label={ _x(
+								'Hide',
+								'entry author avatar',
+								'newspack-rolling-coverage'
+							) }
+							aria-label={
+								/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
+								__(
+									'Hide author avatar',
+									'newspack-rolling-coverage'
+								)
+							}
+						/>
+					</ToggleGroupControl>
+				) }
 				{ ( latestOnly || ! checksOnRequest ) && (
 					<TextControl
 						__next40pxDefaultSize
@@ -2191,12 +2662,26 @@ export default function Edit( {
 							'newspack-rolling-coverage'
 						) }
 						value={ String( pollInterval ) }
-						min={ 1 }
+						min={ Math.max( 1, MIN_POLL_INTERVAL ) }
+						help={
+							MIN_POLL_INTERVAL > 0
+								? sprintf(
+										/* translators: %d: The fewest seconds this site waits between checks for new entries. "this": the Poll interval setting above. */
+										_n(
+											'This site waits at least %d second between checks, even when this is set lower.',
+											'This site waits at least %d seconds between checks, even when this is set lower.',
+											MIN_POLL_INTERVAL,
+											'newspack-rolling-coverage'
+										),
+										MIN_POLL_INTERVAL
+									)
+								: undefined
+						}
 						onChange={ ( value: string ) =>
 							setAttributes( {
 								pollInterval: value
 									? parseInt( value, 10 )
-									: 10,
+									: metadata.attributes.pollInterval.default,
 							} )
 						}
 					/>
@@ -2627,7 +3112,7 @@ export default function Edit( {
 					{ canEditLayout && (
 						<ToolbarButton
 							{ ...{
-								href: getLayoutEditUrl( layoutId, coverageId ),
+								href: getLayoutEditUrl( layoutId ),
 								target: '_blank',
 							} }
 						>
@@ -2660,7 +3145,7 @@ export default function Edit( {
 				) }
 				{ ! isLoading && needsLayout && (
 					<Placeholder
-						icon={ activity }
+						icon={ liveStreaming }
 						label="Rolling Coverage"
 						instructions={
 							isPreviewMode
@@ -2746,49 +3231,45 @@ export default function Edit( {
 												value={ coverageContext }
 											>
 												{ syncedHeaderItems.map(
-													( item, index ) => (
-														<EntryBlockPreview
-															key={ index }
-															blocks={ item }
-															style={ chromePreviewStyle(
-																item,
-																feedLayout
-															) }
-														/>
-													)
+													renderSyncedChromeItem
 												) }
 											</BlockContextProvider>
 										) }
 										<div className="newspack-rolling-coverage-entries">
 											{ previewContexts.length > 0 ? (
-												previewContexts.map(
-													( context ) => (
-														<BlockContextProvider
-															key={
-																context.postId
-															}
-															value={ context }
-														>
-															<EntryBlockPreview
-																blocks={
-																	context ===
-																		columnHeadContext &&
-																	columnHeadBlocks
-																		? columnHeadBlocks
-																		: blocksForEntry(
-																				context
-																			)
+												<>
+													{ stacksPinned &&
+														showsPin && (
+															<div
+																className={
+																	PINNED_STACK_CLASS
 																}
 																style={
-																	context ===
-																	leadPinContext
-																		? previewPlacements.lead
-																		: previewPlacements.other
+																	pinnedStackStyle
 																}
-															/>
-														</BlockContextProvider>
-													)
-												)
+															>
+																{ previewContexts
+																	.filter(
+																		(
+																			context
+																		) =>
+																			context.pinned
+																	)
+																	.map(
+																		renderSyncedPreview
+																	) }
+															</div>
+														) }
+													{ previewContexts
+														.filter(
+															( context ) =>
+																! stacksPinned ||
+																! context.pinned
+														)
+														.map(
+															renderSyncedPreview
+														) }
+												</>
 											) : (
 												<BlockContextProvider
 													value={
@@ -2812,16 +3293,7 @@ export default function Edit( {
 												value={ coverageContext }
 											>
 												{ syncedFooterItems.map(
-													( item, index ) => (
-														<EntryBlockPreview
-															key={ index }
-															blocks={ item }
-															style={ chromePreviewStyle(
-																item,
-																feedLayout
-															) }
-														/>
-													)
+													renderSyncedChromeItem
 												) }
 											</BlockContextProvider>
 										) }
@@ -2832,28 +3304,44 @@ export default function Edit( {
 								<PinnedEntryContext.Provider
 									value={ pinnedContext ?? null }
 								>
-									<EntryPreviewsAnchorContext.Provider
-										value={ entryPreviewsAnchor }
+									<FullStoryEntryContext.Provider
+										value={ fullStoryContext ?? null }
 									>
-										<EntryPreviewsContext.Provider
-											value={ entryPreviews }
+										<PinnedFullStoryEntryContext.Provider
+											value={
+												pinnedFullStoryContext ?? null
+											}
 										>
-											<BlockContextProvider
-												value={ {
-													...layoutContext,
-													...coverageContext,
-												} }
+											<EntryPreviewsAnchorContext.Provider
+												value={ entryPreviewsAnchor }
 											>
-												<div { ...innerBlocksProps } />
-											</BlockContextProvider>
-										</EntryPreviewsContext.Provider>
-									</EntryPreviewsAnchorContext.Provider>
+												<EntryPreviewsContext.Provider
+													value={ entryPreviews }
+												>
+													<PinnedPreviewsContext.Provider
+														value={ pinnedPreviews }
+													>
+														<BlockContextProvider
+															value={ {
+																...layoutContext,
+																...coverageContext,
+															} }
+														>
+															<div
+																{ ...innerBlocksProps }
+															/>
+														</BlockContextProvider>
+													</PinnedPreviewsContext.Provider>
+												</EntryPreviewsContext.Provider>
+											</EntryPreviewsAnchorContext.Provider>
+										</PinnedFullStoryEntryContext.Provider>
+									</FullStoryEntryContext.Provider>
 								</PinnedEntryContext.Provider>
 							) }
 						</>
 					) : (
 						<Placeholder
-							icon={ activity }
+							icon={ liveStreaming }
 							label="Rolling Coverage"
 							instructions={ __(
 								'Select a coverage to display its entries.',

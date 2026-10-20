@@ -15,29 +15,38 @@ defined( 'ABSPATH' ) || exit;
 class Slack_Ingestion_Service {
 
 	/**
-	 * Drops bot messages, edited/deleted messages, and channel join/leave events.
+	 * Message subtypes a person writes: a plain message, one that shares a
+	 * file, a thread reply also sent to the channel, and a `/me` message.
+	 * Anything else is a bot's post, an edit, a deletion or a notice Slack
+	 * posts in the channel, such as someone joining or setting the channel's
+	 * description. Slack adds new notices over time, so a subtype not listed
+	 * here is skipped. Keep in step with `SlackAdapter::shouldIngest()` in
+	 * `src/admin/utils/slack-adapter.ts`.
 	 *
-	 * @param array $event Slack event payload.
+	 * @var string[]
+	 */
+	const INGESTED_SUBTYPES = [ '', 'file_share', 'thread_broadcast', 'me_message' ];
+
+	/**
+	 * Drops bot messages, edits, deletions and Slack's notices, and, unless
+	 * told otherwise, messages that start with the ignore prefix.
+	 *
+	 * @param array $event               Slack event payload, or a message read from Slack.
+	 * @param bool  $honor_ignore_prefix Whether the ignore prefix skips the message. A
+	 *                                   reaction in an Emoji trigger channel is the
+	 *                                   opt-in itself, so it passes false.
 	 * @return bool True if the message should be skipped.
 	 */
-	public static function should_filter_message( array $event ): bool {
+	public static function should_filter_message( array $event, bool $honor_ignore_prefix = true ): bool {
 		$subtype = (string) ( $event['subtype'] ?? '' );
 		$bot_id  = (string) ( $event['bot_id'] ?? '' );
 		$text    = (string) ( $event['text'] ?? '' );
 
-		if ( 'bot_message' === $subtype || '' !== $bot_id ) {
+		if ( '' !== $bot_id || ! in_array( $subtype, self::INGESTED_SUBTYPES, true ) ) {
 			return true;
 		}
 
-		if ( in_array( $subtype, [ 'message_changed', 'message_deleted' ], true ) ) {
-			return true;
-		}
-
-		if ( in_array( $subtype, [ 'channel_join', 'channel_leave', 'group_join', 'group_leave' ], true ) ) {
-			return true;
-		}
-
-		return self::has_ignore_prefix( $text );
+		return $honor_ignore_prefix && self::has_ignore_prefix( $text );
 	}
 
 	/**

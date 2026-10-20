@@ -310,12 +310,38 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A titled entry is still announced when it has no words everyone may
-	 * read, such as a lone photo: its title is public.
+	 * The notification title is plain text: the encoded characters a stored
+	 * title carries, and the curly quotes WordPress formats it with, arrive
+	 * as the characters they stand for.
 	 */
-	public function test_titled_entry_without_public_words_is_still_announced() {
+	public function test_notification_title_is_plain_text() {
 		$entry_id = self::create_entry(
 			self::create_coverage_with_canonical_url(),
+			[
+				'post_status' => 'draft',
+				'post_title'  => "Mayor's Q&amp;A on &lt;live&gt; results &apos;26",
+			]
+		);
+		update_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true );
+
+		wp_publish_post( $entry_id );
+
+		$this->assertSame( "Mayor\u{2019}s Q&A on <live> results '26", self::get_sent_notifications()[0]['title'] );
+	}
+
+	/**
+	 * A titled entry is still announced when it has no words everyone may
+	 * read, such as a lone photo or a title-only Slack message: its title is
+	 * public. It goes out under the coverage name, as plain text, with its
+	 * title as the text, so the notification is never sent with an empty
+	 * body.
+	 */
+	public function test_titled_entry_without_public_words_is_still_announced() {
+		$coverage_id = self::create_coverage_with_canonical_url();
+		wp_update_term( $coverage_id, Taxonomy::TAXONOMY_SLUG, [ 'name' => "Mayor's race & results" ] );
+
+		$entry_id = self::create_entry(
+			$coverage_id,
 			[
 				'post_status'  => 'draft',
 				'post_title'   => 'Crowds at the finish line',
@@ -330,7 +356,8 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 		$sent_notifications = self::get_sent_notifications();
 
 		$this->assertCount( 1, $sent_notifications );
-		$this->assertSame( 'Crowds at the finish line', $sent_notifications[0]['title'] );
+		$this->assertSame( "Mayor\u{2019}s race & results", $sent_notifications[0]['title'] );
+		$this->assertSame( 'Crowds at the finish line', $sent_notifications[0]['content'] );
 	}
 
 	/**
@@ -457,6 +484,24 @@ class Test_Push_Notifications extends Rolling_Coverage_TestCase {
 			'open'  => [ false ],
 			'gated' => [ true ],
 		];
+	}
+
+	/**
+	 * A titled Slack entry has its title to announce, even when its content
+	 * is only a photo or nothing at all, so it is opted in.
+	 */
+	public function test_titled_slack_entry_without_words_is_opted_in() {
+		$entry_id = self::ingest_slack_message(
+			self::create_coverage_with_canonical_url(),
+			false,
+			[
+				'post_title'   => 'Polls closed',
+				'post_excerpt' => '',
+				'post_content' => '',
+			]
+		);
+
+		$this->assertNotEmpty( get_post_meta( $entry_id, Push_Notifications::NOTIFY_META_KEY, true ) );
 	}
 
 	/**

@@ -20,8 +20,8 @@ It copies the Newspack UI loading spinner rather than using it, since the plugin
 
 ## Labels
 
-`nextCheckLabel()` and `newEntriesFoundLabel()` in `src/blocks/rolling-coverage/entry-name.ts`. The entry name comes from the followed feed's `data-entry-name`, so the block needs no setting of its own.
+`nextCheckLabel()` and `newEntriesLabel()` in `src/blocks/rolling-coverage/entry-name.ts`. The entry name comes from the followed feed's `data-entry-name`, so the block needs no setting of its own.
 
 ## Editor preview
 
-The canvas shows the countdown at the full interval of the feed the timer would follow: the Rolling Coverage block around it, else the first one in the post for its coverage (uncapped first), else the block's default of 10 seconds. A site minimum poll interval (`newspackUpdateTimerBlock.minPollInterval`, from `Rolling_Coverage_Block::get_min_poll_interval()`) raises it, as it does on the site. The lookup covers every block the editor has loaded, synced patterns and a shown template included. With no coverage to follow (Automatic in a template), the preview shows the default.
+The canvas shows the countdown at the full interval of the feed the timer would follow: the Rolling Coverage block around it, else the first one in the post for its coverage (uncapped first), else the Rolling Coverage block's default Poll interval (30 seconds, read from its `block.json`). A site minimum poll interval (`newspackUpdateTimerBlock.minPollInterval`, from `Rolling_Coverage_Block::get_min_poll_interval()`) raises it, as it does on the site. The lookup covers every block the editor has loaded, synced patterns and a shown template included. With no coverage to follow (Automatic in a template), the preview shows the default.

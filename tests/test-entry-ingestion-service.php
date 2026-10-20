@@ -330,12 +330,14 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Entries from a chat source have no title; the message is the entry.
+	 * Without a title from the source, the entry has none; the message is
+	 * the entry.
 	 */
 	public function test_entry_has_no_title() {
 		$entry_id = self::ingest( self::payload(), self::create_coverage() );
 
 		$this->assertSame( '', get_post( $entry_id )->post_title );
+		$this->assertFalse( metadata_exists( 'post', $entry_id, Post_Type::META_TITLE_FROM_SOURCE ) );
 	}
 
 	/**
@@ -380,5 +382,54 @@ class Test_Entry_Ingestion_Service extends Rolling_Coverage_TestCase {
 			],
 			$announced
 		);
+	}
+
+	/**
+	 * The entry takes the title the source gives, and HTML characters the
+	 * source left encoded, and backslashes, survive the save.
+	 */
+	public function test_entry_takes_the_title_the_source_gives() {
+		$entry_id = self::ingest( self::payload( [ 'title' => 'Results &lt;live&gt; &amp; a 50\\50 race' ] ), self::create_coverage() );
+
+		$this->assertSame( 'Results &lt;live&gt; &amp; a 50\\50 race', get_post( $entry_id )->post_title );
+		$this->assertNotEmpty( get_post_meta( $entry_id, Post_Type::META_TITLE_FROM_SOURCE, true ), 'The title should be marked as the message\'s own.' );
+	}
+
+	/**
+	 * A message that is only a title is saved as a titled entry with no
+	 * content.
+	 */
+	public function test_saves_a_titled_entry_with_no_content() {
+		$entry_id = self::ingest(
+			self::payload(
+				[
+					'content_html' => '',
+					'title'        => 'Polls closed',
+				]
+			),
+			self::create_coverage()
+		);
+
+		$this->assertGreaterThan( 0, $entry_id, 'The entry should be saved.' );
+		$this->assertSame( 'Polls closed', get_post( $entry_id )->post_title );
+		$this->assertSame( '', get_post( $entry_id )->post_content );
+	}
+
+	/**
+	 * The title's marker is saved with the entry, so it is there before the
+	 * entry joins its coverage and polls can serve it.
+	 */
+	public function test_title_marker_is_saved_before_the_entry_joins_its_coverage() {
+		$marked_when_joined = null;
+		add_action(
+			'set_object_terms',
+			function ( $object_id ) use ( &$marked_when_joined ) {
+				$marked_when_joined = metadata_exists( 'post', $object_id, Post_Type::META_TITLE_FROM_SOURCE );
+			}
+		);
+
+		self::ingest( self::payload( [ 'title' => 'Polls closed' ] ), self::create_coverage() );
+
+		$this->assertTrue( $marked_when_joined );
 	}
 }

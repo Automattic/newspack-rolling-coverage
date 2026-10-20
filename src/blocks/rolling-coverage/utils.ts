@@ -12,12 +12,17 @@ import {
 	createBlocksFromInnerBlocksTemplate,
 	parse,
 } from '@wordpress/blocks';
-import { addQueryArgs, getQueryArg } from '@wordpress/url';
+import { addQueryArgs } from '@wordpress/url';
 
 /**
  * Internal dependencies
  */
-import type { CoverageOption, EntryContext, TemplateItem } from './types';
+import type {
+	BreakoutPreview,
+	CoverageOption,
+	EntryContext,
+	TemplateItem,
+} from './types';
 import {
 	COVERAGES_REST_BASE,
 	STATUS_META_KEY,
@@ -183,6 +188,7 @@ async function fetchEntryPreviewContexts(
 				hasTitle?: boolean;
 				hidesByline?: boolean;
 				fallbackTitle?: string;
+				breakout?: BreakoutPreview | null;
 			} >
 		>( {
 			url: `${ ENTRIES_PREVIEW_REST_BASE }/${ coverageId }/entries-preview?per_page=${ perPage }${
@@ -199,6 +205,7 @@ async function fetchEntryPreviewContexts(
 			hasTitle: entry.hasTitle !== false,
 			hidesByline: Boolean( entry.hidesByline ),
 			fallbackTitle: entry.fallbackTitle ?? '',
+			breakout: entry.breakout ?? null,
 		} ) );
 	} catch ( error ) {
 		return [];
@@ -301,38 +308,24 @@ function createLayout(
 	return request;
 }
 
-const PREVIEW_COVERAGE_ARG = 'rolling_coverage_preview';
-
-/**
- * The coverage the layout editor was opened from, read once on load because
- * the Site Editor rewrites its URL as it navigates.
- */
-const PREVIEW_COVERAGE_ID =
-	Number( getQueryArg( window.location.href, PREVIEW_COVERAGE_ARG ) ) || 0;
-
 /**
  * The admin URL that edits a layout pattern: the Site Editor on block
  * themes for users who can open it, the post editor otherwise.
  *
- * @param {number} layoutId   The layout's pattern ID.
- * @param {number} coverageId The coverage whose entries the layout previews.
+ * @param {number} layoutId The layout's pattern ID.
  * @return {string} The edit URL.
  */
-function getLayoutEditUrl( layoutId: number, coverageId: number ): string {
-	const preview = coverageId ? { [ PREVIEW_COVERAGE_ARG ]: coverageId } : {};
-
+function getLayoutEditUrl( layoutId: number ): string {
 	if ( IS_BLOCK_THEME && CAN_EDIT_THEME_OPTIONS ) {
 		return addQueryArgs( ADMIN_URL + 'site-editor.php', {
 			p: '/wp_block/' + layoutId,
 			canvas: 'edit',
-			...preview,
 		} );
 	}
 
 	return addQueryArgs( ADMIN_URL + 'post.php', {
 		post: layoutId,
 		action: 'edit',
-		...preview,
 	} );
 }
 
@@ -366,5 +359,4 @@ export {
 	createLayout,
 	getLayoutEditUrl,
 	isLayoutContent,
-	PREVIEW_COVERAGE_ID,
 };

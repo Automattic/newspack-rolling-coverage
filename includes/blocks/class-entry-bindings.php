@@ -110,6 +110,7 @@ class Entry_Bindings {
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_read_more' ], 10, 2 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_share' ], 10, 2 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_all_updates' ], 10, 2 );
+		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'filter_breakout_label' ], 10, 2 );
 		add_filter( 'render_block_core/group', [ __CLASS__, 'filter_pinned_group' ], 10, 2 );
 		add_filter( 'render_block_core/post-title', [ __CLASS__, 'link_title_to_breakout' ], 10, 3 );
 		add_filter( 'the_title', [ __CLASS__, 'untitled_fallback_title' ], 10, 2 );
@@ -163,6 +164,9 @@ class Entry_Bindings {
 
 			case 'shareUrl':
 				return Social_Sharing::get_entry_share_url( $entry_id ) ?: null; // phpcs:ignore Universal.Operators.DisallowShortTernary.Found
+
+			case 'breakoutLabel':
+				return null !== Breakout::get_published_breakout_url( $entry_id ) ? esc_html( Breakout_Label::for_post( Breakout::get_existing_breakout_id( $entry_id ) ) ) : null;
 		}
 
 		return null;
@@ -288,10 +292,11 @@ class Entry_Bindings {
 	 * the public, or nothing for a restricted entry (see is_restricted()) or
 	 * one with no words outside its media. For text shown or sent outside
 	 * the entry itself, such as a share link's name, a push notification or
-	 * a breakout post's title. Decoded plain text, as
+	 * a breakout post's title. Reads any post the same way, so
+	 * Breakout_Card sums up a breakout post with it. Decoded plain text, as
 	 * Post_Type::get_html_summary() gives it.
 	 *
-	 * @param WP_Post $entry Entry post.
+	 * @param WP_Post $entry Entry post, or another post.
 	 * @param int     $words Number of words to keep.
 	 * @return string
 	 */
@@ -381,7 +386,8 @@ class Entry_Bindings {
 	 * (Post_Type::get_editor_excerpt()). An entry Newspack's content gate
 	 * withholds, or WooCommerce Memberships restricts, keeps the excerpt the
 	 * filters before this one built, since those read the content through
-	 * the restriction that `the_content` applies.
+	 * the restriction that `the_content` applies. A card's excerpt
+	 * (Breakout_Card::holds_excerpt()) stays the card's.
 	 *
 	 * Parameters stay untyped because this runs for every excerpt on the
 	 * site, after other plugins' filters that may hand on unexpected types.
@@ -398,6 +404,7 @@ class Entry_Bindings {
 			! $post instanceof WP_Post ||
 			Post_Type::CPT_SLUG !== $post->post_type ||
 			'' !== trim( $post->post_excerpt ) ||
+			Breakout_Card::holds_excerpt( $post->ID ) ||
 			post_password_required( $post ) ||
 			self::is_withheld( $post )
 		) {
@@ -420,10 +427,11 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Whether the entry is restricted for readers who aren't members: by
-	 * Newspack's content gate outside the entry's own page, or by a
-	 * WooCommerce Memberships rule. Both restrict through `the_content`,
+	 * Whether a post, such as an entry, is restricted for readers who aren't
+	 * members: by Newspack's content gate outside the post's own page, or by
+	 * a WooCommerce Memberships rule. Both restrict through `the_content`,
 	 * which core's generated excerpt reads and entry_excerpt() doesn't.
+	 * Breakout_Card asks it of breakout posts too.
 	 *
 	 * The answer is the same for every reader, since is_restricted() feeds
 	 * text that is cached and sent to all. For the gate, that's why this asks
@@ -438,10 +446,10 @@ class Entry_Bindings {
 	 * gates stand down while WooCommerce Memberships is active. For
 	 * Memberships, see is_restricted_by_membership_rule().
 	 *
-	 * @param WP_Post $post The entry.
+	 * @param WP_Post $post The post.
 	 * @return bool
 	 */
-	private static function is_withheld( WP_Post $post ): bool {
+	public static function is_withheld( WP_Post $post ): bool {
 		if ( self::is_restricted_by_membership_rule( $post ) ) {
 			return true;
 		}
@@ -1172,6 +1180,50 @@ class Entry_Bindings {
 	}
 
 	/**
+	 * Render nothing for a paragraph bound to the Full story label on an
+	 * entry without a published breakout post, whose binding gives no value
+	 * and would leave the layout's own text. When neither the entry nor its
+	 * post has a title, nothing else in the entry links to the post, so the
+	 * label does (see Breakout_Card::is_untitled()).
+	 *
+	 * Parameters stay untyped because this runs for every paragraph on the
+	 * site, after other plugins' filters that may hand on unexpected types.
+	 *
+	 * @param string $block_content Rendered block.
+	 * @param array  $block         Parsed block.
+	 * @return string
+	 */
+	public static function filter_breakout_label( $block_content, $block ) {
+		if ( ! Rolling_Coverage_Block::is_rendering_entry() || ! is_array( $block ) || ! is_string( $block_content ) || ! self::is_breakout_label_paragraph( $block ) ) {
+			return $block_content;
+		}
+
+		$entry_id = (int) get_the_ID();
+		$url      = $entry_id && Post_Type::CPT_SLUG === get_post_type( $entry_id ) ? Breakout::get_published_breakout_url( $entry_id ) : null;
+
+		if ( ! $url ) {
+			return '';
+		}
+
+		return Breakout_Card::is_untitled( $entry_id ) ? self::link_paragraph( $block_content, [ 'href' => $url ] ) : $block_content;
+	}
+
+	/**
+	 * Whether a parsed block is a paragraph bound to the Full story label.
+	 *
+	 * @param array $parsed_block Parsed block.
+	 * @return bool
+	 */
+	public static function is_breakout_label_paragraph( array $parsed_block ): bool {
+		$binding = $parsed_block['attrs']['metadata']['bindings']['content'] ?? [];
+
+		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
+			is_array( $binding ) &&
+			self::SOURCE_NAME === ( $binding['source'] ?? '' ) &&
+			'breakoutLabel' === ( $binding['args']['key'] ?? '' );
+	}
+
+	/**
 	 * Link a rendered paragraph's content. A placeholder link (`href="#"`),
 	 * which the layouts ship so the editor shows a link, takes the
 	 * attributes; any other link inside is the author's own and is left
@@ -1337,6 +1389,26 @@ class Entry_Bindings {
 	}
 
 	/**
+	 * Whether blocks hold the pinned row, at any depth.
+	 *
+	 * @param array[] $blocks Parsed blocks.
+	 * @return bool
+	 */
+	public static function has_pinned_row( array $blocks ): bool {
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) ) {
+				continue;
+			}
+
+			if ( self::is_pinned_row( $block ) || ( ! empty( $block['innerBlocks'] ) && is_array( $block['innerBlocks'] ) && self::has_pinned_row( $block['innerBlocks'] ) ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Whether a template shows the pinned label, at any depth.
 	 *
 	 * @param array[] $blocks Parsed blocks.
@@ -1362,7 +1434,7 @@ class Entry_Bindings {
 	 * @param array $parsed_block Parsed block.
 	 * @return bool
 	 */
-	private static function is_pinned_label( array $parsed_block ): bool {
+	public static function is_pinned_label( array $parsed_block ): bool {
 		$class_name = $parsed_block['attrs']['className'] ?? '';
 
 		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
@@ -1419,10 +1491,11 @@ class Entry_Bindings {
 	/**
 	 * Whether a parsed block belongs to the coverage rather than to each
 	 * entry, so it renders once: the Follow Coverage block, the Check for
-	 * Updates block, the Coverage Status block, the Update Timer block, a
-	 * heading bound to the coverage's name, the all-updates paragraph, or a
-	 * block holding one at any depth. The pinned card and the entry group
-	 * always belong to each entry, whatever they hold.
+	 * Updates block, the Load More block, the Coverage Status block, the
+	 * Update Timer block, a heading bound to the coverage's name, the
+	 * all-updates paragraph, or a block holding one at any depth. The pinned card, the entry group and
+	 * the Full Story Entry group always belong to each entry, whatever they
+	 * hold.
 	 *
 	 * @param array $parsed_block Parsed block.
 	 * @return bool
@@ -1435,6 +1508,7 @@ class Entry_Bindings {
 		if (
 			Coverage_Follow_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			Check_Updates_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
+			Load_More_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			Coverage_Status_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			Update_Timer_Block::BLOCK_NAME === ( $parsed_block['blockName'] ?? '' ) ||
 			self::is_coverage_name_heading( $parsed_block ) ||

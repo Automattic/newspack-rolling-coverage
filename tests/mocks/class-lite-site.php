@@ -8,9 +8,9 @@
 namespace Newspack_Lite_Site;
 
 /**
- * The one method Rolling Coverage calls. Like the real plugin's, it renders
- * blocks inside the lite content filter, drops comments and scripts, and
- * keeps only the elements and attributes on its allowlist, which plugins
+ * The methods Rolling Coverage calls. Like the real plugin's, clean_content()
+ * renders blocks inside the lite content filter, drops comments and scripts,
+ * and keeps only the elements and attributes on its allowlist, which plugins
  * extend through `newspack_lite_site_allowed_html`. The default list is Lite
  * Site's.
  */
@@ -54,6 +54,42 @@ class Lite_Site {
 			'type'  => true,
 		],
 	];
+
+	/**
+	 * What get_primary_color() returns, which the real plugin reads from its
+	 * settings or the theme, or gives as `currentcolor` when it finds none.
+	 *
+	 * @var string
+	 */
+	public static $primary_color = 'currentcolor';
+
+	/**
+	 * The color lite pages give links and rules.
+	 *
+	 * @return string
+	 */
+	public static function get_primary_color() {
+		return self::$primary_color;
+	}
+
+	/**
+	 * The post types that have lite pages, as the real plugin's, filterable.
+	 *
+	 * @return string[]
+	 */
+	public static function get_supported_post_types() {
+		return apply_filters( 'newspack_lite_site_supported_post_types', [ 'post', 'page' ] );
+	}
+
+	/**
+	 * A post's lite page.
+	 *
+	 * @param \WP_Post $post Post object.
+	 * @return string
+	 */
+	public static function get_lite_page_url( $post ) {
+		return home_url( '/lite/' . $post->ID );
+	}
 
 	/**
 	 * Clean post content for a lite page.

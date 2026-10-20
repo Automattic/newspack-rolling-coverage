@@ -1,6 +1,6 @@
 # Admin screens: development notes
 
-The plugin's admin screens live in `src/admin/`: the coverages list, each coverage's entries list, Quick Edit, the Settings modal, and the Slack and AI pages. The entries list is a DataViews table; its fields are defined in `src/admin/fields/entries.tsx`. What the plugin adds to the entry editor lives in `src/entry-editor/`.
+The plugin's admin screens live in `src/admin/`: the coverages list, each coverage's entries list, Quick Edit, the Settings modal, and the Slack and AI pages. The entries list is a DataViews table; its fields are defined in `src/admin/fields/entries.tsx`. What the plugin adds to the entry editor lives in `src/entry-editor/`, and what it adds to a breakout post's editor in `src/breakout-editor/`.
 
 ## Screens and routes
 
@@ -28,6 +28,12 @@ The app reads its config from `window.newspackRollingCoverageAdmin` (`Admin::get
 
 The admin pages load the block editor's assets so Quick Edit can run a block editor. `Newspack\Blocks::enqueue_block_editor_assets` is unhooked while they load, since newspack-plugin's editor UI crashes inside Quick Edit's `EditorProvider`.
 
+## Bulk actions
+
+Selecting rows in All Coverages or a coverage's entries shows DataViews' bulk actions in the list's footer, which stays at the bottom of the window while the list scrolls. Other plugins (newspack-blocks, newspack-listings, newspack-popups, newspack-manager) load an older DataViews stylesheet on these screens that gives `.dataviews-wrapper` `overflow: auto`. That makes the wrapper the footer's scroll container, and since the wrapper is as tall as its rows, the footer would sit after the last row. `_dataviews.scss` sets `overflow: visible` back on the plugin's screens.
+
+At 782px and below, DataViews shows only the bulk actions that have an `icon`, as icon buttons. Every bulk action has one, so a new bulk action needs one too or it won't show on phones. `_dataviews.scss` hides the icon and shows the action's label as text, on a row of its own under the selection count. When the labels don't fit, the row scrolls sideways, fading on the side with more to see, and Cancel stays at its end. A button that takes keyboard focus scrolls fully into view, clear of the fade and Cancel (`revealFocusedBulkAction()` in `data-views-wrapper.tsx`). The styles find Cancel as the row's last button, and the focus handler finds the row by its `dataviews-bulk-actions-footer__action-buttons` class, both as DataViews 19.1 renders them; check them after a DataViews upgrade. The icons show nowhere else.
+
 ## All Coverages
 
 The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Coverage added." for a new coverage; a failed one keeps it open with the error. The drawer saves through the core terms route and sends every field each time, so each meta key it sends must be writable by anyone who can edit a coverage. A stricter `auth_callback` on one of them fails those users' saves after the other fields are already written.
@@ -48,17 +54,18 @@ The routes live in `Taxonomy` (`includes/class-taxonomy.php`).
 
 ## Settings
 
-`SettingsModal` (`settings-modal.tsx`) opens from the All Coverages header for users with `edit_others_posts`. It has three tabs, each saving one option through its own route:
+`SettingsModal` (`settings-modal.tsx`) opens from the All Coverages header for users with `edit_others_posts`. It has two tabs. Labels groups the three things readers see named, each under a heading of its own; Coverage Status holds the status labels. Each group saves one option through its own route:
 
-| Tab | Fields | Route |
-| --- | --- | --- |
-| Entry Name | Singular, Plural | `rolling-coverage/v1/settings/entry-name` |
-| Coverage Status | Live label, Paused label, Ended label | `rolling-coverage/v1/settings/status-labels` |
-| Jump to Latest | Button label | `rolling-coverage/v1/settings/latest-label` |
+| Tab | Group | Fields | Route |
+| --- | --- | --- | --- |
+| Labels | Entry Name | Singular, Plural | `rolling-coverage/v1/settings/entry-name` |
+| Labels | Jump to Latest | Button label | `rolling-coverage/v1/settings/latest-label` |
+| Labels | Full Story | Full story label | `rolling-coverage/v1/settings/breakout-label` |
+| Coverage Status | | Live label, Paused label, Ended label | `rolling-coverage/v1/settings/status-labels` |
 
-The modal loads all three when it opens and saves only the ones that changed. It refuses an entry name with one word and not the other before sending anything. A failed save switches to that tab and shows the error. Closing with unsaved changes asks to discard them.
+The modal loads all four when it opens and saves only the ones that changed. The two single-label groups share `fetchLabelSetting()` and `saveLabelSetting()` (`src/admin/utils/label-setting-api.ts`). It refuses an entry name with one word and not the other before sending anything. A failed save switches to the tab holding it and shows the error. Closing with unsaved changes asks to discard them.
 
-The options, their limits and what reads them are documented with the blocks: the entry name and the Jump to Latest label in `src/blocks/rolling-coverage/DEVELOPMENT.md`, the status labels in `src/blocks/coverage-status/DEVELOPMENT.md`.
+The options, their limits and what reads them are documented with the blocks: the entry name, the Jump to Latest label and the Full story label in `src/blocks/rolling-coverage/DEVELOPMENT.md`, the status labels in `src/blocks/coverage-status/DEVELOPMENT.md`.
 
 ## A coverage's entries
 
@@ -67,6 +74,8 @@ The options, their limits and what reads them are documented with the blocks: th
 ### Data and live sync
 
 The list reads `GET rolling-coverage/v1/coverages/<id>/entries-view` (`Post_Type::get_entries_view()`, `edit_posts`), which pages, sorts, searches and filters on the server. Below Editor, users who can publish (Authors) see their own entries and everyone's published and scheduled ones, and others (Contributors) see only their own (`Post_Type::entry_visibility_scope()`, applied by `author_scope_where()`). Each row carries the current user's `can_edit` (`edit_post`), `can_publish` (`publish_post`) and `is_own`, so the list can offer exactly what WordPress allows. The list opens without trashed entries (Status is not Trashed).
+
+A row's `title`, and the `summary` an untitled entry is listed by, are plain text, which the list and its snackbars show as text: `Post_Type::plain_title()` removes a title's tags and decodes its entities. A title is stored with `&`, `<`, `>` and square brackets encoded or as typed, depending on where it was written: the editor's visual title field encodes `&` and `<`, kses encodes `&`, `<` and `>` for users who may not post unfiltered HTML, and a title from a Slack message has its square brackets encoded too. So the Title filter (`Post_Type::title_filter_where()`) compares the stored title with those characters decoded, and decodes the filter text as well, since `sanitize_text_field()` encodes a `<` in it. Tags stay in the comparison, so filter text that runs across a formatting tag in a title finds nothing: removing tags in SQL needs `REGEXP_REPLACE()`, which older MySQL versions that WordPress supports lack. Untitled entries are matched by their content, as typed and HTML-escaped.
 
 `useEntries` (`src/admin/hooks/useEntries.ts`) then polls the same route with a `since` cursor every 10 seconds (`SYNC_INTERVAL_MS`), and pauses while the tab is hidden. The route finds changes by modified date, which moves when cron publishes a scheduled entry too (`Post_Type::stamp_publish_modified_gmt()`). It merges the changed rows and shows a snackbar for each change, or one "N updates in the last 10s" snackbar for more than five. When too many entries changed for one response (`overflow`), it reloads the page.
 
@@ -214,6 +223,67 @@ Until a source has them, its entries show the WordPress marker, yet "Source is W
 
 The server needs no change beyond the ingest path writing the slug to the meta. The entries endpoint's `source` and `source_exclude` filters accept any slug, with `wordpress` special-cased to include entries that have no meta.
 
+## Slack messages that become entries
+
+Only messages a person writes become entries. `Slack_Ingestion_Service::should_filter_message()` decides, for message events and for a message read again after a trigger emoji. It keeps four subtypes (`Slack_Ingestion_Service::INGESTED_SUBTYPES`):
+
+- no subtype, an ordinary message;
+- `file_share`, a message that shares files (only its images are imported);
+- `thread_broadcast`, a thread reply also sent to the channel;
+- `me_message`, a `/me` message.
+
+Every other subtype is skipped: bots' posts, edits, deletions, and the notices Slack posts in the channel, such as someone joining, setting the channel's description, or pinning a message. Slack adds notices over time, so a subtype missing from the list is skipped rather than published. A message with a `bot_id` is skipped whatever its subtype. The Monitor tab's line for a message this filter skips records its subtype.
+
+`SlackAdapter::shouldIngest()` in `src/admin/utils/slack-adapter.ts` keeps its own copy of the list. Change both together.
+
+Tests: `tests/test-slack-webhook.php`.
+
+## Slack publish modes
+
+Each linked channel has a publish mode, set from the **Publish Mode** dropdown in the Slack connection drawer and the Channels table, and stored as `publish_mode` in the channel's entry in the channel map (`Slack_Config::OPTION_CHANNEL_MAP`):
+
+| Publish Mode | `publish_mode` | A message posted in the channel |
+| --- | --- | --- |
+| Auto-publish | `publish` | Is published right away. |
+| Draft | `draft` | Is saved as a draft. Channels connected with `/rolling-coverage-connect` start here. |
+| Emoji trigger | `reaction` | Waits for a reaction: the publish emoji publishes it, the draft emoji saves it as a draft. |
+
+Channels linked before publish modes stored only an `autopublish` flag. `Slack_Config::resolve_publish_mode()` reads it as Auto-publish or Draft, so nothing is migrated. Saving a mode writes the flag in step (`Slack_Config::publish_mode_fields()`), so a rollback to a release that reads only the flag doesn't publish every message in a Draft or Emoji trigger channel.
+
+### Emoji trigger
+
+- The two emoji are site-wide: **Publish Emoji** and **Draft Emoji** in the Slack page's Settings tab, `mega` and `memo` by default. They are stored lowercase without colons and must differ. A skin-tone variant of either counts.
+- Slack sends every reaction in the bot's channels to the events route as `reaction_added`. `Slack_Webhook_Controller::handle_reaction()` drops the bot's own reactions, channels in other modes and other emoji before calling Slack. It then reads the message with `conversations.replies` (`Slack_API_Client::get_message_or_reply()`), since a reaction doesn't say which thread its message is in and `conversations.history` lists top-level messages only.
+- The entry is the message as it reads when the reaction arrives. The ignore prefix doesn't apply, since the reaction is the opt-in. A message event in an Emoji trigger channel returns before any Slack call.
+- When the message already has an entry, the publish emoji publishes it only if it is a draft that never went out. A draft an editor took down (`Post_Type::META_UNPUBLISHED_GMT`), an archived one or one in a coverage that has ended (`Archive_Mode::is_entry_locked()`), and one dated a minute or more ahead stay as they are.
+- Publishing uses `wp_publish_post()`, which doesn't save the content again: a `wp_update_post()` save would run it through kses, as the webhook has no user. Because `wp_publish_post()` doesn't name the post, the draft gets the slug core gives a post saved as published (its ID, for an untitled entry) first, so its share and notification links work. The entry keeps the date the draft was created, as when it is published from the editor. When the entry is opted in to notify followers, the send goes out on the next cron run (`Push_Notifications::settle_rest_publish()`), not a minute later.
+- A trashed entry counts as the message's entry, so a later reaction, such as a colleague adding the same emoji, doesn't bring it back. A message that carries the bot's own reaction but still has no entry in this coverage when looked up again had one before, deleted for good or made for a coverage the channel was linked to earlier, so it isn't added again; when the draft emoji's entry turns up in that second lookup, the publish emoji publishes it. Any other reaction on a message with an entry changes nothing, and removing a reaction does nothing (the app doesn't subscribe to `reaction_removed`).
+- The publish emoji can arrive while the draft emoji's entry is still being saved. The handler then answers 503, so Slack sends the reaction again and it publishes the draft once it exists; when the draft was saved after its lookup, it publishes it straight away.
+
+### The bot's reaction
+
+When the bot creates an entry, in any mode, it reacts to the message with `large_green_circle` (published) or `large_yellow_circle` (draft). Publishing a draft with the publish emoji adds the green one and removes the bot's yellow one. The reaction is set at that moment only: changes made later in WordPress don't update it. A reaction Slack refuses is logged in the Monitor tab and doesn't stop the entry.
+
+### Permissions
+
+Reactions need the `reactions:read` and `reactions:write` scopes and the `reaction_added` event, all in the manifest that Copy Manifest produces. `GET slack/settings` reports `can_use_reactions: false` when Slack's `x-oauth-scopes` header lacks either scope, and the Slack page then shows a warning asking for the manifest to be updated and the app reinstalled. Until then, choosing Emoji trigger is refused with that instruction (`reactions_not_granted`), so a channel isn't set to Emoji trigger while Slack reports the scopes missing; Auto-publish and Draft channels keep working without the bot's reaction. When Slack can't report the scopes, nothing is refused, and the `reaction_added` subscription itself isn't checked.
+
+Tests: `tests/test-slack-webhook.php`, `tests/test-slack-config.php`.
+
+## Slack message titles and headings
+
+Reporters can mark a title and headings in a Slack message the way Markdown does, with `#`, and `Slack_Content_Processor` turns them into an entry title and heading blocks. It does so once a site picks a level in **Highest Heading** on the Slack page's Settings tab, stored as `top_heading_level` in `Slack_Config::OPTION_SETTINGS`. The default, **Off** (`Slack_Config::HEADINGS_OFF`), leaves `#` lines as typed, so reporters who already write "# of precincts" don't see live entries change until a site opts in. Heading 1 isn't offered, since it would compete with the page title.
+
+- A first line that starts with `#`, `##` or `###` and a space becomes the entry's title when no other heading in the message is at its level or higher, and is removed from the content, so the feed layout shows it as the entry's title. With a competing heading it stays a heading, since the message has sections rather than one headline. That depends on headings further down, so `place_headings()` decides it once the whole message is rendered. Ingestion marks it with `Post_Type::META_TITLE_FROM_SOURCE`, so Stream and Minute, which show no titles, show it above the content, and Flash shows it when the entry has no words of its own (see "Excerpts, untitled and media-only entries" in `src/blocks/rolling-coverage/DEVELOPMENT.md`). The processor returns it from `get_title()`, and ingestion stores it from `Source_Event_Payload::$title`. A message that is only that line becomes a titled entry with no content. The title is plain text with `<`, `>` and `&` encoded, so the title filter WordPress runs on the webhook's save keeps text that looks like a tag, such as "Results <live>", instead of dropping it. Square brackets are encoded too, as in the content, so a shortcode typed in the title shows as text. A title-only message keeps the rich-text title rather than Slack's mrkdwn copy, which spells emoji as names.
+- Any other line that starts with `#`, `##` or `###` and a space becomes a heading block. The message's shallowest heading, the one with the fewest `#`, gets the chosen level, and the others follow it, one level lower per extra `#`, down to Heading 6. So no level is skipped whichever marker its headings start with, or after a title: a paragraph, then `## Results` and `### Ward 1`, gives the chosen level and the next, and so does `# Title`, then `## Ward 1` and `### Precinct A`. A heading's level depends on the headings after it, so `place_headings()` sets the levels once the whole message is rendered. Most feed layouts show entry titles as Heading 4, and Bulletin and Lite Site as Heading 3, so a level below that keeps a message's headings under its title.
+- The setting applies when a message becomes an entry, like the rest of its formatting. Changing it leaves existing entries as they are.
+- Only top-level text gets a title or headings. In rich text, a marked line stays as text in a quote, a list item or a code block. It also stays as text when the marker is in inline code, has no space after it (as in a channel mention such as `#newsroom`), or has no visible text after it.
+- Bold, italic or strikethrough covering the whole line carries over to a heading; the title is plain text. A style that covers only the marker leaves the line as text.
+- Slack's composer can turn a `#`, `##` or `###` line into a `header` block of its own, with a `level` of 1 to 3, instead of sending the marker as text. Header blocks follow the same rules, and compete with marked lines as with each other: an opening header with no competing heading is the title, and the others are headings. With headings Off, a header's text becomes a paragraph, so the line isn't lost.
+- The mrkdwn fallback, used when a message's rich text renders nothing, makes titles and headings the same way. It has no code blocks, so a `#` line between ``` fences becomes a heading there.
+
+Tests: `tests/test-slack-content-processor.php`, `tests/test-entry-ingestion-service.php`, `tests/test-slack-config.php`, `tests/test-slack-webhook.php`.
+
 ## Slack webhooks on a password-protected site
 
 Slack sends events, slash commands and interactions to three REST routes, `rolling-coverage/v1/slack/events`, `/slack/commands` and `/slack/interactions` (`Slack_Webhook_Controller::WEBHOOK_ROUTES`), registered once Slack is configured. Each checks Slack's signature in its permission callback and answers an unsigned request with a 401.
@@ -233,7 +303,7 @@ A coverage's placements are every published place where the plugin's blocks show
 - **Rolling Coverage**, by its `coverageId`. It is listed with its layout in brackets: the shared layout's title when `layoutId` points at a published pattern (Ticker, Flash, or a custom layout's title), or "Detached" when the block has inner blocks of its own. A capped feed (`latestOnly`) adds how many entries it shows, as in "Rolling Coverage (Ticker, latest 5)". A block with no layout of either kind, or whose layout has nothing the site can render (unpublished, gone, or without a Rolling Coverage block holding inner blocks), renders the built-in Bulletin template, so it reads "Rolling Coverage (Bulletin)", whatever the Bulletin pattern is now called. A layout without a title reads "Untitled layout". Layout titles are looked up once per layout and request. Blocks that read the same on one place, such as two Ticker feeds, are listed once.
 - **Coverage Status** and **Follow Coverage**, listed by their block names. Custom (`coverageId > 0`) counts for the chosen coverage while it exists and isn't trashed; otherwise the block is Automatic, as it is on the site.
 
-Blocks inside a Rolling Coverage block are part of its layout and show its coverage, so they are not listed on their own. The Check for Updates block only lives there.
+Blocks inside a Rolling Coverage block are part of its layout and show its coverage, so they are not listed on their own. The Check for Updates and Load More blocks only live there.
 
 The map stores each block as a tag (`feed:<layout>:<count>`, `status` or `follow`), in the order rows list them: feeds that show every entry first, then capped feeds, Coverage Status and Follow Coverage. The REST field turns the tags into the labels above.
 
@@ -323,3 +393,9 @@ Tests: `tests/test-entry-editor-navigation.php`.
 The bundle's other registration, the Push Notifications panel, is described in `src/blocks/coverage-follow/DEVELOPMENT.md`.
 
 The entry post type registers core's `item_*` labels (`Post_Type::register()`), so the editor's notices name an entry, as in "Entry published." and "Entry updated.", rather than a post.
+
+## The breakout post editor
+
+`Admin::enqueue_breakout_editor()`, on `enqueue_block_editor_assets`, loads the `breakout-editor` bundle (`src/breakout-editor/index.tsx`) when the screen and the post being edited are a `post` that links back to the entry it was broken out from (`Breakout::BREAKOUT_SOURCE_ENTRY_META`), and only once the bundle is built. It passes `window.newspackRollingCoverageBreakoutEditor`: the post meta key (`Breakout_Label::POST_META_KEY`), the label every other card shows (`Breakout_Label::get()`) and the length cap (`Breakout_Label::MAX_LENGTH`), and sets the script's translations.
+
+The bundle registers a "Rolling Coverage" panel in the post's settings sidebar holding a "Full story label" field, the post's own label for its card. The field's placeholder is the site's label, and its help text says "Shown above this story in the coverage feed. Leave empty to use “%s”." with that label. The meta, its precedence over the site's label and how a change reaches open pages are documented under "Full story label" in `src/blocks/rolling-coverage/DEVELOPMENT.md`.

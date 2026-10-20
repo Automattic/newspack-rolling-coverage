@@ -1,6 +1,6 @@
 <?php
 /**
- * Site-wide label for the "Jump to Latest" control.
+ * Site-wide label for the "Jump to latest" control.
  *
  * @package Newspack_Rolling_Coverage
  */
@@ -100,7 +100,7 @@ class Latest_Label {
 	 * @return string
 	 */
 	public static function get_default(): string {
-		return __( 'Jump to Latest', 'newspack-rolling-coverage' );
+		return __( 'Jump to latest', 'newspack-rolling-coverage' );
 	}
 
 	/**

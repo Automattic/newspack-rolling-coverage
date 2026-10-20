@@ -281,8 +281,8 @@ class Push_Notifications {
 
 		$post = get_post( $post_id );
 
-		// An entry holding only an image has nothing to announce, restricted or not.
-		if ( ! $post instanceof WP_Post || ! self::has_words( $post ) ) {
+		// An untitled entry holding only an image has nothing to announce, restricted or not.
+		if ( ! $post instanceof WP_Post || ( '' === trim( wp_strip_all_tags( $post->post_title ) ) && ! self::has_words( $post ) ) ) {
 			return;
 		}
 
@@ -454,6 +454,14 @@ class Push_Notifications {
 
 		$title = self::build_notification_title( $entry, $coverage_id );
 
+		// A titled entry with no words to show, such as a title-only Slack
+		// message, goes out under the coverage name with its title as the
+		// text, so the notification is never sent with an empty body.
+		if ( '' === trim( $content ) && '' !== trim( wp_strip_all_tags( $entry->post_title ) ) ) {
+			$content = $title;
+			$title   = self::coverage_or_site_name( $coverage_id );
+		}
+
 		self::$pending_url = $url;
 		self::$pending_tag = self::follow_tag( $coverage_id );
 
@@ -476,7 +484,9 @@ class Push_Notifications {
 
 	/**
 	 * Builds the notification title from the entry's own title, falling back
-	 * to the coverage name, then the site name, if the entry is untitled.
+	 * to the coverage name, then the site name, if the entry is untitled. The
+	 * entry's title is decoded to plain text, since OneSignal shows the title
+	 * as it receives it.
 	 * Whether it's untitled is read from the stored title: core gives an
 	 * untitled password-protected entry the title "Protected: ".
 	 *
@@ -486,16 +496,25 @@ class Push_Notifications {
 	 */
 	private static function build_notification_title( WP_Post $entry, int $coverage_id ): string {
 		if ( '' !== trim( wp_strip_all_tags( $entry->post_title ) ) ) {
-			return wp_strip_all_tags( get_the_title( $entry ) );
+			return html_entity_decode( wp_strip_all_tags( get_the_title( $entry ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 		}
 
+		return self::coverage_or_site_name( $coverage_id );
+	}
+
+	/**
+	 * The coverage's name, or the site's when the coverage has none, decoded
+	 * to plain text like the entry's title: WordPress hands both out encoded
+	 * for HTML.
+	 *
+	 * @param int $coverage_id Coverage term id.
+	 * @return string Name.
+	 */
+	private static function coverage_or_site_name( int $coverage_id ): string {
 		$coverage_name = get_term_field( 'name', $coverage_id, Taxonomy::TAXONOMY_SLUG );
+		$name          = ! is_wp_error( $coverage_name ) && '' !== trim( (string) $coverage_name ) ? (string) $coverage_name : get_bloginfo( 'name' );
 
-		if ( ! is_wp_error( $coverage_name ) && '' !== trim( (string) $coverage_name ) ) {
-			return $coverage_name;
-		}
-
-		return get_bloginfo( 'name' );
+		return html_entity_decode( $name, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 	}
 
 	/**
