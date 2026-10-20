@@ -44,8 +44,8 @@ class Slack_Content_Processor {
 	private $resolve_user;
 
 	/**
-	 * Heading level for a line starting with #, or Slack_Config::HEADINGS_OFF.
-	 * Each extra # is one level lower.
+	 * Heading level a message's shallowest heading gets, or
+	 * Slack_Config::HEADINGS_OFF. Each extra # is one level lower.
 	 *
 	 * @var int
 	 */
@@ -66,14 +66,6 @@ class Slack_Content_Processor {
 	 * @var array[]
 	 */
 	private $headings = [];
-
-	/**
-	 * Whether the message being processed opens with a heading, which may be
-	 * its title (see place_headings()).
-	 *
-	 * @var bool
-	 */
-	private $opens_with_heading = false;
 
 	/**
 	 * Display names resolved so far, keyed by Slack user ID.
@@ -102,10 +94,10 @@ class Slack_Content_Processor {
 	 *
 	 * @param callable|null $resolve_user      Receives a Slack user ID and returns
 	 *                                         its display name, or '' when unknown.
-	 * @param int           $top_heading_level Heading level for a line starting
-	 *                                         with #, from 2 to 6, or
-	 *                                         Slack_Config::HEADINGS_OFF to
-	 *                                         leave such lines as typed. A
+	 * @param int           $top_heading_level Heading level a message's
+	 *                                         shallowest heading gets, from 2
+	 *                                         to 6, or Slack_Config::HEADINGS_OFF
+	 *                                         to leave marked lines as typed. A
 	 *                                         Heading 1 would compete with the
 	 *                                         page title.
 	 */
@@ -129,15 +121,15 @@ class Slack_Content_Processor {
 	public function process( string $text, array $blocks = [] ): string {
 		$this->title             = '';
 		$this->headings          = [];
-		$this->opens_with_heading = false;
 		$this->channel_names     = $this->labels( '/<#([A-Z0-9]+)\|([^>]+)>/', $text );
 		$this->usergroup_handles = $this->labels( '/<!subteam\^([A-Z0-9]+)\|([^>]+)>/', $text );
 
 		$markup = $this->render_rich_text_blocks( $blocks );
 
-		// A message that is only a title has no markup, and its mrkdwn copy
-		// would give a lesser title (emoji names, dropped group mentions).
-		if ( '' !== $markup || '' !== $this->title ) {
+		// A message that is only a title renders as the title's placeholder,
+		// so it keeps the rich-text title rather than the mrkdwn copy's, which
+		// spells emoji as names and drops group mentions.
+		if ( '' !== $markup ) {
 			return $this->place_headings( $markup );
 		}
 
@@ -224,12 +216,9 @@ class Slack_Content_Processor {
 	private function render_rich_text_blocks( array $blocks ): string {
 		$output = [];
 
-		$is_first = true;
-
 		foreach ( $blocks as $block ) {
 			if ( is_array( $block ) && 'header' === ( $block['type'] ?? '' ) ) {
-				$output[] = $this->render_header( $block, $is_first );
-				$is_first = false;
+				$output[] = $this->render_header( $block );
 				continue;
 			}
 
@@ -252,7 +241,6 @@ class Slack_Content_Processor {
 							++$index;
 						}
 						$output[] = $this->render_lists( $lists );
-						$is_first = false;
 						continue 2;
 
 					case 'rich_text_quote':
@@ -270,15 +258,10 @@ class Slack_Content_Processor {
 						break;
 
 					case 'rich_text_section':
-						$html = $this->render_inline( $element['elements'] ?? [] );
-						if ( $is_first ) {
-							$this->opens_with_heading = $this->starts_with_heading( $html );
-						}
-						$output[] = $this->paragraphs_and_headings( $html );
+						$output[] = $this->paragraphs_and_headings( $this->render_inline( $element['elements'] ?? [] ) );
 						break;
 				}
 
-				$is_first = false;
 				++$index;
 			}
 		}
@@ -639,27 +622,16 @@ class Slack_Content_Processor {
 	}
 
 	/**
-	 * Whether a message's first text opens with a line marked as a heading.
-	 *
-	 * @param string $html Inline HTML with "\n" newlines.
-	 * @return bool
-	 */
-	private function starts_with_heading( string $html ): bool {
-		return null !== $this->parse_heading( explode( "\n", ltrim( $html ), 2 )[0] );
-	}
-
-	/**
 	 * Render a header block, which Slack's composer can make of a line typed
 	 * with #, ## or ###, as a heading by the same rules as a marked line,
 	 * the title rule included (see place_headings()). With headings off, its
 	 * text is a paragraph, so the line isn't lost.
 	 *
-	 * @param array $block    Header block.
-	 * @param bool  $is_first Whether it opens the message.
+	 * @param array $block Header block.
 	 * @return string Block markup or a heading's placeholder, or '' when it
 	 *                is empty.
 	 */
-	private function render_header( array $block, bool $is_first ): string {
+	private function render_header( array $block ): string {
 		$text = trim( (string) ( $block['text']['text'] ?? '' ) );
 
 		if ( '' === $text ) {
@@ -671,10 +643,6 @@ class Slack_Content_Processor {
 
 		if ( Slack_Config::HEADINGS_OFF === $this->top_heading_level ) {
 			return $this->paragraphs( $html );
-		}
-
-		if ( $is_first ) {
-			$this->opens_with_heading = true;
 		}
 
 		return $this->heading_placeholder( $depth, $html );
@@ -724,9 +692,10 @@ class Slack_Content_Processor {
 	/**
 	 * Replace heading placeholders with heading blocks, and take the title.
 	 *
-	 * A message that opens with a heading uses it as its title when no other
-	 * heading in the message is at its level or higher; otherwise it stays a
-	 * heading, since the message has sections rather than one headline. The
+	 * A message that opens with a heading, with nothing rendered above it,
+	 * uses it as its title when no other heading in the message is at its
+	 * level or higher; otherwise it stays a heading, since the message has
+	 * sections rather than one headline. The
 	 * shallowest heading left takes the chosen level and the others follow
 	 * it, one level lower per extra #, down to Heading 6, so no level is
 	 * skipped whichever marker the message starts with.
@@ -742,7 +711,7 @@ class Slack_Content_Processor {
 		$headings    = $this->headings;
 		$title_index = null;
 
-		if ( $this->opens_with_heading ) {
+		if ( str_starts_with( $markup, '<!-- newspack-rolling-coverage-heading 0 -->' ) ) {
 			$opening   = $headings[0][0];
 			$competing = array_filter( array_slice( $headings, 1 ), fn( $heading ) => $heading[0] <= $opening );
 
@@ -886,8 +855,6 @@ class Slack_Content_Processor {
 			fn( $matches ) => $stashed[ (int) $matches[1] ] ?? '',
 			$html
 		);
-
-		$this->opens_with_heading = $this->starts_with_heading( $html );
 
 		return $this->paragraphs_and_headings( $html );
 	}

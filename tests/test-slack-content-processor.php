@@ -802,10 +802,11 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A first line starting with # is the entry's title, taken out of the
-	 * content, so the feed layout gives it the level entry titles have.
+	 * An opening heading with no competing heading is the entry's title,
+	 * taken out of the content, so the feed layout gives it the level entry
+	 * titles have.
 	 */
-	public function test_first_line_with_one_marker_becomes_the_title() {
+	public function test_opening_heading_becomes_the_title() {
 		$processor = new Slack_Content_Processor( null, 2 );
 
 		$content = $processor->process( '', self::rich_text( self::section( self::text( "# Results are in\nWard 1 is counted.\n## Ward 2" ) ) ) );
@@ -851,6 +852,23 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( $title, $processor->get_title() );
 		$this->assertSame( $expected, array_column( self::headings( $content ), 0 ) );
+	}
+
+	/**
+	 * Only the heading a message opens with, with nothing shown above it,
+	 * can be its title.
+	 */
+	public function test_title_comes_from_the_heading_the_message_opens_with() {
+		$after_text = new Slack_Content_Processor( null, 2 );
+		$content    = $after_text->process( '', self::rich_text( self::section( self::text( "\r# Intro\nText\n## Section\nMore" ) ) ) );
+
+		$this->assertSame( '', $after_text->get_title(), 'A heading below a line kept as text should not be the title.' );
+		$this->assertSame( [ 2 ], array_column( self::headings( $content ), 0 ) );
+
+		$after_empty_header = new Slack_Content_Processor( null, 2 );
+		$after_empty_header->process( '', [ self::header( ' ', 1 ), self::header( 'Results', 1 ) ] );
+
+		$this->assertSame( 'Results', $after_empty_header->get_title(), 'An empty header shows nothing, so the heading after it opens the message.' );
 	}
 
 	/**
@@ -946,8 +964,9 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 
 	/**
 	 * Slack's composer can turn # lines into header blocks of their own.
-	 * They follow the same rules as # lines: a first level-1 header is the
-	 * title, and the others are headings, starting at the chosen level.
+	 * They follow the same rules as # lines: an opening header with no
+	 * competing heading is the title, and the others are headings, starting
+	 * at the chosen level.
 	 */
 	public function test_header_blocks_become_the_title_and_headings() {
 		$processor = new Slack_Content_Processor( null, 2 );
@@ -1026,7 +1045,6 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 			'## between paragraphs'        => [ "Text text text\n\n## Heading\n\nText text text", '', [ 4 ] ],
 			'## and ### under a title'     => [ "# Heading 1\n## Heading 2\n### Heading 3", 'Heading 1', [ 4, 5 ] ],
 			'# competing with a later #'   => [ "# Title\n## Heading 2\n### Heading 3\n# Heading 1", '', [ 4, 5, 6, 4 ] ],
-			'# to ### with no title'       => [ "Update:\n# One\n## Two\n### Three", '', [ 4, 5, 6 ] ],
 		];
 	}
 
@@ -1052,7 +1070,7 @@ class Test_Slack_Content_Processor extends Rolling_Coverage_TestCase {
 
 	/**
 	 * Header blocks follow the same rules as # lines: an opening header with
-	 * no competing header is the title, and the rest start at the highest
+	 * no competing heading is the title, and the rest start at the highest
 	 * level.
 	 */
 	public function test_header_blocks_follow_the_title_and_level_rules() {
