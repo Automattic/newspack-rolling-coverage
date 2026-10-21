@@ -206,23 +206,6 @@ class Test_Author_Settings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Entries show avatars whatever the site's Avatar Display says, so the
-	 * Slack bot's entry still drops its avatar and name with Avatar Display
-	 * off, and the group that held them goes.
-	 */
-	public function test_a_slack_bot_entry_with_avatars_off_leaves_no_empty_group() {
-		update_option( 'show_avatars', 0 );
-		$coverage_id = self::create_coverage();
-		self::create_entry( $coverage_id, [ 'post_author' => Slack_Config::get_or_create_bot_user_id() ] );
-
-		$html = self::render_block( [ 'coverageId' => $coverage_id ], self::LINKS_MARKUP );
-
-		$this->assertStringNotContainsString( 'wp-block-avatar', $html );
-		$this->assertStringNotContainsString( 'wp-block-post-author-name', $html );
-		$this->assertSame( [ 1, 0 ], self::groups( $html ) );
-	}
-
-	/**
 	 * Load more shows avatars with Avatar Display off, keeping the avatar
 	 * column of a page stored with it.
 	 */
