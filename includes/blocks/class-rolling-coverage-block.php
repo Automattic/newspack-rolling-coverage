@@ -1002,8 +1002,11 @@ class Rolling_Coverage_Block {
 	/**
 	 * Writes an entry avatar's block size onto its image as inline width and
 	 * height. Core only sets them as attributes, which classic themes'
-	 * global avatar sizing overrides. An avatar with no image, such as
-	 * initials from an avatar filter, is left as it is.
+	 * global avatar sizing overrides. When get_avatar() gives nothing, as for
+	 * an Avatar block in an entry's content while Avatar Display is off, core
+	 * still prints an empty wrapper, which is dropped so it leaves no gap; an
+	 * avatar with no image otherwise, such as initials from an avatar filter,
+	 * is left as it is.
 	 *
 	 * @param string $block_content Rendered block.
 	 * @param array  $block         Parsed block.
@@ -1023,7 +1026,7 @@ class Rolling_Coverage_Block {
 		$html = new WP_HTML_Tag_Processor( $block_content );
 
 		if ( ! $html->next_tag( 'img' ) ) {
-			return $block_content;
+			return preg_match( '#^<div\b[^>]*>\s*</div>$#', trim( $block_content ) ) ? '' : $block_content;
 		}
 
 		$style = trim( (string) $html->get_attribute( 'style' ), " \t\n\r;" );

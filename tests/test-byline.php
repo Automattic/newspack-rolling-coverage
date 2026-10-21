@@ -234,6 +234,7 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 
 		$this->assertSame( 1, substr_count( $html, '<img' ), 'Only the layout avatar should show.' );
 		$this->assertStringContainsString( 'avatar-40', $html );
+		$this->assertSame( 1, preg_match_all( '/class="wp-block-avatar[ "]/', $html ), 'No empty avatar wrapper should be left.' );
 	}
 
 	/**
