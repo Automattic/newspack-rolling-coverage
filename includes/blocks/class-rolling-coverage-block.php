@@ -5353,7 +5353,7 @@ class Rolling_Coverage_Block {
 			self::coverage_entries_args( $term_id ),
 			[
 				'orderby'        => self::FEED_ORDER,
-				// Twice the count, up to a page of load more: a page leaves out entries it dropped, which come back on reload, and still fills its places.
+				// Twice the count, up to a page of load more. The page keeps the newest `$latest_count`, so the rest is spare.
 				'posts_per_page' => min( 2 * $latest_count, self::PER_PAGE_MAX ),
 			]
 		);
