@@ -109,6 +109,35 @@ class Test_Older_Entries extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * Only a page that leaves entries out sends a load-more bound, whether or
+	 * not it can load them: the view script keeps an entry that lists below
+	 * the bound off the page, so a page that shows every entry can't have one.
+	 */
+	public function test_only_a_page_that_leaves_entries_out_sends_a_load_more_bound() {
+		$coverage_id = self::create_coverage_with_entries();
+
+		foreach ( [ 'button', 'none' ] as $older_entries ) {
+			$every_entry = self::render_block(
+				[
+					'coverageId'     => $coverage_id,
+					'entriesPerPage' => 3,
+					'olderEntries'   => $older_entries,
+				]
+			);
+			$some        = self::render_block(
+				[
+					'coverageId'     => $coverage_id,
+					'entriesPerPage' => 2,
+					'olderEntries'   => $older_entries,
+				]
+			);
+
+			$this->assertDoesNotMatchRegularExpression( '/data-before="[^"]/', $every_entry, "A page showing every entry sends no bound ($older_entries)." );
+			$this->assertMatchesRegularExpression( '/data-before="\d+:2026-01-01 11:00:00"/', $some, "A page leaving entries out sends its last entry's bound ($older_entries)." );
+		}
+	}
+
+	/**
 	 * A coverage with exactly one page of entries has nothing more to load,
 	 * so the button is never offered for a page that would load nothing.
 	 */

@@ -58,10 +58,9 @@ type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 
 /**
  * Where an entry stood when a poll named it taken down: on the page, in the
- * count of newer entries a poll added to, or neither. A feed opened at a
- * shared entry rendered a count that still holds one that was neither,
- * unless it was taken down after the coverage's last save of a published
- * entry before the render.
+ * count of newer entries a poll added to, or neither. In a feed opened at a
+ * shared entry, the rendered count still holds one that was neither and is
+ * dated after the shared entry, unless it was already down at the render.
  */
 type Takedown = 'shown' | 'counted' | 'off-page';
 
@@ -2678,14 +2677,14 @@ function initBlock( root: HTMLElement ): void {
 				// as an older entry taken down and published again between two
 				// polls. It goes where a fresh page lists it, or waits for load
 				// more with this copy, since a cached load-more reply can
-				// predate it.
+				// predate it, even on a page that can't load more.
 				if (
 					date &&
 					sharedDate &&
 					date <= sharedDate &&
 					! el.hasAttribute( 'data-pinned' )
 				) {
-					if ( placeUnpinnedEntry( el ) ) {
+					if ( ! listsBelowBound( el ) && placeUnpinnedEntry( el ) ) {
 						observeEntry( el );
 						dropLastSeparator();
 					} else {
@@ -3508,7 +3507,9 @@ function initBlock( root: HTMLElement ): void {
 					);
 				}
 				hasMore = data.hasMore;
-				before = data.before || '';
+				// After the last page the page shows every entry, so it keeps
+				// no bound to hold one off it (see listsBelowBound()).
+				before = data.hasMore ? data.before || '' : '';
 				dropLastSeparator();
 			} else {
 				// The reader can try the button again; the sentinel would
