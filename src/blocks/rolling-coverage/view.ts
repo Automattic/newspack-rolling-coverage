@@ -60,7 +60,7 @@ type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
  * Where an entry stood when a poll named it taken down: on the page, in the
  * count of newer entries a poll added to, or neither. In a feed opened at a
  * shared entry, the rendered count still holds one that was neither and is
- * dated after the shared entry, unless it was already down at the render.
+ * dated after the shared entry, unless it wasn't published at the render.
  */
 type Takedown = 'shown' | 'counted' | 'off-page';
 
