@@ -59,7 +59,9 @@ type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 /**
  * Where an entry stood when a poll named it taken down: on the page, in the
  * count of newer entries a poll added to, or neither. A feed opened at a
- * shared entry rendered a count that still holds one that was neither.
+ * shared entry rendered a count that still holds one that was neither,
+ * unless it was taken down after the coverage's last save of a published
+ * entry before the render.
  */
 type Takedown = 'shown' | 'counted' | 'off-page';
 
@@ -605,6 +607,11 @@ function initBlock( root: HTMLElement ): void {
 
 	const status = root.dataset.status || 'active';
 	const isEntryView = root.dataset.view === 'entry';
+	// The rendered count split entries at this date, which still holds
+	// while a takedown has the shared entry off the page.
+	const renderedSharedDate = isEntryView
+		? ownElement( root, '[data-linked]', entriesList )?.dataset.dateGmt
+		: undefined;
 	// The feed checks for new entries only when the reader asks.
 	const checksOnRequest = root.dataset.newEntries === 'button';
 
@@ -1123,13 +1130,15 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * The GMT date of the shared entry, in a feed opened at one.
+	 * The GMT date of the shared entry, in a feed opened at one, or the date
+	 * the page rendered it with while it is off the page.
 	 *
 	 * @return {string|undefined} The date, or undefined in the normal view or on a page cached before entries carried dates.
 	 */
 	function sharedEntryDate(): string | undefined {
 		return isEntryView
-			? ownElement( root, '[data-linked]', entriesList )?.dataset.dateGmt
+			? ( ownElement( root, '[data-linked]', entriesList )?.dataset
+					.dateGmt ?? renderedSharedDate )
 			: undefined;
 	}
 
@@ -1628,7 +1637,12 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		forgetOffPageEntry( entryId );
-		removedEntryIds.set( entryId, takedown );
+		// Taken down again before a poll brought it back, it is off the page
+		// either way; the first takedown knows where it stood.
+		removedEntryIds.set(
+			entryId,
+			removedEntryIds.get( entryId ) ?? takedown
+		);
 	}
 
 	/**
@@ -2515,6 +2529,9 @@ function initBlock( root: HTMLElement ): void {
 				entryEl.dataset.arrival = 'poll';
 
 				if ( ! placeReturningEntry( entryEl, takedown ) ) {
+					// An edit kept for load more is older than this copy.
+					offPageUpdates.delete( String( entry.id ) );
+
 					newEntries.push( {
 						el: entryEl,
 						adSlot: entry.adSlot,
