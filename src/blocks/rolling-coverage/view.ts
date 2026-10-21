@@ -1162,8 +1162,6 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {boolean} Whether the entry stays on the page.
 	 */
 	function placeUnpinnedEntry( entry: HTMLElement ): boolean {
-		const date = entry.dataset.dateGmt;
-
 		if ( isNewerThanShared( entry ) && entry.dataset.entryId ) {
 			// One the page rendered counted is back in that count.
 			if ( ! pinnedCountedIds.delete( entry.dataset.entryId ) ) {
@@ -1181,26 +1179,9 @@ function initBlock( root: HTMLElement ): void {
 			return true;
 		}
 
-		// Load more continues below its bound, which sits lower than the last
-		// entry shown when a page of older entries ended on a pinned entry,
-		// one the list already held or one a poll has since moved up to the
-		// pinned entries. An entry taken off the page above the bound would
-		// never load again.
-		const [ , boundId = '0', boundDate = before ] =
-			/^(\d+):(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/.exec( before ) ??
-			[];
-
-		if (
-			hasMore &&
-			date &&
-			boundDate &&
-			listsBelow(
-				date,
-				Number( entry.dataset.entryId ),
-				boundDate,
-				Number( boundId )
-			)
-		) {
+		// An entry taken off the page above load more's bound would never
+		// load again.
+		if ( hasMore && listsBelowBound( entry ) ) {
 			return false;
 		}
 
@@ -1244,6 +1225,33 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Whether load more lists an entry below its bound, which sits lower than
+	 * the last entry shown when a page of older entries ended on a pinned
+	 * entry, one the list already held or one a poll has since moved up to
+	 * the pinned entries. False without a bound to compare.
+	 *
+	 * @param {HTMLElement} entry The entry.
+	 * @return {boolean} Whether the entry lists below the bound.
+	 */
+	function listsBelowBound( entry: HTMLElement ): boolean {
+		const date = entry.dataset.dateGmt;
+		const [ , boundId = '0', boundDate = before ] =
+			/^(\d+):(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/.exec( before ) ??
+			[];
+
+		return (
+			!! date &&
+			!! boundDate &&
+			listsBelow(
+				date,
+				Number( entry.dataset.entryId ),
+				boundDate,
+				Number( boundId )
+			)
+		);
+	}
+
+	/**
 	 * Puts an unpinned entry the poll sent, which the page neither shows nor
 	 * holds in its queue, where a fresh page lists it: one published again or
 	 * restored, taken down while the page was open or before it rendered. It
@@ -1267,6 +1275,10 @@ function initBlock( root: HTMLElement ): void {
 			return takedown === 'off-page' && isNewerThanShared( entry );
 		}
 
+		// A fresh page leaves one below load more's bound for load more,
+		// whether or not this page can load more.
+		const isBelowBound = ! latestCap && listsBelowBound( entry );
+
 		if ( latestCap ) {
 			const shown = entriesList.querySelectorAll(
 				':scope > [data-entry-id]'
@@ -1275,11 +1287,14 @@ function initBlock( root: HTMLElement ): void {
 			if ( shown.length >= latestCap && ! unpinnedEntryBelow( entry ) ) {
 				return true;
 			}
-		} else if ( unpinnedEntryBelow( entry ) === firstUnpinnedEntry() ) {
+		} else if (
+			! isBelowBound &&
+			unpinnedEntryBelow( entry ) === firstUnpinnedEntry()
+		) {
 			return false;
 		}
 
-		if ( ! placeUnpinnedEntry( entry ) ) {
+		if ( isBelowBound || ! placeUnpinnedEntry( entry ) ) {
 			// Load more brings it, with this copy, unless its reply was
 			// cached while the entry was down.
 			offPageUpdates.set( entry.dataset.entryId ?? '', entry.outerHTML );
