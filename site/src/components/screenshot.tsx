@@ -6,11 +6,33 @@ const ASPECTS = {
 
 export function Screenshot( {
 	label,
+	src,
+	width,
+	height,
 	aspect = '16/10',
 }: {
 	label: string;
+	src?: string;
+	width?: number;
+	height?: number;
 	aspect?: keyof typeof ASPECTS;
 } ) {
+	if ( src ) {
+		return (
+			<figure className="not-prose my-6">
+				<img
+					src={ src }
+					alt={ label }
+					width={ width }
+					height={ height }
+					loading="lazy"
+					decoding="async"
+					className="h-auto w-full rounded-xl border border-fd-border"
+				/>
+			</figure>
+		);
+	}
+
 	return (
 		<figure
 			role="img"

@@ -3,6 +3,7 @@ import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath( new URL( '../content/docs/', import.meta.url ) );
+const publicDir = fileURLToPath( new URL( '../public/', import.meta.url ) );
 const failures = [];
 
 const REQUIRED_PAGES = [
@@ -108,6 +109,15 @@ for ( const path of walk( root ).filter( ( file ) => file.endsWith( '.mdx' ) ) )
 	for ( const [ tag ] of source.matchAll( /<Screenshot\b[^>]*>/g ) ) {
 		if ( ! /\blabel="[^"]+"/.test( tag ) ) {
 			failures.push( `${ name }: ${ tag } needs a non-empty label` );
+		}
+		const src = tag.match( /\bsrc="([^"]+)"/ )?.[ 1 ];
+		if ( src ) {
+			if ( ! src.startsWith( '/' ) || ! existsSync( join( publicDir, src ) ) ) {
+				failures.push( `${ name }: screenshot ${ src } doesn't exist in site/public` );
+			}
+			if ( ! /\bwidth=\{\d+\}/.test( tag ) || ! /\bheight=\{\d+\}/.test( tag ) ) {
+				failures.push( `${ name }: screenshot ${ src } needs width={…} and height={…}` );
+			}
 		}
 	}
 }

@@ -70,13 +70,14 @@ npm run check:build   # Checks site/dist/ after a build
   - Every step that changes what's on screen gets a `<Screenshot label="..." />` naming the screen and what's highlighted.
 - **Hosting:** Spacefast, in the Automattic team, at `https://rolling-coverage.space.fast/`. Spacefast builds the site from this repository (root directory `site`) whenever the deploy branch changes. The deploy branch is `feat/docs-site` while the site's pull request is open, and `trunk` once it merges.
 - **Updating the live site:** push to (or merge into) the deploy branch. Each build shows on the Space's Builds page in Spacefast and as the `Spacefast Builds` check on GitHub.
-- **Publishing by hand**, when GitHub isn't connected or a build needs forcing. Sign in to Spacefast as a member of the Automattic team, then from `site/`:
+- **When a build doesn't start** (it can sit queued), sign in to Spacefast as a member of the Automattic team and sync the repository, then retry the latest build:
 
   ```bash
-  npx -y spacefast@latest login
-  npm run build
-  npx -y spacefast@latest publish dist --prebuilt --team automattic --space rolling-coverage
+  npx -y spacefast@latest git sync --space rolling-coverage --team automattic
+  npx -y spacefast@latest redeploy --space rolling-coverage --team automattic
   ```
+
+  Don't publish `site/dist` by hand with `spacefast publish`: it uploads only part of the build, and the live site loses most of its pages.
 
 - **Access:** members of the Automattic team on Spacefast, plus a password for invited publishers. The password is managed in the Space's Access settings and never goes in this repository.
 - Spacefast's local `.spacefast/` folder is never committed (`site/.gitignore`).

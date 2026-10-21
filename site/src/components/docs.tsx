@@ -36,6 +36,7 @@ export function Docs( {
 				nav={ { title: SITE_TITLE, url: '/', mode: 'top' } }
 				links={ NAV_LINKS }
 				githubUrl={ GITHUB_URL }
+				sidebar={ { collapsible: false } }
 			>
 				<DocsPage { ...page }>{ children }</DocsPage>
 			</DocsLayout>

@@ -47,9 +47,9 @@ const modes = {
 
 const failures = [];
 
-// A colour set on :root also wins in dark mode, because global.css loads after Fumadocs' .dark block.
+// A colour Fumadocs changes in its .dark block, once set on :root, also wins in dark mode, because global.css loads after it.
 for ( const [ , name ] of modes.light.ours.matchAll( /(--color-fd-[a-z-]+):/g ) ) {
-	if ( value( modes.light.ours, name )?.startsWith( 'var(' ) ) {
+	if ( value( modes.light.ours, name )?.startsWith( 'var(' ) || ! value( modes.dark.base, name ) ) {
 		continue;
 	}
 	if ( ! value( modes.dark.ours, name ) ) {

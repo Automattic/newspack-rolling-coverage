@@ -1,10 +1,16 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/inter';
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
 
+@theme {
+	--font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
 :root {
 	--color-fd-background: hsl(0, 0%, 99.5%);
-	--color-fd-info: var(--color-fd-muted-foreground);
+	--color-fd-info: var(--color-fd-primary);
+	--color-fd-idea: oklch(62% 0.12 195);
 	--color-fd-primary: #003da5;
 	--color-fd-primary-foreground: hsl(0, 0%, 98%);
 	--color-fd-ring: #003da5;
@@ -21,6 +27,23 @@
 	--tw-prose-links: var(--color-fd-primary);
 }
 
+[style*='--callout-color'] {
+	border-color: color-mix(in oklab, var(--callout-color) 30%, transparent);
+	background-color: color-mix(in oklab, var(--callout-color) 7%, var(--color-fd-background));
+}
+
 [style*='--callout-color'] > [role='none'] {
 	display: none;
 }
+
+[style*='--callout-color'] .text-fd-muted-foreground {
+	color: var(--color-fd-foreground);
+}
+
+#nd-page > *,
+#nd-page > astro-slot > * {
+	width: 100%;
+	max-width: 46rem;
+	margin-inline: auto;
+}
+
