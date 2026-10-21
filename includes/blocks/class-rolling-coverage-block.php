@@ -1289,7 +1289,7 @@ class Rolling_Coverage_Block {
 
 		$ads_enabled_attr = ! empty( $attributes['enableAds'] );
 
-		// A syndication feed runs no ad code to fill a slot, and apps that read it place their own.
+		// Feed readers run no ad code to fill a slot, and apps that read the feed place their own.
 		$ads_enabled = ! $is_capped && ! is_feed() && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $coverage_id );
 
 		// A trashed coverage is effectively invisible on the frontend.
