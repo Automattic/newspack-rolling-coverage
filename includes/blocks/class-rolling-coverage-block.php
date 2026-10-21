@@ -183,6 +183,9 @@ class Rolling_Coverage_Block {
 		'core/avatar',
 	];
 
+	// Marks the layout's own Avatar blocks, the only ones show_entry_avatars() turns Avatar Display on for.
+	const LAYOUT_AVATAR_ATTR = 'newspackRollingCoverageLayoutAvatar';
+
 	/**
 	 * The host page's post ID, captured at the start of render_block()
 	 * before the global $post is swapped to individual entries. Used by
@@ -978,18 +981,18 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Turns the site's Avatar Display on while an entry's Avatar block
-	 * renders, so the block's Author avatar setting decides whether entries
-	 * show their author's picture. A site can keep avatars off everywhere
-	 * else, such as in comments, and still show them in its coverage. Other
-	 * blocks in an entry, such as an author block in its content, still
-	 * follow Avatar Display.
+	 * Turns the site's Avatar Display on while one of the layout's Avatar
+	 * blocks renders in an entry (see with_layout_avatars_marked()), so the
+	 * block's Author avatar setting decides whether entries show their
+	 * author's picture. A site can keep avatars off everywhere else, such as
+	 * in comments, and still show them in its coverage. Blocks in an entry's
+	 * own content, an Avatar block included, still follow Avatar Display.
 	 *
 	 * @param mixed $pre The value to return instead of the stored option, or false for the stored one.
 	 * @return mixed
 	 */
 	public static function show_entry_avatars( $pre ) {
-		if ( ! self::is_rendering_entry() || 'core/avatar' !== ( WP_Block_Supports::$block_to_render['blockName'] ?? '' ) ) {
+		if ( ! self::is_rendering_entry() || empty( WP_Block_Supports::$block_to_render['attrs'][ self::LAYOUT_AVATAR_ATTR ] ) ) {
 			return $pre;
 		}
 
@@ -1356,7 +1359,7 @@ class Rolling_Coverage_Block {
 
 		$feed         = self::feed_group( $block );
 		$feed_layout  = (array) ( $feed['attrs']['layout'] ?? [] );
-		$template     = self::with_author_settings( self::get_entry_template( $block ), $attributes );
+		$template     = self::with_layout_avatars_marked( self::with_author_settings( self::get_entry_template( $block ), $attributes ) );
 		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval, $latest_count, $feed_layout );
 		$unplaced     = 'grid' === ( $feed_layout['type'] ?? '' ) ? self::without_grid_placements( $template ) : $template;
 		$column_rules = $is_capped ? [] : self::column_rules( $template, $feed_layout );
@@ -3467,6 +3470,28 @@ class Rolling_Coverage_Block {
 		}
 
 		return self::without_author_blocks( $template, $hides_name, $hides_avatar, $hides_avatar );
+	}
+
+	/**
+	 * The template with its Avatar blocks marked as the layout's own, so
+	 * show_entry_avatars() tells them from an Avatar block in an entry's
+	 * content. Applied before the template is stored, so polls, load more
+	 * and the jump to the latest entries carry the same marks.
+	 *
+	 * @param array[] $template Parsed template blocks.
+	 * @return array[]
+	 */
+	private static function with_layout_avatars_marked( array $template ): array {
+		return self::map_template_blocks(
+			$template,
+			static function ( array $block ) {
+				if ( 'core/avatar' === ( $block['blockName'] ?? '' ) ) {
+					$block['attrs'][ self::LAYOUT_AVATAR_ATTR ] = true;
+				}
+
+				return [ $block ];
+			}
+		);
 	}
 
 	/**

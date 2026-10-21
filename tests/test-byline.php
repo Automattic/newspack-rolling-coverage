@@ -191,18 +191,6 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * With Avatar Display off, an entry shows its author's avatar.
-	 */
-	public function test_an_entry_shows_its_avatar_when_avatars_are_off() {
-		update_option( 'show_avatars', 0 );
-
-		$html = self::render( self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] ), self::BYLINE_MARKUP );
-
-		$this->assertStringContainsString( 'wp-block-avatar__image', $html );
-		$this->assertStringContainsString( 'Jane Reporter', $html );
-	}
-
-	/**
 	 * Outside an entry, avatars follow Avatar Display as core renders them.
 	 */
 	public function test_an_avatar_outside_a_feed_follows_avatar_display() {
@@ -221,23 +209,43 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * With Avatar Display off, only the entry's Avatar blocks show a picture:
-	 * an author block in the entry's own content still follows the setting.
+	 * With Avatar Display off, only the layout's avatar shows a picture: a
+	 * block in the entry's own content that shows one still follows the
+	 * setting.
+	 *
+	 * @dataProvider entry_content_avatar_provider
+	 *
+	 * @param string $content Entry content holding a block that shows an avatar.
 	 */
-	public function test_an_author_block_in_entry_content_follows_avatar_display() {
+	public function test_avatars_in_entry_content_follow_avatar_display( $content ) {
 		update_option( 'show_avatars', 0 );
-		$entry_id = self::create_entry(
-			self::create_coverage(),
+		$coverage_id = self::create_coverage();
+		self::create_entry(
+			$coverage_id,
 			[
-				'post_author'  => self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] ),
-				'post_content' => '<!-- wp:post-author {"showAvatar":true} /-->',
+				'post_author'  => self::factory()->user->create(),
+				'post_content' => $content,
 			]
 		);
+		$attributes = [ 'coverageId' => $coverage_id ];
+		$block      = new WP_Block( parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' --><!-- wp:avatar {"size":40} /--><!-- wp:post-content /--><!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0] );
 
-		$html = self::render_existing( $entry_id, '<!-- wp:post-content /-->' );
+		$html = Rolling_Coverage_Block::render_block( $attributes, '', $block );
 
-		$this->assertStringContainsString( 'Jane Reporter', $html );
-		$this->assertStringNotContainsString( '<img', $html );
+		$this->assertSame( 1, substr_count( $html, '<img' ), 'Only the layout avatar should show.' );
+		$this->assertStringContainsString( 'avatar-40', $html );
+	}
+
+	/**
+	 * Entry content holding a block that shows the author's avatar.
+	 *
+	 * @return array[]
+	 */
+	public function entry_content_avatar_provider() {
+		return [
+			'post author' => [ '<!-- wp:post-author {"showAvatar":true} /-->' ],
+			'avatar'      => [ '<!-- wp:avatar {"size":96} /-->' ],
+		];
 	}
 
 	/**
