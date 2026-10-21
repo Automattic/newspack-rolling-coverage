@@ -676,9 +676,9 @@ function initBlock( root: HTMLElement ): void {
 	// bring the entry (see applyPollResponse()).
 	const offPageUpdates = new Map< string, string >();
 
-	// Entries the poll reported taken down. One that comes back shows on
-	// reload, not before: polls, load more and a capped feed's whole replies
-	// all leave it out, cached load-more replies from before the removal too.
+	// Entries the poll reported taken down, which load more leaves out, as a
+	// cached load-more reply can predate the takedown. A poll that sends one
+	// again brings it back (see placeReturningEntry()).
 	const removedEntryIds = new Set< string >();
 
 	const countedEntryIds = new Set< string >();
@@ -1237,6 +1237,56 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Puts back an unpinned entry the poll reported taken down and has sent
+	 * again, published again or restored, where a fresh page lists it: at its
+	 * date, or with load more when that is below load more's bound (see
+	 * placeUnpinnedEntry()). A capped feed puts it back when it is among its
+	 * newest entries. One that lists above every unpinned entry the page
+	 * shows is new to the reader, so it comes in as a new entry, behind the
+	 * new-entries control while the reader is scrolled down. A feed opened at
+	 * a shared entry takes every returning entry as new, as its own rules
+	 * place or count it by date.
+	 *
+	 * @param {HTMLElement} entry The entry, as the poll sent it.
+	 * @return {boolean} Whether it was put back or left out; false to take it as new.
+	 */
+	function placeReturningEntry( entry: HTMLElement ): boolean {
+		if ( isEntryView ) {
+			return false;
+		}
+
+		if ( latestCap ) {
+			const shown = entriesList.querySelectorAll(
+				':scope > [data-entry-id]'
+			);
+
+			if ( shown.length >= latestCap && ! unpinnedEntryBelow( entry ) ) {
+				return true;
+			}
+		} else if ( unpinnedEntryBelow( entry ) === firstUnpinnedEntry() ) {
+			return false;
+		}
+
+		if ( ! placeUnpinnedEntry( entry ) ) {
+			// Load more brings it, with this copy.
+			offPageUpdates.set( entry.dataset.entryId ?? '', entry.outerHTML );
+			return true;
+		}
+
+		ownElement(
+			root,
+			'.newspack-rolling-coverage-entries__empty',
+			entriesList
+		)?.remove();
+		observeEntry( entry );
+		fadeIn( [ entry ] );
+		trimToLatestCap();
+		dropLastSeparator();
+
+		return true;
+	}
+
+	/**
 	 * Removes the oldest entries beyond the cap of a capped feed, and stops
 	 * watching them for being seen.
 	 *
@@ -1405,16 +1455,21 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Swaps a capped feed's entries for the newest ones a poll sent whole,
-	 * leaving out entries taken down, in this reply or earlier, and keeping
-	 * the arrival of those it already showed.
+	 * leaving out entries taken down, and keeping the arrival of those it
+	 * already showed. An entry taken down earlier that the reply lists is
+	 * back.
 	 *
 	 * @param {PollEntry[]} entries Removals, then the newest entries, newest first.
 	 * @return {void}
 	 */
 	function replaceEntries( entries: PollEntry[] ): void {
 		entries.forEach( ( entry ) => {
-			if ( entry.type === 'remove' && isSafeEntryId( entry.id ) ) {
-				removedEntryIds.add( String( entry.id ) );
+			if ( isSafeEntryId( entry.id ) ) {
+				if ( entry.type === 'remove' ) {
+					removedEntryIds.add( String( entry.id ) );
+				} else {
+					removedEntryIds.delete( String( entry.id ) );
+				}
 			}
 		} );
 
@@ -2351,9 +2406,10 @@ function initBlock( root: HTMLElement ): void {
 	 * them with the pinned entries at once (see showPinnedEntry()). Moves a
 	 * newly pinned entry it shows among the pinned ones, and a newly unpinned
 	 * one to its place by date (see placeUnpinnedEntry()). Drops entries
-	 * taken down, and leaves one that comes back for reload. Inserts or
-	 * queues newly published entries based on the reader's scroll position,
-	 * and swaps one already queued for its new copy. When the feed opens at a
+	 * taken down, and puts back one that comes back (see
+	 * placeReturningEntry()). Inserts or queues newly published entries based
+	 * on the reader's scroll position, and swaps one already queued for its
+	 * new copy. When the feed opens at a
 	 * shared entry, new entries dated after it are added to the control's
 	 * count instead, older ones are placed by date, and pinned ones join the
 	 * pinned entries. A capped feed inserts new entries at once, whatever the
@@ -2376,9 +2432,9 @@ function initBlock( root: HTMLElement ): void {
 				return;
 			}
 
-			if ( removedEntryIds.has( String( entry.id ) ) ) {
-				return;
-			}
+			// The poll's cursor passed the takedown, so this copy is from after
+			// it: the entry is back.
+			const isReturning = removedEntryIds.delete( String( entry.id ) );
 
 			const existing = ownElement(
 				root,
@@ -2398,6 +2454,29 @@ function initBlock( root: HTMLElement ): void {
 				! entryEl.dataset.arrival
 			) {
 				entryEl.dataset.arrival = 'poll';
+			}
+
+			// A pinned one takes the path below of any pinned entry the page
+			// doesn't show; a capped feed ignores pinning.
+			if (
+				isReturning &&
+				entryEl &&
+				! existing &&
+				( latestCap || ! entryEl.hasAttribute( 'data-pinned' ) )
+			) {
+				entryEl.dataset.arrival = 'poll';
+
+				if ( ! placeReturningEntry( entryEl ) ) {
+					newEntries.push( {
+						el: entryEl,
+						adSlot: entry.adSlot,
+						adEl: entry.adHtml
+							? parseElement( sanitizeHtml( entry.adHtml ) )
+							: null,
+					} );
+				}
+
+				return;
 			}
 
 			if ( entry.type === 'update' && ! existing ) {
