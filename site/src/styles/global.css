@@ -1,0 +1,26 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+:root {
+	--color-fd-background: hsl(0, 0%, 99.5%);
+	--color-fd-info: var(--color-fd-muted-foreground);
+	--color-fd-primary: #003da5;
+	--color-fd-primary-foreground: hsl(0, 0%, 98%);
+	--color-fd-ring: #003da5;
+}
+
+.dark {
+	--color-fd-background: hsl(0, 0%, 7.04%);
+	--color-fd-primary: #8fb0ff;
+	--color-fd-primary-foreground: hsl(0, 0%, 9%);
+	--color-fd-ring: #8fb0ff;
+}
+
+.prose {
+	--tw-prose-links: var(--color-fd-primary);
+}
+
+[style*='--callout-color'] > [role='none'] {
+	display: none;
+}

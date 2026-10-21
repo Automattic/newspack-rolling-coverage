@@ -1,0 +1,9 @@
+---
+import Layout from '@/components/layout.astro';
+import { SITE_TITLE } from '@/components/docs';
+import { Home, SITE_DESCRIPTION } from '@/components/home';
+---
+
+<Layout title={ SITE_TITLE } description={ SITE_DESCRIPTION }>
+	<Home pathname={ Astro.url.pathname } params={ Astro.params } client:load />
+</Layout>
