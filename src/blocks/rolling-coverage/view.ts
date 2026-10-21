@@ -56,6 +56,13 @@ const FADE_CLEANUP_MS = 500;
  */
 type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 
+/**
+ * Where an entry stood when a poll named it taken down: on the page, in the
+ * count of newer entries a poll added to, or neither. A feed opened at a
+ * shared entry rendered a count that still holds one that was neither.
+ */
+type Takedown = 'shown' | 'counted' | 'off-page';
+
 const PINNED_STACK = '.newspack-rolling-coverage-pinned-stack';
 
 const STICKY_CARD_SELECTOR = `:is(.newspack-rolling-coverage-pinned-card, ${ PINNED_STACK }).is-position-sticky`;
@@ -679,7 +686,7 @@ function initBlock( root: HTMLElement ): void {
 	// Entries the poll reported taken down, which load more leaves out, as a
 	// cached load-more reply can predate the takedown. A poll that sends one
 	// again brings it back (see placeReturningEntry()).
-	const removedEntryIds = new Set< string >();
+	const removedEntryIds = new Map< string, Takedown >();
 
 	const countedEntryIds = new Set< string >();
 
@@ -1245,14 +1252,18 @@ function initBlock( root: HTMLElement ): void {
 	 * shows is new to the reader, so it comes in as a new entry, behind the
 	 * new-entries control while the reader is scrolled down. A feed opened at
 	 * a shared entry takes every returning entry as new, as its own rules
-	 * place or count it by date.
+	 * place or count it by date, except one its rendered count still holds.
 	 *
-	 * @param {HTMLElement} entry The entry, as the poll sent it.
+	 * @param {HTMLElement}          entry    The entry, as the poll sent it.
+	 * @param {Takedown | undefined} takedown Where it stood when the poll named it taken down, if the page saw that.
 	 * @return {boolean} Whether it was put back or left out; false to take it as new.
 	 */
-	function placeReturningEntry( entry: HTMLElement ): boolean {
+	function placeReturningEntry(
+		entry: HTMLElement,
+		takedown: Takedown | undefined
+	): boolean {
 		if ( isEntryView ) {
-			return false;
+			return takedown === 'off-page' && isNewerThanShared( entry );
 		}
 
 		if ( latestCap ) {
@@ -1466,7 +1477,8 @@ function initBlock( root: HTMLElement ): void {
 		entries.forEach( ( entry ) => {
 			if ( isSafeEntryId( entry.id ) ) {
 				if ( entry.type === 'remove' ) {
-					removedEntryIds.add( String( entry.id ) );
+					// A capped feed keeps no count of newer entries.
+					removedEntryIds.set( String( entry.id ), 'off-page' );
 				} else {
 					removedEntryIds.delete( String( entry.id ) );
 				}
@@ -1586,7 +1598,12 @@ function initBlock( root: HTMLElement ): void {
 			entriesList
 		);
 
+		let takedown: Takedown = countedEntryIds.has( entryId )
+			? 'counted'
+			: 'off-page';
+
 		if ( existing ) {
+			takedown = 'shown';
 			unobserveEntry( existing );
 			linkedObserver?.unobserve( existing );
 			existing.remove();
@@ -1594,7 +1611,7 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		forgetOffPageEntry( entryId );
-		removedEntryIds.add( entryId );
+		removedEntryIds.set( entryId, takedown );
 	}
 
 	/**
@@ -2434,7 +2451,8 @@ function initBlock( root: HTMLElement ): void {
 
 			// The poll's cursor passed the takedown, so this copy is from after
 			// it: the entry is back.
-			const isReturning = removedEntryIds.delete( String( entry.id ) );
+			const takedown = removedEntryIds.get( String( entry.id ) );
+			removedEntryIds.delete( String( entry.id ) );
 
 			const existing = ownElement(
 				root,
@@ -2459,14 +2477,14 @@ function initBlock( root: HTMLElement ): void {
 			// A pinned one takes the path below of any pinned entry the page
 			// doesn't show; a capped feed ignores pinning.
 			if (
-				isReturning &&
+				takedown &&
 				entryEl &&
 				! existing &&
 				( latestCap || ! entryEl.hasAttribute( 'data-pinned' ) )
 			) {
 				entryEl.dataset.arrival = 'poll';
 
-				if ( ! placeReturningEntry( entryEl ) ) {
+				if ( ! placeReturningEntry( entryEl, takedown ) ) {
 					newEntries.push( {
 						el: entryEl,
 						adSlot: entry.adSlot,
@@ -2485,14 +2503,17 @@ function initBlock( root: HTMLElement ): void {
 				}
 
 				if ( entryEl?.hasAttribute( 'data-pinned' ) ) {
-					// Unless a poll counted it since, a shared view counted an
-					// entry newer than the shared one when it rendered, if it
-					// was published and dated as it is now. One restored or
-					// re-dated since can't be told apart, so its pin can take
-					// it off a count it was never in, or leave it in one.
+					// Unless a poll counted it since, or the page showed it
+					// before a takedown it saw, a shared view counted an entry
+					// newer than the shared one when it rendered, if it was
+					// published and dated as it is now. One restored from
+					// before the render or re-dated since can't be told apart,
+					// so its pin can take it off a count it was never in, or
+					// leave it in one.
 					if (
 						isNewerThanShared( entryEl ) &&
-						! countedEntryIds.has( String( entry.id ) )
+						! countedEntryIds.has( String( entry.id ) ) &&
+						( takedown === undefined || takedown === 'off-page' )
 					) {
 						pinnedCountedIds.add( String( entry.id ) );
 						showNewerCount();
