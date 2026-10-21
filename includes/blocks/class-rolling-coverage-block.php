@@ -249,6 +249,8 @@ class Rolling_Coverage_Block {
 		add_filter( 'posts_where', [ __CLASS__, 'load_more_bound_where' ], 10, 2 );
 		add_filter( 'posts_where', [ __CLASS__, 'marker_where' ], 10, 2 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
+		add_filter( 'pre_option_show_avatars', [ __CLASS__, 'show_entry_avatars' ] );
+		add_filter( 'rest_prepare_user', [ __CLASS__, 'add_editor_avatar_urls' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'size_entry_avatar' ], 10, 2 );
 		add_filter( 'render_block_core/post-author-name', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
@@ -976,11 +978,54 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Turns the site's Avatar Display on while an entry renders, so the
+	 * block's Author avatar setting alone decides whether entries show their
+	 * author's picture. A site can keep avatars off everywhere else, such as
+	 * in comments, and still show them in its coverage.
+	 *
+	 * @param mixed $pre The value to return instead of the stored option, or false for the stored one.
+	 * @return mixed
+	 */
+	public static function show_entry_avatars( $pre ) {
+		return self::is_rendering_entry() ? '1' : $pre;
+	}
+
+	/**
+	 * Adds the avatar URLs core leaves out of a user's REST response in the
+	 * edit context while Avatar Display is off. The editor's Avatar block
+	 * reads them, so without them the block's entry previews would show the
+	 * default avatar where the site shows the author's picture (see
+	 * show_entry_avatars()). Core opens the edit context only to the user and
+	 * to people who can edit users, and with avatars on it gives the URLs to
+	 * everyone, so no one sees more than they would with avatars on.
+	 *
+	 * @param WP_REST_Response $response The user's response.
+	 * @param WP_User          $user     The user.
+	 * @param WP_REST_Request  $request  The request.
+	 * @return WP_REST_Response
+	 */
+	public static function add_editor_avatar_urls( $response, $user, $request ) {
+		if ( get_option( 'show_avatars' ) || 'edit' !== $request['context'] || ! $response instanceof WP_REST_Response ) {
+			return $response;
+		}
+
+		$data = $response->get_data();
+
+		if ( ! is_array( $data ) || isset( $data['avatar_urls'] ) ) {
+			return $response;
+		}
+
+		$data['avatar_urls'] = rest_get_avatar_urls( $user );
+		$response->set_data( $data );
+
+		return $response;
+	}
+
+	/**
 	 * Writes an entry avatar's block size onto its image as inline width and
 	 * height. Core only sets them as attributes, which classic themes'
-	 * global avatar sizing overrides. With avatars off core still prints an
-	 * empty wrapper, which is dropped so it leaves no gap; an avatar with no
-	 * image otherwise, such as an inline SVG, is left as it is.
+	 * global avatar sizing overrides. An avatar with no image, such as
+	 * initials from an avatar filter, is left as it is.
 	 *
 	 * @param string $block_content Rendered block.
 	 * @param array  $block         Parsed block.
@@ -1000,7 +1045,7 @@ class Rolling_Coverage_Block {
 		$html = new WP_HTML_Tag_Processor( $block_content );
 
 		if ( ! $html->next_tag( 'img' ) ) {
-			return get_option( 'show_avatars' ) ? $block_content : '';
+			return $block_content;
 		}
 
 		$style = trim( (string) $html->get_attribute( 'style' ), " \t\n\r;" );
@@ -1111,7 +1156,6 @@ class Rolling_Coverage_Block {
 					'canEditThemeOptions'         => current_user_can( 'edit_theme_options' ),
 					'layoutCategoryId'            => Layout::get_pattern_category_id(),
 					'entryPostType'               => Post_Type::CPT_SLUG,
-					'showAvatars'                 => (bool) get_option( 'show_avatars' ),
 					'entryPlural'                 => Entry_Name::word( 2 ),
 					'breakoutLabel'               => Breakout_Label::get(),
 					'sampleAvatarUrls'            => [
@@ -1339,7 +1383,6 @@ class Rolling_Coverage_Block {
 		$feed_layout  = (array) ( $feed['attrs']['layout'] ?? [] );
 		$template     = self::with_author_settings( self::get_entry_template( $block ), $attributes );
 		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval, $latest_count, $feed_layout );
-		$template     = self::with_avatar_display( $template );
 		$unplaced     = 'grid' === ( $feed_layout['type'] ?? '' ) ? self::without_grid_placements( $template ) : $template;
 		$column_rules = $is_capped ? [] : self::column_rules( $template, $feed_layout );
 
@@ -3452,19 +3495,6 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The entry template as the site's Avatar Display shows it: with avatars
-	 * turned off, without avatars or the columns that held only one. The same
-	 * for every entry, so applied once per request, after the template is
-	 * stored, since the setting can change while a stored config lives on.
-	 *
-	 * @param array[] $template Parsed template blocks.
-	 * @return array[]
-	 */
-	private static function with_avatar_display( array $template ): array {
-		return get_option( 'show_avatars' ) ? $template : self::without_author_blocks( $template, false, true, true );
-	}
-
-	/**
 	 * Loads the authors of a page of entries in one query, when the entries
 	 * render a byline that reads them: a lite page renders entries as text,
 	 * and a template without author blocks never looks the author up.
@@ -5090,7 +5120,7 @@ class Rolling_Coverage_Block {
 
 		$stored_config    = self::load_block_config( $term_id, $template_key );
 		$config           = $stored_config ?? self::load_block_config( $term_id, '' );
-		$template         = self::with_avatar_display( $config['template'] );
+		$template         = $config['template'];
 		$latest_count     = self::latest_count( $config );
 		$latest_count     = $latest_count ? $latest_count : self::requested_latest_count( $params );
 		$is_capped        = $latest_count > 0;

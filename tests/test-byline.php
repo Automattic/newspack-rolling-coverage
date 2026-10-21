@@ -11,7 +11,7 @@ use Newspack_Rolling_Coverage\Slack_Config;
 
 /**
  * Entries show their author's avatar and name, except while the Slack bot
- * is the author, and the avatar column goes when the site hides avatars.
+ * is the author, whatever the site's Avatar Display says.
  */
 class Test_Byline extends Rolling_Coverage_TestCase {
 
@@ -109,20 +109,19 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Turning avatars off removes the column that holds only the avatar.
+	 * With Avatar Display off, the feed still shows the avatar in its column.
 	 */
-	public function test_the_avatar_column_goes_when_avatars_are_off() {
+	public function test_the_feed_shows_avatars_when_avatars_are_off() {
+		update_option( 'show_avatars', 0 );
 		$coverage_id = self::create_coverage();
 		self::create_entry( $coverage_id, [ 'post_author' => self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] ) ] );
 		$attributes = [ 'coverageId' => $coverage_id ];
 		$block      = new WP_Block( parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' -->' . self::ROW_MARKUP . '<!-- /wp:newspack-rolling-coverage/rolling-coverage -->' )[0] );
 
-		$this->assertSame( 2, self::count_columns( Rolling_Coverage_Block::render_block( $attributes, '', $block ) ) );
-
-		update_option( 'show_avatars', 0 );
 		$html = Rolling_Coverage_Block::render_block( $attributes, '', $block );
 
-		$this->assertSame( 1, self::count_columns( $html ) );
+		$this->assertSame( 2, self::count_columns( $html ) );
+		$this->assertStringContainsString( 'wp-block-avatar__image', $html );
 		$this->assertStringContainsString( 'Jane Reporter', $html );
 	}
 
@@ -192,15 +191,66 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * With avatars off, the empty avatar wrapper is dropped, leaving the name.
+	 * With Avatar Display off, an entry shows its author's avatar.
 	 */
-	public function test_an_entry_drops_the_empty_avatar_when_avatars_are_off() {
+	public function test_an_entry_shows_its_avatar_when_avatars_are_off() {
 		update_option( 'show_avatars', 0 );
 
 		$html = self::render( self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] ), self::BYLINE_MARKUP );
 
-		$this->assertStringNotContainsString( 'wp-block-avatar', $html );
+		$this->assertStringContainsString( 'wp-block-avatar__image', $html );
 		$this->assertStringContainsString( 'Jane Reporter', $html );
+	}
+
+	/**
+	 * Outside an entry, avatars follow Avatar Display as core renders them.
+	 */
+	public function test_an_avatar_outside_a_feed_follows_avatar_display() {
+		update_option( 'show_avatars', 0 );
+		$post_id = self::factory()->post->create( [ 'post_author' => self::factory()->user->create() ] );
+
+		$block = new WP_Block(
+			parse_blocks( '<!-- wp:avatar {"size":40} /-->' )[0],
+			[
+				'postId'   => $post_id,
+				'postType' => 'post',
+			]
+		);
+
+		$this->assertStringNotContainsString( '<img', $block->render() );
+	}
+
+	/**
+	 * With Avatar Display off, the editor still gets avatar URLs in the edit
+	 * context it reads users in, so previews show the avatars entries render.
+	 * The view context stays as core has it.
+	 */
+	public function test_the_editor_reads_avatar_urls_when_avatars_are_off() {
+		global $wp_rest_server;
+
+		update_option( 'show_avatars', 0 );
+		$author_id = self::factory()->user->create( [ 'role' => 'author' ] );
+		self::log_in_as( 'administrator' );
+
+		$edit_request = new WP_REST_Request( 'GET', '/wp/v2/users/' . $author_id );
+		$edit_request->set_param( 'context', 'edit' );
+		$view_request = new WP_REST_Request( 'GET', '/wp/v2/users/' . $author_id );
+		$view_request->set_param( 'context', 'view' );
+
+		// Core reads Avatar Display into a schema each controller caches, so
+		// a fresh server reads it as a request on this site would.
+		$wp_rest_server = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+
+		try {
+			$edit = rest_do_request( $edit_request );
+			$view = rest_do_request( $view_request );
+		} finally {
+			$wp_rest_server = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		}
+
+		$this->assertSame( 200, $edit->get_status() );
+		$this->assertNotEmpty( $edit->get_data()['avatar_urls'] ?? [] );
+		$this->assertArrayNotHasKey( 'avatar_urls', $view->get_data() );
 	}
 
 	/**

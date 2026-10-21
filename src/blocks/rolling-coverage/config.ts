@@ -42,7 +42,6 @@ const {
 	canEditThemeOptions: CAN_EDIT_THEME_OPTIONS,
 	layoutCategoryId: LAYOUT_CATEGORY_ID,
 	entryPostType: ENTRY_POST_TYPE,
-	showAvatars: SHOW_AVATARS,
 	entryPlural: ENTRY_PLURAL,
 	sampleAvatarUrls: SAMPLE_AVATAR_URLS,
 } = config;
@@ -70,7 +69,6 @@ export {
 	CAN_EDIT_THEME_OPTIONS,
 	LAYOUT_CATEGORY_ID,
 	ENTRY_POST_TYPE,
-	SHOW_AVATARS,
 	ENTRY_PLURAL,
 	SAMPLE_AVATAR_URLS,
 };
