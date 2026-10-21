@@ -1004,7 +1004,8 @@ class Rolling_Coverage_Block {
 	 * height. Core only sets them as attributes, which classic themes'
 	 * global avatar sizing overrides. When get_avatar() gives nothing, as for
 	 * an Avatar block in an entry's content while Avatar Display is off, core
-	 * still prints an empty wrapper, which is dropped so it leaves no gap; an
+	 * still prints an empty wrapper, around an empty link for a linked block,
+	 * which is dropped so it leaves no gap and no link without a name; an
 	 * avatar with no image otherwise, such as initials from an avatar filter,
 	 * is left as it is.
 	 *
@@ -1026,7 +1027,7 @@ class Rolling_Coverage_Block {
 		$html = new WP_HTML_Tag_Processor( $block_content );
 
 		if ( ! $html->next_tag( 'img' ) ) {
-			return preg_match( '#^<div\b[^>]*>\s*</div>$#', trim( $block_content ) ) ? '' : $block_content;
+			return preg_match( '#^<div\b[^>]*>\s*(?:<a\b[^>]*\bclass="wp-block-avatar__link"[^>]*>\s*</a>\s*)?</div>$#', trim( $block_content ) ) ? '' : $block_content;
 		}
 
 		$style = trim( (string) $html->get_attribute( 'style' ), " \t\n\r;" );

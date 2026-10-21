@@ -244,8 +244,9 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	 */
 	public function entry_content_avatar_provider() {
 		return [
-			'post author' => [ '<!-- wp:post-author {"showAvatar":true} /-->' ],
-			'avatar'      => [ '<!-- wp:avatar {"size":96} /-->' ],
+			'post author'   => [ '<!-- wp:post-author {"showAvatar":true} /-->' ],
+			'avatar'        => [ '<!-- wp:avatar {"size":96} /-->' ],
+			'linked avatar' => [ '<!-- wp:avatar {"size":96,"isLink":true} /-->' ],
 		];
 	}
 
