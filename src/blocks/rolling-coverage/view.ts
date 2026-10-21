@@ -1244,15 +1244,16 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Puts back an unpinned entry the poll reported taken down and has sent
-	 * again, published again or restored, where a fresh page lists it: at its
-	 * date, or with load more when that is below load more's bound (see
-	 * placeUnpinnedEntry()). A capped feed puts it back when it is among its
-	 * newest entries. One that lists above every unpinned entry the page
-	 * shows is new to the reader, so it comes in as a new entry, behind the
-	 * new-entries control while the reader is scrolled down. A feed opened at
-	 * a shared entry takes every returning entry as new, as its own rules
-	 * place or count it by date, except one its rendered count still holds.
+	 * Puts an unpinned entry the poll sent, which the page neither shows nor
+	 * holds in its queue, where a fresh page lists it: one published again or
+	 * restored, taken down while the page was open or before it rendered. It
+	 * goes at its date, or with load more when that is below load more's
+	 * bound (see placeUnpinnedEntry()). A capped feed shows it only when it is
+	 * among its newest entries. One that lists above every unpinned entry the
+	 * page shows is new to the reader, so it comes in as a new entry, behind
+	 * the new-entries control while the reader is scrolled down. A feed opened
+	 * at a shared entry takes it as new, as its own rules place or count it by
+	 * date, except one its rendered count still holds.
 	 *
 	 * @param {HTMLElement}          entry    The entry, as the poll sent it.
 	 * @param {Takedown | undefined} takedown Where it stood when the poll named it taken down, if the page saw that.
@@ -1279,7 +1280,8 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		if ( ! placeUnpinnedEntry( entry ) ) {
-			// Load more brings it, with this copy.
+			// Load more brings it, with this copy, unless its reply was
+			// cached while the entry was down.
 			offPageUpdates.set( entry.dataset.entryId ?? '', entry.outerHTML );
 			return true;
 		}
@@ -2418,20 +2420,21 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Applies a poll response to the entry list.
 	 *
-	 * Replaces edited entries immediately, and keeps edits to entries not yet
-	 * on the page until they arrive, except edits to pinned ones, which show
-	 * them with the pinned entries at once (see showPinnedEntry()). Moves a
+	 * Replaces edited entries immediately. An edit to an entry the page
+	 * doesn't show goes where a fresh page lists it (see
+	 * placeReturningEntry()), except one waiting behind the new-entries
+	 * control, which keeps the edit until it shows, and a pinned one, which
+	 * shows with the pinned entries at once (see showPinnedEntry()). Moves a
 	 * newly pinned entry it shows among the pinned ones, and a newly unpinned
 	 * one to its place by date (see placeUnpinnedEntry()). Drops entries
-	 * taken down, and puts back one that comes back (see
-	 * placeReturningEntry()). Inserts or queues newly published entries based
-	 * on the reader's scroll position, and swaps one already queued for its
-	 * new copy. When the feed opens at a
-	 * shared entry, new entries dated after it are added to the control's
-	 * count instead, older ones are placed by date, and pinned ones join the
-	 * pinned entries. A capped feed inserts new entries at once, whatever the
-	 * scroll position, and ignores edits to entries it doesn't show, pins
-	 * included.
+	 * taken down, and puts back one that comes back. Inserts or queues newly
+	 * published entries based on the reader's scroll position, and swaps one
+	 * already queued for its new copy. When the feed opens at a shared entry,
+	 * new entries dated after it are added to the control's count instead,
+	 * older ones are placed by date, pinned ones join the pinned entries, and
+	 * edits to entries it doesn't show wait for load more. A capped feed
+	 * inserts new entries at once, whatever the scroll position, shows an
+	 * entry it didn't only when it is among its newest, and ignores pins.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
@@ -2474,13 +2477,25 @@ function initBlock( root: HTMLElement ): void {
 				entryEl.dataset.arrival = 'poll';
 			}
 
-			// A pinned one takes the path below of any pinned entry the page
-			// doesn't show; a capped feed ignores pinning.
+			// An edit to an entry the page doesn't show is one taken down before
+			// the page rendered and published again, one below load more's
+			// bound or, in a capped feed, one older than its newest entries;
+			// placeReturningEntry() tells them apart by date. One waiting
+			// behind the new-entries control keeps the edit for when it shows,
+			// and a feed opened at a shared entry keeps the edit of one it
+			// counts. A pinned one takes the path below of any pinned entry the
+			// page doesn't show; a capped feed ignores pinning.
 			if (
-				takedown &&
 				entryEl &&
 				! existing &&
-				( latestCap || ! entryEl.hasAttribute( 'data-pinned' ) )
+				( latestCap || ! entryEl.hasAttribute( 'data-pinned' ) ) &&
+				( takedown ||
+					( entry.type === 'update' &&
+						! isEntryView &&
+						! pendingNewEntries.some(
+							( { el } ) =>
+								el.dataset.entryId === String( entry.id )
+						) ) )
 			) {
 				entryEl.dataset.arrival = 'poll';
 
