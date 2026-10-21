@@ -1,0 +1,126 @@
+---
+title: Data
+description: How Rolling Coverage stores coverages and entries, for queries, migrations, and reports.
+---
+
+Rolling Coverage keeps its content in standard WordPress storage, so any tool that reads WordPress can read it. A coverage is a term in a custom taxonomy. An entry is a post of a custom post type, assigned to that term. Settings sit in options, and a few background tasks run on WordPress cron.
+
+This page lists the names to use when querying that data directly, for example in a migration, a report, or a custom query. Read through the [REST API](/docs/developers/rest-api/) or the helpers in the plugin when possible, and don't write to the keys marked as internal.
+
+## Coverages
+
+A coverage is a term in the `rolling_coverage` taxonomy.
+
+- REST base: `rolling-coverage`.
+- Not hierarchical, and not shown in menus or queryable on its own.
+- Attached to the `rolling_cov_entry` post type.
+- The term count includes drafts, pending, scheduled, and private entries, and leaves out trashed ones.
+
+### Coverage term meta
+
+| Key | Description |
+| --- | --- |
+| `rolling_coverage_status` | `active` (Live), `paused`, `archived` (Ended), or `trash`. Defaults to `active`. |
+| `rolling_coverage_canonical_url` | The coverage's main page, used for share links, redirects, and push notifications. Must be on the site's own host, or it is stored as empty. |
+| `rolling_coverage_ads_disabled` | Boolean. Turns off in-feed ads for the coverage. |
+| `created_at`, `modified_at` | ISO 8601 times the coverage was created and last edited. Set by the plugin. |
+| `rolling_coverage_end_time` | Set when the coverage is ended, from `rolling_coverage_last_modified`. Used as the end time in structured data. |
+| `rolling_coverage_last_modified` | GMT time of the coverage's latest entry activity, as `Y-m-d H:i:s`. |
+| `rolling_coverage_slack_channel_id`, `rolling_coverage_slack_channel_name` | The linked Slack channel. Writing them needs `manage_options`. |
+| `rolling_coverage_source`, `rolling_coverage_source_ref` | The linked chat platform (such as `slack`) and its conversation ID. Writing them needs `manage_options`. |
+
+Internal keys the plugin maintains, which other code should only read: `rolling_coverage_newest_entry`, `rolling_coverage_change_marker` (what open pages compare to know a coverage changed), and `rolling_coverage_template_hashes`.
+
+## Entries
+
+An entry is a post of type `rolling_cov_entry`.
+
+- REST base: `rolling-coverage-entries`. Rewrite slug: `rolling-cov-entry`.
+- Supports title, editor, author, revisions, custom fields, and featured image.
+- Taxonomies: `rolling_coverage`, `category`, and `post_tag`.
+- Uses the same capabilities as ordinary posts.
+- Pinned entries are kept in the option `rolling_coverage_pinned_entries`, not in post meta.
+
+### Entry post meta
+
+| Key | Description |
+| --- | --- |
+| `rolling_coverage_entry_source` | `wordpress`, or the platform slug the entry came from, such as `slack`. Readable by anyone. |
+| `rolling_coverage_source_ref` | The dedup key for chat-source entries. |
+| `rolling_coverage_slack_ts`, `rolling_coverage_slack_user_id`, `rolling_coverage_slack_author_name`, `rolling_coverage_slack_channel_id`, `rolling_coverage_slack_thread_ts` | Where a Slack entry came from. |
+| `rolling_coverage_original_coverage_id`, `rolling_coverage_original_coverage_name`, `rolling_coverage_original_coverage_slug` | The coverage an entry belonged to, kept so a trashed entry can be restored after its coverage is deleted. Readable in both REST contexts. |
+| `rolling_coverage_breakout_post_id` | The linked breakout post. |
+| `rolling_coverage_breakout_status` | The breakout post's status, cached. |
+| `_rolling_coverage_published_gmt` | GMT time the entry first went live. |
+| `_rolling_coverage_unpublished_gmt` | GMT time the entry last stopped being published. |
+| `_rolling_coverage_archived_at` | When the entry was archived. Any value means it is archived. |
+| `_rolling_coverage_title_from_source` | Set when the title came from the source message. |
+| `_rolling_coverage_notify_on_publish` | Whether to send a push notification when the entry is published. The plugin reads and clears it. |
+
+The source, Slack, and dedup keys are removed from REST responses outside the `edit` context. Keys that start with an underscore are protected, and the plugin manages them.
+
+### Breakout post meta
+
+On the standalone `post` created from an entry.
+
+| Key | Description |
+| --- | --- |
+| `rolling_coverage_source_entry_id` | The entry the post broke out of. |
+| `rolling_coverage_breakout_label` | The post's own "Full story" label. Empty uses the site's. |
+
+### Other meta
+
+- User meta `rolling_coverage_slack_handle`: a user's Slack member ID or handle, matched against Slack message authors.
+- Post meta `_rolling_coverage_layout` on each built-in layout's `wp_block` pattern: the layout's slug. The plugin uses it to find the pattern again if the matching option goes missing.
+
+## Options
+
+### Settings
+
+| Option | Holds |
+| --- | --- |
+| `rolling_coverage_pinned_entries` | Post IDs of pinned entries. Autoloaded. |
+| `rolling_coverage_status_labels` | Custom names for the Live, Paused, and Ended statuses. |
+| `rolling_coverage_entry_name` | What readers see entries called, singular and plural. |
+| `rolling_coverage_latest_label` | The Jump to Latest button label. |
+| `rolling_coverage_breakout_label` | The site's "Full story" label. |
+| `rolling_coverage_ai_settings` | The key-takeaways prompt settings. |
+| `rolling_coverage_slack_settings` | Slack ingestion settings. |
+| `rolling_coverage_slack_channel_map` | Which Slack channel feeds which coverage. |
+| `rolling_coverage_slack_bot_token`, `rolling_coverage_slack_signing_secret`, `rolling_coverage_slack_bot_user_id` | Slack credentials and identity. Not autoloaded. Treat them as secrets. |
+| `rolling_coverage_{slug}_layout_id` | The pattern ID of each built-in shared layout. |
+
+### Internal bookkeeping
+
+These keep the plugin running and are not for editing.
+
+| Option or cache | Purpose |
+| --- | --- |
+| `rolling_coverage_placements`, `rolling_coverage_placements_stale`, `rolling_coverage_placements_lock` | The map of published places that show each coverage, and its rebuild lock. |
+| `rc_tpl_{coverage_id}_{hash}` | A block's stored template, used when readers' pages check for new entries. |
+| `rolling_coverage_notification_lock_{post_id}` | Stops a push notification being sent twice. Lasts 60 seconds. |
+| `rolling_coverage_source_ingest_{md5}` | Stops a chat message being ingested twice. Lasts 60 seconds. |
+| `rolling_coverage_{slug}_layout_lock` | Guards creating a layout pattern. |
+| `rolling_coverage_slack_monitor_last_seen`, `rolling_coverage_slack_monitor_filename` | The Slack live monitor. |
+
+The plugin also uses a transient per Slack user (`rolling_coverage_slack_user_{id}`, five minutes) and object cache entries for structured data (group `newspack_rolling_coverage_schema`, one week), breakout cards, and entry links.
+
+## Cron events
+
+| Event | Runs | Does |
+| --- | --- | --- |
+| `rolling_coverage_cleanup_orphaned_entries` | One minute after a coverage is deleted | Permanently deletes the deleted coverage's entries, 50 at a time, and reschedules itself while any remain. Cleared on deactivation. |
+| `newspack_rolling_coverage_send_notification` | Once per scheduled push notification | Sends an entry's deferred push notification. Takes the entry's post ID. |
+| `newspack_rolling_coverage_rebuild_placements` | Once after a change | Rebuilds the stored map of places that show each coverage. |
+
+## Capabilities
+
+The plugin adds no capabilities of its own. It uses core's, so the roles line up with a site's existing permissions.
+
+| Capability | Allows |
+| --- | --- |
+| `edit_posts` | Opening All Coverages, writing entries, generating key takeaways, and seeing the entries list. |
+| `publish_posts` | Publishing own entries. |
+| `edit_others_posts` | Editors and above: managing every entry, pinning, archiving, breakout posts, changing entry authors, and editing the reader-facing labels. |
+| `manage_categories` | Creating, editing, trashing, restoring, and deleting coverages. |
+| `manage_options` | The Slack connection and monitor, the AI page and its prompt, and the Slack and source term meta. |

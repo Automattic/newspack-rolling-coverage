@@ -1,3 +1,20 @@
 {
-	"title": "Guides"
+	"title": "Guides",
+	"pages": [
+		"index",
+		"layouts",
+		"edit-a-layout",
+		"custom-layouts",
+		"slack",
+		"pinned-entries",
+		"full-stories",
+		"archive-entries",
+		"end-a-coverage",
+		"placements",
+		"settings",
+		"ai-key-takeaways",
+		"ads",
+		"push-notifications",
+		"lite-site"
+	]
 }

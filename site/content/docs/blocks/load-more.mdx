@@ -1,0 +1,67 @@
+---
+title: Load More block
+description: The button that loads older entries in a feed.
+---
+
+The Load More block is the button readers press to load a coverage's older entries. It shows when the Rolling Coverage block's **Older entries** setting is **"Load more" button**.
+
+## Where to use it
+
+It goes inside a Rolling Coverage layout, and the inserter offers it nowhere else. It can't go inside an entry or the pinned entry.
+
+Every built-in layout that lists the full feed already holds one, after the entries. Leave it there, or move it among the blocks below the entries, such as above a footer. A layout without one, such as a custom layout made before the block existed, still shows a Load more button below the entries.
+
+## Add the block
+
+You only add it to a layout that doesn't have one, or after you removed it.
+
+<Steps>
+<Step>
+
+### Turn on the button
+
+Select the Rolling Coverage block. In the **Entries** panel, set **Older entries** to **"Load more" button**.
+
+<Screenshot label="Block settings, Entries panel with Older entries highlighted" />
+
+</Step>
+<Step>
+
+### Open the layout
+
+Choose **Edit Layout** in the block toolbar. The layout opens in a new tab.
+
+</Step>
+<Step>
+
+### Insert or style the block
+
+Add a block below the entries and search for "Load More". Or select the existing one. Change the button's text, colors, and size like any other button.
+
+In the editor, the button always shows so you can style it. Select the Buttons block around it to change its alignment or the space above it.
+
+<Screenshot label="Layout editor with the Load More button selected below the entries" />
+
+</Step>
+</Steps>
+
+## Settings
+
+The block has no settings of its own. The button uses the usual button settings. Leave the button in place, because the block rebuilds it when the editor reloads.
+
+Each built-in layout sets the alignment to suit it. Stream centers the button. The others line it up with the text of the entries.
+
+It doesn't appear:
+
+- When **Older entries** is set to **Load on scroll** or **Don't load**.
+- In a feed set to show only the latest entries, such as the Ticker and Flash layouts.
+- Once every entry is shown.
+
+## What readers see
+
+- Each press adds the next page of older entries below the ones shown.
+- While it loads, the button reads "Loading…" and dims slightly.
+- Focus moves to the first new entry, so keyboard and screen reader users continue from there.
+- If a load fails, the button stays so the reader can try again.
+
+<Screenshot label="Published page with the Load more button below the entries" />

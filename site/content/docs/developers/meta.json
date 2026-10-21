@@ -1,3 +1,4 @@
 {
-	"title": "Developers"
+	"title": "Developers",
+	"pages": [ "index", "rest-api", "hooks", "constants", "data" ]
 }

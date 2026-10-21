@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath( new URL( '../content/docs/', import.meta.url ) );
@@ -62,6 +62,23 @@ for ( const [ file, expected ] of Object.entries( SIDEBAR_ORDER ) ) {
 	const pages = existsSync( path ) ? JSON.parse( readFileSync( path, 'utf8' ) ).pages : undefined;
 	if ( JSON.stringify( pages ) !== JSON.stringify( expected ) ) {
 		failures.push( `content/docs/${ file } pages must be ${ JSON.stringify( expected ) }, got ${ JSON.stringify( pages ) }` );
+	}
+}
+
+for ( const metaPath of walk( root ).filter( ( file ) => file.endsWith( 'meta.json' ) ) ) {
+	const folder = dirname( metaPath );
+	const listed = JSON.parse( readFileSync( metaPath, 'utf8' ) ).pages ?? [];
+	for ( const page of listed ) {
+		if ( ! existsSync( join( folder, `${ page }.mdx` ) ) && ! existsSync( join( folder, page, 'index.mdx' ) ) ) {
+			failures.push( `${ relative( root, metaPath ) } lists "${ page }", which has no page` );
+		}
+	}
+	for ( const name of readdirSync( folder ) ) {
+		const slug = name.replace( /\.mdx$/, '' );
+		const isPage = name.endsWith( '.mdx' ) || existsSync( join( folder, name, 'index.mdx' ) );
+		if ( isPage && ! ( relative( root, folder ) === '' && slug === 'index' ) && ! listed.includes( slug ) ) {
+			failures.push( `${ relative( root, folder ) || 'docs' }/${ name } is missing from ${ relative( root, metaPath ) }` );
+		}
 	}
 }
 

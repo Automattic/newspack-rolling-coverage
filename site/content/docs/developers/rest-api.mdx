@@ -1,0 +1,228 @@
+---
+title: REST API
+description: Read coverages and entries, add entries from another app, and run editorial actions over HTTP.
+---
+
+The REST API is how other software talks to a WordPress site over HTTP. With it, another app can read a coverage and its entries, add an entry from a tool the newsroom already uses, pin or archive an entry, or end a coverage, all without opening the dashboard.
+
+Rolling Coverage uses two kinds of route:
+
+- **WordPress core routes** under `/wp-json/wp/v2/`. Coverages and entries are a taxonomy and a post type, so they have the standard routes. These are the ones to use for reading, and for creating and editing entries.
+- **Plugin routes** under `/wp-json/rolling-coverage/v1/`. They cover actions core has no route for, such as pinning an entry or ending a coverage.
+
+Examples below use `https://example.com` as the site.
+
+## Authentication and permissions
+
+Reading published coverages and entries needs no sign-in. Everything else needs a signed-in user, and the route checks that user's capability. The roles that hold each capability are listed in [Data](/docs/developers/data/#capabilities).
+
+An outside app signs in with an [application password](https://make.wordpress.org/core/2020/11/05/application-passwords-integration-guide/), which a user creates on their profile screen. Send it as HTTP Basic authentication over HTTPS, as in the examples below. Create a dedicated user with the Editor role for the integration, so its actions are easy to trace. Code running in the browser on the site signs in with the logged-in cookie and an `X-WP-Nonce` header instead.
+
+Errors use the standard WordPress shape, `{ "code", "message", "data": { "status" } }`. The plugin's own codes start with `rolling_coverage_`, such as `rolling_coverage_coverage_not_found`.
+
+<Callout>
+An entry in a coverage that has ended is locked. Adding an entry to an ended coverage, or pinning, archiving, or breaking out one of its entries, returns a `403` error. Change the coverage's status first.
+</Callout>
+
+## Read coverages
+
+### `GET /wp/v2/rolling-coverage`
+
+Lists coverages. Core's usual collection parameters apply, such as `per_page`, `search`, `slug`, and `_fields`. Coverages in the trash are not hidden by core, so check `meta.rolling_coverage_status` before showing one.
+
+```bash
+curl "https://example.com/wp-json/wp/v2/rolling-coverage?per_page=20"
+```
+
+Each coverage has core's term fields (`id`, `name`, `slug`, `count`, `link`) plus:
+
+| Field | Description |
+| --- | --- |
+| `meta.rolling_coverage_status` | `active` (Live), `paused`, `archived` (Ended), or `trash`. |
+| `meta.rolling_coverage_canonical_url` | The coverage's main page on this site, or an empty string. |
+| `meta.rolling_coverage_ads_disabled` | Whether ads are turned off for this coverage. |
+| `pageUrl` | The page that shows the coverage. Empty unless the caller can edit posts. |
+| `placements` | Published places that show the coverage, the main page first. |
+| `newestEntry` | When the newest published entry went out, as ISO 8601. `null` unless the caller can edit posts. |
+
+The `meta` keys that link a coverage to a chat source are removed outside the `edit` context, and the Slack channel keys are removed for callers who can't edit posts.
+
+### `GET /wp/v2/rolling-coverage/{id}`
+
+Returns one coverage, with the same fields.
+
+## Create and change coverages
+
+Both need the `manage_categories` capability, which Editors and Administrators have.
+
+### `POST /wp/v2/rolling-coverage`
+
+Creates a coverage. Send `name`, and optionally `slug`, `description`, and `meta`.
+
+```bash
+curl -u "newsdesk:abcd efgh ijkl mnop qrst uvwx" \
+  -X POST "https://example.com/wp-json/wp/v2/rolling-coverage" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "Storm Ingrid", "meta": { "rolling_coverage_status": "active" } }'
+```
+
+### `POST /wp/v2/rolling-coverage/{id}`
+
+Updates a coverage. Set `meta.rolling_coverage_status` to `paused` or `archived` to pause or end it. Ending a coverage records the end time and locks its entries.
+
+## Read entries
+
+### `GET /wp/v2/rolling-coverage-entries`
+
+Lists published entries. Without a sign-in, entries from coverages in the trash are left out.
+
+Useful parameters:
+
+| Parameter | Description |
+| --- | --- |
+| `rolling-coverage` | A coverage's term ID, or several separated by commas. |
+| `per_page`, `page` | Core's paging, up to 100 per page. |
+| `orderby`, `order` | Core's sorting, such as `orderby=date&order=desc`. |
+| `after`, `modified_after` | Only entries published or changed after an ISO 8601 date. |
+| `search`, `author`, `categories`, `tags` | Core's filters. |
+| `context` | `view` (default) or `edit`. `edit` needs a sign-in and also returns drafts and trashed entries the user may see. |
+
+```bash
+curl "https://example.com/wp-json/wp/v2/rolling-coverage-entries?rolling-coverage=12&per_page=10&_fields=id,date,title,content,pinned"
+```
+
+Each entry has core's post fields plus:
+
+| Field | Description |
+| --- | --- |
+| `pinned` | Whether the entry is pinned to the top of its feed. |
+| `coverageStatus` | The status of the entry's coverage. |
+| `rolling-coverage` | The term IDs of its coverages. |
+| `meta.rolling_coverage_entry_source` | `wordpress`, or the chat platform the entry came from, such as `slack`. |
+
+In the `edit` context there are also `rolling_coverage_breakout_status` (the status of the entry's breakout post) and `rolling_coverage_has_notifiable_coverage` (whether its coverage has the canonical URL that push notifications need).
+
+### `GET /wp/v2/rolling-coverage-entries/{id}`
+
+Returns one entry.
+
+## Add and change entries
+
+The caller needs the same capabilities as for any post: `edit_posts` to save a draft, `publish_posts` to publish, and `edit_others_posts` to change someone else's entry.
+
+### `POST /wp/v2/rolling-coverage-entries`
+
+Creates an entry. Send `rolling-coverage` with the coverage's term ID, and `status` as `publish` to make it live at once or `draft` to save it for review. `title` is optional, and `content` can hold any block markup. `meta.rolling_coverage_entry_source` can record where the entry came from.
+
+```bash
+curl -u "newsdesk:abcd efgh ijkl mnop qrst uvwx" \
+  -X POST "https://example.com/wp-json/wp/v2/rolling-coverage-entries" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "publish",
+    "rolling-coverage": [ 12 ],
+    "content": "<!-- wp:paragraph --><p>Power is back on in the east of the city.</p><!-- /wp:paragraph -->",
+    "meta": { "rolling_coverage_entry_source": "wire-importer" }
+  }'
+```
+
+Open pages show the new entry on their next check. Adding an entry to an ended coverage returns `rolling_coverage_entry_locked` with status `403`.
+
+### `POST /wp/v2/rolling-coverage-entries/{id}`
+
+Updates an entry. Editing a published entry updates it on open pages too. Send `status: "trash"` or use `DELETE` to remove it. A `DELETE` without `force=true` moves the entry to the trash, where it can be restored.
+
+## Entry actions
+
+These plugin routes live under `/wp-json/rolling-coverage/v1/`.
+
+### `POST /entries/{entry_id}/pin`
+
+Pins an entry to the top of its feed, or unpins it if it is already pinned. It toggles, so read `pinned` first if the outcome matters.
+
+- **Permission:** `edit_others_posts` (Editors and above).
+- **Response:** `{ "pinned": true }` or `{ "pinned": false }`.
+
+```bash
+curl -u "newsdesk:abcd efgh ijkl mnop qrst uvwx" \
+  -X POST "https://example.com/wp-json/rolling-coverage/v1/entries/345/pin"
+```
+
+### `POST /entries/{entry_id}/archive`
+
+Archives or unarchives a single published entry. An archived entry stays in the feed but its content collapses behind a notice that it is out of date.
+
+- **Permission:** `edit_others_posts`.
+- **Body:** `archived` (boolean, required).
+- **Response:** `{ "archived": true }`. Archiving an unpublished entry returns `rolling_coverage_cannot_archive_unpublished` with status `400`.
+
+```js
+await fetch( '/wp-json/rolling-coverage/v1/entries/345/archive', {
+	method: 'POST',
+	headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': wpApiSettings.nonce },
+	body: JSON.stringify( { archived: true } ),
+} );
+```
+
+### `POST /entries/{entry_id}/breakout`
+
+Turns an entry into a standalone article. It creates a draft `post` that copies the entry's title, content, categories, tags, and featured image, owned by the caller, and links the two.
+
+- **Permission:** `edit_others_posts`.
+- **Response:** status `201` with `{ "breakoutPostId": 678, "editLink": "...", "status": "draft" }`. An entry that already has a breakout post returns `rolling_coverage_already_broken_out` with status `400`.
+
+## Coverage actions
+
+These need `manage_categories`.
+
+### `POST /coverages/{coverage_id}/trash`
+
+Moves a coverage to the trash by setting its status to `trash`. Its entries are left as they are, but readers stop seeing the coverage. Returns `{ "trashed": true }`.
+
+### `POST /coverages/{coverage_id}/restore`
+
+Brings a trashed coverage back as `active`. Its entries stay as they were. Returns `{ "restored": true }`, or `rolling_coverage_coverage_not_trashed` with status `400` if the coverage isn't in the trash.
+
+### `DELETE /coverages/{coverage_id}`
+
+Permanently deletes a coverage. Its entries are deleted a minute later by a background task, in batches. This cannot be undone. Returns `{ "deleted": true }`.
+
+```bash
+curl -u "newsdesk:abcd efgh ijkl mnop qrst uvwx" \
+  -X DELETE "https://example.com/wp-json/rolling-coverage/v1/coverages/12"
+```
+
+## Other routes
+
+### `POST /coverages/{coverage_id}/entries`
+
+Starts an empty entry, as an auto-draft already assigned to the coverage, and returns `{ "id": 345 }` with status `201`. The dashboard uses it to open an editor on a new entry. To add an entry with content from another app, use `POST /wp/v2/rolling-coverage-entries` instead.
+
+- **Permission:** the capability to create entries (`edit_posts`).
+
+### `POST /coverages/{coverage_id}/generate-key-takeaways`
+
+Asks the site's AI provider to summarize a coverage's published entries into takeaways. It needs the WordPress AI plugin and a provider to be set up.
+
+- **Permission:** `edit_posts`.
+- **Body:** `max_takeaways` (integer from 1 to 10, default 5).
+- **Response:** `{ "result": ... }` holding the generated takeaways.
+
+### `GET /coverages/{term_id}/entries`
+
+The feed's own route. Readers' pages call it to check for new entries and to load older ones, and it answers with ready-made HTML for the page rather than data. It is public, and it needs a `template_key` that the feed block stores on the site, so it isn't meant for other apps. Read entries with `GET /wp/v2/rolling-coverage-entries` instead.
+
+## Routes for the plugin's own screens
+
+These exist so the dashboard and the block editor can work. They aren't meant for other software, and they may change between releases.
+
+| Method | Route | Used for |
+| --- | --- | --- |
+| `GET` | `/coverages/{term_id}/entries-view` | The entries list, with its filters and live updates. |
+| `GET` | `/coverages/{term_id}/entries-preview` | Entry IDs for the block editor's previews. |
+| `POST` | `/entries/{entry_id}/restore`, `/entries/restore` | Restoring one or many trashed entries. |
+| `POST` | `/entries/details` | Reassigning up to 100 entries' author, categories, tags, slug, or date. |
+| `GET`, `POST` | `/settings/status-labels`, `/settings/entry-name`, `/settings/latest-label`, `/settings/breakout-label` | The reader-facing labels in the Settings modal. |
+| `GET`, `POST` | `/ai/settings` | The key-takeaways prompt. |
+| `POST` | `/layouts/{slug}` | Creating the shared pattern behind a built-in layout. |
+| Various | `/slack/*` | The Slack connection: credentials, channels, and the webhooks Slack calls. The webhooks check Slack's request signature rather than a signed-in user. |

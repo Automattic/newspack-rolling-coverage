@@ -52,6 +52,19 @@ if ( existsSync( join( dist, 'docs' ) ) ) {
 	}
 }
 
+const pages = walk( dist ).filter( ( path ) => path.endsWith( '.html' ) );
+for ( const page of pages ) {
+	for ( const [ , href ] of readFileSync( page, 'utf8' ).matchAll( /href="(\/[^"#?]*)/g ) ) {
+		if ( href.startsWith( '/_astro/' ) || href === '/favicon.svg' ) {
+			continue;
+		}
+		const target = join( dist, href.replace( /\/?$/, '/' ), 'index.html' );
+		if ( ! existsSync( target ) && ! existsSync( join( dist, href ) ) ) {
+			failures.push( `${ relative( dist, page ) } links to ${ href }, which doesn't exist` );
+		}
+	}
+}
+
 if ( failures.length ) {
 	console.error( failures.map( ( failure ) => `check-build: ${ failure }` ).join( '\n' ) );
 	process.exit( 1 );

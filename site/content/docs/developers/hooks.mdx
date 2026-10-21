@@ -1,0 +1,252 @@
+---
+title: Hooks
+description: Actions and filters that react to what Rolling Coverage does or change how it behaves.
+---
+
+Hooks are the standard WordPress way to add to a plugin without editing it. An action tells code that something happened, such as an entry arriving from Slack, so it can react. A filter hands code a value, such as the address an entry redirects to, and uses whatever comes back.
+
+Put hook callbacks in a small plugin or in the theme's `functions.php`. Every hook name below is exact. The plugin's own hooks start with `rolling_coverage_` or `newspack_rolling_coverage_`.
+
+## Entries from chat sources
+
+Entries can arrive from a chat source such as a Slack channel. This action lets other code react once one has been saved.
+
+### `newspack_rolling_coverage_entry_ingested`
+
+Fires once an entry from a chat source is saved with its coverage and meta.
+
+| Argument | Type | Description |
+| --- | --- | --- |
+| `$post_id` | `int` | The entry's post ID. |
+
+```php
+add_action( 'newspack_rolling_coverage_entry_ingested', function ( $post_id ) {
+	update_post_meta( $post_id, 'my_newsroom_needs_review', '1' );
+} );
+```
+
+## Slack connection
+
+These actions report on the Slack connection, which an Administrator sets up under **Rolling Coverage > Slack Connection**. They are useful for logging or alerting.
+
+### `rolling_coverage_slack_channel_linked`
+
+Fires after a Slack channel is linked to a coverage.
+
+| Argument | Type | Description |
+| --- | --- | --- |
+| `$channel_id` | `string` | The Slack channel ID. |
+| `$term_id` | `int` | The coverage's term ID. |
+
+```php
+add_action( 'rolling_coverage_slack_channel_linked', function ( $channel_id, $term_id ) {
+	error_log( "Slack channel $channel_id now feeds coverage $term_id." );
+}, 10, 2 );
+```
+
+### `rolling_coverage_slack_channel_unlinked`
+
+Fires after a Slack channel stops feeding a coverage. That happens when someone unlinks it, disconnects Slack, or deletes the coverage.
+
+| Argument | Type | Description |
+| --- | --- | --- |
+| `$channel_id` | `string` | The Slack channel ID that was unlinked. |
+
+```php
+add_action( 'rolling_coverage_slack_channel_unlinked', function ( $channel_id ) {
+	error_log( "Slack channel $channel_id was unlinked." );
+} );
+```
+
+### `rolling_coverage_slack_security_event`
+
+Fires when a request to the Slack webhook fails its signature check. Use it to alert on suspicious traffic.
+
+| Argument | Type | Description |
+| --- | --- | --- |
+| `$event` | `string` | One of `missing_signature`, `empty_secret`, `missing_timestamp`, `replay_attack_attempt`, `invalid_signature_format`, or `signature_mismatch`. |
+| `$context` | `array` | Details for the event. Empty for most events. `replay_attack_attempt` has `timestamp_delta`, `invalid_signature_format` has `signature_prefix`, and `signature_mismatch` has `timestamp` and `body_length`. |
+
+```php
+add_action( 'rolling_coverage_slack_security_event', function ( $event, $context ) {
+	if ( 'signature_mismatch' === $event ) {
+		error_log( 'Rejected a Slack request with a bad signature.' );
+	}
+}, 10, 2 );
+```
+
+## Polling
+
+Open feed pages check for new entries on their own. These filters set how. Each one starts from the matching [constant](/docs/developers/constants/), so a callback wins over `wp-config.php`.
+
+### `newspack_rolling_coverage_min_poll_interval`
+
+Filters the minimum number of seconds between a reader's checks for new entries, for every feed on the site.
+
+| Argument | Type | Description |
+| --- | --- | --- |
+| `$interval` | `mixed` | Seconds. Starts at the constant's value, or `0`. |
+
+Returns the seconds as an integer. Anything that isn't a positive number means no minimum.
+
+```php
+add_filter( 'newspack_rolling_coverage_min_poll_interval', function () {
+	return 45;
+} );
+```
+
+### `newspack_rolling_coverage_shared_polling`
+
+Filters whether pages check one address shared by every reader of the page. Returning false moves open pages to their own address on their next check.
+
+| Argument | Type | Description |
+| --- | --- | --- |
+| `$enabled` | `bool` | Whether shared checking is on. Defaults to `true`. |
+
+Returns a boolean. The string `'false'` counts as false.
+
+```php
+add_filter( 'newspack_rolling_coverage_shared_polling', '__return_false' );
+```
+
+## Entry links and notices
+
+### `newspack_rolling_coverage_entry_redirect_url`
+
+When a coverage has a canonical URL, a request for an entry's own web address is sent to that page, with the entry opened. This filter changes the destination or turns the redirect off.
+
+| Argument | Type | Description |
+| --- | --- | --- |
+| `$redirect_url` | `string` | The canonical URL with the entry's deep link. |
+| `$entry` | `WP_Post` | The entry. |
+
+Returns the URL to redirect to. Return an empty string or `false` to skip the redirect and show the entry's own page.
+
+```php
+add_filter( 'newspack_rolling_coverage_entry_redirect_url', function ( $url, $entry ) {
+	return has_term( 'no-redirect', 'category', $entry ) ? '' : $url;
+}, 10, 2 );
+```
+
+### `newspack_rolling_coverage_entry_redirect_status`
+
+Filters the HTTP status of that redirect. The default is `302`, so a canonical URL that is later removed isn't cached for good by browsers.
+
+| Argument | Type | Description |
+| --- | --- | --- |
+| `$status` | `int` | The status code. Defaults to `302`. |
+| `$entry` | `WP_Post` | The entry. |
+| `$redirect_url` | `string` | The destination. |
+
+Returns the status code as an integer.
+
+```php
+add_filter( 'newspack_rolling_coverage_entry_redirect_status', function () {
+	return 301;
+} );
+```
+
+### `newspack_rolling_coverage_entry_archived_notice`
+
+Filters the text of the notice shown above an entry that has been archived on its own. The result goes through `wp_kses_post()`, so basic HTML is allowed.
+
+| Argument | Type | Description |
+| --- | --- | --- |
+| `$notice` | `string` | The notice text. |
+
+Returns the notice text.
+
+```php
+add_filter( 'newspack_rolling_coverage_entry_archived_notice', function () {
+	return 'This update has been superseded. See the latest entries above.';
+} );
+```
+
+## Search engine markup
+
+A feed that shows all of a coverage's entries prints `LiveBlogPosting` structured data for search engines. These filters adjust it.
+
+### `newspack_rolling_coverage_schema_metadata`
+
+Filters the full structured data array before it is printed.
+
+| Argument | Type | Description |
+| --- | --- | --- |
+| `$metadata` | `array` | The `LiveBlogPosting` data, including `liveBlogUpdate`. |
+| `$coverage_id` | `int` | The coverage's term ID. |
+| `$post` | `WP_Post` | The page the feed block sits in. |
+
+Returns the array to print.
+
+```php
+add_filter( 'newspack_rolling_coverage_schema_metadata', function ( $metadata, $coverage_id, $post ) {
+	$metadata['inLanguage'] = 'en-US';
+	return $metadata;
+}, 10, 3 );
+```
+
+### `newspack_rolling_coverage_schema_article_body`
+
+Filters the plain-text body used for one entry in the structured data. Return an empty string to leave the entry out of it.
+
+| Argument | Type | Description |
+| --- | --- | --- |
+| `$article_body` | `string` | The cleaned body text. |
+| `$entry` | `WP_Post` | The entry. |
+
+Returns the body text.
+
+```php
+add_filter( 'newspack_rolling_coverage_schema_article_body', function ( $body, $entry ) {
+	return wp_trim_words( $body, 80 );
+}, 10, 2 );
+```
+
+## Push notifications
+
+### `newspack_rolling_coverage_defer_notification`
+
+An entry's push notification, sent through OneSignal to the coverage's followers, normally goes out in the request that publishes the entry. This filter schedules it for a moment later instead. Requests made through the REST API, which is how the block editor and Slack publish, always schedule it.
+
+| Argument | Type | Description |
+| --- | --- | --- |
+| `$defer` | `bool` | Whether to schedule the send. Defaults to `false`. |
+| `$post` | `WP_Post` | The entry being published. |
+
+Returns a boolean.
+
+```php
+add_filter( 'newspack_rolling_coverage_defer_notification', '__return_true' );
+```
+
+## Plugin lifecycle
+
+### `rolling_coverage_activation` and `rolling_coverage_deactivation`
+
+Fire at the end of the plugin's activation and deactivation, and take no arguments. Use them for one-time setup or cleanup that belongs with the plugin.
+
+```php
+add_action( 'rolling_coverage_activation', function () {
+	update_option( 'my_newsroom_rc_activated', time() );
+} );
+```
+
+## Hooks from Newspack Ads
+
+When Newspack Ads is active, Rolling Coverage places ads between entries, using the `rolling_coverage_entry` placement. It fires Newspack Ads' own `newspack_ads_before_placement_ad` and `newspack_ads_after_placement_ad` actions around each ad, with the placement key, a hook key, and the placement data. It also applies Newspack Ads' `newspack_ads_gam_bounds_selectors` and `newspack_ads_gam_bounds_bleed` filters to each in-feed ad slot. Those hooks belong to Newspack Ads, which documents their arguments.
+
+## WP_Query variables
+
+The plugin reads two query variables, for developers who run their own `WP_Query` on entries.
+
+| Variable | Effect |
+| --- | --- |
+| `rolling_coverage_author_scope` | One of `all`, `author`, `own`, or `editable`. Limits entry results to what the current user may see, as the plugin's own screens do. |
+| `rolling_coverage_skip_pin_order` | When `true`, entries are not sorted with pinned ones first. |
+
+```php
+$entries = new WP_Query( [
+	'post_type'                       => 'rolling_cov_entry',
+	'rolling_coverage_skip_pin_order' => true,
+] );
+```

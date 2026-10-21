@@ -1,0 +1,122 @@
+---
+title: Edit, detach, and restore a layout
+description: Change a shared layout for every page that uses it, detach it for one page, or get a built-in layout back.
+---
+
+By the end of this page, you will know how to change a layout for every page that uses it, change it for one page only, and restore a built-in layout.
+
+## How shared layouts work
+
+The first time an Editor or Administrator picks a built-in layout, the site saves it as a shared layout. Every page that uses it then follows that one copy.
+
+The block's **Layout** panel says which one it uses, for example "Uses the shared Rail layout". A Contributor who picks a layout before it has been saved gets a copy for that page only.
+
+## Change the layout for every page
+
+<Steps>
+<Step>
+
+### Select the block
+
+In the editor, select the Rolling Coverage block.
+
+</Step>
+<Step>
+
+### Open the layout editor
+
+Select **Edit Layout** in the block toolbar. The shared layout opens in a new tab. It shows sample entries, so every part of an entry is visible.
+
+Only people who can edit patterns see this button. On a block theme, it opens the Site Editor.
+
+<Screenshot label="Block toolbar, Edit Layout button highlighted" />
+
+</Step>
+<Step>
+
+### Make the change
+
+Change the spacing, colors, type, or blocks inside the layout, as with any other blocks.
+
+<Screenshot label="Layout editor showing the shared layout with sample entries" />
+
+</Step>
+<Step>
+
+### Save it
+
+Save the layout. Every page that uses it shows the change.
+
+</Step>
+</Steps>
+
+<Callout type="warn" title="Edit Layout changes every page">
+A shared layout is one copy. A change made with **Edit Layout** reaches every page that uses it.
+</Callout>
+
+## Change the layout for one page only
+
+<Steps>
+<Step>
+
+### Detach the layout
+
+Select the block, then select **Detach** in the block toolbar. The layout is copied into this page. The **Layout** panel now reads "Uses its own layout, detached from the shared one."
+
+<Screenshot label="Block toolbar, Detach button highlighted" />
+
+</Step>
+<Step>
+
+### Edit the block
+
+Change the block's design and settings. The changes affect this page only. Later changes to the shared layout no longer reach it.
+
+</Step>
+</Steps>
+
+## Switch to another layout
+
+Open the **Layout** panel and select **Change Layout**. The **Choose a layout** window opens. Picking a layout replaces the current one, including a detached copy. The block keeps its coverage and other settings.
+
+## Restore a built-in layout
+
+A built-in layout is saved as a pattern, so editing it changes it for good. To get the plugin's version back, delete the pattern and pick the layout again. This is also how to get an updated design after a plugin update, such as a new Full story card.
+
+Pages that used the deleted layout show Bulletin until someone picks a layout again.
+
+<Steps>
+<Step>
+
+### Delete the layout's pattern
+
+On a block theme, go to **Appearance > Editor > Patterns**, open the **Rolling Coverage** category, and delete the layout. This can't be undone.
+
+On a classic theme, open the Patterns screen and trash the layout.
+
+<Screenshot label="Patterns screen, Rolling Coverage category with the layout's actions menu open" />
+
+</Step>
+<Step>
+
+### Reload the editor
+
+Reload the page that holds the block.
+
+</Step>
+<Step>
+
+### Pick the layout again
+
+Select **Change Layout** and choose the layout. The site saves a fresh copy from the plugin's current version.
+
+</Step>
+</Steps>
+
+## If a layout is deleted by mistake
+
+If a page points at a layout that no longer exists, readers see Bulletin. The editor asks you to choose a layout again.
+
+## Next
+
+[Make a custom layout](/docs/guides/custom-layouts/).

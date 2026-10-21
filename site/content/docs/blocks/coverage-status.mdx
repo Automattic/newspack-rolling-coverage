@@ -1,0 +1,74 @@
+---
+title: Coverage Status block
+description: A badge that shows whether a coverage is Live, Paused, or Ended.
+---
+
+The Coverage Status block shows whether a coverage is Live, Paused, or Ended, as a small badge. It can also show when the coverage last got a new entry, such as "Updated 2 minutes ago".
+
+## Where to use it
+
+- **Next to a headline.** Add it to a page or template, beside the title or in a header, so readers see at a glance whether the story is still moving.
+- **Inside a Rolling Coverage layout.** It shows that block's coverage, and the **Coverage** panel is hidden.
+
+To show readers when the page next checks for new entries, add an [Update Timer](/docs/blocks/update-timer/) next to the badge.
+
+## Add the block
+
+<Steps>
+<Step>
+
+### Insert the block
+
+Open the page, post, or template. Add a block and search for "Coverage Status".
+
+<Screenshot label="Block inserter with Coverage Status in the search results" />
+
+</Step>
+<Step>
+
+### Choose the coverage
+
+Outside a Rolling Coverage block, open the **Coverage** panel in the block settings. Choose **Automatic** or **Custom**. With **Custom**, pick the coverage from the list.
+
+<Screenshot label="Block settings, Coverage panel with Automatic and Custom highlighted" />
+
+</Step>
+</Steps>
+
+## Settings
+
+### Coverage panel
+
+The panel appears only when the block is outside a Rolling Coverage block.
+
+| Setting | What it does |
+| --- | --- |
+| **Automatic** | Shows the coverage on this page, or a breakout post's coverage. It uses the first Rolling Coverage block in the page's content, not one in the site's template. |
+| **Custom** | Always shows the coverage you pick. |
+
+Automatic works on single posts and pages only, not on archives or password-protected posts. On those, choose **Custom**. With no coverage to show, the block shows nothing on the site.
+
+### Settings panel
+
+| Setting | Options | What it does |
+| --- | --- | --- |
+| **Labels** | Default, Custom | **Default** uses the site-wide labels. **Custom** shows a field for each status: **Live label**, **Paused label**, and **Ended label**. An empty field uses the site-wide label. |
+| **Last updated** | Show, Hide | Shows "Updated … ago" next to the badge while the coverage is live and has a published entry. The default is **Hide**. |
+| **When ended** | Show, Hide | **Hide** removes the block from the site once the coverage ends. The default is **Show**. |
+| **Dot** | Show, Hide | Turns the dot on the Live badge on or off. The default is **Show**. |
+
+Editors and administrators set the site-wide labels in **Rolling Coverage > All Coverages**. Select **Settings**, then **Coverage Status**.
+
+<Screenshot label="Block settings, Settings panel with Labels and Last updated highlighted" />
+
+### Colors
+
+In the **Styles** tab, under **Color**, set **Live background**, **Paused background**, and **Ended background**. The text color is chosen for contrast. The **Text color** setting changes the "Updated … ago" text.
+
+## What readers see
+
+A badge that reads Live, Paused, or Ended, and optionally the "Updated … ago" text. A Live badge pulses when the dot is on.
+
+The badge changes without a page reload when a Rolling Coverage block for the same coverage is on the same page. Without one, it keeps the status it had when the page loaded.
+
+<Screenshot label="Published page with the Live badge beside the headline" />

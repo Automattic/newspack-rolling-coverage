@@ -1,0 +1,69 @@
+---
+title: Check for Updates block
+description: Let readers press a button to load new entries instead of checking automatically.
+---
+
+The Check for Updates block is a button readers press to load a coverage's new entries. A feed that holds it stops checking on its own, so the page makes no background requests. That suits readers on slow or metered connections, and pages people leave open for hours.
+
+## Where to use it
+
+Add it inside a Rolling Coverage layout, among the blocks above or below the entries, such as the header next to the Live badge. The header works best, because new entries appear at the top of the feed.
+
+It only works inside a Rolling Coverage layout. The inserter offers it nowhere else, and it can't go inside an entry or the pinned entry. No built-in layout includes it. A layout can hold more than one, such as one above and one below a long feed. They share each check.
+
+## Add the block
+
+<Steps>
+<Step>
+
+### Open the layout
+
+Select the Rolling Coverage block, then choose **Edit Layout** in the block toolbar. The layout opens in a new tab.
+
+<Screenshot label="Rolling Coverage block toolbar with Edit Layout highlighted" />
+
+</Step>
+<Step>
+
+### Insert the block
+
+In the layout, add a block above or below the entries. Search for "Check for Updates".
+
+<Screenshot label="Layout editor with Check for Updates added in the header" />
+
+</Step>
+<Step>
+
+### Style the button
+
+Select the button inside the block. Change its text, colors, and size like any other button. Leave the button in place.
+
+</Step>
+</Steps>
+
+## Settings
+
+The block has no settings of its own. The button uses the usual button settings.
+
+Adding the block changes how the feed behaves. With it, the feed checks only when a reader presses the button, and the Rolling Coverage block's **Poll interval (seconds)** setting goes away. Remove the block and the feed checks on its own again.
+
+It doesn't appear:
+
+- In a feed set to show only the latest entries, such as the Ticker and Flash layouts. Those keep checking on their own.
+- Once the coverage ends. A paused coverage keeps it, so readers can see whether the coverage resumed.
+
+## What readers see
+
+- Pressing the button checks for new entries. While it runs, the button reads "Checking…".
+- New entries appear at the top of the feed, below any pinned entries. The button shows how many arrived for a few seconds, such as "2 entries added".
+- When nothing is new, the button reads "No new entries". If the check fails, it reads "Couldn't check".
+
+Because the page doesn't check on its own, these update only when a reader presses the button:
+
+- A Coverage Status block beside the feed.
+- The notice at the top of the feed when the coverage ends.
+- The feed's **When ended** setting.
+
+An [Update Timer](/docs/blocks/update-timer/) for the coverage stays hidden, because there is no check to count down to.
+
+<Screenshot label="Published page with the Check for Updates button above the feed" />

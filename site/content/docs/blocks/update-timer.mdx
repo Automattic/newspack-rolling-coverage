@@ -1,0 +1,73 @@
+---
+title: Update Timer block
+description: Tell readers when the feed next checks for new entries.
+---
+
+The Update Timer block shows readers when a live coverage next checks for new entries. It reads "Next check in 7s" with a small spinner. While the check runs, it reads "Checking…". When the check brings new entries, it reads a count such as "2 new entries" for a few seconds.
+
+## Where to use it
+
+- **Next to the Live badge.** Add it to a page or template, beside a [Coverage Status](/docs/blocks/coverage-status/) block, so readers can see the page keeps itself up to date.
+- **Inside a Rolling Coverage layout.** Add it to the feed or to a group at the coverage level, such as the layout's header. It follows that block's coverage. It can't go inside an entry or the pinned entry.
+
+It counts down a Rolling Coverage block's own checks, so a Rolling Coverage block for the same coverage must be on the page.
+
+## Add the block
+
+<Steps>
+<Step>
+
+### Insert the block
+
+Open the page, post, or template. Add a block and search for "Update Timer".
+
+<Screenshot label="Block inserter with Update Timer in the search results" />
+
+</Step>
+<Step>
+
+### Choose the coverage
+
+Outside a Rolling Coverage block, open the **Coverage** panel in the block settings. Choose **Automatic** or **Custom**. With **Custom**, pick the coverage from the list.
+
+<Screenshot label="Block settings, Coverage panel with Automatic and Custom highlighted" />
+
+</Step>
+</Steps>
+
+## Settings
+
+### Coverage panel
+
+The panel appears only outside a Rolling Coverage block.
+
+| Setting | What it does |
+| --- | --- |
+| **Automatic** | Counts down to the next check of the coverage on this page, or a breakout post's coverage. |
+| **Custom** | Always counts down for the coverage you pick. |
+
+### Settings panel
+
+| Setting | Options | What it does |
+| --- | --- | --- |
+| **Spinner** | Show, Hide | The spinner turns beside the countdown. **Hide** leaves the text on its own. The default is **Show**. Readers whose device is set to reduce motion never see it. |
+
+The spinner and text take the block's text color. Typography settings change the text size.
+
+<Screenshot label="Block settings, Settings panel with Spinner highlighted" />
+
+## When it doesn't appear
+
+The timer stays hidden while there is nothing to count down to:
+
+- The coverage is paused or has ended. If it goes live again while the page is open, the timer comes back.
+- The layout holds a [Check for Updates](/docs/blocks/check-for-updates/) block, so the feed checks only when readers ask.
+- There is no Rolling Coverage block for its coverage on the page.
+
+## What readers see
+
+The seconds count down once a second. When the check ends, the timer shows what it found, then starts again.
+
+Screen readers don't hear the countdown. The Rolling Coverage block already announces new entries.
+
+<Screenshot label="Published page with the Update Timer counting down beside the Live badge" />
