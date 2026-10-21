@@ -221,36 +221,23 @@ class Test_Byline extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * With Avatar Display off, the editor still gets avatar URLs in the edit
-	 * context it reads users in, so previews show the avatars entries render.
-	 * The view context stays as core has it.
+	 * With Avatar Display off, only the entry's Avatar blocks show a picture:
+	 * an author block in the entry's own content still follows the setting.
 	 */
-	public function test_the_editor_reads_avatar_urls_when_avatars_are_off() {
-		global $wp_rest_server;
-
+	public function test_an_author_block_in_entry_content_follows_avatar_display() {
 		update_option( 'show_avatars', 0 );
-		$author_id = self::factory()->user->create( [ 'role' => 'author' ] );
-		self::log_in_as( 'administrator' );
+		$entry_id = self::create_entry(
+			self::create_coverage(),
+			[
+				'post_author'  => self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] ),
+				'post_content' => '<!-- wp:post-author {"showAvatar":true} /-->',
+			]
+		);
 
-		$edit_request = new WP_REST_Request( 'GET', '/wp/v2/users/' . $author_id );
-		$edit_request->set_param( 'context', 'edit' );
-		$view_request = new WP_REST_Request( 'GET', '/wp/v2/users/' . $author_id );
-		$view_request->set_param( 'context', 'view' );
+		$html = self::render_existing( $entry_id, '<!-- wp:post-content /-->' );
 
-		// Core reads Avatar Display into a schema each controller caches, so
-		// a fresh server reads it as a request on this site would.
-		$wp_rest_server = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-
-		try {
-			$edit = rest_do_request( $edit_request );
-			$view = rest_do_request( $view_request );
-		} finally {
-			$wp_rest_server = null; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-		}
-
-		$this->assertSame( 200, $edit->get_status() );
-		$this->assertNotEmpty( $edit->get_data()['avatar_urls'] ?? [] );
-		$this->assertArrayNotHasKey( 'avatar_urls', $view->get_data() );
+		$this->assertStringContainsString( 'Jane Reporter', $html );
+		$this->assertStringNotContainsString( '<img', $html );
 	}
 
 	/**

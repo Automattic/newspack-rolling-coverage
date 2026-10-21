@@ -11,6 +11,7 @@ namespace Newspack_Rolling_Coverage;
 use Google\Site_Kit\Modules\Analytics_4;
 use Google\Site_Kit\Modules\Analytics_4\Settings as Site_Kit_Analytics_4_Settings;
 use WP_Block;
+use WP_Block_Supports;
 use WP_Block_Type;
 use WP_Block_Type_Registry;
 use WP_Error;
@@ -250,7 +251,6 @@ class Rolling_Coverage_Block {
 		add_filter( 'posts_where', [ __CLASS__, 'marker_where' ], 10, 2 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
 		add_filter( 'pre_option_show_avatars', [ __CLASS__, 'show_entry_avatars' ] );
-		add_filter( 'rest_prepare_user', [ __CLASS__, 'add_editor_avatar_urls' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'size_entry_avatar' ], 10, 2 );
 		add_filter( 'render_block_core/post-author-name', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
@@ -978,47 +978,22 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * Turns the site's Avatar Display on while an entry renders, so the
-	 * block's Author avatar setting alone decides whether entries show their
-	 * author's picture. A site can keep avatars off everywhere else, such as
-	 * in comments, and still show them in its coverage.
+	 * Turns the site's Avatar Display on while an entry's Avatar block
+	 * renders, so the block's Author avatar setting decides whether entries
+	 * show their author's picture. A site can keep avatars off everywhere
+	 * else, such as in comments, and still show them in its coverage. Other
+	 * blocks in an entry, such as an author block in its content, still
+	 * follow Avatar Display.
 	 *
 	 * @param mixed $pre The value to return instead of the stored option, or false for the stored one.
 	 * @return mixed
 	 */
 	public static function show_entry_avatars( $pre ) {
-		return self::is_rendering_entry() ? '1' : $pre;
-	}
-
-	/**
-	 * Adds the avatar URLs core leaves out of a user's REST response in the
-	 * edit context while Avatar Display is off. The editor's Avatar block
-	 * reads them, so without them the block's entry previews would show the
-	 * default avatar where the site shows the author's picture (see
-	 * show_entry_avatars()). Core opens the edit context only to the user and
-	 * to people who can edit users, and with avatars on it gives the URLs to
-	 * everyone, so no one sees more than they would with avatars on.
-	 *
-	 * @param WP_REST_Response $response The user's response.
-	 * @param WP_User          $user     The user.
-	 * @param WP_REST_Request  $request  The request.
-	 * @return WP_REST_Response
-	 */
-	public static function add_editor_avatar_urls( $response, $user, $request ) {
-		if ( get_option( 'show_avatars' ) || 'edit' !== $request['context'] || ! $response instanceof WP_REST_Response ) {
-			return $response;
+		if ( ! self::is_rendering_entry() || 'core/avatar' !== ( WP_Block_Supports::$block_to_render['blockName'] ?? '' ) ) {
+			return $pre;
 		}
 
-		$data = $response->get_data();
-
-		if ( ! is_array( $data ) || isset( $data['avatar_urls'] ) ) {
-			return $response;
-		}
-
-		$data['avatar_urls'] = rest_get_avatar_urls( $user );
-		$response->set_data( $data );
-
-		return $response;
+		return '1';
 	}
 
 	/**
