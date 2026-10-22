@@ -19,12 +19,22 @@ defined( 'ABSPATH' ) || exit;
  * Keeps the shared layout in a synced pattern whose content is one Rolling
  * Coverage block, and hands that block's inner blocks to every Rolling
  * Coverage block pointing at it through its `layoutId` attribute.
+ *
+ * A built-in layout's pattern follows the plugin until someone edits it:
+ * while it still holds what it was created with, the page and the editor get
+ * the layout this version of the plugin ships (`Layout_Templates`).
  */
 class Layout {
 
 	const BUILT_IN_SLUGS = [ 'default', 'stream', 'rail', 'clock', 'margin', 'minute', 'byline', 'ticker', 'split', 'wire', 'digest', 'flash', 'alert' ];
 
 	const SLUG_META_KEY = '_rolling_coverage_layout';
+
+	/**
+	 * Post meta holding a built-in layout pattern's content hash from when the
+	 * plugin created it. Content that no longer matches it was edited.
+	 */
+	const HASH_META_KEY = '_rolling_coverage_layout_hash';
 
 	const PATTERN_CATEGORY = 'rolling-coverage';
 
@@ -41,6 +51,7 @@ class Layout {
 	public static function init() {
 		add_filter( 'render_block_data', [ __CLASS__, 'inject_layout' ], 10, 1 );
 		add_action( 'rest_api_init', [ __CLASS__, 'register_routes' ] );
+		add_filter( 'rest_prepare_wp_block', [ __CLASS__, 'prepare_pattern_response' ], 10, 2 );
 	}
 
 	/**
@@ -63,6 +74,16 @@ class Layout {
 			return null;
 		}
 
+		$slug = self::get_unedited_slug( $post );
+
+		if ( null !== $slug ) {
+			$blocks = Layout_Templates::get_blocks( $slug );
+
+			if ( null !== $blocks ) {
+				return $blocks;
+			}
+		}
+
 		foreach ( parse_blocks( $post->post_content ) as $block ) {
 			if ( Rolling_Coverage_Block::BLOCK_NAME === ( $block['blockName'] ?? '' ) ) {
 				return self::detach_nested_blocks( $block['innerBlocks'] ?? [] );
@@ -70,6 +91,63 @@ class Layout {
 		}
 
 		return null;
+	}
+
+	/**
+	 * The built-in layout a pattern follows: its slug while the pattern holds
+	 * the content the plugin created it with, or null for a custom layout or
+	 * one someone edited. A pattern created before the hash was recorded
+	 * counts as unedited until it is first updated.
+	 *
+	 * @param WP_Post $post Pattern.
+	 * @return string|null Built-in layout slug, or null.
+	 */
+	public static function get_unedited_slug( WP_Post $post ): ?string {
+		$slug = (string) get_post_meta( $post->ID, self::SLUG_META_KEY, true );
+
+		if ( ! in_array( $slug, self::BUILT_IN_SLUGS, true ) ) {
+			return null;
+		}
+
+		$hash = (string) get_post_meta( $post->ID, self::HASH_META_KEY, true );
+
+		$is_unedited = '' === $hash
+			? $post->post_modified_gmt === $post->post_date_gmt
+			: hash_equals( $hash, md5( $post->post_content ) );
+
+		return $is_unedited ? $slug : null;
+	}
+
+	/**
+	 * Hands the editor an unedited built-in layout as the plugin ships it, so
+	 * its preview, Detach, and the pattern editor all start from the current
+	 * layout. Saving the pattern from there stores that content, and any
+	 * change to it makes the layout the site's own.
+	 *
+	 * @param WP_REST_Response $response Response.
+	 * @param WP_Post          $post     Pattern.
+	 * @return WP_REST_Response
+	 */
+	public static function prepare_pattern_response( $response, $post ) {
+		if ( ! $response instanceof WP_REST_Response || ! $post instanceof WP_Post ) {
+			return $response;
+		}
+
+		$data = $response->get_data();
+
+		if ( ! isset( $data['content']['raw'] ) ) {
+			return $response;
+		}
+
+		$slug    = self::get_unedited_slug( $post );
+		$content = null !== $slug ? Layout_Templates::get_pattern_content( $slug ) : null;
+
+		if ( null !== $content ) {
+			$data['content']['raw'] = $content;
+			$response->set_data( $data );
+		}
+
+		return $response;
 	}
 
 	/**
@@ -303,6 +381,7 @@ class Layout {
 
 			self::assign_pattern_category( $layout_id );
 			update_post_meta( $layout_id, self::SLUG_META_KEY, $slug );
+			update_post_meta( $layout_id, self::HASH_META_KEY, md5( (string) get_post_field( 'post_content', $layout_id, 'raw' ) ) );
 			update_option( self::option_name( $slug ), $layout_id, false );
 
 			return self::layout_response( $layout_id, 201 );

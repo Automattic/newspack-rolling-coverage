@@ -1,0 +1,301 @@
+<?php
+/**
+ * Tests for the built-in layouts as the plugin ships them, and the patterns
+ * that follow them until someone edits them.
+ *
+ * @package Newspack_Rolling_Coverage
+ */
+
+use Newspack_Rolling_Coverage\Entry_Name;
+use Newspack_Rolling_Coverage\Layout;
+use Newspack_Rolling_Coverage\Layout_Templates;
+use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
+
+/**
+ * A built-in layout renders from the plugin, filled in for the site, while
+ * its pattern holds what the plugin created it with.
+ */
+class Test_Layout_Templates extends Rolling_Coverage_TestCase {
+
+	const MARKER = 'Pattern content marker';
+
+	/**
+	 * Forget the theme.json data a test switched to.
+	 */
+	public function tear_down() {
+		parent::tear_down();
+		wp_clean_theme_json_cache();
+	}
+
+	/**
+	 * Markup for a layout pattern holding one paragraph.
+	 *
+	 * @param string $text Paragraph text.
+	 * @return string
+	 */
+	private static function layout_markup( string $text = self::MARKER ): string {
+		return '<!-- wp:newspack-rolling-coverage/rolling-coverage --><!-- wp:paragraph --><p>' . $text . '</p><!-- /wp:paragraph --><!-- /wp:newspack-rolling-coverage/rolling-coverage -->';
+	}
+
+	/**
+	 * Creates a built-in layout's pattern through the route the editor uses.
+	 *
+	 * @param string $slug Built-in layout slug.
+	 * @return int Pattern ID.
+	 */
+	private static function create_built_in( string $slug = 'stream' ): int {
+		self::log_in_as( 'editor' );
+
+		return (int) self::dispatch( 'POST', '/layouts/' . $slug, [ 'content' => self::layout_markup() ] )->get_data()['id'];
+	}
+
+	/**
+	 * Renders a story block synced to a layout, as core does.
+	 *
+	 * @param int $layout_id Pattern ID.
+	 * @return string
+	 */
+	private static function render_synced( int $layout_id ): string {
+		$coverage_id = self::create_coverage();
+		self::create_entry( $coverage_id );
+		$attributes = [
+			'coverageId' => $coverage_id,
+			'layoutId'   => $layout_id,
+		];
+		$parsed     = parse_blocks( '<!-- wp:newspack-rolling-coverage/rolling-coverage ' . wp_json_encode( $attributes ) . ' /-->' )[0];
+		$block      = apply_filters( 'render_block_data', $parsed, $parsed, null );
+
+		return Rolling_Coverage_Block::render_block( $attributes, '', new WP_Block( $block ) );
+	}
+
+	/**
+	 * Replaces the theme's palette and font sizes for one test.
+	 *
+	 * @param string[] $colors     Palette slugs.
+	 * @param string[] $font_sizes Font size slugs.
+	 */
+	private static function set_theme_presets( array $colors, array $font_sizes ): void {
+		$settings = [
+			'color'      => [
+				'palette' => array_map(
+					static fn( $slug ) => [
+						'slug'  => $slug,
+						'name'  => $slug,
+						'color' => '#777',
+					],
+					$colors
+				),
+			],
+			'typography' => [
+				'fontSizes' => array_map(
+					static fn( $slug ) => [
+						'slug' => $slug,
+						'name' => $slug,
+						'size' => '1rem',
+					],
+					$font_sizes
+				),
+			],
+		];
+
+		add_filter(
+			'wp_theme_json_data_theme',
+			static fn( $data ) => $data->update_with(
+				[
+					'version'  => WP_Theme_JSON::LATEST_SCHEMA,
+					'settings' => $settings,
+				]
+			)
+		);
+		wp_clean_theme_json_cache();
+	}
+
+	/**
+	 * The built-in layout slugs.
+	 *
+	 * @return array[]
+	 */
+	public function built_in_slugs(): array {
+		return array_map( static fn( $slug ) => [ $slug ], array_combine( Layout::BUILT_IN_SLUGS, Layout::BUILT_IN_SLUGS ) );
+	}
+
+	/**
+	 * Every built-in layout ships, with each of its tokens filled in.
+	 *
+	 * @dataProvider built_in_slugs
+	 *
+	 * @param string $slug Built-in layout slug.
+	 */
+	public function test_every_built_in_layout_fills_in_every_token( string $slug ) {
+		$blocks = Layout_Templates::get_blocks( $slug );
+
+		$this->assertNotEmpty( $blocks );
+		$this->assertStringNotContainsString( '{{', serialize_blocks( $blocks ) );
+	}
+
+	/**
+	 * Themes and the colors and sizes a layout takes from them.
+	 *
+	 * @return array[]
+	 */
+	public function theme_presets(): array {
+		return [
+			'Newspack Block Theme'  => [ [ 'base', 'contrast-3' ], [ 'small', 'medium', 'x-large' ], 'contrast-3', 'medium' ],
+			'Newspack Theme'        => [ [ 'primary', 'medium-gray' ], [ 'small', 'normal', 'large' ], 'medium-gray', 'normal' ],
+			'theme without presets' => [ [], [], null, 'medium' ],
+		];
+	}
+
+	/**
+	 * A layout's muted dates and its font sizes follow the theme, as the
+	 * editor picks them, and a theme without a muted color gets none.
+	 *
+	 * @dataProvider theme_presets
+	 *
+	 * @param string[]    $colors     Palette slugs.
+	 * @param string[]    $font_sizes Font size slugs.
+	 * @param string|null $muted      The muted color expected.
+	 * @param string      $size       The font size expected for a medium heading.
+	 */
+	public function test_layout_takes_the_theme_muted_color_and_font_sizes( array $colors, array $font_sizes, ?string $muted, string $size ) {
+		self::set_theme_presets( $colors, $font_sizes );
+
+		$ticker = serialize_blocks( Layout_Templates::get_blocks( 'ticker' ) );
+
+		$this->assertStringContainsString( '"fontSize":"' . $size . '"', $ticker );
+		$this->assertStringContainsString( 'has-' . $size . '-font-size', $ticker, 'A static block saves the size as a class too.' );
+
+		if ( $muted ) {
+			$this->assertStringContainsString( '"textColor":"' . $muted . '"', $ticker );
+		} else {
+			$this->assertStringNotContainsString( '"textColor":"contrast-3"', $ticker );
+			$this->assertStringNotContainsString( '"textColor":"medium-gray"', $ticker );
+		}
+	}
+
+	/**
+	 * The link to the coverage page uses the site's name for entries.
+	 */
+	public function test_layout_links_to_the_coverage_in_the_site_name_for_entries() {
+		$this->assertStringContainsString( 'See all entries', serialize_blocks( Layout_Templates::get_blocks( 'wire' ) ) );
+
+		update_option(
+			Entry_Name::OPTION_KEY,
+			[
+				'singular' => 'update',
+				'plural'   => 'updates',
+			]
+		);
+
+		$this->assertStringContainsString( 'See all updates', serialize_blocks( Layout_Templates::get_blocks( 'wire' ) ) );
+	}
+
+	/**
+	 * A built-in layout nobody has edited renders as the plugin ships it, not
+	 * as its pattern was created.
+	 */
+	public function test_unedited_built_in_layout_renders_the_plugins_layout() {
+		$html = self::render_synced( self::create_built_in() );
+
+		$this->assertStringNotContainsString( self::MARKER, $html );
+		$this->assertStringContainsString( 'data-rc-share', $html );
+	}
+
+	/**
+	 * Once someone edits a built-in layout's pattern, it renders as edited.
+	 */
+	public function test_edited_built_in_layout_renders_its_pattern() {
+		$layout_id = self::create_built_in();
+		wp_update_post(
+			[
+				'ID'           => $layout_id,
+				'post_content' => self::layout_markup( 'Edited layout' ),
+			]
+		);
+
+		$this->assertStringContainsString( 'Edited layout', self::render_synced( $layout_id ) );
+	}
+
+	/**
+	 * Renaming a built-in layout's pattern leaves its blocks to the plugin.
+	 */
+	public function test_renamed_built_in_layout_still_follows_the_plugin() {
+		$layout_id = self::create_built_in();
+		wp_update_post(
+			[
+				'ID'         => $layout_id,
+				'post_title' => 'Our stream',
+			]
+		);
+
+		$this->assertStringNotContainsString( self::MARKER, self::render_synced( $layout_id ) );
+	}
+
+	/**
+	 * A built-in layout created before its content hash was recorded, and
+	 * whether it was updated since.
+	 *
+	 * @return array[]
+	 */
+	public function legacy_layouts(): array {
+		return [
+			'never updated' => [ false ],
+			'updated'       => [ true ],
+		];
+	}
+
+	/**
+	 * A built-in layout created without a content hash follows the plugin
+	 * until its pattern is first updated.
+	 *
+	 * @dataProvider legacy_layouts
+	 *
+	 * @param bool $is_updated Whether the pattern was updated after it was created.
+	 */
+	public function test_legacy_built_in_layout_follows_the_plugin_until_updated( bool $is_updated ) {
+		$layout_id = self::factory()->post->create(
+			[
+				'post_type'    => 'wp_block',
+				'post_status'  => 'publish',
+				'post_content' => self::layout_markup(),
+				'post_date'    => '2026-10-01 10:00:00',
+			]
+		);
+		update_post_meta( $layout_id, Layout::SLUG_META_KEY, 'stream' );
+
+		if ( $is_updated ) {
+			wp_update_post(
+				[
+					'ID'           => $layout_id,
+					'post_content' => self::layout_markup(),
+				]
+			);
+		}
+
+		$renders_pattern = false !== strpos( self::render_synced( $layout_id ), self::MARKER );
+
+		$this->assertSame( $is_updated, $renders_pattern );
+	}
+
+	/**
+	 * The editor reads an unedited built-in layout as the plugin ships it, so
+	 * its previews, Detach and the pattern editor start from it, and an
+	 * edited one as its pattern holds it.
+	 */
+	public function test_editor_reads_an_unedited_built_in_layout_from_the_plugin() {
+		$layout_id = self::create_built_in();
+		$request   = new WP_REST_Request( 'GET', '/wp/v2/blocks/' . $layout_id );
+		$request->set_param( 'context', 'edit' );
+
+		$this->assertSame( Layout_Templates::get_pattern_content( 'stream' ), rest_do_request( $request )->get_data()['content']['raw'] );
+
+		wp_update_post(
+			[
+				'ID'           => $layout_id,
+				'post_content' => self::layout_markup( 'Edited layout' ),
+			]
+		);
+
+		$this->assertSame( self::layout_markup( 'Edited layout' ), rest_do_request( $request )->get_data()['content']['raw'] );
+	}
+}
