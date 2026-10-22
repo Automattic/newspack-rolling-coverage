@@ -155,7 +155,8 @@ class Layout_Templates {
 				return ! in_array( $preferred, $site['font_sizes'], true ) && in_array( $fallback, $site['font_sizes'], true ) ? $fallback : $preferred;
 		}
 
-		return '';
+		// A token this version can't fill stays as written, where tests and readers notice it.
+		return '{{' . $name . ( '' === $argument ? '' : ':' . $argument ) . '}}';
 	}
 
 	/**
