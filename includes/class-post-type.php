@@ -413,9 +413,10 @@ class Post_Type {
 	 * entries from trashed or permanently deleted coverages are not
 	 * exposed in non-edit (public) context.
 	 *
-	 * Uses a tax_query that only matches entries assigned to non-trashed
-	 * coverage terms. This also excludes orphaned entries (no coverage
-	 * term) since the operator is IN.
+	 * Adds a tax_query clause that only matches entries assigned to
+	 * non-trashed coverage terms, ANDed with the request's own taxonomy
+	 * filters. This also excludes orphaned entries (no coverage term)
+	 * since the operator is IN.
 	 *
 	 * Edit context (admin) is not filtered so trashed entries remain
 	 * visible in the admin.
@@ -449,7 +450,8 @@ class Post_Type {
 			]
 		);
 
-		$args['tax_query'] = [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+		$tax_query = [
+			'relation' => 'AND',
 			[
 				'taxonomy' => Taxonomy::TAXONOMY_SLUG,
 				'field'    => 'term_id',
@@ -457,6 +459,12 @@ class Post_Type {
 				'operator' => 'IN',
 			],
 		];
+
+		if ( ! empty( $args['tax_query'] ) ) {
+			$tax_query[] = $args['tax_query'];
+		}
+
+		$args['tax_query'] = $tax_query; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
 
 		return $args;
 	}
