@@ -55,7 +55,6 @@ import {
 	withCenteredTitleRows,
 	withoutPostTitle,
 	withEntryLinkTitleText,
-	withoutAvatarColumns,
 	withoutByline,
 	withAuthorSettings,
 	hasPinnedCard,
@@ -65,7 +64,6 @@ import {
 	forEntryKind,
 	withoutFeaturedImage,
 } from './template';
-import { SHOW_AVATARS } from './config';
 import type { EntryContext, TemplateBlocks, TemplateItem } from './types';
 
 export const BLOCK_NAME = metadata.name;
@@ -579,9 +577,7 @@ export function useLayoutPreview(
 	);
 	const previewTemplates = useMemo( () => {
 		const entryBlocks = withAuthorSettings(
-			SHOW_AVATARS
-				? templateBlocks
-				: withoutAvatarColumns( templateBlocks ),
+			templateBlocks,
 			showAuthor,
 			showAvatar
 		);
