@@ -213,6 +213,53 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The taxonomy isn't hierarchical, so core lets anyone who can assign
+	 * coverages create one; creating needs manage_categories here, as in the
+	 * dashboard.
+	 *
+	 * @dataProvider provide_roles_without_manage_categories
+	 *
+	 * @param string $role User role.
+	 */
+	public function test_users_without_manage_categories_cannot_create_a_coverage( $role ) {
+		self::log_in_as( $role );
+
+		$response = self::save_coverage_via_rest( [] );
+
+		$this->assertSame( 403, $response->get_status(), 'The request should be refused.' );
+		$this->assertSame( 'rest_cannot_create', $response->as_error()->get_error_code(), 'The refusal should be core\'s.' );
+		$this->assertEmpty( term_exists( 'Election night', Taxonomy::TAXONOMY_SLUG ), 'No coverage should be created.' );
+	}
+
+	/**
+	 * Roles that write entries but don't manage coverages.
+	 *
+	 * @return array[]
+	 */
+	public function provide_roles_without_manage_categories() {
+		return [
+			'contributor' => [ 'contributor' ],
+			'author'      => [ 'author' ],
+		];
+	}
+
+	/**
+	 * Contributors still file their entries into a coverage.
+	 */
+	public function test_contributors_can_assign_an_entry_to_a_coverage() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ACTIVE );
+		self::log_in_as( 'contributor' );
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/' . Post_Type::REST_BASE );
+		$request->set_param( 'title', 'Polls close' );
+		$request->set_param( Taxonomy::REST_BASE, [ $coverage_id ] );
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 201, $response->get_status(), 'The entry should be created.' );
+		$this->assertSame( [ $coverage_id ], wp_get_object_terms( $response->get_data()['id'], Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] ), 'The entry should be in the coverage.' );
+	}
+
+	/**
 	 * Editors add coverages from the coverage drawer, which sends every
 	 * field, Advertising included.
 	 */
