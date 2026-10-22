@@ -44,7 +44,7 @@ export function NotFound( {
 							</span>
 							<span>Page not found</span>
 						</p>
-						<h1 className="mt-4 max-w-[16ch] text-[2.75rem] leading-[1.05] font-semibold tracking-tight text-balance text-fd-foreground sm:text-6xl">
+						<h1 className="mt-4 max-w-[10.55em] text-[2.75rem] leading-[1.05] font-semibold tracking-tight text-balance text-fd-foreground sm:text-6xl">
 							This page isn’t live
 						</h1>
 						<p className="mt-6 max-w-[52ch] text-lg text-pretty text-fd-muted-foreground md:text-xl md:leading-relaxed">

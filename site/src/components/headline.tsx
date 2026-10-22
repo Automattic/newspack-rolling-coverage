@@ -65,7 +65,7 @@ export function Headline() {
 
 	useEffect( () => {
 		if ( lines ) {
-			setWidth( words.current[ step ]?.offsetWidth );
+			setWidth( words.current[ step ]?.getBoundingClientRect().width );
 		}
 	}, [ lines, step ] );
 
@@ -96,7 +96,7 @@ export function Headline() {
 			<span className="sr-only">story</span>
 			<span
 				aria-hidden="true"
-				className={ `relative inline-block transition-[width] duration-300 ease-in-out-strong motion-reduce:transition-none ${ wordClassName }` }
+				className={ `relative inline-block transition-[width] duration-300 ease-out-strong motion-reduce:transition-none ${ wordClassName }` }
 				style={ { width } }
 			>
 				<span className="invisible">story</span>

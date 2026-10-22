@@ -22,7 +22,7 @@ function Feed( { arrived }: { arrived: boolean } ) {
 							arrived ? 'rc-arrived translate-y-0 opacity-100' : '-translate-y-1 opacity-0'
 						}` }
 					>
-						<span className="flex w-16 shrink-0 items-center gap-1.5 text-xs font-medium whitespace-nowrap text-fd-primary tabular-nums">
+						<span className="flex w-16 shrink-0 items-center gap-1.5 self-start text-xs font-medium whitespace-nowrap text-fd-primary tabular-nums">
 							<span aria-hidden="true" className="size-1.5 rounded-full bg-fd-primary" />
 							5:36 pm
 						</span>

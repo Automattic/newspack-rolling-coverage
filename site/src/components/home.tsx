@@ -204,7 +204,7 @@ export function Home( {
 							</p>
 							<h1
 								id="home-title"
-								className="mt-4 max-w-[14ch] text-[2.75rem] leading-[1.05] font-semibold tracking-tight text-balance text-fd-foreground sm:text-6xl lg:text-7xl"
+								className="mt-4 max-w-[9.25em] text-[2.75rem] leading-[1.05] font-semibold tracking-tight text-balance text-fd-foreground sm:text-6xl lg:text-7xl"
 							>
 								<Headline />
 							</h1>
@@ -296,7 +296,7 @@ export function Home( {
 							<div>
 								<h2
 									id="home-audience"
-									className="max-w-[24ch] text-3xl font-semibold tracking-tight text-balance text-fd-foreground md:text-4xl"
+									className="max-w-[15.85em] text-3xl font-semibold tracking-tight text-balance text-fd-foreground md:text-4xl"
 								>
 									For any story that unfolds live
 								</h2>
