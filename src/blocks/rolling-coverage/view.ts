@@ -56,6 +56,14 @@ const FADE_CLEANUP_MS = 500;
  */
 type PollOutcome = 'ok' | 'failed' | 'reloading' | 'skipped';
 
+/**
+ * Where an entry stood when a poll named it taken down: on the page, in the
+ * count of newer entries a poll added to, or neither. In a feed opened at a
+ * shared entry, the rendered count still holds one that was neither and is
+ * dated after the shared entry, unless it wasn't published at the render.
+ */
+type Takedown = 'shown' | 'counted' | 'off-page';
+
 const PINNED_STACK = '.newspack-rolling-coverage-pinned-stack';
 
 const STICKY_CARD_SELECTOR = `:is(.newspack-rolling-coverage-pinned-card, ${ PINNED_STACK }).is-position-sticky`;
@@ -598,6 +606,11 @@ function initBlock( root: HTMLElement ): void {
 
 	const status = root.dataset.status || 'active';
 	const isEntryView = root.dataset.view === 'entry';
+	// The rendered count split entries at this date, which still holds
+	// while a takedown has the shared entry off the page.
+	const renderedSharedDate = isEntryView
+		? ownElement( root, '[data-linked]', entriesList )?.dataset.dateGmt
+		: undefined;
 	// The feed checks for new entries only when the reader asks.
 	const checksOnRequest = root.dataset.newEntries === 'button';
 
@@ -676,10 +689,10 @@ function initBlock( root: HTMLElement ): void {
 	// bring the entry (see applyPollResponse()).
 	const offPageUpdates = new Map< string, string >();
 
-	// Entries the poll reported taken down. One that comes back shows on
-	// reload, not before: polls, load more and a capped feed's whole replies
-	// all leave it out, cached load-more replies from before the removal too.
-	const removedEntryIds = new Set< string >();
+	// Entries the poll reported taken down, which load more leaves out, as a
+	// cached load-more reply can predate the takedown. A poll that sends one
+	// again brings it back (see placeReturningEntry()).
+	const removedEntryIds = new Map< string, Takedown >();
 
 	const countedEntryIds = new Set< string >();
 
@@ -1116,13 +1129,15 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * The GMT date of the shared entry, in a feed opened at one.
+	 * The GMT date of the shared entry, in a feed opened at one, or the date
+	 * the page rendered it with while it is off the page.
 	 *
 	 * @return {string|undefined} The date, or undefined in the normal view or on a page cached before entries carried dates.
 	 */
 	function sharedEntryDate(): string | undefined {
 		return isEntryView
-			? ownElement( root, '[data-linked]', entriesList )?.dataset.dateGmt
+			? ( ownElement( root, '[data-linked]', entriesList )?.dataset
+					.dateGmt ?? renderedSharedDate )
 			: undefined;
 	}
 
@@ -1155,8 +1170,6 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {boolean} Whether the entry stays on the page.
 	 */
 	function placeUnpinnedEntry( entry: HTMLElement ): boolean {
-		const date = entry.dataset.dateGmt;
-
 		if ( isNewerThanShared( entry ) && entry.dataset.entryId ) {
 			// One the page rendered counted is back in that count.
 			if ( ! pinnedCountedIds.delete( entry.dataset.entryId ) ) {
@@ -1174,26 +1187,9 @@ function initBlock( root: HTMLElement ): void {
 			return true;
 		}
 
-		// Load more continues below its bound, which sits lower than the last
-		// entry shown when a page of older entries ended on a pinned entry,
-		// one the list already held or one a poll has since moved up to the
-		// pinned entries. An entry taken off the page above the bound would
-		// never load again.
-		const [ , boundId = '0', boundDate = before ] =
-			/^(\d+):(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/.exec( before ) ??
-			[];
-
-		if (
-			hasMore &&
-			date &&
-			boundDate &&
-			listsBelow(
-				date,
-				Number( entry.dataset.entryId ),
-				boundDate,
-				Number( boundId )
-			)
-		) {
+		// An entry taken off the page above load more's bound would never
+		// load again.
+		if ( hasMore && listsBelowBound( entry ) ) {
 			return false;
 		}
 
@@ -1232,6 +1228,96 @@ function initBlock( root: HTMLElement ): void {
 				}
 			}
 		}
+
+		return true;
+	}
+
+	/**
+	 * Whether load more lists an entry below its bound, which sits lower than
+	 * the last entry shown when a page of older entries ended on a pinned
+	 * entry, one the list already held or one a poll has since moved up to
+	 * the pinned entries. False without a bound to compare.
+	 *
+	 * @param {HTMLElement} entry The entry.
+	 * @return {boolean} Whether the entry lists below the bound.
+	 */
+	function listsBelowBound( entry: HTMLElement ): boolean {
+		const date = entry.dataset.dateGmt;
+		const [ , boundId = '0', boundDate = before ] =
+			/^(\d+):(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/.exec( before ) ??
+			[];
+
+		return (
+			!! date &&
+			!! boundDate &&
+			listsBelow(
+				date,
+				Number( entry.dataset.entryId ),
+				boundDate,
+				Number( boundId )
+			)
+		);
+	}
+
+	/**
+	 * Puts an unpinned entry the poll sent, which the page neither shows nor
+	 * holds in its queue, where a fresh page lists it: one published again or
+	 * restored, taken down while the page was open or before it rendered. It
+	 * goes at its date, or with load more when that is below load more's
+	 * bound (see placeUnpinnedEntry()). A capped feed shows it only when it is
+	 * among its newest entries. One that lists above every unpinned entry the
+	 * page shows is new to the reader, so it comes in as a new entry, behind
+	 * the new-entries control while the reader is scrolled down. A feed opened
+	 * at a shared entry takes it as new, as its own rules place or count it by
+	 * date, except one its rendered count still holds.
+	 *
+	 * @param {HTMLElement}          entry    The entry, as the poll sent it.
+	 * @param {Takedown | undefined} takedown Where it stood when the poll named it taken down, if the page saw that.
+	 * @return {boolean} Whether it was put back or left out; false to take it as new.
+	 */
+	function placeReturningEntry(
+		entry: HTMLElement,
+		takedown: Takedown | undefined
+	): boolean {
+		if ( isEntryView ) {
+			return takedown === 'off-page' && isNewerThanShared( entry );
+		}
+
+		// A fresh page leaves one below load more's bound for load more,
+		// whether or not this page can load more.
+		const isBelowBound = ! latestCap && listsBelowBound( entry );
+
+		if ( latestCap ) {
+			const shown = entriesList.querySelectorAll(
+				':scope > [data-entry-id]'
+			);
+
+			if ( shown.length >= latestCap && ! unpinnedEntryBelow( entry ) ) {
+				return true;
+			}
+		} else if (
+			! isBelowBound &&
+			unpinnedEntryBelow( entry ) === firstUnpinnedEntry()
+		) {
+			return false;
+		}
+
+		if ( isBelowBound || ! placeUnpinnedEntry( entry ) ) {
+			// Load more brings it, with this copy, unless its reply was
+			// cached while the entry was down.
+			offPageUpdates.set( entry.dataset.entryId ?? '', entry.outerHTML );
+			return true;
+		}
+
+		ownElement(
+			root,
+			'.newspack-rolling-coverage-entries__empty',
+			entriesList
+		)?.remove();
+		observeEntry( entry );
+		fadeIn( [ entry ] );
+		trimToLatestCap();
+		dropLastSeparator();
 
 		return true;
 	}
@@ -1405,16 +1491,22 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Swaps a capped feed's entries for the newest ones a poll sent whole,
-	 * leaving out entries taken down, in this reply or earlier, and keeping
-	 * the arrival of those it already showed.
+	 * leaving out entries taken down, and keeping the arrival of those it
+	 * already showed. An entry taken down earlier that the reply lists is
+	 * back.
 	 *
 	 * @param {PollEntry[]} entries Removals, then the newest entries, newest first.
 	 * @return {void}
 	 */
 	function replaceEntries( entries: PollEntry[] ): void {
 		entries.forEach( ( entry ) => {
-			if ( entry.type === 'remove' && isSafeEntryId( entry.id ) ) {
-				removedEntryIds.add( String( entry.id ) );
+			if ( isSafeEntryId( entry.id ) ) {
+				if ( entry.type === 'remove' ) {
+					// A capped feed keeps no count of newer entries.
+					removedEntryIds.set( String( entry.id ), 'off-page' );
+				} else {
+					removedEntryIds.delete( String( entry.id ) );
+				}
 			}
 		} );
 
@@ -1531,7 +1623,12 @@ function initBlock( root: HTMLElement ): void {
 			entriesList
 		);
 
+		let takedown: Takedown = countedEntryIds.has( entryId )
+			? 'counted'
+			: 'off-page';
+
 		if ( existing ) {
+			takedown = 'shown';
 			unobserveEntry( existing );
 			linkedObserver?.unobserve( existing );
 			existing.remove();
@@ -1539,7 +1636,12 @@ function initBlock( root: HTMLElement ): void {
 		}
 
 		forgetOffPageEntry( entryId );
-		removedEntryIds.add( entryId );
+		// Taken down again before a poll brought it back, it is off the page
+		// either way; the first takedown knows where it stood.
+		removedEntryIds.set(
+			entryId,
+			removedEntryIds.get( entryId ) ?? takedown
+		);
 	}
 
 	/**
@@ -2346,19 +2448,21 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Applies a poll response to the entry list.
 	 *
-	 * Replaces edited entries immediately, and keeps edits to entries not yet
-	 * on the page until they arrive, except edits to pinned ones, which show
-	 * them with the pinned entries at once (see showPinnedEntry()). Moves a
+	 * Replaces edited entries immediately. An edit to an entry the page
+	 * doesn't show goes where a fresh page lists it (see
+	 * placeReturningEntry()), except one waiting behind the new-entries
+	 * control, which keeps the edit until it shows, and a pinned one, which
+	 * shows with the pinned entries at once (see showPinnedEntry()). Moves a
 	 * newly pinned entry it shows among the pinned ones, and a newly unpinned
 	 * one to its place by date (see placeUnpinnedEntry()). Drops entries
-	 * taken down, and leaves one that comes back for reload. Inserts or
-	 * queues newly published entries based on the reader's scroll position,
-	 * and swaps one already queued for its new copy. When the feed opens at a
-	 * shared entry, new entries dated after it are added to the control's
-	 * count instead, older ones are placed by date, and pinned ones join the
-	 * pinned entries. A capped feed inserts new entries at once, whatever the
-	 * scroll position, and ignores edits to entries it doesn't show, pins
-	 * included.
+	 * taken down, and puts back one that comes back. Inserts or queues newly
+	 * published entries based on the reader's scroll position, and swaps one
+	 * already queued for its new copy. When the feed opens at a shared entry,
+	 * new entries dated after it are added to the control's count instead,
+	 * older ones are placed by date, pinned ones join the pinned entries, and
+	 * edits to entries it doesn't show wait for load more. A capped feed
+	 * inserts new entries at once, whatever the scroll position, shows an
+	 * entry it didn't only when it is among its newest, and ignores pins.
 	 *
 	 * @param {PollEntry[]} entries Entries from the poll response.
 	 * @return {void}
@@ -2376,9 +2480,10 @@ function initBlock( root: HTMLElement ): void {
 				return;
 			}
 
-			if ( removedEntryIds.has( String( entry.id ) ) ) {
-				return;
-			}
+			// The poll's cursor passed the takedown, so this copy is from after
+			// it: the entry is back.
+			const takedown = removedEntryIds.get( String( entry.id ) );
+			removedEntryIds.delete( String( entry.id ) );
 
 			const existing = ownElement(
 				root,
@@ -2400,20 +2505,61 @@ function initBlock( root: HTMLElement ): void {
 				entryEl.dataset.arrival = 'poll';
 			}
 
+			// An edit to an entry the page doesn't show is one taken down before
+			// the page rendered and published again, one below load more's
+			// bound or, in a capped feed, one older than its newest entries;
+			// placeReturningEntry() tells them apart by date. One waiting
+			// behind the new-entries control keeps the edit for when it shows,
+			// and a feed opened at a shared entry keeps the edit of one it
+			// counts. A pinned one takes the path below of any pinned entry the
+			// page doesn't show; a capped feed ignores pinning.
+			if (
+				entryEl &&
+				! existing &&
+				( latestCap || ! entryEl.hasAttribute( 'data-pinned' ) ) &&
+				( takedown ||
+					( entry.type === 'update' &&
+						! isEntryView &&
+						! pendingNewEntries.some(
+							( { el } ) =>
+								el.dataset.entryId === String( entry.id )
+						) ) )
+			) {
+				entryEl.dataset.arrival = 'poll';
+
+				if ( ! placeReturningEntry( entryEl, takedown ) ) {
+					// An edit kept for load more is older than this copy.
+					offPageUpdates.delete( String( entry.id ) );
+
+					newEntries.push( {
+						el: entryEl,
+						adSlot: entry.adSlot,
+						adEl: entry.adHtml
+							? parseElement( sanitizeHtml( entry.adHtml ) )
+							: null,
+					} );
+				}
+
+				return;
+			}
+
 			if ( entry.type === 'update' && ! existing ) {
 				if ( latestCap ) {
 					return;
 				}
 
 				if ( entryEl?.hasAttribute( 'data-pinned' ) ) {
-					// Unless a poll counted it since, a shared view counted an
-					// entry newer than the shared one when it rendered, if it
-					// was published and dated as it is now. One restored or
-					// re-dated since can't be told apart, so its pin can take
-					// it off a count it was never in, or leave it in one.
+					// Unless a poll counted it since, or the page showed it
+					// before a takedown it saw, a shared view counted an entry
+					// newer than the shared one when it rendered, if it was
+					// published and dated as it is now. One restored from
+					// before the render or re-dated since can't be told apart,
+					// so its pin can take it off a count it was never in, or
+					// leave it in one.
 					if (
 						isNewerThanShared( entryEl ) &&
-						! countedEntryIds.has( String( entry.id ) )
+						! countedEntryIds.has( String( entry.id ) ) &&
+						( takedown === undefined || takedown === 'off-page' )
 					) {
 						pinnedCountedIds.add( String( entry.id ) );
 						showNewerCount();
@@ -2531,14 +2677,14 @@ function initBlock( root: HTMLElement ): void {
 				// as an older entry taken down and published again between two
 				// polls. It goes where a fresh page lists it, or waits for load
 				// more with this copy, since a cached load-more reply can
-				// predate it.
+				// predate it, even on a page that can't load more.
 				if (
 					date &&
 					sharedDate &&
 					date <= sharedDate &&
 					! el.hasAttribute( 'data-pinned' )
 				) {
-					if ( placeUnpinnedEntry( el ) ) {
+					if ( ! listsBelowBound( el ) && placeUnpinnedEntry( el ) ) {
 						observeEntry( el );
 						dropLastSeparator();
 					} else {
@@ -3361,7 +3507,9 @@ function initBlock( root: HTMLElement ): void {
 					);
 				}
 				hasMore = data.hasMore;
-				before = data.before || '';
+				// After the last page the page shows every entry, so it keeps
+				// no bound to hold one off it (see listsBelowBound()).
+				before = data.hasMore ? data.before || '' : '';
 				dropLastSeparator();
 			} else {
 				// The reader can try the button again; the sentinel would

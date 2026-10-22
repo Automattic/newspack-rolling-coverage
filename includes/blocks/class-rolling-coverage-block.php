@@ -1378,6 +1378,11 @@ class Rolling_Coverage_Block {
 
 		$older_entries = $template ? self::older_entries( $attributes ) : 'none';
 
+		// The view script keeps an entry that lists below the page's bound off
+		// the page, as this render does, so only a page that leaves entries
+		// out sends one, whether or not it can load them.
+		$leaves_out = $has_more;
+
 		if ( 'none' === $older_entries ) {
 			$has_more = false;
 		}
@@ -1515,7 +1520,7 @@ class Rolling_Coverage_Block {
 			'data-poll-interval'    => $poll_interval,
 			'data-entries-per-page' => $entries_per_page,
 			'data-cursor'           => (string) $cursor,
-			'data-before'           => $before,
+			'data-before'           => $leaves_out ? $before : '',
 			'data-has-more'         => $has_more ? '1' : '0',
 			'data-status'           => $status,
 			'data-template-key'     => $template_key,
@@ -5356,7 +5361,7 @@ class Rolling_Coverage_Block {
 			self::coverage_entries_args( $term_id ),
 			[
 				'orderby'        => self::FEED_ORDER,
-				// Twice the count, up to a page of load more: a page leaves out entries it dropped, which come back on reload, and still fills its places.
+				// Twice the count, up to a page of load more. The page keeps the newest `$latest_count`, so the rest is spare.
 				'posts_per_page' => min( 2 * $latest_count, self::PER_PAGE_MAX ),
 			]
 		);
