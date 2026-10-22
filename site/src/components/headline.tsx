@@ -4,14 +4,15 @@ const WORDS = [ 'story', 'flood', 'trial', 'vote', 'game' ];
 const STEP_MS = 2500;
 
 const wordClassName =
-	'inline-grid min-w-[2.6em] justify-items-start text-newspack-600 dark:text-newspack-300';
+	'inline-grid min-w-[2.65em] justify-items-start text-newspack-600 dark:text-newspack-300';
 
 /**
  * The homepage headline, whose last word cycles through a few kinds of story while the
- * homepage is open, and holds while the pointer is over the headline. With reduced motion
- * it stays on "story". The slot is as wide as the widest word from the first paint, and
- * nothing follows it, so a swap never moves or rewraps the headline. The page's HTML and
- * assistive technology only ever carry "story".
+ * homepage is open, and holds while a mouse pointer is over the headline. With reduced
+ * motion, including when it is switched on mid-visit, it stays on "story". The slot is as
+ * wide as the widest word from the first paint, and nothing follows it, so a swap never
+ * moves or rewraps the headline. The page's HTML and assistive technology only ever carry
+ * "story".
  */
 export function Headline() {
 	const [ motion, setMotion ] = useState( false );
@@ -19,17 +20,22 @@ export function Headline() {
 	const [ step, setStep ] = useState( 0 );
 
 	useEffect( () => {
-		if ( window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) {
-			return;
-		}
+		const reduce = window.matchMedia( '(prefers-reduced-motion: reduce)' );
+		const stop = () => {
+			if ( reduce.matches ) {
+				setMotion( false );
+			}
+		};
+		reduce.addEventListener( 'change', stop );
 		let cancelled = false;
 		document.fonts.ready.then( () => {
-			if ( ! cancelled ) {
+			if ( ! cancelled && ! reduce.matches ) {
 				setMotion( true );
 			}
 		} );
 		return () => {
 			cancelled = true;
+			reduce.removeEventListener( 'change', stop );
 		};
 	}, [] );
 
@@ -44,7 +50,10 @@ export function Headline() {
 	const previous = ( step + WORDS.length - 1 ) % WORDS.length;
 
 	return (
-		<span onMouseEnter={ () => setHovered( true ) } onMouseLeave={ () => setHovered( false ) }>
+		<span
+			onPointerEnter={ ( event ) => event.pointerType === 'mouse' && setHovered( true ) }
+			onPointerLeave={ ( event ) => event.pointerType === 'mouse' && setHovered( false ) }
+		>
 			Cover it live, whatever the{ ' ' }
 			{ motion ? (
 				<>
