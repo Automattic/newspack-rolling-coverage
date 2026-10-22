@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-22T13:09:32+00:00\n"
+"POT-Creation-Date: 2026-10-22T17:18:32+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -86,9 +86,9 @@ msgid "Failed to decode AI response as JSON: %s"
 msgstr ""
 
 #: includes/ai/class-ai-service.php:488
-#: includes/blocks/class-rolling-coverage-block.php:4905
-#: includes/blocks/class-rolling-coverage-block.php:5105
-#: includes/blocks/class-rolling-coverage-block.php:5116
+#: includes/blocks/class-rolling-coverage-block.php:4864
+#: includes/blocks/class-rolling-coverage-block.php:5064
+#: includes/blocks/class-rolling-coverage-block.php:5075
 #: includes/class-post-type.php:1322
 #: includes/class-taxonomy.php:346
 msgid "Coverage not found."
@@ -139,7 +139,6 @@ msgid "Site-wide label of the Full story link."
 msgstr ""
 
 #: includes/blocks/class-breakout-label.php:167
-#: includes/blocks/class-rolling-coverage-block.php:3358
 #: dist/blocks/coverage-follow/index.js:3
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/rolling-coverage/index.js:4
@@ -148,7 +147,6 @@ msgstr ""
 
 #: includes/blocks/class-breakout-post-link-block.php:66
 #: includes/blocks/class-rolling-coverage-block.php:3240
-#: includes/blocks/class-rolling-coverage-block.php:3359
 #: dist/blocks/breakout-post-link/index.js:1
 #: dist/blocks/rolling-coverage/index.js:4
 #: dist/blocks/rolling-coverage/index.js:28
@@ -227,7 +225,6 @@ msgid "Something went wrong. Please try again."
 msgstr ""
 
 #: includes/blocks/class-entry-bindings.php:1032
-#: includes/blocks/class-rolling-coverage-block.php:3356
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:3
 #: dist/blocks/share/index.js:1
@@ -260,97 +257,108 @@ msgstr ""
 msgid "Jump to latest"
 msgstr ""
 
+#: includes/blocks/class-layout-templates.php:125
+#: dist/blocks/rolling-coverage/index.js:4
+msgid "See all entries"
+msgstr ""
+
+#. translators: %s: the site's name for several coverage entries, as it reads mid-sentence, e.g. "updates".
+#: includes/blocks/class-layout-templates.php:127
+#: dist/blocks/rolling-coverage/index.js:4
+#, php-format,js-format
+msgid "See all %s"
+msgstr ""
+
 #. translators: %s: Rolling Coverage, the product name.
-#: includes/blocks/class-layout.php:267
+#: includes/blocks/class-layout.php:388
 #, php-format
 msgid "The layout must be a single %s block."
 msgstr ""
 
-#: includes/blocks/class-layout.php:275
+#: includes/blocks/class-layout.php:396
 msgid "This layout is being created. Try again in a moment."
 msgstr ""
 
-#: includes/blocks/class-layout.php:429
+#: includes/blocks/class-layout.php:552
 #: dist/blocks/rolling-coverage/index.js:4
 msgctxt "layout name"
 msgid "Bulletin"
 msgstr ""
 
-#: includes/blocks/class-layout.php:430
+#: includes/blocks/class-layout.php:553
 #: dist/blocks/rolling-coverage/index.js:4
 msgctxt "layout name"
 msgid "Stream"
 msgstr ""
 
-#: includes/blocks/class-layout.php:431
+#: includes/blocks/class-layout.php:554
 #: dist/blocks/rolling-coverage/index.js:4
 msgctxt "layout name"
 msgid "Rail"
 msgstr ""
 
-#: includes/blocks/class-layout.php:432
+#: includes/blocks/class-layout.php:555
 #: dist/blocks/rolling-coverage/index.js:4
 msgctxt "layout name"
 msgid "Clock"
 msgstr ""
 
-#: includes/blocks/class-layout.php:433
+#: includes/blocks/class-layout.php:556
 #: dist/blocks/rolling-coverage/index.js:4
 msgctxt "layout name"
 msgid "Margin"
 msgstr ""
 
-#: includes/blocks/class-layout.php:434
+#: includes/blocks/class-layout.php:557
 #: dist/blocks/rolling-coverage/index.js:4
 msgctxt "layout name"
 msgid "Minute"
 msgstr ""
 
-#: includes/blocks/class-layout.php:435
+#: includes/blocks/class-layout.php:558
 #: dist/blocks/rolling-coverage/index.js:4
 msgctxt "layout name"
 msgid "Byline"
 msgstr ""
 
-#: includes/blocks/class-layout.php:436
+#: includes/blocks/class-layout.php:559
 #: dist/blocks/rolling-coverage/index.js:4
 msgctxt "layout name"
 msgid "Ticker"
 msgstr ""
 
-#: includes/blocks/class-layout.php:437
+#: includes/blocks/class-layout.php:560
 #: dist/blocks/rolling-coverage/index.js:4
 msgctxt "layout name"
 msgid "Split"
 msgstr ""
 
-#: includes/blocks/class-layout.php:438
+#: includes/blocks/class-layout.php:561
 #: dist/blocks/rolling-coverage/index.js:4
 msgctxt "layout name"
 msgid "Wire"
 msgstr ""
 
-#: includes/blocks/class-layout.php:439
+#: includes/blocks/class-layout.php:562
 #: dist/blocks/rolling-coverage/index.js:4
 msgctxt "layout name"
 msgid "Digest"
 msgstr ""
 
-#: includes/blocks/class-layout.php:440
+#: includes/blocks/class-layout.php:563
 #: dist/blocks/rolling-coverage/index.js:4
 msgctxt "layout name"
 msgid "Flash"
 msgstr ""
 
-#: includes/blocks/class-layout.php:441
+#: includes/blocks/class-layout.php:564
 #: dist/blocks/rolling-coverage/index.js:4
 msgctxt "layout name"
 msgid "Alert"
 msgstr ""
 
 #: includes/blocks/class-lite-feed.php:466
-#: includes/blocks/class-rolling-coverage-block.php:3357
-#: includes/blocks/class-rolling-coverage-block.php:4565
+#: includes/blocks/class-rolling-coverage-block.php:4524
 #: dist/blocks/rolling-coverage/index.js:3
 #: dist/blocks/rolling-coverage/index.js:4
 msgid "Pinned"
@@ -363,7 +371,6 @@ msgstr ""
 #. translators: Button that loads older entries at the end of a coverage's feed.
 #: includes/blocks/class-load-more-block.php:84
 #: includes/blocks/class-rolling-coverage-block.php:2150
-#: includes/blocks/class-rolling-coverage-block.php:3360
 #: dist/blocks/load-more/index.js:3
 #: dist/blocks/rolling-coverage/index.js:3
 #: dist/blocks/rolling-coverage/index.js:7
@@ -438,28 +445,28 @@ msgid "Coverage of “%s” has concluded and this feed is now archived."
 msgstr ""
 
 #. translators: 1: the site's own name for one coverage entry, as it reads mid-sentence; its grammatical gender is unknown. 2: the same name for several entries.
-#: includes/blocks/class-rolling-coverage-block.php:4599
+#: includes/blocks/class-rolling-coverage-block.php:4558
 #, php-format
 msgid "This %1$s is now out of date compared to newer %2$s, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4605
+#: includes/blocks/class-rolling-coverage-block.php:4564
 msgid "This entry is now out of date compared to newer entries, but is preserved as it originally appeared."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4837
+#: includes/blocks/class-rolling-coverage-block.php:4796
 msgid "How many entries a capped feed shows, so a Lite or empty-key request stays capped without a stored config."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4842
+#: includes/blocks/class-rolling-coverage-block.php:4801
 msgid "Whether a Lite Site page asks, so entries come as text, as that page renders them."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:4847
+#: includes/blocks/class-rolling-coverage-block.php:4806
 msgid "Whether a page asks for the coverage's recent changes rather than those after its own cursor, so every reader of the page asks the same URL."
 msgstr ""
 
-#: includes/blocks/class-rolling-coverage-block.php:5124
+#: includes/blocks/class-rolling-coverage-block.php:5083
 msgid "One of cursor, before or recent must be provided."
 msgstr ""
 
@@ -2942,16 +2949,6 @@ msgstr ""
 #: dist/blocks/rolling-coverage/index.js:1
 #: dist/blocks/rolling-coverage/index.js:3
 msgid "Load More"
-msgstr ""
-
-#. translators: %s: the site's name for several coverage entries, as it reads mid-sentence, e.g. "updates".
-#: dist/blocks/rolling-coverage/index.js:4
-#, js-format
-msgid "See all %s"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:4
-msgid "See all entries"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:4
