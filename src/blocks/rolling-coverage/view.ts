@@ -1755,6 +1755,31 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Where the page scrolls to show entries the reader just added: the top
+	 * of the block, so its header shows too, unless that leaves the entries
+	 * starting past the middle of the viewport, as under a long pinned entry.
+	 * The page then scrolls to the topmost of them, leaving the same space
+	 * above it.
+	 *
+	 * @param {HTMLElement[]} added The added entries.
+	 * @return {number} The vertical scroll position.
+	 */
+	function addedEntriesY( added: HTMLElement[] ): number {
+		const blockY = blockTopY();
+		const tops = added
+			.filter( ( el ) => el.isConnected )
+			.map( ( el ) => el.getBoundingClientRect().top );
+
+		if ( tops.length === 0 ) {
+			return blockY;
+		}
+
+		const below = Math.min( ...tops ) - root.getBoundingClientRect().top;
+
+		return below > window.innerHeight / 2 ? blockY + below : blockY;
+	}
+
+	/**
 	 * Fades the linked entry's outline a few seconds after the reader first
 	 * sees it. The wait starts only while the page is visible, so a link
 	 * opened in a background tab still shows it.
@@ -2328,13 +2353,10 @@ function initBlock( root: HTMLElement ): void {
 
 			const entries = takePendingEntries();
 			hideNewEntriesControl();
-
-			const targetY = blockTopY();
-
 			insertNewEntries( entries );
 
 			window.scrollTo( {
-				top: targetY,
+				top: addedEntriesY( entries.map( ( { el } ) => el ) ),
 				behavior: 'smooth',
 			} );
 		};
