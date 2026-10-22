@@ -148,18 +148,30 @@ class AI_Service {
 	}
 
 	/**
-	 * URL of the AI plugin's settings screen, where an administrator connects
-	 * a provider and turns key takeaways on, or '' when the AI plugin isn't
-	 * active.
+	 * Whether the WordPress AI plugin is active.
+	 *
+	 * True even when the plugin's requirements aren't met and it hasn't
+	 * booted, since its classes still load.
+	 *
+	 * @return bool
+	 */
+	public static function is_ai_plugin_active(): bool {
+		return class_exists( '\WordPress\AI\Abstracts\Abstract_Feature' );
+	}
+
+	/**
+	 * URL of the AI plugin's settings screen, where an administrator turns key
+	 * takeaways on and finds the link to connect a provider, or '' when the
+	 * screen isn't registered for the current user.
+	 *
+	 * Reads the registered menu rather than building the URL, so a plugin
+	 * that is active but hasn't booted gets no link. Call it after
+	 * `admin_menu`.
 	 *
 	 * @return string Admin URL, or ''.
 	 */
 	public static function get_settings_url(): string {
-		if ( ! class_exists( '\WordPress\AI\Abstracts\Abstract_Feature' ) ) {
-			return '';
-		}
-
-		return admin_url( 'options-general.php?page=ai-wp-admin' );
+		return (string) menu_page_url( 'ai-wp-admin', false );
 	}
 
 	/**

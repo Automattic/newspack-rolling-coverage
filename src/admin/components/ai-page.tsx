@@ -43,17 +43,8 @@ function AIUnavailable( { config }: { config: AdminConfig } ) {
 		'Turn on AI key takeaways',
 		'newspack-rolling-coverage'
 	);
-	let description: string = __(
-		'Install and activate the WordPress AI plugin, connect an AI provider, and turn on Rolling Coverage Key Takeaways in its settings. Editors can then sum up the latest entries in a coverage from the Rolling Coverage block.',
-		'newspack-rolling-coverage'
-	);
-	let action: { label: string; href: string } | null = config.adminUrls
-		.plugins
-		? {
-				label: __( 'Go to Plugins', 'newspack-rolling-coverage' ),
-				href: config.adminUrls.plugins,
-			}
-		: null;
+	let description: string;
+	let action: { label: string; href: string } | null = null;
 
 	if ( config.aiNeedsApproval ) {
 		title = __(
@@ -80,6 +71,25 @@ function AIUnavailable( { config }: { config: AdminConfig } ) {
 			label: __( 'Go to AI Settings', 'newspack-rolling-coverage' ),
 			href: config.adminUrls.aiSettings,
 		};
+	} else if ( config.aiPluginActive ) {
+		description = __(
+			'The WordPress AI plugin is active, but AI can’t run on this site yet. Ask a developer or the site’s host to check that the site meets the plugin’s requirements.',
+			'newspack-rolling-coverage'
+		);
+	} else if ( config.adminUrls.aiPlugin ) {
+		description = __(
+			'Install and activate the WordPress AI plugin, connect an AI provider, and turn on Rolling Coverage Key Takeaways in its settings. Editors can then sum up the latest entries in a coverage from the Rolling Coverage block.',
+			'newspack-rolling-coverage'
+		);
+		action = {
+			label: __( 'Go to Plugins', 'newspack-rolling-coverage' ),
+			href: config.adminUrls.aiPlugin,
+		};
+	} else {
+		description = __(
+			'Ask an administrator who manages plugins to install and activate the WordPress AI plugin. Then connect an AI provider and turn on Rolling Coverage Key Takeaways in its settings.',
+			'newspack-rolling-coverage'
+		);
 	}
 
 	return (

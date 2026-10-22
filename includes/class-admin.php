@@ -445,6 +445,21 @@ class Admin {
 	}
 
 	/**
+	 * Where the current user gets the WordPress AI plugin: the plugin
+	 * installer when they can install plugins, the Plugins screen when they
+	 * can only activate them, or '' when they can do neither.
+	 *
+	 * @return string Admin URL, or ''.
+	 */
+	private static function get_ai_plugin_url(): string {
+		if ( current_user_can( 'install_plugins' ) ) {
+			return self_admin_url( 'plugin-install.php?tab=search&type=term&s=' . rawurlencode( 'WordPress AI' ) );
+		}
+
+		return current_user_can( 'activate_plugins' ) ? admin_url( 'plugins.php' ) : '';
+	}
+
+	/**
 	 * Get localized script data.
 	 *
 	 * @param string $hook_suffix Current admin page hook.
@@ -500,7 +515,7 @@ class Admin {
 				'editUser'           => admin_url( 'user-edit.php' ),
 				'connectorApprovals' => AI_Service::get_connector_approvals_url(),
 				'aiSettings'         => AI_Service::get_settings_url(),
-				'plugins'            => current_user_can( 'activate_plugins' ) ? admin_url( 'plugins.php' ) : '',
+				'aiPlugin'           => self::get_ai_plugin_url(),
 			),
 			'postType'               => Post_Type::CPT_SLUG,
 			'taxonomy'               => Taxonomy::TAXONOMY_SLUG,
@@ -524,6 +539,7 @@ class Admin {
 			'aiDefaultSettings'      => AI_Settings::get_defaults(),
 			'aiAvailable'            => AI_Service::is_available(),
 			'aiNeedsApproval'        => AI_Service::needs_connector_approval(),
+			'aiPluginActive'         => AI_Service::is_ai_plugin_active(),
 			'aiMaxPromptLength'      => AI_Service::MAX_PROMPT_LENGTH,
 			'statusLabels'           => Status_Labels::get_all(),
 			'statusLabelDefaults'    => Status_Labels::get_defaults(),
