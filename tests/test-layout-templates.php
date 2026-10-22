@@ -13,7 +13,7 @@ use Newspack_Rolling_Coverage\Rolling_Coverage_Block;
 
 /**
  * A built-in layout renders from the plugin, filled in for the site, while
- * its pattern holds what the plugin created it with.
+ * its pattern holds the content it last got from the plugin.
  */
 class Test_Layout_Templates extends Rolling_Coverage_TestCase {
 
@@ -270,7 +270,8 @@ class Test_Layout_Templates extends Rolling_Coverage_TestCase {
 		$layout_id = self::create_built_in();
 
 		if ( $is_filtered ) {
-			add_filter( 'content_save_pre', static fn( $content ) => str_replace( 'newspack-rolling-coverage-share', 'newspack-rolling-coverage-share is-filtered', $content ) );
+			// Slashed in and out, as kses filters content.
+			add_filter( 'content_save_pre', static fn( $content ) => addslashes( str_replace( 'newspack-rolling-coverage-share', 'newspack-rolling-coverage-share is-filtered', stripslashes( $content ) ) ) );
 		}
 
 		$changes = [
@@ -295,9 +296,10 @@ class Test_Layout_Templates extends Rolling_Coverage_TestCase {
 	 */
 	public function legacy_updates(): array {
 		return [
-			'never updated'  => [ [], true ],
-			'renamed'        => [ [ 'post_title' => 'Our stream' ], true ],
-			'content edited' => [ [ 'post_content' => self::layout_markup( self::MARKER . ', edited' ) ], false ],
+			'never updated'                            => [ [], false, true ],
+			'renamed'                                  => [ [ 'post_title' => 'Our stream' ], false, true ],
+			'content edited'                           => [ [ 'post_content' => self::layout_markup( self::MARKER . ', edited' ) ], false, false ],
+			'edited before this release, then renamed' => [ [ 'post_title' => 'Our stream' ], true, false ],
 		];
 	}
 
@@ -308,9 +310,12 @@ class Test_Layout_Templates extends Rolling_Coverage_TestCase {
 	 * @dataProvider legacy_updates
 	 *
 	 * @param array $changes        Fields an update changes, or none for no update.
+	 * @param bool  $edited_before  Whether the content was edited before the hash existed.
 	 * @param bool  $follows_plugin Whether the layout should still follow the plugin.
 	 */
-	public function test_legacy_built_in_layout_follows_the_plugin_until_edited( array $changes, bool $follows_plugin ) {
+	public function test_legacy_built_in_layout_follows_the_plugin_until_edited( array $changes, bool $edited_before, bool $follows_plugin ) {
+		global $wpdb;
+
 		$layout_id = self::factory()->post->create(
 			[
 				'post_type'    => 'wp_block',
@@ -320,6 +325,20 @@ class Test_Layout_Templates extends Rolling_Coverage_TestCase {
 			]
 		);
 		update_post_meta( $layout_id, Layout::SLUG_META_KEY, 'stream' );
+
+		if ( $edited_before ) {
+			// An edit saved by a version without the save hook.
+			$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->posts,
+				[
+					'post_content'      => self::layout_markup( self::MARKER . ', edited before' ),
+					'post_modified'     => '2026-10-05 10:00:00',
+					'post_modified_gmt' => '2026-10-05 10:00:00',
+				],
+				[ 'ID' => $layout_id ]
+			);
+			clean_post_cache( $layout_id );
+		}
 
 		if ( $changes ) {
 			wp_update_post( [ 'ID' => $layout_id ] + $changes );
