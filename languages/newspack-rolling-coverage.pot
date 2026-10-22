@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-22T08:06:39+00:00\n"
+"POT-Creation-Date: 2026-10-22T08:16:23+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -90,7 +90,7 @@ msgstr ""
 #: includes/blocks/class-rolling-coverage-block.php:5065
 #: includes/blocks/class-rolling-coverage-block.php:5076
 #: includes/class-post-type.php:1322
-#: includes/class-taxonomy.php:345
+#: includes/class-taxonomy.php:346
 msgid "Coverage not found."
 msgstr ""
 
@@ -560,6 +560,10 @@ msgstr ""
 msgid "This entry already has a breakout post."
 msgstr ""
 
+#: includes/class-coverage-rest-controller.php:40
+msgid "Sorry, you are not allowed to create coverages."
+msgstr ""
+
 #: includes/class-placements.php:142
 msgid "Published places that show the coverage, the main page first."
 msgstr ""
@@ -814,11 +818,11 @@ msgstr ""
 msgid "Read the latest update."
 msgstr ""
 
-#: includes/class-taxonomy.php:470
+#: includes/class-taxonomy.php:471
 msgid "Coverage is not in trash."
 msgstr ""
 
-#: includes/class-taxonomy.php:509
+#: includes/class-taxonomy.php:510
 msgid "Coverage could not be deleted."
 msgstr ""
 
