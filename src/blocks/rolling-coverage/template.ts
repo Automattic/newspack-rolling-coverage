@@ -13,6 +13,8 @@ import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
 import { blockGapCss } from './spacing';
 import { loadMoreButtonsTemplate } from '../shared/load-more-buttons';
+import { mutedTextColor } from '../shared/muted-color';
+import { themeFontSize } from '../shared/theme-font-size';
 import type { TemplateItem } from './types';
 
 /**
@@ -327,31 +329,9 @@ function siteTimeFormat(): string {
  * @return {Object} The date's color attributes.
  */
 function mutedDateColor( slugs: string[] ): { textColor?: string } {
-	const slug = [ 'contrast-3', 'medium-gray' ].find( ( candidate ) =>
-		slugs.includes( candidate )
-	);
+	const slug = mutedTextColor( slugs );
 
 	return slug ? { textColor: slug } : {};
-}
-
-/**
- * A font size preset the theme defines: the preferred slug where the theme
- * has it, else its fallback. The Newspack Theme names its sizes Normal and
- * Huge where block themes have Medium and X-Large.
- *
- * @param {string[]} sizes     The theme's font size slugs.
- * @param {string}   preferred The preferred slug.
- * @param {string}   fallback  The slug to use where the theme lacks it.
- * @return {string} The slug.
- */
-function themeFontSize(
-	sizes: string[],
-	preferred: string,
-	fallback: string
-): string {
-	return ! sizes.includes( preferred ) && sizes.includes( fallback )
-		? fallback
-		: preferred;
 }
 
 /**

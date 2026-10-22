@@ -3342,53 +3342,12 @@ class Rolling_Coverage_Block {
 	/**
 	 * The Bulletin layout, which a block without a layout of its own renders:
 	 * the Feed group holding the pinned card, the entry and the Full Story
-	 * Entry. `bulletin-layout.html` is the editor's serialization of
-	 * Bulletin's inner-blocks template (`innerTemplate()` in `layout.ts`), so
-	 * a change to one needs the other regenerated. Its words are translated here
-	 * and its times follow the site's time format, as the editor's do.
+	 * Entry, filled in for the site as the editor would build it.
 	 *
 	 * @return array[] Parsed blocks.
 	 */
 	public static function default_layout_blocks(): array {
-		$markup = strtr(
-			(string) file_get_contents( __DIR__ . '/bulletin-layout.html' ),
-			[
-				'{{share}}'      => esc_html__( 'Share', 'newspack-rolling-coverage' ),
-				'{{pinned}}'     => esc_html__( 'Pinned', 'newspack-rolling-coverage' ),
-				'{{full_story}}' => esc_html__( 'Full story', 'newspack-rolling-coverage' ),
-				'{{read_more}}'  => esc_html__( 'Read more', 'newspack-rolling-coverage' ),
-				'{{load_more}}'  => esc_html__( 'Load more', 'newspack-rolling-coverage' ),
-			]
-		);
-		$blocks = array_values(
-			array_filter(
-				parse_blocks( $markup ),
-				static fn( $block ) => ! empty( $block['blockName'] )
-			)
-		);
-		$format = get_option( 'time_format' );
-
-		return self::with_time_format( $blocks, $format ? (string) $format : 'g:i a' );
-	}
-
-	/**
-	 * The blocks with every Post Date that shows a time, rather than a
-	 * relative date, in the given format.
-	 *
-	 * @param array[] $blocks Parsed blocks.
-	 * @param string  $format A PHP date format.
-	 * @return array[] Parsed blocks.
-	 */
-	private static function with_time_format( array $blocks, string $format ): array {
-		foreach ( $blocks as $index => $block ) {
-			if ( 'core/post-date' === $block['blockName'] && 'human-diff' !== ( $block['attrs']['format'] ?? '' ) ) {
-				$blocks[ $index ]['attrs']['format'] = $format;
-			}
-
-			$blocks[ $index ]['innerBlocks'] = self::with_time_format( $block['innerBlocks'] ?? [], $format );
-		}
-
-		return $blocks;
+		return Layout_Templates::get_blocks( 'default' ) ?? [];
 	}
 
 	/**

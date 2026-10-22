@@ -134,7 +134,7 @@ includes/
     class-ai-settings.php        Prompt settings + REST route
     class-abilities.php          WordPress Abilities API registration
     class-key-takeaways-feature.php  AI plugin per-feature model config
-  blocks/                        Server render callbacks for the eight blocks, entry bindings, shared layouts, breakout cards, status labels, entry name, Jump to Latest and Full story label settings, Lite Site feed support
+  blocks/                        Server render callbacks for the eight blocks, entry bindings, shared layouts and their server copies (`layouts/`), breakout cards, status labels, entry name, Jump to Latest and Full story label settings, Lite Site feed support
   slack/                         Slack config, API client, content processor, media importer, author resolver, ingestion service, verifier, webhook controller, monitor
   sources/
     class-entry-ingestion-service.php  Generic ingestion + dedup/mutex
@@ -144,7 +144,7 @@ src/
   blocks/                        Block editor + frontend view sources (edit.tsx, view.ts, block.json)
   entry-editor/                  Entry editor script (Push Notifications panel, back-to-coverage link)
   breakout-editor/               Full story label field in a breakout post's settings sidebar
-tests/                           PHPUnit suite; tests/js/ holds the poll cursor check `npm test` runs
+tests/                           PHPUnit suite; tests/js/ holds the poll cursor and layout template checks `npm test` runs
 ```
 
 All PHP classes live under the `Newspack_Rolling_Coverage` namespace and are loaded via Composer's `classmap` autoloader over `./includes`. The admin app is compiled by webpack to `dist/admin.js` / `dist/admin.css`, the editor scripts to `dist/entry-editor.js` and `dist/breakout-editor.js`, and blocks to `dist/blocks/<slug>/`.
@@ -200,6 +200,7 @@ Sensitive Slack/source meta (`RESTRICTED_META` in `Post_Type`) is stripped from 
 ### Layout pattern meta
 
 - `_rolling_coverage_layout` — on each built-in layout's `wp_block` pattern, the layout's slug. When the `rolling_coverage_{slug}_layout_id` option is missing, the plugin finds the pattern by this key and repairs the option, so deleting it breaks that fallback.
+- `_rolling_coverage_layout_hash` — on each built-in layout's pattern, the MD5 hash of the content the pattern last got from the plugin: when it was created, or when a save stored the plugin's layout unchanged. While the content still matches, the layout renders as the plugin ships it ([Layouts](../src/blocks/rolling-coverage/DEVELOPMENT.md#layouts)). A pattern from before the key existed gets it on its first update, if it was still unedited.
 
 ## REST API
 
