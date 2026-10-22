@@ -5,7 +5,7 @@ description: Write a short summary of the latest entries, and let an Administrat
 
 By the end of this page, an Administrator will have turned on key takeaways, and editors will be able to generate a summary of a coverage's latest entries.
 
-The summary is a starting point. The block writes it to a panel, and an editor copies it into the page.
+The summary is a starting point. Generating it copies it, ready for an editor to paste into the page.
 
 ## What you need
 
@@ -19,7 +19,7 @@ The summary is a starting point. The block writes it to a panel, and an editor c
 
 ### Open the AI settings
 
-In the dashboard, go to **Settings > AI**.
+In the dashboard, go to **Settings > AI**. Until key takeaways can run, **Rolling Coverage > AI** says what's missing and links to the screen that sets it up, such as **Go to AI Settings**.
 
 </Step>
 <Step>
@@ -35,7 +35,7 @@ Turn on **Rolling Coverage Key Takeaways**. Choose the provider and model if the
 
 ### Approve it if asked
 
-If **Rolling Coverage > AI** says Rolling Coverage is waiting for AI connector approval, go to **Tools > Connector Approvals** and approve it.
+If **Rolling Coverage > AI** says **Approve Rolling Coverage for AI**, select **Go to Connector Approvals** and approve Rolling Coverage.
 
 </Step>
 </Steps>
@@ -54,21 +54,23 @@ In the editor, select the Rolling Coverage block and open the **AI** panel. The 
 
 ### Generate
 
-Select **Generate Key Takeaways**. The summary appears under **Generated Output**.
+Select **Generate Key Takeaways**. The summary appears under **Generated Output** and is copied, and the message "Key takeaways copied. Paste them into the page." appears.
 
 <Screenshot label="The block settings AI panel, with the key takeaways shown under Generated Output" src="/screenshots/guides/ai-2.webp" width={3024} height={1964} />
 
 </Step>
 <Step>
 
-### Copy it
+### Paste it
 
-Select **Copy**, then paste the summary into the page, for example above the feed. Edit it before publishing.
+Paste the summary into the page, for example above the feed. Edit it before publishing.
+
+To copy it again, select **Copy Generated Output**. If the browser didn't allow the copy, the message asks you to select it instead.
 
 </Step>
 </Steps>
 
-The summary draws on the 20 most recent published entries, with pinned entries first.
+The summary draws on the 20 most recent published entries, with pinned entries first. Generate again as new entries come in for an updated summary.
 
 ## Change the instructions
 
@@ -79,7 +81,7 @@ Administrators can change what the summary asks for.
 
 ### Open the AI page
 
-Go to **Rolling Coverage > AI**.
+Go to **Rolling Coverage > AI**, or select **Edit the prompt** in the block's **AI** panel.
 
 </Step>
 <Step>
