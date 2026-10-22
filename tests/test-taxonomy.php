@@ -213,6 +213,53 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The taxonomy isn't hierarchical, so core lets anyone who can assign
+	 * coverages create one; creating needs manage_categories here, as in the
+	 * dashboard.
+	 *
+	 * @dataProvider provide_roles_without_manage_categories
+	 *
+	 * @param string $role User role.
+	 */
+	public function test_users_without_manage_categories_cannot_create_a_coverage( $role ) {
+		self::log_in_as( $role );
+
+		$response = self::save_coverage_via_rest( [] );
+
+		$this->assertSame( 403, $response->get_status(), 'The request should be refused.' );
+		$this->assertSame( 'rest_cannot_create', $response->as_error()->get_error_code(), 'The refusal should use core\'s error code.' );
+		$this->assertEmpty( term_exists( 'Election night', Taxonomy::TAXONOMY_SLUG ), 'No coverage should be created.' );
+	}
+
+	/**
+	 * Roles that write entries but don't manage coverages.
+	 *
+	 * @return array[]
+	 */
+	public function provide_roles_without_manage_categories() {
+		return [
+			'contributor' => [ 'contributor' ],
+			'author'      => [ 'author' ],
+		];
+	}
+
+	/**
+	 * Contributors still file their entries into a coverage.
+	 */
+	public function test_contributors_can_assign_an_entry_to_a_coverage() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ACTIVE );
+		self::log_in_as( 'contributor' );
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/' . Post_Type::REST_BASE );
+		$request->set_param( 'title', 'Polls close' );
+		$request->set_param( Taxonomy::REST_BASE, [ $coverage_id ] );
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 201, $response->get_status(), 'The entry should be created.' );
+		$this->assertSame( [ $coverage_id ], wp_get_object_terms( $response->get_data()['id'], Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] ), 'The entry should be in the coverage.' );
+	}
+
+	/**
 	 * Editors add coverages from the coverage drawer, which sends every
 	 * field, Advertising included.
 	 */
@@ -289,6 +336,23 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 		$edit_meta = self::get_coverage_via_rest( $coverage_id, 'edit' )['meta'];
 
 		$this->assertSame( 'C0TESTCHAN', $edit_meta[ Taxonomy::META_SLACK_CHANNEL_ID ], 'The edit context should include the linkage.' );
+	}
+
+	/**
+	 * The description is an internal note, so only edit-context responses
+	 * carry it.
+	 */
+	public function test_description_is_only_exposed_in_edit_context() {
+		$coverage_id = self::create_coverage( '', [ 'description' => 'Embargoed until 9pm.' ] );
+
+		wp_set_current_user( 0 );
+		$this->assertArrayNotHasKey( 'description', self::get_coverage_via_rest( $coverage_id, 'view' ), 'The description should be hidden from the public response.' );
+
+		self::log_in_as( 'author' );
+		$this->assertArrayNotHasKey( 'description', self::get_coverage_via_rest( $coverage_id, 'view' ), 'The description should be hidden from view-context responses for plugin users too.' );
+
+		self::log_in_as( 'editor' );
+		$this->assertSame( 'Embargoed until 9pm.', self::get_coverage_via_rest( $coverage_id, 'edit' )['description'], 'The edit context should include the description.' );
 	}
 
 	/**

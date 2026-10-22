@@ -95,7 +95,7 @@ Readers who already have the page open when the coverage ends see the notice at 
 
 ### AI
 
-Appears when AI is set up on the site. Generate Key Takeaways writes a summary of the coverage's entries into Generated Output. Copy copies it. Administrators set the prompts under Rolling Coverage > AI.
+Appears when AI is set up on the site. Generate Key Takeaways sums up the coverage's latest entries, shows the summary in Generated Output, and copies it to the clipboard, ready to paste into the page. Generate again as new entries come in for an updated summary. Copy Generated Output copies it again. Administrators also see Edit the prompt, which opens Rolling Coverage > AI in a new tab.
 
 ### Ads
 
@@ -107,6 +107,8 @@ Appears when Newspack Ads is active.
 | Ads interval | Shows an ad after every N entries (4 by default), counting from the top of the feed with pinned entries included. Up to 3 ads appear among the entries that load with the page and the older ones readers load after them: with an interval of 4, after entries 4, 8 and 12, and none further down. New entries that arrive while the page is open get an ad after every N of them, with no limit. |
 
 Ads need the Rolling Coverage: Entry placement enabled in Newspack Ads, and ads enabled in the coverage's own settings. The panel tells you when either is missing.
+
+Ads don't appear where the post shows in an RSS feed, including feeds that news apps read. Feed readers can't load them, and apps place their own.
 
 Alignment and the HTML anchor are in the block toolbar and the Advanced section like any other block. Colors, type, and spacing of the feed come from the layout. See [Edit, detach, and change a layout](#edit-detach-and-change-a-layout).
 

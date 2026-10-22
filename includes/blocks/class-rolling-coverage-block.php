@@ -1095,6 +1095,7 @@ class Rolling_Coverage_Block {
 					'entriesPreviewRestBase'      => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 					'aiEndpoint'                  => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 					'aiAvailable'                 => AI_Service::is_available(),
+					'aiSettingsUrl'               => AI_Settings::can_manage_settings() ? esc_url_raw( admin_url( 'admin.php?page=' . Admin::AI_MENU_SLUG ) ) : '',
 					'newspackAdsAvailable'        => Ads::is_available(),
 					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
 					'canonicalUrlMetaKey'         => Taxonomy::CANONICAL_URL_META_KEY,
@@ -1288,7 +1289,9 @@ class Rolling_Coverage_Block {
 		}
 
 		$ads_enabled_attr = ! empty( $attributes['enableAds'] );
-		$ads_enabled      = ! $is_capped && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $coverage_id );
+
+		// Feed readers run no ad code to fill a slot, and apps that read the feed place their own.
+		$ads_enabled = ! $is_capped && ! is_feed() && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $coverage_id );
 
 		// A trashed coverage is effectively invisible on the frontend.
 		if ( 'trash' === $status ) {

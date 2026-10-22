@@ -55,6 +55,8 @@ interface AdminConfig {
 		editUser: string;
 		editTerm: string;
 		connectorApprovals: string;
+		aiSettings: string;
+		aiPlugin: string;
 	};
 	postType: string;
 	taxonomy: string;
@@ -69,6 +71,7 @@ interface AdminConfig {
 	aiAvailable: boolean;
 	/** True when AI is unavailable only because the plugin isn't approved for a connector. */
 	aiNeedsApproval: boolean;
+	aiPluginActive: boolean;
 	aiMaxPromptLength: number;
 	statusLabels: StatusLabels;
 	statusLabelDefaults: StatusLabels;

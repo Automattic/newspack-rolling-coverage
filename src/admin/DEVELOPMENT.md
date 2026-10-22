@@ -13,6 +13,10 @@ The plugin's admin screens live in `src/admin/`: the coverages list, each covera
 | `#/connection/<tab>` | Slack Connection (`slack-settings-page.tsx`), with its tabs in `src/admin/utils/slack-tabs.ts` |
 | `#/ai` | AI prompt settings (`ai-page.tsx`) |
 
+When key takeaways can't run (`AI_Service::is_available()` is false), the AI page shows an empty state in place of the prompt, with what to set up next and a button to the screen for it. In order: Connector Approvals when approval is pending (`needs_connector_approval()`, which doesn't check credentials, so approving can lead on to the next state); Settings > AI when that screen is registered (`get_settings_url()`); no button when the AI plugin is active but hasn't booted; and otherwise the plugin installer, or Plugins for users who can only activate plugins (`adminUrls.aiPlugin`). Settings > AI links on to Settings > Connectors, where a provider is connected.
+
+On these screens, wp-admin notices printed above the app sit flush with no margin, so they line up with the page header. Inline notices, such as core's update nag, keep theirs.
+
 The app reads its config from `window.newspackRollingCoverageAdmin` (`Admin::get_script_data()`): REST URLs, labels, editor settings and a `capabilities` object. The capabilities only decide what the app shows; every route checks permissions again.
 
 | Capability | Check | Gates |
@@ -36,7 +40,7 @@ At 782px and below, DataViews shows only the bulk actions that have an `icon`, a
 
 ## All Coverages
 
-The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Coverage added." for a new coverage; a failed one keeps it open with the error. The drawer saves through the core terms route and sends every field each time, so each meta key it sends must be writable by anyone who can edit a coverage. A stricter `auth_callback` on one of them fails those users' saves after the other fields are already written.
+The header holds Settings and Add Coverage. Add Coverage and the Edit action open `CoverageDrawer` (`coverage-drawer.tsx`), a DataForm with Name, Description, Canonical URL, Status and Advertising. Status options are named after the site's status labels. Description is an internal note, which the core terms route returns only in the `edit` context; the coverages list asks for that context when the user has `canManageTerms`, as everyone who can open the drawer does. In Edit, Save stays disabled until a field changes. A successful save closes the drawer with a snackbar, "Changes saved." for an edit or "Coverage added." for a new coverage; a failed one keeps it open with the error. The drawer saves through the core terms route, served by `Coverage_REST_Controller`: core lets anyone who can assign coverages to entries (`edit_posts`) create one, since the taxonomy isn't hierarchical, so the controller also requires `manage_categories` to create. The drawer sends every field each time, so each meta key it sends must be writable by anyone who can edit a coverage. A stricter `auth_callback` on one of them fails those users' saves after the other fields are already written.
 
 Row actions live in `src/admin/actions/coverage-actions.ts`:
 
