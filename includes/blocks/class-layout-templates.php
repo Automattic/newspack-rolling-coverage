@@ -63,7 +63,7 @@ class Layout_Templates {
 
 			self::$parsed[ $slug ] = array_values(
 				array_filter(
-					parse_blocks( (string) file_get_contents( $file ) ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+					parse_blocks( (string) file_get_contents( $file ) ), // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents, WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown -- A template shipped with the plugin.
 					static fn( $block ) => ! empty( $block['blockName'] )
 				)
 			);
