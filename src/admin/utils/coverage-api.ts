@@ -90,18 +90,21 @@ async function saveCoverage(
  * when the coverage is not already present in context state (e.g. on a
  * direct deep-link to the entries view).
  *
- * @param {string} restBaseCoverages - Full REST URL for the coverages collection (from config.restBaseUrls.coverages).
- * @param {number} id                - The coverage term ID.
+ * @param {string}  restBaseCoverages - Full REST URL for the coverages collection (from config.restBaseUrls.coverages).
+ * @param {number}  id                - The coverage term ID.
+ * @param {boolean} canManageTerms    - Whether the user can manage terms. Only the edit context returns the description, and it 403s for lower roles.
  * @return {Promise<Coverage | null>} The coverage term, or null on failure.
  */
 async function getCoverage(
 	restBaseCoverages: string,
-	id: number
+	id: number,
+	canManageTerms: boolean
 ): Promise< Coverage | null > {
 	try {
 		return await apiFetch< Coverage >( {
 			url: addQueryArgs( `${ restBaseCoverages }/${ id }`, {
 				_fields: COVERAGE_FIELDS,
+				context: canManageTerms ? 'edit' : 'view',
 			} ),
 			method: 'GET',
 		} );
