@@ -95,7 +95,7 @@ Readers who already have the page open when the coverage ends see the notice at 
 
 ### AI
 
-Appears when AI is set up on the site. Generate Key Takeaways writes a summary of the coverage's entries into Generated Output. Copy copies it. Administrators set the prompts under Rolling Coverage > AI.
+Appears when AI is set up on the site. Generate Key Takeaways sums up the coverage's latest entries, shows the summary in Generated Output, and copies it to the clipboard, ready to paste into the page. Generate again as new entries come in for an updated summary. Copy Generated Output copies it again. Administrators also see Edit the prompt, which opens Rolling Coverage > AI in a new tab.
 
 ### Ads
 
