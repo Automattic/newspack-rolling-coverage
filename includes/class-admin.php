@@ -499,6 +499,8 @@ class Admin {
 				'editTerm'           => admin_url( 'term.php?taxonomy=' . Taxonomy::TAXONOMY_SLUG ),
 				'editUser'           => admin_url( 'user-edit.php' ),
 				'connectorApprovals' => AI_Service::get_connector_approvals_url(),
+				'aiSettings'         => AI_Service::get_settings_url(),
+				'plugins'            => current_user_can( 'activate_plugins' ) ? admin_url( 'plugins.php' ) : '',
 			),
 			'postType'               => Post_Type::CPT_SLUG,
 			'taxonomy'               => Taxonomy::TAXONOMY_SLUG,

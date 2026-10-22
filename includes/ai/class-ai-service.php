@@ -148,11 +148,26 @@ class AI_Service {
 	}
 
 	/**
+	 * URL of the AI plugin's settings screen, where an administrator connects
+	 * a provider and turns key takeaways on, or '' when the AI plugin isn't
+	 * active.
+	 *
+	 * @return string Admin URL, or ''.
+	 */
+	public static function get_settings_url(): string {
+		if ( ! class_exists( '\WordPress\AI\Abstracts\Abstract_Feature' ) ) {
+			return '';
+		}
+
+		return admin_url( 'options-general.php?page=ai-wp-admin' );
+	}
+
+	/**
 	 * URL of the AI plugin's Connector Approvals screen, or the Tools menu
 	 * when the Connector Approval experiment isn't active.
 	 *
-	 * Points the admin's AI-unavailable notice at the screen where an
-	 * administrator approves this plugin for a connector.
+	 * Points the AI page's empty state at the screen where an administrator
+	 * approves this plugin for a connector.
 	 *
 	 * @return string Admin URL.
 	 */

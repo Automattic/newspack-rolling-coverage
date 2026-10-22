@@ -55,6 +55,8 @@ interface AdminConfig {
 		editUser: string;
 		editTerm: string;
 		connectorApprovals: string;
+		aiSettings: string;
+		plugins: string;
 	};
 	postType: string;
 	taxonomy: string;

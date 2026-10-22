@@ -99,7 +99,7 @@ When [Newspack Ads](https://github.com/Automattic/newspack-ads) is active, Rolli
 When the WordPress AI plugin and a provider are configured:
 
 - A **Generate Key Takeaways** action in the block editor summarizes up to 20 published entries (pinned first) into a configurable number of takeaways (1–10), and copies the result to the clipboard.
-- Administrators edit the prompt on the **AI** admin page (`rolling-coverage-ai`), with a `{max_takeaways}` placeholder. The block's AI panel links to it for users who can `manage_options`.
+- Administrators edit the prompt on the **AI** admin page (`rolling-coverage-ai`), with a `{max_takeaways}` placeholder. The block's AI panel links to it for users who can `manage_options`. When key takeaways can't run, the page shows what to set up instead of the prompt.
 - Exposed both as a REST endpoint and as a WordPress Abilities API ability (`rolling-coverage/generate-key-takeaways`).
 - Prompt and entry context are capped, and the entries are wrapped in delimiters with an anti-prompt-injection instruction.
 

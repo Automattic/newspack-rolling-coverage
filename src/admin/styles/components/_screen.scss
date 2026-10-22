@@ -16,6 +16,10 @@ body.newspack-rolling-coverage-admin-screen {
 		padding-left: 0;
 	}
 
+	#wpbody-content > .notice {
+		margin: 0;
+	}
+
 	&:not(.newspack-rolling-coverage-admin-screen--bundled) .newspack-page__header-visual {
 		display: none;
 	}
