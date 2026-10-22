@@ -21,8 +21,9 @@ defined( 'ABSPATH' ) || exit;
  * Coverage block pointing at it through its `layoutId` attribute.
  *
  * A built-in layout's pattern follows the plugin until someone edits it:
- * while it still holds what it was created with, the page and the editor get
- * the layout this version of the plugin ships (`Layout_Templates`).
+ * while it still holds the content it last got from the plugin, the page and
+ * the editor get the layout this version of the plugin ships
+ * (`Layout_Templates`).
  */
 class Layout {
 
@@ -98,8 +99,8 @@ class Layout {
 
 	/**
 	 * The built-in layout a pattern follows: its slug while the pattern holds
-	 * the content the plugin created it with, or null for a custom layout or
-	 * one someone edited. A pattern created before the hash was recorded
+	 * the content it last got from the plugin (`HASH_META_KEY`), or null for a
+	 * custom layout or one someone edited. A pattern created before the hash was recorded
 	 * counts as unedited while it has never been updated, and its first update
 	 * records the hash (record_unedited_save()).
 	 *
