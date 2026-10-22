@@ -1756,27 +1756,48 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Where the page scrolls to show entries the reader just added: the top
-	 * of the block, so its header shows too, unless that leaves the entries
-	 * starting past the middle of the viewport, as under a long pinned entry.
+	 * of the block, so its header shows too, unless the entries would then
+	 * start past the middle of the viewport, as under a long pinned entry.
 	 * The page then scrolls to the topmost of them, leaving the same space
 	 * above it.
 	 *
+	 * An entry in a sticky card doesn't count: while the card is stuck, the
+	 * entry reads where the card is held rather than where it sits, near the
+	 * block's top.
+	 *
 	 * @param {HTMLElement[]} added The added entries.
-	 * @return {number} The vertical scroll position.
+	 * @return {{top: number, entry: HTMLElement|null}} The scroll position, and the entry it lands on, or null for the block's top.
 	 */
-	function addedEntriesY( added: HTMLElement[] ): number {
+	function addedEntriesTarget( added: HTMLElement[] ): {
+		top: number;
+		entry: HTMLElement | null;
+	} {
 		const blockY = blockTopY();
-		const tops = added
-			.filter( ( el ) => el.isConnected )
-			.map( ( el ) => el.getBoundingClientRect().top );
+		const cards = stickyCards();
+		const counted = added.filter(
+			( el ) =>
+				el.isConnected &&
+				! cards.some( ( card ) => card.contains( el ) )
+		);
+		const tops = counted.map(
+			( el ) => el.getBoundingClientRect().top + window.scrollY
+		);
+		const entryTop = Math.min( ...tops );
 
-		if ( tops.length === 0 ) {
-			return blockY;
+		if (
+			tops.length === 0 ||
+			entryTop - blockY <= window.innerHeight / 2
+		) {
+			return { top: blockY, entry: null };
 		}
 
-		const below = Math.min( ...tops ) - root.getBoundingClientRect().top;
+		// The space blockTopY() leaves above the block.
+		const gap = root.getBoundingClientRect().top + window.scrollY - blockY;
 
-		return below > window.innerHeight / 2 ? blockY + below : blockY;
+		return {
+			top: entryTop - gap,
+			entry: counted[ tops.indexOf( entryTop ) ],
+		};
 	}
 
 	/**
@@ -2355,10 +2376,22 @@ function initBlock( root: HTMLElement ): void {
 			hideNewEntriesControl();
 			insertNewEntries( entries );
 
+			const target = addedEntriesTarget(
+				entries.map( ( { el } ) => el )
+			);
+
 			window.scrollTo( {
-				top: addedEntriesY( entries.map( ( { el } ) => el ) ),
-				behavior: 'smooth',
+				top: target.top,
+				behavior: window.matchMedia( MOTION_QUERY ).matches
+					? 'smooth'
+					: 'instant',
 			} );
+
+			// Past a long pinned entry, the next Tab would otherwise start
+			// above it and scroll back up.
+			if ( target.entry ) {
+				focusFromScript( target.entry, { preventScroll: true } );
+			}
 		};
 		newEntriesLink.addEventListener( 'click', onNewEntriesClick );
 		cleanupFns.push( () =>
