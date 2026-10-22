@@ -8,12 +8,12 @@ const wordClassName =
 	'inline-grid min-w-[2.6em] justify-items-start text-newspack-600 dark:text-newspack-300';
 
 /**
- * The homepage headline, whose last word runs once per visit through a few kinds of story
- * and settles back on "story". The whole run ends within five seconds of starting, so it
- * needs no pause control. The word's slot is as wide as the widest word from the first
- * paint, and nothing follows it, so a swap never moves or rewraps the headline. The page's
- * HTML and assistive technology only ever carry "story"; the other words exist only while
- * the run plays.
+ * The homepage headline, whose last word runs through a few kinds of story each time the
+ * homepage opens, then settles back on "story". The whole run ends within five seconds of
+ * starting, so it needs no pause control. The word's slot is as wide as the widest word
+ * from the first paint, and nothing follows it, so a swap never moves or rewraps the
+ * headline. The page's HTML and assistive technology only ever carry "story"; the other
+ * words exist only while the run plays.
  */
 export function Headline() {
 	const [ animated, setAnimated ] = useState( false );
@@ -23,12 +23,6 @@ export function Headline() {
 		if ( window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) {
 			return;
 		}
-		try {
-			if ( sessionStorage.getItem( 'rc-headline' ) ) {
-				return;
-			}
-			sessionStorage.setItem( 'rc-headline', '1' );
-		} catch {}
 		let cancelled = false;
 		const timers: ReturnType< typeof setTimeout >[] = [];
 		document.fonts.ready.then( () => {
