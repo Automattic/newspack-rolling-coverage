@@ -139,7 +139,8 @@ function EntryView() {
 		let cancelled = false;
 		getCoverage(
 			config.restBaseUrls.coverages,
-			numericCoverageId as number
+			numericCoverageId as number,
+			config.capabilities.canManageTerms
 		).then( ( coverage ) => {
 			if ( cancelled || ! coverage ) {
 				return;
@@ -157,6 +158,7 @@ function EntryView() {
 		selectedCoverage,
 		numericCoverageId,
 		config.restBaseUrls.coverages,
+		config.capabilities.canManageTerms,
 		setContext,
 	] );
 
@@ -447,7 +449,8 @@ function EntryView() {
 		setIsRefreshingSlack( true );
 		getCoverage(
 			config.restBaseUrls.coverages,
-			numericCoverageId as number
+			numericCoverageId as number,
+			config.capabilities.canManageTerms
 		)
 			.then( ( coverage ) => {
 				if ( ! coverage ) {
@@ -465,6 +468,7 @@ function EntryView() {
 		isValidCoverageId,
 		numericCoverageId,
 		config.restBaseUrls.coverages,
+		config.capabilities.canManageTerms,
 		setContext,
 	] );
 

@@ -525,7 +525,7 @@ class Taxonomy {
 	}
 
 	/**
-	 * Strip the description, an internal note, and sensitive Slack channel
+	 * Strip the description (an internal note) and sensitive Slack channel
 	 * and source term meta from the REST response for requests that are not
 	 * in the edit context. The auth_callback on these meta keys only
 	 * restricts writes, so read access must be blocked separately here.
