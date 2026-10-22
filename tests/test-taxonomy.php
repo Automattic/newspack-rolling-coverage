@@ -292,6 +292,23 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The description is an internal note, so only edit-context responses
+	 * carry it.
+	 */
+	public function test_description_is_only_exposed_in_edit_context() {
+		$coverage_id = self::create_coverage( '', [ 'description' => 'Embargoed until 9pm.' ] );
+
+		wp_set_current_user( 0 );
+		$this->assertArrayNotHasKey( 'description', self::get_coverage_via_rest( $coverage_id, 'view' ), 'The description should be hidden from the public response.' );
+
+		self::log_in_as( 'author' );
+		$this->assertArrayNotHasKey( 'description', self::get_coverage_via_rest( $coverage_id, 'view' ), 'The description should be hidden from view-context responses for plugin users too.' );
+
+		self::log_in_as( 'editor' );
+		$this->assertSame( 'Embargoed until 9pm.', self::get_coverage_via_rest( $coverage_id, 'edit' )['description'], 'The edit context should include the description.' );
+	}
+
+	/**
 	 * The coverage exposes the newest published page embedding it, found
 	 * inside nested blocks, and the next one once that page is unpublished.
 	 */

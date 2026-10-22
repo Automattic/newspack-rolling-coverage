@@ -525,10 +525,10 @@ class Taxonomy {
 	}
 
 	/**
-	 * Strip sensitive Slack channel and source term meta from the REST
-	 * response for requests that are not in the edit context. The
-	 * auth_callback on these meta keys only restricts writes, so read access
-	 * must be blocked separately here.
+	 * Strip the description, an internal note, and sensitive Slack channel
+	 * and source term meta from the REST response for requests that are not
+	 * in the edit context. The auth_callback on these meta keys only
+	 * restricts writes, so read access must be blocked separately here.
 	 *
 	 * @param \WP_REST_Response $response The REST response object.
 	 * @param \WP_Term          $item     Term object.
@@ -543,6 +543,8 @@ class Taxonomy {
 		}
 
 		$data = $response->get_data();
+
+		unset( $data['description'] );
 
 		if ( isset( $data['meta'] ) && is_array( $data['meta'] ) ) {
 			foreach ( self::RESTRICTED_META as $meta_key ) {

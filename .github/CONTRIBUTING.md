@@ -160,6 +160,7 @@ All PHP classes live under the `Newspack_Rolling_Coverage` namespace and are loa
 ### Taxonomy: `rolling_coverage`
 
 - REST base `rolling-coverage`, non-hierarchical, not publicly queryable or shown in menus.
+- The term description is an internal note: REST responses outside the `edit` context leave it out (`Taxonomy::filter_rest_response()`).
 - Term meta: `rolling_coverage_status`, `rolling_coverage_canonical_url`, `created_at`, `modified_at`, `rolling_coverage_end_time`, `rolling_coverage_last_modified`, `rolling_coverage_slack_channel_id`, `rolling_coverage_slack_channel_name`, `rolling_coverage_source`, `rolling_coverage_source_ref`, `rolling_coverage_ads_disabled`, `rolling_coverage_template_hashes`, `rolling_coverage_newest_entry`, `rolling_coverage_change_marker`.
 
 ### Entry post meta
