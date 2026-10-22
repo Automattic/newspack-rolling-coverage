@@ -50,11 +50,8 @@ import {
 	useMemo,
 	useRef,
 } from '@wordpress/element';
-import {
-	useCopyToClipboard,
-	useDebounce,
-	useInstanceId,
-} from '@wordpress/compose';
+import { useDebounce, useInstanceId } from '@wordpress/compose';
+import { speak } from '@wordpress/a11y';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
 import { store as editorStore } from '@wordpress/editor';
@@ -801,6 +798,42 @@ async function copyText( text: string ): Promise< boolean > {
 		return false;
 	}
 }
+
+/**
+ * Copies text that is still being fetched. The clipboard write starts at once,
+ * while the click that asked for it still counts as a user action: Safari and
+ * Firefox refuse a write that starts after an awaited request.
+ *
+ * @param text Text to copy, once it resolves. A rejection copies nothing.
+ * @return Whether the text was copied.
+ */
+async function copyTextWhenReady(
+	text: Promise< string >
+): Promise< boolean > {
+	const { clipboard } = window.navigator;
+	if ( clipboard?.write && typeof window.ClipboardItem === 'function' ) {
+		const isWritten = await clipboard
+			.write( [
+				new window.ClipboardItem( {
+					'text/plain': text.then(
+						( value ) =>
+							new Blob( [ value ], { type: 'text/plain' } )
+					),
+				} ),
+			] )
+			.then(
+				() => true,
+				() => false
+			);
+		if ( isWritten ) {
+			return true;
+		}
+	}
+	return text.then( copyText, () => false );
+}
+
+/** Shared id, so each AI message replaces the last one instead of stacking. */
+const AI_NOTICE_ID = 'newspack-rolling-coverage-ai-takeaways';
 
 export default function Edit( {
 	clientId,
@@ -2130,17 +2163,42 @@ export default function Edit( {
 		copyTimer.current = setTimeout( () => setCopied( false ), 2000 );
 	}, [] );
 
-	const copyButtonRef = useCopyToClipboard( generatedOutput, showCopied );
+	const coverageIdRef = useRef( coverageId );
+	useEffect( () => {
+		coverageIdRef.current = coverageId;
+	}, [ coverageId ] );
 
 	const handleGenerate = useCallback( async () => {
 		if ( ! coverageId ) {
 			return;
 		}
+		const requestedCoverageId = coverageId;
+		const isCurrentCoverage = () =>
+			coverageIdRef.current === requestedCoverageId;
 		setIsGenerating( true );
 
-		const result = await generateKeyTakeaways( coverageId );
+		const request = generateKeyTakeaways( requestedCoverageId );
+		// The write must start inside the click, before the request resolves.
+		// eslint-disable-next-line @wordpress/no-unused-vars-before-return
+		const copying = copyTextWhenReady(
+			request.then( ( response ) => {
+				if (
+					! response.success ||
+					! response.result ||
+					! isCurrentCoverage()
+				) {
+					throw new Error( 'Nothing to copy.' );
+				}
+				return response.result;
+			} )
+		);
+		const result = await request;
 
 		setIsGenerating( false );
+
+		if ( ! isCurrentCoverage() ) {
+			return;
+		}
 
 		if ( ! result.success || ! result.result ) {
 			createErrorNotice(
@@ -2149,13 +2207,13 @@ export default function Edit( {
 						'Failed to generate key takeaways.',
 						'newspack-rolling-coverage'
 					),
-				{ type: 'snackbar' }
+				{ type: 'snackbar', id: AI_NOTICE_ID, explicitDismiss: true }
 			);
 			return;
 		}
 
 		setGeneratedOutput( result.result );
-		const isCopied = await copyText( result.result );
+		const isCopied = await copying;
 		if ( isCopied ) {
 			showCopied();
 		}
@@ -2165,13 +2223,29 @@ export default function Edit( {
 						'Key takeaways copied. Paste them into the page.',
 						'newspack-rolling-coverage'
 					)
-				: __(
+				: /* translators: "Copy Generated Output" is the label of the button below Generated Output; use the same translation. */
+					__(
 						'Key takeaways generated. Select Copy Generated Output to copy them.',
 						'newspack-rolling-coverage'
 					),
-			{ type: 'snackbar' }
+			{ type: 'snackbar', id: AI_NOTICE_ID }
 		);
 	}, [ coverageId, showCopied, createSuccessNotice, createErrorNotice ] );
+
+	const handleCopy = useCallback( async () => {
+		if ( await copyText( generatedOutput ) ) {
+			showCopied();
+			speak( __( 'Key takeaways copied.', 'newspack-rolling-coverage' ) );
+			return;
+		}
+		createErrorNotice(
+			__(
+				'The key takeaways could not be copied. Select the text in Generated Output and copy it.',
+				'newspack-rolling-coverage'
+			),
+			{ type: 'snackbar', id: AI_NOTICE_ID, explicitDismiss: true }
+		);
+	}, [ generatedOutput, showCopied, createErrorNotice ] );
 
 	const handleApplyCanonicalUrl = useCallback( async () => {
 		if ( ! coverageId ) {
@@ -2973,12 +3047,14 @@ export default function Edit( {
 							) }
 						</Text>
 						{ AI_SETTINGS_URL && (
-							<ExternalLink href={ AI_SETTINGS_URL }>
-								{ __(
-									'Edit the prompt',
-									'newspack-rolling-coverage'
-								) }
-							</ExternalLink>
+							<div>
+								<ExternalLink href={ AI_SETTINGS_URL }>
+									{ __(
+										'Edit the prompt',
+										'newspack-rolling-coverage'
+									) }
+								</ExternalLink>
+							</div>
 						) }
 						<Button
 							className="newspack-rolling-coverage-centered-button"
@@ -3005,13 +3081,12 @@ export default function Edit( {
 										onChange={ () => {} }
 										rows={ 8 }
 										readOnly
-										__nextHasNoMarginBottom
 									/>
 								</div>
 								<Button
 									className="newspack-rolling-coverage-centered-button"
 									variant="tertiary"
-									ref={ copyButtonRef }
+									onClick={ handleCopy }
 								>
 									{ copied
 										? __(
