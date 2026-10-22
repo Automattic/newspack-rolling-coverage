@@ -1095,6 +1095,7 @@ class Rolling_Coverage_Block {
 					'entriesPreviewRestBase'      => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 					'aiEndpoint'                  => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 					'aiAvailable'                 => AI_Service::is_available(),
+					'aiSettingsUrl'               => AI_Settings::can_manage_settings() ? esc_url_raw( admin_url( 'admin.php?page=' . Admin::AI_MENU_SLUG ) ) : '',
 					'newspackAdsAvailable'        => Ads::is_available(),
 					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
 					'canonicalUrlMetaKey'         => Taxonomy::CANONICAL_URL_META_KEY,
