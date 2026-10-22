@@ -3,7 +3,7 @@
  * Plugin Name: Newspack Rolling Coverage
  * Description: Liveblog and rolling coverage of ongoing news events.
  * Version: 0.1.0
- * Requires at least: 7.0
+ * Requires at least: 7.1
  * Requires PHP: 8.0
  * Author: Automattic
  * Author URI: https://newspack.com/

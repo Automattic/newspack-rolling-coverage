@@ -2,8 +2,8 @@
 
 | Detail | Value |
 | --- | --- |
-| Requires at least | ![WordPress](https://img.shields.io/badge/WordPress-7.0%2B-blue.svg) |
-| Tested up to | ![WordPress](https://img.shields.io/badge/WordPress-7.0-blue.svg) |
+| Requires at least | ![WordPress](https://img.shields.io/badge/WordPress-7.1%2B-blue.svg) |
+| Tested up to | ![WordPress](https://img.shields.io/badge/WordPress-7.1-blue.svg) |
 | Requires PHP | ![PHP](https://img.shields.io/badge/PHP-8.0%2B-blue.svg) |
 | Requires Node.js (to build) | ![Node.js](https://img.shields.io/badge/Node.js-LTS-blue.svg) |
 | License | ![License](https://img.shields.io/badge/License-GPLv3-blue.svg) |
