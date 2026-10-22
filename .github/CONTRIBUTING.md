@@ -117,6 +117,7 @@ includes/
   class-initializer.php          Wires every feature class into the WP lifecycle
   class-post-type.php            rolling_cov_entry CPT, meta, REST fields, entries-view endpoint, pinning, restore
   class-taxonomy.php             rolling_coverage taxonomy, term meta, coverage lifecycle REST routes
+  class-coverage-rest-controller.php  Core terms route for coverages; creating one needs manage_categories
   class-archive-mode.php         Archive/lock rules and the entry archive endpoint
   class-placements.php           Finds and stores every published place the plugin's blocks show a coverage
   class-newest-entry.php         Keeps each coverage's newest-entry time in term meta
@@ -245,7 +246,7 @@ Namespace: **`rolling-coverage/v1`** (constant `NEWSPACK_ROLLING_COVERAGE_REST_N
 | POST | `/slack/commands` | Slack signature | Slash commands. |
 | POST | `/slack/interactions` | Slack signature | Interactive components. |
 
-Core WordPress routes are also used: `/wp/v2/rolling-coverage` (coverages) and `/wp/v2/rolling-coverage-entries` (entries, including trash/force delete). Outside edit context, the entries route leaves out entries whose coverage is trashed or deleted, on top of the request's own `rolling-coverage`, `categories` and `tags` filters (`Post_Type::filter_rest_query()`). The plugin adds these read-only fields to their responses:
+Core WordPress routes are also used: `/wp/v2/rolling-coverage` (coverages) and `/wp/v2/rolling-coverage-entries` (entries, including trash/force delete). Creating a coverage through the coverages route needs `manage_categories` (`Coverage_REST_Controller`), while assigning an entry to one needs only `edit_posts`. Outside edit context, the entries route leaves out entries whose coverage is trashed or deleted, on top of the request's own `rolling-coverage`, `categories` and `tags` filters (`Post_Type::filter_rest_query()`). The plugin adds these read-only fields to their responses:
 
 | Route | Field | Context | Value |
 | :--- | :--- | :--- | :--- |
