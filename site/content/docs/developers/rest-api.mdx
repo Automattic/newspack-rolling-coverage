@@ -45,7 +45,7 @@ Each coverage has core's term fields (`id`, `name`, `slug`, `count`, `link`) plu
 | `placements` | Published places that show the coverage, the main page first. |
 | `newestEntry` | When the newest published entry went out, as ISO 8601. `null` unless the caller can edit posts. |
 
-The `meta` keys that link a coverage to a chat source are removed outside the `edit` context, and the Slack channel keys are removed for callers who can't edit posts.
+The `description` is only returned in the `edit` context. The `meta` keys that link a coverage to a chat source are also removed outside it, and the Slack channel keys are removed for callers who can't edit posts.
 
 ### `GET /wp/v2/rolling-coverage/{id}`
 
