@@ -168,8 +168,7 @@ class Test_Layout_Templates extends Rolling_Coverage_TestCase {
 		if ( $muted ) {
 			$this->assertStringContainsString( '"textColor":"' . $muted . '"', $ticker );
 		} else {
-			$this->assertStringNotContainsString( '"textColor":"contrast-3"', $ticker );
-			$this->assertStringNotContainsString( '"textColor":"medium-gray"', $ticker );
+			$this->assertStringNotContainsString( '"textColor"', $ticker, 'The muted dates are Ticker\'s only text colors.' );
 		}
 	}
 
@@ -188,6 +187,23 @@ class Test_Layout_Templates extends Rolling_Coverage_TestCase {
 		);
 
 		$this->assertStringContainsString( 'See all updates', serialize_blocks( Layout_Templates::get_blocks( 'wire' ) ) );
+	}
+
+	/**
+	 * A layout's words come translated, as the editor shows them.
+	 */
+	public function test_layout_words_are_translated() {
+		add_filter(
+			'gettext_newspack-rolling-coverage',
+			static fn( $translation, $text ) => 'Share' === $text ? 'Partilhar' : $translation,
+			10,
+			2
+		);
+
+		$stream = serialize_blocks( Layout_Templates::get_blocks( 'stream' ) );
+
+		$this->assertStringContainsString( '>Partilhar<', $stream );
+		$this->assertStringNotContainsString( '>Share<', $stream );
 	}
 
 	/**
@@ -217,42 +233,84 @@ class Test_Layout_Templates extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Renaming a built-in layout's pattern leaves its blocks to the plugin.
+	 * A layout created through content filters that change what was posted,
+	 * as kses does for a user without unfiltered_html, still follows the
+	 * plugin.
 	 */
-	public function test_renamed_built_in_layout_still_follows_the_plugin() {
-		$layout_id = self::create_built_in();
-		wp_update_post(
-			[
-				'ID'         => $layout_id,
-				'post_title' => 'Our stream',
-			]
-		);
+	public function test_layout_created_through_content_filters_follows_the_plugin() {
+		add_filter( 'content_save_pre', static fn( $content ) => str_replace( self::MARKER, 'Filtered marker', $content ) );
 
-		$this->assertStringNotContainsString( self::MARKER, self::render_synced( $layout_id ) );
+		$this->assertStringNotContainsString( 'Filtered marker', self::render_synced( self::create_built_in() ) );
 	}
 
 	/**
-	 * A built-in layout created before its content hash was recorded, and
-	 * whether it was updated since.
+	 * Ways to rename a built-in layout: from the Patterns list, which sends
+	 * only the title, or from the pattern editor, which also sends the layout
+	 * it was handed, through content filters or not.
 	 *
 	 * @return array[]
 	 */
-	public function legacy_layouts(): array {
+	public function renames(): array {
 		return [
-			'never updated' => [ false ],
-			'updated'       => [ true ],
+			'Patterns list'                          => [ false, false ],
+			'pattern editor'                         => [ true, false ],
+			'pattern editor, through content filter' => [ true, true ],
+		];
+	}
+
+	/**
+	 * Renaming a built-in layout leaves it following the plugin.
+	 *
+	 * @dataProvider renames
+	 *
+	 * @param bool $sends_layout Whether the save sends the layout the editor was handed.
+	 * @param bool $is_filtered  Whether a content filter changes what is stored.
+	 */
+	public function test_renamed_built_in_layout_still_follows_the_plugin( bool $sends_layout, bool $is_filtered ) {
+		$layout_id = self::create_built_in();
+
+		if ( $is_filtered ) {
+			add_filter( 'content_save_pre', static fn( $content ) => str_replace( 'newspack-rolling-coverage-share', 'newspack-rolling-coverage-share is-filtered', $content ) );
+		}
+
+		$changes = [
+			'ID'         => $layout_id,
+			'post_title' => 'Our stream',
+		];
+
+		if ( $sends_layout ) {
+			$changes['post_content'] = Layout_Templates::get_pattern_content( 'stream' );
+		}
+
+		wp_update_post( wp_slash( $changes ) );
+
+		$this->assertSame( 'stream', Layout::get_unedited_slug( get_post( $layout_id ) ) );
+	}
+
+	/**
+	 * Updates to a built-in layout created before its content hash was
+	 * recorded, and whether the layout should still follow the plugin.
+	 *
+	 * @return array[]
+	 */
+	public function legacy_updates(): array {
+		return [
+			'never updated'  => [ [], true ],
+			'renamed'        => [ [ 'post_title' => 'Our stream' ], true ],
+			'content edited' => [ [ 'post_content' => self::layout_markup( self::MARKER . ', edited' ) ], false ],
 		];
 	}
 
 	/**
 	 * A built-in layout created without a content hash follows the plugin
-	 * until its pattern is first updated.
+	 * until its content is edited.
 	 *
-	 * @dataProvider legacy_layouts
+	 * @dataProvider legacy_updates
 	 *
-	 * @param bool $is_updated Whether the pattern was updated after it was created.
+	 * @param array $changes        Fields an update changes, or none for no update.
+	 * @param bool  $follows_plugin Whether the layout should still follow the plugin.
 	 */
-	public function test_legacy_built_in_layout_follows_the_plugin_until_updated( bool $is_updated ) {
+	public function test_legacy_built_in_layout_follows_the_plugin_until_edited( array $changes, bool $follows_plugin ) {
 		$layout_id = self::factory()->post->create(
 			[
 				'post_type'    => 'wp_block',
@@ -263,29 +321,41 @@ class Test_Layout_Templates extends Rolling_Coverage_TestCase {
 		);
 		update_post_meta( $layout_id, Layout::SLUG_META_KEY, 'stream' );
 
-		if ( $is_updated ) {
-			wp_update_post(
-				[
-					'ID'           => $layout_id,
-					'post_content' => self::layout_markup(),
-				]
-			);
+		if ( $changes ) {
+			wp_update_post( [ 'ID' => $layout_id ] + $changes );
 		}
 
 		$renders_pattern = false !== strpos( self::render_synced( $layout_id ), self::MARKER );
 
-		$this->assertSame( $is_updated, $renders_pattern );
+		$this->assertSame( ! $follows_plugin, $renders_pattern );
+	}
+
+	/**
+	 * The contexts the editor reads patterns in: the pattern editor's, and
+	 * the synced preview's and the picker's.
+	 *
+	 * @return array[]
+	 */
+	public function editor_contexts(): array {
+		return [
+			'edit' => [ 'edit' ],
+			'view' => [ 'view' ],
+		];
 	}
 
 	/**
 	 * The editor reads an unedited built-in layout as the plugin ships it, so
 	 * its previews, Detach and the pattern editor start from it, and an
 	 * edited one as its pattern holds it.
+	 *
+	 * @dataProvider editor_contexts
+	 *
+	 * @param string $context REST context.
 	 */
-	public function test_editor_reads_an_unedited_built_in_layout_from_the_plugin() {
+	public function test_editor_reads_an_unedited_built_in_layout_from_the_plugin( string $context ) {
 		$layout_id = self::create_built_in();
 		$request   = new WP_REST_Request( 'GET', '/wp/v2/blocks/' . $layout_id );
-		$request->set_param( 'context', 'edit' );
+		$request->set_param( 'context', $context );
 
 		$this->assertSame( Layout_Templates::get_pattern_content( 'stream' ), rest_do_request( $request )->get_data()['content']['raw'] );
 

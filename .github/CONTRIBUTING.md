@@ -200,7 +200,7 @@ Sensitive Slack/source meta (`RESTRICTED_META` in `Post_Type`) is stripped from 
 ### Layout pattern meta
 
 - `_rolling_coverage_layout` — on each built-in layout's `wp_block` pattern, the layout's slug. When the `rolling_coverage_{slug}_layout_id` option is missing, the plugin finds the pattern by this key and repairs the option, so deleting it breaks that fallback.
-- `_rolling_coverage_layout_hash` — on each built-in layout's pattern, the MD5 hash of the content the plugin created it with. While the content still matches, the layout renders as the plugin ships it ([Layouts](../src/blocks/rolling-coverage/DEVELOPMENT.md#layouts)). Without it, a pattern counts as unedited only until it is first updated.
+- `_rolling_coverage_layout_hash` — on each built-in layout's pattern, the MD5 hash of the content the pattern last got from the plugin: when it was created, or when a save stored the plugin's layout unchanged. While the content still matches, the layout renders as the plugin ships it ([Layouts](../src/blocks/rolling-coverage/DEVELOPMENT.md#layouts)). A pattern from before the key existed gets it on its first update, if it was still unedited.
 
 ## REST API
 
