@@ -120,7 +120,7 @@ When a coverage has a canonical URL, a request for an entry's own web address is
 | `$redirect_url` | `string` | The canonical URL with the entry's deep link. |
 | `$entry` | `WP_Post` | The entry. |
 
-Returns the URL to redirect to. Return an empty string or `false` to skip the redirect and show the entry's own page.
+Returns the URL to redirect to. Return an empty string or `false` to skip the redirect and show the entry's own page. The URL goes through `wp_safe_redirect()`, so a URL on another host also needs that host allowed through the `allowed_redirect_hosts` filter.
 
 ```php
 add_filter( 'newspack_rolling_coverage_entry_redirect_url', function ( $url, $entry ) {

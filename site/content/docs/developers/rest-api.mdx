@@ -21,7 +21,7 @@ An outside app signs in with an [application password](https://make.wordpress.or
 Errors use the standard WordPress shape, `{ "code", "message", "data": { "status" } }`. The plugin's own codes start with `rolling_coverage_`, such as `rolling_coverage_coverage_not_found`.
 
 <Callout>
-An entry in a coverage that has ended is locked. Adding an entry to an ended coverage, or pinning, archiving, or breaking out one of its entries, returns a `403` error. Change the coverage's status first.
+An entry in a coverage that has ended is locked. Adding an entry to an ended coverage, or pinning, archiving, or breaking out one of its entries, returns a `403` error. Change the coverage's status first. Pinning or breaking out any locked entry, whether it is archived or in an ended coverage, is refused by the permission check with core's `rest_forbidden` code, not a `rolling_coverage_` one. Archiving an entry in an ended coverage returns `rolling_coverage_coverage_archived`.
 </Callout>
 
 ## Read coverages
@@ -74,7 +74,7 @@ Updates a coverage. Set `meta.rolling_coverage_status` to `paused` or `archived`
 
 ### `GET /wp/v2/rolling-coverage-entries`
 
-Lists published entries. Without a sign-in, entries from coverages in the trash are left out.
+Lists published entries. In the default `view` context, signed in or not, entries from coverages in the trash are left out.
 
 Useful parameters:
 
@@ -85,7 +85,7 @@ Useful parameters:
 | `orderby`, `order` | Core's sorting, such as `orderby=date&order=desc`. |
 | `after`, `modified_after` | Only entries published or changed after an ISO 8601 date. |
 | `search`, `author`, `categories`, `tags` | Core's filters. |
-| `context` | `view` (default) or `edit`. `edit` needs a sign-in and also returns drafts and trashed entries the user may see. |
+| `context` | `view` (default) or `edit`. `edit` needs a sign-in. It includes entries from trashed coverages, which `view` leaves out, and limits results to entries the user can edit. It doesn't return drafts by itself, because core's `status` defaults to `publish`: pass `status=draft` (or a list of statuses) as well. |
 
 ```bash
 curl "https://example.com/wp-json/wp/v2/rolling-coverage-entries?rolling-coverage=12&per_page=10&_fields=id,date,title,content,pinned"
@@ -185,7 +185,7 @@ Brings a trashed coverage back as `active`. Its entries stay as they were. Retur
 
 ### `DELETE /coverages/{coverage_id}`
 
-Permanently deletes a coverage. Its entries are deleted a minute later by a background task, in batches. This cannot be undone. Returns `{ "deleted": true }`.
+Permanently deletes a coverage. Its entries that aren't in the trash are permanently deleted a minute later by a background task, 50 at a time, and that cannot be undone. Trashed entries stay in the trash with their original-coverage meta, and restoring one brings it back in a `{name} - recovery` coverage. Returns `{ "deleted": true }`.
 
 ```bash
 curl -u "newsdesk:abcd efgh ijkl mnop qrst uvwx" \

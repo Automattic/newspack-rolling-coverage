@@ -111,7 +111,9 @@ for ( const path of walk( root ).filter( ( file ) => file.endsWith( '.mdx' ) ) )
 			failures.push( `${ name }: ${ tag } needs a non-empty label` );
 		}
 		const src = tag.match( /\bsrc="([^"]+)"/ )?.[ 1 ];
-		if ( src ) {
+		if ( ! src ) {
+			failures.push( `${ name }: ${ tag } needs a src, or it ships a placeholder box` );
+		} else {
 			if ( ! src.startsWith( '/' ) || ! existsSync( join( publicDir, src ) ) ) {
 				failures.push( `${ name }: screenshot ${ src } doesn't exist in site/public` );
 			}

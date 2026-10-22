@@ -32,8 +32,21 @@ if ( ! searchIndex ) {
 } else {
 	try {
 		const data = JSON.parse( readFileSync( searchIndex, 'utf8' ) );
-		if ( ! data || Object.keys( data ).length === 0 ) {
-			failures.push( 'search index is empty' );
+		const indexed = new Set(
+			Object.values( data?.docs?.docs ?? {} )
+				.filter( ( record ) => record.type === 'page' )
+				.map( ( record ) => record.url.replace( /\/?$/, '/' ) ),
+		);
+		const built = existsSync( join( dist, 'docs' ) )
+			? walk( join( dist, 'docs' ) )
+					.filter( ( path ) => path.endsWith( 'index.html' ) )
+					.map( ( path ) => '/' + relative( dist, path ).slice( 0, -'index.html'.length ) )
+			: [];
+		const missing = built.filter( ( url ) => ! indexed.has( url ) );
+		if ( indexed.size === 0 || missing.length ) {
+			failures.push(
+				`search index has ${ indexed.size } pages and lacks ${ missing.length ? missing.join( ', ' ) : 'all docs pages' }`,
+			);
 		}
 	} catch {
 		failures.push( 'search index is not valid JSON' );
@@ -54,13 +67,19 @@ if ( existsSync( join( dist, 'docs' ) ) ) {
 
 const pages = walk( dist ).filter( ( path ) => path.endsWith( '.html' ) );
 for ( const page of pages ) {
-	for ( const [ , href ] of readFileSync( page, 'utf8' ).matchAll( /href="(\/[^"#?]*)/g ) ) {
+	for ( const [ , href, fragment ] of readFileSync( page, 'utf8' ).matchAll( /href="(\/[^"#?]*)[^"#]*(?:#([^"]*))?"/g ) ) {
 		if ( href.startsWith( '/_astro/' ) || href === '/favicon.svg' ) {
 			continue;
 		}
 		const target = join( dist, href.replace( /\/?$/, '/' ), 'index.html' );
-		if ( ! existsSync( target ) && ! existsSync( join( dist, href ) ) ) {
+		const file = existsSync( target ) ? target : join( dist, href );
+		if ( ! existsSync( file ) || ! statSync( file ).isFile() ) {
 			failures.push( `${ relative( dist, page ) } links to ${ href }, which doesn't exist` );
+		} else if ( fragment && file.endsWith( '.html' ) ) {
+			const id = decodeURIComponent( fragment );
+			if ( ! readFileSync( file, 'utf8' ).includes( `id="${ id }"` ) ) {
+				failures.push( `${ relative( dist, page ) } links to ${ href }#${ fragment }, which has no matching id` );
+			}
 		}
 	}
 }

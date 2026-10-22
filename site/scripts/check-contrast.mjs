@@ -27,7 +27,7 @@ function toRgb( color ) {
 		const a = s * Math.min( l, 1 - l );
 		return [ 0, 8, 4 ].map( ( n ) => l - a * Math.max( -1, Math.min( k( n ) - 3, 9 - k( n ), 1 ) ) );
 	}
-	throw new Error( `check-contrast: can't parse colour "${ color }"` );
+	throw new Error( `check-contrast: can't parse color "${ color }"` );
 }
 
 function luminance( color ) {
@@ -47,7 +47,7 @@ const modes = {
 
 const failures = [];
 
-// A colour Fumadocs changes in its .dark block, once set on :root, also wins in dark mode, because global.css loads after it.
+// A color Fumadocs changes in its .dark block, once set on :root, also wins in dark mode, because global.css loads after it.
 for ( const [ , name ] of modes.light.ours.matchAll( /(--color-fd-[a-z-]+):/g ) ) {
 	if ( value( modes.light.ours, name )?.startsWith( 'var(' ) || ! value( modes.dark.base, name ) ) {
 		continue;
@@ -62,10 +62,21 @@ for ( const [ mode, { ours: own, base } ] of Object.entries( modes ) ) {
 	const surfaces = [ background, value( own, '--color-fd-card' ) ?? value( base, '--color-fd-card' ) ];
 	const accent = value( own, '--color-fd-primary' );
 	const ring = value( own, '--color-fd-ring' );
+	const onAccent = value( own, '--color-fd-primary-foreground' ) ?? value( base, '--color-fd-primary-foreground' );
 
 	if ( ! accent || ! ring ) {
 		failures.push( `${ mode }: --color-fd-primary and --color-fd-ring must be set in global.css` );
 		continue;
+	}
+
+	if ( ! onAccent ) {
+		failures.push( `${ mode }: --color-fd-primary-foreground isn't set` );
+	} else {
+		const button = ratio( onAccent, accent );
+		console.log( `${ mode }: button text ${ onAccent } on ${ accent } = ${ button.toFixed( 2 ) }:1` );
+		if ( button < 4.5 ) {
+			failures.push( `${ mode }: button text ${ onAccent } on ${ accent } is ${ button.toFixed( 2 ) }:1, needs 4.5:1` );
+		}
 	}
 
 	for ( const surface of surfaces ) {

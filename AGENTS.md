@@ -58,7 +58,7 @@ cd site
 npm ci
 npm run dev           # Local site at http://localhost:4321
 npm run build         # Static build in site/dist/
-npm test              # Content and colour contrast checks
+npm test              # Content and color contrast checks
 npm run check:build   # Checks site/dist/ after a build
 ```
 
@@ -68,7 +68,7 @@ npm run check:build   # Checks site/dist/ after a build
   - Technical words (hooks, REST API, attributes, meta) belong only in `site/content/docs/developers/`, which explains what each thing is for before how to use it.
   - Quote UI labels exactly as they appear on screen, checked against the plugin source.
   - Every step that changes what's on screen gets a `<Screenshot label="..." />` naming the screen and what's highlighted.
-- **Hosting:** Spacefast, in the Automattic team, at `https://rolling-coverage.space.fast/`. Spacefast builds the site from this repository (root directory `site`) whenever the deploy branch changes. The deploy branch is `feat/docs-site` while the site's pull request is open, and `trunk` once it merges.
+- **Hosting:** Spacefast, in the Automattic team, at `https://rolling-coverage.space.fast/`. Spacefast builds the site from this repository (root directory `site`) whenever the deploy branch changes. The deploy branch is `trunk`.
 - **Updating the live site:** push to (or merge into) the deploy branch. Each build shows on the Space's Builds page in Spacefast and as the `Spacefast Builds` check on GitHub.
 - **When a build doesn't start** (it can sit queued), sign in to Spacefast as a member of the Automattic team and sync the repository, then retry the latest build:
 

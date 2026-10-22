@@ -109,7 +109,7 @@ The plugin also uses a transient per Slack user (`rolling_coverage_slack_user_{i
 
 | Event | Runs | Does |
 | --- | --- | --- |
-| `rolling_coverage_cleanup_orphaned_entries` | One minute after a coverage is deleted | Permanently deletes the deleted coverage's entries, 50 at a time, and reschedules itself while any remain. Cleared on deactivation. |
+| `rolling_coverage_cleanup_orphaned_entries` | One minute after a coverage is deleted | Permanently deletes the deleted coverage's entries that aren't in the trash, 50 at a time, and reschedules itself while any remain. Trashed entries stay in the trash, and restoring one brings it back in a `{name} - recovery` coverage. Cleared on deactivation. |
 | `newspack_rolling_coverage_send_notification` | Once per scheduled push notification | Sends an entry's deferred push notification. Takes the entry's post ID. |
 | `newspack_rolling_coverage_rebuild_placements` | Once after a change | Rebuilds the stored map of places that show each coverage. |
 

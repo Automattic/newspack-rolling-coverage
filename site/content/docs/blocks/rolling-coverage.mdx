@@ -81,7 +81,7 @@ The block toolbar also shows **Edit Layout** and **Detach** when the block uses 
 | **Entries per page** | With **Show** set to **All**, how many entries show first and how many each load of older entries adds. From 1 to 100. The default is 20. |
 | **Author name** | In layouts that show the author, **Show** or **Hide** the author's name. |
 | **Author avatar** | In layouts that show the author, **Show** or **Hide** the profile picture. Not offered when Avatar Display is off under **Settings > Discussion**. |
-| **Poll interval (seconds)** | How often the page checks for new entries. The default is 30. The site can set a longer minimum, which wins over a shorter value here. Hidden when the layout has a [Check for Updates](/docs/blocks/check-for-updates/) block. |
+| **Poll interval (seconds)** | How often the page checks for new entries. The default is 30. The site can set a longer minimum, which wins over a shorter value here. Hidden when **Show** is set to **All** and the layout has a [Check for Updates](/docs/blocks/check-for-updates/) block. |
 
 <Screenshot label="The block settings, Entries panel, with Show and Older entries picked out" src="/screenshots/blocks/rolling-coverage-6.webp" width={3024} height={1964} />
 
@@ -112,8 +112,8 @@ The panel appears when Newspack Ads is active.
 
 | Setting | What it does |
 | --- | --- |
-| **Advertising** | Enabled or Disabled. Shows ads between entries. Not available when **Show** is set to **Latest**. |
-| **Ads interval** | Shows an ad after every set number of entries. The default is 4. |
+| **Advertising** | Enabled or Disabled. Enabled by default. Shows ads between entries. Not available when **Show** is set to **Latest**. |
+| **Ads interval** | Shows an ad after every set number of entries, up to three ads in all, across the entries that load with the page and the older entries readers load after them. The default is 4. See [Ads](/docs/guides/ads/). |
 
 Ads need the Rolling Coverage entry placement turned on in Newspack Ads, and ads enabled in the coverage's own settings. The panel tells you when either is missing.
 

@@ -1,17 +1,27 @@
 import type { ComponentProps } from 'react';
+import { usePathname } from 'fumadocs-core/framework';
 import { useHomeLayout } from 'fumadocs-ui/layouts/home';
 import { buttonVariants } from 'fumadocs-ui/components/ui/button';
 
 const linkClassName =
 	'text-sm text-fd-muted-foreground transition-colors hover:text-fd-accent-foreground data-[active=true]:text-fd-primary';
 
+function isCurrent( url: string, pathname: string ) {
+	const path = pathname.replace( /\/?$/, '/' );
+	return url === '/docs/' ? path.startsWith( '/docs/' ) : path === url;
+}
+
 /**
  * The homepage header, laid out like the docs (notebook) header so both pages share one header.
  */
 export function SiteHeader( props: ComponentProps< 'header' > ) {
 	const { navItems, slots } = useHomeLayout();
+	const pathname = usePathname();
 	const textLinks = navItems.filter( ( item ) => item.type !== 'icon' && 'url' in item );
 	const iconLinks = navItems.filter( ( item ) => item.type === 'icon' );
+
+	const currentProps = ( url: string ) =>
+		isCurrent( url, pathname ) ? { 'aria-current': 'page' as const, 'data-active': true } : {};
 
 	return (
 		<header
@@ -28,13 +38,18 @@ export function SiteHeader( props: ComponentProps< 'header' > ) {
 				/>
 			) }
 			<div className="flex flex-1 items-center justify-end md:gap-2">
-				<div className="flex items-center gap-6 empty:hidden max-md:hidden">
+				<nav aria-label="Main" className="flex items-center gap-6 empty:hidden max-md:hidden">
 					{ textLinks.map( ( item ) => (
-						<a key={ item.url } href={ item.url } className={ linkClassName }>
+						<a
+							key={ item.url }
+							href={ item.url }
+							className={ linkClassName }
+							{ ...currentProps( item.url ) }
+						>
 							{ item.text }
 						</a>
 					) ) }
-				</div>
+				</nav>
 				{ iconLinks.map( ( item ) => (
 					<a
 						key={ item.url }
@@ -45,14 +60,19 @@ export function SiteHeader( props: ComponentProps< 'header' > ) {
 						{ item.icon }
 					</a>
 				) ) }
-				<div className="flex items-center gap-1 md:hidden">
+				<nav aria-label="Main" className="flex items-center gap-1 md:hidden">
 					{ slots.searchTrigger && <slots.searchTrigger.sm hideIfDisabled className="p-2" /> }
 					{ textLinks.map( ( item ) => (
-						<a key={ item.url } href={ item.url } className={ `${ linkClassName } p-2` }>
+						<a
+							key={ item.url }
+							href={ item.url }
+							className={ `${ linkClassName } p-2` }
+							{ ...currentProps( item.url ) }
+						>
 							{ item.text }
 						</a>
 					) ) }
-				</div>
+				</nav>
 				<div className="flex items-center gap-2 max-md:hidden">
 					{ slots.themeSwitch && <slots.themeSwitch /> }
 				</div>
