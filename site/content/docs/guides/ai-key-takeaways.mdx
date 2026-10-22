@@ -5,7 +5,7 @@ description: Write a short summary of the latest entries, and let an Administrat
 
 By the end of this page, an Administrator will have turned on key takeaways, and editors will be able to generate a summary of a coverage's latest entries.
 
-The summary is a starting point. Generating it copies it, ready for an editor to paste into the page.
+The summary is a starting point. The block copies it as soon as it's ready, for an editor to paste into the page.
 
 ## What you need
 
@@ -14,12 +14,14 @@ The summary is a starting point. Generating it copies it, ready for an editor to
 
 ## Turn it on
 
+Until key takeaways can run, **Rolling Coverage > AI** says what's missing. When it can, it links to the screen that fixes it, such as **Go to AI Settings**.
+
 <Steps>
 <Step>
 
 ### Open the AI settings
 
-In the dashboard, go to **Settings > AI**. Until key takeaways can run, **Rolling Coverage > AI** says what's missing and links to the screen that sets it up, such as **Go to AI Settings**.
+In the dashboard, go to **Settings > AI**.
 
 </Step>
 <Step>
@@ -54,7 +56,9 @@ In the editor, select the Rolling Coverage block and open the **AI** panel. The 
 
 ### Generate
 
-Select **Generate Key Takeaways**. The summary appears under **Generated Output** and is copied, and the message "Key takeaways copied. Paste them into the page." appears.
+Select **Generate Key Takeaways**. The summary appears under **Generated Output**, and the message "Key takeaways copied. Paste them into the page." confirms it's copied.
+
+If the coverage has no published entries yet, the message says "No published entries found for this coverage." instead.
 
 <Screenshot label="The block settings AI panel, with the key takeaways shown under Generated Output" src="/screenshots/guides/ai-2.webp" width={3024} height={1964} />
 
@@ -65,12 +69,12 @@ Select **Generate Key Takeaways**. The summary appears under **Generated Output*
 
 Paste the summary into the page, for example above the feed. Edit it before publishing.
 
-To copy it again, select **Copy Generated Output**. If the browser didn't allow the copy, the message asks you to select it instead.
+If the browser blocked the copy, the message says "Key takeaways generated. Select Copy Generated Output to copy them." instead. Select **Copy Generated Output** to copy the summary, or to copy it again later.
 
 </Step>
 </Steps>
 
-The summary draws on the 20 most recent published entries, with pinned entries first. Generate again as new entries come in for an updated summary.
+The summary draws on the 20 most recent published entries, with pinned entries first. To update the summary as new entries come in, generate it again.
 
 ## Change the instructions
 
@@ -81,7 +85,7 @@ Administrators can change what the summary asks for.
 
 ### Open the AI page
 
-Go to **Rolling Coverage > AI**, or select **Edit the prompt** in the block's **AI** panel.
+Go to **Rolling Coverage > AI**, or select **Edit the prompt** in the block's **AI** panel, which opens it in a new tab.
 
 </Step>
 <Step>
@@ -90,7 +94,7 @@ Go to **Rolling Coverage > AI**, or select **Edit the prompt** in the block's **
 
 Change the **Prompt** text, then select **Save**. The message "AI settings saved." appears.
 
-To go back to the original wording, use the **More actions** menu and select **Reset**.
+To go back to the original wording, open the **More actions** menu, select **Reset to Defaults**, then select **Reset**.
 
 <Screenshot label="The Rolling Coverage AI page, with the Prompt field for Key Takeaways" src="/screenshots/guides/ai-3.webp" width={3024} height={1964} />
 
