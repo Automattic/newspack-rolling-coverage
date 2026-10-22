@@ -13,6 +13,10 @@ The plugin's admin screens live in `src/admin/`: the coverages list, each covera
 | `#/connection/<tab>` | Slack Connection (`slack-settings-page.tsx`), with its tabs in `src/admin/utils/slack-tabs.ts` |
 | `#/ai` | AI prompt settings (`ai-page.tsx`) |
 
+When key takeaways can't run (`AI_Service::is_available()` is false), the AI page shows an empty state in place of the prompt, with what to set up next and a button to the screen for it. In order: Connector Approvals when approval is pending (`needs_connector_approval()`, which doesn't check credentials, so approving can lead on to the next state); Settings > AI when that screen is registered (`get_settings_url()`); no button when the AI plugin is active but hasn't booted; and otherwise the plugin installer, or Plugins for users who can only activate plugins (`adminUrls.aiPlugin`). Settings > AI links on to Settings > Connectors, where a provider is connected.
+
+On these screens, wp-admin notices printed above the app sit flush with no margin, so they line up with the page header. Inline notices, such as core's update nag, keep theirs.
+
 The app reads its config from `window.newspackRollingCoverageAdmin` (`Admin::get_script_data()`): REST URLs, labels, editor settings and a `capabilities` object. The capabilities only decide what the app shows; every route checks permissions again.
 
 | Capability | Check | Gates |
