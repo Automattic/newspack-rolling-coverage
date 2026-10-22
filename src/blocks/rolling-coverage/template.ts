@@ -3451,7 +3451,7 @@ function blockIdsOfType(
  *
  * @param {Object[]} blocks     The template blocks.
  * @param {boolean}  showAuthor The block's Author name setting.
- * @param {boolean}  showAvatar Whether avatars show: the block's Author avatar setting and the site's Avatar Display.
+ * @param {boolean}  showAvatar The block's Author avatar setting.
  * @return {string[]} Client IDs.
  */
 function hiddenAuthorBlockIds(
@@ -4951,24 +4951,6 @@ function withoutAuthorBlocks<
 }
 
 /**
- * The template without avatars, or the columns that hold only one, as the
- * site renders it with avatars turned off (see
- * Rolling_Coverage_Block::with_avatar_display()).
- *
- * @param {Object[]} blocks The template blocks.
- * @return {Object[]} The blocks without avatars.
- */
-function withoutAvatarColumns<
-	T extends { name: string; [ key: string ]: unknown },
->( blocks: T[] ): T[] {
-	return withoutAuthorBlocks( blocks, {
-		name: false,
-		avatars: true,
-		avatarColumns: true,
-	} );
-}
-
-/**
  * The template without the author's avatar and name, as an entry the Slack
  * bot wrote renders (see Rolling_Coverage_Block::render_entry()).
  * The avatar's column stays, so the entry's text lines up with the others.
@@ -5121,7 +5103,6 @@ export {
 	withCenteredTitleRows,
 	withoutPostTitle,
 	withEntryLinkTitleText,
-	withoutAvatarColumns,
 	withoutByline,
 	withAuthorSettings,
 	hiddenAuthorBlockIds,

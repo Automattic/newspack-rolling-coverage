@@ -11,6 +11,7 @@ namespace Newspack_Rolling_Coverage;
 use Google\Site_Kit\Modules\Analytics_4;
 use Google\Site_Kit\Modules\Analytics_4\Settings as Site_Kit_Analytics_4_Settings;
 use WP_Block;
+use WP_Block_Supports;
 use WP_Block_Type;
 use WP_Block_Type_Registry;
 use WP_Error;
@@ -182,6 +183,9 @@ class Rolling_Coverage_Block {
 		'core/avatar',
 	];
 
+	// Marks the layout's own Avatar blocks, the only ones show_entry_avatars() turns Avatar Display on for.
+	const LAYOUT_AVATAR_ATTR = 'newspackRollingCoverageLayoutAvatar';
+
 	/**
 	 * The host page's post ID, captured at the start of render_block()
 	 * before the global $post is swapped to individual entries. Used by
@@ -249,6 +253,7 @@ class Rolling_Coverage_Block {
 		add_filter( 'posts_where', [ __CLASS__, 'load_more_bound_where' ], 10, 2 );
 		add_filter( 'posts_where', [ __CLASS__, 'marker_where' ], 10, 2 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
+		add_filter( 'pre_option_show_avatars', [ __CLASS__, 'show_entry_avatars' ] );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'size_entry_avatar' ], 10, 2 );
 		add_filter( 'render_block_core/post-author-name', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
@@ -976,11 +981,33 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Turns the site's Avatar Display on while one of the layout's Avatar
+	 * blocks renders in an entry (see with_layout_avatars_marked()), so the
+	 * block's Author avatar setting decides whether entries show their
+	 * author's picture. A site can keep avatars off everywhere else, such as
+	 * in comments, and still show them in its coverage. Blocks in an entry's
+	 * own content, an Avatar block included, still follow Avatar Display.
+	 *
+	 * @param mixed $pre The value to return instead of the stored option, or false for the stored one.
+	 * @return mixed
+	 */
+	public static function show_entry_avatars( $pre ) {
+		if ( ! self::is_rendering_entry() || empty( WP_Block_Supports::$block_to_render['attrs'][ self::LAYOUT_AVATAR_ATTR ] ) ) {
+			return $pre;
+		}
+
+		return '1';
+	}
+
+	/**
 	 * Writes an entry avatar's block size onto its image as inline width and
 	 * height. Core only sets them as attributes, which classic themes'
-	 * global avatar sizing overrides. With avatars off core still prints an
-	 * empty wrapper, which is dropped so it leaves no gap; an avatar with no
-	 * image otherwise, such as an inline SVG, is left as it is.
+	 * global avatar sizing overrides. When get_avatar() gives nothing, as for
+	 * an Avatar block in an entry's content while Avatar Display is off, core
+	 * still prints an empty wrapper, around an empty link for a linked block,
+	 * which is dropped so it leaves no gap and no link without a name; an
+	 * avatar with no image otherwise, such as initials from an avatar filter,
+	 * is left as it is.
 	 *
 	 * @param string $block_content Rendered block.
 	 * @param array  $block         Parsed block.
@@ -1000,7 +1027,7 @@ class Rolling_Coverage_Block {
 		$html = new WP_HTML_Tag_Processor( $block_content );
 
 		if ( ! $html->next_tag( 'img' ) ) {
-			return get_option( 'show_avatars' ) ? $block_content : '';
+			return preg_match( '#^<div\b[^>]*>\s*(?:<a\b[^>]*\bclass="wp-block-avatar__link"[^>]*>\s*</a>\s*)?</div>$#', trim( $block_content ) ) ? '' : $block_content;
 		}
 
 		$style = trim( (string) $html->get_attribute( 'style' ), " \t\n\r;" );
@@ -1112,7 +1139,6 @@ class Rolling_Coverage_Block {
 					'canEditThemeOptions'         => current_user_can( 'edit_theme_options' ),
 					'layoutCategoryId'            => Layout::get_pattern_category_id(),
 					'entryPostType'               => Post_Type::CPT_SLUG,
-					'showAvatars'                 => (bool) get_option( 'show_avatars' ),
 					'entryPlural'                 => Entry_Name::word( 2 ),
 					'breakoutLabel'               => Breakout_Label::get(),
 					'sampleAvatarUrls'            => [
@@ -1338,9 +1364,8 @@ class Rolling_Coverage_Block {
 
 		$feed         = self::feed_group( $block );
 		$feed_layout  = (array) ( $feed['attrs']['layout'] ?? [] );
-		$template     = self::with_author_settings( self::get_entry_template( $block ), $attributes );
+		$template     = self::with_layout_avatars_marked( self::with_author_settings( self::get_entry_template( $block ), $attributes ) );
 		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval, $latest_count, $feed_layout );
-		$template     = self::with_avatar_display( $template );
 		$unplaced     = 'grid' === ( $feed_layout['type'] ?? '' ) ? self::without_grid_placements( $template ) : $template;
 		$column_rules = $is_capped ? [] : self::column_rules( $template, $feed_layout );
 
@@ -3417,16 +3442,25 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The entry template as the site's Avatar Display shows it: with avatars
-	 * turned off, without avatars or the columns that held only one. The same
-	 * for every entry, so applied once per request, after the template is
-	 * stored, since the setting can change while a stored config lives on.
+	 * The template with its Avatar blocks marked as the layout's own, so
+	 * show_entry_avatars() tells them from an Avatar block in an entry's
+	 * content. Applied before the template is stored, so polls, load more
+	 * and the jump to the latest entries carry the same marks.
 	 *
 	 * @param array[] $template Parsed template blocks.
 	 * @return array[]
 	 */
-	private static function with_avatar_display( array $template ): array {
-		return get_option( 'show_avatars' ) ? $template : self::without_author_blocks( $template, false, true, true );
+	private static function with_layout_avatars_marked( array $template ): array {
+		return self::map_template_blocks(
+			$template,
+			static function ( array $block ) {
+				if ( 'core/avatar' === ( $block['blockName'] ?? '' ) ) {
+					$block['attrs'][ self::LAYOUT_AVATAR_ATTR ] = true;
+				}
+
+				return [ $block ];
+			}
+		);
 	}
 
 	/**
@@ -5055,7 +5089,7 @@ class Rolling_Coverage_Block {
 
 		$stored_config    = self::load_block_config( $term_id, $template_key );
 		$config           = $stored_config ?? self::load_block_config( $term_id, '' );
-		$template         = self::with_avatar_display( $config['template'] );
+		$template         = $config['template'];
 		$latest_count     = self::latest_count( $config );
 		$latest_count     = $latest_count ? $latest_count : self::requested_latest_count( $params );
 		$is_capped        = $latest_count > 0;

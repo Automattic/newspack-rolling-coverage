@@ -206,25 +206,10 @@ class Test_Author_Settings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * With Avatar Display off, the Slack bot's entry drops its name too, and
-	 * the group that held the avatar and name goes.
+	 * Load more shows avatars with Avatar Display off, keeping the avatar
+	 * column of a page stored with it.
 	 */
-	public function test_a_slack_bot_entry_with_avatars_off_leaves_no_empty_group() {
-		update_option( 'show_avatars', 0 );
-		$coverage_id = self::create_coverage();
-		self::create_entry( $coverage_id, [ 'post_author' => Slack_Config::get_or_create_bot_user_id() ] );
-
-		$html = self::render_block( [ 'coverageId' => $coverage_id ], self::LINKS_MARKUP );
-
-		$this->assertStringNotContainsString( 'wp-block-post-author-name', $html );
-		$this->assertSame( [ 1, 0 ], self::groups( $html ) );
-	}
-
-	/**
-	 * Load more follows Avatar Display as it is when the entries load, so
-	 * turning avatars off drops the avatar column from a page stored with it.
-	 */
-	public function test_loaded_entries_drop_the_avatar_column_when_avatars_are_off() {
+	public function test_loaded_entries_keep_the_avatar_column_when_avatars_are_off() {
 		$coverage_id = self::create_coverage();
 		$author_id   = self::factory()->user->create( [ 'display_name' => 'Jane Reporter' ] );
 		self::create_entry(
@@ -264,7 +249,8 @@ class Test_Author_Settings extends Rolling_Coverage_TestCase {
 		$older = Rolling_Coverage_Block::get_entries( $request )->get_data()['html'];
 
 		$this->assertStringContainsString( 'Jane Reporter', $older, 'The older entry should load.' );
-		$this->assertSame( 1, self::count_columns( $older ), 'The column that held only the avatar should go.' );
+		$this->assertSame( 2, self::count_columns( $older ), 'The avatar column should stay.' );
+		$this->assertStringContainsString( 'wp-block-avatar__image', $older );
 	}
 
 	/**
