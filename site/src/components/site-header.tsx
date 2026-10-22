@@ -1,7 +1,9 @@
 import type { ComponentProps } from 'react';
 import { usePathname } from 'fumadocs-core/framework';
 import { useHomeLayout } from 'fumadocs-ui/layouts/home';
-import { buttonVariants } from 'fumadocs-ui/components/ui/button';
+
+const iconLinkClassName =
+	'inline-flex items-center justify-center rounded-md p-1.5 text-fd-muted-foreground transition-colors duration-100 hover:bg-fd-accent hover:text-fd-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fd-ring [&_svg]:size-4.5';
 
 const linkClassName =
 	'text-sm text-fd-muted-foreground transition-colors hover:text-fd-accent-foreground data-[active=true]:text-fd-primary';
@@ -38,7 +40,7 @@ export function SiteHeader( props: ComponentProps< 'header' > ) {
 				/>
 			) }
 			<div className="flex flex-1 items-center justify-end md:gap-2">
-				<nav aria-label="Main" className="flex items-center gap-6 empty:hidden max-md:hidden">
+				<nav aria-label="Main" className="flex items-center gap-6 empty:hidden max-lg:hidden">
 					{ textLinks.map( ( item ) => (
 						<a
 							key={ item.url }
@@ -55,13 +57,13 @@ export function SiteHeader( props: ComponentProps< 'header' > ) {
 						key={ item.url }
 						href={ item.url }
 						aria-label={ item.label }
-						className={ `${ buttonVariants( { size: 'icon-sm', variant: 'ghost' } ) } text-fd-muted-foreground max-md:hidden` }
+						className={ `${ iconLinkClassName } max-lg:hidden` }
 					>
 						{ item.icon }
 					</a>
 				) ) }
-				<nav aria-label="Main" className="flex items-center gap-1 md:hidden">
-					{ slots.searchTrigger && <slots.searchTrigger.sm hideIfDisabled className="p-2" /> }
+				<nav aria-label="Main" className="flex items-center gap-1 lg:hidden">
+					{ slots.searchTrigger && <slots.searchTrigger.sm hideIfDisabled className="p-2 md:hidden" /> }
 					{ textLinks.map( ( item ) => (
 						<a
 							key={ item.url }

@@ -3,7 +3,7 @@ import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import { RootProvider } from 'fumadocs-ui/provider/astro';
 import type { AstroProviderProps } from 'fumadocs-core/framework/astro';
 import { navigate } from 'astro:transitions/client';
-import { GITHUB_URL, NAV_LINKS, SITE_TITLE } from './docs';
+import { GITHUB_URL, NAV_LINKS, NAV_TITLE } from './docs';
 import SearchDialog from './search';
 import { SiteFooter } from './site-footer';
 import { SiteContainer } from './site-container';
@@ -19,7 +19,7 @@ const focusRing =
 
 const linkClassName = `font-medium text-fd-primary underline decoration-fd-primary/40 underline-offset-4 transition-colors hover:decoration-fd-primary motion-reduce:transition-none ${ focusRing }`;
 
-const buttonBase = `inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors motion-reduce:transition-none ${ focusRing }`;
+const buttonBase = `inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-[color,background-color,transform] duration-[160ms] ease-out-strong active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${ focusRing }`;
 
 function Section( { id, title, children }: { id: string; title: string; children: ReactNode } ) {
 	return (
@@ -52,7 +52,7 @@ export function About( {
 			search={ { SearchDialog } }
 		>
 			<HomeLayout
-				nav={ { title: SITE_TITLE, url: '/' } }
+				nav={ { title: NAV_TITLE, url: '/' } }
 				githubUrl={ GITHUB_URL }
 				links={ NAV_LINKS }
 				slots={ { header: SiteHeader, container: SiteContainer } }

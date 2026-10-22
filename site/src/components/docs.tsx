@@ -5,9 +5,16 @@ import type { ReactNode } from 'react';
 import { navigate } from 'astro:transitions/client';
 import { RootProvider } from 'fumadocs-ui/provider/astro';
 import type { AstroProviderProps } from 'fumadocs-core/framework/astro';
+import { LiveIcon } from './live-icon';
 import SearchDialog from './search';
 
 export const SITE_TITLE = 'Rolling Coverage';
+export const NAV_TITLE = (
+	<>
+		<LiveIcon onAir className="-ms-1 -me-1 size-7 text-newspack-600 dark:text-newspack-300" />
+		{ SITE_TITLE }
+	</>
+);
 export const GITHUB_URL = 'https://github.com/Automattic/newspack-rolling-coverage';
 export const NAV_LINKS = [
 	{ text: 'Docs', url: '/docs/' },
@@ -36,7 +43,7 @@ export function Docs( {
 		>
 			<DocsLayout
 				tree={ tree }
-				nav={ { title: SITE_TITLE, url: '/', mode: 'top' } }
+				nav={ { title: NAV_TITLE, url: '/', mode: 'top' } }
 				links={ NAV_LINKS }
 				githubUrl={ GITHUB_URL }
 				sidebar={ { collapsible: false } }

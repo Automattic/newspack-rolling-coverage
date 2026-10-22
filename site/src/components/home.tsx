@@ -3,7 +3,9 @@ import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import { RootProvider } from 'fumadocs-ui/provider/astro';
 import type { AstroProviderProps } from 'fumadocs-core/framework/astro';
 import { navigate } from 'astro:transitions/client';
-import { GITHUB_URL, NAV_LINKS, SITE_TITLE } from './docs';
+import { GITHUB_URL, NAV_LINKS, NAV_TITLE, SITE_TITLE } from './docs';
+import { MiniFeed } from './mini-feed';
+import { PARTNERS } from './partner-logos';
 import SearchDialog from './search';
 import { SiteFooter } from './site-footer';
 import { SiteContainer } from './site-container';
@@ -127,16 +129,19 @@ const features: { title: string; href: string; body: string; detail: ReactNode }
 
 const steps = [
 	{
+		time: '9:02 am',
 		title: 'Create a coverage',
 		href: '/docs/getting-started/create-your-first-coverage/',
 		body: 'Give the story a name, such as “Storm Ingrid: live updates”. Leave its status on Live.',
 	},
 	{
+		time: '9:04 am',
 		title: 'Add entries',
 		href: '/docs/getting-started/add-entries/',
 		body: 'Post short updates as the story moves, from the dashboard or a connected Slack channel.',
 	},
 	{
+		time: '9:05 am',
 		title: 'Put the feed on a page',
 		href: '/docs/getting-started/put-the-feed-on-a-page/',
 		body: 'Add the Rolling Coverage block, pick a layout, and publish. Readers see new entries as they arrive.',
@@ -161,7 +166,7 @@ const sections = [
 	},
 ];
 
-const buttonBase = `inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors motion-reduce:transition-none ${ focusRing }`;
+const buttonBase = `inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-[color,background-color,transform] duration-[160ms] ease-out-strong active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${ focusRing }`;
 
 export function Home( {
 	pathname,
@@ -178,7 +183,7 @@ export function Home( {
 			search={ { SearchDialog } }
 		>
 			<HomeLayout
-				nav={ { title: SITE_TITLE, url: '/' } }
+				nav={ { title: NAV_TITLE, url: '/' } }
 				githubUrl={ GITHUB_URL }
 				links={ NAV_LINKS }
 				slots={ { header: SiteHeader, container: SiteContainer } }
@@ -189,7 +194,7 @@ export function Home( {
 							<p className="flex flex-wrap items-center gap-3 text-sm font-medium text-fd-muted-foreground">
 								<span className="inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-card px-3 py-1 text-xs font-semibold tracking-wide text-fd-foreground uppercase">
 									<span aria-hidden="true" className="relative flex size-2">
-										<span className="absolute inline-flex size-full animate-ping rounded-full bg-fd-error opacity-75 motion-reduce:animate-none" />
+										<span className="absolute inline-flex size-full animate-ping rounded-full [animation-iteration-count:3] bg-fd-error opacity-75 motion-reduce:animate-none" />
 										<span className="relative inline-flex size-2 rounded-full bg-fd-error" />
 									</span>
 									Beta
@@ -208,10 +213,10 @@ export function Home( {
 							<div className="mt-8 flex flex-col gap-3 sm:flex-row">
 								<a
 									href="/docs/getting-started/"
-									className={ `${ buttonBase } bg-fd-primary text-fd-primary-foreground hover:bg-fd-primary/85` }
+									className={ `${ buttonBase } group bg-fd-primary text-fd-primary-foreground hover:bg-fd-primary/85` }
 								>
 									Get started
-									<Arrow />
+									<Arrow className="transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5 motion-reduce:transition-none" />
 								</a>
 								<a
 									href="/docs/"
@@ -222,7 +227,44 @@ export function Home( {
 							</div>
 						</section>
 
-						<figure className="mt-14 md:mt-20">
+						<section
+							aria-labelledby="home-partners"
+							className="mt-14 flex flex-col gap-6 border-y border-fd-border py-7 md:mt-20 lg:flex-row lg:items-center lg:justify-between lg:gap-16"
+						>
+							<div className="max-w-[34ch]">
+								<h2 id="home-partners" className="text-sm font-medium text-fd-foreground">
+									Part of Emergency Mode for News
+								</h2>
+								<p className="mt-1 text-sm text-pretty text-fd-muted-foreground">
+									A collaboration between OpenNews, Newspack, and NC Local, funded by Press Forward.
+								</p>
+							</div>
+							<ul className="flex flex-wrap items-center gap-x-10 gap-y-5 lg:gap-x-14">
+								{ PARTNERS.map( ( partner ) => (
+									<li key={ partner.url }>
+										<a
+											href={ partner.url }
+											aria-label={ partner.name }
+											className={ `flex rounded-sm text-fd-muted-foreground transition-colors hover:text-fd-foreground motion-reduce:transition-none ${ focusRing }` }
+										>
+											<svg
+												aria-hidden="true"
+												viewBox={ partner.viewBox }
+												className={ `w-auto ${ partner.className }` }
+											>
+												<path
+													fill="currentColor"
+													fillRule={ partner.evenOdd ? 'evenodd' : undefined }
+													d={ partner.path }
+												/>
+											</svg>
+										</a>
+									</li>
+								) ) }
+							</ul>
+						</section>
+
+						<figure className="mt-10 md:mt-12">
 							<img
 								src="/images/home/live-feed.webp"
 								srcSet="/images/home/live-feed-1672.webp 1512w, /images/home/live-feed.webp 3024w"
@@ -240,21 +282,27 @@ export function Home( {
 							</figcaption>
 						</figure>
 
-						<section aria-labelledby="home-audience" className="mt-24 md:mt-36">
-							<h2
-								id="home-audience"
-								className="max-w-[24ch] text-3xl font-semibold tracking-tight text-balance text-fd-foreground md:text-4xl"
-							>
-								For any story that unfolds live
-							</h2>
-							<p className="mt-4 max-w-[60ch] text-pretty text-fd-muted-foreground md:text-lg md:leading-relaxed">
-								A storm, an election night, a council meeting, or a big game. Rolling Coverage puts a live
-								feed on the newsroom’s own WordPress site for any story that changes by the minute, with
-								tools the team already knows.
-							</p>
-							<a href="/about/" className={ `mt-4 inline-flex min-h-6 items-center py-1 text-sm ${ linkClassName }` }>
-								Why we built it
-							</a>
+						<section
+							aria-labelledby="home-audience"
+							className="mt-24 grid gap-10 md:mt-36 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-center lg:gap-16"
+						>
+							<div>
+								<h2
+									id="home-audience"
+									className="max-w-[24ch] text-3xl font-semibold tracking-tight text-balance text-fd-foreground md:text-4xl"
+								>
+									For any story that unfolds live
+								</h2>
+								<p className="mt-4 max-w-[60ch] text-pretty text-fd-muted-foreground md:text-lg md:leading-relaxed">
+									A storm, an election night, a council meeting, or a big game. Rolling Coverage puts a live
+									feed on the newsroom’s own WordPress site for any story that changes by the minute, with
+									tools the team already knows.
+								</p>
+								<a href="/about/" className={ `mt-4 inline-flex min-h-6 items-center py-1 text-sm ${ linkClassName }` }>
+									Why we built it
+								</a>
+							</div>
+							<MiniFeed />
 						</section>
 
 						<section aria-labelledby="home-features" className="mt-24 md:mt-36">
@@ -302,7 +350,8 @@ export function Home( {
 								{ steps.map( ( step, index ) => (
 									<li key={ step.href } className="border-t-2 border-fd-foreground pt-5">
 										<span className="text-sm font-medium text-fd-muted-foreground tabular-nums">
-											Step { index + 1 }
+											<span className="sr-only">Step { index + 1 }, </span>
+											{ step.time }
 										</span>
 										<h3 className="mt-2 text-xl font-semibold tracking-tight text-fd-foreground">
 											{ step.title }
@@ -328,13 +377,13 @@ export function Home( {
 									<li key={ section.href }>
 										<a
 											href={ section.href }
-											className={ `group flex h-full flex-col gap-1 rounded-xl border border-fd-border p-4 transition-colors hover:bg-fd-accent/40 motion-reduce:transition-none ${ focusRing }` }
+											className={ `group flex h-full flex-col gap-1 rounded-xl border border-fd-border p-4 transition-[background-color,transform] duration-[160ms] ease-out-strong hover:bg-fd-accent/40 active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:scale-100 ${ focusRing }` }
 										>
 											<span
 												className="flex items-center justify-between gap-2 font-medium text-fd-foreground"
 											>
 												{ section.title }
-												<Arrow className="transition-transform duration-200 ease-out group-hover:translate-x-0.5 motion-reduce:transition-none" />
+												<Arrow className="transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5 motion-reduce:transition-none" />
 											</span>
 											<span className="text-sm text-fd-muted-foreground">{ section.description }</span>
 										</a>

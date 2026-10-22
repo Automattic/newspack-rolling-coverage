@@ -5,6 +5,9 @@
 
 @theme {
 	--font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+	--color-newspack-300: #6086c7;
+	--color-newspack-600: #003da5;
 }
 
 :root {
@@ -23,6 +26,85 @@
 	--color-fd-ring: #8fb0ff;
 }
 
+:root {
+	--animate-fd-fade-in: fd-fade-in 200ms ease;
+	--animate-fd-fade-out: fd-fade-out 200ms ease;
+	--animate-fd-dialog-in: fd-dialog-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+	--animate-fd-dialog-out: fd-dialog-out 200ms cubic-bezier(0.16, 1, 0.3, 1);
+	--animate-fd-sidebar-in: fd-sidebar-in 250ms cubic-bezier(0.32, 0.72, 0, 1);
+	--animate-fd-sidebar-out: fd-sidebar-out 250ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--animate-fd-dialog-in: fd-fade-in 150ms ease;
+		--animate-fd-dialog-out: fd-fade-out 150ms ease;
+		--animate-fd-popover-in: fd-fade-in 100ms ease;
+		--animate-fd-popover-out: fd-fade-out 100ms ease;
+		--animate-fd-sidebar-in: fd-fade-in 150ms ease;
+		--animate-fd-sidebar-out: fd-fade-out 150ms ease;
+		--animate-fd-nav-menu-in: fd-fade-in 150ms ease;
+		--animate-fd-nav-menu-out: fd-fade-out 150ms ease;
+		--animate-fd-enterFromLeft: fd-fade-in 150ms ease;
+		--animate-fd-enterFromRight: fd-fade-in 150ms ease;
+		--animate-fd-exitToLeft: fd-fade-out 150ms ease;
+		--animate-fd-exitToRight: fd-fade-out 150ms ease;
+	}
+}
+
+@keyframes rc-on-air {
+	from {
+		opacity: 0.15;
+	}
+}
+
+@keyframes rc-on-air-replay {
+	from {
+		opacity: 0.15;
+	}
+}
+
+.rc-intro .rc-live-icon--on-air path {
+	animation: rc-on-air 420ms var(--ease-out-strong) 250ms both;
+}
+
+.rc-intro .rc-live-icon--on-air path:nth-child(2) {
+	animation-delay: 360ms;
+}
+
+.rc-intro .rc-live-icon--on-air path:nth-child(3) {
+	animation-delay: 470ms;
+}
+
+.rc-live-icon--replay path {
+	animation: rc-on-air-replay 300ms var(--ease-out-strong) both;
+}
+
+.rc-live-icon--replay path:nth-child(2) {
+	animation-delay: 60ms;
+}
+
+.rc-live-icon--replay path:nth-child(3) {
+	animation-delay: 120ms;
+}
+
+@keyframes rc-arrive-tint {
+	from {
+		background-color: color-mix(in oklab, var(--color-fd-primary) 12%, transparent);
+	}
+}
+
+.rc-arrived {
+	animation: rc-arrive-tint 1800ms ease 300ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.rc-live-icon--on-air path,
+	.rc-arrived {
+		animation: none !important;
+	}
+}
+
 .prose {
 	--tw-prose-links: var(--color-fd-primary);
 }
@@ -38,6 +120,10 @@
 
 [style*='--callout-color'] .text-fd-muted-foreground {
 	color: var(--color-fd-foreground);
+}
+
+#nd-subnav {
+	grid-column: 1 / -1;
 }
 
 #nd-page > *,
