@@ -28,7 +28,7 @@ export function SiteHeader( props: ComponentProps< 'header' > ) {
 	return (
 		<header
 			{ ...props }
-			className="sticky top-0 z-40 flex h-14 gap-2 border-b bg-fd-background/80 px-4 backdrop-blur-sm md:px-6"
+			className="sticky top-0 z-40 flex h-14 gap-2 border-b bg-fd-background/70 px-4 backdrop-blur-md backdrop-saturate-150 md:px-6"
 		>
 			<div className="flex flex-1 items-center">
 				{ slots.navTitle && <slots.navTitle className="inline-flex items-center gap-2.5 font-semibold" /> }

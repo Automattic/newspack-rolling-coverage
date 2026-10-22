@@ -135,6 +135,15 @@
 	grid-column: 1 / -1;
 }
 
+html:not([data-astro-transition]) body {
+	view-transition-name: none !important;
+}
+
+#nd-subnav[data-transparent='false'] {
+	background-color: color-mix(in oklab, var(--color-fd-background) 70%, transparent);
+	backdrop-filter: blur(12px) saturate(1.5);
+}
+
 #nd-page > *,
 #nd-page > astro-slot > * {
 	width: 100%;
