@@ -17,7 +17,7 @@ if ( ! existsSync( dist ) ) {
 	process.exit( 1 );
 }
 
-for ( const file of [ 'index.html', 'docs/index.html' ] ) {
+for ( const file of [ 'index.html', 'docs/index.html', '404.html' ] ) {
 	if ( ! existsSync( join( dist, file ) ) ) {
 		failures.push( `dist/${ file } missing` );
 	}

@@ -13,7 +13,7 @@ export const NOT_FOUND_DESCRIPTION = 'This page may have moved, or the link may 
 const focusRing =
 	'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring';
 
-const buttonBase = `inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-[color,background-color,transform] duration-[160ms] ease-out-strong active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${ focusRing }`;
+const buttonBase = `inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-[color,background-color,scale] duration-[160ms] ease-out-strong active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${ focusRing }`;
 
 export function NotFound( {
 	pathname,
@@ -48,7 +48,7 @@ export function NotFound( {
 							This page isn’t live
 						</h1>
 						<p className="mt-6 max-w-[52ch] text-lg text-pretty text-fd-muted-foreground md:text-xl md:leading-relaxed">
-							It may have moved, or the link may be out of date. Search the docs, or start again from the top.
+							It may have moved, or the link may be out of date. Browse the docs, or start again from the homepage.
 						</p>
 						<div className="mt-8 flex flex-col gap-3 sm:flex-row">
 							<a

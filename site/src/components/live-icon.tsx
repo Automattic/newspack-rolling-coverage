@@ -9,7 +9,7 @@ const OUTER_ARCS =
 /**
  * The live-streaming icon from newspack-icons, used as the Rolling Coverage mark.
  *
- * With `onAir`, the icon lights from the centre out: once on the first page of a visit
+ * With `onAir`, the icon lights from the center out: once on the first page of a visit
  * (the `rc-intro` class the layout sets, removed once the intro finishes so it can't
  * outrank a hover), and again when the pointer enters the link around it. A replay
  * ignores further hovers until it has finished, so moving in and out quickly doesn't
@@ -37,6 +37,9 @@ export function LiveIcon( {
 		const canHover = window.matchMedia( '(hover: hover) and (pointer: fine)' );
 		const reduce = window.matchMedia( '(prefers-reduced-motion: reduce)' );
 		const replay = () => {
+			if ( document.documentElement.classList.contains( 'rc-intro' ) ) {
+				return;
+			}
 			if ( canHover.matches && ! reduce.matches ) {
 				setReplaying( true );
 			}

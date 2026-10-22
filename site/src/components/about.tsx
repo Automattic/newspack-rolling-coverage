@@ -19,7 +19,7 @@ const focusRing =
 
 const linkClassName = `font-medium text-fd-primary underline decoration-fd-primary/40 underline-offset-4 transition-colors hover:decoration-fd-primary motion-reduce:transition-none ${ focusRing }`;
 
-const buttonBase = `inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-[color,background-color,transform] duration-[160ms] ease-out-strong active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${ focusRing }`;
+const buttonBase = `inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-[color,background-color,scale] duration-[160ms] ease-out-strong active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${ focusRing }`;
 
 function Section( { id, title, children }: { id: string; title: string; children: ReactNode } ) {
 	return (

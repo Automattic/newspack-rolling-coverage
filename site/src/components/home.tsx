@@ -4,6 +4,7 @@ import { RootProvider } from 'fumadocs-ui/provider/astro';
 import type { AstroProviderProps } from 'fumadocs-core/framework/astro';
 import { navigate } from 'astro:transitions/client';
 import { GITHUB_URL, NAV_LINKS, NAV_TITLE, SITE_TITLE } from './docs';
+import { HeadlineWord } from './headline-word';
 import { MiniFeed } from './mini-feed';
 import { PARTNERS } from './partner-logos';
 import SearchDialog from './search';
@@ -166,7 +167,7 @@ const sections = [
 	},
 ];
 
-const buttonBase = `inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-[color,background-color,transform] duration-[160ms] ease-out-strong active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${ focusRing }`;
+const buttonBase = `inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-[color,background-color,scale] duration-[160ms] ease-out-strong active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 ${ focusRing }`;
 
 export function Home( {
 	pathname,
@@ -205,7 +206,7 @@ export function Home( {
 								id="home-title"
 								className="mt-4 max-w-[14ch] text-[2.75rem] leading-[1.05] font-semibold tracking-tight text-balance text-fd-foreground sm:text-6xl lg:text-7xl"
 							>
-								Cover a developing story as it happens
+								Cover a developing <HeadlineWord /> as it happens
 							</h1>
 							<p className="mt-6 max-w-[58ch] text-lg text-pretty text-fd-muted-foreground md:text-xl md:leading-relaxed">
 								{ HERO_TEXT }
@@ -233,10 +234,16 @@ export function Home( {
 						>
 							<div className="max-w-[34ch]">
 								<h2 id="home-partners" className="text-sm font-medium text-fd-foreground">
-									Part of Emergency Mode for News
+									Part of{ ' ' }
+									<a
+										href="https://emergencymode.news/"
+										className={ `underline decoration-fd-border underline-offset-4 transition-colors hover:decoration-fd-foreground motion-reduce:transition-none ${ focusRing }` }
+									>
+										Emergency Mode for News
+									</a>
 								</h2>
 								<p className="mt-1 text-sm text-pretty text-fd-muted-foreground">
-									A collaboration between OpenNews, Newspack, and NC Local, funded by Press Forward.
+									A collaboration between OpenNews, Newspack, and NC Local, supported by Press Forward.
 								</p>
 							</div>
 							<ul className="flex flex-wrap items-center gap-x-10 gap-y-5 lg:gap-x-14">
@@ -377,7 +384,7 @@ export function Home( {
 									<li key={ section.href }>
 										<a
 											href={ section.href }
-											className={ `group flex h-full flex-col gap-1 rounded-xl border border-fd-border p-4 transition-[background-color,transform] duration-[160ms] ease-out-strong hover:bg-fd-accent/40 active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:scale-100 ${ focusRing }` }
+											className={ `group flex h-full flex-col gap-1 rounded-xl border border-fd-border p-4 transition-[background-color,scale] duration-[160ms] ease-out-strong hover:bg-fd-accent/40 active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:scale-100 ${ focusRing }` }
 										>
 											<span
 												className="flex items-center justify-between gap-2 font-medium text-fd-foreground"
