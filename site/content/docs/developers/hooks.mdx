@@ -241,7 +241,7 @@ The plugin reads two query variables, for developers who run their own `WP_Query
 
 | Variable | Effect |
 | --- | --- |
-| `rolling_coverage_author_scope` | One of `all`, `author`, `own`, or `editable`. Limits entry results to what the current user may see, as the plugin's own screens do. |
+| `rolling_coverage_author_scope` | One of `all`, `author`, `own`, or `editable`. `author` returns the current user's entries plus other authors' published ones, `own` only the user's entries, and `editable` the user's entries that they can still edit. `all` applies no restriction. |
 | `rolling_coverage_skip_pin_order` | When `true`, entries are not sorted with pinned ones first. |
 
 ```php

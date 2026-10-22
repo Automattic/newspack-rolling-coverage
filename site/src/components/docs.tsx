@@ -9,7 +9,10 @@ import SearchDialog from './search';
 
 export const SITE_TITLE = 'Rolling Coverage';
 export const GITHUB_URL = 'https://github.com/Automattic/newspack-rolling-coverage';
-export const NAV_LINKS = [ { text: 'Docs', url: '/docs/' } ];
+export const NAV_LINKS = [
+	{ text: 'Docs', url: '/docs/' },
+	{ text: 'About', url: '/about/' },
+];
 
 export function Docs( {
 	tree,

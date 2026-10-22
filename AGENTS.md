@@ -62,7 +62,7 @@ npm test              # Content and colour contrast checks
 npm run check:build   # Checks site/dist/ after a build
 ```
 
-- Pages are MDX files in `site/content/docs/`; each folder's `meta.json` sets the sidebar order. The homepage is `site/src/components/home.tsx`.
+- Pages are MDX files in `site/content/docs/`; each folder's `meta.json` sets the sidebar order. The homepage is `site/src/components/home.tsx`, and the About page is `site/src/components/about.tsx`.
 - **Writing rules**, enforced by `npm test` where they can be:
   - Publishers first: plain words, short steps, one action per step. US English, sentence-case headings, no em dashes.
   - Technical words (hooks, REST API, attributes, meta) belong only in `site/content/docs/developers/`, which explains what each thing is for before how to use it.

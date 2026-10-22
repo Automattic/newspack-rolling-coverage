@@ -5,6 +5,7 @@ import type { AstroProviderProps } from 'fumadocs-core/framework/astro';
 import { navigate } from 'astro:transitions/client';
 import { GITHUB_URL, NAV_LINKS, SITE_TITLE } from './docs';
 import SearchDialog from './search';
+import { SiteFooter } from './site-footer';
 import { SiteHeader } from './site-header';
 
 const HERO_TEXT =
@@ -77,9 +78,9 @@ const features: { title: string; href: string; body: string; detail: ReactNode }
 		),
 	},
 	{
-		title: '13 layouts, in your own theme',
+		title: '13 layouts, in the site’s own theme',
 		href: '/docs/guides/layouts/',
-		body: 'From a full live blog to a strip under the header or a box in the sidebar. Each layout uses the site’s own fonts, colors and spacing, and one coverage can show in several places at once.',
+		body: 'From a full live blog to a strip under the header or a box in the sidebar. Each layout uses the site’s own fonts, colors, and spacing. One coverage can show in several places at once.',
 		detail: (
 			<p className="text-sm text-fd-muted-foreground">
 				<span className="sr-only">The layouts: </span>
@@ -144,7 +145,7 @@ const steps = [
 const sections = [
 	{
 		title: 'Getting started',
-		description: 'Install the plugin and publish your first coverage.',
+		description: 'Install the plugin and publish a first coverage.',
 		href: '/docs/getting-started/',
 	},
 	{
@@ -237,6 +238,23 @@ export function Home( {
 						</figcaption>
 					</figure>
 
+					<section aria-labelledby="home-audience" className="mt-24 md:mt-36">
+						<h2
+							id="home-audience"
+							className="max-w-[24ch] text-3xl font-semibold tracking-tight text-balance text-fd-foreground md:text-4xl"
+						>
+							For any story that unfolds live
+						</h2>
+						<p className="mt-4 max-w-[60ch] text-pretty text-fd-muted-foreground md:text-lg md:leading-relaxed">
+							A storm, an election night, a council meeting, or a big game. Rolling Coverage puts a live
+							feed on the newsroom’s own WordPress site for any story that changes by the minute, with
+							tools the team already knows.
+						</p>
+						<a href="/about/" className={ `mt-4 inline-flex min-h-6 items-center py-1 text-sm ${ linkClassName }` }>
+							Why we built it
+						</a>
+					</section>
+
 					<section aria-labelledby="home-features" className="mt-24 md:mt-36">
 						<h2
 							id="home-features"
@@ -323,6 +341,7 @@ export function Home( {
 						</ul>
 					</section>
 				</div>
+				<SiteFooter />
 			</HomeLayout>
 		</RootProvider>
 	);
