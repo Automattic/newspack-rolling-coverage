@@ -107,21 +107,22 @@ class Taxonomy {
 			self::TAXONOMY_SLUG,
 			Post_Type::CPT_SLUG,
 			[
-				'labels'             => [
+				'labels'                => [
 					'name'          => __( 'Rolling Coverage', 'newspack-rolling-coverage' ),
 					'singular_name' => __( 'Rolling Coverage', 'newspack-rolling-coverage' ),
 				],
-				'public'             => true,
-				'publicly_queryable' => false,
-				'show_ui'            => false,
-				'show_in_menu'       => false,
-				'show_in_nav_menus'  => false,
-				'show_in_rest'       => true,
-				'rest_base'          => self::REST_BASE,
-				'hierarchical'       => false,
-				'rewrite'            => false,
-				'query_var'          => true,
-				'meta_box_cb'        => false,
+				'public'                => true,
+				'publicly_queryable'    => false,
+				'show_ui'               => false,
+				'show_in_menu'          => false,
+				'show_in_nav_menus'     => false,
+				'show_in_rest'          => true,
+				'rest_base'             => self::REST_BASE,
+				'rest_controller_class' => Coverage_REST_Controller::class,
+				'hierarchical'          => false,
+				'rewrite'               => false,
+				'query_var'             => true,
+				'meta_box_cb'           => false,
 			]
 		);
 
