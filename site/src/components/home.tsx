@@ -4,7 +4,7 @@ import { RootProvider } from 'fumadocs-ui/provider/astro';
 import type { AstroProviderProps } from 'fumadocs-core/framework/astro';
 import { navigate } from 'astro:transitions/client';
 import { GITHUB_URL, NAV_LINKS, NAV_TITLE, SITE_TITLE } from './docs';
-import { HeadlineWord } from './headline-word';
+import { Headline } from './headline';
 import { MiniFeed } from './mini-feed';
 import { PARTNERS } from './partner-logos';
 import SearchDialog from './search';
@@ -206,7 +206,7 @@ export function Home( {
 								id="home-title"
 								className="mt-4 max-w-[14ch] text-[2.75rem] leading-[1.05] font-semibold tracking-tight text-balance text-fd-foreground sm:text-6xl lg:text-7xl"
 							>
-								Cover a developing <HeadlineWord /> as it happens
+								<Headline />
 							</h1>
 							<p className="mt-6 max-w-[58ch] text-lg text-pretty text-fd-muted-foreground md:text-xl md:leading-relaxed">
 								{ HERO_TEXT }

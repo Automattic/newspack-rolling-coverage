@@ -92,6 +92,21 @@ for ( const [ mode, { ours: own, base } ] of Object.entries( modes ) ) {
 	}
 }
 
+const newspack = ( step ) => value( block( ours, '@theme' ), `--color-newspack-${ step }` );
+for ( const [ mode, step ] of [ [ 'light', 600 ], [ 'dark', 300 ] ] ) {
+	const color = newspack( step );
+	const background = value( modes[ mode ].ours, '--color-fd-background' ) ?? value( modes[ mode ].base, '--color-fd-background' );
+	if ( ! color ) {
+		failures.push( `${ mode }: --color-newspack-${ step } must be set in global.css` );
+		continue;
+	}
+	const mark = ratio( color, background );
+	console.log( `${ mode }: Newspack ${ step } ${ color } on ${ background } = ${ mark.toFixed( 2 ) }:1` );
+	if ( mark < 4.5 ) {
+		failures.push( `${ mode }: Newspack ${ step } ${ color } on ${ background } is ${ mark.toFixed( 2 ) }:1, needs 4.5:1` );
+	}
+}
+
 if ( failures.length ) {
 	console.error( failures.map( ( failure ) => `check-contrast: ${ failure }` ).join( '\n' ) );
 	process.exit( 1 );
