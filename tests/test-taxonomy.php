@@ -227,7 +227,7 @@ class Test_Taxonomy extends Rolling_Coverage_TestCase {
 		$response = self::save_coverage_via_rest( [] );
 
 		$this->assertSame( 403, $response->get_status(), 'The request should be refused.' );
-		$this->assertSame( 'rest_cannot_create', $response->as_error()->get_error_code(), 'The refusal should be core\'s.' );
+		$this->assertSame( 'rest_cannot_create', $response->as_error()->get_error_code(), 'The refusal should use core\'s error code.' );
 		$this->assertEmpty( term_exists( 'Election night', Taxonomy::TAXONOMY_SLUG ), 'No coverage should be created.' );
 	}
 

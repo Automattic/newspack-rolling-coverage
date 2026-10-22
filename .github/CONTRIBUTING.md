@@ -117,6 +117,7 @@ includes/
   class-initializer.php          Wires every feature class into the WP lifecycle
   class-post-type.php            rolling_cov_entry CPT, meta, REST fields, entries-view endpoint, pinning, restore
   class-taxonomy.php             rolling_coverage taxonomy, term meta, coverage lifecycle REST routes
+  class-coverage-rest-controller.php  Core terms route for coverages; creating one needs manage_categories
   class-archive-mode.php         Archive/lock rules and the entry archive endpoint
   class-placements.php           Finds and stores every published place the plugin's blocks show a coverage
   class-newest-entry.php         Keeps each coverage's newest-entry time in term meta
