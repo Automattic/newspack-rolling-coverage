@@ -226,14 +226,14 @@ function newLabelBlockIds(
  * Client IDs of the New labels to hide in the editable groups, so only the
  * group previewing the newest sample shows one.
  *
- * @param {Object[]} entryGroupBlocks The editable entry groups, including those in the Pinned stack.
- * @param {Object[]} pinnedGroups     The groups inside the Pinned stack.
- * @param {Object}   contexts         The sample each kind of group previews.
+ * @param {Object[]} entryGroupBlocks         The editable entry groups, including those in the Pinned stack.
+ * @param {Object[]} pinnedGroups             The groups inside the Pinned stack.
+ * @param {Object}   contexts                 The sample each kind of group previews.
  * @param {*}        contexts.card            The Pinned card's.
  * @param {*}        contexts.entry           The Entry's.
  * @param {*}        contexts.fullStory       The Full Story Entry's.
  * @param {*}        contexts.pinnedFullStory The Pinned group's Full Story Entry's.
- * @param {Object}   newest           The newest sample.
+ * @param {Object}   newest                   The newest sample.
  * @return {string[]} Client IDs.
  */
 function hiddenNewLabelIds(
