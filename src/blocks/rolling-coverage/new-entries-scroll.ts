@@ -9,7 +9,45 @@
  */
 import { EASE_IN_OUT, OPEN_MS, prefersReducedMotion } from '../shared/motion';
 
-const STOP_EVENTS = [ 'wheel', 'touchstart', 'pointerdown', 'keydown' ];
+const STOP_EVENTS = [ 'wheel', 'touchmove', 'keydown', 'pointerdown' ];
+
+const SCROLL_KEYS = [
+	'ArrowUp',
+	'ArrowDown',
+	'PageUp',
+	'PageDown',
+	'Home',
+	'End',
+	' ',
+];
+
+/**
+ * Whether an event scrolls the page: a wheel, a touch that moves, a key that
+ * scrolls, or a press on the viewport's scrollbar. Chrome sends that press
+ * to the root element as a `pointerdown` past the root's client box. A tap
+ * or click elsewhere, such as a second click on the control, and a key that
+ * doesn't scroll, such as Shift, don't.
+ *
+ * @param {Event} event The event.
+ * @return {boolean} True when the event scrolls.
+ */
+function scrollsPage( event: Event ): boolean {
+	if ( event.type === 'keydown' ) {
+		return SCROLL_KEYS.includes( ( event as KeyboardEvent ).key );
+	}
+
+	if ( event.type === 'pointerdown' ) {
+		const { clientX, clientY } = event as PointerEvent;
+		const html = document.documentElement;
+
+		return (
+			event.target === html &&
+			( clientX >= html.clientWidth || clientY >= html.clientHeight )
+		);
+	}
+
+	return true;
+}
 
 /**
  * Where the page scrolls to show entries the reader just added: the topmost
@@ -101,8 +139,8 @@ export function holdAnimations(
  * Scrolls the window to a position, moving like an entry's space opening
  * (`OPEN_MS` on `EASE_IN_OUT`), then calls back. Under reduced motion, or
  * where the browser can't time it, it jumps there at once. A reader who
- * scrolls, touches, clicks or presses a key on the way stops it where it
- * is, which also calls back.
+ * scrolls on the way, with the wheel, a touch, a key or the scrollbar, stops
+ * it where it is, which also calls back.
  *
  * @param {number}   top  The scroll position.
  * @param {Function} done Called once the scroll ends or stops.
@@ -113,18 +151,24 @@ export function glideScrollTo( top: number, done: () => void ): () => void {
 	let stopped = false;
 	let timing: Animation | null = null;
 
-	const stop = () => {
+	function stop(): void {
 		if ( stopped ) {
 			return;
 		}
 
 		stopped = true;
 		STOP_EVENTS.forEach( ( type ) =>
-			window.removeEventListener( type, stop )
+			window.removeEventListener( type, onInput )
 		);
 		timing?.cancel();
 		done();
-	};
+	}
+
+	function onInput( event: Event ): void {
+		if ( scrollsPage( event ) ) {
+			stop();
+		}
+	}
 
 	if (
 		prefersReducedMotion() ||
@@ -168,7 +212,7 @@ export function glideScrollTo( top: number, done: () => void ): () => void {
 	};
 
 	STOP_EVENTS.forEach( ( type ) =>
-		window.addEventListener( type, stop, { passive: true } )
+		window.addEventListener( type, onInput, { passive: true } )
 	);
 	curve.play();
 	window.requestAnimationFrame( step );

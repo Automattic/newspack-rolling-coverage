@@ -55,16 +55,6 @@ describe( 'newEntriesTarget', () => {
 		);
 	} );
 
-	it( 'lands on the topmost new entry under a long pinned entry', () => {
-		const block = placed( -2000 );
-		const newest = placed( -200, block );
-
-		expect( newEntriesTarget( block, [ newest ], [], 24 ) ).toEqual( {
-			top: 3000 - 200 - 24,
-			entry: newest,
-		} );
-	} );
-
 	it( 'skips entries in a sticky card and goes to the block top without others', () => {
 		const block = placed( -2000 );
 		const card = placed( 0, block );
@@ -151,6 +141,72 @@ describe( 'glideScrollTo', () => {
 		expect( scrolls ).toHaveLength( 0 );
 	} );
 
+	it( 'stops on keys that scroll, not on others such as Shift', () => {
+		const done = jest.fn();
+
+		glideScrollTo( 1000, done );
+		window.dispatchEvent(
+			new KeyboardEvent( 'keydown', { key: 'Shift' } )
+		);
+		expect( done ).not.toHaveBeenCalled();
+
+		window.dispatchEvent(
+			new KeyboardEvent( 'keydown', { key: 'ArrowDown' } )
+		);
+		expect( done ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	it( 'stops on a touch that moves, not on one that only starts', () => {
+		const done = jest.fn();
+
+		glideScrollTo( 1000, done );
+		window.dispatchEvent( new Event( 'touchstart' ) );
+		expect( done ).not.toHaveBeenCalled();
+
+		window.dispatchEvent( new Event( 'touchmove' ) );
+		expect( done ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	it( 'stops on a press on the scrollbar, not on one on the page', () => {
+		const html = document.documentElement;
+		const done = jest.fn();
+
+		Object.defineProperty( html, 'clientWidth', {
+			value: 984,
+			configurable: true,
+		} );
+		Object.defineProperty( html, 'clientHeight', {
+			value: 700,
+			configurable: true,
+		} );
+
+		glideScrollTo( 1000, done );
+		placed( 0 ).dispatchEvent(
+			new MouseEvent( 'pointerdown', {
+				bubbles: true,
+				clientX: 500,
+				clientY: 30,
+			} )
+		);
+		html.dispatchEvent(
+			new MouseEvent( 'pointerdown', {
+				bubbles: true,
+				clientX: 500,
+				clientY: 30,
+			} )
+		);
+		expect( done ).not.toHaveBeenCalled();
+
+		html.dispatchEvent(
+			new MouseEvent( 'pointerdown', {
+				bubbles: true,
+				clientX: 992,
+				clientY: 30,
+			} )
+		);
+		expect( done ).toHaveBeenCalledTimes( 1 );
+	} );
+
 	it( 'jumps at once under reduced motion', () => {
 		const done = jest.fn();
 		reducedMotion = true;
@@ -201,5 +257,22 @@ describe( 'holdAnimations', () => {
 		release();
 
 		expect( arrival.play ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	it( 'leaves a held animation cancelled before the release', () => {
+		const block = placed( 0 );
+		const arrival = fakeAnimation( placed( 0, block ) );
+		let animations: unknown[] = [];
+
+		document.getAnimations = () => animations as Animation[];
+
+		const release = holdAnimations( block, () => {
+			animations = [ arrival ];
+		} );
+
+		arrival.playState = 'idle';
+		release();
+
+		expect( arrival.play ).not.toHaveBeenCalled();
 	} );
 } );

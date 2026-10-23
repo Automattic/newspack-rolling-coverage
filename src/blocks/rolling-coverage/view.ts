@@ -46,6 +46,7 @@ import {
 	EXIT_MS,
 	FADE_CLEANUP_MS,
 	HOLD_MS,
+	isAnimating,
 	LEAVE_MS,
 	prefersReducedMotion,
 } from '../shared/motion';
@@ -1452,20 +1453,35 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		}
 
 		elements.forEach( ( element ) => {
+			let cleared = false;
 			const onAnimationEnd = ( event: Event ) => {
 				if ( event.target === element ) {
 					clear();
 				}
 			};
 			const clear = () => {
+				cleared = true;
 				element.classList.remove( className );
 				element.removeEventListener( 'animationend', onAnimationEnd );
+			};
+			// The animation never ends on an element that isn't rendered, but
+			// one held for the new-entries scroll, or in a background tab, is
+			// still to play.
+			const clearIfStill = () => {
+				if ( cleared ) {
+					return;
+				}
+
+				if ( isAnimating( element ) ) {
+					setTimeout( clearIfStill, FADE_CLEANUP_MS );
+				} else {
+					clear();
+				}
 			};
 
 			element.classList.add( className );
 			element.addEventListener( 'animationend', onAnimationEnd );
-			// The animation never ends on an element that isn't rendered.
-			setTimeout( clear, FADE_CLEANUP_MS );
+			setTimeout( clearIfStill, FADE_CLEANUP_MS );
 		} );
 	}
 
