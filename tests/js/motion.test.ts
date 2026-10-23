@@ -8,6 +8,7 @@ import {
 	ENTER_MS,
 	EXIT_MS,
 	FADE_CLEANUP_MS,
+	isAnimating,
 	LEAVE_MS,
 	MOTION_QUERY,
 	OPEN_FADE_DELAY_MS,
@@ -68,5 +69,43 @@ describe( 'prefersReducedMotion', () => {
 	it( 'is true when movement is not allowed', () => {
 		mockMatchMedia( false );
 		expect( prefersReducedMotion() ).toBe( true );
+	} );
+} );
+
+describe( 'isAnimating', () => {
+	function withAnimations(
+		...animations: [ AnimationPlayState, number ][]
+	): Element {
+		const element = document.createElement( 'div' );
+
+		element.getAnimations = () =>
+			animations.map( ( [ playState, endTime ] ) => ( {
+				playState,
+				effect: { getComputedTiming: () => ( { endTime } ) },
+			} ) ) as unknown as Animation[];
+
+		return element;
+	}
+
+	it( 'is true while a fade is held or still to run', () => {
+		expect( isAnimating( withAnimations( [ 'paused', 200 ] ) ) ).toBe(
+			true
+		);
+		expect( isAnimating( withAnimations( [ 'running', 200 ] ) ) ).toBe(
+			true
+		);
+	} );
+
+	it( 'is false once the fade is over or cancelled, or for one that never ends', () => {
+		expect( isAnimating( withAnimations() ) ).toBe( false );
+		expect(
+			isAnimating(
+				withAnimations(
+					[ 'finished', 200 ],
+					[ 'idle', 200 ],
+					[ 'running', Infinity ]
+				)
+			)
+		).toBe( false );
 	} );
 } );

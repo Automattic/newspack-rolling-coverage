@@ -23,3 +23,29 @@ export const EASE_IN_OUT = 'cubic-bezier(0.77, 0, 0.175, 1)';
 export function prefersReducedMotion(): boolean {
 	return ! window.matchMedia( MOTION_QUERY ).matches;
 }
+
+/**
+ * Whether an element's own animation has yet to end: one running, including
+ * one waiting for a frame, as in a background tab, or one paused, as the
+ * new-entries scroll holds an arrival. Animations that never end don't
+ * count.
+ *
+ * @param {Element} element The element.
+ * @return {boolean} True while such an animation is on the element.
+ */
+export function isAnimating( element: Element ): boolean {
+	if ( typeof element.getAnimations !== 'function' ) {
+		return false;
+	}
+
+	return element
+		.getAnimations()
+		.some(
+			( animation ) =>
+				( animation.playState === 'running' ||
+					animation.playState === 'paused' ) &&
+				Number.isFinite(
+					Number( animation.effect?.getComputedTiming().endTime )
+				)
+		);
+}

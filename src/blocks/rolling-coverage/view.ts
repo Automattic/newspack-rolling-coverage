@@ -37,10 +37,16 @@ import {
 } from './entry-arrival';
 import { idsNewerThan, newIdsInReplace } from './new-entry-ids';
 import {
+	glideScrollTo,
+	holdAnimations,
+	newEntriesTarget,
+} from './new-entries-scroll';
+import {
 	EASE_OUT,
 	EXIT_MS,
 	FADE_CLEANUP_MS,
 	HOLD_MS,
+	isAnimating,
 	LEAVE_MS,
 	prefersReducedMotion,
 } from '../shared/motion';
@@ -1447,20 +1453,35 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		}
 
 		elements.forEach( ( element ) => {
+			let cleared = false;
 			const onAnimationEnd = ( event: Event ) => {
 				if ( event.target === element ) {
 					clear();
 				}
 			};
 			const clear = () => {
+				cleared = true;
 				element.classList.remove( className );
 				element.removeEventListener( 'animationend', onAnimationEnd );
+			};
+			// The animation never ends on an element that isn't rendered, but
+			// one held for the new-entries scroll, or in a background tab, is
+			// still to play.
+			const clearIfStill = () => {
+				if ( cleared ) {
+					return;
+				}
+
+				if ( isAnimating( element ) ) {
+					setTimeout( clearIfStill, FADE_CLEANUP_MS );
+				} else {
+					clear();
+				}
 			};
 
 			element.classList.add( className );
 			element.addEventListener( 'animationend', onAnimationEnd );
-			// The animation never ends on an element that isn't rendered.
-			setTimeout( clear, FADE_CLEANUP_MS );
+			setTimeout( clearIfStill, FADE_CLEANUP_MS );
 		} );
 	}
 
@@ -1992,64 +2013,26 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	feedStops.set( root, cleanup );
 
 	/**
+	 * The space left above what the page scrolls to: below the bars at the
+	 * top of the viewport, or from the viewport's edge without any.
+	 *
+	 * @return {number} The space in pixels.
+	 */
+	function scrollOffset(): number {
+		const bars = topBarsBottom( root );
+
+		return bars > 0 ? bars + BAR_GAP : EDGE_GAP;
+	}
+
+	/**
 	 * Where the page scrolls to show the top of the block.
 	 *
 	 * @return {number} The vertical scroll position.
 	 */
 	function blockTopY(): number {
-		const bars = topBarsBottom( root );
-
 		return (
-			root.getBoundingClientRect().top +
-			window.scrollY -
-			( bars > 0 ? bars + BAR_GAP : EDGE_GAP )
+			root.getBoundingClientRect().top + window.scrollY - scrollOffset()
 		);
-	}
-
-	/**
-	 * Where the page scrolls to show entries the reader just added: the top
-	 * of the block, so its header shows too, unless the entries would then
-	 * start past the middle of the viewport, as under a long pinned entry.
-	 * The page then scrolls to the topmost of them, leaving the same space
-	 * above it.
-	 *
-	 * An entry in a sticky card doesn't count: while the card is stuck, the
-	 * entry reads where the card is held rather than where it sits, near the
-	 * block's top.
-	 *
-	 * @param {HTMLElement[]} added The added entries.
-	 * @return {{top: number, entry: HTMLElement|null}} The scroll position, and the entry it lands on, or null for the block's top.
-	 */
-	function addedEntriesTarget( added: HTMLElement[] ): {
-		top: number;
-		entry: HTMLElement | null;
-	} {
-		const blockY = blockTopY();
-		const cards = stickyCards();
-		const counted = added.filter(
-			( el ) =>
-				el.isConnected &&
-				! cards.some( ( card ) => card.contains( el ) )
-		);
-		const tops = counted.map(
-			( el ) => el.getBoundingClientRect().top + window.scrollY
-		);
-		const entryTop = Math.min( ...tops );
-
-		if (
-			tops.length === 0 ||
-			entryTop - blockY <= window.innerHeight / 2
-		) {
-			return { top: blockY, entry: null };
-		}
-
-		// The space blockTopY() leaves above the block.
-		const gap = root.getBoundingClientRect().top + window.scrollY - blockY;
-
-		return {
-			top: entryTop - gap,
-			entry: counted[ tops.indexOf( entryTop ) ],
-		};
 	}
 
 	/**
@@ -2649,22 +2632,27 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 
 			const entries = takePendingEntries();
 			hideNewEntriesControl();
-			insertNewEntries( entries );
 
-			const target = addedEntriesTarget(
-				entries.map( ( { el } ) => el )
+			// The arrival waits for the page to get there, so the reader sees
+			// it, and nothing moves under the scroll.
+			const playArrival = holdAnimations( root, () =>
+				insertNewEntries( entries )
 			);
+			const added = entries.map( ( { el } ) => el );
+			const target = newEntriesTarget(
+				root,
+				added,
+				stickyCards(),
+				scrollOffset()
+			);
+			const focused =
+				target.entry ?? added.find( ( el ) => el.isConnected );
 
-			window.scrollTo( {
-				top: target.top,
-				behavior: prefersReducedMotion() ? 'instant' : 'smooth',
-			} );
-
-			// Past a long pinned entry, the next Tab would otherwise start
-			// above it and scroll back up.
-			if ( target.entry ) {
-				focusFromScript( target.entry, { preventScroll: true } );
+			if ( focused ) {
+				focusFromScript( focused, { preventScroll: true } );
 			}
+
+			glideScrollTo( target.top, playArrival );
 		};
 		newEntriesLink.addEventListener( 'click', onNewEntriesClick );
 		cleanupFns.push( () =>
