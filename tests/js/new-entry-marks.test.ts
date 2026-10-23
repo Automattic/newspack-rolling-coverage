@@ -443,6 +443,80 @@ describe( 'NewEntryMarks', () => {
 		expect( replacement.getAttribute( NEW_STATE_ATTR ) ).toBe( 'clearing' );
 	} );
 
+	it( 'a marker fully in view while its entry is still arriving starts no clock until it has arrived', async () => {
+		const arrivals = new Map< Element, Promise< void > >();
+		let settle = () => {};
+		marks.destroy();
+		marks = new NewEntryMarks(
+			root,
+			( entry ) => arrivals.get( entry ) ?? null
+		);
+
+		const entry = makeEntry( '1' );
+		root.appendChild( entry );
+		arrivals.set(
+			entry,
+			new Promise( ( resolve ) => {
+				settle = resolve;
+			} )
+		);
+		marks.mark( entry );
+
+		fire( markerOf( entry ), { intersectionRatio: 1 } );
+		jest.advanceTimersByTime( HOLD_MS );
+		expect( entry.getAttribute( NEW_STATE_ATTR ) ).toBe( 'held' );
+		expect( observerOf( markerOf( entry ) ) ).toBeUndefined();
+
+		arrivals.delete( entry );
+		settle();
+		await flush();
+
+		fire( markerOf( entry ), { intersectionRatio: 1 } );
+		jest.advanceTimersByTime( HOLD_MS );
+		expect( entry.getAttribute( NEW_STATE_ATTR ) ).toBe( 'clearing' );
+	} );
+
+	it( 'a replacement adopted mid-arrival waits for its own arrival', async () => {
+		const arrivals = new Map< Element, Promise< void > >();
+		const settles = new Map< Element, () => void >();
+		const arriving = ( element: Element ) =>
+			arrivals.set(
+				element,
+				new Promise( ( resolve ) => settles.set( element, resolve ) )
+			);
+		marks.destroy();
+		marks = new NewEntryMarks(
+			root,
+			( entry ) => arrivals.get( entry ) ?? null
+		);
+
+		const entry = makeEntry( '1' );
+		root.appendChild( entry );
+		arriving( entry );
+		marks.mark( entry );
+		fire( markerOf( entry ), { intersectionRatio: 1 } );
+
+		const replacement = makeEntry( '1' );
+		entry.replaceWith( replacement );
+		marks.adopt( replacement );
+		arriving( replacement );
+		arrivals.delete( entry );
+		settles.get( entry )?.();
+		await flush();
+
+		fire( markerOf( replacement ), { intersectionRatio: 1 } );
+		jest.advanceTimersByTime( HOLD_MS );
+		expect( replacement.getAttribute( NEW_STATE_ATTR ) ).toBe( 'held' );
+
+		arrivals.delete( replacement );
+		settles.get( replacement )?.();
+		await flush();
+
+		fire( markerOf( replacement ), { intersectionRatio: 1 } );
+		jest.advanceTimersByTime( HOLD_MS );
+		expect( replacement.getAttribute( NEW_STATE_ATTR ) ).toBe( 'clearing' );
+	} );
+
 	it( 'adopt finishes a clear at once on a replacement element', async () => {
 		const entry = makeEntry( '1' );
 		root.appendChild( entry );

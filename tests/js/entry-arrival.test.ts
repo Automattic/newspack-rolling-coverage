@@ -1,4 +1,5 @@
 import {
+	arrivalOf,
 	carryArrival,
 	closeSpace,
 	openDuration,
@@ -361,6 +362,44 @@ describe( 'carryArrival', () => {
 
 		expect( carryArrival( entry, makeItem( 200 ) ) ).toBe( false );
 		expect( animations ).toHaveLength( 0 );
+	} );
+} );
+
+describe( 'arrivalOf', () => {
+	it( 'holds until the open settles, for an entry, the group it opened and a replacement', async () => {
+		const list = makeList( column );
+		const stack = makeItem( 0 );
+		styles.set( stack, column );
+		const grouped = makeItem( 200 );
+		stack.append( grouped );
+		const entry = makeItem( 200 );
+		list.append( stack, entry, makeItem( 100 ) );
+
+		openSpace( [ grouped, entry ], [ grouped, entry ], list );
+
+		const replacement = makeItem( 200 );
+		grouped.replaceWith( replacement );
+		carryArrival( grouped, replacement );
+
+		expect( arrivalOf( entry ) ).toBeInstanceOf( Promise );
+		expect( arrivalOf( replacement ) ).toBe( arrivalOf( stack ) );
+
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect( arrivalOf( entry ) ).toBeNull();
+		expect( arrivalOf( stack ) ).toBeNull();
+		expect( arrivalOf( replacement ) ).toBeNull();
+	} );
+
+	it( 'is null where nothing opens', () => {
+		const list = makeList( { display: 'flex', flexDirection: 'row' } );
+		const entry = makeItem( 200 );
+		list.append( entry, makeItem( 100 ) );
+
+		openSpace( [ entry ], [ entry ], list );
+
+		expect( arrivalOf( entry ) ).toBeNull();
 	} );
 } );
 

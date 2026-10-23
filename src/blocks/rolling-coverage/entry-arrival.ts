@@ -35,6 +35,34 @@ type Space = {
 const opens = new WeakMap< Element, Animation >();
 const fades = new WeakMap< Element, Animation >();
 const paces = new WeakMap< Element, number >();
+const arrivals = new WeakMap< Element, Promise< void > >();
+
+/**
+ * Records that an element is arriving until a promise settles.
+ *
+ * @param {Element}       element The element.
+ * @param {Promise<void>} settled Settles once its arrival has finished.
+ */
+function trackArrival( element: Element, settled: Promise< void > ): void {
+	arrivals.set( element, settled );
+	settled.then( () => {
+		if ( arrivals.get( element ) === settled ) {
+			arrivals.delete( element );
+		}
+	} );
+}
+
+/**
+ * The arrival an element is still making: the open of its own space, or of
+ * the group it opened with. Until it settles, the element isn't where it
+ * ends up, so it can't be said to be in view.
+ *
+ * @param {Element} element The element.
+ * @return {Promise<void> | null} Settles once the open finishes or is cancelled, or null when nothing is opening.
+ */
+export function arrivalOf( element: Element ): Promise< void > | null {
+	return arrivals.get( element ) ?? null;
+}
 
 /**
  * How long an open takes for the height it adds to the page: `OPEN_MS` up to
@@ -90,8 +118,9 @@ export function stackGap( style: StackStyle ): number | null {
  * end margin starts by cancelling the element's whole share of the layout,
  * its gap included, and the clip hides what the elements after it still
  * cover, so the clip's edge meets the next element's top on every frame.
- * The clip reaches a gap past the element's top and well past its sides,
- * so a shadow or anything else it draws outside its box isn't cut.
+ * The clip reaches a gap past the element's top, where Rail draws the
+ * timeline connector that links an entry to the one above it, and well past
+ * its sides, so nothing the element draws outside its box is cut.
  *
  * @param {Space} space The element's size, gap and own margins.
  * @return {Object[]} The keyframes, closed to open.
@@ -207,9 +236,16 @@ function runOpen(
 	paces.set( element, duration );
 	open.currentTime = currentTime;
 	opens.set( element, open );
-	open.finished.then(
-		() => opens.get( element ) === open && opens.delete( element ),
-		() => {}
+	trackArrival(
+		element,
+		open.finished.then(
+			() => {
+				if ( opens.get( element ) === open ) {
+					opens.delete( element );
+				}
+			},
+			() => {}
+		)
 	);
 }
 
@@ -304,6 +340,14 @@ export function openSpace(
 		}
 	} );
 
+	targets.forEach( ( target, element ) => {
+		const settled = target !== element && arrivals.get( target );
+
+		if ( settled ) {
+			trackArrival( element, settled );
+		}
+	} );
+
 	leaving.forEach( ( entry ) => {
 		if ( ! closeSpace( entry, () => entry.remove(), duration ) ) {
 			entry.remove();
@@ -339,6 +383,11 @@ export function carryArrival( from: HTMLElement, to: HTMLElement ): boolean {
 	}
 
 	const duration = paces.get( from ) ?? OPEN_MS;
+	const groupArrival = open ? null : arrivals.get( from );
+
+	if ( groupArrival ) {
+		trackArrival( to, groupArrival );
+	}
 
 	if ( open ) {
 		const time = Number( open.currentTime ) || 0;

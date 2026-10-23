@@ -19,6 +19,7 @@ import {
 	HOLD_MS,
 	prefersReducedMotion,
 } from '../shared/motion';
+import { arrivalOf } from './entry-arrival';
 
 export const NEW_MARKER_ATTR = 'data-rc-new-marker';
 export const NEW_STATE_ATTR = 'data-new';
@@ -38,6 +39,7 @@ type Mark = {
 	entry: HTMLElement;
 	target: Element | null;
 	inView: boolean;
+	waiting: Promise< void > | null;
 	clearing: Clearing | null;
 };
 
@@ -132,6 +134,8 @@ function isAloneOnLine( marker: HTMLElement ): boolean {
 export class NewEntryMarks {
 	private readonly doc: Document;
 
+	private readonly arrivalOf: typeof arrivalOf;
+
 	private readonly marks = new Map< string, Mark >();
 
 	private readonly markerObserver: IntersectionObserver | null = null;
@@ -143,10 +147,12 @@ export class NewEntryMarks {
 	private frame: number | null = null;
 
 	/**
-	 * @param {HTMLElement} root The feed the entries belong to.
+	 * @param {HTMLElement} root       The feed the entries belong to.
+	 * @param {Function}    [arriving] The arrival an entry is still making, or null.
 	 */
-	constructor( root: HTMLElement ) {
+	constructor( root: HTMLElement, arriving: typeof arrivalOf = arrivalOf ) {
 		this.doc = root.ownerDocument;
+		this.arrivalOf = arriving;
 
 		if ( typeof IntersectionObserver !== 'undefined' ) {
 			this.markerObserver = new IntersectionObserver( this.onIntersect, {
@@ -205,6 +211,7 @@ export class NewEntryMarks {
 						entry,
 						target: null,
 						inView: false,
+						waiting: null,
 						clearing: null,
 					};
 					this.marks.set( id, created );
@@ -351,6 +358,7 @@ export class NewEntryMarks {
 
 	private unobserve( id: string, record: Mark ): void {
 		this.unwatchScroll( id );
+		record.waiting = null;
 
 		if ( ! record.target ) {
 			return;
@@ -369,7 +377,11 @@ export class NewEntryMarks {
 	): void => {
 		observed.forEach( ( change ) => {
 			this.marks.forEach( ( record, id ) => {
-				if ( record.target !== change.target || record.clearing ) {
+				if (
+					record.target !== change.target ||
+					record.clearing ||
+					this.waitForArrival( id, record )
+				) {
 					return;
 				}
 
@@ -390,6 +402,40 @@ export class NewEntryMarks {
 			} );
 		} );
 	};
+
+	/**
+	 * Holds off watching an entry while its space is still opening, since it
+	 * isn't yet where it settles, then watches it afresh, so the observer
+	 * reports where it ended up.
+	 *
+	 * @param {string} id     The entry ID.
+	 * @param {Mark}   record The entry's mark.
+	 * @return {boolean} True when the entry is still arriving.
+	 */
+	private waitForArrival( id: string, record: Mark ): boolean {
+		const arrival = this.arrivalOf( record.entry );
+
+		if ( ! arrival ) {
+			return false;
+		}
+
+		this.unobserve( id, record );
+		record.inView = false;
+		record.waiting = arrival;
+		arrival.then( () => {
+			if (
+				this.marks.get( id ) !== record ||
+				record.waiting !== arrival
+			) {
+				return;
+			}
+
+			record.waiting = null;
+			this.observe( id, record, this.targetOf( record ) );
+		} );
+
+		return true;
+	}
 
 	private isSeen( record: Mark, change: IntersectionObserverEntry ): boolean {
 		if ( record.target !== record.entry ) {

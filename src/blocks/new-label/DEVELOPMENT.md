@@ -20,11 +20,11 @@ For how publishers use the block, see `README.md` in this directory. For where t
 - In a syndication feed (`is_feed()`), renders nothing, since no script runs there to manage the label and a reader may ignore `hidden`.
 - Anywhere else, such as among the coverage-level blocks or outside a feed, renders nothing.
 
-The view script keys on `data-rc-new-marker`, not on a class or the block name: `NewEntryMarks` removes `hidden` on a new entry's own marker and sets it again once the mark clears.
+The view script keys on `data-rc-new-marker`, not on a class or the block name: `NewEntryMarks` removes `hidden` on a new entry's own marker and sets it again once the mark clears. Besides its arrival, the label is the only mark a new entry gets. It counts as seen only once its entry has arrived: while the entry's space is still opening, the label isn't where it settles, so `NewEntryMarks` waits for the open to finish before it watches the label (see the New label's Seen rule under Motion in `../rolling-coverage/DEVELOPMENT.md`).
 
 ## Entries without a label
 
-Besides its arrival, the label is the only mark a new entry gets. An entry whose template holds no New Label gets only the screen-reader "New" (`newspack-rolling-coverage-new-status`) that `NewEntryMarks` adds, and one whose label is visually hidden, as in Minute, shows nothing beyond its arrival.
+An entry whose template holds no New Label gets only the screen-reader "New" (`newspack-rolling-coverage-new-status`) that `NewEntryMarks` adds, and one whose label is visually hidden, as in Minute, shows nothing beyond its arrival.
 
 ## Editor
 
