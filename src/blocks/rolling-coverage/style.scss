@@ -109,6 +109,10 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 			}
 		}
 
+		.newspack-rolling-coverage-feed.is-layout-flex:not(.is-vertical) .newspack-rolling-coverage-entry[data-new][data-new-label]:has(> :is(.newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-regular-entry, .newspack-rolling-coverage-breakout-entry).is-layout-flex:not(.is-vertical))::after {
+			content: none;
+		}
+
 		.newspack-rolling-coverage-entry[data-new="clearing"] [data-rc-new-marker]:not(.newspack-rolling-coverage-entry[data-new="clearing"] .newspack-rolling-coverage-entry:not([data-new="clearing"]) [data-rc-new-marker]) {
 			opacity: 0;
 			transition: opacity motion.$clear motion.$ease;

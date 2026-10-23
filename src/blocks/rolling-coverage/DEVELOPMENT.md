@@ -225,7 +225,7 @@ A layout's look comes from block settings in its template: colors, typography, s
 - `style.scss` (built to `view.css`, loaded on the front end and in the editor) holds structural rules only. Rules that size items use `:where()` so block settings win.
 - `editor.scss` covers editor-only UI.
 
-Don't add a layout's colors or type to these files. The new-entry tint is not part of a layout but a passing state of any entry holding a New Label, so `style.scss` sets its color (`--newspack-rolling-coverage-new-tint`; see The tint in [`../new-label/DEVELOPMENT.md`](../new-label/DEVELOPMENT.md)).
+Don't add a layout's colors or type to these files. The new-entry tint is not part of a layout but a passing state of any entry holding a New Label, so `style.scss` sets its color (`--newspack-rolling-coverage-new-tint`) and leaves it off an entry laid out as a row in a row Feed, as Flash's are (see The tint in [`../new-label/DEVELOPMENT.md`](../new-label/DEVELOPMENT.md)).
 
 The Load more button's inset is CSS for the same reason: it lines up with the entries' text, a length taken from the entry row's columns that no block setting can express. See "The inset" in [`../load-more/DEVELOPMENT.md`](../load-more/DEVELOPMENT.md).
 
