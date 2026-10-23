@@ -254,15 +254,15 @@ To get the plugin's version of an edited layout back, remove the pattern, reload
 
 A custom layout is a synced pattern in the Rolling Coverage pattern category whose only top-level block is a Rolling Coverage block. Published patterns in that category appear in "Choose a layout" after the built-in layouts, sorted by title. The picker reads up to 100 patterns from the category, built-in ones included.
 
-The Rolling Coverage category appears once someone picks a built-in layout in a story. If it isn't there yet, pick a layout in any story first, then open the pattern editor. If you create the Rolling Coverage category yourself instead, save the pattern and reload the editor before you add the Rolling Coverage block.
+The Rolling Coverage category appears once someone picks a built-in layout in a story. If it isn't there yet, pick a layout in any story first, then open the pattern editor. If you create the Rolling Coverage category yourself instead, save the pattern and reload the editor to get the Rolling Coverage block.
 
-Set the category before you add the Rolling Coverage block. With the category set, the block opens as an editable layout with sample entries, starting from Bulletin. Without it, the block asks for a coverage instead. Don't pick a coverage inside a pattern, and don't add other blocks beside the Rolling Coverage block: the pattern then no longer counts as a layout.
+An empty pattern in the Rolling Coverage category opens with a Rolling Coverage block in place, as an editable layout with sample entries, starting from Bulletin. A pattern that already has blocks keeps them, and a Rolling Coverage block you remove stays removed until you next open the pattern while it's empty. Don't pick a coverage inside a pattern, and don't add other blocks beside the Rolling Coverage block: the pattern then no longer counts as a layout.
 
 ### Block themes
 
 1. Go to Appearance > Editor > Patterns. Select Add Pattern, then Add Pattern in the menu.
-2. Enter a Name. In Categories, pick Rolling Coverage. Leave Synced on. Select Add.
-3. Add a Rolling Coverage block and edit the layout with the block settings.
+2. Enter a Name. In Categories, pick Rolling Coverage. Leave Synced on. Select Add. The pattern opens with a Rolling Coverage block showing the Bulletin layout.
+3. Edit the layout with the block settings.
 4. Select Save.
 
 To start from a built-in layout instead, open the Rolling Coverage category in Patterns, open a layout's Actions menu (⋮) and select Duplicate. The copy keeps the category and stays synced. Rename it and select Duplicate.
@@ -271,8 +271,8 @@ To start from a built-in layout instead, open the Rolling Coverage category in P
 
 1. Go to the Patterns screen (`wp-admin/edit.php?post_type=wp_block`) and select Add Pattern.
 2. Enter a Name, leave Synced on, and select Create.
-3. In the Settings sidebar, under Pattern Categories, add Rolling Coverage. The category is only in the sidebar, not in the Create pattern dialog.
-4. Add a Rolling Coverage block and edit the layout with the block settings.
+3. In the Settings sidebar, under Pattern Categories, add Rolling Coverage. The category is only in the sidebar, not in the Create pattern dialog. A Rolling Coverage block showing the Bulletin layout appears in the pattern.
+4. Edit the layout with the block settings.
 5. Select Publish.
 
 ### Use it

@@ -6,7 +6,7 @@ import { _x } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import { getLayoutId } from './utils';
+import { getLayoutCategoryId, getLayoutId } from './utils';
 import {
 	innerTemplate,
 	streamInnerTemplate,
@@ -158,6 +158,27 @@ export function builtInLayoutSlugFor(
 		getBuiltInLayouts().find(
 			( layout ) => getLayoutId( layout.slug ) === patternId
 		)?.slug ?? null
+	);
+}
+
+/**
+ * Whether the post being edited is a layout pattern: a pattern in the layout
+ * category, or a built-in layout's pattern.
+ *
+ * @param {string|null} postType   The edited post's type.
+ * @param {number}      postId     The edited post's ID.
+ * @param {number[]}    categories The edited post's pattern categories.
+ * @return {boolean} Whether it is a layout pattern.
+ */
+export function isLayoutPatternPost(
+	postType: string | null | undefined,
+	postId: number,
+	categories: number[] | undefined
+): boolean {
+	return (
+		postType === 'wp_block' &&
+		( ( categories ?? [] ).includes( getLayoutCategoryId() ) ||
+			builtInLayoutSlugFor( postId ) !== null )
 	);
 }
 
