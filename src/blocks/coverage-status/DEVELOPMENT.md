@@ -9,7 +9,7 @@ For how publishers use the block, see `README.md` in this directory.
 - `coverageId`: 0 for Automatic, or a chosen coverage (Custom).
 - `labels`: per-status text overrides, keyed `active`, `paused`, `archived`.
 - `backgroundColors`: per-status badge backgrounds, same keys. Each is a hex color or a theme color name (`accent`, `base`).
-- `showDot`: the dot on the live badge, which stays still. Default on.
+- `showDot`: the dot (and pulse, while live) on the badge. Default on.
 - `showLastUpdated`: the "Updated 2 minutes ago" text. Default off.
 - `hideWhenEnded`: render nothing once the coverage ends.
 

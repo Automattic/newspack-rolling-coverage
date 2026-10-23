@@ -298,7 +298,7 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$coverage_id = self::create_coverage();
 		$page_id     = self::page( self::feed( $coverage_id ) );
 
-		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--success newspack-ui__badge--dot">Live</span>', $this->render( [], $page_id ) );
+		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse">Live</span>', $this->render( [], $page_id ) );
 
 		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
 		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--secondary">Paused</span>', $this->render( [], $page_id ) );
@@ -370,7 +370,7 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'data-hide-dot="true"', $html );
 
 		$html = $this->render( [ 'showDot' => true ], $page_id );
-		$this->assertStringContainsString( 'newspack-ui__badge--dot', $html );
+		$this->assertStringContainsString( 'newspack-ui__badge--dot newspack-ui__badge--pulse', $html );
 		$this->assertStringNotContainsString( 'data-hide-dot', $html );
 		$this->assertStringNotContainsString( 'data-hide-dot', $this->render( [], $page_id ) );
 
