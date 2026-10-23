@@ -164,15 +164,22 @@ function getCoverageActions(
 								'newspack-rolling-coverage'
 							)
 						),
-						// A trashed coverage takes no messages, and a restore doesn't bring them back.
+						// A trashed coverage takes no messages from its Slack channel.
 						items.some(
 							( coverage ) =>
 								!! coverage.meta
 									?.rolling_coverage_slack_channel_id
 						)
-							? __(
-									'Messages posted in a linked Slack channel meanwhile won’t become entries, even after a restore.',
-									'newspack-rolling-coverage'
+							? pluralize(
+									items.length,
+									__(
+										'Messages posted in its linked Slack channel won’t become entries while it’s in the trash.',
+										'newspack-rolling-coverage'
+									),
+									__(
+										'Messages posted in their linked Slack channels won’t become entries while they’re in the trash.',
+										'newspack-rolling-coverage'
+									)
 								)
 							: '',
 					]

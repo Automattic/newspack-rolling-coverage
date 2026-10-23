@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { useNavigate, useOutletContext } from 'react-router';
-import { useState, useCallback, useEffect, useMemo } from '@wordpress/element';
+import { useState, useCallback, useMemo } from '@wordpress/element';
 import { Button } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 import { Stack } from '@wordpress/ui';
@@ -150,14 +150,6 @@ function CoverageView() {
 			} ),
 		[ view, handleChangeView ]
 	);
-	// The empty state replaces the toolbar, so once the last coverage is gone
-	// the list leaves the Trash view, and the next coverage added shows.
-	useEffect( () => {
-		if ( isEmpty && isTrashView ) {
-			showTrash( false );
-		}
-	}, [ isEmpty, isTrashView, showTrash ] );
-
 	let trashToggle: JSX.Element | null = null;
 	if ( isTrashView ) {
 		trashToggle = (
@@ -191,9 +183,14 @@ function CoverageView() {
 	);
 
 	const handleOpenCreate = useCallback( () => {
+		// A new coverage isn't in the trash, so leave the Trash view to show
+		// it; from the empty state, nothing else on screen can.
+		if ( isTrashView ) {
+			showTrash( false );
+		}
 		setEditingCoverage( null );
 		setIsDrawerOpen( true );
-	}, [] );
+	}, [ isTrashView, showTrash ] );
 
 	const handleOpenEdit = useCallback( ( coverage: Coverage ) => {
 		setEditingCoverage( coverage );
