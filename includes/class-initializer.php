@@ -55,6 +55,7 @@ class Initializer {
 		Entry_Name::init();
 		Abilities::init();
 		Schema::init();
+		Updated_Date::init();
 		Coverage_Follow_Block::init();
 		Check_Updates_Block::init();
 		Load_More_Block::init();

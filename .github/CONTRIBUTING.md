@@ -17,6 +17,7 @@ For the contribution process (bug reports, feature requests, pull requests, and 
   - [Advertising](#advertising)
   - [AI key takeaways](#ai-key-takeaways)
   - [Structured data](#structured-data)
+  - [Updated date](#updated-date)
 - [Architecture](#architecture)
 - [Data model](#data-model)
 - [REST API](#rest-api)
@@ -109,6 +110,10 @@ For the block's AI panel, see [AI](../src/blocks/rolling-coverage/README.md#ai).
 
 A Rolling Coverage block that shows all entries outputs schema.org `LiveBlogPosting` JSON-LD with a `liveBlogUpdate` array of `BlogPosting` items, including `coverageStartTime`/`coverageEndTime`, `datePublished`/`dateModified`, per-entry `BlogPosting` bodies, and authors. With Yoast SEO active, the page's first such coverage is merged into Yoast's Article instead, which keeps its type and adds `LiveBlogPosting`. Output is cached in the object cache for up to a week, and a change to the page, the coverage, or its entries starts a new cache entry. See [Live blog markup](../src/blocks/rolling-coverage/README.md#live-blog-markup).
 
+### Updated date
+
+While a post's coverage is live or paused, the post shows when it last changed: Newspack's "Updated" date in its byline, and the same date in place of the publish date on its Homepage Posts card, whatever the site's Last updated date setting says. The date is the newest entry's, or the post's own last edit when that came later. Once the coverage ends, the site's settings decide again. See [Updated date](../src/blocks/rolling-coverage/README.md#updated-date) and its [development notes](../src/blocks/rolling-coverage/DEVELOPMENT.md#updated-date).
+
 ## Architecture
 
 ```
@@ -125,6 +130,7 @@ includes/
   class-breakout.php             Breakout post creation, linking, status sync
   class-social-sharing.php       Canonical redirects, share URLs, deep-link query vars
   class-schema.php               LiveBlogPosting JSON-LD
+  class-updated-date.php         Newspack's "Updated" date on posts whose coverage hasn't ended
   class-push-notifications.php   OneSignal integration
   class-ads.php                  Newspack Ads placement
   class-admin.php                Admin menu, assets, localized config, block-editor bootstrap
@@ -290,6 +296,8 @@ The `entries-view` endpoint accepts `page`, `per_page`, `orderby` (`date`\|`modi
 | `newspack_rolling_coverage_shared_polling` | `(bool $enabled)` | Whether pages poll the URL every reader shares (default `true`). Returning false moves open pages to their own cursor on their next poll. |
 | `newspack_rolling_coverage_defer_notification` | `(bool $defer, WP_Post $post)` | Whether an entry's push notification is scheduled instead of sent during the request that published it. |
 | `onesignal_send_notification` | `(array $fields, int $post_id)` | Consumed to scope push notifications. |
+| `newspack_updated_date_override` | `(bool\|null $override, WP_Post $post)` | Consumed to show the updated date in a live post's byline. |
+| `newspack_blocks_display_updated_date` | `(bool $display, WP_Post $post)` | Consumed to show a live post's updated date on its Homepage Posts card. |
 | `newspack_ads_gam_bounds_selectors` | `(array $selectors, $ad_unit, $sizes)` | GAM bounds selectors for in-feed ad slots. |
 | `newspack_ads_gam_bounds_bleed` | `(int $bleed, $ad_unit, $sizes)` | GAM bounds bleed (default 40). |
 
