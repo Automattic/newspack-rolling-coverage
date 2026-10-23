@@ -12,8 +12,11 @@ import {
 	EASE_OUT,
 	ENTER_MS,
 	LEAVE_MS,
+	OPEN_BASE_PX,
 	OPEN_FADE_DELAY_MS,
+	OPEN_MAX_MS,
 	OPEN_MS,
+	OPEN_PX_PER_MS,
 	prefersReducedMotion,
 } from '../shared/motion';
 
@@ -31,6 +34,62 @@ type Space = {
 
 const opens = new WeakMap< Element, Animation >();
 const fades = new WeakMap< Element, Animation >();
+const paces = new WeakMap< Element, number >();
+const arrivals = new WeakMap< Element, Promise< void > >();
+
+/**
+ * Records that an element is arriving until a promise settles.
+ *
+ * @param {Element}       element The element.
+ * @param {Promise<void>} settled Settles once its arrival has finished.
+ */
+function trackArrival( element: Element, settled: Promise< void > ): void {
+	arrivals.set( element, settled );
+	settled.then( () => {
+		if ( arrivals.get( element ) === settled ) {
+			arrivals.delete( element );
+		}
+	} );
+}
+
+/**
+ * The arrival an element is still making: the open of its own space, or of
+ * the group it opened with. Until it settles, the element isn't where it
+ * ends up, so it can't be said to be in view.
+ *
+ * @param {Element} element The element.
+ * @return {Promise<void> | null} Settles once the open finishes or is cancelled, or null when nothing is opening.
+ */
+export function arrivalOf( element: Element ): Promise< void > | null {
+	return arrivals.get( element ) ?? null;
+}
+
+/**
+ * How long an open takes for the height it adds to the page: `OPEN_MS` up to
+ * about one entry's share, then longer as the height grows, up to
+ * `OPEN_MAX_MS`, so a batch of entries doesn't sweep the list down in the
+ * time one entry takes.
+ *
+ * @param {number} height The height added, in pixels.
+ * @return {number} The duration, in milliseconds.
+ */
+export function openDuration( height: number ): number {
+	const extra = Math.max( 0, height - OPEN_BASE_PX ) / OPEN_PX_PER_MS;
+
+	return Math.round( Math.min( OPEN_MAX_MS, OPEN_MS + extra ) );
+}
+
+/**
+ * How far into an open its entries start to fade in: as far through the open
+ * as `OPEN_FADE_DELAY_MS` is through `OPEN_MS`, so a longer open keeps the
+ * fade over the space opening.
+ *
+ * @param {number} duration The open's duration, in milliseconds.
+ * @return {number} The delay, in milliseconds.
+ */
+export function openFadeDelay( duration: number ): number {
+	return Math.round( ( OPEN_FADE_DELAY_MS * duration ) / OPEN_MS );
+}
 
 /**
  * The gap a layout leaves between the children it stacks in a column, or
@@ -59,8 +118,9 @@ export function stackGap( style: StackStyle ): number | null {
  * end margin starts by cancelling the element's whole share of the layout,
  * its gap included, and the clip hides what the elements after it still
  * cover, so the clip's edge meets the next element's top on every frame.
- * The clip reaches a gap past the element's top and bottom, where its New
- * tint can reach, and well past its sides, so nothing it draws there is cut.
+ * The clip reaches a gap past the element's top, where Rail draws the
+ * timeline connector that links an entry to the one above it, and well past
+ * its sides, so nothing the element draws outside its box is cut.
  *
  * @param {Space} space The element's size, gap and own margins.
  * @return {Object[]} The keyframes, closed to open.
@@ -87,7 +147,7 @@ export function openKeyframes( space: Space ): Keyframe[] {
  * @param {Element} element The element.
  * @return {Element | null} The layout.
  */
-export function layoutOf( element: Element ): Element | null {
+function layoutOf( element: Element ): Element | null {
 	let parent = element.parentElement;
 
 	while (
@@ -160,18 +220,32 @@ function canMove( element: HTMLElement ): boolean {
  *
  * @param {HTMLElement} element     The element.
  * @param {Space}       space       Its space.
+ * @param {number}      duration    How long the open takes, in milliseconds.
  * @param {number}      currentTime Where to start, in milliseconds.
  */
-function runOpen( element: HTMLElement, space: Space, currentTime = 0 ): void {
+function runOpen(
+	element: HTMLElement,
+	space: Space,
+	duration: number,
+	currentTime = 0
+): void {
 	const open = element.animate( openKeyframes( space ), {
-		duration: OPEN_MS,
+		duration,
 		easing: EASE_IN_OUT,
 	} );
+	paces.set( element, duration );
 	open.currentTime = currentTime;
 	opens.set( element, open );
-	open.finished.then(
-		() => opens.get( element ) === open && opens.delete( element ),
-		() => {}
+	trackArrival(
+		element,
+		open.finished.then(
+			() => {
+				if ( opens.get( element ) === open ) {
+					opens.delete( element );
+				}
+			},
+			() => {}
+		)
 	);
 }
 
@@ -180,15 +254,21 @@ function runOpen( element: HTMLElement, space: Space, currentTime = 0 ): void {
  * open, so the entry comes in as its space opens rather than after.
  *
  * @param {HTMLElement} element     The entry.
+ * @param {number}      duration    How long its open takes, in milliseconds.
  * @param {number}      currentTime Where to start, in milliseconds.
  */
-function runFade( element: HTMLElement, currentTime = 0 ): void {
+function runFade(
+	element: HTMLElement,
+	duration: number,
+	currentTime = 0
+): void {
 	const fade = element.animate( [ { opacity: 0 }, { opacity: 1 } ], {
 		duration: ENTER_MS,
-		delay: OPEN_FADE_DELAY_MS,
+		delay: openFadeDelay( duration ),
 		easing: EASE_OUT,
 		fill: 'backwards',
 	} );
+	paces.set( element, duration );
 	fade.currentTime = currentTime;
 	fades.set( element, fade );
 	fade.finished.then(
@@ -201,22 +281,30 @@ function runFade( element: HTMLElement, currentTime = 0 ): void {
  * Opens the space of elements just inserted in a feed's entry list. An
  * element alone in a group inside the list, as the first entry of an empty
  * Pinned group, opens the group, which appeared with it. The entries given
- * to fade fade in as their space opens.
+ * to fade fade in as their space opens. They all open together, over a
+ * duration set by the height they add between them (see openDuration()).
+ * Entries leaving to make room, as a capped feed drops its oldest, close
+ * their space over the same duration (see closeSpace()), so the list's
+ * height moves one way only, and are removed once closed.
  *
  * Nothing opens under reduced motion, without scripted animations, or where
- * the layout doesn't stack the elements in a column (a row or a grid).
+ * the layout doesn't stack the elements in a column (a row or a grid); an
+ * entry leaving whose space can't close is removed at once.
  *
- * @param {HTMLElement[]} elements Elements just inserted, entries and ads.
- * @param {HTMLElement[]} faded    The entries among them to fade in.
- * @param {HTMLElement}   list     The feed's entry list.
+ * @param {HTMLElement[]} elements  Elements just inserted, entries and ads.
+ * @param {HTMLElement[]} faded     The entries among them to fade in.
+ * @param {HTMLElement}   list      The feed's entry list.
+ * @param {HTMLElement[]} [leaving] Entries leaving to make room for them.
  * @return {HTMLElement[]} The entries left for the caller to fade in.
  */
 export function openSpace(
 	elements: HTMLElement[],
 	faded: HTMLElement[],
-	list: HTMLElement
+	list: HTMLElement,
+	leaving: HTMLElement[] = []
 ): HTMLElement[] {
 	if ( ! elements.length || ! canMove( elements[ 0 ] ) ) {
+		leaving.forEach( ( entry ) => entry.remove() );
 		return faded;
 	}
 
@@ -236,10 +324,33 @@ export function openSpace(
 		spaces.set( target, spaceOf( target ) )
 	);
 
+	let added = 0;
+	spaces.forEach( ( space ) => {
+		if ( space ) {
+			added +=
+				space.marginStart + space.height + space.gap + space.marginEnd;
+		}
+	} );
+	const duration = openDuration( added );
+
 	spaces.forEach( ( space, target ) => {
 		if ( space ) {
 			opens.get( target )?.cancel();
-			runOpen( target, space );
+			runOpen( target, space, duration );
+		}
+	} );
+
+	targets.forEach( ( target, element ) => {
+		const settled = target !== element && arrivals.get( target );
+
+		if ( settled ) {
+			trackArrival( element, settled );
+		}
+	} );
+
+	leaving.forEach( ( entry ) => {
+		if ( ! closeSpace( entry, () => entry.remove(), duration ) ) {
+			entry.remove();
 		}
 	} );
 
@@ -250,7 +361,7 @@ export function openSpace(
 			return true;
 		}
 
-		runFade( entry );
+		runFade( entry, duration );
 		return false;
 	} );
 }
@@ -271,6 +382,13 @@ export function carryArrival( from: HTMLElement, to: HTMLElement ): boolean {
 		return false;
 	}
 
+	const duration = paces.get( from ) ?? OPEN_MS;
+	const groupArrival = open ? null : arrivals.get( from );
+
+	if ( groupArrival ) {
+		trackArrival( to, groupArrival );
+	}
+
 	if ( open ) {
 		const time = Number( open.currentTime ) || 0;
 		const space = spaceOf( to );
@@ -278,7 +396,7 @@ export function carryArrival( from: HTMLElement, to: HTMLElement ): boolean {
 		opens.delete( from );
 
 		if ( space ) {
-			runOpen( to, space, time );
+			runOpen( to, space, duration, time );
 		}
 	}
 
@@ -286,7 +404,7 @@ export function carryArrival( from: HTMLElement, to: HTMLElement ): boolean {
 		const time = Number( fade.currentTime ) || 0;
 		fade.cancel();
 		fades.delete( from );
-		runFade( to, time );
+		runFade( to, duration, time );
 	}
 
 	return true;
@@ -318,11 +436,18 @@ export function stopArrivalFade( element: HTMLElement ): number | null {
  * then calls back to remove it. Returns false, without calling back, where
  * the space can't close smoothly, so the caller removes the entry at once.
  *
- * @param {HTMLElement} element The entry.
- * @param {Function}    done    Called once the space has closed.
+ * @param {HTMLElement} element    The entry.
+ * @param {Function}    done       Called once the space has closed.
+ * @param {number}      [duration] How long the close takes, in milliseconds:
+ *                                 the open it makes room for, so the two
+ *                                 keep pace.
  * @return {boolean} True when the space is closing.
  */
-export function closeSpace( element: HTMLElement, done: () => void ): boolean {
+export function closeSpace(
+	element: HTMLElement,
+	done: () => void,
+	duration = OPEN_MS
+): boolean {
 	if ( ! canMove( element ) ) {
 		return false;
 	}
@@ -339,7 +464,7 @@ export function closeSpace( element: HTMLElement, done: () => void ): boolean {
 	fades.delete( element );
 
 	const close = element.animate( openKeyframes( space ).reverse(), {
-		duration: OPEN_MS,
+		duration,
 		easing: EASE_IN_OUT,
 		fill: 'forwards',
 	} );

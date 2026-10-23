@@ -1,6 +1,6 @@
 /**
- * Marks entries published while the page is open: a "New" marker and a tint
- * that hold until the reader has seen the entry, then clear.
+ * Marks entries published while the page is open: a "New" marker that holds
+ * until the reader has seen the entry, then clears.
  */
 
 /**
@@ -19,16 +19,12 @@ import {
 	HOLD_MS,
 	prefersReducedMotion,
 } from '../shared/motion';
-import { layoutOf, stackGap } from './entry-arrival';
+import { arrivalOf } from './entry-arrival';
 
 export const NEW_MARKER_ATTR = 'data-rc-new-marker';
 export const NEW_STATE_ATTR = 'data-new';
-export const NEW_LABEL_ATTR = 'data-new-label';
 
 const STATUS_CLASS = 'newspack-rolling-coverage-new-status';
-
-export const TINT_START = '--newspack-rolling-coverage-new-tint-start';
-export const TINT_END = '--newspack-rolling-coverage-new-tint-end';
 
 // Browsers can report a fully visible element just under 1 at fractional positions.
 const FULLY_IN_VIEW = 0.99;
@@ -38,23 +34,12 @@ type Clearing = {
 	animation: Animation | null;
 };
 
-/**
- * The separator lines at an entry's top and bottom edges, as the width of
- * each line, and whether the entry is a card: a box running its full height
- * with its own background or a border all around, as wide as the entry or
- * taking at least half of it in one of its columns.
- */
-export type RowEdges = {
-	top: number | null;
-	bottom: number | null;
-	card: boolean;
-};
-
 type Mark = {
 	clock: number | null;
 	entry: HTMLElement;
 	target: Element | null;
 	inView: boolean;
+	waiting: Promise< void > | null;
 	clearing: Clearing | null;
 };
 
@@ -143,269 +128,13 @@ function isAloneOnLine( marker: HTMLElement ): boolean {
 }
 
 /**
- * What borders an entry's edge on the far side of the gap: something the tint
- * meets flush (a neighbor whose facing edge has a separator line, or a card),
- * open space (a neighbor with neither, or anything other than an entry), or
- * nothing.
- */
-export type Facing = 'solid' | 'space' | null;
-
-/**
- * Where the tint starts and ends against the entry's own box, as the
- * `inset-block` of its pseudo-element: a negative value reaches past the box.
- * It runs from separator to separator. An edge with its own line stops at
- * it; one facing a neighbor's line or card reaches across the gap to it, so
- * no strip of the gap shows between them; one facing open space reaches
- * halfway, so two tinted rows meet in the middle of the gap. An edge with no
- * neighbor (the first or last entry) takes the shape of the other rows:
- * across the gap when the entry has a line on its other edge, halfway
- * otherwise. A card keeps the tint inside its box, and a layout that places
- * entries side by side (a row) has no gaps above and below to reach into.
- *
- * @param {RowEdges}      edges  The entry's own edges.
- * @param {Facing}        before What faces its top edge.
- * @param {Facing}        after  What faces its bottom edge.
- * @param {number | null} gap    The gap between rows, or null for a row layout.
- * @return {number[]} The start and end insets, in pixels.
- */
-export function tintInsets(
-	edges: RowEdges,
-	before: Facing,
-	after: Facing,
-	gap: number | null
-): [ number, number ] {
-	if ( gap === null || edges.card ) {
-		return [ 0, 0 ];
-	}
-
-	const reach = ( facing: Facing, otherLine: number | null ) => {
-		if ( facing === 'solid' || ( facing === null && otherLine !== null ) ) {
-			return -gap;
-		}
-
-		return -gap / 2;
-	};
-
-	return [
-		edges.top ?? reach( before, edges.bottom ),
-		edges.bottom ?? reach( after, edges.top ),
-	];
-}
-
-/**
- * Whether a computed color paints anything.
- *
- * @param {string} color The color.
- * @return {boolean} True when it isn't fully transparent.
- */
-function isPainted( color: string ): boolean {
-	return (
-		!! color &&
-		color !== 'transparent' &&
-		! /^rgba\(.*,\s*0\)$|\/\s*0\)$/.test( color )
-	);
-}
-
-/**
- * Finds the separator lines at an entry's top and bottom edges, from the
- * boxes that span its width along those edges (a separator block, or a box
- * with a border on that edge only), and whether it is a card (see RowEdges),
- * such as Rail's card beside its time column. Boxes up to six levels down are
- * searched, deep enough for Rail's Full Story box; the entry's text and a
- * feed nested in it aren't.
- *
- * @param {HTMLElement} entry The entry.
- * @return {RowEdges} The edges.
- */
-export function rowEdges( entry: HTMLElement ): RowEdges {
-	const box = entry.getBoundingClientRect();
-	const edges: RowEdges = { top: null, bottom: null, card: false };
-
-	const visit = (
-		element: Element,
-		depth: number,
-		inColumn: boolean
-	): void => {
-		if (
-			depth > 6 ||
-			element.matches( '.wp-block-post-content' ) ||
-			( element !== entry && element.matches( '[data-entry-id]' ) )
-		) {
-			return;
-		}
-
-		const rect = element.getBoundingClientRect();
-		const atTop = Math.abs( rect.top - box.top ) <= 1;
-		const atBottom = Math.abs( rect.bottom - box.bottom ) <= 1;
-
-		if ( ( ! atTop && ! atBottom ) || ! rect.height ) {
-			return;
-		}
-
-		if ( element.matches( 'hr' ) ) {
-			if ( inColumn ) {
-				return;
-			}
-
-			if ( atTop ) {
-				edges.top ??= rect.height;
-			} else {
-				edges.bottom ??= rect.height;
-			}
-			return;
-		}
-
-		const style = window.getComputedStyle( element );
-		const border = ( side: 'Top' | 'Bottom' | 'Left' | 'Right' ) =>
-			style[ `border${ side }Style` ] === 'none'
-				? 0
-				: parseFloat( style[ `border${ side }Width` ] ) || 0;
-		const [ top, bottom, left, right ] = [
-			border( 'Top' ),
-			border( 'Bottom' ),
-			border( 'Left' ),
-			border( 'Right' ),
-		];
-
-		if (
-			atTop &&
-			atBottom &&
-			rect.width >= box.width / 2 &&
-			( isPainted( style.backgroundColor ) ||
-				( !! style.backgroundImage &&
-					style.backgroundImage !== 'none' ) ||
-				( top && bottom && left && right ) )
-		) {
-			edges.card = true;
-			return;
-		}
-
-		const column = inColumn || rect.width < box.width - 1;
-
-		if ( ! column && atTop && top && ! bottom ) {
-			edges.top ??= top;
-		}
-
-		if ( ! column && atBottom && bottom && ! top ) {
-			edges.bottom ??= bottom;
-		}
-
-		Array.from( element.children ).forEach( ( child ) =>
-			visit( child, depth + 1, column )
-		);
-	};
-
-	visit( entry, 0, false );
-
-	return edges;
-}
-
-/**
- * The gap the entry's layout leaves between rows, or null for a layout that
- * places entries side by side.
- *
- * @param {HTMLElement} entry The entry.
- * @return {number | null} The gap in pixels, or null.
- */
-function rowGap( entry: HTMLElement ): number | null {
-	const layout = layoutOf( entry );
-
-	if ( ! layout ) {
-		return null;
-	}
-
-	const style = window.getComputedStyle( layout );
-
-	return ( style.display || '' ).endsWith( 'grid' )
-		? parseFloat( style.rowGap ) || 0
-		: stackGap( style );
-}
-
-/**
- * The nearest entry before or after an entry in its list.
- *
- * @param {HTMLElement} entry The entry.
- * @param {boolean}     after Whether to look after it.
- * @return {HTMLElement | null} The neighbor.
- */
-function neighbour( entry: HTMLElement, after: boolean ): HTMLElement | null {
-	let sibling = after
-		? entry.nextElementSibling
-		: entry.previousElementSibling;
-
-	while ( sibling && ! sibling.matches( '[data-entry-id]' ) ) {
-		sibling = after
-			? sibling.nextElementSibling
-			: sibling.previousElementSibling;
-	}
-
-	return sibling as HTMLElement | null;
-}
-
-/**
- * Measures how far an entry's tint reaches (see tintInsets()).
- *
- * @param {HTMLElement} entry The entry.
- * @return {number[]} The start and end insets, in pixels.
- */
-function measureTint( entry: HTMLElement ): [ number, number ] {
-	const facing = (
-		other: HTMLElement | null,
-		adjacent: Element | null,
-		edge: 'top' | 'bottom'
-	): Facing => {
-		if (
-			adjacent &&
-			adjacent !== other &&
-			! ( adjacent as HTMLElement ).inert &&
-			adjacent.getClientRects().length
-		) {
-			return 'space';
-		}
-
-		if ( ! other ) {
-			return null;
-		}
-
-		const edges = rowEdges( other );
-
-		return edges.card || edges[ edge ] !== null ? 'solid' : 'space';
-	};
-
-	return tintInsets(
-		rowEdges( entry ),
-		facing(
-			neighbour( entry, false ),
-			entry.previousElementSibling,
-			'bottom'
-		),
-		facing( neighbour( entry, true ), entry.nextElementSibling, 'top' ),
-		rowGap( entry )
-	);
-}
-
-/**
- * Places the tints of several entries: every measurement first, then every
- * inset, so the page lays out once however many there are.
- *
- * @param {Iterable<HTMLElement>} entries The entries.
- */
-function placeTints( entries: Iterable< HTMLElement > ): void {
-	Array.from(
-		entries,
-		( entry ) => [ entry, measureTint( entry ) ] as const
-	).forEach( ( [ entry, [ start, end ] ] ) => {
-		entry.style.setProperty( TINT_START, `${ start }px` );
-		entry.style.setProperty( TINT_END, `${ end }px` );
-	} );
-}
-
-/**
  * Tracks the entries marked as new, keyed by entry ID so a mark and its
  * clock survive the entry's element being replaced.
  */
 export class NewEntryMarks {
 	private readonly doc: Document;
+
+	private readonly arrivalOf: typeof arrivalOf;
 
 	private readonly marks = new Map< string, Mark >();
 
@@ -417,15 +146,13 @@ export class NewEntryMarks {
 
 	private frame: number | null = null;
 
-	private resizeFrame: number | null = null;
-
-	private readonly listObserver: MutationObserver | null = null;
-
 	/**
-	 * @param {HTMLElement} root The feed the entries belong to.
+	 * @param {HTMLElement} root       The feed the entries belong to.
+	 * @param {Function}    [arriving] The arrival an entry is still making, or null.
 	 */
-	constructor( root: HTMLElement ) {
+	constructor( root: HTMLElement, arriving: typeof arrivalOf = arrivalOf ) {
 		this.doc = root.ownerDocument;
+		this.arrivalOf = arriving;
 
 		if ( typeof IntersectionObserver !== 'undefined' ) {
 			this.markerObserver = new IntersectionObserver( this.onIntersect, {
@@ -436,17 +163,7 @@ export class NewEntryMarks {
 			} );
 		}
 
-		// Pinning, loading more and taking entries down change a tinted entry's neighbors without marking anything.
-		if ( typeof MutationObserver !== 'undefined' ) {
-			this.listObserver = new MutationObserver( this.onListChange );
-			this.listObserver.observe( root, {
-				childList: true,
-				subtree: true,
-			} );
-		}
-
 		this.doc.addEventListener( 'visibilitychange', this.onVisibility );
-		window.addEventListener( 'resize', this.onResize );
 	}
 
 	/**
@@ -494,6 +211,7 @@ export class NewEntryMarks {
 						entry,
 						target: null,
 						inView: false,
+						waiting: null,
 						clearing: null,
 					};
 					this.marks.set( id, created );
@@ -520,27 +238,8 @@ export class NewEntryMarks {
 
 		shown.forEach( ( [ , record ] ) => this.show( record.entry ) );
 
-		// A tint reaches toward the lines and cards of the entries beside it, so labeled entries beside one just shown are placed again.
-		const tinted = new Set< HTMLElement >();
-		shown.forEach( ( [ , { entry } ] ) => {
-			if ( entry.hasAttribute( NEW_LABEL_ATTR ) ) {
-				[ entry, neighbour( entry, false ), neighbour( entry, true ) ]
-					.filter(
-						( other ): other is HTMLElement =>
-							!! other?.hasAttribute( NEW_LABEL_ATTR )
-					)
-					.forEach( ( other ) => tinted.add( other ) );
-			}
-		} );
-
-		const targets = shown.map(
-			( [ id, record ] ) =>
-				[ id, record, this.targetOf( record ) ] as const
-		);
-
-		placeTints( tinted );
-		targets.forEach( ( [ id, record, target ] ) =>
-			this.observe( id, record, target )
+		shown.forEach( ( [ id, record ] ) =>
+			this.observe( id, record, this.targetOf( record ) )
 		);
 	}
 
@@ -613,14 +312,7 @@ export class NewEntryMarks {
 		Array.from( this.marks.keys() ).forEach( ( id ) => this.forget( id ) );
 		this.markerObserver?.disconnect();
 		this.entryObserver?.disconnect();
-		this.listObserver?.disconnect();
 		this.doc.removeEventListener( 'visibilitychange', this.onVisibility );
-		window.removeEventListener( 'resize', this.onResize );
-
-		if ( this.resizeFrame !== null ) {
-			window.cancelAnimationFrame( this.resizeFrame );
-			this.resizeFrame = null;
-		}
 	}
 
 	private show( entry: HTMLElement ): void {
@@ -630,7 +322,6 @@ export class NewEntryMarks {
 
 		if ( marker ) {
 			marker.hidden = false;
-			entry.setAttribute( NEW_LABEL_ATTR, '' );
 			return;
 		}
 
@@ -667,6 +358,7 @@ export class NewEntryMarks {
 
 	private unobserve( id: string, record: Mark ): void {
 		this.unwatchScroll( id );
+		record.waiting = null;
 
 		if ( ! record.target ) {
 			return;
@@ -685,7 +377,11 @@ export class NewEntryMarks {
 	): void => {
 		observed.forEach( ( change ) => {
 			this.marks.forEach( ( record, id ) => {
-				if ( record.target !== change.target || record.clearing ) {
+				if (
+					record.target !== change.target ||
+					record.clearing ||
+					this.waitForArrival( id, record )
+				) {
 					return;
 				}
 
@@ -706,6 +402,40 @@ export class NewEntryMarks {
 			} );
 		} );
 	};
+
+	/**
+	 * Holds off watching an entry while its space is still opening, since it
+	 * isn't yet where it settles, then watches it afresh, so the observer
+	 * reports where it ended up.
+	 *
+	 * @param {string} id     The entry ID.
+	 * @param {Mark}   record The entry's mark.
+	 * @return {boolean} True when the entry is still arriving.
+	 */
+	private waitForArrival( id: string, record: Mark ): boolean {
+		const arrival = this.arrivalOf( record.entry );
+
+		if ( ! arrival ) {
+			return false;
+		}
+
+		this.unobserve( id, record );
+		record.inView = false;
+		record.waiting = arrival;
+		arrival.then( () => {
+			if (
+				this.marks.get( id ) !== record ||
+				record.waiting !== arrival
+			) {
+				return;
+			}
+
+			record.waiting = null;
+			this.observe( id, record, this.targetOf( record ) );
+		} );
+
+		return true;
+	}
 
 	private isSeen( record: Mark, change: IntersectionObserverEntry ): boolean {
 		if ( record.target !== record.entry ) {
@@ -768,47 +498,6 @@ export class NewEntryMarks {
 				}
 			} );
 		} );
-	};
-
-	private readonly onResize = (): void => {
-		if ( this.resizeFrame !== null ) {
-			return;
-		}
-
-		this.resizeFrame = window.requestAnimationFrame( () => {
-			this.resizeFrame = null;
-			placeTints(
-				Array.from(
-					this.marks.values(),
-					( { entry } ) => entry
-				).filter(
-					( entry ) =>
-						entry.isConnected &&
-						entry.hasAttribute( NEW_LABEL_ATTR )
-				)
-			);
-		} );
-	};
-
-	private readonly onListChange = ( records: MutationRecord[] ): void => {
-		const changed = records.some(
-			( { target, addedNodes, removedNodes } ) =>
-				[
-					...Array.from( addedNodes ),
-					...Array.from( removedNodes ),
-				].some(
-					( node ) =>
-						node instanceof Element &&
-						( node.matches( '[data-entry-id]' ) ||
-							!! ( target as Element ).querySelector(
-								':scope > [data-entry-id]'
-							) )
-				)
-		);
-
-		if ( changed && this.marks.size ) {
-			this.onResize();
-		}
 	};
 
 	private readonly onVisibility = (): void => {
@@ -923,15 +612,7 @@ export class NewEntryMarks {
 		}
 
 		ownIn( entry, `.${ STATUS_CLASS }` )?.remove();
-		entry.style.removeProperty( TINT_START );
-		entry.style.removeProperty( TINT_END );
-
-		if ( ! entry.getAttribute( 'style' ) ) {
-			entry.removeAttribute( 'style' );
-		}
-
 		entry.removeAttribute( NEW_STATE_ATTR );
-		entry.removeAttribute( NEW_LABEL_ATTR );
 		this.cancelClearing( record );
 	}
 

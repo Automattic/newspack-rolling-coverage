@@ -10,16 +10,14 @@ When the label fades away, nothing else in the entry should jump. On a line of i
 
 The block is in the inserter's Newspack category, or Rolling Coverage on sites without Newspack.
 
-## The label and the tint
+## Entries without a label
 
-While the label shows, the entry also gets a light gray tint across its row: from the separator above it to the one below, or halfway into the space beside a neighbor with no separator between them, as in a layout without separators or above a Full story card. A card with its own background, such as a pinned entry, hides the tint, so there only the label shows. Flash shows no tint either: its entries sit on the accent bar, so the label alone marks a new one. The label and the tint fade away together.
-
-An entry whose layout holds no New Label gets neither: it shows no mark, and screen readers still announce it as new. To get the label back in an edited built-in layout, restore the layout (see [Restore a built-in layout](../rolling-coverage/README.md#restore-a-built-in-layout)), or add the block yourself.
+An entry whose layout holds no New Label shows no mark, and screen readers still announce it as new. To get the label back in an edited built-in layout, restore the layout (see [Restore a built-in layout](../rolling-coverage/README.md#restore-a-built-in-layout)), or add the block yourself.
 
 ## Settings
 
 - **Text.** Type the label's text in place. Left empty, it reads "New", in the site's language.
-- **Visually hidden** (in the block's Settings panel). The label is for screen readers only, and readers see only the tint. Minute has it on.
+- **Visually hidden** (in the block's Settings panel). The label is for screen readers only: readers see a new entry arrive, with no label. Minute has it on.
 - **Color and Typography.** Set the text color, size, font, appearance, line height, letter spacing, letter case and alignment like any text block. The built-in layouts show it in the accent color, small and bold, in the theme's heading font; Flash shows it in the bar's text color.
 
 ## In the editor
