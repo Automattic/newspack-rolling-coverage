@@ -202,6 +202,15 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 		}
 	}
 
+	.newspack-rolling-coverage-entry:has(+ .newspack-rolling-coverage-entry > :is(.newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-breakout-entry)) {
+
+		> .wp-block-separator:last-child,
+		> :is(.newspack-rolling-coverage-regular-entry, .newspack-rolling-coverage-breakout-entry):last-child > .wp-block-separator:last-child,
+		> :is(.newspack-rolling-coverage-regular-entry, .newspack-rolling-coverage-breakout-entry):last-child > .wp-block-group__inner-container > .wp-block-separator:last-child {
+			display: none;
+		}
+	}
+
 	.newspack-rolling-coverage-breakout-box {
 		position: relative;
 
