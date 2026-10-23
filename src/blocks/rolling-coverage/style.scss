@@ -479,6 +479,44 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 		-webkit-line-clamp: none;
 		line-clamp: none;
 	}
+
+	// The post's title gives way before the time and labels such as Full
+	// story, so the row keeps to one line.
+	> :where(.wp-block-post-date, .wp-block-paragraph) {
+		white-space: nowrap;
+	}
+
+	> :where(.wp-block-post-date, .wp-block-paragraph):where(:not([class*="wp-container-content-"])) {
+		flex-shrink: 0;
+	}
+
+	> :where(.wp-block-post-title):where(:not([class*="wp-container-content-"])) {
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+}
+
+.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex:not(.is-vertical) :is(.newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-regular-entry, .newspack-rolling-coverage-breakout-entry).is-layout-flex.is-nowrap:not(.is-vertical) {
+
+	// Core makes the title's link an inline block, which is cut off whole
+	// rather than ending in the ellipsis.
+	> .wp-block-post-title > a {
+		display: inline;
+	}
+
+	// A label ends in an ellipsis when it's cut short and takes at most half
+	// its entry, so a long one can't run into the next entry. The cap needs
+	// this weight to beat the classic theme's `max-width: 100%` on flex items.
+	> .wp-block-paragraph {
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	> .wp-block-paragraph:not([class*="wp-container-content-"]) {
+		max-width: 50%;
+	}
 }
 
 @property --newspack-rolling-coverage-rule-row {
@@ -549,9 +587,12 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 		--nrc-visible-entries: 3;
 	}
 
+	// Each entry clips at its own edge, so a time or label that can't shrink
+	// never paints over the next entry.
 	> * {
 		flex: 0 0 calc((100% - (var(--nrc-visible-entries) - 1) * var(--nrc-row-gap)) / var(--nrc-visible-entries));
 		min-width: 0;
+		overflow: clip;
 	}
 
 	> :nth-child(n+4) {
@@ -561,8 +602,49 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 	:focus-visible {
 		outline-offset: -2px;
 	}
+}
 
-	@media (max-width: 782px) {
+// How many entries fit side by side depends on the room the Feed has, which
+// in a sidebar or content column is far less than the screen's width.
+.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled) {
+	container: newspack-rolling-coverage-strip / inline-size;
+}
+
+// Such a Feed has no width of its own to give its block, so in a Row or Stack
+// group the block takes the group's full width instead of shrinking to its
+// padding, also when a Row stacks on smaller screens. In a Row it grows from
+// nothing, so the items beside it keep their width. In a Stack it also
+// stretches, which holds where a theme resets its width to `auto`.
+:where(.is-layout-flex) > :where(.wp-block-newspack-rolling-coverage-rolling-coverage:has(.newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled))) {
+	width: 100%;
+	min-width: 0;
+}
+
+:where(.is-layout-flex:not(.is-vertical)) > :where(.wp-block-newspack-rolling-coverage-rolling-coverage:has(.newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled))):where(:not([class*="wp-container-content-"])) {
+	flex: 1 1 0;
+}
+
+:where(.is-layout-flex.is-vertical) > :where(.wp-block-newspack-rolling-coverage-rolling-coverage:has(.newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled))) {
+	align-self: stretch;
+}
+
+@container newspack-rolling-coverage-strip (width < 56rem) {
+
+	.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled) > .newspack-rolling-coverage-entries {
+
+		&:has(> :nth-child(3)) {
+			--nrc-visible-entries: 2;
+		}
+
+		> :nth-child(n+3) {
+			visibility: hidden;
+		}
+	}
+}
+
+@container newspack-rolling-coverage-strip (width < 36rem) {
+
+	.wp-block-newspack-rolling-coverage-rolling-coverage .newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled) > .newspack-rolling-coverage-entries {
 
 		&,
 		&:has(> :nth-child(2)),
