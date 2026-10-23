@@ -1666,6 +1666,9 @@ export default function Edit( {
 	const hidesEntryBreakout = regularContext
 		? ! regularContext.hasBreakout
 		: false;
+	const newestContext =
+		previewContexts.find( ( context ) => ! context.pinned ) ??
+		previewContexts[ 0 ];
 	const hiddenIds = useMemo( () => {
 		const ids = [
 			...( isFollowHidden ? followBlockIds( allBlocks ) : [] ),
@@ -1725,21 +1728,21 @@ export default function Edit( {
 						? pinnedContext
 						: regularContext;
 
-					return context !== previewContexts[ 0 ];
+					return context !== newestContext;
 				} )
 			),
 			...newLabelBlockIds(
 				allBlocks.filter(
 					( block ) =>
 						isBreakoutEntry( block ) &&
-						fullStoryContext !== previewContexts[ 0 ]
+						fullStoryContext !== newestContext
 				)
 			),
 			...newLabelBlockIds(
 				pinnedGroups.filter(
 					( block ) =>
 						isBreakoutEntry( block ) &&
-						pinnedFullStoryContext !== previewContexts[ 0 ]
+						pinnedFullStoryContext !== newestContext
 				)
 			),
 			...hiddenAuthorBlockIds(
@@ -1767,7 +1770,7 @@ export default function Edit( {
 		regularContext,
 		fullStoryContext,
 		pinnedFullStoryContext,
-		previewContexts,
+		newestContext,
 		hidesCardBreakout,
 		hidesEntryBreakout,
 		showAuthor,
