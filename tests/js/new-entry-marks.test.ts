@@ -86,6 +86,7 @@ function setVisibility( state: DocumentVisibilityState ) {
 
 let reducedMotion = false;
 let parentStyle: Partial< CSSStyleDeclaration > = { display: 'block' };
+let markerStyle: Partial< CSSStyleDeclaration > = { position: 'static' };
 let animate: jest.Mock;
 
 async function flush() {
@@ -142,8 +143,12 @@ beforeEach( () => {
 	} ) ) as unknown as typeof window.matchMedia;
 
 	parentStyle = { display: 'block' };
+	markerStyle = { position: 'static' };
 	jest.spyOn( window, 'getComputedStyle' ).mockImplementation(
-		() => parentStyle as CSSStyleDeclaration
+		( element ) =>
+			( element.hasAttribute( NEW_MARKER_ATTR )
+				? markerStyle
+				: parentStyle ) as CSSStyleDeclaration
 	);
 
 	animate = jest.fn( () => ( {
@@ -203,7 +208,9 @@ describe( 'NewEntryMarks', () => {
 		root.appendChild( entry );
 		marks.mark( entry );
 
-		expect( observerOf( markerOf( entry ) )?.options?.threshold ).toBe( 1 );
+		expect( observerOf( markerOf( entry ) )?.options?.threshold ).toEqual(
+			expect.arrayContaining( [ 1 ] )
+		);
 
 		fire( markerOf( entry ), { intersectionRatio: 0.5 } );
 		jest.advanceTimersByTime( HOLD_MS );
@@ -294,6 +301,106 @@ describe( 'NewEntryMarks', () => {
 		jest.advanceTimersByTime( HOLD_MS );
 		expect( short.getAttribute( NEW_STATE_ATTR ) ).toBe( 'clearing' );
 		expect( tall.getAttribute( NEW_STATE_ATTR ) ).toBe( 'clearing' );
+	} );
+
+	it( 'a marker that settles just under fully in view starts the clock', () => {
+		const entry = makeEntry( '1' );
+		root.appendChild( entry );
+		marks.mark( entry );
+
+		const thresholds = [
+			observerOf( markerOf( entry ) )?.options?.threshold,
+		].flat() as number[];
+		expect(
+			thresholds.some(
+				( threshold ) => threshold <= 0.995 && threshold > 0.5
+			)
+		).toBe( true );
+
+		fire( markerOf( entry ), { intersectionRatio: 0.995 } );
+		jest.advanceTimersByTime( HOLD_MS );
+		expect( entry.getAttribute( NEW_STATE_ATTR ) ).toBe( 'clearing' );
+	} );
+
+	it( 'a visually hidden marker is seen by the half-entry rule and never collapses', async () => {
+		markerStyle = { position: 'absolute' };
+		parentStyle = {
+			display: 'flex',
+			flexDirection: 'column',
+			rowGap: '8px',
+		};
+		const entry = makeEntry( '1' );
+		root.appendChild( entry );
+		marks.mark( entry );
+		const marker = markerOf( entry );
+
+		expect( observerOf( marker ) ).toBeUndefined();
+		expect( observerOf( entry ) ).toBeDefined();
+
+		fire( entry, { intersectionRatio: 0.1 } );
+		jest.advanceTimersByTime( HOLD_MS );
+		expect( entry.getAttribute( NEW_STATE_ATTR ) ).toBe( 'held' );
+
+		fire( entry, { intersectionRatio: 0.5 } );
+		jest.advanceTimersByTime( HOLD_MS );
+		expect( entry.getAttribute( NEW_STATE_ATTR ) ).toBe( 'clearing' );
+
+		jest.advanceTimersByTime( CLEAR_MS );
+		await flush();
+		expect( animate ).not.toHaveBeenCalled();
+		expect( marker.hidden ).toBe( true );
+		expect( entry.hasAttribute( NEW_STATE_ATTR ) ).toBe( false );
+	} );
+
+	it( 'a marker with no height is seen by the half-entry rule', () => {
+		const entry = makeEntry( '1' );
+		markerOf( entry ).getBoundingClientRect = () =>
+			( { height: 1 } ) as DOMRect;
+		root.appendChild( entry );
+		marks.mark( entry );
+
+		expect( observerOf( markerOf( entry ) ) ).toBeUndefined();
+		expect( observerOf( entry ) ).toBeDefined();
+	} );
+
+	it( 'an entry many viewports tall counts as seen once it fills half the viewport', () => {
+		const entry = makeEntry( '1', false );
+		let rect = { top: 700, bottom: 700 + 800 * 40, height: 800 * 40 };
+		entry.getBoundingClientRect = () => rect as DOMRect;
+		root.appendChild( entry );
+		marks.mark( entry );
+
+		fire( entry, {
+			intersectionRatio: 0.003,
+			intersectionRect: { height: 100 },
+		} );
+		window.dispatchEvent( new Event( 'scroll' ) );
+		jest.advanceTimersByTime( HOLD_MS * 2 );
+		expect( entry.getAttribute( NEW_STATE_ATTR ) ).toBe( 'held' );
+
+		rect = { top: 400, bottom: 400 + 800 * 40, height: 800 * 40 };
+		window.dispatchEvent( new Event( 'scroll' ) );
+		jest.advanceTimersByTime( 100 );
+		jest.advanceTimersByTime( HOLD_MS );
+		expect( entry.getAttribute( NEW_STATE_ATTR ) ).toBe( 'clearing' );
+	} );
+
+	it( 'a forgotten tall entry stops listening for scrolls', () => {
+		const entry = makeEntry( '1', false );
+		const removeListener = jest.spyOn( window, 'removeEventListener' );
+		root.appendChild( entry );
+		marks.mark( entry );
+
+		fire( entry, {
+			intersectionRatio: 0.003,
+			intersectionRect: { height: 100 },
+		} );
+		marks.forget( '1' );
+
+		expect( removeListener ).toHaveBeenCalledWith(
+			'scroll',
+			expect.any( Function )
+		);
 	} );
 
 	it( 'adopt keeps the mark and the running clock on a replacement element', () => {
