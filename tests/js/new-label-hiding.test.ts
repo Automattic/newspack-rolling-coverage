@@ -1,14 +1,14 @@
 import './editor-config';
 
 import {
-	NEW_LABEL_CLASS,
+	NEW_LABEL_BLOCK_NAME,
 	hiddenNewLabelIds,
 } from '../../src/blocks/rolling-coverage/template';
 
 const label = ( id: string ) => ( {
-	name: 'core/paragraph',
+	name: NEW_LABEL_BLOCK_NAME,
 	clientId: id,
-	attributes: { className: NEW_LABEL_CLASS },
+	attributes: {},
 	innerBlocks: [],
 } );
 const group = ( id: string, className: string ) => ( {
@@ -59,6 +59,24 @@ describe( 'hiddenNewLabelIds', () => {
 				[ card, entry ],
 				[],
 				{ card: newest, entry: newest },
+				newest
+			)
+		).toEqual( [] );
+	} );
+
+	it( 'leaves other blocks alone', () => {
+		const paragraph = {
+			name: 'core/paragraph',
+			clientId: 'card-paragraph',
+			attributes: { content: 'New' },
+			innerBlocks: [],
+		};
+
+		expect(
+			hiddenNewLabelIds(
+				[ { ...card, innerBlocks: [ paragraph ] }, entry ],
+				[],
+				{ card: other, entry: newest },
 				newest
 			)
 		).toEqual( [] );

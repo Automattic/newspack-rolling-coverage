@@ -298,7 +298,7 @@ test( "Minute's New label is for screen readers only", () => {
 	expect( labels.length ).toBeGreaterThan( 0 );
 
 	for ( const label of labels ) {
-		expect( hasClass( label, 'screen-reader-text' ) ).toBe( true );
+		expect( label.attributes.visuallyHidden ).toBe( true );
 	}
 } );
 
@@ -309,7 +309,7 @@ test( 'no other layout hides its New label', () => {
 		}
 
 		for ( const label of findNodes( layoutNodes( slug ), isNewLabel ) ) {
-			expect( hasClass( label, 'screen-reader-text' ) ).toBe( false );
+			expect( label.attributes.visuallyHidden ).toBeFalsy();
 		}
 	}
 } );
@@ -384,10 +384,7 @@ function visibleLabelsWithParents(
 	}[] = [];
 	const walk = ( node: TemplateNode, parent?: TemplateNode ) => {
 		for ( const child of node.innerBlocks ) {
-			if (
-				isNewLabel( child ) &&
-				! hasClass( child, 'screen-reader-text' )
-			) {
+			if ( isNewLabel( child ) && ! child.attributes.visuallyHidden ) {
 				found.push( {
 					label: child,
 					parent: node,

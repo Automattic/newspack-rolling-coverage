@@ -54,13 +54,8 @@ class Entry_Bindings {
 	const PINNED_LABEL_CLASS = 'newspack-rolling-coverage-pinned-label';
 
 	/**
-	 * Class of the paragraph that marks an entry as new once it arrives.
-	 */
-	const NEW_LABEL_CLASS = 'newspack-rolling-coverage-new-label';
-
-	/**
-	 * Attribute the view script finds an entry's New marker by, mirroring
-	 * NEW_MARKER_ATTR in new-entry-marks.ts.
+	 * Attribute the view script finds an entry's New Label block by,
+	 * mirroring NEW_MARKER_ATTR in new-entry-marks.ts.
 	 */
 	const NEW_MARKER_ATTR = 'data-rc-new-marker';
 
@@ -118,7 +113,6 @@ class Entry_Bindings {
 		add_action( 'init', [ __CLASS__, 'register_source' ] );
 		add_filter( 'render_block_core/button', [ __CLASS__, 'filter_button' ], 10, 3 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'filter_pinned_label' ], 10, 2 );
-		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'filter_new_label' ], 10, 2 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_read_more' ], 10, 2 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_share' ], 10, 2 );
 		add_filter( 'render_block_core/paragraph', [ __CLASS__, 'link_all_updates' ], 10, 2 );
@@ -1099,39 +1093,6 @@ class Entry_Bindings {
 	}
 
 	/**
-	 * Render the New label hidden and tagged, for the view script to reveal
-	 * on an entry that arrives while the reader is on the page.
-	 *
-	 * Parameters stay untyped because this runs for every paragraph on the
-	 * site, after other plugins' filters that may hand on unexpected types.
-	 *
-	 * @param string $block_content Rendered block.
-	 * @param array  $block         Parsed block.
-	 * @return string
-	 */
-	public static function filter_new_label( $block_content, $block ) {
-		if ( ! Rolling_Coverage_Block::is_rendering_entry() || ! is_array( $block ) || ! is_string( $block_content ) || ! self::is_new_label( $block ) ) {
-			return $block_content;
-		}
-
-		// No view script runs in a feed to manage the label, and a reader may drop `hidden`.
-		if ( is_feed() ) {
-			return '';
-		}
-
-		$tags = new WP_HTML_Tag_Processor( $block_content );
-
-		if ( ! $tags->next_tag() ) {
-			return $block_content;
-		}
-
-		$tags->set_attribute( 'hidden', true );
-		$tags->set_attribute( self::NEW_MARKER_ATTR, '' );
-
-		return $tags->get_updated_html();
-	}
-
-	/**
 	 * Link a "Read more" paragraph to the entry's published breakout post, or
 	 * render nothing when there is none.
 	 *
@@ -1485,20 +1446,6 @@ class Entry_Bindings {
 		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
 			is_string( $class_name ) &&
 			in_array( self::PINNED_LABEL_CLASS, explode( ' ', $class_name ), true );
-	}
-
-	/**
-	 * Whether a parsed block is the paragraph that marks an entry as new.
-	 *
-	 * @param array $parsed_block Parsed block.
-	 * @return bool
-	 */
-	public static function is_new_label( array $parsed_block ): bool {
-		$class_name = $parsed_block['attrs']['className'] ?? '';
-
-		return 'core/paragraph' === ( $parsed_block['blockName'] ?? '' ) &&
-			is_string( $class_name ) &&
-			in_array( self::NEW_LABEL_CLASS, explode( ' ', $class_name ), true );
 	}
 
 	/**

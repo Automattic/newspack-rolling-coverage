@@ -48,44 +48,43 @@ const PIN_ICON = 'newspack-rolling-coverage/pin-small';
 const PINNED_LABEL_CLASS = 'newspack-rolling-coverage-pinned-label';
 
 /**
- * Class of the paragraph that marks an entry as new once it arrives,
- * mirroring Entry_Bindings::NEW_LABEL_CLASS.
+ * The New Label block, which marks an entry as new once it arrives,
+ * mirroring New_Label_Block::BLOCK_NAME.
  */
-const NEW_LABEL_CLASS = 'newspack-rolling-coverage-new-label';
+const NEW_LABEL_BLOCK_NAME = 'newspack-rolling-coverage/new-label';
 
 /**
- * The label that marks an entry as new once it arrives. The site renders it
+ * The New Label block, as a built-in layout places it. The site renders it
  * hidden and the view script reveals it, so a layout places it where the
- * mark should show.
+ * mark should show. Its text is left empty, which shows the translated
+ * "New".
  *
- * @param {Object}      [options]           How the label shows.
- * @param {string|null} [options.color]     The label's text color, or null
- *                                          for the color of the text around
- *                                          it. Default the readable accent.
- * @param {boolean}     [options.hidden]    Whether the label is for screen
- *                                          readers only, for a layout whose
- *                                          entries already look new.
- *                                          Default false.
- * @param {string}      [options.textAlign] The label's text alignment.
+ * @param {Object}      [options]                How the label shows.
+ * @param {string|null} [options.color]          The label's text color, or
+ *                                               null for the color of the
+ *                                               text around it. Default the
+ *                                               readable accent.
+ * @param {boolean}     [options.visuallyHidden] Whether the label is for
+ *                                               screen readers only, for a
+ *                                               layout whose entries already
+ *                                               look new. Default false.
+ * @param {string}      [options.textAlign]      The label's text alignment.
  * @return {TemplateItem} The label.
  */
 function newLabel( {
 	color = READABLE_ACCENT,
-	hidden = false,
+	visuallyHidden = false,
 	textAlign,
 }: {
 	color?: string | null;
-	hidden?: boolean;
+	visuallyHidden?: boolean;
 	textAlign?: string;
 } = {} ): TemplateItem {
 	return [
-		'core/paragraph',
+		NEW_LABEL_BLOCK_NAME,
 		{
-			className: `use-header-font ${ NEW_LABEL_CLASS }${
-				hidden ? ' screen-reader-text' : ''
-			}`,
-			/* translators: Label on a coverage entry published while the reader has the page open. */
-			content: __( 'New', 'newspack-rolling-coverage' ),
+			className: 'use-header-font',
+			...( visuallyHidden ? { visuallyHidden } : {} ),
 			fontSize: 'small',
 			style: {
 				typography: {
@@ -169,25 +168,14 @@ function pinnedRow( {
 }
 
 /**
- * Whether a block is the paragraph that marks an entry as new, mirroring
- * Entry_Bindings::is_new_label().
+ * Whether a block is the New Label block.
  *
- * @param {Object} block            The block.
- * @param {string} block.name       Block name.
- * @param {Object} block.attributes Block attributes.
+ * @param {Object} block      The block.
+ * @param {string} block.name Block name.
  * @return {boolean} Whether it's the New label.
  */
-function isNewLabel( block: {
-	name: string;
-	attributes?: Record< string, unknown >;
-} ): boolean {
-	const className = block.attributes?.className;
-
-	return (
-		block.name === 'core/paragraph' &&
-		typeof className === 'string' &&
-		className.split( ' ' ).includes( NEW_LABEL_CLASS )
-	);
+function isNewLabel( block: { name: string } ): boolean {
+	return block.name === NEW_LABEL_BLOCK_NAME;
 }
 
 /**
@@ -2203,7 +2191,11 @@ function minuteEntryTemplate( slugs: string[] ): TemplateItem[] {
 					name: __( 'Pinned Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			[ pinnedRow(), newLabel( { hidden: true } ), postContent() ],
+			[
+				pinnedRow(),
+				newLabel( { visuallyHidden: true } ),
+				postContent(),
+			],
 		],
 		[
 			'core/group',
@@ -2216,7 +2208,7 @@ function minuteEntryTemplate( slugs: string[] ): TemplateItem[] {
 					name: __( 'Entry', 'newspack-rolling-coverage' ),
 				},
 			},
-			[ newLabel( { hidden: true } ), postContent() ],
+			[ newLabel( { visuallyHidden: true } ), postContent() ],
 		],
 		fullStoryGroup(
 			[
@@ -2240,7 +2232,7 @@ function minuteEntryTemplate( slugs: string[] ): TemplateItem[] {
 								color: READABLE_ACCENT,
 							} ),
 							fullStoryLabel(),
-							newLabel( { hidden: true } ),
+							newLabel( { visuallyHidden: true } ),
 						],
 					],
 					fullStoryTitle( 4 ),
@@ -5234,10 +5226,11 @@ const ENTRY_ALLOWED_BLOCKS = [
 	'core/button',
 	'newspack-rolling-coverage/breakout-post-link',
 	'newspack-rolling-coverage/share',
+	NEW_LABEL_BLOCK_NAME,
 ];
 
 export {
-	NEW_LABEL_CLASS,
+	NEW_LABEL_BLOCK_NAME,
 	newLabel,
 	isNewLabel,
 	withoutNewLabel,
