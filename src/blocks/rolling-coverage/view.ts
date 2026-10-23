@@ -505,11 +505,12 @@ async function fetchEntries( url: string ): Promise< Response > {
 /**
  * Entries a feed marks as new when it starts: after the jump from a shared
  * entry to the live feed, those dated after the shared entry, except the ones
- * the shared view already showed.
+ * the shared view showed unmarked, and the ones it showed still marked.
  */
 type NewSince = {
 	dateGmt: string;
 	shownIds: Set< string >;
+	markedIds: Set< string >;
 };
 
 /**
@@ -628,7 +629,6 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	const isLite = root.dataset.lite === '1';
 	const showsEntries = root.dataset.entries !== 'none';
 
-	// Entries published while the page is open, until the reader has seen them.
 	const marks = isLite ? null : new NewEntryMarks( root );
 
 	if ( marks && newSince ) {
@@ -646,7 +646,10 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		shown.forEach( ( el ) => {
 			const id = el.dataset.entryId ?? '';
 
-			if ( newIds.has( id ) && ! newSince.shownIds.has( id ) ) {
+			if (
+				newSince.markedIds.has( id ) ||
+				( newIds.has( id ) && ! newSince.shownIds.has( id ) )
+			) {
 				marks.mark( el );
 			}
 		} );
@@ -1380,13 +1383,18 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	}
 
 	/**
-	 * Fades elements in, with opacity only, so the text never moves.
+	 * Fades elements in, with opacity only, so the text never moves. A Lite
+	 * Site page has no motion, so there it does nothing.
 	 *
 	 * @param {Element[]} elements    Elements that were just added.
 	 * @param {string}    [className] Class that runs the fade, `is-entering` by default.
 	 * @return {void}
 	 */
 	function fadeIn( elements: Element[], className = 'is-entering' ): void {
+		if ( isLite ) {
+			return;
+		}
+
 		elements.forEach( ( element ) => {
 			const onAnimationEnd = ( event: Event ) => {
 				if ( event.target === element ) {
@@ -1706,8 +1714,8 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	/**
 	 * Takes a taken-down entry off the page. One the reader can see fades out
 	 * first; while it fades it can't be focused or read, and the script no
-	 * longer finds it by its ID. One off screen or on a Lite Site page goes at
-	 * once.
+	 * longer finds it by its ID. One off screen, under reduced motion or on a
+	 * Lite Site page goes at once.
 	 *
 	 * @param {HTMLElement} el The entry.
 	 * @return {void}
@@ -1723,7 +1731,12 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		};
 		const rect = el.getBoundingClientRect();
 
-		if ( isLite || rect.bottom <= 0 || rect.top >= window.innerHeight ) {
+		if (
+			isLite ||
+			prefersReducedMotion() ||
+			rect.bottom <= 0 ||
+			rect.top >= window.innerHeight
+		) {
 			remove();
 			return;
 		}
@@ -1783,12 +1796,13 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	 * it: among the pinned entries, most recently edited first. It can be
 	 * older than the entries loaded, waiting behind the new-entries control,
 	 * or newer than the shared entry. Load more then skips it as an entry
-	 * already shown.
+	 * already shown. One published pinned shows marked as new.
 	 *
-	 * @param {HTMLElement} el The pinned entry, as the poll sent it.
+	 * @param {HTMLElement} el      The pinned entry, as the poll sent it.
+	 * @param {boolean}     [isNew] Whether it was published since the page loaded.
 	 * @return {void}
 	 */
-	function showPinnedEntry( el: HTMLElement ): void {
+	function showPinnedEntry( el: HTMLElement, isNew = false ): void {
 		forgetOffPageEntry( el.dataset.entryId ?? '' );
 
 		// Without an arrival, the seen event would count the entry as part of
@@ -1806,6 +1820,10 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		fadeIn( [ el ] );
 		observeEntry( el );
 		dropLastSeparator();
+
+		if ( isNew ) {
+			marks?.mark( el );
+		}
 	}
 
 	const cleanupFns: Array< () => void > = [];
@@ -1931,7 +1949,6 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			}
 		};
 
-		// Hiding the tab restarts the wait the next time the reader sees it.
 		const onVisibility = () => {
 			if (
 				document.visibilityState !== 'visible' &&
@@ -2331,12 +2348,14 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		const control = liveControl
 			? parseElement( sanitizeHtml( liveControl.outerHTML ) )
 			: null;
+		const shownIds = ownElements( root, SHOWN_ENTRIES, entriesList ).map(
+			( el ) => el.dataset.entryId ?? ''
+		);
 		const newerEntries: NewSince = {
 			dateGmt: sharedEntryDate() ?? '',
-			shownIds: new Set(
-				ownElements( root, SHOWN_ENTRIES, entriesList ).map(
-					( el ) => el.dataset.entryId ?? ''
-				)
+			shownIds: new Set( shownIds ),
+			markedIds: new Set(
+				shownIds.filter( ( id ) => marks?.isMarked( id ) )
 			),
 		};
 
@@ -2841,7 +2860,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			const countedBefore = countedEntryIds.size;
 			const sharedDate = sharedEntryDate();
 
-			newEntries.forEach( ( { el } ) => {
+			newEntries.forEach( ( { el, isNew } ) => {
 				const entryId = el.dataset.entryId;
 				const date = el.dataset.dateGmt;
 
@@ -2852,7 +2871,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				// Pinned by the time it arrived: a fresh page lists it with the
 				// pinned entries and leaves it out of the count.
 				if ( el.hasAttribute( 'data-pinned' ) ) {
-					showPinnedEntry( el );
+					showPinnedEntry( el, isNew );
 					return;
 				}
 

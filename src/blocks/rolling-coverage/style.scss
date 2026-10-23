@@ -75,6 +75,18 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 			visibility: hidden;
 		}
 
+		@media (max-width: 400px) {
+
+			.newspack-rolling-coverage-entry[data-pinned] .newspack-rolling-coverage-breakout-box .newspack-rolling-coverage-new-label:has(+ * > .newspack-rolling-coverage-pinned-label) {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				margin: -1px;
+				overflow: hidden;
+				clip-path: inset(50%);
+			}
+		}
+
 		.newspack-rolling-coverage-entry[data-new]:not(:has(.newspack-rolling-coverage-breakout-box)) {
 			position: relative;
 
