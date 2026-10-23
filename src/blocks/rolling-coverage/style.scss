@@ -163,6 +163,10 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 		animation: newspack-rolling-coverage-refresh motion.$refresh motion.$ease-out;
 	}
 
+	.newspack-rolling-coverage-entry.is-leaving {
+		animation: newspack-rolling-coverage-fade-out motion.$leave motion.$ease-out forwards;
+	}
+
 	.newspack-rolling-coverage-archived-notice.is-entering {
 		animation: newspack-rolling-coverage-fade-in motion.$enter motion.$ease-out;
 	}
@@ -734,6 +738,17 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 
 	to {
 		opacity: 1;
+	}
+}
+
+@keyframes newspack-rolling-coverage-fade-out {
+
+	from {
+		opacity: 1;
+	}
+
+	to {
+		opacity: 0;
 	}
 }
 

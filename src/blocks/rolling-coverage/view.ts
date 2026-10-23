@@ -28,6 +28,8 @@ import {
 	showingLatestLabel,
 } from './entry-name';
 import { isSharedReply, readSharedReply, startingAdCount } from './shared-poll';
+import { NewEntryMarks } from './new-entry-marks';
+import { idsNewerThan, newIdsInReplace } from './new-entry-ids';
 import {
 	EXIT_MS,
 	FADE_CLEANUP_MS,
@@ -501,12 +503,23 @@ async function fetchEntries( url: string ): Promise< Response > {
 }
 
 /**
+ * Entries a feed marks as new when it starts: after the jump from a shared
+ * entry to the live feed, those dated after the shared entry, except the ones
+ * the shared view already showed.
+ */
+type NewSince = {
+	dateGmt: string;
+	shownIds: Set< string >;
+};
+
+/**
  * Sets up polling and the loading of older entries for a single block instance.
  *
- * @param {HTMLElement} root The block's outer wrapper element.
+ * @param {HTMLElement} root       The block's outer wrapper element.
+ * @param {NewSince}    [newSince] Entries to mark as new once it starts.
  * @return {void}
  */
-function initBlock( root: HTMLElement ): void {
+function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	if ( root.dataset.rcInitialized === '1' ) {
 		return;
 	}
@@ -614,6 +627,30 @@ function initBlock( root: HTMLElement ): void {
 	// A Lite Site page renders entries as text, so it asks for them that way.
 	const isLite = root.dataset.lite === '1';
 	const showsEntries = root.dataset.entries !== 'none';
+
+	// Entries published while the page is open, until the reader has seen them.
+	const marks = isLite ? null : new NewEntryMarks( root );
+
+	if ( marks && newSince ) {
+		const shown = ownElements( root, SHOWN_ENTRIES, entriesList );
+		const newIds = new Set(
+			idsNewerThan(
+				shown.map( ( el ) => ( {
+					id: el.dataset.entryId ?? '',
+					dateGmt: el.dataset.dateGmt ?? '',
+				} ) ),
+				newSince.dateGmt
+			)
+		);
+
+		shown.forEach( ( el ) => {
+			const id = el.dataset.entryId ?? '';
+
+			if ( newIds.has( id ) && ! newSince.shownIds.has( id ) ) {
+				marks.mark( el );
+			}
+		} );
+	}
 
 	const coverageId = root.dataset.coverageId || '0';
 
@@ -1337,6 +1374,7 @@ function initBlock( root: HTMLElement ): void {
 
 		for ( let i = entries.length - 1; i >= latestCap; i-- ) {
 			unobserveEntry( entries[ i ] );
+			marks?.forget( entries[ i ].dataset.entryId ?? '' );
 			entries[ i ].remove();
 		}
 	}
@@ -1467,6 +1505,12 @@ function initBlock( root: HTMLElement ): void {
 		trimToLatestCap();
 		dropLastSeparator();
 
+		entries.forEach( ( { el, isNew } ) => {
+			if ( isNew && el.isConnected ) {
+				marks?.mark( el );
+			}
+		} );
+
 		const shown = Math.min( entries.length, latestCap || entries.length );
 
 		announce( entriesAddedLabel( shown, entryName ) );
@@ -1478,9 +1522,10 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Swaps a capped feed's entries for the newest ones a poll sent whole,
-	 * leaving out entries taken down, and keeping the arrival of those it
-	 * already showed. An entry taken down earlier that the reply lists is
-	 * back.
+	 * leaving out entries taken down, and keeping the arrival and the new
+	 * mark of those it already showed. An entry taken down earlier that the
+	 * reply lists is back. Entries listed above the first one the feed
+	 * already showed fade in marked as new (see newIdsInReplace()).
 	 *
 	 * @param {PollEntry[]} entries Removals, then the newest entries, newest first.
 	 * @return {void}
@@ -1518,11 +1563,16 @@ function initBlock( root: HTMLElement ): void {
 					! removedEntryIds.has( String( entry.id ) )
 			)
 			.slice( 0, latestCap || entries.length );
-		const firstShown = kept.findIndex( ( entry ) =>
-			arrivals.has( String( entry.id ) )
+		const keptIds = kept.map( ( entry ) => String( entry.id ) );
+		const newIds = new Set(
+			newIdsInReplace(
+				keptIds,
+				new Set( keptIds.filter( ( id ) => arrivals.has( id ) ) )
+			)
 		);
+		const keptEls: HTMLElement[] = [];
 
-		arrivedCount += firstShown === -1 ? kept.length : firstShown;
+		arrivedCount += newIds.size;
 
 		kept.forEach( ( entry ) => {
 			const el = parseElement( sanitizeHtml( entry.html ) );
@@ -1537,9 +1587,18 @@ function initBlock( root: HTMLElement ): void {
 
 			observeEntry( el );
 			fragment.appendChild( el );
+			keptEls.push( el );
 		} );
 
 		shownEntries.forEach( ( el ) => {
+			const id = el.dataset.entryId ?? '';
+
+			if (
+				! keptEls.some( ( keptEl ) => keptEl.dataset.entryId === id )
+			) {
+				marks?.forget( id );
+			}
+
 			unobserveEntry( el );
 			el.remove();
 		} );
@@ -1554,6 +1613,19 @@ function initBlock( root: HTMLElement ): void {
 
 		entriesList.appendChild( fragment );
 		dropLastSeparator();
+
+		const newEls = keptEls.filter( ( el ) =>
+			newIds.has( el.dataset.entryId ?? '' )
+		);
+
+		fadeIn( newEls );
+		keptEls.forEach( ( el ) => {
+			if ( newEls.includes( el ) ) {
+				marks?.mark( el );
+			} else {
+				marks?.adopt( el );
+			}
+		} );
 	}
 
 	/**
@@ -1618,8 +1690,8 @@ function initBlock( root: HTMLElement ): void {
 			takedown = 'shown';
 			unobserveEntry( existing );
 			linkedObserver?.unobserve( existing );
-			existing.remove();
-			dropLastSeparator();
+			marks?.forget( entryId );
+			leave( existing );
 		}
 
 		forgetOffPageEntry( entryId );
@@ -1629,6 +1701,45 @@ function initBlock( root: HTMLElement ): void {
 			entryId,
 			removedEntryIds.get( entryId ) ?? takedown
 		);
+	}
+
+	/**
+	 * Takes a taken-down entry off the page. One the reader can see fades out
+	 * first; while it fades it can't be focused or read, and the script no
+	 * longer finds it by its ID. One off screen or on a Lite Site page goes at
+	 * once.
+	 *
+	 * @param {HTMLElement} el The entry.
+	 * @return {void}
+	 */
+	function leave( el: HTMLElement ): void {
+		let isGone = false;
+		const remove = () => {
+			if ( ! isGone ) {
+				isGone = true;
+				el.remove();
+				dropLastSeparator();
+			}
+		};
+		const rect = el.getBoundingClientRect();
+
+		if ( isLite || rect.bottom <= 0 || rect.top >= window.innerHeight ) {
+			remove();
+			return;
+		}
+
+		el.inert = true;
+		el.setAttribute( 'aria-hidden', 'true' );
+		delete el.dataset.entryId;
+		el.classList.remove( 'is-entering', 'is-updated' );
+		el.classList.add( 'is-leaving' );
+		el.addEventListener( 'animationend', ( event ) => {
+			if ( event.target === el ) {
+				remove();
+			}
+		} );
+		// The animation never ends on an element that isn't rendered.
+		setTimeout( remove, FADE_CLEANUP_MS );
 	}
 
 	/**
@@ -1692,6 +1803,7 @@ function initBlock( root: HTMLElement ): void {
 		)?.remove();
 
 		insertPinned( el );
+		fadeIn( [ el ] );
 		observeEntry( el );
 		dropLastSeparator();
 	}
@@ -1718,6 +1830,7 @@ function initBlock( root: HTMLElement ): void {
 		reportCheck( 'idle' );
 		stopRelativeDates();
 		entrySeenObserver?.disconnect();
+		marks?.destroy();
 		cleanupFns.forEach( ( fn ) => fn() );
 		cleanupFns.length = 0;
 		feedStops.delete( root );
@@ -1818,6 +1931,19 @@ function initBlock( root: HTMLElement ): void {
 			}
 		};
 
+		// Hiding the tab restarts the wait the next time the reader sees it.
+		const onVisibility = () => {
+			if (
+				document.visibilityState !== 'visible' &&
+				fadeTimeoutId !== null
+			) {
+				clearTimeout( fadeTimeoutId );
+				fadeTimeoutId = null;
+			}
+
+			startWhenSeen();
+		};
+
 		const observer = new IntersectionObserver(
 			( entries ) => {
 				isInView = entries.some( ( entry ) => entry.isIntersecting );
@@ -1831,15 +1957,15 @@ function initBlock( root: HTMLElement ): void {
 			root.dataset.linkedFaded = '';
 			observer.disconnect();
 			linkedObserver = null;
-			document.removeEventListener( 'visibilitychange', startWhenSeen );
+			document.removeEventListener( 'visibilitychange', onVisibility );
 		}
 
 		observer.observe( linked );
-		document.addEventListener( 'visibilitychange', startWhenSeen );
+		document.addEventListener( 'visibilitychange', onVisibility );
 
 		cleanupFns.push( () => {
 			observer.disconnect();
-			document.removeEventListener( 'visibilitychange', startWhenSeen );
+			document.removeEventListener( 'visibilitychange', onVisibility );
 
 			if ( fadeTimeoutId !== null ) {
 				clearTimeout( fadeTimeoutId );
@@ -2188,7 +2314,8 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Turns the shared view into the live feed: takes over the live block's
 	 * entries, cursors, status, polling mode and control, then starts the
-	 * block again on the same element, as a freshly loaded normal view.
+	 * block again on the same element, as a freshly loaded normal view. The
+	 * entries the shared view counted as newer come in marked as new.
 	 *
 	 * @param {HTMLElement} live The live block, from the fetched page.
 	 * @param {string}      url  The live feed's URL.
@@ -2204,6 +2331,14 @@ function initBlock( root: HTMLElement ): void {
 		const control = liveControl
 			? parseElement( sanitizeHtml( liveControl.outerHTML ) )
 			: null;
+		const newerEntries: NewSince = {
+			dateGmt: sharedEntryDate() ?? '',
+			shownIds: new Set(
+				ownElements( root, SHOWN_ENTRIES, entriesList ).map(
+					( el ) => el.dataset.entryId ?? ''
+				)
+			),
+		};
 
 		cleanup();
 
@@ -2240,7 +2375,7 @@ function initBlock( root: HTMLElement ): void {
 
 		window.history.replaceState( window.history.state, '', url );
 
-		initBlock( root );
+		initBlock( root, newerEntries );
 	}
 
 	/**
@@ -2577,6 +2712,7 @@ function initBlock( root: HTMLElement ): void {
 						adEl: entry.adHtml
 							? parseElement( sanitizeHtml( entry.adHtml ) )
 							: null,
+						isNew: false,
 					} );
 				}
 
@@ -2649,10 +2785,12 @@ function initBlock( root: HTMLElement ): void {
 					// A load-more reply cached before the unpin still has it pinned.
 					offPageUpdates.set( String( entry.id ), entry.html );
 					linkedObserver?.unobserve( entryEl );
+					marks?.forget( String( entry.id ) );
 					entryEl.remove();
 					return;
 				}
 
+				marks?.adopt( entryEl );
 				observeEntry( entryEl );
 				dropLastSeparator();
 
@@ -2685,7 +2823,12 @@ function initBlock( root: HTMLElement ): void {
 				? parseElement( sanitizeHtml( entry.adHtml ) )
 				: null;
 
-			newEntries.push( { el: entryEl, adSlot: entry.adSlot, adEl } );
+			newEntries.push( {
+				el: entryEl,
+				adSlot: entry.adSlot,
+				adEl,
+				isNew: entry.type === 'insert',
+			} );
 		} );
 
 		if ( newEntries.length === 0 ) {
@@ -4091,7 +4234,9 @@ function initBlock( root: HTMLElement ): void {
 	}
 }
 
-document.querySelectorAll< HTMLElement >( BLOCK_SELECTOR ).forEach( initBlock );
+document
+	.querySelectorAll< HTMLElement >( BLOCK_SELECTOR )
+	.forEach( ( feed ) => initBlock( feed ) );
 
 // Feeds can sit in an entry's content, so they also reach the page after load,
 // in entries a poll, load more or the jump to the live feed brings in, and
