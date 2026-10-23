@@ -244,12 +244,13 @@ Entry text never slides or shifts: entries and notices only fade, the new-entrie
 
 ## Updated date
 
-A post's byline and its Homepage Posts card show its publish date, which stays put while the coverage it embeds keeps updating. `Updated_Date` (`includes/class-updated-date.php`) turns on Newspack's updated date for a post whose live feed (`Page_Coverages::feed_coverage_ids()`: synced patterns count, capped blocks don't) belongs to a coverage that is live or paused, once the post's modified date is later than its publish date. It answers newspack-plugin's `newspack_updated_date_override` for the byline, and Newspack Blocks' `newspack_blocks_display_updated_date`, which swaps a card's publish date for the updated date.
+A post's byline and its Homepage Posts card show its publish date, which stays put while the coverage it embeds keeps updating. `Updated_Date` (`includes/class-updated-date.php`) turns on Newspack's updated date for a post whose live feed belongs to a coverage that is live or paused, once the post's modified date is later than its publish date. It answers newspack-plugin's `newspack_updated_date_override` for the byline, and Newspack Blocks' `newspack_blocks_display_updated_date`, which swaps a card's publish date for the updated date.
 
 - The date is `Schema`'s page date, which reaches the byline, the card and the "time ago" wording through `get_the_modified_date()`, so all of them agree with the structured data.
-- Newspack's own rules still decide: newspack-plugin hooks the card filter after this (priority 100), so an editor's **Hide last updated date** and its supported post types (`newspack_updated_date_supported_post_types`, posts by default) apply to cards as well as bylines.
+- Liveness reads the same feeds that date does (`Schema::get_page_coverage_ids()`: blocks in the post's own content, capped blocks excluded). A feed in a synced pattern doesn't count: `Schema` doesn't date the post by it, so the time shown would be the post's own last edit while entries kept arriving.
+- Newspack's own rules still decide: newspack-plugin hooks the card filter after this (priority 100), so its supported post types (`newspack_updated_date_supported_post_types`, posts by default) and, while **Last updated date** is set to **Show**, an editor's **Hide last updated date** apply to cards as well as bylines. Its **Minimum hours after publish** doesn't apply while the coverage is live, as the override is answered before the threshold.
 - Once the coverage ends, both filters keep whatever was decided before them, so the site's **Last updated date** setting and its threshold decide again.
-- With a Newspack plugin or Newspack Blocks release that predates the two filters, nothing changes.
+- Each place changes once its plugin has the filter: bylines with the Newspack plugin, cards with Newspack Blocks. With Newspack Blocks' filter but an older or inactive Newspack plugin, nothing vetoes the card filter, so live pages' cards change too and **Hide last updated date** doesn't reach cards. The two ship together, so that takes mismatched versions.
 
 ## Gotchas
 

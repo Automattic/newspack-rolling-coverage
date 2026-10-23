@@ -17,13 +17,14 @@ defined( 'ABSPATH' ) || exit;
  * Bylines and Homepage Posts cards show a post's publish date, which stays
  * put while its coverage keeps updating, so a busy live blog looks hours old.
  * While a coverage the post embeds is live or paused, the byline and the card
- * show when the post last changed instead, whatever the site's "Show updated
- * date" setting says. That date is the one Schema works out: the newest entry,
- * or the post's own last edit when that came later. Once the coverage ends,
- * the site's settings decide again.
+ * show when the post last changed instead, whatever the site's "Last updated
+ * date" setting says. That date is the one Schema works out: when an entry was
+ * last published or edited, or the post's own last edit when that came later.
+ * Once the coverage ends, the site's settings decide again.
  *
- * Newspack's own rules still have the last word: an editor can hide the
- * updated date on a post, and only post types with the feature show it.
+ * Newspack's own rules still have the last word: only post types with the
+ * feature show it, and while "Last updated date" is set to Show, an editor can
+ * hide it on a post.
  */
 class Updated_Date {
 
@@ -68,8 +69,10 @@ class Updated_Date {
 	private static function has_live_update( WP_Post $post ): bool {
 		$is_live = false;
 
-		foreach ( Page_Coverages::feed_coverage_ids( $post->ID ) as $coverage_id ) {
-			if ( Taxonomy::STATUS_ARCHIVED !== Rolling_Coverage_Block::coverage_status( $coverage_id ) ) {
+		// Only the coverages the post's dates follow, or the time shown would
+		// be the post's own last edit while entries keep arriving.
+		foreach ( Schema::get_page_coverage_ids( $post ) as $coverage_id ) {
+			if ( Page_Coverages::is_followable( $coverage_id ) && Taxonomy::STATUS_ARCHIVED !== Rolling_Coverage_Block::coverage_status( $coverage_id ) ) {
 				$is_live = true;
 				break;
 			}

@@ -74,6 +74,28 @@ class Test_Updated_Date extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A feed placed through a synced pattern doesn't turn the date on: the
+	 * post's dates don't follow it, so the time shown would be the post's own
+	 * last edit while entries keep arriving.
+	 */
+	public function test_a_feed_in_a_synced_pattern_does_not_turn_the_date_on() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_ACTIVE );
+		$pattern_id  = self::factory()->post->create(
+			[
+				'post_type'    => 'wp_block',
+				'post_content' => '<!-- wp:' . Rolling_Coverage_Block::BLOCK_NAME . ' {"coverageId":' . $coverage_id . '} /-->',
+			]
+		);
+		$host        = $this->create_host_post( '<!-- wp:block {"ref":' . $pattern_id . '} /-->', '2026-09-01 10:00:00' );
+		self::create_dated_entry( $coverage_id, '2026-09-01 12:00:00' );
+		self::set_entry_modified( $host->ID, '2026-09-01 11:00:00' );
+		$host = get_post( $host->ID );
+
+		$this->assertNull( $this->byline_override( $host ), 'Byline.' );
+		$this->assertFalse( $this->card_display( $host ), 'Homepage Posts card.' );
+	}
+
+	/**
 	 * Posts without a live coverage keep whatever other code decided.
 	 */
 	public function test_other_posts_keep_the_existing_decision() {

@@ -442,6 +442,18 @@ class Schema {
 	}
 
 	/**
+	 * Returns the coverages a page's dates follow: the uncapped feeds in its
+	 * own content, the same ones get_page_date_modified() reads. A feed placed
+	 * through a synced pattern isn't one of them.
+	 *
+	 * @param WP_Post $post Host post.
+	 * @return int[] Coverage term IDs.
+	 */
+	public static function get_page_coverage_ids( WP_Post $post ): array {
+		return array_keys( self::get_page_coverages( $post ) );
+	}
+
+	/**
 	 * Returns when a post itself last changed for readers: its last edit, or
 	 * its publish date when that is later. A post published on schedule keeps
 	 * the modified date of its last edit, from before it went live.
