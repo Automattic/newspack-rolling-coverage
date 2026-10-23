@@ -136,7 +136,7 @@ function stopTick( state: TimerState ): void {
 /**
  * Draws a timer from its feed's state: hidden while the feed isn't counting
  * down, "Checking…" while it checks, and otherwise the seconds to the next
- * check, or the last result for a moment.
+ * check, or the last result for a moment. The spinner turns throughout.
  *
  * @param {HTMLElement} timer The timer's wrapper.
  * @return {void}

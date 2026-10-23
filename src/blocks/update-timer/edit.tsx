@@ -55,7 +55,7 @@ const config: UpdateTimerConfig = window.newspackUpdateTimerBlock ?? {
 
 /**
  * Editor for the Update Timer block: the countdown at the feed's full
- * interval beside the spinner, and the Coverage panel outside a
+ * interval beside the turning spinner, and the Coverage panel outside a
  * Rolling Coverage block.
  *
  * @param {Object}   props               Block props.
@@ -243,7 +243,7 @@ export default function Edit( {
 							} )
 						}
 						help={ __(
-							'Turns only while a check runs. Hidden for readers who ask their device for reduced motion.',
+							'Turns beside the countdown. Hidden for readers who ask their device for reduced motion.',
 							'newspack-rolling-coverage'
 						) }
 					>
