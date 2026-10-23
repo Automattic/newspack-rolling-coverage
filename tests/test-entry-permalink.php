@@ -109,36 +109,37 @@ class Test_Entry_Permalink extends Rolling_Coverage_TestCase {
 		// whose rewrite rules the post type adds only when it is registered
 		// with permalinks on.
 		update_option( 'permalink_structure', '/%postname%/' );
-		Post_Type::register();
-		$this->set_permalink_structure( '/%postname%/' );
-
-		add_action(
-			'rest_api_init',
-			static function () {
-				register_rest_route(
-					'yoast/v1',
-					'/get_head',
-					[
-						'methods'             => 'GET',
-						'callback'            => [ new Indexables_Head_Route(), 'get_head' ],
-						'permission_callback' => '__return_true',
-					]
-				);
-			}
-		);
-		$GLOBALS['wp_rest_server'] = null;
-
-		$get_head = static function ( string $url, string $route = '/yoast/v1/get_head' ): int {
-			$request = new WP_REST_Request( 'GET', $route );
-			$request->set_query_params( [ 'url' => $url ] );
-
-			return rest_get_server()->dispatch( $request )->get_status();
-		};
-
-		$visible_entry_id  = self::create_entry( self::create_coverage() );
-		$hidden_entry_link = get_permalink( self::create_entry( self::create_coverage( 'trash' ) ) );
 
 		try {
+			Post_Type::register();
+			$this->set_permalink_structure( '/%postname%/' );
+
+			add_action(
+				'rest_api_init',
+				static function () {
+					register_rest_route(
+						'yoast/v1',
+						'/get_head',
+						[
+							'methods'             => 'GET',
+							'callback'            => [ new Indexables_Head_Route(), 'get_head' ],
+							'permission_callback' => '__return_true',
+						]
+					);
+				}
+			);
+			$GLOBALS['wp_rest_server'] = null;
+
+			$get_head = static function ( string $url, string $route = '/yoast/v1/get_head' ): int {
+				$request = new WP_REST_Request( 'GET', $route );
+				$request->set_query_params( [ 'url' => $url ] );
+
+				return rest_get_server()->dispatch( $request )->get_status();
+			};
+
+			$visible_entry_id  = self::create_entry( self::create_coverage() );
+			$hidden_entry_link = get_permalink( self::create_entry( self::create_coverage( 'trash' ) ) );
+
 			$this->assertSame( 200, $get_head( get_permalink( $visible_entry_id ) ) );
 			$this->assertSame( 404, $get_head( $hidden_entry_link ) );
 			$this->assertSame( 404, $get_head( add_query_arg( 'p', $visible_entry_id, $hidden_entry_link ) ), 'A query string Yoast ignores should not change the answer.' );
