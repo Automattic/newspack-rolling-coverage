@@ -1,5 +1,6 @@
 /**
- * Jest config for the built-in layout template checks.
+ * Jest config for the tests in `tests/js/`: the built-in layout template
+ * checks and the entries list's live sync.
  *
  * The editor modules the layouts are built from expect WordPress's own
  * scripts, so this loads them from node_modules: one copy of each package
