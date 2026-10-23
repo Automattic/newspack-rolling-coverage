@@ -27,7 +27,7 @@ import {
 	readEntryName,
 	showingLatestLabel,
 } from './entry-name';
-import { isSharedReply, readSharedReply } from './shared-poll';
+import { isSharedReply, readSharedReply, startingAdCount } from './shared-poll';
 import type { PollEventDetail } from '../shared/poll-event';
 import type {
 	AdSlot,
@@ -638,7 +638,7 @@ function initBlock( root: HTMLElement ): void {
 	let isDisposed = false;
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
-	let polledCount = 0;
+	let polledCount = startingAdCount( entriesList );
 
 	// The coverage status the last poll reported.
 	let polledStatus = status;

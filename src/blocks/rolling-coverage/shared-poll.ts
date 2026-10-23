@@ -161,14 +161,39 @@ export function isSharedReply( body: unknown ): body is SharedPollResponse {
 }
 
 /**
+ * Where a page's count of polled entries toward their next ad starts. New
+ * entries go above the page's unpinned entries, and each takes an ad when
+ * the entries below it, down to the next ad, make a full interval. A poll
+ * counts the arriving entry too, so the count starts one below the unpinned
+ * entries above the first ad that follows one of them, or all of them when
+ * no ad does, and at 0 when the page shows none.
+ *
+ * @param {Element} list The feed's entries list.
+ * @return {number} The count.
+ */
+export function startingAdCount( list: Element ): number {
+	let entries = 0;
+
+	for ( const child of Array.from( list.children ) ) {
+		if ( child.matches( '[data-entry-id]:not([data-pinned])' ) ) {
+			entries++;
+		} else if ( entries > 0 && child.matches( '.newspack_global_ad' ) ) {
+			break;
+		}
+	}
+
+	return Math.max( 0, entries - 1 );
+}
+
+/**
  * Turns a shared reply into the reply a cursor poll from the page would
  * have got, or null when the page needs its own cursor reply: it is behind
  * the window, the window overflowed, or a capped feed lost an entry, which
  * only the server can backfill.
  *
- * New entries are counted newest first from the page's own ad count, and
- * every `adsInterval`th keeps its ad, as the server places them on a cursor
- * poll.
+ * New entries are counted from the last one the reply lists, on from the
+ * page's own ad count, and every `adsInterval`th keeps its ad, as the server
+ * places them on a cursor poll.
  *
  * @param {SharedPollResponse} reply Shared reply.
  * @param {SharedPollState}    state The page's cursor, ad count and cap.
@@ -206,11 +231,28 @@ export function readSharedReply(
 		return null;
 	}
 
-	const entries: PollEntry[] = [];
+	const outcomes = reply.changes.map( ( change ) =>
+		classifyChange( position, change )
+	);
+	const withAd = new Set< number >();
 	let added = 0;
 
-	for ( const change of reply.changes ) {
-		const outcome = classifyChange( position, change );
+	// The page lists new entries above its own in the reply's order, so the
+	// last one listed sits next to them and continues its count.
+	for ( let i = outcomes.length - 1; i >= 0; i-- ) {
+		if ( outcomes[ i ] === 'new' && reply.adsInterval ) {
+			added++;
+
+			if ( ( state.polledCount + added ) % reply.adsInterval === 0 ) {
+				withAd.add( i );
+			}
+		}
+	}
+
+	const entries: PollEntry[] = [];
+
+	for ( const [ i, change ] of reply.changes.entries() ) {
+		const outcome = outcomes[ i ];
 
 		if ( outcome === 'skip' ) {
 			continue;
@@ -232,12 +274,7 @@ export function readSharedReply(
 		}
 
 		const isNew = outcome === 'new';
-		let hasAd = false;
-
-		if ( isNew && reply.adsInterval ) {
-			added++;
-			hasAd = ( state.polledCount + added ) % reply.adsInterval === 0;
-		}
+		const hasAd = withAd.has( i );
 
 		entries.push( {
 			id: change.id,

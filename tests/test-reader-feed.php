@@ -1083,6 +1083,30 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The page lists a poll's new entries above its own in the reply's order,
+	 * so the last one listed continues the page's ad count: with three
+	 * counted, it is the fourth and takes the ad.
+	 */
+	public function test_poll_counts_new_entries_for_ads_from_the_oldest() {
+		self::enable_ad_placement();
+
+		$older = $this->create_entry_at( '2026-01-01 12:00:00' );
+		$newer = $this->create_entry_at( '2026-01-01 12:01:00' );
+
+		$data = $this->get_feed(
+			[
+				'cursor'       => '0:2026-01-01 00:00:00',
+				'polled_count' => 3,
+			]
+		)->get_data();
+
+		$this->assertSame( [ $newer, $older ], wp_list_pluck( $data['entries'], 'id' ) );
+		$this->assertNull( $data['entries'][0]['adHtml'] );
+		$this->assertStringContainsString( 'test-ad-code', (string) $data['entries'][1]['adHtml'] );
+		$this->assertSame( 1, $data['polledCount'] );
+	}
+
+	/**
 	 * Load more without a stored config brings nothing further when the
 	 * request says the feed is capped.
 	 */
