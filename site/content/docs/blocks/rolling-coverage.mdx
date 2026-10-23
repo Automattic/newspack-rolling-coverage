@@ -130,8 +130,8 @@ The page checks for new entries every poll interval. It stops while the tab is i
 - A reader at the top of the feed sees new entries at once.
 - A reader who has scrolled down sees a button such as "3 new entries" instead. The page doesn't move. Selecting the button scrolls the page to the new entries, past any pinned entries above them, and brings them in. Readers whose device is set to reduce motion go straight there.
 - Edited entries update in place. An entry that is unpublished disappears. If it's published again or restored, it comes back without a reload.
-- New entries fade in. In a feed that lists entries one above another, a new entry at the top also opens its own space, so the entries below glide down rather than jump. Several new entries arriving together open their space together, a little more slowly than one. Readers whose device is set to reduce motion see them without the fade, and the space opens at once.
-- An entry published while the page is open shows "New" until the reader has seen it. Four seconds after the reader first sees it, the label fades away. Older entries that load don't show it. See the [New Label block](/docs/blocks/new-label/).
+- New entries fade in. In a feed that lists entries one above another, a new entry at the top also opens its own space, so the entries below glide down rather than jump. Several new entries arriving together open their space together, a little more slowly than one. Readers whose device is set to reduce motion still see them fade in, but the space opens at once.
+- An entry published while the page is open shows a label, such as "New", until the reader has seen it. Four seconds after the reader first sees it, the label fades away. Older entries that load, and entries published again, don't show it. See the [New Label block](/docs/blocks/new-label/).
 - A paused or ended coverage doesn't check on its own.
 
 Feeds set to **Latest** update in place without the button. The newest entry appears and the oldest drops off.
