@@ -67,6 +67,40 @@ class Test_Entry_Permalink extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * A cached result of the page's query follows coverage changes as well as
+	 * changes to posts: an entry whose only coverage is deleted outright,
+	 * without going through the trash, is not found on the next view.
+	 */
+	public function test_cached_main_query_follows_coverage_changes() {
+		$coverage_id = self::create_coverage();
+		$entry_id    = self::create_entry( $coverage_id );
+		$main_query  = $GLOBALS['wp_the_query'];
+
+		// go_to() empties the object cache, so each view runs the main query
+		// itself, keeping core's query cache between them.
+		$view = static function () use ( $entry_id ): array {
+			$GLOBALS['wp_the_query'] = new WP_Query(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Makes this query the main one; restored below.
+
+			return $GLOBALS['wp_the_query']->query(
+				[
+					'post_type' => Post_Type::CPT_SLUG,
+					'p'         => $entry_id,
+				]
+			);
+		};
+
+		try {
+			$this->assertCount( 1, $view() );
+
+			wp_delete_term( $coverage_id, Taxonomy::TAXONOMY_SLUG );
+
+			$this->assertSame( [], $view(), 'Deleting the entry\'s only coverage should hide it on the next view.' );
+		} finally {
+			$GLOBALS['wp_the_query'] = $main_query; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		}
+	}
+
+	/**
 	 * Listings of entries, alone or mixed with other post types, leave the
 	 * hidden ones out and count only what they show, so their pages and feeds
 	 * carry no hidden text.

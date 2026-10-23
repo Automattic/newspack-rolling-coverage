@@ -40,6 +40,9 @@ class Post_Type {
 	// Query var used to opt out of pinned-first ordering for a specific query.
 	const SKIP_PIN_ORDER_VAR = 'rolling_coverage_skip_pin_order';
 
+	// Query var hide_entries_from_main_query() sets to the terms cache version, so core's cached result of a main query for entries is renewed when coverages change.
+	const COVERAGES_VERSION_VAR = 'rolling_coverage_coverages_version';
+
 	// Source related meta key for any chat-source adapter (Slack now, others in future).
 	const META_ENTRY_SOURCE = 'rolling_coverage_entry_source';
 
@@ -517,6 +520,11 @@ class Post_Type {
 	 * (`?embed=true`) and Social_Sharing::redirect_entry_to_canonical()
 	 * nothing to show or redirect for a hidden entry's permalink.
 	 *
+	 * Core caches a query's result under its query vars and SQL, renewed when
+	 * posts change. The clause also depends on which coverages an entry is
+	 * in, so the terms cache version joins the query vars, renewing the
+	 * cached result when a coverage or an entry's coverages change too.
+	 *
 	 * @param string   $where The query's WHERE clause.
 	 * @param WP_Query $query The query.
 	 * @return string Filtered WHERE clause.
@@ -525,6 +533,8 @@ class Post_Type {
 		if ( is_admin() || ! $query->is_main_query() || ! in_array( self::CPT_SLUG, (array) $query->get( 'post_type' ), true ) ) {
 			return $where;
 		}
+
+		$query->set( self::COVERAGES_VERSION_VAR, wp_cache_get_last_changed( 'terms' ) );
 
 		global $wpdb;
 
