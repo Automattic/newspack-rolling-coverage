@@ -9,6 +9,7 @@ use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Coverage_Follow_Block;
 use Newspack_Rolling_Coverage\Coverage_Status_Block;
 use Newspack_Rolling_Coverage\Entry_Bindings;
+use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Placements;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
@@ -2260,5 +2261,55 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 		$this->assertSame( 1, substr_count( $html, '<article' ) );
 		$this->assertSame( 1, substr_count( $html, 'rc-inner' ) );
 		$this->assertStringContainsString( 'Summary of the nested update', $html );
+	}
+
+	/**
+	 * The New label's markup, as the editor saves it.
+	 */
+	const NEW_LABEL_MARKUP = '<!-- wp:paragraph {"className":"use-header-font newspack-rolling-coverage-new-label"} --><p class="use-header-font newspack-rolling-coverage-new-label">New</p><!-- /wp:paragraph -->';
+
+	/**
+	 * The New label renders hidden and tagged on regular, pinned and Full
+	 * story entries, for the view script to reveal.
+	 */
+	public function test_new_label_renders_hidden_on_every_entry() {
+		$coverage_id = self::create_coverage();
+		$regular_id  = self::create_entry( $coverage_id );
+		$pinned_id   = self::create_entry( $coverage_id );
+		$story_id    = self::create_entry( $coverage_id );
+		$template    = parse_blocks( self::NEW_LABEL_MARKUP );
+
+		Post_Type::pin_entry( $pinned_id );
+		self::add_breakout( $story_id, 'publish' );
+
+		foreach ( [ $regular_id, $pinned_id, $story_id ] as $entry_id ) {
+			$tags = new WP_HTML_Tag_Processor( Rolling_Coverage_Block::render_entry( get_post( $entry_id ), $template ) );
+
+			$this->assertTrue( $tags->next_tag( [ 'class_name' => 'newspack-rolling-coverage-new-label' ] ), 'The label should render.' );
+			$this->assertNotNull( $tags->get_attribute( 'hidden' ), 'It should start hidden.' );
+			$this->assertNotNull( $tags->get_attribute( 'data-rc-new-marker' ), 'It should be tagged as the marker.' );
+		}
+	}
+
+	/**
+	 * Outside an entry, the paragraph is just a paragraph.
+	 */
+	public function test_new_label_outside_entry_rendering_is_untouched() {
+		$html = do_blocks( self::NEW_LABEL_MARKUP );
+
+		$this->assertStringContainsString( 'newspack-rolling-coverage-new-label', $html );
+		$this->assertStringNotContainsString( 'hidden', $html );
+		$this->assertStringNotContainsString( 'data-rc-new-marker', $html );
+	}
+
+	/**
+	 * Lite entries don't use the template, so they have no label.
+	 */
+	public function test_lite_entry_has_no_new_label() {
+		require_once __DIR__ . '/mocks/class-lite-site.php';
+
+		$entry_id = self::create_entry( self::create_coverage() );
+
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-new-label', Lite_Feed::render_entry( get_post( $entry_id ), 'poll' ) );
 	}
 }

@@ -48,6 +48,45 @@ const PIN_ICON = 'newspack-rolling-coverage/pin-small';
 const PINNED_LABEL_CLASS = 'newspack-rolling-coverage-pinned-label';
 
 /**
+ * Class of the paragraph that marks an entry as new once it arrives,
+ * mirroring Entry_Bindings::NEW_LABEL_CLASS.
+ */
+const NEW_LABEL_CLASS = 'newspack-rolling-coverage-new-label';
+
+/**
+ * The label that marks an entry as new once it arrives. The site renders it
+ * hidden and the view script reveals it, so a layout places it where the
+ * mark should show.
+ *
+ * @param {Object}  [options]        How the label shows.
+ * @param {string}  [options.color]  The label's text color.
+ * @param {boolean} [options.hidden] Whether the label is for screen readers
+ *                                   only, for a layout whose entries already
+ *                                   look new. Default false.
+ * @return {TemplateItem} The label.
+ */
+function newLabel( {
+	color = READABLE_ACCENT,
+	hidden = false,
+}: { color?: string; hidden?: boolean } = {} ): TemplateItem {
+	return [
+		'core/paragraph',
+		{
+			// The Newspack Theme's class for its heading font, which it also gives the date.
+			className: `use-header-font ${ NEW_LABEL_CLASS }${
+				hidden ? ' screen-reader-text' : ''
+			}`,
+			content: __( 'New', 'newspack-rolling-coverage' ),
+			fontSize: 'small',
+			style: {
+				typography: { fontWeight: '700' },
+				...( color ? { color: { text: color } } : {} ),
+			},
+		},
+	];
+}
+
+/**
  * The pin icon and the pinned label in a row, shown only on pinned entries
  * (see Entry_Bindings::filter_pinned_group()).
  *
@@ -115,6 +154,52 @@ function pinnedRow( {
 			],
 		],
 	];
+}
+
+/**
+ * Whether a block is the paragraph that marks an entry as new, mirroring
+ * Entry_Bindings::is_new_label().
+ *
+ * @param {Object} block            The block.
+ * @param {string} block.name       Block name.
+ * @param {Object} block.attributes Block attributes.
+ * @return {boolean} Whether it's the New label.
+ */
+function isNewLabel( block: {
+	name: string;
+	attributes?: Record< string, unknown >;
+} ): boolean {
+	const className = block.attributes?.className;
+
+	return (
+		block.name === 'core/paragraph' &&
+		typeof className === 'string' &&
+		className.split( ' ' ).includes( NEW_LABEL_CLASS )
+	);
+}
+
+/**
+ * The template without the New label, as the entries that aren't the newest
+ * preview, since only the newest entry shows as new.
+ *
+ * @param {Object[]} blocks The template blocks.
+ * @return {Object[]} The blocks without the label.
+ */
+function withoutNewLabel<
+	T extends { name: string; [ key: string ]: unknown },
+>( blocks: T[] ): T[] {
+	return blocks
+		.filter( ( block ) => ! isNewLabel( block ) )
+		.map( ( block ) =>
+			Array.isArray( block.innerBlocks ) && block.innerBlocks.length
+				? {
+						...block,
+						innerBlocks: withoutNewLabel(
+							block.innerBlocks as T[]
+						),
+					}
+				: block
+		);
 }
 
 /**
@@ -5019,6 +5104,10 @@ const ENTRY_ALLOWED_BLOCKS = [
 ];
 
 export {
+	NEW_LABEL_CLASS,
+	newLabel,
+	isNewLabel,
+	withoutNewLabel,
 	bulletinEntryTemplate,
 	streamEntryTemplate,
 	railEntryTemplate,

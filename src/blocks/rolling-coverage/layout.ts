@@ -45,6 +45,7 @@ import {
 	UPDATE_TIMER_BLOCK_NAME,
 	feedTemplate,
 	layoutParts,
+	withoutNewLabel,
 	withoutPinnedRow,
 	fullStoryTakesPinned,
 	withoutBreakoutLink,
@@ -576,10 +577,8 @@ export function useLayoutPreview(
 		( context ) => context.hidesByline
 	);
 	const previewTemplates = useMemo( () => {
-		const entryBlocks = withAuthorSettings(
-			templateBlocks,
-			showAuthor,
-			showAvatar
+		const entryBlocks = withoutNewLabel(
+			withAuthorSettings( templateBlocks, showAuthor, showAvatar )
 		);
 		const pinnedBlocks = forEntryKind( entryBlocks, true );
 		const hasCard = hasPinnedCard( pinnedBlocks );

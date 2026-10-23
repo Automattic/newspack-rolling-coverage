@@ -29,7 +29,8 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 	}
 
 	.newspack-rolling-coverage-status,
-	.newspack-rolling-coverage-pinned-status {
+	.newspack-rolling-coverage-pinned-status,
+	.newspack-rolling-coverage-new-status {
 		position: absolute;
 		width: 1px;
 		height: 1px;
@@ -39,6 +40,50 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 		clip-path: inset(50%);
 		word-wrap: normal !important;
 		border: 0;
+	}
+
+	&:not([data-lite="1"]) {
+
+		.newspack-rolling-coverage-new-label {
+			padding-block: 0;
+			border-block: 0;
+
+			&:not(.screen-reader-text)::before {
+				content: "";
+				display: inline-block;
+				width: 6px;
+				height: 6px;
+				margin-inline-end: 0.4em;
+				border-radius: 50%;
+				background: currentcolor;
+				vertical-align: middle;
+			}
+		}
+
+		.newspack-rolling-coverage-entry[data-new]:not(:has(.newspack-rolling-coverage-breakout-box)) {
+			position: relative;
+			isolation: isolate;
+
+			&::after {
+				content: "";
+				position: absolute;
+				inset: 0;
+				z-index: -1;
+				border-radius: inherit;
+				background: var(--newspack-rolling-coverage-accent-tint);
+				pointer-events: none;
+			}
+
+			&[data-new="clearing"]::after {
+				opacity: 0;
+				transition: opacity motion.$clear motion.$ease-out;
+			}
+		}
+
+		.newspack-rolling-coverage-entry[data-new="clearing"] [data-rc-new-marker] {
+			opacity: 0;
+			transition: opacity motion.$clear motion.$ease-out;
+		}
 	}
 
 	:is(.newspack-rolling-coverage-load-more, .newspack-rolling-coverage-check-updates) button[aria-busy="true"] {
