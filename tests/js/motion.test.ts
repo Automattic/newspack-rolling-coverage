@@ -12,6 +12,7 @@ import {
 	LEAVE_MS,
 	MOTION_QUERY,
 	OPEN_FADE_DELAY_MS,
+	OPEN_MAX_MS,
 	OPEN_MS,
 	prefersReducedMotion,
 } from '../../src/blocks/shared/motion';
@@ -42,6 +43,11 @@ describe( 'motion values', () => {
 	it( 'fades an arriving entry in while its space opens, not after', () => {
 		expect( OPEN_FADE_DELAY_MS ).toBeGreaterThan( 0 );
 		expect( OPEN_FADE_DELAY_MS ).toBeLessThan( OPEN_MS );
+	} );
+
+	it( 'gives a batch’s open more time than one entry’s, within a drawer’s', () => {
+		expect( OPEN_MAX_MS ).toBeGreaterThan( OPEN_MS );
+		expect( OPEN_MAX_MS ).toBeLessThanOrEqual( 500 );
 	} );
 
 	it( 'closes the New label’s line while its fade still runs, within today’s length', () => {

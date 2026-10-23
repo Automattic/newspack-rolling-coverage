@@ -2,6 +2,9 @@ export const MOTION_QUERY = '(prefers-reduced-motion: no-preference)';
 
 export const ENTER_MS = 200;
 export const OPEN_MS = 250;
+export const OPEN_MAX_MS = 450;
+export const OPEN_BASE_PX = 240;
+export const OPEN_PX_PER_MS = 4;
 export const OPEN_FADE_DELAY_MS = 100;
 export const CLEAR_MS = 250;
 export const COLLAPSE_MS = 200;

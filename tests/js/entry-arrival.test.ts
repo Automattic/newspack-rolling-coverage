@@ -1,6 +1,8 @@
 import {
 	carryArrival,
 	closeSpace,
+	openDuration,
+	openFadeDelay,
 	openKeyframes,
 	openSpace,
 	stackGap,
@@ -9,8 +11,11 @@ import {
 import {
 	EASE_IN_OUT,
 	ENTER_MS,
+	OPEN_BASE_PX,
 	OPEN_FADE_DELAY_MS,
+	OPEN_MAX_MS,
 	OPEN_MS,
+	OPEN_PX_PER_MS,
 } from '../../src/blocks/shared/motion';
 
 type FakeAnimation = {
@@ -123,6 +128,37 @@ describe( 'openKeyframes', () => {
 	} );
 } );
 
+describe( 'openDuration', () => {
+	it( 'takes OPEN_MS for up to one entry’s share', () => {
+		expect( openDuration( 0 ) ).toBe( OPEN_MS );
+		expect( openDuration( 200 + 32 ) ).toBe( OPEN_MS );
+		expect( openDuration( OPEN_BASE_PX ) ).toBe( OPEN_MS );
+	} );
+
+	it( 'grows with the height past that, up to OPEN_MAX_MS', () => {
+		expect( openDuration( OPEN_BASE_PX + 100 * OPEN_PX_PER_MS ) ).toBe(
+			OPEN_MS + 100
+		);
+		expect( openDuration( 5 * ( 200 + 32 ) ) ).toBe( OPEN_MAX_MS );
+		expect( openDuration( 10000 ) ).toBe( OPEN_MAX_MS );
+	} );
+} );
+
+describe( 'openFadeDelay', () => {
+	it( 'starts the fade as far through any open as through the shortest', () => {
+		expect( openFadeDelay( OPEN_MS ) ).toBe( OPEN_FADE_DELAY_MS );
+		expect( openFadeDelay( OPEN_MS * 1.5 ) ).toBe(
+			OPEN_FADE_DELAY_MS * 1.5
+		);
+	} );
+
+	it( 'ends the fade before the longest open ends', () => {
+		expect( openFadeDelay( OPEN_MAX_MS ) + ENTER_MS ).toBeLessThan(
+			OPEN_MAX_MS
+		);
+	} );
+} );
+
 describe( 'openSpace', () => {
 	it( 'opens each element in a column and fades its entries in partway', () => {
 		const list = makeList( column );
@@ -137,9 +173,10 @@ describe( 'openSpace', () => {
 		expect( openEntry.target ).toBe( entry );
 		expect( openEntry.keyframes[ 0 ].marginBlockEnd ).toBe( '-232px' );
 		expect( openEntry.options ).toEqual( {
-			duration: OPEN_MS,
+			duration: openDuration( 232 + 82 ),
 			easing: EASE_IN_OUT,
 		} );
+		expect( openAd.options.duration ).toBe( openDuration( 232 + 82 ) );
 		expect( openAd.target ).toBe( ad );
 		expect( openAd.keyframes[ 0 ].marginBlockEnd ).toBe( '-82px' );
 		expect( fade.target ).toBe( entry );
@@ -147,9 +184,31 @@ describe( 'openSpace', () => {
 		expect( fade.options ).toEqual(
 			expect.objectContaining( {
 				duration: ENTER_MS,
-				delay: OPEN_FADE_DELAY_MS,
+				delay: openFadeDelay( openDuration( 232 + 82 ) ),
 				fill: 'backwards',
 			} )
+		);
+	} );
+
+	it( 'opens a batch together over the time its whole height takes', () => {
+		const list = makeList( column );
+		const entries = Array.from( { length: 5 }, () => makeItem( 200 ) );
+		list.append( ...entries, makeItem( 100 ) );
+
+		openSpace( entries, entries, list );
+
+		const opens = animations.filter( ( { keyframes } ) =>
+			keyframes[ 0 ].hasOwnProperty( 'marginBlockEnd' )
+		);
+		const fades = animations.filter( ( { keyframes } ) =>
+			keyframes[ 0 ].hasOwnProperty( 'opacity' )
+		);
+		expect( opens ).toHaveLength( 5 );
+		opens.forEach( ( open ) =>
+			expect( open.options.duration ).toBe( OPEN_MAX_MS )
+		);
+		fades.forEach( ( fade ) =>
+			expect( fade.options.delay ).toBe( openFadeDelay( OPEN_MAX_MS ) )
 		);
 	} );
 
@@ -225,6 +284,22 @@ describe( 'carryArrival', () => {
 		expect( animations[ 3 ].currentTime ).toBe( 120 );
 	} );
 
+	it( 'keeps the pace of the batch the element arrived with', () => {
+		const list = makeList( column );
+		const entries = Array.from( { length: 5 }, () => makeItem( 200 ) );
+		list.append( ...entries, makeItem( 100 ) );
+		openSpace( entries, entries, list );
+		const count = animations.length;
+
+		const replacement = makeItem( 200 );
+		entries[ 0 ].replaceWith( replacement );
+		carryArrival( entries[ 0 ], replacement );
+
+		const [ open, fade ] = animations.slice( count );
+		expect( open.options.duration ).toBe( OPEN_MAX_MS );
+		expect( fade.options.delay ).toBe( openFadeDelay( OPEN_MAX_MS ) );
+	} );
+
 	it( 'does nothing for an element that is not arriving', () => {
 		const entry = makeItem( 200 );
 
@@ -259,6 +334,7 @@ describe( 'closeSpace', () => {
 			'-232px'
 		);
 		expect( animations[ 0 ].options.fill ).toBe( 'forwards' );
+		expect( animations[ 0 ].options.duration ).toBe( OPEN_MS );
 
 		await Promise.resolve();
 		await Promise.resolve();

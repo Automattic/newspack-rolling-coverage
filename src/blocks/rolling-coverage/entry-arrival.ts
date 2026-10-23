@@ -12,8 +12,11 @@ import {
 	EASE_OUT,
 	ENTER_MS,
 	LEAVE_MS,
+	OPEN_BASE_PX,
 	OPEN_FADE_DELAY_MS,
+	OPEN_MAX_MS,
 	OPEN_MS,
+	OPEN_PX_PER_MS,
 	prefersReducedMotion,
 } from '../shared/motion';
 
@@ -31,6 +34,34 @@ type Space = {
 
 const opens = new WeakMap< Element, Animation >();
 const fades = new WeakMap< Element, Animation >();
+const paces = new WeakMap< Element, number >();
+
+/**
+ * How long an open takes for the height it adds to the page: `OPEN_MS` up to
+ * about one entry's share, then longer as the height grows, up to
+ * `OPEN_MAX_MS`, so a batch of entries doesn't sweep the list down in the
+ * time one entry takes.
+ *
+ * @param {number} height The height added, in pixels.
+ * @return {number} The duration, in milliseconds.
+ */
+export function openDuration( height: number ): number {
+	const extra = Math.max( 0, height - OPEN_BASE_PX ) / OPEN_PX_PER_MS;
+
+	return Math.round( Math.min( OPEN_MAX_MS, OPEN_MS + extra ) );
+}
+
+/**
+ * How far into an open its entries start to fade in: as far through the open
+ * as `OPEN_FADE_DELAY_MS` is through `OPEN_MS`, so a longer open keeps the
+ * fade over the space opening.
+ *
+ * @param {number} duration The open's duration, in milliseconds.
+ * @return {number} The delay, in milliseconds.
+ */
+export function openFadeDelay( duration: number ): number {
+	return Math.round( ( OPEN_FADE_DELAY_MS * duration ) / OPEN_MS );
+}
 
 /**
  * The gap a layout leaves between the children it stacks in a column, or
@@ -160,13 +191,20 @@ function canMove( element: HTMLElement ): boolean {
  *
  * @param {HTMLElement} element     The element.
  * @param {Space}       space       Its space.
+ * @param {number}      duration    How long the open takes, in milliseconds.
  * @param {number}      currentTime Where to start, in milliseconds.
  */
-function runOpen( element: HTMLElement, space: Space, currentTime = 0 ): void {
+function runOpen(
+	element: HTMLElement,
+	space: Space,
+	duration: number,
+	currentTime = 0
+): void {
 	const open = element.animate( openKeyframes( space ), {
-		duration: OPEN_MS,
+		duration,
 		easing: EASE_IN_OUT,
 	} );
+	paces.set( element, duration );
 	open.currentTime = currentTime;
 	opens.set( element, open );
 	open.finished.then(
@@ -180,15 +218,21 @@ function runOpen( element: HTMLElement, space: Space, currentTime = 0 ): void {
  * open, so the entry comes in as its space opens rather than after.
  *
  * @param {HTMLElement} element     The entry.
+ * @param {number}      duration    How long its open takes, in milliseconds.
  * @param {number}      currentTime Where to start, in milliseconds.
  */
-function runFade( element: HTMLElement, currentTime = 0 ): void {
+function runFade(
+	element: HTMLElement,
+	duration: number,
+	currentTime = 0
+): void {
 	const fade = element.animate( [ { opacity: 0 }, { opacity: 1 } ], {
 		duration: ENTER_MS,
-		delay: OPEN_FADE_DELAY_MS,
+		delay: openFadeDelay( duration ),
 		easing: EASE_OUT,
 		fill: 'backwards',
 	} );
+	paces.set( element, duration );
 	fade.currentTime = currentTime;
 	fades.set( element, fade );
 	fade.finished.then(
@@ -201,7 +245,8 @@ function runFade( element: HTMLElement, currentTime = 0 ): void {
  * Opens the space of elements just inserted in a feed's entry list. An
  * element alone in a group inside the list, as the first entry of an empty
  * Pinned group, opens the group, which appeared with it. The entries given
- * to fade fade in as their space opens.
+ * to fade fade in as their space opens. They all open together, over a
+ * duration set by the height they add between them (see openDuration()).
  *
  * Nothing opens under reduced motion, without scripted animations, or where
  * the layout doesn't stack the elements in a column (a row or a grid).
@@ -236,10 +281,19 @@ export function openSpace(
 		spaces.set( target, spaceOf( target ) )
 	);
 
+	let added = 0;
+	spaces.forEach( ( space ) => {
+		if ( space ) {
+			added +=
+				space.marginStart + space.height + space.gap + space.marginEnd;
+		}
+	} );
+	const duration = openDuration( added );
+
 	spaces.forEach( ( space, target ) => {
 		if ( space ) {
 			opens.get( target )?.cancel();
-			runOpen( target, space );
+			runOpen( target, space, duration );
 		}
 	} );
 
@@ -250,7 +304,7 @@ export function openSpace(
 			return true;
 		}
 
-		runFade( entry );
+		runFade( entry, duration );
 		return false;
 	} );
 }
@@ -271,6 +325,8 @@ export function carryArrival( from: HTMLElement, to: HTMLElement ): boolean {
 		return false;
 	}
 
+	const duration = paces.get( from ) ?? OPEN_MS;
+
 	if ( open ) {
 		const time = Number( open.currentTime ) || 0;
 		const space = spaceOf( to );
@@ -278,7 +334,7 @@ export function carryArrival( from: HTMLElement, to: HTMLElement ): boolean {
 		opens.delete( from );
 
 		if ( space ) {
-			runOpen( to, space, time );
+			runOpen( to, space, duration, time );
 		}
 	}
 
@@ -286,7 +342,7 @@ export function carryArrival( from: HTMLElement, to: HTMLElement ): boolean {
 		const time = Number( fade.currentTime ) || 0;
 		fade.cancel();
 		fades.delete( from );
-		runFade( to, time );
+		runFade( to, duration, time );
 	}
 
 	return true;
