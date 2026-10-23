@@ -602,17 +602,30 @@ class Post_Type {
 	 * the coverage doesn't change, and the description defaults to the start
 	 * of the entry's text.
 	 *
+	 * The route is recognized by its handler, not its path, which core also
+	 * dispatches with a trailing newline. The URL is read as Yoast reads it,
+	 * by host and path alone: url_to_postid() would otherwise answer for a
+	 * `p=` in the query string that Yoast ignores.
+	 *
 	 * @param WP_REST_Response|WP_HTTP_Response|WP_Error|mixed $response Result so far.
 	 * @param array|mixed                                      $handler  Route handler used for the request.
 	 * @param WP_REST_Request|mixed                            $request  Request.
 	 * @return WP_REST_Response|WP_HTTP_Response|WP_Error|mixed
 	 */
 	public static function hide_entry_seo_head( $response, $handler, $request ) {
-		if ( is_wp_error( $response ) || ! $request instanceof WP_REST_Request || 0 !== strcasecmp( $request->get_route(), '/yoast/v1/get_head' ) ) {
+		$callback = is_array( $handler ) ? ( $handler['callback'] ?? null ) : null;
+
+		if ( is_wp_error( $response ) || ! $request instanceof WP_REST_Request || ! is_array( $callback ) || ! is_a( $callback[0] ?? null, 'Yoast\WP\SEO\Routes\Indexables_Head_Route' ) || 'get_head' !== ( $callback[1] ?? null ) ) {
 			return $response;
 		}
 
-		$entry = get_post( url_to_postid( (string) $request->get_param( 'url' ) ) ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.url_to_postid_url_to_postid -- Runs only for Yoast's head route.
+		$url = wp_parse_url( esc_url_raw( utf8_uri_encode( (string) $request->get_param( 'url' ) ) ) );
+
+		if ( empty( $url['host'] ) || empty( $url['path'] ) ) {
+			return $response;
+		}
+
+		$entry = get_post( url_to_postid( '//' . $url['host'] . $url['path'] ) ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.url_to_postid_url_to_postid -- Runs only for Yoast's head route.
 
 		if ( ! $entry instanceof WP_Post || self::CPT_SLUG !== $entry->post_type || ! self::is_hidden_by_coverage( $entry ) ) {
 			return $response;

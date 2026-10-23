@@ -7,6 +7,7 @@
 
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Taxonomy;
+use Yoast\WP\SEO\Routes\Indexables_Head_Route;
 
 /**
  * Trashing a coverage leaves its entries published, so the entry's permalink,
@@ -95,10 +96,22 @@ class Test_Entry_Permalink extends Rolling_Coverage_TestCase {
 
 	/**
 	 * Yoast SEO's public head route is not found for a hidden entry's
-	 * permalink. The tests don't load Yoast, so a stand-in route answers for
-	 * it.
+	 * permalink, whichever path reaches the route and whatever query string
+	 * the URL carries. The tests don't load Yoast, so a stand-in for its
+	 * route handler answers for it.
 	 */
 	public function test_seo_head_route_is_not_found_for_hidden_entries() {
+		if ( ! class_exists( Indexables_Head_Route::class ) ) {
+			require_once __DIR__ . '/stubs/class-indexables-head-route.php';
+		}
+
+		// Yoast looks a URL up by its path, so entries need pretty permalinks,
+		// whose rewrite rules the post type adds only when it is registered
+		// with permalinks on.
+		update_option( 'permalink_structure', '/%postname%/' );
+		Post_Type::register();
+		$this->set_permalink_structure( '/%postname%/' );
+
 		add_action(
 			'rest_api_init',
 			static function () {
@@ -107,7 +120,7 @@ class Test_Entry_Permalink extends Rolling_Coverage_TestCase {
 					'/get_head',
 					[
 						'methods'             => 'GET',
-						'callback'            => static fn() => new WP_REST_Response( [ 'head' => '<title>Entry</title>' ] ),
+						'callback'            => [ new Indexables_Head_Route(), 'get_head' ],
 						'permission_callback' => '__return_true',
 					]
 				);
@@ -115,18 +128,28 @@ class Test_Entry_Permalink extends Rolling_Coverage_TestCase {
 		);
 		$GLOBALS['wp_rest_server'] = null;
 
-		$get_head = static function ( int $entry_id ): int {
-			$request = new WP_REST_Request( 'GET', '/yoast/v1/get_head' );
-			$request->set_query_params( [ 'url' => get_permalink( $entry_id ) ] );
+		$get_head = static function ( string $url, string $route = '/yoast/v1/get_head' ): int {
+			$request = new WP_REST_Request( 'GET', $route );
+			$request->set_query_params( [ 'url' => $url ] );
 
 			return rest_get_server()->dispatch( $request )->get_status();
 		};
 
+		$visible_entry_id  = self::create_entry( self::create_coverage() );
+		$hidden_entry_link = get_permalink( self::create_entry( self::create_coverage( 'trash' ) ) );
+
 		try {
-			$this->assertSame( 200, $get_head( self::create_entry( self::create_coverage() ) ) );
-			$this->assertSame( 404, $get_head( self::create_entry( self::create_coverage( 'trash' ) ) ) );
+			$this->assertSame( 200, $get_head( get_permalink( $visible_entry_id ) ) );
+			$this->assertSame( 404, $get_head( $hidden_entry_link ) );
+			$this->assertSame( 404, $get_head( add_query_arg( 'p', $visible_entry_id, $hidden_entry_link ) ), 'A query string Yoast ignores should not change the answer.' );
+			$this->assertSame( 404, $get_head( $hidden_entry_link, "/yoast/v1/get_head\n" ), 'A route path core still dispatches to Yoast should not get past the check.' );
 		} finally {
 			$GLOBALS['wp_rest_server'] = null;
+			// Rewrites outlive the test's database rollback. Without the entry
+			// permastruct, a later test's permalink structure leaves entries'
+			// links plain, as the other tests expect.
+			$this->set_permalink_structure( '' );
+			remove_permastruct( Post_Type::CPT_SLUG );
 		}
 	}
 
