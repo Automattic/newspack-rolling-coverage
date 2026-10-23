@@ -1,3 +1,5 @@
+@use "../shared/motion";
+
 $feed-gap: var(--newspack-rolling-coverage-gap, var(--wp--preset--spacing--50));
 $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent, var(--newspack-theme-color-primary, currentcolor)));
 
@@ -51,6 +53,29 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 		margin: 0;
 		white-space: nowrap;
 		transform: translateX(-50%);
+		transition: opacity motion.$enter motion.$ease-out;
+
+		@starting-style {
+			opacity: 0;
+		}
+
+		&.is-leaving {
+			pointer-events: none;
+			opacity: 0;
+			transition-duration: motion.$exit;
+		}
+
+		@media (prefers-reduced-motion: no-preference) {
+			transition-property: opacity, transform;
+
+			@starting-style {
+				transform: translate(-50%, -10px);
+			}
+
+			&.is-leaving {
+				transform: translate(-50%, -10px);
+			}
+		}
 
 		&[hidden] {
 			display: none;
@@ -70,6 +95,18 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 			overflow: hidden;
 			text-overflow: ellipsis;
 		}
+	}
+
+	.newspack-rolling-coverage-entry.is-entering {
+		animation: newspack-rolling-coverage-fade-in motion.$enter motion.$ease-out;
+	}
+
+	.newspack-rolling-coverage-entry.is-updated {
+		animation: newspack-rolling-coverage-refresh motion.$refresh motion.$ease-out;
+	}
+
+	.newspack-rolling-coverage-archived-notice.is-entering {
+		animation: newspack-rolling-coverage-fade-in motion.$enter motion.$ease-out;
 	}
 
 	body.admin-bar & .newspack-rolling-coverage-new-entries:not([hidden]) {
@@ -146,11 +183,7 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 	.newspack-rolling-coverage-entry[data-linked]:is(:not(:has(> .newspack-rolling-coverage-regular-entry, > .newspack-rolling-coverage-pinned-card, > .newspack-rolling-coverage-breakout-entry))) {
 		outline: 2px solid var(--wp--preset--color--accent, var(--newspack-theme-color-primary, currentcolor));
 		outline-offset: calc(#{$feed-gap} / 2);
-		transition: outline-color 1s ease-out;
-
-		@media (prefers-reduced-motion: reduce) {
-			transition: none;
-		}
+		transition: outline-color motion.$clear motion.$ease-out;
 	}
 
 	&[data-linked-faded] .newspack-rolling-coverage-entry[data-linked],
@@ -657,42 +690,10 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 	}
 }
 
-@keyframes newspack-rolling-coverage-fade-out {
-
-	from {
-		opacity: 1;
-	}
-
-	to {
-		opacity: 0;
-	}
-}
-
-@media (prefers-reduced-motion: no-preference) {
-
-	.wp-block-newspack-rolling-coverage-rolling-coverage {
-
-		.newspack-rolling-coverage-new-entries {
-			animation: newspack-rolling-coverage-pop-in 0.25s ease-out;
-		}
-
-		.newspack-rolling-coverage-entry.is-entering {
-			animation: newspack-rolling-coverage-fade-in 200ms ease-out;
-		}
-
-		.newspack-rolling-coverage-entry.is-updated {
-			animation: newspack-rolling-coverage-refresh 150ms ease-out;
-		}
-
-		.newspack-rolling-coverage-archived-notice.is-entering {
-			animation: newspack-rolling-coverage-fade-in 250ms ease-out;
-		}
-
-		.newspack-rolling-coverage-new-entries.is-leaving {
-			pointer-events: none;
-			animation: newspack-rolling-coverage-fade-out 120ms ease-out forwards;
-		}
-	}
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation-duration: motion.$enter;
+	animation-timing-function: motion.$ease-out;
 }
 
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
@@ -705,21 +706,8 @@ $row-fade-start-rtl: "linear-gradient(to left, transparent, #000 var(--newspack-
 
 			&:active {
 				transform: scale(0.97);
-				transition: transform 160ms ease-out;
+				transition: transform motion.$press motion.$ease-out;
 			}
 		}
-	}
-}
-
-@keyframes newspack-rolling-coverage-pop-in {
-
-	from {
-		opacity: 0;
-		transform: translate(-50%, -10px);
-	}
-
-	to {
-		opacity: 1;
-		transform: translate(-50%, 0);
 	}
 }

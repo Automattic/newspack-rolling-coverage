@@ -28,6 +28,12 @@ import {
 	showingLatestLabel,
 } from './entry-name';
 import { isSharedReply, readSharedReply, startingAdCount } from './shared-poll';
+import {
+	EXIT_MS,
+	FADE_CLEANUP_MS,
+	HOLD_MS,
+	prefersReducedMotion,
+} from '../shared/motion';
 import type { PollEventDetail } from '../shared/poll-event';
 import type {
 	AdSlot,
@@ -41,13 +47,6 @@ const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 
 // How long the Check for Updates button shows the result of a check.
 const CHECK_MESSAGE_MS = 3000;
-
-const MOTION_QUERY = '(prefers-reduced-motion: no-preference)';
-
-// Matches the new-entries control's fade-out in style.scss.
-const NEW_ENTRIES_FADE_MS = 120;
-
-const FADE_CLEANUP_MS = 500;
 
 /**
  * How a poll ended: with a reply it applied, a failed request, a reload of
@@ -114,9 +113,6 @@ const EDGE_GAP = 24;
 
 // Space between the bars at the top of the viewport and what sits below them.
 const BAR_GAP = 16;
-
-// How long the linked entry's outline stays once the reader can see it.
-const LINKED_OUTLINE_MS = 4000;
 
 // The tallest the floating control is expected to be, so an entry scrolled
 // into view lands clear of it.
@@ -1353,10 +1349,6 @@ function initBlock( root: HTMLElement ): void {
 	 * @return {void}
 	 */
 	function fadeIn( elements: Element[], className = 'is-entering' ): void {
-		if ( ! window.matchMedia( MOTION_QUERY ).matches ) {
-			return;
-		}
-
 		elements.forEach( ( element ) => {
 			const onAnimationEnd = ( event: Event ) => {
 				if ( event.target === element ) {
@@ -1390,19 +1382,12 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Hides the new-entries control, fading it out first unless the reader
-	 * prefers reduced motion.
+	 * Hides the new-entries control, fading it out first.
 	 *
 	 * @return {void}
 	 */
 	function hideNewEntriesControl(): void {
 		if ( ! newEntriesControl || newEntriesControl.hidden ) {
-			return;
-		}
-
-		if ( ! window.matchMedia( MOTION_QUERY ).matches ) {
-			cancelNewEntriesHide();
-			newEntriesControl.hidden = true;
 			return;
 		}
 
@@ -1416,7 +1401,7 @@ function initBlock( root: HTMLElement ): void {
 		newEntriesHideTimeoutId = setTimeout( () => {
 			cancelNewEntriesHide();
 			control.hidden = true;
-		}, NEW_ENTRIES_FADE_MS );
+		}, EXIT_MS );
 	}
 
 	/**
@@ -1829,7 +1814,7 @@ function initBlock( root: HTMLElement ): void {
 				isInView &&
 				document.visibilityState === 'visible'
 			) {
-				fadeTimeoutId = setTimeout( stop, LINKED_OUTLINE_MS );
+				fadeTimeoutId = setTimeout( stop, HOLD_MS );
 			}
 		};
 
@@ -2384,9 +2369,7 @@ function initBlock( root: HTMLElement ): void {
 
 			window.scrollTo( {
 				top: target.top,
-				behavior: window.matchMedia( MOTION_QUERY ).matches
-					? 'smooth'
-					: 'instant',
+				behavior: prefersReducedMotion() ? 'instant' : 'smooth',
 			} );
 
 			// Past a long pinned entry, the next Tab would otherwise start
