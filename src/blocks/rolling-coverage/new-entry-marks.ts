@@ -40,8 +40,9 @@ type Clearing = {
 
 /**
  * The separator lines at an entry's top and bottom edges, as the width of
- * each line, and whether a card (a box with its own background or border all
- * round) fills the entry.
+ * each line, and whether the entry is a card: a box running its full height
+ * with its own background or a border all around, as wide as the entry or
+ * taking at least half of it in one of its columns.
  */
 export type RowEdges = {
 	top: number | null;
@@ -156,10 +157,10 @@ export type Facing = 'solid' | 'space' | null;
  * it; one facing a neighbor's line or card reaches across the gap to it, so
  * no strip of the gap shows between them; one facing open space reaches
  * halfway, so two tinted rows meet in the middle of the gap. An edge with no
- * neighbor (the first or last entry) takes the shape of the other rows: across the gap when the entry
- * has a line on its other edge, halfway otherwise. A card keeps the tint
- * inside its box, and a layout that places entries side by side (a row) has
- * no gaps above and below to reach into.
+ * neighbor (the first or last entry) takes the shape of the other rows:
+ * across the gap when the entry has a line on its other edge, halfway
+ * otherwise. A card keeps the tint inside its box, and a layout that places
+ * entries side by side (a row) has no gaps above and below to reach into.
  *
  * @param {RowEdges}      edges  The entry's own edges.
  * @param {Facing}        before What faces its top edge.
@@ -208,10 +209,10 @@ function isPainted( color: string ): boolean {
 /**
  * Finds the separator lines at an entry's top and bottom edges, from the
  * boxes that span its width along those edges (a separator block, or a box
- * with a border on that edge only), and whether it is a card: a box running
- * its full height with a background or a border all round, as wide as the
- * entry or in one of its columns (Rail). The entry's text and a feed nested
- * in it aren't searched.
+ * with a border on that edge only), and whether it is a card (see RowEdges),
+ * such as Rail's card beside its time column. Boxes up to six levels down are
+ * searched, deep enough for Rail's Full Story box; the entry's text and a
+ * feed nested in it aren't.
  *
  * @param {HTMLElement} entry The entry.
  * @return {RowEdges} The edges.
@@ -269,7 +270,10 @@ export function rowEdges( entry: HTMLElement ): RowEdges {
 		if (
 			atTop &&
 			atBottom &&
+			rect.width >= box.width / 2 &&
 			( isPainted( style.backgroundColor ) ||
+				( !! style.backgroundImage &&
+					style.backgroundImage !== 'none' ) ||
 				( top && bottom && left && right ) )
 		) {
 			edges.card = true;
@@ -322,7 +326,7 @@ function rowGap( entry: HTMLElement ): number | null {
  *
  * @param {HTMLElement} entry The entry.
  * @param {boolean}     after Whether to look after it.
- * @return {HTMLElement | null} The neighbour.
+ * @return {HTMLElement | null} The neighbor.
  */
 function neighbour( entry: HTMLElement, after: boolean ): HTMLElement | null {
 	let sibling = after
@@ -350,12 +354,17 @@ function measureTint( entry: HTMLElement ): [ number, number ] {
 		adjacent: Element | null,
 		edge: 'top' | 'bottom'
 	): Facing => {
-		if ( ! other ) {
-			return null;
+		if (
+			adjacent &&
+			adjacent !== other &&
+			! ( adjacent as HTMLElement ).inert &&
+			adjacent.getClientRects().length
+		) {
+			return 'space';
 		}
 
-		if ( adjacent !== other && adjacent?.getBoundingClientRect().height ) {
-			return 'space';
+		if ( ! other ) {
+			return null;
 		}
 
 		const edges = rowEdges( other );
@@ -410,6 +419,8 @@ export class NewEntryMarks {
 
 	private resizeFrame: number | null = null;
 
+	private readonly listObserver: MutationObserver | null = null;
+
 	/**
 	 * @param {HTMLElement} root The feed the entries belong to.
 	 */
@@ -422,6 +433,15 @@ export class NewEntryMarks {
 			} );
 			this.entryObserver = new IntersectionObserver( this.onIntersect, {
 				threshold: [ 0, 0.5 ],
+			} );
+		}
+
+		// Pinning, loading more and taking entries down change a tinted entry's neighbors without marking anything.
+		if ( typeof MutationObserver !== 'undefined' ) {
+			this.listObserver = new MutationObserver( this.onListChange );
+			this.listObserver.observe( root, {
+				childList: true,
+				subtree: true,
 			} );
 		}
 
@@ -593,6 +613,7 @@ export class NewEntryMarks {
 		Array.from( this.marks.keys() ).forEach( ( id ) => this.forget( id ) );
 		this.markerObserver?.disconnect();
 		this.entryObserver?.disconnect();
+		this.listObserver?.disconnect();
 		this.doc.removeEventListener( 'visibilitychange', this.onVisibility );
 		window.removeEventListener( 'resize', this.onResize );
 
@@ -767,6 +788,27 @@ export class NewEntryMarks {
 				)
 			);
 		} );
+	};
+
+	private readonly onListChange = ( records: MutationRecord[] ): void => {
+		const changed = records.some(
+			( { target, addedNodes, removedNodes } ) =>
+				[
+					...Array.from( addedNodes ),
+					...Array.from( removedNodes ),
+				].some(
+					( node ) =>
+						node instanceof Element &&
+						( node.matches( '[data-entry-id]' ) ||
+							!! ( target as Element ).querySelector(
+								':scope > [data-entry-id]'
+							) )
+				)
+		);
+
+		if ( changed && this.marks.size ) {
+			this.onResize();
+		}
 	};
 
 	private readonly onVisibility = (): void => {

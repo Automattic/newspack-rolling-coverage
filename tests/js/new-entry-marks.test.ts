@@ -605,7 +605,7 @@ describe( 'tintInsets', () => {
 		).toEqual( [ -32, 1 ] );
 	} );
 
-	it( 'reaches halfway toward a neighbour without a line', () => {
+	it( 'reaches halfway toward a neighbor without a line', () => {
 		expect(
 			tintInsets( { ...noLines, bottom: 1 }, 'space', null, 32 )
 		).toEqual( [ -16, 1 ] );
@@ -713,7 +713,7 @@ describe( 'rowEdges', () => {
 		expect( rowEdges( entryWith( card ) ).card ).toBe( true );
 	} );
 
-	it( 'takes a box with a border all round as a card', () => {
+	it( 'takes a box with a border all around as a card', () => {
 		const card = document.createElement( 'div' );
 		box( card, 100, 200 );
 		styles.set( card, {
@@ -732,6 +732,52 @@ describe( 'rowEdges', () => {
 			bottom: null,
 			card: true,
 		} );
+	} );
+
+	it( 'takes a box with a background image as a card', () => {
+		const card = document.createElement( 'div' );
+		box( card, 100, 200 );
+		styles.set( card, {
+			backgroundImage: 'linear-gradient(red, blue)',
+		} );
+
+		expect( rowEdges( entryWith( card ) ).card ).toBe( true );
+	} );
+
+	it( 'does not take a thin painted bar as a card', () => {
+		const bar = document.createElement( 'div' );
+		box( bar, 100, 200, 4 );
+		styles.set( bar, { backgroundColor: 'rgb(0, 61, 165)' } );
+
+		expect( rowEdges( entryWith( bar ) ).card ).toBe( false );
+	} );
+
+	it( 'finds a card six levels down', () => {
+		const levels = Array.from( { length: 6 }, () =>
+			document.createElement( 'div' )
+		);
+		levels.forEach( ( level, i ) => {
+			box( level, 100, 200, 600 - i * 20 );
+			levels[ i - 1 ]?.append( level );
+		} );
+		styles.set( levels[ 5 ], {
+			backgroundColor: 'rgb(240, 240, 240)',
+		} );
+
+		expect( rowEdges( entryWith( levels[ 0 ] ) ).card ).toBe( true );
+	} );
+
+	it( 'ignores a separator inside a column', () => {
+		const columns = document.createElement( 'div' );
+		box( columns, 100, 200 );
+		const column = document.createElement( 'div' );
+		box( column, 100, 200, 180 );
+		const rule = document.createElement( 'hr' );
+		box( rule, 299, 1, 180 );
+		column.append( rule );
+		columns.append( column );
+
+		expect( rowEdges( entryWith( columns ) ).bottom ).toBeNull();
 	} );
 
 	it( "takes a card in one of the entry's columns", () => {
@@ -858,13 +904,48 @@ describe( 'the tint', () => {
 			( { top: 0, bottom: 120, height: 120, width: 600 } ) as DOMRect;
 		paintCard( pinned );
 		const ad = document.createElement( 'div' );
-		ad.getBoundingClientRect = () => ( { height: 90 } ) as DOMRect;
+		ad.getClientRects = () => [ {} ] as unknown as DOMRectList;
 		const entry = makeEntry( '2' );
 		root.append( pinned, ad, entry );
 
 		marks.mark( entry );
 
 		expect( entry.style.getPropertyValue( TINT_START ) ).toBe( '-16px' );
+	} );
+
+	it( 'reaches halfway toward an ad after the last entry', () => {
+		const entry = makeEntry( '1' );
+		entry.getBoundingClientRect = () =>
+			( { top: 0, bottom: 120, height: 120, width: 600 } ) as DOMRect;
+		const line = document.createElement( 'hr' );
+		line.getBoundingClientRect = () =>
+			( { top: 0, bottom: 1, height: 1, width: 600 } ) as DOMRect;
+		entry.prepend( line );
+		const ad = document.createElement( 'div' );
+		ad.getClientRects = () => [ {} ] as unknown as DOMRectList;
+		root.append( entry, ad );
+
+		marks.mark( entry );
+
+		expect( entry.style.getPropertyValue( TINT_END ) ).toBe( '-16px' );
+	} );
+
+	it( 'places the tint again once a frame after a card is put beside it', async () => {
+		const entry = makeEntry( '1' );
+		root.append( entry );
+		marks.mark( entry );
+
+		expect( entry.style.getPropertyValue( TINT_START ) ).toBe( '-16px' );
+
+		const pinned = makeEntry( '2', false );
+		pinned.getBoundingClientRect = () =>
+			( { top: 0, bottom: 120, height: 120, width: 600 } ) as DOMRect;
+		paintCard( pinned );
+		entry.before( pinned );
+		await flush();
+		jest.advanceTimersByTime( 20 );
+
+		expect( entry.style.getPropertyValue( TINT_START ) ).toBe( '-32px' );
 	} );
 } );
 
