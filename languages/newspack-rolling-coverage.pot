@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-23T15:15:46+00:00\n"
+"POT-Creation-Date: 2026-10-23T17:03:39+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: newspack-rolling-coverage\n"
@@ -170,61 +170,61 @@ msgstr ""
 msgid "Updated %s"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:127
+#: includes/blocks/class-entry-bindings.php:133
 msgid "Rolling Coverage Entry"
 msgstr ""
 
 #. translators: 1: kind of media, e.g. "Photo" or "Video", 2: its caption or description.
-#: includes/blocks/class-entry-bindings.php:668
+#: includes/blocks/class-entry-bindings.php:674
 #, php-format
 msgctxt "media label and caption"
 msgid "%1$s: %2$s"
 msgstr ""
 
 #. translators: %s: the host name of the site an embed comes from, e.g. "x.com". Stands in for the title and excerpt of an entry whose only content is that embed.
-#: includes/blocks/class-entry-bindings.php:775
+#: includes/blocks/class-entry-bindings.php:781
 #, php-format
 msgid "Embed from %s"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a photo, alone or before the photo's caption.
-#: includes/blocks/class-entry-bindings.php:814
+#: includes/blocks/class-entry-bindings.php:820
 msgid "Photo"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a gallery of photos, alone or before the gallery's caption.
-#: includes/blocks/class-entry-bindings.php:816
+#: includes/blocks/class-entry-bindings.php:822
 msgid "Gallery"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is a video, alone or before the video's caption.
-#: includes/blocks/class-entry-bindings.php:818
+#: includes/blocks/class-entry-bindings.php:824
 msgid "Video"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is an audio clip, alone or before the clip's caption.
-#: includes/blocks/class-entry-bindings.php:820
+#: includes/blocks/class-entry-bindings.php:826
 msgid "Audio"
 msgstr ""
 
 #. translators: Stands in for the title and excerpt of an entry whose only content is embedded from another site, such as a social media post, alone or before the embed's caption.
-#: includes/blocks/class-entry-bindings.php:822
+#: includes/blocks/class-entry-bindings.php:828
 msgid "Embed"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:983
+#: includes/blocks/class-entry-bindings.php:989
 msgid "Following"
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:984
+#: includes/blocks/class-entry-bindings.php:990
 msgid "Notifications are blocked in your browser. Allow them in your browser's site settings, then try again."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:985
+#: includes/blocks/class-entry-bindings.php:991
 msgid "Something went wrong. Please try again."
 msgstr ""
 
-#: includes/blocks/class-entry-bindings.php:1032
+#: includes/blocks/class-entry-bindings.php:1038
 #: includes/blocks/class-share-block.php:67
 #: dist/blocks/rolling-coverage/index.js:3
 #: dist/blocks/share/index.js:1
@@ -233,7 +233,7 @@ msgid "Share"
 msgstr ""
 
 #. translators: 1: share button text, e.g. "Share", 2: entry title or its first words.
-#: includes/blocks/class-entry-bindings.php:1037
+#: includes/blocks/class-entry-bindings.php:1043
 #, php-format
 msgid "%1$s: %2$s"
 msgstr ""
@@ -377,6 +377,13 @@ msgstr ""
 msgid "Load more"
 msgstr ""
 
+#. translators: Label on a coverage entry published while the reader has the page open.
+#: includes/blocks/class-new-label-block.php:68
+#: dist/blocks/new-label/index.js:2
+#: dist/blocks/rolling-coverage/view.js:5
+msgid "New"
+msgstr ""
+
 #: includes/blocks/class-rolling-coverage-block.php:1301
 #: dist/blocks/rolling-coverage/index.js:31
 msgid "Select a coverage to display its entries."
@@ -388,7 +395,7 @@ msgstr ""
 
 #. translators: 1: number of coverage entries newer than the one shown, from 1 to 10. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence.
 #: includes/blocks/class-rolling-coverage-block.php:2002
-#: dist/blocks/rolling-coverage/view.js:4
+#: dist/blocks/rolling-coverage/view.js:6
 #, php-format,js-format
 msgid "%1$d newer %2$s"
 msgid_plural "%1$d newer %2$s"
@@ -397,7 +404,7 @@ msgstr[1] ""
 
 #. translators: %d: number of coverage entries newer than the one shown, from 1 to 10.
 #: includes/blocks/class-rolling-coverage-block.php:2006
-#: dist/blocks/rolling-coverage/view.js:5
+#: dist/blocks/rolling-coverage/view.js:7
 #, php-format,js-format
 msgid "%d newer entry"
 msgid_plural "%d newer entries"
@@ -406,7 +413,7 @@ msgstr[1] ""
 
 #. translators: 1: a round number the count of newer coverage entries has passed: 10, 50 or 100. 2: the site's own name for entries, plural, as it reads mid-sentence.
 #: includes/blocks/class-rolling-coverage-block.php:2021
-#: dist/blocks/rolling-coverage/view.js:6
+#: dist/blocks/rolling-coverage/view.js:8
 #, php-format,js-format
 msgid "%1$d+ newer %2$s"
 msgid_plural "%1$d+ newer %2$s"
@@ -415,7 +422,7 @@ msgstr[1] ""
 
 #. translators: %d: a round number the count of newer coverage entries has passed: 10, 50 or 100.
 #: includes/blocks/class-rolling-coverage-block.php:2025
-#: dist/blocks/rolling-coverage/view.js:7
+#: dist/blocks/rolling-coverage/view.js:9
 #, php-format,js-format
 msgid "%d+ newer entry"
 msgid_plural "%d+ newer entries"
@@ -1123,6 +1130,7 @@ msgstr ""
 #: dist/admin.js:222
 #: dist/blocks/coverage-follow/index.js:3
 #: dist/blocks/coverage-status/index.js:3
+#: dist/blocks/new-label/index.js:1
 #: dist/blocks/update-timer/index.js:3
 msgid "Settings"
 msgstr ""
@@ -2951,6 +2959,18 @@ msgstr ""
 msgid "Load More"
 msgstr ""
 
+#: dist/blocks/new-label/index.js:1
+msgid "Visually hidden"
+msgstr ""
+
+#: dist/blocks/new-label/index.js:1
+msgid "Screen readers still announce new entries as new."
+msgstr ""
+
+#: dist/blocks/new-label/index.js:1
+msgid "Label text"
+msgstr ""
+
 #: dist/blocks/rolling-coverage/index.js:4
 msgid "Links"
 msgstr ""
@@ -2984,6 +3004,10 @@ msgid "Details"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:4
+msgid "Marks"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:4
 msgid "Meta"
 msgstr ""
 
@@ -3008,10 +3032,6 @@ msgid "Author + Date"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:4
-msgid "Marks"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:4
 msgid "Pinned Entry"
 msgstr ""
 
@@ -3028,6 +3048,10 @@ msgid "Coverage Name"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:4
+msgid "Dates"
+msgstr ""
+
+#: dist/blocks/rolling-coverage/index.js:4
 msgid "Body"
 msgstr ""
 
@@ -3037,10 +3061,6 @@ msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:4
 msgid "Feed"
-msgstr ""
-
-#: dist/blocks/rolling-coverage/index.js:4
-msgid "Dates"
 msgstr ""
 
 #: dist/blocks/rolling-coverage/index.js:4
@@ -3576,7 +3596,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: 1: number of new coverage entries just added. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence.
-#: dist/blocks/rolling-coverage/view.js:8
+#: dist/blocks/rolling-coverage/view.js:10
 #, js-format
 msgid "%1$d new %2$s added"
 msgid_plural "%1$d new %2$s added"
@@ -3584,7 +3604,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of new coverage entries just added.
-#: dist/blocks/rolling-coverage/view.js:9
+#: dist/blocks/rolling-coverage/view.js:11
 #, js-format
 msgid "%d new entry added"
 msgid_plural "%d new entries added"
@@ -3592,57 +3612,57 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence.
-#: dist/blocks/rolling-coverage/view.js:10
+#: dist/blocks/rolling-coverage/view.js:12
 #, js-format
 msgid "Loading the latest %s…"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/view.js:10
+#: dist/blocks/rolling-coverage/view.js:12
 msgid "Loading the latest entries…"
 msgstr ""
 
 #. translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence.
-#: dist/blocks/rolling-coverage/view.js:11
+#: dist/blocks/rolling-coverage/view.js:13
 #, js-format
 msgid "Showing the latest %s."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/view.js:11
+#: dist/blocks/rolling-coverage/view.js:13
 msgid "Showing the latest entries."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/view.js:11
+#: dist/blocks/rolling-coverage/view.js:13
 msgid "Loading…"
 msgstr ""
 
 #. translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence.
-#: dist/blocks/rolling-coverage/view.js:12
+#: dist/blocks/rolling-coverage/view.js:14
 #, js-format
 msgid "Couldn’t load more %s. Try again."
 msgstr ""
 
-#: dist/blocks/rolling-coverage/view.js:12
+#: dist/blocks/rolling-coverage/view.js:14
 msgid "Couldn’t load more entries. Try again."
 msgstr ""
 
 #. translators: Shown on the Check for Updates button while a check runs.
-#: dist/blocks/rolling-coverage/view.js:13
+#: dist/blocks/rolling-coverage/view.js:15
 #: dist/blocks/update-timer/view.js:1
 msgid "Checking…"
 msgstr ""
 
 #. translators: Shown briefly on the Check for Updates button when a check fails.
-#: dist/blocks/rolling-coverage/view.js:14
+#: dist/blocks/rolling-coverage/view.js:16
 #: dist/blocks/update-timer/view.js:2
 msgid "Couldn’t check"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/view.js:14
+#: dist/blocks/rolling-coverage/view.js:16
 msgid "Couldn’t check for updates. Try again."
 msgstr ""
 
 #. translators: 1: number of coverage entries a check just added. 2: the site's own name for entries, singular or plural to match the number, as it reads mid-sentence.
-#: dist/blocks/rolling-coverage/view.js:15
+#: dist/blocks/rolling-coverage/view.js:17
 #, js-format
 msgid "%1$d %2$s added"
 msgid_plural "%1$d %2$s added"
@@ -3650,7 +3670,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of coverage entries a check just added.
-#: dist/blocks/rolling-coverage/view.js:16
+#: dist/blocks/rolling-coverage/view.js:18
 #, js-format
 msgid "%d entry added"
 msgid_plural "%d entries added"
@@ -3658,12 +3678,12 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: the site's own name for coverage entries, plural, as it reads mid-sentence.
-#: dist/blocks/rolling-coverage/view.js:17
+#: dist/blocks/rolling-coverage/view.js:19
 #, js-format
 msgid "No new %s"
 msgstr ""
 
-#: dist/blocks/rolling-coverage/view.js:17
+#: dist/blocks/rolling-coverage/view.js:19
 msgid "No new entries"
 msgstr ""
 
@@ -3810,6 +3830,18 @@ msgstr ""
 #: src/blocks/load-more/block.json
 msgctxt "block description"
 msgid "A button readers press to load older entries. A Rolling Coverage feed set to load older entries with a button shows it here."
+msgstr ""
+
+#: dist/blocks/new-label/block.json
+#: src/blocks/new-label/block.json
+msgctxt "block title"
+msgid "New Label"
+msgstr ""
+
+#: dist/blocks/new-label/block.json
+#: src/blocks/new-label/block.json
+msgctxt "block description"
+msgid "Marks an entry that arrives while the reader has the page open, until they have seen it."
 msgstr ""
 
 #: dist/blocks/rolling-coverage/block.json
