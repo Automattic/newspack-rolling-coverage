@@ -85,6 +85,15 @@ class EntriesView {
 		);
 	}
 
+	/**
+	 * Trashes an entry from the list itself, which refetches its page: that
+	 * fetch's cursor is past the change, so no poll reports it.
+	 */
+	trashFromList( id: number ) {
+		const index = this.entries.findIndex( ( row ) => row.id === id );
+		this.entries[ index ] = { ...this.entries[ index ], status: 'trash' };
+	}
+
 	trash( id: number ) {
 		const index = this.entries.findIndex( ( row ) => row.id === id );
 		this.entries[ index ] = { ...this.entries[ index ], status: 'trash' };
@@ -236,6 +245,60 @@ describe( 'useEntries', () => {
 
 		await server.release( () => true );
 		expect( result.current.totalItems ).toBe( 1 );
+	} );
+
+	it( 'keeps the page count of the page size on screen when it changes while a poll counts', async () => {
+		server.seed(
+			entry( 5 ),
+			entry( 4 ),
+			entry( 3 ),
+			entry( 2 ),
+			entry( 1 )
+		);
+		const { result, rerender } = renderHook(
+			( props: UseEntriesOptions ) => useEntries( props ),
+			{ initialProps: { ...VIEW, perPage: 2 } }
+		);
+		await wait( 0 );
+		expect( result.current.totalPages ).toBe( 3 );
+
+		// The poll's count of 6 is still on its way when the list switches
+		// from 2 to 5 entries a page, which makes 2 pages, not 3.
+		server.publish( entry( 6 ) );
+		server.holding = true;
+		await wait( POLL_MS );
+		rerender( { ...VIEW, perPage: 5 } );
+		await wait( FILTER_DEBOUNCE_MS );
+
+		await server.release( ( url ) => url.includes( 'per_page=5' ) );
+		expect( result.current.totalPages ).toBe( 2 );
+
+		await server.release( () => true );
+		expect( result.current.totalPages ).toBe( 2 );
+	} );
+
+	it( "keeps a refetch's count when an earlier poll's count lands after it", async () => {
+		server.seed( entry( 3 ), entry( 2 ), entry( 1 ) );
+		const { result, rerender } = renderHook(
+			( props: UseEntriesOptions ) => useEntries( props ),
+			{ initialProps: { ...VIEW, refreshKey: 0 } }
+		);
+		await wait( 0 );
+
+		// The poll's count of 4 is still on its way when the editor trashes
+		// an entry from the list, which refetches it (3).
+		server.publish( entry( 4 ) );
+		server.holding = true;
+		await wait( POLL_MS );
+		server.trashFromList( 4 );
+		rerender( { ...VIEW, refreshKey: 1 } );
+		await wait( FILTER_DEBOUNCE_MS );
+
+		await server.release( ( url ) => url.includes( 'per_page=20' ) );
+		expect( result.current.totalItems ).toBe( 3 );
+
+		await server.release( () => true );
+		expect( result.current.totalItems ).toBe( 3 );
 	} );
 
 	it( 'asks for no count when a poll finds no changes', async () => {

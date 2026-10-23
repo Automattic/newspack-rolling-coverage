@@ -77,7 +77,9 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 	const [ error, setError ] = useState< string | null >( null );
 
 	const cursorRef = useRef< string | null >( null );
-	const totalsUrlRef = useRef< string | null >( null );
+	const totalsViewRef = useRef< { url: string; perPage: number } | null >(
+		null
+	);
 	const rowsRef = useRef< EntryViewRow[] | null >( null );
 	const hasAttemptedRef = useRef( false );
 	const coverageIdRef = useRef< number | null >( coverageId );
@@ -115,7 +117,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 			setTotalItems( 0 );
 			setTotalPages( 0 );
 			cursorRef.current = null;
-			totalsUrlRef.current = null;
+			totalsViewRef.current = null;
 			setSyncNotices( [] );
 			return;
 		}
@@ -170,7 +172,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 					setTotalItems( response.totalItems );
 					setTotalPages( response.totalPages );
 					cursorRef.current = response.cursor;
-					totalsUrlRef.current = urlFor( 1, 1 );
+					totalsViewRef.current = { url: urlFor( 1, 1 ), perPage };
 					setHasResolved( true );
 					setError( null );
 					setSyncNotices( [] );
@@ -231,7 +233,7 @@ function useEntries( options: UseEntriesOptions ): UseEntriesResult {
 			coverageIdRef,
 			rowsRef,
 			pageRef,
-			totalsUrlRef,
+			totalsViewRef,
 			isMountedRef,
 			setRows,
 			setTotalItems,

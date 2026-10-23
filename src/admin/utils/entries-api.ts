@@ -312,35 +312,29 @@ function mergeSyncDelta(
  * @return {Promise<void>} Resolves when the totals are set, or left as they were.
  */
 async function refreshTotals( ctx: SyncPollContext ): Promise< void > {
-	const {
-		perPage,
-		totalsUrlRef,
-		isMountedRef,
-		setTotalItems,
-		setTotalPages,
-	} = ctx;
+	const { totalsViewRef, isMountedRef, setTotalItems, setTotalPages } = ctx;
 
-	const url = totalsUrlRef.current;
+	const view = totalsViewRef.current;
 
-	if ( ! url ) {
+	if ( ! view ) {
 		return;
 	}
 
 	try {
 		const response = await apiFetch< EntryPageResponse >( {
-			url,
+			url: view.url,
 			method: 'GET',
 		} );
 
-		// The list moved to other filters or another coverage meanwhile; the
-		// page fetch for those sets their totals.
-		if ( ! isMountedRef.current || totalsUrlRef.current !== url ) {
+		// A page fetch landed meanwhile, for another view or the same one
+		// again, and its totals are newer than this count.
+		if ( ! isMountedRef.current || totalsViewRef.current !== view ) {
 			return;
 		}
 
 		setTotalItems( response.totalItems );
 		setTotalPages(
-			Math.max( 1, Math.ceil( response.totalItems / perPage ) )
+			Math.max( 1, Math.ceil( response.totalItems / view.perPage ) )
 		);
 	} catch {
 		// Silent: the next poll that changes entries recounts.
