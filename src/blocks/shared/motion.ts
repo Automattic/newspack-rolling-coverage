@@ -1,14 +1,18 @@
 export const MOTION_QUERY = '(prefers-reduced-motion: no-preference)';
 
 export const ENTER_MS = 200;
+export const OPEN_MS = 250;
+export const OPEN_FADE_DELAY_MS = 100;
 export const CLEAR_MS = 250;
 export const COLLAPSE_MS = 200;
+export const COLLAPSE_DELAY_MS = 125;
 export const EXIT_MS = 120;
 export const LEAVE_MS = 150;
 export const HOLD_MS = 4000;
 export const FADE_CLEANUP_MS = 500;
 
 export const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)';
+export const EASE_IN_OUT = 'cubic-bezier(0.77, 0, 0.175, 1)';
 
 /**
  * Whether the reader asked for less movement. Opacity and color fades run

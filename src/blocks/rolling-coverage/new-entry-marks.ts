@@ -13,16 +13,21 @@ import { __ } from '@wordpress/i18n';
  */
 import {
 	CLEAR_MS,
+	COLLAPSE_DELAY_MS,
 	COLLAPSE_MS,
-	EASE_OUT,
+	EASE_IN_OUT,
 	HOLD_MS,
 	prefersReducedMotion,
 } from '../shared/motion';
+import { layoutOf, stackGap } from './entry-arrival';
 
 export const NEW_MARKER_ATTR = 'data-rc-new-marker';
 export const NEW_STATE_ATTR = 'data-new';
 
 const STATUS_CLASS = 'newspack-rolling-coverage-new-status';
+
+export const TINT_START = '--newspack-rolling-coverage-new-tint-start';
+export const TINT_END = '--newspack-rolling-coverage-new-tint-end';
 
 // Browsers can report a fully visible element just under 1 at fractional positions.
 const FULLY_IN_VIEW = 0.99;
@@ -30,6 +35,17 @@ const FULLY_IN_VIEW = 0.99;
 type Clearing = {
 	timer: number | null;
 	animation: Animation | null;
+};
+
+/**
+ * The separator lines at an entry's top and bottom edges, as the width of
+ * each line, and whether a card (a box with its own background or border all
+ * round) fills the entry.
+ */
+export type RowEdges = {
+	top: number | null;
+	bottom: number | null;
+	card: boolean;
 };
 
 type Mark = {
@@ -122,6 +138,219 @@ function isAloneOnLine( marker: HTMLElement ): boolean {
 	}
 
 	return ( flexDirection || '' ).startsWith( 'column' );
+}
+
+/**
+ * What borders an entry's edge on the far side of the gap: a neighbour whose
+ * facing edge has a separator line, one whose facing edge doesn't, or nothing.
+ */
+export type Facing = 'line' | 'space' | null;
+
+/**
+ * Where the tint starts and ends against the entry's own box, as the
+ * `inset-block` of its pseudo-element: a negative value reaches past the box.
+ * It runs from separator to separator. An edge with its own line stops at
+ * it; one facing a neighbour's line reaches across the gap to that line; one
+ * facing a neighbour without a line reaches halfway, so two tinted rows meet
+ * in the middle of the gap. An edge with no neighbour (the first or last
+ * entry) takes the shape of the other rows: across the gap when the entry
+ * has a line on its other edge, halfway otherwise. A card keeps the tint
+ * inside its box, and a layout that places entries side by side (a row) has
+ * no gaps above and below to reach into.
+ *
+ * @param {RowEdges}      edges  The entry's own edges.
+ * @param {Facing}        before What faces its top edge.
+ * @param {Facing}        after  What faces its bottom edge.
+ * @param {number | null} gap    The gap between rows, or null for a row layout.
+ * @return {number[]} The start and end insets, in pixels.
+ */
+export function tintInsets(
+	edges: RowEdges,
+	before: Facing,
+	after: Facing,
+	gap: number | null
+): [ number, number ] {
+	if ( gap === null || edges.card ) {
+		return [ 0, 0 ];
+	}
+
+	const reach = ( facing: Facing, otherLine: number | null ) => {
+		if ( facing === 'line' || ( facing === null && otherLine !== null ) ) {
+			return -gap;
+		}
+
+		return -gap / 2;
+	};
+
+	return [
+		edges.top ?? reach( before, edges.bottom ),
+		edges.bottom ?? reach( after, edges.top ),
+	];
+}
+
+/**
+ * Whether a computed color paints anything.
+ *
+ * @param {string} color The color.
+ * @return {boolean} True when it isn't fully transparent.
+ */
+function isPainted( color: string ): boolean {
+	return (
+		!! color &&
+		color !== 'transparent' &&
+		! /^rgba\(.*,\s*0\)$|\/\s*0\)$/.test( color )
+	);
+}
+
+/**
+ * Finds the separator lines at an entry's top and bottom edges, and whether
+ * a card fills it, from the boxes that span its width along those edges: a
+ * separator block, or a box with a border on that edge only. The entry's
+ * text and a feed nested in it aren't searched.
+ *
+ * @param {HTMLElement} entry The entry.
+ * @return {RowEdges} The edges.
+ */
+export function rowEdges( entry: HTMLElement ): RowEdges {
+	const box = entry.getBoundingClientRect();
+	const edges: RowEdges = { top: null, bottom: null, card: false };
+
+	const visit = ( element: Element, depth: number ): void => {
+		if (
+			depth > 4 ||
+			element.matches( '.wp-block-post-content' ) ||
+			( element !== entry && element.matches( '[data-entry-id]' ) )
+		) {
+			return;
+		}
+
+		const rect = element.getBoundingClientRect();
+		const atTop = Math.abs( rect.top - box.top ) <= 1;
+		const atBottom = Math.abs( rect.bottom - box.bottom ) <= 1;
+
+		if ( ( ! atTop && ! atBottom ) || ! rect.height ) {
+			return;
+		}
+
+		if ( element.matches( 'hr' ) ) {
+			if ( atTop ) {
+				edges.top ??= rect.height;
+			} else {
+				edges.bottom ??= rect.height;
+			}
+			return;
+		}
+
+		if ( rect.width < box.width - 1 ) {
+			return;
+		}
+
+		const style = window.getComputedStyle( element );
+		const border = ( side: 'Top' | 'Bottom' | 'Left' | 'Right' ) =>
+			style[ `border${ side }Style` ] === 'none'
+				? 0
+				: parseFloat( style[ `border${ side }Width` ] ) || 0;
+		const [ top, bottom, left, right ] = [
+			border( 'Top' ),
+			border( 'Bottom' ),
+			border( 'Left' ),
+			border( 'Right' ),
+		];
+
+		if (
+			atTop &&
+			atBottom &&
+			( isPainted( style.backgroundColor ) ||
+				( top && bottom && left && right ) )
+		) {
+			edges.card = true;
+			return;
+		}
+
+		if ( atTop && top && ! bottom ) {
+			edges.top ??= top;
+		}
+
+		if ( atBottom && bottom && ! top ) {
+			edges.bottom ??= bottom;
+		}
+
+		Array.from( element.children ).forEach( ( child ) =>
+			visit( child, depth + 1 )
+		);
+	};
+
+	visit( entry, 0 );
+
+	return edges;
+}
+
+/**
+ * The gap the entry's layout leaves between rows, or null for a layout that
+ * places entries side by side.
+ *
+ * @param {HTMLElement} entry The entry.
+ * @return {number | null} The gap in pixels, or null.
+ */
+function rowGap( entry: HTMLElement ): number | null {
+	const layout = layoutOf( entry );
+
+	if ( ! layout ) {
+		return null;
+	}
+
+	const style = window.getComputedStyle( layout );
+
+	return ( style.display || '' ).endsWith( 'grid' )
+		? parseFloat( style.rowGap ) || 0
+		: stackGap( style );
+}
+
+/**
+ * The nearest entry before or after an entry in its list.
+ *
+ * @param {HTMLElement} entry The entry.
+ * @param {boolean}     after Whether to look after it.
+ * @return {HTMLElement | null} The neighbour.
+ */
+function neighbour( entry: HTMLElement, after: boolean ): HTMLElement | null {
+	let sibling = after
+		? entry.nextElementSibling
+		: entry.previousElementSibling;
+
+	while ( sibling && ! sibling.matches( '[data-entry-id]' ) ) {
+		sibling = after
+			? sibling.nextElementSibling
+			: sibling.previousElementSibling;
+	}
+
+	return sibling as HTMLElement | null;
+}
+
+/**
+ * Sets how far an entry's tint reaches (see tintInsets()).
+ *
+ * @param {HTMLElement} entry The entry.
+ */
+function placeTint( entry: HTMLElement ): void {
+	const before = neighbour( entry, false );
+	const after = neighbour( entry, true );
+	const facing = ( other: HTMLElement | null, edge: 'top' | 'bottom' ) => {
+		if ( ! other ) {
+			return null;
+		}
+
+		return rowEdges( other )[ edge ] === null ? 'space' : 'line';
+	};
+	const [ start, end ] = tintInsets(
+		rowEdges( entry ),
+		facing( before, 'bottom' ),
+		facing( after, 'top' ),
+		rowGap( entry )
+	);
+
+	entry.style.setProperty( TINT_START, `${ start }px` );
+	entry.style.setProperty( TINT_END, `${ end }px` );
 }
 
 /**
@@ -273,6 +502,7 @@ export class NewEntryMarks {
 
 		if ( marker ) {
 			marker.hidden = false;
+			placeTint( entry );
 			return;
 		}
 
@@ -477,8 +707,8 @@ export class NewEntryMarks {
 				],
 				{
 					duration: COLLAPSE_MS,
-					easing: EASE_OUT,
-					delay: CLEAR_MS,
+					easing: EASE_IN_OUT,
+					delay: COLLAPSE_DELAY_MS,
 					fill: 'forwards',
 				}
 			);
@@ -522,6 +752,13 @@ export class NewEntryMarks {
 		}
 
 		ownIn( entry, `.${ STATUS_CLASS }` )?.remove();
+		entry.style.removeProperty( TINT_START );
+		entry.style.removeProperty( TINT_END );
+
+		if ( ! entry.getAttribute( 'style' ) ) {
+			entry.removeAttribute( 'style' );
+		}
+
 		entry.removeAttribute( NEW_STATE_ATTR );
 		this.cancelClearing( record );
 	}

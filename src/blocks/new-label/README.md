@@ -12,7 +12,7 @@ The block is in the inserter's Newspack category, or Rolling Coverage on sites w
 
 ## The label and the tint
 
-While the label shows, the entry also gets a light gray tint behind its content. Both fade away together.
+While the label shows, the entry also gets a light gray tint across its row: from the separator above it to the one below, or halfway into the space beside its neighbors in a layout without separators. A card, such as a pinned entry with its own background, keeps the tint inside the card. Both fade away together.
 
 An entry whose layout holds no New Label gets neither: it shows no mark, and screen readers still announce it as new. To get the label back in an edited built-in layout, restore the layout (see [Restore a built-in layout](../rolling-coverage/README.md#restore-a-built-in-layout)), or add the block yourself.
 

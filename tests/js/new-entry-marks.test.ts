@@ -2,11 +2,16 @@ import {
 	NEW_MARKER_ATTR,
 	NEW_STATE_ATTR,
 	NewEntryMarks,
+	TINT_END,
+	TINT_START,
+	rowEdges,
+	tintInsets,
 } from '../../src/blocks/rolling-coverage/new-entry-marks';
 import {
 	CLEAR_MS,
+	COLLAPSE_DELAY_MS,
 	COLLAPSE_MS,
-	EASE_OUT,
+	EASE_IN_OUT,
 	HOLD_MS,
 } from '../../src/blocks/shared/motion';
 
@@ -213,7 +218,9 @@ describe( 'NewEntryMarks', () => {
 
 		expect( markerOf( nested ).hidden ).toBe( true );
 		expect(
-			entry.querySelector( ':scope > .newspack-rolling-coverage-new-status' )
+			entry.querySelector(
+				':scope > .newspack-rolling-coverage-new-status'
+			)
 		).not.toBeNull();
 	} );
 
@@ -501,8 +508,8 @@ describe( 'NewEntryMarks', () => {
 			],
 			expect.objectContaining( {
 				duration: COLLAPSE_MS,
-				easing: EASE_OUT,
-				delay: CLEAR_MS,
+				easing: EASE_IN_OUT,
+				delay: COLLAPSE_DELAY_MS,
 			} )
 		);
 
@@ -579,5 +586,180 @@ describe( 'NewEntryMarks', () => {
 			entry.querySelector( '.newspack-rolling-coverage-new-status' )
 		).toBeNull();
 		expect( entry.hasAttribute( NEW_STATE_ATTR ) ).toBe( false );
+	} );
+} );
+
+describe( 'tintInsets', () => {
+	const noLines = { top: null, bottom: null, card: false };
+
+	it( 'runs from its own top line across the gap to the line below (Clock)', () => {
+		expect(
+			tintInsets( { ...noLines, top: 1 }, 'space', 'line', 32 )
+		).toEqual( [ 1, -32 ] );
+	} );
+
+	it( 'reaches up across the gap to the line above and stops at its own (Bulletin)', () => {
+		expect(
+			tintInsets( { ...noLines, bottom: 1 }, 'line', 'space', 32 )
+		).toEqual( [ -32, 1 ] );
+	} );
+
+	it( 'reaches halfway toward a neighbour without a line', () => {
+		expect(
+			tintInsets( { ...noLines, bottom: 1 }, 'space', null, 32 )
+		).toEqual( [ -16, 1 ] );
+		expect( tintInsets( noLines, 'space', 'space', 32 ) ).toEqual( [
+			-16, -16,
+		] );
+	} );
+
+	it( 'gives the first and last entries the shape of the other rows', () => {
+		expect(
+			tintInsets( { ...noLines, top: 1 }, 'line', null, 16 )
+		).toEqual( [ 1, -16 ] );
+		expect(
+			tintInsets( { ...noLines, bottom: 1 }, null, 'space', 32 )
+		).toEqual( [ -32, 1 ] );
+		expect( tintInsets( noLines, null, null, 24 ) ).toEqual( [ -12, -12 ] );
+	} );
+
+	it( 'stays inside a card and in a row layout', () => {
+		expect(
+			tintInsets( { ...noLines, card: true }, 'line', 'line', 32 )
+		).toEqual( [ 0, 0 ] );
+		expect(
+			tintInsets( { ...noLines, top: 1 }, 'line', 'line', null )
+		).toEqual( [ 0, 0 ] );
+	} );
+} );
+
+describe( 'rowEdges', () => {
+	function box(
+		element: Element,
+		top: number,
+		height: number,
+		width = 600
+	): void {
+		element.getBoundingClientRect = () =>
+			( {
+				top,
+				bottom: top + height,
+				height,
+				width,
+				left: 0,
+				right: width,
+			} ) as DOMRect;
+	}
+
+	let styles: Map< Element, Partial< CSSStyleDeclaration > >;
+
+	beforeEach( () => {
+		styles = new Map();
+		jest.mocked( window.getComputedStyle ).mockImplementation(
+			( element ) =>
+				( {
+					borderTopStyle: 'none',
+					borderBottomStyle: 'none',
+					borderLeftStyle: 'none',
+					borderRightStyle: 'none',
+					backgroundColor: 'rgba(0, 0, 0, 0)',
+					...styles.get( element ),
+				} ) as CSSStyleDeclaration
+		);
+	} );
+
+	function entryWith( ...children: HTMLElement[] ): HTMLElement {
+		const entry = document.createElement( 'article' );
+		entry.dataset.entryId = '1';
+		entry.append( ...children );
+		box( entry, 100, 200 );
+		return entry;
+	}
+
+	it( 'finds a top border on a box that spans the entry', () => {
+		const columns = document.createElement( 'div' );
+		box( columns, 100, 200 );
+		styles.set( columns, {
+			borderTopStyle: 'solid',
+			borderTopWidth: '1px',
+		} );
+
+		expect( rowEdges( entryWith( columns ) ) ).toEqual( {
+			top: 1,
+			bottom: null,
+			card: false,
+		} );
+	} );
+
+	it( 'finds a closing separator block', () => {
+		const text = document.createElement( 'div' );
+		box( text, 100, 160 );
+		const separator = document.createElement( 'hr' );
+		box( separator, 299, 1, 100 );
+
+		expect( rowEdges( entryWith( text, separator ) ) ).toEqual( {
+			top: null,
+			bottom: 1,
+			card: false,
+		} );
+	} );
+
+	it( 'takes a box with a background or a border all round as a card', () => {
+		const card = document.createElement( 'div' );
+		box( card, 100, 200 );
+		styles.set( card, { backgroundColor: 'rgb(240, 240, 240)' } );
+
+		expect( rowEdges( entryWith( card ) ).card ).toBe( true );
+	} );
+
+	it( 'takes any painted background as a card', () => {
+		const group = document.createElement( 'div' );
+		box( group, 100, 200 );
+		styles.set( group, { backgroundColor: 'rgb(10, 20, 0)' } );
+
+		expect( rowEdges( entryWith( group ) ).card ).toBe( true );
+	} );
+
+	it( 'ignores lines in the text and boxes narrower than the entry', () => {
+		const content = document.createElement( 'div' );
+		content.className = 'wp-block-post-content';
+		box( content, 100, 200 );
+		const rule = document.createElement( 'hr' );
+		box( rule, 299, 1 );
+		content.append( rule );
+		const column = document.createElement( 'div' );
+		box( column, 100, 200, 200 );
+		styles.set( column, {
+			borderTopStyle: 'solid',
+			borderTopWidth: '1px',
+		} );
+
+		expect( rowEdges( entryWith( content, column ) ) ).toEqual( {
+			top: null,
+			bottom: null,
+			card: false,
+		} );
+	} );
+} );
+
+describe( 'the tint', () => {
+	it( 'reaches across the gap while marked and leaves no inline style once cleared', async () => {
+		parentStyle = {
+			display: 'flex',
+			flexDirection: 'column',
+			rowGap: '32px',
+		};
+		const entry = makeEntry( '1' );
+		root.appendChild( entry );
+		marks.mark( entry );
+
+		expect( entry.style.getPropertyValue( TINT_START ) ).toBe( '-16px' );
+		expect( entry.style.getPropertyValue( TINT_END ) ).toBe( '-16px' );
+
+		fire( markerOf( entry ), { intersectionRatio: 1 } );
+		jest.advanceTimersByTime( HOLD_MS + CLEAR_MS );
+		await flush();
+
+		expect( entry.hasAttribute( 'style' ) ).toBe( false );
 	} );
 } );

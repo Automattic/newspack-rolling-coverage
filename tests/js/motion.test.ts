@@ -3,12 +3,15 @@ import * as path from 'path';
 
 import {
 	CLEAR_MS,
+	COLLAPSE_DELAY_MS,
 	COLLAPSE_MS,
 	ENTER_MS,
 	EXIT_MS,
 	FADE_CLEANUP_MS,
 	LEAVE_MS,
 	MOTION_QUERY,
+	OPEN_FADE_DELAY_MS,
+	OPEN_MS,
 	prefersReducedMotion,
 } from '../../src/blocks/shared/motion';
 
@@ -33,6 +36,17 @@ describe( 'motion values', () => {
 		expect( FADE_CLEANUP_MS ).toBeGreaterThan(
 			Math.max( ENTER_MS, scssMs( 'refresh' ), LEAVE_MS )
 		);
+	} );
+
+	it( 'fades an arriving entry in while its space opens, not after', () => {
+		expect( OPEN_FADE_DELAY_MS ).toBeGreaterThan( 0 );
+		expect( OPEN_FADE_DELAY_MS ).toBeLessThan( OPEN_MS );
+	} );
+
+	it( 'closes the New label’s line while its fade still runs, within today’s length', () => {
+		expect( COLLAPSE_DELAY_MS ).toBeGreaterThan( 0 );
+		expect( COLLAPSE_DELAY_MS ).toBeLessThan( CLEAR_MS );
+		expect( COLLAPSE_DELAY_MS + COLLAPSE_MS ).toBeLessThanOrEqual( 450 );
 	} );
 
 	it( 'declares the same durations in SCSS and TypeScript', () => {

@@ -29,11 +29,19 @@ import {
 } from './entry-name';
 import { isSharedReply, readSharedReply, startingAdCount } from './shared-poll';
 import { NewEntryMarks } from './new-entry-marks';
+import {
+	carryArrival,
+	closeSpace,
+	openSpace,
+	stopArrivalFade,
+} from './entry-arrival';
 import { idsNewerThan, newIdsInReplace } from './new-entry-ids';
 import {
+	EASE_OUT,
 	EXIT_MS,
 	FADE_CLEANUP_MS,
 	HOLD_MS,
+	LEAVE_MS,
 	prefersReducedMotion,
 } from '../shared/motion';
 import type { PollEventDetail } from '../shared/poll-event';
@@ -1387,11 +1395,15 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 
 	/**
 	 * Removes the oldest entries beyond the cap of a capped feed, and stops
-	 * watching them for being seen.
+	 * watching them for being seen. Making room for entries arriving at the
+	 * top, an entry that was already shown closes its space as it goes, so the
+	 * feed's height changes smoothly (see closeSpace()); while it closes it
+	 * can't be focused or read, and the script no longer finds it by its ID.
 	 *
+	 * @param {Element[]} [arriving] Elements just inserted at the top.
 	 * @return {void}
 	 */
-	function trimToLatestCap(): void {
+	function trimToLatestCap( arriving?: Element[] ): void {
 		if ( ! latestCap ) {
 			return;
 		}
@@ -1401,15 +1413,29 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		);
 
 		for ( let i = entries.length - 1; i >= latestCap; i-- ) {
-			unobserveEntry( entries[ i ] );
-			marks?.forget( entries[ i ].dataset.entryId ?? '' );
-			entries[ i ].remove();
+			const entry = entries[ i ];
+
+			unobserveEntry( entry );
+			marks?.forget( entry.dataset.entryId ?? '' );
+
+			if ( ! arriving || arriving.includes( entry ) || isLite ) {
+				entry.remove();
+				continue;
+			}
+
+			entry.inert = true;
+			entry.setAttribute( 'aria-hidden', 'true' );
+			delete entry.dataset.entryId;
+
+			if ( ! closeSpace( entry, () => entry.remove() ) ) {
+				entry.remove();
+			}
 		}
 	}
 
 	/**
-	 * Fades elements in, with opacity only, so the text never moves. A Lite
-	 * Site page has no motion, so there it does nothing.
+	 * Fades elements in, with opacity only. A Lite Site page has no motion,
+	 * so there it does nothing.
 	 *
 	 * @param {Element[]} elements    Elements that were just added.
 	 * @param {string}    [className] Class that runs the fade, `is-entering` by default.
@@ -1476,6 +1502,31 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	}
 
 	/**
+	 * Brings in elements just inserted at the top of the list: their space
+	 * opens, so the entries below glide down, and the entries among them fade
+	 * in as it opens (see openSpace()). Where the space can't open (under
+	 * reduced motion, or in a row or grid layout), the entries only fade in.
+	 * Call it once the entries are marked, since a New label adds to their
+	 * height. A Lite Site page has no motion, so there it does nothing.
+	 *
+	 * @param {HTMLElement[]} elements Elements just inserted, entries and ads.
+	 * @return {void}
+	 */
+	function arrive( elements: HTMLElement[] ): void {
+		if ( isLite ) {
+			return;
+		}
+
+		fadeIn(
+			openSpace(
+				elements,
+				elements.filter( ( el ) => el.matches( '[data-entry-id]' ) ),
+				entriesList
+			)
+		);
+	}
+
+	/**
 	 * Inserts unpinned entries above the newest unpinned entry, and pinned
 	 * ones among the pinned entries (see insertPinned()), removing
 	 * the "no entries yet" placeholder if it's still present.
@@ -1532,10 +1583,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		];
 
 		entriesList.insertBefore( fragment, firstUnpinnedEntry() );
-		fadeIn(
-			insertedEls.filter( ( el ) => el.matches( '[data-entry-id]' ) )
-		);
-		trimToLatestCap();
+		trimToLatestCap( insertedEls );
 		dropLastSeparator();
 
 		entries.forEach( ( { el, isNew } ) => {
@@ -1543,6 +1591,13 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				marks?.mark( el );
 			}
 		} );
+
+		arrive(
+			insertedEls.filter(
+				( el ): el is HTMLElement =>
+					el instanceof HTMLElement && el.isConnected
+			)
+		);
 
 		const shown = Math.min( entries.length, latestCap || entries.length );
 
@@ -1596,6 +1651,9 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				el.dataset.entryId,
 				el.dataset.arrival,
 			] )
+		);
+		const shownById = new Map(
+			shownEntries.map( ( el ) => [ el.dataset.entryId ?? '', el ] )
 		);
 		const fragment = document.createDocumentFragment();
 
@@ -1679,6 +1737,12 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			)
 		);
 		keptEls.forEach( ( el ) => {
+			const shown = shownById.get( el.dataset.entryId ?? '' );
+
+			if ( shown ) {
+				carryArrival( shown, el );
+			}
+
 			if ( newIds.has( el.dataset.entryId ?? '' ) ) {
 				marks?.mark( el );
 			} else {
@@ -1796,6 +1860,19 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		el.setAttribute( 'aria-hidden', 'true' );
 		delete el.dataset.entryId;
 		el.classList.remove( 'is-entering', 'is-updated' );
+
+		// The arrival fade outranks the class's animation, so an entry taken down mid-arrival fades out from where it got to.
+		const arrivedOpacity = stopArrivalFade( el );
+
+		if ( arrivedOpacity !== null ) {
+			el.animate( [ { opacity: arrivedOpacity }, { opacity: 0 } ], {
+				duration: LEAVE_MS,
+				easing: EASE_OUT,
+				fill: 'forwards',
+			} ).finished.then( remove, remove );
+			return;
+		}
+
 		el.classList.add( 'is-leaving' );
 		el.addEventListener( 'animationend', ( event ) => {
 			if ( event.target === el ) {
@@ -1868,13 +1945,14 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		)?.remove();
 
 		insertPinned( el );
-		fadeIn( [ el ] );
 		observeEntry( el );
 		dropLastSeparator();
 
 		if ( isNew ) {
 			marks?.mark( el );
 		}
+
+		arrive( [ el ] );
 	}
 
 	const cleanupFns: Array< () => void > = [];
@@ -2837,7 +2915,10 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				}
 
 				existing.replaceWith( entryEl );
-				fadeIn( [ entryEl ], 'is-updated' );
+
+				if ( ! carryArrival( existing, entryEl ) ) {
+					fadeIn( [ entryEl ], 'is-updated' );
+				}
 
 				// A pinned entry belongs above every unpinned one, in the
 				// Pinned group where the layout has one, most recently edited
