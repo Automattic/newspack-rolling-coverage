@@ -256,7 +256,7 @@ A custom layout is a synced pattern in the Rolling Coverage pattern category who
 
 The Rolling Coverage category appears once someone picks a built-in layout in a story. If it isn't there yet, pick a layout in any story first, then open the pattern editor. If you create the Rolling Coverage category yourself instead, save the pattern and reload the editor to get the Rolling Coverage block.
 
-An empty pattern in the Rolling Coverage category opens with a Rolling Coverage block in place, as an editable layout with sample entries, starting from Bulletin. A pattern that already has blocks keeps them, and a Rolling Coverage block you remove stays removed until you next open the pattern while it's empty. Don't pick a coverage inside a pattern, and don't add other blocks beside the Rolling Coverage block: the pattern then no longer counts as a layout.
+An empty pattern in the Rolling Coverage category opens with a Rolling Coverage block in place, as an editable layout with sample entries, starting from Bulletin. A pattern that already has blocks keeps them, and a Rolling Coverage block you remove stays removed while the pattern stays in the Rolling Coverage category. It comes back only if the pattern leaves the category and rejoins it empty, or you open another empty pattern. Don't pick a coverage inside a pattern, and don't add other blocks beside the Rolling Coverage block: the pattern then no longer counts as a layout.
 
 ### Block themes
 

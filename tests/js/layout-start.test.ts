@@ -61,30 +61,108 @@ describe( 'isEmptyPattern', () => {
 describe( 'nextLayoutStart', () => {
 	it( 'inserts into an empty layout pattern when it opens', () => {
 		expect(
-			run( [ { postId: 5, isLayoutPattern: true, isEmpty: true } ] )
+			run( [
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: true,
+				},
+			] )
 		).toEqual( [ true ] );
 	} );
 
 	it( 'inserts when an empty pattern joins the layout category', () => {
 		expect(
 			run( [
-				{ postId: 5, isLayoutPattern: false, isEmpty: true },
-				{ postId: 5, isLayoutPattern: true, isEmpty: true },
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: false,
+					isEmpty: true,
+				},
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: true,
+				},
 			] )
 		).toEqual( [ false, true ] );
 	} );
 
+	it( 'waits for the record to load, while a built-in layout reads as empty', () => {
+		expect(
+			run( [
+				{
+					postId: 5,
+					isLoaded: false,
+					isLayoutPattern: true,
+					isEmpty: true,
+				},
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: true,
+				},
+			] )
+		).toEqual( [ false, true ] );
+	} );
+
+	it( 'keeps what it knows of a layout pattern while a record reloads', () => {
+		expect(
+			run( [
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: false,
+				},
+				{
+					postId: 5,
+					isLoaded: false,
+					isLayoutPattern: false,
+					isEmpty: false,
+				},
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: true,
+				},
+			] )
+		).toEqual( [ false, false, false ] );
+	} );
+
 	it( 'leaves a pattern outside the layout category alone', () => {
 		expect(
-			run( [ { postId: 5, isLayoutPattern: false, isEmpty: true } ] )
+			run( [
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: false,
+					isEmpty: true,
+				},
+			] )
 		).toEqual( [ false ] );
 	} );
 
 	it( 'leaves a layout pattern with content alone, even once emptied', () => {
 		expect(
 			run( [
-				{ postId: 5, isLayoutPattern: true, isEmpty: false },
-				{ postId: 5, isLayoutPattern: true, isEmpty: true },
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: false,
+				},
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: true,
+				},
 			] )
 		).toEqual( [ false, false ] );
 	} );
@@ -92,9 +170,24 @@ describe( 'nextLayoutStart', () => {
 	it( 'inserts once, so a removed block stays removed', () => {
 		expect(
 			run( [
-				{ postId: 5, isLayoutPattern: true, isEmpty: true },
-				{ postId: 5, isLayoutPattern: true, isEmpty: false },
-				{ postId: 5, isLayoutPattern: true, isEmpty: true },
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: true,
+				},
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: false,
+				},
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: true,
+				},
 			] )
 		).toEqual( [ true, false, false ] );
 	} );
@@ -102,10 +195,30 @@ describe( 'nextLayoutStart', () => {
 	it( 'starts over when the pattern leaves the category and rejoins it', () => {
 		expect(
 			run( [
-				{ postId: 5, isLayoutPattern: true, isEmpty: true },
-				{ postId: 5, isLayoutPattern: true, isEmpty: true },
-				{ postId: 5, isLayoutPattern: false, isEmpty: true },
-				{ postId: 5, isLayoutPattern: true, isEmpty: true },
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: true,
+				},
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: true,
+				},
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: false,
+					isEmpty: true,
+				},
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: true,
+				},
 			] )
 		).toEqual( [ true, false, false, true ] );
 	} );
@@ -113,8 +226,18 @@ describe( 'nextLayoutStart', () => {
 	it( 'starts over for another pattern', () => {
 		expect(
 			run( [
-				{ postId: 5, isLayoutPattern: true, isEmpty: true },
-				{ postId: 6, isLayoutPattern: true, isEmpty: true },
+				{
+					postId: 5,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: true,
+				},
+				{
+					postId: 6,
+					isLoaded: true,
+					isLayoutPattern: true,
+					isEmpty: true,
+				},
 			] )
 		).toEqual( [ true, true ] );
 	} );

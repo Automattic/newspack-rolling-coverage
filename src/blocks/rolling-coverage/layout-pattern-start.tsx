@@ -1,11 +1,13 @@
 /**
  * WordPress dependencies
  */
+import { speak } from '@wordpress/a11y';
 import { createBlock, serialize, type Block } from '@wordpress/blocks';
 import { store as coreStore } from '@wordpress/core-data';
 import { useDispatch, useSelect } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
 import { useEffect, useRef } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
 import { registerPlugin } from '@wordpress/plugins';
 
 /**
@@ -18,6 +20,28 @@ import {
 	nextLayoutStart,
 	type LayoutStart,
 } from './layout-start';
+
+const serialized = new WeakMap< Block[], string >();
+
+/**
+ * Serializes the pattern's blocks once per blocks array, since the editor
+ * calls a `content` edit on every read of the edited content until the first
+ * edit that persists.
+ *
+ * @param {Object}  edited        The edited post.
+ * @param {Block[]} edited.blocks The edited blocks.
+ * @return {string} The blocks' markup.
+ */
+function serializeOnce( { blocks = [] }: { blocks?: Block[] } ): string {
+	let content = serialized.get( blocks );
+
+	if ( content === undefined ) {
+		content = serialize( blocks );
+		serialized.set( blocks, content );
+	}
+
+	return content;
+}
 
 /**
  * Starts an empty layout pattern with a Rolling Coverage block, which opens
@@ -43,24 +67,32 @@ function LayoutPatternStart() {
 		const postType = editor.getCurrentPostType();
 		const postId = Number( editor.getCurrentPostId() ) || 0;
 
-		// Until the pattern loads, its content reads as empty.
-		if (
-			postType !== 'wp_block' ||
-			! postId ||
-			! core.getEntityRecord( 'postType', postType, postId )
-		) {
+		if ( postType !== 'wp_block' || ! postId ) {
 			return null;
 		}
 
+		if ( ! core.getEntityRecord( 'postType', postType, postId ) ) {
+			return {
+				postId,
+				isLoaded: false,
+				isLayoutPattern: false,
+				isEmpty: false,
+			};
+		}
+
+		const isLayoutPattern = isLayoutPatternPost(
+			postType,
+			postId,
+			editor.getEditedPostAttribute( 'wp_pattern_category' ) as
+				number[] | undefined
+		);
+
 		return {
 			postId,
-			isLayoutPattern: isLayoutPatternPost(
-				postType,
-				postId,
-				editor.getEditedPostAttribute( 'wp_pattern_category' ) as
-					number[] | undefined
-			),
-			isEmpty: isEmptyPattern( editor.getEditorBlocks() ),
+			isLoaded: true,
+			isLayoutPattern,
+			isEmpty:
+				isLayoutPattern && isEmptyPattern( editor.getEditorBlocks() ),
 		};
 	}, [] );
 	const last = useRef< LayoutStart >( { postId: 0, started: false } );
@@ -72,6 +104,7 @@ function LayoutPatternStart() {
 	};
 
 	const postId = pattern?.postId ?? 0;
+	const isLoaded = pattern?.isLoaded ?? false;
 	const isLayoutPattern = pattern?.isLayoutPattern ?? false;
 	const isEmpty = pattern?.isEmpty ?? false;
 
@@ -81,9 +114,10 @@ function LayoutPatternStart() {
 		}
 
 		const { insert, start } = nextLayoutStart(
-			{ postId, isLayoutPattern, isEmpty },
+			{ postId, isLoaded, isLayoutPattern, isEmpty },
 			last.current
 		);
+		const wasOpen = last.current.postId === postId;
 		last.current = start;
 
 		if ( ! insert ) {
@@ -95,12 +129,20 @@ function LayoutPatternStart() {
 		editPost(
 			{
 				blocks: [ createBlock( BLOCK_NAME ) ],
-				content: ( { blocks = [] }: { blocks?: Block[] } ) =>
-					serialize( blocks ),
+				content: serializeOnce,
 			},
 			{ undoIgnore: true }
 		);
-	}, [ postId, isLayoutPattern, isEmpty, editPost ] );
+
+		if ( wasOpen ) {
+			speak(
+				__(
+					'Rolling Coverage layout added.',
+					'newspack-rolling-coverage'
+				)
+			);
+		}
+	}, [ postId, isLoaded, isLayoutPattern, isEmpty, editPost ] );
 
 	return null;
 }
