@@ -1,4 +1,5 @@
 import {
+	NEW_LABEL_ATTR,
 	NEW_MARKER_ATTR,
 	NEW_STATE_ATTR,
 	NewEntryMarks,
@@ -761,5 +762,128 @@ describe( 'the tint', () => {
 		await flush();
 
 		expect( entry.hasAttribute( 'style' ) ).toBe( false );
+	} );
+} );
+
+describe( 'marking in batches', () => {
+	beforeEach( () => {
+		parentStyle = {
+			display: 'flex',
+			flexDirection: 'column',
+			rowGap: '32px',
+		};
+	} );
+
+	it( 'reveals every marker before measuring any', () => {
+		const entries = [
+			makeEntry( '1' ),
+			makeEntry( '2' ),
+			makeEntry( '3' ),
+		];
+		root.append( ...entries );
+		const revealedAtRead: boolean[] = [];
+		entries.forEach( ( entry ) => {
+			markerOf( entry ).getBoundingClientRect = () => {
+				revealedAtRead.push(
+					entries.every( ( other ) => ! markerOf( other ).hidden )
+				);
+				return { height: 18 } as DOMRect;
+			};
+		} );
+
+		marks.markAll( entries );
+
+		expect( revealedAtRead.length ).toBeGreaterThan( 0 );
+		expect( revealedAtRead.every( Boolean ) ).toBe( true );
+		entries.forEach( ( entry ) =>
+			expect( observerOf( markerOf( entry ) ) ).toBeDefined()
+		);
+	} );
+
+	it( 'carries the marks of replacements it is given and marks no new ones from them', () => {
+		const entry = makeEntry( '1' );
+		root.appendChild( entry );
+		marks.mark( entry );
+		const replacement = makeEntry( '1' );
+		const unmarked = makeEntry( '2' );
+		entry.replaceWith( replacement );
+		root.appendChild( unmarked );
+
+		marks.markAll( [], [ replacement, unmarked ] );
+
+		expect( markerOf( replacement ).hidden ).toBe( false );
+		expect( replacement.getAttribute( NEW_STATE_ATTR ) ).toBe( 'held' );
+		expect( marks.isMarked( '2' ) ).toBe( false );
+		expect( markerOf( unmarked ).hidden ).toBe( true );
+	} );
+
+	it( 'flags only an entry whose own marker shows, until the mark settles', async () => {
+		const entry = makeEntry( '1' );
+		const nesting = makeEntry( '2', false );
+		nesting.appendChild( makeEntry( '3' ) );
+		root.append( entry, nesting );
+
+		marks.markAll( [ entry, nesting ] );
+
+		expect( entry.hasAttribute( NEW_LABEL_ATTR ) ).toBe( true );
+		expect( nesting.hasAttribute( NEW_LABEL_ATTR ) ).toBe( false );
+
+		fire( markerOf( entry ), { intersectionRatio: 1 } );
+		jest.advanceTimersByTime( HOLD_MS );
+		await flush();
+
+		expect( entry.hasAttribute( NEW_LABEL_ATTR ) ).toBe( false );
+	} );
+
+	it( 'places the tint again on a labeled neighbor of an entry marked later', () => {
+		const older = makeEntry( '1' );
+		root.appendChild( older );
+		marks.mark( older );
+		older.style.removeProperty( TINT_START );
+		const newer = makeEntry( '2' );
+		root.prepend( newer );
+
+		marks.mark( newer );
+
+		expect( older.style.getPropertyValue( TINT_START ) ).toBe( '-16px' );
+	} );
+
+	it( 'places the tints again once a frame after the window resizes', () => {
+		const entry = makeEntry( '1' );
+		root.appendChild( entry );
+		marks.mark( entry );
+		entry.style.removeProperty( TINT_START );
+
+		window.dispatchEvent( new Event( 'resize' ) );
+		window.dispatchEvent( new Event( 'resize' ) );
+
+		expect( entry.style.getPropertyValue( TINT_START ) ).toBe( '' );
+
+		jest.advanceTimersByTime( 20 );
+
+		expect( entry.style.getPropertyValue( TINT_START ) ).toBe( '-16px' );
+	} );
+
+	it( 'release holds a collapse where it got to, where forget lets it spring back', () => {
+		const commitStyles = jest.fn();
+		const cancel = jest.fn();
+		animate.mockImplementation( () => ( {
+			finished: new Promise( () => {} ),
+			cancel,
+			commitStyles,
+		} ) );
+		const entry = makeEntry( '1' );
+		root.appendChild( entry );
+		marks.mark( entry );
+		fire( markerOf( entry ), { intersectionRatio: 1 } );
+		jest.advanceTimersByTime( HOLD_MS );
+
+		marks.release( '1' );
+
+		expect( commitStyles ).toHaveBeenCalledTimes( 1 );
+		expect( commitStyles.mock.invocationCallOrder[ 0 ] ).toBeLessThan(
+			cancel.mock.invocationCallOrder[ 0 ]
+		);
+		expect( marks.isMarked( '1' ) ).toBe( false );
 	} );
 } );

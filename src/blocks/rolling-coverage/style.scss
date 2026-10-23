@@ -88,7 +88,7 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 			}
 		}
 
-		.newspack-rolling-coverage-entry[data-new]:has([data-rc-new-marker]:not([hidden])) {
+		.newspack-rolling-coverage-entry[data-new][data-new-label] {
 			position: relative;
 			isolation: isolate;
 

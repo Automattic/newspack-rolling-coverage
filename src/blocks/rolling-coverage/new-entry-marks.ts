@@ -23,6 +23,7 @@ import { layoutOf, stackGap } from './entry-arrival';
 
 export const NEW_MARKER_ATTR = 'data-rc-new-marker';
 export const NEW_STATE_ATTR = 'data-new';
+export const NEW_LABEL_ATTR = 'data-new-label';
 
 const STATUS_CLASS = 'newspack-rolling-coverage-new-status';
 
@@ -328,13 +329,12 @@ function neighbour( entry: HTMLElement, after: boolean ): HTMLElement | null {
 }
 
 /**
- * Sets how far an entry's tint reaches (see tintInsets()).
+ * Measures how far an entry's tint reaches (see tintInsets()).
  *
  * @param {HTMLElement} entry The entry.
+ * @return {number[]} The start and end insets, in pixels.
  */
-function placeTint( entry: HTMLElement ): void {
-	const before = neighbour( entry, false );
-	const after = neighbour( entry, true );
+function measureTint( entry: HTMLElement ): [ number, number ] {
 	const facing = ( other: HTMLElement | null, edge: 'top' | 'bottom' ) => {
 		if ( ! other ) {
 			return null;
@@ -342,15 +342,29 @@ function placeTint( entry: HTMLElement ): void {
 
 		return rowEdges( other )[ edge ] === null ? 'space' : 'line';
 	};
-	const [ start, end ] = tintInsets(
+
+	return tintInsets(
 		rowEdges( entry ),
-		facing( before, 'bottom' ),
-		facing( after, 'top' ),
+		facing( neighbour( entry, false ), 'bottom' ),
+		facing( neighbour( entry, true ), 'top' ),
 		rowGap( entry )
 	);
+}
 
-	entry.style.setProperty( TINT_START, `${ start }px` );
-	entry.style.setProperty( TINT_END, `${ end }px` );
+/**
+ * Places the tints of several entries: every measurement first, then every
+ * inset, so the page lays out once however many there are.
+ *
+ * @param {Iterable<HTMLElement>} entries The entries.
+ */
+function placeTints( entries: Iterable< HTMLElement > ): void {
+	Array.from(
+		entries,
+		( entry ) => [ entry, measureTint( entry ) ] as const
+	).forEach( ( [ entry, [ start, end ] ] ) => {
+		entry.style.setProperty( TINT_START, `${ start }px` );
+		entry.style.setProperty( TINT_END, `${ end }px` );
+	} );
 }
 
 /**
@@ -370,6 +384,8 @@ export class NewEntryMarks {
 
 	private frame: number | null = null;
 
+	private resizeFrame: number | null = null;
+
 	/**
 	 * @param {HTMLElement} root The feed the entries belong to.
 	 */
@@ -386,6 +402,7 @@ export class NewEntryMarks {
 		}
 
 		this.doc.addEventListener( 'visibilitychange', this.onVisibility );
+		window.addEventListener( 'resize', this.onResize );
 	}
 
 	/**
@@ -394,27 +411,7 @@ export class NewEntryMarks {
 	 * @param {HTMLElement} entry The new entry.
 	 */
 	mark( entry: HTMLElement ): void {
-		const id = entry.dataset.entryId;
-
-		if ( ! id ) {
-			return;
-		}
-
-		if ( this.marks.has( id ) ) {
-			this.adopt( entry );
-			return;
-		}
-
-		const record: Mark = {
-			clock: null,
-			entry,
-			target: null,
-			inView: false,
-			clearing: null,
-		};
-		this.marks.set( id, record );
-		this.show( entry );
-		this.observe( id, record );
+		this.markAll( [ entry ] );
 	}
 
 	/**
@@ -424,25 +421,83 @@ export class NewEntryMarks {
 	 * @param {HTMLElement} entry The replacement element.
 	 */
 	adopt( entry: HTMLElement ): void {
-		const id = entry.dataset.entryId;
-		const record = id ? this.marks.get( id ) : undefined;
+		this.markAll( [], [ entry ] );
+	}
 
-		if ( ! id || ! record ) {
-			return;
-		}
+	/**
+	 * Marks several entries as new, and carries the marks of others over to
+	 * the elements that replaced them (see adopt()), measuring them all
+	 * together so the page lays out once rather than once per entry.
+	 *
+	 * @param {HTMLElement[]} entries The new entries.
+	 * @param {HTMLElement[]} adopted Replacement elements of entries that may be marked.
+	 */
+	markAll( entries: HTMLElement[], adopted: HTMLElement[] = [] ): void {
+		const shown: Array< [ string, Mark ] > = [];
+		const take = ( entry: HTMLElement, isNew: boolean ) => {
+			const id = entry.dataset.entryId;
 
-		this.unobserve( id, record );
-		record.entry = entry;
+			if ( ! id ) {
+				return;
+			}
 
-		if ( record.clearing ) {
-			this.settle( record );
-			this.marks.delete( id );
-			return;
-		}
+			const record = this.marks.get( id );
 
-		record.inView = false;
-		this.show( entry );
-		this.observe( id, record );
+			if ( ! record ) {
+				if ( isNew ) {
+					const created: Mark = {
+						clock: null,
+						entry,
+						target: null,
+						inView: false,
+						clearing: null,
+					};
+					this.marks.set( id, created );
+					shown.push( [ id, created ] );
+				}
+				return;
+			}
+
+			this.unobserve( id, record );
+			record.entry = entry;
+
+			if ( record.clearing ) {
+				this.settle( record );
+				this.marks.delete( id );
+				return;
+			}
+
+			record.inView = false;
+			shown.push( [ id, record ] );
+		};
+
+		entries.forEach( ( entry ) => take( entry, true ) );
+		adopted.forEach( ( entry ) => take( entry, false ) );
+
+		shown.forEach( ( [ , record ] ) => this.show( record.entry ) );
+
+		// A tint reaches toward the lines of the entries beside it, so labeled entries beside one just shown are placed again.
+		const tinted = new Set< HTMLElement >();
+		shown.forEach( ( [ , { entry } ] ) => {
+			if ( entry.hasAttribute( NEW_LABEL_ATTR ) ) {
+				[ entry, neighbour( entry, false ), neighbour( entry, true ) ]
+					.filter(
+						( other ): other is HTMLElement =>
+							!! other?.hasAttribute( NEW_LABEL_ATTR )
+					)
+					.forEach( ( other ) => tinted.add( other ) );
+			}
+		} );
+
+		const targets = shown.map(
+			( [ id, record ] ) =>
+				[ id, record, this.targetOf( record ) ] as const
+		);
+
+		placeTints( tinted );
+		targets.forEach( ( [ id, record, target ] ) =>
+			this.observe( id, record, target )
+		);
 	}
 
 	/**
@@ -486,6 +541,28 @@ export class NewEntryMarks {
 	}
 
 	/**
+	 * Stops tracking an entry that closes its space as it leaves. A collapse
+	 * in progress stops where it got to instead of springing back, so the
+	 * entry keeps the height its space closes from.
+	 *
+	 * @param {string} entryId The entry ID.
+	 */
+	release( entryId: string ): void {
+		const record = this.marks.get( entryId );
+		const animation = record?.clearing?.animation;
+
+		if ( record && animation ) {
+			try {
+				animation.commitStyles();
+			} catch {
+				this.settle( record );
+			}
+		}
+
+		this.forget( entryId );
+	}
+
+	/**
 	 * Stops every clock, observer and animation.
 	 */
 	destroy(): void {
@@ -493,6 +570,12 @@ export class NewEntryMarks {
 		this.markerObserver?.disconnect();
 		this.entryObserver?.disconnect();
 		this.doc.removeEventListener( 'visibilitychange', this.onVisibility );
+		window.removeEventListener( 'resize', this.onResize );
+
+		if ( this.resizeFrame !== null ) {
+			window.cancelAnimationFrame( this.resizeFrame );
+			this.resizeFrame = null;
+		}
 	}
 
 	private show( entry: HTMLElement ): void {
@@ -502,7 +585,7 @@ export class NewEntryMarks {
 
 		if ( marker ) {
 			marker.hidden = false;
-			placeTint( entry );
+			entry.setAttribute( NEW_LABEL_ATTR, '' );
 			return;
 		}
 
@@ -517,13 +600,15 @@ export class NewEntryMarks {
 		entry.appendChild( status );
 	}
 
-	private observe( id: string, record: Mark ): void {
+	private targetOf( record: Mark ): Element {
 		const marker = markerIn( record.entry );
-		const visibleMarker =
-			marker && isVisibleMarker( marker ) ? marker : null;
-		const observer = visibleMarker
-			? this.markerObserver
-			: this.entryObserver;
+
+		return marker && isVisibleMarker( marker ) ? marker : record.entry;
+	}
+
+	private observe( id: string, record: Mark, target: Element ): void {
+		const observer =
+			target === record.entry ? this.entryObserver : this.markerObserver;
 
 		if ( ! observer ) {
 			record.inView = true;
@@ -531,8 +616,8 @@ export class NewEntryMarks {
 			return;
 		}
 
-		record.target = visibleMarker ?? record.entry;
-		observer.observe( record.target );
+		record.target = target;
+		observer.observe( target );
 	}
 
 	private unobserve( id: string, record: Mark ): void {
@@ -637,6 +722,26 @@ export class NewEntryMarks {
 					this.startWhenSeen( id, record );
 				}
 			} );
+		} );
+	};
+
+	private readonly onResize = (): void => {
+		if ( this.resizeFrame !== null ) {
+			return;
+		}
+
+		this.resizeFrame = window.requestAnimationFrame( () => {
+			this.resizeFrame = null;
+			placeTints(
+				Array.from(
+					this.marks.values(),
+					( { entry } ) => entry
+				).filter(
+					( entry ) =>
+						entry.isConnected &&
+						entry.hasAttribute( NEW_LABEL_ATTR )
+				)
+			);
 		} );
 	};
 
@@ -760,6 +865,7 @@ export class NewEntryMarks {
 		}
 
 		entry.removeAttribute( NEW_STATE_ATTR );
+		entry.removeAttribute( NEW_LABEL_ATTR );
 		this.cancelClearing( record );
 	}
 

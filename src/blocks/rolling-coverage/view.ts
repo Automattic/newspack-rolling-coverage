@@ -669,16 +669,16 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			)
 		);
 
-		shown.forEach( ( el ) => {
-			const id = el.dataset.entryId ?? '';
+		marks.markAll(
+			shown.filter( ( el ) => {
+				const id = el.dataset.entryId ?? '';
 
-			if (
-				newSince.markedIds.has( id ) ||
-				( newIds.has( id ) && ! newSince.shownIds.has( id ) )
-			) {
-				marks.mark( el );
-			}
-		} );
+				return (
+					newSince.markedIds.has( id ) ||
+					( newIds.has( id ) && ! newSince.shownIds.has( id ) )
+				);
+			} )
+		);
 	}
 
 	const coverageId = root.dataset.coverageId || '0';
@@ -1416,7 +1416,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			const entry = entries[ i ];
 
 			unobserveEntry( entry );
-			marks?.forget( entry.dataset.entryId ?? '' );
+			marks?.release( entry.dataset.entryId ?? '' );
 
 			if ( ! arriving || arriving.includes( entry ) || isLite ) {
 				entry.remove();
@@ -1565,7 +1565,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			observeEntry( el );
 
 			if ( isPinned ) {
-				pinnedEls.push( el );
+				pinnedEls.push( el, ...( adEl ? [ adEl ] : [] ) );
 				insertPinned( el );
 				el.after( ...( adEl ? [ adEl ] : [] ) );
 			} else {
@@ -1586,11 +1586,11 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		trimToLatestCap( insertedEls );
 		dropLastSeparator();
 
-		entries.forEach( ( { el, isNew } ) => {
-			if ( isNew && el.isConnected ) {
-				marks?.mark( el );
-			}
-		} );
+		marks?.markAll(
+			entries
+				.filter( ( { el, isNew } ) => isNew && el.isConnected )
+				.map( ( { el } ) => el )
+		);
 
 		arrive(
 			insertedEls.filter(
@@ -1720,6 +1720,13 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			el.remove();
 		} );
 
+		// Entries still closing or fading out have lost their ID, and would sit above the rebuilt list.
+		ownElements(
+			root,
+			':scope > .newspack-rolling-coverage-entry:not([data-entry-id])',
+			entriesList
+		).forEach( ( el ) => el.remove() );
+
 		if ( fragment.childElementCount > 0 ) {
 			ownElement(
 				root,
@@ -1736,17 +1743,15 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				( el ) => ! arrivals.has( el.dataset.entryId ?? '' )
 			)
 		);
+		marks?.markAll(
+			keptEls.filter( ( el ) => newIds.has( el.dataset.entryId ?? '' ) ),
+			keptEls.filter( ( el ) => ! newIds.has( el.dataset.entryId ?? '' ) )
+		);
 		keptEls.forEach( ( el ) => {
 			const shown = shownById.get( el.dataset.entryId ?? '' );
 
 			if ( shown ) {
 				carryArrival( shown, el );
-			}
-
-			if ( newIds.has( el.dataset.entryId ?? '' ) ) {
-				marks?.mark( el );
-			} else {
-				marks?.adopt( el );
 			}
 		} );
 	}
@@ -2916,10 +2921,6 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 
 				existing.replaceWith( entryEl );
 
-				if ( ! carryArrival( existing, entryEl ) ) {
-					fadeIn( [ entryEl ], 'is-updated' );
-				}
-
 				// A pinned entry belongs above every unpinned one, in the
 				// Pinned group where the layout has one, most recently edited
 				// first among the pinned entries, so an edit moves it to the
@@ -2944,6 +2945,11 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 				marks?.adopt( entryEl );
 				observeEntry( entryEl );
 				dropLastSeparator();
+
+				// After the label and the place are settled, so the carried open measures the entry as it shows.
+				if ( ! carryArrival( existing, entryEl ) ) {
+					fadeIn( [ entryEl ], 'is-updated' );
+				}
 
 				return;
 			}
