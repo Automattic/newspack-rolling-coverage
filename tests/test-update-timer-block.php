@@ -114,24 +114,24 @@ class Test_Update_Timer_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * It renders hidden, with the spinner and an empty text, for the script to
-	 * show once a feed is counting down.
+	 * It renders hidden, with the ring and an empty text, for the script to
+	 * show once a feed is counting down: a track and an arc the script fills.
 	 */
-	public function test_renders_hidden_with_the_spinner() {
+	public function test_renders_hidden_with_the_ring() {
 		$coverage_id = self::create_coverage();
 		$html        = $this->render( [], self::page( self::feed( $coverage_id ) ) );
 
 		$this->assertMatchesRegularExpression( '/<div [^>]*data-coverage-id="' . $coverage_id . '"[^>]* hidden>/', $html );
-		$this->assertStringContainsString( 'class="newspack-rolling-coverage-update-timer__spinner"', $html );
-		$this->assertStringContainsString( 'aria-hidden="true"', $html );
-		$this->assertStringContainsString( '<circle', $html );
+		$this->assertMatchesRegularExpression( '/<svg class="newspack-rolling-coverage-update-timer__ring"[^>]* aria-hidden="true"/', $html );
+		$this->assertSame( 2, substr_count( $html, '<circle' ) );
+		$this->assertStringContainsString( '<circle class="newspack-rolling-coverage-update-timer__ring-arc" cx="9" cy="9" r="8" pathLength="100">', $html );
 		$this->assertStringContainsString( '<span class="newspack-rolling-coverage-update-timer__text"></span>', $html );
 	}
 
 	/**
-	 * Hiding the spinner leaves the text on its own.
+	 * Hiding the ring leaves the text on its own.
 	 */
-	public function test_hides_the_spinner_when_asked() {
+	public function test_hides_the_ring_when_asked() {
 		$coverage_id = self::create_coverage();
 		$html        = $this->render( [ 'showSpinner' => false ], self::page( self::feed( $coverage_id ) ) );
 

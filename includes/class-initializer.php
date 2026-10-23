@@ -58,6 +58,7 @@ class Initializer {
 		Coverage_Follow_Block::init();
 		Check_Updates_Block::init();
 		Load_More_Block::init();
+		New_Label_Block::init();
 		Coverage_Status_Block::init();
 		Update_Timer_Block::init();
 		Push_Notifications::init();

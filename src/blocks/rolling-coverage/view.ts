@@ -27,7 +27,25 @@ import {
 	readEntryName,
 	showingLatestLabel,
 } from './entry-name';
-import { isSharedReply, readSharedReply } from './shared-poll';
+import { isSharedReply, readSharedReply, startingAdCount } from './shared-poll';
+import { shareRequests } from './shared-requests';
+import { NewEntryMarks } from './new-entry-marks';
+import { carryArrival, openSpace, stopArrivalFade } from './entry-arrival';
+import { idsNewerThan, newIdsInReplace } from './new-entry-ids';
+import {
+	glideScrollTo,
+	holdAnimations,
+	newEntriesTarget,
+} from './new-entries-scroll';
+import {
+	EASE_OUT,
+	EXIT_MS,
+	FADE_CLEANUP_MS,
+	HOLD_MS,
+	isAnimating,
+	LEAVE_MS,
+	prefersReducedMotion,
+} from '../shared/motion';
 import type { PollEventDetail } from '../shared/poll-event';
 import type {
 	AdSlot,
@@ -41,13 +59,6 @@ const BLOCK_SELECTOR = '.wp-block-newspack-rolling-coverage-rolling-coverage';
 
 // How long the Check for Updates button shows the result of a check.
 const CHECK_MESSAGE_MS = 3000;
-
-const MOTION_QUERY = '(prefers-reduced-motion: no-preference)';
-
-// Matches the new-entries control's fade-out in style.scss.
-const NEW_ENTRIES_FADE_MS = 120;
-
-const FADE_CLEANUP_MS = 500;
 
 /**
  * How a poll ended: with a reply it applied, a failed request, a reload of
@@ -76,7 +87,8 @@ const ENTRY_GROUP =
 // Where an entry's closing separator sits: at the end of the entry, of its
 // entry group or Full Story Entry group, or of the group's inner container.
 // The server leaves it off the last entry and off a pinned card
-// (Rolling_Coverage_Block::shape_entry_template()).
+// (Rolling_Coverage_Block::shape_entry_template()). style.scss hides the same
+// separators above a pinned card or Full Story Entry, so keep the two in step.
 const SEPARATOR_PARENTS = [
 	':scope',
 	`:scope > ${ ENTRY_GROUP }:last-child`,
@@ -114,9 +126,6 @@ const EDGE_GAP = 24;
 // Space between the bars at the top of the viewport and what sits below them.
 const BAR_GAP = 16;
 
-// How long the linked entry's outline stays once the reader can see it.
-const LINKED_OUTLINE_MS = 4000;
-
 // The tallest the floating control is expected to be, so an entry scrolled
 // into view lands clear of it.
 const CONTROL_HEIGHT = 56;
@@ -133,7 +142,7 @@ const CONTROL_HEIGHT = 56;
 // unpublished it.
 //
 // A site gated in front of the REST API refuses a request without credentials,
-// so fetchEntries() moves the page to the browser's default on a refusal.
+// so sendEntriesRequest() moves the page to the browser's default on a refusal.
 let entriesCredentials: RequestCredentials = isConfigEnabled(
 	window.newspackRollingCoverageFrontend?.canEditPosts
 )
@@ -352,6 +361,24 @@ function ownElement(
 }
 
 /**
+ * The newest GMT date among entries and a date already known, compared as
+ * `Y-m-d H:i:s` strings.
+ *
+ * @param {HTMLElement[]} entries The entries.
+ * @param {string}        known   A date already known, or an empty string.
+ * @return {string} The newest date, or an empty string when there is none.
+ */
+function newestDateGmt( entries: HTMLElement[], known: string ): string {
+	return entries.reduce(
+		( newest, el ) =>
+			( el.dataset.dateGmt ?? '' ) > newest
+				? ( el.dataset.dateGmt ?? '' )
+				: newest,
+		known
+	);
+}
+
+/**
  * The feeds in a node, the node itself included, in document order.
  *
  * @param {Node} node Node to look in.
@@ -482,7 +509,7 @@ function topBarsBottom( block: HTMLElement ): number {
  * @param {string} url Entries URL.
  * @return {Promise<Response>} The reply, or a failed one when it came from another origin or isn't JSON.
  */
-async function fetchEntries( url: string ): Promise< Response > {
+async function sendEntriesRequest( url: string ): Promise< Response > {
 	const credentials = entriesCredentials;
 	let response = await fetch( url, { credentials } );
 	const isRefused = response.status === 401 || response.status === 403;
@@ -503,13 +530,29 @@ async function fetchEntries( url: string ): Promise< Response > {
 	return response;
 }
 
+// Every feed on the page requests entries through this, so feeds asking the
+// same URL at the same moment share one request.
+const fetchEntries = shareRequests( sendEntriesRequest );
+
+/**
+ * Entries a feed marks as new when it starts: after the jump from a shared
+ * entry to the live feed, those dated after the shared entry, except the ones
+ * the shared view showed unmarked, and the ones it showed still marked.
+ */
+type NewSince = {
+	dateGmt: string;
+	shownIds: Set< string >;
+	markedIds: Set< string >;
+};
+
 /**
  * Sets up polling and the loading of older entries for a single block instance.
  *
- * @param {HTMLElement} root The block's outer wrapper element.
+ * @param {HTMLElement} root       The block's outer wrapper element.
+ * @param {NewSince}    [newSince] Entries to mark as new once it starts.
  * @return {void}
  */
-function initBlock( root: HTMLElement ): void {
+function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	if ( root.dataset.rcInitialized === '1' ) {
 		return;
 	}
@@ -618,6 +661,32 @@ function initBlock( root: HTMLElement ): void {
 	const isLite = root.dataset.lite === '1';
 	const showsEntries = root.dataset.entries !== 'none';
 
+	const marks = isLite ? null : new NewEntryMarks( root );
+
+	if ( marks && newSince ) {
+		const shown = ownElements( root, SHOWN_ENTRIES, entriesList );
+		const newIds = new Set(
+			idsNewerThan(
+				shown.map( ( el ) => ( {
+					id: el.dataset.entryId ?? '',
+					dateGmt: el.dataset.dateGmt ?? '',
+				} ) ),
+				newSince.dateGmt
+			)
+		);
+
+		marks.markAll(
+			shown.filter( ( el ) => {
+				const id = el.dataset.entryId ?? '';
+
+				return (
+					newSince.markedIds.has( id ) ||
+					( newIds.has( id ) && ! newSince.shownIds.has( id ) )
+				);
+			} )
+		);
+	}
+
 	const coverageId = root.dataset.coverageId || '0';
 
 	let cursor = root.dataset.cursor || '';
@@ -638,7 +707,7 @@ function initBlock( root: HTMLElement ): void {
 	let isDisposed = false;
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
-	let polledCount = 0;
+	let polledCount = startingAdCount( entriesList );
 
 	// The coverage status the last poll reported.
 	let polledStatus = status;
@@ -693,6 +762,13 @@ function initBlock( root: HTMLElement ): void {
 	// cached load-more reply can predate the takedown. A poll that sends one
 	// again brings it back (see placeReturningEntry()).
 	const removedEntryIds = new Map< string, Takedown >();
+
+	// The newest date a capped feed has shown, which still holds once a
+	// takedown leaves none of those entries (see replaceEntries()).
+	let newestShownGmt = newestDateGmt(
+		ownElements( root, ':scope > [data-entry-id]', entriesList ),
+		''
+	);
 
 	const countedEntryIds = new Set< string >();
 
@@ -817,11 +893,12 @@ function initBlock( root: HTMLElement ): void {
 	 * @param {CheckState} state            The state.
 	 * @param {Object}     next             When waiting, when the next check is due.
 	 * @param {number}     next.nextCheckAt When the next check is due, in epoch milliseconds.
+	 * @param {number}     next.interval    The wait before it, in milliseconds.
 	 * @return {void}
 	 */
 	function reportCheck(
 		state: CheckState,
-		next?: { nextCheckAt: number }
+		next?: { nextCheckAt: number; interval: number }
 	): void {
 		const shown =
 			isDisposed || checksOnRequest || polledStatus !== 'active'
@@ -837,9 +914,12 @@ function initBlock( root: HTMLElement ): void {
 
 		if ( shown === 'waiting' && next ) {
 			root.dataset.nextCheckAt = String( next.nextCheckAt );
+			root.dataset.checkInterval = String( next.interval );
 			detail.nextCheckAt = next.nextCheckAt;
+			detail.interval = next.interval;
 		} else {
 			delete root.dataset.nextCheckAt;
+			delete root.dataset.checkInterval;
 		}
 
 		if ( shown !== 'checking' && checkResult ) {
@@ -882,6 +962,7 @@ function initBlock( root: HTMLElement ): void {
 		pollTimeoutId = setTimeout( poll, interval );
 		reportCheck( 'waiting', {
 			nextCheckAt: Date.now() + interval,
+			interval,
 		} );
 	}
 
@@ -1203,14 +1284,15 @@ function initBlock( root: HTMLElement ): void {
 		entriesList.appendChild( entry );
 
 		// The last entry was rendered without its closing separator, which
-		// the entry now below it brings, unless it is a pinned card. One
-		// entry can be a Full Story entry and the other not, so the
-		// separator goes where the last entry's own group would hold it.
+		// the entry now below it brings, unless it is a pinned card or a
+		// Full Story entry, which have none. One entry can be a Full Story
+		// entry and the other not, so the separator goes where the last
+		// entry's own group would hold it.
 		if (
 			last &&
 			! last.querySelector( CLOSING_SEPARATOR ) &&
 			! last.querySelector(
-				':scope > .newspack-rolling-coverage-pinned-card'
+				':scope > :is(.newspack-rolling-coverage-pinned-card, .newspack-rolling-coverage-breakout-entry)'
 			)
 		) {
 			for ( const parent of SEPARATOR_PARENTS ) {
@@ -1324,13 +1406,19 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Removes the oldest entries beyond the cap of a capped feed, and stops
-	 * watching them for being seen.
+	 * watching them for being seen. Making room for entries arriving at the
+	 * top, an entry that was already shown stays to close its space as they
+	 * open theirs, at their pace (see arrive()); until it goes it can't be
+	 * focused or read, and the script no longer finds it by its ID.
 	 *
-	 * @return {void}
+	 * @param {Element[]} [arriving] Elements just inserted at the top.
+	 * @return {HTMLElement[]} The entries left to close their space.
 	 */
-	function trimToLatestCap(): void {
+	function trimToLatestCap( arriving?: Element[] ): HTMLElement[] {
+		const leaving: HTMLElement[] = [];
+
 		if ( ! latestCap ) {
-			return;
+			return leaving;
 		}
 
 		const entries = entriesList.querySelectorAll< HTMLElement >(
@@ -1338,38 +1426,68 @@ function initBlock( root: HTMLElement ): void {
 		);
 
 		for ( let i = entries.length - 1; i >= latestCap; i-- ) {
-			unobserveEntry( entries[ i ] );
-			entries[ i ].remove();
+			const entry = entries[ i ];
+
+			unobserveEntry( entry );
+			marks?.release( entry.dataset.entryId ?? '' );
+
+			if ( ! arriving || arriving.includes( entry ) || isLite ) {
+				entry.remove();
+				continue;
+			}
+
+			entry.inert = true;
+			entry.setAttribute( 'aria-hidden', 'true' );
+			delete entry.dataset.entryId;
+			leaving.push( entry );
 		}
+
+		return leaving;
 	}
 
 	/**
-	 * Fades elements in, with opacity only, so the text never moves.
+	 * Fades elements in, with opacity only. A Lite Site page has no motion,
+	 * so there it does nothing.
 	 *
 	 * @param {Element[]} elements    Elements that were just added.
 	 * @param {string}    [className] Class that runs the fade, `is-entering` by default.
 	 * @return {void}
 	 */
 	function fadeIn( elements: Element[], className = 'is-entering' ): void {
-		if ( ! window.matchMedia( MOTION_QUERY ).matches ) {
+		if ( isLite ) {
 			return;
 		}
 
 		elements.forEach( ( element ) => {
+			let cleared = false;
 			const onAnimationEnd = ( event: Event ) => {
 				if ( event.target === element ) {
 					clear();
 				}
 			};
 			const clear = () => {
+				cleared = true;
 				element.classList.remove( className );
 				element.removeEventListener( 'animationend', onAnimationEnd );
+			};
+			// The animation never ends on an element that isn't rendered, but
+			// one held for the new-entries scroll, or in a background tab, is
+			// still to play.
+			const clearIfStill = () => {
+				if ( cleared ) {
+					return;
+				}
+
+				if ( isAnimating( element ) ) {
+					setTimeout( clearIfStill, FADE_CLEANUP_MS );
+				} else {
+					clear();
+				}
 			};
 
 			element.classList.add( className );
 			element.addEventListener( 'animationend', onAnimationEnd );
-			// The animation never ends on an element that isn't rendered.
-			setTimeout( clear, FADE_CLEANUP_MS );
+			setTimeout( clearIfStill, FADE_CLEANUP_MS );
 		} );
 	}
 
@@ -1388,19 +1506,12 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
-	 * Hides the new-entries control, fading it out first unless the reader
-	 * prefers reduced motion.
+	 * Hides the new-entries control, fading it out first.
 	 *
 	 * @return {void}
 	 */
 	function hideNewEntriesControl(): void {
 		if ( ! newEntriesControl || newEntriesControl.hidden ) {
-			return;
-		}
-
-		if ( ! window.matchMedia( MOTION_QUERY ).matches ) {
-			cancelNewEntriesHide();
-			newEntriesControl.hidden = true;
 			return;
 		}
 
@@ -1414,7 +1525,36 @@ function initBlock( root: HTMLElement ): void {
 		newEntriesHideTimeoutId = setTimeout( () => {
 			cancelNewEntriesHide();
 			control.hidden = true;
-		}, NEW_ENTRIES_FADE_MS );
+		}, EXIT_MS );
+	}
+
+	/**
+	 * Brings in elements just inserted at the top of the list: their space
+	 * opens, so the entries below glide down, and the entries among them fade
+	 * in as it opens (see openSpace()). Entries a capped feed drops to make
+	 * room close their space over the same time, so the feed's height moves
+	 * one way only. Where the space can't open (under reduced motion, or in a
+	 * row or grid layout), the entries only fade in and the dropped ones go at
+	 * once. Call it once the entries are marked, since a New label adds to
+	 * their height. A Lite Site page has no motion, so there it does nothing.
+	 *
+	 * @param {HTMLElement[]} elements  Elements just inserted, entries and ads.
+	 * @param {HTMLElement[]} [leaving] Entries dropped to make room for them.
+	 * @return {void}
+	 */
+	function arrive( elements: HTMLElement[], leaving?: HTMLElement[] ): void {
+		if ( isLite ) {
+			return;
+		}
+
+		fadeIn(
+			openSpace(
+				elements,
+				elements.filter( ( el ) => el.matches( '[data-entry-id]' ) ),
+				entriesList,
+				leaving
+			)
+		);
 	}
 
 	/**
@@ -1456,7 +1596,7 @@ function initBlock( root: HTMLElement ): void {
 			observeEntry( el );
 
 			if ( isPinned ) {
-				pinnedEls.push( el );
+				pinnedEls.push( el, ...( adEl ? [ adEl ] : [] ) );
 				insertPinned( el );
 				el.after( ...( adEl ? [ adEl ] : [] ) );
 			} else {
@@ -1474,11 +1614,22 @@ function initBlock( root: HTMLElement ): void {
 		];
 
 		entriesList.insertBefore( fragment, firstUnpinnedEntry() );
-		fadeIn(
-			insertedEls.filter( ( el ) => el.matches( '[data-entry-id]' ) )
-		);
-		trimToLatestCap();
+		const leaving = trimToLatestCap( insertedEls );
 		dropLastSeparator();
+
+		marks?.markAll(
+			entries
+				.filter( ( { el, isNew } ) => isNew && el.isConnected )
+				.map( ( { el } ) => el )
+		);
+
+		arrive(
+			insertedEls.filter(
+				( el ): el is HTMLElement =>
+					el instanceof HTMLElement && el.isConnected
+			),
+			leaving
+		);
 
 		const shown = Math.min( entries.length, latestCap || entries.length );
 
@@ -1491,14 +1642,26 @@ function initBlock( root: HTMLElement ): void {
 
 	/**
 	 * Swaps a capped feed's entries for the newest ones a poll sent whole,
-	 * leaving out entries taken down, and keeping the arrival of those it
-	 * already showed. An entry taken down earlier that the reply lists is
-	 * back.
+	 * leaving out entries taken down, and keeping the arrival and the new
+	 * mark of those it already showed. An entry taken down earlier that the
+	 * reply lists is back. Entries the feed didn't show fade in, and those
+	 * listed above the first one it already showed are marked as new (see
+	 * newIdsInReplace()).
 	 *
 	 * @param {PollEntry[]} entries Removals, then the newest entries, newest first.
 	 * @return {void}
 	 */
 	function replaceEntries( entries: PollEntry[] ): void {
+		const returningIds = new Set(
+			entries
+				.filter(
+					( entry ) =>
+						entry.type !== 'remove' &&
+						removedEntryIds.has( String( entry.id ) )
+				)
+				.map( ( entry ) => String( entry.id ) )
+		);
+
 		entries.forEach( ( entry ) => {
 			if ( isSafeEntryId( entry.id ) ) {
 				if ( entry.type === 'remove' ) {
@@ -1521,7 +1684,12 @@ function initBlock( root: HTMLElement ): void {
 				el.dataset.arrival,
 			] )
 		);
+		const shownById = new Map(
+			shownEntries.map( ( el ) => [ el.dataset.entryId ?? '', el ] )
+		);
 		const fragment = document.createDocumentFragment();
+
+		newestShownGmt = newestDateGmt( shownEntries, newestShownGmt );
 
 		const kept = entries
 			.filter(
@@ -1531,11 +1699,7 @@ function initBlock( root: HTMLElement ): void {
 					! removedEntryIds.has( String( entry.id ) )
 			)
 			.slice( 0, latestCap || entries.length );
-		const firstShown = kept.findIndex( ( entry ) =>
-			arrivals.has( String( entry.id ) )
-		);
-
-		arrivedCount += firstShown === -1 ? kept.length : firstShown;
+		const keptEls: HTMLElement[] = [];
 
 		kept.forEach( ( entry ) => {
 			const el = parseElement( sanitizeHtml( entry.html ) );
@@ -1550,12 +1714,50 @@ function initBlock( root: HTMLElement ): void {
 
 			observeEntry( el );
 			fragment.appendChild( el );
+			keptEls.push( el );
 		} );
 
+		const keptIds = keptEls.map( ( el ) => el.dataset.entryId ?? '' );
+		const newIds = new Set(
+			newIdsInReplace(
+				keptIds,
+				new Set( keptIds.filter( ( id ) => arrivals.has( id ) ) ),
+				returningIds,
+				newestShownGmt
+					? new Set(
+							idsNewerThan(
+								keptEls.map( ( el ) => ( {
+									id: el.dataset.entryId ?? '',
+									dateGmt: el.dataset.dateGmt ?? '',
+								} ) ),
+								newestShownGmt
+							)
+						)
+					: null
+			)
+		);
+
+		arrivedCount += newIds.size;
+
 		shownEntries.forEach( ( el ) => {
+			const id = el.dataset.entryId ?? '';
+
+			if (
+				! keptEls.some( ( keptEl ) => keptEl.dataset.entryId === id )
+			) {
+				marks?.forget( id );
+			}
+
 			unobserveEntry( el );
 			el.remove();
 		} );
+
+		// Entries still closing or fading out have lost their ID, and would sit above the rebuilt list.
+		ownElements(
+			root,
+			':scope > .newspack-rolling-coverage-entry:not([data-entry-id])',
+			entriesList
+		).forEach( ( el ) => el.remove() );
 
 		if ( fragment.childElementCount > 0 ) {
 			ownElement(
@@ -1567,6 +1769,23 @@ function initBlock( root: HTMLElement ): void {
 
 		entriesList.appendChild( fragment );
 		dropLastSeparator();
+
+		fadeIn(
+			keptEls.filter(
+				( el ) => ! arrivals.has( el.dataset.entryId ?? '' )
+			)
+		);
+		marks?.markAll(
+			keptEls.filter( ( el ) => newIds.has( el.dataset.entryId ?? '' ) ),
+			keptEls.filter( ( el ) => ! newIds.has( el.dataset.entryId ?? '' ) )
+		);
+		keptEls.forEach( ( el ) => {
+			const shown = shownById.get( el.dataset.entryId ?? '' );
+
+			if ( shown ) {
+				carryArrival( shown, el );
+			}
+		} );
 	}
 
 	/**
@@ -1631,8 +1850,8 @@ function initBlock( root: HTMLElement ): void {
 			takedown = 'shown';
 			unobserveEntry( existing );
 			linkedObserver?.unobserve( existing );
-			existing.remove();
-			dropLastSeparator();
+			marks?.forget( entryId );
+			leave( existing );
 		}
 
 		forgetOffPageEntry( entryId );
@@ -1642,6 +1861,63 @@ function initBlock( root: HTMLElement ): void {
 			entryId,
 			removedEntryIds.get( entryId ) ?? takedown
 		);
+	}
+
+	/**
+	 * Takes a taken-down entry off the page. One the reader can see fades out
+	 * first; while it fades it can't be focused or read, and the script no
+	 * longer finds it by its ID. One off screen, under reduced motion or on a
+	 * Lite Site page goes at once.
+	 *
+	 * @param {HTMLElement} el The entry.
+	 * @return {void}
+	 */
+	function leave( el: HTMLElement ): void {
+		let isGone = false;
+		const remove = () => {
+			if ( ! isGone ) {
+				isGone = true;
+				el.remove();
+				dropLastSeparator();
+			}
+		};
+		const rect = el.getBoundingClientRect();
+
+		if (
+			isLite ||
+			prefersReducedMotion() ||
+			rect.bottom <= 0 ||
+			rect.top >= window.innerHeight
+		) {
+			remove();
+			return;
+		}
+
+		el.inert = true;
+		el.setAttribute( 'aria-hidden', 'true' );
+		delete el.dataset.entryId;
+		el.classList.remove( 'is-entering', 'is-updated' );
+
+		// The arrival fade outranks the class's animation, so an entry taken down mid-arrival fades out from where it got to.
+		const arrivedOpacity = stopArrivalFade( el );
+
+		if ( arrivedOpacity !== null ) {
+			el.animate( [ { opacity: arrivedOpacity }, { opacity: 0 } ], {
+				duration: LEAVE_MS,
+				easing: EASE_OUT,
+				fill: 'forwards',
+			} ).finished.then( remove, remove );
+			return;
+		}
+
+		el.classList.add( 'is-leaving' );
+		el.addEventListener( 'animationend', ( event ) => {
+			if ( event.target === el ) {
+				remove();
+			}
+		} );
+		// The animation never ends on an element that isn't rendered.
+		setTimeout( remove, FADE_CLEANUP_MS );
 	}
 
 	/**
@@ -1685,12 +1961,13 @@ function initBlock( root: HTMLElement ): void {
 	 * it: among the pinned entries, most recently edited first. It can be
 	 * older than the entries loaded, waiting behind the new-entries control,
 	 * or newer than the shared entry. Load more then skips it as an entry
-	 * already shown.
+	 * already shown. One published pinned shows marked as new.
 	 *
-	 * @param {HTMLElement} el The pinned entry, as the poll sent it.
+	 * @param {HTMLElement} el      The pinned entry, as the poll sent it.
+	 * @param {boolean}     [isNew] Whether it was published since the page loaded.
 	 * @return {void}
 	 */
-	function showPinnedEntry( el: HTMLElement ): void {
+	function showPinnedEntry( el: HTMLElement, isNew = false ): void {
 		forgetOffPageEntry( el.dataset.entryId ?? '' );
 
 		// Without an arrival, the seen event would count the entry as part of
@@ -1707,6 +1984,12 @@ function initBlock( root: HTMLElement ): void {
 		insertPinned( el );
 		observeEntry( el );
 		dropLastSeparator();
+
+		if ( isNew ) {
+			marks?.mark( el );
+		}
+
+		arrive( [ el ] );
 	}
 
 	const cleanupFns: Array< () => void > = [];
@@ -1731,6 +2014,7 @@ function initBlock( root: HTMLElement ): void {
 		reportCheck( 'idle' );
 		stopRelativeDates();
 		entrySeenObserver?.disconnect();
+		marks?.destroy();
 		cleanupFns.forEach( ( fn ) => fn() );
 		cleanupFns.length = 0;
 		feedStops.delete( root );
@@ -1740,17 +2024,25 @@ function initBlock( root: HTMLElement ): void {
 	feedStops.set( root, cleanup );
 
 	/**
+	 * The space left above what the page scrolls to: below the bars at the
+	 * top of the viewport, or from the viewport's edge without any.
+	 *
+	 * @return {number} The space in pixels.
+	 */
+	function scrollOffset(): number {
+		const bars = topBarsBottom( root );
+
+		return bars > 0 ? bars + BAR_GAP : EDGE_GAP;
+	}
+
+	/**
 	 * Where the page scrolls to show the top of the block.
 	 *
 	 * @return {number} The vertical scroll position.
 	 */
 	function blockTopY(): number {
-		const bars = topBarsBottom( root );
-
 		return (
-			root.getBoundingClientRect().top +
-			window.scrollY -
-			( bars > 0 ? bars + BAR_GAP : EDGE_GAP )
+			root.getBoundingClientRect().top + window.scrollY - scrollOffset()
 		);
 	}
 
@@ -1781,8 +2073,20 @@ function initBlock( root: HTMLElement ): void {
 				isInView &&
 				document.visibilityState === 'visible'
 			) {
-				fadeTimeoutId = setTimeout( stop, LINKED_OUTLINE_MS );
+				fadeTimeoutId = setTimeout( stop, HOLD_MS );
 			}
+		};
+
+		const onVisibility = () => {
+			if (
+				document.visibilityState !== 'visible' &&
+				fadeTimeoutId !== null
+			) {
+				clearTimeout( fadeTimeoutId );
+				fadeTimeoutId = null;
+			}
+
+			startWhenSeen();
 		};
 
 		const observer = new IntersectionObserver(
@@ -1798,15 +2102,15 @@ function initBlock( root: HTMLElement ): void {
 			root.dataset.linkedFaded = '';
 			observer.disconnect();
 			linkedObserver = null;
-			document.removeEventListener( 'visibilitychange', startWhenSeen );
+			document.removeEventListener( 'visibilitychange', onVisibility );
 		}
 
 		observer.observe( linked );
-		document.addEventListener( 'visibilitychange', startWhenSeen );
+		document.addEventListener( 'visibilitychange', onVisibility );
 
 		cleanupFns.push( () => {
 			observer.disconnect();
-			document.removeEventListener( 'visibilitychange', startWhenSeen );
+			document.removeEventListener( 'visibilitychange', onVisibility );
 
 			if ( fadeTimeoutId !== null ) {
 				clearTimeout( fadeTimeoutId );
@@ -2155,7 +2459,8 @@ function initBlock( root: HTMLElement ): void {
 	/**
 	 * Turns the shared view into the live feed: takes over the live block's
 	 * entries, cursors, status, polling mode and control, then starts the
-	 * block again on the same element, as a freshly loaded normal view.
+	 * block again on the same element, as a freshly loaded normal view. The
+	 * entries the shared view counted as newer come in marked as new.
 	 *
 	 * @param {HTMLElement} live The live block, from the fetched page.
 	 * @param {string}      url  The live feed's URL.
@@ -2171,6 +2476,16 @@ function initBlock( root: HTMLElement ): void {
 		const control = liveControl
 			? parseElement( sanitizeHtml( liveControl.outerHTML ) )
 			: null;
+		const shownIds = ownElements( root, SHOWN_ENTRIES, entriesList ).map(
+			( el ) => el.dataset.entryId ?? ''
+		);
+		const newerEntries: NewSince = {
+			dateGmt: sharedEntryDate() ?? '',
+			shownIds: new Set( shownIds ),
+			markedIds: new Set(
+				shownIds.filter( ( id ) => marks?.isHeld( id ) )
+			),
+		};
 
 		cleanup();
 
@@ -2207,7 +2522,7 @@ function initBlock( root: HTMLElement ): void {
 
 		window.history.replaceState( window.history.state, '', url );
 
-		initBlock( root );
+		initBlock( root, newerEntries );
 	}
 
 	/**
@@ -2329,14 +2644,26 @@ function initBlock( root: HTMLElement ): void {
 			const entries = takePendingEntries();
 			hideNewEntriesControl();
 
-			const targetY = blockTopY();
+			// The arrival waits for the page to get there, so the reader sees
+			// it, and nothing moves under the scroll.
+			const playArrival = holdAnimations( root, () =>
+				insertNewEntries( entries )
+			);
+			const added = entries.map( ( { el } ) => el );
+			const target = newEntriesTarget(
+				root,
+				added,
+				stickyCards(),
+				scrollOffset()
+			);
+			const focused =
+				target.entry ?? added.find( ( el ) => el.isConnected );
 
-			insertNewEntries( entries );
+			if ( focused ) {
+				focusFromScript( focused, { preventScroll: true } );
+			}
 
-			window.scrollTo( {
-				top: targetY,
-				behavior: 'smooth',
-			} );
+			glideScrollTo( target.top, playArrival );
 		};
 		newEntriesLink.addEventListener( 'click', onNewEntriesClick );
 		cleanupFns.push( () =>
@@ -2537,6 +2864,7 @@ function initBlock( root: HTMLElement ): void {
 						adEl: entry.adHtml
 							? parseElement( sanitizeHtml( entry.adHtml ) )
 							: null,
+						isNew: false,
 					} );
 				}
 
@@ -2591,7 +2919,6 @@ function initBlock( root: HTMLElement ): void {
 				}
 
 				existing.replaceWith( entryEl );
-				fadeIn( [ entryEl ], 'is-updated' );
 
 				// A pinned entry belongs above every unpinned one, in the
 				// Pinned group where the layout has one, most recently edited
@@ -2609,12 +2936,19 @@ function initBlock( root: HTMLElement ): void {
 					// A load-more reply cached before the unpin still has it pinned.
 					offPageUpdates.set( String( entry.id ), entry.html );
 					linkedObserver?.unobserve( entryEl );
+					marks?.forget( String( entry.id ) );
 					entryEl.remove();
 					return;
 				}
 
+				marks?.adopt( entryEl );
 				observeEntry( entryEl );
 				dropLastSeparator();
+
+				// After the label and the place are settled, so the carried open measures the entry as it shows.
+				if ( ! carryArrival( existing, entryEl ) ) {
+					fadeIn( [ entryEl ], 'is-updated' );
+				}
 
 				return;
 			}
@@ -2645,7 +2979,12 @@ function initBlock( root: HTMLElement ): void {
 				? parseElement( sanitizeHtml( entry.adHtml ) )
 				: null;
 
-			newEntries.push( { el: entryEl, adSlot: entry.adSlot, adEl } );
+			newEntries.push( {
+				el: entryEl,
+				adSlot: entry.adSlot,
+				adEl,
+				isNew: entry.type === 'insert',
+			} );
 		} );
 
 		if ( newEntries.length === 0 ) {
@@ -2658,7 +2997,7 @@ function initBlock( root: HTMLElement ): void {
 			const countedBefore = countedEntryIds.size;
 			const sharedDate = sharedEntryDate();
 
-			newEntries.forEach( ( { el } ) => {
+			newEntries.forEach( ( { el, isNew } ) => {
 				const entryId = el.dataset.entryId;
 				const date = el.dataset.dateGmt;
 
@@ -2669,7 +3008,7 @@ function initBlock( root: HTMLElement ): void {
 				// Pinned by the time it arrived: a fresh page lists it with the
 				// pinned entries and leaves it out of the count.
 				if ( el.hasAttribute( 'data-pinned' ) ) {
-					showPinnedEntry( el );
+					showPinnedEntry( el, isNew );
 					return;
 				}
 
@@ -2687,6 +3026,7 @@ function initBlock( root: HTMLElement ): void {
 					if ( ! listsBelowBound( el ) && placeUnpinnedEntry( el ) ) {
 						observeEntry( el );
 						dropLastSeparator();
+						fadeIn( [ el ] );
 					} else {
 						offPageUpdates.set( entryId, el.outerHTML );
 					}
@@ -3087,7 +3427,7 @@ function initBlock( root: HTMLElement ): void {
 	 * CDN skip the request, so the shared reply would only cost the server
 	 * its whole window, where the page's cursor costs it one marker read
 	 * while nothing changes. A page that takes credentials after a refusal
-	 * (see fetchEntries()) gives up the shared reply from its next poll on,
+	 * (see sendEntriesRequest()) gives up the shared reply from its next poll on,
 	 * even where its requests could be cached.
 	 *
 	 * @return {Promise<PollResponse|null>} Reply to apply.
@@ -4051,7 +4391,9 @@ function initBlock( root: HTMLElement ): void {
 	}
 }
 
-document.querySelectorAll< HTMLElement >( BLOCK_SELECTOR ).forEach( initBlock );
+document
+	.querySelectorAll< HTMLElement >( BLOCK_SELECTOR )
+	.forEach( ( feed ) => initBlock( feed ) );
 
 // Feeds can sit in an entry's content, so they also reach the page after load,
 // in entries a poll, load more or the jump to the live feed brings in, and

@@ -1,5 +1,6 @@
 @use "~@wordpress/base-styles/colors" as wp-colors;
 @use "~@wordpress/base-styles/variables" as wp-vars;
+@use "../../../blocks/shared/motion";
 
 .newspack-rolling-coverage-slack-settings {
 	max-width: var(--newspack-wizard-section-width, 1006px);
@@ -53,16 +54,15 @@
 	position: relative;
 	width: wp-vars.$grid-unit-10;
 
-	&::after {
-		animation: newspack-rolling-coverage-status-pulse 2s ease-out infinite;
-		background-color: inherit;
-		border-radius: inherit;
-		content: "";
-		inset: 0;
-		position: absolute;
+	@media (prefers-reduced-motion: no-preference) {
 
-		@media (prefers-reduced-motion: reduce) {
-			animation: none;
+		&::after {
+			animation: newspack-rolling-coverage-status-pulse 2s motion.$ease-out infinite;
+			background-color: inherit;
+			border-radius: inherit;
+			content: "";
+			inset: 0;
+			position: absolute;
 		}
 	}
 }
@@ -74,8 +74,9 @@
 		transform: scale(1);
 	}
 
+	70%,
 	100% {
 		opacity: 0;
-		transform: scale(2.5);
+		transform: scale(2);
 	}
 }
