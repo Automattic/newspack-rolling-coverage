@@ -2,7 +2,7 @@
 
 ## Rendering
 
-`Update_Timer_Block::render_block()` (`includes/blocks/class-update-timer-block.php`) resolves the coverage with `Page_Coverages::coverage_for_block()`, as Coverage Status and Follow Coverage do: the surrounding feed's context, else a followable chosen coverage, else the page's first full feed or a breakout post's coverage. It renders nothing in RSS feeds, on Lite Site renders (`Lite_Feed::is_lite_render()`, which prints no view script), without a coverage, or for an ended one. Otherwise it renders the wrapper `hidden`, with `data-coverage-id`, an 18-unit SVG spinner (`pathLength="100"`, so the stylesheet draws its half arc as `50 50`) and an empty text span. Nothing shows without JavaScript. The feed preloads the block's style and view script (next to Coverage Status), so a timer in an entry that a poll or load more brings in has them.
+`Update_Timer_Block::render_block()` (`includes/blocks/class-update-timer-block.php`) resolves the coverage with `Page_Coverages::coverage_for_block()`, as Coverage Status and Follow Coverage do: the surrounding feed's context, else a followable chosen coverage, else the page's first full feed or a breakout post's coverage. It renders nothing in RSS feeds, on Lite Site renders (`Lite_Feed::is_lite_render()`, which prints no view script), without a coverage, or for an ended one. Otherwise it renders the wrapper `hidden`, with `data-coverage-id`, an 18-unit SVG ring (a track circle, then the `__ring-arc` circle with `pathLength="100"`, so the stylesheet and the view script measure the arc in hundredths) and an empty text span. Nothing shows without JavaScript. The feed preloads the block's style and view script (next to Coverage Status), so a timer in an entry that a poll or load more brings in has them.
 
 Inside a feed it is a coverage-level item (`Entry_Bindings::is_coverage_item()`), so it renders once with the feed's coverage, and the editor keeps it out of entries and the pinned card (`feed-insertion.ts`, with Follow Coverage and Check for Updates).
 
@@ -14,9 +14,19 @@ The block has no polling of its own. It follows the Rolling Coverage feed's chec
 - **Load order.** On load each timer reads its feed's root attributes, so it doesn't matter which view script runs first.
 - **States.** The timer copies the feed's state to its own `data-check-state` and is hidden while `idle`. `checking` shows "Checking…". `waiting` ticks the text every 250ms; a result carried by the report replaces the countdown text for three seconds when it brought entries or failed; a check that found nothing shows no result.
 
-## The spinner
+## The ring
 
-It copies the Newspack UI loading spinner rather than using it, since the plugin runs without Newspack: `currentcolor`, stroke 1.5 of 18, no track, a half arc rotating every 900ms. It turns whenever the timer shows, in the editor too; only the text follows the feed's state. The `showSpinner` attribute (Settings > Spinner, default `true`) leaves the SVG out of the render and the preview when `false`. With `prefers-reduced-motion: reduce` the stylesheet hides it, since a spinner that runs for as long as the coverage is live can't otherwise be paused.
+It copies the look of the Newspack UI spinner (the `spinner` mixin in newspack-plugin's `src/newspack-ui/scss/_mixins.scss`) rather than using `.newspack-ui__spinner`, a full overlay, since the plugin runs without Newspack: a 2-unit stroke of 18 in `currentcolor` over a track at 30% opacity, scaling with the text at `1.125em`. It is `aria-hidden`: the text carries the same information.
+
+`syncRing()` (`ring.ts`) moves it with the feed's state, from `render()` on every report. Both motions use the Web Animations API, so the view script can start the countdown part way through and stop either at once.
+
+- **`waiting`:** the arc's `stroke-dashoffset` runs from 100 to 0, linear, over the feed's `data-check-interval`, starting at the share of the wait already gone, so the ring is full when the check is due. A report of the same wait keeps the running fill.
+- **`checking`:** the fill stops, the stylesheet draws a quarter arc and the SVG turns once every `SPIN_MS` (900ms, `src/blocks/shared/motion.ts`, the Newspack UI spinner's speed), linear, until the next report.
+- **`idle`:** nothing runs. The feed reports `idle` while the tab is hidden and when the coverage pauses or ends, and the timer is hidden then too.
+
+With `prefers-reduced-motion: reduce` the ring never turns: while checking it shows the full ring, still. The countdown still fills, since it is a slow progress indicator that changes with the text rather than movement across the page.
+
+The editor preview shows the ring still and empty, as at the start of a wait, beside the full interval. The `showSpinner` attribute (Settings > Ring, default `true`) leaves the SVG out of the render and the preview when `false`.
 
 ## Labels
 

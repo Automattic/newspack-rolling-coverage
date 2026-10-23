@@ -1,6 +1,6 @@
 # Update Timer
 
-Shows readers when a live coverage next checks for new entries, and what each check found. "Next check in 7s" counts down to the check, with a small spinner turning beside it. While the check runs, it reads "Checking…". When the check brings new entries, it reads "2 new entries" for a few seconds, or "Couldn’t check" if it fails. Otherwise the countdown starts again straight away.
+Shows readers when a live coverage next checks for new entries, and what each check found. "Next check in 7s" counts down to the check, with a small ring beside it that fills as the check nears. While the check runs, it reads "Checking…" and the ring spins. When the check brings new entries, it reads "2 new entries" for a few seconds, or "Couldn’t check" if it fails. Otherwise the countdown starts again straight away.
 
 ## Where to put it
 
@@ -26,7 +26,7 @@ The Settings panel holds one setting.
 
 | Setting | Options | What it does |
 | --- | --- | --- |
-| Spinner | Show, Hide | "Turns beside the countdown. Hidden for readers who ask their device for reduced motion." Hide leaves the text on its own. Show is the default. |
+| Ring | Show, Hide | "Fills beside the countdown until the next check, then spins while it runs. It doesn’t spin for readers who ask their device for reduced motion." Hide leaves the text on its own. Show is the default. |
 
 ## When it doesn't appear
 
@@ -41,12 +41,12 @@ It doesn't appear on Lite Site's text-only pages.
 
 ## Styling
 
-The spinner and the text take the block's text color. Typography settings change the text size, and the spinner scales with it. The space between them follows the theme's small spacing step. The Dimensions settings control margin.
+The ring and the text take the block's text color, with the ring's track at 30% of it. Typography settings change the text size, and the ring scales with it. The space between them follows the theme's small spacing step. The Dimensions settings control margin.
 
 ## What readers see
 
-- The seconds count down once a second. Readers who ask their device for reduced motion see the text without the spinner.
+- The seconds count down once a second, and the ring fills steadily over the same wait. Readers who ask their device for reduced motion see the ring fill but never spin: while the check runs it shows full and still.
 - "Entries" follows the entry name set in Rolling Coverage > All Coverages > Settings, for example "2 new updates".
 - Inside an Alert layout, or beside any feed that shows no entries, the timer never shows a count, since it can't tell what arrived.
-- Screen readers don't hear the countdown. The Rolling Coverage block already announces new entries.
+- Screen readers don't hear the countdown or the ring. The Rolling Coverage block already announces new entries.
 - If the site sets a minimum poll interval longer than the block's Poll interval, the timer counts down the longer one, as the page does.
