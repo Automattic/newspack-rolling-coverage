@@ -31,7 +31,7 @@
 	transform-box: fill-box;
 	transform-origin: center;
 
-	[data-check-state="checking"] & {
+	.wp-block-newspack-rolling-coverage-update-timer[data-check-state="checking"] & {
 		stroke-dasharray: 25 75;
 		stroke-dashoffset: 0;
 	}
@@ -39,7 +39,7 @@
 
 @media (prefers-reduced-motion: reduce) {
 
-	[data-check-state="checking"] .newspack-rolling-coverage-update-timer__ring-arc {
+	.wp-block-newspack-rolling-coverage-update-timer[data-check-state="checking"] .newspack-rolling-coverage-update-timer__ring-arc {
 		stroke-dasharray: 100 0;
 	}
 }

@@ -77,13 +77,14 @@ describe( 'syncRing', () => {
 		);
 		expect( fills[ 0 ].currentTime ).toBe( 10000 );
 
-		syncRing( svg, idleRing(), waiting( NOW + 45000, 45000 ), NOW );
+		syncRing( svg, motion, waiting( NOW + 20000, 45000 ), NOW );
 
+		expect( fills[ 0 ].cancel ).toHaveBeenCalled();
 		expect( fill ).toHaveBeenLastCalledWith(
 			expect.anything(),
 			expect.objectContaining( { duration: 45000 } )
 		);
-		expect( fills[ 1 ].currentTime ).toBe( 0 );
+		expect( fills[ 1 ].currentTime ).toBe( 25000 );
 	} );
 
 	it( 'keeps the fill running when the same wait is reported again', () => {
@@ -124,6 +125,32 @@ describe( 'syncRing', () => {
 
 		expect( spin ).not.toHaveBeenCalled();
 		expect( fill ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	it( 'empties the ring for a wait without an interval', () => {
+		const { svg, fill, fills } = ring();
+
+		syncRing( svg, motion, waiting( NOW + 30000 ), NOW );
+		syncRing( svg, motion, waiting( NOW + 60000, 0 ), NOW + 1000 );
+
+		expect( fills[ 0 ].cancel ).toHaveBeenCalled();
+		expect( fill ).toHaveBeenCalledTimes( 1 );
+		expect( motion ).toEqual( idleRing() );
+	} );
+
+	it( 'runs nothing where the arc has no Web Animations support', () => {
+		const { svg, spin } = ring();
+		const arc = svg.querySelector( 'circle' ) as SVGElement;
+
+		arc.animate = undefined as unknown as typeof arc.animate;
+
+		expect( () =>
+			syncRing( svg, motion, waiting( NOW + 30000 ), NOW )
+		).not.toThrow();
+		syncRing( svg, motion, checking, NOW + 30000 );
+
+		expect( spin ).not.toHaveBeenCalled();
+		expect( motion ).toEqual( idleRing() );
 	} );
 
 	it( 'runs nothing while idle, as in a hidden tab or a paused coverage', () => {

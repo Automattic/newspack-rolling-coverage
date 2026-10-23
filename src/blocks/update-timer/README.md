@@ -26,7 +26,7 @@ The Settings panel holds one setting.
 
 | Setting | Options | What it does |
 | --- | --- | --- |
-| Ring | Show, Hide | "Fills beside the countdown until the next check, then spins while it runs. It doesn’t spin for readers who ask their device for reduced motion." Hide leaves the text on its own. Show is the default. |
+| Ring | Show, Hide | "Fills beside the countdown until the next check, then spins while the check runs. It doesn’t spin for readers who ask their device for reduced motion." Hide leaves the text on its own. Show is the default. |
 
 ## When it doesn't appear
 

@@ -243,7 +243,7 @@ export default function Edit( {
 							} )
 						}
 						help={ __(
-							'Fills beside the countdown until the next check, then spins while it runs. It doesn’t spin for readers who ask their device for reduced motion.',
+							'Fills beside the countdown until the next check, then spins while the check runs. It doesn’t spin for readers who ask their device for reduced motion.',
 							'newspack-rolling-coverage'
 						) }
 					>

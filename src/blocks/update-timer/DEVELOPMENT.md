@@ -16,12 +16,12 @@ The block has no polling of its own. It follows the Rolling Coverage feed's chec
 
 ## The ring
 
-It copies the look of the Newspack UI spinner (the `spinner` mixin in newspack-plugin's `src/newspack-ui/scss/_mixins.scss`) rather than using `.newspack-ui__spinner`, a full overlay, since the plugin runs without Newspack: a 2-unit stroke of 18 in `currentcolor` over a track at 30% opacity, scaling with the text at `1.125em`. It is `aria-hidden`: the text carries the same information.
+The plugin draws its own ring, since it runs without Newspack: a 2-unit stroke of 18 in `currentcolor` over a track at 30% opacity, scaling with the text at `1.125em`, that turns once every 900ms while checking. It is `aria-hidden`: the text carries the same information.
 
 `syncRing()` (`ring.ts`) moves it with the feed's state, from `render()` on every report. Both motions use the Web Animations API, so the view script can start the countdown part way through and stop either at once.
 
-- **`waiting`:** the arc's `stroke-dashoffset` runs from 100 to 0, linear, over the feed's `data-check-interval`, starting at the share of the wait already gone, so the ring is full when the check is due. A report of the same wait keeps the running fill.
-- **`checking`:** the fill stops, the stylesheet draws a quarter arc and the SVG turns once every `SPIN_MS` (900ms, `src/blocks/shared/motion.ts`, the Newspack UI spinner's speed), linear, until the next report.
+- **`waiting`:** the arc's `stroke-dashoffset` runs from 100 to 0, linear, over the feed's `data-check-interval`, starting at the share of the wait already gone, so the ring is full when the check is due. A report of the same wait keeps the running fill; a wait without an interval leaves the ring empty.
+- **`checking`:** the fill stops, the stylesheet draws a quarter arc, keyed to the timer's own `data-check-state` so a timer in a feed nested in another feed's entry doesn't follow the outer feed and the SVG turns once every `SPIN_MS` (900ms, `src/blocks/shared/motion.ts`), linear, until the next report.
 - **`idle`:** nothing runs. The feed reports `idle` while the tab is hidden and when the coverage pauses or ends, and the timer is hidden then too.
 
 With `prefers-reduced-motion: reduce` the ring never turns: while checking it shows the full ring, still. The countdown still fills, since it is a slow progress indicator that changes with the text rather than movement across the page.

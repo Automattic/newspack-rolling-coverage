@@ -98,7 +98,12 @@ export function syncRing(
 		return;
 	}
 
-	if ( check.state !== 'waiting' || check.interval <= 0 ) {
+	if ( check.state !== 'waiting' ) {
+		return;
+	}
+
+	if ( check.interval <= 0 ) {
+		stopFill( motion );
 		return;
 	}
 
