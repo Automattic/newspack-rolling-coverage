@@ -506,13 +506,16 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 		display: inline;
 	}
 
-	// A label takes at most half its entry, so a long one ends in an ellipsis
-	// instead of running into the next entry. It needs this weight to beat
-	// the classic theme's `max-width: 100%` on flex items.
-	> .wp-block-paragraph:not([class*="wp-container-content-"]) {
-		max-width: 50%;
+	// A label ends in an ellipsis when it's cut short and takes at most half
+	// its entry, so a long one can't run into the next entry. The cap needs
+	// this weight to beat the classic theme's `max-width: 100%` on flex items.
+	> .wp-block-paragraph {
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	> .wp-block-paragraph:not([class*="wp-container-content-"]) {
+		max-width: 50%;
 	}
 }
 
@@ -604,16 +607,17 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 	container: newspack-rolling-coverage-strip / inline-size;
 }
 
-// Such a Feed has no width of its own to give its block, so inside a Row or
-// Stack group the block takes the room the group gives it rather than
-// shrinking to its padding.
-:where(.is-layout-flex) > :where(.wp-block-newspack-rolling-coverage-rolling-coverage:has(.newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled))):where(:not([class*="wp-container-content-"])) {
-	flex-grow: 1;
+// Such a Feed has no width of its own to give its block, so in a Row or Stack
+// group the block takes the group's full width instead of shrinking to its
+// padding, also when a Row stacks on smaller screens. In a Row it grows from
+// nothing, so the items beside it keep their width.
+:where(.is-layout-flex) > :where(.wp-block-newspack-rolling-coverage-rolling-coverage:has(.newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled))) {
+	width: 100%;
 	min-width: 0;
 }
 
-:where(.is-layout-flex.is-vertical) > :where(.wp-block-newspack-rolling-coverage-rolling-coverage:has(.newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled))):where(:not([class*="wp-container-content-"])) {
-	align-self: stretch;
+:where(.is-layout-flex:not(.is-vertical)) > :where(.wp-block-newspack-rolling-coverage-rolling-coverage:has(.newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled))):where(:not([class*="wp-container-content-"])) {
+	flex: 1 1 0;
 }
 
 @container newspack-rolling-coverage-strip (width < 56rem) {
