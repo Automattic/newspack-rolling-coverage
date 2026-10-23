@@ -112,7 +112,7 @@ A Rolling Coverage block that shows all entries outputs schema.org `LiveBlogPost
 
 ### Updated date
 
-While a post's coverage is live or paused, the post shows when it last changed: Newspack's "Updated" date in its byline, and the same date in place of the publish date on its Homepage Posts card, whatever the site's Last updated date setting says. The date is the newest entry's, or the post's own last edit when that came later. Once the coverage ends, the site's settings decide again. See [Updated date](../src/blocks/rolling-coverage/README.md#updated-date) and its [development notes](../src/blocks/rolling-coverage/DEVELOPMENT.md#updated-date).
+While a post's coverage is live or paused, the post shows when it last changed: Newspack's "Updated" date in its byline, and the same date in place of the publish date on its Homepage Posts card, whatever the site's Last updated date setting says. The date is when an entry was last published or edited, or the post's own last edit when that came later. Once the coverage ends, the site's settings decide again. See [Updated date](../src/blocks/rolling-coverage/README.md#updated-date) and its [development notes](../src/blocks/rolling-coverage/DEVELOPMENT.md#updated-date).
 
 ## Architecture
 

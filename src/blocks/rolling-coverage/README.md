@@ -236,9 +236,9 @@ A block that shows all entries counts as the coverage's live feed on its page, i
 
 ### Updated date
 
-While the coverage is live or paused, a post with its live feed shows when it was last updated, so it doesn't look as old as its publish date while entries keep coming in. The post's byline adds "Updated" with that time, and its card in Homepage Posts shows it in place of the publish date. The time is the newest entry's, or the post's own last edit when that came later.
+While the coverage is live or paused, a post with its live feed shows when it was last updated, so it doesn't look as old as its publish date while entries keep coming in. The post's byline adds "Updated" with that time, and its card in Homepage Posts shows it in place of the publish date. The time is when an entry was last published or edited, or the post's own last edit when that came later. A feed added through a synced pattern doesn't change the post's dates.
 
-This happens even when the site's **Last updated date** setting is off, and the time reads as "time ago" when **Date format** is set to **Relative**. Once the coverage ends, the site's own date settings apply again. When **Last updated date** is on, **Hide last updated date** in the post's settings hides it on that post. Pages keep their usual dates, as do sites with Newspack or Newspack Blocks versions that don't support it yet.
+This happens even when the site's **Last updated date** is set to **Hide**, and without waiting for its **Minimum hours after publish**. The time reads as "time ago" when **Date format** is set to **Relative**. Once the coverage ends, the site's own date settings apply again. When **Last updated date** is set to **Show**, **Hide last updated date** in the post's settings hides it on that post. Pages keep their usual dates. Bylines change with a Newspack plugin version that supports this, and cards with a Newspack Blocks version that does.
 
 ## Edit, detach, and change a layout
 
