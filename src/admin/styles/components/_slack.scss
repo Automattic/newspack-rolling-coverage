@@ -50,32 +50,5 @@
 	border-radius: wp-vars.$radius-round;
 	flex-shrink: 0;
 	height: wp-vars.$grid-unit-10;
-	position: relative;
 	width: wp-vars.$grid-unit-10;
-
-	&::after {
-		animation: newspack-rolling-coverage-status-pulse 2s ease-out infinite;
-		background-color: inherit;
-		border-radius: inherit;
-		content: "";
-		inset: 0;
-		position: absolute;
-
-		@media (prefers-reduced-motion: reduce) {
-			animation: none;
-		}
-	}
-}
-
-@keyframes newspack-rolling-coverage-status-pulse {
-
-	0% {
-		opacity: 0.6;
-		transform: scale(1);
-	}
-
-	100% {
-		opacity: 0;
-		transform: scale(2.5);
-	}
 }

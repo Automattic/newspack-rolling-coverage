@@ -30,7 +30,7 @@ class Coverage_Status_Block {
 
 	// The badge's modifier classes for each status.
 	const BADGE_CLASSES = [
-		Taxonomy::STATUS_ACTIVE   => 'newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse',
+		Taxonomy::STATUS_ACTIVE   => 'newspack-ui__badge--success newspack-ui__badge--dot',
 		Taxonomy::STATUS_PAUSED   => 'newspack-ui__badge--secondary',
 		Taxonomy::STATUS_ARCHIVED => 'newspack-ui__badge--error',
 	];

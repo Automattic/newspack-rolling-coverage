@@ -1,6 +1,6 @@
 # Update Timer
 
-Shows readers when a live coverage next checks for new entries, and what each check found. "Next check in 7s" counts down to the check, with a small spinner turning beside it. While the check runs, it reads "Checking…". When the check brings new entries, it reads "2 new entries" for a few seconds, or "Couldn’t check" if it fails. Otherwise the countdown starts again straight away.
+Shows readers when a live coverage next checks for new entries, and what each check found. "Next check in 7s" counts down to the check, with a small spinner beside it. While the check runs, the spinner turns and it reads "Checking…". When the check brings new entries, it reads "2 new entries" for a few seconds, or "Couldn’t check" if it fails. Otherwise the countdown starts again straight away.
 
 ## Where to put it
 
@@ -26,7 +26,7 @@ The Settings panel holds one setting.
 
 | Setting | Options | What it does |
 | --- | --- | --- |
-| Spinner | Show, Hide | "Turns beside the countdown. Hidden for readers who ask their device for reduced motion." Hide leaves the text on its own. Show is the default. |
+| Spinner | Show, Hide | "Sits beside the countdown and turns only while a check runs. Hidden for readers who ask their device for reduced motion." Hide leaves the text on its own. Show is the default. |
 
 ## When it doesn't appear
 
@@ -45,7 +45,7 @@ The spinner and the text take the block's text color. Typography settings change
 
 ## What readers see
 
-- The seconds count down once a second. Readers who ask their device for reduced motion see the text without the spinner.
+- The seconds count down once a second. The spinner turns only while the check runs. Readers who ask their device for reduced motion see the text without the spinner.
 - "Entries" follows the entry name set in Rolling Coverage > All Coverages > Settings, for example "2 new updates".
 - Inside an Alert layout, or beside any feed that shows no entries, the timer never shows a count, since it can't tell what arrived.
 - Screen readers don't hear the countdown. The Rolling Coverage block already announces new entries.

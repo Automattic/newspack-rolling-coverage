@@ -292,13 +292,23 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
+	 * The live badge shows a static dot; nothing on it moves on its own.
+	 */
+	public function test_live_badge_does_not_pulse() {
+		$html = $this->render( [], self::page( self::feed( self::create_coverage() ) ) );
+
+		$this->assertStringContainsString( 'newspack-ui__badge--dot', $html );
+		$this->assertStringNotContainsString( 'newspack-ui__badge--pulse', $html );
+	}
+
+	/**
 	 * Each status has its badge; a status the plugin doesn't know is live.
 	 */
 	public function test_badge_follows_the_status() {
 		$coverage_id = self::create_coverage();
 		$page_id     = self::page( self::feed( $coverage_id ) );
 
-		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse">Live</span>', $this->render( [], $page_id ) );
+		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--success newspack-ui__badge--dot">Live</span>', $this->render( [], $page_id ) );
 
 		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_PAUSED );
 		$this->assertStringContainsString( '<span class="newspack-ui__badge newspack-ui__badge--secondary">Paused</span>', $this->render( [], $page_id ) );
@@ -370,7 +380,7 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 		$this->assertStringContainsString( 'data-hide-dot="true"', $html );
 
 		$html = $this->render( [ 'showDot' => true ], $page_id );
-		$this->assertStringContainsString( 'newspack-ui__badge--dot newspack-ui__badge--pulse', $html );
+		$this->assertStringContainsString( 'newspack-ui__badge--dot', $html );
 		$this->assertStringNotContainsString( 'data-hide-dot', $html );
 		$this->assertStringNotContainsString( 'data-hide-dot', $this->render( [], $page_id ) );
 

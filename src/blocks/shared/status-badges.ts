@@ -10,7 +10,7 @@ import { normalizeColor, textColor } from './apca';
  * Coverage_Status_Block::BADGE_CLASSES.
  */
 const BADGE_CLASSES: Record< string, string > = {
-	active: 'newspack-ui__badge--success newspack-ui__badge--dot newspack-ui__badge--pulse',
+	active: 'newspack-ui__badge--success newspack-ui__badge--dot',
 	paused: 'newspack-ui__badge--secondary',
 	archived: 'newspack-ui__badge--error',
 };
@@ -49,8 +49,8 @@ function badgeStatus( status?: string ): string {
 }
 
 /**
- * The badge classes for a status: the live badge drops its dot and pulse when
- * the dot is hidden.
+ * The badge classes for a status: the live badge drops its dot when the dot
+ * is hidden.
  *
  * @param {string}  status  Coverage status.
  * @param {boolean} showDot Whether the live badge shows its dot.
