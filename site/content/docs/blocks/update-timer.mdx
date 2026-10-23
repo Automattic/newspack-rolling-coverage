@@ -3,7 +3,7 @@ title: Update Timer block
 description: Tell readers when the feed next checks for new entries.
 ---
 
-The Update Timer block shows readers when a live coverage next checks for new entries. It reads "Next check in 7s" with a small spinner. While the check runs, it reads "Checking…". When the check brings new entries, it reads a count such as "2 new entries" for a few seconds.
+The Update Timer block shows readers when a live coverage next checks for new entries. It reads "Next check in 7s" with a small ring that fills as the check nears. While the check runs, it reads "Checking…" and the ring spins. When the check brings new entries, it reads a count such as "2 new entries" for a few seconds.
 
 ## Where to use it
 
@@ -50,11 +50,11 @@ The panel appears only outside a Rolling Coverage block.
 
 | Setting | Options | What it does |
 | --- | --- | --- |
-| **Spinner** | Show, Hide | The spinner turns beside the countdown. **Hide** leaves the text on its own. The default is **Show**. Readers whose device is set to reduce motion never see it. |
+| **Ring** | Show, Hide | The ring fills beside the countdown until the next check, then spins while the check runs. **Hide** leaves the text on its own. The default is **Show**. It doesn't spin for readers whose device is set to reduce motion. |
 
-The spinner and text take the block's text color. Typography settings change the text size.
+The ring and text take the block's text color. Typography settings change the text size, and the ring scales with it.
 
-<Screenshot label="The block settings, Settings panel, with Spinner picked out" src="/screenshots/blocks/update-timer-3.webp" width={3024} height={1964} />
+<Screenshot label="The block settings, Settings panel, with Ring picked out" src="/screenshots/blocks/update-timer-3.webp" width={3024} height={1964} />
 
 ## When it doesn't appear
 
@@ -66,8 +66,8 @@ The timer stays hidden while there is nothing to count down to:
 
 ## What readers see
 
-The seconds count down once a second. When the check ends, the timer shows what it found, then starts again.
+The seconds count down once a second, and the ring fills steadily over the same wait. Readers whose device is set to reduce motion see the ring fill, but while the check runs it shows full and still. When the check ends, the timer shows what it found, then starts again.
 
-Screen readers don't hear the countdown. The Rolling Coverage block already announces new entries.
+Screen readers don't hear the countdown or the ring. The Rolling Coverage block already announces new entries.
 
 <Screenshot label="A page with the Update Timer counting down below the Live badge" src="/screenshots/blocks/update-timer-4.webp" width={3024} height={1964} />

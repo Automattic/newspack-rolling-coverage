@@ -128,16 +128,17 @@ Alignment, the HTML anchor, and the other usual block settings work as they do f
 The page checks for new entries every poll interval. It stops while the tab is in the background and checks again when the reader returns.
 
 - A reader at the top of the feed sees new entries at once.
-- A reader who has scrolled down sees a button such as "3 new entries" instead. The page doesn't move. Selecting the button brings the new entries in.
+- A reader who has scrolled down sees a button such as "3 new entries" instead. The page doesn't move. Selecting the button scrolls the page to the new entries, past any pinned entries above them, and brings them in. Readers whose device is set to reduce motion go straight there.
 - Edited entries update in place. An entry that is unpublished disappears. If it's published again or restored, it comes back without a reload.
-- New entries fade in. Readers whose device is set to reduce motion see them without the fade.
+- New entries fade in. In a feed that lists entries one above another, a new entry at the top also opens its own space, so the entries below glide down rather than jump. Several new entries arriving together open their space together, a little more slowly than one. Readers whose device is set to reduce motion see them without the fade, and the space opens at once.
+- An entry published while the page is open shows "New" until the reader has seen it. Four seconds after the reader first sees it, the label fades away. Older entries that load don't show it. See the [New Label block](/docs/blocks/new-label/).
 - A paused or ended coverage doesn't check on its own.
 
 Feeds set to **Latest** update in place without the button. The newest entry appears and the oldest drops off.
 
 ### Pinned entries
 
-A pinned entry stays at the top of the feed with a "Pinned" label, whatever its date. With more than one pinned, the one edited most recently is on top. How the label looks depends on the layout. Feeds set to **Latest** ignore pinning.
+A pinned entry stays at the top of the feed with a "Pinned" label, whatever its date. With more than one pinned, the one edited most recently is on top. How the label looks depends on the layout. In Split, the pinned entries sit in a column that stays in view beside the feed on wide screens. On tablets and phones, they sit above the other entries and scroll away with the page. Feeds set to **Latest** ignore pinning.
 
 ### Older entries
 
