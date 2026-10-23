@@ -90,8 +90,8 @@ export function stackGap( style: StackStyle ): number | null {
  * end margin starts by cancelling the element's whole share of the layout,
  * its gap included, and the clip hides what the elements after it still
  * cover, so the clip's edge meets the next element's top on every frame.
- * The clip reaches a gap past the element's top and bottom, where its New
- * tint can reach, and well past its sides, so nothing it draws there is cut.
+ * The clip reaches a gap past the element's top and well past its sides,
+ * so a shadow or anything else it draws outside its box isn't cut.
  *
  * @param {Space} space The element's size, gap and own margins.
  * @return {Object[]} The keyframes, closed to open.
@@ -118,7 +118,7 @@ export function openKeyframes( space: Space ): Keyframe[] {
  * @param {Element} element The element.
  * @return {Element | null} The layout.
  */
-export function layoutOf( element: Element ): Element | null {
+function layoutOf( element: Element ): Element | null {
 	let parent = element.parentElement;
 
 	while (

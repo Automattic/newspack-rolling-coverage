@@ -2142,8 +2142,7 @@ function marginEntryTemplate( slugs: string[] ): TemplateItem[] {
  * breakout post is published shows the post's title and summary in a box
  * outlined and tinted in the accent, with the pin before its label when
  * pinned and an arrow at the far end below the summary. Nothing shows an
- * entry is new beyond the tint the site gives it; the New label is for
- * screen readers only.
+ * entry is new beyond its arrival; the New label is for screen readers only.
  *
  * @param {string[]} slugs The palette's color slugs.
  * @return {TemplateItem[]} The template.
