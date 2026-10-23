@@ -1083,9 +1083,9 @@ class Test_Reader_Feed extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * A poll sends new entries newest first and the page lists them above its
-	 * own, so the oldest continues the page's ad count: with three counted,
-	 * the older of two new entries takes the fourth ad.
+	 * The page lists a poll's new entries above its own in the reply's order,
+	 * so the last one listed continues the page's ad count: with three
+	 * counted, it takes the fourth ad.
 	 */
 	public function test_poll_counts_new_entries_for_ads_from_the_oldest() {
 		self::enable_ad_placement();

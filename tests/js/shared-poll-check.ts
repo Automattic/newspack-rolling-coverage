@@ -238,8 +238,8 @@ check(
 );
 check( 'ads: count', withAds?.polledCount, 0 );
 
-// The page lists new entries above its own, newest first, so the count runs
-// on from the oldest: with three counted, the older of two takes the fourth.
+// The page lists new entries above its own in the reply's order, so the count
+// runs on from the last one listed: with three counted, it takes the fourth.
 const twoNew = readSharedReply(
 	reply( {
 		cursor: '12:2026-01-01 12:09:00@c',

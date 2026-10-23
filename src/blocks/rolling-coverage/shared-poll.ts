@@ -166,7 +166,7 @@ export function isSharedReply( body: unknown ): body is SharedPollResponse {
  * the entries below it, down to the next ad, make a full interval. A poll
  * counts the arriving entry too, so the count starts one below the unpinned
  * entries above the first ad that follows one of them, or all of them when
- * no ad does.
+ * no ad does, and at 0 when the page shows none.
  *
  * @param {Element} list The feed's entries list.
  * @return {number} The count.
