@@ -72,6 +72,7 @@ On the standalone `post` created from an entry.
 
 - User meta `rolling_coverage_slack_handle`: a user's Slack member ID or handle, matched against Slack message authors.
 - Post meta `_rolling_coverage_layout` on each built-in layout's `wp_block` pattern: the layout's slug. The plugin uses it to find the pattern again if the matching option goes missing.
+- Post meta `_rolling_coverage_layout_hash` on the same pattern: a hash of the content the pattern last got from the plugin. While the pattern still matches it, the layout renders as the plugin ships it, so plugin updates reach it. Once someone saves a change, it no longer matches and the site's version renders.
 
 ## Options
 

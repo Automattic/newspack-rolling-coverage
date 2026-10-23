@@ -80,7 +80,7 @@ The block toolbar also shows **Edit Layout** and **Detach** when the block uses 
 | **Link text** | With the link shown, this block's own wording for it, such as "Follow the storm". Leave it empty to use the layout's text. |
 | **Entries per page** | With **Show** set to **All**, how many entries show first and how many each load of older entries adds. From 1 to 100. The default is 20. |
 | **Author name** | In layouts that show the author, **Show** or **Hide** the author's name. |
-| **Author avatar** | In layouts that show the author, **Show** or **Hide** the profile picture. Not offered when Avatar Display is off under **Settings > Discussion**. |
+| **Author avatar** | In layouts that show the author, **Show** or **Hide** the profile picture, whatever **Avatar Display** under **Settings > Discussion** is set to. |
 | **Poll interval (seconds)** | How often the page checks for new entries. The default is 30. The site can set a longer minimum, which wins over a shorter value here. Hidden when **Show** is set to **All** and the layout has a [Check for Updates](/docs/blocks/check-for-updates/) block. |
 
 <Screenshot label="The block settings, Entries panel, with Show and Older entries picked out" src="/screenshots/blocks/rolling-coverage-6.webp" width={3024} height={1964} />
@@ -129,7 +129,7 @@ The page checks for new entries every poll interval. It stops while the tab is i
 
 - A reader at the top of the feed sees new entries at once.
 - A reader who has scrolled down sees a button such as "3 new entries" instead. The page doesn't move. Selecting the button brings the new entries in.
-- Edited entries update in place. An entry that is unpublished disappears.
+- Edited entries update in place. An entry that is unpublished disappears. If it's published again or restored, it comes back without a reload.
 - New entries fade in. Readers whose device is set to reduce motion see them without the fade.
 - A paused or ended coverage doesn't check on its own.
 
