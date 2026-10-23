@@ -62,13 +62,11 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 
 		.newspack-rolling-coverage-entry[data-new]:not(:has(.newspack-rolling-coverage-breakout-box)) {
 			position: relative;
-			isolation: isolate;
 
 			&::after {
 				content: "";
 				position: absolute;
 				inset: 0;
-				z-index: -1;
 				border-radius: inherit;
 				background: var(--newspack-rolling-coverage-accent-tint);
 				pointer-events: none;

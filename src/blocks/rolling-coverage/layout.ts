@@ -577,8 +577,10 @@ export function useLayoutPreview(
 		( context ) => context.hidesByline
 	);
 	const previewTemplates = useMemo( () => {
-		const entryBlocks = withoutNewLabel(
-			withAuthorSettings( templateBlocks, showAuthor, showAvatar )
+		const entryBlocks = withAuthorSettings(
+			templateBlocks,
+			showAuthor,
+			showAvatar
 		);
 		const pinnedBlocks = forEntryKind( entryBlocks, true );
 		const hasCard = hasPinnedCard( pinnedBlocks );
@@ -698,7 +700,12 @@ export function useLayoutPreview(
 		[ lastPreviewBlocks, previewTemplates ]
 	);
 
-	const blocksForEntry = useCallback(
+	const newestContext = entryContexts[ 0 ];
+	const strippedBlocks = useMemo(
+		() => new WeakMap< TemplateBlocks, TemplateBlocks >(),
+		[]
+	);
+	const blocksWithNewLabel = useCallback(
 		( context: EntryContext ) => {
 			const untitled = isUntitled( context, hasFullStory, takesPinned );
 			const kept = untitled ? untitledBlocks.get( context ) : undefined;
@@ -745,6 +752,26 @@ export function useLayoutPreview(
 			hasFullStory,
 			takesPinned,
 		]
+	);
+
+	const blocksForEntry = useCallback(
+		( context: EntryContext ) => {
+			const blocks = blocksWithNewLabel( context );
+
+			if ( context === newestContext ) {
+				return blocks;
+			}
+
+			let stripped = strippedBlocks.get( blocks );
+
+			if ( ! stripped ) {
+				stripped = withoutNewLabel( blocks );
+				strippedBlocks.set( blocks, stripped );
+			}
+
+			return stripped;
+		},
+		[ blocksWithNewLabel, newestContext, strippedBlocks ]
 	);
 
 	return { headerBlocks, footerBlocks, templateBlocks, blocksForEntry };

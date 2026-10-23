@@ -203,6 +203,26 @@ function withoutNewLabel<
 }
 
 /**
+ * Client IDs of the New label, at any depth.
+ *
+ * @param {Object[]} blocks The blocks.
+ * @return {string[]} Client IDs.
+ */
+function newLabelBlockIds(
+	blocks: { name: string; [ key: string ]: unknown }[]
+): string[] {
+	return blocks.flatMap( ( block ) => {
+		if ( isNewLabel( block ) ) {
+			return [ block.clientId as string ];
+		}
+
+		return Array.isArray( block.innerBlocks )
+			? newLabelBlockIds( block.innerBlocks as typeof blocks )
+			: [];
+	} );
+}
+
+/**
  * Class of the group that shows a pinned entry as a card, mirroring
  * Rolling_Coverage_Block::PINNED_CARD_CLASS.
  */
@@ -5108,6 +5128,7 @@ export {
 	newLabel,
 	isNewLabel,
 	withoutNewLabel,
+	newLabelBlockIds,
 	bulletinEntryTemplate,
 	streamEntryTemplate,
 	railEntryTemplate,
