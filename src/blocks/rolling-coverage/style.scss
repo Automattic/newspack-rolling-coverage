@@ -10,6 +10,7 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 
 .wp-block-newspack-rolling-coverage-rolling-coverage {
 	--nrc-color-text: var(--wp--preset--color--contrast, #000);
+	--newspack-rolling-coverage-new-tint: color-mix(in srgb, var(--wp--preset--color--base-2, var(--newspack-theme-color-bg-light, #f0f0f0)) 50%, transparent);
 
 	.newspack-rolling-coverage-feed:not(.is-layout-grid) {
 		display: flex;
@@ -87,15 +88,17 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 			}
 		}
 
-		.newspack-rolling-coverage-entry[data-new]:not(:has(.newspack-rolling-coverage-breakout-box)) {
+		.newspack-rolling-coverage-entry[data-new]:has([data-rc-new-marker]:not([hidden])) {
 			position: relative;
+			isolation: isolate;
 
 			&::after {
 				content: "";
 				position: absolute;
 				inset: 0;
+				z-index: -1;
 				border-radius: inherit;
-				background: var(--newspack-rolling-coverage-accent-tint);
+				background: var(--newspack-rolling-coverage-new-tint);
 				pointer-events: none;
 			}
 
