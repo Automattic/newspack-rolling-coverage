@@ -28,6 +28,7 @@ import {
 	showingLatestLabel,
 } from './entry-name';
 import { isSharedReply, readSharedReply, startingAdCount } from './shared-poll';
+import { shareRequests } from './shared-requests';
 import type { PollEventDetail } from '../shared/poll-event';
 import type {
 	AdSlot,
@@ -483,7 +484,7 @@ function topBarsBottom( block: HTMLElement ): number {
  * @param {string} url Entries URL.
  * @return {Promise<Response>} The reply, or a failed one when it came from another origin or isn't JSON.
  */
-async function fetchEntries( url: string ): Promise< Response > {
+async function sendEntriesRequest( url: string ): Promise< Response > {
 	const credentials = entriesCredentials;
 	let response = await fetch( url, { credentials } );
 	const isRefused = response.status === 401 || response.status === 403;
@@ -503,6 +504,10 @@ async function fetchEntries( url: string ): Promise< Response > {
 
 	return response;
 }
+
+// Every feed on the page requests entries through this, so feeds asking the
+// same URL at the same moment share one request.
+const fetchEntries = shareRequests( sendEntriesRequest );
 
 /**
  * Sets up polling and the loading of older entries for a single block instance.
