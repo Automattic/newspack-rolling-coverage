@@ -22,6 +22,17 @@ import * as path from 'path';
 
 import { getBuiltInLayouts } from '../../src/blocks/rolling-coverage/layouts';
 import {
+	ACCENT,
+	ACCENT_TINT,
+	BREAKOUT_BOX_CLASS,
+	PINNED_BACKGROUND,
+	isBreakoutEntry,
+	isNewLabel,
+	isPinnedCard,
+	isRegularEntry,
+} from '../../src/blocks/rolling-coverage/template';
+import type { TemplateItem } from '../../src/blocks/rolling-coverage/types';
+import {
 	registerBlocks,
 	serializeLayouts,
 	TEMPLATES_DIR,
@@ -176,4 +187,284 @@ test( 'the server copies of the built-in layouts match their templates (npm run 
 			.map( ( slug ) => `${ slug }.html` )
 			.sort()
 	);
+} );
+
+type TemplateNode = {
+	name: string;
+	attributes: {
+		className?: string;
+		textColor?: string;
+		style?: {
+			color?: { text?: string; background?: string };
+			border?: { color?: string; style?: string; width?: string };
+		};
+		[ key: string ]: unknown;
+	};
+	innerBlocks: TemplateNode[];
+};
+
+/**
+ * A layout's template as nested blocks, without creating them.
+ *
+ * @param {Array} items Template items.
+ * @return {Object[]} The blocks.
+ */
+function templateNodes( items: TemplateItem[] ): TemplateNode[] {
+	return items.map( ( [ name, attributes = {}, inner = [] ] ) => ( {
+		name,
+		attributes: attributes as TemplateNode[ 'attributes' ],
+		innerBlocks: templateNodes( inner as TemplateItem[] ),
+	} ) );
+}
+
+/**
+ * Every block in a tree that matches, at any depth.
+ *
+ * @param {Object[]} nodes   The blocks.
+ * @param {Function} matches Whether a block is wanted.
+ * @return {Object[]} The matching blocks.
+ */
+function findNodes(
+	nodes: TemplateNode[],
+	matches: ( node: TemplateNode ) => boolean
+): TemplateNode[] {
+	return nodes.flatMap( ( node ) => [
+		...( matches( node ) ? [ node ] : [] ),
+		...findNodes( node.innerBlocks, matches ),
+	] );
+}
+
+/**
+ * A built-in layout's blocks.
+ *
+ * @param {string} slug The layout's slug.
+ * @return {Object[]} The blocks.
+ */
+function layoutNodes( slug: string ): TemplateNode[] {
+	const layout = LAYOUTS.find( ( item ) => item.slug === slug );
+
+	if ( ! layout ) {
+		throw new Error( `No built-in layout "${ slug }".` );
+	}
+
+	return templateNodes( layout.template() );
+}
+
+const isEntryVariant = ( node: TemplateNode ) =>
+	isPinnedCard( node ) || isRegularEntry( node ) || isBreakoutEntry( node );
+
+const hasClass = ( node: TemplateNode, className: string ) =>
+	String( node.attributes.className ?? '' )
+		.split( ' ' )
+		.includes( className );
+
+test( 'every built-in layout except Alert places the New label in each entry variant', () => {
+	const missing: string[] = [];
+
+	for ( const { slug } of LAYOUTS ) {
+		const nodes = layoutNodes( slug );
+		const labels = findNodes( nodes, isNewLabel );
+
+		if ( slug === 'alert' ) {
+			expect( labels ).toEqual( [] );
+			continue;
+		}
+
+		const variants = findNodes( nodes, isEntryVariant );
+		expect( variants.length ).toBeGreaterThanOrEqual( 2 );
+
+		for ( const variant of variants ) {
+			const own = findNodes(
+				variant.innerBlocks.filter(
+					( node ) => ! isEntryVariant( node )
+				),
+				isNewLabel
+			);
+
+			if ( own.length !== 1 ) {
+				missing.push(
+					`${ slug }: ${ variant.attributes.className } has ${ own.length }`
+				);
+			}
+		}
+	}
+
+	expect( missing ).toEqual( [] );
+} );
+
+test( "Minute's New label is for screen readers only", () => {
+	const labels = findNodes( layoutNodes( 'minute' ), isNewLabel );
+
+	expect( labels.length ).toBeGreaterThan( 0 );
+
+	for ( const label of labels ) {
+		expect( label.attributes.visuallyHidden ).toBe( true );
+	}
+} );
+
+test( 'no other layout hides its New label', () => {
+	for ( const { slug } of LAYOUTS ) {
+		if ( slug === 'minute' ) {
+			continue;
+		}
+
+		for ( const label of findNodes( layoutNodes( slug ), isNewLabel ) ) {
+			expect( label.attributes.visuallyHidden ).toBeFalsy();
+		}
+	}
+} );
+
+test( "Flash's New label takes the bar's text color, not the accent", () => {
+	const labels = findNodes( layoutNodes( 'flash' ), isNewLabel );
+
+	expect( labels.length ).toBeGreaterThan( 0 );
+
+	for ( const label of labels ) {
+		expect( label.attributes.style?.color?.text ).toBeUndefined();
+		expect( label.attributes.textColor ).toBeUndefined();
+	}
+} );
+
+test( 'Bulletin, Minute and Rail pinned entries use the gray background', () => {
+	for ( const slug of [ 'default', 'minute', 'rail' ] ) {
+		const [ card ] = findNodes( layoutNodes( slug ), isPinnedCard );
+		const backgrounds = findNodes(
+			[ card ],
+			( node ) => !! node.attributes.style?.color?.background
+		).map( ( node ) => node.attributes.style?.color?.background );
+
+		expect( backgrounds ).toContain( PINNED_BACKGROUND );
+		expect( JSON.stringify( card ) ).not.toContain( 'accent-contrast' );
+		expect(
+			findNodes(
+				[ card ],
+				( node ) => node.attributes.style?.color?.background === ACCENT
+			)
+		).toEqual( [] );
+	}
+} );
+
+test( 'Bulletin and Minute Full story cards use the accent tint and border', () => {
+	for ( const slug of [ 'default', 'minute' ] ) {
+		const boxes = findNodes( layoutNodes( slug ), ( node ) =>
+			hasClass( node, BREAKOUT_BOX_CLASS )
+		);
+
+		expect( boxes.length ).toBeGreaterThan( 0 );
+
+		for ( const box of boxes ) {
+			expect( box.attributes.style?.color?.background ).toBe(
+				ACCENT_TINT
+			);
+			expect( box.attributes.style?.border ).toMatchObject( {
+				style: 'solid',
+				width: '1px',
+			} );
+			expect( box.attributes.style?.border?.color ).toContain(
+				'--newspack-rolling-coverage-accent'
+			);
+		}
+	}
+} );
+
+/**
+ * Each visible New label with the block that directly holds it, and that
+ * block's parent.
+ *
+ * @param {Object[]} nodes The blocks.
+ * @return {Object[]} The labels with their parent and grandparent.
+ */
+function visibleLabelsWithParents(
+	nodes: TemplateNode[]
+): { label: TemplateNode; parent: TemplateNode; grandparent?: TemplateNode }[] {
+	const found: {
+		label: TemplateNode;
+		parent: TemplateNode;
+		grandparent?: TemplateNode;
+	}[] = [];
+	const walk = ( node: TemplateNode, parent?: TemplateNode ) => {
+		for ( const child of node.innerBlocks ) {
+			if ( isNewLabel( child ) && ! child.attributes.visuallyHidden ) {
+				found.push( {
+					label: child,
+					parent: node,
+					grandparent: parent,
+				} );
+			}
+
+			walk( child, node );
+		}
+	};
+
+	nodes.forEach( ( node ) => walk( node ) );
+
+	return found;
+}
+
+const layoutOf = ( node?: TemplateNode ) =>
+	( node?.attributes.layout ?? {} ) as {
+		type?: string;
+		orientation?: string;
+		justifyContent?: string;
+	};
+
+const isFlexColumn = ( node: TemplateNode ) =>
+	layoutOf( node ).type === 'flex' &&
+	layoutOf( node ).orientation === 'vertical';
+
+const isFlexRow = ( node: TemplateNode ) =>
+	layoutOf( node ).type === 'flex' &&
+	layoutOf( node ).orientation !== 'vertical';
+
+test( 'a New label on a line of its own sits directly in a vertical flex group, so clearing it closes the gap', () => {
+	const wrong: string[] = [];
+
+	for ( const { slug } of LAYOUTS ) {
+		for ( const { parent } of visibleLabelsWithParents(
+			layoutNodes( slug )
+		) ) {
+			if ( ! isFlexColumn( parent ) && ! isFlexRow( parent ) ) {
+				wrong.push(
+					`${ slug }: in ${ parent.name } with ${ JSON.stringify(
+						parent.attributes.layout ?? null
+					) }`
+				);
+			}
+		}
+	}
+
+	expect( wrong ).toEqual( [] );
+} );
+
+test( 'a New label that shares a line is the last item on it, so clearing it moves nothing', () => {
+	const wrong: string[] = [];
+
+	for ( const { slug } of LAYOUTS ) {
+		for ( const { label, parent, grandparent } of visibleLabelsWithParents(
+			layoutNodes( slug )
+		) ) {
+			if ( ! isFlexRow( parent ) ) {
+				continue;
+			}
+
+			const isLast = parent.innerBlocks.at( -1 ) === label;
+			// A row packed at the far end of a space-between row keeps what follows the label where it is.
+			const packedAtEnd =
+				!! grandparent &&
+				isFlexRow( grandparent ) &&
+				layoutOf( grandparent ).justifyContent === 'space-between' &&
+				grandparent.innerBlocks.at( -1 ) === parent;
+
+			if ( ! isLast && ! packedAtEnd ) {
+				wrong.push(
+					`${ slug }: followed by ${ parent.innerBlocks
+						.slice( parent.innerBlocks.indexOf( label ) + 1 )
+						.map( ( node ) => node.name )
+						.join( ', ' ) }`
+				);
+			}
+		}
+	}
+
+	expect( wrong ).toEqual( [] );
 } );

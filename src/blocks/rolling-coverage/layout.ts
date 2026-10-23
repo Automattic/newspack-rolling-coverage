@@ -45,6 +45,7 @@ import {
 	UPDATE_TIMER_BLOCK_NAME,
 	feedTemplate,
 	layoutParts,
+	withoutNewLabel,
 	withoutPinnedRow,
 	fullStoryTakesPinned,
 	withoutBreakoutLink,
@@ -699,7 +700,14 @@ export function useLayoutPreview(
 		[ lastPreviewBlocks, previewTemplates ]
 	);
 
-	const blocksForEntry = useCallback(
+	const newestContext =
+		entryContexts.find( ( context ) => ! context.pinned ) ??
+		entryContexts[ 0 ];
+	const strippedBlocks = useMemo(
+		() => new WeakMap< TemplateBlocks, TemplateBlocks >(),
+		[]
+	);
+	const blocksWithNewLabel = useCallback(
 		( context: EntryContext ) => {
 			const untitled = isUntitled( context, hasFullStory, takesPinned );
 			const kept = untitled ? untitledBlocks.get( context ) : undefined;
@@ -746,6 +754,26 @@ export function useLayoutPreview(
 			hasFullStory,
 			takesPinned,
 		]
+	);
+
+	const blocksForEntry = useCallback(
+		( context: EntryContext ) => {
+			const blocks = blocksWithNewLabel( context );
+
+			if ( context === newestContext ) {
+				return blocks;
+			}
+
+			let stripped = strippedBlocks.get( blocks );
+
+			if ( ! stripped ) {
+				stripped = withoutNewLabel( blocks );
+				strippedBlocks.set( blocks, stripped );
+			}
+
+			return stripped;
+		},
+		[ blocksWithNewLabel, newestContext, strippedBlocks ]
 	);
 
 	return { headerBlocks, footerBlocks, templateBlocks, blocksForEntry };

@@ -97,6 +97,7 @@ import {
 	featuredImageBlockIds,
 	fullStoryTakesPinned,
 	pinnedRowBlockIds,
+	hiddenNewLabelIds,
 	withoutFollowButtons,
 	withoutCheckUpdatesButtons,
 	withoutLoadMoreButtons,
@@ -1665,6 +1666,9 @@ export default function Edit( {
 	const hidesEntryBreakout = regularContext
 		? ! regularContext.hasBreakout
 		: false;
+	const newestContext =
+		previewContexts.find( ( context ) => ! context.pinned ) ??
+		previewContexts[ 0 ];
 	const hiddenIds = useMemo( () => {
 		const ids = [
 			...( isFollowHidden ? followBlockIds( allBlocks ) : [] ),
@@ -1715,6 +1719,17 @@ export default function Edit( {
 			...( hidesFullStoryPin
 				? pinnedRowBlockIds( allBlocks.filter( isBreakoutEntry ) )
 				: [] ),
+			...hiddenNewLabelIds(
+				entryGroupBlocks,
+				pinnedGroups,
+				{
+					card: pinnedContext,
+					entry: regularContext,
+					fullStory: fullStoryContext,
+					pinnedFullStory: pinnedFullStoryContext,
+				},
+				newestContext
+			),
 			...hiddenAuthorBlockIds(
 				layoutParts( allBlocks ).template,
 				showAuthor !== false,
@@ -1737,6 +1752,10 @@ export default function Edit( {
 		hidesPinnedFullStoryImage,
 		hidesFullStoryPin,
 		pinnedContext,
+		regularContext,
+		fullStoryContext,
+		pinnedFullStoryContext,
+		newestContext,
 		hidesCardBreakout,
 		hidesEntryBreakout,
 		showAuthor,
