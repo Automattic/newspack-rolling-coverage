@@ -22,6 +22,17 @@ import * as path from 'path';
 
 import { getBuiltInLayouts } from '../../src/blocks/rolling-coverage/layouts';
 import {
+	ACCENT,
+	ACCENT_TINT,
+	BREAKOUT_BOX_CLASS,
+	PINNED_BACKGROUND,
+	isBreakoutEntry,
+	isNewLabel,
+	isPinnedCard,
+	isRegularEntry,
+} from '../../src/blocks/rolling-coverage/template';
+import type { TemplateItem } from '../../src/blocks/rolling-coverage/types';
+import {
 	registerBlocks,
 	serializeLayouts,
 	TEMPLATES_DIR,
@@ -176,4 +187,182 @@ test( 'the server copies of the built-in layouts match their templates (npm run 
 			.map( ( slug ) => `${ slug }.html` )
 			.sort()
 	);
+} );
+
+type TemplateNode = {
+	name: string;
+	attributes: {
+		className?: string;
+		textColor?: string;
+		style?: {
+			color?: { text?: string; background?: string };
+			border?: { color?: string; style?: string; width?: string };
+		};
+		[ key: string ]: unknown;
+	};
+	innerBlocks: TemplateNode[];
+};
+
+/**
+ * A layout's template as nested blocks, without creating them.
+ *
+ * @param {Array} items Template items.
+ * @return {Object[]} The blocks.
+ */
+function templateNodes( items: TemplateItem[] ): TemplateNode[] {
+	return items.map( ( [ name, attributes = {}, inner = [] ] ) => ( {
+		name,
+		attributes: attributes as TemplateNode[ 'attributes' ],
+		innerBlocks: templateNodes( inner as TemplateItem[] ),
+	} ) );
+}
+
+/**
+ * Every block in a tree that matches, at any depth.
+ *
+ * @param {Object[]} nodes   The blocks.
+ * @param {Function} matches Whether a block is wanted.
+ * @return {Object[]} The matching blocks.
+ */
+function findNodes(
+	nodes: TemplateNode[],
+	matches: ( node: TemplateNode ) => boolean
+): TemplateNode[] {
+	return nodes.flatMap( ( node ) => [
+		...( matches( node ) ? [ node ] : [] ),
+		...findNodes( node.innerBlocks, matches ),
+	] );
+}
+
+/**
+ * A built-in layout's blocks.
+ *
+ * @param {string} slug The layout's slug.
+ * @return {Object[]} The blocks.
+ */
+function layoutNodes( slug: string ): TemplateNode[] {
+	const layout = LAYOUTS.find( ( item ) => item.slug === slug );
+
+	if ( ! layout ) {
+		throw new Error( `No built-in layout "${ slug }".` );
+	}
+
+	return templateNodes( layout.template() );
+}
+
+const isEntryVariant = ( node: TemplateNode ) =>
+	isPinnedCard( node ) || isRegularEntry( node ) || isBreakoutEntry( node );
+
+const hasClass = ( node: TemplateNode, className: string ) =>
+	String( node.attributes.className ?? '' )
+		.split( ' ' )
+		.includes( className );
+
+test( 'every built-in layout except Alert places the New label in each entry variant', () => {
+	const missing: string[] = [];
+
+	for ( const { slug } of LAYOUTS ) {
+		const nodes = layoutNodes( slug );
+		const labels = findNodes( nodes, isNewLabel );
+
+		if ( slug === 'alert' ) {
+			expect( labels ).toEqual( [] );
+			continue;
+		}
+
+		const variants = findNodes( nodes, isEntryVariant );
+		expect( variants.length ).toBeGreaterThanOrEqual( 2 );
+
+		for ( const variant of variants ) {
+			const own = findNodes(
+				variant.innerBlocks.filter(
+					( node ) => ! isEntryVariant( node )
+				),
+				isNewLabel
+			);
+
+			if ( own.length !== 1 ) {
+				missing.push(
+					`${ slug }: ${ variant.attributes.className } has ${ own.length }`
+				);
+			}
+		}
+	}
+
+	expect( missing ).toEqual( [] );
+} );
+
+test( "Minute's New label is for screen readers only", () => {
+	const labels = findNodes( layoutNodes( 'minute' ), isNewLabel );
+
+	expect( labels.length ).toBeGreaterThan( 0 );
+
+	for ( const label of labels ) {
+		expect( hasClass( label, 'screen-reader-text' ) ).toBe( true );
+	}
+} );
+
+test( 'no other layout hides its New label', () => {
+	for ( const { slug } of LAYOUTS ) {
+		if ( slug === 'minute' ) {
+			continue;
+		}
+
+		for ( const label of findNodes( layoutNodes( slug ), isNewLabel ) ) {
+			expect( hasClass( label, 'screen-reader-text' ) ).toBe( false );
+		}
+	}
+} );
+
+test( "Flash's New label takes the bar's text colour, not the accent", () => {
+	const labels = findNodes( layoutNodes( 'flash' ), isNewLabel );
+
+	expect( labels.length ).toBeGreaterThan( 0 );
+
+	for ( const label of labels ) {
+		expect( label.attributes.style?.color?.text ).toBeUndefined();
+		expect( label.attributes.textColor ).toBeUndefined();
+	}
+} );
+
+test( 'Bulletin, Minute and Rail pinned entries use the grey background', () => {
+	for ( const slug of [ 'default', 'minute', 'rail' ] ) {
+		const [ card ] = findNodes( layoutNodes( slug ), isPinnedCard );
+		const backgrounds = findNodes(
+			[ card ],
+			( node ) => !! node.attributes.style?.color?.background
+		).map( ( node ) => node.attributes.style?.color?.background );
+
+		expect( backgrounds ).toContain( PINNED_BACKGROUND );
+		expect( JSON.stringify( card ) ).not.toContain( 'accent-contrast' );
+		expect(
+			findNodes(
+				[ card ],
+				( node ) => node.attributes.style?.color?.background === ACCENT
+			)
+		).toEqual( [] );
+	}
+} );
+
+test( 'Bulletin and Minute Full story cards use the accent tint and border', () => {
+	for ( const slug of [ 'default', 'minute' ] ) {
+		const boxes = findNodes( layoutNodes( slug ), ( node ) =>
+			hasClass( node, BREAKOUT_BOX_CLASS )
+		);
+
+		expect( boxes.length ).toBeGreaterThan( 0 );
+
+		for ( const box of boxes ) {
+			expect( box.attributes.style?.color?.background ).toBe(
+				ACCENT_TINT
+			);
+			expect( box.attributes.style?.border ).toMatchObject( {
+				style: 'solid',
+				width: '1px',
+			} );
+			expect( box.attributes.style?.border?.color ).toContain(
+				'--newspack-rolling-coverage-accent'
+			);
+		}
+	}
 } );
