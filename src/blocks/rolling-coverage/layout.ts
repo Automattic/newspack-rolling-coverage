@@ -700,7 +700,9 @@ export function useLayoutPreview(
 		[ lastPreviewBlocks, previewTemplates ]
 	);
 
-	const newestContext = entryContexts[ 0 ];
+	const newestContext =
+		entryContexts.find( ( context ) => ! context.pinned ) ??
+		entryContexts[ 0 ];
 	const strippedBlocks = useMemo(
 		() => new WeakMap< TemplateBlocks, TemplateBlocks >(),
 		[]
