@@ -166,7 +166,7 @@ export function isSharedReply( body: unknown ): body is SharedPollResponse {
  * the window, the window overflowed, or a capped feed lost an entry, which
  * only the server can backfill.
  *
- * New entries are counted newest first from the page's own ad count, and
+ * New entries are counted oldest first from the page's own ad count, and
  * every `adsInterval`th keeps its ad, as the server places them on a cursor
  * poll.
  *
@@ -206,11 +206,28 @@ export function readSharedReply(
 		return null;
 	}
 
-	const entries: PollEntry[] = [];
+	const outcomes = reply.changes.map( ( change ) =>
+		classifyChange( position, change )
+	);
+	const withAd = new Set< number >();
 	let added = 0;
 
-	for ( const change of reply.changes ) {
-		const outcome = classifyChange( position, change );
+	// The page lists new entries above its own, newest first, so the oldest
+	// continues its count.
+	for ( let i = outcomes.length - 1; i >= 0; i-- ) {
+		if ( outcomes[ i ] === 'new' && reply.adsInterval ) {
+			added++;
+
+			if ( ( state.polledCount + added ) % reply.adsInterval === 0 ) {
+				withAd.add( i );
+			}
+		}
+	}
+
+	const entries: PollEntry[] = [];
+
+	for ( const [ i, change ] of reply.changes.entries() ) {
+		const outcome = outcomes[ i ];
 
 		if ( outcome === 'skip' ) {
 			continue;
@@ -232,12 +249,7 @@ export function readSharedReply(
 		}
 
 		const isNew = outcome === 'new';
-		let hasAd = false;
-
-		if ( isNew && reply.adsInterval ) {
-			added++;
-			hasAd = ( state.polledCount + added ) % reply.adsInterval === 0;
-		}
+		const hasAd = withAd.has( i );
 
 		entries.push( {
 			id: change.id,

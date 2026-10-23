@@ -238,6 +238,29 @@ check(
 );
 check( 'ads: count', withAds?.polledCount, 0 );
 
+// The page lists new entries above its own, newest first, so the count runs
+// on from the oldest: with three counted, the older of two takes the fourth.
+const twoNew = readSharedReply(
+	reply( {
+		cursor: '12:2026-01-01 12:09:00@c',
+		adsInterval: 4,
+		changes: [
+			entry( 12, '2026-01-01 12:09:00', '2026-01-01 12:09:00', ad( 12 ) ),
+			entry( 11, '2026-01-01 12:08:00', '2026-01-01 12:08:00', ad( 11 ) ),
+		],
+	} ),
+	at( `5:${ SINCE }@a`, 3 )
+);
+check(
+	'ads: oldest first',
+	twoNew?.entries.map( ( e ) => [ e.id, e.adHtml ] ),
+	[
+		[ 12, null ],
+		[ 11, '<div id="ad-11"></div>' ],
+	]
+);
+check( 'ads: oldest first count', twoNew?.polledCount, 1 );
+
 // An unknown template key comes through, for the page to reload.
 check(
 	'stale',

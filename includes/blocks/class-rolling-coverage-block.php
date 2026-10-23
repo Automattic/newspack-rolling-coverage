@@ -5175,6 +5175,19 @@ class Rolling_Coverage_Block {
 			$entries         = [];
 			$polled_count    = max( 0, (int) ( $params['polled_count'] ?? 0 ) );
 			$new_entry_count = 0;
+			$ad_entry_ids    = [];
+
+			// The page lists new entries above its own, newest first, so the
+			// oldest continues its count.
+			foreach ( array_reverse( $changes ) as $entry ) {
+				if ( 'publish' === $entry->post_status && $poll_cursor->is_new( $entry ) ) {
+					++$new_entry_count;
+
+					if ( 0 === ( $polled_count + $new_entry_count ) % $ads_interval ) {
+						$ad_entry_ids[ $entry->ID ] = true;
+					}
+				}
+			}
 
 			self::prime_breakout_posts( $changes );
 
@@ -5189,15 +5202,11 @@ class Rolling_Coverage_Block {
 				$ad_slot      = null;
 				$ad_html      = null;
 
-				if ( $is_new_entry ) {
-					++$new_entry_count;
-
-					if ( $ads_enabled && 0 === ( $polled_count + $new_entry_count ) % $ads_interval ) {
-						$placement = Ads::render_placement();
-						if ( $placement['html'] ) {
-							$ad_html = self::place_beside_entries( $placement['html'], $template, $feed_layout );
-							$ad_slot = $placement['slots'][0] ?? null;
-						}
+				if ( $ads_enabled && isset( $ad_entry_ids[ $entry->ID ] ) ) {
+					$placement = Ads::render_placement();
+					if ( $placement['html'] ) {
+						$ad_html = self::place_beside_entries( $placement['html'], $template, $feed_layout );
+						$ad_slot = $placement['slots'][0] ?? null;
 					}
 				}
 
