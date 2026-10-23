@@ -258,6 +258,27 @@ const hasClass = ( node: TemplateNode, className: string ) =>
 		.split( ' ' )
 		.includes( className );
 
+test( "Split's Pinned group sticks, but is not sticky where it stacks on tablets and phones", () => {
+	const [ stack ] = findNodes( layoutNodes( 'split' ), ( node ) =>
+		hasClass( node, 'newspack-rolling-coverage-pinned-stack' )
+	);
+	const style = stack.attributes.style as Record<
+		string,
+		{ type?: string } | undefined
+	> & { position?: { type?: string } };
+
+	expect( style.position?.type ).toBe( 'sticky' );
+
+	for ( const viewport of [ '@tablet', '@mobile' ] ) {
+		const position = (
+			style[ viewport ] as { position?: { type?: string } } | undefined
+		 )?.position;
+
+		expect( position ).toBeDefined();
+		expect( [ 'sticky', 'fixed' ] ).not.toContain( position?.type );
+	}
+} );
+
 test( 'every built-in layout except Alert places the New label in each entry variant', () => {
 	const missing: string[] = [];
 

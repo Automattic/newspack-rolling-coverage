@@ -54,13 +54,16 @@ function scrollsPage( event: Event ): boolean {
  * of them, `offset` pixels below the viewport's top, so it lands clear of
  * the bars over it, whatever sits above it in the feed.
  *
- * An entry in a sticky card doesn't count: while the card is stuck, the
- * entry reads where the card is held rather than where it sits. With no
- * entry that counts, the page goes to the block's top.
+ * An entry in a card that sticks at the current width doesn't count: while
+ * the card is stuck, the entry reads where the card is held rather than
+ * where it sits. A card set to stick can stay in the flow at some widths,
+ * as Split's Pinned group does where it stacks above the entries, so what
+ * counts is the card's computed position, not its class. With no entry that
+ * counts, the page goes to the block's top.
  *
  * @param {HTMLElement}   block  The block.
  * @param {HTMLElement[]} added  The added entries.
- * @param {HTMLElement[]} cards  The block's sticky cards.
+ * @param {HTMLElement[]} cards  The block's cards set to stick.
  * @param {number}        offset Space to leave above the entry, in pixels.
  * @return {{top: number, entry: HTMLElement|null}} The scroll position, and the entry it lands on, or null for the block's top.
  */
@@ -77,10 +80,14 @@ export function newEntriesTarget(
 		entry: null,
 	};
 
+	const stuck = cards.filter(
+		( card ) => window.getComputedStyle( card ).position === 'sticky'
+	);
+
 	added.forEach( ( entry ) => {
 		if (
 			! entry.isConnected ||
-			cards.some( ( card ) => card.contains( entry ) )
+			stuck.some( ( card ) => card.contains( entry ) )
 		) {
 			return;
 		}

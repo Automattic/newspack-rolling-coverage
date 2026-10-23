@@ -58,6 +58,7 @@ describe( 'newEntriesTarget', () => {
 	it( 'skips entries in a sticky card and goes to the block top without others', () => {
 		const block = placed( -2000 );
 		const card = placed( 0, block );
+		card.style.position = 'sticky';
 		const pinned = placed( 40, card );
 
 		expect( newEntriesTarget( block, [ pinned ], [ card ], 96 ) ).toEqual( {
@@ -70,6 +71,19 @@ describe( 'newEntriesTarget', () => {
 		expect(
 			newEntriesTarget( block, [ pinned, unpinned ], [ card ], 96 )
 		).toEqual( { top: 3000 - 1500 - 96, entry: unpinned } );
+	} );
+
+	it( 'counts entries in a card set to stick that stays in the flow at this width', () => {
+		const block = placed( -2000 );
+		const card = placed( -1900, block );
+		card.className = 'is-position-sticky';
+		card.style.position = 'static';
+		const pinned = placed( -1880, card );
+		const unpinned = placed( -1500, block );
+
+		expect(
+			newEntriesTarget( block, [ pinned, unpinned ], [ card ], 96 )
+		).toEqual( { top: 3000 - 1880 - 96, entry: pinned } );
 	} );
 } );
 
