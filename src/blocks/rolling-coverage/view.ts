@@ -1755,6 +1755,52 @@ function initBlock( root: HTMLElement ): void {
 	}
 
 	/**
+	 * Where the page scrolls to show entries the reader just added: the top
+	 * of the block, so its header shows too, unless the entries would then
+	 * start past the middle of the viewport, as under a long pinned entry.
+	 * The page then scrolls to the topmost of them, leaving the same space
+	 * above it.
+	 *
+	 * An entry in a sticky card doesn't count: while the card is stuck, the
+	 * entry reads where the card is held rather than where it sits, near the
+	 * block's top.
+	 *
+	 * @param {HTMLElement[]} added The added entries.
+	 * @return {{top: number, entry: HTMLElement|null}} The scroll position, and the entry it lands on, or null for the block's top.
+	 */
+	function addedEntriesTarget( added: HTMLElement[] ): {
+		top: number;
+		entry: HTMLElement | null;
+	} {
+		const blockY = blockTopY();
+		const cards = stickyCards();
+		const counted = added.filter(
+			( el ) =>
+				el.isConnected &&
+				! cards.some( ( card ) => card.contains( el ) )
+		);
+		const tops = counted.map(
+			( el ) => el.getBoundingClientRect().top + window.scrollY
+		);
+		const entryTop = Math.min( ...tops );
+
+		if (
+			tops.length === 0 ||
+			entryTop - blockY <= window.innerHeight / 2
+		) {
+			return { top: blockY, entry: null };
+		}
+
+		// The space blockTopY() leaves above the block.
+		const gap = root.getBoundingClientRect().top + window.scrollY - blockY;
+
+		return {
+			top: entryTop - gap,
+			entry: counted[ tops.indexOf( entryTop ) ],
+		};
+	}
+
+	/**
 	 * Fades the linked entry's outline a few seconds after the reader first
 	 * sees it. The wait starts only while the page is visible, so a link
 	 * opened in a background tab still shows it.
@@ -2328,15 +2374,24 @@ function initBlock( root: HTMLElement ): void {
 
 			const entries = takePendingEntries();
 			hideNewEntriesControl();
-
-			const targetY = blockTopY();
-
 			insertNewEntries( entries );
 
+			const target = addedEntriesTarget(
+				entries.map( ( { el } ) => el )
+			);
+
 			window.scrollTo( {
-				top: targetY,
-				behavior: 'smooth',
+				top: target.top,
+				behavior: window.matchMedia( MOTION_QUERY ).matches
+					? 'smooth'
+					: 'instant',
 			} );
+
+			// Past a long pinned entry, the next Tab would otherwise start
+			// above it and scroll back up.
+			if ( target.entry ) {
+				focusFromScript( target.entry, { preventScroll: true } );
+			}
 		};
 		newEntriesLink.addEventListener( 'click', onNewEntriesClick );
 		cleanupFns.push( () =>
