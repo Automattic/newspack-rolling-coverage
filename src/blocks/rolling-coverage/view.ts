@@ -28,6 +28,7 @@ import {
 	showingLatestLabel,
 } from './entry-name';
 import { isSharedReply, readSharedReply, startingAdCount } from './shared-poll';
+import { shareRequests } from './shared-requests';
 import { NewEntryMarks } from './new-entry-marks';
 import {
 	carryArrival,
@@ -146,7 +147,7 @@ const CONTROL_HEIGHT = 56;
 // unpublished it.
 //
 // A site gated in front of the REST API refuses a request without credentials,
-// so fetchEntries() moves the page to the browser's default on a refusal.
+// so sendEntriesRequest() moves the page to the browser's default on a refusal.
 let entriesCredentials: RequestCredentials = isConfigEnabled(
 	window.newspackRollingCoverageFrontend?.canEditPosts
 )
@@ -513,7 +514,7 @@ function topBarsBottom( block: HTMLElement ): number {
  * @param {string} url Entries URL.
  * @return {Promise<Response>} The reply, or a failed one when it came from another origin or isn't JSON.
  */
-async function fetchEntries( url: string ): Promise< Response > {
+async function sendEntriesRequest( url: string ): Promise< Response > {
 	const credentials = entriesCredentials;
 	let response = await fetch( url, { credentials } );
 	const isRefused = response.status === 401 || response.status === 403;
@@ -533,6 +534,10 @@ async function fetchEntries( url: string ): Promise< Response > {
 
 	return response;
 }
+
+// Every feed on the page requests entries through this, so feeds asking the
+// same URL at the same moment share one request.
+const fetchEntries = shareRequests( sendEntriesRequest );
 
 /**
  * Entries a feed marks as new when it starts: after the jump from a shared
@@ -3416,7 +3421,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	 * CDN skip the request, so the shared reply would only cost the server
 	 * its whole window, where the page's cursor costs it one marker read
 	 * while nothing changes. A page that takes credentials after a refusal
-	 * (see fetchEntries()) gives up the shared reply from its next poll on,
+	 * (see sendEntriesRequest()) gives up the shared reply from its next poll on,
 	 * even where its requests could be cached.
 	 *
 	 * @return {Promise<PollResponse|null>} Reply to apply.
