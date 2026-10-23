@@ -142,20 +142,21 @@ function isAloneOnLine( marker: HTMLElement ): boolean {
 }
 
 /**
- * What borders an entry's edge on the far side of the gap: a neighbour whose
- * facing edge has a separator line or that is a card, one whose facing edge
- * has neither, or nothing.
+ * What borders an entry's edge on the far side of the gap: something the tint
+ * meets flush (a neighbor whose facing edge has a separator line, or a card),
+ * open space (a neighbor with neither, or anything other than an entry), or
+ * nothing.
  */
-export type Facing = 'line' | 'space' | null;
+export type Facing = 'solid' | 'space' | null;
 
 /**
  * Where the tint starts and ends against the entry's own box, as the
  * `inset-block` of its pseudo-element: a negative value reaches past the box.
  * It runs from separator to separator. An edge with its own line stops at
- * it; one facing a neighbour's line or card reaches across the gap to it, so
- * no strip of the gap shows between them; one facing a neighbour without
- * either reaches halfway, so two tinted rows meet in the middle of the gap. An edge with no neighbour (the first or last
- * entry) takes the shape of the other rows: across the gap when the entry
+ * it; one facing a neighbor's line or card reaches across the gap to it, so
+ * no strip of the gap shows between them; one facing open space reaches
+ * halfway, so two tinted rows meet in the middle of the gap. An edge with no
+ * neighbor (the first or last entry) takes the shape of the other rows: across the gap when the entry
  * has a line on its other edge, halfway otherwise. A card keeps the tint
  * inside its box, and a layout that places entries side by side (a row) has
  * no gaps above and below to reach into.
@@ -177,7 +178,7 @@ export function tintInsets(
 	}
 
 	const reach = ( facing: Facing, otherLine: number | null ) => {
-		if ( facing === 'line' || ( facing === null && otherLine !== null ) ) {
+		if ( facing === 'solid' || ( facing === null && otherLine !== null ) ) {
 			return -gap;
 		}
 
@@ -205,10 +206,12 @@ function isPainted( color: string ): boolean {
 }
 
 /**
- * Finds the separator lines at an entry's top and bottom edges, and whether
- * a card fills it, from the boxes that span its width along those edges: a
- * separator block, or a box with a border on that edge only. The entry's
- * text and a feed nested in it aren't searched.
+ * Finds the separator lines at an entry's top and bottom edges, from the
+ * boxes that span its width along those edges (a separator block, or a box
+ * with a border on that edge only), and whether it is a card: a box running
+ * its full height with a background or a border all round, as wide as the
+ * entry or in one of its columns (Rail). The entry's text and a feed nested
+ * in it aren't searched.
  *
  * @param {HTMLElement} entry The entry.
  * @return {RowEdges} The edges.
@@ -217,9 +220,13 @@ export function rowEdges( entry: HTMLElement ): RowEdges {
 	const box = entry.getBoundingClientRect();
 	const edges: RowEdges = { top: null, bottom: null, card: false };
 
-	const visit = ( element: Element, depth: number ): void => {
+	const visit = (
+		element: Element,
+		depth: number,
+		inColumn: boolean
+	): void => {
 		if (
-			depth > 4 ||
+			depth > 6 ||
 			element.matches( '.wp-block-post-content' ) ||
 			( element !== entry && element.matches( '[data-entry-id]' ) )
 		) {
@@ -235,15 +242,15 @@ export function rowEdges( entry: HTMLElement ): RowEdges {
 		}
 
 		if ( element.matches( 'hr' ) ) {
+			if ( inColumn ) {
+				return;
+			}
+
 			if ( atTop ) {
 				edges.top ??= rect.height;
 			} else {
 				edges.bottom ??= rect.height;
 			}
-			return;
-		}
-
-		if ( rect.width < box.width - 1 ) {
 			return;
 		}
 
@@ -269,20 +276,22 @@ export function rowEdges( entry: HTMLElement ): RowEdges {
 			return;
 		}
 
-		if ( atTop && top && ! bottom ) {
+		const column = inColumn || rect.width < box.width - 1;
+
+		if ( ! column && atTop && top && ! bottom ) {
 			edges.top ??= top;
 		}
 
-		if ( atBottom && bottom && ! top ) {
+		if ( ! column && atBottom && bottom && ! top ) {
 			edges.bottom ??= bottom;
 		}
 
 		Array.from( element.children ).forEach( ( child ) =>
-			visit( child, depth + 1 )
+			visit( child, depth + 1, column )
 		);
 	};
 
-	visit( entry, 0 );
+	visit( entry, 0, false );
 
 	return edges;
 }
@@ -336,20 +345,32 @@ function neighbour( entry: HTMLElement, after: boolean ): HTMLElement | null {
  * @return {number[]} The start and end insets, in pixels.
  */
 function measureTint( entry: HTMLElement ): [ number, number ] {
-	const facing = ( other: HTMLElement | null, edge: 'top' | 'bottom' ) => {
+	const facing = (
+		other: HTMLElement | null,
+		adjacent: Element | null,
+		edge: 'top' | 'bottom'
+	): Facing => {
 		if ( ! other ) {
 			return null;
 		}
 
+		if ( adjacent !== other && adjacent?.getBoundingClientRect().height ) {
+			return 'space';
+		}
+
 		const edges = rowEdges( other );
 
-		return edges.card || edges[ edge ] !== null ? 'line' : 'space';
+		return edges.card || edges[ edge ] !== null ? 'solid' : 'space';
 	};
 
 	return tintInsets(
 		rowEdges( entry ),
-		facing( neighbour( entry, false ), 'bottom' ),
-		facing( neighbour( entry, true ), 'top' ),
+		facing(
+			neighbour( entry, false ),
+			entry.previousElementSibling,
+			'bottom'
+		),
+		facing( neighbour( entry, true ), entry.nextElementSibling, 'top' ),
 		rowGap( entry )
 	);
 }
@@ -479,7 +500,7 @@ export class NewEntryMarks {
 
 		shown.forEach( ( [ , record ] ) => this.show( record.entry ) );
 
-		// A tint reaches toward the lines of the entries beside it, so labeled entries beside one just shown are placed again.
+		// A tint reaches toward the lines and cards of the entries beside it, so labeled entries beside one just shown are placed again.
 		const tinted = new Set< HTMLElement >();
 		shown.forEach( ( [ , { entry } ] ) => {
 			if ( entry.hasAttribute( NEW_LABEL_ATTR ) ) {

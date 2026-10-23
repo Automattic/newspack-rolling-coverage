@@ -595,13 +595,13 @@ describe( 'tintInsets', () => {
 
 	it( 'runs from its own top line across the gap to the line below (Clock)', () => {
 		expect(
-			tintInsets( { ...noLines, top: 1 }, 'space', 'line', 32 )
+			tintInsets( { ...noLines, top: 1 }, 'space', 'solid', 32 )
 		).toEqual( [ 1, -32 ] );
 	} );
 
 	it( 'reaches up across the gap to the line above and stops at its own (Bulletin)', () => {
 		expect(
-			tintInsets( { ...noLines, bottom: 1 }, 'line', 'space', 32 )
+			tintInsets( { ...noLines, bottom: 1 }, 'solid', 'space', 32 )
 		).toEqual( [ -32, 1 ] );
 	} );
 
@@ -616,7 +616,7 @@ describe( 'tintInsets', () => {
 
 	it( 'gives the first and last entries the shape of the other rows', () => {
 		expect(
-			tintInsets( { ...noLines, top: 1 }, 'line', null, 16 )
+			tintInsets( { ...noLines, top: 1 }, 'solid', null, 16 )
 		).toEqual( [ 1, -16 ] );
 		expect(
 			tintInsets( { ...noLines, bottom: 1 }, null, 'space', 32 )
@@ -626,10 +626,10 @@ describe( 'tintInsets', () => {
 
 	it( 'stays inside a card and in a row layout', () => {
 		expect(
-			tintInsets( { ...noLines, card: true }, 'line', 'line', 32 )
+			tintInsets( { ...noLines, card: true }, 'solid', 'solid', 32 )
 		).toEqual( [ 0, 0 ] );
 		expect(
-			tintInsets( { ...noLines, top: 1 }, 'line', 'line', null )
+			tintInsets( { ...noLines, top: 1 }, 'solid', 'solid', null )
 		).toEqual( [ 0, 0 ] );
 	} );
 } );
@@ -705,12 +705,46 @@ describe( 'rowEdges', () => {
 		} );
 	} );
 
-	it( 'takes a box with a background or a border all round as a card', () => {
+	it( 'takes a box with a background as a card', () => {
 		const card = document.createElement( 'div' );
 		box( card, 100, 200 );
 		styles.set( card, { backgroundColor: 'rgb(240, 240, 240)' } );
 
 		expect( rowEdges( entryWith( card ) ).card ).toBe( true );
+	} );
+
+	it( 'takes a box with a border all round as a card', () => {
+		const card = document.createElement( 'div' );
+		box( card, 100, 200 );
+		styles.set( card, {
+			borderTopStyle: 'solid',
+			borderTopWidth: '1px',
+			borderBottomStyle: 'solid',
+			borderBottomWidth: '1px',
+			borderLeftStyle: 'solid',
+			borderLeftWidth: '1px',
+			borderRightStyle: 'solid',
+			borderRightWidth: '1px',
+		} );
+
+		expect( rowEdges( entryWith( card ) ) ).toEqual( {
+			top: null,
+			bottom: null,
+			card: true,
+		} );
+	} );
+
+	it( "takes a card in one of the entry's columns", () => {
+		const columns = document.createElement( 'div' );
+		box( columns, 100, 200 );
+		const time = document.createElement( 'div' );
+		box( time, 100, 40, 180 );
+		const card = document.createElement( 'div' );
+		box( card, 100, 200, 420 );
+		styles.set( card, { backgroundColor: 'rgb(240, 240, 240)' } );
+		columns.append( time, card );
+
+		expect( rowEdges( entryWith( columns ) ).card ).toBe( true );
 	} );
 
 	it( 'takes any painted background as a card', () => {
@@ -744,12 +778,29 @@ describe( 'rowEdges', () => {
 } );
 
 describe( 'the tint', () => {
-	it( 'reaches across the gap while marked and leaves no inline style once cleared', async () => {
+	beforeEach( () => {
 		parentStyle = {
 			display: 'flex',
 			flexDirection: 'column',
 			rowGap: '32px',
 		};
+	} );
+
+	function paintCard( card: HTMLElement ): void {
+		const computed = jest.mocked( window.getComputedStyle );
+		const style = computed.getMockImplementation() as (
+			element: Element
+		) => CSSStyleDeclaration;
+		computed.mockImplementation( ( element ) =>
+			element === card
+				? ( {
+						backgroundColor: 'rgb(240, 240, 240)',
+					} as CSSStyleDeclaration )
+				: style( element )
+		);
+	}
+
+	it( 'reaches across the gap while marked and leaves no inline style once cleared', async () => {
 		const entry = makeEntry( '1' );
 		root.appendChild( entry );
 		marks.mark( entry );
@@ -765,11 +816,6 @@ describe( 'the tint', () => {
 	} );
 
 	it( 'reaches across the whole gap to a neighboring card', () => {
-		parentStyle = {
-			display: 'flex',
-			flexDirection: 'column',
-			rowGap: '32px',
-		};
 		const pinned = makeEntry( '1', false );
 		pinned.getBoundingClientRect = () =>
 			( {
@@ -780,14 +826,7 @@ describe( 'the tint', () => {
 				left: 0,
 				right: 600,
 			} ) as DOMRect;
-		jest.mocked( window.getComputedStyle ).mockImplementation(
-			( element ) =>
-				( element === pinned
-					? { backgroundColor: 'rgb(240, 240, 240)' }
-					: element.hasAttribute( NEW_MARKER_ATTR )
-					? markerStyle
-					: parentStyle ) as CSSStyleDeclaration
-		);
+		paintCard( pinned );
 		const entry = makeEntry( '2' );
 		root.append( pinned, entry );
 
@@ -795,6 +834,37 @@ describe( 'the tint', () => {
 
 		expect( entry.style.getPropertyValue( TINT_START ) ).toBe( '-32px' );
 		expect( entry.style.getPropertyValue( TINT_END ) ).toBe( '-16px' );
+	} );
+
+	it( "reaches across the whole gap to a neighbor's closing line", () => {
+		const above = makeEntry( '1', false );
+		above.getBoundingClientRect = () =>
+			( { top: 0, bottom: 120, height: 120, width: 600 } ) as DOMRect;
+		const line = document.createElement( 'hr' );
+		line.getBoundingClientRect = () =>
+			( { top: 119, bottom: 120, height: 1, width: 600 } ) as DOMRect;
+		above.append( line );
+		const entry = makeEntry( '2' );
+		root.append( above, entry );
+
+		marks.mark( entry );
+
+		expect( entry.style.getPropertyValue( TINT_START ) ).toBe( '-32px' );
+	} );
+
+	it( 'reaches halfway when something other than an entry sits between', () => {
+		const pinned = makeEntry( '1', false );
+		pinned.getBoundingClientRect = () =>
+			( { top: 0, bottom: 120, height: 120, width: 600 } ) as DOMRect;
+		paintCard( pinned );
+		const ad = document.createElement( 'div' );
+		ad.getBoundingClientRect = () => ( { height: 90 } ) as DOMRect;
+		const entry = makeEntry( '2' );
+		root.append( pinned, ad, entry );
+
+		marks.mark( entry );
+
+		expect( entry.style.getPropertyValue( TINT_START ) ).toBe( '-16px' );
 	} );
 } );
 
