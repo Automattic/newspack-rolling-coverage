@@ -9,7 +9,6 @@ use Newspack_Rolling_Coverage\Breakout;
 use Newspack_Rolling_Coverage\Coverage_Follow_Block;
 use Newspack_Rolling_Coverage\Coverage_Status_Block;
 use Newspack_Rolling_Coverage\Entry_Bindings;
-use Newspack_Rolling_Coverage\Lite_Feed;
 use Newspack_Rolling_Coverage\Placements;
 use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Push_Notifications;
@@ -2303,13 +2302,14 @@ class Test_Entry_Bindings extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Lite entries don't use the template, so they have no label.
+	 * A syndication feed leaves the label out, as no script there can manage it.
 	 */
-	public function test_lite_entry_has_no_new_label() {
-		require_once __DIR__ . '/mocks/class-lite-site.php';
-
+	public function test_new_label_is_left_out_of_syndication_feeds() {
 		$entry_id = self::create_entry( self::create_coverage() );
 
-		$this->assertStringNotContainsString( 'newspack-rolling-coverage-new-label', Lite_Feed::render_entry( get_post( $entry_id ), 'poll' ) );
+		$this->go_to( get_feed_link() );
+
+		$this->assertTrue( is_feed() );
+		$this->assertStringNotContainsString( 'newspack-rolling-coverage-new-label', Rolling_Coverage_Block::render_entry( get_post( $entry_id ), parse_blocks( self::NEW_LABEL_MARKUP ) ) );
 	}
 }

@@ -41,13 +41,29 @@ type Mark = {
 };
 
 /**
+ * The first of the entry's own elements that match a selector, leaving out
+ * those of a feed nested in its content, which uses the same markup.
+ *
+ * @param {HTMLElement} entry    The entry.
+ * @param {string}      selector Selector to match.
+ * @return {HTMLElement | null} The element.
+ */
+function ownIn( entry: HTMLElement, selector: string ): HTMLElement | null {
+	return (
+		Array.from( entry.querySelectorAll< HTMLElement >( selector ) ).find(
+			( element ) => element.closest( '[data-entry-id]' ) === entry
+		) ?? null
+	);
+}
+
+/**
  * The entry's marker paragraph, when its template has one.
  *
  * @param {HTMLElement} entry The entry.
  * @return {HTMLElement | null} The marker.
  */
 function markerIn( entry: HTMLElement ): HTMLElement | null {
-	return entry.querySelector< HTMLElement >( `[${ NEW_MARKER_ATTR }]` );
+	return ownIn( entry, `[${ NEW_MARKER_ATTR }]` );
 }
 
 /**
@@ -229,6 +245,18 @@ export class NewEntryMarks {
 	}
 
 	/**
+	 * Whether an entry is marked and its mark hasn't started to clear.
+	 *
+	 * @param {string} entryId The entry ID.
+	 * @return {boolean} True when the entry's mark is held.
+	 */
+	isHeld( entryId: string ): boolean {
+		const record = this.marks.get( entryId );
+
+		return !! record && ! record.clearing;
+	}
+
+	/**
 	 * Stops every clock, observer and animation.
 	 */
 	destroy(): void {
@@ -248,12 +276,13 @@ export class NewEntryMarks {
 			return;
 		}
 
-		if ( entry.querySelector( `.${ STATUS_CLASS }` ) ) {
+		if ( ownIn( entry, `.${ STATUS_CLASS }` ) ) {
 			return;
 		}
 
 		const status = this.doc.createElement( 'span' );
 		status.className = STATUS_CLASS;
+		/* translators: Label on a coverage entry published while the reader has the page open. */
 		status.textContent = __( 'New', 'newspack-rolling-coverage' );
 		entry.appendChild( status );
 	}
@@ -492,7 +521,7 @@ export class NewEntryMarks {
 			}
 		}
 
-		entry.querySelector( `.${ STATUS_CLASS }` )?.remove();
+		ownIn( entry, `.${ STATUS_CLASS }` )?.remove();
 		entry.removeAttribute( NEW_STATE_ATTR );
 		this.cancelClearing( record );
 	}

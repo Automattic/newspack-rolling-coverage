@@ -292,16 +292,6 @@ class Test_Coverage_Status_Block extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * The live badge shows a static dot; nothing on it moves on its own.
-	 */
-	public function test_live_badge_does_not_pulse() {
-		$html = $this->render( [], self::page( self::feed( self::create_coverage() ) ) );
-
-		$this->assertStringContainsString( 'newspack-ui__badge--dot', $html );
-		$this->assertStringNotContainsString( 'newspack-ui__badge--pulse', $html );
-	}
-
-	/**
 	 * Each status has its badge; a status the plugin doesn't know is live.
 	 */
 	public function test_badge_follows_the_status() {

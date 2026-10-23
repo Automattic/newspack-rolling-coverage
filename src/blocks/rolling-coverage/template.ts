@@ -84,6 +84,7 @@ function newLabel( {
 			className: `use-header-font ${ NEW_LABEL_CLASS }${
 				hidden ? ' screen-reader-text' : ''
 			}`,
+			/* translators: Label on a coverage entry published while the reader has the page open. */
 			content: __( 'New', 'newspack-rolling-coverage' ),
 			fontSize: 'small',
 			style: {

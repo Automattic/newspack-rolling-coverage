@@ -203,6 +203,20 @@ describe( 'NewEntryMarks', () => {
 		expect( status?.textContent ).toBe( 'New' );
 	} );
 
+	it( "ignores the marker of a feed nested in the entry's content", () => {
+		const entry = makeEntry( '1', false );
+		const nested = makeEntry( '2' );
+		entry.appendChild( nested );
+		root.appendChild( entry );
+
+		marks.mark( entry );
+
+		expect( markerOf( nested ).hidden ).toBe( true );
+		expect(
+			entry.querySelector( ':scope > .newspack-rolling-coverage-new-status' )
+		).not.toBeNull();
+	} );
+
 	it( 'clears 4000ms after the marker is fully in view', () => {
 		const entry = makeEntry( '1' );
 		root.appendChild( entry );
@@ -222,6 +236,8 @@ describe( 'NewEntryMarks', () => {
 
 		jest.advanceTimersByTime( 1 );
 		expect( entry.getAttribute( NEW_STATE_ATTR ) ).toBe( 'clearing' );
+		expect( marks.isMarked( '1' ) ).toBe( true );
+		expect( marks.isHeld( '1' ) ).toBe( false );
 	} );
 
 	it( 'does not start the clock while the tab is hidden', () => {

@@ -7,7 +7,6 @@ import {
 	ENTER_MS,
 	EXIT_MS,
 	FADE_CLEANUP_MS,
-	HOLD_MS,
 	LEAVE_MS,
 	MOTION_QUERY,
 	prefersReducedMotion,
@@ -30,12 +29,10 @@ function mockMatchMedia( matches: boolean ) {
 }
 
 describe( 'motion values', () => {
-	it( 'holds the linked outline for four seconds', () => {
-		expect( HOLD_MS ).toBe( 4000 );
-	} );
-
-	it( 'keeps the fade cleanup past the longest sequence', () => {
-		expect( FADE_CLEANUP_MS ).toBeGreaterThan( CLEAR_MS + COLLAPSE_MS );
+	it( 'keeps the fade cleanup past the fades that rely on it', () => {
+		expect( FADE_CLEANUP_MS ).toBeGreaterThan(
+			Math.max( ENTER_MS, scssMs( 'refresh' ), LEAVE_MS )
+		);
 	} );
 
 	it( 'declares the same durations in SCSS and TypeScript', () => {

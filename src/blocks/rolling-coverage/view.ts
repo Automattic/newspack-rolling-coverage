@@ -2406,7 +2406,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			dateGmt: sharedEntryDate() ?? '',
 			shownIds: new Set( shownIds ),
 			markedIds: new Set(
-				shownIds.filter( ( id ) => marks?.isMarked( id ) )
+				shownIds.filter( ( id ) => marks?.isHeld( id ) )
 			),
 		};
 

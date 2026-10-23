@@ -1114,6 +1114,11 @@ class Entry_Bindings {
 			return $block_content;
 		}
 
+		// No view script runs in a feed to manage the label, and a reader may drop `hidden`.
+		if ( is_feed() ) {
+			return '';
+		}
+
 		$tags = new WP_HTML_Tag_Processor( $block_content );
 
 		if ( ! $tags->next_tag() ) {

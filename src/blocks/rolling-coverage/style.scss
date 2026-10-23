@@ -105,7 +105,7 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 			}
 		}
 
-		.newspack-rolling-coverage-entry[data-new="clearing"] [data-rc-new-marker] {
+		.newspack-rolling-coverage-entry[data-new="clearing"] [data-rc-new-marker]:not(.newspack-rolling-coverage-entry[data-new="clearing"] .newspack-rolling-coverage-entry:not([data-new="clearing"]) [data-rc-new-marker]) {
 			opacity: 0;
 			transition: opacity motion.$clear motion.$ease-out;
 		}
