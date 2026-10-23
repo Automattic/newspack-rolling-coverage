@@ -38,7 +38,7 @@ The Rolling Coverage admin menu holds the coverages list, each coverage's entrie
 
 ### Blocks
 
-Eight blocks ship with the plugin (namespace `newspack-rolling-coverage`). Each block's attributes are in its `block.json`.
+Nine blocks ship with the plugin (namespace `newspack-rolling-coverage`). Each block's attributes are in its `block.json`.
 
 | Block | Name | Purpose | Docs |
 | :--- | :--- | :--- | :--- |
@@ -50,6 +50,7 @@ Eight blocks ship with the plugin (namespace `newspack-rolling-coverage`). Each 
 | Check for Updates | `check-updates` | A button readers press to load new entries. A feed whose layout holds it stops checking for new entries on its own. | [README](../src/blocks/check-updates/README.md), [DEVELOPMENT](../src/blocks/check-updates/DEVELOPMENT.md) |
 | Update Timer | `update-timer` | Shows readers when the feed next checks for new entries, and what each check found. | [README](../src/blocks/update-timer/README.md), [DEVELOPMENT](../src/blocks/update-timer/DEVELOPMENT.md) |
 | Load More | `load-more` | The button that loads older entries, shown when the feed's Older entries setting is "Load more" button. | [README](../src/blocks/load-more/README.md), [DEVELOPMENT](../src/blocks/load-more/DEVELOPMENT.md) |
+| New Label | `new-label` | Marks an entry that arrives while the reader has the page open, until they've seen it. | [README](../src/blocks/new-label/README.md), [DEVELOPMENT](../src/blocks/new-label/DEVELOPMENT.md) |
 
 The feed also sends analytics events as readers see entries and when a poll fails (`coverage_entry_seen`, `coverage_poll_error`, in `src/blocks/rolling-coverage/analytics.ts`).
 
@@ -134,7 +135,7 @@ includes/
     class-ai-settings.php        Prompt settings + REST route
     class-abilities.php          WordPress Abilities API registration
     class-key-takeaways-feature.php  AI plugin per-feature model config
-  blocks/                        Server render callbacks for the eight blocks, entry bindings, shared layouts and their server copies (`layouts/`), breakout cards, status labels, entry name, Jump to Latest and Full story label settings, Lite Site feed support
+  blocks/                        Server render callbacks for the nine blocks, entry bindings, shared layouts and their server copies (`layouts/`), breakout cards, status labels, entry name, Jump to Latest and Full story label settings, Lite Site feed support
   slack/                         Slack config, API client, content processor, media importer, author resolver, ingestion service, verifier, webhook controller, monitor
   sources/
     class-entry-ingestion-service.php  Generic ingestion + dedup/mutex
