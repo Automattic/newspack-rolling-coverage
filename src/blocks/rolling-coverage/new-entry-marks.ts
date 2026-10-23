@@ -143,7 +143,8 @@ function isAloneOnLine( marker: HTMLElement ): boolean {
 
 /**
  * What borders an entry's edge on the far side of the gap: a neighbour whose
- * facing edge has a separator line, one whose facing edge doesn't, or nothing.
+ * facing edge has a separator line or that is a card, one whose facing edge
+ * has neither, or nothing.
  */
 export type Facing = 'line' | 'space' | null;
 
@@ -151,9 +152,9 @@ export type Facing = 'line' | 'space' | null;
  * Where the tint starts and ends against the entry's own box, as the
  * `inset-block` of its pseudo-element: a negative value reaches past the box.
  * It runs from separator to separator. An edge with its own line stops at
- * it; one facing a neighbour's line reaches across the gap to that line; one
- * facing a neighbour without a line reaches halfway, so two tinted rows meet
- * in the middle of the gap. An edge with no neighbour (the first or last
+ * it; one facing a neighbour's line or card reaches across the gap to it, so
+ * no strip of the gap shows between them; one facing a neighbour without
+ * either reaches halfway, so two tinted rows meet in the middle of the gap. An edge with no neighbour (the first or last
  * entry) takes the shape of the other rows: across the gap when the entry
  * has a line on its other edge, halfway otherwise. A card keeps the tint
  * inside its box, and a layout that places entries side by side (a row) has
@@ -340,7 +341,9 @@ function measureTint( entry: HTMLElement ): [ number, number ] {
 			return null;
 		}
 
-		return rowEdges( other )[ edge ] === null ? 'space' : 'line';
+		const edges = rowEdges( other );
+
+		return edges.card || edges[ edge ] !== null ? 'line' : 'space';
 	};
 
 	return tintInsets(

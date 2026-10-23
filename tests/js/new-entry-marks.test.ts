@@ -763,6 +763,39 @@ describe( 'the tint', () => {
 
 		expect( entry.hasAttribute( 'style' ) ).toBe( false );
 	} );
+
+	it( 'reaches across the whole gap to a neighboring card', () => {
+		parentStyle = {
+			display: 'flex',
+			flexDirection: 'column',
+			rowGap: '32px',
+		};
+		const pinned = makeEntry( '1', false );
+		pinned.getBoundingClientRect = () =>
+			( {
+				top: 0,
+				bottom: 120,
+				height: 120,
+				width: 600,
+				left: 0,
+				right: 600,
+			} ) as DOMRect;
+		jest.mocked( window.getComputedStyle ).mockImplementation(
+			( element ) =>
+				( element === pinned
+					? { backgroundColor: 'rgb(240, 240, 240)' }
+					: element.hasAttribute( NEW_MARKER_ATTR )
+					? markerStyle
+					: parentStyle ) as CSSStyleDeclaration
+		);
+		const entry = makeEntry( '2' );
+		root.append( pinned, entry );
+
+		marks.mark( entry );
+
+		expect( entry.style.getPropertyValue( TINT_START ) ).toBe( '-32px' );
+		expect( entry.style.getPropertyValue( TINT_END ) ).toBe( '-16px' );
+	} );
 } );
 
 describe( 'marking in batches', () => {
