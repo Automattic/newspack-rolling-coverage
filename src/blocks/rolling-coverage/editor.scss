@@ -1,39 +1,8 @@
 @use "~@wordpress/base-styles/colors" as wp-colors;
 @use "~@wordpress/base-styles/variables" as wp-vars;
 
-.newspack-rolling-coverage-ai-panel {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-	margin-top: 16px;
-
-	.components-base-control {
-		margin-bottom: 0;
-	}
-
-	> button {
-		align-self: flex-start;
-	}
-
-	.components-notice__content {
-		word-break: break-word;
-		overflow-wrap: anywhere;
-	}
-
-	&__help {
-		margin: 0;
-		color: #757575;
-		font-size: 12px;
-		line-height: 1.5;
-	}
-}
-
-.newspack-rolling-coverage-ai-output textarea {
-	background: #f7f7f7;
-}
-
-.newspack-rolling-coverage-ads-notice {
-	margin-bottom: 16px;
+.newspack-rolling-coverage-centered-button {
+	justify-content: center;
 }
 
 .newspack-rolling-coverage-layout {

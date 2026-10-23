@@ -98,8 +98,8 @@ When [Newspack Ads](https://github.com/Automattic/newspack-ads) is active, Rolli
 
 When the WordPress AI plugin and a provider are configured:
 
-- A **Generate Key Takeaways** action in the block editor summarizes up to 20 published entries (pinned first) into a configurable number of takeaways (1–10).
-- Administrators edit the prompt on the **AI** admin page (`rolling-coverage-ai`), with a `{max_takeaways}` placeholder.
+- A **Generate Key Takeaways** action in the block editor summarizes up to 20 published entries (pinned first) into a configurable number of takeaways (1–10), and copies the result to the clipboard.
+- Administrators edit the prompt on the **AI** admin page (`rolling-coverage-ai`), with a `{max_takeaways}` placeholder. The block's AI panel links to it for users who can `manage_options`. When key takeaways can't run, the page shows what to set up instead of the prompt.
 - Exposed both as a REST endpoint and as a WordPress Abilities API ability (`rolling-coverage/generate-key-takeaways`).
 - Prompt and entry context are capped, and the entries are wrapped in delimiters with an anti-prompt-injection instruction.
 
@@ -117,6 +117,7 @@ includes/
   class-initializer.php          Wires every feature class into the WP lifecycle
   class-post-type.php            rolling_cov_entry CPT, meta, REST fields, entries-view endpoint, pinning, restore
   class-taxonomy.php             rolling_coverage taxonomy, term meta, coverage lifecycle REST routes
+  class-coverage-rest-controller.php  Core terms route for coverages; creating one needs manage_categories
   class-archive-mode.php         Archive/lock rules and the entry archive endpoint
   class-placements.php           Finds and stores every published place the plugin's blocks show a coverage
   class-newest-entry.php         Keeps each coverage's newest-entry time in term meta
@@ -133,7 +134,7 @@ includes/
     class-ai-settings.php        Prompt settings + REST route
     class-abilities.php          WordPress Abilities API registration
     class-key-takeaways-feature.php  AI plugin per-feature model config
-  blocks/                        Server render callbacks for the eight blocks, entry bindings, shared layouts, breakout cards, status labels, entry name, Jump to Latest and Full story label settings, Lite Site feed support
+  blocks/                        Server render callbacks for the eight blocks, entry bindings, shared layouts and their server copies (`layouts/`), breakout cards, status labels, entry name, Jump to Latest and Full story label settings, Lite Site feed support
   slack/                         Slack config, API client, content processor, media importer, author resolver, ingestion service, verifier, webhook controller, monitor
   sources/
     class-entry-ingestion-service.php  Generic ingestion + dedup/mutex
@@ -143,7 +144,7 @@ src/
   blocks/                        Block editor + frontend view sources (edit.tsx, view.ts, block.json)
   entry-editor/                  Entry editor script (Push Notifications panel, back-to-coverage link)
   breakout-editor/               Full story label field in a breakout post's settings sidebar
-tests/                           PHPUnit suite; tests/js/ holds the poll cursor check `npm test` runs
+tests/                           PHPUnit suite; tests/js/ holds the poll cursor and layout template checks `npm test` runs
 ```
 
 All PHP classes live under the `Newspack_Rolling_Coverage` namespace and are loaded via Composer's `classmap` autoloader over `./includes`. The admin app is compiled by webpack to `dist/admin.js` / `dist/admin.css`, the editor scripts to `dist/entry-editor.js` and `dist/breakout-editor.js`, and blocks to `dist/blocks/<slug>/`.
@@ -160,6 +161,7 @@ All PHP classes live under the `Newspack_Rolling_Coverage` namespace and are loa
 ### Taxonomy: `rolling_coverage`
 
 - REST base `rolling-coverage`, non-hierarchical, not publicly queryable or shown in menus.
+- The term description is an internal note: REST responses outside the `edit` context leave it out (`Taxonomy::filter_rest_response()`).
 - Term meta: `rolling_coverage_status`, `rolling_coverage_canonical_url`, `created_at`, `modified_at`, `rolling_coverage_end_time`, `rolling_coverage_last_modified`, `rolling_coverage_slack_channel_id`, `rolling_coverage_slack_channel_name`, `rolling_coverage_source`, `rolling_coverage_source_ref`, `rolling_coverage_ads_disabled`, `rolling_coverage_template_hashes`, `rolling_coverage_newest_entry`, `rolling_coverage_change_marker`.
 
 ### Entry post meta
@@ -198,6 +200,7 @@ Sensitive Slack/source meta (`RESTRICTED_META` in `Post_Type`) is stripped from 
 ### Layout pattern meta
 
 - `_rolling_coverage_layout` — on each built-in layout's `wp_block` pattern, the layout's slug. When the `rolling_coverage_{slug}_layout_id` option is missing, the plugin finds the pattern by this key and repairs the option, so deleting it breaks that fallback.
+- `_rolling_coverage_layout_hash` — on each built-in layout's pattern, the MD5 hash of the content the pattern last got from the plugin: when it was created, or when a save stored the plugin's layout unchanged. While the content still matches, the layout renders as the plugin ships it ([Layouts](../src/blocks/rolling-coverage/DEVELOPMENT.md#layouts)). A pattern from before the key existed gets it on its first update, if it was still unedited.
 
 ## REST API
 
@@ -245,7 +248,7 @@ Namespace: **`rolling-coverage/v1`** (constant `NEWSPACK_ROLLING_COVERAGE_REST_N
 | POST | `/slack/commands` | Slack signature | Slash commands. |
 | POST | `/slack/interactions` | Slack signature | Interactive components. |
 
-Core WordPress routes are also used: `/wp/v2/rolling-coverage` (coverages) and `/wp/v2/rolling-coverage-entries` (entries, including trash/force delete). The plugin adds these read-only fields to their responses:
+Core WordPress routes are also used: `/wp/v2/rolling-coverage` (coverages) and `/wp/v2/rolling-coverage-entries` (entries, including trash/force delete). Creating a coverage through the coverages route needs `manage_categories` (`Coverage_REST_Controller`), while assigning an entry to one needs only `edit_posts`. Outside edit context, the entries route leaves out entries whose coverage is trashed or deleted, on top of the request's own `rolling-coverage`, `categories` and `tags` filters (`Post_Type::filter_rest_query()`). The plugin adds these read-only fields to their responses:
 
 | Route | Field | Context | Value |
 | :--- | :--- | :--- | :--- |

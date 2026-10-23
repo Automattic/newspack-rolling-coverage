@@ -46,4 +46,4 @@ npm run fix:js       # Auto-fix JS (also format:scss, fix:php)
 Tests:
 
 - **PHP:** PHPUnit tests live in `tests/`. `npm run test:php` needs a WordPress test install, which `bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] [wp-version]` sets up. Inside the Newspack workspace, run the workspace's `n test-php` from this directory instead.
-- **JS:** `npm test` runs `tests/js/shared-poll-check.ts`, which checks the view script's copy of the poll cursor rules against `tests/fixtures/poll-cursor-cases.json`, the cases PHPUnit checks the server's copy against. There is no JS test runner.
+- **JS:** `npm test` runs `tests/js/shared-poll-check.ts`, which checks the view script's copy of the poll cursor rules against `tests/fixtures/poll-cursor-cases.json`, the cases PHPUnit checks the server's copy against. It then runs the layout template checks under Jest (`npm run test:layouts`), which fail when a built-in layout's template changes without `npm run build:layouts` rewriting the server copies in `includes/blocks/layouts/`.

@@ -1,3 +1,5 @@
+// Layout_Templates::MUTED_TEXT_COLORS mirrors this list for the server's
+// copies of the built-in layouts.
 export const MUTED_TEXT_COLORS = [ 'contrast-3', 'medium-gray' ];
 
 /**

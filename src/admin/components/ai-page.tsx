@@ -1,13 +1,7 @@
 /**
  * WordPress dependencies
  */
-import {
-	useState,
-	useEffect,
-	useCallback,
-	useMemo,
-	createInterpolateElement,
-} from '@wordpress/element';
+import { useState, useEffect, useCallback, useMemo } from '@wordpress/element';
 import {
 	Button,
 	DropdownMenu,
@@ -18,8 +12,10 @@ import {
 import { moreVertical } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
 import { Stack } from '@wordpress/ui';
+import { EmptyState } from 'newspack-components/dist/esm/empty-state';
 import Grid from 'newspack-components/dist/esm/grid';
 import SectionHeader from 'newspack-components/dist/esm/section-header';
+import { ai } from 'newspack-icons';
 
 /**
  * Internal dependencies
@@ -36,35 +32,81 @@ import { notifySuccess } from '../utils/notices';
 import type { AiSettings as AiSettingsType, AdminConfig } from '../types';
 
 /**
- * Body of the "AI features are not available" notice.
+ * What the AI page shows when key takeaways can't run: what is missing, and a
+ * link to the screen where an administrator sets it up.
  *
- * When the only blocker is connector approval, the notice points at the
- * Connector Approvals screen instead of asking the administrator to enable
- * the AI plugin and configure a provider, which they have already done.
- *
- * @param {AdminConfig} config Admin config with the availability flags.
- * @return Notice content.
+ * @param {Object}      props        Component props.
+ * @param {AdminConfig} props.config Admin config with the availability flags.
  */
-function getUnavailableNotice( config: AdminConfig ) {
+function AIUnavailable( { config }: { config: AdminConfig } ) {
+	let title: string = __(
+		'Turn on AI key takeaways',
+		'newspack-rolling-coverage'
+	);
+	let description: string;
+	let action: { label: string; href: string } | null = null;
+
 	if ( config.aiNeedsApproval ) {
-		return createInterpolateElement(
-			/* translators: <a> wraps the link to the Connector Approvals screen. */
-			__(
-				'Rolling Coverage is waiting for AI connector approval. Approve it under <a>Tools → Connector Approvals</a> before these prompts take effect.',
+		title = __(
+			'Approve Rolling Coverage for AI',
+			'newspack-rolling-coverage'
+		);
+		description = __(
+			'Rolling Coverage is waiting for approval to use the AI provider. Once it’s approved, editors can sum up the latest entries in a coverage from the Rolling Coverage block.',
+			'newspack-rolling-coverage'
+		);
+		action = {
+			label: __(
+				'Go to Connector Approvals',
 				'newspack-rolling-coverage'
 			),
-			{
-				a: (
-					// eslint-disable-next-line jsx-a11y/anchor-has-content -- content is supplied via createInterpolateElement.
-					<a href={ config.adminUrls.connectorApprovals } />
-				),
-			}
+			href: config.adminUrls.connectorApprovals,
+		};
+	} else if ( config.adminUrls.aiSettings ) {
+		description = __(
+			'Connect an AI provider and turn on Rolling Coverage Key Takeaways in the AI settings. Editors can then sum up the latest entries in a coverage from the Rolling Coverage block.',
+			'newspack-rolling-coverage'
+		);
+		action = {
+			label: __( 'Go to AI Settings', 'newspack-rolling-coverage' ),
+			href: config.adminUrls.aiSettings,
+		};
+	} else if ( config.aiPluginActive ) {
+		description = __(
+			'The WordPress AI plugin is active, but AI can’t run on this site yet. Ask a developer or the site’s host to check that the site meets the plugin’s requirements.',
+			'newspack-rolling-coverage'
+		);
+	} else if ( config.adminUrls.aiPlugin ) {
+		description = __(
+			'Install and activate the WordPress AI plugin, connect an AI provider, and turn on Rolling Coverage Key Takeaways in its settings. Editors can then sum up the latest entries in a coverage from the Rolling Coverage block.',
+			'newspack-rolling-coverage'
+		);
+		action = {
+			label: __( 'Go to Plugins', 'newspack-rolling-coverage' ),
+			href: config.adminUrls.aiPlugin,
+		};
+	} else {
+		description = __(
+			'Ask an administrator who manages plugins to install and activate the WordPress AI plugin. Then connect an AI provider and turn on Rolling Coverage Key Takeaways in its settings.',
+			'newspack-rolling-coverage'
 		);
 	}
 
-	return __(
-		'AI features are not available on this site. An administrator must enable the AI plugin and configure a provider before these prompts take effect.',
-		'newspack-rolling-coverage'
+	return (
+		<EmptyState.Root>
+			<EmptyState.Header
+				icon={ ai }
+				title={ title }
+				description={ description }
+			/>
+			{ action && (
+				<EmptyState.Actions>
+					<Button variant="primary" href={ action.href }>
+						{ action.label }
+					</Button>
+				</EmptyState.Actions>
+			) }
+		</EmptyState.Root>
 	);
 }
 
@@ -113,8 +155,10 @@ function AIPage() {
 	}, [ config.restBaseUrls.aiSettings ] );
 
 	useEffect( () => {
-		loadSettings();
-	}, [ loadSettings ] );
+		if ( config.aiAvailable ) {
+			loadSettings();
+		}
+	}, [ config.aiAvailable, loadSettings ] );
 
 	const handleSave = useCallback( async () => {
 		setIsSaving( true );
@@ -207,11 +251,7 @@ function AIPage() {
 					onClick={ handleSave }
 					isBusy={ isSaving }
 					disabled={
-						isSaving ||
-						isLoading ||
-						! aiEnabled ||
-						! isDirty ||
-						hasOverLimit
+						isSaving || isLoading || ! isDirty || hasOverLimit
 					}
 				>
 					{ __( 'Save', 'newspack-rolling-coverage' ) }
@@ -226,11 +266,7 @@ function AIPage() {
 								'newspack-rolling-coverage'
 							),
 							onClick: handleReset,
-							isDisabled:
-								isSaving ||
-								isLoading ||
-								! aiEnabled ||
-								isAtDefaults,
+							isDisabled: isSaving || isLoading || isAtDefaults,
 						},
 					] }
 				/>
@@ -241,14 +277,17 @@ function AIPage() {
 			handleSave,
 			isSaving,
 			isLoading,
-			aiEnabled,
 			isAtDefaults,
 			isDirty,
 			hasOverLimit,
 		]
 	);
 
-	useHeader( { actions: headerActions } );
+	useHeader( { actions: aiEnabled ? headerActions : undefined } );
+
+	if ( ! aiEnabled ) {
+		return <AIUnavailable config={ config } />;
+	}
 
 	return (
 		<>
@@ -262,12 +301,7 @@ function AIPage() {
 						{ error }
 					</Notice>
 				) }
-				{ ! config.aiAvailable && (
-					<Notice status="warning" isDismissible={ false }>
-						{ getUnavailableNotice( config ) }
-					</Notice>
-				) }
-				{ hasOverLimit && aiEnabled && (
+				{ hasOverLimit && (
 					<Notice status="error" isDismissible={ false }>
 						{ __(
 							'The prompt exceeds the maximum length. Shorten the text to stay within the limit.',
@@ -318,7 +352,7 @@ function AIPage() {
 							} ) )
 						}
 						rows={ 6 }
-						disabled={ isLoading || isSaving || ! aiEnabled }
+						disabled={ isLoading || isSaving }
 						aria-invalid={ takeawaysPromptOver || undefined }
 						className={
 							takeawaysPromptOver

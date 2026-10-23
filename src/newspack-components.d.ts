@@ -115,6 +115,7 @@ declare module 'newspack-icons' {
 	import type { JSX } from 'react';
 
 	export const newspack: JSX.Element;
+	export const ai: JSX.Element;
 }
 
 declare module 'newspack-colors' {

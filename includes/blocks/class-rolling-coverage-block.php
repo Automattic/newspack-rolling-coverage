@@ -11,6 +11,7 @@ namespace Newspack_Rolling_Coverage;
 use Google\Site_Kit\Modules\Analytics_4;
 use Google\Site_Kit\Modules\Analytics_4\Settings as Site_Kit_Analytics_4_Settings;
 use WP_Block;
+use WP_Block_Supports;
 use WP_Block_Type;
 use WP_Block_Type_Registry;
 use WP_Error;
@@ -182,6 +183,9 @@ class Rolling_Coverage_Block {
 		'core/avatar',
 	];
 
+	// Marks the layout's own Avatar blocks, the only ones show_entry_avatars() turns Avatar Display on for.
+	const LAYOUT_AVATAR_ATTR = 'newspackRollingCoverageLayoutAvatar';
+
 	/**
 	 * The host page's post ID, captured at the start of render_block()
 	 * before the global $post is swapped to individual entries. Used by
@@ -249,6 +253,7 @@ class Rolling_Coverage_Block {
 		add_filter( 'posts_where', [ __CLASS__, 'load_more_bound_where' ], 10, 2 );
 		add_filter( 'posts_where', [ __CLASS__, 'marker_where' ], 10, 2 );
 		add_filter( 'render_block_core/post-date', [ __CLASS__, 'mark_relative_entry_date' ], 10, 3 );
+		add_filter( 'pre_option_show_avatars', [ __CLASS__, 'show_entry_avatars' ] );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
 		add_filter( 'render_block_core/avatar', [ __CLASS__, 'size_entry_avatar' ], 10, 2 );
 		add_filter( 'render_block_core/post-author-name', [ __CLASS__, 'hide_slack_bot_byline' ], 10, 3 );
@@ -976,11 +981,33 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
+	 * Turns the site's Avatar Display on while one of the layout's Avatar
+	 * blocks renders in an entry (see with_layout_avatars_marked()), so the
+	 * block's Author avatar setting decides whether entries show their
+	 * author's picture. A site can keep avatars off everywhere else, such as
+	 * in comments, and still show them in its coverage. Blocks in an entry's
+	 * own content, an Avatar block included, still follow Avatar Display.
+	 *
+	 * @param mixed $pre The value to return instead of the stored option, or false for the stored one.
+	 * @return mixed
+	 */
+	public static function show_entry_avatars( $pre ) {
+		if ( ! self::is_rendering_entry() || empty( WP_Block_Supports::$block_to_render['attrs'][ self::LAYOUT_AVATAR_ATTR ] ) ) {
+			return $pre;
+		}
+
+		return '1';
+	}
+
+	/**
 	 * Writes an entry avatar's block size onto its image as inline width and
 	 * height. Core only sets them as attributes, which classic themes'
-	 * global avatar sizing overrides. With avatars off core still prints an
-	 * empty wrapper, which is dropped so it leaves no gap; an avatar with no
-	 * image otherwise, such as an inline SVG, is left as it is.
+	 * global avatar sizing overrides. When get_avatar() gives nothing, as for
+	 * an Avatar block in an entry's content while Avatar Display is off, core
+	 * still prints an empty wrapper, around an empty link for a linked block,
+	 * which is dropped so it leaves no gap and no link without a name; an
+	 * avatar with no image otherwise, such as initials from an avatar filter,
+	 * is left as it is.
 	 *
 	 * @param string $block_content Rendered block.
 	 * @param array  $block         Parsed block.
@@ -1000,7 +1027,7 @@ class Rolling_Coverage_Block {
 		$html = new WP_HTML_Tag_Processor( $block_content );
 
 		if ( ! $html->next_tag( 'img' ) ) {
-			return get_option( 'show_avatars' ) ? $block_content : '';
+			return preg_match( '#^<div\b[^>]*>\s*(?:<a\b[^>]*\bclass="wp-block-avatar__link"[^>]*>\s*</a>\s*)?</div>$#', trim( $block_content ) ) ? '' : $block_content;
 		}
 
 		$style = trim( (string) $html->get_attribute( 'style' ), " \t\n\r;" );
@@ -1095,6 +1122,7 @@ class Rolling_Coverage_Block {
 					'entriesPreviewRestBase'      => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 					'aiEndpoint'                  => esc_url_raw( rest_url( NEWSPACK_ROLLING_COVERAGE_REST_NAMESPACE . '/coverages' ) ),
 					'aiAvailable'                 => AI_Service::is_available(),
+					'aiSettingsUrl'               => AI_Settings::can_manage_settings() ? esc_url_raw( admin_url( 'admin.php?page=' . Admin::AI_MENU_SLUG ) ) : '',
 					'newspackAdsAvailable'        => Ads::is_available(),
 					'newspackAdsPlacementEnabled' => Ads::is_placement_enabled(),
 					'canonicalUrlMetaKey'         => Taxonomy::CANONICAL_URL_META_KEY,
@@ -1111,7 +1139,6 @@ class Rolling_Coverage_Block {
 					'canEditThemeOptions'         => current_user_can( 'edit_theme_options' ),
 					'layoutCategoryId'            => Layout::get_pattern_category_id(),
 					'entryPostType'               => Post_Type::CPT_SLUG,
-					'showAvatars'                 => (bool) get_option( 'show_avatars' ),
 					'entryPlural'                 => Entry_Name::word( 2 ),
 					'breakoutLabel'               => Breakout_Label::get(),
 					'sampleAvatarUrls'            => [
@@ -1288,7 +1315,9 @@ class Rolling_Coverage_Block {
 		}
 
 		$ads_enabled_attr = ! empty( $attributes['enableAds'] );
-		$ads_enabled      = ! $is_capped && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $coverage_id );
+
+		// Feed readers run no ad code to fill a slot, and apps that read the feed place their own.
+		$ads_enabled = ! $is_capped && ! is_feed() && $ads_enabled_attr && ! self::is_coverage_ads_disabled( $coverage_id );
 
 		// A trashed coverage is effectively invisible on the frontend.
 		if ( 'trash' === $status ) {
@@ -1335,9 +1364,8 @@ class Rolling_Coverage_Block {
 
 		$feed         = self::feed_group( $block );
 		$feed_layout  = (array) ( $feed['attrs']['layout'] ?? [] );
-		$template     = self::with_author_settings( self::get_entry_template( $block ), $attributes );
+		$template     = self::with_layout_avatars_marked( self::with_author_settings( self::get_entry_template( $block ), $attributes ) );
 		$template_key = self::persist_block_config( $coverage_id, $template, $ads_enabled_attr, $ads_interval, $latest_count, $feed_layout );
-		$template     = self::with_avatar_display( $template );
 		$unplaced     = 'grid' === ( $feed_layout['type'] ?? '' ) ? self::without_grid_placements( $template ) : $template;
 		$column_rules = $is_capped ? [] : self::column_rules( $template, $feed_layout );
 
@@ -1374,6 +1402,11 @@ class Rolling_Coverage_Block {
 		self::prime_author_caches( $posts, $template, $is_lite );
 
 		$older_entries = $template ? self::older_entries( $attributes ) : 'none';
+
+		// The view script keeps an entry that lists below the page's bound off
+		// the page, as this render does, so only a page that leaves entries
+		// out sends one, whether or not it can load them.
+		$leaves_out = $has_more;
 
 		if ( 'none' === $older_entries ) {
 			$has_more = false;
@@ -1512,7 +1545,7 @@ class Rolling_Coverage_Block {
 			'data-poll-interval'    => $poll_interval,
 			'data-entries-per-page' => $entries_per_page,
 			'data-cursor'           => (string) $cursor,
-			'data-before'           => $before,
+			'data-before'           => $leaves_out ? $before : '',
 			'data-has-more'         => $has_more ? '1' : '0',
 			'data-status'           => $status,
 			'data-template-key'     => $template_key,
@@ -3309,53 +3342,12 @@ class Rolling_Coverage_Block {
 	/**
 	 * The Bulletin layout, which a block without a layout of its own renders:
 	 * the Feed group holding the pinned card, the entry and the Full Story
-	 * Entry. `bulletin-layout.html` is the editor's serialization of
-	 * Bulletin's inner-blocks template (`innerTemplate()` in `layout.ts`), so
-	 * a change to one needs the other regenerated. Its words are translated here
-	 * and its times follow the site's time format, as the editor's do.
+	 * Entry, filled in for the site as the editor would build it.
 	 *
 	 * @return array[] Parsed blocks.
 	 */
 	public static function default_layout_blocks(): array {
-		$markup = strtr(
-			(string) file_get_contents( __DIR__ . '/bulletin-layout.html' ),
-			[
-				'{{share}}'      => esc_html__( 'Share', 'newspack-rolling-coverage' ),
-				'{{pinned}}'     => esc_html__( 'Pinned', 'newspack-rolling-coverage' ),
-				'{{full_story}}' => esc_html__( 'Full story', 'newspack-rolling-coverage' ),
-				'{{read_more}}'  => esc_html__( 'Read more', 'newspack-rolling-coverage' ),
-				'{{load_more}}'  => esc_html__( 'Load more', 'newspack-rolling-coverage' ),
-			]
-		);
-		$blocks = array_values(
-			array_filter(
-				parse_blocks( $markup ),
-				static fn( $block ) => ! empty( $block['blockName'] )
-			)
-		);
-		$format = get_option( 'time_format' );
-
-		return self::with_time_format( $blocks, $format ? (string) $format : 'g:i a' );
-	}
-
-	/**
-	 * The blocks with every Post Date that shows a time, rather than a
-	 * relative date, in the given format.
-	 *
-	 * @param array[] $blocks Parsed blocks.
-	 * @param string  $format A PHP date format.
-	 * @return array[] Parsed blocks.
-	 */
-	private static function with_time_format( array $blocks, string $format ): array {
-		foreach ( $blocks as $index => $block ) {
-			if ( 'core/post-date' === $block['blockName'] && 'human-diff' !== ( $block['attrs']['format'] ?? '' ) ) {
-				$blocks[ $index ]['attrs']['format'] = $format;
-			}
-
-			$blocks[ $index ]['innerBlocks'] = self::with_time_format( $block['innerBlocks'] ?? [], $format );
-		}
-
-		return $blocks;
+		return Layout_Templates::get_blocks( 'default' ) ?? [];
 	}
 
 	/**
@@ -3450,16 +3442,25 @@ class Rolling_Coverage_Block {
 	}
 
 	/**
-	 * The entry template as the site's Avatar Display shows it: with avatars
-	 * turned off, without avatars or the columns that held only one. The same
-	 * for every entry, so applied once per request, after the template is
-	 * stored, since the setting can change while a stored config lives on.
+	 * The template with its Avatar blocks marked as the layout's own, so
+	 * show_entry_avatars() tells them from an Avatar block in an entry's
+	 * content. Applied before the template is stored, so polls, load more
+	 * and the jump to the latest entries carry the same marks.
 	 *
 	 * @param array[] $template Parsed template blocks.
 	 * @return array[]
 	 */
-	private static function with_avatar_display( array $template ): array {
-		return get_option( 'show_avatars' ) ? $template : self::without_author_blocks( $template, false, true, true );
+	private static function with_layout_avatars_marked( array $template ): array {
+		return self::map_template_blocks(
+			$template,
+			static function ( array $block ) {
+				if ( 'core/avatar' === ( $block['blockName'] ?? '' ) ) {
+					$block['attrs'][ self::LAYOUT_AVATAR_ATTR ] = true;
+				}
+
+				return [ $block ];
+			}
+		);
 	}
 
 	/**
@@ -5088,7 +5089,7 @@ class Rolling_Coverage_Block {
 
 		$stored_config    = self::load_block_config( $term_id, $template_key );
 		$config           = $stored_config ?? self::load_block_config( $term_id, '' );
-		$template         = self::with_avatar_display( $config['template'] );
+		$template         = $config['template'];
 		$latest_count     = self::latest_count( $config );
 		$latest_count     = $latest_count ? $latest_count : self::requested_latest_count( $params );
 		$is_capped        = $latest_count > 0;
@@ -5174,6 +5175,19 @@ class Rolling_Coverage_Block {
 			$entries         = [];
 			$polled_count    = max( 0, (int) ( $params['polled_count'] ?? 0 ) );
 			$new_entry_count = 0;
+			$ad_entry_ids    = [];
+
+			// The page lists new entries above its own in this order, so the
+			// last one listed sits next to them and continues its count.
+			foreach ( array_reverse( $changes ) as $entry ) {
+				if ( 'publish' === $entry->post_status && $poll_cursor->is_new( $entry ) ) {
+					++$new_entry_count;
+
+					if ( 0 === ( $polled_count + $new_entry_count ) % $ads_interval ) {
+						$ad_entry_ids[ $entry->ID ] = true;
+					}
+				}
+			}
 
 			self::prime_breakout_posts( $changes );
 
@@ -5188,15 +5202,11 @@ class Rolling_Coverage_Block {
 				$ad_slot      = null;
 				$ad_html      = null;
 
-				if ( $is_new_entry ) {
-					++$new_entry_count;
-
-					if ( $ads_enabled && 0 === ( $polled_count + $new_entry_count ) % $ads_interval ) {
-						$placement = Ads::render_placement();
-						if ( $placement['html'] ) {
-							$ad_html = self::place_beside_entries( $placement['html'], $template, $feed_layout );
-							$ad_slot = $placement['slots'][0] ?? null;
-						}
+				if ( $ads_enabled && isset( $ad_entry_ids[ $entry->ID ] ) ) {
+					$placement = Ads::render_placement();
+					if ( $placement['html'] ) {
+						$ad_html = self::place_beside_entries( $placement['html'], $template, $feed_layout );
+						$ad_slot = $placement['slots'][0] ?? null;
 					}
 				}
 
@@ -5353,7 +5363,7 @@ class Rolling_Coverage_Block {
 			self::coverage_entries_args( $term_id ),
 			[
 				'orderby'        => self::FEED_ORDER,
-				// Twice the count, up to a page of load more: a page leaves out entries it dropped, which come back on reload, and still fills its places.
+				// Twice the count, up to a page of load more. The page keeps the newest `$latest_count`, so the rest is spare.
 				'posts_per_page' => min( 2 * $latest_count, self::PER_PAGE_MAX ),
 			]
 		);

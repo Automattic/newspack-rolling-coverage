@@ -107,21 +107,22 @@ class Taxonomy {
 			self::TAXONOMY_SLUG,
 			Post_Type::CPT_SLUG,
 			[
-				'labels'             => [
+				'labels'                => [
 					'name'          => __( 'Rolling Coverage', 'newspack-rolling-coverage' ),
 					'singular_name' => __( 'Rolling Coverage', 'newspack-rolling-coverage' ),
 				],
-				'public'             => true,
-				'publicly_queryable' => false,
-				'show_ui'            => false,
-				'show_in_menu'       => false,
-				'show_in_nav_menus'  => false,
-				'show_in_rest'       => true,
-				'rest_base'          => self::REST_BASE,
-				'hierarchical'       => false,
-				'rewrite'            => false,
-				'query_var'          => true,
-				'meta_box_cb'        => false,
+				'public'                => true,
+				'publicly_queryable'    => false,
+				'show_ui'               => false,
+				'show_in_menu'          => false,
+				'show_in_nav_menus'     => false,
+				'show_in_rest'          => true,
+				'rest_base'             => self::REST_BASE,
+				'rest_controller_class' => Coverage_REST_Controller::class,
+				'hierarchical'          => false,
+				'rewrite'               => false,
+				'query_var'             => true,
+				'meta_box_cb'           => false,
 			]
 		);
 
@@ -525,10 +526,10 @@ class Taxonomy {
 	}
 
 	/**
-	 * Strip sensitive Slack channel and source term meta from the REST
-	 * response for requests that are not in the edit context. The
-	 * auth_callback on these meta keys only restricts writes, so read access
-	 * must be blocked separately here.
+	 * Strip the description (an internal note) and sensitive Slack channel
+	 * and source term meta from the REST response for requests that are not
+	 * in the edit context. The auth_callback on these meta keys only
+	 * restricts writes, so read access must be blocked separately here.
 	 *
 	 * @param \WP_REST_Response $response The REST response object.
 	 * @param \WP_Term          $item     Term object.
@@ -543,6 +544,8 @@ class Taxonomy {
 		}
 
 		$data = $response->get_data();
+
+		unset( $data['description'] );
 
 		if ( isset( $data['meta'] ) && is_array( $data['meta'] ) ) {
 			foreach ( self::RESTRICTED_META as $meta_key ) {

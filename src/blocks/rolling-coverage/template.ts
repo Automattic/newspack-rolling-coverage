@@ -13,6 +13,8 @@ import { ENTRY_BINDINGS_SOURCE } from '../shared/entry-bindings';
 import { POST_DATE_ATTRIBUTES } from '../shared/post-date';
 import { blockGapCss } from './spacing';
 import { loadMoreButtonsTemplate } from '../shared/load-more-buttons';
+import { mutedTextColor } from '../shared/muted-color';
+import { themeFontSize } from '../shared/theme-font-size';
 import type { TemplateItem } from './types';
 
 /**
@@ -327,31 +329,9 @@ function siteTimeFormat(): string {
  * @return {Object} The date's color attributes.
  */
 function mutedDateColor( slugs: string[] ): { textColor?: string } {
-	const slug = [ 'contrast-3', 'medium-gray' ].find( ( candidate ) =>
-		slugs.includes( candidate )
-	);
+	const slug = mutedTextColor( slugs );
 
 	return slug ? { textColor: slug } : {};
-}
-
-/**
- * A font size preset the theme defines: the preferred slug where the theme
- * has it, else its fallback. The Newspack Theme names its sizes Normal and
- * Huge where block themes have Medium and X-Large.
- *
- * @param {string[]} sizes     The theme's font size slugs.
- * @param {string}   preferred The preferred slug.
- * @param {string}   fallback  The slug to use where the theme lacks it.
- * @return {string} The slug.
- */
-function themeFontSize(
-	sizes: string[],
-	preferred: string,
-	fallback: string
-): string {
-	return ! sizes.includes( preferred ) && sizes.includes( fallback )
-		? fallback
-		: preferred;
 }
 
 /**
@@ -3471,7 +3451,7 @@ function blockIdsOfType(
  *
  * @param {Object[]} blocks     The template blocks.
  * @param {boolean}  showAuthor The block's Author name setting.
- * @param {boolean}  showAvatar Whether avatars show: the block's Author avatar setting and the site's Avatar Display.
+ * @param {boolean}  showAvatar The block's Author avatar setting.
  * @return {string[]} Client IDs.
  */
 function hiddenAuthorBlockIds(
@@ -4971,24 +4951,6 @@ function withoutAuthorBlocks<
 }
 
 /**
- * The template without avatars, or the columns that hold only one, as the
- * site renders it with avatars turned off (see
- * Rolling_Coverage_Block::with_avatar_display()).
- *
- * @param {Object[]} blocks The template blocks.
- * @return {Object[]} The blocks without avatars.
- */
-function withoutAvatarColumns<
-	T extends { name: string; [ key: string ]: unknown },
->( blocks: T[] ): T[] {
-	return withoutAuthorBlocks( blocks, {
-		name: false,
-		avatars: true,
-		avatarColumns: true,
-	} );
-}
-
-/**
  * The template without the author's avatar and name, as an entry the Slack
  * bot wrote renders (see Rolling_Coverage_Block::render_entry()).
  * The avatar's column stays, so the entry's text lines up with the others.
@@ -5141,7 +5103,6 @@ export {
 	withCenteredTitleRows,
 	withoutPostTitle,
 	withEntryLinkTitleText,
-	withoutAvatarColumns,
 	withoutByline,
 	withAuthorSettings,
 	hiddenAuthorBlockIds,

@@ -47,14 +47,6 @@ interface RollingCoverageAttributes {
 }
 
 /**
- * Result of an editor action, shown as a Notice.
- */
-interface ApplyNotice {
-	type: 'success' | 'error';
-	message: string;
-}
-
-/**
  * Props for the Rolling Coverage block's Edit component.
  */
 interface EditProps {
@@ -78,6 +70,7 @@ interface BlockConfig {
 	entriesPreviewRestBase: string;
 	aiEndpoint: string;
 	aiAvailable: boolean;
+	aiSettingsUrl: string;
 	newspackAdsAvailable: boolean;
 	newspackAdsPlacementEnabled: boolean;
 	layoutIds: Record< BuiltInLayoutSlug, number >;
@@ -87,7 +80,6 @@ interface BlockConfig {
 	canEditThemeOptions: boolean;
 	layoutCategoryId: number;
 	entryPostType: string;
-	showAvatars: boolean;
 	entryPlural: string;
 	sampleAvatarUrls?: Record< string, string >;
 	breakoutLabel?: string;
@@ -270,7 +262,6 @@ type TemplateBlocks = { name: string; [ key: string ]: unknown }[];
 export type {
 	CoverageOption,
 	RollingCoverageAttributes,
-	ApplyNotice,
 	EditProps,
 	BlockConfig,
 	FrontendConfig,

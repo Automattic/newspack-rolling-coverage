@@ -32,11 +32,15 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 	 * Request the core entries collection.
 	 *
 	 * @param string $context REST context.
+	 * @param array  $params  Extra query parameters.
 	 * @return array[] Response data.
 	 */
-	private static function list_entries_via_rest( $context = 'view' ) {
+	private static function list_entries_via_rest( $context = 'view', array $params = [] ) {
 		$request = new WP_REST_Request( 'GET', '/wp/v2/' . Post_Type::REST_BASE );
 		$request->set_param( 'context', $context );
+		foreach ( $params as $key => $value ) {
+			$request->set_param( $key, $value );
+		}
 		return rest_get_server()->dispatch( $request )->get_data();
 	}
 
@@ -88,6 +92,47 @@ class Test_Entries_REST extends Rolling_Coverage_TestCase {
 		wp_delete_term( $deleted_coverage_id, Taxonomy::TAXONOMY_SLUG );
 
 		$this->assertSame( [ $visible_entry_id ], wp_list_pluck( self::list_entries_via_rest(), 'id' ) );
+	}
+
+	/**
+	 * Hiding trashed coverages adds to the request's own taxonomy filters
+	 * rather than replacing them.
+	 */
+	public function test_public_listing_keeps_the_coverage_filter() {
+		$coverage_id         = self::create_active_coverage();
+		$trashed_coverage_id = self::create_coverage( 'trash' );
+		$entry_id            = self::create_entry( $coverage_id );
+		self::create_entry( self::create_active_coverage() );
+		self::create_entry( $trashed_coverage_id );
+
+		$entries = self::list_entries_via_rest( 'view', [ Taxonomy::REST_BASE => [ $coverage_id, $trashed_coverage_id ] ] );
+
+		$this->assertSame( [ $entry_id ], wp_list_pluck( $entries, 'id' ) );
+	}
+
+	/**
+	 * With tax_relation=OR the request's filters match either way, but entries
+	 * of a trashed coverage stay hidden.
+	 */
+	public function test_public_listing_keeps_or_related_filters_and_hides_trashed_coverages() {
+		$category_id         = self::factory()->category->create();
+		$coverage_id         = self::create_active_coverage();
+		$trashed_coverage_id = self::create_coverage( 'trash' );
+		$coverage_entry_id   = self::create_entry( $coverage_id );
+		$category_entry_id   = self::create_entry( self::create_active_coverage(), [ 'post_category' => [ $category_id ] ] );
+		self::create_entry( self::create_active_coverage() );
+		self::create_entry( $trashed_coverage_id, [ 'post_category' => [ $category_id ] ] );
+
+		$entries = self::list_entries_via_rest(
+			'view',
+			[
+				Taxonomy::REST_BASE => [ $coverage_id ],
+				'categories'        => [ $category_id ],
+				'tax_relation'      => 'OR',
+			]
+		);
+
+		$this->assertEqualsCanonicalizing( [ $coverage_entry_id, $category_entry_id ], wp_list_pluck( $entries, 'id' ) );
 	}
 
 	/**
