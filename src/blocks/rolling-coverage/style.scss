@@ -610,7 +610,8 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 // Such a Feed has no width of its own to give its block, so in a Row or Stack
 // group the block takes the group's full width instead of shrinking to its
 // padding, also when a Row stacks on smaller screens. In a Row it grows from
-// nothing, so the items beside it keep their width.
+// nothing, so the items beside it keep their width. In a Stack it also
+// stretches, which holds where a theme resets its width to `auto`.
 :where(.is-layout-flex) > :where(.wp-block-newspack-rolling-coverage-rolling-coverage:has(.newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled))) {
 	width: 100%;
 	min-width: 0;
@@ -618,6 +619,10 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 
 :where(.is-layout-flex:not(.is-vertical)) > :where(.wp-block-newspack-rolling-coverage-rolling-coverage:has(.newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled))):where(:not([class*="wp-container-content-"])) {
 	flex: 1 1 0;
+}
+
+:where(.is-layout-flex.is-vertical) > :where(.wp-block-newspack-rolling-coverage-rolling-coverage:has(.newspack-rolling-coverage-feed.is-layout-flex.is-nowrap:not(.is-vertical, .newspack-rolling-coverage-ruled))) {
+	align-self: stretch;
 }
 
 @container newspack-rolling-coverage-strip (width < 56rem) {
