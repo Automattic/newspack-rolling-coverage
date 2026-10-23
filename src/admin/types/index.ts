@@ -811,9 +811,9 @@ interface SyncPollContext {
 	rowsRef: MutableRefObject< EntryViewRow[] | null >;
 	pageRef: MutableRefObject< number >;
 	/**
-	 * The view the list last loaded, as a one-entry page a poll fetches to
-	 * recount it and the page size to count pages by. Each page fetch stores a
-	 * new object, so a recount sent before a later page fetch is dropped.
+	 * The view the list last loaded: the one-entry page a poll fetches to
+	 * recount it, and the page size to count pages by. Each page fetch that
+	 * lands stores a new object, so a recount in flight can tell it was replaced.
 	 */
 	totalsViewRef: MutableRefObject< { url: string; perPage: number } | null >;
 	isMountedRef: MutableRefObject< boolean >;

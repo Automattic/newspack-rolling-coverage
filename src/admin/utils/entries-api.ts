@@ -327,7 +327,8 @@ async function refreshTotals( ctx: SyncPollContext ): Promise< void > {
 		} );
 
 		// A page fetch landed meanwhile, for another view or the same one
-		// again, and its totals are newer than this count.
+		// again. Its totals match the rows it put on screen, and its cursor has
+		// the next poll bring back any change it predates.
 		if ( ! isMountedRef.current || totalsViewRef.current !== view ) {
 			return;
 		}
