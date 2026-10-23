@@ -223,6 +223,58 @@ function newLabelBlockIds(
 }
 
 /**
+ * Client IDs of the New labels to hide in the editable groups, so only the
+ * group previewing the newest sample shows one.
+ *
+ * @param {Object[]} entryGroupBlocks The editable entry groups, including those in the Pinned stack.
+ * @param {Object[]} pinnedGroups     The groups inside the Pinned stack.
+ * @param {Object}   contexts         The sample each kind of group previews.
+ * @param {*}        contexts.card            The Pinned card's.
+ * @param {*}        contexts.entry           The Entry's.
+ * @param {*}        contexts.fullStory       The Full Story Entry's.
+ * @param {*}        contexts.pinnedFullStory The Pinned group's Full Story Entry's.
+ * @param {Object}   newest           The newest sample.
+ * @return {string[]} Client IDs.
+ */
+function hiddenNewLabelIds(
+	entryGroupBlocks: {
+		name: string;
+		attributes?: Record< string, unknown >;
+		[ key: string ]: unknown;
+	}[],
+	pinnedGroups: unknown[],
+	contexts: {
+		card?: unknown;
+		entry?: unknown;
+		fullStory?: unknown;
+		pinnedFullStory?: unknown;
+	},
+	newest: unknown
+): string[] {
+	return newLabelBlockIds(
+		entryGroupBlocks.filter( ( block ) => {
+			if ( isPinnedCard( block ) ) {
+				return contexts.card !== newest;
+			}
+
+			if ( isRegularEntry( block ) ) {
+				return contexts.entry !== newest;
+			}
+
+			if ( isBreakoutEntry( block ) ) {
+				return (
+					( pinnedGroups.includes( block )
+						? contexts.pinnedFullStory
+						: contexts.fullStory ) !== newest
+				);
+			}
+
+			return false;
+		} )
+	);
+}
+
+/**
  * Class of the group that shows a pinned entry as a card, mirroring
  * Rolling_Coverage_Block::PINNED_CARD_CLASS.
  */
@@ -5129,6 +5181,7 @@ export {
 	isNewLabel,
 	withoutNewLabel,
 	newLabelBlockIds,
+	hiddenNewLabelIds,
 	bulletinEntryTemplate,
 	streamEntryTemplate,
 	railEntryTemplate,

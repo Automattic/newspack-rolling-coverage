@@ -97,7 +97,7 @@ import {
 	featuredImageBlockIds,
 	fullStoryTakesPinned,
 	pinnedRowBlockIds,
-	newLabelBlockIds,
+	hiddenNewLabelIds,
 	withoutFollowButtons,
 	withoutCheckUpdatesButtons,
 	withoutLoadMoreButtons,
@@ -1719,31 +1719,16 @@ export default function Edit( {
 			...( hidesFullStoryPin
 				? pinnedRowBlockIds( allBlocks.filter( isBreakoutEntry ) )
 				: [] ),
-			...newLabelBlockIds(
-				[
-					...allBlocks.filter( isPinnedCard ),
-					...allBlocks.filter( isRegularEntry ),
-				].filter( ( block ) => {
-					const context = isPinnedCard( block )
-						? pinnedContext
-						: regularContext;
-
-					return context !== newestContext;
-				} )
-			),
-			...newLabelBlockIds(
-				allBlocks.filter(
-					( block ) =>
-						isBreakoutEntry( block ) &&
-						fullStoryContext !== newestContext
-				)
-			),
-			...newLabelBlockIds(
-				pinnedGroups.filter(
-					( block ) =>
-						isBreakoutEntry( block ) &&
-						pinnedFullStoryContext !== newestContext
-				)
+			...hiddenNewLabelIds(
+				entryGroupBlocks,
+				pinnedGroups,
+				{
+					card: pinnedContext,
+					entry: regularContext,
+					fullStory: fullStoryContext,
+					pinnedFullStory: pinnedFullStoryContext,
+				},
+				newestContext
 			),
 			...hiddenAuthorBlockIds(
 				layoutParts( allBlocks ).template,
