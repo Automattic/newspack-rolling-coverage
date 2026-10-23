@@ -54,6 +54,12 @@ class Entry_Bindings {
 	const PINNED_LABEL_CLASS = 'newspack-rolling-coverage-pinned-label';
 
 	/**
+	 * Attribute the view script finds an entry's New Label block by,
+	 * mirroring NEW_MARKER_ATTR in new-entry-marks.ts.
+	 */
+	const NEW_MARKER_ATTR = 'data-rc-new-marker';
+
+	/**
 	 * Class of the paragraph that links to the entry's breakout post.
 	 */
 	const READ_MORE_CLASS = 'newspack-rolling-coverage-read-more';

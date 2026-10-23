@@ -239,12 +239,15 @@ interface PageResponse {
 
 /**
  * A new entry paired with the ad slot that follows it, if any, and the
- * already-parsed element for that ad's wrapper markup.
+ * already-parsed element for that ad's wrapper markup. `isNew` is true for an
+ * entry published since the page loaded, which shows marked as new, and false
+ * for one published again or restored.
  */
 type PendingEntry = {
 	el: HTMLElement;
 	adSlot: AdSlot | null;
 	adEl: HTMLElement | null;
+	isNew: boolean;
 };
 
 /**
