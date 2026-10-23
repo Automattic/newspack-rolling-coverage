@@ -133,7 +133,8 @@ class Test_Entry_Restore extends Rolling_Coverage_TestCase {
 
 	/**
 	 * Restoring out of the trash would add an entry to the archived record,
-	 * and would reopen an ended coverage that is itself in the trash.
+	 * of an ended coverage, or of one that ended and is itself in the trash,
+	 * which the entry's restore would otherwise take out of the trash.
 	 *
 	 * @dataProvider provide_ended_coverage_cases
 	 *
