@@ -1,7 +1,6 @@
 /**
- * Feeds of the same coverage and layout on one page ask the same entries
- * URLs at the same moment, so they share one request, each reading its own
- * copy of the reply.
+ * Feeds on one page that ask an entries URL at the same moment share one
+ * request, each reading its own copy of the reply.
  */
 import { shareRequests } from '../../src/blocks/rolling-coverage/shared-requests';
 

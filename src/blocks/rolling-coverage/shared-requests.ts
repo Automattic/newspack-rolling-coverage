@@ -1,10 +1,11 @@
 /**
  * Entry requests that go out once per URL at a time.
  *
- * Feeds of one coverage on a page that render with the same config ask the
- * same URLs, and those polling on a timer poll in the same moment: from the
- * page's load, and at once whenever its tab shows. The reply depends only on
- * the URL, so they share one request, and each feed reads its own copy of it.
+ * Feeds of one coverage on a page often ask the same URL in the same moment,
+ * as when feeds with the same config and host post poll the shared poll URL
+ * together. The reply depends only on the URL, so they share one request, and
+ * each feed reads its own copy of it. The block's DEVELOPMENT.md, under
+ * Polling, says which feeds share.
  */
 
 /**
