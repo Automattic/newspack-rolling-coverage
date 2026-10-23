@@ -13,6 +13,7 @@ export const EXIT_MS = 120;
 export const LEAVE_MS = 150;
 export const HOLD_MS = 4000;
 export const FADE_CLEANUP_MS = 500;
+export const SPIN_MS = 900;
 
 export const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)';
 export const EASE_IN_OUT = 'cubic-bezier(0.77, 0, 0.175, 1)';

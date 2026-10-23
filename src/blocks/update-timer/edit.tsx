@@ -55,8 +55,8 @@ const config: UpdateTimerConfig = window.newspackUpdateTimerBlock ?? {
 
 /**
  * Editor for the Update Timer block: the countdown at the feed's full
- * interval beside the turning spinner, and the Coverage panel outside a
- * Rolling Coverage block.
+ * interval beside the ring, still and empty as at the start of a wait, and
+ * the Coverage panel outside a Rolling Coverage block.
  *
  * @param {Object}   props               Block props.
  * @param {string}   props.clientId      Block client ID.
@@ -235,7 +235,7 @@ export default function Edit( {
 					<ToggleGroupControl
 						__next40pxDefaultSize
 						isBlock
-						label={ __( 'Spinner', 'newspack-rolling-coverage' ) }
+						label={ __( 'Ring', 'newspack-rolling-coverage' ) }
 						value={ showSpinner === false ? 'hide' : 'show' }
 						onChange={ ( value ) =>
 							setAttributes( {
@@ -243,7 +243,7 @@ export default function Edit( {
 							} )
 						}
 						help={ __(
-							'Turns beside the countdown. Hidden for readers who ask their device for reduced motion.',
+							'Fills beside the countdown until the next check, then spins while the check runs. It doesn’t spin for readers who ask their device for reduced motion.',
 							'newspack-rolling-coverage'
 						) }
 					>
@@ -251,30 +251,24 @@ export default function Edit( {
 							value="show"
 							label={ _x(
 								'Show',
-								'spinner',
+								'ring',
 								'newspack-rolling-coverage'
 							) }
 							aria-label={
 								/* translators: Screen reader name for the “Show” option. Keep the word used to translate “Show”. */
-								__(
-									'Show spinner',
-									'newspack-rolling-coverage'
-								)
+								__( 'Show ring', 'newspack-rolling-coverage' )
 							}
 						/>
 						<ToggleGroupControlOption
 							value="hide"
 							label={ _x(
 								'Hide',
-								'spinner',
+								'ring',
 								'newspack-rolling-coverage'
 							) }
 							aria-label={
 								/* translators: Screen reader name for the “Hide” option. Keep the word used to translate “Hide”. */
-								__(
-									'Hide spinner',
-									'newspack-rolling-coverage'
-								)
+								__( 'Hide ring', 'newspack-rolling-coverage' )
 							}
 						/>
 					</ToggleGroupControl>
@@ -283,17 +277,18 @@ export default function Edit( {
 			<div { ...blockProps }>
 				{ showSpinner !== false && (
 					<svg
-						className="newspack-rolling-coverage-update-timer__spinner"
+						className="newspack-rolling-coverage-update-timer__ring"
 						viewBox="0 0 18 18"
 						aria-hidden="true"
 						focusable="false"
 					>
+						<circle cx="9" cy="9" r="8" />
 						<circle
+							className="newspack-rolling-coverage-update-timer__ring-arc"
 							cx="9"
 							cy="9"
-							r="8.25"
+							r="8"
 							pathLength={ 100 }
-							strokeWidth="1.5"
 						/>
 					</svg>
 				) }

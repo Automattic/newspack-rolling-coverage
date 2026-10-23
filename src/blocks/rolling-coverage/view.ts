@@ -893,11 +893,12 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	 * @param {CheckState} state            The state.
 	 * @param {Object}     next             When waiting, when the next check is due.
 	 * @param {number}     next.nextCheckAt When the next check is due, in epoch milliseconds.
+	 * @param {number}     next.interval    The wait before it, in milliseconds.
 	 * @return {void}
 	 */
 	function reportCheck(
 		state: CheckState,
-		next?: { nextCheckAt: number }
+		next?: { nextCheckAt: number; interval: number }
 	): void {
 		const shown =
 			isDisposed || checksOnRequest || polledStatus !== 'active'
@@ -913,9 +914,12 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 
 		if ( shown === 'waiting' && next ) {
 			root.dataset.nextCheckAt = String( next.nextCheckAt );
+			root.dataset.checkInterval = String( next.interval );
 			detail.nextCheckAt = next.nextCheckAt;
+			detail.interval = next.interval;
 		} else {
 			delete root.dataset.nextCheckAt;
+			delete root.dataset.checkInterval;
 		}
 
 		if ( shown !== 'checking' && checkResult ) {
@@ -958,6 +962,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		pollTimeoutId = setTimeout( poll, interval );
 		reportCheck( 'waiting', {
 			nextCheckAt: Date.now() + interval,
+			interval,
 		} );
 	}
 
