@@ -351,6 +351,24 @@ function ownElement(
 }
 
 /**
+ * The newest GMT date among entries and a date already known, compared as
+ * `Y-m-d H:i:s` strings.
+ *
+ * @param {HTMLElement[]} entries The entries.
+ * @param {string}        known   A date already known, or an empty string.
+ * @return {string} The newest date, or an empty string when there is none.
+ */
+function newestDateGmt( entries: HTMLElement[], known: string ): string {
+	return entries.reduce(
+		( newest, el ) =>
+			( el.dataset.dateGmt ?? '' ) > newest
+				? ( el.dataset.dateGmt ?? '' )
+				: newest,
+		known
+	);
+}
+
+/**
  * The feeds in a node, the node itself included, in document order.
  *
  * @param {Node} node Node to look in.
@@ -730,6 +748,13 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	// cached load-more reply can predate the takedown. A poll that sends one
 	// again brings it back (see placeReturningEntry()).
 	const removedEntryIds = new Map< string, Takedown >();
+
+	// The newest date a capped feed has shown, which still holds once a
+	// takedown leaves none of those entries (see replaceEntries()).
+	let newestShownGmt = newestDateGmt(
+		ownElements( root, ':scope > [data-entry-id]', entriesList ),
+		''
+	);
 
 	const countedEntryIds = new Set< string >();
 
@@ -1532,13 +1557,24 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 	 * Swaps a capped feed's entries for the newest ones a poll sent whole,
 	 * leaving out entries taken down, and keeping the arrival and the new
 	 * mark of those it already showed. An entry taken down earlier that the
-	 * reply lists is back. Entries listed above the first one the feed
-	 * already showed fade in marked as new (see newIdsInReplace()).
+	 * reply lists is back. Entries the feed didn't show fade in, and those
+	 * listed above the first one it already showed are marked as new (see
+	 * newIdsInReplace()).
 	 *
 	 * @param {PollEntry[]} entries Removals, then the newest entries, newest first.
 	 * @return {void}
 	 */
 	function replaceEntries( entries: PollEntry[] ): void {
+		const returningIds = new Set(
+			entries
+				.filter(
+					( entry ) =>
+						entry.type !== 'remove' &&
+						removedEntryIds.has( String( entry.id ) )
+				)
+				.map( ( entry ) => String( entry.id ) )
+		);
+
 		entries.forEach( ( entry ) => {
 			if ( isSafeEntryId( entry.id ) ) {
 				if ( entry.type === 'remove' ) {
@@ -1563,6 +1599,8 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		);
 		const fragment = document.createDocumentFragment();
 
+		newestShownGmt = newestDateGmt( shownEntries, newestShownGmt );
+
 		const kept = entries
 			.filter(
 				( entry ) =>
@@ -1571,16 +1609,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 					! removedEntryIds.has( String( entry.id ) )
 			)
 			.slice( 0, latestCap || entries.length );
-		const keptIds = kept.map( ( entry ) => String( entry.id ) );
-		const newIds = new Set(
-			newIdsInReplace(
-				keptIds,
-				new Set( keptIds.filter( ( id ) => arrivals.has( id ) ) )
-			)
-		);
 		const keptEls: HTMLElement[] = [];
-
-		arrivedCount += newIds.size;
 
 		kept.forEach( ( entry ) => {
 			const el = parseElement( sanitizeHtml( entry.html ) );
@@ -1597,6 +1626,28 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 			fragment.appendChild( el );
 			keptEls.push( el );
 		} );
+
+		const keptIds = keptEls.map( ( el ) => el.dataset.entryId ?? '' );
+		const newIds = new Set(
+			newIdsInReplace(
+				keptIds,
+				new Set( keptIds.filter( ( id ) => arrivals.has( id ) ) ),
+				returningIds,
+				newestShownGmt
+					? new Set(
+							idsNewerThan(
+								keptEls.map( ( el ) => ( {
+									id: el.dataset.entryId ?? '',
+									dateGmt: el.dataset.dateGmt ?? '',
+								} ) ),
+								newestShownGmt
+							)
+						)
+					: null
+			)
+		);
+
+		arrivedCount += newIds.size;
 
 		shownEntries.forEach( ( el ) => {
 			const id = el.dataset.entryId ?? '';
@@ -1622,13 +1673,13 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 		entriesList.appendChild( fragment );
 		dropLastSeparator();
 
-		const newEls = keptEls.filter( ( el ) =>
-			newIds.has( el.dataset.entryId ?? '' )
+		fadeIn(
+			keptEls.filter(
+				( el ) => ! arrivals.has( el.dataset.entryId ?? '' )
+			)
 		);
-
-		fadeIn( newEls );
 		keptEls.forEach( ( el ) => {
-			if ( newEls.includes( el ) ) {
+			if ( newIds.has( el.dataset.entryId ?? '' ) ) {
 				marks?.mark( el );
 			} else {
 				marks?.adopt( el );
@@ -2889,6 +2940,7 @@ function initBlock( root: HTMLElement, newSince?: NewSince ): void {
 					if ( ! listsBelowBound( el ) && placeUnpinnedEntry( el ) ) {
 						observeEntry( el );
 						dropLastSeparator();
+						fadeIn( [ el ] );
 					} else {
 						offPageUpdates.set( entryId, el.outerHTML );
 					}

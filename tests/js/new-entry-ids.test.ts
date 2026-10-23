@@ -19,6 +19,37 @@ describe( 'newIdsInReplace', () => {
 			'n1',
 		] );
 	} );
+
+	it( 'a returning taken-down entry is not new', () => {
+		expect(
+			newIdsInReplace(
+				[ 'a', 'b', 'c' ],
+				new Set( [ 'b', 'c' ] ),
+				new Set( [ 'a' ] )
+			)
+		).toEqual( [] );
+	} );
+
+	it( 'leaves out a returning entry above newer ones', () => {
+		expect(
+			newIdsInReplace(
+				[ 'n1', 'a', 'b' ],
+				new Set( [ 'b' ] ),
+				new Set( [ 'a' ] )
+			)
+		).toEqual( [ 'n1' ] );
+	} );
+
+	it( 'when none of the shown entries is left, treats only the newer ones as new', () => {
+		expect(
+			newIdsInReplace(
+				[ 'n1', 'old1', 'old2' ],
+				new Set(),
+				new Set(),
+				new Set( [ 'n1' ] )
+			)
+		).toEqual( [ 'n1' ] );
+	} );
 } );
 
 describe( 'idsNewerThan', () => {
