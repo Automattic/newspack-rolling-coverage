@@ -4,12 +4,9 @@ import {
 	NEW_STATE_ATTR,
 	NewEntryMarks,
 	TINT_END,
-	TINT_ROOM_LEFT,
-	TINT_ROOM_RIGHT,
 	TINT_START,
 	rowEdges,
 	tintInsets,
-	tintRoom,
 } from '../../src/blocks/rolling-coverage/new-entry-marks';
 import {
 	CLEAR_MS,
@@ -826,20 +823,6 @@ describe( 'rowEdges', () => {
 	} );
 } );
 
-describe( 'tintRoom', () => {
-	it( 'is the whole pixels between the box and the bounds on each side', () => {
-		expect(
-			tintRoom( { left: 16.6, right: 373.4 }, { left: 0, right: 390 } )
-		).toEqual( [ 16, 16 ] );
-	} );
-
-	it( 'is never negative for a box past the bounds', () => {
-		expect(
-			tintRoom( { left: -4, right: 400 }, { left: 0, right: 390 } )
-		).toEqual( [ 0, 0 ] );
-	} );
-} );
-
 describe( 'the tint', () => {
 	beforeEach( () => {
 		parentStyle = {
@@ -945,85 +928,6 @@ describe( 'the tint', () => {
 		marks.mark( entry );
 
 		expect( entry.style.getPropertyValue( TINT_END ) ).toBe( '-16px' );
-	} );
-
-	describe( 'its bleed past the sides', () => {
-		beforeEach( () => {
-			Object.defineProperty( document.documentElement, 'clientWidth', {
-				configurable: true,
-				value: 800,
-			} );
-		} );
-
-		function placedEntry( left: number, right: number ): HTMLElement {
-			const entry = makeEntry( '1' );
-			entry.getBoundingClientRect = () =>
-				( {
-					top: 0,
-					bottom: 120,
-					height: 120,
-					width: right - left,
-					left,
-					right,
-				} ) as DOMRect;
-			root.append( entry );
-			return entry;
-		}
-
-		it( 'gets room up to the edges of the viewport', () => {
-			const entry = placedEntry( 16, 774 );
-
-			marks.mark( entry );
-
-			expect( entry.style.getPropertyValue( TINT_ROOM_LEFT ) ).toBe(
-				'16px'
-			);
-			expect( entry.style.getPropertyValue( TINT_ROOM_RIGHT ) ).toBe(
-				'26px'
-			);
-		} );
-
-		it( 'gets room only up to an ancestor that clips', () => {
-			const entry = placedEntry( 160, 640 );
-			parentStyle = { ...parentStyle, overflowX: 'hidden' };
-			root.getBoundingClientRect = () =>
-				( { left: 150, right: 650 } ) as DOMRect;
-			Object.defineProperty( root, 'clientWidth', {
-				configurable: true,
-				value: 500,
-			} );
-
-			marks.mark( entry );
-
-			expect( entry.style.getPropertyValue( TINT_ROOM_LEFT ) ).toBe(
-				'10px'
-			);
-			expect( entry.style.getPropertyValue( TINT_ROOM_RIGHT ) ).toBe(
-				'10px'
-			);
-		} );
-
-		it( 'gets none on a card or in a row', () => {
-			const card = placedEntry( 100, 700 );
-			paintCard( card );
-			marks.mark( card );
-
-			expect( card.style.getPropertyValue( TINT_ROOM_LEFT ) ).toBe(
-				'0px'
-			);
-
-			card.remove();
-			parentStyle = { display: 'flex', flexDirection: 'row' };
-			const entry = placedEntry( 100, 700 );
-			marks.mark( entry );
-
-			expect( entry.style.getPropertyValue( TINT_ROOM_LEFT ) ).toBe(
-				'0px'
-			);
-			expect( entry.style.getPropertyValue( TINT_ROOM_RIGHT ) ).toBe(
-				'0px'
-			);
-		} );
 	} );
 
 	it( 'places the tint again once a frame after a card is put beside it', async () => {

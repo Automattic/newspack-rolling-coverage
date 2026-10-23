@@ -29,9 +29,6 @@ const STATUS_CLASS = 'newspack-rolling-coverage-new-status';
 
 export const TINT_START = '--newspack-rolling-coverage-new-tint-start';
 export const TINT_END = '--newspack-rolling-coverage-new-tint-end';
-export const TINT_ROOM_LEFT = '--newspack-rolling-coverage-new-tint-room-left';
-export const TINT_ROOM_RIGHT =
-	'--newspack-rolling-coverage-new-tint-room-right';
 
 // Browsers can report a fully visible element just under 1 at fractional positions.
 const FULLY_IN_VIEW = 0.99;
@@ -196,56 +193,6 @@ export function tintInsets(
 }
 
 /**
- * How far the tint may reach past an entry's left and right sides: up to the
- * edge of the viewport or of an ancestor that clips its overflow, so the
- * tint's bleed (`--newspack-rolling-coverage-new-tint-bleed`, which caps it)
- * never cuts off or scrolls the page sideways.
- *
- * @param {Object} box    The entry's left and right edges.
- * @param {Object} bounds The left and right edges it may reach.
- * @return {number[]} The room on the left and right, in whole pixels.
- */
-export function tintRoom(
-	box: Pick< DOMRect, 'left' | 'right' >,
-	bounds: Pick< DOMRect, 'left' | 'right' >
-): [ number, number ] {
-	return [
-		Math.max( 0, Math.floor( box.left - bounds.left ) ),
-		Math.max( 0, Math.floor( bounds.right - box.right ) ),
-	];
-}
-
-/**
- * The left and right edges an element can paint up to: the viewport's, less
- * whatever its ancestors clip.
- *
- * @param {HTMLElement} element The element.
- * @return {Object} The edges.
- */
-function paintBounds( element: HTMLElement ): { left: number; right: number } {
-	const root = element.ownerDocument.documentElement;
-	const bounds = { left: 0, right: root.clientWidth };
-
-	for (
-		let parent = element.parentElement;
-		parent && parent !== root && parent !== element.ownerDocument.body;
-		parent = parent.parentElement
-	) {
-		const { overflowX } = window.getComputedStyle( parent );
-
-		if ( ! overflowX || overflowX === 'visible' ) {
-			continue;
-		}
-
-		const left = parent.getBoundingClientRect().left + parent.clientLeft;
-		bounds.left = Math.max( bounds.left, left );
-		bounds.right = Math.min( bounds.right, left + parent.clientWidth );
-	}
-
-	return bounds;
-}
-
-/**
  * Whether a computed color paints anything.
  *
  * @param {string} color The color.
@@ -395,21 +342,13 @@ function neighbour( entry: HTMLElement, after: boolean ): HTMLElement | null {
 	return sibling as HTMLElement | null;
 }
 
-type TintPlace = {
-	insets: [ number, number ];
-	room: [ number, number ];
-};
-
 /**
- * Measures how far an entry's tint reaches: above and below (see
- * tintInsets()), and to the sides (see tintRoom()). A card keeps the tint
- * inside its box, and a layout that places entries side by side keeps it off
- * its neighbors, so neither gets room to the sides.
+ * Measures how far an entry's tint reaches (see tintInsets()).
  *
  * @param {HTMLElement} entry The entry.
- * @return {TintPlace} The insets and the room, in pixels.
+ * @return {number[]} The start and end insets, in pixels.
  */
-function measureTint( entry: HTMLElement ): TintPlace {
+function measureTint( entry: HTMLElement ): [ number, number ] {
 	const facing = (
 		other: HTMLElement | null,
 		adjacent: Element | null,
@@ -433,28 +372,16 @@ function measureTint( entry: HTMLElement ): TintPlace {
 		return edges.card || edges[ edge ] !== null ? 'solid' : 'space';
 	};
 
-	const edges = rowEdges( entry );
-	const gap = rowGap( entry );
-
-	return {
-		insets: tintInsets(
-			edges,
-			facing(
-				neighbour( entry, false ),
-				entry.previousElementSibling,
-				'bottom'
-			),
-			facing( neighbour( entry, true ), entry.nextElementSibling, 'top' ),
-			gap
+	return tintInsets(
+		rowEdges( entry ),
+		facing(
+			neighbour( entry, false ),
+			entry.previousElementSibling,
+			'bottom'
 		),
-		room:
-			gap === null || edges.card
-				? [ 0, 0 ]
-				: tintRoom(
-						entry.getBoundingClientRect(),
-						paintBounds( entry )
-					),
-	};
+		facing( neighbour( entry, true ), entry.nextElementSibling, 'top' ),
+		rowGap( entry )
+	);
 }
 
 /**
@@ -467,11 +394,9 @@ function placeTints( entries: Iterable< HTMLElement > ): void {
 	Array.from(
 		entries,
 		( entry ) => [ entry, measureTint( entry ) ] as const
-	).forEach( ( [ entry, { insets, room } ] ) => {
-		entry.style.setProperty( TINT_START, `${ insets[ 0 ] }px` );
-		entry.style.setProperty( TINT_END, `${ insets[ 1 ] }px` );
-		entry.style.setProperty( TINT_ROOM_LEFT, `${ room[ 0 ] }px` );
-		entry.style.setProperty( TINT_ROOM_RIGHT, `${ room[ 1 ] }px` );
+	).forEach( ( [ entry, [ start, end ] ] ) => {
+		entry.style.setProperty( TINT_START, `${ start }px` );
+		entry.style.setProperty( TINT_END, `${ end }px` );
 	} );
 }
 
@@ -1000,8 +925,6 @@ export class NewEntryMarks {
 		ownIn( entry, `.${ STATUS_CLASS }` )?.remove();
 		entry.style.removeProperty( TINT_START );
 		entry.style.removeProperty( TINT_END );
-		entry.style.removeProperty( TINT_ROOM_LEFT );
-		entry.style.removeProperty( TINT_ROOM_RIGHT );
 
 		if ( ! entry.getAttribute( 'style' ) ) {
 			entry.removeAttribute( 'style' );
