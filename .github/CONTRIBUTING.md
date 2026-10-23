@@ -88,7 +88,7 @@ When the OneSignal plugin is installed, configured, and v3-active, readers can f
 - **Share links.** The Share block shares the entry's permalink with `?rc_source={host_post_id}`, the page it was shared from. The entry page serves its own Open Graph tags to social crawlers, which don't run JavaScript, and a script sends visitors on to the host page.
 - **Plain permalinks.** When the entry's coverage has a canonical URL, a request for the entry's permalink without `rc_source` is redirected (302 by default) to that URL, for crawlers and visitors alike. Without a canonical URL, the entry page renders.
 - Both destinations carry `?rolling-coverage-entry={slug}` and the `#newspack-rolling-coverage-entry-{id}` anchor, so the feed opens at the entry.
-- **Entries hidden by their coverage.** When none of an entry's coverages exists outside the trash, its permalink answers with a 404 for every visitor, before either redirect, and oEmbed leaves it out (`Post_Type::is_hidden_by_coverage()`).
+- **Entries hidden by their coverage.** When none of an entry's coverages exists outside the trash, its permalink answers with a 404 for every visitor, before either redirect. Front-end listings of entries, such as `?post_type=rolling_cov_entry` and its feed, leave it out, and so does oEmbed (`Post_Type::is_hidden_by_coverage()`, `Post_Type::hide_entries_from_main_query()`).
 
 See [Share and Read more](../src/blocks/rolling-coverage/DEVELOPMENT.md#share-and-read-more).
 

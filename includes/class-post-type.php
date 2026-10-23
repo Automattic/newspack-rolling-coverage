@@ -260,7 +260,7 @@ class Post_Type {
 		add_action( 'before_delete_post', [ __CLASS__, 'on_delete_post' ] );
 		add_filter( 'rest_' . self::CPT_SLUG . '_query', [ __CLASS__, 'filter_rest_query' ], 10, 2 );
 		add_filter( 'rest_request_before_callbacks', [ __CLASS__, 'hide_entry_rest_record' ], 10, 3 );
-		add_filter( 'the_posts', [ __CLASS__, 'hide_entry_permalink' ], 10, 2 );
+		add_filter( 'posts_where', [ __CLASS__, 'hide_entries_from_main_query' ], 10, 2 );
 		add_filter( 'is_post_embeddable', [ __CLASS__, 'hide_entry_embed' ], 10, 2 );
 		add_filter( 'posts_where', [ __CLASS__, 'author_scope_where' ], 10, 2 );
 		add_action( self::CLEANUP_CRON_HOOK, [ __CLASS__, 'cleanup_orphaned_entries' ] );
@@ -478,10 +478,11 @@ class Post_Type {
 	 * exists outside the trash.
 	 *
 	 * Trashing a coverage leaves its entries published, as does deleting one
-	 * until the cleanup removes them, so every public way to an entry checks
+	 * until the cleanup removes them, so the ways readers reach an entry check
 	 * its coverage as well as its own status. The feed and the entries list
-	 * (filter_rest_query()) check it themselves; the entry's permalink, REST
-	 * record and oEmbed data check it here.
+	 * (filter_rest_query()) check it themselves, and hide_entries_from_main_query()
+	 * applies this rule in SQL. The entry's REST record and its oEmbed data
+	 * check it here.
 	 *
 	 * @param WP_Post $entry Entry post.
 	 * @return bool
@@ -503,32 +504,53 @@ class Post_Type {
 	}
 
 	/**
-	 * Leave an entry hidden by its coverage out of the main query for its
-	 * permalink, for every visitor, as WordPress does with a post in the
-	 * trash, so the request is a 404.
+	 * Leave entries hidden by their coverage out of every front-end main query
+	 * that can return entries. An entry's permalink then answers with a 404
+	 * for every visitor, as a post in the trash does, and listings such as
+	 * `?post_type=rolling_cov_entry`, alone or mixed with other post types,
+	 * and their feeds leave the entries out.
 	 *
-	 * Flagging a 404 later, at `template_redirect`, would leave the entry in
-	 * the query, where the embed template (`?embed=true`) still renders its
-	 * title and text. Emptying the query also settles the 404 before
-	 * Social_Sharing::redirect_entry_to_canonical() could send the reader on
-	 * to the coverage's page.
+	 * The clause is is_hidden_by_coverage() in SQL, so the two change
+	 * together. Filtering the query rather than its results keeps a listing's
+	 * pagination right, and leaves the theme, the embed template
+	 * (`?embed=true`) and Social_Sharing::redirect_entry_to_canonical()
+	 * nothing to show or redirect for a hidden entry's permalink.
 	 *
-	 * @param WP_Post[]|mixed $posts Posts the query found.
-	 * @param WP_Query|mixed  $query The query.
-	 * @return WP_Post[]|mixed
+	 * @param string   $where The query's WHERE clause.
+	 * @param WP_Query $query The query.
+	 * @return string Filtered WHERE clause.
 	 */
-	public static function hide_entry_permalink( $posts, $query ) {
-		if ( empty( $posts ) || ! is_array( $posts ) || ! $query instanceof WP_Query || ! $query->is_main_query() || ! $query->is_singular() ) {
-			return $posts;
+	public static function hide_entries_from_main_query( string $where, WP_Query $query ): string {
+		if ( is_admin() || ! $query->is_main_query() || ! in_array( self::CPT_SLUG, (array) $query->get( 'post_type' ), true ) ) {
+			return $where;
 		}
 
-		$entry = get_post( reset( $posts ) );
+		global $wpdb;
 
-		if ( ! $entry instanceof WP_Post || self::CPT_SLUG !== $entry->post_type || ! self::is_hidden_by_coverage( $entry ) ) {
-			return $posts;
-		}
+		$trashed_ids = get_terms(
+			[
+				'taxonomy'   => Taxonomy::TAXONOMY_SLUG,
+				'fields'     => 'ids',
+				'hide_empty' => false,
+				'meta_query' => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					[
+						'key'   => Taxonomy::STATUS_META_KEY,
+						'value' => 'trash',
+					],
+				],
+			]
+		);
+		$trashed_ids = is_array( $trashed_ids ) ? array_map( 'intval', $trashed_ids ) : [];
+		$not_trashed = $trashed_ids ? ' AND tt.term_id NOT IN (' . implode( ',', $trashed_ids ) . ')' : '';
 
-		return [];
+		$sql = " AND ( {$wpdb->posts}.post_type <> %s OR EXISTS (
+			SELECT 1 FROM {$wpdb->term_relationships} AS tr
+			INNER JOIN {$wpdb->term_taxonomy} AS tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
+			WHERE tr.object_id = {$wpdb->posts}.ID AND tt.taxonomy = %s{$not_trashed}
+		) )";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The only dynamic values are the placeholders, core table names and a list of integer term IDs.
+		return $where . $wpdb->prepare( $sql, self::CPT_SLUG, Taxonomy::TAXONOMY_SLUG );
 	}
 
 	/**

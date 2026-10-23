@@ -9,9 +9,9 @@ use Newspack_Rolling_Coverage\Post_Type;
 use Newspack_Rolling_Coverage\Taxonomy;
 
 /**
- * Trashing a coverage leaves its entries published, so the entry's permalink
- * and the oEmbed data other sites read from it check the coverage too, as the
- * feed and the entries REST route do.
+ * Trashing a coverage leaves its entries published, so the entry's permalink,
+ * listings of entries, and the oEmbed data other sites read from the
+ * permalink check the coverage too, as the feed and the entries REST route do.
  */
 class Test_Entry_Permalink extends Rolling_Coverage_TestCase {
 
@@ -62,6 +62,34 @@ class Test_Entry_Permalink extends Rolling_Coverage_TestCase {
 			$this->assertTrue( is_singular( Post_Type::CPT_SLUG ), "An entry with {$case} should render." );
 			$this->assertFalse( is_404() );
 		}
+	}
+
+	/**
+	 * Listings of entries, alone or mixed with other post types, leave the
+	 * hidden ones out and count only what they show, so their pages and feeds
+	 * carry no hidden text.
+	 */
+	public function test_listings_leave_out_entries_hidden_by_coverage() {
+		$visible_entry_id = self::create_entry( self::create_coverage() );
+		$post_id          = self::factory()->post->create();
+		self::create_entry( self::create_coverage( 'trash' ) );
+
+		$this->go_to( add_query_arg( 'post_type', Post_Type::CPT_SLUG, home_url( '/' ) ) );
+
+		$this->assertSame( [ $visible_entry_id ], wp_list_pluck( $GLOBALS['wp_query']->posts, 'ID' ) );
+		$this->assertSame( 1, $GLOBALS['wp_query']->found_posts );
+
+		$this->go_to(
+			add_query_arg(
+				[
+					'post_type' => [ 'post', Post_Type::CPT_SLUG ],
+					'feed'      => 'rss2',
+				],
+				home_url( '/' )
+			)
+		);
+
+		$this->assertEqualsCanonicalizing( [ $visible_entry_id, $post_id ], wp_list_pluck( $GLOBALS['wp_query']->posts, 'ID' ) );
 	}
 
 	/**
