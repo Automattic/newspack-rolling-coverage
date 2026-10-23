@@ -116,7 +116,10 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 
 		.newspack-rolling-coverage-archived-entry-content[open]::details-content {
 			opacity: 1;
-			transition: opacity motion.$enter motion.$ease-out, content-visibility motion.$enter allow-discrete;
+
+			@media (prefers-reduced-motion: no-preference) {
+				transition: opacity motion.$enter motion.$ease-out, content-visibility motion.$enter allow-discrete;
+			}
 		}
 	}
 
