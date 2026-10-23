@@ -58,11 +58,11 @@ test( 'callers asking a URL in flight share its request', async () => {
 
 	const first = fetchEntries( '/entries?recent=1' );
 	const second = fetchEntries( '/entries?recent=1' );
+	expect( sent ).toEqual( [ '/entries?recent=1' ] );
 	answer();
 
 	const [ a, b ] = await Promise.all( [ first, second ] );
 
-	expect( sent ).toEqual( [ '/entries?recent=1' ] );
 	expect( a.url ).toBe( '/entries?recent=1' );
 	expect( b.url ).toBe( '/entries?recent=1' );
 	// Each caller reads a copy, never the reply itself or another's copy.
@@ -109,6 +109,7 @@ test( 'a failed request fails every caller, and the next ask sends again', async
 
 	const first = fetchEntries( '/entries?recent=1' );
 	const second = fetchEntries( '/entries?recent=1' );
+	expect( sent ).toHaveLength( 1 );
 	fail();
 
 	await expect( first ).rejects.toThrow( 'offline' );
