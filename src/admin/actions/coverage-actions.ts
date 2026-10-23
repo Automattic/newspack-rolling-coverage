@@ -173,11 +173,11 @@ function getCoverageActions(
 							? pluralize(
 									items.length,
 									__(
-										'Messages posted in its linked Slack channel won’t become entries while it’s in the trash.',
+										'Messages posted in its linked Slack channel while it’s in the trash won’t become entries, and restoring it won’t bring them in.',
 										'newspack-rolling-coverage'
 									),
 									__(
-										'Messages posted in their linked Slack channels won’t become entries while they’re in the trash.',
+										'Messages posted in their linked Slack channels while they’re in the trash won’t become entries, and restoring them won’t bring them in.',
 										'newspack-rolling-coverage'
 									)
 								)
