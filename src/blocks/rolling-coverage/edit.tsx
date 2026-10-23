@@ -132,6 +132,7 @@ import LayoutPickerModal, {
 import {
 	getBuiltInLayouts,
 	builtInLayoutSlugFor,
+	isLayoutPatternPost,
 	switchLayoutAttributes,
 	type BuiltInLayoutSlug,
 } from './layouts';
@@ -906,9 +907,11 @@ export default function Edit( {
 	);
 	const isLayoutPattern =
 		! coverageId &&
-		currentPostType === 'wp_block' &&
-		( ( patternCategories ?? [] ).includes( getLayoutCategoryId() ) ||
-			builtInLayoutSlugFor( currentPostId ) !== null );
+		isLayoutPatternPost(
+			currentPostType,
+			currentPostId,
+			patternCategories
+		);
 	// The pattern itself carries no cap, so its preview borrows the one picking the layout sets.
 	const patternLatest = isLayoutPattern
 		? getBuiltInLayouts().find(
