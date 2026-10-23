@@ -5177,8 +5177,8 @@ class Rolling_Coverage_Block {
 			$new_entry_count = 0;
 			$ad_entry_ids    = [];
 
-			// The page lists new entries above its own, newest first, so the
-			// oldest continues its count.
+			// The page lists new entries above its own in this order, so the
+			// last one listed sits next to them and continues its count.
 			foreach ( array_reverse( $changes ) as $entry ) {
 				if ( 'publish' === $entry->post_status && $poll_cursor->is_new( $entry ) ) {
 					++$new_entry_count;

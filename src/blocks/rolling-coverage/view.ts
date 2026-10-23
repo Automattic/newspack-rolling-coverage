@@ -27,7 +27,7 @@ import {
 	readEntryName,
 	showingLatestLabel,
 } from './entry-name';
-import { isSharedReply, readSharedReply } from './shared-poll';
+import { isSharedReply, readSharedReply, startingAdCount } from './shared-poll';
 import type { PollEventDetail } from '../shared/poll-event';
 import type {
 	AdSlot,
@@ -638,12 +638,7 @@ function initBlock( root: HTMLElement ): void {
 	let isDisposed = false;
 	let pollTimeoutId: ReturnType< typeof setTimeout > | null = null;
 	let pendingNewEntries: PendingEntry[] = [];
-
-	// New entries go above the page's unpinned entries, and each takes an ad
-	// when the entries below it, down to the next ad, make a full interval.
-	// Polls count the arriving entry too, so the count starts one below the
-	// unpinned entries above the page's first ad.
-	let polledCount = Math.max( 0, entriesAboveFirstAd() - 1 );
+	let polledCount = startingAdCount( entriesList );
 
 	// The coverage status the last poll reported.
 	let polledStatus = status;
@@ -1003,26 +998,6 @@ function initBlock( root: HTMLElement ): void {
 		return ( end === -1 ? entries : entries.slice( 0, end ) ).filter(
 			( entry ) => entry !== except
 		);
-	}
-
-	/**
-	 * How many unpinned entries the list shows above its first ad below
-	 * them, or in all when no ad follows them.
-	 *
-	 * @return {number} The count.
-	 */
-	function entriesAboveFirstAd(): number {
-		let count = 0;
-
-		for ( const child of Array.from( entriesList.children ) ) {
-			if ( child.matches( '[data-entry-id]:not([data-pinned])' ) ) {
-				count++;
-			} else if ( count > 0 && child.matches( '.newspack_global_ad' ) ) {
-				break;
-			}
-		}
-
-		return count;
 	}
 
 	/**
