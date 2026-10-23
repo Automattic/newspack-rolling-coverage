@@ -459,10 +459,41 @@ class Taxonomy {
 	}
 
 	/**
-	 * Restore a coverage from trash to the status it had when it was
-	 * trashed, so an ended coverage stays ended. One with no status kept
-	 * comes back Live. Entries remain trashed — each must be recovered
-	 * individually.
+	 * The status a trashed coverage goes back to: the one it had when it was
+	 * trashed, or Live when none was kept.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 * @return string Status value.
+	 */
+	public static function status_before_trash( int $coverage_id ): string {
+		$status = get_term_meta( $coverage_id, self::STATUS_BEFORE_TRASH_META_KEY, true );
+
+		return in_array( $status, [ self::STATUS_ACTIVE, self::STATUS_PAUSED, self::STATUS_ARCHIVED ], true ) ? $status : self::STATUS_ACTIVE;
+	}
+
+	/**
+	 * Bring a trashed coverage back in the status it had when it was
+	 * trashed, so an ended coverage stays ended with its end time. Shared
+	 * by the coverage's Restore and the restore of one of its entries.
+	 *
+	 * @param int $coverage_id Coverage term ID.
+	 */
+	public static function restore_coverage( int $coverage_id ): void {
+		$status = self::status_before_trash( $coverage_id );
+
+		// Ending a coverage snapshots its latest activity as its end time, so
+		// keep the end time it had rather than take a new one.
+		$end_time = get_term_meta( $coverage_id, self::END_TIME_META_KEY, true );
+		update_term_meta( $coverage_id, self::STATUS_META_KEY, $status );
+		if ( self::STATUS_ARCHIVED === $status && '' !== $end_time ) {
+			update_term_meta( $coverage_id, self::END_TIME_META_KEY, $end_time );
+		}
+		delete_term_meta( $coverage_id, self::STATUS_BEFORE_TRASH_META_KEY );
+	}
+
+	/**
+	 * Restore a coverage from trash (see restore_coverage()). Entries remain
+	 * trashed — each must be recovered individually.
 	 *
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response|\WP_Error
@@ -485,19 +516,7 @@ class Taxonomy {
 			);
 		}
 
-		$status = get_term_meta( $coverage_id, self::STATUS_BEFORE_TRASH_META_KEY, true );
-		if ( ! in_array( $status, [ self::STATUS_ACTIVE, self::STATUS_PAUSED, self::STATUS_ARCHIVED ], true ) ) {
-			$status = self::STATUS_ACTIVE;
-		}
-
-		// Ending a coverage snapshots its latest activity as its end time, so
-		// keep the end time it had rather than take a new one.
-		$end_time = get_term_meta( $coverage_id, self::END_TIME_META_KEY, true );
-		update_term_meta( $coverage_id, self::STATUS_META_KEY, $status );
-		if ( self::STATUS_ARCHIVED === $status && '' !== $end_time ) {
-			update_term_meta( $coverage_id, self::END_TIME_META_KEY, $end_time );
-		}
-		delete_term_meta( $coverage_id, self::STATUS_BEFORE_TRASH_META_KEY );
+		self::restore_coverage( $coverage_id );
 
 		return new \WP_REST_Response(
 			[

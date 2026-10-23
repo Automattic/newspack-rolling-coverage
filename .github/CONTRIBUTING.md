@@ -61,7 +61,7 @@ Connect a Slack channel to a coverage, from the Slack Connection page or with th
 - **Ignore prefix** — in Auto-publish and Draft channels, messages beginning with a configurable prefix (default `~~`) are skipped.
 - **Content conversion** — the message's Slack rich text (or its `mrkdwn` as the fallback) is converted to Gutenberg blocks, with user/channel/link mentions turned into readable text. Images uploaded with a message are imported into the media library and added as image blocks; other uploads are left out.
 - **Slash commands** — `/rolling-coverage-connect`, `/rolling-coverage-unlink`, `/rolling-coverage-status`.
-- **Ended and trashed coverages** — messages for a coverage that has ended or is in the trash don't become entries.
+- **Ended and trashed coverages** — messages for a coverage that has ended or is in the trash don't become entries, and the publish emoji leaves their drafts alone.
 - **Security** — every webhook request is authenticated with HMAC-SHA256 signature verification (timing-safe `hash_equals`) and a 5-minute replay window.
 - **Dedup** — a per-message mutex plus a unique source-reference meta key prevents duplicate entries on webhook retries.
 - **Setup guide and manifest** — the admin generates a ready-to-paste Slack app manifest with the required scopes and request URLs.

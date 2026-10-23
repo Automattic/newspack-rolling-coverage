@@ -68,6 +68,10 @@ function getCoverageActions(
 						'newspack-rolling-coverage'
 					)
 			);
+			// Some went through, so refresh the list to show them.
+			if ( failed.length < items.length ) {
+				onActionPerformed();
+			}
 		}
 	};
 
@@ -148,17 +152,32 @@ function getCoverageActions(
 							items.length
 						)
 					),
-					description: pluralize(
-						items.length,
-						__(
-							'Its entries will be hidden from the frontend until the coverage is restored.',
-							'newspack-rolling-coverage'
+					description: [
+						pluralize(
+							items.length,
+							__(
+								'Its entries will be hidden from the frontend until the coverage is restored.',
+								'newspack-rolling-coverage'
+							),
+							__(
+								'Their entries will be hidden from the frontend until the coverages are restored.',
+								'newspack-rolling-coverage'
+							)
 						),
-						__(
-							'Their entries will be hidden from the frontend until the coverages are restored.',
-							'newspack-rolling-coverage'
+						// A trashed coverage takes no messages, and a restore doesn't bring them back.
+						items.some(
+							( coverage ) =>
+								!! coverage.meta
+									?.rolling_coverage_slack_channel_id
 						)
-					),
+							? __(
+									'Messages posted in a linked Slack channel meanwhile won’t become entries, even after a restore.',
+									'newspack-rolling-coverage'
+								)
+							: '',
+					]
+						.filter( Boolean )
+						.join( ' ' ),
 					confirmLabel: __( 'Trash', 'newspack-rolling-coverage' ),
 					intent: 'irreversible',
 					onConfirm: async () => {

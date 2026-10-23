@@ -52,7 +52,7 @@ Row actions live in `src/admin/actions/coverage-actions.ts`:
 | Entries | Always | Opens the coverage's entries. |
 | Placements | The coverage has placements | See [Placements](#placements). |
 | Slack Connection | `canManageOptions`, once Slack is configured | Opens `SlackConnectionDrawer`. |
-| Trash | `canManageTerms`, coverage not trashed | Confirms, then `POST rolling-coverage/v1/coverages/<id>/trash`. The coverage's status becomes `trash`, keeping the one it had in `rolling_coverage_status_before_trash`, and its entries are hidden on the site until it is restored. The "Coverage trashed." snackbar offers Undo, which restores what was just trashed as Restore does. |
+| Trash | `canManageTerms`, coverage not trashed | Confirms, noting when a Slack channel is linked that messages posted meanwhile won't become entries, then `POST rolling-coverage/v1/coverages/<id>/trash`. The coverage's status becomes `trash`, keeping the one it had in `rolling_coverage_status_before_trash`, and its entries are hidden on the site until it is restored. The "Coverage trashed." snackbar ("Coverages trashed." for several) offers Undo, which restores what was just trashed as Restore does. |
 | Restore | `canManageTerms`, coverage trashed | `POST rolling-coverage/v1/coverages/<id>/restore`, which puts back the status the coverage had, so an ended coverage stays ended and keeps its end time. One with no status kept comes back Live. |
 | Delete Permanently | `canManageTerms`, coverage trashed | Confirms, then `DELETE rolling-coverage/v1/coverages/<id>`. Its entries are deleted too, apart from any already in the trash, by a cleanup cron event a minute later, in batches of 50. |
 
@@ -105,7 +105,7 @@ An entry is locked when it is archived or its coverage has ended (`isEntryLocked
 | Archive, Unarchive | Yes | Editors; Archive on a published entry; the coverage hasn't ended | `POST rolling-coverage/v1/entries/<id>/archive` (`Archive_Mode`). |
 | Pin, Unpin | No | Editors, not locked | `POST rolling-coverage/v1/entries/<id>/pin`. |
 | Trash | Yes | Not trashed, not locked; Editors, or the author of an entry they can publish | Confirms, then `DELETE` on the core entries route. |
-| Restore | Yes | Trashed, the user can edit it | `POST rolling-coverage/v1/entries/restore`, in one request for all of them. An entry whose coverage no longer exists comes back in a recovery coverage, shared by entries from the same coverage; creating or reusing it needs `manage_categories`, so without it the entry stays in the trash with an error. Archived entries, and entries locked because their coverage ended, can't be restored. |
+| Restore | Yes | Trashed, the user can edit it | `POST rolling-coverage/v1/entries/restore`, in one request for all of them. An entry whose coverage no longer exists comes back in a recovery coverage, shared by entries from the same coverage; creating or reusing it needs `manage_categories`, so without it the entry stays in the trash with an error. An entry in a trashed coverage brings the coverage back in the status it had (`Taxonomy::restore_coverage()`, which needs `manage_categories`), unless it had ended. Archived entries, and entries locked because their coverage ended, trashed or not, can't be restored. |
 | Delete Permanently | Yes | Editors, trashed | Confirms, then `DELETE` on the core entries route with `force`. |
 
 Quick Edit and Edit ask for confirmation first on an archived entry, or one whose coverage is paused or ended, naming the coverage's status as the site labels it.
@@ -244,7 +244,7 @@ Every other subtype is skipped: bots' posts, edits, deletions, and the notices S
 
 A message for a coverage that has ended or is in the trash isn't saved (`Entry_Ingestion_Service::SKIP_ARCHIVED_COVERAGE` and `SKIP_TRASHED_COVERAGE`), and the Monitor tab logs which.
 
-Tests: `tests/test-slack-webhook.php`.
+Tests: `tests/test-slack-webhook.php` and `tests/test-entry-ingestion-service.php`.
 
 ## Slack publish modes
 
@@ -263,7 +263,7 @@ Channels linked before publish modes stored only an `autopublish` flag. `Slack_C
 - The two emoji are site-wide: **Publish Emoji** and **Draft Emoji** in the Slack page's Settings tab, `mega` and `memo` by default. They are stored lowercase without colons and must differ. A skin-tone variant of either counts.
 - Slack sends every reaction in the bot's channels to the events route as `reaction_added`. `Slack_Webhook_Controller::handle_reaction()` drops the bot's own reactions, channels in other modes and other emoji before calling Slack. It then reads the message with `conversations.replies` (`Slack_API_Client::get_message_or_reply()`), since a reaction doesn't say which thread its message is in and `conversations.history` lists top-level messages only.
 - The entry is the message as it reads when the reaction arrives. The ignore prefix doesn't apply, since the reaction is the opt-in. A message event in an Emoji trigger channel returns before any Slack call.
-- When the message already has an entry, the publish emoji publishes it only if it is a draft that never went out. A draft an editor took down (`Post_Type::META_UNPUBLISHED_GMT`), an archived one or one in a coverage that has ended (`Archive_Mode::is_entry_locked()`), and one dated a minute or more ahead stay as they are.
+- When the message already has an entry, the publish emoji publishes it only if it is a draft that never went out. A draft an editor took down (`Post_Type::META_UNPUBLISHED_GMT`), an archived one or one in a coverage that has ended (`Archive_Mode::is_entry_locked()`), one in a coverage that is in the trash, and one dated a minute or more ahead stay as they are.
 - Publishing uses `wp_publish_post()`, which doesn't save the content again: a `wp_update_post()` save would run it through kses, as the webhook has no user. Because `wp_publish_post()` doesn't name the post, the draft gets the slug core gives a post saved as published (its ID, for an untitled entry) first, so its share and notification links work. The entry keeps the date the draft was created, as when it is published from the editor. When the entry is opted in to notify followers, the send goes out on the next cron run (`Push_Notifications::settle_rest_publish()`), not a minute later.
 - A trashed entry counts as the message's entry, so a later reaction, such as a colleague adding the same emoji, doesn't bring it back. A message that carries the bot's own reaction but still has no entry in this coverage when looked up again had one before, deleted for good or made for a coverage the channel was linked to earlier, so it isn't added again; when the draft emoji's entry turns up in that second lookup, the publish emoji publishes it. Any other reaction on a message with an entry changes nothing, and removing a reaction does nothing (the app doesn't subscribe to `reaction_removed`).
 - The publish emoji can arrive while the draft emoji's entry is still being saved. The handler then answers 503, so Slack sends the reaction again and it publishes the draft once it exists; when the draft was saved after its lookup, it publishes it straight away.

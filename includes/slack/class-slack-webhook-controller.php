@@ -1243,7 +1243,8 @@ class Slack_Webhook_Controller {
 	 * Publish a message's draft entry after someone reacts to it with the
 	 * publish emoji, and swap the bot's draft reaction for the published one.
 	 * Only a draft that never went out is published: an entry an editor took
-	 * down, an archived one, or one dated ahead stays as it is.
+	 * down, an archived one, one in a coverage that is in the trash, or one
+	 * dated ahead stays as it is.
 	 *
 	 * Publishing through wp_publish_post() doesn't save the content again. A
 	 * save through wp_update_post() would run it through kses, since the
@@ -1269,6 +1270,15 @@ class Slack_Webhook_Controller {
 		if ( Archive_Mode::is_entry_locked( $entry_id ) ) {
 			Slack_Monitor::log( 'info', 'Draft not published (archived)', [ 'post_id' => $entry_id ] );
 			return;
+		}
+
+		// So does one in a coverage that is in the trash, which the site no longer shows.
+		$coverage_ids = wp_get_post_terms( $entry_id, Taxonomy::TAXONOMY_SLUG, [ 'fields' => 'ids' ] );
+		foreach ( is_wp_error( $coverage_ids ) ? [] : $coverage_ids as $coverage_id ) {
+			if ( 'trash' === get_term_meta( (int) $coverage_id, Taxonomy::STATUS_META_KEY, true ) ) {
+				Slack_Monitor::log( 'info', 'Draft not published (coverage trashed)', [ 'post_id' => $entry_id ] );
+				return;
+			}
 		}
 
 		// An entry an editor took down stays down, however many people add

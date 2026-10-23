@@ -132,19 +132,56 @@ class Test_Entry_Restore extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * Restoring out of the trash would add an entry to the archived record.
+	 * Restoring out of the trash would add an entry to the archived record,
+	 * and would reopen an ended coverage that is itself in the trash.
+	 *
+	 * @dataProvider provide_ended_coverage_cases
+	 *
+	 * @param bool $trash_the_coverage Whether the ended coverage is then trashed.
 	 */
-	public function test_entry_of_an_archived_coverage_cannot_be_restored() {
+	public function test_entry_of_an_archived_coverage_cannot_be_restored( $trash_the_coverage ) {
 		$coverage_id = self::create_coverage();
 		$entry_id    = self::create_entry( $coverage_id );
 		wp_trash_post( $entry_id );
 		update_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, Taxonomy::STATUS_ARCHIVED );
+		if ( $trash_the_coverage ) {
+			self::dispatch( 'POST', "/coverages/{$coverage_id}/trash" );
+		}
 
 		$response = self::dispatch( 'POST', "/entries/{$entry_id}/restore" );
 
 		$this->assertSame( 403, $response->get_status(), 'The request should be refused.' );
 		$this->assertStringContainsString( '“Ended”', $response->get_data()['message'], "The refusal should name the coverage's status." );
 		$this->assertSame( 'trash', get_post_status( $entry_id ), 'The entry should stay in the trash.' );
+		$this->assertSame( $trash_the_coverage ? 'trash' : Taxonomy::STATUS_ARCHIVED, get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ), 'The coverage should keep its status.' );
+	}
+
+	/**
+	 * An ended coverage, on its own and in the trash.
+	 *
+	 * @return array
+	 */
+	public function provide_ended_coverage_cases() {
+		return [
+			'ended'               => [ false ],
+			'ended, then trashed' => [ true ],
+		];
+	}
+
+	/**
+	 * Restoring an entry brings its trashed coverage back in the status it
+	 * had, not Live.
+	 */
+	public function test_restoring_an_entry_brings_its_trashed_coverage_back_as_it_was() {
+		$coverage_id = self::create_coverage( Taxonomy::STATUS_PAUSED );
+		$entry_id    = self::create_entry( $coverage_id );
+		wp_trash_post( $entry_id );
+		self::dispatch( 'POST', "/coverages/{$coverage_id}/trash" );
+
+		$response = self::dispatch( 'POST', "/entries/{$entry_id}/restore" );
+
+		$this->assertSame( 200, $response->get_status(), 'The request should succeed.' );
+		$this->assertSame( Taxonomy::STATUS_PAUSED, get_term_meta( $coverage_id, Taxonomy::STATUS_META_KEY, true ), 'The coverage should be paused again.' );
 	}
 
 	/**
