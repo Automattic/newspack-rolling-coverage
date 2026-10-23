@@ -587,9 +587,12 @@ $accent: var(--newspack-rolling-coverage-accent, var(--wp--preset--color--accent
 		--nrc-visible-entries: 3;
 	}
 
+	// Each entry clips at its own edge, so a time or label that can't shrink
+	// never paints over the next entry.
 	> * {
 		flex: 0 0 calc((100% - (var(--nrc-visible-entries) - 1) * var(--nrc-row-gap)) / var(--nrc-visible-entries));
 		min-width: 0;
+		overflow: clip;
 	}
 
 	> :nth-child(n+4) {
