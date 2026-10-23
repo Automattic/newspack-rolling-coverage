@@ -20,7 +20,7 @@
 	}
 }
 
-[data-check-state="checking"] .newspack-rolling-coverage-update-timer__spinner {
+.wp-block-newspack-rolling-coverage-update-timer[data-check-state="checking"] .newspack-rolling-coverage-update-timer__spinner {
 	animation: newspack-rolling-coverage-update-timer-spin 900ms linear infinite;
 }
 

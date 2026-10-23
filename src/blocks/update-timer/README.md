@@ -26,7 +26,7 @@ The Settings panel holds one setting.
 
 | Setting | Options | What it does |
 | --- | --- | --- |
-| Spinner | Show, Hide | "Sits beside the countdown and turns only while a check runs. Hidden for readers who ask their device for reduced motion." Hide leaves the text on its own. Show is the default. |
+| Spinner | Show, Hide | "Turns only while a check runs. Hidden for readers who ask their device for reduced motion." Hide leaves the text on its own. Show is the default. |
 
 ## When it doesn't appear
 
