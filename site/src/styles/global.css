@@ -143,6 +143,7 @@
 
 #nd-subnav {
 	grid-column: 1 / -1;
+	contain: inline-size;
 }
 
 html:not([data-astro-transition]) body {
