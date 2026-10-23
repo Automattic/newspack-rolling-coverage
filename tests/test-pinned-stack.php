@@ -64,10 +64,11 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 	 * group and the Full Story Entry group across the other two.
 	 *
 	 * @param string $entry_before Markup ahead of the entry group's title.
+	 * @param string $stacked      The Pinned group's style on tablets and phones, as JSON.
 	 * @return string
 	 */
-	private static function feed_markup( string $entry_before = '' ): string {
-		$stack_style = '{"layout":{"columnStart":1,"columnSpan":1,"rowSpan":100},"@tablet":' . self::STACKED . ',"@mobile":' . self::STACKED . ',"spacing":{"blockGap":"0"},"position":{"type":"sticky","top":"0px"}}';
+	private static function feed_markup( string $entry_before = '', string $stacked = self::STACKED ): string {
+		$stack_style = '{"layout":{"columnStart":1,"columnSpan":1,"rowSpan":100},"@tablet":' . $stacked . ',"@mobile":' . $stacked . ',"spacing":{"blockGap":"0"},"position":{"type":"sticky","top":"0px"}}';
 
 		return '<!-- wp:group {"className":"newspack-rolling-coverage-feed","style":{"spacing":{"blockGap":{"top":"0","left":"var:preset|spacing|50"}}},"layout":{"type":"grid","columnCount":3}} --><div class="wp-block-group newspack-rolling-coverage-feed">'
 			. '<!-- wp:group {"className":"newspack-rolling-coverage-pinned-stack","style":' . $stack_style . ',"layout":{"type":"flex","orientation":"vertical","justifyContent":"stretch"}} --><div class="wp-block-group newspack-rolling-coverage-pinned-stack">'
@@ -286,9 +287,36 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 	}
 
 	/**
-	 * On a theme supporting sticky blocks the group sticks, under a stable
-	 * class, except on tablets and phones, where it stacks above the entries
-	 * and its style keeps it in the flow.
+	 * The block-supports stylesheet after rendering a coverage with a pinned
+	 * entry, on a theme supporting sticky blocks.
+	 *
+	 * @param string $feed Feed markup.
+	 * @return array{0: string, 1: string, 2: string} Rendered block, the Pinned group's position selector and the stylesheet.
+	 */
+	private function sticky_render( string $feed = '' ): array {
+		$coverage_id = self::create_coverage();
+		[ $entry ]   = self::create_entries( $coverage_id, 2 );
+		Post_Type::pin_entry( $entry );
+
+		add_filter( 'wp_theme_json_data_theme', [ $this, 'with_sticky_support' ] );
+		wp_clean_theme_json_cache();
+		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
+
+		$html  = self::render( $coverage_id, [], $feed );
+		$parts = self::placement( $html );
+
+		preg_match( '/newspack-rolling-coverage-position-[0-9a-f]+/', $parts['stack'], $position );
+
+		return [
+			$html,
+			'.wp-block-newspack-rolling-coverage-rolling-coverage .' . ( $position[0] ?? 'missing-position-class' ),
+			wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] ),
+		];
+	}
+
+	/**
+	 * On a theme supporting sticky blocks the group sticks under a stable
+	 * class.
 	 */
 	public function test_group_sticks_where_the_theme_supports_it() {
 		$coverage_id = self::create_coverage();
@@ -297,24 +325,46 @@ class Test_Pinned_Stack extends Rolling_Coverage_TestCase {
 
 		$this->assertStringNotContainsString( 'is-position-sticky', self::render( $coverage_id ), 'The classic theme has no sticky support.' );
 
-		add_filter( 'wp_theme_json_data_theme', [ $this, 'with_sticky_support' ] );
-		wp_clean_theme_json_cache();
-		WP_Style_Engine_CSS_Rules_Store::remove_all_stores();
+		[ $html, $selector, $css ] = $this->sticky_render();
 
-		$parts = self::placement( self::render( $coverage_id ) );
-
-		$this->assertStringContainsString( 'is-position-sticky', $parts['stack'] );
-		$this->assertMatchesRegularExpression( '/newspack-rolling-coverage-position-[0-9a-f]+/', $parts['stack'] );
-
-		preg_match( '/newspack-rolling-coverage-position-[0-9a-f]+/', $parts['stack'], $position );
-
-		$selector = '.wp-block-newspack-rolling-coverage-rolling-coverage .' . $position[0];
-		$css      = wp_style_engine_get_stylesheet_from_context( 'block-supports', [ 'prettify' => false ] );
-
+		$this->assertStringContainsString( 'is-position-sticky', self::placement( $html )['stack'] );
 		$this->assertStringContainsString( $selector . '{top:calc(0px + var(--newspack-rolling-coverage-top-bars, var(--wp-admin--admin-bar--position-offset, 0px)));position:sticky;z-index:10;}', $css );
+	}
 
-		foreach ( WP_Theme_JSON::get_viewport_media_queries( wp_get_global_settings( [ 'viewport' ] ) ) as $media_query ) {
-			$this->assertStringContainsString( $media_query . '{' . $selector . '{position:static;z-index:auto;}}', $css );
+	/**
+	 * Where the group stacks above the entries, on tablets and phones, each
+	 * viewport's media query puts it back in the flow, after the base rule so
+	 * it wins at equal specificity.
+	 */
+	public function test_group_stays_in_the_flow_where_it_stacks() {
+		[ , $selector, $css ] = $this->sticky_render();
+
+		$media_queries = WP_Theme_JSON::get_viewport_media_queries( wp_get_global_settings( [ 'viewport' ] ) );
+		$base          = strpos( $css, $selector . '{top:' );
+
+		$this->assertCount( 2, $media_queries );
+		$this->assertNotFalse( $base );
+
+		foreach ( $media_queries as $media_query ) {
+			$rule = $media_query . '{' . $selector . '{position:static;z-index:auto;}}';
+
+			$this->assertStringContainsString( $rule, $css );
+			$this->assertGreaterThan( $base, strpos( $css, $rule ) );
+		}
+	}
+
+	/**
+	 * A viewport style that keeps the group sticky or fixed gets no rule
+	 * putting it in the flow.
+	 */
+	public function test_group_keeps_its_position_where_a_viewport_style_keeps_it() {
+		foreach ( [ 'sticky', 'fixed' ] as $type ) {
+			$stacked = '{"layout":{"columnStart":1,"columnSpan":1,"rowSpan":1},"position":{"type":"' . $type . '","top":"0px"}}';
+
+			[ $html, , $css ] = $this->sticky_render( self::feed_markup( '', $stacked ) );
+
+			$this->assertStringContainsString( 'is-position-sticky', self::placement( $html )['stack'] );
+			$this->assertStringNotContainsString( 'position:static', $css, $type );
 		}
 	}
 
